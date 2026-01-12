@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Physics Playground - Hololand Example</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    #controls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      z-index: 1000;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px 0;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      width: 100%;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button.danger {
+      background: #f44336;
+    }
+    button.danger:hover {
+      background: #da190b;
+    }
+    #info {
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+    .stat {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <div id="info">
+      <div class="stat">Objects: <span id="count">0</span></div>
+      <div class="stat">FPS: <span id="fps">60</span></div>
+      <div class="stat">Physics: <span id="physics-status">Running</span></div>
+    </div>
+    <button onclick="spawnBall()">🔴 Spawn Ball</button>
+    <button onclick="spawnBox()">🟦 Spawn Box</button>
+    <button onclick="spawnCylinder()">🟢 Spawn Cylinder</button>
+    <button class="danger" onclick="clearObjects()">🗑️ Clear All</button>
+  </div>
+  <canvas id="canvas"></canvas>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js';
+    import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/webxr/VRButton.js';
+
+    // Setup scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.Fog(0x87ceeb, 20, 60);
+
+    // Setup camera
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(0, 8, 15);
+    camera.lookAt(0, 0, 0);
+
+    // Setup renderer
+    const renderer = new THREE.WebGLRenderer({
+      canvas: document.getElementById('canvas'),
+      antialias: true,
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.xr.enabled = true;
+    document.body.appendChild(VRButton.createButton(renderer));
+
+    // Orbit controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 20, 10);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.camera.left = -20;
+    directionalLight.shadow.camera.right = 20;
+    directionalLight.shadow.camera.top = 20;
+    directionalLight.shadow.camera.bottom = -20;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    scene.add(directionalLight);
+
+    // Ground plane
+    const groundGeometry = new THREE.PlaneGeometry(40, 40);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0x808080,
+      roughness: 0.8,
+      metalness: 0.2,
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Walls (for containment)
+    const wallMaterial = new THREE.MeshStandardMaterial({
+      color: 0x606060,
+      roughness: 0.9,
+      metalness: 0.1,
+    });
+
+    function createWall(x, z, rotationY, width = 40, height = 10) {
+      const wallGeometry = new THREE.BoxGeometry(width, height, 0.5);
+      const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+      wall.position.set(x, height / 2, z);
+      wall.rotation.y = rotationY;
+      wall.receiveShadow = true;
+      wall.castShadow = true;
+      return wall;
+    }
+
+    scene.add(createWall(0, -20, 0));
+    scene.add(createWall(0, 20, 0));
+    scene.add(createWall(-20, 0, Math.PI / 2));
+    scene.add(createWall(20, 0, Math.PI / 2));
+
+    // Simple physics simulation
+    const objects = [];
+    const gravity = -9.81;
+    const damping = 0.98;
+    const groundY = 0;
+
+    class PhysicsObject {
+      constructor(mesh, mass = 1, restitution = 0.7) {
+        this.mesh = mesh;
+        this.mass = mass;
+        this.restitution = restitution;
+        this.velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 2,
+          0,
+          (Math.random() - 0.5) * 2
+        );
+        this.angularVelocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.2,
+          (Math.random() - 0.5) * 0.2,
+          (Math.random() - 0.5) * 0.2
+        );
+      }
+
+      update(deltaTime) {
+        // Apply gravity
+        this.velocity.y += gravity * deltaTime;
+
+        // Update position
+        this.mesh.position.x += this.velocity.x * deltaTime;
+        this.mesh.position.y += this.velocity.y * deltaTime;
+        this.mesh.position.z += this.velocity.z * deltaTime;
+
+        // Update rotation
+        this.mesh.rotation.x += this.angularVelocity.x * deltaTime;
+        this.mesh.rotation.y += this.angularVelocity.y * deltaTime;
+        this.mesh.rotation.z += this.angularVelocity.z * deltaTime;
+
+        // Ground collision
+        const radius = this.getRadius();
+        if (this.mesh.position.y - radius < groundY) {
+          this.mesh.position.y = groundY + radius;
+          this.velocity.y = -this.velocity.y * this.restitution;
+          this.velocity.x *= damping;
+          this.velocity.z *= damping;
+          this.angularVelocity.multiplyScalar(damping);
+        }
+
+        // Wall collisions
+        const boundaryX = 19;
+        const boundaryZ = 19;
+
+        if (Math.abs(this.mesh.position.x) > boundaryX) {
+          this.mesh.position.x = Math.sign(this.mesh.position.x) * boundaryX;
+          this.velocity.x = -this.velocity.x * this.restitution;
+        }
+
+        if (Math.abs(this.mesh.position.z) > boundaryZ) {
+          this.mesh.position.z = Math.sign(this.mesh.position.z) * boundaryZ;
+          this.velocity.z = -this.velocity.z * this.restitution;
+        }
+
+        // Apply damping
+        this.velocity.multiplyScalar(0.999);
+      }
+
+      getRadius() {
+        const geometry = this.mesh.geometry;
+        if (geometry.parameters) {
+          return geometry.parameters.radius ||
+                 Math.max(geometry.parameters.width, geometry.parameters.height, geometry.parameters.depth) / 2 ||
+                 0.5;
+        }
+        return 0.5;
+      }
+    }
+
+    // Spawn functions
+    window.spawnBall = function() {
+      const radius = 0.5 + Math.random() * 0.5;
+      const geometry = new THREE.SphereGeometry(radius, 32, 32);
+      const material = new THREE.MeshStandardMaterial({
+        color: Math.random() * 0xffffff,
+        roughness: 0.3,
+        metalness: 0.7,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(
+        (Math.random() - 0.5) * 10,
+        8 + Math.random() * 5,
+        (Math.random() - 0.5) * 10
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+
+      const physicsObj = new PhysicsObject(mesh, 1, 0.7);
+      objects.push(physicsObj);
+      updateCount();
+    };
+
+    window.spawnBox = function() {
+      const size = 0.5 + Math.random() * 0.5;
+      const geometry = new THREE.BoxGeometry(size, size, size);
+      const material = new THREE.MeshStandardMaterial({
+        color: Math.random() * 0xffffff,
+        roughness: 0.5,
+        metalness: 0.5,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(
+        (Math.random() - 0.5) * 10,
+        8 + Math.random() * 5,
+        (Math.random() - 0.5) * 10
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+
+      const physicsObj = new PhysicsObject(mesh, 1.5, 0.5);
+      objects.push(physicsObj);
+      updateCount();
+    };
+
+    window.spawnCylinder = function() {
+      const radius = 0.3 + Math.random() * 0.3;
+      const height = 1 + Math.random() * 1;
+      const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+      const material = new THREE.MeshStandardMaterial({
+        color: Math.random() * 0xffffff,
+        roughness: 0.4,
+        metalness: 0.6,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(
+        (Math.random() - 0.5) * 10,
+        8 + Math.random() * 5,
+        (Math.random() - 0.5) * 10
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+
+      const physicsObj = new PhysicsObject(mesh, 1.2, 0.6);
+      objects.push(physicsObj);
+      updateCount();
+    };
+
+    window.clearObjects = function() {
+      objects.forEach(obj => {
+        scene.remove(obj.mesh);
+        obj.mesh.geometry.dispose();
+        obj.mesh.material.dispose();
+      });
+      objects.length = 0;
+      updateCount();
+    };
+
+    function updateCount() {
+      document.getElementById('count').textContent = objects.length;
+    }
+
+    // FPS counter
+    let lastTime = performance.now();
+    let frames = 0;
+    let fps = 60;
+
+    function updateFPS() {
+      frames++;
+      const now = performance.now();
+      if (now >= lastTime + 1000) {
+        fps = Math.round((frames * 1000) / (now - lastTime));
+        document.getElementById('fps').textContent = fps;
+        frames = 0;
+        lastTime = now;
+      }
+    }
+
+    // Animation loop
+    let lastFrameTime = performance.now();
+
+    renderer.setAnimationLoop(() => {
+      const now = performance.now();
+      const deltaTime = Math.min((now - lastFrameTime) / 1000, 0.1);
+      lastFrameTime = now;
+
+      // Update physics
+      objects.forEach(obj => obj.update(deltaTime));
+
+      // Update controls
+      controls.update();
+
+      // Update FPS
+      updateFPS();
+
+      // Render
+      renderer.render(scene, camera);
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Spawn some initial objects
+    for (let i = 0; i < 5; i++) {
+      spawnBall();
+    }
+  </script>
+</body>
+</html>
