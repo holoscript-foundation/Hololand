@@ -1,0 +1,60 @@
+{
+  "name": "@hololand/ai-bridge",
+  "version": "1.0.0-alpha.1",
+  "description": "AI Bridge for Natural Language → HoloScript Translation - Build in VR using natural language",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "echo \"Tests coming soon\" && exit 0",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "hololand",
+    "holoscript",
+    "vr",
+    "virtual-reality",
+    "ai",
+    "natural-language",
+    "voice-commands",
+    "code-generation",
+    "webxr",
+    "metaverse"
+  ],
+  "author": "Hololand Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brianonbased-dev/Hololand.git",
+    "directory": "packages/ai-bridge"
+  },
+  "bugs": {
+    "url": "https://github.com/brianonbased-dev/Hololand/issues"
+  },
+  "homepage": "https://github.com/brianonbased-dev/Hololand#readme",
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "@hololand/core": "^1.0.0-alpha.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
