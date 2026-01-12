@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hololand Renderer Demo - VR Physics Playground</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      overflow: hidden;
+      background: #000;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      max-width: 300px;
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+    }
+
+    #info h1 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #4fc3f7;
+    }
+
+    #info p {
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    #info .stats {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    #controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+
+    button {
+      background: rgba(79, 195, 247, 0.9);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    button:hover {
+      background: rgba(79, 195, 247, 1);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(79, 195, 247, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 24px;
+      text-align: center;
+      z-index: 999;
+    }
+
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 4px solid #4fc3f7;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Loading Hololand VR World...</p>
+  </div>
+
+  <div id="info" class="hidden">
+    <h1>🥽 Hololand VR Demo</h1>
+    <p><strong>@hololand/renderer</strong></p>
+    <p>Physics-based VR world with Three.js + WebXR</p>
+    <p>
+      <strong>Controls:</strong><br>
+      • Mouse: Rotate view<br>
+      • Scroll: Zoom<br>
+      • Right-click: Pan
+    </p>
+    <div class="stats">
+      <div>Objects: <span id="objectCount">0</span></div>
+      <div>FPS: <span id="fps">60</span></div>
+      <div>Physics: <span id="physicsStatus">Active</span></div>
+    </div>
+  </div>
+
+  <div id="controls" class="hidden">
+    <button id="addSphere">🔴 Add Sphere</button>
+    <button id="addBox">🟩 Add Box</button>
+    <button id="addCylinder">🔵 Add Cylinder</button>
+    <button id="reset">🔄 Reset World</button>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script type="module">
+    // This example uses ESM imports - in production, import from npm packages
+    // For this demo, we'll simulate the packages (in real usage, use actual imports)
+
+    console.log('%c🥽 Hololand VR Demo Starting...', 'color: #4fc3f7; font-size: 16px; font-weight: bold;');
+
+    // Note: In production, you would import like this:
+    // import { HololandWorld } from '@hololand/world';
+    // import { HololandRenderer } from '@hololand/renderer';
+
+    // For this standalone demo, you'll need to:
+    // 1. Build the packages: npm run build (in Hololand root)
+    // 2. Use a local dev server that supports node_modules resolution
+    // 3. Or use a bundler like Vite/Webpack
+
+    // Simulated imports for demo purposes (replace with actual imports)
+    const showError = () => {
+      document.getElementById('loading').innerHTML = `
+        <div style="padding: 40px; background: rgba(255, 0, 0, 0.1); border-radius: 8px; border: 2px solid red;">
+          <h2 style="color: #ff6b6b; margin-bottom: 20px;">⚠️ Setup Required</h2>
+          <p style="color: white; line-height: 1.8; max-width: 600px;">
+            To run this demo, you need to:
+          </p>
+          <ol style="color: white; text-align: left; max-width: 600px; margin: 20px auto; line-height: 2;">
+            <li>Build all packages: <code style="background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 3px;">npm run build</code> (in Hololand root)</li>
+            <li>Install dependencies: <code style="background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 3px;">npm install</code></li>
+            <li>Use a dev server with node_modules support (e.g., Vite)</li>
+          </ol>
+          <p style="color: #4fc3f7; margin-top: 20px;">
+            Or check the <strong>README.md</strong> for code examples!
+          </p>
+        </div>
+      `;
+    };
+
+    // Try to initialize (will fail without actual packages built)
+    try {
+      // Attempt dynamic import (this will work if packages are built and served correctly)
+      const { HololandWorld } = await import('@hololand/world');
+      const { HololandRenderer } = await import('@hololand/renderer');
+
+      // Initialize world
+      const world = new HololandWorld({
+        name: 'demo-world',
+        enablePhysics: true,
+        gravity: { x: 0, y: -9.81, z: 0 },
+      });
+
+      // Get canvas
+      const canvas = document.getElementById('canvas');
+
+      // Create renderer
+      const renderer = new HololandRenderer(canvas, world, {
+        enableShadows: true,
+        enableVR: true,
+        enableControls: true,
+        backgroundColor: 0x1a1a2e,
+        cameraPosition: { x: 15, y: 15, z: 15 },
+      });
+
+      // Add ground plane
+      world.addObject({
+        id: 'ground',
+        type: 'plane',
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: -Math.PI / 2, y: 0, z: 0, w: 1 },
+        metadata: {
+          width: 100,
+          height: 100,
+          color: 0x2c3e50,
+        },
+      });
+
+      // Add initial objects
+      const addInitialObjects = () => {
+        // Red sphere
+        world.addObject({
+          id: 'sphere-1',
+          type: 'sphere',
+          position: { x: -3, y: 8, z: 0 },
+          metadata: { radius: 1, color: 0xff4444, metalness: 0.5, roughness: 0.3 },
+          physics: { enabled: true, mass: 1, restitution: 0.7 },
+        });
+
+        // Green box
+        world.addObject({
+          id: 'box-1',
+          type: 'box',
+          position: { x: 0, y: 10, z: 0 },
+          metadata: { width: 2, height: 2, depth: 2, color: 0x44ff44, metalness: 0.3, roughness: 0.5 },
+          physics: { enabled: true, mass: 2, restitution: 0.5 },
+        });
+
+        // Blue cylinder
+        world.addObject({
+          id: 'cylinder-1',
+          type: 'cylinder',
+          position: { x: 3, y: 12, z: 0 },
+          metadata: { radius: 1, height: 3, color: 0x4444ff, metalness: 0.6, roughness: 0.2 },
+          physics: { enabled: true, mass: 1.5, restitution: 0.6 },
+        });
+
+        // Static platforms
+        world.addObject({
+          id: 'platform-1',
+          type: 'box',
+          position: { x: -5, y: 3, z: -5 },
+          metadata: { width: 4, height: 0.5, depth: 4, color: 0x8e44ad },
+          physics: { enabled: false },
+        });
+
+        world.addObject({
+          id: 'platform-2',
+          type: 'box',
+          position: { x: 5, y: 5, z: 5 },
+          metadata: { width: 3, height: 0.5, depth: 3, color: 0x3498db },
+          physics: { enabled: false },
+        });
+      };
+
+      addInitialObjects();
+
+      // Start simulation
+      world.start();
+      renderer.start();
+
+      // Hide loading, show UI
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('info').classList.remove('hidden');
+      document.getElementById('controls').classList.remove('hidden');
+
+      // Stats update
+      let frameCount = 0;
+      let lastTime = performance.now();
+
+      setInterval(() => {
+        const currentTime = performance.now();
+        const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+        document.getElementById('fps').textContent = fps;
+        frameCount = 0;
+        lastTime = currentTime;
+
+        // Update object count
+        const objects = world.queryBox({
+          min: { x: -1000, y: -1000, z: -1000 },
+          max: { x: 1000, y: 1000, z: 1000 },
+        });
+        document.getElementById('objectCount').textContent = objects.length;
+      }, 1000);
+
+      // Count frames
+      const countFrames = () => {
+        frameCount++;
+        requestAnimationFrame(countFrames);
+      };
+      countFrames();
+
+      // Button handlers
+      let objectCounter = 10;
+
+      document.getElementById('addSphere').addEventListener('click', () => {
+        world.addObject({
+          id: `sphere-${objectCounter++}`,
+          type: 'sphere',
+          position: {
+            x: (Math.random() - 0.5) * 10,
+            y: 15 + Math.random() * 5,
+            z: (Math.random() - 0.5) * 10,
+          },
+          metadata: {
+            radius: 0.5 + Math.random() * 1,
+            color: Math.random() * 0xffffff,
+            metalness: Math.random() * 0.5,
+            roughness: 0.3 + Math.random() * 0.4,
+          },
+          physics: { enabled: true, mass: 1, restitution: 0.7 },
+        });
+      });
+
+      document.getElementById('addBox').addEventListener('click', () => {
+        const size = 1 + Math.random() * 2;
+        world.addObject({
+          id: `box-${objectCounter++}`,
+          type: 'box',
+          position: {
+            x: (Math.random() - 0.5) * 10,
+            y: 15 + Math.random() * 5,
+            z: (Math.random() - 0.5) * 10,
+          },
+          metadata: {
+            width: size,
+            height: size,
+            depth: size,
+            color: Math.random() * 0xffffff,
+            metalness: Math.random() * 0.5,
+            roughness: 0.3 + Math.random() * 0.4,
+          },
+          physics: { enabled: true, mass: 2, restitution: 0.5 },
+        });
+      });
+
+      document.getElementById('addCylinder').addEventListener('click', () => {
+        world.addObject({
+          id: `cylinder-${objectCounter++}`,
+          type: 'cylinder',
+          position: {
+            x: (Math.random() - 0.5) * 10,
+            y: 15 + Math.random() * 5,
+            z: (Math.random() - 0.5) * 10,
+          },
+          metadata: {
+            radius: 0.5 + Math.random() * 1,
+            height: 2 + Math.random() * 3,
+            color: Math.random() * 0xffffff,
+            metalness: Math.random() * 0.5,
+            roughness: 0.3 + Math.random() * 0.4,
+          },
+          physics: { enabled: true, mass: 1.5, restitution: 0.6 },
+        });
+      });
+
+      document.getElementById('reset').addEventListener('click', () => {
+        // Remove all dynamic objects
+        const allObjects = world.queryBox({
+          min: { x: -1000, y: -1000, z: -1000 },
+          max: { x: 1000, y: 1000, z: 1000 },
+        });
+
+        allObjects.forEach(obj => {
+          if (obj.id !== 'ground' && !obj.id.startsWith('platform')) {
+            world.removeObject(obj.id);
+          }
+        });
+
+        // Add initial objects back
+        objectCounter = 10;
+        addInitialObjects();
+      });
+
+      // Handle resize
+      window.addEventListener('resize', () => {
+        renderer.resize(window.innerWidth, window.innerHeight);
+      });
+
+      console.log('%c✅ Hololand VR World Ready!', 'color: #44ff44; font-size: 14px; font-weight: bold;');
+      console.log('Try clicking the VR button to enter VR mode (requires WebXR-compatible device)');
+
+    } catch (error) {
+      console.error('Failed to initialize Hololand:', error);
+      showError();
+    }
+  </script>
+</body>
+</html>
