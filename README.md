@@ -159,6 +159,19 @@ const shop = world.addObject(result.generatedCode);
 
 ## 🎓 Examples
 
+**📚 [View Complete Examples →](./examples/)**
+
+Get started quickly with our complete working examples:
+
+- **[01-hello-vr-world](./examples/01-hello-vr-world/)** - Your first VR scene (no build required!)
+- **[02-physics-playground](./examples/02-physics-playground/)** - Interactive physics simulation
+- **[03-vr-shop](./examples/03-vr-shop/)** - Complete virtual store with commerce
+- **[04-react-starter](./examples/04-react-starter/)** - Production-ready React template
+
+Each example includes complete source code and comprehensive documentation. Start with `01-hello-vr-world` if you're new to VR development!
+
+**[📋 Project Templates →](./TEMPLATES.md)** - Copy-paste starter templates for common use cases
+
 ### Create a VR Shop
 
 ```tsx
