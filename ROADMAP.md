@@ -404,12 +404,41 @@ Lead industry standards:
 - [ ] **Federated worlds** - Anyone can host
 - [ ] **Bridge protocols** - Connect to Decentraland, Roblox, etc.
 
-### 7.3: Real-World Integration
+### 7.3: Real-World Integration & AR Layer
 
-- [ ] **Digital twins** - Real locations in VR
-- [ ] **Virtual commerce** - Buy real products in VR
-- [ ] **Remote work** - Virtual offices
-- [ ] **Education** - Virtual classrooms
+**📖 [Full Design Doc →](./HOLOLAND_HUB_AND_AR.md)**
+
+#### Hololand Plains (Central VR Spaces)
+- [ ] **Multiple Plains** - Default spawn points for all users (regional, themed, community-specific)
+- [ ] **World portal system** - Discover and jump to any world
+- [ ] **Social zones** - Meeting areas, event stages, shopping districts
+- [ ] **Auto-scaling instances** - 100 users per instance, unlimited instances
+
+#### AR Real-World Layer
+- [ ] **Geospatial anchoring (@hololand/geo)** - Virtual content at GPS locations
+- [ ] **AR overlay system (@hololand/ar)** - Augmented reality via mobile/glasses
+- [ ] **Real-world space ownership** - Claim virtual spaces at physical locations
+- [ ] **Business verification** - Verified AR storefronts for real businesses
+- [ ] **AR advertising platform** - Digital billboards in physical world
+
+#### Real-World Space Marketplace
+- [ ] **Space claiming system** - Purchase/rent locations
+- [ ] **Geospatial marketplace** - Buy/sell virtual real estate
+- [ ] **Business analytics** - Track AR impressions, clicks, revenue
+- [ ] **Location pricing** - Dynamic pricing based on foot traffic
+
+#### Use Cases
+- **Business Storefronts**: Restaurants show menus in AR above doors
+- **Advertising**: Brands place 3D ads at high-traffic locations
+- **Art Installations**: Creators place virtual art in parks
+- **Real Estate**: Virtual tours via AR at properties
+- **Events**: AR treasure hunts, games, social experiences
+
+#### Digital twins & Commerce
+- [ ] **Real locations in VR** - Replicate physical spaces
+- [ ] **Virtual commerce** - Buy real products in VR/AR
+- [ ] **Remote work** - Virtual offices with AR integration
+- [ ] **Education** - Virtual classrooms with real-world tie-ins
 - [ ] **Healthcare** - VR therapy and training
 
 ### 7.4: AI & Automation
