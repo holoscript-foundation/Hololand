@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { HoloScript2DParser, UI2DNode } from './HoloScript2DParser';
 
 // P.HOLO.SEC.001 - HoloScript security configuration
 const HOLOSCRIPT_SECURITY_CONFIG = {
@@ -21,6 +22,12 @@ const HOLOSCRIPT_SECURITY_CONFIG = {
     'xmlhttprequest',
   ],
   allowedShapes: ['orb', 'cube', 'cylinder', 'pyramid', 'sphere', 'function', 'gate', 'stream'],
+  // 2D UI elements (for hybrid mode)
+  allowedUIElements: [
+    'canvas', 'button', 'textinput', 'panel', 'text', 'image',
+    'list', 'modal', 'slider', 'toggle', 'dropdown',
+    'flex-container', 'grid-container', 'scroll-view'
+  ],
 };
 
 export interface SpatialPosition {
@@ -116,9 +123,14 @@ export interface GenericASTNode extends ASTNode {
 
 export class HoloScriptParser {
   private ast: ASTNode[] = [];
+  private parser2D: HoloScript2DParser;
+
+  constructor() {
+    this.parser2D = new HoloScript2DParser();
+  }
 
   /**
-   * Parse voice command into AST nodes
+   * Parse voice command into AST nodes (supports both 3D and 2D)
    */
   parseVoiceCommand(command: VoiceCommand): ASTNode[] {
     // P.HOLO.SEC.002 - Input length validation
@@ -148,6 +160,14 @@ export class HoloScriptParser {
 
     const commandType = tokens[0];
 
+    // Check if this is a 2D UI command
+    if ((commandType === 'create' || commandType === 'add') && tokens.length > 1) {
+      const elementType = tokens[1];
+      if (HOLOSCRIPT_SECURITY_CONFIG.allowedUIElements.includes(elementType)) {
+        return this.parse2DUICommand(command.command);
+      }
+    }
+
     switch (commandType) {
       case 'create':
       case 'summon':
@@ -169,6 +189,27 @@ export class HoloScriptParser {
       default:
         return this.parseGenericCommand(tokens);
     }
+  }
+
+  /**
+   * Parse 2D UI command
+   */
+  private parse2DUICommand(command: string): ASTNode[] {
+    const ui2DNode = this.parser2D.parse2DVoiceCommand(command);
+
+    if (!ui2DNode) return [];
+
+    // Convert UI2DNode to ASTNode format
+    const astNode: GenericASTNode = {
+      type: '2d-ui',
+      uiElementType: ui2DNode.elementType,
+      name: ui2DNode.name,
+      properties: ui2DNode.properties,
+      events: ui2DNode.events,
+      children: ui2DNode.children,
+    };
+
+    return [astNode];
   }
 
   /**
@@ -569,5 +610,59 @@ export class HoloScriptParser {
       );
       return distance <= radius;
     });
+  }
+
+  /**
+   * Parse 2D UI element from HoloScript code
+   *
+   * Example:
+   * button loginBtn {
+   *   text: "Login"
+   *   x: 100
+   *   y: 100
+   *   onClick: handleLogin
+   * }
+   */
+  parse2DCode(code: string): UI2DNode | null {
+    return this.parser2D.parse2DElement(code);
+  }
+
+  /**
+   * Get 2D parser instance for advanced usage
+   */
+  get2DParser(): HoloScript2DParser {
+    return this.parser2D;
+  }
+
+  /**
+   * Parse hybrid code (both 3D and 2D elements)
+   *
+   * Automatically detects and routes to appropriate parser
+   */
+  parseHybridCode(code: string): { type: '3d' | '2d'; node: ASTNode | UI2DNode } | null {
+    const lines = code.trim().split('\n');
+    if (lines.length === 0) return null;
+
+    const firstLine = lines[0].trim();
+    const match = firstLine.match(/^(\w+)\s+\w+\s*\{/);
+
+    if (!match) return null;
+
+    const elementType = match[1];
+
+    // Check if it's a 2D element
+    if (HOLOSCRIPT_SECURITY_CONFIG.allowedUIElements.includes(elementType)) {
+      const node = this.parser2D.parse2DElement(code);
+      return node ? { type: '2d', node } : null;
+    }
+
+    // Check if it's a 3D element
+    if (HOLOSCRIPT_SECURITY_CONFIG.allowedShapes.includes(elementType)) {
+      // Parse as 3D orb/shape (simplified)
+      const node = this.createOrbNode(elementType, { x: 0, y: 0, z: 0 });
+      return { type: '3d', node };
+    }
+
+    return null;
   }
 }

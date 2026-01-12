@@ -10,11 +10,12 @@
 // Core Engine
 export { HoloScriptParser } from './HoloScriptParser';
 export { HoloScriptRuntime } from './HoloScriptRuntime';
+export { HoloScript2DParser } from './HoloScript2DParser';
 
 // Logger Interface
 export { setHoloScriptLogger, resetLogger, type HoloScriptLogger } from './logger';
 
-// Types
+// 3D Types
 export type {
   SpatialPosition,
   HologramProperties,
@@ -29,6 +30,15 @@ export type {
   StreamNode,
   TransformationNode,
 } from './HoloScriptParser';
+
+// 2D Types (Phase 2: Universal Platform)
+export type {
+  UI2DNode,
+  UIElementType,
+  Position2D,
+  Size2D,
+  UIStyle,
+} from './HoloScript2DParser';
 
 export type {
   RuntimeContext,
@@ -49,6 +59,7 @@ export const HOLOSCRIPT_SUPPORTED_PLATFORMS = [
 ];
 
 export const HOLOSCRIPT_VOICE_COMMANDS = [
+  // 3D VR Commands
   'create orb [name]',
   'summon function [name]',
   'connect [from] to [to]',
@@ -57,6 +68,11 @@ export const HOLOSCRIPT_VOICE_COMMANDS = [
   'visualize [data]',
   'gate [condition]',
   'stream [source] through [transformations]',
+  // 2D UI Commands (Phase 2)
+  'create button [name]',
+  'add textinput [name]',
+  'create panel [name]',
+  'add slider [name]',
 ];
 
 export const HOLOSCRIPT_GESTURES = [
@@ -127,6 +143,55 @@ function trainNetwork(data: array): object {
   backward_pass
   update_weights
   return metrics
+}`,
+
+  // 2D UI Examples (Phase 2: Universal Platform)
+  loginForm: `button loginBtn {
+  text: "Login"
+  x: 100
+  y: 150
+  width: 200
+  height: 40
+  onClick: handleLogin
+}
+
+textinput usernameInput {
+  placeholder: "Username"
+  x: 100
+  y: 50
+  width: 200
+  height: 36
+}
+
+textinput passwordInput {
+  placeholder: "Password"
+  x: 100
+  y: 100
+  width: 200
+  height: 36
+}`,
+
+  dashboard: `panel sidebar {
+  x: 0
+  y: 0
+  width: 200
+  height: 600
+  backgroundColor: "#2c3e50"
+}
+
+text title {
+  content: "Dashboard"
+  x: 220
+  y: 20
+  fontSize: 24
+  color: "#34495e"
+}
+
+button refreshBtn {
+  text: "Refresh Data"
+  x: 220
+  y: 60
+  onClick: refreshData
 }`,
 };
 
