@@ -1,0 +1,59 @@
+{
+  "name": "@hololand/ui",
+  "version": "1.0.0-alpha.1",
+  "description": "2D UI components for desktop and mobile Hololand applications",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest",
+    "lint": "eslint src --ext ts,tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "hololand",
+    "ui",
+    "2d",
+    "desktop",
+    "mobile",
+    "components",
+    "interface",
+    "metaverse"
+  ],
+  "author": "Hololand Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brianonbased-dev/Hololand.git",
+    "directory": "packages/ui"
+  },
+  "bugs": {
+    "url": "https://github.com/brianonbased-dev/Hololand/issues"
+  },
+  "homepage": "https://github.com/brianonbased-dev/Hololand/tree/main/packages/ui",
+  "dependencies": {},
+  "peerDependencies": {
+    "three": "^0.159.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.159.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  }
+}
