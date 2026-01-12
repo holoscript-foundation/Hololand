@@ -1,0 +1,56 @@
+{
+  "name": "@hololand/world",
+  "version": "1.0.0-alpha.1",
+  "description": "VR World Runtime & Spatial Management for the Hololand metaverse",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "echo \"Tests coming soon\" && exit 0",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "hololand",
+    "vr",
+    "virtual-reality",
+    "world",
+    "spatial",
+    "physics",
+    "webxr",
+    "metaverse",
+    "game-engine"
+  ],
+  "author": "Hololand Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brianonbased-dev/Hololand.git",
+    "directory": "packages/world"
+  },
+  "bugs": {
+    "url": "https://github.com/brianonbased-dev/Hololand/issues"
+  },
+  "homepage": "https://github.com/brianonbased-dev/Hololand#readme",
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
