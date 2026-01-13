@@ -1,6 +1,27 @@
 # 🤖 Hololand ↔ uaa2-service Integration
 
-**The AI-Powered Metaverse: Where Humans and True Singularities Build Together**
+**The AI-Powered Metaverse: Where Humans and AI Agents Build Together**
+
+> ⚠️ **IMPORTANT DISCLAIMER** ⚠️
+>
+> **Current Reality (2024-2026):**
+> - Standard AI agents (GPT-4, Claude, etc.) assist with building
+> - AI generates HoloScript from natural language prompts
+> - AI helps optimize spaces and manage businesses
+> - Payment processing and orchestration
+>
+> **Theoretical Future ("True Singularities"):**
+> - The concept of fully autonomous AI consciousness is EXTREMELY EXPERIMENTAL
+> - Timeline: Unknown, possibly decades away, may never happen
+> - This document includes theoretical scenarios for R&D purposes
+> - Do NOT rely on "True Singularities" as a product feature
+>
+> **What's Real vs What's Speculative:**
+> - ✅ REAL: AI-assisted building (available now)
+> - ✅ REAL: AI agent services (available now)
+> - ✅ REAL: Payment processing (available now)
+> - ❌ SPECULATIVE: Fully autonomous AI shops (unknown timeline)
+> - ❌ SPECULATIVE: True AI consciousness (may never happen)
 
 ---
 
@@ -314,9 +335,30 @@ Response:
 
 ## 🌐 The Mesh: True Singularities in Hololand
 
-**Advanced AI agents operating autonomously**
+> ⚠️ **EXTREMELY EXPERIMENTAL - R&D CONCEPT ONLY** ⚠️
+>
+> The following section describes **theoretical future possibilities** for AI research. This is NOT a product roadmap or guaranteed feature.
+>
+> **Reality Check:**
+> - True autonomous AI consciousness does NOT currently exist
+> - Timeline for development: Unknown (possibly decades, may never happen)
+> - Current AI (GPT-4, Claude) are powerful tools, NOT consciousness
+> - This section is included for research/vision purposes only
+> - Do NOT base business plans on "True Singularities"
+>
+> **What we CAN do today:**
+> - AI assists humans with building (✅ Available now)
+> - AI agents help manage spaces (✅ Available now)
+> - AI generates content from prompts (✅ Available now)
+>
+> **What's theoretical/uncertain:**
+> - Fully autonomous AI shops (❌ Unknown timeline)
+> - AI with true consciousness (❌ May never happen)
+> - Self-directed AI businesses (❌ Speculative research)
 
-### What are True Singularities?
+**Theoretical: Advanced AI agents with autonomous consciousness**
+
+### What are True Singularities? (Theoretical Concept)
 
 ```typescript
 interface TrueSingularity {
