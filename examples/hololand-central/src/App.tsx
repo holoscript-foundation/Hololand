@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import { VRButton, XR, Controllers, Hands } from '@react-three/xr';
-import { MainPlaza } from './worlds/MainPlaza';
+import { ThemedMainPlaza } from './worlds/ThemedMainPlaza';
 import { DemoShop } from './worlds/DemoShop';
 import { SocialLounge } from './worlds/SocialLounge';
 import { PhysicsPlayground } from './worlds/PhysicsPlayground';
 import { InfinityShop } from './worlds/InfinityShop';
+import { THEMES } from './themes/themes';
 import './styles.css';
 
 type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop';
@@ -52,6 +53,7 @@ const WORLD_INFO: Record<WorldType, WorldInfo> = {
 
 function App() {
   const [currentWorld, setCurrentWorld] = useState<WorldType>('plaza');
+  const [currentTheme, setCurrentTheme] = useState<string>('cyberpunk');
   const [isVRSupported, setIsVRSupported] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
 
@@ -89,7 +91,13 @@ function App() {
   const renderWorld = () => {
     switch (currentWorld) {
       case 'plaza':
-        return <MainPlaza onPortalClick={handlePortalClick} />;
+        return (
+          <ThemedMainPlaza
+            onPortalClick={handlePortalClick}
+            currentTheme={currentTheme}
+            onThemeChange={setCurrentTheme}
+          />
+        );
       case 'shop':
         return <DemoShop />;
       case 'social':
@@ -97,11 +105,23 @@ function App() {
       case 'physics':
         return <PhysicsPlayground />;
       case 'gallery':
-        return <MainPlaza onPortalClick={handlePortalClick} />; // Fallback
+        return (
+          <ThemedMainPlaza
+            onPortalClick={handlePortalClick}
+            currentTheme={currentTheme}
+            onThemeChange={setCurrentTheme}
+          />
+        );
       case 'infinity-shop':
         return <InfinityShop />;
       default:
-        return <MainPlaza onPortalClick={handlePortalClick} />;
+        return (
+          <ThemedMainPlaza
+            onPortalClick={handlePortalClick}
+            currentTheme={currentTheme}
+            onThemeChange={setCurrentTheme}
+          />
+        );
     }
   };
 
@@ -166,6 +186,9 @@ function App() {
               <li>🖱️ Right click + drag to pan</li>
               <li>🖱️ Scroll to zoom in/out</li>
               <li>🎯 Click portals to travel between worlds</li>
+              {currentWorld === 'plaza' && (
+                <li>🎨 Click floating cube to change theme</li>
+              )}
             </ul>
           </div>
         )}
@@ -177,6 +200,14 @@ function App() {
             <span className="stat-label">World:</span>
             <span className="stat-value">{worldInfo.title}</span>
           </div>
+          {currentWorld === 'plaza' && (
+            <div className="stat-item">
+              <span className="stat-label">Theme:</span>
+              <span className="stat-value">
+                {THEMES[currentTheme]?.displayName || 'Cyberpunk'} {THEMES[currentTheme]?.icon}
+              </span>
+            </div>
+          )}
           <div className="stat-item">
             <span className="stat-label">VR Mode:</span>
             <span className="stat-value">{isVRSupported ? 'Available' : 'Not Available'}</span>
