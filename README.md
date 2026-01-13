@@ -32,6 +32,24 @@
 
 *Hololand is an open-source project. We believe the holoverse should be built by everyone, for everyone.*
 
+## 📜 Licensing - Hybrid Open Source Model
+
+Hololand uses a **hybrid licensing approach** to balance developer freedom with sustainable business:
+
+| Component | License | Use Freely | Commercial Hosting |
+|-----------|---------|------------|-------------------|
+| **Core Packages** (`@hololand/*`) | MIT | ✅ Unlimited | ✅ Unlimited |
+| **HoloScript Language** | MIT | ✅ Unlimited | ✅ Unlimited |
+| **Platform Code** (Central, Themes) | Elastic 2.0 | ✅ Internal Use | ❌ Requires License |
+| **Official Hosting** (central.hololand.io) | Proprietary | N/A | 💰 Paid Service |
+
+**In Short:**
+- ✅ Build anything with core packages - zero restrictions
+- ✅ Self-host for your company/community - completely free
+- ❌ Offer "Hololand as a Service" - requires commercial license
+
+**[Read Full Licensing Details →](LICENSING.md)**
+
 ## 🎯 Key Features
 
 - **🥽 WebXR VR Support** - Works with Quest, Valve Index, Vive, and all WebXR headsets
