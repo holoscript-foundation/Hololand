@@ -1,0 +1,43 @@
+{
+  "name": "hololand-central",
+  "version": "1.0.0",
+  "description": "Hololand Central Hub - The public VR gateway to the Hololand metaverse",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "deploy": "pnpm build && vercel --prod"
+  },
+  "dependencies": {
+    "@hololand/core": "workspace:*",
+    "@hololand/renderer": "workspace:*",
+    "@hololand/react-three": "workspace:*",
+    "@hololand/world": "workspace:*",
+    "@react-three/drei": "^9.114.3",
+    "@react-three/fiber": "^8.17.10",
+    "@react-three/xr": "^6.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.170.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  },
+  "keywords": [
+    "hololand",
+    "vr",
+    "webxr",
+    "metaverse",
+    "three.js",
+    "react"
+  ],
+  "author": "Hololand Community",
+  "license": "MIT"
+}
