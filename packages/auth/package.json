@@ -1,0 +1,46 @@
+{
+  "name": "@hololand/auth",
+  "version": "1.0.0",
+  "description": "Unified authentication for Hololand ecosystem (email, OAuth, Web3)",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "test": "vitest",
+    "lint": "eslint src"
+  },
+  "keywords": [
+    "hololand",
+    "authentication",
+    "web3",
+    "wallet",
+    "oauth",
+    "supabase"
+  ],
+  "author": "Hololand Community",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "ethers": "^6.13.4",
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}
