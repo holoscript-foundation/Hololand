@@ -1,11 +1,43 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Mesh } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Text, RoundedBox } from '@react-three/drei';
 
-export const InfinityShop: React.FC = () => {
+interface InfinityShopProps {
+  onAdminAccess?: () => void;
+}
+
+export const InfinityShop: React.FC<InfinityShopProps> = ({ onAdminAccess }) => {
   const shopRef = useRef<Mesh>(null);
   const signRef = useRef<Mesh>(null);
+  const [clickCount, setClickCount] = useState(0);
+  const [lastClickTime, setLastClickTime] = useState(0);
+
+  // Secret admin access: Click Brittney hologram 5 times within 3 seconds
+  const handleSecretClick = () => {
+    const now = Date.now();
+    const timeDiff = now - lastClickTime;
+
+    // Reset if more than 3 seconds since last click
+    if (timeDiff > 3000) {
+      setClickCount(1);
+      setLastClickTime(now);
+      return;
+    }
+
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    setLastClickTime(now);
+
+    // Trigger admin access on 5 clicks
+    if (newCount >= 5) {
+      console.log('🔐 Secret admin access triggered!');
+      setClickCount(0);
+      if (onAdminAccess) {
+        onAdminAccess();
+      }
+    }
+  };
 
   // Gentle floating animation
   useFrame((state) => {
@@ -145,7 +177,7 @@ export const InfinityShop: React.FC = () => {
       </group>
 
       {/* Brittney Avatar Hologram Placeholder */}
-      <group position={[0, 3, 5]}>
+      <group position={[0, 3, 5]} onClick={handleSecretClick} style={{ cursor: 'pointer' }}>
         {/* Hologram platform */}
         <mesh position={[0, 0, 0]}>
           <cylinderGeometry args={[2, 2, 0.3, 32]} />
@@ -158,7 +190,7 @@ export const InfinityShop: React.FC = () => {
           />
         </mesh>
 
-        {/* Hologram effect (will be Brittney avatar) */}
+        {/* Hologram effect (will be Brittney avatar) - clickable for secret admin access */}
         <mesh position={[0, 2, 0]}>
           <sphereGeometry args={[1, 32, 32]} />
           <meshStandardMaterial

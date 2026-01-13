@@ -7,6 +7,7 @@ import { DemoShop } from './worlds/DemoShop';
 import { SocialLounge } from './worlds/SocialLounge';
 import { PhysicsPlayground } from './worlds/PhysicsPlayground';
 import { InfinityShop } from './worlds/InfinityShop';
+import { AdminPanel } from './admin/AdminPanel';
 import { THEMES } from './themes/themes';
 import './styles.css';
 
@@ -56,6 +57,7 @@ function App() {
   const [currentTheme, setCurrentTheme] = useState<string>('cyberpunk');
   const [isVRSupported, setIsVRSupported] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   useEffect(() => {
     // Check for WebXR support
@@ -88,6 +90,20 @@ function App() {
     setCurrentWorld('plaza');
   };
 
+  const handleAdminAccess = () => {
+    console.log('🔐 Admin access triggered from Infinity Shop');
+    setShowAdminPanel(true);
+  };
+
+  const handleAdminClose = () => {
+    setShowAdminPanel(false);
+  };
+
+  const handleAdminThemeChange = (themeName: string) => {
+    setCurrentTheme(themeName);
+    setCurrentWorld('plaza'); // Switch to plaza to see the theme change
+  };
+
   const renderWorld = () => {
     switch (currentWorld) {
       case 'plaza':
@@ -113,7 +129,7 @@ function App() {
           />
         );
       case 'infinity-shop':
-        return <InfinityShop />;
+        return <InfinityShop onAdminAccess={handleAdminAccess} />;
       default:
         return (
           <ThemedMainPlaza
@@ -218,6 +234,15 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Admin Panel (hidden by default, shown via secret access) */}
+      {showAdminPanel && (
+        <AdminPanel
+          currentTheme={currentTheme}
+          onThemeChange={handleAdminThemeChange}
+          onClose={handleAdminClose}
+        />
+      )}
 
       {/* 3D Canvas */}
       <Canvas
