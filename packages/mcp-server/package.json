@@ -1,0 +1,37 @@
+{
+  "name": "@hololand/mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for Hololand - enables AI agents to create and manage VR worlds",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.7.9",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.16"
+  },
+  "keywords": [
+    "mcp",
+    "hololand",
+    "vr",
+    "ar",
+    "ai",
+    "agents",
+    "holoscript",
+    "spatial-computing"
+  ],
+  "author": "Brian Joseph",
+  "license": "MIT"
+}
