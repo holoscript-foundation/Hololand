@@ -175,44 +175,244 @@ Central Park, New York
 
 ## 🔗 Blockchain Ownership System
 
-### Phase 1: Lenient Onboarding (Launch)
+### Registration Methods
 
-**Goal: Get early adopters without friction**
+**Two Ways to Register Your Space:**
+
+#### Method 1: Property Owners (Deed/Lease Verification)
 
 ```typescript
-interface PropertyClaim {
-  // Blockchain registration
+interface OwnershipClaim {
   claimant: BlockchainAddress;
   propertyAddress: string;
   gpsCoordinates: LatLng;
-  propertyType: 'residential' | 'commercial' | 'public';
+  propertyType: 'residential' | 'commercial';
 
-  // Initial claim (lenient)
-  claimStatus: 'pending' | 'verified' | 'disputed';
-  claimDate: Date;
+  // Verification with documents
+  verificationType: 'deed' | 'lease' | 'business_license';
+  verificationDocument: IPFSHash; // Encrypted upload
+  verificationStatus: 'pending' | 'approved' | 'rejected';
 
-  // Verification (required later)
-  verificationRequired: false; // Lenient at launch
-  verificationDeadline?: Date; // Must verify within 90 days
-
-  // Staking (prevents spam)
-  stakeAmount: number; // Small ETH stake ($10-50)
-  stakeRefundable: boolean; // Refunded after verification
+  // NFT issued after verification
+  nft: {
+    tokenId: string;
+    mintDate: Date;
+    expiresIfInactive: Date; // Burns if not entered in 1 year
+  };
 }
 ```
 
-**How It Works:**
-1. **Register Property** - Connect wallet, enter address, small stake
-2. **Claim Space** - Immediate access to build AR/VR
-3. **90-Day Grace Period** - Build and experiment
-4. **Verify Later** - Upload deed/lease/business license
-5. **Keep or Lose** - Verified = keep space; Not verified = lose claim
+#### Method 2: Geolocation Verification (For Renters)
+
+**Perfect for people who rent apartments/homes but don't have deed**
+
+```typescript
+interface GeolocationClaim {
+  claimant: BlockchainAddress;
+  propertyAddress: string;
+  gpsCoordinates: LatLng;
+  propertyType: 'residential';
+
+  // Geolocation verification (no documents needed)
+  verificationType: 'geolocation';
+  verificationMethod: 'meta_quest' | 'mobile_gps';
+
+  // Physical presence verification
+  verificationChecks: {
+    timestamp: Date;
+    gpsLocation: LatLng;
+    deviceId: string;
+    requiresPhysicalPresence: true;
+  }[];
+
+  // Must be physically present to register
+  minimumVerifications: 3; // 3 separate check-ins over 7 days
+
+  // NFT issued after geolocation confirmed
+  nft: {
+    tokenId: string;
+    mintDate: Date;
+    expiresIfInactive: Date; // Burns if not entered in 1 year
+  };
+}
+```
+
+**How Geolocation Verification Works:**
+
+1. **Download Hololand on Meta Quest** (or mobile app)
+2. **Enter Your Space** - Be physically present at your home/apartment
+3. **Register Location** - App detects GPS and confirms you're there
+4. **Verify 3 Times** - Check in on 3 different days within 7 days
+5. **NFT Minted** - After verification, you own your AR/VR space
+6. **Keep Active** - Enter your space at least once per year
+
+**Example: Renter Registration**
+```typescript
+// Day 1: Sarah downloads Hololand on Meta Quest at her apartment
+const verification1 = {
+  timestamp: '2026-01-12 19:30:00',
+  gpsLocation: { lat: 40.7580, lng: -73.9855 },
+  deviceId: 'meta-quest-3-abc123',
+  message: 'First check-in recorded',
+};
+
+// Day 3: Sarah puts on Quest headset at home again
+const verification2 = {
+  timestamp: '2026-01-14 21:00:00',
+  gpsLocation: { lat: 40.7580, lng: -73.9855 }, // Same location
+  deviceId: 'meta-quest-3-abc123',
+  message: 'Second check-in recorded',
+};
+
+// Day 7: Final verification
+const verification3 = {
+  timestamp: '2026-01-18 18:00:00',
+  gpsLocation: { lat: 40.7580, lng: -73.9855 }, // Same location
+  deviceId: 'meta-quest-3-abc123',
+  message: 'Third check-in recorded - NFT minting!',
+};
+
+// NFT minted for Sarah's apartment
+const sarahsApartment = {
+  owner: '0xSARAH...',
+  address: 'Apt 4B, 123 Main St, New York, NY',
+  nft: {
+    tokenId: 'HOLOLAND-APT-000123',
+    mintDate: '2026-01-18',
+    expiresIfInactive: '2027-01-18', // Must enter space within 1 year
+  },
+};
+```
+
+### NFT Burn/Re-mint System (Prevents Squatting)
+
+**The Rule: Use It or Lose It**
+
+```typescript
+interface ActivityTracking {
+  nft: PropertyNFT;
+
+  // Track physical presence
+  lastVisit: {
+    timestamp: Date;
+    gpsLocation: LatLng;
+    deviceId: string;
+  };
+
+  // Expiry system
+  expiryRules: {
+    inactivityPeriod: 365 days; // 1 year
+    warningPeriod: 30 days; // Warning 30 days before burn
+    graceExtensions: number; // Traveling? Request extension
+  };
+
+  // Auto-burn if inactive
+  burnCondition: {
+    noVisitIn1Year: boolean;
+    noBuildingActivity: boolean;
+    noARContentUpdates: boolean;
+  };
+
+  // Re-mint allowed
+  remintAllowed: true; // Can re-register when you return
+  remintCooldown: 30 days; // Prevents abuse
+}
+```
+
+**How NFT Burn/Re-mint Works:**
+
+#### Scenario 1: Active User (Sarah)
+```typescript
+// Sarah lives in her apartment, uses Hololand regularly
+const sarahActivity = {
+  nft: 'HOLOLAND-APT-000123',
+  lastVisit: '2026-06-15', // 3 months ago
+  status: 'active',
+  expiresAt: '2027-01-18', // 1 year from mint
+  message: 'NFT is active, no expiry risk',
+};
+```
+
+#### Scenario 2: Inactive User (Bob)
+```typescript
+// Bob registered his apartment but hasn't entered in 11 months
+const bobActivity = {
+  nft: 'HOLOLAND-APT-000456',
+  lastVisit: '2025-02-10', // 11 months ago
+  status: 'warning',
+  expiresAt: '2026-01-10', // 30 days until burn
+  warning: {
+    sent: true,
+    message: 'Your NFT will burn in 30 days if you don\'t enter your space',
+    remindersSent: 3,
+  },
+};
+
+// Bob doesn't return → NFT burns on 2026-01-10
+// His AR content is archived, space becomes available
+```
+
+#### Scenario 3: Traveling User (Alice)
+```typescript
+// Alice is traveling for 6 months, requests extension
+const aliceActivity = {
+  nft: 'HOLOLAND-HOME-000789',
+  lastVisit: '2025-12-01',
+  status: 'active_with_extension',
+
+  // Travel extension request
+  extension: {
+    reason: 'traveling',
+    duration: 180 days, // 6 months
+    approved: true,
+    newExpiryDate: '2027-06-01', // Extended
+  },
+
+  message: 'Extension approved, NFT safe while traveling',
+};
+```
+
+#### Scenario 4: Re-minting After Burn
+```typescript
+// Bob returns after 2 years, his NFT was burned
+// He can re-mint by going through geolocation verification again
+
+const bobRemint = {
+  previousNFT: 'HOLOLAND-APT-000456', // Burned
+  burnDate: '2026-01-10',
+
+  // Re-mint process (same as initial registration)
+  remintRequest: {
+    timestamp: '2028-03-15',
+    verificationType: 'geolocation',
+    verifications: [
+      { date: '2028-03-15', confirmed: true },
+      { date: '2028-03-17', confirmed: true },
+      { date: '2028-03-20', confirmed: true },
+    ],
+  },
+
+  // New NFT issued
+  newNFT: {
+    tokenId: 'HOLOLAND-APT-001234', // New token ID
+    mintDate: '2028-03-20',
+    previouslyBurned: true,
+    remintCount: 1, // Track re-mints
+  },
+
+  // Cooldown prevents abuse
+  nextRemintAllowedAt: '2028-04-19', // 30 days later
+};
+```
 
 **Anti-Abuse Measures:**
-- Small stake required ($10-50 ETH) - prevents spam claims
+- Small stake required ($10-50) - prevents spam claims
+- Geolocation verification requires 3 check-ins over 7 days
+- NFT burns if space not entered in 1 year
+- Travel extensions available (prevents unfair burns)
+- Re-mint cooldown (30 days) prevents gaming the system
 - One property per wallet initially
-- Community reporting for fake claims
-- Verification required within 90 days
+- Community reporting for suspicious activity
 
 ---
 
