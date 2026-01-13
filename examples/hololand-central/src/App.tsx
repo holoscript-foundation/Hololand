@@ -6,9 +6,10 @@ import { MainPlaza } from './worlds/MainPlaza';
 import { DemoShop } from './worlds/DemoShop';
 import { SocialLounge } from './worlds/SocialLounge';
 import { PhysicsPlayground } from './worlds/PhysicsPlayground';
+import { InfinityShop } from './worlds/InfinityShop';
 import './styles.css';
 
-type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery';
+type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop';
 
 interface WorldInfo {
   title: string;
@@ -41,6 +42,11 @@ const WORLD_INFO: Record<WorldType, WorldInfo> = {
     title: 'Art Gallery (Coming Soon)',
     description: 'Community art gallery featuring 3D artwork and NFT displays.',
     icon: '🎨',
+  },
+  'infinity-shop': {
+    title: 'Infinity Shop (Coming Soon)',
+    description: 'Meet Brittney, your AI assistant. Build VR worlds without code.',
+    icon: '✨',
   },
 };
 
@@ -92,6 +98,8 @@ function App() {
         return <PhysicsPlayground />;
       case 'gallery':
         return <MainPlaza onPortalClick={handlePortalClick} />; // Fallback
+      case 'infinity-shop':
+        return <InfinityShop />;
       default:
         return <MainPlaza onPortalClick={handlePortalClick} />;
     }
@@ -134,7 +142,7 @@ function App() {
           {/* Portal selection (only show in plaza) */}
           {currentWorld === 'plaza' && (
             <div className="portal-selection">
-              {(['shop', 'social', 'physics', 'gallery'] as WorldType[]).map((world) => (
+              {(['shop', 'social', 'physics', 'gallery', 'infinity-shop'] as WorldType[]).map((world) => (
                 <div
                   key={world}
                   className={`portal-card ${currentWorld === world ? 'active' : ''}`}

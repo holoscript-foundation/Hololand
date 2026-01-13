@@ -129,6 +129,14 @@ export const MainPlaza: React.FC<MainPlazaProps> = ({ onPortalClick }) => {
         onClick={() => onPortalClick('gallery')}
       />
 
+      {/* Portal 5: Infinity Shop (coming soon) */}
+      <Portal
+        position={[6, 2, 6]}
+        color={0xffd700}
+        label="Infinity Shop"
+        onClick={() => onPortalClick('infinity-shop')}
+      />
+
       {/* Decorative floating cubes */}
       {[...Array(12)].map((_, i) => {
         const angle = (i / 12) * Math.PI * 2;
