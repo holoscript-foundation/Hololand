@@ -553,14 +553,167 @@ dashboard.update({
 
 ---
 
+## 💎 $BRIAN - Native Ecosystem Token
+
+**The Currency That Powers Hololand**
+
+$BRIAN is the native token of the Hololand ecosystem. All platform transactions, payments, and fees flow through $BRIAN.
+
+### What is $BRIAN?
+
+$BRIAN is:
+- ✅ **Native Currency**: Official payment token for all Hololand services
+- ✅ **Ecosystem Token**: Powers the entire Hololand economy
+- ✅ **Universal**: Used across AR, VR, and desktop experiences
+- ✅ **Multi-Chain**: Works on Based (primary), Ethereum, Polygon
+- ✅ **Liquid**: Tradeable on DEXs and CEXs
+
+**Contract Address (Based Chain)**:
+
+```solidity
+0x3ecced5b416e58664f04a39dD18935eB71D33B15
+```
+
+**Where to Get $BRIAN**:
+
+- 🔵 [Uniswap](https://app.uniswap.org) - Trade ETH/USDC for $BRIAN
+- 🔵 [SushiSwap](https://www.sushi.com) - Liquidity pools
+- 🔵 [Based DEX](https://based.markets) - Native Based chain trading
+- 🔵 CEXs (Coming Soon) - Major centralized exchanges
+
+### $BRIAN Use Cases
+
+| Use Case | Description | Example |
+|----------|-------------|---------|
+| **Agent Services** | Pay for AI agents (Content Creator, Customer Service) | 100 $BRIAN/month for Business Manager |
+| **Property Registration** | Claim AR/VR spaces | 50 $BRIAN one-time fee |
+| **Content Marketplace** | Buy/sell 3D models, worlds, templates | 10-1000 $BRIAN per asset |
+| **Developer Payouts** | Earn $BRIAN for creating content | 70% of sales in $BRIAN |
+| **Staking Rewards** | Stake $BRIAN to earn platform fees | 5-15% APY |
+| **Governance** | Vote on platform proposals | 1 $BRIAN = 1 vote |
+| **Premium Features** | Unlock advanced tools | 200 $BRIAN/month for Pro tier |
+
+### $BRIAN Economy Flow
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  $BRIAN ECOSYSTEM                    │
+└─────────────────────────────────────────────────────┘
+
+Users
+  ↓ Spend $BRIAN
+  ├→ AR/VR Spaces (property registration)
+  ├→ AI Agents (Constructed Singularities)
+  ├→ Content (3D models, worlds, templates)
+  └→ Premium Features (advanced tools)
+
+Businesses
+  ↓ Pay $BRIAN
+  ├→ Agent Services (50-500 $BRIAN/month)
+  ├→ Content Creation (custom builds)
+  └→ Platform Fees (5-10% transaction fee)
+
+Developers
+  ↑ Earn $BRIAN
+  ├─ Content Sales (70% revenue share)
+  ├─ Custom Development (project-based)
+  └─ Marketplace Commissions
+
+Hololand Platform
+  ↓ Distributes $BRIAN
+  ├→ Developer Payouts (70% of marketplace sales)
+  ├→ Staking Rewards (5-15% APY)
+  ├→ Community Grants (for open-source contributions)
+  └→ Buy-back & Burn (reduce supply, increase value)
+
+uaa2-service
+  ↑ Receives $BRIAN
+  ├─ AI Services (GPT-4, Claude orchestration)
+  ├─ Infrastructure (compute, storage, bandwidth)
+  └─ Reinvests into platform improvements
+```
+
+### User Tokens vs $BRIAN
+
+While users can launch their own tokens, **$BRIAN is the official ecosystem token**:
+
+| Feature | $BRIAN (Official) | User Tokens |
+|---------|------------------|-------------|
+| **Platform Fees** | ✅ Pay in $BRIAN | ⚠️ Must convert to $BRIAN |
+| **Agent Services** | ✅ Native payment | ❌ Not accepted |
+| **Marketplace** | ✅ Default currency | ✅ Optional (with $BRIAN conversion) |
+| **Staking** | ✅ Earn platform fees | ❌ Not supported |
+| **Governance** | ✅ Vote on proposals | ❌ No voting rights |
+| **Liquidity** | ✅ High liquidity on DEXs | ⚠️ User-dependent |
+
+**User Token Examples**:
+- Coffee shop launches $COFFEE for loyalty rewards
+- Art gallery creates $ART for exclusive NFT drops
+- Game world issues $GAME for in-game purchases
+
+All user tokens can be traded, but $BRIAN remains the primary ecosystem currency.
+
+### $BRIAN Tokenomics (Example Model)
+
+```typescript
+interface BRIANTokenomics {
+  // Supply
+  totalSupply: 1_000_000_000; // 1 billion $BRIAN
+
+  // Distribution
+  distribution: {
+    communityRewards: 40%;      // 400M - User incentives, staking
+    developmentFund: 20%;        // 200M - Platform development
+    liquidityPool: 15%;          // 150M - DEX liquidity
+    team: 10%;                   // 100M - Team (4-year vesting)
+    earlyBackers: 10%;           // 100M - Investors (2-year vesting)
+    reserve: 5%;                 // 50M - Emergency fund
+  };
+
+  // Deflationary Mechanics
+  burnRate: 0.05; // 5% of platform fees burned
+  buybackProgram: true; // 10% of profits buy back $BRIAN
+
+  // Staking
+  stakingAPY: {
+    tier1: 5%;   // Stake < 10k $BRIAN
+    tier2: 10%;  // Stake 10k-100k $BRIAN
+    tier3: 15%;  // Stake > 100k $BRIAN
+  };
+}
+```
+
+**Price Drivers**:
+- ✅ Platform growth (more users = more $BRIAN demand)
+- ✅ Agent adoption (businesses need $BRIAN for AI services)
+- ✅ Marketplace activity (content sales require $BRIAN)
+- ✅ Deflationary mechanics (burn + buyback)
+- ✅ Staking lockup (reduces circulating supply)
+
+### Conversion Rates (Example)
+
+| Fiat/Crypto | $BRIAN | Use Case |
+|-------------|--------|----------|
+| $10 USD | 100 $BRIAN | Property registration |
+| $50 USD | 500 $BRIAN | Business Manager agent (1 month) |
+| $100 USD | 1,000 $BRIAN | Premium tier (1 month) |
+| $500 USD | 5,000 $BRIAN | Custom world development |
+| 0.01 ETH | ~1,000 $BRIAN | Marketplace purchase |
+
+*Rates are dynamic based on market price*
+
+---
+
 ## 💰 Revenue Breakdown
 
-### For Businesses
+### For Businesses (in $BRIAN)
 | Type | Investment | New Revenue | ROI |
 |------|-----------|-------------|-----|
-| Coffee Shop | $100/month | +$4,500/month | 4,400% |
-| Retail Store | $917/month | +$10,500/month | 1,045% |
-| Gym | $500/month | +$8,000/month | 1,500% |
+| Coffee Shop | 1,000 $BRIAN/month | +$4,500/month | 4,400% |
+| Retail Store | 9,170 $BRIAN/month | +$10,500/month | 1,045% |
+| Gym | 5,000 $BRIAN/month | +$8,000/month | 1,500% |
+
+*Assumes $BRIAN = $0.10 USD*
 
 ### For Developers
 | Level | Income | Source |
