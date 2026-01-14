@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0a1a">
+  <title>HoloScript Studio - Build Apps in VR | Hololand</title>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #0a0a1a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      color: white;
+    }
+    
+    /* Main Layout */
+    #app {
+      display: flex;
+      height: 100vh;
+    }
+    
+    /* Left: 3D Workspace */
+    #workspace {
+      flex: 1;
+      position: relative;
+      border-right: 2px solid #4fc3f7;
+    }
+    
+    /* Workspace Header */
+    #workspace-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 15px;
+      background: linear-gradient(to bottom, rgba(10,10,26,0.95), transparent);
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    #workspace-header h1 {
+      font-size: 20px;
+      color: #4fc3f7;
+    }
+    
+    .mode-tabs {
+      display: flex;
+      gap: 5px;
+    }
+    
+    .mode-tab {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid #333;
+      color: #888;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    
+    .mode-tab:hover {
+      border-color: #4fc3f7;
+    }
+    
+    .mode-tab.active {
+      background: #4fc3f7;
+      border-color: #4fc3f7;
+      color: #000;
+    }
+    
+    /* Component Palette */
+    #palette {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 15px;
+      background: linear-gradient(to top, rgba(10,10,26,0.95), transparent);
+      z-index: 100;
+    }
+    
+    #palette-title {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    
+    #palette-items {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .palette-item {
+      background: rgba(30, 30, 50, 0.9);
+      border: 1px solid #444;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .palette-item:hover {
+      border-color: #4fc3f7;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(79,195,247,0.2);
+    }
+    
+    .palette-item .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    /* Right: Preview Panel */
+    #preview-panel {
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      background: #0d0d1a;
+    }
+    
+    #preview-header {
+      padding: 15px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    #preview-header h2 {
+      font-size: 16px;
+      color: #44ff88;
+    }
+    
+    .device-btns {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .device-btn {
+      background: rgba(255,255,255,0.05);
+      border: none;
+      color: #666;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    
+    .device-btn.active {
+      background: #4fc3f7;
+      color: #000;
+    }
+    
+    /* Preview Frame */
+    #preview-frame {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: #1a1a2e;
+    }
+    
+    #device-frame {
+      background: #fff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      transition: all 0.3s;
+    }
+    
+    #device-frame.phone { width: 260px; height: 480px; }
+    #device-frame.tablet { width: 340px; height: 480px; }
+    
+    #app-preview {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      font-family: -apple-system, sans-serif;
+    }
+    
+    /* Generated App Styles */
+    .app-header {
+      background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+      color: white;
+      padding: 20px 15px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    
+    .app-content {
+      padding: 15px;
+    }
+    
+    .app-text { color: #333; margin-bottom: 12px; line-height: 1.5; font-size: 14px; }
+    
+    .app-button {
+      background: #4fc3f7;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      width: 100%;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    
+    .app-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    
+    .app-card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 12px;
+    }
+    
+    .app-card-title { font-weight: 600; color: #333; margin-bottom: 4px; }
+    .app-card-text { color: #666; font-size: 13px; }
+    
+    .app-image {
+      width: 100%;
+      height: 120px;
+      background: linear-gradient(135deg, #e8e8e8, #f5f5f5);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #aaa;
+      font-size: 24px;
+    }
+    
+    .app-list { list-style: none; }
+    .app-list li {
+      padding: 14px 0;
+      border-bottom: 1px solid #eee;
+      color: #333;
+      font-size: 14px;
+    }
+    
+    .app-nav {
+      display: flex;
+      justify-content: space-around;
+      background: #f8f9fa;
+      padding: 12px;
+      border-top: 1px solid #eee;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+    }
+    
+    .app-nav-item { text-align: center; color: #999; font-size: 11px; }
+    .app-nav-item.active { color: #4fc3f7; }
+    .app-nav-icon { font-size: 18px; margin-bottom: 2px; }
+    
+    /* Data display */
+    .app-data {
+      background: #f0f8ff;
+      border-left: 3px solid #4fc3f7;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #333;
+    }
+    
+    .app-data-label { color: #666; font-size: 10px; text-transform: uppercase; }
+    .app-data-value { font-weight: bold; color: #4fc3f7; }
+    
+    /* Conditional output */
+    .app-status {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .app-status.success { background: #e8f5e9; color: #2e7d32; }
+    .app-status.warning { background: #fff3e0; color: #ef6c00; }
+    .app-status.error { background: #ffebee; color: #c62828; }
+    
+    /* Code Panel */
+    #code-panel {
+      border-top: 1px solid #333;
+      background: #0a0a1a;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    #code-header {
+      padding: 10px 15px;
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    #code-content {
+      padding: 15px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #aaa;
+    }
+    
+    .code-keyword { color: #ff79c6; }
+    .code-string { color: #f1fa8c; }
+    .code-number { color: #bd93f9; }
+    .code-function { color: #8be9fd; }
+    .code-variable { color: #50fa7b; }
+    .code-comment { color: #6272a4; }
+    
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+    
+    .empty-state-icon { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
+    .empty-state-text { font-size: 14px; }
+    
+    /* Instructions overlay */
+    #instructions {
+      position: absolute;
+      top: 70px;
+      left: 15px;
+      background: rgba(10,10,26,0.9);
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      font-size: 12px;
+      color: #888;
+      z-index: 100;
+      max-width: 280px;
+    }
+    
+    #instructions strong { color: #4fc3f7; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 3D Workspace -->
+    <div id="workspace">
+      <div id="workspace-header">
+        <h1>🔮 HoloScript Studio</h1>
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="backend">Backend</button>
+          <button class="mode-tab" data-mode="frontend">Frontend</button>
+        </div>
+      </div>
+      
+      <div id="instructions">
+        <strong>Click</strong> components to add them.<br>
+        <strong>Double-click</strong> 3D blocks to remove.<br>
+        <strong>Drag</strong> to rotate view.
+      </div>
+      
+      <div id="palette">
+        <div id="palette-title">Backend Components</div>
+        <div id="palette-items">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+    
+    <!-- Preview Panel -->
+    <div id="preview-panel">
+      <div id="preview-header">
+        <h2>📱 Live App</h2>
+        <div class="device-btns">
+          <button class="device-btn active" data-device="phone">Phone</button>
+          <button class="device-btn" data-device="tablet">Tablet</button>
+        </div>
+      </div>
+      
+      <div id="preview-frame">
+        <div id="device-frame" class="phone">
+          <div id="app-preview">
+            <div class="empty-state">
+              <div class="empty-state-icon">🔮</div>
+              <div class="empty-state-text">Add components to build your app</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="code-panel">
+        <div id="code-header">
+          <span>Generated Code</span>
+          <span id="code-lang">JavaScript</span>
+        </div>
+        <div id="code-content">
+          <span class="code-comment">// Add components to see generated code</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+    }
+  }
+  </script>
+  
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    
+    // Component definitions
+    const components = {
+      backend: [
+        { type: 'variable', label: 'Variable', color: 0x50fa7b, icon: '📦' },
+        { type: 'function', label: 'Function', color: 0x8be9fd, icon: '⚡' },
+        { type: 'conditional', label: 'If/Else', color: 0xffb86c, icon: '🔀' },
+        { type: 'loop', label: 'Loop', color: 0xff79c6, icon: '🔄' },
+        { type: 'api', label: 'API Call', color: 0xbd93f9, icon: '🌐' },
+        { type: 'event', label: 'Event', color: 0xff5555, icon: '📡' }
+      ],
+      frontend: [
+        { type: 'header', label: 'Header', color: 0x4fc3f7, icon: '📌' },
+        { type: 'text', label: 'Text', color: 0x888888, icon: '📝' },
+        { type: 'button', label: 'Button', color: 0x44ff88, icon: '🔘' },
+        { type: 'input', label: 'Input', color: 0xffaa44, icon: '⌨️' },
+        { type: 'card', label: 'Card', color: 0x9966ff, icon: '🃏' },
+        { type: 'image', label: 'Image', color: 0xff6b9d, icon: '🖼️' },
+        { type: 'list', label: 'List', color: 0x66ccff, icon: '📋' },
+        { type: 'nav', label: 'Nav Bar', color: 0x4fc3f7, icon: '🧭' }
+      ]
+    };
+    
+    let currentMode = 'backend';
+    const blocks = { backend: [], frontend: [] };
+    let blockY = { backend: 0.5, frontend: 0.5 };
+    
+    // Three.js setup
+    const container = document.getElementById('workspace');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a1a);
+    
+    const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 4, 7);
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+    
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 2, 0);
+    controls.maxPolarAngle = Math.PI / 2;
+    
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x404040, 0.6));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 10, 5);
+    scene.add(dirLight);
+    
+    // Grid
+    const grid = new THREE.GridHelper(16, 16, 0x4fc3f7, 0x1a1a3e);
+    scene.add(grid);
+    
+    // Groups for backend/frontend blocks
+    const backendGroup = new THREE.Group();
+    const frontendGroup = new THREE.Group();
+    scene.add(backendGroup);
+    scene.add(frontendGroup);
+    frontendGroup.visible = false;
+    
+    // Render palette
+    function renderPalette() {
+      const paletteItems = document.getElementById('palette-items');
+      const paletteTitle = document.getElementById('palette-title');
+      
+      paletteTitle.textContent = currentMode === 'backend' ? 'Backend Components' : 'Frontend Components';
+      
+      paletteItems.innerHTML = components[currentMode].map(c => `
+        <div class="palette-item" data-type="${c.type}">
+          <span class="dot" style="background: #${c.color.toString(16).padStart(6, '0')}"></span>
+          ${c.icon} ${c.label}
+        </div>
+      `).join('');
+      
+      // Add click handlers
+      paletteItems.querySelectorAll('.palette-item').forEach(item => {
+        item.addEventListener('click', () => addBlock(item.dataset.type));
+      });
+    }
+    
+    // Create 3D block
+    function addBlock(type) {
+      const compDef = components[currentMode].find(c => c.type === type);
+      if (!compDef) return;
+      
+      const geometry = new THREE.BoxGeometry(2.5, 0.6, 0.25);
+      const material = new THREE.MeshStandardMaterial({
+        color: compDef.color,
+        emissive: compDef.color,
+        emissiveIntensity: 0.15,
+        metalness: 0.2,
+        roughness: 0.8
+      });
+      
+      const block = new THREE.Mesh(geometry, material);
+      block.position.set(0, blockY[currentMode], 0);
+      block.userData = { type, mode: currentMode, id: Date.now() };
+      
+      blockY[currentMode] += 0.9;
+      
+      // Label
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, 256, 64);
+      ctx.font = 'bold 22px -apple-system, sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${compDef.icon} ${compDef.label}`, 128, 32);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+      const labelMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.2, 0.5),
+        new THREE.MeshBasicMaterial({ map: texture, transparent: true })
+      );
+      labelMesh.position.z = 0.13;
+      block.add(labelMesh);
+      
+      // Edge glow
+      const edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(geometry),
+        new THREE.LineBasicMaterial({ color: compDef.color })
+      );
+      block.add(edges);
+      
+      // Connection line to previous block
+      if (blocks[currentMode].length > 0) {
+        const prevBlock = blocks[currentMode][blocks[currentMode].length - 1];
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, prevBlock.position.y, 0.13),
+          new THREE.Vector3(0, block.position.y, 0.13)
+        ]);
+        const lineMat = new THREE.LineBasicMaterial({ 
+          color: 0x4fc3f7, 
+          transparent: true, 
+          opacity: 0.6 
+        });
+        const line = new THREE.Line(lineGeo, lineMat);
+        (currentMode === 'backend' ? backendGroup : frontendGroup).add(line);
+      }
+      
+      (currentMode === 'backend' ? backendGroup : frontendGroup).add(block);
+      blocks[currentMode].push(block);
+      
+      updatePreview();
+      updateCode();
+    }
+    
+    // Update app preview
+    function updatePreview() {
+      const preview = document.getElementById('app-preview');
+      const hasBackend = blocks.backend.length > 0;
+      const hasFrontend = blocks.frontend.length > 0;
+      
+      if (!hasBackend && !hasFrontend) {
+        preview.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔮</div>
+            <div class="empty-state-text">Add components to build your app</div>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = '';
+      
+      // Render frontend UI
+      const sortedFrontend = [...blocks.frontend].sort((a, b) => b.position.y - a.position.y);
+      
+      // Check if we have a header
+      const hasHeader = sortedFrontend.some(b => b.userData.type === 'header');
+      const hasNav = sortedFrontend.some(b => b.userData.type === 'nav');
+      
+      if (hasHeader) {
+        html += `<div class="app-header">My App</div>`;
+      }
+      
+      html += `<div class="app-content" style="padding-bottom: ${hasNav ? '70px' : '15px'}">`;
+      
+      // Backend data display
+      if (hasBackend) {
+        blocks.backend.forEach(block => {
+          switch (block.userData.type) {
+            case 'variable':
+              html += `<div class="app-data"><div class="app-data-label">Variable</div><span class="app-data-value">userName</span> = "Alex"</div>`;
+              break;
+            case 'conditional':
+              html += `<div class="app-status success">✓ Condition met: User is logged in</div>`;
+              break;
+            case 'api':
+              html += `<div class="app-status warning">⏳ Loading data from API...</div>`;
+              break;
+          }
+        });
+      }
+      
+      // Frontend components
+      sortedFrontend.forEach(block => {
+        switch (block.userData.type) {
+          case 'text':
+            html += `<p class="app-text">Welcome to your app! This text was added from the HoloScript editor.</p>`;
+            break;
+          case 'button':
+            html += `<button class="app-button">Take Action</button>`;
+            break;
+          case 'input':
+            html += `<input class="app-input" placeholder="Enter your name...">`;
+            break;
+          case 'card':
+            html += `<div class="app-card"><div class="app-card-title">Feature Card</div><div class="app-card-text">This card displays important information.</div></div>`;
+            break;
+          case 'image':
+            html += `<div class="app-image">📷</div>`;
+            break;
+          case 'list':
+            html += `<ul class="app-list"><li>First item</li><li>Second item</li><li>Third item</li></ul>`;
+            break;
+        }
+      });
+      
+      html += `</div>`;
+      
+      if (hasNav) {
+        html += `
+          <div class="app-nav">
+            <div class="app-nav-item active"><div class="app-nav-icon">🏠</div>Home</div>
+            <div class="app-nav-item"><div class="app-nav-icon">🔍</div>Search</div>
+            <div class="app-nav-item"><div class="app-nav-icon">👤</div>Profile</div>
+          </div>
+        `;
+      }
+      
+      preview.innerHTML = html;
+    }
+    
+    // Update generated code
+    function updateCode() {
+      const codeEl = document.getElementById('code-content');
+      
+      if (blocks.backend.length === 0 && blocks.frontend.length === 0) {
+        codeEl.innerHTML = `<span class="code-comment">// Add components to see generated code</span>`;
+        return;
+      }
+      
+      let code = '';
+      
+      // Backend code
+      blocks.backend.forEach(block => {
+        switch (block.userData.type) {
+          case 'variable':
+            code += `<span class="code-keyword">const</span> <span class="code-variable">userName</span> = <span class="code-string">"Alex"</span>;\n`;
+            break;
+          case 'function':
+            code += `<span class="code-keyword">function</span> <span class="code-function">handleAction</span>() {\n  <span class="code-comment">// Your logic here</span>\n}\n`;
+            break;
+          case 'conditional':
+            code += `<span class="code-keyword">if</span> (isLoggedIn) {\n  showDashboard();\n}\n`;
+            break;
+          case 'loop':
+            code += `items.<span class="code-function">forEach</span>(item => {\n  renderItem(item);\n});\n`;
+            break;
+          case 'api':
+            code += `<span class="code-keyword">const</span> data = <span class="code-keyword">await</span> <span class="code-function">fetch</span>(<span class="code-string">'/api/data'</span>);\n`;
+            break;
+          case 'event':
+            code += `element.<span class="code-function">on</span>(<span class="code-string">'click'</span>, handler);\n`;
+            break;
+        }
+      });
+      
+      if (blocks.backend.length > 0 && blocks.frontend.length > 0) {
+        code += `\n<span class="code-comment">// --- UI Components ---</span>\n`;
+      }
+      
+      // Frontend code
+      blocks.frontend.forEach(block => {
+        switch (block.userData.type) {
+          case 'header':
+            code += `<span class="code-keyword">&lt;Header</span> title=<span class="code-string">"My App"</span> <span class="code-keyword">/&gt;</span>\n`;
+            break;
+          case 'text':
+            code += `<span class="code-keyword">&lt;Text&gt;</span>Welcome...<span class="code-keyword">&lt;/Text&gt;</span>\n`;
+            break;
+          case 'button':
+            code += `<span class="code-keyword">&lt;Button</span> onClick={handleAction}<span class="code-keyword">&gt;</span>Action<span class="code-keyword">&lt;/Button&gt;</span>\n`;
+            break;
+          case 'input':
+            code += `<span class="code-keyword">&lt;Input</span> placeholder=<span class="code-string">"Enter..."</span> <span class="code-keyword">/&gt;</span>\n`;
+            break;
+          case 'card':
+            code += `<span class="code-keyword">&lt;Card</span> title=<span class="code-string">"Feature"</span><span class="code-keyword">&gt;</span>...<span class="code-keyword">&lt;/Card&gt;</span>\n`;
+            break;
+          case 'image':
+            code += `<span class="code-keyword">&lt;Image</span> src={imageUrl} <span class="code-keyword">/&gt;</span>\n`;
+            break;
+          case 'list':
+            code += `<span class="code-keyword">&lt;List</span> items={items} <span class="code-keyword">/&gt;</span>\n`;
+            break;
+          case 'nav':
+            code += `<span class="code-keyword">&lt;NavBar</span> items={navItems} <span class="code-keyword">/&gt;</span>\n`;
+            break;
+        }
+      });
+      
+      codeEl.innerHTML = code || `<span class="code-comment">// Add components to see generated code</span>`;
+    }
+    
+    // Mode switching
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentMode = tab.dataset.mode;
+        
+        backendGroup.visible = currentMode === 'backend';
+        frontendGroup.visible = currentMode === 'frontend';
+        
+        renderPalette();
+      });
+    });
+    
+    // Device switching
+    document.querySelectorAll('.device-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('device-frame').className = btn.dataset.device;
+      });
+    });
+    
+    // Click to remove
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    
+    renderer.domElement.addEventListener('dblclick', (e) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      const allBlocks = [...blocks.backend, ...blocks.frontend];
+      const intersects = raycaster.intersectObjects(allBlocks);
+      
+      if (intersects.length > 0) {
+        const block = intersects[0].object;
+        const mode = block.userData.mode;
+        
+        (mode === 'backend' ? backendGroup : frontendGroup).remove(block);
+        const idx = blocks[mode].indexOf(block);
+        if (idx > -1) blocks[mode].splice(idx, 1);
+        
+        updatePreview();
+        updateCode();
+      }
+    });
+    
+    // Animation
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // Gentle float
+      [...blocks.backend, ...blocks.frontend].forEach((block, i) => {
+        block.position.x = Math.sin(Date.now() * 0.001 + i) * 0.05;
+        block.rotation.y = Math.sin(Date.now() * 0.0005 + i) * 0.02;
+      });
+      
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    
+    // Init
+    renderPalette();
+    animate();
+    
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+  </script>
+</body>
+</html>

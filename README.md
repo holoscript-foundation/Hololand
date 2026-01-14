@@ -1,6 +1,6 @@
 # 🥽 Hololand - Build the Metaverse Together
 
-> **An open-source VR metaverse platform where developers and creators build together using natural language, code, or voice commands**
+> **An open-source VR/AR metaverse platform where developers and creators build together using natural language, code, or voice commands**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha-orange.svg)]()
@@ -11,7 +11,17 @@
 
 ## 🌟 Vision
 
-**Hololand** is building the open metaverse - a **Ready Player One-style world** that works everywhere. We're creating a universal platform where you can build once and deploy to VR headsets, AR glasses, desktops, and mobile devices.
+**Hololand** is building the open metaverse - a **Ready Player One-style world** intersecting VR and AR. We're creating a universal platform with **Three Plains of Reality**:
+
+### 🌌 The Three Plains
+
+| Plain | Description | Location-Bound? |
+|-------|-------------|-----------------|
+| **🌌 Hololand** | Pure VR world - the OASIS | ❌ Accessible anywhere |
+| **🥽 VR Real World** | Digital twin of Earth in VR | ✅ GPS-anchored |
+| **📱 AR Real World** | Augmented overlay on reality | ✅ GPS-anchored |
+
+**[Read Full Three Plains Architecture →](HOLOLAND_HUB_AND_AR.md)**
 
 ### Build With Any Method
 

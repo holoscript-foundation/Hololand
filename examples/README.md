@@ -6,10 +6,26 @@ Welcome to the Hololand examples! These examples demonstrate different ways to b
 
 | Example | Difficulty | Time | What You'll Learn |
 |---------|-----------|------|-------------------|
-| [01-hello-vr-world](./01-hello-vr-world) | Beginner | 5 min | Basic 3D scene, VR mode, lighting |
+| [holoscript-studio](./holoscript-studio) | ⭐ Featured | 10 min | **Build full apps in 3D** - Backend logic + Frontend UI |
+| [01-hello-vr-world](./01-hello-vr-world) | Beginner | 5 min | Basic 3D scene, VR mode, HoloScript intro |
 | [02-physics-playground](./02-physics-playground) | Beginner | 10 min | Physics simulation, collisions |
 | [03-vr-shop](./03-vr-shop) | Intermediate | 15 min | Commerce features, inventory |
 | [04-react-starter](./04-react-starter) | Intermediate | 10 min | React components, hooks |
+
+## ⭐ Start Here: HoloScript Studio
+
+**The flagship demo!** Build complete applications using visual 3D blocks:
+
+1. **Backend Mode** - Add Variables, Functions, Conditionals, API Calls
+2. **Frontend Mode** - Add Headers, Buttons, Cards, Navigation
+3. **Live Preview** - See your app render in real-time (phone/tablet)
+4. **Generated Code** - View the JavaScript/JSX that powers your app
+
+```bash
+cd holoscript-studio
+python -m http.server 8080
+# Visit http://localhost:8080
+```
 
 ## 🚀 Quick Start
 

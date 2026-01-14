@@ -1,0 +1,3225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a1a">
+  <meta name="description" content="HoloScript - VR-Native Programming Language Demo">
+  <title>HoloScript Live Demo - Hololand</title>
+  
+  <!-- Preconnect for faster CDN loading -->
+  <link rel="preconnect" href="https://unpkg.com">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      touch-action: none;
+      background: #0a0a1a;
+    }
+    
+    /* Loading Screen */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+    
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 3px solid #1a1a3e;
+      border-top: 3px solid #00ffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    #loading h2 {
+      color: #4fc3f7;
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    
+    #loading p {
+      color: #888;
+      font-size: 14px;
+    }
+    
+    /* Main Control Panel */
+    #control-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      max-width: 380px;
+      height: fit-content;
+      background: rgba(10, 10, 26, 0.95);
+      color: white;
+      z-index: 100;
+      border-right: 1px solid #4fc3f7;
+      border-bottom: 1px solid #4fc3f7;
+      border-radius: 0 0 16px 0;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: transform 0.3s ease;
+      overflow: visible;
+    }
+    
+    #control-panel.collapsed {
+      transform: translateX(-100%);
+    }
+    
+    #panel-toggle {
+      position: absolute;
+      right: -30px;
+      top: 20px;
+      width: 30px;
+      height: 50px;
+      background: rgba(10, 10, 26, 0.95);
+      border: 1px solid #4fc3f7;
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+      color: #4fc3f7;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: background 0.2s ease;
+    }
+    
+    #panel-toggle:hover {
+      background: rgba(79, 195, 247, 0.2);
+    }
+    
+    #panel-content {
+      padding: 10px;
+    }
+    
+    #control-panel h1 {
+      margin: 0 0 6px 0;
+      font-size: 16px;
+      color: #4fc3f7;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    #control-panel p {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      color: #aaa;
+    }
+    
+    .success { color: #4caf50; font-weight: bold; }
+    .error { color: #ff4444; }
+    .listening { color: #ff9800; }
+    
+    /* Button Grid */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    
+    .btn {
+      padding: 8px 6px;
+      background: linear-gradient(135deg, #1a1a3e 0%, #2a2a5e 100%);
+      border: 1px solid #4fc3f7;
+      border-radius: 6px;
+      color: white;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    
+    .btn:hover, .btn:active {
+      background: linear-gradient(135deg, #2a2a5e 0%, #3a3a7e 100%);
+      transform: scale(1.02);
+    }
+    
+    .btn.primary {
+      background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+      color: #000;
+      grid-column: span 2;
+    }
+    
+    .btn.primary:hover, .btn.primary:active {
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+    }
+    
+    .btn.listening {
+      background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+      animation: pulse 1s infinite;
+    }
+    
+    .btn.danger {
+      background: linear-gradient(135deg, #661111 0%, #991111 100%);
+      border-color: #ff4444;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 10px rgba(255, 152, 0, 0.5); }
+      50% { box-shadow: 0 0 25px rgba(255, 152, 0, 0.8); }
+    }
+    
+    /* Command hint chips */
+    .command-hints {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    
+    .hint-chip {
+      background: #1a1a2e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 3px 10px;
+      font-size: 10px;
+      color: #888;
+      cursor: pointer;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      transition: all 0.2s ease;
+    }
+    
+    .hint-chip:hover {
+      border-color: #4fc3f7;
+      color: #4fc3f7;
+    }
+    
+    /* Input Area */
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    
+    #command-input {
+      flex: 1;
+      padding: 8px 10px;
+      background: #1a1a2e;
+      border: 1px solid #4fc3f7;
+      border-radius: 6px;
+      color: white;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+      outline: none;
+    }
+    
+    #command-input:focus {
+      box-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
+    }
+    
+    #command-input::placeholder {
+      color: #666;
+    }
+    
+    .send-btn {
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+      border: none;
+      border-radius: 6px;
+      color: #000;
+      font-weight: bold;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    /* Command Log */
+    #command-log {
+      padding: 10px;
+      background: #0a0a15;
+      border-radius: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 11px;
+      border: 1px solid #222;
+    }
+    
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #1a1a2e;
+      word-break: break-word;
+    }
+    
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    
+    .log-entry.command { color: #4fc3f7; }
+    .log-entry.result { color: #4caf50; }
+    .log-entry.error { color: #ff4444; }
+    
+    /* Quick Actions Bar (Mobile) */
+    #quick-actions {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(10, 10, 26, 0.95);
+      border-top: 1px solid #4fc3f7;
+      padding: 10px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 100;
+      display: none;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    
+    .quick-btn {
+      padding: 10px 6px;
+      background: linear-gradient(135deg, #1a1a3e 0%, #2a2a5e 100%);
+      border: 1px solid #4fc3f7;
+      border-radius: 8px;
+      color: white;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    
+    .quick-btn .icon {
+      font-size: 16px;
+    }
+    
+    .quick-btn:active {
+      transform: scale(0.95);
+      background: linear-gradient(135deg, #2a2a5e 0%, #3a3a7e 100%);
+    }
+    
+    /* Help Panel */
+    #help-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(10, 10, 26, 0.9);
+      color: white;
+      padding: 15px;
+      border-radius: 12px;
+      font-size: 12px;
+      max-width: 280px;
+      border: 1px solid #444;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+    
+    #help-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(20px);
+    }
+    
+    #help-panel h3 {
+      margin: 0 0 10px 0;
+      color: #4fc3f7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    #help-panel .close-btn {
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0;
+    }
+    
+    .cmd-example {
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      background: #1a1a2e;
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin: 4px 0;
+      display: block;
+      font-size: 11px;
+      border-left: 3px solid #4fc3f7;
+    }
+    
+    /* Status Bar */
+    #status-bar {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(10, 10, 26, 0.9);
+      padding: 8px 15px;
+      border-radius: 20px;
+      font-size: 12px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #333;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4caf50;
+      animation: statusPulse 2s infinite;
+    }
+    
+    @keyframes statusPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .status-dot.error { background: #ff4444; }
+    .status-dot.listening { background: #ff9800; }
+    
+    /* Object Counter */
+    #object-count {
+      color: #4fc3f7;
+      font-weight: bold;
+    }
+    
+    /* Touch Controls Hint */
+    #touch-hint {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      display: none;
+      animation: fadeInOut 3s forwards;
+    }
+    
+    @keyframes fadeInOut {
+      0% { opacity: 0; }
+      10% { opacity: 1; }
+      80% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    
+    /* Tutorial Overlay */
+    #tutorial-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+    
+    #tutorial-overlay.hidden {
+      display: none;
+    }
+    
+    .tutorial-card {
+      background: linear-gradient(135deg, #1a1a3e 0%, #0a0a1a 100%);
+      border: 2px solid #4fc3f7;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      color: white;
+      box-shadow: 0 0 60px rgba(79, 195, 247, 0.3);
+    }
+    
+    .tutorial-card h2 {
+      margin: 0 0 10px 0;
+      color: #4fc3f7;
+      font-size: 28px;
+      text-align: center;
+    }
+    
+    .tutorial-card .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 25px;
+      font-size: 14px;
+    }
+    
+    .tutorial-step {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      align-items: flex-start;
+    }
+    
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    
+    .step-content h3 {
+      margin: 0 0 5px 0;
+      color: #fff;
+      font-size: 16px;
+    }
+    
+    .step-content p {
+      margin: 0;
+      color: #aaa;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .step-content code {
+      background: #0a0a15;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #4fc3f7;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    }
+    
+    .tutorial-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 25px;
+    }
+    
+    .tutorial-btn {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .tutorial-btn.primary {
+      background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+      color: #000;
+    }
+    
+    .tutorial-btn.primary:hover {
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+      transform: scale(1.02);
+    }
+    
+    .tutorial-btn.secondary {
+      background: transparent;
+      border: 1px solid #4fc3f7;
+      color: #4fc3f7;
+    }
+    
+    /* Guided Tutorial Steps */
+    #guide-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 10, 26, 0.95);
+      border: 2px solid #4fc3f7;
+      border-radius: 16px;
+      padding: 15px 20px;
+      max-width: 500px;
+      width: 90%;
+      z-index: 150;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 0 40px rgba(79, 195, 247, 0.2);
+    }
+    
+    #guide-panel.hidden {
+      display: none;
+    }
+    
+    .guide-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    
+    .guide-progress {
+      display: flex;
+      gap: 6px;
+    }
+    
+    .progress-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #333;
+      transition: all 0.3s ease;
+    }
+    
+    .progress-dot.active {
+      background: #4fc3f7;
+      box-shadow: 0 0 10px #4fc3f7;
+    }
+    
+    .progress-dot.completed {
+      background: #4caf50;
+    }
+    
+    .guide-step-label {
+      color: #888;
+      font-size: 12px;
+    }
+    
+    .guide-content h3 {
+      margin: 0 0 8px 0;
+      color: #fff;
+      font-size: 16px;
+    }
+    
+    .guide-content p {
+      margin: 0 0 12px 0;
+      color: #aaa;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .guide-action {
+      background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      color: #000;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .guide-action:hover {
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+    
+    .guide-action:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    
+    .guide-hint {
+      display: inline-block;
+      background: #1a1a2e;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+      color: #4fc3f7;
+      margin: 4px 0;
+    }
+    
+    /* Code Preview Panel */
+    #code-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(10, 10, 26, 0.95);
+      border: 1px solid #4fc3f7;
+      border-radius: 12px;
+      width: 280px;
+      max-height: 300px;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow: hidden;
+    }
+    
+    #code-panel.hidden {
+      display: none;
+    }
+    
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: rgba(79, 195, 247, 0.1);
+      border-bottom: 1px solid #333;
+    }
+    
+    .code-header h4 {
+      margin: 0;
+      color: #4fc3f7;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .code-header button {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    
+    #code-content {
+      padding: 12px;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 11px;
+      color: #ccc;
+      max-height: 240px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+    
+    .code-keyword { color: #ff79c6; }
+    .code-function { color: #50fa7b; }
+    .code-string { color: #f1fa8c; }
+    .code-comment { color: #6272a4; }
+    .code-variable { color: #8be9fd; }
+    .code-number { color: #bd93f9; }
+    
+    /* Completion Celebration */
+    #celebration {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    
+    #celebration.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    
+    .celebration-emoji {
+      font-size: 80px;
+      animation: bounce 0.6s infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    
+    .celebration-text {
+      color: #4fc3f7;
+      font-size: 28px;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    
+    .celebration-sub {
+      color: #888;
+      font-size: 16px;
+      margin-bottom: 30px;
+      text-align: center;
+      max-width: 400px;
+    }
+    
+    .celebration-btn {
+      background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+      color: #000;
+      border: none;
+      padding: 12px 30px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    
+    .celebration-btn:hover {
+      transform: scale(1.05);
+    }
+    
+    .theme-btn {
+      flex: 1;
+      min-width: 120px;
+      background: rgba(79, 195, 247, 0.1);
+      border: 2px solid rgba(79, 195, 247, 0.3);
+      border-radius: 12px;
+      padding: 12px 10px;
+      color: white;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .theme-btn:hover {
+      background: rgba(79, 195, 247, 0.2);
+      border-color: #4fc3f7;
+      transform: scale(1.05);
+    }
+    
+    .theme-btn.selected {
+      background: rgba(79, 195, 247, 0.3);
+      border-color: #4fc3f7;
+      box-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+    }
+    
+    .theme-btn small {
+      color: #888;
+      font-size: 11px;
+    }
+    
+    .role-btn {
+      flex: 1;
+      min-width: 140px;
+      background: rgba(79, 195, 247, 0.1);
+      border: 2px solid rgba(79, 195, 247, 0.3);
+      border-radius: 12px;
+      padding: 15px 12px;
+      color: white;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    
+    .role-btn:hover {
+      background: rgba(79, 195, 247, 0.2);
+      border-color: #4fc3f7;
+      transform: scale(1.03);
+    }
+    
+    .role-btn small {
+      color: #888;
+      font-size: 11px;
+    }
+    
+    .back-btn {
+      background: none;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 13px;
+      margin-top: 15px;
+      padding: 8px 15px;
+    }
+    
+    .back-btn:hover {
+      color: #4fc3f7;
+    }
+
+    .next-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      max-width: 450px;
+    }
+    
+    .next-step {
+      background: rgba(79, 195, 247, 0.1);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 8px;
+      padding: 10px 15px;
+      color: #aaa;
+      font-size: 13px;
+      text-align: center;
+    }
+    
+    .next-step strong {
+      color: #4fc3f7;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .section-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #4fc3f7;
+      margin-bottom: 2px;
+      margin-top: 10px;
+      opacity: 0.8;
+    }
+    
+    .section-label:first-of-type {
+      margin-top: 0;
+    }
+    
+    .section-hint {
+      font-size: 11px;
+      color: #888;
+      margin: 0 0 6px 0;
+      line-height: 1.4;
+    }
+    
+    .section-hint code {
+      background: #1a1a2e;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: #4fc3f7;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 10px;
+    }
+    
+    .tutorial-reopen {
+      background: transparent;
+      border: 1px solid #4fc3f7;
+      color: #4fc3f7;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-left: auto;
+      transition: all 0.2s ease;
+    }
+    
+    .tutorial-reopen:hover {
+      background: #4fc3f7;
+      color: #000;
+    }
+    
+    /* Responsive Breakpoints */
+    @media (max-width: 768px) {
+      #control-panel {
+        max-width: 100%;
+        border-radius: 0 0 16px 16px;
+        border-right: none;
+        height: fit-content;
+        overflow: visible;
+      }
+      
+      #control-panel.collapsed {
+        transform: translateY(-100%);
+      }
+      
+      #control-panel.collapsed #panel-toggle {
+        bottom: -40px;
+        top: auto;
+      }
+      
+      #panel-toggle {
+        right: 10px;
+        top: auto;
+        bottom: -40px;
+        width: 40px;
+        height: 30px;
+        border-radius: 0 0 8px 8px;
+        border: 1px solid #4fc3f7;
+        border-top: none;
+      }
+      
+      #help-panel {
+        display: none;
+      }
+      
+      #quick-actions {
+        display: block;
+      }
+      
+      #status-bar {
+        top: auto;
+        bottom: 80px;
+        right: 10px;
+      }
+      
+      .btn-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      
+      .btn.primary {
+        grid-column: span 3;
+      }
+      
+      #code-panel {
+        top: auto;
+        bottom: 100px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        max-height: 150px;
+      }
+      
+      #guide-panel {
+        bottom: 100px;
+        left: 10px;
+        right: 10px;
+        width: auto;
+        transform: none;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      #control-panel h1 {
+        font-size: 16px;
+      }
+      
+      #panel-content {
+        padding: 12px;
+      }
+      
+      .btn {
+        padding: 10px 6px;
+        font-size: 12px;
+      }
+      
+      #command-input {
+        font-size: 16px; /* Prevents iOS zoom */
+      }
+      
+      .tutorial-card {
+        padding: 20px;
+      }
+      
+      .tutorial-step {
+        gap: 10px;
+      }
+      
+      .step-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+      }
+    }
+    
+    /* Landscape mobile */
+    @media (max-height: 500px) and (orientation: landscape) {
+      #control-panel {
+        max-width: 300px;
+        height: fit-content;
+      }
+      
+      #panel-content {
+        padding: 10px;
+      }
+      
+      #quick-actions {
+        display: none;
+      }
+      
+      .btn-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    /* Accessibility */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* High contrast mode */
+    @media (prefers-contrast: high) {
+      #control-panel, #help-panel, #quick-actions {
+        background: #000;
+        border-color: #fff;
+      }
+      
+      .btn {
+        border-width: 2px;
+      }
+    }
+  </style>
+  
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading">
+    <div class="loader"></div>
+    <h2>🎭 HoloScript</h2>
+    <p>Loading 3D environment...</p>
+  </div>
+
+  <!-- Tutorial Overlay -->
+  <div id="tutorial-overlay">
+    <div class="tutorial-card">
+      <h2>🎭 Welcome to HoloScript</h2>
+      <p class="subtitle">Visual Backend Design for Hololand — Build the logic that powers your creations!</p>
+      
+      <!-- Step 1: Role Selection -->
+      <div id="welcome-step1">
+        <div class="tutorial-step">
+          <div class="step-icon">👤</div>
+          <div class="step-content">
+            <h3>Who are you?</h3>
+            <p>Choose your experience level:</p>
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0;">
+          <button class="role-btn" onclick="window.selectRole('kid')">
+            🎮 <strong>Student / Kid</strong><br>
+            <small>Fun games & activities</small>
+          </button>
+          <button class="role-btn" onclick="window.selectRole('beginner')">
+            🌱 <strong>Beginner</strong><br>
+            <small>New to programming</small>
+          </button>
+          <button class="role-btn" onclick="window.selectRole('developer')">
+            💻 <strong>Developer</strong><br>
+            <small>Learn visual coding</small>
+          </button>
+          <button class="role-btn" onclick="window.selectRole('scientist')">
+            🔬 <strong>Scientist</strong><br>
+            <small>Data & simulations</small>
+          </button>
+          <button class="role-btn" onclick="window.selectRole('designer')">
+            🎨 <strong>Designer</strong><br>
+            <small>Creative & visual</small>
+          </button>
+          <button class="role-btn" onclick="window.selectRole('educator')">
+            📚 <strong>Educator</strong><br>
+            <small>Teaching tools</small>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Step 2: Theme Selection (hidden initially) -->
+      <div id="welcome-step2" style="display: none;">
+        <div class="tutorial-step">
+          <div class="step-icon">🎯</div>
+          <div class="step-content">
+            <h3 id="theme-title">Choose Your Project!</h3>
+            <p id="theme-subtitle">Pick something fun to build:</p>
+          </div>
+        </div>
+        
+        <div id="theme-options" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0;">
+          <!-- Themes injected by JS based on role -->
+        </div>
+        
+        <button class="back-btn" onclick="window.goBackToRoles()">← Back to roles</button>
+      </div>
+      
+      <!-- Step 3: Start (hidden initially) -->
+      <div id="welcome-step3" style="display: none;">
+        <div class="tutorial-step">
+          <div class="step-icon">✨</div>
+          <div class="step-content">
+            <h3>Ready to Build!</h3>
+            <p id="ready-description">Create 3D blocks, connect them, and watch your code come to life!</p>
+          </div>
+        </div>
+        
+        <div class="tutorial-actions">
+          <button class="tutorial-btn primary" onclick="window.startGuidedTutorial()">
+            🚀 Start Guided Tutorial
+          </button>
+          <button class="tutorial-btn secondary" onclick="window.closeTutorial()">
+            Free Build Mode
+          </button>
+        </div>
+        
+        <button class="back-btn" onclick="window.goBackToThemes()">← Change project</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guided Tutorial Panel -->
+  <div id="guide-panel" class="hidden">
+    <div class="guide-header">
+      <div class="guide-progress">
+        <div class="progress-dot" id="dot-1"></div>
+        <div class="progress-dot" id="dot-2"></div>
+        <div class="progress-dot" id="dot-3"></div>
+        <div class="progress-dot" id="dot-4"></div>
+        <div class="progress-dot" id="dot-5"></div>
+      </div>
+      <span class="guide-step-label" id="step-label">Step 1 of 5</span>
+    </div>
+    <div class="guide-content" id="guide-content">
+      <!-- Content injected by JS -->
+    </div>
+  </div>
+
+  <!-- Code Preview Panel -->
+  <div id="code-panel" class="hidden">
+    <div class="code-header">
+      <h4>📝 Generated Code</h4>
+      <button onclick="toggleCodePanel()">×</button>
+    </div>
+    <div id="code-content">
+<span class="code-comment">// Your program will appear here</span>
+<span class="code-comment">// as you build it visually</span>
+    </div>
+  </div>
+
+  <!-- Celebration Screen -->
+  <div id="celebration">
+    <div class="celebration-emoji">🎉</div>
+    <div class="celebration-text" id="celebration-title">Level 1 Complete!</div>
+    <div class="celebration-sub" id="celebration-sub">
+      You've started building the backend logic for your Hololand project! 
+      HoloScript lets you visually design the systems that power your creations.
+    </div>
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;">
+      <button class="celebration-btn" id="level2-btn" onclick="window.startLevel2()" style="background: linear-gradient(135deg, #44ff88, #22cc66);">
+        🚀 Start Level 2: Conditionals & Loops
+      </button>
+      <button class="celebration-btn" onclick="window.closeCelebration()" style="background: rgba(255,255,255,0.1); color: #aaa;">
+        ✓ Free Build Mode
+      </button>
+    </div>
+    <div class="next-steps">
+      <div class="next-step">
+        <strong>Level 2 teaches:</strong>
+        If/Else decisions
+      </div>
+      <div class="next-step">
+        <strong>Level 2 teaches:</strong>
+        Loop repetition
+      </div>
+      <div class="next-step">
+        <strong>🎤 Try Voice</strong>
+        Say "create cube"
+      </div>
+      <div class="next-step">
+        <strong>👆 Click Blocks</strong>
+        Select & connect
+      </div>
+    </div>
+    
+    <!-- Next Steps Links -->
+    <div id="final-next-steps" style="display: none; margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+      <p style="color: #aaa; margin-bottom: 15px; font-size: 14px;">Ready to build something real?</p>
+      <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+        <a href="https://github.com/hololand" target="_blank" style="text-decoration: none;">
+          <button class="celebration-btn" style="background: linear-gradient(135deg, #333, #555); display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">💻</span>
+            <span><strong>Developers</strong><br><small style="color: #aaa;">Explore on GitHub</small></span>
+          </button>
+        </a>
+        <a href="https://hololand.io" target="_blank" style="text-decoration: none;">
+          <button class="celebration-btn" style="background: linear-gradient(135deg, #4fc3f7, #29b6f6); display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">🌐</span>
+            <span><strong>Creators</strong><br><small style="color: rgba(0,0,0,0.6);">Visit Hololand.io</small></span>
+          </button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Ready</span>
+    <span>|</span>
+    <span id="object-count">0 objects</span>
+  </div>
+
+  <!-- Main Control Panel -->
+  <div id="control-panel">
+    <button id="panel-toggle" onclick="togglePanel()">◀</button>
+    <div id="panel-content">
+      <h1>🎭 HoloScript <button class="tutorial-reopen" onclick="openTutorial()">?</button></h1>
+      
+      <!-- Voice Section -->
+      <div class="section-label">Voice Input</div>
+      <p class="section-hint">Say "create orb" or "create blue cube"</p>
+      <button class="btn primary" id="voice-btn" onclick="toggleVoice()">
+        🎤 Start Voice Commands
+      </button>
+      
+      <!-- Quick Create Section -->
+      <div class="section-label">➕ Add Blocks</div>
+      <p class="section-hint">Click a button to add a 3D block to the scene</p>
+      <div class="btn-grid">
+        <button class="btn" onclick="quickCreate('orb')" title="Data/Variable - stores values">⚪ + Data</button>
+        <button class="btn" onclick="quickCreate('cube')" title="Object - groups related data">🟧 + Object</button>
+        <button class="btn" onclick="quickCreate('pyramid')" title="Class - template for objects">🔺 + Class</button>
+        <button class="btn" onclick="quickCreate('function')" title="Function - performs an action">⬡ + Action</button>
+        <button class="btn" onclick="quickCreate('gate')" title="Gate - if/else decision">◆ + If/Else</button>
+        <button class="btn" onclick="quickCreate('stream')" title="Stream - data flow/loop">◎ + Loop</button>
+      </div>
+      
+      <!-- Command Section -->
+      <div class="section-label">🔗 Commands</div>
+      <p class="section-hint">Click a 3D block to select it, then type a command</p>
+      <div class="input-row">
+        <input type="text" id="command-input" 
+               placeholder="click a block or type here" 
+               autocomplete="off"
+               autocapitalize="off"
+               spellcheck="false">
+        <button class="send-btn" onclick="sendCommand()">→</button>
+      </div>
+      <div class="command-hints">
+        <span class="hint-chip" onclick="insertCommand('connect ')">🔗 connect</span>
+        <span class="hint-chip" onclick="insertCommand('execute ')">▶ run</span>
+        <span class="hint-chip" onclick="insertCommand('delete ')">🗑️ delete</span>
+      </div>
+      
+      <!-- Action Section -->
+      <div class="section-label">🎬 Scene Controls</div>
+      <div class="btn-grid">
+        <button class="btn" onclick="executeCommand('list')" title="List all objects">📋 List All</button>
+        <button class="btn danger" onclick="confirmClear()" title="Remove all objects">🗑️ Clear All</button>
+      </div>
+      
+      <!-- Log Section -->
+      <div class="section-label">Activity Log</div>
+      <div id="command-log">
+        <div class="log-entry result">💡 Click "+ Data" to add your first block!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Panel (Desktop) -->
+  <div id="help-panel">
+    <h3>
+      📚 Commands
+      <button class="close-btn" onclick="toggleHelp()">×</button>
+    </h3>
+    <span class="cmd-example">create [type] [name]</span>
+    <span class="cmd-example">connect [from] [to]</span>
+    <span class="cmd-example">execute [name]</span>
+    <span class="cmd-example">delete [name]</span>
+    <p style="margin-top: 10px; color: #888;">
+      👆 Tap objects to execute<br>
+      🔄 Drag to rotate view<br>
+      📌 Pinch to zoom
+    </p>
+  </div>
+
+  <!-- Quick Actions Bar (Mobile) -->
+  <div id="quick-actions">
+    <div class="quick-grid">
+      <button class="quick-btn" onclick="quickCreate('orb')">
+        <span class="icon">⚪</span>
+        <span>Orb</span>
+      </button>
+      <button class="quick-btn" onclick="quickCreate('cube')">
+        <span class="icon">🟧</span>
+        <span>Cube</span>
+      </button>
+      <button class="quick-btn" onclick="quickCreate('function')">
+        <span class="icon">⬡</span>
+        <span>Function</span>
+      </button>
+      <button class="quick-btn" onclick="toggleVoice()" id="quick-voice">
+        <span class="icon">🎤</span>
+        <span>Voice</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Touch Hint -->
+  <div id="touch-hint">👆 Drag to move • Double-click + drag to resize</div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    console.log('🎭 HoloScript Demo - Starting...');
+
+    // ============================================
+    // DEVICE DETECTION & CONFIGURATION
+    // ============================================
+    
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+    // Performance settings based on device
+    const config = {
+      particleCount: isMobile ? 200 : 500,
+      shadowMapSize: isMobile ? 1024 : 2048,
+      antialias: !isMobile,
+      pixelRatio: Math.min(window.devicePixelRatio, isMobile ? 2 : 3),
+    };
+
+    // ============================================
+    // HOLOSCRIPT RUNTIME
+    // ============================================
+    
+    class HoloScriptRuntime {
+      constructor(scene) {
+        this.scene = scene;
+        this.objects = new Map();
+        this.connections = [];
+        this.executionHistory = [];
+        this.nextPosition = { x: -5, y: 3, z: 0 };
+        this.typeCounters = {};  // Per-type counters
+      }
+      
+      getNextPosition() {
+        const pos = { ...this.nextPosition };
+        this.nextPosition.x += 2.5;
+        if (this.nextPosition.x > 5) {
+          this.nextPosition.x = -5;
+          this.nextPosition.z -= 2.5;
+        }
+        return pos;
+      }
+      
+      execute(command) {
+        if (!command || typeof command !== 'string') {
+          return { success: false, error: 'Invalid command' };
+        }
+        
+        const tokens = command.toLowerCase().trim().split(/\s+/).filter(t => t);
+        if (tokens.length === 0) {
+          return { success: false, error: 'Empty command' };
+        }
+        
+        const action = tokens[0];
+        
+        try {
+          switch (action) {
+            case 'create':
+            case 'summon':
+            case 'add':
+              return this.createObject(tokens.slice(1));
+            
+            case 'connect':
+            case 'link':
+              return this.connectObjects(tokens.slice(1));
+            
+            case 'execute':
+            case 'run':
+            case 'trigger':
+              return this.executeObject(tokens.slice(1));
+            
+            case 'delete':
+            case 'remove':
+            case 'destroy':
+              return this.deleteObject(tokens.slice(1));
+            
+            case 'clear':
+              return this.clearAll();
+            
+            case 'list':
+            case 'show':
+              return this.listObjects();
+            
+            default:
+              // Try to interpret as "create [type]"
+              if (['orb', 'cube', 'sphere', 'pyramid', 'function', 'gate', 'stream', 'cylinder'].includes(action)) {
+                return this.createObject([action, ...tokens.slice(1)]);
+              }
+              return { success: false, error: `Unknown command: ${action}` };
+          }
+        } catch (err) {
+          console.error('Runtime error:', err);
+          return { success: false, error: `Runtime error: ${err.message}` };
+        }
+      }
+      
+      createObject(tokens) {
+        if (tokens.length < 1) {
+          return { success: false, error: 'Specify type: orb, cube, pyramid, etc.' };
+        }
+        
+        const type = tokens[0];
+        // Use per-type counter so each type starts at 1
+        if (!this.typeCounters[type]) {
+          this.typeCounters[type] = 0;
+        }
+        const name = tokens[1] || `${type}_${++this.typeCounters[type]}`;
+        
+        if (this.objects.has(name)) {
+          return { success: false, error: `"${name}" already exists` };
+        }
+        
+        const pos = this.getNextPosition();
+        
+        const shapeConfig = {
+          orb: { geometry: () => new THREE.SphereGeometry(0.45, 24, 24), color: 0x00ffff, emissive: 0x004444 },
+          sphere: { geometry: () => new THREE.SphereGeometry(0.45, 24, 24), color: 0x9966ff, emissive: 0x331155 },
+          cube: { geometry: () => new THREE.BoxGeometry(0.7, 0.7, 0.7), color: 0xff6644, emissive: 0x441111 },
+          pyramid: { geometry: () => new THREE.ConeGeometry(0.45, 0.9, 4), color: 0x44ff44, emissive: 0x114411 },
+          cylinder: { geometry: () => new THREE.CylinderGeometry(0.35, 0.35, 0.9, 24), color: 0xff44ff, emissive: 0x441144 },
+          function: { geometry: () => new THREE.IcosahedronGeometry(0.45, 0), color: 0x4488ff, emissive: 0x112244 },
+          gate: { geometry: () => new THREE.OctahedronGeometry(0.45, 0), color: 0xffff44, emissive: 0x444400 },
+          stream: { geometry: () => new THREE.TorusGeometry(0.35, 0.12, 12, 24), color: 0x44ffff, emissive: 0x004444 }
+        };
+        
+        const cfg = shapeConfig[type] || shapeConfig.orb;
+        
+        const geometry = cfg.geometry();
+        const material = new THREE.MeshStandardMaterial({
+          color: cfg.color,
+          emissive: cfg.emissive,
+          emissiveIntensity: 0.8,
+          roughness: 0.2,
+          metalness: 0.8,
+          transparent: true,
+          opacity: 0.9,
+        });
+        
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(pos.x, pos.y, pos.z);
+        mesh.castShadow = true;
+        mesh.userData = { 
+          holoType: type, 
+          holoName: name,
+          connections: [],
+          created: Date.now(),
+          baseY: pos.y,
+          restScale: 1  // For drag hover effect
+        };
+        
+        // Add glow ring
+        const glowGeometry = new THREE.TorusGeometry(0.6, 0.02, 8, 24);
+        const glowMaterial = new THREE.MeshBasicMaterial({ 
+          color: cfg.color,
+          transparent: true,
+          opacity: 0.5
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.userData.isGlow = true;
+        mesh.add(glow);
+        
+        // Add label
+        this.addLabel(mesh, name, cfg.color);
+        
+        this.scene.add(mesh);
+        this.objects.set(name, mesh);
+        
+        // Animate entrance
+        mesh.scale.set(0.01, 0.01, 0.01);
+        this.animateScale(mesh, 1, 400);
+        
+        // Haptic feedback on mobile
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        this.updateObjectCount();
+        
+        return { 
+          success: true, 
+          message: `Created ${type} "${name}"`,
+          object: mesh
+        };
+      }
+      
+      addLabel(mesh, text, color) {
+        const canvas = document.createElement('canvas');
+        const size = 256;
+        canvas.width = size;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.clearRect(0, 0, size, 64);
+        ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillText(text, size/2 + 2, 34);
+        
+        // Text
+        ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+        ctx.fillText(text, size/2, 32);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        
+        const labelMaterial = new THREE.SpriteMaterial({ 
+          map: texture,
+          transparent: true,
+          depthTest: false
+        });
+        const label = new THREE.Sprite(labelMaterial);
+        label.position.y = 1.0;
+        label.scale.set(1.8, 0.45, 1);
+        label.userData.isLabel = true;
+        mesh.add(label);
+      }
+      
+      animateScale(mesh, targetScale, duration) {
+        if (prefersReducedMotion) {
+          mesh.scale.set(targetScale, targetScale, targetScale);
+          return;
+        }
+        
+        const startScale = mesh.scale.x;
+        const startTime = performance.now();
+        
+        const animate = (now) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          
+          const scale = startScale + (targetScale - startScale) * eased;
+          mesh.scale.set(scale, scale, scale);
+          
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          }
+        };
+        requestAnimationFrame(animate);
+      }
+      
+      connectObjects(tokens) {
+        if (tokens.length < 2) {
+          return { success: false, error: 'Usage: connect [from] [to]' };
+        }
+        
+        const [fromName, toName] = tokens;
+        const fromObj = this.objects.get(fromName);
+        const toObj = this.objects.get(toName);
+        
+        if (!fromObj) return { success: false, error: `"${fromName}" not found` };
+        if (!toObj) return { success: false, error: `"${toName}" not found` };
+        
+        const points = [fromObj.position.clone(), toObj.position.clone()];
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.7
+        });
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+        line.userData = { from: fromName, to: toName, type: 'connection' };
+        
+        this.scene.add(line);
+        this.connections.push({ line, from: fromName, to: toName });
+        
+        this.createParticleStream(fromObj.position, toObj.position, fromName, toName);
+        
+        fromObj.userData.connections.push(toName);
+        toObj.userData.connections.push(fromName);
+        
+        if (navigator.vibrate) navigator.vibrate([30, 20, 30]);
+        
+        return { success: true, message: `Connected "${fromName}" → "${toName}"` };
+      }
+      
+      createParticleStream(from, to, fromName, toName) {
+        const particleCount = isMobile ? 10 : 20;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        
+        for (let i = 0; i < particleCount; i++) {
+          const t = i / particleCount;
+          positions[i * 3] = from.x + (to.x - from.x) * t;
+          positions[i * 3 + 1] = from.y + (to.y - from.y) * t;
+          positions[i * 3 + 2] = from.z + (to.z - from.z) * t;
+        }
+        
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        
+        const material = new THREE.PointsMaterial({
+          color: 0x00ffff,
+          size: isMobile ? 0.08 : 0.1,
+          transparent: true,
+          opacity: 0.8
+        });
+        
+        const particles = new THREE.Points(geometry, material);
+        particles.userData = { type: 'stream', from: from.clone(), to: to.clone(), offset: 0, fromName, toName };
+        this.scene.add(particles);
+        
+        if (!window.holoStreams) window.holoStreams = [];
+        window.holoStreams.push(particles);
+      }
+      
+      executeObject(tokens) {
+        if (tokens.length < 1) {
+          return { success: false, error: 'Specify object name' };
+        }
+        
+        const name = tokens[0];
+        const obj = this.objects.get(name);
+        
+        if (!obj) return { success: false, error: `"${name}" not found` };
+        
+        // Visual pulse effect
+        const originalEmissive = obj.material.emissiveIntensity;
+        const originalScale = obj.scale.x;
+        
+        obj.material.emissiveIntensity = 2.5;
+        this.animateScale(obj, originalScale * 1.4, 150);
+        
+        setTimeout(() => {
+          this.animateScale(obj, originalScale, 200);
+          obj.material.emissiveIntensity = originalEmissive;
+        }, 200);
+        
+        if (navigator.vibrate) navigator.vibrate(100);
+        
+        this.executionHistory.push({ name, timestamp: Date.now(), type: obj.userData.holoType });
+        
+        return { success: true, message: `Executed "${name}"` };
+      }
+      
+      deleteObject(tokens) {
+        if (tokens.length < 1) {
+          return { success: false, error: 'Specify object name' };
+        }
+        
+        const name = tokens[0];
+        const obj = this.objects.get(name);
+        
+        if (!obj) return { success: false, error: `"${name}" not found` };
+        
+        this.animateScale(obj, 0, 200);
+        
+        setTimeout(() => {
+          this.scene.remove(obj);
+          obj.geometry?.dispose();
+          obj.material?.dispose();
+          this.objects.delete(name);
+          this.updateObjectCount();
+        }, 250);
+        
+        // Remove related connections
+        this.connections = this.connections.filter(conn => {
+          if (conn.from === name || conn.to === name) {
+            this.scene.remove(conn.line);
+            return false;
+          }
+          return true;
+        });
+        
+        // Remove related particle streams
+        if (window.holoStreams) {
+          window.holoStreams = window.holoStreams.filter(stream => {
+            if (stream.userData.fromName === name || stream.userData.toName === name) {
+              this.scene.remove(stream);
+              stream.geometry?.dispose();
+              stream.material?.dispose();
+              return false;
+            }
+            return true;
+          });
+        }
+        
+        return { success: true, message: `Deleted "${name}"` };
+      }
+      
+      clearAll() {
+        const count = this.objects.size;
+        
+        this.objects.forEach((obj) => {
+          this.scene.remove(obj);
+          obj.geometry?.dispose();
+          obj.material?.dispose();
+        });
+        
+        this.connections.forEach(conn => this.scene.remove(conn.line));
+        
+        if (window.holoStreams) {
+          window.holoStreams.forEach(stream => this.scene.remove(stream));
+          window.holoStreams = [];
+        }
+        
+        this.objects.clear();
+        this.connections = [];
+        this.nextPosition = { x: -5, y: 3, z: 0 };
+        this.typeCounters = {};  // Reset per-type counters
+        
+        // Reset tutorial state
+        window.hasExecuted = false;
+        
+        // Clear command log
+        const log = document.getElementById('command-log');
+        if (log) log.innerHTML = '';
+        
+        // Update code preview
+        if (typeof updateCodePreview === 'function') {
+          setTimeout(updateCodePreview, 50);
+        }
+        
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+        
+        this.updateObjectCount();
+        
+        return { success: true, message: `Cleared ${count} objects` };
+      }
+      
+      listObjects() {
+        if (this.objects.size === 0) {
+          return { success: true, message: 'No objects yet' };
+        }
+        
+        const list = Array.from(this.objects.entries())
+          .map(([name, obj]) => `${name}(${obj.userData.holoType})`)
+          .join(', ');
+        
+        return { success: true, message: list };
+      }
+      
+      updateObjectCount() {
+        const countEl = document.getElementById('object-count');
+        if (countEl) {
+          countEl.textContent = `${this.objects.size} object${this.objects.size !== 1 ? 's' : ''}`;
+        }
+      }
+    }
+
+    // ============================================
+    // THREE.JS SCENE SETUP
+    // ============================================
+    
+    const scene = new THREE.Scene();
+    
+    // Gradient background
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = 2;
+    bgCanvas.height = 512;
+    const bgCtx = bgCanvas.getContext('2d');
+    const gradient = bgCtx.createLinearGradient(0, 0, 0, 512);
+    gradient.addColorStop(0, '#0a0a1a');
+    gradient.addColorStop(0.5, '#1a1a3e');
+    gradient.addColorStop(1, '#2a1a4e');
+    bgCtx.fillStyle = gradient;
+    bgCtx.fillRect(0, 0, 2, 512);
+    scene.background = new THREE.CanvasTexture(bgCanvas);
+
+    // Camera
+    const camera = new THREE.PerspectiveCamera(
+      isMobile ? 70 : 60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(0, 5, isMobile ? 12 : 14);
+    camera.lookAt(0, 2, 0);
+
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: config.antialias,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(config.pixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 2, 0);
+    controls.minDistance = 5;
+    controls.maxDistance = 30;
+    controls.maxPolarAngle = Math.PI * 0.85;
+    controls.enablePan = !isMobile;
+    controls.rotateSpeed = isMobile ? 0.5 : 1;
+
+    // ============================================
+    // DRAG CONTROLS - Grabbable Objects
+    // ============================================
+    
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const intersection = new THREE.Vector3();
+    
+    let isDragging = false;
+    let draggedObject = null;
+    let dragOffset = new THREE.Vector3();
+    let hoveredObject = null;
+    
+    // Double-click resize state
+    let lastClickTime = 0;
+    let lastClickedObject = null;
+    let isResizing = false;
+    let resizeObject = null;
+    let resizeStartDistance = 0;
+    let resizeStartScale = 1;
+    const DOUBLE_CLICK_TIME = 350; // ms
+    const MIN_SCALE = 0.3;
+    const MAX_SCALE = 3.0;
+    
+    function getPointerPosition(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    }
+    
+    function getIntersectedObject(event) {
+      getPointerPosition(event);
+      raycaster.setFromCamera(mouse, camera);
+      
+      const draggableObjects = [];
+      runtime.objects.forEach(obj => draggableObjects.push(obj));
+      
+      const intersects = raycaster.intersectObjects(draggableObjects, true);
+      
+      if (intersects.length > 0) {
+        // Find the root parent (the actual HoloScript object)
+        let obj = intersects[0].object;
+        while (obj.parent && !obj.userData.holoType) {
+          obj = obj.parent;
+        }
+        if (obj.userData.holoType) {
+          return { object: obj, point: intersects[0].point };
+        }
+      }
+      return null;
+    }
+    
+    function onPointerDown(event) {
+      // Ignore if clicking on UI
+      if (event.target !== renderer.domElement) return;
+      
+      const hit = getIntersectedObject(event);
+      if (hit) {
+        const now = Date.now();
+        const timeSinceLastClick = now - lastClickTime;
+        
+        // Check for double-click on same object (second click held)
+        if (timeSinceLastClick < DOUBLE_CLICK_TIME && lastClickedObject === hit.object) {
+          // Start resize mode
+          isResizing = true;
+          resizeObject = hit.object;
+          resizeStartScale = resizeObject.userData.restScale || resizeObject.scale.x;
+          
+          // Calculate distance from object center to click point
+          getPointerPosition(event);
+          const objScreenPos = resizeObject.position.clone().project(camera);
+          resizeStartDistance = Math.sqrt(
+            Math.pow(mouse.x - objScreenPos.x, 2) + 
+            Math.pow(mouse.y - objScreenPos.y, 2)
+          );
+          
+          controls.enabled = false;
+          renderer.domElement.style.cursor = 'nesw-resize';
+          
+          if (navigator.vibrate) navigator.vibrate([20, 10, 20]);
+          
+          event.preventDefault();
+          return;
+        }
+        
+        // Record this click for double-click detection
+        lastClickTime = now;
+        lastClickedObject = hit.object;
+        
+        // Normal drag
+        isDragging = true;
+        draggedObject = hit.object;
+        controls.enabled = false; // Disable orbit while dragging
+        
+        // Calculate offset from object center to click point
+        dragPlane.setFromNormalAndCoplanarPoint(
+          camera.getWorldDirection(new THREE.Vector3()).negate(),
+          draggedObject.position
+        );
+        raycaster.ray.intersectPlane(dragPlane, intersection);
+        dragOffset.copy(draggedObject.position).sub(intersection);
+        
+        // Visual feedback
+        draggedObject.userData.originalScale = draggedObject.scale.x;
+        draggedObject.scale.multiplyScalar(1.15);
+        
+        // Change cursor
+        renderer.domElement.style.cursor = 'grabbing';
+        
+        if (navigator.vibrate) navigator.vibrate(20);
+        
+        event.preventDefault();
+      }
+    }
+    
+    function onPointerMove(event) {
+      // Handle resizing (double-click-hold-drag)
+      if (isResizing && resizeObject) {
+        getPointerPosition(event);
+        
+        // Calculate current distance from object center
+        const objScreenPos = resizeObject.position.clone().project(camera);
+        const currentDistance = Math.sqrt(
+          Math.pow(mouse.x - objScreenPos.x, 2) + 
+          Math.pow(mouse.y - objScreenPos.y, 2)
+        );
+        
+        // Scale based on distance change (drag out = bigger, drag in = smaller)
+        const distanceRatio = currentDistance / Math.max(resizeStartDistance, 0.01);
+        let newScale = resizeStartScale * distanceRatio;
+        
+        // Clamp scale
+        newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+        
+        resizeObject.scale.setScalar(newScale);
+        resizeObject.userData.restScale = newScale;
+        
+        event.preventDefault();
+        return;
+      }
+      
+      if (isDragging && draggedObject) {
+        getPointerPosition(event);
+        raycaster.setFromCamera(mouse, camera);
+        
+        if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+          const newPos = intersection.add(dragOffset);
+          draggedObject.position.x = newPos.x;
+          draggedObject.position.z = newPos.z;
+          // Keep Y floating (baseY is handled in animation)
+          draggedObject.userData.baseY = newPos.y;
+          
+          // Update particle streams connected to this object
+          updateParticleStreams(draggedObject);
+        }
+        
+        event.preventDefault();
+      } else {
+        // Hover detection
+        const hit = getIntersectedObject(event);
+        
+        if (hit && hit.object !== hoveredObject) {
+          if (hoveredObject) {
+            // Reset previous hovered
+            hoveredObject.scale.setScalar(hoveredObject.userData.restScale || 1);
+          }
+          hoveredObject = hit.object;
+          hoveredObject.userData.restScale = hoveredObject.userData.restScale || hoveredObject.scale.x;
+          hoveredObject.scale.multiplyScalar(1.08);
+          renderer.domElement.style.cursor = 'grab';
+        } else if (!hit && hoveredObject) {
+          hoveredObject.scale.setScalar(hoveredObject.userData.restScale || 1);
+          hoveredObject = null;
+          renderer.domElement.style.cursor = 'default';
+        }
+      }
+    }
+    
+    function onPointerUp(event) {
+      // Handle resize end
+      if (isResizing && resizeObject) {
+        isResizing = false;
+        resizeObject = null;
+        controls.enabled = true;
+        renderer.domElement.style.cursor = hoveredObject ? 'grab' : 'default';
+        
+        if (navigator.vibrate) navigator.vibrate(15);
+        return;
+      }
+      
+      if (isDragging && draggedObject) {
+        // Reset scale
+        if (draggedObject.userData.originalScale) {
+          draggedObject.scale.setScalar(draggedObject.userData.originalScale);
+        }
+        
+        isDragging = false;
+        draggedObject = null;
+        controls.enabled = true;
+        renderer.domElement.style.cursor = hoveredObject ? 'grab' : 'default';
+        
+        // Update code preview after moving
+        if (typeof updateCodePreview === 'function') {
+          updateCodePreview();
+        }
+      }
+    }
+    
+    function updateParticleStreams(movedObject) {
+      if (!window.holoStreams) return;
+      
+      const objectName = [...runtime.objects.entries()]
+        .find(([name, obj]) => obj === movedObject)?.[0];
+      
+      if (!objectName) return;
+      
+      // Find connections involving this object
+      runtime.connections.forEach(conn => {
+        if (conn.from === objectName || conn.to === objectName) {
+          const fromObj = runtime.objects.get(conn.from);
+          const toObj = runtime.objects.get(conn.to);
+          
+          if (fromObj && toObj) {
+            // Find the corresponding particle stream
+            window.holoStreams.forEach(stream => {
+              if (stream.userData.fromName === conn.from && stream.userData.toName === conn.to) {
+                stream.userData.from = fromObj.position.clone();
+                stream.userData.to = toObj.position.clone();
+              }
+            });
+          }
+        }
+      });
+    }
+    
+    // Add event listeners
+    renderer.domElement.addEventListener('mousedown', onPointerDown);
+    renderer.domElement.addEventListener('mousemove', onPointerMove);
+    renderer.domElement.addEventListener('mouseup', onPointerUp);
+    renderer.domElement.addEventListener('mouseleave', onPointerUp);
+    
+    // Touch support
+    renderer.domElement.addEventListener('touchstart', onPointerDown, { passive: false });
+    renderer.domElement.addEventListener('touchmove', onPointerMove, { passive: false });
+    renderer.domElement.addEventListener('touchend', onPointerUp);
+    renderer.domElement.addEventListener('touchcancel', onPointerUp);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(10, 20, 10);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = config.shadowMapSize;
+    directionalLight.shadow.mapSize.height = config.shadowMapSize;
+    scene.add(directionalLight);
+
+    // Grid (hidden - was confusing)
+    // const gridHelper = new THREE.GridHelper(20, 20, 0x4fc3f7, 0x222244);
+    // scene.add(gridHelper);
+
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(50, 50);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111122,
+      roughness: 0.4,
+      metalness: 0.6,
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // ============================================
+    // RUNTIME INTEGRATION
+    // ============================================
+    
+    const runtime = new HoloScriptRuntime(scene);
+    window.holoRuntime = runtime;
+
+    // ============================================
+    // VOICE RECOGNITION
+    // ============================================
+    
+    let recognition = null;
+    let isListening = false;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      
+      recognition.onstart = () => {
+        isListening = true;
+        updateVoiceUI(true);
+        updateStatus('Listening...', 'listening');
+      };
+      
+      recognition.onend = () => {
+        if (isListening) {
+          try { recognition.start(); } catch (e) {}
+        }
+      };
+      
+      recognition.onerror = (event) => {
+        console.warn('Speech error:', event.error);
+        if (event.error === 'not-allowed') {
+          updateStatus('Microphone blocked', 'error');
+          isListening = false;
+          updateVoiceUI(false);
+        }
+      };
+      
+      recognition.onresult = (event) => {
+        const last = event.results.length - 1;
+        const command = event.results[last][0].transcript.trim();
+        logCommand(`🎤 "${command}"`, 'command');
+        executeCommand(command);
+      };
+    } else {
+      document.getElementById('voice-btn').textContent = '⚠️ Voice Not Supported';
+      document.getElementById('voice-btn').disabled = true;
+    }
+    
+    function updateVoiceUI(listening) {
+      const btn = document.getElementById('voice-btn');
+      const quickBtn = document.getElementById('quick-voice');
+      
+      if (listening) {
+        btn.classList.add('listening');
+        btn.innerHTML = '🔴 Listening...';
+        if (quickBtn) quickBtn.innerHTML = '<span class="icon">🔴</span><span>Stop</span>';
+      } else {
+        btn.classList.remove('listening');
+        btn.innerHTML = '🎤 Start Voice';
+        if (quickBtn) quickBtn.innerHTML = '<span class="icon">🎤</span><span>Voice</span>';
+      }
+    }
+    
+    window.toggleVoice = function() {
+      if (!recognition) return;
+      
+      if (isListening) {
+        isListening = false;
+        recognition.stop();
+        updateVoiceUI(false);
+        updateStatus('Voice stopped', 'success');
+      } else {
+        try {
+          recognition.start();
+        } catch (e) {
+          updateStatus('Voice error', 'error');
+        }
+      }
+    };
+
+    // ============================================
+    // UI FUNCTIONS
+    // ============================================
+    
+    window.togglePanel = function() {
+      const panel = document.getElementById('control-panel');
+      const toggle = document.getElementById('panel-toggle');
+      panel.classList.toggle('collapsed');
+      toggle.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
+    };
+    
+    window.toggleHelp = function() {
+      document.getElementById('help-panel').classList.toggle('hidden');
+    };
+    
+    window.toggleCodePanel = function() {
+      document.getElementById('code-panel').classList.toggle('hidden');
+    };
+    
+    window.closeTutorial = function() {
+      document.getElementById('tutorial-overlay').classList.add('hidden');
+      localStorage.setItem('holoscript-tutorial-seen', 'true');
+    };
+    
+    window.openTutorial = function() {
+      document.getElementById('tutorial-overlay').classList.remove('hidden');
+    };
+    
+    // ============================================
+    // GUIDED TUTORIAL SYSTEM
+    // ============================================
+    
+    function hasObjectOfType(type) {
+      for (const [name, mesh] of runtime.objects) {
+        if (mesh.userData.holoType === type) return true;
+      }
+      return false;
+    }
+    
+    function hasConnection(fromType, toType) {
+      for (const conn of runtime.connections) {
+        const fromObj = runtime.objects.get(conn.from);
+        const toObj = runtime.objects.get(conn.to);
+        if (fromObj?.userData.holoType === fromType && toObj?.userData.holoType === toType) return true;
+      }
+      return false;
+    }
+    
+    let currentLevel = 1;
+    let currentTheme = 'pet'; // Default to kid-friendly
+    
+    // Theme configurations
+    const themes = {
+      shop: {
+        name: '🛒 Shop Builder',
+        emoji: '💰',
+        level1: [
+          { title: "Step 1: Create Your Data", description: "Let's build a <strong>price calculator</strong>! Click <strong>⚪ + Data</strong> to create a price.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "💰 This orb holds: price = $29.99" },
+          { title: "Step 2: Add Calculator", description: "Add a function to calculate tax. Click <strong>⬡ + Action</strong>.", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "🧮 This calculates: price × 1.08" },
+          { title: "Step 3: Connect Them", description: "Send price to calculator: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 $29.99 → addTax()" },
+          { title: "Step 4: Run It!", description: "Calculate total: <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "✨ $29.99 × 1.08 = $32.39" },
+          { title: "Step 5: You Did It!", description: "Look at the code panel → That's your backend logic!", action: "Complete!", check: () => true, hint: "🎉 Backend logic started!" }
+        ],
+        level2: [
+          { title: "Level 2: Add Discount", description: "Click <strong>◆ + If/Else</strong> to check for discounts.", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🎯 If price > $25 → 10% off!" },
+          { title: "Level 2: Add Cart Loop", description: "Click <strong>◎ + Loop</strong> for multiple items.", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 Loop through all items" },
+          { title: "Level 2: Check Price", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "📊 $29.99 > $25? YES!" },
+          { title: "Level 2: Process Cart", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "🛒 Apply to all items" },
+          { title: "🌟 Shop Backend Ready!", description: "You've built the backend logic for a shop system!", action: "Master!", check: () => true, hint: "🎉 Ready to power your Hololand shop!" }
+        ],
+        codeTitle: '🛒 Shopping Cart Calculator',
+        dataValue: '29.99',
+        dataComment: '💰 price'
+      },
+      pet: {
+        name: '🐕 Pet Simulator',
+        emoji: '🐾',
+        level1: [
+          { title: "Step 1: Create Your Pet!", description: "Let's make a <strong>virtual pet</strong>! Click <strong>⚪ + Data</strong> to create your pet.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "🐕 This is your pet named 'Buddy'!" },
+          { title: "Step 2: Add Feed Action", description: "Pets need food! Click <strong>⬡ + Action</strong> to add feeding.", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "🍖 This will: feed(pet) → happiness + 10" },
+          { title: "Step 3: Feed Your Pet!", description: "Connect pet to food: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 Buddy → gets food!" },
+          { title: "Step 4: Watch Buddy Eat!", description: "Feed time! Type: <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "✨ Yum! Happiness: 50 → 60!" },
+          { title: "Step 5: Happy Pet!", description: "You coded a pet feeding system! Look at the code →", action: "Complete!", check: () => true, hint: "🎉 Buddy is happy! +10 happiness" }
+        ],
+        level2: [
+          { title: "Level 2: Is Pet Hungry?", description: "Check hunger! Click <strong>◆ + If/Else</strong>", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🎯 If hunger > 50 → needs food!" },
+          { title: "Level 2: Pet Tricks!", description: "Teach tricks! Click <strong>◎ + Loop</strong>", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 Repeat: sit, shake, roll over!" },
+          { title: "Level 2: Check Hunger", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "📊 Hunger at 75? Time to eat!" },
+          { title: "Level 2: Do All Tricks", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "🐾 Sit → Shake → Roll!" },
+          { title: "🌟 Pet Backend Ready!", description: "You've built the backend logic for a pet simulator!", action: "Master!", check: () => true, hint: "🎉 Ready to bring Buddy to life in Hololand!" }
+        ],
+        codeTitle: '🐕 Pet Simulator',
+        dataValue: '"Buddy"',
+        dataComment: '🐾 pet name'
+      },
+      pizza: {
+        name: '🍕 Pizza Chef',
+        emoji: '🍕',
+        level1: [
+          { title: "Step 1: Start Dough!", description: "Let's make <strong>pizza</strong>! Click <strong>⚪ + Data</strong> for dough.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "🫓 Dough ready! Size: medium" },
+          { title: "Step 2: Add Toppings!", description: "Add toppings! Click <strong>⬡ + Action</strong>", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "🧀 This will: addToppings(dough)" },
+          { title: "Step 3: Put Toppings On!", description: "Connect: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 Dough → gets cheese & pepperoni!" },
+          { title: "Step 4: Bake It!", description: "Into the oven! <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "🔥 Baking... 400°F for 12 min!" },
+          { title: "Step 5: Pizza Ready!", description: "Delicious! You coded a pizza maker!", action: "Complete!", check: () => true, hint: "🎉 Perfect crispy pizza!" }
+        ],
+        level2: [
+          { title: "Level 2: Check Toppings", description: "Allergies? Click <strong>◆ + If/Else</strong>", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🎯 If allergic → no nuts!" },
+          { title: "Level 2: Make Many!", description: "Party order! Click <strong>◎ + Loop</strong>", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 Make 5 pizzas!" },
+          { title: "Level 2: Safety Check", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "📊 Check each ingredient!" },
+          { title: "Level 2: Batch Bake", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "🍕 5 pizzas coming up!" },
+          { title: "🌟 Pizza Backend Ready!", description: "You've built the backend logic for a pizza shop!", action: "Master!", check: () => true, hint: "🎉 Ready to power your Hololand pizzeria!" }
+        ],
+        codeTitle: '🍕 Pizza Kitchen',
+        dataValue: '"medium_dough"',
+        dataComment: '🫓 pizza base'
+      },
+      game: {
+        name: '🎮 Game Maker',
+        emoji: '🎮',
+        level1: [
+          { title: "Step 1: Create Player!", description: "Let's make a <strong>game</strong>! Click <strong>⚪ + Data</strong> for your player.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "🦸 Player: health = 100!" },
+          { title: "Step 2: Add Attack!", description: "Players need moves! Click <strong>⬡ + Action</strong>", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "⚔️ This will: attack() → damage + 25" },
+          { title: "Step 3: Player Attacks!", description: "Connect: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 Player → does attack!" },
+          { title: "Step 4: Battle!", description: "Attack! <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "💥 Critical hit! 25 damage!" },
+          { title: "Step 5: Victory!", description: "You coded a battle system!", action: "Complete!", check: () => true, hint: "🎉 Enemy defeated!" }
+        ],
+        level2: [
+          { title: "Level 2: Check Health", description: "Still alive? Click <strong>◆ + If/Else</strong>", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🎯 If health > 0 → keep fighting!" },
+          { title: "Level 2: Combo Moves!", description: "Multi-attack! Click <strong>◎ + Loop</strong>", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 Attack 3 times!" },
+          { title: "Level 2: Health Check", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "📊 Health: 75 → Still good!" },
+          { title: "Level 2: Combo!", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "⚔️ Slash! Slash! Slash!" },
+          { title: "🌟 Game Backend Ready!", description: "You've started building the backend for your game!", action: "Master!", check: () => true, hint: "🎉 Ready to power your Hololand game!" }
+        ],
+        codeTitle: '🎮 Battle Game',
+        dataValue: '100',
+        dataComment: '💚 player health'
+      }
+    };
+    
+    // Role-based theme groups
+    const roleThemes = {
+      kid: {
+        title: 'Choose Your Adventure!',
+        subtitle: 'Pick something fun to build:',
+        themes: ['pet', 'pizza', 'game']
+      },
+      beginner: {
+        title: 'Choose Your First Project!',
+        subtitle: 'Simple examples to get started:',
+        themes: ['shop', 'pet', 'pizza']
+      },
+      developer: {
+        title: 'Choose Your Project!',
+        subtitle: 'Real-world programming patterns:',
+        themes: ['api', 'shop', 'game']
+      },
+      scientist: {
+        title: 'Choose Your Simulation!',
+        subtitle: 'Data processing examples:',
+        themes: ['data', 'simulation', 'shop']
+      },
+      designer: {
+        title: 'Choose Your Creation!',
+        subtitle: 'Visual & creative projects:',
+        themes: ['animation', 'pizza', 'pet']
+      },
+      educator: {
+        title: 'Choose a Lesson!',
+        subtitle: 'Classroom-ready examples:',
+        themes: ['pet', 'shop', 'game']
+      }
+    };
+    
+    // Add more professional themes
+    themes.api = {
+      name: '🔌 API Builder',
+      emoji: '🔌',
+      level1: [
+        { title: "Step 1: Create Request Data", description: "Create the <strong>request payload</strong>. Click <strong>⚪ + Data</strong>.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "📦 payload = { user: 'john', action: 'login' }" },
+        { title: "Step 2: Add API Handler", description: "Add the <strong>endpoint function</strong>. Click <strong>⬡ + Action</strong>.", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "🔧 async function handleRequest(payload)" },
+        { title: "Step 3: Route Request", description: "Connect: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 POST /api/login → handler" },
+        { title: "Step 4: Process Request", description: "Execute: <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "✨ Response: { status: 200, token: '...' }" },
+        { title: "Step 5: API Logic Started!", description: "You've designed backend API logic! Check the code →", action: "Complete!", check: () => true, hint: "🎉 Backend API pattern ready!" }
+      ],
+      level2: [
+        { title: "Level 2: Add Auth Check", description: "Validate tokens! Click <strong>◆ + If/Else</strong>", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🔐 if (token.valid) → allow" },
+        { title: "Level 2: Batch Process", description: "Handle arrays! Click <strong>◎ + Loop</strong>", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 for (item of batch) { process() }" },
+        { title: "Level 2: Middleware", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "🛡️ Auth middleware active" },
+        { title: "Level 2: Pipeline", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "⚡ Request pipeline complete" },
+        { title: "🌟 Full API!", description: "Auth + Validation + Processing!", action: "Master!", check: () => true, hint: "🎉 Production-ready pattern!" }
+      ],
+      codeTitle: '🔌 REST API Endpoint',
+      dataValue: '{ user: "john" }',
+      dataComment: '📦 request payload'
+    };
+    
+    themes.data = {
+      name: '📊 Data Pipeline',
+      emoji: '📊',
+      level1: [
+        { title: "Step 1: Load Dataset", description: "Create <strong>data source</strong>. Click <strong>⚪ + Data</strong>.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "📁 dataset = loadCSV('samples.csv')" },
+        { title: "Step 2: Add Transform", description: "Add <strong>transform function</strong>. Click <strong>⬡ + Action</strong>.", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "🔧 normalize(data) → scaled 0-1" },
+        { title: "Step 3: Connect Pipeline", description: "Connect: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 raw → normalized" },
+        { title: "Step 4: Run Pipeline", description: "Execute: <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "✨ 1000 rows processed!" },
+        { title: "Step 5: Pipeline Logic Started!", description: "You've designed backend data pipeline logic!", action: "Complete!", check: () => true, hint: "🎉 Backend pipeline ready!" }
+      ],
+      level2: [
+        { title: "Level 2: Filter Outliers", description: "Click <strong>◆ + If/Else</strong>", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🎯 if (value > 3σ) → exclude" },
+        { title: "Level 2: Batch Process", description: "Click <strong>◎ + Loop</strong>", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 for chunk in dataset.batch(100)" },
+        { title: "Level 2: Quality Gate", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "📊 Filter bad data" },
+        { title: "Level 2: Stream Process", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "⚡ Streaming pipeline" },
+        { title: "🌟 Data Engineer!", description: "Full ETL pipeline complete!", action: "Master!", check: () => true, hint: "🎉 Production pipeline!" }
+      ],
+      codeTitle: '📊 Data Pipeline',
+      dataValue: '[1.2, 3.4, 5.6, ...]',
+      dataComment: '📁 dataset'
+    };
+    
+    themes.simulation = {
+      name: '🧬 Simulation',
+      emoji: '🧬',
+      level1: [
+        { title: "Step 1: Initial State", description: "Create <strong>simulation state</strong>. Click <strong>⚪ + Data</strong>.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "🧬 particles = { count: 100, temp: 300K }" },
+        { title: "Step 2: Add Physics", description: "Add <strong>step function</strong>. Click <strong>⬡ + Action</strong>.", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "⚛️ simulate(state) → next_state" },
+        { title: "Step 3: Connect", description: "Connect: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 state → physics engine" },
+        { title: "Step 4: Run Simulation", description: "Execute: <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "✨ t+1: particles moved!" },
+        { title: "Step 5: Simulation Logic Started!", description: "You've designed backend simulation logic!", action: "Complete!", check: () => true, hint: "🎉 Backend sim ready!" }
+      ],
+      level2: [
+        { title: "Level 2: Boundary Check", description: "Click <strong>◆ + If/Else</strong>", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🎯 if (pos > boundary) → bounce" },
+        { title: "Level 2: Time Steps", description: "Click <strong>◎ + Loop</strong>", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 for t in range(1000)" },
+        { title: "Level 2: Collision", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "💥 Collision detection" },
+        { title: "Level 2: Iterate", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "⏱️ Run 1000 time steps" },
+        { title: "🌟 Physicist!", description: "Full simulation loop!", action: "Master!", check: () => true, hint: "🎉 Research ready!" }
+      ],
+      codeTitle: '🧬 Physics Simulation',
+      dataValue: '{ particles: 100 }',
+      dataComment: '⚛️ state'
+    };
+    
+    themes.animation = {
+      name: '✨ Animation',
+      emoji: '✨',
+      level1: [
+        { title: "Step 1: Create Object", description: "Create an <strong>animated element</strong>. Click <strong>⚪ + Data</strong>.", action: "Click ⚪ + Data", check: () => hasObjectOfType('orb'), hint: "🎨 sprite = { x: 0, y: 0, scale: 1 }" },
+        { title: "Step 2: Add Motion", description: "Add <strong>animation function</strong>. Click <strong>⬡ + Action</strong>.", action: "Click ⬡ + Action", check: () => hasObjectOfType('function'), hint: "💫 animate(sprite) → move & scale" },
+        { title: "Step 3: Connect", description: "Connect: <span class='guide-hint'>connect orb_1 function_1</span>", action: "Type & Enter", check: () => runtime.connections?.length > 0, hint: "🔗 sprite → animator" },
+        { title: "Step 4: Play Animation", description: "Execute: <span class='guide-hint'>execute function_1</span>", action: "Type & Enter", check: () => window.hasExecuted, hint: "✨ Whoosh! Sprite flies!" },
+        { title: "Step 5: Animation Logic Started!", description: "You've designed backend animation logic!", action: "Complete!", check: () => true, hint: "🎉 Backend animation ready!" }
+      ],
+      level2: [
+        { title: "Level 2: Easing", description: "Click <strong>◆ + If/Else</strong>", action: "Click ◆ + If/Else", check: () => hasObjectOfType('gate'), hint: "🎯 if (t < 0.5) → ease-in" },
+        { title: "Level 2: Keyframes", description: "Click <strong>◎ + Loop</strong>", action: "Click ◎ + Loop", check: () => hasObjectOfType('stream'), hint: "🔁 for frame in keyframes" },
+        { title: "Level 2: Timing", description: "Connect: <span class='guide-hint'>connect orb_1 gate_1</span>", action: "Type & Enter", check: () => hasConnection('orb', 'gate'), hint: "⏱️ Easing function" },
+        { title: "Level 2: Sequence", description: "Connect: <span class='guide-hint'>connect gate_1 stream_1</span>", action: "Type & Enter", check: () => hasConnection('gate', 'stream'), hint: "🎬 Play sequence" },
+        { title: "🌟 Animator!", description: "Full animation system!", action: "Master!", check: () => true, hint: "🎉 Motion graphics!" }
+      ],
+      codeTitle: '✨ Animation Engine',
+      dataValue: '{ x: 0, y: 0 }',
+      dataComment: '🎨 sprite'
+    };
+    
+    let currentRole = 'kid';
+    
+    window.selectRole = function(role) {
+      console.log('selectRole called with:', role);
+      currentRole = role;
+      const roleConfig = roleThemes[role];
+      
+      if (!roleConfig) {
+        console.error('Role config not found for:', role);
+        return;
+      }
+      
+      // Update step 2 content
+      document.getElementById('theme-title').textContent = roleConfig.title;
+      document.getElementById('theme-subtitle').textContent = roleConfig.subtitle;
+      
+      // Generate theme buttons
+      const container = document.getElementById('theme-options');
+      container.innerHTML = roleConfig.themes.map(themeId => {
+        const theme = themes[themeId];
+        if (!theme) {
+          console.error('Theme not found:', themeId);
+          return '';
+        }
+        return `<button class="theme-btn" onclick="window.selectTheme('${themeId}')" id="theme-${themeId}">
+          ${theme.emoji} <strong>${theme.name.split(' ').slice(1).join(' ')}</strong><br>
+          <small>${theme.codeTitle.split(' ').slice(1).join(' ')}</small>
+        </button>`;
+      }).join('');
+      
+      // Show step 2
+      document.getElementById('welcome-step1').style.display = 'none';
+      document.getElementById('welcome-step2').style.display = 'block';
+      console.log('Step 2 shown');
+    };
+    
+    window.selectTheme = function(themeName) {
+      currentTheme = themeName;
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('selected'));
+      document.getElementById('theme-' + themeName)?.classList.add('selected');
+      
+      // Update ready description based on theme
+      const theme = themes[themeName];
+      document.getElementById('ready-description').textContent = 
+        `You'll design: ${theme.name} backend logic. Create 3D blocks, connect them, and see your backend come to life!`;
+      
+      // Show step 3
+      document.getElementById('welcome-step2').style.display = 'none';
+      document.getElementById('welcome-step3').style.display = 'block';
+    };
+    
+    window.goBackToRoles = function() {
+      document.getElementById('welcome-step2').style.display = 'none';
+      document.getElementById('welcome-step1').style.display = 'block';
+    };
+    
+    window.goBackToThemes = function() {
+      document.getElementById('welcome-step3').style.display = 'none';
+      document.getElementById('welcome-step2').style.display = 'block';
+    };
+    
+    window.setTheme = function(themeName) {
+      currentTheme = themeName;
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('selected'));
+      document.getElementById('theme-' + themeName)?.classList.add('selected');
+    };
+    
+    // Get current theme's steps
+    function getLevel1Steps() { return themes[currentTheme].level1; }
+    function getLevel2Steps() { return themes[currentTheme].level2; }
+
+    const level1Steps = [
+      {
+        title: "Step 1: Create Your Data",
+        description: "Let's build a <strong>price calculator</strong>! Click <strong>⚪ + Data</strong> to create a price variable.",
+        action: "Click ⚪ + Data",
+        check: () => hasObjectOfType('orb'),
+        hint: "💰 This orb holds: price = $29.99"
+      },
+      {
+        title: "Step 2: Add the Calculator", 
+        description: "Now add a function to calculate tax. Click <strong>⬡ + Action</strong>.",
+        action: "Click ⬡ + Action",
+        check: () => hasObjectOfType('function'),
+        hint: "🧮 This function will: addTax(price) → price * 1.08"
+      },
+      {
+        title: "Step 3: Connect Price → Calculator",
+        description: "Send the price to the calculator: <span class='guide-hint'>connect orb_1 function_1</span>",
+        action: "Type & Enter",
+        check: () => runtime.connections && runtime.connections.length > 0,
+        hint: "🔗 Data flows: $29.99 → addTax()"
+      },
+      {
+        title: "Step 4: Run It!",
+        description: "Calculate the final price: <span class='guide-hint'>execute function_1</span>",
+        action: "Type & Enter",
+        check: () => window.hasExecuted,
+        hint: "✨ Result: $29.99 × 1.08 = $32.39"
+      },
+      {
+        title: "Step 5: You Built a Calculator!",
+        description: "Look at the code panel → That's real JavaScript! You just built: <code>addTax(29.99) = 32.39</code>",
+        action: "Complete!",
+        check: () => true,
+        hint: "🎉 Visual blocks = real working code!"
+      }
+    ];
+    
+    const level2Steps = [
+      {
+        title: "Level 2: Add a Discount Check",
+        description: "Let's add a discount! Click <strong>◆ + If/Else</strong> to check if price qualifies.",
+        action: "Click ◆ + If/Else",
+        check: () => hasObjectOfType('gate'),
+        hint: "🎯 If price > $25 → apply 10% discount"
+      },
+      {
+        title: "Level 2: Add Bulk Pricing",
+        description: "Now add a loop for multiple items. Click <strong>◎ + Loop</strong>.",
+        action: "Click ◎ + Loop",
+        check: () => hasObjectOfType('stream'),
+        hint: "🔁 Loop through cart: [item1, item2, item3]"
+      },
+      {
+        title: "Level 2: Check Each Item",
+        description: "Send price to the discount checker: <span class='guide-hint'>connect orb_1 gate_1</span>",
+        action: "Type & Enter",
+        check: () => hasConnection('orb', 'gate'),
+        hint: "📊 $29.99 > $25? → YES! Apply discount"
+      },
+      {
+        title: "Level 2: Process All Items",
+        description: "Chain the discount to the loop: <span class='guide-hint'>connect gate_1 stream_1</span>",
+        action: "Type & Enter",
+        check: () => hasConnection('gate', 'stream'),
+        hint: "🛒 For each item: check discount → add to total"
+      },
+      {
+        title: "🌟 Complete Shopping System!",
+        description: "<strong>You built:</strong><br><code>if (price > 25) { discount = 10% }<br>for (item of cart) { total += item }</code>",
+        action: "Master Level!",
+        check: () => true,
+        hint: "🎉 Variables + Functions + Conditions + Loops = Real Programs!"
+      }
+    ];
+    
+    let tutorialSteps = [];
+    
+    let currentStep = 0;
+    let guidedMode = false;
+    window.hasExecuted = false;
+    
+    window.startGuidedTutorial = function() {
+      // Use theme-based steps
+      tutorialSteps = themes[currentTheme].level1;
+      currentLevel = 1;
+      
+      document.getElementById('tutorial-overlay').classList.add('hidden');
+      document.getElementById('guide-panel').classList.remove('hidden');
+      document.getElementById('code-panel').classList.remove('hidden');
+      guidedMode = true;
+      currentStep = 0;
+      updateGuideStep();
+      updateCodePreview();
+    };
+    
+    function updateGuideStep() {
+      const step = tutorialSteps[currentStep];
+      const content = document.getElementById('guide-content');
+      
+      // Update progress dots
+      for (let i = 0; i < 5; i++) {
+        const dot = document.getElementById(`dot-${i + 1}`);
+        dot.className = 'progress-dot';
+        if (i < currentStep) dot.classList.add('completed');
+        if (i === currentStep) dot.classList.add('active');
+      }
+      
+      const themeName = themes[currentTheme].name;
+      const levelLabel = currentLevel === 1 ? 'Level 1' : 'Level 2';
+      document.getElementById('step-label').textContent = `${themeName} - ${levelLabel}`;
+      
+      content.innerHTML = `
+        <h3>${step.title}</h3>
+        <p>${step.description}</p>
+        <p style="font-size: 12px; color: #4fc3f7; margin-top: 8px; background: rgba(79,195,247,0.1); padding: 6px 10px; border-radius: 6px;">💡 ${step.hint}</p>
+      `;
+    }
+    
+    function checkStepProgress() {
+      if (!guidedMode) return;
+      
+      const step = tutorialSteps[currentStep];
+      if (step.check()) {
+        if (currentStep < tutorialSteps.length - 1) {
+          currentStep++;
+          updateGuideStep();
+          updateCodePreview();
+        } else {
+          // Tutorial complete!
+          completeTutorial();
+        }
+      }
+    }
+    
+    function completeTutorial() {
+      guidedMode = false;
+      document.getElementById('guide-panel').classList.add('hidden');
+      
+      if (currentLevel === 1) {
+        // Show level 1 completion with option for level 2
+        document.getElementById('celebration').classList.add('visible');
+        document.getElementById('level2-btn').style.display = 'inline-block';
+        document.getElementById('celebration-title').textContent = 'Level 1 Complete!';
+        document.getElementById('final-next-steps').style.display = 'none';
+      } else {
+        // Show final completion with next steps
+        document.getElementById('celebration').classList.add('visible');
+        document.getElementById('level2-btn').style.display = 'none';
+        document.getElementById('celebration-title').textContent = '🌟 Backend Foundations Complete!';
+        document.getElementById('celebration-sub').innerHTML = `
+          You've learned the building blocks of backend logic in Hololand!<br>
+          <strong>Variables</strong>, <strong>Functions</strong>, <strong>Conditionals</strong>, and <strong>Loops</strong><br>
+          are now ready to power your Hololand creations.
+        `;
+        // Show the next steps links for Level 2 completion
+        document.getElementById('final-next-steps').style.display = 'block';
+      }
+    }
+    
+    window.startLevel2 = function() {
+      document.getElementById('celebration').classList.remove('visible');
+      currentLevel = 2;
+      tutorialSteps = themes[currentTheme].level2;
+      currentStep = 0;
+      guidedMode = true;
+      document.getElementById('guide-panel').classList.remove('hidden');
+      updateGuideStep();
+      updateCodePreview();
+    };
+    
+    window.closeCelebration = function() {
+      document.getElementById('celebration').classList.remove('visible');
+      document.getElementById('level2-btn').style.display = 'none';
+      localStorage.setItem('holoscript-tutorial-seen', 'true');
+    };
+    
+    function updateCodePreview() {
+      const codeContent = document.getElementById('code-content');
+      const theme = themes[currentTheme];
+      let code = '';
+      
+      // Theme-specific code generation
+      const codeTemplates = {
+        shop: { data: '29.99', comment: '💰 price', func: 'addTax', result: '32.39' },
+        pet: { data: '"Buddy"', comment: '🐾 pet', func: 'feed', result: 'happiness + 10' },
+        pizza: { data: '"dough"', comment: '🫓 base', func: 'addToppings', result: 'pizza ready!' },
+        game: { data: '100', comment: '💚 health', func: 'attack', result: 'damage + 25' },
+        api: { data: '{ user: "john" }', comment: '📦 payload', func: 'handleRequest', result: '{ status: 200 }' },
+        data: { data: '[1.2, 3.4, 5.6]', comment: '📊 dataset', func: 'normalize', result: '[0.2, 0.6, 1.0]' },
+        simulation: { data: '{ particles: 100 }', comment: '⚛️ state', func: 'step', result: 't+1: moved!' },
+        animation: { data: '{ x: 0, y: 0 }', comment: '🎨 sprite', func: 'animate', result: 'frame 1/60' }
+      };
+      const t = codeTemplates[currentTheme] || codeTemplates.pet;
+      
+      // Generate pseudo-code from current state
+      if (runtime.objects.size === 0) {
+        code = `<span class="code-comment">// Your program will appear here</span>\n<span class="code-comment">// as you build it visually</span>`;
+      } else {
+        code = `<span class="code-comment">// ${theme.codeTitle}</span>\n\n`;
+        
+        // Collect objects by type for smarter code generation
+        const orbs = [];
+        const gates = [];
+        const streams = [];
+        const functions = [];
+        
+        runtime.objects.forEach((mesh, name) => {
+          const type = mesh.userData.holoType;
+          if (type === 'orb') orbs.push(name);
+          else if (type === 'gate') gates.push(name);
+          else if (type === 'stream') streams.push(name);
+          else if (type === 'function') functions.push(name);
+        });
+        
+        // Generate variables with theme values
+        runtime.objects.forEach((mesh, name) => {
+          const type = mesh.userData.holoType;
+          if (type === 'orb') {
+            code += `<span class="code-keyword">let</span> <span class="code-variable">${name}</span> = <span class="code-number">${t.data}</span>;  <span class="code-comment">// ${t.comment}</span>\n`;
+          } else if (type === 'cube') {
+            code += `<span class="code-keyword">const</span> <span class="code-variable">${name}</span> = { };\n`;
+          } else if (type === 'pyramid') {
+            code += `<span class="code-keyword">class</span> <span class="code-function">Item</span> { }\n`;
+          }
+        });
+        
+        // Generate functions with real logic
+        functions.forEach((name, i) => {
+          code += `\n<span class="code-keyword">function</span> <span class="code-function">addTax</span>(price) {\n`;
+          code += `  <span class="code-keyword">return</span> price * <span class="code-number">1.08</span>;  <span class="code-comment">// 8% tax</span>\n}\n`;
+        });
+        
+        // Generate conditionals with real logic
+        // Generate conditionals with theme context
+        const conditionTemplates = {
+          shop: { check: '> 25', action: 'discount = 0.10', comment: '10% off!' },
+          pet: { check: '> 50', action: 'needsFood = true', comment: 'hungry pet!' },
+          pizza: { check: '!== null', action: 'isValid = true', comment: 'safe to add!' },
+          game: { check: '> 0', action: 'canFight = true', comment: 'still alive!' },
+          api: { check: '.valid', action: 'allow = true', comment: 'auth passed!' },
+          data: { check: '> 3σ', action: 'isOutlier = true', comment: 'exclude!' },
+          simulation: { check: '> boundary', action: 'bounce = true', comment: 'reflect!' },
+          animation: { check: '< 0.5', action: 'easing = "in"', comment: 'ease-in!' }
+        };
+        const cond = conditionTemplates[currentTheme] || conditionTemplates.pet;
+        
+        gates.forEach(name => {
+          const dataVar = orbs[0] || 'data';
+          code += `\n<span class="code-comment">// 🎯 Check condition</span>\n`;
+          code += `<span class="code-keyword">if</span> (<span class="code-variable">${dataVar}</span> ${cond.check}) {\n`;
+          code += `  <span class="code-variable">${cond.action}</span>;  <span class="code-comment">// ${cond.comment}</span>\n`;
+          code += `}\n`;
+        });
+        
+        // Generate loops with theme context
+        const loopTemplates = {
+          shop: { items: 'cart', each: 'item', action: 'total += item' },
+          pet: { items: 'tricks', each: 'trick', action: 'pet.do(trick)' },
+          pizza: { items: 'toppings', each: 'topping', action: 'pizza.add(topping)' },
+          game: { items: 'combo', each: 'move', action: 'player.attack(move)' },
+          api: { items: 'batch', each: 'request', action: 'process(request)' },
+          data: { items: 'dataset', each: 'row', action: 'transform(row)' },
+          simulation: { items: 'timesteps', each: 't', action: 'state = step(state)' },
+          animation: { items: 'keyframes', each: 'frame', action: 'render(frame)' }
+        };
+        const loop = loopTemplates[currentTheme] || loopTemplates.pet;
+        
+        streams.forEach(name => {
+          code += `\n<span class="code-comment">// 🔁 Repeat for each</span>\n`;
+          code += `<span class="code-keyword">for</span> (<span class="code-keyword">const</span> <span class="code-variable">${loop.each}</span> <span class="code-keyword">of</span> <span class="code-variable">${loop.items}</span>) {\n`;
+          code += `  <span class="code-variable">${loop.action}</span>;\n`;
+          code += `}\n`;
+        });
+        
+        // Show main execution flow
+        if (runtime.connections && runtime.connections.length > 0 && functions.length > 0) {
+          const dataVar = orbs[0] || 'data';
+          code += `\n<span class="code-comment">// === Run! ===</span>\n`;
+          code += `<span class="code-function">${t.func}</span>(<span class="code-variable">${dataVar}</span>);\n`;
+          code += `<span class="code-comment">// ✨ Result: ${t.result}</span>\n`;
+        }
+        
+        if (window.hasExecuted) {
+          code += `\n<span class="code-comment">// 🎉 Success!</span>\n`;
+        }
+      }
+      
+      codeContent.innerHTML = code;
+    }
+    
+    // Check if first visit - ALWAYS show tutorial for now (dev mode)
+    // Remove localStorage check to always show welcome
+    // if (!localStorage.getItem('holoscript-tutorial-seen')) {
+    //   // Tutorial shows automatically
+    // } else {
+    //   document.getElementById('tutorial-overlay').classList.add('hidden');
+    // }
+    // For production, uncomment above and remove this line:
+    localStorage.removeItem('holoscript-tutorial-seen');
+    
+    window.quickCreate = function(type) {
+      executeCommand(`create ${type}`);
+      setTimeout(checkStepProgress, 100);
+    };
+    
+    window.insertCommand = function(text) {
+      const input = document.getElementById('command-input');
+      input.value = text;
+      input.focus();
+    };
+    
+    window.sendCommand = function() {
+      const input = document.getElementById('command-input');
+      const command = input.value.trim();
+      if (command) {
+        logCommand(`⌨️ ${command}`, 'command');
+        executeCommand(command);
+        input.value = '';
+        setTimeout(checkStepProgress, 100);
+      }
+      input.focus();
+    };
+    
+    // Handle Enter key
+    document.getElementById('command-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        window.sendCommand();
+      }
+    });
+    
+    // Confirm before clearing all
+    window.confirmClear = function() {
+      const count = runtime.objects.size;
+      if (count === 0) {
+        updateStatus('Scene is already empty', 'success');
+        return;
+      }
+      if (confirm(`Delete all ${count} blocks from the scene?`)) {
+        executeCommand('clear all');
+      }
+    };
+
+    function animateExecution() {
+      // Create a pulse wave effect across all connections
+      if (!runtime.connections || runtime.connections.length === 0) return;
+      
+      runtime.connections.forEach((conn, index) => {
+        const fromObj = runtime.objects.get(conn.from);
+        const toObj = runtime.objects.get(conn.to);
+        
+        if (!fromObj || !toObj) return;
+        
+        // Create traveling particle
+        setTimeout(() => {
+          const pulseGeometry = new THREE.SphereGeometry(0.15, 12, 12);
+          const pulseMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 1
+          });
+          const pulse = new THREE.Mesh(pulseGeometry, pulseMaterial);
+          pulse.position.copy(fromObj.position);
+          scene.add(pulse);
+          
+          // Animate from source to target
+          const startPos = fromObj.position.clone();
+          const endPos = toObj.position.clone();
+          const startTime = performance.now();
+          const duration = 800;
+          
+          function animatePulse(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 2);
+            
+            pulse.position.lerpVectors(startPos, endPos, eased);
+            pulse.material.opacity = 1 - progress * 0.5;
+            pulse.scale.setScalar(1 + progress * 0.5);
+            
+            if (progress < 1) {
+              requestAnimationFrame(animatePulse);
+            } else {
+              scene.remove(pulse);
+              pulse.geometry.dispose();
+              pulse.material.dispose();
+              
+              // Flash the target object
+              if (toObj.material) {
+                const originalEmissive = toObj.material.emissiveIntensity;
+                toObj.material.emissiveIntensity = 3;
+                setTimeout(() => {
+                  toObj.material.emissiveIntensity = originalEmissive;
+                }, 300);
+              }
+            }
+          }
+          requestAnimationFrame(animatePulse);
+        }, index * 200);
+      });
+      
+      // Log the execution visually
+      logCommand('🚀 Program executed! Data flowed through connections.', 'result');
+    }
+    
+    function executeCommand(command) {
+      const result = runtime.execute(command);
+      
+      // Track execution for tutorial
+      if (command.toLowerCase().startsWith('execute')) {
+        window.hasExecuted = true;
+        animateExecution();
+        setTimeout(checkStepProgress, 100);
+      }
+      
+      updateCodePreview();
+      
+      if (result.success) {
+        logCommand(`✅ ${result.message}`, 'result');
+        updateStatus(result.message, 'success');
+      } else {
+        logCommand(`❌ ${result.error}`, 'error');
+        updateStatus(result.error, 'error');
+      }
+    }
+    
+    function logCommand(text, type) {
+      const log = document.getElementById('command-log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = text;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+      
+      while (log.children.length > 15) {
+        log.removeChild(log.firstChild);
+      }
+    }
+    
+    function updateStatus(text, type) {
+      const statusText = document.getElementById('status-text');
+      const statusDot = document.getElementById('status-dot');
+      
+      statusText.textContent = text.substring(0, 30);
+      statusDot.className = 'status-dot';
+      if (type === 'error') statusDot.classList.add('error');
+      if (type === 'listening') statusDot.classList.add('listening');
+    }
+
+    // ============================================
+    // TOUCH/CLICK INTERACTION
+    // ============================================
+    
+    // raycaster already defined in DRAG CONTROLS section
+    const pointer = new THREE.Vector2();
+    let lastTapTime = 0;
+    
+    let selectedObject = null;
+    
+    function handleInteraction(clientX, clientY) {
+      pointer.x = (clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(pointer, camera);
+      const meshes = Array.from(runtime.objects.values());
+      const intersects = raycaster.intersectObjects(meshes, false);
+      
+      if (intersects.length > 0) {
+        const clicked = intersects[0].object;
+        if (clicked.userData.holoName) {
+          // Autofill the command input with the object name
+          const input = document.getElementById('command-input');
+          input.value = clicked.userData.holoName;
+          input.focus();
+          
+          // Highlight selected object
+          if (selectedObject && selectedObject.material) {
+            selectedObject.material.emissiveIntensity = 0.2;
+          }
+          selectedObject = clicked;
+          if (clicked.material) {
+            clicked.material.emissiveIntensity = 0.8;
+          }
+          
+          logCommand(`👆 Selected: ${clicked.userData.holoName}`, 'command');
+          updateStatus(`Selected: ${clicked.userData.holoName}`, 'success');
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    // Click handler (desktop)
+    renderer.domElement.addEventListener('click', (e) => {
+      if (e.target === renderer.domElement) {
+        handleInteraction(e.clientX, e.clientY);
+      }
+    });
+    
+    // Touch handler (mobile) - detect taps vs drags
+    let touchStartPos = null;
+    let touchStartTime = 0;
+    
+    renderer.domElement.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        touchStartTime = Date.now();
+      }
+    }, { passive: true });
+    
+    renderer.domElement.addEventListener('touchend', (e) => {
+      if (touchStartPos && e.changedTouches.length === 1) {
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - touchStartPos.x;
+        const dy = touch.clientY - touchStartPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const duration = Date.now() - touchStartTime;
+        
+        // If it's a tap (short, minimal movement)
+        if (distance < 15 && duration < 300) {
+          handleInteraction(touch.clientX, touch.clientY);
+        }
+      }
+      touchStartPos = null;
+    }, { passive: true });
+
+    // ============================================
+    // ANIMATION LOOP
+    // ============================================
+    
+    let time = 0;
+    const animationSpeed = prefersReducedMotion ? 0.5 : 1;
+    
+    function animate() {
+      requestAnimationFrame(animate);
+      time += 0.016 * animationSpeed;
+      
+      // Animate objects
+      runtime.objects.forEach((obj) => {
+        // Gentle float
+        const floatOffset = Math.sin(time * 1.5 + obj.userData.created * 0.001) * 0.08;
+        obj.position.y = obj.userData.baseY + floatOffset;
+        
+        // Slow rotation
+        obj.rotation.y = time * 0.2;
+        
+        // Animate glow ring
+        const glow = obj.children.find(c => c.userData.isGlow);
+        if (glow) {
+          glow.rotation.x = time * 0.5;
+          glow.rotation.z = time * 0.3;
+        }
+      });
+      
+      // Animate particle streams
+      if (window.holoStreams) {
+        window.holoStreams.forEach(stream => {
+          stream.userData.offset += 0.015;
+          const positions = stream.geometry.attributes.position.array;
+          const { from, to, offset } = stream.userData;
+          const count = positions.length / 3;
+          
+          for (let i = 0; i < count; i++) {
+            const t = ((i / count) + offset) % 1;
+            positions[i * 3] = from.x + (to.x - from.x) * t;
+            positions[i * 3 + 1] = from.y + (to.y - from.y) * t + Math.sin(t * Math.PI) * 0.15;
+            positions[i * 3 + 2] = from.z + (to.z - from.z) * t;
+          }
+          
+          stream.geometry.attributes.position.needsUpdate = true;
+        });
+      }
+      
+      // Update connections
+      runtime.connections.forEach(conn => {
+        const fromObj = runtime.objects.get(conn.from);
+        const toObj = runtime.objects.get(conn.to);
+        
+        if (fromObj && toObj) {
+          const positions = conn.line.geometry.attributes.position.array;
+          positions[0] = fromObj.position.x;
+          positions[1] = fromObj.position.y;
+          positions[2] = fromObj.position.z;
+          positions[3] = toObj.position.x;
+          positions[4] = toObj.position.y;
+          positions[5] = toObj.position.z;
+          conn.line.geometry.attributes.position.needsUpdate = true;
+        }
+      });
+      
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // ============================================
+    // RESIZE HANDLING
+    // ============================================
+    
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }, 100);
+    });
+    
+    // Handle orientation change
+    window.addEventListener('orientationchange', () => {
+      setTimeout(() => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }, 300);
+    });
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    
+    // Hide loading screen
+    setTimeout(() => {
+      document.getElementById('loading').classList.add('hidden');
+      updateStatus('Ready', 'success');
+      
+      // Show touch hint on mobile
+      if (hasTouch) {
+        const hint = document.getElementById('touch-hint');
+        hint.style.display = 'block';
+        setTimeout(() => hint.remove(), 3500);
+      }
+    }, 800);
+    
+    // Start animation
+    animate();
+    
+    // Create demo objects
+    setTimeout(() => {
+      runtime.execute('create function main');
+      setTimeout(() => {
+        runtime.execute('create gate auth');
+        setTimeout(() => {
+          runtime.execute('create stream data');
+          setTimeout(() => {
+            runtime.execute('connect main auth');
+            runtime.execute('connect auth data');
+            logCommand('🎉 Demo ready!', 'result');
+          }, 400);
+        }, 400);
+      }, 400);
+    }, 1200);
+
+    console.log('🎭 HoloScript Demo - Ready!');
+    console.log('Device:', isMobile ? 'Mobile' : 'Desktop', hasTouch ? '(touch)' : '');
+  </script>
+</body>
+</html>

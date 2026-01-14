@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello VR World - Hololand Example</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      max-width: 300px;
+      z-index: 100;
+    }
+    #info h1 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      color: #4fc3f7;
+    }
+    .success { color: #4caf50; font-weight: bold; }
+  </style>
+  
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="info">
+    <h1>🥽 Hololand - Hello VR World</h1>
+    <p>Welcome to the <strong>Three Plains of Reality</strong></p>
+    <p><strong>Controls:</strong></p>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+      <li>Mouse drag: Rotate view</li>
+      <li>Scroll: Zoom</li>
+      <li>Right-click drag: Pan</li>
+    </ul>
+    <p class="success" id="status">🔄 Loading 3D Text...</p>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+    import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
+    console.log('🥽 Hololand - Starting...');
+
+    // Setup scene
+    const scene = new THREE.Scene();
+    
+    // Create gradient background
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 512);
+    gradient.addColorStop(0, '#0a0a1a');
+    gradient.addColorStop(0.5, '#1a1a3e');
+    gradient.addColorStop(1, '#2a1a4e');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 2, 512);
+    const bgTexture = new THREE.CanvasTexture(canvas);
+    scene.background = bgTexture;
+
+    // Setup camera
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(0, 5, 20);
+    camera.lookAt(0, 2, 0);
+
+    // Setup renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // Setup controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 2, 0);
+
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(10, 20, 10);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    scene.add(directionalLight);
+
+    // Add colored point lights for atmosphere
+    const colors = [0xff4444, 0x44ff44, 0x4444ff, 0xff44ff, 0x44ffff];
+    colors.forEach((color, i) => {
+      const light = new THREE.PointLight(color, 0.5, 20);
+      const angle = (i / colors.length) * Math.PI * 2;
+      light.position.set(Math.cos(angle) * 10, 3, Math.sin(angle) * 10);
+      scene.add(light);
+    });
+
+    // Add ground with reflective material
+    const groundGeometry = new THREE.PlaneGeometry(50, 50);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: 0x111122,
+      roughness: 0.3,
+      metalness: 0.8,
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Add circular platform
+    const platformGeometry = new THREE.CylinderGeometry(8, 9, 0.5, 64);
+    const platformMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2a2a4a,
+      roughness: 0.4,
+      metalness: 0.6,
+    });
+    const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+    platform.position.y = 0.25;
+    platform.receiveShadow = true;
+    platform.castShadow = true;
+    scene.add(platform);
+
+    // Add glowing ring around platform
+    const ringGeometry = new THREE.TorusGeometry(8.5, 0.1, 16, 100);
+    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x4fc3f7 });
+    const platformRing = new THREE.Mesh(ringGeometry, ringMaterial);
+    platformRing.rotation.x = Math.PI / 2;
+    platformRing.position.y = 0.5;
+    scene.add(platformRing);
+
+    // Load font and create 3D text
+    const fontLoader = new FontLoader();
+    let holoTextMesh = null; // Reference for animation
+    
+    fontLoader.load(
+      'https://unpkg.com/three@0.159.0/examples/fonts/helvetiker_bold.typeface.json',
+      (font) => {
+        // Create "HOLO" text with hologram effect
+        const holoGeometry = new TextGeometry('HOLO', {
+          font: font,
+          size: 1.5,
+          height: 0.1,
+          curveSegments: 12,
+          bevelEnabled: true,
+          bevelThickness: 0.02,
+          bevelSize: 0.01,
+          bevelSegments: 3,
+        });
+        holoGeometry.computeBoundingBox();
+
+        // Hologram shader material for "Holo"
+        const holoMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { value: 0 },
+            color1: { value: new THREE.Color(0x00ffff) },
+            color2: { value: new THREE.Color(0x0088ff) },
+            opacity: { value: 0.85 },
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            varying vec3 vPosition;
+            void main() {
+              vUv = uv;
+              vPosition = position;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float time;
+            uniform vec3 color1;
+            uniform vec3 color2;
+            uniform float opacity;
+            varying vec2 vUv;
+            varying vec3 vPosition;
+            
+            void main() {
+              // Scanline effect
+              float scanline = sin(vPosition.y * 50.0 + time * 5.0) * 0.1 + 0.9;
+              
+              // Flickering effect
+              float flicker = sin(time * 20.0) * 0.05 + 0.95;
+              
+              // Color gradient based on position
+              float gradient = sin(vPosition.x * 2.0 + time) * 0.5 + 0.5;
+              vec3 color = mix(color1, color2, gradient);
+              
+              // Edge glow effect
+              float edgeGlow = pow(1.0 - abs(vPosition.y) * 0.3, 2.0);
+              
+              // Combine effects
+              float alpha = opacity * scanline * flicker;
+              vec3 finalColor = color * (1.0 + edgeGlow * 0.5);
+              
+              gl_FragColor = vec4(finalColor, alpha);
+            }
+          `,
+          transparent: true,
+          side: THREE.DoubleSide,
+          blending: THREE.AdditiveBlending,
+        });
+
+        holoTextMesh = new THREE.Mesh(holoGeometry, holoMaterial);
+        holoTextMesh.position.set(-5.0, 6, 0);
+        scene.add(holoTextMesh);
+
+        // Create "LAND" text with solid material
+        const landGeometry = new TextGeometry('LAND', {
+          font: font,
+          size: 1.5,
+          height: 0.4,
+          curveSegments: 12,
+          bevelEnabled: true,
+          bevelThickness: 0.05,
+          bevelSize: 0.02,
+          bevelSegments: 5,
+        });
+        landGeometry.computeBoundingBox();
+
+        // Solid metallic material for "land"
+        const landMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          emissive: 0x4fc3f7,
+          emissiveIntensity: 0.2,
+          roughness: 0.2,
+          metalness: 0.9,
+        });
+
+        const landMesh = new THREE.Mesh(landGeometry, landMaterial);
+        landMesh.position.set(0.9, 6, 0);
+        landMesh.castShadow = true;
+        scene.add(landMesh);
+
+        // Store reference for animation
+        window.holoMaterial = holoMaterial;
+
+        // Add glow outline behind "HOLO"
+        const holoGlowGeometry = new TextGeometry('HOLO', {
+          font: font,
+          size: 1.55,
+          height: 0.05,
+          curveSegments: 8,
+        });
+
+        const holoGlowMaterial = new THREE.MeshBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.25,
+          blending: THREE.AdditiveBlending,
+        });
+        const holoGlowMesh = new THREE.Mesh(holoGlowGeometry, holoGlowMaterial);
+        holoGlowMesh.position.set(-5.0, 6, -0.2);
+        scene.add(holoGlowMesh);
+
+        // Create subtitle
+        const subtitleGeometry = new TextGeometry('The Three Plains of Reality', {
+          font: font,
+          size: 0.5,
+          height: 0.1,
+          curveSegments: 8,
+        });
+        subtitleGeometry.computeBoundingBox();
+        subtitleGeometry.center();
+
+        const subtitleMaterial = new THREE.MeshStandardMaterial({
+          color: 0xcccccc,
+          emissive: 0x888888,
+          emissiveIntensity: 0.3,
+        });
+        const subtitleMesh = new THREE.Mesh(subtitleGeometry, subtitleMaterial);
+        subtitleMesh.position.set(0, 4.8, 0);
+        scene.add(subtitleMesh);
+
+        // Create Three Plains labels - positioned above platform
+        const plains = [
+          { text: 'HOLOLAND (Pure VR)', y: 4, color: 0x9966ff },
+          { text: 'VR REAL WORLD', y: 3.3, color: 0x44aaff },
+          { text: 'AR REAL WORLD', y: 2.6, color: 0x44ffaa },
+        ];
+
+        plains.forEach((plain, i) => {
+          const labelGeometry = new TextGeometry(plain.text, {
+            font: font,
+            size: 0.35,
+            height: 0.08,
+          });
+          labelGeometry.computeBoundingBox();
+          labelGeometry.center();
+
+          const labelMaterial = new THREE.MeshStandardMaterial({
+            color: plain.color,
+            emissive: plain.color,
+            emissiveIntensity: 0.5,
+          });
+          const labelMesh = new THREE.Mesh(labelGeometry, labelMaterial);
+          labelMesh.position.set(0, plain.y, 0);
+          scene.add(labelMesh);
+        });
+
+        document.getElementById('status').textContent = '✅ Welcome to Hololand!';
+      },
+      undefined,
+      (error) => {
+        console.error('Font loading error:', error);
+        document.getElementById('status').textContent = '⚠️ Font loading failed, showing shapes';
+      }
+    );
+
+    // Add floating orbs representing the three plains
+    const orbs = [];
+    const orbColors = [0x9966ff, 0x44aaff, 0x44ffaa];
+    const orbLabels = ['Pure VR', 'VR Earth', 'AR Layer'];
+    
+    orbColors.forEach((color, i) => {
+      const orbGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+      const orbMaterial = new THREE.MeshStandardMaterial({
+        color: color,
+        emissive: color,
+        emissiveIntensity: 0.5,
+        roughness: 0.1,
+        metalness: 0.9,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const orb = new THREE.Mesh(orbGeometry, orbMaterial);
+      const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
+      orb.position.set(Math.cos(angle) * 5, 3, Math.sin(angle) * 5);
+      orb.castShadow = true;
+      orb.userData = { angle: angle, index: i };
+      scene.add(orb);
+      orbs.push(orb);
+
+      // Add glow ring around each orb
+      const glowGeometry = new THREE.TorusGeometry(0.9, 0.03, 16, 100);
+      const glowMaterial = new THREE.MeshBasicMaterial({ color: color });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.position.copy(orb.position);
+      orb.userData.glow = glow;
+      scene.add(glow);
+    });
+
+    // Add particle system for atmosphere
+    const particleCount = 500;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 40;
+      positions[i + 1] = Math.random() * 15;
+      positions[i + 2] = (Math.random() - 0.5) * 40;
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMaterial = new THREE.PointsMaterial({
+      color: 0x4fc3f7,
+      size: 0.05,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    // Animate
+    let time = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      time += 0.016;
+
+      // Animate hologram shader
+      if (window.holoMaterial) {
+        window.holoMaterial.uniforms.time.value = time;
+      }
+
+      // Rotate platform ring
+      platformRing.rotation.z = time * 0.2;
+
+      // Animate orbs
+      orbs.forEach((orb, i) => {
+        const baseAngle = orb.userData.angle;
+        const newAngle = baseAngle + time * 0.3;
+        orb.position.x = Math.cos(newAngle) * 5;
+        orb.position.z = Math.sin(newAngle) * 5;
+        orb.position.y = 3 + Math.sin(time * 2 + i) * 0.3;
+        
+        if (orb.userData.glow) {
+          orb.userData.glow.position.copy(orb.position);
+          orb.userData.glow.rotation.x = time + i;
+          orb.userData.glow.rotation.y = time * 0.5 + i;
+        }
+      });
+
+      // Animate particles
+      particles.rotation.y = time * 0.02;
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Handle resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start animation
+    animate();
+
+    console.log('✅ Hololand - Ready!');
+  </script>
+</body>
+</html>

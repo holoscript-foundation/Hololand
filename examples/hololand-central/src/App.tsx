@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { VRButton, XR, Controllers, Hands } from '@react-three/xr';
 import { ThemedMainPlaza } from './worlds/ThemedMainPlaza';
 import { DemoShop } from './worlds/DemoShop';
 import { SocialLounge } from './worlds/SocialLounge';
@@ -60,6 +59,8 @@ function App() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   useEffect(() => {
+    console.log('App mounted - Hololand Central');
+    
     // Check for WebXR support
     if ('xr' in navigator) {
       (navigator as any).xr?.isSessionSupported('immersive-vr').then((supported: boolean) => {
@@ -69,8 +70,10 @@ function App() {
 
     // Hide loading screen
     const loading = document.getElementById('loading');
+    console.log('Loading element:', loading);
     if (loading) {
       setTimeout(() => {
+        console.log('Hiding loading screen');
         loading.classList.add('hidden');
       }, 1000);
     }
@@ -161,7 +164,7 @@ function App() {
             )}
             <button className="btn">About</button>
             {isVRSupported && (
-              <VRButton />
+              <button className="btn vr-btn">🥽 Enter VR</button>
             )}
           </div>
         </div>
@@ -250,28 +253,21 @@ function App() {
         shadows
         gl={{ antialias: true, alpha: false }}
       >
-        {/* XR for VR support */}
-        <XR>
-          {/* Camera */}
-          <PerspectiveCamera makeDefault position={[0, 1.6, 10]} fov={75} />
+        {/* Camera */}
+        <PerspectiveCamera makeDefault position={[0, 1.6, 10]} fov={75} />
 
-          {/* VR Controllers */}
-          <Controllers />
-          <Hands />
+        {/* Desktop controls */}
+        <OrbitControls
+          enableDamping
+          dampingFactor={0.05}
+          minDistance={2}
+          maxDistance={50}
+          maxPolarAngle={Math.PI / 2}
+          target={[0, 0, 0]}
+        />
 
-          {/* Desktop controls */}
-          <OrbitControls
-            enableDamping
-            dampingFactor={0.05}
-            minDistance={2}
-            maxDistance={50}
-            maxPolarAngle={Math.PI / 2}
-            target={[0, 0, 0]}
-          />
-
-          {/* Render current world */}
-          {renderWorld()}
-        </XR>
+        {/* Render current world */}
+        {renderWorld()}
       </Canvas>
     </div>
   );

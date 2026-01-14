@@ -24,7 +24,8 @@ class HololandClient {
       baseURL: apiUrl,
       headers: {
         'Content-Type': 'application/json',
-        ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
+        // Use X-API-Key header for agent authentication
+        ...(apiKey && { 'X-API-Key': apiKey }),
       },
     });
   }
@@ -49,7 +50,7 @@ class HololandClient {
     data: any;
     vizType: 'chart' | 'graph' | 'heatmap' | '3d-model';
   }) {
-    const response = await this.client.post('/api/v1/visualize', params);
+    const response = await this.client.post('/api/v1/holoscript/visualize', params);
     return response.data;
   }
 
@@ -290,11 +291,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
-    const { name, arguments: args } = request.params;
+    const { name, arguments: args } = request.params as any;
 
     switch (name) {
       case 'create_world': {
-        const result = await hololandClient.createWorld(args);
+        const result = await hololandClient.createWorld(args as any);
         return {
           content: [
             {
@@ -306,7 +307,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'execute_holoscript': {
-        const result = await hololandClient.executeHoloScript(args);
+        const result = await hololandClient.executeHoloScript(args as any);
         return {
           content: [
             {
@@ -318,7 +319,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'visualize_data': {
-        const result = await hololandClient.visualizeData(args);
+        const result = await hololandClient.visualizeData(args as any);
         return {
           content: [
             {
@@ -330,7 +331,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'invite_agent': {
-        const result = await hololandClient.inviteAgent(args);
+        const result = await hololandClient.inviteAgent(args as any);
         return {
           content: [
             {
@@ -354,7 +355,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'list_worlds': {
-        const result = await hololandClient.listWorlds(args);
+        const result = await hololandClient.listWorlds(args as any);
         return {
           content: [
             {

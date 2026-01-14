@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['three', '@hololand/renderer', '@hololand/world', '@hololand/react-three'],
+    include: ['three'],
   },
   server: {
     port: 3000,

@@ -1,8 +1,20 @@
 # 🚀 Hololand Roadmap
 
-**Vision: Build the Open Metaverse - A Ready Player One World for Everyone**
+**Vision: Build the Open Metaverse - A Ready Player One Universe Intersecting VR and AR**
 
-Hololand is evolving into a universal platform where developers and creators can build once and deploy everywhere - VR headsets, AR glasses, desktops, and mobile devices. This roadmap outlines our journey from a VR-focused framework to the world's most accessible metaverse platform.
+Hololand is building the **Three Plains of Reality** - a universal platform where developers and creators can build experiences across pure VR, VR Real World, and AR Real World. This roadmap outlines our journey to the world's most accessible metaverse platform.
+
+---
+
+## 🌌 The Three Plains
+
+| Plain | Description | Target Phase |
+|-------|-------------|--------------|
+| **🌌 Hololand** | Pure VR world - the OASIS, accessible anywhere | Phase 1-3 ✅ |
+| **🥽 VR Real World** | Digital twin of Earth in VR (GPS-anchored) | Phase 4-5 |
+| **📱 AR Real World** | Augmented overlay on reality (GPS-anchored) | Phase 6-7 |
+
+**[Read Full Three Plains Architecture →](HOLOLAND_HUB_AND_AR.md)**
 
 ---
 
@@ -15,6 +27,7 @@ We believe the metaverse should be:
 - **Universal**: Works on any device, accessible to everyone
 - **Creator-First**: Developers and non-developers can build together
 - **Future-Ready**: Prepared for next-gen hardware (uaa2 VR glasses)
+- **Reality-Bridged**: Three Plains connecting virtual and physical worlds
 
 ---
 
