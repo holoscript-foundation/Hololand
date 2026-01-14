@@ -11,6 +11,7 @@
 export { HoloScriptParser } from './HoloScriptParser';
 export { HoloScriptRuntime } from './HoloScriptRuntime';
 export { HoloScript2DParser } from './HoloScript2DParser';
+export { HoloScriptCodeParser } from './HoloScriptCodeParser';
 
 // Logger Interface
 export { setHoloScriptLogger, resetLogger, type HoloScriptLogger } from './logger';
@@ -39,6 +40,12 @@ export type {
   Size2D,
   UIStyle,
 } from './HoloScript2DParser';
+
+// Code Parser Types
+export type {
+  ParseResult,
+  ParseError,
+} from './HoloScriptCodeParser';
 
 export type {
   RuntimeContext,

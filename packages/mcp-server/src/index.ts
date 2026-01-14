@@ -1,6 +1,8 @@
 /**
  * Hololand MCP Server
  * Enables AI agents to create and manage VR/AR worlds, execute HoloScript, and collaborate in spatial environments
+ *
+ * Enhanced with local HoloScript parsing and validation (no API required)
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -12,6 +14,9 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import axios, { AxiosInstance } from 'axios';
 import { z } from 'zod';
+
+// Import HoloScript code parser for local validation
+import { HoloScriptCodeParser, HOLOSCRIPT_DEMO_SCRIPTS, HOLOSCRIPT_VERSION } from '@hololand/core';
 
 /**
  * Hololand API Client
@@ -88,7 +93,38 @@ class HololandClient {
     const response = await this.client.delete(`/api/v1/worlds/${worldId}`);
     return response.data;
   }
+
+  async addObject(params: {
+    worldId: string;
+    type: string;
+    position: { x: number; y: number; z: number };
+    metadata?: Record<string, any>;
+    physics?: { enabled: boolean; mass?: number; restitution?: number };
+  }) {
+    const response = await this.client.post(
+      `/api/v1/worlds/${params.worldId}/objects`,
+      params
+    );
+    return response.data;
+  }
+
+  async removeObject(worldId: string, objectId: string) {
+    const response = await this.client.delete(
+      `/api/v1/worlds/${worldId}/objects/${objectId}`
+    );
+    return response.data;
+  }
+
+  async listObjects(worldId: string) {
+    const response = await this.client.get(`/api/v1/worlds/${worldId}/objects`);
+    return response.data;
+  }
 }
+
+/**
+ * Local HoloScript Parser Instance (no API needed)
+ */
+const holoScriptParser = new HoloScriptCodeParser();
 
 /**
  * MCP Server
@@ -277,6 +313,144 @@ const tools: Tool[] = [
       required: ['worldId'],
     },
   },
+
+  // =====================================================
+  // LOCAL TOOLS (no API required) - Use HoloScriptCodeParser
+  // =====================================================
+
+  {
+    name: 'parse_holoscript',
+    description:
+      'Parse HoloScript code locally and return the AST (Abstract Syntax Tree). No API connection required. Use this to validate code structure before execution.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          description: 'HoloScript code to parse',
+        },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'validate_holoscript',
+    description:
+      'Validate HoloScript code syntax without executing. Returns errors and warnings. No API connection required.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          description: 'HoloScript code to validate',
+        },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'get_holoscript_examples',
+    description:
+      'Get example HoloScript code snippets for learning and reference. No API connection required.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          description: 'Category of examples',
+          enum: ['helloWorld', 'aiAgent', 'neuralNetwork', 'loginForm', 'dashboard', 'all'],
+        },
+      },
+    },
+  },
+  {
+    name: 'get_holoscript_version',
+    description: 'Get the current HoloScript version and supported platforms. No API connection required.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+
+  // =====================================================
+  // OBJECT MANIPULATION TOOLS
+  // =====================================================
+
+  {
+    name: 'add_object',
+    description:
+      'Add a 3D object to a VR world. Supports spheres, cubes, planes, and custom models with physics.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        worldId: {
+          type: 'string',
+          description: 'World to add object to',
+        },
+        type: {
+          type: 'string',
+          description: 'Object type',
+          enum: ['sphere', 'cube', 'plane', 'cylinder', 'cone', 'torus', 'model'],
+        },
+        position: {
+          type: 'object',
+          properties: {
+            x: { type: 'number' },
+            y: { type: 'number' },
+            z: { type: 'number' },
+          },
+          required: ['x', 'y', 'z'],
+          description: '3D position in world',
+        },
+        metadata: {
+          type: 'object',
+          description: 'Object properties (color, size, texture, etc.)',
+        },
+        physics: {
+          type: 'object',
+          properties: {
+            enabled: { type: 'boolean' },
+            mass: { type: 'number' },
+            restitution: { type: 'number' },
+          },
+          description: 'Physics properties for the object',
+        },
+      },
+      required: ['worldId', 'type', 'position'],
+    },
+  },
+  {
+    name: 'remove_object',
+    description: 'Remove a 3D object from a VR world',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        worldId: {
+          type: 'string',
+          description: 'World containing the object',
+        },
+        objectId: {
+          type: 'string',
+          description: 'ID of object to remove',
+        },
+      },
+      required: ['worldId', 'objectId'],
+    },
+  },
+  {
+    name: 'list_objects',
+    description: 'List all objects in a VR world',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        worldId: {
+          type: 'string',
+          description: 'World to list objects from',
+        },
+      },
+      required: ['worldId'],
+    },
+  },
 ];
 
 /**
@@ -380,6 +554,160 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'delete_world': {
         const result = await hololandClient.deleteWorld(args.worldId);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      // =====================================================
+      // LOCAL TOOLS (no API required)
+      // =====================================================
+
+      case 'parse_holoscript': {
+        const parseResult = holoScriptParser.parse(args.code);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: parseResult.success,
+                  ast: parseResult.ast,
+                  nodeCount: parseResult.ast?.length || 0,
+                  errors: parseResult.errors,
+                  warnings: parseResult.warnings,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case 'validate_holoscript': {
+        const validationResult = holoScriptParser.parse(args.code);
+        const isValid = validationResult.success && validationResult.errors.length === 0;
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  valid: isValid,
+                  errors: validationResult.errors,
+                  warnings: validationResult.warnings,
+                  summary: isValid
+                    ? `✓ Code is valid (${validationResult.ast?.length || 0} nodes parsed)`
+                    : `✗ Found ${validationResult.errors.length} error(s)`,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case 'get_holoscript_examples': {
+        const category = args.category || 'all';
+        let examples: Record<string, string>;
+
+        if (category === 'all') {
+          examples = HOLOSCRIPT_DEMO_SCRIPTS;
+        } else {
+          examples = {
+            [category]: (HOLOSCRIPT_DEMO_SCRIPTS as any)[category] || 'Example not found',
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  category,
+                  examples,
+                  availableCategories: Object.keys(HOLOSCRIPT_DEMO_SCRIPTS),
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      case 'get_holoscript_version': {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  version: HOLOSCRIPT_VERSION,
+                  mcpServerVersion: '1.0.0',
+                  features: [
+                    '3D VR world creation',
+                    '2D UI components',
+                    'Physics simulation',
+                    'Voice command parsing',
+                    'Gesture recognition',
+                    'Multi-agent collaboration',
+                  ],
+                  supportedPlatforms: [
+                    'WebXR',
+                    'Oculus Quest',
+                    'HTC Vive',
+                    'Valve Index',
+                    'Apple Vision Pro',
+                    'Windows Mixed Reality',
+                  ],
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      // =====================================================
+      // OBJECT MANIPULATION TOOLS
+      // =====================================================
+
+      case 'add_object': {
+        const result = await hololandClient.addObject(args as any);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'remove_object': {
+        const result = await hololandClient.removeObject(args.worldId, args.objectId);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'list_objects': {
+        const result = await hololandClient.listObjects(args.worldId);
         return {
           content: [
             {
