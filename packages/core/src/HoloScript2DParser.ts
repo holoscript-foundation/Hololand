@@ -69,53 +69,64 @@ export class HoloScript2DParser {
 
   /**
    * Parse 2D UI element from HoloScript code
-   *
-   * Syntax:
-   * button myButton {
-   *   text: "Click me"
-   *   x: 100
-   *   y: 100
-   *   onClick: handleClick
-   * }
+   * Supports nested blocks and children
    */
-  parse2DElement(code: string): UI2DNode | null {
-    const lines = code.trim().split('\n');
+  parse2DElement(code: string, depth: number = 0): UI2DNode | null {
+    if (depth > UI_SECURITY_CONFIG.maxNestingDepth) {
+      logger.warn('[HoloScript2DParser] Max nesting depth exceeded', { depth });
+      return null;
+    }
+
+    const trimmedCode = code.trim();
+    const lines = trimmedCode.split('\n');
     if (lines.length === 0) return null;
 
-    // Parse first line: <elementType> <name> {
+    // 1. Identify element type and name: type name { ... }
     const firstLine = lines[0].trim();
-    const match = firstLine.match(/^(\w+)\s+(\w+)\s*\{/);
+    const headerMatch = firstLine.match(/^([\w-]+)\s+(\w+)\s*\{/);
 
-    if (!match) {
+    if (!headerMatch) {
       logger.warn('[HoloScript2DParser] Invalid 2D element syntax', { line: firstLine });
       return null;
     }
 
-    const [, elementType, name] = match;
+    const [, elementType, name] = headerMatch;
 
-    // Validate element type
     if (!this.isValidUIElementType(elementType)) {
       logger.warn('[HoloScript2DParser] Invalid UI element type', { elementType });
       return null;
     }
 
-    // Parse properties
+    // 2. Extract content between the first { and the last }
+    const startIndex = trimmedCode.indexOf('{');
+    const endIndex = trimmedCode.lastIndexOf('}');
+    if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+      return null;
+    }
+
+    const innerContent = trimmedCode.slice(startIndex + 1, endIndex).trim();
+    const innerLines = this.splitIntoLogicalBlocks(innerContent);
+
     const properties: Record<string, any> = {};
     const events: Record<string, string> = {};
     const children: UI2DNode[] = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
+    // 3. Process inner lines/blocks
+    for (const block of innerLines) {
+      const line = block.trim();
+      if (!line) continue;
 
-      // Skip closing brace
-      if (line === '}') continue;
+      // Check if this block is a child element (type name { ... })
+      if (line.includes('{')) {
+        const childNode = this.parse2DElement(line, depth + 1);
+        if (childNode) children.push(childNode);
+        continue;
+      }
 
-      // Parse property: key: value
+      // Process property: key: value
       const propMatch = line.match(/^(\w+):\s*(.+)$/);
       if (propMatch) {
         const [, key, rawValue] = propMatch;
-
-        // Check if it's an event handler
         if (UI_SECURITY_CONFIG.allowedEventHandlers.includes(key)) {
           events[key] = rawValue.trim();
         } else {
@@ -128,19 +139,52 @@ export class HoloScript2DParser {
       type: '2d-element',
       elementType: elementType as UIElementType,
       name,
-      properties,
+      properties: { ...this.getDefaultProperties(elementType as UIElementType), ...properties },
       events: Object.keys(events).length > 0 ? events : undefined,
       children: children.length > 0 ? children : undefined,
     };
 
-    // Security check: max UI elements
-    if (this.uiElements.size >= UI_SECURITY_CONFIG.maxUIElements) {
-      logger.warn('[HoloScript2DParser] Max UI elements limit reached');
-      return null;
+    if (depth === 0) {
+      if (this.uiElements.size >= UI_SECURITY_CONFIG.maxUIElements) {
+        logger.warn('[HoloScript2DParser] Max UI elements limit reached');
+        return null;
+      }
+      this.uiElements.set(name, node);
     }
 
-    this.uiElements.set(name, node);
     return node;
+  }
+
+  /**
+   * Helper to split content into logical lines or blocks, respecting brackets
+   */
+  private splitIntoLogicalBlocks(content: string): string[] {
+    const blocks: string[] = [];
+    let currentBlock = '';
+    let bracketDepth = 0;
+
+    for (let i = 0; i < content.length; i++) {
+      const char = content[i];
+      if (char === '{') bracketDepth++;
+      if (char === '}') bracketDepth--;
+
+      currentBlock += char;
+
+      // If we're at top level and find a newline or end of content
+      if (bracketDepth === 0) {
+        if (char === '\n' || i === content.length - 1) {
+          const trimmed = currentBlock.trim();
+          if (trimmed) blocks.push(trimmed);
+          currentBlock = '';
+        }
+      }
+    }
+
+    // Clean up any remaining block
+    const finalTrimmed = currentBlock.trim();
+    if (finalTrimmed) blocks.push(finalTrimmed);
+
+    return blocks;
   }
 
   /**
@@ -233,26 +277,7 @@ export class HoloScript2DParser {
    * }
    */
   parseContainer(code: string, depth: number = 0): UI2DNode | null {
-    // Security: prevent deep nesting
-    if (depth > UI_SECURITY_CONFIG.maxNestingDepth) {
-      logger.warn('[HoloScript2DParser] Max nesting depth exceeded', { depth });
-      return null;
-    }
-
-    // Parse container structure (simplified implementation)
-    const node = this.parse2DElement(code);
-
-    if (!node) return null;
-
-    // Container types
-    const containerTypes: UIElementType[] = ['panel', 'flex-container', 'grid-container', 'scroll-view', 'modal'];
-
-    if (containerTypes.includes(node.elementType)) {
-      // Parse children (in real implementation, would recursively parse nested elements)
-      node.children = [];
-    }
-
-    return node;
+    return this.parse2DElement(code, depth);
   }
 
   /**
@@ -295,6 +320,20 @@ export class HoloScript2DParser {
         this.parsePropertyValue(item.trim())
       );
       return items;
+    }
+
+    // Object { key: value, ... }
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const obj: Record<string, any> = {};
+      const inner = trimmed.slice(1, -1).trim();
+      const pairs = this.splitIntoLogicalBlocks(inner); // Reuse splitting logic
+      for (const pair of pairs) {
+        const [k, v] = pair.split(':').map(s => s.trim());
+        if (k && v) {
+          obj[k] = this.parsePropertyValue(v);
+        }
+      }
+      return obj;
     }
 
     // Default: return as string
@@ -429,7 +468,7 @@ export class HoloScript2DParser {
    * Converts HoloScript 2D syntax to actual @hololand/ui API calls
    */
   generateUICode(element: UI2DNode): string {
-    const { elementType, name, properties, events } = element;
+    const { elementType, name, properties, events, children } = element;
 
     // Map element types to @hololand/ui classes
     const classNames: Record<UIElementType, string> = {
@@ -472,7 +511,15 @@ export class HoloScript2DParser {
       }
     }
 
-    code += `});`;
+    code += `});\n`;
+
+    // Add children
+    if (children && children.length > 0) {
+      for (const child of children) {
+        code += `\n${this.generateUICode(child)}\n`;
+        code += `${name}.add(${child.name});\n`;
+      }
+    }
 
     return code;
   }

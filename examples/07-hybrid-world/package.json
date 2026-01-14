@@ -1,0 +1,21 @@
+{
+  "name": "07-hybrid-world",
+  "version": "1.0.0",
+  "description": "Hololand Phase 2 Hybrid World Example - 2D UI controlling 3D VR world",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@hololand/world": "workspace:*",
+    "@hololand/renderer": "workspace:*",
+    "@hololand/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0"
+  }
+}
