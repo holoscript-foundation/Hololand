@@ -21,7 +21,7 @@
 | **🥽 VR Real World** | Digital twin of Earth in VR | ✅ GPS-anchored |
 | **📱 AR Real World** | Augmented overlay on reality | ✅ GPS-anchored |
 
-**[Read Full Three Plains Architecture →](HOLOLAND_HUB_AND_AR.md)**
+**[Read Full Three Plains Architecture →](docs/archive/HOLOLAND_HUB_AND_AR.md)**
 
 ### Build With Any Method
 
@@ -74,7 +74,7 @@ Hololand uses a **hybrid licensing approach** to balance developer freedom with 
 
 ## 📦 Packages
 
-Hololand is a monorepo containing 9 packages for building metaverse experiences across all devices:
+Hololand is a monorepo containing 11 packages for building metaverse experiences across all devices:
 
 ### Core Packages
 
@@ -99,6 +99,13 @@ Hololand is a monorepo containing 9 packages for building metaverse experiences 
 | [@hololand/commerce](./packages/commerce) | 10 KB | Shops & marketplace systems |
 | [@hololand/social](./packages/social) | 5 KB | Avatars & presence tracking |
 | [@hololand/builder](./packages/builder) | 2 KB | Visual tools & templates |
+
+### Infrastructure Packages
+
+| Package | Size | Description |
+|---------|------|-------------|
+| [@hololand/auth](./packages/auth) | 4 KB | Authentication & wallet integration |
+| [@hololand/mcp-server](./packages/mcp-server) | 3 KB | MCP server for AI tool integration |
 
 > **🚀 Phase 2 (Q1 2026)**: Universal rendering with 2D, 3D, hybrid, VR, and AR modes. See [ROADMAP.md](./ROADMAP.md)
 
@@ -212,7 +219,7 @@ Get started quickly with our complete working examples:
 
 Each example includes complete source code and comprehensive documentation. Start with `01-hello-vr-world` if you're new to VR development!
 
-**[📋 Project Templates →](./TEMPLATES.md)** - Copy-paste starter templates for common use cases
+**[📋 Project Templates →](./docs/archive/TEMPLATES.md)** - Copy-paste starter templates for common use cases
 
 ### Create a VR Shop
 
@@ -483,7 +490,7 @@ We welcome contributions from everyone! Here's how you can help:
 
 ## 📊 Project Stats
 
-- **Total Packages**: 9 (8 stable + 1 in development)
+- **Total Packages**: 11 (9 stable + 2 in development)
 - **Total Lines of Code**: ~9,000+
 - **Combined Build Size**: ~139 KB (minified)
 - **TypeScript Coverage**: 100%

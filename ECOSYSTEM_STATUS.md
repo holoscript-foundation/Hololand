@@ -240,7 +240,7 @@ const result = await service.buildFromNaturalLanguage({
 
 ## 📈 Metrics
 
-- **Total Packages**: 6
+- **Total Packages**: 11
 - **Total Lines of Code**: ~5,000+
 - **Build Size (Combined)**: ~123 KB
 - **TypeScript Coverage**: 100%
@@ -275,4 +275,4 @@ const result = await service.buildFromNaturalLanguage({
 - Pluggable logger interfaces for service integration
 - Full TypeScript support with type definitions
 - Dual ESM/CJS builds for maximum compatibility
-- Private repository (planning for open source)
+- Open source repository (MIT licensed)
