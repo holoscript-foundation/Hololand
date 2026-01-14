@@ -43,10 +43,10 @@ export class UICanvas {
     this._height = config?.height || canvas.height || 600;
     this._pixelRatio = config?.pixelRatio || (typeof window !== 'undefined' ? window.devicePixelRatio : 1);
     this._transparent = config?.transparent ?? false;
-    this._breakpoints = config?.breakpoints || {
-      mobile: 480,
-      tablet: 768,
-      desktop: 1024,
+    this._breakpoints = {
+      mobile: config?.breakpoints?.mobile ?? 480,
+      tablet: config?.breakpoints?.tablet ?? 768,
+      desktop: config?.breakpoints?.desktop ?? 1024,
     };
 
     this.resize(this._width, this._height);

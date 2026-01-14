@@ -467,7 +467,7 @@ export class HoloScriptCodeParser {
    */
   private parseGate(): GateNode | null {
     this.expect('keyword', 'gate');
-    const name = this.expectIdentifier();
+    this.expectIdentifier(); // Gate name (consumed but not currently stored)
 
     let condition = '';
     if (this.check('punctuation', '(')) {

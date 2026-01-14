@@ -13,6 +13,11 @@ import { logger } from './logger';
 import type { RendererConfig, LightingConfig } from './types';
 // Note: MaterialConfig is exported but not used yet - reserved for future material customization API
 
+// Config type with uiCanvasElement as optional
+type InternalConfig = Omit<Required<RendererConfig>, 'uiCanvasElement'> & {
+  uiCanvasElement?: HTMLCanvasElement;
+};
+
 export class HololandRenderer {
   private world: HololandWorld;
   private scene: THREE.Scene;
@@ -20,7 +25,7 @@ export class HololandRenderer {
   private renderer: THREE.WebGLRenderer;
   private controls: OrbitControls | null;
   private objectMap: Map<string, THREE.Object3D>;
-  private config: Required<RendererConfig>;
+  private config: InternalConfig;
   private animationId: number | null;
   private vrEnabled: boolean;
 
@@ -31,6 +36,7 @@ export class HololandRenderer {
     this.vrEnabled = false;
 
     this.config = {
+      // Existing 3D options
       enableShadows: config?.enableShadows ?? true,
       enableVR: config?.enableVR ?? true,
       enableControls: config?.enableControls ?? true,
@@ -38,6 +44,12 @@ export class HololandRenderer {
       backgroundColor: config?.backgroundColor ?? 0x000000,
       cameraPosition: config?.cameraPosition ?? { x: 10, y: 10, z: 10 },
       cameraFov: config?.cameraFov ?? 75,
+      // Phase 2: Universal rendering options
+      renderMode: config?.renderMode ?? '3d',
+      enable2D: config?.enable2D ?? false,
+      orthoSize: config?.orthoSize ?? 10,
+      enableHybrid: config?.enableHybrid ?? false,
+      uiCanvasElement: config?.uiCanvasElement ?? undefined,
     };
 
     // Initialize Three.js scene
