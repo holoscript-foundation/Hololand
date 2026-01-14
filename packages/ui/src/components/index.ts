@@ -3,9 +3,11 @@
  * Export all UI components
  */
 
+// Base component
 export { UIComponent } from './UIComponent';
 export type { UIEvent, UIEventHandler } from './UIComponent';
 
+// Core components
 export { Button } from './Button';
 export type { ButtonConfig } from './Button';
 
@@ -17,3 +19,35 @@ export type { PanelConfig } from './Panel';
 
 export { Text } from './Text';
 export type { TextConfig } from './Text';
+
+// Phase 2 components
+export { Image } from './Image';
+export type { ImageConfig } from './Image';
+
+export { Slider } from './Slider';
+export type { SliderConfig } from './Slider';
+
+export { Toggle } from './Toggle';
+export type { ToggleConfig } from './Toggle';
+
+export { Dropdown } from './Dropdown';
+export type { DropdownConfig, DropdownOption } from './Dropdown';
+
+export { Modal } from './Modal';
+export type { ModalConfig } from './Modal';
+
+export { List } from './List';
+export type { ListConfig, ListItem } from './List';
+
+// Layout components
+export { FlexContainer } from './FlexContainer';
+export type { FlexContainerConfig } from './FlexContainer';
+
+export { GridContainer } from './GridContainer';
+export type { GridContainerConfig } from './GridContainer';
+
+export { ScrollView } from './ScrollView';
+export type { ScrollViewConfig } from './ScrollView';
+
+export { TabView } from './TabView';
+export type { TabViewConfig, Tab } from './TabView';
