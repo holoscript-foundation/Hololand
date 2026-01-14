@@ -31,7 +31,8 @@ export type UIElementType =
   | 'dropdown'
   | 'flex-container'
   | 'grid-container'
-  | 'scroll-view';
+  | 'scroll-view'
+  | 'tab-view';
 
 export interface Position2D {
   x: number;
@@ -261,7 +262,7 @@ export class HoloScript2DParser {
     const validTypes: UIElementType[] = [
       'canvas', 'button', 'textinput', 'panel', 'text', 'image',
       'list', 'modal', 'slider', 'toggle', 'dropdown',
-      'flex-container', 'grid-container', 'scroll-view'
+      'flex-container', 'grid-container', 'scroll-view', 'tab-view'
     ];
 
     return validTypes.includes(type as UIElementType);
@@ -389,6 +390,13 @@ export class HoloScript2DParser {
         height: 400,
         scrollDirection: 'vertical',
       },
+      'tab-view': {
+        tabs: [],
+        activeTabId: null,
+        tabPosition: 'top',
+        width: 400,
+        height: 300,
+      },
     };
 
     return { ...defaults[elementType] };
@@ -439,6 +447,7 @@ export class HoloScript2DParser {
       'flex-container': 'FlexContainer',
       'grid-container': 'GridContainer',
       'scroll-view': 'ScrollView',
+      'tab-view': 'TabView',
     };
 
     const className = classNames[elementType];
@@ -472,7 +481,7 @@ export class HoloScript2DParser {
    * Convert entire UI tree to @hololand/ui code
    */
   generateFullUICode(): string {
-    let code = `import { UICanvas, Button, TextInput, Panel, Text, Image, List, Modal, Slider, Toggle, Dropdown, FlexContainer, GridContainer, ScrollView } from '@hololand/ui';\n\n`;
+    let code = `import { UICanvas, Button, TextInput, Panel, Text, Image, List, Modal, Slider, Toggle, Dropdown, FlexContainer, GridContainer, ScrollView, TabView } from '@hololand/ui';\n\n`;
 
     for (const element of this.uiElements.values()) {
       code += this.generateUICode(element) + '\n\n';
