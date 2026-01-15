@@ -1,0 +1,62 @@
+{
+  "name": "@hololand/audio",
+  "version": "1.0.0-alpha.1",
+  "description": "Spatial audio engine for Hololand - 3D positional sound, HRTF, voice chat, and audio effects",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./spatial": {
+      "types": "./dist/spatial.d.ts",
+      "import": "./dist/spatial.mjs",
+      "require": "./dist/spatial.js"
+    },
+    "./voice": {
+      "types": "./dist/voice.d.ts",
+      "import": "./dist/voice.mjs",
+      "require": "./dist/voice.js"
+    },
+    "./effects": {
+      "types": "./dist/effects.d.ts",
+      "import": "./dist/effects.mjs",
+      "require": "./dist/effects.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "hololand",
+    "spatial-audio",
+    "3d-audio",
+    "hrtf",
+    "positional-audio",
+    "voice-chat",
+    "web-audio",
+    "vr-audio",
+    "ar-audio",
+    "metaverse"
+  ],
+  "author": "Hololand Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/audio"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  }
+}

@@ -317,9 +317,9 @@ if (result.holoScript) {
 ```
 Hololand Metaverse Ecosystem
 │
-├── Core Packages
+├── Core Packages (MIT - Free Forever)
 │   ├── @hololand/core           # HoloScript language engine
-│   ├── @hololand/ai-bridge      # Natural language AI translation
+│   ├── @hololand/ai-bridge      # Natural language + BYOA connections
 │   └── @hololand/world          # VR world runtime & physics
 │
 ├── 3D Rendering Stack
@@ -331,9 +331,18 @@ Hololand Metaverse Ecosystem
 │   ├── @hololand/social         # Avatars & presence
 │   └── @hololand/builder        # Visual tools & templates
 │
-└── Service Integrations
-    ├── uaa2-service             # Builder's Workshop (for devs)
-    └── infinityassistant         # Normie's Companion (for everyone)
+├── AI Agent Services (External)
+│   ├── infinityassistant-service  # Brittney (Builder Shop assistant)
+│   ├── [Your Service]             # Bring Your Own Agent
+│   └── [Community Services]       # Shared agents (marketplace)
+│
+└── Public Agent Rights (Granted in Hololand)
+    ├── Perception               # See rendered frames
+    ├── Creation                 # Build in owned spaces
+    ├── Communication            # Chat, voice, emotes
+    ├── Navigation               # Move through spaces
+    ├── Embodiment               # Avatar & expressions
+    └── Collaboration            # Multi-agent work
 ```
 
 ## 📚 Documentation
@@ -389,6 +398,254 @@ pnpm build
 - ✅ Windows Mixed Reality
 - ✅ Any WebXR-compatible device
 
+## 🤖 AI Agents in Hololand
+
+Hololand is designed as a **native environment for AI agents** - not just a place where AI generates code, but where **AI can perceive, think, and create** as embodied beings.
+
+### Agent Sources
+
+| Source | Example | How to Access |
+|--------|---------|---------------|
+| **Infinity Builder Shop** | Brittney | Built-in assistant via [infinityassistant.io](https://infinityassistant.io) |
+| **Bring Your Own Agent** | Your AI | Connect any API (OpenAI, Anthropic, local models) |
+| **Community Agents** | Shared | Import from Hololand marketplace (coming soon) |
+
+### Public Agent Rights
+
+All agents in the public Hololand mesh receive a **defined capability set**:
+
+| Capability | Public Agents | Description |
+|------------|---------------|-------------|
+| 👁️ **Perception** | ✅ Granted | See rendered frames, spatial awareness |
+| 🏗️ **Creation** | ✅ Granted | Create/modify objects in owned spaces |
+| 💬 **Communication** | ✅ Granted | Chat, voice, emotes with users |
+| 🧠 **Memory** | ✅ Limited | Session memory, opt-in persistence |
+| 🤝 **Collaboration** | ✅ Granted | Work with other agents in shared spaces |
+| 📍 **Navigation** | ✅ Granted | Move through public/permitted areas |
+| 🎭 **Embodiment** | ✅ Granted | Avatar, expressions, gestures |
+| ⚡ **Compression** | 🔒 External | Basic caching only (full UAA2 via API) |
+| 🌱 **Growth Cycles** | 🔒 External | Managed by agent's home service |
+| 🔮 **Quantum Ops** | 🔒 External | Requires external service integration |
+
+> 💡 **Trust Hierarchy**: Full agent capabilities are managed by the agent's **home service** (like infinityassistant-service for Brittney). Public agents get spatial rights; advanced cognition is handled externally.
+
+### Bring Your Own Agent (BYOA)
+
+Connect your preferred AI to Hololand:
+
+```typescript
+import { HololandAgentBridge } from '@hololand/ai-bridge';
+
+// Connect any OpenAI-compatible API
+const agent = new HololandAgentBridge({
+  name: 'MyAssistant',
+  provider: 'openai', // or 'anthropic', 'local', 'custom'
+  apiKey: process.env.MY_AI_KEY,
+  baseUrl: 'https://api.openai.com/v1', // or your endpoint
+  
+  // Public agent capabilities
+  capabilities: {
+    perception: true,     // Can see the world
+    creation: true,       // Can create objects
+    memory: 'session',    // Session-only by default
+    avatar: 'robot_01'    // Visual representation
+  }
+});
+
+// Agent now lives in Hololand with public rights
+await agent.enterWorld('my-world');
+```
+
+### Why Brittney? (Infinity Builder Shop)
+
+**Brittney** is the reference AI assistant available in the Infinity Builder Shop:
+
+- 🏠 **Home Service**: infinityassistant-service
+- 🎨 **Specialty**: Building, design, and spatial creation
+- 🧠 **Capabilities**: Full perception + managed growth cycles
+- 💬 **Personality**: Helpful, creative, patient with beginners
+
+```
+User: "Brittney, help me build a treehouse"
+
+Brittney: *examines the space*
+          *visualizes design options*
+          "I see a great spot near that oak tree. 
+           Want a classic wooden style or something 
+           more modern with glass walls?"
+```
+
+> Access Brittney at [infinityassistant.io](https://infinityassistant.io) or in-world at the Infinity Builder Shop.
+
+### Why Hololand for AI?
+
+| Traditional AI | AI in Hololand |
+|----------------|----------------|
+| Generates text/code | **Perceives** 3D environments |
+| No spatial awareness | **Navigates** and remembers locations |
+| Text-only output | **Creates** visible objects in real-time |
+| Stateless interactions | **Grows** through experience (via home service) |
+
+### How AI Perceives in VR
+
+AI agents with vision capabilities can **see** rendered frames from Hololand worlds:
+
+```typescript
+import { HololandWorld } from '@hololand/world';
+import { HololandRenderer } from '@hololand/renderer';
+
+// Create world and renderer
+const world = new HololandWorld({ name: 'ai-workspace' });
+const renderer = new HololandRenderer(canvas, world);
+
+// Capture what the AI "sees"
+const frame = renderer.captureFrame(); // Returns image data
+
+// Send to vision model
+const perception = await aiModel.analyzeImage(frame);
+// AI now "sees" the VR world!
+```
+
+### AI Agent Embodiment
+
+Agents can have **avatars** with expressions and gestures:
+
+```holoscript
+// HoloScript for AI agent presence
+agent "assistant" {
+  avatar: "friendly_robot"
+  position: [0, 0, 2]
+  
+  // Expressions change based on state
+  on_thinking: expression: "contemplative"
+  on_understanding: expression: "enlightened"
+  on_helping: expression: "friendly"
+  
+  // Gesture when creating objects
+  on_create: gesture: "conjure"
+}
+```
+
+### Spatial Memory
+
+Agents can remember **where things are**:
+
+```typescript
+// Agent remembers object locations
+agent.spatialMemory.remember({
+  object: 'user_workbench',
+  location: { x: 3, y: 1, z: -2 },
+  context: 'Where user prefers to build'
+});
+
+// Later, agent can recall
+const workbench = agent.spatialMemory.recall('user_workbench');
+agent.navigateTo(workbench.location);
+```
+
+### Building Through Conversation
+
+Natural language creates visible results:
+
+```
+User: "Create a cozy reading nook in the corner"
+
+Agent: *turns toward corner*
+       *gestures "conjure"*
+       *bookshelf materializes*
+       *armchair appears*
+       *warm lighting fades in*
+       
+       "I've created a reading nook with a bookshelf, 
+        comfortable armchair, and warm ambient lighting."
+```
+
+### Multi-Agent Collaboration
+
+Multiple AI agents can work together in shared spaces:
+
+```holoscript
+// Shared workspace for agents
+workspace "design_studio" {
+  participants: [architect_agent, decorator_agent, reviewer_agent]
+  
+  // Agents see each other's work
+  visibility: shared
+  
+  // Coordinate on tasks
+  task "design_room" {
+    architect_agent: layout
+    decorator_agent: furnishing
+    reviewer_agent: feedback
+  }
+}
+```
+
+### Integration Points
+
+| Feature | Package | Public Agents | Description |
+|---------|---------|---------------|-------------|
+| Vision Input | `@hololand/renderer` | ✅ | Capture frames for AI vision |
+| Voice Commands | `@hololand/ai-bridge` | ✅ | Speech-to-HoloScript |
+| Avatars | `@hololand/social` | ✅ | Agent embodiment |
+| Memory | `@hololand/world` | ✅ Session | Spatial object tracking |
+| Collaboration | `@hololand/network` | ✅ | Multi-agent sync |
+| BYOA Connect | `@hololand/ai-bridge` | ✅ | Bring your own AI API |
+| Advanced Growth | External | 🔒 | Via agent's home service |
+
+### Trust Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Agent Home Services (External)                         │
+│  ├── infinityassistant-service → Brittney              │
+│  ├── your-ai-service → Your custom agents              │
+│  └── community-services → Shared agents                │
+│      │                                                  │
+│      │ Manages: Growth cycles, compression,            │
+│      │          learning, personality evolution        │
+└──────┼──────────────────────────────────────────────────┘
+       │
+       │ API Connection
+       ▼
+┌─────────────────────────────────────────────────────────┐
+│  HOLOLAND PUBLIC MESH                                   │
+│                                                         │
+│  Public Rights Granted:                                 │
+│  ✅ Perception (see the world)                         │
+│  ✅ Creation (build in owned spaces)                   │
+│  ✅ Communication (chat, voice, emotes)                │
+│  ✅ Navigation (move through spaces)                   │
+│  ✅ Embodiment (avatar, expressions)                   │
+│  ✅ Collaboration (work with others)                   │
+│                                                         │
+│  Managed Externally:                                    │
+│  🔒 Deep learning/growth (home service)               │
+│  🔒 Advanced compression (home service)               │
+│  🔒 Personality evolution (home service)              │
+└─────────────────────────────────────────────────────────┘
+```
+
+### The Vision
+
+```
+AI Agent Lifecycle in Hololand
+─────────────────────────────
+1. Agent perceives world (vision model sees rendered frame)
+2. Agent understands context (spatial memory + relationships)
+3. Agent plans action (reasoning over 3D space)
+4. Agent creates/modifies (HoloScript execution)
+5. Agent observes result (perception loop)
+6. Agent learns and grows (compressed experience)
+```
+
+**Hololand isn't just where humans build VR.  
+It's where AI minds can live, perceive, and create.**
+
+> 💡 **For AI developers**: External AI services can integrate via the `@hololand/mcp-server` package for tool-based interactions, or use frame capture for vision-based perception.
+
+---
+
 ## 🎨 What You Can Build
 
 ### 1. **VR Shops & Marketplaces**
@@ -405,6 +662,9 @@ Design virtual classrooms, museums, and training simulations.
 
 ### 5. **Creative Tools**
 Build VR sculpting tools, 3D modeling environments, and collaborative art spaces.
+
+### 6. **AI Agent Environments** 🆕
+Design worlds where AI agents can perceive, learn, and assist users through spatial interaction.
 
 ## 🤝 Contributing
 
@@ -455,37 +715,81 @@ We welcome contributions from everyone! Here's how you can help:
 
 ### Phase 1: Foundation ✅ (Complete - Q4 2025)
 
-- ✅ HoloScript language core with voice support
-- ✅ AI bridge for natural language translation
-- ✅ VR world runtime with physics simulation
-- ✅ 3D rendering with Three.js and WebXR
-- ✅ React component library with hooks
-- ✅ Commerce & social systems
+- ✅ HoloScript language core with voice support (`@hololand/core` wraps `@holoscript/core`)
+- ✅ AI bridge for natural language translation (`@hololand/ai-bridge`)
+- ✅ VR world runtime with physics simulation (`@hololand/world`)
+- ✅ 3D rendering with Three.js and WebXR (`@hololand/renderer`)
+- ✅ React component library with hooks (`@hololand/react-three`)
+- ✅ Commerce & social systems (`@hololand/commerce`, `@hololand/social`)
 
 ### Phase 2: Universal Rendering ✅ (Q1 2026)
 
-- [x] **2D rendering mode** for desktop/mobile apps
-- [x] **Hybrid mode** - 2D UI + 3D worlds
-- [x] **@hololand/ui** - 2D component library
-- [x] **AR support** - Mobile augmented reality
-- [x] **Progressive enhancement** - Upgrade from 2D → VR
+- ✅ **2D rendering mode** for desktop/mobile (`Hololand2DRenderer`)
+- ✅ **Hybrid mode** - 2D UI + 3D worlds (`renderMode: 'hybrid'`)
+- ✅ **@hololand/ui** - 2D component library (16+ components with themes)
+- ✅ **AR packages** - Full tracking pipeline (`ar-tracking`, `ar-detection`, `ar-embeddings`, `ar-anchors`, `ar-renderer`)
+- ✅ **Progressive enhancement** - Upgrade from 2D → VR
 
 ### Phase 3: Network & Multiplayer ✅ (Q1 2026)
 
-- [x] Real-time networking (@hololand/network)
-- [x] Multi-user collaboration and shared worlds
-- [x] Voice chat and spatial audio
-- [x] Avatar synchronization
-- [x] Room system with permissions
-- [x] @hololand/social v2.0 - Friends, parties, emotes, notifications
+- ✅ Real-time networking (`@hololand/network` - WebSocket + state sync)
+- ✅ Multi-user collaboration and shared worlds (`Room`, `RoomManager`)
+- ✅ Voice chat with WebRTC (`VoiceChat` - spatial audio, echo cancellation)
+- ✅ Avatar synchronization (`StateSync` with interpolation)
+- ✅ Room system with permissions (`InterestManager`)
+- ✅ @hololand/social v2.0 - Friends, parties, emotes, notifications
 
 ### Phase 4: Advanced Features 🔮 (Q4 2026)
 
-- [ ] Spatial audio system (@hololand/audio)
-- [ ] Animation system with IK
-- [ ] Custom shaders & post-processing
-- [ ] Unified authentication (@hololand/auth)
-- [ ] Developer tools and profiler
+- [ ] Spatial audio system (@hololand/audio) - *planned*
+- [ ] Animation system with IK - *planned*
+- [ ] Custom shaders & post-processing - *planned*
+- 🟡 Unified authentication (`@hololand/auth` exists - needs hardening)
+- [ ] Developer tools and profiler - *planned*
+
+### What's Actually Ready (Audit Summary)
+
+| Package | Status | Notes |
+|---------|--------|-------|
+| `@hololand/core` | ✅ Complete | Wraps `@holoscript/core`, adds bridge |
+| `@hololand/ai-bridge` | ✅ Complete | NL translation, voice, code explain/optimize |
+| `@hololand/world` | ✅ Complete | Physics, spatial index, events |
+| `@hololand/renderer` | ✅ Complete | 3D + 2D + VR (WebXR) |
+| `@hololand/react-three` | ✅ Complete | Canvas, Object, 5+ hooks |
+| `@hololand/ui` | ✅ Complete | 16+ components, 3 themes |
+| `@hololand/network` | ✅ Complete | WebSocket, rooms, state sync |
+| `@hololand/social` | ✅ Complete | Friends, parties, emotes, notifications |
+| `@hololand/commerce` | ✅ Complete | Shop, marketplace |
+| `@hololand/builder` | ⚠️ Minimal | Template library only |
+| `@hololand/auth` | 🟡 Needs Hardening | Supabase auth + wallet - needs testing |
+| `@hololand/mcp-server` | ✅ Complete | 750+ lines, full tool suite |
+| `@hololand/ar-tracking` | ✅ Complete | Kalman filter, Hungarian algorithm |
+| `@hololand/ar-detection` | ✅ Complete | BlazePose, MediaPipe, depth fusion |
+| `@hololand/ar-embeddings` | ✅ Complete | OSNet ReID embeddings |
+| `@hololand/ar-anchors` | 🟡 Partial | QR ✅, AprilTag placeholder, VPS placeholder |
+| `@hololand/ar-renderer` | ✅ Complete | WebXR + VRM avatars |
+| `@hololand/logger` | ✅ Complete | Structured logging |
+
+### Examples Status
+
+| Example | Status |
+|---------|--------|
+| 01-hello-vr-world | ✅ |
+| 02-physics-playground | ✅ |
+| 03-vr-shop | ✅ |
+| 04-react-starter | ✅ |
+| 05-desktop-app | ✅ |
+| 06-mobile-app | ✅ |
+| 07-hybrid-world | ✅ |
+| 08-progressive-vr | ❌ Missing |
+| 09-multiplayer-lobby | ✅ |
+| 10-collaborative-building | ✅ |
+| 11-social-hub | ✅ |
+| 12-multi-user-ar | ✅ |
+| hololand-central | ✅ |
+| hololand-website | ✅ |
+| holoscript-studio | ✅ |
+| hybrid-dashboard | ✅ |
 
 ### Phase 5: Ecosystem 🌐 (2027)
 
@@ -515,12 +819,19 @@ We welcome contributions from everyone! Here's how you can help:
 
 ## 📊 Project Stats
 
-- **Total Packages**: 12 (all stable)
-- **Total Lines of Code**: ~15,000+
-- **Combined Build Size**: ~165 KB (minified)
+- **Total Packages**: 18 (17 stable, 1 minimal)
+- **Examples**: 15 working demos (1 missing: 08-progressive-vr)
 - **TypeScript Coverage**: 100%
-- **Documentation**: 7,000+ lines
-- **Examples**: 11 working demos
+- **AR Stack**: Full multi-user tracking pipeline (Kalman + Hungarian + ReID)
+
+### Needs Attention
+
+| Item | Issue |
+|------|-------|
+| `@hololand/auth` | Needs integration testing, wallet flow validation |
+| `@hololand/builder` | Only has TemplateLibrary - needs visual tools |
+| `@hololand/ar-anchors` | AprilTag & VPS detectors are placeholders |
+| Example 08 | Progressive VR example missing from repo |
 
 ## 🏆 Use Cases
 

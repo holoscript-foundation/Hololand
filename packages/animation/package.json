@@ -1,0 +1,47 @@
+{
+  "name": "@hololand/animation",
+  "version": "1.0.0-alpha.1",
+  "description": "Skeletal animation system for Hololand - keyframes, blend trees, IK, and procedural animation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "hololand",
+    "animation",
+    "skeletal-animation",
+    "keyframe",
+    "blend-tree",
+    "ik",
+    "inverse-kinematics",
+    "procedural-animation",
+    "vr",
+    "metaverse"
+  ],
+  "author": "Hololand Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/animation"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  }
+}
