@@ -12,6 +12,7 @@ Welcome to the Hololand examples! These examples demonstrate different ways to b
 | [03-vr-shop](./03-vr-shop) | Intermediate | 15 min | Commerce features, inventory |
 | [04-react-starter](./04-react-starter) | Intermediate | 10 min | React components, hooks |
 | [08-progressive-vr](./08-progressive-vr) | Advanced | 15 min | Desktop to VR progressive enhancement |
+| [09-quality-showcase](./09-quality-showcase) | Advanced | 10 min | Quality tiers, PBR materials, post-processing |
 
 ## ⭐ Start Here: HoloScript Studio
 
@@ -297,8 +298,9 @@ examples/XX-your-example/
 - [ ] 06-voice-commands - AI-powered building
 - [ ] 07-spatial-audio - 3D sound positioning
 - [x] 08-progressive-vr - Desktop to VR upgrade (Phase 4)
-- [ ] 09-hand-tracking - VR controller support
-- [ ] 10-advanced-physics - Character controllers
+- [x] 09-quality-showcase - Quality tiers, PBR, post-processing (Phase 4)
+- [ ] 10-hand-tracking - VR controller support
+- [ ] 11-advanced-physics - Character controllers
 
 ### Community Examples
 
@@ -306,7 +308,7 @@ Check [GitHub Discussions](https://github.com/brianonbased-dev/Hololand/discussi
 
 ## 📊 Example Statistics
 
-- **Total Examples**: 5
+- **Total Examples**: 7
 - **Lines of Code**: ~3,000+
 - **Difficulty Levels**: Beginner to Advanced
 - **Technologies**: Vanilla JS, React, TypeScript

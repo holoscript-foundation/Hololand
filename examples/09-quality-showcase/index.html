@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quality Showcase - Hololand</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      min-width: 280px;
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    #controls h1 {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      color: #7c3aed;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .quality-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .quality-btn {
+      flex: 1;
+      padding: 10px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+
+    .quality-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .quality-btn.active {
+      background: #7c3aed;
+      border-color: #7c3aed;
+    }
+
+    .quality-btn.low { --color: #22c55e; }
+    .quality-btn.medium { --color: #3b82f6; }
+    .quality-btn.high { --color: #f59e0b; }
+    .quality-btn.ultra { --color: #ef4444; }
+
+    .quality-btn.active.low { background: var(--color); border-color: var(--color); }
+    .quality-btn.active.medium { background: var(--color); border-color: var(--color); }
+    .quality-btn.active.high { background: var(--color); border-color: var(--color); }
+    .quality-btn.active.ultra { background: var(--color); border-color: var(--color); }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #7c3aed;
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .toggle-row:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-label {
+      font-size: 0.85rem;
+    }
+
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle.active {
+      background: #7c3aed;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle.active::after {
+      transform: translateX(20px);
+    }
+
+    #stats {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: blur(10px);
+      min-width: 200px;
+    }
+
+    #stats h3 {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      padding: 4px 0;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: #7c3aed;
+    }
+
+    .stat-value.good { color: #22c55e; }
+    .stat-value.warn { color: #f59e0b; }
+    .stat-value.bad { color: #ef4444; }
+
+    #material-preview {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    #material-preview h3 {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .material-grid {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .material-chip {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .material-chip:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .material-chip.active {
+      background: #7c3aed;
+      border-color: #7c3aed;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="controls">
+    <h1>Quality Showcase</h1>
+
+    <div class="control-group">
+      <label>Quality Preset</label>
+      <div class="quality-buttons">
+        <button class="quality-btn low" data-quality="low">Low</button>
+        <button class="quality-btn medium" data-quality="medium">Med</button>
+        <button class="quality-btn high active" data-quality="high">High</button>
+        <button class="quality-btn ultra" data-quality="ultra">Ultra</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Environment</label>
+      <select id="environment-select">
+        <option value="sunset">Sunset</option>
+        <option value="daylight" selected>Daylight</option>
+        <option value="studio">Studio</option>
+        <option value="night">Night</option>
+        <option value="forest">Forest</option>
+        <option value="city">City</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Post-Processing</label>
+      <div class="toggle-row">
+        <span class="toggle-label">Bloom</span>
+        <div class="toggle active" data-toggle="bloom"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">SSAO</span>
+        <div class="toggle" data-toggle="ssao"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Vignette</span>
+        <div class="toggle active" data-toggle="vignette"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Antialiasing</span>
+        <div class="toggle active" data-toggle="antialiasing"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="stats">
+    <h3>Performance</h3>
+    <div class="stat-row">
+      <span>FPS</span>
+      <span class="stat-value good" id="fps-value">60</span>
+    </div>
+    <div class="stat-row">
+      <span>Draw Calls</span>
+      <span class="stat-value" id="draw-calls">0</span>
+    </div>
+    <div class="stat-row">
+      <span>Triangles</span>
+      <span class="stat-value" id="triangles">0</span>
+    </div>
+    <div class="stat-row">
+      <span>GPU</span>
+      <span class="stat-value" id="gpu-tier">Detecting...</span>
+    </div>
+  </div>
+
+  <div id="material-preview">
+    <h3>Material Presets</h3>
+    <div class="material-grid">
+      <div class="material-chip active" data-material="chrome">Chrome</div>
+      <div class="material-chip" data-material="gold">Gold</div>
+      <div class="material-chip" data-material="glass">Glass</div>
+      <div class="material-chip" data-material="plastic">Plastic</div>
+      <div class="material-chip" data-material="metal">Metal</div>
+      <div class="material-chip" data-material="wood">Wood</div>
+      <div class="material-chip" data-material="fabric">Fabric</div>
+      <div class="material-chip" data-material="leather">Leather</div>
+      <div class="material-chip" data-material="rubber">Rubber</div>
+      <div class="material-chip" data-material="emissive">Emissive</div>
+      <div class="material-chip" data-material="hologram">Hologram</div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
