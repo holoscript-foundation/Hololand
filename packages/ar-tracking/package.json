@@ -1,0 +1,60 @@
+{
+  "name": "@hololand/ar-tracking",
+  "version": "1.0.0-alpha.1",
+  "description": "Multi-user AR tracking with person identification and data association",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server/index.js",
+      "types": "./dist/server/index.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client/index.js",
+      "types": "./dist/client/index.d.ts"
+    },
+    "./holoscript": {
+      "import": "./dist/holoscript/index.js",
+      "types": "./dist/holoscript/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/server/index.ts src/client/index.ts src/holoscript/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "ar",
+    "tracking",
+    "multi-user",
+    "person-detection",
+    "kalman-filter",
+    "hungarian-algorithm",
+    "reid",
+    "holoscript",
+    "hololand"
+  ],
+  "author": "Hololand",
+  "license": "MIT",
+  "dependencies": {
+    "@hololand/core": "workspace:*",
+    "@hololand/network": "workspace:*",
+    "@hololand/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  },
+  "peerDependencies": {
+    "@hololand/core": ">=1.0.0"
+  }
+}

@@ -36,14 +36,15 @@
     "virtual-reality"
   ],
   "author": "brianonbased-dev",
-  "license": "MIT",
+  "license": "Elastic-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/brianonbased-dev/Hololand.git",
     "directory": "packages/core"
   },
   "dependencies": {
-    "@hololand/logger": "workspace:*"
+    "@hololand/logger": "workspace:*",
+    "@holoscript/core": "file:../../../HoloScript/packages/core"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -106,14 +106,25 @@ Hololand is a monorepo containing 12 packages for building metaverse experiences
 | [@hololand/commerce](./packages/commerce) | 10 KB | Shops & marketplace systems |
 | [@hololand/builder](./packages/builder) | 2 KB | Visual tools & templates |
 
+### AR/XR Stack (NEW!)
+
+| Package | Description |
+|---------|-------------|
+| [@hololand/ar-tracking](./packages/ar-tracking) | Multi-user person tracking (Kalman + Hungarian algorithm) |
+| [@hololand/ar-detection](./packages/ar-detection) | BlazePose/MediaPipe pose detection with depth fusion |
+| [@hololand/ar-embeddings](./packages/ar-embeddings) | Person ReID with OSNet embeddings |
+| [@hololand/ar-anchors](./packages/ar-anchors) | QR, AprilTag, GPS, VPS coordinate alignment |
+| [@hololand/ar-renderer](./packages/ar-renderer) | WebXR + Three.js + VRM avatar support |
+
 ### Infrastructure Packages
 
 | Package | Size | Description |
 |---------|------|-------------|
 | [@hololand/auth](./packages/auth) | 4 KB | Authentication & wallet integration |
 | [@hololand/mcp-server](./packages/mcp-server) | 3 KB | MCP server for AI tool integration |
+| [@hololand/logger](./packages/logger) | 2 KB | Structured logging for all packages |
 
-> **🚀 Phase 3 Complete**: Real-time multiplayer with @hololand/network and @hololand/social v2.0. See [ROADMAP.md](./ROADMAP.md)
+> **🚀 Phase 4 In Progress**: Multi-user AR with full pose tracking pipeline. See [ROADMAP.md](./ROADMAP.md)
 
 ## 🚀 Quick Start
 
