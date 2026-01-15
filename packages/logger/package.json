@@ -1,0 +1,32 @@
+{
+  "name": "@hololand/logger",
+  "version": "1.0.0-alpha.1",
+  "description": "Unified logging for Hololand packages",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "echo \"Tests coming soon\" && exit 0"
+  },
+  "keywords": [
+    "hololand",
+    "logger",
+    "logging",
+    "debug"
+  ],
+  "author": "Hololand Team",
+  "license": "Elastic-2.0",
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  }
+}

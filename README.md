@@ -74,7 +74,7 @@ Hololand uses a **hybrid licensing approach** to balance developer freedom with 
 
 ## 📦 Packages
 
-Hololand is a monorepo containing 11 packages for building metaverse experiences across all devices:
+Hololand is a monorepo containing 12 packages for building metaverse experiences across all devices:
 
 ### Core Packages
 
@@ -92,12 +92,18 @@ Hololand is a monorepo containing 11 packages for building metaverse experiences
 | [@hololand/react-three](./packages/react-three) | 7 KB | React components & hooks for 3D |
 | [@hololand/ui](./packages/ui) | 8 KB | 2D UI components for desktop/mobile 🆕 |
 
+### Networking & Social
+
+| Package | Size | Description |
+|---------|------|-------------|
+| [@hololand/network](./packages/network) | 15 KB | Real-time multiplayer networking 🆕 |
+| [@hololand/social](./packages/social) | 12 KB | Friends, parties, emotes, notifications v2.0 🆕 |
+
 ### Feature Packages
 
 | Package | Size | Description |
 |---------|------|-------------|
 | [@hololand/commerce](./packages/commerce) | 10 KB | Shops & marketplace systems |
-| [@hololand/social](./packages/social) | 5 KB | Avatars & presence tracking |
 | [@hololand/builder](./packages/builder) | 2 KB | Visual tools & templates |
 
 ### Infrastructure Packages
@@ -107,7 +113,7 @@ Hololand is a monorepo containing 11 packages for building metaverse experiences
 | [@hololand/auth](./packages/auth) | 4 KB | Authentication & wallet integration |
 | [@hololand/mcp-server](./packages/mcp-server) | 3 KB | MCP server for AI tool integration |
 
-> **🚀 Phase 2 (Q1 2026)**: Universal rendering with 2D, 3D, hybrid, VR, and AR modes. See [ROADMAP.md](./ROADMAP.md)
+> **🚀 Phase 3 Complete**: Real-time multiplayer with @hololand/network and @hololand/social v2.0. See [ROADMAP.md](./ROADMAP.md)
 
 ## 🚀 Quick Start
 
@@ -216,6 +222,13 @@ Get started quickly with our complete working examples:
 - **[02-physics-playground](./examples/02-physics-playground/)** - Interactive physics simulation
 - **[03-vr-shop](./examples/03-vr-shop/)** - Complete virtual store with commerce
 - **[04-react-starter](./examples/04-react-starter/)** - Production-ready React template
+- **[05-desktop-app](./examples/05-desktop-app/)** - Standard desktop application
+- **[06-mobile-app](./examples/06-mobile-app/)** - Mobile-optimized interface
+- **[07-hybrid-world](./examples/07-hybrid-world/)** - 2D UI controlling 3D VR world
+- **[08-progressive-vr](./examples/08-progressive-vr/)** - Starts 2D, upgrades to VR
+- **[09-multiplayer-lobby](./examples/09-multiplayer-lobby/)** - Join rooms and see avatars 🆕
+- **[10-collaborative-building](./examples/10-collaborative-building/)** - Build together in real-time 🆕
+- **[11-social-hub](./examples/11-social-hub/)** - Complete social features demo 🆕
 
 Each example includes complete source code and comprehensive documentation. Start with `01-hello-vr-world` if you're new to VR development!
 
@@ -438,21 +451,22 @@ We welcome contributions from everyone! Here's how you can help:
 - ✅ React component library with hooks
 - ✅ Commerce & social systems
 
-### Phase 2: Universal Rendering 🚧 (Q1 2026)
+### Phase 2: Universal Rendering ✅ (Q1 2026)
 
-- [ ] **2D rendering mode** for desktop/mobile apps
-- [ ] **Hybrid mode** - 2D UI + 3D worlds
-- [ ] **@hololand/ui** - 2D component library
-- [ ] **AR support** - Mobile augmented reality
-- [ ] **Progressive enhancement** - Upgrade from 2D → VR
+- [x] **2D rendering mode** for desktop/mobile apps
+- [x] **Hybrid mode** - 2D UI + 3D worlds
+- [x] **@hololand/ui** - 2D component library
+- [x] **AR support** - Mobile augmented reality
+- [x] **Progressive enhancement** - Upgrade from 2D → VR
 
-### Phase 3: Network & Multiplayer 🔜 (Q2-Q3 2026)
+### Phase 3: Network & Multiplayer ✅ (Q1 2026)
 
-- [ ] Real-time networking (@hololand/network)
-- [ ] Multi-user collaboration and shared worlds
-- [ ] Voice chat and spatial audio
-- [ ] Avatar synchronization
-- [ ] Room system with permissions
+- [x] Real-time networking (@hololand/network)
+- [x] Multi-user collaboration and shared worlds
+- [x] Voice chat and spatial audio
+- [x] Avatar synchronization
+- [x] Room system with permissions
+- [x] @hololand/social v2.0 - Friends, parties, emotes, notifications
 
 ### Phase 4: Advanced Features 🔮 (Q4 2026)
 
@@ -490,12 +504,12 @@ We welcome contributions from everyone! Here's how you can help:
 
 ## 📊 Project Stats
 
-- **Total Packages**: 11 (9 stable + 2 in development)
-- **Total Lines of Code**: ~9,000+
-- **Combined Build Size**: ~139 KB (minified)
+- **Total Packages**: 12 (all stable)
+- **Total Lines of Code**: ~15,000+
+- **Combined Build Size**: ~165 KB (minified)
 - **TypeScript Coverage**: 100%
-- **Documentation**: 5,000+ lines
-- **Examples**: 10+ working demos
+- **Documentation**: 7,000+ lines
+- **Examples**: 11 working demos
 
 ## 🏆 Use Cases
 

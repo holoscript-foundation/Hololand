@@ -10,6 +10,9 @@
     "dev": "tsup --watch",
     "test": "echo \"Tests coming soon\" && exit 0"
   },
+  "dependencies": {
+    "@hololand/logger": "workspace:*"
+  },
   "devDependencies": {
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"

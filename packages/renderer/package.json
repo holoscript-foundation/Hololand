@@ -40,6 +40,9 @@
     "url": "https://github.com/brianonbased-dev/Hololand.git",
     "directory": "packages/renderer"
   },
+  "dependencies": {
+    "@hololand/logger": "workspace:*"
+  },
   "devDependencies": {
     "@types/three": "^0.159.0",
     "tsup": "^8.0.1",

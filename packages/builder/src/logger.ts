@@ -1,19 +1,23 @@
-export interface HololandBuilderLogger {
-  info(message: string, meta?: Record<string, any>): void;
-  warn(message: string, meta?: Record<string, any>): void;
-  error(message: string, meta?: Record<string, any>): void;
-}
-class NoOpLogger implements HololandBuilderLogger {
-  info() {}
-  warn() {}
-  error() {}
-}
-let currentLogger: HololandBuilderLogger = new NoOpLogger();
-export function setHololandBuilderLogger(logger: HololandBuilderLogger): void {
-  currentLogger = logger;
-}
-export const logger = {
-  info: (msg: string, meta?: Record<string, any>) => currentLogger.info(msg, meta),
-  warn: (msg: string, meta?: Record<string, any>) => currentLogger.warn(msg, meta),
-  error: (msg: string, meta?: Record<string, any>) => currentLogger.error(msg, meta),
-};
+/**
+ * @hololand/builder Logger
+ * Re-exports from @hololand/logger for backward compatibility.
+ */
+
+export {
+  logger,
+  loggers,
+  createLogger,
+  setGlobalLogger,
+  getGlobalLogger,
+  resetGlobalLogger,
+  enableConsoleLogging,
+  NoOpLogger,
+  ConsoleLogger,
+  type HololandLogger,
+  type LoggerOptions,
+  setHololandBuilderLogger,
+  type HololandBuilderLogger,
+} from '@hololand/logger';
+
+import { loggers } from '@hololand/logger';
+export const builderLogger = loggers.builder;

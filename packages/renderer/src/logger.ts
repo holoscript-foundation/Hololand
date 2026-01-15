@@ -1,26 +1,23 @@
-export interface HololandRendererLogger {
-  info(message: string, meta?: Record<string, any>): void;
-  warn(message: string, meta?: Record<string, any>): void;
-  error(message: string, meta?: Record<string, any>): void;
-  debug?(message: string, meta?: Record<string, any>): void;
-}
+/**
+ * @hololand/renderer Logger
+ * Re-exports from @hololand/logger for backward compatibility.
+ */
 
-class NoOpLogger implements HololandRendererLogger {
-  info() {}
-  warn() {}
-  error() {}
-  debug() {}
-}
+export {
+  logger,
+  loggers,
+  createLogger,
+  setGlobalLogger,
+  getGlobalLogger,
+  resetGlobalLogger,
+  enableConsoleLogging,
+  NoOpLogger,
+  ConsoleLogger,
+  type HololandLogger,
+  type LoggerOptions,
+  setHololandRendererLogger,
+  type HololandRendererLogger,
+} from '@hololand/logger';
 
-let currentLogger: HololandRendererLogger = new NoOpLogger();
-
-export function setHololandRendererLogger(logger: HololandRendererLogger): void {
-  currentLogger = logger;
-}
-
-export const logger = {
-  info: (msg: string, meta?: Record<string, any>) => currentLogger.info(msg, meta),
-  warn: (msg: string, meta?: Record<string, any>) => currentLogger.warn(msg, meta),
-  error: (msg: string, meta?: Record<string, any>) => currentLogger.error(msg, meta),
-  debug: (msg: string, meta?: Record<string, any>) => currentLogger.debug?.(msg, meta),
-};
+import { loggers } from '@hololand/logger';
+export const rendererLogger = loggers.renderer;

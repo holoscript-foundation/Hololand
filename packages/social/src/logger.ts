@@ -1,26 +1,23 @@
-export interface HololandSocialLogger {
-  info(message: string, meta?: Record<string, any>): void;
-  warn(message: string, meta?: Record<string, any>): void;
-  error(message: string, meta?: Record<string, any>): void;
-  debug?(message: string, meta?: Record<string, any>): void;
-}
+/**
+ * @hololand/social Logger
+ * Re-exports from @hololand/logger for backward compatibility.
+ */
 
-class NoOpLogger implements HololandSocialLogger {
-  info() {}
-  warn() {}
-  error() {}
-  debug() {}
-}
+export {
+  logger,
+  loggers,
+  createLogger,
+  setGlobalLogger,
+  getGlobalLogger,
+  resetGlobalLogger,
+  enableConsoleLogging,
+  NoOpLogger,
+  ConsoleLogger,
+  type HololandLogger,
+  type LoggerOptions,
+  setHololandSocialLogger,
+  type HololandSocialLogger,
+} from '@hololand/logger';
 
-let currentLogger: HololandSocialLogger = new NoOpLogger();
-
-export function setHololandSocialLogger(logger: HololandSocialLogger): void {
-  currentLogger = logger;
-}
-
-export const logger = {
-  info: (msg: string, meta?: Record<string, any>) => currentLogger.info(msg, meta),
-  warn: (msg: string, meta?: Record<string, any>) => currentLogger.warn(msg, meta),
-  error: (msg: string, meta?: Record<string, any>) => currentLogger.error(msg, meta),
-  debug: (msg: string, meta?: Record<string, any>) => currentLogger.debug?.(msg, meta),
-};
+import { loggers } from '@hololand/logger';
+export const socialLogger = loggers.social;

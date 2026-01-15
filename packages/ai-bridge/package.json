@@ -47,6 +47,9 @@
     "url": "https://github.com/brianonbased-dev/Hololand/issues"
   },
   "homepage": "https://github.com/brianonbased-dev/Hololand#readme",
+  "dependencies": {
+    "@hololand/logger": "workspace:*"
+  },
   "devDependencies": {
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"

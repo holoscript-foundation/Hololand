@@ -27,6 +27,9 @@ importers:
       '@hololand/core':
         specifier: ^1.0.0-alpha.1
         version: link:../core
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -67,6 +70,10 @@ importers:
         version: 2.1.9(@types/node@20.19.29)
 
   packages/builder:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -76,6 +83,10 @@ importers:
         version: 5.9.3
 
   packages/commerce:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -85,6 +96,10 @@ importers:
         version: 5.9.3
 
   packages/core:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       '@types/node':
         specifier: ^20.10.0
@@ -98,6 +113,15 @@ importers:
       vitest:
         specifier: ^1.0.4
         version: 1.6.1(@types/node@20.19.29)
+
+  packages/logger:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
 
   packages/mcp-server:
     dependencies:
@@ -129,6 +153,9 @@ importers:
 
   packages/network:
     dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@hololand/social':
         specifier: workspace:*
         version: link:../social
@@ -173,6 +200,9 @@ importers:
 
   packages/renderer:
     dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@hololand/world':
         specifier: ^1.0.0-alpha.1
         version: link:../world
@@ -191,6 +221,10 @@ importers:
         version: 5.9.3
 
   packages/social:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -219,6 +253,10 @@ importers:
         version: 1.6.1(@types/node@22.19.6)
 
   packages/world:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       tsup:
         specifier: ^8.0.1
