@@ -28,7 +28,8 @@
     "test:coverage": "vitest --coverage",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@react-three/fiber": "^9.5.0",
@@ -52,6 +53,7 @@
     "typescript": "^5.0.0",
     "vitest": "^0.34.0"
   },
+  "sideEffects": false,
   "keywords": [
     "holoscript",
     "vr",
