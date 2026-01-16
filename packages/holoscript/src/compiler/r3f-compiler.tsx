@@ -1,5 +1,22 @@
 // HoloScript → React Three Fiber Compiler
-import { ZoneNode, EntityNode, HandlerNode } from '../parser/types';
+import React from 'react';
+import { useGLTF } from '@react-three/drei';
+import { ZoneNode, EntityNode, HandlerNode } from '../parser/parser';
+
+// Declare React Three Fiber JSX types inline
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      group: any;
+      mesh: any;
+      primitive: any;
+      boxGeometry: any;
+      meshStandardMaterial: any;
+      ambientLight: any;
+      pointLight: any;
+    }
+  }
+}
 
 export interface CompilerOptions {
   target: 'r3f' | 'unity' | 'native';
@@ -208,8 +225,17 @@ ${this.toPascalCase(zone.name)}.displayName = '${this.toPascalCase(zone.name)}';
   }
 }
 
+// Props interface for EntityModel component
+interface EntityModelProps {
+  path: string;
+  position?: [number, number, number];
+  scale?: [number, number, number];
+  rotation?: [number, number, number];
+  [key: string]: any;
+}
+
 // Helper component for loading GLB models
-const EntityModel = React.forwardRef(
+const EntityModel = React.forwardRef<any, EntityModelProps>(
   (
     {
       path,
@@ -217,16 +243,11 @@ const EntityModel = React.forwardRef(
       scale,
       rotation,
       ...handlers
-    }: {
-      path: string;
-      position?: [number, number, number];
-      scale?: [number, number, number];
-      rotation?: [number, number, number];
-      [key: string]: any;
     },
     ref
   ) => {
-    const { scene } = useGLTF(path);
+    const gltf = useGLTF(path) as any;
+    const { scene } = gltf;
 
     return (
       <group position={position} scale={scale} rotation={rotation} ref={ref} {...handlers}>

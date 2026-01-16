@@ -10,10 +10,12 @@ import { NaturalLanguageTranslator, type TranslationResult } from './NaturalLang
 import { VoiceProcessor, type VoiceProcessingResult } from './VoiceProcessor';
 import { CodeExplainer, type ExplanationResult } from './CodeExplainer';
 import { CodeOptimizer, type OptimizationResult } from './CodeOptimizer';
+import { CompilerBridge, type CompilationResult, getCompilerBridge } from './CompilerBridge';
 
 export interface AIBridgeConfig {
   enableVoice?: boolean;
   enableOptimization?: boolean;
+  enableCompilation?: boolean;
   confidenceThreshold?: number;
   maxSuggestions?: number;
 }
@@ -27,17 +29,24 @@ export interface BuildRequest {
   };
 }
 
+export interface FullPipelineResult extends TranslationResult {
+  r3fCode?: string;
+  compilationResult?: CompilationResult;
+}
+
 export class HololandAIBridge {
   private translator: NaturalLanguageTranslator;
   private voiceProcessor: VoiceProcessor;
   private codeExplainer: CodeExplainer;
   private codeOptimizer: CodeOptimizer;
+  private compilerBridge: CompilerBridge;
   private config: Required<AIBridgeConfig>;
 
   constructor(config: AIBridgeConfig = {}) {
     this.config = {
       enableVoice: config.enableVoice ?? true,
       enableOptimization: config.enableOptimization ?? true,
+      enableCompilation: config.enableCompilation ?? true,
       confidenceThreshold: config.confidenceThreshold ?? 0.7,
       maxSuggestions: config.maxSuggestions ?? 5,
     };
@@ -46,41 +55,66 @@ export class HololandAIBridge {
     this.voiceProcessor = new VoiceProcessor();
     this.codeExplainer = new CodeExplainer();
     this.codeOptimizer = new CodeOptimizer(this.config.maxSuggestions);
+    this.compilerBridge = getCompilerBridge();
 
     logger.info('[HololandAIBridge] Initialized', {
       enableVoice: this.config.enableVoice,
       enableOptimization: this.config.enableOptimization,
+      enableCompilation: this.config.enableCompilation,
     });
   }
 
   /**
-   * Translate natural language to HoloScript
+   * Translate natural language to HoloScript (full pipeline)
    *
    * @example
    * const result = await bridge.translateToHoloScript({
    *   naturalLanguage: "create a coffee shop with a counter and menu board",
    *   context: { userLevel: 'beginner' }
    * });
+   * 
+   * // Returns HoloScript + compiled R3F code
    */
-  async translateToHoloScript(request: BuildRequest): Promise<TranslationResult> {
+  async translateToHoloScript(request: BuildRequest): Promise<FullPipelineResult> {
     logger.info('[HololandAIBridge] Translating natural language to HoloScript', {
       input: request.naturalLanguage.substring(0, 50),
+      enableCompilation: this.config.enableCompilation,
     });
 
     try {
-      const result = await this.translator.translate(
+      // Step 1: Translate to HoloScript
+      const translationResult = await this.translator.translate(
         request.naturalLanguage,
         request.context
       );
 
-      if (result.confidence < this.config.confidenceThreshold) {
+      if (translationResult.confidence < this.config.confidenceThreshold) {
         logger.warn('[HololandAIBridge] Low confidence translation', {
-          confidence: result.confidence,
+          confidence: translationResult.confidence,
           threshold: this.config.confidenceThreshold,
         });
       }
 
-      return result;
+      // Step 2: Compile HoloScript to R3F (if enabled)
+      let compilationResult: CompilationResult | undefined;
+      if (this.config.enableCompilation && translationResult.holoScript) {
+        logger.info('[HololandAIBridge] Compiling HoloScript to R3F');
+        compilationResult = await this.compilerBridge.compile(translationResult.holoScript);
+
+        if (!compilationResult.success) {
+          logger.warn('[HololandAIBridge] Compilation failed', {
+            error: compilationResult.error,
+          });
+        } else {
+          logger.info('[HololandAIBridge] Compilation successful', compilationResult.metadata);
+        }
+      }
+
+      return {
+        ...translationResult,
+        r3fCode: compilationResult?.r3fCode,
+        compilationResult,
+      };
     } catch (error) {
       logger.error('[HololandAIBridge] Translation failed', { error });
       throw error;

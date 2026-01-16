@@ -17,9 +17,14 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup --treeshake",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && eslint src --ext .ts",
+    "lint": "tsc --noEmit && eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" && eslint --fix src",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@hololand/logger": "workspace:*"
@@ -36,8 +41,15 @@
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/three": "^0.160.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "prettier": "^3.1.1",
     "tsup": "^8.0.1",
-    "typescript": "^5.3.2"
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
   },
   "keywords": [
     "ar",

@@ -1,0 +1,16 @@
+dist
+build
+node_modules
+.pnpm-store
+.pnpm
+coverage
+.next
+out
+.turbo
+pnpm-lock.yaml
+package-lock.json
+tsconfig.json
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local

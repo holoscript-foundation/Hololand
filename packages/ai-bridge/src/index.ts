@@ -8,7 +8,11 @@
 
 // Core AI Bridge
 export { HololandAIBridge } from './HololandAIBridge';
-export type { AIBridgeConfig, BuildRequest } from './HololandAIBridge';
+export type { AIBridgeConfig, BuildRequest, FullPipelineResult } from './HololandAIBridge';
+
+// Compiler Bridge (HoloScript integration)
+export { CompilerBridge, getCompilerBridge } from './CompilerBridge';
+export type { CompilationResult } from './CompilerBridge';
 
 // Natural Language Translator
 export { NaturalLanguageTranslator } from './NaturalLanguageTranslator';
