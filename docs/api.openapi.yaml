@@ -1,0 +1,522 @@
+openapi: 3.0.0
+info:
+  title: Hololand Phase 0 API
+  version: 1.0.0
+  description: Creator economy API for Hololand VR worlds
+
+servers:
+  - url: https://api.hololand.io
+    description: Production
+  - url: http://localhost:3000/api
+    description: Development
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CreatorProfile:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        bio:
+          type: string
+        total_earnings:
+          type: number
+          format: double
+        follower_count:
+          type: integer
+
+    World:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        creator_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        data:
+          type: object
+          description: World configuration (JSON)
+        published:
+          type: boolean
+        visit_count:
+          type: integer
+        average_rating:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  /auth/signup:
+    post:
+      summary: Create new user account
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                username:
+                  type: string
+                password:
+                  type: string
+              required: [email, username, password]
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+
+  /auth/login:
+    post:
+      summary: Authenticate user
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+              required: [email, password]
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+
+  /creators/profile:
+    get:
+      summary: Get current creator profile
+      tags: [Creators]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Creator profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatorProfile'
+
+    put:
+      summary: Update creator profile
+      tags: [Creators]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                bio:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatorProfile'
+
+  /creators/earnings:
+    get:
+      summary: Get creator earnings summary
+      tags: [Creators]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: Earnings data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_earnings:
+                    type: number
+                    format: double
+                  period_revenue:
+                    type: number
+                    format: double
+                  transaction_count:
+                    type: integer
+
+  /creators/leaderboard:
+    get:
+      summary: Get top creators by earnings
+      tags: [Creators]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Top creators list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CreatorProfile'
+
+  /worlds:
+    get:
+      summary: List creator's worlds
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of worlds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/World'
+
+    post:
+      summary: Create new world
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                data:
+                  type: object
+      responses:
+        '201':
+          description: World created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/World'
+
+  /worlds/{worldId}:
+    get:
+      summary: Get world details
+      tags: [Worlds]
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: World details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/World'
+
+    put:
+      summary: Update world
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: World updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/World'
+
+    delete:
+      summary: Delete world
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: World deleted
+
+  /worlds/{worldId}/publish:
+    post:
+      summary: Publish world (make public)
+      tags: [Worlds]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: World published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/World'
+
+  /worlds/{worldId}/reviews:
+    get:
+      summary: Get world reviews
+      tags: [Social]
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    rating:
+                      type: integer
+                      minimum: 1
+                      maximum: 5
+                    review_text:
+                      type: string
+                    user_name:
+                      type: string
+                    created_at:
+                      type: string
+                      format: date-time
+
+    post:
+      summary: Create or update review
+      tags: [Social]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                review_text:
+                  type: string
+      responses:
+        '201':
+          description: Review created
+
+  /creators/{creatorId}/follow:
+    post:
+      summary: Follow a creator
+      tags: [Social]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: creatorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Creator followed
+
+  /creators/{creatorId}/unfollow:
+    post:
+      summary: Unfollow a creator
+      tags: [Social]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: creatorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Creator unfollowed
+
+  /analytics/worlds/{worldId}:
+    get:
+      summary: Get world analytics
+      tags: [Analytics]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: worldId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: World analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visits:
+                    type: integer
+                  revenue:
+                    type: number
+                    format: double
+                  review_count:
+                    type: integer
+                  average_rating:
+                    type: number
+                    format: double
+
+  /transactions:
+    post:
+      summary: Create purchase transaction
+      tags: [Transactions]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                world_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: double
+      responses:
+        '201':
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction_id:
+                    type: string
+                    format: uuid
+                  stripe_session_id:
+                    type: string
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: Creators
+    description: Creator profile and earnings
+  - name: Worlds
+    description: World management (CRUD)
+  - name: Social
+    description: Follow, review, discover
+  - name: Analytics
+    description: Analytics and tracking
+  - name: Transactions
+    description: Payments and transactions

@@ -5,6 +5,8 @@ import { Portal } from '../components/Portal';
 import { ThemedEnvironment } from '../components/ThemedEnvironment';
 import { getTheme, getNextTheme, THEME_NAMES } from '../themes/themes';
 import { Theme } from '../themes/types';
+import { EasterEggsProximityLayer } from '../easter-eggs/EasterEggsProximityLayer';
+import { usePlayerPositionGetter } from '../easter-eggs/usePlayerPosition';
 
 interface ThemedMainPlazaProps {
   onPortalClick: (worldName: string) => void;
@@ -19,6 +21,7 @@ export const ThemedMainPlaza: React.FC<ThemedMainPlazaProps> = ({
 }) => {
   const platformRef = useRef<Mesh>(null);
   const [theme, setTheme] = useState<Theme>(getTheme(currentTheme));
+  const getPlayerPosition = usePlayerPositionGetter();
 
   // Subtle platform animation
   useFrame((state) => {
@@ -128,6 +131,22 @@ export const ThemedMainPlaza: React.FC<ThemedMainPlazaProps> = ({
         onClick={() => onPortalClick('infinity-shop')}
       />
 
+      {/* Portal 6: Hololand Casino */}
+      <Portal
+        position={[-6, 2, -6]}
+        color={0xff00ff}
+        label="Casino"
+        onClick={() => onPortalClick('casino')}
+      />
+
+      {/* Portal 7: Builder Shop */}
+      <Portal
+        position={[6, 2, -6]}
+        color={0x4488ff}
+        label="Builder Shop"
+        onClick={() => onPortalClick('builder-shop')}
+      />
+
       {/* Theme Changer Button (floating cube near pillar) */}
       <group position={[-6, 2, 6]} onClick={handleThemeChange}>
         <mesh castShadow>
@@ -181,6 +200,15 @@ export const ThemedMainPlaza: React.FC<ThemedMainPlazaProps> = ({
           </mesh>
         );
       })}
+
+      {/* Easter Eggs Proximity Layer */}
+      <EasterEggsProximityLayer
+        zone="welcome_plaza"
+        userId="demo-user"
+        themeName={theme.name}
+        getPlayerPosition={getPlayerPosition}
+        debug={false}
+      />
     </>
   );
 };

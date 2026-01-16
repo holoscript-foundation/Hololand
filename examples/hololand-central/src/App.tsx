@@ -6,11 +6,15 @@ import { DemoShop } from './worlds/DemoShop';
 import { SocialLounge } from './worlds/SocialLounge';
 import { PhysicsPlayground } from './worlds/PhysicsPlayground';
 import { InfinityShop } from './worlds/InfinityShop';
+import { HololandCasino } from './worlds/HololandCasino';
+import { BuilderShop } from './worlds/BuilderShop';
 import { AdminPanel } from './admin/AdminPanel';
 import { THEMES } from './themes/themes';
+import { MenuOverlay } from './ui/MenuOverlay';
+import { getMenuById } from './ui/menus';
 import './styles.css';
 
-type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop';
+type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop' | 'casino' | 'builder-shop';
 
 interface WorldInfo {
   title: string;
@@ -48,6 +52,16 @@ const WORLD_INFO: Record<WorldType, WorldInfo> = {
     title: 'Infinity Shop (Coming Soon)',
     description: 'Meet Brittney, your AI assistant. Build VR worlds without code.',
     icon: '✨',
+  },
+  'casino': {
+    title: 'Hololand Casino',
+    description: 'Arcade games, VIP lounge, tournaments, and cosmetic prizes. Vegas in VR!',
+    icon: '🎰',
+  },
+  'builder-shop': {
+    title: 'Builder Shop',
+    description: 'Browse assets, templates, and creator portfolios. Your one-stop VR marketplace.',
+    icon: '🏗️',
   },
 };
 
@@ -133,6 +147,10 @@ function App() {
         );
       case 'infinity-shop':
         return <InfinityShop onAdminAccess={handleAdminAccess} />;
+      case 'casino':
+        return <HololandCasino />;
+      case 'builder-shop':
+        return <BuilderShop />;
       default:
         return (
           <ThemedMainPlaza
@@ -181,7 +199,7 @@ function App() {
           {/* Portal selection (only show in plaza) */}
           {currentWorld === 'plaza' && (
             <div className="portal-selection">
-              {(['shop', 'social', 'physics', 'gallery', 'infinity-shop'] as WorldType[]).map((world) => (
+              {(['shop', 'social', 'physics', 'casino', 'builder-shop', 'gallery', 'infinity-shop'] as WorldType[]).map((world) => (
                 <div
                   key={world}
                   className={`portal-card ${currentWorld === world ? 'active' : ''}`}
@@ -236,6 +254,12 @@ function App() {
             <span className="stat-value">Online</span>
           </div>
         </div>
+
+        {/* Holoscript Menu Overlay (plaza only) */}
+        {currentWorld === 'plaza' && (() => {
+          const menu = getMenuById('plaza_orientation');
+          return menu ? <MenuOverlay menu={menu} themeName={currentTheme} /> : null;
+        })()}
       </div>
 
       {/* Admin Panel (hidden by default, shown via secret access) */}

@@ -1,12 +1,16 @@
 /**
  * @hololand/ui
  * 2D UI components for desktop and mobile Hololand applications
+ * + 3D HoloPrimitives for HoloScript data cells
  *
  * @packageDocumentation
  */
 
 // Export types
 export * from './types';
+
+// Export Holo Primitives (3D data cells)
+export * from './holo';
 
 // Export UICanvas
 export { UICanvas } from './UICanvas';

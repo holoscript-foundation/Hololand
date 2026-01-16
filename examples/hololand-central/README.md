@@ -1,6 +1,7 @@
 # 🌐 Hololand Central - The VR Metaverse Hub
 
-**The public gateway to the Hololand metaverse**
+**The public gateway to the Hololand metaverse**  
+**Phase 0 Status**: ✅ Rotating Themes | ✅ Easter Eggs | ✅ Holoscript UI | ✅ 7 Zones Designed
 
 Experience the future of VR right in your browser. Hololand Central is a fully-functional VR hub showcasing what's possible with the Hololand platform - from VR shops to social spaces to interactive physics playgrounds.
 
@@ -16,11 +17,41 @@ Hololand Central is a **browser-based VR experience** that serves as:
 
 ### Features
 
-🌐 **Main Plaza** - Central hub with portals to different worlds
+🌐 **Main Plaza** - Central hub with 5 rotating themes, easter eggs, and zone navigation menu
 ☕ **Demo Coffee Shop** - Fully-realized VR business example
 👥 **Social Lounge** - Elegant meeting space with seating areas
 🎮 **Physics Playground** - Interactive demo with real-time physics
 🎨 **Art Gallery** (Coming Soon) - Community art and NFT displays
+🎰 **7 Downtown Zones** - Welcome Plaza, Builder Shop, Casino, Arcade, B2B Hub, $BRIAN's GYM, Central Park
+
+## 🆕 Phase 0 Systems (Just Integrated)
+
+### 1. **Rotating Themes** (5 Skins)
+Click the floating cube in the plaza to cycle through:
+- 🌐 Cyberpunk Station (neon purple/pink)
+- 🤠 Wild West Frontier (sandy sunset)
+- 🏙️ Urban Cityscape (blue neon skyscrapers)
+- ❄️ Snowy Village (festive winter)
+- 🌴 Tropical Paradise (vibrant island)
+
+### 2. **Easter Eggs System** (16 Seeded)
+Hidden discoveries across zones:
+- Proximity triggers (walk near objects)
+- Sequence puzzles (ordered interactions)
+- Time-of-day variants (nighttime secrets)
+- Cosmetic rewards (badges, stickers, emotes, titles)
+
+**Plaza Eggs**:
+- Hidden concierge NPC behind fountain [1, 0, 3]
+- Encoded city origin plaque (sequence trigger)
+- Secret sky walkway (tap cube 3x)
+
+### 3. **Holoscript UI System**
+Type-safe, theme-aware menus and copy:
+- Zone navigation menu (top-left in plaza)
+- Theme-reactive text (e.g., "Neon Edition" vs "Winter Festival")
+- Composable actions (navigate, start, purchase, submit)
+- WCAG-accessible overlays
 
 ## 🚀 Quick Start
 
@@ -48,6 +79,13 @@ pnpm dev
 ```
 
 The app will open at [http://localhost:3000](http://localhost:3000)
+
+### Try the New Features
+
+1. **Cycle Themes**: Click purple floating cube at [-6, 2, 6]
+2. **Discover Easter Egg**: Walk to [1, 0, 3] behind fountain (check console)
+3. **Navigate Zones**: Click menu buttons top-left (logs intents to console)
+4. **Watch Theme-Aware Copy**: Menu text changes with each theme
 
 ### First-Time Setup
 
