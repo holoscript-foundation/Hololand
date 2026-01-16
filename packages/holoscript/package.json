@@ -4,8 +4,15 @@
   "description": "HoloScript compiler - Text to VR code language",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "holoscript": "./bin/holoscript.js"
+  },
   "scripts": {
     "build": "tsc",
+    "cli": "node bin/holoscript.js",
+    "cli:build": "node bin/holoscript.js build",
+    "cli:watch": "node bin/holoscript.js build --watch",
+    "compile": "node bin/holoscript.js build",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "dev": "tsc --watch",
@@ -13,6 +20,7 @@
     "format": "prettier --write src"
   },
   "dependencies": {
+    "commander": "^11.0.0",
     "react": "^18.2.0",
     "react-three-fiber": "^8.15.0"
   },
@@ -22,6 +30,7 @@
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",
     "prettier": "^3.0.0",
+    "ts-node": "^10.9.0",
     "typescript": "^5.0.0",
     "vitest": "^0.34.0"
   },
