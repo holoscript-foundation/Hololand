@@ -13,13 +13,13 @@ The HoloScript CLI is a command-line tool for compiling `.hs` (HoloScript) files
 
 ### Global Installation
 ```bash
-npm install -g @hololand/holoscript
+npm install -g @holoscript/holoscript
 holoscript build myworld.hs
 ```
 
 ### Local Installation (recommended for Hololand)
 ```bash
-npm install @hololand/holoscript
+npm install @holoscript/holoscript
 npx holoscript build myworld.hs
 ```
 
@@ -299,7 +299,7 @@ webpack ...
 # GitHub Actions example
 - name: Build HoloScript worlds
   run: |
-    npm install -g @hololand/holoscript
+    npm install -g @holoscript/holoscript
     holoscript build worlds/*.hs -o src/components/worlds/
 ```
 
@@ -308,7 +308,7 @@ webpack ...
 Instead of CLI, use the builder API:
 
 ```typescript
-import { HoloScriptBuilder } from '@hololand/holoscript/lib/cli/build';
+import { HoloScriptBuilder } from '@holoscript/holoscript/lib/cli/build';
 
 const builder = new HoloScriptBuilder({
   input: 'worlds/welcome.hs',

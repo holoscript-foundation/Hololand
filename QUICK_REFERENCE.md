@@ -102,7 +102,7 @@ npm run audit:fix    # Auto-fix vulnerabilities
 
 **Core package** now depends on HoloScript via workspace:
 ```json
-"@hololand/holoscript": "workspace:*"
+"@holoscript/holoscript": "workspace:*"
 ```
 Use this for local monorepo development. For registry-based consumption, switch to a versioned dependency.
 

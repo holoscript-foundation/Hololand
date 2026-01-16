@@ -4,7 +4,7 @@
 
 A spatial programming language that compiles to React Three Fiber components. Write immersive VR/AR experiences in plain text.
 
-[![npm version](https://img.shields.io/npm/v/@hololand/holoscript.svg)](https://www.npmjs.com/package/@hololand/holoscript)
+[![npm version](https://img.shields.io/npm/v/@holoscript/holoscript.svg)](https://www.npmjs.com/package/@holoscript/holoscript)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -13,10 +13,10 @@ A spatial programming language that compiles to React Three Fiber components. Wr
 
 ```bash
 # Install globally
-npm install -g @hololand/holoscript
+npm install -g @holoscript/holoscript
 
 # Or use with npx
-npx @hololand/holoscript build myworld.hs
+npx @holoscript/holoscript build myworld.hs
 ```
 
 ### Create your first VR scene
@@ -64,13 +64,13 @@ holoscript build myworld.hs
 ### Global (recommended for CLI use)
 
 ```bash
-npm install -g @hololand/holoscript
+npm install -g @holoscript/holoscript
 ```
 
 ### Local (for programmatic use)
 
 ```bash
-npm install @hololand/holoscript
+npm install @holoscript/holoscript
 ```
 
 ---
@@ -162,7 +162,7 @@ HANDLER ON_HOVER {
 ### JavaScript/TypeScript
 
 ```typescript
-import { Lexer, Parser, R3FCompiler } from '@hololand/holoscript';
+import { Lexer, Parser, R3FCompiler } from '@holoscript/holoscript';
 
 // Read HoloScript source
 const source = `
@@ -193,7 +193,7 @@ console.log(code); // React Three Fiber component code
 ### Builder API
 
 ```typescript
-import { HoloScriptBuilder } from '@hololand/holoscript/cli/build';
+import { HoloScriptBuilder } from '@holoscript/holoscript/cli/build';
 
 const builder = new HoloScriptBuilder({
   input: 'myworld.hs',

@@ -1,5 +1,5 @@
 {
-  "name": "@hololand/holoscript",
+  "name": "@holoscript/holoscript",
   "version": "0.1.0",
   "description": "HoloScript compiler - Text to VR code language",
   "main": "dist/index.js",

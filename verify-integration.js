@@ -100,10 +100,10 @@ function main() {
   // Check Package Configuration
   log('\n5. Package Configuration', 'cyan');
   const aiBridgePackage = require(path.join(hololandPath, 'packages/ai-bridge/package.json'));
-  const hasHoloScriptDep = !!aiBridgePackage.dependencies['@hololand/holoscript'];
+  const hasHoloScriptDep = !!aiBridgePackage.dependencies['@holoscript/holoscript'];
   const status = hasHoloScriptDep ? '✓' : '✗';
   const color = hasHoloScriptDep ? 'green' : 'red';
-  log(`  ${status} ai-bridge depends on @hololand/holoscript`, color);
+  log(`  ${status} ai-bridge depends on @holoscript/holoscript`, color);
   allPassed &= hasHoloScriptDep;
 
   // Check VRM Support

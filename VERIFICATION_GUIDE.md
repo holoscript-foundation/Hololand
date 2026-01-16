@@ -171,7 +171,7 @@ Consistent code style across entire monorepo:
 
 **Core package** now consumes HoloScript via workspace:
 ```json
-"@hololand/holoscript": "workspace:*"
+"@holoscript/holoscript": "workspace:*"
 ```
 
 This ensures reproducible local development within the monorepo.  

@@ -35,9 +35,9 @@ export class CompilerBridge {
       // At runtime, require the actual modules (they'll be available in dist/)
       // This avoids TypeScript trying to resolve them at compile-time
       this.modules = {
-        tokenize: require('@hololand/holoscript').tokenize,
-        Parser: require('@hololand/holoscript').Parser,
-        R3FCompiler: require('@hololand/holoscript').R3FCompiler,
+        tokenize: require('@holoscript/holoscript').tokenize,
+        Parser: require('@holoscript/holoscript').Parser,
+        R3FCompiler: require('@holoscript/holoscript').R3FCompiler,
       };
       this.initialized = true;
     } catch (error: any) {

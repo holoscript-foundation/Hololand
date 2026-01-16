@@ -47,7 +47,7 @@ All in `packages/ai-bridge/examples/`:
 **Status**: All examples complete, syntactically valid, ready for execution
 
 ### ✅ Package Configuration Updated
-- **ai-bridge/package.json**: Added @hololand/holoscript dependency
+- **ai-bridge/package.json**: Added @holoscript/holoscript dependency
 - **holoscript/package.json**: Configured subpath exports and entry points
 - **holoscript/src/index.ts**: Public API exports all compiler components
 - **Status**: All builds pass, 0 TypeScript errors
@@ -165,7 +165,7 @@ All in `packages/ai-bridge/examples/`:
 ✓ 4 demo examples created
 ✓ holoscript compiled (dist folder)
 ✓ holoscript/src/index.ts public API
-✓ ai-bridge depends on @hololand/holoscript
+✓ ai-bridge depends on @holoscript/holoscript
 ✓ VRMAvatarManager.ts (VRM support)
 ✓ BUILD_PLAN.md updated
 ✓ AI_INTEGRATION_STATUS.md created
@@ -186,7 +186,7 @@ All in `packages/ai-bridge/examples/`:
 - `verify-integration.js` (verification script)
 
 ### Modified Files
-- `packages/ai-bridge/package.json` (added @hololand/holoscript dependency)
+- `packages/ai-bridge/package.json` (added @holoscript/holoscript dependency)
 - `packages/ai-bridge/src/HololandAIBridge.ts` (integrated CompilerBridge)
 - `packages/ai-bridge/src/index.ts` (exported CompilerBridge)
 - `packages/holoscript/package.json` (configured subpath exports)
@@ -262,16 +262,16 @@ Result: Scene updates instantly in WebXR
 
 ## Module Resolution Solution
 
-**Problem**: TypeScript couldn't resolve @hololand/holoscript subpath exports during compilation.
+**Problem**: TypeScript couldn't resolve @holoscript/holoscript subpath exports during compilation.
 
 **Solution**: Deferred module loading using runtime `require()`:
 ```typescript
 private async initialize(): Promise<void> {
   // Load modules at runtime, not compile-time
   this.modules = {
-    tokenize: require('@hololand/holoscript').tokenize,
-    Parser: require('@hololand/holoscript').Parser,
-    R3FCompiler: require('@hololand/holoscript').R3FCompiler,
+    tokenize: require('@holoscript/holoscript').tokenize,
+    Parser: require('@holoscript/holoscript').Parser,
+    R3FCompiler: require('@holoscript/holoscript').R3FCompiler,
   };
 }
 ```

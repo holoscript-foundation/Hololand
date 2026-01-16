@@ -184,7 +184,7 @@ This document summarizes the comprehensive NPM audit and quality infrastructure 
 **File**: `packages/core/package.json`  
 **Change Applied**:
 ```json
-"@hololand/holoscript": "workspace:*"
+"@holoscript/holoscript": "workspace:*"
 ```
 
 **Rationale**: Removes brittle external path and consumes the internal HoloScript workspace package.  

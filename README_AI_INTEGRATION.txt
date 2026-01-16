@@ -174,7 +174,7 @@
 │                                                                                │
 │  @hololand/ai-bridge              → NL Translation + CompilerBridge         │
 │       ↓ (generates HoloScript)                                                │
-│  @hololand/holoscript             → Compiler (Tokenize → Parse → Compile)    │
+│  @holoscript/holoscript           → Compiler (Tokenize → Parse → Compile)    │
 │       ↓ (generates R3F JSX)                                                   │
 │  React Three Fiber                → 3D Rendering Framework                    │
 │       ↓ (renders components)                                                  │

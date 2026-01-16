@@ -40,7 +40,7 @@
 ### Package Configuration
 | File | Changes | Status |
 |------|---------|--------|
-| `packages/ai-bridge/package.json` | Added @hololand/holoscript dependency | ✅ Updated |
+| `packages/ai-bridge/package.json` | Added @holoscript/holoscript dependency | ✅ Updated |
 | `packages/holoscript/package.json` | Added exports field with subpath exports | ✅ Updated |
 
 ### Source Code
@@ -88,7 +88,7 @@
 
 ```
 packages/ai-bridge/src/CompilerBridge.ts
-├── Imports: @hololand/holoscript (runtime via require)
+├── Imports: @holoscript/holoscript (runtime via require)
 └── Used by: HololandAIBridge.ts, examples/
 
 packages/ai-bridge/src/HololandAIBridge.ts

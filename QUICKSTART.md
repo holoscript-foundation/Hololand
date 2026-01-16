@@ -171,7 +171,7 @@ Result: Scene updates instantly without reload
 | Package | Role | Status |
 |---------|------|--------|
 | @hololand/ai-bridge | NL Translation + CompilerBridge | ✅ Integrated |
-| @hololand/holoscript | Compiler (tokenize → parse → compile) | ✅ Ready |
+| @holoscript/holoscript | Compiler (tokenize → parse → compile) | ✅ Ready |
 | @hololand/social | Avatar management & multiplayer | ✅ Connected |
 | @hololand/ar-renderer | WebXR rendering + VRM support | ✅ Ready |
 | @pixiv/three-vrm | VRM animation system | ✅ Ready |

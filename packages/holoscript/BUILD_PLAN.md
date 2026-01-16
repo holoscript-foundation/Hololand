@@ -254,7 +254,7 @@ Customizable avatar in world
 @hololand/ai-bridge (NEW INTEGRATION)
  NaturalLanguageTranslator
  VoiceProcessor  
- CompilerBridge  @hololand/holoscript 
+ CompilerBridge  @holoscript/holoscript 
     tokenize, Parser, R3FCompiler
  CodeExplainer
  CodeOptimizer
@@ -492,7 +492,7 @@ pnpm audit --audit-level=moderate  # Security gate
 
 **@hololand/core** should consume the internal HoloScript package via workspace:
 ```json
-"@hololand/holoscript": "workspace:*"
+"@holoscript/holoscript": "workspace:*"
 ```
 
 ✅ This removes brittle external paths and ensures single-source-of-truth inside the monorepo.

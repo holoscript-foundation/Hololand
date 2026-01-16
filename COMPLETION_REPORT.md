@@ -80,7 +80,7 @@ $ node verify-integration.js
 ✓ 4 demo examples present
 ✓ holoscript compiled (dist folder)
 ✓ holoscript/src/index.ts public API
-✓ ai-bridge depends on @hololand/holoscript
+✓ ai-bridge depends on @holoscript/holoscript
 ✓ VRMAvatarManager.ts (VRM support)
 ✓ BUILD_PLAN.md updated
 ✓ AI_INTEGRATION_STATUS.md created
@@ -152,7 +152,7 @@ $ node verify-integration.js
 ```
 @hololand/ai-bridge (NL + Compiler)
     ↓
-@hololand/holoscript (Tokenize → Parse → Compile)
+@holoscript/holoscript (Tokenize → Parse → Compile)
     ↓
 React Three Fiber (3D rendering)
     ↓
