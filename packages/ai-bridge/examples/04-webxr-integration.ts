@@ -80,7 +80,7 @@ async function demo4WebXRIntegration() {
     ┌─────────────────────────▼──────────────────────────┐
     │        HoloScript Compiler                         │
     │   (HoloScript → React Three Fiber Components)     │
-    │        Location: @holoscript/holoscript            │
+    │        Location: @holoscript/core + @holoscript/cli │
     └─────────────────────────▲──────────────────────────┘
                               │ (HoloScript)
     ┌─────────────────────────┴──────────────────────────┐
@@ -134,10 +134,10 @@ async function demo4WebXRIntegration() {
 
   console.log('\n\n🔌 Connection Points with Existing Packages:\n');
   console.log('┌──────────────────────────────────────────────────────┐');
-  console.log('│ @hololand/ai-bridge → @holoscript/holoscript        │');
+  console.log('│ @hololand/ai-bridge → @holoscript/core + cli        │');
   console.log('│ (NEW) CompilerBridge integration                    │');
   console.log('├──────────────────────────────────────────────────────┤');
-  console.log('│ @holoscript/holoscript → @hololand/social           │');
+  console.log('│ @holoscript/core → @hololand/social                 │');
   console.log('│ Generated avatars + multiplayer sync                │');
   console.log('├──────────────────────────────────────────────────────┤');
   console.log('│ @hololand/social → @hololand/ar-renderer            │');

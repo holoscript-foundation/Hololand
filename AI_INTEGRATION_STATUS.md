@@ -122,7 +122,7 @@ Four comprehensive examples demonstrating the full pipeline:
 ### 4. Package Configuration ✅
 
 #### ai-bridge/package.json
-- Added `@holoscript/holoscript` dependency
+- Added `@holoscript/core` and `@holoscript/cli` dependencies
 - Updated test scripts
 - All builds pass
 
@@ -135,7 +135,8 @@ Four comprehensive examples demonstrating the full pipeline:
 ```json
 "dependencies": {
   "@hololand/logger": "workspace:*",
-  "@holoscript/holoscript": "workspace:*"
+  "@holoscript/core": "^1.0.0-alpha.1",
+  "@holoscript/cli": "^1.0.0-alpha.1"
 }
 ```
 
@@ -188,7 +189,7 @@ export type { Token, TokenType, ZoneNode, EntityNode, HandlerNode };
 ```
 @hololand/ai-bridge (NL Translation + CompilerBridge)
     ↓ outputs HoloScript
-@holoscript/holoscript (Lexer → Parser → Compiler)
+@holoscript/core (Parser → Type Checker → Runtime) + @holoscript/cli (CLI interface)
     ↓ generates R3F code
 React Three Fiber (3D rendering)
     ↓ renders components
@@ -319,9 +320,9 @@ cd packages/holoscript && npm run build      # ✅ Success
 ```typescript
 // Defers resolution to runtime, avoiding compile-time errors
 this.modules = {
-  tokenize: require('@holoscript/holoscript').tokenize,
-  Parser: require('@holoscript/holoscript').Parser,
-  R3FCompiler: require('@holoscript/holoscript').R3FCompiler,
+  tokenize: require('@holoscript/core').tokenize,
+  Parser: require('@holoscript/core').Parser,
+  R3FCompiler: require('@holoscript/core').R3FCompiler,
 };
 ```
 
