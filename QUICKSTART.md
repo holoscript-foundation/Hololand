@@ -2,10 +2,10 @@
 
 ## 🚀 What's New
 
-The AI Bridge is now fully integrated with the HoloScript compiler, enabling:
-- **Natural Language → VR**: Describe what you want, get interactive 3D VR instantly
-- **Voice Commands**: "Create a coffee shop" → renders in WebXR headset
-- **AI Avatars**: Generate custom avatars from text descriptions
+The AI Bridge client connects to infinityassistant-service at https://infinityservice.io for AI-powered VR creation:
+- **Natural Language → VR**: Describe what you want, get interactive 3D VR instantly (powered by infinityservice.io)
+- **Voice Commands**: "Create a coffee shop" → renders in WebXR headset (AI translation via infinityservice.io)
+- **AI Avatars**: Generate custom avatars from text descriptions (generation via infinityservice.io)
 - **Real-Time Updates**: Modify scenes on the fly without reloading
 
 ---
@@ -15,7 +15,7 @@ The AI Bridge is now fully integrated with the HoloScript compiler, enabling:
 ### CompilerBridge (NEW)
 **File**: `packages/ai-bridge/src/CompilerBridge.ts`
 
-The integration layer that converts HoloScript → React Three Fiber code.
+The integration layer that converts HoloScript/HoloScript+ → React Three Fiber code.
 
 **Usage**:
 ```typescript
@@ -52,11 +52,13 @@ if (result.success) {
 ```
 Text Input
   ↓
-NaturalLanguageTranslator (AI Bridge)
+@hololand/ai-bridge (Client)
+  ↓
+infinityservice.io (AI Services)
   ↓
 HoloScript Code
   ↓
-CompilerBridge (NEW)
+CompilerBridge
   ↓
 React Three Fiber
   ↓
@@ -102,8 +104,8 @@ Shows complete system architecture and data flows.
 # ai-bridge with CompilerBridge
 npm run build -w packages/ai-bridge
 
-# holoscript compiler
-npm run build -w packages/holoscript
+# holoscript+ compiler
+npm run build -w packages/holoscript-core
 ```
 
 ### Verify Installation
@@ -171,7 +173,7 @@ Result: Scene updates instantly without reload
 | Package | Role | Status |
 |---------|------|--------|
 | @hololand/ai-bridge | NL Translation + CompilerBridge | ✅ Integrated |
-| @holoscript/holoscript | Compiler (tokenize → parse → compile) | ✅ Ready |
+| @holoscript/core | Compiler (tokenize → parse → compile HoloScript+) | ✅ Ready |
 | @hololand/social | Avatar management & multiplayer | ✅ Connected |
 | @hololand/ar-renderer | WebXR rendering + VRM support | ✅ Ready |
 | @pixiv/three-vrm | VRM animation system | ✅ Ready |
@@ -183,7 +185,7 @@ Result: Scene updates instantly without reload
 **Core Implementation**:
 - `packages/ai-bridge/src/CompilerBridge.ts` - Compiler bridge (207 lines)
 - `packages/ai-bridge/src/HololandAIBridge.ts` - Updated AI pipeline
-- `packages/holoscript/src/index.ts` - Public API exports
+- `packages/holoscript-core/src/index.ts` - Public API exports (HoloScript+)
 
 **Examples**:
 - `packages/ai-bridge/examples/01-basic-pipeline.ts` - NL → R3F
@@ -194,7 +196,7 @@ Result: Scene updates instantly without reload
 **Documentation**:
 - `AI_INTEGRATION_STATUS.md` - Complete implementation report
 - `IMPLEMENTATION_COMPLETE.md` - Summary & deployment guide
-- `packages/holoscript/BUILD_PLAN.md` - Updated with AI section
+- `packages/holoscript-core/BUILD_PLAN.md` - Updated with AI + HoloScript+
 
 ---
 

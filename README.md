@@ -29,7 +29,14 @@
 - 🗣️ **Voice Commands**: Build in VR by speaking
 - ⚛️ **React Components**: Familiar declarative patterns
 - 💻 **HoloScript Code**: Spatial programming language
-- 🤖 **AI Assistance**: Built-in AI translation and optimization
+- 🤖 **AI Assistance**: Natural language translation, avatar generation, and AI optimization (powered by infinityservice.io)
+
+### HoloScript+ (v1.0.0) at a Glance
+
+- 9 VR traits: `@grabbable`, `@throwable`, `@pointable`, `@hoverable`, `@scalable`, `@rotatable`, `@stackable`, `@snappable`, `@breakable`
+- Reactive state and lifecycle hooks for VR interactions
+- TypeScript interop via `@import "./companion.ts"`
+- Canonical language in `@holoscript/core`; service-level enhancements (training exports, agent examples) are exposed via infinityassistant-service at https://infinityservice.io (backed by uaa2-service)
 
 ### Deploy Everywhere
 
@@ -81,7 +88,7 @@ Hololand is a monorepo containing 12 packages for building metaverse experiences
 | Package | Size | Description |
 |---------|------|-------------|
 | [@hololand/core](./packages/core) | 28 KB | HoloScript language engine |
-| [@hololand/ai-bridge](./packages/ai-bridge) | 42 KB | Natural language → HoloScript translation |
+| [@hololand/ai-bridge](./packages/ai-bridge) | 42 KB | AI integration client (connects to infinityservice.io) |
 | [@hololand/world](./packages/world) | 28 KB | VR world runtime with physics |
 
 ### Rendering Stack
