@@ -251,13 +251,13 @@ export class AssetLoader {
     const textureProps = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
 
     textureProps.forEach(prop => {
-      const texture = (material as Record<string, unknown>)[prop] as THREE.Texture | undefined;
-      if (texture instanceof THREE.Texture) {
-        texture.anisotropy = anisotropy;
+      const tex = (material as any)[prop];
+      if (tex instanceof THREE.Texture) {
+        tex.anisotropy = anisotropy;
 
         // Resize texture if too large
-        if (texture.image && (texture.image.width > maxTextureSize || texture.image.height > maxTextureSize)) {
-          this.resizeTexture(texture, maxTextureSize);
+        if (tex.image && (tex.image.width > maxTextureSize || tex.image.height > maxTextureSize)) {
+          this.resizeTexture(tex, maxTextureSize);
         }
       }
     });

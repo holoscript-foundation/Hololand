@@ -1,0 +1,114 @@
+// HoloScript Demo: Dense Forest & Creature Interaction
+// Uses standard HoloScript (hs) and extended patterns (HS+)
+
+composition "Forest Encounter" {
+
+  // 1. Environment Setup (HS Core)
+  environment {
+    theme: "forest_dense_fog"
+    time_of_day: "dusk"
+    audio {
+      ambient: "forest_night_crickets"
+      volume: 0.6
+    }
+    
+    // HS+ Volumetric Lighting
+    lighting {
+      global_illumination: true
+      fog_density: 0.15
+      moonlight_intensity: 0.8
+    }
+  }
+
+  // 2. Creature Definition (HS+ Agent Pattern)
+  template "Creature" {
+    model: "assets/creatures/goblin_scout.glb"
+    scale: 0.8
+    physics: "character_controller"
+    
+    state {
+      health: 100
+      ammo: 5
+      aggro: false
+    }
+
+    action throw_rock(target_pos) {
+      if (ammo <= 0) {
+        anim.play("taunt")
+        return
+      }
+
+      anim.play("throw_overhand")
+      ammo = ammo - 1
+      
+      // Spawn Projectile
+      spawn "Rock" {
+        position: self.position + [0, 1.5, 0.5]
+        velocity: calculate_arc(self.position, target_pos, 15.0) // 15m/s launch
+      }
+      
+      audio.play_spatial("woosh", self.position)
+    }
+  }
+
+  // 3. Projectile Definition
+  template "Rock" {
+    model: "assets/props/rock_jagged.glb"
+    scale: 0.2
+    physics: "rigid_body" 
+    mass: 2.0
+    
+    on_collision(other) {
+      audio.play_spatial("rock_thud", self.position)
+      if (other.tag == "user") {
+        ui.toast("Ouch! You were hit!")
+      }
+      despawn(self, 5000) // Despawn after 5s
+    }
+  }
+
+  // 4. Scene Population
+  spatial_group "Ambush_Party" {
+    
+    // Creature 1
+    object "Goblin_A" using "Creature" {
+      position: [-3, 0, 4]
+      look_at: "user"
+    }
+
+    // Creature 2
+    object "Goblin_B" using "Creature" {
+      position: [3, 0, 5]
+      look_at: "user"
+    }
+    
+    // Creature 3 (Tree Sniper)
+    object "Goblin_C" using "Creature" {
+      position: [0, 4, 6] // Up in a tree
+      look_at: "user"
+    }
+  }
+  
+  // 5. Interactive Logic loop
+  logic {
+    on_start {
+      ui.toast("Watch out! They are hostile!")
+      await delay(2000)
+    }
+
+    // HS+ Event Listener
+    on_user_gesture("wave") {
+      // User waves back, creatures react
+      Goblin_A.throw_rock(user.position)
+      await delay(500)
+      Goblin_B.throw_rock(user.position)
+    }
+    
+    // Periodic harassment
+    every(4000) {
+      if (distance(user.position, Goblin_C.position) < 10) {
+        Goblin_C.throw_rock(user.position)
+      }
+    }
+  }
+}

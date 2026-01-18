@@ -170,7 +170,6 @@ export class QualityManager {
   private deviceType: DeviceType = 'unknown';
   private gpuInfo: GPUInfo = { vendor: 'unknown', renderer: 'unknown', tier: 'medium' };
   private adaptiveQuality: boolean;
-  private targetFPS: number;
   private onQualityChange?: QualityManagerOptions['onQualityChange'];
 
   // Performance tracking
@@ -181,7 +180,6 @@ export class QualityManager {
 
   constructor(options: QualityManagerOptions = {}) {
     this.adaptiveQuality = options.adaptiveQuality ?? true;
-    this.targetFPS = options.targetFPS ?? 60;
     this.onQualityChange = options.onQualityChange;
 
     // Set initial quality

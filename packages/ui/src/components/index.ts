@@ -51,3 +51,6 @@ export type { ScrollViewConfig } from './ScrollView';
 
 export { TabView } from './TabView';
 export type { TabViewConfig, Tab } from './TabView';
+
+// HUD components
+export { HudComponent, StatusHud } from './HudComponent';

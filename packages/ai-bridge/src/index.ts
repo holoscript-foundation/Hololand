@@ -21,6 +21,8 @@ export type { TranslationResult, TranslationContext } from './NaturalLanguageTra
 // Voice Processor
 export { VoiceProcessor } from './VoiceProcessor';
 export type { VoiceProcessingResult } from './VoiceProcessor';
+export { VoiceVisualizer } from './VoiceVisualizer';
+export type { VisualizerOptions } from './VoiceVisualizer';
 
 // Code Explainer
 export { CodeExplainer } from './CodeExplainer';
@@ -85,10 +87,13 @@ import { VoiceProcessor } from './VoiceProcessor';
 import { CodeExplainer } from './CodeExplainer';
 import { CodeOptimizer } from './CodeOptimizer';
 
+import { VoiceVisualizer } from './VoiceVisualizer';
+
 export default {
   HololandAIBridge,
   NaturalLanguageTranslator,
   VoiceProcessor,
+  VoiceVisualizer,
   CodeExplainer,
   CodeOptimizer,
   createAIBridge,

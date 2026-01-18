@@ -12,8 +12,12 @@ export * from './types';
 // Export Holo Primitives (3D data cells)
 export * from './holo';
 
-// Export UICanvas
+// Export UICanvas and Universal Input
 export { UICanvas } from './UICanvas';
+export { InteractionBridge, HoloPointerType } from './InteractionBridge';
+export type { HoloPointerEvent, HoloPointerCallback } from './InteractionBridge';
+export { AdaptiveLayout, kidTheme, expertTheme } from './AdaptiveLayout';
+export type { UserMode } from './AdaptiveLayout';
 
 // Export all components
 export {
@@ -36,6 +40,9 @@ export {
   GridContainer,
   ScrollView,
   TabView,
+  // HUD components
+  HudComponent,
+  StatusHud,
 } from './components';
 
 export type {

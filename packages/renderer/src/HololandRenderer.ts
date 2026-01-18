@@ -25,6 +25,10 @@ type InternalConfig = Omit<Required<RendererConfig>, 'uiCanvasElement' | 'qualit
   postProcessing?: RendererConfig['postProcessing'];
 };
 
+interface RenderableUI {
+  renderOnce(): void;
+}
+
 export class HololandRenderer {
   private world: HololandWorld;
   private scene: THREE.Scene;
@@ -35,7 +39,12 @@ export class HololandRenderer {
   private config: InternalConfig;
   private animationId: number | null;
   private vrEnabled: boolean;
+  private currentScaleMultiplier: number = 1.0;
+  private uiCanvas: RenderableUI | null = null;
   private lastFrameTime: number = 0;
+
+  // Scene structure
+  private scalingRoot: THREE.Group;
 
   // Advanced systems
   private qualityManager: QualityManager;
@@ -91,6 +100,10 @@ export class HololandRenderer {
     // Initialize Three.js scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.config.backgroundColor);
+
+    // Initialize scaling root
+    this.scalingRoot = new THREE.Group();
+    this.scene.add(this.scalingRoot);
 
     // Initialize camera
     this.camera = new THREE.PerspectiveCamera(
@@ -251,17 +264,19 @@ export class HololandRenderer {
     }
 
     logger.info('[HololandRenderer] Starting render loop');
-    this.lastFrameTime = performance.now();
 
     const animate = (time: number) => {
       // Calculate delta time for adaptive quality
-      const deltaMs = time - this.lastFrameTime;
+      const deltaMs = time - (this.lastFrameTime || time); // Use time if lastFrameTime is not set
       this.lastFrameTime = time;
       this.qualityManager.recordFrameTime(deltaMs);
 
-      this.animationId = this.renderer.xr.isPresenting
-        ? this.renderer.setAnimationLoop(animate)
-        : requestAnimationFrame(animate) as unknown as number;
+      if ((this.renderer.xr as unknown as { isPresenting: boolean }).isPresenting) {
+        this.renderer.setAnimationLoop(animate);
+        this.animationId = -1; // Flag XR loop
+      } else {
+        this.animationId = requestAnimationFrame(animate) as unknown as number;
+      }
 
       // Update controls
       if (this.controls) {
@@ -277,6 +292,11 @@ export class HololandRenderer {
       } else {
         this.renderer.render(this.scene, this.camera);
       }
+
+      // Render 2D UI if active
+      if (this.uiCanvas && this.uiCanvas.renderOnce) {
+        this.uiCanvas.renderOnce();
+      }
     };
 
     animate(performance.now());
@@ -287,7 +307,7 @@ export class HololandRenderer {
    */
   stop(): void {
     if (this.animationId !== null) {
-      if (this.renderer.xr.isPresenting) {
+      if ((this.renderer.xr as unknown as { isPresenting: boolean }).isPresenting) {
         this.renderer.setAnimationLoop(null);
       } else {
         cancelAnimationFrame(this.animationId);
@@ -333,6 +353,12 @@ export class HololandRenderer {
     // Add existing objects
     this.world.getAllObjects().forEach((obj) => this.addObjectToScene(obj));
 
+    // Listen for scale changes
+    this.world.on('scale:change', (event) => {
+      const multiplier = event.data.multiplier || 1.0;
+      this.setScaleContext(multiplier);
+    });
+
     // Listen for new objects
     this.world.on('object:added', (event) => {
       const obj = this.world.getObject(event.data.objectId);
@@ -353,7 +379,7 @@ export class HololandRenderer {
   private addObjectToScene(obj: SpatialObject): void {
     const mesh = this.createMeshForObject(obj);
     this.objectMap.set(obj.id, mesh);
-    this.scene.add(mesh);
+    this.scalingRoot.add(mesh);
 
     logger.debug('[HololandRenderer] Object added to scene', { objectId: obj.id });
   }
@@ -364,7 +390,7 @@ export class HololandRenderer {
   private removeObjectFromScene(objectId: string): void {
     const mesh = this.objectMap.get(objectId);
     if (mesh) {
-      this.scene.remove(mesh);
+      this.scalingRoot.remove(mesh);
       this.objectMap.delete(objectId);
       logger.debug('[HololandRenderer] Object removed from scene', { objectId });
     }
@@ -500,6 +526,53 @@ export class HololandRenderer {
 
     this.scene.add(light);
     return light;
+  }
+
+  /**
+   * Set the active scale context
+   */
+  setScaleContext(multiplier: number): void {
+    this.currentScaleMultiplier = multiplier;
+    logger.info('[HololandRenderer] Scale context changed', { multiplier });
+
+    this.updateCameraClipping();
+    if (this.environmentManager) {
+      this.environmentManager.setMagnitudeMultiplier(multiplier);
+    }
+  }
+
+  /**
+   * Set the UI Canvas for overlay rendering
+   */
+  public setUICanvas(uiCanvas: RenderableUI): void {
+    this.uiCanvas = uiCanvas;
+    logger.info('[HololandRenderer] UI Canvas integrated');
+  }
+
+  /**
+   * Update camera clipping planes based on current scale
+   */
+  private updateCameraClipping(): void {
+    const multiplier = this.currentScaleMultiplier;
+
+    // Scale-relative clipping planes
+    // Standard: 0.1 to 1000
+    // Galactic (1M): 10,000 to 1,000,000,000
+    // Atomic (0.000001): 0.00000001 to 0.1
+    this.camera.near = 0.1 * multiplier;
+    this.camera.far = 1000 * multiplier;
+
+    // Safety bounds for VR
+    if (this.camera.near < 0.0001) this.camera.near = 0.0001;
+    if (this.camera.far > 1000000000) this.camera.far = 1000000000;
+
+    this.camera.updateProjectionMatrix();
+
+    logger.debug('[HololandRenderer] Updated camera clipping', {
+      near: this.camera.near,
+      far: this.camera.far,
+      multiplier
+    });
   }
 
   // =============================================================================

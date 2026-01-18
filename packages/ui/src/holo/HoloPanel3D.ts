@@ -192,7 +192,7 @@ export class HoloPanel3D {
     element.style.cssText = `
       padding: 16px;
       background: rgba(0, 0, 0, 0.8);
-      border: 1px solid ${definition.props?.style?.color || '#00ffff'}44;
+      border: 1px solid ${(definition.props?.style as HoloStyle)?.color || '#00ffff'}44;
       border-radius: 8px;
       font-family: monospace;
       pointer-events: auto;

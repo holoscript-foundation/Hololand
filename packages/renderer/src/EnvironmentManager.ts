@@ -85,6 +85,7 @@ export class EnvironmentManager {
   private renderer: THREE.WebGLRenderer;
   private qualitySettings: QualitySettings;
   private config: Required<EnvironmentConfig>;
+  private magnitudeMultiplier: number = 1.0;
 
   // Environment objects
   private hdriTexture: THREE.Texture | null = null;
@@ -284,7 +285,6 @@ export class EnvironmentManager {
     // If HDRI environment is enabled, create a basic ambient environment
     if (this.qualitySettings.hdriEnvironment) {
       // Create simple environment from the gradient colors
-      const avgColor = topColor.clone().lerp(bottomColor, 0.5);
       this.scene.environment = null; // Use scene lights instead
     }
 
@@ -325,7 +325,16 @@ export class EnvironmentManager {
           envMapIntensity: this.qualitySettings.hdriEnvironment ? 1.0 : 0,
         });
 
+    // Hide ground at non-standard magnitudes (e.g. Galactic or Atomic)
+    const isStandard = this.magnitudeMultiplier > 0.01 && this.magnitudeMultiplier < 100;
+    if (!isStandard) {
+      logger.debug('[EnvironmentManager] Hiding ground for non-standard magnitude', {
+        multiplier: this.magnitudeMultiplier
+      });
+    }
+
     this.ground = new THREE.Mesh(geometry, material);
+    this.ground.visible = isStandard;
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.position.y = 0;
     this.ground.receiveShadow = groundConfig.receiveShadow && this.qualitySettings.shadowsEnabled;
@@ -352,8 +361,8 @@ export class EnvironmentManager {
     } else {
       this.scene.fog = new THREE.Fog(
         fogConfig.color,
-        fogConfig.near || 10,
-        fogConfig.far || 100
+        (fogConfig.near || 10) * this.magnitudeMultiplier,
+        (fogConfig.far || 100) * this.magnitudeMultiplier
       );
     }
 
@@ -433,6 +442,24 @@ export class EnvironmentManager {
       this.config.fog = { ...this.config.fog, ...config };
     }
     this.setupFog();
+  }
+
+  /**
+   * Set the magnitude multiplier for environmental scaling
+   */
+  setMagnitudeMultiplier(multiplier: number): void {
+    this.magnitudeMultiplier = multiplier;
+    
+    // Refresh fog and ground with new multiplier
+    if (this.config.fog.enabled) {
+      this.setupFog();
+    }
+    
+    if (this.config.ground.enabled) {
+      this.setupGround();
+    }
+    
+    logger.debug('[EnvironmentManager] Magnitude multiplier updated', { multiplier });
   }
 
   /**
