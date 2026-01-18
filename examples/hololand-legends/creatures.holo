@@ -1,0 +1,224 @@
+// Creature Definitions for Hololand Legends
+// Each creature has stats, abilities, and capture rates
+
+// =============================================================================
+// STARTER CREATURES
+// =============================================================================
+
+creature "sparkle" {
+  name: "Sparkle"
+  class: "dps"
+  element: "light"
+  
+  baseStats {
+    hp: 50
+    mp: 20
+    atk: 12
+    def: 8
+    speed: 10
+    magic: 8
+  }
+  
+  skills: ["tackle", "spark", "flash"]
+  
+  evolution {
+    level: 16
+    into: "radiance"
+  }
+}
+
+// =============================================================================
+// COMMON CREATURES (Meadow Plains)
+// =============================================================================
+
+creature "slime" {
+  name: "Slime"
+  class: "tank"
+  element: "water"
+  captureRate: 0.4
+  
+  baseStats {
+    hp: 30
+    mp: 5
+    atk: 5
+    def: 10
+    speed: 3
+    magic: 2
+  }
+  
+  skills: ["tackle", "absorb"]
+  habitat: "meadow"
+}
+
+creature "goblin" {
+  name: "Goblin"
+  class: "dps"
+  element: "dark"
+  captureRate: 0.3
+  
+  baseStats {
+    hp: 25
+    mp: 10
+    atk: 12
+    def: 5
+    speed: 8
+    magic: 3
+  }
+  
+  skills: ["tackle", "throw_rock", "sneak"]
+  habitat: "meadow"
+}
+
+creature "bat" {
+  name: "Shadow Bat"
+  class: "support"
+  element: "dark"
+  captureRate: 0.35
+  
+  baseStats {
+    hp: 20
+    mp: 15
+    atk: 8
+    def: 4
+    speed: 12
+    magic: 6
+  }
+  
+  skills: ["tackle", "screech", "drain"]
+  habitat: "caves"
+}
+
+creature "mushroom" {
+  name: "Fungoid"
+  class: "healer"
+  element: "nature"
+  captureRate: 0.4
+  
+  baseStats {
+    hp: 35
+    mp: 25
+    atk: 4
+    def: 8
+    speed: 4
+    magic: 12
+  }
+  
+  skills: ["spore", "heal", "poison"]
+  habitat: "forest"
+}
+
+// =============================================================================
+// CRYSTAL CAVES CREATURES
+// =============================================================================
+
+creature "crystal_golem" {
+  name: "Crystal Golem"
+  class: "tank"
+  element: "earth"
+  captureRate: 0.15
+  
+  baseStats {
+    hp: 80
+    mp: 5
+    atk: 15
+    def: 25
+    speed: 2
+    magic: 5
+  }
+  
+  skills: ["slam", "harden", "crystal_shard"]
+  habitat: "caves"
+}
+
+// =============================================================================
+// MISTY LAKE CREATURES
+// =============================================================================
+
+creature "dewdrop_fairy" {
+  name: "Dewdrop Fairy"
+  class: "healer"
+  element: "water"
+  captureRate: 0.2
+  
+  baseStats {
+    hp: 30
+    mp: 40
+    atk: 5
+    def: 6
+    speed: 10
+    magic: 18
+  }
+  
+  skills: ["bubble", "heal", "purify", "rain_dance"]
+  habitat: "lake"
+}
+
+// =============================================================================
+// SHADOW FOREST CREATURES
+// =============================================================================
+
+creature "phantom" {
+  name: "Phantom"
+  class: "support"
+  element: "dark"
+  captureRate: 0.1
+  
+  baseStats {
+    hp: 25
+    mp: 30
+    atk: 10
+    def: 3
+    speed: 15
+    magic: 15
+  }
+  
+  skills: ["shadow_strike", "curse", "vanish"]
+  habitat: "forest"
+}
+
+// =============================================================================
+// VOLCANO PEAK CREATURES
+// =============================================================================
+
+creature "ember_sprite" {
+  name: "Ember Sprite"
+  class: "dps"
+  element: "fire"
+  captureRate: 0.25
+  
+  baseStats {
+    hp: 35
+    mp: 25
+    atk: 18
+    def: 6
+    speed: 11
+    magic: 14
+  }
+  
+  skills: ["ember", "flame_burst", "ignite"]
+  habitat: "volcano"
+}
+
+// =============================================================================
+// LEGENDARY (Boss)
+// =============================================================================
+
+creature "inferno_dragon" {
+  name: "Inferno Dragon"
+  class: "dps"
+  element: "fire"
+  captureRate: 0.01
+  legendary: true
+  
+  baseStats {
+    hp: 150
+    mp: 50
+    atk: 30
+    def: 20
+    speed: 12
+    magic: 25
+  }
+  
+  skills: ["dragon_breath", "inferno", "earthquake", "roar"]
+  habitat: "volcano_boss"
+}
