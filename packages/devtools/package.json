@@ -1,6 +1,6 @@
 {
   "name": "@hololand/devtools",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Developer tools for Hololand - performance profiler, visual debugger, network inspector, and in-VR console",
   "type": "module",
   "main": "./dist/index.js",

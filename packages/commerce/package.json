@@ -1,6 +1,6 @@
 {
   "name": "@hololand/commerce",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Commerce & Economy System for the Hololand metaverse",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

@@ -1,6 +1,6 @@
 {
   "name": "@hololand/ai-bridge",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "AI Bridge for Natural Language → HoloScript Translation - Build in VR using natural language",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -68,7 +68,7 @@
     "vitest": "^1.0.4"
   },
   "peerDependencies": {
-    "@hololand/core": "^1.0.0-alpha.1"
+    "@hololand/core": "^1.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

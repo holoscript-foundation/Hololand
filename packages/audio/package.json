@@ -1,6 +1,6 @@
 {
   "name": "@hololand/audio",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Spatial audio engine for Hololand - 3D positional sound, HRTF, voice chat, and audio effects",
   "type": "module",
   "main": "./dist/index.js",

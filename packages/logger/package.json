@@ -1,6 +1,6 @@
 {
   "name": "@hololand/logger",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Unified logging for Hololand packages",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

@@ -1,6 +1,6 @@
 {
   "name": "@hololand/ar-anchors",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Coordinate system alignment for shared AR - QR codes, AprilTags, VPS, GPS anchors",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

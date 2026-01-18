@@ -1,6 +1,6 @@
 {
   "name": "@hololand/ui",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "2D UI components for desktop and mobile Hololand applications",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,6 +1,6 @@
 {
   "name": "@hololand/core",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Core HoloScript engine - Parser, Runtime, and Types for VR spatial programming",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

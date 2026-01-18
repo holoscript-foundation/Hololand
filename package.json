@@ -1,6 +1,6 @@
 {
   "name": "hololand",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "HoloScript: VR/AI Inspired Programming Language - The first programming language designed for Virtual Reality environments",
   "private": true,
   "workspaces": [

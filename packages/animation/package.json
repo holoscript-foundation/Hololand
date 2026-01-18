@@ -1,6 +1,6 @@
 {
   "name": "@hololand/animation",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Skeletal animation system for Hololand - keyframes, blend trees, IK, and procedural animation",
   "type": "module",
   "main": "./dist/index.js",

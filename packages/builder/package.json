@@ -1,6 +1,6 @@
 {
   "name": "@hololand/builder",
-  "version": "1.0.0-alpha.1",
+  "version": "1.0.0",
   "description": "Visual building tools for the Hololand metaverse",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
