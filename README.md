@@ -5,7 +5,7 @@
 > 💬 **Talk or type to your AI assistant.** Powered by [Infinity Assistant](https://infinityassistant.io).
 >
 > - 🥽 **VR:** "Create a treehouse with a rope ladder and fairy lights"
-> - 🌍 **VRR:** "Scan my storefront and turn it into a virtual shop"
+> - 🌍 **VRR:** "Scan my storefront and turn it into a virtual shop" *(coming soon)*
 > - 📱 **AR:** "Show me how this couch looks in my room"
 
 ```tsx
