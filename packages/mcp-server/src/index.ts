@@ -16,7 +16,13 @@ import axios, { AxiosInstance } from 'axios';
 import { z } from 'zod';
 
 // Import HoloScript code parser for local validation
-import { HoloScriptCodeParser, HOLOSCRIPT_DEMO_SCRIPTS, HOLOSCRIPT_VERSION } from '@hololand/core';
+// Using dynamic require to work around @holoscript/core ESM resolution issue
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const holoscriptCore = require('@holoscript/core');
+const HoloScriptCodeParser = holoscriptCore.HoloScriptCodeParser;
+const HOLOSCRIPT_DEMO_SCRIPTS = holoscriptCore.HOLOSCRIPT_DEMO_SCRIPTS;
+const HOLOSCRIPT_VERSION = holoscriptCore.HOLOSCRIPT_VERSION;
 
 /**
  * Hololand API Client

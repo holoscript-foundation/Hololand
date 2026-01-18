@@ -49,11 +49,11 @@ importers:
         specifier: workspace:*
         version: link:../logger
       '@holoscript/cli':
-        specifier: ^1.0.0-alpha.1
-        version: 1.0.0-alpha.1
+        specifier: ^2.0.1
+        version: 2.0.2
       '@holoscript/core':
-        specifier: ^1.0.0-alpha.1
-        version: 1.0.0-alpha.1
+        specifier: ^2.0.0
+        version: 2.0.2
     devDependencies:
       '@types/node':
         specifier: ^20.10.0
@@ -313,8 +313,8 @@ importers:
         specifier: workspace:*
         version: link:../logger
       '@holoscript/core':
-        specifier: ^1.0.0-alpha.1
-        version: 1.0.0-alpha.1
+        specifier: ^2.0.0
+        version: 2.0.2
     devDependencies:
       '@types/node':
         specifier: ^20.10.0
@@ -851,12 +851,12 @@ packages:
     resolution: {integrity: sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
-  '@holoscript/cli@1.0.0-alpha.1':
-    resolution: {integrity: sha512-S7shRw2y3KzrqZCEPVhQSV/Lstlexe01TPxseXej7+grrS7VCryaLOid4v6JIkNFIPoCY5BP5mK7jAj4m1yJ5A==}
+  '@holoscript/cli@2.0.2':
+    resolution: {integrity: sha512-URGQhIRBXk+smR+d+Nja5XHC09g2QLykg6agHUkYuqiWw0Dcoal+DjJ0NBcA686/5G+vuIrVOlA/na63Yf7zSA==}
     hasBin: true
 
-  '@holoscript/core@1.0.0-alpha.1':
-    resolution: {integrity: sha512-XJIomiPU3MFkH8JCioV9RpBayC2UumNZdKSax1mB3gbMkep7NX2V9YTmHpp/hQMy2Vp8PoNxhxGFrWp/2E7Duw==}
+  '@holoscript/core@2.0.2':
+    resolution: {integrity: sha512-NRMWSD973BY5ICG8jX8tzIIp6JtwSn2yYF4hWxKWz/9ro+kWMJtAOtxmr6FGB63vUIFBQj2eM/3zPuBV5K0m2Q==}
 
   '@hono/node-server@1.19.9':
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
@@ -3153,11 +3153,11 @@ snapshots:
 
   '@eslint/js@8.57.1': {}
 
-  '@holoscript/cli@1.0.0-alpha.1':
+  '@holoscript/cli@2.0.2':
     dependencies:
-      '@holoscript/core': 1.0.0-alpha.1
+      '@holoscript/core': 2.0.2
 
-  '@holoscript/core@1.0.0-alpha.1': {}
+  '@holoscript/core@2.0.2': {}
 
   '@hono/node-server@1.19.9(hono@4.11.4)':
     dependencies:
