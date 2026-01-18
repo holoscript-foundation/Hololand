@@ -76,15 +76,15 @@ const result = await bridge.translateToHoloScript({
 
 ## Packages
 
-| Package | Purpose |
-|---------|---------|
-| `@hololand/react-three` | React components for VR |
-| `@hololand/world` | Physics & world runtime |
-| `@hololand/renderer` | Three.js + WebXR |
-| `@hololand/ai-bridge` | Natural language → code |
-| `@hololand/network` | Multiplayer |
-| `@hololand/social` | Friends, avatars, chat |
-| `@hololand/commerce` | Shops & marketplace |
+| Package | Purpose | Status |
+|---------|---------|--------|
+| `@hololand/react-three` | React components for VR | ✅ |
+| `@hololand/world` | Physics & world runtime | ✅ |
+| `@hololand/renderer` | Three.js + WebXR | ✅ |
+| `@hololand/ai-bridge` | Natural language → code | ✅ |
+| `@hololand/network` | Multiplayer | ✅ |
+| `@hololand/social` | Friends, avatars, chat | ✅ |
+| `@hololand/commerce` | Shops & marketplace | ✅ |
 
 See [full package list](./ECOSYSTEM_STATUS.md) for all 22 packages.
 
@@ -115,7 +115,7 @@ One file. Compiles to 9 platforms.
 
 ## AI Agents
 
-AI can see and build inside Hololand:
+AI can see and build inside Hololand *(perception coming soon)*:
 
 ```typescript
 import { HololandAgentBridge } from '@hololand/ai-bridge';
