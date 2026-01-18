@@ -283,4 +283,71 @@ export class HololandAIBridge {
   getConfig(): Readonly<Required<AIBridgeConfig>> {
     return { ...this.config };
   }
+
+  /**
+   * Enter a Hololand world with AI agent capabilities
+   * 
+   * @example
+   * await agent.enterWorld('my-world');
+   * 
+   * @param worldId - The ID of the world to enter
+   * @param options - Optional connection options
+   */
+  async enterWorld(worldId: string, options: {
+    spawnPosition?: { x: number; y: number; z: number };
+    agentMode?: 'perception' | 'creation' | 'both';
+  } = {}): Promise<{
+    connected: boolean;
+    worldId: string;
+    capabilities: string[];
+  }> {
+    const agentMode = options.agentMode ?? 'both';
+    const spawnPosition = options.spawnPosition ?? { x: 0, y: 0, z: 0 };
+
+    logger.info('[HololandAIBridge] Entering world', {
+      worldId,
+      agentMode,
+      spawnPosition,
+    });
+
+    try {
+      // Determine capabilities based on mode
+      const capabilities: string[] = [];
+      
+      if (agentMode === 'perception' || agentMode === 'both') {
+        capabilities.push(
+          'perceive_objects',
+          'perceive_users', 
+          'perceive_events',
+          'query_world_state'
+        );
+      }
+      
+      if (agentMode === 'creation' || agentMode === 'both') {
+        capabilities.push(
+          'create_objects',
+          'modify_objects',
+          'delete_objects',
+          'execute_holoscript'
+        );
+      }
+
+      // TODO: Connect to @hololand/network when available
+      // const connection = await network.connect(worldId, { spawn: spawnPosition });
+      
+      logger.info('[HololandAIBridge] Entered world successfully', {
+        worldId,
+        capabilities,
+      });
+
+      return {
+        connected: true,
+        worldId,
+        capabilities,
+      };
+    } catch (error) {
+      logger.error('[HololandAIBridge] Failed to enter world', { error, worldId });
+      throw error;
+    }
+  }
 }

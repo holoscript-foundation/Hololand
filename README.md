@@ -76,15 +76,15 @@ const result = await bridge.translateToHoloScript({
 
 ## Packages
 
-| Package | Purpose | Status |
-|---------|---------|--------|
-| `@hololand/react-three` | React components for VR | ✅ |
-| `@hololand/world` | Physics & world runtime | ✅ |
-| `@hololand/renderer` | Three.js + WebXR | ✅ |
-| `@hololand/ai-bridge` | Natural language → code | ✅ |
-| `@hololand/network` | Multiplayer | ✅ |
-| `@hololand/social` | Friends, avatars, chat | ✅ |
-| `@hololand/commerce` | Shops & marketplace | ✅ |
+| Package | Version | Purpose | Status |
+|---------|---------|---------|--------|
+| `@hololand/react-three` | 1.0.0 | React components for VR | ✅ |
+| `@hololand/world` | 1.0.0 | Physics & world runtime | ✅ |
+| `@hololand/renderer` | 1.0.0 | Three.js + WebXR | ✅ |
+| `@hololand/ai-bridge` | 1.0.0 | Natural language → code | ✅ |
+| `@hololand/network` | 1.0.0 | Multiplayer | ✅ |
+| `@hololand/social` | 1.0.0 | Friends, avatars, chat | ✅ |
+| `@hololand/commerce` | 1.0.0 | Shops & marketplace | ✅ |
 
 See [full package list](./ECOSYSTEM_STATUS.md) for all 22 packages.
 
