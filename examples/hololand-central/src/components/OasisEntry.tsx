@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { AvatarSelector } from './AvatarSelector';
 
 interface OasisEntryProps {
   onComplete: () => void;
@@ -14,6 +15,7 @@ interface OasisEntryProps {
 export function OasisEntry({ onComplete }: OasisEntryProps) {
   const location = useLocation();
   const [step, setStep] = useState<'welcome' | 'avatar' | 'tutorial' | 'ready'>('welcome');
+  const [selectedAvatar, setSelectedAvatar] = useState<string>('');
   
   const isFirstTime = location.state?.firstTime ?? false;
   const showWelcome = location.state?.showWelcome ?? false;
@@ -31,6 +33,10 @@ export function OasisEntry({ onComplete }: OasisEntryProps) {
         setStep('avatar');
         break;
       case 'avatar':
+        // Save selected avatar
+        if (selectedAvatar) {
+          localStorage.setItem('hololand_avatar', selectedAvatar);
+        }
         setStep('tutorial');
         break;
       case 'tutorial':
@@ -45,6 +51,10 @@ export function OasisEntry({ onComplete }: OasisEntryProps) {
   const handleSkip = () => {
     localStorage.setItem('hololand_onboarded', 'true');
     onComplete();
+  };
+
+  const handleAvatarSelect = (avatarId: string) => {
+    setSelectedAvatar(avatarId);
   };
 
   return (
@@ -155,14 +165,17 @@ export function OasisEntry({ onComplete }: OasisEntryProps) {
             <h1 className="entry-title">Choose Your Look</h1>
             <p className="entry-subtitle">
               Express yourself! Pick an avatar to represent you in Hololand.
-              You can customize it anytime.
             </p>
-            {/* Avatar selector would go here */}
-            <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)' }}>
-              [Avatar Selector Coming Soon]
-            </div>
-            <button className="entry-button" onClick={handleNext}>
-              Continue
+            <AvatarSelector 
+              onSelect={handleAvatarSelect} 
+              selectedId={selectedAvatar} 
+            />
+            <button 
+              className="entry-button" 
+              onClick={handleNext}
+              style={{ marginTop: 24 }}
+            >
+              {selectedAvatar ? 'Continue' : 'Skip for now'}
             </button>
           </>
         )}
