@@ -2,6 +2,9 @@
 
 **Build VR/AR experiences in minutes, not months.**
 
+> 💬 **Talk or type to your AI assistant.** Say "Create a coffee shop" and watch it appear in VR.
+> Powered by [Infinity Assistant](https://infinityassistant.io).
+
 ```tsx
 import { HololandCanvas, HololandObject } from '@hololand/react-three';
 
