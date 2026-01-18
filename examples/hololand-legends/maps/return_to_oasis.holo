@@ -1,0 +1,82 @@
+// Return Portal - Exit from Hololand Legends back to Oasis
+// Displayed in the 2D game as a "Save & Return" option
+
+composition "return_to_oasis" {
+  
+  // Exit portal in 2D (appears as a stone archway)
+  template "ExitPortal" {
+    sprite: "portal_stone_arch.png"
+    layer: "objects"
+    position: [0, 0]  // Placed at map edge
+    size: [32, 48]
+    collision: false
+    
+    state {
+      glowing: false
+    }
+    
+    @on_player_near(distance: 1) {
+      self.glowing = true
+      ui.show_prompt("Press [Enter] to return to Oasis")
+    }
+    
+    @on_player_far {
+      self.glowing = false
+      ui.hide_prompt()
+    }
+    
+    @on_interact {
+      emit("exit_to_oasis")
+    }
+  }
+  
+  // Exit confirmation dialog
+  template "ExitDialog" {
+    layer: "ui"
+    visible: false
+    
+    @on_event("exit_to_oasis") {
+      self.visible = true
+      ui.show_dialog({
+        title: "Return to Oasis?",
+        message: "Your progress will be saved.",
+        options: [
+          { label: "Yes, return", action: "confirm_exit" },
+          { label: "Keep playing", action: "cancel_exit" }
+        ]
+      })
+    }
+    
+    @on_event("confirm_exit") {
+      game.save()
+      
+      audio.play("portal_whoosh")
+      transition.fade_to_white(0.5)
+      
+      await delay(500)
+      
+      navigation.go("/oasis", {
+        spawnPoint: "forest_portal"
+      })
+    }
+    
+    @on_event("cancel_exit") {
+      self.visible = false
+    }
+  }
+  
+  // Placement in starting town
+  spatial_group "TownExit" {
+    object "ExitPortal" using "ExitPortal" {
+      position: [0, 7]  // Left edge of starting_town map
+    }
+    
+    object "ExitSign" {
+      sprite: "sign_oasis.png"
+      position: [1, 6]
+      size: [16, 24]
+    }
+    
+    object "ExitDialog" using "ExitDialog" {}
+  }
+}

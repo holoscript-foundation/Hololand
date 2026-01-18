@@ -1,0 +1,183 @@
+// Forest Portal Zone - Connects Oasis to Hololand Legends (2D Game)
+// Located in the Wilderness Entry area of Hololand Oasis
+
+composition "legends_forest_portal" {
+  
+  environment {
+    theme: "enchanted_forest"
+    time_of_day: "golden_hour"
+    ambient_audio: "forest_ambience"
+    
+    lighting {
+      fog_density: 0.08
+      fog_color: "#1a4d2e"
+      sunlight_intensity: 0.7
+      sunlight_color: "#ffd93d"
+    }
+  }
+
+  // Forest Archway Portal
+  template "ForestPortal" {
+    model: "portal_forest_arch.glb"
+    position: [45, 0, -30]
+    scale: [2, 2.5, 1]
+    
+    state {
+      active: true
+      pulsePhase: 0
+      playersNearby: 0
+    }
+    
+    // Glowing portal effect
+    material {
+      emissive: "#4ade80"
+      emissiveIntensity: 0.5
+      opacity: 0.9
+    }
+    
+    // Particle effects - floating leaves and sparkles
+    particles "leaves" {
+      count: 50
+      color: ["#22c55e", "#fbbf24", "#f97316"]
+      velocity: [0, -0.5, 0]
+      lifetime: 4
+    }
+    
+    particles "sparkles" {
+      count: 30
+      color: "#fef08a"
+      velocity: [0, 0.3, 0]
+      lifetime: 2
+      size: 0.02
+    }
+    
+    @on_hover_enter {
+      ui.show_tooltip("🌲 Enter Hololand Legends")
+      self.emissiveIntensity = 1.0
+    }
+    
+    @on_hover_exit {
+      ui.hide_tooltip()
+      self.emissiveIntensity = 0.5
+    }
+    
+    @on_click {
+      emit("portal_activate", { destination: "legends" })
+    }
+    
+    @on_update(delta) {
+      // Pulsing glow effect
+      self.pulsePhase = (self.pulsePhase + delta) % (Math.PI * 2)
+      self.emissiveIntensity = 0.5 + Math.sin(self.pulsePhase * 2) * 0.2
+    }
+  }
+
+  // Portal Sign
+  template "PortalSign" {
+    model: "sign_wooden.glb"
+    position: [42, 0, -28]
+    rotation: [0, -15, 0]
+    
+    text {
+      content: "HOLOLAND LEGENDS"
+      font: "medieval"
+      size: 0.15
+      color: "#1a1a2e"
+    }
+    
+    subtext {
+      content: "A 2D Adventure Awaits"
+      font: "medieval"
+      size: 0.08
+      color: "#4a5568"
+    }
+  }
+
+  // Ambient NPCs
+  template "ForestGuide" {
+    model: "npc_forest_sage.glb"
+    position: [40, 0, -32]
+    look_at: "user"
+    
+    state {
+      greeted: false
+    }
+    
+    @on_interact {
+      if (!self.greeted) {
+        dialog.show([
+          "Welcome, traveler! Beyond this portal lies Hololand Legends.",
+          "A world of creatures awaits... catch them if you can!",
+          "The journey adapts to your device - phone, desktop, or VR.",
+          "Good luck on your adventure!"
+        ])
+        self.greeted = true
+      } else {
+        dialog.show([
+          "Ready to enter? Just step through the portal!"
+        ])
+      }
+    }
+  }
+
+  // Scene Composition
+  spatial_group "ForestEntry" {
+    
+    // Ground
+    object "forest_floor" {
+      model: "terrain_forest.glb"
+      position: [45, -0.1, -30]
+      scale: [5, 1, 5]
+    }
+    
+    // Trees around portal
+    @for i in range(0, 8) {
+      object "tree_${i}" {
+        model: "tree_mystical.glb"
+        position: [
+          45 + Math.cos(i * 0.785) * 8,
+          0,
+          -30 + Math.sin(i * 0.785) * 8
+        ]
+        scale: [1 + Math.random() * 0.3, 1.5 + Math.random() * 0.5, 1 + Math.random() * 0.3]
+        rotation: [0, Math.random() * 360, 0]
+      }
+    }
+    
+    // Main portal
+    object "Portal" using "ForestPortal" {}
+    
+    // Sign
+    object "Sign" using "PortalSign" {}
+    
+    // Guide NPC
+    object "Guide" using "ForestGuide" {}
+    
+    // Ambient fireflies
+    particles "fireflies" {
+      position: [45, 1, -30]
+      count: 40
+      color: "#fef08a"
+      size: 0.03
+      velocity: [0, 0.1, 0]
+      spread: [6, 2, 6]
+      behavior: "wander"
+    }
+  }
+
+  // Portal activation logic
+  logic {
+    @on_event("portal_activate") {
+      audio.play("portal_whoosh")
+      transition.fade_to_black(0.5)
+      
+      await delay(500)
+      
+      // Navigate to Legends 2D game
+      navigation.go("/legends", {
+        returnPoint: "forest_portal",
+        savePosition: true
+      })
+    }
+  }
+}
