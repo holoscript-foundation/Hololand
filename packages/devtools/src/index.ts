@@ -448,12 +448,25 @@ export class NetworkInspector {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       const method = init?.method ?? 'GET';
 
+      // Calculate request size safely
+      let requestSize = 0;
+      if (init?.body) {
+        if (typeof init.body === 'string') {
+          requestSize = new Blob([init.body]).size;
+        } else if (init.body instanceof Blob) {
+          requestSize = init.body.size;
+        } else if (init.body instanceof ArrayBuffer) {
+          requestSize = init.body.byteLength;
+        }
+        // Skip ReadableStream as it can't be sized without consuming
+      }
+
       const request: NetworkRequest = {
         id,
         method,
         url,
         startTime: performance.now(),
-        requestSize: init?.body ? new Blob([init.body]).size : 0,
+        requestSize,
       };
 
       self.requests.set(id, request);

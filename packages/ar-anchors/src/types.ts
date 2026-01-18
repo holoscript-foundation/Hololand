@@ -82,7 +82,7 @@ export interface AprilTagAnchor extends AnchorBase {
 export interface VPSAnchor extends AnchorBase {
   type: 'vps';
   /** VPS provider */
-  provider: 'arcore' | 'niantic' | 'custom';
+  provider: 'arcore' | 'niantic' | 'custom' | 'local';
   /** Location identifier */
   locationId: string;
   /** Horizontal accuracy in meters */

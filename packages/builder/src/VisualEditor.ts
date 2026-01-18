@@ -1416,11 +1416,14 @@ export class VisualEditor {
     const data = {
       version: '1.0',
       scene: this.scene.serialize(),
-      scripts: Array.from(this.scripts['scripts'].entries()).map(([id, script]) => ({
-        id,
-        ...script,
-        nodes: Array.from(script.nodes.entries()),
-      })),
+      scripts: Array.from(this.scripts['scripts'].entries()).map(([scriptId, script]) => {
+        const { id: _id, ...scriptWithoutId } = script as VisualScript & { id?: string };
+        return {
+          ...scriptWithoutId,
+          id: scriptId,
+          nodes: Array.from(script.nodes.entries()),
+        };
+      }),
       assets: this.assets.getAllAssets(),
       viewport: this.state.viewport,
       settings: {

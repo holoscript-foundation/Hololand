@@ -15,6 +15,9 @@ importers:
       '@types/node':
         specifier: ^20.10.0
         version: 20.19.29
+      '@types/webxr':
+        specifier: ^0.5.24
+        version: 0.5.24
       '@typescript-eslint/eslint-plugin':
         specifier: ^6.13.0
         version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
@@ -359,6 +362,25 @@ importers:
       vite:
         specifier: ^6.0.3
         version: 6.4.1(@types/node@22.19.6)(jiti@1.21.7)(tsx@4.21.0)
+
+  examples/hololand-legends:
+    dependencies:
+      '@hololand/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@hololand/renderer':
+        specifier: workspace:*
+        version: link:../../packages/renderer
+      '@hololand/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@22.19.6)
 
   examples/hololand-website:
     dependencies:

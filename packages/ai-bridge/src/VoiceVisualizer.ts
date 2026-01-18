@@ -13,7 +13,7 @@ export interface VisualizerOptions {
 
 export class VoiceVisualizer {
   private analyser: AnalyserNode | null = null;
-  private dataArray: Uint8Array | null = null;
+  private dataArray: Uint8Array<ArrayBuffer> | null = null;
   private animationId: number | null = null;
   private audioContext: AudioContext | null = null;
 
@@ -38,7 +38,7 @@ export class VoiceVisualizer {
       source.connect(this.analyser);
       
       const bufferLength = this.analyser.frequencyBinCount;
-      this.dataArray = new Uint8Array(bufferLength);
+      this.dataArray = new Uint8Array(bufferLength) as Uint8Array<ArrayBuffer>;
       
       this.draw();
       logger.debug('[VoiceVisualizer] Started visualization');
@@ -122,4 +122,3 @@ export class VoiceVisualizer {
     logger.debug('[VoiceVisualizer] Stopped visualization');
   }
 }
- Vinc

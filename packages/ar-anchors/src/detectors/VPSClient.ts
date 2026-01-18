@@ -10,6 +10,8 @@
  * Provides high-accuracy outdoor positioning using visual landmarks.
  */
 
+/// <reference types="webxr" />
+
 import type { VPSAnchor, Pose, Vector3, Quaternion, CameraIntrinsics } from '../types';
 
 export type VPSProvider = 'arcore' | 'niantic' | 'custom' | 'local';

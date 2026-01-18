@@ -298,9 +298,9 @@ export class DistortionEffect extends AudioEffect {
   /**
    * Generate distortion curve
    */
-  private makeDistortionCurve(amount: number): Float32Array {
+  private makeDistortionCurve(amount: number): Float32Array<ArrayBuffer> {
     const samples = 44100;
-    const curve = new Float32Array(samples);
+    const curve = new Float32Array(samples) as Float32Array<ArrayBuffer>;
     const deg = Math.PI / 180;
     const k = amount;
 
