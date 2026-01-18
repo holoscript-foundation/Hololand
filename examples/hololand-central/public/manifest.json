@@ -1,0 +1,46 @@
+{
+  "name": "Hololand Oasis",
+  "short_name": "Hololand",
+  "description": "Enter the Hololand metaverse - VR worlds, games, and social experiences",
+  "start_url": "/oasis",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#1a1a2e",
+  "background_color": "#0f0f1a",
+  "categories": ["games", "entertainment", "social"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/plaza.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Main Plaza"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Enter Oasis",
+      "url": "/oasis",
+      "description": "Jump straight into the Oasis"
+    },
+    {
+      "name": "Play Legends",
+      "url": "/legends",
+      "description": "Play Hololand Legends 2D game"
+    }
+  ],
+  "prefer_related_applications": false
+}
