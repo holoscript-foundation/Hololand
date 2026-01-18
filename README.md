@@ -81,39 +81,44 @@ Hololand uses a **hybrid licensing approach** to balance developer freedom with 
 
 ## 📦 Packages
 
-Hololand is a monorepo containing 12 packages for building metaverse experiences across all devices:
+Hololand is a monorepo containing **22 packages** for building metaverse experiences across all devices:
 
 ### Core Packages
 
-| Package | Size | Description |
-|---------|------|-------------|
-| [@hololand/core](./packages/core) | 28 KB | HoloScript language engine |
-| [@hololand/ai-bridge](./packages/ai-bridge) | 42 KB | AI integration client (connects to infinityservice.io) |
-| [@hololand/world](./packages/world) | 28 KB | VR world runtime with physics |
+| Package | Description |
+|---------|-------------|
+| [@hololand/core](./packages/core) | HoloScript language engine (uses `@holoscript/core@^2.0.0`) |
+| [@hololand/ai-bridge](./packages/ai-bridge) | AI integration client (connects to infinityservice.io) |
+| [@hololand/world](./packages/world) | VR world runtime with physics |
+| [@hololand/logger](./packages/logger) | Structured logging for all packages |
 
 ### Rendering Stack
 
-| Package | Size | Description |
-|---------|------|-------------|
-| [@hololand/renderer](./packages/renderer) | 10 KB | Universal renderer (VR, desktop, mobile) |
-| [@hololand/react-three](./packages/react-three) | 7 KB | React components & hooks for 3D |
-| [@hololand/ui](./packages/ui) | 8 KB | 2D UI components for desktop/mobile 🆕 |
+| Package | Description |
+|---------|-------------|
+| [@hololand/renderer](./packages/renderer) | Three.js renderer with WebXR support |
+| [@hololand/react-three](./packages/react-three) | React components & hooks for 3D |
+| [@hololand/ui](./packages/ui) | 2D UI components for desktop/mobile |
+| [@hololand/animation](./packages/animation) | Skeletal animation, keyframes, blend trees, IK |
 
 ### Networking & Social
 
-| Package | Size | Description |
-|---------|------|-------------|
-| [@hololand/network](./packages/network) | 15 KB | Real-time multiplayer networking 🆕 |
-| [@hololand/social](./packages/social) | 12 KB | Friends, parties, emotes, notifications v2.0 🆕 |
+| Package | Description |
+|---------|-------------|
+| [@hololand/network](./packages/network) | Real-time multiplayer networking |
+| [@hololand/social](./packages/social) | Friends, parties, emotes, notifications v2.0 |
+| [@hololand/auth](./packages/auth) | Unified authentication (email, OAuth, Web3) |
 
 ### Feature Packages
 
-| Package | Size | Description |
-|---------|------|-------------|
-| [@hololand/commerce](./packages/commerce) | 10 KB | Shops & marketplace systems |
-| [@hololand/builder](./packages/builder) | 2 KB | Visual tools & templates |
+| Package | Description |
+|---------|-------------|
+| [@hololand/commerce](./packages/commerce) | Shops & marketplace systems |
+| [@hololand/builder](./packages/builder) | Visual building tools & templates |
+| [@hololand/audio](./packages/audio) | Spatial 3D audio, HRTF, voice chat |
+| [@hololand/devtools](./packages/devtools) | Performance profiler, debugger, network inspector |
 
-### AR/XR Stack (NEW!)
+### AR/XR Stack
 
 | Package | Description |
 |---------|-------------|
@@ -123,15 +128,19 @@ Hololand is a monorepo containing 12 packages for building metaverse experiences
 | [@hololand/ar-anchors](./packages/ar-anchors) | QR, AprilTag, GPS, VPS coordinate alignment |
 | [@hololand/ar-renderer](./packages/ar-renderer) | WebXR + Three.js + VRM avatar support |
 
-### Infrastructure Packages
+### Infrastructure
 
-| Package | Size | Description |
-|---------|------|-------------|
-| [@hololand/auth](./packages/auth) | 4 KB | Authentication & wallet integration |
-| [@hololand/mcp-server](./packages/mcp-server) | 3 KB | MCP server for AI tool integration |
-| [@hololand/logger](./packages/logger) | 2 KB | Structured logging for all packages |
+| Package | Description |
+|---------|-------------|
+| [@hololand/mcp-server](./packages/mcp-server) | MCP server for AI agent integration |
 
-> **🚀 Phase 4 In Progress**: Multi-user AR with full pose tracking pipeline. See [ROADMAP.md](./ROADMAP.md)
+### HoloScript Integration
+
+Hololand uses the official `@holoscript/*` npm packages:
+- `@holoscript/core@^2.0.0` - Parser, runtime, type system
+- `@holoscript/cli@^2.0.1` - Developer CLI tools
+
+> **🚀 Phase 4 Complete**: Multi-user AR with full pose tracking pipeline. See [ROADMAP.md](./ROADMAP.md)
 
 ## 🚀 Quick Start
 
