@@ -33,7 +33,7 @@ const DEFAULT_VOICE_CONFIG: VoiceChatConfig = {
  */
 class VoiceActivityDetector {
   private analyser: AnalyserNode | null = null;
-  private dataArray: Uint8Array | null = null;
+  private dataArray: Uint8Array<ArrayBuffer> | null = null;
   private threshold: number;
   private smoothedLevel = 0;
   private smoothingFactor = 0.9;
@@ -42,7 +42,7 @@ class VoiceActivityDetector {
     this.threshold = threshold;
     this.analyser = context.createAnalyser();
     this.analyser.fftSize = 256;
-    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
   }
 
   /**
