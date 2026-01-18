@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hololand - Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      font-family: 'Inter', -apple-system, sans-serif;
+      text-align: center;
+      padding: 24px;
+    }
+    
+    .offline-icon {
+      font-size: 80px;
+      margin-bottom: 24px;
+    }
+    
+    h1 {
+      font-size: 32px;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #4ade80, #22c55e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    p {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+      max-width: 400px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    
+    .retry-btn {
+      background: linear-gradient(135deg, #4ade80, #22c55e);
+      color: #1a1a2e;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .retry-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    .tips {
+      margin-top: 48px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      max-width: 400px;
+    }
+    
+    .tips h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .tips ul {
+      text-align: left;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+    }
+    
+    .tips li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-icon">📡</div>
+  <h1>You're Offline</h1>
+  <p>
+    Hololand needs an internet connection to load VR worlds. 
+    Check your connection and try again.
+  </p>
+  
+  <button class="retry-btn" onclick="location.reload()">
+    Try Again
+  </button>
+  
+  <div class="tips">
+    <h3>While you wait:</h3>
+    <ul>
+      <li>🌲 Hololand Legends works offline after first load</li>
+      <li>📱 Make sure WiFi or mobile data is on</li>
+      <li>🔄 Try refreshing once connected</li>
+    </ul>
+  </div>
+</body>
+</html>

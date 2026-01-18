@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { XR, Controllers, Hands } from '@react-three/xr';
 import { ThemedMainPlaza } from './worlds/ThemedMainPlaza';
 import { DemoShop } from './worlds/DemoShop';
 import { SocialLounge } from './worlds/SocialLounge';
@@ -12,6 +13,9 @@ import { AdminPanel } from './admin/AdminPanel';
 import { THEMES } from './themes/themes';
 import { MenuOverlay } from './ui/MenuOverlay';
 import { getMenuById } from './ui/menus';
+import { MobileControls } from './components/MobileControls';
+import { XRTeleport } from './components/XRTeleport';
+import { PerformanceMonitor } from './components/PerformanceMonitor';
 import './styles.css';
 
 type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop' | 'casino' | 'builder-shop';
@@ -271,27 +275,52 @@ function App() {
         />
       )}
 
-      {/* 3D Canvas */}
+      {/* Mobile Controls */}
+      <MobileControls
+        onMove={(x, y) => {
+          // Movement handled by OrbitControls or custom camera
+          console.log('Mobile move:', x, y);
+        }}
+        onInteract={() => {
+          // Trigger interaction
+          console.log('Mobile interact');
+        }}
+        onMenu={() => {
+          // Toggle menu
+          console.log('Mobile menu');
+        }}
+      />
+
+      {/* 3D Canvas with XR Support */}
       <Canvas
         className="canvas-container"
         shadows
         gl={{ antialias: true, alpha: false }}
       >
-        {/* Camera */}
-        <PerspectiveCamera makeDefault position={[0, 1.6, 10]} fov={75} />
+        <XR>
+          {/* Camera */}
+          <PerspectiveCamera makeDefault position={[0, 1.6, 10]} fov={75} />
 
-        {/* Desktop controls */}
-        <OrbitControls
-          enableDamping
-          dampingFactor={0.05}
-          minDistance={2}
-          maxDistance={50}
-          maxPolarAngle={Math.PI / 2}
-          target={[0, 0, 0]}
-        />
+          {/* Desktop controls */}
+          <OrbitControls
+            enableDamping
+            dampingFactor={0.05}
+            minDistance={2}
+            maxDistance={50}
+            maxPolarAngle={Math.PI / 2}
+            target={[0, 0, 0]}
+          />
 
-        {/* Render current world */}
-        {renderWorld()}
+          {/* VR Controllers */}
+          <Controllers />
+          <Hands />
+
+          {/* Performance monitoring */}
+          <PerformanceMonitor autoAdjust={true} />
+
+          {/* Render current world */}
+          {renderWorld()}
+        </XR>
       </Canvas>
     </div>
   );
