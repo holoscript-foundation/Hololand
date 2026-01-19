@@ -104,6 +104,31 @@ export class HoloScriptBridge {
   }
 
   /**
+   * Execute from natural language using AI bridge
+   */
+  async executeFromNL(input: string, context?: any): Promise<ExecutionResult[]> {
+    try {
+      // Lazy load AI bridge to avoid circular dependencies
+      const { createAIBridge } = require('@hololand/ai-bridge');
+      const aiBridge = createAIBridge();
+      
+      logger.info('Translating NL to HoloScript', { input });
+      const result = await aiBridge.translateToHoloScript({ 
+        naturalLanguage: input,
+        context 
+      });
+
+      if (result.holoScript) {
+        return this.loadScript(result.holoScript);
+      }
+      return [{ success: false, error: 'Translation produced no code' }];
+    } catch (error) {
+      logger.error('NL execution failed', { error });
+      throw error;
+    }
+  }
+
+  /**
    * Load and execute HoloScript code
    */
   async loadScript(code: string): Promise<ExecutionResult[]> {
@@ -134,7 +159,7 @@ export class HoloScriptBridge {
 
       // Sync to world on each node execution
       if (result.success) {
-        await this.syncNodeToWorld(node, result);
+        await this.syncNodeToWorld(node as any, result);
       }
     }
 
@@ -174,6 +199,12 @@ export class HoloScriptBridge {
         break;
       case 'gate':
         // Gates are logic, not spatial
+        break;
+      case 'shop':
+        this.world.emit('commerce:shop_synced', node);
+        break;
+      case 'template':
+        this.world.emit('builder:template_synced', node);
         break;
     }
   }
@@ -272,6 +303,39 @@ export class HoloScriptBridge {
 
     this.runtime.on('hide', (data) => {
       this.handleVisibility(data as { target: string }, false);
+    });
+
+    // Commerce Events
+    this.runtime.on('shop', (data) => {
+      this.world.emit('commerce:shop_created', data);
+    });
+    this.runtime.on('inventory', (data) => {
+      this.world.emit('commerce:inventory_updated', data);
+    });
+    this.runtime.on('purchase', (data) => {
+      this.world.emit('commerce:purchase_initiated', data);
+    });
+
+    // Social Events
+    this.runtime.on('presence', (data) => {
+      this.world.emit('social:presence_updated', data);
+    });
+    this.runtime.on('invite', (data) => {
+      this.world.emit('social:invite_sent', data);
+    });
+    this.runtime.on('share', (data) => {
+      this.world.emit('social:script_shared', data);
+    });
+
+    // Physics Events
+    this.runtime.on('physics', (data) => {
+      this.world.emit('physics:config_updated', data);
+    });
+    this.runtime.on('gravity', (data) => {
+      this.world.emit('physics:gravity_changed', data);
+    });
+    this.runtime.on('collide', (data) => {
+      this.world.emit('physics:collision_registered', data);
     });
   }
 

@@ -720,7 +720,7 @@ export class AnimationSystem {
 // EXPORTS
 // =============================================================================
 
-export const VERSION = '1.0.0-alpha.1';
+export const VERSION = '1.0.0';
 
 /**
  * Create a new animation system
@@ -735,3 +735,13 @@ export function createAnimationSystem(): AnimationSystem {
 export function createIKSolver(): FABRIKSolver {
   return new FABRIKSolver();
 }
+
+// HoloScript Animation Integration
+export {
+  HoloScriptAnimationBridge,
+  createAnimationBridge,
+  type AnimationBridgeConfig,
+  type AnimationRequest,
+  type EasingType,
+  type SpringConfig,
+} from './HoloScriptAnimationBridge';

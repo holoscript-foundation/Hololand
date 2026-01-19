@@ -107,6 +107,67 @@ export class NaturalLanguageTranslator {
    */
   private initializeIntentPatterns(): IntentPattern[] {
     return [
+      // Forest environment pattern
+      {
+        pattern: /make (?:a|an) (?:spooky |dense |dark )?forest/,
+        intent: 'create_forest',
+        confidence: 0.95,
+        generator: (_matches) => {
+          return `composition "Forest Encounter" {
+  environment {
+    theme: "forest_dense_fog"
+    time_of_day: "dusk"
+    audio {
+      ambient: "forest_night_crickets"
+      volume: 0.6
+    }
+    lighting {
+      global_illumination: true
+      fog_density: 0.15
+    }
+  }
+}`.trim();
+        },
+      },
+
+      // Creature with throwing behavior pattern
+      {
+        pattern: /add (?:a|an) (\w+)(?: (?:that|which) throws? (.+?) when i (\w+))?/,
+        intent: 'create_interactive_creature',
+        confidence: 0.9,
+        generator: (matches) => {
+          const creatureType = matches[1];
+          const projectile = matches[2] || 'rocks';
+          const gesture = matches[3] || 'wave';
+          const name = creatureType.charAt(0).toUpperCase() + creatureType.slice(1);
+
+          return `
+template "${name}" {
+  model: "assets/creatures/${creatureType.toLowerCase()}.glb"
+  physics: "character_controller"
+  
+  action throw_${projectile.toLowerCase()}(target_pos) {
+    anim.play("throw")
+    spawn "${projectile.charAt(0).toUpperCase() + projectile.slice(1)}" {
+      position: self.position + [0, 1.5, 0.5]
+      velocity: calculate_arc(self.position, target_pos, 15.0)
+    }
+  }
+}
+
+object "${name}_1" using "${name}" {
+  position: [0, 0, 5]
+  look_at: "user"
+}
+
+logic {
+  on_user_gesture("${gesture}") {
+    ${name}_1.throw_${projectile.toLowerCase()}(user.position)
+  }
+}`.trim();
+        },
+      },
+
       // Create object patterns
       {
         pattern: /create (?:a|an) (\w+)(?: called| named)? (\w+)?/,

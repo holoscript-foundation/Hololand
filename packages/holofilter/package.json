@@ -1,0 +1,78 @@
+{
+  "name": "@hololand/holofilter",
+  "version": "1.0.0",
+  "description": "HoloFilter - Unified VRR scanning & AR overlay system for Hololand",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./vrr": {
+      "types": "./dist/vrr/index.d.ts",
+      "import": "./dist/vrr/index.mjs",
+      "require": "./dist/vrr/index.js"
+    },
+    "./ar": {
+      "types": "./dist/ar/index.d.ts",
+      "import": "./dist/ar/index.mjs",
+      "require": "./dist/ar/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "hololand",
+    "holofilter",
+    "vrr",
+    "ar",
+    "augmented-reality",
+    "video-reality-recording",
+    "3d-scanning",
+    "photogrammetry",
+    "depth-sensing",
+    "face-filter",
+    "object-detection",
+    "webxr",
+    "metaverse"
+  ],
+  "author": "Hololand Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brianonbased-dev/Hololand.git",
+    "directory": "packages/holofilter"
+  },
+  "dependencies": {
+    "@hololand/ar-detection": "workspace:*",
+    "@hololand/ar-embeddings": "workspace:*",
+    "@hololand/logger": "workspace:*",
+    "@holoscript/core": "^2.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  },
+  "peerDependenciesMeta": {
+    "three": {
+      "optional": true
+    }
+  }
+}

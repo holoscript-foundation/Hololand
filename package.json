@@ -51,6 +51,7 @@
     "vitest": "^1.0.4"
   },
   "dependencies": {
+    "@holoscript/core": "link:../HoloScript/packages/core",
     "ethers": "^6.16.0"
   }
 }

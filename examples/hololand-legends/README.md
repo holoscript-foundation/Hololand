@@ -1,6 +1,6 @@
 # Hololand Legends
 
-A 2D RPG demo for Hololand combining Pokémon Heart Gold style graphics with Final Fantasy party mechanics.
+A 2D RPG demo for Hololand
 
 ## 🎮 Features
 

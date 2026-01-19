@@ -28,20 +28,20 @@ export const kidTheme: Theme = {
     secondary: '#7C4DFF',
     background: '#FFF9C4',
     surface: '#FFFFFF',
-    textPrimary: '#3F51B5'
+    textPrimary: '#3F51B5',
   },
   spacing: {
     xs: 8,
     sm: 16,
     md: 24,
     lg: 32,
-    xl: 48
+    xl: 48,
   },
   borders: {
     ...lightTheme.borders,
     radiusMd: 12,
-    radiusLg: 24
-  }
+    radiusLg: 24,
+  },
 };
 
 /**
@@ -55,15 +55,15 @@ export const expertTheme: Theme = {
     primary: '#00E676',
     background: '#0D0D0D',
     surface: '#1A1A1A',
-    textPrimary: '#00E676' // Matrix-style
+    textPrimary: '#00E676', // Matrix-style
   },
   spacing: {
     xs: 2,
     sm: 4,
     md: 8,
     lg: 12,
-    xl: 20
-  }
+    xl: 20,
+  },
 };
 
 export class AdaptiveLayout {
@@ -99,11 +99,15 @@ export class AdaptiveLayout {
    */
   public get fontScale(): number {
     switch (this.deviceType) {
-      case 'mobile': return 1.2;
-      case 'tablet': return 1.5;
+      case 'mobile':
+        return 1.2;
+      case 'tablet':
+        return 1.5;
       case 'quest3':
-      case 'questPro': return 2.0; // VR needs larger text
-      default: return 1.0;
+      case 'questPro':
+        return 2.0; // VR needs larger text
+      default:
+        return 1.0;
     }
   }
 }

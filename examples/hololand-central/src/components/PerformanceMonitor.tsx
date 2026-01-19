@@ -1,15 +1,15 @@
 /**
  * Performance Monitor Component
- * 
+ *
  * Displays FPS and quality settings, auto-adjusts based on device
  */
 
 import { useState, useEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
-import { 
-  QUALITY_PRESETS, 
+import {
+  QUALITY_PRESETS,
   detectDeviceCapabilities,
-  type QualityPreset 
+  type QualityPreset,
 } from '../config/qualityPresets';
 
 interface PerformanceMonitorProps {
@@ -40,14 +40,14 @@ export function PerformanceMonitor({
 
   // FPS counter
   useFrame(() => {
-    setFrameCount(prev => prev + 1);
-    
+    setFrameCount((prev) => prev + 1);
+
     const now = performance.now();
     if (now - lastTime >= 1000) {
       setFps(frameCount);
       setFrameCount(0);
       setLastTime(now);
-      
+
       // Auto-adjust
       if (autoAdjust) {
         autoAdjustQuality(frameCount);
@@ -57,9 +57,9 @@ export function PerformanceMonitor({
 
   const applyPreset = (config: QualityPreset) => {
     if (!gl) return;
-    
+
     gl.shadowMap.enabled = config.shadows !== 'off';
-    
+
     const pixelRatio = Math.min(window.devicePixelRatio, 2) * config.lodMultiplier;
     gl.setPixelRatio(Math.min(pixelRatio, 2));
   };
@@ -95,18 +95,20 @@ export function PerformanceMonitor({
  */
 export function PerformanceStatsOverlay({ fps, preset }: { fps: number; preset: string }) {
   return (
-    <div style={{
-      position: 'fixed',
-      top: 10,
-      left: 10,
-      padding: '8px 12px',
-      background: 'rgba(0, 0, 0, 0.7)',
-      borderRadius: 8,
-      color: fps > 30 ? '#4ade80' : '#ef4444',
-      fontFamily: 'monospace',
-      fontSize: 12,
-      zIndex: 1000,
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: 10,
+        left: 10,
+        padding: '8px 12px',
+        background: 'rgba(0, 0, 0, 0.7)',
+        borderRadius: 8,
+        color: fps > 30 ? '#4ade80' : '#ef4444',
+        fontFamily: 'monospace',
+        fontSize: 12,
+        zIndex: 1000,
+      }}
+    >
       {fps} FPS | {preset.toUpperCase()}
     </div>
   );
