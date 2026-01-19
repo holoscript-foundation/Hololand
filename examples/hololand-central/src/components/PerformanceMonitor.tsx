@@ -24,7 +24,7 @@ export function PerformanceMonitor({
   onPresetChange,
 }: PerformanceMonitorProps) {
   const { gl } = useThree();
-  const [fps, setFps] = useState(60);
+  // const [fps, setFps] = useState(60);
   const [preset, setPreset] = useState<string>('medium');
   const [frameCount, setFrameCount] = useState(0);
   const [lastTime, setLastTime] = useState(performance.now());
@@ -44,7 +44,6 @@ export function PerformanceMonitor({
 
     const now = performance.now();
     if (now - lastTime >= 1000) {
-      setFps(frameCount);
       setFrameCount(0);
       setLastTime(now);
 

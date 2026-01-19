@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { XR, Controllers, Hands } from '@react-three/xr';
+// @ts-ignore - XR types might be mismatched
+import { XR, createXRStore } from '@react-three/xr';
 import { ThemedMainPlaza } from './worlds/ThemedMainPlaza';
 import { DemoShop } from './worlds/DemoShop';
 import { SocialLounge } from './worlds/SocialLounge';
@@ -14,11 +15,14 @@ import { THEMES } from './themes/themes';
 import { MenuOverlay } from './ui/MenuOverlay';
 import { getMenuById } from './ui/menus';
 import { MobileControls } from './components/MobileControls';
-import { XRTeleport } from './components/XRTeleport';
+// import { XRTeleport } from './components/XRTeleport'; // Unused and erroring
 import { PerformanceMonitor } from './components/PerformanceMonitor';
+import { HoloScriptRenderer } from './components/HoloScriptRenderer';
 import './styles.css';
 
-type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop' | 'casino' | 'builder-shop';
+const store = createXRStore();
+
+type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop' | 'casino' | 'builder-shop' | 'holoscript-central';
 
 interface WorldInfo {
   title: string;
@@ -67,6 +71,11 @@ const WORLD_INFO: Record<WorldType, WorldInfo> = {
     description: 'Browse assets, templates, and creator portfolios. Your one-stop VR marketplace.',
     icon: '🏗️',
   },
+  'holoscript-central': {
+    title: 'HoloScript Central',
+    description: 'The new Solarpunk core generated from code.',
+    icon: '🏛️',
+  },
 };
 
 function App() {
@@ -81,7 +90,7 @@ function App() {
     
     // Check for WebXR support
     if ('xr' in navigator) {
-      (navigator as any).xr?.isSessionSupported('immersive-vr').then((supported: boolean) => {
+      navigator.xr?.isSessionSupported('immersive-vr').then((supported: boolean) => {
         setIsVRSupported(supported);
       });
     }
@@ -155,6 +164,29 @@ function App() {
         return <HololandCasino />;
       case 'builder-shop':
         return <BuilderShop />;
+      case 'holoscript-central':
+        return (
+          <HoloScriptRenderer scriptContent={`
+            building CentralPlaza {
+              type: "plaza"
+              style: "solarpunk"
+            }
+            
+            orb FountainOfBits {
+              shape: "fountain"
+              position: [0, 0, 0]
+              size: 2
+              color: "#4cc9f0"
+            }
+
+            orb WelcomeLight {
+               shape: "sphere"
+               position: [0, 5, 0]
+               color: "white"
+               glow: true
+            }
+          `} />
+        );
       default:
         return (
           <ThemedMainPlaza
@@ -166,7 +198,11 @@ function App() {
     }
   };
 
-  const worldInfo = WORLD_INFO[currentWorld];
+  const worldInfo = currentWorld === 'holoscript-central' ? {
+      title: 'HoloScript Central',
+      description: 'The new Solarpunk core generated from code.',
+      icon: '🏛️'
+  } : WORLD_INFO[currentWorld];
 
   return (
     <div className="app">
@@ -203,7 +239,7 @@ function App() {
           {/* Portal selection (only show in plaza) */}
           {currentWorld === 'plaza' && (
             <div className="portal-selection">
-              {(['shop', 'social', 'physics', 'casino', 'builder-shop', 'gallery', 'infinity-shop'] as WorldType[]).map((world) => (
+              {(['shop', 'social', 'physics', 'casino', 'builder-shop', 'gallery', 'infinity-shop', 'holoscript-central'] as WorldType[]).map((world) => (
                 <div
                   key={world}
                   className={`portal-card ${currentWorld === world ? 'active' : ''}`}
@@ -297,7 +333,7 @@ function App() {
         shadows
         gl={{ antialias: true, alpha: false }}
       >
-        <XR>
+        <XR store={store}>
           {/* Camera */}
           <PerspectiveCamera makeDefault position={[0, 1.6, 10]} fov={75} />
 
@@ -311,9 +347,7 @@ function App() {
             target={[0, 0, 0]}
           />
 
-          {/* VR Controllers */}
-          <Controllers />
-          <Hands />
+
 
           {/* Performance monitoring */}
           <PerformanceMonitor autoAdjust={true} />

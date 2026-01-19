@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react';
-import { Mesh } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Text, RoundedBox } from '@react-three/drei';
 
@@ -8,8 +7,8 @@ interface InfinityShopProps {
 }
 
 export const InfinityShop: React.FC<InfinityShopProps> = ({ onAdminAccess }) => {
-  const shopRef = useRef<Mesh>(null);
-  const signRef = useRef<Mesh>(null);
+  const shopRef = useRef<any>(null);
+  const signRef = useRef<any>(null);
   const [clickCount, setClickCount] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
 
@@ -177,7 +176,7 @@ export const InfinityShop: React.FC<InfinityShopProps> = ({ onAdminAccess }) => 
       </group>
 
       {/* Brittney Avatar Hologram Placeholder */}
-      <group position={[0, 3, 5]} onClick={handleSecretClick} style={{ cursor: 'pointer' }}>
+      <group position={[0, 3, 5]} onClick={handleSecretClick}>
         {/* Hologram platform */}
         <mesh position={[0, 0, 0]}>
           <cylinderGeometry args={[2, 2, 0.3, 32]} />

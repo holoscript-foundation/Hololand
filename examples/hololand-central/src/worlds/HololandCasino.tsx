@@ -22,7 +22,7 @@ export const HololandCasino: React.FC = () => {
   const neonSignRef = useRef<Group>(null);
   const vipDoorRef = useRef<Mesh>(null);
   
-  const [spinning, setSpinning] = useState([false, false, false]);
+  const [spinning] = useState([false, false, false]);
 
   // Animate neon sign pulsing
   useFrame((state) => {

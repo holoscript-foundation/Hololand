@@ -22,7 +22,7 @@ interface PerformanceState {
 }
 
 export function usePerformanceScaling(autoAdjust: boolean = true) {
-  const { gl, scene } = useThree();
+  const { gl } = useThree();
   const [state, setState] = useState<PerformanceState>(() => {
     const capabilities = detectDeviceCapabilities();
     return {

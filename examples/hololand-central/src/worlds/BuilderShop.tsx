@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Mesh, Group } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
@@ -22,7 +22,7 @@ export const BuilderShop: React.FC = () => {
   const hologramRef2 = useRef<Mesh>(null);
   const hologramRef3 = useRef<Mesh>(null);
   
-  const [selectedAsset, setSelectedAsset] = useState<number>(0);
+  // const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
   // Animate showcase rotator and holograms
   useFrame((state) => {

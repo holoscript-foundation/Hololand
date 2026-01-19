@@ -688,6 +688,18 @@ importers:
         specifier: workspace:*
         version: link:../logger
     devDependencies:
+      '@types/react':
+        specifier: ^18.2.0
+        version: 18.3.27
+      '@types/react-dom':
+        specifier: ^18.2.0
+        version: 18.3.7(@types/react@18.3.27)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
@@ -765,6 +777,34 @@ importers:
         version: 1.6.1(@types/node@20.19.29)
 
   packages/devtools:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)
+
+  packages/holofilter:
+    dependencies:
+      '@hololand/ar-detection':
+        specifier: workspace:*
+        version: link:../ar-detection
+      '@hololand/ar-embeddings':
+        specifier: workspace:*
+        version: link:../ar-embeddings
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@holoscript/core':
+        specifier: link:../../../HoloScript/packages/core
+        version: link:../../../HoloScript/packages/core
+      three:
+        specifier: '>=0.160.0'
+        version: 0.170.0
     devDependencies:
       tsup:
         specifier: ^8.0.1

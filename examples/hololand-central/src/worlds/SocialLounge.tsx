@@ -1,10 +1,10 @@
+
 import React, { useRef } from 'react';
-import { Mesh } from 'three';
 import { useFrame } from '@react-three/fiber';
 
 export const SocialLounge: React.FC = () => {
-  const chandelier1Ref = useRef<Mesh>(null);
-  const chandelier2Ref = useRef<Mesh>(null);
+  const chandelier1Ref = useRef<any>(null);
+  const chandelier2Ref = useRef<any>(null);
 
   // Animate chandeliers
   useFrame((state) => {
@@ -228,7 +228,7 @@ export const SocialLounge: React.FC = () => {
         [8, 0, -8],
         [-8, 0, 8],
         [8, 0, 8],
-      ].map(([x, y, z], i) => (
+      ].map(([x, , z], i) => (
         <mesh key={i} position={[x, 3, z]} castShadow>
           <cylinderGeometry args={[0.4, 0.5, 6, 16]} />
           <meshStandardMaterial

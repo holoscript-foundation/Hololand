@@ -9,7 +9,7 @@ interface PortalProps {
   onClick?: () => void;
 }
 
-export const Portal: React.FC<PortalProps> = ({ position, color, label, onClick }) => {
+export const Portal: React.FC<PortalProps> = ({ position, color, onClick }) => {
   const meshRef = useRef<Mesh>(null);
   const ringRef = useRef<Mesh>(null);
 

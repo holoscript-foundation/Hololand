@@ -274,27 +274,42 @@ export interface WorldAnchor {
 // =============================================================================
 
 export interface HoloFilterConfig {
+  /** Scanner configuration */
+  scanner?: Partial<{
+    quality: ScanQuality;
+    mode: CaptureMode;
+    minFrames: number;
+    frameOverlap: number;
+    useDepth: boolean;
+    generateTextures: boolean;
+    simplifyMesh: boolean;
+    targetTriangles: number;
+  }>;
+  /** AR manager configuration */
+  ar?: Partial<{
+    maxFaces: number;
+    enableBodyTracking: boolean;
+    enableSurfaceDetection: boolean;
+    smoothing: number;
+    debug: boolean;
+  }>;
   /** Enable VRR scanning */
-  enableVRR: boolean;
+  enableVRR?: boolean;
   /** Enable AR overlays */
-  enableAR: boolean;
-  /** Default scan quality */
-  defaultScanQuality: ScanQuality;
-  /** Max concurrent face detections */
-  maxFaces: number;
+  enableAR?: boolean;
   /** Enable depth sensing */
-  useDepth: boolean;
+  useDepth?: boolean;
   /** Enable cloud anchors */
-  useCloudAnchors: boolean;
+  useCloudAnchors?: boolean;
   /** Debug visualization */
-  debug: boolean;
+  debug?: boolean;
 }
 
 export const DEFAULT_HOLOFILTER_CONFIG: HoloFilterConfig = {
   enableVRR: true,
   enableAR: true,
-  defaultScanQuality: 'standard',
-  maxFaces: 4,
+  scanner: { quality: 'standard' },
+  ar: { maxFaces: 4 },
   useDepth: true,
   useCloudAnchors: false,
   debug: false,

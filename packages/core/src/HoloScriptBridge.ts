@@ -11,6 +11,7 @@ import {
   type ASTNode,
   type ExecutionResult,
   type SpatialPosition,
+  type HoloScriptValue,
 } from '@holoscript/core';
 import { createLogger } from '@hololand/logger';
 
@@ -444,14 +445,14 @@ export class HoloScriptBridge {
   /**
    * Call a HoloScript function by name
    */
-  async callFunction(name: string, args: unknown[] = []): Promise<ExecutionResult> {
+  async callFunction(name: string, args: HoloScriptValue[] = []): Promise<ExecutionResult> {
     return this.runtime.callFunction(name, args);
   }
 
   /**
    * Set a runtime variable
    */
-  setVariable(name: string, value: unknown): void {
+  setVariable(name: string, value: HoloScriptValue): void {
     this.runtime.setVariable(name, value);
   }
 

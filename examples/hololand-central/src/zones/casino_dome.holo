@@ -1,0 +1,26 @@
+
+building HololandCasino {
+  style: "grand-dome"
+  material: "glass_gold"
+  position: [0, 0, -100]
+}
+
+orb CasinoDomeStructure {
+  shape: "sphere"
+  position: [0, 0, -100]
+  size: 20
+  color: "gold"
+  glow: true
+}
+
+orb NeonSign {
+  shape: "cube"
+  position: [0, 20, -60]
+  size: 5
+  color: "#ffd700" 
+  text: "HIGH STAKES"
+}
+
+gate EntrancePortal {
+  position: [0, 0, -60]
+}

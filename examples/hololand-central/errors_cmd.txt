@@ -1,0 +1,38 @@
+src/admin/useAdminAuth.ts(24,32): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/App.tsx(1,31): error TS6133: 'useRef' is declared but its value is never read.
+src/App.tsx(1,39): error TS6133: 'useCallback' is declared but its value is never read.
+src/App.tsx(4,14): error TS2305: Module '"@react-three/xr"' has no exported member 'Controllers'.
+src/App.tsx(4,27): error TS2305: Module '"@react-three/xr"' has no exported member 'Hands'.
+src/App.tsx(17,1): error TS6133: 'XRTeleport' is declared but its value is never read.
+src/App.tsx(30,7): error TS2741: Property '"holoscript-central"' is missing in type '{ plaza: { title: string; description: string; icon: string; }; shop: { title: string; description: string; icon: string; }; social: { title: string; description: string; icon: string; }; physics: { title: string; description: string; icon: string; }; gallery: { ...; }; 'infinity-shop': { ...; }; casino: { ...; }; '...' but required in type 'Record<WorldType, WorldInfo>'.
+src/App.tsx(328,10): error TS2741: Property 'store' is missing in type '{ children: Element[]; }' but required in type 'XRProperties'.
+src/audio/AudioManager.ts(121,7): error TS2322: Type 'AudioBuffer | null' is not assignable to type 'AudioBuffer | undefined'.
+  Type 'null' is not assignable to type 'AudioBuffer | undefined'.
+src/components/ForestPortal.tsx(9,16): error TS6133: 'useGLTF' is declared but its value is never read.
+src/components/HoloScriptRenderer.tsx(5,16): error TS6133: 'Group' is declared but its value is never read.
+src/components/PerformanceMonitor.tsx(27,10): error TS6133: 'fps' is declared but its value is never read.
+src/components/Portal.tsx(12,66): error TS6133: 'label' is declared but its value is never read.
+src/components/XRTeleport.tsx(30,9): error TS6133: 'raycaster' is declared but its value is never read.
+src/components/XRTeleport.tsx(31,9): error TS6133: 'tempVec' is declared but its value is never read.
+src/hooks/usePerformanceScaling.ts(25,15): error TS6133: 'scene' is declared but its value is never read.
+src/hooks/useXRControllers.ts(8,17): error TS2305: Module '"@react-three/xr"' has no exported member 'useController'.
+src/hooks/useXRControllers.ts(45,11): error TS2339: Property 'isPresenting' does not exist on type 'Readonly<{ body?: XRBody | undefined; session?: XRSession | undefined; mediaBinding?: XRMediaBinding | undefined; originReferenceSpace?: XRReferenceSpace | undefined; ... 9 more ...; emulator?: XRDevice | undefined; } & WithRecord<...>>'.
+src/worlds/BuilderShop.tsx(25,10): error TS6133: 'selectedAsset' is declared but its value is never read.
+src/worlds/BuilderShop.tsx(25,25): error TS6133: 'setSelectedAsset' is declared but its value is never read.
+src/worlds/HololandCasino.tsx(25,20): error TS6133: 'setSpinning' is declared but its value is never read.
+src/worlds/InfinityShop.tsx(72,14): error TS2322: Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'Ref<Group<Object3DEventMap>> | undefined'.
+  Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'RefObject<Group<Object3DEventMap>>'.
+    Property 'isGroup' is missing in type 'Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>' but required in type 'Group<Object3DEventMap>'.
+src/worlds/InfinityShop.tsx(148,14): error TS2322: Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'Ref<Group<Object3DEventMap>> | undefined'.
+  Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'RefObject<Group<Object3DEventMap>>'.
+    Property 'isGroup' is missing in type 'Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>' but required in type 'Group<Object3DEventMap>'.
+src/worlds/InfinityShop.tsx(180,63): error TS2322: Type '{ children: Element[]; position: [number, number, number]; onClick: () => void; style: { cursor: string; }; }' is not assignable to type 'GroupProps'.
+  Property 'style' does not exist on type 'GroupProps'.
+src/worlds/SocialLounge.tsx(71,14): error TS2322: Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'Ref<Group<Object3DEventMap>> | undefined'.
+  Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'RefObject<Group<Object3DEventMap>>'.
+    Property 'isGroup' is missing in type 'Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>' but required in type 'Group<Object3DEventMap>'.
+src/worlds/SocialLounge.tsx(111,14): error TS2322: Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'Ref<Group<Object3DEventMap>> | undefined'.
+  Type 'RefObject<Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>>' is not assignable to type 'RefObject<Group<Object3DEventMap>>'.
+    Property 'isGroup' is missing in type 'Mesh<BufferGeometry<NormalBufferAttributes>, Material | Material[], Object3DEventMap>' but required in type 'Group<Object3DEventMap>'.
+src/worlds/SocialLounge.tsx(231,18): error TS6133: 'y' is declared but its value is never read.
+src/worlds/ThemedMainPlaza.tsx(6,34): error TS6133: 'THEME_NAMES' is declared but its value is never read.

@@ -3,7 +3,7 @@ import { Mesh } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Portal } from '../components/Portal';
 import { ThemedEnvironment } from '../components/ThemedEnvironment';
-import { getTheme, getNextTheme, THEME_NAMES } from '../themes/themes';
+import { getTheme, getNextTheme } from '../themes/themes';
 import { Theme } from '../themes/types';
 import { EasterEggsProximityLayer } from '../easter-eggs/EasterEggsProximityLayer';
 import { usePlayerPositionGetter } from '../easter-eggs/usePlayerPosition';

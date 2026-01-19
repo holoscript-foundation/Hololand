@@ -11,26 +11,22 @@
 // Types
 export type {
   // VRR Types
-  ScanMode,
   ScanQuality,
+  CaptureMode,
   ScanFrame,
   ScanSession,
   ScanMesh,
-  ScanVertex,
-  ScanFace,
+  MeshVertex,
   PointCloud,
-  PointCloudPoint,
-  ScanProgress,
+  Point3D,
   ScanResult,
-  ScanExportFormat,
-  HoloScriptExportOptions,
-  OBJExportOptions,
-  PLYExportOptions,
+  CameraIntrinsics,
   // AR Types
   ARFilter,
   ARFilterAsset,
   ARAttachment,
   ARFilterAnimation,
+  ARKeyframe,
   AROverlayState,
   FaceDetection,
   FaceLandmark,
@@ -42,6 +38,8 @@ export type {
   Vector3,
   Quaternion,
   Transform,
+  BoundingBox,
+  Color,
   HoloFilterConfig,
 } from './types';
 

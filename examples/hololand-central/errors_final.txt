@@ -1,0 +1,5 @@
+src/admin/useAdminAuth.ts(24,32): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/App.tsx(334,10): error TS2741: Property 'store' is missing in type '{ children: Element[]; }' but required in type 'XRProperties'.
+src/audio/AudioManager.ts(121,7): error TS2322: Type 'AudioBuffer | null' is not assignable to type 'AudioBuffer | undefined'.
+  Type 'null' is not assignable to type 'AudioBuffer | undefined'.
+src/components/PerformanceMonitor.tsx(42,13): error TS6133: 'state' is declared but its value is never read.

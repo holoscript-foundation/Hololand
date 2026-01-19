@@ -6,7 +6,7 @@
 
 import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Text, useGLTF, Sparkles } from '@react-three/drei';
+import { Text, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface ForestPortalProps {

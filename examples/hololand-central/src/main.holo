@@ -1,0 +1,13 @@
+
+environment {
+  sky: "azure_day_clouds"
+  lighting: "warm_sun"
+}
+
+import { CentralPlaza, FountainOfBits, SpawnPoint } from "./zones/central_plaza.holo"
+import { HololandCasino, CasinoDomeStructure } from "./zones/casino_dome.holo"
+import { ArcadeDistrict } from "./zones/arcade_district.holo"
+
+focus CentralPlaza {
+  animate FountainOfBits pulse: true
+}

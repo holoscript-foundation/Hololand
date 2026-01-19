@@ -1,0 +1,23 @@
+
+building CentralPlaza {
+  type: "plaza"
+  radius: 50
+  style: "solarpunk-art-deco"
+}
+
+orb FountainOfBits {
+  shape: "fountain"
+  position: [0, 0, 0]
+  color: "#4cc9f0"
+  size: 2
+  glow: true
+  interactive: true
+}
+
+orb SpawnPoint {
+  shape: "orb"
+  type: "spawn"
+  position: [0, 2, 5]
+  color: "#00ff00"
+  size: 0.5
+}

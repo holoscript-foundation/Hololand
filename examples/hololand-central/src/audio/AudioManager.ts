@@ -118,7 +118,7 @@ class AudioManager {
     
     let buffer = this.buffers.get(id);
     if (!buffer) {
-      buffer = await this.loadSound(id);
+      buffer = (await this.loadSound(id)) ?? undefined;
       if (!buffer) return;
     }
     

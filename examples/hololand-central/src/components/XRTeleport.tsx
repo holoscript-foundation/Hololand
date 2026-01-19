@@ -27,8 +27,6 @@ export function XRTeleport({
   const [showArc, setShowArc] = useState(false);
   
   const arcPoints = useRef<THREE.Vector3[]>([]);
-  const raycaster = useRef(new THREE.Raycaster());
-  const tempVec = useRef(new THREE.Vector3());
 
   // Calculate teleport arc
   const calculateArc = useCallback((

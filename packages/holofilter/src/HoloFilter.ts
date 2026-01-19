@@ -17,8 +17,7 @@ import { ARFilterManager, ARFilterManagerConfig, createARFilterManager } from '.
 import type {
   ScanSession,
   ScanResult,
-  ScanMesh,
-  PointCloud,
+  ScanFrame,
   FaceDetection,
   AROverlayState,
   ARFilter,
@@ -28,11 +27,9 @@ import type {
 export interface HoloFilterInstance {
   // VRR Methods
   startScan(objectId: string, mode?: 'object' | 'room' | 'face' | 'body'): ScanSession;
-  addScanFrame(imageData: ImageData, depth?: Float32Array | Uint16Array): void;
+  addScanFrame(frame: Omit<import('./types').ScanFrame, 'id' | 'timestamp'>): void;
   finishScan(): Promise<ScanResult>;
-  getPointCloud(): PointCloud | null;
-  getMesh(): ScanMesh | null;
-  exportToHoloScript(options?: { orbName?: string }): string;
+  getLastResult(): ScanResult | null;
 
   // AR Methods
   registerFilter(filter: ARFilter): void;
@@ -58,11 +55,12 @@ export class HoloFilter implements HoloFilterInstance {
   public arManager: ARFilterManager;
 
   private currentSession: ScanSession | null = null;
+  private lastResult: ScanResult | null = null;
   private currentMode: 'idle' | 'scanning' | 'ar' | 'both' = 'idle';
 
   constructor(config?: Partial<HoloFilterConfig>) {
-    const scannerConfig: Partial<ObjectScannerConfig> = config?.scanner;
-    const arConfig: Partial<ARFilterManagerConfig> = config?.ar;
+    const scannerConfig = config?.scanner as Partial<ObjectScannerConfig> | undefined;
+    const arConfig = config?.ar as Partial<ARFilterManagerConfig> | undefined;
 
     this.scanner = createObjectScanner(scannerConfig);
     this.arManager = createARFilterManager(arConfig);
@@ -73,7 +71,9 @@ export class HoloFilter implements HoloFilterInstance {
   // ========================================
 
   startScan(objectId: string, mode: 'object' | 'room' | 'face' | 'body' = 'object'): ScanSession {
-    this.currentSession = this.scanner.startSession(objectId, mode);
+    // Map simple mode names to CaptureMode
+    const captureMode = mode === 'object' ? 'photogrammetry' as const : 'photogrammetry' as const;
+    this.currentSession = this.scanner.startSession(objectId, captureMode);
     if (this.currentMode === 'ar') {
       this.currentMode = 'both';
     } else {
@@ -82,11 +82,11 @@ export class HoloFilter implements HoloFilterInstance {
     return this.currentSession;
   }
 
-  addScanFrame(imageData: ImageData, depth?: Float32Array | Uint16Array): void {
+  addScanFrame(frame: Omit<ScanFrame, 'id' | 'timestamp'>): void {
     if (!this.currentSession) {
       throw new Error('No active scan session. Call startScan() first.');
     }
-    this.scanner.addFrame(imageData, depth);
+    this.scanner.addFrame(frame);
   }
 
   async finishScan(): Promise<ScanResult> {
@@ -95,6 +95,7 @@ export class HoloFilter implements HoloFilterInstance {
     }
 
     const result = await this.scanner.stopCapture();
+    this.lastResult = result;
     this.currentSession = null;
 
     if (this.currentMode === 'both') {
@@ -106,16 +107,8 @@ export class HoloFilter implements HoloFilterInstance {
     return result;
   }
 
-  getPointCloud(): PointCloud | null {
-    return this.scanner.generatePointCloud();
-  }
-
-  getMesh(): ScanMesh | null {
-    return this.scanner.reconstructMesh();
-  }
-
-  exportToHoloScript(options?: { orbName?: string }): string {
-    return this.scanner.exportAsHoloScript(options || {});
+  getLastResult(): ScanResult | null {
+    return this.lastResult;
   }
 
   // ========================================

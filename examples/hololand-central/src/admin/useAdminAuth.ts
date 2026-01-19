@@ -39,11 +39,11 @@ export function useAdminAuth() {
 
     try {
       // Check if MetaMask is installed
-      if (!(window as any).ethereum) {
+      if (!window.ethereum) {
         throw new Error('MetaMask not installed. Please install MetaMask to access admin.');
       }
 
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const provider = new ethers.BrowserProvider(window.ethereum);
 
       // Request account access
       const accounts = await provider.send('eth_requestAccounts', []);
@@ -83,9 +83,9 @@ export function useAdminAuth() {
   // Check for existing connection on mount
   useEffect(() => {
     const checkExistingConnection = async () => {
-      if ((window as any).ethereum) {
+      if (window.ethereum) {
         try {
-          const provider = new ethers.BrowserProvider((window as any).ethereum);
+          const provider = new ethers.BrowserProvider(window.ethereum);
           const accounts = await provider.send('eth_accounts', []);
 
           if (accounts.length > 0) {
@@ -111,7 +111,7 @@ export function useAdminAuth() {
 
   // Listen for account changes
   useEffect(() => {
-    const ethereum = (window as any).ethereum;
+    const ethereum = window.ethereum;
     if (!ethereum) return;
 
     const handleAccountsChanged = (accounts: string[]) => {
@@ -134,10 +134,12 @@ export function useAdminAuth() {
       }
     };
 
-    ethereum.on('accountsChanged', handleAccountsChanged);
+    // Cast to any for 'on' method if definition is strict, or assume global.d.ts handles it
+    // Using simple casting for the event listener signature match
+    (ethereum as any).on('accountsChanged', handleAccountsChanged);
 
     return () => {
-      ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      (ethereum as any).removeListener('accountsChanged', handleAccountsChanged);
     };
   }, []);
 
