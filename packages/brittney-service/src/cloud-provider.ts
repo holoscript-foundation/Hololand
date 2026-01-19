@@ -28,10 +28,12 @@ export class CloudProvider {
           const { OpenAI } = await import('openai');
           this.openai = new OpenAI({
             apiKey: this.config.cloudApiKey,
-            baseURL: this.config.cloudProvider === 'azure' 
-              ? this.config.cloudEndpoint 
-              : undefined,
+            baseURL: this.config.cloudEndpoint || undefined,
           });
+          console.log(`[Brittney] Cloud provider initialized: ${this.config.cloudProvider}`);
+          if (this.config.cloudEndpoint) {
+            console.log(`[Brittney] Using endpoint: ${this.config.cloudEndpoint}`);
+          }
           break;
 
         case 'anthropic':

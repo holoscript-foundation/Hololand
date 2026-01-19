@@ -70,11 +70,17 @@ async function main() {
 async function startService(): Promise<void> {
   console.log('🚀 Starting Brittney service...');
 
-  // Check if model exists
-  if (!isModelDownloaded()) {
-    console.log('⚠️  Model not found. Run `brittney download` first.');
-    console.log('   Or set BRITTNEY_MODEL_PATH to use an existing model.');
+  // Check if model exists - check configured path first, then default
+  const config = await loadConfig();
+  const { existsSync } = await import('fs');
+  const modelExists = existsSync(config.modelPath);
+  
+  if (!modelExists) {
+    console.log('⚠️  Model not found at: ' + config.modelPath);
+    console.log('   Run `brittney download` or set BRITTNEY_MODEL_PATH.');
     console.log('   Starting in mock mode...\n');
+  } else {
+    console.log('📦 Using model: ' + config.modelPath);
   }
 
   // Import and start server (this file runs standalone, not as the server)

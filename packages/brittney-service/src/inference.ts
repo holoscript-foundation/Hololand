@@ -63,13 +63,19 @@ export class BrittneyInference {
       // Dynamic import to handle optional dependency
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
 
+      console.log('[Brittney] Loading model...');
+      console.log('[Brittney] Model path:', this.config.modelPath);
+      
+      // Let node-llama-cpp choose the best settings
       const llama = await getLlama();
+      
       const model = await llama.loadModel({
         modelPath: this.config.modelPath,
       });
 
+      // Use smaller context to reduce memory usage
       const context = await model.createContext({
-        contextSize: this.config.contextSize || 8192,
+        contextSize: Math.min(this.config.contextSize || 4096, 2048),
       });
 
       const session = new LlamaChatSession({
@@ -77,7 +83,7 @@ export class BrittneyInference {
       });
 
       this.llama = { model, context, session };
-      console.log(`[Brittney] Model loaded: ${this.config.modelName}`);
+      console.log(`[Brittney] Model loaded successfully: ${this.config.modelName}`);
     } catch (error: any) {
       console.error('[Brittney] Failed to load model:', error.message);
       console.log('[Brittney] Running in mock mode (no local inference)');
