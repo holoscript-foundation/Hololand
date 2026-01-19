@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo, Suspense, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text, useGLTF, Html, Environment, Sparkles, Stars, ContactShadows } from '@react-three/drei';
-import { EffectComposer, Bloom, Vignette, Noise, ToneMapping } from '@react-three/postprocessing';
+// Post-processing temporarily disabled - uncomment when needed
+// import { EffectComposer, Bloom, Vignette, Noise, ToneMapping } from '@react-three/postprocessing';
 import { HoloScriptCodeParser, HoloScriptRuntime } from '@holoscript/core';
 import { PlayerController } from './PlayerController';
 import { Vector3, Mesh } from 'three';
