@@ -2,7 +2,9 @@
  * Hololand MCP Server
  * Enables AI agents to create and manage VR/AR worlds, execute HoloScript, and collaborate in spatial environments
  *
- * Enhanced with local HoloScript parsing and validation (no API required)
+ * Enhanced with:
+ * - Local HoloScript parsing and validation (no API required)
+ * - Brittney IDE Agent Integration (browser context visibility for coding agents)
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -14,6 +16,9 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import axios, { AxiosInstance } from 'axios';
 import { z } from 'zod';
+
+// Brittney IDE Agent Integration Tools
+import { brittneyTools, handleBrittneyTool } from './brittney-tools.js';
 
 // Import HoloScript code parser for local validation
 // Using dynamic require to work around @holoscript/core ESM resolution issue
@@ -457,6 +462,11 @@ const tools: Tool[] = [
       required: ['worldId'],
     },
   },
+
+  // =====================================================
+  // BRITTNEY IDE AGENT INTEGRATION TOOLS
+  // =====================================================
+  ...brittneyTools,
 ];
 
 /**
@@ -724,7 +734,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      // =====================================================
+      // BRITTNEY IDE AGENT INTEGRATION TOOLS
+      // =====================================================
       default:
+        // Check if it's a Brittney tool
+        if (name.startsWith('brittney_')) {
+          return await handleBrittneyTool(name, args as Record<string, unknown>);
+        }
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error: any) {

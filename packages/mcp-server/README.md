@@ -11,6 +11,52 @@ This MCP server bridges AI agents (like those in uaa2-service) with the Hololand
 - 📊 **Visualize data** in 3D
 - 🤝 **Collaborate** with other agents in VR
 - 🏗️ **Manage worlds** (CRUD operations)
+- 🔍 **Brittney Integration** - Browser context visibility for IDE agents
+
+## Brittney IDE Agent Integration
+
+Brittney helps IDE coding agents (Claude Code, Cursor, Copilot) see what's happening in the running Hololand app. No more "programming with a blindfold on."
+
+### Architecture
+```
+IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ Native Messaging ←→ Browser Extension ←→ Hololand App
+```
+
+### Brittney Tools
+
+| Tool | Purpose |
+|------|---------|
+| `brittney_get_browser_state` | Check connection to running app |
+| `brittney_list_scenes` | List all 3D scenes in app |
+| `brittney_inspect_component` | Get component props/state |
+| `brittney_get_profiler_stats` | FPS, frame time, draw calls |
+| `brittney_get_console_logs` | Runtime logs and errors |
+| `brittney_get_runtime_errors` | All errors with stack traces |
+| `brittney_take_screenshot` | Capture current scene |
+| `brittney_explain_error` | AI explains error with context |
+| `brittney_suggest_fix` | AI suggests code fixes |
+| `brittney_ask_question` | Ask anything about running app |
+| `brittney_analyze_performance` | Performance bottleneck analysis |
+| `brittney_execute_in_browser` | Run JS in browser context |
+| `brittney_reload_scene` | Hot reload scene |
+
+### Example: Debugging with Brittney
+
+```typescript
+// Claude Code workflow
+const browserState = await useMcpTool('hololand', 'brittney_get_browser_state', {});
+// { url: "http://localhost:3000", isHololandApp: true, connectionStatus: "connected" }
+
+const stats = await useMcpTool('hololand', 'brittney_get_profiler_stats', {});
+// { fps: 58, drawCalls: 156, triangles: 245000, status: "⚠ Acceptable" }
+
+const analysis = await useMcpTool('hololand', 'brittney_suggest_fix', {
+  issue: "objects disappearing when I move the camera"
+});
+// Returns AI analysis with specific code fix suggestions
+```
+
+---
 
 ## Tools Provided
 

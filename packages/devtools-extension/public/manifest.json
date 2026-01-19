@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Hololand DevTools - Brittney",
+  "version": "1.0.0",
+  "description": "AI-powered developer tools for Hololand VR/AR applications",
+
+  "devtools_page": "devtools.html",
+
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_start"
+    }
+  ],
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+
+  "host_permissions": ["<all_urls>"],
+
+  "icons": {
+    "16": "icons/brittney-16.png",
+    "48": "icons/brittney-48.png",
+    "128": "icons/brittney-128.png"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["injected-hook.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

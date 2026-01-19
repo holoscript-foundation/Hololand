@@ -101,6 +101,9 @@ export class HoloScriptBridge {
       this.startAutoSync();
     }
 
+    // Register with DevTools extension hook if present
+    this.registerWithDevToolsHook();
+
     logger.info('HoloScriptBridge initialized', { config: this.config });
   }
 
@@ -283,6 +286,56 @@ export class HoloScriptBridge {
    */
   private toVector3(pos: SpatialPosition): Vector3 {
     return { x: pos.x, y: pos.y, z: pos.z };
+  }
+
+  /**
+   * Register with DevTools extension hook if present
+   * This enables the Brittney AI assistant in Chrome DevTools
+   */
+  private registerWithDevToolsHook(): void {
+    // Check if running in browser with DevTools hook
+    if (typeof window === 'undefined') return;
+
+    const hook = (window as { __HOLOLAND_DEVTOOLS_HOOK__?: {
+      registerApp: (app: {
+        name: string;
+        version?: string;
+        world?: unknown;
+        renderer?: unknown;
+      }) => string;
+      profiler: {
+        getStats: (() => unknown) | null;
+        getHistory: (() => unknown[]) | null;
+      };
+    } }).__HOLOLAND_DEVTOOLS_HOOK__;
+
+    if (!hook) {
+      logger.debug('DevTools hook not found (extension not installed)');
+      return;
+    }
+
+    try {
+      // Register this app with the hook
+      const appId = hook.registerApp({
+        name: 'Hololand App',
+        version: '1.0.0',
+        world: this.world,
+      });
+
+      // Connect profiler if @hololand/devtools is available
+      try {
+        const { getProfiler } = require('@hololand/devtools');
+        const profiler = getProfiler();
+        hook.profiler.getStats = () => profiler.getStats();
+        hook.profiler.getHistory = () => profiler.getHistory();
+      } catch {
+        // @hololand/devtools not installed
+      }
+
+      logger.info('Registered with DevTools extension', { appId });
+    } catch (error) {
+      logger.warn('Failed to register with DevTools hook', { error });
+    }
   }
 
   /**
