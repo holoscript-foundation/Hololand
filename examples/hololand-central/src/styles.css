@@ -1,5 +1,31 @@
 /* Hololand Central - Global Styles */
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+canvas {
+  display: block;
+}
+
 :root {
   --primary-color: #667eea;
   --secondary-color: #764ba2;
@@ -31,282 +57,4 @@
   height: 100%;
   pointer-events: none;
   z-index: 100;
-}
-
-/* Top Bar */
-.top-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem 2rem;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
-  pointer-events: auto;
-}
-
-.logo {
-  font-size: 1.5rem;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.logo-icon {
-  font-size: 2rem;
-}
-
-.nav-buttons {
-  display: flex;
-  gap: 1rem;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-}
-
-.btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  border: none;
-}
-
-.btn-primary:hover {
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
-}
-
-.btn-vr {
-  background: linear-gradient(135deg, #f093fb, #f5576c);
-  border: none;
-  font-weight: 600;
-}
-
-/* Bottom Panel */
-.bottom-panel {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 2rem;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
-  pointer-events: auto;
-}
-
-.world-info {
-  max-width: 600px;
-  margin: 0 auto 1.5rem;
-  text-align: center;
-}
-
-.world-title {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.world-description {
-  font-size: 1.1rem;
-  opacity: 0.8;
-  line-height: 1.6;
-}
-
-/* Portal Selection */
-.portal-selection {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.portal-card {
-  flex: 1;
-  min-width: 200px;
-  max-width: 300px;
-  padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid var(--border-color);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-}
-
-.portal-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary-color);
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
-}
-
-.portal-card.active {
-  background: rgba(102, 126, 234, 0.2);
-  border-color: var(--primary-color);
-}
-
-.portal-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.portal-name {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.portal-desc {
-  font-size: 0.9rem;
-  opacity: 0.7;
-  line-height: 1.4;
-}
-
-/* Instructions */
-.instructions {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-.instructions-text {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-}
-
-.controls-list {
-  list-style: none;
-  font-size: 1rem;
-  opacity: 0.6;
-}
-
-.controls-list li {
-  margin-bottom: 0.5rem;
-}
-
-/* Stats */
-.stats {
-  position: absolute;
-  top: 6rem;
-  right: 2rem;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  min-width: 200px;
-  pointer-events: auto;
-  backdrop-filter: blur(10px);
-}
-
-.stats-title {
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  opacity: 0.8;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
-  opacity: 0.7;
-}
-
-.stat-label {
-  margin-right: 1rem;
-}
-
-.stat-value {
-  font-weight: 500;
-  color: var(--primary-color);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .top-bar {
-    padding: 1rem;
-  }
-
-  .logo {
-    font-size: 1.2rem;
-  }
-
-  .btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-  }
-
-  .world-title {
-    font-size: 1.5rem;
-  }
-
-  .world-description {
-    font-size: 1rem;
-  }
-
-  .portal-card {
-    min-width: 150px;
-  }
-
-  .stats {
-    top: auto;
-    bottom: 2rem;
-    right: 1rem;
-    font-size: 0.8rem;
-    min-width: 150px;
-  }
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.fade-in {
-  animation: fadeIn 0.5s ease;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.pulse {
-  animation: pulse 2s ease infinite;
 }

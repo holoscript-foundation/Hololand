@@ -1,24 +1,111 @@
 
 building ArcadeDistrict {
-  style: "retro-cyberpunk"
-  position: [50, 0, 0]
+  type: "district"
+  style: "retro-modern-solarpunk"
+  position: [60, 0, 0]
 }
 
+orb SpawnPoint_Arcade {
+  shape: "orb"
+  type: "spawn"
+  position: [65, 2, 0]
+  color: "#9b59b6"
+  size: 0.5
+}
+
+// The Iconic Green Machine Arcade
 building GreenMachineArcade {
-  position: [50, 0, 0]
-  color: "#00ff00"
+  position: [80, 0, 10]
+  color: "#39ff14" // Neon Green
+  style: "deco-industrial"
+  traits: ["dynamic-lighting", "noise-maker"]
+  properties: {
+    "neonIntensity": 1.5,
+    "hasArcadeGames": true
+  }
 }
 
+// Brian's Gym - Solarpunk integration
 orb BriansGym {
-  shape: "cube"
-  position: [60, 0, 30]
-  size: 10
-  color: "#ff4444"
+  shape: "bio-dome"
+  position: [100, 0, 40]
+  size: 15
+  color: "rgba(46, 204, 113, 0.4)"
+  traits: ["transparent", "fitness_club"]
 }
 
-orb ShopRow01 {
-  shape: "cube"
-  position: [50, 0, -30]
-  size: 5
-  color: "white"
+// Brian - The AI Curator
+orb NPC_Brian {
+  shape: "brian_boxing"
+  position: [90, 0, 30]
+  color: "#3498db"
+  text: "BRIAN! (TRAINER)"
+  interactive: true
+  traits: ["talkable", "rotate-slow"]
+  properties: {
+    "role": "Curator",
+    "dialogue": "UNNGH! BRIAN SMASH DATA BITS! YOU HELP BRIAN? FIND BITS! BRIAN FLEX FOR YOU!"
+  }
+}
+
+// Modular User Shops (Art Deco facades)
+orb ShopRowA_01 {
+  shape: "shop_front"
+  position: [60, 0, -20]
+  color: "#f39c12" // Orange Art Deco
+  text: "Avatar Skins"
+  interactive: true
+  traits: ["hoverable", "teleport_destination"]
+}
+
+orb ShopRowA_02 {
+  shape: "shop_front"
+  position: [60, 0, -40]
+  color: "#9b59b6" // Purple Art Deco
+  text: "Trait Shop"
+  interactive: true
+}
+
+orb ShopRowA_03 {
+  shape: "shop_front"
+  position: [60, 0, -60]
+  color: "#3498db" // Blue Art Deco
+  text: "Asset Forge"
+  interactive: true
+}
+
+// Street Lighting (Solarpunk Flower Lamps)
+plant FlowerLamp01 {
+  type: "lamp_post"
+  position: [70, 0, -10]
+  color: "#ffff00"
+  traits: ["glow", "light-source"]
+}
+
+// Collectible Data Bits (For Brian's Quest)
+orb DataBit_01 {
+  shape: "orb"
+  position: [85, 1, 15]
+  size: 0.3
+  color: "#4cc9f0"
+  interactive: true
+  traits: ["collectible", "pulse"]
+}
+
+orb DataBit_02 {
+  shape: "orb"
+  position: [75, 1, -5]
+  size: 0.3
+  color: "#4cc9f0"
+  interactive: true
+  traits: ["collectible", "pulse"]
+}
+
+orb DataBit_03 {
+  shape: "orb"
+  position: [95, 1, 45]
+  size: 0.3
+  color: "#4cc9f0"
+  interactive: true
+  traits: ["collectible", "pulse"]
 }

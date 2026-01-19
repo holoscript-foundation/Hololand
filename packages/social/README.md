@@ -1,6 +1,8 @@
 # @hololand/social
 
-> Avatars & Presence Tracking for Hololand Metaverse
+**Friends, avatars, and "who's online" for VR worlds.**
+
+See other players, track their positions, and make VR feel social.
 
 ## Installation
 
@@ -8,7 +10,7 @@
 npm install @hololand/social
 ```
 
-## Features
+## What It Does
 
 - **Avatar Management** - Create and customize user avatars
 - **Presence Tracking** - Real-time online/offline status

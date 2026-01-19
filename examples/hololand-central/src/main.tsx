@@ -1,8 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import App from './App';
+import { LandingPage } from './pages/LandingPage';
+import { OasisPage } from './pages/OasisPage';
+import { CentralPage } from './pages/CentralPage';
 import { VerifyEmailCallback } from './pages/VerifyEmailCallback';
+import './styles.css';
 
 console.log('main.tsx loading...');
 
@@ -11,6 +14,15 @@ try {
     <React.StrictMode>
       <BrowserRouter>
         <Routes>
+          {/* Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+          
+          {/* Oasis - Planet View */}
+          <Route path="/oasis" element={<OasisPage />} />
+          
+          {/* Central - Buildings Hub */}
+          <Route path="/central" element={<CentralPage />} />
+          
           {/* Email verification callback */}
           <Route path="/verify-email" element={<VerifyEmailCallback />} />
           
@@ -21,9 +33,6 @@ try {
               <script type="module" src="/legends/index.js"></script>
             </div>
           } />
-          
-          {/* Main Oasis app */}
-          <Route path="/*" element={<App />} />
         </Routes>
       </BrowserRouter>
     </React.StrictMode>

@@ -1,8 +1,10 @@
 # @hololand/animation
 
-Skeletal animation system for Hololand - keyframes, blend trees, IK, and procedural animation.
+**Make things move in VR - characters, objects, anything.**
 
-## Features
+Think of animation clips, smooth transitions, and natural-looking movement.
+
+## What It Does
 
 - **Skeletal Animation**: Full bone hierarchy support with inverse kinematics
 - **Keyframe System**: Timeline-based keyframe animation with easing

@@ -1,362 +1,175 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-// @ts-ignore - XR types might be mismatched
-import { XR, createXRStore } from '@react-three/xr';
-import { ThemedMainPlaza } from './worlds/ThemedMainPlaza';
-import { DemoShop } from './worlds/DemoShop';
-import { SocialLounge } from './worlds/SocialLounge';
-import { PhysicsPlayground } from './worlds/PhysicsPlayground';
-import { InfinityShop } from './worlds/InfinityShop';
-import { HololandCasino } from './worlds/HololandCasino';
-import { BuilderShop } from './worlds/BuilderShop';
-import { AdminPanel } from './admin/AdminPanel';
-import { THEMES } from './themes/themes';
-import { MenuOverlay } from './ui/MenuOverlay';
-import { getMenuById } from './ui/menus';
-import { MobileControls } from './components/MobileControls';
-// import { XRTeleport } from './components/XRTeleport'; // Unused and erroring
-import { PerformanceMonitor } from './components/PerformanceMonitor';
-import { HoloScriptRenderer } from './components/HoloScriptRenderer';
+import { OrbitControls, Stars } from '@react-three/drei';
+import { OasisPlanet } from './components/OasisPlanet';
 import './styles.css';
 
-const store = createXRStore();
-
-type WorldType = 'plaza' | 'shop' | 'social' | 'physics' | 'gallery' | 'infinity-shop' | 'casino' | 'builder-shop' | 'holoscript-central';
-
-interface WorldInfo {
-  title: string;
-  description: string;
-  icon: string;
-}
-
-const WORLD_INFO: Record<WorldType, WorldInfo> = {
-  plaza: {
-    title: 'Main Plaza',
-    description: 'The central hub of Hololand. Choose a portal to explore different worlds.',
-    icon: '🌐',
-  },
-  shop: {
-    title: 'Demo Coffee Shop',
-    description: 'Experience a fully-realized VR shop. Perfect example for businesses.',
-    icon: '☕',
-  },
-  social: {
-    title: 'Social Lounge',
-    description: 'Elegant meeting space for virtual gatherings and social experiences.',
-    icon: '👥',
-  },
-  physics: {
-    title: 'Physics Playground',
-    description: 'Interactive demo showcasing real-time physics simulation. Click the buttons!',
-    icon: '🎮',
-  },
-  gallery: {
-    title: 'Art Gallery (Coming Soon)',
-    description: 'Community art gallery featuring 3D artwork and NFT displays.',
-    icon: '🎨',
-  },
-  'infinity-shop': {
-    title: 'Infinity Shop (Coming Soon)',
-    description: 'Meet Brittney, your AI assistant. Build VR worlds without code.',
-    icon: '✨',
-  },
-  'casino': {
-    title: 'Hololand Casino',
-    description: 'Arcade games, VIP lounge, tournaments, and cosmetic prizes. Vegas in VR!',
-    icon: '🎰',
-  },
-  'builder-shop': {
-    title: 'Builder Shop',
-    description: 'Browse assets, templates, and creator portfolios. Your one-stop VR marketplace.',
-    icon: '🏗️',
-  },
-  'holoscript-central': {
-    title: 'HoloScript Central',
-    description: 'The new Solarpunk core generated from code.',
-    icon: '🏛️',
-  },
-};
-
 function App() {
-  const [currentWorld, setCurrentWorld] = useState<WorldType>('plaza');
-  const [currentTheme, setCurrentTheme] = useState<string>('cyberpunk');
-  const [isVRSupported, setIsVRSupported] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(true);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [currentView, setCurrentView] = useState<'oasis' | 'central'>('oasis');
+  const [showMenu, setShowMenu] = useState(true);
 
   useEffect(() => {
-    console.log('App mounted - Hololand Central');
-    
-    // Check for WebXR support
-    if ('xr' in navigator) {
-      navigator.xr?.isSessionSupported('immersive-vr').then((supported: boolean) => {
-        setIsVRSupported(supported);
-      });
-    }
-
-    // Hide loading screen
     const loading = document.getElementById('loading');
-    console.log('Loading element:', loading);
     if (loading) {
       setTimeout(() => {
-        console.log('Hiding loading screen');
         loading.classList.add('hidden');
       }, 1000);
     }
-
-    // Hide instructions after 5 seconds
-    setTimeout(() => {
-      setShowInstructions(false);
-    }, 5000);
   }, []);
 
-  const handlePortalClick = (worldName: string) => {
-    setCurrentWorld(worldName as WorldType);
-    setShowInstructions(false);
+  const handleEnterCentral = () => {
+    setCurrentView('central');
   };
 
-  const handleBackToPlaza = () => {
-    setCurrentWorld('plaza');
+  const handleBackToOasis = () => {
+    setCurrentView('oasis');
   };
 
-  const handleAdminAccess = () => {
-    console.log('🔐 Admin access triggered from Infinity Shop');
-    setShowAdminPanel(true);
-  };
-
-  const handleAdminClose = () => {
-    setShowAdminPanel(false);
-  };
-
-  const handleAdminThemeChange = (themeName: string) => {
-    setCurrentTheme(themeName);
-    setCurrentWorld('plaza'); // Switch to plaza to see the theme change
-  };
-
-  const renderWorld = () => {
-    switch (currentWorld) {
-      case 'plaza':
-        return (
-          <ThemedMainPlaza
-            onPortalClick={handlePortalClick}
-            currentTheme={currentTheme}
-            onThemeChange={setCurrentTheme}
+  // Oasis View - The Planet
+  if (currentView === 'oasis') {
+    return (
+      <div className="fixed inset-0 bg-black">
+        <Canvas 
+          camera={{ position: [0, 0, 15], fov: 50 }}
+          className="w-full h-full"
+        >
+          <ambientLight intensity={0.3} />
+          <pointLight position={[20, 20, 20]} intensity={2} color="#ffffff" />
+          <pointLight position={[-20, -20, -20]} intensity={0.5} color="#3b82f6" />
+          
+          <Stars radius={100} depth={50} count={10000} factor={4} saturation={0} fade speed={1} />
+          
+          <OasisPlanet onClick={handleEnterCentral} />
+          
+          <OrbitControls 
+            enablePan={false}
+            enableZoom={true}
+            minDistance={8}
+            maxDistance={30}
+            autoRotate
+            autoRotateSpeed={0.3}
           />
-        );
-      case 'shop':
-        return <DemoShop />;
-      case 'social':
-        return <SocialLounge />;
-      case 'physics':
-        return <PhysicsPlayground />;
-      case 'gallery':
-        return (
-          <ThemedMainPlaza
-            onPortalClick={handlePortalClick}
-            currentTheme={currentTheme}
-            onThemeChange={setCurrentTheme}
-          />
-        );
-      case 'infinity-shop':
-        return <InfinityShop onAdminAccess={handleAdminAccess} />;
-      case 'casino':
-        return <HololandCasino />;
-      case 'builder-shop':
-        return <BuilderShop />;
-      case 'holoscript-central':
-        return (
-          <HoloScriptRenderer scriptContent={`
-            building CentralPlaza {
-              type: "plaza"
-              style: "solarpunk"
-            }
-            
-            orb FountainOfBits {
-              shape: "fountain"
-              position: [0, 0, 0]
-              size: 2
-              color: "#4cc9f0"
-            }
+        </Canvas>
 
-            orb WelcomeLight {
-               shape: "sphere"
-               position: [0, 5, 0]
-               color: "white"
-               glow: true
-            }
-          `} />
-        );
-      default:
-        return (
-          <ThemedMainPlaza
-            onPortalClick={handlePortalClick}
-            currentTheme={currentTheme}
-            onThemeChange={setCurrentTheme}
-          />
-        );
-    }
-  };
-
-  const worldInfo = currentWorld === 'holoscript-central' ? {
-      title: 'HoloScript Central',
-      description: 'The new Solarpunk core generated from code.',
-      icon: '🏛️'
-  } : WORLD_INFO[currentWorld];
-
-  return (
-    <div className="app">
-      {/* UI Overlay */}
-      <div className="ui-overlay">
-        {/* Top Bar */}
-        <div className="top-bar fade-in">
-          <div className="logo">
-            <span className="logo-icon">🌐</span>
-            HOLOLAND CENTRAL
-          </div>
-          <div className="nav-buttons">
-            {currentWorld !== 'plaza' && (
-              <button className="btn" onClick={handleBackToPlaza}>
-                ← Back to Plaza
+        {showMenu && (
+          <div className="absolute top-8 left-1/2 transform -translate-x-1/2 pointer-events-auto z-10">
+            <div className="bg-black/60 backdrop-blur-md border border-cyan-500/30 rounded-2xl p-8 text-center">
+              <h1 className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 mb-3">
+                Hololand
+              </h1>
+              <p className="text-xl text-slate-300 mb-6">A Living World in the Metaverse</p>
+              
+              <button
+                onClick={handleEnterCentral}
+                className="px-10 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold rounded-xl text-xl hover:scale-105 transition-transform shadow-2xl shadow-cyan-500/50"
+              >
+                Enter Hololand Central
               </button>
-            )}
-            <button className="btn">About</button>
-            {isVRSupported && (
-              <button className="btn vr-btn">🥽 Enter VR</button>
-            )}
-          </div>
-        </div>
-
-        {/* World Info */}
-        <div className="bottom-panel fade-in">
-          <div className="world-info">
-            <h1 className="world-title">
-              {worldInfo.icon} {worldInfo.title}
-            </h1>
-            <p className="world-description">{worldInfo.description}</p>
-          </div>
-
-          {/* Portal selection (only show in plaza) */}
-          {currentWorld === 'plaza' && (
-            <div className="portal-selection">
-              {(['shop', 'social', 'physics', 'casino', 'builder-shop', 'gallery', 'infinity-shop', 'holoscript-central'] as WorldType[]).map((world) => (
-                <div
-                  key={world}
-                  className={`portal-card ${currentWorld === world ? 'active' : ''}`}
-                  onClick={() => handlePortalClick(world)}
-                >
-                  <div className="portal-icon">{WORLD_INFO[world].icon}</div>
-                  <div className="portal-name">{WORLD_INFO[world].title}</div>
-                  <div className="portal-desc">{WORLD_INFO[world].description}</div>
-                </div>
-              ))}
+              
+              <p className="text-sm text-slate-400 mt-4">
+                Downtown hub with buildings, shops, and experiences
+              </p>
             </div>
-          )}
-        </div>
-
-        {/* Instructions (fade out after 5s) */}
-        {showInstructions && (
-          <div className="instructions fade-in">
-            <div className="instructions-text">Controls:</div>
-            <ul className="controls-list">
-              <li>🖱️ Left click + drag to rotate view</li>
-              <li>🖱️ Right click + drag to pan</li>
-              <li>🖱️ Scroll to zoom in/out</li>
-              <li>🎯 Click portals to travel between worlds</li>
-              {currentWorld === 'plaza' && (
-                <li>🎨 Click floating cube to change theme</li>
-              )}
-            </ul>
           </div>
         )}
 
-        {/* Stats */}
-        <div className="stats fade-in">
-          <div className="stats-title">SYSTEM INFO</div>
-          <div className="stat-item">
-            <span className="stat-label">World:</span>
-            <span className="stat-value">{worldInfo.title}</span>
-          </div>
-          {currentWorld === 'plaza' && (
-            <div className="stat-item">
-              <span className="stat-label">Theme:</span>
-              <span className="stat-value">
-                {THEMES[currentTheme]?.displayName || 'Cyberpunk'} {THEMES[currentTheme]?.icon}
-              </span>
-            </div>
-          )}
-          <div className="stat-item">
-            <span className="stat-label">VR Mode:</span>
-            <span className="stat-value">{isVRSupported ? 'Available' : 'Not Available'}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Status:</span>
-            <span className="stat-value">Online</span>
-          </div>
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          className="absolute top-4 right-4 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
+        >
+          {showMenu ? 'Hide' : 'Show'} Menu
+        </button>
+
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-center pointer-events-none">
+          <p className="text-slate-400 text-sm">
+            🌍 Click planet to enter • Scroll to zoom • Drag to rotate
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Central View - The City
+  return (
+    <div className="w-full h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative">
+      <div className="container mx-auto px-4 py-20">
+        <h1 className="text-6xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400 mb-4">
+          Hololand Central
+        </h1>
+        <p className="text-xl text-slate-300 text-center mb-12">
+          Downtown Hub • Explore Buildings & Experiences
+        </p>
+
+        {/* Buildings Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <BuildingCard
+            name="Casino"
+            icon="🎰"
+            description="Try your luck at the Hololand Casino"
+            color="purple"
+          />
+          <BuildingCard
+            name="Coffee Shop"
+            icon="☕"
+            description="Relax at the virtual coffee shop"
+            color="yellow"
+          />
+          <BuildingCard
+            name="Social Lounge"
+            icon="👥"
+            description="Meet and connect with others"
+            color="pink"
+          />
+          <BuildingCard
+            name="Builder Shop"
+            icon="🛠️"
+            description="Create and customize your worlds"
+            color="green"
+          />
+          <BuildingCard
+            name="Arcade District"
+            icon="🎮"
+            description="Classic and modern games"
+            color="cyan"
+          />
+          <BuildingCard
+            name="Main Plaza"
+            icon="🏛️"
+            description="Central gathering place"
+            color="blue"
+          />
         </div>
 
-        {/* Holoscript Menu Overlay (plaza only) */}
-        {currentWorld === 'plaza' && (() => {
-          const menu = getMenuById('plaza_orientation');
-          return menu ? <MenuOverlay menu={menu} themeName={currentTheme} /> : null;
-        })()}
+        {/* Back Button */}
+        <div className="text-center mt-12">
+          <button
+            onClick={handleBackToOasis}
+            className="px-8 py-3 bg-white/10 backdrop-blur-sm text-white rounded-xl border border-white/20 hover:bg-white/20 transition-colors"
+          >
+            ← Back to Oasis
+          </button>
+        </div>
       </div>
-
-      {/* Admin Panel (hidden by default, shown via secret access) */}
-      {showAdminPanel && (
-        <AdminPanel
-          currentTheme={currentTheme}
-          onThemeChange={handleAdminThemeChange}
-          onClose={handleAdminClose}
-        />
-      )}
-
-      {/* Mobile Controls */}
-      <MobileControls
-        onMove={(x, y) => {
-          // Movement handled by OrbitControls or custom camera
-          console.log('Mobile move:', x, y);
-        }}
-        onInteract={() => {
-          // Trigger interaction
-          console.log('Mobile interact');
-        }}
-        onMenu={() => {
-          // Toggle menu
-          console.log('Mobile menu');
-        }}
-      />
-
-      {/* 3D Canvas with XR Support */}
-      <Canvas
-        className="canvas-container"
-        shadows
-        gl={{ antialias: true, alpha: false }}
-      >
-        <XR store={store}>
-          {/* Camera */}
-          <PerspectiveCamera makeDefault position={[0, 1.6, 10]} fov={75} />
-
-          {/* Desktop controls */}
-          <OrbitControls
-            enableDamping
-            dampingFactor={0.05}
-            minDistance={2}
-            maxDistance={50}
-            maxPolarAngle={Math.PI / 2}
-            target={[0, 0, 0]}
-          />
-
-
-
-          {/* Performance monitoring */}
-          <PerformanceMonitor autoAdjust={true} />
-
-          {/* Render current world */}
-          {renderWorld()}
-        </XR>
-      </Canvas>
     </div>
+  );
+}
+
+function BuildingCard({ name, icon, description, color }: { name: string; icon: string; description: string; color: string }) {
+  const colorClasses: Record<string, string> = {
+    purple: 'border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10',
+    yellow: 'border-yellow-500/30 hover:border-yellow-500/50 hover:bg-yellow-500/10',
+    pink: 'border-pink-500/30 hover:border-pink-500/50 hover:bg-pink-500/10',
+    green: 'border-green-500/30 hover:border-green-500/50 hover:bg-green-500/10',
+    cyan: 'border-cyan-500/30 hover:border-cyan-500/50 hover:bg-cyan-500/10',
+    blue: 'border-blue-500/30 hover:border-blue-500/50 hover:bg-blue-500/10',
+  };
+
+  return (
+    <button className={`p-6 bg-white/5 backdrop-blur-sm rounded-xl border ${colorClasses[color]} transition-all hover:scale-105 text-left`}>
+      <div className="text-4xl mb-3">{icon}</div>
+      <h3 className="text-xl font-semibold text-white mb-2">{name}</h3>
+      <p className="text-sm text-slate-400">{description}</p>
+    </button>
   );
 }
 

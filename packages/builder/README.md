@@ -1,8 +1,10 @@
 # @hololand/builder
 
-Visual building tools for the Hololand metaverse.
+**Drag-and-drop VR world creation - no coding required.**
 
-## Features
+Like Minecraft creative mode, but for professional VR experiences.
+
+## What It Does
 
 - **No-Code World Builder**: Drag-and-drop interface for creating VR worlds
 - **Template Library**: Pre-built environments and objects

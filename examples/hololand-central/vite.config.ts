@@ -7,6 +7,9 @@ export default defineConfig({
   optimizeDeps: {
     include: ['three'],
   },
+  resolve: {
+    dedupe: ['three', '@react-three/fiber', '@react-three/drei', '@react-three/xr'],
+  },
   server: {
     port: 3000,
     open: true,

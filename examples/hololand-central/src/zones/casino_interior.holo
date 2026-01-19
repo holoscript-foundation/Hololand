@@ -1,0 +1,122 @@
+// Casino Interior - High Stakes & Mini-Games
+// Part of the Hololand Central expansion
+
+composition "casino_interior" {
+  
+  environment {
+    theme: "art_deco_luxury"
+    time_of_day: "night"
+    ambient_audio: "jazz_casino_ambience"
+    
+    lighting {
+      fog_density: 0.02
+      fog_color: "#1a1a2e"
+      sunlight_intensity: 0.2
+      sunlight_color: "#ffd700"
+    }
+  }
+
+  // --- Entities ---
+
+  // Grand Entrance
+  orb CasinoFloor {
+    shape: "hologram_panel"
+    position: [0, -0.05, 0]
+    scale: [50, 1, 50]
+    color: "#2c3e50"
+    properties: {
+      "texture": "marble_gold_inlay"
+    }
+  }
+
+  // Tuxedo Brian - The High Roller
+  orb NPC_Brian_Tux {
+    shape: "brian_flexing" // Using flexing model as a base for grandeur
+    position: [5, 0, -10]
+    color: "#ffffff"
+    text: "BRIAN (DAPPER)"
+    interactive: true
+    traits: ["talkable", "rotate-slow", "glow"]
+    properties: {
+      "role": "High Roller",
+      "dialogue": "UNNGH! BRIAN LOOK SHARP! BRIAN LOSE ALL CREDITS ON SLOTS! YOU HAVE LUCK? PLAY PINBALL! BRIAN SMASH BALL!"
+    }
+  }
+
+  // Brian Smash Pinball Machine
+  group PinballMachine {
+    position: [-10, 0, -5]
+    rotation: [0, 15, 0]
+
+    // The Table
+    orb TableBase {
+      shape: "cube"
+      position: [0, 1, 0]
+      scale: [3, 0.5, 5]
+      color: "#16a085"
+    }
+
+    // Brian laying on the table
+    orb Brian_Laying {
+      shape: "brian_situps" // Situps model looks like he's on the table
+      position: [0, 1.3, 0]
+      scale: [1.2, 1.2, 1.2]
+      rotation: [0, 180, 0]
+      properties: {
+        "isStatic": true
+      }
+    }
+
+    // Left Arm Flipper
+    orb Flipper_Left {
+      shape: "cube"
+      position: [-0.6, 1.3, 1.8]
+      scale: [0.8, 0.2, 0.2]
+      color: "#e74c3c"
+      traits: ["pinball-flipper-left"]
+    }
+
+    // Right Arm Flipper
+    orb Flipper_Right {
+      shape: "cube"
+      position: [0.6, 1.3, 1.8]
+      scale: [0.8, 0.2, 0.2]
+      color: "#e74c3c"
+      traits: ["pinball-flipper-right"]
+    }
+
+    // The Ball
+    orb Pinball {
+      shape: "orb"
+      position: [0, 1.6, -2]
+      size: 0.15
+      color: "#f1c40f"
+      traits: ["pinball-ball", "glow"]
+    }
+
+    // Bumpers
+    @for i in range(0, 3) {
+      orb Bumper_${i} {
+        shape: "torus"
+        position: [Math.sin(i) * 1, 1.4, -1]
+        scale: [0.4, 0.1, 0.4]
+        color: "#9b59b6"
+        traits: ["pinball-bumper", "pulse"]
+      }
+    }
+  }
+
+  // Zone Exit Portal (Back to Plaza)
+  orb ExitPortal {
+    shape: "torus"
+    position: [0, 0, 20]
+    scale: [4, 4, 1]
+    color: "#e74c3c"
+    interactive: true
+    traits: ["portal-gate", "pulse"]
+    properties: {
+      "destination": "plaza",
+      "text": "EXIT TO PLAZA"
+    }
+  }
+}

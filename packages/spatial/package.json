@@ -1,0 +1,63 @@
+{
+  "name": "@hololand/spatial",
+  "version": "0.1.0",
+  "description": "Spatial visualization and mental world models for Hololand",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./glb": {
+      "import": "./dist/glb/index.js",
+      "types": "./dist/glb/index.d.ts"
+    },
+    "./mental": {
+      "import": "./dist/mental/index.js",
+      "types": "./dist/mental/index.d.ts"
+    },
+    "./embedding": {
+      "import": "./dist/embedding/index.js",
+      "types": "./dist/embedding/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hololand/core": "workspace:*",
+    "@hololand/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  },
+  "keywords": [
+    "hololand",
+    "spatial",
+    "3d",
+    "glb",
+    "gltf",
+    "mental-model",
+    "visualization"
+  ],
+  "author": "Hololand Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/spatial"
+  }
+}
