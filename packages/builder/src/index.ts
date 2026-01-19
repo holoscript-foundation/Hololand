@@ -2,15 +2,6 @@ export { TemplateLibrary } from './TemplateLibrary';
 export { setHololandBuilderLogger, type HololandBuilderLogger } from './logger';
 export type { Template, TemplateCategory } from './types';
 
-// HoloScript Integration
-export {
-  HoloScriptExporter,
-  exportToHoloScript,
-  exportVisualScriptToHoloScript,
-  type ExportOptions,
-  type ExportResult,
-} from './HoloScriptExporter';
-
 // Visual Editor
 export {
   VisualEditor,

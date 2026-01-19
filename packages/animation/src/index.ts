@@ -735,13 +735,3 @@ export function createAnimationSystem(): AnimationSystem {
 export function createIKSolver(): FABRIKSolver {
   return new FABRIKSolver();
 }
-
-// HoloScript Animation Integration
-export {
-  HoloScriptAnimationBridge,
-  createAnimationBridge,
-  type AnimationBridgeConfig,
-  type AnimationRequest,
-  type EasingType,
-  type SpringConfig,
-} from './HoloScriptAnimationBridge';

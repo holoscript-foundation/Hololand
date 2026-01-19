@@ -20,14 +20,6 @@ export { SpatialIndex } from './SpatialIndex';
 // Event system
 export { EventBus, type WorldEvent } from './EventBus';
 
-// HoloScript Integration
-export {
-  HoloScriptWorldIntegration,
-  createHoloScriptIntegration,
-  type HoloScriptWorldConfig,
-  type ExecutionStats,
-} from './HoloScriptWorldIntegration';
-
 // Logger
 export { setHololandWorldLogger, resetLogger, type HololandWorldLogger } from './logger';
 
