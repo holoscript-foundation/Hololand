@@ -21,6 +21,25 @@ import type {
   AssetReference,
 } from './VisualEditor';
 
+// Import the production HoloScript parser from @holoscript/core
+import {
+  parse as coreParseHoloScript,
+  HoloScriptParser,
+  type ParseResult as CoreParseResult,
+  type Program,
+  type WorldDeclaration,
+  type OrbDeclaration,
+  type OrbProperty,
+  type Expression,
+  type ArrayLiteral,
+  type ObjectLiteral,
+  type NumberLiteral,
+  type StringLiteral,
+  type BooleanLiteral,
+  type Vec3Literal,
+  type Identifier,
+} from '@holoscript/core';
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -522,7 +541,7 @@ function nodeToHoloScriptAction(node: VisualScriptNode): string | null {
 // =============================================================================
 
 /**
- * Import a HoloScript (.holo) file into a Scene
+ * Import a HoloScript (.holo) file into a Scene using the production @holoscript/core parser
  *
  * @example
  * ```typescript
@@ -545,21 +564,57 @@ export function importFromHoloScript(
   const warnings: string[] = [];
 
   try {
-    // Parse the HoloScript source
-    const ast = parseHoloScript(source);
+    // Use the production @holoscript/core parser
+    const coreResult = coreParseHoloScript(source);
+
+    if (!coreResult.success) {
+      // Convert core parser errors to our format
+      for (const err of coreResult.errors) {
+        errors.push({
+          line: err.line || 0,
+          column: err.column || 0,
+          message: err.message,
+          severity: 'error',
+        });
+      }
+      return { success: false, errors, warnings };
+    }
+
+    // Convert warnings
+    for (const warn of coreResult.warnings) {
+      warnings.push(`Line ${warn.line || '?'}: ${warn.message}`);
+    }
+
+    // Convert the parsed Program AST to our internal AST format
+    const ast = programToInternalAST(coreResult.program!);
 
     if (!ast.composition) {
+      // Try fallback simplified parser for older .holo format
+      const fallbackAst = parseHoloScriptSimplified(source);
+      if (fallbackAst.composition) {
+        const scene = internalAstToScene(fallbackAst, idPrefix);
+        if (validate) {
+          errors.push(...validateScene(scene));
+        }
+        return {
+          success: errors.filter(e => e.severity === 'error').length === 0,
+          scene,
+          errors,
+          warnings: [...warnings, 'Used fallback parser for legacy .holo format'],
+        };
+      }
+
       errors.push({
         line: 1,
         column: 1,
-        message: 'No composition block found',
+        message: 'No world/composition block found in HoloScript source',
         severity: 'error',
       });
       return { success: false, errors, warnings };
     }
 
     // Create scene from AST
-    const scene = astToScene(ast, idPrefix);
+    const scene = internalAstToScene(ast, idPrefix);
 
     // Validate if requested
     if (validate) {
@@ -585,7 +640,179 @@ export function importFromHoloScript(
 }
 
 // =============================================================================
-// PARSER (Simplified)
+// PRODUCTION PARSER - @holoscript/core AST CONVERSION
+// =============================================================================
+
+/**
+ * Convert @holoscript/core Program AST to our internal AST format
+ */
+function programToInternalAST(program: Program): HoloScriptAST {
+  const ast: HoloScriptAST = {};
+
+  // Find WorldDeclaration nodes (HoloScript worlds map to compositions)
+  for (const node of program.body) {
+    if (node.type === 'WorldDeclaration') {
+      const world = node as WorldDeclaration;
+      ast.composition = {
+        name: world.name,
+        nodes: [],
+        meta: {},
+        settings: extractWorldSettings(world.properties),
+      };
+
+      // Convert child orbs to nodes
+      for (const child of world.children) {
+        if (child.type === 'OrbDeclaration') {
+          ast.composition.nodes.push(orbToASTNode(child as OrbDeclaration));
+        }
+      }
+    }
+  }
+
+  return ast;
+}
+
+/**
+ * Extract world settings from OrbProperty array
+ */
+function extractWorldSettings(properties: OrbProperty[]): Record<string, unknown> {
+  const settings: Record<string, unknown> = {};
+
+  for (const prop of properties) {
+    const value = expressionToValue(prop.value);
+
+    switch (prop.name) {
+      case 'light':
+      case 'ambient':
+        settings.ambient_light = { color: '#404040', intensity: 0.5 };
+        break;
+      case 'background':
+        settings.skybox = value;
+        break;
+      case 'gravity':
+        settings.physics = { enabled: true, gravity: value };
+        break;
+      default:
+        settings[prop.name] = value;
+    }
+  }
+
+  return settings;
+}
+
+/**
+ * Convert OrbDeclaration to internal AST node
+ */
+function orbToASTNode(orb: OrbDeclaration): HoloScriptASTNode {
+  const properties: Record<string, unknown> = {};
+  let nodeType = 'object';
+
+  for (const prop of orb.properties) {
+    const value = expressionToValue(prop.value);
+
+    switch (prop.name) {
+      case 'geometry':
+        properties.mesh = value;
+        if (value === 'light' || value === 'spotlight' || value === 'pointlight') {
+          nodeType = 'light';
+        }
+        break;
+      case 'position':
+        properties.position = value;
+        break;
+      case 'rotation':
+        properties.rotation = value;
+        break;
+      case 'scale':
+        properties.scale = typeof value === 'number' ? [value, value, value] : value;
+        break;
+      case 'color':
+        properties.color = value;
+        break;
+      case 'traits':
+        properties.traits = value;
+        break;
+      default:
+        properties[prop.name] = value;
+    }
+  }
+
+  // Convert child orbs
+  const children: HoloScriptASTNode[] = [];
+  if (orb.children) {
+    for (const child of orb.children) {
+      children.push(orbToASTNode(child));
+    }
+  }
+
+  // Determine node type from properties
+  if (properties.mesh === 'camera' || orb.name.toLowerCase().includes('camera')) {
+    nodeType = 'camera';
+  } else if (properties.mesh === 'audio' || orb.name.toLowerCase().includes('audio')) {
+    nodeType = 'audio';
+  } else if (children.length > 0) {
+    nodeType = 'spatial_group';
+  }
+
+  return {
+    type: nodeType,
+    name: orb.name,
+    properties,
+    children,
+  };
+}
+
+/**
+ * Convert AST Expression to JavaScript value
+ */
+function expressionToValue(expr: Expression): unknown {
+  switch (expr.type) {
+    case 'NumberLiteral':
+      return (expr as NumberLiteral).value;
+
+    case 'StringLiteral':
+      return (expr as StringLiteral).value;
+
+    case 'BooleanLiteral':
+      return (expr as BooleanLiteral).value;
+
+    case 'NullLiteral':
+      return null;
+
+    case 'ArrayLiteral':
+      return (expr as ArrayLiteral).elements.map(expressionToValue);
+
+    case 'ObjectLiteral':
+      const obj: Record<string, unknown> = {};
+      for (const prop of (expr as ObjectLiteral).properties) {
+        const key = prop.key.type === 'Identifier'
+          ? (prop.key as Identifier).name
+          : (prop.key as StringLiteral).value;
+        obj[key] = expressionToValue(prop.value);
+      }
+      return obj;
+
+    case 'Vec3Literal':
+      const v3 = expr as Vec3Literal;
+      return [
+        expressionToValue(v3.x),
+        expressionToValue(v3.y),
+        expressionToValue(v3.z),
+      ];
+
+    case 'ColorLiteral':
+      return (expr as { value: string }).value;
+
+    case 'Identifier':
+      return (expr as Identifier).name;
+
+    default:
+      return null;
+  }
+}
+
+// =============================================================================
+// SIMPLIFIED PARSER (Fallback for legacy .holo format)
 // =============================================================================
 
 interface HoloScriptAST {
@@ -613,10 +840,9 @@ interface HoloScriptASTLogic {
 }
 
 /**
- * Parse HoloScript source into an AST
- * This is a simplified parser - production version should use the full HoloScript parser
+ * Simplified parser for legacy .holo format (fallback when core parser doesn't recognize format)
  */
-function parseHoloScript(source: string): HoloScriptAST {
+function parseHoloScriptSimplified(source: string): HoloScriptAST {
   const ast: HoloScriptAST = {};
 
   // Remove comments
@@ -818,9 +1044,9 @@ function parseNodeBlock(block: ParsedBlock): HoloScriptASTNode {
 // =============================================================================
 
 /**
- * Convert parsed AST to a Scene object
+ * Convert parsed internal AST to a Scene object
  */
-function astToScene(ast: HoloScriptAST, idPrefix: string): Scene {
+function internalAstToScene(ast: HoloScriptAST, idPrefix: string): Scene {
   const generateId = () => `${idPrefix}${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 9)}`;
 
   const scene: Scene = {

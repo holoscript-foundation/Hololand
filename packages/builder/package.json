@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@hololand/logger": "workspace:*",
-    "@holoscript/core": "^2.0.0"
+    "@holoscript/core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.1",
