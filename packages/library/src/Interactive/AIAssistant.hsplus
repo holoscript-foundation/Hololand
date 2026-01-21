@@ -1,0 +1,68 @@
+// HOSL: AIAssistant
+// Visual proxy for uAA2++ Autonomous Agents
+
+object ai_avatar {
+  @state {
+    status: "idle" // idle, thinking, evolving
+    neural_activity: 0.1
+    visual_attention: [0, 0, 1] // look-at vector
+    primary_color: "#00ffff"
+  }
+
+  // Sync with agent state from Relay
+  @on_network_sync(data) => {
+    state.status = data.status
+    state.neural_activity = data.activity_level
+  }
+
+  // Core visual representation (Glowing Orb)
+  sphere#core {
+    scale: [0.5, 0.5, 0.5]
+    color: ${state.primary_color}
+    emissive: ${state.neural_activity * 2.0}
+    
+    // Pulse effect when thinking
+    @update(delta) => {
+      if (state.status == "thinking") {
+        this.scale = [
+          0.5 + Math.sin(time * 5) * 0.05,
+          0.5 + Math.sin(time * 5) * 0.05,
+          0.5 + Math.sin(time * 5) * 0.05
+        ]
+      }
+    }
+  }
+
+  // Neural rings
+  group#rings {
+    rotation: [0, time * 2, 0]
+    
+    torus#inner_ring {
+      scale: [0.7, 0.7, 0.01]
+      color: "#ffffff"
+      opacity: 0.3
+    }
+
+    torus#outer_ring {
+      scale: [0.9, 0.9, 0.01]
+      rotation: [time, 0, 0]
+      color: ${state.primary_color}
+      opacity: 0.2
+    }
+  }
+
+  // Visual Eye (Attention Proxy)
+  sphere#eye {
+    scale: [0.15, 0.15, 0.15]
+    position: ${state.visual_attention}
+    color: "#ffffff"
+    emissive: 1.0
+  }
+
+  // Status text
+  text#status_label {
+    value: "AGENT: ${state.status.toUpperCase()}"
+    position: [0, 0.8, 0]
+    scale: [0.2, 0.2, 0.2]
+  }
+}
