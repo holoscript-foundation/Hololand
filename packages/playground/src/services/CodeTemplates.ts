@@ -416,6 +416,45 @@ export class CodeTemplates {
   }
 }`,
     },
+
+    // Productivity / Real World Templates
+    {
+      name: 'Networked Sync',
+      description: 'An object whose state is shared across all users',
+      category: 'trait',
+      tags: ['networking', 'multiplayer', 'sync'],
+      code: `@networked(mode: "reliable", authority: "owner")
+object ${'{name}'} {
+  position: [0, 1, 0]
+  
+  @state {
+    color: "#00ff00"
+  }
+  
+  @on_click => {
+    state.color = state.color == "#00ff00" ? "#ff0000" : "#00ff00"
+  }
+}`,
+    },
+
+    {
+      name: 'Real-World Bridge',
+      description: 'Connect an object to an external API (IoT/Data)',
+      category: 'behavior',
+      tags: ['iot', 'api', 'bridge', 'real-world'],
+      code: `@external_api(
+  url: "https://api.example.com/status",
+  interval: 10s
+)
+object ${'{name}'} {
+  position: [0, 2, 0]
+  
+  @on_data_update(data) => {
+    // React to real-world data
+    self.color = data.online ? "#00ff00" : "#ff0000"
+  }
+}`,
+    },
   ];
 
   /**

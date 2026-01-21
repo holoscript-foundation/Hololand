@@ -1,3 +1,88 @@
+# HoloScript Quick Start Guide
+
+## Getting Started (5 minutes)
+
+### 1. Install
+```bash
+# Clone the repo
+git clone https://github.com/yourusername/Hololand.git
+cd Hololand
+
+# Install dependencies
+pnpm install
+
+# Build everything
+pnpm build
+```
+
+### 2. Run an Example
+```bash
+# Run the main demo app
+cd examples/hololand-central
+pnpm dev
+```
+Then open http://localhost:5173 in your browser.
+
+### 3. Try the Playground
+```bash
+cd packages/playground
+pnpm dev
+```
+Open http://localhost:5173 - write HoloScript code and see it render in real-time!
+
+---
+
+## What is HoloScript?
+
+HoloScript is a language for creating 3D/VR/AR worlds. Two file types:
+
+| File | Use | Example |
+|------|-----|---------|
+| `.hsplus` | Full programming language | Games, multiplayer, physics |
+| `.holo` | Visual/declarative | Simple scenes, prototypes |
+
+### Hello World (`.hsplus`)
+```hsplus
+// A simple rotating cube
+orb Cube {
+  geometry: box(1, 1, 1)
+  color: "#3b82f6"
+  position: [0, 1, 0]
+}
+
+system Spin {
+  update(dt) {
+    Cube.rotation.y += dt * 0.5
+  }
+}
+```
+
+### Hello World (`.holo`)
+```holo
+orb MyCube
+  geometry: box
+  color: blue
+  position: 0, 1, 0
+```
+
+---
+
+## Project Structure
+```
+Hololand/
+├── packages/
+│   ├── holoscript-core/    # Parser & compiler (MIT)
+│   ├── holoscript-std/     # Standard library
+│   ├── playground/         # Browser-based editor
+│   └── ...
+├── examples/
+│   ├── hololand-central/   # Main demo app
+│   └── hololand-legends/   # Game example
+└── ...
+```
+
+---
+
 # AI Integration - Quick Reference Guide
 
 **What is this?** A guide to using AI to build VR/AR worlds. Speak or type what you want, and the AI creates it.
