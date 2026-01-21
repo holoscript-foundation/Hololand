@@ -1,0 +1,56 @@
+// HOSL: SmartLight
+// Demonstrates Real-World Bridge (@external_api) and Multi-User Sync (@networked)
+
+composition "Smart Home Showcase" {
+
+  @state {
+    power: true
+    brightness: 0.8
+    real_status: "offline"
+  }
+
+  // 1. Environmental Setup
+  environment {
+    theme: "modern_loft"
+    lighting {
+      ambient: 0.2
+    }
+  }
+
+  // 2. Smart Light Component
+  light#living_room_light 
+    @networked(mode: "reliable", authority: "owner")
+    @external_api(
+      url: "https://api.smart-home.com/v1/lights/lr1",
+      method: "GET",
+      interval: 5s
+    )
+    @grabbable(two_handed: false) 
+  {
+    type: "point"
+    position: [0, 3, 0]
+    color: ${state.power ? "#ffffff" : "#000000"}
+    intensity: ${state.brightness * 2.0}
+    
+    // Lifecycle: React to API Data
+    @on_data_update(data) => {
+      state.power = data.power
+      state.brightness = data.status == "dimmed" ? 0.3 : 1.0
+      state.real_status = "connected"
+    }
+
+    // Interaction: Manually Toggle
+    @on_click => {
+      state.power = !state.power
+      // Push update back to real world
+      api_call("https://api.smart-home.com/v1/lights/lr1/toggle", "POST")
+    }
+  }
+
+  // 3. Status Display
+  text#status_label {
+    position: [0, 2, -1]
+    value: "Light Status: ${state.real_status}"
+    color: ${state.real_status == "connected" ? "#00ff00" : "#ff0000"}
+  }
+}

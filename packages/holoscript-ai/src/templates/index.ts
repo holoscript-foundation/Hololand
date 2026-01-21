@@ -2609,6 +2609,1055 @@ system SaveLoadSystem {
 };
 
 // ============================================================================
+// Environmental Templates
+// ============================================================================
+
+export const PortalTemplate: Template = {
+  name: 'Portal',
+  description: 'Teleportation portal with visual effects',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Portal name', default: 'Portal' },
+    { name: 'destination', type: 'string', description: 'Destination world/position', default: 'spawn' },
+    { name: 'color', type: 'color', description: 'Portal color', default: '#9932cc' },
+    { name: 'radius', type: 'number', description: 'Portal radius', default: 1.5, min: 0.5, max: 5 },
+    { name: 'bidirectional', type: 'boolean', description: 'Works both ways', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'Portal'}" {
+  @interactive
+  
+  state {
+    destination: "${params.destination || 'spawn'}"
+    isActive: true
+    cooldown: 0
+    bidirectional: ${params.bidirectional !== false}
+  }
+  
+  // Portal ring
+  object "Ring" {
+    geometry: torus
+    color: "${params.color || '#9932cc'}"
+    emissive: "${params.color || '#9932cc'}"
+    emissiveIntensity: 0.8
+    scale: [${params.radius || 1.5}, ${params.radius || 1.5}, 0.1]
+    rotation: [1.57, 0, 0]
+  }
+  
+  // Portal surface
+  object "Surface" {
+    geometry: circle
+    color: "${params.color || '#9932cc'}"
+    opacity: 0.6
+    transparent: true
+    scale: [${(params.radius as number) - 0.2 || 1.3}, ${(params.radius as number) - 0.2 || 1.3}, 1]
+    rotation: [1.57, 0, 0]
+  }
+  
+  // Particle emitter
+  object "Particles" {
+    type: particleSystem
+    count: 50
+    color: "${params.color || '#9932cc'}"
+    size: 0.1
+    lifetime: 1000
+    velocity: [0, 0.5, 0]
+    spread: ${params.radius || 1.5}
+  }
+  
+  action teleport(entity) {
+    if (!this.isActive || this.cooldown > 0) return
+    
+    this.cooldown = 2.0
+    
+    // Teleport effect
+    spawnParticleBurst(entity.position, "${params.color || '#9932cc'}", 30)
+    playSound("portal_enter")
+    
+    // Teleport to destination
+    if (this.destination.startsWith("world:")) {
+      loadWorld(this.destination.substring(6))
+    } else {
+      const destPortal = getObject(this.destination)
+      if (destPortal) {
+        entity.position = destPortal.position.clone().add([0, 0, 2])
+        destPortal.cooldown = 2.0 // Prevent instant return
+      }
+    }
+    
+    emit("portal:used", { portal: this, entity: entity })
+  }
+  
+  on_trigger_enter: (other) => {
+    if (other.isPlayer) {
+      this.teleport(other)
+    }
+  }
+  
+  every(100) {
+    this.cooldown = Math.max(0, this.cooldown - 0.1)
+    
+    // Rotate ring
+    this.Ring.rotation.z += 0.02
+    
+    // Pulse effect
+    const pulse = 0.8 + Math.sin(Date.now() * 0.003) * 0.2
+    this.Ring.emissiveIntensity = pulse
+  }
+}
+`.trim(),
+};
+
+export const DoorTemplate: Template = {
+  name: 'Door',
+  description: 'Interactive door with open/close animations',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Door name', default: 'Door' },
+    { name: 'width', type: 'number', description: 'Door width', default: 2, min: 1, max: 5 },
+    { name: 'height', type: 'number', description: 'Door height', default: 3, min: 2, max: 6 },
+    { name: 'openType', type: 'select', description: 'Open mechanism', default: 'swing', options: ['swing', 'slide', 'double'] },
+    { name: 'requiresKey', type: 'boolean', description: 'Requires key to open', default: false },
+    { name: 'autoClose', type: 'boolean', description: 'Auto-close after delay', default: true },
+  ],
+  generate: (params) => {
+    const openType = (params.openType as string) || 'swing';
+    
+    return `
+template "${params.name || 'Door'}" {
+  @interactive
+  
+  state {
+    isOpen: false
+    isLocked: ${params.requiresKey || false}
+    keyId: "${params.name || 'Door'}_key"
+    autoClose: ${params.autoClose !== false}
+    autoCloseDelay: 3000
+    openProgress: 0
+  }
+  
+  // Door frame
+  object "Frame" {
+    geometry: box
+    color: "#4a3728"
+    scale: [${(params.width as number) + 0.3 || 2.3}, ${(params.height as number) + 0.2 || 3.2}, 0.2]
+  }
+  
+  ${openType === 'double' ? `
+  // Left door panel
+  object "LeftPanel" {
+    geometry: box
+    color: "#6b4423"
+    scale: [${(params.width as number) / 2 - 0.1 || 0.9}, ${(params.height as number) - 0.2 || 2.8}, 0.1]
+    position: [-${(params.width as number) / 4 || 0.5}, 0, 0]
+    pivot: [-${(params.width as number) / 4 || 0.5}, 0, 0]
+  }
+  
+  // Right door panel
+  object "RightPanel" {
+    geometry: box
+    color: "#6b4423"
+    scale: [${(params.width as number) / 2 - 0.1 || 0.9}, ${(params.height as number) - 0.2 || 2.8}, 0.1]
+    position: [${(params.width as number) / 4 || 0.5}, 0, 0]
+    pivot: [${(params.width as number) / 4 || 0.5}, 0, 0]
+  }
+  ` : `
+  // Door panel
+  object "Panel" {
+    geometry: box
+    color: "#6b4423"
+    scale: [${(params.width as number) - 0.2 || 1.8}, ${(params.height as number) - 0.2 || 2.8}, 0.1]
+    ${openType === 'swing' ? `pivot: [-${(params.width as number) / 2 || 1}, 0, 0]` : ''}
+  }
+  `}
+  
+  // Door handle
+  object "Handle" {
+    geometry: cylinder
+    color: "#b8860b"
+    metalness: 0.8
+    scale: [0.05, 0.15, 0.05]
+    position: [${(params.width as number) / 2 - 0.3 || 0.7}, 0, 0.1]
+    rotation: [0, 0, 1.57]
+  }
+  
+  action open() {
+    if (this.isOpen) return
+    if (this.isLocked) {
+      playSound("door_locked")
+      showFloatingText(this.position, "Locked!", "#ff0000")
+      return
+    }
+    
+    this.isOpen = true
+    playSound("door_open")
+    
+    ${openType === 'swing' ? `
+    animate("Panel.rotation.y", -1.57, 500)
+    ` : openType === 'slide' ? `
+    animate("Panel.position.x", ${params.width || 2}, 500)
+    ` : `
+    animate("LeftPanel.rotation.y", 1.57, 500)
+    animate("RightPanel.rotation.y", -1.57, 500)
+    `}
+    
+    emit("door:opened", { door: this })
+    
+    if (this.autoClose) {
+      setTimeout(() => this.close(), this.autoCloseDelay)
+    }
+  }
+  
+  action close() {
+    if (!this.isOpen) return
+    
+    this.isOpen = false
+    playSound("door_close")
+    
+    ${openType === 'swing' ? `
+    animate("Panel.rotation.y", 0, 500)
+    ` : openType === 'slide' ? `
+    animate("Panel.position.x", 0, 500)
+    ` : `
+    animate("LeftPanel.rotation.y", 0, 500)
+    animate("RightPanel.rotation.y", 0, 500)
+    `}
+    
+    emit("door:closed", { door: this })
+  }
+  
+  action toggle() {
+    if (this.isOpen) this.close()
+    else this.open()
+  }
+  
+  action unlock(keyId) {
+    if (keyId === this.keyId) {
+      this.isLocked = false
+      playSound("door_unlock")
+      showFloatingText(this.position, "Unlocked!", "#22c55e")
+      emit("door:unlocked", { door: this })
+    }
+  }
+  
+  on_interact: () => {
+    this.toggle()
+  }
+}
+`.trim();
+  },
+};
+
+export const TrapTemplate: Template = {
+  name: 'Trap',
+  description: 'Damaging trap with various trigger types',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Trap name', default: 'SpikeTrap' },
+    { name: 'damage', type: 'number', description: 'Damage amount', default: 25, min: 5, max: 100 },
+    { name: 'trapType', type: 'select', description: 'Trap type', default: 'spikes', options: ['spikes', 'fire', 'poison', 'crusher'] },
+    { name: 'triggerType', type: 'select', description: 'Trigger mechanism', default: 'pressure', options: ['pressure', 'proximity', 'timed'] },
+    { name: 'resetTime', type: 'number', description: 'Reset delay (ms)', default: 3000, min: 1000, max: 10000 },
+  ],
+  generate: (params) => {
+    const trapType = (params.trapType as string) || 'spikes';
+    const triggerType = (params.triggerType as string) || 'pressure';
+    
+    const trapColors: Record<string, string> = {
+      spikes: '#4a4a4a',
+      fire: '#ff4500',
+      poison: '#32cd32',
+      crusher: '#696969',
+    };
+    
+    return `
+template "${params.name || 'SpikeTrap'}" {
+  state {
+    damage: ${params.damage || 25}
+    isArmed: true
+    isTriggered: false
+    resetTime: ${params.resetTime || 3000}
+    triggerType: "${triggerType}"
+  }
+  
+  // Base plate
+  object "Base" {
+    geometry: box
+    color: "#3d3d3d"
+    scale: [2, 0.1, 2]
+    position: [0, -0.05, 0]
+  }
+  
+  ${trapType === 'spikes' ? `
+  // Spike grid
+  object "Spikes" {
+    mesh: "traps/spikes.glb"
+    color: "${trapColors[trapType]}"
+    position: [0, -0.5, 0]
+  }
+  ` : trapType === 'fire' ? `
+  // Fire emitter
+  object "FireEmitter" {
+    type: particleSystem
+    color: "${trapColors[trapType]}"
+    count: 100
+    lifetime: 500
+    velocity: [0, 3, 0]
+    spread: 0.5
+    enabled: false
+  }
+  ` : trapType === 'poison' ? `
+  // Poison cloud
+  object "PoisonCloud" {
+    geometry: sphere
+    color: "${trapColors[trapType]}"
+    opacity: 0
+    transparent: true
+    scale: [3, 1, 3]
+  }
+  ` : `
+  // Crusher
+  object "Crusher" {
+    geometry: box
+    color: "${trapColors[trapType]}"
+    scale: [2, 0.5, 2]
+    position: [0, 3, 0]
+  }
+  `}
+  
+  action trigger() {
+    if (!this.isArmed || this.isTriggered) return
+    
+    this.isTriggered = true
+    this.isArmed = false
+    
+    emit("trap:triggered", { trap: this, type: "${trapType}" })
+    
+    ${trapType === 'spikes' ? `
+    playSound("trap_spikes")
+    animate("Spikes.position.y", 0.3, 100)
+    ` : trapType === 'fire' ? `
+    playSound("trap_fire")
+    this.FireEmitter.enabled = true
+    ` : trapType === 'poison' ? `
+    playSound("trap_poison")
+    animate("PoisonCloud.opacity", 0.5, 300)
+    animate("PoisonCloud.scale", [5, 2, 5], 500)
+    ` : `
+    playSound("trap_crusher")
+    animate("Crusher.position.y", 0.25, 200)
+    `}
+    
+    // Reset after delay
+    setTimeout(() => this.reset(), this.resetTime)
+  }
+  
+  action reset() {
+    ${trapType === 'spikes' ? `
+    animate("Spikes.position.y", -0.5, 500)
+    ` : trapType === 'fire' ? `
+    this.FireEmitter.enabled = false
+    ` : trapType === 'poison' ? `
+    animate("PoisonCloud.opacity", 0, 300)
+    animate("PoisonCloud.scale", [3, 1, 3], 300)
+    ` : `
+    animate("Crusher.position.y", 3, 1000)
+    `}
+    
+    this.isTriggered = false
+    this.isArmed = true
+    
+    emit("trap:reset", { trap: this })
+  }
+  
+  action applyDamage(entity) {
+    if (!entity.takeDamage) return
+    
+    entity.takeDamage(this.damage)
+    
+    ${trapType === 'poison' ? `
+    entity.applyPoison(5, 3000) // 5 DPS for 3 seconds
+    ` : trapType === 'fire' ? `
+    entity.applyBurn(10, 2000) // 10 DPS for 2 seconds
+    ` : ''}
+    
+    emit("trap:damage", { trap: this, entity: entity, damage: this.damage })
+  }
+  
+  ${triggerType === 'pressure' ? `
+  on_trigger_enter: (other) => {
+    if (other.isPlayer || other.isNPC) {
+      this.trigger()
+      this.applyDamage(other)
+    }
+  }
+  ` : triggerType === 'proximity' ? `
+  every(100) {
+    if (!this.isArmed) return
+    
+    const nearby = getEntitiesInRadius(this.position, 2)
+    for (const entity of nearby) {
+      if (entity.isPlayer || entity.isNPC) {
+        this.trigger()
+        this.applyDamage(entity)
+        break
+      }
+    }
+  }
+  ` : `
+  // Timed trigger
+  every(${params.resetTime || 3000}) {
+    this.trigger()
+    
+    const nearby = getEntitiesInRadius(this.position, 2)
+    for (const entity of nearby) {
+      this.applyDamage(entity)
+    }
+  }
+  `}
+}
+`.trim();
+  },
+};
+
+export const ParticleSystemTemplate: Template = {
+  name: 'Particle System',
+  description: 'Customizable particle effects for fire, water, magic, etc.',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Effect name', default: 'ParticleEffect' },
+    { name: 'effectType', type: 'select', description: 'Effect preset', default: 'fire', options: ['fire', 'water', 'magic', 'smoke', 'sparkle', 'snow', 'rain'] },
+    { name: 'intensity', type: 'number', description: 'Particle count', default: 100, min: 10, max: 500 },
+    { name: 'size', type: 'number', description: 'Particle size', default: 0.2, min: 0.05, max: 1 },
+    { name: 'spread', type: 'number', description: 'Emission spread', default: 1, min: 0.1, max: 5 },
+  ],
+  generate: (params) => {
+    const effectType = (params.effectType as string) || 'fire';
+    
+    const presets: Record<string, { color: string; velocity: string; lifetime: number; gravity: number }> = {
+      fire: { color: '#ff4500', velocity: '[0, 2, 0]', lifetime: 800, gravity: -0.5 },
+      water: { color: '#00bfff', velocity: '[0, -2, 0]', lifetime: 1000, gravity: 2 },
+      magic: { color: '#9932cc', velocity: '[0, 1, 0]', lifetime: 1500, gravity: 0 },
+      smoke: { color: '#696969', velocity: '[0, 1.5, 0]', lifetime: 2000, gravity: -0.2 },
+      sparkle: { color: '#ffd700', velocity: '[0, 0.5, 0]', lifetime: 500, gravity: 0 },
+      snow: { color: '#ffffff', velocity: '[0, -0.5, 0]', lifetime: 5000, gravity: 0.3 },
+      rain: { color: '#4a90d9', velocity: '[0, -10, 0]', lifetime: 500, gravity: 5 },
+    };
+    
+    const preset = presets[effectType];
+    
+    return `
+template "${params.name || 'ParticleEffect'}" {
+  state {
+    isActive: true
+    intensity: ${params.intensity || 100}
+  }
+  
+  object "Emitter" {
+    type: particleSystem
+    
+    // Particle properties
+    count: ${params.intensity || 100}
+    color: "${preset.color}"
+    size: ${params.size || 0.2}
+    sizeVariance: ${(params.size as number) * 0.3 || 0.06}
+    
+    // Motion
+    velocity: ${preset.velocity}
+    velocityVariance: [${params.spread || 1}, 0.5, ${params.spread || 1}]
+    gravity: ${preset.gravity}
+    
+    // Lifetime
+    lifetime: ${preset.lifetime}
+    lifetimeVariance: ${preset.lifetime * 0.2}
+    
+    // Appearance
+    ${effectType === 'fire' || effectType === 'magic' ? `
+    emissive: "${preset.color}"
+    emissiveIntensity: 1.5
+    blending: additive
+    ` : effectType === 'smoke' ? `
+    opacity: 0.6
+    fadeOut: true
+    ` : effectType === 'sparkle' ? `
+    emissive: "${preset.color}"
+    emissiveIntensity: 2.0
+    blending: additive
+    twinkle: true
+    ` : ''}
+    
+    // Shape
+    emitterShape: ${effectType === 'rain' || effectType === 'snow' ? 'box' : 'sphere'}
+    emitterSize: [${params.spread || 1}, 0.1, ${params.spread || 1}]
+  }
+  
+  ${effectType === 'fire' ? `
+  // Fire light
+  object "FireLight" {
+    type: pointLight
+    color: "#ff6600"
+    intensity: 1.0
+    distance: 5
+  }
+  
+  every(50) {
+    // Flicker light
+    this.FireLight.intensity = 0.8 + Math.random() * 0.4
+  }
+  ` : effectType === 'magic' ? `
+  // Magic glow
+  object "MagicGlow" {
+    type: pointLight
+    color: "${preset.color}"
+    intensity: 0.8
+    distance: 4
+  }
+  
+  every(50) {
+    // Pulse glow
+    this.MagicGlow.intensity = 0.6 + Math.sin(Date.now() * 0.005) * 0.4
+  }
+  ` : ''}
+  
+  action setIntensity(value) {
+    this.intensity = value
+    this.Emitter.count = value
+  }
+  
+  action start() {
+    this.isActive = true
+    this.Emitter.enabled = true
+  }
+  
+  action stop() {
+    this.isActive = false
+    this.Emitter.enabled = false
+  }
+  
+  action burst(count = 50) {
+    spawnParticleBurst(this.position, "${preset.color}", count)
+  }
+}
+
+// Preset instances
+${effectType === 'fire' ? `
+template "Campfire" using "${params.name || 'ParticleEffect'}" {
+  // Add logs
+  object "Logs" {
+    mesh: "environment/logs.glb"
+    position: [0, -0.2, 0]
+  }
+  
+  // Crackle sound
+  on_spawn: () => {
+    playSound("fire_crackle", { loop: true, volume: 0.5 })
+  }
+}
+
+template "Torch" using "${params.name || 'ParticleEffect'}" {
+  scale: [0.3, 0.3, 0.3]
+  
+  object "TorchHandle" {
+    mesh: "items/torch.glb"
+    position: [0, -0.5, 0]
+  }
+}
+` : effectType === 'water' ? `
+template "Fountain" using "${params.name || 'ParticleEffect'}" {
+  object "Basin" {
+    geometry: cylinder
+    color: "#4a4a4a"
+    scale: [2, 0.5, 2]
+    position: [0, -0.25, 0]
+  }
+  
+  on_spawn: () => {
+    playSound("water_fountain", { loop: true, volume: 0.3 })
+  }
+}
+
+template "Waterfall" using "${params.name || 'ParticleEffect'}" {
+  Emitter.emitterShape: box
+  Emitter.emitterSize: [3, 0.1, 0.5]
+  Emitter.count: 200
+  
+  on_spawn: () => {
+    playSound("waterfall", { loop: true, volume: 0.6 })
+  }
+}
+` : ''}
+`.trim();
+  },
+};
+
+export const HazardZoneTemplate: Template = {
+  name: 'Hazard Zone',
+  description: 'Area-based hazard (lava, acid, electricity)',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Zone name', default: 'LavaPool' },
+    { name: 'hazardType', type: 'select', description: 'Hazard type', default: 'lava', options: ['lava', 'acid', 'electricity', 'ice'] },
+    { name: 'damage', type: 'number', description: 'DPS while inside', default: 10, min: 1, max: 50 },
+    { name: 'width', type: 'number', description: 'Zone width', default: 5, min: 1, max: 20 },
+    { name: 'depth', type: 'number', description: 'Zone depth', default: 5, min: 1, max: 20 },
+  ],
+  generate: (params) => {
+    const hazardType = (params.hazardType as string) || 'lava';
+    
+    const hazardProps: Record<string, { color: string; emissive: string; effect: string }> = {
+      lava: { color: '#ff4500', emissive: '#ff6600', effect: 'burn' },
+      acid: { color: '#32cd32', emissive: '#00ff00', effect: 'poison' },
+      electricity: { color: '#ffff00', emissive: '#ffffff', effect: 'shock' },
+      ice: { color: '#00bfff', emissive: '#87ceeb', effect: 'freeze' },
+    };
+    
+    const props = hazardProps[hazardType];
+    
+    return `
+template "${params.name || 'LavaPool'}" {
+  state {
+    damage: ${params.damage || 10}
+    hazardType: "${hazardType}"
+    entitiesInside: new Set()
+  }
+  
+  // Hazard surface
+  object "Surface" {
+    geometry: plane
+    color: "${props.color}"
+    emissive: "${props.emissive}"
+    emissiveIntensity: 0.8
+    scale: [${params.width || 5}, 1, ${params.depth || 5}]
+    ${hazardType === 'lava' || hazardType === 'acid' ? `
+    animated: true
+    animationSpeed: 0.5
+    ` : ''}
+  }
+  
+  // Trigger volume
+  object "TriggerZone" {
+    type: trigger
+    scale: [${params.width || 5}, 2, ${params.depth || 5}]
+    visible: false
+  }
+  
+  ${hazardType === 'lava' ? `
+  // Lava bubbles
+  object "Bubbles" {
+    type: particleSystem
+    color: "#ff6600"
+    count: 20
+    size: 0.3
+    lifetime: 1000
+    velocity: [0, 1, 0]
+    spread: ${(params.width as number) / 2 || 2.5}
+  }
+  
+  // Heat distortion light
+  object "HeatLight" {
+    type: pointLight
+    color: "#ff4500"
+    intensity: 1.5
+    distance: 10
+    position: [0, 1, 0]
+  }
+  ` : hazardType === 'electricity' ? `
+  // Electric arcs
+  every(200) {
+    if (Math.random() < 0.3) {
+      const x = (Math.random() - 0.5) * ${params.width || 5}
+      const z = (Math.random() - 0.5) * ${params.depth || 5}
+      spawnLightningArc([x, 0, z], [x + Math.random(), 1, z + Math.random()])
+    }
+  }
+  
+  object "ElectricLight" {
+    type: pointLight
+    color: "#ffff00"
+    intensity: 1.0
+    distance: 8
+    position: [0, 0.5, 0]
+  }
+  ` : hazardType === 'ice' ? `
+  // Frost particles
+  object "FrostParticles" {
+    type: particleSystem
+    color: "#87ceeb"
+    count: 30
+    size: 0.1
+    lifetime: 2000
+    velocity: [0, 0.3, 0]
+    spread: ${(params.width as number) / 2 || 2.5}
+  }
+  ` : `
+  // Acid bubbles
+  object "AcidBubbles" {
+    type: particleSystem
+    color: "#00ff00"
+    count: 30
+    size: 0.2
+    lifetime: 800
+    velocity: [0, 0.8, 0]
+    spread: ${(params.width as number) / 2 || 2.5}
+  }
+  `}
+  
+  action applyHazardEffect(entity) {
+    entity.takeDamage(this.damage * 0.1) // DPS converted to per-tick
+    
+    ${hazardType === 'lava' ? `
+    entity.applyBurn(5, 2000)
+    ` : hazardType === 'acid' ? `
+    entity.applyPoison(3, 3000)
+    ` : hazardType === 'electricity' ? `
+    entity.applyShock(0.5) // Stun
+    ` : `
+    entity.applySlow(0.5, 2000) // 50% slow
+    `}
+  }
+  
+  on_trigger_enter: (other) => {
+    if (other.isPlayer || other.isNPC) {
+      this.entitiesInside.add(other.id)
+      emit("hazard:enter", { hazard: this, entity: other })
+    }
+  }
+  
+  on_trigger_exit: (other) => {
+    this.entitiesInside.delete(other.id)
+    emit("hazard:exit", { hazard: this, entity: other })
+  }
+  
+  every(100) {
+    for (const entityId of this.entitiesInside) {
+      const entity = getObjectById(entityId)
+      if (entity) {
+        this.applyHazardEffect(entity)
+      }
+    }
+    
+    ${hazardType === 'electricity' ? `
+    // Flicker light
+    this.ElectricLight.intensity = 0.8 + Math.random() * 0.4
+    ` : hazardType === 'lava' ? `
+    // Pulse light
+    this.HeatLight.intensity = 1.3 + Math.sin(Date.now() * 0.003) * 0.2
+    ` : ''}
+  }
+}
+`.trim();
+  },
+};
+
+export const PlatformTemplate: Template = {
+  name: 'Moving Platform',
+  description: 'Platform that moves between waypoints',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Platform name', default: 'MovingPlatform' },
+    { name: 'width', type: 'number', description: 'Platform width', default: 3, min: 1, max: 10 },
+    { name: 'moveType', type: 'select', description: 'Movement pattern', default: 'linear', options: ['linear', 'circular', 'elevator'] },
+    { name: 'distance', type: 'number', description: 'Travel distance', default: 5, min: 1, max: 20 },
+    { name: 'speed', type: 'number', description: 'Movement speed', default: 2, min: 0.5, max: 10 },
+  ],
+  generate: (params) => {
+    const moveType = (params.moveType as string) || 'linear';
+    
+    return `
+template "${params.name || 'MovingPlatform'}" {
+  state {
+    moveType: "${moveType}"
+    distance: ${params.distance || 5}
+    speed: ${params.speed || 2}
+    progress: 0
+    direction: 1
+    startPos: null
+    ridingEntities: new Set()
+  }
+  
+  // Platform surface
+  object "Surface" {
+    geometry: box
+    color: "#4a5568"
+    scale: [${params.width || 3}, 0.3, ${params.width || 3}]
+  }
+  
+  // Edge indicators
+  object "EdgeStripes" {
+    geometry: box
+    color: "#fbbf24"
+    scale: [${params.width || 3}, 0.31, 0.1]
+    position: [0, 0, ${(params.width as number) / 2 - 0.05 || 1.45}]
+  }
+  
+  on_spawn: () => {
+    this.startPos = this.position.clone()
+  }
+  
+  on_trigger_enter: (other) => {
+    if (other.isPlayer || other.isNPC) {
+      this.ridingEntities.add(other.id)
+      other.parentTo(this) // Move with platform
+    }
+  }
+  
+  on_trigger_exit: (other) => {
+    this.ridingEntities.delete(other.id)
+    other.unparent()
+  }
+  
+  every(16) { // ~60fps
+    const dt = 0.016
+    
+    ${moveType === 'linear' ? `
+    this.progress += this.speed * dt * this.direction
+    
+    if (this.progress >= this.distance) {
+      this.progress = this.distance
+      this.direction = -1
+      playSound("platform_reverse")
+    } else if (this.progress <= 0) {
+      this.progress = 0
+      this.direction = 1
+      playSound("platform_reverse")
+    }
+    
+    this.position.x = this.startPos.x + this.progress
+    ` : moveType === 'circular' ? `
+    this.progress += this.speed * dt * 0.5
+    
+    const radius = this.distance / 2
+    this.position.x = this.startPos.x + Math.cos(this.progress) * radius
+    this.position.z = this.startPos.z + Math.sin(this.progress) * radius
+    ` : `
+    // Elevator
+    this.progress += this.speed * dt * this.direction
+    
+    if (this.progress >= this.distance) {
+      this.progress = this.distance
+      this.direction = -1
+      // Wait at top
+      await delay(2000)
+    } else if (this.progress <= 0) {
+      this.progress = 0
+      this.direction = 1
+      // Wait at bottom
+      await delay(2000)
+    }
+    
+    this.position.y = this.startPos.y + this.progress
+    `}
+  }
+}
+`.trim();
+  },
+};
+
+export const LeverTemplate: Template = {
+  name: 'Lever',
+  description: 'Interactive lever switch for triggering events',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Lever name', default: 'Lever' },
+    { name: 'targetId', type: 'string', description: 'Object to control', default: 'Door1' },
+    { name: 'isToggle', type: 'boolean', description: 'Toggle or momentary', default: true },
+    { name: 'requiresHold', type: 'boolean', description: 'Must hold to activate', default: false },
+  ],
+  generate: (params) => `
+template "${params.name || 'Lever'}" {
+  @interactive
+  
+  state {
+    isOn: false
+    targetId: "${params.targetId || 'Door1'}"
+    isToggle: ${params.isToggle !== false}
+    requiresHold: ${params.requiresHold || false}
+    isHeld: false
+  }
+  
+  // Base
+  object "Base" {
+    geometry: box
+    color: "#4a4a4a"
+    scale: [0.3, 0.2, 0.3]
+    position: [0, 0.1, 0]
+  }
+  
+  // Lever arm
+  object "Arm" {
+    geometry: cylinder
+    color: "#8b4513"
+    scale: [0.05, 0.4, 0.05]
+    position: [0, 0.3, 0]
+    pivot: [0, -0.2, 0]
+    rotation: [0.5, 0, 0] // Start in off position
+  }
+  
+  // Handle
+  object "Handle" {
+    geometry: sphere
+    color: "#b22222"
+    scale: [0.1, 0.1, 0.1]
+    position: [0, 0.5, 0.15]
+  }
+  
+  action activate() {
+    if (this.isToggle) {
+      this.isOn = !this.isOn
+    } else {
+      this.isOn = true
+    }
+    
+    // Animate lever
+    const targetAngle = this.isOn ? -0.5 : 0.5
+    animate("Arm.rotation.x", targetAngle, 200)
+    animate("Handle.position.z", this.isOn ? -0.15 : 0.15, 200)
+    
+    playSound("lever_pull")
+    
+    // Trigger target
+    const target = getObject(this.targetId)
+    if (target) {
+      if (this.isOn) {
+        target.activate?.() || target.open?.() || target.start?.()
+      } else {
+        target.deactivate?.() || target.close?.() || target.stop?.()
+      }
+    }
+    
+    emit("lever:toggled", { lever: this, isOn: this.isOn, target: this.targetId })
+  }
+  
+  action deactivate() {
+    if (!this.isToggle && this.isOn) {
+      this.isOn = false
+      animate("Arm.rotation.x", 0.5, 200)
+      animate("Handle.position.z", 0.15, 200)
+      
+      const target = getObject(this.targetId)
+      if (target) {
+        target.deactivate?.() || target.close?.() || target.stop?.()
+      }
+      
+      emit("lever:toggled", { lever: this, isOn: false, target: this.targetId })
+    }
+  }
+  
+  on_interact: () => {
+    if (this.requiresHold) {
+      this.isHeld = true
+      this.activate()
+    } else {
+      this.activate()
+    }
+  }
+  
+  on_interact_end: () => {
+    if (this.requiresHold) {
+      this.isHeld = false
+      this.deactivate()
+    }
+  }
+}
+`.trim(),
+};
+
+export const PressurePlateTemplate: Template = {
+  name: 'Pressure Plate',
+  description: 'Floor trigger activated by weight',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Plate name', default: 'PressurePlate' },
+    { name: 'targetId', type: 'string', description: 'Object to control', default: 'Door1' },
+    { name: 'requireWeight', type: 'number', description: 'Min weight to trigger', default: 1, min: 0, max: 100 },
+    { name: 'stayActive', type: 'boolean', description: 'Stay active after triggered', default: false },
+  ],
+  generate: (params) => `
+template "${params.name || 'PressurePlate'}" {
+  state {
+    isPressed: false
+    targetId: "${params.targetId || 'Door1'}"
+    requireWeight: ${params.requireWeight || 1}
+    stayActive: ${params.stayActive || false}
+    entitiesOn: new Map() // id -> weight
+  }
+  
+  // Plate surface
+  object "Plate" {
+    geometry: box
+    color: "#696969"
+    scale: [1, 0.1, 1]
+    position: [0, 0.05, 0]
+  }
+  
+  // Edge trim
+  object "Edge" {
+    geometry: box
+    color: "#4a4a4a"
+    scale: [1.1, 0.05, 1.1]
+    position: [0, 0, 0]
+  }
+  
+  action updateState() {
+    let totalWeight = 0
+    for (const weight of this.entitiesOn.values()) {
+      totalWeight += weight
+    }
+    
+    const shouldBePressed = totalWeight >= this.requireWeight
+    
+    if (shouldBePressed && !this.isPressed) {
+      this.press()
+    } else if (!shouldBePressed && this.isPressed && !this.stayActive) {
+      this.release()
+    }
+  }
+  
+  action press() {
+    this.isPressed = true
+    
+    animate("Plate.position.y", 0.02, 100)
+    animate("Plate.color", "#228b22", 100)
+    playSound("plate_press")
+    
+    const target = getObject(this.targetId)
+    if (target) {
+      target.activate?.() || target.open?.() || target.start?.()
+    }
+    
+    emit("plate:pressed", { plate: this, target: this.targetId })
+  }
+  
+  action release() {
+    this.isPressed = false
+    
+    animate("Plate.position.y", 0.05, 100)
+    animate("Plate.color", "#696969", 100)
+    playSound("plate_release")
+    
+    const target = getObject(this.targetId)
+    if (target) {
+      target.deactivate?.() || target.close?.() || target.stop?.()
+    }
+    
+    emit("plate:released", { plate: this, target: this.targetId })
+  }
+  
+  on_trigger_enter: (other) => {
+    const weight = other.mass || (other.isPlayer ? 1 : 0.5)
+    this.entitiesOn.set(other.id, weight)
+    this.updateState()
+  }
+  
+  on_trigger_exit: (other) => {
+    this.entitiesOn.delete(other.id)
+    this.updateState()
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
 // Template Registry
 // ============================================================================
 
@@ -2645,6 +3694,16 @@ export const Templates: Record<string, Template> = {
 
   // Collectibles
   collectibleItem: CollectibleItemTemplate,
+
+  // Environmental
+  portal: PortalTemplate,
+  door: DoorTemplate,
+  trap: TrapTemplate,
+  particleSystem: ParticleSystemTemplate,
+  hazardZone: HazardZoneTemplate,
+  movingPlatform: PlatformTemplate,
+  lever: LeverTemplate,
+  pressurePlate: PressurePlateTemplate,
 
   // Game Systems
   inventorySystem: InventorySystemTemplate,
