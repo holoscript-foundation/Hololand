@@ -1,0 +1,92 @@
+
+import { parse } from '@holoscript/core';
+import { NPCSystem, NPCTrait } from '../systems/NPCSystem';
+import { DialogManager, DialogNode } from '../managers/DialogManager';
+
+export class HoloScriptLoader {
+  constructor(
+    private npcSystem: NPCSystem,
+    private dialogManager: DialogManager
+  ) {}
+
+  load(source: string) {
+    const result = parse(source);
+    
+    if (!result.success) {
+      console.error('Failed to parse HoloScript source', result.errors);
+      return;
+    }
+
+    // Handle both conventional root and fragment root
+    const directives = result.ast.root.directives || result.ast.body;
+
+    directives.forEach(d => {
+      // Cast to any to access custom properties not yet in the strict type definition if necessary
+      const directive = d as any;
+      
+      if (directive.type === 'npc') {
+        this.registerNPC(directive);
+      } else if (directive.type === 'dialog') {
+        this.registerDialog(directive);
+      }
+    });
+
+    console.log(`Loaded content from HoloScript source.`);
+  }
+
+  private registerNPC(d: any) {
+    // Parser might return strings with or without quotes depending on Lexer/Parser tests
+    // Logic assumes unquoted based on recent fix, but robust handling doesn't hurt
+    const cleanId = (s: string) => s ? s.replace(/^"|"$/g, '') : s;
+
+    let dialogRef = d.props.start_dialog;
+    if (!dialogRef && d.props.interact) {
+       // Handle @dialog inline usage if parser supports it
+       if (d.props.interact.type === 'directive' && d.props.interact.value.name) {
+           dialogRef = d.props.interact.value.name;
+       } else {
+           dialogRef = d.props.interact;
+       }
+    }
+
+    const trait: NPCTrait = {
+      id: cleanId(d.name),
+      name: cleanId(d.name),
+      dialogId: cleanId(dialogRef),
+      interactionRange: Number(d.props.interaction_range || d.props.vision_range || 3.0),
+      currentAnimation: cleanId(d.props.idle) as any || 'idle'
+    };
+    
+    this.npcSystem.register(trait);
+  }
+
+  private registerDialog(d: any) {
+    const cleanId = (s: string) => s ? s.replace(/^"|"$/g, '') : s;
+
+    const node: DialogNode = {
+      id: cleanId(d.name),
+      text: cleanId(d.props.text),
+      options: d.options.map((opt: any) => {
+        let nextId: string | undefined;
+        let action: string | undefined;
+
+        if (opt.target && typeof opt.target === 'object' && opt.target.type === 'directive') {
+             // Handle @close, @trigger
+             const targetDir = opt.target.value;
+             if (targetDir.name === 'close') action = 'close';
+             else if (targetDir.name === 'trigger') action = targetDir.name; // Simplification
+        } else {
+             nextId = cleanId(opt.target);
+        }
+
+        return {
+            text: cleanId(opt.text),
+            nextId,
+            action
+        };
+      })
+    };
+    
+    this.dialogManager.loadDialogs([node]);
+  }
+}

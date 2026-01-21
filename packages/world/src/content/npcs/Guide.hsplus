@@ -1,0 +1,24 @@
+
+@npc "Guide" {
+  model: "robot_v2"
+  idle: "hover_anim"
+  interact: @dialog "welcome_node"
+  vision_range: 10.0
+}
+
+@dialog "welcome_node" {
+  text: "Welcome to the Grid, User. I am the Guide."
+  option "Who are you?" -> "identity_node"
+  option "What is this place?" -> "world_node"
+  option "Goodbye" -> @close
+}
+
+@dialog "identity_node" {
+  text: "I am a sovereign agent instance running on uAA2++."
+  option "Cool." -> "welcome_node"
+}
+
+@dialog "world_node" {
+  text: "This is Hololand. A spatial computing construct."
+  option "Thanks." -> "welcome_node"
+}
