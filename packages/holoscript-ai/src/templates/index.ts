@@ -1133,6 +1133,1482 @@ system ${params.name || 'GlowMaterial'}Pulse {
 };
 
 // ============================================================================
+// NPC Archetype Templates
+// ============================================================================
+
+export const WarriorNPCTemplate: Template = {
+  name: 'Warrior NPC',
+  description: 'Melee fighter with heavy armor and close combat abilities',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'NPC name', default: 'Warrior' },
+    { name: 'health', type: 'number', description: 'Max health', default: 150, min: 50, max: 500 },
+    { name: 'damage', type: 'number', description: 'Attack damage', default: 25, min: 5, max: 100 },
+    { name: 'armor', type: 'number', description: 'Damage reduction %', default: 30, min: 0, max: 75 },
+    { name: 'aggressive', type: 'boolean', description: 'Attacks on sight', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'Warrior'}" {
+  @interactive
+  
+  state {
+    health: ${params.health || 150}
+    maxHealth: ${params.health || 150}
+    damage: ${params.damage || 25}
+    armor: ${params.armor || 30}
+    isAggressive: ${params.aggressive !== false}
+    target: null
+    attackCooldown: 0
+    attackRange: 2.0
+    aggroRange: 8.0
+    state: "idle" // idle, chase, attack, dead
+  }
+  
+  mesh: "npcs/warrior.glb"
+  color: "#8b4513"
+  scale: [1.2, 1.2, 1.2]
+  
+  // Heavy armor visual indicator
+  object "ArmorPlate" {
+    geometry: box
+    color: "#4a4a4a"
+    scale: [0.6, 0.8, 0.3]
+    position: [0, 0.5, 0.2]
+    metalness: 0.8
+  }
+  
+  action takeDamage(amount) {
+    const reduced = amount * (1 - this.armor / 100)
+    this.health -= reduced
+    
+    emit("npc:damaged", { npc: this, damage: reduced, type: "warrior" })
+    showDamageNumber(this.position, Math.round(reduced))
+    
+    if (this.health <= 0) {
+      this.die()
+    }
+  }
+  
+  action attack(target) {
+    if (this.attackCooldown > 0) return
+    
+    this.attackCooldown = 1.5 // Slow but powerful
+    
+    // Heavy swing animation
+    animate("rotation.z", -0.8, 300)
+    await delay(300)
+    
+    if (distance(this.position, target.position) <= this.attackRange) {
+      target.takeDamage(this.damage)
+      emit("npc:attack", { attacker: this, target: target, damage: this.damage })
+    }
+    
+    animate("rotation.z", 0, 200)
+  }
+  
+  action die() {
+    this.state = "dead"
+    emit("npc:died", { npc: this, type: "warrior" })
+    animate("rotation.x", 1.57, 500)
+    await delay(2000)
+    destroy()
+  }
+  
+  every(100) {
+    if (this.state === "dead") return
+    
+    this.attackCooldown = Math.max(0, this.attackCooldown - 0.1)
+    
+    // Find player
+    const player = getPlayer()
+    if (!player) return
+    
+    const dist = distance(this.position, player.position)
+    
+    if (this.isAggressive && dist <= this.aggroRange) {
+      this.target = player
+      
+      if (dist <= this.attackRange) {
+        this.state = "attack"
+        this.attack(player)
+      } else {
+        this.state = "chase"
+        moveToward(this, player.position, 3.0 * 0.1)
+        lookAt(this, player.position)
+      }
+    } else {
+      this.state = "idle"
+      this.target = null
+    }
+  }
+}
+`.trim(),
+};
+
+export const MageNPCTemplate: Template = {
+  name: 'Mage NPC',
+  description: 'Ranged spellcaster with magical projectiles and abilities',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'NPC name', default: 'Mage' },
+    { name: 'health', type: 'number', description: 'Max health', default: 80, min: 30, max: 200 },
+    { name: 'damage', type: 'number', description: 'Spell damage', default: 35, min: 10, max: 150 },
+    { name: 'mana', type: 'number', description: 'Max mana', default: 100, min: 50, max: 300 },
+    { name: 'spellType', type: 'select', description: 'Primary spell', default: 'fireball', options: ['fireball', 'ice', 'lightning', 'arcane'] },
+  ],
+  generate: (params) => {
+    const spellColors: Record<string, string> = {
+      fireball: '#ff4500',
+      ice: '#00bfff',
+      lightning: '#ffff00',
+      arcane: '#9932cc',
+    };
+    const spell = (params.spellType as string) || 'fireball';
+    const color = spellColors[spell];
+    
+    return `
+template "${params.name || 'Mage'}Projectile" {
+  geometry: sphere
+  scale: [0.3, 0.3, 0.3]
+  color: "${color}"
+  emissive: "${color}"
+  emissiveIntensity: 2.0
+  
+  state {
+    damage: ${params.damage || 35}
+    speed: 15
+    lifetime: 3000
+  }
+  
+  // Particle trail
+  every(50) {
+    spawn("MagicParticle", {
+      position: this.position,
+      color: "${color}",
+      lifetime: 300
+    })
+  }
+  
+  on_collision: (other) => {
+    if (other.takeDamage) {
+      other.takeDamage(this.damage)
+      // Spell effect based on type
+      ${spell === 'ice' ? 'other.slowEffect(2.0)' : ''}
+      ${spell === 'lightning' ? 'chainLightning(other, 3)' : ''}
+    }
+    spawnParticleBurst(this.position, "${color}", 20)
+    destroy()
+  }
+}
+
+template "${params.name || 'Mage'}" {
+  @interactive
+  
+  state {
+    health: ${params.health || 80}
+    maxHealth: ${params.health || 80}
+    mana: ${params.mana || 100}
+    maxMana: ${params.mana || 100}
+    damage: ${params.damage || 35}
+    castCooldown: 0
+    castRange: 12.0
+    fleeRange: 4.0
+    state: "idle"
+  }
+  
+  mesh: "npcs/mage.glb"
+  color: "#4b0082"
+  
+  // Floating staff
+  object "Staff" {
+    mesh: "items/staff.glb"
+    position: [0.5, 0, 0]
+    emissive: "${color}"
+    emissiveIntensity: 0.5
+  }
+  
+  action castSpell(target) {
+    if (this.castCooldown > 0 || this.mana < 15) return
+    
+    this.mana -= 15
+    this.castCooldown = 1.0
+    
+    // Cast animation
+    animate("Staff.rotation.x", -0.5, 200)
+    await delay(200)
+    
+    const projectile = spawn("${params.name || 'Mage'}Projectile", {
+      position: this.position
+    })
+    
+    const dir = normalize(subtract(target.position, this.position))
+    projectile.velocity = multiply(dir, projectile.speed)
+    
+    animate("Staff.rotation.x", 0, 200)
+    
+    emit("npc:cast", { caster: this, spell: "${spell}" })
+  }
+  
+  action takeDamage(amount) {
+    this.health -= amount
+    showDamageNumber(this.position, amount)
+    
+    if (this.health <= 0) {
+      this.die()
+    }
+  }
+  
+  action die() {
+    this.state = "dead"
+    emit("npc:died", { npc: this, type: "mage" })
+    spawnParticleBurst(this.position, "${color}", 30)
+    destroy()
+  }
+  
+  // Mana regeneration
+  every(1000) {
+    if (this.mana < this.maxMana) {
+      this.mana = Math.min(this.maxMana, this.mana + 5)
+    }
+  }
+  
+  every(100) {
+    if (this.state === "dead") return
+    
+    this.castCooldown = Math.max(0, this.castCooldown - 0.1)
+    
+    const player = getPlayer()
+    if (!player) return
+    
+    const dist = distance(this.position, player.position)
+    
+    // Flee if too close
+    if (dist < this.fleeRange) {
+      this.state = "flee"
+      const awayDir = normalize(subtract(this.position, player.position))
+      moveInDirection(this, awayDir, 4.0 * 0.1)
+    } else if (dist <= this.castRange) {
+      this.state = "attack"
+      lookAt(this, player.position)
+      this.castSpell(player)
+    } else {
+      this.state = "idle"
+    }
+  }
+}
+`.trim();
+  },
+};
+
+export const ScoutNPCTemplate: Template = {
+  name: 'Scout NPC',
+  description: 'Fast and agile with stealth and ranged attacks',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'NPC name', default: 'Scout' },
+    { name: 'health', type: 'number', description: 'Max health', default: 60, min: 30, max: 150 },
+    { name: 'damage', type: 'number', description: 'Arrow damage', default: 20, min: 5, max: 80 },
+    { name: 'speed', type: 'number', description: 'Movement speed', default: 8, min: 4, max: 15 },
+    { name: 'canStealth', type: 'boolean', description: 'Can go invisible', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'Scout'}Arrow" {
+  geometry: cylinder
+  scale: [0.05, 0.5, 0.05]
+  color: "#8b4513"
+  
+  state { damage: ${params.damage || 20} }
+  
+  on_collision: (other) => {
+    if (other.takeDamage) {
+      other.takeDamage(this.damage)
+    }
+    destroy()
+  }
+}
+
+template "${params.name || 'Scout'}" {
+  @interactive
+  
+  state {
+    health: ${params.health || 60}
+    maxHealth: ${params.health || 60}
+    damage: ${params.damage || 20}
+    speed: ${params.speed || 8}
+    canStealth: ${params.canStealth !== false}
+    isStealthed: false
+    stealthCooldown: 0
+    attackCooldown: 0
+    attackRange: 15.0
+    state: "patrol"
+  }
+  
+  mesh: "npcs/scout.glb"
+  color: "#228b22"
+  scale: [0.9, 0.9, 0.9]
+  
+  action shoot(target) {
+    if (this.attackCooldown > 0) return
+    
+    this.attackCooldown = 0.8 // Fast attacks
+    
+    const arrow = spawn("${params.name || 'Scout'}Arrow", {
+      position: this.position,
+      rotation: this.rotation
+    })
+    
+    const dir = normalize(subtract(target.position, this.position))
+    arrow.velocity = multiply(dir, 25)
+    
+    emit("npc:attack", { attacker: this, type: "ranged" })
+  }
+  
+  action enterStealth() {
+    if (!this.canStealth || this.stealthCooldown > 0 || this.isStealthed) return
+    
+    this.isStealthed = true
+    animate("opacity", 0.2, 500)
+    emit("npc:stealth", { npc: this, active: true })
+  }
+  
+  action exitStealth() {
+    if (!this.isStealthed) return
+    
+    this.isStealthed = false
+    this.stealthCooldown = 10.0
+    animate("opacity", 1.0, 300)
+    emit("npc:stealth", { npc: this, active: false })
+  }
+  
+  action takeDamage(amount) {
+    this.exitStealth()
+    this.health -= amount
+    showDamageNumber(this.position, amount)
+    
+    if (this.health <= 0) {
+      emit("npc:died", { npc: this, type: "scout" })
+      destroy()
+    }
+  }
+  
+  every(100) {
+    this.attackCooldown = Math.max(0, this.attackCooldown - 0.1)
+    this.stealthCooldown = Math.max(0, this.stealthCooldown - 0.1)
+    
+    const player = getPlayer()
+    if (!player) return
+    
+    const dist = distance(this.position, player.position)
+    
+    // Stealth if damaged and can
+    if (this.health < this.maxHealth * 0.3 && this.canStealth) {
+      this.enterStealth()
+    }
+    
+    if (dist <= this.attackRange && !this.isStealthed) {
+      this.state = "attack"
+      lookAt(this, player.position)
+      this.shoot(player)
+    } else {
+      this.state = "patrol"
+    }
+  }
+}
+`.trim(),
+};
+
+export const RogueNPCTemplate: Template = {
+  name: 'Rogue NPC',
+  description: 'Stealthy assassin with backstab and poison abilities',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'NPC name', default: 'Rogue' },
+    { name: 'health', type: 'number', description: 'Max health', default: 70, min: 30, max: 150 },
+    { name: 'damage', type: 'number', description: 'Dagger damage', default: 15, min: 5, max: 50 },
+    { name: 'backstabMultiplier', type: 'number', description: 'Backstab damage multiplier', default: 3, min: 1.5, max: 5 },
+    { name: 'poisonDamage', type: 'number', description: 'Poison DPS', default: 5, min: 0, max: 20 },
+  ],
+  generate: (params) => `
+template "${params.name || 'Rogue'}" {
+  @interactive
+  
+  state {
+    health: ${params.health || 70}
+    maxHealth: ${params.health || 70}
+    damage: ${params.damage || 15}
+    backstabMultiplier: ${params.backstabMultiplier || 3}
+    poisonDamage: ${params.poisonDamage || 5}
+    isStealthed: true
+    attackCooldown: 0
+    attackRange: 1.5
+    state: "stalk"
+  }
+  
+  mesh: "npcs/rogue.glb"
+  color: "#2f2f2f"
+  scale: [0.85, 0.85, 0.85]
+  opacity: 0.3 // Starts stealthed
+  
+  action attack(target, isBackstab = false) {
+    if (this.attackCooldown > 0) return
+    
+    this.attackCooldown = 0.5 // Fast attacks
+    this.exitStealth()
+    
+    let finalDamage = this.damage
+    if (isBackstab) {
+      finalDamage *= this.backstabMultiplier
+      emit("npc:backstab", { attacker: this, target: target })
+      showFloatingText(target.position, "BACKSTAB!", "#ff0000")
+    }
+    
+    target.takeDamage(finalDamage)
+    
+    // Apply poison
+    if (this.poisonDamage > 0) {
+      target.applyPoison(this.poisonDamage, 5.0) // 5 second poison
+    }
+  }
+  
+  action exitStealth() {
+    if (!this.isStealthed) return
+    this.isStealthed = false
+    animate("opacity", 1.0, 200)
+  }
+  
+  action enterStealth() {
+    if (this.isStealthed) return
+    this.isStealthed = true
+    animate("opacity", 0.3, 500)
+  }
+  
+  action isBackstab(target) {
+    // Check if behind target
+    const toTarget = subtract(target.position, this.position)
+    const targetForward = getForwardVector(target.rotation)
+    const dot = dotProduct(normalize(toTarget), targetForward)
+    return dot > 0.5 // Behind if facing same direction
+  }
+  
+  action takeDamage(amount) {
+    this.exitStealth()
+    this.health -= amount
+    showDamageNumber(this.position, amount)
+    
+    if (this.health <= 0) {
+      emit("npc:died", { npc: this, type: "rogue" })
+      destroy()
+    }
+  }
+  
+  every(100) {
+    this.attackCooldown = Math.max(0, this.attackCooldown - 0.1)
+    
+    const player = getPlayer()
+    if (!player) return
+    
+    const dist = distance(this.position, player.position)
+    
+    if (this.isStealthed) {
+      // Stalk player from behind
+      this.state = "stalk"
+      const behindPos = getBehindPosition(player, 3.0)
+      moveToward(this, behindPos, 5.0 * 0.1)
+      
+      if (dist <= this.attackRange) {
+        const backstab = this.isBackstab(player)
+        this.attack(player, backstab)
+      }
+    } else {
+      // Fight or flee
+      if (this.health < this.maxHealth * 0.4) {
+        this.state = "flee"
+        const awayDir = normalize(subtract(this.position, player.position))
+        moveInDirection(this, awayDir, 6.0 * 0.1)
+        
+        // Try to re-stealth
+        if (dist > 10) {
+          this.enterStealth()
+        }
+      } else {
+        this.state = "attack"
+        if (dist <= this.attackRange) {
+          this.attack(player, false)
+        } else {
+          moveToward(this, player.position, 5.0 * 0.1)
+        }
+      }
+    }
+  }
+}
+`.trim(),
+};
+
+export const BossNPCTemplate: Template = {
+  name: 'Boss NPC',
+  description: 'Powerful boss enemy with multiple phases and special attacks',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Boss name', default: 'DarkLord' },
+    { name: 'health', type: 'number', description: 'Max health', default: 1000, min: 500, max: 10000 },
+    { name: 'phases', type: 'number', description: 'Number of phases', default: 3, min: 1, max: 5 },
+    { name: 'minionType', type: 'string', description: 'Summon minion type', default: 'Skeleton' },
+    { name: 'arenaRadius', type: 'number', description: 'Boss arena radius', default: 15, min: 10, max: 50 },
+  ],
+  generate: (params) => `
+template "${params.name || 'DarkLord'}" {
+  @interactive
+  
+  state {
+    health: ${params.health || 1000}
+    maxHealth: ${params.health || 1000}
+    phase: 1
+    maxPhases: ${params.phases || 3}
+    enraged: false
+    attackCooldown: 0
+    specialCooldown: 0
+    summonCooldown: 0
+    arenaRadius: ${params.arenaRadius || 15}
+    state: "idle"
+  }
+  
+  mesh: "npcs/boss/${(params.name as string || 'darklord').toLowerCase()}.glb"
+  color: "#4a0000"
+  scale: [2.5, 2.5, 2.5]
+  emissive: "#ff0000"
+  emissiveIntensity: 0.3
+  
+  // Boss healthbar (always visible)
+  object "BossHealthBar" using "HealthBar" {
+    position: [0, 4, 0]
+    scale: [3, 0.3, 1]
+  }
+  
+  action enterPhase(phaseNum) {
+    this.phase = phaseNum
+    
+    emit("boss:phase", { boss: this, phase: phaseNum })
+    showFloatingText(this.position, "PHASE " + phaseNum, "#ff00ff")
+    
+    // Phase transition effects
+    spawnParticleBurst(this.position, "#ff0000", 50)
+    screenShake(0.5)
+    
+    // Heal slightly between phases
+    this.health = Math.min(this.maxHealth, this.health + this.maxHealth * 0.1)
+    
+    // Enrage on final phase
+    if (phaseNum === this.maxPhases) {
+      this.enraged = true
+      this.emissiveIntensity = 1.0
+      animate("scale", [3, 3, 3], 1000)
+    }
+  }
+  
+  action basicAttack(target) {
+    if (this.attackCooldown > 0) return
+    this.attackCooldown = this.enraged ? 0.8 : 1.5
+    
+    const damage = this.enraged ? 50 : 35
+    
+    animate("rotation.z", -0.5, 300)
+    await delay(300)
+    
+    if (distance(this.position, target.position) <= 4) {
+      target.takeDamage(damage)
+      emit("boss:attack", { type: "basic" })
+    }
+    
+    animate("rotation.z", 0, 200)
+  }
+  
+  action groundSlam() {
+    if (this.specialCooldown > 0) return
+    this.specialCooldown = 8.0
+    
+    emit("boss:attack", { type: "groundSlam" })
+    
+    // Jump up
+    animate("position.y", 5, 500)
+    await delay(500)
+    
+    // Slam down
+    animate("position.y", 0, 200)
+    await delay(200)
+    
+    // Shockwave damage
+    screenShake(1.0)
+    const shockwaveRadius = 8
+    
+    for (const entity of getEntitiesInRadius(this.position, shockwaveRadius)) {
+      if (entity.isPlayer) {
+        entity.takeDamage(40)
+        knockback(entity, this.position, 10)
+      }
+    }
+    
+    spawnShockwave(this.position, shockwaveRadius, "#ff4500")
+  }
+  
+  action summonMinions() {
+    if (this.summonCooldown > 0) return
+    this.summonCooldown = 15.0
+    
+    const count = this.phase + 1
+    emit("boss:summon", { count: count })
+    
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2
+      const spawnPos = [
+        this.position[0] + Math.cos(angle) * 5,
+        0,
+        this.position[2] + Math.sin(angle) * 5
+      ]
+      
+      spawn("${params.minionType || 'Skeleton'}", { position: spawnPos })
+    }
+  }
+  
+  action takeDamage(amount) {
+    // Damage reduction in higher phases
+    const reduction = (this.phase - 1) * 0.1
+    const finalDamage = amount * (1 - reduction)
+    
+    this.health -= finalDamage
+    showDamageNumber(this.position, Math.round(finalDamage))
+    this.BossHealthBar.updateHealth(this.health, this.maxHealth)
+    
+    // Check phase transitions
+    const healthPercent = this.health / this.maxHealth
+    const phaseThreshold = 1 - (this.phase / this.maxPhases)
+    
+    if (healthPercent <= phaseThreshold && this.phase < this.maxPhases) {
+      this.enterPhase(this.phase + 1)
+    }
+    
+    if (this.health <= 0) {
+      this.die()
+    }
+  }
+  
+  action die() {
+    this.state = "dead"
+    emit("boss:defeated", { boss: this })
+    
+    // Epic death sequence
+    for (let i = 0; i < 10; i++) {
+      await delay(200)
+      spawnParticleBurst(this.position, "#ff0000", 20)
+      screenShake(0.3)
+    }
+    
+    // Drop loot
+    spawn("EpicLootChest", { position: this.position })
+    
+    destroy()
+  }
+  
+  every(100) {
+    if (this.state === "dead") return
+    
+    this.attackCooldown = Math.max(0, this.attackCooldown - 0.1)
+    this.specialCooldown = Math.max(0, this.specialCooldown - 0.1)
+    this.summonCooldown = Math.max(0, this.summonCooldown - 0.1)
+    
+    const player = getPlayer()
+    if (!player) return
+    
+    const dist = distance(this.position, player.position)
+    
+    // Keep player in arena
+    if (dist > this.arenaRadius) {
+      // Pull player back or block exit
+      emit("boss:arena_edge", { player: player })
+    }
+    
+    // AI behavior based on phase
+    if (this.phase >= 2 && this.summonCooldown <= 0) {
+      this.summonMinions()
+    }
+    
+    if (this.phase >= 2 && dist <= 6 && this.specialCooldown <= 0) {
+      this.groundSlam()
+    } else if (dist <= 4) {
+      this.basicAttack(player)
+    } else {
+      // Chase player
+      moveToward(this, player.position, (this.enraged ? 4 : 2) * 0.1)
+      lookAt(this, player.position)
+    }
+  }
+  
+  on_spawn: () => {
+    emit("boss:spawn", { boss: this })
+    playMusic("boss_theme")
+    showBossHealthbar(this)
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
+// Additional Weapon Templates
+// ============================================================================
+
+export const MagicStaffTemplate: Template = {
+  name: 'Magic Staff',
+  description: 'A channeling staff for magic spells',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Staff name', default: 'ArcaneStaff' },
+    { name: 'damage', type: 'number', description: 'Spell damage', default: 30, min: 10, max: 100 },
+    { name: 'manaCost', type: 'number', description: 'Mana per cast', default: 10, min: 1, max: 50 },
+    { name: 'element', type: 'select', description: 'Element type', default: 'arcane', options: ['fire', 'ice', 'lightning', 'arcane'] },
+  ],
+  generate: (params) => {
+    const colors: Record<string, string> = {
+      fire: '#ff4500', ice: '#00bfff', lightning: '#ffff00', arcane: '#9932cc'
+    };
+    const element = (params.element as string) || 'arcane';
+    const color = colors[element];
+    
+    return `
+template "${params.name || 'ArcaneStaff'}" {
+  @grabbable
+  
+  state {
+    damage: ${params.damage || 30}
+    manaCost: ${params.manaCost || 10}
+    element: "${element}"
+    isChanneling: false
+    chargeLevel: 0
+  }
+  
+  mesh: "weapons/staff_${element}.glb"
+  
+  object "Orb" {
+    geometry: sphere
+    scale: [0.15, 0.15, 0.15]
+    position: [0, 1.2, 0]
+    color: "${color}"
+    emissive: "${color}"
+    emissiveIntensity: 1.0
+  }
+  
+  on_grab: () => {
+    emit("weapon:equipped", { weapon: this })
+  }
+  
+  action startChanneling() {
+    this.isChanneling = true
+    this.chargeLevel = 0
+  }
+  
+  action stopChanneling() {
+    if (!this.isChanneling) return
+    this.isChanneling = false
+    
+    // Release charged spell
+    const chargeMultiplier = 1 + (this.chargeLevel / 100)
+    this.castSpell(chargeMultiplier)
+    this.chargeLevel = 0
+  }
+  
+  action castSpell(multiplier = 1) {
+    const player = getPlayer()
+    if (!player || player.mana < this.manaCost) return
+    
+    player.mana -= this.manaCost
+    
+    const projectile = spawn("MagicProjectile", {
+      position: this.Orb.getWorldPosition(),
+      color: "${color}",
+      damage: this.damage * multiplier,
+      element: "${element}"
+    })
+    
+    projectile.velocity = getForwardVector(player.rotation).multiply(20)
+    
+    emit("weapon:cast", { weapon: this, element: "${element}" })
+  }
+  
+  every(50) {
+    if (this.isChanneling) {
+      this.chargeLevel = Math.min(100, this.chargeLevel + 2)
+      this.Orb.emissiveIntensity = 1 + (this.chargeLevel / 50)
+      this.Orb.scale.setScalar(0.15 + this.chargeLevel * 0.002)
+    }
+  }
+}
+`.trim();
+  },
+};
+
+export const WarHammerTemplate: Template = {
+  name: 'War Hammer',
+  description: 'Heavy two-handed hammer with ground slam',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Weapon name', default: 'WarHammer' },
+    { name: 'damage', type: 'number', description: 'Base damage', default: 45, min: 20, max: 150 },
+    { name: 'knockback', type: 'number', description: 'Knockback force', default: 10, min: 0, max: 30 },
+    { name: 'slamRadius', type: 'number', description: 'Ground slam radius', default: 4, min: 2, max: 10 },
+  ],
+  generate: (params) => `
+template "${params.name || 'WarHammer'}" {
+  @grabbable
+  
+  state {
+    damage: ${params.damage || 45}
+    knockbackForce: ${params.knockback || 10}
+    slamRadius: ${params.slamRadius || 4}
+    isSwinging: false
+    slamCooldown: 0
+  }
+  
+  mesh: "weapons/warhammer.glb"
+  mass: 5.0
+  
+  action swing() {
+    if (this.isSwinging) return
+    this.isSwinging = true
+    
+    animate("rotation.z", -2.0, 400)
+    await delay(400)
+    animate("rotation.z", 0, 300)
+    await delay(300)
+    
+    this.isSwinging = false
+  }
+  
+  action groundSlam() {
+    if (this.slamCooldown > 0) return
+    this.slamCooldown = 3.0
+    
+    // Slam animation
+    animate("position.y", 2, 300)
+    await delay(300)
+    animate("position.y", 0, 150)
+    await delay(150)
+    
+    // AOE damage
+    const hitPos = this.getWorldPosition()
+    spawnShockwave(hitPos, this.slamRadius, "#8b4513")
+    screenShake(0.5)
+    
+    for (const entity of getEntitiesInRadius(hitPos, this.slamRadius)) {
+      if (entity !== getPlayer()) {
+        entity.takeDamage(this.damage * 0.75)
+        knockback(entity, hitPos, this.knockbackForce)
+      }
+    }
+    
+    emit("weapon:slam", { weapon: this, radius: this.slamRadius })
+  }
+  
+  on_collision: (other) => {
+    if (this.isSwinging && other.takeDamage) {
+      other.takeDamage(this.damage)
+      knockback(other, this.position, this.knockbackForce)
+      emit("weapon:hit", { weapon: this, target: other })
+    }
+  }
+  
+  every(100) {
+    this.slamCooldown = Math.max(0, this.slamCooldown - 0.1)
+  }
+}
+`.trim(),
+};
+
+export const SpearTemplate: Template = {
+  name: 'Spear',
+  description: 'Long-reach polearm that can be thrown',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Weapon name', default: 'Spear' },
+    { name: 'meleeDamage', type: 'number', description: 'Melee damage', default: 20, min: 10, max: 60 },
+    { name: 'throwDamage', type: 'number', description: 'Throw damage', default: 40, min: 20, max: 100 },
+    { name: 'throwSpeed', type: 'number', description: 'Throw speed', default: 25, min: 15, max: 40 },
+  ],
+  generate: (params) => `
+template "${params.name || 'Spear'}" {
+  @grabbable
+  @throwable
+  
+  state {
+    meleeDamage: ${params.meleeDamage || 20}
+    throwDamage: ${params.throwDamage || 40}
+    throwSpeed: ${params.throwSpeed || 25}
+    isThrust: false
+    isThrown: false
+    returnTimer: 0
+  }
+  
+  mesh: "weapons/spear.glb"
+  mass: 1.5
+  
+  action thrust() {
+    if (this.isThrust || this.isThrown) return
+    this.isThrust = true
+    
+    const startZ = this.position.z
+    animate("position.z", startZ + 1.5, 150)
+    await delay(150)
+    animate("position.z", startZ, 200)
+    await delay(200)
+    
+    this.isThrust = false
+  }
+  
+  on_throw: (velocity) => {
+    this.isThrown = true
+    this.velocity = velocity.normalize().multiply(this.throwSpeed)
+    
+    // Rotate to point forward
+    lookInDirection(this, velocity)
+    
+    emit("weapon:thrown", { weapon: this })
+  }
+  
+  on_collision: (other) => {
+    if (this.isThrown) {
+      if (other.takeDamage) {
+        other.takeDamage(this.throwDamage)
+        emit("weapon:hit", { weapon: this, target: other, type: "throw" })
+      }
+      
+      // Stick in surface
+      this.velocity = [0, 0, 0]
+      this.isThrown = false
+      this.returnTimer = 5.0 // Auto-return after 5 seconds
+    } else if (this.isThrust && other.takeDamage) {
+      other.takeDamage(this.meleeDamage)
+      emit("weapon:hit", { weapon: this, target: other, type: "thrust" })
+    }
+  }
+  
+  action recall() {
+    if (!this.isThrown && this.returnTimer > 0) {
+      // Fly back to player
+      const player = getPlayer()
+      const dir = subtract(player.position, this.position)
+      this.velocity = normalize(dir).multiply(15)
+      
+      if (distance(this.position, player.position) < 1) {
+        player.equip(this)
+        this.returnTimer = 0
+      }
+    }
+  }
+  
+  every(100) {
+    if (this.returnTimer > 0) {
+      this.returnTimer -= 0.1
+      if (this.returnTimer <= 0) {
+        this.recall()
+      }
+    }
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
+// Game System Templates
+// ============================================================================
+
+export const QuestSystemTemplate: Template = {
+  name: 'Quest System',
+  description: 'Complete quest tracking with objectives and rewards',
+  category: 'system',
+  parameters: [
+    { name: 'maxActiveQuests', type: 'number', description: 'Max active quests', default: 5, min: 1, max: 20 },
+    { name: 'showNotifications', type: 'boolean', description: 'Show quest notifications', default: true },
+  ],
+  generate: (params) => `
+// Quest Types
+const QuestType = {
+  KILL: "kill",
+  COLLECT: "collect",
+  TALK: "talk",
+  EXPLORE: "explore",
+  ESCORT: "escort"
+}
+
+// Quest Status
+const QuestStatus = {
+  AVAILABLE: "available",
+  ACTIVE: "active",
+  COMPLETED: "completed",
+  FAILED: "failed"
+}
+
+system QuestSystem {
+  state {
+    quests: new Map() // questId -> Quest
+    activeQuests: []
+    completedQuests: []
+    maxActive: ${params.maxActiveQuests || 5}
+    showNotifications: ${params.showNotifications !== false}
+  }
+  
+  action registerQuest(quest) {
+    state.quests.set(quest.id, {
+      ...quest,
+      status: QuestStatus.AVAILABLE,
+      objectives: quest.objectives.map(obj => ({
+        ...obj,
+        current: 0,
+        completed: false
+      }))
+    })
+  }
+  
+  action acceptQuest(questId) {
+    const quest = state.quests.get(questId)
+    if (!quest || quest.status !== QuestStatus.AVAILABLE) return false
+    if (state.activeQuests.length >= state.maxActive) {
+      if (state.showNotifications) {
+        showFloatingText(getPlayer().position, "Quest log full!", "#ff0000")
+      }
+      return false
+    }
+    
+    quest.status = QuestStatus.ACTIVE
+    state.activeQuests.push(questId)
+    
+    emit("quest:accepted", { quest: quest })
+    if (state.showNotifications) {
+      showNotification("Quest Accepted: " + quest.name, quest.description)
+    }
+    
+    return true
+  }
+  
+  action updateObjective(questId, objectiveId, amount = 1) {
+    const quest = state.quests.get(questId)
+    if (!quest || quest.status !== QuestStatus.ACTIVE) return
+    
+    const objective = quest.objectives.find(o => o.id === objectiveId)
+    if (!objective || objective.completed) return
+    
+    objective.current = Math.min(objective.target, objective.current + amount)
+    
+    if (objective.current >= objective.target) {
+      objective.completed = true
+      emit("quest:objective_complete", { quest: quest, objective: objective })
+      
+      if (state.showNotifications) {
+        showFloatingText(getPlayer().position, objective.description + " ✓", "#22c55e")
+      }
+    }
+    
+    // Check if all objectives complete
+    if (quest.objectives.every(o => o.completed)) {
+      this.completeQuest(questId)
+    }
+  }
+  
+  action completeQuest(questId) {
+    const quest = state.quests.get(questId)
+    if (!quest) return
+    
+    quest.status = QuestStatus.COMPLETED
+    state.activeQuests = state.activeQuests.filter(id => id !== questId)
+    state.completedQuests.push(questId)
+    
+    // Grant rewards
+    if (quest.rewards) {
+      if (quest.rewards.xp) grantXP(quest.rewards.xp)
+      if (quest.rewards.gold) grantGold(quest.rewards.gold)
+      if (quest.rewards.items) {
+        quest.rewards.items.forEach(item => grantItem(item))
+      }
+    }
+    
+    emit("quest:completed", { quest: quest })
+    if (state.showNotifications) {
+      showNotification("Quest Complete!", quest.name, "#fbbf24")
+    }
+  }
+  
+  action failQuest(questId) {
+    const quest = state.quests.get(questId)
+    if (!quest || quest.status !== QuestStatus.ACTIVE) return
+    
+    quest.status = QuestStatus.FAILED
+    state.activeQuests = state.activeQuests.filter(id => id !== questId)
+    
+    emit("quest:failed", { quest: quest })
+    if (state.showNotifications) {
+      showNotification("Quest Failed", quest.name, "#ef4444")
+    }
+  }
+  
+  action getActiveQuests() {
+    return state.activeQuests.map(id => state.quests.get(id))
+  }
+  
+  action getQuestProgress(questId) {
+    const quest = state.quests.get(questId)
+    if (!quest) return null
+    
+    const total = quest.objectives.length
+    const completed = quest.objectives.filter(o => o.completed).length
+    return { total, completed, percent: completed / total }
+  }
+}
+
+// Auto-track common events
+on("enemy:killed"): (data) => {
+  for (const questId of QuestSystem.state.activeQuests) {
+    const quest = QuestSystem.state.quests.get(questId)
+    for (const obj of quest.objectives) {
+      if (obj.type === QuestType.KILL && obj.targetType === data.enemyType) {
+        QuestSystem.updateObjective(questId, obj.id)
+      }
+    }
+  }
+}
+
+on("item:collected"): (data) => {
+  for (const questId of QuestSystem.state.activeQuests) {
+    const quest = QuestSystem.state.quests.get(questId)
+    for (const obj of quest.objectives) {
+      if (obj.type === QuestType.COLLECT && obj.itemType === data.itemType) {
+        QuestSystem.updateObjective(questId, obj.id)
+      }
+    }
+  }
+}
+`.trim(),
+};
+
+export const AchievementSystemTemplate: Template = {
+  name: 'Achievement System',
+  description: 'Track and unlock achievements with progress',
+  category: 'system',
+  parameters: [
+    { name: 'showPopups', type: 'boolean', description: 'Show unlock popups', default: true },
+    { name: 'soundEnabled', type: 'boolean', description: 'Play unlock sound', default: true },
+  ],
+  generate: (params) => `
+// Achievement Categories
+const AchievementCategory = {
+  COMBAT: "combat",
+  EXPLORATION: "exploration",
+  COLLECTION: "collection",
+  SOCIAL: "social",
+  SECRET: "secret"
+}
+
+system AchievementSystem {
+  state {
+    achievements: new Map() // id -> Achievement
+    unlocked: new Set()
+    progress: new Map() // id -> current progress
+    showPopups: ${params.showPopups !== false}
+    soundEnabled: ${params.soundEnabled !== false}
+  }
+  
+  action register(achievement) {
+    state.achievements.set(achievement.id, {
+      ...achievement,
+      unlocked: false,
+      unlockedAt: null
+    })
+    state.progress.set(achievement.id, 0)
+  }
+  
+  action updateProgress(achievementId, amount = 1) {
+    if (state.unlocked.has(achievementId)) return
+    
+    const achievement = state.achievements.get(achievementId)
+    if (!achievement) return
+    
+    const current = state.progress.get(achievementId) + amount
+    state.progress.set(achievementId, current)
+    
+    if (current >= achievement.target) {
+      this.unlock(achievementId)
+    }
+  }
+  
+  action unlock(achievementId) {
+    if (state.unlocked.has(achievementId)) return
+    
+    const achievement = state.achievements.get(achievementId)
+    if (!achievement) return
+    
+    achievement.unlocked = true
+    achievement.unlockedAt = Date.now()
+    state.unlocked.add(achievementId)
+    
+    emit("achievement:unlocked", { achievement: achievement })
+    
+    if (state.showPopups) {
+      showAchievementPopup(achievement)
+    }
+    
+    if (state.soundEnabled) {
+      playSound("achievement_unlock")
+    }
+    
+    // Grant rewards
+    if (achievement.rewards) {
+      if (achievement.rewards.xp) grantXP(achievement.rewards.xp)
+      if (achievement.rewards.title) unlockTitle(achievement.rewards.title)
+      if (achievement.rewards.cosmetic) unlockCosmetic(achievement.rewards.cosmetic)
+    }
+  }
+  
+  action getProgress(achievementId) {
+    const achievement = state.achievements.get(achievementId)
+    if (!achievement) return null
+    
+    const current = state.progress.get(achievementId)
+    return {
+      current,
+      target: achievement.target,
+      percent: (current / achievement.target) * 100,
+      unlocked: state.unlocked.has(achievementId)
+    }
+  }
+  
+  action getByCategory(category) {
+    return Array.from(state.achievements.values())
+      .filter(a => a.category === category)
+  }
+  
+  action getTotalProgress() {
+    const total = state.achievements.size
+    const unlocked = state.unlocked.size
+    return { total, unlocked, percent: (unlocked / total) * 100 }
+  }
+}
+
+function showAchievementPopup(achievement) {
+  spawn("AchievementPopup", {
+    position: [0, 3, -2],
+    name: achievement.name,
+    description: achievement.description,
+    icon: achievement.icon,
+    rarity: achievement.rarity || "common"
+  })
+}
+
+// Common achievement triggers
+on("enemy:killed"): () => {
+  AchievementSystem.updateProgress("first_blood")
+  AchievementSystem.updateProgress("monster_slayer")
+}
+
+on("level:up"): (data) => {
+  if (data.level >= 10) AchievementSystem.unlock("level_10")
+  if (data.level >= 50) AchievementSystem.unlock("level_50")
+  if (data.level >= 100) AchievementSystem.unlock("max_level")
+}
+
+on("world:visited"): (data) => {
+  AchievementSystem.updateProgress("explorer")
+}
+`.trim(),
+};
+
+export const SaveLoadSystemTemplate: Template = {
+  name: 'Save/Load System',
+  description: 'Persistent game save with multiple slots',
+  category: 'system',
+  parameters: [
+    { name: 'maxSlots', type: 'number', description: 'Max save slots', default: 5, min: 1, max: 20 },
+    { name: 'autoSaveInterval', type: 'number', description: 'Auto-save minutes (0 = disabled)', default: 5, min: 0, max: 60 },
+    { name: 'cloudSync', type: 'boolean', description: 'Enable cloud sync', default: false },
+  ],
+  generate: (params) => `
+system SaveLoadSystem {
+  state {
+    maxSlots: ${params.maxSlots || 5}
+    autoSaveInterval: ${(Number(params.autoSaveInterval) || 5) * 60 * 1000}
+    cloudSync: ${params.cloudSync || false}
+    lastAutoSave: Date.now()
+    currentSlot: null
+  }
+  
+  action save(slot = 0) {
+    if (slot >= state.maxSlots) {
+      console.error("Invalid save slot")
+      return false
+    }
+    
+    const saveData = {
+      version: "1.0",
+      timestamp: Date.now(),
+      slot: slot,
+      
+      // Player data
+      player: {
+        position: getPlayer().position,
+        rotation: getPlayer().rotation,
+        health: getPlayer().health,
+        mana: getPlayer().mana,
+        level: getPlayer().level,
+        xp: getPlayer().xp,
+        stats: getPlayer().stats
+      },
+      
+      // Inventory
+      inventory: InventorySystem.serialize(),
+      
+      // Quests
+      quests: {
+        active: QuestSystem.state.activeQuests,
+        completed: QuestSystem.state.completedQuests
+      },
+      
+      // Achievements
+      achievements: Array.from(AchievementSystem.state.unlocked),
+      
+      // World state
+      world: {
+        currentScene: getCurrentScene(),
+        visitedAreas: getVisitedAreas(),
+        npcsDefeated: getNPCsDefeated(),
+        chestsOpened: getChestsOpened()
+      },
+      
+      // Settings
+      settings: getSettings()
+    }
+    
+    const json = JSON.stringify(saveData)
+    localStorage.setItem("hololand_save_" + slot, json)
+    state.currentSlot = slot
+    
+    if (state.cloudSync) {
+      this.syncToCloud(slot, json)
+    }
+    
+    emit("game:saved", { slot: slot })
+    showNotification("Game Saved", "Slot " + (slot + 1))
+    
+    return true
+  }
+  
+  action load(slot = 0) {
+    const json = localStorage.getItem("hololand_save_" + slot)
+    if (!json) {
+      showNotification("No Save Found", "Slot " + (slot + 1), "#ef4444")
+      return false
+    }
+    
+    try {
+      const saveData = JSON.parse(json)
+      
+      // Restore player
+      const player = getPlayer()
+      player.position = saveData.player.position
+      player.rotation = saveData.player.rotation
+      player.health = saveData.player.health
+      player.mana = saveData.player.mana
+      player.level = saveData.player.level
+      player.xp = saveData.player.xp
+      Object.assign(player.stats, saveData.player.stats)
+      
+      // Restore inventory
+      InventorySystem.deserialize(saveData.inventory)
+      
+      // Restore quests
+      QuestSystem.state.activeQuests = saveData.quests.active
+      QuestSystem.state.completedQuests = saveData.quests.completed
+      
+      // Restore achievements
+      saveData.achievements.forEach(id => {
+        AchievementSystem.state.unlocked.add(id)
+      })
+      
+      // Restore world
+      loadScene(saveData.world.currentScene)
+      setVisitedAreas(saveData.world.visitedAreas)
+      
+      // Restore settings
+      applySettings(saveData.settings)
+      
+      state.currentSlot = slot
+      
+      emit("game:loaded", { slot: slot })
+      showNotification("Game Loaded", "Slot " + (slot + 1))
+      
+      return true
+    } catch (e) {
+      console.error("Failed to load save:", e)
+      showNotification("Load Failed", "Corrupted save data", "#ef4444")
+      return false
+    }
+  }
+  
+  action deleteSave(slot) {
+    localStorage.removeItem("hololand_save_" + slot)
+    
+    if (state.cloudSync) {
+      this.deleteFromCloud(slot)
+    }
+    
+    emit("game:save_deleted", { slot: slot })
+  }
+  
+  action getSaveInfo(slot) {
+    const json = localStorage.getItem("hololand_save_" + slot)
+    if (!json) return null
+    
+    try {
+      const data = JSON.parse(json)
+      return {
+        slot: slot,
+        timestamp: data.timestamp,
+        playTime: data.playTime,
+        level: data.player.level,
+        scene: data.world.currentScene
+      }
+    } catch {
+      return null
+    }
+  }
+  
+  action listSaves() {
+    const saves = []
+    for (let i = 0; i < state.maxSlots; i++) {
+      const info = this.getSaveInfo(i)
+      saves.push(info)
+    }
+    return saves
+  }
+  
+  async action syncToCloud(slot, json) {
+    // Cloud sync implementation
+    try {
+      await fetch("/api/saves/" + slot, {
+        method: "POST",
+        body: json
+      })
+    } catch (e) {
+      console.warn("Cloud sync failed:", e)
+    }
+  }
+  
+  // Auto-save
+  every(60000) {
+    if (state.autoSaveInterval <= 0) return
+    if (Date.now() - state.lastAutoSave < state.autoSaveInterval) return
+    
+    state.lastAutoSave = Date.now()
+    this.save(0) // Auto-save to slot 0
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
 // Template Registry
 // ============================================================================
 
@@ -1142,13 +2618,25 @@ export const Templates: Record<string, Template> = {
   galleryWorld: GalleryWorldTemplate,
   outdoorWorld: OutdoorWorldTemplate,
 
-  // NPCs
+  // NPCs - Basic
   simpleNPC: SimpleNPCTemplate,
   patrollingNPC: PatrollingNPCTemplate,
 
-  // Weapons
+  // NPCs - Archetypes
+  warriorNPC: WarriorNPCTemplate,
+  mageNPC: MageNPCTemplate,
+  scoutNPC: ScoutNPCTemplate,
+  rogueNPC: RogueNPCTemplate,
+  bossNPC: BossNPCTemplate,
+
+  // Weapons - Melee
   meleeWeapon: MeleeWeaponTemplate,
+  warHammer: WarHammerTemplate,
+  spear: SpearTemplate,
+
+  // Weapons - Ranged/Magic
   rangedWeapon: RangedWeaponTemplate,
+  magicStaff: MagicStaffTemplate,
 
   // UI Components
   healthBar: HealthBarTemplate,
@@ -1158,9 +2646,12 @@ export const Templates: Record<string, Template> = {
   // Collectibles
   collectibleItem: CollectibleItemTemplate,
 
-  // Systems
+  // Game Systems
   inventorySystem: InventorySystemTemplate,
   healthSystem: HealthSystemTemplate,
+  questSystem: QuestSystemTemplate,
+  achievementSystem: AchievementSystemTemplate,
+  saveLoadSystem: SaveLoadSystemTemplate,
 
   // Materials
   glowingMaterial: GlowingMaterialTemplate,
