@@ -1,0 +1,68 @@
+# Hololand Cursor Rules
+
+You are working in the Hololand codebase - a VR/AR platform with the HoloScript language.
+
+## HoloScript File Types
+
+### .holo files (Visual Flow Language)
+- Think of these as **visual graphs**, not code
+- Nodes = objects (orbs, buildings, NPCs)
+- Edges = connections (events, actions)
+- Flow = how data/control moves
+
+When reading .holo, mentally visualize:
+```
+[Object A] ──event──→ [Object B]
+     ↓                    ↓
+   state              state
+```
+
+### .hsplus files (Full Language)
+- Use for complex logic, backends, systems
+- Has variables, functions, loops, async/await
+
+## Generating .holo
+
+When asked to create scenes/worlds, output .holo with this structure:
+
+```holo
+composition "Name" {
+  // 1. Templates define node types
+  template "TypeName" {
+    state { }
+    action name() { }
+  }
+
+  // 2. Spatial groups organize nodes
+  spatial_group "GroupName" {
+    object "Instance" using "TypeName" {
+      position: [x, y, z]
+    }
+  }
+
+  // 3. Logic defines flow
+  logic {
+    on_event { }
+    every(ms) { }
+  }
+}
+```
+
+## Common Patterns
+
+NPC: `object "Name" { traits: ["talkable"] }`
+Interactive: `orb "Name" { interactive: true, on_interact { } }`
+Collectible: `traits: ["collectible", "pulse"]`
+Periodic: `every(5000) { action() }`
+
+## Project Structure
+
+- `/packages/core` - Parser, validator, runtime
+- `/packages/holoscript-*` - Standard library packages
+- `/packages/mcp-server` - MCP tools for agents
+- `/packages/brittney-service` - Local AI assistant
+- `/examples/` - Example worlds
+
+## Key Principle
+
+.holo is designed for AI agents to read/write. Keep it declarative and visual. Use .hsplus when you need real programming.

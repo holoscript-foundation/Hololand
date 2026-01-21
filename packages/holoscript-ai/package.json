@@ -1,0 +1,68 @@
+{
+  "name": "@holoscript/ai",
+  "version": "1.0.0",
+  "description": "AI/LLM integration library for HoloScript Plus",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers.d.ts",
+      "import": "./dist/providers.js"
+    },
+    "./brittney": {
+      "types": "./dist/brittney.d.ts",
+      "import": "./dist/brittney.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.js"
+    },
+    "./embeddings": {
+      "types": "./dist/embeddings.d.ts",
+      "import": "./dist/embeddings.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "eventsource-parser": "^1.1.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.0",
+    "rimraf": "^5.0.5"
+  },
+  "peerDependencies": {
+    "@holoscript/std": "^1.0.0"
+  },
+  "keywords": [
+    "holoscript",
+    "hololand",
+    "ai",
+    "llm",
+    "brittney",
+    "claude",
+    "openai",
+    "ollama"
+  ],
+  "author": "Hololand Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/holoscript-ai"
+  }
+}

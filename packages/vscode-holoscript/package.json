@@ -68,6 +68,20 @@
         "label": "HoloScript Icons",
         "path": "./icons/icon-theme.json"
       }
+    ],
+    "commands": [
+      {
+        "command": "holoscript.compile",
+        "title": "HoloScript: Compile to R3F"
+      },
+      {
+        "command": "holoscript.preview",
+        "title": "HoloScript: Open 3D Preview"
+      },
+      {
+        "command": "holoscript.format",
+        "title": "HoloScript: Format Document"
+      }
     ]
   },
   "scripts": {
@@ -76,6 +90,9 @@
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
     "publish": "vsce publish"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@types/vscode": "^1.80.0",

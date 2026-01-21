@@ -1,0 +1,35 @@
+{
+  "name": "@hololand/holoscript-compiler",
+  "version": "1.0.0",
+  "description": "HoloScript to React Three Fiber compiler",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "holoscript": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "clean": "rm -rf dist",
+    "test": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "holoscript",
+    "compiler",
+    "react-three-fiber",
+    "r3f",
+    "3d"
+  ],
+  "author": "Hololand",
+  "license": "ELv2",
+  "dependencies": {
+    "@hololand/core": "workspace:*",
+    "prettier": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  }
+}

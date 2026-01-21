@@ -160,20 +160,81 @@ export class HoloScriptService {
     return {
       tokenizer: {
         root: [
-          [/\bworld\b/, 'keyword'],
-          [/\bobject\b/, 'keyword'],
-          [/\btrait\b/, 'keyword'],
-          [/\bbehavior\b/, 'keyword'],
-          [/\bimport\b/, 'keyword'],
-          [/\bfrom\b/, 'keyword'],
+          // Keywords - Core
+          [/\b(world|composition|scene)\b/, 'keyword'],
+          [/\b(object|orb|template|spatial_group)\b/, 'keyword'],
+          [/\b(trait|behavior|state|logic)\b/, 'keyword'],
+          [/\b(import|from|export|using)\b/, 'keyword'],
+          [/\b(function|action|on|every|emit)\b/, 'keyword.control'],
+          [/\b(if|else|for|while|return|break|continue)\b/, 'keyword.control'],
+          [/\b(async|await|spawn|parallel)\b/, 'keyword.async'],
+          
+          // Traits - VR Interaction (@ prefix)
+          [/@(grabbable|throwable|climbable|wearable|holdable)\b/, 'annotation'],
+          [/@(interactive|stackable|rotatable|scalable)\b/, 'annotation'],
+          [/@(persistent|networked|networkInterpolated)\b/, 'annotation'],
+          [/@(physics|collision|trigger|sensor)\b/, 'annotation'],
+          
+          // Traits - Physics & Constraints
+          [/@physics\.(joint|spring|distance|ballSocket)\b/, 'annotation'],
+          [/@terrain\.(heightmap|island|erosion)\b/, 'annotation'],
+          [/@marketplace\.(browser|publisher)\b/, 'annotation'],
+          [/@versionControl\.(timeline|comparator)\b/, 'annotation'],
+          
+          // Properties - Transform
+          [/\b(position|rotation|scale|transform)\b/, 'variable.property'],
+          [/\b(velocity|acceleration|force|torque)\b/, 'variable.property'],
+          
+          // Properties - Visual
+          [/\b(color|material|texture|opacity|emissive)\b/, 'variable.property'],
+          [/\b(mesh|geometry|model|animation)\b/, 'variable.property'],
+          
+          // Properties - Physics
+          [/\b(mass|friction|restitution|drag)\b/, 'variable.property'],
+          [/\b(collider|rigidbody|kinematic|static)\b/, 'variable.property'],
+          
+          // Properties - Interaction
+          [/\b(health|damage|armor|speed)\b/, 'variable.property'],
+          [/\b(inventory|equipment|stats)\b/, 'variable.property'],
+          
+          // Built-in types/shapes
+          [/\b(cube|sphere|plane|cylinder|capsule|cone|torus)\b/, 'type'],
+          [/\b(box|mesh|group|light|camera|audio)\b/, 'type'],
+          
+          // Events
+          [/\b(on_grab|on_release|on_collision|on_trigger)\b/, 'function'],
+          [/\b(on_enter|on_exit|on_interact|on_use)\b/, 'function'],
+          [/\b(on_damage|on_death|on_spawn|on_destroy)\b/, 'function'],
+          [/\b(on_player_enter|on_player_exit|on_player_attack)\b/, 'function'],
+          
+          // Boolean & special values
+          [/\b(true|false|null|undefined|this)\b/, 'constant'],
+          [/\b(PI|TAU|EPSILON|Infinity)\b/, 'constant.numeric'],
+          
+          // Strings
           [/"([^"\\]|\\.)*$/, 'string.invalid'],
           [/"/, 'string', '@string'],
           [/'([^'\\]|\\.)*$/, 'string.invalid'],
           [/'/, 'string', '@string_single'],
+          
+          // Comments
           [/\/\/.*$/, 'comment'],
           [/\/\*/, 'comment', '@comment'],
-          [/\d+\.\d+/, 'number'],
-          [/\d+/, 'number'],
+          
+          // Numbers
+          [/-?\d+\.\d+/, 'number.float'],
+          [/-?\d+/, 'number'],
+          [/0x[0-9a-fA-F]+/, 'number.hex'],
+          
+          // Operators
+          [/[+\-*/%=<>!&|^~?:]/, 'operator'],
+          [/=>/, 'operator.arrow'],
+          
+          // Brackets & Punctuation
+          [/[{}()\[\]]/, 'delimiter.bracket'],
+          [/[;,.]/, 'delimiter'],
+          
+          // Identifiers
           [/[a-zA-Z_]\w*/, 'identifier'],
         ],
         string: [
@@ -200,16 +261,73 @@ export class HoloScriptService {
    */
   static getCompletionSuggestions(code: string, position: { line: number; column: number }) {
     const suggestions = [
-      { label: 'world', kind: 'Keyword', insertText: 'world ${1:name} {$0}' },
-      { label: 'object', kind: 'Keyword', insertText: 'object ${1:name} {$0}' },
-      { label: 'trait', kind: 'Keyword', insertText: 'trait ${1:name} {$0}' },
-      { label: 'behavior', kind: 'Keyword', insertText: 'behavior ${1:name} {$0}' },
-      { label: 'import', kind: 'Keyword', insertText: 'import ${1:module} from "${2:path}"' },
-      { label: 'position', kind: 'Property', insertText: 'position' },
-      { label: 'rotation', kind: 'Property', insertText: 'rotation' },
-      { label: 'scale', kind: 'Property', insertText: 'scale' },
+      // Core structures
+      { label: 'world', kind: 'Keyword', insertText: 'world ${1:name} {\n  $0\n}' },
+      { label: 'composition', kind: 'Keyword', insertText: 'composition "${1:Scene Name}" {\n  $0\n}' },
+      { label: 'object', kind: 'Keyword', insertText: 'object "${1:name}" {\n  position: [${2:0}, ${3:0}, ${4:0}]\n  $0\n}' },
+      { label: 'template', kind: 'Keyword', insertText: 'template "${1:Type}" {\n  state { $2 }\n  action ${3:name}() { $0 }\n}' },
+      { label: 'spatial_group', kind: 'Keyword', insertText: 'spatial_group "${1:name}" {\n  $0\n}' },
+      { label: 'trait', kind: 'Keyword', insertText: 'trait ${1:name} {\n  $0\n}' },
+      { label: 'behavior', kind: 'Keyword', insertText: 'behavior ${1:name} {\n  $0\n}' },
+      { label: 'state', kind: 'Keyword', insertText: 'state {\n  ${1:property}: ${2:value}\n}' },
+      { label: 'logic', kind: 'Keyword', insertText: 'logic {\n  $0\n}' },
+      
+      // Properties - Transform
+      { label: 'position', kind: 'Property', insertText: 'position: [${1:0}, ${2:0}, ${3:0}]' },
+      { label: 'rotation', kind: 'Property', insertText: 'rotation: [${1:0}, ${2:0}, ${3:0}]' },
+      { label: 'scale', kind: 'Property', insertText: 'scale: [${1:1}, ${2:1}, ${3:1}]' },
+      
+      // Properties - Visual
+      { label: 'color', kind: 'Property', insertText: 'color: "${1:#ff0000}"' },
+      { label: 'material', kind: 'Property', insertText: 'material: "${1:standard}"' },
+      { label: 'opacity', kind: 'Property', insertText: 'opacity: ${1:1.0}' },
+      { label: 'emissive', kind: 'Property', insertText: 'emissive: ${1:0.5}' },
+      
+      // Properties - Physics
+      { label: 'mass', kind: 'Property', insertText: 'mass: ${1:1.0}' },
+      { label: 'friction', kind: 'Property', insertText: 'friction: ${1:0.5}' },
+      { label: 'restitution', kind: 'Property', insertText: 'restitution: ${1:0.5}' },
+      
+      // Properties - Gameplay
+      { label: 'health', kind: 'Property', insertText: 'health: ${1:100}' },
+      { label: 'damage', kind: 'Property', insertText: 'damage: ${1:10}' },
+      { label: 'speed', kind: 'Property', insertText: 'speed: ${1:5}' },
+      
+      // VR Traits
+      { label: '@grabbable', kind: 'Interface', insertText: '@grabbable' },
+      { label: '@throwable', kind: 'Interface', insertText: '@throwable' },
+      { label: '@climbable', kind: 'Interface', insertText: '@climbable' },
+      { label: '@interactive', kind: 'Interface', insertText: '@interactive' },
+      { label: '@stackable', kind: 'Interface', insertText: '@stackable {\n  maxStack: ${1:10}\n  snapDistance: ${2:0.1}\n}' },
+      { label: '@rotatable', kind: 'Interface', insertText: '@rotatable(\n  axis: "${1:y}",\n  snapAngle: ${2:45}\n)' },
+      { label: '@persistent', kind: 'Interface', insertText: '@persistent {\n  saveKey: "${1:save}"\n}' },
+      { label: '@networked', kind: 'Interface', insertText: '@networked {\n  syncRate: ${1:20}\n}' },
+      
+      // Events
+      { label: 'on_grab', kind: 'Function', insertText: 'on_grab: () => {\n  $0\n}' },
+      { label: 'on_release', kind: 'Function', insertText: 'on_release: () => {\n  $0\n}' },
+      { label: 'on_collision', kind: 'Function', insertText: 'on_collision: (other) => {\n  $0\n}' },
+      { label: 'on_interact', kind: 'Function', insertText: 'on_interact: () => {\n  $0\n}' },
+      { label: 'on_damage', kind: 'Function', insertText: 'on_damage: (amount) => {\n  this.health -= amount\n  $0\n}' },
+      { label: 'every', kind: 'Function', insertText: 'every(${1:1000}) {\n  $0\n}' },
+      { label: 'emit', kind: 'Function', insertText: 'emit("${1:event}", { $0 })' },
+      
+      // Actions
+      { label: 'action', kind: 'Method', insertText: 'action ${1:name}(${2:params}) {\n  $0\n}' },
       { label: 'transform', kind: 'Method', insertText: 'transform(${1:x}, ${2:y}, ${3:z})' },
-      { label: 'animate', kind: 'Method', insertText: 'animate(${1:property}, ${2:value}, ${3:duration})' },
+      { label: 'animate', kind: 'Method', insertText: 'animate("${1:property}", ${2:value}, ${3:duration})' },
+      { label: 'spawn', kind: 'Method', insertText: 'spawn("${1:template}", {\n  position: [${2:0}, ${3:0}, ${4:0}]\n})' },
+      { label: 'destroy', kind: 'Method', insertText: 'destroy()' },
+      
+      // Built-in shapes
+      { label: 'cube', kind: 'Value', insertText: 'type: "cube"\nsize: [${1:1}, ${2:1}, ${3:1}]' },
+      { label: 'sphere', kind: 'Value', insertText: 'type: "sphere"\nradius: ${1:0.5}' },
+      { label: 'plane', kind: 'Value', insertText: 'type: "plane"\nsize: [${1:10}, ${2:10}]' },
+      { label: 'cylinder', kind: 'Value', insertText: 'type: "cylinder"\nradius: ${1:0.5}\nheight: ${2:2}' },
+      
+      // Import
+      { label: 'import', kind: 'Keyword', insertText: 'import { ${1:module} } from "${2:@holoscript/core}"' },
+      { label: 'using', kind: 'Keyword', insertText: 'using "${1:TemplateName}"' },
     ];
 
     return suggestions;

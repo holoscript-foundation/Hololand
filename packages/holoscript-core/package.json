@@ -1,0 +1,58 @@
+{
+  "name": "@holoscript/core",
+  "version": "1.0.0",
+  "description": "HoloScript language core - parser, runtime, and validator",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./parser": {
+      "types": "./dist/parser/index.d.ts",
+      "import": "./dist/parser/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js"
+    },
+    "./validator": {
+      "types": "./dist/validator/index.d.ts",
+      "import": "./dist/validator/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.0",
+    "rimraf": "^5.0.5",
+    "vitest": "^1.1.0"
+  },
+  "keywords": [
+    "holoscript",
+    "hololand",
+    "parser",
+    "dsl",
+    "3d",
+    "spatial"
+  ],
+  "author": "Hololand Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/holoscript-core"
+  }
+}

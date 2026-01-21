@@ -21,6 +21,9 @@ import { z } from 'zod';
 import { brittneyTools, handleBrittneyTool } from './brittney-tools.js';
 import { advancedBrittneyTools, handleAdvancedBrittneyTool } from './advanced-brittney-tools.js';
 
+// HoloScript Graph Understanding Tools (helps agents understand .holo as visual graphs)
+import { holoGraphTools, handleHoloGraphTool } from './holo-graph-tools.js';
+
 // Import HoloScript code parser for local validation
 // Using dynamic require to work around @holoscript/core ESM resolution issue
 import { createRequire } from 'module';
@@ -473,6 +476,12 @@ const tools: Tool[] = [
   // ADVANCED BRITTNEY TOOLS (AI + Automation + Learning)
   // =====================================================
   ...advancedBrittneyTools,
+
+  // =====================================================
+  // HOLOSCRIPT GRAPH UNDERSTANDING TOOLS
+  // Helps agents understand .holo as visual graphs
+  // =====================================================
+  ...holoGraphTools,
 ];
 
 /**
@@ -754,6 +763,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           // Otherwise use standard Brittney handler
           return await handleBrittneyTool(name, args as Record<string, unknown>);
         }
+
+        // Check if it's a HoloScript Graph tool
+        if (name.startsWith('holo_')) {
+          return await handleHoloGraphTool(name, args as Record<string, unknown>);
+        }
+
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error: any) {
