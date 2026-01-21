@@ -223,7 +223,8 @@ export type EditorEventType =
   | 'mode:changed'
   | 'tool:changed'
   | 'history:undo'
-  | 'history:redo';
+  | 'history:redo'
+  | 'network:snapshot';
 
 export type EditorEventListener = (event: EditorEvent) => void;
 
@@ -1530,6 +1531,48 @@ export class VisualEditor {
   // State access
   getState(): Readonly<EditorState> {
     return this.state;
+  }
+
+  // Live Refresh
+  enableLiveRefresh(roomId: string): void {
+    this.on(event => {
+      if (event.type === 'node:updated' || event.type === 'node:created') {
+        this.emit({
+          type: 'network:snapshot',
+          data: {
+            roomId,
+            type: 'live_refresh',
+            data: event.data,
+            timestamp: Date.now()
+          }
+        });
+      }
+    });
+  }
+}
+
+/**
+ * Property Panel for managing component properties visually
+ */
+export class PropertyPanel {
+  constructor(private editor: VisualEditor) {}
+
+  renderProperties(nodeId: string): Record<string, any> {
+    const node = this.editor.scene.getNode(nodeId);
+    if (!node) return {};
+
+    const properties: Record<string, any> = { ...node.transform };
+    
+    node.components.forEach(comp => {
+      if (comp.componentType === 'RealWorldAPI') {
+        properties.api = {
+          url: comp.properties.url || '',
+          interval: comp.properties.interval || '5s'
+        };
+      }
+    });
+
+    return properties;
   }
 }
 

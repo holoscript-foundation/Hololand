@@ -13,6 +13,21 @@ export {
   createVisualEditor,
 } from './VisualEditor';
 
+// HoloScript I/O - Import/Export functionality
+export {
+  exportToHoloScript,
+  importFromHoloScript,
+  sceneToHoloScript,
+  holoScriptToScene,
+} from './HoloScriptIO';
+
+export type {
+  HoloScriptExportOptions,
+  HoloScriptImportOptions,
+  HoloScriptParseResult,
+  HoloScriptError,
+} from './HoloScriptIO';
+
 export type {
   // Scene types
   Vector3,
