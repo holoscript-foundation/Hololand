@@ -1,0 +1,33 @@
+// HOSL: WeatherSensor
+// Bridges real-word atmospheric data into the 3D scene
+
+object weather_hub {
+  @state {
+    city: "London"
+    temp: 20
+    condition: "clear"
+  }
+
+  @external_api(
+    url: "https://api.openweathermap.org/data/2.5/weather?q=${state.city}&appid=YOUR_API_KEY",
+    interval: 10m
+  )
+
+  @on_data_update(data) => {
+    state.temp = data.main.temp - 273.15 // Kelvin to Celsius
+    state.condition = data.weather[0].main.toLowerCase()
+    
+    // Adjust scene environment based on weather
+    if (state.condition == "rain") {
+      world.environment.theme = "stormy"
+    } else if (state.condition == "clear") {
+      world.environment.theme = "sunny"
+    }
+  }
+
+  // Visual feedback
+  text#display {
+    value: "${state.city}: ${state.temp}°C (${state.condition})"
+    position: [0, 2, 0]
+  }
+}

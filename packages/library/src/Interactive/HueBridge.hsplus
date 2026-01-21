@@ -1,0 +1,39 @@
+// HOSL: HueBridge
+// Direct integration with Philips Hue smart lighting
+
+object light_bridge {
+  @state {
+    bridge_ip: "192.168.1.100"
+    user_token: "YOUR_TOKEN"
+    light_id: "1"
+    is_on: true
+    color: "#ffffff"
+  }
+
+  // Poll physical light state
+  @external_api(
+    url: "http://${state.bridge_ip}/api/${state.user_token}/lights/${state.light_id}",
+    interval: 2s
+  )
+
+  @on_data_update(data) => {
+    state.is_on = data.state.on
+    // Mapping Hue XY or CT to Hex would occur here
+  }
+
+  // Push virtual changes back to physical world
+  @on_click => {
+    state.is_on = !state.is_on
+    api_call(
+      "http://${state.bridge_ip}/api/${state.user_token}/lights/${state.light_id}/state",
+      "PUT",
+      { "on": state.is_on }
+    )
+  }
+
+  // Virtual Light Representation
+  light#physical_sync {
+    intensity: ${state.is_on ? 1.0 : 0.0}
+    color: ${state.color}
+  }
+}

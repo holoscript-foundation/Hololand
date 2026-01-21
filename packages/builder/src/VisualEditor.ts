@@ -786,6 +786,38 @@ export class VisualScriptEditor {
       outputs: [{ name: 'Flow', type: 'flow' }],
       properties: { variableName: '' },
     });
+
+    // Networking nodes
+    this.registerNodeTemplate({
+      type: 'event',
+      name: 'On Network Sync',
+      category: 'Networking',
+      outputs: [{ name: 'Flow', type: 'flow' }, { name: 'Data', type: 'any' }],
+    });
+
+    this.registerNodeTemplate({
+      type: 'action',
+      name: 'Broadcast State',
+      category: 'Networking',
+      inputs: [{ name: 'Flow', type: 'flow' }, { name: 'Payload', type: 'any' }],
+      outputs: [{ name: 'Flow', type: 'flow' }],
+    });
+
+    // Real-World Bridge nodes
+    this.registerNodeTemplate({
+      type: 'event',
+      name: 'On API Update',
+      category: 'Real World',
+      outputs: [{ name: 'Flow', type: 'flow' }, { name: 'JSON', type: 'any' }],
+    });
+
+    this.registerNodeTemplate({
+      type: 'action',
+      name: 'Fetch API',
+      category: 'Real World',
+      inputs: [{ name: 'Flow', type: 'flow' }, { name: 'URL', type: 'string' }],
+      outputs: [{ name: 'Flow', type: 'flow' }, { name: 'Response', type: 'any' }],
+    });
   }
 
   registerNodeTemplate(template: NodeTemplate): void {

@@ -3658,6 +3658,2110 @@ template "${params.name || 'PressurePlate'}" {
 };
 
 // ============================================================================
+// Extended UI Components
+// ============================================================================
+
+export const InventoryPanelTemplate: Template = {
+  name: 'Inventory Panel',
+  description: 'Grid-based inventory UI with item slots',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Panel name', default: 'InventoryPanel' },
+    { name: 'rows', type: 'number', description: 'Grid rows', default: 4, min: 1, max: 10 },
+    { name: 'cols', type: 'number', description: 'Grid columns', default: 6, min: 1, max: 12 },
+    { name: 'slotSize', type: 'number', description: 'Slot size pixels', default: 64, min: 32, max: 128 },
+  ],
+  generate: (params) => `
+template "${params.name || 'InventoryPanel'}" {
+  @ui
+  
+  state {
+    isOpen: false
+    rows: ${params.rows || 4}
+    cols: ${params.cols || 6}
+    slotSize: ${params.slotSize || 64}
+    slots: []
+    selectedSlot: null
+    draggedItem: null
+  }
+  
+  style {
+    position: absolute
+    top: 50%
+    left: 50%
+    transform: translate(-50%, -50%)
+    background: rgba(0, 0, 0, 0.9)
+    border: 2px solid #4a5568
+    borderRadius: 8px
+    padding: 16px
+    display: none
+  }
+  
+  object "Header" {
+    @ui
+    style {
+      display: flex
+      justifyContent: space-between
+      alignItems: center
+      marginBottom: 12px
+    }
+    
+    object "Title" {
+      @ui
+      text: "Inventory"
+      style { color: #fff, fontSize: 18px, fontWeight: bold }
+    }
+    
+    object "CloseBtn" {
+      @ui
+      text: "✕"
+      style { 
+        color: #999
+        cursor: pointer
+        fontSize: 20px
+      }
+      on_click: () => this.parent.parent.close()
+    }
+  }
+  
+  object "Grid" {
+    @ui
+    style {
+      display: grid
+      gridTemplateColumns: repeat(${params.cols || 6}, ${params.slotSize || 64}px)
+      gap: 4px
+    }
+  }
+  
+  action initialize() {
+    const totalSlots = this.rows * this.cols
+    for (let i = 0; i < totalSlots; i++) {
+      this.slots.push({ index: i, item: null, count: 0 })
+      this.Grid.appendChild(createSlotElement(i))
+    }
+  }
+  
+  action open() {
+    this.isOpen = true
+    this.style.display = "block"
+    playSound("ui_open")
+    emit("inventory:opened")
+  }
+  
+  action close() {
+    this.isOpen = false
+    this.style.display = "none"
+    playSound("ui_close")
+    emit("inventory:closed")
+  }
+  
+  action toggle() {
+    if (this.isOpen) this.close()
+    else this.open()
+  }
+  
+  action addItem(item, count = 1) {
+    // Find existing stack or empty slot
+    let slot = this.slots.find(s => s.item?.id === item.id && s.count < item.maxStack)
+    if (!slot) {
+      slot = this.slots.find(s => s.item === null)
+    }
+    
+    if (slot) {
+      slot.item = item
+      slot.count += count
+      this.updateSlotDisplay(slot.index)
+      emit("inventory:itemAdded", { item, count, slot: slot.index })
+      return true
+    }
+    
+    showNotification("Inventory Full!", "#ef4444")
+    return false
+  }
+  
+  action removeItem(slotIndex, count = 1) {
+    const slot = this.slots[slotIndex]
+    if (!slot?.item) return null
+    
+    const item = slot.item
+    slot.count -= count
+    
+    if (slot.count <= 0) {
+      slot.item = null
+      slot.count = 0
+    }
+    
+    this.updateSlotDisplay(slotIndex)
+    emit("inventory:itemRemoved", { item, count, slot: slotIndex })
+    return item
+  }
+  
+  on_spawn: () => this.initialize()
+}
+`.trim(),
+};
+
+export const MinimapTemplate: Template = {
+  name: 'Minimap',
+  description: 'Corner minimap showing player and points of interest',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Minimap name', default: 'Minimap' },
+    { name: 'size', type: 'number', description: 'Map size pixels', default: 200, min: 100, max: 400 },
+    { name: 'zoom', type: 'number', description: 'Zoom level', default: 1, min: 0.5, max: 3 },
+    { name: 'showNPCs', type: 'boolean', description: 'Show NPCs', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'Minimap'}" {
+  @ui
+  
+  state {
+    size: ${params.size || 200}
+    zoom: ${params.zoom || 1}
+    showNPCs: ${params.showNPCs !== false}
+    markers: new Map()
+  }
+  
+  style {
+    position: fixed
+    top: 16px
+    right: 16px
+    width: ${params.size || 200}px
+    height: ${params.size || 200}px
+    borderRadius: 50%
+    border: 3px solid #4a5568
+    background: rgba(0, 0, 0, 0.7)
+    overflow: hidden
+  }
+  
+  object "MapSurface" {
+    @ui
+    style { width: 100%, height: 100%, position: relative }
+  }
+  
+  object "PlayerMarker" {
+    @ui
+    style {
+      position: absolute
+      top: 50%
+      left: 50%
+      width: 10px
+      height: 10px
+      background: #22c55e
+      borderRadius: 50%
+      transform: translate(-50%, -50%)
+      zIndex: 10
+    }
+  }
+  
+  object "DirectionIndicator" {
+    @ui
+    style {
+      position: absolute
+      top: 45%
+      left: 50%
+      width: 0
+      height: 0
+      borderLeft: 5px solid transparent
+      borderRight: 5px solid transparent
+      borderBottom: 10px solid #22c55e
+      transformOrigin: center bottom
+    }
+  }
+  
+  action addMarker(id, worldPos, color = "#ff0000", icon = "circle") {
+    this.markers.set(id, { worldPos, color, icon })
+  }
+  
+  action removeMarker(id) {
+    this.markers.delete(id)
+  }
+  
+  action worldToMap(worldPos) {
+    const player = getPlayer()
+    const relX = (worldPos.x - player.position.x) * this.zoom
+    const relZ = (worldPos.z - player.position.z) * this.zoom
+    
+    return {
+      x: (this.size / 2) + relX,
+      y: (this.size / 2) + relZ
+    }
+  }
+  
+  every(100) {
+    const player = getPlayer()
+    if (!player) return
+    
+    // Update direction indicator
+    this.DirectionIndicator.style.transform = \`translate(-50%, 0) rotate(\${-player.rotation.y}rad)\`
+    
+    // Update markers
+    for (const [id, marker] of this.markers) {
+      const mapPos = this.worldToMap(marker.worldPos)
+      // Update or create marker element
+    }
+    
+    // Update NPC markers
+    if (this.showNPCs) {
+      for (const npc of getNPCs()) {
+        const mapPos = this.worldToMap(npc.position)
+        // Show red dot for enemies, yellow for neutrals
+      }
+    }
+  }
+}
+`.trim(),
+};
+
+export const ChatBubbleTemplate: Template = {
+  name: 'Chat Bubble',
+  description: 'Floating speech bubble above entities',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Bubble name', default: 'ChatBubble' },
+    { name: 'maxWidth', type: 'number', description: 'Max width pixels', default: 200, min: 100, max: 400 },
+    { name: 'duration', type: 'number', description: 'Display time ms', default: 3000, min: 1000, max: 10000 },
+    { name: 'fadeOut', type: 'boolean', description: 'Fade out animation', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'ChatBubble'}" {
+  @billboard
+  
+  state {
+    text: ""
+    maxWidth: ${params.maxWidth || 200}
+    duration: ${params.duration || 3000}
+    fadeOut: ${params.fadeOut !== false}
+    hideTimer: null
+  }
+  
+  object "Bubble" {
+    @ui
+    style {
+      background: rgba(255, 255, 255, 0.95)
+      borderRadius: 12px
+      padding: 8px 12px
+      maxWidth: ${params.maxWidth || 200}px
+      boxShadow: 0 2px 8px rgba(0,0,0,0.2)
+    }
+    
+    object "Text" {
+      @ui
+      style {
+        color: #1a1a1a
+        fontSize: 14px
+        lineHeight: 1.4
+      }
+    }
+    
+    object "Tail" {
+      @ui
+      style {
+        position: absolute
+        bottom: -8px
+        left: 50%
+        transform: translateX(-50%)
+        width: 0
+        height: 0
+        borderLeft: 8px solid transparent
+        borderRight: 8px solid transparent
+        borderTop: 8px solid rgba(255, 255, 255, 0.95)
+      }
+    }
+  }
+  
+  action show(text, duration = this.duration) {
+    this.text = text
+    this.Bubble.Text.textContent = text
+    this.visible = true
+    this.Bubble.style.opacity = 1
+    
+    if (this.hideTimer) clearTimeout(this.hideTimer)
+    
+    this.hideTimer = setTimeout(() => {
+      this.hide()
+    }, duration)
+  }
+  
+  action hide() {
+    if (this.fadeOut) {
+      animate("Bubble.style.opacity", 0, 300)
+      await delay(300)
+    }
+    this.visible = false
+  }
+  
+  action typewriter(text, charDelay = 30) {
+    this.visible = true
+    this.Bubble.Text.textContent = ""
+    
+    for (let i = 0; i < text.length; i++) {
+      await delay(charDelay)
+      this.Bubble.Text.textContent += text[i]
+    }
+    
+    this.hideTimer = setTimeout(() => this.hide(), this.duration)
+  }
+}
+`.trim(),
+};
+
+export const ScoreDisplayTemplate: Template = {
+  name: 'Score Display',
+  description: 'Animated score counter UI',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Display name', default: 'ScoreDisplay' },
+    { name: 'label', type: 'string', description: 'Score label', default: 'SCORE' },
+    { name: 'animate', type: 'boolean', description: 'Animate changes', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'ScoreDisplay'}" {
+  @ui
+  
+  state {
+    score: 0
+    displayScore: 0
+    highScore: 0
+    multiplier: 1
+    animate: ${params.animate !== false}
+  }
+  
+  style {
+    position: fixed
+    top: 16px
+    left: 16px
+    fontFamily: monospace
+  }
+  
+  object "Label" {
+    @ui
+    text: "${params.label || 'SCORE'}"
+    style { color: #888, fontSize: 12px, letterSpacing: 2px }
+  }
+  
+  object "Value" {
+    @ui
+    style { 
+      color: #fff
+      fontSize: 32px
+      fontWeight: bold
+      textShadow: 0 0 10px rgba(255,255,255,0.5)
+    }
+  }
+  
+  object "Multiplier" {
+    @ui
+    style { 
+      color: #fbbf24
+      fontSize: 16px
+      marginLeft: 8px
+      opacity: 0
+    }
+  }
+  
+  action add(points) {
+    const gained = points * this.multiplier
+    this.score += gained
+    
+    if (this.score > this.highScore) {
+      this.highScore = this.score
+    }
+    
+    emit("score:changed", { score: this.score, gained: gained })
+    
+    // Pop animation
+    animate("Value.style.transform", "scale(1.2)", 100)
+    await delay(100)
+    animate("Value.style.transform", "scale(1)", 100)
+  }
+  
+  action setMultiplier(mult) {
+    this.multiplier = mult
+    this.Multiplier.textContent = "x" + mult
+    
+    if (mult > 1) {
+      animate("Multiplier.style.opacity", 1, 200)
+    } else {
+      animate("Multiplier.style.opacity", 0, 200)
+    }
+  }
+  
+  action reset() {
+    this.score = 0
+    this.displayScore = 0
+    this.multiplier = 1
+  }
+  
+  every(16) {
+    if (this.animate && this.displayScore !== this.score) {
+      const diff = this.score - this.displayScore
+      this.displayScore += Math.ceil(diff * 0.1)
+      if (Math.abs(diff) < 1) this.displayScore = this.score
+    } else {
+      this.displayScore = this.score
+    }
+    
+    this.Value.textContent = this.displayScore.toLocaleString()
+  }
+}
+`.trim(),
+};
+
+export const TimerDisplayTemplate: Template = {
+  name: 'Timer Display',
+  description: 'Countdown or count-up timer UI',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Timer name', default: 'Timer' },
+    { name: 'mode', type: 'select', description: 'Timer mode', default: 'countdown', options: ['countdown', 'countup', 'stopwatch'] },
+    { name: 'initialTime', type: 'number', description: 'Initial time (seconds)', default: 60, min: 0, max: 3600 },
+  ],
+  generate: (params) => `
+template "${params.name || 'Timer'}" {
+  @ui
+  
+  state {
+    mode: "${params.mode || 'countdown'}"
+    time: ${params.initialTime || 60}
+    initialTime: ${params.initialTime || 60}
+    isRunning: false
+    isPaused: false
+  }
+  
+  style {
+    position: fixed
+    top: 16px
+    left: 50%
+    transform: translateX(-50%)
+    fontFamily: monospace
+    textAlign: center
+  }
+  
+  object "Display" {
+    @ui
+    style {
+      color: #fff
+      fontSize: 48px
+      fontWeight: bold
+      textShadow: 0 0 20px rgba(255,255,255,0.3)
+    }
+  }
+  
+  action start() {
+    this.isRunning = true
+    this.isPaused = false
+    emit("timer:started", { time: this.time })
+  }
+  
+  action pause() {
+    this.isPaused = true
+    emit("timer:paused", { time: this.time })
+  }
+  
+  action resume() {
+    this.isPaused = false
+    emit("timer:resumed", { time: this.time })
+  }
+  
+  action stop() {
+    this.isRunning = false
+    emit("timer:stopped", { time: this.time })
+  }
+  
+  action reset() {
+    this.time = this.initialTime
+    this.isRunning = false
+    this.isPaused = false
+    this.updateDisplay()
+  }
+  
+  action addTime(seconds) {
+    this.time += seconds
+    if (this.time < 0) this.time = 0
+  }
+  
+  action formatTime(t) {
+    const mins = Math.floor(t / 60)
+    const secs = Math.floor(t % 60)
+    const ms = Math.floor((t % 1) * 100)
+    
+    if (this.mode === "stopwatch") {
+      return mins.toString().padStart(2, "0") + ":" + 
+             secs.toString().padStart(2, "0") + "." + 
+             ms.toString().padStart(2, "0")
+    }
+    return mins.toString().padStart(2, "0") + ":" + 
+           secs.toString().padStart(2, "0")
+  }
+  
+  action updateDisplay() {
+    this.Display.textContent = this.formatTime(this.time)
+    
+    // Warning colors for countdown
+    if (this.mode === "countdown") {
+      if (this.time <= 10) {
+        this.Display.style.color = "#ef4444"
+        if (this.time <= 5) {
+          animate("Display.style.transform", "scale(1.1)", 100)
+          await delay(100)
+          animate("Display.style.transform", "scale(1)", 100)
+        }
+      } else if (this.time <= 30) {
+        this.Display.style.color = "#fbbf24"
+      } else {
+        this.Display.style.color = "#fff"
+      }
+    }
+  }
+  
+  every(this.mode === "stopwatch" ? 10 : 1000) {
+    if (!this.isRunning || this.isPaused) return
+    
+    if (this.mode === "countdown") {
+      this.time -= 1
+      if (this.time <= 0) {
+        this.time = 0
+        this.stop()
+        emit("timer:finished")
+        playSound("timer_end")
+      }
+    } else {
+      this.time += this.mode === "stopwatch" ? 0.01 : 1
+    }
+    
+    this.updateDisplay()
+  }
+  
+  on_spawn: () => this.updateDisplay()
+}
+`.trim(),
+};
+
+export const NotificationToastTemplate: Template = {
+  name: 'Notification Toast',
+  description: 'Pop-up notification messages',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Toast name', default: 'NotificationToast' },
+    { name: 'position', type: 'select', description: 'Screen position', default: 'top-right', options: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center'] },
+    { name: 'duration', type: 'number', description: 'Display time ms', default: 3000, min: 1000, max: 10000 },
+  ],
+  generate: (params) => {
+    const pos = (params.position as string) || 'top-right';
+    const posStyles: Record<string, string> = {
+      'top-left': 'top: 16px; left: 16px;',
+      'top-right': 'top: 16px; right: 16px;',
+      'bottom-left': 'bottom: 16px; left: 16px;',
+      'bottom-right': 'bottom: 16px; right: 16px;',
+      'top-center': 'top: 16px; left: 50%; transform: translateX(-50%);',
+    };
+    
+    return `
+template "${params.name || 'NotificationToast'}" {
+  @ui
+  
+  state {
+    queue: []
+    duration: ${params.duration || 3000}
+  }
+  
+  style {
+    position: fixed
+    ${posStyles[pos]}
+    display: flex
+    flexDirection: column
+    gap: 8px
+    zIndex: 1000
+  }
+  
+  action show(message, type = "info", duration = this.duration) {
+    const toast = {
+      id: Date.now(),
+      message,
+      type,
+      duration
+    }
+    
+    this.queue.push(toast)
+    this.renderToast(toast)
+    
+    setTimeout(() => this.dismiss(toast.id), duration)
+  }
+  
+  action success(message) { this.show(message, "success") }
+  action error(message) { this.show(message, "error") }
+  action warning(message) { this.show(message, "warning") }
+  action info(message) { this.show(message, "info") }
+  
+  action renderToast(toast) {
+    const colors = {
+      success: { bg: "#22c55e", icon: "✓" },
+      error: { bg: "#ef4444", icon: "✕" },
+      warning: { bg: "#fbbf24", icon: "⚠" },
+      info: { bg: "#3b82f6", icon: "ℹ" }
+    }
+    
+    const config = colors[toast.type] || colors.info
+    
+    const el = createElement("div", {
+      id: "toast-" + toast.id,
+      style: {
+        background: config.bg,
+        color: "#fff",
+        padding: "12px 16px",
+        borderRadius: "8px",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+        animation: "slideIn 0.3s ease"
+      }
+    })
+    
+    el.innerHTML = config.icon + " " + toast.message
+    this.appendChild(el)
+  }
+  
+  action dismiss(id) {
+    const el = this.querySelector("#toast-" + id)
+    if (el) {
+      animate(el, "opacity", 0, 200)
+      await delay(200)
+      el.remove()
+    }
+    
+    this.queue = this.queue.filter(t => t.id !== id)
+  }
+}
+`.trim();
+  },
+};
+
+// ============================================================================
+// Dialogue & Story Templates
+// ============================================================================
+
+export const DialogueTreeTemplate: Template = {
+  name: 'Dialogue Tree',
+  description: 'Branching dialogue system with choices',
+  category: 'system',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Dialogue name', default: 'DialogueSystem' },
+    { name: 'typewriterSpeed', type: 'number', description: 'Text speed (ms per char)', default: 30, min: 10, max: 100 },
+  ],
+  generate: (params) => `
+system ${params.name || 'DialogueSystem'} {
+  state {
+    isActive: false
+    currentNode: null
+    dialogueData: new Map()
+    variables: {}
+    history: []
+    typewriterSpeed: ${params.typewriterSpeed || 30}
+  }
+  
+  action registerDialogue(id, nodes) {
+    state.dialogueData.set(id, nodes)
+  }
+  
+  action start(dialogueId, startNode = "start") {
+    const dialogue = state.dialogueData.get(dialogueId)
+    if (!dialogue) return
+    
+    state.isActive = true
+    state.history = []
+    
+    emit("dialogue:started", { id: dialogueId })
+    this.goToNode(dialogueId, startNode)
+  }
+  
+  action goToNode(dialogueId, nodeId) {
+    const dialogue = state.dialogueData.get(dialogueId)
+    const node = dialogue[nodeId]
+    
+    if (!node) {
+      this.end()
+      return
+    }
+    
+    state.currentNode = { dialogueId, nodeId, ...node }
+    state.history.push(nodeId)
+    
+    // Show dialogue UI
+    DialogueUI.show({
+      speaker: node.speaker,
+      text: node.text,
+      choices: node.choices || [],
+      portrait: node.portrait
+    })
+    
+    // Execute any actions
+    if (node.action) {
+      node.action(state.variables)
+    }
+    
+    emit("dialogue:node", { dialogueId, nodeId, node })
+  }
+  
+  action selectChoice(index) {
+    const node = state.currentNode
+    if (!node?.choices?.[index]) return
+    
+    const choice = node.choices[index]
+    
+    // Update variables
+    if (choice.setVar) {
+      Object.assign(state.variables, choice.setVar)
+    }
+    
+    emit("dialogue:choice", { choice: choice, index: index })
+    
+    if (choice.next) {
+      this.goToNode(node.dialogueId, choice.next)
+    } else {
+      this.end()
+    }
+  }
+  
+  action end() {
+    state.isActive = false
+    state.currentNode = null
+    DialogueUI.hide()
+    emit("dialogue:ended")
+  }
+  
+  action setVariable(key, value) {
+    state.variables[key] = value
+  }
+  
+  action getVariable(key) {
+    return state.variables[key]
+  }
+}
+
+// Example dialogue data:
+// DialogueSystem.registerDialogue("npc_merchant", {
+//   start: {
+//     speaker: "Merchant",
+//     text: "Welcome, traveler! What can I do for you?",
+//     choices: [
+//       { text: "Show me your wares", next: "shop" },
+//       { text: "Any news?", next: "rumors" },
+//       { text: "Goodbye", next: null }
+//     ]
+//   },
+//   shop: { ... },
+//   rumors: { ... }
+// })
+`.trim(),
+};
+
+export const CutsceneTemplate: Template = {
+  name: 'Cutscene',
+  description: 'Scripted cutscene with camera movements and actions',
+  category: 'system',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Cutscene name', default: 'Cutscene' },
+    { name: 'skipEnabled', type: 'boolean', description: 'Allow skipping', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'Cutscene'}" {
+  state {
+    isPlaying: false
+    currentStep: 0
+    steps: []
+    skipEnabled: ${params.skipEnabled !== false}
+    savedCameraPos: null
+  }
+  
+  action define(steps) {
+    this.steps = steps
+  }
+  
+  action play() {
+    if (this.isPlaying) return
+    
+    this.isPlaying = true
+    this.currentStep = 0
+    
+    // Save camera state
+    const camera = getCamera()
+    this.savedCameraPos = camera.position.clone()
+    this.savedCameraRot = camera.rotation.clone()
+    
+    // Disable player controls
+    getPlayer().controlsEnabled = false
+    
+    // Show cinematic bars
+    showCinematicBars()
+    
+    emit("cutscene:started", { cutscene: this })
+    
+    await this.executeSteps()
+  }
+  
+  async action executeSteps() {
+    for (let i = 0; i < this.steps.length; i++) {
+      if (!this.isPlaying) break
+      
+      this.currentStep = i
+      const step = this.steps[i]
+      
+      switch (step.type) {
+        case "camera":
+          await this.cameraMove(step)
+          break
+        case "dialogue":
+          await this.showDialogue(step)
+          break
+        case "wait":
+          await delay(step.duration)
+          break
+        case "action":
+          await step.execute()
+          break
+        case "fadeIn":
+          await fadeIn(step.duration || 500)
+          break
+        case "fadeOut":
+          await fadeOut(step.duration || 500)
+          break
+      }
+    }
+    
+    this.end()
+  }
+  
+  async action cameraMove(step) {
+    const camera = getCamera()
+    
+    if (step.position) {
+      animate(camera, "position", step.position, step.duration || 1000)
+    }
+    if (step.lookAt) {
+      const target = typeof step.lookAt === "string" 
+        ? getObject(step.lookAt).position 
+        : step.lookAt
+      animateLookAt(camera, target, step.duration || 1000)
+    }
+    
+    await delay(step.duration || 1000)
+  }
+  
+  async action showDialogue(step) {
+    return new Promise(resolve => {
+      DialogueUI.show({
+        speaker: step.speaker,
+        text: step.text,
+        portrait: step.portrait,
+        onComplete: resolve
+      })
+    })
+  }
+  
+  action skip() {
+    if (!this.skipEnabled || !this.isPlaying) return
+    this.end()
+  }
+  
+  action end() {
+    this.isPlaying = false
+    
+    // Restore camera
+    const camera = getCamera()
+    camera.position.copy(this.savedCameraPos)
+    camera.rotation.copy(this.savedCameraRot)
+    
+    // Re-enable player
+    getPlayer().controlsEnabled = true
+    
+    // Hide cinematic bars
+    hideCinematicBars()
+    
+    emit("cutscene:ended", { cutscene: this })
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
+// Camera & View Templates
+// ============================================================================
+
+export const CameraControllerTemplate: Template = {
+  name: 'Camera Controller',
+  description: 'Configurable camera follow and orbit system',
+  category: 'system',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Controller name', default: 'CameraController' },
+    { name: 'mode', type: 'select', description: 'Camera mode', default: 'thirdPerson', options: ['firstPerson', 'thirdPerson', 'topDown', 'isometric', 'orbit'] },
+    { name: 'distance', type: 'number', description: 'Follow distance', default: 5, min: 1, max: 20 },
+    { name: 'smoothing', type: 'number', description: 'Movement smoothing', default: 0.1, min: 0.01, max: 1 },
+  ],
+  generate: (params) => `
+system ${params.name || 'CameraController'} {
+  state {
+    mode: "${params.mode || 'thirdPerson'}"
+    target: null
+    distance: ${params.distance || 5}
+    height: 2
+    smoothing: ${params.smoothing || 0.1}
+    orbitAngle: 0
+    orbitPitch: 0.3
+    minPitch: -1.2
+    maxPitch: 1.2
+    minDistance: 2
+    maxDistance: 15
+    isLocked: false
+  }
+  
+  action setTarget(target) {
+    state.target = target
+  }
+  
+  action setMode(mode) {
+    state.mode = mode
+    
+    // Reset camera for mode
+    switch (mode) {
+      case "topDown":
+        state.height = 15
+        state.orbitPitch = 1.5
+        break
+      case "isometric":
+        state.height = 10
+        state.orbitPitch = 0.8
+        state.orbitAngle = 0.785 // 45 degrees
+        break
+      case "firstPerson":
+        state.distance = 0
+        state.height = 1.6
+        break
+      default:
+        state.distance = ${params.distance || 5}
+        state.height = 2
+    }
+  }
+  
+  action orbit(deltaX, deltaY) {
+    if (state.isLocked) return
+    
+    state.orbitAngle += deltaX * 0.005
+    state.orbitPitch = Math.max(state.minPitch, 
+      Math.min(state.maxPitch, state.orbitPitch + deltaY * 0.005))
+  }
+  
+  action zoom(delta) {
+    if (state.isLocked) return
+    
+    state.distance = Math.max(state.minDistance,
+      Math.min(state.maxDistance, state.distance + delta))
+  }
+  
+  action shake(intensity = 0.5, duration = 500) {
+    const camera = getCamera()
+    const originalPos = camera.position.clone()
+    
+    const startTime = Date.now()
+    
+    const shakeLoop = () => {
+      const elapsed = Date.now() - startTime
+      if (elapsed >= duration) {
+        camera.position.copy(originalPos)
+        return
+      }
+      
+      const decay = 1 - (elapsed / duration)
+      camera.position.x = originalPos.x + (Math.random() - 0.5) * intensity * decay
+      camera.position.y = originalPos.y + (Math.random() - 0.5) * intensity * decay
+      
+      requestAnimationFrame(shakeLoop)
+    }
+    
+    shakeLoop()
+  }
+  
+  every(16) {
+    if (!state.target) return
+    
+    const camera = getCamera()
+    const target = state.target
+    
+    let desiredPos
+    
+    switch (state.mode) {
+      case "firstPerson":
+        desiredPos = target.position.clone()
+        desiredPos.y += state.height
+        camera.rotation.copy(target.rotation)
+        break
+        
+      case "thirdPerson":
+      case "orbit":
+        const offset = [
+          Math.sin(state.orbitAngle) * Math.cos(state.orbitPitch) * state.distance,
+          Math.sin(state.orbitPitch) * state.distance + state.height,
+          Math.cos(state.orbitAngle) * Math.cos(state.orbitPitch) * state.distance
+        ]
+        desiredPos = target.position.clone().add(offset)
+        break
+        
+      case "topDown":
+        desiredPos = target.position.clone()
+        desiredPos.y += state.height
+        break
+        
+      case "isometric":
+        const isoOffset = [
+          Math.sin(state.orbitAngle) * state.distance,
+          state.height,
+          Math.cos(state.orbitAngle) * state.distance
+        ]
+        desiredPos = target.position.clone().add(isoOffset)
+        break
+    }
+    
+    // Smooth interpolation
+    camera.position.lerp(desiredPos, state.smoothing)
+    
+    // Look at target (except first person)
+    if (state.mode !== "firstPerson") {
+      const lookTarget = target.position.clone()
+      lookTarget.y += 1
+      camera.lookAt(lookTarget)
+    }
+  }
+}
+`.trim(),
+};
+
+export const CameraZoneTemplate: Template = {
+  name: 'Camera Zone',
+  description: 'Trigger area that changes camera behavior',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Zone name', default: 'CameraZone' },
+    { name: 'cameraMode', type: 'select', description: 'Camera mode', default: 'fixed', options: ['fixed', 'follow', 'pan', 'zoom'] },
+    { name: 'transitionTime', type: 'number', description: 'Transition ms', default: 1000, min: 100, max: 5000 },
+  ],
+  generate: (params) => `
+template "${params.name || 'CameraZone'}" {
+  state {
+    cameraMode: "${params.cameraMode || 'fixed'}"
+    transitionTime: ${params.transitionTime || 1000}
+    fixedPosition: [0, 5, 10]
+    fixedLookAt: [0, 0, 0]
+    previousSettings: null
+  }
+  
+  // Invisible trigger volume
+  object "TriggerVolume" {
+    type: trigger
+    visible: false
+  }
+  
+  on_trigger_enter: (other) => {
+    if (!other.isPlayer) return
+    
+    // Save current camera settings
+    this.previousSettings = CameraController.getSettings()
+    
+    switch (this.cameraMode) {
+      case "fixed":
+        CameraController.setMode("fixed")
+        animateCamera(this.fixedPosition, this.fixedLookAt, this.transitionTime)
+        break
+        
+      case "follow":
+        CameraController.setMode("follow")
+        CameraController.setDistance(10)
+        break
+        
+      case "pan":
+        CameraController.isLocked = true
+        break
+        
+      case "zoom":
+        CameraController.zoom(-3)
+        break
+    }
+    
+    emit("camera:zone_enter", { zone: this })
+  }
+  
+  on_trigger_exit: (other) => {
+    if (!other.isPlayer) return
+    
+    // Restore previous settings
+    if (this.previousSettings) {
+      CameraController.applySettings(this.previousSettings, this.transitionTime)
+    }
+    
+    emit("camera:zone_exit", { zone: this })
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
+// Audio & Ambient Templates
+// ============================================================================
+
+export const AmbientSoundTemplate: Template = {
+  name: 'Ambient Sound',
+  description: 'Continuous background audio',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Sound name', default: 'AmbientSound' },
+    { name: 'sound', type: 'string', description: 'Sound file', default: 'ambient/forest.mp3' },
+    { name: 'volume', type: 'number', description: 'Volume', default: 0.5, min: 0, max: 1 },
+    { name: 'fadeIn', type: 'number', description: 'Fade in ms', default: 2000, min: 0, max: 10000 },
+  ],
+  generate: (params) => `
+template "${params.name || 'AmbientSound'}" {
+  state {
+    sound: "${params.sound || 'ambient/forest.mp3'}"
+    volume: ${params.volume || 0.5}
+    fadeTime: ${params.fadeIn || 2000}
+    isPlaying: false
+    audioInstance: null
+  }
+  
+  action play() {
+    if (this.isPlaying) return
+    
+    this.audioInstance = playSound(this.sound, {
+      loop: true,
+      volume: 0
+    })
+    
+    this.isPlaying = true
+    
+    // Fade in
+    animateVolume(this.audioInstance, this.volume, this.fadeTime)
+    
+    emit("ambient:started", { sound: this.sound })
+  }
+  
+  action stop() {
+    if (!this.isPlaying) return
+    
+    // Fade out
+    animateVolume(this.audioInstance, 0, this.fadeTime)
+    
+    setTimeout(() => {
+      this.audioInstance?.stop()
+      this.audioInstance = null
+      this.isPlaying = false
+    }, this.fadeTime)
+    
+    emit("ambient:stopped", { sound: this.sound })
+  }
+  
+  action setVolume(vol) {
+    this.volume = vol
+    if (this.audioInstance) {
+      this.audioInstance.volume = vol
+    }
+  }
+  
+  on_spawn: () => this.play()
+  on_destroy: () => this.stop()
+}
+`.trim(),
+};
+
+export const MusicZoneTemplate: Template = {
+  name: 'Music Zone',
+  description: 'Area trigger that changes background music',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Zone name', default: 'MusicZone' },
+    { name: 'track', type: 'string', description: 'Music track', default: 'music/exploration.mp3' },
+    { name: 'crossfade', type: 'number', description: 'Crossfade ms', default: 2000, min: 0, max: 5000 },
+  ],
+  generate: (params) => `
+template "${params.name || 'MusicZone'}" {
+  state {
+    track: "${params.track || 'music/exploration.mp3'}"
+    crossfadeTime: ${params.crossfade || 2000}
+    previousTrack: null
+  }
+  
+  // Invisible trigger
+  object "Zone" {
+    type: trigger
+    visible: false
+  }
+  
+  on_trigger_enter: (other) => {
+    if (!other.isPlayer) return
+    
+    this.previousTrack = MusicManager.getCurrentTrack()
+    MusicManager.crossfadeTo(this.track, this.crossfadeTime)
+    
+    emit("music:zone_enter", { track: this.track })
+  }
+  
+  on_trigger_exit: (other) => {
+    if (!other.isPlayer) return
+    
+    if (this.previousTrack) {
+      MusicManager.crossfadeTo(this.previousTrack, this.crossfadeTime)
+    }
+    
+    emit("music:zone_exit", { track: this.track })
+  }
+}
+`.trim(),
+};
+
+export const SoundTriggerTemplate: Template = {
+  name: 'Sound Trigger',
+  description: 'One-shot sound played on trigger',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Trigger name', default: 'SoundTrigger' },
+    { name: 'sound', type: 'string', description: 'Sound file', default: 'sfx/woosh.mp3' },
+    { name: 'volume', type: 'number', description: 'Volume', default: 1, min: 0, max: 1 },
+    { name: 'cooldown', type: 'number', description: 'Cooldown ms', default: 1000, min: 0, max: 10000 },
+    { name: 'spatial', type: 'boolean', description: '3D spatial audio', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'SoundTrigger'}" {
+  state {
+    sound: "${params.sound || 'sfx/woosh.mp3'}"
+    volume: ${params.volume || 1}
+    cooldown: ${params.cooldown || 1000}
+    spatial: ${params.spatial !== false}
+    lastPlayed: 0
+  }
+  
+  object "TriggerZone" {
+    type: trigger
+    visible: false
+  }
+  
+  action play() {
+    const now = Date.now()
+    if (now - this.lastPlayed < this.cooldown) return
+    
+    this.lastPlayed = now
+    
+    if (this.spatial) {
+      playSpatialSound(this.sound, this.position, {
+        volume: this.volume,
+        rolloff: 1
+      })
+    } else {
+      playSound(this.sound, { volume: this.volume })
+    }
+    
+    emit("sound:triggered", { sound: this.sound, position: this.position })
+  }
+  
+  on_trigger_enter: (other) => {
+    if (other.isPlayer) {
+      this.play()
+    }
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
+// Weather & Atmosphere Templates
+// ============================================================================
+
+export const WeatherSystemTemplate: Template = {
+  name: 'Weather System',
+  description: 'Dynamic weather with rain, snow, and effects',
+  category: 'system',
+  parameters: [
+    { name: 'name', type: 'string', description: 'System name', default: 'WeatherSystem' },
+    { name: 'startWeather', type: 'select', description: 'Initial weather', default: 'clear', options: ['clear', 'cloudy', 'rain', 'storm', 'snow', 'fog'] },
+  ],
+  generate: (params) => `
+system ${params.name || 'WeatherSystem'} {
+  state {
+    current: "${params.startWeather || 'clear'}"
+    intensity: 1.0
+    windDirection: [1, 0, 0]
+    windSpeed: 0
+    transitionProgress: 0
+  }
+  
+  const weatherPresets = {
+    clear: {
+      skyColor: "#87ceeb",
+      ambientLight: 1.0,
+      fogDensity: 0,
+      precipitation: null
+    },
+    cloudy: {
+      skyColor: "#708090",
+      ambientLight: 0.6,
+      fogDensity: 0.001,
+      precipitation: null
+    },
+    rain: {
+      skyColor: "#4a5568",
+      ambientLight: 0.4,
+      fogDensity: 0.003,
+      precipitation: "rain"
+    },
+    storm: {
+      skyColor: "#2d3748",
+      ambientLight: 0.2,
+      fogDensity: 0.005,
+      precipitation: "rain",
+      lightning: true
+    },
+    snow: {
+      skyColor: "#e2e8f0",
+      ambientLight: 0.8,
+      fogDensity: 0.002,
+      precipitation: "snow"
+    },
+    fog: {
+      skyColor: "#cbd5e0",
+      ambientLight: 0.5,
+      fogDensity: 0.02,
+      precipitation: null
+    }
+  }
+  
+  action setWeather(weather, transitionTime = 5000) {
+    const preset = this.weatherPresets[weather]
+    if (!preset) return
+    
+    const oldWeather = state.current
+    state.current = weather
+    
+    // Transition sky
+    animateSkyColor(preset.skyColor, transitionTime)
+    
+    // Transition lighting
+    animateAmbientLight(preset.ambientLight, transitionTime)
+    
+    // Transition fog
+    setFogDensity(preset.fogDensity, transitionTime)
+    
+    // Handle precipitation
+    if (preset.precipitation !== this.weatherPresets[oldWeather].precipitation) {
+      this.setPrecipitation(preset.precipitation)
+    }
+    
+    // Wind
+    if (weather === "storm") {
+      state.windSpeed = 10
+    } else if (weather === "rain") {
+      state.windSpeed = 3
+    } else {
+      state.windSpeed = 0.5
+    }
+    
+    emit("weather:changed", { from: oldWeather, to: weather })
+  }
+  
+  action setPrecipitation(type) {
+    // Disable old precipitation
+    PrecipitationEmitter.stop()
+    
+    if (type === "rain") {
+      PrecipitationEmitter.configure({
+        type: "rain",
+        count: 5000,
+        color: "#4a90d9",
+        size: 0.1,
+        speed: 15,
+        spread: 50
+      })
+      PrecipitationEmitter.start()
+      playSound("rain_loop", { loop: true, volume: 0.4 })
+    } else if (type === "snow") {
+      PrecipitationEmitter.configure({
+        type: "snow",
+        count: 2000,
+        color: "#ffffff",
+        size: 0.15,
+        speed: 2,
+        spread: 50
+      })
+      PrecipitationEmitter.start()
+    }
+  }
+  
+  action triggerLightning() {
+    // Flash
+    flashScreen("#ffffff", 100)
+    
+    // Thunder after delay
+    const delay = 500 + Math.random() * 2000
+    setTimeout(() => {
+      playSound("thunder", { volume: 0.8 })
+    }, delay)
+  }
+  
+  every(5000) {
+    if (state.current === "storm" && Math.random() < 0.3) {
+      this.triggerLightning()
+    }
+  }
+}
+`.trim(),
+};
+
+export const DayNightCycleTemplate: Template = {
+  name: 'Day/Night Cycle',
+  description: 'Realistic day/night lighting transitions',
+  category: 'system',
+  parameters: [
+    { name: 'name', type: 'string', description: 'System name', default: 'DayNightCycle' },
+    { name: 'dayLength', type: 'number', description: 'Day length (minutes)', default: 10, min: 1, max: 60 },
+    { name: 'startHour', type: 'number', description: 'Start hour (0-24)', default: 12, min: 0, max: 24 },
+  ],
+  generate: (params) => `
+system ${params.name || 'DayNightCycle'} {
+  state {
+    timeOfDay: ${params.startHour || 12} // 0-24 hours
+    dayLengthMs: ${(Number(params.dayLength) || 10) * 60 * 1000}
+    isPaused: false
+    timeScale: 1
+  }
+  
+  const phases = {
+    dawn: { start: 5, end: 7, sky: "#ff7f50", ambient: 0.4, sunAngle: 10 },
+    morning: { start: 7, end: 10, sky: "#87ceeb", ambient: 0.8, sunAngle: 45 },
+    noon: { start: 10, end: 14, sky: "#87ceeb", ambient: 1.0, sunAngle: 90 },
+    afternoon: { start: 14, end: 17, sky: "#87ceeb", ambient: 0.9, sunAngle: 135 },
+    dusk: { start: 17, end: 19, sky: "#ff6347", ambient: 0.5, sunAngle: 170 },
+    night: { start: 19, end: 5, sky: "#1a1a2e", ambient: 0.1, sunAngle: 270 }
+  }
+  
+  action getPhase() {
+    const hour = state.timeOfDay
+    
+    for (const [name, phase] of Object.entries(this.phases)) {
+      if (name === "night") {
+        if (hour >= phase.start || hour < phase.end) return name
+      } else {
+        if (hour >= phase.start && hour < phase.end) return name
+      }
+    }
+    return "noon"
+  }
+  
+  action setTime(hour) {
+    state.timeOfDay = hour % 24
+    this.updateLighting()
+  }
+  
+  action updateLighting() {
+    const phase = this.getPhase()
+    const config = this.phases[phase]
+    
+    // Calculate progress within phase
+    let progress = 0
+    if (phase !== "night") {
+      progress = (state.timeOfDay - config.start) / (config.end - config.start)
+    }
+    
+    // Set sky
+    setSkyColor(config.sky)
+    
+    // Set ambient light
+    setAmbientIntensity(config.ambient)
+    
+    // Set sun position
+    const sun = getDirectionalLight("Sun")
+    if (sun) {
+      const angle = config.sunAngle * Math.PI / 180
+      sun.position.set(Math.cos(angle) * 50, Math.sin(angle) * 50, 0)
+    }
+    
+    // Toggle stars
+    if (phase === "night" || phase === "dusk" || phase === "dawn") {
+      showStars(true)
+    } else {
+      showStars(false)
+    }
+    
+    emit("time:phase", { phase: phase, hour: state.timeOfDay })
+  }
+  
+  action pause() { state.isPaused = true }
+  action resume() { state.isPaused = false }
+  
+  every(100) {
+    if (state.isPaused) return
+    
+    // Advance time
+    const hourPerMs = 24 / state.dayLengthMs
+    state.timeOfDay += hourPerMs * 100 * state.timeScale
+    state.timeOfDay %= 24
+    
+    this.updateLighting()
+  }
+}
+`.trim(),
+};
+
+export const FogZoneTemplate: Template = {
+  name: 'Fog Zone',
+  description: 'Localized fog effect area',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Zone name', default: 'FogZone' },
+    { name: 'color', type: 'color', description: 'Fog color', default: '#a0a0a0' },
+    { name: 'density', type: 'number', description: 'Fog density', default: 0.05, min: 0.001, max: 0.2 },
+    { name: 'height', type: 'number', description: 'Fog height', default: 3, min: 0.5, max: 20 },
+  ],
+  generate: (params) => `
+template "${params.name || 'FogZone'}" {
+  state {
+    color: "${params.color || '#a0a0a0'}"
+    density: ${params.density || 0.05}
+    height: ${params.height || 3}
+    previousFog: null
+  }
+  
+  // Trigger volume
+  object "Zone" {
+    type: trigger
+    visible: false
+  }
+  
+  // Visual fog layer
+  object "FogLayer" {
+    geometry: box
+    color: "${params.color || '#a0a0a0'}"
+    opacity: 0.3
+    transparent: true
+    scale: [1, ${params.height || 3}, 1]
+  }
+  
+  on_trigger_enter: (other) => {
+    if (!other.isPlayer) return
+    
+    this.previousFog = getFogSettings()
+    
+    setFog({
+      color: this.color,
+      density: this.density,
+      near: 1,
+      far: 50
+    })
+    
+    emit("fog:enter", { zone: this })
+  }
+  
+  on_trigger_exit: (other) => {
+    if (!other.isPlayer) return
+    
+    if (this.previousFog) {
+      setFog(this.previousFog)
+    } else {
+      clearFog()
+    }
+    
+    emit("fog:exit", { zone: this })
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
+// Gameplay Mechanics Templates
+// ============================================================================
+
+export const CheckpointTemplate: Template = {
+  name: 'Checkpoint',
+  description: 'Save point with visual indicator',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Checkpoint name', default: 'Checkpoint' },
+    { name: 'autoActivate', type: 'boolean', description: 'Auto-activate on touch', default: true },
+    { name: 'healPlayer', type: 'boolean', description: 'Heal player on activate', default: true },
+  ],
+  generate: (params) => `
+template "${params.name || 'Checkpoint'}" {
+  @interactive
+  
+  state {
+    isActivated: false
+    autoActivate: ${params.autoActivate !== false}
+    healPlayer: ${params.healPlayer !== false}
+  }
+  
+  // Checkpoint pillar
+  object "Pillar" {
+    geometry: cylinder
+    color: "#4a5568"
+    scale: [0.3, 2, 0.3]
+  }
+  
+  // Crystal indicator
+  object "Crystal" {
+    geometry: octahedron
+    color: "#4a5568"
+    scale: [0.3, 0.5, 0.3]
+    position: [0, 2.5, 0]
+  }
+  
+  // Glow effect (when active)
+  object "Glow" {
+    type: pointLight
+    color: "#22c55e"
+    intensity: 0
+    distance: 5
+    position: [0, 2.5, 0]
+  }
+  
+  action activate() {
+    if (this.isActivated) return
+    
+    this.isActivated = true
+    
+    // Visual feedback
+    animate("Crystal.color", "#22c55e", 500)
+    animate("Crystal.emissive", "#22c55e", 500)
+    animate("Crystal.emissiveIntensity", 1, 500)
+    animate("Glow.intensity", 2, 500)
+    
+    // Particles
+    spawnParticleBurst(this.Crystal.getWorldPosition(), "#22c55e", 30)
+    
+    // Sound
+    playSound("checkpoint_activate")
+    
+    // Save position
+    setRespawnPoint(this.position)
+    
+    // Heal player
+    if (this.healPlayer) {
+      const player = getPlayer()
+      player.health = player.maxHealth
+    }
+    
+    emit("checkpoint:activated", { checkpoint: this })
+    showFloatingText(this.position, "Checkpoint!", "#22c55e")
+  }
+  
+  on_trigger_enter: (other) => {
+    if (other.isPlayer && this.autoActivate) {
+      this.activate()
+    }
+  }
+  
+  on_interact: () => {
+    this.activate()
+  }
+}
+`.trim(),
+};
+
+export const RespawnPointTemplate: Template = {
+  name: 'Respawn Point',
+  description: 'Player respawn location with effects',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Respawn name', default: 'RespawnPoint' },
+    { name: 'isDefault', type: 'boolean', description: 'Default spawn point', default: false },
+  ],
+  generate: (params) => `
+template "${params.name || 'RespawnPoint'}" {
+  state {
+    isDefault: ${params.isDefault || false}
+  }
+  
+  // Visual marker (editor only)
+  object "Marker" {
+    geometry: cone
+    color: "#22c55e"
+    opacity: 0.5
+    scale: [1, 0.5, 1]
+    rotation: [3.14, 0, 0]
+    position: [0, 0.25, 0]
+    editorOnly: true
+  }
+  
+  action respawnPlayer() {
+    const player = getPlayer()
+    
+    // Fade out
+    await fadeOut(300)
+    
+    // Move player
+    player.position.copy(this.position)
+    player.position.y += 1
+    player.rotation.set(0, 0, 0)
+    player.velocity = [0, 0, 0]
+    
+    // Reset player state
+    player.health = player.maxHealth
+    player.mana = player.maxMana
+    
+    // Fade in
+    await fadeIn(300)
+    
+    // Spawn effect
+    spawnParticleBurst(player.position, "#22c55e", 20)
+    
+    emit("player:respawned", { point: this })
+  }
+  
+  on_spawn: () => {
+    if (this.isDefault) {
+      setDefaultRespawnPoint(this)
+    }
+  }
+}
+`.trim(),
+};
+
+export const TeleporterTemplate: Template = {
+  name: 'Teleporter',
+  description: 'Instant teleport pad to destination',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Teleporter name', default: 'Teleporter' },
+    { name: 'destination', type: 'string', description: 'Destination teleporter ID', default: 'TeleporterB' },
+    { name: 'color', type: 'color', description: 'Pad color', default: '#3b82f6' },
+  ],
+  generate: (params) => `
+template "${params.name || 'Teleporter'}" {
+  @interactive
+  
+  state {
+    destination: "${params.destination || 'TeleporterB'}"
+    cooldown: 0
+    isReceiving: false
+  }
+  
+  // Base pad
+  object "Pad" {
+    geometry: cylinder
+    color: "${params.color || '#3b82f6'}"
+    scale: [1.5, 0.1, 1.5]
+    emissive: "${params.color || '#3b82f6'}"
+    emissiveIntensity: 0.5
+  }
+  
+  // Ring effect
+  object "Ring" {
+    geometry: torus
+    color: "${params.color || '#3b82f6'}"
+    emissive: "${params.color || '#3b82f6'}"
+    emissiveIntensity: 1
+    scale: [1.3, 1.3, 0.05]
+    position: [0, 0.2, 0]
+    rotation: [1.57, 0, 0]
+  }
+  
+  // Beam
+  object "Beam" {
+    type: particleSystem
+    color: "${params.color || '#3b82f6'}"
+    count: 100
+    size: 0.1
+    velocity: [0, 3, 0]
+    lifetime: 1000
+    spread: 0.5
+  }
+  
+  action teleport(entity) {
+    if (this.cooldown > 0 || this.isReceiving) return
+    
+    const dest = getObject(this.destination)
+    if (!dest) return
+    
+    this.cooldown = 2.0
+    dest.isReceiving = true
+    
+    // Effect at source
+    playSound("teleport_out")
+    spawnParticleBurst(entity.position, "${params.color || '#3b82f6'}", 30)
+    
+    // Teleport
+    entity.position.copy(dest.position)
+    entity.position.y += 1
+    
+    // Effect at destination
+    playSound("teleport_in")
+    spawnParticleBurst(entity.position, "${params.color || '#3b82f6'}", 30)
+    
+    setTimeout(() => { dest.isReceiving = false }, 1000)
+    
+    emit("teleporter:used", { from: this, to: dest, entity })
+  }
+  
+  on_trigger_enter: (other) => {
+    if (other.isPlayer) {
+      this.teleport(other)
+    }
+  }
+  
+  every(100) {
+    this.cooldown = Math.max(0, this.cooldown - 0.1)
+    this.Ring.rotation.y += 0.02
+  }
+}
+`.trim(),
+};
+
+export const JumpPadTemplate: Template = {
+  name: 'Jump Pad',
+  description: 'Launches entities into the air',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Pad name', default: 'JumpPad' },
+    { name: 'force', type: 'number', description: 'Launch force', default: 15, min: 5, max: 50 },
+    { name: 'angle', type: 'number', description: 'Launch angle (degrees)', default: 80, min: 45, max: 90 },
+    { name: 'color', type: 'color', description: 'Pad color', default: '#fbbf24' },
+  ],
+  generate: (params) => `
+template "${params.name || 'JumpPad'}" {
+  state {
+    force: ${params.force || 15}
+    angle: ${(Number(params.angle) || 80) * Math.PI / 180}
+    cooldown: 0
+  }
+  
+  // Base
+  object "Pad" {
+    geometry: cylinder
+    color: "${params.color || '#fbbf24'}"
+    scale: [1.5, 0.2, 1.5]
+    emissive: "${params.color || '#fbbf24'}"
+    emissiveIntensity: 0.3
+  }
+  
+  // Arrow indicator
+  object "Arrow" {
+    mesh: "ui/arrow_up.glb"
+    color: "${params.color || '#fbbf24'}"
+    scale: [0.5, 0.5, 0.5]
+    position: [0, 0.3, 0]
+    emissive: "${params.color || '#fbbf24'}"
+    emissiveIntensity: 1
+  }
+  
+  action launch(entity) {
+    if (this.cooldown > 0) return
+    this.cooldown = 0.5
+    
+    // Calculate launch vector
+    const forwardDir = getForwardVector(this.rotation)
+    const launchVec = [
+      forwardDir.x * Math.cos(this.angle) * this.force,
+      Math.sin(this.angle) * this.force,
+      forwardDir.z * Math.cos(this.angle) * this.force
+    ]
+    
+    entity.velocity = launchVec
+    
+    // Effects
+    playSound("jump_pad")
+    spawnParticleBurst(this.position, "${params.color || '#fbbf24'}", 20)
+    
+    // Squash animation
+    animate("Pad.scale.y", 0.1, 50)
+    await delay(50)
+    animate("Pad.scale.y", 0.2, 100)
+    
+    emit("jumppad:launched", { pad: this, entity })
+  }
+  
+  on_trigger_enter: (other) => {
+    if (other.isPlayer || other.isNPC) {
+      this.launch(other)
+    }
+  }
+  
+  every(100) {
+    this.cooldown = Math.max(0, this.cooldown - 0.1)
+    
+    // Bounce arrow
+    this.Arrow.position.y = 0.3 + Math.sin(Date.now() * 0.005) * 0.1
+  }
+}
+`.trim(),
+};
+
+export const ConveyorTemplate: Template = {
+  name: 'Conveyor Belt',
+  description: 'Moves entities along a path',
+  category: 'orb',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Conveyor name', default: 'Conveyor' },
+    { name: 'speed', type: 'number', description: 'Belt speed', default: 3, min: 0.5, max: 10 },
+    { name: 'length', type: 'number', description: 'Belt length', default: 5, min: 1, max: 20 },
+    { name: 'width', type: 'number', description: 'Belt width', default: 2, min: 1, max: 5 },
+  ],
+  generate: (params) => `
+template "${params.name || 'Conveyor'}" {
+  state {
+    speed: ${params.speed || 3}
+    length: ${params.length || 5}
+    isActive: true
+    entitiesOn: new Set()
+  }
+  
+  // Belt surface
+  object "Belt" {
+    geometry: box
+    color: "#4a4a4a"
+    scale: [${params.width || 2}, 0.1, ${params.length || 5}]
+    
+    // Animated texture
+    material: {
+      map: "textures/conveyor.png",
+      repeat: [1, ${params.length || 5}]
+    }
+  }
+  
+  // Side rails
+  object "RailLeft" {
+    geometry: box
+    color: "#666666"
+    scale: [0.1, 0.2, ${params.length || 5}]
+    position: [-${(params.width as number) / 2 || 1}, 0.05, 0]
+  }
+  
+  object "RailRight" {
+    geometry: box
+    color: "#666666"
+    scale: [0.1, 0.2, ${params.length || 5}]
+    position: [${(params.width as number) / 2 || 1}, 0.05, 0]
+  }
+  
+  // Direction arrows
+  object "Arrows" {
+    type: decal
+    texture: "textures/arrows.png"
+    position: [0, 0.06, 0]
+    scale: [${params.width || 2}, 1, ${params.length || 5}]
+  }
+  
+  action toggle() {
+    this.isActive = !this.isActive
+  }
+  
+  action setSpeed(speed) {
+    this.speed = speed
+  }
+  
+  on_trigger_enter: (other) => {
+    this.entitiesOn.add(other.id)
+  }
+  
+  on_trigger_exit: (other) => {
+    this.entitiesOn.delete(other.id)
+  }
+  
+  every(16) {
+    if (!this.isActive) return
+    
+    // Animate texture scroll
+    this.Belt.material.offset.y += this.speed * 0.001
+    
+    // Move entities
+    const forwardDir = getForwardVector(this.rotation)
+    const moveVec = multiply(forwardDir, this.speed * 0.016)
+    
+    for (const id of this.entitiesOn) {
+      const entity = getObjectById(id)
+      if (entity) {
+        entity.position.add(moveVec)
+      }
+    }
+  }
+}
+`.trim(),
+};
+
+// ============================================================================
+// Additional Material Templates
+// ============================================================================
+
+export const WaterMaterialTemplate: Template = {
+  name: 'Water Material',
+  description: 'Animated water surface material',
+  category: 'material',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Material name', default: 'WaterMaterial' },
+    { name: 'color', type: 'color', description: 'Water color', default: '#006994' },
+    { name: 'opacity', type: 'number', description: 'Transparency', default: 0.7, min: 0.1, max: 1 },
+    { name: 'waveSpeed', type: 'number', description: 'Wave speed', default: 1, min: 0.1, max: 5 },
+  ],
+  generate: (params) => `
+material ${params.name || 'WaterMaterial'} {
+  color: ${params.color || '#006994'}
+  opacity: ${params.opacity || 0.7}
+  transparent: true
+  metalness: 0.1
+  roughness: 0.1
+  
+  // Reflections
+  envMapIntensity: 0.8
+  
+  // Normal map for waves
+  normalMap: "textures/water_normal.png"
+  normalScale: [0.5, 0.5]
+}
+
+system ${params.name || 'WaterMaterial'}Animator {
+  state {
+    time: 0
+    speed: ${params.waveSpeed || 1}
+  }
+  
+  every(16) {
+    state.time += 0.016 * state.speed
+    
+    // Scroll normal map
+    ${params.name || 'WaterMaterial'}.normalMap.offset.x = Math.sin(state.time * 0.5) * 0.1
+    ${params.name || 'WaterMaterial'}.normalMap.offset.y = state.time * 0.05
+  }
+}
+`.trim(),
+};
+
+export const PBRMaterialTemplate: Template = {
+  name: 'PBR Material',
+  description: 'Physically-based rendering material',
+  category: 'material',
+  parameters: [
+    { name: 'name', type: 'string', description: 'Material name', default: 'PBRMaterial' },
+    { name: 'preset', type: 'select', description: 'Material preset', default: 'metal', options: ['metal', 'plastic', 'wood', 'stone', 'fabric', 'glass'] },
+  ],
+  generate: (params) => {
+    const presets: Record<string, { color: string; metalness: number; roughness: number; extra: string }> = {
+      metal: { color: '#c0c0c0', metalness: 1.0, roughness: 0.2, extra: '' },
+      plastic: { color: '#ffffff', metalness: 0.0, roughness: 0.4, extra: '' },
+      wood: { color: '#8b4513', metalness: 0.0, roughness: 0.8, extra: 'normalMap: "textures/wood_normal.png"' },
+      stone: { color: '#808080', metalness: 0.0, roughness: 0.9, extra: 'normalMap: "textures/stone_normal.png"' },
+      fabric: { color: '#a0522d', metalness: 0.0, roughness: 1.0, extra: '' },
+      glass: { color: '#ffffff', metalness: 0.0, roughness: 0.0, extra: 'transparent: true\n  opacity: 0.3\n  envMapIntensity: 1.0' },
+    };
+    
+    const p = presets[(params.preset as string) || 'metal'];
+    
+    return `
+material ${params.name || 'PBRMaterial'} {
+  // ${(params.preset as string || 'metal').toUpperCase()} preset
+  color: ${p.color}
+  metalness: ${p.metalness}
+  roughness: ${p.roughness}
+  ${p.extra}
+}
+`.trim();
+  },
+};
+
+// ============================================================================
 // Template Registry
 // ============================================================================
 
@@ -3705,6 +5809,39 @@ export const Templates: Record<string, Template> = {
   lever: LeverTemplate,
   pressurePlate: PressurePlateTemplate,
 
+  // UI Components - Extended
+  inventoryPanel: InventoryPanelTemplate,
+  minimap: MinimapTemplate,
+  chatBubble: ChatBubbleTemplate,
+  scoreDisplay: ScoreDisplayTemplate,
+  timerDisplay: TimerDisplayTemplate,
+  notificationToast: NotificationToastTemplate,
+
+  // Dialogue & Story
+  dialogueTree: DialogueTreeTemplate,
+  cutscene: CutsceneTemplate,
+
+  // Camera & View
+  cameraController: CameraControllerTemplate,
+  cameraZone: CameraZoneTemplate,
+
+  // Audio & Ambient
+  ambientSound: AmbientSoundTemplate,
+  musicZone: MusicZoneTemplate,
+  soundTrigger: SoundTriggerTemplate,
+
+  // Weather & Atmosphere
+  weatherSystem: WeatherSystemTemplate,
+  dayNightCycle: DayNightCycleTemplate,
+  fogZone: FogZoneTemplate,
+
+  // Gameplay Mechanics
+  checkpoint: CheckpointTemplate,
+  respawnPoint: RespawnPointTemplate,
+  teleporter: TeleporterTemplate,
+  jumpPad: JumpPadTemplate,
+  conveyor: ConveyorTemplate,
+
   // Game Systems
   inventorySystem: InventorySystemTemplate,
   healthSystem: HealthSystemTemplate,
@@ -3714,6 +5851,8 @@ export const Templates: Record<string, Template> = {
 
   // Materials
   glowingMaterial: GlowingMaterialTemplate,
+  waterMaterial: WaterMaterialTemplate,
+  pbrmaterial: PBRMaterialTemplate,
 };
 
 /**

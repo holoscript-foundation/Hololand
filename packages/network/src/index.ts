@@ -23,6 +23,8 @@ export type { RoomEventMap, RoomEventType, RoomEventHandler } from './Room';
 
 // State synchronization
 export { StateSync } from './StateSync';
+export { RelayService } from './RelayService';
+export type { RelayConfig } from './RelayService';
 
 // Interest management
 export { InterestManager } from './InterestManager';
@@ -107,6 +109,7 @@ import { NetworkClient } from './NetworkClient';
 import { NetworkServer } from './NetworkServer';
 import { Room, RoomManager } from './Room';
 import { StateSync } from './StateSync';
+import { RelayService } from './RelayService';
 import { InterestManager } from './InterestManager';
 import { VoiceChat } from './VoiceChat';
 import { TextChat } from './TextChat';
@@ -117,6 +120,7 @@ export default {
   Room,
   RoomManager,
   StateSync,
+  RelayService,
   InterestManager,
   VoiceChat,
   TextChat,

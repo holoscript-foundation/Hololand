@@ -1,0 +1,33 @@
+// HOSL: FinanceTicker
+// Real-time market data visualization
+
+object ticker_board {
+  @state {
+    symbol: "BTC"
+    price: 0
+    change_24h: 0
+  }
+
+  @external_api(
+    url: "https://api.binance.com/api/v3/ticker/24hr?symbol=${state.symbol}USDT",
+    interval: 15s
+  )
+
+  @on_data_update(data) => {
+    state.price = data.lastPrice
+    state.change_24h = data.priceChangePercent
+  }
+
+  // Floating price display
+  text#price_tag {
+    value: "${state.symbol}: $${state.price}"
+    color: ${state.change_24h >= 0 ? "#00ff00" : "#ff0000"}
+    position: [0, 1.5, 0]
+  }
+  
+  // Decorative bar that pulses with the price
+  cube#visualizer {
+    scale: [1, ${state.price / 50000}, 1]
+    color: "#4444ff"
+  }
+}
