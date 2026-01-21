@@ -1,7 +1,7 @@
 {
   "name": "@hololand/brittney-service",
   "version": "1.0.0",
-  "description": "Brittney local AI service - runs alongside Hololand for free AI assistance",
+  "description": "✱brittney - AI-powered assistant for Hololand with local & cloud inference",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -33,6 +33,7 @@
   },
   "keywords": [
     "brittney",
+    "aibrittney",
     "hololand",
     "ai",
     "local-llm",

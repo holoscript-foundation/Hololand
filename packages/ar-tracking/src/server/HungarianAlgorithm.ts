@@ -354,3 +354,266 @@ function cosineDistance(a: number[], b: number[]): number {
   const cosineSimilarity = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   return 1.0 - cosineSimilarity;
 }
+
+/**
+ * HungarianAlgorithm class with static methods for solving assignment problems
+ * Used for matching detections to existing tracks in AR tracking
+ */
+export class HungarianAlgorithm {
+  /**
+   * Solve the assignment problem: find optimal row→column assignments
+   * @param costMatrix NxM cost matrix
+   * @returns Array of [row, col] assignment pairs
+   */
+  static solve(costMatrix: number[][]): [number, number][] {
+    if (costMatrix.length === 0) return [];
+    if (costMatrix[0]?.length === 0) return [];
+    
+    const numRows = costMatrix.length;
+    const numCols = costMatrix[0].length;
+    
+    // Make a square matrix for the algorithm
+    const n = Math.max(numRows, numCols);
+    const squareMatrix: number[][] = [];
+    
+    // Find a large dummy value (larger than any real cost)
+    let maxCost = 0;
+    for (let i = 0; i < numRows; i++) {
+      for (let j = 0; j < numCols; j++) {
+        maxCost = Math.max(maxCost, costMatrix[i][j]);
+      }
+    }
+    const dummyCost = maxCost + 1;
+    
+    // Build square matrix with padding
+    for (let i = 0; i < n; i++) {
+      squareMatrix[i] = [];
+      for (let j = 0; j < n; j++) {
+        if (i < numRows && j < numCols) {
+          squareMatrix[i][j] = costMatrix[i][j];
+        } else {
+          squareMatrix[i][j] = dummyCost;
+        }
+      }
+    }
+    
+    // Run munkres directly on square matrix
+    const rawAssignment = munkresInternal(squareMatrix);
+    
+    // Convert to [row, col] pairs, filtering out dummy assignments
+    const assignments: [number, number][] = [];
+    for (let i = 0; i < numRows; i++) {
+      const j = rawAssignment[i];
+      if (j !== -1 && j < numCols) {
+        assignments.push([i, j]);
+      }
+    }
+    
+    return assignments;
+  }
+
+  /**
+   * Build cost matrix from two arrays using a distance function
+   * @param tracks Array of track objects
+   * @param detections Array of detection objects
+   * @param distanceFn Function to compute distance between track and detection
+   */
+  static buildCostMatrix<T, D>(
+    tracks: T[],
+    detections: D[],
+    distanceFn: (track: T, detection: D) => number
+  ): number[][] {
+    const matrix: number[][] = [];
+    
+    for (let i = 0; i < tracks.length; i++) {
+      matrix[i] = [];
+      for (let j = 0; j < detections.length; j++) {
+        matrix[i][j] = distanceFn(tracks[i], detections[j]);
+      }
+    }
+    
+    return matrix;
+  }
+}
+
+/**
+ * Internal munkres implementation for the static solve method
+ */
+function munkresInternal(costMatrix: number[][]): number[] {
+  const n = costMatrix.length;
+  
+  // Copy matrix
+  const C: number[][] = costMatrix.map(row => [...row]);
+  
+  // Step 1: Subtract row minimum from each row
+  for (let i = 0; i < n; i++) {
+    const rowMin = Math.min(...C[i]);
+    for (let j = 0; j < n; j++) {
+      C[i][j] -= rowMin;
+    }
+  }
+
+  // Step 2: Subtract column minimum from each column
+  for (let j = 0; j < n; j++) {
+    let colMin = Infinity;
+    for (let i = 0; i < n; i++) {
+      colMin = Math.min(colMin, C[i][j]);
+    }
+    for (let i = 0; i < n; i++) {
+      C[i][j] -= colMin;
+    }
+  }
+
+  // Marking arrays
+  const rowCover: boolean[] = Array(n).fill(false);
+  const colCover: boolean[] = Array(n).fill(false);
+  const starred: boolean[][] = Array(n).fill(null).map(() => Array(n).fill(false));
+  const primed: boolean[][] = Array(n).fill(null).map(() => Array(n).fill(false));
+
+  // Step 3: Star zeros
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (C[i][j] === 0 && !rowCover[i] && !colCover[j]) {
+        starred[i][j] = true;
+        rowCover[i] = true;
+        colCover[j] = true;
+      }
+    }
+  }
+  rowCover.fill(false);
+  colCover.fill(false);
+
+  // Main loop
+  let step = 4;
+  let maxIterations = n * n * 10;
+  
+  while (maxIterations-- > 0) {
+    if (step === 4) {
+      // Cover columns containing starred zeros
+      for (let j = 0; j < n; j++) {
+        for (let i = 0; i < n; i++) {
+          if (starred[i][j]) {
+            colCover[j] = true;
+            break;
+          }
+        }
+      }
+      
+      // Check if done
+      const coveredCols = colCover.filter(c => c).length;
+      if (coveredCols >= n) {
+        break;
+      }
+      step = 5;
+    }
+    
+    if (step === 5) {
+      // Find uncovered zero and prime it
+      let found = false;
+      let primeRow = -1;
+      let primeCol = -1;
+      
+      for (let i = 0; i < n && !found; i++) {
+        if (rowCover[i]) continue;
+        for (let j = 0; j < n && !found; j++) {
+          if (colCover[j]) continue;
+          if (C[i][j] === 0) {
+            primed[i][j] = true;
+            primeRow = i;
+            primeCol = j;
+            found = true;
+          }
+        }
+      }
+      
+      if (!found) {
+        // Step 6: Adjust matrix
+        let minVal = Infinity;
+        for (let i = 0; i < n; i++) {
+          if (rowCover[i]) continue;
+          for (let j = 0; j < n; j++) {
+            if (colCover[j]) continue;
+            minVal = Math.min(minVal, C[i][j]);
+          }
+        }
+        
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            if (rowCover[i]) C[i][j] += minVal;
+            if (!colCover[j]) C[i][j] -= minVal;
+          }
+        }
+        continue;
+      }
+      
+      // Check for starred zero in same row
+      let starCol = -1;
+      for (let j = 0; j < n; j++) {
+        if (starred[primeRow][j]) {
+          starCol = j;
+          break;
+        }
+      }
+      
+      if (starCol !== -1) {
+        rowCover[primeRow] = true;
+        colCover[starCol] = false;
+      } else {
+        // Step 7: Augment path
+        const path: [number, number][] = [[primeRow, primeCol]];
+        
+        while (true) {
+          // Find starred zero in column
+          const lastCol = path[path.length - 1][1];
+          let starRow = -1;
+          for (let i = 0; i < n; i++) {
+            if (starred[i][lastCol]) {
+              starRow = i;
+              break;
+            }
+          }
+          
+          if (starRow === -1) break;
+          path.push([starRow, lastCol]);
+          
+          // Find primed zero in row
+          let primeColInRow = -1;
+          for (let j = 0; j < n; j++) {
+            if (primed[starRow][j]) {
+              primeColInRow = j;
+              break;
+            }
+          }
+          path.push([starRow, primeColInRow]);
+        }
+        
+        // Augment
+        for (const [pi, pj] of path) {
+          starred[pi][pj] = !starred[pi][pj];
+        }
+        
+        // Clear covers and primes
+        rowCover.fill(false);
+        colCover.fill(false);
+        for (let i = 0; i < n; i++) {
+          primed[i].fill(false);
+        }
+        
+        step = 4;
+      }
+    }
+  }
+
+  // Extract assignment
+  const result: number[] = Array(n).fill(-1);
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (starred[i][j]) {
+        result[i] = j;
+        break;
+      }
+    }
+  }
+
+  return result;
+}

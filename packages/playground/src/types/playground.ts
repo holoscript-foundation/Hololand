@@ -1,0 +1,70 @@
+/**
+ * Playground Type Definitions
+ */
+
+export interface PlaygroundState {
+  code: string;
+  errors: PlaygroundError[];
+  isRunning: boolean;
+  selectedObject?: string;
+}
+
+export interface PlaygroundError {
+  id: string;
+  type: 'syntax' | 'runtime' | 'warning';
+  message: string;
+  line?: number;
+  column?: number;
+  stack?: string;
+}
+
+export interface CodeCompilationResult {
+  success: boolean;
+  errors: PlaygroundError[];
+  compiled?: any;
+  duration: number;
+}
+
+export interface EditorState {
+  code: string;
+  language: 'holoscript';
+  isSaved: boolean;
+  lastSaved?: Date;
+}
+
+export interface PreviewState {
+  isLoading: boolean;
+  error?: PlaygroundError;
+  fps: number;
+  renderTime: number;
+  objectCount: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  isStreaming?: boolean;
+}
+
+export interface InspectorData {
+  selectedId?: string;
+  properties: Record<string, any>;
+  traits: string[];
+}
+
+export interface HoloScriptValidationResult {
+  valid: boolean;
+  errors: PlaygroundError[];
+  warnings: PlaygroundError[];
+  ast?: any;
+}
+
+export interface PerformanceMetrics {
+  fps: number;
+  frameTime: number;
+  drawCalls: number;
+  triangles: number;
+  memoryUsed: number;
+}

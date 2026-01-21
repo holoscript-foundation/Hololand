@@ -1,0 +1,169 @@
+/**
+ * Global Styles - Tailwind CSS + Custom Styles
+ */
+
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Dark mode styles */
+:root {
+  --color-dark-bg: #0f172a;
+  --color-dark-surface: #1e293b;
+  --color-dark-border: #334155;
+  --color-accent: #a78bfa;
+}
+
+* {
+  @apply transition-colors;
+}
+
+body {
+  @apply bg-gray-950 text-gray-100 font-sans;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-600 rounded hover:bg-gray-500;
+}
+
+/* Monaco Editor Customization */
+.monaco-editor {
+  @apply font-mono;
+}
+
+.monaco-editor .monaco-editor-background {
+  background-color: #111827 !important;
+}
+
+.monaco-editor-background {
+  background-color: #111827 !important;
+}
+
+.monaco-editor .view-overlays {
+  background: transparent !important;
+}
+
+/* Syntax Highlighting */
+.token.keyword {
+  @apply text-blue-400;
+}
+
+.token.string {
+  @apply text-green-400;
+}
+
+.token.number {
+  @apply text-yellow-400;
+}
+
+.token.comment {
+  @apply text-gray-600;
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(168, 85, 247, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Custom Components */
+.glass {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.card {
+  @apply bg-gray-800 border border-gray-700 rounded-lg p-4;
+}
+
+.button-primary {
+  @apply px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors;
+}
+
+.button-secondary {
+  @apply px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg font-semibold transition-colors;
+}
+
+/* Code Block Styling */
+code {
+  @apply font-mono text-sm bg-gray-800 px-2 py-1 rounded text-gray-100;
+}
+
+pre {
+  @apply bg-gray-800 rounded-lg p-4 overflow-x-auto;
+}
+
+pre code {
+  @apply p-0 bg-transparent;
+}
+
+/* Input Styling */
+input,
+textarea {
+  @apply bg-gray-700 text-gray-100 border border-gray-600 rounded focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500;
+}
+
+input::placeholder,
+textarea::placeholder {
+  @apply text-gray-500;
+}
+
+/* Button Reset */
+button {
+  @apply cursor-pointer;
+}
+
+button:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+/* Focus Visible */
+button:focus-visible,
+input:focus-visible {
+  @apply outline-none ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-900;
+}
+
+/* Selection */
+::selection {
+  @apply bg-purple-600 text-white;
+}
+
+/* Links */
+a {
+  @apply text-purple-400 hover:text-purple-300 transition-colors;
+}
+
+a:focus-visible {
+  @apply outline-none ring-2 ring-purple-500;
+}

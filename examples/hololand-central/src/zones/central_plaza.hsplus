@@ -1,0 +1,111 @@
+
+building CentralPlaza {
+  type: "plaza"
+  radius: 60
+  style: "solarpunk-art-deco"
+  traits: ["multiplayer", "breathable"]
+}
+
+// The core water/data sculpture
+orb FountainOfBits {
+  shape: "fountain"
+  position: [0, 0, 0]
+  color: "#4cc9f0"
+  size: 3
+  glow: true
+  interactive: true
+  traits: ["pulse", "particle-emit"]
+  properties: {
+    "intensity": 0.8,
+    "flowSpeed": 1.2
+  }
+}
+
+// Decorative Arches (Art Deco)
+orb DecoArchNorth {
+  shape: "arch"
+  position: [0, 0, -20]
+  color: "#ffd700" // Brass/Gold
+  scale: [10, 8, 1]
+  traits: ["climbable"]
+}
+
+orb DecoArchSouth {
+  shape: "arch"
+  position: [0, 0, 20]
+  color: "#ffd700"
+  scale: [10, 8, 1]
+}
+
+// Solarpunk Elements: Hanging Vines
+plant HangingVines01 {
+  type: "vines"
+  position: [0, 7.5, -20]
+  color: "#2ecc71"
+  traits: ["sway"]
+}
+
+// Social Area: Circular Bench
+orb SocialRing {
+  shape: "torus"
+  position: [0, 0.5, 0]
+  scale: [8, 0.4, 8]
+  color: "#ecf0f1"
+  interactive: true
+  traits: ["seatable", "hoverable"]
+}
+
+// Navigation waypoints
+orb ToCasino {
+  shape: "waypoint"
+  position: [0, 1, -40]
+  color: "#f1c40f"
+  text: "Casino District"
+  interactive: true
+}
+
+// Portal to Arcade District
+orb ArcadePortal {
+  shape: "bio-dome"
+  position: [50, 0, 0]
+  scale: [3, 4, 3]
+  color: "#9b59b6"
+  interactive: true
+  traits: ["portal-gate", "pulse"]
+  properties: {
+    "destination": "arcade",
+    "text": "ARCADE DISTRICT"
+  }
+}
+
+orb SpawnPoint {
+  shape: "orb"
+  type: "spawn"
+  position: [0, 2, 8]
+  color: "#00ff00"
+  size: 0.5
+}
+orb VisitorCountDisplay {
+  shape: "hologram_panel"
+  position: [0, 5, -30]
+  color: "#3498db"
+  text: "Oasis Visitors: $visitorCount"
+  traits: ["flicker", "rotate-slow"]
+  properties: {
+    "isDynamic": true
+  }
+}
+
+// Portal to Hololand Legends (2D Game)
+orb LegendsPortal {
+  shape: "bio-dome"
+  position: [40, 0, -50]
+  scale: [3, 4, 3]
+  color: "#2ecc71"
+  interactive: true
+  traits: ["portal-gate", "pulse"]
+  properties: {
+    "destination": "legends",
+    "text": "ENTER LEGENDS (2D)"
+  }
+}

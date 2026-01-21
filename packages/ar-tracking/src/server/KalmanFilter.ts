@@ -19,23 +19,75 @@ export class KalmanFilter3D {
   
   // Measurement noise
   private measurementNoise: number;
+  
+  // Whether the filter has been initialized
+  private initialized: boolean = false;
 
   constructor(
-    initialPosition: Vector3,
+    initialPosition?: Vector3,
     processNoise: number = 0.1,
     measurementNoise: number = 0.3
   ) {
-    // Initialize state with position and zero velocity
-    this.state = [
-      initialPosition.x, initialPosition.y, initialPosition.z,
-      0, 0, 0
-    ];
+    this.processNoise = processNoise;
+    this.measurementNoise = measurementNoise;
+    
+    // Initialize state with position or zero
+    if (initialPosition) {
+      this.state = [
+        initialPosition.x, initialPosition.y, initialPosition.z,
+        0, 0, 0
+      ];
+      this.initialized = true;
+    } else {
+      this.state = [0, 0, 0, 0, 0, 0];
+    }
 
     // Initialize covariance with high uncertainty
     this.P = this.createIdentityMatrix(6, 10);
-    
-    this.processNoise = processNoise;
-    this.measurementNoise = measurementNoise;
+  }
+
+  /**
+   * Initialize/reset the filter with a position
+   */
+  initialize(position: Vector3): void {
+    this.state = [position.x, position.y, position.z, 0, 0, 0];
+    this.P = this.createIdentityMatrix(6, 10);
+    this.initialized = true;
+  }
+
+  /**
+   * Get full state as object { x, y, z, vx, vy, vz }
+   */
+  getState(): { x: number; y: number; z: number; vx: number; vy: number; vz: number } {
+    return {
+      x: this.state[0],
+      y: this.state[1],
+      z: this.state[2],
+      vx: this.state[3],
+      vy: this.state[4],
+      vz: this.state[5],
+    };
+  }
+
+  /**
+   * Get current position estimate
+   */
+  getPosition(): Vector3 {
+    return {
+      x: this.state[0],
+      y: this.state[1],
+      z: this.state[2],
+    };
+  }
+
+  /**
+   * Get diagonal of covariance matrix (uncertainty values)
+   */
+  getCovariance(): number[] {
+    return [
+      this.P[0][0], this.P[1][1], this.P[2][2],
+      this.P[3][3], this.P[4][4], this.P[5][5]
+    ];
   }
 
   /**

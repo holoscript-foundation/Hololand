@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Native platform folders (generated)
+ios/
+android/
+
+# Environment
+.env
+.env.local
+
+# Capacitor
+.capacitor/

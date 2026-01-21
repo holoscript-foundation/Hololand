@@ -1,0 +1,29 @@
+// HoloScript+ Settings Integration Test
+// Demonstrates opening the settings modal from code
+
+orb SettingsController {
+  at: [0, 2, -3]
+  shape: "cube"
+  color: "#4ade80"
+  text: "OPEN SETTINGS"
+  glow: true
+  interactive: true
+  settings: true // Applies the trait
+}
+
+on_interact {
+  // Option 1: Using the keyword command
+  settings
+  
+  // Option 2: Using the built-in function
+  // showSettings()
+  
+  log("Settings modal triggered from HoloScript")
+}
+
+// System status display
+text Status#HoloPlus {
+  at: [0, 4, -3]
+  text: "HOLO+ V1.0 - AI CONFIG READY"
+  color: "cyan"
+}

@@ -1,0 +1,85 @@
+{
+  "name": "holoscript",
+  "displayName": "HoloScript",
+  "description": "Language support and file icons for HoloScript (.holo) and HoloScript Plus (.hsplus)",
+  "version": "1.0.0",
+  "publisher": "hololand",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Themes"
+  ],
+  "keywords": [
+    "holoscript",
+    "hololand",
+    "metaverse",
+    "3d",
+    "spatial",
+    "vr",
+    "ar",
+    "xr"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "holoscript",
+        "aliases": ["HoloScript", "holo"],
+        "extensions": [".holo"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/holoscript.svg",
+          "dark": "./icons/holoscript.svg"
+        }
+      },
+      {
+        "id": "holoscript-plus",
+        "aliases": ["HoloScript Plus", "hsplus"],
+        "extensions": [".hsplus"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/holoscript-plus.svg",
+          "dark": "./icons/holoscript-plus.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "holoscript",
+        "scopeName": "source.holo",
+        "path": "./syntaxes/holoscript.tmLanguage.json"
+      },
+      {
+        "language": "holoscript-plus",
+        "scopeName": "source.hsplus",
+        "path": "./syntaxes/holoscript-plus.tmLanguage.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "holoscript-icons",
+        "label": "HoloScript Icons",
+        "path": "./icons/icon-theme.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.3"
+  }
+}

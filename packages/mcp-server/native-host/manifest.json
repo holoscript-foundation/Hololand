@@ -1,0 +1,9 @@
+{
+  "name": "com.hololand.brittney",
+  "description": "Brittney MCP Native Messaging Host - Connects IDE agents to Hololand DevTools",
+  "path": "",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_PLACEHOLDER/"
+  ]
+}

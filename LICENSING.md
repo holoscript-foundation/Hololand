@@ -33,9 +33,9 @@ The HoloScript programming language and toolchain are completely free and open:
 - ✅ Offer HoloScript as a service
 - ✅ Fork and modify without attribution
 
-**Location:** `Hololand/packages/holoscript/`
+**Location:** External: [`@holoscript/core`](https://github.com/brianonbased-dev/HoloScript)
 
-**License File:** [`packages/holoscript/LICENSE`](packages/holoscript/LICENSE)
+**License File:** See HoloScript repository LICENSE (MIT)
 
 ---
 

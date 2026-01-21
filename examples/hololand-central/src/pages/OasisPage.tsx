@@ -10,7 +10,7 @@ export function OasisPage() {
 
   useEffect(() => {
     // Load the hololand_planet.holo file from public assets
-    fetch('/assets/hololand_planet.holo')
+    fetch('/assets/hololand_planet.hsplus')
       .then(res => {
         if (!res.ok) throw new Error('Failed to load planet script');
         return res.text();

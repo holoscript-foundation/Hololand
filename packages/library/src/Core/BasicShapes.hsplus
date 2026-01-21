@@ -1,0 +1,31 @@
+
+/**
+ * Basic Shapes Library
+ * Standard primitives with physics enabled.
+ */
+
+export prefab Cube {
+  object cube_mesh {
+    mesh: "cube"
+    collider: "box"
+    mass: 1.0
+    
+    trait Material {
+      color: 0x888888
+      roughness: 0.5
+    }
+  }
+}
+
+export prefab Sphere {
+  object sphere_mesh {
+    mesh: "sphere"
+    collider: "sphere"
+    mass: 1.0
+    
+    trait Material {
+      color: 0x888888
+      roughness: 0.2
+    }
+  }
+}

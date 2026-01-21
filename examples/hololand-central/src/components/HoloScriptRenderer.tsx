@@ -3,34 +3,20 @@ import { useFrame } from '@react-three/fiber';
 import { Text, useGLTF, Html, Environment, Sparkles, Stars, ContactShadows } from '@react-three/drei';
 // Post-processing temporarily disabled - uncomment when needed
 // import { EffectComposer, Bloom, Vignette, Noise, ToneMapping } from '@react-three/postprocessing';
-import { HoloScriptCodeParser, HoloScriptRuntime } from '@holoscript/core';
+import { 
+  HoloScriptPlusParser, 
+  HoloScriptPlusRuntimeImpl,
+  VRTraitRegistry
+} from '@holoscript/core';
 import { PlayerController } from './PlayerController';
 import { Vector3, Mesh } from 'three';
+import { AssetRegistry } from '../services/AssetRegistry';
+import { SettingsModal } from './SettingsModal';
+import { BrittneyChat } from './BrittneyChat';
+import { ReactHoloRenderer, HoloEntityData } from '../services/HoloPlusRendererBridge';
 
-// --- 1. Asset Registry (Mapping Script Names to Files) ---
-const ASSET_TO_URL: Record<string, string> = {
-  fountain: '/assets/models/fountain_art_deco.glb',
-  dome: '/assets/models/dome_grandeur.glb',
-  tree: '/assets/models/solarpunk_tree.glb',
-  arch: '/assets/models/deco_arch.glb',
-  shop_front: '/assets/models/shop_facade_deco.glb',
-  vines: '/assets/models/hanging_vines.glb',
-  lamp_post: '/assets/models/solarpunk_lamp.glb',
-  vending_machine: '/assets/models/solarpunk_vending.glb',
-  'bio-dome': '/assets/models/biosphere_dome.glb',
-  avatar: '/assets/models/Brian_Flexing.glb',
-  brian_boxing: '/assets/models/Brian_Boxing.glb',
-  brian_situps: '/assets/models/Brian_Situps.glb',
-  brian_bicycle: '/assets/models/Brian_BicycleCrunch.glb',
-  brian_flexing: '/assets/models/Brian_Flexing.glb',
-  // Fallbacks
-  orb: 'primitive:sphere',
-  cube: 'primitive:box',
-  sphere: 'primitive:sphere',
-  column: 'primitive:cylinder',
-  torus: 'primitive:torus',
-  hologram_panel: 'primitive:plane',
-};
+// --- Static Helpers Moved to AssetRegistry ---
+const assetRegistry = AssetRegistry.getInstance();
 
 // --- Zone to Asset Mapping (for preloading) ---
 const ZONE_ASSETS: Record<string, string[]> = {
@@ -44,7 +30,7 @@ const ZONE_ASSETS: Record<string, string[]> = {
 const triggerPreload = (zone: string) => {
   const assets = ZONE_ASSETS[zone] || [];
   assets.forEach((key) => {
-    const url = ASSET_TO_URL[key as keyof typeof ASSET_TO_URL];
+    const url = assetRegistry.resolve(key);
     if (url && url.endsWith('.glb')) {
       useGLTF.preload(url);
     }
@@ -71,7 +57,7 @@ interface HoloEntityData {
 const useTraits = (
   entity: HoloEntityData,
   meshRef: React.MutableRefObject<Mesh | null>,
-  runtime: HoloScriptRuntime,
+  runtime: any,
   playerPosition?: Vector3
 ) => {
   const [hovered, setHover] = useState(false);
@@ -133,6 +119,17 @@ const useTraits = (
     if (entity.traits?.includes('rotate-slow')) {
       meshRef.current.rotation.y += delta * 0.1;
     }
+
+    // HoloScript+ Trait: @grabbable
+    if (entity.traits?.includes('grabbable') && active && playerPosition) {
+        const targetPos = playerPosition.clone().add(new Vector3(0, 0.5, -2));
+        meshRef.current.position.lerp(targetPos, 0.1);
+    }
+
+    // HoloScript+ Trait: @lookAtPlayer
+    if (entity.traits?.includes('lookAtPlayer') && playerPosition) {
+        meshRef.current.lookAt(playerPosition);
+    }
   });
 
   const events = useMemo(() => {
@@ -152,6 +149,16 @@ const useTraits = (
         const dest = entity.properties?.destination as string;
         if (dest === 'legends') window.location.href = '/legends';
         console.log(`PORTAL ACTIVATED: ${dest}`);
+      }
+
+      if (entity.traits?.includes('settings')) {
+        runtime.emit('show-settings');
+        console.log('SETTINGS TRAIT ACTIVATED');
+      }
+
+      if (entity.traits?.includes('chat')) {
+        runtime.emit('show-chat');
+        console.log('CHAT TRAIT ACTIVATED');
       }
 
       if (entity.traits?.includes('talkable')) {
@@ -186,7 +193,7 @@ const useTraits = (
 // --- 3. Entity Component (The renderer) ---
 interface HoloEntityProps {
   entity: HoloEntityData;
-  runtime: HoloScriptRuntime;
+  runtime: any;
   playerPosition?: Vector3;
 }
 
@@ -258,7 +265,7 @@ const HoloEntity: React.FC<HoloEntityProps> = ({ entity, runtime, playerPosition
   if (collected) return null;
 
   const assetKey = entity.mesh || (entity.properties?.shape as string) || 'orb';
-  const assetUrl = ASSET_TO_URL[assetKey];
+  const assetUrl = assetRegistry.resolve(assetKey);
   const color = active ? 'hotpink' : hovered ? '#ffaa00' : entity.color || 'cyan';
 
   return (
@@ -348,8 +355,38 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
   const [entities, setEntities] = useState<HoloEntityData[]>([]);
   const [tick, setTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const runtimeRef = useRef(new HoloScriptRuntime());
   const [playerPosition, setPlayerPosition] = useState(new Vector3(0, 0, 10));
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  
+  // Bridge and Runtime State
+  const rendererBridge = useMemo(() => new ReactHoloRenderer(setEntities), []);
+  const runtimeRef = useRef<HoloScriptPlusRuntimeImpl | null>(null);
+
+  useEffect(() => {
+    if (!runtimeRef.current) return;
+    const runtime = runtimeRef.current;
+
+    const handleShowSettings = () => {
+      setSettingsOpen(true);
+    };
+    const handleShowChat = () => {
+      setChatOpen(true);
+    };
+    const handleOpenModal = (payload: any) => {
+        if (payload.id === 'settings') setSettingsOpen(true);
+        if (payload.id === 'chat') setChatOpen(true);
+    };
+
+    runtime.on('show-settings', handleShowSettings);
+    runtime.on('show-chat', handleShowChat);
+    runtime.on('open_modal', handleOpenModal);
+
+    return () => {
+      runtime.off('show-settings', handleShowSettings);
+      runtime.off('show-chat', handleShowChat);
+    };
+  }, [tick]); // Re-bind when runtime is recreated
 
   // Memoized HUD Styles for performance
   const hudStyle = useMemo<React.CSSProperties>(
@@ -393,11 +430,21 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
     };
   }, []);
 
-  // Update runtime animations and mini-games on every frame
-  useFrame((_, delta) => {
+  // Update runtime animations on every frame
+  useFrame((state, delta) => {
     if (runtimeRef.current) {
-      runtimeRef.current.updateAnimations();
-      runtimeRef.current.updateParticles(delta);
+      // Update VR context for traits
+      runtimeRef.current.updateVRContext({
+          hands: { left: null, right: null }, // TODO: Integrate with controllers
+          headset: { 
+              position: [state.camera.position.x, state.camera.position.y, state.camera.position.z],
+              rotation: [state.camera.rotation.x, state.camera.rotation.y, state.camera.rotation.z]
+          },
+          controllers: { left: null, right: null }
+      });
+
+      // Update the plus engine (this drives the renderer bridge)
+      (runtimeRef.current as any).update(delta);
 
       // Brian Smash Pinball Logic
       const context = runtimeRef.current.getContext();
@@ -462,19 +509,22 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
   useEffect(() => {
     const parseAndLoad = async () => {
       try {
-        const parser = new HoloScriptCodeParser();
-        const parseResult = parser.parse(scriptContent);
+        setEntities([]); // Reset entities for new script
 
-        if (!parseResult.success) {
-          setError(parseResult.errors.map((e) => `Line ${e.line}: ${e.message}`).join('\n'));
+        const parser = new HoloScriptPlusParser({ enableVRTraits: true });
+        const result = parser.parse(scriptContent);
+
+        if (!result.success) {
+          setError(result.errors.map((e) => `Line ${e.line}: ${e.message}`).join('\n'));
           return;
         }
 
-        // Initialize Runtime
-        const runtime = runtimeRef.current;
-        runtime.reset();
+        const runtime = new HoloScriptPlusRuntimeImpl(result.ast, {
+          renderer: rendererBridge,
+          vrEnabled: true,
+        });
 
-        // Seed initial state/variables
+        // Initialize state/variables
         runtime.setVariable('visitorCount', Math.floor(Math.random() * 500) + 100);
         runtime.setVariable('bitsCollected', 0);
 
@@ -492,42 +542,12 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
           runtime.setVariable('legendsLevel', 1);
         }
 
-        await runtime.execute(parseResult.ast);
+        runtime.mount(null); // Mount to our bridge
+        runtimeRef.current = runtime;
 
-        // Sync Entities from Runtime Context
-        const context = runtime.getContext();
-        const newEntities: HoloEntityData[] = [];
-
-        // We pull entities from spatialMemory and hologramStates
-        context.spatialMemory.forEach((pos, name) => {
-          const hologram = context.hologramState.get(name);
-          const variables = runtime.getVariable(name) as any;
-          const properties = variables?.properties || {};
-
-          const assetKey = hologram?.shape || 'orb';
-
-          const size = hologram?.size || 1;
-          const traits = Object.keys(properties).filter((k) => k !== 'shape' && k !== 'text');
-
-          newEntities.push({
-            id: name,
-            type: variables?.__type || 'orb',
-            position: [pos.x, pos.y, pos.z] as [number, number, number],
-            scale: [size, size, size] as [number, number, number],
-            color: hologram?.color,
-            mesh: assetKey,
-            text: properties?.text || (hologram as any)?.text,
-            glow: hologram?.glow,
-            interactive: hologram?.interactive,
-            traits: traits,
-            properties: properties,
-          });
-        });
-
-        setEntities(newEntities);
         setError(null);
+        setTick((t) => t + 1); // Trigger re-render to bind events
       } catch (err: unknown) {
-        // console.error(err); // Removed for cleaner console
         setError(err instanceof Error ? err.message : String(err));
       }
     };
@@ -535,25 +555,17 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
     parseAndLoad();
   }, [scriptContent]);
 
-  // Sync entity data from runtime variables on every tick
+  // Entity sync for special game logic (Pinball, etc)
   const syncedEntities = useMemo(() => {
     return entities.map((ent) => {
       if (!ent.id || !runtimeRef.current) return ent;
-      const runtimeVar = runtimeRef.current.getVariable(ent.id) as any;
-
-      // Update position and properties from runtime
-      let pos = runtimeVar?.position
-        ? ([runtimeVar.position.x, runtimeVar.position.y, runtimeVar.position.z] as [
-            number,
-            number,
-            number,
-          ])
-        : ent.position;
-      let rot = ent.rotation || ([0, 0, 0] as [number, number, number]);
 
       // PINBALL OVERRIDES
+      let pos = ent.position;
+      let rot = ent.rotation || ([0, 0, 0] as [number, number, number]);
+
       if (ent.id === 'Pinball') {
-        pos = [ballPos.x - 10, ballPos.y, ballPos.z - 5]; // Offset by PinballMachine position [-10, 0, -5]
+        pos = [ballPos.x - 10, ballPos.y, ballPos.z - 5];
       }
       if (ent.id === 'Flipper_Left') {
         rot = [0, leftFlipperRot, 0];
@@ -566,9 +578,9 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
       // Model Swapping for both Trainer and Tuxedo Brian
       if (ent.id === 'NPC_Brian' || ent.id === 'NPC_Brian_Tux') {
         const bits = (runtimeRef.current.getVariable('bitsCollected') as number) || 0;
-        if (bits >= 5) assetKey = 'brian_flexing' as any;
-        else if (bits > 0) assetKey = 'brian_situps' as any;
-        else assetKey = 'brian_boxing' as any;
+        if (bits >= 5) assetKey = 'brian_flexing';
+        else if (bits > 0) assetKey = 'brian_situps';
+        else assetKey = 'brian_boxing';
       }
 
       return {
@@ -576,7 +588,6 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
         mesh: assetKey,
         position: pos,
         rotation: rot,
-        properties: runtimeVar?.properties || ent.properties,
       };
     });
   }, [entities, tick, ballPos, leftFlipperRot, rightFlipperRot]);
@@ -657,8 +668,26 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
           <div style={{ fontSize: '12px', opacity: 0.7, marginBottom: '5px' }}>
             OASIS INTERFACE v4.0
           </div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}>
-            THE OASIS HUB
+          <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>THE OASIS HUB</span>
+            <button 
+              onClick={() => setSettingsOpen(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#4ade80',
+                cursor: 'pointer',
+                padding: '5px',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'auto'
+              }}
+              title="Settings"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+              </svg>
+            </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '40px' }}>
@@ -698,6 +727,8 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
             </div>
           )}
         </div>
+        <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <BrittneyChat isOpen={chatOpen} onClose={() => setChatOpen(false)} runtime={runtimeRef.current as any} />
       </Html>
 
       {/* Ground Plane (Infinite Grid) */}

@@ -1,0 +1,341 @@
+/**
+ * Physics Constraints System - HoloScript Implementation
+ * Joints, springs, and advanced physics constraints
+ */
+
+trait @physics.joint(axis: [number, number, number] = [0, 1, 0]) {
+  /**
+   * Hinge joint - rotates around single axis
+   * Usage: object HingedDoor @physics.joint([0, 1, 0]) { ... }
+   */
+  
+  properties {
+    jointId: string @unique
+    connectedBody: string
+    anchorPosition: [number, number, number]
+    axis: [number, number, number]
+    useLimit: boolean @default(false)
+    limitMin: number @default(-3.14159)
+    limitMax: number @default(3.14159)
+    breakForce: number @default(1000)
+    breakTorque: number @default(1000)
+  }
+
+  on.spawn => {
+    this.initializeJoint()
+  }
+
+  @typescript {
+    initializeJoint(): void {
+      // Register with physics engine
+      emit('joint:create', {
+        id: this.jointId,
+        type: 'hinge',
+        body1: this.id,
+        body2: this.connectedBody,
+        anchor: this.anchorPosition,
+        axis: this.axis,
+        limits: {
+          min: this.limitMin,
+          max: this.limitMax,
+          enabled: this.useLimit
+        }
+      })
+    }
+
+    setLimits(min: number, max: number): void {
+      this.limitMin = min
+      this.limitMax = max
+      emit('joint:update', { id: this.jointId, limits: { min, max } })
+    }
+
+    getAngularVelocity(): number {
+      return emit('joint:getAngularVelocity', this.jointId)
+    }
+  }
+}
+
+trait @physics.spring(restLength: number = 1, stiffness: number = 100, damping: number = 0.1) {
+  /**
+   * Spring constraint - oscillating force between bodies
+   * Usage: object Suspended @physics.spring(1.0, 50, 0.2) { ... }
+   */
+  
+  properties {
+    springId: string @unique
+    connectedBody: string
+    restLength: number
+    stiffness: number @range(0, 1000)
+    damping: number @range(0, 1)
+    maxForce: number @default(10000)
+    enableCollision: boolean @default(false)
+  }
+
+  on.spawn => {
+    this.initializeSpring()
+  }
+
+  @typescript {
+    private currentLength: number = 0
+    private lastForce: number = 0
+
+    initializeSpring(): void {
+      emit('spring:create', {
+        id: this.springId,
+        body1: this.id,
+        body2: this.connectedBody,
+        config: {
+          restLength: this.restLength,
+          stiffness: this.stiffness,
+          damping: this.damping,
+          maxForce: this.maxForce
+        }
+      })
+    }
+
+    setStiffness(k: number): void {
+      this.stiffness = Math.max(0, k)
+      emit('spring:update', { id: this.springId, stiffness: this.stiffness })
+    }
+
+    setDamping(c: number): void {
+      this.damping = Math.max(0, Math.min(1, c))
+      emit('spring:update', { id: this.springId, damping: this.damping })
+    }
+
+    calculateForce(length: number, velocity: number): number {
+      const displacement = length - this.restLength
+      const springForce = -this.stiffness * displacement
+      const dampingForce = -this.damping * velocity
+      this.lastForce = springForce + dampingForce
+      return Math.max(-this.maxForce, Math.min(this.maxForce, this.lastForce))
+    }
+
+    getLastForce(): number {
+      return this.lastForce
+    }
+  }
+}
+
+trait @physics.distance(minDistance: number = 0, maxDistance: number = 1) {
+  /**
+   * Distance constraint - maintains min/max distance between bodies
+   * Usage: object Chain @physics.distance(0.5, 1.5) { ... }
+   */
+  
+  properties {
+    constraintId: string @unique
+    connectedBody: string
+    minDistance: number
+    maxDistance: number
+    enableCollision: boolean @default(false)
+  }
+
+  on.spawn => {
+    this.initializeConstraint()
+  }
+
+  @typescript {
+    initializeConstraint(): void {
+      emit('constraint:create', {
+        id: this.constraintId,
+        type: 'distance',
+        body1: this.id,
+        body2: this.connectedBody,
+        config: {
+          minDistance: this.minDistance,
+          maxDistance: this.maxDistance
+        }
+      })
+    }
+
+    getCurrentDistance(): number {
+      return emit('constraint:getDistance', this.constraintId)
+    }
+
+    setDistanceLimits(min: number, max: number): void {
+      this.minDistance = min
+      this.maxDistance = max
+      emit('constraint:update', {
+        id: this.constraintId,
+        config: { minDistance: min, maxDistance: max }
+      })
+    }
+  }
+}
+
+trait @physics.ballSocket(anchorOffset: [number, number, number] = [0, 0, 0]) {
+  /**
+   * Ball socket joint - free rotation with point constraint
+   * Usage: object Ragdoll @physics.ballSocket([0, 0.5, 0]) { ... }
+   */
+  
+  properties {
+    jointId: string @unique
+    connectedBody: string
+    anchorOffset: [number, number, number]
+    breakForce: number @default(1000)
+  }
+
+  @typescript {
+    initialize(): void {
+      emit('joint:create', {
+        id: this.jointId,
+        type: 'ball-socket',
+        body1: this.id,
+        body2: this.connectedBody,
+        anchor: this.anchorOffset
+      })
+    }
+  }
+}
+
+/**
+ * Physics Constraint Solver System
+ */
+system ConstraintSolver {
+  properties {
+    enabled: boolean @default(true)
+    solverIterations: number @default(4) @range(1, 10)
+    contactThreshold: number @default(0.001)
+  }
+
+  @typescript {
+    private constraints = new Map<string, ConstraintData>()
+    private bodies = new Map<string, BodyData>()
+    private stepCount: number = 0
+
+    onPhysicsStep(deltaTime: number): void {
+      if (!this.enabled || deltaTime === 0) return
+
+      // Multiple constraint solving iterations
+      for (let iter = 0; iter < this.solverIterations; iter++) {
+        this.solveAllConstraints(deltaTime)
+      }
+
+      this.stepCount++
+    }
+
+    private solveAllConstraints(deltaTime: number): void {
+      for (const [id, constraint] of this.constraints) {
+        try {
+          this.solveConstraint(constraint, deltaTime)
+        } catch (error) {
+          console.error(`Failed to solve constraint ${id}:`, error)
+        }
+      }
+    }
+
+    private solveConstraint(constraint: ConstraintData, deltaTime: number): void {
+      const bodyA = this.bodies.get(constraint.body1)
+      const bodyB = constraint.body2 ? this.bodies.get(constraint.body2) : null
+
+      if (!bodyA) return
+
+      switch (constraint.type) {
+        case 'hinge':
+          this.solveHinge(constraint, bodyA, bodyB, deltaTime)
+          break
+        case 'spring':
+          this.solveSpring(constraint, bodyA, bodyB, deltaTime)
+          break
+        case 'distance':
+          this.solveDistance(constraint, bodyA, bodyB, deltaTime)
+          break
+        case 'ball-socket':
+          this.solveBallSocket(constraint, bodyA, bodyB, deltaTime)
+          break
+      }
+    }
+
+    private solveHinge(c: ConstraintData, bodyA: BodyData, bodyB: BodyData | null, dt: number): void {
+      if (!bodyB) return
+      // Align angular velocities around hinge axis
+      const correction = 0.1
+      const cross = this.cross(bodyA.angularVelocity, c.axis)
+      bodyA.angularVelocity = this.subtract(bodyA.angularVelocity, this.scale(cross, correction))
+      if (bodyB) {
+        bodyB.angularVelocity = this.add(bodyB.angularVelocity, this.scale(cross, correction))
+      }
+    }
+
+    private solveSpring(c: ConstraintData, bodyA: BodyData, bodyB: BodyData | null, dt: number): void {
+      if (!bodyB) return
+      const delta = this.subtract(bodyB.position, bodyA.position)
+      const distance = this.magnitude(delta)
+      const direction = this.normalize(delta)
+
+      const springForce = -c.config.stiffness * (distance - c.config.restLength)
+      const dampingForce = -c.config.damping * this.dot(this.subtract(bodyB.velocity, bodyA.velocity), direction)
+      const force = springForce + dampingForce
+
+      const impulse = this.scale(direction, force * dt)
+      bodyA.velocity = this.add(bodyA.velocity, impulse)
+      bodyB.velocity = this.subtract(bodyB.velocity, impulse)
+    }
+
+    private solveDistance(c: ConstraintData, bodyA: BodyData, bodyB: BodyData | null, dt: number): void {
+      if (!bodyB) return
+      const delta = this.subtract(bodyB.position, bodyA.position)
+      const distance = this.magnitude(delta)
+      const direction = this.normalize(delta)
+
+      let correction = 0
+      if (distance > c.config.maxDistance) {
+        correction = distance - c.config.maxDistance
+      } else if (distance < c.config.minDistance) {
+        correction = c.config.minDistance - distance
+      }
+
+      if (Math.abs(correction) > 0.001) {
+        const impulse = this.scale(direction, correction * 0.5)
+        bodyA.position = this.subtract(bodyA.position, impulse)
+        bodyB.position = this.add(bodyB.position, impulse)
+      }
+    }
+
+    private solveBallSocket(c: ConstraintData, bodyA: BodyData, bodyB: BodyData | null, dt: number): void {
+      if (!bodyB) return
+      const anchorAWorld = this.add(bodyA.position, c.anchorA)
+      const anchorBWorld = this.add(bodyB.position, c.anchorB)
+      const delta = this.subtract(anchorBWorld, anchorAWorld)
+      const distance = this.magnitude(delta)
+      const direction = this.normalize(delta)
+
+      const impulse = this.scale(direction, 0.1 * distance)
+      bodyA.velocity = this.subtract(bodyA.velocity, impulse)
+      bodyB.velocity = this.add(bodyB.velocity, impulse)
+    }
+
+    // Vector utilities
+    private add(a: [number, number, number], b: [number, number, number]): [number, number, number] {
+      return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+    }
+    private subtract(a: [number, number, number], b: [number, number, number]): [number, number, number] {
+      return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+    }
+    private scale(v: [number, number, number], s: number): [number, number, number] {
+      return [v[0] * s, v[1] * s, v[2] * s]
+    }
+    private magnitude(v: [number, number, number]): number {
+      return Math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
+    }
+    private normalize(v: [number, number, number]): [number, number, number] {
+      const mag = this.magnitude(v)
+      if (mag === 0) return [0, 0, 0]
+      return [v[0] / mag, v[1] / mag, v[2] / mag]
+    }
+    private dot(a: [number, number, number], b: [number, number, number]): number {
+      return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+    }
+    private cross(a: [number, number, number], b: [number, number, number]): [number, number, number] {
+      return [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0]
+      ]
+    }
+  }
+}
+
+export { @physics.joint, @physics.spring, @physics.distance, @physics.ballSocket, ConstraintSolver }

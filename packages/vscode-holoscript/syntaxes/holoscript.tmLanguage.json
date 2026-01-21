@@ -1,0 +1,186 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "HoloScript",
+  "scopeName": "source.holo",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#objects" },
+    { "include": "#properties" },
+    { "include": "#functions" },
+    { "include": "#constants" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.holo",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.holo",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.holo",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.holo",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.holo",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.holo",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.holo",
+          "match": "#[0-9A-Fa-f]{3,8}\\b"
+        },
+        {
+          "name": "constant.numeric.float.holo",
+          "match": "\\b\\d+\\.\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.holo",
+          "match": "\\b\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.angle.holo",
+          "match": "\\b\\d+deg\\b"
+        },
+        {
+          "name": "constant.numeric.time.holo",
+          "match": "\\b\\d+(\\.\\d+)?(s|ms)\\b"
+        },
+        {
+          "name": "constant.numeric.frequency.holo",
+          "match": "\\b\\d+hz\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.holo",
+          "match": "\\b(if|else|for|while|return|break|continue|switch|case|default)\\b"
+        },
+        {
+          "name": "keyword.other.import.holo",
+          "match": "\\b(import|export|from)\\b"
+        },
+        {
+          "name": "storage.type.holo",
+          "match": "\\b(let|const|var|function)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "entity.name.type.object.holo",
+          "match": "\\b(cube|sphere|cylinder|plane|box|mesh|model|text|panel|button|slider|image|light|camera|audio|video|particle)\\b"
+        },
+        {
+          "name": "entity.name.type.component.holo",
+          "match": "\\b(animation|trigger|collider|rigidbody|material|texture|shader)\\b"
+        }
+      ]
+    },
+    "objects": {
+      "patterns": [
+        {
+          "name": "entity.name.class.holo",
+          "match": "\\b(cube|sphere|cylinder|plane|box|mesh|model|text|panel|button|slider|image|light|camera|audio|video|particle|animation|trigger|zone|portal|npc|item|world|scene)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\{",
+          "captures": {
+            "1": { "name": "storage.type.holo" },
+            "2": { "name": "entity.name.tag.holo" }
+          }
+        }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        {
+          "name": "variable.other.property.holo",
+          "match": "\\b(position|rotation|scale|size|color|opacity|material|texture|visible|enabled|interactive|velocity|mass|gravity|friction|restitution|static|kinematic|trigger|label|value|range|default|duration|delay|loop|easing|target|property|src|volume|pitch|spatial|radius|intensity|falloff|fov|near|far|rate|lifetime|speed|direction|spread|count|emission)\\b"
+        },
+        {
+          "name": "variable.other.event.holo",
+          "match": "\\b(on_click|on_hover|on_enter|on_exit|on_collision|on_trigger|on_start|on_update|on_end|on_change|on_complete)\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.holo",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\("
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.holo",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.holo",
+          "match": "\\b(null|none)\\b"
+        },
+        {
+          "name": "support.constant.material.holo",
+          "match": "\\b(glass|metal|wood|plastic|fabric|stone|water|emissive|unlit|pbr)\\b"
+        },
+        {
+          "name": "support.constant.easing.holo",
+          "match": "\\b(linear|ease|ease-in|ease-out|ease-in-out|bounce|elastic|back)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.holo",
+          "match": "=|:|\\+=|-=|\\*=|/="
+        },
+        {
+          "name": "keyword.operator.comparison.holo",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.arithmetic.holo",
+          "match": "\\+|-|\\*|/|%"
+        },
+        {
+          "name": "keyword.operator.logical.holo",
+          "match": "&&|\\|\\||!"
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,28 @@
 # AI Integration - Quick Reference Guide
 
+**What is this?** A guide to using AI to build VR/AR worlds. Speak or type what you want, and the AI creates it.
+
+<p align="center">
+  <img src="docs/assets/gifs/ai-voice-demo.gif" alt="Voice command creating a VR scene" width="600">
+  <br>
+  <em>"Create a coffee shop with a fireplace" → Done in 3 seconds</em>
+</p>
+
+---
+
+## 📁 HoloScript File Types
+
+> ⚠️ **Note:** `.holo` is legacy. Use **`.hsplus`** for all new projects.
+
+| Extension | Use For | Status |
+|-----------|--------|--------|
+| `.hsplus` | Production, multiplayer, physics | ✅ **Recommended** |
+| `.holo` | Learning, simple worlds | ⚠️ Legacy |
+
+> 📖 See [docs/HOLOSCRIPT_FILE_TYPES.md](docs/HOLOSCRIPT_FILE_TYPES.md) for more details.
+
+---
+
 ## 🚀 What's New
 
 The AI Bridge client connects to infinityassistant-service at https://infinityservice.io for AI-powered VR creation:
@@ -117,7 +140,7 @@ Shows all components ready ✓
 ### Type Checking
 ```bash
 npm run lint -w packages/ai-bridge  # 0 errors ✓
-npm run lint -w packages/holoscript # 0 errors ✓
+npm run lint -w packages/core       # 0 errors ✓
 ```
 
 ---

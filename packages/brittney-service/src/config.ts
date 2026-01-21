@@ -15,6 +15,21 @@ import { join } from 'path';
 // Types
 // =============================================================================
 
+export type CloudProviderType = 'openai' | 'anthropic' | 'azure' | 'google' | 'grok';
+
+export interface ApiKeys {
+  openai?: string;
+  anthropic?: string;
+  azure?: string;
+  google?: string;
+  gemini?: string; // Alias for google
+  grok?: string;
+}
+
+export interface ProviderEndpoints {
+  azure?: string; // Azure OpenAI resource URL
+}
+
 export interface BrittneyConfig {
   // Local model settings
   modelName: string;
@@ -22,11 +37,17 @@ export interface BrittneyConfig {
   contextSize: number;
 
   // Cloud provider settings (optional)
-  cloudProvider?: 'openai' | 'anthropic' | 'azure' | 'google' | null;
-  cloudApiKey?: string;
+  cloudProvider?: CloudProviderType | null;
+  cloudApiKey?: string; // Legacy single key (still supported)
+  apiKeys?: ApiKeys; // NEW: Multiple provider keys
+  providerEndpoints?: ProviderEndpoints; // Provider-specific endpoints
   cloudModel?: string;
-  cloudEndpoint?: string;  // For Azure or custom endpoints
+  cloudEndpoint?: string; // For Azure or custom endpoints
   preferCloud: boolean;
+
+  // Security settings
+  disallowPublicCloudAccess: boolean; // Prevent unauthenticated users from using cloud APIs
+  adminApiKey?: string; // Optional API key for authenticated admin operations
 
   // Server settings
   port: number;
@@ -35,6 +56,16 @@ export interface BrittneyConfig {
   // Behavior settings
   autoLoad: boolean;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+
+  // Prompt enhancement settings
+  promptBooster?: {
+    level: 'off' | 'basic' | 'enhanced' | 'maximum';
+    physics: boolean;
+    materials: boolean;
+    spatial: boolean;
+    performance: boolean;
+    vr: boolean;
+  };
 }
 
 // =============================================================================
@@ -44,19 +75,37 @@ export interface BrittneyConfig {
 const CONFIG_DIR = join(homedir(), '.hololand');
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 const MODELS_DIR = join(CONFIG_DIR, 'models');
+const ASSETS_DIR = join(CONFIG_DIR, 'assets', 'models');
 const DEFAULT_MODEL_NAME = 'brittney-v1';
 const DEFAULT_MODEL_PATH = join(MODELS_DIR, 'brittney-v1.gguf');
+
+// Fine-tuned Brittney models on OpenAI
+export const BRITTNEY_MODELS = {
+  // V1: Trained on 94 curated HoloScript examples - best for code generation
+  // Used in Hololand for free LLM HoloScript assistance
+  holoscript: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4',
+  // V2: Trained on 10K examples - broader knowledge, design patterns
+  // Used in uAA2 service for agent assistance
+  general: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney-v2:CzuzuPXc',
+  // Default for Hololand is V1 (HoloScript specialist)
+  default: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4',
+};
 
 const DEFAULT_CONFIG: BrittneyConfig = {
   modelName: DEFAULT_MODEL_NAME,
   modelPath: DEFAULT_MODEL_PATH,
   contextSize: 8192,
 
-  cloudProvider: null,
+  cloudProvider: null, // Disabled by default - use local Ollama only
   cloudApiKey: undefined,
-  cloudModel: undefined,
+  apiKeys: {},
+  cloudModel: BRITTNEY_MODELS.holoscript, // V1 for Hololand
   cloudEndpoint: undefined,
-  preferCloud: false,
+  preferCloud: false, // Use local inference by default
+
+  // Security: Prevent public users from accessing cloud APIs
+  disallowPublicCloudAccess: true,
+  adminApiKey: process.env.BRITTNEY_ADMIN_KEY,
 
   port: 11435,
   host: 'localhost',
@@ -89,9 +138,33 @@ export async function loadConfig(): Promise<BrittneyConfig> {
       const fileConfig = JSON.parse(fileContent);
       config = { ...config, ...fileConfig };
     } catch (error) {
-      console.warn('[Brittney] Failed to parse config file, using defaults');
+      console.warn('[✱brittney] Failed to parse config file, using defaults');
     }
   }
+
+  // Merge apiKeys from file with env vars
+  const apiKeys: ApiKeys = {
+    ...config.apiKeys,
+    openai: process.env.OPENAI_API_KEY || config.apiKeys?.openai,
+    anthropic: process.env.ANTHROPIC_API_KEY || config.apiKeys?.anthropic,
+    azure: process.env.AZURE_OPENAI_API_KEY || config.apiKeys?.azure,
+    google: process.env.GOOGLE_API_KEY || config.apiKeys?.google,
+    grok: process.env.GROK_API_KEY || process.env.XAI_API_KEY || config.apiKeys?.grok,
+  };
+
+  // Determine active provider
+  const cloudProvider =
+    (process.env.BRITTNEY_CLOUD_PROVIDER as CloudProviderType) || config.cloudProvider;
+
+  // Resolve the active API key: explicit > apiKeys[provider] > legacy cloudApiKey
+  const resolveApiKey = (): string | undefined => {
+    // Explicit env var takes priority
+    if (process.env.BRITTNEY_CLOUD_API_KEY) return process.env.BRITTNEY_CLOUD_API_KEY;
+    // Then check apiKeys for current provider
+    if (cloudProvider && apiKeys[cloudProvider]) return apiKeys[cloudProvider];
+    // Fall back to legacy single key
+    return config.cloudApiKey;
+  };
 
   // Override with environment variables
   config = {
@@ -100,15 +173,14 @@ export async function loadConfig(): Promise<BrittneyConfig> {
     modelPath: process.env.BRITTNEY_MODEL_PATH || config.modelPath,
     contextSize: parseInt(process.env.BRITTNEY_CONTEXT_SIZE || '') || config.contextSize,
 
-    cloudProvider: (process.env.BRITTNEY_CLOUD_PROVIDER as BrittneyConfig['cloudProvider']) || config.cloudProvider,
-    cloudApiKey: process.env.BRITTNEY_CLOUD_API_KEY || 
-                 process.env.OPENAI_API_KEY || 
-                 process.env.ANTHROPIC_API_KEY || 
-                 config.cloudApiKey,
+    cloudProvider,
+    apiKeys,
+    cloudApiKey: resolveApiKey(),
     cloudModel: process.env.BRITTNEY_CLOUD_MODEL || config.cloudModel,
-    cloudEndpoint: process.env.BRITTNEY_CLOUD_ENDPOINT || 
-                   process.env.AZURE_OPENAI_ENDPOINT || 
-                   config.cloudEndpoint,
+    cloudEndpoint:
+      process.env.BRITTNEY_CLOUD_ENDPOINT ||
+      process.env.AZURE_OPENAI_ENDPOINT ||
+      config.cloudEndpoint,
     preferCloud: process.env.BRITTNEY_PREFER_CLOUD === 'true' || config.preferCloud,
 
     port: parseInt(process.env.BRITTNEY_PORT || '') || config.port,
@@ -119,6 +191,19 @@ export async function loadConfig(): Promise<BrittneyConfig> {
   };
 
   return config;
+}
+
+/**
+ * Get API key for a specific provider
+ */
+export function getApiKeyForProvider(
+  config: BrittneyConfig,
+  provider: CloudProviderType
+): string | undefined {
+  return (
+    config.apiKeys?.[provider] ||
+    (config.cloudProvider === provider ? config.cloudApiKey : undefined)
+  );
 }
 
 export async function saveConfig(config: Partial<BrittneyConfig>): Promise<void> {
@@ -142,7 +227,7 @@ export async function saveConfig(config: Partial<BrittneyConfig>): Promise<void>
   const newConfig = { ...existingConfig, ...config };
 
   // Don't save API keys to file - they should stay in env vars or keychain
-  delete (newConfig as any).cloudApiKey;
+  delete (newConfig as Partial<BrittneyConfig>).cloudApiKey;
 
   writeFileSync(CONFIG_FILE, JSON.stringify(newConfig, null, 2), 'utf-8');
 }
@@ -161,6 +246,10 @@ export function getModelsDir(): string {
 
 export function getConfigFile(): string {
   return CONFIG_FILE;
+}
+
+export function getAssetsDir(): string {
+  return ASSETS_DIR;
 }
 
 // =============================================================================
@@ -187,7 +276,7 @@ export const ENV_VARS = {
   BRITTNEY_CONTEXT_SIZE: 'Context window size (default: 8192)',
 
   // Cloud
-  BRITTNEY_CLOUD_PROVIDER: 'Cloud provider: openai, anthropic, azure, google',
+  BRITTNEY_CLOUD_PROVIDER: 'Cloud provider: openai, anthropic, azure, google, grok',
   BRITTNEY_CLOUD_API_KEY: 'API key for cloud provider',
   BRITTNEY_CLOUD_MODEL: 'Model name for cloud provider',
   BRITTNEY_CLOUD_ENDPOINT: 'Custom endpoint for Azure or self-hosted',
@@ -196,6 +285,8 @@ export const ENV_VARS = {
   // Also supports standard env vars
   OPENAI_API_KEY: 'OpenAI API key (fallback)',
   ANTHROPIC_API_KEY: 'Anthropic API key (fallback)',
+  GROK_API_KEY: 'Grok (xAI) API key (fallback)',
+  XAI_API_KEY: 'xAI API key (alias for GROK_API_KEY)',
   AZURE_OPENAI_ENDPOINT: 'Azure OpenAI endpoint (fallback)',
 
   // Server

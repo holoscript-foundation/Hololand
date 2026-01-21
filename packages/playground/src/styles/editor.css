@@ -1,0 +1,185 @@
+/**
+ * Monaco Editor Specific Styles
+ */
+
+.monaco-editor {
+  font-family: 'Monaco', 'Courier New', monospace !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+.monaco-editor .lines-content {
+  background-color: #1f2937 !important;
+}
+
+.monaco-editor .margin {
+  background-color: #111827 !important;
+  border-right: 1px solid #374151;
+}
+
+.monaco-editor .line-numbers {
+  color: #6b7280 !important;
+  font-size: 12px !important;
+}
+
+.monaco-editor .selected-text {
+  background-color: rgba(168, 85, 247, 0.4) !important;
+}
+
+.monaco-editor .current-line {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  border-left: 3px solid #6366f1;
+}
+
+.monaco-editor .bracket-match {
+  background-color: rgba(168, 85, 247, 0.2) !important;
+  border: 1px solid rgba(168, 85, 247, 0.5) !important;
+}
+
+.monaco-editor .squiggly-error {
+  border-bottom: 2px wavy #ef4444;
+}
+
+.monaco-editor .squiggly-warning {
+  border-bottom: 2px wavy #eab308;
+}
+
+.monaco-editor .squiggly-info {
+  border-bottom: 2px wavy #3b82f6;
+}
+
+/* Autocomplete Menu */
+.monaco-editor .suggest-widget {
+  background-color: #1f2937 !important;
+  border: 1px solid #374151 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+.monaco-editor .suggest-widget-status {
+  background-color: #111827 !important;
+  border-top: 1px solid #374151 !important;
+}
+
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row {
+  padding: 4px 8px;
+}
+
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row.focused {
+  background-color: rgba(168, 85, 247, 0.3) !important;
+}
+
+.monaco-editor .suggest-widget .monaco-list .monaco-list-row.selected {
+  background-color: rgba(168, 85, 247, 0.5) !important;
+}
+
+/* Hover */
+.monaco-editor .hover {
+  background-color: #1f2937 !important;
+  border: 1px solid #374151 !important;
+}
+
+/* Error and Warning Decorations */
+.monaco-editor-background.error {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.monaco-editor-background.warning {
+  background-color: rgba(234, 179, 8, 0.1) !important;
+}
+
+/* Cursor */
+.monaco-editor .cursor {
+  background-color: #a78bfa !important;
+  border: none !important;
+}
+
+/* Minimap */
+.monaco-editor .minimap {
+  background-color: #111827 !important;
+}
+
+.monaco-editor .minimap-shadow {
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Find and Replace */
+.monaco-find-widget {
+  background-color: #1f2937 !important;
+  border-top: 1px solid #374151 !important;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.monaco-find-widget .find-part .monaco-inputbox {
+  background-color: #111827 !important;
+  border: 1px solid #374151 !important;
+}
+
+.monaco-find-widget .find-part .monaco-inputbox input {
+  color: #d1d5db !important;
+  background-color: #111827 !important;
+}
+
+.monaco-find-widget .find-part .monaco-inputbox input::placeholder {
+  color: #6b7280 !important;
+}
+
+.monaco-find-widget .find-part button {
+  color: #d1d5db !important;
+}
+
+.monaco-find-widget .find-part button:hover {
+  background-color: rgba(168, 85, 247, 0.2) !important;
+}
+
+/* Breadcrumb */
+.monaco-breadcrumb-item {
+  color: #9ca3af !important;
+}
+
+.monaco-breadcrumb-item.current {
+  color: #d1d5db !important;
+}
+
+/* Tokens - Custom Syntax Highlighting */
+.token.keyword {
+  color: #60a5fa !important;
+  font-weight: 600;
+}
+
+.token.string {
+  color: #4ade80 !important;
+}
+
+.token.number {
+  color: #fbbf24 !important;
+}
+
+.token.comment {
+  color: #6b7280 !important;
+  font-style: italic;
+}
+
+.token.identifier {
+  color: #d1d5db !important;
+}
+
+.token.operator {
+  color: #f87171 !important;
+}
+
+.token.punctuation {
+  color: #9ca3af !important;
+}
+
+/* Folding */
+.monaco-editor .glyph-margin.folding {
+  width: 30px;
+}
+
+.monaco-editor .fold-placeholder {
+  background-color: rgba(168, 85, 247, 0.2) !important;
+  border: 1px dashed #a78bfa !important;
+  color: #a78bfa !important;
+  padding: 0 4px;
+  margin: 0 4px;
+}

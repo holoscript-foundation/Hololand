@@ -31,10 +31,13 @@ interface BattleTurn {
   atb: number; // ATB gauge 0-100
 }
 
+import type { Game } from './Game';
+
 export class BattleSystem {
   private config: GameConfig;
   private assets: AssetLoader;
   private ui: UIManager;
+  private game: Game; // Ref to game for effects
   
   private active = false;
   private enemies: EnemyData[] = [];
@@ -48,10 +51,11 @@ export class BattleSystem {
   
   private creatureSheet: SpriteSheet | null = null;
   
-  constructor(config: GameConfig, assets: AssetLoader, ui: UIManager) {
+  constructor(config: GameConfig, assets: AssetLoader, ui: UIManager, game: Game) {
     this.config = config;
     this.assets = assets;
     this.ui = ui;
+    this.game = game;
     
     // Initialize party with starter creatures
     this.party = new Party();
@@ -237,6 +241,16 @@ export class BattleSystem {
     target.hp = Math.max(0, (target.hp ?? 0) - damage);
     
     this.ui.showMessage(`${attacker.name} attacks for ${damage} damage!`);
+    
+    // JUICE: Shake & Popup
+    this.game.effects.triggerShake(5, 0.2);
+    // Calculate approximate screen position for enemy (hacky but works for fixed layout)
+    const enemyIndex = this.enemies.indexOf(target);
+    const ex = 60 + enemyIndex * 80;
+    this.game.effects.spawnPopup(ex, 60, `-${damage}`, '#ff0000');
+    
+    // JUICE: Audio
+    this.game.audio.playBump();
   }
   
   private handleEnemyTurn(turn: BattleTurn): void {
@@ -251,6 +265,16 @@ export class BattleSystem {
     target.hp = Math.max(0, target.hp - damage);
     
     this.ui.showMessage(`${enemy.id} attacks for ${damage} damage!`);
+    
+    // JUICE: Shake (Stronger for enemy hit)
+    this.game.effects.triggerShake(8, 0.3);
+    
+    const partyIndex = this.party.getActiveMembers().indexOf(target);
+    const px = this.config.VIEWPORT_WIDTH - 80 - partyIndex * 30;
+    const py = this.config.VIEWPORT_HEIGHT - 80 + partyIndex * 10;
+    this.game.effects.spawnPopup(px, py, `-${damage}`, '#ffa500');
+    
+    this.game.audio.playBump();
     
     turn.atb = 0;
     turn.ready = false;

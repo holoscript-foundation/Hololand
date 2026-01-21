@@ -1,0 +1,73 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicknisi/tauri.schema.json/main/tauri.schema.json",
+  "productName": "Brittney AI",
+  "identifier": "com.hololand.brittney",
+  "version": "1.0.0-alpha.1",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../../examples/hololand-legends/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Brittney AI - HoloScript Assistant",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "transparent": false,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "category": "DeveloperTool",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "targets": "all",
+    "publisher": "Hololand",
+    "shortDescription": "AI-powered HoloScript assistant",
+    "longDescription": "Brittney AI is a local-first AI assistant for building HoloScript worlds. It runs entirely on your device with no cloud dependency. Optionally connect your own API keys for cloud providers.",
+    "copyright": "© 2024 Hololand",
+    "resources": [
+      "models/brittney-f16.gguf"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": null,
+      "frameworks": [],
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": null
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      },
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "plugins": {}
+}

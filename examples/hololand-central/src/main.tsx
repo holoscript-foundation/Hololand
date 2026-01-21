@@ -5,9 +5,13 @@ import { LandingPage } from './pages/LandingPage';
 import { OasisPage } from './pages/OasisPage';
 import { CentralPage } from './pages/CentralPage';
 import { VerifyEmailCallback } from './pages/VerifyEmailCallback';
+import { initDevToolsIntegration } from './services/devtools-integration';
 import './styles.css';
 
 console.log('main.tsx loading...');
+
+// Initialize DevTools integration for live editing from IDE
+initDevToolsIntegration();
 
 try {
   ReactDOM.createRoot(document.getElementById('root')!).render(

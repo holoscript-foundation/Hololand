@@ -1,0 +1,31 @@
+
+/**
+ * Interactive Trigger Zone
+ * Detects when physics objects enter or exit the volume.
+ */
+
+export prefab TriggerZone {
+  object zone {
+    mesh: "box"
+    // Visual debug representation (transparent yellow)
+    trait Material {
+      color: 0xffaa00
+      opacity: 0.2
+      transparent: true
+    }
+    
+    // Physics properties
+    collider: "trigger" // Non-solid, only events
+    isStatic: true
+    
+    @on_enter(other) {
+      // Default behavior: Log event
+      log("Trigger Enter: " + other.name)
+    }
+    
+    @on_exit(other) {
+      // Default behavior: Log event
+      log("Trigger Exit: " + other.name)
+    }
+  }
+}

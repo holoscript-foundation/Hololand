@@ -256,28 +256,60 @@ export const ${this.toPascalCase(zone.name)} = () => {
 
 **File**: `packages/holoscript/src/runtime/audio.ts`
 
+> **Note**: Full spatial audio implementation is available in `@hololand/audio`.
+> See [SpatialAudioEngine.ts](../packages/audio/src/SpatialAudioEngine.ts) for the complete HRTF-based 3D audio system.
+
 ```typescript
-const audioCache = new Map<string, HTMLAudioElement>();
+import { getSpatialAudioEngine, Vector3 } from '@hololand/audio';
 
-export function playSound(url: string, volume = 1.0) {
-  if (!audioCache.has(url)) {
-    const audio = new Audio(url);
-    audio.volume = volume;
-    audioCache.set(url, audio);
-  }
-  
-  const audio = audioCache.get(url)!;
-  audio.currentTime = 0;
-  audio.play().catch(console.error);
-}
-
-export function playSoundAt(
+/**
+ * Play a one-shot sound at a specific 3D position
+ */
+export async function playSoundAt(
   position: [number, number, number],
   url: string,
   volume = 1.0
+): Promise<void> {
+  const engine = getSpatialAudioEngine();
+  await engine.initialize();
+
+  const pos3D: Vector3 = { x: position[0], y: position[1], z: position[2] };
+  await engine.playOneShot(url, pos3D, volume);
+}
+
+/**
+ * Create a persistent spatial audio source
+ */
+export function createSpatialSource(
+  id: string,
+  position: [number, number, number],
+  options: { loop?: boolean; volume?: number } = {}
 ) {
-  // TODO: Spatial audio implementation
-  playSound(url, volume);
+  const engine = getSpatialAudioEngine();
+
+  return engine.createSource({
+    id,
+    position: { x: position[0], y: position[1], z: position[2] },
+    volume: options.volume ?? 1.0,
+    loop: options.loop ?? false,
+  });
+}
+
+/**
+ * Update listener position (call this from VR headset tracking)
+ */
+export function updateListenerPosition(
+  position: [number, number, number],
+  forward: [number, number, number] = [0, 0, -1],
+  up: [number, number, number] = [0, 1, 0]
+): void {
+  const engine = getSpatialAudioEngine();
+
+  engine.updateListener({
+    position: { x: position[0], y: position[1], z: position[2] },
+    forward: { x: forward[0], y: forward[1], z: forward[2] },
+    up: { x: up[0], y: up[1], z: up[2] },
+  });
 }
 ```
 

@@ -5,13 +5,164 @@
  * visibility into the running Hololand application through Brittney.
  *
  * Architecture:
- * IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ Native Messaging ←→ Browser Extension ←→ Hololand App
+ * IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ SharedDataBridge ←→ Native Messaging Host ←→ Browser Extension ←→ Hololand App
+ *                                    ↓
+ *                          Brittney Service (localhost:11435)
+ *                                    ↓
+ *                          LM Studio + RAG Knowledge
  *
  * Brittney is a browser-context specialist that helps IDE agents understand
  * what's happening in the running app - debugging without the blindfold.
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { sharedDataBridge } from './shared-data-bridge.js';
+
+// =============================================================================
+// BRITTNEY SERVICE CLIENT
+// =============================================================================
+
+const BRITTNEY_SERVICE_URL = process.env.BRITTNEY_SERVICE_URL || 'http://localhost:11435';
+
+interface BrittneyServiceResponse {
+  success: boolean;
+  response?: string;
+  code?: string;
+  error?: string;
+  conversationId?: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+/**
+ * Browser context structure for Brittney service
+ */
+interface BrittneyBrowserContext {
+  url?: string;
+  scenes?: Array<{ id: string; name: string; objectCount: number }>;
+  profilerStats?: { fps: number; drawCalls: number; triangles: number };
+  consoleLogs?: Array<{ level: string; message: string }>;
+  errors?: Array<{ message: string; stack?: string }>;
+}
+
+/**
+ * Call the Brittney service HTTP API with proper ChatRequest format
+ */
+async function callBrittneyService(
+  message: string,
+  options: {
+    systemPrompt?: string;
+    browserContext?: BrittneyBrowserContext;
+    conversationId?: string;
+  } = {}
+): Promise<BrittneyServiceResponse> {
+  try {
+    // Build the ChatRequest format that Brittney service expects
+    const chatRequest = {
+      messages: [
+        ...(options.systemPrompt ? [{ role: 'system', content: options.systemPrompt }] : []),
+        { role: 'user', content: message },
+      ],
+      context: options.browserContext
+        ? {
+            browserState: {
+              url: options.browserContext.url || 'unknown',
+              scenes: options.browserContext.scenes || [],
+              profilerStats: options.browserContext.profilerStats,
+              consoleLogs: options.browserContext.consoleLogs,
+              errors: options.browserContext.errors,
+            },
+          }
+        : undefined,
+    };
+
+    const response = await fetch(`${BRITTNEY_SERVICE_URL}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(chatRequest),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return {
+        success: false,
+        error: `Brittney service error (${response.status}): ${errorText}`,
+      };
+    }
+
+    // Parse the ChatResponse format
+    interface ChatServiceResponse {
+      id: string;
+      content: string;
+      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+    }
+    const chatResponse = (await response.json()) as ChatServiceResponse;
+    return {
+      success: true,
+      response: chatResponse.content,
+      conversationId: chatResponse.id,
+      usage: chatResponse.usage,
+    };
+  } catch (error: any) {
+    // Check if service is not running
+    if (error.code === 'ECONNREFUSED') {
+      return {
+        success: false,
+        error: `Brittney service not running. Start it with: npx @hololand/brittney-service start`,
+      };
+    }
+    return {
+      success: false,
+      error: `Failed to call Brittney service: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Collect full browser context from native messaging bridge
+ */
+async function collectBrowserContext(): Promise<BrittneyBrowserContext> {
+  try {
+    const [browserState, scenes, profilerStats, consoleLogs, errors] = await Promise.all([
+      nativeMessagingBridge.sendMessage<BrowserState>('getBrowserState').catch(() => null),
+      nativeMessagingBridge.sendMessage<SceneInfo[]>('listScenes').catch(() => []),
+      nativeMessagingBridge.sendMessage<ProfilerStats>('getProfilerStats').catch(() => null),
+      nativeMessagingBridge.sendMessage<ConsoleLogEntry[]>('getConsoleLogs', { limit: 10 }).catch(() => []),
+      nativeMessagingBridge.sendMessage<RuntimeError[]>('getRuntimeErrors', { limit: 5 }).catch(() => []),
+    ]);
+
+    return {
+      url: browserState?.url,
+      scenes: scenes?.map((s) => ({ id: s.id, name: s.name, objectCount: s.objectCount })),
+      profilerStats: profilerStats
+        ? { fps: profilerStats.fps, drawCalls: profilerStats.drawCalls, triangles: profilerStats.triangles }
+        : undefined,
+      consoleLogs: consoleLogs?.map((l) => ({ level: l.level, message: l.message })),
+      errors: errors?.map((e) => ({ message: e.message, stack: e.stack })),
+    };
+  } catch {
+    return {}; // Return empty context if collection fails
+  }
+}
+
+/**
+ * Check if Brittney service is healthy
+ */
+async function checkBrittneyHealth(): Promise<{ healthy: boolean; status?: any; error?: string }> {
+  try {
+    const response = await fetch(`${BRITTNEY_SERVICE_URL}/health`);
+    if (response.ok) {
+      const status = await response.json();
+      return { healthy: true, status };
+    }
+    return { healthy: false, error: `Health check failed: ${response.status}` };
+  } catch (error: any) {
+    return { healthy: false, error: `Service unreachable: ${error.message}` };
+  }
+}
 
 // =============================================================================
 // TYPES
@@ -276,6 +427,45 @@ export const brittneyTools: Tool[] = [
   },
 
   // =========================================================================
+  // HOLOSCRIPT GENERATION TOOLS - Generate HoloScript code with RAG
+  // =========================================================================
+
+  {
+    name: 'brittney_generate_holoscript',
+    description:
+      'Generate HoloScript code for Hololand/VR applications. Brittney uses RAG-enhanced knowledge to produce valid HoloScript syntax for objects, UI, particles, animations, networking, and more.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        description: {
+          type: 'string',
+          description: 'Natural language description of what to create (e.g., "a spinning cube that glows when grabbed")',
+        },
+        category: {
+          type: 'string',
+          description: 'Category hint to improve generation',
+          enum: ['object', 'ui', 'particle', 'animation', 'network', 'scene', 'material', 'weapon', 'collectible', 'audio'],
+        },
+        browserContext: {
+          type: 'object',
+          description: 'Include current scene context (profiler stats, components) for context-aware generation',
+        },
+      },
+      required: ['description'],
+    },
+  },
+
+  {
+    name: 'brittney_check_service',
+    description:
+      'Check if the Brittney AI service is running and healthy. Returns status, model info, and RAG knowledge stats.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+
+  // =========================================================================
   // EXECUTION TOOLS - Run code in browser context
   // =========================================================================
 
@@ -313,6 +503,60 @@ export const brittneyTools: Tool[] = [
       },
     },
   },
+
+  // =========================================================================
+  // LIVE EDITING TOOLS - Inject HoloScript directly into running browser
+  // =========================================================================
+
+  {
+    name: 'brittney_inject_holoscript',
+    description:
+      'Inject HoloScript code directly into the running Hololand app in the browser. This enables live editing from the IDE - changes appear instantly in the browser without page refresh.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          description: 'HoloScript code to inject into the running app',
+        },
+        targetWorld: {
+          type: 'string',
+          description: 'Target world ID (default: current world)',
+        },
+        replaceExisting: {
+          type: 'boolean',
+          description: 'Replace existing HoloScript (true) or append (false, default)',
+        },
+      },
+      required: ['code'],
+    },
+  },
+
+  {
+    name: 'brittney_navigate_to_world',
+    description:
+      'Navigate the running Hololand app to a specific world/scene. Use this to quickly switch between worlds while testing.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        worldId: {
+          type: 'string',
+          description: 'World ID to navigate to (e.g., "plaza", "casino", "builder")',
+        },
+      },
+      required: ['worldId'],
+    },
+  },
+
+  {
+    name: 'brittney_get_live_state',
+    description:
+      'Get the current live state of the Hololand app including current world, HoloScript content, and connection status.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
 ];
 
 // =============================================================================
@@ -322,55 +566,95 @@ export const brittneyTools: Tool[] = [
 /**
  * Bridge to browser extension via native messaging
  * This enables communication between MCP server and browser
+ * 
+ * Architecture:
+ * - When Chrome extension is connected: Real data flows through Native Messaging
+ * - When extension is not connected: Returns mock data for development/testing
+ * 
+ * The extension connection is established when:
+ * 1. Chrome extension is installed and loaded
+ * 2. User opens DevTools on a Hololand page
+ * 3. Native Messaging Host is registered with Chrome
+ *
+ * This bridge uses the SharedDataBridge for cross-process communication
+ * with the Native Messaging Host.
  */
 export class BrittneyNativeMessagingBridge {
-  private connected = false;
-  private messageQueue: Array<{ id: string; resolve: Function; reject: Function }> = [];
-  private messageIdCounter = 0;
-
   /**
-   * Check if browser extension is connected
+   * Check if browser extension is connected via the shared bridge
    */
   isConnected(): boolean {
-    return this.connected;
+    return sharedDataBridge.isConnected();
   }
 
   /**
    * Send message to browser extension and wait for response
+   * Uses SharedDataBridge to get real data from native messaging host
+   * Falls back to mock data if extension is not connected
    */
-  async sendMessage<T>(action: string, payload?: unknown): Promise<T> {
-    const messageId = `msg_${++this.messageIdCounter}_${Date.now()}`;
+  async sendMessage<T>(action: string, _payload?: unknown): Promise<T> {
+    // Check if we have real data from the shared bridge
+    if (sharedDataBridge.isConnected()) {
+      return this.getRealData<T>(action);
+    }
 
-    // In production, this would use native messaging
-    // For now, return mock data for development
-    return this.getMockResponse(action, payload) as T;
+    // Fall back to mock data for development
+    return this.getMockResponse(action) as T;
   }
 
   /**
-   * Mock responses for development/testing
+   * Get real data from the shared bridge
    */
-  private getMockResponse(action: string, payload?: unknown): unknown {
+  private getRealData<T>(action: string): T {
+    switch (action) {
+      case 'getBrowserState':
+        return (sharedDataBridge.getBrowserState() || this.getMockResponse(action)) as T;
+
+      case 'listScenes':
+        return (sharedDataBridge.getScenes() || []) as T;
+
+      case 'getProfilerStats':
+        return (sharedDataBridge.getProfilerStats() || this.getMockResponse(action)) as T;
+
+      case 'getConsoleLogs':
+        return (sharedDataBridge.getConsoleLogs() || []) as T;
+
+      case 'getRuntimeErrors':
+        return (sharedDataBridge.getRuntimeErrors() || []) as T;
+
+      default:
+        return this.getMockResponse(action) as T;
+    }
+  }
+
+  /**
+   * Mock responses for development/testing when extension is not connected
+   * These are clearly marked as mock data
+   */
+  private getMockResponse(action: string): unknown {
+    const mockPrefix = '[MOCK] ';
+    
     switch (action) {
       case 'getBrowserState':
         return {
-          url: 'http://localhost:3000',
-          title: 'Hololand - VR World',
+          url: `${mockPrefix}http://localhost:3000`,
+          title: `${mockPrefix}Hololand - VR World`,
           isHololandApp: true,
-          connectionStatus: 'connected',
+          connectionStatus: 'disconnected', // Indicates extension not connected
         } satisfies BrowserState;
 
       case 'listScenes':
         return [
           {
-            id: 'scene_main',
-            name: 'Main World',
+            id: 'mock_scene_main',
+            name: `${mockPrefix}Main World`,
             objectCount: 42,
             componentCount: 128,
             isActive: true,
           },
           {
-            id: 'scene_lobby',
-            name: 'Lobby',
+            id: 'mock_scene_lobby',
+            name: `${mockPrefix}Lobby`,
             objectCount: 15,
             componentCount: 45,
             isActive: false,
@@ -379,39 +663,53 @@ export class BrittneyNativeMessagingBridge {
 
       case 'getProfilerStats':
         return {
-          fps: 58,
-          frameTime: 17.2,
-          drawCalls: 156,
-          triangles: 245000,
-          textures: 32,
-          memoryUsed: 128 * 1024 * 1024,
-          gpuMemory: 256 * 1024 * 1024,
+          fps: -1, // Negative indicates mock data
+          frameTime: -1,
+          drawCalls: -1,
+          triangles: -1,
+          textures: -1,
+          memoryUsed: -1,
+          gpuMemory: -1,
         } satisfies ProfilerStats;
 
       case 'getConsoleLogs':
         return [
           {
-            level: 'info',
-            message: 'Scene loaded: Main World',
-            timestamp: Date.now() - 5000,
-          },
-          {
             level: 'warn',
-            message: 'High draw call count: 156',
-            timestamp: Date.now() - 2000,
+            message: `${mockPrefix}Chrome DevTools extension not connected. Install @hololand/devtools-extension to get real browser data.`,
+            timestamp: Date.now(),
           },
         ] satisfies ConsoleLogEntry[];
 
       case 'getRuntimeErrors':
         return [] satisfies RuntimeError[];
 
+      case 'takeScreenshot':
+        return {
+          base64: '',
+          format: 'png',
+          error: 'Chrome DevTools extension not connected',
+        };
+
+      case 'executeCode':
+        return {
+          result: null,
+          error: 'Chrome DevTools extension not connected',
+        };
+
+      case 'reloadScene':
+        return {
+          success: false,
+          error: 'Chrome DevTools extension not connected',
+        };
+
       default:
-        return { success: true, action, payload };
+        return { success: false, action, error: 'Extension not connected' };
     }
   }
 }
 
-// Singleton bridge instance
+// Singleton bridge instance - exported for use by native messaging host
 export const nativeMessagingBridge = new BrittneyNativeMessagingBridge();
 
 // =============================================================================
@@ -475,22 +773,28 @@ export async function handleBrittneyTool(
         const stats = await nativeMessagingBridge.sendMessage<ProfilerStats>('getProfilerStats', {
           duration: args.duration,
         });
+        
+        // Check if this is mock data (negative values indicate mock)
+        const isMock = stats.fps < 0;
+        
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  ...stats,
-                  memoryUsedMB: Math.round(stats.memoryUsed / 1024 / 1024),
-                  gpuMemoryMB: stats.gpuMemory
-                    ? Math.round(stats.gpuMemory / 1024 / 1024)
-                    : undefined,
-                  status: stats.fps >= 60 ? '✓ Good' : stats.fps >= 30 ? '⚠ Acceptable' : '✗ Poor',
-                },
-                null,
-                2
-              ),
+              text: isMock 
+                ? `⚠️ **Chrome DevTools Extension Not Connected**\n\nTo get real browser data:\n1. Build extension: \`cd packages/devtools-extension && pnpm build\`\n2. Load in Chrome: chrome://extensions → Load unpacked → select dist/\n3. Open DevTools (F12) on a Hololand page\n4. Click the "Brittney" tab\n\nCurrently returning mock data.`
+                : JSON.stringify(
+                    {
+                      ...stats,
+                      memoryUsedMB: Math.round(stats.memoryUsed / 1024 / 1024),
+                      gpuMemoryMB: stats.gpuMemory
+                        ? Math.round(stats.gpuMemory / 1024 / 1024)
+                        : undefined,
+                      status: stats.fps >= 60 ? '✓ Good' : stats.fps >= 30 ? '⚠ Acceptable' : '✗ Poor',
+                    },
+                    null,
+                    2
+                  ),
             },
           ],
         };
@@ -558,63 +862,159 @@ export async function handleBrittneyTool(
       }
 
       case 'brittney_explain_error': {
-        // This would invoke Brittney's local model for explanation
-        const errorId = args.errorId || 'latest';
-        const explanation = await generateBrittneyExplanation('explain_error', { errorId });
+        // Collect full browser context for AI analysis
+        const browserContext = await collectBrowserContext();
+        
+        // Get error context from browser
+        const errors = await nativeMessagingBridge.sendMessage<RuntimeError[]>('getRuntimeErrors', { limit: 1 });
+        const errorContext: RuntimeError = errors.length > 0 
+          ? errors[0] 
+          : { message: 'No errors found', stack: undefined, componentId: undefined, source: undefined };
+        
+        // Add errors to context
+        browserContext.errors = [{ message: errorContext.message, stack: errorContext.stack }];
+        
+        // Call Brittney service for AI-powered explanation
+        const result = await callBrittneyService(
+          `Explain this runtime error and suggest how to fix it:\n\nError: ${errorContext.message}\nStack: ${errorContext.stack || 'N/A'}\nComponent: ${errorContext.componentId || 'N/A'}\nSource: ${errorContext.source || 'N/A'}`,
+          {
+            systemPrompt: 'You are Brittney, a HoloScript and VR debugging expert. Explain runtime errors clearly and suggest fixes.',
+            browserContext,
+          }
+        );
+
         return {
           content: [
             {
               type: 'text',
-              text: explanation,
+              text: result.success ? result.response! : `❌ ${result.error}`,
             },
           ],
+          isError: !result.success,
         };
       }
 
       case 'brittney_suggest_fix': {
-        const suggestion = await generateBrittneyExplanation('suggest_fix', {
-          issue: args.issue,
-          scope: args.scope || 'all',
-        });
+        // Collect full browser context for context-aware suggestions
+        const browserContext = await collectBrowserContext();
+        
+        // Call Brittney service for fix suggestions
+        const result = await callBrittneyService(
+          `I have this issue in my Hololand app: ${args.issue}\n\nScope: ${args.scope || 'all'}\n\nPlease suggest how to fix it with HoloScript code examples.`,
+          {
+            systemPrompt: 'You are Brittney, a HoloScript expert. Suggest specific code fixes for Hololand/VR issues.',
+            browserContext,
+          }
+        );
+
         return {
           content: [
             {
               type: 'text',
-              text: suggestion,
+              text: result.success ? result.response! : `❌ ${result.error}`,
             },
           ],
+          isError: !result.success,
         };
       }
 
       case 'brittney_ask_question': {
-        const answer = await generateBrittneyExplanation('answer_question', {
-          question: args.question,
-          context: args.context,
+        // Collect browser context automatically unless user provides their own
+        const browserContext = args.context 
+          ? (args.context as BrittneyBrowserContext)
+          : await collectBrowserContext();
+        
+        // Call Brittney service for general questions
+        const result = await callBrittneyService(args.question as string, {
+          browserContext,
         });
+
         return {
           content: [
             {
               type: 'text',
-              text: answer,
+              text: result.success ? result.response! : `❌ ${result.error}`,
             },
           ],
+          isError: !result.success,
         };
       }
 
       case 'brittney_analyze_performance': {
+        // Get profiler stats for analysis
         const stats = await nativeMessagingBridge.sendMessage<ProfilerStats>('getProfilerStats');
-        const analysis = await generateBrittneyExplanation('analyze_performance', {
-          stats,
-          focus: args.focus || 'all',
-          threshold: args.threshold || 60,
-        });
+        
+        // Build context with profiler data
+        const browserContext: BrittneyBrowserContext = {
+          profilerStats: {
+            fps: stats.fps,
+            drawCalls: stats.drawCalls,
+            triangles: stats.triangles,
+          },
+        };
+        
+        // Call Brittney service with performance data
+        const result = await callBrittneyService(
+          `Analyze this performance data and suggest optimizations:\n\nFPS: ${stats.fps}\nFrame Time: ${stats.frameTime}ms\nDraw Calls: ${stats.drawCalls}\nTriangles: ${stats.triangles}\nMemory: ${Math.round(stats.memoryUsed / 1024 / 1024)}MB\n\nFocus: ${args.focus || 'all'}\nTarget FPS: ${args.threshold || 60}`,
+          {
+            systemPrompt: 'You are Brittney, a VR performance optimization expert. Analyze metrics and suggest HoloScript optimizations.',
+            browserContext,
+          }
+        );
+
         return {
           content: [
             {
               type: 'text',
-              text: analysis,
+              text: result.success ? result.response! : `❌ ${result.error}`,
             },
           ],
+          isError: !result.success,
+        };
+      }
+
+      case 'brittney_generate_holoscript': {
+        // Call Brittney service for HoloScript generation with RAG
+        const categoryHint = args.category ? ` (Category: ${args.category})` : '';
+        
+        // Use provided context or collect from browser
+        const browserContext = args.browserContext 
+          ? (args.browserContext as BrittneyBrowserContext)
+          : await collectBrowserContext();
+        
+        const result = await callBrittneyService(
+          `${args.description}${categoryHint}`,
+          {
+            browserContext,
+          }
+        );
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: result.success 
+                ? `## Generated HoloScript\n\n${result.response}${result.code ? `\n\n\`\`\`holoscript\n${result.code}\n\`\`\`` : ''}`
+                : `❌ ${result.error}`,
+            },
+          ],
+          isError: !result.success,
+        };
+      }
+
+      case 'brittney_check_service': {
+        const health = await checkBrittneyHealth();
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: health.healthy
+                ? `✅ Brittney Service Status\n\n${JSON.stringify(health.status, null, 2)}`
+                : `❌ Brittney Service Unavailable\n\n${health.error}\n\nStart with: npx @hololand/brittney-service start`,
+            },
+          ],
+          isError: !health.healthy,
         };
       }
 
@@ -650,6 +1050,150 @@ export async function handleBrittneyTool(
         };
       }
 
+      // =========================================================================
+      // LIVE EDITING TOOL HANDLERS
+      // =========================================================================
+
+      case 'brittney_inject_holoscript': {
+        const code = args.code as string;
+        const targetWorld = args.targetWorld as string | undefined;
+        const replaceExisting = args.replaceExisting as boolean | undefined;
+        
+        // Execute HoloScript injection in browser via the __HOLOLAND_CENTRAL__ API
+        const injectionCode = `
+          if (window.__HOLOLAND_CENTRAL__) {
+            window.__HOLOLAND_CENTRAL__.injectHoloScript(${JSON.stringify(code)});
+            'HoloScript injected successfully';
+          } else {
+            throw new Error('Hololand Central not running. Open http://localhost:3000');
+          }
+        `;
+        
+        const result = await nativeMessagingBridge.sendMessage<{ result: unknown; error?: string }>(
+          'executeCode',
+          { code: injectionCode, awaitResult: true }
+        );
+        
+        if (result.error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `❌ Failed to inject HoloScript: ${result.error}\n\n**Troubleshooting:**\n1. Ensure Hololand Central is running at http://localhost:3000\n2. Ensure Chrome DevTools extension is connected\n3. Open DevTools (F12) on the Hololand page`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `✅ HoloScript Injected Successfully!\n\n**Code:**\n\`\`\`holoscript\n${code}\n\`\`\`\n\n${targetWorld ? `**Target World:** ${targetWorld}` : ''}${replaceExisting ? '\n**Mode:** Replace existing' : '\n**Mode:** Append'}\n\n🔄 Check the browser - the scene should update live!`,
+            },
+          ],
+        };
+      }
+
+      case 'brittney_navigate_to_world': {
+        const worldId = args.worldId as string;
+        
+        // Navigate via __HOLOLAND_CENTRAL__ API
+        const navCode = `
+          if (window.__HOLOLAND_CENTRAL__) {
+            window.__HOLOLAND_CENTRAL__.navigateTo(${JSON.stringify(worldId)});
+            'Navigated to ' + ${JSON.stringify(worldId)};
+          } else {
+            throw new Error('Hololand Central not running');
+          }
+        `;
+        
+        const result = await nativeMessagingBridge.sendMessage<{ result: unknown; error?: string }>(
+          'executeCode',
+          { code: navCode, awaitResult: true }
+        );
+        
+        if (result.error) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `❌ Failed to navigate: ${result.error}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `✅ Navigated to **${worldId}**\n\n🌍 The browser should now show the ${worldId} world.`,
+            },
+          ],
+        };
+      }
+
+      case 'brittney_get_live_state': {
+        // Get current state from __HOLOLAND_CENTRAL__ API
+        const stateCode = `
+          if (window.__HOLOLAND_CENTRAL__) {
+            JSON.stringify({
+              appId: window.__HOLOLAND_CENTRAL__.appId,
+              version: window.__HOLOLAND_CENTRAL__.version,
+              currentWorld: window.__HOLOLAND_CENTRAL__.currentWorld,
+              holoScriptLength: window.__HOLOLAND_CENTRAL__.holoScriptContent?.length || 0,
+              scenes: window.__HOLOLAND_CENTRAL__.getScenes(),
+            });
+          } else {
+            JSON.stringify({ error: 'Hololand Central not running' });
+          }
+        `;
+        
+        const result = await nativeMessagingBridge.sendMessage<{ result: string; error?: string }>(
+          'executeCode',
+          { code: stateCode, awaitResult: true }
+        );
+        
+        if (result.error) {
+          // Fall back to checking shared bridge
+          const isConnected = sharedDataBridge.isConnected();
+          const browserState = sharedDataBridge.getBrowserState();
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `## Live State\n\n**Extension Connected:** ${isConnected ? '✅ Yes' : '❌ No'}\n**Browser State:**\n\`\`\`json\n${JSON.stringify(browserState || { status: 'not connected' }, null, 2)}\n\`\`\`\n\n${!isConnected ? '⚠️ Chrome DevTools extension not connected. Open DevTools (F12) on a Hololand page.' : ''}`,
+              },
+            ],
+          };
+        }
+        
+        try {
+          const state = JSON.parse(result.result as string);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `## 🎮 Hololand Central Live State\n\n**App ID:** ${state.appId}\n**Version:** ${state.version}\n**Current World:** ${state.currentWorld}\n**HoloScript Loaded:** ${state.holoScriptLength > 0 ? `Yes (${state.holoScriptLength} chars)` : 'No'}\n\n**Available Worlds:**\n${state.scenes?.map((s: string) => `- ${s}`).join('\n') || 'None'}`,
+              },
+            ],
+          };
+        } catch {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Raw result: ${result.result}`,
+              },
+            ],
+          };
+        }
+      }
+
       default:
         return {
           content: [{ type: 'text', text: `Unknown Brittney tool: ${name}` }],
@@ -665,91 +1209,12 @@ export async function handleBrittneyTool(
 }
 
 // =============================================================================
-// BRITTNEY LOCAL MODEL INTEGRATION
+// LEGACY PLACEHOLDER - Now replaced by Brittney Service integration
 // =============================================================================
 
-/**
- * Generate explanation using Brittney's local model
- * This is where Brittney.GGUF would be invoked
- */
-async function generateBrittneyExplanation(
-  task: 'explain_error' | 'suggest_fix' | 'answer_question' | 'analyze_performance',
-  context: Record<string, unknown>
-): Promise<string> {
-  // In production, this would call the local Brittney.GGUF model
-  // For now, return structured placeholder responses
+// The AI assistant tools (brittney_explain_error, brittney_suggest_fix, 
+// brittney_ask_question, brittney_analyze_performance, brittney_generate_holoscript)
+// now call the actual Brittney service at localhost:11435 via callBrittneyService().
+//
+// Start the Brittney service with: npx @hololand/brittney-service start
 
-  switch (task) {
-    case 'explain_error':
-      return `## Error Analysis
-
-**Error ID:** ${context.errorId}
-
-Based on my analysis of the browser state and runtime context:
-
-1. **Root Cause:** [Brittney.GGUF would analyze the stack trace and component state]
-2. **Affected Components:** [List of components involved]
-3. **Recommendation:** [Specific fix suggestion]
-
-*Note: Connect Brittney.GGUF model for AI-powered analysis*`;
-
-    case 'suggest_fix':
-      return `## Fix Suggestion for: ${context.issue}
-
-**Scope:** ${context.scope}
-
-Based on the running application state:
-
-1. **Identified Issue:** [Brittney.GGUF analysis]
-2. **Suggested Code Change:**
-\`\`\`typescript
-// Brittney.GGUF would generate specific code here
-\`\`\`
-3. **Verification Steps:** Run brittney_get_profiler_stats after applying fix
-
-*Note: Connect Brittney.GGUF model for AI-powered suggestions*`;
-
-    case 'answer_question':
-      return `## Answer to: ${context.question}
-
-Based on the current browser state and Hololand app:
-
-[Brittney.GGUF would provide a context-aware answer here]
-
-*Note: Connect Brittney.GGUF model for AI-powered answers*`;
-
-    case 'analyze_performance':
-      const stats = context.stats as ProfilerStats;
-      const threshold = context.threshold as number;
-      return `## Performance Analysis
-
-**Current Metrics:**
-- FPS: ${stats.fps} (target: ${threshold})
-- Frame Time: ${stats.frameTime}ms
-- Draw Calls: ${stats.drawCalls}
-- Triangles: ${stats.triangles.toLocaleString()}
-- Memory: ${Math.round(stats.memoryUsed / 1024 / 1024)}MB
-
-**Status:** ${stats.fps >= threshold ? '✓ Meeting target' : '⚠ Below target'}
-
-**Recommendations:**
-${
-  stats.drawCalls > 100
-    ? '- Consider batching draw calls or using instancing\n'
-    : ''
-}${
-        stats.triangles > 500000
-          ? '- Reduce triangle count with LOD or mesh simplification\n'
-          : ''
-      }${
-        stats.fps < threshold
-          ? '- Profile specific components to identify bottlenecks\n'
-          : '- Performance is acceptable\n'
-      }
-
-*Note: Connect Brittney.GGUF model for deeper AI analysis*`;
-
-    default:
-      return 'Unknown task';
-  }
-}

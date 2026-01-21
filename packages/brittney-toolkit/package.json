@@ -1,0 +1,67 @@
+{
+  "name": "@hololand/brittney-toolkit",
+  "version": "1.0.0-alpha.1",
+  "description": "Brittney AI Toolkit - Local LLM for HoloScript world building with optional cloud API",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./chat": {
+      "import": "./dist/chat/index.js",
+      "types": "./dist/chat/index.d.ts"
+    },
+    "./inference": {
+      "import": "./dist/inference/index.js",
+      "types": "./dist/inference/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "node-llama-cpp": "^3.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.6.0",
+    "@anthropic-ai/sdk": "^0.35.0",
+    "openai": "^4.78.0"
+  },
+  "peerDependencies": {
+    "@hololand/ui": "workspace:*",
+    "@anthropic-ai/sdk": ">=0.30.0",
+    "openai": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@hololand/ui": {
+      "optional": true
+    },
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "hololand",
+    "brittney",
+    "llm",
+    "holoscript",
+    "ai",
+    "local-inference",
+    "gguf"
+  ],
+  "author": "Brian X Base LLC",
+  "license": "MIT"
+}

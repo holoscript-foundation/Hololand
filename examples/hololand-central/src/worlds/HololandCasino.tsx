@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Mesh, Group } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
+import { BrianNPC } from '../components/BrianNPC';
 
 /**
  * ZONE 3: Hololand Casino
@@ -449,6 +450,14 @@ export const HololandCasino: React.FC = () => {
           />
         </mesh>
       ))}
+
+      {/* DAPPER BRIAN - The High Roller! */}
+      <BrianNPC
+        position={[8, 0, 5]}
+        variant="flexing"
+        persona="dapper"
+        scale={1.8}
+      />
     </>
   );
 };

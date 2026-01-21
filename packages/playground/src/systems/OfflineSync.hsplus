@@ -1,0 +1,610 @@
+/**
+ * Offline Sync System - Conditional cloud synchronization
+ * Works completely offline, syncs with cloud when connected
+ * Conflict resolution for offline changes
+ */
+
+interface SyncState {
+  objectId: string
+  lastLocalUpdate: number
+  lastCloudUpdate: number
+  lastCloudSyncTime: number
+  isDirty: bool
+  isPending: bool
+  syncStatus: "synced" | "pending" | "conflicted" | "failed"
+  conflictResolution: "local" | "cloud" | "merged"
+}
+
+interface SyncQueue {
+  pendingUpdates: SyncUpdate[]
+  totalBytes: int
+  estimatedTime: float  // seconds
+}
+
+interface SyncUpdate {
+  updateId: string
+  objectId: string
+  operation: "create" | "update" | "delete"
+  timestamp: number
+  data: object
+  isLocal: bool
+  syncedAt: number | null
+}
+
+interface CloudSyncConfig {
+  enabled: bool
+  endpoint: string
+  autoSync: bool
+  syncInterval: int  // milliseconds
+  conflictResolution: "local-first" | "cloud-first" | "manual"
+  compressionEnabled: bool
+  batchSize: int
+  maxRetries: int
+}
+
+// ============================================================================
+// OFFLINE SYNC ENGINE
+// ============================================================================
+
+system OfflineSync {
+  // Configuration
+  config: CloudSyncConfig = {
+    enabled: true,
+    endpoint: "https://api.hololand.world/sync",
+    autoSync: true,
+    syncInterval: 30000,  // 30 seconds
+    conflictResolution: "local-first",
+    compressionEnabled: true,
+    batchSize: 50,
+    maxRetries: 3
+  }
+  
+  // State
+  isOnline: bool = checkNetworkConnection()
+  syncStates: Map<string, SyncState> = new Map()
+  syncQueue: SyncQueue = { pendingUpdates: [], totalBytes: 0, estimatedTime: 0 }
+  lastSyncTime: number = 0
+  conflictLog: SyncConflict[] = []
+  
+  // Metrics
+  totalSynced: int = 0
+  totalFailed: int = 0
+  totalConflicts: int = 0
+  
+  /**
+   * Initialize sync system
+   */
+  on.init => {
+    this.loadPendingSync()
+    this.startNetworkMonitoring()
+    this.startAutoSync()
+  }
+  
+  /**
+   * Load pending updates from local storage
+   */
+  fn loadPendingSync() {
+    let pending = localStorage.get('sync:pending')
+    if (pending) {
+      this.syncQueue.pendingUpdates = JSON.parse(pending)
+    }
+    
+    let states = localStorage.get('sync:states')
+    if (states) {
+      let parsed = JSON.parse(states)
+      for (let [objectId, state] of Object.entries(parsed)) {
+        this.syncStates.set(objectId, state)
+      }
+    }
+  }
+  
+  /**
+   * Monitor network connection
+   */
+  fn startNetworkMonitoring() {
+    setInterval(() => {
+      let wasOnline = this.isOnline
+      this.isOnline = checkNetworkConnection()
+      
+      // Trigger sync when coming online
+      if (!wasOnline && this.isOnline) {
+        emit('network:online', {})
+        this.syncAll()
+      } else if (wasOnline && !this.isOnline) {
+        emit('network:offline', {})
+      }
+    }, 2000)
+  }
+  
+  /**
+   * Start auto-sync timer
+   */
+  fn startAutoSync() {
+    if (this.config.autoSync) {
+      setInterval(() => {
+        if (this.isOnline && this.syncQueue.pendingUpdates.length > 0) {
+          this.syncAll()
+        }
+      }, this.config.syncInterval)
+    }
+  }
+  
+  /**
+   * Register an object for sync
+   */
+  fn registerObject(objectId: string) {
+    if (!this.syncStates.has(objectId)) {
+      this.syncStates.set(objectId, {
+        objectId: objectId,
+        lastLocalUpdate: Date.now(),
+        lastCloudUpdate: 0,
+        lastCloudSyncTime: 0,
+        isDirty: false,
+        isPending: false,
+        syncStatus: "synced",
+        conflictResolution: "local"
+      })
+    }
+  }
+  
+  /**
+   * Track local update
+   */
+  fn trackLocalUpdate(
+    objectId: string,
+    operation: string,
+    data: object
+  ) {
+    this.registerObject(objectId)
+    
+    let state = this.syncStates.get(objectId)
+    state.lastLocalUpdate = Date.now()
+    state.isDirty = true
+    state.syncStatus = "pending"
+    
+    let update: SyncUpdate = {
+      updateId: generateUpdateId(),
+      objectId: objectId,
+      operation: operation,
+      timestamp: Date.now(),
+      data: data,
+      isLocal: true,
+      syncedAt: null
+    }
+    
+    this.syncQueue.pendingUpdates.push(update)
+    this.calculateQueueSize()
+    this.savePendingSync()
+    
+    emit('sync:updateQueued', {
+      objectId: objectId,
+      operation: operation,
+      queueLength: this.syncQueue.pendingUpdates.length
+    })
+  }
+  
+  /**
+   * Calculate queue size and estimated sync time
+   */
+  fn calculateQueueSize() {
+    let totalBytes = 0
+    
+    for (let update of this.syncQueue.pendingUpdates) {
+      let bytes = JSON.stringify(update).length
+      totalBytes += bytes
+    }
+    
+    this.syncQueue.totalBytes = totalBytes
+    // Estimate: ~1 Mbps = 125 KB/s
+    this.syncQueue.estimatedTime = (totalBytes / 1024) / 125
+  }
+  
+  /**
+   * Sync all pending updates to cloud
+   */
+  fn syncAll(): Promise<SyncResult> {
+    if (!this.isOnline || this.syncQueue.pendingUpdates.length == 0) {
+      return Promise.resolve({ success: true, synced: 0, failed: 0 })
+    }
+    
+    return this.syncBatch(
+      this.syncQueue.pendingUpdates.slice(0, this.config.batchSize)
+    ).then(result => {
+      // Process result
+      this.processSyncResult(result)
+      
+      // Remove synced items from queue
+      this.syncQueue.pendingUpdates = this.syncQueue.pendingUpdates.slice(
+        this.config.batchSize
+      )
+      
+      this.savePendingSync()
+      
+      // Continue if more items
+      if (this.syncQueue.pendingUpdates.length > 0) {
+        return this.syncAll()
+      }
+      
+      return result
+    }).catch(error => {
+      emit('sync:error', { error: error.message })
+      return { success: false, synced: 0, failed: this.syncQueue.pendingUpdates.length }
+    })
+  }
+  
+  /**
+   * Sync a batch of updates
+   */
+  fn syncBatch(updates: SyncUpdate[]): Promise<SyncResult> {
+    let payload = {
+      updates: updates,
+      clientId: getClientId(),
+      timestamp: Date.now(),
+      sessionId: getSessionId()
+    }
+    
+    if (this.config.compressionEnabled) {
+      payload = compressPayload(payload)
+    }
+    
+    return fetch(this.config.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Client-Id': getClientId()
+      },
+      body: JSON.stringify(payload)
+    }).then(response => {
+      if (response.status == 200) {
+        return response.json()
+      } else if (response.status == 409) {
+        // Conflict detected
+        return response.json().then(data => {
+          this.handleConflicts(updates, data.conflicts)
+          return { success: false, conflicts: data.conflicts }
+        })
+      } else {
+        throw new Error(`Sync failed: ${response.status}`)
+      }
+    })
+  }
+  
+  /**
+   * Handle sync conflicts
+   */
+  fn handleConflicts(
+    localUpdates: SyncUpdate[],
+    cloudConflicts: ConflictInfo[]
+  ) {
+    for (let conflict of cloudConflicts) {
+      let localUpdate = localUpdates.find(u => 
+        u.objectId == conflict.objectId
+      )
+      
+      if (!localUpdate) continue
+      
+      let state = this.syncStates.get(conflict.objectId)
+      state.syncStatus = "conflicted"
+      this.totalConflicts += 1
+      
+      // Resolve based on strategy
+      let resolved = this.resolveConflict(
+        localUpdate,
+        conflict.cloudUpdate,
+        state
+      )
+      
+      this.conflictLog.push({
+        objectId: conflict.objectId,
+        timestamp: Date.now(),
+        localUpdate: localUpdate,
+        cloudUpdate: conflict.cloudUpdate,
+        resolution: resolved.strategy,
+        resolvedUpdate: resolved.update
+      })
+      
+      emit('sync:conflict', {
+        objectId: conflict.objectId,
+        strategy: resolved.strategy
+      })
+    }
+  }
+  
+  /**
+   * Resolve a single conflict
+   */
+  fn resolveConflict(
+    local: SyncUpdate,
+    cloud: SyncUpdate,
+    state: SyncState
+  ): ConflictResolution {
+    let strategy = this.config.conflictResolution
+    
+    // If manual, emit event and wait for decision
+    if (strategy == "manual") {
+      emit('sync:conflictManual', {
+        objectId: local.objectId,
+        local: local,
+        cloud: cloud
+      })
+      
+      // For now, use local-first as fallback
+      strategy = "local-first"
+    }
+    
+    let resolved
+    if (strategy == "local-first") {
+      resolved = local
+    } else if (strategy == "cloud-first") {
+      resolved = cloud
+    } else {
+      // Merge strategy: combine non-conflicting fields
+      resolved = this.mergeUpdates(local, cloud)
+    }
+    
+    return {
+      strategy: strategy,
+      update: resolved
+    }
+  }
+  
+  /**
+   * Merge two conflicting updates
+   */
+  fn mergeUpdates(local: SyncUpdate, cloud: SyncUpdate): SyncUpdate {
+    let merged = {
+      updateId: local.updateId,
+      objectId: local.objectId,
+      operation: local.operation,
+      timestamp: Math.max(local.timestamp, cloud.timestamp),
+      data: {},
+      isLocal: true,
+      syncedAt: null
+    }
+    
+    // Merge data fields
+    let localData = local.data || {}
+    let cloudData = cloud.data || {}
+    
+    // All cloud fields
+    for (let [key, value] of Object.entries(cloudData)) {
+      merged.data[key] = value
+    }
+    
+    // Override with local fields that were updated after cloud
+    for (let [key, value] of Object.entries(localData)) {
+      if (local.timestamp > cloud.timestamp) {
+        merged.data[key] = value
+      }
+    }
+    
+    return merged
+  }
+  
+  /**
+   * Process sync result
+   */
+  fn processSyncResult(result: SyncResult) {
+    if (result.success) {
+      this.lastSyncTime = Date.now()
+      this.totalSynced += result.synced
+      
+      // Mark updates as synced
+      for (let update of this.syncQueue.pendingUpdates.slice(0, result.synced)) {
+        let state = this.syncStates.get(update.objectId)
+        if (state) {
+          state.lastCloudSyncTime = Date.now()
+          state.lastCloudUpdate = Date.now()
+          state.isDirty = false
+          state.isPending = false
+          state.syncStatus = "synced"
+        }
+        
+        update.syncedAt = Date.now()
+      }
+      
+      emit('sync:batchSuccess', {
+        synced: result.synced,
+        remaining: this.syncQueue.pendingUpdates.length
+      })
+    } else {
+      this.totalFailed += 1
+      
+      emit('sync:batchFailed', {
+        error: result.error,
+        remaining: this.syncQueue.pendingUpdates.length
+      })
+    }
+  }
+  
+  /**
+   * Save pending sync state
+   */
+  fn savePendingSync() {
+    localStorage.set('sync:pending', JSON.stringify(this.syncQueue.pendingUpdates))
+    
+    let states = {}
+    for (let [objectId, state] of this.syncStates) {
+      states[objectId] = state
+    }
+    localStorage.set('sync:states', JSON.stringify(states))
+  }
+  
+  /**
+   * Get sync status for object
+   */
+  fn getSyncStatus(objectId: string): SyncState {
+    return this.syncStates.get(objectId)
+  }
+  
+  /**
+   * Get pending updates
+   */
+  fn getPendingUpdates(): SyncUpdate[] {
+    return this.syncQueue.pendingUpdates
+  }
+  
+  /**
+   * Get conflicts
+   */
+  fn getConflicts(limit: int = 50): SyncConflict[] {
+    return this.conflictLog.slice(
+      Math.max(0, this.conflictLog.length - limit)
+    )
+  }
+  
+  /**
+   * Manually resolve conflict
+   */
+  fn resolveConflictManual(objectId: string, useLocal: bool) {
+    let state = this.syncStates.get(objectId)
+    if (!state) return false
+    
+    state.syncStatus = "synced"
+    state.conflictResolution = useLocal ? "local" : "cloud"
+    
+    this.savePendingSync()
+    
+    emit('sync:conflictResolved', {
+      objectId: objectId,
+      useLocal: useLocal
+    })
+    
+    return true
+  }
+  
+  /**
+   * Get sync statistics
+   */
+  fn getStats(): SyncStats {
+    return {
+      isOnline: this.isOnline,
+      pendingUpdates: this.syncQueue.pendingUpdates.length,
+      totalBytes: this.syncQueue.totalBytes,
+      estimatedSyncTime: this.syncQueue.estimatedTime,
+      lastSyncTime: this.lastSyncTime,
+      totalSynced: this.totalSynced,
+      totalFailed: this.totalFailed,
+      totalConflicts: this.totalConflicts
+    }
+  }
+  
+  /**
+   * Clear sync state
+   */
+  fn clearSync() {
+    this.syncQueue.pendingUpdates = []
+    this.syncStates.clear()
+    this.conflictLog = []
+    
+    localStorage.delete('sync:pending')
+    localStorage.delete('sync:states')
+  }
+}
+
+// ============================================================================
+// Data structures for sync
+// ============================================================================
+
+interface SyncResult {
+  success: bool
+  synced: int
+  failed: int
+  conflicts: ConflictInfo[] | null
+  error: string | null
+}
+
+interface ConflictInfo {
+  objectId: string
+  cloudUpdate: SyncUpdate
+  clientVersionTimestamp: number
+}
+
+interface ConflictResolution {
+  strategy: string
+  update: SyncUpdate
+}
+
+interface SyncConflict {
+  objectId: string
+  timestamp: number
+  localUpdate: SyncUpdate
+  cloudUpdate: SyncUpdate
+  resolution: string
+  resolvedUpdate: SyncUpdate
+}
+
+interface SyncStats {
+  isOnline: bool
+  pendingUpdates: int
+  totalBytes: int
+  estimatedSyncTime: float
+  lastSyncTime: number
+  totalSynced: int
+  totalFailed: int
+  totalConflicts: int
+}
+
+// ============================================================================
+// Helper functions
+// ============================================================================
+
+fn checkNetworkConnection(): bool {
+  // Check if we can reach the internet
+  return navigator.onLine && true  // Real impl would ping
+}
+
+fn generateUpdateId(): string {
+  return "update_" + generateUUID().substring(0, 8)
+}
+
+fn generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    let r = Math.random() * 16 | 0
+    let v = c == 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
+fn getClientId(): string {
+  let clientId = localStorage.get('clientId')
+  if (!clientId) {
+    clientId = generateUUID()
+    localStorage.set('clientId', clientId)
+  }
+  return clientId
+}
+
+fn getSessionId(): string {
+  return localStorage.get('sessionId') || "offline"
+}
+
+fn compressPayload(payload: object): object {
+  // Simple compression: would use actual GZIP in production
+  return {
+    compressed: true,
+    data: JSON.stringify(payload),
+    checksum: calculateChecksum(JSON.stringify(payload))
+  }
+}
+
+fn calculateChecksum(data: string): string {
+  // Simple checksum: would use CRC32 or similar
+  let hash = 0
+  for (let i = 0; i < data.length; i++) {
+    let char = data.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return Math.abs(hash).toString(16)
+}
+
+export {
+  OfflineSync,
+  SyncState,
+  SyncUpdate,
+  SyncQueue,
+  CloudSyncConfig,
+  SyncStats,
+  SyncConflict
+}

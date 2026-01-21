@@ -26,6 +26,7 @@ export class World {
   private assets: AssetLoader;
   private mapData: MapData | null = null;
   private tileSheet: SpriteSheet | null = null;
+  private currentMapId: string = '';
   
   constructor(config: GameConfig, assets: AssetLoader) {
     this.config = config;
@@ -36,8 +37,13 @@ export class World {
   }
   
   loadMap(mapId: string): void {
+    this.currentMapId = mapId;
     this.mapData = this.assets.getJSON<MapData>(mapId) || this.createDefaultMap();
     this.tileSheet = this.assets.getSpriteSheet('tiles') || null;
+  }
+  
+  getCurrentMapId(): string {
+    return this.currentMapId;
   }
   
   private createDefaultMap(): MapData {

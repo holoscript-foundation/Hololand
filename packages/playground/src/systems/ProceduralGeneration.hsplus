@@ -1,0 +1,362 @@
+/**
+ * Procedural Generation System - HoloScript Implementation
+ * AI-assisted world building with noise functions
+ */
+
+system NoiseGenerator {
+  /**
+   * Perlin noise and Fractal Brownian Motion for procedural terrain
+   */
+  
+  properties {
+    seed: number @default(0)
+    octaves: number @default(4) @range(1, 8)
+    persistence: number @default(0.5) @range(0, 1)
+    lacunarity: number @default(2.0) @range(1, 4)
+  }
+
+  @typescript {
+    private permutation: number[]
+    private p: number[]
+
+    initialize(): void {
+      this.generatePermutation()
+    }
+
+    private generatePermutation(): void {
+      this.permutation = Array.from({ length: 256 }, (_, i) => i)
+      
+      // Fisher-Yates shuffle with seed
+      let seed = this.seed
+      for (let i = 255; i > 0; i--) {
+        seed = (seed * 9301 + 49297) % 233280
+        const j = Math.floor((seed / 233280) * (i + 1));
+        [this.permutation[i], this.permutation[j]] = [
+          this.permutation[j],
+          this.permutation[i]
+        ]
+      }
+      this.p = [...this.permutation, ...this.permutation]
+    }
+
+    perlin(x: number, y: number, z: number = 0): number {
+      const xi = Math.floor(x) & 255
+      const yi = Math.floor(y) & 255
+      const zi = Math.floor(z) & 255
+
+      const xf = x - Math.floor(x)
+      const yf = y - Math.floor(y)
+      const zf = z - Math.floor(z)
+
+      const u = this.fade(xf)
+      const v = this.fade(yf)
+      const w = this.fade(zf)
+
+      const aa = this.p[this.p[xi] + yi]
+      const ab = this.p[this.p[xi] + ((yi + 1) & 255)]
+      const ba = this.p[this.p[(xi + 1) & 255] + yi]
+      const bb = this.p[this.p[(xi + 1) & 255] + ((yi + 1) & 255)]
+
+      const aaa = this.p[aa + zi]
+      const aab = this.p[aa + ((zi + 1) & 255)]
+      const aba = this.p[ab + zi]
+      const abb = this.p[ab + ((zi + 1) & 255)]
+      const baa = this.p[ba + zi]
+      const bab = this.p[ba + ((zi + 1) & 255)]
+      const bba = this.p[bb + zi]
+      const bbb = this.p[bb + ((zi + 1) & 255)]
+
+      let x1 = this.lerp(
+        this.grad(aaa, xf, yf, zf),
+        this.grad(baa, xf - 1, yf, zf),
+        u
+      )
+      let x2 = this.lerp(
+        this.grad(aba, xf, yf - 1, zf),
+        this.grad(bba, xf - 1, yf - 1, zf),
+        u
+      )
+      let y1 = this.lerp(x1, x2, v)
+
+      x1 = this.lerp(
+        this.grad(aab, xf, yf, zf - 1),
+        this.grad(bab, xf - 1, yf, zf - 1),
+        u
+      )
+      x2 = this.lerp(
+        this.grad(abb, xf, yf - 1, zf - 1),
+        this.grad(bbb, xf - 1, yf - 1, zf - 1),
+        u
+      )
+      y2 = this.lerp(x1, x2, v)
+
+      return this.lerp(y1, y2, w)
+    }
+
+    fbm(x: number, y: number): number {
+      let total = 0
+      let frequency = 1
+      let amplitude = 1
+      let maxValue = 0
+
+      for (let i = 0; i < this.octaves; i++) {
+        total += this.perlin(x * frequency, y * frequency) * amplitude
+        maxValue += amplitude
+        amplitude *= this.persistence
+        frequency *= this.lacunarity
+      }
+
+      return total / maxValue
+    }
+
+    generateMap(width: number, height: number, scale: number): number[][] {
+      const map: number[][] = []
+      for (let y = 0; y < height; y++) {
+        const row: number[] = []
+        for (let x = 0; x < width; x++) {
+          const value = this.fbm(x / scale, y / scale)
+          row.push((value + 1) / 2) // Normalize to 0-1
+        }
+        map.push(row)
+      }
+      return map
+    }
+
+    private fade(t: number): number {
+      return t * t * t * (t * (t * 6 - 15) + 10)
+    }
+
+    private lerp(a: number, b: number, t: number): number {
+      return a + (b - a) * t
+    }
+
+    private grad(hash: number, x: number, y: number, z: number): number {
+      const h = hash & 15
+      const u = h < 8 ? x : y
+      const v = h < 8 ? y : z
+      return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v)
+    }
+  }
+}
+
+/**
+ * Procedural World Builder
+ */
+system ProceduralWorldBuilder {
+  properties {
+    width: number @default(100)
+    height: number @default(100)
+    depth: number @default(50)
+    scale: number @default(0.05)
+    threshold: number @default(0.5)
+    aiAssisted: boolean @default(true)
+    seed: number @default(0)
+  }
+
+  @typescript {
+    private generator: NoiseGenerator
+    private objects: GeneratedObject[] = []
+    private typeWeights = new Map<string, number>([
+      ['cube', 0.4],
+      ['sphere', 0.3],
+      ['platform', 0.2],
+      ['light', 0.1]
+    ])
+
+    async generate(): Promise<GeneratedObject[]> {
+      const noiseMap = this.generator.generateMap(this.width, this.height, this.scale)
+      this.objects = []
+
+      // Generate base objects from noise
+      for (let y = 0; y < this.height; y++) {
+        for (let x = 0; x < this.width; x++) {
+          const noiseValue = noiseMap[y][x]
+
+          if (noiseValue > this.threshold) {
+            const obj = this.generateObjectFromNoise(x, y, noiseValue)
+            if (obj) {
+              this.objects.push(obj)
+            }
+          }
+        }
+      }
+
+      // AI-assisted generation
+      if (this.aiAssisted) {
+        await this.enhanceWithAI()
+      }
+
+      return this.objects
+    }
+
+    private generateObjectFromNoise(x: number, y: number, noiseValue: number): GeneratedObject | null {
+      const type = this.selectType(noiseValue)
+      if (!type) return null
+
+      return {
+        id: `obj-${x}-${y}`,
+        type,
+        position: [
+          (x - this.width / 2) * this.scale,
+          noiseValue * this.depth,
+          (y - this.height / 2) * this.scale
+        ],
+        rotation: [
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2,
+          Math.random() * Math.PI * 2
+        ],
+        scale: [
+          0.5 + noiseValue,
+          0.5 + noiseValue,
+          0.5 + noiseValue
+        ],
+        properties: {
+          density: Math.floor(noiseValue * 100),
+          color: this.colorFromNoise(noiseValue),
+          material: noiseValue > 0.7 ? 'metallic' : 'matte'
+        }
+      }
+    }
+
+    private selectType(noiseValue: number): string | null {
+      const rand = Math.random()
+      let accumulated = 0
+
+      for (const [type, weight] of this.typeWeights) {
+        accumulated += weight
+        if (rand < accumulated) {
+          return type
+        }
+      }
+      return null
+    }
+
+    private colorFromNoise(value: number): string {
+      const hue = Math.floor(value * 360)
+      const saturation = Math.floor(50 + value * 50)
+      const lightness = Math.floor(30 + value * 40)
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+    }
+
+    private async enhanceWithAI(): Promise<void> {
+      // Call Brittney AI for structure suggestions
+      const prompt = `Suggest ${Math.floor(this.objects.length / 10)} structures 
+        for a world with ${this.objects.length} objects.`
+
+      emit('ai:generateStructures', {
+        prompt,
+        objectCount: this.objects.length,
+        worldSize: Math.sqrt(this.objects.length)
+      })
+    }
+  }
+}
+
+/**
+ * Terrain Generation Templates
+ */
+trait @terrain.heightmap(noiseScale: number = 0.05) {
+  /**
+   * Generate heightmap-based terrain
+   * Usage: object Terrain @terrain.heightmap(0.05) { ... }
+   */
+  
+  properties {
+    width: number
+    height: number
+    maxHeight: number @default(50)
+    material: string @default('grass')
+  }
+
+  @typescript {
+    generateTerrain(): void {
+      const generator = new NoiseGenerator()
+      const map = generator.generateMap(this.width, this.height, noiseScale)
+      
+      // Create heightmap mesh
+      const vertices: number[] = []
+      const indices: number[] = []
+
+      for (let y = 0; y < this.height; y++) {
+        for (let x = 0; x < this.width; x++) {
+          const h = map[y][x] * this.maxHeight
+          vertices.push(x, h, y)
+        }
+      }
+
+      emit('terrain:create', {
+        objectId: this.id,
+        vertices,
+        material: this.material
+      })
+    }
+  }
+}
+
+trait @terrain.island(scale: number = 0.03) {
+  /**
+   * Island terrain generator
+   * Usage: object Island @terrain.island(0.03) { ... }
+   */
+  
+  properties {
+    size: number @default(120)
+    waterLevel: number @default(0.45)
+  }
+
+  @typescript {
+    generateIsland(): void {
+      const generator = new NoiseGenerator()
+      const map = generator.generateMap(this.size, this.size, scale)
+
+      const landObjects: GeneratedObject[] = []
+      const waterObjects: GeneratedObject[] = []
+
+      for (let y = 0; y < this.size; y++) {
+        for (let x = 0; x < this.size; x++) {
+          const value = map[y][x]
+
+          if (value > this.waterLevel) {
+            landObjects.push({
+              id: `land-${x}-${y}`,
+              type: 'terrain',
+              position: [(x - this.size / 2) * scale, value * 30, (y - this.size / 2) * scale],
+              rotation: [0, 0, 0],
+              scale: [1, 1, 1],
+              properties: { biome: this.getBiome(value) }
+            })
+          } else {
+            waterObjects.push({
+              id: `water-${x}-${y}`,
+              type: 'water',
+              position: [(x - this.size / 2) * scale, 0, (y - this.size / 2) * scale],
+              rotation: [0, 0, 0],
+              scale: [1, 1, 1],
+              properties: { depth: (this.waterLevel - value) * 30 }
+            })
+          }
+        }
+      }
+
+      emit('island:create', { landObjects, waterObjects })
+    }
+
+    private getBiome(value: number): string {
+      if (value > 0.8) return 'mountain'
+      if (value > 0.6) return 'forest'
+      return 'grassland'
+    }
+  }
+}
+
+interface GeneratedObject {
+  id: string
+  type: string
+  position: [number, number, number]
+  rotation: [number, number, number]
+  scale: [number, number, number]
+  properties: Record<string, any>
+}
+
+export { NoiseGenerator, ProceduralWorldBuilder, @terrain.heightmap, @terrain.island }

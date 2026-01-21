@@ -45,6 +45,7 @@
     "directory": "packages/core"
   },
   "dependencies": {
+    "@hololand/ar-foundation": "workspace:*",
     "@hololand/logger": "workspace:*",
     "@holoscript/core": "^2.0.0"
   },

@@ -1,0 +1,34 @@
+# Build outputs
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Runtime data
+.cache/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temp files
+.turbo/
+*.tmp

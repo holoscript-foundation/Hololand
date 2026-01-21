@@ -1,0 +1,19 @@
+{
+  "iconDefinitions": {
+    "holoscript": {
+      "iconPath": "./holoscript.svg"
+    },
+    "holoscript-plus": {
+      "iconPath": "./holoscript-plus.svg"
+    }
+  },
+  "fileExtensions": {
+    "holo": "holoscript",
+    "hsplus": "holoscript-plus"
+  },
+  "fileNames": {},
+  "languageIds": {
+    "holoscript": "holoscript",
+    "holoscript-plus": "holoscript-plus"
+  }
+}

@@ -1,0 +1,50 @@
+{
+	"folders": [
+		{
+			"name": "📁 Brittney Training Data",
+			"path": "."
+		},
+		{
+			"name": "🤖 Brittney Service",
+			"path": ".."
+		},
+		{
+			"path": "../../../../HoloScript"
+		},
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"powershell.cwd": "Hololand",
+		"prisma.pinToPrisma6": false,
+		"files.associations": {
+			"*.jsonl": "json"
+		}
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-windows-ai-studio.windows-ai-studio"
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Validate Training Data",
+				"type": "shell",
+				"command": "Get-Content brittney-holoscript-training-v1.jsonl | ForEach-Object { try { $_ | ConvertFrom-Json | Out-Null; Write-Host '✓' -NoNewline } catch { Write-Host 'X' -NoNewline } }; Write-Host ''; Write-Host 'Validation complete'",
+				"group": "test",
+				"presentation": {
+					"reveal": "always"
+				}
+			},
+			{
+				"label": "Count Training Examples",
+				"type": "shell",
+				"command": "Get-Content brittney-holoscript-training-v1.jsonl | Measure-Object -Line",
+				"group": "test"
+			}
+		]
+	}
+}

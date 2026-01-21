@@ -1,0 +1,38 @@
+// Welcome Portal Zone - Generated with Brittney AI
+// Hololand Central Entry Experience
+
+orb welcomePortal {
+  color: "#00ffff"
+  glow: true
+  position: [0, 3, -5]
+  scale: 3
+}
+
+orb particleEmitter {
+  type: "sphere"
+  color: "#ff00ff"
+  count: 1000
+  lifetime: 3
+}
+
+text welcomeSign {
+  content: "Welcome to Hololand Central"
+  x: 0
+  y: 5
+  fontSize: 48
+  color: "#00ffff"
+}
+
+button enterBtn {
+  text: "Enter Hololand"
+  x: 100
+  y: 200
+  width: 200
+  height: 50
+  onClick: enterWorld
+}
+
+function enterWorld() {
+  show welcomePortal
+  activate particleEmitter
+}

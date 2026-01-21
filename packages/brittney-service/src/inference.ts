@@ -63,8 +63,8 @@ export class BrittneyInference {
       // Dynamic import to handle optional dependency
       const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
 
-      console.log('[Brittney] Loading model...');
-      console.log('[Brittney] Model path:', this.config.modelPath);
+      console.log('[✱brittney] Loading model...');
+      console.log('[✱brittney] Model path:', this.config.modelPath);
       
       // Let node-llama-cpp choose the best settings
       const llama = await getLlama();
@@ -83,10 +83,10 @@ export class BrittneyInference {
       });
 
       this.llama = { model, context, session };
-      console.log(`[Brittney] Model loaded successfully: ${this.config.modelName}`);
+      console.log(`[✱brittney] Model loaded successfully: ${this.config.modelName}`);
     } catch (error: any) {
-      console.error('[Brittney] Failed to load model:', error.message);
-      console.log('[Brittney] Running in mock mode (no local inference)');
+      console.error('[✱brittney] Failed to load model:', error.message);
+      console.log('[✱brittney] Running in mock mode (no local inference)');
       // Continue without model - will use mock responses or cloud
     } finally {
       this.loading = false;
@@ -102,9 +102,9 @@ export class BrittneyInference {
     try {
       await this.llama.model.dispose();
       this.llama = null;
-      console.log('[Brittney] Model unloaded');
+      console.log('[✱brittney] Model unloaded');
     } catch (error: any) {
-      console.error('[Brittney] Error unloading model:', error.message);
+      console.error('[✱brittney] Error unloading model:', error.message);
     }
   }
 
@@ -141,7 +141,7 @@ export class BrittneyInference {
         },
       };
     } catch (error: any) {
-      console.error('[Brittney] Inference error:', error.message);
+      console.error('[✱brittney] Inference error:', error.message);
       return this.mockChat(messages, id);
     }
   }
@@ -179,7 +179,7 @@ export class BrittneyInference {
       }
       yield { content: '', done: true };
     } catch (error: any) {
-      console.error('[Brittney] Streaming error:', error.message);
+      console.error('[✱brittney] Streaming error:', error.message);
       yield { content: `Error: ${error.message}`, done: true };
     }
   }

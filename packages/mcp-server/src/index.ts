@@ -19,6 +19,7 @@ import { z } from 'zod';
 
 // Brittney IDE Agent Integration Tools
 import { brittneyTools, handleBrittneyTool } from './brittney-tools.js';
+import { advancedBrittneyTools, handleAdvancedBrittneyTool } from './advanced-brittney-tools.js';
 
 // Import HoloScript code parser for local validation
 // Using dynamic require to work around @holoscript/core ESM resolution issue
@@ -467,6 +468,11 @@ const tools: Tool[] = [
   // BRITTNEY IDE AGENT INTEGRATION TOOLS
   // =====================================================
   ...brittneyTools,
+  
+  // =====================================================
+  // ADVANCED BRITTNEY TOOLS (AI + Automation + Learning)
+  // =====================================================
+  ...advancedBrittneyTools,
 ];
 
 /**
@@ -740,6 +746,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       default:
         // Check if it's a Brittney tool
         if (name.startsWith('brittney_')) {
+          // Check if it's an advanced Brittney tool
+          const advancedToolNames = advancedBrittneyTools.map(t => t.name);
+          if (advancedToolNames.includes(name)) {
+            return await handleAdvancedBrittneyTool(name, args as Record<string, unknown>);
+          }
+          // Otherwise use standard Brittney handler
           return await handleBrittneyTool(name, args as Record<string, unknown>);
         }
         throw new Error(`Unknown tool: ${name}`);

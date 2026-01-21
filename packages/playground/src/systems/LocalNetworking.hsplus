@@ -1,0 +1,622 @@
+/**
+ * Local Network Manager - Offline-First Multiplayer
+ * Support local parties without cloud infrastructure
+ */
+
+system LocalNetworkManager {
+  /**
+   * Enables offline multiplayer for local parties
+   * Optional cloud sync when connected
+   * Reduces server costs by supporting LAN/peer-to-peer
+   */
+  
+  properties {
+    partyId: string @unique
+    partyName: string
+    maxPlayers: number @default(4)
+    isOnline: boolean @default(false)
+    useCloudSync: boolean @default(false)
+    broadcastInterval: number @default(100)  // 10Hz for LAN
+  }
+
+  @typescript {
+    private party: PartyState
+    private peers = new Map<string, PeerConnection>()
+    private broadcastTimer: number | null = null
+    private updateQueue: StateUpdate[] = []
+    private isHosting: boolean = false
+
+    initialize(): void {
+      this.party = {
+        id: this.partyId,
+        name: this.partyName,
+        maxPlayers: this.maxPlayers,
+        createdAt: Date.now(),
+        players: new Map(),
+        isOnline: this.isOnline,
+        worldState: null
+      }
+
+      // Check for existing local parties
+      this.discoverLocalParties()
+    }
+
+    // Party Management
+    createParty(): void {
+      this.isHosting = true
+      emit('party:created', {
+        partyId: this.partyId,
+        partyName: this.partyName,
+        isHost: true
+      })
+      
+      this.startBroadcasting()
+    }
+
+    async joinParty(partyId: string): Promise<boolean> {
+      try {
+        const party = await this.discoverParty(partyId)
+        if (!party) return false
+
+        this.party = party
+        this.isHosting = false
+
+        emit('party:joined', {
+          partyId,
+          playerCount: party.players.size
+        })
+
+        this.startListening()
+        return true
+      } catch (error) {
+        console.error('Failed to join party:', error)
+        return false
+      }
+    }
+
+    leaveParty(): void {
+      this.stopBroadcasting()
+      this.stopListening()
+
+      emit('party:left', { partyId: this.partyId })
+
+      // Notify host if not hosting
+      if (!this.isHosting) {
+        this.notifyHost('playerLeft', {})
+      }
+
+      this.party.players.clear()
+    }
+
+    // Player Management
+    addPlayer(playerId: string, playerName: string): void {
+      const player: Player = {
+        id: playerId,
+        name: playerName,
+        joinedAt: Date.now(),
+        isLocal: true,
+        state: {
+          position: [0, 0, 0],
+          rotation: [0, 0, 0],
+          health: 100,
+          properties: {}
+        }
+      }
+
+      this.party.players.set(playerId, player)
+
+      emit('party:playerJoined', {
+        playerId,
+        playerName,
+        playerCount: this.party.players.size
+      })
+
+      // Broadcast to other peers
+      if (this.isHosting) {
+        this.broadcastToParty('playerJoined', player)
+      }
+    }
+
+    removePlayer(playerId: string): void {
+      const player = this.party.players.get(playerId)
+      if (!player) return
+
+      this.party.players.delete(playerId)
+
+      emit('party:playerLeft', {
+        playerId,
+        playerCount: this.party.players.size
+      })
+
+      if (this.isHosting) {
+        this.broadcastToParty('playerLeft', { playerId })
+      }
+    }
+
+    getPartyPlayers(): Player[] {
+      return Array.from(this.party.players.values())
+    }
+
+    // World State Sync
+    setWorldState(state: any): void {
+      this.party.worldState = state
+
+      if (this.isHosting) {
+        this.broadcastToParty('worldStateUpdate', state)
+      }
+    }
+
+    getWorldState(): any {
+      return this.party.worldState
+    }
+
+    // Peer Discovery & Communication
+    private async discoverLocalParties(): Promise<PartyInfo[]> {
+      try {
+        // Broadcast discovery beacon on local network
+        const parties: PartyInfo[] = []
+
+        // Implementation: Use mDNS, UDP broadcast, or WebRTC discovery
+        emit('discovery:searching')
+
+        return parties
+      } catch (error) {
+        console.error('Party discovery failed:', error)
+        return []
+      }
+    }
+
+    private async discoverParty(partyId: string): Promise<PartyState | null> {
+      try {
+        // Query local network for party
+        // Return party state if found
+        return null
+      } catch (error) {
+        console.error('Failed to discover party:', error)
+        return null
+      }
+    }
+
+    private startBroadcasting(): void {
+      this.broadcastTimer = window.setInterval(() => {
+        this.broadcastPartyState()
+      }, this.broadcastInterval)
+    }
+
+    private stopBroadcasting(): void {
+      if (this.broadcastTimer) {
+        clearInterval(this.broadcastTimer)
+        this.broadcastTimer = null
+      }
+    }
+
+    private startListening(): void {
+      // Listen for broadcasts from host
+      emit('network:listeningForHost')
+    }
+
+    private stopListening(): void {
+      emit('network:stoppedListening')
+    }
+
+    private broadcastPartyState(): void {
+      const state = {
+        partyId: this.partyId,
+        players: Array.from(this.party.players.values()),
+        worldState: this.party.worldState,
+        timestamp: Date.now()
+      }
+
+      // Send to all connected peers
+      for (const [peerId, peer] of this.peers) {
+        try {
+          peer.send(state)
+        } catch (error) {
+          console.error(`Failed to broadcast to peer ${peerId}:`, error)
+          this.peers.delete(peerId)
+        }
+      }
+    }
+
+    private broadcastToParty(type: string, data: any): void {
+      const message = {
+        type,
+        data,
+        timestamp: Date.now()
+      }
+
+      for (const peer of this.peers.values()) {
+        try {
+          peer.send(message)
+        } catch (error) {
+          console.error('Broadcast failed:', error)
+        }
+      }
+    }
+
+    private notifyHost(type: string, data: any): void {
+      // Send message to host
+      emit('host:notify', { type, data })
+    }
+
+    // Cloud Sync (Optional)
+    async syncToCloud(): Promise<boolean> {
+      if (!this.useCloudSync || !this.isOnline) {
+        return false
+      }
+
+      try {
+        const response = await fetch('/api/parties/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            partyId: this.partyId,
+            state: this.party
+          })
+        })
+
+        return response.ok
+      } catch (error) {
+        console.error('Cloud sync failed:', error)
+        return false
+      }
+    }
+
+    async syncFromCloud(): Promise<boolean> {
+      if (!this.useCloudSync || !this.isOnline) {
+        return false
+      }
+
+      try {
+        const response = await fetch(`/api/parties/${this.partyId}/state`)
+        const state = await response.json()
+
+        this.party = state
+        emit('party:syncedFromCloud', state)
+
+        return true
+      } catch (error) {
+        console.error('Cloud fetch failed:', error)
+        return false
+      }
+    }
+
+    destroy(): void {
+      this.leaveParty()
+    }
+  }
+}
+
+/**
+ * Party-Based Analytics (No Cloud Required)
+ */
+system LocalAnalytics {
+  /**
+   * Collects analytics locally, syncs to cloud when available
+   * Works completely offline for single-player and local parties
+   */
+  
+  properties {
+    partyId: string
+    isEnabled: boolean @default(true)
+    maxEvents: number @default(10000)
+    autoSyncInterval: number @default(60000)  // 60 seconds
+  }
+
+  @typescript {
+    private events: AnalyticsEvent[] = []
+    private sessions: Map<string, SessionData> = new Map()
+    private currentSession: SessionData | null = null
+    private syncTimer: number | null = null
+
+    initialize(): void {
+      this.startSession()
+      this.startAutoSync()
+    }
+
+    // Session Management
+    private startSession(): void {
+      this.currentSession = {
+        id: `session-${Date.now()}`,
+        partyId: this.partyId,
+        startedAt: Date.now(),
+        endedAt: null,
+        duration: 0,
+        events: [],
+        metrics: {
+          objectsCreated: 0,
+          constraintsAdded: 0,
+          snapshotsSaved: 0,
+          itemsDownloaded: 0
+        }
+      }
+    }
+
+    endSession(): void {
+      if (!this.currentSession) return
+
+      this.currentSession.endedAt = Date.now()
+      this.currentSession.duration = this.currentSession.endedAt - this.currentSession.startedAt
+
+      this.sessions.set(this.currentSession.id, this.currentSession)
+
+      emit('analytics:sessionEnded', {
+        sessionId: this.currentSession.id,
+        duration: this.currentSession.duration,
+        eventCount: this.events.length
+      })
+
+      this.currentSession = null
+    }
+
+    // Event Tracking
+    trackEvent(
+      name: string,
+      category: string,
+      data?: Record<string, any>
+    ): void {
+      const event: AnalyticsEvent = {
+        id: `event-${Date.now()}-${Math.random()}`,
+        sessionId: this.currentSession?.id || 'unknown',
+        partyId: this.partyId,
+        name,
+        category,
+        data,
+        timestamp: Date.now(),
+        synced: false
+      }
+
+      this.events.push(event)
+
+      // Enforce max events (FIFO when exceeded)
+      if (this.events.length > this.maxEvents) {
+        this.events.shift()
+      }
+
+      // Update session metrics
+      if (this.currentSession) {
+        this.currentSession.events.push(event)
+        this.updateMetrics(category)
+      }
+
+      emit('analytics:event', event)
+    }
+
+    private updateMetrics(category: string): void {
+      if (!this.currentSession) return
+
+      switch (category) {
+        case 'world':
+          this.currentSession.metrics.objectsCreated++
+          break
+        case 'physics':
+          this.currentSession.metrics.constraintsAdded++
+          break
+        case 'versionControl':
+          this.currentSession.metrics.snapshotsSaved++
+          break
+        case 'marketplace':
+          this.currentSession.metrics.itemsDownloaded++
+          break
+      }
+    }
+
+    // Local Analytics
+    getSessionStats(): SessionStats {
+      return {
+        totalEvents: this.events.length,
+        totalSessions: this.sessions.size,
+        unsynced: this.events.filter((e) => !e.synced).length,
+        categories: this.groupEventsByCategory()
+      }
+    }
+
+    private groupEventsByCategory(): Record<string, number> {
+      const groups: Record<string, number> = {}
+
+      for (const event of this.events) {
+        groups[event.category] = (groups[event.category] || 0) + 1
+      }
+
+      return groups
+    }
+
+    // Cloud Sync (Optional)
+    private startAutoSync(): void {
+      this.syncTimer = window.setInterval(() => {
+        this.syncToCloud()
+      }, this.autoSyncInterval)
+    }
+
+    async syncToCloud(): Promise<boolean> {
+      const unsyncedEvents = this.events.filter((e) => !e.synced)
+
+      if (unsyncedEvents.length === 0) {
+        return true
+      }
+
+      try {
+        const response = await fetch('/api/analytics/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            partyId: this.partyId,
+            events: unsyncedEvents,
+            sessions: Array.from(this.sessions.values())
+          })
+        })
+
+        if (response.ok) {
+          // Mark as synced
+          for (const event of unsyncedEvents) {
+            event.synced = true
+          }
+
+          emit('analytics:synced', {
+            eventCount: unsyncedEvents.length
+          })
+
+          return true
+        }
+      } catch (error) {
+        console.error('Analytics sync failed:', error)
+      }
+
+      return false
+    }
+
+    getUnsyncedCount(): number {
+      return this.events.filter((e) => !e.synced).length
+    }
+
+    // Export for debugging
+    exportEvents(): string {
+      return JSON.stringify(
+        {
+          partyId: this.partyId,
+          events: this.events,
+          sessions: Array.from(this.sessions.values())
+        },
+        null,
+        2
+      )
+    }
+
+    destroy(): void {
+      this.endSession()
+      if (this.syncTimer) {
+        clearInterval(this.syncTimer)
+      }
+    }
+  }
+}
+
+/**
+ * Offline Sync Manager
+ * Queues changes and syncs when connection available
+ */
+trait @offlineSync {
+  /**
+   * Automatically sync when online, work offline
+   * Usage: object Cube @networked @offlineSync { ... }
+   */
+  
+  properties {
+    isSynced: boolean @default(true)
+    queuedChanges: number @default(0)
+    lastSyncTime: number
+  }
+
+  on.propertyChanged => {
+    if (!isOnline()) {
+      this.queuedChanges++
+      this.isSynced = false
+      emit('sync:queued', { objectId: this.id })
+    }
+  }
+
+  @typescript {
+    private changeQueue: any[] = []
+
+    async onOnline(): Promise<void> {
+      // When connection restored, sync all changes
+      await this.flushQueue()
+    }
+
+    private async flushQueue(): Promise<void> {
+      if (this.changeQueue.length === 0) return
+
+      try {
+        for (const change of this.changeQueue) {
+          await this.applyChange(change)
+        }
+
+        this.changeQueue = []
+        this.isSynced = true
+        this.lastSyncTime = Date.now()
+        this.queuedChanges = 0
+
+        emit('sync:complete', { objectId: this.id })
+      } catch (error) {
+        console.error('Sync flush failed:', error)
+      }
+    }
+
+    private async applyChange(change: any): Promise<void> {
+      // Apply change to remote state
+      emit('sync:applyChange', change)
+    }
+  }
+}
+
+// Types
+interface PartyState {
+  id: string
+  name: string
+  maxPlayers: number
+  createdAt: number
+  players: Map<string, Player>
+  isOnline: boolean
+  worldState: any | null
+}
+
+interface PartyInfo {
+  id: string
+  name: string
+  playerCount: number
+  isJoinable: boolean
+}
+
+interface Player {
+  id: string
+  name: string
+  joinedAt: number
+  isLocal: boolean
+  state: {
+    position: [number, number, number]
+    rotation: [number, number, number]
+    health: number
+    properties: Record<string, any>
+  }
+}
+
+interface PeerConnection {
+  peerId: string
+  send(data: any): void
+  close(): void
+}
+
+interface AnalyticsEvent {
+  id: string
+  sessionId: string
+  partyId: string
+  name: string
+  category: string
+  data?: Record<string, any>
+  timestamp: number
+  synced: boolean
+}
+
+interface SessionData {
+  id: string
+  partyId: string
+  startedAt: number
+  endedAt: number | null
+  duration: number
+  events: AnalyticsEvent[]
+  metrics: {
+    objectsCreated: number
+    constraintsAdded: number
+    snapshotsSaved: number
+    itemsDownloaded: number
+  }
+}
+
+interface SessionStats {
+  totalEvents: number
+  totalSessions: number
+  unsynced: number
+  categories: Record<string, number>
+}
+
+export { LocalNetworkManager, LocalAnalytics, @offlineSync }

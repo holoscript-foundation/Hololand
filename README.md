@@ -2,6 +2,14 @@
 
 **Build VR/AR experiences in minutes, not months.**
 
+<p align="center">
+  <img src="docs/assets/gifs/hololand-hero.gif" alt="Hololand in action - building a VR world with voice commands" width="700">
+  <br>
+  <em>"Create a floating island with waterfalls" → Built in seconds</em>
+</p>
+
+---
+
 > 💬 **Talk or type to your AI assistant.** Powered by [Infinity Assistant](https://infinityassistant.io).
 >
 > - 🥽 **VR:** "Create a treehouse with a rope ladder and fairy lights"
@@ -97,21 +105,43 @@ See [full package list](./ECOSYSTEM_STATUS.md) for all 22 packages.
 
 ## HoloScript
 
-Hololand uses [HoloScript](https://github.com/brianonbased-dev/HoloScript) - a declarative language that reduces codebase size by up to 90%:
+Hololand uses [HoloScript](https://github.com/brianonbased-dev/HoloScript) - a declarative language that reduces codebase size by up to 90%.
 
-```holoscript
-component#shop @grabbable {
-  counter { position: [0, 1, 0] }
-  shelf { items: inventory.getAll() }
-  
-  @on_grab: (item) -> {
-    cart.add(item)
-    haptics.pulse(0.5)
-  }
+### File Types
+
+> ⚠️ **Note:** `.holo` is the legacy format for learning. All new projects should use **`.hsplus`**.
+
+| Extension | What It's For | Status |
+|-----------|---------------|--------|
+| `.hsplus` | Production apps with all features | ✅ **Recommended** |
+| `.holo` | Learning & simple apps | ⚠️ Legacy (still supported) |
+
+### `.hsplus` - Full Power (Recommended)
+```hsplus
+// Production-ready with all 10 system APIs
+import { NetworkedWorldState } from "./systems/NetworkedWorldState.hsplus"
+
+networked_object player {
+  sync_rate: 20hz
+  interpolation: true
+  position: synced
 }
 ```
 
-One file. Compiles to 9 platforms.
+### `.holo` - Simple & Clean (Legacy)
+```holo
+// Great for learning and simple applications
+cube my_cube {
+  position: [0, 1, 0]
+  color: "#ff0000"
+  on_click: toggle_color
+}
+```
+
+**Use `.hsplus`** for all new projects.  
+**Use `.holo`** only for learning tutorials.
+
+See [HoloScript File Types Guide](./docs/HOLOSCRIPT_FILE_TYPES.md) for complete documentation.
 
 ## AI Agents
 

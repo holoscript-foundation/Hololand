@@ -1,0 +1,29 @@
+// HoloScript+ Brittney Chat Integration Test
+// Demonstrates opening the chat window from code
+
+orb BrittneyLink {
+  at: [2, 2, -3]
+  shape: "sphere"
+  color: "#a78bfa"
+  text: "TALK TO BRITTNEY"
+  glow: true
+  interactive: true
+  chat: true // Interaction opens the chat
+}
+
+on_interact {
+  // Option 1: Using the keyword command
+  chat
+  
+  // Option 2: Using the built-in function
+  // openChat({ mode: "debug" })
+  
+  log("Brittney chat triggered from HoloScript")
+}
+
+// System status display
+text ChatStatus#HoloChat {
+  at: [2, 4, -3]
+  text: "BRITTNEY AI: ONLINE"
+  color: "#a78bfa"
+}

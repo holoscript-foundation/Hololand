@@ -11,13 +11,16 @@ import { AssetLoader } from './game/AssetLoader';
 // Game configuration
 const CONFIG = {
   // Display
-  TILE_SIZE: 16,
-  SCALE: 3,
+  TILE_SIZE: 32,
+  SCALE: 2,
   VIEWPORT_WIDTH: 320,
   VIEWPORT_HEIGHT: 240,
   
   // Game
+  LEVEL_WIDTH: 30,
+  LEVEL_HEIGHT: 30,
   TARGET_FPS: 60,
+  RANDOM_ENCOUNTER_CHANCE: 0.02,
   DEBUG: false,
 };
 
@@ -77,7 +80,14 @@ async function main() {
   // Start game loop
   game.start();
   
-  console.log('🎮 Hololand Legends initialized!');
+  // Expose game instance for Brittney's Audit
+  console.log('🔌 Exposing Game Instance to Window...');
+  (window as any).game = game;
+  (window as any).startBrittney = () => game.startAutoPilot();
+  (window as any).stopBrittney = () => game.stopAutoPilot();
+  
+  console.log('✅ Hololand Legends initialized!');
+  console.log('👉 Type "game.startAutoPilot()" or "startBrittney()" to enable AI.');
 }
 
 main().catch(console.error);

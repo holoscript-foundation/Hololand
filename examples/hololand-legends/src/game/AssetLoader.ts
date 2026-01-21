@@ -28,7 +28,7 @@ export class AssetLoader {
       // Placeholder - will be replaced with actual assets
     ] as string[],
     spritesheets: [
-      { id: 'tiles', src: '/assets/sprites/tiles.png', tileWidth: 16, tileHeight: 16 },
+      { id: 'tiles', src: '/assets/sprites/tiles.png', tileWidth: 32, tileHeight: 32 },
       { id: 'player', src: '/assets/sprites/player.png', tileWidth: 32, tileHeight: 32 },
       { id: 'creatures', src: '/assets/sprites/creatures.png', tileWidth: 64, tileHeight: 64 },
     ],
@@ -38,6 +38,7 @@ export class AssetLoader {
     ] as Array<{ id: string; src: string }>,
     maps: [
       { id: 'starting_town', src: '/assets/maps/starting_town.json' },
+      { id: 'forest', src: '/assets/maps/forest.json' },
     ],
   };
   
@@ -54,8 +55,7 @@ export class AssetLoader {
       this.manifest.maps.length;
     
     if (this.totalCount === 0) {
-      // Create placeholder assets for demo
-      await this.createPlaceholderAssets();
+      console.warn('No assets to load in manifest.');
       this.progressCallback?.(1);
       return;
     }
@@ -350,9 +350,8 @@ export class AssetLoader {
       const data = await response.json();
       this.jsonData.set(id, data);
       this.onAssetLoaded();
-    } catch {
-      // Use placeholder data
-      this.onAssetLoaded();
+    } catch (error) {
+      console.error(`Failed to load JSON asset: ${id}`, error);
     }
   }
   
@@ -373,5 +372,9 @@ export class AssetLoader {
   
   getJSON<T = unknown>(id: string): T | undefined {
     return this.jsonData.get(id) as T | undefined;
+  }
+  
+  setJSON(id: string, data: unknown): void {
+    this.jsonData.set(id, data);
   }
 }

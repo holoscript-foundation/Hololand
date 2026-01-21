@@ -58,6 +58,14 @@ Branch naming conventions:
 
 ## 📝 Development Guidelines
 
+### HoloScript File Types
+
+**Which format should I use for my contribution?**
+- **`.holo`** → Examples, tutorials, simple demos
+- **`.hsplus`** → Systems, production features, anything needing multiplayer/physics
+
+> 📖 Details: [docs/HOLOSCRIPT_FILE_TYPES.md](docs/HOLOSCRIPT_FILE_TYPES.md)
+
 ### Code Style
 
 - **TypeScript**: Use TypeScript for all new code

@@ -1,0 +1,136 @@
+// Hololand Planet - Earth in Oasis
+// The main planet within infinite space-time
+
+composition "hololand_planet" {
+  
+  environment {
+    theme: "cosmic_void"
+    time_of_day: "eternal_night"
+    ambient_audio: "space_ambience"
+    
+    lighting {
+      fog_density: 0
+      sunlight_intensity: 0.3
+      sunlight_color: "#ffffff"
+    }
+  }
+
+  // ============================================
+  // HOLOLAND - THE EARTH-LIKE PLANET
+  // ============================================
+
+  group PlanetHololand {
+    position: [0, 0, 0]
+    
+    // Ocean Base (Blue)
+    orb#Ocean {
+      shape: "sphere"
+      position: [0, 0, 0]
+      size: 5
+      color: "#1e40af"
+      properties: {
+        "metalness": 0.3,
+        "roughness": 0.7,
+        "isStatic": true
+      }
+    }
+    
+    // Continents Layer (Green)
+    orb#Continents {
+      shape: "sphere"
+      position: [0, 0, 0]
+      size: 5.02
+      color: "#15803d"
+      properties: {
+        "metalness": 0.1,
+        "roughness": 0.9,
+        "opacity": 0.8,
+        "transparent": true
+      }
+    }
+    
+    // Desert/Rocky Areas (Brown)
+    orb#Deserts {
+      shape: "sphere"
+      position: [0, 0, 0]
+      size: 5.025
+      color: "#92400e"
+      properties: {
+        "metalness": 0.1,
+        "roughness": 1,
+        "opacity": 0.4,
+        "transparent": true
+      }
+    }
+    
+    // Clouds (White, rotating)
+    orb#Clouds {
+      shape: "sphere"
+      position: [0, 0, 0]
+      size: 5.2
+      color: "#ffffff"
+      @trait(rotate-slow)
+      @trait(pulse)
+      properties: {
+        "opacity": 0.25,
+        "transparent": true,
+        "roughness": 1
+      }
+    }
+    
+    // Atmosphere Glow (Blue)
+    orb#Atmosphere {
+      shape: "sphere"
+      position: [0, 0, 0]
+      size: 5.4
+      color: "#60a5fa"
+      @trait(glow)
+      properties: {
+        "opacity": 0.12,
+        "transparent": true,
+        "side": "back"
+      }
+    }
+  }
+
+  // ... (Stars and Text Titles) ...
+
+  // ============================================
+  // INTERACTIVE PORTAL TO CENTRAL
+  // ============================================
+
+  orb#EnterCentralPortal {
+    shape: "torus"
+    position: [0, -7, -5]
+    scale: [3, 3, 1]
+    rotation: [90, 0, 0]
+    color: "#00ffff"
+    text: "ENTER CENTRAL"
+    
+    @trait(portal-gate, { "destination": "central" })
+    @trait(glow)
+    @trait(pulse)
+    
+    properties: {
+      "fontSize": 0.8
+    }
+  }
+
+  // Ambient Particles
+  @for i in range(0, 50) {
+    orb Particle_${i} {
+      shape: "orb"
+      position: [
+        Math.random() * 30 - 15,
+        Math.random() * 30 - 15,
+        Math.random() * 30 - 15
+      ]
+      size: 0.05
+      color: "#4cc9f0"
+      traits: ["glow", "float"]
+      properties: {
+        "opacity": Math.random() * 0.3 + 0.2
+      }
+    }
+  }
+}

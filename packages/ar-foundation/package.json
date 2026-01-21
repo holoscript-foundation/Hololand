@@ -1,0 +1,49 @@
+{
+  "name": "@hololand/ar-foundation",
+  "version": "1.0.0",
+  "description": "Unified AR foundation for Hololand - bridges HoloScript AR declarations to AR runtime packages",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./runtime": {
+      "import": "./dist/runtime.js",
+      "types": "./dist/runtime.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/runtime.ts --format esm --dts",
+    "dev": "tsup src/index.ts src/runtime.ts --format esm --dts --watch",
+    "test": "vitest",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "ar",
+    "augmented-reality",
+    "foundation",
+    "holoscript",
+    "hololand",
+    "runtime"
+  ],
+  "author": "Hololand",
+  "license": "MIT",
+  "dependencies": {
+    "@hololand/ar-anchors": "workspace:*",
+    "@hololand/ar-detection": "workspace:*",
+    "@hololand/ar-tracking": "workspace:*",
+    "@hololand/logger": "workspace:*"
+  },
+  "peerDependencies": {
+    "@hololand/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "Standard Library",
+  "version": "1.0.0",
+  "components": [
+    {
+      "id": "Core.Cube",
+      "name": "Cube",
+      "category": "Core",
+      "path": "./src/Core/BasicShapes.hsplus",
+      "exportName": "Cube",
+      "description": "A simple 1x1x1 cube with physics.",
+      "tags": ["primitive", "shape", "physics"]
+    },
+    {
+      "id": "Core.Sphere",
+      "name": "Sphere",
+      "category": "Core",
+      "path": "./src/Core/BasicShapes.hsplus",
+      "exportName": "Sphere",
+      "description": "A simple sphere with physics.",
+      "tags": ["primitive", "shape", "physics"]
+    },
+    {
+      "id": "Interactive.TriggerZone",
+      "name": "Trigger Zone",
+      "category": "Interactive",
+      "path": "./src/Interactive/TriggerZone.hsplus",
+      "exportName": "TriggerZone",
+      "description": "Invisible zone that detects player entry/exit.",
+      "tags": ["logic", "zone", "trigger"]
+    }
+  ]
+}

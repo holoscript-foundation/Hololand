@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Mesh } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Portal } from '../components/Portal';
+import { BrianNPC } from '../components/BrianNPC';
 
 interface MainPlazaProps {
   onPortalClick: (worldName: string) => void;
@@ -97,44 +98,52 @@ export const MainPlaza: React.FC<MainPlazaProps> = ({ onPortalClick }) => {
         />
       </mesh>
 
-      {/* Portal 1: Demo Shop */}
+      {/* Portal 1: Casino */}
       <Portal
         position={[8, 2, 0]}
-        color={0xf093fb}
-        label="Demo Shop"
-        onClick={() => onPortalClick('shop')}
+        color={0x9b59b6}
+        label="Casino"
+        onClick={() => onPortalClick('casino')}
       />
 
       {/* Portal 2: Social Lounge */}
       <Portal
         position={[-8, 2, 0]}
-        color={0x667eea}
+        color={0xe91e63}
         label="Social Lounge"
-        onClick={() => onPortalClick('social')}
+        onClick={() => onPortalClick('lounge')}
       />
 
-      {/* Portal 3: Physics Playground */}
+      {/* Portal 3: Builder Shop */}
       <Portal
         position={[0, 2, -8]}
-        color={0x4facfe}
-        label="Physics Playground"
-        onClick={() => onPortalClick('physics')}
+        color={0x2ecc71}
+        label="Builder Shop"
+        onClick={() => onPortalClick('builder')}
       />
 
-      {/* Portal 4: Gallery (coming soon) */}
+      {/* Portal 4: Arcade District */}
       <Portal
         position={[0, 2, 8]}
-        color={0x43e97b}
-        label="Art Gallery"
-        onClick={() => onPortalClick('gallery')}
+        color={0xf1c40f}
+        label="Arcade District"
+        onClick={() => onPortalClick('arcade')}
       />
 
-      {/* Portal 5: Infinity Shop (coming soon) */}
+      {/* Portal 5: Infinity Shop */}
       <Portal
         position={[6, 2, 6]}
-        color={0xffd700}
+        color={0x00bcd4}
         label="Infinity Shop"
-        onClick={() => onPortalClick('infinity-shop')}
+        onClick={() => onPortalClick('infinity')}
+      />
+
+      {/* BRIAN - The Guide! */}
+      <BrianNPC
+        position={[3, 0, 3]}
+        variant="flexing"
+        persona="guide"
+        scale={1.5}
       />
 
       {/* Decorative floating cubes */}

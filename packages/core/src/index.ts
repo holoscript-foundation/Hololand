@@ -14,6 +14,7 @@ export {
   HoloScriptRuntime,
   HoloScript2DParser,
   HoloScriptCodeParser,
+  HoloScriptValidator,
 
   // Logger
   setHoloScriptLogger,
@@ -57,6 +58,7 @@ export {
   type ParseResult,
   type ParseError,
   type HoloScriptLogger,
+  type ValidationError,
 } from '@holoscript/core';
 
 // Hololand version (platform version, separate from HoloScript language version)

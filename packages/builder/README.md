@@ -72,6 +72,25 @@ Template management.
 - `load(name)` - Load template by name
 - `create(config)` - Create custom template
 
+## Package Boundaries
+
+> **Important**: This package is distinct from `@holoscript/creator-tools`.
+
+| Package | Purpose | License | Use Case |
+|---------|---------|---------|----------|
+| `@hololand/builder` | **Full Application** - Complete world builder | Elastic-2.0 | Standalone drag-and-drop VR world creation |
+| `@holoscript/creator-tools` | **Embeddable Components** - React UI components | MIT | Embed trait editors in your own app |
+
+### When to use @hololand/builder
+- You need a **complete, ready-to-use** world building application
+- Non-technical users need to create VR worlds without coding
+- You want template-based world creation with asset management
+
+### When to use @holoscript/creator-tools
+- You're building **your own application** and need HoloScript editing components
+- You want to embed a TraitEditor or PreviewDashboard in your React app
+- You're creating a custom HoloScript development environment
+
 ## License
 
 Elastic-2.0 © Hololand Team

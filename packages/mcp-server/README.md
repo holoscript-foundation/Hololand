@@ -20,10 +20,15 @@ Brittney helps IDE coding agents (Claude Code, Cursor, Copilot) see what's happe
 ### Architecture
 ```
 IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ Native Messaging ←→ Browser Extension ←→ Hololand App
+                                    ↓
+                          Brittney AI Service (localhost:11435)
+                                    ↓
+                          LM Studio + RAG Knowledge
 ```
 
-### Brittney Tools
+### Brittney Tools (29 total)
 
+#### Inspection Tools
 | Tool | Purpose |
 |------|---------|
 | `brittney_get_browser_state` | Check connection to running app |
@@ -33,12 +38,54 @@ IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ Native Messaging ←�
 | `brittney_get_console_logs` | Runtime logs and errors |
 | `brittney_get_runtime_errors` | All errors with stack traces |
 | `brittney_take_screenshot` | Capture current scene |
+
+#### AI Assistant Tools
+| Tool | Purpose |
+|------|---------|
 | `brittney_explain_error` | AI explains error with context |
 | `brittney_suggest_fix` | AI suggests code fixes |
 | `brittney_ask_question` | Ask anything about running app |
 | `brittney_analyze_performance` | Performance bottleneck analysis |
+| `brittney_generate_holoscript` | Generate HoloScript from description |
+
+#### Execution & Live Editing
+| Tool | Purpose |
+|------|---------|
 | `brittney_execute_in_browser` | Run JS in browser context |
 | `brittney_reload_scene` | Hot reload scene |
+| `brittney_inject_holoscript` | Inject HoloScript into running app |
+| `brittney_navigate_to_world` | Switch worlds in browser |
+| `brittney_get_live_state` | Get current app state |
+| `brittney_check_service` | Check Brittney AI health |
+
+#### 🆕 Advanced Tools (NEW!)
+| Tool | Purpose |
+|------|---------|
+| `brittney_create_and_inject` | One-shot: generate + inject HoloScript |
+| `brittney_error_monitor` | Real-time error monitoring with AI analysis |
+| `brittney_auto_fix` | AI-powered automatic error fixing |
+| `brittney_performance_monitor` | FPS/memory monitoring with thresholds |
+| `brittney_holoscript_playground` | Parse, validate, explain, optimize code |
+| `brittney_holoscript_diff` | Compare code before injection |
+| `brittney_holoscript_templates` | Get starter templates by category |
+| `brittney_scene_snapshot` | Capture full scene state for versioning |
+| `brittney_compare_snapshots` | Compare two scene snapshots |
+| `brittney_record_session` | Record development session |
+| `brittney_test_scene` | Run automated scene tests |
+| `brittney_accessibility_check` | VR/AR accessibility validation |
+| `brittney_explain_scene` | AI explains current scene |
+| `brittney_learn_holoscript` | Interactive HoloScript learning |
+
+### Example: One-Shot Creation
+
+```typescript
+// Describe what you want, Brittney generates it, appears in browser instantly
+const result = await useMcpTool('hololand', 'brittney_create_and_inject', {
+  description: 'a glowing portal with purple particle effects',
+  category: 'portal'
+});
+// Brittney generates HoloScript and injects it into the running app!
+```
 
 ### Example: Debugging with Brittney
 
@@ -54,6 +101,18 @@ const analysis = await useMcpTool('hololand', 'brittney_suggest_fix', {
   issue: "objects disappearing when I move the camera"
 });
 // Returns AI analysis with specific code fix suggestions
+```
+
+### Example: Learning HoloScript
+
+```typescript
+// Interactive learning
+const lesson = await useMcpTool('hololand', 'brittney_learn_holoscript', {
+  topic: 'materials',
+  level: 'beginner',
+  includeExercise: true
+});
+// Returns explanation, examples, and practice exercise
 ```
 
 ---
@@ -339,20 +398,66 @@ setInterval(async () => {
 └─────────────────────────────────────────┘
 ```
 
+## Native Messaging Setup (Brittney IDE Integration)
+
+To enable Brittney to communicate with the browser extension, install the Native Messaging host:
+
+### Windows (PowerShell as Admin)
+
+```powershell
+# Build first
+cd packages/mcp-server
+pnpm build
+
+# Install native host
+.\native-host\install-windows.ps1
+
+# After loading extension, update with extension ID
+.\native-host\install-windows.ps1 -ExtensionId <your-extension-id>
+```
+
+### macOS / Linux
+
+```bash
+# Build first
+cd packages/mcp-server
+pnpm build
+
+# Install native host
+chmod +x native-host/install-unix.sh
+./native-host/install-unix.sh
+
+# After loading extension, update with extension ID
+./native-host/install-unix.sh <your-extension-id>
+```
+
+### Configure Claude Code
+
+```bash
+# Add Hololand MCP server to Claude Code
+claude mcp add hololand -- node /path/to/packages/mcp-server/dist/index.js
+
+# Test Brittney integration
+claude "Use brittney_get_browser_state to check the Hololand app"
+```
+
 ## Development
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
-# Development mode (with hot reload)
-npm run dev
+# Development mode - MCP server (with hot reload)
+pnpm dev
+
+# Development mode - Native Messaging host
+pnpm dev:native-host
 
 # Build for production
-npm run build
+pnpm build
 
 # Run tests
-npm test
+pnpm test
 ```
 
 ## License

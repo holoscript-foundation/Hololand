@@ -1,0 +1,67 @@
+
+building HololandCasino {
+  type: "casino"
+  style: "grand-dome-art-deco"
+  material: "glass_gold_brass"
+  position: [0, 0, -100]
+  traits: ["atmosphere_rich", "luxury_vibe"]
+}
+
+// The outer shell structure
+orb CasinoDomeShell {
+  shape: "sphere"
+  position: [0, 0, -100]
+  size: 30
+  color: "rgba(255, 215, 0, 0.2)" // Translucent Gold
+  glow: true
+  traits: ["semi-transparent"]
+}
+
+// Brass Ribbing for the Dome
+orb DomeRibbing {
+  shape: "wireframe_dome"
+  position: [0, 0, -100]
+  size: 30.2
+  color: "#b8860b" // Dark Brass
+  traits: ["static"]
+}
+
+// Grand Entrance Pillars
+orb EntrancePillarLeft {
+  shape: "column"
+  position: [-10, 0, -70]
+  scale: [2, 15, 2]
+  color: "#ffd700"
+  style: "fluted"
+}
+
+orb EntrancePillarRight {
+  shape: "column"
+  position: [10, 0, -70]
+  scale: [2, 15, 2]
+  color: "#ffd700"
+  style: "fluted"
+}
+
+// The Holographic Signage
+orb CasinoSign {
+  shape: "hologram_panel"
+  position: [0, 25, -70]
+  size: [15, 5, 0.1]
+  color: "#00ffff"
+  text: "HOLOLAND CASINO"
+  traits: ["flicker"]
+}
+
+orb EntrancePortal {
+  shape: "bio-dome"
+  position: [0, 0, -70]
+  scale: [5, 5, 2]
+  color: "#ffd700"
+  interactive: true
+  traits: ["portal-gate", "pulse"]
+  properties: {
+    "destination": "casino_interior",
+    "text": "ENTER HIGH STAKES"
+  }
+}

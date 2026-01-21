@@ -83,13 +83,15 @@ async function startService(): Promise<void> {
     console.log('📦 Using model: ' + config.modelPath);
   }
 
-  // Import and start server (this file runs standalone, not as the server)
+  // Import and start server using tsx for TypeScript execution
   const { spawn } = await import('child_process');
-  const serverPath = new URL('./server.js', import.meta.url).pathname.slice(1); // Remove leading /
+  const serverPath = new URL('./server.ts', import.meta.url).pathname.slice(1); // Remove leading /
 
-  const child = spawn('node', [serverPath], {
+  // Use npx tsx to run TypeScript directly
+  const child = spawn('npx', ['tsx', serverPath], {
     detached: true,
     stdio: 'ignore',
+    shell: true,
   });
 
   child.unref();
@@ -333,6 +335,10 @@ CONFIGURATION
   Set cloud provider with environment variables:
     OPENAI_API_KEY=sk-xxx brittney start
     ANTHROPIC_API_KEY=sk-ant-xxx brittney start
+    GROK_API_KEY=xai-xxx brittney start
+
+  Or use the generic cloud API key:
+    BRITTNEY_CLOUD_PROVIDER=grok BRITTNEY_CLOUD_API_KEY=xai-xxx brittney start
 
 For more info: https://docs.hololand.io/brittney
 `);

@@ -1,0 +1,159 @@
+// Arcade District - Standardized HoloScript+ Definition
+
+scene ArcadeDistrict {
+  environment: {
+     skybox: "city_night",
+     audio: {
+        ambient: "neon_hum",
+        volume: 0.6
+     }
+  }
+
+  // --- DISTRICT ROOT ---
+  object DistrictCenter {
+     type: "district_marker"
+     position: [60, 0, 0]
+     properties: {
+        style: "retro-modern-solarpunk"
+     }
+  }
+
+  object SpawnPoint {
+     geometry: "orb"
+     position: [65, 2, 0]
+     color: "#9b59b6"
+     size: 0.5
+     @trait(teleport_destination)
+  }
+
+  // --- BUILDINGS ---
+
+  object GreenMachineArcade {
+     geometry: "building"
+     position: [80, 0, 10]
+     color: "#39ff14"
+     
+     properties: {
+       style: "deco-industrial",
+       neonIntensity: 1.5,
+       hasArcadeGames: true
+     }
+     
+     // traits mappings
+     // "dynamic-lighting" -> handled by renderer based on props
+     // "noise-maker" -> audio source
+  }
+
+  object BriansGym {
+     geometry: "dome"
+     position: [100, 0, 40]
+     size: 15
+     color: "rgba(46, 204, 113, 0.4)"
+     
+     properties: {
+        opacity: 0.4,
+        type: "fitness_club"
+     }
+  }
+
+  // --- NPCS ---
+
+  object NPC_Brian {
+     geometry: "model" // brian_boxing.glb
+     position: [90, 0, 30]
+     color: "#3498db"
+     scale: 1.2
+     
+     properties: {
+        role: "Curator",
+        dialogue: "UNNGH! BRIAN SMASH DATA BITS! YOU HELP BRIAN? FIND BITS! BRIAN FLEX FOR YOU!",
+        label: "BRIAN! (TRAINER)"
+     }
+     
+     @trait(chat) // mapped from talkable
+     @trait(lookAtPlayer)
+  }
+
+  // --- SHOPS ---
+
+  object ShopRowA_01 {
+     geometry: "shop_front"
+     position: [60, 0, -20]
+     color: "#f39c12"
+     
+     properties: {
+        label: "Avatar Skins"
+     }
+     
+     @trait(hoverable)
+     @trait(interactive)
+  }
+
+  object ShopRowA_02 {
+     geometry: "shop_front"
+     position: [60, 0, -40]
+     color: "#9b59b6"
+     
+     properties: {
+        label: "Trait Shop"
+     }
+     
+     @trait(interactive)
+  }
+
+  object ShopRowA_03 {
+     geometry: "shop_front"
+     position: [60, 0, -60]
+     color: "#3498db"
+     
+     properties: {
+        label: "Asset Forge"
+     }
+     
+     @trait(interactive)
+  }
+
+  // --- INFRASTRUCTURE ---
+
+  object FlowerLamp01 {
+     geometry: "lamp_post"
+     position: [70, 0, -10]
+     color: "#ffff00"
+     
+     @trait(glow)
+     // light-source handled by renderer or child light object
+  }
+
+  // --- COLLECTIBLES ---
+
+  object DataBit_01 {
+     geometry: "orb"
+     position: [85, 1, 15]
+     size: 0.3
+     color: "#4cc9f0"
+     
+     @trait(collectible)
+     @trait(pulse)
+     @trait(grabbable)
+  }
+
+  object DataBit_02 {
+     geometry: "orb"
+     position: [75, 1, -5]
+     size: 0.3
+     color: "#4cc9f0"
+     
+     @trait(collectible)
+     @trait(pulse)
+  }
+  
+  object DataBit_03 {
+     geometry: "orb"
+     position: [95, 1, 45]
+     size: 0.3
+     color: "#4cc9f0"
+     
+     @trait(collectible)
+     @trait(pulse)
+  }
+}

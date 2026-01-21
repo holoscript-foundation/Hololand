@@ -11,7 +11,10 @@
   "dependencies": {
     "@hololand/core": "workspace:*",
     "@hololand/renderer": "workspace:*",
-    "@hololand/ui": "workspace:*"
+    "@hololand/core": "workspace:*",
+    "@hololand/renderer": "workspace:*",
+    "@hololand/ui": "workspace:*",
+    "@holoscript/core": "*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",

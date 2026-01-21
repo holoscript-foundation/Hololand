@@ -1,0 +1,9 @@
+{
+  "name": "com.hololand.brittney",
+  "description": "Brittney MCP Native Messaging Host - Bridges Chrome DevTools to IDE agents",
+  "path": "C:\\Users\\josep\\Documents\\GitHub\\Hololand\\packages\\mcp-server\\native-host\\brittney-host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_PLACEHOLDER/"
+  ]
+}

@@ -1,0 +1,144 @@
+version: '3.9'
+
+services:
+  # ============================================
+  # HoloScript Playground Web App
+  # ============================================
+  holoscript-playground:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: holoscript-playground
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_ENV=production
+      - VITE_API_BASE_URL=http://localhost:3000
+      - VITE_WS_URL=ws://localhost:3000
+      # AI Service Keys (set via environment variables or secrets)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      - BRITTNEY_API_URL=http://brittney:8000
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - brittney
+      - ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - holoscript-network
+    volumes:
+      - ./dist:/app/dist:ro
+
+  # ============================================
+  # Brittney AI Service (Optional - Local Model)
+  # ============================================
+  brittney:
+    image: brittney:latest
+    container_name: brittney-service
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_NAME=phi-silica-3.6
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - holoscript-network
+    profiles:
+      - with-brittney
+
+  # ============================================
+  # Ollama Service (Optional - Local LLM)
+  # ============================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-service
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - holoscript-network
+    profiles:
+      - with-ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+
+  # ============================================
+  # Redis Cache (Optional)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: holoscript-cache
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - holoscript-network
+    profiles:
+      - with-cache
+    volumes:
+      - redis_data:/data
+
+  # ============================================
+  # PostgreSQL Database (Optional)
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: holoscript-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=holoscript
+      - POSTGRES_USER=holoscript
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-holoscript-dev}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U holoscript"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - holoscript-network
+    profiles:
+      - with-database
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  ollama_data:
+  redis_data:
+  postgres_data:
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  holoscript-network:
+    driver: bridge

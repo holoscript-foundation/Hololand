@@ -1,0 +1,304 @@
+// Creature Definitions for Hololand Legends
+// Refactored for HoloScript+ Engine
+
+// =============================================================================
+// STARTER CREATURES
+// =============================================================================
+
+template Sparkle {
+  type: "creature"
+  name: "Sparkle"
+  class: "dps"
+  element: "light"
+  
+  stats: {
+    hp: 50,
+    mp: 20,
+    atk: 12,
+    def: 8,
+    speed: 10,
+    magic: 8
+  }
+  
+  skills: ["tackle", "spark", "flash"]
+  
+  evolution: {
+    level: 16,
+    into: "Radiance"
+  }
+  
+  @trait(hologram)
+  @trait(networked)
+}
+
+// =============================================================================
+// COMMON CREATURES (Meadow Plains)
+// =============================================================================
+
+template Slime {
+  type: "creature"
+  name: "Slime"
+  class: "tank"
+  element: "water"
+  captureRate: 0.4
+  
+  stats: {
+    hp: 30,
+    mp: 5,
+    atk: 5,
+    def: 10,
+    speed: 3,
+    magic: 2
+  }
+  
+  skills: ["tackle", "absorb"]
+  habitat: "meadow"
+  
+  @trait(hologram)
+}
+
+template Goblin {
+  type: "creature"
+  name: "Goblin"
+  class: "dps"
+  element: "dark"
+  captureRate: 0.3
+  
+  stats: {
+    hp: 25,
+    mp: 10,
+    atk: 12,
+    def: 5,
+    speed: 8,
+    magic: 3
+  }
+  
+  skills: ["tackle", "throw_rock", "sneak"]
+  habitat: "meadow"
+  
+  @trait(hologram)
+}
+
+template ShadowBat {
+  type: "creature"
+  name: "Shadow Bat"
+  class: "support"
+  element: "dark"
+  captureRate: 0.35
+  
+  stats: {
+    hp: 20,
+    mp: 15,
+    atk: 8,
+    def: 4,
+    speed: 12,
+    magic: 6
+  }
+  
+  skills: ["tackle", "screech", "drain"]
+  habitat: "caves"
+  
+  @trait(hologram)
+  @trait(flying)
+}
+
+template Fungoid {
+  type: "creature"
+  name: "Fungoid"
+  class: "healer"
+  element: "nature"
+  captureRate: 0.4
+  
+  stats: {
+    hp: 35,
+    mp: 25,
+    atk: 4,
+    def: 8,
+    speed: 4,
+    magic: 12
+  }
+  
+  skills: ["spore", "heal", "poison"]
+  habitat: "forest"
+  
+  @trait(hologram)
+}
+
+// =============================================================================
+// LEGENDARY BOSSES
+// =============================================================================
+
+template InfernoDragon {
+  type: "creature"
+  name: "Inferno Dragon"
+  class: "dps"
+  element: "fire"
+  captureRate: 0.01
+  legendary: true
+  
+  stats: {
+    hp: 150,
+    mp: 50,
+    atk: 30,
+    def: 20,
+    speed: 12,
+    magic: 25
+  }
+  
+  skills: ["dragon_breath", "inferno", "earthquake", "roar"]
+  habitat: "volcano_boss"
+  
+  @trait(hologram)
+  @trait(boss)
+}
+
+// =============================================================================
+// STARTER CREATURES
+// =============================================================================
+
+prefab Sparkle {
+  type: 'creature'
+  name: "Sparkle"
+  class: "dps"
+  element: "light"
+  
+  stats: {
+    hp: 50,
+    mp: 20,
+    atk: 12,
+    def: 8,
+    speed: 10,
+    magic: 8
+  }
+  
+  skills: ["tackle", "spark", "flash"]
+  
+  evolution: {
+    level: 16,
+    into: "Radiance"
+  }
+  
+  @trait(hologram)
+  @trait(networked)
+}
+
+// =============================================================================
+// COMMON CREATURES (Meadow Plains)
+// =============================================================================
+
+prefab Slime {
+  type: 'creature'
+  name: "Slime"
+  class: "tank"
+  element: "water"
+  captureRate: 0.4
+  
+  stats: {
+    hp: 30,
+    mp: 5,
+    atk: 5,
+    def: 10,
+    speed: 3,
+    magic: 2
+  }
+  
+  skills: ["tackle", "absorb"]
+  habitat: "meadow"
+  
+  @trait(hologram)
+}
+
+prefab Goblin {
+  type: 'creature'
+  name: "Goblin"
+  class: "dps"
+  element: "dark"
+  captureRate: 0.3
+  
+  stats: {
+    hp: 25,
+    mp: 10,
+    atk: 12,
+    def: 5,
+    speed: 8,
+    magic: 3
+  }
+  
+  skills: ["tackle", "throw_rock", "sneak"]
+  habitat: "meadow"
+  
+  @trait(hologram)
+}
+
+prefab ShadowBat {
+  type: 'creature'
+  name: "Shadow Bat"
+  class: "support"
+  element: "dark"
+  captureRate: 0.35
+  
+  stats: {
+    hp: 20,
+    mp: 15,
+    atk: 8,
+    def: 4,
+    speed: 12,
+    magic: 6
+  }
+  
+  skills: ["tackle", "screech", "drain"]
+  habitat: "caves"
+  
+  @trait(hologram)
+  @trait(flying)
+}
+
+prefab Fungoid {
+  type: 'creature'
+  name: "Fungoid"
+  class: "healer"
+  element: "nature"
+  captureRate: 0.4
+  
+  stats: {
+    hp: 35,
+    mp: 25,
+    atk: 4,
+    def: 8,
+    speed: 4,
+    magic: 12
+  }
+  
+  skills: ["spore", "heal", "poison"]
+  habitat: "forest"
+  
+  @trait(hologram)
+}
+
+// =============================================================================
+// LEGENDARY BOSSES
+// =============================================================================
+
+prefab InfernoDragon {
+  type: 'creature'
+  name: "Inferno Dragon"
+  class: "dps"
+  element: "fire"
+  captureRate: 0.01
+  legendary: true
+  
+  stats: {
+    hp: 150,
+    mp: 50,
+    atk: 30,
+    def: 20,
+    speed: 12,
+    magic: 25
+  }
+  
+  skills: ["dragon_breath", "inferno", "earthquake", "roar"]
+  habitat: "volcano_boss"
+  
+  @trait(hologram)
+  @trait(boss)
+}

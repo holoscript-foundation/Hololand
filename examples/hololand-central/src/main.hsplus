@@ -1,0 +1,16 @@
+
+orb#HololandCentral {
+  environment: {
+    sky: "azure_day_clouds",
+    lighting: "warm_sun"
+  }
+
+  // Imports (Mocked for now as we don't have a real module loader yet)
+  // import { CentralPlaza } from "./zones/central_plaza.hsplus"
+
+  orb#CentralHub {
+     @on_mount {
+        // dynamic behavior
+     }
+  }
+}

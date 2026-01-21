@@ -217,6 +217,150 @@ export class CoordinateTransform {
     this.worldToLocal = invertPose(this.localToWorld);
   }
 
+  // ===========================================================================
+  // STATIC VECTOR OPERATIONS (for tests)
+  // ===========================================================================
+
+  static addVectors(a: Vector3, b: Vector3): Vector3 {
+    return addVectors(a, b);
+  }
+
+  static subtractVectors(a: Vector3, b: Vector3): Vector3 {
+    return subtractVectors(a, b);
+  }
+
+  static scaleVector(v: Vector3, s: number): Vector3 {
+    return scaleVector(v, s);
+  }
+
+  static dotProduct(a: Vector3, b: Vector3): number {
+    return dotProduct(a, b);
+  }
+
+  static crossProduct(a: Vector3, b: Vector3): Vector3 {
+    return crossProduct(a, b);
+  }
+
+  static normalizeVector(v: Vector3): Vector3 {
+    return normalizeVector(v);
+  }
+
+  static vectorLength(v: Vector3): number {
+    return vectorLength(v);
+  }
+
+  static distance(a: Vector3, b: Vector3): number {
+    return distanceBetween(a, b);
+  }
+
+  // ===========================================================================
+  // STATIC QUATERNION OPERATIONS (for tests)
+  // ===========================================================================
+
+  static identityQuaternion(): Quaternion {
+    return { x: 0, y: 0, z: 0, w: 1 };
+  }
+
+  static multiplyQuaternions(a: Quaternion, b: Quaternion): Quaternion {
+    return multiplyQuaternions(a, b);
+  }
+
+  static invertQuaternion(q: Quaternion): Quaternion {
+    return conjugateQuaternion(q);
+  }
+
+  static normalizeQuaternion(q: Quaternion): Quaternion {
+    return normalizeQuaternion(q);
+  }
+
+  static slerp(a: Quaternion, b: Quaternion, t: number): Quaternion {
+    return slerpQuaternion(a, b, t);
+  }
+
+  static fromAxisAngle(axis: Vector3, angle: number): Quaternion {
+    const halfAngle = angle / 2;
+    const s = Math.sin(halfAngle);
+    const normalizedAxis = normalizeVector(axis);
+    return {
+      x: normalizedAxis.x * s,
+      y: normalizedAxis.y * s,
+      z: normalizedAxis.z * s,
+      w: Math.cos(halfAngle),
+    };
+  }
+
+  static rotateVector(v: Vector3, q: Quaternion): Vector3 {
+    return rotateVectorByQuaternion(v, q);
+  }
+
+  // ===========================================================================
+  // STATIC POSE OPERATIONS (for tests)
+  // ===========================================================================
+
+  static composePose(parent: Pose, child: Pose): Pose {
+    return composePoses(parent, child);
+  }
+
+  static invertPose(pose: Pose): Pose {
+    return invertPose(pose);
+  }
+
+  static lerpPose(a: Pose, b: Pose, t: number): Pose {
+    return interpolatePoses(a, b, t);
+  }
+
+  // ===========================================================================
+  // STATIC GPS UTILITIES (for tests)
+  // ===========================================================================
+
+  /**
+   * Compute haversine distance between two GPS coordinates
+   * @returns Distance in meters
+   */
+  static haversineDistance(
+    lat1: number, lon1: number,
+    lat2: number, lon2: number
+  ): number {
+    const R = 6371000; // Earth radius in meters
+    const toRad = (deg: number) => deg * Math.PI / 180;
+    
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon / 2) ** 2;
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    
+    return R * c;
+  }
+
+  /**
+   * Convert GPS coordinates to East-North-Up (ENU) local coordinates
+   * @returns Local ENU coordinates in meters
+   */
+  static gpsToENU(
+    lat: number, lon: number, alt: number,
+    refLat: number, refLon: number, refAlt: number
+  ): Vector3 {
+    const toRad = (deg: number) => deg * Math.PI / 180;
+    
+    // Earth radius at reference latitude
+    const R = 6371000;
+    const cosRef = Math.cos(toRad(refLat));
+    
+    // Approximate conversion
+    const dLat = toRad(lat - refLat);
+    const dLon = toRad(lon - refLon);
+    
+    const east = dLon * R * cosRef;  // X
+    const north = dLat * R;          // Y
+    const up = alt - refAlt;         // Z
+    
+    return { x: east, y: north, z: up };
+  }
+
   /**
    * Set the local-to-world transform using an anchor observation
    * 

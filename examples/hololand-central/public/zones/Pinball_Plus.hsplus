@@ -1,0 +1,257 @@
+@state {
+  score: 0,
+  balls: 3,
+  game_over: false
+}
+
+scene PinballArena {
+  environment: {
+    skybox: 'neon_grid',
+    music: 'arcade_beats'
+  }
+
+  // --- UI LAYER ---
+  
+  text ScoreBoard {
+    position: [0, 8, -5]
+    content: "SCORE: ${state.score}"
+    fontSize: 2
+    color: '#00ff00'
+    @trait(lookAtPlayer)
+  }
+
+  text LivesDisplay {
+    position: [0, 7, -5]
+    content: "BALLS: ${state.balls}"
+    fontSize: 1
+    color: '#ff0000'
+    @trait(lookAtPlayer)
+  }
+  
+  text GameOverMsg @visible(state.game_over) {
+    position: [0, 5, -2]
+    content: "GAME OVER"
+    fontSize: 3
+    color: '#ff0000'
+    @trait(pulse)
+  }
+
+  // --- BLUEPRINT / PREFABS ---
+
+  // NOTE: In a real implementation we would define a prefab, 
+  // but for this demo we'll instantiate directly to show the logic clear.
+
+  // --- GAMEPLAY ELEMENTS ---
+
+  // --- ADVANCED MATERIALS (PBR) ---
+
+  @material Chrome {
+    color: '#ffffff'
+    metalness: 1.0
+    roughness: 0.1
+    envMapIntensity: 1.0
+  }
+
+  @material NeonBlue {
+    color: '#00ffff'
+    emissive: '#00ffff'
+    emissiveIntensity: 2.0
+    toneMapped: false
+  }
+
+  @material NeonPink {
+    color: '#ff00ff'
+    emissive: '#ff00ff'
+    emissiveIntensity: 2.0
+    toneMapped: false
+  }
+  
+  @material BlackWood {
+    color: '#1a1a1a'
+    roughness: 0.8
+    metalness: 0.0
+  }
+  
+  @material Glass {
+    color: '#ffffff'
+    transmission: 0.9
+    opacity: 0.3
+    roughness: 0.0
+    thickness: 0.5
+  }
+
+  // --- STRUCTURE ---
+  
+  // The main cabinet body
+  object Cabinet {
+    geometry: 'box'
+    size: [12, 2, 22]
+    position: [0, -1, 0]
+    material: 'BlackWood' // Reference @material
+    physics: { type: 'static' }
+    @trait(collidable)
+  }
+
+  // The Playfield (slanted floor)
+  object Playfield {
+    geometry: 'box'
+    size: [10, 0.2, 20]
+    position: [0, 0, 0]
+    rotation: [5, 0, 0] // 5 degree slope for gravity
+    
+    // Texture Mapping
+    texture: '/assets/cyber_pinball_playfield.png'
+    material: {
+      color: '#ffffff',
+      roughness: 0.4,
+      metalness: 0.6
+    }
+    
+    physics: { type: 'static', friction: 0.1 }
+    @trait(collidable)
+  }
+
+  // Glass Cover
+  object Glass {
+    geometry: 'box'
+    size: [10.5, 0.1, 20.5]
+    position: [0, 1.5, 0]
+    rotation: [5, 0, 0]
+    material: 'Glass'
+    @trait(collidable)
+  }
+
+  // Walls
+  object WallLeft {
+    geometry: 'box'
+    size: [0.5, 2, 20]
+    position: [-5.25, 0.5, 0]
+    rotation: [5, 0, 0]
+    material: 'NeonBlue'
+    physics: { type: 'static' }
+    @trait(collidable)
+  }
+
+  object WallRight {
+    geometry: 'box'
+    size: [0.5, 2, 20]
+    position: [5.25, 0.5, 0]
+    rotation: [5, 0, 0]
+    material: 'NeonBlue'
+    physics: { type: 'static' }
+    @trait(collidable)
+  }
+
+  object WallTop {
+    geometry: 'box'
+    size: [11, 2, 0.5]
+    position: [0, 1.5, -10]
+    rotation: [5, 0, 0]
+    material: 'NeonPink'
+    physics: { type: 'static' }
+    @trait(collidable)
+  }
+
+  object BumperLeft {
+    geometry: 'cylinder'
+    size: [1, 0.5, 1]
+    position: [-2, 0.5, 0]
+    material: 'neon_blue'
+    physics: { type: 'static', restitution: 1.5 }
+    
+    @trait(collidable)
+    @on_collision(other) {
+       if (other.tag == 'ball') {
+         state.score = state.score + 100
+         audio.play('bumper_hit')
+         // Visual feedback would be great here like changing color
+       }
+    }
+  }
+
+  object BumperRight {
+    geometry: 'cylinder'
+    size: [1, 0.5, 1]
+    position: [2, 0.5, 0]
+    material: 'neon_blue'
+    physics: { type: 'static', restitution: 1.5 }
+    
+    @trait(collidable)
+    @on_collision(other) {
+       if (other.tag == 'ball') {
+         state.score = state.score + 100
+         audio.play('bumper_hit')
+       }
+    }
+  }
+
+  object BumperTop {
+     geometry: 'cylinder'
+     size: [1, 0.5, 1]
+     position: [0, 0.5, -5]
+     material: 'neon_pink'
+     physics: { type: 'static', restitution: 2.0 }
+     
+     @trait(collidable)
+     @on_collision(other) {
+        if (other.tag == 'ball') {
+           state.score = state.score + 500
+           audio.play('jackpot')
+        }
+     }
+  }
+
+  // --- PLAYER BALL ---
+
+  object Pinball {
+    tag: 'ball'
+    geometry: 'sphere'
+    size: 0.5
+    position: [4, 2, 8] // Start near plunger lane
+    material: 'chrome'
+    physics: { mass: 1, restitution: 0.8 }
+    
+    @trait(grabbable)
+    @trait(throwable)
+    @trait(collidable) 
+    
+    @on_mount {
+      // Reset position helper if needed
+    }
+    
+    // Simple "out of bounds" check using a trigger floor would be better
+    // but we can simulate a "drain" logic if y < -5
+    @on_update {
+       if (this.position.y < -5) {
+          if (state.balls > 0) {
+             state.balls = state.balls - 1
+             // Respawn
+             this.position = [4, 2, 8]
+             this.velocity = [0, 0, 0] // Assuming physics exposed
+          } else {
+             state.game_over = true
+          }
+       }
+    }
+  }
+
+  // --- FLIPPERS (Visual Only for this logic demo) ---
+  
+  object FlipperLeft {
+     geometry: 'box'
+     size: [2, 0.5, 0.5]
+     position: [-2, 0.5, 8]
+     rotation: [0, 30, 0]
+     physics: { type: 'kinematic' }
+     @trait(collidable)
+  }
+  
+  object FlipperRight {
+     geometry: 'box'
+     size: [2, 0.5, 0.5]
+     position: [2, 0.5, 8]
+     rotation: [0, -30, 0]
+     physics: { type: 'kinematic' }
+     @trait(collidable)
+  }
+}
