@@ -7,7 +7,9 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hololand/logger": "workspace:*",
@@ -15,6 +17,7 @@
   },
   "devDependencies": {
     "tsup": "^8.0.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
   }
 }
