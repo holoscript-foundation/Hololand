@@ -42,3 +42,17 @@ export {
   createOrchestrationRuntime,
 } from './orchestration/index.js';
 export type { OrchestrationState, OrchestrationEvent, ProviderConfig } from './orchestration/index.js';
+
+// Knowledge Pipeline (Network Feature)
+export {
+  KnowledgePipeline,
+  getKnowledgePipeline,
+  createKnowledgePipeline,
+} from './knowledge-pipeline.js';
+export type {
+  KnowledgeEntry,
+  TrainingExample,
+  VRAMStatus,
+  PipelineConfig,
+  ContributionResult,
+} from './knowledge-pipeline.js';

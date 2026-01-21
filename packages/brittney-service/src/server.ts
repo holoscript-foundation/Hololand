@@ -35,6 +35,7 @@ import { getEnhancedSystemPrompt, buildRAGPrompt } from './holoscript-knowledge.
 import { ModelRouter, RoutingHints, RouteDecision, Platform, RequestType } from './model-router.js';
 import { tracer, RouteTrace } from './tracing.js';
 import { boostPrompt, BoosterConfig, DEFAULT_BOOSTER_CONFIG } from './prompt-booster.js';
+import { KnowledgePipeline, getKnowledgePipeline } from './knowledge-pipeline.js';
 
 // ESM __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -129,6 +130,7 @@ export class BrittneyServer {
   private modelRouter: ModelRouter;
   private config: BrittneyConfig;
   private clients: Set<WebSocket> = new Set();
+  private knowledgePipeline: KnowledgePipeline;
 
   constructor(config: BrittneyConfig) {
     this.config = config;
@@ -148,6 +150,12 @@ export class BrittneyServer {
 
     // Pre-initialize all available providers for faster routing
     this.initializeAllProviders();
+
+    // Initialize knowledge pipeline for RAG and network training
+    this.knowledgePipeline = getKnowledgePipeline();
+    this.knowledgePipeline.initialize().catch(err => {
+      console.warn('[✱brittney] Knowledge pipeline initialization warning:', err.message);
+    });
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -657,6 +665,135 @@ export class BrittneyServer {
         }
 
         res.json({ success: true, config: this.config });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // =========================================================================
+    // Knowledge Pipeline Routes (Network Feature)
+    // =========================================================================
+
+    // Search knowledge base (public)
+    this.app.get('/knowledge/search', async (req, res) => {
+      try {
+        const query = req.query.q as string;
+        const limit = parseInt(req.query.limit as string) || 5;
+        const categories = req.query.categories
+          ? (req.query.categories as string).split(',')
+          : undefined;
+
+        if (!query) {
+          return res.status(400).json({ error: 'Query parameter "q" is required' });
+        }
+
+        const results = this.knowledgePipeline.search(query, { limit, categories });
+        res.json({ results, count: results.length });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get RAG context for a query (public)
+    this.app.get('/knowledge/rag', async (req, res) => {
+      try {
+        const query = req.query.q as string;
+        const limit = parseInt(req.query.limit as string) || 3;
+
+        if (!query) {
+          return res.status(400).json({ error: 'Query parameter "q" is required' });
+        }
+
+        const context = this.knowledgePipeline.buildRAGContext(query, limit);
+        res.json({ context, hasResults: context.length > 0 });
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get knowledge stats (public)
+    this.app.get('/knowledge/stats', (req, res) => {
+      try {
+        const stats = this.knowledgePipeline.getStats();
+        res.json(stats);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Contribute knowledge (requires authentication)
+    this.app.post('/knowledge/contribute', async (req: any, res) => {
+      try {
+        // Require authentication
+        if (!req.isAuthenticated) {
+          return res.status(401).json({
+            error: 'Authentication required to contribute knowledge',
+            hint: 'Include Authorization: Bearer <client-key> header'
+          });
+        }
+
+        const { category, content, keywords, source } = req.body;
+
+        if (!category || !content || !keywords) {
+          return res.status(400).json({
+            error: 'Missing required fields: category, content, keywords'
+          });
+        }
+
+        const result = await this.knowledgePipeline.contribute(
+          { category, content, keywords, source: source || 'contributed' },
+          req.clientId || 'anonymous'
+        );
+
+        res.json(result);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get VRAM status (requires authentication)
+    this.app.get('/knowledge/vram', async (req: any, res) => {
+      try {
+        if (!req.isAuthenticated) {
+          return res.status(401).json({
+            error: 'Authentication required to check VRAM status'
+          });
+        }
+
+        const status = await this.knowledgePipeline.checkVRAM();
+        res.json(status);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get training queue status (admin only)
+    this.app.get('/knowledge/training', async (req: any, res) => {
+      try {
+        if (!req.isAuthenticated) {
+          return res.status(401).json({
+            error: 'Authentication required to view training status'
+          });
+        }
+
+        const status = this.knowledgePipeline.getTrainingQueueStatus();
+        res.json(status);
+      } catch (error: any) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Flush training queue (admin only)
+    this.app.post('/knowledge/training/flush', async (req: any, res) => {
+      try {
+        if (!req.isAuthenticated) {
+          return res.status(401).json({
+            error: 'Admin authentication required to flush training queue'
+          });
+        }
+
+        const result = await this.knowledgePipeline.flushTrainingQueue();
+        res.json(result);
       } catch (error: any) {
         res.status(500).json({ error: error.message });
       }
