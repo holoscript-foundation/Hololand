@@ -126,18 +126,26 @@ const result = await bridge.translateToHoloScript({
 | `@hololand/social` | 1.0.0 | Friends, avatars, chat | ✅ |
 | `@hololand/commerce` | 1.0.0 | Shops & marketplace | ✅ |
 
-### 🕶️ AR Suite (Hidden Gem)
-| Package | Purpose |
-|---------|---------|
-| `@hololand/ar-foundation` | Unified AR runtime bridge |
-| `@hololand/ar-tracking` | SLAM & Image tracking |
-| `@hololand/ar-anchors` | Geo-spatial persistence |
+### 🕶️ AR Suite
+| Package | Purpose | Docs |
+|---------|---------|------|
+| `@hololand/ar-foundation` | Unified AR runtime bridge | [README](./packages/ar-foundation/README.md) |
+| `@hololand/ar-tracking` | SLAM & Image tracking | [README](./packages/ar-tracking/README.md) |
+| `@hololand/ar-anchors` | Geo-spatial persistence | [README](./packages/ar-anchors/README.md) |
+| `@hololand/ar-detection` | Pose & object detection | [README](./packages/ar-detection/README.md) |
+| `@hololand/ar-renderer` | AR overlay rendering | [README](./packages/ar-renderer/README.md) |
 
 ### 🤖 Brittney Suite (AI Architect)
 | Package | Purpose |
 |---------|---------|
 | `@hololand/brittney-service` | The AI that builds worlds |
 | `@hololand/brittney-toolkit` | Tools for self-modification |
+| `@hololand/mcp-server` | Model Context Protocol for AI agents ([docs](./packages/mcp-server/README.md)) |
+
+**Getting Started with Brittney:**
+- [IDE Integration Setup](./packages/mcp-server/BRITTNEY_SETUP.md) - Connect Copilot/Claude/Cursor to your running app
+- [Fine-tuning Guide](./packages/brittney-service/training/STEP_BY_STEP_FINETUNE.md) - Train your own Brittney model
+- [AI Package Index](./docs/BRITTNEY_AI_PACKAGE_INDEX.md) - Complete AI documentation
 
 ### 🛠️ Developer Tools
 | Package | Version | Purpose |
