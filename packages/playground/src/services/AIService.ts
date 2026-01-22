@@ -3,8 +3,6 @@
  * Supports OpenAI, Claude, and local Brittney toolkit
  */
 
-import type { ChatMessage } from '../types/playground';
-
 export interface AIProvider {
   name: string;
   model: string;

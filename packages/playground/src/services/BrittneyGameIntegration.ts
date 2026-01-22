@@ -9,8 +9,6 @@
  * - Story context management
  */
 
-import type { ChatMessage } from '../types/playground';
-
 export interface BrittneyGameContext {
   currentScene?: string;
   activNPCs?: string[];

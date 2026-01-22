@@ -7,11 +7,11 @@ import type {
   HoloScriptValidationResult,
   PlaygroundError,
 } from '../types/playground';
-import { HoloScriptCodeParser, HoloScriptValidator, type ValidationError } from '@hololand/core';
+import { HoloScriptCodeParser, HoloScriptValidator } from '@hololand/core';
 
 export class HoloScriptService {
   private static parser = new HoloScriptCodeParser();
-  private static validator = new HoloScriptValidator();
+  private static _validator = new HoloScriptValidator();
 
   /**
    * Validates HoloScript syntax
@@ -259,7 +259,7 @@ export class HoloScriptService {
   /**
    * Get auto-completion suggestions
    */
-  static getCompletionSuggestions(code: string, position: { line: number; column: number }) {
+  static getCompletionSuggestions(_code: string, _position: { line: number; column: number }) {
     const suggestions = [
       // Core structures
       { label: 'world', kind: 'Keyword', insertText: 'world ${1:name} {\n  $0\n}' },

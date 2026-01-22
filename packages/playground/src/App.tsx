@@ -3,7 +3,7 @@
  * Includes: Monaco Editor, Preview, AI Chat, Performance Profiler, Property Inspector
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { usePlaygroundStore } from '@hooks/usePlaygroundStore';
 import MonacoEditor from '@components/MonacoEditor';
 import PreviewPanel from '@components/PreviewPanel';

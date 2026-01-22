@@ -5,7 +5,7 @@
  * Shows spawning NPCs, managing combat, and viewing real-time state.
  */
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useBattleArena } from '../hooks/useBattleArena'
 
 interface Character {
