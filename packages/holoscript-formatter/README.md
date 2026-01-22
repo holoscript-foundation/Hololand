@@ -171,4 +171,4 @@ pnpm add prettier-plugin-holoscript
 
 ## License
 
-MIT
+Elastic License 2.0 - See [LICENSE](../../LICENSE) for details.

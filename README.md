@@ -69,7 +69,7 @@ HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn mor
 - **Voice & AI** → "Create a coffee shop" and watch it appear
 - **Physics included** → Gravity, collisions, interactions
 - **Native NPCs** → Define characters & dialogs directly in `.hsplus` *(New)*
-- **Open source** → MIT licensed, build anything
+- **Source available** → Elastic License 2.0, build freely
 
 ## Install
 
@@ -259,7 +259,7 @@ pnpm test
 
 ## Contributing
 
-MIT license. PRs welcome.
+[Elastic License 2.0](./LICENSE). PRs welcome.
 
 1. Fork → Branch → Commit → PR
 2. Follow TypeScript best practices
@@ -267,7 +267,9 @@ MIT license. PRs welcome.
 
 ## License
 
-MIT - Use it anywhere, for anything.
+**Elastic License 2.0** - Source-available with commercial hosting restrictions. See [LICENSING.md](./LICENSING.md) for full details.
+
+> 💡 **TL;DR:** Use it, modify it, deploy it - just don't offer it as a hosted service.
 
 ## Links
 
