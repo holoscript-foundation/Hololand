@@ -126,7 +126,7 @@ const MonacoEditor: React.FC = () => {
     });
 
     // React to external selection changes (e.g. 3D Click)
-    const selectionDispose = { dispose: () => {} }; // Placeholder if needed, but we use useEffect for store changes
+    const _selectionDispose = { dispose: () => {} }; // Placeholder if needed, but we use useEffect for store changes
     editorRef.current.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       setSaved(true);
     });

@@ -11,7 +11,8 @@ import { HoloScriptCodeParser, HoloScriptValidator } from '@hololand/core';
 
 export class HoloScriptService {
   private static parser = new HoloScriptCodeParser();
-  private static _validator = new HoloScriptValidator();
+  // Validator available for future use
+  private static validator = new HoloScriptValidator();
 
   /**
    * Validates HoloScript syntax

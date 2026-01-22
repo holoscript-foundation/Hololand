@@ -6,7 +6,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { usePlaygroundStore } from '@hooks/usePlaygroundStore';
 import { AIService } from '@services/AIService';
 import { CodeTemplates } from '@services/CodeTemplates';
-import type { ChatMessage } from '@types/playground';
+import type { ChatMessage } from '../types/playground';
 
 interface StreamingMessage {
   id: string;
@@ -288,7 +288,7 @@ const BrittneyChat: React.FC = () => {
 /**
  * Generate AI suggestions based on user input
  */
-function generateAISuggestions(input: string, context: any): string {
+function generateAISuggestions(input: string, _context: any): string {
   const lower = input.toLowerCase();
 
   if (lower.includes('cube') || lower.includes('box')) {

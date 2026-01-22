@@ -380,12 +380,12 @@ export class ConstraintSolver {
     joint: HingeJoint,
     bodyA: any,
     bodyB: any | undefined,
-    deltaTime: number
+    _deltaTime: number
   ): void {
     if (!bodyB) return;
 
     // Align rotations around the hinge axis
-    const dot = this.dotProduct(bodyA.rotation, joint.axis);
+    const _dot = this.dotProduct(bodyA.rotation, joint.axis);
     const cross = this.crossProduct(bodyA.rotation, joint.axis);
 
     const correctiveImpulse = 0.1;
@@ -403,7 +403,7 @@ export class ConstraintSolver {
     joint: BallSocketJoint,
     bodyA: any,
     bodyB: any | undefined,
-    deltaTime: number
+    _deltaTime: number
   ): void {
     if (!bodyB) return;
 
@@ -451,7 +451,7 @@ export class ConstraintSolver {
     constraint: DistanceConstraint,
     bodyA: any,
     bodyB: any | undefined,
-    deltaTime: number
+    _deltaTime: number
   ): void {
     if (!bodyB) return;
 

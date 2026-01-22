@@ -17,7 +17,7 @@ interface Character {
 
 export function BattleArenaDemo() {
   const battle = useBattleArena()
-  const [characters, setCharacters] = useState<Character[]>([])
+  const [_characters, setCharacters] = useState<Character[]>([])
   const [eventFilter, setEventFilter] = useState<string>('')
 
   // Initialize arena with default NPCs

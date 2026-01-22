@@ -201,7 +201,7 @@ export class SceneVersionControl {
     ours: SceneSnapshot,
     theirs: SceneSnapshot
   ): SceneSnapshot | null {
-    const baseChanges = this.parseChanges(base.content);
+    const _baseChanges = this.parseChanges(base.content);
     const ourChanges = this.parseChanges(ours.content);
     const theirChanges = this.parseChanges(theirs.content);
 

@@ -10,7 +10,7 @@ export class PreviewService {
   private renderer: any;
   private objects: Map<string, any> = new Map();
   private transformControl: any;
-  private composer: any;
+  private _composer: any;
   private animationFrameId: number | null = null;
   private startTime: number = Date.now();
   private frameCount: number = 0;

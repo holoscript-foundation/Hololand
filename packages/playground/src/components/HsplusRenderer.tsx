@@ -356,7 +356,7 @@ export const HsplusRenderer = forwardRef<HsplusRendererRef, HsplusRendererProps>
     const renderComponent = useCallback(() => {
       try {
         // Create render context with methods and computed
-        const renderContext = {
+        const _renderContext = {
           props: mergedProps,
           state,
           ...boundMethods,
@@ -493,7 +493,7 @@ export function withHsplus<P extends Record<string, unknown>>(
  * In production, .hsplus files are pre-compiled, but this enables
  * runtime compilation for development/playground
  */
-export async function compileHsplus(source: string): Promise<HsplusComponent> {
+export async function compileHsplus(_source: string): Promise<HsplusComponent> {
   // This would integrate with @holoscript/core parser
   throw new Error(
     'Runtime compilation not implemented. ' +

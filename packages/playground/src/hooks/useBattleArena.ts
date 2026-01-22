@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import BattleArena, { type NPC, type Projectile } from '../systems/BattleArena'
-import type { Vector3 } from '../types'
+import type { Vector3 } from '../types/playground'
 
 interface BattleState {
   npcs: NPC[]

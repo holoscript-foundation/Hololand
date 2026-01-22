@@ -2,6 +2,12 @@
  * Playground Type Definitions
  */
 
+export interface Vector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface PlaygroundState {
   code: string;
   errors: PlaygroundError[];

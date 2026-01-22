@@ -227,7 +227,7 @@ export class NetworkedWorldState extends EventEmitter {
     id: string,
     bodyA: string,
     bodyB: string,
-    type: 'hinge' | 'ball-socket' = 'ball-socket',
+    _type: 'hinge' | 'ball-socket' = 'ball-socket',
     anchorA: [number, number, number] = [0, 0, 0],
     anchorB: [number, number, number] = [0, 0, 0]
   ): PhysicsConstraint {
@@ -407,7 +407,7 @@ export class NetworkedWorldState extends EventEmitter {
  * Conflict Resolution for Concurrent Edits
  */
 class ConflictResolver {
-  resolve(local: NetworkedObject, remote: any, remoteUserId: string): Partial<NetworkedObject> {
+  resolve(local: NetworkedObject, remote: any, _remoteUserId: string): Partial<NetworkedObject> {
     // Last-write-wins for most properties
     const resolved: Partial<NetworkedObject> = {};
 

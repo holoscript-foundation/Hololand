@@ -300,7 +300,7 @@ export class ProceduralWorldGenerator {
   /**
    * Select object type based on noise value
    */
-  private selectType(noiseValue: number): string | null {
+  private selectType(_noiseValue: number): string | null {
     const rand = Math.random();
     let accumulated = 0;
 

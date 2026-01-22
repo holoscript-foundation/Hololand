@@ -16,7 +16,8 @@ import { EventEmitter } from 'events'
 // COMMON TYPES
 // ============================================================================
 
-type EventCallback = (...args: unknown[]) => void
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type EventCallback = (...args: any[]) => void
 
 // ============================================================================
 // SYSTEM STATE INTERFACES

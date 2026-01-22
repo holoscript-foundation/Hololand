@@ -87,7 +87,7 @@ const ErrorVisualizer: React.FC = () => {
             <p className="text-xs mt-1">Your code looks good!</p>
           </div>
         ) : (
-          errors.map((error, index) => (
+          errors.map((error, _index) => (
             <div
               key={error.id}
               className={`p-3 rounded border ${getErrorColor(error.type)}`}

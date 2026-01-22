@@ -29,9 +29,27 @@ export interface StreamAIResponse {
 export class AIService {
   private providers: Map<string, AIProvider> = new Map();
   private activeProvider: string = 'brittney';
+  private static instance: AIService | null = null;
 
   constructor() {
     this.initializeProviders();
+  }
+
+  /**
+   * Get singleton instance
+   */
+  static getInstance(): AIService {
+    if (!AIService.instance) {
+      AIService.instance = new AIService();
+    }
+    return AIService.instance;
+  }
+
+  /**
+   * Get available providers (static accessor)
+   */
+  static getProviders(): string[] {
+    return AIService.getInstance().getProviderNames();
   }
 
   /**
@@ -85,10 +103,17 @@ export class AIService {
   }
 
   /**
-   * Get available providers
+   * Get available providers as objects
    */
   getProviders(): AIProvider[] {
     return Array.from(this.providers.values());
+  }
+
+  /**
+   * Get provider names
+   */
+  getProviderNames(): string[] {
+    return Array.from(this.providers.keys());
   }
 
   /**

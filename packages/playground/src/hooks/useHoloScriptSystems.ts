@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { getHoloScriptAPI } from './HoloScriptSystemsAPI';
+import { getHoloScriptAPI } from '../services/HoloScriptSystemsAPI';
 
 // ============================================================================
 // TYPE DEFINITIONS
