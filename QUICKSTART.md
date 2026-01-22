@@ -1,5 +1,12 @@
 # HoloScript Quick Start Guide
 
+## Prerequisites
+
+Before you start, install:
+- **Node.js 18+** - [Download here](https://nodejs.org/)
+- **pnpm** - Run `npm install -g pnpm` after installing Node
+- **Git** - [Download here](https://git-scm.com/)
+
 ## Getting Started (5 minutes)
 
 ### 1. Install

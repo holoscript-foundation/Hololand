@@ -20,7 +20,7 @@
 > 💬 **Talk or type to your AI assistant.** Powered by [Infinity Assistant](https://infinityassistant.io).
 >
 > - 🥽 **VR:** "Create a treehouse with a rope ladder and fairy lights"
-> - 🌍 **VRR:** "Scan my storefront and turn it into a virtual shop" *(coming soon)*
+> - 🌍 **VRR (Virtual Reality Reality):** "Scan my storefront and turn it into a virtual shop" *(coming soon)*
 > - 📱 **AR:** "Show me how this couch looks in my room"
 
 ```tsx
@@ -37,6 +37,27 @@ function App() {
 ```
 
 That's it. VR-ready, physics-enabled, runs everywhere.
+
+---
+
+## ⚡ Get Started in 2 Minutes
+
+**Prerequisites:** [Node.js 18+](https://nodejs.org/) and [pnpm](https://pnpm.io/installation)
+
+### Option A: Use in Your React App
+```bash
+npm install @hololand/react-three @hololand/world @hololand/renderer three
+```
+
+### Option B: Clone and Explore
+```bash
+git clone https://github.com/brianonbased-dev/Hololand.git
+cd Hololand && pnpm install && pnpm build
+cd examples/hololand-central && pnpm dev
+# Open http://localhost:5173
+```
+
+📖 **Full guide:** [QUICKSTART.md](./QUICKSTART.md)
 
 ---
 
@@ -71,15 +92,9 @@ HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn mor
 - **Native NPCs** → Define characters & dialogs directly in `.hsplus` *(New)*
 - **Source available** → Elastic License 2.0, build freely
 
-## Install
+## Examples
 
-```bash
-npm install @hololand/react-three @hololand/world @hololand/renderer three
-```
-
-## Quick Start
-
-### React (Recommended)
+### React Component
 
 ```tsx
 import { HololandCanvas, HololandObject } from '@hololand/react-three';
@@ -102,7 +117,7 @@ function MyWorld() {
 }
 ```
 
-### Natural Language
+### AI-Powered Building
 
 ```typescript
 import { HololandAIBridge } from '@hololand/ai-bridge';
@@ -112,6 +127,14 @@ const result = await bridge.translateToHoloScript({
   naturalLanguage: "create a cozy reading nook with bookshelves"
 });
 // Result: Working HoloScript code
+```
+
+### Ready-to-Run Demos
+
+```bash
+cd examples/01-hello-vr-world && open index.html   # No build needed
+cd examples/02-physics-playground && pnpm dev       # Interactive physics
+cd examples/03-vr-shop && pnpm dev                  # Virtual store
 ```
 
 ## Packages
