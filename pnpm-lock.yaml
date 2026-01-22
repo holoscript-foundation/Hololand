@@ -1092,6 +1092,21 @@ importers:
         specifier: ^1.1.0
         version: 1.6.1(@types/node@20.19.29)(lightningcss@1.30.2)(terser@5.46.0)
 
+  packages/holoscript-formatter:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.29
+      rimraf:
+        specifier: ^5.0.5
+        version: 5.0.10
+      typescript:
+        specifier: ^5.3.2
+        version: 5.9.3
+      vitest:
+        specifier: ^1.1.0
+        version: 1.6.1(@types/node@20.19.29)(lightningcss@1.30.2)(terser@5.46.0)
+
   packages/holoscript-fs:
     dependencies:
       '@holoscript/std':
@@ -1113,6 +1128,21 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/holoscript-linter:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.29
+      rimraf:
+        specifier: ^5.0.5
+        version: 5.0.10
+      typescript:
+        specifier: ^5.3.2
+        version: 5.9.3
+      vitest:
+        specifier: ^1.1.0
+        version: 1.6.1(@types/node@20.19.29)(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/holoscript-lsp:
     dependencies:
@@ -1387,6 +1417,9 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+      vitest:
+        specifier: ^1.6.1
+        version: 1.6.1(@types/node@22.19.6)(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/ui:
     dependencies:

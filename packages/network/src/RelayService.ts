@@ -187,7 +187,7 @@ export class RelayService {
         payload = pack(data);
         isBinary = true;
       } catch (e) {
-        logger.warn('Failed to compress payload', e);
+        logger.warn('Failed to compress payload', { error: e instanceof Error ? e.message : String(e) });
       }
     }
 
