@@ -337,8 +337,8 @@ export class ProceduralWorldGenerator {
       // Get AI suggestions for structures
       const suggestions: string[] = [];
       for await (const chunk of this.aiService.generateCode(prompt, {
-        objectCount: existingObjects.length,
-        worldSize: Math.sqrt(existingObjects.length),
+        currentCode: `// Existing objects: ${existingObjects.length}`,
+        language: 'holoscript',
       })) {
         suggestions.push(chunk);
       }

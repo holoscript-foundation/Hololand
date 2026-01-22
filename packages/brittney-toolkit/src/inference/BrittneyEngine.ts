@@ -7,7 +7,7 @@
 
 import type { InferenceProvider, ChatRequest, ChatResponse, StreamCallback } from '../types';
 import { LocalInference, type LocalInferenceConfig } from './LocalInference';
-import { CloudInference, type CloudInferenceConfig, type CloudProvider } from './CloudInference';
+import { CloudInference, type CloudProvider } from './CloudInference';
 
 export interface BrittneyEngineConfig {
   /** Path to bundled GGUF model */

@@ -355,16 +355,6 @@ export const HsplusRenderer = forwardRef<HsplusRendererRef, HsplusRendererProps>
     // Render the component
     const renderComponent = useCallback(() => {
       try {
-        // Create render context with methods and computed
-        const _renderContext = {
-          props: mergedProps,
-          state,
-          ...boundMethods,
-          ...Object.fromEntries(
-            Object.entries(boundComputed).map(([k, v]) => [k, v()])
-          ),
-        }
-
         const vnode = component.render(mergedProps, state)
         return vnodeToReact(vnode)
       } catch (err) {

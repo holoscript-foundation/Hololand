@@ -60,6 +60,7 @@ export interface PreviewState {
       opacity: number;
     };
     physics?: {
+      enabled: boolean;
       mass: number;
       friction: number;
       restitution: number;

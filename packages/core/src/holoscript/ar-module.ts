@@ -4,7 +4,7 @@
  * Provides AR capabilities to HoloScript scenes.
  */
 
-import type { ASTNode } from '../types';
+import type { ASTNode } from '@holoscript/core';
 
 // =============================================================================
 // AR MODULE AST TYPES

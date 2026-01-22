@@ -212,8 +212,9 @@ export class HoloScriptEventBus {
     if (filter?.source) {
       log = log.filter(e => e.source === filter.source)
     }
-    if (filter?.since) {
-      log = log.filter(e => e.timestamp >= filter.since)
+    if (filter?.since !== undefined) {
+      const sinceTime = filter.since
+      log = log.filter(e => e.timestamp >= sinceTime)
     }
     
     return log

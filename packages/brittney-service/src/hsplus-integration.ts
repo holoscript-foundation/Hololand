@@ -5,7 +5,7 @@
  * This module provides the bridge between Brittney AI and the .hsplus ecosystem.
  */
 
-import type { HoloScriptCodeParser, ParseResult, ValidationResult, HoloScriptValidator } from '@holoscript/core';
+import type { HoloScriptCodeParser, ParseResult, ValidationError, HoloScriptValidator } from '@holoscript/core';
 
 /**
  * HoloScript Plus knowledge base for Brittney
@@ -318,9 +318,9 @@ export class BrittneyHsPlusAssistant {
   /**
    * Validate HoloScript Plus code
    */
-  async validate(code: string): Promise<ValidationResult> {
+  async validate(code: string): Promise<ValidationError[]> {
     const validator = await this.getValidator();
-    return validator.validateSource(code);
+    return validator.validate(code);
   }
 
   /**
@@ -365,7 +365,7 @@ export class BrittneyHsPlusAssistant {
     }
 
     // Convert validation errors
-    const issues = validationResult.errors.map((e) => ({
+    const issues = validationResult.map((e: ValidationError) => ({
       severity: e.severity,
       message: e.message,
       line: e.line,

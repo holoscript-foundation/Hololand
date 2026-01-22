@@ -5,7 +5,7 @@
  * Includes fixtures, assertions, and utilities for testing HoloScript Plus systems.
  */
 
-import { EventEmitter } from 'eventemitter3'
+import { EventEmitter } from 'events'
 
 /**
  * Test fixture for BattleArena system
@@ -137,7 +137,7 @@ export function createTestSystem<T extends EventEmitter>(
 
   // Intercept all events
   const originalOn = system.on.bind(system)
-  system.on = function(eventName, listener) {
+  system.on = function(eventName: string | symbol, listener: (...args: unknown[]) => void) {
     recordedEvents.push({ eventName, timestamp: Date.now() })
     return originalOn(eventName, listener)
   }
@@ -215,9 +215,9 @@ export function compareNPCStates(npc1: any, npc2: any): string[] {
  * Create a simple mock EventEmitter for testing
  */
 export class MockEventEmitter extends EventEmitter {
-  emittedEvents: Array<{ eventName: string; data: any; timestamp: number }> = []
+  emittedEvents: Array<{ eventName: string | symbol; data: unknown; timestamp: number }> = []
 
-  override emit(eventName: string, ...args: any[]): boolean {
+  emit(eventName: string | symbol, ...args: unknown[]): boolean {
     this.emittedEvents.push({
       eventName,
       data: args[0],

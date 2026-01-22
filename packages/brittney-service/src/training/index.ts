@@ -15,5 +15,6 @@
  */
 
 export { TrainingDataGenerator, type TrainingExample, type TrainingDataset } from './TrainingDataGenerator.js';
-export { AzureFoundryClient, type FoundryConfig, type FineTuneJob } from './AzureFoundryClient.js';
+// TODO: AzureFoundryClient implementation pending
+// export { AzureFoundryClient, type FoundryConfig, type FineTuneJob } from './AzureFoundryClient.js';
 export { exportToJSONL, exportToOpenAI, type ExportOptions } from './exporters.js';

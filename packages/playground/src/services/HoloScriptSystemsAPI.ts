@@ -19,6 +19,15 @@ import { EventEmitter } from 'events'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventCallback = (...args: any[]) => void
 
+/** Party information structure */
+export interface PartyInfo {
+  id: string
+  name: string
+  maxPlayers?: number
+  members?: string[]
+  hostId?: string
+}
+
 // ============================================================================
 // SYSTEM STATE INTERFACES
 // ============================================================================
@@ -97,7 +106,7 @@ interface SceneVersionControlAPI {
   history: string[]
   
   // Events
-  on: (event: 'snapshotCreated' | 'snapshotRestored' | 'mergeConflict', callback: EventCallback) => void
+  on: (event: 'snapshotCreated' | 'snapshotRestored' | 'mergeConflict' | 'mergeStart' | 'mergeComplete', callback: EventCallback) => void
   off: (event: string, callback: EventCallback) => void
 }
 
@@ -107,11 +116,11 @@ interface PartySystemAPI {
   joinParty: (partyId: string) => boolean
   leaveParty: () => boolean
   invitePlayer: (playerId: string, playerName: string) => boolean
-  getLocalParties: () => object[]
+  getLocalParties: () => PartyInfo[]
   
   // State
   currentPartyId: string | null
-  currentParty: object | null
+  currentParty: PartyInfo | null
   
   // Events
   on: (event: 'partyCreated' | 'partyJoined' | 'partyLeft' | 'memberOffline' | 'partyDiscovered', callback: EventCallback) => void
@@ -149,7 +158,7 @@ interface OfflineSyncAPI {
   pendingUpdates: object[]
   
   // Events
-  on: (event: 'online' | 'offline' | 'syncStart' | 'syncComplete' | 'conflict', callback: EventCallback) => void
+  on: (event: 'online' | 'offline' | 'syncStart' | 'syncComplete' | 'conflict' | 'updateQueued', callback: EventCallback) => void
   off: (event: string, callback: EventCallback) => void
 }
 

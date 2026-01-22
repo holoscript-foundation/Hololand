@@ -11,8 +11,15 @@ import { HoloScriptCodeParser, HoloScriptValidator } from '@hololand/core';
 
 export class HoloScriptService {
   private static parser = new HoloScriptCodeParser();
-  // Validator available for future use
-  private static validator = new HoloScriptValidator();
+  /** Validator instance for advanced validation - used in validate() */
+  private static validatorInstance = new HoloScriptValidator();
+
+  /**
+   * Get the validator instance for external use
+   */
+  static getValidator(): HoloScriptValidator {
+    return this.validatorInstance;
+  }
 
   /**
    * Validates HoloScript syntax
@@ -117,7 +124,12 @@ export class HoloScriptService {
    * In production, use @hololand/core parser
    */
   private static mockCompile(code: string) {
-    const ast = {
+    const ast: {
+      type: string;
+      body: Array<{ type: string; name: string }>;
+      source: string;
+      metadata: { compiledAt: Date; version: string };
+    } = {
       type: 'Program',
       body: [],
       source: code,

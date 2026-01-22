@@ -4,7 +4,7 @@
  * Supports: OpenAI, Anthropic, Google, Groq, Together, Ollama
  */
 
-import type { InferenceProvider, ChatRequest, ChatResponse, StreamCallback, ChatMessage, SupportedCloudProvider } from '../types';
+import type { InferenceProvider, ChatRequest, ChatResponse, StreamCallback, SupportedCloudProvider } from '../types';
 
 export type CloudProvider = SupportedCloudProvider;
 

@@ -385,7 +385,6 @@ export class ConstraintSolver {
     if (!bodyB) return;
 
     // Align rotations around the hinge axis
-    const _dot = this.dotProduct(bodyA.rotation, joint.axis);
     const cross = this.crossProduct(bodyA.rotation, joint.axis);
 
     const correctiveImpulse = 0.1;
@@ -496,10 +495,6 @@ export class ConstraintSolver {
     const mag = this.magnitude(v);
     if (mag === 0) return [0, 0, 0];
     return [v[0] / mag, v[1] / mag, v[2] / mag];
-  }
-
-  private dotProduct(a: [number, number, number], b: [number, number, number]): number {
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
   }
 
   private crossProduct(a: [number, number, number], b: [number, number, number]): [number, number, number] {

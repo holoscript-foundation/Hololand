@@ -152,6 +152,58 @@ export interface ScanResult {
 }
 
 // =============================================================================
+// TYPE ALIASES FOR VRR MODULE COMPATIBILITY
+// =============================================================================
+
+/** Alias for CaptureMode - scan mode type */
+export type ScanMode = CaptureMode;
+
+/** Alias for MeshVertex - scan vertex type */
+export type ScanVertex = MeshVertex;
+
+/** Triangle face (indices into vertex array) */
+export interface ScanFace {
+  a: number;
+  b: number;
+  c: number;
+}
+
+/** Alias for Point3D - point cloud point type */
+export type PointCloudPoint = Point3D;
+
+/** Scan progress callback data */
+export interface ScanProgress {
+  stage: 'capturing' | 'processing' | 'meshing' | 'texturing' | 'exporting';
+  progress: number; // 0-1
+  message?: string;
+}
+
+/** Export format options */
+export type ScanExportFormat = 'glb' | 'gltf' | 'obj' | 'ply' | 'holoscript';
+
+/** HoloScript export options */
+export interface HoloScriptExportOptions {
+  orbName: string;
+  includeTexture?: boolean;
+  simplifyMesh?: boolean;
+  targetTriangles?: number;
+}
+
+/** OBJ export options */
+export interface OBJExportOptions {
+  includeNormals?: boolean;
+  includeUVs?: boolean;
+  includeMaterials?: boolean;
+}
+
+/** PLY export options */
+export interface PLYExportOptions {
+  binary?: boolean;
+  includeColors?: boolean;
+  includeNormals?: boolean;
+}
+
+// =============================================================================
 // AR (AUGMENTED REALITY) TYPES
 // =============================================================================
 

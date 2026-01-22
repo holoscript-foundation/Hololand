@@ -2,6 +2,7 @@
  * Preview Service - Handles 3D scene rendering and HoloScript execution
  */
 
+import * as THREE from 'three';
 import type { PerformanceMetrics } from '../types/playground';
 
 export class PreviewService {
@@ -10,7 +11,7 @@ export class PreviewService {
   private renderer: any;
   private objects: Map<string, any> = new Map();
   private transformControl: any;
-  private _composer: any;
+  // Post-processing composer could be added here when needed
   private animationFrameId: number | null = null;
   private startTime: number = Date.now();
   private frameCount: number = 0;
@@ -147,8 +148,6 @@ export class PreviewService {
    * Create object in scene
    */
   createObject(id: string, type: string, properties: any): any {
-    const THREE = require('three') as typeof import('three');
-
     let object: any;
 
     switch (type) {

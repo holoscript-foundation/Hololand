@@ -69,7 +69,7 @@ export interface Arena {
 
 export class BattleArena extends EventEmitter {
   private arena: Arena
-  private updateInterval: NodeJS.Timer | null = null
+  private updateInterval: ReturnType<typeof setInterval> | null = null
   private deltaTime: number = 0.016
 
   constructor(width: number = 100, height: number = 100) {

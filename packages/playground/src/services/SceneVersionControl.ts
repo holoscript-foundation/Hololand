@@ -201,18 +201,36 @@ export class SceneVersionControl {
     ours: SceneSnapshot,
     theirs: SceneSnapshot
   ): SceneSnapshot | null {
-    const _baseChanges = this.parseChanges(base.content);
+    // Parse changes from all three snapshots
+    const baseChanges = this.parseChanges(base.content);
     const ourChanges = this.parseChanges(ours.content);
     const theirChanges = this.parseChanges(theirs.content);
 
     const mergedChanges: SceneChange[] = [];
     const conflicts: { objectId: string; ours: SceneChange; theirs: SceneChange }[] = [];
 
+    // Build a set of base object IDs for ancestry tracking
+    const baseObjectIds = new Set(baseChanges.map(c => c.objectId));
+
     // Process our changes
     for (const change of ourChanges) {
       const theirChange = theirChanges.find((c) => c.objectId === change.objectId);
+      const wasInBase = baseObjectIds.has(change.objectId);
 
       if (!theirChange) {
+        // Only in ours - auto merge unless it was deleted in theirs
+        if (wasInBase) {
+          // Was in base but not in theirs - they deleted it, conflict
+          const baseChange = baseChanges.find(c => c.objectId === change.objectId);
+          if (baseChange && !this.objectsEqual(change, baseChange)) {
+            conflicts.push({
+              objectId: change.objectId,
+              ours: change,
+              theirs: baseChange, // Use base as "theirs" for deleted case
+            });
+            continue;
+          }
+        }
         mergedChanges.push(change);
       } else if (this.objectsEqual(change, theirChange)) {
         mergedChanges.push(change);

@@ -105,7 +105,6 @@ export class DeviceLayout {
   private config: NormalizedLayoutConfig;
   private state: LayoutState;
   private resizeObserver: ResizeObserver | null = null;
-  private mediaQueryList: MediaQueryList | null = null;
   private storageKey = 'brittney-layout-position';
   private listeners: Set<(state: LayoutState) => void> = new Set();
 
@@ -390,8 +389,8 @@ export class DeviceLayout {
     });
     this.resizeObserver.observe(document.body);
 
-    // Media query for dark mode / device changes
-    this.mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)');
+    // TODO: Add media query listener for dark mode changes if needed
+    // const mql = window.matchMedia('(prefers-color-scheme: dark)');
 
     // Orientation change
     window.addEventListener('orientationchange', () => {

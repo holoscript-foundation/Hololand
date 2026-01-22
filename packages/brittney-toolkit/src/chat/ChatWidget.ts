@@ -207,7 +207,7 @@ export class ChatWidget {
   /**
    * Handle streaming response from Brittney
    */
-  private async handleStreamingResponse(userMessage: ChatMessage): Promise<void> {
+  private async handleStreamingResponse(_userMessage: ChatMessage): Promise<void> {
     this.state.isTyping = true;
     this.state.streamingContent = '';
     this.render();
@@ -219,7 +219,7 @@ export class ChatWidget {
 
     let fullContent = '';
 
-    await this.config.engine.chatStream(request, (chunk: string, done: boolean) => {
+    await this.config.engine.chatStream(request, (chunk: string, _done: boolean) => {
       if (this.abortController?.signal.aborted) return;
       
       fullContent += chunk;
@@ -241,7 +241,7 @@ export class ChatWidget {
   /**
    * Handle standard (non-streaming) response
    */
-  private async handleStandardResponse(userMessage: ChatMessage): Promise<void> {
+  private async handleStandardResponse(_userMessage: ChatMessage): Promise<void> {
     const request: ChatRequest = {
       messages: this.state.messages.slice(-this.config.maxHistory),
     };

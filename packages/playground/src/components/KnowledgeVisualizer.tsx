@@ -30,7 +30,7 @@ function Node({ node, onHover }: { node: MemoryNode; onHover: (n: MemoryNode | n
   }, [node.type]);
 
   return (
-    <mesh position={new THREE.Vector3(...node.position)} 
+    <mesh position={node.position} 
           onPointerOver={() => onHover(node)}
           onPointerOut={() => onHover(null)}>
       <sphereGeometry args={[0.3, 16, 16]} />
@@ -40,13 +40,15 @@ function Node({ node, onHover }: { node: MemoryNode; onHover: (n: MemoryNode | n
 }
 
 function Connection({ start, end }: { start: [number, number, number]; end: [number, number, number] }) {
-  const points = useMemo(() => [new THREE.Vector3(...start), new THREE.Vector3(...end)], [start, end]);
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    const points = [new THREE.Vector3(...start), new THREE.Vector3(...end)];
+    geo.setFromPoints(points);
+    return geo;
+  }, [start, end]);
   
   return (
-    <line>
-      <bufferGeometry attach="geometry" setFromPoints={points} />
-      <lineBasicMaterial attach="material" color="#ffffff" transparent opacity={0.2} />
-    </line>
+    <primitive object={new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.2 }))} />
   );
 }
 

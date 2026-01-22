@@ -11,3 +11,14 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Chrome-specific Performance.memory API
+interface PerformanceMemory {
+  readonly jsHeapSizeLimit: number;
+  readonly totalJSHeapSize: number;
+  readonly usedJSHeapSize: number;
+}
+
+interface Performance {
+  readonly memory?: PerformanceMemory;
+}

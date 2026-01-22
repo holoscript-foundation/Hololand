@@ -49,7 +49,7 @@ export class LocalInference implements InferenceProvider {
 
     try {
       // Dynamic import for node-llama-cpp
-      const { getLlama, LlamaChatSession } = await import('node-llama-cpp');
+      const { getLlama, LlamaChatSession: _LlamaChatSession } = await import('node-llama-cpp');
       
       console.log('[Brittney] Initializing local inference...');
       console.log(`[Brittney] Model: ${this.config.modelPath}`);
@@ -92,12 +92,10 @@ export class LocalInference implements InferenceProvider {
 
     const userMessage = this.extractLastUserMessage(request.messages);
     
-    const startTime = Date.now();
     const response = await session.prompt(userMessage, {
       maxTokens: request.maxTokens ?? 1024,
       temperature: request.temperature ?? 0.7,
     });
-    const duration = Date.now() - startTime;
 
     return {
       id: `local_${Date.now()}`,

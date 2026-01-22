@@ -23,11 +23,19 @@ const MonacoEditor: React.FC = () => {
 
       // Register completion provider
       monaco.languages.registerCompletionItemProvider('holoscript', {
-        provideCompletionItems: (model, position) => {
+        provideCompletionItems: (model, position, _context, _token) => {
           const suggestions = HoloScriptService.getCompletionSuggestions(model.getValue(), {
             line: position.lineNumber,
             column: position.column,
           });
+
+          const word = model.getWordUntilPosition(position);
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn,
+          };
 
           return {
             suggestions: suggestions.map((s) => ({
@@ -37,6 +45,7 @@ const MonacoEditor: React.FC = () => {
               insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
               sortText: s.label,
               preselect: s.label === 'world',
+              range,
             })),
           };
         },
@@ -106,7 +115,7 @@ const MonacoEditor: React.FC = () => {
             endLineNumber: e.line || 1,
             endColumn: 100,
             message: e.message,
-            severity: e.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+            severity: e.type === 'warning' ? monaco.MarkerSeverity.Warning : monaco.MarkerSeverity.Error,
           }))
         );
       } else {
@@ -125,8 +134,7 @@ const MonacoEditor: React.FC = () => {
         }
     });
 
-    // React to external selection changes (e.g. 3D Click)
-    const _selectionDispose = { dispose: () => {} }; // Placeholder if needed, but we use useEffect for store changes
+    // Keyboard shortcuts
     editorRef.current.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       setSaved(true);
     });

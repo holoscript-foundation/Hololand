@@ -31,8 +31,11 @@ export class AIService {
   private activeProvider: string = 'brittney';
   private static instance: AIService | null = null;
 
-  constructor() {
+  constructor(initialProvider?: string) {
     this.initializeProviders();
+    if (initialProvider && this.providers.has(initialProvider)) {
+      this.activeProvider = initialProvider;
+    }
   }
 
   /**

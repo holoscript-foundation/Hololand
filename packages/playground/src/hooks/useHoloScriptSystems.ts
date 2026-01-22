@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { getHoloScriptAPI } from '../services/HoloScriptSystemsAPI';
+import { getHoloScriptAPI, PartyInfo } from '../services/HoloScriptSystemsAPI';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -61,15 +61,8 @@ export interface Snapshot {
   size?: number;
 }
 
-/** Party information */
-export interface Party {
-  id: string;
-  name: string;
-  hostId?: string;
-  memberCount?: number;
-  maxMembers?: number;
-  isPublic?: boolean;
-}
+/** Party information - re-export for backward compatibility */
+export type Party = PartyInfo;
 
 /** Active world instance */
 export interface ActiveWorld {
