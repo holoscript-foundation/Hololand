@@ -3,6 +3,13 @@
 **Build VR/AR experiences in minutes, not months.**
 
 <p align="center">
+  <img src="https://img.shields.io/badge/🚀_January_2026-What's_New-00cc66?style=for-the-badge" alt="What's New">
+  <a href="https://github.com/brianonbased-dev/HoloScript#-vrchat-alpha">
+    <img src="https://img.shields.io/badge/🎮_VRChat_Export-Alpha-ff6600?style=for-the-badge" alt="VRChat Alpha">
+  </a>
+</p>
+
+<p align="center">
   <img src="docs/assets/gifs/hololand-hero.gif" alt="Hololand in action - building a VR world with voice commands" width="700">
   <br>
   <em>"Create a floating island with waterfalls" → Built in seconds</em>
@@ -30,6 +37,30 @@ function App() {
 ```
 
 That's it. VR-ready, physics-enabled, runs everywhere.
+
+---
+
+## 🚀 What's New (January 2026)
+
+### 🎮 VRChat Export Alpha
+HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn more →](https://github.com/brianonbased-dev/HoloScript#-vrchat-alpha)
+
+### 🛠️ Developer Tools v2.0
+- **Formatter** (`@hololand/holoscript-formatter`) - Auto-format your code
+- **Linter** (`@hololand/holoscript-linter`) - Catch bugs before runtime
+- **LSP** (`@hololand/holoscript-lsp`) - Full IDE support
+
+### 🤖 Brittney AI Upgrades
+- 403.7K training samples with weighted superpowers
+- 97% loss improvement in code generation
+- Ready for Vast.ai deployment
+
+### 🎯 HoloScript+ Migration Complete
+- All packages now use `.hsplus` as the standard
+- 541 tests passing across the ecosystem
+- Full monorepo build pipeline
+
+---
 
 ## Why Hololand?
 
