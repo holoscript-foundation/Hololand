@@ -4,12 +4,13 @@ Static analysis tool for HoloScript (.holo) and HoloScript+ (.hsplus) files.
 
 ## Features
 
-- **Syntax validation** - Catch brace/bracket mismatches, unterminated strings
-- **Naming conventions** - Enforce PascalCase for templates/modules, SCREAMING_CASE for constants
-- **Best practices** - Detect empty blocks, duplicate templates, undefined references
-- **Performance warnings** - Identify nested every() calls, inline complex objects
-- **Type safety** (HSPlus) - Check state defaults, decorator usage
-- **Auto-fix** - Automatically fix many common issues
+- **Syntax validation** - Catch duplicate IDs and structural issues
+- **Naming conventions** - Enforce PascalCase for compositions and templates
+- **Best practices** - Detect unused templates, duplicate definitions
+- **Performance warnings** - Identify deep nesting issues
+- **Trait validation** - Check for valid trait annotations
+- **Pluggable rules** - Add custom rules for your project
+- **Multiple output formats** - Stylish, JSON, or compact output
 
 ## Installation
 
@@ -21,106 +22,135 @@ pnpm add @hololand/holoscript-linter
 
 ```bash
 # Lint files
-holoscript-lint src/**/*.holo src/**/*.hsplus
+holoscript-lint src/
 
-# Lint with auto-fix
-holoscript-lint --fix src/**/*.holo
+# Lint specific files
+holoscript-lint scene.holo world.hsplus
+
+# Lint with auto-fix (when available)
+holoscript-lint --fix src/
 
 # Output as JSON
-holoscript-lint --json src/**/*.holo
+holoscript-lint --format json src/
 
-# Quiet mode (only errors)
-holoscript-lint --quiet src/**/*.holo
+# Compact output (one line per issue)
+holoscript-lint --format compact src/
+
+# Limit warnings (exit 1 if exceeded)
+holoscript-lint --max-warnings 10 src/
+
+# Quiet mode (errors only)
+holoscript-lint --quiet src/
+
+# Use custom config
+holoscript-lint --config .holoscriptlintrc src/
 ```
 
 ## Programmatic Usage
 
 ```typescript
-import { HoloScriptLinter, Severity } from '@hololand/holoscript-linter';
+import { HoloScriptLinter, lint, createLinter } from '@hololand/holoscript-linter';
+
+// Create linter with custom config
+const linter = new HoloScriptLinter({
+  rules: {
+    'no-duplicate-ids': 'error',
+    'composition-naming': 'warn',
+    'no-deep-nesting': ['warn', { maxDepth: 5 }],
+    'no-unused-templates': 'warn'
+  },
+  maxErrors: 100
+});
 
 // Lint a file
-const result = HoloScriptLinter.lint(code, 'scene.holo');
+const result = linter.lint(code, 'scene.holo');
 
 console.log(`Errors: ${result.errorCount}`);
 console.log(`Warnings: ${result.warningCount}`);
+console.log(`Fixable: ${result.fixableCount}`);
 
 for (const diagnostic of result.diagnostics) {
-  console.log(`${diagnostic.line}:${diagnostic.column} ${diagnostic.message}`);
+  console.log(`${diagnostic.line}:${diagnostic.column} [${diagnostic.severity}] ${diagnostic.message} (${diagnostic.ruleId})`);
 }
 
-// Auto-fix
-const { text: fixed, fixCount } = HoloScriptLinter.fix(code, 'scene.holo');
-console.log(`Fixed ${fixCount} issues`);
+// Convenience function (uses default config)
+const result2 = lint(code, 'scene.holo');
+
+// Create linter with factory
+const customLinter = createLinter({ maxErrors: 50 });
 ```
 
 ## Configuration
 
-Create a `.holoscriptrc` or `holoscript.config.json`:
+Create a `.holoscriptlintrc`, `.holoscriptlintrc.json`, or `holoscript-lint.config.json`:
 
 ```json
 {
   "rules": {
-    "naming/template-pascal-case": "warning",
-    "naming/constant-screaming-case": false,
-    "best-practice/no-empty-blocks": "info",
-    "performance/no-nested-every": "error"
+    "no-duplicate-ids": "error",
+    "composition-naming": "warn",
+    "no-deep-nesting": ["warn", { "maxDepth": 5 }],
+    "valid-trait-syntax": "error",
+    "no-unused-templates": "warn"
   },
-  "ignore": [
+  "ignorePatterns": [
     "node_modules/**",
     "dist/**"
-  ]
+  ],
+  "maxErrors": 100
 }
 ```
 
-## Rules
+## Built-in Rules
 
 ### Syntax
 | Rule | Default | Description |
 |------|---------|-------------|
-| `syntax/brace-balance` | error | Ensure braces are balanced |
-| `syntax/bracket-balance` | error | Ensure brackets are balanced |
-| `syntax/string-termination` | error | Ensure strings are terminated |
+| `no-duplicate-ids` | error | Ensure all object IDs are unique within a composition |
+| `valid-trait-syntax` | error | Ensure trait annotations use valid syntax |
 
 ### Naming
 | Rule | Default | Description |
 |------|---------|-------------|
-| `naming/template-pascal-case` | warning | Template names should use PascalCase |
-| `naming/module-pascal-case` | warning | Module names should use PascalCase |
-| `naming/constant-screaming-case` | info | Constants should use SCREAMING_CASE |
+| `composition-naming` | warn | Composition names should use PascalCase |
+| `object-naming` | warn | Object names should follow conventions |
+| `template-naming` | warn | Template names should use PascalCase |
 
 ### Best Practice
 | Rule | Default | Description |
 |------|---------|-------------|
-| `best-practice/no-empty-blocks` | info | Avoid empty blocks |
-| `best-practice/no-duplicate-templates` | error | Template names must be unique |
-| `best-practice/undefined-template-reference` | error | Template references must be defined |
-| `best-practice/state-should-have-default` | warning | State properties should have defaults |
+| `no-unused-templates` | warn | Templates should be used at least once |
+| `prefer-templates` | warn | Prefer templates for repeated patterns |
 
 ### Performance
 | Rule | Default | Description |
 |------|---------|-------------|
-| `performance/no-nested-every` | warning | Avoid nested every() calls |
-| `performance/no-inline-complex-objects` | info | Cache objects outside handlers |
+| `no-deep-nesting` | warn | Avoid deeply nested structures (default max: 5) |
+| `limit-objects-per-group` | warn | Limit objects per spatial group |
 
 ### Style
 | Rule | Default | Description |
 |------|---------|-------------|
-| `style/consistent-spacing` | hint | Use consistent spacing |
-| `style/trailing-comma` | off | Use trailing commas |
+| `consistent-spacing` | info | Use consistent spacing |
+| `sorted-properties` | info | Sort properties alphabetically |
 
 ## Custom Rules
 
 ```typescript
-import { HoloScriptLinter, RuleCategory, Severity } from '@hololand/holoscript-linter';
+import { HoloScriptLinter } from '@hololand/holoscript-linter';
+import type { Rule, RuleContext, LintDiagnostic } from '@hololand/holoscript-linter';
 
-HoloScriptLinter.addRule({
+const linter = new HoloScriptLinter();
+
+// Register a custom rule
+linter.registerRule({
   id: 'custom/no-magic-numbers',
-  category: RuleCategory.BEST_PRACTICE,
-  severity: Severity.WARNING,
-  description: 'Avoid magic numbers',
-  enabled: true,
-  check: (context) => {
-    const diagnostics = [];
+  name: 'No Magic Numbers',
+  description: 'Avoid magic numbers in code',
+  category: 'best-practice',
+  defaultSeverity: 'warning',
+  check(context: RuleContext): LintDiagnostic[] {
+    const diagnostics: LintDiagnostic[] = [];
     const pattern = /\b\d{3,}\b/g;
     
     for (let i = 0; i < context.lines.length; i++) {
@@ -129,11 +159,9 @@ HoloScriptLinter.addRule({
         diagnostics.push({
           ruleId: 'custom/no-magic-numbers',
           message: `Magic number ${match[0]} - consider using a named constant`,
-          severity: Severity.WARNING,
+          severity: 'warning',
           line: i + 1,
-          column: match.index + 1,
-          endLine: i + 1,
-          endColumn: match.index + match[0].length
+          column: match.index + 1
         });
       }
     }
@@ -141,6 +169,38 @@ HoloScriptLinter.addRule({
     return diagnostics;
   }
 });
+
+// Get all registered rules
+const rules = linter.getRules();
+console.log(`${rules.length} rules registered`);
+```
+
+## Output Formats
+
+### Stylish (default)
+```
+src/scene.holo
+  5:1  error  Duplicate ID "player" (first defined on line 2)  no-duplicate-ids
+  12:1  warning  Composition name "my scene" should use PascalCase  composition-naming
+
+✖ 2 problems (1 error, 1 warning)
+```
+
+### JSON
+```json
+[{
+  "filePath": "src/scene.holo",
+  "diagnostics": [...],
+  "errorCount": 1,
+  "warningCount": 1,
+  "fixableCount": 0
+}]
+```
+
+### Compact
+```
+src/scene.holo:5:1: error - Duplicate ID "player" (no-duplicate-ids)
+src/scene.holo:12:1: warning - Composition name should use PascalCase (composition-naming)
 ```
 
 ## VSCode Integration

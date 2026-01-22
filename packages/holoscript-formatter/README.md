@@ -5,12 +5,12 @@ Code formatting tool for HoloScript (.holo) and HoloScript+ (.hsplus) files.
 ## Features
 
 - **Indentation normalization** - Consistent indentation with spaces or tabs
-- **Brace style enforcement** - Same-line or new-line brace style
+- **Brace style enforcement** - Same-line, next-line, or Stroustrup brace style
 - **Whitespace cleanup** - Remove trailing spaces, normalize blank lines
-- **Operator spacing** - Consistent spaces around operators
-- **Array formatting** - Bracket spacing and trailing commas
-- **Import sorting** - Alphabetically sorted, grouped imports
+- **Trailing comma handling** - None, all, or multi-line only
+- **Import sorting** - Alphabetically sorted imports
 - **Check mode** - Verify files without modifying them
+- **Configurable** - JSON config file support
 
 ## Installation
 
@@ -24,68 +24,73 @@ pnpm add @hololand/holoscript-formatter
 # Format and print to stdout
 holoscript-format src/scene.holo
 
+# Format directory recursively
+holoscript-format src/
+
 # Format and write to file
-holoscript-format --write src/**/*.holo
+holoscript-format --write src/
 
-# Check if files are formatted
-holoscript-format --check src/**/*.holo
+# Check if files are formatted (exit 1 if not)
+holoscript-format --check src/
 
-# Output as JSON
-holoscript-format --json src/**/*.holo
+# Use custom config file
+holoscript-format --config .holoscriptrc src/
 
-# Custom options
-holoscript-format --tab --tab-width 4 --trailing-comma all src/**/*.holo
+# Quiet mode (suppress output)
+holoscript-format --quiet --write src/
 ```
 
 ## Programmatic Usage
 
 ```typescript
-import { HoloScriptFormatter } from '@hololand/holoscript-formatter';
+import { HoloScriptFormatter, format, check, createFormatter } from '@hololand/holoscript-formatter';
 
-// Configure formatter
-HoloScriptFormatter.configure({
+// Create formatter with custom config
+const formatter = new HoloScriptFormatter({
   indentSize: 2,
   useTabs: false,
   maxLineLength: 100,
+  braceStyle: 'same-line',
   trailingComma: 'multi-line',
-  bracketSpacing: true
+  bracketSpacing: true,
+  sortImports: true
 });
 
 // Format code
-const result = HoloScriptFormatter.format(code, 'scene.holo');
+const result = formatter.format(code, 'holo');
 
-console.log(result.text);
-console.log(`Changed: ${result.changed}`);
-console.log(`Changes: ${result.changeCount}`);
+console.log(result.formatted);      // Formatted code
+console.log(result.changed);        // true if code was modified
+console.log(result.errors);         // Array of formatting errors
 
-// Check if formatted
-const check = HoloScriptFormatter.check(code, 'scene.holo');
-if (!check.formatted) {
-  console.log('File needs formatting');
-  check.issues.forEach(issue => console.log(issue));
-}
+// Check if formatted (returns boolean)
+const isFormatted = formatter.check(code, 'holo');
+
+// Convenience functions (use default config)
+const result2 = format(code, 'hsplus');
+const isFormatted2 = check(code, 'holo');
+
+// Create formatter with factory function
+const customFormatter = createFormatter({ indentSize: 4 });
 ```
 
 ## Configuration
 
-Create a `.holoscriptrc` or `holoscript.config.json`:
+Create a `.holoscriptrc`, `.holoscriptrc.json`, or `holoscript.config.json`:
 
 ```json
 {
-  "formatter": {
-    "indentSize": 2,
-    "useTabs": false,
-    "maxLineLength": 100,
-    "braceStyle": "same-line",
-    "trailingComma": "multi-line",
-    "bracketSpacing": true,
-    "semicolons": false,
-    "singleQuote": false,
-    "sortImports": true,
-    "maxBlankLines": 1,
-    "blankLineBeforeComposition": true,
-    "blankLineBeforeModule": true
-  }
+  "indentSize": 2,
+  "useTabs": false,
+  "maxLineLength": 100,
+  "braceStyle": "same-line",
+  "trailingComma": "multi-line",
+  "bracketSpacing": true,
+  "semicolons": false,
+  "singleQuote": false,
+  "sortImports": true,
+  "maxBlankLines": 1,
+  "blankLineBeforeComposition": true
 }
 ```
 
@@ -96,15 +101,14 @@ Create a `.holoscriptrc` or `holoscript.config.json`:
 | `indentSize` | 2 | Spaces per indent level |
 | `useTabs` | false | Use tabs instead of spaces |
 | `maxLineLength` | 100 | Maximum line length |
-| `braceStyle` | "same-line" | Brace style: "same-line", "new-line", "stroustrup" |
+| `braceStyle` | "same-line" | Brace style: "same-line", "next-line", "stroustrup" |
 | `trailingComma` | "multi-line" | Trailing commas: "none", "multi-line", "all" |
 | `bracketSpacing` | true | Spaces inside brackets `[ 1, 2, 3 ]` |
 | `semicolons` | false | Add semicolons (HSPlus) |
 | `singleQuote` | false | Use single quotes |
-| `sortImports` | true | Sort import statements |
+| `sortImports` | true | Sort import statements alphabetically |
 | `maxBlankLines` | 1 | Maximum consecutive blank lines |
 | `blankLineBeforeComposition` | true | Blank line before composition blocks |
-| `blankLineBeforeModule` | true | Blank line before module blocks |
 
 ## Examples
 

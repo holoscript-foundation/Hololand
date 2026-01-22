@@ -108,6 +108,13 @@ const result = await bridge.translateToHoloScript({
 | `@hololand/brittney-service` | The AI that builds worlds |
 | `@hololand/brittney-toolkit` | Tools for self-modification |
 
+### 🛠️ Developer Tools
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@hololand/holoscript-formatter` | 2.0.0 | Code formatting for .holo/.hsplus |
+| `@hololand/holoscript-linter` | 2.0.0 | Static analysis & linting |
+| `@hololand/holoscript-lsp` | 1.0.0 | Language server protocol |
+
 See [full package list](./ECOSYSTEM_STATUS.md) for all 22 packages.
 
 ## Runs On
