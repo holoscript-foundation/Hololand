@@ -20,7 +20,7 @@ export class HoloScriptLoader {
     // Handle both conventional root and fragment root
     const directives = result.ast.root.directives || result.ast.body;
 
-    directives.forEach(d => {
+    directives.forEach((d: unknown) => {
       // Cast to any to access custom properties not yet in the strict type definition if necessary
       const directive = d as any;
       

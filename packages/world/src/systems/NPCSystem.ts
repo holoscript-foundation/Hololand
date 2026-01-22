@@ -1,4 +1,3 @@
-import { SpatialObject } from '../SpatialObject';
 import { EventBus } from '../EventBus';
 
 export interface NPCTrait {
@@ -39,25 +38,12 @@ export class NPCSystem {
 
   update(playerPos: { x: number, y: number, z: number }) {
     for (const npc of this.npcs.values()) {
-        const dist = Math.sqrt(
-            Math.pow(npc.interactionRange || this.DEFAULT_RANGE, 2) // Compare squared for speed? No, keep simple first
-        );
-        
-        // Simple distance check (optimization: use squared distance)
-        const dx = playerPos.x; // Accessing provided pos, let's assume 0,0,0 npc pos for now as we don't track NPC spatial pos in Trait yet
-        // Wait, NPCTrait doesn't have position. It's a component. 
-        // We need to assume the Entity has position. 
-        // For this scaffold, we will assume generic "Origin" check or passed in NPC positions?
-        // Real ECS would query SpatialComponent. 
-        // As a bridge, we'll assume a dummy implementation where we check if we "are close" 
-        // For the sake of the 'Guide' test, let's assume the Guide is at 0,0,0.
-        
+        // Simple distance check from player to origin (NPC assumed at 0,0,0)
         const distToOrigin = Math.sqrt(playerPos.x * playerPos.x + playerPos.z * playerPos.z);
         
         if (distToOrigin <= (npc.interactionRange || this.DEFAULT_RANGE)) {
             if (!this.activeDialogs.has(npc.id)) {
-                // Auto-trigger if in range? Or just Enable Interaction UI?
-                // For this demo, let's Auto-Trigger to prove the loop works.
+                // Auto-trigger if in range
                 this.interact(npc.id);
             }
         } else {
@@ -71,7 +57,7 @@ export class NPCSystem {
     const npc = this.npcs.get(npcId);
     if (npc) {
         this.activeDialogs.add(npcId);
-        this.eventBus.emit('npc:interact', { npcId, dialogId: npc.dialogId });
+        this.eventBus.emit({ type: 'npc:interact', timestamp: Date.now(), data: { npcId, dialogId: npc.dialogId } });
         console.log(`[NPCSystem] Interaction triggered with ${npcId}`);
     }
   }

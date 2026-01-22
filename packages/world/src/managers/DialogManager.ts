@@ -1,17 +1,21 @@
 
-import { EventBus } from '../EventBus';
+import { EventBus, WorldEvent } from '../EventBus';
+
+export interface DialogOption {
+  text: string;
+  nextId?: string;
+  action?: string;
+}
 
 export interface DialogNode {
   id: string;
   text: string;
-  options: { text: string; nextId?: string; action?: string }[];
+  options: DialogOption[];
 }
 
 export class DialogManager {
   private dialogs: Map<string, DialogNode> = new Map();
   private eventBus: EventBus;
-
-  private currentDialog: DialogNode | null = null;
 
   constructor(eventBus: EventBus) {
     this.eventBus = eventBus;
@@ -27,15 +31,19 @@ export class DialogManager {
   }
 
   private setupListeners() {
-    this.eventBus.on('npc:interact', (data: { npcId: string, dialogId: string }) => {
-        this.startDialog(data.dialogId);
+    this.eventBus.on('npc:interact', (event: WorldEvent) => {
+        const data = event.data as { npcId: string, dialogId: string };
+        if (data?.dialogId) {
+          this.startDialog(data.dialogId);
+        }
     });
     
     // Listen for UI events (simulated for now)
-    this.eventBus.on('dialog:option', (data: { nextId?: string, action?: string }) => {
-        if (data.action === 'close') {
+    this.eventBus.on('dialog:option', (event: WorldEvent) => {
+        const data = event.data as { nextId?: string, action?: string };
+        if (data?.action === 'close') {
             this.closeDialog();
-        } else if (data.nextId) {
+        } else if (data?.nextId) {
             this.startDialog(data.nextId);
         }
     });
@@ -48,14 +56,12 @@ export class DialogManager {
         return;
     }
     
-    this.currentDialog = dialog;
-    this.eventBus.emit('dialog:start', dialog); // UI would listen to this
+    this.eventBus.emit({ type: 'dialog:start', timestamp: Date.now(), data: dialog });
     console.log(`[DialogManager] Started dialog: ${dialog.text}`);
   }
 
   closeDialog() {
-    this.currentDialog = null;
-    this.eventBus.emit('dialog:end', {});
+    this.eventBus.emit({ type: 'dialog:end', timestamp: Date.now() });
     console.log(`[DialogManager] Dialog closed.`);
   }
 
