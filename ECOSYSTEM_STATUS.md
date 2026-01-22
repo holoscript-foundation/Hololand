@@ -39,6 +39,28 @@
 | [@hololand/ar-anchors](./packages/ar-anchors) | Pin things to real world | ✅ Ready |
 | [@hololand/ar-renderer](./packages/ar-renderer) | Draw AR overlays | ✅ Ready |
 
+### HoloScript Tooling
+
+| Package | What It Does | Status |
+|---------|--------------|--------|
+| [@hololand/holoscript-core](./packages/holoscript-core) | Parser & compiler | ✅ Ready |
+| [@hololand/holoscript-compiler](./packages/holoscript-compiler) | AST compilation | ✅ Ready |
+| [@hololand/holoscript-std](./packages/holoscript-std) | Standard library | ✅ Ready |
+| [@hololand/holoscript-ai](./packages/holoscript-ai) | AI code generation | ✅ Ready |
+| [@hololand/holoscript-fs](./packages/holoscript-fs) | File system utils | ✅ Ready |
+| [@hololand/holoscript-formatter](./packages/holoscript-formatter) | Code formatting | ✅ v2.0.0 |
+| [@hololand/holoscript-linter](./packages/holoscript-linter) | Static analysis | ✅ v2.0.0 |
+| [@hololand/holoscript-lsp](./packages/holoscript-lsp) | Language Server | ✅ v1.0.0 |
+| [@hololand/vscode-holoscript](./packages/vscode-holoscript) | VS Code Extension | ✅ Ready |
+
+### AI & Brittney
+
+| Package | What It Does | Status |
+|---------|--------------|--------|
+| [@hololand/brittney-service](./packages/brittney-service) | AI world builder | ✅ Ready |
+| [@hololand/brittney-toolkit](./packages/brittney-toolkit) | Self-modification tools | ✅ Ready |
+| [@hololand/mcp-server](./packages/mcp-server) | Model Context Protocol | ✅ Ready |
+
 ### Infrastructure
 
 | Package | What It Does | Status |
@@ -47,10 +69,10 @@
 | [@hololand/ui](./packages/ui) | Buttons, forms, menus | ✅ Ready |
 | [@hololand/logger](./packages/logger) | Error tracking | ✅ Ready |
 | [@hololand/devtools](./packages/devtools) | Debugging helpers | ✅ Ready |
-| [@hololand/mcp-server](./packages/mcp-server) | AI agent tools | ✅ Ready |
-| [@hololand/holoscript-formatter](./packages/holoscript-formatter) | Code formatting | ✅ v2.0.0 |
-| [@hololand/holoscript-linter](./packages/holoscript-linter) | Static analysis | ✅ v2.0.0 |
-| [@hololand/holoscript-lsp](./packages/holoscript-lsp) | Language Server | ✅ v1.0.0 |
+| [@hololand/devtools-extension](./packages/devtools-extension) | Browser extension | ✅ Ready |
+| [@hololand/spatial](./packages/spatial) | Spatial computing | ✅ Ready |
+| [@hololand/library](./packages/library) | Asset library | ✅ Ready |
+| [@hololand/ar-embeddings](./packages/ar-embeddings) | AR vector embeddings | ✅ Ready |
 
 ### Apps
 
@@ -58,6 +80,7 @@
 |---------|--------------|--------|
 | [@hololand/frontend](./packages/frontend) | Web dashboard | ✅ Ready |
 | [@hololand/backend](./packages/backend) | API server | ✅ Ready |
+| [@hololand/playground](./packages/playground) | Browser IDE | ✅ Ready |
 
 ---
 
@@ -114,11 +137,11 @@ Your App
 
 ## 📊 Quick Stats
 
-- **25 packages** total
+- **40+ packages** total
 - **All building** ✅
 - **All tested** ✅
 - **TypeScript** 100%
-- **MIT licensed** - use anywhere
+- **Elastic License 2.0** - source-available, build freely
    - "Create a coffee shop with a counter" → Full 3D scene
    - "Build a VR office with 4 desks" → Rendered in Three.js
    - "Add a meeting room to my workspace" → Live in VR

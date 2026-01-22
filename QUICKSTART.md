@@ -5,7 +5,7 @@
 ### 1. Install
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/Hololand.git
+git clone https://github.com/brianonbased-dev/Hololand.git
 cd Hololand
 
 # Install dependencies

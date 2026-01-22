@@ -154,7 +154,7 @@ const result = await bridge.translateToHoloScript({
 | `@hololand/holoscript-linter` | 2.0.0 | Static analysis & linting |
 | `@hololand/holoscript-lsp` | 1.0.0 | Language server protocol |
 
-See [full package list](./ECOSYSTEM_STATUS.md) for all 22 packages.
+See [full package list](./ECOSYSTEM_STATUS.md) for all 40+ packages.
 
 ## Runs On
 
