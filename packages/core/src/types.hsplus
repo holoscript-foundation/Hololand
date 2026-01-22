@@ -1,0 +1,191 @@
+/**
+ * @hololand/core - Type Definitions
+ * 
+ * Core type definitions for the Hololand platform bridge.
+ */
+
+// =============================================================================
+// VECTOR AND POSITION TYPES
+// =============================================================================
+
+struct Vector3 {
+  x: float = 0.0
+  y: float = 0.0
+  z: float = 0.0
+}
+
+struct SpatialPosition {
+  x: float = 0.0
+  y: float = 0.0
+  z: float = 0.0
+}
+
+// =============================================================================
+// WORLD OBJECT TYPES
+// =============================================================================
+
+struct WorldObjectConfig {
+  type: string = "orb"
+  position: Vector3 = { x: 0.0, y: 0.0, z: 0.0 }
+  scale: Vector3 = { x: 1.0, y: 1.0, z: 1.0 }
+  metadata: object = {}
+}
+
+struct WorldObject {
+  id: string
+  position: Vector3
+  visible: bool = true
+}
+
+// =============================================================================
+// BRIDGE CONFIGURATION
+// =============================================================================
+
+struct BridgeConfig {
+  /** Auto-sync runtime state to world */
+  autoSync: bool = true
+  /** Sync interval in ms (if autoSync) */
+  syncInterval: int = 16
+  /** Enable debug logging */
+  debug: bool = false
+  /** Default object scale */
+  defaultScale: float = 1.0
+}
+
+struct BridgeState {
+  objectCount: int = 0
+  functionCount: int = 0
+  connectionCount: int = 0
+  lastSyncTime: int = 0
+  errors: string[] = []
+}
+
+// =============================================================================
+// AST NODE TYPES
+// =============================================================================
+
+enum NodeType {
+  orb,
+  connection,
+  stream,
+  gate,
+  shop,
+  template,
+  method,
+  parameter,
+  transformation,
+  ui2d,
+  ar_anchor,
+  ar_avatar,
+  ar_tracked_person,
+  ar_detection
+}
+
+struct ASTNode {
+  type: string
+  name: string = ""
+  properties: object = {}
+  position: SpatialPosition = { x: 0.0, y: 0.0, z: 0.0 }
+  hologram: HologramProperties = {}
+  children: ASTNode[] = []
+}
+
+struct HologramProperties {
+  color: string = "#00ffff"
+  glow: bool = true
+  opacity: float = 1.0
+}
+
+// =============================================================================
+// EXECUTION TYPES
+// =============================================================================
+
+struct ExecutionResult {
+  success: bool = false
+  output: any = null
+  error: string = ""
+  spatialPosition: SpatialPosition = null
+}
+
+struct ParseResult {
+  success: bool = false
+  ast: ASTNode[] = []
+  errors: ParseError[] = []
+}
+
+struct ParseError {
+  line: int
+  column: int
+  message: string
+}
+
+// =============================================================================
+// RUNTIME TYPES
+// =============================================================================
+
+struct RuntimeContext {
+  variables: object = {}
+  functions: object = {}
+  orbs: object = {}
+}
+
+// =============================================================================
+// CONNECTION TYPES
+// =============================================================================
+
+struct ConnectionNode extends ASTNode {
+  from: string
+  to: string
+  dataType: string = "any"
+}
+
+struct ConnectionEvent {
+  id: string
+  from: string
+  to: string
+  dataType: string
+}
+
+// =============================================================================
+// SPAWN/MOVE/VISIBILITY TYPES
+// =============================================================================
+
+struct SpawnData {
+  type: string = "orb"
+  position: SpatialPosition
+  properties: object = {}
+}
+
+struct MoveData {
+  target: string
+  position: SpatialPosition
+}
+
+struct VisibilityData {
+  target: string
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  Vector3,
+  SpatialPosition,
+  WorldObjectConfig,
+  WorldObject,
+  BridgeConfig,
+  BridgeState,
+  NodeType,
+  ASTNode,
+  HologramProperties,
+  ExecutionResult,
+  ParseResult,
+  ParseError,
+  RuntimeContext,
+  ConnectionNode,
+  ConnectionEvent,
+  SpawnData,
+  MoveData,
+  VisibilityData
+}

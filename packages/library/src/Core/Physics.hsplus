@@ -1,0 +1,405 @@
+// HOSL: Physics Components
+// Rigidbodies, constraints, triggers, and physics utilities
+
+/**
+ * Rigidbody Component
+ * Adds physics simulation to an object
+ */
+component Rigidbody {
+  @state {
+    sleeping: false
+    velocity: [0, 0, 0]
+    angular_velocity: [0, 0, 0]
+  }
+
+  @props {
+    mass: 1.0
+    drag: 0.0
+    angular_drag: 0.05
+    use_gravity: true
+    is_kinematic: false
+    freeze_rotation: [false, false, false]  // x, y, z
+    freeze_position: [false, false, false]
+    
+    // Collision
+    collision_detection: "discrete"  // discrete | continuous | continuous_dynamic
+    
+    // Material
+    friction: 0.6
+    bounciness: 0.0
+    combine_friction: "average"    // average | minimum | maximum | multiply
+    combine_bounce: "average"
+  }
+
+  @on_ready => {
+    physics.createBody(this, {
+      mass: props.mass,
+      drag: props.drag,
+      angularDrag: props.angular_drag,
+      useGravity: props.use_gravity,
+      isKinematic: props.is_kinematic,
+      freezeRotation: props.freeze_rotation,
+      freezePosition: props.freeze_position,
+      collisionDetection: props.collision_detection
+    })
+  }
+
+  // Apply force at center of mass
+  @method addForce(force, mode = "force") => {
+    // mode: force | impulse | velocity_change | acceleration
+    physics.addForce(this, force, mode)
+  }
+
+  // Apply force at a world position
+  @method addForceAtPosition(force, position, mode = "force") => {
+    physics.addForceAtPosition(this, force, position, mode)
+  }
+
+  // Apply torque
+  @method addTorque(torque, mode = "force") => {
+    physics.addTorque(this, torque, mode)
+  }
+
+  // Set velocity directly
+  @method setVelocity(velocity) => {
+    state.velocity = velocity
+    physics.setVelocity(this, velocity)
+  }
+
+  // Move kinematic body to position
+  @method movePosition(position) => {
+    if (props.is_kinematic) {
+      physics.movePosition(this, position)
+    }
+  }
+
+  // Move kinematic body to rotation
+  @method moveRotation(rotation) => {
+    if (props.is_kinematic) {
+      physics.moveRotation(this, rotation)
+    }
+  }
+
+  // Wake up sleeping body
+  @method wakeUp() => {
+    physics.wakeUp(this)
+    state.sleeping = false
+  }
+
+  // Put body to sleep
+  @method sleep() => {
+    physics.sleep(this)
+    state.sleeping = true
+  }
+
+  @on_collision_enter(collision) => {
+    this.emit("collision", collision)
+  }
+
+  @on_destroy => {
+    physics.destroyBody(this)
+  }
+}
+
+/**
+ * Collider Component
+ * Various collision shapes
+ */
+component Collider {
+  @props {
+    type: "box"  // box | sphere | capsule | mesh | convex
+    is_trigger: false
+    center: [0, 0, 0]
+    
+    // Box
+    size: [1, 1, 1]
+    
+    // Sphere
+    radius: 0.5
+    
+    // Capsule
+    height: 2.0
+    capsule_radius: 0.5
+    direction: "y"  // x | y | z
+    
+    // Mesh
+    mesh_asset: null
+    convex: false
+    
+    // Physics material
+    material: null
+  }
+
+  @on_ready => {
+    physics.createCollider(this, {
+      type: props.type,
+      isTrigger: props.is_trigger,
+      center: props.center,
+      size: props.size,
+      radius: props.type == "sphere" ? props.radius : props.capsule_radius,
+      height: props.height,
+      direction: props.direction,
+      mesh: props.mesh_asset,
+      convex: props.convex,
+      material: props.material
+    })
+  }
+
+  @on_trigger_enter(other) => {
+    this.emit("trigger_enter", other)
+  }
+
+  @on_trigger_stay(other) => {
+    this.emit("trigger_stay", other)
+  }
+
+  @on_trigger_exit(other) => {
+    this.emit("trigger_exit", other)
+  }
+}
+
+/**
+ * Character Controller
+ * Non-physics based character movement
+ */
+component CharacterController {
+  @state {
+    grounded: false
+    velocity: [0, 0, 0]
+    collision_flags: 0
+  }
+
+  @props {
+    height: 2.0
+    radius: 0.5
+    center: [0, 1, 0]
+    
+    slope_limit: 45
+    step_offset: 0.3
+    skin_width: 0.08
+    min_move_distance: 0.001
+    
+    gravity: -20
+    jump_height: 2.0
+  }
+
+  @on_ready => {
+    physics.createCharacterController(this, {
+      height: props.height,
+      radius: props.radius,
+      center: props.center,
+      slopeLimit: props.slope_limit,
+      stepOffset: props.step_offset,
+      skinWidth: props.skin_width,
+      minMoveDistance: props.min_move_distance
+    })
+  }
+
+  // Move the character
+  @method move(motion) => {
+    state.collision_flags = physics.moveCharacter(this, motion)
+    state.grounded = (state.collision_flags & 1) != 0  // Bottom collision
+  }
+
+  // Simple move with gravity
+  @method simpleMove(speed) => {
+    if (state.grounded) {
+      state.velocity[1] = 0
+    } else {
+      state.velocity[1] += props.gravity * time.deltaTime
+    }
+    
+    const motion = [
+      speed[0] * time.deltaTime,
+      state.velocity[1] * time.deltaTime,
+      speed[2] * time.deltaTime
+    ]
+    
+    this.move(motion)
+  }
+
+  // Jump
+  @method jump() => {
+    if (state.grounded) {
+      state.velocity[1] = Math.sqrt(props.jump_height * -2 * props.gravity)
+    }
+  }
+
+  // Check if grounded
+  @computed isGrounded() {
+    return state.grounded
+  }
+}
+
+/**
+ * Joint Component
+ * Physics constraints between bodies
+ */
+component Joint {
+  @state {
+    connected: false
+    current_force: 0
+    current_torque: 0
+  }
+
+  @props {
+    type: "fixed"  // fixed | hinge | spring | distance | configurable
+    connected_body: null
+    break_force: Infinity
+    break_torque: Infinity
+    enable_collision: false
+    
+    // Anchor points
+    anchor: [0, 0, 0]
+    connected_anchor: [0, 0, 0]
+    auto_configure: true
+    
+    // Hinge specific
+    axis: [0, 1, 0]
+    use_limits: false
+    limits: { min: -180, max: 180, bounciness: 0, bounce_min_velocity: 0 }
+    use_motor: false
+    motor: { target_velocity: 0, force: 10, free_spin: false }
+    
+    // Spring specific
+    spring: 100
+    damper: 10
+    min_distance: 0
+    max_distance: 10
+    tolerance: 0.025
+  }
+
+  @on_ready => {
+    if (props.connected_body) {
+      this.createJoint()
+    }
+  }
+
+  @method createJoint() => {
+    physics.createJoint(this, {
+      type: props.type,
+      connectedBody: props.connected_body,
+      breakForce: props.break_force,
+      breakTorque: props.break_torque,
+      enableCollision: props.enable_collision,
+      anchor: props.anchor,
+      connectedAnchor: props.connected_anchor,
+      autoConfigureAnchor: props.auto_configure,
+      axis: props.axis,
+      useLimits: props.use_limits,
+      limits: props.limits,
+      useMotor: props.use_motor,
+      motor: props.motor,
+      spring: props.spring,
+      damper: props.damper,
+      minDistance: props.min_distance,
+      maxDistance: props.max_distance,
+      tolerance: props.tolerance
+    })
+    
+    state.connected = true
+  }
+
+  @method breakJoint() => {
+    if (state.connected) {
+      physics.destroyJoint(this)
+      state.connected = false
+      this.emit("joint_break", { force: state.current_force, torque: state.current_torque })
+    }
+  }
+
+  @on_joint_break(force) => {
+    state.connected = false
+    this.emit("joint_break", { force: force })
+  }
+}
+
+/**
+ * Raycast Utility
+ * Helper for physics queries
+ */
+component RaycastHelper {
+  @state {
+    debug_rays: []
+  }
+
+  @props {
+    show_debug: false
+    debug_duration: 1.0
+    hit_color: "#00ff00"
+    miss_color: "#ff0000"
+  }
+
+  // Cast a ray and return first hit
+  @method raycast(origin, direction, max_distance = 1000, layer_mask = -1) => {
+    const hit = physics.raycast(origin, direction, max_distance, layer_mask)
+    
+    if (props.show_debug) {
+      this.addDebugRay(origin, direction, max_distance, hit != null)
+    }
+    
+    return hit
+  }
+
+  // Cast a ray and return all hits
+  @method raycastAll(origin, direction, max_distance = 1000, layer_mask = -1) => {
+    return physics.raycastAll(origin, direction, max_distance, layer_mask)
+  }
+
+  // Sphere cast
+  @method sphereCast(origin, radius, direction, max_distance = 1000, layer_mask = -1) => {
+    return physics.sphereCast(origin, radius, direction, max_distance, layer_mask)
+  }
+
+  // Box cast
+  @method boxCast(origin, half_extents, direction, orientation, max_distance = 1000, layer_mask = -1) => {
+    return physics.boxCast(origin, half_extents, direction, orientation, max_distance, layer_mask)
+  }
+
+  // Overlap sphere
+  @method overlapSphere(center, radius, layer_mask = -1) => {
+    return physics.overlapSphere(center, radius, layer_mask)
+  }
+
+  // Overlap box
+  @method overlapBox(center, half_extents, orientation, layer_mask = -1) => {
+    return physics.overlapBox(center, half_extents, orientation, layer_mask)
+  }
+
+  // Debug visualization
+  @method addDebugRay(origin, direction, distance, hit) => {
+    const ray = {
+      origin: origin,
+      end: [
+        origin[0] + direction[0] * distance,
+        origin[1] + direction[1] * distance,
+        origin[2] + direction[2] * distance
+      ],
+      color: hit ? props.hit_color : props.miss_color,
+      time: props.debug_duration
+    }
+    state.debug_rays = [...state.debug_rays, ray]
+  }
+
+  @update(delta) => {
+    // Decay debug rays
+    state.debug_rays = state.debug_rays
+      .map(r => ({ ...r, time: r.time - delta }))
+      .filter(r => r.time > 0)
+  }
+
+  // Render debug rays
+  group#debug_container {
+    visible: ${props.show_debug}
+    
+    @for ray, index in state.debug_rays {
+      line#ray_${index} {
+        points: [ray.origin, ray.end]
+        color: ${ray.color}
+        width: 2
+      }
+    }
+  }
+}
+
+export { Rigidbody, Collider, CharacterController, Joint, RaycastHelper }

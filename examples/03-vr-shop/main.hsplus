@@ -1,0 +1,332 @@
+/**
+ * VR Shop - HoloScript+ Example
+ *
+ * E-commerce VR experience with product browsing and interaction.
+ */
+
+// =============================================================================
+// PRODUCT DATA TYPES
+// =============================================================================
+
+struct Product {
+  id: string
+  name: string
+  price: float
+  description: string
+  modelUrl: string
+  thumbnailUrl: string
+  category: string
+  tags: string[] = []
+}
+
+struct CartItem {
+  product: Product
+  quantity: int = 1
+}
+
+enum ShopCategory {
+  electronics,
+  clothing,
+  furniture,
+  art,
+  toys
+}
+
+// =============================================================================
+// SHOP SCENE
+// =============================================================================
+
+const shopScene = `
+composition "VR Shop" {
+  // Store environment
+  environment {
+    preset: "indoor-showroom"
+    lighting: "soft-studio"
+    ambient: 0.3
+  }
+
+  // Welcome area
+  spatial_group "Entrance" at [0, 0, -8] {
+    text "store-name" {
+      content: "Hololand Store"
+      fontSize: 1.0
+      color: "#ffffff"
+      position: [0, 4, 0]
+    }
+
+    npc "greeter" {
+      model: "shop-assistant"
+      position: [2, 0, 0]
+      traits: ["talkable"]
+      dialogue: [
+        "Welcome to Hololand Store!",
+        "Feel free to pick up and examine any product.",
+        "Use the categories on your left to browse."
+      ]
+    }
+  }
+
+  // Category displays
+  spatial_group "Categories" at [-6, 0, 0] {
+    ui_panel "category-menu" facing "center" {
+      title: "Categories"
+      
+      button "electronics" {
+        icon: "📱"
+        label: "Electronics"
+        on_click: { navigate_to("Electronics") }
+      }
+      button "furniture" {
+        icon: "🪑"
+        label: "Furniture"
+        on_click: { navigate_to("Furniture") }
+      }
+      button "art" {
+        icon: "🎨"
+        label: "Art"
+        on_click: { navigate_to("Art") }
+      }
+    }
+  }
+
+  // Product display area
+  spatial_group "Products" at [0, 0, 0] {
+    template "ProductDisplay" {
+      state {
+        product: Product
+        isInspecting: bool = false
+        originalPosition: [float, float, float]
+      }
+
+      action inspect() {
+        self.isInspecting = true
+        self.originalPosition = self.position
+        animate_to(self, { position: [0, 1.5, -1], scale: 2 }, 0.3)
+        show_info_panel(self.product)
+      }
+
+      action release() {
+        self.isInspecting = false
+        animate_to(self, { position: self.originalPosition, scale: 1 }, 0.3)
+        hide_info_panel()
+      }
+    }
+
+    // Sample products
+    object "phone-1" using "ProductDisplay" {
+      position: [-2, 1.2, 0]
+      model: "/products/phone.glb"
+      traits: ["grabbable", "inspectable", "purchasable"]
+      grabbable: { snap_to_hand: false, two_handed: false }
+      product: {
+        id: "phone-1",
+        name: "HoloPhone X",
+        price: 999.00,
+        description: "Next-gen smartphone with VR integration"
+      }
+    }
+
+    object "headset-1" using "ProductDisplay" {
+      position: [0, 1.2, 0]
+      model: "/products/vr-headset.glb"
+      traits: ["grabbable", "inspectable", "purchasable"]
+      product: {
+        id: "headset-1",
+        name: "HoloVision Pro",
+        price: 1499.00,
+        description: "Premium VR/AR headset"
+      }
+    }
+
+    object "chair-1" using "ProductDisplay" {
+      position: [2, 0.5, 0]
+      model: "/products/gaming-chair.glb"
+      traits: ["grabbable", "inspectable", "purchasable"]
+      product: {
+        id: "chair-1",
+        name: "ErgoGame Chair",
+        price: 449.00,
+        description: "Ergonomic gaming chair"
+      }
+    }
+  }
+
+  // Shopping cart
+  spatial_group "Cart" at [6, 0, -2] {
+    ui_panel "cart-panel" {
+      title: "Your Cart"
+      
+      dynamic_list "cart-items" {
+        source: "cart"
+        template: "CartItemRow"
+      }
+
+      text "total" {
+        binding: "cart.total"
+        format: "Total: $%.2f"
+      }
+
+      button "checkout" {
+        label: "Checkout"
+        style: "primary"
+        on_click: { begin_checkout() }
+      }
+    }
+  }
+
+  // Product info popup
+  template "ProductInfoPanel" {
+    hidden: true
+    
+    ui_panel {
+      image "thumbnail" { binding: "product.thumbnailUrl" }
+      text "name" { binding: "product.name", fontSize: 0.15 }
+      text "price" { binding: "product.price", format: "$%.2f" }
+      text "description" { binding: "product.description" }
+      
+      button "add-to-cart" {
+        label: "Add to Cart"
+        on_click: { add_to_cart(product) }
+      }
+    }
+  }
+
+  logic {
+    on_grab(object) {
+      if object.has_trait("inspectable") {
+        object.inspect()
+      }
+    }
+
+    on_release(object) {
+      if object.isInspecting {
+        object.release()
+      }
+    }
+
+    on("add_to_cart", product) {
+      cart.add(product)
+      play_sound("cart-add")
+      show_notification("Added to cart!")
+    }
+
+    on("begin_checkout") {
+      transition_to("checkout-scene", { cart: cart })
+    }
+  }
+}
+`
+
+// =============================================================================
+// SHOP MODULE
+// =============================================================================
+
+module VRShop {
+  @state {
+    products: Map<string, Product> = new Map()
+    cart: CartItem[] = []
+    currentCategory: ShopCategory = ShopCategory.electronics
+  }
+
+  @action addProduct(product: Product) {
+    self.products.set(product.id, product)
+  }
+
+  @action addToCart(productId: string, quantity: int = 1) {
+    const product = self.products.get(productId)
+    if !product { return }
+
+    const existing = self.cart.find(item => item.product.id == productId)
+    if existing {
+      existing.quantity += quantity
+    } else {
+      self.cart.push({ product, quantity })
+    }
+  }
+
+  @action removeFromCart(productId: string) {
+    self.cart = self.cart.filter(item => item.product.id != productId)
+  }
+
+  @action updateQuantity(productId: string, quantity: int) {
+    const item = self.cart.find(i => i.product.id == productId)
+    if item {
+      if quantity <= 0 {
+        self.removeFromCart(productId)
+      } else {
+        item.quantity = quantity
+      }
+    }
+  }
+
+  @computed cartTotal -> float {
+    return self.cart.reduce((sum, item) => 
+      sum + item.product.price * item.quantity, 0
+    )
+  }
+
+  @computed cartCount -> int {
+    return self.cart.reduce((sum, item) => sum + item.quantity, 0)
+  }
+
+  @method getProductsByCategory(category: ShopCategory) -> Product[] {
+    return Array.from(self.products.values()).filter(p => 
+      p.category == category.toString()
+    )
+  }
+
+  @action async checkout() {
+    if self.cart.length == 0 {
+      throw new Error("Cart is empty")
+    }
+
+    const order = {
+      items: self.cart,
+      total: self.cartTotal,
+      timestamp: Date.now()
+    }
+
+    // Process order...
+    console.log("Processing order:", order)
+
+    // Clear cart
+    self.cart = []
+
+    return order
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+function createVRShop() -> typeof VRShop {
+  const shop = VRShop
+  
+  // Add sample products
+  shop.addProduct({
+    id: "phone-1",
+    name: "HoloPhone X",
+    price: 999.00,
+    description: "Next-gen smartphone with VR integration",
+    modelUrl: "/products/phone.glb",
+    thumbnailUrl: "/products/phone-thumb.jpg",
+    category: "electronics",
+    tags: ["phone", "mobile", "vr"]
+  })
+  
+  shop.addProduct({
+    id: "headset-1",
+    name: "HoloVision Pro",
+    price: 1499.00,
+    description: "Premium VR/AR headset",
+    modelUrl: "/products/vr-headset.glb",
+    thumbnailUrl: "/products/headset-thumb.jpg",
+    category: "electronics",
+    tags: ["vr", "ar", "headset"]
+  })
+  
+  return shop
+}
+
+export { VRShop, createVRShop, shopScene, Product, CartItem, ShopCategory }

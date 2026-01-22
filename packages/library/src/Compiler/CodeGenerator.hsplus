@@ -1,0 +1,952 @@
+/**
+ * CodeGenerator.hsplus
+ * 
+ * HoloScript+ to JavaScript transpiler.
+ * Converts AST nodes to valid JavaScript/ES6 code.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+import { ASTNode, NodeType } from "./Parser.hsplus"
+
+// =============================================================================
+// CODE GENERATOR OPTIONS
+// =============================================================================
+
+struct GeneratorOptions {
+  indent: string = "  "
+  sourceMap: boolean = false
+  minify: boolean = false
+  moduleFormat: "esm" | "cjs" | "iife" = "esm"
+  runtime: string = "@hololand/runtime"
+}
+
+struct GeneratedCode {
+  code: string
+  sourceMap?: string
+  imports: string[]
+  exports: string[]
+}
+
+// =============================================================================
+// CODE GENERATOR MODULE
+// =============================================================================
+
+module CodeGenerator {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    options: GeneratorOptions = {}
+    indentLevel: number = 0
+    output: string[] = []
+    imports: string[] = []
+    exports: string[] = []
+    sourceMap: any[] = []
+  }
+  
+  // =========================================================================
+  // MAIN GENERATE
+  // =========================================================================
+  
+  @action generate(ast: ASTNode, options: GeneratorOptions = {}): GeneratedCode {
+    this.state.options = { ...new GeneratorOptions(), ...options }
+    this.state.indentLevel = 0
+    this.state.output = []
+    this.state.imports = []
+    this.state.exports = []
+    
+    // Add runtime import if needed
+    if (this.needsRuntime(ast)) {
+      this.emit(`import { createState, createAction, computed, reactive } from "${this.state.options.runtime}";`)
+      this.emit("")
+    }
+    
+    // Generate code for AST
+    this.generateNode(ast)
+    
+    const code = this.state.options.minify 
+      ? this.state.output.join("")
+      : this.state.output.join("\n")
+    
+    return {
+      code,
+      imports: this.state.imports,
+      exports: this.state.exports
+    }
+  }
+  
+  // =========================================================================
+  // NODE GENERATORS
+  // =========================================================================
+  
+  @method generateNode(node: ASTNode): void {
+    if (!node) return
+    
+    switch (node.type) {
+      case NodeType.PROGRAM:
+        this.generateProgram(node)
+        break
+      case NodeType.MODULE:
+        this.generateModule(node)
+        break
+      case NodeType.STRUCT:
+        this.generateStruct(node)
+        break
+      case NodeType.ENUM:
+        this.generateEnum(node)
+        break
+      case NodeType.TRAIT:
+        this.generateTrait(node)
+        break
+      case NodeType.TEMPLATE:
+        this.generateTemplate(node)
+        break
+      case NodeType.OBJECT:
+        this.generateObject(node)
+        break
+      case NodeType.COMPOSITION:
+        this.generateComposition(node)
+        break
+      case NodeType.SPATIAL_GROUP:
+        this.generateSpatialGroup(node)
+        break
+      case NodeType.STATE:
+        this.generateState(node)
+        break
+      case NodeType.ACTION:
+        this.generateAction(node)
+        break
+      case NodeType.METHOD:
+        this.generateMethod(node)
+        break
+      case NodeType.COMPUTED:
+        this.generateComputed(node)
+        break
+      case NodeType.FUNCTION:
+        this.generateFunction(node)
+        break
+      case NodeType.VARIABLE:
+        this.generateVariable(node)
+        break
+      case NodeType.BLOCK:
+        this.generateBlock(node)
+        break
+      case NodeType.IF:
+        this.generateIf(node)
+        break
+      case NodeType.FOR:
+        this.generateFor(node)
+        break
+      case NodeType.WHILE:
+        this.generateWhile(node)
+        break
+      case NodeType.RETURN:
+        this.generateReturn(node)
+        break
+      case NodeType.BREAK:
+        this.emit(this.indent() + "break;")
+        break
+      case NodeType.CONTINUE:
+        this.emit(this.indent() + "continue;")
+        break
+      case NodeType.EVERY:
+        this.generateEvery(node)
+        break
+      case NodeType.AFTER:
+        this.generateAfter(node)
+        break
+      case NodeType.EXPRESSION:
+        this.emit(this.indent() + this.generateExpression(node.expression) + ";")
+        break
+      case NodeType.IMPORT:
+        this.generateImport(node)
+        break
+      case NodeType.EXPORT:
+        this.generateExport(node)
+        break
+      case NodeType.EVENT_HANDLER:
+        this.generateEventHandler(node)
+        break
+      default:
+        // Expression nodes - emit as statement
+        this.emit(this.indent() + this.generateExpression(node) + ";")
+    }
+  }
+  
+  @method generateProgram(node: ASTNode): void {
+    for (const child of node.body || []) {
+      this.generateNode(child)
+    }
+  }
+  
+  // =========================================================================
+  // DECLARATIONS
+  // =========================================================================
+  
+  @method generateModule(node: ASTNode): void {
+    const name = node.name
+    
+    this.emit(this.indent() + `const ${name} = (() => {`)
+    this.indentIn()
+    
+    // Collect state, actions, methods
+    const stateNodes = node.members.filter(m => m.type === NodeType.STATE)
+    const actionNodes = node.members.filter(m => m.type === NodeType.ACTION)
+    const methodNodes = node.members.filter(m => m.type === NodeType.METHOD)
+    const computedNodes = node.members.filter(m => m.type === NodeType.COMPUTED)
+    const otherNodes = node.members.filter(m => 
+      ![NodeType.STATE, NodeType.ACTION, NodeType.METHOD, NodeType.COMPUTED].includes(m.type)
+    )
+    
+    // Generate state
+    if (stateNodes.length > 0) {
+      this.emit(this.indent() + "const state = createState({")
+      this.indentIn()
+      for (const stateNode of stateNodes) {
+        for (const prop of stateNode.properties) {
+          const defaultVal = prop.default ? this.generateExpression(prop.default) : this.getDefaultValue(prop.type)
+          this.emit(this.indent() + `${prop.name}: ${defaultVal},`)
+        }
+      }
+      this.indentOut()
+      this.emit(this.indent() + "});")
+      this.emit("")
+    }
+    
+    // Generate methods
+    for (const method of methodNodes) {
+      this.generateModuleMethod(method)
+    }
+    
+    // Generate actions
+    for (const action of actionNodes) {
+      this.generateModuleAction(action)
+    }
+    
+    // Generate computed
+    for (const comp of computedNodes) {
+      this.generateModuleComputed(comp)
+    }
+    
+    // Generate other members
+    for (const other of otherNodes) {
+      this.generateNode(other)
+    }
+    
+    // Return public interface
+    this.emit("")
+    this.emit(this.indent() + "return {")
+    this.indentIn()
+    
+    if (stateNodes.length > 0) {
+      this.emit(this.indent() + "state,")
+    }
+    
+    for (const action of actionNodes) {
+      this.emit(this.indent() + `${action.name},`)
+    }
+    
+    for (const comp of computedNodes) {
+      this.emit(this.indent() + `${comp.name},`)
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "};")
+    
+    this.indentOut()
+    this.emit(this.indent() + "})();")
+    this.emit("")
+    
+    this.state.exports.push(name)
+  }
+  
+  @method generateModuleMethod(node: ASTNode): void {
+    const asyncKeyword = node.async ? "async " : ""
+    const params = node.params.map(p => p.name).join(", ")
+    
+    this.emit(this.indent() + `${asyncKeyword}function ${node.name}(${params}) {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "}")
+    this.emit("")
+  }
+  
+  @method generateModuleAction(node: ASTNode): void {
+    const asyncKeyword = node.async ? "async " : ""
+    const params = node.params.map(p => p.name).join(", ")
+    
+    this.emit(this.indent() + `const ${node.name} = createAction(${asyncKeyword}function(${params}) {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "});")
+    this.emit("")
+  }
+  
+  @method generateModuleComputed(node: ASTNode): void {
+    this.emit(this.indent() + `const ${node.name} = computed(() => {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "});")
+    this.emit("")
+  }
+  
+  @method generateStruct(node: ASTNode): void {
+    const name = node.name
+    
+    // Generate as a class
+    this.emit(this.indent() + `class ${name} {`)
+    this.indentIn()
+    
+    // Constructor
+    const fieldNames = node.fields.map(f => f.name).join(", ")
+    this.emit(this.indent() + `constructor({ ${fieldNames} } = {}) {`)
+    this.indentIn()
+    
+    for (const field of node.fields) {
+      const defaultVal = field.default ? this.generateExpression(field.default) : this.getDefaultValue(field.type)
+      this.emit(this.indent() + `this.${field.name} = ${field.name} ?? ${defaultVal};`)
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "}")
+    
+    this.indentOut()
+    this.emit(this.indent() + "}")
+    this.emit("")
+    
+    this.state.exports.push(name)
+  }
+  
+  @method generateEnum(node: ASTNode): void {
+    const name = node.name
+    
+    this.emit(this.indent() + `const ${name} = Object.freeze({`)
+    this.indentIn()
+    
+    let index = 0
+    for (const val of node.values) {
+      const value = val.value ? this.generateExpression(val.value) : `"${val.name}"`
+      this.emit(this.indent() + `${val.name}: ${value},`)
+      index++
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "});")
+    this.emit("")
+    
+    this.state.exports.push(name)
+  }
+  
+  @method generateTrait(node: ASTNode): void {
+    const name = this.sanitizeName(node.name)
+    
+    this.emit(this.indent() + `const ${name} = {`)
+    this.indentIn()
+    
+    for (const prop of node.properties) {
+      const value = prop.init ? this.generateExpression(prop.init) : "null"
+      this.emit(this.indent() + `${prop.name}: ${value},`)
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "};")
+    this.emit("")
+  }
+  
+  @method generateTemplate(node: ASTNode): void {
+    const name = this.sanitizeName(node.name)
+    
+    this.emit(this.indent() + `const ${name} = {`)
+    this.indentIn()
+    this.emit(this.indent() + `__template: true,`)
+    this.emit(this.indent() + `name: "${node.name}",`)
+    
+    // Generate members
+    const stateNodes = node.members.filter(m => m.type === NodeType.STATE)
+    const actionNodes = node.members.filter(m => m.type === NodeType.ACTION)
+    
+    if (stateNodes.length > 0) {
+      this.emit(this.indent() + "state: {")
+      this.indentIn()
+      for (const stateNode of stateNodes) {
+        for (const prop of stateNode.properties) {
+          const defaultVal = prop.default ? this.generateExpression(prop.default) : this.getDefaultValue(prop.type)
+          this.emit(this.indent() + `${prop.name}: ${defaultVal},`)
+        }
+      }
+      this.indentOut()
+      this.emit(this.indent() + "},")
+    }
+    
+    if (actionNodes.length > 0) {
+      this.emit(this.indent() + "actions: {")
+      this.indentIn()
+      for (const action of actionNodes) {
+        const asyncKeyword = action.async ? "async " : ""
+        const params = action.params.map(p => p.name).join(", ")
+        this.emit(this.indent() + `${action.name}: ${asyncKeyword}function(${params}) {`)
+        this.indentIn()
+        this.generateBlockContents(action.body)
+        this.indentOut()
+        this.emit(this.indent() + "},")
+      }
+      this.indentOut()
+      this.emit(this.indent() + "},")
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "};")
+    this.emit("")
+  }
+  
+  @method generateObject(node: ASTNode): void {
+    const name = this.sanitizeName(node.name)
+    
+    this.emit(this.indent() + `const ${name} = reactive({`)
+    this.indentIn()
+    this.emit(this.indent() + `__type: "object",`)
+    this.emit(this.indent() + `name: "${node.name}",`)
+    
+    if (node.using) {
+      this.emit(this.indent() + `template: "${node.using}",`)
+    }
+    
+    // Properties
+    for (const prop of node.properties) {
+      if (prop.type === NodeType.VARIABLE) {
+        const value = prop.init ? this.generateExpression(prop.init) : "null"
+        this.emit(this.indent() + `${prop.name}: ${value},`)
+      }
+    }
+    
+    // Traits
+    if (node.traits.length > 0) {
+      this.emit(this.indent() + "traits: [")
+      this.indentIn()
+      for (const trait of node.traits) {
+        this.emit(this.indent() + `"${trait.name}",`)
+      }
+      this.indentOut()
+      this.emit(this.indent() + "],")
+    }
+    
+    // Events
+    if (node.events.length > 0) {
+      this.emit(this.indent() + "events: {")
+      this.indentIn()
+      for (const event of node.events) {
+        this.emit(this.indent() + `${event.event}: function() {`)
+        this.indentIn()
+        this.generateBlockContents(event.body)
+        this.indentOut()
+        this.emit(this.indent() + "},")
+      }
+      this.indentOut()
+      this.emit(this.indent() + "},")
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "});")
+    this.emit("")
+  }
+  
+  @method generateComposition(node: ASTNode): void {
+    const name = this.sanitizeName(node.name)
+    
+    this.emit(this.indent() + `const ${name} = {`)
+    this.indentIn()
+    this.emit(this.indent() + `__type: "composition",`)
+    this.emit(this.indent() + `name: "${node.name}",`)
+    this.emit(this.indent() + "children: [")
+    this.indentIn()
+    
+    for (const child of node.children) {
+      if (child.type === NodeType.OBJECT || child.type === NodeType.SPATIAL_GROUP) {
+        // Inline generation
+        this.emit(this.indent() + "{")
+        this.indentIn()
+        this.emit(this.indent() + `name: "${child.name}",`)
+        // Generate properties inline
+        for (const prop of (child.properties || [])) {
+          if (prop.type === NodeType.VARIABLE && prop.init) {
+            this.emit(this.indent() + `${prop.name}: ${this.generateExpression(prop.init)},`)
+          }
+        }
+        this.indentOut()
+        this.emit(this.indent() + "},")
+      }
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "],")
+    
+    this.indentOut()
+    this.emit(this.indent() + "};")
+    this.emit("")
+    
+    this.state.exports.push(name)
+  }
+  
+  @method generateSpatialGroup(node: ASTNode): void {
+    const name = this.sanitizeName(node.name)
+    
+    this.emit(this.indent() + `const ${name} = {`)
+    this.indentIn()
+    this.emit(this.indent() + `__type: "spatial_group",`)
+    this.emit(this.indent() + `name: "${node.name}",`)
+    this.emit(this.indent() + "children: [")
+    this.indentIn()
+    
+    for (const child of node.children) {
+      this.generateNode(child)
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "],")
+    
+    this.indentOut()
+    this.emit(this.indent() + "};")
+    this.emit("")
+  }
+  
+  // =========================================================================
+  // DECORATED MEMBERS (standalone)
+  // =========================================================================
+  
+  @method generateState(node: ASTNode): void {
+    this.emit(this.indent() + "const state = createState({")
+    this.indentIn()
+    
+    for (const prop of node.properties) {
+      const defaultVal = prop.default ? this.generateExpression(prop.default) : this.getDefaultValue(prop.type)
+      this.emit(this.indent() + `${prop.name}: ${defaultVal},`)
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "});")
+    this.emit("")
+  }
+  
+  @method generateAction(node: ASTNode): void {
+    const asyncKeyword = node.async ? "async " : ""
+    const params = node.params.map(p => p.name).join(", ")
+    
+    this.emit(this.indent() + `const ${node.name} = createAction(${asyncKeyword}function(${params}) {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "});")
+    this.emit("")
+  }
+  
+  @method generateMethod(node: ASTNode): void {
+    const asyncKeyword = node.async ? "async " : ""
+    const params = node.params.map(p => p.name).join(", ")
+    
+    this.emit(this.indent() + `${asyncKeyword}function ${node.name}(${params}) {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "}")
+    this.emit("")
+  }
+  
+  @method generateComputed(node: ASTNode): void {
+    this.emit(this.indent() + `const ${node.name} = computed(() => {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "});")
+    this.emit("")
+  }
+  
+  @method generateFunction(node: ASTNode): void {
+    const asyncKeyword = node.async ? "async " : ""
+    const params = node.params.map(p => p.name).join(", ")
+    
+    this.emit(this.indent() + `${asyncKeyword}function ${node.name}(${params}) {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "}")
+    this.emit("")
+    
+    this.state.exports.push(node.name)
+  }
+  
+  @method generateVariable(node: ASTNode): void {
+    const kind = node.kind || "const"
+    const init = node.init ? ` = ${this.generateExpression(node.init)}` : ""
+    this.emit(this.indent() + `${kind} ${node.name}${init};`)
+  }
+  
+  // =========================================================================
+  // STATEMENTS
+  // =========================================================================
+  
+  @method generateBlock(node: ASTNode): void {
+    this.emit(this.indent() + "{")
+    this.indentIn()
+    this.generateBlockContents(node)
+    this.indentOut()
+    this.emit(this.indent() + "}")
+  }
+  
+  @method generateBlockContents(node: ASTNode): void {
+    if (!node || !node.statements) return
+    
+    for (const stmt of node.statements) {
+      this.generateNode(stmt)
+    }
+  }
+  
+  @method generateIf(node: ASTNode): void {
+    const condition = this.generateExpression(node.condition)
+    
+    this.emit(this.indent() + `if (${condition}) {`)
+    this.indentIn()
+    
+    if (node.consequent.type === NodeType.BLOCK) {
+      this.generateBlockContents(node.consequent)
+    } else {
+      this.generateNode(node.consequent)
+    }
+    
+    this.indentOut()
+    
+    if (node.alternate) {
+      if (node.alternate.type === NodeType.IF) {
+        this.emit(this.indent() + "} else " + this.generateIfInline(node.alternate))
+      } else {
+        this.emit(this.indent() + "} else {")
+        this.indentIn()
+        if (node.alternate.type === NodeType.BLOCK) {
+          this.generateBlockContents(node.alternate)
+        } else {
+          this.generateNode(node.alternate)
+        }
+        this.indentOut()
+        this.emit(this.indent() + "}")
+      }
+    } else {
+      this.emit(this.indent() + "}")
+    }
+  }
+  
+  @method generateIfInline(node: ASTNode): string {
+    // Used for else if chains - returns string instead of emitting
+    const lines: string[] = []
+    const condition = this.generateExpression(node.condition)
+    
+    lines.push(`if (${condition}) {`)
+    
+    // Simplified - actual implementation would need proper handling
+    return lines.join("\n")
+  }
+  
+  @method generateFor(node: ASTNode): void {
+    const init = node.init ? this.generateExpression(node.init) : ""
+    const condition = node.condition ? this.generateExpression(node.condition) : ""
+    const update = node.update ? this.generateExpression(node.update) : ""
+    
+    this.emit(this.indent() + `for (${init}; ${condition}; ${update}) {`)
+    this.indentIn()
+    
+    if (node.body.type === NodeType.BLOCK) {
+      this.generateBlockContents(node.body)
+    } else {
+      this.generateNode(node.body)
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "}")
+  }
+  
+  @method generateWhile(node: ASTNode): void {
+    const condition = this.generateExpression(node.condition)
+    
+    this.emit(this.indent() + `while (${condition}) {`)
+    this.indentIn()
+    
+    if (node.body.type === NodeType.BLOCK) {
+      this.generateBlockContents(node.body)
+    } else {
+      this.generateNode(node.body)
+    }
+    
+    this.indentOut()
+    this.emit(this.indent() + "}")
+  }
+  
+  @method generateReturn(node: ASTNode): void {
+    if (node.value) {
+      this.emit(this.indent() + `return ${this.generateExpression(node.value)};`)
+    } else {
+      this.emit(this.indent() + "return;")
+    }
+  }
+  
+  @method generateEvery(node: ASTNode): void {
+    const interval = this.generateExpression(node.interval)
+    
+    this.emit(this.indent() + `setInterval(() => {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + `}, ${interval});`)
+  }
+  
+  @method generateAfter(node: ASTNode): void {
+    const delay = this.generateExpression(node.delay)
+    
+    this.emit(this.indent() + `setTimeout(() => {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + `}, ${delay});`)
+  }
+  
+  @method generateEventHandler(node: ASTNode): void {
+    this.emit(this.indent() + `${node.event}() {`)
+    this.indentIn()
+    this.generateBlockContents(node.body)
+    this.indentOut()
+    this.emit(this.indent() + "},")
+  }
+  
+  // =========================================================================
+  // IMPORTS / EXPORTS
+  // =========================================================================
+  
+  @method generateImport(node: ASTNode): void {
+    const specifiers = node.specifiers
+    const source = node.source
+    
+    this.state.imports.push(source)
+    
+    if (specifiers.length === 1 && specifiers[0].imported === "default") {
+      this.emit(`import ${specifiers[0].local} from "${source}";`)
+    } else if (specifiers.length === 1 && specifiers[0].imported === "*") {
+      this.emit(`import * as ${specifiers[0].local} from "${source}";`)
+    } else {
+      const specs = specifiers.map(s => 
+        s.imported === s.local ? s.imported : `${s.imported} as ${s.local}`
+      ).join(", ")
+      this.emit(`import { ${specs} } from "${source}";`)
+    }
+  }
+  
+  @method generateExport(node: ASTNode): void {
+    if (node.default) {
+      this.emit("export default " + (node.declaration ? "" : ";"))
+      if (node.declaration) {
+        this.generateNode(node.declaration)
+      }
+    } else if (node.specifiers) {
+      const specs = node.specifiers.map(s =>
+        s.local === s.exported ? s.local : `${s.local} as ${s.exported}`
+      ).join(", ")
+      this.emit(`export { ${specs} };`)
+    } else if (node.declaration) {
+      this.emit("export ")
+      this.generateNode(node.declaration)
+    }
+  }
+  
+  // =========================================================================
+  // EXPRESSIONS
+  // =========================================================================
+  
+  @method generateExpression(node: ASTNode): string {
+    if (!node) return "null"
+    
+    switch (node.type) {
+      case NodeType.LITERAL:
+        return this.generateLiteral(node)
+      case NodeType.IDENTIFIER:
+        return node.name
+      case NodeType.BINARY:
+        return this.generateBinary(node)
+      case NodeType.UNARY:
+        return this.generateUnary(node)
+      case NodeType.CALL:
+        return this.generateCall(node)
+      case NodeType.MEMBER:
+        return this.generateMember(node)
+      case NodeType.INDEX:
+        return this.generateIndex(node)
+      case NodeType.ASSIGNMENT:
+        return this.generateAssignment(node)
+      case NodeType.CONDITIONAL:
+        return this.generateConditional(node)
+      case NodeType.ARRAY:
+        return this.generateArray(node)
+      case NodeType.OBJECT_EXPR:
+        return this.generateObjectExpr(node)
+      case NodeType.AWAIT:
+        return `await ${this.generateExpression(node.argument)}`
+      case NodeType.NEW:
+        return `new ${this.generateExpression(node.callee)}`
+      case NodeType.ARROW_FUNCTION:
+        return this.generateArrowFunction(node)
+      case NodeType.VARIABLE:
+        const init = node.init ? this.generateExpression(node.init) : this.getDefaultValue(node.varType)
+        return `${node.kind || "const"} ${node.name} = ${init}`
+      default:
+        return "null"
+    }
+  }
+  
+  @method generateLiteral(node: ASTNode): string {
+    if (typeof node.value === "string") {
+      return JSON.stringify(node.value)
+    }
+    if (node.value === null) {
+      return "null"
+    }
+    return String(node.value)
+  }
+  
+  @method generateBinary(node: ASTNode): string {
+    const left = this.generateExpression(node.left)
+    const right = this.generateExpression(node.right)
+    return `(${left} ${node.operator} ${right})`
+  }
+  
+  @method generateUnary(node: ASTNode): string {
+    const operand = this.generateExpression(node.operand)
+    if (node.prefix) {
+      return `${node.operator}${operand}`
+    }
+    return `${operand}${node.operator}`
+  }
+  
+  @method generateCall(node: ASTNode): string {
+    const callee = this.generateExpression(node.callee)
+    const args = node.arguments.map(a => this.generateExpression(a)).join(", ")
+    return `${callee}(${args})`
+  }
+  
+  @method generateMember(node: ASTNode): string {
+    const object = this.generateExpression(node.object)
+    if (node.computed) {
+      return `${object}[${node.property}]`
+    }
+    return `${object}.${node.property}`
+  }
+  
+  @method generateIndex(node: ASTNode): string {
+    const object = this.generateExpression(node.object)
+    const index = this.generateExpression(node.index)
+    return `${object}[${index}]`
+  }
+  
+  @method generateAssignment(node: ASTNode): string {
+    const left = this.generateExpression(node.left)
+    const right = this.generateExpression(node.right)
+    return `${left} ${node.operator} ${right}`
+  }
+  
+  @method generateConditional(node: ASTNode): string {
+    const test = this.generateExpression(node.test)
+    const consequent = this.generateExpression(node.consequent)
+    const alternate = this.generateExpression(node.alternate)
+    return `(${test} ? ${consequent} : ${alternate})`
+  }
+  
+  @method generateArray(node: ASTNode): string {
+    const elements = node.elements.map(e => this.generateExpression(e)).join(", ")
+    return `[${elements}]`
+  }
+  
+  @method generateObjectExpr(node: ASTNode): string {
+    const props = node.properties.map(p => 
+      `${p.key}: ${this.generateExpression(p.value)}`
+    ).join(", ")
+    return `{ ${props} }`
+  }
+  
+  @method generateArrowFunction(node: ASTNode): string {
+    const params = node.params.map(p => p.name).join(", ")
+    const body = this.generateExpression(node.body)
+    const asyncKeyword = node.async ? "async " : ""
+    return `${asyncKeyword}(${params}) => ${body}`
+  }
+  
+  // =========================================================================
+  // UTILITIES
+  // =========================================================================
+  
+  @method emit(line: string): void {
+    this.state.output.push(line)
+  }
+  
+  @method indent(): string {
+    return this.state.options.indent.repeat(this.state.indentLevel)
+  }
+  
+  @method indentIn(): void {
+    this.state.indentLevel++
+  }
+  
+  @method indentOut(): void {
+    this.state.indentLevel = Math.max(0, this.state.indentLevel - 1)
+  }
+  
+  @method sanitizeName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9_]/g, "_")
+  }
+  
+  @method getDefaultValue(type: string): string {
+    if (!type) return "null"
+    
+    switch (type.toLowerCase()) {
+      case "number": return "0"
+      case "string": return '""'
+      case "boolean": return "false"
+      case "array": return "[]"
+      case "object": return "{}"
+      default:
+        if (type.endsWith("[]")) return "[]"
+        return "null"
+    }
+  }
+  
+  @method needsRuntime(ast: ASTNode): boolean {
+    // Check if we need the runtime imports
+    const check = (node: ASTNode): boolean => {
+      if (!node) return false
+      
+      if (node.type === NodeType.MODULE || 
+          node.type === NodeType.STATE ||
+          node.type === NodeType.ACTION ||
+          node.type === NodeType.COMPUTED) {
+        return true
+      }
+      
+      if (node.body && Array.isArray(node.body)) {
+        return node.body.some(n => check(n))
+      }
+      
+      if (node.members && Array.isArray(node.members)) {
+        return node.members.some(n => check(n))
+      }
+      
+      return false
+    }
+    
+    return check(ast)
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { CodeGenerator, GeneratorOptions, GeneratedCode }

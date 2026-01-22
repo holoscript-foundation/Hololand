@@ -1,0 +1,299 @@
+/**
+ * Types.hsplus
+ * 
+ * Core type definitions for the MCP server package.
+ * 
+ * @package @hololand/mcp-server
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// BROWSER STATE TYPES
+// =============================================================================
+
+struct BrowserStateData {
+  url: string = ""
+  title: string = ""
+  isHololandApp: boolean = false
+  connectionStatus: string = "disconnected"  // "connected" | "disconnected" | "connecting"
+}
+
+struct SceneInfoData {
+  id: string
+  name: string
+  objectCount: number = 0
+  componentCount: number = 0
+  isActive: boolean = false
+}
+
+struct ProfilerStatsData {
+  fps: number = 0
+  frameTime: number = 0
+  drawCalls: number = 0
+  triangles: number = 0
+  textures: number = 0
+  memoryUsed: number = 0
+  gpuMemory: number = 0
+}
+
+struct ConsoleLogData {
+  level: string = "log"  // "log" | "warn" | "error" | "info" | "debug"
+  message: string
+  timestamp: number
+  source: string = null
+  stack: string = null
+}
+
+struct RuntimeErrorData {
+  message: string
+  stack: string = null
+  componentId: string = null
+  line: number = 0
+  column: number = 0
+  source: string = null
+}
+
+struct BridgeData {
+  lastUpdate: number = 0
+  connected: boolean = false
+  browserState: BrowserStateData = null
+  scenes: SceneInfoData[] = []
+  profilerStats: ProfilerStatsData = null
+  consoleLogs: ConsoleLogData[] = []
+  runtimeErrors: RuntimeErrorData[] = []
+}
+
+// =============================================================================
+// GRAPH TYPES
+// =============================================================================
+
+enum HoloNodeType {
+  TEMPLATE = "template"
+  OBJECT = "object"
+  ORB = "orb"
+  BUILDING = "building"
+  NPC = "npc"
+  COLLECTIBLE = "collectible"
+  GROUP = "group"
+  ENVIRONMENT = "environment"
+}
+
+enum HoloEdgeType {
+  USES = "uses"
+  TRIGGERS = "triggers"
+  CONTAINS = "contains"
+  REFERENCES = "references"
+  FLOW = "flow"
+}
+
+struct HoloNode {
+  id: string
+  name: string
+  type: HoloNodeType = HoloNodeType.OBJECT
+  position: [number, number, number] = null
+  properties: Record<string, any> = {}
+  state: Record<string, any> = {}
+  actions: string[] = []
+  traits: string[] = []
+}
+
+struct HoloEdge {
+  id: string
+  from: string
+  to: string
+  type: HoloEdgeType = HoloEdgeType.REFERENCES
+  event: string = null
+  action: string = null
+  label: string = null
+}
+
+struct HoloFlowAction {
+  target: string
+  action: string
+  args: any[] = []
+}
+
+struct HoloFlow {
+  trigger: string
+  event: string
+  actions: HoloFlowAction[] = []
+}
+
+struct HoloGroup {
+  id: string
+  name: string
+  children: string[] = []
+}
+
+struct HoloGraph {
+  name: string
+  nodes: HoloNode[] = []
+  edges: HoloEdge[] = []
+  flows: HoloFlow[] = []
+  groups: HoloGroup[] = []
+}
+
+// =============================================================================
+// COMPONENT TYPES
+// =============================================================================
+
+struct ComponentInfo {
+  id: string
+  type: string
+  name: string
+  props: Record<string, any> = {}
+  state: Record<string, any> = {}
+  children: string[] = []
+}
+
+// =============================================================================
+// MCP TOOL TYPES
+// =============================================================================
+
+struct ToolInputSchema {
+  type: string = "object"
+  properties: Record<string, any> = {}
+  required: string[] = []
+}
+
+struct Tool {
+  name: string
+  description: string
+  inputSchema: ToolInputSchema
+}
+
+// =============================================================================
+// NATIVE MESSAGING TYPES
+// =============================================================================
+
+enum MessageType {
+  REQUEST = "request"
+  RESPONSE = "response"
+  EVENT = "event"
+}
+
+struct NativeMessage {
+  id: string
+  type: MessageType = MessageType.REQUEST
+  action: string
+  payload: any = null
+  error: string = null
+}
+
+struct ResponseMessage extends NativeMessage {
+  type: MessageType = MessageType.RESPONSE
+  success: boolean = false
+}
+
+// =============================================================================
+// BRITTNEY SERVICE TYPES
+// =============================================================================
+
+struct BrittneyServiceResponse {
+  success: boolean = false
+  response: string = null
+  code: string = null
+  error: string = null
+  conversationId: string = null
+  usage: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  } = null
+}
+
+struct BrittneyBrowserContext {
+  url: string = null
+  scenes: Array<{
+    id: string
+    name: string
+    objectCount: number
+  }> = []
+  profilerStats: {
+    fps: number
+    drawCalls: number
+    triangles: number
+  } = null
+  consoleLogs: Array<{
+    level: string
+    message: string
+  }> = []
+  errors: Array<{
+    message: string
+    stack: string
+  }> = []
+}
+
+// =============================================================================
+// SNAPSHOT TYPES
+// =============================================================================
+
+struct SceneSnapshot {
+  id: string
+  name: string
+  timestamp: number
+  holoScript: string = null
+  objects: any[] = []
+  performance: ProfilerStatsData = null
+  screenshot: string = null
+}
+
+struct SessionRecording {
+  id: string
+  name: string
+  startTime: number
+  endTime: number = 0
+  events: SessionEvent[] = []
+  snapshots: SceneSnapshot[] = []
+}
+
+struct SessionEvent {
+  timestamp: number
+  type: string
+  data: any = null
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Browser State
+  BrowserStateData,
+  SceneInfoData,
+  ProfilerStatsData,
+  ConsoleLogData,
+  RuntimeErrorData,
+  BridgeData,
+  
+  // Graph
+  HoloNodeType,
+  HoloEdgeType,
+  HoloNode,
+  HoloEdge,
+  HoloFlowAction,
+  HoloFlow,
+  HoloGroup,
+  HoloGraph,
+  
+  // Components
+  ComponentInfo,
+  
+  // Tools
+  ToolInputSchema,
+  Tool,
+  
+  // Native Messaging
+  MessageType,
+  NativeMessage,
+  ResponseMessage,
+  
+  // Brittney
+  BrittneyServiceResponse,
+  BrittneyBrowserContext,
+  
+  // Snapshots
+  SceneSnapshot,
+  SessionRecording,
+  SessionEvent
+}

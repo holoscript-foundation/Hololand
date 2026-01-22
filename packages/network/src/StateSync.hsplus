@@ -1,0 +1,267 @@
+/**
+ * StateSync.hsplus
+ * 
+ * State synchronization with interpolation and prediction.
+ * Handles smooth rendering of networked objects.
+ * 
+ * @package @hololand/network
+ * @version 2.0.0
+ */
+
+import { logger } from "./Logger.hsplus"
+import { SyncConfig, SyncState, StateSnapshot, Vector3 } from "./Types.hsplus"
+
+// =============================================================================
+// DEFAULT CONFIG
+// =============================================================================
+
+const DEFAULT_SYNC_CONFIG: SyncConfig = {
+  interpolation: true,
+  interpolationDelay: 100,
+  predictionEnabled: true,
+  snapshotRate: 20,
+  priorityByDistance: true
+}
+
+struct InterpolationBuffer {
+  states: SyncState[] = []
+  maxSize: number = 10
+}
+
+// =============================================================================
+// STATE SYNC MODULE
+// =============================================================================
+
+module StateSync {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    config: SyncConfig = { ...DEFAULT_SYNC_CONFIG }
+    buffers: Map<string, InterpolationBuffer> = new Map()
+    predictions: Map<string, SyncState> = new Map()
+    lastRenderTime: number = 0
+    serverTimeOffset: number = 0
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(config: SyncConfig = {}): void {
+    this.state.config = { ...DEFAULT_SYNC_CONFIG, ...config }
+    logger.info("StateSync initialized", { config: this.state.config })
+  }
+  
+  // =========================================================================
+  // SNAPSHOT PROCESSING
+  // =========================================================================
+  
+  @action processSnapshot(snapshot: StateSnapshot): void {
+    // Calculate server time offset
+    const clientTime = Date.now()
+    const serverTime = snapshot.timestamp
+    this.state.serverTimeOffset = clientTime - serverTime
+    
+    // Add states to interpolation buffers
+    snapshot.states.forEach(state => {
+      this.addToBuffer(state)
+    })
+  }
+  
+  @action processState(state: SyncState): void {
+    this.addToBuffer(state)
+  }
+  
+  @method addToBuffer(state: SyncState): void {
+    let buffer = this.state.buffers.get(state.objectId)
+    
+    if (!buffer) {
+      buffer = {
+        states: [],
+        maxSize: 10
+      }
+      this.state.buffers.set(state.objectId, buffer)
+    }
+    
+    // Add state in chronological order
+    buffer.states.push(state)
+    
+    // Sort by timestamp
+    buffer.states.sort((a, b) => a.timestamp - b.timestamp)
+    
+    // Trim to max size
+    while (buffer.states.length > buffer.maxSize) {
+      buffer.states.shift()
+    }
+  }
+  
+  // =========================================================================
+  // INTERPOLATION
+  // =========================================================================
+  
+  @method getInterpolatedState(objectId: string): SyncState | null {
+    if (!this.state.config.interpolation) {
+      return this.getLatestState(objectId)
+    }
+    
+    const buffer = this.state.buffers.get(objectId)
+    if (!buffer || buffer.states.length < 2) {
+      return this.getLatestState(objectId)
+    }
+    
+    // Calculate render time (current time - delay)
+    const renderTime = Date.now() - 
+                       this.state.serverTimeOffset - 
+                       this.state.config.interpolationDelay
+    
+    // Find states to interpolate between
+    let from: SyncState = null
+    let to: SyncState = null
+    
+    for (let i = 0; i < buffer.states.length - 1; i++) {
+      if (buffer.states[i].timestamp <= renderTime &&
+          buffer.states[i + 1].timestamp >= renderTime) {
+        from = buffer.states[i]
+        to = buffer.states[i + 1]
+        break
+      }
+    }
+    
+    // If no valid range, use extrapolation or latest
+    if (!from || !to) {
+      return this.getLatestState(objectId)
+    }
+    
+    // Calculate interpolation factor
+    const timeDiff = to.timestamp - from.timestamp
+    const t = timeDiff > 0 ? (renderTime - from.timestamp) / timeDiff : 0
+    const clampedT = Math.max(0, Math.min(1, t))
+    
+    return this.interpolateStates(from, to, clampedT)
+  }
+  
+  @method interpolateStates(from: SyncState, to: SyncState, t: number): SyncState {
+    return {
+      objectId: from.objectId,
+      position: this.lerpVector3(from.position, to.position, t),
+      rotation: this.lerpVector3(from.rotation, to.rotation, t),
+      scale: this.lerpVector3(from.scale, to.scale, t),
+      velocity: this.lerpVector3(from.velocity, to.velocity, t),
+      metadata: to.metadata,
+      timestamp: from.timestamp + (to.timestamp - from.timestamp) * t,
+      sequence: to.sequence
+    }
+  }
+  
+  @method lerpVector3(a: Vector3, b: Vector3, t: number): Vector3 {
+    if (!a || !b) return b || a
+    
+    return {
+      x: a.x + (b.x - a.x) * t,
+      y: a.y + (b.y - a.y) * t,
+      z: a.z + (b.z - a.z) * t
+    }
+  }
+  
+  @method getLatestState(objectId: string): SyncState | null {
+    const buffer = this.state.buffers.get(objectId)
+    if (!buffer || buffer.states.length === 0) return null
+    return buffer.states[buffer.states.length - 1]
+  }
+  
+  // =========================================================================
+  // PREDICTION
+  // =========================================================================
+  
+  @action setPrediction(objectId: string, state: SyncState): void {
+    if (!this.state.config.predictionEnabled) return
+    this.state.predictions.set(objectId, state)
+  }
+  
+  @method getPrediction(objectId: string): SyncState | null {
+    return this.state.predictions.get(objectId) || null
+  }
+  
+  @action reconcile(objectId: string, serverState: SyncState): void {
+    const prediction = this.state.predictions.get(objectId)
+    if (!prediction) return
+    
+    // Check if prediction was accurate
+    const posError = this.vectorDistance(prediction.position, serverState.position)
+    
+    if (posError > 0.1) {
+      // Prediction was wrong, snap to server state
+      logger.debug("Prediction reconciliation", { objectId, error: posError })
+      this.state.predictions.delete(objectId)
+    }
+  }
+  
+  @method vectorDistance(a: Vector3, b: Vector3): number {
+    if (!a || !b) return 0
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const dz = b.z - a.z
+    return Math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
+  
+  // =========================================================================
+  // PRIORITY MANAGEMENT
+  // =========================================================================
+  
+  @method getPriority(objectId: string, viewerPosition: Vector3): number {
+    if (!this.state.config.priorityByDistance) return 1
+    
+    const state = this.getLatestState(objectId)
+    if (!state || !state.position) return 1
+    
+    const distance = this.vectorDistance(state.position, viewerPosition)
+    
+    // Closer objects get higher priority (0-1 scale, 1 = highest)
+    const maxDistance = 100
+    return Math.max(0, 1 - distance / maxDistance)
+  }
+  
+  @method getObjectsByPriority(viewerPosition: Vector3): string[] {
+    const objects: { id: string, priority: number }[] = []
+    
+    this.state.buffers.forEach((_, objectId) => {
+      objects.push({
+        id: objectId,
+        priority: this.getPriority(objectId, viewerPosition)
+      })
+    })
+    
+    objects.sort((a, b) => b.priority - a.priority)
+    return objects.map(o => o.id)
+  }
+  
+  // =========================================================================
+  // UTILITIES
+  // =========================================================================
+  
+  @action clear(): void {
+    this.state.buffers.clear()
+    this.state.predictions.clear()
+  }
+  
+  @action clearObject(objectId: string): void {
+    this.state.buffers.delete(objectId)
+    this.state.predictions.delete(objectId)
+  }
+  
+  @computed getBufferedObjectCount(): number {
+    return this.state.buffers.size
+  }
+  
+  @method getBufferSize(objectId: string): number {
+    return this.state.buffers.get(objectId)?.states.length || 0
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { StateSync, InterpolationBuffer, DEFAULT_SYNC_CONFIG }

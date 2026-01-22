@@ -1,0 +1,139 @@
+/**
+ * @hololand/ui - Text Component
+ * Text rendering with styling options
+ */
+
+import { UIComponentBase } from "./UIComponent.hsplus"
+import { TextConfig, TextAlign, TextBaseline, Vector2 } from "../types.hsplus"
+
+// =============================================================================
+// TEXT COMPONENT
+// =============================================================================
+
+module Text {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 200, height: 24 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    children: array<any> = [],
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+    accessible: bool = true,
+    ariaLabel: string = "",
+    tabIndex: number = 0,
+
+    // Text-specific
+    text: string = "",
+    color: string = "#333333",
+    fontSize: number = 14,
+    fontFamily: string = "system-ui, -apple-system, sans-serif",
+    fontWeight: string = "400",
+    textAlign: TextAlign = TextAlign.left,
+    textBaseline: TextBaseline = TextBaseline.top,
+    lineHeight: number = 1.4,
+    maxWidth: number = null,
+    overflow: string = "visible"
+  }
+
+  @action initialize(config: TextConfig) {
+    self.id = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 200, height: 24 }
+    self.visible = config.visible ?? true
+    self.enabled = config.enabled ?? true
+    self.text = config.text ?? ""
+    self.color = config.color ?? "#333333"
+    self.fontSize = config.fontSize ?? 14
+    self.fontFamily = config.fontFamily ?? "system-ui, -apple-system, sans-serif"
+    self.fontWeight = config.fontWeight ?? "400"
+    self.textAlign = config.textAlign ?? TextAlign.left
+    self.textBaseline = config.textBaseline ?? TextBaseline.top
+    self.lineHeight = config.lineHeight ?? 1.4
+    self.maxWidth = config.maxWidth
+    self.overflow = config.overflow ?? "visible"
+    self.dirty = true
+    self.eventHandlers = new Map()
+  }
+
+  @action setText(value: string) {
+    self.text = value
+    self.dirty = true
+  }
+
+  @action setColor(value: string) {
+    self.color = value
+    self.dirty = true
+  }
+
+  @action setFontSize(value: number) {
+    self.fontSize = value
+    self.dirty = true
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    ctx.fillStyle = self.color
+    ctx.font = `${self.fontWeight} ${self.fontSize}px ${self.fontFamily}`
+    ctx.textAlign = self.textAlign
+    ctx.textBaseline = self.textBaseline
+
+    let x = self.position.x
+    let y = self.position.y
+
+    // Adjust x for alignment
+    if self.textAlign == TextAlign.center {
+      x += self.size.width / 2
+    } else if self.textAlign == TextAlign.right {
+      x += self.size.width
+    }
+
+    // Handle multiline text
+    let lines = self.text.split("\n")
+    let lineHeightPx = self.fontSize * self.lineHeight
+
+    for let i = 0; i < lines.length; i += 1 {
+      let lineY = y + i * lineHeightPx
+      let lineText = lines[i]
+
+      // Handle overflow
+      if self.overflow == "ellipsis" && self.maxWidth {
+        let metrics = ctx.measureText(lineText)
+        if metrics.width > self.maxWidth {
+          while ctx.measureText(lineText + "...").width > self.maxWidth && lineText.length > 0 {
+            lineText = lineText.slice(0, -1)
+          }
+          lineText += "..."
+        }
+      }
+
+      if self.maxWidth {
+        ctx.fillText(lineText, x, lineY, self.maxWidth)
+      } else {
+        ctx.fillText(lineText, x, lineY)
+      }
+    }
+
+    self.dirty = false
+  }
+
+  @method containsPoint(point: Vector2) -> bool {
+    return (
+      point.x >= self.position.x &&
+      point.x <= self.position.x + self.size.width &&
+      point.y >= self.position.y &&
+      point.y <= self.position.y + self.size.height
+    )
+  }
+}
+
+function createText(config: TextConfig) -> typeof Text {
+  Text.initialize(config)
+  return Text
+}
+
+export { Text, createText }

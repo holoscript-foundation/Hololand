@@ -1,0 +1,224 @@
+// HOSL: BrittneyPromptDialog
+// Modal input dialog for AI generation prompts
+
+component BrittneyPromptDialog {
+  @state {
+    visible: false
+    title: ""
+    placeholder: ""
+    value: ""
+    submitting: false
+    focused: false
+  }
+
+  @props {
+    theme: "dark"
+    on_submit: null
+    on_cancel: null
+  }
+
+  // Internal resolve function
+  @private {
+    resolve_fn: null
+  }
+
+  // Show the dialog and return a promise
+  @method show(title, placeholder, default_value) => {
+    state.title = title
+    state.placeholder = placeholder
+    state.value = default_value || ""
+    state.visible = true
+    state.submitting = false
+    
+    // Focus input after render
+    defer => { this.focus_input() }
+    
+    return new Promise((resolve) => {
+      this.resolve_fn = resolve
+    })
+  }
+
+  // Focus the input field
+  @method focus_input() => {
+    this.#input.focus()
+  }
+
+  // Submit the dialog
+  @method submit() => {
+    if (state.value.trim() == "") return
+    
+    state.submitting = true
+    
+    if (this.resolve_fn) {
+      this.resolve_fn(state.value)
+      this.resolve_fn = null
+    }
+    
+    if (props.on_submit) props.on_submit(state.value)
+    
+    this.hide()
+  }
+
+  // Cancel the dialog
+  @method cancel() => {
+    if (this.resolve_fn) {
+      this.resolve_fn(null)
+      this.resolve_fn = null
+    }
+    
+    if (props.on_cancel) props.on_cancel()
+    
+    this.hide()
+  }
+
+  // Hide the dialog
+  @method hide() => {
+    state.visible = false
+    state.value = ""
+    state.submitting = false
+  }
+
+  // Keyboard handlers
+  @on_key("Escape") => {
+    if (state.visible) this.cancel()
+  }
+
+  @on_key("Enter") => {
+    if (state.visible && !state.submitting) this.submit()
+  }
+
+  // Backdrop overlay
+  panel#backdrop {
+    visible: ${state.visible}
+    position: "fixed"
+    fill: true
+    background: "rgba(0, 0, 0, 0.6)"
+    z_index: 10000
+    layout: "center"
+
+    @on_click => { this.cancel() }
+
+    // Dialog box
+    panel#dialog {
+      width: 480
+      background: "#1e1e2e"
+      border: "1px solid #313244"
+      border_radius: 12
+      shadow: "0 16px 48px rgba(0, 0, 0, 0.5)"
+      
+      @on_click(e) => { e.stopPropagation() }
+
+      // Header
+      panel#header {
+        padding: [16, 20]
+        border_bottom: "1px solid #313244"
+
+        text#title {
+          value: ${state.title}
+          color: "#cdd6f4"
+          size: 18
+          weight: 600
+        }
+      }
+
+      // Body
+      panel#body {
+        padding: 20
+
+        // AI icon and label
+        panel#ai_label {
+          layout: "horizontal"
+          align: "center"
+          gap: 8
+          margin_bottom: 12
+
+          panel#icon_container {
+            width: 32
+            height: 32
+            border_radius: 16
+            background: "linear-gradient(135deg, #7c3aed, #6366f1)"
+            layout: "center"
+
+            text#icon {
+              value: "✨"
+              size: 16
+            }
+          }
+
+          text#label {
+            value: "Brittney AI"
+            color: "#a6adc8"
+            size: 13
+          }
+        }
+
+        // Input field
+        input#input {
+          width: "100%"
+          height: 100
+          multiline: true
+          placeholder: ${state.placeholder}
+          value: ${state.value}
+          background: "#11111b"
+          color: "#cdd6f4"
+          border: "2px solid ${state.focused ? '#7c3aed' : '#313244'}"
+          border_radius: 8
+          padding: 12
+          font_size: 14
+          resize: "none"
+
+          @on_change(v) => { state.value = v }
+          @on_focus => { state.focused = true }
+          @on_blur => { state.focused = false }
+        }
+
+        // Hint text
+        text#hint {
+          value: "Press Enter to submit, Escape to cancel"
+          color: "#6c7086"
+          size: 12
+          margin_top: 8
+        }
+      }
+
+      // Footer
+      panel#footer {
+        padding: [12, 20, 16, 20]
+        layout: "horizontal"
+        justify: "flex-end"
+        gap: 10
+        border_top: "1px solid #313244"
+
+        button#cancel_btn {
+          value: "Cancel"
+          padding: [10, 20]
+          background: "#313244"
+          color: "#cdd6f4"
+          border_radius: 6
+          weight: 500
+          cursor: "pointer"
+
+          @on_hover_enter => { this.background = "#45475a" }
+          @on_hover_exit => { this.background = "#313244" }
+          @on_click => { this.cancel() }
+        }
+
+        button#submit_btn {
+          value: ${state.submitting ? "Generating..." : "Generate"}
+          padding: [10, 24]
+          background: "linear-gradient(135deg, #7c3aed, #6366f1)"
+          color: "#ffffff"
+          border_radius: 6
+          weight: 600
+          cursor: ${state.value.trim() == "" ? "not-allowed" : "pointer"}
+          opacity: ${state.value.trim() == "" ? 0.5 : 1}
+          disabled: ${state.submitting || state.value.trim() == ""}
+
+          @on_click => { this.submit() }
+        }
+      }
+    }
+  }
+}
+
+export { BrittneyPromptDialog }

@@ -1,0 +1,93 @@
+/**
+ * Systems Module Index
+ * 
+ * Exports all game systems for HoloScript worlds.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// Systems Manager (unified access)
+export {
+  SystemsManager,
+  NetworkingSystem,
+  PhysicsSystem,
+  ProceduralSystem,
+  MarketplaceSystem,
+  VersionControlSystem,
+  PartySystem,
+  AnalyticsSystem,
+  AchievementsSystem,
+  NetworkPlayer,
+  PhysicsBody,
+  CollisionEvent,
+  MarketplaceItem,
+  SceneVersion,
+  PartyMember,
+  Achievement
+} from "./SystemsManager.hsplus"
+
+// Battle Arena
+export {
+  BattleArenaModule,
+  NPC,
+  NPCType,
+  NPCStats,
+  Projectile,
+  BattleEvent,
+  BattleState
+} from "./BattleArenaModule.hsplus"
+
+// Systems namespace for convenience
+module Systems {
+  @method getManager(): typeof SystemsManager {
+    return SystemsManager
+  }
+  
+  @method getNetworking(): typeof NetworkingSystem {
+    return NetworkingSystem
+  }
+  
+  @method getPhysics(): typeof PhysicsSystem {
+    return PhysicsSystem
+  }
+  
+  @method getProcedural(): typeof ProceduralSystem {
+    return ProceduralSystem
+  }
+  
+  @method getMarketplace(): typeof MarketplaceSystem {
+    return MarketplaceSystem
+  }
+  
+  @method getVersionControl(): typeof VersionControlSystem {
+    return VersionControlSystem
+  }
+  
+  @method getParty(): typeof PartySystem {
+    return PartySystem
+  }
+  
+  @method getAnalytics(): typeof AnalyticsSystem {
+    return AnalyticsSystem
+  }
+  
+  @method getAchievements(): typeof AchievementsSystem {
+    return AchievementsSystem
+  }
+  
+  @method getBattleArena(): typeof BattleArenaModule {
+    return BattleArenaModule
+  }
+  
+  @action initializeAll(): void {
+    SystemsManager.initializeAll()
+  }
+  
+  @action shutdown(): void {
+    SystemsManager.shutdown()
+    BattleArenaModule.stop()
+  }
+}
+
+export { Systems }

@@ -1,0 +1,485 @@
+// HOSL: Networking Components
+// Multiplayer synchronization, state replication, and RPC
+
+/**
+ * Network Identity
+ * Marks an object for network synchronization
+ */
+component NetworkIdentity {
+  @state {
+    network_id: null
+    owner_id: null
+    is_local_player: false
+    is_server: false
+    spawned: false
+  }
+
+  @props {
+    server_only: false          // Only exists on server
+    local_player_authority: false  // Owner has authority
+    scene_object: true          // Present in scene vs runtime spawned
+  }
+
+  @on_network_spawn(data) => {
+    state.network_id = data.networkId
+    state.owner_id = data.ownerId
+    state.is_local_player = data.isLocalPlayer
+    state.is_server = data.isServer
+    state.spawned = true
+    
+    this.emit("spawned", data)
+  }
+
+  @on_network_despawn => {
+    state.spawned = false
+    this.emit("despawned")
+  }
+
+  // Check if we have authority over this object
+  @computed hasAuthority() {
+    if (state.is_server) return true
+    if (props.local_player_authority && state.is_local_player) return true
+    return false
+  }
+
+  // Request ownership
+  @method requestOwnership() => {
+    if (!state.spawned) return
+    network.requestOwnership(state.network_id)
+  }
+
+  // Transfer ownership to another client
+  @method transferOwnership(client_id) => {
+    if (!this.hasAuthority) return
+    network.transferOwnership(state.network_id, client_id)
+  }
+
+  @on_ownership_changed(data) => {
+    state.owner_id = data.newOwnerId
+    state.is_local_player = data.isLocalPlayer
+    this.emit("ownership_changed", data)
+  }
+}
+
+/**
+ * Network Transform
+ * Synchronizes position, rotation, scale
+ */
+component NetworkTransform {
+  @state {
+    last_send_time: 0
+    remote_position: [0, 0, 0]
+    remote_rotation: [0, 0, 0]
+    remote_velocity: [0, 0, 0]
+    interpolation_time: 0
+  }
+
+  @props {
+    sync_position: true
+    sync_rotation: true
+    sync_scale: false
+    
+    send_rate: 20              // Updates per second
+    interpolation_delay: 0.1   // Seconds behind for smoothing
+    
+    position_threshold: 0.01   // Min change to send
+    rotation_threshold: 0.5    // Degrees
+    
+    compress: true             // Use compression
+    extrapolate: true          // Predict movement
+  }
+
+  @requires { NetworkIdentity }
+
+  @update(delta) => {
+    const identity = this.getComponent(NetworkIdentity)
+    if (!identity.state.spawned) return
+    
+    if (identity.hasAuthority) {
+      // Send updates
+      this.sendUpdates(delta)
+    } else {
+      // Receive and interpolate
+      this.interpolate(delta)
+    }
+  }
+
+  @method sendUpdates(delta) => {
+    state.last_send_time += delta
+    const interval = 1 / props.send_rate
+    
+    if (state.last_send_time < interval) return
+    state.last_send_time = 0
+    
+    const data = {}
+    
+    if (props.sync_position) {
+      data.position = this.position
+      if (props.compress) {
+        data.position = data.position.map(v => Math.round(v * 100) / 100)
+      }
+    }
+    
+    if (props.sync_rotation) {
+      data.rotation = this.rotation
+      if (props.compress) {
+        data.rotation = data.rotation.map(v => Math.round(v * 10) / 10)
+      }
+    }
+    
+    if (props.sync_scale) {
+      data.scale = this.scale
+    }
+    
+    network.sendTransform(this.networkId, data)
+  }
+
+  @method interpolate(delta) => {
+    state.interpolation_time += delta
+    
+    const t = Math.min(state.interpolation_time / props.interpolation_delay, 1)
+    
+    if (props.sync_position) {
+      // Interpolate with velocity prediction
+      let targetPos = state.remote_position
+      if (props.extrapolate) {
+        targetPos = [
+          state.remote_position[0] + state.remote_velocity[0] * props.interpolation_delay,
+          state.remote_position[1] + state.remote_velocity[1] * props.interpolation_delay,
+          state.remote_position[2] + state.remote_velocity[2] * props.interpolation_delay
+        ]
+      }
+      
+      this.position = [
+        this.position[0] + (targetPos[0] - this.position[0]) * t,
+        this.position[1] + (targetPos[1] - this.position[1]) * t,
+        this.position[2] + (targetPos[2] - this.position[2]) * t
+      ]
+    }
+    
+    if (props.sync_rotation) {
+      // Slerp rotation
+      this.rotation = [
+        this.lerpAngle(this.rotation[0], state.remote_rotation[0], t),
+        this.lerpAngle(this.rotation[1], state.remote_rotation[1], t),
+        this.lerpAngle(this.rotation[2], state.remote_rotation[2], t)
+      ]
+    }
+  }
+
+  @method lerpAngle(a, b, t) => {
+    let diff = b - a
+    while (diff > 180) diff -= 360
+    while (diff < -180) diff += 360
+    return a + diff * t
+  }
+
+  @on_network_transform(data) => {
+    // Calculate velocity from position change
+    if (props.sync_position && data.position) {
+      state.remote_velocity = [
+        (data.position[0] - state.remote_position[0]) * props.send_rate,
+        (data.position[1] - state.remote_position[1]) * props.send_rate,
+        (data.position[2] - state.remote_position[2]) * props.send_rate
+      ]
+      state.remote_position = data.position
+    }
+    
+    if (props.sync_rotation && data.rotation) {
+      state.remote_rotation = data.rotation
+    }
+    
+    if (props.sync_scale && data.scale) {
+      this.scale = data.scale
+    }
+    
+    state.interpolation_time = 0
+  }
+}
+
+/**
+ * Network Animator
+ * Synchronizes animation state
+ */
+component NetworkAnimator {
+  @state {
+    synced_params: {}
+    synced_trigger: null
+  }
+
+  @props {
+    animator: null
+    sync_parameters: true
+    sync_triggers: true
+    sync_layers: [0]
+  }
+
+  @requires { NetworkIdentity }
+
+  // Set a synced parameter
+  @method setFloat(name, value) => {
+    if (this.hasAuthority) {
+      props.animator.setFloat(name, value)
+      network.sendAnimParam(this.networkId, { name, type: "float", value })
+    }
+  }
+
+  @method setInt(name, value) => {
+    if (this.hasAuthority) {
+      props.animator.setInt(name, value)
+      network.sendAnimParam(this.networkId, { name, type: "int", value })
+    }
+  }
+
+  @method setBool(name, value) => {
+    if (this.hasAuthority) {
+      props.animator.setBool(name, value)
+      network.sendAnimParam(this.networkId, { name, type: "bool", value })
+    }
+  }
+
+  @method setTrigger(name) => {
+    if (this.hasAuthority) {
+      props.animator.setTrigger(name)
+      network.sendAnimTrigger(this.networkId, name)
+    }
+  }
+
+  @on_network_anim_param(data) => {
+    if (!props.animator) return
+    
+    switch (data.type) {
+      case "float": props.animator.setFloat(data.name, data.value); break
+      case "int": props.animator.setInt(data.name, data.value); break
+      case "bool": props.animator.setBool(data.name, data.value); break
+    }
+  }
+
+  @on_network_anim_trigger(name) => {
+    if (props.animator) {
+      props.animator.setTrigger(name)
+    }
+  }
+}
+
+/**
+ * Network Variable
+ * Synchronized variable with change callbacks
+ */
+component NetworkVariable {
+  @state {
+    value: null
+    previous_value: null
+    dirty: false
+  }
+
+  @props {
+    initial_value: null
+    sync_direction: "server_to_client"  // server_to_client | client_to_server | bidirectional
+    write_permission: "server"          // server | owner | everyone
+    on_change: null
+  }
+
+  @requires { NetworkIdentity }
+
+  @on_ready => {
+    state.value = props.initial_value
+    state.previous_value = props.initial_value
+  }
+
+  // Get current value
+  @method get() => {
+    return state.value
+  }
+
+  // Set value (will sync if permitted)
+  @method set(new_value) => {
+    const identity = this.getComponent(NetworkIdentity)
+    
+    // Check permission
+    let canWrite = false
+    switch (props.write_permission) {
+      case "server": canWrite = identity.state.is_server; break
+      case "owner": canWrite = identity.hasAuthority; break
+      case "everyone": canWrite = true; break
+    }
+    
+    if (!canWrite) {
+      console.warn("No permission to write NetworkVariable")
+      return
+    }
+    
+    state.previous_value = state.value
+    state.value = new_value
+    state.dirty = true
+    
+    if (props.on_change) {
+      props.on_change(new_value, state.previous_value)
+    }
+    
+    // Sync
+    network.sendVariable(this.networkId, this.id, new_value)
+  }
+
+  @on_network_variable(data) => {
+    if (data.varId != this.id) return
+    
+    state.previous_value = state.value
+    state.value = data.value
+    
+    if (props.on_change) {
+      props.on_change(state.value, state.previous_value)
+    }
+  }
+}
+
+/**
+ * Network RPC
+ * Remote Procedure Calls
+ */
+component NetworkRPC {
+  @props {
+    registered_methods: {}
+  }
+
+  @requires { NetworkIdentity }
+
+  // Register a method as an RPC
+  @method register(method_name, handler) => {
+    props.registered_methods[method_name] = handler
+  }
+
+  // Call RPC on server
+  @method serverRpc(method_name, ...args) => {
+    network.sendRpc(this.networkId, method_name, args, "server")
+  }
+
+  // Call RPC on all clients
+  @method clientRpc(method_name, ...args) => {
+    const identity = this.getComponent(NetworkIdentity)
+    if (!identity.state.is_server) {
+      console.warn("Only server can send ClientRpc")
+      return
+    }
+    network.sendRpc(this.networkId, method_name, args, "all_clients")
+  }
+
+  // Call RPC on specific client
+  @method targetRpc(client_id, method_name, ...args) => {
+    const identity = this.getComponent(NetworkIdentity)
+    if (!identity.state.is_server) {
+      console.warn("Only server can send TargetRpc")
+      return
+    }
+    network.sendRpc(this.networkId, method_name, args, client_id)
+  }
+
+  @on_network_rpc(data) => {
+    const handler = props.registered_methods[data.method]
+    if (handler) {
+      handler.apply(this.parent, data.args)
+    } else {
+      console.warn(`RPC method "${data.method}" not registered`)
+    }
+  }
+}
+
+/**
+ * Network Spawner
+ * Spawn networked objects at runtime
+ */
+component NetworkSpawner {
+  @state {
+    spawned_objects: []
+  }
+
+  @props {
+    prefabs: {}  // { "enemy": EnemyPrefab, "bullet": BulletPrefab }
+    pool_size: 10
+    use_pooling: true
+  }
+
+  // Spawn a prefab across the network
+  @method spawn(prefab_name, position, rotation, owner_id = null) => {
+    const identity = this.getComponent(NetworkIdentity)
+    if (!identity.state.is_server) {
+      console.warn("Only server can spawn networked objects")
+      return null
+    }
+    
+    const prefab = props.prefabs[prefab_name]
+    if (!prefab) {
+      console.warn(`Prefab "${prefab_name}" not registered`)
+      return null
+    }
+    
+    const networkId = network.generateNetworkId()
+    
+    // Spawn locally
+    const instance = this.instantiate(prefab, {
+      position: position,
+      rotation: rotation
+    })
+    
+    instance.networkId = networkId
+    state.spawned_objects.push({ networkId, instance, prefab_name })
+    
+    // Tell clients to spawn
+    network.broadcast("spawn", {
+      prefab: prefab_name,
+      networkId: networkId,
+      position: position,
+      rotation: rotation,
+      ownerId: owner_id
+    })
+    
+    return instance
+  }
+
+  // Despawn a networked object
+  @method despawn(network_id) => {
+    const identity = this.getComponent(NetworkIdentity)
+    if (!identity.state.is_server) {
+      console.warn("Only server can despawn networked objects")
+      return
+    }
+    
+    const entry = state.spawned_objects.find(o => o.networkId == network_id)
+    if (entry) {
+      entry.instance.destroy()
+      state.spawned_objects = state.spawned_objects.filter(o => o.networkId != network_id)
+      
+      network.broadcast("despawn", { networkId: network_id })
+    }
+  }
+
+  @on_network_spawn(data) => {
+    const prefab = props.prefabs[data.prefab]
+    if (!prefab) return
+    
+    const instance = this.instantiate(prefab, {
+      position: data.position,
+      rotation: data.rotation
+    })
+    
+    instance.networkId = data.networkId
+    state.spawned_objects.push({ networkId: data.networkId, instance, prefab_name: data.prefab })
+  }
+
+  @on_network_despawn(data) => {
+    const entry = state.spawned_objects.find(o => o.networkId == data.networkId)
+    if (entry) {
+      entry.instance.destroy()
+      state.spawned_objects = state.spawned_objects.filter(o => o.networkId != data.networkId)
+    }
+  }
+}
+
+export { 
+  NetworkIdentity, 
+  NetworkTransform, 
+  NetworkAnimator, 
+  NetworkVariable, 
+  NetworkRPC, 
+  NetworkSpawner 
+}

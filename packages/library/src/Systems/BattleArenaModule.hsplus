@@ -1,0 +1,590 @@
+/**
+ * BattleArenaModule.hsplus
+ * 
+ * Battle arena game system module for managing NPCs, combat,
+ * projectiles, and real-time battle state.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+type NPCType = "fire-mage" | "water-elemental" | "earth-golem" | "wind-spirit" | "player"
+
+struct Vector3 {
+  x: number
+  y: number
+  z: number
+}
+
+struct NPCStats {
+  attack: number
+  defense: number
+  speed: number
+  attackRange: number
+  magicPower: number = 0
+}
+
+struct NPC {
+  id: string
+  name: string
+  type: NPCType
+  position: Vector3
+  health: number
+  maxHealth: number
+  mana: number
+  maxMana: number
+  stats: NPCStats
+  alive: boolean = true
+  target: string = null
+  lastAttack: number = 0
+  cooldowns: object = {}
+}
+
+struct Projectile {
+  id: string
+  ownerId: string
+  targetId: string
+  position: Vector3
+  velocity: Vector3
+  damage: number
+  projectileType: string
+  createdAt: number
+  lifetime: number = 5000
+}
+
+struct BattleEvent {
+  type: string
+  timestamp: number
+  data: object
+}
+
+struct HealthStatus {
+  current: number
+  max: number
+  alive: boolean
+}
+
+struct BattleState {
+  npcs: NPC[]
+  projectiles: Projectile[]
+  isRunning: boolean
+  activeCombats: [string, string][]
+  events: BattleEvent[]
+}
+
+// =============================================================================
+// BATTLE ARENA MODULE
+// =============================================================================
+
+module BattleArenaModule {
+  // Arena configuration
+  const ARENA_WIDTH = 100
+  const ARENA_HEIGHT = 100
+  const MAX_EVENTS = 50
+  const TICK_RATE = 16 // ~60 FPS
+  
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    npcs: Map<string, NPC> = new Map()
+    projectiles: Map<string, Projectile> = new Map()
+    isRunning: boolean = false
+    activeCombats: [string, string][] = []
+    events: BattleEvent[] = []
+    tickInterval: number = null
+    arenaWidth: number = ARENA_WIDTH
+    arenaHeight: number = ARENA_HEIGHT
+  }
+  
+  // =========================================================================
+  // EVENT EMITTER
+  // =========================================================================
+  
+  @event npc_spawned(npc: NPC)
+  @event npc_removed(npcId: string)
+  @event damage_dealt(targetId: string, damage: number, attackerId: string)
+  @event death_animation(npcId: string)
+  @event projectile_fired(projectile: Projectile)
+  @event projectile_hit(projectileId: string, targetId: string, damage: number)
+  @event projectile_expired(projectileId: string)
+  @event arena_started()
+  @event arena_stopped()
+  @event combat_started(npc1Id: string, npc2Id: string)
+  @event combat_ended(npc1Id: string, npc2Id: string)
+  
+  // =========================================================================
+  // ARENA CONTROL
+  // =========================================================================
+  
+  @action initialize(width: number = ARENA_WIDTH, height: number = ARENA_HEIGHT): void {
+    this.state.arenaWidth = width
+    this.state.arenaHeight = height
+    this.state.npcs.clear()
+    this.state.projectiles.clear()
+    this.state.activeCombats = []
+    this.state.events = []
+  }
+  
+  @action start(): void {
+    if (this.state.isRunning) return
+    
+    this.state.isRunning = true
+    this.state.tickInterval = setInterval(() => {
+      this.tick(TICK_RATE / 1000)
+    }, TICK_RATE)
+    
+    this.addEvent("arena:started", {})
+    this.emit("arena_started")
+  }
+  
+  @action stop(): void {
+    if (!this.state.isRunning) return
+    
+    this.state.isRunning = false
+    if (this.state.tickInterval) {
+      clearInterval(this.state.tickInterval)
+      this.state.tickInterval = null
+    }
+    
+    this.addEvent("arena:stopped", {})
+    this.emit("arena_stopped")
+  }
+  
+  @action reset(): void {
+    this.stop()
+    this.initialize(this.state.arenaWidth, this.state.arenaHeight)
+  }
+  
+  // =========================================================================
+  // NPC MANAGEMENT
+  // =========================================================================
+  
+  @action spawnNPC(config: {
+    id: string,
+    name: string,
+    type: NPCType,
+    position: Vector3,
+    maxHealth?: number,
+    maxMana?: number,
+    stats?: NPCStats
+  }): NPC {
+    const defaultStats = this.getDefaultStats(config.type)
+    
+    const npc: NPC = {
+      id: config.id,
+      name: config.name,
+      type: config.type,
+      position: config.position,
+      health: config.maxHealth || 100,
+      maxHealth: config.maxHealth || 100,
+      mana: config.maxMana || 100,
+      maxMana: config.maxMana || 100,
+      stats: config.stats || defaultStats,
+      alive: true,
+      target: null,
+      lastAttack: 0,
+      cooldowns: {}
+    }
+    
+    this.state.npcs.set(npc.id, npc)
+    this.addEvent("npc:spawned", { npc })
+    this.emit("npc_spawned", npc)
+    
+    return npc
+  }
+  
+  @method getDefaultStats(type: NPCType): NPCStats {
+    match type {
+      "fire-mage" => {
+        attack: 15,
+        defense: 5,
+        speed: 2.5,
+        attackRange: 20,
+        magicPower: 25
+      }
+      "water-elemental" => {
+        attack: 12,
+        defense: 8,
+        speed: 3,
+        attackRange: 15,
+        magicPower: 20
+      }
+      "earth-golem" => {
+        attack: 20,
+        defense: 15,
+        speed: 1.5,
+        attackRange: 5,
+        magicPower: 5
+      }
+      "wind-spirit" => {
+        attack: 10,
+        defense: 3,
+        speed: 5,
+        attackRange: 25,
+        magicPower: 30
+      }
+      _ => {
+        attack: 10,
+        defense: 5,
+        speed: 4,
+        attackRange: 10,
+        magicPower: 10
+      }
+    }
+  }
+  
+  @action removeNPC(npcId: string): void {
+    if (this.state.npcs.has(npcId)) {
+      this.state.npcs.delete(npcId)
+      this.addEvent("npc:removed", { npcId })
+      this.emit("npc_removed", npcId)
+    }
+  }
+  
+  @method getNPC(npcId: string): NPC {
+    return this.state.npcs.get(npcId)
+  }
+  
+  @method getAllNPCs(): NPC[] {
+    return Array.from(this.state.npcs.values())
+  }
+  
+  // =========================================================================
+  // COMBAT
+  // =========================================================================
+  
+  @action dealDamage(targetId: string, damage: number, attackerId: string): void {
+    const target = this.state.npcs.get(targetId)
+    if (!target || !target.alive) return
+    
+    // Apply defense
+    const attacker = this.state.npcs.get(attackerId)
+    const effectiveDamage = Math.max(1, damage - (target.stats.defense * 0.5))
+    
+    target.health = Math.max(0, target.health - effectiveDamage)
+    
+    this.addEvent("damage:dealt", {
+      targetId,
+      attackerId,
+      damage: effectiveDamage,
+      remainingHealth: target.health
+    })
+    this.emit("damage_dealt", targetId, effectiveDamage, attackerId)
+    
+    if (target.health <= 0) {
+      this.killNPC(targetId)
+    }
+  }
+  
+  @action killNPC(npcId: string): void {
+    const npc = this.state.npcs.get(npcId)
+    if (!npc || !npc.alive) return
+    
+    npc.alive = false
+    npc.health = 0
+    
+    this.addEvent("death:animation", { npcId, npcName: npc.name })
+    this.emit("death_animation", npcId)
+    
+    // Remove from active combats
+    this.state.activeCombats = this.state.activeCombats.filter(
+      ([a, b]) => a !== npcId && b !== npcId
+    )
+  }
+  
+  @action fireProjectile(config: {
+    ownerId: string,
+    targetId: string,
+    position: Vector3,
+    damage?: number,
+    projectileType?: string
+  }): Projectile {
+    const owner = this.state.npcs.get(config.ownerId)
+    if (!owner) return null
+    
+    const target = config.targetId ? this.state.npcs.get(config.targetId) : null
+    const velocity = target 
+      ? this.calculateVelocity(config.position, target.position, 10)
+      : { x: 0, y: 0, z: 1 }
+    
+    const projectile: Projectile = {
+      id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      ownerId: config.ownerId,
+      targetId: config.targetId,
+      position: { ...config.position },
+      velocity,
+      damage: config.damage || owner.stats.attack,
+      projectileType: config.projectileType || "default",
+      createdAt: Date.now(),
+      lifetime: 5000
+    }
+    
+    this.state.projectiles.set(projectile.id, projectile)
+    this.addEvent("projectile:fired", { projectile })
+    this.emit("projectile_fired", projectile)
+    
+    return projectile
+  }
+  
+  @method calculateVelocity(from: Vector3, to: Vector3, speed: number): Vector3 {
+    const dx = to.x - from.x
+    const dy = to.y - from.y
+    const dz = to.z - from.z
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    
+    if (dist === 0) return { x: 0, y: 0, z: speed }
+    
+    return {
+      x: (dx / dist) * speed,
+      y: (dy / dist) * speed,
+      z: (dz / dist) * speed
+    }
+  }
+  
+  // =========================================================================
+  // MOVEMENT & RANGE
+  // =========================================================================
+  
+  @action moveTowards(npcId: string, target: Vector3, deltaTime: number): void {
+    const npc = this.state.npcs.get(npcId)
+    if (!npc || !npc.alive) return
+    
+    const speed = npc.stats.speed * deltaTime
+    const velocity = this.calculateVelocity(npc.position, target, speed)
+    
+    npc.position.x += velocity.x
+    npc.position.y += velocity.y
+    npc.position.z += velocity.z
+    
+    // Clamp to arena bounds
+    npc.position.x = Math.max(0, Math.min(this.state.arenaWidth, npc.position.x))
+    npc.position.z = Math.max(0, Math.min(this.state.arenaHeight, npc.position.z))
+  }
+  
+  @method isInRange(npcId: string, targetId: string): boolean {
+    const npc = this.state.npcs.get(npcId)
+    const target = this.state.npcs.get(targetId)
+    if (!npc || !target) return false
+    
+    const distance = this.getDistance(npcId, targetId)
+    return distance <= npc.stats.attackRange
+  }
+  
+  @method getDistance(npc1Id: string, npc2Id: string): number {
+    const npc1 = this.state.npcs.get(npc1Id)
+    const npc2 = this.state.npcs.get(npc2Id)
+    if (!npc1 || !npc2) return Infinity
+    
+    const dx = npc2.position.x - npc1.position.x
+    const dy = npc2.position.y - npc1.position.y
+    const dz = npc2.position.z - npc1.position.z
+    
+    return Math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
+  
+  @method getNearestNPC(position: Vector3, excludeId?: string, maxDistance?: number): NPC {
+    let nearest: NPC = null
+    let nearestDist = maxDistance || Infinity
+    
+    for (const npc of this.state.npcs.values()) {
+      if (npc.id === excludeId || !npc.alive) continue
+      
+      const dx = npc.position.x - position.x
+      const dy = npc.position.y - position.y
+      const dz = npc.position.z - position.z
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      
+      if (dist < nearestDist) {
+        nearest = npc
+        nearestDist = dist
+      }
+    }
+    
+    return nearest
+  }
+  
+  // =========================================================================
+  // GAME TICK
+  // =========================================================================
+  
+  @action tick(deltaTime: number): void {
+    if (!this.state.isRunning) return
+    
+    // Update projectiles
+    this.updateProjectiles(deltaTime)
+    
+    // Update NPC AI
+    this.updateNPCAI(deltaTime)
+    
+    // Regenerate mana
+    this.regenerateMana(deltaTime)
+  }
+  
+  @method updateProjectiles(deltaTime: number): void {
+    const now = Date.now()
+    const toRemove: string[] = []
+    
+    for (const [id, proj] of this.state.projectiles) {
+      // Check lifetime
+      if (now - proj.createdAt > proj.lifetime) {
+        toRemove.push(id)
+        this.emit("projectile_expired", id)
+        continue
+      }
+      
+      // Move projectile
+      proj.position.x += proj.velocity.x * deltaTime
+      proj.position.y += proj.velocity.y * deltaTime
+      proj.position.z += proj.velocity.z * deltaTime
+      
+      // Check collision with target
+      if (proj.targetId) {
+        const target = this.state.npcs.get(proj.targetId)
+        if (target && target.alive) {
+          const dx = target.position.x - proj.position.x
+          const dy = target.position.y - proj.position.y
+          const dz = target.position.z - proj.position.z
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          
+          if (dist < 2) {
+            this.dealDamage(proj.targetId, proj.damage, proj.ownerId)
+            this.emit("projectile_hit", id, proj.targetId, proj.damage)
+            toRemove.push(id)
+          }
+        }
+      }
+    }
+    
+    // Remove expired/hit projectiles
+    for (const id of toRemove) {
+      this.state.projectiles.delete(id)
+    }
+  }
+  
+  @method updateNPCAI(deltaTime: number): void {
+    for (const npc of this.state.npcs.values()) {
+      if (!npc.alive || npc.type === "player") continue
+      
+      // Find nearest enemy
+      const nearest = this.getNearestNPC(npc.position, npc.id)
+      if (!nearest) continue
+      
+      npc.target = nearest.id
+      
+      // Move towards or attack
+      if (this.isInRange(npc.id, nearest.id)) {
+        this.tryAttack(npc, nearest)
+      } else {
+        this.moveTowards(npc.id, nearest.position, deltaTime)
+      }
+    }
+  }
+  
+  @method tryAttack(attacker: NPC, target: NPC): void {
+    const now = Date.now()
+    const attackCooldown = 1000 / attacker.stats.speed
+    
+    if (now - attacker.lastAttack < attackCooldown) return
+    if (attacker.mana < 10) return
+    
+    attacker.lastAttack = now
+    attacker.mana -= 10
+    
+    // Fire projectile
+    this.fireProjectile({
+      ownerId: attacker.id,
+      targetId: target.id,
+      position: { ...attacker.position },
+      damage: attacker.stats.attack + attacker.stats.magicPower * 0.5,
+      projectileType: this.getProjectileType(attacker.type)
+    })
+  }
+  
+  @method getProjectileType(npcType: NPCType): string {
+    match npcType {
+      "fire-mage" => "fireball"
+      "water-elemental" => "water-bolt"
+      "earth-golem" => "rock"
+      "wind-spirit" => "wind-blade"
+      _ => "default"
+    }
+  }
+  
+  @method regenerateMana(deltaTime: number): void {
+    for (const npc of this.state.npcs.values()) {
+      if (!npc.alive) continue
+      npc.mana = Math.min(npc.maxMana, npc.mana + 5 * deltaTime)
+    }
+  }
+  
+  // =========================================================================
+  // STATE QUERIES
+  // =========================================================================
+  
+  @method getState(): BattleState {
+    return {
+      npcs: this.getAllNPCs(),
+      projectiles: Array.from(this.state.projectiles.values()),
+      isRunning: this.state.isRunning,
+      activeCombats: this.state.activeCombats,
+      events: this.state.events
+    }
+  }
+  
+  @method getHealthStatus(): object {
+    const status = {}
+    for (const [id, npc] of this.state.npcs) {
+      status[id] = {
+        current: npc.health,
+        max: npc.maxHealth,
+        alive: npc.alive
+      }
+    }
+    return status
+  }
+  
+  // =========================================================================
+  // EVENT LOG
+  // =========================================================================
+  
+  @method addEvent(type: string, data: object): void {
+    const event: BattleEvent = {
+      type,
+      timestamp: Date.now(),
+      data
+    }
+    
+    this.state.events.push(event)
+    
+    // Keep only last MAX_EVENTS
+    if (this.state.events.length > MAX_EVENTS) {
+      this.state.events = this.state.events.slice(-MAX_EVENTS)
+    }
+  }
+  
+  @action clearEventLog(): void {
+    this.state.events = []
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  BattleArenaModule,
+  NPC,
+  NPCType,
+  NPCStats,
+  Projectile,
+  BattleEvent,
+  BattleState,
+  HealthStatus,
+  Vector3
+}

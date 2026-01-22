@@ -1,0 +1,897 @@
+/**
+ * Brittney Chat Component - AI-Powered Code Assistant
+ * 
+ * Complete chat interface with streaming, provider selection,
+ * code block rendering, and message history.
+ * 
+ * @package @hololand/library
+ * @category UI
+ */
+
+// =============================================================================
+// CHAT MESSAGE
+// =============================================================================
+
+/**
+ * Individual chat message bubble
+ * Handles user and assistant message styling
+ */
+component ChatMessage {
+  @props {
+    id: string
+    role: "user" | "assistant"
+    content: string
+    timestamp: datetime
+    onApplyCode: function(code: string)
+  }
+
+  @state {
+    codeBlocks: array<{ language: string, code: string }> = []
+    parsedContent: array<{ type: "text" | "code", value: string }> = []
+  }
+
+  @computed isUser() {
+    return this.props.role === "user"
+  }
+
+  @computed formattedTime() {
+    return this.props.timestamp.toLocaleTimeString()
+  }
+
+  @on_mount {
+    // Parse content for code blocks
+    this.parseContent()
+  }
+
+  @on_props_change(content) {
+    this.parseContent()
+  }
+
+  @method parseContent() {
+    const parts = []
+    const regex = /```(?:holoscript|holo|hsplus)?\n([\s\S]*?)```/g
+    let lastIndex = 0
+    let match
+
+    while ((match = regex.exec(this.props.content)) !== null) {
+      // Text before code block
+      if (match.index > lastIndex) {
+        parts.push({ type: "text", value: this.props.content.slice(lastIndex, match.index) })
+      }
+      // Code block
+      parts.push({ type: "code", value: match[1] })
+      lastIndex = regex.lastIndex
+    }
+
+    // Remaining text
+    if (lastIndex < this.props.content.length) {
+      parts.push({ type: "text", value: this.props.content.slice(lastIndex) })
+    }
+
+    this.state.parsedContent = parts
+  }
+
+  @method handleApplyCode(code: string) {
+    if (this.props.onApplyCode) {
+      this.props.onApplyCode(code)
+    }
+  }
+
+  @render {
+    <div class="chat-message {this.isUser ? 'user' : 'assistant'}">
+      <div class="message-bubble">
+        @for (part in this.state.parsedContent) {
+          @if (part.type === "text") {
+            <span class="message-text">{part.value}</span>
+          } @else {
+            <div class="code-block">
+              <div class="code-header">
+                <span class="code-language">HoloScript</span>
+                <button 
+                  class="apply-button"
+                  @on_click={() => this.handleApplyCode(part.value)}
+                >
+                  ✓ Apply
+                </button>
+              </div>
+              <pre class="code-content">{part.value}</pre>
+            </div>
+          }
+        }
+        <span class="message-time">{this.formattedTime}</span>
+      </div>
+    </div>
+  }
+
+  @style {
+    .chat-message {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .chat-message.user {
+      justify-content: flex-end;
+    }
+
+    .chat-message.assistant {
+      justify-content: flex-start;
+    }
+
+    .message-bubble {
+      max-width: 85%;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      word-break: break-word;
+    }
+
+    .user .message-bubble {
+      background: var(--color-blue-600, #2563eb);
+      color: white;
+    }
+
+    .assistant .message-bubble {
+      background: var(--color-gray-800, #1f2937);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-purple-500, #a855f7);
+    }
+
+    .message-text {
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+    }
+
+    .message-time {
+      display: block;
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+
+    .code-block {
+      margin: 0.5rem 0;
+      background: var(--color-gray-950, #0a0a0a);
+      border: 1px solid var(--color-gray-700, #374151);
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.25rem 0.5rem;
+      background: var(--color-gray-900, #111827);
+      border-bottom: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .code-language {
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+    }
+
+    .apply-button {
+      font-size: 0.75rem;
+      padding: 0.125rem 0.5rem;
+      background: var(--color-purple-600, #9333ea);
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .apply-button:hover {
+      background: var(--color-purple-700, #7e22ce);
+    }
+
+    .code-content {
+      padding: 0.5rem;
+      margin: 0;
+      font-size: 0.75rem;
+      font-family: var(--font-mono, monospace);
+      color: var(--color-green-400, #4ade80);
+      overflow-x: auto;
+    }
+  }
+}
+
+// =============================================================================
+// STREAMING INDICATOR
+// =============================================================================
+
+/**
+ * Animated typing indicator for streaming responses
+ */
+component StreamingIndicator {
+  @props {
+    content: string = ""
+  }
+
+  @render {
+    <div class="streaming-indicator">
+      <div class="streaming-bubble">
+        @if (this.props.content) {
+          <p class="streaming-text">{this.props.content}</p>
+        }
+        <div class="typing-dots">
+          <span class="dot" style="animation-delay: 0s"></span>
+          <span class="dot" style="animation-delay: 0.1s"></span>
+          <span class="dot" style="animation-delay: 0.2s"></span>
+        </div>
+      </div>
+    </div>
+  }
+
+  @style {
+    .streaming-indicator {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-start;
+    }
+
+    .streaming-bubble {
+      max-width: 20rem;
+      padding: 0.75rem 1rem;
+      background: var(--color-gray-800, #1f2937);
+      border: 1px solid var(--color-purple-500, #a855f7);
+      border-radius: 0.75rem;
+      color: var(--color-gray-100, #f3f4f6);
+    }
+
+    .streaming-text {
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .typing-dots {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      background: var(--color-purple-400, #c084fc);
+      border-radius: 50%;
+      animation: bounce 0.6s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+  }
+}
+
+// =============================================================================
+// PROVIDER SELECTOR
+// =============================================================================
+
+/**
+ * AI Provider dropdown selector
+ */
+component ProviderSelector {
+  @props {
+    providers: array<string> = ["brittney", "openai", "claude", "ollama"]
+    selectedProvider: string = "brittney"
+    onChange: function(provider: string)
+  }
+
+  @method handleChange(event) {
+    if (this.props.onChange) {
+      this.props.onChange(event.target.value)
+    }
+  }
+
+  @render {
+    <div class="provider-selector">
+      <label class="provider-label">Provider:</label>
+      <select 
+        class="provider-dropdown"
+        value={this.props.selectedProvider}
+        @on_change={this.handleChange}
+      >
+        @for (provider in this.props.providers) {
+          <option value={provider}>
+            {provider.charAt(0).toUpperCase() + provider.slice(1)}
+          </option>
+        }
+      </select>
+    </div>
+  }
+
+  @style {
+    .provider-selector {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .provider-label {
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+    }
+
+    .provider-dropdown {
+      flex: 1;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--color-gray-700, #374151);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .provider-dropdown:focus {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+  }
+}
+
+// =============================================================================
+// CHAT INPUT
+// =============================================================================
+
+/**
+ * Chat input form with send button
+ */
+component ChatInput {
+  @props {
+    disabled: bool = false
+    placeholder: string = "Ask Brittney..."
+    onSend: function(message: string)
+  }
+
+  @state {
+    value: string = ""
+  }
+
+  @method handleSubmit(event) {
+    event.preventDefault()
+    if (this.state.value.trim() && this.props.onSend) {
+      this.props.onSend(this.state.value.trim())
+      this.state.value = ""
+    }
+  }
+
+  @method handleInput(event) {
+    this.state.value = event.target.value
+  }
+
+  @method handleKeyDown(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      this.handleSubmit(event)
+    }
+  }
+
+  @render {
+    <form class="chat-input" @on_submit={this.handleSubmit}>
+      <input
+        type="text"
+        class="input-field"
+        value={this.state.value}
+        placeholder={this.props.placeholder}
+        disabled={this.props.disabled}
+        @on_input={this.handleInput}
+        @on_keydown={this.handleKeyDown}
+      />
+      <button 
+        type="submit"
+        class="send-button"
+        disabled={this.props.disabled || !this.state.value.trim()}
+      >
+        {this.props.disabled ? "..." : "Send"}
+      </button>
+    </form>
+  }
+
+  @style {
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .input-field {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      background: var(--color-gray-700, #374151);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.375rem;
+      outline: none;
+    }
+
+    .input-field:focus {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+
+    .input-field:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .input-field::placeholder {
+      color: var(--color-gray-400, #9ca3af);
+    }
+
+    .send-button {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: var(--color-purple-600, #9333ea);
+      color: white;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .send-button:hover:not(:disabled) {
+      background: var(--color-purple-700, #7e22ce);
+    }
+
+    .send-button:disabled {
+      background: var(--color-gray-600, #4b5563);
+      cursor: not-allowed;
+    }
+  }
+}
+
+// =============================================================================
+// WELCOME MESSAGE
+// =============================================================================
+
+/**
+ * Initial welcome screen with suggestions
+ */
+component WelcomeMessage {
+  @props {
+    suggestions: array<string> = [
+      "Generate a spinning cube",
+      "Create a particle system",
+      "Load template BasicObject",
+      "Fix errors in my code"
+    ]
+    onSuggestionClick: function(suggestion: string)
+  }
+
+  @method handleClick(suggestion: string) {
+    if (this.props.onSuggestionClick) {
+      this.props.onSuggestionClick(suggestion)
+    }
+  }
+
+  @render {
+    <div class="welcome-message">
+      <div class="welcome-icon">✨</div>
+      <h3 class="welcome-title">Welcome to Brittney AI</h3>
+      <p class="welcome-description">
+        Ask me to generate HoloScript, fix errors, optimize code, or explain your world.
+      </p>
+      <div class="suggestions-box">
+        <p class="suggestions-title">Try asking:</p>
+        <ul class="suggestions-list">
+          @for (suggestion in this.props.suggestions) {
+            <li 
+              class="suggestion-item"
+              @on_click={() => this.handleClick(suggestion)}
+            >
+              • {suggestion}
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  }
+
+  @style {
+    .welcome-message {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-gray-500, #6b7280);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .welcome-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .welcome-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem 0;
+      color: var(--color-gray-300, #d1d5db);
+    }
+
+    .welcome-description {
+      font-size: 0.75rem;
+      max-width: 16rem;
+      margin: 0 0 1rem 0;
+    }
+
+    .suggestions-box {
+      background: var(--color-gray-800, #1f2937);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      max-width: 16rem;
+      text-align: left;
+    }
+
+    .suggestions-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem 0;
+      color: var(--color-gray-300, #d1d5db);
+    }
+
+    .suggestions-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .suggestion-item {
+      font-size: 0.75rem;
+      padding: 0.25rem 0;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .suggestion-item:hover {
+      color: var(--color-purple-400, #c084fc);
+    }
+  }
+}
+
+// =============================================================================
+// BRITTNEY CHAT (MAIN COMPONENT)
+// =============================================================================
+
+/**
+ * Complete Brittney Chat interface
+ * 
+ * Features:
+ * - Multi-provider AI support (Brittney, OpenAI, Claude, Ollama)
+ * - Streaming responses with typing indicator
+ * - Code block rendering with Apply button
+ * - Message history with scroll
+ * - Template loading support
+ * 
+ * @example
+ * <BrittneyChat
+ *   providers={["brittney", "openai", "claude"]}
+ *   onApplyCode={(code) => editor.setCode(code)}
+ *   onMessage={(msg) => console.log(msg)}
+ * />
+ */
+component BrittneyChat {
+  @props {
+    providers: array<string> = ["brittney", "openai", "claude", "ollama"]
+    defaultProvider: string = "brittney"
+    apiEndpoint: string = "http://localhost:3001"
+    onApplyCode: function(code: string)
+    onMessage: function(message: object)
+  }
+
+  @state {
+    messages: array<{
+      id: string,
+      role: "user" | "assistant",
+      content: string,
+      timestamp: datetime
+    }> = []
+    selectedProvider: string = "brittney"
+    isStreaming: bool = false
+    streamingContent: string = ""
+    isLoading: bool = false
+  }
+
+  @computed hasMessages() {
+    return this.state.messages.length > 0 || this.state.isStreaming
+  }
+
+  @on_mount {
+    this.state.selectedProvider = this.props.defaultProvider
+  }
+
+  @method async sendMessage(content: string) {
+    // Add user message
+    const userMessage = {
+      id: `msg-${Date.now()}`,
+      role: "user",
+      content: content,
+      timestamp: new Date()
+    }
+    
+    this.state.messages = [...this.state.messages, userMessage]
+    this.state.isLoading = true
+    this.state.isStreaming = true
+    this.state.streamingContent = ""
+
+    try {
+      // Check for template request
+      const templateMatch = content.match(/template\s+(\w+)/i)
+      if (templateMatch) {
+        const response = await this.loadTemplate(templateMatch[1])
+        this.addAssistantMessage(response)
+        return
+      }
+
+      // Stream from AI provider
+      const response = await this.streamFromProvider(content)
+      this.addAssistantMessage(response)
+    } catch (error) {
+      // Fallback to suggestions
+      const fallback = this.generateSuggestion(content)
+      this.addAssistantMessage(fallback)
+    } finally {
+      this.state.isLoading = false
+      this.state.isStreaming = false
+      this.state.streamingContent = ""
+    }
+  }
+
+  @method addAssistantMessage(content: string) {
+    const message = {
+      id: `msg-${Date.now()}-ai`,
+      role: "assistant",
+      content: content,
+      timestamp: new Date()
+    }
+    
+    this.state.messages = [...this.state.messages, message]
+    
+    if (this.props.onMessage) {
+      this.props.onMessage(message)
+    }
+  }
+
+  @method async streamFromProvider(prompt: string) {
+    const endpoint = `${this.props.apiEndpoint}/api/${this.state.selectedProvider}/generate`
+    
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, stream: true })
+    })
+
+    const reader = response.body.getReader()
+    let fullContent = ""
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      const chunk = new TextDecoder().decode(value)
+      fullContent += chunk
+      this.state.streamingContent = fullContent
+    }
+
+    return fullContent
+  }
+
+  @method async loadTemplate(name: string) {
+    const response = await fetch(`${this.props.apiEndpoint}/api/templates/${name}`)
+    if (response.ok) {
+      const template = await response.json()
+      return "```holoscript\n" + template.content + "\n```\n\nTemplate loaded successfully!"
+    }
+    return `Template "${name}" not found. Try: BasicObject, SpinningCube, ParticleSystem`
+  }
+
+  @method generateSuggestion(input: string) {
+    const lower = input.toLowerCase()
+
+    if (lower.includes("cube") || lower.includes("box")) {
+      return `I'll create a spinning cube for you!
+
+\`\`\`holoscript
+world SpinningCube {
+  object cube {
+    position: [0, 0, 0]
+    rotation: [0, 0, 0]
+    scale: [1, 1, 1]
+    
+    trait Material {
+      color: 0x00ff00
+      metalness: 0.5
+      roughness: 0.5
+    }
+    
+    behavior Rotate {
+      speed: 1.0
+    }
+  }
+}
+\`\`\``
+    }
+
+    if (lower.includes("sphere")) {
+      return `Here's a shiny sphere:
+
+\`\`\`holoscript
+world ShinyBall {
+  object sphere {
+    position: [0, 2, 0]
+    scale: [1.5, 1.5, 1.5]
+    
+    trait Material {
+      color: 0x0080ff
+      metalness: 0.8
+      roughness: 0.2
+    }
+  }
+}
+\`\`\``
+    }
+
+    return `I'm Brittney, your AI coding assistant! I can help you:
+- Generate HoloScript code
+- Fix syntax errors
+- Optimize performance
+- Explain concepts
+
+What can I help you build today?`
+  }
+
+  @method handleProviderChange(provider: string) {
+    this.state.selectedProvider = provider
+  }
+
+  @method handleApplyCode(code: string) {
+    if (this.props.onApplyCode) {
+      this.props.onApplyCode(code)
+    }
+  }
+
+  @method handleSuggestionClick(suggestion: string) {
+    this.sendMessage(suggestion)
+  }
+
+  @render {
+    <div class="brittney-chat">
+      <!-- Header -->
+      <div class="chat-header">
+        <div class="header-top">
+          <h3 class="header-title">
+            <span class="status-dot"></span>
+            Brittney AI Assistant
+          </h3>
+          <span class="header-subtitle">Streaming • Templates • Code Generation</span>
+        </div>
+        <ProviderSelector
+          providers={this.props.providers}
+          selectedProvider={this.state.selectedProvider}
+          onChange={this.handleProviderChange}
+        />
+      </div>
+
+      <!-- Messages -->
+      <div class="messages-container">
+        @if (!this.hasMessages) {
+          <WelcomeMessage 
+            onSuggestionClick={this.handleSuggestionClick}
+          />
+        } @else {
+          @for (message in this.state.messages) {
+            <ChatMessage
+              id={message.id}
+              role={message.role}
+              content={message.content}
+              timestamp={message.timestamp}
+              onApplyCode={this.handleApplyCode}
+            />
+          }
+          
+          @if (this.state.isStreaming) {
+            <StreamingIndicator content={this.state.streamingContent} />
+          }
+        }
+      </div>
+
+      <!-- Input -->
+      <div class="input-container">
+        <ChatInput
+          placeholder="Ask Brittney... (template TEMPLATE_NAME for templates)"
+          disabled={this.state.isStreaming}
+          onSend={this.sendMessage}
+        />
+        <p class="input-tip">💡 Tip: Use "template" keyword to load pre-built code patterns</p>
+      </div>
+    </div>
+  }
+
+  @style {
+    .brittney-chat {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-gray-900, #111827);
+      color: var(--color-gray-100, #f3f4f6);
+      font-family: var(--font-sans, system-ui, sans-serif);
+    }
+
+    .chat-header {
+      padding: 0.75rem;
+      background: var(--color-gray-800, #1f2937);
+      border-bottom: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .header-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      background: var(--color-purple-500, #a855f7);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .header-subtitle {
+      font-size: 0.75rem;
+      color: var(--color-gray-500, #6b7280);
+    }
+
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .input-container {
+      padding: 1rem;
+      background: var(--color-gray-800, #1f2937);
+      border-top: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .input-tip {
+      font-size: 0.75rem;
+      color: var(--color-gray-500, #6b7280);
+      margin: 0.5rem 0 0 0;
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  BrittneyChat,
+  ChatMessage,
+  ChatInput,
+  ProviderSelector,
+  StreamingIndicator,
+  WelcomeMessage
+}

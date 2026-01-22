@@ -1,0 +1,963 @@
+/**
+ * Preview Panel Component - Live 3D Rendering Viewport
+ * 
+ * Displays real-time 3D rendering of HoloScript worlds with
+ * performance metrics, object selection, and camera controls.
+ * 
+ * @package @hololand/library
+ * @category UI
+ */
+
+// =============================================================================
+// PERFORMANCE METRICS BAR
+// =============================================================================
+
+/**
+ * Performance metrics display
+ */
+component PerformanceMetrics {
+  @props {
+    fps: number = 60
+    frameTime: number = 16.67
+    objectCount: number = 0
+    drawCalls: number = 0
+    triangles: number = 0
+    memoryUsage: number = 0
+    showDetailed: bool = false
+  }
+
+  @computed fpsColor() {
+    if (this.props.fps >= 55) return "good"
+    if (this.props.fps >= 30) return "warning"
+    return "bad"
+  }
+
+  @computed frameTimeColor() {
+    if (this.props.frameTime <= 16.67) return "good"
+    if (this.props.frameTime <= 33.33) return "warning"
+    return "bad"
+  }
+
+  @render {
+    <div class="performance-metrics">
+      <div class="metric">
+        <span class="metric-label">FPS:</span>
+        <span class="metric-value {this.fpsColor}">{this.props.fps}</span>
+      </div>
+      
+      <div class="metric">
+        <span class="metric-label">Frame:</span>
+        <span class="metric-value {this.frameTimeColor}">{this.props.frameTime.toFixed(2)}ms</span>
+      </div>
+      
+      <div class="metric">
+        <span class="metric-label">Objects:</span>
+        <span class="metric-value purple">{this.props.objectCount}</span>
+      </div>
+
+      @if (this.props.showDetailed) {
+        <div class="metric">
+          <span class="metric-label">Draw Calls:</span>
+          <span class="metric-value">{this.props.drawCalls}</span>
+        </div>
+        
+        <div class="metric">
+          <span class="metric-label">Triangles:</span>
+          <span class="metric-value">{this.formatNumber(this.props.triangles)}</span>
+        </div>
+        
+        <div class="metric">
+          <span class="metric-label">Memory:</span>
+          <span class="metric-value">{this.formatMemory(this.props.memoryUsage)}</span>
+        </div>
+      }
+    </div>
+  }
+
+  @method formatNumber(num: number) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M"
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K"
+    return num.toString()
+  }
+
+  @method formatMemory(bytes: number) {
+    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + " GB"
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB"
+    if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB"
+    return bytes + " B"
+  }
+
+  @style {
+    .performance-metrics {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+    }
+
+    .metric {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .metric-label {
+      color: var(--color-gray-500, #6b7280);
+    }
+
+    .metric-value {
+      font-family: var(--font-mono, monospace);
+      font-weight: 500;
+    }
+
+    .metric-value.good {
+      color: var(--color-green-400, #4ade80);
+    }
+
+    .metric-value.warning {
+      color: var(--color-yellow-400, #facc15);
+    }
+
+    .metric-value.bad {
+      color: var(--color-red-400, #f87171);
+    }
+
+    .metric-value.purple {
+      color: var(--color-purple-400, #c084fc);
+    }
+  }
+}
+
+// =============================================================================
+// CAMERA CONTROLS
+// =============================================================================
+
+/**
+ * Camera control buttons
+ */
+component CameraControls {
+  @props {
+    currentMode: "orbit" | "fly" | "first-person" = "orbit"
+    onModeChange: function(mode: string)
+    onReset: function()
+    onFocus: function()
+    onScreenshot: function()
+  }
+
+  @method handleModeChange(mode: string) {
+    if (this.props.onModeChange) {
+      this.props.onModeChange(mode)
+    }
+  }
+
+  @render {
+    <div class="camera-controls">
+      <div class="control-group">
+        <button 
+          class="control-button {this.props.currentMode === 'orbit' ? 'active' : ''}"
+          @on_click={() => this.handleModeChange("orbit")}
+          title="Orbit Camera"
+        >
+          🌐
+        </button>
+        <button 
+          class="control-button {this.props.currentMode === 'fly' ? 'active' : ''}"
+          @on_click={() => this.handleModeChange("fly")}
+          title="Fly Camera"
+        >
+          ✈️
+        </button>
+        <button 
+          class="control-button {this.props.currentMode === 'first-person' ? 'active' : ''}"
+          @on_click={() => this.handleModeChange("first-person")}
+          title="First Person"
+        >
+          👁️
+        </button>
+      </div>
+
+      <div class="control-divider"></div>
+
+      <div class="control-group">
+        <button 
+          class="control-button"
+          @on_click={this.props.onReset}
+          title="Reset Camera"
+        >
+          🔄
+        </button>
+        <button 
+          class="control-button"
+          @on_click={this.props.onFocus}
+          title="Focus Selection"
+        >
+          🎯
+        </button>
+        <button 
+          class="control-button"
+          @on_click={this.props.onScreenshot}
+          title="Screenshot"
+        >
+          📷
+        </button>
+      </div>
+    </div>
+  }
+
+  @style {
+    .camera-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .control-group {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .control-divider {
+      width: 1px;
+      height: 1.25rem;
+      background: var(--color-gray-600, #4b5563);
+    }
+
+    .control-button {
+      padding: 0.25rem 0.5rem;
+      background: var(--color-gray-700, #374151);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .control-button:hover {
+      background: var(--color-gray-600, #4b5563);
+    }
+
+    .control-button.active {
+      background: var(--color-purple-600, #9333ea);
+      border-color: var(--color-purple-500, #a855f7);
+    }
+  }
+}
+
+// =============================================================================
+// GIZMO CONTROLS
+// =============================================================================
+
+/**
+ * Transform gizmo mode selector
+ */
+component GizmoControls {
+  @props {
+    currentMode: "translate" | "rotate" | "scale" = "translate"
+    space: "world" | "local" = "world"
+    snapEnabled: bool = false
+    snapValue: number = 1
+    onModeChange: function(mode: string)
+    onSpaceChange: function(space: string)
+    onSnapToggle: function()
+    onSnapValueChange: function(value: number)
+  }
+
+  @render {
+    <div class="gizmo-controls">
+      <div class="gizmo-modes">
+        <button 
+          class="gizmo-button {this.props.currentMode === 'translate' ? 'active' : ''}"
+          @on_click={() => this.props.onModeChange("translate")}
+          title="Translate (W)"
+        >
+          ↔️
+        </button>
+        <button 
+          class="gizmo-button {this.props.currentMode === 'rotate' ? 'active' : ''}"
+          @on_click={() => this.props.onModeChange("rotate")}
+          title="Rotate (E)"
+        >
+          🔄
+        </button>
+        <button 
+          class="gizmo-button {this.props.currentMode === 'scale' ? 'active' : ''}"
+          @on_click={() => this.props.onModeChange("scale")}
+          title="Scale (R)"
+        >
+          ↗️
+        </button>
+      </div>
+
+      <button 
+        class="space-button"
+        @on_click={() => this.props.onSpaceChange(this.props.space === "world" ? "local" : "world")}
+        title="Toggle World/Local Space"
+      >
+        {this.props.space === "world" ? "🌍 World" : "📦 Local"}
+      </button>
+
+      <div class="snap-controls">
+        <button 
+          class="snap-button {this.props.snapEnabled ? 'active' : ''}"
+          @on_click={this.props.onSnapToggle}
+          title="Toggle Snap"
+        >
+          🧲 Snap
+        </button>
+        @if (this.props.snapEnabled) {
+          <input 
+            type="number"
+            class="snap-input"
+            value={this.props.snapValue}
+            min="0.1"
+            step="0.1"
+            @on_change={(e) => this.props.onSnapValueChange(parseFloat(e.target.value))}
+          />
+        }
+      </div>
+    </div>
+  }
+
+  @style {
+    .gizmo-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .gizmo-modes {
+      display: flex;
+      gap: 0.125rem;
+      background: var(--color-gray-800, #1f2937);
+      border-radius: 0.375rem;
+      padding: 0.125rem;
+    }
+
+    .gizmo-button {
+      padding: 0.25rem 0.5rem;
+      background: transparent;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .gizmo-button:hover {
+      background: var(--color-gray-700, #374151);
+    }
+
+    .gizmo-button.active {
+      background: var(--color-purple-600, #9333ea);
+    }
+
+    .space-button {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--color-gray-700, #374151);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      color: var(--color-gray-300, #d1d5db);
+      cursor: pointer;
+    }
+
+    .snap-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .snap-button {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--color-gray-700, #374151);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      color: var(--color-gray-300, #d1d5db);
+      cursor: pointer;
+    }
+
+    .snap-button.active {
+      background: var(--color-blue-600, #2563eb);
+      border-color: var(--color-blue-500, #3b82f6);
+    }
+
+    .snap-input {
+      width: 3rem;
+      padding: 0.125rem 0.25rem;
+      font-size: 0.75rem;
+      background: var(--color-gray-800, #1f2937);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      color: var(--color-gray-200, #e5e7eb);
+      text-align: center;
+    }
+  }
+}
+
+// =============================================================================
+// LOADING OVERLAY
+// =============================================================================
+
+/**
+ * Loading state overlay
+ */
+component LoadingOverlay {
+  @props {
+    message: string = "Loading..."
+    progress: number = 0
+    showProgress: bool = false
+  }
+
+  @render {
+    <div class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <p class="loading-message">{this.props.message}</p>
+        @if (this.props.showProgress) {
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: {this.props.progress}%"></div>
+          </div>
+          <span class="progress-text">{this.props.progress}%</span>
+        }
+      </div>
+    </div>
+  }
+
+  @style {
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(17, 24, 39, 0.9);
+      z-index: 100;
+    }
+
+    .loading-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 3px solid var(--color-gray-700, #374151);
+      border-top-color: var(--color-purple-500, #a855f7);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-message {
+      font-size: 0.875rem;
+      color: var(--color-gray-300, #d1d5db);
+      margin: 0;
+    }
+
+    .progress-bar {
+      width: 200px;
+      height: 4px;
+      background: var(--color-gray-700, #374151);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--color-purple-500, #a855f7);
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+    }
+  }
+}
+
+// =============================================================================
+// ERROR OVERLAY
+// =============================================================================
+
+/**
+ * Error state overlay
+ */
+component ErrorOverlay {
+  @props {
+    title: string = "Error"
+    message: string = "Something went wrong"
+    onRetry: function()
+    onDismiss: function()
+  }
+
+  @render {
+    <div class="error-overlay">
+      <div class="error-content">
+        <div class="error-icon">⚠️</div>
+        <h3 class="error-title">{this.props.title}</h3>
+        <p class="error-message">{this.props.message}</p>
+        <div class="error-actions">
+          <button class="error-button retry" @on_click={this.props.onRetry}>
+            🔄 Retry
+          </button>
+          <button class="error-button dismiss" @on_click={this.props.onDismiss}>
+            ✕ Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @style {
+    .error-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(127, 29, 29, 0.9);
+      z-index: 100;
+    }
+
+    .error-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 2rem;
+      background: var(--color-gray-800, #1f2937);
+      border: 1px solid var(--color-red-500, #ef4444);
+      border-radius: 0.5rem;
+      max-width: 300px;
+      text-align: center;
+    }
+
+    .error-icon {
+      font-size: 2.5rem;
+    }
+
+    .error-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-red-300, #fca5a5);
+      margin: 0;
+    }
+
+    .error-message {
+      font-size: 0.875rem;
+      color: var(--color-gray-300, #d1d5db);
+      margin: 0;
+    }
+
+    .error-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .error-button {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.875rem;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .error-button.retry {
+      background: var(--color-purple-600, #9333ea);
+      color: white;
+    }
+
+    .error-button.retry:hover {
+      background: var(--color-purple-700, #7e22ce);
+    }
+
+    .error-button.dismiss {
+      background: var(--color-gray-600, #4b5563);
+      color: white;
+    }
+
+    .error-button.dismiss:hover {
+      background: var(--color-gray-500, #6b7280);
+    }
+  }
+}
+
+// =============================================================================
+// PREVIEW PANEL (MAIN COMPONENT)
+// =============================================================================
+
+/**
+ * Live 3D Preview Panel
+ * 
+ * Features:
+ * - Real-time HoloScript rendering
+ * - Performance metrics (FPS, frame time, objects)
+ * - Camera controls (orbit, fly, first-person)
+ * - Transform gizmos (translate, rotate, scale)
+ * - Object picking and selection
+ * - Screenshot capture
+ * 
+ * @example
+ * <PreviewPanel
+ *   code={currentCode}
+ *   selectedObject={selectedId}
+ *   onObjectSelect={(id) => setSelected(id)}
+ *   onObjectChange={(id, changes) => updateCode(id, changes)}
+ * />
+ */
+component PreviewPanel {
+  @props {
+    code: string = ""
+    selectedObject: string = null
+    showMetrics: bool = true
+    showGizmo: bool = true
+    cameraMode: "orbit" | "fly" | "first-person" = "orbit"
+    onObjectSelect: function(id: string)
+    onObjectChange: function(id: string, changes: object)
+    onScreenshot: function(dataUrl: string)
+    onMetricsUpdate: function(metrics: object)
+  }
+
+  @state {
+    isLoading: bool = true
+    loadingMessage: string = "Initializing renderer..."
+    loadingProgress: number = 0
+    error: { title: string, message: string } = null
+    fps: number = 60
+    frameTime: number = 16.67
+    objectCount: number = 0
+    drawCalls: number = 0
+    triangles: number = 0
+    memoryUsage: number = 0
+    cameraMode: string = "orbit"
+    gizmoMode: "translate" | "rotate" | "scale" = "translate"
+    gizmoSpace: "world" | "local" = "world"
+    snapEnabled: bool = false
+    snapValue: number = 1
+    showDetailedMetrics: bool = false
+  }
+
+  @on_mount {
+    this.state.cameraMode = this.props.cameraMode
+    this.initializeRenderer()
+  }
+
+  @on_props_change(code) {
+    this.updateScene()
+  }
+
+  @on_props_change(selectedObject) {
+    this.highlightSelection()
+  }
+
+  @method async initializeRenderer() {
+    try {
+      this.state.isLoading = true
+      this.state.loadingProgress = 0
+
+      // Simulate initialization steps
+      await this.delay(100)
+      this.state.loadingMessage = "Creating WebGL context..."
+      this.state.loadingProgress = 20
+
+      await this.delay(100)
+      this.state.loadingMessage = "Loading shaders..."
+      this.state.loadingProgress = 40
+
+      await this.delay(100)
+      this.state.loadingMessage = "Setting up scene..."
+      this.state.loadingProgress = 60
+
+      await this.delay(100)
+      this.state.loadingMessage = "Initializing controls..."
+      this.state.loadingProgress = 80
+
+      await this.delay(100)
+      this.state.loadingProgress = 100
+      this.state.isLoading = false
+
+      // Start render loop
+      this.startRenderLoop()
+
+    } catch (err) {
+      this.state.error = {
+        title: "Initialization Failed",
+        message: err.message || "Could not initialize 3D renderer"
+      }
+      this.state.isLoading = false
+    }
+  }
+
+  @method delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  @method startRenderLoop() {
+    // Native binding would start actual render loop
+    // Update metrics periodically
+    setInterval(() => {
+      const metrics = this.nativeGetMetrics()
+      this.state.fps = metrics.fps
+      this.state.frameTime = metrics.frameTime
+      this.state.objectCount = metrics.objectCount
+      this.state.drawCalls = metrics.drawCalls
+      this.state.triangles = metrics.triangles
+      this.state.memoryUsage = metrics.memoryUsage
+
+      if (this.props.onMetricsUpdate) {
+        this.props.onMetricsUpdate(metrics)
+      }
+    }, 100)
+  }
+
+  @method nativeGetMetrics() {
+    // Native binding placeholder
+    return {
+      fps: 60 + Math.floor(Math.random() * 5) - 2,
+      frameTime: 16.67 + Math.random() * 2 - 1,
+      objectCount: this.state.objectCount,
+      drawCalls: this.state.objectCount * 2,
+      triangles: this.state.objectCount * 1200,
+      memoryUsage: 52428800
+    }
+  }
+
+  @method updateScene() {
+    // Parse code and update 3D scene
+    // Native binding would handle actual rendering
+    const objects = this.parseCodeForObjects(this.props.code)
+    this.state.objectCount = objects.length
+  }
+
+  @method parseCodeForObjects(code: string) {
+    // Simple parser to count objects
+    const matches = code.match(/object\s+\w+/g) || []
+    return matches
+  }
+
+  @method highlightSelection() {
+    // Native binding would highlight selected object in viewport
+  }
+
+  @method handleCanvasClick(event) {
+    // Raycast to find clicked object
+    const pickedId = this.nativePickObject(event.offsetX, event.offsetY)
+    
+    if (this.props.onObjectSelect) {
+      this.props.onObjectSelect(pickedId)
+    }
+  }
+
+  @method nativePickObject(x: number, y: number) {
+    // Native binding placeholder
+    return null
+  }
+
+  @method handleCameraModeChange(mode: string) {
+    this.state.cameraMode = mode
+  }
+
+  @method handleCameraReset() {
+    // Reset camera to default position
+  }
+
+  @method handleCameraFocus() {
+    // Focus camera on selected object
+  }
+
+  @method handleScreenshot() {
+    const dataUrl = this.nativeCaptureScreenshot()
+    
+    if (this.props.onScreenshot) {
+      this.props.onScreenshot(dataUrl)
+    }
+  }
+
+  @method nativeCaptureScreenshot() {
+    // Native binding placeholder
+    return "data:image/png;base64,..."
+  }
+
+  @method handleGizmoModeChange(mode: string) {
+    this.state.gizmoMode = mode
+  }
+
+  @method handleGizmoSpaceChange(space: string) {
+    this.state.gizmoSpace = space
+  }
+
+  @method handleSnapToggle() {
+    this.state.snapEnabled = !this.state.snapEnabled
+  }
+
+  @method handleRetry() {
+    this.state.error = null
+    this.initializeRenderer()
+  }
+
+  @method handleDismissError() {
+    this.state.error = null
+  }
+
+  @method toggleDetailedMetrics() {
+    this.state.showDetailedMetrics = !this.state.showDetailedMetrics
+  }
+
+  @render {
+    <div class="preview-panel">
+      <!-- Toolbar -->
+      <div class="preview-toolbar">
+        <div class="toolbar-left">
+          <h3 class="panel-title">Live Preview</h3>
+          @if (this.props.showMetrics) {
+            <PerformanceMetrics
+              fps={this.state.fps}
+              frameTime={this.state.frameTime}
+              objectCount={this.state.objectCount}
+              drawCalls={this.state.drawCalls}
+              triangles={this.state.triangles}
+              memoryUsage={this.state.memoryUsage}
+              showDetailed={this.state.showDetailedMetrics}
+            />
+            <button 
+              class="metrics-toggle"
+              @on_click={this.toggleDetailedMetrics}
+              title="Toggle detailed metrics"
+            >
+              📊
+            </button>
+          }
+        </div>
+        
+        <div class="toolbar-right">
+          @if (this.props.showGizmo) {
+            <GizmoControls
+              currentMode={this.state.gizmoMode}
+              space={this.state.gizmoSpace}
+              snapEnabled={this.state.snapEnabled}
+              snapValue={this.state.snapValue}
+              onModeChange={this.handleGizmoModeChange}
+              onSpaceChange={this.handleGizmoSpaceChange}
+              onSnapToggle={this.handleSnapToggle}
+              onSnapValueChange={(v) => this.state.snapValue = v}
+            />
+          }
+          
+          <CameraControls
+            currentMode={this.state.cameraMode}
+            onModeChange={this.handleCameraModeChange}
+            onReset={this.handleCameraReset}
+            onFocus={this.handleCameraFocus}
+            onScreenshot={this.handleScreenshot}
+          />
+        </div>
+      </div>
+
+      <!-- Canvas Container -->
+      <div class="canvas-container">
+        <canvas 
+          class="preview-canvas"
+          @on_click={this.handleCanvasClick}
+        ></canvas>
+
+        @if (this.state.isLoading) {
+          <LoadingOverlay
+            message={this.state.loadingMessage}
+            progress={this.state.loadingProgress}
+            showProgress={true}
+          />
+        }
+
+        @if (this.state.error) {
+          <ErrorOverlay
+            title={this.state.error.title}
+            message={this.state.error.message}
+            onRetry={this.handleRetry}
+            onDismiss={this.handleDismissError}
+          />
+        }
+      </div>
+    </div>
+  }
+
+  @style {
+    .preview-panel {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-gray-900, #111827);
+    }
+
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: var(--color-gray-800, #1f2937);
+      border-bottom: 1px solid var(--color-gray-700, #374151);
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .panel-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-gray-200, #e5e7eb);
+      margin: 0;
+    }
+
+    .metrics-toggle {
+      padding: 0.125rem 0.25rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.2s;
+    }
+
+    .metrics-toggle:hover {
+      opacity: 1;
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  PreviewPanel,
+  PerformanceMetrics,
+  CameraControls,
+  GizmoControls,
+  LoadingOverlay,
+  ErrorOverlay
+}

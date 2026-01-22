@@ -1,0 +1,560 @@
+/**
+ * Audio Effects Module
+ *
+ * Provides audio processing effects: filters, compressor, delay, distortion,
+ * chorus, phaser, and more.
+ */
+
+import {
+  EffectNode,
+  EffectType,
+  FilterConfig,
+  FilterType,
+  CompressorConfig,
+  DelayConfig
+} from "./types.hsplus"
+
+// =============================================================================
+// BASE AUDIO EFFECT
+// =============================================================================
+
+/**
+ * Base class for audio effects
+ */
+module AudioEffectBase {
+  @state {
+    id: string = "",
+    effectType: EffectType = EffectType.gain,
+    enabled: bool = true,
+    context: AudioContext = null,
+    inputNode: GainNode = null,
+    outputNode: GainNode = null
+  }
+
+  @action initialize(context: AudioContext, id: string, effectType: EffectType) {
+    self.context = context
+    self.id = id
+    self.effectType = effectType
+
+    self.inputNode = context.createGain()
+    self.outputNode = context.createGain()
+  }
+
+  @computed getInput() -> AudioNode {
+    return self.inputNode
+  }
+
+  @computed getOutput() -> AudioNode {
+    return self.outputNode
+  }
+
+  @action setEnabled(enabled: bool) {
+    self.enabled = enabled
+  }
+
+  @action dispose() {
+    self.inputNode?.disconnect()
+    self.outputNode?.disconnect()
+  }
+}
+
+// =============================================================================
+// FILTER EFFECT
+// =============================================================================
+
+/**
+ * Biquad Filter Effect
+ */
+module FilterEffect {
+  @state {
+    id: string = "",
+    effectType: EffectType = EffectType.filter,
+    enabled: bool = true,
+    context: AudioContext = null,
+    inputNode: GainNode = null,
+    outputNode: GainNode = null,
+    filter: BiquadFilterNode = null
+  }
+
+  @action initialize(context: AudioContext, id: string, config: FilterConfig = {}) {
+    self.context = context
+    self.id = id
+    self.effectType = EffectType.filter
+
+    self.inputNode = context.createGain()
+    self.outputNode = context.createGain()
+
+    self.filter = context.createBiquadFilter()
+    self.filter.type = config.filterType ?? "lowpass"
+    self.filter.frequency.value = config.frequency ?? 1000
+    self.filter.Q.value = config.Q ?? 1
+    self.filter.gain.value = config.gain ?? 0
+
+    // Connect chain
+    self.inputNode.connect(self.filter)
+    self.filter.connect(self.outputNode)
+  }
+
+  @action setParameters(params: Map<string, number>) {
+    if params.has("frequency") {
+      self.filter.frequency.setValueAtTime(params.get("frequency"), self.context.currentTime)
+    }
+    if params.has("Q") {
+      self.filter.Q.setValueAtTime(params.get("Q"), self.context.currentTime)
+    }
+    if params.has("gain") {
+      self.filter.gain.setValueAtTime(params.get("gain"), self.context.currentTime)
+    }
+  }
+
+  @computed getParameters() -> Map<string, number> {
+    return new Map([
+      ["frequency", self.filter.frequency.value],
+      ["Q", self.filter.Q.value],
+      ["gain", self.filter.gain.value]
+    ])
+  }
+
+  @action setFilterType(filterType: FilterType) {
+    self.filter.type = filterType
+  }
+
+  @computed getInput() -> AudioNode { return self.inputNode }
+  @computed getOutput() -> AudioNode { return self.outputNode }
+
+  @action dispose() {
+    self.filter?.disconnect()
+    self.inputNode?.disconnect()
+    self.outputNode?.disconnect()
+  }
+}
+
+// =============================================================================
+// COMPRESSOR EFFECT
+// =============================================================================
+
+/**
+ * Dynamics Compressor Effect
+ */
+module CompressorEffect {
+  @state {
+    id: string = "",
+    effectType: EffectType = EffectType.compressor,
+    enabled: bool = true,
+    context: AudioContext = null,
+    inputNode: GainNode = null,
+    outputNode: GainNode = null,
+    compressor: DynamicsCompressorNode = null
+  }
+
+  @action initialize(context: AudioContext, id: string, config: CompressorConfig = {}) {
+    self.context = context
+    self.id = id
+    self.effectType = EffectType.compressor
+
+    self.inputNode = context.createGain()
+    self.outputNode = context.createGain()
+
+    self.compressor = context.createDynamicsCompressor()
+    self.compressor.threshold.value = config.threshold ?? -24
+    self.compressor.knee.value = config.knee ?? 30
+    self.compressor.ratio.value = config.ratio ?? 12
+    self.compressor.attack.value = config.attack ?? 0.003
+    self.compressor.release.value = config.release ?? 0.25
+
+    // Connect chain
+    self.inputNode.connect(self.compressor)
+    self.compressor.connect(self.outputNode)
+  }
+
+  @action setParameters(params: Map<string, number>) {
+    if params.has("threshold") {
+      self.compressor.threshold.setValueAtTime(params.get("threshold"), self.context.currentTime)
+    }
+    if params.has("knee") {
+      self.compressor.knee.setValueAtTime(params.get("knee"), self.context.currentTime)
+    }
+    if params.has("ratio") {
+      self.compressor.ratio.setValueAtTime(params.get("ratio"), self.context.currentTime)
+    }
+    if params.has("attack") {
+      self.compressor.attack.setValueAtTime(params.get("attack"), self.context.currentTime)
+    }
+    if params.has("release") {
+      self.compressor.release.setValueAtTime(params.get("release"), self.context.currentTime)
+    }
+  }
+
+  @computed getParameters() -> Map<string, number> {
+    return new Map([
+      ["threshold", self.compressor.threshold.value],
+      ["knee", self.compressor.knee.value],
+      ["ratio", self.compressor.ratio.value],
+      ["attack", self.compressor.attack.value],
+      ["release", self.compressor.release.value]
+    ])
+  }
+
+  @computed getReduction() -> number {
+    return self.compressor.reduction
+  }
+
+  @computed getInput() -> AudioNode { return self.inputNode }
+  @computed getOutput() -> AudioNode { return self.outputNode }
+
+  @action dispose() {
+    self.compressor?.disconnect()
+    self.inputNode?.disconnect()
+    self.outputNode?.disconnect()
+  }
+}
+
+// =============================================================================
+// DELAY EFFECT
+// =============================================================================
+
+/**
+ * Delay Effect with feedback
+ */
+module DelayEffect {
+  @state {
+    id: string = "",
+    effectType: EffectType = EffectType.delay,
+    enabled: bool = true,
+    context: AudioContext = null,
+    inputNode: GainNode = null,
+    outputNode: GainNode = null,
+    delay: DelayNode = null,
+    feedbackGain: GainNode = null,
+    wetGain: GainNode = null,
+    dryGain: GainNode = null
+  }
+
+  @action initialize(context: AudioContext, id: string, config: DelayConfig = {}) {
+    self.context = context
+    self.id = id
+    self.effectType = EffectType.delay
+
+    self.inputNode = context.createGain()
+    self.outputNode = context.createGain()
+
+    // Create delay line
+    self.delay = context.createDelay(5.0)  // Max 5 seconds
+    self.delay.delayTime.value = config.delayTime ?? 0.3
+
+    // Create feedback loop
+    self.feedbackGain = context.createGain()
+    self.feedbackGain.gain.value = config.feedback ?? 0.3
+
+    // Create wet/dry mix
+    self.wetGain = context.createGain()
+    self.wetGain.gain.value = config.wetMix ?? 0.5
+
+    self.dryGain = context.createGain()
+    self.dryGain.gain.value = 1 - (config.wetMix ?? 0.5)
+
+    // Connect: input -> dry -> output
+    self.inputNode.connect(self.dryGain)
+    self.dryGain.connect(self.outputNode)
+
+    // Connect: input -> delay -> wet -> output
+    self.inputNode.connect(self.delay)
+    self.delay.connect(self.wetGain)
+    self.wetGain.connect(self.outputNode)
+
+    // Feedback loop: delay -> feedback -> delay
+    self.delay.connect(self.feedbackGain)
+    self.feedbackGain.connect(self.delay)
+  }
+
+  @action setParameters(params: Map<string, number>) {
+    if params.has("delayTime") {
+      self.delay.delayTime.setValueAtTime(params.get("delayTime"), self.context.currentTime)
+    }
+    if params.has("feedback") {
+      self.feedbackGain.gain.setValueAtTime(params.get("feedback"), self.context.currentTime)
+    }
+    if params.has("wetMix") {
+      let wet = params.get("wetMix")
+      self.wetGain.gain.setValueAtTime(wet, self.context.currentTime)
+      self.dryGain.gain.setValueAtTime(1 - wet, self.context.currentTime)
+    }
+  }
+
+  @computed getParameters() -> Map<string, number> {
+    return new Map([
+      ["delayTime", self.delay.delayTime.value],
+      ["feedback", self.feedbackGain.gain.value],
+      ["wetMix", self.wetGain.gain.value]
+    ])
+  }
+
+  @computed getInput() -> AudioNode { return self.inputNode }
+  @computed getOutput() -> AudioNode { return self.outputNode }
+
+  @action dispose() {
+    self.delay?.disconnect()
+    self.feedbackGain?.disconnect()
+    self.wetGain?.disconnect()
+    self.dryGain?.disconnect()
+    self.inputNode?.disconnect()
+    self.outputNode?.disconnect()
+  }
+}
+
+// =============================================================================
+// GAIN EFFECT
+// =============================================================================
+
+/**
+ * Simple Gain/Volume Effect
+ */
+module GainEffect {
+  @state {
+    id: string = "",
+    effectType: EffectType = EffectType.gain,
+    enabled: bool = true,
+    context: AudioContext = null,
+    inputNode: GainNode = null,
+    outputNode: GainNode = null,
+    gain: GainNode = null
+  }
+
+  @action initialize(context: AudioContext, id: string, initialGain: number = 1.0) {
+    self.context = context
+    self.id = id
+    self.effectType = EffectType.gain
+
+    self.inputNode = context.createGain()
+    self.outputNode = context.createGain()
+    self.gain = context.createGain()
+    self.gain.gain.value = initialGain
+
+    self.inputNode.connect(self.gain)
+    self.gain.connect(self.outputNode)
+  }
+
+  @action setParameters(params: Map<string, number>) {
+    if params.has("gain") {
+      self.gain.gain.setValueAtTime(params.get("gain"), self.context.currentTime)
+    }
+  }
+
+  @computed getParameters() -> Map<string, number> {
+    return new Map([["gain", self.gain.gain.value]])
+  }
+
+  @action setGain(value: number) {
+    self.gain.gain.setValueAtTime(value, self.context.currentTime)
+  }
+
+  @action fadeToVolume(value: number, durationMs: number) {
+    let currentTime = self.context.currentTime
+    self.gain.gain.linearRampToValueAtTime(value, currentTime + durationMs / 1000)
+  }
+
+  @computed getInput() -> AudioNode { return self.inputNode }
+  @computed getOutput() -> AudioNode { return self.outputNode }
+
+  @action dispose() {
+    self.gain?.disconnect()
+    self.inputNode?.disconnect()
+    self.outputNode?.disconnect()
+  }
+}
+
+// =============================================================================
+// DISTORTION EFFECT
+// =============================================================================
+
+/**
+ * Wave Shaper Distortion Effect
+ */
+module DistortionEffect {
+  @state {
+    id: string = "",
+    effectType: EffectType = EffectType.distortion,
+    enabled: bool = true,
+    context: AudioContext = null,
+    inputNode: GainNode = null,
+    outputNode: GainNode = null,
+    waveShaper: WaveShaperNode = null,
+    amount: number = 50
+  }
+
+  @action initialize(context: AudioContext, id: string, amount: number = 50) {
+    self.context = context
+    self.id = id
+    self.amount = amount
+    self.effectType = EffectType.distortion
+
+    self.inputNode = context.createGain()
+    self.outputNode = context.createGain()
+    self.waveShaper = context.createWaveShaper()
+
+    self.updateCurve(amount)
+
+    self.inputNode.connect(self.waveShaper)
+    self.waveShaper.connect(self.outputNode)
+  }
+
+  @method updateCurve(amount: number) {
+    let samples = 44100
+    let curve = new Float32Array(samples)
+    let deg = Math.PI / 180
+    let x: number
+
+    for let i = 0; i < samples; i += 1 {
+      x = i * 2 / samples - 1
+      curve[i] = (3 + amount) * x * 20 * deg / (Math.PI + amount * Math.abs(x))
+    }
+
+    self.waveShaper.curve = curve
+    self.waveShaper.oversample = "4x"
+  }
+
+  @action setParameters(params: Map<string, number>) {
+    if params.has("amount") {
+      self.amount = params.get("amount")
+      self.updateCurve(self.amount)
+    }
+  }
+
+  @computed getParameters() -> Map<string, number> {
+    return new Map([["amount", self.amount]])
+  }
+
+  @computed getInput() -> AudioNode { return self.inputNode }
+  @computed getOutput() -> AudioNode { return self.outputNode }
+
+  @action dispose() {
+    self.waveShaper?.disconnect()
+    self.inputNode?.disconnect()
+    self.outputNode?.disconnect()
+  }
+}
+
+// =============================================================================
+// EFFECTS CHAIN
+// =============================================================================
+
+/**
+ * Chain multiple effects together
+ */
+module EffectsChain {
+  @state {
+    context: AudioContext = null,
+    effects: array<any> = [],
+    input: GainNode = null,
+    output: GainNode = null
+  }
+
+  @action initialize(context: AudioContext) {
+    self.context = context
+    self.effects = []
+    self.input = context.createGain()
+    self.output = context.createGain()
+    self.input.connect(self.output)  // Direct passthrough initially
+  }
+
+  @action addEffect(effect: any) {
+    self.effects.push(effect)
+    self.rebuildChain()
+  }
+
+  @action removeEffect(effectId: string) {
+    self.effects = self.effects.filter(e => e.id != effectId)
+    self.rebuildChain()
+  }
+
+  @method rebuildChain() {
+    // Disconnect everything
+    self.input.disconnect()
+
+    if self.effects.length == 0 {
+      // Direct passthrough
+      self.input.connect(self.output)
+      return
+    }
+
+    // Connect: input -> effect1 -> effect2 -> ... -> output
+    let current: AudioNode = self.input
+
+    for effect in self.effects {
+      if effect.enabled {
+        current.connect(effect.getInput())
+        current = effect.getOutput()
+      }
+    }
+
+    current.connect(self.output)
+  }
+
+  @computed getInput() -> AudioNode { return self.input }
+  @computed getOutput() -> AudioNode { return self.output }
+
+  @action dispose() {
+    for effect in self.effects {
+      effect.dispose()
+    }
+    self.effects = []
+    self.input?.disconnect()
+    self.output?.disconnect()
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTIONS
+// =============================================================================
+
+function createFilterEffect(context: AudioContext, id: string, config: FilterConfig = {}) -> typeof FilterEffect {
+  FilterEffect.initialize(context, id, config)
+  return FilterEffect
+}
+
+function createCompressorEffect(context: AudioContext, id: string, config: CompressorConfig = {}) -> typeof CompressorEffect {
+  CompressorEffect.initialize(context, id, config)
+  return CompressorEffect
+}
+
+function createDelayEffect(context: AudioContext, id: string, config: DelayConfig = {}) -> typeof DelayEffect {
+  DelayEffect.initialize(context, id, config)
+  return DelayEffect
+}
+
+function createGainEffect(context: AudioContext, id: string, initialGain: number = 1.0) -> typeof GainEffect {
+  GainEffect.initialize(context, id, initialGain)
+  return GainEffect
+}
+
+function createDistortionEffect(context: AudioContext, id: string, amount: number = 50) -> typeof DistortionEffect {
+  DistortionEffect.initialize(context, id, amount)
+  return DistortionEffect
+}
+
+function createEffectsChain(context: AudioContext) -> typeof EffectsChain {
+  EffectsChain.initialize(context)
+  return EffectsChain
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Effects
+  FilterEffect,
+  CompressorEffect,
+  DelayEffect,
+  GainEffect,
+  DistortionEffect,
+  EffectsChain,
+
+  // Factory functions
+  createFilterEffect,
+  createCompressorEffect,
+  createDelayEffect,
+  createGainEffect,
+  createDistortionEffect,
+  createEffectsChain
+}

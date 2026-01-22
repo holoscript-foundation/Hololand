@@ -1,0 +1,749 @@
+/**
+ * @hololand/animation
+ *
+ * Skeletal animation system for VR/AR - keyframes, blend trees, IK, and procedural animation.
+ *
+ * @example
+ * ```hsplus
+ * import { AnimationSystem, AnimationClip, Skeleton } from "@hololand/animation"
+ *
+ * const system = createAnimationSystem()
+ * const skeleton = system.createSkeleton("player", bones)
+ * const clip = AnimationClip.fromGLTF(gltfAnimation)
+ * system.playClip(skeleton.id, clip, { loop: true })
+ * ```
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct Vector3 {
+  x: float = 0.0
+  y: float = 0.0
+  z: float = 0.0
+}
+
+struct Quaternion {
+  x: float = 0.0
+  y: float = 0.0
+  z: float = 0.0
+  w: float = 1.0
+}
+
+struct Transform {
+  position: Vector3 = { x: 0.0, y: 0.0, z: 0.0 }
+  rotation: Quaternion = { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+  scale: Vector3 = { x: 1.0, y: 1.0, z: 1.0 }
+}
+
+struct Bone {
+  id: string
+  name: string
+  parentId: string = null
+  localTransform: Transform
+  worldTransform: Transform
+  bindPose: Transform
+  children: string[] = []
+}
+
+enum InterpolationType {
+  linear,
+  step,
+  cubic
+}
+
+struct Keyframe<T> {
+  time: float
+  value: T
+  inTangent: T = null
+  outTangent: T = null
+  interpolation: InterpolationType = InterpolationType.linear
+}
+
+enum TrackProperty {
+  position,
+  rotation,
+  scale
+}
+
+struct AnimationTrack<T> {
+  targetBoneId: string
+  property: TrackProperty
+  keyframes: Keyframe<T>[]
+}
+
+struct AnimationClipData {
+  name: string
+  duration: float
+  tracks: AnimationTrack<Vector3 | Quaternion>[]
+}
+
+enum BlendMode {
+  override,
+  additive
+}
+
+struct PlaybackOptions {
+  loop: bool = false
+  speed: float = 1.0
+  blendMode: BlendMode = BlendMode.override
+  weight: float = 1.0
+  startTime: float = 0.0
+}
+
+struct IKTarget {
+  boneId: string
+  targetPosition: Vector3
+  targetRotation: Quaternion = null
+  weight: float = 1.0
+  chainLength: int = 2
+}
+
+struct AnimationState {
+  clip: typeof AnimationClip
+  time: float
+  weight: float
+  speed: float
+  loop: bool
+  blendMode: BlendMode
+  finished: bool = false
+}
+
+// =============================================================================
+// SKELETON MODULE
+// =============================================================================
+
+module Skeleton {
+  @state {
+    id: string = ""
+    bones: Map<string, Bone> = new Map()
+    rootBoneIds: string[] = []
+  }
+
+  @action initialize(id: string, boneData: Bone[]) {
+    self.id = id
+    
+    for bone in boneData {
+      self.bones.set(bone.id, { ...bone })
+      if !bone.parentId {
+        self.rootBoneIds.push(bone.id)
+      }
+    }
+  }
+
+  @method getBone(id: string) -> Bone {
+    return self.bones.get(id)
+  }
+
+  @method getBoneByName(name: string) -> Bone {
+    for bone in self.bones.values() {
+      if bone.name == name { return bone }
+    }
+    return null
+  }
+
+  @action updateWorldTransforms() {
+    for rootId in self.rootBoneIds {
+      self.updateBoneWorldTransform(rootId, null)
+    }
+  }
+
+  @method updateBoneWorldTransform(boneId: string, parentWorld: Transform) {
+    const bone = self.bones.get(boneId)
+    if !bone { return }
+
+    if parentWorld {
+      bone.worldTransform = self.multiplyTransforms(parentWorld, bone.localTransform)
+    } else {
+      bone.worldTransform = { ...bone.localTransform }
+    }
+
+    for childId in bone.children {
+      self.updateBoneWorldTransform(childId, bone.worldTransform)
+    }
+  }
+
+  @method multiplyTransforms(parent: Transform, local: Transform) -> Transform {
+    return {
+      position: self.addVectors(parent.position, self.rotateVector(local.position, parent.rotation)),
+      rotation: self.multiplyQuaternions(parent.rotation, local.rotation),
+      scale: self.multiplyVectors(parent.scale, local.scale)
+    }
+  }
+
+  @method addVectors(a: Vector3, b: Vector3) -> Vector3 {
+    return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
+  }
+
+  @method multiplyVectors(a: Vector3, b: Vector3) -> Vector3 {
+    return { x: a.x * b.x, y: a.y * b.y, z: a.z * b.z }
+  }
+
+  @method rotateVector(v: Vector3, q: Quaternion) -> Vector3 {
+    const qx = q.x, qy = q.y, qz = q.z, qw = q.w
+    const ix = qw * v.x + qy * v.z - qz * v.y
+    const iy = qw * v.y + qz * v.x - qx * v.z
+    const iz = qw * v.z + qx * v.y - qy * v.x
+    const iw = -qx * v.x - qy * v.y - qz * v.z
+    return {
+      x: ix * qw + iw * -qx + iy * -qz - iz * -qy,
+      y: iy * qw + iw * -qy + iz * -qx - ix * -qz,
+      z: iz * qw + iw * -qz + ix * -qy - iy * -qx
+    }
+  }
+
+  @method multiplyQuaternions(a: Quaternion, b: Quaternion) -> Quaternion {
+    return {
+      x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+      y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+      z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+      w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
+    }
+  }
+
+  @action resetToBindPose() {
+    for bone in self.bones.values() {
+      bone.localTransform = { ...bone.bindPose }
+    }
+    self.updateWorldTransforms()
+  }
+
+  @method clone(newId: string) -> typeof Skeleton {
+    const boneData = Array.from(self.bones.values()).map(b => ({
+      ...b,
+      localTransform: { ...b.localTransform },
+      worldTransform: { ...b.worldTransform },
+      bindPose: { ...b.bindPose },
+      children: [...b.children]
+    }))
+    
+    const cloned = Skeleton
+    cloned.initialize(newId, boneData)
+    return cloned
+  }
+}
+
+// =============================================================================
+// ANIMATION CLIP MODULE
+// =============================================================================
+
+module AnimationClip {
+  @state {
+    name: string = "animation"
+    duration: float = 0.0
+    tracks: Map<string, AnimationTrack<Vector3 | Quaternion>[]> = new Map()
+  }
+
+  @action initialize(data: AnimationClipData) {
+    self.name = data.name
+    self.duration = data.duration
+
+    for track in data.tracks {
+      const boneId = track.targetBoneId
+      if !self.tracks.has(boneId) {
+        self.tracks.set(boneId, [])
+      }
+      self.tracks.get(boneId).push(track)
+    }
+  }
+
+  @method sample(time: float) -> Map<string, Partial<Transform>> {
+    const result = new Map<string, Partial<Transform>>()
+
+    for [boneId, tracks] in self.tracks {
+      const transform: Partial<Transform> = {}
+
+      for track in tracks {
+        const value = self.sampleTrack(track, time)
+        match track.property {
+          TrackProperty.position => transform.position = value as Vector3
+          TrackProperty.rotation => transform.rotation = value as Quaternion
+          TrackProperty.scale => transform.scale = value as Vector3
+        }
+      }
+
+      result.set(boneId, transform)
+    }
+
+    return result
+  }
+
+  @method sampleTrack<T extends Vector3 | Quaternion>(
+    track: AnimationTrack<T>,
+    time: float
+  ) -> T {
+    const keyframes = track.keyframes
+    if keyframes.length == 0 {
+      return (track.property == TrackProperty.rotation
+        ? { x: 0, y: 0, z: 0, w: 1 }
+        : { x: 0, y: 0, z: 0 }) as T
+    }
+
+    if keyframes.length == 1 || time <= keyframes[0].time {
+      return keyframes[0].value
+    }
+
+    if time >= keyframes[keyframes.length - 1].time {
+      return keyframes[keyframes.length - 1].value
+    }
+
+    // Find surrounding keyframes
+    let i = 0
+    while i < keyframes.length - 1 && keyframes[i + 1].time < time {
+      i++
+    }
+
+    const k0 = keyframes[i]
+    const k1 = keyframes[i + 1]
+    const t = (time - k0.time) / (k1.time - k0.time)
+
+    return self.interpolate(
+      k0.value, 
+      k1.value, 
+      t, 
+      k0.interpolation, 
+      track.property == TrackProperty.rotation
+    ) as T
+  }
+
+  @method interpolate(
+    a: Vector3 | Quaternion,
+    b: Vector3 | Quaternion,
+    t: float,
+    mode: InterpolationType,
+    isQuaternion: bool
+  ) -> Vector3 | Quaternion {
+    if mode == InterpolationType.step {
+      return t < 1 ? a : b
+    }
+
+    if isQuaternion {
+      return self.slerpQuaternion(a as Quaternion, b as Quaternion, t)
+    }
+
+    return self.lerpVector(a as Vector3, b as Vector3, t)
+  }
+
+  @method lerpVector(a: Vector3, b: Vector3, t: float) -> Vector3 {
+    return {
+      x: a.x + (b.x - a.x) * t,
+      y: a.y + (b.y - a.y) * t,
+      z: a.z + (b.z - a.z) * t
+    }
+  }
+
+  @method slerpQuaternion(a: Quaternion, b: Quaternion, t: float) -> Quaternion {
+    let dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w
+
+    if dot < 0 {
+      b = { x: -b.x, y: -b.y, z: -b.z, w: -b.w }
+      dot = -dot
+    }
+
+    if dot > 0.9995 {
+      return self.normalizeQuaternion({
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        z: a.z + (b.z - a.z) * t,
+        w: a.w + (b.w - a.w) * t
+      })
+    }
+
+    const theta0 = Math.acos(dot)
+    const theta = theta0 * t
+    const sinTheta = Math.sin(theta)
+    const sinTheta0 = Math.sin(theta0)
+    const s0 = Math.cos(theta) - dot * sinTheta / sinTheta0
+    const s1 = sinTheta / sinTheta0
+
+    return {
+      x: a.x * s0 + b.x * s1,
+      y: a.y * s0 + b.y * s1,
+      z: a.z * s0 + b.z * s1,
+      w: a.w * s0 + b.w * s1
+    }
+  }
+
+  @method normalizeQuaternion(q: Quaternion) -> Quaternion {
+    const len = Math.sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w)
+    return { x: q.x / len, y: q.y / len, z: q.z / len, w: q.w / len }
+  }
+
+  @action static fromGLTF(gltfAnimation: { name?: string, channels: any[], samplers: any[] }) -> typeof AnimationClip {
+    // Simplified GLTF parser - would be expanded in production
+    const clip = AnimationClip
+    clip.initialize({
+      name: gltfAnimation.name ?? "animation",
+      duration: 1.0,
+      tracks: []
+    })
+    return clip
+  }
+}
+
+// =============================================================================
+// FABRIK IK SOLVER MODULE
+// =============================================================================
+
+module FABRIKSolver {
+  @state {
+    tolerance: float = 0.001
+    maxIterations: int = 10
+  }
+
+  @action solve(skeleton: typeof Skeleton, target: IKTarget) {
+    const chain = self.getChain(skeleton, target.boneId, target.chainLength)
+    if chain.length < 2 { return }
+
+    const positions = chain.map(b => ({ ...b.worldTransform.position }))
+    const lengths: float[] = []
+
+    for i in 0..(chain.length - 1) {
+      lengths.push(self.distance(positions[i], positions[i + 1]))
+    }
+
+    const targetPos = target.targetPosition
+
+    for iter in 0..self.maxIterations {
+      // Forward reaching
+      positions[positions.length - 1] = { ...targetPos }
+      for i in (positions.length - 2)..0 step -1 {
+        const dir = self.normalize(self.subtract(positions[i], positions[i + 1]))
+        positions[i] = self.add(positions[i + 1], self.scale(dir, lengths[i]))
+      }
+
+      // Backward reaching
+      const root = chain[0].worldTransform.position
+      positions[0] = { ...root }
+      for i in 0..(positions.length - 1) {
+        const dir = self.normalize(self.subtract(positions[i + 1], positions[i]))
+        positions[i + 1] = self.add(positions[i], self.scale(dir, lengths[i]))
+      }
+
+      // Check convergence
+      if self.distance(positions[positions.length - 1], targetPos) < self.tolerance {
+        break
+      }
+    }
+
+    // Apply results with weight
+    for i in 0..chain.length {
+      const bone = chain[i]
+      bone.worldTransform.position = self.lerp(
+        bone.worldTransform.position,
+        positions[i],
+        target.weight
+      )
+    }
+  }
+
+  @method getChain(skeleton: typeof Skeleton, endBoneId: string, length: int) -> Bone[] {
+    const chain: Bone[] = []
+    let current = skeleton.getBone(endBoneId)
+
+    while current && chain.length < length {
+      chain.unshift(current)
+      if current.parentId {
+        current = skeleton.getBone(current.parentId)
+      } else {
+        break
+      }
+    }
+
+    return chain
+  }
+
+  @method distance(a: Vector3, b: Vector3) -> float {
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const dz = b.z - a.z
+    return Math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
+
+  @method subtract(a: Vector3, b: Vector3) -> Vector3 {
+    return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }
+  }
+
+  @method add(a: Vector3, b: Vector3) -> Vector3 {
+    return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
+  }
+
+  @method scale(v: Vector3, s: float) -> Vector3 {
+    return { x: v.x * s, y: v.y * s, z: v.z * s }
+  }
+
+  @method normalize(v: Vector3) -> Vector3 {
+    const len = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+    return len > 0 ? { x: v.x / len, y: v.y / len, z: v.z / len } : { x: 0, y: 0, z: 0 }
+  }
+
+  @method lerp(a: Vector3, b: Vector3, t: float) -> Vector3 {
+    return {
+      x: a.x + (b.x - a.x) * t,
+      y: a.y + (b.y - a.y) * t,
+      z: a.z + (b.z - a.z) * t
+    }
+  }
+}
+
+// =============================================================================
+// ANIMATION SYSTEM MODULE
+// =============================================================================
+
+module AnimationSystem {
+  @state {
+    skeletons: Map<string, typeof Skeleton> = new Map()
+    states: Map<string, AnimationState[]> = new Map()
+    ikSolver: typeof FABRIKSolver = FABRIKSolver
+    ikTargets: Map<string, IKTarget[]> = new Map()
+  }
+
+  @action createSkeleton(id: string, bones: Bone[]) -> typeof Skeleton {
+    const skeleton = Skeleton
+    skeleton.initialize(id, bones)
+    self.skeletons.set(id, skeleton)
+    self.states.set(id, [])
+    return skeleton
+  }
+
+  @method getSkeleton(id: string) -> typeof Skeleton {
+    return self.skeletons.get(id)
+  }
+
+  @action removeSkeleton(id: string) {
+    self.skeletons.delete(id)
+    self.states.delete(id)
+    self.ikTargets.delete(id)
+  }
+
+  @action playClip(
+    skeletonId: string,
+    clip: typeof AnimationClip,
+    options: PlaybackOptions = {}
+  ) {
+    const states = self.states.get(skeletonId)
+    if !states { return }
+
+    const state: AnimationState = {
+      clip,
+      time: options.startTime ?? 0,
+      weight: options.weight ?? 1,
+      speed: options.speed ?? 1,
+      loop: options.loop ?? false,
+      blendMode: options.blendMode ?? BlendMode.override,
+      finished: false
+    }
+
+    states.push(state)
+  }
+
+  @action stopClip(skeletonId: string, clipName: string) {
+    const states = self.states.get(skeletonId)
+    if !states { return }
+
+    const idx = states.findIndex(s => s.clip.name == clipName)
+    if idx >= 0 {
+      states.splice(idx, 1)
+    }
+  }
+
+  @action setIKTarget(skeletonId: string, target: IKTarget) {
+    if !self.ikTargets.has(skeletonId) {
+      self.ikTargets.set(skeletonId, [])
+    }
+    const targets = self.ikTargets.get(skeletonId)
+    const existing = targets.findIndex(t => t.boneId == target.boneId)
+    if existing >= 0 {
+      targets[existing] = target
+    } else {
+      targets.push(target)
+    }
+  }
+
+  @action removeIKTarget(skeletonId: string, boneId: string) {
+    const targets = self.ikTargets.get(skeletonId)
+    if !targets { return }
+    const idx = targets.findIndex(t => t.boneId == boneId)
+    if idx >= 0 {
+      targets.splice(idx, 1)
+    }
+  }
+
+  @action update(deltaTime: float) {
+    for [skeletonId, skeleton] in self.skeletons {
+      const states = self.states.get(skeletonId) ?? []
+
+      // Reset to bind pose
+      skeleton.resetToBindPose()
+
+      // Apply animations
+      for state in states {
+        state.time += deltaTime * state.speed
+
+        if state.loop {
+          state.time %= state.clip.duration
+        } else if state.time >= state.clip.duration {
+          state.time = state.clip.duration
+          state.finished = true
+        }
+
+        const sample = state.clip.sample(state.time)
+        self.applyPose(skeleton, sample, state.weight, state.blendMode)
+      }
+
+      // Remove finished animations
+      self.states.set(
+        skeletonId,
+        states.filter(s => !s.finished || s.loop)
+      )
+
+      // Apply IK
+      const targets = self.ikTargets.get(skeletonId)
+      if targets {
+        for target in targets {
+          self.ikSolver.solve(skeleton, target)
+        }
+      }
+
+      // Update world transforms
+      skeleton.updateWorldTransforms()
+    }
+  }
+
+  @method applyPose(
+    skeleton: typeof Skeleton,
+    pose: Map<string, Partial<Transform>>,
+    weight: float,
+    blendMode: BlendMode
+  ) {
+    for [boneId, transform] in pose {
+      const bone = skeleton.getBone(boneId)
+      if !bone { continue }
+
+      if transform.position {
+        bone.localTransform.position = self.lerpVector(
+          bone.localTransform.position,
+          transform.position,
+          weight
+        )
+      }
+      if transform.rotation {
+        bone.localTransform.rotation = self.slerpQuat(
+          bone.localTransform.rotation,
+          transform.rotation,
+          weight
+        )
+      }
+      if transform.scale {
+        bone.localTransform.scale = self.lerpVector(
+          bone.localTransform.scale,
+          transform.scale,
+          weight
+        )
+      }
+    }
+  }
+
+  @method lerpVector(a: Vector3, b: Vector3, t: float) -> Vector3 {
+    return {
+      x: a.x + (b.x - a.x) * t,
+      y: a.y + (b.y - a.y) * t,
+      z: a.z + (b.z - a.z) * t
+    }
+  }
+
+  @method slerpQuat(a: Quaternion, b: Quaternion, t: float) -> Quaternion {
+    let dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w
+    if dot < 0 {
+      b = { x: -b.x, y: -b.y, z: -b.z, w: -b.w }
+      dot = -dot
+    }
+    if dot > 0.9995 {
+      const result = {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        z: a.z + (b.z - a.z) * t,
+        w: a.w + (b.w - a.w) * t
+      }
+      const len = Math.sqrt(result.x ** 2 + result.y ** 2 + result.z ** 2 + result.w ** 2)
+      return { x: result.x / len, y: result.y / len, z: result.z / len, w: result.w / len }
+    }
+    const theta0 = Math.acos(dot)
+    const theta = theta0 * t
+    const sinTheta = Math.sin(theta)
+    const sinTheta0 = Math.sin(theta0)
+    const s0 = Math.cos(theta) - dot * sinTheta / sinTheta0
+    const s1 = sinTheta / sinTheta0
+    return {
+      x: a.x * s0 + b.x * s1,
+      y: a.y * s0 + b.y * s1,
+      z: a.z * s0 + b.z * s1,
+      w: a.w * s0 + b.w * s1
+    }
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTIONS
+// =============================================================================
+
+const VERSION = "1.0.0"
+
+function createAnimationSystem() -> typeof AnimationSystem {
+  return AnimationSystem
+}
+
+function createIKSolver() -> typeof FABRIKSolver {
+  return FABRIKSolver
+}
+
+function createSkeleton(id: string, bones: Bone[]) -> typeof Skeleton {
+  const skeleton = Skeleton
+  skeleton.initialize(id, bones)
+  return skeleton
+}
+
+function createAnimationClip(data: AnimationClipData) -> typeof AnimationClip {
+  const clip = AnimationClip
+  clip.initialize(data)
+  return clip
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Types
+  Vector3,
+  Quaternion,
+  Transform,
+  Bone,
+  Keyframe,
+  AnimationTrack,
+  AnimationClipData,
+  PlaybackOptions,
+  IKTarget,
+  AnimationState,
+  
+  // Enums
+  InterpolationType,
+  TrackProperty,
+  BlendMode,
+  
+  // Modules
+  Skeleton,
+  AnimationClip,
+  FABRIKSolver,
+  AnimationSystem,
+  
+  // Factory Functions
+  createAnimationSystem,
+  createIKSolver,
+  createSkeleton,
+  createAnimationClip,
+  
+  // Constants
+  VERSION
+}

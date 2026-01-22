@@ -1,0 +1,602 @@
+// HOSL: State Machine
+// Hierarchical finite state machine for AI and game logic
+
+/**
+ * State Machine Controller
+ * FSM with support for nested states and transitions
+ */
+component StateMachine {
+  @state {
+    current_state: null
+    previous_state: null
+    state_time: 0
+    history: []
+    running: false
+  }
+
+  @props {
+    initial_state: null
+    debug: false
+    history_size: 10
+  }
+
+  // Define all states
+  states = {}
+
+  // Define a state
+  @method defineState(name, config) => {
+    this.states[name] = {
+      name: name,
+      enter: config.enter || (() => {}),
+      update: config.update || (() => {}),
+      exit: config.exit || (() => {}),
+      transitions: config.transitions || {},
+      children: config.children || null,
+      parent: config.parent || null
+    }
+    
+    return this
+  }
+
+  // Start the state machine
+  @method start(initial = null) => {
+    state.current_state = initial || props.initial_state
+    state.running = true
+    state.state_time = 0
+    
+    const stateConfig = this.states[state.current_state]
+    if (stateConfig) {
+      stateConfig.enter(this)
+      this.log(`Enter: ${state.current_state}`)
+    }
+  }
+
+  // Stop the state machine
+  @method stop() => {
+    const stateConfig = this.states[state.current_state]
+    if (stateConfig) {
+      stateConfig.exit(this)
+    }
+    state.running = false
+  }
+
+  // Transition to a new state
+  @method transition(target_state, data = null) => {
+    if (!state.running) return
+    
+    const currentConfig = this.states[state.current_state]
+    const targetConfig = this.states[target_state]
+    
+    if (!targetConfig) {
+      console.warn(`State "${target_state}" not defined`)
+      return
+    }
+    
+    // Exit current state
+    if (currentConfig) {
+      currentConfig.exit(this, data)
+      this.log(`Exit: ${state.current_state}`)
+    }
+    
+    // Update history
+    state.history = [state.current_state, ...state.history.slice(0, props.history_size - 1)]
+    state.previous_state = state.current_state
+    state.current_state = target_state
+    state.state_time = 0
+    
+    // Enter new state
+    targetConfig.enter(this, data)
+    this.log(`Enter: ${target_state}`)
+    
+    this.emit("state_changed", { from: state.previous_state, to: target_state, data })
+  }
+
+  // Trigger a named transition
+  @method trigger(event_name, data = null) => {
+    const currentConfig = this.states[state.current_state]
+    if (!currentConfig) return
+    
+    const transition = currentConfig.transitions[event_name]
+    if (transition) {
+      if (typeof transition === "string") {
+        this.transition(transition, data)
+      } else if (typeof transition === "function") {
+        const target = transition(this, data)
+        if (target) this.transition(target, data)
+      } else if (transition.target) {
+        if (!transition.condition || transition.condition(this, data)) {
+          this.transition(transition.target, data)
+        }
+      }
+    }
+  }
+
+  // Go back to previous state
+  @method goBack() => {
+    if (state.history.length > 0) {
+      this.transition(state.history[0])
+    }
+  }
+
+  // Check if in a specific state
+  @method isInState(state_name) => {
+    return state.current_state === state_name
+  }
+
+  // Get time in current state
+  @method getStateTime() => {
+    return state.state_time
+  }
+
+  // Debug logging
+  @method log(message) => {
+    if (props.debug) {
+      console.log(`[StateMachine] ${message}`)
+    }
+  }
+
+  @update(delta) => {
+    if (!state.running || !state.current_state) return
+    
+    state.state_time += delta
+    
+    const stateConfig = this.states[state.current_state]
+    if (stateConfig) {
+      stateConfig.update(this, delta)
+    }
+  }
+}
+
+/**
+ * Behavior Tree
+ * Advanced AI decision making
+ */
+component BehaviorTree {
+  @state {
+    current_node: null
+    running: false
+    blackboard: {}
+  }
+
+  @props {
+    root: null
+    tick_rate: 10  // ticks per second
+    debug: false
+  }
+
+  tick_timer = 0
+
+  // Node result types
+  const SUCCESS = "success"
+  const FAILURE = "failure"
+  const RUNNING = "running"
+
+  // Create a sequence node (AND)
+  @method sequence(...children) => {
+    return {
+      type: "sequence",
+      children: children,
+      currentIndex: 0
+    }
+  }
+
+  // Create a selector node (OR)
+  @method selector(...children) => {
+    return {
+      type: "selector",
+      children: children,
+      currentIndex: 0
+    }
+  }
+
+  // Create a parallel node
+  @method parallel(policy, ...children) => {
+    return {
+      type: "parallel",
+      policy: policy,  // "require_all" | "require_one"
+      children: children
+    }
+  }
+
+  // Create a condition node
+  @method condition(check) => {
+    return {
+      type: "condition",
+      check: check
+    }
+  }
+
+  // Create an action node
+  @method action(execute) => {
+    return {
+      type: "action",
+      execute: execute
+    }
+  }
+
+  // Decorator: Inverter
+  @method inverter(child) => {
+    return {
+      type: "inverter",
+      child: child
+    }
+  }
+
+  // Decorator: Repeater
+  @method repeater(count, child) => {
+    return {
+      type: "repeater",
+      count: count,  // -1 for infinite
+      child: child,
+      iteration: 0
+    }
+  }
+
+  // Decorator: Timeout
+  @method timeout(duration, child) => {
+    return {
+      type: "timeout",
+      duration: duration,
+      child: child,
+      elapsed: 0
+    }
+  }
+
+  // Set blackboard value
+  @method setBlackboard(key, value) => {
+    state.blackboard[key] = value
+  }
+
+  // Get blackboard value
+  @method getBlackboard(key, default_value = null) => {
+    return state.blackboard[key] ?? default_value
+  }
+
+  // Start the tree
+  @method start() => {
+    state.running = true
+    state.current_node = props.root
+  }
+
+  // Stop the tree
+  @method stop() => {
+    state.running = false
+  }
+
+  // Tick a node
+  @method tick(node) => {
+    if (!node) return FAILURE
+    
+    switch (node.type) {
+      case "sequence":
+        return this.tickSequence(node)
+      case "selector":
+        return this.tickSelector(node)
+      case "parallel":
+        return this.tickParallel(node)
+      case "condition":
+        return node.check(this) ? SUCCESS : FAILURE
+      case "action":
+        return node.execute(this)
+      case "inverter":
+        const result = this.tick(node.child)
+        if (result === SUCCESS) return FAILURE
+        if (result === FAILURE) return SUCCESS
+        return RUNNING
+      case "repeater":
+        return this.tickRepeater(node)
+      case "timeout":
+        return this.tickTimeout(node)
+      default:
+        return FAILURE
+    }
+  }
+
+  @method tickSequence(node) => {
+    while (node.currentIndex < node.children.length) {
+      const result = this.tick(node.children[node.currentIndex])
+      
+      if (result === RUNNING) return RUNNING
+      if (result === FAILURE) {
+        node.currentIndex = 0
+        return FAILURE
+      }
+      
+      node.currentIndex++
+    }
+    
+    node.currentIndex = 0
+    return SUCCESS
+  }
+
+  @method tickSelector(node) => {
+    while (node.currentIndex < node.children.length) {
+      const result = this.tick(node.children[node.currentIndex])
+      
+      if (result === RUNNING) return RUNNING
+      if (result === SUCCESS) {
+        node.currentIndex = 0
+        return SUCCESS
+      }
+      
+      node.currentIndex++
+    }
+    
+    node.currentIndex = 0
+    return FAILURE
+  }
+
+  @method tickParallel(node) => {
+    let successCount = 0
+    let failureCount = 0
+    let runningCount = 0
+    
+    for (const child of node.children) {
+      const result = this.tick(child)
+      if (result === SUCCESS) successCount++
+      else if (result === FAILURE) failureCount++
+      else runningCount++
+    }
+    
+    if (node.policy === "require_all") {
+      if (failureCount > 0) return FAILURE
+      if (runningCount > 0) return RUNNING
+      return SUCCESS
+    } else {
+      if (successCount > 0) return SUCCESS
+      if (runningCount > 0) return RUNNING
+      return FAILURE
+    }
+  }
+
+  @method tickRepeater(node) => {
+    const result = this.tick(node.child)
+    
+    if (result === RUNNING) return RUNNING
+    
+    node.iteration++
+    
+    if (node.count === -1 || node.iteration < node.count) {
+      return RUNNING
+    }
+    
+    node.iteration = 0
+    return result
+  }
+
+  @method tickTimeout(node) => {
+    if (node.elapsed >= node.duration) {
+      node.elapsed = 0
+      return FAILURE
+    }
+    
+    const result = this.tick(node.child)
+    
+    if (result !== RUNNING) {
+      node.elapsed = 0
+    }
+    
+    return result
+  }
+
+  @update(delta) => {
+    if (!state.running) return
+    
+    this.tick_timer += delta
+    const interval = 1 / props.tick_rate
+    
+    if (this.tick_timer >= interval) {
+      this.tick_timer = 0
+      this.tick(props.root)
+    }
+    
+    // Update timeouts
+    this.updateTimeouts(props.root, delta)
+  }
+
+  @method updateTimeouts(node, delta) => {
+    if (!node) return
+    
+    if (node.type === "timeout") {
+      node.elapsed += delta
+    }
+    
+    if (node.children) {
+      for (const child of node.children) {
+        this.updateTimeouts(child, delta)
+      }
+    }
+    if (node.child) {
+      this.updateTimeouts(node.child, delta)
+    }
+  }
+}
+
+/**
+ * Goal Oriented Action Planning (GOAP)
+ * AI planning system
+ */
+component GOAPPlanner {
+  @state {
+    current_plan: []
+    current_action_index: 0
+    planning: false
+    executing: false
+  }
+
+  @props {
+    actions: []
+    goals: []
+    max_plan_depth: 10
+    replan_on_failure: true
+  }
+
+  // World state representation
+  world_state = {}
+
+  // Define an action
+  @method defineAction(config) => {
+    props.actions.push({
+      name: config.name,
+      cost: config.cost || 1,
+      preconditions: config.preconditions || {},
+      effects: config.effects || {},
+      execute: config.execute,
+      isValid: config.isValid || (() => true)
+    })
+  }
+
+  // Define a goal
+  @method defineGoal(name, conditions, priority = 1) => {
+    props.goals.push({
+      name: name,
+      conditions: conditions,
+      priority: priority
+    })
+  }
+
+  // Set world state
+  @method setWorldState(key, value) => {
+    this.world_state[key] = value
+  }
+
+  // Get world state
+  @method getWorldState(key) => {
+    return this.world_state[key]
+  }
+
+  // Find a plan to achieve the highest priority goal
+  @method plan() => {
+    state.planning = true
+    
+    // Sort goals by priority
+    const sortedGoals = [...props.goals].sort((a, b) => b.priority - a.priority)
+    
+    for (const goal of sortedGoals) {
+      const plan = this.findPlan(goal.conditions)
+      if (plan.length > 0) {
+        state.current_plan = plan
+        state.current_action_index = 0
+        state.planning = false
+        this.emit("plan_found", { goal: goal.name, plan: plan.map(a => a.name) })
+        return true
+      }
+    }
+    
+    state.planning = false
+    this.emit("no_plan_found")
+    return false
+  }
+
+  // A* planning algorithm
+  @method findPlan(goal_conditions) => {
+    const start = { state: { ...this.world_state }, actions: [], cost: 0 }
+    const open = [start]
+    const closed = new Set()
+    
+    while (open.length > 0) {
+      // Get lowest cost node
+      open.sort((a, b) => a.cost - b.cost)
+      const current = open.shift()
+      
+      // Check if goal reached
+      if (this.meetsConditions(current.state, goal_conditions)) {
+        return current.actions
+      }
+      
+      const stateKey = JSON.stringify(current.state)
+      if (closed.has(stateKey)) continue
+      closed.add(stateKey)
+      
+      // Max depth check
+      if (current.actions.length >= props.max_plan_depth) continue
+      
+      // Expand valid actions
+      for (const action of props.actions) {
+        if (!action.isValid(this)) continue
+        if (!this.meetsConditions(current.state, action.preconditions)) continue
+        
+        const newState = { ...current.state, ...action.effects }
+        const newNode = {
+          state: newState,
+          actions: [...current.actions, action],
+          cost: current.cost + action.cost
+        }
+        
+        open.push(newNode)
+      }
+    }
+    
+    return []
+  }
+
+  // Check if state meets conditions
+  @method meetsConditions(state, conditions) => {
+    for (const [key, value] of Object.entries(conditions)) {
+      if (state[key] !== value) return false
+    }
+    return true
+  }
+
+  // Execute current plan
+  @method execute() => {
+    if (state.current_plan.length === 0) {
+      this.plan()
+    }
+    state.executing = true
+  }
+
+  // Stop execution
+  @method stop() => {
+    state.executing = false
+    state.current_plan = []
+  }
+
+  @update(delta) => {
+    if (!state.executing || state.current_plan.length === 0) return
+    
+    const action = state.current_plan[state.current_action_index]
+    if (!action) {
+      state.executing = false
+      this.emit("plan_complete")
+      return
+    }
+    
+    // Check preconditions still valid
+    if (!this.meetsConditions(this.world_state, action.preconditions)) {
+      if (props.replan_on_failure) {
+        this.emit("action_invalid", action.name)
+        this.plan()
+        return
+      }
+    }
+    
+    const result = action.execute(this, delta)
+    
+    if (result === "success") {
+      // Apply effects
+      for (const [key, value] of Object.entries(action.effects)) {
+        this.world_state[key] = value
+      }
+      
+      state.current_action_index++
+      this.emit("action_complete", action.name)
+      
+      if (state.current_action_index >= state.current_plan.length) {
+        state.executing = false
+        this.emit("plan_complete")
+      }
+    } else if (result === "failure") {
+      if (props.replan_on_failure) {
+        this.emit("action_failed", action.name)
+        this.plan()
+      } else {
+        state.executing = false
+        this.emit("plan_failed", action.name)
+      }
+    }
+    // "running" means continue next frame
+  }
+}
+
+export { StateMachine, BehaviorTree, GOAPPlanner }

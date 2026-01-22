@@ -1,0 +1,460 @@
+/**
+ * HoloScript-to-World Bridge
+ *
+ * Connects the HoloScript runtime to the Hololand world,
+ * translating AST execution into spatial objects and world events.
+ */
+
+import { 
+  Vector3, 
+  SpatialPosition, 
+  BridgeConfig, 
+  BridgeState, 
+  ASTNode, 
+  ExecutionResult,
+  SpawnData,
+  MoveData,
+  VisibilityData,
+  ConnectionNode
+} from "./types.hsplus"
+
+// =============================================================================
+// BRIDGE MODULE
+// =============================================================================
+
+module HoloScriptBridge {
+  @state {
+    runtime: any = null           // HoloScriptRuntime instance
+    parser: any = null            // HoloScriptCodeParser instance
+    world: any = null             // WorldInterface instance
+    config: BridgeConfig = {
+      autoSync: true,
+      syncInterval: 16,
+      debug: false,
+      defaultScale: 1.0
+    }
+    objectMap: Map<string, string> = new Map()  // orb name -> world object id
+    syncTimer: any = null
+    state: BridgeState = {
+      objectCount: 0,
+      functionCount: 0,
+      connectionCount: 0,
+      lastSyncTime: 0,
+      errors: []
+    }
+    logger: any = null
+  }
+
+  // ===========================================================================
+  // INITIALIZATION
+  // ===========================================================================
+
+  @action initialize(world: any, config: BridgeConfig = null) {
+    self.world = world
+    
+    if config != null {
+      self.config = { ...self.config, ...config }
+    }
+    
+    // Create runtime and parser (from @holoscript/core)
+    self.runtime = createHoloScriptRuntime()
+    self.parser = createHoloScriptCodeParser()
+    
+    // Create logger
+    self.logger = createLogger("HoloScriptBridge")
+    
+    // Setup runtime event listeners
+    self.setupRuntimeEvents()
+    
+    if self.config.autoSync {
+      self.startAutoSync()
+    }
+    
+    // Register with DevTools if available
+    self.registerWithDevToolsHook()
+    
+    self.logger.info("HoloScriptBridge initialized", { config: self.config })
+  }
+
+  // ===========================================================================
+  // SCRIPT EXECUTION
+  // ===========================================================================
+
+  @action async executeFromNL(input: string, context: object = null) -> ExecutionResult[] {
+    try {
+      // Lazy load AI bridge
+      const aiBridge = createAIBridge()
+      
+      self.logger.info("Translating NL to HoloScript", { input })
+      const result = await aiBridge.translateToHoloScript({
+        naturalLanguage: input,
+        context
+      })
+      
+      if result.holoScript {
+        return self.loadScript(result.holoScript)
+      }
+      
+      return [{ success: false, error: "Translation produced no code" }]
+    } catch error {
+      self.logger.error("NL execution failed", { error })
+      throw error
+    }
+  }
+
+  @action async loadScript(code: string) -> ExecutionResult[] {
+    const parseResult = self.parser.parse(code)
+    
+    if !parseResult.success {
+      const errors = parseResult.errors.map(e => `Line ${e.line}: ${e.message}`)
+      self.state.errors.push(...errors)
+      self.logger.error("Parse errors", { errors })
+      return [{
+        success: false,
+        error: errors.join("\n")
+      }]
+    }
+    
+    return self.executeAST(parseResult.ast)
+  }
+
+  @action async executeAST(ast: ASTNode[]) -> ExecutionResult[] {
+    const results: ExecutionResult[] = []
+    
+    for node in ast {
+      const result = await self.executeNode(node)
+      results.push(result)
+      
+      // Sync to world on each node execution
+      if result.success {
+        await self.syncNodeToWorld(node, result)
+      }
+    }
+    
+    return results
+  }
+
+  @method async executeNode(node: ASTNode) -> ExecutionResult {
+    const result = await self.runtime.executeNode(node)
+    
+    if self.config.debug {
+      self.logger.debug("Node executed", {
+        type: node.type,
+        success: result.success,
+        output: result.output
+      })
+    }
+    
+    return result
+  }
+
+  // ===========================================================================
+  // WORLD SYNCHRONIZATION
+  // ===========================================================================
+
+  @method async syncNodeToWorld(node: ASTNode, result: ExecutionResult) {
+    match node.type {
+      "orb" => await self.syncOrbToWorld(node, result)
+      "connection" => await self.syncConnectionToWorld(node)
+      "stream" => { /* Streams don't create spatial objects */ }
+      "gate" => { /* Gates are logic, not spatial */ }
+      "shop" => self.world.emit("commerce:shop_synced", node)
+      "template" => self.world.emit("builder:template_synced", node)
+      _ => { /* Unknown node type */ }
+    }
+  }
+
+  @method async syncOrbToWorld(node: ASTNode, result: ExecutionResult) {
+    const name = node.name
+    
+    // Check if orb already exists in world
+    if self.objectMap.has(name) {
+      // Update existing object
+      const objectId = self.objectMap.get(name)
+      const obj = self.world.getObject(objectId)
+      if obj && result.spatialPosition {
+        obj.setPosition(self.toVector3(result.spatialPosition))
+      }
+      return
+    }
+    
+    // Create new spatial object
+    const position = result.spatialPosition ?? node.position ?? { x: 0, y: 0, z: 0 }
+    const hologram = node.hologram ?? { color: "#00ffff", glow: true }
+    
+    const obj = self.world.createObject({
+      type: "orb",
+      position: self.toVector3(position),
+      scale: { 
+        x: self.config.defaultScale, 
+        y: self.config.defaultScale, 
+        z: self.config.defaultScale 
+      },
+      metadata: {
+        name,
+        color: hologram.color,
+        glow: hologram.glow,
+        properties: node.properties
+      }
+    })
+    
+    self.objectMap.set(name, obj.id)
+    self.state.objectCount++
+    
+    self.logger.debug("Orb synced to world", { name, objectId: obj.id })
+  }
+
+  @method async syncConnectionToWorld(node: ASTNode) {
+    const connNode = node as ConnectionNode
+    
+    const fromId = self.objectMap.get(connNode.from)
+    const toId = self.objectMap.get(connNode.to)
+    
+    if !fromId || !toId {
+      self.logger.warn("Connection references non-existent objects", {
+        from: connNode.from,
+        to: connNode.to
+      })
+      return
+    }
+    
+    // Emit connection event for renderer to visualize
+    self.world.emit("connection:created", {
+      id: `${connNode.from}->${connNode.to}`,
+      from: fromId,
+      to: toId,
+      dataType: connNode.dataType
+    })
+    
+    self.state.connectionCount++
+  }
+
+  @method toVector3(pos: SpatialPosition) -> Vector3 {
+    return { x: pos.x, y: pos.y, z: pos.z }
+  }
+
+  // ===========================================================================
+  // DEVTOOLS INTEGRATION
+  // ===========================================================================
+
+  @method registerWithDevToolsHook() {
+    // Check if running in browser with DevTools hook
+    if typeof window == "undefined" { return }
+    
+    const hook = window.__HOLOLAND_DEVTOOLS_HOOK__
+    
+    if !hook {
+      self.logger.debug("DevTools hook not found (extension not installed)")
+      return
+    }
+    
+    try {
+      // Register this app with the hook
+      const appId = hook.registerApp({
+        name: "Hololand App",
+        version: "1.0.0",
+        world: self.world
+      })
+      
+      // Connect profiler if @hololand/devtools is available
+      try {
+        const profiler = getProfiler()
+        hook.profiler.getStats = () => profiler.getStats()
+        hook.profiler.getHistory = () => profiler.getHistory()
+      } catch {
+        // @hololand/devtools not installed
+      }
+      
+      self.logger.info("Registered with DevTools extension", { appId })
+    } catch error {
+      self.logger.warn("Failed to register with DevTools hook", { error })
+    }
+  }
+
+  // ===========================================================================
+  // RUNTIME EVENT HANDLERS
+  // ===========================================================================
+
+  @method setupRuntimeEvents() {
+    // Listen for runtime function calls that affect the world
+    self.runtime.on("spawn", (data) => self.handleSpawn(data as SpawnData))
+    self.runtime.on("move", (data) => self.handleMove(data as MoveData))
+    self.runtime.on("show", (data) => self.handleVisibility(data as VisibilityData, true))
+    self.runtime.on("hide", (data) => self.handleVisibility(data as VisibilityData, false))
+    
+    // Commerce Events
+    self.runtime.on("shop", (data) => self.world.emit("commerce:shop_created", data))
+    self.runtime.on("inventory", (data) => self.world.emit("commerce:inventory_updated", data))
+    self.runtime.on("purchase", (data) => self.world.emit("commerce:purchase_initiated", data))
+    
+    // Social Events
+    self.runtime.on("presence", (data) => self.world.emit("social:presence_updated", data))
+    self.runtime.on("invite", (data) => self.world.emit("social:invite_sent", data))
+    self.runtime.on("share", (data) => self.world.emit("social:script_shared", data))
+    
+    // Physics Events
+    self.runtime.on("physics", (data) => self.world.emit("physics:config_updated", data))
+    self.runtime.on("gravity", (data) => self.world.emit("physics:gravity_changed", data))
+    self.runtime.on("collide", (data) => self.world.emit("physics:collision_registered", data))
+  }
+
+  @method handleSpawn(data: SpawnData) {
+    const obj = self.world.createObject({
+      type: data.type ?? "orb",
+      position: self.toVector3(data.position),
+      metadata: data.properties
+    })
+    
+    const name = `spawned_${obj.id}`
+    self.objectMap.set(name, obj.id)
+    self.state.objectCount++
+    
+    self.logger.debug("Spawned object", { name, id: obj.id })
+  }
+
+  @method handleMove(data: MoveData) {
+    const objectId = self.objectMap.get(data.target)
+    if !objectId {
+      self.logger.warn("Move target not found", { target: data.target })
+      return
+    }
+    
+    const obj = self.world.getObject(objectId)
+    if obj {
+      obj.setPosition(self.toVector3(data.position))
+    }
+  }
+
+  @method handleVisibility(data: VisibilityData, visible: bool) {
+    const objectId = self.objectMap.get(data.target)
+    if !objectId { return }
+    
+    const obj = self.world.getObject(objectId)
+    if obj {
+      obj.setVisible(visible)
+    }
+  }
+
+  // ===========================================================================
+  // AUTO-SYNC
+  // ===========================================================================
+
+  @method startAutoSync() {
+    if self.syncTimer { return }
+    
+    self.syncTimer = setInterval(() => {
+      self.sync()
+    }, self.config.syncInterval)
+  }
+
+  @action stopAutoSync() {
+    if self.syncTimer {
+      clearInterval(self.syncTimer)
+      self.syncTimer = null
+    }
+  }
+
+  @action sync() {
+    const context = self.runtime.getContext()
+    
+    // Sync variables that represent positions
+    context.variables.forEach((value, name) => {
+      if self.isPosition(value) {
+        const objectId = self.objectMap.get(name)
+        if objectId {
+          const obj = self.world.getObject(objectId)
+          if obj {
+            obj.setPosition(value as Vector3)
+          }
+        }
+      }
+    })
+    
+    self.state.lastSyncTime = Date.now()
+  }
+
+  @method isPosition(value: any) -> bool {
+    return typeof value == "object" && 
+           value != null && 
+           "x" in value && 
+           "y" in value && 
+           "z" in value
+  }
+
+  // ===========================================================================
+  // PUBLIC API
+  // ===========================================================================
+
+  @action async callFunction(name: string, args: any[] = []) -> ExecutionResult {
+    return self.runtime.callFunction(name, args)
+  }
+
+  @action setVariable(name: string, value: any) {
+    self.runtime.setVariable(name, value)
+  }
+
+  @method getVariable(name: string) -> any {
+    return self.runtime.getVariable(name)
+  }
+
+  @computed getState() -> BridgeState {
+    return { ...self.state }
+  }
+
+  @method getRuntime() -> any {
+    return self.runtime
+  }
+
+  @method getWorld() -> any {
+    return self.world
+  }
+
+  @action reset() {
+    self.stopAutoSync()
+    
+    // Remove all synced objects from world
+    self.objectMap.forEach((objectId) => {
+      self.world.removeObject(objectId)
+    })
+    
+    self.objectMap.clear()
+    self.runtime.reset()
+    
+    self.state = {
+      objectCount: 0,
+      functionCount: 0,
+      connectionCount: 0,
+      lastSyncTime: 0,
+      errors: []
+    }
+    
+    if self.config.autoSync {
+      self.startAutoSync()
+    }
+    
+    self.logger.info("Bridge reset")
+  }
+
+  @action dispose() {
+    self.stopAutoSync()
+    self.objectMap.clear()
+    self.logger.info("Bridge disposed")
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTION
+// =============================================================================
+
+function createBridge(world: any, config: BridgeConfig = null) -> typeof HoloScriptBridge {
+  const bridge = HoloScriptBridge
+  bridge.initialize(world, config)
+  return bridge
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { HoloScriptBridge, createBridge }
+export type { BridgeConfig, BridgeState }

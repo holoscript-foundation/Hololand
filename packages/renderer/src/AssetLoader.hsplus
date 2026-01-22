@@ -1,0 +1,511 @@
+/**
+ * AssetLoader
+ *
+ * Handles loading of 3D models (GLTF/GLB), textures, and other assets.
+ * Supports Draco compression, LOD generation, and caching.
+ */
+
+import * as THREE from "three"
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js"
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js"
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js"
+
+import { 
+  AssetLoadOptions, 
+  LoadedAsset, 
+  QualitySettings,
+  AssetMetadata,
+  BoundingBox,
+  Vector3,
+  AssetType
+} from "./types.hsplus"
+import { rendererLogger as logger } from "./logger.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * GLTF data container
+ */
+struct GLTFData {
+  scene: THREE.Group = null,
+  animations: array<THREE.AnimationClip> = [],
+  cameras: array<THREE.Camera> = []
+}
+
+/**
+ * Loaded model asset
+ */
+struct LoadedModel extends LoadedAsset {
+  assetType: AssetType = AssetType.gltf,
+  data: GLTFData = {}
+}
+
+/**
+ * Loaded texture asset
+ */
+struct LoadedTexture extends LoadedAsset {
+  assetType: AssetType = AssetType.texture,
+  texture: THREE.Texture = null
+}
+
+/**
+ * Asset loader configuration
+ */
+struct AssetLoaderOptions {
+  renderer: THREE.WebGLRenderer = null,
+  qualitySettings: QualitySettings = {},
+  dracoPath: string = "https://www.gstatic.com/draco/versioned/decoders/1.5.6/",
+  ktx2Path: string = "https://www.gstatic.com/basis-universal/versioned/2021-04-15-ba1c3e4/",
+  cacheSize: number = 100
+}
+
+// =============================================================================
+// ASSET CACHE
+// =============================================================================
+
+/**
+ * LRU Asset Cache for loaded assets
+ */
+module AssetCache {
+  @state {
+    cache: Map<string, LoadedAsset> = new Map(),
+    maxSize: number = 100
+  }
+
+  @action initialize(maxSize: number = 100) {
+    self.maxSize = maxSize
+    self.cache = new Map()
+  }
+
+  @method get(key: string) -> LoadedAsset | null {
+    return self.cache.get(key) ?? null
+  }
+
+  @action set(key: string, asset: LoadedAsset) {
+    // LRU eviction if at capacity
+    if self.cache.size >= self.maxSize {
+      let firstKey = self.cache.keys().next().value
+      if firstKey {
+        let evicted = self.cache.get(firstKey)
+        self.disposeAsset(evicted)
+        self.cache.delete(firstKey)
+      }
+    }
+    self.cache.set(key, asset)
+  }
+
+  @method has(key: string) -> bool {
+    return self.cache.has(key)
+  }
+
+  @action delete(key: string) -> bool {
+    let asset = self.cache.get(key)
+    if asset {
+      self.disposeAsset(asset)
+    }
+    return self.cache.delete(key)
+  }
+
+  @action clear() {
+    for asset in self.cache.values() {
+      self.disposeAsset(asset)
+    }
+    self.cache.clear()
+  }
+
+  @method disposeAsset(asset: LoadedAsset | null) {
+    if !asset { return }
+
+    if asset.assetType == AssetType.gltf {
+      let model = asset as LoadedModel
+      model.data.scene?.traverse((obj) => {
+        if obj is THREE.Mesh {
+          obj.geometry?.dispose()
+          if Array.isArray(obj.material) {
+            obj.material.forEach(m => m.dispose())
+          } else {
+            obj.material?.dispose()
+          }
+        }
+      })
+    } else if asset.assetType == AssetType.texture {
+      let tex = asset as LoadedTexture
+      tex.texture?.dispose()
+    }
+  }
+}
+
+// =============================================================================
+// ASSET LOADER
+// =============================================================================
+
+/**
+ * Main Asset Loader for GLTF models and textures
+ */
+module AssetLoader {
+  @state {
+    gltfLoader: GLTFLoader = null,
+    textureLoader: THREE.TextureLoader = null,
+    dracoLoader: DRACOLoader = null,
+    ktx2Loader: KTX2Loader = null,
+    cache: typeof AssetCache = null,
+    qualitySettings: QualitySettings = {},
+    loadingCount: number = 0,
+    nextId: number = 1
+  }
+
+  @action initialize(options: AssetLoaderOptions) {
+    self.qualitySettings = options.qualitySettings
+    
+    // Initialize cache
+    AssetCache.initialize(options.cacheSize)
+    self.cache = AssetCache
+
+    // Initialize GLTF loader
+    self.gltfLoader = new GLTFLoader()
+
+    // Initialize Draco decoder
+    self.dracoLoader = new DRACOLoader()
+    self.dracoLoader.setDecoderPath(options.dracoPath)
+    self.gltfLoader.setDRACOLoader(self.dracoLoader)
+
+    // Initialize KTX2 loader if renderer provided
+    if options.renderer {
+      self.ktx2Loader = new KTX2Loader()
+      self.ktx2Loader.setTranscoderPath(options.ktx2Path)
+      self.ktx2Loader.detectSupport(options.renderer)
+      self.gltfLoader.setKTX2Loader(self.ktx2Loader)
+    }
+
+    // Set meshopt decoder
+    self.gltfLoader.setMeshoptDecoder(MeshoptDecoder)
+
+    // Initialize texture loader
+    self.textureLoader = new THREE.TextureLoader()
+
+    logger.info("[AssetLoader] Initialized")
+  }
+
+  /**
+   * Load a GLTF/GLB model
+   */
+  @action async loadModel(url: string, options: AssetLoadOptions = {}) -> LoadedModel {
+    let cacheKey = "model:" + url
+
+    // Check cache
+    if options.cache != false && self.cache.has(cacheKey) {
+      logger.debug("[AssetLoader] Model from cache", { url })
+      return self.cache.get(cacheKey) as LoadedModel
+    }
+
+    self.loadingCount += 1
+
+    try {
+      let gltf = await self.loadGLTF(url, options.onProgress)
+
+      // Process the model
+      let scene = gltf.scene.clone(true)
+      let animations = gltf.animations.map(a => a.clone())
+      let cameras = gltf.cameras.map(c => c.clone())
+
+      // Apply quality settings
+      self.processModel(scene, options)
+
+      // Calculate metadata
+      let metadata = self.calculateModelMetadata(scene, gltf)
+
+      let asset: LoadedModel = {
+        id: self.generateId(),
+        assetType: AssetType.gltf,
+        url: url,
+        data: { scene, animations, cameras },
+        metadata: metadata
+      }
+
+      // Cache if enabled
+      if options.cache != false {
+        self.cache.set(cacheKey, asset)
+      }
+
+      logger.info("[AssetLoader] Model loaded", { url, polyCount: metadata.polyCount })
+
+      return asset
+    } finally {
+      self.loadingCount -= 1
+    }
+  }
+
+  /**
+   * Load GLTF with promise wrapper
+   */
+  @method async loadGLTF(url: string, onProgress: ((progress: number) => void) = null) -> any {
+    return new Promise((resolve, reject) => {
+      self.gltfLoader.load(
+        url,
+        resolve,
+        (event) => {
+          if event.lengthComputable && onProgress {
+            onProgress(event.loaded / event.total)
+          }
+        },
+        reject
+      )
+    })
+  }
+
+  /**
+   * Process model based on quality settings
+   */
+  @method processModel(scene: THREE.Object3D, options: AssetLoadOptions) {
+    let maxTextureSize = options.maxTextureSize ?? self.qualitySettings.maxTextureSize
+
+    scene.traverse((object) => {
+      if object is THREE.Mesh {
+        // Enable shadows based on quality
+        object.castShadow = self.qualitySettings.shadowsEnabled
+        object.receiveShadow = self.qualitySettings.shadowsEnabled
+
+        // Process materials
+        let materials = Array.isArray(object.material) ? object.material : [object.material]
+        materials.forEach(material => {
+          self.processMaterial(material, maxTextureSize)
+        })
+      }
+    })
+  }
+
+  /**
+   * Process material for quality settings
+   */
+  @method processMaterial(material: THREE.Material, maxTextureSize: number) {
+    // Set anisotropic filtering
+    let anisotropy = self.qualitySettings.anisotropy
+
+    let textureProps = ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap"]
+
+    textureProps.forEach(prop => {
+      let tex = material[prop]
+      if tex is THREE.Texture {
+        tex.anisotropy = anisotropy
+
+        // Resize texture if too large
+        if tex.image && (tex.image.width > maxTextureSize || tex.image.height > maxTextureSize) {
+          self.resizeTexture(tex, maxTextureSize)
+        }
+      }
+    })
+
+    // Upgrade material type if needed
+    if self.qualitySettings.materialType == MaterialType.physical && material is THREE.MeshStandardMaterial {
+      material.envMapIntensity = self.qualitySettings.hdriEnvironment ? 1.0 : 0
+    }
+  }
+
+  /**
+   * Resize texture to max size
+   */
+  @method resizeTexture(texture: THREE.Texture, maxSize: number) {
+    if !texture.image { return }
+
+    let img = texture.image
+    let width = img.width
+    let height = img.height
+
+    if width <= maxSize && height <= maxSize { return }
+
+    let scale = maxSize / Math.max(width, height)
+    let newWidth = Math.floor(width * scale)
+    let newHeight = Math.floor(height * scale)
+
+    let canvas = document.createElement("canvas")
+    canvas.width = newWidth
+    canvas.height = newHeight
+
+    let ctx = canvas.getContext("2d")
+    if ctx {
+      ctx.drawImage(img, 0, 0, newWidth, newHeight)
+      texture.image = canvas
+      texture.needsUpdate = true
+
+      logger.debug("[AssetLoader] Texture resized", {
+        original: `${width}x${height}`,
+        new: `${newWidth}x${newHeight}`
+      })
+    }
+  }
+
+  /**
+   * Calculate model metadata
+   */
+  @method calculateModelMetadata(scene: THREE.Object3D, gltf: any) -> AssetMetadata {
+    let polyCount = 0
+    let textureCount = 0
+    let textureSet = new Set()
+
+    scene.traverse((object) => {
+      if object is THREE.Mesh {
+        // Count polygons
+        let geometry = object.geometry
+        if geometry.index {
+          polyCount += geometry.index.count / 3
+        } else if geometry.attributes.position {
+          polyCount += geometry.attributes.position.count / 3
+        }
+
+        // Count unique textures
+        let materials = Array.isArray(object.material) ? object.material : [object.material]
+        materials.forEach(mat => {
+          ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap"].forEach(prop => {
+            if mat[prop] && !textureSet.has(mat[prop].uuid) {
+              textureSet.add(mat[prop].uuid)
+              textureCount += 1
+            }
+          })
+        })
+      }
+    })
+
+    // Get bounding box
+    let box = new THREE.Box3().setFromObject(scene)
+    let bounds: BoundingBox = {
+      min: { x: box.min.x, y: box.min.y, z: box.min.z },
+      max: { x: box.max.x, y: box.max.y, z: box.max.z }
+    }
+
+    return {
+      polyCount: Math.floor(polyCount),
+      textureCount: textureCount,
+      animationCount: gltf.animations?.length ?? 0,
+      bounds: bounds
+    }
+  }
+
+  /**
+   * Load a texture
+   */
+  @action async loadTexture(url: string, options: AssetLoadOptions = {}) -> LoadedTexture {
+    let cacheKey = "texture:" + url
+
+    // Check cache
+    if options.cache != false && self.cache.has(cacheKey) {
+      logger.debug("[AssetLoader] Texture from cache", { url })
+      return self.cache.get(cacheKey) as LoadedTexture
+    }
+
+    self.loadingCount += 1
+
+    try {
+      let texture = await new Promise<THREE.Texture>((resolve, reject) => {
+        self.textureLoader.load(url, resolve, undefined, reject)
+      })
+
+      // Apply quality settings
+      texture.anisotropy = self.qualitySettings.anisotropy
+
+      // Resize if needed
+      let maxSize = options.maxTextureSize ?? self.qualitySettings.maxTextureSize
+      if texture.image && (texture.image.width > maxSize || texture.image.height > maxSize) {
+        self.resizeTexture(texture, maxSize)
+      }
+
+      let asset: LoadedTexture = {
+        id: self.generateId(),
+        assetType: AssetType.texture,
+        url: url,
+        texture: texture,
+        metadata: {
+          polyCount: 0,
+          textureCount: 1,
+          animationCount: 0,
+          bounds: {}
+        }
+      }
+
+      // Cache if enabled
+      if options.cache != false {
+        self.cache.set(cacheKey, asset)
+      }
+
+      logger.info("[AssetLoader] Texture loaded", { url })
+
+      return asset
+    } finally {
+      self.loadingCount -= 1
+    }
+  }
+
+  /**
+   * Generate unique asset ID
+   */
+  @method generateId() -> string {
+    let id = "asset_" + self.nextId.toString()
+    self.nextId += 1
+    return id
+  }
+
+  /**
+   * Get current loading count
+   */
+  @computed isLoading() -> bool {
+    return self.loadingCount > 0
+  }
+
+  /**
+   * Clear the asset cache
+   */
+  @action clearCache() {
+    self.cache.clear()
+    logger.info("[AssetLoader] Cache cleared")
+  }
+
+  /**
+   * Update quality settings
+   */
+  @action setQualitySettings(settings: QualitySettings) {
+    self.qualitySettings = settings
+  }
+
+  /**
+   * Dispose of the loader and resources
+   */
+  @action dispose() {
+    self.cache.clear()
+    self.dracoLoader?.dispose()
+    self.ktx2Loader?.dispose()
+    logger.info("[AssetLoader] Disposed")
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTION
+// =============================================================================
+
+/**
+ * Create and initialize an AssetLoader
+ */
+function createAssetLoader(options: AssetLoaderOptions) -> typeof AssetLoader {
+  AssetLoader.initialize(options)
+  return AssetLoader
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Types
+  GLTFData,
+  LoadedModel,
+  LoadedTexture,
+  AssetLoaderOptions,
+
+  // Modules
+  AssetCache,
+  AssetLoader,
+
+  // Factory
+  createAssetLoader
+}

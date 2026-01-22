@@ -1,0 +1,223 @@
+/**
+ * Hello VR World - HoloScript+ Example
+ *
+ * A simple VR scene demonstrating HoloScript+ syntax and patterns.
+ * This example shows how to create interactive 3D objects with traits.
+ */
+
+import { createHoloScriptBridge, parseExpectSuccess } from "@hololand/core"
+import { createAnimationSystem, createSkeleton } from "@hololand/animation"
+import { createGLBAssetLibrary, LODLevel, Priority } from "@hololand/spatial"
+
+// =============================================================================
+// SCENE DEFINITION (HoloScript)
+// =============================================================================
+
+const sceneSource = `
+composition "Hello VR World" {
+  // Environment
+  sky {
+    type: "gradient"
+    topColor: "#1a1a2e"
+    bottomColor: "#16213e"
+  }
+  
+  ground {
+    type: "plane"
+    size: [20, 20]
+    material: { color: "#2d3436", roughness: 0.8 }
+  }
+
+  // Welcome message
+  spatial_group "Welcome" at [0, 2, -3] {
+    text "title" {
+      content: "Welcome to Hololand!"
+      fontSize: 0.5
+      color: "#00ff88"
+      billboard: true
+    }
+  }
+
+  // Interactive orbs
+  spatial_group "Orbs" {
+    orb "red-orb" {
+      position: [-2, 1, 0]
+      color: "#ff4444"
+      size: 0.3
+      traits: ["grabbable", "throwable", "glowing"]
+      grabbable: { snap_to_hand: true }
+      glowing: { intensity: 2.0, color: "#ff4444" }
+    }
+
+    orb "green-orb" {
+      position: [0, 1, 0]
+      color: "#44ff44"
+      size: 0.3
+      traits: ["grabbable", "throwable", "physics"]
+      physics: { mass: 1.0, bounce: 0.8 }
+    }
+
+    orb "blue-orb" {
+      position: [2, 1, 0]
+      color: "#4444ff"
+      size: 0.3
+      traits: ["grabbable", "throwable", "sound_emitter"]
+      sound_emitter: { sound: "chime", trigger: "grab" }
+    }
+  }
+
+  // Animated character
+  spatial_group "Character" at [0, 0, 2] {
+    npc "guide" {
+      model: "robot"
+      traits: ["talkable", "animate"]
+      dialogue: [
+        "Hello! Welcome to HoloScript+",
+        "Try grabbing one of the orbs!",
+        "You can throw them too!"
+      ]
+      animate: { idle: "wave", loop: true }
+    }
+  }
+
+  // Portal to next scene
+  portal "next-scene" {
+    position: [5, 1, 0]
+    destination: "02-physics-playground"
+    label: "Physics Playground →"
+    traits: ["portal"]
+    portal: { 
+      transition: "fade",
+      duration: 1.0
+    }
+  }
+
+  // Event handling
+  logic {
+    on_grab(orb) {
+      orb.scale *= 1.2
+      play_haptic("light")
+    }
+
+    on_release(orb) {
+      orb.scale /= 1.2
+    }
+
+    on_collision(a, b) {
+      if a.has_trait("physics") && b.has_trait("physics") {
+        play_sound("bounce")
+      }
+    }
+  }
+}
+`
+
+// =============================================================================
+// HSPLUS MODULE FOR SCENE MANAGEMENT
+// =============================================================================
+
+module HelloWorld {
+  @state {
+    bridge: typeof createHoloScriptBridge = null
+    animSystem: typeof createAnimationSystem = null
+    assetLib: typeof createGLBAssetLibrary = null
+    isRunning: bool = false
+  }
+
+  @action async initialize() {
+    // Create bridge to runtime
+    self.bridge = createHoloScriptBridge({
+      worldId: "hello-vr-world",
+      enableDevTools: true
+    })
+
+    // Animation system for the NPC
+    self.animSystem = createAnimationSystem()
+
+    // Asset library for 3D models
+    self.assetLib = createGLBAssetLibrary({
+      maxCacheSize: 50 * 1024 * 1024,
+      enableLOD: true
+    })
+
+    // Register assets
+    await self.assetLib.registerAsset("robot", "/models/robot.glb", {
+      lodLevels: [LODLevel.high, LODLevel.medium],
+      priority: Priority.high
+    })
+  }
+
+  @action async start() {
+    await self.bridge.connect()
+
+    // Parse and execute scene
+    const ast = parseExpectSuccess(sceneSource)
+    const result = await self.bridge.execute(ast)
+
+    if result.success {
+      console.log("Scene loaded successfully!")
+      self.isRunning = true
+      self.startUpdateLoop()
+    } else {
+      console.error("Failed to load scene:", result.error)
+    }
+  }
+
+  @action startUpdateLoop() {
+    let lastTime = performance.now()
+
+    function update() {
+      const now = performance.now()
+      const deltaTime = (now - lastTime) / 1000
+      lastTime = now
+
+      // Update animation system
+      self.animSystem.update(deltaTime)
+
+      if self.isRunning {
+        requestAnimationFrame(update)
+      }
+    }
+
+    requestAnimationFrame(update)
+  }
+
+  @action stop() {
+    self.isRunning = false
+    self.bridge.disconnect()
+  }
+
+  @method getSceneInfo() -> { name: string, objectCount: int } {
+    const entities = self.bridge.queryEntities({})
+    return {
+      name: "Hello VR World",
+      objectCount: entities.length
+    }
+  }
+}
+
+// =============================================================================
+// ENTRY POINT
+// =============================================================================
+
+async function main() {
+  const world = HelloWorld
+  await world.initialize()
+  await world.start()
+
+  console.log("Scene info:", world.getSceneInfo())
+
+  // Cleanup on exit
+  window.addEventListener("beforeunload", () => {
+    world.stop()
+  })
+}
+
+// Auto-start when DOM ready
+if document.readyState == "complete" {
+  main()
+} else {
+  document.addEventListener("DOMContentLoaded", main)
+}
+
+export { HelloWorld, sceneSource }

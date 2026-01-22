@@ -1,0 +1,173 @@
+/**
+ * @hololand/core
+ *
+ * Hololand platform core - extends @holoscript/core with platform features.
+ *
+ * The HoloScript parser and runtime come from the open-source @holoscript/core package (MIT).
+ * This package adds Hololand-specific features under the Elastic License 2.0.
+ */
+
+// =============================================================================
+// RE-EXPORTS FROM @holoscript/core (MIT licensed)
+// =============================================================================
+
+export {
+  // Core Engine
+  HoloScriptParser,
+  HoloScriptRuntime,
+  HoloScript2DParser,
+  HoloScriptCodeParser,
+  HoloScriptValidator,
+
+  // Logger
+  setHoloScriptLogger,
+  resetLogger,
+  enableConsoleLogging,
+  NoOpLogger,
+  ConsoleLogger,
+
+  // Constants
+  HOLOSCRIPT_VERSION,
+  HOLOSCRIPT_SUPPORTED_PLATFORMS,
+  HOLOSCRIPT_VOICE_COMMANDS,
+  HOLOSCRIPT_GESTURES,
+  HOLOSCRIPT_DEMO_SCRIPTS,
+
+  // Utility Functions
+  createHoloScriptEnvironment,
+  isHoloScriptSupported,
+
+  // Types
+  type SpatialPosition,
+  type Position2D,
+  type Size2D,
+  type HologramProperties,
+  type VoiceCommand,
+  type GestureData,
+  type ASTNode,
+  type OrbNode,
+  type MethodNode,
+  type ParameterNode,
+  type ConnectionNode,
+  type GateNode,
+  type StreamNode,
+  type TransformationNode,
+  type UI2DNode,
+  type UIElementType,
+  type UIStyle,
+  type RuntimeContext,
+  type ExecutionResult,
+  type ParticleSystem,
+  type ParseResult,
+  type ParseError,
+  type HoloScriptLogger,
+  type ValidationError
+} from "@holoscript/core"
+
+// =============================================================================
+// HOLOLAND PLATFORM VERSION
+// =============================================================================
+
+/**
+ * Hololand platform version (separate from HoloScript language version)
+ */
+const HOLOLAND_VERSION = "1.0.0-alpha.1"
+
+// =============================================================================
+// HOLOSCRIPT-TO-WORLD BRIDGE
+// =============================================================================
+
+export { 
+  HoloScriptBridge, 
+  createBridge,
+  type BridgeConfig, 
+  type BridgeState 
+} from "./HoloScriptBridge.hsplus"
+
+// =============================================================================
+// CORE TYPE DEFINITIONS
+// =============================================================================
+
+export {
+  Vector3,
+  SpatialPosition,
+  WorldObjectConfig,
+  WorldObject,
+  NodeType,
+  HologramProperties as HologramProps,
+  RuntimeContext as CoreRuntimeContext,
+  ConnectionNode as CoreConnectionNode,
+  ConnectionEvent,
+  SpawnData,
+  MoveData,
+  VisibilityData
+} from "./types.hsplus"
+
+// =============================================================================
+// AR MODULE
+// =============================================================================
+
+export {
+  // Types
+  AnchorType,
+  ARAnchorNode,
+  ARAnchorProperties,
+  ARTrackedPersonNode,
+  ARAvatarNode,
+  ARAvatarProperties,
+  DetectorType,
+  DetectionSource,
+  ARDetectionNode,
+  ARDetectionProperties,
+  ARModuleState,
+  ARModuleAPI,
+  
+  // Functions
+  parseARAnchor,
+  parseARTrackedPersons,
+  parseARAvatar,
+  
+  // Constants
+  AR_MODULE_VERSION
+} from "./holoscript/ar-module.hsplus"
+
+// Re-exports from ar-foundation (for backwards compatibility)
+export {
+  createARRuntime,
+  executeARNode,
+  AR_BINDINGS
+} from "./holoscript/ar-index.hsplus"
+
+// =============================================================================
+// TESTING UTILITIES
+// =============================================================================
+
+export {
+  // Fixtures
+  createBattleArenaFixture,
+  BattleArenaFixture,
+  
+  // Assertions
+  expectEventEmitted,
+  expectEventAfterAction,
+  expectSystemInitialization,
+  expectSystemHasMethods,
+  
+  // Mocks
+  createMockNPC,
+  createMockProjectile,
+  MockEventEmitter,
+  NPCState,
+  ProjectileState,
+  
+  // Utilities
+  waitFor,
+  createTestSystem,
+  compareNPCStates
+} from "./testing/holoscript-test-utils.hsplus"
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { HOLOLAND_VERSION }

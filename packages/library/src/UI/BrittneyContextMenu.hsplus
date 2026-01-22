@@ -1,0 +1,178 @@
+// HOSL: BrittneyContextMenu
+// AI-powered context menu for WorldBuilder
+// Right-click menu with Brittney AI actions
+
+component BrittneyContextMenu {
+  @state {
+    visible: false
+    position: [0, 0]
+    target_node: null
+    hovered_action: null
+    loading: false
+  }
+
+  @props {
+    actions: []
+    on_select: null
+    on_close: null
+    theme: "dark"
+  }
+
+  // Show the menu at position
+  @method show(x, y, target) => {
+    state.position = [x, y]
+    state.target_node = target
+    state.visible = true
+    state.hovered_action = null
+  }
+
+  // Hide the menu
+  @method hide() => {
+    state.visible = false
+    state.target_node = null
+    if (props.on_close) props.on_close()
+  }
+
+  // Select an action
+  @method select(action_id) => {
+    state.loading = true
+    if (props.on_select) {
+      props.on_select(action_id, state.target_node)
+    }
+    this.hide()
+  }
+
+  // Close on escape key
+  @on_key("Escape") => {
+    if (state.visible) this.hide()
+  }
+
+  // Close on click outside
+  @on_click_outside => {
+    if (state.visible) this.hide()
+  }
+
+  // Main container
+  panel#menu {
+    visible: ${state.visible}
+    position: ${state.position}
+    width: 240
+    background: ${props.theme == "dark" ? "#1e1e2e" : "#ffffff"}
+    border_radius: 8
+    shadow: "0 4px 20px rgba(0, 0, 0, 0.4)"
+    z_index: 9999
+
+    // Header with gradient
+    panel#header {
+      height: 36
+      background: "linear-gradient(135deg, #7c3aed, #6366f1)"
+      border_radius: [8, 8, 0, 0]
+      padding: [8, 12]
+      layout: "horizontal"
+      align: "center"
+
+      text#icon {
+        value: "✨"
+        size: 16
+      }
+
+      text#title {
+        value: "Brittney AI"
+        color: "#ffffff"
+        weight: 600
+        size: 14
+        margin_left: 6
+      }
+    }
+
+    // Actions list
+    list#actions {
+      items: ${props.actions}
+      
+      template(action, index) => {
+        panel#action_item {
+          height: 40
+          padding: [10, 12]
+          layout: "horizontal"
+          align: "center"
+          background: ${state.hovered_action == action.id ? "#313244" : "transparent"}
+          cursor: "pointer"
+
+          @on_hover_enter => { state.hovered_action = action.id }
+          @on_hover_exit => { state.hovered_action = null }
+          @on_click => { this.select(action.id) }
+
+          text#icon {
+            value: ${action.icon || ""}
+            width: 24
+            align: "center"
+          }
+
+          text#label {
+            value: ${action.label}
+            color: "#cdd6f4"
+            size: 14
+            flex: 1
+          }
+
+          text#shortcut {
+            value: ${action.shortcut || ""}
+            color: "#6c7086"
+            size: 12
+            visible: ${action.shortcut != null}
+          }
+        }
+      }
+    }
+
+    // Loading overlay
+    panel#loading_overlay {
+      visible: ${state.loading}
+      position: "absolute"
+      fill: true
+      background: "rgba(30, 30, 46, 0.8)"
+      layout: "center"
+
+      spinner#loader {
+        size: 24
+        color: "#7c3aed"
+      }
+    }
+  }
+}
+
+// Default Brittney actions
+const BRITTNEY_ACTIONS = [
+  {
+    id: "generate-child",
+    label: "Generate Child Object...",
+    icon: "✨",
+    shortcut: "Ctrl+Shift+G"
+  },
+  {
+    id: "explain",
+    label: "Explain This Object",
+    icon: "💡",
+    shortcut: "Ctrl+Shift+E"
+  },
+  {
+    id: "add-interaction",
+    label: "Add Interaction...",
+    icon: "🎯",
+    shortcut: null
+  },
+  {
+    id: "optimize",
+    label: "Optimize Scene",
+    icon: "⚡",
+    shortcut: "Ctrl+Shift+O"
+  },
+  {
+    id: "duplicate-varied",
+    label: "Duplicate with Variations",
+    icon: "🎲",
+    shortcut: null
+  }
+]
+
+export { BrittneyContextMenu, BRITTNEY_ACTIONS }

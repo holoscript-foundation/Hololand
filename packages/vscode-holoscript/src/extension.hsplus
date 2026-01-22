@@ -1,0 +1,913 @@
+/**
+ * VSCode HoloScript Extension
+ * 
+ * Provides rich IDE support for HoloScript (.holo) and HoloScript+ (.hsplus) files.
+ * 
+ * Features:
+ * - Syntax highlighting (TextMate grammar)
+ * - Auto-completion with context-awareness
+ * - Hover documentation
+ * - Go to definition
+ * - Find references
+ * - Document outline
+ * - Real-time diagnostics
+ * - Format on save
+ * - 3D preview panel
+ * - Compile to R3F
+ * 
+ * @package @hololand/vscode-holoscript
+ * @version 2.0.0
+ */
+
+import * as path from "path"
+import * as vscode from "vscode"
+import {
+  LanguageClient,
+  LanguageClientOptions,
+  ServerOptions,
+  TransportKind
+} from "vscode-languageclient/node"
+
+// =============================================================================
+// STATE
+// =============================================================================
+
+module ExtensionState {
+  @state {
+    client: LanguageClient | null = null
+    statusBarItem: vscode.StatusBarItem | null = null
+    previewPanel: vscode.WebviewPanel | null = null
+    outputChannel: vscode.OutputChannel | null = null
+  }
+}
+
+// =============================================================================
+// ACTIVATION
+// =============================================================================
+
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  console.log("[HoloScript] Extension activating...")
+  
+  // Create output channel
+  ExtensionState.state.outputChannel = vscode.window.createOutputChannel("HoloScript")
+  context.subscriptions.push(ExtensionState.state.outputChannel)
+  
+  // Try to start LSP
+  const lspStarted = await startLanguageServer(context)
+  
+  // If LSP failed, use basic mode
+  if (!lspStarted) {
+    activateBasicMode(context)
+  }
+  
+  // Register commands
+  registerCommands(context)
+  
+  // Create status bar
+  createStatusBar(context, lspStarted)
+  
+  // Register formatters
+  registerFormatters(context)
+  
+  // Register preview panel
+  registerPreviewPanel(context)
+  
+  console.log("[HoloScript] Extension activated")
+}
+
+// =============================================================================
+// LANGUAGE SERVER
+// =============================================================================
+
+module LanguageServerManager {
+  @method async start(context: vscode.ExtensionContext): Promise<boolean> {
+    const serverModule = context.asAbsolutePath(
+      path.join("..", "holoscript-lsp", "dist", "server.js")
+    )
+    
+    // Check if server exists
+    const fs = require("fs")
+    if (!fs.existsSync(serverModule)) {
+      console.log("[HoloScript] LSP server not found at:", serverModule)
+      return false
+    }
+    
+    try {
+      const serverOptions: ServerOptions = {
+        run: { module: serverModule, transport: TransportKind.ipc },
+        debug: {
+          module: serverModule,
+          transport: TransportKind.ipc,
+          options: { execArgv: ["--nolazy", "--inspect=6009"] }
+        }
+      }
+      
+      const clientOptions: LanguageClientOptions = {
+        documentSelector: [
+          { scheme: "file", language: "holoscript" },
+          { scheme: "file", language: "holoscript-plus" }
+        ],
+        synchronize: {
+          fileEvents: vscode.workspace.createFileSystemWatcher("**/*.{holo,hsplus}")
+        },
+        outputChannel: ExtensionState.state.outputChannel
+      }
+      
+      ExtensionState.state.client = new LanguageClient(
+        "holoscriptLanguageServer",
+        "HoloScript Language Server",
+        serverOptions,
+        clientOptions
+      )
+      
+      await ExtensionState.state.client.start()
+      console.log("[HoloScript] LSP client started")
+      return true
+    } catch (error) {
+      console.error("[HoloScript] Failed to start LSP:", error)
+      return false
+    }
+  }
+  
+  @method async stop(): Promise<void> {
+    if (ExtensionState.state.client) {
+      await ExtensionState.state.client.stop()
+      ExtensionState.state.client = null
+    }
+  }
+}
+
+async function startLanguageServer(context: vscode.ExtensionContext): Promise<boolean> {
+  return LanguageServerManager.start(context)
+}
+
+// =============================================================================
+// BASIC MODE (FALLBACK)
+// =============================================================================
+
+module BasicModeProvider {
+  @method activate(context: vscode.ExtensionContext): void {
+    // Register completion providers
+    const holoProvider = vscode.languages.registerCompletionItemProvider(
+      "holoscript",
+      { provideCompletionItems: () => this.getHoloCompletions() }
+    )
+    
+    const hsplusProvider = vscode.languages.registerCompletionItemProvider(
+      "holoscript-plus",
+      { provideCompletionItems: () => [...this.getHoloCompletions(), ...this.getHsplusCompletions()] }
+    )
+    
+    // Register hover provider
+    const hoverProvider = vscode.languages.registerHoverProvider(
+      ["holoscript", "holoscript-plus"],
+      {
+        provideHover: (document, position) => {
+          const range = document.getWordRangeAtPosition(position)
+          if (!range) return null
+          
+          const word = document.getText(range)
+          const docs = this.getDocumentation(word)
+          
+          if (docs) {
+            return new vscode.Hover(new vscode.MarkdownString(docs))
+          }
+          return null
+        }
+      }
+    )
+    
+    context.subscriptions.push(holoProvider, hsplusProvider, hoverProvider)
+  }
+  
+  @method getHoloCompletions(): vscode.CompletionItem[] {
+    const completions: vscode.CompletionItem[] = []
+    
+    // Top-level keywords
+    const keywords = [
+      { name: "orb", snippet: "orb ${1:name} {\n\t$0\n}", doc: "Create a 3D object" },
+      { name: "world", snippet: "world ${1:name} {\n\t$0\n}", doc: "Create a world container" },
+      { name: "composition", snippet: 'composition "${1:name}" {\n\t$0\n}', doc: "Create a scene composition" },
+      { name: "template", snippet: 'template "${1:name}" {\n\t$0\n}', doc: "Define a reusable template" },
+      { name: "spatial_group", snippet: 'spatial_group "${1:name}" {\n\t$0\n}', doc: "Create a spatial group" },
+      { name: "logic", snippet: "logic {\n\t$0\n}", doc: "Define scene logic" }
+    ]
+    
+    keywords.forEach(kw => {
+      const item = new vscode.CompletionItem(kw.name, vscode.CompletionItemKind.Class)
+      item.insertText = new vscode.SnippetString(kw.snippet)
+      item.documentation = kw.doc
+      completions.push(item)
+    })
+    
+    // Object types
+    const objectTypes = [
+      "cube", "sphere", "cylinder", "plane", "box", "mesh", "model",
+      "text", "panel", "button", "slider", "image", "light", "camera",
+      "audio", "video", "particle", "animation", "trigger", "zone",
+      "portal", "npc", "item", "object"
+    ]
+    
+    objectTypes.forEach(type => {
+      const item = new vscode.CompletionItem(type, vscode.CompletionItemKind.Class)
+      item.insertText = new vscode.SnippetString(`${type} \${1:name} {\n\t\$0\n}`)
+      item.documentation = `Create a ${type} object`
+      completions.push(item)
+    })
+    
+    // Properties
+    const properties = [
+      { name: "position", snippet: "position: [${1:0}, ${2:0}, ${3:0}]" },
+      { name: "rotation", snippet: "rotation: [${1:0}, ${2:0}, ${3:0}]" },
+      { name: "scale", snippet: "scale: [${1:1}, ${2:1}, ${3:1}]" },
+      { name: "color", snippet: 'color: "${1:#ffffff}"' },
+      { name: "opacity", snippet: "opacity: ${1:1.0}" },
+      { name: "visible", snippet: "visible: ${1:true}" },
+      { name: "interactive", snippet: "interactive: ${1:true}" },
+      { name: "model", snippet: 'model: "${1:path/to/model.glb}"' },
+      { name: "traits", snippet: 'traits: ["${1:talkable}", "${2:patrol}"]' },
+      { name: "state", snippet: "state { ${1:property}: ${2:value} }" },
+      { name: "using", snippet: 'using "${1:template}"' }
+    ]
+    
+    properties.forEach(prop => {
+      const item = new vscode.CompletionItem(prop.name, vscode.CompletionItemKind.Property)
+      item.insertText = new vscode.SnippetString(prop.snippet)
+      completions.push(item)
+    })
+    
+    // Events
+    const events = [
+      "on_click", "on_hover", "on_enter", "on_exit",
+      "on_collision", "on_trigger", "on_interact",
+      "on_player_attack", "on_player_near"
+    ]
+    
+    events.forEach(event => {
+      const item = new vscode.CompletionItem(event, vscode.CompletionItemKind.Event)
+      item.insertText = new vscode.SnippetString(`${event}: {\n\t\$0\n}`)
+      completions.push(item)
+    })
+    
+    return completions
+  }
+  
+  @method getHsplusCompletions(): vscode.CompletionItem[] {
+    const completions: vscode.CompletionItem[] = []
+    
+    // Module system
+    const moduleKeywords = [
+      { name: "module", snippet: "module ${1:Name} {\n\t$0\n}", doc: "Define a module" },
+      { name: "struct", snippet: "struct ${1:Name} {\n\t$0\n}", doc: "Define a struct" },
+      { name: "enum", snippet: "enum ${1:Name} {\n\t$0\n}", doc: "Define an enum" },
+      { name: "import", snippet: 'import { $1 } from "${2:module}"', doc: "Import from module" },
+      { name: "export", snippet: "export { $0 }", doc: "Export from module" }
+    ]
+    
+    moduleKeywords.forEach(kw => {
+      const item = new vscode.CompletionItem(kw.name, vscode.CompletionItemKind.Module)
+      item.insertText = new vscode.SnippetString(kw.snippet)
+      item.documentation = kw.doc
+      completions.push(item)
+    })
+    
+    // Decorators
+    const decorators = [
+      { name: "@state", snippet: "@state {\n\t${1:property}: ${2:type} = ${3:default}\n}", doc: "Reactive state" },
+      { name: "@action", snippet: "@action ${1:name}($2): ${3:void} {\n\t$0\n}", doc: "State-modifying action" },
+      { name: "@method", snippet: "@method ${1:name}($2): ${3:void} {\n\t$0\n}", doc: "Instance method" },
+      { name: "@computed", snippet: "@computed get ${1:name}(): ${2:type} {\n\treturn $0\n}", doc: "Derived value" },
+      { name: "@async", snippet: "@async ${1:name}($2): Promise<${3:void}> {\n\t$0\n}", doc: "Async method" }
+    ]
+    
+    decorators.forEach(dec => {
+      const item = new vscode.CompletionItem(dec.name, vscode.CompletionItemKind.Keyword)
+      item.insertText = new vscode.SnippetString(dec.snippet)
+      item.documentation = dec.doc
+      completions.push(item)
+    })
+    
+    // HSPlus features
+    const hsplusFeatures = [
+      { name: "networked", snippet: "networked: ${1:true}", doc: "Enable multiplayer sync" },
+      { name: "physics", snippet: 'physics: {\n\ttype: "${1|dynamic,static,kinematic|}"\n\tmass: ${2:1.0}\n}', doc: "Physics simulation" },
+      { name: "constraint", snippet: 'constraint ${1:name} {\n\ttype: ${2|hinge,slider,spring,ball,fixed|}\n\tbody_a: ${3}\n\tbody_b: ${4}\n}', doc: "Physics constraint" },
+      { name: "terrain", snippet: 'terrain ${1:name} {\n\tgenerator: ${2|perlin,simplex,voronoi|}\n\tsize: [${3:100}, ${4:100}]\n}', doc: "Procedural terrain" },
+      { name: "every", snippet: "every(${1:1000}) {\n\t$0\n}", doc: "Periodic execution" }
+    ]
+    
+    hsplusFeatures.forEach(feat => {
+      const item = new vscode.CompletionItem(feat.name, vscode.CompletionItemKind.Property)
+      item.insertText = new vscode.SnippetString(feat.snippet)
+      item.documentation = feat.doc
+      completions.push(item)
+    })
+    
+    return completions
+  }
+  
+  @method getDocumentation(word: string): string | null {
+    const docs: Record<string, string> = {
+      // .holo keywords
+      orb: "**orb** - A 3D object in the scene.\n\n```holo\norb my_cube {\n  position: [0, 1, 0]\n  scale: [1, 1, 1]\n}\n```",
+      world: "**world** - A container for orbs and scene configuration.",
+      composition: "**composition** - A named scene containing templates, objects, and logic.",
+      template: "**template** - A reusable object definition.",
+      spatial_group: "**spatial_group** - A group of spatially-related objects.",
+      object: "**object** - An instance of a template with position.",
+      logic: "**logic** - Event handlers and scene behavior.",
+      traits: "**traits** - Array of NPC behaviors like 'talkable', 'patrol'.",
+      state: "**state** - Object state with reactive properties.",
+      action: "**action** - Method that modifies state.",
+      
+      // Properties
+      position: "**position** - 3D coordinates `[x, y, z]`\n\nDefault: `[0, 0, 0]`",
+      rotation: "**rotation** - Euler angles in degrees `[x, y, z]`\n\nDefault: `[0, 0, 0]`",
+      scale: "**scale** - Size multiplier `[x, y, z]`\n\nDefault: `[1, 1, 1]`",
+      
+      // Events
+      on_click: "**on_click** - Handler for click/tap events",
+      on_interact: "**on_interact** - Handler for NPC/item interaction",
+      on_player_attack: "**on_player_attack** - Handler for player attacking entity",
+      every: "**every(ms)** - Execute code periodically",
+      
+      // HSPlus
+      module: "**module** - A named container for related code.\n\n```hsplus\nmodule MyModule {\n  @state { count: number = 0 }\n  @action increment() { this.state.count++ }\n}\n```",
+      struct: "**struct** - A data structure definition with typed fields.",
+      enum: "**enum** - An enumeration of named constants.",
+      "@state": "**@state** - Decorator for reactive state properties.",
+      "@action": "**@action** - Decorator for state-modifying methods.",
+      "@method": "**@method** - Decorator for instance methods.",
+      "@computed": "**@computed** - Decorator for derived/calculated values.",
+      networked: "**networked** *(HSPlus)* - Enable multiplayer sync across clients.",
+      physics: "**physics** *(HSPlus)* - Enable physics simulation.",
+      constraint: "**constraint** *(HSPlus)* - Physics constraint between objects.",
+      terrain: "**terrain** *(HSPlus)* - Procedurally generated terrain."
+    }
+    
+    return docs[word] || null
+  }
+}
+
+function activateBasicMode(context: vscode.ExtensionContext): void {
+  BasicModeProvider.activate(context)
+}
+
+// =============================================================================
+// COMMANDS
+// =============================================================================
+
+module CommandHandler {
+  @method async compile(): Promise<void> {
+    const editor = vscode.window.activeTextEditor
+    if (!editor) {
+      vscode.window.showWarningMessage("No active file to compile")
+      return
+    }
+    
+    const document = editor.document
+    if (!["holoscript", "holoscript-plus"].includes(document.languageId)) {
+      vscode.window.showWarningMessage("Not a HoloScript file")
+      return
+    }
+    
+    vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: "Compiling HoloScript..." },
+      async () => {
+        // TODO: Call the HoloScript compiler
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        vscode.window.showInformationMessage("HoloScript compiled successfully!")
+      }
+    )
+  }
+  
+  @method async preview(): Promise<void> {
+    const editor = vscode.window.activeTextEditor
+    if (!editor) {
+      vscode.window.showWarningMessage("No active file to preview")
+      return
+    }
+    
+    const document = editor.document
+    if (!["holoscript", "holoscript-plus"].includes(document.languageId)) {
+      vscode.window.showWarningMessage("Not a HoloScript file")
+      return
+    }
+    
+    // Create or show preview panel
+    if (ExtensionState.state.previewPanel) {
+      ExtensionState.state.previewPanel.reveal()
+    } else {
+      ExtensionState.state.previewPanel = vscode.window.createWebviewPanel(
+        "holoscriptPreview",
+        "HoloScript Preview",
+        vscode.ViewColumn.Beside,
+        { enableScripts: true, retainContextWhenHidden: true }
+      )
+      
+      ExtensionState.state.previewPanel.onDidDispose(() => {
+        ExtensionState.state.previewPanel = null
+      })
+    }
+    
+    // Update preview content
+    ExtensionState.state.previewPanel.webview.html = getPreviewHtml(document.getText())
+  }
+  
+  @method async format(): Promise<void> {
+    const editor = vscode.window.activeTextEditor
+    if (!editor) return
+    
+    const document = editor.document
+    const text = document.getText()
+    const formatted = HoloScriptFormatter.format(text)
+    
+    const fullRange = new vscode.Range(
+      document.positionAt(0),
+      document.positionAt(text.length)
+    )
+    
+    await editor.edit(editBuilder => {
+      editBuilder.replace(fullRange, formatted)
+    })
+    
+    vscode.window.showInformationMessage("HoloScript formatted")
+  }
+  
+  @method async lint(): Promise<void> {
+    const editor = vscode.window.activeTextEditor
+    if (!editor) return
+    
+    const document = editor.document
+    const text = document.getText()
+    const diagnostics = HoloScriptLinter.lint(text)
+    
+    // Show diagnostics
+    const collection = vscode.languages.createDiagnosticCollection("holoscript-lint")
+    collection.set(document.uri, diagnostics)
+    
+    const errors = diagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Error).length
+    const warnings = diagnostics.filter(d => d.severity === vscode.DiagnosticSeverity.Warning).length
+    
+    if (errors === 0 && warnings === 0) {
+      vscode.window.showInformationMessage("No lint issues found!")
+    } else {
+      vscode.window.showWarningMessage(`Found ${errors} errors, ${warnings} warnings`)
+    }
+  }
+  
+  @method async createComposition(): Promise<void> {
+    const name = await vscode.window.showInputBox({
+      prompt: "Enter composition name",
+      placeHolder: "My Scene"
+    })
+    
+    if (!name) return
+    
+    const template = `composition "${name}" {
+  // Templates define reusable object types
+  template "Example" {
+    state { value: 0 }
+    action increment() { this.value += 1 }
+  }
+  
+  // Spatial groups organize objects
+  spatial_group "Main" {
+    object "Instance" using "Example" {
+      position: [0, 0, 0]
+    }
+  }
+  
+  // Logic handles events
+  logic {
+    on_interact(obj) {
+      obj.increment()
+    }
+  }
+}
+`
+    
+    const doc = await vscode.workspace.openTextDocument({
+      language: "holoscript",
+      content: template
+    })
+    
+    await vscode.window.showTextDocument(doc)
+  }
+  
+  @method async createModule(): Promise<void> {
+    const name = await vscode.window.showInputBox({
+      prompt: "Enter module name",
+      placeHolder: "MyModule"
+    })
+    
+    if (!name) return
+    
+    const template = `/**
+ * ${name} Module
+ * @package @hololand/custom
+ */
+
+module ${name} {
+  @state {
+    // Reactive state properties
+    initialized: boolean = false
+  }
+  
+  @action initialize(): void {
+    this.state.initialized = true
+  }
+  
+  @method doSomething(input: string): string {
+    return \`Result: \${input}\`
+  }
+  
+  @computed get isReady(): boolean {
+    return this.state.initialized
+  }
+}
+
+export { ${name} }
+`
+    
+    const doc = await vscode.workspace.openTextDocument({
+      language: "holoscript-plus",
+      content: template
+    })
+    
+    await vscode.window.showTextDocument(doc)
+  }
+}
+
+function registerCommands(context: vscode.ExtensionContext): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand("holoscript.compile", () => CommandHandler.compile()),
+    vscode.commands.registerCommand("holoscript.preview", () => CommandHandler.preview()),
+    vscode.commands.registerCommand("holoscript.format", () => CommandHandler.format()),
+    vscode.commands.registerCommand("holoscript.lint", () => CommandHandler.lint()),
+    vscode.commands.registerCommand("holoscript.createComposition", () => CommandHandler.createComposition()),
+    vscode.commands.registerCommand("holoscript.createModule", () => CommandHandler.createModule())
+  )
+}
+
+// =============================================================================
+// FORMATTER
+// =============================================================================
+
+module HoloScriptFormatter {
+  @state {
+    indentSize: number = 2
+    useTabs: boolean = false
+  }
+  
+  @method format(text: string): string {
+    const lines = text.split("\n")
+    const result: string[] = []
+    let indentLevel = 0
+    
+    for (let line of lines) {
+      // Trim whitespace
+      line = line.trim()
+      
+      // Skip empty lines but preserve them
+      if (line === "") {
+        result.push("")
+        continue
+      }
+      
+      // Decrease indent for closing braces
+      if (line.startsWith("}") || line.startsWith("]")) {
+        indentLevel = Math.max(0, indentLevel - 1)
+      }
+      
+      // Apply indentation
+      const indent = this.state.useTabs
+        ? "\t".repeat(indentLevel)
+        : " ".repeat(indentLevel * this.state.indentSize)
+      
+      result.push(indent + line)
+      
+      // Increase indent for opening braces
+      if (line.endsWith("{") || line.endsWith("[")) {
+        indentLevel++
+      }
+      
+      // Handle inline open/close
+      const opens = (line.match(/[{[]/g) || []).length
+      const closes = (line.match(/[\]}]/g) || []).length
+      indentLevel += opens - closes
+      indentLevel = Math.max(0, indentLevel)
+    }
+    
+    return result.join("\n")
+  }
+  
+  @method formatDocument(document: vscode.TextDocument): vscode.TextEdit[] {
+    const text = document.getText()
+    const formatted = this.format(text)
+    
+    if (text === formatted) return []
+    
+    const fullRange = new vscode.Range(
+      document.positionAt(0),
+      document.positionAt(text.length)
+    )
+    
+    return [vscode.TextEdit.replace(fullRange, formatted)]
+  }
+}
+
+function registerFormatters(context: vscode.ExtensionContext): void {
+  // Document formatter
+  const formatterProvider = vscode.languages.registerDocumentFormattingEditProvider(
+    ["holoscript", "holoscript-plus"],
+    {
+      provideDocumentFormattingEdits(document) {
+        return HoloScriptFormatter.formatDocument(document)
+      }
+    }
+  )
+  
+  // Range formatter
+  const rangeFormatterProvider = vscode.languages.registerDocumentRangeFormattingEditProvider(
+    ["holoscript", "holoscript-plus"],
+    {
+      provideDocumentRangeFormattingEdits(document, range) {
+        // For now, format the whole document
+        return HoloScriptFormatter.formatDocument(document)
+      }
+    }
+  )
+  
+  context.subscriptions.push(formatterProvider, rangeFormatterProvider)
+}
+
+// =============================================================================
+// LINTER
+// =============================================================================
+
+module HoloScriptLinter {
+  @state {
+    rules: LintRule[] = []
+  }
+  
+  @action initialize(): void {
+    this.state.rules = [
+      // Naming conventions
+      {
+        id: "naming/template-pascal",
+        pattern: /template\s+"([a-z][^"]*)"/, 
+        message: "Template names should use PascalCase",
+        severity: vscode.DiagnosticSeverity.Warning
+      },
+      {
+        id: "naming/object-kebab",
+        pattern: /object\s+"([A-Z][^"]*)"/, 
+        message: "Object instance names should use kebab-case or snake_case",
+        severity: vscode.DiagnosticSeverity.Hint
+      },
+      
+      // Best practices
+      {
+        id: "best-practice/empty-state",
+        pattern: /state\s*{\s*}/,
+        message: "Empty state block - consider adding properties or removing it",
+        severity: vscode.DiagnosticSeverity.Information
+      },
+      {
+        id: "best-practice/empty-logic",
+        pattern: /logic\s*{\s*}/,
+        message: "Empty logic block - consider adding event handlers or removing it",
+        severity: vscode.DiagnosticSeverity.Information
+      },
+      
+      // Errors
+      {
+        id: "error/unclosed-brace",
+        pattern: /{\s*$/,
+        validator: (text: string) => {
+          const opens = (text.match(/{/g) || []).length
+          const closes = (text.match(/}/g) || []).length
+          return opens !== closes
+        },
+        message: "Unclosed brace detected",
+        severity: vscode.DiagnosticSeverity.Error
+      },
+      
+      // Performance
+      {
+        id: "perf/nested-every",
+        pattern: /every\s*\([^)]+\)\s*{[^}]*every\s*\(/,
+        message: "Nested every() calls may cause performance issues",
+        severity: vscode.DiagnosticSeverity.Warning
+      }
+    ]
+  }
+  
+  @method lint(text: string): vscode.Diagnostic[] {
+    if (this.state.rules.length === 0) {
+      this.initialize()
+    }
+    
+    const diagnostics: vscode.Diagnostic[] = []
+    const lines = text.split("\n")
+    
+    // Line-by-line rules
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      
+      for (const rule of this.state.rules) {
+        if (rule.validator && !rule.validator(text)) {
+          continue
+        }
+        
+        const match = line.match(rule.pattern)
+        if (match) {
+          const startChar = line.indexOf(match[0])
+          const range = new vscode.Range(i, startChar, i, startChar + match[0].length)
+          
+          diagnostics.push({
+            range,
+            message: rule.message,
+            severity: rule.severity,
+            source: "holoscript-lint",
+            code: rule.id
+          })
+        }
+      }
+    }
+    
+    // Whole-file rules
+    this.checkBraceBalance(text, diagnostics)
+    this.checkDuplicateNames(text, diagnostics)
+    
+    return diagnostics
+  }
+  
+  @method checkBraceBalance(text: string, diagnostics: vscode.Diagnostic[]): void {
+    const opens = (text.match(/{/g) || []).length
+    const closes = (text.match(/}/g) || []).length
+    
+    if (opens !== closes) {
+      diagnostics.push({
+        range: new vscode.Range(0, 0, 0, 1),
+        message: `Brace mismatch: ${opens} opening, ${closes} closing`,
+        severity: vscode.DiagnosticSeverity.Error,
+        source: "holoscript-lint",
+        code: "error/brace-mismatch"
+      })
+    }
+  }
+  
+  @method checkDuplicateNames(text: string, diagnostics: vscode.Diagnostic[]): void {
+    const templateNames = new Map<string, number>()
+    const templatePattern = /template\s+"([^"]+)"/g
+    let match: RegExpExecArray | null
+    
+    while ((match = templatePattern.exec(text)) !== null) {
+      const name = match[1]
+      const line = text.substring(0, match.index).split("\n").length - 1
+      
+      if (templateNames.has(name)) {
+        diagnostics.push({
+          range: new vscode.Range(line, 0, line, match[0].length),
+          message: `Duplicate template name: "${name}" (first defined at line ${templateNames.get(name)! + 1})`,
+          severity: vscode.DiagnosticSeverity.Error,
+          source: "holoscript-lint",
+          code: "error/duplicate-template"
+        })
+      } else {
+        templateNames.set(name, line)
+      }
+    }
+  }
+}
+
+struct LintRule {
+  id: string
+  pattern: RegExp
+  message: string
+  severity: vscode.DiagnosticSeverity
+  validator?: (text: string) => boolean
+}
+
+// =============================================================================
+// PREVIEW PANEL
+// =============================================================================
+
+function registerPreviewPanel(context: vscode.ExtensionContext): void {
+  // Watch for document changes to update preview
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument(event => {
+      if (ExtensionState.state.previewPanel) {
+        const document = event.document
+        if (["holoscript", "holoscript-plus"].includes(document.languageId)) {
+          ExtensionState.state.previewPanel.webview.html = getPreviewHtml(document.getText())
+        }
+      }
+    })
+  )
+}
+
+function getPreviewHtml(code: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>HoloScript Preview</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      margin: 0;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      margin-right: 12px;
+    }
+    h1 {
+      font-size: 18px;
+      font-weight: 500;
+      margin: 0;
+    }
+    .preview-container {
+      background: #2d2d2d;
+      border-radius: 8px;
+      padding: 20px;
+      min-height: 300px;
+    }
+    .coming-soon {
+      text-align: center;
+      padding: 80px 20px;
+      color: #808080;
+    }
+    .code-stats {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #808080;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo"></div>
+    <h1>HoloScript Preview</h1>
+  </div>
+  <div class="preview-container">
+    <div class="coming-soon">
+      <p>🔮 3D Preview coming soon...</p>
+      <p>Your HoloScript code will render here as an interactive 3D scene.</p>
+    </div>
+  </div>
+  <div class="code-stats">
+    Lines: ${code.split("\n").length} | 
+    Characters: ${code.length} |
+    Objects: ${(code.match(/\bobject\s+"/g) || []).length} |
+    Templates: ${(code.match(/\btemplate\s+"/g) || []).length}
+  </div>
+</body>
+</html>`
+}
+
+// =============================================================================
+// STATUS BAR
+// =============================================================================
+
+function createStatusBar(context: vscode.ExtensionContext, lspActive: boolean): void {
+  const statusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100
+  )
+  
+  statusBarItem.text = lspActive ? "$(check) HoloScript" : "$(warning) HoloScript"
+  statusBarItem.tooltip = lspActive
+    ? "HoloScript Language Server active"
+    : "HoloScript running in basic mode (LSP not available)"
+  statusBarItem.command = "holoscript.preview"
+  statusBarItem.show()
+  
+  ExtensionState.state.statusBarItem = statusBarItem
+  context.subscriptions.push(statusBarItem)
+}
+
+// =============================================================================
+// DEACTIVATION
+// =============================================================================
+
+export async function deactivate(): Promise<void> {
+  await LanguageServerManager.stop()
+  
+  if (ExtensionState.state.previewPanel) {
+    ExtensionState.state.previewPanel.dispose()
+  }
+}

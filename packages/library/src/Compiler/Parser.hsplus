@@ -1,0 +1,1522 @@
+/**
+ * Parser.hsplus
+ * 
+ * Self-hosting HoloScript+ parser - builds AST from tokens.
+ * This is the second stage of the compilation pipeline.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+import { Token, TokenType, Lexer } from "./Lexer.hsplus"
+
+// =============================================================================
+// AST NODE TYPES
+// =============================================================================
+
+enum NodeType {
+  // Program
+  PROGRAM = "Program"
+  
+  // Declarations
+  MODULE = "ModuleDeclaration"
+  STRUCT = "StructDeclaration"
+  ENUM = "EnumDeclaration"
+  TRAIT = "TraitDeclaration"
+  TEMPLATE = "TemplateDeclaration"
+  OBJECT = "ObjectDeclaration"
+  COMPOSITION = "CompositionDeclaration"
+  SPATIAL_GROUP = "SpatialGroupDeclaration"
+  FUNCTION = "FunctionDeclaration"
+  VARIABLE = "VariableDeclaration"
+  
+  // Decorated members
+  STATE = "StateDeclaration"
+  ACTION = "ActionDeclaration"
+  METHOD = "MethodDeclaration"
+  COMPUTED = "ComputedDeclaration"
+  
+  // Statements
+  BLOCK = "BlockStatement"
+  IF = "IfStatement"
+  FOR = "ForStatement"
+  WHILE = "WhileStatement"
+  RETURN = "ReturnStatement"
+  BREAK = "BreakStatement"
+  CONTINUE = "ContinueStatement"
+  EXPRESSION = "ExpressionStatement"
+  
+  // Expressions
+  BINARY = "BinaryExpression"
+  UNARY = "UnaryExpression"
+  CALL = "CallExpression"
+  MEMBER = "MemberExpression"
+  INDEX = "IndexExpression"
+  ASSIGNMENT = "AssignmentExpression"
+  CONDITIONAL = "ConditionalExpression"
+  ARROW_FUNCTION = "ArrowFunctionExpression"
+  ASYNC_EXPRESSION = "AsyncExpression"
+  AWAIT = "AwaitExpression"
+  NEW = "NewExpression"
+  ARRAY = "ArrayExpression"
+  OBJECT_EXPR = "ObjectExpression"
+  
+  // Literals
+  LITERAL = "Literal"
+  IDENTIFIER = "Identifier"
+  
+  // Imports
+  IMPORT = "ImportDeclaration"
+  EXPORT = "ExportDeclaration"
+  
+  // Events
+  EVENT_HANDLER = "EventHandler"
+  EVERY = "EveryStatement"
+  AFTER = "AfterStatement"
+}
+
+struct ASTNode {
+  type: NodeType
+  line: number
+  column: number
+  children?: ASTNode[]
+  [key: string]: any
+}
+
+struct ParserError {
+  message: string
+  line: number
+  column: number
+  token?: Token
+}
+
+// =============================================================================
+// PARSER MODULE
+// =============================================================================
+
+module Parser {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    tokens: Token[] = []
+    current: number = 0
+    errors: ParserError[] = []
+    ast: ASTNode = null
+  }
+  
+  // =========================================================================
+  // MAIN PARSE
+  // =========================================================================
+  
+  @action parse(source: string): { ast: ASTNode, errors: ParserError[] } {
+    // First, tokenize
+    const { tokens, errors: lexErrors } = Lexer.tokenize(source)
+    
+    this.state.tokens = tokens.filter(t => 
+      t.type !== TokenType.COMMENT && 
+      t.type !== TokenType.NEWLINE
+    )
+    this.state.current = 0
+    this.state.errors = lexErrors.map(e => ({
+      message: e.message,
+      line: e.line,
+      column: e.column
+    }))
+    
+    // Build AST
+    const body: ASTNode[] = []
+    
+    while (!this.isAtEnd()) {
+      try {
+        const declaration = this.parseDeclaration()
+        if (declaration) {
+          body.push(declaration)
+        }
+      } catch (err) {
+        this.synchronize()
+      }
+    }
+    
+    this.state.ast = {
+      type: NodeType.PROGRAM,
+      line: 1,
+      column: 1,
+      body
+    }
+    
+    return {
+      ast: this.state.ast,
+      errors: this.state.errors
+    }
+  }
+  
+  // =========================================================================
+  // DECLARATIONS
+  // =========================================================================
+  
+  @method parseDeclaration(): ASTNode | null {
+    // Check for decorators first
+    if (this.check(TokenType.DECORATOR)) {
+      return this.parseDecoratedMember()
+    }
+    
+    if (this.match(TokenType.KEYWORD)) {
+      const keyword = this.previous().value
+      
+      switch (keyword) {
+        case "module": return this.parseModule()
+        case "struct": return this.parseStruct()
+        case "enum": return this.parseEnum()
+        case "trait": return this.parseTrait()
+        case "template": return this.parseTemplate()
+        case "object": return this.parseObject()
+        case "composition": return this.parseComposition()
+        case "spatial_group": return this.parseSpatialGroup()
+        case "function": return this.parseFunction()
+        case "const":
+        case "let":
+        case "var": return this.parseVariableDeclaration(keyword)
+        case "import": return this.parseImport()
+        case "export": return this.parseExport()
+        case "async": return this.parseAsyncFunction()
+      }
+    }
+    
+    // Statement
+    return this.parseStatement()
+  }
+  
+  @method parseModule(): ASTNode {
+    const token = this.previous()
+    const name = this.consume(TokenType.IDENTIFIER, "Expected module name")
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after module name")
+    
+    const members: ASTNode[] = []
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const member = this.parseDeclaration()
+      if (member) members.push(member)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after module body")
+    
+    return {
+      type: NodeType.MODULE,
+      line: token.line,
+      column: token.column,
+      name: name.value,
+      members
+    }
+  }
+  
+  @method parseStruct(): ASTNode {
+    const token = this.previous()
+    const name = this.consume(TokenType.IDENTIFIER, "Expected struct name")
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after struct name")
+    
+    const fields: { name: string, type: string, optional: boolean, default: any }[] = []
+    
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const fieldName = this.consume(TokenType.IDENTIFIER, "Expected field name")
+      
+      let optional = false
+      if (this.check(TokenType.QUESTION)) {
+        this.advance()
+        optional = true
+      }
+      
+      this.consume(TokenType.COLON, "Expected ':' after field name")
+      
+      const fieldType = this.parseType()
+      
+      let defaultValue = null
+      if (this.match(TokenType.ASSIGNMENT)) {
+        defaultValue = this.parseExpression()
+      }
+      
+      fields.push({
+        name: fieldName.value,
+        type: fieldType,
+        optional,
+        default: defaultValue
+      })
+      
+      // Optional comma/newline
+      this.match(TokenType.COMMA)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after struct body")
+    
+    return {
+      type: NodeType.STRUCT,
+      line: token.line,
+      column: token.column,
+      name: name.value,
+      fields
+    }
+  }
+  
+  @method parseEnum(): ASTNode {
+    const token = this.previous()
+    const name = this.consume(TokenType.IDENTIFIER, "Expected enum name")
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after enum name")
+    
+    const values: { name: string, value: any }[] = []
+    
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const valueName = this.consume(TokenType.IDENTIFIER, "Expected enum value name")
+      
+      let value = null
+      if (this.match(TokenType.ASSIGNMENT)) {
+        value = this.parseExpression()
+      }
+      
+      values.push({ name: valueName.value, value })
+      
+      this.match(TokenType.COMMA)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after enum body")
+    
+    return {
+      type: NodeType.ENUM,
+      line: token.line,
+      column: token.column,
+      name: name.value,
+      values
+    }
+  }
+  
+  @method parseTrait(): ASTNode {
+    const token = this.previous()
+    let name: string
+    
+    if (this.check(TokenType.IDENTIFIER)) {
+      name = this.advance().value
+    } else if (this.check(TokenType.STRING)) {
+      name = this.advance().value.slice(1, -1)
+    } else {
+      throw this.error(this.peek(), "Expected trait name")
+    }
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after trait name")
+    
+    const properties: ASTNode[] = []
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const prop = this.parseObjectProperty()
+      if (prop) properties.push(prop)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after trait body")
+    
+    return {
+      type: NodeType.TRAIT,
+      line: token.line,
+      column: token.column,
+      name,
+      properties
+    }
+  }
+  
+  @method parseTemplate(): ASTNode {
+    const token = this.previous()
+    let name: string
+    
+    if (this.check(TokenType.STRING)) {
+      name = this.advance().value.slice(1, -1)
+    } else {
+      name = this.consume(TokenType.IDENTIFIER, "Expected template name").value
+    }
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after template name")
+    
+    const members: ASTNode[] = []
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const member = this.parseDeclaration()
+      if (member) members.push(member)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after template body")
+    
+    return {
+      type: NodeType.TEMPLATE,
+      line: token.line,
+      column: token.column,
+      name,
+      members
+    }
+  }
+  
+  @method parseObject(): ASTNode {
+    const token = this.previous()
+    let name: string
+    
+    if (this.check(TokenType.STRING)) {
+      name = this.advance().value.slice(1, -1)
+    } else {
+      name = this.consume(TokenType.IDENTIFIER, "Expected object name").value
+    }
+    
+    // Check for 'using' clause
+    let using: string = null
+    if (this.matchKeyword("using")) {
+      if (this.check(TokenType.STRING)) {
+        using = this.advance().value.slice(1, -1)
+      } else {
+        using = this.consume(TokenType.IDENTIFIER, "Expected template name").value
+      }
+    }
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after object declaration")
+    
+    const properties: ASTNode[] = []
+    const traits: ASTNode[] = []
+    const events: ASTNode[] = []
+    
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      if (this.matchKeyword("trait")) {
+        traits.push(this.parseTrait())
+      } else if (this.checkEventHandler()) {
+        events.push(this.parseEventHandler())
+      } else {
+        const prop = this.parseDeclaration()
+        if (prop) properties.push(prop)
+      }
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after object body")
+    
+    return {
+      type: NodeType.OBJECT,
+      line: token.line,
+      column: token.column,
+      name,
+      using,
+      properties,
+      traits,
+      events
+    }
+  }
+  
+  @method parseComposition(): ASTNode {
+    const token = this.previous()
+    let name: string
+    
+    if (this.check(TokenType.STRING)) {
+      name = this.advance().value.slice(1, -1)
+    } else {
+      name = this.consume(TokenType.IDENTIFIER, "Expected composition name").value
+    }
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after composition name")
+    
+    const children: ASTNode[] = []
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const child = this.parseDeclaration()
+      if (child) children.push(child)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after composition body")
+    
+    return {
+      type: NodeType.COMPOSITION,
+      line: token.line,
+      column: token.column,
+      name,
+      children
+    }
+  }
+  
+  @method parseSpatialGroup(): ASTNode {
+    const token = this.previous()
+    let name: string
+    
+    if (this.check(TokenType.STRING)) {
+      name = this.advance().value.slice(1, -1)
+    } else {
+      name = this.consume(TokenType.IDENTIFIER, "Expected spatial_group name").value
+    }
+    
+    this.consume(TokenType.LBRACE, "Expected '{' after spatial_group name")
+    
+    const children: ASTNode[] = []
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const child = this.parseDeclaration()
+      if (child) children.push(child)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after spatial_group body")
+    
+    return {
+      type: NodeType.SPATIAL_GROUP,
+      line: token.line,
+      column: token.column,
+      name,
+      children
+    }
+  }
+  
+  // =========================================================================
+  // DECORATED MEMBERS
+  // =========================================================================
+  
+  @method parseDecoratedMember(): ASTNode {
+    const decorator = this.advance()
+    const decoratorName = decorator.value
+    
+    switch (decoratorName) {
+      case "@state":
+        return this.parseStateDeclaration(decorator)
+      case "@action":
+        return this.parseActionDeclaration(decorator)
+      case "@method":
+        return this.parseMethodDeclaration(decorator)
+      case "@computed":
+        return this.parseComputedDeclaration(decorator)
+      default:
+        throw this.error(decorator, `Unknown decorator: ${decoratorName}`)
+    }
+  }
+  
+  @method parseStateDeclaration(decorator: Token): ASTNode {
+    this.consume(TokenType.LBRACE, "Expected '{' after @state")
+    
+    const properties: { name: string, type: string, default: any }[] = []
+    
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const name = this.consume(TokenType.IDENTIFIER, "Expected property name")
+      this.consume(TokenType.COLON, "Expected ':' after property name")
+      const type = this.parseType()
+      
+      let defaultValue = null
+      if (this.match(TokenType.ASSIGNMENT)) {
+        defaultValue = this.parseExpression()
+      }
+      
+      properties.push({ name: name.value, type, default: defaultValue })
+      
+      this.match(TokenType.COMMA)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after @state body")
+    
+    return {
+      type: NodeType.STATE,
+      line: decorator.line,
+      column: decorator.column,
+      properties
+    }
+  }
+  
+  @method parseActionDeclaration(decorator: Token): ASTNode {
+    const isAsync = this.matchKeyword("async")
+    const name = this.consume(TokenType.IDENTIFIER, "Expected action name")
+    const params = this.parseParameters()
+    
+    let returnType = "void"
+    if (this.match(TokenType.COLON)) {
+      returnType = this.parseType()
+    }
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.ACTION,
+      line: decorator.line,
+      column: decorator.column,
+      name: name.value,
+      async: isAsync,
+      params,
+      returnType,
+      body
+    }
+  }
+  
+  @method parseMethodDeclaration(decorator: Token): ASTNode {
+    const isAsync = this.matchKeyword("async")
+    const name = this.consume(TokenType.IDENTIFIER, "Expected method name")
+    const params = this.parseParameters()
+    
+    let returnType = "void"
+    if (this.match(TokenType.COLON)) {
+      returnType = this.parseType()
+    }
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.METHOD,
+      line: decorator.line,
+      column: decorator.column,
+      name: name.value,
+      async: isAsync,
+      params,
+      returnType,
+      body
+    }
+  }
+  
+  @method parseComputedDeclaration(decorator: Token): ASTNode {
+    const name = this.consume(TokenType.IDENTIFIER, "Expected computed name")
+    this.consume(TokenType.LPAREN, "Expected '(' after computed name")
+    this.consume(TokenType.RPAREN, "Expected ')' after computed name")
+    
+    let returnType = "any"
+    if (this.match(TokenType.COLON)) {
+      returnType = this.parseType()
+    }
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.COMPUTED,
+      line: decorator.line,
+      column: decorator.column,
+      name: name.value,
+      returnType,
+      body
+    }
+  }
+  
+  // =========================================================================
+  // FUNCTIONS
+  // =========================================================================
+  
+  @method parseFunction(): ASTNode {
+    const token = this.previous()
+    const name = this.consume(TokenType.IDENTIFIER, "Expected function name")
+    const params = this.parseParameters()
+    
+    let returnType = "void"
+    if (this.match(TokenType.COLON)) {
+      returnType = this.parseType()
+    }
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.FUNCTION,
+      line: token.line,
+      column: token.column,
+      name: name.value,
+      params,
+      returnType,
+      body
+    }
+  }
+  
+  @method parseAsyncFunction(): ASTNode {
+    const token = this.previous()
+    
+    if (!this.matchKeyword("function")) {
+      throw this.error(this.peek(), "Expected 'function' after 'async'")
+    }
+    
+    const name = this.consume(TokenType.IDENTIFIER, "Expected function name")
+    const params = this.parseParameters()
+    
+    let returnType = "Promise<void>"
+    if (this.match(TokenType.COLON)) {
+      returnType = this.parseType()
+    }
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.FUNCTION,
+      line: token.line,
+      column: token.column,
+      name: name.value,
+      async: true,
+      params,
+      returnType,
+      body
+    }
+  }
+  
+  @method parseParameters(): { name: string, type: string, default: any }[] {
+    this.consume(TokenType.LPAREN, "Expected '(' before parameters")
+    
+    const params: { name: string, type: string, default: any }[] = []
+    
+    if (!this.check(TokenType.RPAREN)) {
+      do {
+        const name = this.consume(TokenType.IDENTIFIER, "Expected parameter name")
+        
+        let type = "any"
+        if (this.match(TokenType.COLON)) {
+          type = this.parseType()
+        }
+        
+        let defaultValue = null
+        if (this.match(TokenType.ASSIGNMENT)) {
+          defaultValue = this.parseExpression()
+        }
+        
+        params.push({ name: name.value, type, default: defaultValue })
+      } while (this.match(TokenType.COMMA))
+    }
+    
+    this.consume(TokenType.RPAREN, "Expected ')' after parameters")
+    
+    return params
+  }
+  
+  // =========================================================================
+  // STATEMENTS
+  // =========================================================================
+  
+  @method parseStatement(): ASTNode {
+    if (this.matchKeyword("if")) return this.parseIfStatement()
+    if (this.matchKeyword("for")) return this.parseForStatement()
+    if (this.matchKeyword("while")) return this.parseWhileStatement()
+    if (this.matchKeyword("return")) return this.parseReturnStatement()
+    if (this.matchKeyword("break")) return this.parseBreakStatement()
+    if (this.matchKeyword("continue")) return this.parseContinueStatement()
+    if (this.matchKeyword("every")) return this.parseEveryStatement()
+    if (this.matchKeyword("after")) return this.parseAfterStatement()
+    if (this.check(TokenType.LBRACE)) return this.parseBlock()
+    
+    return this.parseExpressionStatement()
+  }
+  
+  @method parseBlock(): ASTNode {
+    const token = this.consume(TokenType.LBRACE, "Expected '{'")
+    
+    const statements: ASTNode[] = []
+    while (!this.check(TokenType.RBRACE) && !this.isAtEnd()) {
+      const stmt = this.parseDeclaration()
+      if (stmt) statements.push(stmt)
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after block")
+    
+    return {
+      type: NodeType.BLOCK,
+      line: token.line,
+      column: token.column,
+      statements
+    }
+  }
+  
+  @method parseIfStatement(): ASTNode {
+    const token = this.previous()
+    
+    this.consume(TokenType.LPAREN, "Expected '(' after 'if'")
+    const condition = this.parseExpression()
+    this.consume(TokenType.RPAREN, "Expected ')' after if condition")
+    
+    const consequent = this.parseStatement()
+    
+    let alternate = null
+    if (this.matchKeyword("else")) {
+      alternate = this.parseStatement()
+    }
+    
+    return {
+      type: NodeType.IF,
+      line: token.line,
+      column: token.column,
+      condition,
+      consequent,
+      alternate
+    }
+  }
+  
+  @method parseForStatement(): ASTNode {
+    const token = this.previous()
+    
+    this.consume(TokenType.LPAREN, "Expected '(' after 'for'")
+    
+    let init = null
+    if (!this.check(TokenType.SEMICOLON)) {
+      if (this.matchKeyword("const") || this.matchKeyword("let") || this.matchKeyword("var")) {
+        init = this.parseVariableDeclaration(this.previous().value)
+      } else {
+        init = this.parseExpression()
+      }
+    }
+    this.consume(TokenType.SEMICOLON, "Expected ';' after for init")
+    
+    let condition = null
+    if (!this.check(TokenType.SEMICOLON)) {
+      condition = this.parseExpression()
+    }
+    this.consume(TokenType.SEMICOLON, "Expected ';' after for condition")
+    
+    let update = null
+    if (!this.check(TokenType.RPAREN)) {
+      update = this.parseExpression()
+    }
+    this.consume(TokenType.RPAREN, "Expected ')' after for clauses")
+    
+    const body = this.parseStatement()
+    
+    return {
+      type: NodeType.FOR,
+      line: token.line,
+      column: token.column,
+      init,
+      condition,
+      update,
+      body
+    }
+  }
+  
+  @method parseWhileStatement(): ASTNode {
+    const token = this.previous()
+    
+    this.consume(TokenType.LPAREN, "Expected '(' after 'while'")
+    const condition = this.parseExpression()
+    this.consume(TokenType.RPAREN, "Expected ')' after while condition")
+    
+    const body = this.parseStatement()
+    
+    return {
+      type: NodeType.WHILE,
+      line: token.line,
+      column: token.column,
+      condition,
+      body
+    }
+  }
+  
+  @method parseReturnStatement(): ASTNode {
+    const token = this.previous()
+    
+    let value = null
+    if (!this.check(TokenType.SEMICOLON) && !this.check(TokenType.RBRACE)) {
+      value = this.parseExpression()
+    }
+    
+    this.match(TokenType.SEMICOLON)
+    
+    return {
+      type: NodeType.RETURN,
+      line: token.line,
+      column: token.column,
+      value
+    }
+  }
+  
+  @method parseBreakStatement(): ASTNode {
+    const token = this.previous()
+    this.match(TokenType.SEMICOLON)
+    return { type: NodeType.BREAK, line: token.line, column: token.column }
+  }
+  
+  @method parseContinueStatement(): ASTNode {
+    const token = this.previous()
+    this.match(TokenType.SEMICOLON)
+    return { type: NodeType.CONTINUE, line: token.line, column: token.column }
+  }
+  
+  @method parseEveryStatement(): ASTNode {
+    const token = this.previous()
+    
+    this.consume(TokenType.LPAREN, "Expected '(' after 'every'")
+    const interval = this.parseExpression()
+    this.consume(TokenType.RPAREN, "Expected ')' after interval")
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.EVERY,
+      line: token.line,
+      column: token.column,
+      interval,
+      body
+    }
+  }
+  
+  @method parseAfterStatement(): ASTNode {
+    const token = this.previous()
+    
+    this.consume(TokenType.LPAREN, "Expected '(' after 'after'")
+    const delay = this.parseExpression()
+    this.consume(TokenType.RPAREN, "Expected ')' after delay")
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.AFTER,
+      line: token.line,
+      column: token.column,
+      delay,
+      body
+    }
+  }
+  
+  @method parseExpressionStatement(): ASTNode {
+    const expr = this.parseExpression()
+    this.match(TokenType.SEMICOLON)
+    
+    return {
+      type: NodeType.EXPRESSION,
+      line: expr.line,
+      column: expr.column,
+      expression: expr
+    }
+  }
+  
+  // =========================================================================
+  // EXPRESSIONS (Precedence Climbing)
+  // =========================================================================
+  
+  @method parseExpression(): ASTNode {
+    return this.parseAssignment()
+  }
+  
+  @method parseAssignment(): ASTNode {
+    const expr = this.parseConditional()
+    
+    if (this.match(TokenType.ASSIGNMENT)) {
+      const operator = this.previous().value
+      const right = this.parseAssignment()
+      
+      return {
+        type: NodeType.ASSIGNMENT,
+        line: expr.line,
+        column: expr.column,
+        left: expr,
+        operator,
+        right
+      }
+    }
+    
+    return expr
+  }
+  
+  @method parseConditional(): ASTNode {
+    const expr = this.parseLogicalOr()
+    
+    if (this.match(TokenType.QUESTION)) {
+      const consequent = this.parseExpression()
+      this.consume(TokenType.COLON, "Expected ':' in conditional expression")
+      const alternate = this.parseConditional()
+      
+      return {
+        type: NodeType.CONDITIONAL,
+        line: expr.line,
+        column: expr.column,
+        test: expr,
+        consequent,
+        alternate
+      }
+    }
+    
+    return expr
+  }
+  
+  @method parseLogicalOr(): ASTNode {
+    let left = this.parseLogicalAnd()
+    
+    while (this.matchLogical("||")) {
+      const operator = this.previous().value
+      const right = this.parseLogicalAnd()
+      left = {
+        type: NodeType.BINARY,
+        line: left.line,
+        column: left.column,
+        left,
+        operator,
+        right
+      }
+    }
+    
+    return left
+  }
+  
+  @method parseLogicalAnd(): ASTNode {
+    let left = this.parseEquality()
+    
+    while (this.matchLogical("&&")) {
+      const operator = this.previous().value
+      const right = this.parseEquality()
+      left = {
+        type: NodeType.BINARY,
+        line: left.line,
+        column: left.column,
+        left,
+        operator,
+        right
+      }
+    }
+    
+    return left
+  }
+  
+  @method parseEquality(): ASTNode {
+    let left = this.parseComparison()
+    
+    while (this.matchComparison("==", "!=", "===", "!==")) {
+      const operator = this.previous().value
+      const right = this.parseComparison()
+      left = {
+        type: NodeType.BINARY,
+        line: left.line,
+        column: left.column,
+        left,
+        operator,
+        right
+      }
+    }
+    
+    return left
+  }
+  
+  @method parseComparison(): ASTNode {
+    let left = this.parseAdditive()
+    
+    while (this.matchComparison("<", ">", "<=", ">=")) {
+      const operator = this.previous().value
+      const right = this.parseAdditive()
+      left = {
+        type: NodeType.BINARY,
+        line: left.line,
+        column: left.column,
+        left,
+        operator,
+        right
+      }
+    }
+    
+    return left
+  }
+  
+  @method parseAdditive(): ASTNode {
+    let left = this.parseMultiplicative()
+    
+    while (this.matchOperator("+", "-")) {
+      const operator = this.previous().value
+      const right = this.parseMultiplicative()
+      left = {
+        type: NodeType.BINARY,
+        line: left.line,
+        column: left.column,
+        left,
+        operator,
+        right
+      }
+    }
+    
+    return left
+  }
+  
+  @method parseMultiplicative(): ASTNode {
+    let left = this.parseUnary()
+    
+    while (this.matchOperator("*", "/", "%")) {
+      const operator = this.previous().value
+      const right = this.parseUnary()
+      left = {
+        type: NodeType.BINARY,
+        line: left.line,
+        column: left.column,
+        left,
+        operator,
+        right
+      }
+    }
+    
+    return left
+  }
+  
+  @method parseUnary(): ASTNode {
+    if (this.matchOperator("!", "-", "+", "++", "--")) {
+      const operator = this.previous()
+      const operand = this.parseUnary()
+      return {
+        type: NodeType.UNARY,
+        line: operator.line,
+        column: operator.column,
+        operator: operator.value,
+        operand,
+        prefix: true
+      }
+    }
+    
+    if (this.matchKeyword("await")) {
+      const token = this.previous()
+      const argument = this.parseUnary()
+      return {
+        type: NodeType.AWAIT,
+        line: token.line,
+        column: token.column,
+        argument
+      }
+    }
+    
+    if (this.matchKeyword("new")) {
+      const token = this.previous()
+      const callee = this.parseCall()
+      return {
+        type: NodeType.NEW,
+        line: token.line,
+        column: token.column,
+        callee
+      }
+    }
+    
+    return this.parseCall()
+  }
+  
+  @method parseCall(): ASTNode {
+    let expr = this.parsePrimary()
+    
+    while (true) {
+      if (this.match(TokenType.LPAREN)) {
+        expr = this.finishCall(expr)
+      } else if (this.match(TokenType.DOT)) {
+        const name = this.consume(TokenType.IDENTIFIER, "Expected property name")
+        expr = {
+          type: NodeType.MEMBER,
+          line: expr.line,
+          column: expr.column,
+          object: expr,
+          property: name.value,
+          computed: false
+        }
+      } else if (this.match(TokenType.LBRACKET)) {
+        const index = this.parseExpression()
+        this.consume(TokenType.RBRACKET, "Expected ']' after index")
+        expr = {
+          type: NodeType.INDEX,
+          line: expr.line,
+          column: expr.column,
+          object: expr,
+          index
+        }
+      } else {
+        break
+      }
+    }
+    
+    return expr
+  }
+  
+  @method finishCall(callee: ASTNode): ASTNode {
+    const args: ASTNode[] = []
+    
+    if (!this.check(TokenType.RPAREN)) {
+      do {
+        args.push(this.parseExpression())
+      } while (this.match(TokenType.COMMA))
+    }
+    
+    this.consume(TokenType.RPAREN, "Expected ')' after arguments")
+    
+    return {
+      type: NodeType.CALL,
+      line: callee.line,
+      column: callee.column,
+      callee,
+      arguments: args
+    }
+  }
+  
+  @method parsePrimary(): ASTNode {
+    const token = this.peek()
+    
+    // Literals
+    if (this.match(TokenType.NUMBER)) {
+      return { type: NodeType.LITERAL, line: token.line, column: token.column, value: parseFloat(token.value), raw: token.value }
+    }
+    
+    if (this.match(TokenType.STRING)) {
+      const value = token.value.slice(1, -1)
+      return { type: NodeType.LITERAL, line: token.line, column: token.column, value, raw: token.value }
+    }
+    
+    if (this.match(TokenType.BOOLEAN)) {
+      return { type: NodeType.LITERAL, line: token.line, column: token.column, value: token.value === "true", raw: token.value }
+    }
+    
+    if (this.match(TokenType.NULL)) {
+      return { type: NodeType.LITERAL, line: token.line, column: token.column, value: null, raw: "null" }
+    }
+    
+    // Identifier
+    if (this.match(TokenType.IDENTIFIER)) {
+      return { type: NodeType.IDENTIFIER, line: token.line, column: token.column, name: token.value }
+    }
+    
+    // Array literal
+    if (this.match(TokenType.LBRACKET)) {
+      return this.parseArrayLiteral(token)
+    }
+    
+    // Object literal
+    if (this.match(TokenType.LBRACE)) {
+      return this.parseObjectLiteral(token)
+    }
+    
+    // Grouped expression
+    if (this.match(TokenType.LPAREN)) {
+      const expr = this.parseExpression()
+      this.consume(TokenType.RPAREN, "Expected ')' after expression")
+      return expr
+    }
+    
+    throw this.error(token, `Unexpected token: ${token.value}`)
+  }
+  
+  @method parseArrayLiteral(startToken: Token): ASTNode {
+    const elements: ASTNode[] = []
+    
+    if (!this.check(TokenType.RBRACKET)) {
+      do {
+        elements.push(this.parseExpression())
+      } while (this.match(TokenType.COMMA))
+    }
+    
+    this.consume(TokenType.RBRACKET, "Expected ']' after array elements")
+    
+    return {
+      type: NodeType.ARRAY,
+      line: startToken.line,
+      column: startToken.column,
+      elements
+    }
+  }
+  
+  @method parseObjectLiteral(startToken: Token): ASTNode {
+    const properties: { key: string, value: ASTNode }[] = []
+    
+    if (!this.check(TokenType.RBRACE)) {
+      do {
+        let key: string
+        if (this.check(TokenType.STRING)) {
+          key = this.advance().value.slice(1, -1)
+        } else {
+          key = this.consume(TokenType.IDENTIFIER, "Expected property name").value
+        }
+        
+        this.consume(TokenType.COLON, "Expected ':' after property name")
+        const value = this.parseExpression()
+        
+        properties.push({ key, value })
+      } while (this.match(TokenType.COMMA))
+    }
+    
+    this.consume(TokenType.RBRACE, "Expected '}' after object literal")
+    
+    return {
+      type: NodeType.OBJECT_EXPR,
+      line: startToken.line,
+      column: startToken.column,
+      properties
+    }
+  }
+  
+  // =========================================================================
+  // IMPORTS / EXPORTS
+  // =========================================================================
+  
+  @method parseImport(): ASTNode {
+    const token = this.previous()
+    const specifiers: { imported: string, local: string }[] = []
+    let source: string
+    
+    // import { x, y } from "module"
+    // import * as name from "module"
+    // import name from "module"
+    
+    if (this.match(TokenType.LBRACE)) {
+      do {
+        const imported = this.consume(TokenType.IDENTIFIER, "Expected import name")
+        let local = imported.value
+        
+        if (this.matchKeyword("as")) {
+          local = this.consume(TokenType.IDENTIFIER, "Expected alias name").value
+        }
+        
+        specifiers.push({ imported: imported.value, local })
+      } while (this.match(TokenType.COMMA))
+      
+      this.consume(TokenType.RBRACE, "Expected '}' after imports")
+    } else if (this.matchOperator("*")) {
+      this.consumeKeyword("as")
+      const local = this.consume(TokenType.IDENTIFIER, "Expected namespace name")
+      specifiers.push({ imported: "*", local: local.value })
+    } else {
+      const name = this.consume(TokenType.IDENTIFIER, "Expected import name")
+      specifiers.push({ imported: "default", local: name.value })
+    }
+    
+    this.consumeKeyword("from")
+    source = this.consume(TokenType.STRING, "Expected module path").value.slice(1, -1)
+    
+    this.match(TokenType.SEMICOLON)
+    
+    return {
+      type: NodeType.IMPORT,
+      line: token.line,
+      column: token.column,
+      specifiers,
+      source
+    }
+  }
+  
+  @method parseExport(): ASTNode {
+    const token = this.previous()
+    
+    // export default
+    if (this.matchKeyword("default")) {
+      const declaration = this.parseDeclaration()
+      return {
+        type: NodeType.EXPORT,
+        line: token.line,
+        column: token.column,
+        default: true,
+        declaration
+      }
+    }
+    
+    // export { x, y }
+    if (this.match(TokenType.LBRACE)) {
+      const specifiers: { local: string, exported: string }[] = []
+      
+      do {
+        const local = this.consume(TokenType.IDENTIFIER, "Expected export name")
+        let exported = local.value
+        
+        if (this.matchKeyword("as")) {
+          exported = this.consume(TokenType.IDENTIFIER, "Expected alias name").value
+        }
+        
+        specifiers.push({ local: local.value, exported })
+      } while (this.match(TokenType.COMMA))
+      
+      this.consume(TokenType.RBRACE, "Expected '}' after exports")
+      this.match(TokenType.SEMICOLON)
+      
+      return {
+        type: NodeType.EXPORT,
+        line: token.line,
+        column: token.column,
+        specifiers
+      }
+    }
+    
+    // export declaration
+    const declaration = this.parseDeclaration()
+    return {
+      type: NodeType.EXPORT,
+      line: token.line,
+      column: token.column,
+      declaration
+    }
+  }
+  
+  // =========================================================================
+  // HELPERS
+  // =========================================================================
+  
+  @method parseType(): string {
+    let type = ""
+    
+    if (this.check(TokenType.IDENTIFIER) || this.check(TokenType.KEYWORD)) {
+      type = this.advance().value
+    }
+    
+    // Generic types like Array<string>
+    if (this.match(TokenType.COMPARISON) && this.previous().value === "<") {
+      type += "<"
+      type += this.parseType()
+      this.consume(TokenType.COMPARISON, "Expected '>'")
+      type += ">"
+    }
+    
+    // Array shorthand: string[]
+    if (this.match(TokenType.LBRACKET)) {
+      this.consume(TokenType.RBRACKET, "Expected ']'")
+      type += "[]"
+    }
+    
+    // Union types: string | number
+    if (this.matchOperator("|")) {
+      type += " | " + this.parseType()
+    }
+    
+    return type
+  }
+  
+  @method parseVariableDeclaration(kind: string): ASTNode {
+    const token = this.previous()
+    const name = this.consume(TokenType.IDENTIFIER, "Expected variable name")
+    
+    let type = null
+    if (this.match(TokenType.COLON)) {
+      type = this.parseType()
+    }
+    
+    let init = null
+    if (this.match(TokenType.ASSIGNMENT)) {
+      init = this.parseExpression()
+    }
+    
+    this.match(TokenType.SEMICOLON)
+    
+    return {
+      type: NodeType.VARIABLE,
+      line: token.line,
+      column: token.column,
+      kind,
+      name: name.value,
+      varType: type,
+      init
+    }
+  }
+  
+  @method parseObjectProperty(): ASTNode {
+    const name = this.consume(TokenType.IDENTIFIER, "Expected property name")
+    this.consume(TokenType.COLON, "Expected ':'")
+    const value = this.parseExpression()
+    this.match(TokenType.COMMA)
+    
+    return {
+      type: NodeType.VARIABLE,
+      line: name.line,
+      column: name.column,
+      name: name.value,
+      init: value
+    }
+  }
+  
+  @method parseEventHandler(): ASTNode {
+    const token = this.advance() // on_click, on_hover_enter, etc.
+    const eventName = token.value
+    
+    const body = this.parseBlock()
+    
+    return {
+      type: NodeType.EVENT_HANDLER,
+      line: token.line,
+      column: token.column,
+      event: eventName,
+      body
+    }
+  }
+  
+  @method checkEventHandler(): boolean {
+    if (!this.check(TokenType.KEYWORD)) return false
+    const value = this.peek().value
+    return value.startsWith("on_")
+  }
+  
+  // Token utilities
+  @method isAtEnd(): boolean {
+    return this.peek().type === TokenType.EOF
+  }
+  
+  @method peek(): Token {
+    return this.state.tokens[this.state.current]
+  }
+  
+  @method previous(): Token {
+    return this.state.tokens[this.state.current - 1]
+  }
+  
+  @method advance(): Token {
+    if (!this.isAtEnd()) this.state.current++
+    return this.previous()
+  }
+  
+  @method check(type: TokenType): boolean {
+    if (this.isAtEnd()) return false
+    return this.peek().type === type
+  }
+  
+  @method match(...types: TokenType[]): boolean {
+    for (const type of types) {
+      if (this.check(type)) {
+        this.advance()
+        return true
+      }
+    }
+    return false
+  }
+  
+  @method matchKeyword(keyword: string): boolean {
+    if (this.check(TokenType.KEYWORD) && this.peek().value === keyword) {
+      this.advance()
+      return true
+    }
+    return false
+  }
+  
+  @method matchOperator(...operators: string[]): boolean {
+    if (this.check(TokenType.OPERATOR) && operators.includes(this.peek().value)) {
+      this.advance()
+      return true
+    }
+    return false
+  }
+  
+  @method matchComparison(...operators: string[]): boolean {
+    if (this.check(TokenType.COMPARISON) && operators.includes(this.peek().value)) {
+      this.advance()
+      return true
+    }
+    return false
+  }
+  
+  @method matchLogical(...operators: string[]): boolean {
+    if (this.check(TokenType.LOGICAL) && operators.includes(this.peek().value)) {
+      this.advance()
+      return true
+    }
+    return false
+  }
+  
+  @method consume(type: TokenType, message: string): Token {
+    if (this.check(type)) return this.advance()
+    throw this.error(this.peek(), message)
+  }
+  
+  @method consumeKeyword(keyword: string): Token {
+    if (this.matchKeyword(keyword)) return this.previous()
+    throw this.error(this.peek(), `Expected '${keyword}'`)
+  }
+  
+  @method error(token: Token, message: string): ParserError {
+    const error: ParserError = {
+      message,
+      line: token.line,
+      column: token.column,
+      token
+    }
+    this.state.errors.push(error)
+    return error
+  }
+  
+  @method synchronize(): void {
+    this.advance()
+    
+    while (!this.isAtEnd()) {
+      if (this.previous().type === TokenType.SEMICOLON) return
+      
+      if (this.check(TokenType.KEYWORD)) {
+        const keyword = this.peek().value
+        if (["module", "struct", "function", "const", "let", "if", "for", "while", "return"].includes(keyword)) {
+          return
+        }
+      }
+      
+      if (this.check(TokenType.DECORATOR)) return
+      
+      this.advance()
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { Parser, ASTNode, NodeType, ParserError }

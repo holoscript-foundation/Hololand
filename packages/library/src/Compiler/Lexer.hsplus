@@ -1,0 +1,601 @@
+/**
+ * Lexer.hsplus
+ * 
+ * Self-hosting HoloScript+ lexer - tokenizes .hsplus source code.
+ * This is the first stage of the compilation pipeline.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TOKEN TYPES
+// =============================================================================
+
+enum TokenType {
+  // Literals
+  NUMBER = "NUMBER"
+  STRING = "STRING"
+  BOOLEAN = "BOOLEAN"
+  NULL = "NULL"
+  
+  // Identifiers & Keywords
+  IDENTIFIER = "IDENTIFIER"
+  KEYWORD = "KEYWORD"
+  DECORATOR = "DECORATOR"
+  
+  // Operators
+  OPERATOR = "OPERATOR"
+  ASSIGNMENT = "ASSIGNMENT"
+  COMPARISON = "COMPARISON"
+  LOGICAL = "LOGICAL"
+  ARROW = "ARROW"
+  
+  // Punctuation
+  LPAREN = "LPAREN"
+  RPAREN = "RPAREN"
+  LBRACE = "LBRACE"
+  RBRACE = "RBRACE"
+  LBRACKET = "LBRACKET"
+  RBRACKET = "RBRACKET"
+  COMMA = "COMMA"
+  COLON = "COLON"
+  SEMICOLON = "SEMICOLON"
+  DOT = "DOT"
+  QUESTION = "QUESTION"
+  
+  // Special
+  COMMENT = "COMMENT"
+  WHITESPACE = "WHITESPACE"
+  NEWLINE = "NEWLINE"
+  EOF = "EOF"
+  UNKNOWN = "UNKNOWN"
+}
+
+struct Token {
+  type: TokenType
+  value: string
+  line: number
+  column: number
+  start: number
+  end: number
+}
+
+struct LexerError {
+  message: string
+  line: number
+  column: number
+  source: string
+}
+
+// =============================================================================
+// LEXER MODULE
+// =============================================================================
+
+module Lexer {
+  // Keywords in HoloScript+
+  const KEYWORDS = [
+    // Declarations
+    "module", "struct", "enum", "trait", "template", "object", "composition",
+    "spatial_group", "logic", "const", "let", "var",
+    // Functions
+    "action", "method", "function", "async", "await", "return", "yield",
+    // Control flow
+    "if", "else", "for", "while", "do", "switch", "case", "default", "break", "continue",
+    // Types
+    "string", "number", "boolean", "void", "any", "null", "undefined",
+    "true", "false",
+    // Imports
+    "import", "export", "from", "as", "default",
+    // Classes
+    "class", "extends", "implements", "new", "this", "self", "super",
+    // Misc
+    "using", "include", "typeof", "instanceof", "in", "of",
+    // Events
+    "on_click", "on_hover_enter", "on_hover_exit", "on_interact",
+    "on_trigger_enter", "on_trigger_exit", "every", "after"
+  ]
+  
+  // Decorators
+  const DECORATORS = [
+    "@state", "@action", "@method", "@computed", "@selector", "@event", "@property"
+  ]
+  
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    source: string = ""
+    tokens: Token[] = []
+    errors: LexerError[] = []
+    position: number = 0
+    line: number = 1
+    column: number = 1
+    lineStart: number = 0
+  }
+  
+  // =========================================================================
+  // MAIN TOKENIZE
+  // =========================================================================
+  
+  @action tokenize(source: string): { tokens: Token[], errors: LexerError[] } {
+    this.state.source = source
+    this.state.tokens = []
+    this.state.errors = []
+    this.state.position = 0
+    this.state.line = 1
+    this.state.column = 1
+    this.state.lineStart = 0
+    
+    while (!this.isAtEnd()) {
+      const token = this.scanToken()
+      if (token) {
+        // Skip whitespace and comments unless needed
+        if (token.type !== TokenType.WHITESPACE) {
+          this.state.tokens.push(token)
+        }
+      }
+    }
+    
+    // Add EOF token
+    this.state.tokens.push({
+      type: TokenType.EOF,
+      value: "",
+      line: this.state.line,
+      column: this.state.column,
+      start: this.state.position,
+      end: this.state.position
+    })
+    
+    return {
+      tokens: this.state.tokens,
+      errors: this.state.errors
+    }
+  }
+  
+  // =========================================================================
+  // TOKEN SCANNING
+  // =========================================================================
+  
+  @method scanToken(): Token | null {
+    const start = this.state.position
+    const startColumn = this.state.column
+    const char = this.advance()
+    
+    // Whitespace
+    if (this.isWhitespace(char)) {
+      return this.scanWhitespace(start, startColumn)
+    }
+    
+    // Newlines
+    if (char === "\n") {
+      const token = this.makeToken(TokenType.NEWLINE, "\n", start, startColumn)
+      this.state.line++
+      this.state.column = 1
+      this.state.lineStart = this.state.position
+      return token
+    }
+    
+    // Comments
+    if (char === "/") {
+      if (this.peek() === "/") {
+        return this.scanLineComment(start, startColumn)
+      }
+      if (this.peek() === "*") {
+        return this.scanBlockComment(start, startColumn)
+      }
+      // Division operator
+      return this.makeToken(TokenType.OPERATOR, "/", start, startColumn)
+    }
+    
+    // Strings
+    if (char === '"' || char === "'") {
+      return this.scanString(char, start, startColumn)
+    }
+    
+    // Template strings
+    if (char === "`") {
+      return this.scanTemplateString(start, startColumn)
+    }
+    
+    // Numbers
+    if (this.isDigit(char)) {
+      return this.scanNumber(start, startColumn)
+    }
+    
+    // Hex numbers
+    if (char === "0" && (this.peek() === "x" || this.peek() === "X")) {
+      return this.scanHexNumber(start, startColumn)
+    }
+    
+    // Decorators
+    if (char === "@") {
+      return this.scanDecorator(start, startColumn)
+    }
+    
+    // Identifiers and keywords
+    if (this.isAlpha(char) || char === "_") {
+      return this.scanIdentifier(start, startColumn)
+    }
+    
+    // Operators and punctuation
+    return this.scanOperator(char, start, startColumn)
+  }
+  
+  // =========================================================================
+  // SPECIFIC SCANNERS
+  // =========================================================================
+  
+  @method scanWhitespace(start: number, startColumn: number): Token {
+    while (!this.isAtEnd() && this.isWhitespace(this.peek()) && this.peek() !== "\n") {
+      this.advance()
+    }
+    return this.makeToken(TokenType.WHITESPACE, 
+      this.state.source.slice(start, this.state.position), start, startColumn)
+  }
+  
+  @method scanLineComment(start: number, startColumn: number): Token {
+    this.advance() // Skip second /
+    while (!this.isAtEnd() && this.peek() !== "\n") {
+      this.advance()
+    }
+    return this.makeToken(TokenType.COMMENT,
+      this.state.source.slice(start, this.state.position), start, startColumn)
+  }
+  
+  @method scanBlockComment(start: number, startColumn: number): Token {
+    this.advance() // Skip *
+    while (!this.isAtEnd()) {
+      if (this.peek() === "*" && this.peekNext() === "/") {
+        this.advance() // *
+        this.advance() // /
+        break
+      }
+      if (this.peek() === "\n") {
+        this.state.line++
+        this.state.column = 0
+      }
+      this.advance()
+    }
+    return this.makeToken(TokenType.COMMENT,
+      this.state.source.slice(start, this.state.position), start, startColumn)
+  }
+  
+  @method scanString(quote: string, start: number, startColumn: number): Token {
+    while (!this.isAtEnd() && this.peek() !== quote) {
+      if (this.peek() === "\\") {
+        this.advance() // Skip escape
+      }
+      if (this.peek() === "\n") {
+        this.addError("Unterminated string literal", start)
+        break
+      }
+      this.advance()
+    }
+    
+    if (!this.isAtEnd()) {
+      this.advance() // Closing quote
+    }
+    
+    return this.makeToken(TokenType.STRING,
+      this.state.source.slice(start, this.state.position), start, startColumn)
+  }
+  
+  @method scanTemplateString(start: number, startColumn: number): Token {
+    while (!this.isAtEnd() && this.peek() !== "`") {
+      if (this.peek() === "\\") {
+        this.advance()
+      }
+      if (this.peek() === "\n") {
+        this.state.line++
+        this.state.column = 0
+      }
+      this.advance()
+    }
+    
+    if (!this.isAtEnd()) {
+      this.advance() // Closing backtick
+    }
+    
+    return this.makeToken(TokenType.STRING,
+      this.state.source.slice(start, this.state.position), start, startColumn)
+  }
+  
+  @method scanNumber(start: number, startColumn: number): Token {
+    while (this.isDigit(this.peek())) {
+      this.advance()
+    }
+    
+    // Decimal
+    if (this.peek() === "." && this.isDigit(this.peekNext())) {
+      this.advance() // .
+      while (this.isDigit(this.peek())) {
+        this.advance()
+      }
+    }
+    
+    // Exponent
+    if (this.peek() === "e" || this.peek() === "E") {
+      this.advance()
+      if (this.peek() === "+" || this.peek() === "-") {
+        this.advance()
+      }
+      while (this.isDigit(this.peek())) {
+        this.advance()
+      }
+    }
+    
+    return this.makeToken(TokenType.NUMBER,
+      this.state.source.slice(start, this.state.position), start, startColumn)
+  }
+  
+  @method scanHexNumber(start: number, startColumn: number): Token {
+    this.advance() // x
+    while (this.isHexDigit(this.peek())) {
+      this.advance()
+    }
+    return this.makeToken(TokenType.NUMBER,
+      this.state.source.slice(start, this.state.position), start, startColumn)
+  }
+  
+  @method scanDecorator(start: number, startColumn: number): Token {
+    while (this.isAlphaNumeric(this.peek())) {
+      this.advance()
+    }
+    const value = this.state.source.slice(start, this.state.position)
+    return this.makeToken(TokenType.DECORATOR, value, start, startColumn)
+  }
+  
+  @method scanIdentifier(start: number, startColumn: number): Token {
+    while (this.isAlphaNumeric(this.peek()) || this.peek() === "_") {
+      this.advance()
+    }
+    
+    const value = this.state.source.slice(start, this.state.position)
+    
+    // Check for keywords
+    if (KEYWORDS.includes(value)) {
+      if (value === "true" || value === "false") {
+        return this.makeToken(TokenType.BOOLEAN, value, start, startColumn)
+      }
+      if (value === "null") {
+        return this.makeToken(TokenType.NULL, value, start, startColumn)
+      }
+      return this.makeToken(TokenType.KEYWORD, value, start, startColumn)
+    }
+    
+    return this.makeToken(TokenType.IDENTIFIER, value, start, startColumn)
+  }
+  
+  @method scanOperator(char: string, start: number, startColumn: number): Token {
+    switch (char) {
+      case "(": return this.makeToken(TokenType.LPAREN, char, start, startColumn)
+      case ")": return this.makeToken(TokenType.RPAREN, char, start, startColumn)
+      case "{": return this.makeToken(TokenType.LBRACE, char, start, startColumn)
+      case "}": return this.makeToken(TokenType.RBRACE, char, start, startColumn)
+      case "[": return this.makeToken(TokenType.LBRACKET, char, start, startColumn)
+      case "]": return this.makeToken(TokenType.RBRACKET, char, start, startColumn)
+      case ",": return this.makeToken(TokenType.COMMA, char, start, startColumn)
+      case ":": return this.makeToken(TokenType.COLON, char, start, startColumn)
+      case ";": return this.makeToken(TokenType.SEMICOLON, char, start, startColumn)
+      case ".": 
+        if (this.peek() === "." && this.peekNext() === ".") {
+          this.advance()
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, "...", start, startColumn)
+        }
+        return this.makeToken(TokenType.DOT, char, start, startColumn)
+      case "?":
+        if (this.peek() === "?") {
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, "??", start, startColumn)
+        }
+        if (this.peek() === ".") {
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, "?.", start, startColumn)
+        }
+        return this.makeToken(TokenType.QUESTION, char, start, startColumn)
+      
+      // Comparison and assignment
+      case "=":
+        if (this.peek() === "=") {
+          this.advance()
+          if (this.peek() === "=") {
+            this.advance()
+            return this.makeToken(TokenType.COMPARISON, "===", start, startColumn)
+          }
+          return this.makeToken(TokenType.COMPARISON, "==", start, startColumn)
+        }
+        if (this.peek() === ">") {
+          this.advance()
+          return this.makeToken(TokenType.ARROW, "=>", start, startColumn)
+        }
+        return this.makeToken(TokenType.ASSIGNMENT, "=", start, startColumn)
+      
+      case "!":
+        if (this.peek() === "=") {
+          this.advance()
+          if (this.peek() === "=") {
+            this.advance()
+            return this.makeToken(TokenType.COMPARISON, "!==", start, startColumn)
+          }
+          return this.makeToken(TokenType.COMPARISON, "!=", start, startColumn)
+        }
+        return this.makeToken(TokenType.LOGICAL, "!", start, startColumn)
+      
+      case "<":
+        if (this.peek() === "=") {
+          this.advance()
+          return this.makeToken(TokenType.COMPARISON, "<=", start, startColumn)
+        }
+        if (this.peek() === "<") {
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, "<<", start, startColumn)
+        }
+        return this.makeToken(TokenType.COMPARISON, "<", start, startColumn)
+      
+      case ">":
+        if (this.peek() === "=") {
+          this.advance()
+          return this.makeToken(TokenType.COMPARISON, ">=", start, startColumn)
+        }
+        if (this.peek() === ">") {
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, ">>", start, startColumn)
+        }
+        return this.makeToken(TokenType.COMPARISON, ">", start, startColumn)
+      
+      case "&":
+        if (this.peek() === "&") {
+          this.advance()
+          return this.makeToken(TokenType.LOGICAL, "&&", start, startColumn)
+        }
+        return this.makeToken(TokenType.OPERATOR, "&", start, startColumn)
+      
+      case "|":
+        if (this.peek() === "|") {
+          this.advance()
+          return this.makeToken(TokenType.LOGICAL, "||", start, startColumn)
+        }
+        return this.makeToken(TokenType.OPERATOR, "|", start, startColumn)
+      
+      case "+":
+        if (this.peek() === "+") {
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, "++", start, startColumn)
+        }
+        if (this.peek() === "=") {
+          this.advance()
+          return this.makeToken(TokenType.ASSIGNMENT, "+=", start, startColumn)
+        }
+        return this.makeToken(TokenType.OPERATOR, "+", start, startColumn)
+      
+      case "-":
+        if (this.peek() === "-") {
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, "--", start, startColumn)
+        }
+        if (this.peek() === "=") {
+          this.advance()
+          return this.makeToken(TokenType.ASSIGNMENT, "-=", start, startColumn)
+        }
+        return this.makeToken(TokenType.OPERATOR, "-", start, startColumn)
+      
+      case "*":
+        if (this.peek() === "*") {
+          this.advance()
+          return this.makeToken(TokenType.OPERATOR, "**", start, startColumn)
+        }
+        if (this.peek() === "=") {
+          this.advance()
+          return this.makeToken(TokenType.ASSIGNMENT, "*=", start, startColumn)
+        }
+        return this.makeToken(TokenType.OPERATOR, "*", start, startColumn)
+      
+      case "%":
+        if (this.peek() === "=") {
+          this.advance()
+          return this.makeToken(TokenType.ASSIGNMENT, "%=", start, startColumn)
+        }
+        return this.makeToken(TokenType.OPERATOR, "%", start, startColumn)
+      
+      case "^":
+        return this.makeToken(TokenType.OPERATOR, "^", start, startColumn)
+      
+      case "~":
+        return this.makeToken(TokenType.OPERATOR, "~", start, startColumn)
+      
+      default:
+        this.addError(`Unexpected character: ${char}`, start)
+        return this.makeToken(TokenType.UNKNOWN, char, start, startColumn)
+    }
+  }
+  
+  // =========================================================================
+  // HELPERS
+  // =========================================================================
+  
+  @method isAtEnd(): boolean {
+    return this.state.position >= this.state.source.length
+  }
+  
+  @method peek(): string {
+    if (this.isAtEnd()) return "\0"
+    return this.state.source[this.state.position]
+  }
+  
+  @method peekNext(): string {
+    if (this.state.position + 1 >= this.state.source.length) return "\0"
+    return this.state.source[this.state.position + 1]
+  }
+  
+  @method advance(): string {
+    const char = this.state.source[this.state.position]
+    this.state.position++
+    this.state.column++
+    return char
+  }
+  
+  @method isDigit(char: string): boolean {
+    return char >= "0" && char <= "9"
+  }
+  
+  @method isHexDigit(char: string): boolean {
+    return this.isDigit(char) || 
+           (char >= "a" && char <= "f") || 
+           (char >= "A" && char <= "F")
+  }
+  
+  @method isAlpha(char: string): boolean {
+    return (char >= "a" && char <= "z") ||
+           (char >= "A" && char <= "Z") ||
+           char === "_"
+  }
+  
+  @method isAlphaNumeric(char: string): boolean {
+    return this.isAlpha(char) || this.isDigit(char)
+  }
+  
+  @method isWhitespace(char: string): boolean {
+    return char === " " || char === "\t" || char === "\r"
+  }
+  
+  @method makeToken(type: TokenType, value: string, start: number, startColumn: number): Token {
+    return {
+      type,
+      value,
+      line: this.state.line,
+      column: startColumn,
+      start,
+      end: this.state.position
+    }
+  }
+  
+  @action addError(message: string, position: number): void {
+    this.state.errors.push({
+      message,
+      line: this.state.line,
+      column: this.state.column,
+      source: this.getLineAtPosition(position)
+    })
+  }
+  
+  @method getLineAtPosition(position: number): string {
+    let start = position
+    while (start > 0 && this.state.source[start - 1] !== "\n") {
+      start--
+    }
+    let end = position
+    while (end < this.state.source.length && this.state.source[end] !== "\n") {
+      end++
+    }
+    return this.state.source.slice(start, end)
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { Lexer, Token, TokenType, LexerError }

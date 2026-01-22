@@ -1,0 +1,782 @@
+/**
+ * Top Bar Component - Navigation and Application Controls
+ * 
+ * Main application toolbar with file operations, view toggles,
+ * example loading, and layout controls.
+ * 
+ * @package @hololand/library
+ * @category UI
+ */
+
+// =============================================================================
+// FILE MENU
+// =============================================================================
+
+/**
+ * File operations dropdown
+ */
+component FileMenu {
+  @props {
+    isSaved: bool = true
+    onNew: function()
+    onOpen: function()
+    onSave: function()
+    onSaveAs: function()
+    onExport: function(format: string)
+  }
+
+  @state {
+    isOpen: bool = false
+  }
+
+  @method toggle() {
+    this.state.isOpen = !this.state.isOpen
+  }
+
+  @method close() {
+    this.state.isOpen = false
+  }
+
+  @method handleAction(action: string) {
+    this.close()
+    switch (action) {
+      case "new": this.props.onNew?.(); break
+      case "open": this.props.onOpen?.(); break
+      case "save": this.props.onSave?.(); break
+      case "saveAs": this.props.onSaveAs?.(); break
+      case "exportHolo": this.props.onExport?.("holo"); break
+      case "exportJson": this.props.onExport?.("json"); break
+      case "exportGltf": this.props.onExport?.("gltf"); break
+    }
+  }
+
+  @render {
+    <div class="dropdown">
+      <button class="dropdown-trigger" @on_click={this.toggle}>
+        📁 File
+        @if (!this.props.isSaved) {
+          <span class="unsaved-dot"></span>
+        }
+      </button>
+      
+      @if (this.state.isOpen) {
+        <div class="dropdown-menu">
+          <button class="menu-item" @on_click={() => this.handleAction("new")}>
+            <span class="item-icon">📄</span>
+            <span class="item-label">New File</span>
+            <span class="item-shortcut">Ctrl+N</span>
+          </button>
+          <button class="menu-item" @on_click={() => this.handleAction("open")}>
+            <span class="item-icon">📂</span>
+            <span class="item-label">Open...</span>
+            <span class="item-shortcut">Ctrl+O</span>
+          </button>
+          <div class="menu-divider"></div>
+          <button class="menu-item" @on_click={() => this.handleAction("save")}>
+            <span class="item-icon">💾</span>
+            <span class="item-label">Save</span>
+            <span class="item-shortcut">Ctrl+S</span>
+          </button>
+          <button class="menu-item" @on_click={() => this.handleAction("saveAs")}>
+            <span class="item-icon">📝</span>
+            <span class="item-label">Save As...</span>
+            <span class="item-shortcut">Ctrl+Shift+S</span>
+          </button>
+          <div class="menu-divider"></div>
+          <button class="menu-item" @on_click={() => this.handleAction("exportHolo")}>
+            <span class="item-icon">📦</span>
+            <span class="item-label">Export as .holo</span>
+          </button>
+          <button class="menu-item" @on_click={() => this.handleAction("exportJson")}>
+            <span class="item-icon">{ }</span>
+            <span class="item-label">Export as JSON</span>
+          </button>
+          <button class="menu-item" @on_click={() => this.handleAction("exportGltf")}>
+            <span class="item-icon">🎨</span>
+            <span class="item-label">Export as glTF</span>
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @style {
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-trigger {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.375rem 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--color-gray-300, #d1d5db);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .dropdown-trigger:hover {
+      background: var(--color-gray-700, #374151);
+      border-radius: 0.25rem;
+    }
+
+    .unsaved-dot {
+      width: 0.375rem;
+      height: 0.375rem;
+      background: var(--color-yellow-500, #eab308);
+      border-radius: 50%;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 200px;
+      padding: 0.25rem;
+      background: var(--color-gray-800, #1f2937);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.375rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--color-gray-200, #e5e7eb);
+      font-size: 0.8125rem;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 0.25rem;
+    }
+
+    .menu-item:hover {
+      background: var(--color-gray-700, #374151);
+    }
+
+    .item-icon {
+      width: 1.25rem;
+      text-align: center;
+    }
+
+    .item-label {
+      flex: 1;
+    }
+
+    .item-shortcut {
+      font-size: 0.6875rem;
+      color: var(--color-gray-500, #6b7280);
+    }
+
+    .menu-divider {
+      height: 1px;
+      background: var(--color-gray-600, #4b5563);
+      margin: 0.25rem 0;
+    }
+  }
+}
+
+// =============================================================================
+// EXAMPLES MENU
+// =============================================================================
+
+/**
+ * Example projects dropdown
+ */
+component ExamplesMenu {
+  @props {
+    examples: array<{ id: string, name: string, icon: string }> = [
+      { id: "cube", name: "Spinning Cube", icon: "🧊" },
+      { id: "sphere", name: "Shiny Sphere", icon: "🔮" },
+      { id: "grid", name: "Grid World", icon: "🏗️" },
+      { id: "particles", name: "Particle System", icon: "✨" },
+      { id: "npc", name: "NPC World", icon: "🧑" }
+    ]
+    onLoad: function(exampleId: string)
+  }
+
+  @state {
+    isOpen: bool = false
+  }
+
+  @method toggle() {
+    this.state.isOpen = !this.state.isOpen
+  }
+
+  @method handleLoad(id: string) {
+    this.state.isOpen = false
+    if (this.props.onLoad) {
+      this.props.onLoad(id)
+    }
+  }
+
+  @render {
+    <div class="dropdown">
+      <button class="dropdown-trigger" @on_click={this.toggle}>
+        📚 Examples
+      </button>
+      
+      @if (this.state.isOpen) {
+        <div class="dropdown-menu">
+          @for (example in this.props.examples) {
+            <button 
+              class="menu-item"
+              @on_click={() => this.handleLoad(example.id)}
+            >
+              <span class="item-icon">{example.icon}</span>
+              <span class="item-label">{example.name}</span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  @style {
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-trigger {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.375rem 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--color-gray-300, #d1d5db);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .dropdown-trigger:hover {
+      background: var(--color-gray-700, #374151);
+      border-radius: 0.25rem;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 180px;
+      padding: 0.25rem;
+      background: var(--color-gray-800, #1f2937);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.375rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--color-gray-200, #e5e7eb);
+      font-size: 0.8125rem;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 0.25rem;
+    }
+
+    .menu-item:hover {
+      background: var(--color-gray-700, #374151);
+    }
+
+    .item-icon {
+      width: 1.25rem;
+      text-align: center;
+    }
+  }
+}
+
+// =============================================================================
+// VIEW TOGGLES
+// =============================================================================
+
+/**
+ * View panel toggles
+ */
+component ViewToggles {
+  @props {
+    showChat: bool = true
+    showErrors: bool = true
+    showInspector: bool = true
+    showAssets: bool = true
+    onToggleChat: function()
+    onToggleErrors: function()
+    onToggleInspector: function()
+    onToggleAssets: function()
+  }
+
+  @render {
+    <div class="view-toggles">
+      <button 
+        class="toggle-button {this.props.showChat ? 'active' : ''}"
+        @on_click={this.props.onToggleChat}
+        title="Toggle Chat Panel"
+      >
+        💬
+      </button>
+      <button 
+        class="toggle-button {this.props.showErrors ? 'active' : ''}"
+        @on_click={this.props.onToggleErrors}
+        title="Toggle Errors Panel"
+      >
+        ⚠️
+      </button>
+      <button 
+        class="toggle-button {this.props.showInspector ? 'active' : ''}"
+        @on_click={this.props.onToggleInspector}
+        title="Toggle Inspector"
+      >
+        🔍
+      </button>
+      <button 
+        class="toggle-button {this.props.showAssets ? 'active' : ''}"
+        @on_click={this.props.onToggleAssets}
+        title="Toggle Asset Browser"
+      >
+        📚
+      </button>
+    </div>
+  }
+
+  @style {
+    .view-toggles {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .toggle-button {
+      padding: 0.375rem 0.5rem;
+      background: var(--color-gray-700, #374151);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      opacity: 0.5;
+      transition: all 0.2s;
+    }
+
+    .toggle-button:hover {
+      opacity: 0.8;
+    }
+
+    .toggle-button.active {
+      opacity: 1;
+      background: var(--color-purple-600, #9333ea);
+      border-color: var(--color-purple-500, #a855f7);
+    }
+  }
+}
+
+// =============================================================================
+// LAYOUT SELECTOR
+// =============================================================================
+
+/**
+ * Layout preset selector
+ */
+component LayoutSelector {
+  @props {
+    currentLayout: "default" | "compact" | "fullscreen" | "debug" = "default"
+    onSelect: function(layout: string)
+  }
+
+  @state {
+    isOpen: bool = false
+  }
+
+  @method toggle() {
+    this.state.isOpen = !this.state.isOpen
+  }
+
+  @method handleSelect(layout: string) {
+    this.state.isOpen = false
+    if (this.props.onSelect) {
+      this.props.onSelect(layout)
+    }
+  }
+
+  @computed layoutIcon() {
+    const icons = {
+      "default": "⊞",
+      "compact": "⊟",
+      "fullscreen": "⊠",
+      "debug": "🐛"
+    }
+    return icons[this.props.currentLayout] || "⊞"
+  }
+
+  @render {
+    <div class="dropdown">
+      <button class="dropdown-trigger" @on_click={this.toggle}>
+        {this.layoutIcon} Layout
+      </button>
+      
+      @if (this.state.isOpen) {
+        <div class="dropdown-menu right">
+          <button 
+            class="menu-item {this.props.currentLayout === 'default' ? 'active' : ''}"
+            @on_click={() => this.handleSelect("default")}
+          >
+            <span class="item-icon">⊞</span>
+            <span class="item-label">Default</span>
+          </button>
+          <button 
+            class="menu-item {this.props.currentLayout === 'compact' ? 'active' : ''}"
+            @on_click={() => this.handleSelect("compact")}
+          >
+            <span class="item-icon">⊟</span>
+            <span class="item-label">Compact</span>
+          </button>
+          <button 
+            class="menu-item {this.props.currentLayout === 'fullscreen' ? 'active' : ''}"
+            @on_click={() => this.handleSelect("fullscreen")}
+          >
+            <span class="item-icon">⊠</span>
+            <span class="item-label">Fullscreen Editor</span>
+          </button>
+          <button 
+            class="menu-item {this.props.currentLayout === 'debug' ? 'active' : ''}"
+            @on_click={() => this.handleSelect("debug")}
+          >
+            <span class="item-icon">🐛</span>
+            <span class="item-label">Debug View</span>
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @style {
+    .dropdown {
+      position: relative;
+    }
+
+    .dropdown-trigger {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.375rem 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--color-gray-300, #d1d5db);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .dropdown-trigger:hover {
+      background: var(--color-gray-700, #374151);
+      border-radius: 0.25rem;
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 160px;
+      padding: 0.25rem;
+      background: var(--color-gray-800, #1f2937);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.375rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+    }
+
+    .dropdown-menu.right {
+      left: auto;
+      right: 0;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--color-gray-200, #e5e7eb);
+      font-size: 0.8125rem;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 0.25rem;
+    }
+
+    .menu-item:hover {
+      background: var(--color-gray-700, #374151);
+    }
+
+    .menu-item.active {
+      background: var(--color-purple-600, #9333ea);
+    }
+
+    .item-icon {
+      width: 1.25rem;
+      text-align: center;
+    }
+  }
+}
+
+// =============================================================================
+// THEME TOGGLE
+// =============================================================================
+
+/**
+ * Dark/Light theme toggle
+ */
+component ThemeToggle {
+  @props {
+    isDark: bool = true
+    onToggle: function()
+  }
+
+  @render {
+    <button 
+      class="theme-toggle"
+      @on_click={this.props.onToggle}
+      title={this.props.isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+    >
+      {this.props.isDark ? "🌙" : "☀️"}
+    </button>
+  }
+
+  @style {
+    .theme-toggle {
+      padding: 0.375rem 0.5rem;
+      background: transparent;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.1);
+    }
+  }
+}
+
+// =============================================================================
+// TOP BAR (MAIN COMPONENT)
+// =============================================================================
+
+/**
+ * Main Application Top Bar
+ * 
+ * Features:
+ * - File operations (new, open, save, export)
+ * - Example projects loader
+ * - View panel toggles
+ * - Layout presets
+ * - Theme switching
+ * - Compile/Run actions
+ * 
+ * @example
+ * <TopBar
+ *   isSaved={editor.isSaved}
+ *   onSave={() => saveCode()}
+ *   onCompile={() => compileCode()}
+ *   onLayoutChange={(layout) => setLayout(layout)}
+ * />
+ */
+component TopBar {
+  @props {
+    title: string = "HoloScript Playground"
+    version: string = "1.0.0"
+    isSaved: bool = true
+    isDarkMode: bool = true
+    currentLayout: string = "default"
+    showChat: bool = true
+    showErrors: bool = true
+    showInspector: bool = true
+    showAssets: bool = true
+    onNew: function()
+    onOpen: function()
+    onSave: function()
+    onSaveAs: function()
+    onExport: function(format: string)
+    onLoadExample: function(exampleId: string)
+    onCompile: function()
+    onRun: function()
+    onToggleDarkMode: function()
+    onLayoutChange: function(layout: string)
+    onToggleChat: function()
+    onToggleErrors: function()
+    onToggleInspector: function()
+    onToggleAssets: function()
+  }
+
+  @render {
+    <header class="top-bar">
+      <!-- Left Section -->
+      <div class="top-bar-left">
+        <div class="logo">
+          <span class="logo-icon">🌐</span>
+          <span class="logo-text">{this.props.title}</span>
+          <span class="version-badge">v{this.props.version}</span>
+        </div>
+
+        <div class="menu-bar">
+          <FileMenu
+            isSaved={this.props.isSaved}
+            onNew={this.props.onNew}
+            onOpen={this.props.onOpen}
+            onSave={this.props.onSave}
+            onSaveAs={this.props.onSaveAs}
+            onExport={this.props.onExport}
+          />
+          
+          <ExamplesMenu
+            onLoad={this.props.onLoadExample}
+          />
+        </div>
+      </div>
+
+      <!-- Center Section - Actions -->
+      <div class="top-bar-center">
+        <button class="action-button" @on_click={this.props.onCompile} title="Compile (Ctrl+Enter)">
+          ⚡ Compile
+        </button>
+        <button class="action-button primary" @on_click={this.props.onRun} title="Run">
+          ▶️ Run
+        </button>
+      </div>
+
+      <!-- Right Section -->
+      <div class="top-bar-right">
+        <ViewToggles
+          showChat={this.props.showChat}
+          showErrors={this.props.showErrors}
+          showInspector={this.props.showInspector}
+          showAssets={this.props.showAssets}
+          onToggleChat={this.props.onToggleChat}
+          onToggleErrors={this.props.onToggleErrors}
+          onToggleInspector={this.props.onToggleInspector}
+          onToggleAssets={this.props.onToggleAssets}
+        />
+
+        <div class="divider"></div>
+
+        <LayoutSelector
+          currentLayout={this.props.currentLayout}
+          onSelect={this.props.onLayoutChange}
+        />
+
+        <ThemeToggle
+          isDark={this.props.isDarkMode}
+          onToggle={this.props.onToggleDarkMode}
+        />
+      </div>
+    </header>
+  }
+
+  @style {
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+      height: 3rem;
+      background: var(--color-gray-800, #1f2937);
+      border-bottom: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .top-bar-left,
+    .top-bar-center,
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo-icon {
+      font-size: 1.25rem;
+    }
+
+    .logo-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--color-gray-100, #f3f4f6);
+    }
+
+    .version-badge {
+      font-size: 0.625rem;
+      padding: 0.125rem 0.375rem;
+      background: var(--color-gray-700, #374151);
+      color: var(--color-gray-400, #9ca3af);
+      border-radius: 0.25rem;
+    }
+
+    .menu-bar {
+      display: flex;
+      align-items: center;
+      margin-left: 1rem;
+    }
+
+    .action-button {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
+      background: var(--color-gray-700, #374151);
+      color: var(--color-gray-200, #e5e7eb);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .action-button:hover {
+      background: var(--color-gray-600, #4b5563);
+    }
+
+    .action-button.primary {
+      background: var(--color-green-600, #16a34a);
+      border-color: var(--color-green-500, #22c55e);
+      color: white;
+    }
+
+    .action-button.primary:hover {
+      background: var(--color-green-700, #15803d);
+    }
+
+    .divider {
+      width: 1px;
+      height: 1.5rem;
+      background: var(--color-gray-600, #4b5563);
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  TopBar,
+  FileMenu,
+  ExamplesMenu,
+  ViewToggles,
+  LayoutSelector,
+  ThemeToggle
+}

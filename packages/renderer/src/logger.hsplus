@@ -1,0 +1,98 @@
+/**
+ * @hololand/renderer Logger
+ * 
+ * Re-exports from @hololand/logger for renderer-specific logging.
+ * Provides a unified logging interface for the renderer package.
+ */
+
+import {
+  logger,
+  loggers,
+  createLogger,
+  setGlobalLogger,
+  getGlobalLogger,
+  resetGlobalLogger,
+  enableConsoleLogging,
+  NoOpLogger,
+  ConsoleLogger
+} from "@hololand/logger"
+
+import type {
+  HololandLogger,
+  LoggerOptions,
+  HololandRendererLogger
+} from "@hololand/logger"
+
+/**
+ * Renderer-specific logger instance
+ */
+module RendererLogger {
+  @state {
+    instance: HololandLogger = loggers.renderer
+  }
+
+  @method info(message: string, data: any = null) {
+    if data {
+      self.instance.info(message, data)
+    } else {
+      self.instance.info(message)
+    }
+  }
+
+  @method debug(message: string, data: any = null) {
+    if data {
+      self.instance.debug(message, data)
+    } else {
+      self.instance.debug(message)
+    }
+  }
+
+  @method warn(message: string, data: any = null) {
+    if data {
+      self.instance.warn(message, data)
+    } else {
+      self.instance.warn(message)
+    }
+  }
+
+  @method error(message: string, data: any = null) {
+    if data {
+      self.instance.error(message, data)
+    } else {
+      self.instance.error(message)
+    }
+  }
+
+  @method setLogger(newLogger: HololandLogger) {
+    self.instance = newLogger
+  }
+}
+
+// Get the renderer logger from loggers collection
+let rendererLogger = loggers.renderer
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Core logging exports
+  logger,
+  loggers,
+  createLogger,
+  setGlobalLogger,
+  getGlobalLogger,
+  resetGlobalLogger,
+  enableConsoleLogging,
+  NoOpLogger,
+  ConsoleLogger,
+
+  // Renderer-specific
+  rendererLogger,
+  RendererLogger,
+
+  // Types (re-exported)
+  type HololandLogger,
+  type LoggerOptions,
+  type HololandRendererLogger
+}

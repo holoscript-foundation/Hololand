@@ -21,24 +21,91 @@ import type {
   AssetReference,
 } from './VisualEditor';
 
-// Import the production HoloScript parser from @holoscript/core
-import {
-  parse as coreParseHoloScript,
-  HoloScriptParser,
-  type ParseResult as CoreParseResult,
-  type Program,
-  type WorldDeclaration,
-  type OrbDeclaration,
-  type OrbProperty,
-  type Expression,
-  type ArrayLiteral,
-  type ObjectLiteral,
-  type NumberLiteral,
-  type StringLiteral,
-  type BooleanLiteral,
-  type Vec3Literal,
-  type Identifier,
-} from '@holoscript/core';
+// =============================================================================
+// HOLOSCRIPT PARSER INTEGRATION
+// =============================================================================
+
+// Type definitions for @holoscript/core (inline to avoid module resolution issues)
+interface CoreParseResult {
+  success: boolean;
+  program?: CoreProgram;
+  errors: Array<{ message: string; line?: number; column?: number }>;
+  warnings: Array<{ message: string; line?: number; column?: number }>;
+}
+
+interface CoreProgram {
+  type: 'Program';
+  body: Array<CoreDeclaration | CoreStatement>;
+  sourceType: 'holo' | 'hsplus';
+}
+
+type CoreDeclaration = CoreWorldDeclaration | CoreOrbDeclaration | { type: string };
+type CoreStatement = { type: string };
+
+interface CoreWorldDeclaration {
+  type: 'WorldDeclaration';
+  name: string;
+  properties: CoreOrbProperty[];
+  children: Array<CoreOrbDeclaration | CoreStatement>;
+}
+
+interface CoreOrbDeclaration {
+  type: 'OrbDeclaration';
+  name: string;
+  properties: CoreOrbProperty[];
+  children?: CoreOrbDeclaration[];
+}
+
+interface CoreOrbProperty {
+  type: 'OrbProperty';
+  name: string;
+  value: CoreExpression;
+}
+
+type CoreExpression =
+  | { type: 'NumberLiteral'; value: number }
+  | { type: 'StringLiteral'; value: string }
+  | { type: 'BooleanLiteral'; value: boolean }
+  | { type: 'NullLiteral' }
+  | { type: 'ArrayLiteral'; elements: CoreExpression[] }
+  | { type: 'ObjectLiteral'; properties: Array<{ key: { type: string; name?: string; value?: string }; value: CoreExpression }> }
+  | { type: 'Vec3Literal'; x: CoreExpression; y: CoreExpression; z: CoreExpression }
+  | { type: 'ColorLiteral'; value: string }
+  | { type: 'Identifier'; name: string }
+  | { type: string };
+
+// Dynamic import of @holoscript/core parser (loaded at runtime)
+let coreParser: { parse: (source: string) => CoreParseResult } | null = null;
+
+/**
+ * Try to load the @holoscript/core parser dynamically
+ * Call this function at application startup to enable production-quality parsing
+ */
+export async function initHoloScriptParser(): Promise<boolean> {
+  if (coreParser) return true;
+  try {
+    // Dynamic import to avoid build-time resolution issues
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const core = await (Function('return import("@holoscript/core")')() as Promise<any>);
+    coreParser = { parse: core.parse };
+    return true;
+  } catch {
+    // Core parser not available, will use fallback
+    return false;
+  }
+}
+
+/**
+ * Parse with core parser if available, otherwise return null
+ */
+function parseWithCoreParser(source: string): CoreParseResult | null {
+  if (!coreParser) return null;
+  try {
+    return coreParser.parse(source);
+  } catch {
+    return null;
+  }
+}
 
 // =============================================================================
 // TYPES
@@ -564,11 +631,49 @@ export function importFromHoloScript(
   const warnings: string[] = [];
 
   try {
-    // Use the production @holoscript/core parser
-    const coreResult = coreParseHoloScript(source);
+    // Try production @holoscript/core parser first (if available)
+    const coreResult = parseWithCoreParser(source);
 
-    if (!coreResult.success) {
+    if (coreResult && coreResult.success && coreResult.program) {
       // Convert core parser errors to our format
+      for (const warn of coreResult.warnings) {
+        warnings.push(`Line ${warn.line || '?'}: ${warn.message}`);
+      }
+
+      // Convert the parsed Program AST to our internal AST format
+      const ast = programToInternalAST(coreResult.program);
+
+      if (ast.composition) {
+        const scene = internalAstToScene(ast, idPrefix);
+        if (validate) {
+          errors.push(...validateScene(scene));
+        }
+        return {
+          success: errors.filter(e => e.severity === 'error').length === 0,
+          scene,
+          errors,
+          warnings,
+        };
+      }
+    }
+
+    // Fallback to simplified parser for legacy .holo format or when core parser unavailable
+    const fallbackAst = parseHoloScriptSimplified(source);
+    if (fallbackAst.composition) {
+      const scene = internalAstToScene(fallbackAst, idPrefix);
+      if (validate) {
+        errors.push(...validateScene(scene));
+      }
+      return {
+        success: errors.filter(e => e.severity === 'error').length === 0,
+        scene,
+        errors,
+        warnings: coreResult ? [...warnings, 'Used fallback parser'] : warnings,
+      };
+    }
+
+    // Both parsers failed
+    if (coreResult && !coreResult.success) {
       for (const err of coreResult.errors) {
         errors.push({
           line: err.line || 0,
@@ -577,57 +682,15 @@ export function importFromHoloScript(
           severity: 'error',
         });
       }
-      return { success: false, errors, warnings };
-    }
-
-    // Convert warnings
-    for (const warn of coreResult.warnings) {
-      warnings.push(`Line ${warn.line || '?'}: ${warn.message}`);
-    }
-
-    // Convert the parsed Program AST to our internal AST format
-    const ast = programToInternalAST(coreResult.program!);
-
-    if (!ast.composition) {
-      // Try fallback simplified parser for older .holo format
-      const fallbackAst = parseHoloScriptSimplified(source);
-      if (fallbackAst.composition) {
-        const scene = internalAstToScene(fallbackAst, idPrefix);
-        if (validate) {
-          errors.push(...validateScene(scene));
-        }
-        return {
-          success: errors.filter(e => e.severity === 'error').length === 0,
-          scene,
-          errors,
-          warnings: [...warnings, 'Used fallback parser for legacy .holo format'],
-        };
-      }
-
+    } else {
       errors.push({
         line: 1,
         column: 1,
         message: 'No world/composition block found in HoloScript source',
         severity: 'error',
       });
-      return { success: false, errors, warnings };
     }
-
-    // Create scene from AST
-    const scene = internalAstToScene(ast, idPrefix);
-
-    // Validate if requested
-    if (validate) {
-      const validationErrors = validateScene(scene);
-      errors.push(...validationErrors);
-    }
-
-    return {
-      success: errors.filter(e => e.severity === 'error').length === 0,
-      scene,
-      errors,
-      warnings,
-    };
+    return { success: false, errors, warnings };
   } catch (error) {
     errors.push({
       line: 0,
@@ -646,13 +709,13 @@ export function importFromHoloScript(
 /**
  * Convert @holoscript/core Program AST to our internal AST format
  */
-function programToInternalAST(program: Program): HoloScriptAST {
+function programToInternalAST(program: CoreProgram): HoloScriptAST {
   const ast: HoloScriptAST = {};
 
   // Find WorldDeclaration nodes (HoloScript worlds map to compositions)
   for (const node of program.body) {
     if (node.type === 'WorldDeclaration') {
-      const world = node as WorldDeclaration;
+      const world = node as CoreWorldDeclaration;
       ast.composition = {
         name: world.name,
         nodes: [],
@@ -663,7 +726,7 @@ function programToInternalAST(program: Program): HoloScriptAST {
       // Convert child orbs to nodes
       for (const child of world.children) {
         if (child.type === 'OrbDeclaration') {
-          ast.composition.nodes.push(orbToASTNode(child as OrbDeclaration));
+          ast.composition.nodes.push(orbToASTNode(child as CoreOrbDeclaration));
         }
       }
     }
@@ -675,7 +738,7 @@ function programToInternalAST(program: Program): HoloScriptAST {
 /**
  * Extract world settings from OrbProperty array
  */
-function extractWorldSettings(properties: OrbProperty[]): Record<string, unknown> {
+function extractWorldSettings(properties: CoreOrbProperty[]): Record<string, unknown> {
   const settings: Record<string, unknown> = {};
 
   for (const prop of properties) {
@@ -703,7 +766,7 @@ function extractWorldSettings(properties: OrbProperty[]): Record<string, unknown
 /**
  * Convert OrbDeclaration to internal AST node
  */
-function orbToASTNode(orb: OrbDeclaration): HoloScriptASTNode {
+function orbToASTNode(orb: CoreOrbDeclaration): HoloScriptASTNode {
   const properties: Record<string, unknown> = {};
   let nodeType = 'object';
 
@@ -765,46 +828,49 @@ function orbToASTNode(orb: OrbDeclaration): HoloScriptASTNode {
 /**
  * Convert AST Expression to JavaScript value
  */
-function expressionToValue(expr: Expression): unknown {
+function expressionToValue(expr: CoreExpression): unknown {
   switch (expr.type) {
     case 'NumberLiteral':
-      return (expr as NumberLiteral).value;
+      return (expr as { type: 'NumberLiteral'; value: number }).value;
 
     case 'StringLiteral':
-      return (expr as StringLiteral).value;
+      return (expr as { type: 'StringLiteral'; value: string }).value;
 
     case 'BooleanLiteral':
-      return (expr as BooleanLiteral).value;
+      return (expr as { type: 'BooleanLiteral'; value: boolean }).value;
 
     case 'NullLiteral':
       return null;
 
     case 'ArrayLiteral':
-      return (expr as ArrayLiteral).elements.map(expressionToValue);
+      return (expr as { type: 'ArrayLiteral'; elements: CoreExpression[] }).elements.map(expressionToValue);
 
-    case 'ObjectLiteral':
+    case 'ObjectLiteral': {
       const obj: Record<string, unknown> = {};
-      for (const prop of (expr as ObjectLiteral).properties) {
+      const objExpr = expr as { type: 'ObjectLiteral'; properties: Array<{ key: { type: string; name?: string; value?: string }; value: CoreExpression }> };
+      for (const prop of objExpr.properties) {
         const key = prop.key.type === 'Identifier'
-          ? (prop.key as Identifier).name
-          : (prop.key as StringLiteral).value;
+          ? prop.key.name || ''
+          : prop.key.value || '';
         obj[key] = expressionToValue(prop.value);
       }
       return obj;
+    }
 
-    case 'Vec3Literal':
-      const v3 = expr as Vec3Literal;
+    case 'Vec3Literal': {
+      const v3 = expr as { type: 'Vec3Literal'; x: CoreExpression; y: CoreExpression; z: CoreExpression };
       return [
         expressionToValue(v3.x),
         expressionToValue(v3.y),
         expressionToValue(v3.z),
       ];
+    }
 
     case 'ColorLiteral':
       return (expr as { value: string }).value;
 
     case 'Identifier':
-      return (expr as Identifier).name;
+      return (expr as { type: 'Identifier'; name: string }).name;
 
     default:
       return null;

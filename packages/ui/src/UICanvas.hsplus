@@ -1,0 +1,392 @@
+/**
+ * @hololand/ui - UICanvas
+ * Main canvas manager for 2D UI rendering
+ */
+
+import {
+  UICanvasConfig,
+  Vector2,
+  BreakpointConfig
+} from "./types.hsplus"
+
+// =============================================================================
+// UI CANVAS
+// =============================================================================
+
+/**
+ * UICanvas - manages 2D UI rendering and input
+ */
+module UICanvas {
+  @state {
+    canvas: HTMLCanvasElement = null,
+    ctx: CanvasRenderingContext2D = null,
+    root: array<any> = [],
+    width: number = 800,
+    height: number = 600,
+    pixelRatio: number = 1,
+    transparent: bool = false,
+    backgroundColor: string = "#f5f5f5",
+    running: bool = false,
+    lastTime: number = 0,
+    focusedComponent: any = null,
+    dirty: bool = true,
+    breakpoints: BreakpointConfig = { mobile: 480, tablet: 768, desktop: 1024 },
+    currentBreakpoint: string = "desktop",
+    animationFrameId: number = null
+  }
+
+  @action initialize(canvasElement: HTMLCanvasElement, config: UICanvasConfig = {}) {
+    self.canvas = canvasElement
+    let ctx = canvasElement.getContext("2d")
+    if !ctx {
+      throw new Error("Failed to get 2D context from canvas")
+    }
+    self.ctx = ctx
+
+    self.width = config.width ?? canvasElement.width ?? 800
+    self.height = config.height ?? canvasElement.height ?? 600
+    self.pixelRatio = config.pixelRatio ?? (typeof window != "undefined" ? window.devicePixelRatio : 1)
+    self.transparent = config.transparent ?? false
+    self.breakpoints = config.breakpoints ?? { mobile: 480, tablet: 768, desktop: 1024 }
+
+    self.resize(self.width, self.height)
+    self.setupEventListeners()
+    self.updateBreakpoint()
+    self.dirty = true
+    self.root = []
+  }
+
+  // ==========================================================================
+  // SIZE & LAYOUT
+  // ==========================================================================
+
+  @action setBackgroundColor(color: string) {
+    self.backgroundColor = color
+    self.dirty = true
+  }
+
+  @action resize(width: number, height: number) {
+    self.width = width
+    self.height = height
+
+    // Set display size
+    self.canvas.style.width = `${width}px`
+    self.canvas.style.height = `${height}px`
+
+    // Set actual size with pixel ratio for HiDPI
+    self.canvas.width = Math.floor(width * self.pixelRatio)
+    self.canvas.height = Math.floor(height * self.pixelRatio)
+
+    // Scale context for pixel ratio
+    self.ctx.setTransform(1, 0, 0, 1, 0, 0)
+    self.ctx.scale(self.pixelRatio, self.pixelRatio)
+
+    self.updateBreakpoint()
+    self.dirty = true
+  }
+
+  @method updateBreakpoint() {
+    if self.width < self.breakpoints.mobile {
+      self.currentBreakpoint = "mobile"
+    } else if self.width < self.breakpoints.tablet {
+      self.currentBreakpoint = "tablet"
+    } else {
+      self.currentBreakpoint = "desktop"
+    }
+  }
+
+  @computed getBreakpoint() -> string {
+    return self.currentBreakpoint
+  }
+
+  // ==========================================================================
+  // COMPONENT MANAGEMENT
+  // ==========================================================================
+
+  @action add(component: any) {
+    component.parent = self
+    self.root.push(component)
+    self.dirty = true
+  }
+
+  @action remove(component: any) {
+    let index = self.root.indexOf(component)
+    if index >= 0 {
+      self.root.splice(index, 1)
+      component.parent = null
+      self.dirty = true
+    }
+  }
+
+  @action clear() {
+    for comp in self.root {
+      comp.parent = null
+    }
+    self.root = []
+    self.dirty = true
+  }
+
+  /**
+   * Find component at point
+   */
+  @method findComponentAt(point: Vector2) -> any | null {
+    // Search in reverse order (top-most first by z-index)
+    let sorted = [...self.root].sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0))
+
+    for comp in sorted {
+      if comp.visible && comp.containsPoint {
+        if comp.containsPoint(point) {
+          return comp
+        }
+      }
+    }
+
+    return null
+  }
+
+  // ==========================================================================
+  // EVENT HANDLING
+  // ==========================================================================
+
+  @method setupEventListeners() {
+    // Mouse events
+    self.canvas.addEventListener("mousedown", (e) => self.handlePointerDown(e))
+    self.canvas.addEventListener("mouseup", (e) => self.handlePointerUp(e))
+    self.canvas.addEventListener("mousemove", (e) => self.handlePointerMove(e))
+    self.canvas.addEventListener("mouseleave", (e) => self.handlePointerLeave(e))
+
+    // Touch events
+    self.canvas.addEventListener("touchstart", (e) => self.handleTouchStart(e))
+    self.canvas.addEventListener("touchend", (e) => self.handleTouchEnd(e))
+    self.canvas.addEventListener("touchmove", (e) => self.handleTouchMove(e))
+
+    // Keyboard events
+    if typeof window != "undefined" {
+      window.addEventListener("keydown", (e) => self.handleKeyDown(e))
+    }
+
+    // Resize handling
+    if typeof window != "undefined" {
+      window.addEventListener("resize", () => {
+        // Optional: auto-resize to parent
+        // let parent = self.canvas.parentElement
+        // if parent {
+        //   self.resize(parent.clientWidth, parent.clientHeight)
+        // }
+      })
+    }
+  }
+
+  @method getCanvasPosition(e: MouseEvent) -> Vector2 {
+    let rect = self.canvas.getBoundingClientRect()
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    }
+  }
+
+  @method getTouchPosition(touch: Touch) -> Vector2 {
+    let rect = self.canvas.getBoundingClientRect()
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    }
+  }
+
+  @method handlePointerDown(e: MouseEvent) {
+    let pos = self.getCanvasPosition(e)
+    let comp = self.findComponentAt(pos)
+
+    // Handle focus change
+    if self.focusedComponent && self.focusedComponent != comp {
+      if self.focusedComponent.blur {
+        self.focusedComponent.blur()
+      }
+    }
+
+    if comp {
+      if comp.handlePointerDown {
+        comp.handlePointerDown(pos)
+      }
+      if comp.focus {
+        comp.focus()
+        self.focusedComponent = comp
+      }
+    } else {
+      self.focusedComponent = null
+    }
+  }
+
+  @method handlePointerUp(e: MouseEvent) {
+    let pos = self.getCanvasPosition(e)
+
+    for comp in self.root {
+      if comp.handlePointerUp {
+        comp.handlePointerUp(pos)
+      }
+    }
+  }
+
+  @method handlePointerMove(e: MouseEvent) {
+    let pos = self.getCanvasPosition(e)
+
+    for comp in self.root {
+      if comp.handlePointerMove {
+        comp.handlePointerMove(pos)
+      }
+
+      // Handle hover states
+      if comp.containsPoint && comp.handlePointerEnter && comp.handlePointerLeave {
+        let isInside = comp.containsPoint(pos)
+        // Simplified hover tracking - real implementation would track state per component
+      }
+    }
+  }
+
+  @method handlePointerLeave(e: MouseEvent) {
+    for comp in self.root {
+      if comp.handlePointerLeave {
+        comp.handlePointerLeave()
+      }
+    }
+  }
+
+  @method handleTouchStart(e: TouchEvent) {
+    e.preventDefault()
+    if e.touches.length > 0 {
+      let pos = self.getTouchPosition(e.touches[0])
+      let comp = self.findComponentAt(pos)
+      if comp && comp.handlePointerDown {
+        comp.handlePointerDown(pos)
+      }
+    }
+  }
+
+  @method handleTouchEnd(e: TouchEvent) {
+    for comp in self.root {
+      if comp.handlePointerUp {
+        comp.handlePointerUp(null)
+      }
+    }
+  }
+
+  @method handleTouchMove(e: TouchEvent) {
+    if e.touches.length > 0 {
+      let pos = self.getTouchPosition(e.touches[0])
+      for comp in self.root {
+        if comp.handlePointerMove {
+          comp.handlePointerMove(pos)
+        }
+      }
+    }
+  }
+
+  @method handleKeyDown(e: KeyboardEvent) {
+    if self.focusedComponent && self.focusedComponent.handleKeyDown {
+      self.focusedComponent.handleKeyDown(e.key, e.ctrlKey)
+    }
+  }
+
+  // ==========================================================================
+  // RENDERING
+  // ==========================================================================
+
+  @action start() {
+    if self.running { return }
+    self.running = true
+    self.lastTime = performance.now()
+    self.loop()
+  }
+
+  @action stop() {
+    self.running = false
+    if self.animationFrameId {
+      cancelAnimationFrame(self.animationFrameId)
+      self.animationFrameId = null
+    }
+  }
+
+  @method loop() {
+    if !self.running { return }
+
+    let currentTime = performance.now()
+    let deltaTime = (currentTime - self.lastTime) / 1000
+    self.lastTime = currentTime
+
+    // Update components
+    for comp in self.root {
+      if comp.update {
+        comp.update(deltaTime)
+      }
+    }
+
+    // Render if needed
+    if self.dirty || self.anyDirty() {
+      self.render()
+    }
+
+    self.animationFrameId = requestAnimationFrame(() => self.loop())
+  }
+
+  @method anyDirty() -> bool {
+    for comp in self.root {
+      if comp.dirty || (comp.isDirty && comp.isDirty()) {
+        return true
+      }
+    }
+    return false
+  }
+
+  @action render() {
+    // Clear canvas
+    if self.transparent {
+      self.ctx.clearRect(0, 0, self.width, self.height)
+    } else {
+      self.ctx.fillStyle = self.backgroundColor
+      self.ctx.fillRect(0, 0, self.width, self.height)
+    }
+
+    // Sort by z-index and render
+    let sorted = [...self.root].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+
+    for comp in sorted {
+      if comp.visible && comp.render {
+        comp.render(self.ctx)
+      }
+    }
+
+    self.dirty = false
+  }
+
+  @action markDirty() {
+    self.dirty = true
+  }
+
+  // ==========================================================================
+  // DISPOSE
+  // ==========================================================================
+
+  @action dispose() {
+    self.stop()
+    self.clear()
+    // Remove event listeners would go here
+  }
+}
+
+// =============================================================================
+// FACTORY
+// =============================================================================
+
+function createUICanvas(canvasElement: HTMLCanvasElement, config: UICanvasConfig = {}) -> typeof UICanvas {
+  UICanvas.initialize(canvasElement, config)
+  return UICanvas
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  UICanvas,
+  createUICanvas
+}

@@ -1,0 +1,442 @@
+/**
+ * EventBus.hsplus
+ * 
+ * Central event bus for HoloScript application communication.
+ * Provides pub/sub, typed events, wildcards, and event history.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct EventCallback {
+  id: string
+  pattern: string
+  callback: Function
+  once: boolean
+}
+
+struct EventRecord {
+  type: string
+  payload: any
+  timestamp: number
+  source: string
+}
+
+// =============================================================================
+// EVENT BUS MODULE
+// =============================================================================
+
+module EventBus {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    listeners: Map<string, EventCallback[]> = new Map()
+    wildcardListeners: EventCallback[] = []
+    history: EventRecord[] = []
+    historyLimit: number = 100
+    debugMode: boolean = false
+    callbackIdCounter: number = 0
+  }
+  
+  // =========================================================================
+  // CORE SUBSCRIBE/UNSUBSCRIBE
+  // =========================================================================
+  
+  @action subscribe(
+    pattern: string,
+    callback: Function,
+    options?: { once?: boolean }
+  ): string {
+    const id = `evt_${++this.state.callbackIdCounter}`
+    const entry: EventCallback = {
+      id,
+      pattern,
+      callback,
+      once: options?.once || false
+    }
+    
+    // Wildcard subscription
+    if (pattern === "*" || pattern.endsWith(".*")) {
+      this.state.wildcardListeners.push(entry)
+      return id
+    }
+    
+    // Specific event subscription
+    if (!this.state.listeners.has(pattern)) {
+      this.state.listeners.set(pattern, [])
+    }
+    this.state.listeners.get(pattern).push(entry)
+    
+    if (this.state.debugMode) {
+      console.log(`[EventBus] Subscribed: ${pattern} (${id})`)
+    }
+    
+    return id
+  }
+  
+  @action unsubscribe(id: string): boolean {
+    // Check specific listeners
+    for (const [pattern, callbacks] of this.state.listeners.entries()) {
+      const index = callbacks.findIndex(c => c.id === id)
+      if (index !== -1) {
+        callbacks.splice(index, 1)
+        if (callbacks.length === 0) {
+          this.state.listeners.delete(pattern)
+        }
+        return true
+      }
+    }
+    
+    // Check wildcard listeners
+    const wcIndex = this.state.wildcardListeners.findIndex(c => c.id === id)
+    if (wcIndex !== -1) {
+      this.state.wildcardListeners.splice(wcIndex, 1)
+      return true
+    }
+    
+    return false
+  }
+  
+  // =========================================================================
+  // CONVENIENCE METHODS
+  // =========================================================================
+  
+  @action on(pattern: string, callback: Function): string {
+    return this.subscribe(pattern, callback)
+  }
+  
+  @action once(pattern: string, callback: Function): string {
+    return this.subscribe(pattern, callback, { once: true })
+  }
+  
+  @action off(id: string): boolean {
+    return this.unsubscribe(id)
+  }
+  
+  // =========================================================================
+  // EMIT
+  // =========================================================================
+  
+  @action emit(
+    type: string,
+    payload?: any,
+    options?: { source?: string, recordHistory?: boolean }
+  ): void {
+    const source = options?.source || "unknown"
+    const recordHistory = options?.recordHistory !== false
+    
+    if (this.state.debugMode) {
+      console.log(`[EventBus] Emit: ${type}`, payload)
+    }
+    
+    // Record in history
+    if (recordHistory) {
+      this.recordEvent(type, payload, source)
+    }
+    
+    // Notify specific listeners
+    const listeners = this.state.listeners.get(type) || []
+    this.notifyListeners(listeners, type, payload)
+    
+    // Notify wildcard listeners
+    this.notifyWildcardListeners(type, payload)
+  }
+  
+  @method notifyListeners(
+    listeners: EventCallback[],
+    type: string,
+    payload: any
+  ): void {
+    const toRemove: string[] = []
+    
+    for (const listener of listeners) {
+      try {
+        listener.callback(payload, { type })
+      } catch (err) {
+        console.error(`[EventBus] Callback error for ${type}:`, err)
+      }
+      
+      if (listener.once) {
+        toRemove.push(listener.id)
+      }
+    }
+    
+    // Remove once listeners
+    for (const id of toRemove) {
+      this.unsubscribe(id)
+    }
+  }
+  
+  @method notifyWildcardListeners(type: string, payload: any): void {
+    const toRemove: string[] = []
+    
+    for (const listener of this.state.wildcardListeners) {
+      // Check if pattern matches
+      if (listener.pattern === "*" || this.matchesPattern(type, listener.pattern)) {
+        try {
+          listener.callback(payload, { type })
+        } catch (err) {
+          console.error(`[EventBus] Wildcard callback error:`, err)
+        }
+        
+        if (listener.once) {
+          toRemove.push(listener.id)
+        }
+      }
+    }
+    
+    for (const id of toRemove) {
+      this.unsubscribe(id)
+    }
+  }
+  
+  @method matchesPattern(type: string, pattern: string): boolean {
+    if (pattern === "*") return true
+    
+    if (pattern.endsWith(".*")) {
+      const prefix = pattern.slice(0, -2)
+      return type.startsWith(prefix + ".")
+    }
+    
+    return type === pattern
+  }
+  
+  // =========================================================================
+  // EVENT HISTORY
+  // =========================================================================
+  
+  @action recordEvent(type: string, payload: any, source: string): void {
+    const record: EventRecord = {
+      type,
+      payload,
+      timestamp: Date.now(),
+      source
+    }
+    
+    this.state.history.push(record)
+    
+    // Trim history if over limit
+    while (this.state.history.length > this.state.historyLimit) {
+      this.state.history.shift()
+    }
+  }
+  
+  @method getHistory(filter?: { type?: string, since?: number }): EventRecord[] {
+    let records = [...this.state.history]
+    
+    if (filter?.type) {
+      records = records.filter(r => r.type === filter.type || 
+        this.matchesPattern(r.type, filter.type))
+    }
+    
+    if (filter?.since) {
+      records = records.filter(r => r.timestamp >= filter.since)
+    }
+    
+    return records
+  }
+  
+  @action clearHistory(): void {
+    this.state.history = []
+  }
+  
+  @action setHistoryLimit(limit: number): void {
+    this.state.historyLimit = limit
+    while (this.state.history.length > limit) {
+      this.state.history.shift()
+    }
+  }
+  
+  // =========================================================================
+  // BATCH OPERATIONS
+  // =========================================================================
+  
+  @action emitBatch(events: { type: string, payload?: any }[]): void {
+    for (const event of events) {
+      this.emit(event.type, event.payload)
+    }
+  }
+  
+  @action subscribeMultiple(
+    patterns: string[],
+    callback: Function
+  ): string[] {
+    return patterns.map(pattern => this.subscribe(pattern, callback))
+  }
+  
+  @action unsubscribeAll(ids: string[]): void {
+    for (const id of ids) {
+      this.unsubscribe(id)
+    }
+  }
+  
+  // =========================================================================
+  // CHANNEL NAMESPACING
+  // =========================================================================
+  
+  @method createChannel(namespace: string): EventChannel {
+    return new EventChannel(namespace, this)
+  }
+  
+  // =========================================================================
+  // DEBUG & INTROSPECTION
+  // =========================================================================
+  
+  @action setDebugMode(enabled: boolean): void {
+    this.state.debugMode = enabled
+  }
+  
+  @method getListenerCount(pattern?: string): number {
+    if (pattern) {
+      return (this.state.listeners.get(pattern) || []).length
+    }
+    
+    let count = this.state.wildcardListeners.length
+    for (const callbacks of this.state.listeners.values()) {
+      count += callbacks.length
+    }
+    return count
+  }
+  
+  @method getPatterns(): string[] {
+    return Array.from(this.state.listeners.keys())
+  }
+  
+  @action reset(): void {
+    this.state.listeners.clear()
+    this.state.wildcardListeners = []
+    this.state.history = []
+    this.state.callbackIdCounter = 0
+  }
+}
+
+// =============================================================================
+// EVENT CHANNEL (NAMESPACED EVENTS)
+// =============================================================================
+
+module EventChannel {
+  @state {
+    namespace: string = ""
+    bus: EventBus = null
+    subscriptionIds: string[] = []
+  }
+  
+  @action initialize(namespace: string, bus: EventBus): void {
+    this.state.namespace = namespace
+    this.state.bus = bus
+  }
+  
+  @action emit(type: string, payload?: any): void {
+    this.state.bus.emit(`${this.state.namespace}.${type}`, payload)
+  }
+  
+  @action on(type: string, callback: Function): string {
+    const fullType = `${this.state.namespace}.${type}`
+    const id = this.state.bus.subscribe(fullType, callback)
+    this.state.subscriptionIds.push(id)
+    return id
+  }
+  
+  @action once(type: string, callback: Function): string {
+    const fullType = `${this.state.namespace}.${type}`
+    const id = this.state.bus.once(fullType, callback)
+    this.state.subscriptionIds.push(id)
+    return id
+  }
+  
+  @action onAll(callback: Function): string {
+    const pattern = `${this.state.namespace}.*`
+    const id = this.state.bus.subscribe(pattern, callback)
+    this.state.subscriptionIds.push(id)
+    return id
+  }
+  
+  @action dispose(): void {
+    for (const id of this.state.subscriptionIds) {
+      this.state.bus.unsubscribe(id)
+    }
+    this.state.subscriptionIds = []
+  }
+}
+
+// =============================================================================
+// TYPED EVENT HELPERS
+// =============================================================================
+
+module TypedEvents {
+  // HoloScript Events
+  const CODE_EVENTS = {
+    PARSE_START: "code.parse.start",
+    PARSE_COMPLETE: "code.parse.complete",
+    PARSE_ERROR: "code.parse.error",
+    EXECUTE_START: "code.execute.start",
+    EXECUTE_COMPLETE: "code.execute.complete",
+    EXECUTE_ERROR: "code.execute.error"
+  }
+  
+  // Editor Events
+  const EDITOR_EVENTS = {
+    CHANGE: "editor.change",
+    SAVE: "editor.save",
+    CURSOR_MOVE: "editor.cursor.move",
+    SELECTION_CHANGE: "editor.selection.change",
+    FOCUS: "editor.focus",
+    BLUR: "editor.blur"
+  }
+  
+  // Preview Events
+  const PREVIEW_EVENTS = {
+    RENDER_START: "preview.render.start",
+    RENDER_COMPLETE: "preview.render.complete",
+    RENDER_ERROR: "preview.render.error",
+    OBJECT_SELECT: "preview.object.select",
+    CAMERA_MOVE: "preview.camera.move"
+  }
+  
+  // Battle Events
+  const BATTLE_EVENTS = {
+    START: "battle.start",
+    END: "battle.end",
+    NPC_SPAWN: "battle.npc.spawn",
+    NPC_DEATH: "battle.npc.death",
+    DAMAGE: "battle.damage",
+    PROJECTILE: "battle.projectile"
+  }
+  
+  // AI Events
+  const AI_EVENTS = {
+    GENERATION_START: "ai.generation.start",
+    GENERATION_CHUNK: "ai.generation.chunk",
+    GENERATION_COMPLETE: "ai.generation.complete",
+    GENERATION_ERROR: "ai.generation.error",
+    CHAT_MESSAGE: "ai.chat.message"
+  }
+  
+  @method all(): object {
+    return {
+      ...CODE_EVENTS,
+      ...EDITOR_EVENTS,
+      ...PREVIEW_EVENTS,
+      ...BATTLE_EVENTS,
+      ...AI_EVENTS
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  EventBus,
+  EventChannel,
+  TypedEvents,
+  EventCallback,
+  EventRecord
+}

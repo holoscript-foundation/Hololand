@@ -1,0 +1,191 @@
+/**
+ * Physics Playground - HoloScript+ Example
+ *
+ * Demonstrates physics simulation with interactive objects.
+ */
+
+const sceneSource = `
+composition "Physics Playground" {
+  sky { type: "hdri", source: "/textures/sky-sunset.hdr" }
+  
+  ground {
+    type: "plane"
+    size: [30, 30]
+    material: { color: "#2d3436", roughness: 0.6 }
+    traits: ["physics"]
+    physics: { mass: 0, static: true }
+  }
+
+  // Stacking blocks
+  spatial_group "BlockTower" at [-5, 0, 0] {
+    template "Block" {
+      state { hits: 0 }
+      action onHit() { self.hits += 1 }
+    }
+
+    object "block-1" using "Block" {
+      position: [0, 0.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#e74c3c" }
+      traits: ["physics", "breakable"]
+      physics: { mass: 1.0 }
+      breakable: { threshold: 10, fragments: 4 }
+    }
+
+    object "block-2" using "Block" {
+      position: [0, 1.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#e67e22" }
+      traits: ["physics", "breakable"]
+    }
+
+    object "block-3" using "Block" {
+      position: [0, 2.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#f1c40f" }
+      traits: ["physics", "breakable"]
+    }
+  }
+
+  // Bouncy balls
+  spatial_group "BouncyBalls" at [5, 0, 0] {
+    sphere "ball-1" {
+      position: [0, 5, 0]
+      radius: 0.3
+      material: { color: "#9b59b6", metallic: 0.8 }
+      traits: ["physics", "grabbable"]
+      physics: { mass: 0.5, bounce: 0.95 }
+    }
+
+    sphere "ball-2" {
+      position: [0.5, 6, 0]
+      radius: 0.25
+      material: { color: "#3498db" }
+      traits: ["physics", "grabbable"]
+      physics: { mass: 0.3, bounce: 0.9 }
+    }
+
+    sphere "ball-3" {
+      position: [-0.5, 7, 0]
+      radius: 0.35
+      material: { color: "#1abc9c" }
+      traits: ["physics", "grabbable"]
+      physics: { mass: 0.7, bounce: 0.85 }
+    }
+  }
+
+  // Ramps
+  spatial_group "Ramps" at [0, 0, -5] {
+    object "ramp" {
+      mesh: "box"
+      size: [3, 0.2, 6]
+      position: [0, 1, 0]
+      rotation: [15, 0, 0]
+      material: { color: "#34495e" }
+      traits: ["physics"]
+      physics: { static: true, friction: 0.3 }
+    }
+  }
+
+  // Gravity zones
+  spatial_group "GravityZones" at [0, 3, 5] {
+    zone "low-gravity" {
+      shape: "sphere"
+      radius: 3
+      traits: ["gravity_modifier"]
+      gravity_modifier: { strength: 0.2, direction: [0, -1, 0] }
+      visual: { glow: "#00ffff", opacity: 0.1 }
+    }
+
+    zone "reverse-gravity" {
+      shape: "box"
+      size: [2, 2, 2]
+      position: [5, 0, 0]
+      traits: ["gravity_modifier"]
+      gravity_modifier: { strength: 1.0, direction: [0, 1, 0] }
+      visual: { glow: "#ff00ff", opacity: 0.1 }
+    }
+  }
+
+  // Physics controls
+  ui_panel "controls" at screen [0.9, 0.5] {
+    button "reset" {
+      label: "Reset Scene"
+      on_click: { emit("reset_physics") }
+    }
+    slider "gravity" {
+      label: "Gravity"
+      min: 0
+      max: 20
+      default: 9.8
+      on_change(value): { set_global_gravity([0, -value, 0]) }
+    }
+    slider "time-scale" {
+      label: "Time Scale"
+      min: 0.1
+      max: 2.0
+      default: 1.0
+      on_change(value): { set_time_scale(value) }
+    }
+  }
+
+  logic {
+    on("reset_physics") {
+      reset_scene("Physics Playground")
+    }
+
+    on_collision(a, b) {
+      const impact = collision_force(a, b)
+      if impact > 5 {
+        play_sound("impact_heavy")
+        spawn_particles("dust", collision_point(a, b))
+      }
+    }
+  }
+}
+`
+
+module PhysicsPlayground {
+  @state {
+    bridge: any = null
+    physicsWorld: any = null
+    timeScale: float = 1.0
+    gravity: [float, float, float] = [0, -9.8, 0]
+  }
+
+  @action async start() {
+    // Initialize and run physics scene
+    const { createHoloScriptBridge, parseExpectSuccess } = await import("@hololand/core")
+    
+    self.bridge = createHoloScriptBridge({ worldId: "physics-playground" })
+    await self.bridge.connect()
+    
+    const ast = parseExpectSuccess(sceneSource)
+    await self.bridge.execute(ast)
+  }
+
+  @action setTimeScale(scale: float) {
+    self.timeScale = Math.max(0.1, Math.min(2.0, scale))
+  }
+
+  @action setGravity(g: [float, float, float]) {
+    self.gravity = g
+    self.bridge.execute({
+      type: "command",
+      action: "set_gravity",
+      value: g
+    })
+  }
+
+  @action resetScene() {
+    self.bridge.execute({
+      type: "command",
+      action: "reset_scene"
+    })
+  }
+}
+
+export { PhysicsPlayground, sceneSource }

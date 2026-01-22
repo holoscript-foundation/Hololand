@@ -1,0 +1,359 @@
+// HOSL: BrittneyPanel
+// AI result panel for WorldBuilder
+// Shows generation, explanation, and optimization results
+
+component BrittneyPanel {
+  @state {
+    visible: false
+    type: "none" // generate | explain | optimize | none
+    loading: false
+    result: null
+    error: null
+    collapsed: false
+  }
+
+  @props {
+    position: [20, 80]
+    width: 400
+    max_height: 600
+    theme: "dark"
+    on_apply: null
+    on_copy: null
+    on_close: null
+    on_autofix: null
+  }
+
+  // Show generation panel
+  @method showGenerate(result) => {
+    state.type = "generate"
+    state.visible = true
+    state.loading = false
+    state.result = result
+    state.error = result.error || null
+  }
+
+  // Show explanation panel
+  @method showExplain(result) => {
+    state.type = "explain"
+    state.visible = true
+    state.loading = false
+    state.result = result
+    state.error = result.error || null
+  }
+
+  // Show optimization panel
+  @method showOptimize(result) => {
+    state.type = "optimize"
+    state.visible = true
+    state.loading = false
+    state.result = result
+    state.error = result.error || null
+  }
+
+  // Set loading state
+  @method setLoading(type) => {
+    state.type = type
+    state.visible = true
+    state.loading = true
+    state.result = null
+    state.error = null
+  }
+
+  // Hide panel
+  @method hide() => {
+    state.visible = false
+    state.type = "none"
+    if (props.on_close) props.on_close()
+  }
+
+  // Get title based on type
+  @computed title => {
+    match state.type {
+      "generate" => "✨ Generate with AI"
+      "explain" => "💡 Explanation"
+      "optimize" => "⚡ Optimization"
+      _ => ""
+    }
+  }
+
+  // Main container
+  panel#main {
+    visible: ${state.visible}
+    position: ${props.position}
+    width: ${props.width}
+    max_height: ${props.max_height}
+    background: "#1e1e2e"
+    border: "1px solid #313244"
+    border_radius: 12
+    shadow: "0 8px 32px rgba(0, 0, 0, 0.5)"
+    z_index: 9998
+
+    // Header
+    panel#header {
+      height: 44
+      background: "linear-gradient(135deg, #7c3aed, #6366f1)"
+      border_radius: [12, 12, 0, 0]
+      padding: [12, 16]
+      layout: "horizontal"
+      justify: "space-between"
+      align: "center"
+
+      text#title {
+        value: ${this.title}
+        color: "#ffffff"
+        weight: 600
+        size: 15
+      }
+
+      button#close_btn {
+        value: "×"
+        width: 24
+        height: 24
+        background: "transparent"
+        color: "#ffffff"
+        size: 20
+        opacity: 0.8
+        cursor: "pointer"
+
+        @on_hover_enter => { this.opacity = 1 }
+        @on_hover_exit => { this.opacity = 0.8 }
+        @on_click => { this.hide() }
+      }
+    }
+
+    // Content area
+    scroll#content {
+      padding: 16
+      max_height: ${props.max_height - 60}
+      color: "#cdd6f4"
+
+      // Loading state
+      panel#loading {
+        visible: ${state.loading}
+        layout: "horizontal"
+        justify: "center"
+        align: "center"
+        gap: 12
+        padding: 32
+
+        spinner#spinner {
+          size: 24
+          color: "#7c3aed"
+        }
+
+        text#loading_text {
+          value: "Thinking..."
+          color: "#cdd6f4"
+        }
+      }
+
+      // Error state
+      panel#error {
+        visible: ${state.error != null && !state.loading}
+        padding: 12
+        background: "rgba(243, 139, 168, 0.2)"
+        border_radius: 8
+        layout: "horizontal"
+        align: "center"
+        gap: 8
+
+        text#error_icon {
+          value: "❌"
+        }
+
+        text#error_msg {
+          value: ${state.error || ""}
+          color: "#f38ba8"
+        }
+      }
+
+      // Generate result
+      panel#generate_result {
+        visible: ${state.type == "generate" && state.result && !state.loading}
+
+        text#explanation {
+          value: ${state.result?.explanation || ""}
+          visible: ${state.result?.explanation != null}
+          margin_bottom: 12
+        }
+
+        code#holoscript {
+          value: ${state.result?.holoScript || ""}
+          visible: ${state.result?.holoScript != null}
+          language: "holoscript"
+          background: "#11111b"
+          padding: 12
+          border_radius: 8
+          font_size: 13
+          margin: [12, 0]
+        }
+
+        panel#actions {
+          layout: "horizontal"
+          gap: 8
+          margin_top: 12
+
+          button#apply_btn {
+            value: "Apply to Scene"
+            padding: [8, 16]
+            background: "linear-gradient(135deg, #7c3aed, #6366f1)"
+            color: "#ffffff"
+            border_radius: 6
+            weight: 500
+            cursor: "pointer"
+
+            @on_click => {
+              if (props.on_apply) props.on_apply(state.result.holoScript)
+            }
+          }
+
+          button#copy_btn {
+            value: "Copy Code"
+            padding: [8, 16]
+            background: "#313244"
+            color: "#cdd6f4"
+            border_radius: 6
+            weight: 500
+            cursor: "pointer"
+
+            @on_click => {
+              if (props.on_copy) props.on_copy(state.result.holoScript)
+            }
+          }
+        }
+      }
+
+      // Explain result
+      panel#explain_result {
+        visible: ${state.type == "explain" && state.result && !state.loading}
+
+        text#explanation {
+          value: ${state.result?.explanation || ""}
+          line_height: 1.5
+        }
+
+        panel#suggestions {
+          visible: ${state.result?.suggestions?.length > 0}
+          margin_top: 16
+
+          text#suggestions_title {
+            value: "Suggestions:"
+            weight: 600
+            margin_bottom: 8
+          }
+
+          list#suggestions_list {
+            items: ${state.result?.suggestions || []}
+            
+            template(suggestion, index) => {
+              panel#suggestion_item {
+                layout: "horizontal"
+                gap: 8
+                margin: [4, 0]
+
+                text#bullet {
+                  value: "•"
+                  color: "#7c3aed"
+                }
+
+                text#text {
+                  value: ${suggestion}
+                  flex: 1
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Optimize result
+      panel#optimize_result {
+        visible: ${state.type == "optimize" && state.result && !state.loading}
+
+        // Health score
+        panel#health_score {
+          layout: "horizontal"
+          align: "center"
+          gap: 8
+          margin_bottom: 16
+
+          text#label {
+            value: "Scene Health:"
+            size: 18
+          }
+
+          text#score {
+            value: "${state.result?.healthScore || 0}%"
+            size: 18
+            weight: 700
+            color: ${
+              state.result?.healthScore >= 80 ? "#a6e3a1" :
+              state.result?.healthScore >= 50 ? "#fab387" : "#f38ba8"
+            }
+          }
+        }
+
+        // Suggestions list
+        list#suggestions {
+          items: ${state.result?.suggestions || []}
+          
+          template(suggestion, index) => {
+            panel#suggestion_card {
+              padding: 12
+              margin: [8, 0]
+              border_radius: 8
+              border_left: "4px solid"
+              border_left_color: ${
+                suggestion.severity == "critical" ? "#f38ba8" :
+                suggestion.severity == "warning" ? "#fab387" : "#89b4fa"
+              }
+              background: ${
+                suggestion.severity == "critical" ? "rgba(243, 139, 168, 0.13)" :
+                suggestion.severity == "warning" ? "rgba(250, 179, 135, 0.13)" :
+                "rgba(137, 180, 250, 0.13)"
+              }
+
+              text#type {
+                value: ${suggestion.type.toUpperCase()}
+                size: 11
+                opacity: 0.7
+                transform: "uppercase"
+              }
+
+              text#title {
+                value: ${suggestion.title}
+                weight: 600
+                margin: [4, 0]
+              }
+
+              text#description {
+                value: ${suggestion.description}
+                size: 13
+                opacity: 0.9
+                margin: [4, 0]
+              }
+
+              button#autofix_btn {
+                visible: ${suggestion.autoFix == true}
+                value: "Auto Fix"
+                margin_top: 8
+                padding: [6, 12]
+                background: "#a6e3a1"
+                color: "#1e1e2e"
+                border_radius: 4
+                weight: 500
+                cursor: "pointer"
+
+                @on_click => {
+                  if (props.on_autofix) props.on_autofix(suggestion)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+export { BrittneyPanel }

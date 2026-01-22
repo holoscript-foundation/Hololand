@@ -1,0 +1,498 @@
+/**
+ * NeuralOllamaBridge.hsplus
+ * 
+ * Bridges the RelayService with local Ollama models for autonomous agent processing.
+ * Enables AI-powered agents to process state snapshots and generate actions.
+ * 
+ * Architecture:
+ * ┌──────────────────┐     ┌─────────────────┐     ┌──────────────┐
+ * │  RelayService    │────▶│  NeuralBridge   │────▶│   Ollama     │
+ * │  (WebSocket)     │     │  (Agent Logic)  │     │   (LLM)      │
+ * └──────────────────┘     └─────────────────┘     └──────────────┘
+ *         │                        │
+ *         ▼                        ▼
+ *    StateSnapshot          ThoughtResult
+ *    (Room State)           (Actions/Dialogue)
+ * 
+ * @package @hololand/network
+ * @version 2.0.0
+ */
+
+import { logger } from "./Logger.hsplus"
+import { StateSnapshot } from "./Types.hsplus"
+import { AutonomousAgent, RelayService } from "./RelayService.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct OllamaConfig {
+  baseUrl: string = "http://localhost:11434"
+  model: string = "llama3.2"
+  temperature: number = 0.7
+  maxTokens: number = 512
+  timeout: number = 30000
+  systemPrompt: string = DEFAULT_SYSTEM_PROMPT
+}
+
+const DEFAULT_SYSTEM_PROMPT = `You are an autonomous AI agent in a VR/AR world called Hololand.
+You receive state snapshots about the world and must decide what actions to take.
+Respond with a JSON object containing:
+- "reasoning": Your internal thought process
+- "actions": Array of actions to take (type, target, parameters)
+- "dialogue": Optional speech if you want to say something
+
+Be concise and focused. Only take actions that make sense for your role.`
+
+enum AgentType {
+  NPC = "npc"
+  MODERATOR = "moderator"
+  ASSISTANT = "assistant"
+  GUARDIAN = "guardian"
+  CUSTOM = "custom"
+}
+
+enum AgentCapability {
+  DIALOGUE = "dialogue"
+  NAVIGATION = "navigation"
+  COMBAT = "combat"
+  TRADE = "trade"
+  MODERATION = "moderation"
+  WORLD_EDITING = "world-editing"
+  PLAYER_ASSISTANCE = "player-assistance"
+  EMOTE = "emote"
+}
+
+struct AgentDefinition {
+  id: string
+  type: AgentType = AgentType.NPC
+  name: string
+  personality: string = ""
+  model: string = null
+  systemPrompt: string = null
+  capabilities: AgentCapability[] = [AgentCapability.DIALOGUE]
+}
+
+struct ThoughtResult {
+  success: boolean = false
+  actions: AgentAction[] = []
+  dialogue: string = null
+  reasoning: string = null
+  error: string = null
+  processingTime: number = 0
+}
+
+struct AgentAction {
+  type: string    // "move" | "interact" | "speak" | "emote" | "spawn" | "modify" | "custom"
+  target: string = null
+  parameters: Record<string, any> = {}
+}
+
+struct ThoughtContext {
+  snapshot: StateSnapshot
+  conversationHistory: ConversationEntry[] = []
+  nearbyEntities: string[] = []
+  agentState: Record<string, any> = {}
+}
+
+struct ConversationEntry {
+  role: string    // "user" | "assistant" | "system"
+  content: string
+  timestamp: number
+}
+
+// =============================================================================
+// NEURAL OLLAMA BRIDGE MODULE
+// =============================================================================
+
+module NeuralOllamaBridge {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    config: OllamaConfig = new OllamaConfig()
+    agents: Map<string, NeuralAgent> = new Map()
+    conversationCache: Map<string, ConversationEntry[]> = new Map()
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(config: Partial<OllamaConfig> = {}): void {
+    this.state.config = { ...this.state.config, ...config }
+    logger.info("NeuralOllamaBridge initialized", { model: this.state.config.model })
+  }
+  
+  // =========================================================================
+  // AGENT CREATION
+  // =========================================================================
+  
+  @action createAgent(definition: AgentDefinition): AutonomousAgent {
+    const agent = new NeuralAgent(definition, this.state.config, this)
+    this.state.agents.set(definition.id, agent)
+    
+    logger.info(`Created neural agent: ${definition.name} (${definition.type})`, {
+      id: definition.id,
+      model: definition.model || this.state.config.model
+    })
+    
+    return agent
+  }
+  
+  @action registerAgentsWithRelay(
+    relay: RelayService,
+    roomId: string,
+    definitions: AgentDefinition[]
+  ): AutonomousAgent[] {
+    const agents: AutonomousAgent[] = []
+    
+    for (const def of definitions) {
+      const agent = this.createAgent(def)
+      relay.registerAgent(roomId, agent)
+      agents.push(agent)
+    }
+    
+    return agents
+  }
+  
+  // =========================================================================
+  // CONVERSATION MANAGEMENT
+  // =========================================================================
+  
+  @method getConversationHistory(agentId: string): ConversationEntry[] {
+    return this.state.conversationCache.get(agentId) || []
+  }
+  
+  @action addToConversation(agentId: string, entry: ConversationEntry): void {
+    if (!this.state.conversationCache.has(agentId)) {
+      this.state.conversationCache.set(agentId, [])
+    }
+    
+    const history = this.state.conversationCache.get(agentId)
+    history.push(entry)
+    
+    // Keep last 20 entries
+    if (history.length > 20) {
+      history.shift()
+    }
+  }
+  
+  @action clearConversation(agentId: string): void {
+    this.state.conversationCache.delete(agentId)
+  }
+  
+  // =========================================================================
+  // OLLAMA API
+  // =========================================================================
+  
+  @method async query(
+    messages: Array<{ role: string, content: string }>,
+    options: Partial<OllamaConfig> = {}
+  ): Promise<string> {
+    const config = { ...this.state.config, ...options }
+    
+    const response = await this.fetchWithTimeout(`${config.baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: config.model,
+        messages,
+        stream: false,
+        options: {
+          temperature: config.temperature,
+          num_predict: config.maxTokens
+        }
+      })
+    })
+    
+    const data = await response.json()
+    return data.message?.content || ""
+  }
+  
+  @method async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), this.state.config.timeout)
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status}`)
+      }
+      
+      return response
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+  
+  @method async isAvailable(): Promise<boolean> {
+    try {
+      const response = await this.fetchWithTimeout(`${this.state.config.baseUrl}/api/tags`, {
+        method: "GET"
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+  
+  @method async listModels(): Promise<string[]> {
+    try {
+      const response = await this.fetchWithTimeout(`${this.state.config.baseUrl}/api/tags`, {
+        method: "GET"
+      })
+      const data = await response.json()
+      return (data.models || []).map((m: { name: string }) => m.name)
+    } catch {
+      return []
+    }
+  }
+}
+
+// =============================================================================
+// NEURAL AGENT CLASS
+// =============================================================================
+
+class NeuralAgent implements AutonomousAgent {
+  // =========================================================================
+  // PROPERTIES
+  // =========================================================================
+  
+  readonly id: string
+  readonly type: string
+  
+  private definition: AgentDefinition
+  private config: OllamaConfig
+  private bridge: NeuralOllamaBridge
+  private agentState: Record<string, any> = {}
+  private lastThoughtTime: number = 0
+  private thoughtCooldown: number = 1000
+  
+  // =========================================================================
+  // CONSTRUCTOR
+  // =========================================================================
+  
+  constructor(
+    definition: AgentDefinition,
+    config: OllamaConfig,
+    bridge: NeuralOllamaBridge
+  ) {
+    this.id = definition.id
+    this.type = definition.type
+    this.definition = definition
+    this.config = config
+    this.bridge = bridge
+  }
+  
+  // =========================================================================
+  // THOUGHT PROCESSING
+  // =========================================================================
+  
+  async processThought(snapshot: StateSnapshot): Promise<void> {
+    // Rate limit thoughts
+    const now = Date.now()
+    if (now - this.lastThoughtTime < this.thoughtCooldown) {
+      return
+    }
+    this.lastThoughtTime = now
+    
+    const startTime = performance.now()
+    
+    try {
+      const result = await this.think({
+        snapshot,
+        conversationHistory: this.bridge.getConversationHistory(this.id),
+        agentState: this.agentState
+      })
+      
+      if (result.success) {
+        // Execute actions
+        for (const action of result.actions) {
+          await this.executeAction(action, snapshot)
+        }
+        
+        // Handle dialogue
+        if (result.dialogue) {
+          this.bridge.addToConversation(this.id, {
+            role: "assistant",
+            content: result.dialogue,
+            timestamp: Date.now()
+          })
+        }
+        
+        logger.debug(`Agent ${this.id} thought completed`, {
+          actions: result.actions.length,
+          hasDialogue: !!result.dialogue,
+          processingTime: result.processingTime
+        })
+      }
+    } catch (error) {
+      logger.error(`Agent ${this.id} thought failed`, {
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
+  
+  private async think(context: ThoughtContext): Promise<ThoughtResult> {
+    const startTime = performance.now()
+    
+    // Build prompts
+    const systemPrompt = this.buildSystemPrompt()
+    const contextPrompt = this.buildContextPrompt(context)
+    
+    try {
+      const response = await this.bridge.query(
+        [
+          { role: "system", content: systemPrompt },
+          ...this.formatConversationHistory(context.conversationHistory),
+          { role: "user", content: contextPrompt }
+        ],
+        { model: this.definition.model }
+      )
+      
+      // Parse the response
+      const result = this.parseThoughtResponse(response)
+      result.processingTime = performance.now() - startTime
+      
+      return result
+    } catch (error) {
+      return {
+        success: false,
+        actions: [],
+        error: error instanceof Error ? error.message : "Unknown error",
+        processingTime: performance.now() - startTime
+      }
+    }
+  }
+  
+  // =========================================================================
+  // PROMPT BUILDING
+  // =========================================================================
+  
+  private buildSystemPrompt(): string {
+    if (this.definition.systemPrompt) {
+      return this.definition.systemPrompt
+    }
+    
+    let prompt = this.config.systemPrompt
+    
+    if (this.definition.personality) {
+      prompt += `\n\nYour personality: ${this.definition.personality}`
+    }
+    
+    if (this.definition.capabilities.length > 0) {
+      prompt += `\n\nYour capabilities: ${this.definition.capabilities.join(", ")}`
+    }
+    
+    return prompt
+  }
+  
+  private buildContextPrompt(context: ThoughtContext): string {
+    const { snapshot } = context
+    
+    let prompt = "Current world state:\n"
+    prompt += `- Time: ${new Date(snapshot.timestamp).toISOString()}\n`
+    prompt += `- Objects in scene: ${snapshot.states.length}\n`
+    
+    // Add nearby entities
+    if (context.nearbyEntities && context.nearbyEntities.length > 0) {
+      prompt += `- Nearby: ${context.nearbyEntities.join(", ")}\n`
+    }
+    
+    // Add relevant state information
+    prompt += "\nRelevant objects:\n"
+    for (const state of snapshot.states.slice(0, 10)) {
+      prompt += `- ${state.objectId}`
+      if (state.position) {
+        prompt += ` at (${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)})`
+      }
+      prompt += "\n"
+    }
+    
+    prompt += "\nWhat do you do?"
+    
+    return prompt
+  }
+  
+  private formatConversationHistory(history: ConversationEntry[]): Array<{ role: string, content: string }> {
+    return history.map(entry => ({
+      role: entry.role,
+      content: entry.content
+    }))
+  }
+  
+  // =========================================================================
+  // RESPONSE PARSING
+  // =========================================================================
+  
+  private parseThoughtResponse(response: string): ThoughtResult {
+    try {
+      // Try to parse as JSON
+      const parsed = JSON.parse(response)
+      
+      return {
+        success: true,
+        actions: parsed.actions || [],
+        dialogue: parsed.dialogue,
+        reasoning: parsed.reasoning
+      }
+    } catch {
+      // If not valid JSON, treat as dialogue
+      return {
+        success: true,
+        actions: [],
+        dialogue: response.trim() || null
+      }
+    }
+  }
+  
+  // =========================================================================
+  // ACTION EXECUTION
+  // =========================================================================
+  
+  private async executeAction(action: AgentAction, snapshot: StateSnapshot): Promise<void> {
+    switch (action.type) {
+      case "move":
+        logger.debug(`Agent ${this.id} moving to ${action.target}`)
+        break
+        
+      case "interact":
+        logger.debug(`Agent ${this.id} interacting with ${action.target}`)
+        break
+        
+      case "speak":
+        logger.debug(`Agent ${this.id} speaking: ${action.parameters.text}`)
+        break
+        
+      case "emote":
+        logger.debug(`Agent ${this.id} emoting: ${action.parameters.emote}`)
+        break
+        
+      default:
+        logger.debug(`Agent ${this.id} custom action: ${action.type}`)
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  NeuralOllamaBridge,
+  NeuralAgent,
+  OllamaConfig,
+  AgentDefinition,
+  AgentType,
+  AgentCapability,
+  ThoughtResult,
+  AgentAction,
+  ThoughtContext,
+  ConversationEntry
+}

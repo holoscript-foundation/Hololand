@@ -1,0 +1,49 @@
+/**
+ * @hololand/spatial - Shared Type Definitions
+ * 
+ * Common types used across the spatial package.
+ */
+
+// =============================================================================
+// VECTOR TYPES
+// =============================================================================
+
+type Vector3 = [float, float, float]
+
+struct Vector3Object {
+  x: float = 0.0
+  y: float = 0.0
+  z: float = 0.0
+}
+
+// =============================================================================
+// BOUNDING BOX
+// =============================================================================
+
+struct BoundingBox {
+  min: [float, float, float]
+  max: [float, float, float]
+  center: [float, float, float]
+  size: [float, float, float]
+}
+
+// =============================================================================
+// COMMON ENUMS
+// =============================================================================
+
+enum Priority {
+  high,
+  normal,
+  low
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  Vector3,
+  Vector3Object,
+  BoundingBox,
+  Priority
+}

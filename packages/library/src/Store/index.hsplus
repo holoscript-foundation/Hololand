@@ -1,0 +1,32 @@
+/**
+ * Store Module Index
+ * 
+ * Exports state management modules for HoloScript playground.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// State Management
+export { PlaygroundStore } from "./PlaygroundStore.hsplus"
+
+// Store namespace for unified access
+module Store {
+  @method getPlaygroundStore(): typeof PlaygroundStore {
+    return PlaygroundStore
+  }
+  
+  @action initialize(): void {
+    PlaygroundStore.loadFromLocalStorage()
+  }
+  
+  @action persist(): void {
+    PlaygroundStore.saveToLocalStorage()
+  }
+  
+  @action reset(): void {
+    PlaygroundStore.reset()
+  }
+}
+
+export { Store }

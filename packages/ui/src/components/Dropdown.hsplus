@@ -1,0 +1,276 @@
+/**
+ * @hololand/ui - Dropdown Component
+ * Select dropdown with options
+ */
+
+import { DropdownConfig, DropdownOption, Vector2 } from "../types.hsplus"
+
+module Dropdown {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 200, height: 40 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Dropdown-specific
+    options: array<DropdownOption> = [],
+    selectedValue: string = "",
+    placeholder: string = "Select...",
+    backgroundColor: string = "#ffffff",
+    textColor: string = "#333333",
+    borderColor: string = "#cccccc",
+    borderRadius: number = 4,
+    maxDropdownHeight: number = 200,
+    isOpen: bool = false,
+    hoveredIndex: number = -1,
+    optionHeight: number = 36
+  }
+
+  @action initialize(config: DropdownConfig) {
+    self.id = `dropdown-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 200, height: 40 }
+    self.visible = config.visible ?? true
+    self.enabled = config.enabled ?? true
+    self.options = config.options ?? []
+    self.selectedValue = config.selectedValue ?? ""
+    self.placeholder = config.placeholder ?? "Select..."
+    self.backgroundColor = config.backgroundColor ?? "#ffffff"
+    self.textColor = config.textColor ?? "#333333"
+    self.borderColor = config.borderColor ?? "#cccccc"
+    self.borderRadius = config.borderRadius ?? 4
+    self.maxDropdownHeight = config.maxDropdownHeight ?? 200
+    self.eventHandlers = new Map()
+    self.dirty = true
+  }
+
+  @computed getSelectedOption() -> DropdownOption | null {
+    return self.options.find(o => o.value == self.selectedValue) ?? null
+  }
+
+  @computed getDisplayText() -> string {
+    let selected = self.getSelectedOption()
+    return selected ? selected.label : self.placeholder
+  }
+
+  @action toggle() {
+    self.isOpen = !self.isOpen
+    self.dirty = true
+  }
+
+  @action open() {
+    self.isOpen = true
+    self.dirty = true
+  }
+
+  @action close() {
+    self.isOpen = false
+    self.hoveredIndex = -1
+    self.dirty = true
+  }
+
+  @action selectOption(value: string) {
+    if self.selectedValue != value {
+      self.selectedValue = value
+      self.emit("change", { value })
+    }
+    self.close()
+  }
+
+  @action handlePointerDown(point: Vector2) {
+    if !self.enabled { return }
+
+    // Check main button
+    if self.containsPoint(point) {
+      self.toggle()
+      return
+    }
+
+    // Check options if open
+    if self.isOpen {
+      let dropdownBounds = self.getDropdownBounds()
+      if self.pointInRect(point, dropdownBounds) {
+        let relY = point.y - dropdownBounds.y
+        let index = Math.floor(relY / self.optionHeight)
+        if index >= 0 && index < self.options.length {
+          let option = self.options[index]
+          if !option.disabled {
+            self.selectOption(option.value)
+          }
+        }
+      } else {
+        self.close()
+      }
+    }
+  }
+
+  @action handlePointerMove(point: Vector2) {
+    if !self.isOpen { return }
+
+    let dropdownBounds = self.getDropdownBounds()
+    if self.pointInRect(point, dropdownBounds) {
+      let relY = point.y - dropdownBounds.y
+      let index = Math.floor(relY / self.optionHeight)
+      if index != self.hoveredIndex && index >= 0 && index < self.options.length {
+        self.hoveredIndex = index
+        self.dirty = true
+      }
+    } else {
+      if self.hoveredIndex != -1 {
+        self.hoveredIndex = -1
+        self.dirty = true
+      }
+    }
+  }
+
+  @method getDropdownBounds() -> { x: number, y: number, width: number, height: number } {
+    let dropdownH = Math.min(
+      self.options.length * self.optionHeight,
+      self.maxDropdownHeight
+    )
+    return {
+      x: self.position.x,
+      y: self.position.y + self.size.height + 4,
+      width: self.size.width,
+      height: dropdownH
+    }
+  }
+
+  @method containsPoint(point: Vector2) -> bool {
+    return (
+      point.x >= self.position.x &&
+      point.x <= self.position.x + self.size.width &&
+      point.y >= self.position.y &&
+      point.y <= self.position.y + self.size.height
+    )
+  }
+
+  @method pointInRect(point: Vector2, rect: { x: number, y: number, width: number, height: number }) -> bool {
+    return (
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height
+    )
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    let x = self.position.x
+    let y = self.position.y
+    let w = self.size.width
+    let h = self.size.height
+
+    // Draw main button
+    ctx.fillStyle = self.backgroundColor
+    ctx.beginPath()
+    ctx.roundRect(x, y, w, h, self.borderRadius)
+    ctx.fill()
+
+    ctx.strokeStyle = self.borderColor
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    // Draw text
+    ctx.fillStyle = self.getSelectedOption() ? self.textColor : "#999999"
+    ctx.font = "14px system-ui"
+    ctx.textAlign = "left"
+    ctx.textBaseline = "middle"
+    ctx.fillText(self.getDisplayText(), x + 12, y + h / 2)
+
+    // Draw arrow
+    ctx.beginPath()
+    let arrowX = x + w - 20
+    let arrowY = y + h / 2
+    if self.isOpen {
+      ctx.moveTo(arrowX - 4, arrowY + 2)
+      ctx.lineTo(arrowX, arrowY - 2)
+      ctx.lineTo(arrowX + 4, arrowY + 2)
+    } else {
+      ctx.moveTo(arrowX - 4, arrowY - 2)
+      ctx.lineTo(arrowX, arrowY + 2)
+      ctx.lineTo(arrowX + 4, arrowY - 2)
+    }
+    ctx.strokeStyle = "#666666"
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // Draw dropdown if open
+    if self.isOpen {
+      let db = self.getDropdownBounds()
+
+      // Shadow
+      ctx.save()
+      ctx.shadowColor = "rgba(0,0,0,0.15)"
+      ctx.shadowBlur = 10
+      ctx.shadowOffsetY = 4
+      ctx.fillStyle = self.backgroundColor
+      ctx.beginPath()
+      ctx.roundRect(db.x, db.y, db.width, db.height, self.borderRadius)
+      ctx.fill()
+      ctx.restore()
+
+      // Border
+      ctx.strokeStyle = self.borderColor
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      // Options
+      for let i = 0; i < self.options.length; i += 1 {
+        let opt = self.options[i]
+        let optY = db.y + i * self.optionHeight
+
+        // Hover background
+        if i == self.hoveredIndex && !opt.disabled {
+          ctx.fillStyle = "#f0f0f0"
+          ctx.fillRect(db.x + 1, optY, db.width - 2, self.optionHeight)
+        }
+
+        // Selected indicator
+        if opt.value == self.selectedValue {
+          ctx.fillStyle = "#e3f2fd"
+          ctx.fillRect(db.x + 1, optY, db.width - 2, self.optionHeight)
+        }
+
+        // Text
+        ctx.fillStyle = opt.disabled ? "#999999" : self.textColor
+        ctx.font = "14px system-ui"
+        ctx.textAlign = "left"
+        ctx.textBaseline = "middle"
+        ctx.fillText(opt.label, db.x + 12, optY + self.optionHeight / 2)
+      }
+    }
+
+    self.dirty = false
+  }
+
+  @action on(eventType: string, handler: any) {
+    if !self.eventHandlers.has(eventType) {
+      self.eventHandlers.set(eventType, new Set())
+    }
+    self.eventHandlers.get(eventType).add(handler)
+  }
+
+  @method emit(eventType: string, data: any = null) {
+    let handlers = self.eventHandlers.get(eventType)
+    if handlers {
+      let event = { eventType, targetId: self.id, timestamp: Date.now(), data }
+      for handler in handlers {
+        handler(event)
+      }
+    }
+  }
+}
+
+function createDropdown(config: DropdownConfig) -> typeof Dropdown {
+  Dropdown.initialize(config)
+  return Dropdown
+}
+
+export { Dropdown, createDropdown }

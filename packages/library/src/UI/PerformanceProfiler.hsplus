@@ -1,0 +1,746 @@
+/**
+ * PerformanceProfiler.hsplus
+ * 
+ * Real-time performance monitoring and visualization components.
+ * Provides FPS, frame time, memory, and object count metrics with
+ * historical charting and data table views.
+ * 
+ * Components:
+ * - PerformanceProfiler: Main profiler panel with metrics and chart
+ * - MetricCard: Individual metric display with status indicator
+ * - PerformanceChart: Canvas-based line chart for metrics history
+ * - HistoryTable: Tabular view of historical performance data
+ * - ProfilerToolbar: Controls for chart/table toggle
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+type MetricStatus = "good" | "warning" | "critical"
+
+struct PerformanceMetric {
+  name: string
+  value: number
+  unit: string
+  threshold: number
+  status: MetricStatus
+}
+
+struct HistoryEntry {
+  timestamp: number
+  fps: number
+  frameTime: number
+  memory: number
+  drawCalls: number
+}
+
+// =============================================================================
+// METRIC CARD - Individual metric display
+// =============================================================================
+
+component MetricCard {
+  @props {
+    name: string
+    value: number
+    unit: string
+    threshold: number
+    status: MetricStatus = "good"
+  }
+
+  @computed statusColor(): string {
+    match this.props.status {
+      "good" => "var(--metric-good, #10b981)"
+      "warning" => "var(--metric-warning, #f59e0b)"
+      "critical" => "var(--metric-critical, #ef4444)"
+      _ => "var(--text-secondary, #9ca3af)"
+    }
+  }
+
+  @computed bgColor(): string {
+    match this.props.status {
+      "good" => "rgba(16, 185, 129, 0.1)"
+      "warning" => "rgba(245, 158, 11, 0.1)"
+      "critical" => "rgba(239, 68, 68, 0.1)"
+      _ => "rgba(156, 163, 175, 0.1)"
+    }
+  }
+
+  @computed statusIcon(): string {
+    match this.props.status {
+      "good" => "✓"
+      "warning" => "⚠"
+      "critical" => "✗"
+      _ => ""
+    }
+  }
+
+  @render {
+    <div class="metric-card" style="--status-color: {this.statusColor()}; --bg-color: {this.bgColor()}">
+      <div class="metric-name">{this.props.name}</div>
+      <div class="metric-value">
+        {this.props.value.toFixed(1)}
+        <span class="metric-unit">{this.props.unit}</span>
+      </div>
+      <div class="metric-threshold">
+        Target: {this.props.threshold} {this.statusIcon()}
+      </div>
+    </div>
+  }
+
+  @style {
+    .metric-card {
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--status-color);
+      background: var(--bg-color);
+    }
+
+    .metric-name {
+      font-size: 0.75rem;
+      color: var(--text-secondary, #9ca3af);
+    }
+
+    .metric-value {
+      font-size: 1.125rem;
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--status-color);
+    }
+
+    .metric-unit {
+      font-size: 0.75rem;
+      margin-left: 0.25rem;
+    }
+
+    .metric-threshold {
+      font-size: 0.75rem;
+      color: var(--text-muted, #6b7280);
+      margin-top: 0.25rem;
+    }
+  }
+}
+
+// =============================================================================
+// PERFORMANCE CHART - Canvas-based metrics visualization
+// =============================================================================
+
+component PerformanceChart {
+  @props {
+    history: HistoryEntry[] = []
+    width: number = 400
+    height: number = 200
+    showFps: boolean = true
+    showFrameTime: boolean = true
+    showMemory: boolean = true
+  }
+
+  @state {
+    canvasRef: HTMLCanvasElement = null
+  }
+
+  @method drawChart(): void {
+    if (!this.state.canvasRef || this.props.history.length < 2) return
+
+    const canvas = this.state.canvasRef
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    const width = this.props.width
+    const height = this.props.height
+    const history = this.props.history
+
+    // Clear canvas
+    ctx.fillStyle = "#1f2937"
+    ctx.fillRect(0, 0, width, height)
+
+    // Draw grid lines
+    ctx.strokeStyle = "#374151"
+    ctx.lineWidth = 1
+    for (let i = 0; i <= 5; i++) {
+      const y = (height / 5) * i
+      ctx.beginPath()
+      ctx.moveTo(0, y)
+      ctx.lineTo(width, y)
+      ctx.stroke()
+    }
+
+    // Draw FPS line (green)
+    if (this.props.showFps) {
+      ctx.strokeStyle = "#10b981"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / history.length) * width
+        const y = height - (history[i].fps / 60) * height
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+    }
+
+    // Draw frame time line (amber)
+    if (this.props.showFrameTime) {
+      ctx.strokeStyle = "#f59e0b"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / history.length) * width
+        const y = height - (history[i].frameTime / 33) * height
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+    }
+
+    // Draw memory line (purple)
+    if (this.props.showMemory) {
+      ctx.strokeStyle = "#8b5cf6"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / history.length) * width
+        const y = height - (history[i].memory / 300) * height
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+    }
+
+    // Draw legend
+    ctx.font = "12px monospace"
+    let legendX = 10
+    if (this.props.showFps) {
+      ctx.fillStyle = "#10b981"
+      ctx.fillText("FPS", legendX, 20)
+      legendX += 60
+    }
+    if (this.props.showFrameTime) {
+      ctx.fillStyle = "#f59e0b"
+      ctx.fillText("Frame Time", legendX, 20)
+      legendX += 110
+    }
+    if (this.props.showMemory) {
+      ctx.fillStyle = "#8b5cf6"
+      ctx.fillText("Memory", legendX, 20)
+    }
+  }
+
+  @on_mount {
+    this.drawChart()
+  }
+
+  @on_props_change(history) {
+    this.drawChart()
+  }
+
+  @render {
+    <div class="performance-chart">
+      <canvas 
+        ref={this.state.canvasRef}
+        width={this.props.width}
+        height={this.props.height}
+        class="chart-canvas"
+      />
+    </div>
+  }
+
+  @style {
+    .performance-chart {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .chart-canvas {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+// =============================================================================
+// HISTORY TABLE - Tabular performance data view
+// =============================================================================
+
+component HistoryTable {
+  @props {
+    history: HistoryEntry[] = []
+    maxRows: number = 20
+  }
+
+  @method getStatusClass(value: number, thresholds: [number, number]): string {
+    if (value >= thresholds[0]) return "status-good"
+    if (value >= thresholds[1]) return "status-warning"
+    return "status-critical"
+  }
+
+  @method getFpsStatus(fps: number): string {
+    if (fps >= 60) return "status-good"
+    if (fps >= 30) return "status-warning"
+    return "status-critical"
+  }
+
+  @method getFrameTimeStatus(time: number): string {
+    if (time <= 16) return "status-good"
+    if (time <= 33) return "status-warning"
+    return "status-critical"
+  }
+
+  @method getMemoryStatus(memory: number): string {
+    if (memory <= 150) return "status-good"
+    if (memory <= 200) return "status-warning"
+    return "status-critical"
+  }
+
+  @method formatTime(timestamp: number): string {
+    return new Date(timestamp).toLocaleTimeString()
+  }
+
+  @render {
+    <div class="history-table">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-time">Time</th>
+            <th class="col-fps">FPS</th>
+            <th class="col-frame">Frame</th>
+            <th class="col-memory">Memory</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry, index) in this.props.history.reverse().slice(0, this.props.maxRows) {
+            <tr key={index}>
+              <td class="col-time">{this.formatTime(entry.timestamp)}</td>
+              <td class="col-fps {this.getFpsStatus(entry.fps)}">
+                {entry.fps.toFixed(0)}
+              </td>
+              <td class="col-frame {this.getFrameTimeStatus(entry.frameTime)}">
+                {entry.frameTime.toFixed(2)}ms
+              </td>
+              <td class="col-memory {this.getMemoryStatus(entry.memory)}">
+                {entry.memory}MB
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @style {
+    .history-table {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      font-size: 0.75rem;
+      font-family: monospace;
+      border-collapse: collapse;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: var(--bg-secondary, #1f2937);
+    }
+
+    th {
+      text-align: left;
+      padding: 0.25rem;
+      color: var(--text-secondary, #9ca3af);
+      border-bottom: 1px solid var(--border, #374151);
+    }
+
+    th.col-fps,
+    th.col-frame,
+    th.col-memory {
+      text-align: right;
+    }
+
+    td {
+      padding: 0.25rem;
+      color: var(--text-primary, #e5e7eb);
+      border-bottom: 1px solid var(--border-light, #1f2937);
+    }
+
+    td.col-fps,
+    td.col-frame,
+    td.col-memory {
+      text-align: right;
+    }
+
+    tr:hover {
+      background: rgba(55, 65, 81, 0.3);
+    }
+
+    .status-good {
+      color: var(--metric-good, #10b981);
+    }
+
+    .status-warning {
+      color: var(--metric-warning, #f59e0b);
+    }
+
+    .status-critical {
+      color: var(--metric-critical, #ef4444);
+    }
+  }
+}
+
+// =============================================================================
+// PROFILER TOOLBAR - View toggle and controls
+// =============================================================================
+
+component ProfilerToolbar {
+  @props {
+    title: string = "Performance Profiler"
+    showChart: boolean = true
+    onToggleView: () => void
+    onReset: () => void = null
+    onExport: () => void = null
+  }
+
+  @render {
+    <div class="profiler-toolbar">
+      <h3 class="toolbar-title">{this.props.title}</h3>
+      <div class="toolbar-actions">
+        @if this.props.onReset {
+          <button class="toolbar-btn" on_click={this.props.onReset} title="Reset metrics">
+            🔄
+          </button>
+        }
+        @if this.props.onExport {
+          <button class="toolbar-btn" on_click={this.props.onExport} title="Export data">
+            📤
+          </button>
+        }
+        <button class="toolbar-btn toggle-btn" on_click={this.props.onToggleView}>
+          {this.props.showChart ? "📊 Chart" : "📈 Graph"}
+        </button>
+      </div>
+    </div>
+  }
+
+  @style {
+    .profiler-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border, #374151);
+      background: var(--bg-secondary, #1f2937);
+    }
+
+    .toolbar-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary, #e5e7eb);
+      margin: 0;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .toolbar-btn {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      background: var(--bg-tertiary, #374151);
+      color: var(--text-secondary, #9ca3af);
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .toolbar-btn:hover {
+      background: var(--bg-hover, #4b5563);
+    }
+
+    .toggle-btn {
+      min-width: 5rem;
+    }
+  }
+}
+
+// =============================================================================
+// TIPS FOOTER - Performance optimization tips
+// =============================================================================
+
+component TipsFooter {
+  @props {
+    tips: string[] = [
+      "Green = optimal, Yellow = acceptable, Red = needs optimization"
+    ]
+    showIcon: boolean = true
+  }
+
+  @state {
+    currentTip: number = 0
+  }
+
+  @method nextTip(): void {
+    this.state.currentTip = (this.state.currentTip + 1) % this.props.tips.length
+  }
+
+  @render {
+    <div class="tips-footer" on_click={this.nextTip}>
+      @if this.props.showIcon {
+        <span class="tip-icon">💡</span>
+      }
+      <span class="tip-label">Tips: </span>
+      <span class="tip-text">{this.props.tips[this.state.currentTip]}</span>
+      @if this.props.tips.length > 1 {
+        <span class="tip-nav">
+          ({this.state.currentTip + 1}/{this.props.tips.length})
+        </span>
+      }
+    </div>
+  }
+
+  @style {
+    .tips-footer {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border, #374151);
+      background: rgba(31, 41, 55, 0.5);
+      cursor: pointer;
+    }
+
+    .tip-icon {
+      margin-right: 0.25rem;
+    }
+
+    .tip-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary, #9ca3af);
+    }
+
+    .tip-text {
+      font-size: 0.75rem;
+      color: var(--text-muted, #6b7280);
+    }
+
+    .tip-nav {
+      font-size: 0.625rem;
+      color: var(--text-muted, #6b7280);
+      margin-left: 0.5rem;
+    }
+  }
+}
+
+// =============================================================================
+// PERFORMANCE PROFILER - Main component
+// =============================================================================
+
+component PerformanceProfiler {
+  @props {
+    fps: number = 60
+    renderTime: number = 16
+    objectCount: number = 0
+    memoryUsage: number = 0
+    updateInterval: number = 100
+    maxHistory: number = 120
+    title: string = "Performance Profiler"
+    showTips: boolean = true
+  }
+
+  @state {
+    showChart: boolean = true
+    history: HistoryEntry[] = []
+    intervalId: number = null
+  }
+
+  @computed metrics(): PerformanceMetric[] {
+    const memory = this.props.memoryUsage > 0 
+      ? this.props.memoryUsage 
+      : (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : 0)
+
+    return [
+      {
+        name: "FPS",
+        value: this.props.fps,
+        unit: "fps",
+        threshold: 60,
+        status: this.props.fps >= 60 ? "good" : this.props.fps >= 30 ? "warning" : "critical"
+      },
+      {
+        name: "Frame Time",
+        value: this.props.renderTime,
+        unit: "ms",
+        threshold: 16,
+        status: this.props.renderTime <= 16 ? "good" : this.props.renderTime <= 33 ? "warning" : "critical"
+      },
+      {
+        name: "Memory",
+        value: memory,
+        unit: "MB",
+        threshold: 200,
+        status: memory <= 150 ? "good" : memory <= 200 ? "warning" : "critical"
+      },
+      {
+        name: "Objects",
+        value: this.props.objectCount,
+        unit: "count",
+        threshold: 1000,
+        status: this.props.objectCount <= 500 ? "good" : this.props.objectCount <= 1000 ? "warning" : "critical"
+      }
+    ]
+  }
+
+  @method toggleView(): void {
+    this.state.showChart = !this.state.showChart
+  }
+
+  @method resetHistory(): void {
+    this.state.history = []
+  }
+
+  @method exportData(): void {
+    const data = JSON.stringify(this.state.history, null, 2)
+    const blob = new Blob([data], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `performance-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  @method updateHistory(): void {
+    const memory = this.props.memoryUsage > 0 
+      ? this.props.memoryUsage 
+      : (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : 0)
+
+    const entry: HistoryEntry = {
+      timestamp: Date.now(),
+      fps: this.props.fps,
+      frameTime: this.props.renderTime,
+      memory: memory,
+      drawCalls: 0
+    }
+
+    this.state.history.push(entry)
+    if (this.state.history.length > this.props.maxHistory) {
+      this.state.history.shift()
+    }
+  }
+
+  @on_mount {
+    // Start update interval
+    this.state.intervalId = setInterval(() => {
+      this.updateHistory()
+    }, this.props.updateInterval)
+  }
+
+  @on_unmount {
+    if (this.state.intervalId) {
+      clearInterval(this.state.intervalId)
+    }
+  }
+
+  @render {
+    <div class="performance-profiler">
+      <ProfilerToolbar
+        title={this.props.title}
+        showChart={this.state.showChart}
+        onToggleView={this.toggleView}
+        onReset={this.resetHistory}
+        onExport={this.exportData}
+      />
+
+      <div class="metrics-grid">
+        @for metric in this.metrics() {
+          <MetricCard
+            key={metric.name}
+            name={metric.name}
+            value={metric.value}
+            unit={metric.unit}
+            threshold={metric.threshold}
+            status={metric.status}
+          />
+        }
+      </div>
+
+      @if this.state.showChart {
+        <div class="chart-container">
+          <PerformanceChart 
+            history={this.state.history}
+            width={400}
+            height={200}
+          />
+        </div>
+      } else {
+        <div class="table-container">
+          <HistoryTable history={this.state.history} />
+        </div>
+      }
+
+      @if this.props.showTips {
+        <TipsFooter 
+          tips={[
+            "Green = optimal, Yellow = acceptable, Red = needs optimization",
+            "Keep FPS above 60 for smooth experience",
+            "Frame time should stay under 16ms for 60fps",
+            "High memory usage can cause garbage collection stalls"
+          ]}
+        />
+      }
+    </div>
+  }
+
+  @style {
+    .performance-profiler {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      background: var(--bg-primary, #111827);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      padding: 0.75rem;
+    }
+
+    .chart-container {
+      flex: 1;
+      padding: 0.75rem;
+      overflow: hidden;
+      border-top: 1px solid var(--border, #374151);
+    }
+
+    .table-container {
+      flex: 1;
+      padding: 0.75rem;
+      overflow: hidden;
+      border-top: 1px solid var(--border, #374151);
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  PerformanceProfiler,
+  MetricCard,
+  PerformanceChart,
+  HistoryTable,
+  ProfilerToolbar,
+  TipsFooter,
+  PerformanceMetric,
+  HistoryEntry,
+  MetricStatus
+}

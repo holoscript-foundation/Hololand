@@ -1,0 +1,193 @@
+/**
+ * @hololand/ui
+ *
+ * 2D UI components for desktop, mobile, and VR applications.
+ * Provides canvas-based rendering with theming, accessibility, and responsiveness.
+ *
+ * @example
+ * ```holoscript
+ * import { createUICanvas, createButton, createPanel, getThemeManager } from "@hololand/ui"
+ *
+ * // Create canvas
+ * let canvas = document.getElementById("ui-canvas")
+ * let ui = createUICanvas(canvas, { width: 800, height: 600 })
+ *
+ * // Create components
+ * let panel = createPanel({
+ *   position: { x: 100, y: 100 },
+ *   size: { width: 300, height: 200 },
+ *   shadow: true
+ * })
+ *
+ * let button = createButton({
+ *   position: { x: 50, y: 50 },
+ *   text: "Click Me"
+ * })
+ *
+ * button.on("click", () => console.log("Clicked!"))
+ *
+ * panel.addChild(button)
+ * ui.add(panel)
+ * ui.start()
+ * ```
+ */
+
+// =============================================================================
+// VERSION
+// =============================================================================
+
+let HOLOLAND_UI_VERSION = "1.0.0-alpha.1"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+export {
+  // Core types
+  Vector2,
+  Size,
+  Rect,
+  Color,
+  Position,
+  ResponsiveSize,
+  BreakpointConfig,
+  UICanvasConfig,
+
+  // Component configs
+  UIComponentConfig,
+  UIEvent,
+  type UIEventHandler,
+  ButtonState,
+  ButtonConfig,
+  TextAlign,
+  TextBaseline,
+  TextConfig,
+  InputType,
+  TextInputConfig,
+  PanelConfig,
+  SliderOrientation,
+  SliderConfig,
+  ToggleConfig,
+  ImageFit,
+  ImageConfig,
+  FlexDirection,
+  FlexJustify,
+  FlexAlign,
+  FlexContainerConfig,
+  GridContainerConfig,
+  ModalConfig,
+  ListConfig,
+  DropdownOption,
+  DropdownConfig,
+  TabConfig,
+  TabViewConfig,
+  ScrollViewConfig,
+  HudAnchor,
+  HudConfig,
+
+  // Theme types
+  ThemeColors,
+  ThemeSpacing,
+  ThemeTypography,
+  ThemeBorders,
+  Theme
+} from "./types.hsplus"
+
+// =============================================================================
+// CANVAS
+// =============================================================================
+
+export { UICanvas, createUICanvas } from "./UICanvas.hsplus"
+
+// =============================================================================
+// COMPONENTS
+// =============================================================================
+
+export {
+  // Base
+  UIComponentBase,
+
+  // Interactive
+  Button,
+  createButton,
+  TextInput,
+  createTextInput,
+  Slider,
+  createSlider,
+  Toggle,
+  createToggle,
+  Dropdown,
+  createDropdown,
+
+  // Display
+  Text,
+  createText,
+  Image,
+  createImage,
+  Panel,
+  createPanel,
+
+  // Layout
+  FlexContainer,
+  createFlexContainer,
+  GridContainer,
+  createGridContainer,
+
+  // Overlay
+  Modal,
+  createModal
+} from "./components/index.hsplus"
+
+// =============================================================================
+// THEME
+// =============================================================================
+
+export {
+  DEFAULT_THEME,
+  DARK_THEME,
+  VR_THEME,
+  DEFAULT_COLORS,
+  DEFAULT_SPACING,
+  DEFAULT_TYPOGRAPHY,
+  DEFAULT_BORDERS,
+  ThemeManager,
+  getThemeManager
+} from "./theme/index.hsplus"
+
+// =============================================================================
+// VERSION EXPORT
+// =============================================================================
+
+export { HOLOLAND_UI_VERSION }
+
+// =============================================================================
+// DEFAULT EXPORT
+// =============================================================================
+
+export default {
+  // Canvas
+  UICanvas,
+  createUICanvas,
+
+  // Components
+  createButton,
+  createText,
+  createTextInput,
+  createSlider,
+  createToggle,
+  createDropdown,
+  createImage,
+  createPanel,
+  createFlexContainer,
+  createGridContainer,
+  createModal,
+
+  // Theme
+  getThemeManager,
+  DEFAULT_THEME,
+  DARK_THEME,
+  VR_THEME,
+
+  // Version
+  HOLOLAND_UI_VERSION
+}

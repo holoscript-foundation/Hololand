@@ -20,7 +20,7 @@ type PanelLayout = 'default' | 'compact' | 'fullscreen' | 'debug';
 type RightPanelTab = 'chat' | 'profiler' | 'inspector' | 'battle' | 'game-gen' | 'library';
 
 function App() {
-  const { ui, darkMode, toggleDarkMode } = usePlaygroundStore();
+  const { ui, toggleDarkMode } = usePlaygroundStore();
   const [layout, setLayout] = useState<PanelLayout>('default');
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('chat');
 
@@ -204,7 +204,7 @@ function App() {
   );
 
   return (
-    <div className={`h-screen w-screen flex flex-col ${darkMode ? 'dark' : ''}`}>
+    <div className={`h-screen w-screen flex flex-col ${ui.darkMode ? 'dark' : ''}`}>
       {/* Top Bar with Layout Controls */}
       <div className="border-b border-gray-700 bg-gray-800">
         <div className="flex items-center justify-between px-4 py-2">

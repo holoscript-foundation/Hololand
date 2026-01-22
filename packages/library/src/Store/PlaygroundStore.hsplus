@@ -1,0 +1,382 @@
+/**
+ * PlaygroundStore.hsplus
+ * 
+ * Central state management module for the HoloScript Playground.
+ * Replaces Zustand store with native .hsplus reactive state.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct EditorState {
+  code: string
+  language: string = "holoscript"
+  isSaved: boolean = true
+  lastSaved: Date = null
+}
+
+struct PlaygroundError {
+  id: string
+  type: "syntax" | "runtime" | "warning"
+  message: string
+  line: number = null
+  column: number = null
+  stack: string = null
+}
+
+struct PreviewState {
+  isLoading: boolean = false
+  fps: number = 0
+  renderTime: number = 0
+  objectCount: number = 0
+  error: PlaygroundError = null
+}
+
+struct ChatMessage {
+  id: string
+  role: "user" | "assistant" | "system"
+  content: string
+  timestamp: Date
+  codeBlocks: string[] = []
+}
+
+struct InspectorData {
+  properties: object = {}
+  traits: string[] = []
+  methods: string[] = []
+  events: string[] = []
+}
+
+struct UIState {
+  showChat: boolean = true
+  showErrors: boolean = true
+  showInspector: boolean = false
+  showAssetBrowser: boolean = true
+  showPerformance: boolean = false
+  darkMode: boolean = true
+  layout: string = "default"
+}
+
+// =============================================================================
+// PLAYGROUND STORE MODULE
+// =============================================================================
+
+module PlaygroundStore {
+  // Default code template
+  const DEFAULT_CODE = `world MyWorld {
+  object cube {
+    position: [0, 0, 0]
+    rotation: [0, 0, 0]
+    scale: [1, 1, 1]
+    
+    trait Material {
+      color: 0x00ff00
+      metalness: 0.5
+      roughness: 0.5
+    }
+  }
+}`
+
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    editor: EditorState = {
+      code: DEFAULT_CODE,
+      language: "holoscript",
+      isSaved: true,
+      lastSaved: new Date()
+    }
+    
+    playground: {
+      code: string = ""
+      errors: PlaygroundError[] = []
+      isRunning: boolean = false
+      selectedObject: string = null
+    }
+    
+    preview: PreviewState = {
+      isLoading: false,
+      fps: 60,
+      renderTime: 0,
+      objectCount: 0,
+      error: null
+    }
+    
+    chat: {
+      messages: ChatMessage[] = []
+      isLoading: boolean = false
+    }
+    
+    inspector: InspectorData = {
+      properties: {},
+      traits: [],
+      methods: [],
+      events: []
+    }
+    
+    ui: UIState = {
+      showChat: true,
+      showErrors: true,
+      showInspector: false,
+      showAssetBrowser: true,
+      showPerformance: false,
+      darkMode: true,
+      layout: "default"
+    }
+  }
+  
+  // =========================================================================
+  // EDITOR ACTIONS
+  // =========================================================================
+  
+  @action setCode(code: string): void {
+    this.state.editor.code = code
+    this.state.editor.isSaved = false
+  }
+  
+  @action setSaved(saved: boolean): void {
+    this.state.editor.isSaved = saved
+    if (saved) {
+      this.state.editor.lastSaved = new Date()
+    }
+  }
+  
+  @action setLanguage(language: string): void {
+    this.state.editor.language = language
+  }
+  
+  // =========================================================================
+  // PLAYGROUND ACTIONS
+  // =========================================================================
+  
+  @action setErrors(errors: PlaygroundError[]): void {
+    this.state.playground.errors = errors
+  }
+  
+  @action addError(error: PlaygroundError): void {
+    this.state.playground.errors.push(error)
+  }
+  
+  @action clearErrors(): void {
+    this.state.playground.errors = []
+  }
+  
+  @action setRunning(running: boolean): void {
+    this.state.playground.isRunning = running
+  }
+  
+  @action setSelectedObject(id: string): void {
+    this.state.playground.selectedObject = id
+  }
+  
+  // =========================================================================
+  // PREVIEW ACTIONS
+  // =========================================================================
+  
+  @action setPreviewLoading(loading: boolean): void {
+    this.state.preview.isLoading = loading
+  }
+  
+  @action setPreviewError(error: PlaygroundError): void {
+    this.state.preview.error = error
+  }
+  
+  @action updateMetrics(fps: number, renderTime: number, objectCount: number): void {
+    this.state.preview.fps = fps
+    this.state.preview.renderTime = renderTime
+    this.state.preview.objectCount = objectCount
+  }
+  
+  // =========================================================================
+  // CHAT ACTIONS
+  // =========================================================================
+  
+  @action addMessage(message: ChatMessage): void {
+    this.state.chat.messages.push(message)
+  }
+  
+  @action setChatLoading(loading: boolean): void {
+    this.state.chat.isLoading = loading
+  }
+  
+  @action clearChat(): void {
+    this.state.chat.messages = []
+  }
+  
+  @action updateLastMessage(content: string): void {
+    const messages = this.state.chat.messages
+    if (messages.length > 0) {
+      messages[messages.length - 1].content = content
+    }
+  }
+  
+  // =========================================================================
+  // INSPECTOR ACTIONS
+  // =========================================================================
+  
+  @action setInspectorData(data: InspectorData): void {
+    this.state.inspector = data
+  }
+  
+  @action updateProperty(key: string, value: any): void {
+    this.state.inspector.properties[key] = value
+  }
+  
+  // =========================================================================
+  // UI ACTIONS
+  // =========================================================================
+  
+  @action toggleChat(): void {
+    this.state.ui.showChat = !this.state.ui.showChat
+  }
+  
+  @action toggleErrors(): void {
+    this.state.ui.showErrors = !this.state.ui.showErrors
+  }
+  
+  @action toggleInspector(): void {
+    this.state.ui.showInspector = !this.state.ui.showInspector
+  }
+  
+  @action toggleAssetBrowser(): void {
+    this.state.ui.showAssetBrowser = !this.state.ui.showAssetBrowser
+  }
+  
+  @action togglePerformance(): void {
+    this.state.ui.showPerformance = !this.state.ui.showPerformance
+  }
+  
+  @action toggleDarkMode(): void {
+    this.state.ui.darkMode = !this.state.ui.darkMode
+  }
+  
+  @action setLayout(layout: string): void {
+    this.state.ui.layout = layout
+  }
+  
+  // =========================================================================
+  // COMPUTED VALUES
+  // =========================================================================
+  
+  @computed hasErrors(): boolean {
+    return this.state.playground.errors.length > 0
+  }
+  
+  @computed errorCount(): number {
+    return this.state.playground.errors.length
+  }
+  
+  @computed syntaxErrors(): PlaygroundError[] {
+    return this.state.playground.errors.filter(e => e.type === "syntax")
+  }
+  
+  @computed runtimeErrors(): PlaygroundError[] {
+    return this.state.playground.errors.filter(e => e.type === "runtime")
+  }
+  
+  @computed warnings(): PlaygroundError[] {
+    return this.state.playground.errors.filter(e => e.type === "warning")
+  }
+  
+  @computed messageCount(): number {
+    return this.state.chat.messages.length
+  }
+  
+  @computed lastMessage(): ChatMessage {
+    const messages = this.state.chat.messages
+    return messages.length > 0 ? messages[messages.length - 1] : null
+  }
+  
+  // =========================================================================
+  // SELECTORS
+  // =========================================================================
+  
+  @selector getError(id: string): PlaygroundError {
+    return this.state.playground.errors.find(e => e.id === id)
+  }
+  
+  @selector getMessage(id: string): ChatMessage {
+    return this.state.chat.messages.find(m => m.id === id)
+  }
+  
+  @selector getProperty(key: string): any {
+    return this.state.inspector.properties[key]
+  }
+  
+  // =========================================================================
+  // PERSISTENCE
+  // =========================================================================
+  
+  @action saveToLocalStorage(): void {
+    const data = {
+      editor: this.state.editor,
+      ui: this.state.ui
+    }
+    localStorage.setItem("playground-store", JSON.stringify(data))
+  }
+  
+  @action loadFromLocalStorage(): void {
+    const saved = localStorage.getItem("playground-store")
+    if (saved) {
+      const data = JSON.parse(saved)
+      if (data.editor) this.state.editor = { ...this.state.editor, ...data.editor }
+      if (data.ui) this.state.ui = { ...this.state.ui, ...data.ui }
+    }
+  }
+  
+  // =========================================================================
+  // RESET
+  // =========================================================================
+  
+  @action reset(): void {
+    this.state.editor = {
+      code: DEFAULT_CODE,
+      language: "holoscript",
+      isSaved: true,
+      lastSaved: new Date()
+    }
+    this.state.playground = {
+      code: "",
+      errors: [],
+      isRunning: false,
+      selectedObject: null
+    }
+    this.state.preview = {
+      isLoading: false,
+      fps: 60,
+      renderTime: 0,
+      objectCount: 0,
+      error: null
+    }
+    this.state.chat = {
+      messages: [],
+      isLoading: false
+    }
+    this.state.inspector = {
+      properties: {},
+      traits: [],
+      methods: [],
+      events: []
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  PlaygroundStore,
+  EditorState,
+  PlaygroundError,
+  PreviewState,
+  ChatMessage,
+  InspectorData,
+  UIState
+}

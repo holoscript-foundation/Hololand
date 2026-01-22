@@ -1,0 +1,509 @@
+// HOSL: Input System
+// Comprehensive input handling for keyboard, mouse, touch, and gamepad
+
+/**
+ * Input Manager
+ * Central input processing and action mapping
+ */
+component InputManager {
+  @state {
+    // Keyboard state
+    keys_down: {}
+    keys_pressed: {}
+    keys_released: {}
+    
+    // Mouse state
+    mouse_position: [0, 0]
+    mouse_delta: [0, 0]
+    mouse_buttons: [false, false, false]
+    mouse_wheel: 0
+    
+    // Touch state
+    touches: []
+    
+    // Gamepad state
+    gamepads: []
+    
+    // Action bindings
+    actions: {}
+  }
+
+  @props {
+    capture_mouse: false
+    invert_y: false
+    mouse_sensitivity: 1.0
+    deadzone: 0.15
+  }
+
+  // Define an input action
+  @method defineAction(name, bindings) => {
+    state.actions[name] = {
+      bindings: bindings,  // [{ type: "key", code: "KeyW" }, { type: "gamepad_button", index: 0 }]
+      value: 0,
+      pressed: false,
+      released: false
+    }
+  }
+
+  // Check if action is held
+  @method isActionHeld(name) => {
+    const action = state.actions[name]
+    return action ? action.value > 0.5 : false
+  }
+
+  // Check if action was just pressed
+  @method isActionPressed(name) => {
+    const action = state.actions[name]
+    return action ? action.pressed : false
+  }
+
+  // Check if action was just released
+  @method isActionReleased(name) => {
+    const action = state.actions[name]
+    return action ? action.released : false
+  }
+
+  // Get action value (0-1 for buttons, -1 to 1 for axes)
+  @method getActionValue(name) => {
+    const action = state.actions[name]
+    return action ? action.value : 0
+  }
+
+  // Get 2D movement vector
+  @method getMovementVector() => {
+    return [
+      this.getActionValue("move_right") - this.getActionValue("move_left"),
+      this.getActionValue("move_forward") - this.getActionValue("move_back")
+    ]
+  }
+
+  // Get look delta (mouse or right stick)
+  @method getLookDelta() => {
+    const mouse = [
+      state.mouse_delta[0] * props.mouse_sensitivity,
+      state.mouse_delta[1] * props.mouse_sensitivity * (props.invert_y ? -1 : 1)
+    ]
+    
+    // Also check gamepad right stick
+    if (state.gamepads.length > 0) {
+      const gp = state.gamepads[0]
+      if (gp.axes.length >= 4) {
+        mouse[0] += this.applyDeadzone(gp.axes[2]) * 5
+        mouse[1] += this.applyDeadzone(gp.axes[3]) * 5 * (props.invert_y ? -1 : 1)
+      }
+    }
+    
+    return mouse
+  }
+
+  // Apply deadzone to axis value
+  @method applyDeadzone(value) => {
+    if (Math.abs(value) < props.deadzone) return 0
+    const sign = value > 0 ? 1 : -1
+    return sign * (Math.abs(value) - props.deadzone) / (1 - props.deadzone)
+  }
+
+  // Check if key is currently down
+  @method isKeyDown(code) => {
+    return state.keys_down[code] || false
+  }
+
+  // Check if key was just pressed
+  @method isKeyPressed(code) => {
+    return state.keys_pressed[code] || false
+  }
+
+  // Check if mouse button is down
+  @method isMouseButtonDown(button) => {
+    return state.mouse_buttons[button] || false
+  }
+
+  // Lock/unlock mouse pointer
+  @method lockPointer() => {
+    document.body.requestPointerLock()
+  }
+
+  @method unlockPointer() => {
+    document.exitPointerLock()
+  }
+
+  // Event handlers
+  @on_key_down(event) => {
+    if (!state.keys_down[event.code]) {
+      state.keys_pressed[event.code] = true
+    }
+    state.keys_down[event.code] = true
+    
+    this.updateActions()
+  }
+
+  @on_key_up(event) => {
+    state.keys_down[event.code] = false
+    state.keys_released[event.code] = true
+    
+    this.updateActions()
+  }
+
+  @on_mouse_move(event) => {
+    state.mouse_position = [event.clientX, event.clientY]
+    state.mouse_delta = [event.movementX, event.movementY]
+  }
+
+  @on_mouse_down(event) => {
+    state.mouse_buttons[event.button] = true
+  }
+
+  @on_mouse_up(event) => {
+    state.mouse_buttons[event.button] = false
+  }
+
+  @on_wheel(event) => {
+    state.mouse_wheel = event.deltaY
+  }
+
+  @on_gamepad_connected(event) => {
+    console.log(`Gamepad connected: ${event.gamepad.id}`)
+    this.updateGamepads()
+  }
+
+  @on_gamepad_disconnected(event) => {
+    console.log(`Gamepad disconnected: ${event.gamepad.id}`)
+    this.updateGamepads()
+  }
+
+  @method updateGamepads() => {
+    state.gamepads = navigator.getGamepads().filter(gp => gp != null)
+  }
+
+  @method updateActions() => {
+    for (const [name, action] of Object.entries(state.actions)) {
+      let value = 0
+      let pressed = false
+      let released = false
+      
+      for (const binding of action.bindings) {
+        switch (binding.type) {
+          case "key":
+            if (state.keys_down[binding.code]) value = 1
+            if (state.keys_pressed[binding.code]) pressed = true
+            if (state.keys_released[binding.code]) released = true
+            break
+            
+          case "mouse_button":
+            if (state.mouse_buttons[binding.button]) value = 1
+            break
+            
+          case "gamepad_button":
+            if (state.gamepads.length > 0) {
+              const gp = state.gamepads[binding.gamepad || 0]
+              if (gp && gp.buttons[binding.index]?.pressed) value = 1
+            }
+            break
+            
+          case "gamepad_axis":
+            if (state.gamepads.length > 0) {
+              const gp = state.gamepads[binding.gamepad || 0]
+              if (gp && gp.axes[binding.axis] != undefined) {
+                const axisVal = this.applyDeadzone(gp.axes[binding.axis])
+                if (binding.positive && axisVal > 0) value = axisVal
+                if (!binding.positive && axisVal < 0) value = -axisVal
+              }
+            }
+            break
+        }
+      }
+      
+      action.value = value
+      action.pressed = pressed
+      action.released = released
+    }
+  }
+
+  @update(delta) => {
+    // Clear per-frame states
+    state.keys_pressed = {}
+    state.keys_released = {}
+    state.mouse_delta = [0, 0]
+    state.mouse_wheel = 0
+    
+    // Poll gamepads
+    this.updateGamepads()
+    this.updateActions()
+  }
+}
+
+/**
+ * Virtual Joystick
+ * Touch-based joystick for mobile
+ */
+component VirtualJoystick {
+  @state {
+    active: false
+    touch_id: null
+    origin: [0, 0]
+    current: [0, 0]
+    value: [0, 0]
+  }
+
+  @props {
+    position: "left"  // left | right
+    size: 120
+    thumb_size: 50
+    max_distance: 50
+    fixed: false
+    color: "#ffffff"
+    opacity: 0.5
+    show_when_inactive: true
+  }
+
+  @computed base_position() {
+    const margin = 40
+    if (props.position == "left") {
+      return [margin + props.size / 2, window.innerHeight - margin - props.size / 2]
+    } else {
+      return [window.innerWidth - margin - props.size / 2, window.innerHeight - margin - props.size / 2]
+    }
+  }
+
+  @computed thumb_offset() {
+    return [
+      state.value[0] * props.max_distance,
+      state.value[1] * props.max_distance
+    ]
+  }
+
+  @method getValue() => {
+    return state.value
+  }
+
+  @on_touch_start(event) => {
+    if (state.active) return
+    
+    for (const touch of event.changedTouches) {
+      // Check if touch is in our zone
+      const zone = props.position == "left" 
+        ? touch.clientX < window.innerWidth / 2
+        : touch.clientX >= window.innerWidth / 2
+      
+      if (zone) {
+        state.active = true
+        state.touch_id = touch.identifier
+        
+        if (props.fixed) {
+          state.origin = this.base_position()
+        } else {
+          state.origin = [touch.clientX, touch.clientY]
+        }
+        state.current = [touch.clientX, touch.clientY]
+        this.updateValue()
+        break
+      }
+    }
+  }
+
+  @on_touch_move(event) => {
+    if (!state.active) return
+    
+    for (const touch of event.changedTouches) {
+      if (touch.identifier == state.touch_id) {
+        state.current = [touch.clientX, touch.clientY]
+        this.updateValue()
+        break
+      }
+    }
+  }
+
+  @on_touch_end(event) => {
+    for (const touch of event.changedTouches) {
+      if (touch.identifier == state.touch_id) {
+        state.active = false
+        state.touch_id = null
+        state.value = [0, 0]
+        break
+      }
+    }
+  }
+
+  @method updateValue() => {
+    const dx = state.current[0] - state.origin[0]
+    const dy = state.current[1] - state.origin[1]
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    
+    if (distance > 0) {
+      const clampedDistance = Math.min(distance, props.max_distance)
+      state.value = [
+        (dx / distance) * (clampedDistance / props.max_distance),
+        (dy / distance) * (clampedDistance / props.max_distance)
+      ]
+    } else {
+      state.value = [0, 0]
+    }
+  }
+
+  // Visual representation
+  panel#joystick_container {
+    visible: ${state.active || props.show_when_inactive}
+    position: "fixed"
+    left: ${props.fixed ? this.base_position()[0] - props.size / 2 : state.origin[0] - props.size / 2}
+    top: ${props.fixed ? this.base_position()[1] - props.size / 2 : state.origin[1] - props.size / 2}
+    width: ${props.size}
+    height: ${props.size}
+    pointer_events: "none"
+    opacity: ${state.active ? 1 : props.opacity}
+    transition: "opacity 0.2s ease"
+
+    // Base circle
+    panel#base {
+      width: "100%"
+      height: "100%"
+      border_radius: "50%"
+      background: "rgba(255, 255, 255, 0.1)"
+      border: "2px solid ${props.color}"
+    }
+
+    // Thumb
+    panel#thumb {
+      position: "absolute"
+      left: ${props.size / 2 - props.thumb_size / 2 + this.thumb_offset()[0]}
+      top: ${props.size / 2 - props.thumb_size / 2 + this.thumb_offset()[1]}
+      width: ${props.thumb_size}
+      height: ${props.thumb_size}
+      border_radius: "50%"
+      background: ${props.color}
+      opacity: 0.8
+    }
+  }
+}
+
+/**
+ * Gesture Recognizer
+ * Detect tap, swipe, pinch, and rotate gestures
+ */
+component GestureRecognizer {
+  @state {
+    tracking_touches: {}
+    gesture_start_time: 0
+    gesture_start_distance: 0
+    gesture_start_angle: 0
+  }
+
+  @props {
+    tap_max_duration: 300
+    tap_max_distance: 20
+    swipe_min_distance: 50
+    swipe_max_duration: 500
+    
+    on_tap: null
+    on_double_tap: null
+    on_swipe: null
+    on_pinch: null
+    on_rotate: null
+  }
+
+  @on_touch_start(event) => {
+    state.gesture_start_time = Date.now()
+    
+    for (const touch of event.changedTouches) {
+      state.tracking_touches[touch.identifier] = {
+        start: [touch.clientX, touch.clientY],
+        current: [touch.clientX, touch.clientY],
+        startTime: Date.now()
+      }
+    }
+    
+    // Check for pinch/rotate start
+    const touchIds = Object.keys(state.tracking_touches)
+    if (touchIds.length == 2) {
+      const t1 = state.tracking_touches[touchIds[0]]
+      const t2 = state.tracking_touches[touchIds[1]]
+      
+      state.gesture_start_distance = this.getDistance(t1.current, t2.current)
+      state.gesture_start_angle = this.getAngle(t1.current, t2.current)
+    }
+  }
+
+  @on_touch_move(event) => {
+    for (const touch of event.changedTouches) {
+      if (state.tracking_touches[touch.identifier]) {
+        state.tracking_touches[touch.identifier].current = [touch.clientX, touch.clientY]
+      }
+    }
+    
+    // Handle pinch and rotate
+    const touchIds = Object.keys(state.tracking_touches)
+    if (touchIds.length == 2) {
+      const t1 = state.tracking_touches[touchIds[0]]
+      const t2 = state.tracking_touches[touchIds[1]]
+      
+      const currentDistance = this.getDistance(t1.current, t2.current)
+      const currentAngle = this.getAngle(t1.current, t2.current)
+      
+      const scale = currentDistance / state.gesture_start_distance
+      const rotation = currentAngle - state.gesture_start_angle
+      
+      if (props.on_pinch && Math.abs(scale - 1) > 0.01) {
+        props.on_pinch({ scale: scale, center: this.getMidpoint(t1.current, t2.current) })
+      }
+      
+      if (props.on_rotate && Math.abs(rotation) > 1) {
+        props.on_rotate({ angle: rotation, center: this.getMidpoint(t1.current, t2.current) })
+      }
+    }
+  }
+
+  @on_touch_end(event) => {
+    for (const touch of event.changedTouches) {
+      const tracked = state.tracking_touches[touch.identifier]
+      if (!tracked) continue
+      
+      const duration = Date.now() - tracked.startTime
+      const distance = this.getDistance(tracked.start, tracked.current)
+      
+      // Detect tap
+      if (duration < props.tap_max_duration && distance < props.tap_max_distance) {
+        if (props.on_tap) {
+          props.on_tap({ position: tracked.start })
+        }
+      }
+      
+      // Detect swipe
+      if (duration < props.swipe_max_duration && distance >= props.swipe_min_distance) {
+        const dx = tracked.current[0] - tracked.start[0]
+        const dy = tracked.current[1] - tracked.start[1]
+        
+        let direction
+        if (Math.abs(dx) > Math.abs(dy)) {
+          direction = dx > 0 ? "right" : "left"
+        } else {
+          direction = dy > 0 ? "down" : "up"
+        }
+        
+        if (props.on_swipe) {
+          props.on_swipe({
+            direction: direction,
+            distance: distance,
+            velocity: distance / duration
+          })
+        }
+      }
+      
+      delete state.tracking_touches[touch.identifier]
+    }
+  }
+
+  @method getDistance(p1, p2) => {
+    const dx = p2[0] - p1[0]
+    const dy = p2[1] - p1[1]
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  @method getAngle(p1, p2) => {
+    return Math.atan2(p2[1] - p1[1], p2[0] - p1[0]) * 180 / Math.PI
+  }
+
+  @method getMidpoint(p1, p2) => {
+    return [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]
+  }
+}
+
+export { InputManager, VirtualJoystick, GestureRecognizer }

@@ -1,0 +1,44 @@
+/**
+ * Templates Module Index
+ * 
+ * Exports code templates for HoloScript development.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// Code Templates
+export { CodeTemplates, CodeTemplate } from "./CodeTemplates.hsplus"
+
+// Templates namespace
+module Templates {
+  @method get(): typeof CodeTemplates {
+    return CodeTemplates
+  }
+  
+  @action initialize(): void {
+    CodeTemplates.initialize()
+  }
+  
+  @method search(query: string): CodeTemplate[] {
+    return CodeTemplates.search(query)
+  }
+  
+  @method getByCategory(category: string): CodeTemplate[] {
+    return CodeTemplates.getByCategory(category)
+  }
+  
+  @method getCategories(): string[] {
+    return CodeTemplates.getCategories()
+  }
+  
+  @method getTemplate(id: string): CodeTemplate | null {
+    return CodeTemplates.getTemplate(id)
+  }
+  
+  @method getFavorites(): CodeTemplate[] {
+    return CodeTemplates.getFavorites()
+  }
+}
+
+export { Templates }

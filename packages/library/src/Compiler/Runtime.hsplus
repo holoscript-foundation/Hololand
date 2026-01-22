@@ -1,0 +1,708 @@
+/**
+ * Runtime.hsplus
+ * 
+ * Core runtime support for transpiled HoloScript+ code.
+ * Provides reactive state, actions, computed values, and utilities.
+ * 
+ * @package @hololand/runtime
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// REACTIVE STATE
+// =============================================================================
+
+struct StateOptions {
+  deep: boolean = true
+  immediate: boolean = false
+}
+
+/**
+ * Create reactive state object with automatic change tracking
+ */
+function createState<T>(initial: T, options: StateOptions = {}): T {
+  const listeners: Set<(state: T) => void> = new Set()
+  let state = initial
+  
+  const proxy = new Proxy(state as object, {
+    get(target, prop) {
+      return target[prop]
+    },
+    
+    set(target, prop, value) {
+      const oldValue = target[prop]
+      target[prop] = value
+      
+      if (oldValue !== value) {
+        // Notify listeners
+        for (const listener of listeners) {
+          listener(proxy as T)
+        }
+      }
+      
+      return true
+    }
+  })
+  
+  // Attach subscription method
+  ;(proxy as any).__subscribe = (callback: (state: T) => void) => {
+    listeners.add(callback)
+    return () => listeners.delete(callback)
+  }
+  
+  ;(proxy as any).__getState = () => state
+  
+  return proxy as T
+}
+
+/**
+ * Subscribe to state changes
+ */
+function subscribe<T>(state: T, callback: (state: T) => void): () => void {
+  if ((state as any).__subscribe) {
+    return (state as any).__subscribe(callback)
+  }
+  console.warn("[Runtime] Cannot subscribe to non-reactive state")
+  return () => {}
+}
+
+/**
+ * Get raw state value (unwrapped from proxy)
+ */
+function unwrap<T>(state: T): T {
+  if ((state as any).__getState) {
+    return (state as any).__getState()
+  }
+  return state
+}
+
+// =============================================================================
+// ACTIONS
+// =============================================================================
+
+struct ActionOptions {
+  debounce?: number
+  throttle?: number
+  maxRetries?: number
+}
+
+/**
+ * Create an action that can modify state
+ */
+function createAction<T extends (...args: any[]) => any>(
+  fn: T,
+  options: ActionOptions = {}
+): T {
+  let lastCall = 0
+  let timeout: any = null
+  
+  const wrapped = ((...args: Parameters<T>): ReturnType<T> => {
+    const now = Date.now()
+    
+    // Throttle
+    if (options.throttle && now - lastCall < options.throttle) {
+      return undefined as ReturnType<T>
+    }
+    
+    // Debounce
+    if (options.debounce) {
+      if (timeout) clearTimeout(timeout)
+      return new Promise((resolve) => {
+        timeout = setTimeout(() => {
+          lastCall = Date.now()
+          resolve(fn(...args))
+        }, options.debounce)
+      }) as ReturnType<T>
+    }
+    
+    lastCall = now
+    return fn(...args)
+  }) as T
+  
+  // Mark as action
+  ;(wrapped as any).__isAction = true
+  ;(wrapped as any).__options = options
+  
+  return wrapped
+}
+
+/**
+ * Create an async action with retry support
+ */
+async function createAsyncAction<T>(
+  fn: () => Promise<T>,
+  options: ActionOptions = {}
+): Promise<T> {
+  const maxRetries = options.maxRetries || 0
+  let attempt = 0
+  
+  while (attempt <= maxRetries) {
+    try {
+      return await fn()
+    } catch (err) {
+      attempt++
+      if (attempt > maxRetries) throw err
+      // Exponential backoff
+      await sleep(Math.pow(2, attempt) * 100)
+    }
+  }
+  
+  throw new Error("Max retries exceeded")
+}
+
+// =============================================================================
+// COMPUTED VALUES
+// =============================================================================
+
+struct ComputedOptions {
+  cache: boolean = true
+  lazy: boolean = true
+}
+
+/**
+ * Create a computed value that auto-updates when dependencies change
+ */
+function computed<T>(getter: () => T, options: ComputedOptions = {}): { value: T } {
+  let cached: T
+  let dirty = true
+  const deps: Set<any> = new Set()
+  
+  const comp = {
+    get value(): T {
+      if (options.cache && !dirty) {
+        return cached
+      }
+      
+      cached = getter()
+      dirty = false
+      return cached
+    },
+    
+    invalidate(): void {
+      dirty = true
+    },
+    
+    __isComputed: true
+  }
+  
+  return comp
+}
+
+/**
+ * Watch for changes in reactive values
+ */
+function watch<T>(
+  source: () => T | T,
+  callback: (newValue: T, oldValue: T) => void,
+  options: { immediate?: boolean, deep?: boolean } = {}
+): () => void {
+  let oldValue: T
+  let isRunning = true
+  
+  const check = () => {
+    if (!isRunning) return
+    
+    const newValue = typeof source === "function" ? (source as () => T)() : source
+    
+    if (newValue !== oldValue) {
+      callback(newValue, oldValue)
+      oldValue = newValue
+    }
+  }
+  
+  if (options.immediate) {
+    oldValue = typeof source === "function" ? (source as () => T)() : source
+    callback(oldValue, undefined as any)
+  }
+  
+  // In a real implementation, this would hook into the reactive system
+  const interval = setInterval(check, 16) // ~60fps polling as fallback
+  
+  return () => {
+    isRunning = false
+    clearInterval(interval)
+  }
+}
+
+// =============================================================================
+// REACTIVE UTILITIES
+// =============================================================================
+
+/**
+ * Create a reactive object (deep reactivity)
+ */
+function reactive<T extends object>(target: T): T {
+  return createState(target, { deep: true })
+}
+
+/**
+ * Create a reactive reference (single value)
+ */
+function ref<T>(value: T): { value: T } {
+  const state = createState({ value })
+  return state
+}
+
+/**
+ * Batch multiple state updates
+ */
+function batch(fn: () => void): void {
+  // In a real implementation, this would batch notifications
+  fn()
+}
+
+/**
+ * Make a value non-reactive
+ */
+function markRaw<T>(value: T): T {
+  ;(value as any).__skip = true
+  return value
+}
+
+// =============================================================================
+// EVENT SYSTEM
+// =============================================================================
+
+type EventCallback = (...args: any[]) => void
+
+const eventBus = {
+  events: new Map<string, Set<EventCallback>>(),
+  
+  on(event: string, callback: EventCallback): () => void {
+    if (!this.events.has(event)) {
+      this.events.set(event, new Set())
+    }
+    this.events.get(event)!.add(callback)
+    return () => this.off(event, callback)
+  },
+  
+  off(event: string, callback: EventCallback): void {
+    this.events.get(event)?.delete(callback)
+  },
+  
+  emit(event: string, ...args: any[]): void {
+    this.events.get(event)?.forEach(cb => cb(...args))
+  },
+  
+  once(event: string, callback: EventCallback): () => void {
+    const wrapper = (...args: any[]) => {
+      this.off(event, wrapper)
+      callback(...args)
+    }
+    return this.on(event, wrapper)
+  },
+  
+  clear(event?: string): void {
+    if (event) {
+      this.events.delete(event)
+    } else {
+      this.events.clear()
+    }
+  }
+}
+
+// =============================================================================
+// TIMING UTILITIES
+// =============================================================================
+
+/**
+ * Promise-based sleep
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Create an interval that can be stopped
+ */
+function every(ms: number, callback: () => void): { stop: () => void } {
+  const id = setInterval(callback, ms)
+  return {
+    stop: () => clearInterval(id)
+  }
+}
+
+/**
+ * Execute after delay
+ */
+function after(ms: number, callback: () => void): { cancel: () => void } {
+  const id = setTimeout(callback, ms)
+  return {
+    cancel: () => clearTimeout(id)
+  }
+}
+
+/**
+ * Debounce a function
+ */
+function debounce<T extends (...args: any[]) => any>(
+  fn: T,
+  wait: number
+): T {
+  let timeout: any = null
+  
+  return ((...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => fn(...args), wait)
+  }) as T
+}
+
+/**
+ * Throttle a function
+ */
+function throttle<T extends (...args: any[]) => any>(
+  fn: T,
+  wait: number
+): T {
+  let lastCall = 0
+  
+  return ((...args: Parameters<T>) => {
+    const now = Date.now()
+    if (now - lastCall >= wait) {
+      lastCall = now
+      return fn(...args)
+    }
+  }) as T
+}
+
+// =============================================================================
+// OBJECT UTILITIES
+// =============================================================================
+
+/**
+ * Deep clone an object
+ */
+function clone<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") return obj
+  if (Array.isArray(obj)) return obj.map(clone) as T
+  
+  const cloned: any = {}
+  for (const key of Object.keys(obj as object)) {
+    cloned[key] = clone((obj as any)[key])
+  }
+  return cloned
+}
+
+/**
+ * Deep merge objects
+ */
+function merge<T extends object>(...sources: Partial<T>[]): T {
+  const result: any = {}
+  
+  for (const source of sources) {
+    for (const key of Object.keys(source)) {
+      const value = (source as any)[key]
+      
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        result[key] = merge(result[key] || {}, value)
+      } else {
+        result[key] = value
+      }
+    }
+  }
+  
+  return result
+}
+
+/**
+ * Pick specific keys from an object
+ */
+function pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
+  const result: any = {}
+  for (const key of keys) {
+    if (key in obj) {
+      result[key] = obj[key]
+    }
+  }
+  return result
+}
+
+/**
+ * Omit specific keys from an object
+ */
+function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
+  const result: any = { ...obj }
+  for (const key of keys) {
+    delete result[key]
+  }
+  return result
+}
+
+// =============================================================================
+// ARRAY UTILITIES
+// =============================================================================
+
+/**
+ * Group array items by a key
+ */
+function groupBy<T>(array: T[], key: keyof T | ((item: T) => string)): Record<string, T[]> {
+  return array.reduce((groups, item) => {
+    const groupKey = typeof key === "function" ? key(item) : String(item[key])
+    if (!groups[groupKey]) groups[groupKey] = []
+    groups[groupKey].push(item)
+    return groups
+  }, {} as Record<string, T[]>)
+}
+
+/**
+ * Unique array items
+ */
+function unique<T>(array: T[], key?: keyof T): T[] {
+  if (key) {
+    const seen = new Set()
+    return array.filter(item => {
+      const k = item[key]
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }
+  return [...new Set(array)]
+}
+
+/**
+ * Chunk array into smaller arrays
+ */
+function chunk<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size))
+  }
+  return chunks
+}
+
+/**
+ * Flatten nested arrays
+ */
+function flatten<T>(array: (T | T[])[], depth: number = 1): T[] {
+  return depth > 0
+    ? array.reduce<T[]>((acc, val) => 
+        acc.concat(Array.isArray(val) ? flatten(val as any[], depth - 1) : val), [])
+    : array.slice() as T[]
+}
+
+// =============================================================================
+// STRING UTILITIES
+// =============================================================================
+
+/**
+ * Convert string to camelCase
+ */
+function camelCase(str: string): string {
+  return str.replace(/[-_\s]+(.)?/g, (_, c) => c ? c.toUpperCase() : "")
+}
+
+/**
+ * Convert string to PascalCase
+ */
+function pascalCase(str: string): string {
+  const camel = camelCase(str)
+  return camel.charAt(0).toUpperCase() + camel.slice(1)
+}
+
+/**
+ * Convert string to snake_case
+ */
+function snakeCase(str: string): string {
+  return str
+    .replace(/([A-Z])/g, "_$1")
+    .toLowerCase()
+    .replace(/^_/, "")
+    .replace(/[-\s]+/g, "_")
+}
+
+/**
+ * Convert string to kebab-case
+ */
+function kebabCase(str: string): string {
+  return snakeCase(str).replace(/_/g, "-")
+}
+
+// =============================================================================
+// VALIDATION UTILITIES
+// =============================================================================
+
+/**
+ * Check if value is defined
+ */
+function isDefined<T>(value: T | undefined | null): value is T {
+  return value !== undefined && value !== null
+}
+
+/**
+ * Check if value is empty
+ */
+function isEmpty(value: any): boolean {
+  if (value === null || value === undefined) return true
+  if (typeof value === "string") return value.length === 0
+  if (Array.isArray(value)) return value.length === 0
+  if (typeof value === "object") return Object.keys(value).length === 0
+  return false
+}
+
+/**
+ * Assert a condition
+ */
+function assert(condition: boolean, message: string = "Assertion failed"): asserts condition {
+  if (!condition) {
+    throw new Error(message)
+  }
+}
+
+// =============================================================================
+// ASYNC UTILITIES
+// =============================================================================
+
+/**
+ * Promise that can be resolved/rejected externally
+ */
+function deferred<T>(): { 
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: any) => void 
+} {
+  let resolve!: (value: T) => void
+  let reject!: (error: any) => void
+  
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  
+  return { promise, resolve, reject }
+}
+
+/**
+ * Race with timeout
+ */
+function timeout<T>(promise: Promise<T>, ms: number, message: string = "Timeout"): Promise<T> {
+  return Promise.race([
+    promise,
+    sleep(ms).then(() => { throw new Error(message) })
+  ])
+}
+
+/**
+ * Retry a function
+ */
+async function retry<T>(
+  fn: () => Promise<T>,
+  options: { maxAttempts?: number, delay?: number, backoff?: boolean } = {}
+): Promise<T> {
+  const { maxAttempts = 3, delay = 1000, backoff = true } = options
+  
+  let lastError: any
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err
+      if (attempt < maxAttempts) {
+        const waitTime = backoff ? delay * Math.pow(2, attempt - 1) : delay
+        await sleep(waitTime)
+      }
+    }
+  }
+  
+  throw lastError
+}
+
+// =============================================================================
+// LOGGING
+// =============================================================================
+
+const LogLevel = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3,
+  SILENT: 4
+}
+
+let currentLogLevel = LogLevel.INFO
+
+function setLogLevel(level: number): void {
+  currentLogLevel = level
+}
+
+function log(level: number, prefix: string, ...args: any[]): void {
+  if (level < currentLogLevel) return
+  
+  const methods = ["debug", "info", "warn", "error"]
+  const method = methods[level] || "log"
+  ;(console as any)[method](prefix, ...args)
+}
+
+const logger = {
+  debug: (...args: any[]) => log(LogLevel.DEBUG, "[DEBUG]", ...args),
+  info: (...args: any[]) => log(LogLevel.INFO, "[INFO]", ...args),
+  warn: (...args: any[]) => log(LogLevel.WARN, "[WARN]", ...args),
+  error: (...args: any[]) => log(LogLevel.ERROR, "[ERROR]", ...args),
+  setLevel: setLogLevel
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Reactive state
+  createState,
+  subscribe,
+  unwrap,
+  reactive,
+  ref,
+  batch,
+  markRaw,
+  
+  // Actions
+  createAction,
+  createAsyncAction,
+  
+  // Computed
+  computed,
+  watch,
+  
+  // Events
+  eventBus,
+  
+  // Timing
+  sleep,
+  every,
+  after,
+  debounce,
+  throttle,
+  
+  // Objects
+  clone,
+  merge,
+  pick,
+  omit,
+  
+  // Arrays
+  groupBy,
+  unique,
+  chunk,
+  flatten,
+  
+  // Strings
+  camelCase,
+  pascalCase,
+  snakeCase,
+  kebabCase,
+  
+  // Validation
+  isDefined,
+  isEmpty,
+  assert,
+  
+  // Async
+  deferred,
+  timeout,
+  retry,
+  
+  // Logging
+  logger,
+  LogLevel
+}

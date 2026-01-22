@@ -1,0 +1,202 @@
+/**
+ * @hololand/ui - Image Component
+ * Displays images with various fit modes
+ */
+
+import { ImageConfig, ImageFit, Vector2 } from "../types.hsplus"
+
+module Image {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 100, height: 100 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Image-specific
+    src: string = "",
+    alt: string = "",
+    fit: ImageFit = ImageFit.contain,
+    borderRadius: number = 0,
+    opacity: number = 1,
+    imageElement: HTMLImageElement = null,
+    loaded: bool = false,
+    loading: bool = false,
+    error: bool = false
+  }
+
+  @action initialize(config: ImageConfig) {
+    self.id = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 100, height: 100 }
+    self.visible = config.visible ?? true
+    self.src = config.src ?? ""
+    self.alt = config.alt ?? ""
+    self.fit = config.fit ?? ImageFit.contain
+    self.borderRadius = config.borderRadius ?? 0
+    self.opacity = config.opacity ?? 1
+    self.eventHandlers = new Map()
+    self.dirty = true
+
+    if self.src {
+      self.loadImage(self.src)
+    }
+  }
+
+  @action async loadImage(url: string) {
+    self.loading = true
+    self.loaded = false
+    self.error = false
+    self.dirty = true
+
+    try {
+      let img = new window.Image()
+      img.crossOrigin = "anonymous"
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = url
+      })
+
+      self.imageElement = img
+      self.loaded = true
+      self.loading = false
+      self.emit("load")
+    } catch err {
+      self.error = true
+      self.loading = false
+      self.emit("error", { error: err })
+    }
+
+    self.dirty = true
+  }
+
+  @action setSrc(url: string) {
+    if self.src != url {
+      self.src = url
+      self.loadImage(url)
+    }
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    let x = self.position.x
+    let y = self.position.y
+    let w = self.size.width
+    let h = self.size.height
+
+    ctx.save()
+    ctx.globalAlpha = self.opacity
+
+    // Clip to rounded rect if needed
+    if self.borderRadius > 0 {
+      ctx.beginPath()
+      ctx.roundRect(x, y, w, h, self.borderRadius)
+      ctx.clip()
+    }
+
+    if self.loaded && self.imageElement {
+      let imgW = self.imageElement.naturalWidth
+      let imgH = self.imageElement.naturalHeight
+      let drawX = x
+      let drawY = y
+      let drawW = w
+      let drawH = h
+
+      match self.fit {
+        ImageFit.contain => {
+          let scale = Math.min(w / imgW, h / imgH)
+          drawW = imgW * scale
+          drawH = imgH * scale
+          drawX = x + (w - drawW) / 2
+          drawY = y + (h - drawH) / 2
+        },
+        ImageFit.cover => {
+          let scale = Math.max(w / imgW, h / imgH)
+          drawW = imgW * scale
+          drawH = imgH * scale
+          drawX = x + (w - drawW) / 2
+          drawY = y + (h - drawH) / 2
+        },
+        ImageFit.fill => {
+          // Use full container size
+        },
+        ImageFit.none => {
+          drawW = imgW
+          drawH = imgH
+          drawX = x + (w - drawW) / 2
+          drawY = y + (h - drawH) / 2
+        },
+        ImageFit.scale_down => {
+          if imgW > w || imgH > h {
+            let scale = Math.min(w / imgW, h / imgH)
+            drawW = imgW * scale
+            drawH = imgH * scale
+          } else {
+            drawW = imgW
+            drawH = imgH
+          }
+          drawX = x + (w - drawW) / 2
+          drawY = y + (h - drawH) / 2
+        }
+      }
+
+      ctx.drawImage(self.imageElement, drawX, drawY, drawW, drawH)
+    } else if self.loading {
+      // Draw loading placeholder
+      ctx.fillStyle = "#f0f0f0"
+      ctx.fillRect(x, y, w, h)
+      ctx.fillStyle = "#999999"
+      ctx.font = "14px system-ui"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("Loading...", x + w / 2, y + h / 2)
+    } else if self.error {
+      // Draw error placeholder
+      ctx.fillStyle = "#ffeeee"
+      ctx.fillRect(x, y, w, h)
+      ctx.fillStyle = "#cc0000"
+      ctx.font = "14px system-ui"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillText("Error", x + w / 2, y + h / 2)
+    } else {
+      // Empty placeholder
+      ctx.fillStyle = "#f5f5f5"
+      ctx.fillRect(x, y, w, h)
+    }
+
+    ctx.restore()
+    self.dirty = false
+  }
+
+  @action on(eventType: string, handler: any) {
+    if !self.eventHandlers.has(eventType) {
+      self.eventHandlers.set(eventType, new Set())
+    }
+    self.eventHandlers.get(eventType).add(handler)
+  }
+
+  @method emit(eventType: string, data: any = null) {
+    let handlers = self.eventHandlers.get(eventType)
+    if handlers {
+      let event = { eventType, targetId: self.id, timestamp: Date.now(), data }
+      for handler in handlers {
+        handler(event)
+      }
+    }
+  }
+}
+
+function createImage(config: ImageConfig) -> typeof Image {
+  Image.initialize(config)
+  return Image
+}
+
+export { Image, createImage }

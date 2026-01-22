@@ -1,0 +1,690 @@
+/**
+ * ErrorVisualizer.hsplus
+ * 
+ * Error reporting and visualization components for syntax, runtime,
+ * and warning errors. Provides detailed error display with source
+ * location, stack traces, and quick actions.
+ * 
+ * Components:
+ * - ErrorVisualizer: Main error panel with filtering and list
+ * - ErrorCard: Individual error display with details
+ * - ErrorCounts: Summary badges for error types
+ * - EmptyState: No errors found message
+ * - ErrorTips: Contextual help and tips
+ * - StackTrace: Expandable stack trace viewer
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+type ErrorType = "syntax" | "runtime" | "warning" | "info"
+
+struct CompilationError {
+  id: string
+  type: ErrorType
+  message: string
+  line: number = null
+  column: number = null
+  stack: string = null
+  file: string = null
+  source: string = null
+}
+
+// =============================================================================
+// ERROR COUNTS - Badge summary of errors by type
+// =============================================================================
+
+component ErrorCounts {
+  @props {
+    syntax: number = 0
+    runtime: number = 0
+    warning: number = 0
+    showLabels: boolean = true
+  }
+
+  @computed hasErrors(): boolean {
+    return this.props.syntax > 0 || this.props.runtime > 0 || this.props.warning > 0
+  }
+
+  @render {
+    <div class="error-counts">
+      @if this.props.syntax > 0 {
+        <span class="count count-syntax">
+          <span class="count-value">{this.props.syntax}</span>
+          @if this.props.showLabels {
+            <span class="count-label">Syntax</span>
+          }
+        </span>
+      }
+      @if this.props.runtime > 0 {
+        <span class="count count-runtime">
+          <span class="count-value">{this.props.runtime}</span>
+          @if this.props.showLabels {
+            <span class="count-label">Runtime</span>
+          }
+        </span>
+      }
+      @if this.props.warning > 0 {
+        <span class="count count-warning">
+          <span class="count-value">{this.props.warning}</span>
+          @if this.props.showLabels {
+            <span class="count-label">Warning</span>
+          }
+        </span>
+      }
+      @if !this.hasErrors() {
+        <span class="count count-success">✓ No errors</span>
+      }
+    </div>
+  }
+
+  @style {
+    .error-counts {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    .count {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .count-value {
+      font-weight: 600;
+    }
+
+    .count-label {
+      opacity: 0.8;
+    }
+
+    .count-syntax {
+      color: var(--error-syntax, #f87171);
+    }
+
+    .count-runtime {
+      color: var(--error-runtime, #fb923c);
+    }
+
+    .count-warning {
+      color: var(--error-warning, #facc15);
+    }
+
+    .count-success {
+      color: var(--success, #4ade80);
+    }
+  }
+}
+
+// =============================================================================
+// STACK TRACE - Expandable stack trace viewer
+// =============================================================================
+
+component StackTrace {
+  @props {
+    stack: string
+    maxHeight: number = 96
+  }
+
+  @state {
+    expanded: boolean = false
+  }
+
+  @method toggle(): void {
+    this.state.expanded = !this.state.expanded
+  }
+
+  @render {
+    <details class="stack-trace" open={this.state.expanded}>
+      <summary class="stack-summary" on_click={this.toggle}>
+        Stack trace
+      </summary>
+      <pre class="stack-content" style="--max-height: {this.props.maxHeight}px">
+        {this.props.stack}
+      </pre>
+    </details>
+  }
+
+  @style {
+    .stack-trace {
+      margin-top: 0.5rem;
+    }
+
+    .stack-summary {
+      font-size: 0.75rem;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.15s;
+    }
+
+    .stack-summary:hover {
+      opacity: 1;
+    }
+
+    .stack-content {
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding: 0.5rem;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 0.25rem;
+      overflow-x: auto;
+      max-height: var(--max-height);
+      font-family: monospace;
+    }
+  }
+}
+
+// =============================================================================
+// ERROR CARD - Individual error display
+// =============================================================================
+
+component ErrorCard {
+  @props {
+    error: CompilationError
+    onGoToLine: (line: number, column: number) => void = null
+    onDismiss: (id: string) => void = null
+  }
+
+  @computed icon(): string {
+    match this.props.error.type {
+      "syntax" => "⚠️"
+      "runtime" => "❌"
+      "warning" => "⚡"
+      _ => "ℹ️"
+    }
+  }
+
+  @computed colorClass(): string {
+    match this.props.error.type {
+      "syntax" => "error-syntax"
+      "runtime" => "error-runtime"
+      "warning" => "error-warning"
+      _ => "error-info"
+    }
+  }
+
+  @method handleGoToLine(): void {
+    if (this.props.onGoToLine && this.props.error.line) {
+      this.props.onGoToLine(this.props.error.line, this.props.error.column || 0)
+    }
+  }
+
+  @method handleDismiss(): void {
+    if (this.props.onDismiss) {
+      this.props.onDismiss(this.props.error.id)
+    }
+  }
+
+  @render {
+    <div class="error-card {this.colorClass()}">
+      <div class="error-content">
+        <span class="error-icon">{this.icon()}</span>
+        <div class="error-details">
+          <div class="error-header">
+            <div class="error-main">
+              <p class="error-message">{this.props.error.message}</p>
+              @if this.props.error.line {
+                <p class="error-location" on_click={this.handleGoToLine}>
+                  Line {this.props.error.line}
+                  @if this.props.error.column {
+                    , Column {this.props.error.column}
+                  }
+                  @if this.props.error.file {
+                    <span class="error-file"> in {this.props.error.file}</span>
+                  }
+                </p>
+              }
+            </div>
+            <span class="error-type">{this.props.error.type}</span>
+          </div>
+          
+          @if this.props.error.source {
+            <pre class="error-source">{this.props.error.source}</pre>
+          }
+          
+          @if this.props.error.stack {
+            <StackTrace stack={this.props.error.stack} />
+          }
+        </div>
+      </div>
+      
+      @if this.props.onDismiss {
+        <button class="dismiss-btn" on_click={this.handleDismiss} title="Dismiss">
+          ×
+        </button>
+      }
+    </div>
+  }
+
+  @style {
+    .error-card {
+      position: relative;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid;
+    }
+
+    .error-syntax {
+      background: rgba(185, 28, 28, 0.2);
+      border-color: #b91c1c;
+      color: #fecaca;
+    }
+
+    .error-runtime {
+      background: rgba(194, 65, 12, 0.2);
+      border-color: #c2410c;
+      color: #fed7aa;
+    }
+
+    .error-warning {
+      background: rgba(161, 98, 7, 0.2);
+      border-color: #a16207;
+      color: #fef08a;
+    }
+
+    .error-info {
+      background: rgba(55, 65, 81, 0.5);
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+
+    .error-content {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .error-icon {
+      font-size: 1.125rem;
+      flex-shrink: 0;
+    }
+
+    .error-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .error-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .error-main {
+      flex: 1;
+    }
+
+    .error-message {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .error-location {
+      font-size: 0.75rem;
+      opacity: 0.75;
+      margin-top: 0.25rem;
+      cursor: pointer;
+    }
+
+    .error-location:hover {
+      text-decoration: underline;
+    }
+
+    .error-file {
+      opacity: 0.6;
+    }
+
+    .error-type {
+      font-size: 0.75rem;
+      opacity: 0.6;
+      flex-shrink: 0;
+      text-transform: capitalize;
+    }
+
+    .error-source {
+      font-size: 0.75rem;
+      font-family: monospace;
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 0.25rem;
+      overflow-x: auto;
+    }
+
+    .dismiss-btn {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 0.25rem;
+      background: rgba(0, 0, 0, 0.3);
+      color: currentColor;
+      border: none;
+      cursor: pointer;
+      opacity: 0.5;
+      font-size: 1rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dismiss-btn:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.5);
+    }
+  }
+}
+
+// =============================================================================
+// EMPTY STATE - No errors message
+// =============================================================================
+
+component EmptyState {
+  @props {
+    icon: string = "✓"
+    title: string = "No errors detected"
+    subtitle: string = "Your code looks good!"
+  }
+
+  @render {
+    <div class="empty-state">
+      <div class="empty-icon">{this.props.icon}</div>
+      <p class="empty-title">{this.props.title}</p>
+      <p class="empty-subtitle">{this.props.subtitle}</p>
+    </div>
+  }
+
+  @style {
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted, #6b7280);
+    }
+
+    .empty-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-title {
+      font-size: 0.875rem;
+      margin: 0;
+    }
+
+    .empty-subtitle {
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      opacity: 0.8;
+    }
+  }
+}
+
+// =============================================================================
+// ERROR TIPS - Contextual help footer
+// =============================================================================
+
+component ErrorTips {
+  @props {
+    tips: string[] = [
+      "Click on errors in the editor to jump to that line. Use Ctrl+Enter to compile your code."
+    ]
+  }
+
+  @state {
+    currentTip: number = 0
+  }
+
+  @method nextTip(): void {
+    this.state.currentTip = (this.state.currentTip + 1) % this.props.tips.length
+  }
+
+  @render {
+    <div class="error-tips" on_click={this.nextTip}>
+      <span class="tip-icon">💡</span>
+      <span class="tip-label">Tip: </span>
+      <span class="tip-text">{this.props.tips[this.state.currentTip]}</span>
+    </div>
+  }
+
+  @style {
+    .error-tips {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border, #374151);
+      background: rgba(31, 41, 55, 0.5);
+      cursor: pointer;
+    }
+
+    .tip-icon {
+      margin-right: 0.25rem;
+    }
+
+    .tip-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary, #9ca3af);
+    }
+
+    .tip-text {
+      font-size: 0.75rem;
+      color: var(--text-muted, #6b7280);
+    }
+  }
+}
+
+// =============================================================================
+// ERROR VISUALIZER TOOLBAR
+// =============================================================================
+
+component ErrorVisualizerToolbar {
+  @props {
+    title: string = "Error Report"
+    syntaxCount: number = 0
+    runtimeCount: number = 0
+    warningCount: number = 0
+    onClear: () => void = null
+    onFilter: (type: ErrorType) => void = null
+    activeFilter: ErrorType = null
+  }
+
+  @computed hasErrors(): boolean {
+    return this.props.syntaxCount > 0 || this.props.runtimeCount > 0 || this.props.warningCount > 0
+  }
+
+  @render {
+    <div class="error-toolbar">
+      <div class="toolbar-left">
+        <h3 class="toolbar-title">{this.props.title}</h3>
+        <ErrorCounts
+          syntax={this.props.syntaxCount}
+          runtime={this.props.runtimeCount}
+          warning={this.props.warningCount}
+        />
+      </div>
+      <div class="toolbar-right">
+        @if this.hasErrors() && this.props.onClear {
+          <button class="clear-btn" on_click={this.props.onClear}>
+            Clear
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  @style {
+    .error-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border, #374151);
+      background: var(--bg-secondary, #1f2937);
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .toolbar-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary, #e5e7eb);
+      margin: 0;
+    }
+
+    .toolbar-right {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .clear-btn {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      background: var(--bg-tertiary, #374151);
+      color: var(--text-secondary, #9ca3af);
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .clear-btn:hover {
+      background: var(--bg-hover, #4b5563);
+    }
+  }
+}
+
+// =============================================================================
+// ERROR VISUALIZER - Main component
+// =============================================================================
+
+component ErrorVisualizer {
+  @props {
+    errors: CompilationError[] = []
+    title: string = "Error Report"
+    showTips: boolean = true
+    onClear: () => void = null
+    onGoToLine: (line: number, column: number) => void = null
+    onDismiss: (id: string) => void = null
+  }
+
+  @state {
+    filter: ErrorType = null
+  }
+
+  @computed filteredErrors(): CompilationError[] {
+    if (!this.state.filter) {
+      return this.props.errors
+    }
+    return this.props.errors.filter(e => e.type === this.state.filter)
+  }
+
+  @computed syntaxCount(): number {
+    return this.props.errors.filter(e => e.type === "syntax").length
+  }
+
+  @computed runtimeCount(): number {
+    return this.props.errors.filter(e => e.type === "runtime").length
+  }
+
+  @computed warningCount(): number {
+    return this.props.errors.filter(e => e.type === "warning").length
+  }
+
+  @method setFilter(type: ErrorType): void {
+    this.state.filter = this.state.filter === type ? null : type
+  }
+
+  @method handleClear(): void {
+    if (this.props.onClear) {
+      this.props.onClear()
+    }
+  }
+
+  @render {
+    <div class="error-visualizer">
+      <ErrorVisualizerToolbar
+        title={this.props.title}
+        syntaxCount={this.syntaxCount()}
+        runtimeCount={this.runtimeCount()}
+        warningCount={this.warningCount()}
+        onClear={this.handleClear}
+        onFilter={this.setFilter}
+        activeFilter={this.state.filter}
+      />
+
+      <div class="error-list">
+        @if this.props.errors.length === 0 {
+          <EmptyState />
+        } else {
+          @for error in this.filteredErrors() {
+            <ErrorCard
+              key={error.id}
+              error={error}
+              onGoToLine={this.props.onGoToLine}
+              onDismiss={this.props.onDismiss}
+            />
+          }
+        }
+      </div>
+
+      @if this.props.showTips && this.props.errors.length > 0 {
+        <ErrorTips 
+          tips={[
+            "Click on errors in the editor to jump to that line. Use Ctrl+Enter to compile.",
+            "Syntax errors must be fixed before your code can run.",
+            "Warnings won't stop execution but may cause unexpected behavior.",
+            "Runtime errors occur during execution - check your logic."
+          ]}
+        />
+      }
+    </div>
+  }
+
+  @style {
+    .error-visualizer {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      background: var(--bg-primary, #111827);
+    }
+
+    .error-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  ErrorVisualizer,
+  ErrorCard,
+  ErrorCounts,
+  EmptyState,
+  ErrorTips,
+  ErrorVisualizerToolbar,
+  StackTrace,
+  CompilationError,
+  ErrorType
+}

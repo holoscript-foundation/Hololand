@@ -1,0 +1,632 @@
+/**
+ * LibraryService.hsplus
+ * 
+ * HoloScript library management service for templates, assets,
+ * and code snippets.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct LibraryItem {
+  id: string
+  name: string
+  description: string
+  category: string
+  type: "template" | "asset" | "snippet" | "scene" | "component"
+  code: string
+  thumbnail: string
+  tags: string[]
+  author: string
+  version: string
+  downloads: number
+  rating: number
+  createdAt: number
+  updatedAt: number
+}
+
+struct LibraryCategory {
+  id: string
+  name: string
+  icon: string
+  itemCount: number
+}
+
+struct SearchFilters {
+  category?: string
+  type?: string
+  tags?: string[]
+  author?: string
+  minRating?: number
+  sortBy?: "name" | "downloads" | "rating" | "date"
+  sortOrder?: "asc" | "desc"
+}
+
+// =============================================================================
+// LIBRARY SERVICE MODULE
+// =============================================================================
+
+module LibraryService {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    items: Map<string, LibraryItem> = new Map()
+    categories: LibraryCategory[] = []
+    favorites: Set<string> = new Set()
+    recentlyUsed: string[] = []
+    isLoading: boolean = false
+    error: string = null
+    
+    // Local storage keys
+    storageKeys: {
+      favorites: string,
+      recent: string,
+      custom: string
+    } = {
+      favorites: "hololand_library_favorites",
+      recent: "hololand_library_recent",
+      custom: "hololand_library_custom"
+    }
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action async initialize(): Promise<void> {
+    this.state.isLoading = true
+    this.state.error = null
+    
+    try {
+      // Load built-in items
+      await this.loadBuiltInItems()
+      
+      // Load from local storage
+      this.loadFromStorage()
+      
+      // Update categories
+      this.updateCategories()
+    } catch (err) {
+      this.state.error = err.message
+      console.error("LibraryService initialization failed:", err)
+    } finally {
+      this.state.isLoading = false
+    }
+  }
+  
+  @action async loadBuiltInItems(): Promise<void> {
+    // Built-in templates
+    const builtIn: LibraryItem[] = [
+      {
+        id: "builtin_cube",
+        name: "Basic Cube",
+        description: "A simple colored cube",
+        category: "primitives",
+        type: "template",
+        code: `object Cube {
+  position: [0, 1, 0]
+  trait BoxGeometry { width: 2, height: 2, depth: 2 }
+  trait Material { color: 0x3498db }
+}`,
+        thumbnail: "/assets/thumbnails/cube.png",
+        tags: ["cube", "primitive", "basic"],
+        author: "Hololand",
+        version: "1.0.0",
+        downloads: 1000,
+        rating: 4.5,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: "builtin_sphere",
+        name: "Basic Sphere",
+        description: "A simple colored sphere",
+        category: "primitives",
+        type: "template",
+        code: `object Sphere {
+  position: [0, 1, 0]
+  trait SphereGeometry { radius: 1, segments: 32 }
+  trait Material { color: 0xe74c3c }
+}`,
+        thumbnail: "/assets/thumbnails/sphere.png",
+        tags: ["sphere", "primitive", "basic"],
+        author: "Hololand",
+        version: "1.0.0",
+        downloads: 800,
+        rating: 4.3,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: "builtin_npc",
+        name: "Basic NPC",
+        description: "An interactive NPC with dialogue",
+        category: "characters",
+        type: "template",
+        code: `object NPC {
+  position: [0, 0, 5]
+  interactive: true
+  traits: ["talkable"]
+  
+  state {
+    name: "Villager"
+    dialogue: "Hello, traveler!"
+  }
+  
+  on_interact {
+    showDialogue(self.state.name, self.state.dialogue)
+  }
+}`,
+        thumbnail: "/assets/thumbnails/npc.png",
+        tags: ["npc", "character", "interactive", "dialogue"],
+        author: "Hololand",
+        version: "1.0.0",
+        downloads: 500,
+        rating: 4.8,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: "builtin_button",
+        name: "Interactive Button",
+        description: "A clickable button with visual feedback",
+        category: "interactive",
+        type: "template",
+        code: `object Button {
+  position: [0, 1, 0]
+  interactive: true
+  
+  state { pressed: false }
+  
+  trait BoxGeometry { width: 2, height: 0.5, depth: 2 }
+  trait Material { color: 0xe74c3c }
+  
+  on_click {
+    self.state.pressed = true
+    self.position[1] -= 0.1
+    after(200) {
+      self.position[1] += 0.1
+      self.state.pressed = false
+    }
+  }
+}`,
+        thumbnail: "/assets/thumbnails/button.png",
+        tags: ["button", "interactive", "click"],
+        author: "Hololand",
+        version: "1.0.0",
+        downloads: 600,
+        rating: 4.6,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: "builtin_particles",
+        name: "Particle Emitter",
+        description: "Configurable particle system",
+        category: "effects",
+        type: "template",
+        code: `object Particles {
+  position: [0, 0, 0]
+  
+  trait ParticleSystem {
+    count: 100
+    lifetime: 2
+    speed: { min: 1, max: 3 }
+    color: { start: 0xffff00, end: 0xff0000 }
+    loop: true
+  }
+}`,
+        thumbnail: "/assets/thumbnails/particles.png",
+        tags: ["particles", "effects", "visual"],
+        author: "Hololand",
+        version: "1.0.0",
+        downloads: 400,
+        rating: 4.7,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      {
+        id: "builtin_light",
+        name: "Point Light",
+        description: "A point light source",
+        category: "lighting",
+        type: "template",
+        code: `object PointLight {
+  position: [0, 5, 0]
+  
+  trait Light {
+    type: "point"
+    color: 0xffffff
+    intensity: 1
+    distance: 20
+    castShadow: true
+  }
+}`,
+        thumbnail: "/assets/thumbnails/light.png",
+        tags: ["light", "lighting", "illumination"],
+        author: "Hololand",
+        version: "1.0.0",
+        downloads: 300,
+        rating: 4.4,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }
+    ]
+    
+    for (const item of builtIn) {
+      this.state.items.set(item.id, item)
+    }
+  }
+  
+  @action loadFromStorage(): void {
+    try {
+      // Load favorites
+      const favoritesJson = localStorage.getItem(this.state.storageKeys.favorites)
+      if (favoritesJson) {
+        const favorites = JSON.parse(favoritesJson)
+        this.state.favorites = new Set(favorites)
+      }
+      
+      // Load recently used
+      const recentJson = localStorage.getItem(this.state.storageKeys.recent)
+      if (recentJson) {
+        this.state.recentlyUsed = JSON.parse(recentJson)
+      }
+      
+      // Load custom items
+      const customJson = localStorage.getItem(this.state.storageKeys.custom)
+      if (customJson) {
+        const customItems = JSON.parse(customJson)
+        for (const item of customItems) {
+          this.state.items.set(item.id, item)
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to load library from storage:", err)
+    }
+  }
+  
+  @action saveToStorage(): void {
+    try {
+      // Save favorites
+      localStorage.setItem(
+        this.state.storageKeys.favorites,
+        JSON.stringify([...this.state.favorites])
+      )
+      
+      // Save recently used
+      localStorage.setItem(
+        this.state.storageKeys.recent,
+        JSON.stringify(this.state.recentlyUsed)
+      )
+      
+      // Save custom items (non-builtin)
+      const customItems = Array.from(this.state.items.values())
+        .filter(item => !item.id.startsWith("builtin_"))
+      localStorage.setItem(
+        this.state.storageKeys.custom,
+        JSON.stringify(customItems)
+      )
+    } catch (err) {
+      console.warn("Failed to save library to storage:", err)
+    }
+  }
+  
+  // =========================================================================
+  // CATEGORY MANAGEMENT
+  // =========================================================================
+  
+  @action updateCategories(): void {
+    const categoryMap = new Map<string, number>()
+    
+    for (const item of this.state.items.values()) {
+      const count = categoryMap.get(item.category) || 0
+      categoryMap.set(item.category, count + 1)
+    }
+    
+    this.state.categories = Array.from(categoryMap.entries()).map(([id, count]) => ({
+      id,
+      name: this.formatCategoryName(id),
+      icon: this.getCategoryIcon(id),
+      itemCount: count
+    }))
+  }
+  
+  @method formatCategoryName(id: string): string {
+    return id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, " ")
+  }
+  
+  @method getCategoryIcon(id: string): string {
+    const icons = {
+      primitives: "📦",
+      characters: "🧑",
+      interactive: "👆",
+      effects: "✨",
+      lighting: "💡",
+      scenes: "🎬",
+      components: "🧩",
+      custom: "⭐"
+    }
+    return icons[id] || "📁"
+  }
+  
+  @method getCategories(): LibraryCategory[] {
+    return [...this.state.categories]
+  }
+  
+  // =========================================================================
+  // ITEM MANAGEMENT
+  // =========================================================================
+  
+  @action addItem(item: LibraryItem): void {
+    this.state.items.set(item.id, item)
+    this.updateCategories()
+    this.saveToStorage()
+  }
+  
+  @action updateItem(id: string, updates: Partial<LibraryItem>): void {
+    const item = this.state.items.get(id)
+    if (item) {
+      Object.assign(item, updates, { updatedAt: Date.now() })
+      this.saveToStorage()
+    }
+  }
+  
+  @action removeItem(id: string): boolean {
+    const deleted = this.state.items.delete(id)
+    if (deleted) {
+      this.state.favorites.delete(id)
+      this.state.recentlyUsed = this.state.recentlyUsed.filter(r => r !== id)
+      this.updateCategories()
+      this.saveToStorage()
+    }
+    return deleted
+  }
+  
+  @method getItem(id: string): LibraryItem | null {
+    return this.state.items.get(id) || null
+  }
+  
+  @method getAllItems(): LibraryItem[] {
+    return Array.from(this.state.items.values())
+  }
+  
+  // =========================================================================
+  // SEARCH & FILTER
+  // =========================================================================
+  
+  @method search(query: string, filters?: SearchFilters): LibraryItem[] {
+    let results = Array.from(this.state.items.values())
+    
+    // Text search
+    if (query) {
+      const lower = query.toLowerCase()
+      results = results.filter(item =>
+        item.name.toLowerCase().includes(lower) ||
+        item.description.toLowerCase().includes(lower) ||
+        item.tags.some(tag => tag.includes(lower))
+      )
+    }
+    
+    // Apply filters
+    if (filters) {
+      if (filters.category) {
+        results = results.filter(item => item.category === filters.category)
+      }
+      
+      if (filters.type) {
+        results = results.filter(item => item.type === filters.type)
+      }
+      
+      if (filters.tags && filters.tags.length > 0) {
+        results = results.filter(item =>
+          filters.tags.some(tag => item.tags.includes(tag))
+        )
+      }
+      
+      if (filters.author) {
+        results = results.filter(item => item.author === filters.author)
+      }
+      
+      if (filters.minRating) {
+        results = results.filter(item => item.rating >= filters.minRating)
+      }
+      
+      // Sorting
+      const sortBy = filters.sortBy || "name"
+      const sortOrder = filters.sortOrder || "asc"
+      
+      results.sort((a, b) => {
+        let comparison = 0
+        
+        switch (sortBy) {
+          case "name":
+            comparison = a.name.localeCompare(b.name)
+            break
+          case "downloads":
+            comparison = a.downloads - b.downloads
+            break
+          case "rating":
+            comparison = a.rating - b.rating
+            break
+          case "date":
+            comparison = a.updatedAt - b.updatedAt
+            break
+        }
+        
+        return sortOrder === "desc" ? -comparison : comparison
+      })
+    }
+    
+    return results
+  }
+  
+  @method getByCategory(category: string): LibraryItem[] {
+    return Array.from(this.state.items.values())
+      .filter(item => item.category === category)
+  }
+  
+  @method getByType(type: string): LibraryItem[] {
+    return Array.from(this.state.items.values())
+      .filter(item => item.type === type)
+  }
+  
+  @method getByTag(tag: string): LibraryItem[] {
+    return Array.from(this.state.items.values())
+      .filter(item => item.tags.includes(tag))
+  }
+  
+  // =========================================================================
+  // FAVORITES
+  // =========================================================================
+  
+  @action toggleFavorite(id: string): boolean {
+    if (this.state.favorites.has(id)) {
+      this.state.favorites.delete(id)
+      this.saveToStorage()
+      return false
+    } else {
+      this.state.favorites.add(id)
+      this.saveToStorage()
+      return true
+    }
+  }
+  
+  @method isFavorite(id: string): boolean {
+    return this.state.favorites.has(id)
+  }
+  
+  @method getFavorites(): LibraryItem[] {
+    return Array.from(this.state.favorites)
+      .map(id => this.state.items.get(id))
+      .filter(item => item !== undefined)
+  }
+  
+  // =========================================================================
+  // RECENTLY USED
+  // =========================================================================
+  
+  @action markAsUsed(id: string): void {
+    // Remove if exists
+    this.state.recentlyUsed = this.state.recentlyUsed.filter(r => r !== id)
+    
+    // Add to front
+    this.state.recentlyUsed.unshift(id)
+    
+    // Limit to 20 items
+    if (this.state.recentlyUsed.length > 20) {
+      this.state.recentlyUsed.pop()
+    }
+    
+    // Update download count
+    const item = this.state.items.get(id)
+    if (item) {
+      item.downloads++
+    }
+    
+    this.saveToStorage()
+  }
+  
+  @method getRecentlyUsed(): LibraryItem[] {
+    return this.state.recentlyUsed
+      .map(id => this.state.items.get(id))
+      .filter(item => item !== undefined)
+  }
+  
+  // =========================================================================
+  // USE ITEM
+  // =========================================================================
+  
+  @action useItem(id: string): string | null {
+    const item = this.state.items.get(id)
+    if (!item) return null
+    
+    this.markAsUsed(id)
+    return item.code
+  }
+  
+  // =========================================================================
+  // IMPORT/EXPORT
+  // =========================================================================
+  
+  @action async importItems(json: string): Promise<number> {
+    try {
+      const items: LibraryItem[] = JSON.parse(json)
+      let imported = 0
+      
+      for (const item of items) {
+        if (item.id && item.name && item.code) {
+          // Generate new ID to avoid conflicts
+          item.id = `imported_${Date.now()}_${imported}`
+          item.createdAt = Date.now()
+          item.updatedAt = Date.now()
+          
+          this.state.items.set(item.id, item)
+          imported++
+        }
+      }
+      
+      this.updateCategories()
+      this.saveToStorage()
+      
+      return imported
+    } catch (err) {
+      console.error("Import failed:", err)
+      throw new Error("Failed to import items: Invalid JSON")
+    }
+  }
+  
+  @method exportItems(ids?: string[]): string {
+    let itemsToExport: LibraryItem[]
+    
+    if (ids && ids.length > 0) {
+      itemsToExport = ids
+        .map(id => this.state.items.get(id))
+        .filter(item => item !== undefined)
+    } else {
+      // Export all non-builtin items
+      itemsToExport = Array.from(this.state.items.values())
+        .filter(item => !item.id.startsWith("builtin_"))
+    }
+    
+    return JSON.stringify(itemsToExport, null, 2)
+  }
+  
+  // =========================================================================
+  // STATS
+  // =========================================================================
+  
+  @computed totalItems(): number {
+    return this.state.items.size
+  }
+  
+  @computed totalFavorites(): number {
+    return this.state.favorites.size
+  }
+  
+  @method getStats(): object {
+    return {
+      totalItems: this.state.items.size,
+      categories: this.state.categories.length,
+      favorites: this.state.favorites.size,
+      recentlyUsed: this.state.recentlyUsed.length
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  LibraryService,
+  LibraryItem,
+  LibraryCategory,
+  SearchFilters
+}

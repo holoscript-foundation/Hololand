@@ -1,0 +1,344 @@
+// HOSL: Animation Library
+// Reusable animation components and effects
+
+/**
+ * Tween Animation System
+ * Smooth interpolation between values with easing
+ */
+component TweenController {
+  @state {
+    active_tweens: []
+    paused: false
+  }
+
+  // Easing functions
+  const EASING = {
+    linear: (t) => t,
+    easeInQuad: (t) => t * t,
+    easeOutQuad: (t) => 1 - (1 - t) * (1 - t),
+    easeInOutQuad: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
+    easeInCubic: (t) => t * t * t,
+    easeOutCubic: (t) => 1 - Math.pow(1 - t, 3),
+    easeInOutCubic: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+    easeInElastic: (t) => t == 0 ? 0 : t == 1 ? 1 : -Math.pow(2, 10 * t - 10) * Math.sin((t * 10 - 10.75) * ((2 * Math.PI) / 3)),
+    easeOutElastic: (t) => t == 0 ? 0 : t == 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1,
+    easeOutBounce: (t) => {
+      if (t < 1 / 2.75) return 7.5625 * t * t
+      if (t < 2 / 2.75) return 7.5625 * (t -= 1.5 / 2.75) * t + 0.75
+      if (t < 2.5 / 2.75) return 7.5625 * (t -= 2.25 / 2.75) * t + 0.9375
+      return 7.5625 * (t -= 2.625 / 2.75) * t + 0.984375
+    }
+  }
+
+  // Create a tween animation
+  @method tween(target, property, from, to, duration, easing = "easeOutQuad") => {
+    const tween = {
+      id: crypto.randomUUID(),
+      target: target,
+      property: property,
+      from: from,
+      to: to,
+      duration: duration,
+      easing: easing,
+      elapsed: 0,
+      completed: false
+    }
+    
+    state.active_tweens = [...state.active_tweens, tween]
+    
+    return new Promise((resolve) => {
+      tween.resolve = resolve
+    })
+  }
+
+  // Animate multiple properties at once
+  @method animate(target, properties, duration, easing = "easeOutQuad") => {
+    const promises = []
+    for (const [prop, values] of Object.entries(properties)) {
+      promises.push(this.tween(target, prop, values.from, values.to, duration, easing))
+    }
+    return Promise.all(promises)
+  }
+
+  // Cancel a specific tween
+  @method cancel(tween_id) => {
+    state.active_tweens = state.active_tweens.filter(t => t.id != tween_id)
+  }
+
+  // Cancel all tweens for a target
+  @method cancelAll(target) => {
+    state.active_tweens = state.active_tweens.filter(t => t.target != target)
+  }
+
+  // Update loop
+  @update(delta) => {
+    if (state.paused) return
+    
+    const completed = []
+    
+    for (const tween of state.active_tweens) {
+      tween.elapsed += delta
+      const progress = Math.min(tween.elapsed / tween.duration, 1)
+      const easedProgress = EASING[tween.easing](progress)
+      
+      // Interpolate value
+      if (Array.isArray(tween.from)) {
+        // Vector interpolation
+        const value = tween.from.map((v, i) => 
+          v + (tween.to[i] - v) * easedProgress
+        )
+        tween.target[tween.property] = value
+      } else {
+        // Scalar interpolation
+        tween.target[tween.property] = tween.from + (tween.to - tween.from) * easedProgress
+      }
+      
+      if (progress >= 1) {
+        completed.push(tween)
+      }
+    }
+    
+    // Remove completed tweens
+    for (const tween of completed) {
+      if (tween.resolve) tween.resolve()
+      state.active_tweens = state.active_tweens.filter(t => t.id != tween.id)
+    }
+  }
+}
+
+/**
+ * Sprite Animation Controller
+ * Frame-based sprite sheet animations
+ */
+component SpriteAnimator {
+  @state {
+    current_animation: null
+    current_frame: 0
+    elapsed: 0
+    playing: false
+    loop: true
+  }
+
+  @props {
+    animations: {}  // { walk: { frames: [0,1,2,3], fps: 12, loop: true } }
+    sprite_sheet: null
+    columns: 4
+    rows: 4
+  }
+
+  // Play an animation
+  @method play(animation_name, loop = true) => {
+    if (!props.animations[animation_name]) {
+      console.warn(`Animation "${animation_name}" not found`)
+      return
+    }
+    
+    state.current_animation = animation_name
+    state.current_frame = 0
+    state.elapsed = 0
+    state.playing = true
+    state.loop = loop
+  }
+
+  // Stop animation
+  @method stop() => {
+    state.playing = false
+  }
+
+  // Pause animation
+  @method pause() => {
+    state.playing = false
+  }
+
+  // Resume animation
+  @method resume() => {
+    state.playing = true
+  }
+
+  // Get current UV offset for sprite sheet
+  @computed uv_offset() {
+    if (!state.current_animation) return [0, 0]
+    
+    const anim = props.animations[state.current_animation]
+    const frame = anim.frames[state.current_frame]
+    
+    const col = frame % props.columns
+    const row = Math.floor(frame / props.columns)
+    
+    return [col / props.columns, row / props.rows]
+  }
+
+  @update(delta) => {
+    if (!state.playing || !state.current_animation) return
+    
+    const anim = props.animations[state.current_animation]
+    const frameDuration = 1 / anim.fps
+    
+    state.elapsed += delta
+    
+    if (state.elapsed >= frameDuration) {
+      state.elapsed -= frameDuration
+      state.current_frame++
+      
+      if (state.current_frame >= anim.frames.length) {
+        if (state.loop || anim.loop) {
+          state.current_frame = 0
+        } else {
+          state.current_frame = anim.frames.length - 1
+          state.playing = false
+          this.emit("animation_complete", state.current_animation)
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Particle Emitter
+ * Configurable particle system
+ */
+component ParticleEmitter {
+  @state {
+    particles: []
+    emitting: true
+    emit_timer: 0
+  }
+
+  @props {
+    // Emission
+    rate: 10           // particles per second
+    burst: 0           // instant burst count
+    max_particles: 100
+    
+    // Particle properties
+    lifetime: [1, 2]   // min, max seconds
+    speed: [1, 3]      // min, max
+    direction: [0, 1, 0]
+    spread: 30         // degrees
+    
+    // Visual
+    size: [0.1, 0.05]  // start, end
+    color_start: "#ffffff"
+    color_end: "#ffffff00"
+    texture: null
+    
+    // Physics
+    gravity: [0, -9.8, 0]
+    drag: 0.1
+  }
+
+  // Start emitting
+  @method start() => {
+    state.emitting = true
+  }
+
+  // Stop emitting
+  @method stop() => {
+    state.emitting = false
+  }
+
+  // Emit a burst of particles
+  @method burst(count) => {
+    for (let i = 0; i < count; i++) {
+      this.spawnParticle()
+    }
+  }
+
+  // Clear all particles
+  @method clear() => {
+    state.particles = []
+  }
+
+  // Internal: spawn a single particle
+  @method spawnParticle() => {
+    if (state.particles.length >= props.max_particles) return
+    
+    const lifetime = this.randomRange(props.lifetime[0], props.lifetime[1])
+    const speed = this.randomRange(props.speed[0], props.speed[1])
+    
+    // Calculate velocity with spread
+    const spreadRad = (props.spread * Math.PI) / 180
+    const theta = Math.random() * Math.PI * 2
+    const phi = Math.random() * spreadRad
+    
+    const velocity = [
+      props.direction[0] + Math.sin(phi) * Math.cos(theta) * speed,
+      props.direction[1] + Math.cos(phi) * speed,
+      props.direction[2] + Math.sin(phi) * Math.sin(theta) * speed
+    ]
+    
+    state.particles.push({
+      position: [0, 0, 0],
+      velocity: velocity,
+      lifetime: lifetime,
+      age: 0,
+      size: props.size[0]
+    })
+  }
+
+  @method randomRange(min, max) => {
+    return min + Math.random() * (max - min)
+  }
+
+  @update(delta) => {
+    // Emit new particles
+    if (state.emitting) {
+      state.emit_timer += delta
+      const interval = 1 / props.rate
+      
+      while (state.emit_timer >= interval) {
+        state.emit_timer -= interval
+        this.spawnParticle()
+      }
+    }
+    
+    // Update existing particles
+    const alive = []
+    
+    for (const p of state.particles) {
+      p.age += delta
+      
+      if (p.age < p.lifetime) {
+        // Apply physics
+        p.velocity[0] += props.gravity[0] * delta
+        p.velocity[1] += props.gravity[1] * delta
+        p.velocity[2] += props.gravity[2] * delta
+        
+        // Apply drag
+        const dragFactor = 1 - props.drag * delta
+        p.velocity[0] *= dragFactor
+        p.velocity[1] *= dragFactor
+        p.velocity[2] *= dragFactor
+        
+        // Update position
+        p.position[0] += p.velocity[0] * delta
+        p.position[1] += p.velocity[1] * delta
+        p.position[2] += p.velocity[2] * delta
+        
+        // Interpolate size
+        const t = p.age / p.lifetime
+        p.size = props.size[0] + (props.size[1] - props.size[0]) * t
+        
+        alive.push(p)
+      }
+    }
+    
+    state.particles = alive
+  }
+
+  // Render particles
+  group#particle_container {
+    @for particle, index in state.particles {
+      sprite#p_${index} {
+        position: ${particle.position}
+        scale: [particle.size, particle.size, particle.size]
+        color: ${props.color_start}
+        opacity: ${1 - (particle.age / particle.lifetime)}
+        texture: ${props.texture}
+        billboard: true
+      }
+    }
+  }
+}
+
+export { TweenController, SpriteAnimator, ParticleEmitter }

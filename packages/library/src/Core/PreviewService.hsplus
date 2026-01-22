@@ -1,0 +1,558 @@
+/**
+ * PreviewService.hsplus
+ * 
+ * 3D preview rendering service for HoloScript code.
+ * Manages scene creation, object rendering, and camera controls.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct PreviewObject {
+  id: string
+  type: string
+  position: [number, number, number]
+  rotation: [number, number, number]
+  scale: [number, number, number]
+  visible: boolean
+  selected: boolean
+  metadata: object
+}
+
+struct RenderStats {
+  fps: number
+  drawCalls: number
+  triangles: number
+  points: number
+  lines: number
+  textures: number
+  geometries: number
+  programs: number
+}
+
+struct CameraState {
+  position: [number, number, number]
+  target: [number, number, number]
+  zoom: number
+  fov: number
+}
+
+// =============================================================================
+// PREVIEW SERVICE MODULE
+// =============================================================================
+
+module PreviewService {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    isInitialized: boolean = false
+    isRendering: boolean = false
+    container: HTMLElement = null
+    
+    // Scene objects
+    objects: Map<string, PreviewObject> = new Map()
+    selectedIds: string[] = []
+    
+    // Camera
+    camera: CameraState = {
+      position: [10, 10, 10],
+      target: [0, 0, 0],
+      zoom: 1,
+      fov: 60
+    }
+    
+    // Rendering
+    renderStats: RenderStats = {
+      fps: 0,
+      drawCalls: 0,
+      triangles: 0,
+      points: 0,
+      lines: 0,
+      textures: 0,
+      geometries: 0,
+      programs: 0
+    }
+    
+    // Settings
+    settings: {
+      showGrid: boolean,
+      showAxes: boolean,
+      showStats: boolean,
+      antialias: boolean,
+      shadows: boolean,
+      backgroundColor: number
+    } = {
+      showGrid: true,
+      showAxes: true,
+      showStats: false,
+      antialias: true,
+      shadows: true,
+      backgroundColor: 0x1a1a2e
+    }
+    
+    // Animation
+    animationFrameId: number = null
+    lastFrameTime: number = 0
+    frameCount: number = 0
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(container: HTMLElement): boolean {
+    if (this.state.isInitialized) {
+      console.warn("PreviewService already initialized")
+      return false
+    }
+    
+    this.state.container = container
+    this.state.isInitialized = true
+    
+    // Set up default scene elements
+    this.setupDefaultScene()
+    
+    // Start render loop
+    this.startRenderLoop()
+    
+    return true
+  }
+  
+  @action dispose(): void {
+    this.stopRenderLoop()
+    this.state.objects.clear()
+    this.state.selectedIds = []
+    this.state.container = null
+    this.state.isInitialized = false
+  }
+  
+  @method setupDefaultScene(): void {
+    // Add grid helper
+    if (this.state.settings.showGrid) {
+      this.addObject({
+        id: "__grid__",
+        type: "grid",
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        visible: true,
+        selected: false,
+        metadata: { size: 20, divisions: 20 }
+      })
+    }
+    
+    // Add axes helper
+    if (this.state.settings.showAxes) {
+      this.addObject({
+        id: "__axes__",
+        type: "axes",
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        visible: true,
+        selected: false,
+        metadata: { size: 5 }
+      })
+    }
+    
+    // Add default lighting
+    this.addObject({
+      id: "__ambient_light__",
+      type: "light",
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      visible: true,
+      selected: false,
+      metadata: { lightType: "ambient", color: 0x404040, intensity: 0.5 }
+    })
+    
+    this.addObject({
+      id: "__directional_light__",
+      type: "light",
+      position: [10, 20, 10],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      visible: true,
+      selected: false,
+      metadata: { lightType: "directional", color: 0xffffff, intensity: 1 }
+    })
+  }
+  
+  // =========================================================================
+  // OBJECT MANAGEMENT
+  // =========================================================================
+  
+  @action addObject(obj: PreviewObject): void {
+    this.state.objects.set(obj.id, obj)
+    this.emit("object:added", obj)
+  }
+  
+  @action removeObject(id: string): boolean {
+    const existed = this.state.objects.delete(id)
+    if (existed) {
+      this.state.selectedIds = this.state.selectedIds.filter(s => s !== id)
+      this.emit("object:removed", { id })
+    }
+    return existed
+  }
+  
+  @action updateObject(id: string, updates: Partial<PreviewObject>): void {
+    const obj = this.state.objects.get(id)
+    if (obj) {
+      Object.assign(obj, updates)
+      this.emit("object:updated", obj)
+    }
+  }
+  
+  @action clearObjects(): void {
+    // Keep system objects (prefixed with __)
+    const systemIds: string[] = []
+    for (const id of this.state.objects.keys()) {
+      if (id.startsWith("__")) {
+        systemIds.push(id)
+      }
+    }
+    
+    const systemObjects = systemIds.map(id => [id, this.state.objects.get(id)])
+    this.state.objects.clear()
+    
+    for (const [id, obj] of systemObjects) {
+      this.state.objects.set(id, obj)
+    }
+    
+    this.state.selectedIds = []
+    this.emit("objects:cleared")
+  }
+  
+  @method getObject(id: string): PreviewObject | null {
+    return this.state.objects.get(id) || null
+  }
+  
+  @method getAllObjects(): PreviewObject[] {
+    return Array.from(this.state.objects.values())
+      .filter(obj => !obj.id.startsWith("__"))
+  }
+  
+  // =========================================================================
+  // SELECTION
+  // =========================================================================
+  
+  @action select(id: string, additive: boolean = false): void {
+    if (!additive) {
+      // Deselect all
+      for (const obj of this.state.objects.values()) {
+        obj.selected = false
+      }
+      this.state.selectedIds = []
+    }
+    
+    const obj = this.state.objects.get(id)
+    if (obj && !obj.id.startsWith("__")) {
+      obj.selected = true
+      if (!this.state.selectedIds.includes(id)) {
+        this.state.selectedIds.push(id)
+      }
+      this.emit("selection:changed", { selected: this.state.selectedIds })
+    }
+  }
+  
+  @action deselect(id: string): void {
+    const obj = this.state.objects.get(id)
+    if (obj) {
+      obj.selected = false
+      this.state.selectedIds = this.state.selectedIds.filter(s => s !== id)
+      this.emit("selection:changed", { selected: this.state.selectedIds })
+    }
+  }
+  
+  @action deselectAll(): void {
+    for (const obj of this.state.objects.values()) {
+      obj.selected = false
+    }
+    this.state.selectedIds = []
+    this.emit("selection:changed", { selected: [] })
+  }
+  
+  @method getSelected(): PreviewObject[] {
+    return this.state.selectedIds
+      .map(id => this.state.objects.get(id))
+      .filter(obj => obj !== undefined)
+  }
+  
+  // =========================================================================
+  // CAMERA CONTROLS
+  // =========================================================================
+  
+  @action setCamera(state: Partial<CameraState>): void {
+    Object.assign(this.state.camera, state)
+    this.emit("camera:changed", this.state.camera)
+  }
+  
+  @action resetCamera(): void {
+    this.state.camera = {
+      position: [10, 10, 10],
+      target: [0, 0, 0],
+      zoom: 1,
+      fov: 60
+    }
+    this.emit("camera:reset")
+  }
+  
+  @action focusOnObject(id: string): void {
+    const obj = this.state.objects.get(id)
+    if (obj) {
+      this.state.camera.target = [...obj.position]
+      
+      // Calculate camera position based on object bounds
+      const distance = 5 * Math.max(...obj.scale)
+      this.state.camera.position = [
+        obj.position[0] + distance,
+        obj.position[1] + distance,
+        obj.position[2] + distance
+      ]
+      
+      this.emit("camera:focus", { objectId: id })
+    }
+  }
+  
+  @action focusOnSelection(): void {
+    if (this.state.selectedIds.length === 0) return
+    
+    // Calculate bounding box center
+    let minX = Infinity, minY = Infinity, minZ = Infinity
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity
+    
+    for (const id of this.state.selectedIds) {
+      const obj = this.state.objects.get(id)
+      if (obj) {
+        minX = Math.min(minX, obj.position[0])
+        minY = Math.min(minY, obj.position[1])
+        minZ = Math.min(minZ, obj.position[2])
+        maxX = Math.max(maxX, obj.position[0])
+        maxY = Math.max(maxY, obj.position[1])
+        maxZ = Math.max(maxZ, obj.position[2])
+      }
+    }
+    
+    const center = [
+      (minX + maxX) / 2,
+      (minY + maxY) / 2,
+      (minZ + maxZ) / 2
+    ]
+    
+    const size = Math.max(maxX - minX, maxY - minY, maxZ - minZ)
+    const distance = size * 2 + 5
+    
+    this.state.camera.target = center
+    this.state.camera.position = [
+      center[0] + distance,
+      center[1] + distance,
+      center[2] + distance
+    ]
+    
+    this.emit("camera:focus", { selection: true })
+  }
+  
+  // =========================================================================
+  // RENDER LOOP
+  // =========================================================================
+  
+  @action startRenderLoop(): void {
+    if (this.state.isRendering) return
+    
+    this.state.isRendering = true
+    this.state.lastFrameTime = performance.now()
+    
+    const loop = (time: number) => {
+      if (!this.state.isRendering) return
+      
+      // Calculate FPS
+      this.state.frameCount++
+      const elapsed = time - this.state.lastFrameTime
+      
+      if (elapsed >= 1000) {
+        this.state.renderStats.fps = Math.round(
+          (this.state.frameCount * 1000) / elapsed
+        )
+        this.state.frameCount = 0
+        this.state.lastFrameTime = time
+      }
+      
+      // Render frame
+      this.render()
+      
+      this.state.animationFrameId = requestAnimationFrame(loop)
+    }
+    
+    this.state.animationFrameId = requestAnimationFrame(loop)
+  }
+  
+  @action stopRenderLoop(): void {
+    this.state.isRendering = false
+    if (this.state.animationFrameId !== null) {
+      cancelAnimationFrame(this.state.animationFrameId)
+      this.state.animationFrameId = null
+    }
+  }
+  
+  @method render(): void {
+    // In actual implementation, this would render the Three.js scene
+    // For now, it's a placeholder that updates stats
+    
+    // Simulate draw call counting
+    this.state.renderStats.drawCalls = this.state.objects.size
+    this.state.renderStats.triangles = this.state.objects.size * 12 // Approximate
+  }
+  
+  // =========================================================================
+  // SETTINGS
+  // =========================================================================
+  
+  @action updateSettings(settings: Partial<typeof this.state.settings>): void {
+    Object.assign(this.state.settings, settings)
+    
+    // Update grid visibility
+    const grid = this.state.objects.get("__grid__")
+    if (grid) {
+      grid.visible = settings.showGrid ?? grid.visible
+    }
+    
+    // Update axes visibility
+    const axes = this.state.objects.get("__axes__")
+    if (axes) {
+      axes.visible = settings.showAxes ?? axes.visible
+    }
+    
+    this.emit("settings:changed", this.state.settings)
+  }
+  
+  @method getSettings(): typeof this.state.settings {
+    return { ...this.state.settings }
+  }
+  
+  // =========================================================================
+  // HOLOSCRIPT RENDERING
+  // =========================================================================
+  
+  @action renderHoloScript(ast: object): void {
+    // Clear existing user objects
+    this.clearObjects()
+    
+    // Process AST and create preview objects
+    if (ast.type === "composition") {
+      this.renderComposition(ast)
+    } else if (ast.type === "object") {
+      this.renderObjectNode(ast)
+    }
+  }
+  
+  @method renderComposition(node: object): void {
+    if (node.children) {
+      for (const child of node.children) {
+        if (child.type === "object") {
+          this.renderObjectNode(child)
+        } else if (child.type === "spatial_group") {
+          this.renderSpatialGroup(child)
+        }
+      }
+    }
+  }
+  
+  @method renderSpatialGroup(node: object): void {
+    const groupPosition = node.position || [0, 0, 0]
+    
+    if (node.children) {
+      for (const child of node.children) {
+        if (child.type === "object") {
+          // Offset child position by group position
+          const childObj = this.createPreviewObject(child)
+          childObj.position = [
+            childObj.position[0] + groupPosition[0],
+            childObj.position[1] + groupPosition[1],
+            childObj.position[2] + groupPosition[2]
+          ]
+          this.addObject(childObj)
+        }
+      }
+    }
+  }
+  
+  @method renderObjectNode(node: object): void {
+    const obj = this.createPreviewObject(node)
+    this.addObject(obj)
+  }
+  
+  @method createPreviewObject(node: object): PreviewObject {
+    return {
+      id: node.name || node.id || crypto.randomUUID(),
+      type: this.determineObjectType(node),
+      position: node.position || [0, 0, 0],
+      rotation: node.rotation || [0, 0, 0],
+      scale: node.scale || [1, 1, 1],
+      visible: node.visible !== false,
+      selected: false,
+      metadata: {
+        traits: node.traits || [],
+        state: node.state || {},
+        interactive: node.interactive || false
+      }
+    }
+  }
+  
+  @method determineObjectType(node: object): string {
+    // Check traits for geometry type
+    if (node.traits) {
+      for (const trait of node.traits) {
+        if (trait.type === "BoxGeometry") return "box"
+        if (trait.type === "SphereGeometry") return "sphere"
+        if (trait.type === "CylinderGeometry") return "cylinder"
+        if (trait.type === "PlaneGeometry") return "plane"
+        if (trait.type === "Mesh") return "mesh"
+        if (trait.type === "Light") return "light"
+      }
+    }
+    
+    return "box" // Default to box
+  }
+  
+  // =========================================================================
+  // EVENTS
+  // =========================================================================
+  
+  @method emit(event: string, data?: object): void {
+    // Emit to EventBus if available
+    if (typeof EventBus !== "undefined") {
+      EventBus.emit(`preview.${event}`, data)
+    }
+  }
+  
+  // =========================================================================
+  // STATS
+  // =========================================================================
+  
+  @method getStats(): RenderStats {
+    return { ...this.state.renderStats }
+  }
+  
+  @computed objectCount(): number {
+    return this.getAllObjects().length
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  PreviewService,
+  PreviewObject,
+  RenderStats,
+  CameraState
+}

@@ -1,0 +1,573 @@
+/**
+ * HoloScript to GLB Converter
+ *
+ * Transforms HoloScript scene definitions into GLB/glTF format.
+ *
+ * Features:
+ * - HoloScript node → glTF node conversion
+ * - Material and texture handling
+ * - Primitive mesh generation
+ * - Binary GLB encoding
+ */
+
+import { Vector3 } from "../types.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+enum PrimitiveType {
+  box,
+  sphere,
+  cylinder,
+  plane,
+  torus
+}
+
+enum MaterialType {
+  pbr,
+  unlit,
+  standard
+}
+
+struct HoloScriptNode {
+  id: string
+  type: string
+  name: string = ""
+  position: Vector3 = null
+  rotation: Vector3 = null
+  scale: float | Vector3 = 1.0
+  color: string = ""
+  material: MaterialDef = null
+  mesh: MeshDef = null
+  children: HoloScriptNode[] = []
+  properties: object = {}
+}
+
+struct MaterialDef {
+  type: MaterialType = MaterialType.pbr
+  baseColor: string = "#ffffff"
+  metallic: float = 0.0
+  roughness: float = 0.5
+  emissive: string = ""
+  emissiveIntensity: float = 0.0
+  opacity: float = 1.0
+  doubleSided: bool = false
+}
+
+struct MeshDef {
+  type: string = "primitive"  // "primitive" | "custom"
+  primitive: PrimitiveType = PrimitiveType.box
+  vertices: float[] = []
+  indices: int[] = []
+  normals: float[] = []
+  uvs: float[] = []
+}
+
+struct GLBExportOptions {
+  binary: bool = true
+  compress: bool = false
+  includeAnimations: bool = true
+}
+
+struct GLTFDocument {
+  asset: { version: string, generator: string }
+  scenes: { name?: string, nodes: int[] }[]
+  scene: int = 0
+  nodes: GLTFNode[]
+  meshes: GLTFMesh[]
+  materials: GLTFMaterial[]
+  accessors: GLTFAccessor[]
+  bufferViews: GLTFBufferView[]
+  buffers: GLTFBuffer[]
+}
+
+struct GLTFNode {
+  name: string = ""
+  mesh: int = null
+  children: int[] = null
+  translation: [float, float, float] = null
+  rotation: [float, float, float, float] = null
+  scale: [float, float, float] = null
+}
+
+struct GLTFMesh {
+  name: string = ""
+  primitives: GLTFPrimitive[]
+}
+
+struct GLTFPrimitive {
+  attributes: object
+  indices: int = null
+  material: int = null
+  mode: int = 4  // TRIANGLES
+}
+
+struct GLTFMaterial {
+  name: string = ""
+  pbrMetallicRoughness: {
+    baseColorFactor?: [float, float, float, float],
+    metallicFactor?: float,
+    roughnessFactor?: float
+  } = null
+  emissiveFactor: [float, float, float] = null
+  doubleSided: bool = false
+  alphaMode: string = "OPAQUE"
+}
+
+struct GLTFAccessor {
+  bufferView: int
+  componentType: int
+  count: int
+  type: string
+  min: float[] = null
+  max: float[] = null
+}
+
+struct GLTFBufferView {
+  buffer: int
+  byteLength: int
+  byteOffset: int = 0
+  target: int = null
+}
+
+struct GLTFBuffer {
+  byteLength: int
+  uri: string = null
+}
+
+// =============================================================================
+// HOLOSCRIPT TO GLB CONVERTER MODULE
+// =============================================================================
+
+module HoloScriptToGLBConverter {
+  @state {
+    logger: any = null
+    COMPONENT_TYPE_FLOAT: int = 5126
+    BUFFER_VIEW_TARGET_ARRAY_BUFFER: int = 34962
+  }
+
+  // ===========================================================================
+  // INITIALIZATION
+  // ===========================================================================
+
+  @action initialize() {
+    self.logger = createLogger("HoloScriptToGLB")
+    self.logger.info("Converter initialized")
+  }
+
+  // ===========================================================================
+  // CONVERSION
+  // ===========================================================================
+
+  @action async convert(rootNodes: HoloScriptNode[]) -> ArrayBuffer {
+    const gltf = self.buildGLTFDocument(rootNodes)
+    const glb = self.encodeGLB(gltf)
+    self.logger.info(`Converted ${rootNodes.length} nodes to GLB`)
+    return glb
+  }
+
+  @method convertToGLTF(rootNodes: HoloScriptNode[]) -> GLTFDocument {
+    return self.buildGLTFDocument(rootNodes)
+  }
+
+  @method buildGLTFDocument(rootNodes: HoloScriptNode[]) -> GLTFDocument {
+    const doc: GLTFDocument = {
+      asset: { version: "2.0", generator: "HololandSpatial 1.0" },
+      scenes: [{ nodes: [] }],
+      scene: 0,
+      nodes: [],
+      meshes: [],
+      materials: [],
+      accessors: [],
+      bufferViews: [],
+      buffers: []
+    }
+
+    const bufferData: float[] = []
+    const materialCache = new Map<string, int>()
+
+    for node in rootNodes {
+      const nodeIndex = self.processNode(node, doc, bufferData, materialCache)
+      doc.scenes[0].nodes.push(nodeIndex)
+    }
+
+    if bufferData.length > 0 {
+      doc.buffers.push({ byteLength: bufferData.length * 4 })
+    }
+
+    return doc
+  }
+
+  @method processNode(
+    hsNode: HoloScriptNode,
+    doc: GLTFDocument,
+    bufferData: float[],
+    materialCache: Map<string, int>
+  ) -> int {
+    const node: GLTFNode = {
+      name: hsNode.name ?? hsNode.id
+    }
+
+    if hsNode.position {
+      node.translation = [...hsNode.position]
+    }
+
+    if hsNode.rotation {
+      node.rotation = self.eulerToQuaternion(hsNode.rotation)
+    }
+
+    if hsNode.scale != null {
+      if typeof hsNode.scale == "number" {
+        node.scale = [hsNode.scale, hsNode.scale, hsNode.scale]
+      } else {
+        node.scale = [...hsNode.scale]
+      }
+    }
+
+    if hsNode.mesh || hsNode.type {
+      let materialIndex: int = null
+      if hsNode.material || hsNode.color {
+        const materialKey = self.getMaterialKey(hsNode)
+        materialIndex = materialCache.get(materialKey)
+        if materialIndex == null {
+          materialIndex = self.createMaterial(hsNode, doc)
+          materialCache.set(materialKey, materialIndex)
+        }
+      }
+
+      node.mesh = self.createMesh(hsNode, doc, bufferData, materialIndex)
+    }
+
+    if hsNode.children && hsNode.children.length > 0 {
+      node.children = []
+      for child in hsNode.children {
+        const childIndex = self.processNode(child, doc, bufferData, materialCache)
+        node.children.push(childIndex)
+      }
+    }
+
+    const nodeIndex = doc.nodes.length
+    doc.nodes.push(node)
+    return nodeIndex
+  }
+
+  @method getMaterialKey(hsNode: HoloScriptNode) -> string {
+    const m = hsNode.material
+    const c = hsNode.color ?? ""
+    if m {
+      return `${m.type}_${m.baseColor}_${m.metallic}_${m.roughness}`
+    }
+    return `color_${c}`
+  }
+
+  @method createMaterial(hsNode: HoloScriptNode, doc: GLTFDocument) -> int {
+    const material: GLTFMaterial = {
+      name: `material_${doc.materials.length}`
+    }
+
+    if hsNode.material {
+      const m = hsNode.material
+      material.pbrMetallicRoughness = {
+        baseColorFactor: self.colorToRGBA(m.baseColor ?? hsNode.color ?? "#ffffff"),
+        metallicFactor: m.metallic ?? 0,
+        roughnessFactor: m.roughness ?? 0.5
+      }
+      if m.emissive {
+        material.emissiveFactor = self.colorToRGB(m.emissive)
+      }
+      material.doubleSided = m.doubleSided ?? false
+      if m.opacity != null && m.opacity < 1 {
+        material.alphaMode = "BLEND"
+        if material.pbrMetallicRoughness.baseColorFactor {
+          material.pbrMetallicRoughness.baseColorFactor[3] = m.opacity
+        }
+      }
+    } else if hsNode.color {
+      material.pbrMetallicRoughness = {
+        baseColorFactor: self.colorToRGBA(hsNode.color),
+        metallicFactor: 0,
+        roughnessFactor: 0.5
+      }
+    }
+
+    const materialIndex = doc.materials.length
+    doc.materials.push(material)
+    return materialIndex
+  }
+
+  @method createMesh(
+    hsNode: HoloScriptNode,
+    doc: GLTFDocument,
+    bufferData: float[],
+    materialIndex: int
+  ) -> int {
+    const meshData = self.generateMeshData(hsNode)
+
+    const vertexBufferStart = bufferData.length
+    bufferData.push(...meshData.vertices)
+
+    const bufferViewIndex = doc.bufferViews.length
+    doc.bufferViews.push({
+      buffer: 0,
+      byteOffset: vertexBufferStart * 4,
+      byteLength: meshData.vertices.length * 4,
+      target: self.BUFFER_VIEW_TARGET_ARRAY_BUFFER
+    })
+
+    const accessorIndex = doc.accessors.length
+    doc.accessors.push({
+      bufferView: bufferViewIndex,
+      componentType: self.COMPONENT_TYPE_FLOAT,
+      count: meshData.vertices.length / 3,
+      type: "VEC3",
+      min: meshData.min,
+      max: meshData.max
+    })
+
+    const primitive: GLTFPrimitive = {
+      attributes: { POSITION: accessorIndex },
+      mode: 4  // TRIANGLES
+    }
+
+    if materialIndex != null {
+      primitive.material = materialIndex
+    }
+
+    const meshIndex = doc.meshes.length
+    doc.meshes.push({
+      name: hsNode.name ?? hsNode.id,
+      primitives: [primitive]
+    })
+
+    return meshIndex
+  }
+
+  @method generateMeshData(hsNode: HoloScriptNode) -> {
+    vertices: float[],
+    min: float[],
+    max: float[]
+  } {
+    const primitive = hsNode.mesh?.primitive ?? self.inferPrimitive(hsNode.type)
+
+    match primitive {
+      PrimitiveType.box => self.generateBox()
+      PrimitiveType.sphere => self.generateSphere()
+      PrimitiveType.cylinder => self.generateCylinder()
+      PrimitiveType.plane => self.generatePlane()
+      _ => self.generateBox()
+    }
+  }
+
+  @method inferPrimitive(type: string) -> PrimitiveType {
+    const lower = type.toLowerCase()
+    match lower {
+      "orb" | "sphere" => PrimitiveType.sphere
+      "cube" | "box" => PrimitiveType.box
+      "floor" | "plane" => PrimitiveType.plane
+      "column" | "cylinder" => PrimitiveType.cylinder
+      _ => PrimitiveType.box
+    }
+  }
+
+  // ===========================================================================
+  // MESH GENERATION
+  // ===========================================================================
+
+  @method generateBox() -> { vertices: float[], min: float[], max: float[] } {
+    const s = 0.5
+    const vertices = [
+      // Front face
+      -s, -s, s, s, -s, s, s, s, s,
+      -s, -s, s, s, s, s, -s, s, s,
+      // Back face
+      s, -s, -s, -s, -s, -s, -s, s, -s,
+      s, -s, -s, -s, s, -s, s, s, -s,
+      // Top face
+      -s, s, s, s, s, s, s, s, -s,
+      -s, s, s, s, s, -s, -s, s, -s,
+      // Bottom face
+      -s, -s, -s, s, -s, -s, s, -s, s,
+      -s, -s, -s, s, -s, s, -s, -s, s,
+      // Right face
+      s, -s, s, s, -s, -s, s, s, -s,
+      s, -s, s, s, s, -s, s, s, s,
+      // Left face
+      -s, -s, -s, -s, -s, s, -s, s, s,
+      -s, -s, -s, -s, s, s, -s, s, -s
+    ]
+    return { vertices, min: [-s, -s, -s], max: [s, s, s] }
+  }
+
+  @method generateSphere() -> { vertices: float[], min: float[], max: float[] } {
+    const vertices: float[] = []
+    const segments = 12
+
+    for y in 0..segments {
+      for x in 0..segments {
+        const u1 = x / segments
+        const u2 = (x + 1) / segments
+        const v1 = y / segments
+        const v2 = (y + 1) / segments
+
+        const p1 = self.spherePoint(u1, v1)
+        const p2 = self.spherePoint(u2, v1)
+        const p3 = self.spherePoint(u2, v2)
+        const p4 = self.spherePoint(u1, v2)
+
+        vertices.push(...p1, ...p2, ...p3)
+        vertices.push(...p1, ...p3, ...p4)
+      }
+    }
+
+    return { vertices, min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] }
+  }
+
+  @method spherePoint(u: float, v: float) -> [float, float, float] {
+    const theta = v * Math.PI
+    const phi = u * Math.PI * 2
+    return [
+      Math.sin(theta) * Math.cos(phi) * 0.5,
+      Math.cos(theta) * 0.5,
+      Math.sin(theta) * Math.sin(phi) * 0.5
+    ]
+  }
+
+  @method generateCylinder() -> { vertices: float[], min: float[], max: float[] } {
+    const vertices: float[] = []
+    const segments = 12
+    const r = 0.5
+    const h = 0.5
+
+    for i in 0..segments {
+      const a1 = (i / segments) * Math.PI * 2
+      const a2 = ((i + 1) / segments) * Math.PI * 2
+      const x1 = Math.cos(a1) * r
+      const z1 = Math.sin(a1) * r
+      const x2 = Math.cos(a2) * r
+      const z2 = Math.sin(a2) * r
+
+      // Side
+      vertices.push(x1, h, z1, x2, h, z2, x2, -h, z2)
+      vertices.push(x1, h, z1, x2, -h, z2, x1, -h, z1)
+      // Top
+      vertices.push(0, h, 0, x1, h, z1, x2, h, z2)
+      // Bottom
+      vertices.push(0, -h, 0, x2, -h, z2, x1, -h, z1)
+    }
+
+    return { vertices, min: [-r, -h, -r], max: [r, h, r] }
+  }
+
+  @method generatePlane() -> { vertices: float[], min: float[], max: float[] } {
+    const s = 0.5
+    const vertices = [
+      -s, 0, -s, s, 0, -s, s, 0, s,
+      -s, 0, -s, s, 0, s, -s, 0, s
+    ]
+    return { vertices, min: [-s, 0, -s], max: [s, 0, s] }
+  }
+
+  // ===========================================================================
+  // UTILITIES
+  // ===========================================================================
+
+  @method eulerToQuaternion(euler: Vector3) -> [float, float, float, float] {
+    const x = euler[0] * Math.PI / 180
+    const y = euler[1] * Math.PI / 180
+    const z = euler[2] * Math.PI / 180
+    
+    const c1 = Math.cos(x / 2)
+    const c2 = Math.cos(y / 2)
+    const c3 = Math.cos(z / 2)
+    const s1 = Math.sin(x / 2)
+    const s2 = Math.sin(y / 2)
+    const s3 = Math.sin(z / 2)
+    
+    return [
+      s1 * c2 * c3 + c1 * s2 * s3,
+      c1 * s2 * c3 - s1 * c2 * s3,
+      c1 * c2 * s3 + s1 * s2 * c3,
+      c1 * c2 * c3 - s1 * s2 * s3
+    ]
+  }
+
+  @method colorToRGBA(color: string) -> [float, float, float, float] {
+    const rgb = self.colorToRGB(color)
+    return [...rgb, 1.0]
+  }
+
+  @method colorToRGB(color: string) -> [float, float, float] {
+    const hex = color.replace("#", "")
+    const r = parseInt(hex.substring(0, 2), 16) / 255
+    const g = parseInt(hex.substring(2, 4), 16) / 255
+    const b = parseInt(hex.substring(4, 6), 16) / 255
+    return [r, g, b]
+  }
+
+  @method encodeGLB(gltf: GLTFDocument) -> ArrayBuffer {
+    const jsonString = JSON.stringify(gltf)
+    const jsonBuffer = new TextEncoder().encode(jsonString)
+    const jsonPadding = (4 - (jsonBuffer.length % 4)) % 4
+    const paddedJsonLength = jsonBuffer.length + jsonPadding
+    const totalLength = 12 + 8 + paddedJsonLength
+
+    const glb = new ArrayBuffer(totalLength)
+    const view = new DataView(glb)
+
+    // GLB header
+    view.setUint32(0, 0x46546c67, true)  // 'glTF'
+    view.setUint32(4, 2, true)            // version 2
+    view.setUint32(8, totalLength, true)
+
+    // JSON chunk header
+    view.setUint32(12, paddedJsonLength, true)
+    view.setUint32(16, 0x4e4f534a, true)  // 'JSON'
+
+    // JSON data
+    const uint8View = new Uint8Array(glb)
+    uint8View.set(jsonBuffer, 20)
+
+    // Padding
+    for i in 0..jsonPadding {
+      uint8View[20 + jsonBuffer.length + i] = 0x20
+    }
+
+    return glb
+  }
+}
+
+// =============================================================================
+// SINGLETON
+// =============================================================================
+
+let _converter: typeof HoloScriptToGLBConverter = null
+
+function getHoloScriptToGLBConverter() -> typeof HoloScriptToGLBConverter {
+  if !_converter {
+    _converter = HoloScriptToGLBConverter
+    _converter.initialize()
+  }
+  return _converter
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Enums
+  PrimitiveType,
+  MaterialType,
+  
+  // Types
+  HoloScriptNode,
+  MaterialDef,
+  MeshDef,
+  GLBExportOptions,
+  GLTFDocument,
+  
+  // Module & Singleton
+  HoloScriptToGLBConverter,
+  getHoloScriptToGLBConverter
+}

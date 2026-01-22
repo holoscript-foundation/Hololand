@@ -1,0 +1,146 @@
+/**
+ * @hololand/ui - Panel Component
+ * Container with background, border, and shadow
+ */
+
+import { PanelConfig, Vector2 } from "../types.hsplus"
+
+module Panel {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 300, height: 200 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    children: array<any> = [],
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Panel-specific
+    backgroundColor: string = "#ffffff",
+    borderRadius: number = 4,
+    borderWidth: number = 1,
+    borderColor: string = "#dddddd",
+    shadow: bool = false,
+    shadowColor: string = "rgba(0,0,0,0.15)",
+    shadowBlur: number = 10,
+    shadowOffset: Vector2 = { x: 0, y: 4 },
+    padding: number = 16
+  }
+
+  @action initialize(config: PanelConfig) {
+    self.id = `panel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 300, height: 200 }
+    self.visible = config.visible ?? true
+    self.backgroundColor = config.backgroundColor ?? "#ffffff"
+    self.borderRadius = config.borderRadius ?? 4
+    self.borderWidth = config.borderWidth ?? 1
+    self.borderColor = config.borderColor ?? "#dddddd"
+    self.shadow = config.shadow ?? false
+    self.shadowColor = config.shadowColor ?? "rgba(0,0,0,0.15)"
+    self.shadowBlur = config.shadowBlur ?? 10
+    self.shadowOffset = config.shadowOffset ?? { x: 0, y: 4 }
+    self.padding = config.padding ?? 16
+    self.children = []
+    self.eventHandlers = new Map()
+    self.dirty = true
+  }
+
+  @action addChild(child: any) {
+    if child.parent {
+      child.parent.removeChild(child)
+    }
+    child.parent = self
+    self.children.push(child)
+    self.dirty = true
+  }
+
+  @action removeChild(child: any) {
+    let index = self.children.indexOf(child)
+    if index >= 0 {
+      self.children.splice(index, 1)
+      child.parent = null
+      self.dirty = true
+    }
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    let x = self.position.x
+    let y = self.position.y
+    let w = self.size.width
+    let h = self.size.height
+
+    // Draw shadow
+    if self.shadow {
+      ctx.save()
+      ctx.shadowColor = self.shadowColor
+      ctx.shadowBlur = self.shadowBlur
+      ctx.shadowOffsetX = self.shadowOffset.x
+      ctx.shadowOffsetY = self.shadowOffset.y
+      ctx.fillStyle = self.backgroundColor
+      self.drawRoundedRect(ctx, x, y, w, h, self.borderRadius)
+      ctx.fill()
+      ctx.restore()
+    } else {
+      // Draw background
+      ctx.fillStyle = self.backgroundColor
+      self.drawRoundedRect(ctx, x, y, w, h, self.borderRadius)
+      ctx.fill()
+    }
+
+    // Draw border
+    if self.borderWidth > 0 {
+      ctx.strokeStyle = self.borderColor
+      ctx.lineWidth = self.borderWidth
+      self.drawRoundedRect(ctx, x, y, w, h, self.borderRadius)
+      ctx.stroke()
+    }
+
+    // Render children with padding offset
+    ctx.save()
+    ctx.translate(self.padding, self.padding)
+    for child in self.children {
+      if child.visible {
+        child.render(ctx)
+      }
+    }
+    ctx.restore()
+
+    self.dirty = false
+  }
+
+  @method drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath()
+    ctx.moveTo(x + r, y)
+    ctx.lineTo(x + w - r, y)
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+    ctx.lineTo(x + w, y + h - r)
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+    ctx.lineTo(x + r, y + h)
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+    ctx.lineTo(x, y + r)
+    ctx.quadraticCurveTo(x, y, x + r, y)
+    ctx.closePath()
+  }
+
+  @method containsPoint(point: Vector2) -> bool {
+    return (
+      point.x >= self.position.x &&
+      point.x <= self.position.x + self.size.width &&
+      point.y >= self.position.y &&
+      point.y <= self.position.y + self.size.height
+    )
+  }
+}
+
+function createPanel(config: PanelConfig) -> typeof Panel {
+  Panel.initialize(config)
+  return Panel
+}
+
+export { Panel, createPanel }

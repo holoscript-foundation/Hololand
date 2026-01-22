@@ -1,0 +1,917 @@
+/**
+ * HoloGraphTools.hsplus
+ * 
+ * HoloScript Graph Understanding Tools.
+ * Help AI agents understand .holo files as visual graphs instead of just code.
+ * 
+ * Agents can:
+ * - Parse .holo into graph structure (nodes, edges, flow)
+ * - Visualize the flow of events/actions
+ * - Understand connections between objects
+ * - Generate graph-first before code
+ * 
+ * @package @hololand/mcp-server
+ * @version 2.0.0
+ */
+
+import {
+  Tool,
+  HoloNode,
+  HoloEdge,
+  HoloFlow,
+  HoloGroup,
+  HoloGraph,
+  HoloNodeType,
+  HoloEdgeType,
+  HoloFlowAction
+} from "./Types.hsplus"
+
+// =============================================================================
+// TOOL DEFINITIONS
+// =============================================================================
+
+const HOLO_GRAPH_TOOLS: Tool[] = [
+  {
+    name: "holo_parse_to_graph",
+    description: `Parse a .holo file and return its graph representation. This helps you understand the visual structure:
+- **Nodes**: All objects, templates, orbs, NPCs, etc.
+- **Edges**: Connections between nodes (uses, triggers, contains)
+- **Flows**: Event-to-action chains (what happens when X occurs)
+- **Groups**: Spatial groupings of nodes
+
+Use this to "see" the architecture before modifying code.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to parse into a graph"
+        },
+        filePath: {
+          type: "string",
+          description: "Or provide a file path to read and parse"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "holo_visualize_flow",
+    description: `Visualize the event/action flow in a .holo file as ASCII diagram. Returns something like:
+\`\`\`
+[User] ──wave──→ [Goblin_A] ──throw_rock()──→ [Rock] ──hit──→ [User]
+                     ↓
+               [Goblin_B] ──throw_rock()──→ [Rock]
+\`\`\`
+This helps you understand the control flow and data flow in the scene.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to visualize"
+        },
+        focus: {
+          type: "string",
+          description: "Focus on a specific node or event (optional)"
+        }
+      },
+      required: ["code"]
+    }
+  },
+  
+  {
+    name: "holo_get_node_connections",
+    description: `Get all connections for a specific node in a .holo file. Returns:
+- What this node **receives** (incoming events/triggers)
+- What this node **sends** (outgoing actions/events)
+- What **contains** this node (parent groups)
+- What this node **contains** (children)
+- What **template** this node uses`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to analyze"
+        },
+        nodeName: {
+          type: "string",
+          description: "Name of the node to inspect (e.g., 'Goblin_A', 'Player')"
+        }
+      },
+      required: ["code", "nodeName"]
+    }
+  },
+  
+  {
+    name: "holo_design_graph",
+    description: `Given a natural language description, design the graph structure BEFORE writing code. Returns:
+- Suggested nodes and their types
+- Connections between nodes
+- Event flows
+- Recommended spatial groupings
+
+Use this to plan your .holo file as a visual architecture first.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        description: {
+          type: "string",
+          description: "What you want to create (e.g., 'A shop with NPCs that sell items')"
+        },
+        constraints: {
+          type: "object",
+          description: "Optional constraints (maxNodes, requiredTypes, etc.)"
+        }
+      },
+      required: ["description"]
+    }
+  },
+  
+  {
+    name: "holo_diff_graphs",
+    description: `Compare two .holo files as graphs and show what changed:
+- Added/removed nodes
+- Changed connections
+- Modified flows
+- New/removed groups
+
+Helps understand the impact of changes.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        before: {
+          type: "string",
+          description: "Original HoloScript code"
+        },
+        after: {
+          type: "string",
+          description: "Modified HoloScript code"
+        }
+      },
+      required: ["before", "after"]
+    }
+  },
+  
+  {
+    name: "holo_suggest_connections",
+    description: `Given existing nodes in a .holo file, suggest potential connections and flows you might want to add. For example:
+- "Player and Enemy exist but have no interaction - add combat flow?"
+- "Collectibles exist but no collection event - add on_interact?"`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "Current HoloScript code to analyze"
+        },
+        context: {
+          type: "string",
+          description: "What kind of scene is this? (e.g., 'combat arena', 'shop', 'puzzle room')"
+        }
+      },
+      required: ["code"]
+    }
+  },
+  
+  {
+    name: "holo_graph_to_code",
+    description: `Convert a graph representation back to HoloScript code. If you designed a graph with holo_design_graph, use this to generate the actual .holo code.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        graph: {
+          type: "object",
+          description: "Graph structure with nodes, edges, flows, groups"
+        },
+        style: {
+          type: "string",
+          enum: ["minimal", "commented", "verbose"],
+          description: "Code style (default: commented)"
+        }
+      },
+      required: ["graph"]
+    }
+  },
+  
+  {
+    name: "holo_find_patterns",
+    description: `Identify common patterns in HoloScript code:
+- Template usage patterns
+- Event handling patterns
+- Spatial organization patterns
+- Animation patterns
+
+Useful for understanding unfamiliar codebases.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to analyze"
+        },
+        patternTypes: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["templates", "events", "spatial", "animation", "interaction", "all"]
+          },
+          description: "Types of patterns to look for (default: all)"
+        }
+      },
+      required: ["code"]
+    }
+  }
+]
+
+// =============================================================================
+// GRAPH PARSER
+// =============================================================================
+
+module HoloGraphParser {
+  /**
+   * Parse HoloScript code into a graph structure
+   */
+  @method parse(code: string): HoloGraph {
+    const nodes: HoloNode[] = []
+    const edges: HoloEdge[] = []
+    const flows: HoloFlow[] = []
+    const groups: HoloGroup[] = []
+    
+    // Extract composition name
+    const compositionMatch = code.match(/composition\s+"([^"]+)"/)
+    const name = compositionMatch ? compositionMatch[1] : "Unknown"
+    
+    // Extract templates
+    const templateRegex = /template\s+"([^"]+)"\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g
+    let match
+    while ((match = templateRegex.exec(code)) !== null) {
+      nodes.push({
+        id: `template:${match[1]}`,
+        name: match[1],
+        type: HoloNodeType.TEMPLATE,
+        properties: this.parseProperties(match[2]),
+        actions: this.extractActions(match[2]),
+        traits: this.extractTraits(match[2])
+      })
+    }
+    
+    // Extract objects
+    const objectRegex = /object\s+"([^"]+)"(?:\s+using\s+"([^"]+)")?\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g
+    while ((match = objectRegex.exec(code)) !== null) {
+      const objName = match[1]
+      const template = match[2]
+      const body = match[3]
+      
+      const position = this.extractPosition(body)
+      
+      nodes.push({
+        id: `object:${objName}`,
+        name: objName,
+        type: this.inferNodeType(objName, body),
+        position,
+        properties: this.parseProperties(body),
+        state: this.extractState(body),
+        actions: this.extractActions(body),
+        traits: this.extractTraits(body)
+      })
+      
+      // Add edge if using template
+      if (template) {
+        edges.push({
+          id: `edge:${objName}:uses:${template}`,
+          from: `object:${objName}`,
+          to: `template:${template}`,
+          type: HoloEdgeType.USES
+        })
+      }
+      
+      // Extract event handlers and create flows
+      const eventFlows = this.extractFlows(objName, body)
+      flows.push(...eventFlows)
+    }
+    
+    // Extract spatial groups
+    const groupRegex = /spatial_group\s+"([^"]+)"\s*\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g
+    while ((match = groupRegex.exec(code)) !== null) {
+      const groupName = match[1]
+      const groupBody = match[2]
+      
+      // Find objects in this group
+      const children: string[] = []
+      const innerObjects = groupBody.matchAll(/object\s+"([^"]+)"/g)
+      for (const inner of innerObjects) {
+        children.push(`object:${inner[1]}`)
+      }
+      
+      groups.push({
+        id: `group:${groupName}`,
+        name: groupName,
+        children
+      })
+      
+      // Add containment edges
+      for (const child of children) {
+        edges.push({
+          id: `edge:${groupName}:contains:${child}`,
+          from: `group:${groupName}`,
+          to: child,
+          type: HoloEdgeType.CONTAINS
+        })
+      }
+    }
+    
+    return { name, nodes, edges, flows, groups }
+  }
+  
+  @method parseProperties(body: string): Record<string, any> {
+    const props: Record<string, any> = {}
+    
+    // Match key: value patterns
+    const propRegex = /(\w+)\s*:\s*([^\n,}]+)/g
+    let match
+    while ((match = propRegex.exec(body)) !== null) {
+      const key = match[1]
+      const value = match[2].trim()
+      
+      // Skip special keywords
+      if (["state", "action", "on_", "every", "traits"].some(k => key.startsWith(k))) {
+        continue
+      }
+      
+      props[key] = this.parseValue(value)
+    }
+    
+    return props
+  }
+  
+  @method parseValue(value: string): any {
+    // Array
+    if (value.startsWith("[")) {
+      try {
+        return JSON.parse(value)
+      } catch {
+        return value
+      }
+    }
+    
+    // Boolean
+    if (value === "true") return true
+    if (value === "false") return false
+    
+    // Number
+    if (/^-?\d+(\.\d+)?$/.test(value)) {
+      return parseFloat(value)
+    }
+    
+    // String (remove quotes)
+    if (value.startsWith('"') && value.endsWith('"')) {
+      return value.slice(1, -1)
+    }
+    
+    return value
+  }
+  
+  @method extractPosition(body: string): [number, number, number] | null {
+    const match = body.match(/position\s*:\s*\[([^\]]+)\]/)
+    if (match) {
+      const coords = match[1].split(",").map(s => parseFloat(s.trim()))
+      if (coords.length === 3) {
+        return [coords[0], coords[1], coords[2]]
+      }
+    }
+    return null
+  }
+  
+  @method extractState(body: string): Record<string, any> {
+    const stateMatch = body.match(/state\s*\{([^}]+)\}/)
+    if (stateMatch) {
+      return this.parseProperties(stateMatch[1])
+    }
+    return {}
+  }
+  
+  @method extractActions(body: string): string[] {
+    const actions: string[] = []
+    const actionRegex = /action\s+(\w+)/g
+    let match
+    while ((match = actionRegex.exec(body)) !== null) {
+      actions.push(match[1])
+    }
+    return actions
+  }
+  
+  @method extractTraits(body: string): string[] {
+    const traitsMatch = body.match(/traits\s*:\s*\[([^\]]+)\]/)
+    if (traitsMatch) {
+      return traitsMatch[1].split(",").map(s => s.trim().replace(/"/g, ""))
+    }
+    return []
+  }
+  
+  @method extractFlows(nodeName: string, body: string): HoloFlow[] {
+    const flows: HoloFlow[] = []
+    
+    // Match on_event handlers
+    const eventRegex = /on_(\w+)(?:\s*\(([^)]*)\))?\s*\{([^}]+)\}/g
+    let match
+    while ((match = eventRegex.exec(body)) !== null) {
+      const event = match[1]
+      const handlerBody = match[3]
+      
+      // Extract actions from handler
+      const actions = this.parseHandlerActions(handlerBody)
+      
+      flows.push({
+        trigger: `object:${nodeName}`,
+        event,
+        actions
+      })
+    }
+    
+    return flows
+  }
+  
+  @method parseHandlerActions(body: string): HoloFlowAction[] {
+    const actions: HoloFlowAction[] = []
+    
+    // Match function calls
+    const callRegex = /(\w+)\.?(\w+)?\s*\(/g
+    let match
+    while ((match = callRegex.exec(body)) !== null) {
+      if (match[2]) {
+        // target.action()
+        actions.push({
+          target: match[1],
+          action: match[2]
+        })
+      } else {
+        // action() - self
+        actions.push({
+          target: "self",
+          action: match[1]
+        })
+      }
+    }
+    
+    return actions
+  }
+  
+  @method inferNodeType(name: string, body: string): HoloNodeType {
+    const lowerName = name.toLowerCase()
+    const lowerBody = body.toLowerCase()
+    
+    if (lowerBody.includes("traits") && lowerBody.includes("talkable")) {
+      return HoloNodeType.NPC
+    }
+    if (lowerName.includes("collect") || lowerBody.includes("collectible")) {
+      return HoloNodeType.COLLECTIBLE
+    }
+    if (lowerName.includes("building") || lowerBody.includes("static")) {
+      return HoloNodeType.BUILDING
+    }
+    if (lowerName.includes("orb")) {
+      return HoloNodeType.ORB
+    }
+    if (lowerBody.includes("environment") || lowerBody.includes("terrain")) {
+      return HoloNodeType.ENVIRONMENT
+    }
+    
+    return HoloNodeType.OBJECT
+  }
+}
+
+// =============================================================================
+// GRAPH VISUALIZER
+// =============================================================================
+
+module HoloGraphVisualizer {
+  /**
+   * Generate ASCII flow diagram
+   */
+  @method visualizeFlow(graph: HoloGraph, focus?: string): string {
+    const lines: string[] = []
+    
+    lines.push(`=== Flow Diagram: ${graph.name} ===`)
+    lines.push("")
+    
+    for (const flow of graph.flows) {
+      const trigger = this.formatNodeName(flow.trigger)
+      let line = `[${trigger}] ──${flow.event}──→`
+      
+      for (const action of flow.actions) {
+        line += ` [${action.target}].${action.action}()`
+      }
+      
+      if (!focus || line.toLowerCase().includes(focus.toLowerCase())) {
+        lines.push(line)
+      }
+    }
+    
+    if (lines.length === 2) {
+      lines.push("(No flows found)")
+    }
+    
+    return lines.join("\n")
+  }
+  
+  @method formatNodeName(nodeId: string): string {
+    return nodeId.replace(/^(object|template|group):/, "")
+  }
+  
+  /**
+   * Generate node connection summary
+   */
+  @method getNodeConnections(graph: HoloGraph, nodeName: string): {
+    receives: HoloEdge[]
+    sends: HoloFlow[]
+    contains: string[]
+    containedBy: string[]
+    usesTemplate: string | null
+  } {
+    const nodeId = `object:${nodeName}`
+    
+    const receives = graph.edges.filter(e => e.to === nodeId)
+    const sends = graph.flows.filter(f => f.trigger === nodeId)
+    
+    const contains: string[] = []
+    const containedBy: string[] = []
+    
+    for (const group of graph.groups) {
+      if (group.children.includes(nodeId)) {
+        containedBy.push(group.name)
+      }
+    }
+    
+    let usesTemplate: string | null = null
+    for (const edge of graph.edges) {
+      if (edge.from === nodeId && edge.type === HoloEdgeType.USES) {
+        usesTemplate = edge.to.replace("template:", "")
+      }
+    }
+    
+    return { receives, sends, contains, containedBy, usesTemplate }
+  }
+}
+
+// =============================================================================
+// GRAPH GENERATOR
+// =============================================================================
+
+module HoloGraphGenerator {
+  /**
+   * Generate a graph design from natural language
+   */
+  @method async designGraph(
+    description: string, 
+    constraints?: { maxNodes?: number, requiredTypes?: string[] }
+  ): Promise<HoloGraph> {
+    // Simple heuristic-based generation
+    const nodes: HoloNode[] = []
+    const edges: HoloEdge[] = []
+    const flows: HoloFlow[] = []
+    const groups: HoloGroup[] = []
+    
+    const lowerDesc = description.toLowerCase()
+    
+    // Detect patterns and suggest nodes
+    if (lowerDesc.includes("shop") || lowerDesc.includes("merchant")) {
+      nodes.push({
+        id: "template:Merchant",
+        name: "Merchant",
+        type: HoloNodeType.TEMPLATE,
+        properties: {},
+        traits: ["talkable", "tradeable"]
+      })
+      nodes.push({
+        id: "object:Shopkeeper",
+        name: "Shopkeeper",
+        type: HoloNodeType.NPC,
+        position: [0, 0, 0],
+        properties: {}
+      })
+      edges.push({
+        id: "edge:uses",
+        from: "object:Shopkeeper",
+        to: "template:Merchant",
+        type: HoloEdgeType.USES
+      })
+    }
+    
+    if (lowerDesc.includes("player") || lowerDesc.includes("interact")) {
+      nodes.push({
+        id: "object:Player",
+        name: "Player",
+        type: HoloNodeType.OBJECT,
+        properties: {}
+      })
+    }
+    
+    if (lowerDesc.includes("enemy") || lowerDesc.includes("combat")) {
+      nodes.push({
+        id: "template:Enemy",
+        name: "Enemy",
+        type: HoloNodeType.TEMPLATE,
+        properties: { health: 100 },
+        actions: ["attack", "die"]
+      })
+      nodes.push({
+        id: "object:Goblin",
+        name: "Goblin",
+        type: HoloNodeType.NPC,
+        position: [5, 0, 0],
+        properties: {}
+      })
+      edges.push({
+        id: "edge:uses",
+        from: "object:Goblin",
+        to: "template:Enemy",
+        type: HoloEdgeType.USES
+      })
+      
+      flows.push({
+        trigger: "object:Player",
+        event: "attack",
+        actions: [{ target: "Goblin", action: "takeDamage" }]
+      })
+    }
+    
+    if (lowerDesc.includes("collect") || lowerDesc.includes("coin") || lowerDesc.includes("item")) {
+      nodes.push({
+        id: "template:Collectible",
+        name: "Collectible",
+        type: HoloNodeType.TEMPLATE,
+        properties: { value: 10 }
+      })
+      nodes.push({
+        id: "object:Coin",
+        name: "Coin",
+        type: HoloNodeType.COLLECTIBLE,
+        position: [2, 0.5, 0],
+        properties: {}
+      })
+    }
+    
+    return {
+      name: "Designed Scene",
+      nodes,
+      edges,
+      flows,
+      groups
+    }
+  }
+  
+  /**
+   * Convert graph back to HoloScript code
+   */
+  @method graphToCode(graph: HoloGraph, style: string = "commented"): string {
+    const lines: string[] = []
+    
+    lines.push(`composition "${graph.name}" {`)
+    
+    // Templates
+    const templates = graph.nodes.filter(n => n.type === HoloNodeType.TEMPLATE)
+    if (templates.length > 0) {
+      if (style !== "minimal") {
+        lines.push("  // Templates")
+      }
+      for (const template of templates) {
+        lines.push(`  template "${template.name}" {`)
+        
+        if (template.state && Object.keys(template.state).length > 0) {
+          lines.push("    state {")
+          for (const [key, value] of Object.entries(template.state)) {
+            lines.push(`      ${key}: ${JSON.stringify(value)}`)
+          }
+          lines.push("    }")
+        }
+        
+        if (template.traits && template.traits.length > 0) {
+          lines.push(`    traits: [${template.traits.map(t => `"${t}"`).join(", ")}]`)
+        }
+        
+        if (template.actions) {
+          for (const action of template.actions) {
+            lines.push(`    action ${action}() { }`)
+          }
+        }
+        
+        lines.push("  }")
+        lines.push("")
+      }
+    }
+    
+    // Objects
+    const objects = graph.nodes.filter(n => n.type !== HoloNodeType.TEMPLATE && n.type !== HoloNodeType.GROUP)
+    if (objects.length > 0) {
+      if (style !== "minimal") {
+        lines.push("  // Objects")
+      }
+      for (const obj of objects) {
+        // Find if uses template
+        const usesEdge = graph.edges.find(e => e.from === obj.id && e.type === HoloEdgeType.USES)
+        const templateName = usesEdge ? usesEdge.to.replace("template:", "") : null
+        
+        const usingClause = templateName ? ` using "${templateName}"` : ""
+        lines.push(`  object "${obj.name}"${usingClause} {`)
+        
+        if (obj.position) {
+          lines.push(`    position: [${obj.position.join(", ")}]`)
+        }
+        
+        for (const [key, value] of Object.entries(obj.properties)) {
+          if (key !== "position") {
+            lines.push(`    ${key}: ${JSON.stringify(value)}`)
+          }
+        }
+        
+        lines.push("  }")
+        lines.push("")
+      }
+    }
+    
+    // Flows as logic block
+    if (graph.flows.length > 0) {
+      if (style !== "minimal") {
+        lines.push("  // Logic")
+      }
+      lines.push("  logic {")
+      for (const flow of graph.flows) {
+        lines.push(`    on_${flow.event} {`)
+        for (const action of flow.actions) {
+          lines.push(`      ${action.target}.${action.action}()`)
+        }
+        lines.push("    }")
+      }
+      lines.push("  }")
+    }
+    
+    lines.push("}")
+    
+    return lines.join("\n")
+  }
+}
+
+// =============================================================================
+// TOOL HANDLER
+// =============================================================================
+
+module HoloGraphToolHandler {
+  @method async handle(toolName: string, args: Record<string, any>): Promise<any> {
+    switch (toolName) {
+      case "holo_parse_to_graph":
+        return this.parseToGraph(args.code, args.filePath)
+        
+      case "holo_visualize_flow":
+        return this.visualizeFlow(args.code, args.focus)
+        
+      case "holo_get_node_connections":
+        return this.getNodeConnections(args.code, args.nodeName)
+        
+      case "holo_design_graph":
+        return this.designGraph(args.description, args.constraints)
+        
+      case "holo_diff_graphs":
+        return this.diffGraphs(args.before, args.after)
+        
+      case "holo_suggest_connections":
+        return this.suggestConnections(args.code, args.context)
+        
+      case "holo_graph_to_code":
+        return this.graphToCode(args.graph, args.style)
+        
+      case "holo_find_patterns":
+        return this.findPatterns(args.code, args.patternTypes)
+        
+      default:
+        throw new Error(`Unknown HoloGraph tool: ${toolName}`)
+    }
+  }
+  
+  @method parseToGraph(code?: string, filePath?: string): HoloGraph {
+    if (!code && filePath) {
+      // TODO: Read file
+      return { name: "Empty", nodes: [], edges: [], flows: [], groups: [] }
+    }
+    
+    if (!code) {
+      throw new Error("Either code or filePath is required")
+    }
+    
+    return HoloGraphParser.parse(code)
+  }
+  
+  @method visualizeFlow(code: string, focus?: string): string {
+    const graph = HoloGraphParser.parse(code)
+    return HoloGraphVisualizer.visualizeFlow(graph, focus)
+  }
+  
+  @method getNodeConnections(code: string, nodeName: string): any {
+    const graph = HoloGraphParser.parse(code)
+    return HoloGraphVisualizer.getNodeConnections(graph, nodeName)
+  }
+  
+  @method async designGraph(description: string, constraints?: any): Promise<HoloGraph> {
+    return HoloGraphGenerator.designGraph(description, constraints)
+  }
+  
+  @method diffGraphs(before: string, after: string): any {
+    const graph1 = HoloGraphParser.parse(before)
+    const graph2 = HoloGraphParser.parse(after)
+    
+    const addedNodes = graph2.nodes.filter(n => !graph1.nodes.find(n1 => n1.id === n.id))
+    const removedNodes = graph1.nodes.filter(n => !graph2.nodes.find(n2 => n2.id === n.id))
+    
+    const addedEdges = graph2.edges.filter(e => !graph1.edges.find(e1 => e1.id === e.id))
+    const removedEdges = graph1.edges.filter(e => !graph2.edges.find(e2 => e2.id === e.id))
+    
+    return {
+      addedNodes: addedNodes.map(n => n.name),
+      removedNodes: removedNodes.map(n => n.name),
+      addedEdges: addedEdges.length,
+      removedEdges: removedEdges.length,
+      addedFlows: graph2.flows.length - graph1.flows.length
+    }
+  }
+  
+  @method suggestConnections(code: string, context?: string): any {
+    const graph = HoloGraphParser.parse(code)
+    const suggestions: string[] = []
+    
+    // Find nodes without flows
+    const nodesWithFlows = new Set(graph.flows.map(f => f.trigger))
+    const nodesWithoutFlows = graph.nodes.filter(n => 
+      n.type !== HoloNodeType.TEMPLATE && 
+      !nodesWithFlows.has(n.id)
+    )
+    
+    for (const node of nodesWithoutFlows) {
+      if (node.type === HoloNodeType.NPC) {
+        suggestions.push(`"${node.name}" (NPC) has no interactions - add on_interact for dialogue?`)
+      } else if (node.type === HoloNodeType.COLLECTIBLE) {
+        suggestions.push(`"${node.name}" (Collectible) has no collection event - add on_interact?`)
+      } else {
+        suggestions.push(`"${node.name}" has no event handlers - consider adding interactivity`)
+      }
+    }
+    
+    return { suggestions, nodesAnalyzed: graph.nodes.length }
+  }
+  
+  @method graphToCode(graph: HoloGraph, style?: string): string {
+    return HoloGraphGenerator.graphToCode(graph, style || "commented")
+  }
+  
+  @method findPatterns(code: string, patternTypes?: string[]): any {
+    const graph = HoloGraphParser.parse(code)
+    const patterns: Record<string, any> = {}
+    
+    const types = patternTypes || ["all"]
+    const checkAll = types.includes("all")
+    
+    if (checkAll || types.includes("templates")) {
+      const templates = graph.nodes.filter(n => n.type === HoloNodeType.TEMPLATE)
+      patterns.templates = {
+        count: templates.length,
+        names: templates.map(t => t.name)
+      }
+    }
+    
+    if (checkAll || types.includes("events")) {
+      const eventTypes = new Set(graph.flows.map(f => f.event))
+      patterns.events = {
+        types: Array.from(eventTypes),
+        totalFlows: graph.flows.length
+      }
+    }
+    
+    if (checkAll || types.includes("spatial")) {
+      patterns.spatial = {
+        groups: graph.groups.length,
+        groupNames: graph.groups.map(g => g.name)
+      }
+    }
+    
+    return patterns
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+const holoGraphTools = HOLO_GRAPH_TOOLS
+
+async function handleHoloGraphTool(toolName: string, args: Record<string, any>): Promise<any> {
+  return HoloGraphToolHandler.handle(toolName, args)
+}
+
+export {
+  holoGraphTools,
+  handleHoloGraphTool,
+  HoloGraphParser,
+  HoloGraphVisualizer,
+  HoloGraphGenerator,
+  HoloGraphToolHandler
+}

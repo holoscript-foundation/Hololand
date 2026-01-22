@@ -1,0 +1,744 @@
+/**
+ * Spatial Embedding Extractor
+ *
+ * Extracts spatial embeddings from code structures for 3D visualization.
+ * Maps code relationships to spatial positions.
+ *
+ * Features:
+ * - Code structure → 3D position mapping
+ * - Dependency graph → spatial layout
+ * - Semantic clustering for code grouping
+ * - Multiple layout algorithms
+ */
+
+import { Vector3 } from "../types.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+enum CodeEntityType {
+  file,
+  class,
+  function,
+  variable,
+  module,
+  package,
+  interface,
+  type,
+  test,
+  config
+}
+
+enum ConnectionType {
+  imports,
+  exports,
+  calls,
+  extends,
+  implements,
+  contains,
+  depends,
+  tests
+}
+
+enum LayoutAlgorithm {
+  force_directed,
+  hierarchical,
+  radial,
+  grid,
+  clustered
+}
+
+struct EntityMetadata {
+  path: string = ""
+  lineCount: int = 0
+  complexity: int = 0
+  imports: string[] = []
+  exports: string[] = []
+  lastModified: int = 0
+  language: string = ""
+}
+
+struct Connection {
+  targetId: string
+  type: ConnectionType
+  strength: float = 1.0
+}
+
+struct SpatialEntity {
+  id: string
+  type: CodeEntityType
+  name: string
+  position: Vector3 = [0.0, 0.0, 0.0]
+  scale: float = 1.0
+  color: string = "#9E9E9E"
+  metadata: EntityMetadata
+  connections: Connection[] = []
+  embedding: float[] = []
+  cluster: string = ""
+}
+
+struct LayoutOptions {
+  algorithm: LayoutAlgorithm = LayoutAlgorithm.force_directed
+  spacing: float = 2.0
+  layerHeight: float = 3.0
+  centerAttraction: float = 0.1
+  repulsionStrength: float = 1.0
+  connectionStrength: float = 0.5
+  iterations: int = 100
+}
+
+struct Cluster {
+  id: string
+  name: string
+  center: Vector3 = [0.0, 0.0, 0.0]
+  radius: float = 1.0
+  entityIds: string[] = []
+  color: string
+}
+
+// =============================================================================
+// SPATIAL EMBEDDING EXTRACTOR MODULE
+// =============================================================================
+
+module SpatialEmbeddingExtractor {
+  @state {
+    entities: Map<string, SpatialEntity> = new Map()
+    clusters: Map<string, Cluster> = new Map()
+    embeddingCache: Map<string, float[]> = new Map()
+    logger: any = null
+    
+    defaultOptions: LayoutOptions = {
+      algorithm: LayoutAlgorithm.force_directed,
+      spacing: 2.0,
+      layerHeight: 3.0,
+      centerAttraction: 0.1,
+      repulsionStrength: 1.0,
+      connectionStrength: 0.5,
+      iterations: 100
+    }
+  }
+
+  // ===========================================================================
+  // INITIALIZATION
+  // ===========================================================================
+
+  @action initialize() {
+    self.logger = createLogger("SpatialEmbedding")
+    self.logger.info("Initialized")
+  }
+
+  // ===========================================================================
+  // ENTITY MANAGEMENT
+  // ===========================================================================
+
+  @action addEntity(
+    id: string,
+    type: CodeEntityType,
+    name: string,
+    metadata: EntityMetadata = {}
+  ) -> SpatialEntity {
+    const entity: SpatialEntity = {
+      id,
+      type,
+      name,
+      position: [0.0, 0.0, 0.0],
+      scale: self.calculateEntityScale(type, metadata),
+      color: self.getEntityColor(type),
+      metadata,
+      connections: []
+    }
+
+    self.entities.set(id, entity)
+    self.logger.debug(`Added entity: ${name} (${type})`)
+    return entity
+  }
+
+  @action addConnection(
+    sourceId: string,
+    targetId: string,
+    type: ConnectionType,
+    strength: float = 1.0
+  ) {
+    const source = self.entities.get(sourceId)
+    if source {
+      source.connections.push({ targetId, type, strength })
+    }
+  }
+
+  @action removeEntity(id: string) {
+    self.entities.delete(id)
+    self.embeddingCache.delete(id)
+
+    for entity in self.entities.values() {
+      entity.connections = entity.connections.filter(c => c.targetId != id)
+    }
+  }
+
+  // ===========================================================================
+  // EMBEDDING EXTRACTION
+  // ===========================================================================
+
+  @method extractEmbedding(entityId: string) -> float[] {
+    const cached = self.embeddingCache.get(entityId)
+    if cached { return cached }
+
+    const entity = self.entities.get(entityId)
+    if !entity { return [] }
+
+    const embedding = self.computeEmbedding(entity)
+    self.embeddingCache.set(entityId, embedding)
+    entity.embedding = embedding
+
+    return embedding
+  }
+
+  @method computeEmbedding(entity: SpatialEntity) -> float[] {
+    const embedding: float[] = new Array(64).fill(0)
+
+    // Type encoding
+    const typeIndex = self.getTypeIndex(entity.type)
+    embedding[typeIndex] = 1.0
+
+    // Complexity
+    const complexity = entity.metadata.complexity ?? 1
+    embedding[10] = Math.min(complexity / 100, 1)
+
+    // Line count
+    const lines = entity.metadata.lineCount ?? 0
+    embedding[20] = Math.min(lines / 1000, 1)
+
+    // Connections
+    embedding[30] = Math.min(entity.connections.length / 20, 1)
+
+    // Imports
+    const imports = entity.metadata.imports?.length ?? 0
+    embedding[40] = Math.min(imports / 50, 1)
+
+    // Name hash
+    const nameHash = self.hashString(entity.name)
+    for i in 50..64 {
+      embedding[i] = ((nameHash >> (i - 50)) & 1) / 2
+    }
+
+    return embedding
+  }
+
+  @method getTypeIndex(type: CodeEntityType) -> int {
+    match type {
+      CodeEntityType.file => 0
+      CodeEntityType.class => 1
+      CodeEntityType.function => 2
+      CodeEntityType.variable => 3
+      CodeEntityType.module => 4
+      CodeEntityType.package => 5
+      CodeEntityType.interface => 6
+      CodeEntityType.type => 7
+      CodeEntityType.test => 8
+      CodeEntityType.config => 9
+      _ => 0
+    }
+  }
+
+  @method hashString(str: string) -> int {
+    let hash = 0
+    for i in 0..str.length {
+      const char = str.charCodeAt(i)
+      hash = (hash << 5) - hash + char
+      hash = hash & hash
+    }
+    return Math.abs(hash)
+  }
+
+  // ===========================================================================
+  // LAYOUT ALGORITHMS
+  // ===========================================================================
+
+  @action computeLayout(options: LayoutOptions = {}) {
+    const opts = { ...self.defaultOptions, ...options }
+
+    match opts.algorithm {
+      LayoutAlgorithm.force_directed => self.forceDirectedLayout(opts)
+      LayoutAlgorithm.hierarchical => self.hierarchicalLayout(opts)
+      LayoutAlgorithm.radial => self.radialLayout(opts)
+      LayoutAlgorithm.grid => self.gridLayout(opts)
+      LayoutAlgorithm.clustered => self.clusteredLayout(opts)
+    }
+
+    self.logger.info(`Layout computed: ${opts.algorithm}`)
+  }
+
+  @method forceDirectedLayout(options: LayoutOptions) {
+    const entities = Array.from(self.entities.values())
+
+    // Initialize random positions
+    for entity in entities {
+      entity.position = [
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20,
+        (Math.random() - 0.5) * 20
+      ]
+    }
+
+    // Iterate force simulation
+    for iter in 0..options.iterations {
+      const forces = new Map<string, Vector3>()
+      for entity in entities {
+        forces.set(entity.id, [0, 0, 0])
+      }
+
+      // Repulsion
+      for i in 0..entities.length {
+        for j in (i + 1)..entities.length {
+          const a = entities[i]
+          const b = entities[j]
+
+          const dx = b.position[0] - a.position[0]
+          const dy = b.position[1] - a.position[1]
+          const dz = b.position[2] - a.position[2]
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.1
+
+          const force = (options.repulsionStrength * options.spacing) / (dist * dist)
+          const fx = (dx / dist) * force
+          const fy = (dy / dist) * force
+          const fz = (dz / dist) * force
+
+          const forceA = forces.get(a.id)
+          const forceB = forces.get(b.id)
+          forceA[0] -= fx; forceA[1] -= fy; forceA[2] -= fz
+          forceB[0] += fx; forceB[1] += fy; forceB[2] += fz
+        }
+      }
+
+      // Attraction
+      for entity in entities {
+        for conn in entity.connections {
+          const target = self.entities.get(conn.targetId)
+          if !target { continue }
+
+          const dx = target.position[0] - entity.position[0]
+          const dy = target.position[1] - entity.position[1]
+          const dz = target.position[2] - entity.position[2]
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+          const force = dist * options.connectionStrength * conn.strength
+          const forceE = forces.get(entity.id)
+          forceE[0] += (dx / dist) * force
+          forceE[1] += (dy / dist) * force
+          forceE[2] += (dz / dist) * force
+        }
+      }
+
+      // Center attraction
+      for entity in entities {
+        const force = forces.get(entity.id)
+        force[0] -= entity.position[0] * options.centerAttraction
+        force[1] -= entity.position[1] * options.centerAttraction
+        force[2] -= entity.position[2] * options.centerAttraction
+      }
+
+      // Apply forces
+      const damping = 0.9
+      for entity in entities {
+        const force = forces.get(entity.id)
+        entity.position[0] += force[0] * damping
+        entity.position[1] += force[1] * damping
+        entity.position[2] += force[2] * damping
+      }
+    }
+  }
+
+  @method hierarchicalLayout(options: LayoutOptions) {
+    const entities = Array.from(self.entities.values())
+    const hasIncoming = new Set<string>()
+
+    for entity in entities {
+      for conn in entity.connections {
+        hasIncoming.add(conn.targetId)
+      }
+    }
+
+    const roots = entities.filter(e => !hasIncoming.has(e.id))
+    const layers = new Map<string, int>()
+    const queue: { entity: SpatialEntity, layer: int }[] = []
+
+    for root in roots {
+      queue.push({ entity: root, layer: 0 })
+      layers.set(root.id, 0)
+    }
+
+    while queue.length > 0 {
+      const { entity, layer } = queue.shift()
+      for conn in entity.connections {
+        if !layers.has(conn.targetId) {
+          const target = self.entities.get(conn.targetId)
+          if target {
+            layers.set(conn.targetId, layer + 1)
+            queue.push({ entity: target, layer: layer + 1 })
+          }
+        }
+      }
+    }
+
+    const layerGroups = new Map<int, SpatialEntity[]>()
+    for entity in entities {
+      const layer = layers.get(entity.id) ?? 0
+      if !layerGroups.has(layer) {
+        layerGroups.set(layer, [])
+      }
+      layerGroups.get(layer).push(entity)
+    }
+
+    for [layer, group] in layerGroups {
+      const y = layer * options.layerHeight
+      const count = group.length
+      const angleStep = (2 * Math.PI) / Math.max(count, 1)
+      const radius = count * options.spacing / (2 * Math.PI)
+
+      for i in 0..group.length {
+        const angle = i * angleStep
+        group[i].position = [
+          Math.cos(angle) * radius,
+          y,
+          Math.sin(angle) * radius
+        ]
+      }
+    }
+  }
+
+  @method radialLayout(options: LayoutOptions) {
+    const entities = Array.from(self.entities.values())
+    entities.sort((a, b) => b.connections.length - a.connections.length)
+
+    if entities.length > 0 {
+      entities[0].position = [0, 0, 0]
+    }
+
+    let ringIndex = 1
+    let entityIndex = 1
+    while entityIndex < entities.length {
+      const ringRadius = ringIndex * options.spacing
+      const circumference = 2 * Math.PI * ringRadius
+      const entitiesInRing = Math.floor(circumference / options.spacing)
+      const angleStep = (2 * Math.PI) / entitiesInRing
+
+      for i in 0..entitiesInRing {
+        if entityIndex >= entities.length { break }
+        const angle = i * angleStep
+        entities[entityIndex].position = [
+          Math.cos(angle) * ringRadius,
+          0,
+          Math.sin(angle) * ringRadius
+        ]
+        entityIndex++
+      }
+      ringIndex++
+    }
+  }
+
+  @method gridLayout(options: LayoutOptions) {
+    const entities = Array.from(self.entities.values())
+    const gridSize = Math.ceil(Math.cbrt(entities.length))
+
+    for i in 0..entities.length {
+      const x = i % gridSize
+      const y = Math.floor(i / gridSize) % gridSize
+      const z = Math.floor(i / (gridSize * gridSize))
+
+      entities[i].position = [
+        (x - gridSize / 2) * options.spacing,
+        y * options.layerHeight,
+        (z - gridSize / 2) * options.spacing
+      ]
+    }
+  }
+
+  @method clusteredLayout(options: LayoutOptions) {
+    self.computeClusters()
+
+    const clusterArray = Array.from(self.clusters.values())
+    const clusterAngleStep = (2 * Math.PI) / Math.max(clusterArray.length, 1)
+
+    for i in 0..clusterArray.length {
+      const angle = i * clusterAngleStep
+      const radius = 10 + clusterArray[i].entityIds.length
+      clusterArray[i].center = [
+        Math.cos(angle) * radius,
+        0,
+        Math.sin(angle) * radius
+      ]
+    }
+
+    for cluster in clusterArray {
+      const clusterEntities = cluster.entityIds
+        .map(id => self.entities.get(id))
+        .filter(e => e != null)
+
+      const angleStep = (2 * Math.PI) / Math.max(clusterEntities.length, 1)
+      const localRadius = Math.sqrt(clusterEntities.length) * options.spacing
+
+      for i in 0..clusterEntities.length {
+        const angle = i * angleStep
+        clusterEntities[i].position = [
+          cluster.center[0] + Math.cos(angle) * localRadius,
+          cluster.center[1] + (Math.random() - 0.5) * options.layerHeight,
+          cluster.center[2] + Math.sin(angle) * localRadius
+        ]
+        clusterEntities[i].cluster = cluster.id
+      }
+    }
+  }
+
+  // ===========================================================================
+  // CLUSTERING
+  // ===========================================================================
+
+  @action computeClusters(numClusters: int = 5) {
+    const entities = Array.from(self.entities.values())
+
+    for entity in entities {
+      if !entity.embedding {
+        self.extractEmbedding(entity.id)
+      }
+    }
+
+    const clusterColors = ["#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#9C27B0"]
+    const centers: float[][] = []
+
+    for i in 0..numClusters {
+      const randomEntity = entities[Math.floor(Math.random() * entities.length)]
+      centers.push([...(randomEntity.embedding ?? [])])
+    }
+
+    const assignments = new Map<string, int>()
+
+    for iter in 0..10 {
+      for entity in entities {
+        if !entity.embedding { continue }
+
+        let minDist = Infinity
+        let minCluster = 0
+
+        for c in 0..numClusters {
+          const dist = self.euclideanDistance(entity.embedding, centers[c])
+          if dist < minDist {
+            minDist = dist
+            minCluster = c
+          }
+        }
+
+        assignments.set(entity.id, minCluster)
+      }
+
+      for c in 0..numClusters {
+        const clusterEntities = entities.filter(
+          e => assignments.get(e.id) == c && e.embedding
+        )
+
+        if clusterEntities.length > 0 {
+          const newCenter = new Array(64).fill(0)
+          for entity in clusterEntities {
+            for d in 0..64 {
+              newCenter[d] += (entity.embedding?.[d] ?? 0) / clusterEntities.length
+            }
+          }
+          centers[c] = newCenter
+        }
+      }
+    }
+
+    self.clusters.clear()
+    for c in 0..numClusters {
+      const clusterEntities = entities.filter(e => assignments.get(e.id) == c)
+      if clusterEntities.length == 0 { continue }
+
+      const cluster: Cluster = {
+        id: `cluster_${c}`,
+        name: `Cluster ${c + 1}`,
+        center: [0, 0, 0],
+        radius: Math.sqrt(clusterEntities.length) * 2,
+        entityIds: clusterEntities.map(e => e.id),
+        color: clusterColors[c % clusterColors.length]
+      }
+
+      self.clusters.set(cluster.id, cluster)
+    }
+
+    self.logger.info(`Computed ${self.clusters.size} clusters`)
+  }
+
+  @method euclideanDistance(a: float[], b: float[]) -> float {
+    let sum = 0
+    for i in 0..Math.min(a.length, b.length) {
+      sum += Math.pow(a[i] - b[i], 2)
+    }
+    return Math.sqrt(sum)
+  }
+
+  // ===========================================================================
+  // UTILITIES
+  // ===========================================================================
+
+  @method calculateEntityScale(type: CodeEntityType, metadata: EntityMetadata) -> float {
+    const baseScale = match type {
+      CodeEntityType.package => 2.0
+      CodeEntityType.module => 1.5
+      CodeEntityType.file => 1.0
+      CodeEntityType.class => 1.2
+      CodeEntityType.interface => 1.0
+      CodeEntityType.type => 0.8
+      CodeEntityType.function => 0.6
+      CodeEntityType.variable => 0.4
+      CodeEntityType.test => 0.7
+      CodeEntityType.config => 0.5
+      _ => 1.0
+    }
+
+    let scale = baseScale
+
+    if metadata.complexity {
+      scale *= 1 + Math.log10(metadata.complexity + 1) * 0.2
+    }
+
+    if metadata.lineCount {
+      scale *= 1 + Math.log10(metadata.lineCount + 1) * 0.1
+    }
+
+    return scale
+  }
+
+  @method getEntityColor(type: CodeEntityType) -> string {
+    match type {
+      CodeEntityType.package => "#673AB7"
+      CodeEntityType.module => "#3F51B5"
+      CodeEntityType.file => "#2196F3"
+      CodeEntityType.class => "#4CAF50"
+      CodeEntityType.interface => "#009688"
+      CodeEntityType.type => "#00BCD4"
+      CodeEntityType.function => "#FFC107"
+      CodeEntityType.variable => "#FF9800"
+      CodeEntityType.test => "#8BC34A"
+      CodeEntityType.config => "#607D8B"
+      _ => "#9E9E9E"
+    }
+  }
+
+  // ===========================================================================
+  // EXPORT & ACCESS
+  // ===========================================================================
+
+  @method exportForRendering() -> {
+    entities: SpatialEntity[],
+    connections: { source: string, target: string, type: string, strength: float }[],
+    clusters: Cluster[]
+  } {
+    const entities = Array.from(self.entities.values())
+    const connections: { source: string, target: string, type: string, strength: float }[] = []
+
+    for entity in entities {
+      for conn in entity.connections {
+        connections.push({
+          source: entity.id,
+          target: conn.targetId,
+          type: conn.type.toString(),
+          strength: conn.strength
+        })
+      }
+    }
+
+    return {
+      entities,
+      connections,
+      clusters: Array.from(self.clusters.values())
+    }
+  }
+
+  @computed getStats() -> {
+    entityCount: int,
+    connectionCount: int,
+    clusterCount: int,
+    typeDistribution: object
+  } {
+    const typeDistribution: object = {}
+    let connectionCount = 0
+
+    for entity in self.entities.values() {
+      typeDistribution[entity.type] = (typeDistribution[entity.type] ?? 0) + 1
+      connectionCount += entity.connections.length
+    }
+
+    return {
+      entityCount: self.entities.size,
+      connectionCount,
+      clusterCount: self.clusters.size,
+      typeDistribution
+    }
+  }
+
+  @method getEntity(id: string) -> SpatialEntity {
+    return self.entities.get(id)
+  }
+
+  @method getAllEntities() -> SpatialEntity[] {
+    return Array.from(self.entities.values())
+  }
+
+  @method getCluster(id: string) -> Cluster {
+    return self.clusters.get(id)
+  }
+
+  @method getAllClusters() -> Cluster[] {
+    return Array.from(self.clusters.values())
+  }
+
+  @action clear() {
+    self.entities.clear()
+    self.clusters.clear()
+    self.embeddingCache.clear()
+    self.logger.info("Cleared")
+  }
+}
+
+// =============================================================================
+// SINGLETON
+// =============================================================================
+
+let _spatialEmbeddingExtractor: typeof SpatialEmbeddingExtractor = null
+
+function getSpatialEmbeddingExtractor() -> typeof SpatialEmbeddingExtractor {
+  if !_spatialEmbeddingExtractor {
+    _spatialEmbeddingExtractor = SpatialEmbeddingExtractor
+    _spatialEmbeddingExtractor.initialize()
+  }
+  return _spatialEmbeddingExtractor
+}
+
+function resetSpatialEmbeddingExtractor() {
+  if _spatialEmbeddingExtractor {
+    _spatialEmbeddingExtractor.clear()
+  }
+  _spatialEmbeddingExtractor = null
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Enums
+  CodeEntityType,
+  ConnectionType,
+  LayoutAlgorithm,
+  
+  // Types
+  EntityMetadata,
+  Connection,
+  SpatialEntity,
+  LayoutOptions,
+  Cluster,
+  
+  // Module & Singletons
+  SpatialEmbeddingExtractor,
+  getSpatialEmbeddingExtractor,
+  resetSpatialEmbeddingExtractor
+}

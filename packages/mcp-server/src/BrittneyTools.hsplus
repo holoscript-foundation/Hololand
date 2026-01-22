@@ -1,0 +1,605 @@
+/**
+ * BrittneyTools.hsplus
+ * 
+ * Brittney IDE Agent Integration Tools.
+ * Enables IDE agents (Claude Code, Cursor, Copilot) to get visibility 
+ * into the running Hololand application through Brittney.
+ * 
+ * Architecture:
+ * IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ SharedDataBridge ←→ Native Messaging Host ←→ Browser Extension ←→ Hololand App
+ *                                    ↓
+ *                          Brittney Service (localhost:11435)
+ *                                    ↓
+ *                          LM Studio + RAG Knowledge
+ * 
+ * @package @hololand/mcp-server
+ * @version 2.0.0
+ */
+
+import { sharedDataBridge } from "./SharedDataBridge.hsplus"
+import {
+  Tool,
+  BrittneyServiceResponse,
+  BrittneyBrowserContext,
+  BrowserStateData,
+  SceneInfoData,
+  ProfilerStatsData,
+  ConsoleLogData,
+  RuntimeErrorData
+} from "./Types.hsplus"
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const BRITTNEY_SERVICE_URL = process.env.BRITTNEY_SERVICE_URL || "http://localhost:11435"
+
+// =============================================================================
+// BRITTNEY SERVICE CLIENT
+// =============================================================================
+
+module BrittneyService {
+  @method async call(
+    message: string,
+    options: {
+      systemPrompt?: string
+      browserContext?: BrittneyBrowserContext
+      conversationId?: string
+    } = {}
+  ): Promise<BrittneyServiceResponse> {
+    try {
+      // Build ChatRequest format
+      const chatRequest = {
+        messages: [
+          ...(options.systemPrompt ? [{ role: "system", content: options.systemPrompt }] : []),
+          { role: "user", content: message }
+        ],
+        context: options.browserContext ? {
+          browserState: {
+            url: options.browserContext.url || "unknown",
+            scenes: options.browserContext.scenes || [],
+            profilerStats: options.browserContext.profilerStats,
+            consoleLogs: options.browserContext.consoleLogs,
+            errors: options.browserContext.errors
+          }
+        } : undefined
+      }
+      
+      const response = await fetch(`${BRITTNEY_SERVICE_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chatRequest)
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        return {
+          success: false,
+          error: `Brittney service error (${response.status}): ${errorText}`
+        }
+      }
+      
+      const chatResponse = await response.json()
+      return {
+        success: true,
+        response: chatResponse.content,
+        conversationId: chatResponse.id,
+        usage: chatResponse.usage
+      }
+    } catch (error: any) {
+      if (error.code === "ECONNREFUSED") {
+        return {
+          success: false,
+          error: "Brittney service not running. Start it with: npx @hololand/brittney-service start"
+        }
+      }
+      return {
+        success: false,
+        error: `Failed to call Brittney service: ${error.message}`
+      }
+    }
+  }
+  
+  @method async checkHealth(): Promise<{
+    healthy: boolean
+    status?: any
+    error?: string
+  }> {
+    try {
+      const response = await fetch(`${BRITTNEY_SERVICE_URL}/health`)
+      if (response.ok) {
+        const status = await response.json()
+        return { healthy: true, status }
+      }
+      return { healthy: false, error: `Health check failed: ${response.status}` }
+    } catch (error: any) {
+      return { healthy: false, error: `Service unreachable: ${error.message}` }
+    }
+  }
+  
+  @method async collectBrowserContext(): Promise<BrittneyBrowserContext> {
+    try {
+      const browserState = sharedDataBridge.getBrowserState()
+      const scenes = sharedDataBridge.getScenes()
+      const profilerStats = sharedDataBridge.getProfilerStats()
+      const consoleLogs = sharedDataBridge.getConsoleLogs()
+      const errors = sharedDataBridge.getRuntimeErrors()
+      
+      return {
+        url: browserState?.url,
+        scenes: scenes?.map(s => ({
+          id: s.id,
+          name: s.name,
+          objectCount: s.objectCount
+        })),
+        profilerStats: profilerStats ? {
+          fps: profilerStats.fps,
+          drawCalls: profilerStats.drawCalls,
+          triangles: profilerStats.triangles
+        } : null,
+        consoleLogs: consoleLogs?.slice(0, 10).map(l => ({
+          level: l.level,
+          message: l.message
+        })),
+        errors: errors?.slice(0, 5).map(e => ({
+          message: e.message,
+          stack: e.stack
+        }))
+      }
+    } catch {
+      return {}
+    }
+  }
+}
+
+// =============================================================================
+// TOOL DEFINITIONS
+// =============================================================================
+
+const BRITTNEY_TOOLS: Tool[] = [
+  // =========================================================================
+  // INSPECTION TOOLS
+  // =========================================================================
+  
+  {
+    name: "brittney_get_browser_state",
+    description: "Get current browser state including URL, title, and connection status to Hololand app. Use this to verify the app is running before other inspections.",
+    inputSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  
+  {
+    name: "brittney_list_scenes",
+    description: "List all registered 3D scenes in the running Hololand app. Returns scene IDs, names, object counts, and active status.",
+    inputSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  
+  {
+    name: "brittney_get_profiler_stats",
+    description: "Get real-time performance metrics from the running app: FPS, frame time, draw calls, triangles, memory usage. Essential for debugging performance issues.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        duration: {
+          type: "number",
+          description: "Collect stats over N milliseconds (default: instant snapshot)"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "brittney_get_console_logs",
+    description: "Get recent console.log, console.warn, console.error entries from the running app. Useful for debugging without having DevTools open.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Number of recent logs to retrieve (default: 20)"
+        },
+        level: {
+          type: "string",
+          enum: ["all", "log", "warn", "error", "info", "debug"],
+          description: "Filter by log level (default: all)"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "brittney_get_runtime_errors",
+    description: "Get runtime errors from the running app, including stack traces and component info. Essential for debugging crashes and exceptions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Number of recent errors to retrieve (default: 10)"
+        }
+      }
+    }
+  },
+  
+  // =========================================================================
+  // AI ANALYSIS TOOLS
+  // =========================================================================
+  
+  {
+    name: "brittney_analyze_performance",
+    description: "Have Brittney AI analyze current performance metrics and suggest optimizations. Brittney can see the running app and provide contextual advice.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        focus: {
+          type: "string",
+          enum: ["fps", "memory", "draw-calls", "triangles", "all"],
+          description: "What aspect to focus on (default: all)"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "brittney_ask",
+    description: "Ask Brittney a question about the running app. Brittney can see the browser context and provide informed answers about the current state.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "Question to ask Brittney about the running app"
+        },
+        includeContext: {
+          type: "boolean",
+          description: "Include full browser context in query (default: true)"
+        }
+      },
+      required: ["question"]
+    }
+  },
+  
+  {
+    name: "brittney_explain_error",
+    description: "Have Brittney explain a runtime error in plain language and suggest fixes. Pass the error index or Brittney will analyze the most recent error.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        errorIndex: {
+          type: "number",
+          description: "Index of error to explain (0 = most recent, default: 0)"
+        }
+      }
+    }
+  },
+  
+  // =========================================================================
+  // CODE GENERATION
+  // =========================================================================
+  
+  {
+    name: "brittney_generate_holoscript",
+    description: "Have Brittney generate HoloScript code based on natural language description. Brittney knows the current scene context and can generate appropriate code.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        description: {
+          type: "string",
+          description: "Natural language description of what to create"
+        },
+        category: {
+          type: "string",
+          enum: ["object", "ui", "particle", "animation", "scene", "npc", "weapon", "collectible"],
+          description: "Category hint for better generation"
+        }
+      },
+      required: ["description"]
+    }
+  },
+  
+  {
+    name: "brittney_inject_holoscript",
+    description: "Inject HoloScript code into the running app. The code will be executed in the browser context.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to inject"
+        },
+        worldId: {
+          type: "string",
+          description: "Target world ID (default: current world)"
+        },
+        validate: {
+          type: "boolean",
+          description: "Validate syntax before injection (default: true)"
+        }
+      },
+      required: ["code"]
+    }
+  },
+  
+  // =========================================================================
+  // NAVIGATION & CONTROL
+  // =========================================================================
+  
+  {
+    name: "brittney_navigate_to_world",
+    description: "Navigate the running Hololand app to a specific world/scene. Use this to quickly switch between worlds while testing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID to navigate to (e.g., 'plaza', 'casino', 'builder')"
+        }
+      },
+      required: ["worldId"]
+    }
+  },
+  
+  {
+    name: "brittney_reload_scene",
+    description: "Force reload the current Hololand scene. Useful after code changes to see updates without full page refresh.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        preserveState: {
+          type: "boolean",
+          description: "Preserve scene state where possible (default: false)"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "brittney_take_screenshot",
+    description: "Capture a screenshot of the current Hololand scene. Returns base64-encoded image data.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: {
+          type: "string",
+          enum: ["png", "jpeg", "webp"],
+          description: "Image format (default: png)"
+        },
+        quality: {
+          type: "number",
+          description: "Quality for JPEG/WebP (0-100, default: 90)"
+        }
+      }
+    }
+  }
+]
+
+// =============================================================================
+// TOOL HANDLER
+// =============================================================================
+
+module BrittneyToolHandler {
+  @method async handle(toolName: string, args: Record<string, any>): Promise<any> {
+    switch (toolName) {
+      case "brittney_get_browser_state":
+        return this.getBrowserState()
+        
+      case "brittney_list_scenes":
+        return this.listScenes()
+        
+      case "brittney_get_profiler_stats":
+        return this.getProfilerStats(args.duration)
+        
+      case "brittney_get_console_logs":
+        return this.getConsoleLogs(args.limit || 20, args.level || "all")
+        
+      case "brittney_get_runtime_errors":
+        return this.getRuntimeErrors(args.limit || 10)
+        
+      case "brittney_analyze_performance":
+        return this.analyzePerformance(args.focus || "all")
+        
+      case "brittney_ask":
+        return this.ask(args.question, args.includeContext !== false)
+        
+      case "brittney_explain_error":
+        return this.explainError(args.errorIndex || 0)
+        
+      case "brittney_generate_holoscript":
+        return this.generateHoloScript(args.description, args.category)
+        
+      case "brittney_inject_holoscript":
+        return this.injectHoloScript(args.code, args.worldId, args.validate !== false)
+        
+      case "brittney_navigate_to_world":
+        return this.navigateToWorld(args.worldId)
+        
+      case "brittney_reload_scene":
+        return this.reloadScene(args.preserveState || false)
+        
+      case "brittney_take_screenshot":
+        return this.takeScreenshot(args.format || "png", args.quality || 90)
+        
+      default:
+        throw new Error(`Unknown Brittney tool: ${toolName}`)
+    }
+  }
+  
+  // =========================================================================
+  // INSPECTION HANDLERS
+  // =========================================================================
+  
+  @method getBrowserState(): BrowserStateData | null {
+    return sharedDataBridge.getBrowserState()
+  }
+  
+  @method listScenes(): SceneInfoData[] {
+    return sharedDataBridge.getScenes()
+  }
+  
+  @method getProfilerStats(duration?: number): ProfilerStatsData | null {
+    return sharedDataBridge.getProfilerStats()
+  }
+  
+  @method getConsoleLogs(limit: number, level: string): ConsoleLogData[] {
+    let logs = sharedDataBridge.getConsoleLogs()
+    
+    if (level !== "all") {
+      logs = logs.filter(l => l.level === level)
+    }
+    
+    return logs.slice(-limit)
+  }
+  
+  @method getRuntimeErrors(limit: number): RuntimeErrorData[] {
+    return sharedDataBridge.getRuntimeErrors().slice(-limit)
+  }
+  
+  // =========================================================================
+  // AI ANALYSIS HANDLERS
+  // =========================================================================
+  
+  @method async analyzePerformance(focus: string): Promise<any> {
+    const stats = sharedDataBridge.getProfilerStats()
+    const context = await BrittneyService.collectBrowserContext()
+    
+    const prompt = `Analyze the current performance metrics and suggest optimizations.
+Focus: ${focus}
+Current stats: ${JSON.stringify(stats, null, 2)}`
+    
+    const response = await BrittneyService.call(prompt, { browserContext: context })
+    
+    return {
+      stats,
+      analysis: response.success ? response.response : response.error
+    }
+  }
+  
+  @method async ask(question: string, includeContext: boolean): Promise<any> {
+    let context: BrittneyBrowserContext = null
+    
+    if (includeContext) {
+      context = await BrittneyService.collectBrowserContext()
+    }
+    
+    const response = await BrittneyService.call(question, { browserContext: context })
+    
+    return {
+      question,
+      answer: response.success ? response.response : response.error,
+      success: response.success
+    }
+  }
+  
+  @method async explainError(errorIndex: number): Promise<any> {
+    const errors = sharedDataBridge.getRuntimeErrors()
+    const error = errors[errorIndex]
+    
+    if (!error) {
+      return { error: "No error found at index " + errorIndex }
+    }
+    
+    const context = await BrittneyService.collectBrowserContext()
+    
+    const prompt = `Explain this runtime error in plain language and suggest fixes:
+Error: ${error.message}
+Stack: ${error.stack || "No stack trace"}
+Source: ${error.source || "Unknown"}`
+    
+    const response = await BrittneyService.call(prompt, { browserContext: context })
+    
+    return {
+      error,
+      explanation: response.success ? response.response : response.error,
+      success: response.success
+    }
+  }
+  
+  // =========================================================================
+  // CODE GENERATION HANDLERS
+  // =========================================================================
+  
+  @method async generateHoloScript(description: string, category?: string): Promise<any> {
+    const context = await BrittneyService.collectBrowserContext()
+    
+    const prompt = `Generate HoloScript code for: ${description}
+${category ? `Category: ${category}` : ""}
+Return only the HoloScript code, no explanation.`
+    
+    const response = await BrittneyService.call(prompt, {
+      browserContext: context,
+      systemPrompt: "You are a HoloScript expert. Generate clean, efficient HoloScript code."
+    })
+    
+    return {
+      description,
+      code: response.success ? response.response : null,
+      error: response.success ? null : response.error
+    }
+  }
+  
+  @method async injectHoloScript(
+    code: string, 
+    worldId?: string, 
+    validate: boolean = true
+  ): Promise<any> {
+    // TODO: Implement actual injection via native messaging
+    return {
+      injected: false,
+      message: "Injection requires native messaging host connection"
+    }
+  }
+  
+  // =========================================================================
+  // NAVIGATION HANDLERS
+  // =========================================================================
+  
+  @method async navigateToWorld(worldId: string): Promise<any> {
+    // TODO: Implement via native messaging
+    return {
+      navigated: false,
+      worldId,
+      message: "Navigation requires native messaging host connection"
+    }
+  }
+  
+  @method async reloadScene(preserveState: boolean): Promise<any> {
+    // TODO: Implement via native messaging
+    return {
+      reloaded: false,
+      preserveState,
+      message: "Reload requires native messaging host connection"
+    }
+  }
+  
+  @method async takeScreenshot(format: string, quality: number): Promise<any> {
+    // TODO: Implement via native messaging
+    return {
+      captured: false,
+      format,
+      message: "Screenshot requires native messaging host connection"
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+const brittneyTools = BRITTNEY_TOOLS
+
+async function handleBrittneyTool(toolName: string, args: Record<string, any>): Promise<any> {
+  return BrittneyToolHandler.handle(toolName, args)
+}
+
+export {
+  brittneyTools,
+  handleBrittneyTool,
+  BrittneyService,
+  BrittneyToolHandler,
+  BRITTNEY_SERVICE_URL
+}

@@ -1,0 +1,340 @@
+/**
+ * NativeMessagingHost.hsplus
+ * 
+ * Native Messaging Host for Brittney MCP Server.
+ * Enables communication between the Chrome DevTools extension and the MCP server.
+ * Implements the Chrome Native Messaging protocol.
+ * 
+ * Architecture:
+ * Browser Extension ←→ Native Messaging Host ←→ SharedDataBridge ←→ MCP Server
+ * 
+ * Protocol:
+ * - Messages are length-prefixed (4-byte little-endian length followed by JSON)
+ * - Host reads from stdin, writes to stdout
+ * - Extension connects via chrome.runtime.connectNative()
+ * 
+ * @package @hololand/mcp-server
+ * @version 2.0.0
+ */
+
+import { sharedDataBridge } from "./SharedDataBridge.hsplus"
+import { handleBrittneyTool } from "./BrittneyTools.hsplus"
+import {
+  NativeMessage,
+  ResponseMessage,
+  MessageType,
+  BrowserStateData,
+  SceneInfoData,
+  ProfilerStatsData,
+  ConsoleLogData,
+  RuntimeErrorData
+} from "./Types.hsplus"
+
+// =============================================================================
+// NATIVE MESSAGING PROTOCOL
+// =============================================================================
+
+module NativeMessaging {
+  /**
+   * Read a message from stdin using Native Messaging protocol
+   * Format: 4-byte length (little-endian) + JSON message
+   */
+  @method async readMessage(): Promise<NativeMessage | null> {
+    return new Promise((resolve, reject) => {
+      // Read 4-byte length prefix
+      const lengthBuffer = Buffer.alloc(4)
+      let bytesRead = 0
+      
+      const onReadable = () => {
+        while (bytesRead < 4) {
+          const chunk = process.stdin.read(1)
+          if (chunk === null) {
+            return  // No more data available
+          }
+          lengthBuffer[bytesRead++] = chunk[0]
+        }
+        
+        // Parse message length (little-endian)
+        const messageLength = lengthBuffer.readUInt32LE(0)
+        
+        if (messageLength === 0) {
+          process.stdin.removeListener("readable", onReadable)
+          resolve(null)
+          return
+        }
+        
+        if (messageLength > 1024 * 1024) {
+          // 1MB limit
+          process.stdin.removeListener("readable", onReadable)
+          reject(new Error(`Message too large: ${messageLength} bytes`))
+          return
+        }
+        
+        // Read message content
+        const messageBuffer = Buffer.alloc(messageLength)
+        let messageBytesRead = 0
+        
+        const readMessageContent = () => {
+          while (messageBytesRead < messageLength) {
+            const remaining = messageLength - messageBytesRead
+            const chunk = process.stdin.read(Math.min(remaining, 16384))
+            if (chunk === null) {
+              return  // Wait for more data
+            }
+            chunk.copy(messageBuffer, messageBytesRead)
+            messageBytesRead += chunk.length
+          }
+          
+          process.stdin.removeListener("readable", onReadable)
+          process.stdin.removeListener("readable", readMessageContent)
+          
+          try {
+            const message = JSON.parse(messageBuffer.toString("utf8"))
+            resolve(message)
+          } catch (e) {
+            reject(new Error(`Invalid JSON message: ${e}`))
+          }
+        }
+        
+        process.stdin.on("readable", readMessageContent)
+        readMessageContent()
+      }
+      
+      process.stdin.on("readable", onReadable)
+      
+      // Handle stdin end
+      process.stdin.once("end", () => {
+        resolve(null)
+      })
+    })
+  }
+  
+  /**
+   * Write a message to stdout using Native Messaging protocol
+   * Format: 4-byte length (little-endian) + JSON message
+   */
+  @method writeMessage(message: NativeMessage): void {
+    const json = JSON.stringify(message)
+    const jsonBuffer = Buffer.from(json, "utf8")
+    const lengthBuffer = Buffer.alloc(4)
+    lengthBuffer.writeUInt32LE(jsonBuffer.length, 0)
+    
+    process.stdout.write(lengthBuffer)
+    process.stdout.write(jsonBuffer)
+  }
+  
+  /**
+   * Send a response message
+   */
+  @method sendResponse(id: string, success: boolean, payload?: any, error?: string): void {
+    this.writeMessage({
+      id,
+      type: MessageType.RESPONSE,
+      action: "response",
+      payload,
+      success,
+      error
+    } as ResponseMessage)
+  }
+  
+  /**
+   * Send an event message (unsolicited notification to extension)
+   */
+  @method sendEvent(action: string, payload: any): void {
+    this.writeMessage({
+      id: `event_${Date.now()}`,
+      type: MessageType.EVENT,
+      action,
+      payload
+    })
+  }
+}
+
+// =============================================================================
+// REQUEST HANDLER
+// =============================================================================
+
+module NativeMessagingHandler {
+  /**
+   * Handle incoming request from browser extension
+   */
+  @method async handleRequest(message: NativeMessage): Promise<void> {
+    const { id, action, payload } = message
+    
+    try {
+      switch (action) {
+        // Ping/health check
+        case "ping":
+          NativeMessaging.sendResponse(id, true, { pong: true, timestamp: Date.now() })
+          break
+        
+        // Get host info
+        case "getHostInfo":
+          NativeMessaging.sendResponse(id, true, {
+            name: "brittney-mcp-host",
+            version: "2.0.0",
+            mcpServerVersion: "2.0.0",
+            capabilities: [
+              "browser-inspection",
+              "ai-analysis",
+              "code-execution",
+              "native-messaging"
+            ]
+          })
+          break
+        
+        // Browser state updates from extension
+        case "getBrowserState":
+          const state = payload as BrowserStateData
+          sharedDataBridge.setBrowserState({
+            ...state,
+            connectionStatus: "connected"
+          })
+          NativeMessaging.sendResponse(id, true, { received: true })
+          break
+        
+        case "setScenes":
+          const scenes = payload as SceneInfoData[]
+          sharedDataBridge.setScenes(scenes)
+          NativeMessaging.sendResponse(id, true, { received: true })
+          break
+        
+        case "setProfilerStats":
+          const stats = payload as ProfilerStatsData
+          sharedDataBridge.setProfilerStats(stats)
+          NativeMessaging.sendResponse(id, true, { received: true })
+          break
+        
+        case "addConsoleLog":
+          const log = payload as ConsoleLogData
+          sharedDataBridge.addConsoleLog(log)
+          NativeMessaging.sendResponse(id, true, { received: true })
+          break
+        
+        case "addRuntimeError":
+          const error = payload as RuntimeErrorData
+          sharedDataBridge.addRuntimeError(error)
+          NativeMessaging.sendResponse(id, true, { received: true })
+          break
+        
+        case "disconnect":
+          sharedDataBridge.setConnected(false)
+          NativeMessaging.sendResponse(id, true, { disconnected: true })
+          break
+        
+        // Forward to Brittney tools
+        case "brittneyTool":
+          const toolPayload = payload as { toolName: string, args: Record<string, any> }
+          const result = await handleBrittneyTool(toolPayload.toolName, toolPayload.args)
+          NativeMessaging.sendResponse(id, true, result)
+          break
+        
+        // Execute HoloScript in browser
+        case "executeHoloScript":
+          const executePayload = payload as { code: string, worldId?: string }
+          // Forward to browser for execution
+          NativeMessaging.sendEvent("executeHoloScript", executePayload)
+          NativeMessaging.sendResponse(id, true, { queued: true })
+          break
+        
+        // Navigate to world
+        case "navigateToWorld":
+          const navPayload = payload as { worldId: string }
+          NativeMessaging.sendEvent("navigateToWorld", navPayload)
+          NativeMessaging.sendResponse(id, true, { queued: true })
+          break
+        
+        // Take screenshot
+        case "takeScreenshot":
+          const ssPayload = payload as { format?: string, quality?: number }
+          NativeMessaging.sendEvent("takeScreenshot", ssPayload)
+          NativeMessaging.sendResponse(id, true, { queued: true })
+          break
+        
+        // Reload scene
+        case "reloadScene":
+          const reloadPayload = payload as { preserveState?: boolean }
+          NativeMessaging.sendEvent("reloadScene", reloadPayload)
+          NativeMessaging.sendResponse(id, true, { queued: true })
+          break
+        
+        default:
+          NativeMessaging.sendResponse(id, false, null, `Unknown action: ${action}`)
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      NativeMessaging.sendResponse(id, false, null, errorMessage)
+    }
+  }
+}
+
+// =============================================================================
+// MAIN LOOP
+// =============================================================================
+
+module NativeMessagingHost {
+  @state {
+    running: boolean = false
+  }
+  
+  @action async start(): Promise<void> {
+    this.state.running = true
+    
+    console.error("[NativeMessagingHost] Starting...")
+    
+    // Set up stdin for reading
+    process.stdin.setEncoding(null)  // Raw bytes
+    
+    // Mark as connected
+    sharedDataBridge.setConnected(true)
+    
+    // Main message loop
+    while (this.state.running) {
+      try {
+        const message = await NativeMessaging.readMessage()
+        
+        if (message === null) {
+          // stdin closed
+          console.error("[NativeMessagingHost] stdin closed, exiting")
+          break
+        }
+        
+        if (message.type === MessageType.REQUEST) {
+          await NativeMessagingHandler.handleRequest(message)
+        }
+      } catch (err) {
+        console.error("[NativeMessagingHost] Error:", err)
+      }
+    }
+    
+    // Cleanup
+    sharedDataBridge.setConnected(false)
+    console.error("[NativeMessagingHost] Stopped")
+  }
+  
+  @action stop(): void {
+    this.state.running = false
+  }
+}
+
+// =============================================================================
+// CLI ENTRY POINT
+// =============================================================================
+
+// Start host if run directly
+if (require.main === module) {
+  NativeMessagingHost.start().catch(err => {
+    console.error("[NativeMessagingHost] Fatal error:", err)
+    process.exit(1)
+  })
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  NativeMessaging,
+  NativeMessagingHandler,
+  NativeMessagingHost
+}

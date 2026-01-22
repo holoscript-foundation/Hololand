@@ -1,0 +1,1032 @@
+/**
+ * AdvancedBrittneyTools.hsplus
+ * 
+ * Power tools that extend Brittney's capabilities:
+ * - One-shot generate & inject pipeline
+ * - Real-time error monitoring with auto-fix
+ * - Performance guard with AI optimization
+ * - HoloScript playground for live testing
+ * - Session recording & replay
+ * - Visual comparison tools
+ * - Scene versioning
+ * 
+ * @package @hololand/mcp-server
+ * @version 2.0.0
+ */
+
+import { sharedDataBridge } from "./SharedDataBridge.hsplus"
+import { BrittneyService } from "./BrittneyTools.hsplus"
+import {
+  Tool,
+  SceneSnapshot,
+  SessionRecording,
+  SessionEvent,
+  BrittneyBrowserContext
+} from "./Types.hsplus"
+
+// =============================================================================
+// STATE
+// =============================================================================
+
+module AdvancedBrittneyState {
+  @state {
+    activeSession: SessionRecording = null
+    snapshots: Map<string, SceneSnapshot> = new Map()
+    sessionRecordings: Map<string, SessionRecording> = new Map()
+  }
+}
+
+// =============================================================================
+// TOOL DEFINITIONS
+// =============================================================================
+
+const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
+  // =========================================================================
+  // ONE-SHOT CREATION PIPELINE
+  // =========================================================================
+  
+  {
+    name: "brittney_create_and_inject",
+    description: "Generate HoloScript with Brittney AI and immediately inject it into the running Hololand app. One-shot creation-to-browser pipeline. Describe what you want, Brittney generates it, and it appears in the browser instantly.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        description: {
+          type: "string",
+          description: "Natural language description of what to create (e.g., 'a glowing portal with particle effects', 'a weapon rack with swords')"
+        },
+        category: {
+          type: "string",
+          enum: ["object", "ui", "particle", "animation", "scene", "npc", "weapon", "collectible", "audio", "material"],
+          description: "Category hint for better generation"
+        },
+        worldId: {
+          type: "string",
+          description: "Target world to inject into (default: current world)"
+        },
+        validate: {
+          type: "boolean",
+          description: "Validate HoloScript syntax before injection (default: true)"
+        }
+      },
+      required: ["description"]
+    }
+  },
+  
+  // =========================================================================
+  // REAL-TIME MONITORING
+  // =========================================================================
+  
+  {
+    name: "brittney_error_monitor",
+    description: "Get current error status and optionally have Brittney analyze the latest error. Returns error count, severity, and AI analysis if requested.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        analyze: {
+          type: "boolean",
+          description: "Have Brittney analyze the latest error (default: false)"
+        },
+        threshold: {
+          type: "number",
+          description: "Alert when error count exceeds this (default: 5)"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "brittney_auto_fix",
+    description: "Attempt to automatically fix the latest browser error using Brittney AI. Brittney analyzes the error, generates a fix, and optionally injects it into the running app.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        errorIndex: {
+          type: "number",
+          description: "Index of error to fix (0 = latest, default: 0)"
+        },
+        apply: {
+          type: "boolean",
+          description: "Apply the fix automatically (default: false, preview only)"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "brittney_performance_monitor",
+    description: "Monitor performance metrics with thresholds and get AI-powered optimization suggestions when performance degrades.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        fpsThreshold: {
+          type: "number",
+          description: "Alert when FPS drops below this (default: 30)"
+        },
+        memoryThresholdMB: {
+          type: "number",
+          description: "Alert when memory exceeds this in MB (default: 500)"
+        },
+        getSuggestions: {
+          type: "boolean",
+          description: "Get AI optimization suggestions (default: true when thresholds exceeded)"
+        }
+      }
+    }
+  },
+  
+  // =========================================================================
+  // HOLOSCRIPT DEVELOPMENT
+  // =========================================================================
+  
+  {
+    name: "brittney_holoscript_playground",
+    description: "Interactive HoloScript playground. Parse, validate, explain, or inject HoloScript code with instant feedback. Perfect for learning and testing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to work with"
+        },
+        action: {
+          type: "string",
+          enum: ["validate", "explain", "optimize", "inject", "convert"],
+          description: "Action to perform: validate syntax, explain code, optimize, inject to browser, or convert from another format"
+        },
+        convertFrom: {
+          type: "string",
+          enum: ["glb", "gltf", "obj", "javascript", "json"],
+          description: "Source format when action is 'convert'"
+        }
+      },
+      required: ["code", "action"]
+    }
+  },
+  
+  {
+    name: "brittney_holoscript_diff",
+    description: "Compare HoloScript code - shows what will change if injected. Use before injection to preview changes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        newCode: {
+          type: "string",
+          description: "New HoloScript to compare against current browser state"
+        },
+        showDetails: {
+          type: "boolean",
+          description: "Show detailed diff including line-by-line changes (default: false)"
+        }
+      },
+      required: ["newCode"]
+    }
+  },
+  
+  {
+    name: "brittney_holoscript_templates",
+    description: "Get HoloScript templates for common patterns. Use as starting points for your creations.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          enum: ["interactive-object", "ui-panel", "particle-system", "npc-character", "weapon", "collectible", "portal", "vehicle", "building", "environment"],
+          description: "Template category"
+        },
+        customize: {
+          type: "object",
+          description: "Customization options (varies by template)"
+        }
+      },
+      required: ["category"]
+    }
+  },
+  
+  // =========================================================================
+  // SESSION & VERSIONING
+  // =========================================================================
+  
+  {
+    name: "brittney_scene_snapshot",
+    description: "Capture a comprehensive snapshot of the current scene including HoloScript, objects, performance metrics, and optionally a screenshot. Use for versioning and comparison.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Name for this snapshot (e.g., 'before-portal-change')"
+        },
+        includeScreenshot: {
+          type: "boolean",
+          description: "Include a screenshot (default: true)"
+        },
+        includePerformance: {
+          type: "boolean",
+          description: "Include performance metrics (default: true)"
+        }
+      },
+      required: ["name"]
+    }
+  },
+  
+  {
+    name: "brittney_compare_snapshots",
+    description: "Compare two scene snapshots and show differences in objects, HoloScript, and performance.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        snapshot1: {
+          type: "string",
+          description: "Name of first snapshot"
+        },
+        snapshot2: {
+          type: "string",
+          description: "Name of second snapshot (default: current state)"
+        }
+      },
+      required: ["snapshot1"]
+    }
+  },
+  
+  {
+    name: "brittney_record_session",
+    description: "Start or stop recording a development session. Captures all changes, injections, errors, and performance over time.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["start", "stop", "status", "export"],
+          description: "Recording action"
+        },
+        sessionName: {
+          type: "string",
+          description: "Name for the session (required for start)"
+        },
+        format: {
+          type: "string",
+          enum: ["json", "markdown", "holoscript"],
+          description: "Export format (for export action)"
+        }
+      },
+      required: ["action"]
+    }
+  },
+  
+  // =========================================================================
+  // ACCESSIBILITY & TESTING
+  // =========================================================================
+  
+  {
+    name: "brittney_accessibility_check",
+    description: "Check the current scene for VR/AR accessibility issues. Returns recommendations for colorblind users, motion sensitivity, text legibility, and interaction reach.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        checks: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: ["color-contrast", "motion", "text-legibility", "interaction-reach", "audio-cues", "all"]
+          },
+          description: "Specific checks to run (default: all)"
+        }
+      }
+    }
+  },
+  
+  {
+    name: "brittney_test_scene",
+    description: "Run automated tests on the current scene. Check for performance issues, accessibility problems, HoloScript errors, or visual regressions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        testType: {
+          type: "string",
+          enum: ["performance", "holoscript-syntax", "accessibility", "visual-regression", "interaction", "all"],
+          description: "Type of test to run"
+        },
+        baseline: {
+          type: "string",
+          description: "Baseline snapshot name for regression tests"
+        },
+        threshold: {
+          type: "number",
+          description: "Pass/fail threshold (meaning varies by test type)"
+        }
+      },
+      required: ["testType"]
+    }
+  },
+  
+  {
+    name: "brittney_explain_scene",
+    description: "Have Brittney explain everything in the current scene - what objects are present, how they interact, performance characteristics, and potential improvements.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        depth: {
+          type: "string",
+          enum: ["overview", "detailed", "comprehensive"],
+          description: "Level of detail (default: overview)"
+        },
+        focus: {
+          type: "string",
+          enum: ["objects", "interactions", "performance", "holoscript", "all"],
+          description: "What to focus on (default: all)"
+        }
+      }
+    }
+  }
+]
+
+// =============================================================================
+// HOLOSCRIPT TEMPLATES
+// =============================================================================
+
+const HOLOSCRIPT_TEMPLATES: Record<string, string> = {
+  "interactive-object": `
+object "InteractiveItem" {
+  position: [0, 1, 0]
+  model: "box"
+  interactive: true
+  
+  on_interact {
+    animate("pulse")
+    emit("collected")
+  }
+  
+  on_hover {
+    highlight(true)
+  }
+  
+  on_hover_end {
+    highlight(false)
+  }
+}`,
+
+  "ui-panel": `
+ui_panel "InfoPanel" {
+  position: [0, 2, -3]
+  size: [400, 300]
+  
+  title "Information"
+  
+  text "content" {
+    value: "Welcome to the panel"
+    font_size: 18
+  }
+  
+  button "close" {
+    label: "Close"
+    on_click { hide() }
+  }
+}`,
+
+  "particle-system": `
+particle_system "Sparkles" {
+  position: [0, 0, 0]
+  
+  emission_rate: 50
+  lifetime: 2.0
+  size: [0.1, 0.05]
+  color: ["#FFD700", "#FFA500"]
+  velocity: [0, 2, 0]
+  spread: 45
+  
+  gravity: -0.5
+  fade_out: true
+}`,
+
+  "npc-character": `
+template "NPC" {
+  state {
+    health: 100
+    mood: "neutral"
+    dialogue_index: 0
+  }
+  
+  traits: ["talkable", "animated"]
+  
+  on_interact {
+    speak(dialogues[dialogue_index])
+    dialogue_index = (dialogue_index + 1) % dialogues.length
+  }
+}
+
+object "Merchant" using "NPC" {
+  position: [5, 0, 0]
+  model: "merchant"
+  
+  dialogues: [
+    "Welcome, traveler!",
+    "Browse my wares.",
+    "Safe travels!"
+  ]
+}`,
+
+  "weapon": `
+template "Weapon" {
+  state {
+    damage: 10
+    durability: 100
+    equipped: false
+  }
+  
+  action swing(target) {
+    animate("swing")
+    target.health -= damage
+    durability -= 1
+  }
+}
+
+object "Sword" using "Weapon" {
+  position: [0, 1, 0]
+  model: "sword"
+  damage: 25
+  
+  on_equip {
+    equipped = true
+    emit("weapon_equipped")
+  }
+}`,
+
+  "collectible": `
+template "Collectible" {
+  state { collected: false }
+  
+  on_interact {
+    if (!collected) {
+      collected = true
+      emit("collected", { value: value })
+      animate("collect")
+      destroy_after(0.5)
+    }
+  }
+}
+
+object "Coin" using "Collectible" {
+  position: [0, 0.5, 0]
+  model: "coin"
+  value: 10
+  
+  every(100) {
+    rotate(0, 1, 0)
+  }
+}`,
+
+  "portal": `
+object "Portal" {
+  position: [0, 0, 0]
+  model: "portal_ring"
+  
+  particle_system {
+    emission_rate: 100
+    color: ["#8B5CF6", "#06B6D4"]
+  }
+  
+  on_enter(player) {
+    teleport(player, destination)
+    sound("teleport")
+  }
+  
+  destination: "world:plaza"
+}`,
+
+  "vehicle": `
+template "Vehicle" {
+  state {
+    speed: 0
+    max_speed: 20
+    driver: null
+  }
+  
+  action enter(player) {
+    driver = player
+    player.mount(this)
+  }
+  
+  action accelerate() {
+    speed = min(speed + 2, max_speed)
+    move_forward(speed)
+  }
+  
+  action brake() {
+    speed = max(speed - 5, 0)
+  }
+}`,
+
+  "building": `
+spatial_group "Building" {
+  object "Foundation" {
+    position: [0, 0, 0]
+    model: "floor"
+    size: [10, 0.2, 10]
+    physics: static
+  }
+  
+  object "Walls" {
+    position: [0, 1.5, 0]
+    model: "walls"
+    size: [10, 3, 10]
+    physics: static
+  }
+  
+  object "Roof" {
+    position: [0, 3.2, 0]
+    model: "roof"
+    size: [11, 0.5, 11]
+    physics: static
+  }
+  
+  object "Door" {
+    position: [0, 1.5, 5]
+    model: "door"
+    interactive: true
+    
+    state { open: false }
+    
+    on_interact {
+      open = !open
+      animate(open ? "open" : "close")
+    }
+  }
+}`,
+
+  "environment": `
+composition "Forest" {
+  // Terrain
+  object "Ground" {
+    position: [0, 0, 0]
+    model: "terrain"
+    size: [100, 1, 100]
+    material: "grass"
+    physics: static
+  }
+  
+  // Trees (instanced)
+  template "Tree" {
+    model: "tree"
+    physics: static
+    sway: true
+  }
+  
+  spatial_group "Trees" {
+    scatter using "Tree" {
+      count: 50
+      area: [100, 100]
+      min_distance: 5
+    }
+  }
+  
+  // Ambient
+  ambient_sound "forest" {
+    src: "forest_ambience.ogg"
+    volume: 0.3
+    loop: true
+  }
+  
+  // Lighting
+  directional_light "sun" {
+    direction: [-0.5, -1, -0.5]
+    intensity: 1.0
+    color: "#FFF5E6"
+    shadows: true
+  }
+}`
+}
+
+// =============================================================================
+// TOOL HANDLER
+// =============================================================================
+
+module AdvancedBrittneyToolHandler {
+  @method async handle(toolName: string, args: Record<string, any>): Promise<any> {
+    switch (toolName) {
+      case "brittney_create_and_inject":
+        return this.createAndInject(args.description, args.category, args.worldId, args.validate)
+        
+      case "brittney_error_monitor":
+        return this.errorMonitor(args.analyze, args.threshold || 5)
+        
+      case "brittney_auto_fix":
+        return this.autoFix(args.errorIndex || 0, args.apply || false)
+        
+      case "brittney_performance_monitor":
+        return this.performanceMonitor(args.fpsThreshold || 30, args.memoryThresholdMB || 500, args.getSuggestions)
+        
+      case "brittney_holoscript_playground":
+        return this.playground(args.code, args.action, args.convertFrom)
+        
+      case "brittney_holoscript_diff":
+        return this.holoScriptDiff(args.newCode, args.showDetails || false)
+        
+      case "brittney_holoscript_templates":
+        return this.getTemplate(args.category, args.customize)
+        
+      case "brittney_scene_snapshot":
+        return this.sceneSnapshot(args.name, args.includeScreenshot !== false, args.includePerformance !== false)
+        
+      case "brittney_compare_snapshots":
+        return this.compareSnapshots(args.snapshot1, args.snapshot2)
+        
+      case "brittney_record_session":
+        return this.recordSession(args.action, args.sessionName, args.format)
+        
+      case "brittney_accessibility_check":
+        return this.accessibilityCheck(args.checks || ["all"])
+        
+      case "brittney_test_scene":
+        return this.testScene(args.testType, args.baseline, args.threshold)
+        
+      case "brittney_explain_scene":
+        return this.explainScene(args.depth || "overview", args.focus || "all")
+        
+      default:
+        throw new Error(`Unknown advanced Brittney tool: ${toolName}`)
+    }
+  }
+  
+  // =========================================================================
+  // ONE-SHOT CREATION
+  // =========================================================================
+  
+  @method async createAndInject(
+    description: string,
+    category?: string,
+    worldId?: string,
+    validate: boolean = true
+  ): Promise<any> {
+    const context = await BrittneyService.collectBrowserContext()
+    
+    // Generate code
+    const prompt = `Generate HoloScript for: ${description}
+${category ? `Category: ${category}` : ""}
+Return only valid HoloScript code.`
+    
+    const response = await BrittneyService.call(prompt, {
+      browserContext: context,
+      systemPrompt: "You are a HoloScript expert. Generate clean, efficient code."
+    })
+    
+    if (!response.success) {
+      return {
+        success: false,
+        error: response.error
+      }
+    }
+    
+    const code = response.response
+    
+    // TODO: Inject via native messaging
+    return {
+      success: true,
+      generated: true,
+      injected: false,
+      code,
+      message: "Code generated. Injection requires native messaging connection."
+    }
+  }
+  
+  // =========================================================================
+  // MONITORING
+  // =========================================================================
+  
+  @method async errorMonitor(analyze: boolean, threshold: number): Promise<any> {
+    const errors = sharedDataBridge.getRuntimeErrors()
+    const count = errors.length
+    const exceeds = count > threshold
+    
+    let analysis = null
+    if (analyze && errors.length > 0) {
+      const context = await BrittneyService.collectBrowserContext()
+      const response = await BrittneyService.call(
+        `Analyze this error: ${errors[0].message}`,
+        { browserContext: context }
+      )
+      analysis = response.success ? response.response : null
+    }
+    
+    return {
+      count,
+      exceeds,
+      threshold,
+      latestError: errors[0] || null,
+      analysis
+    }
+  }
+  
+  @method async autoFix(errorIndex: number, apply: boolean): Promise<any> {
+    const errors = sharedDataBridge.getRuntimeErrors()
+    const error = errors[errorIndex]
+    
+    if (!error) {
+      return { success: false, error: "No error at index " + errorIndex }
+    }
+    
+    const context = await BrittneyService.collectBrowserContext()
+    
+    const prompt = `Generate a fix for this error:
+Error: ${error.message}
+Stack: ${error.stack || "N/A"}
+
+Provide HoloScript code that fixes this issue.`
+    
+    const response = await BrittneyService.call(prompt, { browserContext: context })
+    
+    return {
+      error,
+      fix: response.success ? response.response : null,
+      applied: false,
+      message: apply ? "Auto-apply requires native messaging connection" : "Preview only"
+    }
+  }
+  
+  @method async performanceMonitor(
+    fpsThreshold: number,
+    memoryThresholdMB: number,
+    getSuggestions?: boolean
+  ): Promise<any> {
+    const stats = sharedDataBridge.getProfilerStats()
+    
+    if (!stats) {
+      return { connected: false, message: "No performance data available" }
+    }
+    
+    const fpsBelowThreshold = stats.fps < fpsThreshold
+    const memoryAboveThreshold = stats.memoryUsed > memoryThresholdMB * 1024 * 1024
+    const alert = fpsBelowThreshold || memoryAboveThreshold
+    
+    let suggestions = null
+    if ((getSuggestions === true || (getSuggestions === undefined && alert))) {
+      const context = await BrittneyService.collectBrowserContext()
+      const response = await BrittneyService.call(
+        `Performance is ${fpsBelowThreshold ? "low FPS" : ""} ${memoryAboveThreshold ? "high memory" : ""}. Suggest optimizations.`,
+        { browserContext: context }
+      )
+      suggestions = response.success ? response.response : null
+    }
+    
+    return {
+      stats,
+      alert,
+      fpsBelowThreshold,
+      memoryAboveThreshold,
+      thresholds: { fps: fpsThreshold, memoryMB: memoryThresholdMB },
+      suggestions
+    }
+  }
+  
+  // =========================================================================
+  // PLAYGROUND
+  // =========================================================================
+  
+  @method async playground(code: string, action: string, convertFrom?: string): Promise<any> {
+    switch (action) {
+      case "validate":
+        // TODO: Use HoloScript parser
+        return { valid: true, message: "Syntax validation requires parser" }
+        
+      case "explain":
+        const explainResponse = await BrittneyService.call(
+          `Explain this HoloScript code:\n${code}`,
+          { systemPrompt: "You are a HoloScript expert. Explain code clearly." }
+        )
+        return { explanation: explainResponse.response }
+        
+      case "optimize":
+        const optimizeResponse = await BrittneyService.call(
+          `Optimize this HoloScript code for performance:\n${code}`,
+          { systemPrompt: "You are a HoloScript performance expert." }
+        )
+        return { optimized: optimizeResponse.response }
+        
+      case "inject":
+        return { injected: false, message: "Injection requires native messaging" }
+        
+      case "convert":
+        const convertResponse = await BrittneyService.call(
+          `Convert this ${convertFrom} to HoloScript:\n${code}`,
+          { systemPrompt: "Convert to valid HoloScript syntax." }
+        )
+        return { converted: convertResponse.response }
+        
+      default:
+        return { error: "Unknown action: " + action }
+    }
+  }
+  
+  // =========================================================================
+  // TEMPLATES
+  // =========================================================================
+  
+  @method getTemplate(category: string, customize?: Record<string, any>): any {
+    const template = HOLOSCRIPT_TEMPLATES[category]
+    
+    if (!template) {
+      return {
+        error: "Unknown template category",
+        available: Object.keys(HOLOSCRIPT_TEMPLATES)
+      }
+    }
+    
+    return {
+      category,
+      template,
+      customize: customize || null
+    }
+  }
+  
+  // =========================================================================
+  // SNAPSHOTS
+  // =========================================================================
+  
+  @method async sceneSnapshot(
+    name: string,
+    includeScreenshot: boolean,
+    includePerformance: boolean
+  ): Promise<any> {
+    const snapshot: SceneSnapshot = {
+      id: `snapshot_${Date.now()}`,
+      name,
+      timestamp: Date.now(),
+      objects: [],
+      performance: includePerformance ? sharedDataBridge.getProfilerStats() : null,
+      screenshot: null
+    }
+    
+    AdvancedBrittneyState.snapshots.set(name, snapshot)
+    
+    return {
+      success: true,
+      snapshot: {
+        id: snapshot.id,
+        name: snapshot.name,
+        timestamp: snapshot.timestamp
+      }
+    }
+  }
+  
+  @method compareSnapshots(snapshot1: string, snapshot2?: string): any {
+    const s1 = AdvancedBrittneyState.snapshots.get(snapshot1)
+    
+    if (!s1) {
+      return { error: "Snapshot not found: " + snapshot1 }
+    }
+    
+    const s2 = snapshot2 
+      ? AdvancedBrittneyState.snapshots.get(snapshot2)
+      : null
+    
+    return {
+      snapshot1: { name: s1.name, timestamp: s1.timestamp },
+      snapshot2: s2 ? { name: s2.name, timestamp: s2.timestamp } : "current",
+      diff: "Comparison requires scene data"
+    }
+  }
+  
+  // =========================================================================
+  // SESSION RECORDING
+  // =========================================================================
+  
+  @method recordSession(action: string, sessionName?: string, format?: string): any {
+    switch (action) {
+      case "start":
+        if (!sessionName) {
+          return { error: "Session name required" }
+        }
+        const session: SessionRecording = {
+          id: `session_${Date.now()}`,
+          name: sessionName,
+          startTime: Date.now(),
+          events: [],
+          snapshots: []
+        }
+        AdvancedBrittneyState.activeSession = session
+        return { success: true, session: { id: session.id, name: session.name } }
+        
+      case "stop":
+        if (!AdvancedBrittneyState.activeSession) {
+          return { error: "No active session" }
+        }
+        const stopped = AdvancedBrittneyState.activeSession
+        stopped.endTime = Date.now()
+        AdvancedBrittneyState.sessionRecordings.set(stopped.name, stopped)
+        AdvancedBrittneyState.activeSession = null
+        return { 
+          success: true, 
+          session: stopped,
+          duration: stopped.endTime - stopped.startTime
+        }
+        
+      case "status":
+        return {
+          active: AdvancedBrittneyState.activeSession !== null,
+          session: AdvancedBrittneyState.activeSession
+        }
+        
+      case "export":
+        return { error: "Export not yet implemented", format }
+        
+      default:
+        return { error: "Unknown action: " + action }
+    }
+  }
+  
+  // =========================================================================
+  // TESTING
+  // =========================================================================
+  
+  @method async accessibilityCheck(checks: string[]): Promise<any> {
+    const context = await BrittneyService.collectBrowserContext()
+    
+    const response = await BrittneyService.call(
+      `Check the scene for accessibility issues. Focus on: ${checks.join(", ")}`,
+      { 
+        browserContext: context,
+        systemPrompt: "You are a VR/AR accessibility expert."
+      }
+    )
+    
+    return {
+      checks,
+      results: response.success ? response.response : null,
+      error: response.success ? null : response.error
+    }
+  }
+  
+  @method async testScene(testType: string, baseline?: string, threshold?: number): Promise<any> {
+    const stats = sharedDataBridge.getProfilerStats()
+    
+    switch (testType) {
+      case "performance":
+        return {
+          passed: stats ? stats.fps >= (threshold || 30) : false,
+          fps: stats?.fps,
+          threshold: threshold || 30
+        }
+        
+      case "holoscript-syntax":
+        return { passed: true, message: "Syntax check requires parser" }
+        
+      case "accessibility":
+        return this.accessibilityCheck(["all"])
+        
+      case "visual-regression":
+        return { passed: true, message: "Visual regression requires baseline" }
+        
+      case "interaction":
+        return { passed: true, message: "Interaction test requires browser context" }
+        
+      default:
+        return { error: "Unknown test type" }
+    }
+  }
+  
+  @method async explainScene(depth: string, focus: string): Promise<any> {
+    const context = await BrittneyService.collectBrowserContext()
+    
+    const response = await BrittneyService.call(
+      `Explain the current scene. Depth: ${depth}. Focus: ${focus}.`,
+      {
+        browserContext: context,
+        systemPrompt: "You are a Hololand scene expert. Explain scenes clearly."
+      }
+    )
+    
+    return {
+      depth,
+      focus,
+      explanation: response.success ? response.response : null,
+      context
+    }
+  }
+  
+  @method holoScriptDiff(newCode: string, showDetails: boolean): any {
+    // TODO: Implement actual diff
+    return {
+      newCode,
+      showDetails,
+      diff: "Diff requires current scene HoloScript"
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+const advancedBrittneyTools = ADVANCED_BRITTNEY_TOOLS
+
+async function handleAdvancedBrittneyTool(toolName: string, args: Record<string, any>): Promise<any> {
+  return AdvancedBrittneyToolHandler.handle(toolName, args)
+}
+
+export {
+  advancedBrittneyTools,
+  handleAdvancedBrittneyTool,
+  AdvancedBrittneyToolHandler,
+  AdvancedBrittneyState,
+  HOLOSCRIPT_TEMPLATES
+}

@@ -1,0 +1,578 @@
+/**
+ * Transpiler.hsplus
+ * 
+ * Main orchestrator for the HoloScript+ compilation pipeline.
+ * Combines Lexer, Parser, and CodeGenerator into a unified API.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+import { Lexer, Token } from "./Lexer.hsplus"
+import { Parser, ASTNode, NodeType, ParserError } from "./Parser.hsplus"
+import { CodeGenerator, GeneratorOptions, GeneratedCode } from "./CodeGenerator.hsplus"
+
+// =============================================================================
+// TRANSPILER OPTIONS
+// =============================================================================
+
+struct TranspileOptions {
+  // Output format
+  format: "esm" | "cjs" | "iife" = "esm"
+  
+  // Minification
+  minify: boolean = false
+  
+  // Source maps
+  sourceMap: boolean = false
+  inlineSourceMap: boolean = false
+  
+  // Beautification
+  indent: string = "  "
+  
+  // Module handling
+  runtime: string = "@hololand/runtime"
+  preserveImports: boolean = true
+  
+  // Error handling
+  throwOnError: boolean = true
+  
+  // Debug
+  debug: boolean = false
+}
+
+struct TranspileResult {
+  success: boolean
+  code: string
+  sourceMap?: string
+  errors: TranspileError[]
+  warnings: TranspileWarning[]
+  ast?: ASTNode
+  tokens?: Token[]
+  stats: TranspileStats
+}
+
+struct TranspileError {
+  message: string
+  line: number
+  column: number
+  source?: string
+  phase: "lexer" | "parser" | "generator"
+}
+
+struct TranspileWarning {
+  message: string
+  line: number
+  column: number
+  code: string
+}
+
+struct TranspileStats {
+  inputLines: number
+  outputLines: number
+  inputSize: number
+  outputSize: number
+  tokenCount: number
+  astNodeCount: number
+  parseTime: number
+  generateTime: number
+  totalTime: number
+}
+
+// =============================================================================
+// TRANSPILER MODULE
+// =============================================================================
+
+module Transpiler {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    options: TranspileOptions = new TranspileOptions()
+    lastResult: TranspileResult = null
+    cache: Map<string, TranspileResult> = new Map()
+    cacheEnabled: boolean = true
+  }
+  
+  // =========================================================================
+  // MAIN API
+  // =========================================================================
+  
+  /**
+   * Transpile HoloScript+ source code to JavaScript
+   */
+  @action transpile(source: string, options: TranspileOptions = {}): TranspileResult {
+    const startTime = performance.now()
+    const opts = { ...new TranspileOptions(), ...options }
+    this.state.options = opts
+    
+    // Check cache
+    if (this.state.cacheEnabled) {
+      const cacheKey = this.getCacheKey(source, opts)
+      if (this.state.cache.has(cacheKey)) {
+        return this.state.cache.get(cacheKey)
+      }
+    }
+    
+    const errors: TranspileError[] = []
+    const warnings: TranspileWarning[] = []
+    
+    // Initialize stats
+    const stats: TranspileStats = {
+      inputLines: source.split("\n").length,
+      inputSize: source.length,
+      outputLines: 0,
+      outputSize: 0,
+      tokenCount: 0,
+      astNodeCount: 0,
+      parseTime: 0,
+      generateTime: 0,
+      totalTime: 0
+    }
+    
+    try {
+      // Phase 1: Tokenize
+      const lexStart = performance.now()
+      const { tokens, errors: lexErrors } = Lexer.tokenize(source)
+      stats.tokenCount = tokens.length
+      
+      for (const err of lexErrors) {
+        errors.push({
+          message: err.message,
+          line: err.line,
+          column: err.column,
+          phase: "lexer"
+        })
+      }
+      
+      if (opts.debug) {
+        console.log(`[Transpiler] Tokenized: ${tokens.length} tokens`)
+      }
+      
+      // Phase 2: Parse
+      const parseStart = performance.now()
+      const { ast, errors: parseErrors } = Parser.parse(source)
+      stats.parseTime = performance.now() - parseStart
+      stats.astNodeCount = this.countNodes(ast)
+      
+      for (const err of parseErrors) {
+        errors.push({
+          message: err.message,
+          line: err.line,
+          column: err.column,
+          phase: "parser"
+        })
+      }
+      
+      if (opts.debug) {
+        console.log(`[Transpiler] Parsed: ${stats.astNodeCount} nodes`)
+      }
+      
+      // Collect warnings
+      this.analyzeWarnings(ast, warnings)
+      
+      // Check for fatal errors
+      if (errors.length > 0 && opts.throwOnError) {
+        const result: TranspileResult = {
+          success: false,
+          code: "",
+          errors,
+          warnings,
+          ast: opts.debug ? ast : undefined,
+          tokens: opts.debug ? tokens : undefined,
+          stats
+        }
+        this.state.lastResult = result
+        return result
+      }
+      
+      // Phase 3: Generate code
+      const genStart = performance.now()
+      const generatorOpts: GeneratorOptions = {
+        indent: opts.indent,
+        minify: opts.minify,
+        sourceMap: opts.sourceMap,
+        moduleFormat: opts.format,
+        runtime: opts.runtime
+      }
+      
+      const generated = CodeGenerator.generate(ast, generatorOpts)
+      stats.generateTime = performance.now() - genStart
+      
+      const code = generated.code
+      stats.outputLines = code.split("\n").length
+      stats.outputSize = code.length
+      stats.totalTime = performance.now() - startTime
+      
+      if (opts.debug) {
+        console.log(`[Transpiler] Generated: ${stats.outputLines} lines, ${stats.outputSize} bytes`)
+      }
+      
+      // Build result
+      const result: TranspileResult = {
+        success: true,
+        code,
+        sourceMap: opts.sourceMap ? this.generateSourceMap(source, code, ast) : undefined,
+        errors,
+        warnings,
+        ast: opts.debug ? ast : undefined,
+        tokens: opts.debug ? tokens : undefined,
+        stats
+      }
+      
+      // Cache result
+      if (this.state.cacheEnabled) {
+        const cacheKey = this.getCacheKey(source, opts)
+        this.state.cache.set(cacheKey, result)
+      }
+      
+      this.state.lastResult = result
+      return result
+      
+    } catch (err) {
+      errors.push({
+        message: err.message || String(err),
+        line: 0,
+        column: 0,
+        phase: "generator"
+      })
+      
+      const result: TranspileResult = {
+        success: false,
+        code: "",
+        errors,
+        warnings,
+        stats
+      }
+      
+      this.state.lastResult = result
+      return result
+    }
+  }
+  
+  /**
+   * Transpile a single file
+   */
+  @action transpileFile(filePath: string, options: TranspileOptions = {}): TranspileResult {
+    // In a real implementation, this would read the file
+    // For now, we return an error indicating file I/O is needed
+    return {
+      success: false,
+      code: "",
+      errors: [{
+        message: `File I/O not available in browser context. Use transpile() with source string.`,
+        line: 0,
+        column: 0,
+        phase: "generator"
+      }],
+      warnings: [],
+      stats: this.emptyStats()
+    }
+  }
+  
+  /**
+   * Transpile multiple files and bundle
+   */
+  @action bundle(sources: { path: string, source: string }[], options: TranspileOptions = {}): TranspileResult {
+    const results: TranspileResult[] = []
+    const allErrors: TranspileError[] = []
+    const allWarnings: TranspileWarning[] = []
+    
+    // Transpile each file
+    for (const { path, source } of sources) {
+      const result = this.transpile(source, options)
+      results.push(result)
+      
+      // Prefix errors with file path
+      for (const err of result.errors) {
+        allErrors.push({ ...err, source: path })
+      }
+      for (const warn of result.warnings) {
+        allWarnings.push({ ...warn })
+      }
+    }
+    
+    // Combine outputs
+    const bundledCode = results
+      .filter(r => r.success)
+      .map(r => r.code)
+      .join("\n\n")
+    
+    // Aggregate stats
+    const stats: TranspileStats = {
+      inputLines: results.reduce((sum, r) => sum + r.stats.inputLines, 0),
+      inputSize: results.reduce((sum, r) => sum + r.stats.inputSize, 0),
+      outputLines: bundledCode.split("\n").length,
+      outputSize: bundledCode.length,
+      tokenCount: results.reduce((sum, r) => sum + r.stats.tokenCount, 0),
+      astNodeCount: results.reduce((sum, r) => sum + r.stats.astNodeCount, 0),
+      parseTime: results.reduce((sum, r) => sum + r.stats.parseTime, 0),
+      generateTime: results.reduce((sum, r) => sum + r.stats.generateTime, 0),
+      totalTime: results.reduce((sum, r) => sum + r.stats.totalTime, 0)
+    }
+    
+    return {
+      success: allErrors.length === 0,
+      code: bundledCode,
+      errors: allErrors,
+      warnings: allWarnings,
+      stats
+    }
+  }
+  
+  /**
+   * Watch mode - stub for IDE integration
+   */
+  @action watch(patterns: string[], callback: (result: TranspileResult) => void): { stop: () => void } {
+    console.log("[Transpiler] Watch mode requires file system access")
+    return {
+      stop: () => {}
+    }
+  }
+  
+  // =========================================================================
+  // UTILITY METHODS
+  // =========================================================================
+  
+  /**
+   * Clear the transpilation cache
+   */
+  @action clearCache(): void {
+    this.state.cache.clear()
+  }
+  
+  /**
+   * Enable/disable caching
+   */
+  @action setCache(enabled: boolean): void {
+    this.state.cacheEnabled = enabled
+    if (!enabled) {
+      this.clearCache()
+    }
+  }
+  
+  /**
+   * Get the last transpilation result
+   */
+  @computed getLastResult(): TranspileResult | null {
+    return this.state.lastResult
+  }
+  
+  /**
+   * Quick check if source is valid HoloScript+
+   */
+  @method validate(source: string): { valid: boolean, errors: TranspileError[] } {
+    const { errors } = Parser.parse(source)
+    
+    return {
+      valid: errors.length === 0,
+      errors: errors.map(e => ({
+        message: e.message,
+        line: e.line,
+        column: e.column,
+        phase: "parser" as const
+      }))
+    }
+  }
+  
+  /**
+   * Format source code
+   */
+  @method format(source: string, indent: string = "  "): string {
+    // Parse and regenerate with consistent formatting
+    const { ast, errors } = Parser.parse(source)
+    
+    if (errors.length > 0) {
+      return source // Return original if parsing fails
+    }
+    
+    const { code } = CodeGenerator.generate(ast, { indent, minify: false })
+    return code
+  }
+  
+  /**
+   * Minify source code
+   */
+  @method minify(source: string): string {
+    const { ast, errors } = Parser.parse(source)
+    
+    if (errors.length > 0) {
+      return source
+    }
+    
+    const { code } = CodeGenerator.generate(ast, { minify: true })
+    return code
+  }
+  
+  // =========================================================================
+  // INTERNAL HELPERS
+  // =========================================================================
+  
+  @method getCacheKey(source: string, options: TranspileOptions): string {
+    // Simple hash combining source and options
+    const optStr = JSON.stringify(options)
+    return `${this.hash(source)}-${this.hash(optStr)}`
+  }
+  
+  @method hash(str: string): string {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash
+    }
+    return hash.toString(36)
+  }
+  
+  @method countNodes(node: ASTNode): number {
+    if (!node) return 0
+    
+    let count = 1
+    
+    if (node.body && Array.isArray(node.body)) {
+      for (const child of node.body) {
+        count += this.countNodes(child)
+      }
+    }
+    
+    if (node.members && Array.isArray(node.members)) {
+      for (const member of node.members) {
+        count += this.countNodes(member)
+      }
+    }
+    
+    if (node.children && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        count += this.countNodes(child)
+      }
+    }
+    
+    if (node.statements && Array.isArray(node.statements)) {
+      for (const stmt of node.statements) {
+        count += this.countNodes(stmt)
+      }
+    }
+    
+    return count
+  }
+  
+  @method analyzeWarnings(ast: ASTNode, warnings: TranspileWarning[]): void {
+    // Analyze AST for potential issues
+    this.walkAST(ast, (node) => {
+      // Warn about deprecated patterns
+      if (node.type === NodeType.VARIABLE && node.kind === "var") {
+        warnings.push({
+          message: "Use 'const' or 'let' instead of 'var'",
+          line: node.line,
+          column: node.column,
+          code: "no-var"
+        })
+      }
+      
+      // Warn about empty blocks
+      if (node.type === NodeType.BLOCK && (!node.statements || node.statements.length === 0)) {
+        warnings.push({
+          message: "Empty block statement",
+          line: node.line,
+          column: node.column,
+          code: "no-empty"
+        })
+      }
+    })
+  }
+  
+  @method walkAST(node: ASTNode, callback: (node: ASTNode) => void): void {
+    if (!node) return
+    
+    callback(node)
+    
+    const children = [
+      ...(node.body || []),
+      ...(node.members || []),
+      ...(node.children || []),
+      ...(node.statements || []),
+      ...(node.properties || [])
+    ]
+    
+    for (const child of children) {
+      if (child && typeof child === "object") {
+        this.walkAST(child, callback)
+      }
+    }
+  }
+  
+  @method generateSourceMap(source: string, output: string, ast: ASTNode): string {
+    // Basic source map generation
+    const map = {
+      version: 3,
+      file: "output.js",
+      sources: ["input.hsplus"],
+      sourcesContent: [source],
+      names: [],
+      mappings: ""
+    }
+    
+    // In a real implementation, we'd track line mappings during code generation
+    return JSON.stringify(map)
+  }
+  
+  @method emptyStats(): TranspileStats {
+    return {
+      inputLines: 0,
+      inputSize: 0,
+      outputLines: 0,
+      outputSize: 0,
+      tokenCount: 0,
+      astNodeCount: 0,
+      parseTime: 0,
+      generateTime: 0,
+      totalTime: 0
+    }
+  }
+}
+
+// =============================================================================
+// CONVENIENCE FUNCTIONS
+// =============================================================================
+
+/**
+ * Quick transpile function for simple use cases
+ */
+function transpile(source: string, options?: TranspileOptions): string {
+  const result = Transpiler.transpile(source, options)
+  if (!result.success) {
+    throw new Error(result.errors.map(e => `${e.line}:${e.column} ${e.message}`).join("\n"))
+  }
+  return result.code
+}
+
+/**
+ * Validate HoloScript+ source
+ */
+function validate(source: string): boolean {
+  return Transpiler.validate(source).valid
+}
+
+/**
+ * Format HoloScript+ source
+ */
+function format(source: string): string {
+  return Transpiler.format(source)
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { 
+  Transpiler,
+  TranspileOptions,
+  TranspileResult,
+  TranspileError,
+  TranspileWarning,
+  TranspileStats,
+  transpile,
+  validate,
+  format
+}

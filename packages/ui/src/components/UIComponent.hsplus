@@ -1,0 +1,326 @@
+/**
+ * @hololand/ui - Base UI Component
+ * Foundation for all 2D UI components
+ */
+
+import {
+  UIComponentConfig,
+  Vector2,
+  Size,
+  Rect,
+  UIEvent,
+  UIEventHandler
+} from "../types.hsplus"
+
+// =============================================================================
+// BASE UI COMPONENT
+// =============================================================================
+
+/**
+ * Base module for all UI components
+ * Provides common functionality: position, size, visibility, events, hierarchy
+ */
+module UIComponentBase {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: Size = { width: 100, height: 40 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: typeof UIComponentBase = null,
+    children: array<typeof UIComponentBase> = [],
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<UIEventHandler>> = new Map(),
+
+    // Accessibility
+    accessible: bool = true,
+    ariaLabel: string = "",
+    tabIndex: number = 0
+  }
+
+  @action initialize(config: UIComponentConfig) {
+    self.id = self.generateId()
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 100, height: 40 }
+    self.visible = config.visible ?? true
+    self.enabled = config.enabled ?? true
+    self.zIndex = config.zIndex ?? 0
+    self.accessible = config.accessible ?? true
+    self.ariaLabel = config.ariaLabel ?? ""
+    self.tabIndex = config.tabIndex ?? 0
+    self.dirty = true
+    self.children = []
+    self.eventHandlers = new Map()
+  }
+
+  @method generateId() -> string {
+    return `ui-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+
+  // ==========================================================================
+  // POSITION & SIZE
+  // ==========================================================================
+
+  @computed getX() -> number { return self.position.x }
+  @action setX(value: number) {
+    self.position.x = value
+    self.markDirty()
+  }
+
+  @computed getY() -> number { return self.position.y }
+  @action setY(value: number) {
+    self.position.y = value
+    self.markDirty()
+  }
+
+  @action setPosition(pos: Vector2) {
+    self.position = { ...pos }
+    self.markDirty()
+  }
+
+  @computed getWidth() -> number { return self.size.width }
+  @action setWidth(value: number) {
+    self.size.width = value
+    self.markDirty()
+  }
+
+  @computed getHeight() -> number { return self.size.height }
+  @action setHeight(value: number) {
+    self.size.height = value
+    self.markDirty()
+  }
+
+  @action setSize(s: Size) {
+    self.size = { ...s }
+    self.markDirty()
+  }
+
+  /**
+   * Get bounding rectangle
+   */
+  @computed getBounds() -> Rect {
+    return {
+      x: self.position.x,
+      y: self.position.y,
+      width: self.size.width,
+      height: self.size.height
+    }
+  }
+
+  /**
+   * Check if point is inside component
+   */
+  @method containsPoint(point: Vector2) -> bool {
+    return (
+      point.x >= self.position.x &&
+      point.x <= self.position.x + self.size.width &&
+      point.y >= self.position.y &&
+      point.y <= self.position.y + self.size.height
+    )
+  }
+
+  // ==========================================================================
+  // VISIBILITY & STATE
+  // ==========================================================================
+
+  @action setVisible(value: bool) {
+    self.visible = value
+    self.markDirty()
+  }
+
+  @action setEnabled(value: bool) {
+    self.enabled = value
+    self.markDirty()
+  }
+
+  @action setZIndex(value: number) {
+    self.zIndex = value
+    self.markDirty()
+  }
+
+  // ==========================================================================
+  // HIERARCHY
+  // ==========================================================================
+
+  /**
+   * Add child component
+   */
+  @action addChild(child: typeof UIComponentBase) {
+    if child.parent {
+      child.parent.removeChild(child)
+    }
+    child.parent = self
+    self.children.push(child)
+    self.markDirty()
+  }
+
+  /**
+   * Remove child component
+   */
+  @action removeChild(child: typeof UIComponentBase) {
+    let index = self.children.indexOf(child)
+    if index >= 0 {
+      self.children.splice(index, 1)
+      child.parent = null
+      self.markDirty()
+    }
+  }
+
+  /**
+   * Remove all children
+   */
+  @action clearChildren() {
+    for child in self.children {
+      child.parent = null
+    }
+    self.children = []
+    self.markDirty()
+  }
+
+  // ==========================================================================
+  // EVENTS
+  // ==========================================================================
+
+  /**
+   * Add event listener
+   */
+  @action on(eventType: string, handler: UIEventHandler) {
+    if !self.eventHandlers.has(eventType) {
+      self.eventHandlers.set(eventType, new Set())
+    }
+    self.eventHandlers.get(eventType).add(handler)
+  }
+
+  /**
+   * Remove event listener
+   */
+  @action off(eventType: string, handler: UIEventHandler) {
+    let handlers = self.eventHandlers.get(eventType)
+    if handlers {
+      handlers.delete(handler)
+    }
+  }
+
+  /**
+   * Emit event to listeners
+   */
+  @method emit(eventType: string, data: any = null) {
+    let handlers = self.eventHandlers.get(eventType)
+    if handlers {
+      let event: UIEvent = {
+        eventType: eventType,
+        targetId: self.id,
+        timestamp: Date.now(),
+        data: data
+      }
+      for handler in handlers {
+        handler(event)
+      }
+    }
+  }
+
+  // ==========================================================================
+  // DIRTY TRACKING
+  // ==========================================================================
+
+  /**
+   * Mark component as needing redraw
+   */
+  @action markDirty() {
+    self.dirty = true
+    if self.parent {
+      self.parent.markDirty()
+    }
+  }
+
+  /**
+   * Check if component needs redraw
+   */
+  @computed isDirty() -> bool {
+    return self.dirty
+  }
+
+  /**
+   * Clear dirty flag after render
+   */
+  @action clearDirty() {
+    self.dirty = false
+  }
+
+  // ==========================================================================
+  // RENDERING (ABSTRACT)
+  // ==========================================================================
+
+  /**
+   * Render component - to be overridden
+   */
+  @method render(ctx: CanvasRenderingContext2D) {
+    // Base implementation - render children
+    for child in self.children {
+      if child.visible {
+        child.render(ctx)
+      }
+    }
+    self.dirty = false
+  }
+
+  /**
+   * Update component (for animations, etc.)
+   */
+  @method update(deltaTime: number) {
+    for child in self.children {
+      child.update(deltaTime)
+    }
+  }
+
+  // ==========================================================================
+  // UTILITIES
+  // ==========================================================================
+
+  /**
+   * Draw rounded rectangle helper
+   */
+  @method drawRoundedRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ) {
+    ctx.beginPath()
+    ctx.moveTo(x + radius, y)
+    ctx.lineTo(x + width - radius, y)
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
+    ctx.lineTo(x + width, y + height - radius)
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
+    ctx.lineTo(x + radius, y + height)
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius)
+    ctx.lineTo(x, y + radius)
+    ctx.quadraticCurveTo(x, y, x + radius, y)
+    ctx.closePath()
+  }
+
+  /**
+   * Dispose component and cleanup
+   */
+  @action dispose() {
+    self.eventHandlers.clear()
+    for child in self.children {
+      child.dispose()
+    }
+    self.children = []
+    if self.parent {
+      self.parent.removeChild(self)
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  UIComponentBase
+}

@@ -1,0 +1,152 @@
+/**
+ * @hololand/network
+ * 
+ * Multiplayer networking package for Hololand VR/AR platform.
+ * Provides WebSocket clients, servers, state synchronization,
+ * voice/text chat, and AI agent integration.
+ * 
+ * @package @hololand/network
+ * @version 2.0.0
+ * @author Hololand Team
+ * @license MIT
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+export {
+  // Connection & Room
+  ConnectionState,
+  RoomState,
+  PlayerRole,
+  RoomConfig,
+  RoomInfo,
+  PlayerInfo,
+  
+  // Messaging
+  MessageCategory,
+  NetworkMessage,
+  MessageHandler,
+  
+  // State Sync
+  SyncState,
+  StateSnapshot,
+  InterpolationBuffer,
+  PredictionState,
+  InterestConfig,
+  InterestZone,
+  
+  // Voice Chat
+  VoiceConfig,
+  VoiceState,
+  VoicePeer,
+  SpatialAudioConfig,
+  
+  // Text Chat
+  ChatConfig,
+  ChatMessage,
+  ChatChannel,
+  
+  // Vectors
+  Vector3,
+  Quaternion
+} from "./Types.hsplus"
+
+// =============================================================================
+// CORE MODULES
+// =============================================================================
+
+export { logger, LogLevel, LogEntry, Logger } from "./Logger.hsplus"
+
+export { NetworkClient, ClientConfig } from "./NetworkClient.hsplus"
+
+export { NetworkServer, ServerConfig, ConnectedClient } from "./NetworkServer.hsplus"
+
+export { Room } from "./Room.hsplus"
+
+// =============================================================================
+// STATE SYNCHRONIZATION
+// =============================================================================
+
+export { 
+  StateSync, 
+  SyncConfig,
+  InterpolationEntry,
+  lerp,
+  lerpVector3,
+  lerpQuaternion
+} from "./StateSync.hsplus"
+
+export { 
+  InterestManager, 
+  Priority, 
+  TrackedObject 
+} from "./InterestManager.hsplus"
+
+// =============================================================================
+// COMMUNICATION
+// =============================================================================
+
+export { 
+  VoiceChat, 
+  VoiceChatConfig,
+  DEFAULT_VOICE_CONFIG 
+} from "./VoiceChat.hsplus"
+
+export { 
+  TextChat, 
+  DEFAULT_CHAT_CONFIG 
+} from "./TextChat.hsplus"
+
+// =============================================================================
+// RELAY & DISTRIBUTION
+// =============================================================================
+
+export { 
+  RelayService, 
+  RelayConfig, 
+  AutonomousAgent, 
+  DifferentialUpdate 
+} from "./RelayService.hsplus"
+
+// =============================================================================
+// AI AGENTS
+// =============================================================================
+
+export {
+  NeuralOllamaBridge,
+  NeuralAgent,
+  OllamaConfig,
+  AgentDefinition,
+  AgentType,
+  AgentCapability,
+  ThoughtResult,
+  AgentAction,
+  ThoughtContext,
+  ConversationEntry
+} from "./NeuralOllamaBridge.hsplus"
+
+export {
+  PersonalityTemplates,
+  PersonalityTemplate,
+  PersonalityCategory,
+  MERCHANT_TEMPLATES,
+  GUARD_TEMPLATES,
+  QUEST_GIVER_TEMPLATES,
+  COMPANION_TEMPLATES,
+  VILLAIN_TEMPLATES,
+  AMBIENT_TEMPLATES,
+  SERVICE_TEMPLATES,
+  ENTERTAINMENT_TEMPLATES,
+  MYSTERY_TEMPLATES,
+  ALL_TEMPLATES
+} from "./PersonalityTemplates.hsplus"
+
+// =============================================================================
+// VERSION
+// =============================================================================
+
+const VERSION = "2.0.0"
+
+export { VERSION }

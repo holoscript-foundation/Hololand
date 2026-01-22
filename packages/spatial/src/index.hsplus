@@ -1,0 +1,81 @@
+/**
+ * @hololand/spatial
+ *
+ * Spatial visualization and 3D code representation package for Hololand.
+ * Provides GLB asset management, mental world modeling, spatial embedding,
+ * and HoloScript-to-GLB conversion capabilities.
+ */
+
+// =============================================================================
+// SHARED TYPES
+// =============================================================================
+
+export { Vector3, Vector3Object, BoundingBox, Priority } from "./types.hsplus"
+
+// =============================================================================
+// GLB ASSET LIBRARY - 3D asset management with caching and LOD
+// =============================================================================
+
+export {
+  GLBAssetLibrary,
+  getGLBAssetLibrary,
+  resetGLBAssetLibrary,
+  type GLBAsset,
+  type GLBMetadata,
+  type LoadOptions,
+  type LODConfig
+} from "./glb/index.hsplus"
+
+// =============================================================================
+// MENTAL WORLD STATE - AI agent mental modeling
+// =============================================================================
+
+export {
+  MentalWorldStateService,
+  getMentalWorldStateService,
+  resetMentalWorldState,
+  type Belief,
+  type SpatialContext,
+  type AgentModel,
+  type Goal,
+  type HiddenState,
+  type MentalAction,
+  BeliefSource,
+  GoalStatus,
+  Relationship,
+  SpatialScale
+} from "./mental/index.hsplus"
+
+// =============================================================================
+// SPATIAL EMBEDDING EXTRACTOR - Code structure to 3D positions
+// =============================================================================
+
+export {
+  SpatialEmbeddingExtractor,
+  getSpatialEmbeddingExtractor,
+  resetSpatialEmbeddingExtractor,
+  type SpatialEntity,
+  type EntityMetadata,
+  type Connection,
+  type LayoutOptions,
+  type Cluster,
+  CodeEntityType,
+  ConnectionType,
+  LayoutAlgorithm
+} from "./embedding/index.hsplus"
+
+// =============================================================================
+// HOLOSCRIPT TO GLB CONVERTER - 3D model generation
+// =============================================================================
+
+export {
+  HoloScriptToGLBConverter,
+  getHoloScriptToGLBConverter,
+  type HoloScriptNode,
+  type MaterialDef,
+  type MeshDef,
+  type GLBExportOptions,
+  type GLTFDocument,
+  PrimitiveType,
+  MaterialType
+} from "./converter/index.hsplus"

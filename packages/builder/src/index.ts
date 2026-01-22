@@ -19,6 +19,7 @@ export {
   importFromHoloScript,
   sceneToHoloScript,
   holoScriptToScene,
+  initHoloScriptParser,
 } from './HoloScriptIO';
 
 export type {
@@ -64,5 +65,48 @@ export type {
   EditorEventType,
   EditorEventListener,
 } from './VisualEditor';
+
+// Brittney AI Integration
+export {
+  configureBrittney,
+  getBrittneyConfig,
+  generateFromPrompt,
+  explainNode,
+  analyzeScene,
+  getBrittneyContextMenuActions,
+  onBrittneyEvent,
+  quickGenerateScene,
+  quickAddObject,
+  applyGeneratedHoloScript,
+} from './BrittneyIntegration';
+
+export type {
+  BrittneyConfig,
+  GenerationRequest,
+  GenerationResult,
+  ExplanationResult,
+  OptimizationResult,
+  OptimizationSuggestion,
+  ContextMenuAction,
+} from './BrittneyIntegration';
+
+// Brittney UI Integration
+export {
+  BrittneyUIController,
+  createBrittneyUI,
+  renderContextMenuHTML,
+  renderAIPanelHTML,
+  BRITTNEY_UI_STYLES,
+} from './BrittneyUI';
+
+export type {
+  BrittneyUIConfig,
+  ContextMenuState,
+  AIPanel,
+  PromptDialogState,
+  BrittneyUIEventType,
+  BrittneyUIEvent,
+  BrittneyUIEventListener,
+} from './BrittneyUI';
 
 export const HOLOLAND_BUILDER_VERSION = '1.0.0-alpha.1';

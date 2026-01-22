@@ -1,0 +1,359 @@
+/**
+ * HoloScript Test Utilities
+ * 
+ * Provides HoloScript-specific testing helpers built on top of Vitest.
+ * Includes fixtures, assertions, and utilities for testing HoloScript Plus systems.
+ */
+
+import { EventEmitter } from "eventemitter3"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct Vector3 {
+  x: float = 0.0
+  y: float = 0.0
+  z: float = 0.0
+}
+
+struct NPCState {
+  id: string
+  name: string
+  type: string = "fire-mage"
+  position: Vector3
+  health: int = 50
+  maxHealth: int = 100
+  mana: int = 30
+  maxMana: int = 100
+  isAlive: bool = true
+  stats: NPCStats
+}
+
+struct NPCStats {
+  attack: int = 15
+  defense: int = 5
+  speed: int = 10
+  attackRange: int = 25
+}
+
+struct ProjectileState {
+  id: string
+  position: Vector3
+  velocity: Vector3
+  owner: string
+  targetId: string
+  damage: int = 10
+  speed: int = 20
+  lifespan: int = 5000
+  type: string = "fireball"
+}
+
+struct EmittedEvent {
+  eventName: string
+  data: any
+  timestamp: int
+}
+
+// =============================================================================
+// BATTLE ARENA FIXTURE
+// =============================================================================
+
+struct BattleArenaFixture {
+  arena: any = null
+  npcs: NPCState[] = []
+  projectiles: ProjectileState[] = []
+  events: any[] = []
+  cleanup: function() -> void
+}
+
+/**
+ * Create a test fixture for BattleArena system
+ */
+function createBattleArenaFixture() -> BattleArenaFixture {
+  const events: any[] = []
+  
+  return {
+    arena: null,
+    npcs: [],
+    projectiles: [],
+    events,
+    cleanup: () => {
+      events.length = 0
+    }
+  }
+}
+
+// =============================================================================
+// EVENT ASSERTIONS
+// =============================================================================
+
+/**
+ * Assert that an event was emitted within timeout
+ */
+function expectEventEmitted(
+  system: EventEmitter,
+  eventName: string,
+  timeout: int = 1000
+) -> Promise<any> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Event "${eventName}" was not emitted within ${timeout}ms`))
+    }, timeout)
+
+    const listener = (data: any) => {
+      clearTimeout(timer)
+      system.removeListener(eventName, listener)
+      resolve(data)
+    }
+
+    system.once(eventName, listener)
+  })
+}
+
+/**
+ * Perform an action and wait for an event
+ */
+async function expectEventAfterAction<T>(
+  system: EventEmitter,
+  eventName: string,
+  action: function() -> T | Promise<T>,
+  timeout: int = 1000
+) -> { data: any, actionResult: T } {
+  const eventPromise = expectEventEmitted(system, eventName, timeout)
+  const actionResult = await action()
+  const data = await eventPromise
+  return { data, actionResult }
+}
+
+// =============================================================================
+// MOCK FACTORIES
+// =============================================================================
+
+/**
+ * Create a mock NPC for testing
+ */
+function createMockNPC(overrides: object = {}) -> NPCState {
+  return {
+    id: "mock-npc-1",
+    name: "Mock NPC",
+    type: "fire-mage",
+    position: { x: 0, y: 0, z: 0 },
+    health: 50,
+    maxHealth: 100,
+    mana: 30,
+    maxMana: 100,
+    isAlive: true,
+    stats: {
+      attack: 15,
+      defense: 5,
+      speed: 10,
+      attackRange: 25
+    },
+    ...overrides
+  }
+}
+
+/**
+ * Create a mock projectile for testing
+ */
+function createMockProjectile(overrides: object = {}) -> ProjectileState {
+  return {
+    id: "mock-projectile-1",
+    position: { x: 0, y: 0, z: 0 },
+    velocity: { x: 1, y: 0, z: 0 },
+    owner: "mock-npc-1",
+    targetId: "mock-npc-2",
+    damage: 10,
+    speed: 20,
+    lifespan: 5000,
+    type: "fireball",
+    ...overrides
+  }
+}
+
+// =============================================================================
+// ASYNC UTILITIES
+// =============================================================================
+
+/**
+ * Wait for a condition to be true
+ */
+function waitFor(
+  condition: function() -> bool,
+  timeout: int = 1000,
+  interval: int = 50
+) -> Promise<void> {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now()
+    
+    const check = () => {
+      if condition() {
+        resolve()
+      } else if Date.now() - startTime > timeout {
+        reject(new Error(`Timeout waiting for condition after ${timeout}ms`))
+      } else {
+        setTimeout(check, interval)
+      }
+    }
+    
+    check()
+  })
+}
+
+// =============================================================================
+// TEST SYSTEM UTILITIES
+// =============================================================================
+
+/**
+ * Create a test system with event tracking
+ */
+function createTestSystem<T extends EventEmitter>(
+  SystemClass: new (...args: any[]) -> T,
+  ...args: any[]
+) -> T & { recordedEvents: any[] } {
+  const system = new SystemClass(...args)
+  const recordedEvents: any[] = []
+
+  // Intercept all events
+  const originalOn = system.on.bind(system)
+  system.on = function(eventName, listener) {
+    recordedEvents.push({ eventName, timestamp: Date.now() })
+    return originalOn(eventName, listener)
+  }
+
+  // Add recorded events property
+  return Object.assign(system, { recordedEvents })
+}
+
+/**
+ * Test that a system initializes correctly
+ */
+function expectSystemInitialization<T extends EventEmitter>(system: T) {
+  if !system {
+    throw new Error("System failed to initialize")
+  }
+  if typeof system.on != "function" {
+    throw new Error("System is not an EventEmitter")
+  }
+}
+
+/**
+ * Test that a system has all required methods
+ */
+function expectSystemHasMethods<T extends EventEmitter>(
+  system: T,
+  methods: string[]
+) {
+  for method in methods {
+    if typeof system[method] != "function" {
+      throw new Error(`System missing required method: ${method}`)
+    }
+  }
+}
+
+// =============================================================================
+// NPC COMPARISON
+// =============================================================================
+
+/**
+ * Compare NPC states and return differences
+ */
+function compareNPCStates(npc1: NPCState, npc2: NPCState) -> string[] {
+  const differences: string[] = []
+  
+  if npc1.health != npc2.health {
+    differences.push(`health: ${npc1.health} -> ${npc2.health}`)
+  }
+  if npc1.mana != npc2.mana {
+    differences.push(`mana: ${npc1.mana} -> ${npc2.mana}`)
+  }
+  if npc1.isAlive != npc2.isAlive {
+    differences.push(`isAlive: ${npc1.isAlive} -> ${npc2.isAlive}`)
+  }
+  if npc1.position.x != npc2.position.x || npc1.position.y != npc2.position.y {
+    differences.push(`position: (${npc1.position.x},${npc1.position.y}) -> (${npc2.position.x},${npc2.position.y})`)
+  }
+  
+  return differences
+}
+
+// =============================================================================
+// MOCK EVENT EMITTER
+// =============================================================================
+
+/**
+ * Mock EventEmitter with event tracking for testing
+ */
+module MockEventEmitter extends EventEmitter {
+  @state {
+    emittedEvents: EmittedEvent[] = []
+  }
+
+  @action emit(eventName: string, ...args: any[]) -> bool {
+    self.emittedEvents.push({
+      eventName,
+      data: args[0],
+      timestamp: Date.now()
+    })
+    return super.emit(eventName, ...args)
+  }
+
+  @method getEmittedEvents(eventName: string = null) -> EmittedEvent[] {
+    if eventName {
+      return self.emittedEvents.filter(e => e.eventName == eventName)
+    }
+    return self.emittedEvents
+  }
+
+  @action clearEmittedEvents() {
+    self.emittedEvents = []
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Types
+  Vector3,
+  NPCState,
+  NPCStats,
+  ProjectileState,
+  EmittedEvent,
+  BattleArenaFixture,
+  
+  // Fixtures
+  createBattleArenaFixture,
+  
+  // Assertions
+  expectEventEmitted,
+  expectEventAfterAction,
+  expectSystemInitialization,
+  expectSystemHasMethods,
+  
+  // Mocks
+  createMockNPC,
+  createMockProjectile,
+  MockEventEmitter,
+  
+  // Utilities
+  waitFor,
+  createTestSystem,
+  compareNPCStates
+}
+
+export default {
+  createBattleArenaFixture,
+  expectEventEmitted,
+  expectEventAfterAction,
+  createMockNPC,
+  createMockProjectile,
+  waitFor,
+  createTestSystem,
+  expectSystemInitialization,
+  expectSystemHasMethods,
+  compareNPCStates,
+  MockEventEmitter
+}

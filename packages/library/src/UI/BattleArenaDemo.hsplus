@@ -1,0 +1,1070 @@
+/**
+ * BattleArenaDemo.hsplus
+ * 
+ * Battle arena demonstration components for showcasing the BattleArena
+ * combat system. Features NPC spawning, combat management, health bars,
+ * and real-time event logging.
+ * 
+ * Components:
+ * - BattleArenaDemo: Main demo container with full battle controls
+ * - StatusCards: Grid of status indicators (running, NPCs, projectiles)
+ * - BattleControls: Start, stop, reset buttons
+ * - CharacterCard: Individual character display with health, mana, stats
+ * - HealthBar: Animated health bar with color transitions
+ * - EventLog: Filterable event stream display
+ * - ArenaStats: Summary statistics panel
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+type CharacterType = "fire-mage" | "water-elemental" | "earth-golem" | "wind-spirit"
+
+struct CharacterStats {
+  attack: number
+  defense: number
+  speed: number
+  magicPower: number
+}
+
+struct BattleNPC {
+  id: string
+  name: string
+  type: CharacterType
+  health: number
+  maxHealth: number
+  mana: number
+  maxMana: number
+  stats: CharacterStats
+  position: Vector3
+  alive: boolean
+}
+
+struct BattleEvent {
+  type: string
+  data: object
+  timestamp: number
+}
+
+struct HealthStatus {
+  current: number
+  max: number
+  alive: boolean
+}
+
+// =============================================================================
+// STATUS CARD - Individual status indicator
+// =============================================================================
+
+component StatusCard {
+  @props {
+    label: string
+    value: string | number
+    icon: string = ""
+    color: string = "blue"
+  }
+
+  @computed bgClass(): string {
+    match this.props.color {
+      "blue" => "bg-blue"
+      "green" => "bg-green"
+      "yellow" => "bg-yellow"
+      "red" => "bg-red"
+      "purple" => "bg-purple"
+      _ => "bg-gray"
+    }
+  }
+
+  @render {
+    <div class="status-card {this.bgClass()}">
+      <p class="status-label">{this.props.label}</p>
+      <p class="status-value">
+        @if this.props.icon {
+          <span class="status-icon">{this.props.icon}</span>
+        }
+        {this.props.value}
+      </p>
+    </div>
+  }
+
+  @style {
+    .status-card {
+      padding: 1rem;
+      border-radius: 0.5rem;
+    }
+
+    .bg-blue { background: rgba(59, 130, 246, 0.1); }
+    .bg-green { background: rgba(34, 197, 94, 0.1); }
+    .bg-yellow { background: rgba(234, 179, 8, 0.1); }
+    .bg-red { background: rgba(239, 68, 68, 0.1); }
+    .bg-purple { background: rgba(168, 85, 247, 0.1); }
+    .bg-gray { background: rgba(107, 114, 128, 0.1); }
+
+    .status-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+      margin: 0 0 0.25rem 0;
+    }
+
+    .status-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary, #e5e7eb);
+      margin: 0;
+    }
+
+    .status-icon {
+      margin-right: 0.25rem;
+    }
+  }
+}
+
+// =============================================================================
+// STATUS CARDS - Grid of status indicators
+// =============================================================================
+
+component StatusCards {
+  @props {
+    isRunning: boolean = false
+    npcCount: number = 0
+    projectileCount: number = 0
+  }
+
+  @render {
+    <div class="status-cards">
+      <StatusCard
+        label="Arena Status"
+        value={this.props.isRunning ? "Running" : "Stopped"}
+        icon={this.props.isRunning ? "🟢" : "🔴"}
+        color={this.props.isRunning ? "green" : "red"}
+      />
+      <StatusCard
+        label="Active NPCs"
+        value={this.props.npcCount}
+        color="blue"
+      />
+      <StatusCard
+        label="Projectiles"
+        value={this.props.projectileCount}
+        color="yellow"
+      />
+    </div>
+  }
+
+  @style {
+    .status-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 640px) {
+      .status-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+}
+
+// =============================================================================
+// BATTLE CONTROLS - Start, stop, reset buttons
+// =============================================================================
+
+component BattleControls {
+  @props {
+    isRunning: boolean = false
+    hasNPCs: boolean = false
+    onStart: () => void
+    onStop: () => void
+    onReset: () => void
+    onSpawnNPC: (type: CharacterType) => void = null
+  }
+
+  @state {
+    showSpawnMenu: boolean = false
+  }
+
+  @method toggleSpawnMenu(): void {
+    this.state.showSpawnMenu = !this.state.showSpawnMenu
+  }
+
+  @method handleSpawn(type: CharacterType): void {
+    if (this.props.onSpawnNPC) {
+      this.props.onSpawnNPC(type)
+    }
+    this.state.showSpawnMenu = false
+  }
+
+  @render {
+    <div class="battle-controls">
+      <div class="control-buttons">
+        <button 
+          class="btn btn-start" 
+          on_click={this.props.onStart}
+          disabled={this.props.isRunning}
+        >
+          {this.props.hasNPCs ? "Start" : "Initialize & Start"}
+        </button>
+        <button 
+          class="btn btn-stop" 
+          on_click={this.props.onStop}
+          disabled={!this.props.isRunning}
+        >
+          Stop
+        </button>
+        <button 
+          class="btn btn-reset" 
+          on_click={this.props.onReset}
+        >
+          Reset
+        </button>
+        
+        @if this.props.onSpawnNPC {
+          <div class="spawn-dropdown">
+            <button class="btn btn-spawn" on_click={this.toggleSpawnMenu}>
+              + Spawn NPC
+            </button>
+            @if this.state.showSpawnMenu {
+              <div class="spawn-menu">
+                <button on_click={() => this.handleSpawn("fire-mage")}>
+                  🔥 Fire Mage
+                </button>
+                <button on_click={() => this.handleSpawn("water-elemental")}>
+                  💧 Water Elemental
+                </button>
+                <button on_click={() => this.handleSpawn("earth-golem")}>
+                  🪨 Earth Golem
+                </button>
+                <button on_click={() => this.handleSpawn("wind-spirit")}>
+                  💨 Wind Spirit
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  @style {
+    .battle-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .control-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn:not(:disabled):active {
+      transform: scale(0.98);
+    }
+
+    .btn-start {
+      background: var(--success, #22c55e);
+      color: white;
+    }
+
+    .btn-stop {
+      background: var(--error, #ef4444);
+      color: white;
+    }
+
+    .btn-reset {
+      background: var(--bg-tertiary, #6b7280);
+      color: white;
+    }
+
+    .btn-spawn {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .spawn-dropdown {
+      position: relative;
+    }
+
+    .spawn-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 0.25rem;
+      background: var(--bg-secondary, #1f2937);
+      border: 1px solid var(--border, #374151);
+      border-radius: 0.5rem;
+      overflow: hidden;
+      z-index: 10;
+      min-width: 12rem;
+    }
+
+    .spawn-menu button {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: var(--text-primary, #e5e7eb);
+      cursor: pointer;
+    }
+
+    .spawn-menu button:hover {
+      background: var(--bg-hover, #374151);
+    }
+  }
+}
+
+// =============================================================================
+// HEALTH BAR - Animated health bar with color transitions
+// =============================================================================
+
+component HealthBar {
+  @props {
+    current: number
+    max: number
+    height: string = "1.5rem"
+    showLabel: boolean = true
+    animated: boolean = true
+  }
+
+  @computed percent(): number {
+    return Math.max(0, Math.min(100, (this.props.current / this.props.max) * 100))
+  }
+
+  @computed colorClass(): string {
+    if (this.percent() > 66) return "health-high"
+    if (this.percent() > 33) return "health-medium"
+    return "health-low"
+  }
+
+  @render {
+    <div class="health-bar-container">
+      @if this.props.showLabel {
+        <div class="health-label">
+          <span>Health</span>
+          <span>{this.props.current}/{this.props.max}</span>
+        </div>
+      }
+      <div class="health-bar-track" style="height: {this.props.height}">
+        <div 
+          class="health-bar-fill {this.colorClass()} {this.props.animated ? 'animated' : ''}"
+          style="width: {this.percent()}%"
+        />
+      </div>
+    </div>
+  }
+
+  @style {
+    .health-bar-container {
+      width: 100%;
+    }
+
+    .health-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+      color: var(--text-secondary, #9ca3af);
+    }
+
+    .health-bar-track {
+      width: 100%;
+      background: var(--bg-tertiary, #374151);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .health-bar-fill {
+      height: 100%;
+      border-radius: 9999px;
+    }
+
+    .health-bar-fill.animated {
+      transition: width 0.3s ease-out, background 0.3s;
+    }
+
+    .health-high {
+      background: var(--success, #22c55e);
+    }
+
+    .health-medium {
+      background: var(--warning, #eab308);
+    }
+
+    .health-low {
+      background: var(--error, #ef4444);
+    }
+  }
+}
+
+// =============================================================================
+// STAT BAR - Small stat display with label
+// =============================================================================
+
+component StatBar {
+  @props {
+    label: string
+    value: number
+    maxValue: number = null
+    color: string = "blue"
+  }
+
+  @computed bgClass(): string {
+    match this.props.color {
+      "blue" => "stat-blue"
+      "purple" => "stat-purple"
+      "red" => "stat-red"
+      "green" => "stat-green"
+      _ => "stat-gray"
+    }
+  }
+
+  @render {
+    <div class="stat-bar {this.bgClass()}">
+      <span class="stat-label">{this.props.label}</span>
+      <p class="stat-value">
+        {this.props.value.toFixed(0)}
+        @if this.props.maxValue {
+          /{this.props.maxValue}
+        }
+      </p>
+    </div>
+  }
+
+  @style {
+    .stat-bar {
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+    }
+
+    .stat-blue { background: rgba(59, 130, 246, 0.1); }
+    .stat-purple { background: rgba(168, 85, 247, 0.1); }
+    .stat-red { background: rgba(239, 68, 68, 0.1); }
+    .stat-green { background: rgba(34, 197, 94, 0.1); }
+    .stat-gray { background: rgba(107, 114, 128, 0.1); }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .stat-value {
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-primary, #e5e7eb);
+    }
+  }
+}
+
+// =============================================================================
+// CHARACTER CARD - Individual character display
+// =============================================================================
+
+component CharacterCard {
+  @props {
+    npc: BattleNPC
+    healthStatus: HealthStatus = null
+  }
+
+  @computed typeIcon(): string {
+    match this.props.npc.type {
+      "fire-mage" => "🔥"
+      "water-elemental" => "💧"
+      "earth-golem" => "🪨"
+      "wind-spirit" => "💨"
+      _ => "⚔️"
+    }
+  }
+
+  @computed currentHealth(): number {
+    return this.props.healthStatus?.current ?? this.props.npc.health
+  }
+
+  @computed maxHealth(): number {
+    return this.props.healthStatus?.max ?? this.props.npc.maxHealth
+  }
+
+  @computed isAlive(): boolean {
+    return this.props.healthStatus?.alive ?? (this.props.npc.health > 0)
+  }
+
+  @render {
+    <div class="character-card {!this.isAlive() ? 'defeated' : ''}">
+      <div class="card-header">
+        <h3 class="character-name">{this.props.npc.name}</h3>
+        <span class="character-type">
+          {this.typeIcon()} {this.props.npc.type}
+        </span>
+      </div>
+
+      <HealthBar
+        current={this.currentHealth()}
+        max={this.maxHealth()}
+      />
+
+      <div class="stats-grid">
+        <StatBar
+          label="Mana"
+          value={this.props.npc.mana}
+          maxValue={this.props.npc.maxMana}
+          color="blue"
+        />
+        <StatBar
+          label="Attack"
+          value={this.props.npc.stats.attack}
+          color="red"
+        />
+        <StatBar
+          label="Defense"
+          value={this.props.npc.stats.defense}
+          color="green"
+        />
+        <StatBar
+          label="Speed"
+          value={this.props.npc.stats.speed}
+          color="purple"
+        />
+      </div>
+
+      @if !this.isAlive() {
+        <div class="defeated-overlay">
+          <span class="defeated-icon">💀</span>
+          <span class="defeated-text">Defeated</span>
+        </div>
+      }
+    </div>
+  }
+
+  @style {
+    .character-card {
+      position: relative;
+      border: 1px solid var(--border, #374151);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .character-card.defeated {
+      opacity: 0.6;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .character-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-primary, #e5e7eb);
+    }
+
+    .character-type {
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+
+    .defeated-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 0.5rem;
+    }
+
+    .defeated-icon {
+      font-size: 2rem;
+    }
+
+    .defeated-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--error, #ef4444);
+    }
+  }
+}
+
+// =============================================================================
+// EVENT LOG - Filterable event stream display
+// =============================================================================
+
+component EventLog {
+  @props {
+    events: BattleEvent[] = []
+    maxHeight: string = "24rem"
+    onClear: () => void = null
+  }
+
+  @state {
+    filter: string = ""
+  }
+
+  @computed filteredEvents(): BattleEvent[] {
+    if (!this.state.filter) {
+      return this.props.events
+    }
+    const filterLower = this.state.filter.toLowerCase()
+    return this.props.events.filter(e => 
+      e.type.toLowerCase().includes(filterLower)
+    )
+  }
+
+  @method handleFilterChange(value: string): void {
+    this.state.filter = value
+  }
+
+  @method formatEventData(data: object): string {
+    const str = JSON.stringify(data)
+    return str.length > 80 ? str.substring(0, 80) + "..." : str
+  }
+
+  @render {
+    <div class="event-log">
+      <div class="log-header">
+        <h2 class="log-title">Event Log</h2>
+        <div class="log-controls">
+          <input
+            type="text"
+            placeholder="Filter events..."
+            value={this.state.filter}
+            on_input={(e) => this.handleFilterChange(e.target.value)}
+            class="filter-input"
+          />
+          @if this.props.onClear {
+            <button class="clear-btn" on_click={this.props.onClear}>
+              Clear
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="log-content" style="max-height: {this.props.maxHeight}">
+        @if this.filteredEvents().length === 0 {
+          <p class="log-empty">No events yet...</p>
+        } else {
+          @for (event, idx) in this.filteredEvents() {
+            <div key={idx} class="log-entry">
+              <span class="event-type">{event.type}</span>
+              <span class="event-data">{this.formatEventData(event.data)}</span>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+
+  @style {
+    .event-log {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .log-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0;
+      color: var(--text-primary, #e5e7eb);
+    }
+
+    .log-controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .filter-input {
+      padding: 0.25rem 0.5rem;
+      border: 1px solid var(--border, #374151);
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      background: var(--bg-secondary, #1f2937);
+      color: var(--text-primary, #e5e7eb);
+    }
+
+    .clear-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      background: var(--bg-tertiary, #374151);
+      color: var(--text-secondary, #9ca3af);
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+
+    .clear-btn:hover {
+      background: var(--bg-hover, #4b5563);
+    }
+
+    .log-content {
+      border: 1px solid var(--border, #374151);
+      border-radius: 0.5rem;
+      background: var(--bg-secondary, #1f2937);
+      padding: 1rem;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+
+    .log-empty {
+      color: var(--text-muted, #6b7280);
+      margin: 0;
+    }
+
+    .log-entry {
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--border-light, #1f2937);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .event-type {
+      font-weight: 600;
+      color: var(--primary, #3b82f6);
+    }
+
+    .event-data {
+      color: var(--text-secondary, #6b7280);
+      margin-left: 0.5rem;
+    }
+  }
+}
+
+// =============================================================================
+// ARENA STATS - Summary statistics panel
+// =============================================================================
+
+component ArenaStats {
+  @props {
+    totalEvents: number = 0
+    arenaState: object = {}
+    showDetails: boolean = true
+  }
+
+  @method formatState(state: object): string {
+    const str = JSON.stringify(state)
+    return str.length > 100 ? str.substring(0, 100) + "..." : str
+  }
+
+  @render {
+    <div class="arena-stats">
+      <p class="stat-item">
+        <span class="stat-label">Total Events:</span>
+        <span class="stat-value">{this.props.totalEvents}</span>
+      </p>
+      @if this.props.showDetails {
+        <p class="stat-item">
+          <span class="stat-label">Arena State:</span>
+          <code class="stat-code">{this.formatState(this.props.arenaState)}</code>
+        </p>
+      }
+    </div>
+  }
+
+  @style {
+    .arena-stats {
+      background: var(--bg-secondary, #1f2937);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .stat-item {
+      margin: 0;
+      color: var(--text-primary, #e5e7eb);
+    }
+
+    .stat-label {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+
+    .stat-code {
+      font-family: monospace;
+      font-size: 0.75rem;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+  }
+}
+
+// =============================================================================
+// BATTLE ARENA DEMO - Main container
+// =============================================================================
+
+component BattleArenaDemo {
+  @props {
+    title: string = "Battle Arena Demo"
+    onBattleEnd: (winner: string) => void = null
+  }
+
+  @state {
+    isRunning: boolean = false
+    npcs: BattleNPC[] = []
+    events: BattleEvent[] = []
+    projectiles: object[] = []
+    healthStatus: object = {}
+    arenaState: object = {}
+  }
+
+  @method initializeBattle(): void {
+    // Spawn Fire Mage
+    const fireMage: BattleNPC = {
+      id: "fire-mage-1",
+      name: "Inferno",
+      type: "fire-mage",
+      health: 80,
+      maxHealth: 80,
+      mana: 100,
+      maxMana: 100,
+      stats: { attack: 25, defense: 10, speed: 15, magicPower: 30 },
+      position: { x: 0, y: 5, z: 0 },
+      alive: true
+    }
+
+    // Spawn Water Elemental
+    const waterElem: BattleNPC = {
+      id: "water-elem-1",
+      name: "Aqua",
+      type: "water-elemental",
+      health: 100,
+      maxHealth: 100,
+      mana: 80,
+      maxMana: 80,
+      stats: { attack: 18, defense: 20, speed: 12, magicPower: 25 },
+      position: { x: 30, y: 5, z: 0 },
+      alive: true
+    }
+
+    this.state.npcs = [fireMage, waterElem]
+    this.state.healthStatus = {
+      "fire-mage-1": { current: 80, max: 80, alive: true },
+      "water-elem-1": { current: 100, max: 100, alive: true }
+    }
+
+    this.addEvent("arena:initialized", { npcs: 2 })
+  }
+
+  @method startBattle(): void {
+    if (!this.state.isRunning) {
+      if (this.state.npcs.length === 0) {
+        this.initializeBattle()
+      }
+      this.state.isRunning = true
+      this.addEvent("arena:started", { time: Date.now() })
+    }
+  }
+
+  @method stopBattle(): void {
+    if (this.state.isRunning) {
+      this.state.isRunning = false
+      this.addEvent("arena:stopped", { time: Date.now() })
+    }
+  }
+
+  @method resetBattle(): void {
+    this.state.isRunning = false
+    this.state.npcs = []
+    this.state.events = []
+    this.state.projectiles = []
+    this.state.healthStatus = {}
+    this.state.arenaState = {}
+  }
+
+  @method spawnNPC(type: CharacterType): void {
+    const id = `${type}-${this.state.npcs.length + 1}`
+    const names = {
+      "fire-mage": ["Inferno", "Blaze", "Ember"],
+      "water-elemental": ["Aqua", "Tide", "Wave"],
+      "earth-golem": ["Boulder", "Granite", "Terra"],
+      "wind-spirit": ["Zephyr", "Gale", "Breeze"]
+    }
+    const name = names[type][Math.floor(Math.random() * 3)]
+    
+    const npc: BattleNPC = {
+      id,
+      name,
+      type,
+      health: 100,
+      maxHealth: 100,
+      mana: 100,
+      maxMana: 100,
+      stats: { attack: 20, defense: 15, speed: 15, magicPower: 20 },
+      position: { x: Math.random() * 50, y: 5, z: Math.random() * 50 },
+      alive: true
+    }
+
+    this.state.npcs.push(npc)
+    this.state.healthStatus[id] = { current: 100, max: 100, alive: true }
+    this.addEvent("npc:spawned", { id, type, name })
+  }
+
+  @method addEvent(type: string, data: object): void {
+    this.state.events.push({
+      type,
+      data,
+      timestamp: Date.now()
+    })
+  }
+
+  @method clearEvents(): void {
+    this.state.events = []
+  }
+
+  @method getArenaState(): object {
+    return {
+      isRunning: this.state.isRunning,
+      npcCount: this.state.npcs.length,
+      projectileCount: this.state.projectiles.length,
+      eventCount: this.state.events.length
+    }
+  }
+
+  @render {
+    <div class="battle-arena-demo">
+      <h1 class="demo-title">{this.props.title}</h1>
+
+      <StatusCards
+        isRunning={this.state.isRunning}
+        npcCount={this.state.npcs.length}
+        projectileCount={this.state.projectiles.length}
+      />
+
+      <BattleControls
+        isRunning={this.state.isRunning}
+        hasNPCs={this.state.npcs.length > 0}
+        onStart={this.startBattle}
+        onStop={this.stopBattle}
+        onReset={this.resetBattle}
+        onSpawnNPC={this.spawnNPC}
+      />
+
+      @if this.state.npcs.length > 0 {
+        <div class="characters-section">
+          <h2 class="section-title">Character Status</h2>
+          <div class="characters-grid">
+            @for npc in this.state.npcs {
+              <CharacterCard
+                key={npc.id}
+                npc={npc}
+                healthStatus={this.state.healthStatus[npc.id]}
+              />
+            }
+          </div>
+        </div>
+      }
+
+      <EventLog
+        events={this.state.events}
+        onClear={this.clearEvents}
+      />
+
+      <ArenaStats
+        totalEvents={this.state.events.length}
+        arenaState={this.getArenaState()}
+      />
+    </div>
+  }
+
+  @style {
+    .battle-arena-demo {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1rem;
+    }
+
+    .demo-title {
+      font-size: 1.875rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text-primary, #e5e7eb);
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0 0 0.75rem 0;
+      color: var(--text-primary, #e5e7eb);
+    }
+
+    .characters-section {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .characters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  BattleArenaDemo,
+  StatusCard,
+  StatusCards,
+  BattleControls,
+  HealthBar,
+  StatBar,
+  CharacterCard,
+  EventLog,
+  ArenaStats,
+  BattleNPC,
+  BattleEvent,
+  CharacterType,
+  CharacterStats,
+  HealthStatus
+}

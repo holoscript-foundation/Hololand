@@ -1,0 +1,276 @@
+/**
+ * HoloScript AR Module
+ * 
+ * Provides AR capabilities to HoloScript scenes.
+ * Defines AR-specific AST types and parsing utilities.
+ */
+
+import { ASTNode } from "../types.hsplus"
+
+// =============================================================================
+// AR ANCHOR TYPES
+// =============================================================================
+
+enum AnchorType {
+  qr,
+  apriltag,
+  gps,
+  vps,
+  image,
+  plane
+}
+
+struct ARAnchorNode extends ASTNode {
+  type: string = "ar_anchor"
+  id: string
+  anchorType: AnchorType = AnchorType.qr
+  properties: ARAnchorProperties
+}
+
+struct ARAnchorProperties {
+  payload: string = ""           // QR content
+  tagFamily: string = "tag36h11" // AprilTag family
+  tagId: int = 0                 // AprilTag ID
+  latitude: float = 0.0          // GPS
+  longitude: float = 0.0         // GPS
+  altitude: float = 0.0          // GPS
+  markerSize: float = 0.1        // Physical size in meters
+  imageUrl: string = ""          // Image anchor reference
+  vpsProvider: string = ""       // VPS provider name
+}
+
+// =============================================================================
+// AR TRACKED PERSON TYPES
+// =============================================================================
+
+struct ARTrackedPersonNode extends ASTNode {
+  type: string = "ar_tracked_person"
+  variable: string = "person"
+  source: string = "ar_tracking.persons"
+  children: ASTNode[] = []
+}
+
+// =============================================================================
+// AR AVATAR TYPES
+// =============================================================================
+
+struct ARAvatarNode extends ASTNode {
+  type: string = "ar_avatar"
+  modelUrl: string
+  properties: ARAvatarProperties
+}
+
+struct ARAvatarProperties {
+  position: object = { x: 0, y: 0, z: 0 }
+  rotation: object = { x: 0, y: 0, z: 0, w: 1 }
+  scale: float = 1.0
+  skeleton: string = ""       // Reference to skeleton source
+  expression: string = ""
+  lookAt: object = null
+  visible: bool = true
+}
+
+// =============================================================================
+// AR DETECTION TYPES
+// =============================================================================
+
+enum DetectorType {
+  blazepose,
+  mediapipe
+}
+
+enum DetectionSource {
+  camera,
+  video
+}
+
+struct ARDetectionNode extends ASTNode {
+  type: string = "ar_detection"
+  source: DetectionSource = DetectionSource.camera
+  detector: DetectorType = DetectorType.blazepose
+  properties: ARDetectionProperties
+}
+
+struct ARDetectionProperties {
+  maxPersons: int = 8
+  smoothing: bool = true
+  enableDepth: bool = false
+}
+
+// =============================================================================
+// AR MODULE STATE
+// =============================================================================
+
+struct ARModuleState {
+  anchors: Map<string, any> = new Map()
+  trackedPersons: Map<string, any> = new Map()
+  avatars: Map<string, any> = new Map()
+}
+
+// =============================================================================
+// AR MODULE API INTERFACE
+// =============================================================================
+
+struct ARModuleAPI {
+  // Anchors
+  addAnchor: function(anchor: ARAnchorNode) -> void
+  removeAnchor: function(id: string) -> void
+  getAnchor: function(id: string) -> any
+  
+  // Tracking
+  getTrackedPersons: function() -> any[]
+  bindPersonToUser: function(personId: string, userId: string) -> void
+  
+  // Avatars
+  loadAvatar: function(id: string, url: string) -> Promise<void>
+  updateAvatar: function(id: string, state: any) -> void
+  removeAvatar: function(id: string) -> void
+  
+  // Detection
+  startDetection: function(config: any) -> void
+  stopDetection: function() -> void
+}
+
+// =============================================================================
+// PARSING FUNCTIONS
+// =============================================================================
+
+/**
+ * Parse AR anchor from HoloScript
+ */
+function parseARAnchor(node: any) -> ARAnchorNode {
+  return {
+    type: "ar_anchor",
+    name: node.name ?? "",
+    properties: node.properties ?? {},
+    id: node.id ?? `anchor_${Date.now()}`,
+    anchorType: node.anchorType ?? AnchorType.qr,
+    properties: {
+      payload: node.payload ?? "",
+      tagFamily: node.tagFamily ?? "tag36h11",
+      tagId: node.tagId ?? 0,
+      latitude: node.latitude ?? 0.0,
+      longitude: node.longitude ?? 0.0,
+      altitude: node.altitude ?? 0.0,
+      markerSize: node.markerSize ?? 0.1,
+      imageUrl: node.imageUrl ?? "",
+      vpsProvider: node.vpsProvider ?? ""
+    }
+  }
+}
+
+/**
+ * Parse AR tracked person iterator
+ */
+function parseARTrackedPersons(node: any) -> ARTrackedPersonNode {
+  return {
+    type: "ar_tracked_person",
+    name: node.name ?? "",
+    properties: {},
+    variable: node.variable ?? "person",
+    source: "ar_tracking.persons",
+    children: node.children ?? []
+  }
+}
+
+/**
+ * Parse AR avatar
+ */
+function parseARAvatar(node: any) -> ARAvatarNode {
+  return {
+    type: "ar_avatar",
+    name: node.name ?? "",
+    properties: node.properties ?? {},
+    modelUrl: node.model ?? node.modelUrl ?? "",
+    properties: {
+      position: node.position ?? { x: 0, y: 0, z: 0 },
+      rotation: node.rotation ?? { x: 0, y: 0, z: 0, w: 1 },
+      scale: node.scale ?? 1.0,
+      skeleton: node.skeleton ?? "",
+      expression: node.expression ?? "",
+      lookAt: node.lookAt ?? null,
+      visible: node.visible ?? true
+    }
+  }
+}
+
+// =============================================================================
+// HOLOSCRIPT AR SYNTAX EXAMPLES
+// =============================================================================
+
+/**
+ * Example HoloScript AR syntax:
+ * 
+ * ```holoscript
+ * scene MultiUserAR {
+ *   // Define anchor for coordinate alignment
+ *   anchor lobby_qr {
+ *     type: "qr"
+ *     payload: "hololand://room/lobby"
+ *     size: 0.15  // 15cm marker
+ *   }
+ *   
+ *   // Define GPS anchor
+ *   anchor outdoor_reference {
+ *     type: "gps"
+ *     latitude: 37.7749
+ *     longitude: -122.4194
+ *   }
+ *   
+ *   // Track persons and create avatars
+ *   for person in ar_tracking.persons {
+ *     avatar {
+ *       model: person.avatar_url ?? "default.vrm"
+ *       position: person.world_position
+ *       skeleton: person.pose
+ *       expression: person.is_speaking ? "talking" : "neutral"
+ *       
+ *       // Name label above head
+ *       label {
+ *         text: person.display_name
+ *         offset: [0, 2.2, 0]
+ *         visible: person.distance < 10
+ *       }
+ *     }
+ *   }
+ *   
+ *   // Detection configuration
+ *   detection {
+ *     source: camera
+ *     detector: blazepose
+ *     maxPersons: 8
+ *     enableDepth: true
+ *   }
+ * }
+ * ```
+ */
+
+const AR_MODULE_VERSION = "1.0.0"
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Types
+  AnchorType,
+  ARAnchorNode,
+  ARAnchorProperties,
+  ARTrackedPersonNode,
+  ARAvatarNode,
+  ARAvatarProperties,
+  DetectorType,
+  DetectionSource,
+  ARDetectionNode,
+  ARDetectionProperties,
+  ARModuleState,
+  ARModuleAPI,
+  
+  // Functions
+  parseARAnchor,
+  parseARTrackedPersons,
+  parseARAvatar,
+  
+  // Constants
+  AR_MODULE_VERSION
+}

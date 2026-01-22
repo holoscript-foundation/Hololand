@@ -1,0 +1,625 @@
+// HOSL: Quest System
+// Complete quest, objective, and progression tracking
+
+/**
+ * Quest Definition
+ * Data structure for quest content
+ */
+const QUEST_STATUS = {
+  LOCKED: "locked",
+  AVAILABLE: "available",
+  ACTIVE: "active",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  TURNED_IN: "turned_in"
+}
+
+const OBJECTIVE_TYPE = {
+  KILL: "kill",
+  COLLECT: "collect",
+  TALK: "talk",
+  REACH: "reach",
+  ESCORT: "escort",
+  DEFEND: "defend",
+  INTERACT: "interact",
+  CUSTOM: "custom"
+}
+
+/**
+ * Quest Journal
+ * Manages all quests for a player
+ */
+component QuestJournal {
+  @state {
+    quests: {}
+    active_quest: null
+    completed_count: 0
+    failed_count: 0
+  }
+
+  @props {
+    max_active_quests: 20
+    auto_track_new: true
+    on_quest_update: null
+  }
+
+  // Add a quest definition
+  @method addQuest(quest_data) => {
+    const quest = {
+      id: quest_data.id,
+      name: quest_data.name,
+      description: quest_data.description,
+      category: quest_data.category || "main",  // main | side | daily | event
+      level: quest_data.level || 1,
+      
+      // Status
+      status: QUEST_STATUS.LOCKED,
+      tracked: false,
+      
+      // Prerequisites
+      prerequisites: quest_data.prerequisites || [],  // Quest IDs
+      required_level: quest_data.required_level || 0,
+      
+      // Objectives
+      objectives: quest_data.objectives.map(obj => ({
+        id: obj.id,
+        type: obj.type,
+        description: obj.description,
+        target: obj.target,          // Target ID or name
+        required: obj.required || 1,  // Amount needed
+        current: 0,
+        completed: false,
+        hidden: obj.hidden || false,
+        optional: obj.optional || false
+      })),
+      
+      // Rewards
+      rewards: quest_data.rewards || {
+        experience: 0,
+        gold: 0,
+        items: [],
+        reputation: {}
+      },
+      
+      // NPCs
+      giver_npc: quest_data.giver_npc,
+      turnin_npc: quest_data.turnin_npc || quest_data.giver_npc,
+      
+      // Dialogue
+      offer_dialogue: quest_data.offer_dialogue,
+      progress_dialogue: quest_data.progress_dialogue,
+      complete_dialogue: quest_data.complete_dialogue,
+      
+      // Timing
+      time_limit: quest_data.time_limit || -1,  // -1 = no limit
+      elapsed_time: 0,
+      
+      // Chain
+      next_quest: quest_data.next_quest,
+      
+      // Meta
+      repeatable: quest_data.repeatable || false,
+      completion_count: 0
+    }
+    
+    state.quests[quest.id] = quest
+    this.checkAvailability(quest.id)
+    
+    return quest
+  }
+
+  // Check if quest can become available
+  @method checkAvailability(quest_id) => {
+    const quest = state.quests[quest_id]
+    if (!quest || quest.status !== QUEST_STATUS.LOCKED) return
+    
+    // Check prerequisites
+    for (const prereq_id of quest.prerequisites) {
+      const prereq = state.quests[prereq_id]
+      if (!prereq || prereq.status !== QUEST_STATUS.TURNED_IN) {
+        return false
+      }
+    }
+    
+    quest.status = QUEST_STATUS.AVAILABLE
+    this.emit("quest_available", quest)
+    return true
+  }
+
+  // Accept a quest
+  @method acceptQuest(quest_id) => {
+    const quest = state.quests[quest_id]
+    if (!quest) return false
+    
+    if (quest.status !== QUEST_STATUS.AVAILABLE) {
+      console.warn(`Quest "${quest_id}" is not available`)
+      return false
+    }
+    
+    const activeCount = Object.values(state.quests).filter(q => q.status === QUEST_STATUS.ACTIVE).length
+    if (activeCount >= props.max_active_quests) {
+      console.warn("Maximum active quests reached")
+      return false
+    }
+    
+    quest.status = QUEST_STATUS.ACTIVE
+    quest.elapsed_time = 0
+    
+    if (props.auto_track_new) {
+      quest.tracked = true
+      state.active_quest = quest_id
+    }
+    
+    if (props.on_quest_update) {
+      props.on_quest_update("accepted", quest)
+    }
+    
+    this.emit("quest_accepted", quest)
+    return true
+  }
+
+  // Abandon a quest
+  @method abandonQuest(quest_id) => {
+    const quest = state.quests[quest_id]
+    if (!quest || quest.status !== QUEST_STATUS.ACTIVE) return false
+    
+    // Reset objectives
+    for (const obj of quest.objectives) {
+      obj.current = 0
+      obj.completed = false
+    }
+    
+    quest.status = QUEST_STATUS.AVAILABLE
+    quest.tracked = false
+    
+    if (state.active_quest === quest_id) {
+      state.active_quest = null
+    }
+    
+    this.emit("quest_abandoned", quest)
+    return true
+  }
+
+  // Update objective progress
+  @method updateObjective(objective_type, target, amount = 1) => {
+    for (const quest of Object.values(state.quests)) {
+      if (quest.status !== QUEST_STATUS.ACTIVE) continue
+      
+      for (const objective of quest.objectives) {
+        if (objective.completed) continue
+        if (objective.type !== objective_type) continue
+        if (objective.target !== target) continue
+        
+        objective.current = Math.min(objective.current + amount, objective.required)
+        
+        if (objective.current >= objective.required) {
+          objective.completed = true
+          this.emit("objective_completed", { quest, objective })
+        }
+        
+        if (props.on_quest_update) {
+          props.on_quest_update("progress", quest)
+        }
+        
+        this.checkQuestCompletion(quest.id)
+      }
+    }
+  }
+
+  // Check if all objectives are complete
+  @method checkQuestCompletion(quest_id) => {
+    const quest = state.quests[quest_id]
+    if (!quest || quest.status !== QUEST_STATUS.ACTIVE) return false
+    
+    const requiredObjectives = quest.objectives.filter(o => !o.optional)
+    const allComplete = requiredObjectives.every(o => o.completed)
+    
+    if (allComplete) {
+      quest.status = QUEST_STATUS.COMPLETED
+      this.emit("quest_ready_turnin", quest)
+      return true
+    }
+    
+    return false
+  }
+
+  // Turn in completed quest
+  @method turnInQuest(quest_id) => {
+    const quest = state.quests[quest_id]
+    if (!quest || quest.status !== QUEST_STATUS.COMPLETED) return null
+    
+    quest.status = QUEST_STATUS.TURNED_IN
+    quest.completion_count++
+    state.completed_count++
+    
+    const rewards = { ...quest.rewards }
+    
+    this.emit("quest_turned_in", { quest, rewards })
+    
+    // Trigger next quest in chain
+    if (quest.next_quest) {
+      this.checkAvailability(quest.next_quest)
+    }
+    
+    // Check all quests for availability
+    for (const qid of Object.keys(state.quests)) {
+      this.checkAvailability(qid)
+    }
+    
+    if (props.on_quest_update) {
+      props.on_quest_update("completed", quest)
+    }
+    
+    return rewards
+  }
+
+  // Fail a quest
+  @method failQuest(quest_id, reason = "unknown") => {
+    const quest = state.quests[quest_id]
+    if (!quest || quest.status !== QUEST_STATUS.ACTIVE) return false
+    
+    quest.status = QUEST_STATUS.FAILED
+    state.failed_count++
+    
+    this.emit("quest_failed", { quest, reason })
+    
+    if (props.on_quest_update) {
+      props.on_quest_update("failed", quest)
+    }
+    
+    return true
+  }
+
+  // Track/untrack quest
+  @method trackQuest(quest_id) => {
+    const quest = state.quests[quest_id]
+    if (!quest) return
+    
+    // Untrack current
+    if (state.active_quest && state.quests[state.active_quest]) {
+      state.quests[state.active_quest].tracked = false
+    }
+    
+    quest.tracked = true
+    state.active_quest = quest_id
+    
+    this.emit("quest_tracked", quest)
+  }
+
+  // Get quests by status
+  @method getQuestsByStatus(status) => {
+    return Object.values(state.quests).filter(q => q.status === status)
+  }
+
+  // Get quests by category
+  @method getQuestsByCategory(category) => {
+    return Object.values(state.quests).filter(q => q.category === category)
+  }
+
+  // Get active quest
+  @method getTrackedQuest() => {
+    return state.active_quest ? state.quests[state.active_quest] : null
+  }
+
+  // Get completion percentage
+  @method getQuestProgress(quest_id) => {
+    const quest = state.quests[quest_id]
+    if (!quest) return 0
+    
+    const requiredObjectives = quest.objectives.filter(o => !o.optional)
+    const totalRequired = requiredObjectives.reduce((sum, o) => sum + o.required, 0)
+    const totalCurrent = requiredObjectives.reduce((sum, o) => sum + o.current, 0)
+    
+    return totalRequired > 0 ? totalCurrent / totalRequired : 0
+  }
+
+  // Serialize for saving
+  @method serialize() => {
+    return {
+      quests: state.quests,
+      active_quest: state.active_quest,
+      completed_count: state.completed_count,
+      failed_count: state.failed_count
+    }
+  }
+
+  // Load from save
+  @method deserialize(data) => {
+    state.quests = data.quests
+    state.active_quest = data.active_quest
+    state.completed_count = data.completed_count
+    state.failed_count = data.failed_count
+  }
+
+  @update(delta) => {
+    // Update time limits
+    for (const quest of Object.values(state.quests)) {
+      if (quest.status !== QUEST_STATUS.ACTIVE) continue
+      if (quest.time_limit <= 0) continue
+      
+      quest.elapsed_time += delta
+      
+      if (quest.elapsed_time >= quest.time_limit) {
+        this.failQuest(quest.id, "time_expired")
+      }
+    }
+  }
+}
+
+/**
+ * Quest Giver NPC
+ * NPC that offers and accepts quests
+ */
+component QuestGiver {
+  @state {
+    available_quests: []
+    active_quests: []
+    turnin_ready: []
+    indicator_type: "none"  // none | available | progress | complete
+  }
+
+  @props {
+    npc_id: ""
+    quest_ids: []
+    journal: null  // Reference to player's QuestJournal
+    
+    // Visual indicators
+    available_indicator: "!"
+    progress_indicator: "?"
+    complete_indicator: "?"
+    indicator_color_available: "#ffcc00"
+    indicator_color_progress: "#888888"
+    indicator_color_complete: "#00ff00"
+  }
+
+  // Update quest availability
+  @method updateStatus() => {
+    if (!props.journal) return
+    
+    state.available_quests = []
+    state.active_quests = []
+    state.turnin_ready = []
+    
+    for (const quest_id of props.quest_ids) {
+      const quest = props.journal.state.quests[quest_id]
+      if (!quest) continue
+      
+      if (quest.giver_npc === props.npc_id) {
+        if (quest.status === QUEST_STATUS.AVAILABLE) {
+          state.available_quests.push(quest_id)
+        }
+      }
+      
+      if (quest.turnin_npc === props.npc_id) {
+        if (quest.status === QUEST_STATUS.ACTIVE) {
+          state.active_quests.push(quest_id)
+        } else if (quest.status === QUEST_STATUS.COMPLETED) {
+          state.turnin_ready.push(quest_id)
+        }
+      }
+    }
+    
+    // Update indicator
+    if (state.turnin_ready.length > 0) {
+      state.indicator_type = "complete"
+    } else if (state.available_quests.length > 0) {
+      state.indicator_type = "available"
+    } else if (state.active_quests.length > 0) {
+      state.indicator_type = "progress"
+    } else {
+      state.indicator_type = "none"
+    }
+  }
+
+  // Interact with the quest giver
+  @method interact() => {
+    this.updateStatus()
+    
+    // Priority: turn-ins > available > in-progress
+    if (state.turnin_ready.length > 0) {
+      return {
+        type: "turnin",
+        quests: state.turnin_ready.map(id => props.journal.state.quests[id])
+      }
+    }
+    
+    if (state.available_quests.length > 0) {
+      return {
+        type: "offer",
+        quests: state.available_quests.map(id => props.journal.state.quests[id])
+      }
+    }
+    
+    if (state.active_quests.length > 0) {
+      return {
+        type: "progress",
+        quests: state.active_quests.map(id => props.journal.state.quests[id])
+      }
+    }
+    
+    return { type: "none" }
+  }
+
+  @update(delta) => {
+    this.updateStatus()
+  }
+
+  // Quest indicator
+  panel#quest_indicator {
+    visible: ${state.indicator_type != "none"}
+    position: "worldspace"
+    offset: [0, 2.5, 0]
+    billboard: true
+
+    text#indicator {
+      value: ${
+        state.indicator_type == "available" ? props.available_indicator :
+        state.indicator_type == "complete" ? props.complete_indicator :
+        props.progress_indicator
+      }
+      size: 24
+      weight: 700
+      color: ${
+        state.indicator_type == "available" ? props.indicator_color_available :
+        state.indicator_type == "complete" ? props.indicator_color_complete :
+        props.indicator_color_progress
+      }
+      shadow: "0 2px 4px rgba(0,0,0,0.5)"
+      animation: ${state.indicator_type == "complete" ? "bounce 0.5s infinite" : "float 2s infinite"}
+    }
+  }
+}
+
+/**
+ * Quest Tracker UI
+ * On-screen objective display
+ */
+component QuestTracker {
+  @state {
+    expanded: true
+    show_all: false
+  }
+
+  @props {
+    journal: null
+    position: { right: 20, top: 100 }
+    max_objectives: 5
+    
+    theme: {
+      background: "rgba(0, 0, 0, 0.7)",
+      text_color: "#ffffff",
+      objective_color: "#cccccc",
+      complete_color: "#00ff00",
+      header_color: "#ffcc00"
+    }
+  }
+
+  @computed tracked_quest() {
+    return props.journal?.getTrackedQuest()
+  }
+
+  @computed visible_objectives() {
+    const quest = this.tracked_quest
+    if (!quest) return []
+    
+    return quest.objectives
+      .filter(o => !o.hidden)
+      .slice(0, props.max_objectives)
+  }
+
+  @method toggle() => {
+    state.expanded = !state.expanded
+  }
+
+  // UI Panel
+  panel#tracker {
+    visible: ${this.tracked_quest != null}
+    position: "fixed"
+    right: ${props.position.right}
+    top: ${props.position.top}
+    width: 280
+    background: ${props.theme.background}
+    border_radius: 8
+    padding: ${state.expanded ? 12 : 8}
+    shadow: "0 4px 12px rgba(0, 0, 0, 0.4)"
+
+    // Header
+    panel#header {
+      layout: "horizontal"
+      justify: "space-between"
+      align: "center"
+      cursor: "pointer"
+
+      @on_click => { this.toggle() }
+
+      text#quest_name {
+        value: ${this.tracked_quest?.name || ""}
+        color: ${props.theme.header_color}
+        size: 14
+        weight: 600
+        max_width: 220
+        overflow: "ellipsis"
+      }
+
+      text#toggle_icon {
+        value: ${state.expanded ? "▼" : "▶"}
+        color: "#888888"
+        size: 12
+      }
+    }
+
+    // Objectives list
+    panel#objectives {
+      visible: ${state.expanded}
+      margin_top: 10
+      layout: "vertical"
+      gap: 6
+
+      @for objective in this.visible_objectives {
+        panel#obj_${objective.id} {
+          layout: "horizontal"
+          gap: 8
+          align: "flex-start"
+
+          // Checkbox
+          panel#checkbox {
+            width: 14
+            height: 14
+            border: "2px solid ${objective.completed ? props.theme.complete_color : '#666666'}"
+            border_radius: 3
+            background: ${objective.completed ? props.theme.complete_color : "transparent"}
+            margin_top: 2
+
+            text#check {
+              visible: ${objective.completed}
+              value: "✓"
+              color: "#000000"
+              size: 10
+              weight: 700
+            }
+          }
+
+          // Objective text
+          panel#text_container {
+            flex: 1
+
+            text#description {
+              value: ${objective.description}
+              color: ${objective.completed ? props.theme.complete_color : props.theme.objective_color}
+              size: 12
+              text_decoration: ${objective.completed ? "line-through" : "none"}
+              opacity: ${objective.completed ? 0.7 : 1}
+            }
+
+            // Progress counter
+            text#progress {
+              visible: ${objective.required > 1 && !objective.completed}
+              value: "${objective.current} / ${objective.required}"
+              color: "#888888"
+              size: 11
+              margin_top: 2
+            }
+          }
+        }
+      }
+
+      // More objectives indicator
+      text#more_indicator {
+        visible: ${this.tracked_quest?.objectives.filter(o => !o.hidden).length > props.max_objectives}
+        value: "..."
+        color: "#666666"
+        size: 12
+        text_align: "center"
+        margin_top: 4
+      }
+    }
+  }
+}
+
+export { 
+  QuestJournal, 
+  QuestGiver, 
+  QuestTracker,
+  QUEST_STATUS,
+  OBJECTIVE_TYPE 
+}

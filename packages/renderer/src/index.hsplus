@@ -1,0 +1,298 @@
+/**
+ * @hololand/renderer
+ *
+ * Advanced rendering engine for Hololand worlds.
+ * Features quality tiers, PBR materials, HDRI environments,
+ * post-processing, and GLTF asset loading.
+ *
+ * @example
+ * ```holoscript
+ * import {
+ *   HololandRenderer,
+ *   QualityManager,
+ *   createAssetLoader,
+ *   HDRI_PRESETS
+ * } from "@hololand/renderer"
+ *
+ * // Create renderer with quality auto-detection
+ * let renderer = createHololandRenderer(canvas, world, {
+ *   quality: QualityPreset.auto,
+ *   environment: { hdri: "sunset", skybox: SkyboxType.hdri },
+ *   postProcessing: { bloom: { enabled: true, strength: 0.5 } }
+ * })
+ *
+ * // Load a 3D model
+ * let assetLoader = createAssetLoader({ qualitySettings: renderer.getQualitySettings() })
+ * let model = await assetLoader.loadModel("/models/character.glb")
+ * scene.add(model.data.scene)
+ * ```
+ */
+
+// =============================================================================
+// CORE RENDERER
+// =============================================================================
+
+// 3D Renderer (Three.js + WebXR)
+import { HololandRenderer, createHololandRenderer } from "./HololandRenderer.hsplus"
+
+// 2D Renderer (Canvas)
+import { Hololand2DRenderer, createHololand2DRenderer, Renderer2DConfig } from "./Hololand2DRenderer.hsplus"
+
+// =============================================================================
+// QUALITY SYSTEM
+// =============================================================================
+
+import {
+  QualityManager,
+  createQualityManager,
+  QualityManagerOptions,
+  GPUInfo,
+  DeviceDetector
+} from "./QualityManager.hsplus"
+
+// =============================================================================
+// POST-PROCESSING
+// =============================================================================
+
+import {
+  PostProcessingPipeline,
+  createPostProcessingPipeline,
+  PostProcessingOptions,
+  VignetteShader,
+  ColorGradingShader,
+  ChromaticAberrationShader
+} from "./PostProcessing.hsplus"
+
+// =============================================================================
+// ENVIRONMENT
+// =============================================================================
+
+import {
+  EnvironmentManager,
+  createEnvironmentManager,
+  EnvironmentManagerOptions,
+  HDRI_PRESETS
+} from "./EnvironmentManager.hsplus"
+
+// =============================================================================
+// ASSET LOADING
+// =============================================================================
+
+import {
+  AssetLoader,
+  AssetCache,
+  createAssetLoader,
+  AssetLoaderOptions,
+  LoadedModel,
+  LoadedTexture,
+  GLTFData
+} from "./AssetLoader.hsplus"
+
+// =============================================================================
+// MATERIALS
+// =============================================================================
+
+import {
+  MaterialFactory,
+  MaterialPresets,
+  createMaterialFactory,
+  MaterialOptions,
+  MaterialPreset
+} from "./MaterialFactory.hsplus"
+
+// =============================================================================
+// LOGGING
+// =============================================================================
+
+import {
+  logger,
+  loggers,
+  createLogger,
+  rendererLogger,
+  RendererLogger
+} from "./logger.hsplus"
+
+import type {
+  HololandLogger,
+  LoggerOptions,
+  HololandRendererLogger
+} from "./logger.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+import {
+  // Enums
+  QualityPreset,
+  DeviceType,
+  ShadowType,
+  MaterialType,
+  AntialiasingMode,
+  RenderMode,
+  SkyboxType,
+  FogType,
+  ToneMappingType,
+  AssetType,
+  LightType,
+
+  // Structs
+  QualitySettings,
+  Vector3,
+  BoundingBox,
+  RendererConfig,
+  ProceduralSkyConfig,
+  SkyGradientColors,
+  GroundConfig,
+  FogConfig,
+  EnvironmentConfig,
+  BloomConfig,
+  SSAOConfig,
+  SSRConfig,
+  DOFConfig,
+  ToneMappingConfig,
+  VignetteConfig,
+  ChromaticAberrationConfig,
+  ColorGradingConfig,
+  PostProcessingConfig,
+  AssetLoadOptions,
+  AssetMetadata,
+  LoadedAsset,
+  MaterialConfig,
+  LightingConfig,
+
+  // Modules
+  QualityPresets
+} from "./types.hsplus"
+
+// =============================================================================
+// VERSION
+// =============================================================================
+
+let HOLOLAND_RENDERER_VERSION = "1.0.0-alpha.2"
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Core Renderer
+  HololandRenderer,
+  createHololandRenderer,
+  Hololand2DRenderer,
+  createHololand2DRenderer,
+
+  // Quality System
+  QualityManager,
+  createQualityManager,
+  DeviceDetector,
+
+  // Post-Processing
+  PostProcessingPipeline,
+  createPostProcessingPipeline,
+  VignetteShader,
+  ColorGradingShader,
+  ChromaticAberrationShader,
+
+  // Environment
+  EnvironmentManager,
+  createEnvironmentManager,
+  HDRI_PRESETS,
+
+  // Asset Loading
+  AssetLoader,
+  AssetCache,
+  createAssetLoader,
+
+  // Materials
+  MaterialFactory,
+  MaterialPresets,
+  createMaterialFactory,
+
+  // Logging
+  logger,
+  loggers,
+  createLogger,
+  rendererLogger,
+  RendererLogger,
+
+  // Types - Enums
+  QualityPreset,
+  DeviceType,
+  ShadowType,
+  MaterialType,
+  AntialiasingMode,
+  RenderMode,
+  SkyboxType,
+  FogType,
+  ToneMappingType,
+  AssetType,
+  LightType,
+
+  // Types - Structs
+  QualitySettings,
+  Vector3,
+  BoundingBox,
+  RendererConfig,
+  ProceduralSkyConfig,
+  SkyGradientColors,
+  GroundConfig,
+  FogConfig,
+  EnvironmentConfig,
+  BloomConfig,
+  SSAOConfig,
+  SSRConfig,
+  DOFConfig,
+  ToneMappingConfig,
+  VignetteConfig,
+  ChromaticAberrationConfig,
+  ColorGradingConfig,
+  PostProcessingConfig,
+  AssetLoadOptions,
+  AssetMetadata,
+  LoadedAsset,
+  MaterialConfig,
+  LightingConfig,
+  QualityPresets,
+
+  // Type Aliases
+  type QualityManagerOptions,
+  type PostProcessingOptions,
+  type EnvironmentManagerOptions,
+  type AssetLoaderOptions,
+  type LoadedModel,
+  type LoadedTexture,
+  type GLTFData,
+  type MaterialOptions,
+  type MaterialPreset,
+  type GPUInfo,
+  type Renderer2DConfig,
+  type HololandLogger,
+  type LoggerOptions,
+  type HololandRendererLogger,
+
+  // Version
+  HOLOLAND_RENDERER_VERSION
+}
+
+// =============================================================================
+// DEFAULT EXPORT
+// =============================================================================
+
+export default {
+  HololandRenderer,
+  createHololandRenderer,
+  Hololand2DRenderer,
+  QualityManager,
+  createQualityManager,
+  PostProcessingPipeline,
+  createPostProcessingPipeline,
+  EnvironmentManager,
+  createEnvironmentManager,
+  AssetLoader,
+  createAssetLoader,
+  MaterialFactory,
+  createMaterialFactory,
+  HDRI_PRESETS,
+  HOLOLAND_RENDERER_VERSION
+}

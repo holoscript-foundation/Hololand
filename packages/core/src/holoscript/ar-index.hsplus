@@ -1,0 +1,25 @@
+/**
+ * HoloScript AR Module Exports
+ *
+ * NOTE: AR runtime has been moved to @hololand/ar-foundation for clean separation.
+ * This file re-exports from ar-foundation for backwards compatibility.
+ */
+
+// AR AST types (language-level, stays here)
+export * from "./ar-module.hsplus"
+
+// AR Runtime - re-export from @hololand/ar-foundation
+// The actual implementation has moved to @hololand/ar-foundation
+export {
+  createARRuntime,
+  executeARNode,
+  AR_BINDINGS,
+  type ARModuleState,
+  type ARModuleAPI
+} from "@hololand/ar-foundation"
+
+/**
+ * @deprecated Use '@hololand/ar-foundation' directly instead.
+ * This re-export is provided for backwards compatibility.
+ */
+export { AR_FOUNDATION_VERSION as AR_RUNTIME_VERSION } from "@hololand/ar-foundation"

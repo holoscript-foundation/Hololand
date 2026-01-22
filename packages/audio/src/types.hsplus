@@ -1,0 +1,404 @@
+/**
+ * @hololand/audio - Type Definitions
+ *
+ * Core types for spatial audio, voice chat, and audio effects.
+ */
+
+// =============================================================================
+// SPATIAL PRIMITIVES
+// =============================================================================
+
+struct Vector3 {
+  x: number = 0,
+  y: number = 0,
+  z: number = 0
+}
+
+struct Quaternion {
+  x: number = 0,
+  y: number = 0,
+  z: number = 0,
+  w: number = 1
+}
+
+// =============================================================================
+// AUDIO SOURCE TYPES
+// =============================================================================
+
+enum AudioSourceType {
+  point = "point",
+  ambient = "ambient",
+  directional = "directional",
+  cone = "cone"
+}
+
+enum DistanceModel {
+  linear = "linear",
+  inverse = "inverse",
+  exponential = "exponential"
+}
+
+struct AudioSourceConfig {
+  id: string = "",
+  sourceType: AudioSourceType = AudioSourceType.point,
+  position: Vector3 = { x: 0, y: 0, z: 0 },
+  orientation: Vector3 = null,
+  volume: number = 1.0,
+  playbackRate: number = 1.0,
+  loop: bool = false,
+  autoPlay: bool = false,
+  distanceModel: DistanceModel = DistanceModel.inverse,
+  refDistance: number = 1,
+  maxDistance: number = 10000,
+  rolloffFactor: number = 1,
+  coneInnerAngle: number = 360,
+  coneOuterAngle: number = 360,
+  coneOuterGain: number = 0
+}
+
+let DEFAULT_AUDIO_SOURCE_CONFIG: AudioSourceConfig = {
+  id: "",
+  sourceType: AudioSourceType.point,
+  position: { x: 0, y: 0, z: 0 },
+  orientation: null,
+  volume: 1.0,
+  playbackRate: 1.0,
+  loop: false,
+  autoPlay: false,
+  distanceModel: DistanceModel.inverse,
+  refDistance: 1,
+  maxDistance: 10000,
+  rolloffFactor: 1,
+  coneInnerAngle: 360,
+  coneOuterAngle: 360,
+  coneOuterGain: 0
+}
+
+// =============================================================================
+// LISTENER TYPES
+// =============================================================================
+
+struct ListenerConfig {
+  position: Vector3 = { x: 0, y: 0, z: 0 },
+  forward: Vector3 = { x: 0, y: 0, z: -1 },
+  up: Vector3 = { x: 0, y: 1, z: 0 }
+}
+
+// =============================================================================
+// HRTF TYPES
+// =============================================================================
+
+enum HRTFModel {
+  default_model = "default",
+  custom = "custom",
+  cipic = "cipic",
+  listen = "listen",
+  sadie = "sadie"
+}
+
+struct HRTFConfig {
+  model: HRTFModel = HRTFModel.default_model,
+  customHRIR: string = null,
+  enabled: bool = true
+}
+
+// =============================================================================
+// REVERB TYPES
+// =============================================================================
+
+enum ReverbPreset {
+  none = "none",
+  small_room = "small-room",
+  medium_room = "medium-room",
+  large_room = "large-room",
+  hall = "hall",
+  cathedral = "cathedral",
+  outdoor = "outdoor",
+  cave = "cave",
+  underwater = "underwater"
+}
+
+struct ReverbConfig {
+  preset: ReverbPreset = ReverbPreset.medium_room,
+  decayTime: number = 1.5,
+  preDelay: number = 20,
+  wetMix: number = 0.3,
+  highFrequencyDamping: number = 0.5,
+  roomSize: number = 1.0
+}
+
+let DEFAULT_REVERB_CONFIG: ReverbConfig = {
+  preset: ReverbPreset.medium_room,
+  decayTime: 1.5,
+  preDelay: 20,
+  wetMix: 0.3,
+  highFrequencyDamping: 0.5,
+  roomSize: 1.0
+}
+
+// =============================================================================
+// EFFECTS TYPES
+// =============================================================================
+
+enum EffectType {
+  gain = "gain",
+  filter = "filter",
+  compressor = "compressor",
+  delay = "delay",
+  reverb = "reverb",
+  distortion = "distortion",
+  chorus = "chorus",
+  phaser = "phaser"
+}
+
+struct EffectNode {
+  id: string = "",
+  effectType: EffectType = EffectType.gain,
+  enabled: bool = true,
+  parameters: Map<string, number> = {}
+}
+
+enum FilterType {
+  lowpass = "lowpass",
+  highpass = "highpass",
+  bandpass = "bandpass",
+  lowshelf = "lowshelf",
+  highshelf = "highshelf",
+  peaking = "peaking",
+  notch = "notch",
+  allpass = "allpass"
+}
+
+struct FilterConfig {
+  filterType: FilterType = FilterType.lowpass,
+  frequency: number = 1000,
+  Q: number = 1,
+  gain: number = 0
+}
+
+struct CompressorConfig {
+  threshold: number = -24,
+  knee: number = 30,
+  ratio: number = 12,
+  attack: number = 0.003,
+  release: number = 0.25
+}
+
+struct DelayConfig {
+  delayTime: number = 0.3,
+  feedback: number = 0.3,
+  wetMix: number = 0.5
+}
+
+// =============================================================================
+// VOICE CHAT TYPES
+// =============================================================================
+
+enum VoiceActivityState {
+  silent = "silent",
+  speaking = "speaking",
+  muted = "muted"
+}
+
+enum SampleRate {
+  rate_16k = 16000,
+  rate_24k = 24000,
+  rate_48k = 48000
+}
+
+enum ChannelCount {
+  mono = 1,
+  stereo = 2
+}
+
+struct VoiceChatConfig {
+  vadEnabled: bool = true,
+  vadThreshold: number = 0.02,
+  echoCancellation: bool = true,
+  noiseSuppression: bool = true,
+  autoGainControl: bool = true,
+  sampleRate: SampleRate = SampleRate.rate_24k,
+  channelCount: ChannelCount = ChannelCount.mono,
+  spatialVoice: bool = true,
+  voiceRange: number = 15,
+  pushToTalk: bool = false
+}
+
+let DEFAULT_VOICE_CONFIG: VoiceChatConfig = {
+  vadEnabled: true,
+  vadThreshold: 0.02,
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  sampleRate: SampleRate.rate_24k,
+  channelCount: ChannelCount.mono,
+  spatialVoice: true,
+  voiceRange: 15,
+  pushToTalk: false
+}
+
+struct VoiceParticipant {
+  id: string = "",
+  displayName: string = "",
+  position: Vector3 = { x: 0, y: 0, z: 0 },
+  state: VoiceActivityState = VoiceActivityState.silent,
+  volume: number = 1.0,
+  muted: bool = false,
+  localMuted: bool = false
+}
+
+// =============================================================================
+// MUSIC STREAMING TYPES
+// =============================================================================
+
+enum AudioFormat {
+  mp3 = "mp3",
+  ogg = "ogg",
+  wav = "wav",
+  webm = "webm",
+  aac = "aac"
+}
+
+enum RepeatMode {
+  none = "none",
+  one = "one",
+  all = "all"
+}
+
+struct MusicTrack {
+  id: string = "",
+  title: string = "",
+  artist: string = "",
+  duration: number = 0,
+  url: string = "",
+  format: AudioFormat = AudioFormat.mp3
+}
+
+struct PlaylistConfig {
+  id: string = "",
+  name: string = "",
+  tracks: array<MusicTrack> = [],
+  shuffle: bool = false,
+  repeat: RepeatMode = RepeatMode.none,
+  crossfade: number = 0
+}
+
+// =============================================================================
+// ENGINE TYPES
+// =============================================================================
+
+struct SpatialAudioEngineConfig {
+  sampleRate: SampleRate = SampleRate.rate_48k,
+  maxSources: number = 32,
+  hrtfEnabled: bool = true,
+  hrtf: HRTFConfig = { model: HRTFModel.default_model, enabled: true },
+  reverb: ReverbConfig = DEFAULT_REVERB_CONFIG,
+  autoListenerUpdate: bool = true,
+  distanceAttenuation: bool = true,
+  masterVolume: number = 1.0,
+  dopplerEnabled: bool = false,
+  dopplerFactor: number = 1.0,
+  speedOfSound: number = 343
+}
+
+let DEFAULT_ENGINE_CONFIG: SpatialAudioEngineConfig = {
+  sampleRate: SampleRate.rate_48k,
+  maxSources: 32,
+  hrtfEnabled: true,
+  hrtf: { model: HRTFModel.default_model, enabled: true },
+  reverb: DEFAULT_REVERB_CONFIG,
+  autoListenerUpdate: true,
+  distanceAttenuation: true,
+  masterVolume: 1.0,
+  dopplerEnabled: false,
+  dopplerFactor: 1.0,
+  speedOfSound: 343
+}
+
+// =============================================================================
+// EVENTS
+// =============================================================================
+
+enum AudioEventType {
+  source_started = "source-started",
+  source_ended = "source-ended",
+  source_paused = "source-paused",
+  source_resumed = "source-resumed",
+  source_error = "source-error",
+  voice_started = "voice-started",
+  voice_ended = "voice-ended",
+  voice_activity = "voice-activity",
+  participant_joined = "participant-joined",
+  participant_left = "participant-left",
+  context_state_change = "context-state-change"
+}
+
+struct AudioEvent {
+  eventType: AudioEventType = AudioEventType.source_started,
+  sourceId: string = null,
+  participantId: string = null,
+  timestamp: number = 0,
+  data: any = null
+}
+
+// Type alias for event listeners
+type AudioEventListener = (event: AudioEvent) => void
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Primitives
+  Vector3,
+  Quaternion,
+
+  // Source types
+  AudioSourceType,
+  DistanceModel,
+  AudioSourceConfig,
+  DEFAULT_AUDIO_SOURCE_CONFIG,
+
+  // Listener
+  ListenerConfig,
+
+  // HRTF
+  HRTFModel,
+  HRTFConfig,
+
+  // Reverb
+  ReverbPreset,
+  ReverbConfig,
+  DEFAULT_REVERB_CONFIG,
+
+  // Effects
+  EffectType,
+  EffectNode,
+  FilterType,
+  FilterConfig,
+  CompressorConfig,
+  DelayConfig,
+
+  // Voice chat
+  VoiceActivityState,
+  SampleRate,
+  ChannelCount,
+  VoiceChatConfig,
+  DEFAULT_VOICE_CONFIG,
+  VoiceParticipant,
+
+  // Music
+  AudioFormat,
+  RepeatMode,
+  MusicTrack,
+  PlaylistConfig,
+
+  // Engine
+  SpatialAudioEngineConfig,
+  DEFAULT_ENGINE_CONFIG,
+
+  // Events
+  AudioEventType,
+  AudioEvent,
+  type AudioEventListener
+}

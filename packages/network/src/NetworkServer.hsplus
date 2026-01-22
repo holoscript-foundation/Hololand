@@ -1,0 +1,558 @@
+/**
+ * NetworkServer.hsplus
+ * 
+ * Authoritative server/host for Hololand multiplayer rooms.
+ * Can run as a dedicated server (Node.js) or peer host (browser).
+ * 
+ * @package @hololand/network
+ * @version 2.0.0
+ */
+
+import { logger } from "./Logger.hsplus"
+import {
+  PlayerInfo,
+  PlayerRole,
+  RoomInfo,
+  RoomConfig,
+  RoomState,
+  NetworkMessage,
+  MessageCategory,
+  SyncState,
+  StateSnapshot,
+  Vector3
+} from "./Types.hsplus"
+
+// =============================================================================
+// SERVER CONFIG
+// =============================================================================
+
+struct ServerConfig {
+  maxRooms: number = 100
+  maxPlayersPerRoom: number = 50
+  tickRate: number = 60
+  snapshotRate: number = 20
+  authRequired: boolean = false
+}
+
+struct ClientConnection {
+  id: string
+  displayName: string
+  roomId: string = null
+  joinedAt: number
+  lastActivity: number
+  send: (message: NetworkMessage) => void
+}
+
+// =============================================================================
+// NETWORK SERVER MODULE
+// =============================================================================
+
+module NetworkServer {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    config: ServerConfig = new ServerConfig()
+    rooms: Map<string, RoomInfo> = new Map()
+    roomPlayers: Map<string, Map<string, PlayerInfo>> = new Map()
+    roomStates: Map<string, Map<string, SyncState>> = new Map()
+    clients: Map<string, ClientConnection> = new Map()
+    tickTimer: any = null
+    snapshotTimer: any = null
+    isRunning: boolean = false
+    stateSequence: number = 0
+    messageHandlers: Map<string, Function> = new Map()
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(config: ServerConfig = {}): void {
+    this.state.config = { ...new ServerConfig(), ...config }
+    this.registerDefaultHandlers()
+    logger.info("NetworkServer initialized", { config: this.state.config })
+  }
+  
+  // =========================================================================
+  // SERVER LIFECYCLE
+  // =========================================================================
+  
+  @action start(): void {
+    if (this.state.isRunning) return
+    
+    this.state.isRunning = true
+    
+    // Start tick loop
+    const tickInterval = 1000 / this.state.config.tickRate
+    this.state.tickTimer = setInterval(() => this.tick(), tickInterval)
+    
+    // Start snapshot broadcast
+    const snapshotInterval = 1000 / this.state.config.snapshotRate
+    this.state.snapshotTimer = setInterval(
+      () => this.broadcastSnapshots(),
+      snapshotInterval
+    )
+    
+    logger.info("Server started", {
+      tickRate: this.state.config.tickRate,
+      snapshotRate: this.state.config.snapshotRate
+    })
+  }
+  
+  @action stop(): void {
+    if (!this.state.isRunning) return
+    
+    this.state.isRunning = false
+    
+    if (this.state.tickTimer) {
+      clearInterval(this.state.tickTimer)
+      this.state.tickTimer = null
+    }
+    
+    if (this.state.snapshotTimer) {
+      clearInterval(this.state.snapshotTimer)
+      this.state.snapshotTimer = null
+    }
+    
+    // Disconnect all clients
+    this.state.clients.forEach(client => {
+      this.handleClientDisconnect(client.id, "server_shutdown")
+    })
+    
+    logger.info("Server stopped")
+  }
+  
+  // =========================================================================
+  // CLIENT MANAGEMENT
+  // =========================================================================
+  
+  @action registerClient(connection: ClientConnection): void {
+    this.state.clients.set(connection.id, connection)
+    logger.info("Client registered", { clientId: connection.id })
+    
+    // Send welcome message
+    connection.send({
+      type: "handshake_ack",
+      category: MessageCategory.CONNECTION,
+      payload: { clientId: connection.id },
+      timestamp: Date.now()
+    })
+  }
+  
+  @action removeClient(clientId: string): void {
+    const client = this.state.clients.get(clientId)
+    if (client) {
+      this.handleClientDisconnect(clientId, "removed")
+      this.state.clients.delete(clientId)
+    }
+  }
+  
+  @action handleMessage(clientId: string, message: NetworkMessage): void {
+    const client = this.state.clients.get(clientId)
+    if (!client) {
+      logger.warn("Message from unknown client", { clientId })
+      return
+    }
+    
+    client.lastActivity = Date.now()
+    
+    const handler = this.state.messageHandlers.get(message.type)
+    if (handler) {
+      handler(client, message)
+    } else {
+      logger.debug("No handler for message type", { type: message.type })
+    }
+  }
+  
+  @method handleClientDisconnect(clientId: string, reason: string): void {
+    const client = this.state.clients.get(clientId)
+    if (!client) return
+    
+    // Remove from room
+    if (client.roomId) {
+      this.leaveRoom(clientId, client.roomId)
+    }
+    
+    logger.info("Client disconnected", { clientId, reason })
+  }
+  
+  // =========================================================================
+  // ROOM MANAGEMENT
+  // =========================================================================
+  
+  @action createRoom(config: RoomConfig, hostId: string): RoomInfo {
+    if (this.state.rooms.size >= this.state.config.maxRooms) {
+      throw new Error("Maximum room limit reached")
+    }
+    
+    const roomId = config.id || this.generateRoomId()
+    const room: RoomInfo = {
+      id: roomId,
+      name: config.name,
+      playerCount: 0,
+      maxPlayers: config.maxPlayers || this.state.config.maxPlayersPerRoom,
+      state: RoomState.OPEN,
+      isPrivate: config.isPrivate || false,
+      hostId,
+      createdAt: Date.now(),
+      metadata: config.metadata
+    }
+    
+    this.state.rooms.set(roomId, room)
+    this.state.roomPlayers.set(roomId, new Map())
+    this.state.roomStates.set(roomId, new Map())
+    
+    logger.info("Room created", { roomId, name: config.name, hostId })
+    return room
+  }
+  
+  @action joinRoom(clientId: string, roomId: string, password?: string): PlayerInfo {
+    const client = this.state.clients.get(clientId)
+    if (!client) {
+      throw new Error("Client not found")
+    }
+    
+    const room = this.state.rooms.get(roomId)
+    if (!room) {
+      throw new Error("Room not found")
+    }
+    
+    if (room.state !== RoomState.OPEN) {
+      throw new Error(`Room is ${room.state}`)
+    }
+    
+    if (room.playerCount >= room.maxPlayers) {
+      throw new Error("Room is full")
+    }
+    
+    // Leave current room if in one
+    if (client.roomId) {
+      this.leaveRoom(clientId, client.roomId)
+    }
+    
+    const player: PlayerInfo = {
+      id: clientId,
+      displayName: client.displayName,
+      role: room.playerCount === 0 ? PlayerRole.HOST : PlayerRole.PLAYER,
+      joinedAt: Date.now(),
+      position: { x: 0, y: 0, z: 0 }
+    }
+    
+    const players = this.state.roomPlayers.get(roomId)
+    players.set(clientId, player)
+    room.playerCount = players.size
+    client.roomId = roomId
+    
+    // Notify other players
+    this.broadcastToRoom(roomId, {
+      type: "playerJoined",
+      category: MessageCategory.ROOM,
+      payload: { roomId, player },
+      timestamp: Date.now()
+    }, clientId)
+    
+    logger.info("Player joined room", { clientId, roomId })
+    return player
+  }
+  
+  @action leaveRoom(clientId: string, roomId: string): void {
+    const room = this.state.rooms.get(roomId)
+    const players = this.state.roomPlayers.get(roomId)
+    const client = this.state.clients.get(clientId)
+    
+    if (!room || !players) return
+    
+    const player = players.get(clientId)
+    if (!player) return
+    
+    players.delete(clientId)
+    room.playerCount = players.size
+    
+    if (client) {
+      client.roomId = null
+    }
+    
+    // Notify other players
+    this.broadcastToRoom(roomId, {
+      type: "playerLeft",
+      category: MessageCategory.ROOM,
+      payload: { roomId, playerId: clientId, reason: "left" },
+      timestamp: Date.now()
+    })
+    
+    // Handle host leaving
+    if (player.role === PlayerRole.HOST && players.size > 0) {
+      const newHost = players.values().next().value
+      newHost.role = PlayerRole.HOST
+      room.hostId = newHost.id
+      
+      this.broadcastToRoom(roomId, {
+        type: "hostChanged",
+        category: MessageCategory.ROOM,
+        payload: { roomId, newHostId: newHost.id },
+        timestamp: Date.now()
+      })
+    }
+    
+    // Delete empty room
+    if (players.size === 0) {
+      this.state.rooms.delete(roomId)
+      this.state.roomPlayers.delete(roomId)
+      this.state.roomStates.delete(roomId)
+      logger.info("Empty room deleted", { roomId })
+    }
+    
+    logger.info("Player left room", { clientId, roomId })
+  }
+  
+  @action setRoomState(roomId: string, state: RoomState): void {
+    const room = this.state.rooms.get(roomId)
+    if (!room) return
+    
+    room.state = state
+    
+    this.broadcastToRoom(roomId, {
+      type: "roomStateChanged",
+      category: MessageCategory.ROOM,
+      payload: { roomId, state },
+      timestamp: Date.now()
+    })
+  }
+  
+  @computed getRoomList(): RoomInfo[] {
+    return Array.from(this.state.rooms.values()).filter(room => !room.isPrivate)
+  }
+  
+  @method getRoom(roomId: string): RoomInfo | undefined {
+    return this.state.rooms.get(roomId)
+  }
+  
+  @method getRoomPlayers(roomId: string): PlayerInfo[] {
+    const players = this.state.roomPlayers.get(roomId)
+    return players ? Array.from(players.values()) : []
+  }
+  
+  // =========================================================================
+  // STATE SYNCHRONIZATION
+  // =========================================================================
+  
+  @action updateState(roomId: string, state: SyncState): void {
+    const states = this.state.roomStates.get(roomId)
+    if (!states) return
+    
+    state.sequence = this.state.stateSequence++
+    state.timestamp = Date.now()
+    states.set(state.objectId, state)
+  }
+  
+  @action removeState(roomId: string, objectId: string): void {
+    this.state.roomStates.get(roomId)?.delete(objectId)
+  }
+  
+  @method tick(): void {
+    // Process any queued actions, physics, etc.
+    // This runs at tickRate (e.g., 60 times per second)
+  }
+  
+  @method broadcastSnapshots(): void {
+    this.state.rooms.forEach((room, roomId) => {
+      const states = this.state.roomStates.get(roomId)
+      if (!states || states.size === 0) return
+      
+      const snapshot: StateSnapshot = {
+        timestamp: Date.now(),
+        sequence: this.state.stateSequence,
+        states: Array.from(states.values())
+      }
+      
+      this.broadcastToRoom(roomId, {
+        type: "snapshot",
+        category: MessageCategory.STATE,
+        payload: snapshot,
+        timestamp: snapshot.timestamp
+      })
+    })
+  }
+  
+  // =========================================================================
+  // PLAYER POSITION UPDATES
+  // =========================================================================
+  
+  @action updatePlayerPosition(
+    clientId: string,
+    roomId: string,
+    position: Vector3,
+    rotation?: Vector3
+  ): void {
+    const players = this.state.roomPlayers.get(roomId)
+    if (!players) return
+    
+    const player = players.get(clientId)
+    if (!player) return
+    
+    player.position = position
+    
+    // Create sync state for player
+    this.updateState(roomId, {
+      objectId: `player:${clientId}`,
+      position,
+      rotation,
+      timestamp: Date.now(),
+      sequence: 0
+    })
+  }
+  
+  // =========================================================================
+  // MESSAGING
+  // =========================================================================
+  
+  @action broadcastToRoom(
+    roomId: string,
+    message: NetworkMessage,
+    excludeId?: string
+  ): void {
+    const players = this.state.roomPlayers.get(roomId)
+    if (!players) return
+    
+    players.forEach((player, playerId) => {
+      if (playerId === excludeId) return
+      
+      const client = this.state.clients.get(playerId)
+      if (client) {
+        client.send(message)
+      }
+    })
+  }
+  
+  @action sendToClient(clientId: string, message: NetworkMessage): boolean {
+    const client = this.state.clients.get(clientId)
+    if (!client) return false
+    
+    client.send(message)
+    return true
+  }
+  
+  @action broadcast(message: NetworkMessage): void {
+    this.state.clients.forEach(client => {
+      client.send(message)
+    })
+  }
+  
+  // =========================================================================
+  // MESSAGE HANDLERS
+  // =========================================================================
+  
+  @method registerDefaultHandlers(): void {
+    // Ping handler
+    this.registerHandler("ping", (client, message) => {
+      client.send({
+        type: "pong",
+        category: MessageCategory.CONNECTION,
+        payload: message.payload.timestamp,
+        timestamp: Date.now()
+      })
+    })
+    
+    // Room creation
+    this.registerHandler("create_room", (client, message) => {
+      try {
+        const room = this.createRoom(message.payload, client.id)
+        client.send({
+          type: "room_created",
+          category: MessageCategory.ROOM,
+          payload: room,
+          timestamp: Date.now()
+        })
+      } catch (err) {
+        client.send({
+          type: "error",
+          category: MessageCategory.ROOM,
+          payload: { message: err.message },
+          timestamp: Date.now()
+        })
+      }
+    })
+    
+    // Room join
+    this.registerHandler("join_room", (client, message) => {
+      try {
+        const player = this.joinRoom(
+          client.id,
+          message.payload.roomId,
+          message.payload.password
+        )
+        const room = this.getRoom(message.payload.roomId)
+        client.send({
+          type: "room_joined",
+          category: MessageCategory.ROOM,
+          payload: { room, player },
+          timestamp: Date.now()
+        })
+      } catch (err) {
+        client.send({
+          type: "error",
+          category: MessageCategory.ROOM,
+          payload: { message: err.message },
+          timestamp: Date.now()
+        })
+      }
+    })
+    
+    // Room leave
+    this.registerHandler("leave_room", (client, message) => {
+      if (client.roomId) {
+        this.leaveRoom(client.id, client.roomId)
+      }
+    })
+    
+    // Position update
+    this.registerHandler("position_update", (client, message) => {
+      if (client.roomId) {
+        this.updatePlayerPosition(
+          client.id,
+          client.roomId,
+          message.payload.position,
+          message.payload.rotation
+        )
+      }
+    })
+  }
+  
+  @action registerHandler(type: string, handler: Function): void {
+    this.state.messageHandlers.set(type, handler)
+  }
+  
+  // =========================================================================
+  // UTILITIES
+  // =========================================================================
+  
+  @method generateRoomId(): string {
+    return `room_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`
+  }
+  
+  @computed getClientCount(): number {
+    return this.state.clients.size
+  }
+  
+  @computed getRoomCount(): number {
+    return this.state.rooms.size
+  }
+  
+  @computed getStats(): object {
+    return {
+      clients: this.state.clients.size,
+      rooms: this.state.rooms.size,
+      isRunning: this.state.isRunning,
+      tickRate: this.state.config.tickRate,
+      snapshotRate: this.state.config.snapshotRate
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { NetworkServer, ServerConfig, ClientConnection }

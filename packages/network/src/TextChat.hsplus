@@ -1,0 +1,370 @@
+/**
+ * TextChat.hsplus
+ * 
+ * Real-time text messaging system for rooms.
+ * 
+ * @package @hololand/network
+ * @version 2.0.0
+ */
+
+import { logger } from "./Logger.hsplus"
+import { NetworkClient } from "./NetworkClient.hsplus"
+import { ChatMessage, ChatConfig, MessageType, MessageCategory } from "./Types.hsplus"
+
+// =============================================================================
+// DEFAULT CONFIG
+// =============================================================================
+
+const DEFAULT_CHAT_CONFIG: ChatConfig = {
+  maxMessageLength: 500,
+  rateLimit: 5,
+  profanityFilter: false,
+  allowEmotes: true,
+  historySize: 100
+}
+
+// Emote definitions
+const EMOTES: object = {
+  ":)": "\u{1F642}",
+  ":(": "\u{2639}",
+  ":D": "\u{1F604}",
+  ":P": "\u{1F61B}",
+  ";)": "\u{1F609}",
+  "<3": "\u{2764}",
+  ":thumbsup:": "\u{1F44D}",
+  ":thumbsdown:": "\u{1F44E}",
+  ":fire:": "\u{1F525}",
+  ":star:": "\u{2B50}",
+  ":wave:": "\u{1F44B}",
+  ":clap:": "\u{1F44F}",
+  ":party:": "\u{1F389}",
+  ":rocket:": "\u{1F680}",
+  ":vr:": "\u{1F97D}"
+}
+
+// =============================================================================
+// TEXT CHAT MODULE
+// =============================================================================
+
+module TextChat {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    config: ChatConfig = { ...DEFAULT_CHAT_CONFIG }
+    roomId: string = null
+    messages: ChatMessage[] = []
+    lastSendTime: number = 0
+    sendCount: number = 0
+    rateLimitResetTime: number = 0
+    localDisplayName: string = "Player"
+    localId: string = ""
+    eventListeners: Map<string, Set<Function>> = new Map()
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(config: ChatConfig = {}): void {
+    this.state.config = { ...DEFAULT_CHAT_CONFIG, ...config }
+    this.setupMessageHandlers()
+    logger.info("TextChat initialized", { config: this.state.config })
+  }
+  
+  // =========================================================================
+  // CHAT CONTROL
+  // =========================================================================
+  
+  @action joinRoom(roomId: string, displayName: string): void {
+    this.state.roomId = roomId
+    this.state.localDisplayName = displayName
+    this.state.messages = []
+    
+    // Request history
+    NetworkClient.send({
+      type: "chatJoin",
+      category: MessageCategory.CHAT,
+      payload: { roomId },
+      timestamp: Date.now()
+    })
+    
+    logger.info("Joined chat room", { roomId })
+  }
+  
+  @action leaveRoom(): void {
+    if (!this.state.roomId) return
+    
+    NetworkClient.send({
+      type: "chatLeave",
+      category: MessageCategory.CHAT,
+      payload: { roomId: this.state.roomId },
+      timestamp: Date.now()
+    })
+    
+    this.state.roomId = null
+    this.state.messages = []
+    logger.info("Left chat room")
+  }
+  
+  // =========================================================================
+  // SENDING MESSAGES
+  // =========================================================================
+  
+  @action send(content: string): boolean {
+    if (!this.state.roomId) {
+      logger.warn("Cannot send message: not in a room")
+      return false
+    }
+    
+    // Check rate limit
+    if (!this.checkRateLimit()) {
+      const remaining = this.state.rateLimitResetTime - Date.now()
+      this.emit("rateLimit", { remainingMs: remaining })
+      return false
+    }
+    
+    // Validate content
+    const trimmed = content.trim()
+    if (trimmed.length === 0) return false
+    
+    if (trimmed.length > this.state.config.maxMessageLength) {
+      this.emit("error", { message: "Message too long" })
+      return false
+    }
+    
+    // Process emotes
+    const processedContent = this.state.config.allowEmotes 
+      ? this.processEmotes(trimmed) 
+      : trimmed
+    
+    // Create message
+    const message: ChatMessage = {
+      id: this.generateId(),
+      type: MessageType.TEXT,
+      senderId: this.state.localId,
+      senderName: this.state.localDisplayName,
+      content: processedContent,
+      timestamp: Date.now(),
+      roomId: this.state.roomId
+    }
+    
+    // Send to server
+    NetworkClient.send({
+      type: "chatMessage",
+      category: MessageCategory.CHAT,
+      payload: message,
+      timestamp: Date.now()
+    })
+    
+    // Add to local history
+    this.addMessage(message)
+    
+    return true
+  }
+  
+  @action sendEmote(emoteName: string): boolean {
+    if (!this.state.roomId) return false
+    
+    const message: ChatMessage = {
+      id: this.generateId(),
+      type: MessageType.EMOTE,
+      senderId: this.state.localId,
+      senderName: this.state.localDisplayName,
+      content: emoteName,
+      timestamp: Date.now(),
+      roomId: this.state.roomId
+    }
+    
+    NetworkClient.send({
+      type: "chatMessage",
+      category: MessageCategory.CHAT,
+      payload: message,
+      timestamp: Date.now()
+    })
+    
+    this.addMessage(message)
+    return true
+  }
+  
+  @action sendWhisper(targetId: string, content: string): boolean {
+    if (!this.state.roomId) return false
+    
+    const message: ChatMessage = {
+      id: this.generateId(),
+      type: MessageType.WHISPER,
+      senderId: this.state.localId,
+      senderName: this.state.localDisplayName,
+      content: content.trim(),
+      timestamp: Date.now(),
+      roomId: this.state.roomId,
+      targetId
+    }
+    
+    NetworkClient.send({
+      type: "chatMessage",
+      category: MessageCategory.CHAT,
+      payload: message,
+      timestamp: Date.now()
+    })
+    
+    this.addMessage(message)
+    return true
+  }
+  
+  // =========================================================================
+  // MESSAGE HANDLING
+  // =========================================================================
+  
+  @method setupMessageHandlers(): void {
+    NetworkClient.onMessage("chatMessage", (msg) => {
+      this.handleIncomingMessage(msg.payload)
+    })
+    
+    NetworkClient.onMessage("chatHistory", (msg) => {
+      this.handleHistory(msg.payload.messages)
+    })
+  }
+  
+  @method handleIncomingMessage(message: ChatMessage): void {
+    // Don't duplicate own messages
+    if (message.senderId === this.state.localId) return
+    
+    // Apply profanity filter if enabled
+    if (this.state.config.profanityFilter) {
+      message.content = this.filterProfanity(message.content)
+    }
+    
+    this.addMessage(message)
+    this.emit("message", { message })
+  }
+  
+  @method handleHistory(messages: ChatMessage[]): void {
+    this.state.messages = messages
+    this.emit("history", { messages })
+  }
+  
+  @method addMessage(message: ChatMessage): void {
+    this.state.messages.push(message)
+    
+    // Trim history
+    while (this.state.messages.length > this.state.config.historySize) {
+      this.state.messages.shift()
+    }
+    
+    this.emit("message", { message })
+  }
+  
+  // =========================================================================
+  // RATE LIMITING
+  // =========================================================================
+  
+  @method checkRateLimit(): boolean {
+    const now = Date.now()
+    
+    // Reset counter if second has passed
+    if (now - this.state.lastSendTime >= 1000) {
+      this.state.sendCount = 0
+      this.state.lastSendTime = now
+    }
+    
+    // Check if under limit
+    if (this.state.sendCount >= this.state.config.rateLimit) {
+      this.state.rateLimitResetTime = this.state.lastSendTime + 1000
+      return false
+    }
+    
+    this.state.sendCount++
+    return true
+  }
+  
+  // =========================================================================
+  // CONTENT PROCESSING
+  // =========================================================================
+  
+  @method processEmotes(content: string): string {
+    let processed = content
+    
+    Object.entries(EMOTES).forEach(([code, emoji]) => {
+      processed = processed.split(code).join(emoji)
+    })
+    
+    return processed
+  }
+  
+  @method filterProfanity(content: string): string {
+    // Simple filter - in production use a proper library
+    const badWords = ["badword1", "badword2"]
+    let filtered = content
+    
+    badWords.forEach(word => {
+      const regex = new RegExp(word, "gi")
+      filtered = filtered.replace(regex, "*".repeat(word.length))
+    })
+    
+    return filtered
+  }
+  
+  // =========================================================================
+  // EVENT SYSTEM
+  // =========================================================================
+  
+  @action on(event: string, callback: Function): void {
+    if (!this.state.eventListeners.has(event)) {
+      this.state.eventListeners.set(event, new Set())
+    }
+    this.state.eventListeners.get(event).add(callback)
+  }
+  
+  @action off(event: string, callback: Function): void {
+    this.state.eventListeners.get(event)?.delete(callback)
+  }
+  
+  @method emit(event: string, data: any): void {
+    this.state.eventListeners.get(event)?.forEach(cb => cb(data))
+  }
+  
+  // =========================================================================
+  // GETTERS
+  // =========================================================================
+  
+  @computed getMessages(): ChatMessage[] {
+    return [...this.state.messages]
+  }
+  
+  @method getMessageById(id: string): ChatMessage | null {
+    return this.state.messages.find(m => m.id === id) || null
+  }
+  
+  @method getMessagesByType(type: MessageType): ChatMessage[] {
+    return this.state.messages.filter(m => m.type === type)
+  }
+  
+  @computed getUnreadCount(): number {
+    // This would need tracking of last read timestamp
+    return 0
+  }
+  
+  // =========================================================================
+  // UTILITIES
+  // =========================================================================
+  
+  @method generateId(): string {
+    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  }
+  
+  @action clear(): void {
+    this.state.messages = []
+  }
+  
+  @method formatTimestamp(timestamp: number): string {
+    return new Date(timestamp).toLocaleTimeString()
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { TextChat, EMOTES, DEFAULT_CHAT_CONFIG }

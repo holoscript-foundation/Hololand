@@ -1,0 +1,22 @@
+/**
+ * HoloScript AR Runtime Integration
+ *
+ * @deprecated This file has been moved to @hololand/ar-foundation.
+ * Import from '@hololand/ar-foundation' instead:
+ *
+ * ```hsplus
+ * import { createARRuntime, executeARNode } from "@hololand/ar-foundation"
+ * ```
+ *
+ * This file will be removed in a future version.
+ * The exports below are re-exports from @hololand/ar-foundation for backwards compatibility.
+ */
+
+// Re-export everything from ar-foundation for backwards compatibility
+export {
+  createARRuntime,
+  executeARNode,
+  AR_BINDINGS,
+  type ARModuleState,
+  type ARModuleAPI
+} from "@hololand/ar-foundation"

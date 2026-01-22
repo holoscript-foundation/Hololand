@@ -1,0 +1,640 @@
+/**
+ * Voice Chat Module
+ *
+ * Provides spatial voice chat with WebRTC integration, voice activity detection,
+ * echo cancellation, and noise suppression.
+ */
+
+import {
+  Vector3,
+  VoiceChatConfig,
+  VoiceParticipant,
+  VoiceActivityState,
+  AudioEvent,
+  AudioEventListener,
+  AudioEventType,
+  DEFAULT_VOICE_CONFIG
+} from "./types.hsplus"
+
+// =============================================================================
+// VOICE ACTIVITY DETECTOR
+// =============================================================================
+
+/**
+ * Detects voice activity using RMS analysis
+ */
+module VoiceActivityDetector {
+  @state {
+    context: AudioContext = null,
+    analyser: AnalyserNode = null,
+    dataArray: Uint8Array = null,
+    threshold: number = 0.02,
+    smoothedLevel: number = 0,
+    smoothingFactor: number = 0.9
+  }
+
+  @action initialize(context: AudioContext, threshold: number) {
+    self.context = context
+    self.threshold = threshold
+    self.smoothedLevel = 0
+
+    self.analyser = context.createAnalyser()
+    self.analyser.fftSize = 256
+    self.dataArray = new Uint8Array(self.analyser.frequencyBinCount)
+  }
+
+  /**
+   * Connect to an audio source for monitoring
+   */
+  @action connect(source: AudioNode) {
+    source.connect(self.analyser)
+  }
+
+  /**
+   * Check if voice activity is currently detected
+   */
+  @computed isActive() -> bool {
+    if !self.analyser || !self.dataArray { return false }
+
+    self.analyser.getByteFrequencyData(self.dataArray)
+
+    // Calculate RMS level
+    let sum = 0
+    for let i = 0; i < self.dataArray.length; i += 1 {
+      sum += self.dataArray[i] * self.dataArray[i]
+    }
+    let rms = Math.sqrt(sum / self.dataArray.length) / 255
+
+    // Smooth the level for stability
+    self.smoothedLevel = self.smoothingFactor * self.smoothedLevel +
+      (1 - self.smoothingFactor) * rms
+
+    return self.smoothedLevel > self.threshold
+  }
+
+  /**
+   * Get current audio level (0-1)
+   */
+  @computed getLevel() -> number {
+    return self.smoothedLevel
+  }
+
+  /**
+   * Update detection threshold
+   */
+  @action setThreshold(threshold: number) {
+    self.threshold = threshold
+  }
+
+  /**
+   * Cleanup resources
+   */
+  @action dispose() {
+    if self.analyser {
+      self.analyser.disconnect()
+      self.analyser = null
+    }
+    self.dataArray = null
+  }
+}
+
+// =============================================================================
+// REMOTE VOICE RENDERER
+// =============================================================================
+
+/**
+ * Renders audio from a remote participant with spatial positioning
+ */
+module RemoteVoiceRenderer {
+  @state {
+    id: string = "",
+    position: Vector3 = { x: 0, y: 0, z: 0 },
+    volume: number = 1.0,
+    muted: bool = false,
+    context: AudioContext = null,
+    panner: PannerNode = null,
+    gainNode: GainNode = null,
+    mediaStream: MediaStream = null,
+    sourceNode: MediaStreamAudioSourceNode = null
+  }
+
+  @action initialize(context: AudioContext, id: string, position: Vector3, destination: AudioNode) {
+    self.context = context
+    self.id = id
+    self.position = position
+
+    // Create spatial audio chain with HRTF
+    self.panner = context.createPanner()
+    self.panner.panningModel = "HRTF"
+    self.panner.distanceModel = "inverse"
+    self.panner.refDistance = 1
+    self.panner.maxDistance = 100
+    self.panner.rolloffFactor = 1
+
+    self.gainNode = context.createGain()
+
+    // Set initial position
+    self.setPosition(position)
+
+    // Connect: panner -> gain -> destination
+    self.panner.connect(self.gainNode)
+    self.gainNode.connect(destination)
+  }
+
+  /**
+   * Set audio stream from remote peer
+   */
+  @action setStream(stream: MediaStream) {
+    // Disconnect existing source
+    if self.sourceNode {
+      self.sourceNode.disconnect()
+    }
+
+    self.mediaStream = stream
+    self.sourceNode = self.context.createMediaStreamSource(stream)
+    self.sourceNode.connect(self.panner)
+  }
+
+  /**
+   * Update 3D position
+   */
+  @action setPosition(position: Vector3) {
+    self.position = position
+    self.panner.positionX.setValueAtTime(position.x, self.context.currentTime)
+    self.panner.positionY.setValueAtTime(position.y, self.context.currentTime)
+    self.panner.positionZ.setValueAtTime(position.z, self.context.currentTime)
+  }
+
+  /**
+   * Set volume level
+   */
+  @action setVolume(volume: number) {
+    self.volume = Math.max(0, Math.min(1, volume))
+    self.gainNode.gain.setValueAtTime(
+      self.muted ? 0 : self.volume,
+      self.context.currentTime
+    )
+  }
+
+  /**
+   * Mute/unmute this participant
+   */
+  @action setMuted(muted: bool) {
+    self.muted = muted
+    self.gainNode.gain.setValueAtTime(
+      muted ? 0 : self.volume,
+      self.context.currentTime
+    )
+  }
+
+  /**
+   * Cleanup resources
+   */
+  @action dispose() {
+    if self.sourceNode {
+      self.sourceNode.disconnect()
+      self.sourceNode = null
+    }
+    self.panner?.disconnect()
+    self.gainNode?.disconnect()
+    self.mediaStream = null
+  }
+}
+
+// =============================================================================
+// MAIN VOICE CHAT MODULE
+// =============================================================================
+
+/**
+ * Voice Chat Manager - handles local/remote voice with spatial audio
+ */
+module VoiceChat {
+  @state {
+    config: VoiceChatConfig = DEFAULT_VOICE_CONFIG,
+    context: AudioContext = null,
+    localStream: MediaStream = null,
+    localGain: GainNode = null,
+    vad: typeof VoiceActivityDetector = null,
+    remoteRenderers: Map<string, typeof RemoteVoiceRenderer> = new Map(),
+    participants: Map<string, VoiceParticipant> = new Map(),
+    listeners: Map<AudioEventType, Set<AudioEventListener>> = new Map(),
+    localMuted: bool = false,
+    localState: VoiceActivityState = VoiceActivityState.silent,
+    vadIntervalId: number = null,
+    pttActive: bool = false,
+    listenerPosition: Vector3 = { x: 0, y: 0, z: 0 },
+    initialized: bool = false
+  }
+
+  @action setConfig(config: VoiceChatConfig) {
+    self.config = { ...DEFAULT_VOICE_CONFIG, ...config }
+  }
+
+  /**
+   * Initialize voice chat
+   */
+  @action async initialize() -> bool {
+    try {
+      self.context = new AudioContext({
+        sampleRate: self.config.sampleRate
+      })
+      self.initialized = true
+      return true
+    } catch error {
+      console.error("[VoiceChat] Failed to initialize:", error)
+      return false
+    }
+  }
+
+  /**
+   * Start local voice capture
+   */
+  @action async startCapture() -> bool {
+    if !self.context {
+      throw new Error("VoiceChat not initialized")
+    }
+
+    try {
+      // Request microphone access
+      self.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: self.config.echoCancellation,
+          noiseSuppression: self.config.noiseSuppression,
+          autoGainControl: self.config.autoGainControl,
+          sampleRate: self.config.sampleRate,
+          channelCount: self.config.channelCount
+        }
+      })
+
+      // Create local audio chain
+      let sourceNode = self.context.createMediaStreamSource(self.localStream)
+      self.localGain = self.context.createGain()
+      sourceNode.connect(self.localGain)
+
+      // Setup VAD if enabled
+      if self.config.vadEnabled {
+        VoiceActivityDetector.initialize(self.context, self.config.vadThreshold)
+        VoiceActivityDetector.connect(sourceNode)
+        self.vad = VoiceActivityDetector
+        self.startVADMonitoring()
+      }
+
+      self.emit({
+        eventType: AudioEventType.voice_started,
+        timestamp: Date.now(),
+        data: null
+      })
+
+      return true
+    } catch error {
+      console.error("[VoiceChat] Failed to start capture:", error)
+      return false
+    }
+  }
+
+  /**
+   * Stop local voice capture
+   */
+  @action stopCapture() {
+    if self.vadIntervalId {
+      clearInterval(self.vadIntervalId)
+      self.vadIntervalId = null
+    }
+
+    if self.vad {
+      self.vad.dispose()
+      self.vad = null
+    }
+
+    if self.localStream {
+      for track in self.localStream.getTracks() {
+        track.stop()
+      }
+      self.localStream = null
+    }
+
+    self.localGain = null
+
+    self.emit({
+      eventType: AudioEventType.voice_ended,
+      timestamp: Date.now(),
+      data: null
+    })
+  }
+
+  /**
+   * Get local media stream for WebRTC peer connections
+   */
+  @computed getLocalStream() -> MediaStream | null {
+    return self.localStream
+  }
+
+  /**
+   * Start VAD monitoring loop
+   */
+  @method startVADMonitoring() {
+    if self.vadIntervalId { return }
+
+    self.vadIntervalId = window.setInterval(() => {
+      if !self.vad { return }
+
+      let wasActive = self.localState == VoiceActivityState.speaking
+      let isActive = self.config.pushToTalk
+        ? self.pttActive
+        : self.vad.isActive()
+
+      let newState: VoiceActivityState = match true {
+        self.localMuted => VoiceActivityState.muted,
+        isActive => VoiceActivityState.speaking,
+        _ => VoiceActivityState.silent
+      }
+
+      if newState != self.localState {
+        self.localState = newState
+        self.emit({
+          eventType: AudioEventType.voice_activity,
+          timestamp: Date.now(),
+          data: { state: newState, level: self.vad.getLevel() }
+        })
+      }
+    }, 50)
+  }
+
+  /**
+   * Set push-to-talk state
+   */
+  @action setPTTActive(active: bool) {
+    self.pttActive = active
+  }
+
+  /**
+   * Add a remote participant
+   */
+  @action addParticipant(id: string, displayName: string, position: Vector3, stream: MediaStream = null) {
+    if !self.context {
+      throw new Error("VoiceChat not initialized")
+    }
+
+    // Create participant entry
+    let participant: VoiceParticipant = {
+      id: id,
+      displayName: displayName,
+      position: position,
+      state: VoiceActivityState.silent,
+      volume: 1.0,
+      muted: false,
+      localMuted: false
+    }
+    self.participants.set(id, participant)
+
+    // Create spatial renderer if spatial voice enabled
+    if self.config.spatialVoice {
+      RemoteVoiceRenderer.initialize(self.context, id, position, self.context.destination)
+
+      if stream {
+        RemoteVoiceRenderer.setStream(stream)
+      }
+
+      self.remoteRenderers.set(id, RemoteVoiceRenderer)
+    }
+
+    self.emit({
+      eventType: AudioEventType.participant_joined,
+      participantId: id,
+      timestamp: Date.now(),
+      data: { displayName: displayName }
+    })
+  }
+
+  /**
+   * Remove a participant
+   */
+  @action removeParticipant(id: string) {
+    let renderer = self.remoteRenderers.get(id)
+    if renderer {
+      renderer.dispose()
+      self.remoteRenderers.delete(id)
+    }
+
+    self.participants.delete(id)
+
+    self.emit({
+      eventType: AudioEventType.participant_left,
+      participantId: id,
+      timestamp: Date.now(),
+      data: null
+    })
+  }
+
+  /**
+   * Update participant's audio stream
+   */
+  @action updateParticipantStream(id: string, stream: MediaStream) {
+    let renderer = self.remoteRenderers.get(id)
+    if renderer {
+      renderer.setStream(stream)
+    }
+  }
+
+  /**
+   * Update participant's 3D position
+   */
+  @action updateParticipantPosition(id: string, position: Vector3) {
+    let participant = self.participants.get(id)
+    if participant {
+      participant.position = position
+    }
+
+    let renderer = self.remoteRenderers.get(id)
+    if renderer {
+      renderer.setPosition(position)
+    }
+  }
+
+  /**
+   * Set participant's volume level
+   */
+  @action setParticipantVolume(id: string, volume: number) {
+    let participant = self.participants.get(id)
+    if participant {
+      participant.volume = volume
+    }
+
+    let renderer = self.remoteRenderers.get(id)
+    if renderer {
+      renderer.setVolume(volume)
+    }
+  }
+
+  /**
+   * Mute/unmute a participant locally
+   */
+  @action setParticipantLocalMuted(id: string, muted: bool) {
+    let participant = self.participants.get(id)
+    if participant {
+      participant.localMuted = muted
+    }
+
+    let renderer = self.remoteRenderers.get(id)
+    if renderer {
+      renderer.setMuted(muted)
+    }
+  }
+
+  /**
+   * Update listener position for spatial audio
+   */
+  @action updateListenerPosition(position: Vector3) {
+    self.listenerPosition = position
+
+    if self.context {
+      let listener = self.context.listener
+      listener.positionX.setValueAtTime(position.x, self.context.currentTime)
+      listener.positionY.setValueAtTime(position.y, self.context.currentTime)
+      listener.positionZ.setValueAtTime(position.z, self.context.currentTime)
+    }
+  }
+
+  /**
+   * Mute/unmute local microphone
+   */
+  @action setLocalMuted(muted: bool) {
+    self.localMuted = muted
+
+    if self.localStream {
+      for track in self.localStream.getAudioTracks() {
+        track.enabled = !muted
+      }
+    }
+  }
+
+  /**
+   * Check if local microphone is muted
+   */
+  @computed isLocalMuted() -> bool {
+    return self.localMuted
+  }
+
+  /**
+   * Get local voice activity state
+   */
+  @computed getLocalState() -> VoiceActivityState {
+    return self.localState
+  }
+
+  /**
+   * Get current voice level (0-1)
+   */
+  @computed getVoiceLevel() -> number {
+    return self.vad?.getLevel() ?? 0
+  }
+
+  /**
+   * Get all participants
+   */
+  @computed getParticipants() -> array<VoiceParticipant> {
+    return Array.from(self.participants.values())
+  }
+
+  /**
+   * Get participant by ID
+   */
+  @method getParticipant(id: string) -> VoiceParticipant | null {
+    return self.participants.get(id) ?? null
+  }
+
+  /**
+   * Add event listener
+   */
+  @action addEventListener(eventType: AudioEventType, listener: AudioEventListener) {
+    if !self.listeners.has(eventType) {
+      self.listeners.set(eventType, new Set())
+    }
+    self.listeners.get(eventType).add(listener)
+  }
+
+  /**
+   * Remove event listener
+   */
+  @action removeEventListener(eventType: AudioEventType, listener: AudioEventListener) {
+    if self.listeners.has(eventType) {
+      self.listeners.get(eventType).delete(listener)
+    }
+  }
+
+  /**
+   * Emit an event to listeners
+   */
+  @method emit(event: AudioEvent) {
+    let eventListeners = self.listeners.get(event.eventType)
+    if eventListeners {
+      for listener in eventListeners {
+        try {
+          listener(event)
+        } catch error {
+          console.error("[VoiceChat] Event listener error:", error)
+        }
+      }
+    }
+  }
+
+  /**
+   * Dispose and cleanup all resources
+   */
+  @action dispose() {
+    self.stopCapture()
+
+    for [id, _] in self.remoteRenderers {
+      self.removeParticipant(id)
+    }
+
+    if self.context {
+      self.context.close()
+      self.context = null
+    }
+
+    self.listeners.clear()
+    self.initialized = false
+  }
+
+  @computed isInitialized() -> bool {
+    return self.initialized
+  }
+}
+
+// =============================================================================
+// SINGLETON & FACTORY
+// =============================================================================
+
+let _voiceChatInstance: typeof VoiceChat = null
+
+/**
+ * Get or create voice chat singleton
+ */
+function getVoiceChat(config: VoiceChatConfig = {}) -> typeof VoiceChat {
+  if !_voiceChatInstance {
+    VoiceChat.setConfig(config)
+    _voiceChatInstance = VoiceChat
+  }
+  return _voiceChatInstance
+}
+
+/**
+ * Create a new voice chat instance
+ */
+function createVoiceChat(config: VoiceChatConfig = {}) -> typeof VoiceChat {
+  VoiceChat.setConfig(config)
+  return VoiceChat
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  VoiceActivityDetector,
+  RemoteVoiceRenderer,
+  VoiceChat,
+  getVoiceChat,
+  createVoiceChat
+}

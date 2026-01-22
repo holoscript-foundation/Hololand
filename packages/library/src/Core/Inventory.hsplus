@@ -1,0 +1,600 @@
+// HOSL: Inventory System
+// Complete inventory, items, and equipment management
+
+/**
+ * Item Definition
+ * Base item data structure
+ */
+prefab Item {
+  @state {
+    stack_count: 1
+    durability: -1  // -1 = infinite
+    custom_data: {}
+  }
+
+  @props {
+    id: ""
+    name: ""
+    description: ""
+    icon: null
+    
+    // Stacking
+    stackable: true
+    max_stack: 99
+    
+    // Categories
+    type: "misc"  // weapon | armor | consumable | material | quest | misc
+    rarity: "common"  // common | uncommon | rare | epic | legendary
+    
+    // Value
+    buy_price: 0
+    sell_price: 0
+    
+    // Usage
+    usable: false
+    use_action: null
+    consumable: false
+    
+    // Equipment
+    equippable: false
+    equipment_slot: null  // head | chest | legs | feet | hands | weapon | offhand | accessory
+    stats: {}
+  }
+
+  // Use the item
+  @method use(user) => {
+    if (!props.usable) return false
+    
+    if (props.use_action) {
+      const result = props.use_action(user, this)
+      
+      if (result && props.consumable) {
+        state.stack_count--
+        if (state.stack_count <= 0) {
+          this.emit("depleted")
+        }
+      }
+      
+      return result
+    }
+    
+    return false
+  }
+
+  // Clone this item
+  @method clone(count = 1) => {
+    return {
+      ...props,
+      stack_count: Math.min(count, props.max_stack),
+      durability: state.durability,
+      custom_data: { ...state.custom_data }
+    }
+  }
+
+  // Check if can stack with another item
+  @method canStackWith(other) => {
+    return props.stackable && 
+           props.id === other.id && 
+           state.stack_count < props.max_stack
+  }
+}
+
+/**
+ * Inventory Container
+ * Slot-based inventory system
+ */
+component Inventory {
+  @state {
+    slots: []
+    selected_slot: -1
+    locked: false
+  }
+
+  @props {
+    size: 20
+    allow_overflow: false
+    weight_limit: -1  // -1 = no limit
+    filter: null  // Function to filter allowed items
+    
+    on_change: null
+  }
+
+  @on_ready => {
+    // Initialize empty slots
+    state.slots = Array(props.size).fill(null)
+  }
+
+  // Add item to inventory
+  @method addItem(item, count = 1) => {
+    if (state.locked) return 0
+    if (props.filter && !props.filter(item)) return 0
+    
+    let remaining = count
+    
+    // First try to stack with existing items
+    if (item.stackable) {
+      for (let i = 0; i < state.slots.length && remaining > 0; i++) {
+        const slot = state.slots[i]
+        if (slot && slot.id === item.id && slot.stack_count < item.max_stack) {
+          const canAdd = Math.min(remaining, item.max_stack - slot.stack_count)
+          slot.stack_count += canAdd
+          remaining -= canAdd
+        }
+      }
+    }
+    
+    // Then fill empty slots
+    while (remaining > 0) {
+      const emptyIndex = state.slots.findIndex(s => s === null)
+      if (emptyIndex === -1) {
+        if (props.allow_overflow) {
+          state.slots.push(item.clone(remaining))
+          remaining = 0
+        }
+        break
+      }
+      
+      const stackSize = Math.min(remaining, item.max_stack)
+      state.slots[emptyIndex] = item.clone(stackSize)
+      remaining -= stackSize
+    }
+    
+    const added = count - remaining
+    if (added > 0 && props.on_change) {
+      props.on_change("add", item, added)
+    }
+    
+    return added
+  }
+
+  // Remove item from inventory
+  @method removeItem(item_id, count = 1) => {
+    if (state.locked) return 0
+    
+    let remaining = count
+    
+    for (let i = state.slots.length - 1; i >= 0 && remaining > 0; i--) {
+      const slot = state.slots[i]
+      if (slot && slot.id === item_id) {
+        const toRemove = Math.min(remaining, slot.stack_count)
+        slot.stack_count -= toRemove
+        remaining -= toRemove
+        
+        if (slot.stack_count <= 0) {
+          state.slots[i] = null
+        }
+      }
+    }
+    
+    const removed = count - remaining
+    if (removed > 0 && props.on_change) {
+      props.on_change("remove", item_id, removed)
+    }
+    
+    return removed
+  }
+
+  // Get item at slot
+  @method getSlot(index) => {
+    return state.slots[index] || null
+  }
+
+  // Set item at slot (for drag/drop)
+  @method setSlot(index, item) => {
+    if (state.locked) return false
+    if (index < 0 || index >= state.slots.length) return false
+    
+    state.slots[index] = item
+    if (props.on_change) {
+      props.on_change("set", item, index)
+    }
+    return true
+  }
+
+  // Swap two slots
+  @method swapSlots(index1, index2) => {
+    if (state.locked) return false
+    
+    const temp = state.slots[index1]
+    state.slots[index1] = state.slots[index2]
+    state.slots[index2] = temp
+    
+    if (props.on_change) {
+      props.on_change("swap", index1, index2)
+    }
+    return true
+  }
+
+  // Check if has item
+  @method hasItem(item_id, count = 1) => {
+    return this.getItemCount(item_id) >= count
+  }
+
+  // Get total count of an item
+  @method getItemCount(item_id) => {
+    return state.slots.reduce((sum, slot) => {
+      return sum + (slot && slot.id === item_id ? slot.stack_count : 0)
+    }, 0)
+  }
+
+  // Get all items
+  @method getAllItems() => {
+    return state.slots.filter(s => s !== null)
+  }
+
+  // Get first empty slot index
+  @method getFirstEmptySlot() => {
+    return state.slots.findIndex(s => s === null)
+  }
+
+  // Check if inventory is full
+  @computed isFull() {
+    return state.slots.every(s => s !== null)
+  }
+
+  // Sort inventory
+  @method sort(comparator = null) => {
+    const items = state.slots.filter(s => s !== null)
+    
+    if (comparator) {
+      items.sort(comparator)
+    } else {
+      // Default sort: type, then rarity, then name
+      items.sort((a, b) => {
+        if (a.type !== b.type) return a.type.localeCompare(b.type)
+        const rarityOrder = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 }
+        if (a.rarity !== b.rarity) return rarityOrder[b.rarity] - rarityOrder[a.rarity]
+        return a.name.localeCompare(b.name)
+      })
+    }
+    
+    state.slots = [...items, ...Array(props.size - items.length).fill(null)]
+    
+    if (props.on_change) {
+      props.on_change("sort")
+    }
+  }
+
+  // Clear inventory
+  @method clear() => {
+    state.slots = Array(props.size).fill(null)
+    if (props.on_change) {
+      props.on_change("clear")
+    }
+  }
+
+  // Serialize for saving
+  @method serialize() => {
+    return state.slots.map(slot => {
+      if (!slot) return null
+      return {
+        id: slot.id,
+        stack_count: slot.stack_count,
+        durability: slot.durability,
+        custom_data: slot.custom_data
+      }
+    })
+  }
+
+  // Deserialize from save
+  @method deserialize(data, itemDatabase) => {
+    state.slots = data.map(slotData => {
+      if (!slotData) return null
+      
+      const baseItem = itemDatabase.get(slotData.id)
+      if (!baseItem) return null
+      
+      return {
+        ...baseItem,
+        stack_count: slotData.stack_count,
+        durability: slotData.durability,
+        custom_data: slotData.custom_data
+      }
+    })
+  }
+}
+
+/**
+ * Equipment System
+ * Manage equipped items and stats
+ */
+component Equipment {
+  @state {
+    slots: {
+      head: null,
+      chest: null,
+      legs: null,
+      feet: null,
+      hands: null,
+      weapon: null,
+      offhand: null,
+      accessory_1: null,
+      accessory_2: null
+    }
+    
+    computed_stats: {}
+  }
+
+  @props {
+    base_stats: {}
+    inventory: null  // Reference to inventory component
+    on_equip: null
+    on_unequip: null
+  }
+
+  // Equip an item
+  @method equip(item) => {
+    if (!item.equippable) {
+      console.warn(`Item "${item.name}" is not equippable`)
+      return false
+    }
+    
+    const slot = item.equipment_slot
+    if (!state.slots.hasOwnProperty(slot)) {
+      console.warn(`Invalid equipment slot: ${slot}`)
+      return false
+    }
+    
+    // Unequip existing item
+    const currentItem = state.slots[slot]
+    if (currentItem) {
+      this.unequip(slot)
+    }
+    
+    // Remove from inventory if provided
+    if (props.inventory) {
+      props.inventory.removeItem(item.id, 1)
+    }
+    
+    state.slots[slot] = item
+    this.recalculateStats()
+    
+    if (props.on_equip) {
+      props.on_equip(item, slot)
+    }
+    
+    this.emit("equipped", { item, slot })
+    return true
+  }
+
+  // Unequip an item
+  @method unequip(slot) => {
+    const item = state.slots[slot]
+    if (!item) return null
+    
+    // Add back to inventory if provided
+    if (props.inventory) {
+      const added = props.inventory.addItem(item, 1)
+      if (added === 0) {
+        console.warn("Inventory full, cannot unequip")
+        return null
+      }
+    }
+    
+    state.slots[slot] = null
+    this.recalculateStats()
+    
+    if (props.on_unequip) {
+      props.on_unequip(item, slot)
+    }
+    
+    this.emit("unequipped", { item, slot })
+    return item
+  }
+
+  // Get equipped item in slot
+  @method getEquipped(slot) => {
+    return state.slots[slot]
+  }
+
+  // Get all equipped items
+  @method getAllEquipped() => {
+    return Object.entries(state.slots)
+      .filter(([_, item]) => item !== null)
+      .map(([slot, item]) => ({ slot, item }))
+  }
+
+  // Recalculate combined stats
+  @method recalculateStats() => {
+    const stats = { ...props.base_stats }
+    
+    for (const item of Object.values(state.slots)) {
+      if (!item || !item.stats) continue
+      
+      for (const [stat, value] of Object.entries(item.stats)) {
+        if (typeof value === "number") {
+          stats[stat] = (stats[stat] || 0) + value
+        } else if (value.percent) {
+          // Percentage bonus
+          stats[stat] = (stats[stat] || 0) * (1 + value.percent / 100)
+        }
+      }
+    }
+    
+    state.computed_stats = stats
+    this.emit("stats_changed", stats)
+  }
+
+  // Get a computed stat
+  @method getStat(stat_name) => {
+    return state.computed_stats[stat_name] || 0
+  }
+
+  // Get all computed stats
+  @method getAllStats() => {
+    return { ...state.computed_stats }
+  }
+
+  // Serialize for saving
+  @method serialize() => {
+    const data = {}
+    for (const [slot, item] of Object.entries(state.slots)) {
+      if (item) {
+        data[slot] = {
+          id: item.id,
+          durability: item.durability,
+          custom_data: item.custom_data
+        }
+      }
+    }
+    return data
+  }
+}
+
+/**
+ * Crafting System
+ * Recipe-based item creation
+ */
+component CraftingSystem {
+  @state {
+    discovered_recipes: []
+    crafting_queue: []
+    current_craft: null
+    craft_progress: 0
+  }
+
+  @props {
+    recipes: []
+    inventory: null
+    auto_discover: true
+    craft_speed: 1.0
+  }
+
+  // Define a recipe
+  @method addRecipe(config) => {
+    props.recipes.push({
+      id: config.id,
+      name: config.name,
+      result: config.result,
+      result_count: config.result_count || 1,
+      ingredients: config.ingredients,  // [{ item_id, count }]
+      craft_time: config.craft_time || 1,
+      required_station: config.required_station || null,
+      required_level: config.required_level || 0,
+      discovered: config.discovered ?? true
+    })
+  }
+
+  // Check if can craft a recipe
+  @method canCraft(recipe_id) => {
+    const recipe = props.recipes.find(r => r.id === recipe_id)
+    if (!recipe) return false
+    if (!recipe.discovered && !state.discovered_recipes.includes(recipe_id)) return false
+    
+    for (const ingredient of recipe.ingredients) {
+      if (!props.inventory.hasItem(ingredient.item_id, ingredient.count)) {
+        return false
+      }
+    }
+    
+    return true
+  }
+
+  // Start crafting
+  @method craft(recipe_id) => {
+    if (!this.canCraft(recipe_id)) return false
+    
+    const recipe = props.recipes.find(r => r.id === recipe_id)
+    
+    // Consume ingredients
+    for (const ingredient of recipe.ingredients) {
+      props.inventory.removeItem(ingredient.item_id, ingredient.count)
+    }
+    
+    state.current_craft = recipe
+    state.craft_progress = 0
+    
+    this.emit("craft_started", recipe)
+    return true
+  }
+
+  // Queue a craft
+  @method queueCraft(recipe_id, count = 1) => {
+    for (let i = 0; i < count; i++) {
+      state.crafting_queue.push(recipe_id)
+    }
+  }
+
+  // Cancel current craft
+  @method cancelCraft() => {
+    if (!state.current_craft) return
+    
+    // Refund ingredients
+    for (const ingredient of state.current_craft.ingredients) {
+      props.inventory.addItem({ id: ingredient.item_id }, ingredient.count)
+    }
+    
+    state.current_craft = null
+    state.craft_progress = 0
+    
+    this.emit("craft_cancelled")
+  }
+
+  // Discover a recipe
+  @method discoverRecipe(recipe_id) => {
+    if (!state.discovered_recipes.includes(recipe_id)) {
+      state.discovered_recipes.push(recipe_id)
+      this.emit("recipe_discovered", recipe_id)
+    }
+  }
+
+  // Get available recipes
+  @method getAvailableRecipes() => {
+    return props.recipes.filter(r => {
+      return r.discovered || state.discovered_recipes.includes(r.id)
+    })
+  }
+
+  // Get craftable recipes
+  @method getCraftableRecipes() => {
+    return this.getAvailableRecipes().filter(r => this.canCraft(r.id))
+  }
+
+  // Auto-discover based on ingredients
+  @method checkAutoDiscover() => {
+    if (!props.auto_discover) return
+    
+    for (const recipe of props.recipes) {
+      if (recipe.discovered || state.discovered_recipes.includes(recipe.id)) continue
+      
+      // Check if player has seen all ingredients
+      let hasAll = true
+      for (const ingredient of recipe.ingredients) {
+        if (props.inventory.getItemCount(ingredient.item_id) === 0) {
+          hasAll = false
+          break
+        }
+      }
+      
+      if (hasAll) {
+        this.discoverRecipe(recipe.id)
+      }
+    }
+  }
+
+  @update(delta) => {
+    if (!state.current_craft) {
+      // Start next in queue
+      if (state.crafting_queue.length > 0) {
+        const next = state.crafting_queue.shift()
+        this.craft(next)
+      }
+      return
+    }
+    
+    state.craft_progress += delta * props.craft_speed
+    
+    if (state.craft_progress >= state.current_craft.craft_time) {
+      // Craft complete
+      const recipe = state.current_craft
+      props.inventory.addItem({ id: recipe.result }, recipe.result_count)
+      
+      this.emit("craft_complete", recipe)
+      
+      state.current_craft = null
+      state.craft_progress = 0
+    }
+  }
+}
+
+export { Item, Inventory, Equipment, CraftingSystem }

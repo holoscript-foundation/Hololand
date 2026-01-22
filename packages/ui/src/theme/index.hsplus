@@ -1,0 +1,15 @@
+/**
+ * @hololand/ui - Theme Module Exports
+ */
+
+export {
+  DEFAULT_THEME,
+  DARK_THEME,
+  VR_THEME,
+  DEFAULT_COLORS,
+  DEFAULT_SPACING,
+  DEFAULT_TYPOGRAPHY,
+  DEFAULT_BORDERS,
+  ThemeManager,
+  getThemeManager
+} from "./Theme.hsplus"

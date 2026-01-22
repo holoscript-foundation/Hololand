@@ -1,0 +1,579 @@
+// HOSL: Camera Systems
+// First person, third person, and cinematic cameras
+
+/**
+ * First Person Camera Controller
+ * Mouse look with optional head bob
+ */
+component FirstPersonCamera {
+  @state {
+    pitch: 0
+    yaw: 0
+    target_pitch: 0
+    target_yaw: 0
+  }
+
+  @props {
+    sensitivity: 0.2
+    pitch_limits: [-89, 89]
+    smoothing: 10
+    
+    // Head bob
+    bob_enabled: true
+    bob_amount: [0.02, 0.04]
+    bob_speed: 10
+    
+    // Position offset from parent
+    eye_height: 1.7
+    offset: [0, 0, 0]
+  }
+
+  @on_ready => {
+    input.lockPointer()
+  }
+
+  // Look at a world position
+  @method lookAt(target) => {
+    const dir = [
+      target[0] - this.worldPosition[0],
+      target[1] - this.worldPosition[1],
+      target[2] - this.worldPosition[2]
+    ]
+    
+    state.target_yaw = Math.atan2(dir[0], dir[2]) * 180 / Math.PI
+    state.target_pitch = -Math.asin(dir[1] / Math.sqrt(dir[0]**2 + dir[1]**2 + dir[2]**2)) * 180 / Math.PI
+  }
+
+  // Get forward direction
+  @computed forward() {
+    const pitchRad = state.pitch * Math.PI / 180
+    const yawRad = state.yaw * Math.PI / 180
+    return [
+      Math.sin(yawRad) * Math.cos(pitchRad),
+      -Math.sin(pitchRad),
+      Math.cos(yawRad) * Math.cos(pitchRad)
+    ]
+  }
+
+  // Get right direction
+  @computed right() {
+    const yawRad = state.yaw * Math.PI / 180
+    return [
+      Math.cos(yawRad),
+      0,
+      -Math.sin(yawRad)
+    ]
+  }
+
+  @update(delta) => {
+    // Get mouse input
+    const mouseDelta = input.getLookDelta()
+    
+    state.target_yaw += mouseDelta[0] * props.sensitivity
+    state.target_pitch -= mouseDelta[1] * props.sensitivity
+    
+    // Clamp pitch
+    state.target_pitch = Math.max(props.pitch_limits[0], Math.min(props.pitch_limits[1], state.target_pitch))
+    
+    // Smooth interpolation
+    const t = 1 - Math.exp(-props.smoothing * delta)
+    state.pitch += (state.target_pitch - state.pitch) * t
+    state.yaw += (state.target_yaw - state.yaw) * t
+    
+    // Apply rotation
+    this.rotation = [state.pitch, state.yaw, 0]
+    
+    // Head bob
+    if (props.bob_enabled) {
+      const speed = this.parent?.velocity || [0, 0, 0]
+      const moveSpeed = Math.sqrt(speed[0]**2 + speed[2]**2)
+      
+      if (moveSpeed > 0.1) {
+        const bobX = Math.sin(time.elapsed * props.bob_speed) * props.bob_amount[0] * moveSpeed
+        const bobY = Math.abs(Math.cos(time.elapsed * props.bob_speed)) * props.bob_amount[1] * moveSpeed
+        this.position = [
+          props.offset[0] + bobX,
+          props.eye_height + props.offset[1] + bobY,
+          props.offset[2]
+        ]
+      }
+    }
+  }
+
+  camera#main {
+    fov: 75
+    near: 0.1
+    far: 1000
+  }
+}
+
+/**
+ * Third Person Camera Controller
+ * Orbit camera with collision
+ */
+component ThirdPersonCamera {
+  @state {
+    current_distance: 5
+    pitch: 20
+    yaw: 0
+    target_pitch: 20
+    target_yaw: 0
+    collision_offset: 0
+  }
+
+  @props {
+    target: null
+    distance: 5
+    min_distance: 1
+    max_distance: 15
+    
+    sensitivity: 0.3
+    pitch_limits: [-60, 80]
+    smoothing: 8
+    
+    // Offset from target
+    target_offset: [0, 1.5, 0]
+    
+    // Collision
+    collision_enabled: true
+    collision_radius: 0.3
+    collision_layers: -1
+    
+    // Zoom
+    zoom_speed: 2
+    zoom_smoothing: 5
+  }
+
+  // Zoom in/out
+  @method zoom(amount) => {
+    state.current_distance -= amount * props.zoom_speed
+    state.current_distance = Math.max(props.min_distance, Math.min(props.max_distance, state.current_distance))
+  }
+
+  // Set yaw instantly
+  @method setYaw(yaw) => {
+    state.yaw = yaw
+    state.target_yaw = yaw
+  }
+
+  // Get camera-relative forward (for movement)
+  @computed flatForward() {
+    const yawRad = state.yaw * Math.PI / 180
+    return [Math.sin(yawRad), 0, Math.cos(yawRad)]
+  }
+
+  @computed flatRight() {
+    const yawRad = state.yaw * Math.PI / 180
+    return [Math.cos(yawRad), 0, -Math.sin(yawRad)]
+  }
+
+  @update(delta) => {
+    if (!props.target) return
+    
+    // Get input
+    const mouseDelta = input.getLookDelta()
+    const scroll = input.getMouseWheel()
+    
+    state.target_yaw += mouseDelta[0] * props.sensitivity
+    state.target_pitch -= mouseDelta[1] * props.sensitivity
+    state.target_pitch = Math.max(props.pitch_limits[0], Math.min(props.pitch_limits[1], state.target_pitch))
+    
+    // Zoom
+    if (scroll != 0) {
+      this.zoom(scroll > 0 ? 1 : -1)
+    }
+    
+    // Smooth interpolation
+    const t = 1 - Math.exp(-props.smoothing * delta)
+    state.pitch += (state.target_pitch - state.pitch) * t
+    state.yaw += (state.target_yaw - state.yaw) * t
+    
+    // Calculate desired position
+    const pitchRad = state.pitch * Math.PI / 180
+    const yawRad = state.yaw * Math.PI / 180
+    
+    const targetPos = [
+      props.target.worldPosition[0] + props.target_offset[0],
+      props.target.worldPosition[1] + props.target_offset[1],
+      props.target.worldPosition[2] + props.target_offset[2]
+    ]
+    
+    const desiredPos = [
+      targetPos[0] - Math.sin(yawRad) * Math.cos(pitchRad) * state.current_distance,
+      targetPos[1] + Math.sin(pitchRad) * state.current_distance,
+      targetPos[2] - Math.cos(yawRad) * Math.cos(pitchRad) * state.current_distance
+    ]
+    
+    // Collision check
+    if (props.collision_enabled) {
+      const dir = [
+        desiredPos[0] - targetPos[0],
+        desiredPos[1] - targetPos[1],
+        desiredPos[2] - targetPos[2]
+      ]
+      const dist = Math.sqrt(dir[0]**2 + dir[1]**2 + dir[2]**2)
+      
+      const hit = physics.sphereCast(
+        targetPos,
+        props.collision_radius,
+        [dir[0]/dist, dir[1]/dist, dir[2]/dist],
+        state.current_distance,
+        props.collision_layers
+      )
+      
+      if (hit && hit.distance < state.current_distance) {
+        state.collision_offset = state.current_distance - hit.distance + props.collision_radius
+      } else {
+        state.collision_offset *= (1 - delta * 5)  // Ease back out
+      }
+    }
+    
+    const actualDistance = state.current_distance - state.collision_offset
+    
+    this.position = [
+      targetPos[0] - Math.sin(yawRad) * Math.cos(pitchRad) * actualDistance,
+      targetPos[1] + Math.sin(pitchRad) * actualDistance,
+      targetPos[2] - Math.cos(yawRad) * Math.cos(pitchRad) * actualDistance
+    ]
+    
+    // Look at target
+    this.lookAt(targetPos)
+  }
+
+  camera#main {
+    fov: 60
+    near: 0.1
+    far: 1000
+  }
+}
+
+/**
+ * Cinematic Camera
+ * Dolly, crane, and spline-based camera movements
+ */
+component CinematicCamera {
+  @state {
+    playing: false
+    current_shot: null
+    shot_progress: 0
+    shots_queue: []
+  }
+
+  @props {
+    default_fov: 50
+    default_duration: 3
+    ease: "easeInOutCubic"
+  }
+
+  // Define a camera shot
+  @method defineShot(name, config) => {
+    this.shots[name] = {
+      from: config.from,           // { position, rotation, fov }
+      to: config.to,               // { position, rotation, fov }
+      duration: config.duration || props.default_duration,
+      ease: config.ease || props.ease,
+      focus_target: config.focus_target,  // Optional object to track
+      dolly_path: config.dolly_path       // Optional spline path
+    }
+  }
+
+  // Play a shot
+  @method playShot(name) => {
+    const shot = this.shots[name]
+    if (!shot) {
+      console.warn(`Shot "${name}" not defined`)
+      return Promise.resolve()
+    }
+    
+    state.current_shot = shot
+    state.shot_progress = 0
+    state.playing = true
+    
+    return new Promise((resolve) => {
+      shot.resolve = resolve
+    })
+  }
+
+  // Queue multiple shots
+  @method playSequence(shot_names) => {
+    state.shots_queue = [...shot_names]
+    return this.playNextInQueue()
+  }
+
+  @method playNextInQueue() => {
+    if (state.shots_queue.length == 0) {
+      return Promise.resolve()
+    }
+    
+    const next = state.shots_queue.shift()
+    return this.playShot(next).then(() => this.playNextInQueue())
+  }
+
+  // Cut to a position instantly
+  @method cut(position, rotation, fov) => {
+    this.position = position
+    this.rotation = rotation
+    this.#main.fov = fov || props.default_fov
+  }
+
+  // Stop current shot
+  @method stop() => {
+    state.playing = false
+    if (state.current_shot?.resolve) {
+      state.current_shot.resolve()
+    }
+    state.current_shot = null
+  }
+
+  // Internal shots storage
+  shots = {}
+
+  // Easing functions
+  ease(t, type) {
+    switch (type) {
+      case "linear": return t
+      case "easeInQuad": return t * t
+      case "easeOutQuad": return 1 - (1 - t) * (1 - t)
+      case "easeInOutQuad": return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+      case "easeInOutCubic": return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+      case "easeInOutSine": return -(Math.cos(Math.PI * t) - 1) / 2
+      default: return t
+    }
+  }
+
+  // Interpolate between two positions
+  lerp(a, b, t) {
+    if (Array.isArray(a)) {
+      return a.map((v, i) => v + (b[i] - v) * t)
+    }
+    return a + (b - a) * t
+  }
+
+  // Evaluate spline at t
+  evaluateSpline(points, t) {
+    const n = points.length - 1
+    const i = Math.floor(t * n)
+    const localT = (t * n) - i
+    
+    if (i >= n) return points[n]
+    
+    // Catmull-Rom interpolation
+    const p0 = points[Math.max(0, i - 1)]
+    const p1 = points[i]
+    const p2 = points[Math.min(n, i + 1)]
+    const p3 = points[Math.min(n, i + 2)]
+    
+    const t2 = localT * localT
+    const t3 = t2 * localT
+    
+    return [
+      0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * localT + (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * t2 + (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t3),
+      0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * localT + (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * t2 + (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t3),
+      0.5 * ((2 * p1[2]) + (-p0[2] + p2[2]) * localT + (2*p0[2] - 5*p1[2] + 4*p2[2] - p3[2]) * t2 + (-p0[2] + 3*p1[2] - 3*p2[2] + p3[2]) * t3)
+    ]
+  }
+
+  @update(delta) => {
+    if (!state.playing || !state.current_shot) return
+    
+    const shot = state.current_shot
+    state.shot_progress += delta / shot.duration
+    
+    if (state.shot_progress >= 1) {
+      state.shot_progress = 1
+      state.playing = false
+      
+      // Apply final state
+      this.position = shot.to.position
+      this.rotation = shot.to.rotation
+      this.#main.fov = shot.to.fov || props.default_fov
+      
+      if (shot.resolve) shot.resolve()
+      state.current_shot = null
+      return
+    }
+    
+    const t = this.ease(state.shot_progress, shot.ease)
+    
+    // Position
+    if (shot.dolly_path) {
+      this.position = this.evaluateSpline(shot.dolly_path, t)
+    } else {
+      this.position = this.lerp(shot.from.position, shot.to.position, t)
+    }
+    
+    // Rotation or look-at
+    if (shot.focus_target) {
+      this.lookAt(shot.focus_target.worldPosition)
+    } else {
+      this.rotation = this.lerp(shot.from.rotation, shot.to.rotation, t)
+    }
+    
+    // FOV
+    this.#main.fov = this.lerp(
+      shot.from.fov || props.default_fov,
+      shot.to.fov || props.default_fov,
+      t
+    )
+  }
+
+  camera#main {
+    fov: ${props.default_fov}
+    near: 0.1
+    far: 2000
+  }
+}
+
+/**
+ * Security Camera
+ * Fixed position with pan/tilt movement
+ */
+component SecurityCamera {
+  @state {
+    current_pan: 0
+    current_tilt: 0
+    target_pan: 0
+    target_tilt: 0
+    sweep_direction: 1
+    alert: false
+  }
+
+  @props {
+    pan_range: [-60, 60]
+    tilt_range: [-30, 15]
+    sweep_speed: 10
+    auto_sweep: true
+    
+    detection_enabled: true
+    detection_angle: 45
+    detection_range: 20
+    detection_layers: 1  // Player layer
+    
+    feed_texture: null
+    record: false
+  }
+
+  // Manual control
+  @method setPan(angle) => {
+    state.target_pan = Math.max(props.pan_range[0], Math.min(props.pan_range[1], angle))
+  }
+
+  @method setTilt(angle) => {
+    state.target_tilt = Math.max(props.tilt_range[0], Math.min(props.tilt_range[1], angle))
+  }
+
+  // Track a target
+  @method track(target_position) => {
+    const dir = [
+      target_position[0] - this.worldPosition[0],
+      target_position[1] - this.worldPosition[1],
+      target_position[2] - this.worldPosition[2]
+    ]
+    
+    state.target_pan = Math.atan2(dir[0], dir[2]) * 180 / Math.PI
+    state.target_tilt = -Math.asin(dir[1] / Math.sqrt(dir[0]**2 + dir[1]**2 + dir[2]**2)) * 180 / Math.PI
+  }
+
+  // Detection check
+  @method detectTargets() => {
+    if (!props.detection_enabled) return []
+    
+    const detected = []
+    const objects = physics.overlapSphere(this.worldPosition, props.detection_range, props.detection_layers)
+    
+    for (const obj of objects) {
+      const dir = [
+        obj.worldPosition[0] - this.worldPosition[0],
+        obj.worldPosition[1] - this.worldPosition[1],
+        obj.worldPosition[2] - this.worldPosition[2]
+      ]
+      
+      const forward = this.getForward()
+      const dot = dir[0]*forward[0] + dir[1]*forward[1] + dir[2]*forward[2]
+      const angle = Math.acos(dot / (Math.sqrt(dir[0]**2 + dir[1]**2 + dir[2]**2))) * 180 / Math.PI
+      
+      if (angle <= props.detection_angle / 2) {
+        // Raycast to check line of sight
+        const hit = physics.raycast(this.worldPosition, dir, props.detection_range)
+        if (hit && hit.object == obj) {
+          detected.push(obj)
+        }
+      }
+    }
+    
+    return detected
+  }
+
+  @method getForward() => {
+    const pitchRad = state.current_tilt * Math.PI / 180
+    const yawRad = state.current_pan * Math.PI / 180
+    return [
+      Math.sin(yawRad) * Math.cos(pitchRad),
+      -Math.sin(pitchRad),
+      Math.cos(yawRad) * Math.cos(pitchRad)
+    ]
+  }
+
+  @update(delta) => {
+    // Auto sweep
+    if (props.auto_sweep) {
+      state.target_pan += props.sweep_speed * delta * state.sweep_direction
+      
+      if (state.target_pan >= props.pan_range[1]) {
+        state.sweep_direction = -1
+      } else if (state.target_pan <= props.pan_range[0]) {
+        state.sweep_direction = 1
+      }
+    }
+    
+    // Smooth movement
+    state.current_pan += (state.target_pan - state.current_pan) * delta * 5
+    state.current_tilt += (state.target_tilt - state.current_tilt) * delta * 5
+    
+    // Apply rotation
+    this.#camera_gimbal.rotation = [state.current_tilt, state.current_pan, 0]
+    
+    // Detection
+    const detected = this.detectTargets()
+    if (detected.length > 0 && !state.alert) {
+      state.alert = true
+      this.emit("detection", detected)
+    } else if (detected.length == 0 && state.alert) {
+      state.alert = false
+      this.emit("clear")
+    }
+  }
+
+  // Visual representation
+  group#camera_base {
+    model#housing {
+      asset: "camera_housing"
+    }
+
+    group#camera_gimbal {
+      model#camera_body {
+        asset: "camera_body"
+      }
+
+      camera#security_cam {
+        fov: ${props.detection_angle}
+        near: 0.1
+        far: ${props.detection_range}
+        render_target: ${props.feed_texture}
+      }
+
+      // Detection cone (debug)
+      cone#detection_cone {
+        visible: false
+        height: ${props.detection_range}
+        radius: ${Math.tan(props.detection_angle * Math.PI / 360) * props.detection_range}
+        rotation: [90, 0, 0]
+        color: ${state.alert ? "#ff0000" : "#00ff00"}
+        opacity: 0.2
+        wireframe: true
+      }
+    }
+  }
+}
+
+export { FirstPersonCamera, ThirdPersonCamera, CinematicCamera, SecurityCamera }

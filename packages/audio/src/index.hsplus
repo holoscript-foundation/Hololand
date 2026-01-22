@@ -1,0 +1,260 @@
+/**
+ * @hololand/audio
+ *
+ * Spatial audio engine for Hololand - 3D positional sound, HRTF,
+ * voice chat with VAD, and audio effects processing.
+ *
+ * @example
+ * ```holoscript
+ * import {
+ *   getSpatialAudioEngine,
+ *   getVoiceChat,
+ *   createEffectsChain
+ * } from "@hololand/audio"
+ *
+ * // Initialize spatial audio
+ * let engine = getSpatialAudioEngine()
+ * await engine.initialize()
+ *
+ * // Create a sound source
+ * let source = engine.createSource({
+ *   id: "ambient-music",
+ *   position: { x: 0, y: 0, z: 0 },
+ *   loop: true
+ * })
+ * await source.loadFromURL("/sounds/music.mp3")
+ * source.play()
+ *
+ * // Update listener position (from VR headset)
+ * engine.updateListener({
+ *   position: { x: 1, y: 1.6, z: 0 },
+ *   forward: { x: 0, y: 0, z: -1 },
+ *   up: { x: 0, y: 1, z: 0 }
+ * })
+ *
+ * // Initialize voice chat
+ * let voiceChat = getVoiceChat({ spatialVoice: true })
+ * await voiceChat.initialize()
+ * await voiceChat.startCapture()
+ * ```
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+import {
+  // Primitives
+  Vector3,
+  Quaternion,
+
+  // Source types
+  AudioSourceType,
+  DistanceModel,
+  AudioSourceConfig,
+  DEFAULT_AUDIO_SOURCE_CONFIG,
+
+  // Listener
+  ListenerConfig,
+
+  // HRTF
+  HRTFModel,
+  HRTFConfig,
+
+  // Reverb
+  ReverbPreset,
+  ReverbConfig,
+  DEFAULT_REVERB_CONFIG,
+
+  // Effects
+  EffectType,
+  EffectNode,
+  FilterType,
+  FilterConfig,
+  CompressorConfig,
+  DelayConfig,
+
+  // Voice chat
+  VoiceActivityState,
+  SampleRate,
+  ChannelCount,
+  VoiceChatConfig,
+  DEFAULT_VOICE_CONFIG,
+  VoiceParticipant,
+
+  // Music
+  AudioFormat,
+  RepeatMode,
+  MusicTrack,
+  PlaylistConfig,
+
+  // Engine
+  SpatialAudioEngineConfig,
+  DEFAULT_ENGINE_CONFIG,
+
+  // Events
+  AudioEventType,
+  AudioEvent,
+  type AudioEventListener
+} from "./types.hsplus"
+
+// =============================================================================
+// SPATIAL AUDIO ENGINE
+// =============================================================================
+
+import {
+  SpatialAudioEngine,
+  SpatialAudioSource,
+  getSpatialAudioEngine,
+  createSpatialAudioEngine
+} from "./SpatialAudioEngine.hsplus"
+
+// =============================================================================
+// VOICE CHAT
+// =============================================================================
+
+import {
+  VoiceChat,
+  getVoiceChat,
+  createVoiceChat
+} from "./VoiceChat.hsplus"
+
+// =============================================================================
+// AUDIO EFFECTS
+// =============================================================================
+
+import {
+  FilterEffect,
+  CompressorEffect,
+  DelayEffect,
+  GainEffect,
+  DistortionEffect,
+  EffectsChain,
+  createFilterEffect,
+  createCompressorEffect,
+  createDelayEffect,
+  createGainEffect,
+  createDistortionEffect,
+  createEffectsChain
+} from "./AudioEffects.hsplus"
+
+// =============================================================================
+// VERSION
+// =============================================================================
+
+let HOLOLAND_AUDIO_VERSION = "1.0.0-alpha.1"
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Types - Primitives
+  Vector3,
+  Quaternion,
+
+  // Types - Source
+  AudioSourceType,
+  DistanceModel,
+  AudioSourceConfig,
+  DEFAULT_AUDIO_SOURCE_CONFIG,
+  ListenerConfig,
+
+  // Types - HRTF
+  HRTFModel,
+  HRTFConfig,
+
+  // Types - Reverb
+  ReverbPreset,
+  ReverbConfig,
+  DEFAULT_REVERB_CONFIG,
+
+  // Types - Effects
+  EffectType,
+  EffectNode,
+  FilterType,
+  FilterConfig,
+  CompressorConfig,
+  DelayConfig,
+
+  // Types - Voice
+  VoiceActivityState,
+  SampleRate,
+  ChannelCount,
+  VoiceChatConfig,
+  DEFAULT_VOICE_CONFIG,
+  VoiceParticipant,
+
+  // Types - Music
+  AudioFormat,
+  RepeatMode,
+  MusicTrack,
+  PlaylistConfig,
+
+  // Types - Engine
+  SpatialAudioEngineConfig,
+  DEFAULT_ENGINE_CONFIG,
+
+  // Types - Events
+  AudioEventType,
+  AudioEvent,
+  type AudioEventListener,
+
+  // Spatial Audio
+  SpatialAudioEngine,
+  SpatialAudioSource,
+  getSpatialAudioEngine,
+  createSpatialAudioEngine,
+
+  // Voice Chat
+  VoiceChat,
+  getVoiceChat,
+  createVoiceChat,
+
+  // Effects
+  FilterEffect,
+  CompressorEffect,
+  DelayEffect,
+  GainEffect,
+  DistortionEffect,
+  EffectsChain,
+  createFilterEffect,
+  createCompressorEffect,
+  createDelayEffect,
+  createGainEffect,
+  createDistortionEffect,
+  createEffectsChain,
+
+  // Version
+  HOLOLAND_AUDIO_VERSION
+}
+
+// =============================================================================
+// DEFAULT EXPORT
+// =============================================================================
+
+export default {
+  // Engine
+  SpatialAudioEngine,
+  getSpatialAudioEngine,
+  createSpatialAudioEngine,
+
+  // Voice
+  VoiceChat,
+  getVoiceChat,
+  createVoiceChat,
+
+  // Effects
+  createEffectsChain,
+  createFilterEffect,
+  createCompressorEffect,
+  createDelayEffect,
+
+  // Defaults
+  DEFAULT_ENGINE_CONFIG,
+  DEFAULT_VOICE_CONFIG,
+  DEFAULT_REVERB_CONFIG,
+
+  // Version
+  HOLOLAND_AUDIO_VERSION
+}

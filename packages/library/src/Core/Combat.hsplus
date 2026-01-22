@@ -1,0 +1,863 @@
+// HOSL: Combat System
+// Complete combat mechanics for action games
+
+/**
+ * Health Component
+ * Manages health, damage, and death
+ */
+component Health {
+  @state {
+    current: 100
+    max: 100
+    regenerating: false
+    invulnerable: false
+    dead: false
+    last_damage_time: 0
+    damage_sources: []
+  }
+
+  @props {
+    initial_health: 100
+    max_health: 100
+    
+    // Regeneration
+    regen_enabled: false
+    regen_rate: 5        // HP per second
+    regen_delay: 3       // Seconds after damage before regen starts
+    
+    // Invulnerability frames
+    i_frames_enabled: true
+    i_frames_duration: 0.5
+    
+    // Callbacks
+    on_damage: null
+    on_heal: null
+    on_death: null
+    on_revive: null
+  }
+
+  @on_ready => {
+    state.current = props.initial_health
+    state.max = props.max_health
+  }
+
+  // Take damage
+  @method takeDamage(amount, source = null, damage_type = "physical") => {
+    if (state.dead || state.invulnerable) return 0
+    
+    const actualDamage = Math.min(amount, state.current)
+    state.current -= actualDamage
+    state.last_damage_time = time.elapsed
+    
+    // Track damage source
+    state.damage_sources.push({
+      source: source,
+      type: damage_type,
+      amount: actualDamage,
+      time: time.elapsed
+    })
+    
+    // Enable i-frames
+    if (props.i_frames_enabled) {
+      state.invulnerable = true
+      timeout(props.i_frames_duration * 1000) => {
+        state.invulnerable = false
+      }
+    }
+    
+    if (props.on_damage) {
+      props.on_damage(actualDamage, source, damage_type)
+    }
+    
+    this.emit("damage", { amount: actualDamage, source, type: damage_type, remaining: state.current })
+    
+    if (state.current <= 0) {
+      this.die(source)
+    }
+    
+    return actualDamage
+  }
+
+  // Heal
+  @method heal(amount, source = null) => {
+    if (state.dead) return 0
+    
+    const actualHeal = Math.min(amount, state.max - state.current)
+    state.current += actualHeal
+    
+    if (props.on_heal) {
+      props.on_heal(actualHeal, source)
+    }
+    
+    this.emit("heal", { amount: actualHeal, source, current: state.current })
+    
+    return actualHeal
+  }
+
+  // Set max health
+  @method setMaxHealth(value, heal_to_full = false) => {
+    state.max = value
+    if (heal_to_full) {
+      state.current = value
+    } else {
+      state.current = Math.min(state.current, value)
+    }
+  }
+
+  // Die
+  @method die(killer = null) => {
+    if (state.dead) return
+    
+    state.dead = true
+    state.current = 0
+    
+    if (props.on_death) {
+      props.on_death(killer)
+    }
+    
+    this.emit("death", { killer })
+  }
+
+  // Revive
+  @method revive(health_percent = 1) => {
+    if (!state.dead) return
+    
+    state.dead = false
+    state.current = Math.floor(state.max * health_percent)
+    state.damage_sources = []
+    
+    if (props.on_revive) {
+      props.on_revive()
+    }
+    
+    this.emit("revive", { health: state.current })
+  }
+
+  // Get health percentage
+  @computed healthPercent() {
+    return state.current / state.max
+  }
+
+  // Check if alive
+  @computed isAlive() {
+    return !state.dead
+  }
+
+  @update(delta) => {
+    if (state.dead || !props.regen_enabled) return
+    
+    // Regeneration after delay
+    const timeSinceDamage = time.elapsed - state.last_damage_time
+    if (timeSinceDamage >= props.regen_delay && state.current < state.max) {
+      state.regenerating = true
+      this.heal(props.regen_rate * delta)
+    } else {
+      state.regenerating = false
+    }
+  }
+}
+
+/**
+ * Combat Stats
+ * Attack, defense, and modifiers
+ */
+component CombatStats {
+  @state {
+    modifiers: []
+  }
+
+  @props {
+    base_stats: {
+      attack: 10,
+      defense: 5,
+      speed: 1.0,
+      critical_chance: 0.05,
+      critical_multiplier: 2.0
+    }
+    
+    resistances: {
+      physical: 0,
+      fire: 0,
+      ice: 0,
+      lightning: 0,
+      poison: 0
+    }
+  }
+
+  // Get computed stat value
+  @method getStat(stat_name) => {
+    let base = props.base_stats[stat_name] || 0
+    
+    // Apply modifiers
+    let flat = 0
+    let percent = 1
+    
+    for (const mod of state.modifiers) {
+      if (mod.stat !== stat_name) continue
+      if (mod.expired) continue
+      
+      if (mod.type === "flat") {
+        flat += mod.value
+      } else if (mod.type === "percent") {
+        percent += mod.value / 100
+      }
+    }
+    
+    return (base + flat) * percent
+  }
+
+  // Add a stat modifier
+  @method addModifier(config) => {
+    const modifier = {
+      id: config.id || crypto.randomUUID(),
+      stat: config.stat,
+      type: config.type || "flat",  // flat | percent
+      value: config.value,
+      duration: config.duration || -1,  // -1 = permanent
+      elapsed: 0,
+      expired: false,
+      source: config.source
+    }
+    
+    state.modifiers.push(modifier)
+    this.emit("modifier_added", modifier)
+    
+    return modifier.id
+  }
+
+  // Remove a modifier
+  @method removeModifier(modifier_id) => {
+    const index = state.modifiers.findIndex(m => m.id === modifier_id)
+    if (index !== -1) {
+      const modifier = state.modifiers[index]
+      state.modifiers.splice(index, 1)
+      this.emit("modifier_removed", modifier)
+    }
+  }
+
+  // Remove all modifiers from a source
+  @method removeModifiersFromSource(source) => {
+    state.modifiers = state.modifiers.filter(m => m.source !== source)
+  }
+
+  // Get resistance to damage type
+  @method getResistance(damage_type) => {
+    return props.resistances[damage_type] || 0
+  }
+
+  // Calculate damage after resistances
+  @method calculateDamageReduction(damage, damage_type) => {
+    const resistance = this.getResistance(damage_type)
+    const defense = this.getStat("defense")
+    
+    // Resistance reduces by percentage
+    const afterResist = damage * (1 - resistance / 100)
+    
+    // Defense reduces flat amount
+    const afterDefense = Math.max(1, afterResist - defense * 0.5)
+    
+    return Math.floor(afterDefense)
+  }
+
+  // Roll for critical hit
+  @method rollCritical() => {
+    const chance = this.getStat("critical_chance")
+    const isCrit = Math.random() < chance
+    
+    return {
+      isCritical: isCrit,
+      multiplier: isCrit ? this.getStat("critical_multiplier") : 1
+    }
+  }
+
+  @update(delta) => {
+    // Update modifier durations
+    for (const mod of state.modifiers) {
+      if (mod.duration === -1) continue
+      
+      mod.elapsed += delta
+      if (mod.elapsed >= mod.duration) {
+        mod.expired = true
+        this.emit("modifier_expired", mod)
+      }
+    }
+    
+    // Clean up expired modifiers
+    state.modifiers = state.modifiers.filter(m => !m.expired)
+  }
+}
+
+/**
+ * Weapon Component
+ * Melee and ranged weapon handling
+ */
+component Weapon {
+  @state {
+    equipped: false
+    attacking: false
+    cooldown_remaining: 0
+    combo_count: 0
+    last_attack_time: 0
+  }
+
+  @props {
+    name: "Weapon"
+    type: "melee"  // melee | ranged | magic
+    
+    // Damage
+    base_damage: 10
+    damage_type: "physical"
+    damage_variance: 0.1  // ±10%
+    
+    // Timing
+    attack_speed: 1.0
+    cooldown: 0.5
+    combo_window: 0.8
+    max_combo: 3
+    
+    // Range
+    range: 2
+    arc: 90  // Melee attack arc in degrees
+    
+    // Ranged specific
+    projectile: null
+    projectile_speed: 20
+    ammo_type: null
+    ammo_per_shot: 1
+    
+    // Effects
+    hit_effect: null
+    swing_effect: null
+    
+    // Audio
+    swing_sound: null
+    hit_sound: null
+  }
+
+  // Equip weapon
+  @method equip() => {
+    state.equipped = true
+    this.emit("equipped")
+  }
+
+  // Unequip weapon
+  @method unequip() => {
+    state.equipped = false
+    this.emit("unequipped")
+  }
+
+  // Primary attack
+  @method attack(attacker, direction) => {
+    if (!state.equipped || state.attacking || state.cooldown_remaining > 0) {
+      return null
+    }
+    
+    state.attacking = true
+    
+    // Combo handling
+    const timeSinceLastAttack = time.elapsed - state.last_attack_time
+    if (timeSinceLastAttack <= props.combo_window && state.combo_count < props.max_combo) {
+      state.combo_count++
+    } else {
+      state.combo_count = 1
+    }
+    state.last_attack_time = time.elapsed
+    
+    // Play effects
+    if (props.swing_sound) {
+      audio.play(props.swing_sound)
+    }
+    if (props.swing_effect) {
+      effects.spawn(props.swing_effect, attacker.worldPosition)
+    }
+    
+    // Calculate damage
+    const baseDamage = this.calculateDamage(attacker)
+    
+    let result
+    
+    if (props.type === "melee") {
+      result = this.meleeAttack(attacker, direction, baseDamage)
+    } else if (props.type === "ranged") {
+      result = this.rangedAttack(attacker, direction, baseDamage)
+    } else if (props.type === "magic") {
+      result = this.magicAttack(attacker, direction, baseDamage)
+    }
+    
+    // Start cooldown
+    state.cooldown_remaining = props.cooldown / props.attack_speed
+    state.attacking = false
+    
+    this.emit("attack", { combo: state.combo_count, result })
+    
+    return result
+  }
+
+  // Calculate damage with variance and stats
+  @method calculateDamage(attacker) => {
+    let damage = props.base_damage
+    
+    // Apply variance
+    const variance = 1 + (Math.random() * 2 - 1) * props.damage_variance
+    damage *= variance
+    
+    // Apply attacker's attack stat
+    const combatStats = attacker.getComponent?.(CombatStats)
+    if (combatStats) {
+      const attackStat = combatStats.getStat("attack")
+      damage += attackStat * 0.5
+      
+      // Critical hit
+      const crit = combatStats.rollCritical()
+      damage *= crit.multiplier
+      
+      return { damage: Math.floor(damage), isCritical: crit.isCritical }
+    }
+    
+    return { damage: Math.floor(damage), isCritical: false }
+  }
+
+  // Melee attack - cone/arc detection
+  @method meleeAttack(attacker, direction, damageInfo) => {
+    const hits = []
+    const arcRad = (props.arc / 2) * Math.PI / 180
+    
+    // Find targets in range
+    const targets = physics.overlapSphere(attacker.worldPosition, props.range, 0b10) // Enemy layer
+    
+    for (const target of targets) {
+      // Check if in arc
+      const toTarget = [
+        target.worldPosition[0] - attacker.worldPosition[0],
+        0,
+        target.worldPosition[2] - attacker.worldPosition[2]
+      ]
+      const dist = Math.sqrt(toTarget[0]**2 + toTarget[2]**2)
+      toTarget[0] /= dist
+      toTarget[2] /= dist
+      
+      const dot = direction[0] * toTarget[0] + direction[2] * toTarget[2]
+      const angle = Math.acos(dot)
+      
+      if (angle <= arcRad) {
+        // Hit target
+        const health = target.getComponent?.(Health)
+        if (health) {
+          health.takeDamage(damageInfo.damage, attacker, props.damage_type)
+          hits.push({ target, damage: damageInfo.damage, critical: damageInfo.isCritical })
+          
+          // Effects
+          if (props.hit_effect) {
+            effects.spawn(props.hit_effect, target.worldPosition)
+          }
+          if (props.hit_sound) {
+            audio.play(props.hit_sound, { position: target.worldPosition })
+          }
+        }
+      }
+    }
+    
+    return { type: "melee", hits }
+  }
+
+  // Ranged attack - spawn projectile
+  @method rangedAttack(attacker, direction, damageInfo) => {
+    if (!props.projectile) {
+      console.warn("No projectile defined for ranged weapon")
+      return null
+    }
+    
+    const spawnPos = [
+      attacker.worldPosition[0] + direction[0],
+      attacker.worldPosition[1] + 1.5,
+      attacker.worldPosition[2] + direction[2]
+    ]
+    
+    const projectile = this.instantiate(props.projectile, {
+      position: spawnPos,
+      rotation: [0, Math.atan2(direction[0], direction[2]) * 180 / Math.PI, 0]
+    })
+    
+    projectile.velocity = [
+      direction[0] * props.projectile_speed,
+      direction[1] * props.projectile_speed,
+      direction[2] * props.projectile_speed
+    ]
+    
+    projectile.damage = damageInfo.damage
+    projectile.damage_type = props.damage_type
+    projectile.source = attacker
+    
+    return { type: "ranged", projectile }
+  }
+
+  // Magic attack - custom behavior
+  @method magicAttack(attacker, direction, damageInfo) => {
+    // Override in subclasses for custom magic effects
+    return this.rangedAttack(attacker, direction, damageInfo)
+  }
+
+  @update(delta) => {
+    if (state.cooldown_remaining > 0) {
+      state.cooldown_remaining -= delta
+    }
+    
+    // Reset combo if window expired
+    if (state.combo_count > 0 && time.elapsed - state.last_attack_time > props.combo_window) {
+      state.combo_count = 0
+    }
+  }
+}
+
+/**
+ * Status Effects
+ * DOT, buffs, debuffs
+ */
+component StatusEffects {
+  @state {
+    active_effects: []
+  }
+
+  @props {
+    max_stacks: {}  // { poison: 5, burn: 3 }
+    immunities: []
+  }
+
+  // Effect templates
+  const EFFECT_TEMPLATES = {
+    poison: {
+      duration: 5,
+      tick_rate: 1,
+      damage_per_tick: 5,
+      damage_type: "poison",
+      stackable: true
+    },
+    burn: {
+      duration: 3,
+      tick_rate: 0.5,
+      damage_per_tick: 8,
+      damage_type: "fire",
+      stackable: true
+    },
+    freeze: {
+      duration: 2,
+      speed_modifier: 0,
+      stackable: false
+    },
+    stun: {
+      duration: 1,
+      prevents_action: true,
+      stackable: false
+    },
+    bleed: {
+      duration: 4,
+      tick_rate: 0.5,
+      damage_per_tick: 3,
+      damage_type: "physical",
+      stackable: true
+    },
+    heal_over_time: {
+      duration: 5,
+      tick_rate: 1,
+      heal_per_tick: 10,
+      stackable: true
+    },
+    speed_boost: {
+      duration: 5,
+      speed_modifier: 1.5,
+      stackable: false
+    },
+    damage_boost: {
+      duration: 10,
+      damage_modifier: 1.25,
+      stackable: false
+    }
+  }
+
+  // Apply an effect
+  @method applyEffect(effect_id, config = {}) => {
+    if (props.immunities.includes(effect_id)) {
+      this.emit("immune", effect_id)
+      return false
+    }
+    
+    const template = EFFECT_TEMPLATES[effect_id] || {}
+    const effect = {
+      id: effect_id,
+      instance_id: crypto.randomUUID(),
+      ...template,
+      ...config,
+      elapsed: 0,
+      tick_elapsed: 0,
+      stacks: 1
+    }
+    
+    // Check for existing effect
+    const existing = state.active_effects.find(e => e.id === effect_id)
+    
+    if (existing) {
+      if (effect.stackable) {
+        const maxStacks = props.max_stacks[effect_id] || 99
+        if (existing.stacks < maxStacks) {
+          existing.stacks++
+          existing.elapsed = 0  // Refresh duration
+          this.emit("effect_stacked", { effect: existing })
+        }
+        return true
+      } else {
+        // Refresh duration
+        existing.elapsed = 0
+        return true
+      }
+    }
+    
+    state.active_effects.push(effect)
+    this.emit("effect_applied", effect)
+    
+    return true
+  }
+
+  // Remove an effect
+  @method removeEffect(effect_id) => {
+    const index = state.active_effects.findIndex(e => e.id === effect_id)
+    if (index !== -1) {
+      const effect = state.active_effects.splice(index, 1)[0]
+      this.emit("effect_removed", effect)
+    }
+  }
+
+  // Remove all effects
+  @method clearEffects() => {
+    state.active_effects = []
+    this.emit("effects_cleared")
+  }
+
+  // Check if has effect
+  @method hasEffect(effect_id) => {
+    return state.active_effects.some(e => e.id === effect_id)
+  }
+
+  // Get effect stacks
+  @method getStacks(effect_id) => {
+    const effect = state.active_effects.find(e => e.id === effect_id)
+    return effect?.stacks || 0
+  }
+
+  // Check if can act (not stunned/frozen)
+  @computed canAct() {
+    return !state.active_effects.some(e => e.prevents_action)
+  }
+
+  // Get current speed modifier
+  @computed speedModifier() {
+    let modifier = 1
+    for (const effect of state.active_effects) {
+      if (effect.speed_modifier !== undefined) {
+        modifier *= effect.speed_modifier
+      }
+    }
+    return modifier
+  }
+
+  // Get current damage modifier
+  @computed damageModifier() {
+    let modifier = 1
+    for (const effect of state.active_effects) {
+      if (effect.damage_modifier !== undefined) {
+        modifier *= effect.damage_modifier
+      }
+    }
+    return modifier
+  }
+
+  @update(delta) => {
+    const health = this.parent?.getComponent?.(Health)
+    const expired = []
+    
+    for (const effect of state.active_effects) {
+      effect.elapsed += delta
+      
+      // Check for tick damage/heal
+      if (effect.tick_rate) {
+        effect.tick_elapsed += delta
+        
+        while (effect.tick_elapsed >= effect.tick_rate) {
+          effect.tick_elapsed -= effect.tick_rate
+          
+          if (effect.damage_per_tick && health) {
+            const damage = effect.damage_per_tick * effect.stacks
+            health.takeDamage(damage, effect.source, effect.damage_type)
+            this.emit("effect_tick", { effect, damage })
+          }
+          
+          if (effect.heal_per_tick && health) {
+            const heal = effect.heal_per_tick * effect.stacks
+            health.heal(heal, effect.source)
+            this.emit("effect_tick", { effect, heal })
+          }
+        }
+      }
+      
+      // Check expiration
+      if (effect.elapsed >= effect.duration) {
+        expired.push(effect)
+      }
+    }
+    
+    // Remove expired effects
+    for (const effect of expired) {
+      this.removeEffect(effect.id)
+    }
+  }
+}
+
+/**
+ * Combat Target Lock
+ * Lock-on targeting system
+ */
+component TargetLock {
+  @state {
+    current_target: null
+    potential_targets: []
+    locked: false
+  }
+
+  @props {
+    detection_range: 20
+    lock_range: 15
+    lock_angle: 60
+    target_layers: 0b10  // Enemy layer
+    switch_cooldown: 0.3
+    
+    indicator: null  // Lock-on indicator prefab
+  }
+
+  last_switch = 0
+
+  // Toggle lock
+  @method toggle() => {
+    if (state.locked) {
+      this.unlock()
+    } else {
+      this.lock()
+    }
+  }
+
+  // Lock onto nearest valid target
+  @method lock() => {
+    this.updatePotentialTargets()
+    
+    if (state.potential_targets.length > 0) {
+      state.current_target = state.potential_targets[0]
+      state.locked = true
+      this.emit("locked", state.current_target)
+    }
+  }
+
+  // Unlock target
+  @method unlock() => {
+    state.current_target = null
+    state.locked = false
+    this.emit("unlocked")
+  }
+
+  // Switch to next target
+  @method switchTarget(direction = 1) => {
+    if (!state.locked || time.elapsed - this.last_switch < props.switch_cooldown) return
+    
+    this.updatePotentialTargets()
+    
+    if (state.potential_targets.length <= 1) return
+    
+    const currentIndex = state.potential_targets.indexOf(state.current_target)
+    let newIndex = currentIndex + direction
+    
+    if (newIndex < 0) newIndex = state.potential_targets.length - 1
+    if (newIndex >= state.potential_targets.length) newIndex = 0
+    
+    state.current_target = state.potential_targets[newIndex]
+    this.last_switch = time.elapsed
+    
+    this.emit("target_switched", state.current_target)
+  }
+
+  // Update list of potential targets
+  @method updatePotentialTargets() => {
+    const selfPos = this.parent.worldPosition
+    const forward = this.parent.forward || [0, 0, 1]
+    
+    const targets = physics.overlapSphere(selfPos, props.detection_range, props.target_layers)
+    
+    // Filter and sort by angle/distance
+    state.potential_targets = targets
+      .filter(t => {
+        // Must be alive
+        const health = t.getComponent?.(Health)
+        if (!health || !health.isAlive) return false
+        
+        // Must be within lock angle
+        const toTarget = [
+          t.worldPosition[0] - selfPos[0],
+          0,
+          t.worldPosition[2] - selfPos[2]
+        ]
+        const dist = Math.sqrt(toTarget[0]**2 + toTarget[2]**2)
+        if (dist > props.lock_range) return false
+        
+        toTarget[0] /= dist
+        toTarget[2] /= dist
+        
+        const dot = forward[0] * toTarget[0] + forward[2] * toTarget[2]
+        const angle = Math.acos(dot) * 180 / Math.PI
+        
+        return angle <= props.lock_angle / 2
+      })
+      .sort((a, b) => {
+        const distA = this.getDistance(selfPos, a.worldPosition)
+        const distB = this.getDistance(selfPos, b.worldPosition)
+        return distA - distB
+      })
+  }
+
+  @method getDistance(p1, p2) => {
+    const dx = p2[0] - p1[0]
+    const dy = p2[1] - p1[1]
+    const dz = p2[2] - p1[2]
+    return Math.sqrt(dx*dx + dy*dy + dz*dz)
+  }
+
+  @update(delta) => {
+    if (!state.locked) return
+    
+    // Validate current target
+    if (state.current_target) {
+      const health = state.current_target.getComponent?.(Health)
+      const distance = this.getDistance(this.parent.worldPosition, state.current_target.worldPosition)
+      
+      // Unlock if target dead or out of range
+      if (!health?.isAlive || distance > props.lock_range * 1.5) {
+        this.unlock()
+      }
+    }
+  }
+
+  // Lock indicator visualization
+  panel#lock_indicator {
+    visible: ${state.locked && state.current_target}
+    position: "worldspace"
+    target: ${state.current_target}
+    offset: [0, 2, 0]
+    billboard: true
+
+    panel#reticle {
+      width: 60
+      height: 60
+      background: "transparent"
+      border: "3px solid #ff3333"
+      border_radius: 30
+      animation: "pulse 1s infinite"
+    }
+  }
+}
+
+export { Health, CombatStats, Weapon, StatusEffects, TargetLock }

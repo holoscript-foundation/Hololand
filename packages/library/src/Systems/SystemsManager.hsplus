@@ -1,0 +1,865 @@
+/**
+ * SystemsManager.hsplus
+ * 
+ * Central systems manager providing unified access to all HoloScript
+ * subsystems: networking, physics, procedural generation, marketplace,
+ * version control, party, analytics, achievements, and more.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// NETWORKING SYSTEM
+// =============================================================================
+
+struct NetworkPlayer {
+  id: string
+  name: string
+  position: [number, number, number]
+  rotation: [number, number, number]
+  avatar: string
+  status: "online" | "away" | "busy"
+}
+
+struct WorldState {
+  objects: Map<string, object>
+  players: Map<string, NetworkPlayer>
+  version: number
+}
+
+module NetworkingSystem {
+  @state {
+    connected: boolean = false
+    roomId: string = null
+    playerId: string = null
+    players: Map<string, NetworkPlayer> = new Map()
+    worldState: WorldState = null
+    latency: number = 0
+    wsConnection: WebSocket = null
+  }
+  
+  @action async connect(roomId: string, playerName: string): Promise<boolean> {
+    try {
+      const wsUrl = `wss://hololand.io/rooms/${roomId}`
+      this.state.wsConnection = new WebSocket(wsUrl)
+      
+      await new Promise((resolve, reject) => {
+        this.state.wsConnection.onopen = resolve
+        this.state.wsConnection.onerror = reject
+      })
+      
+      this.state.connected = true
+      this.state.roomId = roomId
+      this.state.playerId = crypto.randomUUID()
+      
+      // Send join message
+      this.send("join", { name: playerName, id: this.state.playerId })
+      
+      // Set up message handlers
+      this.state.wsConnection.onmessage = (event) => {
+        this.handleMessage(JSON.parse(event.data))
+      }
+      
+      return true
+    } catch (err) {
+      console.error("Network connection failed:", err)
+      return false
+    }
+  }
+  
+  @action disconnect(): void {
+    if (this.state.wsConnection) {
+      this.state.wsConnection.close()
+      this.state.wsConnection = null
+    }
+    this.state.connected = false
+    this.state.roomId = null
+    this.state.players.clear()
+  }
+  
+  @action send(type: string, data: object): void {
+    if (this.state.wsConnection?.readyState === WebSocket.OPEN) {
+      this.state.wsConnection.send(JSON.stringify({ type, data }))
+    }
+  }
+  
+  @method handleMessage(message: { type: string, data: any }): void {
+    switch (message.type) {
+      case "player_join":
+        this.state.players.set(message.data.id, message.data)
+        break
+      case "player_leave":
+        this.state.players.delete(message.data.id)
+        break
+      case "player_update":
+        const player = this.state.players.get(message.data.id)
+        if (player) Object.assign(player, message.data)
+        break
+      case "world_sync":
+        this.state.worldState = message.data
+        break
+      case "ping":
+        this.send("pong", { timestamp: message.data.timestamp })
+        break
+      case "pong":
+        this.state.latency = Date.now() - message.data.timestamp
+        break
+    }
+  }
+  
+  @action syncObject(id: string, state: object): void {
+    this.send("object_update", { id, state })
+  }
+  
+  @computed isConnected(): boolean {
+    return this.state.connected
+  }
+  
+  @computed getPlayers(): NetworkPlayer[] {
+    return Array.from(this.state.players.values())
+  }
+}
+
+// =============================================================================
+// PHYSICS SYSTEM
+// =============================================================================
+
+struct PhysicsBody {
+  id: string
+  position: [number, number, number]
+  velocity: [number, number, number]
+  mass: number
+  isStatic: boolean
+  collider: "box" | "sphere" | "capsule" | "mesh"
+  size: [number, number, number]
+}
+
+struct CollisionEvent {
+  bodyA: string
+  bodyB: string
+  point: [number, number, number]
+  normal: [number, number, number]
+  impulse: number
+}
+
+module PhysicsSystem {
+  @state {
+    bodies: Map<string, PhysicsBody> = new Map()
+    gravity: [number, number, number] = [0, -9.81, 0]
+    timeStep: number = 1/60
+    isRunning: boolean = false
+    collisions: CollisionEvent[] = []
+  }
+  
+  @action initialize(config?: { gravity?: [number, number, number] }): void {
+    if (config?.gravity) {
+      this.state.gravity = config.gravity
+    }
+    this.state.bodies.clear()
+    this.state.collisions = []
+  }
+  
+  @action addBody(id: string, config: Partial<PhysicsBody>): PhysicsBody {
+    const body: PhysicsBody = {
+      id,
+      position: config.position || [0, 0, 0],
+      velocity: config.velocity || [0, 0, 0],
+      mass: config.mass || 1,
+      isStatic: config.isStatic || false,
+      collider: config.collider || "box",
+      size: config.size || [1, 1, 1]
+    }
+    this.state.bodies.set(id, body)
+    return body
+  }
+  
+  @action removeBody(id: string): boolean {
+    return this.state.bodies.delete(id)
+  }
+  
+  @action start(): void {
+    this.state.isRunning = true
+  }
+  
+  @action stop(): void {
+    this.state.isRunning = false
+  }
+  
+  @action step(deltaTime?: number): void {
+    if (!this.state.isRunning) return
+    
+    const dt = deltaTime || this.state.timeStep
+    this.state.collisions = []
+    
+    // Update velocities and positions
+    for (const body of this.state.bodies.values()) {
+      if (body.isStatic) continue
+      
+      // Apply gravity
+      body.velocity[0] += this.state.gravity[0] * dt
+      body.velocity[1] += this.state.gravity[1] * dt
+      body.velocity[2] += this.state.gravity[2] * dt
+      
+      // Update position
+      body.position[0] += body.velocity[0] * dt
+      body.position[1] += body.velocity[1] * dt
+      body.position[2] += body.velocity[2] * dt
+    }
+    
+    // Collision detection
+    this.detectCollisions()
+  }
+  
+  @method detectCollisions(): void {
+    const bodies = Array.from(this.state.bodies.values())
+    
+    for (let i = 0; i < bodies.length; i++) {
+      for (let j = i + 1; j < bodies.length; j++) {
+        const collision = this.checkCollision(bodies[i], bodies[j])
+        if (collision) {
+          this.state.collisions.push(collision)
+        }
+      }
+    }
+  }
+  
+  @method checkCollision(a: PhysicsBody, b: PhysicsBody): CollisionEvent | null {
+    // Simple sphere-sphere collision for demo
+    const dx = a.position[0] - b.position[0]
+    const dy = a.position[1] - b.position[1]
+    const dz = a.position[2] - b.position[2]
+    const dist = Math.sqrt(dx*dx + dy*dy + dz*dz)
+    
+    const radiusA = Math.max(...a.size) / 2
+    const radiusB = Math.max(...b.size) / 2
+    
+    if (dist < radiusA + radiusB) {
+      return {
+        bodyA: a.id,
+        bodyB: b.id,
+        point: [
+          (a.position[0] + b.position[0]) / 2,
+          (a.position[1] + b.position[1]) / 2,
+          (a.position[2] + b.position[2]) / 2
+        ],
+        normal: [dx/dist, dy/dist, dz/dist],
+        impulse: 1
+      }
+    }
+    return null
+  }
+  
+  @action applyForce(id: string, force: [number, number, number]): void {
+    const body = this.state.bodies.get(id)
+    if (body && !body.isStatic) {
+      body.velocity[0] += force[0] / body.mass
+      body.velocity[1] += force[1] / body.mass
+      body.velocity[2] += force[2] / body.mass
+    }
+  }
+  
+  @action applyImpulse(id: string, impulse: [number, number, number]): void {
+    const body = this.state.bodies.get(id)
+    if (body && !body.isStatic) {
+      body.velocity[0] += impulse[0]
+      body.velocity[1] += impulse[1]
+      body.velocity[2] += impulse[2]
+    }
+  }
+  
+  @computed getCollisions(): CollisionEvent[] {
+    return [...this.state.collisions]
+  }
+}
+
+// =============================================================================
+// PROCEDURAL GENERATION SYSTEM
+// =============================================================================
+
+struct GenerationParams {
+  seed: number
+  scale: number
+  octaves: number
+  persistence: number
+  lacunarity: number
+}
+
+module ProceduralSystem {
+  @state {
+    seed: number = 12345
+    cache: Map<string, any> = new Map()
+  }
+  
+  @action setSeed(seed: number): void {
+    this.state.seed = seed
+    this.state.cache.clear()
+  }
+  
+  @method noise2D(x: number, y: number): number {
+    // Simplified Perlin-like noise
+    const hash = (n: number) => Math.sin(n) * 43758.5453123
+    const mix = (a: number, b: number, t: number) => a * (1 - t) + b * t
+    
+    const xi = Math.floor(x)
+    const yi = Math.floor(y)
+    const xf = x - xi
+    const yf = y - yi
+    
+    const n00 = hash(xi + yi * 57 + this.state.seed)
+    const n10 = hash(xi + 1 + yi * 57 + this.state.seed)
+    const n01 = hash(xi + (yi + 1) * 57 + this.state.seed)
+    const n11 = hash(xi + 1 + (yi + 1) * 57 + this.state.seed)
+    
+    const u = xf * xf * (3 - 2 * xf)
+    const v = yf * yf * (3 - 2 * yf)
+    
+    return mix(mix(n00, n10, u), mix(n01, n11, u), v)
+  }
+  
+  @method fbm(x: number, y: number, params: GenerationParams): number {
+    let value = 0
+    let amplitude = 1
+    let frequency = params.scale
+    let maxValue = 0
+    
+    for (let i = 0; i < params.octaves; i++) {
+      value += this.noise2D(x * frequency, y * frequency) * amplitude
+      maxValue += amplitude
+      amplitude *= params.persistence
+      frequency *= params.lacunarity
+    }
+    
+    return value / maxValue
+  }
+  
+  @action generateHeightmap(
+    width: number,
+    height: number,
+    params?: Partial<GenerationParams>
+  ): Float32Array {
+    const fullParams: GenerationParams = {
+      seed: this.state.seed,
+      scale: params?.scale || 0.1,
+      octaves: params?.octaves || 4,
+      persistence: params?.persistence || 0.5,
+      lacunarity: params?.lacunarity || 2
+    }
+    
+    const data = new Float32Array(width * height)
+    
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        data[y * width + x] = this.fbm(x, y, fullParams)
+      }
+    }
+    
+    return data
+  }
+  
+  @action generateDungeon(
+    width: number,
+    height: number,
+    roomCount: number
+  ): { rooms: object[], corridors: object[] } {
+    const rooms = []
+    const corridors = []
+    
+    // Generate rooms
+    for (let i = 0; i < roomCount; i++) {
+      const room = {
+        id: `room_${i}`,
+        x: Math.floor(this.random() * (width - 10)) + 5,
+        y: Math.floor(this.random() * (height - 10)) + 5,
+        width: Math.floor(this.random() * 10) + 5,
+        height: Math.floor(this.random() * 10) + 5
+      }
+      rooms.push(room)
+    }
+    
+    // Connect rooms with corridors
+    for (let i = 0; i < rooms.length - 1; i++) {
+      const start = rooms[i]
+      const end = rooms[i + 1]
+      corridors.push({
+        from: start.id,
+        to: end.id,
+        points: [
+          { x: start.x + start.width / 2, y: start.y + start.height / 2 },
+          { x: end.x + end.width / 2, y: end.y + end.height / 2 }
+        ]
+      })
+    }
+    
+    return { rooms, corridors }
+  }
+  
+  @method random(): number {
+    this.state.seed = (this.state.seed * 1103515245 + 12345) & 0x7fffffff
+    return this.state.seed / 0x7fffffff
+  }
+}
+
+// =============================================================================
+// MARKETPLACE SYSTEM
+// =============================================================================
+
+struct MarketplaceItem {
+  id: string
+  name: string
+  description: string
+  price: number
+  currency: string
+  creator: string
+  category: string
+  downloads: number
+  rating: number
+}
+
+module MarketplaceSystem {
+  @state {
+    items: MarketplaceItem[] = []
+    cart: string[] = []
+    purchased: string[] = []
+    loading: boolean = false
+  }
+  
+  @action async fetchItems(category?: string): Promise<void> {
+    this.state.loading = true
+    try {
+      const url = category 
+        ? `/api/marketplace?category=${category}`
+        : "/api/marketplace"
+      const response = await fetch(url)
+      this.state.items = await response.json()
+    } catch (err) {
+      console.error("Failed to fetch marketplace items:", err)
+    } finally {
+      this.state.loading = false
+    }
+  }
+  
+  @action addToCart(itemId: string): void {
+    if (!this.state.cart.includes(itemId)) {
+      this.state.cart.push(itemId)
+    }
+  }
+  
+  @action removeFromCart(itemId: string): void {
+    const index = this.state.cart.indexOf(itemId)
+    if (index !== -1) {
+      this.state.cart.splice(index, 1)
+    }
+  }
+  
+  @action async purchase(): Promise<boolean> {
+    try {
+      const response = await fetch("/api/marketplace/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: this.state.cart })
+      })
+      
+      if (response.ok) {
+        this.state.purchased.push(...this.state.cart)
+        this.state.cart = []
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error("Purchase failed:", err)
+      return false
+    }
+  }
+  
+  @computed cartTotal(): number {
+    return this.state.cart.reduce((total, id) => {
+      const item = this.state.items.find(i => i.id === id)
+      return total + (item?.price || 0)
+    }, 0)
+  }
+}
+
+// =============================================================================
+// VERSION CONTROL SYSTEM
+// =============================================================================
+
+struct SceneVersion {
+  id: string
+  name: string
+  timestamp: number
+  author: string
+  message: string
+  parentId: string | null
+  snapshot: string
+}
+
+module VersionControlSystem {
+  @state {
+    versions: SceneVersion[] = []
+    currentVersion: string = null
+    branches: Map<string, string[]> = new Map()
+    currentBranch: string = "main"
+  }
+  
+  @action commit(name: string, message: string, snapshot: string): SceneVersion {
+    const version: SceneVersion = {
+      id: crypto.randomUUID(),
+      name,
+      timestamp: Date.now(),
+      author: "current_user",
+      message,
+      parentId: this.state.currentVersion,
+      snapshot
+    }
+    
+    this.state.versions.push(version)
+    this.state.currentVersion = version.id
+    
+    // Add to current branch
+    if (!this.state.branches.has(this.state.currentBranch)) {
+      this.state.branches.set(this.state.currentBranch, [])
+    }
+    this.state.branches.get(this.state.currentBranch).push(version.id)
+    
+    return version
+  }
+  
+  @action checkout(versionId: string): SceneVersion | null {
+    const version = this.state.versions.find(v => v.id === versionId)
+    if (version) {
+      this.state.currentVersion = versionId
+      return version
+    }
+    return null
+  }
+  
+  @action createBranch(name: string): void {
+    if (!this.state.branches.has(name)) {
+      this.state.branches.set(name, [this.state.currentVersion])
+      this.state.currentBranch = name
+    }
+  }
+  
+  @action switchBranch(name: string): boolean {
+    if (this.state.branches.has(name)) {
+      this.state.currentBranch = name
+      const branchVersions = this.state.branches.get(name)
+      if (branchVersions.length > 0) {
+        this.state.currentVersion = branchVersions[branchVersions.length - 1]
+      }
+      return true
+    }
+    return false
+  }
+  
+  @computed getHistory(): SceneVersion[] {
+    return [...this.state.versions].reverse()
+  }
+  
+  @method diff(versionA: string, versionB: string): object {
+    const a = this.state.versions.find(v => v.id === versionA)
+    const b = this.state.versions.find(v => v.id === versionB)
+    
+    if (!a || !b) return null
+    
+    // Simplified diff
+    return {
+      from: a.name,
+      to: b.name,
+      changed: a.snapshot !== b.snapshot
+    }
+  }
+}
+
+// =============================================================================
+// PARTY SYSTEM
+// =============================================================================
+
+struct PartyMember {
+  id: string
+  name: string
+  role: "leader" | "member"
+  status: "online" | "offline" | "busy"
+}
+
+module PartySystem {
+  @state {
+    partyId: string = null
+    members: PartyMember[] = []
+    invites: string[] = []
+    maxSize: number = 8
+  }
+  
+  @action createParty(): string {
+    this.state.partyId = crypto.randomUUID()
+    this.state.members = [{
+      id: "self",
+      name: "You",
+      role: "leader",
+      status: "online"
+    }]
+    return this.state.partyId
+  }
+  
+  @action leaveParty(): void {
+    this.state.partyId = null
+    this.state.members = []
+    this.state.invites = []
+  }
+  
+  @action invitePlayer(playerId: string): boolean {
+    if (this.state.members.length >= this.state.maxSize) return false
+    if (!this.state.invites.includes(playerId)) {
+      this.state.invites.push(playerId)
+    }
+    return true
+  }
+  
+  @action acceptMember(member: PartyMember): boolean {
+    if (this.state.members.length >= this.state.maxSize) return false
+    this.state.members.push({ ...member, role: "member" })
+    return true
+  }
+  
+  @action kickMember(memberId: string): boolean {
+    const index = this.state.members.findIndex(m => m.id === memberId)
+    if (index > 0) { // Can't kick leader (index 0)
+      this.state.members.splice(index, 1)
+      return true
+    }
+    return false
+  }
+  
+  @action promoteToLeader(memberId: string): void {
+    for (const member of this.state.members) {
+      member.role = member.id === memberId ? "leader" : "member"
+    }
+  }
+  
+  @computed isLeader(): boolean {
+    return this.state.members[0]?.role === "leader"
+  }
+  
+  @computed memberCount(): number {
+    return this.state.members.length
+  }
+}
+
+// =============================================================================
+// ANALYTICS SYSTEM
+// =============================================================================
+
+struct AnalyticsEvent {
+  name: string
+  properties: object
+  timestamp: number
+  sessionId: string
+}
+
+module AnalyticsSystem {
+  @state {
+    sessionId: string = null
+    events: AnalyticsEvent[] = []
+    userId: string = null
+    enabled: boolean = true
+  }
+  
+  @action startSession(userId?: string): void {
+    this.state.sessionId = crypto.randomUUID()
+    this.state.userId = userId || null
+    this.track("session_start", {})
+  }
+  
+  @action endSession(): void {
+    this.track("session_end", {
+      duration: this.sessionDuration()
+    })
+    this.flush()
+  }
+  
+  @action track(name: string, properties: object): void {
+    if (!this.state.enabled) return
+    
+    this.state.events.push({
+      name,
+      properties: {
+        ...properties,
+        userId: this.state.userId
+      },
+      timestamp: Date.now(),
+      sessionId: this.state.sessionId
+    })
+    
+    // Auto-flush if buffer is large
+    if (this.state.events.length >= 100) {
+      this.flush()
+    }
+  }
+  
+  @action async flush(): Promise<void> {
+    if (this.state.events.length === 0) return
+    
+    const events = [...this.state.events]
+    this.state.events = []
+    
+    try {
+      await fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ events })
+      })
+    } catch (err) {
+      // Re-add events on failure
+      this.state.events.unshift(...events)
+    }
+  }
+  
+  @action setEnabled(enabled: boolean): void {
+    this.state.enabled = enabled
+  }
+  
+  @method sessionDuration(): number {
+    const start = this.state.events.find(e => e.name === "session_start")
+    return start ? Date.now() - start.timestamp : 0
+  }
+}
+
+// =============================================================================
+// ACHIEVEMENTS SYSTEM
+// =============================================================================
+
+struct Achievement {
+  id: string
+  name: string
+  description: string
+  icon: string
+  points: number
+  unlockedAt: number | null
+}
+
+module AchievementsSystem {
+  @state {
+    achievements: Achievement[] = []
+    unlocked: string[] = []
+    totalPoints: number = 0
+  }
+  
+  @action initialize(achievements: Achievement[]): void {
+    this.state.achievements = achievements
+  }
+  
+  @action unlock(achievementId: string): Achievement | null {
+    const achievement = this.state.achievements.find(a => a.id === achievementId)
+    
+    if (achievement && !this.state.unlocked.includes(achievementId)) {
+      this.state.unlocked.push(achievementId)
+      achievement.unlockedAt = Date.now()
+      this.state.totalPoints += achievement.points
+      
+      // Emit event for UI notification
+      EventBus.emit("achievement.unlocked", achievement)
+      
+      return achievement
+    }
+    return null
+  }
+  
+  @method isUnlocked(achievementId: string): boolean {
+    return this.state.unlocked.includes(achievementId)
+  }
+  
+  @computed getUnlocked(): Achievement[] {
+    return this.state.achievements.filter(a => 
+      this.state.unlocked.includes(a.id)
+    )
+  }
+  
+  @computed getProgress(): { unlocked: number, total: number, percentage: number } {
+    return {
+      unlocked: this.state.unlocked.length,
+      total: this.state.achievements.length,
+      percentage: (this.state.unlocked.length / this.state.achievements.length) * 100
+    }
+  }
+}
+
+// =============================================================================
+// SYSTEMS MANAGER (UNIFIED ACCESS)
+// =============================================================================
+
+module SystemsManager {
+  @state {
+    initialized: boolean = false
+  }
+  
+  @action initializeAll(): void {
+    NetworkingSystem.state.connected = false
+    PhysicsSystem.initialize()
+    ProceduralSystem.setSeed(Date.now())
+    AnalyticsSystem.startSession()
+    this.state.initialized = true
+  }
+  
+  @method getNetworking(): typeof NetworkingSystem {
+    return NetworkingSystem
+  }
+  
+  @method getPhysics(): typeof PhysicsSystem {
+    return PhysicsSystem
+  }
+  
+  @method getProcedural(): typeof ProceduralSystem {
+    return ProceduralSystem
+  }
+  
+  @method getMarketplace(): typeof MarketplaceSystem {
+    return MarketplaceSystem
+  }
+  
+  @method getVersionControl(): typeof VersionControlSystem {
+    return VersionControlSystem
+  }
+  
+  @method getParty(): typeof PartySystem {
+    return PartySystem
+  }
+  
+  @method getAnalytics(): typeof AnalyticsSystem {
+    return AnalyticsSystem
+  }
+  
+  @method getAchievements(): typeof AchievementsSystem {
+    return AchievementsSystem
+  }
+  
+  @action shutdown(): void {
+    NetworkingSystem.disconnect()
+    PhysicsSystem.stop()
+    AnalyticsSystem.endSession()
+    this.state.initialized = false
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  SystemsManager,
+  NetworkingSystem,
+  PhysicsSystem,
+  ProceduralSystem,
+  MarketplaceSystem,
+  VersionControlSystem,
+  PartySystem,
+  AnalyticsSystem,
+  AchievementsSystem,
+  NetworkPlayer,
+  PhysicsBody,
+  CollisionEvent,
+  MarketplaceItem,
+  SceneVersion,
+  PartyMember,
+  Achievement
+}

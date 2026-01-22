@@ -1,0 +1,159 @@
+/**
+ * Compiler Index
+ * 
+ * Self-hosting HoloScript+ compiler.
+ * Provides lexing, parsing, code generation, and transpilation.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// LEXER - Tokenization
+// =============================================================================
+
+export {
+  Lexer,
+  Token,
+  TokenType,
+  LexerError
+} from "./Lexer.hsplus"
+
+// =============================================================================
+// PARSER - AST Generation
+// =============================================================================
+
+export {
+  Parser,
+  ASTNode,
+  NodeType,
+  ParserError
+} from "./Parser.hsplus"
+
+// =============================================================================
+// CODE GENERATOR - JavaScript Emission
+// =============================================================================
+
+export {
+  CodeGenerator,
+  GeneratorOptions,
+  GeneratedCode
+} from "./CodeGenerator.hsplus"
+
+// =============================================================================
+// TRANSPILER - Full Pipeline
+// =============================================================================
+
+export {
+  Transpiler,
+  TranspileOptions,
+  TranspileResult,
+  TranspileError,
+  TranspileWarning,
+  TranspileStats,
+  transpile,
+  validate,
+  format
+} from "./Transpiler.hsplus"
+
+// =============================================================================
+// RUNTIME - Execution Support
+// =============================================================================
+
+export {
+  // Reactive state
+  createState,
+  subscribe,
+  unwrap,
+  reactive,
+  ref,
+  batch,
+  markRaw,
+  
+  // Actions
+  createAction,
+  createAsyncAction,
+  
+  // Computed
+  computed,
+  watch,
+  
+  // Events
+  eventBus,
+  
+  // Timing
+  sleep,
+  every,
+  after,
+  debounce,
+  throttle,
+  
+  // Objects
+  clone,
+  merge,
+  pick,
+  omit,
+  
+  // Arrays
+  groupBy,
+  unique,
+  chunk,
+  flatten,
+  
+  // Strings
+  camelCase,
+  pascalCase,
+  snakeCase,
+  kebabCase,
+  
+  // Validation
+  isDefined,
+  isEmpty,
+  assert,
+  
+  // Async
+  deferred,
+  timeout,
+  retry,
+  
+  // Logging
+  logger,
+  LogLevel
+} from "./Runtime.hsplus"
+
+// =============================================================================
+// VERSION INFO
+// =============================================================================
+
+const COMPILER_VERSION = "2.0.0"
+
+const CompilerInfo = {
+  name: "HoloScript+ Compiler",
+  version: COMPILER_VERSION,
+  description: "Self-hosting compiler for the HoloScript+ language",
+  
+  features: [
+    "Full tokenization with source mapping",
+    "Recursive descent parsing",
+    "AST generation and manipulation",
+    "JavaScript/ES6 code generation",
+    "Multiple output formats (ESM, CJS, IIFE)",
+    "Minification support",
+    "Source map generation",
+    "Caching for performance",
+    "Bundle multiple files",
+    "Runtime library included"
+  ],
+  
+  supportedNodes: [
+    "Module", "Struct", "Enum", "Trait",
+    "Template", "Object", "Composition", "SpatialGroup",
+    "@state", "@action", "@method", "@computed",
+    "Function", "Variable", "Import", "Export",
+    "If/Else", "For", "While", "Return",
+    "Every", "After", "EventHandler",
+    "All expression types"
+  ]
+}
+
+export { COMPILER_VERSION, CompilerInfo }

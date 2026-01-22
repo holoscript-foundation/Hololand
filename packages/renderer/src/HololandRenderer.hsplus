@@ -1,0 +1,762 @@
+/**
+ * @hololand/renderer - HololandRenderer
+ *
+ * Advanced Three.js renderer with quality tiers, PBR materials,
+ * HDRI environments, and post-processing support.
+ */
+
+import * as THREE from "three"
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+import { VRButton } from "three/examples/jsm/webxr/VRButton.js"
+
+import { HololandWorld, SpatialObject } from "@hololand/world"
+
+import {
+  RendererConfig,
+  QualitySettings,
+  QualityPreset,
+  LightingConfig,
+  LightType,
+  Vector3,
+  QualityPresets
+} from "./types.hsplus"
+import { rendererLogger as logger } from "./logger.hsplus"
+import { QualityManager, createQualityManager } from "./QualityManager.hsplus"
+import { PostProcessingPipeline, createPostProcessingPipeline } from "./PostProcessing.hsplus"
+import { EnvironmentManager, createEnvironmentManager } from "./EnvironmentManager.hsplus"
+import { MaterialFactory, createMaterialFactory } from "./MaterialFactory.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Renderable UI interface
+ */
+interface RenderableUI {
+  renderOnce(): void
+}
+
+// =============================================================================
+// HOLOLAND RENDERER
+// =============================================================================
+
+/**
+ * Main 3D renderer for Hololand worlds
+ */
+module HololandRenderer {
+  @state {
+    world: HololandWorld = null,
+    scene: THREE.Scene = null,
+    camera: THREE.PerspectiveCamera = null,
+    renderer: THREE.WebGLRenderer = null,
+    controls: OrbitControls = null,
+    objectMap: Map<string, THREE.Object3D> = new Map(),
+    config: RendererConfig = {},
+    animationId: number = null,
+    vrEnabled: bool = false,
+    currentScaleMultiplier: number = 1.0,
+    uiCanvas: RenderableUI = null,
+    lastFrameTime: number = 0,
+
+    // Scene structure
+    scalingRoot: THREE.Group = null,
+
+    // Advanced systems
+    qualityManager: typeof QualityManager = null,
+    postProcessing: typeof PostProcessingPipeline = null,
+    environmentManager: typeof EnvironmentManager = null,
+    materialFactory: typeof MaterialFactory = null
+  }
+
+  @action initialize(canvas: HTMLCanvasElement, world: HololandWorld, config: RendererConfig = {}) {
+    self.world = world
+    self.objectMap = new Map()
+    self.animationId = null
+    self.vrEnabled = false
+
+    // Resolve quality preset
+    let qualityPreset = config.quality ?? QualityPreset.medium
+    let resolvedQuality = qualityPreset == QualityPreset.auto ? QualityPreset.medium : qualityPreset
+    let qualitySettings = { ...QualityPresets.getPreset(resolvedQuality) }
+
+    // Initialize quality manager
+    self.qualityManager = createQualityManager({
+      preset: resolvedQuality,
+      adaptiveQuality: true,
+      onQualityChange: (settings, preset) => self.onQualityChange(settings, preset)
+    })
+
+    // Initialize material factory
+    self.materialFactory = createMaterialFactory(qualitySettings)
+
+    self.config = {
+      quality: qualityPreset,
+      enableShadows: config.enableShadows ?? qualitySettings.shadowsEnabled,
+      enableVR: config.enableVR ?? true,
+      enableControls: config.enableControls ?? true,
+      antialias: config.antialias ?? (qualitySettings.antialiasing != "none"),
+      backgroundColor: config.backgroundColor ?? 0x000000,
+      cameraPosition: config.cameraPosition ?? { x: 10, y: 10, z: 10 },
+      cameraFov: config.cameraFov ?? 75,
+      renderMode: config.renderMode ?? "3d",
+      enable2D: config.enable2D ?? false,
+      orthoSize: config.orthoSize ?? 10,
+      enableHybrid: config.enableHybrid ?? false
+    }
+
+    // Initialize Three.js scene
+    self.scene = new THREE.Scene()
+    self.scene.background = new THREE.Color(self.config.backgroundColor)
+
+    // Initialize scaling root
+    self.scalingRoot = new THREE.Group()
+    self.scene.add(self.scalingRoot)
+
+    // Initialize camera
+    self.camera = new THREE.PerspectiveCamera(
+      self.config.cameraFov,
+      canvas.width / canvas.height,
+      0.1,
+      1000
+    )
+    self.camera.position.set(
+      self.config.cameraPosition.x,
+      self.config.cameraPosition.y,
+      self.config.cameraPosition.z
+    )
+
+    // Initialize renderer with quality-based settings
+    self.renderer = new THREE.WebGLRenderer({
+      canvas: canvas,
+      antialias: self.config.antialias,
+      powerPreference: qualitySettings.targetFPS >= 72 ? "high-performance" : "default"
+    })
+    self.renderer.setSize(canvas.width, canvas.height)
+    self.renderer.setPixelRatio(Math.min(qualitySettings.pixelRatio, window.devicePixelRatio))
+
+    // Apply quality settings to renderer
+    self.qualityManager.applyToRenderer(self.renderer)
+
+    // Initialize controls
+    if self.config.enableControls {
+      self.controls = new OrbitControls(self.camera, self.renderer.domElement)
+      self.controls.enableDamping = true
+      self.controls.dampingFactor = 0.05
+    }
+
+    // Enable VR
+    if self.config.enableVR && "xr" in navigator {
+      self.renderer.xr.enabled = true
+      let vrButton = VRButton.createButton(self.renderer)
+      document.body.appendChild(vrButton)
+      self.vrEnabled = true
+    }
+
+    // Initialize environment manager
+    self.environmentManager = createEnvironmentManager({
+      scene: self.scene,
+      renderer: self.renderer,
+      qualitySettings: qualitySettings,
+      config: config.environment
+    })
+
+    // Initialize post-processing if enabled
+    if qualitySettings.postProcessing {
+      self.postProcessing = createPostProcessingPipeline({
+        renderer: self.renderer,
+        scene: self.scene,
+        camera: self.camera,
+        qualitySettings: qualitySettings,
+        config: config.postProcessing
+      })
+    }
+
+    // Setup default lighting (unless using HDRI environment)
+    if !config.environment?.hdri {
+      self.setupDefaultLighting()
+    }
+
+    // Sync with Hololand world
+    self.setupWorldSync()
+
+    // Initialize async components
+    self.initializeAsync()
+
+    logger.info("[HololandRenderer] Initialized", {
+      quality: resolvedQuality,
+      enableVR: self.vrEnabled,
+      postProcessing: qualitySettings.postProcessing,
+      hdriEnvironment: qualitySettings.hdriEnvironment
+    })
+  }
+
+  /**
+   * Initialize async components
+   */
+  @action async initializeAsync() {
+    // Auto-detect quality if set to auto
+    if self.config.quality == QualityPreset.auto {
+      await self.qualityManager.detect()
+    }
+
+    // Initialize environment
+    if self.environmentManager {
+      await self.environmentManager.setup()
+
+      // Update material factory with environment map
+      let envMap = self.environmentManager.getEnvironmentMap()
+      if envMap {
+        self.materialFactory.setEnvironmentMap(envMap)
+      }
+    }
+  }
+
+  /**
+   * Handle quality change events
+   */
+  @method onQualityChange(settings: QualitySettings, preset: QualityPreset) {
+    logger.info("[HololandRenderer] Quality changed", { preset })
+
+    // Update renderer
+    self.qualityManager.applyToRenderer(self.renderer)
+
+    // Update material factory
+    self.materialFactory.setQualitySettings(settings)
+
+    // Update environment
+    if self.environmentManager {
+      self.environmentManager.setQualitySettings(settings)
+    }
+
+    // Update or create post-processing
+    if settings.postProcessing && !self.postProcessing {
+      self.postProcessing = createPostProcessingPipeline({
+        renderer: self.renderer,
+        scene: self.scene,
+        camera: self.camera,
+        qualitySettings: settings,
+        config: self.config.postProcessing
+      })
+    } else if self.postProcessing {
+      self.postProcessing.applyQualitySettings(settings, self.config.postProcessing)
+    }
+
+    // Re-process existing objects for new quality
+    self.updateObjectMaterials()
+  }
+
+  /**
+   * Update materials on existing objects for new quality settings
+   */
+  @method updateObjectMaterials() {
+    self.objectMap.forEach((mesh) => {
+      if mesh is THREE.Mesh {
+        let materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+        materials.forEach(mat => {
+          self.materialFactory.upgradeMaterial(mat)
+        })
+      }
+    })
+  }
+
+  /**
+   * Start rendering loop
+   */
+  @action start() {
+    if self.animationId != null {
+      logger.warn("[HololandRenderer] Already rendering")
+      return
+    }
+
+    logger.info("[HololandRenderer] Starting render loop")
+
+    let animate = (time: number) => {
+      // Calculate delta time for adaptive quality
+      let deltaMs = time - (self.lastFrameTime ?? time)
+      self.lastFrameTime = time
+
+      self.qualityManager.recordFrameTime(deltaMs)
+
+      if self.renderer.xr.isPresenting {
+        self.renderer.setAnimationLoop(animate)
+        self.animationId = -1  // Flag XR loop
+      } else {
+        self.animationId = requestAnimationFrame(animate)
+      }
+
+      // Update controls
+      if self.controls {
+        self.controls.update()
+      }
+
+      // Sync world state to Three.js
+      self.syncWorldToScene()
+
+      // Render with or without post-processing
+      if self.postProcessing && self.postProcessing.isEnabled() {
+        self.postProcessing.render()
+      } else {
+        self.renderer.render(self.scene, self.camera)
+      }
+
+      // Render 2D UI if active
+      if self.uiCanvas && self.uiCanvas.renderOnce {
+        self.uiCanvas.renderOnce()
+      }
+    }
+
+    animate(performance.now())
+  }
+
+  /**
+   * Stop rendering loop
+   */
+  @action stop() {
+    if self.animationId != null {
+      if self.renderer.xr.isPresenting {
+        self.renderer.setAnimationLoop(null)
+      } else {
+        cancelAnimationFrame(self.animationId)
+      }
+      self.animationId = null
+      logger.info("[HololandRenderer] Stopped render loop")
+    }
+  }
+
+  /**
+   * Setup default lighting
+   */
+  @method setupDefaultLighting() {
+    let settings = self.qualityManager.getSettings()
+
+    // Ambient light
+    let ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.5)
+    self.scene.add(ambientLight)
+
+    // Directional light (sun)
+    let directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8)
+    directionalLight.position.set(10, 20, 10)
+    directionalLight.castShadow = settings.shadowsEnabled
+
+    if settings.shadowsEnabled {
+      directionalLight.shadow.mapSize.width = settings.shadowMapSize
+      directionalLight.shadow.mapSize.height = settings.shadowMapSize
+      directionalLight.shadow.camera.near = 0.5
+      directionalLight.shadow.camera.far = 500
+      directionalLight.shadow.camera.left = -50
+      directionalLight.shadow.camera.right = 50
+      directionalLight.shadow.camera.top = 50
+      directionalLight.shadow.camera.bottom = -50
+    }
+
+    self.scene.add(directionalLight)
+  }
+
+  /**
+   * Setup world event listeners
+   */
+  @method setupWorldSync() {
+    // Add existing objects
+    self.world.getAllObjects().forEach((obj) => self.addObjectToScene(obj))
+
+    // Listen for scale changes
+    self.world.on("scale:change", (event) => {
+      let multiplier = event.data.multiplier ?? 1.0
+      self.setScaleContext(multiplier)
+    })
+
+    // Listen for new objects
+    self.world.on("object:added", (event) => {
+      let obj = self.world.getObject(event.data.objectId)
+      if obj {
+        self.addObjectToScene(obj)
+      }
+    })
+
+    // Listen for removed objects
+    self.world.on("object:removed", (event) => {
+      self.removeObjectFromScene(event.data.objectId)
+    })
+  }
+
+  /**
+   * Add Hololand object to Three.js scene
+   */
+  @method addObjectToScene(obj: SpatialObject) {
+    let mesh = self.createMeshForObject(obj)
+    self.objectMap.set(obj.id, mesh)
+    self.scalingRoot.add(mesh)
+
+    logger.debug("[HololandRenderer] Object added to scene", { objectId: obj.id })
+  }
+
+  /**
+   * Remove object from Three.js scene
+   */
+  @method removeObjectFromScene(objectId: string) {
+    let mesh = self.objectMap.get(objectId)
+    if mesh {
+      self.scalingRoot.remove(mesh)
+      self.objectMap.delete(objectId)
+      logger.debug("[HololandRenderer] Object removed from scene", { objectId })
+    }
+  }
+
+  /**
+   * Create Three.js mesh for Hololand object
+   */
+  @method createMeshForObject(obj: SpatialObject) -> THREE.Object3D {
+    let metadata = obj.getMetadata()
+    let scale = obj.getScale()
+    let settings = self.qualityManager.getSettings()
+
+    // Determine geometry based on type with quality-based segments
+    let segments = settings.materialType == "physical" ? 64 : 32
+    let geometry: THREE.BufferGeometry
+
+    match obj.type {
+      "sphere" | "orb" => {
+        geometry = new THREE.SphereGeometry(scale.x / 2, segments, segments)
+      },
+      "cube" | "box" => {
+        geometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z)
+      },
+      "platform" | "floor" => {
+        geometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z)
+      },
+      "cylinder" => {
+        geometry = new THREE.CylinderGeometry(scale.x / 2, scale.x / 2, scale.y, segments)
+      },
+      _ => {
+        geometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z)
+      }
+    }
+
+    // Create material using factory
+    let color = metadata.color ? new THREE.Color(metadata.color) : new THREE.Color(0x00FFFF)
+    let material = self.materialFactory.create({
+      color: color.getHex(),
+      metalness: metadata.metalness ?? 0.3,
+      roughness: metadata.roughness ?? 0.7,
+      emissive: metadata.glow ? color.getHex() : 0x000000,
+      emissiveIntensity: metadata.glow ? 0.3 : 0
+    })
+
+    let mesh = new THREE.Mesh(geometry, material)
+    mesh.name = obj.id
+    mesh.castShadow = settings.shadowsEnabled
+    mesh.receiveShadow = settings.shadowsEnabled
+
+    // Set initial transform
+    let pos = obj.getPosition()
+    mesh.position.set(pos.x, pos.y, pos.z)
+
+    let rot = obj.getRotation()
+    mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w)
+
+    return mesh
+  }
+
+  /**
+   * Sync world state to Three.js scene
+   */
+  @method syncWorldToScene() {
+    for [objectId, mesh] in self.objectMap.entries() {
+      let obj = self.world.getObject(objectId)
+      if !obj { continue }
+
+      // Update position
+      let pos = obj.getPosition()
+      mesh.position.set(pos.x, pos.y, pos.z)
+
+      // Update rotation
+      let rot = obj.getRotation()
+      mesh.quaternion.set(rot.x, rot.y, rot.z, rot.w)
+
+      // Update scale
+      let scale = obj.getScale()
+      mesh.scale.set(scale.x, scale.y, scale.z)
+
+      // Update visibility
+      mesh.visible = obj.isVisible()
+    }
+  }
+
+  /**
+   * Add custom lighting
+   */
+  @method addLight(config: LightingConfig) -> THREE.Light {
+    let light: THREE.Light
+    let settings = self.qualityManager.getSettings()
+
+    match config.lightType {
+      LightType.ambient => {
+        light = new THREE.AmbientLight(config.color, config.intensity)
+      },
+      LightType.directional => {
+        light = new THREE.DirectionalLight(config.color, config.intensity)
+        if config.position {
+          light.position.set(config.position.x, config.position.y, config.position.z)
+        }
+        if config.castShadow && settings.shadowsEnabled {
+          light.castShadow = true
+          light.shadow.mapSize.width = settings.shadowMapSize
+          light.shadow.mapSize.height = settings.shadowMapSize
+        }
+      },
+      LightType.point => {
+        light = new THREE.PointLight(config.color, config.intensity, config.distance)
+        if config.position {
+          light.position.set(config.position.x, config.position.y, config.position.z)
+        }
+        if config.castShadow && settings.shadowsEnabled {
+          light.castShadow = true
+        }
+      },
+      LightType.spot => {
+        light = new THREE.SpotLight(config.color, config.intensity, config.distance)
+        if config.position {
+          light.position.set(config.position.x, config.position.y, config.position.z)
+        }
+        if config.castShadow && settings.shadowsEnabled {
+          light.castShadow = true
+          light.shadow.mapSize.width = settings.shadowMapSize
+          light.shadow.mapSize.height = settings.shadowMapSize
+        }
+      },
+      _ => {
+        light = new THREE.AmbientLight(config.color, config.intensity)
+      }
+    }
+
+    self.scene.add(light)
+    return light
+  }
+
+  /**
+   * Set the active scale context
+   */
+  @action setScaleContext(multiplier: number) {
+    self.currentScaleMultiplier = multiplier
+    logger.info("[HololandRenderer] Scale context changed", { multiplier })
+
+    self.updateCameraClipping()
+    if self.environmentManager {
+      self.environmentManager.setMagnitudeMultiplier(multiplier)
+    }
+  }
+
+  /**
+   * Set the UI Canvas for overlay rendering
+   */
+  @action setUICanvas(uiCanvas: RenderableUI) {
+    self.uiCanvas = uiCanvas
+    logger.info("[HololandRenderer] UI Canvas integrated")
+  }
+
+  /**
+   * Update camera clipping planes based on current scale
+   */
+  @method updateCameraClipping() {
+    let multiplier = self.currentScaleMultiplier
+
+    // Scale-relative clipping planes
+    self.camera.near = 0.1 * multiplier
+    self.camera.far = 1000 * multiplier
+
+    // Safety bounds for VR
+    if self.camera.near < 0.0001 { self.camera.near = 0.0001 }
+    if self.camera.far > 1000000000 { self.camera.far = 1000000000 }
+
+    self.camera.updateProjectionMatrix()
+
+    logger.debug("[HololandRenderer] Updated camera clipping", {
+      near: self.camera.near,
+      far: self.camera.far,
+      multiplier
+    })
+  }
+
+  // ==========================================================================
+  // QUALITY API
+  // ==========================================================================
+
+  /**
+   * Set quality preset
+   */
+  @action setQuality(preset: QualityPreset) {
+    self.qualityManager.setPreset(preset)
+  }
+
+  /**
+   * Get current quality settings
+   */
+  @computed getQualitySettings() -> QualitySettings {
+    return self.qualityManager.getSettings()
+  }
+
+  /**
+   * Get quality manager for advanced control
+   */
+  @computed getQualityManager() -> typeof QualityManager {
+    return self.qualityManager
+  }
+
+  // ==========================================================================
+  // ENVIRONMENT API
+  // ==========================================================================
+
+  /**
+   * Load HDRI environment
+   */
+  @action async loadEnvironment(hdriUrl: string) {
+    if self.environmentManager {
+      await self.environmentManager.loadHDRI(hdriUrl)
+      let envMap = self.environmentManager.getEnvironmentMap()
+      if envMap {
+        self.materialFactory.setEnvironmentMap(envMap)
+        self.updateObjectMaterials()
+      }
+    }
+  }
+
+  /**
+   * Get environment manager
+   */
+  @computed getEnvironmentManager() -> typeof EnvironmentManager | null {
+    return self.environmentManager
+  }
+
+  // ==========================================================================
+  // POST-PROCESSING API
+  // ==========================================================================
+
+  /**
+   * Enable/disable post-processing
+   */
+  @action setPostProcessingEnabled(enabled: bool) {
+    if self.postProcessing {
+      self.postProcessing.setEnabled(enabled)
+    }
+  }
+
+  /**
+   * Get post-processing pipeline
+   */
+  @computed getPostProcessing() -> typeof PostProcessingPipeline | null {
+    return self.postProcessing
+  }
+
+  // ==========================================================================
+  // MATERIAL API
+  // ==========================================================================
+
+  /**
+   * Get material factory
+   */
+  @computed getMaterialFactory() -> typeof MaterialFactory {
+    return self.materialFactory
+  }
+
+  // ==========================================================================
+  // THREE.JS ACCESS
+  // ==========================================================================
+
+  /**
+   * Get Three.js scene
+   */
+  @computed getScene() -> THREE.Scene {
+    return self.scene
+  }
+
+  /**
+   * Get Three.js camera
+   */
+  @computed getCamera() -> THREE.PerspectiveCamera {
+    return self.camera
+  }
+
+  /**
+   * Get Three.js renderer
+   */
+  @computed getRenderer() -> THREE.WebGLRenderer {
+    return self.renderer
+  }
+
+  /**
+   * Handle window resize
+   */
+  @action resize(width: number, height: number) {
+    self.camera.aspect = width / height
+    self.camera.updateProjectionMatrix()
+    self.renderer.setSize(width, height)
+
+    if self.postProcessing {
+      self.postProcessing.setSize(width, height)
+    }
+  }
+
+  /**
+   * Cleanup
+   */
+  @action dispose() {
+    self.stop()
+
+    // Dispose post-processing
+    if self.postProcessing {
+      self.postProcessing.dispose()
+    }
+
+    // Dispose environment manager
+    if self.environmentManager {
+      self.environmentManager.dispose()
+    }
+
+    // Dispose geometries and materials
+    self.objectMap.forEach((mesh) => {
+      if mesh is THREE.Mesh {
+        mesh.geometry.dispose()
+        if Array.isArray(mesh.material) {
+          mesh.material.forEach((mat) => mat.dispose())
+        } else {
+          mesh.material.dispose()
+        }
+      }
+    })
+
+    self.objectMap.clear()
+    self.renderer.dispose()
+
+    if self.controls {
+      self.controls.dispose()
+    }
+
+    logger.info("[HololandRenderer] Disposed")
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTION
+// =============================================================================
+
+/**
+ * Create and initialize a HololandRenderer
+ */
+function createHololandRenderer(
+  canvas: HTMLCanvasElement,
+  world: HololandWorld,
+  config: RendererConfig = {}
+) -> typeof HololandRenderer {
+  HololandRenderer.initialize(canvas, world, config)
+  return HololandRenderer
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  HololandRenderer,
+  createHololandRenderer
+}

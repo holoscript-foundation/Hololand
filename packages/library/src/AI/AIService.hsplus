@@ -1,0 +1,550 @@
+/**
+ * AIService.hsplus
+ * 
+ * Multi-provider AI service module supporting Brittney, OpenAI,
+ * Claude, and Ollama for code generation and chat.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct AIProvider {
+  name: string
+  model: string
+  apiKey: string = null
+  baseUrl: string = null
+  enabled: boolean = true
+}
+
+struct AIResponse {
+  content: string
+  provider: string
+  model: string
+  usage: {
+    promptTokens: number,
+    completionTokens: number
+  } = null
+}
+
+struct AIMessage {
+  role: "system" | "user" | "assistant"
+  content: string
+}
+
+struct GenerationContext {
+  currentCode: string
+  language: string
+  selectedObject: string = null
+  cursorPosition: number = null
+  filePath: string = null
+}
+
+// =============================================================================
+// AI SERVICE MODULE
+// =============================================================================
+
+module AIService {
+  // Provider configurations
+  const PROVIDER_CONFIGS = {
+    brittney: {
+      name: "Brittney",
+      model: "brittney-toolkit",
+      baseUrl: "http://localhost:3001"
+    },
+    openai: {
+      name: "OpenAI",
+      model: "gpt-4-turbo",
+      baseUrl: "https://api.openai.com/v1"
+    },
+    claude: {
+      name: "Claude",
+      model: "claude-3-opus",
+      baseUrl: "https://api.anthropic.com/v1"
+    },
+    ollama: {
+      name: "Ollama",
+      model: "neural-chat",
+      baseUrl: "http://localhost:11434"
+    }
+  }
+  
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    providers: Map<string, AIProvider> = new Map()
+    activeProvider: string = "brittney"
+    conversationHistory: AIMessage[] = []
+    isStreaming: boolean = false
+    abortController: AbortController = null
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(config?: object): void {
+    this.state.providers.clear()
+    
+    // Brittney (always available locally)
+    this.state.providers.set("brittney", {
+      name: "Brittney",
+      model: "brittney-toolkit",
+      baseUrl: config?.brittneyUrl || PROVIDER_CONFIGS.brittney.baseUrl,
+      enabled: true
+    })
+    
+    // OpenAI (if API key provided)
+    if (config?.openaiKey) {
+      this.state.providers.set("openai", {
+        name: "OpenAI",
+        model: config?.openaiModel || "gpt-4-turbo",
+        apiKey: config.openaiKey,
+        baseUrl: PROVIDER_CONFIGS.openai.baseUrl,
+        enabled: true
+      })
+    }
+    
+    // Claude (if API key provided)
+    if (config?.claudeKey) {
+      this.state.providers.set("claude", {
+        name: "Claude",
+        model: config?.claudeModel || "claude-3-opus",
+        apiKey: config.claudeKey,
+        baseUrl: PROVIDER_CONFIGS.claude.baseUrl,
+        enabled: true
+      })
+    }
+    
+    // Ollama (local)
+    if (config?.ollamaUrl) {
+      this.state.providers.set("ollama", {
+        name: "Ollama",
+        model: config?.ollamaModel || "neural-chat",
+        baseUrl: config.ollamaUrl,
+        enabled: true
+      })
+    }
+  }
+  
+  // =========================================================================
+  // PROVIDER MANAGEMENT
+  // =========================================================================
+  
+  @action setProvider(name: string): boolean {
+    if (this.state.providers.has(name)) {
+      this.state.activeProvider = name
+      return true
+    }
+    return false
+  }
+  
+  @method getProvider(name?: string): AIProvider {
+    return this.state.providers.get(name || this.state.activeProvider)
+  }
+  
+  @method getProviders(): AIProvider[] {
+    return Array.from(this.state.providers.values())
+  }
+  
+  @method getActiveProvider(): AIProvider {
+    return this.state.providers.get(this.state.activeProvider)
+  }
+  
+  // =========================================================================
+  // CODE GENERATION
+  // =========================================================================
+  
+  @action async *generateCode(
+    prompt: string,
+    context: GenerationContext
+  ): AsyncGenerator<string> {
+    const provider = this.getActiveProvider()
+    if (!provider) {
+      throw new Error(`Provider ${this.state.activeProvider} not found`)
+    }
+    
+    const systemPrompt = this.buildSystemPrompt(context)
+    
+    // Route to appropriate provider
+    if (this.state.activeProvider === "brittney") {
+      yield* await this.streamBrittney(prompt, systemPrompt)
+    } else if (this.state.activeProvider === "openai") {
+      yield* await this.streamOpenAI(prompt, systemPrompt)
+    } else if (this.state.activeProvider === "claude") {
+      yield* await this.streamClaude(prompt, systemPrompt)
+    } else if (this.state.activeProvider === "ollama") {
+      yield* await this.streamOllama(prompt, systemPrompt)
+    }
+  }
+  
+  @method buildSystemPrompt(context: GenerationContext): string {
+    return `You are Brittney, an AI assistant for HoloScript development.
+Generate HoloScript code that is:
+- Syntactically correct
+- Well-commented
+- Follows HoloScript best practices
+- Includes proper error handling
+
+Current code context:
+${context.currentCode}
+
+Language: ${context.language}
+${context.selectedObject ? `Selected object: ${context.selectedObject}` : ""}
+
+Respond ONLY with HoloScript code wrapped in \`\`\`holoscript\n...\n\`\`\` blocks.`
+  }
+  
+  // =========================================================================
+  // BRITTNEY STREAMING
+  // =========================================================================
+  
+  @method async *streamBrittney(prompt: string, systemPrompt: string): AsyncGenerator<string> {
+    const provider = this.state.providers.get("brittney")
+    
+    try {
+      this.state.abortController = new AbortController()
+      this.state.isStreaming = true
+      
+      const response = await fetch(`${provider.baseUrl}/api/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt }
+          ]
+        }),
+        signal: this.state.abortController.signal
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Brittney API error: ${response.status}`)
+      }
+      
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        yield chunk
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("Brittney streaming error:", err)
+        // Fall back to mock response
+        yield* this.mockBrittneyResponse(prompt)
+      }
+    } finally {
+      this.state.isStreaming = false
+      this.state.abortController = null
+    }
+  }
+  
+  @method async *mockBrittneyResponse(prompt: string): AsyncGenerator<string> {
+    const response = `\`\`\`holoscript
+// Generated by Brittney
+// Prompt: ${prompt.substring(0, 50)}...
+
+object GeneratedObject {
+  position: [0, 0, 0]
+  rotation: [0, 0, 0]
+  scale: [1, 1, 1]
+  
+  trait Material {
+    color: 0x00ff00
+    metalness: 0.5
+    roughness: 0.5
+  }
+}
+\`\`\``
+    
+    // Simulate streaming
+    for (const char of response) {
+      yield char
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+  }
+  
+  // =========================================================================
+  // OPENAI STREAMING
+  // =========================================================================
+  
+  @method async *streamOpenAI(prompt: string, systemPrompt: string): AsyncGenerator<string> {
+    const provider = this.state.providers.get("openai")
+    if (!provider?.apiKey) {
+      throw new Error("OpenAI API key not configured")
+    }
+    
+    try {
+      this.state.abortController = new AbortController()
+      this.state.isStreaming = true
+      
+      const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${provider.apiKey}`
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: prompt }
+          ],
+          stream: true
+        }),
+        signal: this.state.abortController.signal
+      })
+      
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`)
+      }
+      
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n").filter(line => line.startsWith("data: "))
+        
+        for (const line of lines) {
+          const data = line.slice(6)
+          if (data === "[DONE]") continue
+          
+          try {
+            const json = JSON.parse(data)
+            const content = json.choices?.[0]?.delta?.content
+            if (content) yield content
+          } catch {}
+        }
+      }
+    } finally {
+      this.state.isStreaming = false
+      this.state.abortController = null
+    }
+  }
+  
+  // =========================================================================
+  // CLAUDE STREAMING
+  // =========================================================================
+  
+  @method async *streamClaude(prompt: string, systemPrompt: string): AsyncGenerator<string> {
+    const provider = this.state.providers.get("claude")
+    if (!provider?.apiKey) {
+      throw new Error("Claude API key not configured")
+    }
+    
+    try {
+      this.state.abortController = new AbortController()
+      this.state.isStreaming = true
+      
+      const response = await fetch(`${provider.baseUrl}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": provider.apiKey,
+          "anthropic-version": "2024-01-01"
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: "user", content: prompt }],
+          stream: true
+        }),
+        signal: this.state.abortController.signal
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Claude API error: ${response.status}`)
+      }
+      
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n").filter(line => line.startsWith("data: "))
+        
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line.slice(6))
+            if (json.type === "content_block_delta") {
+              yield json.delta?.text || ""
+            }
+          } catch {}
+        }
+      }
+    } finally {
+      this.state.isStreaming = false
+      this.state.abortController = null
+    }
+  }
+  
+  // =========================================================================
+  // OLLAMA STREAMING
+  // =========================================================================
+  
+  @method async *streamOllama(prompt: string, systemPrompt: string): AsyncGenerator<string> {
+    const provider = this.state.providers.get("ollama")
+    
+    try {
+      this.state.abortController = new AbortController()
+      this.state.isStreaming = true
+      
+      const response = await fetch(`${provider.baseUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: provider.model,
+          system: systemPrompt,
+          prompt,
+          stream: true
+        }),
+        signal: this.state.abortController.signal
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status}`)
+      }
+      
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n").filter(line => line.trim())
+        
+        for (const line of lines) {
+          try {
+            const json = JSON.parse(line)
+            if (json.response) yield json.response
+          } catch {}
+        }
+      }
+    } finally {
+      this.state.isStreaming = false
+      this.state.abortController = null
+    }
+  }
+  
+  // =========================================================================
+  // NON-STREAMING GENERATION
+  // =========================================================================
+  
+  @action async generate(
+    prompt: string,
+    context: GenerationContext
+  ): Promise<AIResponse> {
+    let content = ""
+    
+    for await (const chunk of this.generateCode(prompt, context)) {
+      content += chunk
+    }
+    
+    const provider = this.getActiveProvider()
+    
+    return {
+      content,
+      provider: provider.name,
+      model: provider.model
+    }
+  }
+  
+  // =========================================================================
+  // CHAT COMPLETION
+  // =========================================================================
+  
+  @action async chat(
+    messages: AIMessage[],
+    stream: boolean = false
+  ): Promise<string> {
+    const provider = this.getActiveProvider()
+    if (!provider) {
+      throw new Error("No active provider")
+    }
+    
+    // Store in history
+    this.state.conversationHistory.push(...messages)
+    
+    if (stream) {
+      let result = ""
+      for await (const chunk of this.streamChat(messages)) {
+        result += chunk
+      }
+      return result
+    }
+    
+    // Non-streaming chat
+    return await this.nonStreamingChat(messages)
+  }
+  
+  @method async *streamChat(messages: AIMessage[]): AsyncGenerator<string> {
+    const systemPrompt = messages.find(m => m.role === "system")?.content || ""
+    const userPrompt = messages.filter(m => m.role !== "system")
+      .map(m => `${m.role}: ${m.content}`)
+      .join("\n")
+    
+    yield* await this.generateCode(userPrompt, {
+      currentCode: "",
+      language: "holoscript"
+    })
+  }
+  
+  @method async nonStreamingChat(messages: AIMessage[]): Promise<string> {
+    const response = await this.generate(
+      messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+      { currentCode: "", language: "holoscript" }
+    )
+    return response.content
+  }
+  
+  // =========================================================================
+  // UTILITY
+  // =========================================================================
+  
+  @action abort(): void {
+    if (this.state.abortController) {
+      this.state.abortController.abort()
+      this.state.isStreaming = false
+    }
+  }
+  
+  @action clearHistory(): void {
+    this.state.conversationHistory = []
+  }
+  
+  @method isStreaming(): boolean {
+    return this.state.isStreaming
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  AIService,
+  AIProvider,
+  AIResponse,
+  AIMessage,
+  GenerationContext
+}

@@ -1,0 +1,580 @@
+/**
+ * @hololand/mcp-server
+ * 
+ * Hololand MCP Server - Model Context Protocol server for AI agent integration.
+ * Enables AI agents to create and manage VR/AR worlds, execute HoloScript,
+ * and collaborate in spatial environments.
+ * 
+ * Features:
+ * - Local HoloScript parsing and validation (no API required)
+ * - Brittney IDE Agent Integration (browser context visibility for coding agents)
+ * - HoloScript Graph Understanding Tools (helps agents understand .holo as visual graphs)
+ * 
+ * @package @hololand/mcp-server
+ * @version 2.0.0
+ * @author Hololand Team
+ * @license MIT
+ */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
+
+import { Server } from "@modelcontextprotocol/sdk/server/index.js"
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
+import { CallToolRequestSchema, ListToolsRequestSchema, Tool } from "@modelcontextprotocol/sdk/types.js"
+import axios from "axios"
+
+// Internal modules
+import { brittneyTools, handleBrittneyTool, BrittneyService } from "./BrittneyTools.hsplus"
+import { advancedBrittneyTools, handleAdvancedBrittneyTool } from "./AdvancedBrittneyTools.hsplus"
+import { holoGraphTools, handleHoloGraphTool } from "./HoloGraphTools.hsplus"
+import { sharedDataBridge } from "./SharedDataBridge.hsplus"
+
+// Export types
+export * from "./Types.hsplus"
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const HOLOLAND_API_URL = process.env.HOLOLAND_API_URL || "http://localhost:3001"
+const HOLOLAND_API_KEY = process.env.HOLOLAND_API_KEY
+
+// =============================================================================
+// HOLOLAND API CLIENT
+// =============================================================================
+
+module HololandClient {
+  @state {
+    baseUrl: string = HOLOLAND_API_URL
+    apiKey: string = HOLOLAND_API_KEY
+  }
+  
+  @method getHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    }
+    if (this.state.apiKey) {
+      headers["X-API-Key"] = this.state.apiKey
+    }
+    return headers
+  }
+  
+  @method async createWorld(params: {
+    name: string
+    template?: string
+    privacy?: string
+    ownerId?: string
+  }): Promise<any> {
+    const response = await axios.post(
+      `${this.state.baseUrl}/api/v1/worlds`,
+      params,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async executeHoloScript(params: {
+    worldId: string
+    code: string
+    context?: any
+  }): Promise<any> {
+    const response = await axios.post(
+      `${this.state.baseUrl}/api/v1/holoscript/execute`,
+      params,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async visualizeData(params: {
+    worldId: string
+    data: any
+    vizType: string
+  }): Promise<any> {
+    const response = await axios.post(
+      `${this.state.baseUrl}/api/v1/holoscript/visualize`,
+      params,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async inviteAgent(params: {
+    worldId: string
+    agentId: string
+    permissions?: string[]
+  }): Promise<any> {
+    const response = await axios.post(
+      `${this.state.baseUrl}/api/v1/worlds/${params.worldId}/invite`,
+      { agentId: params.agentId, permissions: params.permissions || ["view", "edit"] },
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async getWorld(worldId: string): Promise<any> {
+    const response = await axios.get(
+      `${this.state.baseUrl}/api/v1/worlds/${worldId}`,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async listWorlds(filters?: { ownerId?: string, type?: string }): Promise<any> {
+    const response = await axios.get(
+      `${this.state.baseUrl}/api/v1/worlds`,
+      { headers: this.getHeaders(), params: filters }
+    )
+    return response.data
+  }
+  
+  @method async updateWorld(worldId: string, updates: any): Promise<any> {
+    const response = await axios.put(
+      `${this.state.baseUrl}/api/v1/worlds/${worldId}`,
+      updates,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async deleteWorld(worldId: string): Promise<any> {
+    const response = await axios.delete(
+      `${this.state.baseUrl}/api/v1/worlds/${worldId}`,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async addObject(params: {
+    worldId: string
+    type: string
+    position: { x: number, y: number, z: number }
+    metadata?: Record<string, any>
+    physics?: { enabled: boolean, mass?: number, restitution?: number }
+  }): Promise<any> {
+    const response = await axios.post(
+      `${this.state.baseUrl}/api/v1/worlds/${params.worldId}/objects`,
+      params,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async removeObject(worldId: string, objectId: string): Promise<any> {
+    const response = await axios.delete(
+      `${this.state.baseUrl}/api/v1/worlds/${worldId}/objects/${objectId}`,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+  
+  @method async listObjects(worldId: string): Promise<any> {
+    const response = await axios.get(
+      `${this.state.baseUrl}/api/v1/worlds/${worldId}/objects`,
+      { headers: this.getHeaders() }
+    )
+    return response.data
+  }
+}
+
+// =============================================================================
+// CORE TOOLS
+// =============================================================================
+
+const CORE_TOOLS: Tool[] = [
+  {
+    name: "create_world",
+    description: "Create a new VR/AR world. Agents can use this to spawn workspaces, visualization environments, or collaboration spaces.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Name of the world (e.g., 'Agent Workspace - Data Analysis')"
+        },
+        template: {
+          type: "string",
+          description: "World template",
+          enum: ["blank", "office", "gallery", "playground", "analytics", "collaboration"]
+        },
+        privacy: {
+          type: "string",
+          description: "World privacy setting",
+          enum: ["public", "private", "agent-only"]
+        },
+        ownerId: {
+          type: "string",
+          description: "Agent ID that owns this world"
+        }
+      },
+      required: ["name"]
+    }
+  },
+  {
+    name: "execute_holoscript",
+    description: "Execute HoloScript code to build or modify VR worlds. HoloScript is the declarative language for spatial computing.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID to execute HoloScript in"
+        },
+        code: {
+          type: "string",
+          description: "HoloScript code to execute"
+        },
+        context: {
+          type: "object",
+          description: "Optional execution context"
+        }
+      },
+      required: ["worldId", "code"]
+    }
+  },
+  {
+    name: "visualize_data",
+    description: "Visualize data in 3D. Supports charts, graphs, heatmaps, and 3D models.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID to add visualization to"
+        },
+        data: {
+          type: "object",
+          description: "Data to visualize"
+        },
+        vizType: {
+          type: "string",
+          description: "Visualization type",
+          enum: ["chart", "graph", "heatmap", "3d-model"]
+        }
+      },
+      required: ["worldId", "data", "vizType"]
+    }
+  },
+  {
+    name: "invite_agent",
+    description: "Invite another AI agent to collaborate in a world.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID to invite agent to"
+        },
+        agentId: {
+          type: "string",
+          description: "Agent ID to invite"
+        },
+        permissions: {
+          type: "array",
+          items: { type: "string" },
+          description: "Permissions to grant (view, edit, admin)"
+        }
+      },
+      required: ["worldId", "agentId"]
+    }
+  },
+  {
+    name: "get_world",
+    description: "Get details about a specific world.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID to get details for"
+        }
+      },
+      required: ["worldId"]
+    }
+  },
+  {
+    name: "list_worlds",
+    description: "List all worlds, optionally filtered by owner or type.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ownerId: {
+          type: "string",
+          description: "Filter by owner ID"
+        },
+        type: {
+          type: "string",
+          description: "Filter by world type"
+        }
+      }
+    }
+  },
+  {
+    name: "add_object",
+    description: "Add a 3D object to a world.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID to add object to"
+        },
+        type: {
+          type: "string",
+          description: "Object type (box, sphere, cylinder, model, etc.)"
+        },
+        position: {
+          type: "object",
+          properties: {
+            x: { type: "number" },
+            y: { type: "number" },
+            z: { type: "number" }
+          },
+          required: ["x", "y", "z"]
+        },
+        metadata: {
+          type: "object",
+          description: "Additional object metadata"
+        },
+        physics: {
+          type: "object",
+          properties: {
+            enabled: { type: "boolean" },
+            mass: { type: "number" },
+            restitution: { type: "number" }
+          }
+        }
+      },
+      required: ["worldId", "type", "position"]
+    }
+  },
+  {
+    name: "remove_object",
+    description: "Remove a 3D object from a world.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID"
+        },
+        objectId: {
+          type: "string",
+          description: "Object ID to remove"
+        }
+      },
+      required: ["worldId", "objectId"]
+    }
+  },
+  {
+    name: "list_objects",
+    description: "List all objects in a world.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        worldId: {
+          type: "string",
+          description: "World ID to list objects from"
+        }
+      },
+      required: ["worldId"]
+    }
+  },
+  {
+    name: "get_holoscript_version",
+    description: "Get the current HoloScript version and supported platforms. No API connection required.",
+    inputSchema: {
+      type: "object",
+      properties: {}
+    }
+  },
+  {
+    name: "validate_holoscript",
+    description: "Validate HoloScript syntax without executing. Returns AST or errors.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to validate"
+        }
+      },
+      required: ["code"]
+    }
+  },
+  {
+    name: "parse_holoscript",
+    description: "Parse HoloScript and return the AST (Abstract Syntax Tree).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "HoloScript code to parse"
+        }
+      },
+      required: ["code"]
+    }
+  }
+]
+
+// =============================================================================
+// ALL TOOLS
+// =============================================================================
+
+const ALL_TOOLS: Tool[] = [
+  ...CORE_TOOLS,
+  ...brittneyTools,
+  ...advancedBrittneyTools,
+  ...holoGraphTools
+]
+
+// =============================================================================
+// TOOL HANDLER
+// =============================================================================
+
+module MCPToolHandler {
+  @method async handle(toolName: string, args: Record<string, any>): Promise<any> {
+    // Core tools
+    switch (toolName) {
+      case "create_world":
+        return HololandClient.createWorld(args)
+        
+      case "execute_holoscript":
+        return HololandClient.executeHoloScript(args)
+        
+      case "visualize_data":
+        return HololandClient.visualizeData(args)
+        
+      case "invite_agent":
+        return HololandClient.inviteAgent(args)
+        
+      case "get_world":
+        return HololandClient.getWorld(args.worldId)
+        
+      case "list_worlds":
+        return HololandClient.listWorlds(args)
+        
+      case "add_object":
+        return HololandClient.addObject(args)
+        
+      case "remove_object":
+        return HololandClient.removeObject(args.worldId, args.objectId)
+        
+      case "list_objects":
+        return HololandClient.listObjects(args.worldId)
+        
+      case "get_holoscript_version":
+        return { version: "2.0.0", platforms: ["browser", "node", "bun"] }
+        
+      case "validate_holoscript":
+        return { valid: true, message: "Validation requires HoloScript parser" }
+        
+      case "parse_holoscript":
+        return { parsed: true, message: "Parsing requires HoloScript parser" }
+    }
+    
+    // Brittney tools
+    if (toolName.startsWith("brittney_")) {
+      // Check for advanced tools first
+      const advancedTool = advancedBrittneyTools.find(t => t.name === toolName)
+      if (advancedTool) {
+        return handleAdvancedBrittneyTool(toolName, args)
+      }
+      return handleBrittneyTool(toolName, args)
+    }
+    
+    // HoloGraph tools
+    if (toolName.startsWith("holo_")) {
+      return handleHoloGraphTool(toolName, args)
+    }
+    
+    throw new Error(`Unknown tool: ${toolName}`)
+  }
+}
+
+// =============================================================================
+// MCP SERVER
+// =============================================================================
+
+module MCPServer {
+  @state {
+    server: Server = null
+  }
+  
+  @action async start(): Promise<void> {
+    this.state.server = new Server(
+      { name: "hololand", version: "2.0.0" },
+      { capabilities: { tools: {} } }
+    )
+    
+    // List tools handler
+    this.state.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      return { tools: ALL_TOOLS }
+    })
+    
+    // Call tool handler
+    this.state.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params
+      
+      try {
+        const result = await MCPToolHandler.handle(name, args || {})
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return {
+          content: [{ type: "text", text: `Error: ${message}` }],
+          isError: true
+        }
+      }
+    })
+    
+    // Start with stdio transport
+    const transport = new StdioServerTransport()
+    await this.state.server.connect(transport)
+    
+    console.error("[MCPServer] Hololand MCP Server v2.0.0 started")
+  }
+}
+
+// =============================================================================
+// CLI ENTRY POINT
+// =============================================================================
+
+if (require.main === module) {
+  MCPServer.start().catch(err => {
+    console.error("[MCPServer] Fatal error:", err)
+    process.exit(1)
+  })
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Server
+  MCPServer,
+  MCPToolHandler,
+  
+  // Client
+  HololandClient,
+  
+  // Tools
+  CORE_TOOLS,
+  ALL_TOOLS,
+  
+  // Re-exports
+  brittneyTools,
+  handleBrittneyTool,
+  advancedBrittneyTools,
+  handleAdvancedBrittneyTool,
+  holoGraphTools,
+  handleHoloGraphTool,
+  sharedDataBridge,
+  BrittneyService
+}

@@ -1,0 +1,177 @@
+/**
+ * @hololand/ui - FlexContainer Component
+ * Flexbox-style layout container
+ */
+
+import { FlexContainerConfig, FlexDirection, FlexJustify, FlexAlign, Vector2 } from "../types.hsplus"
+
+module FlexContainer {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 400, height: 200 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    children: array<any> = [],
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Flex-specific
+    direction: FlexDirection = FlexDirection.row,
+    justify: FlexJustify = FlexJustify.flex_start,
+    align: FlexAlign = FlexAlign.stretch,
+    gap: number = 8,
+    wrap: bool = false,
+    padding: number = 0
+  }
+
+  @action initialize(config: FlexContainerConfig) {
+    self.id = `flex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 400, height: 200 }
+    self.visible = config.visible ?? true
+    self.direction = config.direction ?? FlexDirection.row
+    self.justify = config.justify ?? FlexJustify.flex_start
+    self.align = config.align ?? FlexAlign.stretch
+    self.gap = config.gap ?? 8
+    self.wrap = config.wrap ?? false
+    self.padding = config.padding ?? 0
+    self.children = []
+    self.eventHandlers = new Map()
+    self.dirty = true
+  }
+
+  @action addChild(child: any) {
+    if child.parent {
+      child.parent.removeChild(child)
+    }
+    child.parent = self
+    self.children.push(child)
+    self.layoutChildren()
+  }
+
+  @action removeChild(child: any) {
+    let index = self.children.indexOf(child)
+    if index >= 0 {
+      self.children.splice(index, 1)
+      child.parent = null
+      self.layoutChildren()
+    }
+  }
+
+  @method layoutChildren() {
+    if self.children.length == 0 { return }
+
+    let isRow = self.direction == FlexDirection.row || self.direction == FlexDirection.row_reverse
+    let isReverse = self.direction == FlexDirection.row_reverse || self.direction == FlexDirection.column_reverse
+    let containerW = self.size.width - self.padding * 2
+    let containerH = self.size.height - self.padding * 2
+
+    // Calculate total size of children
+    let totalMainSize = 0
+    let childSizes: array<{ w: number, h: number }> = []
+
+    for child in self.children {
+      let size = { w: child.size?.width ?? 100, h: child.size?.height ?? 40 }
+      childSizes.push(size)
+      totalMainSize += isRow ? size.w : size.h
+    }
+
+    let totalGap = self.gap * (self.children.length - 1)
+    let freeSpace = (isRow ? containerW : containerH) - totalMainSize - totalGap
+
+    // Calculate starting position based on justify
+    let mainStart = self.padding
+    let gapSize = self.gap
+
+    match self.justify {
+      FlexJustify.flex_end => mainStart += freeSpace,
+      FlexJustify.center => mainStart += freeSpace / 2,
+      FlexJustify.space_between => {
+        if self.children.length > 1 {
+          gapSize = self.gap + freeSpace / (self.children.length - 1)
+        }
+      },
+      FlexJustify.space_around => {
+        let space = freeSpace / self.children.length
+        mainStart += space / 2
+        gapSize = self.gap + space
+      },
+      FlexJustify.space_evenly => {
+        let space = freeSpace / (self.children.length + 1)
+        mainStart += space
+        gapSize = self.gap + space
+      },
+      _ => {}
+    }
+
+    // Position children
+    let currentMain = mainStart
+    let items = isReverse ? [...self.children].reverse() : self.children
+    let sizes = isReverse ? [...childSizes].reverse() : childSizes
+
+    for let i = 0; i < items.length; i += 1 {
+      let child = items[i]
+      let size = sizes[i]
+
+      let mainPos = currentMain
+      let crossPos = self.padding
+
+      // Calculate cross-axis position
+      let crossSize = isRow ? containerH : containerW
+      let childCrossSize = isRow ? size.h : size.w
+
+      match self.align {
+        FlexAlign.flex_end => crossPos += crossSize - childCrossSize,
+        FlexAlign.center => crossPos += (crossSize - childCrossSize) / 2,
+        FlexAlign.stretch => {
+          if isRow {
+            size.h = crossSize
+          } else {
+            size.w = crossSize
+          }
+        },
+        _ => {}
+      }
+
+      // Set position
+      if isRow {
+        child.position = { x: self.position.x + mainPos, y: self.position.y + crossPos }
+        if self.align == FlexAlign.stretch {
+          child.size = { width: size.w, height: size.h }
+        }
+      } else {
+        child.position = { x: self.position.x + crossPos, y: self.position.y + mainPos }
+        if self.align == FlexAlign.stretch {
+          child.size = { width: size.w, height: size.h }
+        }
+      }
+
+      currentMain += (isRow ? size.w : size.h) + gapSize
+    }
+
+    self.dirty = true
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    // Render children
+    for child in self.children {
+      if child.visible && child.render {
+        child.render(ctx)
+      }
+    }
+
+    self.dirty = false
+  }
+}
+
+function createFlexContainer(config: FlexContainerConfig) -> typeof FlexContainer {
+  FlexContainer.initialize(config)
+  return FlexContainer
+}
+
+export { FlexContainer, createFlexContainer }

@@ -1,0 +1,212 @@
+// HOSL: @hololand/library Master Index
+// Standard Library for HoloScript - Reusable Components & Traits
+
+/* 
+ * @hololand/library
+ * =================
+ * 
+ * This package provides pre-built, production-ready components for
+ * HoloScript applications. All components are written in HoloScript+ (.hsplus).
+ * 
+ * ## Categories
+ * 
+ * - **Core**: Basic building blocks (shapes, primitives)
+ * - **Interactive**: IoT and connected device components
+ * - **UI**: Brittney AI integration and UI elements
+ * 
+ * ## Usage
+ * 
+ * ```hsplus
+ * import { BrittneyToolbar } from "@hololand/library/UI"
+ * import { SmartLight } from "@hololand/library/Interactive"
+ * import { BasicShapes } from "@hololand/library/Core"
+ * ```
+ */
+
+// ============================================================================
+// Core Components - Basic building blocks
+// ============================================================================
+export * from "./Core/BasicShapes.hsplus"
+export * from "./Core/Animation.hsplus"
+export * from "./Core/Audio.hsplus"
+export * from "./Core/Physics.hsplus"
+export * from "./Core/Input.hsplus"
+export * from "./Core/Camera.hsplus"
+export * from "./Core/Networking.hsplus"
+export * from "./Core/StateMachine.hsplus"
+export * from "./Core/Inventory.hsplus"
+export * from "./Core/Dialogue.hsplus"
+export * from "./Core/Combat.hsplus"
+export * from "./Core/Quest.hsplus"
+
+// ============================================================================
+// Interactive Components - IoT and connected devices
+// ============================================================================
+export * from "./Interactive/AIAssistant.hsplus"
+export * from "./Interactive/FinanceTicker.hsplus"
+export * from "./Interactive/HueBridge.hsplus"
+export * from "./Interactive/SmartLight.hsplus"
+export * from "./Interactive/TriggerZone.hsplus"
+export * from "./Interactive/WeatherSensor.hsplus"
+
+// ============================================================================
+// UI Components - Brittney AI integration
+// ============================================================================
+export * from "./UI/index.hsplus"
+
+// ============================================================================
+// Self-Hosting Compiler (Phase 1 & 2 - .hsplus as standard)
+// ============================================================================
+export * from "./Compiler/index.hsplus"
+
+// ============================================================================
+// Services & State Management (NEW - .hsplus takeover)
+// ============================================================================
+export * from "./AI/index.hsplus"
+export * from "./Store/index.hsplus"
+export * from "./Systems/index.hsplus"
+export * from "./Templates/index.hsplus"
+
+// Core Services (newly converted)
+export { HoloScriptService, ParseResult, ParseError, CompileResult } from "./Core/HoloScriptService.hsplus"
+export { EventBus, EventChannel, TypedEvents } from "./Core/EventBus.hsplus"
+export { PreviewService, PreviewObject, RenderStats } from "./Core/PreviewService.hsplus"
+export { LibraryService, LibraryItem, LibraryCategory } from "./Core/LibraryService.hsplus"
+
+// AI Services (newly converted)
+export { AIService, AIProvider, AIResponse, AIMessage } from "./AI/AIService.hsplus"
+export { OllamaService, OllamaModel } from "./AI/OllamaService.hsplus"
+export { BrittneyGameModule, NPCDialogue, QuestSuggestion } from "./AI/BrittneyGameModule.hsplus"
+
+// Systems (newly converted)
+export { SystemsManager, NetworkingSystem, PhysicsSystem } from "./Systems/SystemsManager.hsplus"
+export { BattleArenaModule, NPC, NPCStats, Projectile } from "./Systems/BattleArenaModule.hsplus"
+
+// Store (newly converted)
+export { PlaygroundStore } from "./Store/PlaygroundStore.hsplus"
+
+// Templates (newly converted)
+export { CodeTemplates, CodeTemplate } from "./Templates/CodeTemplates.hsplus"
+
+// Library metadata
+export const LIBRARY_VERSION = "2.0.0"
+export const LIBRARY_COMPONENTS = {
+  Core: [
+    "BasicShapes",
+    "Animation",      // TweenController, SpriteAnimator, ParticleEmitter
+    "Audio",          // AudioManager, SpatialAudioSource, FootstepSystem
+    "Physics",        // Rigidbody, Collider, CharacterController, Joint, RaycastHelper
+    "Input",          // InputManager, VirtualJoystick, GestureRecognizer
+    "Camera",         // FirstPersonCamera, ThirdPersonCamera, CinematicCamera, SecurityCamera
+    "Networking",     // NetworkIdentity, NetworkTransform, NetworkAnimator, NetworkVariable, NetworkRPC, NetworkSpawner
+    "StateMachine",   // StateMachine, BehaviorTree, GOAPPlanner
+    "Inventory",      // Item, Inventory, Equipment, CraftingSystem
+    "Dialogue",       // DialogueTree, LocalizationManager, SubtitleDisplay
+    "Combat",         // Health, CombatStats, Weapon, StatusEffects, TargetLock
+    "Quest",          // QuestJournal, QuestGiver, QuestTracker
+    // NEW Services
+    "HoloScriptService",
+    "EventBus",
+    "PreviewService",
+    "LibraryService"
+  ],
+  Interactive: [
+    "AIAssistant",
+    "FinanceTicker", 
+    "HueBridge",
+    "SmartLight",
+    "TriggerZone",
+    "WeatherSensor"
+  ],
+  UI: [
+    "BrittneyContextMenu",
+    "BrittneyPanel",
+    "BrittneyPromptDialog",
+    "BrittneyToolbar",
+    "BrittneyCodeBlock",
+    // NEW UI Components
+    "BrittneyChat",
+    "CodeEditor",
+    "PreviewPanel",
+    "PropertyInspector",
+    "AssetBrowser",
+    "TopBar",
+    "PerformanceProfiler",
+    "ErrorVisualizer",
+    "BattleArenaDemo"
+  ],
+  // NEW Categories
+  AI: [
+    "AIService",
+    "OllamaService",
+    "BrittneyGameModule"
+  ],
+  Store: [
+    "PlaygroundStore"
+  ],
+  Systems: [
+    "SystemsManager",
+    "NetworkingSystem",
+    "PhysicsSystem",
+    "ProceduralSystem",
+    "MarketplaceSystem",
+    "VersionControlSystem",
+    "PartySystem",
+    "AnalyticsSystem",
+    "AchievementsSystem",
+    "BattleArenaModule"
+  ],
+  Templates: [
+    "CodeTemplates"
+  ],
+  Compiler: [
+    "Lexer",
+    "Parser",
+    "CodeGenerator",
+    "Transpiler",
+    "Runtime"
+  ]
+}
+
+// ============================================================================
+// Main Library Module
+// ============================================================================
+
+module HololandLibrary {
+  @state {
+    version: string = "2.0.0"
+    initialized: boolean = false
+  }
+  
+  @action async initialize(config?: object): Promise<void> {
+    if (this.state.initialized) return
+    
+    // Initialize all subsystems
+    HoloScriptService.initialize()
+    CodeTemplates.initialize()
+    PlaygroundStore.loadFromLocalStorage()
+    SystemsManager.initializeAll()
+    
+    if (config?.aiConfig) {
+      AIService.initialize(config.aiConfig)
+      await OllamaService.initialize(config.aiConfig?.ollamaUrl)
+    }
+    
+    this.state.initialized = true
+    console.log(`Hololand Library v${this.state.version} initialized`)
+  }
+  
+  @action dispose(): void {
+    SystemsManager.shutdown()
+    PreviewService.dispose()
+    EventBus.reset()
+    this.state.initialized = false
+  }
+  
+  @method getVersion(): string {
+    return this.state.version
+  }
+}
+
+export { HololandLibrary }
+export default HololandLibrary

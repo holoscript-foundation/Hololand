@@ -1,0 +1,686 @@
+/**
+ * @hololand/ui - Type Definitions
+ * 2D UI components for desktop, mobile, and VR applications
+ */
+
+// =============================================================================
+// CORE TYPES
+// =============================================================================
+
+struct Vector2 {
+  x: number = 0,
+  y: number = 0
+}
+
+struct Size {
+  width: number = 100,
+  height: number = 40
+}
+
+struct Rect {
+  x: number = 0,
+  y: number = 0,
+  width: number = 100,
+  height: number = 40
+}
+
+struct Color {
+  r: number = 255,
+  g: number = 255,
+  b: number = 255,
+  a: number = 1
+}
+
+// =============================================================================
+// UICANVAS CONFIGURATION
+// =============================================================================
+
+struct BreakpointConfig {
+  mobile: number = 480,
+  tablet: number = 768,
+  desktop: number = 1024
+}
+
+struct UICanvasConfig {
+  width: number = 800,
+  height: number = 600,
+  transparent: bool = false,
+  pixelRatio: number = 1,
+  virtualRendering: bool = false,
+  cullingMargin: number = 100,
+  breakpoints: BreakpointConfig = { mobile: 480, tablet: 768, desktop: 1024 }
+}
+
+// =============================================================================
+// COMPONENT CONFIGURATION
+// =============================================================================
+
+struct Position {
+  x: number = 0,
+  y: number = 0
+}
+
+struct ResponsiveSize {
+  mobile: Size = null,
+  tablet: Size = null,
+  desktop: Size = null
+}
+
+struct UIComponentConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 100, height: 40 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0
+}
+
+// =============================================================================
+// BUTTON CONFIGURATION
+// =============================================================================
+
+enum ButtonState {
+  normal = "normal",
+  hover = "hover",
+  pressed = "pressed",
+  disabled = "disabled"
+}
+
+struct ButtonConfig {
+  // Extends UIComponentConfig
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 120, height: 40 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  // Button-specific
+  text: string = "Button",
+  backgroundColor: string = "#3498db",
+  textColor: string = "#ffffff",
+  hoverColor: string = "#2980b9",
+  pressedColor: string = "#1f6391",
+  disabledColor: string = "#95a5a6",
+  borderRadius: number = 4,
+  borderWidth: number = 0,
+  borderColor: string = "#2c3e50",
+  fontSize: number = 14,
+  fontFamily: string = "system-ui, -apple-system, sans-serif",
+  fontWeight: string = "500"
+}
+
+// =============================================================================
+// TEXT CONFIGURATION
+// =============================================================================
+
+enum TextAlign {
+  left = "left",
+  center = "center",
+  right = "right"
+}
+
+enum TextBaseline {
+  top = "top",
+  middle = "middle",
+  bottom = "bottom",
+  alphabetic = "alphabetic"
+}
+
+struct TextConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 200, height: 24 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  text: string = "",
+  color: string = "#333333",
+  fontSize: number = 14,
+  fontFamily: string = "system-ui, -apple-system, sans-serif",
+  fontWeight: string = "400",
+  textAlign: TextAlign = TextAlign.left,
+  textBaseline: TextBaseline = TextBaseline.top,
+  lineHeight: number = 1.4,
+  maxWidth: number = null,
+  overflow: string = "visible"  // "visible" | "hidden" | "ellipsis"
+}
+
+// =============================================================================
+// TEXT INPUT CONFIGURATION
+// =============================================================================
+
+enum InputType {
+  text = "text",
+  password = "password",
+  email = "email",
+  number = "number",
+  search = "search"
+}
+
+struct TextInputConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 200, height: 40 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  value: string = "",
+  placeholder: string = "",
+  inputType: InputType = InputType.text,
+  maxLength: number = null,
+  backgroundColor: string = "#ffffff",
+  textColor: string = "#333333",
+  placeholderColor: string = "#999999",
+  borderColor: string = "#cccccc",
+  focusBorderColor: string = "#3498db",
+  borderRadius: number = 4,
+  borderWidth: number = 1,
+  fontSize: number = 14,
+  fontFamily: string = "system-ui, -apple-system, sans-serif",
+  padding: number = 8
+}
+
+// =============================================================================
+// PANEL CONFIGURATION
+// =============================================================================
+
+struct PanelConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 300, height: 200 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  backgroundColor: string = "#ffffff",
+  borderRadius: number = 4,
+  borderWidth: number = 1,
+  borderColor: string = "#dddddd",
+  shadow: bool = false,
+  shadowColor: string = "rgba(0,0,0,0.15)",
+  shadowBlur: number = 10,
+  shadowOffset: Vector2 = { x: 0, y: 4 },
+  padding: number = 16
+}
+
+// =============================================================================
+// SLIDER CONFIGURATION
+// =============================================================================
+
+enum SliderOrientation {
+  horizontal = "horizontal",
+  vertical = "vertical"
+}
+
+struct SliderConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 200, height: 24 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  value: number = 0,
+  min: number = 0,
+  max: number = 100,
+  step: number = 1,
+  orientation: SliderOrientation = SliderOrientation.horizontal,
+  trackColor: string = "#dddddd",
+  fillColor: string = "#3498db",
+  thumbColor: string = "#ffffff",
+  thumbRadius: number = 8,
+  trackHeight: number = 4,
+  showValue: bool = false
+}
+
+// =============================================================================
+// TOGGLE CONFIGURATION
+// =============================================================================
+
+struct ToggleConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 48, height: 24 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  checked: bool = false,
+  onColor: string = "#3498db",
+  offColor: string = "#cccccc",
+  thumbColor: string = "#ffffff",
+  label: string = ""
+}
+
+// =============================================================================
+// IMAGE CONFIGURATION
+// =============================================================================
+
+enum ImageFit {
+  contain = "contain",
+  cover = "cover",
+  fill = "fill",
+  none = "none",
+  scale_down = "scale-down"
+}
+
+struct ImageConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 100, height: 100 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  src: string = "",
+  alt: string = "",
+  fit: ImageFit = ImageFit.contain,
+  borderRadius: number = 0,
+  opacity: number = 1
+}
+
+// =============================================================================
+// LAYOUT CONFIGURATIONS
+// =============================================================================
+
+enum FlexDirection {
+  row = "row",
+  column = "column",
+  row_reverse = "row-reverse",
+  column_reverse = "column-reverse"
+}
+
+enum FlexJustify {
+  flex_start = "flex-start",
+  flex_end = "flex-end",
+  center = "center",
+  space_between = "space-between",
+  space_around = "space-around",
+  space_evenly = "space-evenly"
+}
+
+enum FlexAlign {
+  flex_start = "flex-start",
+  flex_end = "flex-end",
+  center = "center",
+  stretch = "stretch",
+  baseline = "baseline"
+}
+
+struct FlexContainerConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 400, height: 200 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  direction: FlexDirection = FlexDirection.row,
+  justify: FlexJustify = FlexJustify.flex_start,
+  align: FlexAlign = FlexAlign.stretch,
+  gap: number = 8,
+  wrap: bool = false,
+  padding: number = 0
+}
+
+struct GridContainerConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 400, height: 400 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  columns: number = 3,
+  rows: number = null,  // Auto if null
+  columnGap: number = 8,
+  rowGap: number = 8,
+  padding: number = 0
+}
+
+// =============================================================================
+// MODAL CONFIGURATION
+// =============================================================================
+
+struct ModalConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 400, height: 300 },
+  visible: bool = false,
+  enabled: bool = true,
+  zIndex: number = 1000,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  title: string = "",
+  closeOnOverlay: bool = true,
+  closeOnEscape: bool = true,
+  overlayColor: string = "rgba(0,0,0,0.5)",
+  backgroundColor: string = "#ffffff",
+  borderRadius: number = 8,
+  padding: number = 24,
+  showCloseButton: bool = true
+}
+
+// =============================================================================
+// LIST CONFIGURATION
+// =============================================================================
+
+struct ListConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 300, height: 400 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  itemHeight: number = 48,
+  gap: number = 0,
+  selectable: bool = true,
+  multiSelect: bool = false,
+  selectedColor: string = "#e3f2fd",
+  hoverColor: string = "#f5f5f5"
+}
+
+// =============================================================================
+// DROPDOWN CONFIGURATION
+// =============================================================================
+
+struct DropdownOption {
+  value: string = "",
+  label: string = "",
+  disabled: bool = false
+}
+
+struct DropdownConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 200, height: 40 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  options: array<DropdownOption> = [],
+  selectedValue: string = "",
+  placeholder: string = "Select...",
+  backgroundColor: string = "#ffffff",
+  textColor: string = "#333333",
+  borderColor: string = "#cccccc",
+  borderRadius: number = 4,
+  maxDropdownHeight: number = 200
+}
+
+// =============================================================================
+// TAB VIEW CONFIGURATION
+// =============================================================================
+
+struct TabConfig {
+  id: string = "",
+  label: string = "",
+  disabled: bool = false
+}
+
+struct TabViewConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 400, height: 300 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  tabs: array<TabConfig> = [],
+  activeTabId: string = "",
+  tabHeight: number = 40,
+  activeColor: string = "#3498db",
+  inactiveColor: string = "#666666"
+}
+
+// =============================================================================
+// SCROLLVIEW CONFIGURATION
+// =============================================================================
+
+struct ScrollViewConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 300, height: 400 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 0,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  contentWidth: number = null,
+  contentHeight: number = null,
+  scrollbarWidth: number = 8,
+  scrollbarColor: string = "#cccccc",
+  scrollbarTrackColor: string = "#f5f5f5",
+  horizontalScroll: bool = false,
+  verticalScroll: bool = true,
+  scrollSpeed: number = 40
+}
+
+// =============================================================================
+// HUD CONFIGURATION
+// =============================================================================
+
+enum HudAnchor {
+  top_left = "top-left",
+  top_center = "top-center",
+  top_right = "top-right",
+  center_left = "center-left",
+  center = "center",
+  center_right = "center-right",
+  bottom_left = "bottom-left",
+  bottom_center = "bottom-center",
+  bottom_right = "bottom-right"
+}
+
+struct HudConfig {
+  position: Position = { x: 0, y: 0 },
+  size: Size = { width: 200, height: 100 },
+  visible: bool = true,
+  enabled: bool = true,
+  zIndex: number = 100,
+  accessible: bool = true,
+  ariaLabel: string = "",
+  tabIndex: number = 0,
+
+  anchor: HudAnchor = HudAnchor.top_left,
+  margin: number = 16,
+  responsive: bool = true
+}
+
+// =============================================================================
+// EVENT TYPES
+// =============================================================================
+
+struct UIEvent {
+  eventType: string = "",
+  targetId: string = "",
+  position: Vector2 = null,
+  timestamp: number = 0,
+  data: any = null
+}
+
+type UIEventHandler = (event: UIEvent) => void
+
+// =============================================================================
+// THEME TYPES
+// =============================================================================
+
+struct ThemeColors {
+  primary: string = "#3498db",
+  primaryLight: string = "#5dade2",
+  primaryDark: string = "#2980b9",
+  secondary: string = "#2ecc71",
+  secondaryLight: string = "#58d68d",
+  secondaryDark: string = "#27ae60",
+  background: string = "#ffffff",
+  surface: string = "#f5f5f5",
+  surfaceVariant: string = "#eeeeee",
+  textPrimary: string = "#333333",
+  textSecondary: string = "#666666",
+  textDisabled: string = "#999999",
+  textOnPrimary: string = "#ffffff",
+  textOnSecondary: string = "#ffffff",
+  border: string = "#dddddd",
+  borderLight: string = "#eeeeee",
+  borderDark: string = "#cccccc",
+  success: string = "#2ecc71",
+  warning: string = "#f39c12",
+  error: string = "#e74c3c",
+  info: string = "#3498db",
+  overlay: string = "rgba(0,0,0,0.5)"
+}
+
+struct ThemeSpacing {
+  xs: number = 4,
+  sm: number = 8,
+  md: number = 16,
+  lg: number = 24,
+  xl: number = 32
+}
+
+struct ThemeTypography {
+  fontFamily: string = "system-ui, -apple-system, sans-serif",
+  fontFamilyMono: string = "SFMono-Regular, Menlo, Monaco, monospace",
+  fontSizeXs: number = 10,
+  fontSizeSm: number = 12,
+  fontSizeMd: number = 14,
+  fontSizeLg: number = 18,
+  fontSizeXl: number = 24,
+  fontSizeXxl: number = 32
+}
+
+struct ThemeBorders {
+  radiusNone: number = 0,
+  radiusSm: number = 2,
+  radiusMd: number = 4,
+  radiusLg: number = 8,
+  radiusFull: number = 9999,
+  widthThin: number = 1,
+  widthMedium: number = 2,
+  widthThick: number = 4
+}
+
+struct Theme {
+  name: string = "default",
+  colors: ThemeColors = {},
+  spacing: ThemeSpacing = {},
+  typography: ThemeTypography = {},
+  borders: ThemeBorders = {}
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Core
+  Vector2,
+  Size,
+  Rect,
+  Color,
+  Position,
+  ResponsiveSize,
+
+  // Canvas
+  BreakpointConfig,
+  UICanvasConfig,
+
+  // Component base
+  UIComponentConfig,
+  UIEvent,
+  type UIEventHandler,
+
+  // Button
+  ButtonState,
+  ButtonConfig,
+
+  // Text
+  TextAlign,
+  TextBaseline,
+  TextConfig,
+
+  // Input
+  InputType,
+  TextInputConfig,
+
+  // Panel
+  PanelConfig,
+
+  // Slider
+  SliderOrientation,
+  SliderConfig,
+
+  // Toggle
+  ToggleConfig,
+
+  // Image
+  ImageFit,
+  ImageConfig,
+
+  // Layout
+  FlexDirection,
+  FlexJustify,
+  FlexAlign,
+  FlexContainerConfig,
+  GridContainerConfig,
+
+  // Modal
+  ModalConfig,
+
+  // List
+  ListConfig,
+
+  // Dropdown
+  DropdownOption,
+  DropdownConfig,
+
+  // TabView
+  TabConfig,
+  TabViewConfig,
+
+  // ScrollView
+  ScrollViewConfig,
+
+  // HUD
+  HudAnchor,
+  HudConfig,
+
+  // Theme
+  ThemeColors,
+  ThemeSpacing,
+  ThemeTypography,
+  ThemeBorders,
+  Theme
+}

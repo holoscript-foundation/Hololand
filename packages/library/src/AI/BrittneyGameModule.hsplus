@@ -1,0 +1,545 @@
+/**
+ * BrittneyGameModule.hsplus
+ * 
+ * Brittney AI game integration module for generating NPCs,
+ * dialogues, quests, abilities, and scenes using AI.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct NPCDialogue {
+  greeting: string
+  responses: string[]
+  mood: string
+  hints: string[]
+  npcName: string
+  timestamp: Date
+}
+
+struct QuestObjective {
+  description: string
+  target: string
+  count: number = 1
+  optional: boolean = false
+}
+
+struct QuestReward {
+  type: "gold" | "item" | "xp" | "ability"
+  name: string
+  amount: number
+}
+
+struct QuestSuggestion {
+  id: string
+  name: string
+  description: string
+  objectives: QuestObjective[]
+  rewards: QuestReward[]
+  difficulty: "easy" | "medium" | "hard" | "legendary"
+  estimatedTime: string
+  prerequisites: string[]
+}
+
+struct AbilitySuggestion {
+  id: string
+  name: string
+  description: string
+  type: string
+  damage: number
+  manaCost: number
+  cooldown: number
+  effects: string[]
+  animation: string
+  soundEffect: string
+}
+
+struct GeneratedNPC {
+  id: string
+  name: string
+  type: string
+  personality: string
+  backstory: string
+  dialogue: NPCDialogue
+  position: { x: number, y: number, z: number }
+}
+
+struct SceneGeneration {
+  id: string
+  name: string
+  description: string
+  npcs: GeneratedNPC[]
+  objects: object[]
+  lighting: object
+  ambiance: string
+  holoScriptCode: string
+}
+
+struct GameEvent {
+  type: "dialogue" | "quest" | "ability" | "scene" | "combat" | "exploration"
+  timestamp: Date
+  data: object
+}
+
+struct BrittneyGameContext {
+  playerLevel: number
+  playerClass: string
+  currentLocation: string
+  activeQuests: string[]
+  completedQuests: string[]
+  unlockedAbilities: string[]
+  gameTime: string
+  worldState: object
+}
+
+// =============================================================================
+// BRITTNEY GAME MODULE
+// =============================================================================
+
+module BrittneyGameModule {
+  // API Configuration
+  const DEFAULT_API_URL = "http://localhost:3001"
+  
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    apiBaseUrl: string = DEFAULT_API_URL
+    apiKey: string = null
+    loading: boolean = false
+    error: string = null
+    lastGenerated: {
+      type: string,
+      timestamp: Date
+    } = null
+    
+    // Context
+    gameContext: BrittneyGameContext = {
+      playerLevel: 1,
+      playerClass: "Adventurer",
+      currentLocation: "Starting Village",
+      activeQuests: [],
+      completedQuests: [],
+      unlockedAbilities: [],
+      gameTime: "morning",
+      worldState: {}
+    }
+    
+    // History
+    dialogueHistory: Map<string, NPCDialogue[]> = new Map()
+    eventHistory: GameEvent[] = []
+    generatedQuests: QuestSuggestion[] = []
+    generatedAbilities: AbilitySuggestion[] = []
+  }
+  
+  // =========================================================================
+  // CONFIGURATION
+  // =========================================================================
+  
+  @action configure(apiBaseUrl: string, apiKey?: string): void {
+    this.state.apiBaseUrl = apiBaseUrl || DEFAULT_API_URL
+    this.state.apiKey = apiKey
+  }
+  
+  @action setGameContext(context: Partial<BrittneyGameContext>): void {
+    this.state.gameContext = { ...this.state.gameContext, ...context }
+  }
+  
+  @method getGameContext(): BrittneyGameContext {
+    return this.state.gameContext
+  }
+  
+  // =========================================================================
+  // NPC DIALOGUE GENERATION
+  // =========================================================================
+  
+  @action async generateNPCDialogue(
+    npcName: string,
+    npcType: string,
+    emotion: "friendly" | "hostile" | "neutral" | "mysterious" = "neutral",
+    playerContext?: string
+  ): Promise<NPCDialogue> {
+    this.state.loading = true
+    this.state.error = null
+    
+    try {
+      const prompt = this.buildDialoguePrompt(npcName, npcType, emotion, playerContext)
+      const response = await this.callBrittneyAPI("dialogue", prompt)
+      
+      const dialogue: NPCDialogue = {
+        greeting: response.greeting || `Hello, traveler. I am ${npcName}.`,
+        responses: response.responses || [],
+        mood: emotion,
+        hints: response.hints || [],
+        npcName,
+        timestamp: new Date()
+      }
+      
+      // Store in history
+      const history = this.state.dialogueHistory.get(npcName) || []
+      history.push(dialogue)
+      this.state.dialogueHistory.set(npcName, history)
+      
+      this.recordGeneration("dialogue")
+      this.addEvent("dialogue", { npcName, npcType, dialogue })
+      
+      return dialogue
+    } catch (err) {
+      this.state.error = err.message || "Failed to generate dialogue"
+      throw err
+    } finally {
+      this.state.loading = false
+    }
+  }
+  
+  @method buildDialoguePrompt(
+    npcName: string,
+    npcType: string,
+    emotion: string,
+    playerContext?: string
+  ): object {
+    return {
+      type: "dialogue",
+      npc: {
+        name: npcName,
+        type: npcType,
+        emotion
+      },
+      context: {
+        ...this.state.gameContext,
+        playerContext
+      },
+      instructions: `Generate dialogue for ${npcName}, a ${emotion} ${npcType}. 
+Include a greeting, 3-5 response options, and any hints about quests or secrets.`
+    }
+  }
+  
+  // =========================================================================
+  // QUEST GENERATION
+  // =========================================================================
+  
+  @action async generateQuest(
+    theme: string,
+    difficulty: "easy" | "medium" | "hard" | "legendary" = "medium",
+    location?: string
+  ): Promise<QuestSuggestion> {
+    this.state.loading = true
+    this.state.error = null
+    
+    try {
+      const prompt = this.buildQuestPrompt(theme, difficulty, location)
+      const response = await this.callBrittneyAPI("quest", prompt)
+      
+      const quest: QuestSuggestion = {
+        id: `quest-${Date.now()}`,
+        name: response.name || `${theme} Quest`,
+        description: response.description || "",
+        objectives: response.objectives || [{ description: "Complete the quest", target: "goal", count: 1 }],
+        rewards: response.rewards || [{ type: "xp", name: "Experience", amount: 100 }],
+        difficulty,
+        estimatedTime: response.estimatedTime || "30 minutes",
+        prerequisites: response.prerequisites || []
+      }
+      
+      this.state.generatedQuests.push(quest)
+      this.recordGeneration("quest")
+      this.addEvent("quest", { theme, difficulty, quest })
+      
+      return quest
+    } catch (err) {
+      this.state.error = err.message || "Failed to generate quest"
+      throw err
+    } finally {
+      this.state.loading = false
+    }
+  }
+  
+  @method buildQuestPrompt(theme: string, difficulty: string, location?: string): object {
+    return {
+      type: "quest",
+      parameters: {
+        theme,
+        difficulty,
+        location: location || this.state.gameContext.currentLocation
+      },
+      context: this.state.gameContext,
+      instructions: `Generate a ${difficulty} quest about "${theme}". 
+Include 2-4 objectives, appropriate rewards, and any prerequisites.`
+    }
+  }
+  
+  // =========================================================================
+  // ABILITY GENERATION
+  // =========================================================================
+  
+  @action async generateAbility(
+    abilityType: string,
+    characterClass: string,
+    level: number = 1
+  ): Promise<AbilitySuggestion> {
+    this.state.loading = true
+    this.state.error = null
+    
+    try {
+      const prompt = this.buildAbilityPrompt(abilityType, characterClass, level)
+      const response = await this.callBrittneyAPI("ability", prompt)
+      
+      const ability: AbilitySuggestion = {
+        id: `ability-${Date.now()}`,
+        name: response.name || `${abilityType} Strike`,
+        description: response.description || "",
+        type: abilityType,
+        damage: response.damage || level * 10,
+        manaCost: response.manaCost || level * 5,
+        cooldown: response.cooldown || 3,
+        effects: response.effects || [],
+        animation: response.animation || "default",
+        soundEffect: response.soundEffect || "spell_cast"
+      }
+      
+      this.state.generatedAbilities.push(ability)
+      this.recordGeneration("ability")
+      this.addEvent("ability", { abilityType, characterClass, level, ability })
+      
+      return ability
+    } catch (err) {
+      this.state.error = err.message || "Failed to generate ability"
+      throw err
+    } finally {
+      this.state.loading = false
+    }
+  }
+  
+  @method buildAbilityPrompt(abilityType: string, characterClass: string, level: number): object {
+    return {
+      type: "ability",
+      parameters: {
+        abilityType,
+        characterClass,
+        level
+      },
+      context: this.state.gameContext,
+      instructions: `Generate a ${abilityType} ability for a level ${level} ${characterClass}. 
+Include damage, mana cost, cooldown, special effects, and animation suggestions.`
+    }
+  }
+  
+  // =========================================================================
+  // SCENE GENERATION
+  // =========================================================================
+  
+  @action async generateScene(
+    sceneConcept: string,
+    npcCount: number = 3
+  ): Promise<SceneGeneration> {
+    this.state.loading = true
+    this.state.error = null
+    
+    try {
+      const prompt = this.buildScenePrompt(sceneConcept, npcCount)
+      const response = await this.callBrittneyAPI("scene", prompt)
+      
+      const scene: SceneGeneration = {
+        id: `scene-${Date.now()}`,
+        name: response.name || sceneConcept,
+        description: response.description || "",
+        npcs: response.npcs || [],
+        objects: response.objects || [],
+        lighting: response.lighting || { ambient: 0.5, directional: 0.8 },
+        ambiance: response.ambiance || "peaceful",
+        holoScriptCode: response.holoScriptCode || this.generateDefaultSceneCode(sceneConcept)
+      }
+      
+      this.recordGeneration("scene")
+      this.addEvent("scene", { sceneConcept, npcCount, scene })
+      
+      return scene
+    } catch (err) {
+      this.state.error = err.message || "Failed to generate scene"
+      throw err
+    } finally {
+      this.state.loading = false
+    }
+  }
+  
+  @method buildScenePrompt(sceneConcept: string, npcCount: number): object {
+    return {
+      type: "scene",
+      parameters: {
+        concept: sceneConcept,
+        npcCount
+      },
+      context: this.state.gameContext,
+      instructions: `Generate a scene for "${sceneConcept}" with ${npcCount} NPCs. 
+Include environment objects, lighting, and HoloScript code.`
+    }
+  }
+  
+  @method generateDefaultSceneCode(concept: string): string {
+    return `composition "${concept}" {
+  // Generated scene: ${concept}
+  
+  spatial_group "Environment" {
+    object "Ground" {
+      position: [0, 0, 0]
+      scale: [50, 0.1, 50]
+      trait Material { color: 0x228B22 }
+    }
+  }
+  
+  spatial_group "NPCs" {
+    // Add generated NPCs here
+  }
+  
+  logic {
+    on_scene_load() {
+      console.log("Scene loaded: ${concept}")
+    }
+  }
+}`
+  }
+  
+  // =========================================================================
+  // API COMMUNICATION
+  // =========================================================================
+  
+  @method async callBrittneyAPI(endpoint: string, prompt: object): Promise<object> {
+    const url = `${this.state.apiBaseUrl}/api/game/${endpoint}`
+    
+    const headers: object = {
+      "Content-Type": "application/json"
+    }
+    
+    if (this.state.apiKey) {
+      headers["Authorization"] = `Bearer ${this.state.apiKey}`
+    }
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(prompt)
+    })
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`)
+    }
+    
+    return await response.json()
+  }
+  
+  // =========================================================================
+  // BATCH GENERATION
+  // =========================================================================
+  
+  @action async generateMultiple<T>(
+    type: "dialogue" | "quest" | "ability",
+    count: number,
+    params: object
+  ): Promise<T[]> {
+    this.state.loading = true
+    this.state.error = null
+    
+    const results: T[] = []
+    
+    try {
+      for (let i = 0; i < count; i++) {
+        let result: any
+        
+        if (type === "dialogue") {
+          result = await this.generateNPCDialogue(
+            params.npcName || `NPC ${i + 1}`,
+            params.npcType || "Generic",
+            params.emotion || "neutral",
+            params.playerContext
+          )
+        } else if (type === "quest") {
+          result = await this.generateQuest(
+            params.theme || `Quest ${i + 1}`,
+            params.difficulty || "medium",
+            params.location
+          )
+        } else if (type === "ability") {
+          result = await this.generateAbility(
+            params.abilityType || `Ability ${i + 1}`,
+            params.characterClass || "Warrior",
+            params.level || 1
+          )
+        }
+        
+        if (result) results.push(result)
+      }
+      
+      return results
+    } catch (err) {
+      this.state.error = err.message || `Failed to generate ${type}s`
+      throw err
+    } finally {
+      this.state.loading = false
+    }
+  }
+  
+  // =========================================================================
+  // HISTORY MANAGEMENT
+  // =========================================================================
+  
+  @method getDialogueHistory(npcName: string): NPCDialogue[] {
+    return this.state.dialogueHistory.get(npcName) || []
+  }
+  
+  @method getEventHistory(type?: string, limit: number = 50): GameEvent[] {
+    let events = this.state.eventHistory
+    if (type) {
+      events = events.filter(e => e.type === type)
+    }
+    return events.slice(-limit)
+  }
+  
+  @action clearHistory(): void {
+    this.state.dialogueHistory.clear()
+    this.state.eventHistory = []
+    this.state.generatedQuests = []
+    this.state.generatedAbilities = []
+  }
+  
+  @method recordGeneration(type: string): void {
+    this.state.lastGenerated = {
+      type,
+      timestamp: new Date()
+    }
+  }
+  
+  @method addEvent(type: string, data: object): void {
+    this.state.eventHistory.push({
+      type: type as any,
+      timestamp: new Date(),
+      data
+    })
+    
+    // Keep last 100 events
+    if (this.state.eventHistory.length > 100) {
+      this.state.eventHistory = this.state.eventHistory.slice(-100)
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  BrittneyGameModule,
+  NPCDialogue,
+  QuestSuggestion,
+  QuestObjective,
+  QuestReward,
+  AbilitySuggestion,
+  GeneratedNPC,
+  SceneGeneration,
+  GameEvent,
+  BrittneyGameContext
+}

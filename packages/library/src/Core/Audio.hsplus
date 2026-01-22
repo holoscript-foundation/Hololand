@@ -1,0 +1,296 @@
+// HOSL: Audio System
+// Spatial audio, music, and sound effect management
+
+/**
+ * Audio Manager
+ * Central controller for all audio in the scene
+ */
+component AudioManager {
+  @state {
+    master_volume: 1.0
+    music_volume: 0.7
+    sfx_volume: 1.0
+    ambient_volume: 0.5
+    muted: false
+    current_music: null
+    ambient_sounds: []
+  }
+
+  @props {
+    listener_target: null  // Object to attach listener to
+    doppler_factor: 1.0
+    distance_model: "inverse"  // linear | inverse | exponential
+  }
+
+  // Play a one-shot sound effect
+  @method playSFX(sound_id, options = {}) => {
+    const volume = (options.volume || 1.0) * state.sfx_volume * state.master_volume
+    const pitch = options.pitch || 1.0
+    const position = options.position || null
+    
+    if (state.muted) return null
+    
+    const sound = audio.play(sound_id, {
+      volume: volume,
+      pitch: pitch,
+      loop: false,
+      spatial: position != null,
+      position: position,
+      rolloff: options.rolloff || 1.0
+    })
+    
+    return sound
+  }
+
+  // Play music track with crossfade
+  @method playMusic(track_id, fade_duration = 1.0) => {
+    if (state.current_music) {
+      // Crossfade out current
+      audio.fade(state.current_music, 0, fade_duration)
+      timeout(fade_duration * 1000) => {
+        audio.stop(state.current_music)
+      }
+    }
+    
+    const volume = state.music_volume * state.master_volume
+    state.current_music = audio.play(track_id, {
+      volume: 0,
+      loop: true,
+      spatial: false
+    })
+    
+    // Fade in new track
+    audio.fade(state.current_music, volume, fade_duration)
+    
+    return state.current_music
+  }
+
+  // Stop music with fade
+  @method stopMusic(fade_duration = 1.0) => {
+    if (state.current_music) {
+      audio.fade(state.current_music, 0, fade_duration)
+      timeout(fade_duration * 1000) => {
+        audio.stop(state.current_music)
+        state.current_music = null
+      }
+    }
+  }
+
+  // Add ambient sound layer
+  @method addAmbient(sound_id, options = {}) => {
+    const ambient = {
+      id: crypto.randomUUID(),
+      sound_id: sound_id,
+      handle: null,
+      volume: options.volume || 1.0
+    }
+    
+    const actualVolume = ambient.volume * state.ambient_volume * state.master_volume
+    ambient.handle = audio.play(sound_id, {
+      volume: actualVolume,
+      loop: true,
+      spatial: options.spatial || false,
+      position: options.position
+    })
+    
+    state.ambient_sounds = [...state.ambient_sounds, ambient]
+    return ambient.id
+  }
+
+  // Remove ambient sound
+  @method removeAmbient(ambient_id) => {
+    const ambient = state.ambient_sounds.find(a => a.id == ambient_id)
+    if (ambient) {
+      audio.stop(ambient.handle)
+      state.ambient_sounds = state.ambient_sounds.filter(a => a.id != ambient_id)
+    }
+  }
+
+  // Set master volume
+  @method setMasterVolume(volume) => {
+    state.master_volume = Math.max(0, Math.min(1, volume))
+    this.updateAllVolumes()
+  }
+
+  // Toggle mute
+  @method toggleMute() => {
+    state.muted = !state.muted
+    this.updateAllVolumes()
+  }
+
+  // Update all active audio volumes
+  @method updateAllVolumes() => {
+    const mute = state.muted ? 0 : 1
+    
+    if (state.current_music) {
+      audio.setVolume(state.current_music, state.music_volume * state.master_volume * mute)
+    }
+    
+    for (const ambient of state.ambient_sounds) {
+      audio.setVolume(ambient.handle, ambient.volume * state.ambient_volume * state.master_volume * mute)
+    }
+  }
+}
+
+/**
+ * Spatial Audio Source
+ * 3D positioned audio emitter
+ */
+component SpatialAudioSource {
+  @state {
+    playing: false
+    current_handle: null
+  }
+
+  @props {
+    sound_id: ""
+    volume: 1.0
+    pitch: 1.0
+    loop: false
+    auto_play: false
+    
+    // Spatial properties
+    ref_distance: 1.0
+    max_distance: 100.0
+    rolloff_factor: 1.0
+    cone_inner_angle: 360
+    cone_outer_angle: 360
+    cone_outer_gain: 0
+  }
+
+  @on_ready => {
+    if (props.auto_play) {
+      this.play()
+    }
+  }
+
+  @method play() => {
+    if (state.playing) this.stop()
+    
+    state.current_handle = audio.play(props.sound_id, {
+      volume: props.volume,
+      pitch: props.pitch,
+      loop: props.loop,
+      spatial: true,
+      position: this.worldPosition,
+      refDistance: props.ref_distance,
+      maxDistance: props.max_distance,
+      rolloffFactor: props.rolloff_factor,
+      coneInnerAngle: props.cone_inner_angle,
+      coneOuterAngle: props.cone_outer_angle,
+      coneOuterGain: props.cone_outer_gain
+    })
+    
+    state.playing = true
+    
+    if (!props.loop) {
+      audio.onComplete(state.current_handle, () => {
+        state.playing = false
+        this.emit("complete")
+      })
+    }
+  }
+
+  @method stop() => {
+    if (state.current_handle) {
+      audio.stop(state.current_handle)
+      state.current_handle = null
+    }
+    state.playing = false
+  }
+
+  @method pause() => {
+    if (state.current_handle) {
+      audio.pause(state.current_handle)
+    }
+  }
+
+  @method resume() => {
+    if (state.current_handle) {
+      audio.resume(state.current_handle)
+    }
+  }
+
+  // Update position each frame if playing
+  @update(delta) => {
+    if (state.playing && state.current_handle) {
+      audio.setPosition(state.current_handle, this.worldPosition)
+    }
+  }
+}
+
+/**
+ * Footstep Audio System
+ * Automatic footstep sounds based on movement and surface
+ */
+component FootstepSystem {
+  @state {
+    last_step_time: 0
+    left_foot: true
+    current_surface: "stone"
+  }
+
+  @props {
+    character: null
+    step_interval: 0.4  // seconds between steps
+    volume: 0.7
+    
+    // Sound IDs per surface type
+    sounds: {
+      stone: ["step_stone_1", "step_stone_2", "step_stone_3"],
+      grass: ["step_grass_1", "step_grass_2"],
+      wood: ["step_wood_1", "step_wood_2", "step_wood_3"],
+      metal: ["step_metal_1", "step_metal_2"],
+      water: ["step_water_1", "step_water_2"]
+    }
+  }
+
+  // Detect surface type via raycast
+  @method detectSurface() => {
+    const hit = physics.raycast(this.worldPosition, [0, -1, 0], 2)
+    if (hit && hit.object.material) {
+      state.current_surface = hit.object.material.surface_type || "stone"
+    }
+  }
+
+  // Play a footstep
+  @method playStep() => {
+    const sounds = props.sounds[state.current_surface] || props.sounds.stone
+    const sound_id = sounds[Math.floor(Math.random() * sounds.length)]
+    
+    // Slight pitch variation for naturalness
+    const pitch = 0.9 + Math.random() * 0.2
+    
+    audio.play(sound_id, {
+      volume: props.volume,
+      pitch: pitch,
+      spatial: true,
+      position: this.worldPosition
+    })
+    
+    state.left_foot = !state.left_foot
+  }
+
+  @update(delta) => {
+    if (!props.character) return
+    
+    const velocity = props.character.velocity
+    const speed = Math.sqrt(velocity[0] ** 2 + velocity[2] ** 2)
+    
+    // Only play if moving
+    if (speed < 0.1) return
+    
+    state.last_step_time += delta
+    
+    // Adjust interval based on speed
+    const interval = props.step_interval / Math.min(speed, 2)
+    
+    if (state.last_step_time >= interval) {
+      this.detectSurface()
+      this.playStep()
+      state.last_step_time = 0
+    }
+  }
+}
+
+export { AudioManager, SpatialAudioSource, FootstepSystem }

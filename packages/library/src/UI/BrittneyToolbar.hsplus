@@ -1,0 +1,198 @@
+// HOSL: BrittneyToolbar
+// Floating toolbar with quick AI actions
+
+component BrittneyToolbar {
+  @state {
+    visible: true
+    position: { x: 20, y: 20 }
+    expanded: true
+    dragging: false
+    drag_offset: { x: 0, y: 0 }
+    active_action: null
+    loading: false
+  }
+
+  @props {
+    orientation: "vertical"  // vertical | horizontal
+    theme: "dark"
+    on_action: null
+    dock: "left"  // left | right | top | bottom | float
+  }
+
+  // Available actions
+  const ACTIONS = [
+    { id: "generate", icon: "✨", label: "Generate", shortcut: "Ctrl+Shift+G", color: "#7c3aed" },
+    { id: "explain", icon: "💡", label: "Explain", shortcut: "Ctrl+Shift+E", color: "#22c55e" },
+    { id: "optimize", icon: "⚡", label: "Optimize", shortcut: "Ctrl+Shift+O", color: "#f97316" },
+    { id: "convert", icon: "🔄", label: "Convert", shortcut: "Ctrl+Shift+C", color: "#3b82f6" },
+    { id: "suggest", icon: "🎯", label: "Suggest", shortcut: "Ctrl+Shift+S", color: "#ec4899" }
+  ]
+
+  // Toggle expanded state
+  @method toggle() => {
+    state.expanded = !state.expanded
+  }
+
+  // Execute an action
+  @method execute(action_id) => {
+    if (state.loading) return
+    
+    state.active_action = action_id
+    state.loading = true
+    
+    if (props.on_action) {
+      props.on_action(action_id)
+    }
+  }
+
+  // Complete loading
+  @method complete() => {
+    state.loading = false
+    state.active_action = null
+  }
+
+  // Start dragging
+  @method start_drag(e) => {
+    if (props.dock != "float") return
+    
+    state.dragging = true
+    state.drag_offset = {
+      x: e.clientX - state.position.x,
+      y: e.clientY - state.position.y
+    }
+  }
+
+  // Handle drag
+  @on_document_mousemove(e) => {
+    if (!state.dragging) return
+    
+    state.position = {
+      x: e.clientX - state.drag_offset.x,
+      y: e.clientY - state.drag_offset.y
+    }
+  }
+
+  @on_document_mouseup => {
+    state.dragging = false
+  }
+
+  // Calculate position based on dock
+  @computed position_style() {
+    switch (props.dock) {
+      case "left": return { left: 20, top: "50%", transform: "translateY(-50%)" }
+      case "right": return { right: 20, top: "50%", transform: "translateY(-50%)" }
+      case "top": return { top: 20, left: "50%", transform: "translateX(-50%)" }
+      case "bottom": return { bottom: 20, left: "50%", transform: "translateX(-50%)" }
+      default: return { left: state.position.x, top: state.position.y }
+    }
+  }
+
+  // Main container
+  panel#toolbar {
+    visible: ${state.visible}
+    position: "fixed"
+    ...${this.position_style()}
+    z_index: 9000
+    layout: ${props.orientation == "vertical" ? "vertical" : "horizontal"}
+    gap: 4
+    padding: 8
+    background: "#1e1e2e"
+    border: "1px solid #313244"
+    border_radius: 12
+    shadow: "0 8px 32px rgba(0, 0, 0, 0.4)"
+    cursor: ${props.dock == "float" ? "move" : "default"}
+
+    @on_mousedown(e) => { this.start_drag(e) }
+
+    // Brittney logo button
+    panel#logo {
+      width: 40
+      height: 40
+      border_radius: 8
+      background: "linear-gradient(135deg, #7c3aed, #6366f1)"
+      layout: "center"
+      cursor: "pointer"
+      margin_bottom: ${props.orientation == "vertical" ? 8 : 0}
+      margin_right: ${props.orientation == "horizontal" ? 8 : 0}
+
+      @on_click => { this.toggle() }
+
+      text#logo_icon {
+        value: "🧠"
+        size: 20
+      }
+    }
+
+    // Separator
+    panel#separator {
+      visible: ${state.expanded}
+      width: ${props.orientation == "vertical" ? "100%" : 1}
+      height: ${props.orientation == "vertical" ? 1 : "100%"}
+      background: "#313244"
+      margin: ${props.orientation == "vertical" ? [4, 0] : [0, 4]}
+    }
+
+    // Action buttons
+    @for action in ACTIONS {
+      panel#action_${action.id} {
+        visible: ${state.expanded}
+        width: 36
+        height: 36
+        border_radius: 8
+        background: ${state.active_action == action.id ? action.color : "#313244"}
+        layout: "center"
+        cursor: ${state.loading ? "wait" : "pointer"}
+        opacity: ${state.loading && state.active_action != action.id ? 0.5 : 1}
+        transition: "all 0.15s ease"
+
+        @on_hover_enter => {
+          if (!state.loading) {
+            this.background = action.color
+            this.transform = "scale(1.1)"
+          }
+        }
+
+        @on_hover_exit => {
+          if (state.active_action != action.id) {
+            this.background = "#313244"
+            this.transform = "scale(1)"
+          }
+        }
+
+        @on_click => { this.execute(action.id) }
+
+        // Icon
+        text#icon_${action.id} {
+          value: ${state.loading && state.active_action == action.id ? "⏳" : action.icon}
+          size: 16
+        }
+
+        // Tooltip
+        panel#tooltip_${action.id} {
+          position: "absolute"
+          left: ${props.orientation == "vertical" ? 50 : "50%"}
+          top: ${props.orientation == "vertical" ? "50%" : -40}
+          transform: ${props.orientation == "vertical" ? "translateY(-50%)" : "translateX(-50%)"}
+          padding: [6, 12]
+          background: "#11111b"
+          border: "1px solid #313244"
+          border_radius: 6
+          opacity: 0
+          pointer_events: "none"
+          white_space: "nowrap"
+          z_index: 1
+
+          @parent_hover => { this.opacity = 1 }
+
+          text#tooltip_text_${action.id} {
+            value: "${action.label} (${action.shortcut})"
+            color: "#cdd6f4"
+            size: 12
+          }
+        }
+      }
+    }
+  }
+}
+
+export { BrittneyToolbar }

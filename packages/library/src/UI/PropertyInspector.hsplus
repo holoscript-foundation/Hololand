@@ -1,0 +1,974 @@
+/**
+ * Property Inspector Component - Runtime Object Property Editor
+ * 
+ * Editable property panel for inspecting and modifying scene objects
+ * with support for various property types including vectors, colors,
+ * numbers, and enums.
+ * 
+ * @package @hololand/library
+ * @category UI
+ */
+
+// =============================================================================
+// PROPERTY TYPES
+// =============================================================================
+
+/**
+ * String property input
+ */
+component StringProperty {
+  @props {
+    name: string
+    value: string = ""
+    placeholder: string = ""
+    readonly: bool = false
+    onChange: function(value: string)
+  }
+
+  @method handleChange(event) {
+    if (this.props.onChange) {
+      this.props.onChange(event.target.value)
+    }
+  }
+
+  @render {
+    <div class="property-row">
+      <label class="property-label">{this.props.name}</label>
+      <input
+        type="text"
+        class="property-input string"
+        value={this.props.value}
+        placeholder={this.props.placeholder}
+        readonly={this.props.readonly}
+        @on_change={this.handleChange}
+      />
+    </div>
+  }
+
+  @style {
+    .property-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0;
+    }
+
+    .property-label {
+      flex: 0 0 40%;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+      text-transform: capitalize;
+    }
+
+    .property-input {
+      flex: 1;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      background: var(--color-gray-800, #1f2937);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      outline: none;
+    }
+
+    .property-input:focus {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+
+    .property-input:read-only {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+/**
+ * Number property input with optional slider
+ */
+component NumberProperty {
+  @props {
+    name: string
+    value: number = 0
+    min: number = -Infinity
+    max: number = Infinity
+    step: number = 0.1
+    showSlider: bool = false
+    readonly: bool = false
+    onChange: function(value: number)
+  }
+
+  @state {
+    isDragging: bool = false
+    startValue: number = 0
+    startX: number = 0
+  }
+
+  @method handleChange(event) {
+    const value = parseFloat(event.target.value)
+    if (!isNaN(value) && this.props.onChange) {
+      this.props.onChange(this.clamp(value))
+    }
+  }
+
+  @method handleSliderChange(event) {
+    const value = parseFloat(event.target.value)
+    if (this.props.onChange) {
+      this.props.onChange(value)
+    }
+  }
+
+  @method clamp(value: number) {
+    return Math.min(Math.max(value, this.props.min), this.props.max)
+  }
+
+  @method handleDragStart(event) {
+    this.state.isDragging = true
+    this.state.startValue = this.props.value
+    this.state.startX = event.clientX
+    document.addEventListener("mousemove", this.handleDrag)
+    document.addEventListener("mouseup", this.handleDragEnd)
+  }
+
+  @method handleDrag(event) {
+    if (this.state.isDragging) {
+      const delta = (event.clientX - this.state.startX) * this.props.step
+      const newValue = this.clamp(this.state.startValue + delta)
+      if (this.props.onChange) {
+        this.props.onChange(newValue)
+      }
+    }
+  }
+
+  @method handleDragEnd() {
+    this.state.isDragging = false
+    document.removeEventListener("mousemove", this.handleDrag)
+    document.removeEventListener("mouseup", this.handleDragEnd)
+  }
+
+  @render {
+    <div class="property-row">
+      <label 
+        class="property-label draggable"
+        @on_mousedown={this.handleDragStart}
+        title="Drag to adjust"
+      >
+        {this.props.name}
+      </label>
+      
+      <div class="number-input-group">
+        <input
+          type="number"
+          class="property-input number"
+          value={this.props.value.toFixed(2)}
+          min={this.props.min}
+          max={this.props.max}
+          step={this.props.step}
+          readonly={this.props.readonly}
+          @on_change={this.handleChange}
+        />
+        
+        @if (this.props.showSlider && this.props.min !== -Infinity && this.props.max !== Infinity) {
+          <input
+            type="range"
+            class="property-slider"
+            value={this.props.value}
+            min={this.props.min}
+            max={this.props.max}
+            step={this.props.step}
+            @on_input={this.handleSliderChange}
+          />
+        }
+      </div>
+    </div>
+  }
+
+  @style {
+    .property-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0;
+    }
+
+    .property-label {
+      flex: 0 0 40%;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+      text-transform: capitalize;
+    }
+
+    .property-label.draggable {
+      cursor: ew-resize;
+    }
+
+    .property-label.draggable:hover {
+      color: var(--color-purple-400, #c084fc);
+    }
+
+    .number-input-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .property-input.number {
+      width: 100%;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      font-family: var(--font-mono, monospace);
+      background: var(--color-gray-800, #1f2937);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      outline: none;
+    }
+
+    .property-input.number:focus {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+
+    .property-slider {
+      width: 100%;
+      height: 4px;
+      accent-color: var(--color-purple-500, #a855f7);
+    }
+  }
+}
+
+/**
+ * Boolean property toggle
+ */
+component BooleanProperty {
+  @props {
+    name: string
+    value: bool = false
+    readonly: bool = false
+    onChange: function(value: bool)
+  }
+
+  @method handleChange() {
+    if (!this.props.readonly && this.props.onChange) {
+      this.props.onChange(!this.props.value)
+    }
+  }
+
+  @render {
+    <div class="property-row">
+      <label class="property-label">{this.props.name}</label>
+      <button 
+        class="toggle-button {this.props.value ? 'active' : ''}"
+        disabled={this.props.readonly}
+        @on_click={this.handleChange}
+      >
+        <span class="toggle-track">
+          <span class="toggle-thumb"></span>
+        </span>
+        <span class="toggle-label">{this.props.value ? "On" : "Off"}</span>
+      </button>
+    </div>
+  }
+
+  @style {
+    .property-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0;
+    }
+
+    .property-label {
+      flex: 0 0 40%;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+      text-transform: capitalize;
+    }
+
+    .toggle-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.125rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    }
+
+    .toggle-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .toggle-track {
+      position: relative;
+      width: 2rem;
+      height: 1rem;
+      background: var(--color-gray-600, #4b5563);
+      border-radius: 0.5rem;
+      transition: background 0.2s;
+    }
+
+    .toggle-button.active .toggle-track {
+      background: var(--color-purple-500, #a855f7);
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 0.75rem;
+      height: 0.75rem;
+      background: white;
+      border-radius: 50%;
+      transition: left 0.2s;
+    }
+
+    .toggle-button.active .toggle-thumb {
+      left: calc(100% - 0.75rem - 2px);
+    }
+
+    .toggle-label {
+      font-size: 0.75rem;
+      color: var(--color-gray-300, #d1d5db);
+    }
+  }
+}
+
+/**
+ * Vector3 property (x, y, z)
+ */
+component Vector3Property {
+  @props {
+    name: string
+    value: { x: number, y: number, z: number } = { x: 0, y: 0, z: 0 }
+    step: number = 0.1
+    readonly: bool = false
+    onChange: function(value: object)
+  }
+
+  @method handleChange(axis: string, value: number) {
+    if (this.props.onChange) {
+      const newValue = { ...this.props.value, [axis]: value }
+      this.props.onChange(newValue)
+    }
+  }
+
+  @render {
+    <div class="vector-property">
+      <label class="property-label">{this.props.name}</label>
+      <div class="vector-inputs">
+        <div class="vector-axis">
+          <span class="axis-label x">X</span>
+          <input
+            type="number"
+            class="axis-input"
+            value={this.props.value.x.toFixed(2)}
+            step={this.props.step}
+            readonly={this.props.readonly}
+            @on_change={(e) => this.handleChange("x", parseFloat(e.target.value))}
+          />
+        </div>
+        <div class="vector-axis">
+          <span class="axis-label y">Y</span>
+          <input
+            type="number"
+            class="axis-input"
+            value={this.props.value.y.toFixed(2)}
+            step={this.props.step}
+            readonly={this.props.readonly}
+            @on_change={(e) => this.handleChange("y", parseFloat(e.target.value))}
+          />
+        </div>
+        <div class="vector-axis">
+          <span class="axis-label z">Z</span>
+          <input
+            type="number"
+            class="axis-input"
+            value={this.props.value.z.toFixed(2)}
+            step={this.props.step}
+            readonly={this.props.readonly}
+            @on_change={(e) => this.handleChange("z", parseFloat(e.target.value))}
+          />
+        </div>
+      </div>
+    </div>
+  }
+
+  @style {
+    .vector-property {
+      padding: 0.375rem 0;
+    }
+
+    .property-label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+      text-transform: capitalize;
+      margin-bottom: 0.375rem;
+    }
+
+    .vector-inputs {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .vector-axis {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .axis-label {
+      font-size: 0.625rem;
+      font-weight: 600;
+      width: 1rem;
+      text-align: center;
+    }
+
+    .axis-label.x { color: var(--color-red-400, #f87171); }
+    .axis-label.y { color: var(--color-green-400, #4ade80); }
+    .axis-label.z { color: var(--color-blue-400, #60a5fa); }
+
+    .axis-input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.25rem;
+      font-size: 0.75rem;
+      font-family: var(--font-mono, monospace);
+      text-align: center;
+      background: var(--color-gray-800, #1f2937);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      outline: none;
+    }
+
+    .axis-input:focus {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+  }
+}
+
+/**
+ * Color property with picker
+ */
+component ColorProperty {
+  @props {
+    name: string
+    value: string = "#ffffff"
+    showAlpha: bool = false
+    readonly: bool = false
+    onChange: function(value: string)
+  }
+
+  @state {
+    showPicker: bool = false
+  }
+
+  @method handleChange(event) {
+    if (this.props.onChange) {
+      this.props.onChange(event.target.value)
+    }
+  }
+
+  @method togglePicker() {
+    if (!this.props.readonly) {
+      this.state.showPicker = !this.state.showPicker
+    }
+  }
+
+  @render {
+    <div class="property-row">
+      <label class="property-label">{this.props.name}</label>
+      <div class="color-input-group">
+        <button 
+          class="color-preview"
+          style="background-color: {this.props.value}"
+          @on_click={this.togglePicker}
+          disabled={this.props.readonly}
+        ></button>
+        <input
+          type="color"
+          class="color-picker"
+          value={this.props.value}
+          @on_input={this.handleChange}
+          disabled={this.props.readonly}
+        />
+        <input
+          type="text"
+          class="color-text"
+          value={this.props.value}
+          @on_change={this.handleChange}
+          readonly={this.props.readonly}
+        />
+      </div>
+    </div>
+  }
+
+  @style {
+    .property-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0;
+    }
+
+    .property-label {
+      flex: 0 0 40%;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+      text-transform: capitalize;
+    }
+
+    .color-input-group {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    .color-preview {
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 2px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+
+    .color-preview:hover:not(:disabled) {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+
+    .color-picker {
+      width: 0;
+      height: 0;
+      opacity: 0;
+      position: absolute;
+    }
+
+    .color-text {
+      flex: 1;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      font-family: var(--font-mono, monospace);
+      background: var(--color-gray-800, #1f2937);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      outline: none;
+    }
+
+    .color-text:focus {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+  }
+}
+
+/**
+ * Enum/dropdown property
+ */
+component EnumProperty {
+  @props {
+    name: string
+    value: string = ""
+    options: array<string | { value: string, label: string }> = []
+    readonly: bool = false
+    onChange: function(value: string)
+  }
+
+  @method handleChange(event) {
+    if (this.props.onChange) {
+      this.props.onChange(event.target.value)
+    }
+  }
+
+  @method getOptionValue(option) {
+    return typeof option === "string" ? option : option.value
+  }
+
+  @method getOptionLabel(option) {
+    return typeof option === "string" ? option : option.label
+  }
+
+  @render {
+    <div class="property-row">
+      <label class="property-label">{this.props.name}</label>
+      <select
+        class="property-select"
+        value={this.props.value}
+        disabled={this.props.readonly}
+        @on_change={this.handleChange}
+      >
+        @for (option in this.props.options) {
+          <option value={this.getOptionValue(option)}>
+            {this.getOptionLabel(option)}
+          </option>
+        }
+      </select>
+    </div>
+  }
+
+  @style {
+    .property-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0;
+    }
+
+    .property-label {
+      flex: 0 0 40%;
+      font-size: 0.75rem;
+      color: var(--color-gray-400, #9ca3af);
+      text-transform: capitalize;
+    }
+
+    .property-select {
+      flex: 1;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      background: var(--color-gray-800, #1f2937);
+      color: var(--color-gray-100, #f3f4f6);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .property-select:focus {
+      border-color: var(--color-purple-500, #a855f7);
+    }
+
+    .property-select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// =============================================================================
+// PROPERTY GROUP
+// =============================================================================
+
+/**
+ * Collapsible property group
+ */
+component PropertyGroup {
+  @props {
+    title: string
+    icon: string = ""
+    expanded: bool = true
+    children: any
+  }
+
+  @state {
+    isExpanded: bool = true
+  }
+
+  @on_mount {
+    this.state.isExpanded = this.props.expanded
+  }
+
+  @method toggleExpanded() {
+    this.state.isExpanded = !this.state.isExpanded
+  }
+
+  @render {
+    <div class="property-group">
+      <button class="group-header" @on_click={this.toggleExpanded}>
+        <span class="expand-icon">{this.state.isExpanded ? "▼" : "▶"}</span>
+        @if (this.props.icon) {
+          <span class="group-icon">{this.props.icon}</span>
+        }
+        <span class="group-title">{this.props.title}</span>
+      </button>
+      
+      @if (this.state.isExpanded) {
+        <div class="group-content">
+          {this.props.children}
+        </div>
+      }
+    </div>
+  }
+
+  @style {
+    .property-group {
+      border-bottom: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.5rem;
+      background: var(--color-gray-800, #1f2937);
+      border: none;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .group-header:hover {
+      background: var(--color-gray-750, #2d3748);
+    }
+
+    .expand-icon {
+      font-size: 0.625rem;
+      color: var(--color-gray-500, #6b7280);
+    }
+
+    .group-icon {
+      font-size: 0.875rem;
+    }
+
+    .group-title {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--color-gray-200, #e5e7eb);
+    }
+
+    .group-content {
+      padding: 0.5rem 0.75rem;
+    }
+  }
+}
+
+// =============================================================================
+// PROPERTY INSPECTOR (MAIN COMPONENT)
+// =============================================================================
+
+/**
+ * Property Inspector Panel
+ * 
+ * Features:
+ * - Inspect selected object properties
+ * - Edit transform (position, rotation, scale)
+ * - Edit material properties (color, metalness, roughness)
+ * - Custom property groups
+ * - Live property updates
+ * 
+ * @example
+ * <PropertyInspector
+ *   object={selectedObject}
+ *   onChange={(property, value) => updateProperty(property, value)}
+ * />
+ */
+component PropertyInspector {
+  @props {
+    object: {
+      id: string,
+      name: string,
+      type: string,
+      position: { x: number, y: number, z: number },
+      rotation: { x: number, y: number, z: number },
+      scale: { x: number, y: number, z: number },
+      material: {
+        color: string,
+        metalness: number,
+        roughness: number,
+        opacity: number
+      },
+      visible: bool,
+      castShadow: bool,
+      receiveShadow: bool
+    } = null
+    readonly: bool = false
+    onChange: function(property: string, value: any)
+  }
+
+  @method handleChange(property: string, value: any) {
+    if (this.props.onChange) {
+      this.props.onChange(property, value)
+    }
+  }
+
+  @render {
+    <div class="property-inspector">
+      <!-- Header -->
+      <div class="inspector-header">
+        <h3 class="inspector-title">🔍 Inspector</h3>
+      </div>
+
+      @if (!this.props.object) {
+        <!-- Empty State -->
+        <div class="empty-state">
+          <div class="empty-icon">📦</div>
+          <p class="empty-text">Select an object to inspect its properties</p>
+        </div>
+      } @else {
+        <div class="inspector-content">
+          <!-- Object Info -->
+          <PropertyGroup title="Object" icon="📦" expanded={true}>
+            <StringProperty
+              name="name"
+              value={this.props.object.name}
+              readonly={this.props.readonly}
+              onChange={(v) => this.handleChange("name", v)}
+            />
+            <EnumProperty
+              name="type"
+              value={this.props.object.type}
+              options={["object", "light", "camera", "particle", "npc", "trigger"]}
+              readonly={true}
+            />
+            <BooleanProperty
+              name="visible"
+              value={this.props.object.visible}
+              readonly={this.props.readonly}
+              onChange={(v) => this.handleChange("visible", v)}
+            />
+          </PropertyGroup>
+
+          <!-- Transform -->
+          <PropertyGroup title="Transform" icon="↔️" expanded={true}>
+            <Vector3Property
+              name="position"
+              value={this.props.object.position}
+              step={0.1}
+              readonly={this.props.readonly}
+              onChange={(v) => this.handleChange("position", v)}
+            />
+            <Vector3Property
+              name="rotation"
+              value={this.props.object.rotation}
+              step={0.01}
+              readonly={this.props.readonly}
+              onChange={(v) => this.handleChange("rotation", v)}
+            />
+            <Vector3Property
+              name="scale"
+              value={this.props.object.scale}
+              step={0.1}
+              readonly={this.props.readonly}
+              onChange={(v) => this.handleChange("scale", v)}
+            />
+          </PropertyGroup>
+
+          <!-- Material -->
+          @if (this.props.object.material) {
+            <PropertyGroup title="Material" icon="🎨" expanded={true}>
+              <ColorProperty
+                name="color"
+                value={this.props.object.material.color}
+                readonly={this.props.readonly}
+                onChange={(v) => this.handleChange("material.color", v)}
+              />
+              <NumberProperty
+                name="metalness"
+                value={this.props.object.material.metalness}
+                min={0}
+                max={1}
+                step={0.05}
+                showSlider={true}
+                readonly={this.props.readonly}
+                onChange={(v) => this.handleChange("material.metalness", v)}
+              />
+              <NumberProperty
+                name="roughness"
+                value={this.props.object.material.roughness}
+                min={0}
+                max={1}
+                step={0.05}
+                showSlider={true}
+                readonly={this.props.readonly}
+                onChange={(v) => this.handleChange("material.roughness", v)}
+              />
+              <NumberProperty
+                name="opacity"
+                value={this.props.object.material.opacity || 1}
+                min={0}
+                max={1}
+                step={0.05}
+                showSlider={true}
+                readonly={this.props.readonly}
+                onChange={(v) => this.handleChange("material.opacity", v)}
+              />
+            </PropertyGroup>
+          }
+
+          <!-- Shadows -->
+          <PropertyGroup title="Shadows" icon="🌑" expanded={false}>
+            <BooleanProperty
+              name="castShadow"
+              value={this.props.object.castShadow}
+              readonly={this.props.readonly}
+              onChange={(v) => this.handleChange("castShadow", v)}
+            />
+            <BooleanProperty
+              name="receiveShadow"
+              value={this.props.object.receiveShadow}
+              readonly={this.props.readonly}
+              onChange={(v) => this.handleChange("receiveShadow", v)}
+            />
+          </PropertyGroup>
+        </div>
+      }
+    </div>
+  }
+
+  @style {
+    .property-inspector {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-gray-900, #111827);
+      color: var(--color-gray-100, #f3f4f6);
+    }
+
+    .inspector-header {
+      padding: 0.75rem 1rem;
+      background: var(--color-gray-800, #1f2937);
+      border-bottom: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .inspector-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .inspector-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-text {
+      font-size: 0.875rem;
+      color: var(--color-gray-500, #6b7280);
+      margin: 0;
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  PropertyInspector,
+  PropertyGroup,
+  StringProperty,
+  NumberProperty,
+  BooleanProperty,
+  Vector3Property,
+  ColorProperty,
+  EnumProperty
+}

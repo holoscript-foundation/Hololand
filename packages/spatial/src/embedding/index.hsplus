@@ -1,0 +1,22 @@
+/**
+ * Spatial Embedding - Package Exports
+ */
+
+export {
+  // Enums
+  CodeEntityType,
+  ConnectionType,
+  LayoutAlgorithm,
+  
+  // Types
+  EntityMetadata,
+  Connection,
+  SpatialEntity,
+  LayoutOptions,
+  Cluster,
+  
+  // Module & Singletons
+  SpatialEmbeddingExtractor,
+  getSpatialEmbeddingExtractor,
+  resetSpatialEmbeddingExtractor
+} from "./SpatialEmbeddingExtractor.hsplus"

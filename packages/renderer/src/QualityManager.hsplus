@@ -1,0 +1,462 @@
+/**
+ * QualityManager
+ *
+ * Handles automatic device detection and quality preset selection.
+ * Manages runtime quality adjustments based on performance metrics.
+ */
+
+import * as THREE from "three"
+import {
+  QualityPreset,
+  QualitySettings,
+  DeviceType,
+  ShadowType,
+  QualityPresets
+} from "./types.hsplus"
+import { rendererLogger as logger } from "./logger.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * GPU capability info
+ */
+struct GPUInfo {
+  vendor: string = "unknown",
+  renderer: string = "unknown",
+  tier: string = "medium"  // "low" | "medium" | "high" | "ultra"
+}
+
+/**
+ * Quality manager configuration
+ */
+struct QualityManagerOptions {
+  preset: QualityPreset = QualityPreset.medium,
+  overrides: QualitySettings = null,
+  adaptiveQuality: bool = true,
+  targetFPS: number = 72,
+  onQualityChange: ((settings: QualitySettings, preset: QualityPreset) => void) = null
+}
+
+// =============================================================================
+// DEVICE DETECTION
+// =============================================================================
+
+/**
+ * Device detection utilities
+ */
+module DeviceDetector {
+  /**
+   * Detect GPU capabilities using WebGL debug info
+   */
+  @method detectGPU() -> GPUInfo {
+    let canvas = document.createElement("canvas")
+    let gl = canvas.getContext("webgl") ?? canvas.getContext("experimental-webgl")
+
+    if !gl {
+      return { vendor: "unknown", renderer: "unknown", tier: "low" }
+    }
+
+    let debugInfo = gl.getExtension("WEBGL_debug_renderer_info")
+
+    let vendor = "unknown"
+    let renderer = "unknown"
+
+    if debugInfo {
+      vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) ?? "unknown"
+      renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? "unknown"
+    }
+
+    // Determine GPU tier based on renderer string
+    let rendererLower = renderer.toLowerCase()
+    let tier = "medium"
+
+    // High-end GPUs
+    let highEndPatterns = [
+      "rtx 40", "rtx 30", "rtx 20",
+      "rx 7", "rx 6",
+      "radeon pro",
+      "a100", "h100", "v100",
+      "m1 pro", "m1 max", "m2", "m3",
+      "apple gpu"
+    ]
+
+    // Low-end GPUs
+    let lowEndPatterns = [
+      "intel hd", "intel uhd",
+      "mali-4", "mali-t",
+      "adreno 5", "adreno 4", "adreno 3",
+      "powervr",
+      "sgx",
+      "tegra"
+    ]
+
+    // Ultra high-end
+    let ultraPatterns = [
+      "rtx 4090", "rtx 4080",
+      "rx 7900",
+      "m3 max", "m3 ultra"
+    ]
+
+    if ultraPatterns.some(p => rendererLower.includes(p)) {
+      tier = "ultra"
+    } else if highEndPatterns.some(p => rendererLower.includes(p)) {
+      tier = "high"
+    } else if lowEndPatterns.some(p => rendererLower.includes(p)) {
+      tier = "low"
+    }
+
+    return { vendor, renderer, tier }
+  }
+
+  /**
+   * Detect device type from user agent and XR capabilities
+   */
+  @method async detectDeviceType() -> DeviceType {
+    let ua = navigator.userAgent.toLowerCase()
+
+    // Check for Meta Quest headsets
+    if ua.includes("quest 3") { return DeviceType.quest3 }
+    if ua.includes("quest pro") { return DeviceType.questPro }
+    if ua.includes("quest 2") || ua.includes("quest") { return DeviceType.quest2 }
+    if ua.includes("oculus") { return DeviceType.quest2 }
+
+    // Check for other VR headsets
+    if ua.includes("openvr") || ua.includes("steamvr") { return DeviceType.pcvr }
+    if ua.includes("windows mixed reality") || ua.includes("wmr") { return DeviceType.pcvr }
+
+    // Check WebXR capabilities
+    if navigator.xr {
+      try {
+        let vrSupported = await navigator.xr.isSessionSupported("immersive-vr")
+        if vrSupported {
+          return DeviceType.pcvr
+        }
+      } catch {
+        // WebXR check failed, continue with other detection
+      }
+    }
+
+    // Mobile detection
+    if /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua) {
+      // Tablet detection
+      if /ipad|tablet|playbook|silk/i.test(ua) || window.innerWidth > 768 {
+        return DeviceType.tablet
+      }
+      return DeviceType.mobile
+    }
+
+    // Desktop
+    return DeviceType.desktop
+  }
+
+  /**
+   * Get recommended quality preset for device type
+   */
+  @method getRecommendedPreset(deviceType: DeviceType, gpuTier: string) -> QualityPreset {
+    // Device/GPU tier matrix
+    let recommendations = {
+      mobile: { low: QualityPreset.low, medium: QualityPreset.low, high: QualityPreset.medium, ultra: QualityPreset.medium },
+      tablet: { low: QualityPreset.low, medium: QualityPreset.medium, high: QualityPreset.medium, ultra: QualityPreset.high },
+      quest2: { low: QualityPreset.low, medium: QualityPreset.low, high: QualityPreset.medium, ultra: QualityPreset.medium },
+      quest3: { low: QualityPreset.medium, medium: QualityPreset.medium, high: QualityPreset.high, ultra: QualityPreset.high },
+      questPro: { low: QualityPreset.medium, medium: QualityPreset.medium, high: QualityPreset.high, ultra: QualityPreset.high },
+      pcvr: { low: QualityPreset.medium, medium: QualityPreset.high, high: QualityPreset.high, ultra: QualityPreset.ultra },
+      desktop: { low: QualityPreset.medium, medium: QualityPreset.high, high: QualityPreset.high, ultra: QualityPreset.ultra },
+      unknown: { low: QualityPreset.low, medium: QualityPreset.medium, high: QualityPreset.medium, ultra: QualityPreset.high }
+    }
+
+    let deviceRecs = recommendations[deviceType] ?? recommendations.unknown
+    return deviceRecs[gpuTier] ?? QualityPreset.medium
+  }
+}
+
+// =============================================================================
+// QUALITY MANAGER
+// =============================================================================
+
+/**
+ * Manages quality settings with automatic device detection and adaptive quality
+ */
+module QualityManager {
+  @state {
+    currentPreset: QualityPreset = QualityPreset.medium,
+    currentSettings: QualitySettings = QualityPresets.medium,
+    deviceType: DeviceType = DeviceType.unknown,
+    gpuInfo: GPUInfo = { vendor: "unknown", renderer: "unknown", tier: "medium" },
+    adaptiveQuality: bool = true,
+    onQualityChange: ((settings: QualitySettings, preset: QualityPreset) => void) = null,
+
+    // Performance tracking
+    frameTimeHistory: array<number> = [],
+    lastAdaptiveCheck: number = 0,
+    ADAPTIVE_CHECK_INTERVAL: number = 2000,  // Check every 2 seconds
+    FRAME_HISTORY_SIZE: number = 60
+  }
+
+  @action initialize(options: QualityManagerOptions = {}) {
+    self.adaptiveQuality = options.adaptiveQuality ?? true
+    self.onQualityChange = options.onQualityChange
+
+    // Set initial quality
+    if options.preset && options.preset != QualityPreset.auto {
+      self.currentPreset = options.preset
+      self.currentSettings = { ...QualityPresets.getPreset(options.preset) }
+    } else {
+      self.currentPreset = QualityPreset.medium
+      self.currentSettings = { ...QualityPresets.medium }
+    }
+
+    // Apply overrides
+    if options.overrides {
+      self.currentSettings = { ...self.currentSettings, ...options.overrides }
+    }
+
+    logger.info("[QualityManager] Created", { preset: self.currentPreset })
+  }
+
+  /**
+   * Initialize quality manager (async device detection)
+   */
+  @action async detect() {
+    // Detect GPU
+    self.gpuInfo = DeviceDetector.detectGPU()
+
+    // Detect device type
+    self.deviceType = await DeviceDetector.detectDeviceType()
+
+    // Get recommended preset if on auto
+    let recommendedPreset = DeviceDetector.getRecommendedPreset(self.deviceType, self.gpuInfo.tier)
+
+    logger.info("[QualityManager] Detected", {
+      deviceType: self.deviceType,
+      gpuVendor: self.gpuInfo.vendor,
+      gpuRenderer: self.gpuInfo.renderer,
+      gpuTier: self.gpuInfo.tier,
+      recommendedPreset
+    })
+
+    // Only apply recommendation if no preset was explicitly set
+    if self.currentPreset == QualityPreset.medium && !self.onQualityChange {
+      self.setPreset(recommendedPreset)
+    }
+  }
+
+  /**
+   * Get current quality settings
+   */
+  @computed getSettings() -> QualitySettings {
+    return self.currentSettings
+  }
+
+  /**
+   * Get current preset name
+   */
+  @computed getPreset() -> QualityPreset {
+    return self.currentPreset
+  }
+
+  /**
+   * Get detected device type
+   */
+  @computed getDeviceType() -> DeviceType {
+    return self.deviceType
+  }
+
+  /**
+   * Get GPU info
+   */
+  @computed getGPUInfo() -> GPUInfo {
+    return self.gpuInfo
+  }
+
+  /**
+   * Set quality preset
+   */
+  @action setPreset(preset: QualityPreset, overrides: QualitySettings = null) {
+    self.currentPreset = preset
+    self.currentSettings = { ...QualityPresets.getPreset(preset) }
+    
+    if overrides {
+      self.currentSettings = { ...self.currentSettings, ...overrides }
+    }
+
+    logger.info("[QualityManager] Preset changed", { preset })
+
+    if self.onQualityChange {
+      self.onQualityChange(self.currentSettings, preset)
+    }
+  }
+
+  /**
+   * Apply partial settings override
+   */
+  @action applyOverrides(overrides: QualitySettings) {
+    self.currentSettings = { ...self.currentSettings, ...overrides }
+    if self.onQualityChange {
+      self.onQualityChange(self.currentSettings, self.currentPreset)
+    }
+  }
+
+  /**
+   * Record frame time for adaptive quality
+   */
+  @action recordFrameTime(deltaMs: number) {
+    if !self.adaptiveQuality { return }
+
+    self.frameTimeHistory.push(deltaMs)
+    if self.frameTimeHistory.length > self.FRAME_HISTORY_SIZE {
+      self.frameTimeHistory.shift()
+    }
+
+    // Check if we should adapt quality
+    let now = performance.now()
+    if now - self.lastAdaptiveCheck > self.ADAPTIVE_CHECK_INTERVAL {
+      self.lastAdaptiveCheck = now
+      self.checkAdaptiveQuality()
+    }
+  }
+
+  /**
+   * Check and adjust quality based on performance
+   */
+  @method checkAdaptiveQuality() {
+    if self.frameTimeHistory.length < 30 { return }
+
+    // Calculate average FPS from frame times
+    let sum = 0
+    for t in self.frameTimeHistory {
+      sum += t
+    }
+    let avgFrameTime = sum / self.frameTimeHistory.length
+    let currentFPS = 1000 / avgFrameTime
+
+    let targetWithBuffer = self.currentSettings.targetFPS * 0.9  // 10% buffer
+
+    let presetOrder = [QualityPreset.ultra, QualityPreset.high, QualityPreset.medium, QualityPreset.low]
+
+    // Too slow - decrease quality
+    if currentFPS < targetWithBuffer && self.currentPreset != QualityPreset.low {
+      let currentIndex = presetOrder.indexOf(self.currentPreset)
+      if currentIndex >= 0 && currentIndex < presetOrder.length - 1 {
+        let newPreset = presetOrder[currentIndex + 1]
+        logger.info("[QualityManager] Adaptive: Decreasing quality", {
+          currentFPS: Math.round(currentFPS),
+          targetFPS: self.currentSettings.targetFPS,
+          newPreset
+        })
+        self.setPreset(newPreset)
+      }
+    }
+
+    // Running well above target - could increase quality
+    if currentFPS > self.currentSettings.targetFPS * 1.3 && self.currentPreset != QualityPreset.ultra {
+      // Only increase if we've been stable for a while
+      let minFrameTime = Math.min(...self.frameTimeHistory)
+      let maxFrameTime = Math.max(...self.frameTimeHistory)
+      let variance = maxFrameTime - minFrameTime
+
+      if variance < avgFrameTime * 0.3 {  // Low variance = stable
+        let increaseOrder = [QualityPreset.low, QualityPreset.medium, QualityPreset.high, QualityPreset.ultra]
+        let currentIndex = increaseOrder.indexOf(self.currentPreset)
+        if currentIndex >= 0 && currentIndex < increaseOrder.length - 1 {
+          let newPreset = increaseOrder[currentIndex + 1]
+          logger.info("[QualityManager] Adaptive: Increasing quality", {
+            currentFPS: Math.round(currentFPS),
+            newPreset
+          })
+          self.setPreset(newPreset)
+        }
+      }
+    }
+  }
+
+  /**
+   * Enable/disable adaptive quality
+   */
+  @action setAdaptiveQuality(enabled: bool) {
+    self.adaptiveQuality = enabled
+    self.frameTimeHistory = []
+    logger.info("[QualityManager] Adaptive quality", { enabled })
+  }
+
+  /**
+   * Apply quality settings to Three.js renderer
+   */
+  @method applyToRenderer(renderer: THREE.WebGLRenderer) {
+    let settings = self.currentSettings
+
+    // Pixel ratio
+    renderer.setPixelRatio(Math.min(settings.pixelRatio, window.devicePixelRatio))
+
+    // Shadows
+    renderer.shadowMap.enabled = settings.shadowsEnabled
+    match settings.shadowType {
+      ShadowType.basic => { renderer.shadowMap.type = THREE.BasicShadowMap },
+      ShadowType.pcf => { renderer.shadowMap.type = THREE.PCFShadowMap },
+      ShadowType.pcfsoft => { renderer.shadowMap.type = THREE.PCFSoftShadowMap },
+      ShadowType.vsm => { renderer.shadowMap.type = THREE.VSMShadowMap }
+    }
+
+    // Tone mapping
+    if settings.toneMapping {
+      renderer.toneMapping = THREE.ACESFilmicToneMapping
+      renderer.toneMappingExposure = 1.0
+    } else {
+      renderer.toneMapping = THREE.NoToneMapping
+    }
+
+    // Output encoding
+    renderer.outputColorSpace = THREE.SRGBColorSpace
+
+    logger.debug("[QualityManager] Applied to renderer", { preset: self.currentPreset })
+  }
+
+  /**
+   * Get summary string for UI display
+   */
+  @computed getSummary() -> string {
+    let settings = self.currentSettings
+    let features = []
+
+    if settings.shadowsEnabled { features.push("Shadows") }
+    if settings.postProcessing { features.push("Post-FX") }
+    if settings.bloom { features.push("Bloom") }
+    if settings.ssao { features.push("SSAO") }
+    if settings.hdriEnvironment { features.push("HDRI") }
+    if settings.realTimeReflections { features.push("Reflections") }
+
+    let featureStr = features.join(", ")
+    return `${self.currentPreset.toUpperCase()} | ${featureStr} | Target: ${settings.targetFPS}fps`
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTION
+// =============================================================================
+
+/**
+ * Create and initialize a QualityManager
+ */
+function createQualityManager(options: QualityManagerOptions = {}) -> typeof QualityManager {
+  QualityManager.initialize(options)
+  return QualityManager
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Types
+  GPUInfo,
+  QualityManagerOptions,
+
+  // Modules
+  DeviceDetector,
+  QualityManager,
+
+  // Factory
+  createQualityManager
+}

@@ -1,0 +1,254 @@
+/**
+ * SharedDataBridge.hsplus
+ * 
+ * Inter-process communication between Native Messaging Host and MCP Server.
+ * Uses a file-based approach for cross-process data sharing.
+ * 
+ * Architecture:
+ * Browser Extension → Native Messaging Host → SharedDataBridge (file) → MCP Server → IDE Agent
+ * 
+ * @package @hololand/mcp-server
+ * @version 2.0.0
+ */
+
+import {
+  BridgeData,
+  BrowserStateData,
+  SceneInfoData,
+  ProfilerStatsData,
+  ConsoleLogData,
+  RuntimeErrorData
+} from "./Types.hsplus"
+
+// =============================================================================
+// IMPORTS (Node.js)
+// =============================================================================
+
+const fs = require("fs")
+const path = require("path")
+const os = require("os")
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const BRIDGE_DIR = path.join(os.tmpdir(), "hololand-mcp")
+const BRIDGE_FILE = path.join(BRIDGE_DIR, "browser-data.json")
+const DATA_TTL = 10000       // Data expires after 10 seconds
+const WATCH_INTERVAL = 500   // Check for updates every 500ms
+
+// =============================================================================
+// SHARED DATA BRIDGE MODULE
+// =============================================================================
+
+module SharedDataBridge {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    cachedData: BridgeData = null
+    lastReadTime: number = 0
+    watchers: Array<(data: BridgeData) => void> = []
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(): void {
+    this.ensureDirectory()
+  }
+  
+  @method ensureDirectory(): void {
+    if (!fs.existsSync(BRIDGE_DIR)) {
+      fs.mkdirSync(BRIDGE_DIR, { recursive: true })
+    }
+  }
+  
+  // =========================================================================
+  // WRITE OPERATIONS (called by native messaging host)
+  // =========================================================================
+  
+  @action write(data: Partial<BridgeData>): void {
+    this.ensureDirectory()
+    
+    // Read existing data and merge
+    const existing = this.read() || { lastUpdate: 0, connected: false }
+    const merged: BridgeData = {
+      ...existing,
+      ...data,
+      lastUpdate: Date.now()
+    }
+    
+    try {
+      fs.writeFileSync(BRIDGE_FILE, JSON.stringify(merged, null, 2), "utf8")
+      this.state.cachedData = merged
+      
+      // Notify watchers
+      this.state.watchers.forEach(callback => callback(merged))
+    } catch (error) {
+      console.error("[SharedDataBridge] Failed to write:", error)
+    }
+  }
+  
+  @action setBrowserState(state: BrowserStateData): void {
+    this.write({ browserState: state })
+  }
+  
+  @action setScenes(scenes: SceneInfoData[]): void {
+    this.write({ scenes })
+  }
+  
+  @action setProfilerStats(stats: ProfilerStatsData): void {
+    this.write({ profilerStats: stats })
+  }
+  
+  @action addConsoleLog(log: ConsoleLogData): void {
+    const data = this.read()
+    const logs = data?.consoleLogs || []
+    logs.push(log)
+    
+    // Keep last 100 logs
+    if (logs.length > 100) {
+      logs.shift()
+    }
+    
+    this.write({ consoleLogs: logs })
+  }
+  
+  @action addRuntimeError(error: RuntimeErrorData): void {
+    const data = this.read()
+    const errors = data?.runtimeErrors || []
+    errors.push(error)
+    
+    // Keep last 50 errors
+    if (errors.length > 50) {
+      errors.shift()
+    }
+    
+    this.write({ runtimeErrors: errors })
+  }
+  
+  @action setConnected(connected: boolean): void {
+    this.write({ connected })
+  }
+  
+  // =========================================================================
+  // READ OPERATIONS (called by MCP server)
+  // =========================================================================
+  
+  @method read(): BridgeData | null {
+    // Use cached data if recent enough
+    const now = Date.now()
+    if (this.state.cachedData && now - this.state.lastReadTime < WATCH_INTERVAL) {
+      return this.state.cachedData
+    }
+    
+    if (!fs.existsSync(BRIDGE_FILE)) {
+      return null
+    }
+    
+    try {
+      const content = fs.readFileSync(BRIDGE_FILE, "utf8")
+      const data = JSON.parse(content) as BridgeData
+      
+      // Check if data is stale
+      if (now - data.lastUpdate > DATA_TTL) {
+        return null
+      }
+      
+      this.state.cachedData = data
+      this.state.lastReadTime = now
+      return data
+    } catch (error) {
+      console.error("[SharedDataBridge] Failed to read:", error)
+      return null
+    }
+  }
+  
+  @method isConnected(): boolean {
+    const data = this.read()
+    return data?.connected === true && Date.now() - data.lastUpdate < DATA_TTL
+  }
+  
+  @method getBrowserState(): BrowserStateData | null {
+    return this.read()?.browserState || null
+  }
+  
+  @method getScenes(): SceneInfoData[] {
+    return this.read()?.scenes || []
+  }
+  
+  @method getProfilerStats(): ProfilerStatsData | null {
+    return this.read()?.profilerStats || null
+  }
+  
+  @method getConsoleLogs(): ConsoleLogData[] {
+    return this.read()?.consoleLogs || []
+  }
+  
+  @method getRuntimeErrors(): RuntimeErrorData[] {
+    return this.read()?.runtimeErrors || []
+  }
+  
+  // =========================================================================
+  // WATCHING
+  // =========================================================================
+  
+  @action watch(callback: (data: BridgeData) => void): void {
+    this.state.watchers.push(callback)
+    
+    // Set up file watcher
+    if (fs.existsSync(BRIDGE_FILE)) {
+      fs.watchFile(BRIDGE_FILE, { interval: WATCH_INTERVAL }, () => {
+        const data = this.read()
+        if (data) {
+          callback(data)
+        }
+      })
+    }
+  }
+  
+  @action unwatch(callback: (data: BridgeData) => void): void {
+    const index = this.state.watchers.indexOf(callback)
+    if (index > -1) {
+      this.state.watchers.splice(index, 1)
+    }
+    
+    if (this.state.watchers.length === 0 && fs.existsSync(BRIDGE_FILE)) {
+      fs.unwatchFile(BRIDGE_FILE)
+    }
+  }
+  
+  // =========================================================================
+  // CLEANUP
+  // =========================================================================
+  
+  @action clear(): void {
+    try {
+      if (fs.existsSync(BRIDGE_FILE)) {
+        fs.unlinkSync(BRIDGE_FILE)
+      }
+      this.state.cachedData = null
+      this.state.lastReadTime = 0
+    } catch (error) {
+      console.error("[SharedDataBridge] Failed to clear:", error)
+    }
+  }
+}
+
+// =============================================================================
+// SINGLETON INSTANCE
+// =============================================================================
+
+const sharedDataBridge = SharedDataBridge
+
+// Initialize on module load
+sharedDataBridge.initialize()
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export { SharedDataBridge, sharedDataBridge, BRIDGE_DIR, BRIDGE_FILE, DATA_TTL }

@@ -1,0 +1,107 @@
+/**
+ * @hololand/ui - GridContainer Component
+ * CSS Grid-style layout container
+ */
+
+import { GridContainerConfig, Vector2 } from "../types.hsplus"
+
+module GridContainer {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 400, height: 400 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    children: array<any> = [],
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Grid-specific
+    columns: number = 3,
+    rows: number = null,
+    columnGap: number = 8,
+    rowGap: number = 8,
+    padding: number = 0
+  }
+
+  @action initialize(config: GridContainerConfig) {
+    self.id = `grid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 400, height: 400 }
+    self.visible = config.visible ?? true
+    self.columns = config.columns ?? 3
+    self.rows = config.rows
+    self.columnGap = config.columnGap ?? 8
+    self.rowGap = config.rowGap ?? 8
+    self.padding = config.padding ?? 0
+    self.children = []
+    self.eventHandlers = new Map()
+    self.dirty = true
+  }
+
+  @action addChild(child: any) {
+    if child.parent {
+      child.parent.removeChild(child)
+    }
+    child.parent = self
+    self.children.push(child)
+    self.layoutChildren()
+  }
+
+  @action removeChild(child: any) {
+    let index = self.children.indexOf(child)
+    if index >= 0 {
+      self.children.splice(index, 1)
+      child.parent = null
+      self.layoutChildren()
+    }
+  }
+
+  @method layoutChildren() {
+    if self.children.length == 0 { return }
+
+    let cols = self.columns
+    let containerW = self.size.width - self.padding * 2
+    let containerH = self.size.height - self.padding * 2
+
+    // Calculate cell sizes
+    let cellW = (containerW - self.columnGap * (cols - 1)) / cols
+    let actualRows = self.rows ?? Math.ceil(self.children.length / cols)
+    let cellH = (containerH - self.rowGap * (actualRows - 1)) / actualRows
+
+    for let i = 0; i < self.children.length; i += 1 {
+      let child = self.children[i]
+      let col = i % cols
+      let row = Math.floor(i / cols)
+
+      let x = self.position.x + self.padding + col * (cellW + self.columnGap)
+      let y = self.position.y + self.padding + row * (cellH + self.rowGap)
+
+      child.position = { x, y }
+      child.size = { width: cellW, height: cellH }
+    }
+
+    self.dirty = true
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    for child in self.children {
+      if child.visible && child.render {
+        child.render(ctx)
+      }
+    }
+
+    self.dirty = false
+  }
+}
+
+function createGridContainer(config: GridContainerConfig) -> typeof GridContainer {
+  GridContainer.initialize(config)
+  return GridContainer
+}
+
+export { GridContainer, createGridContainer }

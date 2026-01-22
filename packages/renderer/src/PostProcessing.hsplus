@@ -1,0 +1,459 @@
+/**
+ * PostProcessingPipeline
+ *
+ * Handles all post-processing effects for enhanced visuals.
+ * Uses Three.js EffectComposer with various passes.
+ */
+
+import * as THREE from "three"
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js"
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js"
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js"
+import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js"
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js"
+import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js"
+import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js"
+
+import {
+  QualitySettings,
+  PostProcessingConfig,
+  AntialiasingMode
+} from "./types.hsplus"
+import { rendererLogger as logger } from "./logger.hsplus"
+
+// =============================================================================
+// CUSTOM SHADERS
+// =============================================================================
+
+/**
+ * Vignette shader
+ */
+let VignetteShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    offset: { value: 1.0 },
+    darkness: { value: 1.0 }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float offset;
+    uniform float darkness;
+    varying vec2 vUv;
+    void main() {
+      vec4 texel = texture2D(tDiffuse, vUv);
+      vec2 uv = (vUv - vec2(0.5)) * vec2(offset);
+      float vig = 1.0 - dot(uv, uv);
+      vig = clamp(pow(vig, darkness), 0.0, 1.0);
+      gl_FragColor = vec4(texel.rgb * vig, texel.a);
+    }
+  `
+}
+
+/**
+ * Color grading shader
+ */
+let ColorGradingShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    brightness: { value: 0.0 },
+    contrast: { value: 1.0 },
+    saturation: { value: 1.0 }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float brightness;
+    uniform float contrast;
+    uniform float saturation;
+    varying vec2 vUv;
+
+    vec3 adjustBrightness(vec3 color, float value) {
+      return color + value;
+    }
+
+    vec3 adjustContrast(vec3 color, float value) {
+      return 0.5 + (value * (color - 0.5));
+    }
+
+    vec3 adjustSaturation(vec3 color, float value) {
+      float grey = dot(color, vec3(0.299, 0.587, 0.114));
+      return mix(vec3(grey), color, value);
+    }
+
+    void main() {
+      vec4 texel = texture2D(tDiffuse, vUv);
+      vec3 color = texel.rgb;
+      color = adjustBrightness(color, brightness);
+      color = adjustContrast(color, contrast);
+      color = adjustSaturation(color, saturation);
+      gl_FragColor = vec4(color, texel.a);
+    }
+  `
+}
+
+/**
+ * Chromatic aberration shader
+ */
+let ChromaticAberrationShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    offset: { value: 0.005 }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float offset;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 direction = vUv - vec2(0.5);
+      float dist = length(direction);
+
+      vec2 offsetR = direction * offset * dist;
+      vec2 offsetB = -direction * offset * dist;
+
+      float r = texture2D(tDiffuse, vUv + offsetR).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv + offsetB).b;
+
+      gl_FragColor = vec4(r, g, b, 1.0);
+    }
+  `
+}
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Post-processing options
+ */
+struct PostProcessingOptions {
+  renderer: THREE.WebGLRenderer = null,
+  scene: THREE.Scene = null,
+  camera: THREE.Camera = null,
+  qualitySettings: QualitySettings = {},
+  config: PostProcessingConfig = null
+}
+
+// =============================================================================
+// POST PROCESSING PIPELINE
+// =============================================================================
+
+/**
+ * Post-processing pipeline using Three.js EffectComposer
+ */
+module PostProcessingPipeline {
+  @state {
+    composer: EffectComposer = null,
+    renderer: THREE.WebGLRenderer = null,
+    scene: THREE.Scene = null,
+    camera: THREE.Camera = null,
+    enabled: bool = true,
+
+    // Individual passes
+    renderPass: RenderPass = null,
+    bloomPass: UnrealBloomPass = null,
+    ssaoPass: SSAOPass = null,
+    fxaaPass: ShaderPass = null,
+    smaaPass: SMAAPass = null,
+    vignettePass: ShaderPass = null,
+    colorGradingPass: ShaderPass = null,
+    chromaticAberrationPass: ShaderPass = null,
+    outputPass: OutputPass = null
+  }
+
+  @action initialize(options: PostProcessingOptions) {
+    self.renderer = options.renderer
+    self.scene = options.scene
+    self.camera = options.camera
+
+    // Create composer
+    self.composer = new EffectComposer(self.renderer)
+
+    // Base render pass
+    self.renderPass = new RenderPass(self.scene, self.camera)
+    self.composer.addPass(self.renderPass)
+
+    // Output pass (always last for color space conversion)
+    self.outputPass = new OutputPass()
+
+    // Apply initial settings
+    self.applyQualitySettings(options.qualitySettings, options.config)
+
+    logger.info("[PostProcessing] Pipeline created")
+  }
+
+  /**
+   * Apply quality settings to configure post-processing passes
+   */
+  @action applyQualitySettings(settings: QualitySettings, config: PostProcessingConfig = null) {
+    // Clear existing passes (except render pass)
+    self.clearPasses()
+
+    if !settings.postProcessing {
+      self.enabled = false
+      // Just add output pass for proper color space
+      self.composer.addPass(self.outputPass)
+      return
+    }
+
+    self.enabled = true
+    let width = self.renderer.domElement.width
+    let height = self.renderer.domElement.height
+
+    // SSAO Pass
+    if settings.ssao && self.camera is THREE.PerspectiveCamera {
+      self.ssaoPass = new SSAOPass(self.scene, self.camera, width, height)
+      self.ssaoPass.kernelRadius = config?.ssao?.radius ?? 16
+      self.ssaoPass.minDistance = config?.ssao?.bias ?? 0.005
+      self.ssaoPass.maxDistance = config?.ssao?.intensity ?? 0.1
+      self.composer.addPass(self.ssaoPass)
+      logger.debug("[PostProcessing] SSAO enabled")
+    }
+
+    // Bloom Pass
+    if settings.bloom {
+      let resolution = new THREE.Vector2(width, height)
+      self.bloomPass = new UnrealBloomPass(
+        resolution,
+        config?.bloom?.strength ?? 0.5,
+        config?.bloom?.radius ?? 0.4,
+        config?.bloom?.threshold ?? 0.85
+      )
+      self.composer.addPass(self.bloomPass)
+      logger.debug("[PostProcessing] Bloom enabled")
+    }
+
+    // Vignette
+    if config?.vignette?.enabled {
+      self.vignettePass = new ShaderPass(VignetteShader)
+      self.vignettePass.uniforms.offset.value = config.vignette.offset ?? 1.0
+      self.vignettePass.uniforms.darkness.value = config.vignette.darkness ?? 1.0
+      self.composer.addPass(self.vignettePass)
+      logger.debug("[PostProcessing] Vignette enabled")
+    }
+
+    // Color Grading
+    if config?.colorGrading?.enabled {
+      self.colorGradingPass = new ShaderPass(ColorGradingShader)
+      self.colorGradingPass.uniforms.brightness.value = config.colorGrading.brightness ?? 0
+      self.colorGradingPass.uniforms.contrast.value = config.colorGrading.contrast ?? 1
+      self.colorGradingPass.uniforms.saturation.value = config.colorGrading.saturation ?? 1
+      self.composer.addPass(self.colorGradingPass)
+      logger.debug("[PostProcessing] Color grading enabled")
+    }
+
+    // Chromatic Aberration
+    if config?.chromaticAberration?.enabled {
+      self.chromaticAberrationPass = new ShaderPass(ChromaticAberrationShader)
+      self.chromaticAberrationPass.uniforms.offset.value = config.chromaticAberration.offset ?? 0.005
+      self.composer.addPass(self.chromaticAberrationPass)
+      logger.debug("[PostProcessing] Chromatic aberration enabled")
+    }
+
+    // Anti-aliasing (last before output)
+    match settings.antialiasing {
+      AntialiasingMode.fxaa => {
+        self.fxaaPass = new ShaderPass(FXAAShader)
+        self.fxaaPass.uniforms.resolution.value.set(1 / width, 1 / height)
+        self.composer.addPass(self.fxaaPass)
+        logger.debug("[PostProcessing] FXAA enabled")
+      },
+      AntialiasingMode.smaa => {
+        self.smaaPass = new SMAAPass(width, height)
+        self.composer.addPass(self.smaaPass)
+        logger.debug("[PostProcessing] SMAA enabled")
+      },
+      AntialiasingMode.taa => {
+        // TAA would require custom implementation or different library
+        // Fall back to SMAA for now
+        self.smaaPass = new SMAAPass(width, height)
+        self.composer.addPass(self.smaaPass)
+        logger.debug("[PostProcessing] TAA requested, using SMAA fallback")
+      },
+      _ => {}
+    }
+
+    // Output pass (color space conversion)
+    self.composer.addPass(self.outputPass)
+  }
+
+  /**
+   * Clear all passes except render pass
+   */
+  @action clearPasses() {
+    // Remove all passes
+    while self.composer.passes.length > 0 {
+      self.composer.passes.pop()
+    }
+
+    // Re-add render pass
+    self.composer.addPass(self.renderPass)
+
+    // Dispose old passes
+    self.bloomPass?.dispose()
+    self.ssaoPass?.dispose()
+    self.fxaaPass?.dispose()
+    self.smaaPass?.dispose()
+    self.vignettePass?.dispose()
+    self.colorGradingPass?.dispose()
+    self.chromaticAberrationPass?.dispose()
+
+    self.bloomPass = null
+    self.ssaoPass = null
+    self.fxaaPass = null
+    self.smaaPass = null
+    self.vignettePass = null
+    self.colorGradingPass = null
+    self.chromaticAberrationPass = null
+  }
+
+  /**
+   * Update camera reference (e.g., when switching cameras)
+   */
+  @action setCamera(camera: THREE.Camera) {
+    self.camera = camera
+    self.renderPass.camera = camera
+    if self.ssaoPass && camera is THREE.PerspectiveCamera {
+      self.ssaoPass.camera = camera
+    }
+  }
+
+  /**
+   * Handle window resize
+   */
+  @action setSize(width: number, height: number) {
+    self.composer.setSize(width, height)
+
+    // Update FXAA resolution uniform
+    if self.fxaaPass {
+      self.fxaaPass.uniforms.resolution.value.set(1 / width, 1 / height)
+    }
+  }
+
+  /**
+   * Render the post-processed scene
+   */
+  @method render() {
+    if self.enabled {
+      self.composer.render()
+    } else {
+      self.renderer.render(self.scene, self.camera)
+    }
+  }
+
+  /**
+   * Enable/disable post-processing
+   */
+  @action setEnabled(enabled: bool) {
+    self.enabled = enabled
+  }
+
+  /**
+   * Check if post-processing is enabled
+   */
+  @computed isEnabled() -> bool {
+    return self.enabled
+  }
+
+  /**
+   * Update bloom settings at runtime
+   */
+  @action setBloomSettings(strength: number, radius: number, threshold: number) {
+    if self.bloomPass {
+      self.bloomPass.strength = strength
+      self.bloomPass.radius = radius
+      self.bloomPass.threshold = threshold
+    }
+  }
+
+  /**
+   * Update vignette settings at runtime
+   */
+  @action setVignetteSettings(offset: number, darkness: number) {
+    if self.vignettePass {
+      self.vignettePass.uniforms.offset.value = offset
+      self.vignettePass.uniforms.darkness.value = darkness
+    }
+  }
+
+  /**
+   * Update color grading at runtime
+   */
+  @action setColorGrading(brightness: number, contrast: number, saturation: number) {
+    if self.colorGradingPass {
+      self.colorGradingPass.uniforms.brightness.value = brightness
+      self.colorGradingPass.uniforms.contrast.value = contrast
+      self.colorGradingPass.uniforms.saturation.value = saturation
+    }
+  }
+
+  /**
+   * Get the effect composer (for advanced usage)
+   */
+  @computed getComposer() -> EffectComposer {
+    return self.composer
+  }
+
+  /**
+   * Dispose all resources
+   */
+  @action dispose() {
+    self.clearPasses()
+    self.composer.dispose()
+    logger.info("[PostProcessing] Disposed")
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTION
+// =============================================================================
+
+/**
+ * Create and initialize a PostProcessingPipeline
+ */
+function createPostProcessingPipeline(options: PostProcessingOptions) -> typeof PostProcessingPipeline {
+  PostProcessingPipeline.initialize(options)
+  return PostProcessingPipeline
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Shaders
+  VignetteShader,
+  ColorGradingShader,
+  ChromaticAberrationShader,
+
+  // Types
+  PostProcessingOptions,
+
+  // Modules
+  PostProcessingPipeline,
+
+  // Factory
+  createPostProcessingPipeline
+}

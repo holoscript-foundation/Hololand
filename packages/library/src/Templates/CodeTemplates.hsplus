@@ -1,0 +1,1078 @@
+/**
+ * CodeTemplates.hsplus
+ * 
+ * Library of HoloScript code templates for common patterns,
+ * objects, effects, and interactions.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct CodeTemplate {
+  id: string
+  name: string
+  description: string
+  category: string
+  code: string
+  tags: string[]
+  difficulty: "beginner" | "intermediate" | "advanced"
+}
+
+// =============================================================================
+// CODE TEMPLATES MODULE
+// =============================================================================
+
+module CodeTemplates {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    templates: CodeTemplate[] = []
+    customTemplates: CodeTemplate[] = []
+    favorites: string[] = []
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(): void {
+    this.state.templates = [
+      // Basic Objects
+      ...this.getBasicObjectTemplates(),
+      // Primitives
+      ...this.getPrimitiveTemplates(),
+      // Interactive Objects
+      ...this.getInteractiveTemplates(),
+      // Effects
+      ...this.getEffectTemplates(),
+      // NPCs
+      ...this.getNPCTemplates(),
+      // UI Elements
+      ...this.getUITemplates(),
+      // Scenes
+      ...this.getSceneTemplates(),
+      // Advanced
+      ...this.getAdvancedTemplates()
+    ]
+  }
+  
+  // =========================================================================
+  // BASIC OBJECT TEMPLATES
+  // =========================================================================
+  
+  @method getBasicObjectTemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "basic_object",
+        name: "Basic Object",
+        description: "A simple 3D object with position, rotation, and scale",
+        category: "basics",
+        difficulty: "beginner",
+        tags: ["object", "basic", "starter"],
+        code: `object MyObject {
+  position: [0, 0, 0]
+  rotation: [0, 0, 0]
+  scale: [1, 1, 1]
+  
+  trait Material {
+    color: 0x3498db
+    metalness: 0.5
+    roughness: 0.5
+  }
+}`
+      },
+      {
+        id: "grouped_objects",
+        name: "Grouped Objects",
+        description: "Multiple objects organized in a spatial group",
+        category: "basics",
+        difficulty: "beginner",
+        tags: ["group", "organization", "hierarchy"],
+        code: `spatial_group "ObjectGroup" {
+  position: [0, 0, 0]
+  
+  object "ChildA" {
+    position: [2, 0, 0]
+    trait Material { color: 0xff0000 }
+  }
+  
+  object "ChildB" {
+    position: [-2, 0, 0]
+    trait Material { color: 0x00ff00 }
+  }
+  
+  object "ChildC" {
+    position: [0, 2, 0]
+    trait Material { color: 0x0000ff }
+  }
+}`
+      },
+      {
+        id: "template_pattern",
+        name: "Template Pattern",
+        description: "Reusable template with instances",
+        category: "basics",
+        difficulty: "intermediate",
+        tags: ["template", "reusable", "pattern"],
+        code: `template "Tree" {
+  state {
+    height: 5
+    leafColor: 0x228b22
+  }
+  
+  trait Mesh { model: "tree.glb" }
+  
+  action grow(amount) {
+    self.state.height += amount
+    self.scale[1] = self.state.height / 5
+  }
+}
+
+spatial_group "Forest" {
+  object "Tree_1" using "Tree" { position: [0, 0, 0] }
+  object "Tree_2" using "Tree" { position: [5, 0, 3] }
+  object "Tree_3" using "Tree" { position: [-3, 0, 7] }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // PRIMITIVE TEMPLATES
+  // =========================================================================
+  
+  @method getPrimitiveTemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "cube",
+        name: "Cube",
+        description: "A simple cube primitive",
+        category: "primitives",
+        difficulty: "beginner",
+        tags: ["cube", "box", "primitive"],
+        code: `object Cube {
+  position: [0, 1, 0]
+  
+  trait BoxGeometry {
+    width: 2
+    height: 2
+    depth: 2
+  }
+  
+  trait Material {
+    color: 0x3498db
+    metalness: 0.3
+    roughness: 0.7
+  }
+}`
+      },
+      {
+        id: "sphere",
+        name: "Sphere",
+        description: "A sphere primitive",
+        category: "primitives",
+        difficulty: "beginner",
+        tags: ["sphere", "ball", "primitive"],
+        code: `object Sphere {
+  position: [0, 1, 0]
+  
+  trait SphereGeometry {
+    radius: 1
+    segments: 32
+  }
+  
+  trait Material {
+    color: 0xe74c3c
+    metalness: 0.8
+    roughness: 0.2
+  }
+}`
+      },
+      {
+        id: "plane",
+        name: "Ground Plane",
+        description: "A flat ground plane",
+        category: "primitives",
+        difficulty: "beginner",
+        tags: ["plane", "floor", "ground"],
+        code: `object Ground {
+  position: [0, 0, 0]
+  rotation: [-90, 0, 0]
+  
+  trait PlaneGeometry {
+    width: 100
+    height: 100
+  }
+  
+  trait Material {
+    color: 0x2ecc71
+    roughness: 1.0
+  }
+  
+  trait Shadow {
+    receive: true
+  }
+}`
+      },
+      {
+        id: "cylinder",
+        name: "Cylinder",
+        description: "A cylinder primitive",
+        category: "primitives",
+        difficulty: "beginner",
+        tags: ["cylinder", "pillar", "primitive"],
+        code: `object Cylinder {
+  position: [0, 2, 0]
+  
+  trait CylinderGeometry {
+    radiusTop: 1
+    radiusBottom: 1
+    height: 4
+    segments: 32
+  }
+  
+  trait Material {
+    color: 0x9b59b6
+    metalness: 0.5
+    roughness: 0.5
+  }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // INTERACTIVE TEMPLATES
+  // =========================================================================
+  
+  @method getInteractiveTemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "clickable_button",
+        name: "Clickable Button",
+        description: "A button that responds to clicks",
+        category: "interactive",
+        difficulty: "beginner",
+        tags: ["button", "click", "interactive"],
+        code: `object Button {
+  position: [0, 1, 0]
+  interactive: true
+  
+  state {
+    pressed: false
+    pressCount: 0
+  }
+  
+  trait BoxGeometry { width: 2, height: 0.5, depth: 2 }
+  trait Material { color: 0xe74c3c }
+  
+  on_click {
+    self.state.pressed = true
+    self.state.pressCount += 1
+    self.position[1] -= 0.1
+    
+    after(200) {
+      self.position[1] += 0.1
+      self.state.pressed = false
+    }
+  }
+}`
+      },
+      {
+        id: "hoverable_object",
+        name: "Hover Effect",
+        description: "Object that reacts to mouse hover",
+        category: "interactive",
+        difficulty: "beginner",
+        tags: ["hover", "highlight", "interactive"],
+        code: `object HoverCube {
+  position: [0, 1, 0]
+  interactive: true
+  
+  state {
+    baseColor: 0x3498db
+    hoverColor: 0xf39c12
+    isHovered: false
+  }
+  
+  trait BoxGeometry { width: 2, height: 2, depth: 2 }
+  trait Material { color: self.state.baseColor }
+  
+  on_hover_enter {
+    self.state.isHovered = true
+    self.material.color = self.state.hoverColor
+    self.scale = [1.1, 1.1, 1.1]
+  }
+  
+  on_hover_exit {
+    self.state.isHovered = false
+    self.material.color = self.state.baseColor
+    self.scale = [1, 1, 1]
+  }
+}`
+      },
+      {
+        id: "draggable_object",
+        name: "Draggable Object",
+        description: "Object that can be dragged in 3D space",
+        category: "interactive",
+        difficulty: "intermediate",
+        tags: ["drag", "move", "interactive"],
+        code: `object DraggableCube {
+  position: [0, 1, 0]
+  interactive: true
+  draggable: true
+  
+  state {
+    isDragging: false
+    startPos: [0, 0, 0]
+  }
+  
+  trait BoxGeometry { width: 1, height: 1, depth: 1 }
+  trait Material { color: 0x2ecc71 }
+  
+  on_drag_start(event) {
+    self.state.isDragging = true
+    self.state.startPos = [...self.position]
+    self.material.color = 0xf39c12
+  }
+  
+  on_drag(event) {
+    self.position = event.worldPosition
+  }
+  
+  on_drag_end(event) {
+    self.state.isDragging = false
+    self.material.color = 0x2ecc71
+  }
+}`
+      },
+      {
+        id: "trigger_zone",
+        name: "Trigger Zone",
+        description: "Invisible zone that detects player entry",
+        category: "interactive",
+        difficulty: "intermediate",
+        tags: ["trigger", "zone", "collision"],
+        code: `object TriggerZone {
+  position: [0, 0, 0]
+  visible: false
+  
+  state {
+    isPlayerInside: false
+    enterCount: 0
+  }
+  
+  trait BoxCollider {
+    width: 5
+    height: 3
+    depth: 5
+    isTrigger: true
+  }
+  
+  on_trigger_enter(entity) {
+    if (entity.type == "player") {
+      self.state.isPlayerInside = true
+      self.state.enterCount += 1
+      emit("zone_entered", { zone: self.id })
+    }
+  }
+  
+  on_trigger_exit(entity) {
+    if (entity.type == "player") {
+      self.state.isPlayerInside = false
+      emit("zone_exited", { zone: self.id })
+    }
+  }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // EFFECT TEMPLATES
+  // =========================================================================
+  
+  @method getEffectTemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "particle_emitter",
+        name: "Particle Emitter",
+        description: "Configurable particle system",
+        category: "effects",
+        difficulty: "intermediate",
+        tags: ["particles", "effects", "visual"],
+        code: `object Particles {
+  position: [0, 0, 0]
+  
+  trait ParticleSystem {
+    count: 100
+    lifetime: 2
+    speed: { min: 1, max: 3 }
+    size: { start: 0.5, end: 0.1 }
+    color: { start: 0xffff00, end: 0xff0000 }
+    gravity: -1
+    spread: 45
+    loop: true
+  }
+}`
+      },
+      {
+        id: "point_light",
+        name: "Point Light",
+        description: "A point light source",
+        category: "effects",
+        difficulty: "beginner",
+        tags: ["light", "illumination", "effects"],
+        code: `object PointLight {
+  position: [0, 5, 0]
+  
+  trait Light {
+    type: "point"
+    color: 0xffffff
+    intensity: 1
+    distance: 20
+    decay: 2
+    castShadow: true
+  }
+}`
+      },
+      {
+        id: "spotlight",
+        name: "Spotlight",
+        description: "A directional spotlight",
+        category: "effects",
+        difficulty: "intermediate",
+        tags: ["light", "spotlight", "effects"],
+        code: `object Spotlight {
+  position: [0, 10, 0]
+  rotation: [-90, 0, 0]
+  
+  trait Light {
+    type: "spot"
+    color: 0xffffff
+    intensity: 2
+    distance: 30
+    angle: 45
+    penumbra: 0.5
+    castShadow: true
+  }
+  
+  // Animate spotlight
+  every(16) {
+    self.rotation[1] += 0.5
+  }
+}`
+      },
+      {
+        id: "animated_material",
+        name: "Animated Material",
+        description: "Material with animated properties",
+        category: "effects",
+        difficulty: "intermediate",
+        tags: ["animation", "material", "shader"],
+        code: `object AnimatedCube {
+  position: [0, 1, 0]
+  
+  state {
+    time: 0
+    hue: 0
+  }
+  
+  trait BoxGeometry { width: 2, height: 2, depth: 2 }
+  trait Material {
+    color: 0xff0000
+    emissive: 0x000000
+    emissiveIntensity: 0.5
+  }
+  
+  every(16) {
+    self.state.time += 0.016
+    self.state.hue = (self.state.hue + 1) % 360
+    self.material.color = hslToRgb(self.state.hue, 1, 0.5)
+    self.rotation[1] += 0.5
+  }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // NPC TEMPLATES
+  // =========================================================================
+  
+  @method getNPCTemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "basic_npc",
+        name: "Basic NPC",
+        description: "Simple NPC with dialogue",
+        category: "npcs",
+        difficulty: "intermediate",
+        tags: ["npc", "character", "dialogue"],
+        code: `object NPC {
+  position: [0, 0, 5]
+  interactive: true
+  
+  traits: ["talkable", "named"]
+  
+  state {
+    name: "Villager"
+    dialogueIndex: 0
+    dialogues: [
+      "Hello, traveler!",
+      "Nice weather today.",
+      "Have you seen the old ruins?"
+    ]
+  }
+  
+  trait Mesh { model: "character.glb" }
+  trait Animator { idle: "idle", talk: "talking" }
+  
+  on_interact {
+    const dialogue = self.state.dialogues[self.state.dialogueIndex]
+    showDialogue(self.state.name, dialogue)
+    
+    self.state.dialogueIndex = 
+      (self.state.dialogueIndex + 1) % self.state.dialogues.length
+    
+    self.playAnimation("talk")
+    after(2000) { self.playAnimation("idle") }
+  }
+}`
+      },
+      {
+        id: "patrol_npc",
+        name: "Patrol NPC",
+        description: "NPC that patrols between waypoints",
+        category: "npcs",
+        difficulty: "advanced",
+        tags: ["npc", "patrol", "ai"],
+        code: `object PatrolGuard {
+  position: [0, 0, 0]
+  
+  state {
+    waypoints: [
+      [0, 0, 0],
+      [10, 0, 0],
+      [10, 0, 10],
+      [0, 0, 10]
+    ]
+    currentWaypoint: 0
+    speed: 2
+    paused: false
+  }
+  
+  trait Mesh { model: "guard.glb" }
+  trait Animator { walk: "walking", idle: "idle" }
+  
+  action moveToWaypoint() {
+    if (self.state.paused) return
+    
+    const target = self.state.waypoints[self.state.currentWaypoint]
+    const dir = normalize(subtract(target, self.position))
+    
+    self.position = add(self.position, scale(dir, self.state.speed * 0.016))
+    self.lookAt(target)
+    
+    if (distance(self.position, target) < 0.5) {
+      self.state.currentWaypoint = 
+        (self.state.currentWaypoint + 1) % self.state.waypoints.length
+    }
+  }
+  
+  every(16) {
+    self.moveToWaypoint()
+  }
+}`
+      },
+      {
+        id: "enemy_npc",
+        name: "Enemy NPC",
+        description: "Hostile NPC with basic combat",
+        category: "npcs",
+        difficulty: "advanced",
+        tags: ["enemy", "combat", "ai"],
+        code: `template "Enemy" {
+  state {
+    health: 100
+    maxHealth: 100
+    damage: 10
+    attackRange: 2
+    aggroRange: 10
+    isAggro: false
+    isDead: false
+  }
+  
+  trait Mesh { model: "enemy.glb" }
+  trait Animator { idle: "idle", attack: "attack", death: "death" }
+  
+  action takeDamage(amount) {
+    if (self.state.isDead) return
+    
+    self.state.health -= amount
+    emit("damage", { target: self.id, amount })
+    
+    if (self.state.health <= 0) {
+      self.die()
+    }
+  }
+  
+  action die() {
+    self.state.isDead = true
+    self.playAnimation("death")
+    emit("enemy_death", { enemy: self.id })
+    after(2000) { destroy(self) }
+  }
+  
+  action attack(target) {
+    self.playAnimation("attack")
+    after(500) {
+      if (distance(self.position, target.position) <= self.state.attackRange) {
+        target.takeDamage(self.state.damage)
+      }
+    }
+  }
+  
+  every(100) {
+    if (self.state.isDead) return
+    
+    const player = getPlayer()
+    const dist = distance(self.position, player.position)
+    
+    if (dist <= self.state.attackRange) {
+      self.attack(player)
+    } else if (dist <= self.state.aggroRange) {
+      self.state.isAggro = true
+      moveTowards(self, player.position, 0.05)
+    }
+  }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // UI TEMPLATES
+  // =========================================================================
+  
+  @method getUITemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "floating_text",
+        name: "Floating Text",
+        description: "3D text floating in space",
+        category: "ui",
+        difficulty: "beginner",
+        tags: ["text", "3d", "label"],
+        code: `object FloatingText {
+  position: [0, 3, 0]
+  
+  trait Text3D {
+    text: "Hello World!"
+    font: "helvetiker"
+    size: 0.5
+    height: 0.1
+    color: 0xffffff
+  }
+  
+  // Always face camera
+  every(16) {
+    self.lookAt(camera.position)
+  }
+}`
+      },
+      {
+        id: "health_bar",
+        name: "Health Bar",
+        description: "A 3D health bar that follows an object",
+        category: "ui",
+        difficulty: "intermediate",
+        tags: ["health", "bar", "ui"],
+        code: `object HealthBar {
+  position: [0, 2.5, 0]
+  
+  state {
+    current: 100
+    max: 100
+    width: 2
+    height: 0.2
+  }
+  
+  // Background
+  object "Background" {
+    trait PlaneGeometry { 
+      width: parent.state.width
+      height: parent.state.height 
+    }
+    trait Material { color: 0x333333 }
+  }
+  
+  // Fill
+  object "Fill" {
+    position: [0, 0, 0.01]
+    trait PlaneGeometry { 
+      width: parent.state.width * (parent.state.current / parent.state.max)
+      height: parent.state.height 
+    }
+    trait Material { color: 0x2ecc71 }
+  }
+  
+  action setValue(value) {
+    self.state.current = clamp(value, 0, self.state.max)
+    const ratio = self.state.current / self.state.max
+    
+    // Update fill width and color
+    self.children.Fill.geometry.width = self.state.width * ratio
+    self.children.Fill.material.color = ratio > 0.5 ? 0x2ecc71 : 
+                                        ratio > 0.25 ? 0xf39c12 : 0xe74c3c
+  }
+  
+  every(16) {
+    self.lookAt(camera.position)
+  }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // SCENE TEMPLATES
+  // =========================================================================
+  
+  @method getSceneTemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "basic_scene",
+        name: "Basic Scene",
+        description: "A complete basic scene with lighting and ground",
+        category: "scenes",
+        difficulty: "beginner",
+        tags: ["scene", "complete", "starter"],
+        code: `composition "BasicScene" {
+  // Environment
+  object "Sky" {
+    trait Sky {
+      turbidity: 10
+      rayleigh: 2
+      sunPosition: [100, 100, 100]
+    }
+  }
+  
+  object "Ground" {
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    trait PlaneGeometry { width: 100, height: 100 }
+    trait Material { color: 0x2ecc71, roughness: 1 }
+    trait Shadow { receive: true }
+  }
+  
+  // Lighting
+  object "Sun" {
+    position: [50, 50, 50]
+    trait Light {
+      type: "directional"
+      color: 0xffffff
+      intensity: 1
+      castShadow: true
+    }
+  }
+  
+  object "Ambient" {
+    trait Light {
+      type: "ambient"
+      color: 0x404040
+      intensity: 0.5
+    }
+  }
+  
+  // Content
+  spatial_group "Content" {
+    object "Cube" {
+      position: [0, 1, 0]
+      trait BoxGeometry { width: 2, height: 2, depth: 2 }
+      trait Material { color: 0x3498db }
+    }
+  }
+}`
+      },
+      {
+        id: "game_scene",
+        name: "Game Scene",
+        description: "Complete game scene with player and enemies",
+        category: "scenes",
+        difficulty: "advanced",
+        tags: ["game", "complete", "advanced"],
+        code: `composition "GameScene" {
+  // Include templates
+  include "templates/Enemy.holo"
+  include "templates/Player.holo"
+  
+  // Environment
+  object "Environment" {
+    trait Environment {
+      preset: "sunset"
+      ground: true
+      background: true
+    }
+  }
+  
+  // Player spawn
+  object "Player" using "Player" {
+    position: [0, 0, 0]
+  }
+  
+  // Enemy spawns
+  spatial_group "Enemies" {
+    object "Enemy_1" using "Enemy" { position: [10, 0, 10] }
+    object "Enemy_2" using "Enemy" { position: [-10, 0, 10] }
+    object "Enemy_3" using "Enemy" { position: [0, 0, 20] }
+  }
+  
+  // Game logic
+  logic {
+    state {
+      score: 0
+      waveNumber: 1
+      enemiesRemaining: 3
+    }
+    
+    on("enemy_death") {
+      self.state.score += 100
+      self.state.enemiesRemaining -= 1
+      
+      if (self.state.enemiesRemaining <= 0) {
+        self.state.waveNumber += 1
+        spawnWave(self.state.waveNumber)
+      }
+    }
+    
+    action spawnWave(wave) {
+      const count = wave * 2
+      self.state.enemiesRemaining = count
+      
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2
+        const x = Math.cos(angle) * 15
+        const z = Math.sin(angle) * 15
+        spawn("Enemy", { position: [x, 0, z] })
+      }
+    }
+  }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // ADVANCED TEMPLATES
+  // =========================================================================
+  
+  @method getAdvancedTemplates(): CodeTemplate[] {
+    return [
+      {
+        id: "state_machine",
+        name: "State Machine",
+        description: "A finite state machine pattern",
+        category: "advanced",
+        difficulty: "advanced",
+        tags: ["fsm", "state", "pattern"],
+        code: `object StateMachineEntity {
+  state {
+    currentState: "idle"
+    previousState: null
+    stateTime: 0
+  }
+  
+  const states = {
+    idle: {
+      enter: () => self.playAnimation("idle"),
+      update: () => {
+        if (detectPlayer()) transition("chase")
+      }
+    },
+    chase: {
+      enter: () => self.playAnimation("run"),
+      update: () => {
+        const player = getPlayer()
+        moveTowards(self, player.position, 0.1)
+        if (distance(self, player) < 2) transition("attack")
+        if (distance(self, player) > 15) transition("idle")
+      }
+    },
+    attack: {
+      enter: () => self.playAnimation("attack"),
+      update: () => {
+        if (self.state.stateTime > 1000) transition("chase")
+      }
+    }
+  }
+  
+  action transition(newState) {
+    self.state.previousState = self.state.currentState
+    self.state.currentState = newState
+    self.state.stateTime = 0
+    states[newState].enter()
+  }
+  
+  every(16) {
+    self.state.stateTime += 16
+    states[self.state.currentState].update()
+  }
+}`
+      },
+      {
+        id: "object_pool",
+        name: "Object Pool",
+        description: "Efficient object pooling for projectiles/particles",
+        category: "advanced",
+        difficulty: "advanced",
+        tags: ["pool", "optimization", "pattern"],
+        code: `module ObjectPool {
+  state {
+    pool: []
+    active: []
+    maxSize: 100
+    template: null
+  }
+  
+  action initialize(template, size) {
+    self.state.template = template
+    self.state.maxSize = size
+    
+    for (let i = 0; i < size; i++) {
+      const obj = spawn(template, { active: false })
+      obj.visible = false
+      self.state.pool.push(obj)
+    }
+  }
+  
+  action acquire() {
+    let obj = self.state.pool.pop()
+    
+    if (!obj && self.state.active.length < self.state.maxSize) {
+      obj = spawn(self.state.template, {})
+    }
+    
+    if (obj) {
+      obj.visible = true
+      obj.active = true
+      self.state.active.push(obj)
+    }
+    
+    return obj
+  }
+  
+  action release(obj) {
+    const index = self.state.active.indexOf(obj)
+    if (index !== -1) {
+      self.state.active.splice(index, 1)
+      obj.visible = false
+      obj.active = false
+      obj.position = [0, -1000, 0]
+      self.state.pool.push(obj)
+    }
+  }
+  
+  action releaseAll() {
+    while (self.state.active.length > 0) {
+      self.release(self.state.active[0])
+    }
+  }
+}`
+      }
+    ]
+  }
+  
+  // =========================================================================
+  // TEMPLATE ACCESS
+  // =========================================================================
+  
+  @method getTemplate(id: string): CodeTemplate | null {
+    return this.state.templates.find(t => t.id === id) ||
+           this.state.customTemplates.find(t => t.id === id)
+  }
+  
+  @method getByCategory(category: string): CodeTemplate[] {
+    return [...this.state.templates, ...this.state.customTemplates]
+      .filter(t => t.category === category)
+  }
+  
+  @method getByTag(tag: string): CodeTemplate[] {
+    return [...this.state.templates, ...this.state.customTemplates]
+      .filter(t => t.tags.includes(tag))
+  }
+  
+  @method search(query: string): CodeTemplate[] {
+    const lower = query.toLowerCase()
+    return [...this.state.templates, ...this.state.customTemplates]
+      .filter(t => 
+        t.name.toLowerCase().includes(lower) ||
+        t.description.toLowerCase().includes(lower) ||
+        t.tags.some(tag => tag.includes(lower))
+      )
+  }
+  
+  @method getCategories(): string[] {
+    const categories = new Set<string>()
+    for (const t of this.state.templates) {
+      categories.add(t.category)
+    }
+    return Array.from(categories)
+  }
+  
+  // =========================================================================
+  // CUSTOM TEMPLATES
+  // =========================================================================
+  
+  @action addCustomTemplate(template: CodeTemplate): void {
+    this.state.customTemplates.push(template)
+  }
+  
+  @action removeCustomTemplate(id: string): boolean {
+    const index = this.state.customTemplates.findIndex(t => t.id === id)
+    if (index !== -1) {
+      this.state.customTemplates.splice(index, 1)
+      return true
+    }
+    return false
+  }
+  
+  // =========================================================================
+  // FAVORITES
+  // =========================================================================
+  
+  @action toggleFavorite(id: string): void {
+    const index = this.state.favorites.indexOf(id)
+    if (index === -1) {
+      this.state.favorites.push(id)
+    } else {
+      this.state.favorites.splice(index, 1)
+    }
+  }
+  
+  @method isFavorite(id: string): boolean {
+    return this.state.favorites.includes(id)
+  }
+  
+  @method getFavorites(): CodeTemplate[] {
+    return this.state.favorites
+      .map(id => this.getTemplate(id))
+      .filter(t => t !== null)
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  CodeTemplates,
+  CodeTemplate
+}

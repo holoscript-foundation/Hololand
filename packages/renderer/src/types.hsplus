@@ -1,0 +1,601 @@
+/**
+ * @hololand/renderer - Type Definitions
+ * 
+ * Quality presets, rendering modes, and configuration types
+ * for the Hololand 3D/VR/AR renderer.
+ */
+
+// =============================================================================
+// QUALITY PRESETS
+// =============================================================================
+
+/**
+ * Quality preset levels
+ * - auto: Automatically detect based on device capabilities
+ * - low: Basic rendering for mobile/Quest 2 (72+ FPS target)
+ * - medium: Better materials and shadows (Quest 3/Pro)
+ * - high: Full PBR, HDRI, post-processing (PC VR)
+ * - ultra: Ray-traced features where available (High-end desktop)
+ */
+enum QualityPreset {
+  auto = "auto",
+  low = "low",
+  medium = "medium",
+  high = "high",
+  ultra = "ultra"
+}
+
+/**
+ * Detected device type for automatic quality selection
+ */
+enum DeviceType {
+  mobile = "mobile",
+  tablet = "tablet",
+  quest2 = "quest2",
+  quest3 = "quest3",
+  questPro = "questPro",
+  pcvr = "pcvr",
+  desktop = "desktop",
+  unknown = "unknown"
+}
+
+/**
+ * Shadow types available
+ */
+enum ShadowType {
+  basic = "basic",
+  pcf = "pcf",
+  pcfsoft = "pcfsoft",
+  vsm = "vsm"
+}
+
+/**
+ * Material types based on quality
+ */
+enum MaterialType {
+  basic = "basic",
+  standard = "standard",
+  physical = "physical"
+}
+
+/**
+ * Antialiasing modes
+ */
+enum AntialiasingMode {
+  none = "none",
+  fxaa = "fxaa",
+  smaa = "smaa",
+  taa = "taa"
+}
+
+/**
+ * Render modes for universal platform support
+ */
+enum RenderMode {
+  render2d = "2d",
+  render3d = "3d",
+  hybrid = "hybrid",
+  vr = "vr",
+  ar = "ar"
+}
+
+/**
+ * Skybox types
+ */
+enum SkyboxType {
+  none = "none",
+  hdri = "hdri",
+  procedural = "procedural",
+  gradient = "gradient"
+}
+
+/**
+ * Fog types
+ */
+enum FogType {
+  linear = "linear",
+  exponential = "exponential"
+}
+
+/**
+ * Tone mapping types
+ */
+enum ToneMappingType {
+  linear = "linear",
+  reinhard = "reinhard",
+  cineon = "cineon",
+  aces = "aces",
+  filmic = "filmic"
+}
+
+/**
+ * Asset types
+ */
+enum AssetType {
+  gltf = "gltf",
+  texture = "texture",
+  hdri = "hdri",
+  audio = "audio"
+}
+
+/**
+ * Light types
+ */
+enum LightType {
+  ambient = "ambient",
+  directional = "directional",
+  point = "point",
+  spot = "spot"
+}
+
+// =============================================================================
+// QUALITY SETTINGS
+// =============================================================================
+
+/**
+ * Quality settings that vary by preset
+ */
+struct QualitySettings {
+  // Shadows
+  shadowsEnabled: bool = true,
+  shadowMapSize: number = 1024,  // 512, 1024, 2048, 4096
+  shadowType: ShadowType = ShadowType.pcf,
+
+  // Materials
+  materialType: MaterialType = MaterialType.standard,
+  maxTextureSize: number = 1024,
+  anisotropy: number = 4,  // 1, 4, 8, 16
+
+  // Geometry
+  maxPolyCount: number = 150000,
+  lodBias: number = 1.0,  // 0-2, higher = more aggressive LOD
+
+  // Post-processing
+  postProcessing: bool = true,
+  bloom: bool = false,
+  ssao: bool = false,
+  ssr: bool = false,  // Screen-space reflections
+  toneMapping: bool = true,
+  antialiasing: AntialiasingMode = AntialiasingMode.fxaa,
+
+  // Environment
+  hdriEnvironment: bool = true,
+  envMapResolution: number = 256,  // 128, 256, 512, 1024
+  realTimeReflections: bool = false,
+
+  // Physics/Animation
+  maxAnimatedObjects: number = 25,
+  physicsSubsteps: number = 2,
+
+  // Performance targets
+  targetFPS: number = 72,
+  pixelRatio: number = 1.0
+}
+
+/**
+ * Vector3 for positions, scales, etc.
+ */
+struct Vector3 {
+  x: number = 0,
+  y: number = 0,
+  z: number = 0
+}
+
+/**
+ * Bounding box
+ */
+struct BoundingBox {
+  min: Vector3 = { x: 0, y: 0, z: 0 },
+  max: Vector3 = { x: 0, y: 0, z: 0 }
+}
+
+// =============================================================================
+// RENDERER CONFIG
+// =============================================================================
+
+/**
+ * Main renderer configuration
+ */
+struct RendererConfig {
+  // Quality settings
+  quality: QualityPreset = QualityPreset.medium,
+
+  // Rendering mode
+  renderMode: RenderMode = RenderMode.render3d,
+
+  // 3D options
+  enableShadows: bool = true,
+  enableVR: bool = true,
+  enableControls: bool = true,
+  antialias: bool = true,
+  backgroundColor: number = 0x000000,
+  cameraPosition: Vector3 = { x: 10, y: 10, z: 10 },
+  cameraFov: number = 75,
+
+  // 2D mode options
+  enable2D: bool = false,
+  orthoSize: number = 10,
+
+  // Hybrid mode options
+  enableHybrid: bool = false
+}
+
+// =============================================================================
+// ENVIRONMENT CONFIG
+// =============================================================================
+
+/**
+ * Procedural sky settings
+ */
+struct ProceduralSkyConfig {
+  turbidity: number = 2.0,
+  rayleigh: number = 1.0,
+  mieCoefficient: number = 0.005,
+  mieDirectionalG: number = 0.7,
+  elevation: number = 45.0,
+  azimuth: number = 180.0
+}
+
+/**
+ * Sky gradient colors
+ */
+struct SkyGradientColors {
+  top: number = 0x87CEEB,
+  bottom: number = 0xFFFFFF
+}
+
+/**
+ * Ground settings
+ */
+struct GroundConfig {
+  enabled: bool = true,
+  color: number = 0x808080,
+  roughness: number = 0.8,
+  metalness: number = 0.0,
+  receiveShadow: bool = true
+}
+
+/**
+ * Fog settings
+ */
+struct FogConfig {
+  enabled: bool = false,
+  fogType: FogType = FogType.linear,
+  color: number = 0xCCCCCC,
+  near: number = 10.0,
+  far: number = 100.0,
+  density: number = 0.01
+}
+
+/**
+ * Environment configuration
+ */
+struct EnvironmentConfig {
+  hdri: string = "",
+  skybox: SkyboxType = SkyboxType.none,
+  skyColors: SkyGradientColors = { top: 0x87CEEB, bottom: 0xFFFFFF },
+  proceduralSky: ProceduralSkyConfig = {},
+  ground: GroundConfig = {},
+  fog: FogConfig = {}
+}
+
+// =============================================================================
+// POST-PROCESSING CONFIG
+// =============================================================================
+
+/**
+ * Bloom effect settings
+ */
+struct BloomConfig {
+  enabled: bool = false,
+  strength: number = 1.0,
+  radius: number = 0.4,
+  threshold: number = 0.8
+}
+
+/**
+ * SSAO effect settings
+ */
+struct SSAOConfig {
+  enabled: bool = false,
+  radius: number = 0.5,
+  intensity: number = 1.0,
+  bias: number = 0.025
+}
+
+/**
+ * Screen-space reflections settings
+ */
+struct SSRConfig {
+  enabled: bool = false,
+  maxDistance: number = 50.0,
+  resolution: number = 0.5,
+  thickness: number = 0.1
+}
+
+/**
+ * Depth of field settings
+ */
+struct DOFConfig {
+  enabled: bool = false,
+  focusDistance: number = 10.0,
+  focalLength: number = 35.0,
+  bokehScale: number = 2.0
+}
+
+/**
+ * Tone mapping settings
+ */
+struct ToneMappingConfig {
+  enabled: bool = true,
+  exposure: number = 1.0,
+  toneMappingType: ToneMappingType = ToneMappingType.aces
+}
+
+/**
+ * Vignette effect settings
+ */
+struct VignetteConfig {
+  enabled: bool = false,
+  offset: number = 0.5,
+  darkness: number = 0.5
+}
+
+/**
+ * Chromatic aberration settings
+ */
+struct ChromaticAberrationConfig {
+  enabled: bool = false,
+  offset: number = 0.005
+}
+
+/**
+ * Color grading settings
+ */
+struct ColorGradingConfig {
+  enabled: bool = false,
+  brightness: number = 0.0,
+  contrast: number = 0.0,
+  saturation: number = 0.0,
+  hue: number = 0.0
+}
+
+/**
+ * Full post-processing configuration
+ */
+struct PostProcessingConfig {
+  enabled: bool = true,
+  bloom: BloomConfig = {},
+  ssao: SSAOConfig = {},
+  ssr: SSRConfig = {},
+  dof: DOFConfig = {},
+  toneMapping: ToneMappingConfig = {},
+  vignette: VignetteConfig = {},
+  chromaticAberration: ChromaticAberrationConfig = {},
+  colorGrading: ColorGradingConfig = {}
+}
+
+// =============================================================================
+// ASSET LOADING
+// =============================================================================
+
+/**
+ * Asset loading options
+ */
+struct AssetLoadOptions {
+  generateLOD: bool = false,
+  maxTextureSize: number = 2048,
+  useDraco: bool = true,
+  cache: bool = true
+}
+
+/**
+ * Asset metadata
+ */
+struct AssetMetadata {
+  polyCount: number = 0,
+  textureCount: number = 0,
+  animationCount: number = 0,
+  bounds: BoundingBox = {}
+}
+
+/**
+ * Loaded asset info
+ */
+struct LoadedAsset {
+  id: string = "",
+  assetType: AssetType = AssetType.gltf,
+  url: string = "",
+  metadata: AssetMetadata = {}
+}
+
+// =============================================================================
+// MATERIALS & LIGHTING
+// =============================================================================
+
+/**
+ * Material configuration
+ */
+struct MaterialConfig {
+  materialType: MaterialType = MaterialType.standard,
+  color: number = 0xFFFFFF,
+  metalness: number = 0.0,
+  roughness: number = 0.5,
+  emissive: number = 0x000000,
+  emissiveIntensity: number = 1.0,
+  transparent: bool = false,
+  opacity: number = 1.0
+}
+
+/**
+ * Lighting configuration
+ */
+struct LightingConfig {
+  lightType: LightType = LightType.directional,
+  color: number = 0xFFFFFF,
+  intensity: number = 1.0,
+  position: Vector3 = { x: 0, y: 10, z: 0 },
+  distance: number = 0,
+  castShadow: bool = true
+}
+
+// =============================================================================
+// QUALITY PRESET DEFINITIONS
+// =============================================================================
+
+module QualityPresets {
+  @state {
+    low: QualitySettings = {
+      shadowsEnabled: true,
+      shadowMapSize: 512,
+      shadowType: ShadowType.basic,
+      materialType: MaterialType.standard,
+      maxTextureSize: 512,
+      anisotropy: 1,
+      maxPolyCount: 50000,
+      lodBias: 2.0,
+      postProcessing: false,
+      bloom: false,
+      ssao: false,
+      ssr: false,
+      toneMapping: false,
+      antialiasing: AntialiasingMode.none,
+      hdriEnvironment: false,
+      envMapResolution: 128,
+      realTimeReflections: false,
+      maxAnimatedObjects: 10,
+      physicsSubsteps: 1,
+      targetFPS: 72,
+      pixelRatio: 0.75
+    },
+
+    medium: QualitySettings = {
+      shadowsEnabled: true,
+      shadowMapSize: 1024,
+      shadowType: ShadowType.pcf,
+      materialType: MaterialType.standard,
+      maxTextureSize: 1024,
+      anisotropy: 4,
+      maxPolyCount: 150000,
+      lodBias: 1.0,
+      postProcessing: true,
+      bloom: false,
+      ssao: false,
+      ssr: false,
+      toneMapping: true,
+      antialiasing: AntialiasingMode.fxaa,
+      hdriEnvironment: true,
+      envMapResolution: 256,
+      realTimeReflections: false,
+      maxAnimatedObjects: 25,
+      physicsSubsteps: 2,
+      targetFPS: 72,
+      pixelRatio: 1.0
+    },
+
+    high: QualitySettings = {
+      shadowsEnabled: true,
+      shadowMapSize: 2048,
+      shadowType: ShadowType.pcfsoft,
+      materialType: MaterialType.physical,
+      maxTextureSize: 2048,
+      anisotropy: 8,
+      maxPolyCount: 500000,
+      lodBias: 0.5,
+      postProcessing: true,
+      bloom: true,
+      ssao: true,
+      ssr: false,
+      toneMapping: true,
+      antialiasing: AntialiasingMode.smaa,
+      hdriEnvironment: true,
+      envMapResolution: 512,
+      realTimeReflections: true,
+      maxAnimatedObjects: 50,
+      physicsSubsteps: 3,
+      targetFPS: 90,
+      pixelRatio: 1.0
+    },
+
+    ultra: QualitySettings = {
+      shadowsEnabled: true,
+      shadowMapSize: 4096,
+      shadowType: ShadowType.pcfsoft,
+      materialType: MaterialType.physical,
+      maxTextureSize: 4096,
+      anisotropy: 16,
+      maxPolyCount: 2000000,
+      lodBias: 0.0,
+      postProcessing: true,
+      bloom: true,
+      ssao: true,
+      ssr: true,
+      toneMapping: true,
+      antialiasing: AntialiasingMode.taa,
+      hdriEnvironment: true,
+      envMapResolution: 1024,
+      realTimeReflections: true,
+      maxAnimatedObjects: 100,
+      physicsSubsteps: 4,
+      targetFPS: 60,
+      pixelRatio: 1.5
+    }
+  }
+
+  @method getPreset(preset: QualityPreset) -> QualitySettings {
+    match preset {
+      QualityPreset.low => self.low,
+      QualityPreset.medium => self.medium,
+      QualityPreset.high => self.high,
+      QualityPreset.ultra => self.ultra,
+      _ => self.medium  // Default for "auto"
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Enums
+  QualityPreset,
+  DeviceType,
+  ShadowType,
+  MaterialType,
+  AntialiasingMode,
+  RenderMode,
+  SkyboxType,
+  FogType,
+  ToneMappingType,
+  AssetType,
+  LightType,
+
+  // Structs
+  QualitySettings,
+  Vector3,
+  BoundingBox,
+  RendererConfig,
+  ProceduralSkyConfig,
+  SkyGradientColors,
+  GroundConfig,
+  FogConfig,
+  EnvironmentConfig,
+  BloomConfig,
+  SSAOConfig,
+  SSRConfig,
+  DOFConfig,
+  ToneMappingConfig,
+  VignetteConfig,
+  ChromaticAberrationConfig,
+  ColorGradingConfig,
+  PostProcessingConfig,
+  AssetLoadOptions,
+  AssetMetadata,
+  LoadedAsset,
+  MaterialConfig,
+  LightingConfig,
+
+  // Modules
+  QualityPresets
+}

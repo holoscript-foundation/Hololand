@@ -1,0 +1,220 @@
+/**
+ * @hololand/ui - Modal Component
+ * Dialog/popup overlay
+ */
+
+import { ModalConfig, Vector2 } from "../types.hsplus"
+
+module Modal {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 400, height: 300 },
+    visible: bool = false,
+    enabled: bool = true,
+    zIndex: number = 1000,
+    parent: any = null,
+    children: array<any> = [],
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Modal-specific
+    title: string = "",
+    closeOnOverlay: bool = true,
+    closeOnEscape: bool = true,
+    overlayColor: string = "rgba(0,0,0,0.5)",
+    backgroundColor: string = "#ffffff",
+    borderRadius: number = 8,
+    padding: number = 24,
+    showCloseButton: bool = true,
+    canvasWidth: number = 800,
+    canvasHeight: number = 600
+  }
+
+  @action initialize(config: ModalConfig) {
+    self.id = `modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.size = config.size ?? { width: 400, height: 300 }
+    self.visible = config.visible ?? false
+    self.zIndex = config.zIndex ?? 1000
+    self.title = config.title ?? ""
+    self.closeOnOverlay = config.closeOnOverlay ?? true
+    self.closeOnEscape = config.closeOnEscape ?? true
+    self.overlayColor = config.overlayColor ?? "rgba(0,0,0,0.5)"
+    self.backgroundColor = config.backgroundColor ?? "#ffffff"
+    self.borderRadius = config.borderRadius ?? 8
+    self.padding = config.padding ?? 24
+    self.showCloseButton = config.showCloseButton ?? true
+    self.children = []
+    self.eventHandlers = new Map()
+    self.dirty = true
+  }
+
+  @action open() {
+    self.visible = true
+    self.emit("open")
+    self.dirty = true
+  }
+
+  @action close() {
+    self.visible = false
+    self.emit("close")
+    self.dirty = true
+  }
+
+  @action setCanvasSize(width: number, height: number) {
+    self.canvasWidth = width
+    self.canvasHeight = height
+    // Center the modal
+    self.position = {
+      x: (width - self.size.width) / 2,
+      y: (height - self.size.height) / 2
+    }
+    self.dirty = true
+  }
+
+  @action addChild(child: any) {
+    if child.parent {
+      child.parent.removeChild(child)
+    }
+    child.parent = self
+    self.children.push(child)
+    self.dirty = true
+  }
+
+  @action handlePointerDown(point: Vector2) {
+    if !self.visible { return }
+
+    // Check if clicked on overlay (outside modal)
+    if self.closeOnOverlay {
+      let modalBounds = self.getModalBounds()
+      if !self.pointInRect(point, modalBounds) {
+        self.close()
+        return
+      }
+    }
+
+    // Check close button
+    if self.showCloseButton {
+      let closeBtn = self.getCloseButtonBounds()
+      if self.pointInRect(point, closeBtn) {
+        self.close()
+        return
+      }
+    }
+  }
+
+  @action handleKeyDown(key: string) {
+    if self.closeOnEscape && key == "Escape" {
+      self.close()
+    }
+  }
+
+  @method getModalBounds() -> { x: number, y: number, width: number, height: number } {
+    return {
+      x: self.position.x,
+      y: self.position.y,
+      width: self.size.width,
+      height: self.size.height
+    }
+  }
+
+  @method getCloseButtonBounds() -> { x: number, y: number, width: number, height: number } {
+    return {
+      x: self.position.x + self.size.width - 36,
+      y: self.position.y + 8,
+      width: 24,
+      height: 24
+    }
+  }
+
+  @method pointInRect(point: Vector2, rect: { x: number, y: number, width: number, height: number }) -> bool {
+    return (
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height
+    )
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    // Draw overlay
+    ctx.fillStyle = self.overlayColor
+    ctx.fillRect(0, 0, self.canvasWidth, self.canvasHeight)
+
+    let x = self.position.x
+    let y = self.position.y
+    let w = self.size.width
+    let h = self.size.height
+
+    // Draw modal shadow
+    ctx.save()
+    ctx.shadowColor = "rgba(0,0,0,0.3)"
+    ctx.shadowBlur = 20
+    ctx.shadowOffsetY = 10
+    ctx.fillStyle = self.backgroundColor
+    ctx.beginPath()
+    ctx.roundRect(x, y, w, h, self.borderRadius)
+    ctx.fill()
+    ctx.restore()
+
+    // Draw title bar
+    if self.title.length > 0 {
+      ctx.fillStyle = "#333333"
+      ctx.font = "bold 16px system-ui"
+      ctx.textAlign = "left"
+      ctx.textBaseline = "middle"
+      ctx.fillText(self.title, x + self.padding, y + 24)
+    }
+
+    // Draw close button
+    if self.showCloseButton {
+      let btn = self.getCloseButtonBounds()
+      ctx.strokeStyle = "#666666"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(btn.x + 4, btn.y + 4)
+      ctx.lineTo(btn.x + 20, btn.y + 20)
+      ctx.moveTo(btn.x + 20, btn.y + 4)
+      ctx.lineTo(btn.x + 4, btn.y + 20)
+      ctx.stroke()
+    }
+
+    // Render children with offset for title and padding
+    ctx.save()
+    ctx.translate(x + self.padding, y + 48)
+    for child in self.children {
+      if child.visible && child.render {
+        child.render(ctx)
+      }
+    }
+    ctx.restore()
+
+    self.dirty = false
+  }
+
+  @action on(eventType: string, handler: any) {
+    if !self.eventHandlers.has(eventType) {
+      self.eventHandlers.set(eventType, new Set())
+    }
+    self.eventHandlers.get(eventType).add(handler)
+  }
+
+  @method emit(eventType: string, data: any = null) {
+    let handlers = self.eventHandlers.get(eventType)
+    if handlers {
+      let event = { eventType, targetId: self.id, timestamp: Date.now(), data }
+      for handler in handlers {
+        handler(event)
+      }
+    }
+  }
+}
+
+function createModal(config: ModalConfig) -> typeof Modal {
+  Modal.initialize(config)
+  return Modal
+}
+
+export { Modal, createModal }

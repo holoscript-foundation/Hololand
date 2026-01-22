@@ -1,0 +1,194 @@
+/**
+ * @hololand/ui - Slider Component
+ * Interactive slider for numeric value selection
+ */
+
+import { SliderConfig, SliderOrientation, Vector2 } from "../types.hsplus"
+
+module Slider {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 200, height: 24 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Slider-specific
+    value: number = 0,
+    min: number = 0,
+    max: number = 100,
+    step: number = 1,
+    orientation: SliderOrientation = SliderOrientation.horizontal,
+    trackColor: string = "#dddddd",
+    fillColor: string = "#3498db",
+    thumbColor: string = "#ffffff",
+    thumbRadius: number = 8,
+    trackHeight: number = 4,
+    showValue: bool = false,
+    dragging: bool = false
+  }
+
+  @action initialize(config: SliderConfig) {
+    self.id = `slider-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 200, height: 24 }
+    self.visible = config.visible ?? true
+    self.enabled = config.enabled ?? true
+    self.value = config.value ?? 0
+    self.min = config.min ?? 0
+    self.max = config.max ?? 100
+    self.step = config.step ?? 1
+    self.orientation = config.orientation ?? SliderOrientation.horizontal
+    self.trackColor = config.trackColor ?? "#dddddd"
+    self.fillColor = config.fillColor ?? "#3498db"
+    self.thumbColor = config.thumbColor ?? "#ffffff"
+    self.thumbRadius = config.thumbRadius ?? 8
+    self.trackHeight = config.trackHeight ?? 4
+    self.showValue = config.showValue ?? false
+    self.eventHandlers = new Map()
+    self.dirty = true
+  }
+
+  @action setValue(val: number) {
+    let clamped = Math.max(self.min, Math.min(self.max, val))
+    // Apply step
+    clamped = Math.round(clamped / self.step) * self.step
+    if clamped != self.value {
+      self.value = clamped
+      self.emit("change", { value: self.value })
+      self.dirty = true
+    }
+  }
+
+  @computed getPercent() -> number {
+    return (self.value - self.min) / (self.max - self.min)
+  }
+
+  @action handlePointerDown(point: Vector2) {
+    if !self.enabled { return }
+    self.dragging = true
+    self.updateValueFromPoint(point)
+  }
+
+  @action handlePointerMove(point: Vector2) {
+    if !self.dragging { return }
+    self.updateValueFromPoint(point)
+  }
+
+  @action handlePointerUp() {
+    self.dragging = false
+  }
+
+  @method updateValueFromPoint(point: Vector2) {
+    let percent: number
+    if self.orientation == SliderOrientation.horizontal {
+      percent = (point.x - self.position.x - self.thumbRadius) / (self.size.width - self.thumbRadius * 2)
+    } else {
+      percent = 1 - (point.y - self.position.y - self.thumbRadius) / (self.size.height - self.thumbRadius * 2)
+    }
+    percent = Math.max(0, Math.min(1, percent))
+    self.setValue(self.min + percent * (self.max - self.min))
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    let x = self.position.x
+    let y = self.position.y
+    let w = self.size.width
+    let h = self.size.height
+    let percent = self.getPercent()
+
+    if self.orientation == SliderOrientation.horizontal {
+      let trackY = y + h / 2 - self.trackHeight / 2
+      let trackW = w - self.thumbRadius * 2
+      let trackX = x + self.thumbRadius
+
+      // Draw track background
+      ctx.fillStyle = self.trackColor
+      ctx.beginPath()
+      ctx.roundRect(trackX, trackY, trackW, self.trackHeight, self.trackHeight / 2)
+      ctx.fill()
+
+      // Draw filled portion
+      ctx.fillStyle = self.fillColor
+      ctx.beginPath()
+      ctx.roundRect(trackX, trackY, trackW * percent, self.trackHeight, self.trackHeight / 2)
+      ctx.fill()
+
+      // Draw thumb
+      let thumbX = trackX + trackW * percent
+      let thumbY = y + h / 2
+      ctx.fillStyle = self.thumbColor
+      ctx.strokeStyle = self.fillColor
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(thumbX, thumbY, self.thumbRadius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+
+      // Show value if enabled
+      if self.showValue {
+        ctx.fillStyle = "#333333"
+        ctx.font = "12px system-ui"
+        ctx.textAlign = "center"
+        ctx.fillText(String(Math.round(self.value)), thumbX, y - 8)
+      }
+    } else {
+      // Vertical slider - similar logic rotated
+      let trackX = x + w / 2 - self.trackHeight / 2
+      let trackH = h - self.thumbRadius * 2
+      let trackY = y + self.thumbRadius
+
+      ctx.fillStyle = self.trackColor
+      ctx.beginPath()
+      ctx.roundRect(trackX, trackY, self.trackHeight, trackH, self.trackHeight / 2)
+      ctx.fill()
+
+      ctx.fillStyle = self.fillColor
+      ctx.beginPath()
+      ctx.roundRect(trackX, trackY + trackH * (1 - percent), self.trackHeight, trackH * percent, self.trackHeight / 2)
+      ctx.fill()
+
+      let thumbY = trackY + trackH * (1 - percent)
+      let thumbX = x + w / 2
+      ctx.fillStyle = self.thumbColor
+      ctx.strokeStyle = self.fillColor
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(thumbX, thumbY, self.thumbRadius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    }
+
+    self.dirty = false
+  }
+
+  @action on(eventType: string, handler: any) {
+    if !self.eventHandlers.has(eventType) {
+      self.eventHandlers.set(eventType, new Set())
+    }
+    self.eventHandlers.get(eventType).add(handler)
+  }
+
+  @method emit(eventType: string, data: any = null) {
+    let handlers = self.eventHandlers.get(eventType)
+    if handlers {
+      let event = { eventType, targetId: self.id, timestamp: Date.now(), data }
+      for handler in handlers {
+        handler(event)
+      }
+    }
+  }
+}
+
+function createSlider(config: SliderConfig) -> typeof Slider {
+  Slider.initialize(config)
+  return Slider
+}
+
+export { Slider, createSlider }

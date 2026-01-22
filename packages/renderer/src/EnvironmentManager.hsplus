@@ -1,0 +1,541 @@
+/**
+ * EnvironmentManager
+ *
+ * Manages HDRI environments, skyboxes, fog, and ground planes.
+ * Provides realistic lighting from environment maps.
+ */
+
+import * as THREE from "three"
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js"
+import { Sky } from "three/examples/jsm/objects/Sky.js"
+
+import {
+  EnvironmentConfig,
+  QualitySettings,
+  SkyboxType,
+  FogType,
+  GroundConfig,
+  FogConfig,
+  ProceduralSkyConfig,
+  SkyGradientColors,
+  MaterialType
+} from "./types.hsplus"
+import { rendererLogger as logger } from "./logger.hsplus"
+
+// =============================================================================
+// BUILT-IN HDRI PRESETS
+// =============================================================================
+
+/**
+ * Built-in HDRI environment presets (using Poly Haven CDN)
+ */
+let HDRI_PRESETS = {
+  // Outdoor
+  sunset: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloppenheim_02_1k.hdr",
+  daylight: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/meadow_1k.hdr",
+  overcast: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/symmetrical_garden_02_1k.hdr",
+  night: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/moonless_golf_1k.hdr",
+  forest: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/spruit_sunrise_1k.hdr",
+
+  // Indoor/Studio
+  studio: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_08_1k.hdr",
+  warehouse: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/empty_warehouse_01_1k.hdr",
+  gallery: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/photo_studio_loft_hall_1k.hdr",
+
+  // Urban
+  city: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/potsdamer_platz_1k.hdr",
+  urban: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/urban_street_04_1k.hdr"
+}
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Environment manager options
+ */
+struct EnvironmentManagerOptions {
+  scene: THREE.Scene = null,
+  renderer: THREE.WebGLRenderer = null,
+  qualitySettings: QualitySettings = {},
+  config: EnvironmentConfig = null
+}
+
+// =============================================================================
+// DEFAULT CONFIGURATIONS
+// =============================================================================
+
+let DEFAULT_ENV_CONFIG: EnvironmentConfig = {
+  hdri: "",
+  skybox: SkyboxType.gradient,
+  skyColors: { top: 0x0077FF, bottom: 0x003355 },
+  proceduralSky: {
+    turbidity: 10.0,
+    rayleigh: 3.0,
+    mieCoefficient: 0.005,
+    mieDirectionalG: 0.7,
+    elevation: 2.0,
+    azimuth: 180.0
+  },
+  ground: {
+    enabled: true,
+    color: 0x808080,
+    roughness: 0.8,
+    metalness: 0.2,
+    receiveShadow: true
+  },
+  fog: {
+    enabled: false,
+    fogType: FogType.linear,
+    color: 0xCCCCCC,
+    near: 10.0,
+    far: 100.0,
+    density: 0.00025
+  }
+}
+
+// =============================================================================
+// ENVIRONMENT MANAGER
+// =============================================================================
+
+/**
+ * Manages environment lighting, skyboxes, ground, and fog
+ */
+module EnvironmentManager {
+  @state {
+    scene: THREE.Scene = null,
+    renderer: THREE.WebGLRenderer = null,
+    qualitySettings: QualitySettings = {},
+    config: EnvironmentConfig = DEFAULT_ENV_CONFIG,
+    magnitudeMultiplier: number = 1.0,
+
+    // Environment objects
+    hdriTexture: THREE.Texture = null,
+    pmremGenerator: THREE.PMREMGenerator = null,
+    envMap: THREE.Texture = null,
+    sky: Sky = null,
+    ground: THREE.Mesh = null,
+    gradientBackground: THREE.Mesh = null,
+
+    // Loaders
+    rgbeLoader: RGBELoader = null,
+
+    // Loading state
+    loadingPromise: Promise<void> = null
+  }
+
+  @action initialize(options: EnvironmentManagerOptions) {
+    self.scene = options.scene
+    self.renderer = options.renderer
+    self.qualitySettings = options.qualitySettings
+    self.config = { ...DEFAULT_ENV_CONFIG, ...options.config }
+
+    // Initialize loaders
+    self.rgbeLoader = new RGBELoader()
+    self.pmremGenerator = new THREE.PMREMGenerator(self.renderer)
+    self.pmremGenerator.compileEquirectangularShader()
+
+    logger.info("[EnvironmentManager] Created")
+  }
+
+  /**
+   * Initialize the environment
+   */
+  @action async setup() {
+    await self.setupSkybox()
+    self.setupGround()
+    self.setupFog()
+
+    logger.info("[EnvironmentManager] Initialized")
+  }
+
+  /**
+   * Setup skybox based on configuration
+   */
+  @method async setupSkybox() {
+    match self.config.skybox {
+      SkyboxType.hdri => {
+        if self.config.hdri {
+          await self.loadHDRI(self.config.hdri)
+        }
+      },
+      SkyboxType.procedural => {
+        self.createProceduralSky()
+      },
+      SkyboxType.gradient => {
+        self.createGradientBackground()
+      },
+      SkyboxType.none => {
+        self.scene.background = new THREE.Color(0x000000)
+      }
+    }
+  }
+
+  /**
+   * Load HDRI environment map
+   */
+  @action async loadHDRI(urlOrPreset: string) {
+    // Resolve preset name to URL
+    let url = HDRI_PRESETS[urlOrPreset] ?? urlOrPreset
+
+    // Adjust resolution based on quality
+    let resolution = self.qualitySettings.envMapResolution
+    let adjustedUrl = url.replace(/(\d+)k\.hdr$/, `${Math.min(resolution / 256, 4)}k.hdr`)
+
+    if self.loadingPromise {
+      await self.loadingPromise
+    }
+
+    self.loadingPromise = new Promise((resolve, reject) => {
+      logger.debug("[EnvironmentManager] Loading HDRI", { url: adjustedUrl })
+
+      self.rgbeLoader.load(
+        adjustedUrl,
+        (texture) => {
+          // Dispose old textures
+          self.hdriTexture?.dispose()
+          self.envMap?.dispose()
+
+          self.hdriTexture = texture
+
+          // Generate PMREM for PBR reflections
+          self.envMap = self.pmremGenerator.fromEquirectangular(texture).texture
+
+          // Set as scene background and environment
+          self.scene.background = self.envMap
+          self.scene.environment = self.envMap
+
+          // Update all materials to use new environment
+          self.updateMaterialsEnvironment()
+
+          logger.info("[EnvironmentManager] HDRI loaded", { url: adjustedUrl })
+          resolve()
+        },
+        undefined,
+        (error) => {
+          logger.error("[EnvironmentManager] HDRI load failed", { error })
+          reject(error)
+        }
+      )
+    })
+
+    await self.loadingPromise
+    self.loadingPromise = null
+  }
+
+  /**
+   * Create procedural sky (sun + atmosphere)
+   */
+  @action createProceduralSky() {
+    // Remove existing sky
+    if self.sky {
+      self.scene.remove(self.sky)
+      self.sky = null
+    }
+
+    self.sky = new Sky()
+    self.sky.scale.setScalar(450000)
+    self.scene.add(self.sky)
+
+    let uniforms = self.sky.material.uniforms
+    let settings = self.config.proceduralSky
+
+    uniforms.turbidity.value = settings.turbidity
+    uniforms.rayleigh.value = settings.rayleigh
+    uniforms.mieCoefficient.value = settings.mieCoefficient
+    uniforms.mieDirectionalG.value = settings.mieDirectionalG
+
+    // Sun position
+    let phi = THREE.MathUtils.degToRad(90 - settings.elevation)
+    let theta = THREE.MathUtils.degToRad(settings.azimuth)
+    let sunPosition = new THREE.Vector3()
+    sunPosition.setFromSphericalCoords(1, phi, theta)
+    uniforms.sunPosition.value.copy(sunPosition)
+
+    // Generate environment map from sky
+    if self.qualitySettings.hdriEnvironment {
+      let skyScene = new THREE.Scene()
+      let skyCopy = new Sky()
+      skyCopy.scale.setScalar(450000)
+      Object.keys(uniforms).forEach(key => {
+        if skyCopy.material.uniforms[key] {
+          skyCopy.material.uniforms[key].value = uniforms[key].value
+        }
+      })
+      skyScene.add(skyCopy)
+
+      self.envMap?.dispose()
+      self.envMap = self.pmremGenerator.fromScene(skyScene).texture
+      self.scene.environment = self.envMap
+
+      skyScene.remove(skyCopy)
+    }
+
+    logger.debug("[EnvironmentManager] Procedural sky created")
+  }
+
+  /**
+   * Create gradient background
+   */
+  @action createGradientBackground() {
+    // Remove existing gradient mesh
+    if self.gradientBackground {
+      self.scene.remove(self.gradientBackground)
+      self.gradientBackground = null
+    }
+
+    let colors = self.config.skyColors
+    let topColor = new THREE.Color(colors.top)
+    let bottomColor = new THREE.Color(colors.bottom)
+
+    // Create gradient texture
+    let canvas = document.createElement("canvas")
+    canvas.width = 2
+    canvas.height = 512
+    let ctx = canvas.getContext("2d")
+
+    let gradient = ctx.createLinearGradient(0, 0, 0, 512)
+    gradient.addColorStop(0, "#" + topColor.getHexString())
+    gradient.addColorStop(1, "#" + bottomColor.getHexString())
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 2, 512)
+
+    let texture = new THREE.CanvasTexture(canvas)
+    texture.needsUpdate = true
+
+    self.scene.background = texture
+
+    // If HDRI environment is enabled, create a basic ambient environment
+    if self.qualitySettings.hdriEnvironment {
+      // Use scene lights instead
+      self.scene.environment = null
+    }
+
+    logger.debug("[EnvironmentManager] Gradient background created")
+  }
+
+  /**
+   * Setup ground plane
+   */
+  @action setupGround() {
+    // Remove existing ground
+    if self.ground {
+      self.scene.remove(self.ground)
+      self.ground.material.dispose()
+      self.ground.geometry.dispose()
+      self.ground = null
+    }
+
+    if !self.config.ground.enabled { return }
+
+    let groundConfig = self.config.ground
+
+    // Create ground geometry
+    let geometry = new THREE.PlaneGeometry(1000, 1000, 100, 100)
+
+    // Create PBR material
+    let material
+    if self.qualitySettings.materialType == MaterialType.physical {
+      material = new THREE.MeshPhysicalMaterial({
+        color: groundConfig.color,
+        roughness: groundConfig.roughness,
+        metalness: groundConfig.metalness,
+        envMapIntensity: self.qualitySettings.hdriEnvironment ? 1.0 : 0
+      })
+    } else {
+      material = new THREE.MeshStandardMaterial({
+        color: groundConfig.color,
+        roughness: groundConfig.roughness,
+        metalness: groundConfig.metalness,
+        envMapIntensity: self.qualitySettings.hdriEnvironment ? 1.0 : 0
+      })
+    }
+
+    // Hide ground at non-standard magnitudes (e.g. Galactic or Atomic)
+    let isStandard = self.magnitudeMultiplier > 0.01 && self.magnitudeMultiplier < 100
+    if !isStandard {
+      logger.debug("[EnvironmentManager] Hiding ground for non-standard magnitude", {
+        multiplier: self.magnitudeMultiplier
+      })
+    }
+
+    self.ground = new THREE.Mesh(geometry, material)
+    self.ground.visible = isStandard
+    self.ground.rotation.x = -Math.PI / 2
+    self.ground.position.y = 0
+    self.ground.receiveShadow = groundConfig.receiveShadow && self.qualitySettings.shadowsEnabled
+    self.ground.name = "__hololand_ground__"
+
+    self.scene.add(self.ground)
+
+    logger.debug("[EnvironmentManager] Ground created")
+  }
+
+  /**
+   * Setup fog
+   */
+  @action setupFog() {
+    if !self.config.fog.enabled {
+      self.scene.fog = null
+      return
+    }
+
+    let fogConfig = self.config.fog
+
+    if fogConfig.fogType == FogType.exponential {
+      self.scene.fog = new THREE.FogExp2(fogConfig.color, fogConfig.density)
+    } else {
+      self.scene.fog = new THREE.Fog(
+        fogConfig.color,
+        fogConfig.near * self.magnitudeMultiplier,
+        fogConfig.far * self.magnitudeMultiplier
+      )
+    }
+
+    logger.debug("[EnvironmentManager] Fog created", { type: fogConfig.fogType })
+  }
+
+  /**
+   * Update all materials to use current environment map
+   */
+  @method updateMaterialsEnvironment() {
+    self.scene.traverse((object) => {
+      if object is THREE.Mesh {
+        let material = object.material
+        if Array.isArray(material) {
+          material.forEach(mat => self.updateMaterialEnv(mat))
+        } else {
+          self.updateMaterialEnv(material)
+        }
+      }
+    })
+  }
+
+  @method updateMaterialEnv(material: THREE.Material) {
+    if material is THREE.MeshStandardMaterial || material is THREE.MeshPhysicalMaterial {
+      material.envMap = self.envMap
+      material.envMapIntensity = self.qualitySettings.hdriEnvironment ? 1.0 : 0
+      material.needsUpdate = true
+    }
+  }
+
+  /**
+   * Update configuration
+   */
+  @action async setConfig(config: EnvironmentConfig) {
+    self.config = { ...self.config, ...config }
+    await self.setup()
+  }
+
+  /**
+   * Update quality settings
+   */
+  @action setQualitySettings(settings: QualitySettings) {
+    self.qualitySettings = settings
+    self.updateMaterialsEnvironment()
+  }
+
+  /**
+   * Set magnitude multiplier for scale-dependent elements
+   */
+  @action setMagnitudeMultiplier(multiplier: number) {
+    self.magnitudeMultiplier = multiplier
+    self.setupGround()
+    self.setupFog()
+  }
+
+  /**
+   * Get the current environment map
+   */
+  @computed getEnvironmentMap() -> THREE.Texture | null {
+    return self.envMap
+  }
+
+  /**
+   * Get list of available HDRI presets
+   */
+  @computed getHDRIPresets() -> array<string> {
+    return Object.keys(HDRI_PRESETS)
+  }
+
+  /**
+   * Set sun position for procedural sky
+   */
+  @action setSunPosition(elevation: number, azimuth: number) {
+    if !self.sky { return }
+
+    let settings = self.config.proceduralSky
+    settings.elevation = elevation
+    settings.azimuth = azimuth
+
+    let uniforms = self.sky.material.uniforms
+    let phi = THREE.MathUtils.degToRad(90 - elevation)
+    let theta = THREE.MathUtils.degToRad(azimuth)
+    let sunPosition = new THREE.Vector3()
+    sunPosition.setFromSphericalCoords(1, phi, theta)
+    uniforms.sunPosition.value.copy(sunPosition)
+
+    // Regenerate environment map
+    if self.qualitySettings.hdriEnvironment {
+      self.createProceduralSky()
+    }
+  }
+
+  /**
+   * Dispose all resources
+   */
+  @action dispose() {
+    self.hdriTexture?.dispose()
+    self.envMap?.dispose()
+    self.pmremGenerator?.dispose()
+
+    if self.sky {
+      self.scene.remove(self.sky)
+      self.sky = null
+    }
+
+    if self.ground {
+      self.scene.remove(self.ground)
+      self.ground.geometry.dispose()
+      self.ground.material.dispose()
+      self.ground = null
+    }
+
+    if self.gradientBackground {
+      self.scene.remove(self.gradientBackground)
+      self.gradientBackground = null
+    }
+
+    logger.info("[EnvironmentManager] Disposed")
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTION
+// =============================================================================
+
+/**
+ * Create and initialize an EnvironmentManager
+ */
+function createEnvironmentManager(options: EnvironmentManagerOptions) -> typeof EnvironmentManager {
+  EnvironmentManager.initialize(options)
+  return EnvironmentManager
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Constants
+  HDRI_PRESETS,
+
+  // Types
+  EnvironmentManagerOptions,
+
+  // Modules
+  EnvironmentManager,
+
+  // Factory
+  createEnvironmentManager
+}

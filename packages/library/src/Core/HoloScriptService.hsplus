@@ -1,0 +1,765 @@
+/**
+ * HoloScriptService.hsplus
+ * 
+ * Core HoloScript parsing, compilation, and execution service.
+ * Integrates with @holoscript/core parser.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+struct ParseResult {
+  success: boolean
+  ast: object
+  errors: ParseError[]
+  warnings: ParseWarning[]
+  tokens: Token[]
+  parseTime: number
+}
+
+struct ParseError {
+  message: string
+  line: number
+  column: number
+  source: string
+  severity: "error" | "warning"
+}
+
+struct ParseWarning {
+  message: string
+  line: number
+  column: number
+  suggestion: string
+}
+
+struct Token {
+  type: string
+  value: string
+  line: number
+  column: number
+  length: number
+}
+
+struct CompileResult {
+  success: boolean
+  output: string
+  sourceMap: object
+  errors: ParseError[]
+  compileTime: number
+}
+
+struct ExecutionResult {
+  success: boolean
+  output: any
+  logs: string[]
+  errors: RuntimeError[]
+  executionTime: number
+}
+
+struct RuntimeError {
+  message: string
+  stack: string
+  line: number
+  column: number
+}
+
+// =============================================================================
+// HOLOSCRIPT SERVICE MODULE
+// =============================================================================
+
+module HoloScriptService {
+  // =========================================================================
+  // STATE
+  // =========================================================================
+  
+  @state {
+    isInitialized: boolean = false
+    parserVersion: string = "2.0.0"
+    lastParseResult: ParseResult = null
+    lastCompileResult: CompileResult = null
+    lastExecutionResult: ExecutionResult = null
+    
+    // Configuration
+    config: {
+      strictMode: boolean,
+      enableWarnings: boolean,
+      maxErrors: number,
+      timeout: number
+    } = {
+      strictMode: false,
+      enableWarnings: true,
+      maxErrors: 100,
+      timeout: 5000
+    }
+    
+    // Cache
+    parseCache: Map<string, ParseResult> = new Map()
+    cacheMaxSize: number = 50
+  }
+  
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+  
+  @action initialize(config?: Partial<typeof this.state.config>): void {
+    if (config) {
+      Object.assign(this.state.config, config)
+    }
+    this.state.isInitialized = true
+    this.state.parseCache.clear()
+  }
+  
+  // =========================================================================
+  // PARSING
+  // =========================================================================
+  
+  @action parse(code: string, useCache: boolean = true): ParseResult {
+    const startTime = performance.now()
+    
+    // Check cache
+    if (useCache) {
+      const cached = this.state.parseCache.get(code)
+      if (cached) {
+        return cached
+      }
+    }
+    
+    const errors: ParseError[] = []
+    const warnings: ParseWarning[] = []
+    const tokens: Token[] = []
+    let ast: object = null
+    
+    try {
+      // Tokenize
+      tokens.push(...this.tokenize(code))
+      
+      // Parse
+      ast = this.parseTokens(tokens)
+      
+      // Validate
+      if (this.state.config.enableWarnings) {
+        warnings.push(...this.validate(ast))
+      }
+    } catch (err) {
+      errors.push({
+        message: err.message,
+        line: err.line || 1,
+        column: err.column || 1,
+        source: code.split("\n")[err.line - 1] || "",
+        severity: "error"
+      })
+    }
+    
+    const result: ParseResult = {
+      success: errors.length === 0,
+      ast,
+      errors,
+      warnings,
+      tokens,
+      parseTime: performance.now() - startTime
+    }
+    
+    // Cache result
+    if (useCache && errors.length === 0) {
+      this.cacheResult(code, result)
+    }
+    
+    this.state.lastParseResult = result
+    return result
+  }
+  
+  @method tokenize(code: string): Token[] {
+    const tokens: Token[] = []
+    const lines = code.split("\n")
+    
+    // Token patterns
+    const patterns = [
+      { type: "KEYWORD", regex: /\b(object|template|trait|spatial_group|composition|logic|action|state|on_click|on_hover_enter|on_hover_exit|on_interact|every|after|if|else|for|while|return|import|export|from|using|const|let|module|struct)\b/ },
+      { type: "BOOLEAN", regex: /\b(true|false)\b/ },
+      { type: "NULL", regex: /\bnull\b/ },
+      { type: "NUMBER", regex: /\b0x[0-9a-fA-F]+\b|\b\d+\.?\d*\b/ },
+      { type: "STRING", regex: /"[^"]*"|'[^']*'/ },
+      { type: "IDENTIFIER", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/ },
+      { type: "OPERATOR", regex: /[+\-*/%=<>!&|^~]+/ },
+      { type: "PUNCTUATION", regex: /[{}()\[\];:,.]/ },
+      { type: "COMMENT", regex: /\/\/.*$|\/\*[\s\S]*?\*\// }
+    ]
+    
+    for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+      let line = lines[lineNum]
+      let column = 0
+      
+      while (line.length > 0) {
+        // Skip whitespace
+        const wsMatch = line.match(/^\s+/)
+        if (wsMatch) {
+          column += wsMatch[0].length
+          line = line.slice(wsMatch[0].length)
+          continue
+        }
+        
+        let matched = false
+        
+        for (const pattern of patterns) {
+          const match = line.match(new RegExp("^" + pattern.regex.source))
+          if (match) {
+            tokens.push({
+              type: pattern.type,
+              value: match[0],
+              line: lineNum + 1,
+              column: column + 1,
+              length: match[0].length
+            })
+            column += match[0].length
+            line = line.slice(match[0].length)
+            matched = true
+            break
+          }
+        }
+        
+        if (!matched && line.length > 0) {
+          // Unknown character, skip
+          column++
+          line = line.slice(1)
+        }
+      }
+    }
+    
+    return tokens
+  }
+  
+  @method parseTokens(tokens: Token[]): object {
+    const ast = {
+      type: "program",
+      body: [],
+      tokens: tokens.length
+    }
+    
+    let i = 0
+    
+    while (i < tokens.length) {
+      const token = tokens[i]
+      
+      // Skip comments
+      if (token.type === "COMMENT") {
+        i++
+        continue
+      }
+      
+      // Parse top-level declarations
+      if (token.type === "KEYWORD") {
+        switch (token.value) {
+          case "composition":
+            const comp = this.parseComposition(tokens, i)
+            ast.body.push(comp.node)
+            i = comp.nextIndex
+            break
+          
+          case "object":
+            const obj = this.parseObject(tokens, i)
+            ast.body.push(obj.node)
+            i = obj.nextIndex
+            break
+          
+          case "template":
+            const tmpl = this.parseTemplate(tokens, i)
+            ast.body.push(tmpl.node)
+            i = tmpl.nextIndex
+            break
+          
+          case "module":
+            const mod = this.parseModule(tokens, i)
+            ast.body.push(mod.node)
+            i = mod.nextIndex
+            break
+          
+          case "struct":
+            const struct = this.parseStruct(tokens, i)
+            ast.body.push(struct.node)
+            i = struct.nextIndex
+            break
+          
+          case "import":
+            const imp = this.parseImport(tokens, i)
+            ast.body.push(imp.node)
+            i = imp.nextIndex
+            break
+          
+          default:
+            i++
+        }
+      } else {
+        i++
+      }
+    }
+    
+    return ast
+  }
+  
+  @method parseComposition(tokens: Token[], startIndex: number): { node: object, nextIndex: number } {
+    let i = startIndex + 1 // Skip 'composition'
+    
+    // Get name
+    const nameToken = tokens[i]
+    const name = nameToken?.type === "STRING" 
+      ? nameToken.value.slice(1, -1) 
+      : nameToken?.value || "unnamed"
+    i++
+    
+    // Find body
+    const node = {
+      type: "composition",
+      name,
+      children: [],
+      line: tokens[startIndex].line
+    }
+    
+    // Skip to opening brace
+    while (i < tokens.length && tokens[i].value !== "{") i++
+    i++ // Skip {
+    
+    // Find matching closing brace
+    let braceCount = 1
+    const bodyStart = i
+    
+    while (i < tokens.length && braceCount > 0) {
+      if (tokens[i].value === "{") braceCount++
+      if (tokens[i].value === "}") braceCount--
+      i++
+    }
+    
+    return { node, nextIndex: i }
+  }
+  
+  @method parseObject(tokens: Token[], startIndex: number): { node: object, nextIndex: number } {
+    let i = startIndex + 1
+    
+    const nameToken = tokens[i]
+    const name = nameToken?.type === "STRING"
+      ? nameToken.value.slice(1, -1)
+      : nameToken?.value || "unnamed"
+    i++
+    
+    const node = {
+      type: "object",
+      name,
+      properties: {},
+      traits: [],
+      events: [],
+      line: tokens[startIndex].line
+    }
+    
+    // Skip to and past opening brace
+    while (i < tokens.length && tokens[i].value !== "{") i++
+    i++
+    
+    let braceCount = 1
+    while (i < tokens.length && braceCount > 0) {
+      if (tokens[i].value === "{") braceCount++
+      if (tokens[i].value === "}") braceCount--
+      i++
+    }
+    
+    return { node, nextIndex: i }
+  }
+  
+  @method parseTemplate(tokens: Token[], startIndex: number): { node: object, nextIndex: number } {
+    let i = startIndex + 1
+    
+    const nameToken = tokens[i]
+    const name = nameToken?.type === "STRING"
+      ? nameToken.value.slice(1, -1)
+      : nameToken?.value || "unnamed"
+    i++
+    
+    const node = {
+      type: "template",
+      name,
+      state: {},
+      actions: [],
+      line: tokens[startIndex].line
+    }
+    
+    while (i < tokens.length && tokens[i].value !== "{") i++
+    i++
+    
+    let braceCount = 1
+    while (i < tokens.length && braceCount > 0) {
+      if (tokens[i].value === "{") braceCount++
+      if (tokens[i].value === "}") braceCount--
+      i++
+    }
+    
+    return { node, nextIndex: i }
+  }
+  
+  @method parseModule(tokens: Token[], startIndex: number): { node: object, nextIndex: number } {
+    let i = startIndex + 1
+    
+    const nameToken = tokens[i]
+    const name = nameToken?.value || "unnamed"
+    i++
+    
+    const node = {
+      type: "module",
+      name,
+      state: {},
+      actions: [],
+      methods: [],
+      line: tokens[startIndex].line
+    }
+    
+    while (i < tokens.length && tokens[i].value !== "{") i++
+    i++
+    
+    let braceCount = 1
+    while (i < tokens.length && braceCount > 0) {
+      if (tokens[i].value === "{") braceCount++
+      if (tokens[i].value === "}") braceCount--
+      i++
+    }
+    
+    return { node, nextIndex: i }
+  }
+  
+  @method parseStruct(tokens: Token[], startIndex: number): { node: object, nextIndex: number } {
+    let i = startIndex + 1
+    
+    const nameToken = tokens[i]
+    const name = nameToken?.value || "unnamed"
+    i++
+    
+    const node = {
+      type: "struct",
+      name,
+      fields: [],
+      line: tokens[startIndex].line
+    }
+    
+    while (i < tokens.length && tokens[i].value !== "{") i++
+    i++
+    
+    let braceCount = 1
+    while (i < tokens.length && braceCount > 0) {
+      if (tokens[i].value === "{") braceCount++
+      if (tokens[i].value === "}") braceCount--
+      i++
+    }
+    
+    return { node, nextIndex: i }
+  }
+  
+  @method parseImport(tokens: Token[], startIndex: number): { node: object, nextIndex: number } {
+    let i = startIndex + 1
+    
+    const imports: string[] = []
+    let from = ""
+    
+    // Parse import list
+    while (i < tokens.length && tokens[i].value !== "from") {
+      if (tokens[i].type === "IDENTIFIER" || tokens[i].type === "STRING") {
+        imports.push(tokens[i].value.replace(/['"]/g, ""))
+      }
+      i++
+    }
+    
+    // Parse from
+    if (tokens[i]?.value === "from") {
+      i++
+      if (tokens[i]) {
+        from = tokens[i].value.replace(/['"]/g, "")
+      }
+      i++
+    }
+    
+    return {
+      node: {
+        type: "import",
+        imports,
+        from,
+        line: tokens[startIndex].line
+      },
+      nextIndex: i
+    }
+  }
+  
+  // =========================================================================
+  // VALIDATION
+  // =========================================================================
+  
+  @method validate(ast: object): ParseWarning[] {
+    const warnings: ParseWarning[] = []
+    
+    if (!ast || !ast.body) return warnings
+    
+    for (const node of ast.body) {
+      // Check for unnamed objects
+      if (node.type === "object" && (!node.name || node.name === "unnamed")) {
+        warnings.push({
+          message: "Object should have a descriptive name",
+          line: node.line,
+          column: 1,
+          suggestion: 'object "MyObject" { ... }'
+        })
+      }
+      
+      // Check for empty templates
+      if (node.type === "template" && 
+          (!node.state || Object.keys(node.state).length === 0) &&
+          (!node.actions || node.actions.length === 0)) {
+        warnings.push({
+          message: "Template has no state or actions",
+          line: node.line,
+          column: 1,
+          suggestion: "Add state { } or action blocks"
+        })
+      }
+    }
+    
+    return warnings
+  }
+  
+  // =========================================================================
+  // COMPILATION
+  // =========================================================================
+  
+  @action compile(code: string, target: "js" | "three" = "three"): CompileResult {
+    const startTime = performance.now()
+    
+    // First parse
+    const parseResult = this.parse(code)
+    
+    if (!parseResult.success) {
+      return {
+        success: false,
+        output: "",
+        sourceMap: {},
+        errors: parseResult.errors,
+        compileTime: performance.now() - startTime
+      }
+    }
+    
+    try {
+      const output = this.generateCode(parseResult.ast, target)
+      
+      this.state.lastCompileResult = {
+        success: true,
+        output,
+        sourceMap: {},
+        errors: [],
+        compileTime: performance.now() - startTime
+      }
+      
+      return this.state.lastCompileResult
+    } catch (err) {
+      return {
+        success: false,
+        output: "",
+        sourceMap: {},
+        errors: [{
+          message: err.message,
+          line: 1,
+          column: 1,
+          source: "",
+          severity: "error"
+        }],
+        compileTime: performance.now() - startTime
+      }
+    }
+  }
+  
+  @method generateCode(ast: object, target: string): string {
+    if (target === "three") {
+      return this.generateThreeJS(ast)
+    }
+    return this.generateJS(ast)
+  }
+  
+  @method generateThreeJS(ast: object): string {
+    let code = "// Generated Three.js code\n"
+    code += "import * as THREE from 'three';\n\n"
+    
+    for (const node of ast.body || []) {
+      if (node.type === "object") {
+        code += this.generateThreeObject(node)
+      }
+    }
+    
+    return code
+  }
+  
+  @method generateThreeObject(node: object): string {
+    const name = node.name.replace(/[^a-zA-Z0-9_]/g, "_")
+    
+    return `
+const ${name} = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({ color: 0x3498db })
+);
+${name}.position.set(${node.properties?.position?.join(", ") || "0, 0, 0"});
+scene.add(${name});
+`
+  }
+  
+  @method generateJS(ast: object): string {
+    return `// Generated JavaScript\n${JSON.stringify(ast, null, 2)}`
+  }
+  
+  // =========================================================================
+  // EXECUTION
+  // =========================================================================
+  
+  @action async execute(code: string): Promise<ExecutionResult> {
+    const startTime = performance.now()
+    const logs: string[] = []
+    const errors: RuntimeError[] = []
+    let output: any = null
+    
+    // Compile first
+    const compileResult = this.compile(code, "js")
+    
+    if (!compileResult.success) {
+      return {
+        success: false,
+        output: null,
+        logs: [],
+        errors: compileResult.errors.map(e => ({
+          message: e.message,
+          stack: "",
+          line: e.line,
+          column: e.column
+        })),
+        executionTime: performance.now() - startTime
+      }
+    }
+    
+    try {
+      // Create sandboxed execution context
+      const sandbox = {
+        console: {
+          log: (...args) => logs.push(args.join(" ")),
+          error: (...args) => logs.push("[ERROR] " + args.join(" ")),
+          warn: (...args) => logs.push("[WARN] " + args.join(" "))
+        },
+        Math,
+        Date,
+        setTimeout: (fn, ms) => {
+          if (ms > this.state.config.timeout) {
+            throw new Error(`Timeout exceeds limit: ${ms}ms`)
+          }
+          return setTimeout(fn, ms)
+        }
+      }
+      
+      // Execute with timeout
+      const executeWithTimeout = new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error("Execution timeout"))
+        }, this.state.config.timeout)
+        
+        try {
+          // In real implementation, this would use a proper sandbox
+          output = { ast: this.state.lastParseResult?.ast }
+          clearTimeout(timer)
+          resolve(output)
+        } catch (err) {
+          clearTimeout(timer)
+          reject(err)
+        }
+      })
+      
+      output = await executeWithTimeout
+    } catch (err) {
+      errors.push({
+        message: err.message,
+        stack: err.stack || "",
+        line: 1,
+        column: 1
+      })
+    }
+    
+    this.state.lastExecutionResult = {
+      success: errors.length === 0,
+      output,
+      logs,
+      errors,
+      executionTime: performance.now() - startTime
+    }
+    
+    return this.state.lastExecutionResult
+  }
+  
+  // =========================================================================
+  // CACHING
+  // =========================================================================
+  
+  @action cacheResult(code: string, result: ParseResult): void {
+    // Evict oldest if at capacity
+    if (this.state.parseCache.size >= this.state.cacheMaxSize) {
+      const firstKey = this.state.parseCache.keys().next().value
+      this.state.parseCache.delete(firstKey)
+    }
+    
+    this.state.parseCache.set(code, result)
+  }
+  
+  @action clearCache(): void {
+    this.state.parseCache.clear()
+  }
+  
+  // =========================================================================
+  // UTILITY
+  // =========================================================================
+  
+  @method formatCode(code: string, options?: object): string {
+    // Basic formatting
+    const lines = code.split("\n")
+    let indentLevel = 0
+    const indentSize = options?.indentSize || 2
+    
+    return lines.map(line => {
+      const trimmed = line.trim()
+      
+      // Decrease indent before closing braces
+      if (trimmed.startsWith("}")) {
+        indentLevel = Math.max(0, indentLevel - 1)
+      }
+      
+      const formatted = " ".repeat(indentLevel * indentSize) + trimmed
+      
+      // Increase indent after opening braces
+      if (trimmed.endsWith("{")) {
+        indentLevel++
+      }
+      
+      return formatted
+    }).join("\n")
+  }
+  
+  @method getVersion(): string {
+    return this.state.parserVersion
+  }
+  
+  @computed isReady(): boolean {
+    return this.state.isInitialized
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  HoloScriptService,
+  ParseResult,
+  ParseError,
+  ParseWarning,
+  Token,
+  CompileResult,
+  ExecutionResult,
+  RuntimeError
+}

@@ -24,7 +24,46 @@ export type { RoomEventMap, RoomEventType, RoomEventHandler } from './Room';
 // State synchronization
 export { StateSync } from './StateSync';
 export { RelayService } from './RelayService';
-export type { RelayConfig } from './RelayService';
+export type { RelayConfig, AutonomousAgent } from './RelayService';
+
+// Neural Ollama Bridge - AI Agent Integration
+export {
+  NeuralOllamaBridge,
+  AgentFactory,
+  createNeuralBridge,
+  setupNeuralRoom,
+} from './NeuralOllamaBridge';
+export type {
+  OllamaConfig,
+  AgentDefinition,
+  AgentType,
+  AgentCapability,
+  ThoughtResult,
+  AgentAction,
+  ThoughtContext,
+  ConversationEntry,
+} from './NeuralOllamaBridge';
+
+// NPC Personality Templates
+export {
+  ALL_PERSONALITY_TEMPLATES,
+  MERCHANT_TEMPLATES,
+  GUARD_TEMPLATES,
+  QUEST_GIVER_TEMPLATES,
+  COMPANION_TEMPLATES,
+  VILLAIN_TEMPLATES,
+  AMBIENT_TEMPLATES,
+  SERVICE_TEMPLATES,
+  ENTERTAINMENT_TEMPLATES,
+  MYSTERY_TEMPLATES,
+  getPersonalityTemplate,
+  getTemplatesByCategory,
+  searchTemplatesByTag,
+  searchTemplates,
+  templateToAgentDefinition,
+  getCategoryStats,
+} from './PersonalityTemplates';
+export type { PersonalityTemplate, PersonalityCategory } from './PersonalityTemplates';
 
 // Interest management
 export { InterestManager } from './InterestManager';
@@ -113,6 +152,7 @@ import { RelayService } from './RelayService';
 import { InterestManager } from './InterestManager';
 import { VoiceChat } from './VoiceChat';
 import { TextChat } from './TextChat';
+import { NeuralOllamaBridge, AgentFactory } from './NeuralOllamaBridge';
 
 export default {
   NetworkClient,
@@ -124,5 +164,7 @@ export default {
   InterestManager,
   VoiceChat,
   TextChat,
+  NeuralOllamaBridge,
+  AgentFactory,
   HOLOLAND_NETWORK_VERSION,
 };

@@ -34,16 +34,77 @@ export class RelayService {
    * Handle incoming state snapshot from an authoritative client
    */
   handleIncomingSnapshot(roomId: string, snapshot: StateSnapshot): void {
+    const previousSnapshot = this.stateSnapshots.get(roomId);
+    
+    // Calculate differential state
+    const diff = this.calculateDiff(previousSnapshot, snapshot);
+    
     // Update central room state
     this.stateSnapshots.set(roomId, snapshot);
     
-    // Broadcast to humans
-    this.broadcastToRoom(roomId, snapshot);
+    // Broadcast only if there are changes
+    if (diff.length > 0) {
+      this.broadcastToRoom(roomId, {
+        type: 'differential_update',
+        roomId,
+        states: diff,
+        timestamp: snapshot.timestamp,
+        sequence: snapshot.sequence,
+      });
+    }
 
     // Trigger AI thoughts
     if (this.config.enableAIAutonomy) {
       this.triggerAgentThoughts(roomId, snapshot);
     }
+  }
+
+  /**
+   * Calculate differences between two snapshots
+   */
+  private calculateDiff(oldSnapshot: StateSnapshot | undefined, newSnapshot: StateSnapshot): SyncState[] {
+    if (!oldSnapshot) return newSnapshot.states;
+
+    const oldStates = new Map(oldSnapshot.states.map(s => [s.objectId, s]));
+    const diff: SyncState[] = [];
+
+    for (const state of newSnapshot.states) {
+      const prevState = oldStates.get(state.objectId);
+      
+      if (!prevState || this.hasStateChanged(prevState, state)) {
+        diff.push(state);
+      }
+    }
+
+    return diff;
+  }
+
+  /**
+   * Check if state has meaningfully changed
+   */
+  private hasStateChanged(s1: SyncState, s2: SyncState): boolean {
+    // Position change check (with small epsilon for noise)
+    if (s1.position && s2.position) {
+      const distSq = 
+        Math.pow(s1.position.x - s2.position.x, 2) +
+        Math.pow(s1.position.y - s2.position.y, 2) +
+        Math.pow(s1.position.z - s2.position.z, 2);
+      if (distSq > 0.0001) return true;
+    } else if (s1.position !== s2.position) return true;
+
+    // Rotation change check
+    if (s1.rotation && s2.rotation) {
+      const rotDiff = 
+        Math.abs(s1.rotation.x - s2.rotation.x) +
+        Math.abs(s1.rotation.y - s2.rotation.y) +
+        Math.abs(s1.rotation.z - s2.rotation.z);
+      if (rotDiff > 0.01) return true;
+    } else if (s1.rotation !== s2.rotation) return true;
+
+    // Metadata change check
+    if (JSON.stringify(s1.metadata) !== JSON.stringify(s2.metadata)) return true;
+
+    return false;
   }
 
   /**
@@ -101,7 +162,7 @@ export class RelayService {
       try {
         await agent.processThought(snapshot);
       } catch (err) {
-        logger.error(`Agent ${agent.id} failed to process thought:`, err);
+        logger.error(`Agent ${agent.id} failed to process thought`, { error: err instanceof Error ? err.message : String(err) });
       }
     }
   }
@@ -109,13 +170,34 @@ export class RelayService {
   /**
    * Broadcast a message to all clients in a room
    */
+  /**
+   * Broadcast a message to all clients in a room
+   */
   private broadcastToRoom(roomId: string, data: any): void {
     const clients = this.rooms.get(roomId);
     if (!clients) return;
 
+    // Binary Compression: Try to pack data if it's large (snapshot updates)
+    let payload: string | Buffer = JSON.stringify(data);
+    let isBinary = false;
+
+    if (data.type === 'snapshot' || data.type === 'differential_update') {
+      try {
+        const { pack } = require('msgpackr');
+        payload = pack(data);
+        isBinary = true;
+      } catch (e) {
+        logger.warn('Failed to compress payload', e);
+      }
+    }
+
     // Logic for sending to connected WebSockets would go here
-    // For now, we simulate the relay behavior
-    logger.debug(`Relaying snapshot to ${clients.size} clients in room ${roomId}`);
+    // For now, we simulate the relay behavior and log the optimization
+    if (isBinary) {
+      logger.debug(`Relaying BINARY snapshot (${(payload as Buffer).length} bytes) to ${clients.size} clients in room ${roomId}`);
+    } else {
+      logger.debug(`Relaying JSON snapshot (${payload.length} chars) to ${clients.size} clients in room ${roomId}`);
+    }
   }
 
   /**

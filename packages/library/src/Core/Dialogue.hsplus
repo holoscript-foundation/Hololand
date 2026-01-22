@@ -1,0 +1,591 @@
+// HOSL: Dialogue System
+// Branching dialogue, localization, and conversation management
+
+/**
+ * Dialogue Node Types
+ */
+const NODE_TYPES = {
+  TEXT: "text",
+  CHOICE: "choice",
+  CONDITION: "condition",
+  ACTION: "action",
+  RANDOM: "random",
+  JUMP: "jump",
+  END: "end"
+}
+
+/**
+ * Dialogue Tree
+ * Branching conversation structure
+ */
+component DialogueTree {
+  @state {
+    current_node: null
+    history: []
+    variables: {}
+    active: false
+    typing: false
+    displayed_text: ""
+  }
+
+  @props {
+    dialogue_id: ""
+    nodes: {}
+    start_node: "start"
+    
+    typing_speed: 50  // characters per second
+    auto_advance: false
+    auto_advance_delay: 2
+    
+    on_node_enter: null
+    on_node_exit: null
+    on_dialogue_end: null
+    on_choice_made: null
+  }
+
+  // Start the dialogue
+  @method start(initial_variables = {}) => {
+    state.variables = { ...initial_variables }
+    state.history = []
+    state.active = true
+    
+    this.goToNode(props.start_node)
+    this.emit("dialogue_started", props.dialogue_id)
+  }
+
+  // Go to a specific node
+  @method goToNode(node_id) => {
+    const node = props.nodes[node_id]
+    if (!node) {
+      console.warn(`Dialogue node "${node_id}" not found`)
+      this.end()
+      return
+    }
+    
+    // Exit current node
+    if (state.current_node && props.on_node_exit) {
+      props.on_node_exit(state.current_node)
+    }
+    
+    state.history.push(node_id)
+    state.current_node = { id: node_id, ...node }
+    
+    // Enter new node
+    if (props.on_node_enter) {
+      props.on_node_enter(state.current_node)
+    }
+    
+    this.processNode()
+  }
+
+  // Process current node based on type
+  @method processNode() => {
+    const node = state.current_node
+    if (!node) return
+    
+    switch (node.type) {
+      case NODE_TYPES.TEXT:
+        this.showText(node)
+        break
+        
+      case NODE_TYPES.CHOICE:
+        this.showChoices(node)
+        break
+        
+      case NODE_TYPES.CONDITION:
+        this.evaluateCondition(node)
+        break
+        
+      case NODE_TYPES.ACTION:
+        this.executeAction(node)
+        break
+        
+      case NODE_TYPES.RANDOM:
+        this.randomBranch(node)
+        break
+        
+      case NODE_TYPES.JUMP:
+        this.goToNode(node.target)
+        break
+        
+      case NODE_TYPES.END:
+        this.end()
+        break
+    }
+  }
+
+  // Display text with typing effect
+  @method showText(node) => {
+    const text = this.processText(node.text)
+    state.displayed_text = ""
+    state.typing = true
+    
+    const chars = text.split("")
+    let index = 0
+    
+    const typeInterval = setInterval(() => {
+      if (index >= chars.length) {
+        clearInterval(typeInterval)
+        state.typing = false
+        
+        if (props.auto_advance && node.next) {
+          setTimeout(() => this.advance(), props.auto_advance_delay * 1000)
+        }
+        return
+      }
+      
+      state.displayed_text += chars[index]
+      index++
+    }, 1000 / props.typing_speed)
+    
+    // Store interval for skip
+    this._typeInterval = typeInterval
+  }
+
+  // Skip typing animation
+  @method skipTyping() => {
+    if (!state.typing) return
+    
+    clearInterval(this._typeInterval)
+    state.displayed_text = this.processText(state.current_node.text)
+    state.typing = false
+  }
+
+  // Advance to next node
+  @method advance() => {
+    if (state.typing) {
+      this.skipTyping()
+      return
+    }
+    
+    const node = state.current_node
+    if (node && node.next) {
+      this.goToNode(node.next)
+    }
+  }
+
+  // Show choice options
+  @method showChoices(node) => {
+    // Filter choices based on conditions
+    const availableChoices = node.choices.filter(choice => {
+      if (!choice.condition) return true
+      return this.evaluateExpression(choice.condition)
+    })
+    
+    this.emit("choices_available", availableChoices)
+  }
+
+  // Select a choice
+  @method selectChoice(choice_index) => {
+    const node = state.current_node
+    if (!node || node.type !== NODE_TYPES.CHOICE) return
+    
+    const choices = node.choices.filter(c => !c.condition || this.evaluateExpression(c.condition))
+    const choice = choices[choice_index]
+    
+    if (!choice) return
+    
+    if (props.on_choice_made) {
+      props.on_choice_made(choice)
+    }
+    
+    // Execute choice action if any
+    if (choice.action) {
+      this.executeExpression(choice.action)
+    }
+    
+    // Go to next node
+    if (choice.next) {
+      this.goToNode(choice.next)
+    } else {
+      this.end()
+    }
+  }
+
+  // Evaluate a condition node
+  @method evaluateCondition(node) => {
+    const result = this.evaluateExpression(node.condition)
+    
+    if (result && node.true_branch) {
+      this.goToNode(node.true_branch)
+    } else if (!result && node.false_branch) {
+      this.goToNode(node.false_branch)
+    } else {
+      // No valid branch, end
+      this.end()
+    }
+  }
+
+  // Execute an action node
+  @method executeAction(node) => {
+    this.executeExpression(node.action)
+    
+    if (node.next) {
+      this.goToNode(node.next)
+    } else {
+      this.end()
+    }
+  }
+
+  // Random branch selection
+  @method randomBranch(node) => {
+    const totalWeight = node.branches.reduce((sum, b) => sum + (b.weight || 1), 0)
+    let random = Math.random() * totalWeight
+    
+    for (const branch of node.branches) {
+      random -= branch.weight || 1
+      if (random <= 0) {
+        this.goToNode(branch.target)
+        return
+      }
+    }
+    
+    // Fallback to first branch
+    if (node.branches.length > 0) {
+      this.goToNode(node.branches[0].target)
+    }
+  }
+
+  // Process text with variable substitution
+  @method processText(text) => {
+    return text.replace(/\{(\w+)\}/g, (match, varName) => {
+      return state.variables[varName] ?? match
+    })
+  }
+
+  // Evaluate a condition expression
+  @method evaluateExpression(expr) => {
+    if (typeof expr === "function") {
+      return expr(state.variables, this)
+    }
+    
+    if (typeof expr === "string") {
+      // Simple variable check
+      if (expr.startsWith("!")) {
+        return !state.variables[expr.slice(1)]
+      }
+      return !!state.variables[expr]
+    }
+    
+    if (typeof expr === "object") {
+      // Complex condition: { variable: "gold", operator: ">=", value: 100 }
+      const value = state.variables[expr.variable]
+      switch (expr.operator) {
+        case "==": return value == expr.value
+        case "!=": return value != expr.value
+        case ">": return value > expr.value
+        case ">=": return value >= expr.value
+        case "<": return value < expr.value
+        case "<=": return value <= expr.value
+        case "contains": return value?.includes?.(expr.value)
+        default: return false
+      }
+    }
+    
+    return false
+  }
+
+  // Execute an action expression
+  @method executeExpression(expr) => {
+    if (typeof expr === "function") {
+      expr(state.variables, this)
+      return
+    }
+    
+    if (typeof expr === "object") {
+      // { set: "variable_name", value: 123 }
+      if (expr.set) {
+        state.variables[expr.set] = expr.value
+      }
+      // { add: "gold", value: 50 }
+      if (expr.add) {
+        state.variables[expr.add] = (state.variables[expr.add] || 0) + expr.value
+      }
+      // { emit: "event_name", data: {} }
+      if (expr.emit) {
+        this.emit(expr.emit, expr.data)
+      }
+    }
+  }
+
+  // Set a variable
+  @method setVariable(name, value) => {
+    state.variables[name] = value
+  }
+
+  // Get a variable
+  @method getVariable(name) => {
+    return state.variables[name]
+  }
+
+  // End the dialogue
+  @method end() => {
+    state.active = false
+    state.current_node = null
+    
+    if (props.on_dialogue_end) {
+      props.on_dialogue_end(state.variables)
+    }
+    
+    this.emit("dialogue_ended", { variables: state.variables, history: state.history })
+  }
+
+  // Go back to previous node
+  @method goBack() => {
+    if (state.history.length > 1) {
+      state.history.pop()  // Remove current
+      const previous = state.history.pop()  // Get previous (will be re-added)
+      this.goToNode(previous)
+    }
+  }
+}
+
+/**
+ * Localization Manager
+ * Multi-language text support
+ */
+component LocalizationManager {
+  @state {
+    current_locale: "en"
+    loaded_locales: {}
+    fallback_locale: "en"
+  }
+
+  @props {
+    default_locale: "en"
+    locales: {}  // { en: { greeting: "Hello" }, es: { greeting: "Hola" } }
+    on_locale_change: null
+  }
+
+  @on_ready => {
+    state.current_locale = props.default_locale
+    state.loaded_locales = { ...props.locales }
+  }
+
+  // Set current locale
+  @method setLocale(locale) => {
+    if (!state.loaded_locales[locale]) {
+      console.warn(`Locale "${locale}" not loaded`)
+      return false
+    }
+    
+    state.current_locale = locale
+    
+    if (props.on_locale_change) {
+      props.on_locale_change(locale)
+    }
+    
+    this.emit("locale_changed", locale)
+    return true
+  }
+
+  // Get localized string
+  @method t(key, params = {}) => {
+    const localeData = state.loaded_locales[state.current_locale]
+    const fallbackData = state.loaded_locales[state.fallback_locale]
+    
+    // Support nested keys: "menu.file.save"
+    let text = this.getNestedValue(localeData, key) || 
+               this.getNestedValue(fallbackData, key) ||
+               key
+    
+    // Replace parameters: "Hello {name}!" with { name: "World" }
+    for (const [param, value] of Object.entries(params)) {
+      text = text.replace(new RegExp(`\\{${param}\\}`, 'g'), value)
+    }
+    
+    // Handle pluralization: "item|items"
+    if (params._count !== undefined) {
+      const parts = text.split("|")
+      if (parts.length === 2) {
+        text = params._count === 1 ? parts[0] : parts[1]
+      } else if (parts.length === 3) {
+        // zero|one|many
+        if (params._count === 0) text = parts[0]
+        else if (params._count === 1) text = parts[1]
+        else text = parts[2]
+      }
+    }
+    
+    return text
+  }
+
+  // Get value from nested object path
+  @method getNestedValue(obj, path) => {
+    if (!obj) return null
+    
+    const keys = path.split(".")
+    let value = obj
+    
+    for (const key of keys) {
+      if (value === null || value === undefined) return null
+      value = value[key]
+    }
+    
+    return value
+  }
+
+  // Load additional locale data
+  @method loadLocale(locale, data) => {
+    state.loaded_locales[locale] = {
+      ...state.loaded_locales[locale],
+      ...data
+    }
+  }
+
+  // Load locale from URL
+  @method async loadLocaleFromUrl(locale, url) => {
+    try {
+      const response = await fetch(url)
+      const data = await response.json()
+      this.loadLocale(locale, data)
+      return true
+    } catch (error) {
+      console.error(`Failed to load locale from ${url}:`, error)
+      return false
+    }
+  }
+
+  // Get available locales
+  @method getAvailableLocales() => {
+    return Object.keys(state.loaded_locales)
+  }
+
+  // Check if key exists
+  @method hasKey(key) => {
+    const localeData = state.loaded_locales[state.current_locale]
+    return this.getNestedValue(localeData, key) !== null
+  }
+}
+
+/**
+ * Subtitle Display
+ * Timed subtitle/caption display
+ */
+component SubtitleDisplay {
+  @state {
+    current_subtitle: null
+    queue: []
+    visible: true
+  }
+
+  @props {
+    position: "bottom"  // top | bottom | center
+    style: {
+      background: "rgba(0, 0, 0, 0.7)",
+      color: "#ffffff",
+      font_size: 18,
+      padding: [8, 16],
+      max_width: 800,
+      border_radius: 4
+    }
+    fade_duration: 0.3
+  }
+
+  // Show a subtitle
+  @method show(text, duration = 3, speaker = null) => {
+    state.current_subtitle = {
+      text: text,
+      speaker: speaker,
+      duration: duration,
+      elapsed: 0,
+      opacity: 0
+    }
+  }
+
+  // Queue a subtitle
+  @method queue(text, duration = 3, speaker = null) => {
+    state.queue.push({ text, duration, speaker })
+    
+    if (!state.current_subtitle) {
+      this.showNext()
+    }
+  }
+
+  // Show next in queue
+  @method showNext() => {
+    if (state.queue.length === 0) {
+      state.current_subtitle = null
+      return
+    }
+    
+    const next = state.queue.shift()
+    this.show(next.text, next.duration, next.speaker)
+  }
+
+  // Clear current subtitle
+  @method clear() => {
+    state.current_subtitle = null
+    state.queue = []
+  }
+
+  // Toggle visibility
+  @method toggle() => {
+    state.visible = !state.visible
+  }
+
+  @update(delta) => {
+    if (!state.current_subtitle) return
+    
+    const sub = state.current_subtitle
+    sub.elapsed += delta
+    
+    // Fade in
+    if (sub.elapsed < props.fade_duration) {
+      sub.opacity = sub.elapsed / props.fade_duration
+    }
+    // Visible
+    else if (sub.elapsed < sub.duration - props.fade_duration) {
+      sub.opacity = 1
+    }
+    // Fade out
+    else if (sub.elapsed < sub.duration) {
+      sub.opacity = 1 - (sub.elapsed - (sub.duration - props.fade_duration)) / props.fade_duration
+    }
+    // End
+    else {
+      this.showNext()
+    }
+  }
+
+  // Visual representation
+  panel#subtitle_container {
+    visible: ${state.visible && state.current_subtitle}
+    position: "fixed"
+    left: "50%"
+    transform: "translateX(-50%)"
+    bottom: ${props.position == "bottom" ? 80 : "auto"}
+    top: ${props.position == "top" ? 80 : (props.position == "center" ? "50%" : "auto")}
+    z_index: 9999
+    opacity: ${state.current_subtitle?.opacity || 0}
+    transition: "opacity 0.1s ease"
+
+    panel#subtitle_box {
+      max_width: ${props.style.max_width}
+      background: ${props.style.background}
+      padding: ${props.style.padding}
+      border_radius: ${props.style.border_radius}
+      text_align: "center"
+
+      // Speaker name
+      text#speaker {
+        visible: ${state.current_subtitle?.speaker != null}
+        value: ${state.current_subtitle?.speaker || ""}
+        color: "#ffcc00"
+        size: ${props.style.font_size - 2}
+        weight: 600
+        margin_bottom: 4
+      }
+
+      // Subtitle text
+      text#subtitle_text {
+        value: ${state.current_subtitle?.text || ""}
+        color: ${props.style.color}
+        size: ${props.style.font_size}
+        line_height: 1.4
+      }
+    }
+  }
+}
+
+export { DialogueTree, LocalizationManager, SubtitleDisplay, NODE_TYPES }

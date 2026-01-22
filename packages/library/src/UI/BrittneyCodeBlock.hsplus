@@ -1,0 +1,255 @@
+// HOSL: BrittneyCodeBlock
+// Syntax-highlighted code display with copy and actions
+
+component BrittneyCodeBlock {
+  @state {
+    copied: false
+    expanded: true
+    hovered_line: null
+  }
+
+  @props {
+    code: ""
+    language: "hsplus"
+    title: ""
+    show_line_numbers: true
+    show_copy: true
+    show_actions: true
+    max_height: 400
+    theme: "dark"
+    on_apply: null
+    on_edit: null
+  }
+
+  // Language color mapping
+  const LANG_COLORS = {
+    "hsplus": "#9333ea",
+    "holo": "#6366f1",
+    "javascript": "#f7df1e",
+    "typescript": "#3178c6",
+    "json": "#292929"
+  }
+
+  // Copy code to clipboard
+  @method copy() => {
+    navigator.clipboard.writeText(props.code)
+    state.copied = true
+    
+    timeout(2000) => {
+      state.copied = false
+    }
+  }
+
+  // Toggle expanded
+  @method toggle() => {
+    state.expanded = !state.expanded
+  }
+
+  // Get lines from code
+  @computed lines() {
+    return props.code.split("\n")
+  }
+
+  // Get language display name
+  @computed language_display() {
+    switch (props.language) {
+      case "hsplus": return "HoloScript+"
+      case "holo": return "HoloScript"
+      case "javascript": return "JavaScript"
+      case "typescript": return "TypeScript"
+      default: return props.language.toUpperCase()
+    }
+  }
+
+  // Container
+  panel#codeblock {
+    width: "100%"
+    background: "#11111b"
+    border: "1px solid #313244"
+    border_radius: 8
+    overflow: "hidden"
+
+    // Header bar
+    panel#header {
+      visible: ${props.title || props.show_actions}
+      layout: "horizontal"
+      justify: "space-between"
+      align: "center"
+      padding: [8, 12]
+      background: "#181825"
+      border_bottom: "1px solid #313244"
+
+      // Left side: language badge + title
+      panel#left {
+        layout: "horizontal"
+        align: "center"
+        gap: 10
+
+        // Language badge
+        panel#lang_badge {
+          padding: [3, 8]
+          background: ${LANG_COLORS[props.language] || "#6c7086"}
+          border_radius: 4
+
+          text#lang_text {
+            value: ${this.language_display()}
+            color: "#ffffff"
+            size: 11
+            weight: 600
+            text_transform: "uppercase"
+          }
+        }
+
+        // Title
+        text#title {
+          visible: ${props.title != ""}
+          value: ${props.title}
+          color: "#a6adc8"
+          size: 13
+        }
+
+        // Collapse button
+        button#collapse {
+          value: ${state.expanded ? "▼" : "▶"}
+          background: "transparent"
+          color: "#6c7086"
+          size: 10
+          padding: [4, 6]
+          cursor: "pointer"
+
+          @on_click => { this.toggle() }
+        }
+      }
+
+      // Right side: actions
+      panel#actions {
+        visible: ${props.show_actions || props.show_copy}
+        layout: "horizontal"
+        gap: 6
+
+        // Copy button
+        button#copy_btn {
+          visible: ${props.show_copy}
+          value: ${state.copied ? "✓ Copied" : "📋 Copy"}
+          padding: [5, 10]
+          background: ${state.copied ? "#22c55e" : "#313244"}
+          color: ${state.copied ? "#ffffff" : "#cdd6f4"}
+          border_radius: 4
+          size: 12
+          cursor: "pointer"
+          transition: "all 0.15s ease"
+
+          @on_hover_enter => { 
+            if (!state.copied) this.background = "#45475a" 
+          }
+          @on_hover_exit => { 
+            if (!state.copied) this.background = "#313244" 
+          }
+          @on_click => { this.copy() }
+        }
+
+        // Apply button
+        button#apply_btn {
+          visible: ${props.on_apply != null}
+          value: "✨ Apply"
+          padding: [5, 10]
+          background: "linear-gradient(135deg, #7c3aed, #6366f1)"
+          color: "#ffffff"
+          border_radius: 4
+          size: 12
+          weight: 500
+          cursor: "pointer"
+
+          @on_click => { if (props.on_apply) props.on_apply(props.code) }
+        }
+
+        // Edit button
+        button#edit_btn {
+          visible: ${props.on_edit != null}
+          value: "✏️ Edit"
+          padding: [5, 10]
+          background: "#313244"
+          color: "#cdd6f4"
+          border_radius: 4
+          size: 12
+          cursor: "pointer"
+
+          @on_hover_enter => { this.background = "#45475a" }
+          @on_hover_exit => { this.background = "#313244" }
+          @on_click => { if (props.on_edit) props.on_edit(props.code) }
+        }
+      }
+    }
+
+    // Code content
+    panel#content {
+      visible: ${state.expanded}
+      max_height: ${props.max_height}
+      overflow_y: "auto"
+      padding: 12
+
+      // Scrollbar styling
+      @scrollbar {
+        width: 8
+        background: "transparent"
+      }
+      @scrollbar_thumb {
+        background: "#313244"
+        border_radius: 4
+      }
+
+      // Code lines
+      panel#lines {
+        layout: "vertical"
+        font_family: "'JetBrains Mono', 'Fira Code', monospace"
+
+        @for line, index in this.lines() {
+          panel#line_${index} {
+            layout: "horizontal"
+            background: ${state.hovered_line == index ? "#1e1e2e" : "transparent"}
+            padding: [2, 0]
+            transition: "background 0.1s ease"
+
+            @on_hover_enter => { state.hovered_line = index }
+            @on_hover_exit => { state.hovered_line = null }
+
+            // Line number
+            text#num_${index} {
+              visible: ${props.show_line_numbers}
+              value: ${(index + 1).toString().padStart(3, " ")}
+              color: "#45475a"
+              size: 13
+              width: 40
+              text_align: "right"
+              margin_right: 16
+              user_select: "none"
+            }
+
+            // Line content
+            text#code_${index} {
+              value: ${line || " "}
+              color: "#cdd6f4"
+              size: 13
+              white_space: "pre"
+            }
+          }
+        }
+      }
+    }
+
+    // Collapsed indicator
+    panel#collapsed_indicator {
+      visible: ${!state.expanded}
+      padding: [8, 12]
+
+      text#indicator_text {
+        value: "... ${this.lines().length} lines hidden"
+        color: "#6c7086"
+        size: 12
+        style: "italic"
+      }
+    }
+  }
+}
+
+export { BrittneyCodeBlock }

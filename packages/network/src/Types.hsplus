@@ -1,0 +1,312 @@
+/**
+ * Types.hsplus
+ * 
+ * Type definitions for HoloScript+ real-time networking and multiplayer.
+ * 
+ * @package @hololand/network
+ * @version 2.0.0
+ */
+
+// =============================================================================
+// CONNECTION TYPES
+// =============================================================================
+
+enum ConnectionState {
+  DISCONNECTED = "disconnected"
+  CONNECTING = "connecting"
+  CONNECTED = "connected"
+  RECONNECTING = "reconnecting"
+  ERROR = "error"
+}
+
+struct ConnectionConfig {
+  url: string
+  reconnect: boolean = true
+  reconnectAttempts: number = 5
+  reconnectDelay: number = 1000
+  heartbeatInterval: number = 30000
+  timeout: number = 10000
+}
+
+struct ConnectionInfo {
+  clientId: string
+  state: ConnectionState
+  latency: number
+  connectedAt: number
+  serverUrl: string
+}
+
+// =============================================================================
+// ROOM TYPES
+// =============================================================================
+
+enum RoomState {
+  CREATING = "creating"
+  OPEN = "open"
+  CLOSED = "closed"
+  LOCKED = "locked"
+}
+
+struct RoomConfig {
+  id?: string
+  name: string
+  maxPlayers: number = 50
+  isPrivate: boolean = false
+  password?: string
+  metadata?: object
+}
+
+struct RoomInfo {
+  id: string
+  name: string
+  playerCount: number
+  maxPlayers: number
+  state: RoomState
+  isPrivate: boolean
+  hostId: string
+  createdAt: number
+  metadata?: object
+}
+
+enum PlayerRole {
+  HOST = "host"
+  MODERATOR = "moderator"
+  PLAYER = "player"
+  SPECTATOR = "spectator"
+}
+
+struct PlayerInfo {
+  id: string
+  displayName: string
+  role: PlayerRole
+  joinedAt: number
+  position?: Vector3
+  rotation?: Vector3
+  metadata?: object
+}
+
+// =============================================================================
+// STATE SYNCHRONIZATION TYPES
+// =============================================================================
+
+struct SyncConfig {
+  interpolation: boolean = true
+  interpolationDelay: number = 100
+  predictionEnabled: boolean = true
+  snapshotRate: number = 20
+  priorityByDistance: boolean = true
+}
+
+struct SyncState {
+  objectId: string
+  position?: Vector3
+  rotation?: Vector3
+  scale?: Vector3
+  velocity?: Vector3
+  metadata?: object
+  timestamp: number
+  sequence: number
+}
+
+struct StateSnapshot {
+  timestamp: number
+  sequence: number
+  states: SyncState[]
+}
+
+// =============================================================================
+// INTEREST MANAGEMENT TYPES
+// =============================================================================
+
+struct InterestConfig {
+  viewDistance: number = 100
+  updateRate: number = 10
+  priorityLevels: number = 3
+}
+
+struct InterestZone {
+  id: string
+  center: Vector3
+  radius: number
+  priority: number
+}
+
+// =============================================================================
+// VOICE CHAT TYPES
+// =============================================================================
+
+enum VoiceState {
+  MUTED = "muted"
+  SPEAKING = "speaking"
+  LISTENING = "listening"
+  DEAFENED = "deafened"
+}
+
+struct VoiceConfig {
+  enabled: boolean = true
+  spatial: boolean = true
+  maxDistance: number = 50
+  falloffFactor: number = 1.0
+  echoCancellation: boolean = true
+  noiseSuppression: boolean = true
+  autoGainControl: boolean = true
+}
+
+struct VoiceParticipant {
+  id: string
+  displayName: string
+  state: VoiceState
+  volume: number
+  position?: Vector3
+  isMuted: boolean
+  isDeafened: boolean
+}
+
+// =============================================================================
+// TEXT CHAT TYPES
+// =============================================================================
+
+enum MessageType {
+  TEXT = "text"
+  SYSTEM = "system"
+  EMOTE = "emote"
+  WHISPER = "whisper"
+}
+
+struct ChatMessage {
+  id: string
+  type: MessageType
+  senderId: string
+  senderName: string
+  content: string
+  timestamp: number
+  roomId?: string
+  targetId?: string
+  metadata?: object
+}
+
+struct ChatConfig {
+  maxMessageLength: number = 500
+  rateLimit: number = 5
+  profanityFilter: boolean = true
+  allowEmotes: boolean = true
+  historySize: number = 100
+}
+
+// =============================================================================
+// NETWORK MESSAGE TYPES
+// =============================================================================
+
+enum MessageCategory {
+  CONNECTION = "connection"
+  ROOM = "room"
+  STATE = "state"
+  VOICE = "voice"
+  CHAT = "chat"
+  RPC = "rpc"
+  CUSTOM = "custom"
+}
+
+struct NetworkMessage {
+  type: string
+  category: MessageCategory
+  payload: any
+  senderId?: string
+  timestamp: number
+  sequence?: number
+}
+
+// =============================================================================
+// RPC TYPES
+// =============================================================================
+
+struct RPCConfig {
+  timeout: number = 5000
+  retries: number = 3
+}
+
+struct RPCRequest {
+  id: string
+  method: string
+  params?: any[]
+  timestamp: number
+}
+
+struct RPCResponse {
+  id: string
+  result?: any
+  error?: RPCError
+  timestamp: number
+}
+
+struct RPCError {
+  code: number
+  message: string
+}
+
+// =============================================================================
+// UTILITY TYPES
+// =============================================================================
+
+struct Vector3 {
+  x: number = 0
+  y: number = 0
+  z: number = 0
+}
+
+struct Transform {
+  position: Vector3
+  rotation: Vector3
+  scale: Vector3 = { x: 1, y: 1, z: 1 }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Connection
+  ConnectionState,
+  ConnectionConfig,
+  ConnectionInfo,
+  
+  // Room
+  RoomState,
+  RoomConfig,
+  RoomInfo,
+  PlayerRole,
+  PlayerInfo,
+  
+  // Sync
+  SyncConfig,
+  SyncState,
+  StateSnapshot,
+  
+  // Interest
+  InterestConfig,
+  InterestZone,
+  
+  // Voice
+  VoiceState,
+  VoiceConfig,
+  VoiceParticipant,
+  
+  // Chat
+  MessageType,
+  ChatMessage,
+  ChatConfig,
+  
+  // Network
+  MessageCategory,
+  NetworkMessage,
+  
+  // RPC
+  RPCConfig,
+  RPCRequest,
+  RPCResponse,
+  RPCError,
+  
+  // Utility
+  Vector3,
+  Transform
+}

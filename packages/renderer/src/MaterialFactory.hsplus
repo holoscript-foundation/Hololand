@@ -1,0 +1,495 @@
+/**
+ * MaterialFactory
+ *
+ * Creates materials based on quality settings.
+ * Provides presets for common material types and PBR workflows.
+ */
+
+import * as THREE from "three"
+import { QualitySettings, MaterialType } from "./types.hsplus"
+import { rendererLogger as logger } from "./logger.hsplus"
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/**
+ * Material creation options
+ */
+struct MaterialOptions {
+  // Base properties
+  color: number = 0xFFFFFF,
+  opacity: number = 1.0,
+  transparent: bool = false,
+  side: THREE.Side = THREE.FrontSide,
+
+  // PBR properties
+  metalness: number = 0.0,
+  roughness: number = 0.5,
+  emissive: number = 0x000000,
+  emissiveIntensity: number = 1.0,
+
+  // Physical material properties (high/ultra quality)
+  clearcoat: number = 0.0,
+  clearcoatRoughness: number = 0.0,
+  transmission: number = 0.0,
+  thickness: number = 0.0,
+  ior: number = 1.5,
+  sheen: number = 0.0,
+  sheenColor: number = 0xFFFFFF,
+  sheenRoughness: number = 1.0,
+  iridescence: number = 0.0,
+  iridescenceIOR: number = 1.3,
+
+  // Textures
+  map: THREE.Texture = null,
+  normalMap: THREE.Texture = null,
+  normalScaleX: number = 1.0,
+  normalScaleY: number = 1.0,
+  roughnessMap: THREE.Texture = null,
+  metalnessMap: THREE.Texture = null,
+  aoMap: THREE.Texture = null,
+  aoMapIntensity: number = 1.0,
+  emissiveMap: THREE.Texture = null,
+  displacementMap: THREE.Texture = null,
+  displacementScale: number = 1.0,
+
+  // Environment
+  envMap: THREE.Texture = null,
+  envMapIntensity: number = 1.0,
+
+  // Other
+  flatShading: bool = false,
+  wireframe: bool = false
+}
+
+/**
+ * Material preset names
+ */
+enum MaterialPreset {
+  plastic = "plastic",
+  rubber = "rubber",
+  metal = "metal",
+  chrome = "chrome",
+  gold = "gold",
+  copper = "copper",
+  glass = "glass",
+  crystal = "crystal",
+  wood = "wood",
+  fabric = "fabric",
+  leather = "leather",
+  skin = "skin",
+  water = "water",
+  emissive = "emissive",
+  hologram = "hologram"
+}
+
+// =============================================================================
+// PRESET DEFINITIONS
+// =============================================================================
+
+/**
+ * Material preset configurations
+ */
+module MaterialPresets {
+  @state {
+    plastic: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.4,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.2
+    },
+
+    rubber: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.9
+    },
+
+    metal: MaterialOptions = {
+      metalness: 1.0,
+      roughness: 0.3
+    },
+
+    chrome: MaterialOptions = {
+      metalness: 1.0,
+      roughness: 0.05,
+      color: 0xCCCCCC
+    },
+
+    gold: MaterialOptions = {
+      metalness: 1.0,
+      roughness: 0.2,
+      color: 0xFFD700
+    },
+
+    copper: MaterialOptions = {
+      metalness: 1.0,
+      roughness: 0.25,
+      color: 0xB87333
+    },
+
+    glass: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.05,
+      transmission: 0.95,
+      thickness: 0.5,
+      ior: 1.5,
+      transparent: true,
+      opacity: 0.3
+    },
+
+    crystal: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.0,
+      transmission: 0.9,
+      thickness: 1.0,
+      ior: 2.4,
+      transparent: true,
+      opacity: 0.5,
+      iridescence: 1.0,
+      iridescenceIOR: 1.3
+    },
+
+    wood: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.7
+    },
+
+    fabric: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.95,
+      sheen: 1.0,
+      sheenRoughness: 0.8
+    },
+
+    leather: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.6,
+      sheen: 0.3,
+      sheenRoughness: 0.4
+    },
+
+    skin: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.5
+    },
+
+    water: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 0.1,
+      transmission: 0.95,
+      thickness: 2.0,
+      ior: 1.33,
+      transparent: true,
+      opacity: 0.6,
+      color: 0x0077BE
+    },
+
+    emissive: MaterialOptions = {
+      metalness: 0.0,
+      roughness: 1.0,
+      emissiveIntensity: 2.0
+    },
+
+    hologram: MaterialOptions = {
+      metalness: 0.5,
+      roughness: 0.1,
+      transmission: 0.5,
+      transparent: true,
+      opacity: 0.7,
+      emissiveIntensity: 0.5,
+      iridescence: 1.0,
+      iridescenceIOR: 2.0
+    }
+  }
+
+  @method get(preset: MaterialPreset) -> MaterialOptions {
+    match preset {
+      MaterialPreset.plastic => self.plastic,
+      MaterialPreset.rubber => self.rubber,
+      MaterialPreset.metal => self.metal,
+      MaterialPreset.chrome => self.chrome,
+      MaterialPreset.gold => self.gold,
+      MaterialPreset.copper => self.copper,
+      MaterialPreset.glass => self.glass,
+      MaterialPreset.crystal => self.crystal,
+      MaterialPreset.wood => self.wood,
+      MaterialPreset.fabric => self.fabric,
+      MaterialPreset.leather => self.leather,
+      MaterialPreset.skin => self.skin,
+      MaterialPreset.water => self.water,
+      MaterialPreset.emissive => self.emissive,
+      MaterialPreset.hologram => self.hologram,
+      _ => self.plastic
+    }
+  }
+}
+
+// =============================================================================
+// MATERIAL FACTORY
+// =============================================================================
+
+/**
+ * Factory for creating Three.js materials based on quality settings
+ */
+module MaterialFactory {
+  @state {
+    qualitySettings: QualitySettings = {},
+    envMap: THREE.Texture = null
+  }
+
+  @action initialize(qualitySettings: QualitySettings) {
+    self.qualitySettings = qualitySettings
+    logger.info("[MaterialFactory] Created")
+  }
+
+  /**
+   * Create a material based on quality settings
+   */
+  @method create(options: MaterialOptions = {}) -> THREE.Material {
+    match self.qualitySettings.materialType {
+      MaterialType.basic => self.createBasicMaterial(options),
+      MaterialType.standard => self.createStandardMaterial(options),
+      MaterialType.physical => self.createPhysicalMaterial(options),
+      _ => self.createStandardMaterial(options)
+    }
+  }
+
+  /**
+   * Create a material from a preset
+   */
+  @method createFromPreset(preset: MaterialPreset, overrides: MaterialOptions = {}) -> THREE.Material {
+    let presetOptions = MaterialPresets.get(preset)
+    let mergedOptions = { ...presetOptions, ...overrides }
+
+    // Set emissive color for emissive preset
+    if preset == MaterialPreset.emissive && mergedOptions.emissive == 0x000000 {
+      mergedOptions.emissive = mergedOptions.color
+    }
+
+    return self.create(mergedOptions)
+  }
+
+  /**
+   * Create basic material (low quality)
+   */
+  @method createBasicMaterial(options: MaterialOptions) -> THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      color: options.color,
+      opacity: options.opacity,
+      transparent: options.transparent,
+      side: options.side,
+      map: options.map,
+      wireframe: options.wireframe
+    })
+  }
+
+  /**
+   * Create standard PBR material (medium quality)
+   */
+  @method createStandardMaterial(options: MaterialOptions) -> THREE.MeshStandardMaterial {
+    let material = new THREE.MeshStandardMaterial({
+      color: options.color,
+      metalness: options.metalness,
+      roughness: options.roughness,
+      opacity: options.opacity,
+      transparent: options.transparent,
+      side: options.side,
+      flatShading: options.flatShading,
+      wireframe: options.wireframe,
+
+      // Textures
+      map: options.map,
+      normalMap: options.normalMap,
+      roughnessMap: options.roughnessMap,
+      metalnessMap: options.metalnessMap,
+      aoMap: options.aoMap,
+      aoMapIntensity: options.aoMapIntensity,
+      emissiveMap: options.emissiveMap,
+      displacementMap: options.displacementMap,
+      displacementScale: options.displacementScale,
+
+      // Emissive
+      emissive: options.emissive,
+      emissiveIntensity: options.emissiveIntensity,
+
+      // Environment
+      envMap: options.envMap ?? self.envMap,
+      envMapIntensity: self.qualitySettings.hdriEnvironment ? options.envMapIntensity : 0
+    })
+
+    // Set normal scale if different from default
+    if options.normalScaleX != 1.0 || options.normalScaleY != 1.0 {
+      material.normalScale.set(options.normalScaleX, options.normalScaleY)
+    }
+
+    return material
+  }
+
+  /**
+   * Create physical material (high/ultra quality)
+   */
+  @method createPhysicalMaterial(options: MaterialOptions) -> THREE.MeshPhysicalMaterial {
+    let material = new THREE.MeshPhysicalMaterial({
+      color: options.color,
+      metalness: options.metalness,
+      roughness: options.roughness,
+      opacity: options.opacity,
+      transparent: options.transparent,
+      side: options.side,
+      flatShading: options.flatShading,
+      wireframe: options.wireframe,
+
+      // Textures
+      map: options.map,
+      normalMap: options.normalMap,
+      roughnessMap: options.roughnessMap,
+      metalnessMap: options.metalnessMap,
+      aoMap: options.aoMap,
+      aoMapIntensity: options.aoMapIntensity,
+      emissiveMap: options.emissiveMap,
+      displacementMap: options.displacementMap,
+      displacementScale: options.displacementScale,
+
+      // Emissive
+      emissive: options.emissive,
+      emissiveIntensity: options.emissiveIntensity,
+
+      // Physical properties
+      clearcoat: options.clearcoat,
+      clearcoatRoughness: options.clearcoatRoughness,
+      transmission: options.transmission,
+      thickness: options.thickness,
+      ior: options.ior,
+      sheen: options.sheen,
+      sheenColor: options.sheenColor,
+      sheenRoughness: options.sheenRoughness,
+      iridescence: options.iridescence,
+      iridescenceIOR: options.iridescenceIOR,
+
+      // Environment
+      envMap: options.envMap ?? self.envMap,
+      envMapIntensity: self.qualitySettings.hdriEnvironment ? options.envMapIntensity : 0
+    })
+
+    // Set normal scale if different from default
+    if options.normalScaleX != 1.0 || options.normalScaleY != 1.0 {
+      material.normalScale.set(options.normalScaleX, options.normalScaleY)
+    }
+
+    return material
+  }
+
+  /**
+   * Set environment map for reflections
+   */
+  @action setEnvironmentMap(envMap: THREE.Texture) {
+    self.envMap = envMap
+    logger.debug("[MaterialFactory] Environment map set")
+  }
+
+  /**
+   * Update quality settings
+   */
+  @action setQualitySettings(settings: QualitySettings) {
+    self.qualitySettings = settings
+    logger.debug("[MaterialFactory] Quality settings updated")
+  }
+
+  /**
+   * Upgrade an existing material to match current quality settings
+   */
+  @method upgradeMaterial(material: THREE.Material) {
+    // Set environment map if available
+    if self.envMap && material is THREE.MeshStandardMaterial {
+      material.envMap = self.envMap
+      material.envMapIntensity = self.qualitySettings.hdriEnvironment ? 1.0 : 0
+      material.needsUpdate = true
+    }
+  }
+
+  /**
+   * Create holographic material (Hololand signature style)
+   */
+  @method createHologramMaterial(color: number = 0x00FFFF, intensity: number = 1.0) -> THREE.Material {
+    return self.createFromPreset(MaterialPreset.hologram, {
+      color: color,
+      emissive: color,
+      emissiveIntensity: intensity
+    })
+  }
+
+  /**
+   * Create orb material for HoloScript visualization
+   */
+  @method createOrbMaterial(color: number = 0x00FFFF, glow: bool = true) -> THREE.Material {
+    if glow {
+      return self.createPhysicalMaterial({
+        color: color,
+        emissive: color,
+        emissiveIntensity: 0.5,
+        metalness: 0.3,
+        roughness: 0.1,
+        transmission: 0.5,
+        transparent: true,
+        opacity: 0.8,
+        iridescence: 0.5
+      })
+    } else {
+      return self.createStandardMaterial({
+        color: color,
+        metalness: 0.3,
+        roughness: 0.5
+      })
+    }
+  }
+
+  /**
+   * Create connection material for HoloScript visualizations
+   */
+  @method createConnectionMaterial(dataType: string = "data") -> THREE.Material {
+    let color = match dataType {
+      "data" => 0x00FFFF,
+      "event" => 0xFF00FF,
+      "control" => 0xFFFF00,
+      "audio" => 0x00FF00,
+      "video" => 0xFF0000,
+      _ => 0x888888
+    }
+
+    return self.createBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.6
+    })
+  }
+}
+
+// =============================================================================
+// FACTORY FUNCTION
+// =============================================================================
+
+/**
+ * Create and initialize a MaterialFactory
+ */
+function createMaterialFactory(qualitySettings: QualitySettings) -> typeof MaterialFactory {
+  MaterialFactory.initialize(qualitySettings)
+  return MaterialFactory
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  // Types
+  MaterialOptions,
+  MaterialPreset,
+
+  // Modules
+  MaterialPresets,
+  MaterialFactory,
+
+  // Factory
+  createMaterialFactory
+}

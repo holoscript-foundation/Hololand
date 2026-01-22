@@ -1,0 +1,900 @@
+/**
+ * Code Editor Component - HoloScript/HoloScript+ Editor
+ * 
+ * A comprehensive code editor with syntax highlighting, autocompletion,
+ * error markers, and real-time validation for HoloScript languages.
+ * 
+ * This component provides an interface that can bind to Monaco, CodeMirror,
+ * or other editor backends via the native binding system.
+ * 
+ * @package @hololand/library
+ * @category UI
+ */
+
+// =============================================================================
+// EDITOR TOOLBAR
+// =============================================================================
+
+/**
+ * Editor toolbar with status and actions
+ */
+component EditorToolbar {
+  @props {
+    title: string = "HoloScript Editor"
+    language: string = "holoscript"
+    isSaved: bool = true
+    isCompiling: bool = false
+    errorCount: number = 0
+    warningCount: number = 0
+    onSave: function()
+    onCompile: function()
+    onFormat: function()
+  }
+
+  @render {
+    <div class="editor-toolbar">
+      <div class="toolbar-left">
+        <h3 class="toolbar-title">{this.props.title}</h3>
+        @if (!this.props.isSaved) {
+          <span class="unsaved-indicator" title="Unsaved changes"></span>
+        }
+        <span class="language-badge">{this.props.language}</span>
+      </div>
+
+      <div class="toolbar-center">
+        @if (this.props.errorCount > 0) {
+          <span class="error-badge">
+            ⛔ {this.props.errorCount} error{this.props.errorCount > 1 ? "s" : ""}
+          </span>
+        }
+        @if (this.props.warningCount > 0) {
+          <span class="warning-badge">
+            ⚠️ {this.props.warningCount} warning{this.props.warningCount > 1 ? "s" : ""}
+          </span>
+        }
+      </div>
+
+      <div class="toolbar-right">
+        <button 
+          class="toolbar-button"
+          @on_click={this.props.onFormat}
+          title="Format code"
+        >
+          ✨ Format
+        </button>
+        <button 
+          class="toolbar-button"
+          @on_click={this.props.onSave}
+          title="Save (Ctrl+S)"
+        >
+          💾 Save
+        </button>
+        <button 
+          class="toolbar-button primary"
+          @on_click={this.props.onCompile}
+          disabled={this.props.isCompiling}
+          title="Compile (Ctrl+Enter)"
+        >
+          {this.props.isCompiling ? "⏳ Compiling..." : "▶️ Compile"}
+        </button>
+      </div>
+    </div>
+  }
+
+  @style {
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: var(--color-gray-800, #1f2937);
+      border-bottom: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toolbar-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--color-gray-200, #e5e7eb);
+      margin: 0;
+    }
+
+    .unsaved-indicator {
+      width: 0.5rem;
+      height: 0.5rem;
+      background: var(--color-yellow-500, #eab308);
+      border-radius: 50%;
+    }
+
+    .language-badge {
+      font-size: 0.625rem;
+      padding: 0.125rem 0.375rem;
+      background: var(--color-gray-700, #374151);
+      color: var(--color-gray-400, #9ca3af);
+      border-radius: 0.25rem;
+      text-transform: uppercase;
+    }
+
+    .error-badge {
+      font-size: 0.75rem;
+      padding: 0.125rem 0.5rem;
+      background: var(--color-red-900, #7f1d1d);
+      color: var(--color-red-300, #fca5a5);
+      border-radius: 0.25rem;
+    }
+
+    .warning-badge {
+      font-size: 0.75rem;
+      padding: 0.125rem 0.5rem;
+      background: var(--color-yellow-900, #713f12);
+      color: var(--color-yellow-300, #fde047);
+      border-radius: 0.25rem;
+    }
+
+    .toolbar-button {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      background: var(--color-gray-700, #374151);
+      color: var(--color-gray-300, #d1d5db);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toolbar-button:hover:not(:disabled) {
+      background: var(--color-gray-600, #4b5563);
+    }
+
+    .toolbar-button.primary {
+      background: var(--color-purple-600, #9333ea);
+      color: white;
+      border-color: var(--color-purple-500, #a855f7);
+    }
+
+    .toolbar-button.primary:hover:not(:disabled) {
+      background: var(--color-purple-700, #7e22ce);
+    }
+
+    .toolbar-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// =============================================================================
+// LINE NUMBERS
+// =============================================================================
+
+/**
+ * Line number gutter component
+ */
+component LineNumbers {
+  @props {
+    lineCount: number = 1
+    currentLine: number = 1
+    errorLines: array<number> = []
+    warningLines: array<number> = []
+    onLineClick: function(line: number)
+  }
+
+  @computed lines() {
+    return Array.from({ length: this.props.lineCount }, (_, i) => i + 1)
+  }
+
+  @method getLineClass(line: number) {
+    let cls = "line-number"
+    if (line === this.props.currentLine) cls += " current"
+    if (this.props.errorLines.includes(line)) cls += " error"
+    if (this.props.warningLines.includes(line)) cls += " warning"
+    return cls
+  }
+
+  @method handleClick(line: number) {
+    if (this.props.onLineClick) {
+      this.props.onLineClick(line)
+    }
+  }
+
+  @render {
+    <div class="line-numbers">
+      @for (line in this.lines) {
+        <div 
+          class={this.getLineClass(line)}
+          @on_click={() => this.handleClick(line)}
+        >
+          {line}
+        </div>
+      }
+    </div>
+  }
+
+  @style {
+    .line-numbers {
+      min-width: 3rem;
+      padding: 1rem 0.5rem 1rem 0;
+      background: var(--color-gray-900, #111827);
+      border-right: 1px solid var(--color-gray-700, #374151);
+      text-align: right;
+      user-select: none;
+    }
+
+    .line-number {
+      font-family: var(--font-mono, monospace);
+      font-size: 0.8125rem;
+      line-height: 1.5rem;
+      color: var(--color-gray-600, #4b5563);
+      cursor: pointer;
+    }
+
+    .line-number:hover {
+      color: var(--color-gray-400, #9ca3af);
+    }
+
+    .line-number.current {
+      color: var(--color-gray-300, #d1d5db);
+      background: var(--color-gray-800, #1f2937);
+    }
+
+    .line-number.error {
+      color: var(--color-red-400, #f87171);
+      background: var(--color-red-900, #7f1d1d);
+    }
+
+    .line-number.warning {
+      color: var(--color-yellow-400, #facc15);
+      background: var(--color-yellow-900, #713f12);
+    }
+  }
+}
+
+// =============================================================================
+// MINIMAP
+// =============================================================================
+
+/**
+ * Code minimap for navigation
+ */
+component Minimap {
+  @props {
+    code: string = ""
+    viewportStart: number = 1
+    viewportEnd: number = 20
+    totalLines: number = 100
+    onNavigate: function(line: number)
+  }
+
+  @state {
+    isDragging: bool = false
+  }
+
+  @computed viewportPercentage() {
+    return ((this.props.viewportEnd - this.props.viewportStart) / this.props.totalLines) * 100
+  }
+
+  @computed viewportTop() {
+    return (this.props.viewportStart / this.props.totalLines) * 100
+  }
+
+  @method handleClick(event) {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const percentage = (event.clientY - rect.top) / rect.height
+    const targetLine = Math.floor(percentage * this.props.totalLines)
+    
+    if (this.props.onNavigate) {
+      this.props.onNavigate(targetLine)
+    }
+  }
+
+  @render {
+    <div class="minimap" @on_click={this.handleClick}>
+      <div class="minimap-content">
+        <!-- Simplified code representation -->
+        @for (line in this.props.code.split("\n").slice(0, 100)) {
+          <div class="minimap-line" style="width: {Math.min(line.length * 2, 100)}%"></div>
+        }
+      </div>
+      
+      <div 
+        class="minimap-viewport"
+        style="top: {this.viewportTop}%; height: {this.viewportPercentage}%"
+      ></div>
+    </div>
+  }
+
+  @style {
+    .minimap {
+      width: 80px;
+      background: var(--color-gray-900, #111827);
+      border-left: 1px solid var(--color-gray-700, #374151);
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .minimap-content {
+      padding: 0.25rem;
+    }
+
+    .minimap-line {
+      height: 2px;
+      background: var(--color-gray-600, #4b5563);
+      margin-bottom: 1px;
+      border-radius: 1px;
+    }
+
+    .minimap-viewport {
+      position: absolute;
+      left: 0;
+      right: 0;
+      background: var(--color-purple-500, #a855f7);
+      opacity: 0.2;
+      pointer-events: none;
+    }
+
+    .minimap:hover .minimap-viewport {
+      opacity: 0.3;
+    }
+  }
+}
+
+// =============================================================================
+// AUTOCOMPLETE POPUP
+// =============================================================================
+
+/**
+ * Autocomplete suggestions popup
+ */
+component AutocompletePopup {
+  @props {
+    visible: bool = false
+    position: { x: number, y: number } = { x: 0, y: 0 }
+    suggestions: array<{
+      label: string,
+      kind: string,
+      detail: string,
+      insertText: string
+    }> = []
+    selectedIndex: number = 0
+    onSelect: function(suggestion: object)
+    onClose: function()
+  }
+
+  @method handleSelect(suggestion: object) {
+    if (this.props.onSelect) {
+      this.props.onSelect(suggestion)
+    }
+  }
+
+  @method getKindIcon(kind: string) {
+    const icons = {
+      keyword: "🔑",
+      function: "ƒ",
+      property: "◇",
+      variable: "𝑥",
+      class: "◆",
+      interface: "◈",
+      snippet: "⬡"
+    }
+    return icons[kind] || "•"
+  }
+
+  @render {
+    @if (this.props.visible && this.props.suggestions.length > 0) {
+      <div 
+        class="autocomplete-popup"
+        style="left: {this.props.position.x}px; top: {this.props.position.y}px"
+      >
+        @for ((suggestion, index) in this.props.suggestions) {
+          <div 
+            class="suggestion-item {index === this.props.selectedIndex ? 'selected' : ''}"
+            @on_click={() => this.handleSelect(suggestion)}
+          >
+            <span class="suggestion-icon">{this.getKindIcon(suggestion.kind)}</span>
+            <span class="suggestion-label">{suggestion.label}</span>
+            @if (suggestion.detail) {
+              <span class="suggestion-detail">{suggestion.detail}</span>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+
+  @style {
+    .autocomplete-popup {
+      position: fixed;
+      min-width: 200px;
+      max-width: 400px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: var(--color-gray-800, #1f2937);
+      border: 1px solid var(--color-gray-600, #4b5563);
+      border-radius: 0.375rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+    }
+
+    .suggestion-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.5rem;
+      cursor: pointer;
+    }
+
+    .suggestion-item:hover,
+    .suggestion-item.selected {
+      background: var(--color-gray-700, #374151);
+    }
+
+    .suggestion-icon {
+      width: 1.25rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--color-purple-400, #c084fc);
+    }
+
+    .suggestion-label {
+      font-family: var(--font-mono, monospace);
+      font-size: 0.8125rem;
+      color: var(--color-gray-200, #e5e7eb);
+    }
+
+    .suggestion-detail {
+      font-size: 0.75rem;
+      color: var(--color-gray-500, #6b7280);
+      margin-left: auto;
+    }
+  }
+}
+
+// =============================================================================
+// ERROR TOOLTIP
+// =============================================================================
+
+/**
+ * Error/warning tooltip on hover
+ */
+component ErrorTooltip {
+  @props {
+    visible: bool = false
+    position: { x: number, y: number } = { x: 0, y: 0 }
+    message: string = ""
+    severity: "error" | "warning" | "info" = "error"
+  }
+
+  @render {
+    @if (this.props.visible) {
+      <div 
+        class="error-tooltip {this.props.severity}"
+        style="left: {this.props.position.x}px; top: {this.props.position.y}px"
+      >
+        <span class="tooltip-icon">
+          {this.props.severity === "error" ? "⛔" : this.props.severity === "warning" ? "⚠️" : "ℹ️"}
+        </span>
+        <span class="tooltip-message">{this.props.message}</span>
+      </div>
+    }
+  }
+
+  @style {
+    .error-tooltip {
+      position: fixed;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      max-width: 300px;
+      padding: 0.5rem 0.75rem;
+      background: var(--color-gray-800, #1f2937);
+      border-radius: 0.375rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      z-index: 1001;
+      pointer-events: none;
+    }
+
+    .error-tooltip.error {
+      border-left: 3px solid var(--color-red-500, #ef4444);
+    }
+
+    .error-tooltip.warning {
+      border-left: 3px solid var(--color-yellow-500, #eab308);
+    }
+
+    .error-tooltip.info {
+      border-left: 3px solid var(--color-blue-500, #3b82f6);
+    }
+
+    .tooltip-icon {
+      font-size: 0.875rem;
+    }
+
+    .tooltip-message {
+      font-size: 0.8125rem;
+      color: var(--color-gray-200, #e5e7eb);
+      line-height: 1.4;
+    }
+  }
+}
+
+// =============================================================================
+// CODE EDITOR (MAIN COMPONENT)
+// =============================================================================
+
+/**
+ * Complete HoloScript Code Editor
+ * 
+ * Features:
+ * - Syntax highlighting for HoloScript/HoloScript+
+ * - Real-time error validation
+ * - Autocomplete with snippets
+ * - Minimap navigation
+ * - Keyboard shortcuts (Ctrl+S, Ctrl+Enter)
+ * - Line number gutter with error indicators
+ * - Selection sync with 3D viewport
+ * 
+ * @example
+ * <CodeEditor
+ *   code={initialCode}
+ *   language="holoscript"
+ *   onChange={(code) => setCode(code)}
+ *   onCompile={(result) => handleCompile(result)}
+ * />
+ */
+component CodeEditor {
+  @props {
+    code: string = ""
+    language: "holoscript" | "hsplus" = "holoscript"
+    theme: "dark" | "light" = "dark"
+    showMinimap: bool = true
+    showLineNumbers: bool = true
+    readOnly: bool = false
+    fontSize: number = 13
+    tabSize: number = 2
+    wordWrap: bool = true
+    onChange: function(code: string)
+    onSave: function()
+    onCompile: function(result: object)
+    onSelectionChange: function(selection: object)
+    onCursorChange: function(position: object)
+  }
+
+  @state {
+    internalCode: string = ""
+    isSaved: bool = true
+    isCompiling: bool = false
+    errors: array<{ line: number, column: number, message: string, severity: string }> = []
+    warnings: array<{ line: number, column: number, message: string }> = []
+    currentLine: number = 1
+    currentColumn: number = 1
+    viewportStart: number = 1
+    viewportEnd: number = 30
+    autocomplete: {
+      visible: bool,
+      position: { x: number, y: number },
+      suggestions: array<object>,
+      selectedIndex: number
+    } = { visible: false, position: { x: 0, y: 0 }, suggestions: [], selectedIndex: 0 }
+    errorTooltip: {
+      visible: bool,
+      position: { x: number, y: number },
+      message: string,
+      severity: string
+    } = { visible: false, position: { x: 0, y: 0 }, message: "", severity: "error" }
+  }
+
+  @computed lineCount() {
+    return this.state.internalCode.split("\n").length
+  }
+
+  @computed errorLines() {
+    return this.state.errors.map(e => e.line)
+  }
+
+  @computed warningLines() {
+    return this.state.warnings.map(w => w.line)
+  }
+
+  @on_mount {
+    this.state.internalCode = this.props.code
+    this.bindKeyboardShortcuts()
+  }
+
+  @on_props_change(code) {
+    if (this.props.code !== this.state.internalCode) {
+      this.state.internalCode = this.props.code
+      this.validateCode()
+    }
+  }
+
+  @method bindKeyboardShortcuts() {
+    // These would be handled by the native binding layer
+    // Ctrl+S -> save
+    // Ctrl+Enter -> compile
+    // Ctrl+Space -> autocomplete
+    // Escape -> close popups
+  }
+
+  @method handleCodeChange(newCode: string) {
+    this.state.internalCode = newCode
+    this.state.isSaved = false
+    
+    if (this.props.onChange) {
+      this.props.onChange(newCode)
+    }
+
+    // Debounced validation
+    this.validateCode()
+  }
+
+  @method validateCode() {
+    // Call HoloScript validation service
+    // This would be handled by native binding
+    const result = this.nativeValidate(this.state.internalCode)
+    
+    this.state.errors = result.errors || []
+    this.state.warnings = result.warnings || []
+  }
+
+  @method nativeValidate(code: string) {
+    // Native binding placeholder
+    // Returns { errors: [], warnings: [] }
+    return { errors: [], warnings: [] }
+  }
+
+  @method handleSave() {
+    this.state.isSaved = true
+    
+    if (this.props.onSave) {
+      this.props.onSave()
+    }
+  }
+
+  @method async handleCompile() {
+    this.state.isCompiling = true
+
+    try {
+      // Native compilation
+      const result = await this.nativeCompile(this.state.internalCode)
+      
+      if (this.props.onCompile) {
+        this.props.onCompile(result)
+      }
+    } finally {
+      this.state.isCompiling = false
+    }
+  }
+
+  @method nativeCompile(code: string) {
+    // Native binding placeholder
+    return Promise.resolve({ success: true })
+  }
+
+  @method handleFormat() {
+    // Format code using native formatter
+    const formatted = this.nativeFormat(this.state.internalCode)
+    this.handleCodeChange(formatted)
+  }
+
+  @method nativeFormat(code: string) {
+    // Native binding placeholder
+    return code
+  }
+
+  @method handleCursorChange(line: number, column: number) {
+    this.state.currentLine = line
+    this.state.currentColumn = column
+    
+    if (this.props.onCursorChange) {
+      this.props.onCursorChange({ line, column })
+    }
+  }
+
+  @method handleLineClick(line: number) {
+    this.goToLine(line)
+  }
+
+  @method goToLine(line: number) {
+    this.state.currentLine = line
+    // Native: scroll editor to line
+  }
+
+  @method handleMinimapNavigate(line: number) {
+    this.goToLine(line)
+  }
+
+  @method showAutocomplete(position: { x: number, y: number }) {
+    const suggestions = this.getAutocompleteSuggestions()
+    
+    this.state.autocomplete = {
+      visible: true,
+      position,
+      suggestions,
+      selectedIndex: 0
+    }
+  }
+
+  @method getAutocompleteSuggestions() {
+    // Get suggestions based on cursor context
+    // This would call native HoloScript service
+    return [
+      { label: "world", kind: "keyword", detail: "Define a world", insertText: "world ${1:name} {\n\t$0\n}" },
+      { label: "object", kind: "keyword", detail: "Create an object", insertText: "object ${1:name} {\n\tposition: [0, 0, 0]\n}" },
+      { label: "trait", kind: "keyword", detail: "Define behavior", insertText: "trait ${1:Name} {\n\t$0\n}" },
+      { label: "component", kind: "keyword", detail: "HoloScript+ component", insertText: "component ${1:Name} {\n\t@props {}\n\t@state {}\n\t@render {}\n}" }
+    ]
+  }
+
+  @method handleAutocompleteSelect(suggestion: object) {
+    // Insert suggestion at cursor
+    // Native binding would handle actual insertion
+    this.state.autocomplete.visible = false
+  }
+
+  @method closeAutocomplete() {
+    this.state.autocomplete.visible = false
+  }
+
+  @render {
+    <div class="code-editor {this.props.theme}">
+      <EditorToolbar
+        title="HoloScript Editor"
+        language={this.props.language}
+        isSaved={this.state.isSaved}
+        isCompiling={this.state.isCompiling}
+        errorCount={this.state.errors.length}
+        warningCount={this.state.warnings.length}
+        onSave={this.handleSave}
+        onCompile={this.handleCompile}
+        onFormat={this.handleFormat}
+      />
+
+      <div class="editor-body">
+        @if (this.props.showLineNumbers) {
+          <LineNumbers
+            lineCount={this.lineCount}
+            currentLine={this.state.currentLine}
+            errorLines={this.errorLines}
+            warningLines={this.warningLines}
+            onLineClick={this.handleLineClick}
+          />
+        }
+
+        <div class="editor-content">
+          <!-- Native editor would be bound here -->
+          <textarea
+            class="code-textarea"
+            value={this.state.internalCode}
+            readonly={this.props.readOnly}
+            @on_input={(e) => this.handleCodeChange(e.target.value)}
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        @if (this.props.showMinimap) {
+          <Minimap
+            code={this.state.internalCode}
+            viewportStart={this.state.viewportStart}
+            viewportEnd={this.state.viewportEnd}
+            totalLines={this.lineCount}
+            onNavigate={this.handleMinimapNavigate}
+          />
+        }
+      </div>
+
+      <div class="editor-footer">
+        <span class="cursor-position">
+          Ln {this.state.currentLine}, Col {this.state.currentColumn}
+        </span>
+        <span class="editor-info">
+          {this.props.language.toUpperCase()} • Tab Size: {this.props.tabSize} • UTF-8
+        </span>
+      </div>
+
+      <AutocompletePopup
+        visible={this.state.autocomplete.visible}
+        position={this.state.autocomplete.position}
+        suggestions={this.state.autocomplete.suggestions}
+        selectedIndex={this.state.autocomplete.selectedIndex}
+        onSelect={this.handleAutocompleteSelect}
+        onClose={this.closeAutocomplete}
+      />
+
+      <ErrorTooltip
+        visible={this.state.errorTooltip.visible}
+        position={this.state.errorTooltip.position}
+        message={this.state.errorTooltip.message}
+        severity={this.state.errorTooltip.severity}
+      />
+    </div>
+  }
+
+  @style {
+    .code-editor {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--color-gray-900, #111827);
+      font-family: var(--font-sans, system-ui, sans-serif);
+    }
+
+    .code-editor.dark {
+      --editor-bg: #111827;
+      --editor-text: #e5e7eb;
+    }
+
+    .code-editor.light {
+      --editor-bg: #ffffff;
+      --editor-text: #1f2937;
+    }
+
+    .editor-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .editor-content {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+
+    .code-textarea {
+      width: 100%;
+      height: 100%;
+      padding: 1rem;
+      font-family: var(--font-mono, 'Fira Code', 'JetBrains Mono', Consolas, monospace);
+      font-size: 0.8125rem;
+      line-height: 1.5rem;
+      color: var(--editor-text);
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      tab-size: 2;
+      white-space: pre;
+    }
+
+    .code-textarea:read-only {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .editor-footer {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.25rem 1rem;
+      background: var(--color-gray-800, #1f2937);
+      border-top: 1px solid var(--color-gray-700, #374151);
+    }
+
+    .cursor-position,
+    .editor-info {
+      font-size: 0.75rem;
+      color: var(--color-gray-500, #6b7280);
+    }
+  }
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  CodeEditor,
+  EditorToolbar,
+  LineNumbers,
+  Minimap,
+  AutocompletePopup,
+  ErrorTooltip
+}

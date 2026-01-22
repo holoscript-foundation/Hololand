@@ -1,0 +1,36 @@
+/**
+ * AI Module Index
+ * 
+ * Exports all AI-related modules for HoloScript development.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// Core AI Services
+export { AIService, AIProvider, AIResponse, AIMessage, GenerationContext } from "./AIService.hsplus"
+export { OllamaService, OllamaModel, OllamaGenerateOptions } from "./OllamaService.hsplus"
+export { BrittneyGameModule, NPCDialogue, QuestSuggestion, AbilitySuggestion, SceneGeneration } from "./BrittneyGameModule.hsplus"
+
+// Re-export as namespace
+module AI {
+  @method getAIService(): typeof AIService {
+    return AIService
+  }
+  
+  @method getOllamaService(): typeof OllamaService {
+    return OllamaService
+  }
+  
+  @method getBrittneyGame(): typeof BrittneyGameModule {
+    return BrittneyGameModule
+  }
+  
+  @action async initializeAll(config?: object): Promise<void> {
+    AIService.initialize(config)
+    await OllamaService.initialize(config?.ollamaUrl)
+    BrittneyGameModule.initialize(config?.brittneyUrl)
+  }
+}
+
+export { AI }

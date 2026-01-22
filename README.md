@@ -37,6 +37,7 @@ That's it. VR-ready, physics-enabled, runs everywhere.
 - **React components** → Build VR like you build web apps
 - **Voice & AI** → "Create a coffee shop" and watch it appear
 - **Physics included** → Gravity, collisions, interactions
+- **Native NPCs** → Define characters & dialogs directly in `.hsplus` *(New)*
 - **Open source** → MIT licensed, build anything
 
 ## Install
@@ -93,6 +94,19 @@ const result = await bridge.translateToHoloScript({
 | `@hololand/network` | 1.0.0 | Multiplayer | ✅ |
 | `@hololand/social` | 1.0.0 | Friends, avatars, chat | ✅ |
 | `@hololand/commerce` | 1.0.0 | Shops & marketplace | ✅ |
+
+### 🕶️ AR Suite (Hidden Gem)
+| Package | Purpose |
+|---------|---------|
+| `@hololand/ar-foundation` | Unified AR runtime bridge |
+| `@hololand/ar-tracking` | SLAM & Image tracking |
+| `@hololand/ar-anchors` | Geo-spatial persistence |
+
+### 🤖 Brittney Suite (AI Architect)
+| Package | Purpose |
+|---------|---------|
+| `@hololand/brittney-service` | The AI that builds worlds |
+| `@hololand/brittney-toolkit` | Tools for self-modification |
 
 See [full package list](./ECOSYSTEM_STATUS.md) for all 22 packages.
 
@@ -185,6 +199,17 @@ pnpm install
 pnpm build
 pnpm test
 ```
+
+## 🛠️ Development Tools
+
+### CLI & Parsers
+- **`@holoscript/cli`**: Parse and validate `.hsplus` files.
+- **VS Code Extension**: Full syntax support.
+
+### Content Workflow
+1. Write `.hsplus` in VS Code with the extension.
+2. Use `HoloScriptLoader` to hot-reload content in Hololand.
+3. Test interactions in VR mode.
 
 ## Contributing
 

@@ -1,0 +1,20 @@
+/**
+ * HoloScript to GLB Converter - Package Exports
+ */
+
+export {
+  // Enums
+  PrimitiveType,
+  MaterialType,
+  
+  // Types
+  HoloScriptNode,
+  MaterialDef,
+  MeshDef,
+  GLBExportOptions,
+  GLTFDocument,
+  
+  // Module & Singleton
+  HoloScriptToGLBConverter,
+  getHoloScriptToGLBConverter
+} from "./HoloScriptToGLB.hsplus"

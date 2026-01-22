@@ -10,11 +10,16 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, './src'),
       '@components': path.resolve(__dirname, './src/components'),
       '@hooks': path.resolve(__dirname, './src/hooks'),
       '@services': path.resolve(__dirname, './src/services'),
       '@types': path.resolve(__dirname, './src/types'),
       '@styles': path.resolve(__dirname, './src/styles'),
+      // Point to sibling repos and local packages
+      '@holoscript/core': path.resolve(__dirname, '../../../HoloScript/packages/core/dist/index.js'),
+      '@hololand/core': path.resolve(__dirname, '../core/dist/index.mjs'),
+      '@hololand/logger': path.resolve(__dirname, '../logger/dist/index.mjs'),
     },
   },
   server: {
@@ -42,5 +47,12 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'zustand', 'monaco-editor', 'three'],
+    esbuildOptions: {
+      alias: {
+        '@holoscript/core': path.resolve(__dirname, '../../../HoloScript/packages/core/dist/index.js'),
+        '@hololand/core': path.resolve(__dirname, '../core/dist/index.mjs'),
+        '@hololand/logger': path.resolve(__dirname, '../logger/dist/index.mjs'),
+      },
+    },
   },
 });

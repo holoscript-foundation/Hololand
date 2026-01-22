@@ -1,0 +1,378 @@
+// HOSL: Brittney UI Component Library Index
+// Export all UI components for HoloScript applications
+
+// =============================================================================
+// BRITTNEY AI COMPONENTS
+// =============================================================================
+
+export { BrittneyContextMenu } from "./BrittneyContextMenu.hsplus"
+export { BrittneyPanel } from "./BrittneyPanel.hsplus"
+export { BrittneyPromptDialog } from "./BrittneyPromptDialog.hsplus"
+export { BrittneyToolbar } from "./BrittneyToolbar.hsplus"
+export { BrittneyCodeBlock } from "./BrittneyCodeBlock.hsplus"
+
+// =============================================================================
+// CHAT & MESSAGING
+// =============================================================================
+
+export { 
+  BrittneyChat,
+  ChatMessage,
+  ChatInput,
+  ProviderSelector,
+  StreamingIndicator,
+  WelcomeMessage
+} from "./BrittneyChat.hsplus"
+
+// =============================================================================
+// CODE EDITOR
+// =============================================================================
+
+export {
+  CodeEditor,
+  EditorToolbar,
+  LineNumbers,
+  Minimap,
+  AutocompletePopup,
+  ErrorTooltip
+} from "./CodeEditor.hsplus"
+
+// =============================================================================
+// 3D PREVIEW
+// =============================================================================
+
+export {
+  PreviewPanel,
+  PerformanceMetrics,
+  CameraControls,
+  GizmoControls,
+  LoadingOverlay,
+  ErrorOverlay
+} from "./PreviewPanel.hsplus"
+
+// =============================================================================
+// PROPERTY INSPECTOR
+// =============================================================================
+
+export {
+  PropertyInspector,
+  PropertyGroup,
+  StringProperty,
+  NumberProperty,
+  BooleanProperty,
+  Vector3Property,
+  ColorProperty,
+  EnumProperty
+} from "./PropertyInspector.hsplus"
+
+// =============================================================================
+// ASSET BROWSER
+// =============================================================================
+
+export {
+  AssetBrowser,
+  AssetCard,
+  CategoryFilter,
+  SearchBar
+} from "./AssetBrowser.hsplus"
+
+// =============================================================================
+// TOP BAR / NAVIGATION
+// =============================================================================
+
+export {
+  TopBar,
+  FileMenu,
+  ExamplesMenu,
+  ViewToggles,
+  LayoutSelector,
+  ThemeToggle
+} from "./TopBar.hsplus"
+
+// =============================================================================
+// PERFORMANCE PROFILER
+// =============================================================================
+
+export {
+  PerformanceProfiler,
+  MetricCard,
+  PerformanceChart,
+  HistoryTable,
+  ProfilerToolbar,
+  TipsFooter
+} from "./PerformanceProfiler.hsplus"
+
+// =============================================================================
+// ERROR VISUALIZER
+// =============================================================================
+
+export {
+  ErrorVisualizer,
+  ErrorCard,
+  ErrorCounts,
+  EmptyState,
+  ErrorTips,
+  ErrorVisualizerToolbar,
+  StackTrace
+} from "./ErrorVisualizer.hsplus"
+
+// =============================================================================
+// BATTLE ARENA DEMO
+// =============================================================================
+
+export {
+  BattleArenaDemo,
+  StatusCard,
+  StatusCards,
+  BattleControls,
+  HealthBar,
+  StatBar,
+  CharacterCard,
+  EventLog,
+  ArenaStats
+} from "./BattleArenaDemo.hsplus"
+
+// =============================================================================
+// METADATA
+// =============================================================================
+
+// Version info
+export const UI_VERSION = "2.0.0"
+export const UI_COMPONENTS = [
+  // Brittney AI
+  "BrittneyContextMenu",
+  "BrittneyPanel", 
+  "BrittneyPromptDialog",
+  "BrittneyToolbar",
+  "BrittneyCodeBlock",
+  // Chat
+  "BrittneyChat",
+  "ChatMessage",
+  "ChatInput",
+  "ProviderSelector",
+  "StreamingIndicator",
+  "WelcomeMessage",
+  // Editor
+  "CodeEditor",
+  "EditorToolbar",
+  "LineNumbers",
+  "Minimap",
+  "AutocompletePopup",
+  "ErrorTooltip",
+  // Preview
+  "PreviewPanel",
+  "PerformanceMetrics",
+  "CameraControls",
+  "GizmoControls",
+  "LoadingOverlay",
+  "ErrorOverlay",
+  // Inspector
+  "PropertyInspector",
+  "PropertyGroup",
+  "StringProperty",
+  "NumberProperty",
+  "BooleanProperty",
+  "Vector3Property",
+  "ColorProperty",
+  "EnumProperty",
+  // Asset Browser
+  "AssetBrowser",
+  "AssetCard",
+  "CategoryFilter",
+  "SearchBar",
+  // Top Bar
+  "TopBar",
+  "FileMenu",
+  "ExamplesMenu",
+  "ViewToggles",
+  "LayoutSelector",
+  "ThemeToggle",
+  // Performance Profiler
+  "PerformanceProfiler",
+  "MetricCard",
+  "PerformanceChart",
+  "HistoryTable",
+  "ProfilerToolbar",
+  "TipsFooter",
+  // Error Visualizer
+  "ErrorVisualizer",
+  "ErrorCard",
+  "ErrorCounts",
+  "EmptyState",
+  "ErrorTips",
+  "ErrorVisualizerToolbar",
+  "StackTrace",
+  // Battle Arena Demo
+  "BattleArenaDemo",
+  "StatusCard",
+  "StatusCards",
+  "BattleControls",
+  "HealthBar",
+  "StatBar",
+  "CharacterCard",
+  "EventLog",
+  "ArenaStats"
+]
+
+// Component documentation
+/*
+## HoloScript+ UI Component Library
+
+A complete set of UI components for building HoloScript applications,
+including full playground/IDE functionality.
+
+### Application Shell
+- **TopBar** - Main navigation with file, examples, layout controls
+- **FileMenu** - File operations dropdown
+- **ExamplesMenu** - Load example projects
+- **ViewToggles** - Toggle panel visibility
+- **LayoutSelector** - Switch layout presets
+- **ThemeToggle** - Dark/light mode
+
+### Code Editor
+- **CodeEditor** - Full-featured HoloScript code editor
+- **EditorToolbar** - Save, compile, format actions
+- **LineNumbers** - Line number gutter with error indicators
+- **Minimap** - Code overview for navigation
+- **AutocompletePopup** - Intelligent code completion
+- **ErrorTooltip** - Inline error messages
+
+### 3D Preview
+- **PreviewPanel** - Live 3D rendering viewport
+- **PerformanceMetrics** - FPS, frame time, object count
+- **CameraControls** - Orbit, fly, first-person modes
+- **GizmoControls** - Translate, rotate, scale tools
+- **LoadingOverlay** - Loading state with progress
+- **ErrorOverlay** - Error display with retry
+
+### Property Inspector
+- **PropertyInspector** - Object property editor
+- **PropertyGroup** - Collapsible property section
+- **StringProperty** - Text input
+- **NumberProperty** - Number with slider
+- **BooleanProperty** - Toggle switch
+- **Vector3Property** - XYZ vector input
+- **ColorProperty** - Color picker
+- **EnumProperty** - Dropdown select
+
+### Asset Browser
+- **AssetBrowser** - Browse component library
+- **AssetCard** - Individual asset display
+- **CategoryFilter** - Category tabs
+- **SearchBar** - Search input
+
+### Brittney AI
+- **BrittneyChat** - AI chat interface with streaming
+- **ChatMessage** - Message bubble with code blocks
+- **ChatInput** - Message input form
+- **ProviderSelector** - AI provider dropdown
+- **StreamingIndicator** - Typing indicator
+- **WelcomeMessage** - Initial suggestions
+- **BrittneyContextMenu** - Right-click AI actions
+- **BrittneyPanel** - AI result display
+- **BrittneyPromptDialog** - Prompt input modal
+- **BrittneyToolbar** - Quick action toolbar
+- **BrittneyCodeBlock** - Syntax-highlighted code
+
+### Performance Profiler
+- **PerformanceProfiler** - Real-time performance monitoring
+- **MetricCard** - Individual metric display with status
+- **PerformanceChart** - Canvas-based metrics visualization
+- **HistoryTable** - Tabular performance history
+- **ProfilerToolbar** - Controls for chart/table toggle
+- **TipsFooter** - Optimization tips display
+
+### Error Visualizer
+- **ErrorVisualizer** - Error reporting panel
+- **ErrorCard** - Individual error with details
+- **ErrorCounts** - Summary badges by error type
+- **EmptyState** - No errors message
+- **ErrorTips** - Contextual help tips
+- **ErrorVisualizerToolbar** - Filter and clear controls
+- **StackTrace** - Expandable stack trace viewer
+
+### Battle Arena Demo
+- **BattleArenaDemo** - Full battle demo container
+- **StatusCard** - Status indicator card
+- **StatusCards** - Grid of status indicators
+- **BattleControls** - Start, stop, reset, spawn buttons
+- **HealthBar** - Animated health bar with color transitions
+- **StatBar** - Small stat display with label
+- **CharacterCard** - Character display with health/mana/stats
+- **EventLog** - Filterable event stream display
+- **ArenaStats** - Summary statistics panel
+
+## Usage Example
+
+```hsplus
+import { 
+  TopBar,
+  CodeEditor,
+  PreviewPanel,
+  PropertyInspector,
+  AssetBrowser,
+  BrittneyChat,
+  PerformanceProfiler,
+  ErrorVisualizer
+} from "@hololand/library/UI"
+
+composition "HoloScript Playground" {
+  @state {
+    code: string = ""
+    selectedObject: object = null
+    layout: string = "default"
+    errors: CompilationError[] = []
+  }
+
+  TopBar {
+    onSave: () => this.save()
+    onCompile: () => this.compile()
+    onLayoutChange: (l) => this.state.layout = l
+  }
+
+  CodeEditor {
+    code: this.state.code
+    onChange: (c) => this.state.code = c
+    onCompile: (r) => this.handleCompile(r)
+  }
+
+  PreviewPanel {
+    code: this.state.code
+    onObjectSelect: (id) => this.selectObject(id)
+  }
+
+  PropertyInspector {
+    object: this.state.selectedObject
+    onChange: (prop, val) => this.updateProperty(prop, val)
+  }
+
+  AssetBrowser {
+    onInsert: (code) => this.insertCode(code)
+  }
+
+  BrittneyChat {
+    onApplyCode: (code) => this.state.code = code
+  }
+
+  PerformanceProfiler {
+    fps: this.state.fps
+    renderTime: this.state.renderTime
+    objectCount: this.state.objectCount
+  }
+
+  ErrorVisualizer {
+    errors: this.state.errors
+    onClear: () => this.state.errors = []
+    onGoToLine: (line, col) => this.goToLine(line, col)
+  }
+}
+```
+
+## Theme Support
+
+All components support dark (default) and light themes via CSS variables:
+- `--bg-primary`, `--bg-secondary`, `--bg-tertiary`
+- `--text-primary`, `--text-secondary`, `--text-muted`
+- `--border`, `--border-light`
+- `--primary`, `--success`, `--warning`, `--error`
+*/

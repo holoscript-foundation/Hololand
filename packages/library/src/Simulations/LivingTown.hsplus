@@ -1,0 +1,98 @@
+// Phase 4: The Living Town
+// A demonstration of proactive agents and emergent behavior
+
+@state {
+  town_name: "Neo-Kyoto",
+  population: 3,
+  resources: 100,
+  day_cycle: 0
+}
+
+@lifecycle(on_mount) {
+  // Global simulation loop
+  setInterval(() => {
+    state.day_cycle = (state.day_cycle + 0.1) % 24;
+    emit('time_update', state.day_cycle);
+  }, 1000);
+}
+
+// 1. The Mayor: High observation, coordinates others
+Agent(id: "mayor_01") {
+  @trait(networked, { mode: "reliable" })
+  @trait(proactive, {
+    intelligence_tier: "advanced",
+    observation_range: 20,
+    learning_rate: 0.8,
+    auto_suggest: true
+  })
+  
+  Model(src: "assets/avatars/robot_mayor.glb", scale: [1.2, 1.2, 1.2])
+  
+  @lifecycle(on_data_update) {
+    // Proactive Greeting Logic
+    const nearby = get_nearby_agents(10);
+    if (nearby.length > 0) {
+      assistant_generate("Greet the nearby agents and assign a task based on the town's resource level: " + state.resources);
+    }
+  }
+}
+
+// 2. The Builder: Spawns structures
+Agent(id: "builder_01") {
+  @trait(networked, { mode: "reliable" })
+  @trait(proactive, {
+    intelligence_tier: "basic",
+    observation_range: 5,
+    context_window: 10
+  })
+
+  Model(src: "assets/avatars/worker_drone.glb")
+
+  @lifecycle(on_data_update) {
+    // Resource gathering loop
+    if (Math.random() > 0.9) {
+      state.resources += 5;
+      play_sound("gather_resource");
+      
+      // Autonomous building
+      if (state.resources > 50) {
+        state.resources -= 20;
+        spawn("structure_lamp", position + [2, 0, 0]);
+      }
+    }
+  }
+}
+
+// 3. The Wanderer: Explores and generates spatial memories
+Agent(id: "wanderer_01") {
+  @trait(networked, { mode: "unreliable" }) // Fast movement updates
+  @trait(proactive, {
+    intelligence_tier: "advanced",
+    observation_range: 50
+  })
+
+  Model(src: "assets/avatars/explorer_pod.glb")
+  
+  @lifecycle(on_update) {
+    // Random Walk with Obstacle Avoidance (Simulated)
+    const moveDir = [Math.sin(time / 1000), 0, Math.cos(time / 1000)];
+    apply_velocity(this, moveDir * 2);
+    
+    // Memory Generation
+    if (Math.random() > 0.99) {
+      assistant_generate("Log a journal entry about the current location: " + position);
+    }
+  }
+}
+
+// Environment
+Zone(id: "town_square") {
+  Model(src: "assets/env/plaza_floor.glb")
+  
+  // Interactive Information Kiosk
+  Object(id: "kiosk") {
+    @trait(pointable, { highlight_on_point: true })
+    @trait(hoverable, { show_tooltip: "Town Resources: " + state.resources })
+    Model(src: "assets/props/kiosk.glb")
+  }
+}

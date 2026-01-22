@@ -1,0 +1,138 @@
+/**
+ * @hololand/ui - Toggle Component
+ * On/off switch control
+ */
+
+import { ToggleConfig, Vector2 } from "../types.hsplus"
+
+module Toggle {
+  @state {
+    id: string = "",
+    position: Vector2 = { x: 0, y: 0 },
+    size: { width: number, height: number } = { width: 48, height: 24 },
+    visible: bool = true,
+    enabled: bool = true,
+    zIndex: number = 0,
+    parent: any = null,
+    dirty: bool = true,
+    eventHandlers: Map<string, Set<any>> = new Map(),
+
+    // Toggle-specific
+    checked: bool = false,
+    onColor: string = "#3498db",
+    offColor: string = "#cccccc",
+    thumbColor: string = "#ffffff",
+    label: string = "",
+    animationProgress: number = 0
+  }
+
+  @action initialize(config: ToggleConfig) {
+    self.id = `toggle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    self.position = config.position ?? { x: 0, y: 0 }
+    self.size = config.size ?? { width: 48, height: 24 }
+    self.visible = config.visible ?? true
+    self.enabled = config.enabled ?? true
+    self.checked = config.checked ?? false
+    self.onColor = config.onColor ?? "#3498db"
+    self.offColor = config.offColor ?? "#cccccc"
+    self.thumbColor = config.thumbColor ?? "#ffffff"
+    self.label = config.label ?? ""
+    self.animationProgress = config.checked ? 1 : 0
+    self.eventHandlers = new Map()
+    self.dirty = true
+  }
+
+  @action setChecked(value: bool) {
+    if self.checked != value {
+      self.checked = value
+      self.emit("change", { checked: value })
+      self.dirty = true
+    }
+  }
+
+  @action toggle() {
+    self.setChecked(!self.checked)
+  }
+
+  @action handleClick() {
+    if self.enabled {
+      self.toggle()
+    }
+  }
+
+  @method render(ctx: CanvasRenderingContext2D) {
+    if !self.visible { return }
+
+    let x = self.position.x
+    let y = self.position.y
+    let w = self.size.width
+    let h = self.size.height
+    let radius = h / 2
+    let thumbRadius = radius - 3
+    let progress = self.checked ? 1 : 0  // For animation later
+
+    // Draw track
+    ctx.fillStyle = self.checked ? self.onColor : self.offColor
+    ctx.beginPath()
+    ctx.roundRect(x, y, w, h, radius)
+    ctx.fill()
+
+    // Draw thumb
+    let thumbX = x + radius + (w - h) * progress
+    let thumbY = y + radius
+
+    ctx.fillStyle = self.thumbColor
+    ctx.shadowColor = "rgba(0,0,0,0.2)"
+    ctx.shadowBlur = 4
+    ctx.shadowOffsetY = 2
+    ctx.beginPath()
+    ctx.arc(thumbX, thumbY, thumbRadius, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetY = 0
+
+    // Draw label if present
+    if self.label.length > 0 {
+      ctx.fillStyle = "#333333"
+      ctx.font = "14px system-ui"
+      ctx.textAlign = "left"
+      ctx.textBaseline = "middle"
+      ctx.fillText(self.label, x + w + 8, y + h / 2)
+    }
+
+    self.dirty = false
+  }
+
+  @method containsPoint(point: Vector2) -> bool {
+    return (
+      point.x >= self.position.x &&
+      point.x <= self.position.x + self.size.width &&
+      point.y >= self.position.y &&
+      point.y <= self.position.y + self.size.height
+    )
+  }
+
+  @action on(eventType: string, handler: any) {
+    if !self.eventHandlers.has(eventType) {
+      self.eventHandlers.set(eventType, new Set())
+    }
+    self.eventHandlers.get(eventType).add(handler)
+  }
+
+  @method emit(eventType: string, data: any = null) {
+    let handlers = self.eventHandlers.get(eventType)
+    if handlers {
+      let event = { eventType, targetId: self.id, timestamp: Date.now(), data }
+      for handler in handlers {
+        handler(event)
+      }
+    }
+  }
+}
+
+function createToggle(config: ToggleConfig) -> typeof Toggle {
+  Toggle.initialize(config)
+  return Toggle
+}
+
+export { Toggle, createToggle }

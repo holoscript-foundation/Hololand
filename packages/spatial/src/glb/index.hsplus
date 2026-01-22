@@ -1,0 +1,15 @@
+/**
+ * GLB Asset Library - Package Exports
+ */
+
+export {
+  GLBAsset,
+  GLBMetadata,
+  BoundingBox,
+  LoadOptions,
+  LODConfig,
+  GLBAssetLibraryOptions,
+  GLBAssetLibrary,
+  getGLBAssetLibrary,
+  resetGLBAssetLibrary
+} from "./GLBAssetLibrary.hsplus"

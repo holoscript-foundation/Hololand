@@ -1,0 +1,500 @@
+/**
+ * Spatial Audio Engine
+ *
+ * 3D positional audio with HRTF support for immersive VR/AR experiences.
+ * Manages audio sources, listener position, and environmental audio.
+ */
+
+import {
+  Vector3,
+  AudioSourceConfig,
+  ListenerConfig,
+  SpatialAudioEngineConfig,
+  AudioEvent,
+  AudioEventListener,
+  AudioEventType,
+  ReverbConfig,
+  DEFAULT_ENGINE_CONFIG,
+  DEFAULT_AUDIO_SOURCE_CONFIG,
+  DistanceModel,
+  AudioSourceType
+} from "./types.hsplus"
+
+// =============================================================================
+// SPATIAL AUDIO SOURCE
+// =============================================================================
+
+/**
+ * Represents a single spatial audio source
+ */
+module SpatialAudioSource {
+  @state {
+    id: string = "",
+    config: AudioSourceConfig = DEFAULT_AUDIO_SOURCE_CONFIG,
+    context: AudioContext = null,
+    source: AudioBufferSourceNode = null,
+    panner: PannerNode = null,
+    gainNode: GainNode = null,
+    buffer: AudioBuffer = null,
+    mediaElement: HTMLAudioElement = null,
+    isPlaying: bool = false,
+    isPaused: bool = false,
+    destination: AudioNode = null
+  }
+
+  @action initialize(context: AudioContext, config: AudioSourceConfig, destination: AudioNode) {
+    self.id = config.id
+    self.config = config
+    self.context = context
+    self.destination = destination
+
+    // Create gain node for volume control
+    self.gainNode = context.createGain()
+    self.gainNode.gain.value = config.volume
+
+    // Create panner for 3D spatialization
+    self.panner = context.createPanner()
+    self.panner.panningModel = "HRTF"
+    self.panner.distanceModel = config.distanceModel
+    self.panner.refDistance = config.refDistance
+    self.panner.maxDistance = config.maxDistance
+    self.panner.rolloffFactor = config.rolloffFactor
+
+    // Configure cone (for directional sources)
+    if config.sourceType == AudioSourceType.cone || config.sourceType == AudioSourceType.directional {
+      self.panner.coneInnerAngle = config.coneInnerAngle
+      self.panner.coneOuterAngle = config.coneOuterAngle
+      self.panner.coneOuterGain = config.coneOuterGain
+    }
+
+    // Set position
+    self.setPosition(config.position)
+
+    // Set orientation
+    if config.orientation {
+      self.setOrientation(config.orientation)
+    }
+
+    // Connect: panner -> gain -> destination
+    self.panner.connect(self.gainNode)
+    self.gainNode.connect(destination)
+  }
+
+  /**
+   * Load audio from URL
+   */
+  @action async loadFromURL(url: string) {
+    let response = await fetch(url)
+    let arrayBuffer = await response.arrayBuffer()
+    self.buffer = await self.context.decodeAudioData(arrayBuffer)
+  }
+
+  /**
+   * Load audio from ArrayBuffer
+   */
+  @action async loadFromBuffer(data: ArrayBuffer) {
+    self.buffer = await self.context.decodeAudioData(data)
+  }
+
+  /**
+   * Load from media element (for streaming)
+   */
+  @action loadFromMediaElement(element: HTMLAudioElement) {
+    self.mediaElement = element
+  }
+
+  /**
+   * Play the audio source
+   */
+  @action play() {
+    if self.isPlaying && !self.isPaused { return }
+
+    if self.isPaused && self.source {
+      self.context.resume()
+      self.isPaused = false
+      return
+    }
+
+    if self.buffer {
+      self.source = self.context.createBufferSource()
+      self.source.buffer = self.buffer
+      self.source.loop = self.config.loop
+      self.source.playbackRate.value = self.config.playbackRate
+      self.source.connect(self.panner)
+      self.source.onended = () => {
+        self.isPlaying = false
+      }
+      self.source.start()
+      self.isPlaying = true
+    } else if self.mediaElement {
+      self.source = self.context.createMediaElementSource(self.mediaElement)
+      self.source.connect(self.panner)
+      self.mediaElement.play()
+      self.isPlaying = true
+    }
+  }
+
+  /**
+   * Pause the audio source
+   */
+  @action pause() {
+    if !self.isPlaying { return }
+
+    if self.mediaElement {
+      self.mediaElement.pause()
+    }
+
+    self.isPaused = true
+  }
+
+  /**
+   * Stop the audio source
+   */
+  @action stop() {
+    if self.source && self.source.stop {
+      try {
+        self.source.stop()
+      } catch {
+        // Already stopped
+      }
+    }
+
+    if self.mediaElement {
+      self.mediaElement.pause()
+      self.mediaElement.currentTime = 0
+    }
+
+    self.isPlaying = false
+    self.isPaused = false
+    self.source = null
+  }
+
+  /**
+   * Set 3D position
+   */
+  @action setPosition(position: Vector3) {
+    self.config.position = position
+    self.panner.positionX.setValueAtTime(position.x, self.context.currentTime)
+    self.panner.positionY.setValueAtTime(position.y, self.context.currentTime)
+    self.panner.positionZ.setValueAtTime(position.z, self.context.currentTime)
+  }
+
+  /**
+   * Set orientation (for directional/cone sources)
+   */
+  @action setOrientation(direction: Vector3) {
+    self.config.orientation = direction
+    self.panner.orientationX.setValueAtTime(direction.x, self.context.currentTime)
+    self.panner.orientationY.setValueAtTime(direction.y, self.context.currentTime)
+    self.panner.orientationZ.setValueAtTime(direction.z, self.context.currentTime)
+  }
+
+  /**
+   * Set volume
+   */
+  @action setVolume(volume: number) {
+    self.config.volume = Math.max(0, Math.min(1, volume))
+    self.gainNode.gain.setValueAtTime(self.config.volume, self.context.currentTime)
+  }
+
+  /**
+   * Get current state
+   */
+  @computed getState() -> { playing: bool, paused: bool } {
+    return { playing: self.isPlaying, paused: self.isPaused }
+  }
+
+  /**
+   * Cleanup resources
+   */
+  @action dispose() {
+    self.stop()
+    self.panner.disconnect()
+    self.gainNode.disconnect()
+  }
+}
+
+// =============================================================================
+// MAIN SPATIAL AUDIO ENGINE
+// =============================================================================
+
+/**
+ * Main Spatial Audio Engine
+ */
+module SpatialAudioEngine {
+  @state {
+    context: AudioContext = null,
+    config: SpatialAudioEngineConfig = DEFAULT_ENGINE_CONFIG,
+    sources: Map<string, typeof SpatialAudioSource> = new Map(),
+    masterGain: GainNode = null,
+    convolver: ConvolverNode = null,
+    convolverGain: GainNode = null,
+    dryGain: GainNode = null,
+    listeners: Map<AudioEventType, Set<AudioEventListener>> = new Map(),
+    listenerPosition: Vector3 = { x: 0, y: 0, z: 0 },
+    listenerForward: Vector3 = { x: 0, y: 0, z: -1 },
+    listenerUp: Vector3 = { x: 0, y: 1, z: 0 },
+    initialized: bool = false
+  }
+
+  @action setConfig(config: SpatialAudioEngineConfig) {
+    self.config = { ...DEFAULT_ENGINE_CONFIG, ...config }
+  }
+
+  /**
+   * Initialize the audio engine
+   */
+  @action async initialize() -> bool {
+    try {
+      self.context = new AudioContext({
+        sampleRate: self.config.sampleRate
+      })
+
+      // Create master gain
+      self.masterGain = self.context.createGain()
+      self.masterGain.gain.value = self.config.masterVolume
+
+      // Create reverb chain (convolver for impulse response)
+      if self.config.reverb.preset != "none" {
+        await self.setupReverb()
+      }
+
+      // Connect master gain to destination
+      self.masterGain.connect(self.context.destination)
+
+      // Setup listener
+      self.updateListener({
+        position: self.listenerPosition,
+        forward: self.listenerForward,
+        up: self.listenerUp
+      })
+
+      self.emit({
+        eventType: AudioEventType.context_state_change,
+        timestamp: Date.now(),
+        data: { state: self.context.state }
+      })
+
+      self.initialized = true
+      return true
+    } catch error {
+      console.error("[SpatialAudioEngine] Failed to initialize:", error)
+      return false
+    }
+  }
+
+  /**
+   * Setup convolution reverb
+   */
+  @action async setupReverb() {
+    if !self.context || !self.masterGain { return }
+
+    // Create nodes
+    self.convolver = self.context.createConvolver()
+    self.convolverGain = self.context.createGain()
+    self.dryGain = self.context.createGain()
+
+    // Set wet/dry mix
+    self.convolverGain.gain.value = self.config.reverb.wetMix
+    self.dryGain.gain.value = 1 - self.config.reverb.wetMix
+
+    // Generate impulse response
+    let impulseResponse = self.generateImpulseResponse(self.config.reverb)
+    self.convolver.buffer = impulseResponse
+  }
+
+  /**
+   * Generate impulse response for reverb
+   */
+  @method generateImpulseResponse(config: ReverbConfig) -> AudioBuffer {
+    let sampleRate = self.context.sampleRate
+    let length = Math.floor(sampleRate * config.decayTime)
+    let impulse = self.context.createBuffer(2, length, sampleRate)
+
+    for let channel = 0; channel < 2; channel += 1 {
+      let data = impulse.getChannelData(channel)
+      for let i = 0; i < length; i += 1 {
+        let decay = Math.exp(-3 * i / length) * (1 - config.highFrequencyDamping * i / length)
+        data[i] = (Math.random() * 2 - 1) * decay
+      }
+    }
+
+    return impulse
+  }
+
+  /**
+   * Create a new audio source
+   */
+  @action createSource(config: AudioSourceConfig) -> typeof SpatialAudioSource {
+    if !self.initialized {
+      throw new Error("Audio engine not initialized")
+    }
+
+    let fullConfig = { ...DEFAULT_AUDIO_SOURCE_CONFIG, ...config }
+    
+    // Create new source module instance (simplified for example)
+    SpatialAudioSource.initialize(self.context, fullConfig, self.masterGain)
+    
+    self.sources.set(config.id, SpatialAudioSource)
+
+    return SpatialAudioSource
+  }
+
+  /**
+   * Get a source by ID
+   */
+  @method getSource(id: string) -> typeof SpatialAudioSource | null {
+    return self.sources.get(id) ?? null
+  }
+
+  /**
+   * Remove a source
+   */
+  @action removeSource(id: string) {
+    let source = self.sources.get(id)
+    if source {
+      source.dispose()
+      self.sources.delete(id)
+    }
+  }
+
+  /**
+   * Update listener position and orientation
+   */
+  @action updateListener(config: ListenerConfig) {
+    self.listenerPosition = config.position
+    self.listenerForward = config.forward
+    self.listenerUp = config.up
+
+    if !self.context { return }
+
+    let listener = self.context.listener
+
+    // Position
+    listener.positionX.setValueAtTime(config.position.x, self.context.currentTime)
+    listener.positionY.setValueAtTime(config.position.y, self.context.currentTime)
+    listener.positionZ.setValueAtTime(config.position.z, self.context.currentTime)
+
+    // Forward direction
+    listener.forwardX.setValueAtTime(config.forward.x, self.context.currentTime)
+    listener.forwardY.setValueAtTime(config.forward.y, self.context.currentTime)
+    listener.forwardZ.setValueAtTime(config.forward.z, self.context.currentTime)
+
+    // Up direction
+    listener.upX.setValueAtTime(config.up.x, self.context.currentTime)
+    listener.upY.setValueAtTime(config.up.y, self.context.currentTime)
+    listener.upZ.setValueAtTime(config.up.z, self.context.currentTime)
+  }
+
+  /**
+   * Set master volume
+   */
+  @action setMasterVolume(volume: number) {
+    self.config.masterVolume = Math.max(0, Math.min(1, volume))
+    if self.masterGain {
+      self.masterGain.gain.setValueAtTime(self.config.masterVolume, self.context.currentTime)
+    }
+  }
+
+  /**
+   * Add event listener
+   */
+  @action addEventListener(eventType: AudioEventType, listener: AudioEventListener) {
+    if !self.listeners.has(eventType) {
+      self.listeners.set(eventType, new Set())
+    }
+    self.listeners.get(eventType).add(listener)
+  }
+
+  /**
+   * Remove event listener
+   */
+  @action removeEventListener(eventType: AudioEventType, listener: AudioEventListener) {
+    if self.listeners.has(eventType) {
+      self.listeners.get(eventType).delete(listener)
+    }
+  }
+
+  /**
+   * Emit an event
+   */
+  @method emit(event: AudioEvent) {
+    let listeners = self.listeners.get(event.eventType)
+    if listeners {
+      for listener in listeners {
+        listener(event)
+      }
+    }
+  }
+
+  /**
+   * Suspend audio context
+   */
+  @action async suspend() {
+    if self.context {
+      await self.context.suspend()
+    }
+  }
+
+  /**
+   * Resume audio context
+   */
+  @action async resume() {
+    if self.context {
+      await self.context.resume()
+    }
+  }
+
+  /**
+   * Dispose of the engine
+   */
+  @action dispose() {
+    for [id, source] in self.sources {
+      source.dispose()
+    }
+    self.sources.clear()
+
+    if self.context {
+      self.context.close()
+    }
+
+    self.initialized = false
+  }
+
+  @computed isInitialized() -> bool {
+    return self.initialized
+  }
+
+  @computed getContext() -> AudioContext | null {
+    return self.context
+  }
+}
+
+// =============================================================================
+// SINGLETON & FACTORY
+// =============================================================================
+
+let _engineInstance: typeof SpatialAudioEngine = null
+
+function getSpatialAudioEngine() -> typeof SpatialAudioEngine {
+  if !_engineInstance {
+    _engineInstance = SpatialAudioEngine
+  }
+  return _engineInstance
+}
+
+function createSpatialAudioEngine(config: SpatialAudioEngineConfig = {}) -> typeof SpatialAudioEngine {
+  SpatialAudioEngine.setConfig(config)
+  return SpatialAudioEngine
+}
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+export {
+  SpatialAudioSource,
+  SpatialAudioEngine,
+  getSpatialAudioEngine,
+  createSpatialAudioEngine
+}

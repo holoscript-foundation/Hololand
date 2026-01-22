@@ -1,0 +1,79 @@
+/**
+ * Core Module Index
+ * 
+ * Exports all core services for HoloScript development.
+ * 
+ * @package @hololand/library
+ * @version 2.0.0
+ */
+
+// Core Services
+export { 
+  HoloScriptService, 
+  ParseResult, 
+  ParseError, 
+  ParseWarning,
+  Token,
+  CompileResult,
+  ExecutionResult,
+  RuntimeError 
+} from "./HoloScriptService.hsplus"
+
+export { 
+  EventBus, 
+  EventChannel, 
+  TypedEvents,
+  EventCallback,
+  EventRecord 
+} from "./EventBus.hsplus"
+
+export { 
+  PreviewService, 
+  PreviewObject, 
+  RenderStats, 
+  CameraState 
+} from "./PreviewService.hsplus"
+
+export { 
+  LibraryService, 
+  LibraryItem, 
+  LibraryCategory, 
+  SearchFilters 
+} from "./LibraryService.hsplus"
+
+// Core namespace for unified access
+module Core {
+  @method getParser(): typeof HoloScriptService {
+    return HoloScriptService
+  }
+  
+  @method getEventBus(): typeof EventBus {
+    return EventBus
+  }
+  
+  @method getPreview(): typeof PreviewService {
+    return PreviewService
+  }
+  
+  @method getLibrary(): typeof LibraryService {
+    return LibraryService
+  }
+  
+  @action async initializeAll(container?: HTMLElement): Promise<void> {
+    HoloScriptService.initialize()
+    
+    if (container) {
+      PreviewService.initialize(container)
+    }
+    
+    await LibraryService.initialize()
+  }
+  
+  @action disposeAll(): void {
+    PreviewService.dispose()
+    EventBus.reset()
+    HoloScriptService.clearCache()
+  }
+}
+
+export { Core }
