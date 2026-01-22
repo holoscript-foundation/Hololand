@@ -11,6 +11,7 @@
 | [QUICKSTART.md](../QUICKSTART.md) | 5-minute setup guide |
 | [CREATOR_QUICKSTART.md](./CREATOR_QUICKSTART.md) | For content creators |
 | [HOLOSCRIPT_FILE_TYPES.md](./HOLOSCRIPT_FILE_TYPES.md) | .holo vs .hsplus explained |
+| [2D_APP_GUIDE.md](./2D_APP_GUIDE.md) | **Build 2D desktop/mobile apps** |
 
 ---
 
