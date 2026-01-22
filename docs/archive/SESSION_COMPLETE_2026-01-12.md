@@ -292,7 +292,7 @@ infinityassistant-service/
 
 ## 🙏 Credits
 
-**Co-Authored-By**: Claude Sonnet 4.5 <noreply@anthropic.com>
+**Co-Authored-By**: Brian on Base Team
 
 ## ✨ Vision Realized
 

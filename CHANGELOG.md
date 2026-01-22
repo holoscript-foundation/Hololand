@@ -151,7 +151,7 @@ This is the first release, no migration needed!
 ## Contributors
 
 - [@brianonbased-dev](https://github.com/brianonbased-dev)
-- Claude Sonnet 4.5 <noreply@anthropic.com> (Co-Author)
+- Brian on Base Team
 
 ---
 
