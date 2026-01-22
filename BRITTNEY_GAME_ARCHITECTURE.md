@@ -37,9 +37,7 @@
                          │
 ┌────────────────────────▼────────────────────────────────────┐
 │              Brittney AI Backend Service                     │
-│    (Runs fine-tuned GPT-4o-mini for HoloScript)            │
-│  Model: ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brit... │
-│  Temperature: 0.7 | Max Tokens: 2000                        │
+│    TBD                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 

@@ -116,6 +116,45 @@ composition "hololand_planet" {
     }
   }
 
+  // ============================================
+  // DOWNTOWN CORE ZONES (PHASE 0)
+  // ============================================
+
+  group WelcomePlaza {
+    position: [0, 0, 5]
+    orb#PlazaFloor {
+       shape: "plane"
+       position: [0, -0.01, 0]
+       rotation: [-90, 0, 0]
+       scale: [10, 10, 1]
+       color: "#1e293b"
+    }
+  }
+
+  group BriansGym {
+    position: [10, 0, 0]
+    orb#GymStructure {
+       shape: "cube"
+       position: [0, 1, 0]
+       scale: [4, 2, 4]
+       color: "#ef4444"
+       text: "GYM"
+       @trait(glow)
+    }
+  }
+
+  group GreenMachineArcade {
+    position: [-10, 0, 0]
+    orb#ArcadeStructure {
+       shape: "cube"
+       position: [0, 1, 0]
+       scale: [4, 2, 4]
+       color: "#22c55e"
+       text: "ARCADE"
+       @trait(glow)
+    }
+  }
+
   // Ambient Particles
   @for i in range(0, 50) {
     orb Particle_${i} {

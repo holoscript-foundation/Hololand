@@ -1,6 +1,7 @@
 # 🚀 Hololand/HoloScript Development Roadmap
 
-**Current Status**: All Core Infrastructure Complete ✅
+**Current Status**: Core Infrastructure + Developer Tools Complete ✅  
+**Last Updated**: January 22, 2026
 
 ---
 
@@ -15,12 +16,20 @@
 - ✅ MCP Server integration (22 tools, 55+ total across ecosystem)
 - ✅ Test suite created (102 tests across 4 suites)
 
+### Phase 2.5: Developer Tools (Jan 2026) ✅ NEW
+- ✅ **@hololand/holoscript-formatter v2.0.0** - Code formatting with CLI
+- ✅ **@hololand/holoscript-linter v2.0.0** - Static analysis with 5 built-in rules
+- ✅ **@hololand/holoscript-lsp v1.0.0** - Language Server Protocol support
+- ✅ HoloScript tests: 541 passed, 19 skipped
+- ✅ Hololand monorepo: Full build passing
+
 ---
 
-## 🎯 **Next 3 Priority Tracks**
+## 🎯 **Active Development Tracks**
 
-### 🏗️ **TRACK 1: HoloScript Playground** (Tier 1 - Core)
-**Goal**: Build the centerpiece editor for HoloScript development
+### 🏗️ **TRACK 1: HoloScript Playground** (In Progress)
+**Goal**: Build the centerpiece editor for HoloScript development  
+**Status**: Foundation exists in `packages/playground/`
 
 #### Deliverables:
 1. **Monaco Editor Integration**
@@ -297,7 +306,7 @@ npm run dev
 
 ---
 
-**Last Updated**: January 20, 2026  
+**Last Updated**: January 22, 2026  
 **Prepared By**: GitHub Copilot Agent  
-**Status**: Ready to Commence ✅
+**Status**: Developer Tools Complete ✅ | Playground In Progress 🔨
 

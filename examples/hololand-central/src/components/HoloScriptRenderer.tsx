@@ -14,6 +14,16 @@ import { AssetRegistry } from '../services/AssetRegistry';
 import { SettingsModal } from './SettingsModal';
 import { BrittneyChat } from './BrittneyChat';
 import { ReactHoloRenderer, HoloEntityData } from '../services/HoloPlusRendererBridge';
+import { OasisHUD } from './OasisHUD';
+import { THEMES, getNextTheme } from '../themes/themes';
+import { Theme } from '../themes/types';
+import { 
+  EventBus, 
+  NPCSystem, 
+  NPCTrait, 
+  DialogManager, 
+  HoloScriptLoader 
+} from '../../../../packages/world/src/index';
 
 // --- Static Helpers Moved to AssetRegistry ---
 const assetRegistry = AssetRegistry.getInstance();
@@ -352,6 +362,10 @@ interface HoloScriptRendererProps {
 }
 
 export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptContent }) => {
+  // Pass up the dialog manager so OasisPage can render the overlay
+  // Or render overlay here? Render props pattern might be better but for now let's expose it 
+  // actually, let's keep it self contained and assume parent handles layout.
+  // Wait, the renderer is inside Canvas. Overlay must be HTML.
   const [entities, setEntities] = useState<HoloEntityData[]>([]);
   const [tick, setTick] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -359,9 +373,46 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   
+  // Theming State
+  const [currentTheme, setCurrentTheme] = useState<Theme>(THEMES.cyberpunk);
+  const [isFading, setIsFading] = useState(false);
+  
+  const cycleTheme = () => {
+      setIsFading(true);
+      setTimeout(() => {
+          setCurrentTheme(prev => getNextTheme(prev.name));
+          setTimeout(() => setIsFading(false), 100);
+      }, 300);
+  };
+  
   // Bridge and Runtime State
   const rendererBridge = useMemo(() => new ReactHoloRenderer(setEntities), []);
   const runtimeRef = useRef<HoloScriptPlusRuntimeImpl | null>(null);
+
+  // NPC Systems State
+  const [npcEntities, setNpcEntities] = useState<HoloEntityData[]>([]);
+  
+  // Initialize Systems (Memoized to persist across renders)
+  const systems = useMemo(() => {
+      const eventBus = new EventBus();
+      const npcSystem = new NPCSystem(eventBus);
+      const dialogManager = new DialogManager(eventBus);
+      const loader = new HoloScriptLoader(npcSystem, dialogManager);
+      
+      // Expose to window for debugging
+      (window as any).__HOLOLAND_SYSTEMS__ = { npcSystem, dialogManager, eventBus };
+      
+      return { eventBus, npcSystem, dialogManager, loader };
+  }, []);
+
+  // Expose dialog manager to parent via event or ref? 
+  // Actually, we can dispatch a custom event when systems are ready so parent can grab the manager
+  useEffect(() => {
+      if (systems) {
+          const detail = { dialogManager: systems.dialogManager };
+          window.dispatchEvent(new CustomEvent('hololand:systems-ready', { detail }));
+      }
+  }, [systems]);
 
   useEffect(() => {
     if (!runtimeRef.current) return;
@@ -378,13 +429,14 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
         if (payload.id === 'chat') setChatOpen(true);
     };
 
-    runtime.on('show-settings', handleShowSettings);
-    runtime.on('show-chat', handleShowChat);
-    runtime.on('open_modal', handleOpenModal);
+    const unsubSettings = runtime.on('show-settings', handleShowSettings);
+    const unsubChat = runtime.on('show-chat', handleShowChat);
+    const unsubModal = runtime.on('open_modal', handleOpenModal);
 
     return () => {
-      runtime.off('show-settings', handleShowSettings);
-      runtime.off('show-chat', handleShowChat);
+      unsubSettings();
+      unsubChat();
+      unsubModal();
     };
   }, [tick]); // Re-bind when runtime is recreated
 
@@ -504,6 +556,11 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
 
       setTick((t) => t + 1);
     }
+
+    // Update NPC System
+    if (systems && playerPosition) {
+        systems.npcSystem.update({ x: playerPosition.x, y: playerPosition.y, z: playerPosition.z });
+    }
   });
 
   useEffect(() => {
@@ -553,7 +610,35 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
     };
 
     parseAndLoad();
-  }, [scriptContent]);
+    
+    // Also load the script into the NPC loader to extract traits
+    if (systems) {
+        console.log("Loading script into NPC Loader...");
+        systems.loader.load(scriptContent);
+        
+        // Convert NPC traits to HoloEntityData for rendering
+        const traits = systems.npcSystem.getAll();
+        const visualEntities: HoloEntityData[] = traits.map((t, idx) => ({
+            id: t.id,
+            type: 'npc',
+            // Use trait position if available, else spread them out
+            position: t.position ? [t.position.x, t.position.y, t.position.z] : [5 + (idx * 2), 0, 5], 
+            scale: [1, 1, 1],
+            mesh: t.model || 'robot_v2', // Use trait model or fallback
+            text: t.name,
+            traits: ['talkable', 'lookAtPlayer', 'hover'],
+            properties: {
+                dialogue: "...", // Placeholder, actual dialog handled by UI overlay
+                opacity: 1
+            },
+            color: '#ff00ff', // Pink for NPCs
+            glow: true
+        }));
+        
+        setNpcEntities(visualEntities);
+    }
+
+  }, [scriptContent, systems]);
 
   // Entity sync for special game logic (Pinball, etc)
   const syncedEntities = useMemo(() => {
@@ -601,17 +686,38 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
 
   return (
     <group>
-      {/* 4. Night-time Solarpunk Atmosphere */}
-      <Environment preset="night" blur={0.6} background />
-      <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={0.5} />
+      {/* 4. Dynamic Theming Atmosphere */}
+      <Environment preset={currentTheme.name === 'snowy-town' || currentTheme.name === 'holiday' ? 'city' : 'night'} blur={0.6} background />
       
-      {/* High-Depth Lighting */}
-      <ambientLight intensity={0.2} />
-      <pointLight position={[10, 10, 10]} intensity={2.5} color="#4cc9f0" castShadow />
-      <pointLight position={[-10, 5, -10]} intensity={1.5} color="#ff00ff" />
+      {currentTheme.name === 'cyberpunk' && (
+          <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={0.5} />
+      )}
+      
+      {/* Theme-specific Particles */}
+      {currentTheme.decorations?.map((dec, i) => (
+          dec.type === 'particle' && (
+              <Sparkles key={i} count={dec.count} scale={20} size={dec.size * 50} speed={0.4} opacity={0.5} color={dec.color} />
+          )
+      ))}
+      
+      {/* High-Depth Lighting (Dynamic based on Theme) */}
+      <ambientLight intensity={currentTheme.lighting.ambientIntensity || 0.2} />
+      
+      {currentTheme.lighting.pointLights.map((pl, i) => (
+          <pointLight 
+            key={i}
+            position={pl.position as [number, number, number]} 
+            intensity={pl.intensity * 5} 
+            color={pl.color} 
+            castShadow 
+            distance={pl.distance}
+          />
+      ))}
+      
       <directionalLight 
         position={[5, 10, 5]} 
-        intensity={1.2} 
+        intensity={currentTheme.lighting.mainLightIntensity || 1.2} 
+        color={currentTheme.lighting.mainLightColor || '#ffffff'}
         castShadow 
         shadow-mapSize={[1024, 1024]}
       />
@@ -627,32 +733,76 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
          color="#000000" 
       />
 
-      {/* Premium Post-Processing - Temporarily Disabled to Fix Crash */}
-      {/* <Suspense fallback={null}>
-        <EffectComposer>
-          <Bloom 
-            luminanceThreshold={1.0} 
-            mipmapBlur 
-            intensity={1.2} 
-            radius={0.4}
-          />
-          <Vignette eskil={false} offset={0.1} darkness={1.1} />
-          <Noise opacity={0.02} />
-          <ToneMapping adaptive={true} />
-        </EffectComposer>
-      </Suspense> */}
-
       {/* Render Entities */}
       {syncedEntities.map((ent, i) => (
         <HoloEntity 
-            key={i} 
+            key={`${i}-${ent.id}`} 
             entity={ent} 
             runtime={runtimeRef.current} 
             playerPosition={playerPosition}
         />
       ))}
 
-      {/* Player Character */}
+      {/* Render NPC Entities (Bridge) */}
+      {npcEntities.map((ent, i) => {
+          // Safety: Skip if position is missing (initialization delay)
+          if (!ent.position || !playerPosition) return null;
+          
+          const dist = playerPosition.distanceTo(new Vector3(...ent.position));
+          const inRange = dist < 5;
+          return (
+             <group key={`npc-group-${ent.id}`}>
+                <HoloEntity
+                    entity={ent}
+                    runtime={runtimeRef.current}
+                    playerPosition={playerPosition}
+                />
+                <Html position={[ent.position[0], ent.position[1] + 2.5, ent.position[2]]} distanceFactor={8}>
+                    <div style={{
+                        opacity: inRange ? 1 : 0,
+                        transform: inRange ? 'scale(1)' : 'scale(0.8)',
+                        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '5px',
+                        pointerEvents: 'none'
+                    }}>
+                        <div style={{
+                            padding: '6px 12px',
+                            background: 'rgba(0, 255, 255, 0.9)',
+                            backdropFilter: 'blur(4px)',
+                            color: '#000',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 900,
+                            letterSpacing: '1px',
+                            boxShadow: '0 0 15px rgba(0, 255, 255, 0.6)',
+                            animation: inRange ? 'bounce 0.8s infinite alternate cubic-bezier(0.45, 0, 0.55, 1)' : 'none',
+                            whiteSpace: 'nowrap'
+                        }}>
+                             TALK [E]
+                        </div>
+                        <div style={{ 
+                            width: 0, 
+                            height: 0, 
+                            borderLeft: '6px solid transparent', 
+                            borderRight: '6px solid transparent', 
+                            borderTop: '8px solid rgba(0, 255, 255, 0.9)',
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                        }} />
+                    </div>
+                    <style>{`
+                        @keyframes bounce {
+                            from { transform: translateY(0); }
+                            to { transform: translateY(-8px); }
+                        }
+                    `}</style>
+                </Html>
+             </group>
+          );
+      })}
+
       {/* Player Character */}
       <Suspense fallback={null}>
         <PlayerController 
@@ -662,80 +812,59 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
         />
       </Suspense>
 
-      {/* Holographic HUD Overlay */}
+      {/* NEW HUD & OVERLAYS */}
       <Html fullscreen>
-        <div style={hudStyle}>
-          <div style={{ fontSize: '12px', opacity: 0.7, marginBottom: '5px' }}>
-            OASIS INTERFACE v4.0
-          </div>
-          <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>THE OASIS HUB</span>
-            <button 
-              onClick={() => setSettingsOpen(true)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#4ade80',
-                cursor: 'pointer',
-                padding: '5px',
-                display: 'flex',
-                alignItems: 'center',
-                pointerEvents: 'auto'
-              }}
-              title="Settings"
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-              </svg>
-            </button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '40px' }}>
-              <span>DATA BITS:</span>
-              <span style={{ color: '#fff' }}>
-                {String(runtimeRef.current?.getVariable('bitsCollected') || 0)}/5
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '40px' }}>
-              <span>LEGENDS LEVEL:</span>
-              <span style={{ color: '#fff' }}>
-                {String(runtimeRef.current?.getVariable('legendsLevel') || 1)}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '40px' }}>
-              <span>TOTAL VISITORS:</span>
-              <span style={{ color: '#fff' }}>
-                {String(runtimeRef.current?.getVariable('visitorCount') || '---')}
-              </span>
-            </div>
-          </div>
+        {/* Cinematic Screen Fade */}
+        <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#000',
+            opacity: isFading ? 1 : 0,
+            transition: 'opacity 0.3s ease-in-out',
+            pointerEvents: 'none',
+            zIndex: 3000
+        }} />
 
-          {((runtimeRef.current?.getVariable('bitsCollected') as number) || 0) >= 5 && (
-            <div
-              style={{
-                marginTop: '15px',
-                padding: '8px',
-                background: 'rgba(74, 222, 128, 0.2)',
-                borderRadius: '8px',
-                textAlign: 'center',
-                fontSize: '14px',
-                color: '#fff',
-                border: '1px solid #4ade80',
-              }}
+        <OasisHUD 
+            playerPosition={playerPosition || new Vector3(0,0,0)}
+            bitsCollected={(runtimeRef.current?.getVariable('bitsCollected') as number) ?? 0}
+            visitorCount={(runtimeRef.current?.getVariable('visitorCount') as number) ?? 128}
+        />
+        
+        {/* Theme Toggle Button (Experimental) */}
+        <div style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            pointerEvents: 'auto',
+            zIndex: 1000
+        }}>
+            <button 
+                onClick={cycleTheme}
+                style={{
+                    padding: '10px 15px',
+                    background: 'rgba(26, 26, 46, 0.8)',
+                    border: '1px solid #00ffff',
+                    color: '#00ffff',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
+                }}
             >
-              MISSION COMPLETE! TALK TO BRIAN
-            </div>
-          )}
+                THEME: {currentTheme.displayName.toUpperCase()}
+            </button>
         </div>
+
         <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <BrittneyChat isOpen={chatOpen} onClose={() => setChatOpen(false)} runtime={runtimeRef.current as any} />
       </Html>
 
-      {/* Ground Plane (Infinite Grid) */}
-      <gridHelper args={[100, 100, 0x00ffff, 0x222222]} position={[0, -0.01, 0]} />
+      {/* Ground Plane (Dynamic Color) */}
+      <gridHelper args={[100, 100, currentTheme.colors.primary, 0x222222]} position={[0, -0.01, 0]} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
         <planeGeometry args={[1000, 1000]} />
-        <meshStandardMaterial color="#1a1a2e" roughness={0.8} />
+        <meshStandardMaterial color={currentTheme.colors.floor || '#1a1a2e'} roughness={0.8} />
       </mesh>
     </group>
   );

@@ -1,5 +1,5 @@
 
-import { parse } from '@holoscript/core';
+import { parseHoloScriptPlus as parse } from '@holoscript/core';
 import { NPCSystem, NPCTrait } from '../systems/NPCSystem';
 import { DialogManager, DialogNode } from '../managers/DialogManager';
 
@@ -49,12 +49,25 @@ export class HoloScriptLoader {
        }
     }
 
+    // Extract position if available [x, y, z]
+    let position: { x: number, y: number, z: number } | undefined = undefined;
+    const posProp = d.props.position;
+    if (Array.isArray(posProp) && posProp.length === 3) {
+        position = { 
+            x: Number(posProp[0]), 
+            y: Number(posProp[1]), 
+            z: Number(posProp[2]) 
+        };
+    }
+
     const trait: NPCTrait = {
       id: cleanId(d.name),
       name: cleanId(d.name),
       dialogId: cleanId(dialogRef),
       interactionRange: Number(d.props.interaction_range || d.props.vision_range || 3.0),
-      currentAnimation: cleanId(d.props.idle) as any || 'idle'
+      currentAnimation: cleanId(d.props.idle) as any || 'idle',
+      model: d.props.model ? cleanId(d.props.model) : undefined,
+      position
     };
     
     this.npcSystem.register(trait);

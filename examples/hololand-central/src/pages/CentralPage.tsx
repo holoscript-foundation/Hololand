@@ -1,7 +1,21 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function CentralPage() {
   const navigate = useNavigate();
+
+  // Enable MCP/DevTools injection
+  useEffect(() => {
+    const unsubscribe = window.__HOLOLAND_CENTRAL__?.onHoloScriptUpdate((script) => {
+        console.log('[CentralPage] HoloScript update received:', script.slice(0, 50));
+        // If we want to render it, we should probably mount a HoloScriptRenderer here too
+        // For now, let's just log it to confirm receipt.
+        // TODO: Mount HoloScriptRenderer overlay or replace content?
+    });
+    return () => {
+        if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative">

@@ -1,0 +1,71 @@
+
+@npc "Welcomer" {
+  model: "robot_v2"
+  idle: "hover_anim"
+  interact: @dialog "welcomer_start"
+  vision_range: 5.0
+  position: [0, 0, 5]
+}
+
+@npc "Brian" {
+  model: "brian_flexing"
+  idle: "idle_anim"
+  interact: @dialog "brian_start"
+  vision_range: 5.0
+  position: [10, 0, 0]
+}
+
+@npc "ArcadeMaster" {
+  model: "robot_v2"
+  idle: "hover_anim"
+  interact: @dialog "arcade_start"
+  vision_range: 5.0
+  position: [-10, 0, 0]
+}
+
+// --- Dialogs ---
+
+@dialog "welcomer_start" {
+  text: "Welcome to Hololand Central! I am the plaza concierge. How can I help you today?"
+  option "What is this place?" -> "welcomer_info"
+  option "Where is the Gym?" -> "welcomer_gym"
+  option "Goodbye" -> @close
+}
+
+@dialog "welcomer_info" {
+  text: "This is the Downtown Core. You can find the Gym, Arcade, Casino, and more within walking distance!"
+  option "Back" -> "welcomer_start"
+}
+
+@dialog "welcomer_gym" {
+  text: "Head East (X: +10) to find $BRIAN's Gym. It's hard to miss the flexing."
+  option "Thanks!" -> @close
+}
+
+@dialog "brian_start" {
+  text: "RAAAHH! Welcome to the IRON GRID. Ready to crush some digital sets?"
+  option "Always ready, Brian." -> "brian_flex"
+  option "Who are you?" -> "brian_who"
+  option "Just passing through." -> @close
+}
+
+@dialog "brian_flex" {
+  text: "That's the spirit! Check out these vertices! NO PAIN, NO GAIN."
+  option "Incredible." -> @close
+}
+
+@dialog "brian_who" {
+  text: "I am $BRIAN. The spirit of fitness in the Oasis. I'm here to make sure your avatar is as optimized as your code."
+  option "Cool." -> "brian_start"
+}
+
+@dialog "arcade_start" {
+  text: "Bleep bloop! Welcome to the GREEN MACHINE ARCADE. Want to play a game?"
+  option "What games do you have?" -> "arcade_games"
+  option "Maybe later." -> @close
+}
+
+@dialog "arcade_games" {
+  text: "We have Pinball, Rhythm Runner, and the High-Score Hunt. The leaderboards are waiting."
+  option "Nice." -> @close
+}

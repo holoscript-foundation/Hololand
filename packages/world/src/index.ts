@@ -23,6 +23,11 @@ export { EventBus, type WorldEvent } from './EventBus';
 // Logger
 export { setHololandWorldLogger, resetLogger, type HololandWorldLogger } from './logger';
 
+// Systems & Managers
+export { NPCSystem, type NPCTrait } from './systems/NPCSystem';
+export { DialogManager, type DialogNode, type DialogOption } from './managers/DialogManager';
+export { HoloScriptLoader } from './utils/HoloScriptLoader';
+
 // Types
 export type { Vector3, Quaternion, BoundingBox, Transform } from './types';
 
@@ -81,6 +86,9 @@ import { SpatialObject } from './SpatialObject';
 import { PhysicsEngine } from './PhysicsEngine';
 import { SpatialIndex } from './SpatialIndex';
 import { EventBus } from './EventBus';
+import { NPCSystem } from './systems/NPCSystem';
+import { DialogManager } from './managers/DialogManager';
+import { HoloScriptLoader } from './utils/HoloScriptLoader';
 
 export default {
   HololandWorld,
@@ -88,6 +96,9 @@ export default {
   PhysicsEngine,
   SpatialIndex,
   EventBus,
+  NPCSystem,
+  DialogManager,
+  HoloScriptLoader,
   createWorld,
   vectorDistance,
   vectorAdd,

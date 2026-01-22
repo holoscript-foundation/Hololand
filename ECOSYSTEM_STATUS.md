@@ -2,7 +2,7 @@
 
 **Everything you need to build VR/AR experiences.**
 
-*Last Updated: January 19, 2026*
+*Last Updated: January 22, 2026*
 
 ---
 
@@ -48,6 +48,9 @@
 | [@hololand/logger](./packages/logger) | Error tracking | ✅ Ready |
 | [@hololand/devtools](./packages/devtools) | Debugging helpers | ✅ Ready |
 | [@hololand/mcp-server](./packages/mcp-server) | AI agent tools | ✅ Ready |
+| [@hololand/holoscript-formatter](./packages/holoscript-formatter) | Code formatting | ✅ v2.0.0 |
+| [@hololand/holoscript-linter](./packages/holoscript-linter) | Static analysis | ✅ v2.0.0 |
+| [@hololand/holoscript-lsp](./packages/holoscript-lsp) | Language Server | ✅ v1.0.0 |
 
 ### Apps
 
