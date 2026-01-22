@@ -10,14 +10,80 @@
 
 **Brittney** is the native AI agent embedded within Hololand. She allows games to generate infinite content on the fly.
 
-### Integration Stack
+### Deployment Tiers
+
+| Tier | Package | Model | Use Case |
+|------|---------|-------|----------|
+| **Local** | `@hololand/brittney-toolkit` | Bundled GGUF (2GB) | Tauri apps, mobile, offline |
+| **Cloud** | `@hololand/brittney-service` | Fine-tuned GPT-4o-mini | Web apps, enterprise |
+| **Hybrid** | Both | Local first, cloud fallback | Best of both |
+
+### Architecture
 
 ```mermaid
 graph TD
-    App["Game Logic"] -->|useBrittneyGame()| Service["Brittney Service"]
-    Service -->|Context Window| GPT["Brittney Backend (GPT-4o)"]
-    GPT -->|Structured JSON| Service
-    Service -->|Hydration| ECS["ECS World State"]
+    subgraph "Desktop/Mobile (Tauri/Capacitor)"
+        App1["App"] --> Toolkit["brittney-toolkit"]
+        Toolkit --> Local["Local GGUF Model"]
+        Local --> WASM["llama.cpp WASM"]
+    end
+    
+    subgraph "Web (Browser)"
+        App2["App"] --> Service["brittney-service"]
+        Service --> Cloud["Cloud API"]
+        Cloud --> GPT["Fine-tuned GPT-4o-mini"]
+    end
+    
+    subgraph "Hybrid"
+        App3["App"] --> Engine["BrittneyEngine"]
+        Engine -->|Offline| Local2["Local Model"]
+        Engine -->|Online| Cloud2["Cloud API"]
+    end
+```
+
+### Bundled Model (Desktop & Mobile)
+
+Apps built with **Tauri** (desktop) or **Capacitor/React Native** (mobile) ship with a bundled Brittney model:
+
+| Property | Value |
+|----------|-------|
+| **Model** | TinyLlama 1.1B (fine-tuned on HoloScript) |
+| **Format** | GGUF (quantized) |
+| **Size** | ~2 GB |
+| **Context** | 2048 tokens |
+| **Inference** | llama.cpp via WASM |
+
+```typescript
+// Tauri/Mobile app - works completely offline
+import { BrittneyEngine, BUNDLED_MODEL } from '@hololand/brittney-toolkit';
+
+const brittney = new BrittneyEngine({
+  mode: 'local',
+  model: BUNDLED_MODEL, // Uses bundled GGUF
+});
+
+await brittney.initialize();
+const scene = await brittney.generate({ prompt: 'Medieval village' });
+```
+
+### Cloud Models (Web & Enterprise)
+
+For web apps or enhanced capabilities, use cloud inference:
+
+| Model ID | Examples | Purpose |
+|----------|----------|---------|
+| `brittney` (V1) | 94 | HoloScript code generation |
+| `brittney-v2` (V2) | 10,000 | General assistant tasks |
+
+```typescript
+// Web app - requires API key
+import { CloudInference } from '@hololand/brittney-toolkit';
+
+const cloud = new CloudInference({
+  provider: 'openai',
+  model: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4',
+  apiKey: process.env.OPENAI_API_KEY,
+});
 ```
 
 ### Capabilities
@@ -28,18 +94,7 @@ graph TD
 | **Living NPCs** | Real-time dialogue and behavior trees | `generateNPCDialogue()` |
 | **Scene Composition** | Procedural placement of assets | `generateScene()` |
 | **Game Balance** | AI-tuned item stats and abilities | Differential Evolution |
-
-### Usage
-
-```typescript
-// React Hook for AI Generation
-const { generateQuest, loading } = useBrittneyGame();
-
-const onAcceptMission = async () => {
-    // Generates a unique quest based on player level and location
-    const quest = await generateQuest({
-        theme: "Dragon Slaying",
-        difficulty: "Hard",
+| **Offline AI** | Full functionality without internet | Bundled GGUF model |
         context: gameState
     });
     

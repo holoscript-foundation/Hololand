@@ -4,7 +4,13 @@
 
 ## Overview
 
-A lightweight toolkit that brings Brittney AI to any application. Ships with a bundled GGUF model - no cloud required. Users can optionally use cloud providers.
+A lightweight toolkit that brings Brittney AI to any application. **Ships with a bundled GGUF model** (~2GB) - no cloud or API keys required. Perfect for:
+
+- **Tauri desktop apps** (Windows, macOS, Linux)
+- **Mobile apps** (iOS, Android via Capacitor/React Native)
+- **Offline-first experiences**
+
+Users can optionally connect to cloud providers (OpenAI, Anthropic, etc.) for enhanced capabilities.
 
 ```typescript
 import { BrittneyEngine } from '@hololand/brittney-toolkit';
@@ -18,8 +24,10 @@ console.log(response.text); // HoloScript code
 
 ## Features
 
-- **Bundled Model** - 2GB GGUF model included (TinyLlama 1.1B fine-tuned)
+- **Bundled Model** - 2GB GGUF model included (TinyLlama 1.1B fine-tuned on HoloScript)
 - **Zero Config** - Works out of the box, no API keys needed
+- **Tauri Ready** - Bundle with desktop apps for offline AI
+- **Mobile Ready** - Works with Capacitor/React Native
 - **Cloud Optional** - Bring your own OpenAI/Anthropic/Google/Groq key
 - **Chat Widget** - Pre-built UI component
 - **Device Adaptive** - Responsive layout for desktop/tablet/mobile

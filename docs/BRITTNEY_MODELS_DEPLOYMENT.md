@@ -110,10 +110,37 @@ npm run dev
 
 ---
 
+## Bundled Model (Desktop & Mobile)
+
+For **Tauri** (desktop) and **Capacitor/React Native** (mobile) apps, use the bundled local model:
+
+| Property | Value |
+|----------|-------|
+| **Package** | `@hololand/brittney-toolkit` |
+| **Model** | TinyLlama 1.1B (fine-tuned on HoloScript) |
+| **Format** | GGUF (quantized) |
+| **Size** | ~2 GB |
+| **Inference** | llama.cpp via WASM |
+
+```typescript
+import { BrittneyEngine, BUNDLED_MODEL } from '@hololand/brittney-toolkit';
+
+const brittney = new BrittneyEngine({
+  mode: 'local',
+  model: BUNDLED_MODEL, // Works offline
+});
+
+await brittney.initialize();
+const scene = await brittney.generate({ prompt: 'Medieval village' });
+```
+
+---
+
 ## Next Steps
 
 1. ✅ Hololand brittney-service configured with V1
 2. ✅ uAA2 config created with V2
-3. ⏳ Set `OPENAI_API_KEY` in production environment
-4. ⏳ Integrate brittney-models.ts into uAA2-service package
-5. ⏳ Test end-to-end with both services
+3. ✅ Bundled GGUF model for Tauri/mobile apps
+4. ⏳ Set `OPENAI_API_KEY` in production environment
+5. ⏳ Integrate brittney-models.ts into uAA2-service package
+6. ⏳ Test end-to-end with both services
