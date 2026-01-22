@@ -296,10 +296,11 @@ pnpm test
 
 ## Links
 
+- [Documentation Index](./docs/INDEX.md) - All docs in one place
 - [HoloScript](https://github.com/brianonbased-dev/HoloScript) - The language
 - [Infinity Assistant](https://infinityassistant.io) - AI building service
 - [Examples](./examples/) - Working demos
-- [Full Docs](./ECOSYSTEM_STATUS.md) - Complete ecosystem
+- [Full Ecosystem](./ECOSYSTEM_STATUS.md) - All 40+ packages
 
 ---
 

@@ -1,52 +1,105 @@
-# HoloScript Complete Project Index
+# Hololand Documentation
 
-## Project Overview
-
-**HoloScript** is a unified multiplayer game framework combining:
-- **10 Systems** across 3 tiers (networking, physics, generation, marketplace, versioning, parties, analytics, sync, local networking, examples)
-- **3 Platforms** (Browser, Desktop, Mobile)
-- **Local-First Architecture** (works offline, syncs when online)
-- **Production-Ready Code** (8,300+ LOC, 95+ tests)
+> **Quick Links:** [README](../README.md) | [QUICKSTART](../QUICKSTART.md) | [ECOSYSTEM](../ECOSYSTEM_STATUS.md) | [CONTRIBUTING](../CONTRIBUTING.md)
 
 ---
 
-## Quick Navigation
+## 🚀 Getting Started
 
-### 📋 Documentation
-
-#### Getting Started
-1. [Week 3 Completion Summary](WEEK3_COMPLETION_SUMMARY.md) - Overview of everything created
-2. [Integration Complete](INTEGRATION_COMPLETE.md) - Full architecture and features
-
-#### System Guides
-1. [Tier 3/4 Guide](TIER3_TIER4_GUIDE.md) - Advanced systems (Networking, Physics, Generation, Marketplace, VersionControl)
-2. [Architecture Guide](ARCHITECTURE_TIER3_4.md) - Technical architecture details
-3. [Local-First Guide](LOCAL_FIRST_GUIDE.md) - Offline-first design and local systems
-4. [Verification](VERIFICATION.md) - Testing and validation procedures
-
-#### Deployment Guides
-1. [Browser Deployment](DEPLOYMENT_BROWSER.md) - React + Vite setup
-2. [Tauri Desktop Deployment](DEPLOYMENT_TAURI.md) - Windows/macOS/Linux native apps
-3. [Mobile Deployment](DEPLOYMENT_MOBILE.md) - iOS and Android apps
-4. [Cloud Sync Server](DEPLOYMENT_CLOUD_SYNC.md) - Optional Express backend
+| Doc | Description |
+|-----|-------------|
+| [QUICKSTART.md](../QUICKSTART.md) | 5-minute setup guide |
+| [CREATOR_QUICKSTART.md](./CREATOR_QUICKSTART.md) | For content creators |
+| [HOLOSCRIPT_FILE_TYPES.md](./HOLOSCRIPT_FILE_TYPES.md) | .holo vs .hsplus explained |
 
 ---
 
-## Code Structure
+## 📖 Language Reference
 
-### Core Systems (10 files - 3,370 LOC)
+| Doc | Description |
+|-----|-------------|
+| [HOLOSCRIPT_LANGUAGE_SPEC.md](./HOLOSCRIPT_LANGUAGE_SPEC.md) | HoloScript syntax & features |
+| [HSPLUS_LANGUAGE_SPEC.md](./HSPLUS_LANGUAGE_SPEC.md) | HoloScript+ full language spec |
+| [HOLOSCRIPT_INTEGRATION_GUIDE.md](./HOLOSCRIPT_INTEGRATION_GUIDE.md) | Integrating HoloScript in apps |
 
-Located in: `HoloScript/` directory
+---
 
-1. **NetworkedWorldState.hsplus** (250 LOC)
-   - Real-time object synchronization
-   - 30Hz sync rate with interpolation
-   - Conflict resolution
+## 🤖 Brittney AI
 
-2. **PhysicsConstraints.hsplus** (300 LOC)
-   - Advanced constraint solver
-   - Joint, spring, distance constraints
-   - Iterative solver with convergence
+| Doc | Description |
+|-----|-------------|
+| [BRITTNEY_AI_PACKAGE_INDEX.md](./BRITTNEY_AI_PACKAGE_INDEX.md) | Complete Brittney documentation |
+| [BRITTNEY_SYSTEM_REFERENCE.md](./BRITTNEY_SYSTEM_REFERENCE.md) | System architecture |
+| [BRITTNEY_FINETUNING_INSTRUCTIONS.md](./BRITTNEY_FINETUNING_INSTRUCTIONS.md) | Train your own model |
+| [BRITTNEY_MODELS_DEPLOYMENT.md](./BRITTNEY_MODELS_DEPLOYMENT.md) | Deploy to Vast.ai/cloud |
+
+---
+
+## 🚢 Deployment
+
+| Doc | Description |
+|-----|-------------|
+| [DEPLOYMENT_BROWSER.md](./DEPLOYMENT_BROWSER.md) | Web deployment (React/Vite) |
+| [DEPLOYMENT_TAURI.md](./DEPLOYMENT_TAURI.md) | Desktop apps (Windows/Mac/Linux) |
+| [DEPLOYMENT_MOBILE.md](./DEPLOYMENT_MOBILE.md) | Mobile apps (iOS/Android) |
+| [DEPLOYMENT_CLOUD_SYNC.md](./DEPLOYMENT_CLOUD_SYNC.md) | Cloud sync server |
+| [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) | Pre-launch checklist |
+
+---
+
+## 🏗️ Architecture
+
+| Doc | Description |
+|-----|-------------|
+| [ARCHITECTURE_DECISIONS.md](./ARCHITECTURE_DECISIONS.md) | Key design decisions |
+| [UAA2_API_CONTRACT.md](./UAA2_API_CONTRACT.md) | Agent API specification |
+| [api.openapi.yaml](./api.openapi.yaml) | OpenAPI spec |
+
+---
+
+## 🎮 Battle Arena (Example Game)
+
+| Doc | Description |
+|-----|-------------|
+| [BATTLEARENA_DOCUMENTATION_INDEX.md](./BATTLEARENA_DOCUMENTATION_INDEX.md) | Battle Arena docs hub |
+| [BATTLEARENA_QUICK_REFERENCE.md](./BATTLEARENA_QUICK_REFERENCE.md) | Quick reference |
+
+---
+
+## 📁 Folder Structure
+
+```
+docs/
+├── guides/          # Step-by-step tutorials
+├── specs/           # Technical specifications
+├── marketing/       # Marketing materials
+├── assets/          # Images, GIFs
+└── archive/         # Old documentation
+```
+
+---
+
+## 📦 Package Documentation
+
+Each package has its own README. Key ones:
+
+| Package | README |
+|---------|--------|
+| react-three | [packages/react-three/README.md](../packages/react-three/README.md) |
+| world | [packages/world/README.md](../packages/world/README.md) |
+| brittney-service | [packages/brittney-service/README.md](../packages/brittney-service/README.md) |
+| mcp-server | [packages/mcp-server/README.md](../packages/mcp-server/README.md) |
+| ar-foundation | [packages/ar-foundation/README.md](../packages/ar-foundation/README.md) |
+
+See [ECOSYSTEM_STATUS.md](../ECOSYSTEM_STATUS.md) for the full 40+ package list.
+
+---
+
+## 🔗 External Resources
+
+- [HoloScript Repository](https://github.com/brianonbased-dev/HoloScript) - The language
+- [Infinity Assistant](https://infinityassistant.io) - AI building service
+- [Vast.ai](https://vast.ai) - GPU cloud for Brittney deployment
 
 3. **ProceduralGeneration.hsplus** (320 LOC)
    - Deterministic terrain generation
