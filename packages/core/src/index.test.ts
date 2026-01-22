@@ -4,24 +4,51 @@
  * Tests for HoloScriptBridge and core exports
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   // Bridge
   HoloScriptBridge,
   createBridge,
-  type BridgeConfig,
+  type WorldInterface,
   
   // Core re-exports
   HoloScriptParser,
   HoloScriptRuntime,
   HOLOSCRIPT_VERSION,
   HOLOLAND_VERSION,
-  
-  // Types
-  type ASTNode,
-  type ExecutionResult,
-  type SpatialPosition,
 } from './index'
+
+// =============================================================================
+// MOCK WORLD INTERFACE
+// =============================================================================
+
+function createMockWorld(): WorldInterface {
+  const objects = new Map()
+  const handlers = new Map<string, ((data: unknown) => void)[]>()
+  
+  return {
+    createObject: vi.fn((config) => {
+      const obj = {
+        id: `obj-${Date.now()}`,
+        setPosition: vi.fn(),
+        setVisible: vi.fn(),
+        getPosition: vi.fn(() => config.position),
+      }
+      objects.set(obj.id, obj)
+      return obj
+    }),
+    getObject: vi.fn((id) => objects.get(id)),
+    removeObject: vi.fn((id) => objects.delete(id)),
+    emit: vi.fn((event, data) => {
+      const h = handlers.get(event) || []
+      h.forEach(fn => fn(data))
+    }),
+    on: vi.fn((event, handler) => {
+      if (!handlers.has(event)) handlers.set(event, [])
+      handlers.get(event)!.push(handler)
+    }),
+  }
+}
 
 // =============================================================================
 // HOLOSCRIPT BRIDGE TESTS
@@ -29,16 +56,27 @@ import {
 
 describe('HoloScriptBridge', () => {
   describe('initialization', () => {
-    it('should create bridge instance', () => {
-      const bridge = new HoloScriptBridge({ worldId: 'test-world' })
+    it('should create bridge instance with world interface', () => {
+      const mockWorld = createMockWorld()
+      const bridge = new HoloScriptBridge(mockWorld)
       expect(bridge).toBeDefined()
       expect(bridge).toBeInstanceOf(HoloScriptBridge)
     })
 
     it('should create bridge via factory function', () => {
-      const bridge = createBridge({ worldId: 'test-world' })
+      const mockWorld = createMockWorld()
+      const bridge = createBridge(mockWorld)
       expect(bridge).toBeDefined()
       expect(bridge).toBeInstanceOf(HoloScriptBridge)
+    })
+
+    it('should accept custom config', () => {
+      const mockWorld = createMockWorld()
+      const bridge = new HoloScriptBridge(mockWorld, {
+        autoSync: false,
+        debug: true,
+      })
+      expect(bridge).toBeDefined()
     })
   })
 })
