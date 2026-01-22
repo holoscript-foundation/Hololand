@@ -26,7 +26,7 @@ const PropertyInspector: React.FC = () => {
   const { preview } = usePlaygroundStore();
   const [inspectedObject, setInspectedObject] = useState<InspectedObject | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<any>(null);
+  const [_editValue, _setEditValue] = useState<unknown>(null);
 
   // Update inspected object from preview
   useEffect(() => {

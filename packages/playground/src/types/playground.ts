@@ -38,6 +38,27 @@ export interface PreviewState {
   fps: number;
   renderTime: number;
   objectCount: number;
+  selectedObject?: {
+    id: string;
+    name: string;
+    type: string;
+    position: { x: number; y: number; z: number };
+    rotation: { x: number; y: number; z: number };
+    scale: { x: number; y: number; z: number };
+    traits: string[];
+    properties: Record<string, unknown>;
+    material?: {
+      color: string;
+      metalness: number;
+      roughness: number;
+      opacity: number;
+    };
+    physics?: {
+      mass: number;
+      friction: number;
+      restitution: number;
+    };
+  };
 }
 
 export interface ChatMessage {

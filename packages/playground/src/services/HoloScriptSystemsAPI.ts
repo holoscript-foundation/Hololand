@@ -13,6 +13,12 @@
 import { EventEmitter } from 'events'
 
 // ============================================================================
+// COMMON TYPES
+// ============================================================================
+
+type EventCallback = (...args: unknown[]) => void
+
+// ============================================================================
 // SYSTEM STATE INTERFACES
 // ============================================================================
 
@@ -27,8 +33,8 @@ interface NetworkedWorldStateAPI {
   lastSync: number
   
   // Events
-  on: (event: 'objectUpdated' | 'objectCreated' | 'objectDeleted' | 'conflict', callback: Function) => void
-  off: (event: string, callback: Function) => void
+  on: (event: 'objectUpdated' | 'objectCreated' | 'objectDeleted' | 'conflict', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface PhysicsConstraintsAPI {
@@ -43,7 +49,8 @@ interface PhysicsConstraintsAPI {
   solverIterations: number
   
   // Events
-  on: (event: 'constraintApplied' | 'solverTick', callback: Function) => void
+  on: (event: 'constraintApplied' | 'solverTick', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface ProceduralGenerationAPI {
@@ -56,7 +63,8 @@ interface ProceduralGenerationAPI {
   lastGenerated: { seed: number; timestamp: number }
   
   // Events
-  on: (event: 'generationStart' | 'generationProgress' | 'generationComplete', callback: Function) => void
+  on: (event: 'generationStart' | 'generationProgress' | 'generationComplete', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface HoloScriptMarketplaceAPI {
@@ -71,7 +79,8 @@ interface HoloScriptMarketplaceAPI {
   userPublished: string[]
   
   // Events
-  on: (event: 'itemsLoaded' | 'publishSuccess' | 'downloadStart' | 'downloadComplete', callback: Function) => void
+  on: (event: 'itemsLoaded' | 'publishSuccess' | 'downloadStart' | 'downloadComplete', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface SceneVersionControlAPI {
@@ -87,7 +96,8 @@ interface SceneVersionControlAPI {
   history: string[]
   
   // Events
-  on: (event: 'snapshotCreated' | 'snapshotRestored' | 'mergeConflict', callback: Function) => void
+  on: (event: 'snapshotCreated' | 'snapshotRestored' | 'mergeConflict', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface PartySystemAPI {
@@ -103,7 +113,8 @@ interface PartySystemAPI {
   currentParty: object | null
   
   // Events
-  on: (event: 'partyCreated' | 'partyJoined' | 'partyLeft' | 'memberOffline' | 'partyDiscovered', callback: Function) => void
+  on: (event: 'partyCreated' | 'partyJoined' | 'partyLeft' | 'memberOffline' | 'partyDiscovered', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface LocalAnalyticsAPI {
@@ -120,7 +131,8 @@ interface LocalAnalyticsAPI {
   events: object[]
   
   // Events
-  on: (event: 'sessionStarted' | 'sessionEnded' | 'eventTracked', callback: Function) => void
+  on: (event: 'sessionStarted' | 'sessionEnded' | 'eventTracked', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface OfflineSyncAPI {
@@ -136,7 +148,8 @@ interface OfflineSyncAPI {
   pendingUpdates: object[]
   
   // Events
-  on: (event: 'online' | 'offline' | 'syncStart' | 'syncComplete' | 'conflict', callback: Function) => void
+  on: (event: 'online' | 'offline' | 'syncStart' | 'syncComplete' | 'conflict', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface LocalNetworkingAPI {
@@ -150,7 +163,8 @@ interface LocalNetworkingAPI {
   connectedPeers: string[]
   
   // Events
-  on: (event: 'peerConnected' | 'peerDisconnected' | 'stateSync', callback: Function) => void
+  on: (event: 'peerConnected' | 'peerDisconnected' | 'stateSync', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 interface ExampleWorldsAPI {
@@ -163,7 +177,8 @@ interface ExampleWorldsAPI {
   activeWorlds: Map<string, object>
   
   // Events
-  on: (event: 'worldSpawned' | 'worldLoaded', callback: Function) => void
+  on: (event: 'worldSpawned' | 'worldLoaded', callback: EventCallback) => void
+  off: (event: string, callback: EventCallback) => void
 }
 
 // ============================================================================
@@ -171,17 +186,17 @@ interface ExampleWorldsAPI {
 // ============================================================================
 
 export class HoloScriptSystemsAPI {
-  // System instances
-  private networkingSystem: NetworkedWorldStateAPI
-  private physicsSystem: PhysicsConstraintsAPI
-  private generationSystem: ProceduralGenerationAPI
-  private marketplaceSystem: HoloScriptMarketplaceAPI
-  private versionControlSystem: SceneVersionControlAPI
-  private partySystem: PartySystemAPI
-  private analyticsSystem: LocalAnalyticsAPI
-  private syncSystem: OfflineSyncAPI
-  private networkSystem: LocalNetworkingAPI
-  private examplesSystem: ExampleWorldsAPI
+  // System instances (initialized in constructor via initializeSystems)
+  private networkingSystem!: NetworkedWorldStateAPI
+  private physicsSystem!: PhysicsConstraintsAPI
+  private generationSystem!: ProceduralGenerationAPI
+  private marketplaceSystem!: HoloScriptMarketplaceAPI
+  private versionControlSystem!: SceneVersionControlAPI
+  private partySystem!: PartySystemAPI
+  private analyticsSystem!: LocalAnalyticsAPI
+  private syncSystem!: OfflineSyncAPI
+  private networkSystem!: LocalNetworkingAPI
+  private examplesSystem!: ExampleWorldsAPI
   
   // Event bus
   private eventBus: EventEmitter
@@ -238,10 +253,10 @@ export class HoloScriptSystemsAPI {
         this.networkingSystem.syncedObjects.delete(objectId)
         this.eventBus.emit('networking:objectDeleted', { objectId })
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`networking:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`networking:${event}`, callback)
       }
     }
@@ -268,10 +283,10 @@ export class HoloScriptSystemsAPI {
           this.eventBus.emit('physics:solverTick', { iteration: i })
         }
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`physics:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`physics:${event}`, callback)
       }
     }
@@ -302,7 +317,7 @@ export class HoloScriptSystemsAPI {
         this.eventBus.emit('generation:generationComplete', { island })
         return island
       },
-      generateStructures: async (terrain: object, count: number) => {
+      generateStructures: async (_terrain: object, count: number) => {
         const structures = Array(count).fill(null).map((_, i) => ({
           id: `structure_${i}`,
           type: 'building',
@@ -310,10 +325,10 @@ export class HoloScriptSystemsAPI {
         }))
         return structures
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`generation:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`generation:${event}`, callback)
       }
     }
@@ -351,10 +366,10 @@ export class HoloScriptSystemsAPI {
         const item = this.marketplaceSystem.items.get(itemId) as any
         if (item) item.rating = rating
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`marketplace:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`marketplace:${event}`, callback)
       }
     }
@@ -377,19 +392,19 @@ export class HoloScriptSystemsAPI {
         this.versionControlSystem.currentSnapshot = snapshotId
         this.eventBus.emit('versionControl:snapshotRestored', { snapshotId })
       },
-      compareSnapshots: async (snapA: string, snapB: string) => {
+      compareSnapshots: async (_snapA: string, _snapB: string) => {
         const diff = { added: [], removed: [], modified: [] }
         return diff
       },
-      merge: async (snapA: string, snapB: string) => {
+      merge: async (_snapA: string, _snapB: string) => {
         const merged = { conflicts: 0, resolved: true }
         this.eventBus.emit('versionControl:mergeComplete', merged)
         return merged
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`versionControl:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`versionControl:${event}`, callback)
       }
     }
@@ -424,10 +439,10 @@ export class HoloScriptSystemsAPI {
       getLocalParties: () => {
         return this.partySystem.currentParty ? [this.partySystem.currentParty] : []
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`party:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`party:${event}`, callback)
       }
     }
@@ -466,10 +481,10 @@ export class HoloScriptSystemsAPI {
           .map((e: any) => `${e.timestamp},${e.eventName},${e.category}`)
           .join('\n')
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`analytics:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`analytics:${event}`, callback)
       }
     }
@@ -506,10 +521,10 @@ export class HoloScriptSystemsAPI {
           totalBytes: this.syncSystem.pendingUpdates.length * 100
         }
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`sync:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`sync:${event}`, callback)
       }
     }
@@ -531,10 +546,10 @@ export class HoloScriptSystemsAPI {
       syncObjectState: (objectId: string, state: object) => {
         this.eventBus.emit('network:stateSync', { objectId, state })
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`network:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`network:${event}`, callback)
       }
     }
@@ -558,10 +573,10 @@ export class HoloScriptSystemsAPI {
       listWorlds: () => {
         return Array.from(this.examplesSystem.activeWorlds.keys())
       },
-      on: (event: string, callback: Function) => {
+      on: (event: string, callback: EventCallback) => {
         this.eventBus.on(`examples:${event}`, callback)
       },
-      off: (event: string, callback: Function) => {
+      off: (event: string, callback: EventCallback) => {
         this.eventBus.off(`examples:${event}`, callback)
       }
     }
@@ -660,3 +675,4 @@ export function getHoloScriptAPI(): HoloScriptSystemsAPI {
 }
 
 export default HoloScriptSystemsAPI
+

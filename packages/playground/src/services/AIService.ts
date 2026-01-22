@@ -44,35 +44,35 @@ export class AIService {
     this.providers.set('brittney', {
       name: 'Brittney',
       model: 'brittney-toolkit',
-      baseUrl: process.env.VITE_BRITTNEY_API || 'http://localhost:3001',
+      baseUrl: import.meta.env.VITE_BRITTNEY_API || 'http://localhost:3001',
     });
 
     // OpenAI
-    if (process.env.VITE_OPENAI_API_KEY) {
+    if (import.meta.env.VITE_OPENAI_API_KEY) {
       this.providers.set('openai', {
         name: 'OpenAI',
         model: 'gpt-4-turbo',
-        apiKey: process.env.VITE_OPENAI_API_KEY,
+        apiKey: import.meta.env.VITE_OPENAI_API_KEY,
         baseUrl: 'https://api.openai.com/v1',
       });
     }
 
     // Claude (Anthropic)
-    if (process.env.VITE_CLAUDE_API_KEY) {
+    if (import.meta.env.VITE_CLAUDE_API_KEY) {
       this.providers.set('claude', {
         name: 'Claude',
         model: 'claude-3-opus',
-        apiKey: process.env.VITE_CLAUDE_API_KEY,
+        apiKey: import.meta.env.VITE_CLAUDE_API_KEY,
         baseUrl: 'https://api.anthropic.com/v1',
       });
     }
 
     // Local Ollama
-    if (process.env.VITE_OLLAMA_BASE_URL) {
+    if (import.meta.env.VITE_OLLAMA_BASE_URL) {
       this.providers.set('ollama', {
         name: 'Ollama',
         model: 'neural-chat',
-        baseUrl: process.env.VITE_OLLAMA_BASE_URL,
+        baseUrl: import.meta.env.VITE_OLLAMA_BASE_URL,
       });
     }
   }

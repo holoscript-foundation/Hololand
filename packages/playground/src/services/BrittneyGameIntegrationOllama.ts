@@ -6,7 +6,6 @@
  * Falls back to OpenAI if Ollama unavailable
  */
 
-import type { ChatMessage } from '../types/playground';
 import OllamaService from './OllamaService';
 
 export interface BrittneyConfig {
@@ -241,32 +240,32 @@ export class BrittneyGameIntegrationOllama {
 
   // ========== OpenAI Fallback Methods ==========
 
-  private async generateNPCDialogueOpenAI(npcName: string, context: string): Promise<string> {
+  private async generateNPCDialogueOpenAI(_npcName: string, _context: string): Promise<string> {
     // Placeholder - would use OpenAI SDK if configured
     throw new Error('OpenAI fallback not configured in this example');
   }
 
-  private async generateQuestOpenAI(questTitle: string, description: string): Promise<string> {
+  private async generateQuestOpenAI(_questTitle: string, _description: string): Promise<string> {
     throw new Error('OpenAI fallback not configured in this example');
   }
 
-  private async generateNPCBehaviorOpenAI(npcName: string, npcType: string, behaviors: string): Promise<string> {
+  private async generateNPCBehaviorOpenAI(_npcName: string, _npcType: string, _behaviors: string): Promise<string> {
     throw new Error('OpenAI fallback not configured in this example');
   }
 
-  private async generateAbilityOpenAI(abilityName: string, abilityType: string, description: string): Promise<string> {
+  private async generateAbilityOpenAI(_abilityName: string, _abilityType: string, _description: string): Promise<string> {
     throw new Error('OpenAI fallback not configured in this example');
   }
 
-  private async generateSceneOpenAI(sceneName: string, sceneType: string, objects: string): Promise<string> {
+  private async generateSceneOpenAI(_sceneName: string, _sceneType: string, _objects: string): Promise<string> {
     throw new Error('OpenAI fallback not configured in this example');
   }
 
-  private async generateBattleArenaOpenAI(description: string): Promise<string> {
+  private async generateBattleArenaOpenAI(_description: string): Promise<string> {
     throw new Error('OpenAI fallback not configured in this example');
   }
 
-  private async *generateStreamingOpenAI(prompt: string): AsyncGenerator<string, void, unknown> {
+  private async *generateStreamingOpenAI(_prompt: string): AsyncGenerator<string, void, unknown> {
     throw new Error('OpenAI fallback not configured in this example');
   }
 }

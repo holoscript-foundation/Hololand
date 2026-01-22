@@ -76,7 +76,7 @@ export class BrittneyGameIntegration {
 
   constructor(apiBaseUrl: string = 'http://localhost:3001', apiKey: string = '') {
     this.apiBaseUrl = apiBaseUrl;
-    this.apiKey = apiKey || process.env.VITE_BRITTNEY_API_KEY || '';
+    this.apiKey = apiKey || import.meta.env.VITE_BRITTNEY_API_KEY || '';
   }
 
   /**

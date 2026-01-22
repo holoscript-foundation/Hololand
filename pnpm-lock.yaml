@@ -334,6 +334,9 @@ importers:
       '@hololand/brittney-toolkit':
         specifier: workspace:*
         version: link:../../packages/brittney-toolkit
+      '@hololand/world':
+        specifier: workspace:*
+        version: link:../../packages/world
       '@holoscript/core':
         specifier: link:../../../HoloScript/packages/core
         version: link:../../../HoloScript/packages/core
