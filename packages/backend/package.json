@@ -1,0 +1,30 @@
+{
+  "name": "@hololand/backend",
+  "version": "1.0.0",
+  "description": "Hololand backend services - API, webhooks, and data services",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "next": "^14.0.0",
+    "nodemailer": "^6.9.7",
+    "stripe": "^14.10.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/nodemailer": "^6.4.14",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
