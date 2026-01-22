@@ -4,7 +4,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/🚀_January_2026-What's_New-00cc66?style=for-the-badge" alt="What's New">
-  <a href="https://github.com/brianonbased-dev/HoloScript#-vrchat-alpha">
+  <a href="https://github.com/brianonbased-dev/holoscript#-vrchat-alpha">
     <img src="https://img.shields.io/badge/🎮_VRChat_Export-Alpha-ff6600?style=for-the-badge" alt="VRChat Alpha">
   </a>
 </p>
@@ -64,7 +64,7 @@ cd examples/hololand-central && pnpm dev
 ## 🚀 What's New (January 2026)
 
 ### 🎮 VRChat Export Alpha
-HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn more →](https://github.com/brianonbased-dev/HoloScript#-vrchat-alpha)
+HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn more →](https://github.com/brianonbased-dev/holoscript#-vrchat-alpha)
 
 ### 🛠️ Developer Tools v2.0
 - **Formatter** (`@hololand/holoscript-formatter`) - Auto-format your code
@@ -188,7 +188,7 @@ See [full package list](./ECOSYSTEM_STATUS.md) for all 40+ packages.
 
 ## HoloScript
 
-Hololand uses [HoloScript](https://github.com/brianonbased-dev/HoloScript) - a declarative language that reduces codebase size by up to 90%.
+Hololand uses [HoloScript](https://github.com/brianonbased-dev/holoscript) - a declarative language that reduces codebase size by up to 90%.
 
 ### File Types
 
@@ -297,7 +297,7 @@ pnpm test
 ## Links
 
 - [Documentation Index](./docs/INDEX.md) - All docs in one place
-- [HoloScript](https://github.com/brianonbased-dev/HoloScript) - The language
+- [HoloScript](https://github.com/brianonbased-dev/holoscript) - The language
 - [Infinity Assistant](https://infinityassistant.io) - AI building service
 - [Examples](./examples/) - Working demos
 - [Full Ecosystem](./ECOSYSTEM_STATUS.md) - All 40+ packages

@@ -98,7 +98,7 @@ See [ECOSYSTEM_STATUS.md](../ECOSYSTEM_STATUS.md) for the full 40+ package list.
 
 ## 🔗 External Resources
 
-- [HoloScript Repository](https://github.com/brianonbased-dev/HoloScript) - The language
+- [HoloScript Repository](https://github.com/brianonbased-dev/holoscript) - The language
 - [Infinity Assistant](https://infinityassistant.io) - AI building service
 - [Vast.ai](https://vast.ai) - GPU cloud for Brittney deployment
 
