@@ -736,6 +736,9 @@ We're building the open metaverse together:
 ### In Progress
 - 🔄 **Q1-Q2 2026**: v1.2.0 - Local-first networking (P2P, ngrok tunnels, social features)
 - 🔄 **Q1-Q2 2026**: Tiered Chat (BYOK AI integration)
+- 🔄 **Q1-Q2 2026**: HoloScript-First Migration (Hololand Central rewrite)
+
+**📖 [HoloScript Migration Plan →](./docs/specs/HOLOSCRIPT_FIRST_MIGRATION.md)**
 
 ### Upcoming
 - **Q2 2026**: v2.1.0 - Audio system, animation system
