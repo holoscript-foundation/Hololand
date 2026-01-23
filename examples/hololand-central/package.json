@@ -12,7 +12,8 @@
     "deploy": "pnpm build && vercel --prod"
   },
   "dependencies": {
-    "@holoscript/core": "*",
+    "@holoscript/core": "link:C:/Users/josep/Documents/GitHub/HoloScript/packages/core",
+    "@holoscript/runtime": "link:C:/Users/josep/Documents/GitHub/HoloScript/packages/runtime",
     "@hololand/world": "workspace:*",
     "@hololand/brittney-toolkit": "workspace:*",
     "@react-three/drei": "^9.114.3",
