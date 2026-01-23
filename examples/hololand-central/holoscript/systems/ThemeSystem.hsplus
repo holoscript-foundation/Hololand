@@ -1,0 +1,568 @@
+/**
+ * Theme System
+ *
+ * Manages visual themes for Hololand Central including lighting,
+ * colors, fog, particles, and environment settings. Supports
+ * automatic cycling and user preferences.
+ */
+
+system "ThemeSystem" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    defaultTheme: "cyberpunk"
+    cycleEnabled: true
+    cycleInterval: 300000      // 5 minutes
+    transitionDuration: 2000   // 2 seconds
+    respectUserPreference: true
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    currentTheme: "cyberpunk"
+    previousTheme: null
+    isTransitioning: false
+    transitionProgress: 0
+    cycleTimer: null
+    userPreference: null       // User's chosen theme (null = auto cycle)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // THEME DEFINITIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data themes: {
+    cyberpunk: {
+      id: "cyberpunk"
+      name: "Cyberpunk"
+      icon: "globe"
+      description: "Neon-lit space station vibes"
+
+      colors: {
+        primary: "#667eea"
+        secondary: "#f093fb"
+        accent: "#00ffff"
+        background: "#0a0a1a"
+        text: "#ffffff"
+      }
+
+      lighting: {
+        ambient: {
+          color: "#1a1a2e"
+          intensity: 0.3
+        }
+        directional: {
+          color: "#667eea"
+          intensity: 0.6
+          position: [10, 20, 10]
+          castShadow: true
+        }
+        points: [
+          { color: "#ff00ff", intensity: 1.0, position: [-10, 5, -10], distance: 20 },
+          { color: "#00ffff", intensity: 1.0, position: [10, 5, 10], distance: 20 },
+          { color: "#667eea", intensity: 0.8, position: [0, 10, 0], distance: 30 }
+        ]
+      }
+
+      fog: {
+        color: "#0a0a1a"
+        near: 20
+        far: 100
+      }
+
+      skybox: {
+        type: "gradient"
+        topColor: "#0a0a1a"
+        bottomColor: "#1a1a2e"
+        stars: true
+        starCount: 2000
+      }
+
+      particles: {
+        enabled: true
+        type: "floating-data"
+        count: 100
+        color: "#00ffff"
+        size: 0.1
+      }
+
+      buildingStyle: {
+        material: "glass"
+        emissive: true
+        emissiveColor: "#667eea"
+        emissiveIntensity: 0.5
+      }
+
+      uiCopy: {
+        welcome: "Welcome to the Grid, User"
+        portal: "Jack in to"
+        npc: "Interface with"
+      }
+    },
+
+    wildWest: {
+      id: "wild-west"
+      name: "Wild West"
+      icon: "cowboy"
+      description: "Dusty sunset desert town"
+
+      colors: {
+        primary: "#d4a574"
+        secondary: "#ffa500"
+        accent: "#8b4513"
+        background: "#2d1810"
+        text: "#fff8dc"
+      }
+
+      lighting: {
+        ambient: {
+          color: "#ffd4a3"
+          intensity: 0.4
+        }
+        directional: {
+          color: "#ffa500"
+          intensity: 0.8
+          position: [-20, 10, -10]
+          castShadow: true
+        }
+        points: [
+          { color: "#ff6600", intensity: 0.6, position: [0, 3, 5], distance: 15 },
+          { color: "#ffcc00", intensity: 0.4, position: [-5, 2, -5], distance: 10 }
+        ]
+      }
+
+      fog: {
+        color: "#d4a574"
+        near: 30
+        far: 80
+      }
+
+      skybox: {
+        type: "gradient"
+        topColor: "#1a0a05"
+        bottomColor: "#ff6600"
+        stars: false
+      }
+
+      particles: {
+        enabled: true
+        type: "dust"
+        count: 50
+        color: "#d4a574"
+        size: 0.05
+      }
+
+      buildingStyle: {
+        material: "wood"
+        emissive: false
+        baseColor: "#8b4513"
+      }
+
+      uiCopy: {
+        welcome: "Howdy, Partner"
+        portal: "Mosey on over to"
+        npc: "Have a chat with"
+      }
+    },
+
+    cityscape: {
+      id: "cityscape"
+      name: "Cityscape"
+      icon: "building"
+      description: "Urban neon skyscrapers"
+
+      colors: {
+        primary: "#00bfff"
+        secondary: "#ff1493"
+        accent: "#00ff00"
+        background: "#0d0d1a"
+        text: "#ffffff"
+      }
+
+      lighting: {
+        ambient: {
+          color: "#1a1a2e"
+          intensity: 0.25
+        }
+        directional: {
+          color: "#ffffff"
+          intensity: 0.3
+          position: [0, 30, 0]
+          castShadow: true
+        }
+        points: [
+          { color: "#00bfff", intensity: 1.2, position: [-15, 8, 0], distance: 25 },
+          { color: "#ff1493", intensity: 1.2, position: [15, 8, 0], distance: 25 },
+          { color: "#00ff00", intensity: 0.8, position: [0, 5, 15], distance: 20 }
+        ]
+      }
+
+      fog: {
+        color: "#0d0d1a"
+        near: 15
+        far: 80
+      }
+
+      skybox: {
+        type: "gradient"
+        topColor: "#000011"
+        bottomColor: "#1a1a2e"
+        stars: true
+        starCount: 500
+      }
+
+      particles: {
+        enabled: true
+        type: "rain"
+        count: 200
+        color: "#88ccff"
+        size: 0.02
+      }
+
+      buildingStyle: {
+        material: "metal"
+        emissive: true
+        emissiveColor: "#00bfff"
+        emissiveIntensity: 0.3
+      }
+
+      uiCopy: {
+        welcome: "Welcome to the City"
+        portal: "Take the subway to"
+        npc: "Talk to"
+      }
+    },
+
+    snowyTown: {
+      id: "snowy-town"
+      name: "Snowy Town"
+      icon: "snowflake"
+      description: "Cozy winter wonderland"
+
+      colors: {
+        primary: "#e0f7fa"
+        secondary: "#ffd54f"
+        accent: "#ff7043"
+        background: "#1a237e"
+        text: "#ffffff"
+      }
+
+      lighting: {
+        ambient: {
+          color: "#b3e5fc"
+          intensity: 0.5
+        }
+        directional: {
+          color: "#ffffff"
+          intensity: 0.6
+          position: [15, 25, 15]
+          castShadow: true
+        }
+        points: [
+          { color: "#ffd54f", intensity: 0.8, position: [0, 3, 0], distance: 15 },
+          { color: "#ff7043", intensity: 0.6, position: [-8, 2, 5], distance: 10 },
+          { color: "#ffd54f", intensity: 0.6, position: [8, 2, -5], distance: 10 }
+        ]
+      }
+
+      fog: {
+        color: "#b3e5fc"
+        near: 20
+        far: 60
+      }
+
+      skybox: {
+        type: "gradient"
+        topColor: "#1a237e"
+        bottomColor: "#b3e5fc"
+        stars: false
+      }
+
+      particles: {
+        enabled: true
+        type: "snow"
+        count: 300
+        color: "#ffffff"
+        size: 0.08
+      }
+
+      buildingStyle: {
+        material: "stone"
+        emissive: false
+        baseColor: "#e0e0e0"
+        roofColor: "#ffffff"
+      }
+
+      uiCopy: {
+        welcome: "Welcome to the Winter Village"
+        portal: "Sleigh ride to"
+        npc: "Warm up with"
+      }
+    },
+
+    holiday: {
+      id: "holiday"
+      name: "Holiday"
+      icon: "tree"
+      description: "Festive celebration"
+
+      colors: {
+        primary: "#ff0000"
+        secondary: "#228b22"
+        accent: "#ffd700"
+        background: "#1a0a0a"
+        text: "#ffffff"
+      }
+
+      lighting: {
+        ambient: {
+          color: "#2d1a1a"
+          intensity: 0.3
+        }
+        directional: {
+          color: "#fff5e6"
+          intensity: 0.5
+          position: [10, 20, 10]
+          castShadow: true
+        }
+        points: [
+          { color: "#ff0000", intensity: 0.8, position: [-10, 4, 0], distance: 15 },
+          { color: "#00ff00", intensity: 0.8, position: [10, 4, 0], distance: 15 },
+          { color: "#ffd700", intensity: 1.0, position: [0, 8, 0], distance: 20 }
+        ]
+      }
+
+      fog: {
+        color: "#1a0a0a"
+        near: 25
+        far: 70
+      }
+
+      skybox: {
+        type: "gradient"
+        topColor: "#0a0a1a"
+        bottomColor: "#1a0a0a"
+        stars: true
+        starCount: 1000
+      }
+
+      particles: {
+        enabled: true
+        type: "snow"
+        count: 150
+        color: "#ffffff"
+        size: 0.06
+      }
+
+      buildingStyle: {
+        material: "festive"
+        emissive: true
+        emissiveColor: "#ffd700"
+        emissiveIntensity: 0.4
+        decorations: ["lights", "garland", "wreath"]
+      }
+
+      uiCopy: {
+        welcome: "Happy Holidays!"
+        portal: "Celebrate at"
+        npc: "Share joy with"
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action setTheme(themeId) {
+    if (!themes[themeId]) {
+      console.warn("Unknown theme:", themeId)
+      return false
+    }
+
+    if (state.currentTheme === themeId) {
+      return false
+    }
+
+    state.previousTheme = state.currentTheme
+    state.isTransitioning = true
+    state.transitionProgress = 0
+
+    // Animate transition
+    animate(config.transitionDuration, (progress) -> {
+      state.transitionProgress = progress
+
+      if (progress >= 1) {
+        state.currentTheme = themeId
+        state.isTransitioning = false
+
+        emit("theme:changed", themes[themeId])
+
+        emit("accessibility:announce", {
+          message: "Theme changed to " + themes[themeId].name,
+          priority: "polite"
+        })
+      }
+    })
+
+    return true
+  }
+
+  action cycleTheme() {
+    const themeIds = Object.keys(themes)
+    const currentIndex = themeIds.indexOf(state.currentTheme)
+    const nextIndex = (currentIndex + 1) % themeIds.length
+    setTheme(themeIds[nextIndex])
+  }
+
+  action setUserPreference(themeId) {
+    if (themeId === null) {
+      // Clear preference, enable auto-cycle
+      state.userPreference = null
+      storage.remove("hololand:theme-preference")
+
+      if (config.cycleEnabled) {
+        startCycle()
+      }
+    } else if (themes[themeId]) {
+      state.userPreference = themeId
+      storage.set("hololand:theme-preference", themeId)
+      setTheme(themeId)
+      stopCycle()
+    }
+  }
+
+  action startCycle() {
+    if (state.cycleTimer) return
+
+    state.cycleTimer = setInterval(() -> {
+      if (!state.userPreference) {
+        cycleTheme()
+      }
+    }, config.cycleInterval)
+  }
+
+  action stopCycle() {
+    if (state.cycleTimer) {
+      clearInterval(state.cycleTimer)
+      state.cycleTimer = null
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GETTERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  getter current() {
+    return themes[state.currentTheme]
+  }
+
+  getter previous() {
+    return state.previousTheme ? themes[state.previousTheme] : null
+  }
+
+  getter allThemes() {
+    return Object.values(themes)
+  }
+
+  getter themeIds() {
+    return Object.keys(themes)
+  }
+
+  getter interpolatedTheme() {
+    // For smooth transitions, interpolate between themes
+    if (!state.isTransitioning || !state.previousTheme) {
+      return themes[state.currentTheme]
+    }
+
+    const from = themes[state.previousTheme]
+    const to = themes[state.currentTheme]
+    const t = state.transitionProgress
+
+    return {
+      ...to,
+      lighting: {
+        ambient: {
+          color: lerpColor(from.lighting.ambient.color, to.lighting.ambient.color, t),
+          intensity: lerp(from.lighting.ambient.intensity, to.lighting.ambient.intensity, t)
+        },
+        directional: {
+          color: lerpColor(from.lighting.directional.color, to.lighting.directional.color, t),
+          intensity: lerp(from.lighting.directional.intensity, to.lighting.directional.intensity, t),
+          position: from.lighting.directional.position
+        }
+      },
+      fog: {
+        color: lerpColor(from.fog.color, to.fog.color, t),
+        near: lerp(from.fog.near, to.fog.near, t),
+        far: lerp(from.fog.far, to.fog.far, t)
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t
+  }
+
+  function lerpColor(colorA, colorB, t) {
+    // Simple hex color interpolation
+    const parseHex = (hex) -> {
+      const r = parseInt(hex.slice(1, 3), 16)
+      const g = parseInt(hex.slice(3, 5), 16)
+      const b = parseInt(hex.slice(5, 7), 16)
+      return [r, g, b]
+    }
+
+    const toHex = (rgb) -> {
+      return "#" + rgb.map(c => Math.round(c).toString(16).padStart(2, "0")).join("")
+    }
+
+    const [r1, g1, b1] = parseHex(colorA)
+    const [r2, g2, b2] = parseHex(colorB)
+
+    return toHex([
+      lerp(r1, r2, t),
+      lerp(g1, g2, t),
+      lerp(b1, b2, t)
+    ])
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_init: async () -> {
+    // Load user preference
+    const savedPreference = await storage.get("hololand:theme-preference")
+
+    if (config.respectUserPreference && savedPreference && themes[savedPreference]) {
+      state.userPreference = savedPreference
+      state.currentTheme = savedPreference
+    } else {
+      state.currentTheme = config.defaultTheme
+    }
+
+    // Start auto-cycling if enabled and no user preference
+    if (config.cycleEnabled && !state.userPreference) {
+      startCycle()
+    }
+
+    emit("theme:ready", themes[state.currentTheme])
+  }
+
+  on_destroy: () -> {
+    stopCycle()
+  }
+}
+
+export { ThemeSystem }

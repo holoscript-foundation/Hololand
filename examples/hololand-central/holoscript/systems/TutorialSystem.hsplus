@@ -1,0 +1,256 @@
+/**
+ * Tutorial System
+ *
+ * Guides first-time users through Hololand Central with step-by-step
+ * instructions, progress tracking, and accessibility announcements.
+ */
+
+system "TutorialSystem" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    totalSteps: 5
+    autoAdvanceDelay: 0       // 0 = manual advance only
+    skipEnabled: true
+    persistProgress: true
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    isActive: false
+    currentStep: 0
+    isComplete: false
+    showingShortcuts: false
+    highlightedElement: null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TUTORIAL STEPS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data steps: [
+    {
+      id: "welcome"
+      title: "Welcome to Hololand Central!"
+      description: "This is the gateway to the Hololand metaverse. Let's show you around."
+      highlight: null
+      action: null
+      ariaLabel: "Tutorial step 1 of 5: Welcome to Hololand Central"
+    },
+    {
+      id: "navigation"
+      title: "Navigate the World"
+      description: "Use WASD or arrow keys to move. Click and drag to look around."
+      highlight: "player-controls"
+      action: "try-movement"
+      ariaLabel: "Tutorial step 2 of 5: Use WASD keys or arrows to navigate"
+    },
+    {
+      id: "portals"
+      title: "Use Portals"
+      description: "Walk into glowing portals to travel between zones. Try approaching the casino portal!"
+      highlight: "portal-casino"
+      action: "approach-portal"
+      ariaLabel: "Tutorial step 3 of 5: Approach a glowing portal to travel"
+    },
+    {
+      id: "interact"
+      title: "Interact with Objects"
+      description: "Click on NPCs and objects to interact. Brian is waiting to meet you!"
+      highlight: "npc-brian"
+      action: "click-npc"
+      ariaLabel: "Tutorial step 4 of 5: Click on characters to interact"
+    },
+    {
+      id: "explore"
+      title: "You're Ready!"
+      description: "Explore Hololand Central freely. Discover easter eggs, chat with Brittney, and have fun!"
+      highlight: null
+      action: null
+      ariaLabel: "Tutorial complete! You're ready to explore Hololand Central"
+    }
+  ]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KEYBOARD SHORTCUTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data shortcuts: [
+    { key: "W/↑", action: "Move forward" },
+    { key: "S/↓", action: "Move backward" },
+    { key: "A/←", action: "Move left" },
+    { key: "D/→", action: "Move right" },
+    { key: "Space", action: "Jump" },
+    { key: "Tab", action: "Next UI element" },
+    { key: "Enter", action: "Interact/Select" },
+    { key: "Escape", action: "Close menu/Back" },
+    { key: "?", action: "Show this help" },
+    { key: "M", action: "Toggle reduced motion" },
+    { key: "H", action: "Toggle high contrast" }
+  ]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action start() {
+    if (state.isComplete) {
+      return
+    }
+
+    state.isActive = true
+    state.currentStep = 0
+
+    // Announce to screen readers
+    emit("accessibility:announce", {
+      message: steps[0].ariaLabel,
+      priority: "polite"
+    })
+
+    // Track analytics
+    emit("analytics:event", {
+      category: "tutorial",
+      action: "start"
+    })
+  }
+
+  action next() {
+    if (state.currentStep < config.totalSteps - 1) {
+      state.currentStep += 1
+
+      const step = steps[state.currentStep]
+      state.highlightedElement = step.highlight
+
+      // Announce step change
+      emit("accessibility:announce", {
+        message: step.ariaLabel,
+        priority: "polite"
+      })
+
+      // Save progress
+      if (config.persistProgress) {
+        storage.set("hololand:tutorial:step", state.currentStep)
+      }
+    } else {
+      complete()
+    }
+  }
+
+  action previous() {
+    if (state.currentStep > 0) {
+      state.currentStep -= 1
+
+      const step = steps[state.currentStep]
+      state.highlightedElement = step.highlight
+
+      emit("accessibility:announce", {
+        message: step.ariaLabel,
+        priority: "polite"
+      })
+    }
+  }
+
+  action skip() {
+    if (config.skipEnabled) {
+      emit("analytics:event", {
+        category: "tutorial",
+        action: "skip",
+        label: "step-" + state.currentStep
+      })
+
+      complete()
+    }
+  }
+
+  action complete() {
+    state.isActive = false
+    state.isComplete = true
+    state.highlightedElement = null
+
+    // Save completion
+    storage.set("hololand:tutorial:complete", true)
+
+    emit("accessibility:announce", {
+      message: "Tutorial complete! You're ready to explore.",
+      priority: "assertive"
+    })
+
+    emit("tutorial:complete")
+
+    emit("analytics:event", {
+      category: "tutorial",
+      action: "complete"
+    })
+  }
+
+  action showShortcuts() {
+    state.showingShortcuts = true
+
+    emit("accessibility:announce", {
+      message: "Keyboard shortcuts dialog opened",
+      priority: "polite"
+    })
+  }
+
+  action hideShortcuts() {
+    state.showingShortcuts = false
+  }
+
+  action reset() {
+    state.isActive = false
+    state.currentStep = 0
+    state.isComplete = false
+    state.highlightedElement = null
+
+    storage.remove("hololand:tutorial:step")
+    storage.remove("hololand:tutorial:complete")
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GETTERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  getter currentStepData() {
+    return steps[state.currentStep]
+  }
+
+  getter progress() {
+    return (state.currentStep + 1) / config.totalSteps
+  }
+
+  getter progressText() {
+    return (state.currentStep + 1) + " of " + config.totalSteps
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_init: async () -> {
+    // Restore progress from storage
+    const savedStep = await storage.get("hololand:tutorial:step")
+    const isComplete = await storage.get("hololand:tutorial:complete")
+
+    if (isComplete) {
+      state.isComplete = true
+    } else if (savedStep !== null) {
+      state.currentStep = savedStep
+    }
+  }
+
+  // Auto-advance on action completion
+  on_event("tutorial:action-complete"): (actionId) -> {
+    const step = steps[state.currentStep]
+    if (step.action === actionId) {
+      next()
+    }
+  }
+}
+
+export { TutorialSystem }

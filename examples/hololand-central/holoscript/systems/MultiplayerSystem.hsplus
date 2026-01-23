@@ -1,0 +1,568 @@
+/**
+ * Multiplayer System
+ *
+ * Manages local-first networking with WebRTC P2P connections,
+ * ngrok tunneling for remote friends, and state synchronization.
+ *
+ * Phase 3A: Local/Private networking
+ * Phase 3B: Hybrid with TURN fallback
+ * Phase 3C: Public cloud infrastructure
+ */
+
+system "MultiplayerSystem" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    mode: "local-first"        // local-first | hybrid | cloud
+    maxPlayers: 50
+    syncInterval: 50           // ms (20 updates/sec)
+    interpolationDelay: 100    // ms for smooth movement
+    maxLatency: 500            // ms before disconnect warning
+    heartbeatInterval: 5000    // ms
+
+    // Local server settings
+    localServerPort: 7777
+    enableNgrok: true
+
+    // WebRTC settings
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" }
+    ]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    // Connection state
+    isConnected: false
+    isHost: false
+    sessionId: null
+    tunnelUrl: null
+
+    // Player state
+    localPlayer: {
+      id: null
+      displayName: "Player"
+      avatar: "default"
+      position: [0, 1, 0]
+      rotation: [0, 0, 0]
+      animation: "idle"
+    }
+
+    remotePlayers: {}          // { playerId: PlayerState }
+    playerCount: 1
+
+    // Sync state
+    lastSyncTime: 0
+    latency: 0
+    syncQueue: []
+
+    // Connection management
+    peers: {}                  // { peerId: RTCPeerConnection }
+    dataChannels: {}           // { peerId: RTCDataChannel }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HOST ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action hostSession() {
+    if (state.isConnected) {
+      console.warn("Already in a session")
+      return null
+    }
+
+    state.isHost = true
+    state.sessionId = generateSessionId()
+    state.localPlayer.id = "host"
+
+    // Start local WebSocket server
+    startLocalServer()
+
+    // Create ngrok tunnel if enabled
+    if (config.enableNgrok) {
+      createTunnel().then(url -> {
+        state.tunnelUrl = url
+        emit("multiplayer:tunnel-ready", url)
+
+        emit("accessibility:announce", {
+          message: "Session hosted. Share this link with friends: " + url,
+          priority: "assertive"
+        })
+      })
+    }
+
+    state.isConnected = true
+    emit("multiplayer:session-started", {
+      sessionId: state.sessionId,
+      isHost: true
+    })
+
+    return state.sessionId
+  }
+
+  action joinSession(sessionUrl) {
+    if (state.isConnected) {
+      leaveSession()
+    }
+
+    state.isHost = false
+    state.localPlayer.id = generatePlayerId()
+
+    // Parse session URL
+    const url = new URL(sessionUrl)
+
+    // Connect via WebRTC
+    connectToPeer(url).then(success -> {
+      if (success) {
+        state.isConnected = true
+        emit("multiplayer:joined", {
+          sessionId: state.sessionId,
+          playerId: state.localPlayer.id
+        })
+
+        emit("accessibility:announce", {
+          message: "Joined multiplayer session",
+          priority: "assertive"
+        })
+      } else {
+        emit("multiplayer:join-failed", "Connection failed")
+      }
+    })
+  }
+
+  action leaveSession() {
+    if (!state.isConnected) return
+
+    // Notify others
+    broadcast({
+      type: "player-leave",
+      playerId: state.localPlayer.id
+    })
+
+    // Close all connections
+    for (peerId of Object.keys(state.peers)) {
+      closePeerConnection(peerId)
+    }
+
+    // Stop server if host
+    if (state.isHost) {
+      stopLocalServer()
+      closeTunnel()
+    }
+
+    // Reset state
+    state.isConnected = false
+    state.isHost = false
+    state.sessionId = null
+    state.tunnelUrl = null
+    state.remotePlayers = {}
+    state.playerCount = 1
+    state.peers = {}
+    state.dataChannels = {}
+
+    emit("multiplayer:left")
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PLAYER SYNC ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action updateLocalPlayer(updates) {
+    state.localPlayer = { ...state.localPlayer, ...updates }
+
+    // Queue sync
+    if (state.isConnected) {
+      queueSync({
+        type: "player-update",
+        playerId: state.localPlayer.id,
+        data: state.localPlayer,
+        timestamp: Date.now()
+      })
+    }
+  }
+
+  action setDisplayName(name) {
+    updateLocalPlayer({ displayName: name })
+    storage.set("hololand:player:name", name)
+  }
+
+  action setAvatar(avatarId) {
+    updateLocalPlayer({ avatar: avatarId })
+    storage.set("hololand:player:avatar", avatarId)
+  }
+
+  action setPosition(position) {
+    updateLocalPlayer({ position: position })
+  }
+
+  action setRotation(rotation) {
+    updateLocalPlayer({ rotation: rotation })
+  }
+
+  action setAnimation(animation) {
+    updateLocalPlayer({ animation: animation })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MESSAGING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action sendChatMessage(message) {
+    if (!state.isConnected) return
+
+    const chatMessage = {
+      type: "chat",
+      playerId: state.localPlayer.id,
+      displayName: state.localPlayer.displayName,
+      message: message,
+      timestamp: Date.now()
+    }
+
+    broadcast(chatMessage)
+    emit("multiplayer:chat", chatMessage)
+  }
+
+  action sendEmote(emoteId) {
+    if (!state.isConnected) return
+
+    broadcast({
+      type: "emote",
+      playerId: state.localPlayer.id,
+      emoteId: emoteId
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OBJECT SYNC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action syncObject(objectId, objectState) {
+    if (!state.isConnected || !state.isHost) return
+
+    queueSync({
+      type: "object-sync",
+      objectId: objectId,
+      data: objectState,
+      timestamp: Date.now()
+    })
+  }
+
+  action requestObjectSync(objectId) {
+    if (!state.isConnected) return
+
+    send(state.peers[Object.keys(state.peers)[0]], {
+      type: "object-request",
+      objectId: objectId
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GETTERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  getter isOnline() {
+    return state.isConnected
+  }
+
+  getter shareableUrl() {
+    return state.tunnelUrl || ("http://localhost:" + config.localServerPort)
+  }
+
+  getter allPlayers() {
+    return [state.localPlayer, ...Object.values(state.remotePlayers)]
+  }
+
+  getter otherPlayers() {
+    return Object.values(state.remotePlayers)
+  }
+
+  getter hostId() {
+    return state.isHost ? state.localPlayer.id : null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INTERNAL NETWORKING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function generateSessionId() {
+    return "session-" + Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 6)
+  }
+
+  function generatePlayerId() {
+    return "player-" + Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 6)
+  }
+
+  function startLocalServer() {
+    // In browser context, this would use a service worker or
+    // for Electron/Tauri, a real local server
+    console.log("Starting local server on port", config.localServerPort)
+
+    // Placeholder for actual server implementation
+    // The @hololand/network package handles this
+  }
+
+  function stopLocalServer() {
+    console.log("Stopping local server")
+  }
+
+  async function createTunnel() {
+    // Use ngrok or similar tunneling service
+    // This requires the ngrok binary or API
+
+    console.log("Creating ngrok tunnel...")
+
+    // Placeholder - actual implementation in @hololand/network
+    // Returns something like: https://abc123.ngrok.io
+
+    return "https://your-session.ngrok.io"
+  }
+
+  function closeTunnel() {
+    console.log("Closing tunnel")
+  }
+
+  async function connectToPeer(url) {
+    try {
+      const peer = new RTCPeerConnection({ iceServers: config.iceServers })
+
+      // Create data channel
+      const dataChannel = peer.createDataChannel("hololand")
+      setupDataChannel(dataChannel, "host")
+
+      // Handle ICE candidates
+      peer.onicecandidate = (event) -> {
+        if (event.candidate) {
+          // Send to signaling server
+          signalCandidate(url, event.candidate)
+        }
+      }
+
+      // Create and send offer
+      const offer = await peer.createOffer()
+      await peer.setLocalDescription(offer)
+
+      // Exchange SDP via signaling
+      const answer = await signalOffer(url, offer)
+      await peer.setRemoteDescription(answer)
+
+      state.peers["host"] = peer
+      return true
+    } catch (error) {
+      console.error("Failed to connect:", error)
+      return false
+    }
+  }
+
+  function closePeerConnection(peerId) {
+    const peer = state.peers[peerId]
+    const channel = state.dataChannels[peerId]
+
+    if (channel) {
+      channel.close()
+      delete state.dataChannels[peerId]
+    }
+
+    if (peer) {
+      peer.close()
+      delete state.peers[peerId]
+    }
+  }
+
+  function setupDataChannel(channel, peerId) {
+    channel.onopen = () -> {
+      console.log("Data channel open with", peerId)
+      state.dataChannels[peerId] = channel
+
+      // Send initial state
+      channel.send(JSON.stringify({
+        type: "player-join",
+        player: state.localPlayer
+      }))
+    }
+
+    channel.onmessage = (event) -> {
+      handleMessage(peerId, JSON.parse(event.data))
+    }
+
+    channel.onclose = () -> {
+      console.log("Data channel closed with", peerId)
+      handlePeerDisconnect(peerId)
+    }
+  }
+
+  function handleMessage(peerId, message) {
+    match message.type {
+      "player-join" -> {
+        state.remotePlayers[message.player.id] = message.player
+        state.playerCount = Object.keys(state.remotePlayers).length + 1
+        emit("multiplayer:player-joined", message.player)
+      }
+
+      "player-update" -> {
+        if (state.remotePlayers[message.playerId]) {
+          // Apply interpolation for smooth movement
+          const current = state.remotePlayers[message.playerId]
+          state.remotePlayers[message.playerId] = {
+            ...current,
+            ...message.data,
+            _targetPosition: message.data.position,
+            _lastUpdate: Date.now()
+          }
+        }
+      }
+
+      "player-leave" -> {
+        delete state.remotePlayers[message.playerId]
+        state.playerCount = Object.keys(state.remotePlayers).length + 1
+        emit("multiplayer:player-left", message.playerId)
+      }
+
+      "chat" -> {
+        emit("multiplayer:chat", message)
+      }
+
+      "emote" -> {
+        emit("multiplayer:emote", {
+          playerId: message.playerId,
+          emoteId: message.emoteId
+        })
+      }
+
+      "object-sync" -> {
+        emit("multiplayer:object-sync", {
+          objectId: message.objectId,
+          state: message.data
+        })
+      }
+    }
+  }
+
+  function handlePeerDisconnect(peerId) {
+    // Find and remove player associated with this peer
+    for (playerId of Object.keys(state.remotePlayers)) {
+      const player = state.remotePlayers[playerId]
+      if (player._peerId === peerId) {
+        delete state.remotePlayers[playerId]
+        state.playerCount = Object.keys(state.remotePlayers).length + 1
+        emit("multiplayer:player-left", playerId)
+        break
+      }
+    }
+  }
+
+  function queueSync(message) {
+    state.syncQueue.push(message)
+  }
+
+  function broadcast(message) {
+    const data = JSON.stringify(message)
+    for (channel of Object.values(state.dataChannels)) {
+      if (channel.readyState === "open") {
+        channel.send(data)
+      }
+    }
+  }
+
+  function send(peer, message) {
+    const channel = state.dataChannels[peer]
+    if (channel && channel.readyState === "open") {
+      channel.send(JSON.stringify(message))
+    }
+  }
+
+  // Placeholder signaling functions
+  // Real implementation would use WebSocket signaling server
+  async function signalOffer(url, offer) {
+    // Exchange SDP offer/answer
+    return null
+  }
+
+  function signalCandidate(url, candidate) {
+    // Exchange ICE candidates
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_init: async () -> {
+    // Load saved player info
+    const savedName = await storage.get("hololand:player:name")
+    const savedAvatar = await storage.get("hololand:player:avatar")
+
+    if (savedName) {
+      state.localPlayer.displayName = savedName
+    }
+
+    if (savedAvatar) {
+      state.localPlayer.avatar = savedAvatar
+    }
+
+    emit("multiplayer:ready")
+  }
+
+  // Sync loop
+  every(config.syncInterval) {
+    if (state.isConnected && state.syncQueue.length > 0) {
+      // Batch sync messages
+      const batch = state.syncQueue.splice(0, state.syncQueue.length)
+      broadcast({
+        type: "batch",
+        messages: batch
+      })
+    }
+
+    // Interpolate remote player positions
+    const now = Date.now()
+    for (playerId of Object.keys(state.remotePlayers)) {
+      const player = state.remotePlayers[playerId]
+      if (player._targetPosition && player._lastUpdate) {
+        const elapsed = now - player._lastUpdate
+        const t = Math.min(elapsed / config.interpolationDelay, 1)
+
+        // Lerp position
+        player.position = [
+          lerp(player.position[0], player._targetPosition[0], t),
+          lerp(player.position[1], player._targetPosition[1], t),
+          lerp(player.position[2], player._targetPosition[2], t)
+        ]
+      }
+    }
+  }
+
+  // Heartbeat
+  every(config.heartbeatInterval) {
+    if (state.isConnected) {
+      const pingTime = Date.now()
+      broadcast({
+        type: "ping",
+        time: pingTime
+      })
+    }
+  }
+
+  // Listen for player position updates
+  on_event("player:position"): (position) -> {
+    setPosition(position)
+  }
+
+  on_event("player:rotation"): (rotation) -> {
+    setRotation(rotation)
+  }
+
+  on_destroy: () -> {
+    leaveSession()
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t
+  }
+}
+
+export { MultiplayerSystem }

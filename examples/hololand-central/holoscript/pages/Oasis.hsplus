@@ -1,0 +1,454 @@
+/**
+ * Oasis Page
+ *
+ * Planet selection and onboarding view. This is where users
+ * get oriented before entering the central hub.
+ */
+
+page "Oasis" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAGE STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    onboardingStep: 0
+    avatarSelected: false
+    controlsLearned: false
+    readyToEnter: false
+    showingAvatarPicker: false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 3D SCENE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  scene {
+    // Environment
+    environment {
+      background: ThemeSystem.current.skybox
+      fog: ThemeSystem.current.fog
+      stars: ThemeSystem.current.skybox.stars
+    }
+
+    // Lighting from theme
+    lighting {
+      ambient: ThemeSystem.current.lighting.ambient
+      directional: ThemeSystem.current.lighting.directional
+      points: ThemeSystem.current.lighting.points
+    }
+
+    // The Oasis Planet
+    object "OasisPlanet" {
+      position: [0, -50, -100]
+      scale: [30, 30, 30]
+      rotation: [0, 0, 0]
+
+      model: "/models/hololand_planet.glb"
+
+      animation {
+        type: "rotate"
+        axis: "y"
+        speed: 0.02
+        continuous: true
+      }
+
+      // Atmosphere glow
+      child "Atmosphere" {
+        type: "sphere"
+        scale: [1.1, 1.1, 1.1]
+        material: {
+          type: "shader"
+          shader: "atmosphere"
+          color: ThemeSystem.current.colors.primary
+          opacity: 0.3
+        }
+      }
+    }
+
+    // Floating particles
+    particles "StarField" {
+      count: 500
+      area: [200, 200, 200]
+      color: "#ffffff"
+      size: 0.1
+      opacity: 0.6
+      movement: {
+        type: "drift"
+        speed: 0.01
+      }
+    }
+
+    // Entry portal (visible after onboarding)
+    object "EntryPortal" {
+      position: [0, 0, -20]
+      visible: state.readyToEnter
+      traits: ["portal-gate", "pulse", "interactive"]
+
+      properties {
+        destination: "/central"
+        label: "Enter Central"
+        color: ThemeSystem.current.colors.primary
+      }
+
+      animation {
+        type: "pulse"
+        scale: [1, 1.1]
+        duration: 2000
+        enabled: state.readyToEnter
+      }
+
+      on_interact: () -> {
+        AudioSystem.play("portal-activate")
+        navigate("/central")
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // UI OVERLAY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  ui {
+    // Welcome panel (step 1)
+    panel "Welcome" {
+      visible: state.onboardingStep === 0
+      position: "center"
+      style: "glass"
+      padding: 40
+      maxWidth: 500
+
+      animation: "fade-in"
+
+      content {
+        text "Welcome to the Oasis" {
+          style: "heading"
+          size: 32
+          align: "center"
+          marginBottom: 16
+        }
+
+        text "The gateway to Hololand Central and the open metaverse." {
+          style: "body"
+          size: 16
+          align: "center"
+          opacity: 0.8
+          marginBottom: 32
+        }
+
+        text "Let's get you set up in 3 quick steps." {
+          style: "caption"
+          size: 14
+          align: "center"
+          opacity: 0.6
+          marginBottom: 24
+        }
+
+        button "Get Started" {
+          style: "primary"
+          fullWidth: true
+          onClick: () -> advanceOnboarding()
+
+          aria: {
+            label: "Begin onboarding"
+          }
+        }
+      }
+    }
+
+    // Avatar selection (step 2)
+    panel "AvatarSelect" {
+      visible: state.onboardingStep === 1
+      position: "center"
+      style: "glass"
+      padding: 40
+      maxWidth: 600
+
+      content {
+        text "Choose Your Avatar" {
+          style: "heading"
+          size: 28
+          align: "center"
+          marginBottom: 24
+        }
+
+        grid "AvatarGrid" {
+          columns: 4
+          gap: 16
+          marginBottom: 24
+
+          for avatar of avatarOptions {
+            avatarCard {
+              id: avatar.id
+              image: avatar.image
+              name: avatar.name
+              selected: state.selectedAvatar === avatar.id
+              onClick: () -> selectAvatar(avatar.id)
+
+              aria: {
+                label: "Select " + avatar.name + " avatar"
+                pressed: state.selectedAvatar === avatar.id
+              }
+            }
+          }
+        }
+
+        row {
+          justify: "space-between"
+
+          button "Back" {
+            style: "secondary"
+            onClick: () -> state.onboardingStep = 0
+          }
+
+          button "Continue" {
+            style: "primary"
+            disabled: !state.avatarSelected
+            onClick: () -> advanceOnboarding()
+          }
+        }
+      }
+    }
+
+    // Controls tutorial (step 3)
+    panel "Controls" {
+      visible: state.onboardingStep === 2
+      position: "center"
+      style: "glass"
+      padding: 40
+      maxWidth: 500
+
+      content {
+        text "Learn the Controls" {
+          style: "heading"
+          size: 28
+          align: "center"
+          marginBottom: 24
+        }
+
+        // Control instructions based on device
+        if (device.isMobile) {
+          controlInstruction {
+            icon: "hand-tap"
+            title: "Touch to Look"
+            description: "Drag on screen to look around"
+          }
+
+          controlInstruction {
+            icon: "joystick"
+            title: "Virtual Joystick"
+            description: "Use the joystick in the bottom left to move"
+          }
+
+          controlInstruction {
+            icon: "tap"
+            title: "Tap to Interact"
+            description: "Tap on objects and NPCs to interact"
+          }
+        } else if (device.isVR) {
+          controlInstruction {
+            icon: "vr-controller"
+            title: "Look Around"
+            description: "Turn your head to look"
+          }
+
+          controlInstruction {
+            icon: "joystick"
+            title: "Thumbstick to Move"
+            description: "Use the thumbstick to walk"
+          }
+
+          controlInstruction {
+            icon: "trigger"
+            title: "Trigger to Interact"
+            description: "Point and pull trigger to interact"
+          }
+        } else {
+          controlInstruction {
+            icon: "wasd"
+            title: "WASD / Arrows"
+            description: "Move forward, back, left, right"
+          }
+
+          controlInstruction {
+            icon: "mouse"
+            title: "Mouse to Look"
+            description: "Click and drag to look around"
+          }
+
+          controlInstruction {
+            icon: "click"
+            title: "Click to Interact"
+            description: "Click on objects and NPCs"
+          }
+
+          controlInstruction {
+            icon: "keyboard"
+            title: "Press ? for Help"
+            description: "View all keyboard shortcuts"
+          }
+        }
+
+        spacer { height: 24 }
+
+        row {
+          justify: "space-between"
+
+          button "Back" {
+            style: "secondary"
+            onClick: () -> state.onboardingStep = 1
+          }
+
+          button "I'm Ready!" {
+            style: "primary"
+            onClick: () -> completeOnboarding()
+          }
+        }
+      }
+    }
+
+    // Ready to enter panel
+    panel "Ready" {
+      visible: state.readyToEnter && !TutorialSystem.isActive
+      position: "bottom-center"
+      style: "glass"
+      padding: 24
+      marginBottom: 40
+
+      content {
+        row {
+          align: "center"
+          gap: 16
+
+          icon "portal" {
+            size: 32
+            color: ThemeSystem.current.colors.primary
+            animation: "pulse"
+          }
+
+          column {
+            text "Ready to Enter" {
+              style: "subtitle"
+              size: 18
+            }
+
+            text "Walk into the portal to enter Central" {
+              style: "caption"
+              size: 14
+              opacity: 0.7
+            }
+          }
+        }
+      }
+    }
+
+    // Progress indicator
+    progressDots {
+      visible: state.onboardingStep < 3
+      position: "bottom-center"
+      marginBottom: 20
+      steps: 3
+      current: state.onboardingStep
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data avatarOptions: [
+    { id: "explorer", name: "Explorer", image: "/avatars/explorer.png" },
+    { id: "builder", name: "Builder", image: "/avatars/builder.png" },
+    { id: "gamer", name: "Gamer", image: "/avatars/gamer.png" },
+    { id: "artist", name: "Artist", image: "/avatars/artist.png" },
+    { id: "robot", name: "Robot", image: "/avatars/robot.png" },
+    { id: "alien", name: "Alien", image: "/avatars/alien.png" },
+    { id: "ninja", name: "Ninja", image: "/avatars/ninja.png" },
+    { id: "astronaut", name: "Astronaut", image: "/avatars/astronaut.png" }
+  ]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action advanceOnboarding() {
+    state.onboardingStep += 1
+    AudioSystem.play("ui-click")
+
+    AccessibilitySystem.announce(
+      "Step " + (state.onboardingStep + 1) + " of 3",
+      "polite"
+    )
+  }
+
+  action selectAvatar(avatarId) {
+    state.selectedAvatar = avatarId
+    state.avatarSelected = true
+    AudioSystem.play("ui-click")
+
+    // Save selection
+    MultiplayerSystem.setAvatar(avatarId)
+
+    AccessibilitySystem.announce(
+      "Selected " + avatarOptions.find(a => a.id === avatarId).name + " avatar",
+      "polite"
+    )
+  }
+
+  action completeOnboarding() {
+    state.onboardingStep = 3
+    state.readyToEnter = true
+    state.controlsLearned = true
+
+    // Save completion
+    storage.set("hololand:onboarding-complete", true)
+
+    AudioSystem.play("ui-success")
+
+    AccessibilitySystem.announce(
+      "Onboarding complete! Walk toward the glowing portal to enter Hololand Central.",
+      "assertive"
+    )
+
+    // Start tutorial if first visit
+    if (app.state.user.isFirstVisit) {
+      after(2000) {
+        TutorialSystem.start()
+      }
+    }
+  }
+
+  action skipOnboarding() {
+    state.onboardingStep = 3
+    state.readyToEnter = true
+
+    // Use default avatar
+    if (!state.avatarSelected) {
+      MultiplayerSystem.setAvatar("explorer")
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_enter: async () -> {
+    // Check if onboarding was completed before
+    const completed = await storage.get("hololand:onboarding-complete")
+    if (completed) {
+      skipOnboarding()
+    }
+
+    // Load saved avatar
+    const savedAvatar = await storage.get("hololand:player:avatar")
+    if (savedAvatar) {
+      state.selectedAvatar = savedAvatar
+      state.avatarSelected = true
+    }
+
+    // Play theme music
+    AudioSystem.playMusic(ThemeSystem.current.id)
+  }
+}
+
+export { Oasis }

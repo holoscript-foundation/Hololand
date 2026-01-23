@@ -1,0 +1,434 @@
+/**
+ * Landing Page
+ *
+ * Marketing/intro page for Hololand Central.
+ * First impression for visitors, showcases the metaverse vision.
+ */
+
+page "Landing" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAGE STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    isLoaded: false
+    showIntroAnimation: true
+    currentSection: "hero"
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYOUT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  layout {
+    type: "scroll"
+    direction: "vertical"
+    background: ThemeSystem.current.colors.background
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  sections {
+    // Hero section with 3D planet preview
+    section "Hero" {
+      height: "100vh"
+
+      content {
+        // 3D background element
+        canvas3d {
+          include: "../worlds/OasisPlanet.hsplus"
+          autoRotate: true
+          rotationSpeed: 0.2
+          interactive: false
+        }
+
+        // Overlay content
+        overlay {
+          layout: "flex"
+          direction: "column"
+          align: "center"
+          justify: "center"
+          padding: [40, 20]
+
+          text "HOLOLAND" {
+            style: "display"
+            size: 72
+            weight: "bold"
+            color: ThemeSystem.current.colors.primary
+            animation: state.showIntroAnimation ? "fade-in-up" : null
+            animationDelay: 0
+          }
+
+          text "CENTRAL" {
+            style: "display"
+            size: 48
+            weight: "light"
+            color: ThemeSystem.current.colors.secondary
+            animation: state.showIntroAnimation ? "fade-in-up" : null
+            animationDelay: 200
+          }
+
+          text "The Gateway to the Open Metaverse" {
+            style: "subtitle"
+            size: 24
+            color: ThemeSystem.current.colors.text
+            opacity: 0.8
+            marginTop: 20
+            animation: state.showIntroAnimation ? "fade-in" : null
+            animationDelay: 600
+          }
+
+          spacer { height: 40 }
+
+          button "Enter the Oasis" {
+            style: "primary"
+            size: "large"
+            icon: "rocket"
+            onClick: () -> navigate("/oasis")
+            animation: state.showIntroAnimation ? "fade-in-up" : null
+            animationDelay: 1000
+
+            aria: {
+              label: "Enter Hololand Central"
+              describedBy: "hero-description"
+            }
+          }
+
+          text "No download required. Works in your browser." {
+            id: "hero-description"
+            style: "caption"
+            size: 14
+            color: ThemeSystem.current.colors.text
+            opacity: 0.6
+            marginTop: 16
+          }
+        }
+      }
+
+      // Scroll indicator
+      footer {
+        position: "bottom"
+        padding: 20
+        animation: "bounce"
+
+        icon "chevron-down" {
+          size: 32
+          color: ThemeSystem.current.colors.text
+          opacity: 0.5
+          onClick: () -> scrollToSection("features")
+        }
+      }
+    }
+
+    // Features section
+    section "Features" {
+      padding: [80, 40]
+      background: "gradient"
+      gradientFrom: ThemeSystem.current.colors.background
+      gradientTo: darken(ThemeSystem.current.colors.background, 10)
+
+      content {
+        text "Why Hololand?" {
+          style: "heading"
+          size: 42
+          align: "center"
+          marginBottom: 60
+        }
+
+        grid {
+          columns: 3
+          gap: 40
+          responsive: {
+            mobile: { columns: 1 }
+            tablet: { columns: 2 }
+          }
+
+          // Feature cards
+          card "Open Source" {
+            icon: "code"
+            iconColor: ThemeSystem.current.colors.primary
+            title: "100% Open Source"
+            description: "Built by the community, for the community. No walled gardens, forever free."
+          }
+
+          card "Universal Access" {
+            icon: "globe"
+            iconColor: ThemeSystem.current.colors.secondary
+            title: "Any Device"
+            description: "Works on VR headsets, desktop, mobile. No downloads needed."
+          }
+
+          card "Creator First" {
+            icon: "palette"
+            iconColor: ThemeSystem.current.colors.accent
+            title: "Build Anything"
+            description: "Create worlds with voice commands, visual tools, or code."
+          }
+
+          card "Social" {
+            icon: "users"
+            iconColor: "#ff6b6b"
+            title: "Connect with Friends"
+            description: "Play together via simple shareable links. Zero server cost."
+          }
+
+          card "AI Powered" {
+            icon: "sparkles"
+            iconColor: "#feca57"
+            title: "Brittney AI"
+            description: "Natural language to 3D worlds. Just describe what you want."
+          }
+
+          card "Future Ready" {
+            icon: "vr"
+            iconColor: "#48dbfb"
+            title: "Next-Gen VR"
+            description: "Prepared for tomorrow's hardware. WebXR today, native VR tomorrow."
+          }
+        }
+      }
+    }
+
+    // Zones preview section
+    section "Zones" {
+      padding: [80, 40]
+
+      content {
+        text "Explore Hololand Central" {
+          style: "heading"
+          size: 42
+          align: "center"
+          marginBottom: 20
+        }
+
+        text "Seven unique zones to discover" {
+          style: "subtitle"
+          size: 20
+          align: "center"
+          opacity: 0.7
+          marginBottom: 60
+        }
+
+        carousel {
+          items: [
+            {
+              image: "/images/zones/plaza.jpg"
+              title: "Main Plaza"
+              description: "The central hub with portals to all zones"
+            },
+            {
+              image: "/images/zones/casino.jpg"
+              title: "Hololand Casino"
+              description: "Brian's domain - games, luck, and secrets"
+            },
+            {
+              image: "/images/zones/builder.jpg"
+              title: "Builder Shop"
+              description: "Create and customize your worlds"
+            },
+            {
+              image: "/images/zones/arcade.jpg"
+              title: "Arcade District"
+              description: "Retro games and modern experiences"
+            },
+            {
+              image: "/images/zones/lounge.jpg"
+              title: "Social Lounge"
+              description: "Relax and meet other travelers"
+            },
+            {
+              image: "/images/zones/infinity.jpg"
+              title: "Infinity Shop"
+              description: "Brittney's AI-powered workshop"
+            }
+          ]
+          autoPlay: true
+          interval: 5000
+          showDots: true
+        }
+      }
+    }
+
+    // CTA section
+    section "CTA" {
+      padding: [100, 40]
+      background: ThemeSystem.current.colors.primary
+      backgroundOpacity: 0.1
+
+      content {
+        layout: "flex"
+        direction: "column"
+        align: "center"
+
+        text "Ready to Enter?" {
+          style: "heading"
+          size: 48
+          align: "center"
+        }
+
+        text "Join thousands exploring the open metaverse" {
+          style: "subtitle"
+          size: 20
+          align: "center"
+          opacity: 0.8
+          marginTop: 16
+          marginBottom: 40
+        }
+
+        row {
+          gap: 20
+
+          button "Enter in VR" {
+            style: "primary"
+            size: "large"
+            icon: "vr"
+            onClick: () -> enterVR()
+            disabled: !device.supportsVR
+
+            aria: {
+              label: device.supportsVR ? "Enter in Virtual Reality" : "VR not available on this device"
+            }
+          }
+
+          button "Enter in Browser" {
+            style: "secondary"
+            size: "large"
+            icon: "globe"
+            onClick: () -> navigate("/oasis")
+          }
+        }
+
+        if (!device.supportsVR) {
+          text "VR mode requires a WebXR-compatible headset" {
+            style: "caption"
+            size: 12
+            opacity: 0.5
+            marginTop: 12
+          }
+        }
+      }
+    }
+
+    // Footer
+    section "Footer" {
+      padding: [40, 40]
+      background: darken(ThemeSystem.current.colors.background, 15)
+
+      content {
+        row {
+          justify: "space-between"
+          align: "center"
+
+          column {
+            text "Hololand" {
+              style: "logo"
+              size: 24
+              weight: "bold"
+            }
+            text "Building the open metaverse" {
+              style: "caption"
+              size: 14
+              opacity: 0.6
+            }
+          }
+
+          row {
+            gap: 24
+
+            link "GitHub" {
+              href: "https://github.com/brianonbased-dev/Hololand"
+              icon: "github"
+              external: true
+            }
+
+            link "Discord" {
+              href: "#"
+              icon: "discord"
+              disabled: true
+              tooltip: "Coming soon"
+            }
+
+            link "Docs" {
+              href: "#"
+              icon: "book"
+              disabled: true
+              tooltip: "Coming soon"
+            }
+          }
+        }
+
+        divider { marginY: 24 }
+
+        row {
+          justify: "space-between"
+          align: "center"
+
+          text "© 2026 Hololand. Open source under Elastic License 2.0" {
+            style: "caption"
+            size: 12
+            opacity: 0.5
+          }
+
+          row {
+            gap: 16
+
+            text "Accessibility" {
+              style: "link"
+              size: 12
+              onClick: () -> emit("accessibility:show-help")
+            }
+
+            text "Privacy" {
+              style: "link"
+              size: 12
+              onClick: () -> showPrivacyPolicy()
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action scrollToSection(sectionId) {
+    const element = document.getElementById("section-" + sectionId)
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
+  action enterVR() {
+    if (device.supportsVR) {
+      emit("xr:request-session", "immersive-vr")
+      navigate("/oasis")
+    }
+  }
+
+  action showPrivacyPolicy() {
+    emit("modal:show", {
+      title: "Privacy Policy",
+      content: "Hololand Central runs entirely in your browser. We don't collect personal data or track your activity. API keys you add are stored locally on your device and never sent to our servers."
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_enter: () -> {
+    state.isLoaded = true
+    AudioSystem.playMusic("landing")
+  }
+
+  on_exit: () -> {
+    state.showIntroAnimation = false
+  }
+}
+
+export { Landing }

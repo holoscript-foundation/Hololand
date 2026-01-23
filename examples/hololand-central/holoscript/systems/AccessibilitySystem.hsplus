@@ -1,0 +1,521 @@
+/**
+ * Accessibility System
+ *
+ * Provides WCAG 2.1 AA compliant accessibility features including
+ * screen reader support, keyboard navigation, reduced motion,
+ * and high contrast modes.
+ */
+
+system "AccessibilitySystem" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    // Announcement settings
+    defaultPriority: "polite"  // polite | assertive
+    announcementDebounce: 100  // ms
+
+    // Navigation settings
+    focusRingColor: "#667eea"
+    focusRingWidth: 3
+    focusRingOffset: 2
+
+    // Motion settings
+    respectSystemPreference: true
+    defaultReducedMotion: false
+
+    // Contrast settings
+    highContrastRatio: 7      // WCAG AAA
+    normalContrastRatio: 4.5  // WCAG AA
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    // Feature toggles
+    reducedMotion: false
+    highContrast: false
+    screenReaderMode: false
+    keyboardNavigation: true
+
+    // Announcement queue
+    announcementQueue: []
+    currentAnnouncement: ""
+    isAnnouncing: false
+
+    // Focus management
+    focusedElement: null
+    focusHistory: []
+    focusTrap: null
+
+    // Navigation state
+    currentFocusGroup: null
+    focusGroupIndex: 0
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KEYBOARD SHORTCUTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data shortcuts: {
+    navigation: [
+      { key: "Tab", action: "focusNext", description: "Move to next element" },
+      { key: "Shift+Tab", action: "focusPrevious", description: "Move to previous element" },
+      { key: "Enter", action: "activate", description: "Activate focused element" },
+      { key: "Space", action: "activate", description: "Activate focused element" },
+      { key: "Escape", action: "closeOrBack", description: "Close dialog or go back" },
+      { key: "ArrowUp", action: "navigateUp", description: "Navigate up in list" },
+      { key: "ArrowDown", action: "navigateDown", description: "Navigate down in list" },
+      { key: "ArrowLeft", action: "navigateLeft", description: "Navigate left" },
+      { key: "ArrowRight", action: "navigateRight", description: "Navigate right" },
+      { key: "Home", action: "navigateFirst", description: "Go to first item" },
+      { key: "End", action: "navigateLast", description: "Go to last item" }
+    ],
+    accessibility: [
+      { key: "?", action: "showHelp", description: "Show keyboard shortcuts" },
+      { key: "m", action: "toggleMotion", description: "Toggle reduced motion" },
+      { key: "h", action: "toggleContrast", description: "Toggle high contrast" },
+      { key: "r", action: "readCurrentFocus", description: "Read focused element" }
+    ],
+    zones: [
+      { key: "1", action: "jumpToZone", zone: "main", description: "Jump to main content" },
+      { key: "2", action: "jumpToZone", zone: "navigation", description: "Jump to navigation" },
+      { key: "3", action: "jumpToZone", zone: "chat", description: "Jump to chat" }
+    ]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FOCUS GROUPS (for keyboard navigation)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data focusGroups: {
+    navigation: {
+      id: "navigation"
+      label: "Navigation Menu"
+      elements: ["menu-button", "zone-portal-*", "settings-button"]
+      wrapAround: true
+    },
+    tutorial: {
+      id: "tutorial"
+      label: "Tutorial"
+      elements: ["tutorial-prev", "tutorial-next", "tutorial-skip"]
+      wrapAround: false
+    },
+    dialog: {
+      id: "dialog"
+      label: "Dialog"
+      elements: []  // Dynamically populated
+      wrapAround: true
+      trapFocus: true
+    },
+    world: {
+      id: "world"
+      label: "3D World"
+      elements: ["portal-*", "npc-*", "interactive-*"]
+      wrapAround: false
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ANNOUNCEMENT ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action announce(message, priority = config.defaultPriority) {
+    if (!message || message.trim() === "") return
+
+    const announcement = {
+      message: message,
+      priority: priority,
+      timestamp: Date.now()
+    }
+
+    // If assertive, clear queue and announce immediately
+    if (priority === "assertive") {
+      state.announcementQueue = [announcement]
+      processAnnouncement()
+    } else {
+      // Queue polite announcements
+      state.announcementQueue.push(announcement)
+
+      if (!state.isAnnouncing) {
+        processAnnouncement()
+      }
+    }
+  }
+
+  action announceZoneChange(zoneName) {
+    announce("Entering " + zoneName, "assertive")
+  }
+
+  action announceInteraction(objectName, action) {
+    announce(objectName + ": " + action, "polite")
+  }
+
+  action announceError(message) {
+    announce("Error: " + message, "assertive")
+  }
+
+  action announceProgress(current, total, label) {
+    announce(label + ": " + current + " of " + total, "polite")
+  }
+
+  action clearAnnouncements() {
+    state.announcementQueue = []
+    state.currentAnnouncement = ""
+    state.isAnnouncing = false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FOCUS MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action focusElement(elementId) {
+    const element = document.getElementById(elementId)
+    if (!element) return false
+
+    // Save focus history
+    if (state.focusedElement) {
+      state.focusHistory.push(state.focusedElement)
+    }
+
+    state.focusedElement = elementId
+    element.focus()
+
+    // Announce focused element
+    const label = element.getAttribute("aria-label") ||
+                  element.getAttribute("aria-labelledby") ||
+                  element.textContent
+
+    if (label) {
+      announce(label, "polite")
+    }
+
+    return true
+  }
+
+  action focusNext() {
+    const group = focusGroups[state.currentFocusGroup]
+    if (!group) return
+
+    state.focusGroupIndex += 1
+
+    if (state.focusGroupIndex >= group.elements.length) {
+      if (group.wrapAround) {
+        state.focusGroupIndex = 0
+      } else {
+        state.focusGroupIndex = group.elements.length - 1
+      }
+    }
+
+    focusElement(group.elements[state.focusGroupIndex])
+  }
+
+  action focusPrevious() {
+    const group = focusGroups[state.currentFocusGroup]
+    if (!group) return
+
+    state.focusGroupIndex -= 1
+
+    if (state.focusGroupIndex < 0) {
+      if (group.wrapAround) {
+        state.focusGroupIndex = group.elements.length - 1
+      } else {
+        state.focusGroupIndex = 0
+      }
+    }
+
+    focusElement(group.elements[state.focusGroupIndex])
+  }
+
+  action restoreFocus() {
+    if (state.focusHistory.length > 0) {
+      const previousFocus = state.focusHistory.pop()
+      focusElement(previousFocus)
+    }
+  }
+
+  action setFocusGroup(groupId) {
+    if (!focusGroups[groupId]) return false
+
+    state.currentFocusGroup = groupId
+    state.focusGroupIndex = 0
+
+    const group = focusGroups[groupId]
+    if (group.elements.length > 0) {
+      focusElement(group.elements[0])
+    }
+
+    return true
+  }
+
+  action trapFocus(containerId) {
+    state.focusTrap = containerId
+    emit("focus:trapped", containerId)
+  }
+
+  action releaseFocusTrap() {
+    state.focusTrap = null
+    restoreFocus()
+    emit("focus:released")
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PREFERENCE TOGGLES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action toggleReducedMotion() {
+    state.reducedMotion = !state.reducedMotion
+    storage.set("hololand:reduced-motion", state.reducedMotion)
+
+    announce(
+      state.reducedMotion ? "Reduced motion enabled" : "Reduced motion disabled",
+      "assertive"
+    )
+
+    emit("accessibility:motion-changed", state.reducedMotion)
+  }
+
+  action toggleHighContrast() {
+    state.highContrast = !state.highContrast
+    storage.set("hololand:high-contrast", state.highContrast)
+
+    // Apply high contrast CSS class
+    document.body.classList.toggle("high-contrast", state.highContrast)
+
+    announce(
+      state.highContrast ? "High contrast mode enabled" : "High contrast mode disabled",
+      "assertive"
+    )
+
+    emit("accessibility:contrast-changed", state.highContrast)
+  }
+
+  action setScreenReaderMode(enabled) {
+    state.screenReaderMode = enabled
+    storage.set("hololand:screen-reader", enabled)
+
+    if (enabled) {
+      announce("Screen reader mode enabled. Press ? for keyboard shortcuts.", "assertive")
+    }
+
+    emit("accessibility:screen-reader-changed", enabled)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KEYBOARD HANDLING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action handleKeyDown(event) {
+    const key = getKeyString(event)
+
+    // Check accessibility shortcuts first
+    for (shortcut of shortcuts.accessibility) {
+      if (shortcut.key.toLowerCase() === key.toLowerCase()) {
+        event.preventDefault()
+        executeShortcut(shortcut)
+        return true
+      }
+    }
+
+    // Check navigation shortcuts
+    if (state.keyboardNavigation) {
+      for (shortcut of shortcuts.navigation) {
+        if (shortcut.key.toLowerCase() === key.toLowerCase()) {
+          event.preventDefault()
+          executeShortcut(shortcut)
+          return true
+        }
+      }
+    }
+
+    // Check zone shortcuts
+    for (shortcut of shortcuts.zones) {
+      if (shortcut.key === key) {
+        event.preventDefault()
+        executeShortcut(shortcut)
+        return true
+      }
+    }
+
+    return false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ARIA HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action setAriaLabel(elementId, label) {
+    const element = document.getElementById(elementId)
+    if (element) {
+      element.setAttribute("aria-label", label)
+    }
+  }
+
+  action setAriaDescribedBy(elementId, descriptionId) {
+    const element = document.getElementById(elementId)
+    if (element) {
+      element.setAttribute("aria-describedby", descriptionId)
+    }
+  }
+
+  action setAriaExpanded(elementId, expanded) {
+    const element = document.getElementById(elementId)
+    if (element) {
+      element.setAttribute("aria-expanded", expanded.toString())
+    }
+  }
+
+  action setAriaHidden(elementId, hidden) {
+    const element = document.getElementById(elementId)
+    if (element) {
+      element.setAttribute("aria-hidden", hidden.toString())
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GETTERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  getter animationDuration() {
+    return state.reducedMotion ? 0 : null  // null = use default
+  }
+
+  getter motionClass() {
+    return state.reducedMotion ? "reduce-motion" : ""
+  }
+
+  getter contrastClass() {
+    return state.highContrast ? "high-contrast" : ""
+  }
+
+  getter allShortcuts() {
+    return [
+      ...shortcuts.navigation,
+      ...shortcuts.accessibility,
+      ...shortcuts.zones
+    ]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function processAnnouncement() {
+    if (state.announcementQueue.length === 0) {
+      state.isAnnouncing = false
+      return
+    }
+
+    state.isAnnouncing = true
+    const announcement = state.announcementQueue.shift()
+
+    // Set announcement for screen reader live region
+    state.currentAnnouncement = announcement.message
+
+    // Clear after a delay to allow re-announcement of same message
+    after(1000) {
+      state.currentAnnouncement = ""
+      processAnnouncement()
+    }
+  }
+
+  function getKeyString(event) {
+    let key = event.key
+
+    if (event.shiftKey && key !== "Shift") {
+      key = "Shift+" + key
+    }
+    if (event.ctrlKey && key !== "Control") {
+      key = "Ctrl+" + key
+    }
+    if (event.altKey && key !== "Alt") {
+      key = "Alt+" + key
+    }
+
+    return key
+  }
+
+  function executeShortcut(shortcut) {
+    match shortcut.action {
+      "focusNext" -> focusNext()
+      "focusPrevious" -> focusPrevious()
+      "activate" -> emit("accessibility:activate", state.focusedElement)
+      "closeOrBack" -> emit("accessibility:close")
+      "navigateUp" -> emit("accessibility:navigate", "up")
+      "navigateDown" -> emit("accessibility:navigate", "down")
+      "navigateLeft" -> emit("accessibility:navigate", "left")
+      "navigateRight" -> emit("accessibility:navigate", "right")
+      "navigateFirst" -> emit("accessibility:navigate", "first")
+      "navigateLast" -> emit("accessibility:navigate", "last")
+      "showHelp" -> emit("accessibility:show-help")
+      "toggleMotion" -> toggleReducedMotion()
+      "toggleContrast" -> toggleHighContrast()
+      "readCurrentFocus" -> {
+        if (state.focusedElement) {
+          const el = document.getElementById(state.focusedElement)
+          if (el) {
+            announce(el.getAttribute("aria-label") || el.textContent, "assertive")
+          }
+        }
+      }
+      "jumpToZone" -> {
+        setFocusGroup(shortcut.zone)
+        announce("Jumped to " + shortcut.zone, "assertive")
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_init: async () -> {
+    // Check system preferences
+    if (config.respectSystemPreference) {
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      state.reducedMotion = prefersReducedMotion
+
+      // Listen for system preference changes
+      window.matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (e) -> {
+        if (config.respectSystemPreference) {
+          state.reducedMotion = e.matches
+          emit("accessibility:motion-changed", state.reducedMotion)
+        }
+      })
+    }
+
+    // Check for screen reader
+    // Note: This is a heuristic, not 100% reliable
+    const usesScreenReader = window.speechSynthesis !== undefined &&
+                              document.querySelector("[aria-live]") !== null
+    state.screenReaderMode = usesScreenReader
+
+    // Load saved preferences
+    const savedMotion = await storage.get("hololand:reduced-motion")
+    const savedContrast = await storage.get("hololand:high-contrast")
+
+    if (savedMotion !== null) {
+      state.reducedMotion = savedMotion
+    }
+
+    if (savedContrast !== null) {
+      state.highContrast = savedContrast
+      document.body.classList.toggle("high-contrast", savedContrast)
+    }
+
+    // Add keyboard listener
+    document.addEventListener("keydown", handleKeyDown)
+
+    emit("accessibility:ready")
+  }
+
+  on_destroy: () -> {
+    document.removeEventListener("keydown", handleKeyDown)
+  }
+}
+
+export { AccessibilitySystem }

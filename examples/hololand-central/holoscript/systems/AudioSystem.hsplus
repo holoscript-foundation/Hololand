@@ -1,0 +1,430 @@
+/**
+ * Audio System
+ *
+ * Manages spatial audio, background music, sound effects,
+ * and voice chat integration for Hololand Central.
+ */
+
+system "AudioSystem" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    masterVolume: 0.8
+    musicVolume: 0.5
+    sfxVolume: 0.7
+    voiceVolume: 1.0
+
+    spatialAudio: true
+    maxAudioDistance: 50
+    rolloffFactor: 1
+
+    crossfadeDuration: 2000
+    preloadSounds: true
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    isInitialized: false
+    isMuted: false
+
+    currentMusic: null
+    musicFading: false
+
+    activeSounds: []
+    listenerPosition: [0, 0, 0]
+    listenerRotation: [0, 0, 0]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SOUND LIBRARY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data sounds: {
+    // UI sounds
+    "ui-click": { url: "/audio/sfx/click.mp3", volume: 0.5 },
+    "ui-hover": { url: "/audio/sfx/hover.mp3", volume: 0.3 },
+    "ui-open": { url: "/audio/sfx/open.mp3", volume: 0.4 },
+    "ui-close": { url: "/audio/sfx/close.mp3", volume: 0.4 },
+    "ui-success": { url: "/audio/sfx/success.mp3", volume: 0.6 },
+    "ui-error": { url: "/audio/sfx/error.mp3", volume: 0.5 },
+
+    // Portal sounds
+    "portal-hover": { url: "/audio/sfx/portal-hum.mp3", volume: 0.4, loop: true },
+    "portal-activate": { url: "/audio/sfx/portal-whoosh.mp3", volume: 0.7 },
+    "portal-arrive": { url: "/audio/sfx/portal-arrive.mp3", volume: 0.6 },
+
+    // Easter egg sounds
+    "egg-discover": { url: "/audio/sfx/egg-chime.mp3", volume: 0.8 },
+    "egg-reveal": { url: "/audio/sfx/egg-fanfare.mp3", volume: 0.7 },
+
+    // Ambient sounds
+    "ambient-plaza": { url: "/audio/ambient/plaza.mp3", volume: 0.3, loop: true, spatial: true },
+    "ambient-casino": { url: "/audio/ambient/casino.mp3", volume: 0.4, loop: true, spatial: true },
+    "ambient-arcade": { url: "/audio/ambient/arcade.mp3", volume: 0.35, loop: true, spatial: true },
+    "ambient-lounge": { url: "/audio/ambient/lounge.mp3", volume: 0.25, loop: true, spatial: true },
+
+    // NPC sounds
+    "npc-greeting": { url: "/audio/sfx/npc-hello.mp3", volume: 0.6 },
+    "npc-chat": { url: "/audio/sfx/npc-chat.mp3", volume: 0.4 },
+
+    // Movement sounds
+    "footstep": { url: "/audio/sfx/footstep.mp3", volume: 0.2 },
+    "jump": { url: "/audio/sfx/jump.mp3", volume: 0.4 },
+    "land": { url: "/audio/sfx/land.mp3", volume: 0.3 }
+  }
+
+  data music: {
+    "cyberpunk": { url: "/audio/music/cyberpunk-ambient.mp3", bpm: 100 },
+    "wild-west": { url: "/audio/music/western-ambient.mp3", bpm: 85 },
+    "cityscape": { url: "/audio/music/city-ambient.mp3", bpm: 110 },
+    "snowy-town": { url: "/audio/music/winter-ambient.mp3", bpm: 70 },
+    "holiday": { url: "/audio/music/holiday-ambient.mp3", bpm: 90 }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PLAYBACK ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action play(soundId, options = {}) {
+    if (state.isMuted || !state.isInitialized) return null
+
+    const soundDef = sounds[soundId]
+    if (!soundDef) {
+      console.warn("Unknown sound:", soundId)
+      return null
+    }
+
+    const sound = {
+      id: generateId(),
+      soundId: soundId,
+      volume: (soundDef.volume || 1) * config.sfxVolume * config.masterVolume,
+      loop: options.loop ?? soundDef.loop ?? false,
+      position: options.position || null,
+      spatial: options.spatial ?? soundDef.spatial ?? false
+    }
+
+    // Create audio element
+    const audio = new Audio(soundDef.url)
+    audio.volume = sound.volume
+    audio.loop = sound.loop
+
+    if (sound.spatial && sound.position) {
+      // Apply spatial audio
+      applySpatialAudio(audio, sound.position)
+    }
+
+    audio.play().catch(e => console.warn("Audio play failed:", e))
+
+    state.activeSounds.push({ ...sound, audio: audio })
+
+    // Clean up when done (if not looping)
+    if (!sound.loop) {
+      audio.onended = () -> {
+        state.activeSounds = state.activeSounds.filter(s => s.id !== sound.id)
+      }
+    }
+
+    return sound.id
+  }
+
+  action playAt(soundId, position) {
+    return play(soundId, { position: position, spatial: true })
+  }
+
+  action stop(soundInstanceId) {
+    const sound = state.activeSounds.find(s => s.id === soundInstanceId)
+    if (sound && sound.audio) {
+      sound.audio.pause()
+      sound.audio.currentTime = 0
+      state.activeSounds = state.activeSounds.filter(s => s.id !== soundInstanceId)
+    }
+  }
+
+  action stopAll() {
+    for (sound of state.activeSounds) {
+      if (sound.audio) {
+        sound.audio.pause()
+        sound.audio.currentTime = 0
+      }
+    }
+    state.activeSounds = []
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MUSIC ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action playMusic(trackId) {
+    if (state.isMuted || !state.isInitialized) return
+
+    const track = music[trackId]
+    if (!track) {
+      console.warn("Unknown music track:", trackId)
+      return
+    }
+
+    // If already playing, crossfade
+    if (state.currentMusic) {
+      crossfadeMusic(trackId)
+      return
+    }
+
+    const audio = new Audio(track.url)
+    audio.volume = config.musicVolume * config.masterVolume
+    audio.loop = true
+
+    audio.play().catch(e => console.warn("Music play failed:", e))
+
+    state.currentMusic = {
+      trackId: trackId,
+      audio: audio
+    }
+  }
+
+  action stopMusic() {
+    if (state.currentMusic && state.currentMusic.audio) {
+      fadeOut(state.currentMusic.audio, config.crossfadeDuration)
+      state.currentMusic = null
+    }
+  }
+
+  action crossfadeMusic(newTrackId) {
+    state.musicFading = true
+
+    const oldAudio = state.currentMusic?.audio
+    const newTrack = music[newTrackId]
+
+    if (!newTrack) return
+
+    const newAudio = new Audio(newTrack.url)
+    newAudio.volume = 0
+    newAudio.loop = true
+    newAudio.play().catch(e => console.warn("Music play failed:", e))
+
+    // Crossfade
+    const steps = 50
+    const stepTime = config.crossfadeDuration / steps
+    let step = 0
+
+    const interval = setInterval(() -> {
+      step += 1
+      const progress = step / steps
+
+      if (oldAudio) {
+        oldAudio.volume = (1 - progress) * config.musicVolume * config.masterVolume
+      }
+      newAudio.volume = progress * config.musicVolume * config.masterVolume
+
+      if (step >= steps) {
+        clearInterval(interval)
+        if (oldAudio) {
+          oldAudio.pause()
+        }
+        state.currentMusic = {
+          trackId: newTrackId,
+          audio: newAudio
+        }
+        state.musicFading = false
+      }
+    }, stepTime)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VOLUME CONTROLS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action setMasterVolume(volume) {
+    config.masterVolume = Math.max(0, Math.min(1, volume))
+    updateAllVolumes()
+    storage.set("hololand:audio:master", config.masterVolume)
+  }
+
+  action setMusicVolume(volume) {
+    config.musicVolume = Math.max(0, Math.min(1, volume))
+    updateMusicVolume()
+    storage.set("hololand:audio:music", config.musicVolume)
+  }
+
+  action setSfxVolume(volume) {
+    config.sfxVolume = Math.max(0, Math.min(1, volume))
+    storage.set("hololand:audio:sfx", config.sfxVolume)
+  }
+
+  action mute() {
+    state.isMuted = true
+    if (state.currentMusic?.audio) {
+      state.currentMusic.audio.volume = 0
+    }
+    storage.set("hololand:audio:muted", true)
+  }
+
+  action unmute() {
+    state.isMuted = false
+    updateAllVolumes()
+    storage.set("hololand:audio:muted", false)
+  }
+
+  action toggleMute() {
+    if (state.isMuted) {
+      unmute()
+    } else {
+      mute()
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPATIAL AUDIO
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action setListenerPosition(position, rotation) {
+    state.listenerPosition = position
+    state.listenerRotation = rotation
+
+    // Update all spatial sounds
+    for (sound of state.activeSounds) {
+      if (sound.spatial && sound.position && sound.audio) {
+        applySpatialAudio(sound.audio, sound.position)
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function generateId() {
+    return "sound-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9)
+  }
+
+  function applySpatialAudio(audio, position) {
+    if (!config.spatialAudio) return
+
+    const dx = position[0] - state.listenerPosition[0]
+    const dy = position[1] - state.listenerPosition[1]
+    const dz = position[2] - state.listenerPosition[2]
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    // Distance-based volume falloff
+    const maxDistance = config.maxAudioDistance
+    const volumeMultiplier = Math.max(0, 1 - (distance / maxDistance) * config.rolloffFactor)
+
+    audio.volume = audio.volume * volumeMultiplier
+
+    // Simple panning based on x position
+    // Note: For full 3D audio, use Web Audio API
+    // This is a simplified version
+  }
+
+  function fadeOut(audio, duration) {
+    const steps = 20
+    const stepTime = duration / steps
+    const initialVolume = audio.volume
+    let step = 0
+
+    const interval = setInterval(() -> {
+      step += 1
+      audio.volume = initialVolume * (1 - step / steps)
+
+      if (step >= steps) {
+        clearInterval(interval)
+        audio.pause()
+      }
+    }, stepTime)
+  }
+
+  function updateAllVolumes() {
+    updateMusicVolume()
+
+    for (sound of state.activeSounds) {
+      if (sound.audio) {
+        const baseDef = sounds[sound.soundId]
+        sound.audio.volume = (baseDef?.volume || 1) * config.sfxVolume * config.masterVolume
+      }
+    }
+  }
+
+  function updateMusicVolume() {
+    if (state.currentMusic?.audio && !state.isMuted) {
+      state.currentMusic.audio.volume = config.musicVolume * config.masterVolume
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_init: async () -> {
+    // Load saved preferences
+    const savedMaster = await storage.get("hololand:audio:master")
+    const savedMusic = await storage.get("hololand:audio:music")
+    const savedSfx = await storage.get("hololand:audio:sfx")
+    const savedMuted = await storage.get("hololand:audio:muted")
+
+    if (savedMaster !== null) config.masterVolume = savedMaster
+    if (savedMusic !== null) config.musicVolume = savedMusic
+    if (savedSfx !== null) config.sfxVolume = savedSfx
+    if (savedMuted !== null) state.isMuted = savedMuted
+
+    // Preload common sounds
+    if (config.preloadSounds) {
+      for (soundId of ["ui-click", "ui-hover", "portal-activate", "egg-discover"]) {
+        const def = sounds[soundId]
+        if (def) {
+          const preload = new Audio(def.url)
+          preload.preload = "auto"
+        }
+      }
+    }
+
+    state.isInitialized = true
+    emit("audio:ready")
+  }
+
+  // Listen for theme changes to switch music
+  on_event("theme:changed"): (theme) -> {
+    if (music[theme.id]) {
+      playMusic(theme.id)
+    }
+  }
+
+  // Listen for zone changes
+  on_event("zone:enter"): (zone) -> {
+    // Play zone-specific ambient
+    const ambientId = "ambient-" + zone.id.toLowerCase()
+    if (sounds[ambientId]) {
+      play(ambientId, { loop: true })
+    }
+  }
+
+  on_event("zone:exit"): (zone) -> {
+    // Stop zone ambient
+    const ambientSounds = state.activeSounds.filter(s =>
+      s.soundId.startsWith("ambient-") && s.soundId.includes(zone.id.toLowerCase())
+    )
+    for (sound of ambientSounds) {
+      stop(sound.id)
+    }
+  }
+
+  // Listen for player movement for spatial audio
+  on_event("player:position"): (position) -> {
+    setListenerPosition(position, state.listenerRotation)
+  }
+
+  on_event("player:rotation"): (rotation) -> {
+    setListenerPosition(state.listenerPosition, rotation)
+  }
+
+  on_destroy: () -> {
+    stopAll()
+    stopMusic()
+  }
+}
+
+export { AudioSystem }

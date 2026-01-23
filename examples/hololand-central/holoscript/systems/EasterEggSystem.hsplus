@@ -1,0 +1,578 @@
+/**
+ * Easter Egg System
+ *
+ * Manages discovery, tracking, and rewards for hidden easter eggs
+ * throughout Hololand Central. Supports multiple trigger types
+ * and themed variants.
+ */
+
+system "EasterEggSystem" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    proximityCheckInterval: 100  // ms
+    defaultTriggerRadius: 2      // meters
+    rewardDisplayDuration: 5000  // ms
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    discoveredEggs: []          // Array of egg IDs
+    totalDiscovered: 0
+    lastDiscovery: null
+    showingReward: false
+    currentReward: null
+    playerPosition: [0, 0, 0]
+    activeSequence: null        // For sequence-based triggers
+    sequenceProgress: 0
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EASTER EGG DEFINITIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data eggs: [
+    // ═════════════════════════════════════════════════════════════════════════
+    // WELCOME PLAZA (Zone 1)
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+      id: "plaza-concierge"
+      zone: "MainPlaza"
+      name: "The Hidden Concierge"
+      description: "Find the invisible NPC behind the welcome sign"
+      triggerType: "proximity"
+      position: [-15, 1, 8]
+      triggerRadius: 1.5
+      reward: {
+        type: "title"
+        name: "Curious Explorer"
+        rarity: "common"
+        icon: "magnifying-glass"
+      }
+      hint: "Not everything is as it appears at first glance..."
+    },
+    {
+      id: "plaza-fountain-code"
+      zone: "MainPlaza"
+      name: "Fountain of Knowledge"
+      description: "Enter the secret code at the fountain"
+      triggerType: "sequence"
+      sequence: ["left", "right", "left", "jump", "interact"]
+      position: [0, 1, 0]
+      triggerRadius: 3
+      reward: {
+        type: "emote"
+        name: "Water Dance"
+        rarity: "rare"
+        animation: "water-dance"
+      }
+      hint: "The fountain remembers the old dance..."
+    },
+    {
+      id: "plaza-skywalk"
+      zone: "MainPlaza"
+      name: "Secret Sky Walk"
+      description: "Discover the invisible platform above the plaza"
+      triggerType: "proximity"
+      position: [0, 15, 0]
+      triggerRadius: 2
+      reward: {
+        type: "badge"
+        name: "Sky Walker"
+        rarity: "epic"
+        icon: "cloud-walking"
+      }
+      hint: "Look up and believe..."
+    },
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // BUILDER SHOP (Zone 2)
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+      id: "builder-dev-terminal"
+      zone: "BuilderShop"
+      name: "Developer's Terminal"
+      description: "Find the hidden dev console"
+      triggerType: "proximity"
+      position: [10, 1, -5]
+      triggerRadius: 1
+      reward: {
+        type: "cosmetic"
+        name: "Holographic Keyboard"
+        rarity: "legendary"
+        item: "keyboard-hologram"
+      }
+      hint: "Every builder needs the right tools..."
+    },
+    {
+      id: "builder-blueprint"
+      zone: "BuilderShop"
+      name: "Blueprint Scavenger"
+      description: "Collect all 5 hidden blueprints"
+      triggerType: "multi_collect"
+      collectibles: [
+        { id: "bp-1", position: [2, 2, 3] },
+        { id: "bp-2", position: [-4, 1, 6] },
+        { id: "bp-3", position: [0, 3, -2] },
+        { id: "bp-4", position: [5, 1, -4] },
+        { id: "bp-5", position: [-3, 2, 0] }
+      ]
+      reward: {
+        type: "sticker"
+        name: "Master Architect"
+        rarity: "epic"
+        image: "architect-badge"
+      }
+      hint: "Scattered pages of wisdom await collection..."
+    },
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // CASINO (Zone 3)
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+      id: "casino-vip-lights"
+      zone: "HololandCasino"
+      name: "VIP Light Show"
+      description: "Trigger the hidden light sequence"
+      triggerType: "sequence"
+      sequence: ["red", "blue", "green", "red", "gold"]
+      position: [0, 1, 0]
+      triggerRadius: 5
+      reward: {
+        type: "cosmetic"
+        name: "Neon Aura"
+        rarity: "rare"
+        effect: "neon-glow"
+      }
+      hint: "The colors tell a story..."
+    },
+    {
+      id: "casino-trivia"
+      zone: "HololandCasino"
+      name: "Lucky Charm Trivia"
+      description: "Answer Brian's secret question correctly"
+      triggerType: "dialogue"
+      npc: "Brian"
+      correctAnswer: "hololand"
+      reward: {
+        type: "badge"
+        name: "Lucky Scholar"
+        rarity: "common"
+        icon: "four-leaf-clover"
+      }
+      hint: "Brian knows more than he lets on..."
+    },
+    {
+      id: "casino-jackpot-room"
+      zone: "HololandCasino"
+      name: "The Jackpot Room"
+      description: "Find the secret high-roller room"
+      triggerType: "proximity"
+      position: [-20, 0, -15]
+      triggerRadius: 2
+      reward: {
+        type: "title"
+        name: "High Roller"
+        rarity: "legendary"
+        icon: "diamond"
+      }
+      hint: "Fortune favors the persistent explorer..."
+    },
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // ARCADE DISTRICT (Zone 4)
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+      id: "arcade-perfect-rhythm"
+      zone: "ArcadeDistrict"
+      name: "Perfect Rhythm"
+      description: "Get a perfect score on the rhythm game"
+      triggerType: "score"
+      game: "rhythm-machine"
+      requiredScore: 10000
+      reward: {
+        type: "emote"
+        name: "Dance Machine"
+        rarity: "epic"
+        animation: "perfect-dance"
+      }
+      hint: "Feel the beat, become the beat..."
+    },
+    {
+      id: "arcade-classic-cabinets"
+      zone: "ArcadeDistrict"
+      name: "Classic Cabinet Tribute"
+      description: "Find all 3 hidden retro cabinets"
+      triggerType: "multi_collect"
+      collectibles: [
+        { id: "cabinet-pac", position: [8, 0, 12] },
+        { id: "cabinet-space", position: [-6, 0, 8] },
+        { id: "cabinet-donkey", position: [3, 0, -5] }
+      ]
+      reward: {
+        type: "sticker"
+        name: "Retro Gamer"
+        rarity: "rare"
+        image: "pixel-heart"
+      }
+      hint: "Legends of gaming past are hiding in plain sight..."
+    },
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // SOCIAL LOUNGE (Zone 5)
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+      id: "lounge-whisper-corner"
+      zone: "SocialLounge"
+      name: "The Whisper Corner"
+      description: "Find the secret conversation spot"
+      triggerType: "proximity"
+      position: [12, 1, 12]
+      triggerRadius: 1.5
+      reward: {
+        type: "cosmetic"
+        name: "Mystery Mask"
+        rarity: "rare"
+        item: "phantom-mask"
+      }
+      hint: "Some conversations are meant to be private..."
+    },
+    {
+      id: "lounge-dance-floor"
+      zone: "SocialLounge"
+      name: "Midnight Dancer"
+      description: "Dance on the secret dance floor at night"
+      triggerType: "time_of_day"
+      time: "night"
+      position: [0, 0, 0]
+      triggerRadius: 4
+      action: "dance"
+      reward: {
+        type: "emote"
+        name: "Moonlight Waltz"
+        rarity: "epic"
+        animation: "moonlight-waltz"
+      }
+      hint: "When the stars come out, the floor comes alive..."
+    },
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // INFINITY SHOP (Zone 6)
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+      id: "infinity-mirror"
+      zone: "InfinityShop"
+      name: "Infinite Reflections"
+      description: "Find the mirror that shows another world"
+      triggerType: "proximity"
+      position: [-8, 2, 3]
+      triggerRadius: 1
+      reward: {
+        type: "cosmetic"
+        name: "Dimensional Frame"
+        rarity: "legendary"
+        item: "portal-frame"
+      }
+      hint: "Look deep into yourself..."
+    },
+    {
+      id: "infinity-brittney-secret"
+      zone: "InfinityShop"
+      name: "Brittney's Secret"
+      description: "Ask Brittney the right question"
+      triggerType: "dialogue"
+      npc: "Brittney"
+      correctAnswer: "what is consciousness"
+      reward: {
+        type: "title"
+        name: "Deep Thinker"
+        rarity: "epic"
+        icon: "brain"
+      }
+      hint: "AI ponders the big questions too..."
+    },
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // THEME VARIANTS (Special)
+    // ═════════════════════════════════════════════════════════════════════════
+    {
+      id: "theme-cyberpunk-glitch"
+      zone: "MainPlaza"
+      name: "Glitch in the Matrix"
+      description: "Find the visual glitch during Cyberpunk theme"
+      triggerType: "theme_variant"
+      theme: "cyberpunk"
+      position: [5, 3, -8]
+      triggerRadius: 2
+      reward: {
+        type: "cosmetic"
+        name: "Glitch Effect"
+        rarity: "epic"
+        effect: "digital-glitch"
+      }
+      hint: "Reality bends in the neon light..."
+    },
+    {
+      id: "theme-holiday-snowman"
+      zone: "MainPlaza"
+      name: "Secret Snowman"
+      description: "Build the hidden snowman during Holiday theme"
+      triggerType: "theme_variant"
+      theme: "holiday"
+      sequence: ["snowball-1", "snowball-2", "snowball-3", "carrot", "hat"]
+      reward: {
+        type: "badge"
+        name: "Frosty Friend"
+        rarity: "rare"
+        icon: "snowman"
+      }
+      hint: "Three balls of snow, a carrot nose..."
+    }
+  ]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action discover(eggId) {
+    // Check if already discovered
+    if (state.discoveredEggs.includes(eggId)) {
+      return false
+    }
+
+    const egg = eggs.find(e => e.id === eggId)
+    if (!egg) {
+      return false
+    }
+
+    // Add to discovered
+    state.discoveredEggs.push(eggId)
+    state.totalDiscovered = state.discoveredEggs.length
+    state.lastDiscovery = {
+      egg: egg,
+      timestamp: Date.now()
+    }
+
+    // Show reward
+    state.currentReward = egg.reward
+    state.showingReward = true
+
+    // Schedule hide
+    after(config.rewardDisplayDuration) {
+      hideReward()
+    }
+
+    // Persist to storage
+    storage.set("hololand:discovered-eggs", state.discoveredEggs)
+
+    // Announce discovery
+    emit("accessibility:announce", {
+      message: "Easter egg discovered! " + egg.name + ". Reward: " + egg.reward.name,
+      priority: "assertive"
+    })
+
+    // Emit event for other systems
+    emit("easter-egg:discovered", {
+      egg: egg,
+      reward: egg.reward,
+      total: state.totalDiscovered,
+      percentage: (state.totalDiscovered / eggs.length) * 100
+    })
+
+    // Analytics
+    emit("analytics:event", {
+      category: "easter-egg",
+      action: "discover",
+      label: eggId
+    })
+
+    return true
+  }
+
+  action hideReward() {
+    state.showingReward = false
+    state.currentReward = null
+  }
+
+  action checkProximity(position) {
+    state.playerPosition = position
+
+    // Check all proximity-based eggs
+    for (egg of eggs) {
+      if (egg.triggerType !== "proximity") continue
+      if (state.discoveredEggs.includes(egg.id)) continue
+
+      const distance = calculateDistance(position, egg.position)
+      if (distance <= (egg.triggerRadius || config.defaultTriggerRadius)) {
+        discover(egg.id)
+      }
+    }
+  }
+
+  action checkSequence(action) {
+    // Find eggs with active sequence triggers
+    for (egg of eggs) {
+      if (egg.triggerType !== "sequence") continue
+      if (state.discoveredEggs.includes(egg.id)) continue
+
+      // Check if in trigger area
+      const distance = calculateDistance(state.playerPosition, egg.position)
+      if (distance > (egg.triggerRadius || config.defaultTriggerRadius)) continue
+
+      // Start or continue sequence
+      if (state.activeSequence !== egg.id) {
+        state.activeSequence = egg.id
+        state.sequenceProgress = 0
+      }
+
+      // Check if action matches next in sequence
+      if (egg.sequence[state.sequenceProgress] === action) {
+        state.sequenceProgress += 1
+
+        // Check if sequence complete
+        if (state.sequenceProgress >= egg.sequence.length) {
+          discover(egg.id)
+          state.activeSequence = null
+          state.sequenceProgress = 0
+        }
+      } else {
+        // Wrong action, reset sequence
+        state.sequenceProgress = 0
+      }
+    }
+  }
+
+  action checkThemeVariant(currentTheme) {
+    for (egg of eggs) {
+      if (egg.triggerType !== "theme_variant") continue
+      if (egg.theme !== currentTheme) continue
+      if (state.discoveredEggs.includes(egg.id)) continue
+
+      // Check if in trigger area
+      const distance = calculateDistance(state.playerPosition, egg.position)
+      if (distance <= (egg.triggerRadius || config.defaultTriggerRadius)) {
+        discover(egg.id)
+      }
+    }
+  }
+
+  action checkTimeOfDay() {
+    const hour = new Date().getHours()
+    const isNight = hour >= 20 || hour < 6
+
+    for (egg of eggs) {
+      if (egg.triggerType !== "time_of_day") continue
+      if (state.discoveredEggs.includes(egg.id)) continue
+
+      const matchesTime = (egg.time === "night" && isNight) ||
+                          (egg.time === "day" && !isNight)
+
+      if (!matchesTime) continue
+
+      const distance = calculateDistance(state.playerPosition, egg.position)
+      if (distance <= (egg.triggerRadius || config.defaultTriggerRadius)) {
+        discover(egg.id)
+      }
+    }
+  }
+
+  action getHint(eggId) {
+    const egg = eggs.find(e => e.id === eggId)
+    return egg ? egg.hint : null
+  }
+
+  action reset() {
+    state.discoveredEggs = []
+    state.totalDiscovered = 0
+    state.lastDiscovery = null
+    state.showingReward = false
+    state.currentReward = null
+    state.activeSequence = null
+    state.sequenceProgress = 0
+
+    storage.remove("hololand:discovered-eggs")
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GETTERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  getter totalEggs() {
+    return eggs.length
+  }
+
+  getter progress() {
+    return state.totalDiscovered / eggs.length
+  }
+
+  getter progressText() {
+    return state.totalDiscovered + " / " + eggs.length
+  }
+
+  getter undiscoveredEggs() {
+    return eggs.filter(e => !state.discoveredEggs.includes(e.id))
+  }
+
+  getter discoveredEggData() {
+    return eggs.filter(e => state.discoveredEggs.includes(e.id))
+  }
+
+  getter eggsByZone(zoneName) {
+    return eggs.filter(e => e.zone === zoneName)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function calculateDistance(pos1, pos2) {
+    const dx = pos1[0] - pos2[0]
+    const dy = pos1[1] - pos2[1]
+    const dz = pos1[2] - pos2[2]
+    return Math.sqrt(dx * dx + dy * dy + dz * dz)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_init: async () -> {
+    // Load discovered eggs from storage
+    const saved = await storage.get("hololand:discovered-eggs")
+    if (saved && Array.isArray(saved)) {
+      state.discoveredEggs = saved
+      state.totalDiscovered = saved.length
+    }
+  }
+
+  // Periodic proximity check
+  every(config.proximityCheckInterval) {
+    if (state.playerPosition) {
+      checkProximity(state.playerPosition)
+      checkTimeOfDay()
+    }
+  }
+
+  // Listen for player movement
+  on_event("player:position"): (position) -> {
+    state.playerPosition = position
+  }
+
+  // Listen for player actions (for sequences)
+  on_event("player:action"): (action) -> {
+    checkSequence(action)
+  }
+
+  // Listen for theme changes
+  on_event("theme:changed"): (theme) -> {
+    checkThemeVariant(theme.id)
+  }
+}
+
+export { EasterEggSystem }

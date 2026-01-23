@@ -1,0 +1,487 @@
+/**
+ * Hololand Central - Main Application Composition
+ *
+ * This is the HoloScript-first entry point for Hololand Central.
+ * It orchestrates all systems, pages, and worlds in a declarative way.
+ *
+ * The TypeScript bootstrap (main.tsx) loads this composition and
+ * hydrates it into the React Three Fiber canvas.
+ */
+
+import { TutorialSystem } from "./systems/TutorialSystem.hsplus"
+import { EasterEggSystem } from "./systems/EasterEggSystem.hsplus"
+import { ThemeSystem } from "./systems/ThemeSystem.hsplus"
+import { AccessibilitySystem } from "./systems/AccessibilitySystem.hsplus"
+import { AudioSystem } from "./systems/AudioSystem.hsplus"
+import { MultiplayerSystem } from "./systems/MultiplayerSystem.hsplus"
+
+composition "HololandCentral" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    title: "Hololand Central"
+    version: "1.0.0"
+    description: "The gateway to the Hololand metaverse"
+
+    // Rendering configuration
+    renderMode: "progressive"  // 2d → 3d → vr based on device
+    defaultView: "landing"
+
+    // Feature flags
+    features: {
+      tutorialEnabled: true
+      easterEggsEnabled: true
+      themesEnabled: true
+      multiplayerEnabled: false  // Phase 3B
+      voiceCommandsEnabled: true
+      accessibilityEnabled: true
+    }
+
+    // Performance defaults
+    performance: {
+      targetFPS: 60
+      shadowsEnabled: true
+      postProcessing: true
+      particleLimit: 1000
+      drawDistance: 100
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GLOBAL STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    // Current navigation
+    currentView: "landing"    // landing | oasis | central | world
+    currentWorld: null        // plaza | casino | lounge | builder | arcade | infinity
+    previousView: null
+
+    // User state
+    user: {
+      isFirstVisit: true
+      tutorialStep: 0
+      tutorialComplete: false
+      discoveredEggs: []
+      equippedRewards: []
+      preferredTheme: null
+    }
+
+    // System state
+    theme: "cyberpunk"        // Current active theme
+    reducedMotion: false      // Accessibility preference
+    screenReaderMode: false   // Accessibility preference
+
+    // Runtime state
+    isLoading: true
+    loadProgress: 0
+    error: null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SYSTEMS (background processes)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  systems {
+    // Tutorial guidance system
+    system TutorialSystem {
+      enabled: config.features.tutorialEnabled
+      onComplete: () -> {
+        state.user.tutorialComplete = true
+        emit("tutorial:complete")
+      }
+    }
+
+    // Easter egg detection and rewards
+    system EasterEggSystem {
+      enabled: config.features.easterEggsEnabled
+      onDiscover: (egg) -> {
+        state.user.discoveredEggs.push(egg.id)
+        emit("easter-egg:discovered", egg)
+      }
+    }
+
+    // Theme management and cycling
+    system ThemeSystem {
+      enabled: config.features.themesEnabled
+      defaultTheme: "cyberpunk"
+      cycleInterval: 300000  // 5 minutes
+      onThemeChange: (theme) -> {
+        state.theme = theme.id
+        emit("theme:changed", theme)
+      }
+    }
+
+    // Accessibility features
+    system AccessibilitySystem {
+      enabled: config.features.accessibilityEnabled
+      announceNavigation: true
+      announceInteractions: true
+      keyboardNavigation: true
+    }
+
+    // Spatial audio
+    system AudioSystem {
+      enabled: true
+      masterVolume: 0.8
+      spatialAudio: true
+      musicEnabled: true
+    }
+
+    // Multiplayer networking (Phase 3B)
+    system MultiplayerSystem {
+      enabled: config.features.multiplayerEnabled
+      mode: "local-first"  // local-first | hybrid | cloud
+      maxPlayers: 50
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAGES (top-level navigation)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  pages {
+    // Marketing/intro page
+    page "Landing" {
+      path: "/"
+      include: "./pages/Landing.hsplus"
+
+      on_enter: () -> {
+        state.currentView = "landing"
+        AccessibilitySystem.announce("Welcome to Hololand Central")
+      }
+    }
+
+    // Planet selection view with tutorial
+    page "Oasis" {
+      path: "/oasis"
+      include: "./pages/Oasis.hsplus"
+
+      on_enter: () -> {
+        state.currentView = "oasis"
+        AccessibilitySystem.announce("Entering the Oasis")
+
+        if (state.user.isFirstVisit) {
+          TutorialSystem.start()
+        }
+      }
+    }
+
+    // Building grid hub
+    page "Central" {
+      path: "/central"
+      include: "./pages/Central.hsplus"
+
+      on_enter: () -> {
+        state.currentView = "central"
+        AccessibilitySystem.announce("Welcome to Central Hub")
+      }
+    }
+
+    // Individual world views
+    page "World" {
+      path: "/world/:worldId"
+      include: "./pages/World.hsplus"
+
+      on_enter: (params) -> {
+        state.currentView = "world"
+        state.currentWorld = params.worldId
+        AccessibilitySystem.announce("Entering " + params.worldId)
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WORLDS (3D environments)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  worlds {
+    // Main hub with portals
+    world "MainPlaza" {
+      include: "./worlds/MainPlaza.hsplus"
+      spawnPoint: [0, 1, 10]
+      theme: state.theme
+    }
+
+    // Brian's casino domain
+    world "HololandCasino" {
+      include: "./worlds/HololandCasino.hsplus"
+      spawnPoint: [0, 1, 5]
+      npc: "Brian"
+    }
+
+    // Social meeting area
+    world "SocialLounge" {
+      include: "./worlds/SocialLounge.hsplus"
+      spawnPoint: [0, 1, 0]
+      features: ["seating", "voice-chat"]
+    }
+
+    // Creator tools area
+    world "BuilderShop" {
+      include: "./worlds/BuilderShop.hsplus"
+      spawnPoint: [0, 1, 5]
+      features: ["building-tools", "templates"]
+    }
+
+    // Brittney's shop
+    world "InfinityShop" {
+      include: "./worlds/InfinityShop.hsplus"
+      spawnPoint: [0, 1, 0]
+      npc: "Brittney"
+    }
+
+    // Retro arcade zone
+    world "ArcadeDistrict" {
+      include: "./worlds/ArcadeDistrict.hsplus"
+      spawnPoint: [0, 1, 10]
+      features: ["games", "leaderboards"]
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TEMPLATES (reusable object definitions)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  templates {
+    // Portal for world navigation
+    template "Portal" {
+      traits: ["interactive", "portal-gate", "pulse"]
+
+      properties {
+        destination: null
+        label: ""
+        color: "#667eea"
+        active: true
+      }
+
+      state {
+        isHovered: false
+        isActivating: false
+      }
+
+      on_hover: () -> {
+        this.state.isHovered = true
+        AudioSystem.play("portal-hover")
+        AccessibilitySystem.announce("Portal to " + this.properties.label)
+      }
+
+      on_hover_end: () -> {
+        this.state.isHovered = false
+      }
+
+      on_interact: () -> {
+        if (this.properties.active) {
+          this.state.isActivating = true
+          AudioSystem.play("portal-activate")
+
+          after(500) {
+            navigate(this.properties.destination)
+          }
+        }
+      }
+    }
+
+    // Interactive NPC character
+    template "NPC" {
+      traits: ["talkable", "animated", "has-dialogue"]
+
+      properties {
+        name: ""
+        role: ""
+        dialogueTree: null
+        idleAnimation: "idle"
+        talkAnimation: "talk"
+      }
+
+      state {
+        isEngaged: false
+        currentDialogue: null
+      }
+
+      on_interact: () -> {
+        this.state.isEngaged = true
+        emit("npc:engage", this)
+        AccessibilitySystem.announce(this.properties.name + " says hello")
+      }
+
+      on_dialogue_end: () -> {
+        this.state.isEngaged = false
+      }
+    }
+
+    // Collectible easter egg
+    template "EasterEgg" {
+      traits: ["hidden", "collectible", "glows"]
+
+      properties {
+        eggId: ""
+        reward: null
+        triggerType: "proximity"
+        triggerRadius: 2
+        hint: ""
+      }
+
+      state {
+        discovered: false
+        visible: false
+      }
+
+      on_trigger: () -> {
+        if (!this.state.discovered) {
+          this.state.discovered = true
+          this.state.visible = true
+          EasterEggSystem.discover(this.properties.eggId)
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GLOBAL LOGIC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  logic {
+    // App initialization
+    on_start: async () -> {
+      // Check system preferences
+      state.reducedMotion = system.prefersReducedMotion()
+      state.screenReaderMode = system.usesScreenReader()
+
+      // Load user state from local storage
+      const savedUser = await storage.get("hololand:user")
+      if (savedUser) {
+        state.user = { ...state.user, ...savedUser }
+      }
+
+      // Initialize systems
+      await ThemeSystem.init()
+      await AudioSystem.init()
+
+      if (config.features.accessibilityEnabled) {
+        await AccessibilitySystem.init()
+      }
+
+      state.isLoading = false
+      emit("app:ready")
+    }
+
+    // Navigation handling
+    on_navigate: (destination) -> {
+      state.previousView = state.currentView
+
+      // Save navigation for back button
+      history.push(state.currentView)
+
+      // Announce to screen readers
+      AccessibilitySystem.announce("Navigating to " + destination)
+    }
+
+    // Persist user state on changes
+    on_user_change: debounce(1000, () -> {
+      storage.set("hololand:user", state.user)
+    })
+
+    // Keyboard shortcuts
+    on_keydown: (event) -> {
+      match event.key {
+        "?" -> TutorialSystem.showShortcuts()
+        "m" -> state.reducedMotion = !state.reducedMotion
+        "h" -> AccessibilitySystem.toggleHighContrast()
+        "Escape" -> {
+          if (state.currentView !== "landing") {
+            navigate("back")
+          }
+        }
+      }
+    }
+
+    // Error handling
+    on_error: (error) -> {
+      state.error = error.message
+      console.error("Hololand Central Error:", error)
+      AccessibilitySystem.announce("An error occurred: " + error.message, "assertive")
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // UI OVERLAYS (2D interface on top of 3D)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  overlays {
+    // Tutorial guidance overlay
+    overlay "Tutorial" {
+      include: "./components/TutorialOverlay.hsplus"
+      visible: TutorialSystem.isActive && !state.user.tutorialComplete
+      position: "top-center"
+      zIndex: 100
+    }
+
+    // Zone navigation menu
+    overlay "Menu" {
+      include: "./components/MenuOverlay.hsplus"
+      visible: state.currentView !== "landing"
+      position: "top-right"
+      zIndex: 90
+    }
+
+    // Mobile touch controls
+    overlay "MobileControls" {
+      include: "./components/MobileControls.hsplus"
+      visible: device.isMobile && state.currentView !== "landing"
+      position: "bottom"
+      zIndex: 80
+    }
+
+    // Easter egg reward modal
+    overlay "EasterEggReward" {
+      include: "./components/EasterEggRewardModal.hsplus"
+      visible: EasterEggSystem.showingReward
+      position: "center"
+      zIndex: 200
+    }
+
+    // Settings modal
+    overlay "Settings" {
+      include: "./components/SettingsModal.hsplus"
+      visible: state.showSettings
+      position: "center"
+      zIndex: 150
+    }
+
+    // Brittney AI chat panel
+    overlay "BrittneyChat" {
+      include: "./components/BrittneyChat.hsplus"
+      visible: state.showChat
+      position: "right"
+      zIndex: 110
+    }
+
+    // Accessibility announcements (screen reader)
+    overlay "ScreenReaderAnnouncer" {
+      include: "./components/ScreenReaderAnnouncer.hsplus"
+      visible: true  // Always active, visually hidden
+      ariaLive: "polite"
+      zIndex: 0
+    }
+
+    // Loading screen
+    overlay "Loading" {
+      include: "./components/LoadingScreen.hsplus"
+      visible: state.isLoading
+      position: "fullscreen"
+      zIndex: 1000
+    }
+
+    // Error display
+    overlay "Error" {
+      include: "./components/ErrorOverlay.hsplus"
+      visible: state.error !== null
+      position: "bottom-center"
+      zIndex: 500
+    }
+  }
+}
