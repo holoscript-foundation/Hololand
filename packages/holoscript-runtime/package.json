@@ -1,0 +1,76 @@
+{
+  "name": "@holoscript/runtime",
+  "version": "1.0.0",
+  "description": "HoloScript browser runtime - React Three Fiber integration, event bus, storage, and device APIs",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./events": {
+      "types": "./dist/events.d.ts",
+      "import": "./dist/events.js"
+    },
+    "./storage": {
+      "types": "./dist/storage.d.ts",
+      "import": "./dist/storage.js"
+    },
+    "./device": {
+      "types": "./dist/device.d.ts",
+      "import": "./dist/device.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@holoscript/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "@react-three/fiber": "^8.0.0",
+    "three": "^0.160.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "@react-three/fiber": { "optional": true },
+    "three": { "optional": true }
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/three": "^0.160.0",
+    "rimraf": "^5.0.5",
+    "vitest": "^1.1.0"
+  },
+  "keywords": [
+    "holoscript",
+    "runtime",
+    "react-three-fiber",
+    "3d",
+    "spatial"
+  ],
+  "author": "Hololand Team",
+  "license": "Elastic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/holoscript-runtime"
+  }
+}

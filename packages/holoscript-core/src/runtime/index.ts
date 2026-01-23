@@ -638,34 +638,235 @@ export class HoloScriptRuntime {
   }
 
   private registerBuiltIns(): void {
-    // Console
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CONSOLE & LOGGING
+    // ═══════════════════════════════════════════════════════════════════════════
     this.scope.set('console', console);
     this.scope.set('print', (...args: unknown[]) => console.log(...args));
+    this.scope.set('log', (...args: unknown[]) => console.log('[HoloScript]', ...args));
+    this.scope.set('warn', (...args: unknown[]) => console.warn('[HoloScript]', ...args));
+    this.scope.set('error', (...args: unknown[]) => console.error('[HoloScript]', ...args));
 
-    // Math
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MATH - Core
+    // ═══════════════════════════════════════════════════════════════════════════
     this.scope.set('Math', Math);
 
-    // Constructors
+    // Math utilities
+    this.scope.set('lerp', (a: number, b: number, t: number) => a + (b - a) * t);
+    this.scope.set('clamp', (value: number, min: number, max: number) =>
+      Math.min(Math.max(value, min), max)
+    );
+    this.scope.set('inverseLerp', (a: number, b: number, value: number) => {
+      if (a === b) return 0;
+      return Math.max(0, Math.min(1, (value - a) / (b - a)));
+    });
+    this.scope.set('remap', (value: number, inMin: number, inMax: number, outMin: number, outMax: number) => {
+      const t = Math.max(0, Math.min(1, (value - inMin) / (inMax - inMin)));
+      return outMin + (outMax - outMin) * t;
+    });
+    this.scope.set('smoothStep', (edge0: number, edge1: number, x: number) => {
+      const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+      return t * t * (3 - 2 * t);
+    });
+    this.scope.set('degToRad', (degrees: number) => degrees * (Math.PI / 180));
+    this.scope.set('radToDeg', (radians: number) => radians * (180 / Math.PI));
+
+    // Random
+    this.scope.set('random', (min = 0, max = 1) => min + Math.random() * (max - min));
+    this.scope.set('randomInt', (min: number, max: number) =>
+      Math.floor(min + Math.random() * (max - min + 1))
+    );
+    this.scope.set('randomItem', <T>(array: T[]) =>
+      array.length > 0 ? array[Math.floor(Math.random() * array.length)] : undefined
+    );
+
+    // Distance
+    this.scope.set('distance2D', (x1: number, y1: number, x2: number, y2: number) => {
+      const dx = x2 - x1, dy = y2 - y1;
+      return Math.sqrt(dx * dx + dy * dy);
+    });
+    this.scope.set('distance3D', (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number) => {
+      const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VECTOR CONSTRUCTORS
+    // ═══════════════════════════════════════════════════════════════════════════
     this.scope.set('Vec2', (x = 0, y = 0) => ({ x, y }));
     this.scope.set('Vec3', (x = 0, y = 0, z = 0) => ({ x, y, z }));
     this.scope.set('Vec4', (x = 0, y = 0, z = 0, w = 0) => ({ x, y, z, w }));
-    this.scope.set('Color', (r: string | number, g?: number, b?: number) => {
+    this.scope.set('Color', (r: string | number, g?: number, b?: number, a?: number) => {
       if (typeof r === 'string') return r;
+      if (a !== undefined) return `rgba(${r}, ${g}, ${b}, ${a})`;
       return `rgb(${r}, ${g}, ${b})`;
     });
 
-    // Geometry types
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TIMING UTILITIES
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.scope.set('after', (ms: number, callback: () => void) => {
+      const id = setTimeout(callback, ms);
+      return () => clearTimeout(id);
+    });
+    this.scope.set('every', (ms: number, callback: () => void) => {
+      const id = setInterval(callback, ms);
+      return () => clearInterval(id);
+    });
+    this.scope.set('debounce', <T extends (...args: unknown[]) => void>(ms: number, callback: T) => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      return (...args: unknown[]) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => callback(...args), ms);
+      };
+    });
+    this.scope.set('throttle', <T extends (...args: unknown[]) => void>(ms: number, callback: T) => {
+      let lastCall = 0;
+      return (...args: unknown[]) => {
+        const now = Date.now();
+        if (now - lastCall >= ms) {
+          lastCall = now;
+          callback(...args);
+        }
+      };
+    });
+    this.scope.set('wait', (ms: number) => new Promise(resolve => setTimeout(resolve, ms)));
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EVENT SYSTEM (requires runtime bridge for full functionality)
+    // ═══════════════════════════════════════════════════════════════════════════
+    const eventListeners = new Map<string, Set<(data: unknown) => void>>();
+
+    this.scope.set('emit', (event: string, data?: unknown) => {
+      const listeners = eventListeners.get(event);
+      if (listeners) {
+        listeners.forEach(cb => {
+          try { cb(data); } catch (e) { console.error(`Event error (${event}):`, e); }
+        });
+      }
+      // Also emit to globalThis.HoloScriptRuntime if available
+      if (typeof globalThis !== 'undefined' && (globalThis as any).HoloScriptRuntime?.emit) {
+        (globalThis as any).HoloScriptRuntime.emit(event, data);
+      }
+    });
+
+    this.scope.set('on', (event: string, callback: (data: unknown) => void) => {
+      if (!eventListeners.has(event)) {
+        eventListeners.set(event, new Set());
+      }
+      eventListeners.get(event)!.add(callback);
+      return () => eventListeners.get(event)?.delete(callback);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STORAGE (requires runtime bridge for persistence)
+    // ═══════════════════════════════════════════════════════════════════════════
+    const memoryStorage = new Map<string, unknown>();
+
+    this.scope.set('storage', {
+      get: async (key: string) => {
+        // Try globalThis runtime first
+        if (typeof globalThis !== 'undefined' && (globalThis as any).HoloScriptRuntime?.storage?.get) {
+          return (globalThis as any).HoloScriptRuntime.storage.get(key);
+        }
+        return memoryStorage.get(key) ?? null;
+      },
+      set: async (key: string, value: unknown) => {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).HoloScriptRuntime?.storage?.set) {
+          return (globalThis as any).HoloScriptRuntime.storage.set(key, value);
+        }
+        memoryStorage.set(key, value);
+      },
+      remove: async (key: string) => {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).HoloScriptRuntime?.storage?.remove) {
+          return (globalThis as any).HoloScriptRuntime.storage.remove(key);
+        }
+        memoryStorage.delete(key);
+      },
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DEVICE DETECTION (basic - full detection in runtime bridge)
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.scope.set('device', {
+      get isMobile() {
+        if (typeof navigator === 'undefined') return false;
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      },
+      get isTouchDevice() {
+        if (typeof window === 'undefined') return false;
+        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      },
+      get isVRCapable() {
+        if (typeof navigator === 'undefined') return false;
+        return 'xr' in navigator;
+      },
+      get prefersReducedMotion() {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      },
+      get prefersDarkMode() {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      },
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NAVIGATION (requires runtime bridge for routing)
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.scope.set('navigate', (path: string) => {
+      if (typeof globalThis !== 'undefined' && (globalThis as any).HoloScriptRuntime?.navigate) {
+        (globalThis as any).HoloScriptRuntime.navigate(path);
+      } else if (path === 'back' && typeof window !== 'undefined') {
+        window.history.back();
+      } else if (typeof window !== 'undefined') {
+        window.location.href = path;
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GEOMETRY TYPES
+    // ═══════════════════════════════════════════════════════════════════════════
     this.scope.set('sphere', 'sphere');
     this.scope.set('box', 'box');
     this.scope.set('cylinder', 'cylinder');
     this.scope.set('plane', 'plane');
     this.scope.set('torus', 'torus');
+    this.scope.set('cone', 'cone');
+    this.scope.set('circle', 'circle');
+    this.scope.set('ring', 'ring');
 
-    // Light types
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LIGHT TYPES
+    // ═══════════════════════════════════════════════════════════════════════════
     this.scope.set('ambient', 'ambient');
     this.scope.set('directional', 'directional');
     this.scope.set('point', 'point');
     this.scope.set('spot', 'spot');
+    this.scope.set('hemisphere', 'hemisphere');
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // UTILITY FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+    this.scope.set('range', function* (start: number, end?: number, step = 1) {
+      if (end === undefined) { end = start; start = 0; }
+      for (let i = start; step > 0 ? i < end : i > end; i += step) yield i;
+    });
+
+    this.scope.set('Array', Array);
+    this.scope.set('Object', Object);
+    this.scope.set('JSON', JSON);
+    this.scope.set('Date', Date);
+    this.scope.set('Promise', Promise);
+
+    // Type checking
+    this.scope.set('isArray', Array.isArray);
+    this.scope.set('isNumber', (v: unknown) => typeof v === 'number' && !isNaN(v));
+    this.scope.set('isString', (v: unknown) => typeof v === 'string');
+    this.scope.set('isBoolean', (v: unknown) => typeof v === 'boolean');
+    this.scope.set('isObject', (v: unknown) => v !== null && typeof v === 'object' && !Array.isArray(v));
+    this.scope.set('isFunction', (v: unknown) => typeof v === 'function');
   }
 
   /**

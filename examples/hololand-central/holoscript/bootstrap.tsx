@@ -21,6 +21,13 @@ import {
   HoloScriptPlusRuntimeImpl,
   HoloScriptLoader,
 } from '@holoscript/core';
+import {
+  initRuntime,
+  runtime,
+  eventBus,
+  setNavigateCallback,
+  initBrowserHistory,
+} from '@holoscript/runtime';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -88,6 +95,33 @@ function HoloScriptProvider({ children }: { children: React.ReactNode }) {
   const routerNavigate = useNavigate();
   const location = useLocation();
 
+  // Initialize runtime on mount
+  useEffect(() => {
+    // Initialize the HoloScript runtime (registers globals)
+    initRuntime();
+
+    // Initialize browser history tracking
+    initBrowserHistory();
+
+    // Connect navigation callback to React Router
+    setNavigateCallback((path) => {
+      if (path === 'back') {
+        window.history.back();
+      } else {
+        routerNavigate(path);
+      }
+    });
+
+    // Listen for state changes from HoloScript
+    const unsubscribe = eventBus.on('state:update', (data: Partial<AppState>) => {
+      setState(prev => ({ ...prev, ...data }));
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [routerNavigate]);
+
   // Load the main composition
   useEffect(() => {
     async function loadComposition() {
@@ -103,21 +137,27 @@ function HoloScriptProvider({ children }: { children: React.ReactNode }) {
           throw new Error('Failed to parse app.hsplus: ' + ast.errors?.[0]?.message);
         }
 
-        // Create runtime
-        const runtime = new HoloScriptPlusRuntimeImpl();
-        const compiled = runtime.compile(ast.program);
+        // Create HoloScript runtime
+        const hsRuntime = new HoloScriptPlusRuntimeImpl();
+        const compiled = hsRuntime.compile(ast.program);
 
         setComposition(compiled as HoloScriptComposition);
         setState(prev => ({ ...prev, isLoading: false }));
 
-        console.log('HoloScript composition loaded successfully');
+        // Emit ready event
+        eventBus.emit('app:ready', { composition: compiled });
+
+        console.log('[HoloScript] Composition loaded successfully');
       } catch (error) {
-        console.error('Failed to load HoloScript composition:', error);
+        console.error('[HoloScript] Failed to load composition:', error);
         setState(prev => ({
           ...prev,
           isLoading: false,
           error: error instanceof Error ? error.message : 'Unknown error',
         }));
+
+        // Emit error event
+        eventBus.emit('app:error', { error });
       }
     }
 
@@ -127,31 +167,33 @@ function HoloScriptProvider({ children }: { children: React.ReactNode }) {
   // Sync route changes to state
   useEffect(() => {
     const path = location.pathname;
+    let newState: Partial<AppState> = {};
+
     if (path === '/') {
-      setState(prev => ({ ...prev, currentView: 'landing' }));
+      newState = { currentView: 'landing', currentWorld: null };
     } else if (path === '/oasis') {
-      setState(prev => ({ ...prev, currentView: 'oasis' }));
+      newState = { currentView: 'oasis', currentWorld: null };
     } else if (path === '/central') {
-      setState(prev => ({ ...prev, currentView: 'central' }));
+      newState = { currentView: 'central', currentWorld: null };
     } else if (path.startsWith('/world/')) {
       const worldId = path.split('/')[2];
-      setState(prev => ({ ...prev, currentView: 'world', currentWorld: worldId }));
+      newState = { currentView: 'world', currentWorld: worldId };
     }
+
+    setState(prev => ({ ...prev, ...newState }));
+
+    // Emit navigation event to HoloScript
+    eventBus.emit('navigation:change', { path, ...newState });
   }, [location]);
 
-  // Event emitter
-  const emit = (event: string, data?: any) => {
-    console.log('[HoloScript Event]', event, data);
-    window.dispatchEvent(new CustomEvent(`holoscript:${event}`, { detail: data }));
+  // Event emitter using runtime
+  const emit = (event: string, data?: unknown) => {
+    eventBus.emit(event, data);
   };
 
-  // Navigation
+  // Navigation using runtime
   const navigate = (path: string) => {
-    if (path === 'back') {
-      window.history.back();
-    } else {
-      routerNavigate(path);
-    }
+    runtime.navigate(path);
   };
 
   return (
