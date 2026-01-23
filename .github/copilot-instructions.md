@@ -4,16 +4,20 @@
 
 Hololand is a VR/AR platform using HoloScript - a visual flow language designed for AI agents to understand and generate 3D worlds.
 
-## Two File Types
+## Two Complementary File Types
 
-### .holo - Visual Flow Language
-- **For AI agents** to read and write
+### .holo - Declarative World Language
+- **For AI agents and creators** to read and write
 - Represents a graph: nodes (objects) + edges (connections) + flow (events)
 - Declarative, visual, easy to understand
+- **Use for:** World layouts, agent definitions, scene composition
 
-### .hsplus - Full Programming Language
-- For complex logic, backends, systems
-- Variables, functions, loops, async/await
+### .hsplus - Imperative Programming Language
+- **For developers** building systems and complex logic
+- Variables, functions, loops, async/await, networking
+- **Use for:** Game systems, backends, custom behaviors
+
+> ⚠️ These are **complementary formats**, NOT legacy/new. Use both together.
 
 ## How to Generate .holo
 

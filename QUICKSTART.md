@@ -104,12 +104,12 @@ Hololand/
 
 ## 📁 HoloScript File Types
 
-> ⚠️ **Note:** `.holo` is legacy. Use **`.hsplus`** for all new projects.
+HoloScript has **two complementary formats**:
 
-| Extension | Use For | Status |
-|-----------|--------|--------|
-| `.hsplus` | Production, multiplayer, physics | ✅ **Recommended** |
-| `.holo` | Learning, simple worlds | ⚠️ Legacy |
+| Extension | Purpose | Use For |
+|-----------|---------|--------|
+| `.holo` | Declarative, visual | World layouts, agents, AI-generated content |
+| `.hsplus` | Imperative, full language | Complex logic, networking, custom systems |
 
 > 📖 See [docs/HOLOSCRIPT_FILE_TYPES.md](docs/HOLOSCRIPT_FILE_TYPES.md) for more details.
 

@@ -205,16 +205,32 @@ Hololand uses [HoloScript](https://github.com/brianonbased-dev/holoscript) - a d
 
 ### File Types
 
-> ⚠️ **Note:** `.holo` is the legacy format for learning. All new projects should use **`.hsplus`**.
+HoloScript uses **two complementary formats** for different purposes:
 
-| Extension | What It's For | Status |
-|-----------|---------------|--------|
-| `.hsplus` | Production apps with all features | ✅ **Recommended** |
-| `.holo` | Learning & simple apps | ⚠️ Legacy (still supported) |
+| Extension | Purpose | Best For |
+|-----------|---------|----------|
+| `.holo` | Declarative, visual | World layouts, agent definitions, AI-generated content |
+| `.hsplus` | Imperative, full language | Complex logic, backends, custom systems |
 
-### `.hsplus` - Full Power (Recommended)
+### `.holo` - Declarative World Definition
+```holo
+// Visual, AI-friendly format for worlds and agents
+agent Shopkeeper {
+  position: [5, 0, 0]
+  goals: ["sell_items", "greet_customers"]
+  traits: ["talkable", "merchant"]
+}
+
+cube my_cube {
+  position: [0, 1, 0]
+  color: "#ff0000"
+  interactive: true
+}
+```
+
+### `.hsplus` - Full Programming Language
 ```hsplus
-// Production-ready with all 10 system APIs
+// Imperative code for complex systems
 import { NetworkedWorldState } from "./systems/NetworkedWorldState.hsplus"
 
 networked_object player {
@@ -224,18 +240,8 @@ networked_object player {
 }
 ```
 
-### `.holo` - Simple & Clean (Legacy)
-```holo
-// Great for learning and simple applications
-cube my_cube {
-  position: [0, 1, 0]
-  color: "#ff0000"
-  on_click: toggle_color
-}
-```
-
-**Use `.hsplus`** for all new projects.  
-**Use `.holo`** only for learning tutorials.
+**Use `.holo`** for world layouts, agents, and AI-generated content.  
+**Use `.hsplus`** for game systems, networking, and complex logic.
 
 See [HoloScript File Types Guide](./docs/HOLOSCRIPT_FILE_TYPES.md) for complete documentation.
 

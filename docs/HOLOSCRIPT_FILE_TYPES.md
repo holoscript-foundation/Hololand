@@ -1,37 +1,39 @@
 # HoloScript File Types Guide
 
-**TL;DR:** Use `.holo` when you're learning or building something simple. Use `.hsplus` when you need multiplayer, physics, or advanced features.
+**TL;DR:** `.holo` and `.hsplus` are **complementary formats** - use both together! `.holo` describes *what exists*, `.hsplus` defines *how it behaves*.
 
 <p align="center">
-  <img src="assets/gifs/holo-simple-demo.gif" alt=".holo file creating a simple scene" width="400">
-  <img src="assets/gifs/hsplus-multiplayer-demo.gif" alt=".hsplus file with multiplayer sync" width="400">
+  <img src="assets/gifs/holo-simple-demo.gif" alt=".holo file defining a world" width="400">
+  <img src="assets/gifs/hsplus-multiplayer-demo.gif" alt=".hsplus file with game logic" width="400">
   <br>
-  <em>Left: .holo (simple cube) • Right: .hsplus (multiplayer sync)</em>
+  <em>Left: .holo (world definition) • Right: .hsplus (game systems)</em>
 </p>
 
 ---
 
 ## Quick Summary
 
-| Extension | Purpose | Audience | Complexity |
-|-----------|---------|----------|------------|
-| `.holo` | Core HoloScript | Students, prototyping, simple apps | Basic |
-| `.hsplus` | HoloScript Plus | Production, advanced features | Full |
+| Extension | Purpose | Best For |
+|-----------|---------|----------|
+| `.holo` | Declarative, visual | World layouts, agent definitions, AI-generated content |
+| `.hsplus` | Imperative, full language | Game systems, networking, complex logic |
+
+> ⚠️ **These are NOT legacy/new!** They serve different purposes and work together.
 
 ---
 
-## `.holo` - HoloScript (Standard)
+## `.holo` - Declarative World Language
 
 ### What It Is
-The **beginner-friendly** format for learning HoloScript and building simple spatial applications.
+A **visual, declarative format** designed for AI agents and creators to read/write. Think of it as a **blueprint** - defining *what exists* and *how things connect*.
 
 ### When to Use
-- ✅ Learning HoloScript fundamentals
-- ✅ Onboarding new developers
-- ✅ Prototyping and quick experiments
-- ✅ Simple single-user applications
-- ✅ Static UI panels and basic interactions
-- ✅ Educational tutorials and documentation examples
+- ✅ World layouts and scene composition
+- ✅ Agent/NPC definitions with goals and behaviors
+- ✅ AI-generated content (Brittney uses .holo)
+- ✅ Object placement and spatial relationships
+- ✅ Event flows and connections between nodes
+- ✅ Templates and reusable patterns
 
 ### Features Included
 ```holo
