@@ -1,5 +1,5 @@
 // Analytics event tracking service
-import { getDatabaseService } from '@infinitus/shared/lib/db/DatabaseService';
+import { getDatabaseService } from '../lib/DatabaseService';
 
 export interface AnalyticsEvent {
   event_type:

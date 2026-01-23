@@ -1,5 +1,5 @@
 // Social features service (follow, review, rating)
-import { getDatabaseService } from '@infinitus/shared/lib/db/DatabaseService';
+import { getDatabaseService } from '../lib/DatabaseService';
 import { getEmailService } from './EmailService';
 
 export class SocialService {

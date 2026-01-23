@@ -7,5 +7,5 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  treeshake: true,
+  external: ['next', 'stripe', '@supabase/supabase-js'],
 });

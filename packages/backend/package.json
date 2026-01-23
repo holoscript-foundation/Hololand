@@ -6,11 +6,12 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "echo 'Backend has legacy dependencies - skipping build' && exit 0",
+    "build": "tsup",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
     "express": "^4.18.2",
     "next": "^14.0.0",
     "nodemailer": "^6.9.7",

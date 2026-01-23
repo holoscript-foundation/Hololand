@@ -1,5 +1,5 @@
 // Creator program: first-world bonus and credit system
-import { getDatabaseService } from '@infinitus/shared/lib/db/DatabaseService';
+import { getDatabaseService } from '../lib/DatabaseService';
 import { getEmailService } from './EmailService';
 
 const FIRST_WORLD_BONUS = 10000; // $100 in cents
@@ -20,7 +20,7 @@ export class CreatorBonusService {
     // Check if creator already received bonus
     const { data: profile } = await db.supabase
       .from('creator_profiles')
-      .select('received_first_world_bonus')
+      .select('received_first_world_bonus, total_earnings')
       .eq('user_id', userId)
       .single();
 

@@ -44,7 +44,19 @@
  * @license MIT
  */
 
-import type { ASTNode } from '@holoscript/core';
+// Extended HoloScript AST node for Unity export
+// The base ASTNode may not have all properties - we define what we expect
+export interface HoloScriptNode {
+  type?: string;
+  id?: string;
+  traits?: string[];
+  position?: number[];
+  color?: string;
+  scale?: number | number[];
+  children?: HoloScriptNode[];
+  properties?: Record<string, unknown>;
+  [key: string]: unknown;
+}
 
 // ============================================================================
 // Types
@@ -125,7 +137,7 @@ const TRAIT_TO_COMPONENT: Record<string, string[]> = {
  * Generate C# MonoBehaviour code from HoloScript AST
  */
 export function generateCSharp(
-  ast: ASTNode,
+  ast: HoloScriptNode,
   options: { namespace?: string } = {}
 ): string {
   const ns = options.namespace || 'HoloScript.Generated';
@@ -169,7 +181,7 @@ function getRequiredComponents(traits: string[]): string[] {
   return Array.from(components);
 }
 
-function generateProperties(ast: ASTNode): string {
+function generateProperties(ast: HoloScriptNode): string {
   const props: string[] = [];
 
   if (ast.position) {
@@ -196,7 +208,7 @@ function generateProperties(ast: ASTNode): string {
   return props.join('\n');
 }
 
-function generateMethods(ast: ASTNode, traits: string[]): string {
+function generateMethods(ast: HoloScriptNode, traits: string[]): string {
   const methods: string[] = [];
 
   // Awake
@@ -259,7 +271,7 @@ function toPascalCase(str: string): string {
 /**
  * Generate Unity prefab YAML from HoloScript AST
  */
-export function generatePrefab(ast: ASTNode, className: string): string {
+export function generatePrefab(ast: HoloScriptNode, className: string): string {
   const guid = generateGUID();
 
   return `%YAML 1.1
@@ -303,7 +315,7 @@ function generateFileId(): number {
  * Export HoloScript AST to Unity project files
  */
 export async function exportToUnity(
-  ast: ASTNode | ASTNode[],
+  ast: HoloScriptNode | HoloScriptNode[],
   config: UnityExportConfig
 ): Promise<UnityExportResult> {
   const nodes = Array.isArray(ast) ? ast : [ast];

@@ -100,7 +100,7 @@ export class EmailService {
       html: `
         <h2>Weekly Earnings Summary</h2>
         <p>Hi {{userName}},</p>
-        <p>Great news! You earned <strong>${{amount}}</strong> this week from your worlds.</p>
+        <p>Great news! You earned <strong>\${{amount}}</strong> this week from your worlds.</p>
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="background: #f3f4f6;">
             <th style="padding: 8px; text-align: left; border: 1px solid #e5e7eb;">World</th>
