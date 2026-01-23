@@ -1,0 +1,1060 @@
+/**
+ * Infinity Shop World
+ *
+ * Premium marketplace for avatars, items, and exclusive content.
+ * Features categorized shopping, preview capabilities, and wishlists.
+ */
+
+import { Portal, NPC } from "../templates"
+import { ThemeSystem, AudioSystem, AccessibilitySystem, EasterEggSystem } from "../systems"
+
+world "InfinityShop" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    id: "infinity-shop"
+    name: "Infinity Shop"
+    description: "Premium marketplace for exclusive items and avatars"
+    theme: "luxury"
+    ambient: "shopping"
+    spawnPoint: [0, 0, 12]
+    bounds: [-40, -40, 40, 40]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    currentCategory: "featured"
+    selectedItem: null
+    previewActive: false
+    cartItems: []
+    wishlist: []
+    searchQuery: ""
+    filterOpen: false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  environment {
+    skybox: "gradient-luxury"
+    fog: {
+      color: "#1a1a2e"
+      near: 30
+      far: 80
+    }
+    ambientLight: {
+      color: "#ffffff"
+      intensity: 0.5
+    }
+    directionalLight: {
+      color: "#ffffff"
+      intensity: 0.8
+      position: [10, 15, 10]
+      castShadow: true
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STRUCTURE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  structure {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FLOOR - MARBLE LUXURY
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "Floor" {
+      type: "plane"
+      position: [0, 0, 0]
+      rotation: [-90, 0, 0]
+      scale: [80, 80, 1]
+      material: {
+        color: "#f5f5f5"
+        map: "/textures/white-marble.jpg"
+        normalMap: "/textures/white-marble-normal.jpg"
+        roughness: 0.2
+        metalness: 0.1
+      }
+      receiveShadow: true
+    }
+
+    // Accent floor patterns
+    object "FloorAccent" {
+      type: "group"
+
+      child "CenterCircle" {
+        type: "circle"
+        position: [0, 0.01, 0]
+        rotation: [-90, 0, 0]
+        scale: [10, 10, 1]
+        material: {
+          color: "#8b7355"
+          map: "/textures/gold-marble.jpg"
+          roughness: 0.3
+        }
+      }
+
+      // Infinity symbol inlay
+      child "InfinitySymbol" {
+        type: "plane"
+        position: [0, 0.02, 0]
+        rotation: [-90, 0, 0]
+        scale: [4, 2, 1]
+        material: {
+          map: "/textures/infinity-logo-gold.png"
+          transparent: true
+          opacity: 0.8
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ENTRANCE & BRANDING
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "Entrance" {
+      type: "group"
+      position: [0, 0, 10]
+
+      // Grand archway
+      child "Archway" {
+        type: "model"
+        model: "/models/luxury-archway.glb"
+        scale: [2, 2, 2]
+        material: {
+          color: "#d4af37"
+          metalness: 0.8
+          roughness: 0.2
+        }
+      }
+
+      // Store name
+      child "StoreName" {
+        type: "text3d"
+        position: [0, 6, 0]
+        text: "INFINITY"
+        font: "Didot"
+        size: 0.8
+        height: 0.1
+        color: "#d4af37"
+        material: {
+          metalness: 0.9
+          roughness: 0.1
+        }
+      }
+
+      child "Tagline" {
+        type: "text3d"
+        position: [0, 5, 0]
+        text: "Premium Collection"
+        font: "Didot"
+        size: 0.25
+        color: "#888888"
+      }
+
+      // Animated infinity symbol
+      child "AnimatedLogo" {
+        type: "model"
+        model: "/models/infinity-symbol-3d.glb"
+        position: [0, 7.5, 0]
+        scale: [1.5, 1.5, 1.5]
+        material: {
+          color: "#d4af37"
+          emissive: "#d4af37"
+          emissiveIntensity: 0.3
+          metalness: 0.95
+        }
+
+        animation: !AccessibilitySystem.reducedMotion ? {
+          type: "rotate"
+          axis: "y"
+          speed: 0.3
+        } : null
+      }
+
+      // Entrance lights
+      child "EntranceLight1" {
+        type: "pointLight"
+        position: [-3, 4, 0]
+        color: "#ffffff"
+        intensity: 1
+        distance: 10
+      }
+
+      child "EntranceLight2" {
+        type: "pointLight"
+        position: [3, 4, 0]
+        color: "#ffffff"
+        intensity: 1
+        distance: 10
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FEATURED DISPLAY
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "FeaturedDisplay" {
+      position: [0, 0, 0]
+
+      // Central podium
+      object "MainPodium" {
+        type: "group"
+        traits: ["interactive"]
+
+        child "Base" {
+          type: "cylinder"
+          position: [0, 0.3, 0]
+          scale: [2.5, 0.6, 2.5]
+          material: {
+            color: "#1a1a2e"
+            metalness: 0.5
+          }
+        }
+
+        child "GlassDome" {
+          type: "sphere"
+          position: [0, 2, 0]
+          scale: [2, 2, 2]
+          material: {
+            color: "#ffffff"
+            opacity: 0.1
+            transparent: true
+            metalness: 0.9
+            roughness: 0
+          }
+        }
+
+        child "FeaturedItem" {
+          type: "model"
+          model: getFeaturedItemModel()
+          position: [0, 1.2, 0]
+          scale: [1, 1, 1]
+
+          animation: !AccessibilitySystem.reducedMotion ? {
+            type: "rotate"
+            axis: "y"
+            speed: 0.5
+          } : null
+        }
+
+        child "SpotLight" {
+          type: "spotLight"
+          position: [0, 5, 0]
+          target: [0, 1, 0]
+          color: "#ffffff"
+          intensity: 2
+          angle: 0.3
+          penumbra: 0.5
+        }
+
+        child "FeaturedLabel" {
+          type: "text3d"
+          position: [0, 3.5, 0]
+          text: "FEATURED"
+          font: "Didot"
+          size: 0.2
+          color: "#d4af37"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          state.selectedItem = "featured"
+          state.previewActive = true
+          emit("item:preview", { id: "featured", category: "featured" })
+        }
+      }
+
+      // Smaller featured items
+      for (i in range(0, 4)) {
+        object "FeaturedItem_${i}" {
+          type: "group"
+          position: [Math.cos(i * Math.PI / 2 + Math.PI / 4) * 6, 0, Math.sin(i * Math.PI / 2 + Math.PI / 4) * 6]
+          traits: ["interactive"]
+
+          child "Pedestal" {
+            type: "box"
+            position: [0, 0.5, 0]
+            scale: [1.2, 1, 1.2]
+            material: {
+              color: "#2a2a3e"
+              metalness: 0.3
+            }
+          }
+
+          child "Item" {
+            type: "model"
+            model: "/models/shop/featured-${i}.glb"
+            position: [0, 1.2, 0]
+            scale: [0.8, 0.8, 0.8]
+
+            animation: !AccessibilitySystem.reducedMotion ? {
+              type: "hover"
+              height: 0.1
+              duration: 2000
+            } : null
+          }
+
+          child "PriceTag" {
+            type: "plane"
+            position: [0, 0.2, 0.7]
+            scale: [0.6, 0.2, 1]
+            material: {
+              color: "#1a1a1a"
+            }
+          }
+
+          child "Price" {
+            type: "text"
+            position: [0, 0.2, 0.72]
+            text: getItemPrice(i)
+            font: "Roboto"
+            size: 0.1
+            color: "#d4af37"
+          }
+
+          on_interact: () -> {
+            state.selectedItem = "featured-" + i
+            emit("item:select", { id: i, category: "featured" })
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AVATAR SECTION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "AvatarSection" {
+      position: [-20, 0, -5]
+
+      object "SectionSign" {
+        type: "text3d"
+        position: [0, 4, -3]
+        text: "AVATARS"
+        font: "Didot"
+        size: 0.4
+        color: "#d4af37"
+      }
+
+      // Avatar display cases
+      for (i in range(0, 6)) {
+        object "AvatarDisplay_${i}" {
+          type: "group"
+          position: [-5 + (i % 3) * 5, 0, Math.floor(i / 3) * -5]
+          traits: ["interactive"]
+
+          child "Case" {
+            type: "box"
+            position: [0, 1.5, 0]
+            scale: [2, 3, 0.5]
+            material: {
+              color: "#ffffff"
+              opacity: 0.15
+              transparent: true
+            }
+          }
+
+          child "CaseFrame" {
+            type: "model"
+            model: "/models/display-frame.glb"
+            position: [0, 1.5, 0]
+            scale: [1, 1, 1]
+            material: {
+              color: "#d4af37"
+              metalness: 0.8
+            }
+          }
+
+          child "Avatar" {
+            type: "model"
+            model: "/models/avatars/avatar-${i}.glb"
+            position: [0, 0.5, 0]
+            scale: [1, 1, 1]
+
+            animation: !AccessibilitySystem.reducedMotion ? {
+              type: "idle"
+            } : null
+          }
+
+          child "NamePlate" {
+            type: "plane"
+            position: [0, -0.2, 0.3]
+            scale: [1.5, 0.3, 1]
+            material: {
+              color: "#1a1a2e"
+            }
+          }
+
+          child "AvatarName" {
+            type: "text"
+            position: [0, -0.15, 0.32]
+            text: getAvatarName(i)
+            font: "Roboto"
+            size: 0.1
+            color: "#ffffff"
+          }
+
+          child "AvatarPrice" {
+            type: "text"
+            position: [0, -0.3, 0.32]
+            text: getAvatarPrice(i)
+            font: "Roboto"
+            size: 0.08
+            color: "#d4af37"
+          }
+
+          on_interact: () -> {
+            state.selectedItem = "avatar-" + i
+            state.previewActive = true
+            emit("avatar:preview", { id: i })
+            AudioSystem.play("item-select")
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WEARABLES SECTION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "WearablesSection" {
+      position: [20, 0, -5]
+
+      object "SectionSign" {
+        type: "text3d"
+        position: [0, 4, -3]
+        text: "WEARABLES"
+        font: "Didot"
+        size: 0.4
+        color: "#d4af37"
+      }
+
+      // Clothing racks
+      for (row in range(0, 2)) {
+        object "ClothingRack_${row}" {
+          type: "group"
+          position: [0, 0, row * -6]
+
+          child "Rack" {
+            type: "model"
+            model: "/models/clothing-rack.glb"
+            scale: [2, 1.5, 1.5]
+          }
+
+          // Items on rack
+          for (i in range(0, 4)) {
+            child "WearableItem_${row}_${i}" {
+              type: "group"
+              position: [-3 + i * 2, 1.5, 0]
+              traits: ["interactive"]
+
+              child "Hanger" {
+                type: "model"
+                model: "/models/hanger.glb"
+                scale: [0.5, 0.5, 0.5]
+              }
+
+              child "Item" {
+                type: "model"
+                model: "/models/wearables/item-${row * 4 + i}.glb"
+                position: [0, -0.3, 0]
+                scale: [0.6, 0.6, 0.6]
+              }
+
+              on_hover: () -> {
+                emit("item:hover", { category: "wearables", id: row * 4 + i })
+              }
+
+              on_interact: () -> {
+                state.selectedItem = "wearable-" + (row * 4 + i)
+                emit("item:select", { category: "wearables", id: row * 4 + i })
+              }
+            }
+          }
+        }
+      }
+
+      // Accessory display
+      object "AccessoryDisplay" {
+        type: "group"
+        position: [0, 0, -15]
+
+        child "DisplayCase" {
+          type: "model"
+          model: "/models/jewelry-case.glb"
+          scale: [2, 2, 2]
+        }
+
+        // Accessories in case
+        for (i in range(0, 6)) {
+          child "Accessory_${i}" {
+            type: "model"
+            model: "/models/accessories/acc-${i}.glb"
+            position: [-1 + (i % 3) * 1, 1 + Math.floor(i / 3) * 0.3, 0.3]
+            scale: [0.3, 0.3, 0.3]
+            traits: ["interactive"]
+
+            on_interact: () -> {
+              state.selectedItem = "accessory-" + i
+              emit("item:select", { category: "accessories", id: i })
+            }
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FURNITURE & DECOR SECTION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "FurnitureSection" {
+      position: [0, 0, -20]
+
+      object "SectionSign" {
+        type: "text3d"
+        position: [0, 4, 0]
+        text: "FURNITURE & DECOR"
+        font: "Didot"
+        size: 0.35
+        color: "#d4af37"
+      }
+
+      // Room vignettes
+      object "LivingRoomVignette" {
+        type: "group"
+        position: [-10, 0, -5]
+
+        child "Floor" {
+          type: "plane"
+          position: [0, 0.01, 0]
+          rotation: [-90, 0, 0]
+          scale: [8, 8, 1]
+          material: {
+            color: "#4a3a2a"
+            map: "/textures/wood-floor.jpg"
+          }
+        }
+
+        child "Sofa" {
+          type: "model"
+          model: "/models/furniture/sofa-luxury.glb"
+          position: [0, 0, -2]
+          scale: [1.2, 1.2, 1.2]
+          traits: ["interactive"]
+
+          on_interact: () -> {
+            state.selectedItem = "furniture-sofa"
+            emit("item:select", { category: "furniture", id: "sofa" })
+          }
+        }
+
+        child "CoffeeTable" {
+          type: "model"
+          model: "/models/furniture/coffee-table-marble.glb"
+          position: [0, 0, 1]
+          scale: [1, 1, 1]
+          traits: ["interactive"]
+
+          on_interact: () -> {
+            state.selectedItem = "furniture-table"
+            emit("item:select", { category: "furniture", id: "coffee-table" })
+          }
+        }
+
+        child "Lamp" {
+          type: "model"
+          model: "/models/furniture/floor-lamp.glb"
+          position: [-3, 0, -2]
+          scale: [1, 1, 1]
+          traits: ["interactive"]
+
+          on_interact: () -> {
+            state.selectedItem = "furniture-lamp"
+            emit("item:select", { category: "furniture", id: "lamp" })
+          }
+        }
+
+        child "VignetteLabel" {
+          type: "text3d"
+          position: [0, 3, 0]
+          text: "Living Room Set"
+          font: "Roboto"
+          size: 0.2
+          color: "#ffffff"
+          billboard: true
+        }
+      }
+
+      object "BedroomVignette" {
+        type: "group"
+        position: [10, 0, -5]
+
+        child "Floor" {
+          type: "plane"
+          position: [0, 0.01, 0]
+          rotation: [-90, 0, 0]
+          scale: [8, 8, 1]
+          material: {
+            color: "#5a5a6a"
+            map: "/textures/carpet-plush.jpg"
+          }
+        }
+
+        child "Bed" {
+          type: "model"
+          model: "/models/furniture/bed-king.glb"
+          position: [0, 0, -2]
+          scale: [1.2, 1.2, 1.2]
+          traits: ["interactive"]
+
+          on_interact: () -> {
+            state.selectedItem = "furniture-bed"
+            emit("item:select", { category: "furniture", id: "bed" })
+          }
+        }
+
+        child "Nightstand" {
+          type: "model"
+          model: "/models/furniture/nightstand.glb"
+          position: [2, 0, -2]
+          scale: [0.8, 0.8, 0.8]
+          traits: ["interactive"]
+
+          on_interact: () -> {
+            state.selectedItem = "furniture-nightstand"
+            emit("item:select", { category: "furniture", id: "nightstand" })
+          }
+        }
+
+        child "VignetteLabel" {
+          type: "text3d"
+          position: [0, 3, 0]
+          text: "Bedroom Collection"
+          font: "Roboto"
+          size: 0.2
+          color: "#ffffff"
+          billboard: true
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CHECKOUT AREA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "CheckoutArea" {
+      type: "group"
+      position: [25, 0, 5]
+
+      child "Counter" {
+        type: "model"
+        model: "/models/checkout-counter-luxury.glb"
+        scale: [1.5, 1.5, 1.5]
+        material: {
+          color: "#1a1a2e"
+        }
+      }
+
+      child "Display" {
+        type: "plane"
+        position: [0, 1.5, 0.5]
+        scale: [1.5, 1, 1]
+        material: {
+          color: "#000000"
+          emissive: "#d4af37"
+          emissiveIntensity: 0.2
+        }
+      }
+
+      child "CartIcon" {
+        type: "sprite"
+        position: [0, 1.5, 0.52]
+        scale: [0.5, 0.5, 1]
+        material: {
+          map: "/textures/cart-icon.png"
+          transparent: true
+        }
+      }
+
+      child "CartCount" {
+        type: "text"
+        position: [0.3, 1.7, 0.53]
+        text: state.cartItems.length.toString()
+        font: "Roboto"
+        size: 0.15
+        color: "#ffffff"
+      }
+
+      child "CheckoutSign" {
+        type: "text3d"
+        position: [0, 2.5, 0]
+        text: "CHECKOUT"
+        font: "Didot"
+        size: 0.25
+        color: "#d4af37"
+        billboard: true
+      }
+
+      traits: ["interactive"]
+
+      on_interact: () -> {
+        emit("checkout:open", { items: state.cartItems })
+        AudioSystem.play("checkout-open")
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NPC - SHOP CONCIERGE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "ShopConcierge" using NPC {
+      position: [20, 0, 8]
+      properties: {
+        name: "Elegance"
+        role: "Shop Concierge"
+        model: "/models/npcs/elegance.glb"
+        greeting: "Welcome to Infinity Shop. How may I assist you today?"
+        dialogueTree: {
+          greeting: {
+            text: "Welcome to Infinity Shop. How may I assist you today?",
+            options: [
+              { label: "What's new?", next: "new_arrivals" },
+              { label: "Looking for avatars", next: "avatars" },
+              { label: "Help me find something", next: "search" }
+            ]
+          },
+          new_arrivals: {
+            text: "Our featured collection showcases this season's finest pieces. The central display has our most sought-after items.",
+            options: [
+              { label: "Show me", next: "goodbye" }
+            ]
+          },
+          avatars: {
+            text: "Our avatar collection is on the left. Each avatar comes with exclusive animations and customization options.",
+            options: [
+              { label: "Thanks!", next: "goodbye" }
+            ]
+          },
+          search: {
+            text: "What are you looking for? Avatars, wearables, accessories, or furniture for your space?",
+            options: [
+              { label: "Avatars", next: "avatars" },
+              { label: "Wearables", next: "wearables" },
+              { label: "Furniture", next: "furniture" }
+            ]
+          },
+          wearables: {
+            text: "Our wearables collection is on the right. You'll find clothing, accessories, and limited edition items.",
+            options: [
+              { label: "Perfect!", next: "goodbye" }
+            ]
+          },
+          furniture: {
+            text: "The furniture section is in the back. We have complete room sets and individual pieces for your personal space.",
+            options: [
+              { label: "I'll check it out", next: "goodbye" }
+            ]
+          },
+          goodbye: {
+            text: "Enjoy your shopping. I'm here if you need any assistance.",
+            options: []
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EASTER EGG - VIP VAULT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "VIPVaultDoor" {
+      type: "group"
+      position: [-25, 0, -25]
+      traits: ["interactive", "easter-egg"]
+
+      child "Door" {
+        type: "model"
+        model: "/models/vault-door.glb"
+        scale: [1.5, 1.5, 1.5]
+        material: {
+          color: "#d4af37"
+          metalness: 0.95
+          roughness: 0.1
+        }
+      }
+
+      child "VIPSign" {
+        type: "text3d"
+        position: [0, 3, 0.5]
+        text: "VIP"
+        font: "Didot"
+        size: 0.3
+        color: "#d4af37"
+        material: {
+          emissive: "#d4af37"
+          emissiveIntensity: 0.5
+        }
+      }
+
+      child "LockIndicator" {
+        type: "sphere"
+        position: [0.8, 1.5, 0.5]
+        scale: [0.1, 0.1, 0.1]
+        material: {
+          color: EasterEggSystem.isDiscovered("vip-access") ? "#00ff00" : "#ff0000"
+          emissive: EasterEggSystem.isDiscovered("vip-access") ? "#00ff00" : "#ff0000"
+          emissiveIntensity: 1
+        }
+      }
+
+      on_interact: () -> {
+        if (EasterEggSystem.isDiscovered("vip-access")) {
+          emit("vip:enter")
+          AudioSystem.play("vault-open")
+        } else {
+          emit("vip:locked")
+          AccessibilitySystem.announce(
+            "VIP vault is locked. Collect all easter eggs to unlock.",
+            "polite"
+          )
+          AudioSystem.play("locked")
+        }
+      }
+    }
+
+    // VIP interior (visible only when unlocked)
+    spatial_group "VIPVault" {
+      position: [-25, 0, -30]
+      visible: EasterEggSystem.isDiscovered("vip-access")
+
+      object "VIPRoom" {
+        type: "group"
+
+        child "Floor" {
+          type: "plane"
+          position: [0, 0.01, 0]
+          rotation: [-90, 0, 0]
+          scale: [10, 10, 1]
+          material: {
+            color: "#1a0a0a"
+            map: "/textures/black-marble.jpg"
+          }
+        }
+
+        child "ExclusiveItem" {
+          type: "model"
+          model: "/models/shop/legendary-item.glb"
+          position: [0, 1.5, 0]
+          scale: [1.5, 1.5, 1.5]
+          material: {
+            emissive: "#d4af37"
+            emissiveIntensity: 0.5
+          }
+
+          animation: !AccessibilitySystem.reducedMotion ? {
+            type: "rotate"
+            axis: "y"
+            speed: 0.3
+          } : null
+        }
+
+        child "VIPLight" {
+          type: "spotLight"
+          position: [0, 5, 0]
+          target: [0, 1.5, 0]
+          color: "#d4af37"
+          intensity: 3
+          angle: 0.3
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PORTAL BACK TO MAIN PLAZA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "ExitPortal" using Portal {
+      position: [0, 0, 18]
+      properties: {
+        destination: "/central"
+        label: "Main Plaza"
+        color: "#667eea"
+        icon: "home"
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AMBIENT ELEMENTS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Floating crystals
+    object "Crystals" {
+      type: "group"
+
+      for (i in range(0, 8)) {
+        child "Crystal_${i}" {
+          type: "model"
+          model: "/models/crystal.glb"
+          position: [
+            Math.cos(i * Math.PI / 4) * 15,
+            5 + Math.sin(i * 0.5) * 2,
+            Math.sin(i * Math.PI / 4) * 15
+          ]
+          scale: [0.5, 0.5, 0.5]
+          material: {
+            color: "#ffffff"
+            opacity: 0.5
+            transparent: true
+            metalness: 0.9
+          }
+
+          animation: !AccessibilitySystem.reducedMotion ? {
+            type: "hover"
+            height: 0.3
+            duration: 3000 + i * 200
+          } : null
+        }
+      }
+    }
+
+    // Ambient particles
+    particles "LuxuryParticles" {
+      position: [0, 3, 0]
+      type: "sparkle"
+      count: 50
+      color: "#d4af37"
+      size: 0.02
+      spread: [30, 6, 30]
+      speed: 0.2
+      opacity: 0.6
+      enabled: !AccessibilitySystem.reducedMotion
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getFeaturedItemModel() {
+    return "/models/shop/featured-main.glb"
+  }
+
+  function getItemPrice(index) {
+    const prices = ["$99", "$149", "$199", "$249"]
+    return prices[index] || "$99"
+  }
+
+  function getAvatarName(index) {
+    const names = ["Lumina", "Shadow", "Nova", "Crystal", "Phoenix", "Storm"]
+    return names[index] || "Avatar"
+  }
+
+  function getAvatarPrice(index) {
+    const prices = ["$29.99", "$34.99", "$39.99", "$49.99", "$59.99", "$79.99"]
+    return prices[index] || "$29.99"
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  logic {
+
+    on_enter: () -> {
+      AudioSystem.playMusic("luxury-ambient")
+      AccessibilitySystem.announce(
+        "Entered Infinity Shop. Featured items in center, avatars on left, wearables on right, furniture in back.",
+        "polite"
+      )
+
+      // Load saved cart and wishlist
+      const savedCart = await storage.get("infinity:cart")
+      const savedWishlist = await storage.get("infinity:wishlist")
+
+      if (savedCart) state.cartItems = savedCart
+      if (savedWishlist) state.wishlist = savedWishlist
+    }
+
+    on_exit: () -> {
+      // Save cart and wishlist
+      storage.set("infinity:cart", state.cartItems)
+      storage.set("infinity:wishlist", state.wishlist)
+
+      state.previewActive = false
+      state.selectedItem = null
+    }
+
+    on("item:select", (data) -> {
+      AudioSystem.play("item-select")
+      AccessibilitySystem.announce(
+        "Selected " + data.category + " item. Press to preview or add to cart.",
+        "polite"
+      )
+    })
+
+    on("item:preview", (data) -> {
+      state.previewActive = true
+      AccessibilitySystem.announce(
+        "Preview mode active. Rotate to view item.",
+        "polite"
+      )
+    })
+
+    on("cart:add", (item) -> {
+      state.cartItems.push(item)
+      AudioSystem.play("cart-add")
+      AccessibilitySystem.announce(
+        "Added to cart. " + state.cartItems.length + " items in cart.",
+        "polite"
+      )
+    })
+
+    on("cart:remove", (itemId) -> {
+      state.cartItems = state.cartItems.filter(i => i.id !== itemId)
+      AudioSystem.play("cart-remove")
+    })
+
+    on("wishlist:add", (item) -> {
+      state.wishlist.push(item)
+      AudioSystem.play("wishlist-add")
+      AccessibilitySystem.announce(
+        "Added to wishlist.",
+        "polite"
+      )
+    })
+
+    on("checkout:complete", (data) -> {
+      state.cartItems = []
+      AudioSystem.play("purchase-complete")
+      AccessibilitySystem.announce(
+        "Purchase complete! Items have been added to your inventory.",
+        "assertive"
+      )
+
+      // Check for VIP unlock (all easter eggs collected)
+      if (EasterEggSystem.getAllDiscovered().length >= 16) {
+        EasterEggSystem.discover("vip-access")
+      }
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACCESSIBILITY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  aria: {
+    role: "region"
+    label: "Infinity Shop - Premium marketplace with avatars, wearables, and furniture"
+  }
+}
+
+export { InfinityShop }

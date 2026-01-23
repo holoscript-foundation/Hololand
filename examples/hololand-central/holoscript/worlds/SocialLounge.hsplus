@@ -1,0 +1,938 @@
+/**
+ * Social Lounge World
+ *
+ * Relaxed social hangout space for meeting, chatting, and activities.
+ * Features conversation areas, group activities, and customizable spaces.
+ */
+
+import { Portal, NPC } from "../templates"
+import { ThemeSystem, AudioSystem, AccessibilitySystem, MultiplayerSystem, EasterEggSystem } from "../systems"
+
+world "SocialLounge" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    id: "social-lounge"
+    name: "Social Lounge"
+    description: "Relax, meet, and hang out with friends"
+    theme: "cozy"
+    ambient: "lounge"
+    spawnPoint: [0, 0, 10]
+    bounds: [-35, -35, 35, 35]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    currentZone: "main"
+    musicPlaying: true
+    chatOpen: false
+    emoteMenuOpen: false
+    activityActive: null
+    playersInLounge: []
+    danceFloorActive: false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  environment {
+    skybox: ThemeSystem.current.skybox
+    fog: {
+      color: "#1a1a2e"
+      near: 25
+      far: 70
+    }
+    ambientLight: {
+      color: "#ffddcc"
+      intensity: 0.4
+    }
+    directionalLight: {
+      color: "#ffeedd"
+      intensity: 0.3
+      position: [5, 10, 5]
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STRUCTURE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  structure {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FLOOR & ARCHITECTURE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "Floor" {
+      type: "plane"
+      position: [0, 0, 0]
+      rotation: [-90, 0, 0]
+      scale: [70, 70, 1]
+      material: {
+        color: "#2a1a1a"
+        map: "/textures/wood-floor-dark.jpg"
+        roughness: 0.7
+      }
+      receiveShadow: true
+    }
+
+    // Curved walls for intimate feel
+    object "WallStructure" {
+      type: "group"
+
+      child "BackWall" {
+        type: "model"
+        model: "/models/curved-wall.glb"
+        position: [0, 0, -25]
+        scale: [1.5, 1.5, 1.5]
+        material: {
+          color: "#3a2a2a"
+          map: "/textures/fabric-wall.jpg"
+        }
+      }
+
+      child "SideWallLeft" {
+        type: "box"
+        position: [-30, 4, 0]
+        scale: [1, 8, 50]
+        material: {
+          color: "#3a2a2a"
+          map: "/textures/fabric-wall.jpg"
+        }
+      }
+
+      child "SideWallRight" {
+        type: "box"
+        position: [30, 4, 0]
+        scale: [1, 8, 50]
+        material: {
+          color: "#3a2a2a"
+          map: "/textures/fabric-wall.jpg"
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MAIN LOUNGE AREA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "MainLounge" {
+      position: [0, 0, 0]
+
+      // Central fireplace
+      object "Fireplace" {
+        type: "group"
+        position: [0, 0, -15]
+
+        child "Hearth" {
+          type: "model"
+          model: "/models/modern-fireplace.glb"
+          scale: [2, 2, 2]
+          castShadow: true
+        }
+
+        child "Fire" {
+          type: "sprite"
+          position: [0, 1, 0.3]
+          scale: [2, 2.5, 1]
+          material: {
+            map: "/textures/fire-sprite.png"
+            transparent: true
+            emissive: "#ff6600"
+            emissiveIntensity: 1
+          }
+
+          animation: !AccessibilitySystem.reducedMotion ? {
+            type: "sprite-sheet"
+            frames: 8
+            fps: 12
+          } : null
+        }
+
+        child "FireLight" {
+          type: "pointLight"
+          position: [0, 1.5, 0.5]
+          color: "#ff6633"
+          intensity: 1.5
+          distance: 15
+
+          animation: !AccessibilitySystem.reducedMotion ? {
+            type: "flicker"
+            min: 1.2
+            max: 1.8
+            speed: 0.1
+          } : null
+        }
+
+        child "Mantle" {
+          type: "text3d"
+          position: [0, 3.5, 0.3]
+          text: "Welcome Home"
+          font: "Playfair Display"
+          size: 0.25
+          color: "#ffffff"
+        }
+      }
+
+      // Seating arrangement around fireplace
+      object "SeatingCircle" {
+        type: "group"
+        position: [0, 0, -8]
+
+        // Large sectional sofa
+        child "Sectional" {
+          type: "model"
+          model: "/models/sectional-sofa.glb"
+          position: [0, 0, 0]
+          scale: [1.5, 1.5, 1.5]
+          material: {
+            color: "#4a3a3a"
+          }
+          castShadow: true
+        }
+
+        // Armchairs
+        child "Armchair1" {
+          type: "model"
+          model: "/models/armchair.glb"
+          position: [-5, 0, 2]
+          rotation: [0, 30, 0]
+          scale: [1.2, 1.2, 1.2]
+          material: { color: "#5a4040" }
+          castShadow: true
+        }
+
+        child "Armchair2" {
+          type: "model"
+          model: "/models/armchair.glb"
+          position: [5, 0, 2]
+          rotation: [0, -30, 0]
+          scale: [1.2, 1.2, 1.2]
+          material: { color: "#5a4040" }
+          castShadow: true
+        }
+
+        // Coffee table
+        child "CoffeeTable" {
+          type: "model"
+          model: "/models/coffee-table.glb"
+          position: [0, 0, 3]
+          scale: [1.3, 1.3, 1.3]
+        }
+
+        // Area rug
+        child "Rug" {
+          type: "circle"
+          position: [0, 0.01, 2]
+          rotation: [-90, 0, 0]
+          scale: [8, 8, 1]
+          material: {
+            color: "#6a4a4a"
+            map: "/textures/persian-rug.jpg"
+          }
+        }
+      }
+
+      // Ambient string lights
+      object "StringLights" {
+        type: "group"
+        position: [0, 6, -10]
+
+        for (i in range(0, 20)) {
+          child "Light_${i}" {
+            type: "sphere"
+            position: [-10 + i * 1, Math.sin(i * 0.5) * 0.3, 0]
+            scale: [0.1, 0.1, 0.1]
+            material: {
+              color: "#ffdd88"
+              emissive: "#ffdd88"
+              emissiveIntensity: 1
+            }
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BAR AREA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "BarArea" {
+      position: [-20, 0, 0]
+
+      object "Bar" {
+        type: "group"
+
+        child "Counter" {
+          type: "model"
+          model: "/models/bar-counter.glb"
+          scale: [1.5, 1.5, 1.5]
+          castShadow: true
+        }
+
+        child "BackBar" {
+          type: "model"
+          model: "/models/bar-shelves.glb"
+          position: [0, 0, -2]
+          scale: [1.5, 1.5, 1.5]
+        }
+
+        child "BarLight" {
+          type: "spotLight"
+          position: [0, 4, 0]
+          target: [0, 1, 0]
+          color: "#ffaa66"
+          intensity: 1
+          angle: 0.6
+          penumbra: 0.5
+        }
+
+        // Drink dispensers
+        for (i in range(0, 4)) {
+          child "Dispenser_${i}" {
+            type: "model"
+            model: "/models/drink-dispenser.glb"
+            position: [-1.5 + i * 1, 1.2, -1.8]
+            scale: [0.4, 0.4, 0.4]
+            material: {
+              color: ["#ff6666", "#66ff66", "#6666ff", "#ffff66"][i]
+              emissive: ["#ff6666", "#66ff66", "#6666ff", "#ffff66"][i]
+              emissiveIntensity: 0.3
+            }
+          }
+        }
+      }
+
+      // Bar stools
+      for (i in range(0, 5)) {
+        object "BarStool_${i}" {
+          type: "model"
+          model: "/models/bar-stool.glb"
+          position: [-2 + i * 1, 0, 1.5]
+          scale: [1, 1, 1]
+          castShadow: true
+        }
+      }
+
+      // Bar sign
+      object "BarSign" {
+        type: "text3d"
+        position: [0, 4, -2]
+        text: "The Chill Zone"
+        font: "Neon Tubes"
+        size: 0.35
+        color: "#ff66aa"
+        material: {
+          emissive: "#ff66aa"
+          emissiveIntensity: 1
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // DANCE FLOOR
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "DanceFloor" {
+      position: [15, 0, -5]
+
+      object "Floor" {
+        type: "group"
+
+        // LED floor tiles
+        for (x in range(0, 6)) {
+          for (z in range(0, 6)) {
+            child "Tile_${x}_${z}" {
+              type: "box"
+              position: [-2.5 + x * 1, 0.05, -2.5 + z * 1]
+              scale: [0.95, 0.1, 0.95]
+              material: {
+                color: state.danceFloorActive
+                  ? getRandomColor()
+                  : "#333333"
+                emissive: state.danceFloorActive
+                  ? getRandomColor()
+                  : "#111111"
+                emissiveIntensity: state.danceFloorActive ? 0.8 : 0.2
+              }
+            }
+          }
+        }
+      }
+
+      // DJ booth
+      object "DJBooth" {
+        type: "group"
+        position: [0, 0, -5]
+
+        child "Booth" {
+          type: "model"
+          model: "/models/dj-booth.glb"
+          scale: [1.3, 1.3, 1.3]
+        }
+
+        child "Turntables" {
+          type: "model"
+          model: "/models/turntables.glb"
+          position: [0, 1, 0]
+          scale: [1, 1, 1]
+
+          animation: state.danceFloorActive && !AccessibilitySystem.reducedMotion ? {
+            type: "rotate"
+            axis: "y"
+            speed: 2
+          } : null
+        }
+
+        child "DJLight1" {
+          type: "spotLight"
+          position: [-2, 4, 0]
+          target: [0, 0, 2]
+          color: "#ff0000"
+          intensity: state.danceFloorActive ? 2 : 0.5
+          angle: 0.4
+
+          animation: state.danceFloorActive && !AccessibilitySystem.reducedMotion ? {
+            type: "sweep"
+            axis: "y"
+            range: 60
+            speed: 1
+          } : null
+        }
+
+        child "DJLight2" {
+          type: "spotLight"
+          position: [2, 4, 0]
+          target: [0, 0, 2]
+          color: "#0000ff"
+          intensity: state.danceFloorActive ? 2 : 0.5
+          angle: 0.4
+
+          animation: state.danceFloorActive && !AccessibilitySystem.reducedMotion ? {
+            type: "sweep"
+            axis: "y"
+            range: 60
+            speed: -1
+          } : null
+        }
+      }
+
+      // Dance floor sign
+      object "DanceSign" {
+        type: "text3d"
+        position: [0, 5, -5]
+        text: "DANCE"
+        font: "Press Start 2P"
+        size: 0.5
+        color: "#ffffff"
+        material: {
+          emissive: state.danceFloorActive ? "#ff00ff" : "#666666"
+          emissiveIntensity: state.danceFloorActive ? 1 : 0.3
+        }
+
+        animation: state.danceFloorActive && !AccessibilitySystem.reducedMotion ? {
+          type: "pulse"
+          min: 0.9
+          max: 1.1
+          duration: 500
+        } : null
+      }
+
+      // Trigger zone for dance floor
+      object "DanceTrigger" {
+        type: "box"
+        position: [0, 1, 0]
+        scale: [6, 2, 6]
+        visible: false
+        traits: ["trigger"]
+
+        on_player_enter: () -> {
+          state.danceFloorActive = true
+          AudioSystem.crossfadeMusic("dance-mix", 2000)
+          emit("dance:start")
+        }
+
+        on_player_exit: () -> {
+          if (state.playersInLounge.filter(p => p.zone === "dance").length === 0) {
+            state.danceFloorActive = false
+            AudioSystem.crossfadeMusic("lounge-ambient", 2000)
+            emit("dance:end")
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACTIVITY CORNER
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "ActivityCorner" {
+      position: [-15, 0, 10]
+
+      // Board game table
+      object "GameTable" {
+        type: "group"
+        position: [0, 0, 0]
+        traits: ["interactive"]
+
+        child "Table" {
+          type: "cylinder"
+          position: [0, 0.4, 0]
+          scale: [1.5, 0.8, 1.5]
+          material: {
+            color: "#2a4a2a"
+            map: "/textures/felt-green.jpg"
+          }
+          castShadow: true
+        }
+
+        child "GameBoard" {
+          type: "plane"
+          position: [0, 0.85, 0]
+          rotation: [-90, 0, 0]
+          scale: [1, 1, 1]
+          material: {
+            map: "/textures/game-board.png"
+          }
+        }
+
+        child "Label" {
+          type: "text3d"
+          position: [0, 1.5, 0]
+          text: "Game Table"
+          font: "Roboto"
+          size: 0.2
+          color: "#ffffff"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          state.activityActive = "board-game"
+          emit("activity:join", { type: "board-game" })
+        }
+      }
+
+      // Chairs around game table
+      for (i in range(0, 4)) {
+        object "GameChair_${i}" {
+          type: "model"
+          model: "/models/cushioned-chair.glb"
+          position: [Math.cos(i * Math.PI / 2) * 2, 0, Math.sin(i * Math.PI / 2) * 2]
+          rotation: [0, -i * 90 + 180, 0]
+          scale: [0.8, 0.8, 0.8]
+        }
+      }
+
+      // Photo booth
+      object "PhotoBooth" {
+        type: "group"
+        position: [6, 0, 0]
+        traits: ["interactive"]
+
+        child "Booth" {
+          type: "model"
+          model: "/models/photo-booth.glb"
+          scale: [1.2, 1.2, 1.2]
+          castShadow: true
+        }
+
+        child "Flash" {
+          type: "pointLight"
+          position: [0, 2, 1]
+          color: "#ffffff"
+          intensity: 0
+          distance: 5
+        }
+
+        child "Sign" {
+          type: "text3d"
+          position: [0, 3, 0]
+          text: "Photo Booth"
+          font: "Roboto"
+          size: 0.2
+          color: "#ff66aa"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          state.activityActive = "photo-booth"
+          emit("photo:start")
+          AudioSystem.play("camera-ready")
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRIVATE BOOTHS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "PrivateBooths" {
+      position: [20, 0, 10]
+
+      for (i in range(0, 3)) {
+        object "PrivateBooth_${i}" {
+          type: "group"
+          position: [0, 0, i * 5]
+          traits: ["interactive", "private-space"]
+
+          child "Enclosure" {
+            type: "model"
+            model: "/models/booth-enclosure.glb"
+            scale: [1.2, 1.2, 1.2]
+          }
+
+          child "Seating" {
+            type: "model"
+            model: "/models/booth-seating.glb"
+            position: [0, 0, 0]
+            scale: [1, 1, 1]
+          }
+
+          child "Table" {
+            type: "cylinder"
+            position: [0, 0.4, 0]
+            scale: [0.5, 0.8, 0.5]
+            material: { color: "#3a2a2a" }
+          }
+
+          child "Lamp" {
+            type: "model"
+            model: "/models/table-lamp.glb"
+            position: [0, 0.8, 0]
+            scale: [0.3, 0.3, 0.3]
+          }
+
+          child "LampLight" {
+            type: "pointLight"
+            position: [0, 1.2, 0]
+            color: "#ffddaa"
+            intensity: 0.6
+            distance: 4
+          }
+
+          child "Number" {
+            type: "text3d"
+            position: [0, 2.5, 1.2]
+            text: "Booth " + (i + 1)
+            font: "Roboto"
+            size: 0.15
+            color: "#aaaaaa"
+          }
+
+          on_interact: () -> {
+            emit("booth:enter", { booth: i + 1 })
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NPC - LOUNGE HOST
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "LoungeHost" using NPC {
+      position: [0, 0, 5]
+      properties: {
+        name: "Harmony"
+        role: "Lounge Host"
+        model: "/models/npcs/harmony.glb"
+        greeting: "Welcome to the Social Lounge! Make yourself at home."
+        dialogueTree: {
+          greeting: {
+            text: "Welcome to the Social Lounge! Make yourself at home. What can I help you with?",
+            options: [
+              { label: "What can I do here?", next: "activities" },
+              { label: "How do I meet people?", next: "social" },
+              { label: "Tell me about the dance floor", next: "dance" }
+            ]
+          },
+          activities: {
+            text: "Grab a drink at the bar, play games at the activity corner, take photos at the booth, or just relax by the fireplace!",
+            options: [
+              { label: "Sounds fun!", next: "goodbye" }
+            ]
+          },
+          social: {
+            text: "Everyone here is friendly! Wave at someone, join an activity together, or head to the dance floor. The private booths are great for group chats.",
+            options: [
+              { label: "Thanks!", next: "goodbye" }
+            ]
+          },
+          dance: {
+            text: "Step onto the dance floor to activate it! The lights sync to the music. Use emotes to show off your moves!",
+            options: [
+              { label: "Let's dance!", next: "goodbye" }
+            ]
+          },
+          goodbye: {
+            text: "Enjoy your time here! Let me know if you need anything.",
+            options: []
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EASTER EGG - HIDDEN BALCONY
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "HiddenBalcony" {
+      type: "group"
+      position: [0, 8, -20]
+      visible: EasterEggSystem.isDiscovered("secret-balcony")
+      traits: ["easter-egg"]
+
+      child "Platform" {
+        type: "box"
+        position: [0, 0, 0]
+        scale: [8, 0.3, 4]
+        material: {
+          color: "#4a3a3a"
+          map: "/textures/wood-floor-dark.jpg"
+        }
+      }
+
+      child "Railing" {
+        type: "model"
+        model: "/models/balcony-railing.glb"
+        position: [0, 0.5, 2]
+        scale: [1, 1, 1]
+      }
+
+      child "BalconySeating" {
+        type: "model"
+        model: "/models/loveseat.glb"
+        position: [0, 0.3, 0]
+        scale: [1, 1, 1]
+      }
+
+      child "Telescope" {
+        type: "model"
+        model: "/models/telescope.glb"
+        position: [3, 0.3, 1]
+        scale: [0.8, 0.8, 0.8]
+        traits: ["interactive"]
+
+        on_interact: () -> {
+          emit("telescope:view")
+        }
+      }
+
+      child "SecretLight" {
+        type: "pointLight"
+        position: [0, 2, 0]
+        color: "#aaddff"
+        intensity: 0.5
+        distance: 8
+      }
+
+      on_discover: () -> {
+        EasterEggSystem.discover("secret-balcony")
+        AudioSystem.play("secret-found")
+      }
+    }
+
+    // Ladder to balcony (appears after discovery)
+    object "BalconyLadder" {
+      type: "model"
+      model: "/models/ladder.glb"
+      position: [-25, 0, -18]
+      rotation: [0, 90, 0]
+      scale: [1, 1, 1]
+      visible: EasterEggSystem.isDiscovered("secret-balcony")
+      traits: ["climbable"]
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PORTAL BACK TO MAIN PLAZA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "ExitPortal" using Portal {
+      position: [0, 0, 18]
+      properties: {
+        destination: "/central"
+        label: "Main Plaza"
+        color: "#667eea"
+        icon: "home"
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AMBIENT ELEMENTS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Plants
+    object "Plants" {
+      type: "group"
+
+      child "Plant1" {
+        type: "model"
+        model: "/models/potted-plant-large.glb"
+        position: [-25, 0, 5]
+        scale: [1.5, 1.5, 1.5]
+      }
+
+      child "Plant2" {
+        type: "model"
+        model: "/models/potted-palm.glb"
+        position: [25, 0, 5]
+        scale: [1.3, 1.3, 1.3]
+      }
+
+      child "HangingPlant1" {
+        type: "model"
+        model: "/models/hanging-plant.glb"
+        position: [-10, 5, -5]
+        scale: [1, 1, 1]
+      }
+
+      child "HangingPlant2" {
+        type: "model"
+        model: "/models/hanging-plant.glb"
+        position: [10, 5, -5]
+        scale: [1, 1, 1]
+      }
+    }
+
+    // Artwork
+    object "Artwork" {
+      type: "group"
+
+      for (i in range(0, 3)) {
+        child "Painting_${i}" {
+          type: "group"
+          position: [-28, 2.5, -10 + i * 8]
+          rotation: [0, 90, 0]
+
+          child "Frame" {
+            type: "box"
+            scale: [2.2, 1.7, 0.1]
+            material: { color: "#5a4a3a" }
+          }
+
+          child "Canvas" {
+            type: "plane"
+            position: [0, 0, 0.06]
+            scale: [2, 1.5, 1]
+            material: {
+              map: "/textures/art/painting-${i}.jpg"
+            }
+          }
+
+          child "FrameLight" {
+            type: "spotLight"
+            position: [0, 1, 0.5]
+            target: [0, 0, 0]
+            color: "#ffffee"
+            intensity: 0.5
+            angle: 0.4
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getRandomColor() {
+    const colors = ["#ff0066", "#00ffff", "#ff00ff", "#ffff00", "#00ff00", "#ff6600"]
+    return colors[Math.floor(Math.random() * colors.length)]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  logic {
+
+    on_enter: () -> {
+      AudioSystem.playMusic("lounge-ambient")
+      AccessibilitySystem.announce(
+        "Entered Social Lounge. Fireplace seating ahead, bar on left, dance floor on right, activities in back.",
+        "polite"
+      )
+
+      // Join multiplayer lobby
+      if (MultiplayerSystem.isConnected) {
+        MultiplayerSystem.joinRoom("social-lounge")
+      }
+    }
+
+    on_exit: () -> {
+      state.danceFloorActive = false
+      state.activityActive = null
+
+      if (MultiplayerSystem.isConnected) {
+        MultiplayerSystem.leaveRoom("social-lounge")
+      }
+    }
+
+    on("dance:start", () -> {
+      AccessibilitySystem.announce(
+        "Dance floor activated! Use emote buttons to dance.",
+        "polite"
+      )
+    })
+
+    on("activity:join", (data) -> {
+      AccessibilitySystem.announce(
+        "Joined " + data.type + " activity.",
+        "polite"
+      )
+    })
+
+    on("photo:start", () -> {
+      AccessibilitySystem.announce(
+        "Photo booth ready. Strike a pose and press take photo!",
+        "polite"
+      )
+
+      // Flash effect after countdown
+      after(3000) {
+        emit("photo:flash")
+        AudioSystem.play("camera-shutter")
+      }
+    })
+
+    on("player:join-lounge", (player) -> {
+      state.playersInLounge.push(player)
+      AccessibilitySystem.announce(
+        player.name + " joined the lounge.",
+        "polite"
+      )
+    })
+
+    on("player:leave-lounge", (player) -> {
+      state.playersInLounge = state.playersInLounge.filter(p => p.id !== player.id)
+    })
+
+    // Secret balcony discovery - look up at ceiling for 5 seconds
+    every(1000) {
+      if (player.lookingUp && player.lookDuration > 5000) {
+        if (!EasterEggSystem.isDiscovered("secret-balcony")) {
+          emit("easter-egg:discover", { id: "secret-balcony" })
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACCESSIBILITY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  aria: {
+    role: "region"
+    label: "Social Lounge - Relaxed hangout space with seating, bar, dance floor, and activities"
+  }
+}
+
+export { SocialLounge }

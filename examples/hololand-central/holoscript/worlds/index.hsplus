@@ -6,8 +6,7 @@
 
 export { MainPlaza } from "./MainPlaza.hsplus"
 export { HololandCasino } from "./HololandCasino.hsplus"
-// Additional worlds to be implemented:
-// export { BuilderShop } from "./BuilderShop.hsplus"
-// export { ArcadeDistrict } from "./ArcadeDistrict.hsplus"
-// export { SocialLounge } from "./SocialLounge.hsplus"
-// export { InfinityShop } from "./InfinityShop.hsplus"
+export { BuilderShop } from "./BuilderShop.hsplus"
+export { ArcadeDistrict } from "./ArcadeDistrict.hsplus"
+export { SocialLounge } from "./SocialLounge.hsplus"
+export { InfinityShop } from "./InfinityShop.hsplus"

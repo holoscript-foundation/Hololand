@@ -1,0 +1,787 @@
+/**
+ * Builder Shop World
+ *
+ * Creative workshop for building, crafting, and customizing items.
+ * Features tool stations, material vendors, and blueprint galleries.
+ */
+
+import { Portal, NPC } from "../templates"
+import { ThemeSystem, AudioSystem, AccessibilitySystem, EasterEggSystem } from "../systems"
+
+world "BuilderShop" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    id: "builder-shop"
+    name: "Builder's Workshop"
+    description: "Create, customize, and craft your perfect items"
+    theme: "industrial"
+    ambient: "workshop"
+    spawnPoint: [0, 0, 8]
+    bounds: [-50, -50, 50, 50]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    activeStation: null
+    selectedBlueprint: null
+    craftingInProgress: false
+    inventoryOpen: false
+    materialsCollected: []
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  environment {
+    skybox: ThemeSystem.current.skybox
+    fog: {
+      color: "#2a2a2a"
+      near: 20
+      far: 100
+    }
+    ambientLight: {
+      color: "#ffffff"
+      intensity: 0.4
+    }
+    directionalLight: {
+      color: "#ffeedd"
+      intensity: 0.8
+      position: [10, 20, 10]
+      castShadow: true
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STRUCTURE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  structure {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FLOOR & WALLS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "Floor" {
+      type: "plane"
+      position: [0, 0, 0]
+      rotation: [-90, 0, 0]
+      scale: [60, 60, 1]
+      material: {
+        color: "#3a3a3a"
+        roughness: 0.9
+        metalness: 0.1
+        map: "/textures/concrete-floor.jpg"
+        normalMap: "/textures/concrete-floor-normal.jpg"
+      }
+      receiveShadow: true
+    }
+
+    // Workshop walls
+    object "Walls" {
+      type: "group"
+      position: [0, 0, 0]
+
+      child "BackWall" {
+        type: "box"
+        position: [0, 5, -25]
+        scale: [60, 10, 1]
+        material: {
+          color: "#4a4a4a"
+          map: "/textures/brick-wall.jpg"
+        }
+      }
+
+      child "LeftWall" {
+        type: "box"
+        position: [-30, 5, 0]
+        scale: [1, 10, 50]
+        material: {
+          color: "#4a4a4a"
+          map: "/textures/brick-wall.jpg"
+        }
+      }
+
+      child "RightWall" {
+        type: "box"
+        position: [30, 5, 0]
+        scale: [1, 10, 50]
+        material: {
+          color: "#4a4a4a"
+          map: "/textures/brick-wall.jpg"
+        }
+      }
+    }
+
+    // Industrial ceiling with skylights
+    object "Ceiling" {
+      type: "group"
+      position: [0, 10, 0]
+
+      child "MainCeiling" {
+        type: "plane"
+        rotation: [90, 0, 0]
+        scale: [60, 50, 1]
+        material: {
+          color: "#2a2a2a"
+          metalness: 0.3
+        }
+      }
+
+      child "Skylight1" {
+        type: "plane"
+        position: [-10, 0.1, -5]
+        rotation: [90, 0, 0]
+        scale: [8, 8, 1]
+        material: {
+          color: "#aaccff"
+          emissive: "#aaccff"
+          emissiveIntensity: 0.5
+          opacity: 0.8
+          transparent: true
+        }
+      }
+
+      child "Skylight2" {
+        type: "plane"
+        position: [10, 0.1, -5]
+        rotation: [90, 0, 0]
+        scale: [8, 8, 1]
+        material: {
+          color: "#aaccff"
+          emissive: "#aaccff"
+          emissiveIntensity: 0.5
+          opacity: 0.8
+          transparent: true
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CRAFTING STATIONS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "CraftingStations" {
+      position: [0, 0, -10]
+
+      // Forge station
+      object "ForgeStation" {
+        type: "group"
+        position: [-15, 0, 0]
+        traits: ["interactive", "crafting-station"]
+
+        child "Anvil" {
+          type: "model"
+          model: "/models/anvil.glb"
+          position: [0, 0, 0]
+          scale: [1.5, 1.5, 1.5]
+          castShadow: true
+        }
+
+        child "Furnace" {
+          type: "model"
+          model: "/models/furnace.glb"
+          position: [-2, 0, 0]
+          scale: [1.2, 1.2, 1.2]
+          castShadow: true
+        }
+
+        child "FireGlow" {
+          type: "pointLight"
+          position: [-2, 1, 0]
+          color: "#ff6600"
+          intensity: state.activeStation === "forge" ? 2 : 0.8
+          distance: 8
+        }
+
+        child "Label" {
+          type: "text3d"
+          position: [0, 3, 0]
+          text: "Forge"
+          font: "Roboto"
+          size: 0.3
+          color: "#ff6600"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          state.activeStation = "forge"
+          AudioSystem.play("forge-activate")
+          emit("station:activate", { station: "forge", type: "metalwork" })
+        }
+      }
+
+      // Workbench station
+      object "WorkbenchStation" {
+        type: "group"
+        position: [0, 0, 0]
+        traits: ["interactive", "crafting-station"]
+
+        child "Workbench" {
+          type: "model"
+          model: "/models/workbench.glb"
+          position: [0, 0, 0]
+          scale: [1.5, 1.5, 1.5]
+          castShadow: true
+        }
+
+        child "Tools" {
+          type: "model"
+          model: "/models/tools-rack.glb"
+          position: [0, 1, -1]
+          scale: [1, 1, 1]
+        }
+
+        child "WorkLight" {
+          type: "spotLight"
+          position: [0, 3, 0]
+          target: [0, 0, 0]
+          color: "#ffffff"
+          intensity: state.activeStation === "workbench" ? 2 : 1
+          angle: 0.5
+          penumbra: 0.3
+        }
+
+        child "Label" {
+          type: "text3d"
+          position: [0, 3, 0]
+          text: "Workbench"
+          font: "Roboto"
+          size: 0.3
+          color: "#8b4513"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          state.activeStation = "workbench"
+          AudioSystem.play("workbench-activate")
+          emit("station:activate", { station: "workbench", type: "woodwork" })
+        }
+      }
+
+      // Tech station
+      object "TechStation" {
+        type: "group"
+        position: [15, 0, 0]
+        traits: ["interactive", "crafting-station"]
+
+        child "Console" {
+          type: "model"
+          model: "/models/tech-console.glb"
+          position: [0, 0, 0]
+          scale: [1.5, 1.5, 1.5]
+          castShadow: true
+        }
+
+        child "Hologram" {
+          type: "model"
+          model: "/models/hologram-display.glb"
+          position: [0, 1.5, 0]
+          scale: [1, 1, 1]
+          material: {
+            color: "#00ffff"
+            emissive: "#00ffff"
+            emissiveIntensity: 0.5
+            opacity: 0.7
+            transparent: true
+          }
+          animation: !AccessibilitySystem.reducedMotion ? {
+            type: "rotate"
+            axis: "y"
+            speed: 0.5
+          } : null
+        }
+
+        child "TechLight" {
+          type: "pointLight"
+          position: [0, 2, 0]
+          color: "#00ffff"
+          intensity: state.activeStation === "tech" ? 1.5 : 0.6
+          distance: 6
+        }
+
+        child "Label" {
+          type: "text3d"
+          position: [0, 3, 0]
+          text: "Tech Lab"
+          font: "Roboto"
+          size: 0.3
+          color: "#00ffff"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          state.activeStation = "tech"
+          AudioSystem.play("tech-activate")
+          emit("station:activate", { station: "tech", type: "electronics" })
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MATERIAL VENDORS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "MaterialVendors" {
+      position: [-20, 0, 5]
+
+      // Metals vendor
+      object "MetalsVendor" {
+        type: "group"
+        position: [0, 0, 0]
+        traits: ["interactive", "vendor"]
+
+        child "Booth" {
+          type: "model"
+          model: "/models/vendor-booth.glb"
+          scale: [1.5, 1.5, 1.5]
+        }
+
+        child "MetalSamples" {
+          type: "group"
+          position: [0, 1, 0.5]
+
+          child "IronIngot" {
+            type: "box"
+            position: [-0.3, 0, 0]
+            scale: [0.2, 0.1, 0.1]
+            material: { color: "#666666", metalness: 0.9 }
+          }
+
+          child "GoldIngot" {
+            type: "box"
+            position: [0, 0, 0]
+            scale: [0.2, 0.1, 0.1]
+            material: { color: "#ffd700", metalness: 0.95 }
+          }
+
+          child "CopperIngot" {
+            type: "box"
+            position: [0.3, 0, 0]
+            scale: [0.2, 0.1, 0.1]
+            material: { color: "#b87333", metalness: 0.85 }
+          }
+        }
+
+        child "Sign" {
+          type: "text3d"
+          position: [0, 2.5, 0]
+          text: "Metals"
+          font: "Roboto"
+          size: 0.25
+          color: "#888888"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          emit("vendor:open", { type: "metals" })
+          AudioSystem.play("shop-open")
+        }
+      }
+
+      // Wood vendor
+      object "WoodVendor" {
+        type: "group"
+        position: [5, 0, 0]
+        traits: ["interactive", "vendor"]
+
+        child "Booth" {
+          type: "model"
+          model: "/models/vendor-booth.glb"
+          scale: [1.5, 1.5, 1.5]
+        }
+
+        child "WoodSamples" {
+          type: "group"
+          position: [0, 1, 0.5]
+
+          child "OakPlank" {
+            type: "box"
+            position: [-0.3, 0, 0]
+            scale: [0.25, 0.05, 0.15]
+            material: { color: "#deb887", map: "/textures/oak-wood.jpg" }
+          }
+
+          child "CherryPlank" {
+            type: "box"
+            position: [0, 0, 0]
+            scale: [0.25, 0.05, 0.15]
+            material: { color: "#8b4513", map: "/textures/cherry-wood.jpg" }
+          }
+
+          child "EbonyPlank" {
+            type: "box"
+            position: [0.3, 0, 0]
+            scale: [0.25, 0.05, 0.15]
+            material: { color: "#3d2b1f", map: "/textures/ebony-wood.jpg" }
+          }
+        }
+
+        child "Sign" {
+          type: "text3d"
+          position: [0, 2.5, 0]
+          text: "Lumber"
+          font: "Roboto"
+          size: 0.25
+          color: "#8b4513"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          emit("vendor:open", { type: "wood" })
+          AudioSystem.play("shop-open")
+        }
+      }
+
+      // Electronics vendor
+      object "ElectronicsVendor" {
+        type: "group"
+        position: [10, 0, 0]
+        traits: ["interactive", "vendor"]
+
+        child "Booth" {
+          type: "model"
+          model: "/models/vendor-booth.glb"
+          scale: [1.5, 1.5, 1.5]
+        }
+
+        child "Components" {
+          type: "group"
+          position: [0, 1, 0.5]
+
+          child "Circuit" {
+            type: "box"
+            position: [0, 0, 0]
+            scale: [0.3, 0.02, 0.2]
+            material: { color: "#006400", emissive: "#003300" }
+          }
+
+          child "Chip" {
+            type: "box"
+            position: [0, 0.03, 0]
+            scale: [0.1, 0.02, 0.1]
+            material: { color: "#1a1a1a", metalness: 0.5 }
+          }
+        }
+
+        child "Sign" {
+          type: "text3d"
+          position: [0, 2.5, 0]
+          text: "Electronics"
+          font: "Roboto"
+          size: 0.25
+          color: "#00ff00"
+          billboard: true
+        }
+
+        on_interact: () -> {
+          emit("vendor:open", { type: "electronics" })
+          AudioSystem.play("shop-open")
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BLUEPRINT GALLERY
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "BlueprintGallery" {
+      position: [20, 0, 0]
+
+      object "GalleryWall" {
+        type: "group"
+        position: [0, 0, -5]
+
+        // Blueprint frames
+        for (i in range(0, 5)) {
+          child "BlueprintFrame_${i}" {
+            type: "group"
+            position: [-6 + i * 3, 2, 0]
+            traits: ["interactive"]
+
+            child "Frame" {
+              type: "box"
+              scale: [2, 2.5, 0.1]
+              material: { color: "#8b4513" }
+            }
+
+            child "Blueprint" {
+              type: "plane"
+              position: [0, 0, 0.06]
+              scale: [1.8, 2.3, 1]
+              material: {
+                color: "#1a3a5c"
+                map: "/textures/blueprints/blueprint-${i}.png"
+              }
+            }
+
+            child "Label" {
+              type: "text3d"
+              position: [0, -1.5, 0.1]
+              text: getBlueprintName(i)
+              font: "Roboto"
+              size: 0.12
+              color: "#ffffff"
+            }
+
+            on_interact: () -> {
+              state.selectedBlueprint = i
+              emit("blueprint:select", { id: i, name: getBlueprintName(i) })
+              AudioSystem.play("paper-select")
+            }
+          }
+        }
+      }
+
+      // Gallery label
+      object "GallerySign" {
+        type: "text3d"
+        position: [0, 4, -5]
+        text: "Blueprint Gallery"
+        font: "Roboto"
+        size: 0.4
+        color: "#ffffff"
+        billboard: false
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NPC - WORKSHOP MASTER
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "WorkshopMaster" using NPC {
+      position: [0, 0, 0]
+      properties: {
+        name: "Gearwright"
+        role: "Workshop Master"
+        model: "/models/npcs/gearwright.glb"
+        greeting: "Welcome to the Builder's Workshop! What would you like to create today?"
+        dialogueTree: {
+          greeting: {
+            text: "Welcome to the Builder's Workshop! What would you like to create today?",
+            options: [
+              { label: "How do I craft?", next: "crafting_tutorial" },
+              { label: "What materials do I need?", next: "materials_info" },
+              { label: "Show me blueprints", next: "blueprints_info" }
+            ]
+          },
+          crafting_tutorial: {
+            text: "Visit any crafting station - the Forge for metals, Workbench for wood, or Tech Lab for electronics. Select a blueprint and gather the materials!",
+            options: [
+              { label: "Thanks!", next: "goodbye" }
+            ]
+          },
+          materials_info: {
+            text: "Check the vendors on your left for raw materials. Each station uses different resources - metals for the forge, lumber for the workbench, components for tech.",
+            options: [
+              { label: "Got it!", next: "goodbye" }
+            ]
+          },
+          blueprints_info: {
+            text: "The Blueprint Gallery on your right has designs from simple tools to complex machines. Unlock more by completing crafting challenges!",
+            options: [
+              { label: "I'll check it out", next: "goodbye" }
+            ]
+          },
+          goodbye: {
+            text: "Happy building! Come back if you need any help.",
+            options: []
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EASTER EGG - HIDDEN BLUEPRINT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "HiddenBlueprintEgg" {
+      type: "group"
+      position: [28, 3, -20]
+      visible: false
+      traits: ["easter-egg"]
+
+      child "SecretBlueprint" {
+        type: "plane"
+        scale: [1, 1.5, 1]
+        material: {
+          color: "#ffd700"
+          emissive: "#ffd700"
+          emissiveIntensity: 0.5
+          map: "/textures/blueprints/secret-blueprint.png"
+        }
+      }
+
+      child "Glow" {
+        type: "pointLight"
+        color: "#ffd700"
+        intensity: 1
+        distance: 5
+      }
+
+      on_discover: () -> {
+        EasterEggSystem.discover("golden-blueprint")
+        emit("blueprint:unlock", { id: "golden", name: "Golden Gear" })
+        AudioSystem.play("secret-found")
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PORTAL BACK TO MAIN PLAZA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "ExitPortal" using Portal {
+      position: [0, 0, 20]
+      properties: {
+        destination: "/central"
+        label: "Main Plaza"
+        color: "#667eea"
+        icon: "home"
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AMBIENT ELEMENTS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Hanging industrial lights
+    for (i in range(0, 4)) {
+      object "IndustrialLight_${i}" {
+        type: "group"
+        position: [-15 + i * 10, 8, -5]
+
+        child "Chain" {
+          type: "cylinder"
+          scale: [0.02, 2, 0.02]
+          material: { color: "#666666", metalness: 0.8 }
+        }
+
+        child "Fixture" {
+          type: "cone"
+          position: [0, -1.5, 0]
+          rotation: [180, 0, 0]
+          scale: [0.5, 0.3, 0.5]
+          material: { color: "#444444", metalness: 0.7 }
+        }
+
+        child "Bulb" {
+          type: "pointLight"
+          position: [0, -1.8, 0]
+          color: "#ffddaa"
+          intensity: 0.8
+          distance: 12
+        }
+      }
+    }
+
+    // Crates and barrels
+    object "StorageArea" {
+      type: "group"
+      position: [25, 0, 15]
+
+      child "Crate1" {
+        type: "box"
+        position: [0, 0.5, 0]
+        scale: [1, 1, 1]
+        material: { color: "#8b4513", map: "/textures/crate.jpg" }
+      }
+
+      child "Crate2" {
+        type: "box"
+        position: [1.2, 0.5, 0.3]
+        scale: [1, 1, 1]
+        material: { color: "#8b4513", map: "/textures/crate.jpg" }
+      }
+
+      child "Barrel1" {
+        type: "cylinder"
+        position: [-1.5, 0.6, 0]
+        scale: [0.5, 1.2, 0.5]
+        material: { color: "#6b4423" }
+      }
+
+      child "Barrel2" {
+        type: "cylinder"
+        position: [-1.5, 0.6, 1]
+        scale: [0.5, 1.2, 0.5]
+        material: { color: "#6b4423" }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getBlueprintName(index) {
+    const names = [
+      "Basic Sword",
+      "Wooden Shield",
+      "Circuit Board",
+      "Clockwork Gear",
+      "Power Cell"
+    ]
+    return names[index] || "Unknown"
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  logic {
+
+    on_enter: () -> {
+      AudioSystem.playMusic("workshop-ambient")
+      AccessibilitySystem.announce(
+        "Entered Builder's Workshop. Crafting stations ahead, material vendors on left, blueprints on right.",
+        "polite"
+      )
+    }
+
+    on_exit: () -> {
+      state.activeStation = null
+      state.craftingInProgress = false
+    }
+
+    on("station:activate", (data) -> {
+      AccessibilitySystem.announce(
+        data.station + " station activated. Select a blueprint to begin crafting.",
+        "polite"
+      )
+    })
+
+    on("blueprint:select", (data) -> {
+      AccessibilitySystem.announce(
+        "Selected blueprint: " + data.name,
+        "polite"
+      )
+    })
+
+    on("craft:complete", (data) -> {
+      state.craftingInProgress = false
+      AudioSystem.play("craft-complete")
+      AccessibilitySystem.announce(
+        "Crafting complete! " + data.item + " added to inventory.",
+        "assertive"
+      )
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACCESSIBILITY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  aria: {
+    role: "region"
+    label: "Builder's Workshop - Creative crafting area with stations, vendors, and blueprints"
+  }
+}
+
+export { BuilderShop }

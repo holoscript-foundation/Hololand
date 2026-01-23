@@ -1,0 +1,983 @@
+/**
+ * Arcade District World
+ *
+ * Retro gaming paradise with arcade cabinets, mini-games, and competitions.
+ * Features classic games, leaderboards, and multiplayer challenges.
+ */
+
+import { Portal, NPC } from "../templates"
+import { ThemeSystem, AudioSystem, AccessibilitySystem, EasterEggSystem, MultiplayerSystem } from "../systems"
+
+world "ArcadeDistrict" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    id: "arcade-district"
+    name: "Arcade District"
+    description: "Classic gaming and competitive fun"
+    theme: "neon-retro"
+    ambient: "arcade"
+    spawnPoint: [0, 0, 15]
+    bounds: [-40, -40, 40, 40]
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    activeGame: null
+    tokens: 10
+    highScores: {}
+    currentScore: 0
+    isPlaying: false
+    leaderboardOpen: false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  environment {
+    skybox: "starfield"
+    fog: {
+      color: "#0a0a1a"
+      near: 30
+      far: 80
+    }
+    ambientLight: {
+      color: "#220033"
+      intensity: 0.3
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STRUCTURE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  structure {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FLOOR - NEON GRID
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "Floor" {
+      type: "plane"
+      position: [0, 0, 0]
+      rotation: [-90, 0, 0]
+      scale: [80, 80, 1]
+      material: {
+        color: "#0a0a1a"
+        map: "/textures/neon-grid.png"
+        emissive: "#1a0a3a"
+        emissiveIntensity: 0.2
+      }
+      receiveShadow: true
+    }
+
+    // Neon strip lighting on floor
+    object "FloorNeonStrips" {
+      type: "group"
+
+      for (i in range(0, 8)) {
+        child "NeonStrip_${i}" {
+          type: "box"
+          position: [-30 + i * 8, 0.02, 0]
+          scale: [0.1, 0.02, 60]
+          material: {
+            color: i % 2 === 0 ? "#ff00ff" : "#00ffff"
+            emissive: i % 2 === 0 ? "#ff00ff" : "#00ffff"
+            emissiveIntensity: 1
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ENTRANCE ARCH
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "EntranceArch" {
+      type: "group"
+      position: [0, 0, 12]
+
+      child "LeftPillar" {
+        type: "box"
+        position: [-5, 3, 0]
+        scale: [1, 6, 1]
+        material: {
+          color: "#1a1a2e"
+          emissive: "#ff00ff"
+          emissiveIntensity: 0.3
+        }
+      }
+
+      child "RightPillar" {
+        type: "box"
+        position: [5, 3, 0]
+        scale: [1, 6, 1]
+        material: {
+          color: "#1a1a2e"
+          emissive: "#00ffff"
+          emissiveIntensity: 0.3
+        }
+      }
+
+      child "TopBeam" {
+        type: "box"
+        position: [0, 6.5, 0]
+        scale: [11, 1, 1]
+        material: {
+          color: "#1a1a2e"
+        }
+      }
+
+      child "SignText" {
+        type: "text3d"
+        position: [0, 6.5, 0.6]
+        text: "ARCADE"
+        font: "Press Start 2P"
+        size: 0.6
+        color: "#ffff00"
+        material: {
+          emissive: "#ffff00"
+          emissiveIntensity: 1
+        }
+
+        animation: !AccessibilitySystem.reducedMotion ? {
+          type: "pulse"
+          min: 0.8
+          max: 1
+          duration: 1000
+        } : null
+      }
+
+      child "NeonTubeLeft" {
+        type: "cylinder"
+        position: [-5, 3, 0.6]
+        scale: [0.08, 5.5, 0.08]
+        material: {
+          color: "#ff00ff"
+          emissive: "#ff00ff"
+          emissiveIntensity: 2
+        }
+      }
+
+      child "NeonTubeRight" {
+        type: "cylinder"
+        position: [5, 3, 0.6]
+        scale: [0.08, 5.5, 0.08]
+        material: {
+          color: "#00ffff"
+          emissive: "#00ffff"
+          emissiveIntensity: 2
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ARCADE CABINETS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "ArcadeCabinets" {
+      position: [0, 0, 0]
+
+      // Row 1 - Classic Games
+      object "SpaceInvadersCabinet" {
+        type: "group"
+        position: [-12, 0, -5]
+        traits: ["interactive", "arcade-cabinet"]
+
+        child "Cabinet" {
+          type: "model"
+          model: "/models/arcade-cabinet.glb"
+          scale: [1.2, 1.2, 1.2]
+          castShadow: true
+        }
+
+        child "Screen" {
+          type: "plane"
+          position: [0, 1.4, 0.35]
+          scale: [0.8, 0.6, 1]
+          material: {
+            color: "#000000"
+            emissive: "#00ff00"
+            emissiveIntensity: state.activeGame === "space-invaders" ? 1 : 0.3
+            map: "/textures/games/space-invaders-screen.png"
+          }
+        }
+
+        child "Marquee" {
+          type: "plane"
+          position: [0, 2.2, 0.35]
+          scale: [0.9, 0.25, 1]
+          material: {
+            map: "/textures/games/space-invaders-marquee.png"
+            emissive: "#ffffff"
+            emissiveIntensity: 0.5
+          }
+        }
+
+        child "CabinetLight" {
+          type: "pointLight"
+          position: [0, 1.5, 0.5]
+          color: "#00ff00"
+          intensity: 0.5
+          distance: 3
+        }
+
+        on_interact: () -> {
+          if (state.tokens > 0) {
+            state.activeGame = "space-invaders"
+            state.tokens -= 1
+            state.isPlaying = true
+            AudioSystem.play("coin-insert")
+            emit("game:start", { game: "space-invaders" })
+          } else {
+            emit("tokens:needed")
+            AudioSystem.play("error-buzz")
+          }
+        }
+      }
+
+      object "PacManCabinet" {
+        type: "group"
+        position: [-4, 0, -5]
+        traits: ["interactive", "arcade-cabinet"]
+
+        child "Cabinet" {
+          type: "model"
+          model: "/models/arcade-cabinet.glb"
+          scale: [1.2, 1.2, 1.2]
+          castShadow: true
+        }
+
+        child "Screen" {
+          type: "plane"
+          position: [0, 1.4, 0.35]
+          scale: [0.8, 0.6, 1]
+          material: {
+            color: "#000000"
+            emissive: "#ffff00"
+            emissiveIntensity: state.activeGame === "pac-man" ? 1 : 0.3
+            map: "/textures/games/pacman-screen.png"
+          }
+        }
+
+        child "Marquee" {
+          type: "plane"
+          position: [0, 2.2, 0.35]
+          scale: [0.9, 0.25, 1]
+          material: {
+            map: "/textures/games/pacman-marquee.png"
+            emissive: "#ffffff"
+            emissiveIntensity: 0.5
+          }
+        }
+
+        child "CabinetLight" {
+          type: "pointLight"
+          position: [0, 1.5, 0.5]
+          color: "#ffff00"
+          intensity: 0.5
+          distance: 3
+        }
+
+        on_interact: () -> {
+          if (state.tokens > 0) {
+            state.activeGame = "pac-man"
+            state.tokens -= 1
+            state.isPlaying = true
+            AudioSystem.play("coin-insert")
+            emit("game:start", { game: "pac-man" })
+          } else {
+            emit("tokens:needed")
+            AudioSystem.play("error-buzz")
+          }
+        }
+      }
+
+      object "TetrisCabinet" {
+        type: "group"
+        position: [4, 0, -5]
+        traits: ["interactive", "arcade-cabinet"]
+
+        child "Cabinet" {
+          type: "model"
+          model: "/models/arcade-cabinet.glb"
+          scale: [1.2, 1.2, 1.2]
+          castShadow: true
+        }
+
+        child "Screen" {
+          type: "plane"
+          position: [0, 1.4, 0.35]
+          scale: [0.8, 0.6, 1]
+          material: {
+            color: "#000000"
+            emissive: "#00ffff"
+            emissiveIntensity: state.activeGame === "tetris" ? 1 : 0.3
+            map: "/textures/games/tetris-screen.png"
+          }
+        }
+
+        child "Marquee" {
+          type: "plane"
+          position: [0, 2.2, 0.35]
+          scale: [0.9, 0.25, 1]
+          material: {
+            map: "/textures/games/tetris-marquee.png"
+            emissive: "#ffffff"
+            emissiveIntensity: 0.5
+          }
+        }
+
+        child "CabinetLight" {
+          type: "pointLight"
+          position: [0, 1.5, 0.5]
+          color: "#00ffff"
+          intensity: 0.5
+          distance: 3
+        }
+
+        on_interact: () -> {
+          if (state.tokens > 0) {
+            state.activeGame = "tetris"
+            state.tokens -= 1
+            state.isPlaying = true
+            AudioSystem.play("coin-insert")
+            emit("game:start", { game: "tetris" })
+          } else {
+            emit("tokens:needed")
+            AudioSystem.play("error-buzz")
+          }
+        }
+      }
+
+      object "BreakoutCabinet" {
+        type: "group"
+        position: [12, 0, -5]
+        traits: ["interactive", "arcade-cabinet"]
+
+        child "Cabinet" {
+          type: "model"
+          model: "/models/arcade-cabinet.glb"
+          scale: [1.2, 1.2, 1.2]
+          castShadow: true
+        }
+
+        child "Screen" {
+          type: "plane"
+          position: [0, 1.4, 0.35]
+          scale: [0.8, 0.6, 1]
+          material: {
+            color: "#000000"
+            emissive: "#ff6600"
+            emissiveIntensity: state.activeGame === "breakout" ? 1 : 0.3
+            map: "/textures/games/breakout-screen.png"
+          }
+        }
+
+        child "Marquee" {
+          type: "plane"
+          position: [0, 2.2, 0.35]
+          scale: [0.9, 0.25, 1]
+          material: {
+            map: "/textures/games/breakout-marquee.png"
+            emissive: "#ffffff"
+            emissiveIntensity: 0.5
+          }
+        }
+
+        child "CabinetLight" {
+          type: "pointLight"
+          position: [0, 1.5, 0.5]
+          color: "#ff6600"
+          intensity: 0.5
+          distance: 3
+        }
+
+        on_interact: () -> {
+          if (state.tokens > 0) {
+            state.activeGame = "breakout"
+            state.tokens -= 1
+            state.isPlaying = true
+            AudioSystem.play("coin-insert")
+            emit("game:start", { game: "breakout" })
+          } else {
+            emit("tokens:needed")
+            AudioSystem.play("error-buzz")
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MULTIPLAYER ZONE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    spatial_group "MultiplayerZone" {
+      position: [0, 0, -15]
+
+      object "VSPodium" {
+        type: "group"
+        position: [0, 0, 0]
+
+        child "Platform" {
+          type: "cylinder"
+          position: [0, 0.2, 0]
+          scale: [8, 0.4, 8]
+          material: {
+            color: "#1a0a3a"
+            emissive: "#ff00ff"
+            emissiveIntensity: 0.3
+          }
+        }
+
+        child "VSSign" {
+          type: "text3d"
+          position: [0, 4, 0]
+          text: "VS"
+          font: "Press Start 2P"
+          size: 1
+          color: "#ff0000"
+          material: {
+            emissive: "#ff0000"
+            emissiveIntensity: 1
+          }
+          billboard: true
+
+          animation: !AccessibilitySystem.reducedMotion ? {
+            type: "pulse"
+            min: 0.9
+            max: 1.1
+            duration: 500
+          } : null
+        }
+
+        // Player 1 station
+        child "Player1Station" {
+          type: "group"
+          position: [-3, 0.5, 0]
+
+          child "Console" {
+            type: "model"
+            model: "/models/gaming-console.glb"
+            scale: [1, 1, 1]
+          }
+
+          child "Label" {
+            type: "text3d"
+            position: [0, 1.5, 0]
+            text: "P1"
+            font: "Press Start 2P"
+            size: 0.4
+            color: "#ff0000"
+            billboard: true
+          }
+        }
+
+        // Player 2 station
+        child "Player2Station" {
+          type: "group"
+          position: [3, 0.5, 0]
+
+          child "Console" {
+            type: "model"
+            model: "/models/gaming-console.glb"
+            scale: [1, 1, 1]
+          }
+
+          child "Label" {
+            type: "text3d"
+            position: [0, 1.5, 0]
+            text: "P2"
+            font: "Press Start 2P"
+            size: 0.4
+            color: "#0000ff"
+            billboard: true
+          }
+        }
+
+        on_interact: () -> {
+          if (MultiplayerSystem.isConnected) {
+            emit("multiplayer:challenge")
+            AudioSystem.play("challenge-start")
+          } else {
+            emit("multiplayer:connect-prompt")
+          }
+        }
+      }
+
+      // Spectator benches
+      for (i in range(0, 3)) {
+        object "SpectatorBench_${i}" {
+          type: "box"
+          position: [-4 + i * 4, 0.3, -6]
+          scale: [3, 0.6, 1]
+          material: {
+            color: "#2a1a4a"
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PRIZE COUNTER
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "PrizeCounter" {
+      type: "group"
+      position: [20, 0, 0]
+      traits: ["interactive"]
+
+      child "Counter" {
+        type: "box"
+        position: [0, 0.6, 0]
+        scale: [5, 1.2, 2]
+        material: {
+          color: "#3a1a5a"
+          emissive: "#9900ff"
+          emissiveIntensity: 0.2
+        }
+      }
+
+      child "Shelves" {
+        type: "model"
+        model: "/models/prize-shelves.glb"
+        position: [0, 0, -2]
+        scale: [1.5, 1.5, 1.5]
+      }
+
+      child "Sign" {
+        type: "text3d"
+        position: [0, 3, 0]
+        text: "PRIZES"
+        font: "Press Start 2P"
+        size: 0.4
+        color: "#ffff00"
+        material: {
+          emissive: "#ffff00"
+          emissiveIntensity: 0.8
+        }
+        billboard: true
+      }
+
+      child "TokenDisplay" {
+        type: "text3d"
+        position: [0, 2, 1.5]
+        text: "Tokens: " + state.tokens
+        font: "Press Start 2P"
+        size: 0.2
+        color: "#00ff00"
+        billboard: true
+      }
+
+      on_interact: () -> {
+        emit("prizes:open")
+        AudioSystem.play("prize-counter")
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LEADERBOARD
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "Leaderboard" {
+      type: "group"
+      position: [-20, 0, 0]
+      traits: ["interactive"]
+
+      child "Screen" {
+        type: "plane"
+        position: [0, 3, 0]
+        scale: [6, 4, 1]
+        material: {
+          color: "#000033"
+          emissive: "#0000ff"
+          emissiveIntensity: 0.2
+        }
+      }
+
+      child "Frame" {
+        type: "box"
+        position: [0, 3, -0.1]
+        scale: [6.5, 4.5, 0.2]
+        material: {
+          color: "#1a1a3a"
+          emissive: "#ff00ff"
+          emissiveIntensity: 0.3
+        }
+      }
+
+      child "Title" {
+        type: "text3d"
+        position: [0, 4.5, 0.1]
+        text: "HIGH SCORES"
+        font: "Press Start 2P"
+        size: 0.3
+        color: "#ffff00"
+      }
+
+      child "Scores" {
+        type: "text"
+        position: [0, 3, 0.1]
+        text: formatLeaderboard()
+        font: "Press Start 2P"
+        size: 0.15
+        color: "#00ff00"
+        align: "center"
+      }
+
+      on_interact: () -> {
+        state.leaderboardOpen = true
+        emit("leaderboard:open")
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TOKEN MACHINE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "TokenMachine" {
+      type: "group"
+      position: [15, 0, 10]
+      traits: ["interactive"]
+
+      child "Machine" {
+        type: "model"
+        model: "/models/token-machine.glb"
+        scale: [1.5, 1.5, 1.5]
+        castShadow: true
+      }
+
+      child "GlowingTokens" {
+        type: "cylinder"
+        position: [0, 1.2, 0.3]
+        scale: [0.2, 0.05, 0.2]
+        material: {
+          color: "#ffd700"
+          emissive: "#ffd700"
+          emissiveIntensity: 1
+          metalness: 0.9
+        }
+
+        animation: !AccessibilitySystem.reducedMotion ? {
+          type: "rotate"
+          axis: "y"
+          speed: 2
+        } : null
+      }
+
+      child "Label" {
+        type: "text3d"
+        position: [0, 2.5, 0]
+        text: "GET TOKENS"
+        font: "Press Start 2P"
+        size: 0.2
+        color: "#ffd700"
+        billboard: true
+      }
+
+      on_interact: () -> {
+        emit("tokens:purchase-prompt")
+        AudioSystem.play("token-machine")
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NPC - ARCADE ATTENDANT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "ArcadeAttendant" using NPC {
+      position: [18, 0, -3]
+      properties: {
+        name: "Pixel Pete"
+        role: "Arcade Master"
+        model: "/models/npcs/pixel-pete.glb"
+        greeting: "Welcome to the Arcade District! Ready to set some high scores?"
+        dialogueTree: {
+          greeting: {
+            text: "Welcome to the Arcade District! Ready to set some high scores?",
+            options: [
+              { label: "How do I play?", next: "how_to_play" },
+              { label: "Tell me about prizes", next: "prizes" },
+              { label: "Any tips?", next: "tips" }
+            ]
+          },
+          how_to_play: {
+            text: "Insert a token at any cabinet to play! Earn points to climb the leaderboard and win prizes!",
+            options: [
+              { label: "Where do I get tokens?", next: "tokens" },
+              { label: "Thanks!", next: "goodbye" }
+            ]
+          },
+          tokens: {
+            text: "The Token Machine near the entrance! You can also earn bonus tokens by achieving high scores.",
+            options: [
+              { label: "Cool!", next: "goodbye" }
+            ]
+          },
+          prizes: {
+            text: "Check out the Prize Counter! Trade your tickets for exclusive items, avatar gear, and rare collectibles.",
+            options: [
+              { label: "Awesome!", next: "goodbye" }
+            ]
+          },
+          tips: {
+            text: "Pro tip: The multiplayer VS zone gives double points! Challenge other players for the best rewards.",
+            options: [
+              { label: "I'll try it!", next: "goodbye" }
+            ]
+          },
+          goodbye: {
+            text: "Good luck! May the high score be with you!",
+            options: []
+          }
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EASTER EGG - KONAMI CODE CABINET
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "KonamiCabinet" {
+      type: "group"
+      position: [-25, 0, -20]
+      visible: EasterEggSystem.isDiscovered("konami-code")
+      traits: ["easter-egg", "interactive"]
+
+      child "Cabinet" {
+        type: "model"
+        model: "/models/arcade-cabinet-gold.glb"
+        scale: [1.3, 1.3, 1.3]
+        material: {
+          color: "#ffd700"
+          emissive: "#ffd700"
+          emissiveIntensity: 0.5
+          metalness: 0.9
+        }
+      }
+
+      child "Screen" {
+        type: "plane"
+        position: [0, 1.4, 0.35]
+        scale: [0.8, 0.6, 1]
+        material: {
+          color: "#ffd700"
+          emissive: "#ffffff"
+          emissiveIntensity: 1
+        }
+      }
+
+      child "Label" {
+        type: "text3d"
+        position: [0, 2.5, 0]
+        text: "???"
+        font: "Press Start 2P"
+        size: 0.3
+        color: "#ffd700"
+        billboard: true
+      }
+
+      child "GoldenGlow" {
+        type: "pointLight"
+        position: [0, 1.5, 1]
+        color: "#ffd700"
+        intensity: 2
+        distance: 8
+      }
+
+      on_interact: () -> {
+        emit("game:secret", { game: "konami-special" })
+        AudioSystem.play("secret-game")
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PORTAL BACK TO MAIN PLAZA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    object "ExitPortal" using Portal {
+      position: [0, 0, 20]
+      properties: {
+        destination: "/central"
+        label: "Main Plaza"
+        color: "#667eea"
+        icon: "home"
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AMBIENT NEON DECORATIONS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Floating neon shapes
+    object "NeonDecorations" {
+      type: "group"
+
+      child "NeonTriangle" {
+        type: "model"
+        model: "/models/neon-triangle.glb"
+        position: [-15, 5, -10]
+        material: {
+          emissive: "#ff00ff"
+          emissiveIntensity: 1
+        }
+
+        animation: !AccessibilitySystem.reducedMotion ? {
+          type: "rotate"
+          axis: "y"
+          speed: 0.3
+        } : null
+      }
+
+      child "NeonCircle" {
+        type: "torus"
+        position: [15, 6, -10]
+        scale: [1.5, 1.5, 0.2]
+        material: {
+          color: "#00ffff"
+          emissive: "#00ffff"
+          emissiveIntensity: 1
+        }
+
+        animation: !AccessibilitySystem.reducedMotion ? {
+          type: "rotate"
+          axis: "x"
+          speed: 0.5
+        } : null
+      }
+
+      child "NeonSquare" {
+        type: "box"
+        position: [0, 7, -18]
+        scale: [2, 2, 0.1]
+        material: {
+          color: "#ffff00"
+          emissive: "#ffff00"
+          emissiveIntensity: 0.8
+        }
+
+        animation: !AccessibilitySystem.reducedMotion ? {
+          type: "rotate"
+          axis: "z"
+          speed: 0.2
+        } : null
+      }
+    }
+
+    // Particle effects
+    particles "ArcadeParticles" {
+      position: [0, 3, 0]
+      type: "sparkle"
+      count: 100
+      colors: ["#ff00ff", "#00ffff", "#ffff00", "#ff0000"]
+      size: 0.1
+      spread: [40, 10, 40]
+      speed: 0.5
+      enabled: !AccessibilitySystem.reducedMotion
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function formatLeaderboard() {
+    const scores = [
+      { name: "AAA", score: 99999 },
+      { name: "BBB", score: 88888 },
+      { name: "CCC", score: 77777 },
+      { name: "DDD", score: 66666 },
+      { name: "EEE", score: 55555 }
+    ]
+
+    return scores.map((s, i) =>
+      `${i + 1}. ${s.name} - ${s.score}`
+    ).join("\n")
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  logic {
+
+    on_enter: () -> {
+      AudioSystem.playMusic("arcade-theme")
+      AccessibilitySystem.announce(
+        "Entered Arcade District. Classic arcade cabinets ahead, multiplayer zone in back, prizes on right.",
+        "polite"
+      )
+
+      // Load saved tokens
+      const savedTokens = await storage.get("arcade:tokens")
+      if (savedTokens) {
+        state.tokens = savedTokens
+      }
+    }
+
+    on_exit: () -> {
+      // Save tokens
+      storage.set("arcade:tokens", state.tokens)
+      state.activeGame = null
+      state.isPlaying = false
+    }
+
+    on("game:start", (data) -> {
+      AccessibilitySystem.announce(
+        "Starting " + data.game + ". Use arrow keys to play.",
+        "assertive"
+      )
+    })
+
+    on("game:end", (data) -> {
+      state.isPlaying = false
+      state.activeGame = null
+      state.currentScore = data.score
+
+      AudioSystem.play("game-over")
+      AccessibilitySystem.announce(
+        "Game over. Score: " + data.score,
+        "assertive"
+      )
+
+      // Award bonus tokens for high scores
+      if (data.score > 10000) {
+        state.tokens += 5
+        emit("tokens:bonus", { amount: 5 })
+      }
+    })
+
+    on("tokens:needed", () -> {
+      AccessibilitySystem.announce(
+        "Not enough tokens. Visit the Token Machine to get more.",
+        "polite"
+      )
+    })
+
+    // Konami code easter egg listener
+    on("input:sequence", (sequence) -> {
+      if (sequence === "up,up,down,down,left,right,left,right,b,a") {
+        EasterEggSystem.discover("konami-code")
+        AudioSystem.play("secret-unlock")
+      }
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACCESSIBILITY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  aria: {
+    role: "region"
+    label: "Arcade District - Retro gaming area with classic arcade cabinets and multiplayer games"
+  }
+}
+
+export { ArcadeDistrict }
