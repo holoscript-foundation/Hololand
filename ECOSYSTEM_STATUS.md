@@ -39,19 +39,33 @@
 | [@hololand/ar-anchors](./packages/ar-anchors) | Pin things to real world | ✅ Ready |
 | [@hololand/ar-renderer](./packages/ar-renderer) | Draw AR overlays | ✅ Ready |
 
-### HoloScript Tooling
+### HoloScript Language (External Repo)
+
+> **Note:** HoloScript is now maintained in a [separate repository](https://github.com/brianonbased-dev/HoloScript) for better modularity.
 
 | Package | What It Does | Status |
 |---------|--------------|--------|
-| [@hololand/holoscript-core](./packages/holoscript-core) | Parser & compiler | ✅ Ready |
-| [@hololand/holoscript-compiler](./packages/holoscript-compiler) | AST compilation | ✅ Ready |
-| [@hololand/holoscript-std](./packages/holoscript-std) | Standard library | ✅ Ready |
-| [@hololand/holoscript-ai](./packages/holoscript-ai) | AI code generation | ✅ Ready |
-| [@hololand/holoscript-fs](./packages/holoscript-fs) | File system utils | ✅ Ready |
-| [@hololand/holoscript-formatter](./packages/holoscript-formatter) | Code formatting | ✅ v2.0.0 |
-| [@hololand/holoscript-linter](./packages/holoscript-linter) | Static analysis | ✅ v2.0.0 |
-| [@hololand/holoscript-lsp](./packages/holoscript-lsp) | Language Server | ✅ v1.0.0 |
+| [@holoscript/core](https://github.com/brianonbased-dev/HoloScript) | Parser & runtime | ✅ v2.1.0 |
+| [@holoscript/runtime](https://github.com/brianonbased-dev/HoloScript) | Execution engine | ✅ v2.1.0 |
+| [@holoscript/cli](https://github.com/brianonbased-dev/HoloScript) | Command line tools | ✅ v2.1.0 |
+| [@holoscript/formatter](https://github.com/brianonbased-dev/HoloScript) | Code formatting | ✅ v2.0.0 |
+| [@holoscript/linter](https://github.com/brianonbased-dev/HoloScript) | Static analysis | ✅ v2.0.0 |
+| [@holoscript/lsp](https://github.com/brianonbased-dev/HoloScript) | Language Server | ✅ v1.0.0 |
+| [@holoscript/std](https://github.com/brianonbased-dev/HoloScript) | Standard library | ✅ Ready |
+| [@holoscript/fs](https://github.com/brianonbased-dev/HoloScript) | File system utils | ✅ Ready |
+| [@holoscript/network](https://github.com/brianonbased-dev/HoloScript) | Multiplayer sync | ✅ Ready |
 | [@hololand/vscode-holoscript](./packages/vscode-holoscript) | VS Code Extension | ✅ Ready |
+
+### Platform Adapters
+
+| Package | What It Does | Status |
+|---------|--------------|--------|
+| [@hololand/babylon-adapter](./packages/babylon-adapter) | Babylon.js 3D world | ✅ Ready |
+| [@hololand/three-adapter](./packages/three-adapter) | Three.js 3D world + physics | ✅ Ready |
+| [@hololand/playcanvas-adapter](./packages/playcanvas-adapter) | PlayCanvas 3D world | ✅ Ready |
+| [@hololand/unity-adapter](./packages/unity-adapter) | Unity C# + XR export | ✅ Ready |
+| [@hololand/vrchat-export](./packages/vrchat-export) | VRChat/UdonSharp export | 🟡 Alpha |
+| [@hololand/creator-tools](./packages/creator-tools) | Visual editors | ✅ Ready |
 
 ### AI & Brittney
 
@@ -137,11 +151,19 @@ Your App
 
 ## 📊 Quick Stats
 
-- **40+ packages** total
+- **38 packages** in Hololand platform repo
+- **14 packages** in HoloScript language repo
 - **All building** ✅
 - **All tested** ✅
 - **TypeScript** 100%
 - **Elastic License 2.0** - source-available, build freely
+
+### Repo Structure (January 2026)
+
+| Repo | Purpose | Packages |
+|------|---------|----------|
+| **Hololand** | VR/AR platform, adapters, Brittney AI | 38 |
+| **HoloScript** | Language, parser, dev tools | 14 |
    - "Create a coffee shop with a counter" → Full 3D scene
    - "Build a VR office with 4 desks" → Rendered in Three.js
    - "Add a meeting room to my workspace" → Live in VR
@@ -193,6 +215,7 @@ See [README.md](./README.md) for full examples.
 
 | Date | What Changed |
 |------|--------------|
+| Jan 22, 2026 | **Repo reorganization** - HoloScript now separate repo, adapters consolidated |
 | Jan 19, 2026 | Added HoloFilter (VRR + AR) |
 | Jan 18, 2026 | Fixed all build issues |
 | Jan 15, 2026 | Phase 2 complete |

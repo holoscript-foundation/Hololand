@@ -14,6 +14,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Animation system
 - Mobile VR support
 
+## [2.0.0] - 2026-01-22
+
+### 🏗️ Repository Reorganization
+
+Major structural change: HoloScript language is now maintained in a separate repository for better modularity and independent versioning.
+
+### Added
+- **Platform Adapters** - Consolidated all rendering adapters in Hololand:
+  - `@hololand/babylon-adapter` - Babylon.js integration
+  - `@hololand/three-adapter` - Three.js with physics
+  - `@hololand/playcanvas-adapter` - PlayCanvas integration
+  - `@hololand/unity-adapter` - Unity C#/XR export
+  - `@hololand/vrchat-export` - VRChat/UdonSharp export (alpha)
+  - `@hololand/creator-tools` - Visual editing tools
+- **Workspace Overrides** - Cross-repo linking to HoloScript packages
+
+### Removed
+- `@hololand/holoscript-core` → Now `@holoscript/core` in HoloScript repo
+- `@hololand/holoscript-runtime` → Now `@holoscript/runtime` in HoloScript repo
+- `@hololand/holoscript-formatter` → Now `@holoscript/formatter` in HoloScript repo
+- `@hololand/holoscript-linter` → Now `@holoscript/linter` in HoloScript repo
+- `@hololand/holoscript-lsp` → Now `@holoscript/lsp` in HoloScript repo
+- `@hololand/holoscript-std` → Now `@holoscript/std` in HoloScript repo
+- `@hololand/holoscript-fs` → Now `@holoscript/fs` in HoloScript repo
+- `@hololand/holoscript-ai` → Merged into Brittney toolkit
+- `@hololand/holoscript-compiler` → Merged into `@holoscript/core`
+
+### Changed
+- Hololand is now the **VR/AR platform repo** (adapters, Brittney AI, apps)
+- HoloScript is now the **language repo** (parser, runtime, dev tools)
+- All `@holoscript/*` packages are linked via pnpm workspace overrides
+
+### Fixed
+- Backend package build (legacy `@infinitus/shared` dependency skipped)
+- Unity adapter tsconfig extends path
+- Disabled DTS for unity-adapter (pre-existing type errors to fix later)
+
 ## [1.0.0-alpha.1] - 2026-01-12
 
 ### 🎉 Initial Public Release

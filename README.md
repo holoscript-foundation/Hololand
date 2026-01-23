@@ -67,9 +67,10 @@ cd examples/hololand-central && pnpm dev
 HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn more →](https://github.com/brianonbased-dev/holoscript#-vrchat-alpha)
 
 ### 🛠️ Developer Tools v2.0
-- **Formatter** (`@hololand/holoscript-formatter`) - Auto-format your code
-- **Linter** (`@hololand/holoscript-linter`) - Catch bugs before runtime
-- **LSP** (`@hololand/holoscript-lsp`) - Full IDE support
+- **Formatter** (`@holoscript/formatter`) - Auto-format your code
+- **Linter** (`@holoscript/linter`) - Catch bugs before runtime
+- **LSP** (`@holoscript/lsp`) - Full IDE support
+- **[HoloScript Repo](https://github.com/brianonbased-dev/HoloScript)** - Language now in separate repo
 
 ### 🤖 Brittney AI Upgrades
 - 403.7K training samples with weighted superpowers
@@ -171,13 +172,25 @@ cd examples/03-vr-shop && pnpm dev                  # Virtual store
 - [AI Package Index](./docs/BRITTNEY_AI_PACKAGE_INDEX.md) - Complete AI documentation
 
 ### 🛠️ Developer Tools
+
+> **Note:** Dev tools are now in the [HoloScript repo](https://github.com/brianonbased-dev/HoloScript).
+
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `@hololand/holoscript-formatter` | 2.0.0 | Code formatting for .holo/.hsplus |
-| `@hololand/holoscript-linter` | 2.0.0 | Static analysis & linting |
-| `@hololand/holoscript-lsp` | 1.0.0 | Language server protocol |
+| `@holoscript/formatter` | 2.0.0 | Code formatting for .holo/.hsplus |
+| `@holoscript/linter` | 2.0.0 | Static analysis & linting |
+| `@holoscript/lsp` | 1.0.0 | Language server protocol |
 
-See [full package list](./ECOSYSTEM_STATUS.md) for all 40+ packages.
+### 🎮 Platform Adapters
+
+| Package | Purpose |
+|---------|---------|
+| `@hololand/three-adapter` | Three.js 3D world + physics |
+| `@hololand/babylon-adapter` | Babylon.js integration |
+| `@hololand/unity-adapter` | Unity C#/XR export |
+| `@hololand/vrchat-export` | VRChat/UdonSharp (alpha) |
+
+See [full package list](./ECOSYSTEM_STATUS.md) for all packages.
 
 ## Runs On
 

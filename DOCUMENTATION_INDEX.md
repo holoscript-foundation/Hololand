@@ -1,6 +1,17 @@
-# 📖 Brittney Toolkit Documentation Index
+# 📖 Hololand Documentation Index
 
 **What is this?** A table of contents for all Hololand documentation. Find what you need fast.
+
+---
+
+## 🏗️ Repository Structure (January 2026)
+
+> **Important:** HoloScript language is now maintained in a [separate repository](https://github.com/brianonbased-dev/HoloScript).
+
+| Repo | Purpose | Packages |
+|------|---------|----------|
+| **Hololand** (this repo) | VR/AR platform, adapters, Brittney AI | 38 |
+| **[HoloScript](https://github.com/brianonbased-dev/HoloScript)** | Language, parser, dev tools | 14 |
 
 ---
 
