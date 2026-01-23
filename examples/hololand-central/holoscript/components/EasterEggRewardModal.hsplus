@@ -1,0 +1,345 @@
+/**
+ * Easter Egg Reward Modal
+ *
+ * Displays discovered easter egg rewards with animated reveal,
+ * rarity effects, and equip functionality.
+ */
+
+component "EasterEggRewardModal" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROPS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  props {
+    visible: boolean = false
+    reward: object = null
+    onClose: function = null
+    onEquip: function = null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    showReveal: true
+    isEquipping: false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data rarityColors: {
+    common: { color: "#9e9e9e", glow: "rgba(158, 158, 158, 0.3)" },
+    rare: { color: "#2196f3", glow: "rgba(33, 150, 243, 0.4)" },
+    epic: { color: "#9c27b0", glow: "rgba(156, 39, 176, 0.4)" },
+    legendary: { color: "#ffd700", glow: "rgba(255, 215, 0, 0.5)" }
+  }
+
+  data rarityLabels: {
+    common: "Common",
+    rare: "Rare",
+    epic: "Epic",
+    legendary: "Legendary"
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  render {
+    if (!props.visible || !props.reward) {
+      return null
+    }
+
+    const rarity = props.reward.rarity || "common"
+    const colors = rarityColors[rarity]
+
+    // Backdrop
+    div {
+      position: "fixed"
+      inset: 0
+      backgroundColor: "rgba(0,0,0,0.8)"
+      backdropFilter: "blur(8px)"
+      display: "flex"
+      alignItems: "center"
+      justifyContent: "center"
+      zIndex: 200
+
+      onClick: (e) -> {
+        if (e.target === e.currentTarget) {
+          handleClose()
+        }
+      }
+
+      aria: {
+        role: "dialog"
+        modal: true
+        label: "Easter Egg Discovered: " + props.reward.name
+      }
+
+      // Main card
+      panel {
+        style: "glass"
+        width: 400
+        padding: 0
+        borderRadius: 24
+        overflow: "hidden"
+        border: "2px solid " + colors.color
+
+        animation: state.showReveal && !AccessibilitySystem.reducedMotion
+          ? "reward-reveal"
+          : "fade-in"
+
+        boxShadow: "0 0 60px " + colors.glow + ", 0 20px 60px rgba(0,0,0,0.5)"
+
+        // Header with glow
+        div {
+          padding: [32, 24, 24, 24]
+          background: "linear-gradient(180deg, " + colors.color + "20 0%, transparent 100%)"
+          textAlign: "center"
+
+          // Discovered text
+          text "EASTER EGG DISCOVERED!" {
+            style: "overline"
+            size: 12
+            letterSpacing: 2
+            color: colors.color
+            marginBottom: 16
+          }
+
+          // Reward icon/image
+          div {
+            width: 120
+            height: 120
+            margin: "0 auto 20px"
+            borderRadius: "50%"
+            backgroundColor: colors.color + "20"
+            border: "3px solid " + colors.color
+            display: "flex"
+            alignItems: "center"
+            justifyContent: "center"
+
+            animation: !AccessibilitySystem.reducedMotion ? "float" : null
+
+            if (props.reward.icon) {
+              icon props.reward.icon {
+                size: 48
+                color: colors.color
+              }
+            } else if (props.reward.image) {
+              image {
+                src: "/images/rewards/" + props.reward.image + ".png"
+                width: 80
+                height: 80
+                objectFit: "contain"
+              }
+            }
+          }
+
+          // Reward name
+          text props.reward.name {
+            style: "heading"
+            size: 28
+            weight: "bold"
+            marginBottom: 8
+          }
+
+          // Rarity badge
+          badge {
+            text: rarityLabels[rarity]
+            color: colors.color
+            backgroundColor: colors.color + "20"
+            padding: [4, 12]
+            borderRadius: 12
+            marginBottom: 16
+          }
+
+          // Reward type
+          text getRewardTypeLabel(props.reward.type) {
+            style: "caption"
+            size: 14
+            opacity: 0.7
+          }
+        }
+
+        // Actions
+        row {
+          padding: 24
+          gap: 12
+          borderTop: "1px solid rgba(255,255,255,0.1)"
+
+          button "View Collection" {
+            style: "secondary"
+            flex: 1
+            onClick: () -> {
+              handleClose()
+              navigate("/collection")
+            }
+          }
+
+          if (canEquip(props.reward.type)) {
+            button "Equip" {
+              style: "primary"
+              flex: 1
+              disabled: state.isEquipping
+              onClick: () -> equipReward()
+
+              icon: state.isEquipping ? "loader" : null
+            }
+          } else {
+            button "Awesome!" {
+              style: "primary"
+              flex: 1
+              onClick: () -> handleClose()
+            }
+          }
+        }
+
+        // Share button
+        row {
+          padding: [0, 24, 24, 24]
+          justify: "center"
+
+          textButton "Share this discovery" {
+            style: "link"
+            size: 14
+            opacity: 0.6
+            icon: "share"
+            onClick: () -> shareReward()
+          }
+        }
+      }
+
+      // Particle effects for legendary
+      if (rarity === "legendary" && !AccessibilitySystem.reducedMotion) {
+        particles {
+          type: "sparkle"
+          count: 30
+          color: colors.color
+          area: [500, 500]
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action handleClose() {
+    AudioSystem.play("ui-close")
+    EasterEggSystem.hideReward()
+    props.onClose?.()
+  }
+
+  action equipReward() {
+    state.isEquipping = true
+    AudioSystem.play("ui-success")
+
+    // Save equipped reward
+    storage.get("hololand:equipped-rewards").then(equipped -> {
+      const list = equipped || []
+      if (!list.includes(props.reward.id)) {
+        list.push(props.reward.id)
+        storage.set("hololand:equipped-rewards", list)
+      }
+
+      state.isEquipping = false
+      props.onEquip?.(props.reward)
+
+      AccessibilitySystem.announce(
+        props.reward.name + " equipped!",
+        "assertive"
+      )
+    })
+  }
+
+  action shareReward() {
+    const text = "I discovered the " + props.reward.name +
+                 " easter egg in Hololand Central! 🥚✨"
+    const url = "https://hololand.dev/central"
+
+    if (navigator.share) {
+      navigator.share({
+        title: "Hololand Easter Egg",
+        text: text,
+        url: url
+      })
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(text + " " + url)
+      AccessibilitySystem.announce("Copied to clipboard!", "polite")
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function canEquip(type) {
+    return ["cosmetic", "emote", "title"].includes(type)
+  }
+
+  function getRewardTypeLabel(type) {
+    match type {
+      "badge" -> "Achievement Badge"
+      "cosmetic" -> "Cosmetic Item"
+      "emote" -> "Avatar Emote"
+      "title" -> "Display Title"
+      "sticker" -> "Collectible Sticker"
+      default -> "Reward"
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_visible_change: (visible) -> {
+    if (visible) {
+      state.showReveal = true
+      AudioSystem.play("egg-reveal")
+
+      // Hide reveal animation after a moment
+      if (!AccessibilitySystem.reducedMotion) {
+        after(1500) {
+          state.showReveal = false
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STYLES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  styles {
+    @keyframes reward-reveal {
+      0% {
+        opacity: 0
+        transform: scale(0.8) rotateY(-10deg)
+      }
+      50% {
+        transform: scale(1.05) rotateY(5deg)
+      }
+      100% {
+        opacity: 1
+        transform: scale(1) rotateY(0)
+      }
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0)
+      }
+      50% {
+        transform: translateY(-10px)
+      }
+    }
+  }
+}
+
+export { EasterEggRewardModal }

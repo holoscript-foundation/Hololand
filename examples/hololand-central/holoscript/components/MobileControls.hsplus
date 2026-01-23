@@ -1,0 +1,299 @@
+/**
+ * Mobile Controls Component
+ *
+ * Virtual joystick and action buttons for mobile devices.
+ */
+
+component "MobileControls" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROPS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  props {
+    visible: boolean = false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    joystickActive: false
+    joystickPosition: { x: 0, y: 0 }
+    joystickDelta: { x: 0, y: 0 }
+    touchId: null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONSTANTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const JOYSTICK_SIZE = 120
+  const JOYSTICK_INNER_SIZE = 50
+  const JOYSTICK_MAX_DISTANCE = 40
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  render {
+    if (!props.visible || !device.isMobile) {
+      return null
+    }
+
+    div {
+      position: "fixed"
+      bottom: 0
+      left: 0
+      right: 0
+      height: 200
+      pointerEvents: "none"
+      zIndex: 80
+
+      aria: {
+        role: "application"
+        label: "Mobile controls"
+      }
+
+      // Left side: Joystick
+      div {
+        position: "absolute"
+        left: 30
+        bottom: 30
+        width: JOYSTICK_SIZE
+        height: JOYSTICK_SIZE
+        pointerEvents: "auto"
+
+        // Outer ring
+        div {
+          position: "absolute"
+          inset: 0
+          borderRadius: "50%"
+          backgroundColor: "rgba(255, 255, 255, 0.1)"
+          border: "2px solid rgba(255, 255, 255, 0.2)"
+
+          aria: {
+            label: "Movement joystick"
+            role: "slider"
+            valueNow: state.joystickActive ? 1 : 0
+          }
+        }
+
+        // Inner knob
+        div {
+          position: "absolute"
+          width: JOYSTICK_INNER_SIZE
+          height: JOYSTICK_INNER_SIZE
+          borderRadius: "50%"
+          backgroundColor: ThemeSystem.current.colors.primary
+          opacity: state.joystickActive ? 1 : 0.6
+          transform: "translate(" +
+            ((JOYSTICK_SIZE - JOYSTICK_INNER_SIZE) / 2 + state.joystickDelta.x) + "px, " +
+            ((JOYSTICK_SIZE - JOYSTICK_INNER_SIZE) / 2 + state.joystickDelta.y) + "px)"
+          transition: state.joystickActive ? "none" : "transform 0.2s ease"
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)"
+        }
+
+        onTouchStart: handleJoystickStart
+        onTouchMove: handleJoystickMove
+        onTouchEnd: handleJoystickEnd
+      }
+
+      // Right side: Action buttons
+      div {
+        position: "absolute"
+        right: 30
+        bottom: 30
+        display: "flex"
+        flexDirection: "column"
+        gap: 16
+        pointerEvents: "auto"
+
+        // Jump button
+        actionButton {
+          icon: "arrow-up"
+          label: "Jump"
+          size: 60
+          onPress: () -> emit("player:action", "jump")
+        }
+
+        row {
+          gap: 16
+
+          // Interact button
+          actionButton {
+            icon: "hand"
+            label: "Interact"
+            size: 60
+            color: ThemeSystem.current.colors.secondary
+            onPress: () -> emit("player:action", "interact")
+          }
+
+          // Menu button
+          actionButton {
+            icon: "menu"
+            label: "Menu"
+            size: 50
+            color: "rgba(255,255,255,0.3)"
+            onPress: () -> emit("menu:toggle")
+          }
+        }
+      }
+
+      // Center: Quick actions
+      div {
+        position: "absolute"
+        bottom: 30
+        left: "50%"
+        transform: "translateX(-50%)"
+        display: "flex"
+        gap: 12
+        pointerEvents: "auto"
+
+        // Chat button
+        actionButton {
+          icon: "message-circle"
+          label: "Chat"
+          size: 44
+          color: "rgba(255,255,255,0.2)"
+          onPress: () -> emit("chat:toggle")
+        }
+
+        // Screenshot button
+        actionButton {
+          icon: "camera"
+          label: "Screenshot"
+          size: 44
+          color: "rgba(255,255,255,0.2)"
+          onPress: () -> takeScreenshot()
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // JOYSTICK HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action handleJoystickStart(event) {
+    event.preventDefault()
+    const touch = event.touches[0]
+    state.touchId = touch.identifier
+    state.joystickActive = true
+
+    const rect = event.target.getBoundingClientRect()
+    state.joystickPosition = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2
+    }
+
+    updateJoystick(touch)
+  }
+
+  action handleJoystickMove(event) {
+    event.preventDefault()
+    if (!state.joystickActive) return
+
+    for (touch of event.touches) {
+      if (touch.identifier === state.touchId) {
+        updateJoystick(touch)
+        break
+      }
+    }
+  }
+
+  action handleJoystickEnd(event) {
+    event.preventDefault()
+    state.joystickActive = false
+    state.joystickDelta = { x: 0, y: 0 }
+    state.touchId = null
+
+    emit("player:move", { x: 0, y: 0 })
+  }
+
+  action updateJoystick(touch) {
+    let dx = touch.clientX - state.joystickPosition.x
+    let dy = touch.clientY - state.joystickPosition.y
+
+    // Clamp to max distance
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    if (distance > JOYSTICK_MAX_DISTANCE) {
+      dx = (dx / distance) * JOYSTICK_MAX_DISTANCE
+      dy = (dy / distance) * JOYSTICK_MAX_DISTANCE
+    }
+
+    state.joystickDelta = { x: dx, y: dy }
+
+    // Normalize and emit movement
+    const normalizedX = dx / JOYSTICK_MAX_DISTANCE
+    const normalizedY = dy / JOYSTICK_MAX_DISTANCE
+
+    emit("player:move", {
+      x: normalizedX,
+      y: -normalizedY  // Invert Y for forward/back
+    })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OTHER ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action takeScreenshot() {
+    emit("screenshot:capture")
+    AudioSystem.play("ui-click")
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+component "actionButton" {
+  props {
+    icon: string
+    label: string
+    size: number = 60
+    color: string = ThemeSystem.current.colors.primary
+    onPress: function = null
+  }
+
+  state {
+    isPressed: false
+  }
+
+  render {
+    button {
+      width: props.size
+      height: props.size
+      borderRadius: "50%"
+      backgroundColor: props.color
+      opacity: state.isPressed ? 0.8 : 1
+      border: "none"
+      display: "flex"
+      alignItems: "center"
+      justifyContent: "center"
+      transform: state.isPressed ? "scale(0.95)" : "scale(1)"
+      transition: "transform 0.1s ease"
+      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)"
+
+      onTouchStart: () -> {
+        state.isPressed = true
+        AudioSystem.play("ui-click")
+        props.onPress?.()
+      }
+      onTouchEnd: () -> state.isPressed = false
+
+      aria: {
+        label: props.label
+      }
+
+      icon props.icon {
+        size: props.size * 0.4
+        color: "#ffffff"
+      }
+    }
+  }
+}
+
+export { MobileControls }

@@ -1,0 +1,429 @@
+/**
+ * Main Plaza World
+ *
+ * The central hub of Hololand Central with fountain, portals,
+ * NPCs, and themed buildings.
+ */
+
+world "MainPlaza" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    name: "Main Plaza"
+    description: "The heart of Hololand Central"
+    spawnPoint: [0, 1, 10]
+    bounds: { min: [-50, 0, -50], max: [50, 30, 50] }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  environment {
+    // Dynamic lighting from theme
+    ambient: ThemeSystem.interpolatedTheme.lighting.ambient
+    directional: ThemeSystem.interpolatedTheme.lighting.directional
+    points: ThemeSystem.interpolatedTheme.lighting.points
+
+    // Fog
+    fog: ThemeSystem.interpolatedTheme.fog
+
+    // Skybox
+    skybox: ThemeSystem.interpolatedTheme.skybox
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GROUND
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  object "Ground" {
+    type: "plane"
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    scale: [100, 100, 1]
+
+    material: {
+      color: "#1a1a2e"
+      metalness: 0.2
+      roughness: 0.8
+      map: "/textures/plaza-floor.jpg"
+      repeat: [10, 10]
+    }
+
+    receiveShadow: true
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CENTRAL FOUNTAIN
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "Fountain" {
+    position: [0, 0, 0]
+
+    // Base
+    object "FountainBase" {
+      type: "cylinder"
+      position: [0, 0.5, 0]
+      scale: [6, 1, 6]
+
+      material: {
+        color: "#4a4a6a"
+        metalness: 0.3
+        roughness: 0.7
+      }
+
+      castShadow: true
+      receiveShadow: true
+    }
+
+    // Water pool
+    object "WaterPool" {
+      type: "cylinder"
+      position: [0, 0.6, 0]
+      scale: [5, 0.2, 5]
+
+      material: {
+        color: "#4a90d9"
+        opacity: 0.7
+        transparent: true
+        metalness: 0.1
+        roughness: 0.2
+      }
+    }
+
+    // Center column
+    object "FountainColumn" {
+      type: "cylinder"
+      position: [0, 2, 0]
+      scale: [0.5, 3, 0.5]
+
+      material: {
+        color: ThemeSystem.current.colors.primary
+        emissive: ThemeSystem.current.colors.primary
+        emissiveIntensity: 0.3
+        metalness: 0.6
+        roughness: 0.3
+      }
+    }
+
+    // Water particles
+    particles "WaterSpray" {
+      position: [0, 4, 0]
+      type: "water"
+      count: 100
+      color: "#88ccff"
+      size: 0.1
+      lifetime: 2000
+      velocity: { y: [2, 4], spread: 0.5 }
+      gravity: -9.8
+    }
+
+    // Interaction trigger
+    object "FountainTrigger" {
+      type: "cylinder"
+      position: [0, 1, 0]
+      scale: [4, 2, 4]
+      visible: false
+      traits: ["interactive", "easter-egg-trigger"]
+
+      on_interact: () -> {
+        AudioSystem.play("water-splash")
+        emit("tutorial:action-complete", "approach-fountain")
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PORTALS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "Portals" {
+
+    // Casino Portal
+    object "PortalCasino" {
+      using: "Portal"
+      position: [15, 0, 0]
+      rotation: [0, -90, 0]
+
+      properties: {
+        destination: "/world/casino"
+        label: "Hololand Casino"
+        color: "#ffd700"
+        icon: "dice"
+      }
+    }
+
+    // Builder Shop Portal
+    object "PortalBuilder" {
+      using: "Portal"
+      position: [10.6, 0, 10.6]
+      rotation: [0, -135, 0]
+
+      properties: {
+        destination: "/world/builder"
+        label: "Builder Shop"
+        color: "#4caf50"
+        icon: "hammer"
+      }
+    }
+
+    // Arcade Portal
+    object "PortalArcade" {
+      using: "Portal"
+      position: [0, 0, 15]
+      rotation: [0, 180, 0]
+
+      properties: {
+        destination: "/world/arcade"
+        label: "Arcade District"
+        color: "#e91e63"
+        icon: "gamepad"
+      }
+    }
+
+    // Lounge Portal
+    object "PortalLounge" {
+      using: "Portal"
+      position: [-10.6, 0, 10.6]
+      rotation: [0, 135, 0]
+
+      properties: {
+        destination: "/world/lounge"
+        label: "Social Lounge"
+        color: "#9c27b0"
+        icon: "users"
+      }
+    }
+
+    // Infinity Shop Portal
+    object "PortalInfinity" {
+      using: "Portal"
+      position: [-15, 0, 0]
+      rotation: [0, 90, 0]
+
+      properties: {
+        destination: "/world/infinity"
+        label: "Infinity Shop"
+        color: "#00bcd4"
+        icon: "sparkles"
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NPCs
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "NPCs" {
+
+    // Brian - The Curator
+    object "Brian" {
+      using: "NPC"
+      position: [8, 0, 5]
+      rotation: [0, -45, 0]
+
+      properties: {
+        name: "Brian"
+        role: "The Curator"
+        model: "/models/npcs/brian.glb"
+        idleAnimation: "idle"
+        talkAnimation: "talk"
+        greeting: "Hey there, traveler!"
+      }
+
+      dialogue: {
+        greeting: "Hey there, traveler! Welcome to Hololand Central.",
+        topics: {
+          "about": "This is the gateway to the open metaverse!",
+          "casino": "My favorite spot! Games, luck, and secrets.",
+          "secrets": "There are 16 easter eggs hidden here..."
+        }
+      }
+    }
+
+    // Brittney - AI Assistant
+    object "Brittney" {
+      using: "NPC"
+      position: [-8, 0, 5]
+      rotation: [0, 45, 0]
+
+      properties: {
+        name: "Brittney"
+        role: "AI Assistant"
+        model: "/models/npcs/brittney.glb"
+        idleAnimation: "float"
+        talkAnimation: "talk"
+        greeting: "Hello! I can help you create anything."
+      }
+
+      on_interact: () -> {
+        emit("chat:open")
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BUILDINGS (themed)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "Buildings" {
+
+    for (i, building of buildingData) {
+      object "Building_" + i {
+        type: building.type
+        position: building.position
+        rotation: [0, building.rotation, 0]
+        scale: building.scale
+
+        material: {
+          color: ThemeSystem.current.buildingStyle.baseColor || building.baseColor
+          emissive: ThemeSystem.current.buildingStyle.emissive
+            ? ThemeSystem.current.buildingStyle.emissiveColor
+            : null
+          emissiveIntensity: ThemeSystem.current.buildingStyle.emissiveIntensity || 0
+          metalness: 0.4
+          roughness: 0.6
+        }
+
+        castShadow: true
+        receiveShadow: true
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WELCOME ARCH
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "WelcomeArch" {
+    position: [0, 0, 15]
+
+    // Left pillar
+    object "PillarLeft" {
+      type: "box"
+      position: [-3, 3, 0]
+      scale: [1, 6, 1]
+
+      material: {
+        color: ThemeSystem.current.colors.primary
+        emissive: ThemeSystem.current.colors.primary
+        emissiveIntensity: 0.2
+      }
+    }
+
+    // Right pillar
+    object "PillarRight" {
+      type: "box"
+      position: [3, 3, 0]
+      scale: [1, 6, 1]
+
+      material: {
+        color: ThemeSystem.current.colors.primary
+        emissive: ThemeSystem.current.colors.primary
+        emissiveIntensity: 0.2
+      }
+    }
+
+    // Top beam
+    object "TopBeam" {
+      type: "box"
+      position: [0, 6.5, 0]
+      scale: [8, 1, 1]
+
+      material: {
+        color: ThemeSystem.current.colors.secondary
+        emissive: ThemeSystem.current.colors.secondary
+        emissiveIntensity: 0.3
+      }
+    }
+
+    // Welcome text
+    object "WelcomeText" {
+      type: "text3d"
+      position: [0, 5, 0.6]
+      text: ThemeSystem.current.uiCopy.welcome
+      font: "Roboto"
+      size: 0.4
+      height: 0.1
+      color: "#ffffff"
+      emissive: "#ffffff"
+      emissiveIntensity: 0.5
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EASTER EGG: SKY PLATFORM
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  object "SkyPlatform" {
+    type: "box"
+    position: [0, 15, 0]
+    scale: [5, 0.2, 5]
+    visible: false  // Hidden until discovered
+    traits: ["hidden", "walkable"]
+
+    material: {
+      color: "#ffffff"
+      opacity: 0.3
+      transparent: true
+    }
+
+    // Reveal when player is near
+    on_player_approach(radius: 3): () -> {
+      if (!this.visible) {
+        this.visible = true
+        AudioSystem.play("egg-discover")
+        EasterEggSystem.discover("plaza-skywalk")
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // THEME PARTICLES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  if (ThemeSystem.current.particles.enabled) {
+    particles "ThemeParticles" {
+      type: ThemeSystem.current.particles.type
+      count: ThemeSystem.current.particles.count
+      color: ThemeSystem.current.particles.color
+      size: ThemeSystem.current.particles.size
+      area: [80, 40, 80]
+      position: [0, 20, 0]
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data buildingData: [
+    { type: "box", position: [20, 4, 20], rotation: 45, scale: [4, 8, 4], baseColor: "#667eea" },
+    { type: "box", position: [-20, 5, 20], rotation: -45, scale: [4, 10, 4], baseColor: "#f093fb" },
+    { type: "box", position: [20, 3, -20], rotation: -45, scale: [5, 6, 5], baseColor: "#00ffff" },
+    { type: "box", position: [-20, 6, -20], rotation: 45, scale: [4, 12, 4], baseColor: "#667eea" },
+    { type: "cylinder", position: [25, 7.5, 0], rotation: 0, scale: [3, 15, 3], baseColor: "#f093fb" },
+    { type: "cylinder", position: [-25, 7.5, 0], rotation: 0, scale: [3, 15, 3], baseColor: "#00ffff" },
+    { type: "box", position: [0, 4, -25], rotation: 0, scale: [8, 8, 4], baseColor: "#667eea" },
+    { type: "box", position: [30, 5, 10], rotation: 20, scale: [4, 10, 4], baseColor: "#f093fb" },
+    { type: "box", position: [-30, 4, 10], rotation: -20, scale: [4, 8, 4], baseColor: "#00ffff" }
+  ]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_enter: () -> {
+    AudioSystem.play("ambient-plaza", { loop: true })
+    AccessibilitySystem.announceZoneChange("Main Plaza")
+  }
+
+  on_exit: () -> {
+    AudioSystem.stop("ambient-plaza")
+  }
+}
+
+export { MainPlaza }

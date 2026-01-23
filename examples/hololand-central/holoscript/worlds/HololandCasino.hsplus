@@ -1,0 +1,437 @@
+/**
+ * Hololand Casino World
+ *
+ * Brian's domain - games, luck, and secrets.
+ * Features slot machines, card tables, and hidden easter eggs.
+ */
+
+world "HololandCasino" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  config {
+    name: "Hololand Casino"
+    description: "Brian's domain - fortune favors the bold"
+    spawnPoint: [0, 1, 5]
+    bounds: { min: [-30, 0, -30], max: [30, 15, 30] }
+    ambientColor: "#1a0a1a"
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  environment {
+    ambient: {
+      color: "#2d1a2d"
+      intensity: 0.2
+    }
+
+    // Warm casino lighting
+    points: [
+      { color: "#ffd700", intensity: 1.2, position: [0, 8, 0], distance: 30 },
+      { color: "#ff00ff", intensity: 0.8, position: [-15, 5, 0], distance: 20 },
+      { color: "#00ffff", intensity: 0.8, position: [15, 5, 0], distance: 20 },
+      { color: "#ffd700", intensity: 0.6, position: [0, 3, -15], distance: 15 }
+    ]
+
+    fog: {
+      color: "#1a0a1a"
+      near: 10
+      far: 50
+    }
+
+    skybox: {
+      type: "gradient"
+      topColor: "#0a0515"
+      bottomColor: "#1a0a1a"
+      stars: true
+      starCount: 500
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FLOOR
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  object "Floor" {
+    type: "plane"
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    scale: [60, 60, 1]
+
+    material: {
+      color: "#1a0a1a"
+      map: "/textures/casino-carpet.jpg"
+      repeat: [8, 8]
+      metalness: 0.1
+      roughness: 0.9
+    }
+
+    receiveShadow: true
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ENTRANCE AREA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "Entrance" {
+    position: [0, 0, 10]
+
+    // Return portal
+    object "ReturnPortal" {
+      using: "Portal"
+      position: [0, 0, 0]
+      rotation: [0, 180, 0]
+
+      properties: {
+        destination: "/central"
+        label: "Return to Central"
+        color: "#667eea"
+        icon: "home"
+      }
+    }
+
+    // Welcome sign
+    object "WelcomeSign" {
+      type: "text3d"
+      position: [0, 4, -2]
+      text: "HOLOLAND CASINO"
+      font: "Roboto"
+      size: 0.8
+      height: 0.2
+
+      material: {
+        color: "#ffd700"
+        emissive: "#ffd700"
+        emissiveIntensity: 0.8
+      }
+
+      animation: {
+        type: "pulse"
+        property: "emissiveIntensity"
+        min: 0.5
+        max: 1
+        duration: 2000
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BRIAN NPC
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  object "Brian" {
+    using: "NPC"
+    position: [0, 0, 0]
+    rotation: [0, 0, 0]
+
+    properties: {
+      name: "Brian"
+      role: "Casino Host"
+      model: "/models/npcs/brian-casino.glb"
+      idleAnimation: "dealing"
+      greeting: "Welcome to MY casino!"
+    }
+
+    dialogue: {
+      greeting: "Welcome to MY casino, friend! Feeling lucky today?",
+      topics: {
+        "games": "We have slots, cards, and some special attractions...",
+        "secrets": "VIP room? What VIP room? I don't know what you're talking about.",
+        "trivia": "Answer me this: What is the name of this metaverse?"
+      }
+    }
+
+    on_dialogue("trivia"): (answer) -> {
+      if (answer.toLowerCase().includes("hololand")) {
+        EasterEggSystem.discover("casino-trivia")
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SLOT MACHINES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "SlotMachines" {
+    position: [-12, 0, -5]
+
+    for (i in range(0, 5)) {
+      object "SlotMachine_" + i {
+        position: [i * 3, 0, 0]
+        model: "/models/props/slot-machine.glb"
+        scale: [1.5, 1.5, 1.5]
+        traits: ["interactive", "game"]
+
+        state {
+          spinning: false
+          result: null
+        }
+
+        on_interact: () -> {
+          if (!this.state.spinning) {
+            this.state.spinning = true
+            AudioSystem.play("slot-spin")
+
+            after(2000) {
+              this.state.spinning = false
+              this.state.result = randomSlotResult()
+
+              if (this.state.result === "jackpot") {
+                AudioSystem.play("slot-jackpot")
+                spawnConfetti(this.position)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CARD TABLES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "CardTables" {
+    position: [10, 0, -5]
+
+    for (i in range(0, 3)) {
+      object "CardTable_" + i {
+        position: [i * 5, 0, 0]
+        model: "/models/props/card-table.glb"
+        scale: [2, 2, 2]
+        traits: ["interactive"]
+
+        // Dealer NPCs at tables
+        child "Dealer" {
+          using: "NPC"
+          position: [0, 0, -1.5]
+          properties: {
+            name: "Dealer " + (i + 1)
+            model: "/models/npcs/dealer.glb"
+            idleAnimation: "shuffle"
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VIP ROOM (Easter Egg)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "VIPRoom" {
+    position: [-20, 0, -15]
+    visible: false  // Hidden until discovered
+
+    // Secret door trigger
+    object "SecretDoorTrigger" {
+      type: "box"
+      position: [0, 1, 5]
+      scale: [2, 2, 0.5]
+      visible: false
+      traits: ["interactive"]
+
+      on_interact: () -> {
+        if (!VIPRoom.visible) {
+          VIPRoom.visible = true
+          AudioSystem.play("secret-door")
+          EasterEggSystem.discover("casino-jackpot-room")
+
+          AccessibilitySystem.announce(
+            "Secret VIP room discovered!",
+            "assertive"
+          )
+        }
+      }
+    }
+
+    // VIP room contents
+    object "VIPFloor" {
+      type: "plane"
+      position: [0, 0.01, 0]
+      rotation: [-90, 0, 0]
+      scale: [10, 10, 1]
+
+      material: {
+        color: "#2a1a3a"
+        map: "/textures/vip-carpet.jpg"
+      }
+    }
+
+    object "VIPChair" {
+      position: [0, 0, 0]
+      model: "/models/props/throne.glb"
+      scale: [1.5, 1.5, 1.5]
+    }
+
+    // Treasure chest
+    object "TreasureChest" {
+      position: [3, 0, 0]
+      model: "/models/props/chest.glb"
+      traits: ["interactive", "openable"]
+
+      state {
+        opened: false
+      }
+
+      on_interact: () -> {
+        if (!this.state.opened) {
+          this.state.opened = true
+          AudioSystem.play("chest-open")
+          // Spawn reward particles
+          spawnRewardParticles(this.position)
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIGHT SEQUENCE EASTER EGG
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "LightSequence" {
+    position: [0, 0, -20]
+
+    for (i, color of ["red", "blue", "green", "red", "gold"]) {
+      object "Light_" + color + "_" + i {
+        type: "sphere"
+        position: [i * 2 - 4, 3, 0]
+        scale: [0.5, 0.5, 0.5]
+        traits: ["interactive"]
+
+        material: {
+          color: getColorHex(color)
+          emissive: getColorHex(color)
+          emissiveIntensity: 0.5
+        }
+
+        on_interact: () -> {
+          this.material.emissiveIntensity = 1
+          AudioSystem.play("light-" + color)
+
+          EasterEggSystem.checkSequence(color)
+
+          after(500) {
+            this.material.emissiveIntensity = 0.5
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DECORATIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  spatial_group "Decorations" {
+    // Pillars
+    for (i in range(0, 8)) {
+      object "Pillar_" + i {
+        type: "cylinder"
+        position: [
+          Math.cos(i * Math.PI / 4) * 20,
+          5,
+          Math.sin(i * Math.PI / 4) * 20
+        ]
+        scale: [1, 10, 1]
+
+        material: {
+          color: "#3a2a4a"
+          metalness: 0.3
+          roughness: 0.7
+        }
+
+        // Light on top
+        child "PillarLight" {
+          type: "pointLight"
+          position: [0, 5, 0]
+          color: "#ffd700"
+          intensity: 0.5
+          distance: 10
+        }
+      }
+    }
+
+    // Chandelier
+    object "Chandelier" {
+      position: [0, 12, 0]
+      model: "/models/props/chandelier.glb"
+      scale: [3, 3, 3]
+
+      animation: {
+        type: "rotate"
+        axis: "y"
+        speed: 0.1
+      }
+
+      child "ChandelierLight" {
+        type: "pointLight"
+        position: [0, -2, 0]
+        color: "#ffd700"
+        intensity: 2
+        distance: 30
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getColorHex(colorName) {
+    match colorName {
+      "red" -> "#ff0000"
+      "blue" -> "#0000ff"
+      "green" -> "#00ff00"
+      "gold" -> "#ffd700"
+      default -> "#ffffff"
+    }
+  }
+
+  function randomSlotResult() {
+    const rand = Math.random()
+    if (rand < 0.01) return "jackpot"
+    if (rand < 0.1) return "win"
+    return "lose"
+  }
+
+  function spawnConfetti(position) {
+    particles {
+      type: "confetti"
+      position: position
+      count: 50
+      colors: ["#ffd700", "#ff00ff", "#00ffff"]
+      lifetime: 3000
+    }
+  }
+
+  function spawnRewardParticles(position) {
+    particles {
+      type: "sparkle"
+      position: position
+      count: 30
+      color: "#ffd700"
+      lifetime: 2000
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_enter: () -> {
+    AudioSystem.play("ambient-casino", { loop: true })
+    AudioSystem.playMusic("casino")
+    AccessibilitySystem.announceZoneChange("Hololand Casino")
+  }
+
+  on_exit: () -> {
+    AudioSystem.stop("ambient-casino")
+  }
+}
+
+export { HololandCasino }

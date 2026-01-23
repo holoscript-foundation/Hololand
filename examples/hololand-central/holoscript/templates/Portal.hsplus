@@ -1,0 +1,225 @@
+/**
+ * Portal Template
+ *
+ * Reusable portal component for zone navigation.
+ * Features glowing effects, animations, and accessibility.
+ */
+
+template "Portal" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROPERTIES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  properties {
+    destination: string = null      // Target path
+    label: string = "Portal"        // Display name
+    color: string = "#667eea"       // Portal color
+    icon: string = "portal"         // Icon name
+    active: boolean = true          // Whether portal can be used
+    size: number = 1                // Scale multiplier
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    isHovered: false
+    isActivating: false
+    pulsePhase: 0
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRAITS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  traits: ["interactive", "portal-gate", "pulse", "accessible"]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STRUCTURE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  structure {
+    // Base platform
+    object "Platform" {
+      type: "cylinder"
+      position: [0, 0.1, 0]
+      scale: [2 * properties.size, 0.2, 2 * properties.size]
+
+      material: {
+        color: properties.color
+        opacity: 0.3
+        transparent: true
+        emissive: properties.color
+        emissiveIntensity: state.isHovered ? 0.8 : 0.4
+      }
+    }
+
+    // Portal ring
+    object "Ring" {
+      type: "torus"
+      position: [0, 2 * properties.size, 0]
+      rotation: [90, 0, 0]
+      scale: [1.5 * properties.size, 1.5 * properties.size, 0.1 * properties.size]
+
+      material: {
+        color: properties.color
+        emissive: properties.color
+        emissiveIntensity: 0.6 + Math.sin(state.pulsePhase) * 0.3
+        metalness: 0.7
+        roughness: 0.3
+      }
+
+      animation: !AccessibilitySystem.reducedMotion ? {
+        type: "rotate"
+        axis: "z"
+        speed: 0.5
+      } : null
+    }
+
+    // Inner glow
+    object "InnerGlow" {
+      type: "circle"
+      position: [0, 2 * properties.size, 0]
+      rotation: [90, 0, 0]
+      scale: [1.3 * properties.size, 1.3 * properties.size, 1]
+
+      material: {
+        color: properties.color
+        opacity: state.isActivating ? 1 : 0.5
+        transparent: true
+        emissive: properties.color
+        emissiveIntensity: state.isActivating ? 2 : 0.8
+      }
+
+      animation: state.isActivating ? {
+        type: "scale"
+        to: [2, 2, 1]
+        duration: 500
+      } : null
+    }
+
+    // Particles
+    particles "PortalParticles" {
+      position: [0, 2 * properties.size, 0]
+      type: "spiral"
+      count: state.isHovered ? 50 : 20
+      color: properties.color
+      size: 0.05
+      radius: 1 * properties.size
+      speed: 1
+      enabled: !AccessibilitySystem.reducedMotion
+    }
+
+    // Label
+    object "Label" {
+      type: "text3d"
+      position: [0, 4 * properties.size, 0]
+      text: properties.label
+      font: "Roboto"
+      size: 0.25 * properties.size
+      height: 0.05
+      color: "#ffffff"
+      billboard: true  // Always face camera
+
+      opacity: state.isHovered ? 1 : 0.7
+    }
+
+    // Icon
+    object "Icon" {
+      type: "sprite"
+      position: [0, 3.5 * properties.size, 0]
+      scale: [0.5 * properties.size, 0.5 * properties.size, 1]
+      image: "/icons/" + properties.icon + ".png"
+      color: properties.color
+      billboard: true
+    }
+
+    // Interaction collider (invisible)
+    object "Collider" {
+      type: "cylinder"
+      position: [0, 1.5 * properties.size, 0]
+      scale: [1.5 * properties.size, 3 * properties.size, 1.5 * properties.size]
+      visible: false
+      traits: ["trigger"]
+    }
+
+    // Point light
+    child "PortalLight" {
+      type: "pointLight"
+      position: [0, 2 * properties.size, 0]
+      color: properties.color
+      intensity: state.isHovered ? 1.5 : 0.8
+      distance: 10 * properties.size
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INTERACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_hover: () -> {
+    if (!properties.active) return
+
+    state.isHovered = true
+    AudioSystem.play("portal-hover")
+
+    AccessibilitySystem.announce(
+      ThemeSystem.current.uiCopy.portal + " " + properties.label,
+      "polite"
+    )
+
+    emit("player:near", { name: properties.label, type: "portal" })
+  }
+
+  on_hover_end: () -> {
+    state.isHovered = false
+    emit("player:far")
+  }
+
+  on_interact: () -> {
+    if (!properties.active || state.isActivating) return
+
+    state.isActivating = true
+    AudioSystem.play("portal-activate")
+
+    // Emit tutorial action if approaching portal
+    emit("tutorial:action-complete", "approach-portal")
+
+    // Navigate after animation
+    after(500) {
+      navigate(properties.destination)
+      state.isActivating = false
+    }
+  }
+
+  on_player_enter: () -> {
+    // Auto-activate when player walks into portal
+    if (properties.active && !state.isActivating) {
+      on_interact()
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ANIMATION LOOP
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_update: (delta) -> {
+    if (!AccessibilitySystem.reducedMotion) {
+      state.pulsePhase += delta * 2
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACCESSIBILITY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  aria: {
+    role: "link"
+    label: "Portal to " + properties.label + ". " +
+           (properties.active ? "Press to enter." : "Currently inactive.")
+  }
+}
+
+export { Portal }

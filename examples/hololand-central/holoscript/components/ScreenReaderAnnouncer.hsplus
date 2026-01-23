@@ -1,0 +1,153 @@
+/**
+ * Screen Reader Announcer Component
+ *
+ * Provides a live region for screen reader announcements.
+ * Visually hidden but accessible to assistive technology.
+ */
+
+component "ScreenReaderAnnouncer" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    politeAnnouncement: ""
+    assertiveAnnouncement: ""
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  render {
+    // Container for screen reader announcements
+    // Visually hidden but accessible
+    div {
+      position: "absolute"
+      width: 1
+      height: 1
+      padding: 0
+      margin: -1
+      overflow: "hidden"
+      clip: "rect(0, 0, 0, 0)"
+      whiteSpace: "nowrap"
+      border: 0
+
+      // Polite announcements (non-interrupting)
+      div {
+        aria: {
+          live: "polite"
+          atomic: true
+          relevant: "additions text"
+        }
+
+        text state.politeAnnouncement
+      }
+
+      // Assertive announcements (interrupting)
+      div {
+        aria: {
+          live: "assertive"
+          atomic: true
+          relevant: "additions text"
+        }
+
+        text state.assertiveAnnouncement
+      }
+
+      // Status region for dynamic content updates
+      div {
+        aria: {
+          role: "status"
+          live: "polite"
+        }
+
+        // Current zone
+        text "Current location: " + getCurrentZoneName()
+      }
+
+      // Log region for historical announcements
+      div {
+        aria: {
+          role: "log"
+          live: "polite"
+          relevant: "additions"
+        }
+
+        // Recent announcements for review
+        for (announcement of recentAnnouncements) {
+          text announcement
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data recentAnnouncements: []
+  const MAX_RECENT = 10
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getCurrentZoneName() {
+    match app.state.currentView {
+      "landing" -> "Landing Page"
+      "oasis" -> "The Oasis"
+      "central" -> "Central Hub"
+      "world" -> {
+        match app.state.currentWorld {
+          "casino" -> "Hololand Casino"
+          "builder" -> "Builder Shop"
+          "arcade" -> "Arcade District"
+          "lounge" -> "Social Lounge"
+          "infinity" -> "Infinity Shop"
+          default -> "Unknown Zone"
+        }
+      }
+      default -> "Hololand Central"
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Listen for announcement requests
+  on_event("accessibility:announce"): (data) -> {
+    const { message, priority } = data
+
+    if (priority === "assertive") {
+      // Clear then set to force announcement
+      state.assertiveAnnouncement = ""
+      after(50) {
+        state.assertiveAnnouncement = message
+      }
+    } else {
+      state.politeAnnouncement = ""
+      after(50) {
+        state.politeAnnouncement = message
+      }
+    }
+
+    // Add to recent announcements
+    recentAnnouncements.unshift(message)
+    if (recentAnnouncements.length > MAX_RECENT) {
+      recentAnnouncements.pop()
+    }
+  }
+
+  // Clear announcements after delay
+  on_event("accessibility:announce"): () -> {
+    after(3000) {
+      state.politeAnnouncement = ""
+      state.assertiveAnnouncement = ""
+    }
+  }
+}
+
+export { ScreenReaderAnnouncer }

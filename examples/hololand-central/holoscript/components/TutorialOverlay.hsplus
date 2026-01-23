@@ -1,0 +1,199 @@
+/**
+ * Tutorial Overlay Component
+ *
+ * Displays tutorial steps with progress indicators,
+ * navigation controls, and accessibility support.
+ */
+
+component "TutorialOverlay" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROPS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  props {
+    visible: boolean = false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOCAL STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    animating: false
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  render {
+    if (!props.visible || !TutorialSystem.isActive) {
+      return null
+    }
+
+    const step = TutorialSystem.currentStepData
+    const progress = TutorialSystem.progress
+
+    panel {
+      style: "glass"
+      position: "top-center"
+      marginTop: 40
+      padding: 32
+      maxWidth: 500
+      borderRadius: 16
+
+      animation: AccessibilitySystem.reducedMotion ? null : "slide-in-down"
+
+      aria: {
+        role: "dialog"
+        label: "Tutorial - " + step.title
+        describedby: "tutorial-description"
+        live: "polite"
+      }
+
+      // Progress bar
+      progressBar {
+        value: progress
+        height: 4
+        color: ThemeSystem.current.colors.primary
+        backgroundColor: "rgba(255,255,255,0.1)"
+        borderRadius: 2
+        marginBottom: 24
+      }
+
+      // Step counter
+      text TutorialSystem.progressText {
+        style: "caption"
+        size: 12
+        color: ThemeSystem.current.colors.text
+        opacity: 0.6
+        align: "center"
+        marginBottom: 8
+      }
+
+      // Title
+      text step.title {
+        style: "heading"
+        size: 24
+        weight: "semibold"
+        color: ThemeSystem.current.colors.text
+        align: "center"
+        marginBottom: 12
+      }
+
+      // Description
+      text step.description {
+        id: "tutorial-description"
+        style: "body"
+        size: 16
+        color: ThemeSystem.current.colors.text
+        opacity: 0.8
+        align: "center"
+        lineHeight: 1.5
+        marginBottom: 32
+      }
+
+      // Navigation buttons
+      row {
+        justify: "center"
+        gap: 16
+
+        // Previous button (if not first step)
+        if (TutorialSystem.state.currentStep > 0) {
+          button "Back" {
+            style: "secondary"
+            size: "medium"
+            onClick: () -> TutorialSystem.previous()
+
+            aria: {
+              label: "Go to previous tutorial step"
+            }
+          }
+        }
+
+        // Next/Finish button
+        button (TutorialSystem.state.currentStep < 4 ? "Next" : "Got it!") {
+          style: "primary"
+          size: "medium"
+          icon: TutorialSystem.state.currentStep < 4 ? "arrow-right" : "check"
+          iconPosition: "right"
+          onClick: () -> TutorialSystem.next()
+
+          aria: {
+            label: TutorialSystem.state.currentStep < 4
+              ? "Go to next tutorial step"
+              : "Complete tutorial"
+          }
+        }
+      }
+
+      // Skip link
+      if (TutorialSystem.state.currentStep < 4) {
+        row {
+          justify: "center"
+          marginTop: 16
+
+          textButton "Skip tutorial" {
+            style: "link"
+            size: 14
+            opacity: 0.6
+            onClick: () -> TutorialSystem.skip()
+
+            aria: {
+              label: "Skip the tutorial"
+            }
+          }
+        }
+      }
+
+      // Progress dots
+      row {
+        justify: "center"
+        gap: 8
+        marginTop: 24
+
+        for (i in range(0, 5)) {
+          dot {
+            size: 8
+            color: i <= TutorialSystem.state.currentStep
+              ? ThemeSystem.current.colors.primary
+              : "rgba(255,255,255,0.2)"
+            borderRadius: "50%"
+            transition: "background-color 0.3s ease"
+
+            aria: {
+              label: "Step " + (i + 1) + (i === TutorialSystem.state.currentStep ? " (current)" : "")
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STYLES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  styles {
+    .glass {
+      background: rgba(10, 10, 26, 0.85)
+      backdropFilter: blur(20px)
+      border: 1px solid rgba(255, 255, 255, 0.1)
+      boxShadow: 0 8px 32px rgba(0, 0, 0, 0.3)
+    }
+
+    @keyframes slide-in-down {
+      from {
+        opacity: 0
+        transform: translateY(-20px)
+      }
+      to {
+        opacity: 1
+        transform: translateY(0)
+      }
+    }
+  }
+}
+
+export { TutorialOverlay }

@@ -1,0 +1,323 @@
+/**
+ * Menu Overlay Component
+ *
+ * Zone navigation menu with theme-aware styling and
+ * accessibility support.
+ */
+
+component "MenuOverlay" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROPS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  props {
+    visible: boolean = false
+    onClose: function = null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    selectedZone: null
+    hoveredZone: null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  data zones: [
+    {
+      id: "plaza"
+      name: "Main Plaza"
+      icon: "home"
+      path: "/central"
+      color: "#667eea"
+      description: "The central hub with portals to all zones"
+    },
+    {
+      id: "casino"
+      name: "Hololand Casino"
+      icon: "dice"
+      path: "/world/casino"
+      color: "#ffd700"
+      description: "Brian's domain - games and luck"
+    },
+    {
+      id: "builder"
+      name: "Builder Shop"
+      icon: "hammer"
+      path: "/world/builder"
+      color: "#4caf50"
+      description: "Create and customize worlds"
+    },
+    {
+      id: "arcade"
+      name: "Arcade District"
+      icon: "gamepad"
+      path: "/world/arcade"
+      color: "#e91e63"
+      description: "Retro games and modern experiences"
+    },
+    {
+      id: "lounge"
+      name: "Social Lounge"
+      icon: "users"
+      path: "/world/lounge"
+      color: "#9c27b0"
+      description: "Relax and meet other travelers"
+    },
+    {
+      id: "infinity"
+      name: "Infinity Shop"
+      icon: "sparkles"
+      path: "/world/infinity"
+      color: "#00bcd4"
+      description: "Brittney's AI-powered workshop"
+    }
+  ]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  render {
+    if (!props.visible) {
+      return null
+    }
+
+    // Backdrop
+    div {
+      position: "fixed"
+      inset: 0
+      backgroundColor: "rgba(0,0,0,0.5)"
+      backdropFilter: "blur(4px)"
+      onClick: () -> props.onClose?.()
+      zIndex: 90
+
+      aria: {
+        hidden: true
+      }
+    }
+
+    // Menu panel
+    panel {
+      style: "glass"
+      position: "top-right"
+      marginTop: 70
+      marginRight: 20
+      width: 320
+      padding: 0
+      borderRadius: 16
+      zIndex: 91
+
+      animation: AccessibilitySystem.reducedMotion ? null : "slide-in-left"
+
+      aria: {
+        role: "menu"
+        label: "Zone Navigation"
+      }
+
+      // Header
+      row {
+        padding: [16, 20]
+        borderBottom: "1px solid rgba(255,255,255,0.1)"
+        justify: "space-between"
+        align: "center"
+
+        text "Navigate" {
+          style: "subtitle"
+          size: 18
+          weight: "semibold"
+        }
+
+        // Theme indicator
+        row {
+          gap: 8
+          align: "center"
+
+          text ThemeSystem.current.icon {
+            size: 16
+          }
+
+          text ThemeSystem.current.name {
+            style: "caption"
+            size: 12
+            opacity: 0.7
+          }
+        }
+      }
+
+      // Zone list
+      column {
+        padding: 8
+
+        for (zone of zones) {
+          zoneMenuItem {
+            zone: zone
+            isSelected: app.state.currentWorld === zone.id ||
+                        (zone.id === "plaza" && app.state.currentView === "central")
+            isHovered: state.hoveredZone === zone.id
+            onHover: () -> state.hoveredZone = zone.id
+            onHoverEnd: () -> state.hoveredZone = null
+            onClick: () -> navigateToZone(zone)
+          }
+        }
+      }
+
+      // Footer with quick actions
+      row {
+        padding: 16
+        borderTop: "1px solid rgba(255,255,255,0.1)"
+        gap: 12
+        justify: "center"
+
+        iconButton {
+          icon: "settings"
+          size: 20
+          tooltip: "Settings"
+          onClick: () -> emit("settings:open")
+          aria: { label: "Open settings" }
+        }
+
+        iconButton {
+          icon: "help-circle"
+          size: 20
+          tooltip: "Help"
+          onClick: () -> TutorialSystem.showShortcuts()
+          aria: { label: "Show keyboard shortcuts" }
+        }
+
+        iconButton {
+          icon: "volume-2"
+          size: 20
+          tooltip: AudioSystem.state.isMuted ? "Unmute" : "Mute"
+          onClick: () -> AudioSystem.toggleMute()
+          aria: { label: AudioSystem.state.isMuted ? "Unmute audio" : "Mute audio" }
+        }
+
+        if (MultiplayerSystem.isOnline) {
+          iconButton {
+            icon: "users"
+            size: 20
+            tooltip: MultiplayerSystem.playerCount + " online"
+            badge: MultiplayerSystem.playerCount
+            onClick: () -> emit("multiplayer:open")
+            aria: { label: "View online players" }
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action navigateToZone(zone) {
+    AudioSystem.play("ui-click")
+    props.onClose?.()
+    navigate(zone.path)
+
+    AccessibilitySystem.announce(
+      ThemeSystem.current.uiCopy.portal + " " + zone.name,
+      "assertive"
+    )
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+component "zoneMenuItem" {
+  props {
+    zone: object
+    isSelected: boolean = false
+    isHovered: boolean = false
+    onHover: function = null
+    onHoverEnd: function = null
+    onClick: function = null
+  }
+
+  render {
+    button {
+      style: "ghost"
+      width: "100%"
+      padding: [12, 16]
+      borderRadius: 12
+      marginBottom: 4
+      backgroundColor: props.isSelected
+        ? "rgba(102, 126, 234, 0.2)"
+        : props.isHovered
+          ? "rgba(255, 255, 255, 0.05)"
+          : "transparent"
+
+      onMouseEnter: props.onHover
+      onMouseLeave: props.onHoverEnd
+      onClick: props.onClick
+
+      aria: {
+        role: "menuitem"
+        label: props.zone.name + ". " + props.zone.description
+        current: props.isSelected ? "page" : null
+      }
+
+      row {
+        gap: 16
+        align: "center"
+
+        // Icon with zone color
+        div {
+          width: 40
+          height: 40
+          borderRadius: 10
+          backgroundColor: props.zone.color + "20"
+          display: "flex"
+          alignItems: "center"
+          justifyContent: "center"
+
+          icon props.zone.icon {
+            size: 20
+            color: props.zone.color
+          }
+        }
+
+        // Zone info
+        column {
+          flex: 1
+          align: "flex-start"
+
+          text props.zone.name {
+            style: "body"
+            size: 14
+            weight: "medium"
+            color: props.isSelected
+              ? ThemeSystem.current.colors.primary
+              : "#ffffff"
+          }
+
+          text props.zone.description {
+            style: "caption"
+            size: 12
+            opacity: 0.6
+            lineClamp: 1
+          }
+        }
+
+        // Selected indicator
+        if (props.isSelected) {
+          icon "check" {
+            size: 16
+            color: ThemeSystem.current.colors.primary
+          }
+        }
+      }
+    }
+  }
+}
+
+export { MenuOverlay }

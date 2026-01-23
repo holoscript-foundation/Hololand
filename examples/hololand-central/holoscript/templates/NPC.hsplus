@@ -1,0 +1,321 @@
+/**
+ * NPC Template
+ *
+ * Reusable Non-Player Character component with dialogue,
+ * animations, and accessibility support.
+ */
+
+template "NPC" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROPERTIES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  properties {
+    name: string = "NPC"
+    role: string = ""
+    model: string = null
+    idleAnimation: string = "idle"
+    talkAnimation: string = "talk"
+    greeting: string = "Hello!"
+    dialogueTree: object = null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    isEngaged: false
+    isTalking: false
+    currentDialogueNode: "greeting"
+    lookAtPlayer: false
+    mood: "neutral"  // neutral | happy | concerned | excited
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRAITS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  traits: ["talkable", "animated", "has-dialogue", "accessible"]
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STRUCTURE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  structure {
+    // Character model
+    object "Model" {
+      model: properties.model
+      scale: [1, 1, 1]
+      castShadow: true
+
+      animation: state.isTalking
+        ? properties.talkAnimation
+        : properties.idleAnimation
+
+      // Look at player when engaged
+      lookAt: state.lookAtPlayer ? "player" : null
+    }
+
+    // Name tag
+    object "NameTag" {
+      type: "text3d"
+      position: [0, 2.2, 0]
+      text: properties.name
+      font: "Roboto"
+      size: 0.15
+      height: 0.02
+      color: "#ffffff"
+      billboard: true
+      visible: state.isEngaged || state.isNearby
+    }
+
+    // Role tag
+    if (properties.role) {
+      object "RoleTag" {
+        type: "text3d"
+        position: [0, 2, 0]
+        text: properties.role
+        font: "Roboto"
+        size: 0.1
+        color: ThemeSystem.current.colors.secondary
+        billboard: true
+        opacity: 0.7
+        visible: state.isEngaged || state.isNearby
+      }
+    }
+
+    // Interaction indicator
+    object "InteractionIndicator" {
+      type: "sprite"
+      position: [0, 2.5, 0]
+      scale: [0.3, 0.3, 1]
+      image: "/icons/chat-bubble.png"
+      color: ThemeSystem.current.colors.primary
+      billboard: true
+      visible: !state.isEngaged && state.isNearby
+      opacity: 0.8
+
+      animation: !AccessibilitySystem.reducedMotion ? {
+        type: "bounce"
+        height: 0.1
+        duration: 1000
+      } : null
+    }
+
+    // Speech bubble (when talking)
+    if (state.isTalking) {
+      object "SpeechBubble" {
+        position: [0.8, 1.8, 0]
+
+        child "Bubble" {
+          type: "plane"
+          scale: [2, 1, 1]
+
+          material: {
+            color: "#ffffff"
+            opacity: 0.95
+            borderRadius: 0.1
+          }
+        }
+
+        child "Text" {
+          type: "text"
+          position: [0, 0, 0.01]
+          text: getCurrentDialogueText()
+          font: "Roboto"
+          size: 0.08
+          color: "#1a1a1a"
+          maxWidth: 1.8
+          align: "center"
+        }
+      }
+    }
+
+    // Interaction collider
+    object "Collider" {
+      type: "cylinder"
+      position: [0, 1, 0]
+      scale: [1, 2, 1]
+      visible: false
+      traits: ["trigger"]
+    }
+
+    // Proximity detector
+    object "ProximityZone" {
+      type: "sphere"
+      position: [0, 1, 0]
+      scale: [5, 5, 5]
+      visible: false
+      traits: ["proximity-trigger"]
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INTERACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_hover: () -> {
+    state.isNearby = true
+    state.lookAtPlayer = true
+
+    AccessibilitySystem.announce(
+      properties.name + (properties.role ? ", " + properties.role : "") + ". Press to talk.",
+      "polite"
+    )
+
+    emit("player:near", { name: properties.name, type: "npc" })
+  }
+
+  on_hover_end: () -> {
+    if (!state.isEngaged) {
+      state.isNearby = false
+      state.lookAtPlayer = false
+    }
+    emit("player:far")
+  }
+
+  on_interact: () -> {
+    if (!state.isEngaged) {
+      startDialogue()
+    } else {
+      advanceDialogue()
+    }
+
+    emit("tutorial:action-complete", "click-npc")
+  }
+
+  on_proximity_enter: () -> {
+    state.isNearby = true
+
+    // Greeting if not engaged
+    if (!state.isEngaged) {
+      AudioSystem.play("npc-greeting")
+    }
+  }
+
+  on_proximity_exit: () -> {
+    if (!state.isEngaged) {
+      state.isNearby = false
+      state.lookAtPlayer = false
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIALOGUE SYSTEM
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action startDialogue() {
+    state.isEngaged = true
+    state.isTalking = true
+    state.lookAtPlayer = true
+    state.currentDialogueNode = "greeting"
+
+    AudioSystem.play("npc-chat")
+
+    emit("npc:engage", {
+      npc: properties.name,
+      dialogue: properties.dialogueTree || {
+        greeting: {
+          text: properties.greeting,
+          options: []
+        }
+      }
+    })
+
+    AccessibilitySystem.announce(
+      properties.name + " says: " + properties.greeting,
+      "polite"
+    )
+  }
+
+  action advanceDialogue() {
+    const dialogue = properties.dialogueTree
+    if (!dialogue) {
+      endDialogue()
+      return
+    }
+
+    const currentNode = dialogue[state.currentDialogueNode]
+    if (!currentNode || !currentNode.options || currentNode.options.length === 0) {
+      endDialogue()
+      return
+    }
+
+    // Let UI handle option selection
+    emit("dialogue:options", {
+      npc: properties.name,
+      options: currentNode.options
+    })
+  }
+
+  action selectDialogueOption(optionIndex) {
+    const dialogue = properties.dialogueTree
+    const currentNode = dialogue[state.currentDialogueNode]
+
+    if (currentNode && currentNode.options && currentNode.options[optionIndex]) {
+      const option = currentNode.options[optionIndex]
+      state.currentDialogueNode = option.next
+
+      const nextNode = dialogue[option.next]
+      if (nextNode) {
+        state.isTalking = true
+        AudioSystem.play("npc-chat")
+
+        AccessibilitySystem.announce(
+          properties.name + " says: " + nextNode.text,
+          "polite"
+        )
+
+        emit("dialogue:response", {
+          npc: properties.name,
+          text: nextNode.text,
+          options: nextNode.options
+        })
+      }
+    }
+  }
+
+  action endDialogue() {
+    state.isEngaged = false
+    state.isTalking = false
+    state.currentDialogueNode = "greeting"
+
+    emit("npc:disengage", { npc: properties.name })
+    emit("dialogue:end")
+
+    // Keep looking at player briefly
+    after(1000) {
+      if (!state.isNearby) {
+        state.lookAtPlayer = false
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getCurrentDialogueText() {
+    const dialogue = properties.dialogueTree
+    if (!dialogue) return properties.greeting
+
+    const node = dialogue[state.currentDialogueNode]
+    return node ? node.text : properties.greeting
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACCESSIBILITY
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  aria: {
+    role: "button"
+    label: properties.name +
+           (properties.role ? ", " + properties.role : "") +
+           ". " +
+           (state.isEngaged ? "Currently in conversation." : "Press to start conversation.")
+  }
+}
+
+export { NPC }

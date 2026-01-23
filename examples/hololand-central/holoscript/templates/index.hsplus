@@ -1,0 +1,8 @@
+/**
+ * Templates Index
+ *
+ * Re-exports all reusable templates for convenient importing.
+ */
+
+export { Portal } from "./Portal.hsplus"
+export { NPC } from "./NPC.hsplus"

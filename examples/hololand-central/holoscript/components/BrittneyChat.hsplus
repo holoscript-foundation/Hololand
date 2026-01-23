@@ -1,0 +1,580 @@
+/**
+ * Brittney Chat Component
+ *
+ * AI chat interface that uses the tiered chat system:
+ * - Basic: Local Brittney (free)
+ * - Pro (BYOK): User's LLM + Brittney tools
+ * - Pro (IA): Infinity Assistant API
+ */
+
+component "BrittneyChat" {
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PROPS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  props {
+    visible: boolean = false
+    onClose: function = null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  state {
+    messages: []
+    inputValue: ""
+    isTyping: false
+    chatMode: "basic"  // basic | pro-byok | pro-ia
+    showSettings: false
+    error: null
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  action sendMessage() {
+    const message = state.inputValue.trim()
+    if (!message) return
+
+    // Add user message
+    state.messages.push({
+      role: "user",
+      content: message,
+      timestamp: Date.now()
+    })
+
+    state.inputValue = ""
+    state.isTyping = true
+    state.error = null
+
+    // Route to appropriate backend
+    routeChat(message).then(response -> {
+      state.messages.push({
+        role: "assistant",
+        content: response.content,
+        timestamp: Date.now(),
+        model: response.model
+      })
+      state.isTyping = false
+    }).catch(error -> {
+      state.error = error.message
+      state.isTyping = false
+    })
+  }
+
+  async function routeChat(message) {
+    // Check for API key
+    const provider = await storage.get("hololand:ai:provider")
+    const apiKey = await storage.get("hololand:ai:key:" + provider)
+
+    if (!provider || !apiKey) {
+      // Basic tier: Local Brittney
+      state.chatMode = "basic"
+      return callLocalBrittney(message)
+    }
+
+    if (provider === "infinity-assistant") {
+      // Pro tier (IA): Better Brittney via Infinity Assistant
+      state.chatMode = "pro-ia"
+      return callInfinityAssistant(apiKey, message)
+    }
+
+    // Pro tier (BYOK): User's LLM + Brittney tools
+    state.chatMode = "pro-byok"
+    return callUserLLM(provider, apiKey, message)
+  }
+
+  async function callLocalBrittney(message) {
+    // Use local Brittney model (TinyLlama-based)
+    const response = await fetch("/api/brittney/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: message,
+        context: buildContext()
+      })
+    })
+    return response.json()
+  }
+
+  async function callInfinityAssistant(apiKey, message) {
+    const response = await fetch("https://api.infinityassistant.dev/v1/brittney", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + apiKey
+      },
+      body: JSON.stringify({
+        prompt: message,
+        context: buildContext(),
+        tools: ["holoscript", "world-builder", "code-gen"]
+      })
+    })
+    return response.json()
+  }
+
+  async function callUserLLM(provider, apiKey, message) {
+    // Map provider to API endpoint
+    const endpoints = {
+      "openai": "https://api.openai.com/v1/chat/completions",
+      "anthropic": "https://api.anthropic.com/v1/messages",
+      "google": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+    }
+
+    const response = await fetch(endpoints[provider], {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + apiKey
+      },
+      body: buildLLMRequest(provider, message)
+    })
+    return parseLLMResponse(provider, await response.json())
+  }
+
+  function buildContext() {
+    return {
+      currentZone: app.state.currentView,
+      theme: ThemeSystem.current.id,
+      tutorialComplete: TutorialSystem.state.isComplete,
+      discoveredEggs: EasterEggSystem.state.discoveredEggs
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  render {
+    if (!props.visible) {
+      return null
+    }
+
+    panel {
+      style: "glass"
+      position: "right"
+      width: 400
+      height: "100%"
+      padding: 0
+      borderRadius: 0
+      borderLeft: "1px solid rgba(255,255,255,0.1)"
+
+      animation: AccessibilitySystem.reducedMotion ? null : "slide-in-right"
+
+      aria: {
+        role: "dialog"
+        label: "Chat with Brittney"
+      }
+
+      // Header
+      row {
+        padding: [16, 20]
+        borderBottom: "1px solid rgba(255,255,255,0.1)"
+        justify: "space-between"
+        align: "center"
+
+        row {
+          gap: 12
+          align: "center"
+
+          avatar {
+            src: "/images/brittney-avatar.png"
+            size: 40
+            borderRadius: "50%"
+          }
+
+          column {
+            text "Brittney" {
+              style: "subtitle"
+              size: 16
+              weight: "semibold"
+            }
+
+            text getModeLabel() {
+              style: "caption"
+              size: 12
+              color: getModeColor()
+            }
+          }
+        }
+
+        row {
+          gap: 8
+
+          iconButton {
+            icon: "settings"
+            size: 20
+            onClick: () -> state.showSettings = true
+            aria: { label: "Chat settings" }
+          }
+
+          iconButton {
+            icon: "x"
+            size: 20
+            onClick: () -> props.onClose?.()
+            aria: { label: "Close chat" }
+          }
+        }
+      }
+
+      // Messages
+      scrollView {
+        flex: 1
+        padding: 20
+
+        for (message of state.messages) {
+          messageItem {
+            role: message.role
+            content: message.content
+            timestamp: message.timestamp
+            model: message.model
+          }
+        }
+
+        if (state.isTyping) {
+          typingIndicator {
+            marginTop: 12
+          }
+        }
+
+        if (state.error) {
+          errorMessage {
+            message: state.error
+            onRetry: () -> sendMessage()
+          }
+        }
+      }
+
+      // Input area
+      row {
+        padding: 16
+        borderTop: "1px solid rgba(255,255,255,0.1)"
+        gap: 12
+
+        textInput {
+          flex: 1
+          value: state.inputValue
+          placeholder: "Ask Brittney anything..."
+          onInput: (e) -> state.inputValue = e.target.value
+          onKeyDown: (e) -> {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault()
+              sendMessage()
+            }
+          }
+
+          aria: {
+            label: "Message input"
+          }
+        }
+
+        iconButton {
+          icon: "send"
+          size: 24
+          color: ThemeSystem.current.colors.primary
+          disabled: !state.inputValue.trim() || state.isTyping
+          onClick: () -> sendMessage()
+
+          aria: {
+            label: "Send message"
+          }
+        }
+      }
+
+      // Upgrade prompt for basic tier
+      if (state.chatMode === "basic") {
+        row {
+          padding: [12, 16]
+          backgroundColor: "rgba(102, 126, 234, 0.1)"
+          borderTop: "1px solid rgba(102, 126, 234, 0.2)"
+          justify: "space-between"
+          align: "center"
+
+          text "Add your API key for full planning mode" {
+            style: "caption"
+            size: 12
+            opacity: 0.8
+          }
+
+          textButton "Upgrade" {
+            style: "link"
+            size: 12
+            color: ThemeSystem.current.colors.primary
+            onClick: () -> state.showSettings = true
+          }
+        }
+      }
+    }
+
+    // Settings modal
+    if (state.showSettings) {
+      chatSettingsModal {
+        onClose: () -> state.showSettings = false
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function getModeLabel() {
+    match state.chatMode {
+      "basic" -> "Basic (Local)"
+      "pro-byok" -> "Pro (Your LLM)"
+      "pro-ia" -> "Pro (Infinity Assistant)"
+    }
+  }
+
+  function getModeColor() {
+    match state.chatMode {
+      "basic" -> "rgba(255,255,255,0.5)"
+      "pro-byok" -> "#4caf50"
+      "pro-ia" -> "#667eea"
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  on_init: async () -> {
+    // Load chat history
+    const history = await storage.get("hololand:chat:history")
+    if (history) {
+      state.messages = history.slice(-50)  // Keep last 50 messages
+    }
+
+    // Check API key status
+    const provider = await storage.get("hololand:ai:provider")
+    if (provider) {
+      const hasKey = await storage.get("hololand:ai:key:" + provider)
+      if (hasKey) {
+        state.chatMode = provider === "infinity-assistant" ? "pro-ia" : "pro-byok"
+      }
+    }
+  }
+
+  on_destroy: () -> {
+    // Save chat history
+    storage.set("hololand:chat:history", state.messages)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+component "messageItem" {
+  props {
+    role: string
+    content: string
+    timestamp: number
+    model: string = null
+  }
+
+  render {
+    row {
+      justify: props.role === "user" ? "flex-end" : "flex-start"
+      marginBottom: 12
+
+      panel {
+        maxWidth: "80%"
+        padding: [12, 16]
+        borderRadius: 16
+        borderBottomLeftRadius: props.role === "assistant" ? 4 : 16
+        borderBottomRightRadius: props.role === "user" ? 4 : 16
+        backgroundColor: props.role === "user"
+          ? ThemeSystem.current.colors.primary
+          : "rgba(255,255,255,0.1)"
+
+        text props.content {
+          style: "body"
+          size: 14
+          lineHeight: 1.5
+          color: "#ffffff"
+        }
+
+        if (props.model) {
+          text props.model {
+            style: "caption"
+            size: 10
+            opacity: 0.5
+            marginTop: 4
+          }
+        }
+      }
+    }
+  }
+}
+
+component "typingIndicator" {
+  render {
+    row {
+      gap: 4
+      padding: [12, 16]
+
+      for (i in range(0, 3)) {
+        dot {
+          size: 8
+          backgroundColor: "rgba(255,255,255,0.5)"
+          borderRadius: "50%"
+          animation: "bounce 1.4s infinite"
+          animationDelay: (i * 0.16) + "s"
+        }
+      }
+    }
+  }
+}
+
+component "chatSettingsModal" {
+  props {
+    onClose: function
+  }
+
+  state {
+    provider: null
+    apiKey: ""
+    isSaving: false
+    testResult: null
+  }
+
+  render {
+    modal {
+      title: "AI Settings"
+      onClose: props.onClose
+      width: 450
+
+      column {
+        gap: 24
+
+        // Provider selection
+        section {
+          label: "AI Provider"
+
+          radioGroup {
+            value: state.provider
+            onChange: (v) -> state.provider = v
+
+            radioOption {
+              value: null
+              label: "Local Brittney (Free)"
+              description: "Smaller model, runs on your device"
+            }
+
+            radioOption {
+              value: "openai"
+              label: "OpenAI (BYOK)"
+              description: "Use your OpenAI API key"
+            }
+
+            radioOption {
+              value: "anthropic"
+              label: "Anthropic (BYOK)"
+              description: "Use your Anthropic API key"
+            }
+
+            radioOption {
+              value: "infinity-assistant"
+              label: "Infinity Assistant"
+              description: "Enhanced Brittney model"
+            }
+          }
+        }
+
+        // API Key input (if provider selected)
+        if (state.provider) {
+          section {
+            label: "API Key"
+
+            textInput {
+              type: "password"
+              value: state.apiKey
+              placeholder: "Enter your API key..."
+              onChange: (e) -> state.apiKey = e.target.value
+            }
+
+            text "Your key is stored locally and never sent to Hololand servers." {
+              style: "caption"
+              size: 12
+              opacity: 0.6
+              marginTop: 8
+            }
+          }
+
+          // Test connection button
+          row {
+            gap: 12
+
+            button "Test Connection" {
+              style: "secondary"
+              onClick: () -> testConnection()
+              disabled: !state.apiKey || state.isSaving
+            }
+
+            if (state.testResult) {
+              text state.testResult.success ? "Connected!" : state.testResult.error {
+                style: "caption"
+                color: state.testResult.success ? "#4caf50" : "#ff6b6b"
+              }
+            }
+          }
+        }
+
+        // Save button
+        row {
+          justify: "flex-end"
+          gap: 12
+
+          button "Cancel" {
+            style: "secondary"
+            onClick: props.onClose
+          }
+
+          button "Save" {
+            style: "primary"
+            disabled: state.isSaving
+            onClick: () -> saveSettings()
+          }
+        }
+      }
+    }
+  }
+
+  async function testConnection() {
+    state.isSaving = true
+    state.testResult = null
+
+    try {
+      // Send test request
+      const response = await routeChat("Hello, this is a test.")
+      state.testResult = { success: true }
+    } catch (error) {
+      state.testResult = { success: false, error: error.message }
+    }
+
+    state.isSaving = false
+  }
+
+  async function saveSettings() {
+    state.isSaving = true
+
+    await storage.set("hololand:ai:provider", state.provider)
+    if (state.provider && state.apiKey) {
+      await storage.set("hololand:ai:key:" + state.provider, state.apiKey)
+    }
+
+    state.isSaving = false
+    props.onClose()
+  }
+
+  on_init: async () -> {
+    state.provider = await storage.get("hololand:ai:provider")
+    // Don't load API key for security - user must re-enter
+  }
+}
+
+export { BrittneyChat }
