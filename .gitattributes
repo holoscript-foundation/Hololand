@@ -1,0 +1,19 @@
+# HoloScript language detection for GitHub
+# Map custom extensions to syntax highlighting
+
+# HoloScript files - use TypeScript highlighting (closest match)
+*.holo linguist-language=TypeScript
+*.hsplus linguist-language=TypeScript
+
+# Alternative: Mark as detectable custom language
+# *.holo linguist-detectable
+# *.hsplus linguist-detectable
+
+# Ensure these are counted in language stats
+*.holo linguist-vendored=false
+*.hsplus linguist-vendored=false
+
+# Standard ignores for generated files
+pnpm-lock.yaml linguist-generated=true
+*.min.js linguist-generated=true
+dist/** linguist-generated=true
