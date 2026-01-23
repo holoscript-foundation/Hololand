@@ -185,32 +185,78 @@ create canvas with mode "hybrid"
 
 ---
 
-## Phase 3: Networking & Multiplayer ✅ (COMPLETE - Q1 2026)
+## Phase 3: Networking & Multiplayer 🔄 (IN PROGRESS - Q1-Q2 2026)
 
-**Status**: Released v1.2.0
+**Status**: Local-First Strategy - Building Foundation
 
-**Goal**: Enable real-time multiplayer experiences and shared worlds.
+**Goal**: Enable real-time multiplayer starting with local/private networks, then scaling to public.
 
-### 3.1: New Package: @hololand/network ✅
+### Strategy: Local-First, Zero Server Cost
 
-Core Features:
-- [x] **WebSocket mesh networking** - Peer-to-peer connections
-- [x] **Client-server architecture** - Authoritative server option
-- [x] **State synchronization** - Automatic object syncing with interpolation
-- [x] **Interest management** - Spatial relevance filtering
-- [x] **Lag compensation** - Client-side prediction
-- [x] **Voice chat** - WebRTC audio channels with spatial audio
-- [x] **Text chat** - Real-time messaging with emotes and channels
+```
+Phase 3A (Current)         Phase 3B                Phase 3C (Future)
+─────────────────────      ─────────────────       ─────────────────
+┌─────────────────┐        ┌─────────────────┐     ┌─────────────────┐
+│ Private/LAN     │   →    │ Hybrid          │  →  │ Public Cloud    │
+│ Network Layer   │        │ (Local + Relay) │     │ Full Multiplayer│
+├─────────────────┤        ├─────────────────┤     ├─────────────────┤
+│ - WebRTC P2P    │        │ - TURN fallback │     │ - Dedicated     │
+│ - ngrok tunnels │        │ - NAT traversal │     │   servers       │
+│ - Zero server   │        │ - Optional relay│     │ - Global rooms  │
+│   cost          │        │                 │     │ - Persistence   │
+└─────────────────┘        └─────────────────┘     └─────────────────┘
+```
 
-### 3.2: Multiplayer Features ✅
+**Why Local-First?**
+- **Zero server cost** during development
+- **Low latency** (<10ms on LAN)
+- **Easy testing** with friends via ngrok
+- **Build protocol right** before scaling infrastructure
 
-- [x] **Avatar synchronization** - See other users in real-time
-- [x] **Shared object manipulation** - Collaborative building
-- [x] **Room system** - Create/join virtual spaces with RoomManager
-- [x] **Permissions** - Owner, moderator, visitor roles
-- [x] **Persistence** - Save world state to database
+### 3.1: New Package: @hololand/network 🔄
 
-### 3.3: Social Features Expansion ✅
+#### Phase 3A: Local/Private Networking (Current Focus)
+- [x] **WebRTC P2P connections** - Direct peer-to-peer
+- [x] **Local server hosting** - User runs server on their device
+- [x] **ngrok/tunnel support** - Share with friends via URL
+- [ ] **State synchronization** - Automatic object syncing
+- [ ] **Interest management** - Spatial relevance filtering
+
+#### Phase 3B: Hybrid Networking (Next)
+- [ ] **TURN fallback** - When P2P fails
+- [ ] **NAT traversal** - Work behind firewalls
+- [ ] **Optional relay servers** - For complex networks
+
+#### Phase 3C: Public Cloud (Future)
+- [ ] **Client-server architecture** - Authoritative server option
+- [ ] **Lag compensation** - Client-side prediction
+- [ ] **Voice chat** - WebRTC audio channels with spatial audio
+- [ ] **Text chat** - Real-time messaging with emotes and channels
+
+### 3.2: Local Multiplayer Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     HOST USER'S DEVICE                       │
+│                                                              │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐    │
+│  │  Hololand   │────▶│  Local      │────▶│   ngrok     │    │
+│  │  Client     │     │  Server     │     │   Tunnel    │    │
+│  └─────────────┘     └─────────────┘     └──────┬──────┘    │
+└─────────────────────────────────────────────────┼───────────┘
+                                                  │
+                                    https://abc123.ngrok.io
+                                                  │
+            ┌─────────────────────────────────────┼─────────────┐
+            │                                     │             │
+            ▼                                     ▼             ▼
+     ┌─────────────┐                      ┌─────────────┐ ┌─────────────┐
+     │  Friend 1   │                      │  Friend 2   │ │  Friend 3   │
+     │  (Browser)  │                      │  (VR)       │ │  (Mobile)   │
+     └─────────────┘                      └─────────────┘ └─────────────┘
+```
+
+### 3.3: Social Features ✅ (Complete)
 
 #### @hololand/social v2.0 ✅
 
@@ -226,7 +272,7 @@ Core Features:
 - [x] **10-collaborative-building** - Build together in real-time
 - [x] **11-social-hub** - Complete social features demo
 
-**Outcome**: True multiplayer metaverse experiences with real-time sync, voice chat, and comprehensive social features.
+**Outcome**: Friends can play together via local hosting + ngrok, no server costs. Foundation for scaling to public multiplayer later.
 
 ---
 
@@ -616,6 +662,55 @@ We're building the open metaverse together:
 
 ---
 
+## 🤖 AI Strategy: BYOK (Bring Your Own Key)
+
+**Goal**: Zero AI infrastructure cost for Hololand while giving users maximum flexibility.
+
+### Tiered Chat System
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    HOLOLAND PLATFORM                         │
+│                                                              │
+│  ┌───────────┐    ┌───────────┐    ┌───────────┐            │
+│  │  Basic    │    │ Pro (BYOK)│    │ Pro (IA)  │            │
+│  │  No Key   │    │ User's LLM│    │ IA Key    │            │
+│  │  Free     │    │ + Brittney│    │ Better    │            │
+│  └─────┬─────┘    └─────┬─────┘    └─────┬─────┘            │
+│        │                │                │                   │
+│        └────────────────┼────────────────┘                   │
+│                         ▼                                    │
+│             ┌───────────────────────┐                        │
+│             │   ChatWidget.ts       │                        │
+│             │   (mode: basic|pro)   │                        │
+│             └───────────┬───────────┘                        │
+│                         │                                    │
+│             ┌───────────────────────┐                        │
+│             │   API Key Store       │  ← Stored locally      │
+│             │   (encrypted)         │    (never sent to us)  │
+│             └───────────────────────┘                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Tier Comparison
+
+| Tier | AI Model | Cost | Features |
+|------|----------|------|----------|
+| **Basic** | Local Brittney (TinyLlama 1.1B) | Free | Quick generation, runs on device |
+| **Pro (BYOK)** | User's LLM (OpenAI, Anthropic, etc) + Brittney Tools | User pays their provider | Full planning, their LLM limits |
+| **Pro (IA)** | Bigger Brittney via Infinity Assistant API | User pays IA | Enhanced model, full features |
+
+### Key Principles
+
+1. **Keys Stay Local**: User's API keys are encrypted and stored on their device
+2. **Never Sent to Hololand**: We don't route through our servers
+3. **User Choice**: Free local, bring their own key, or Infinity Assistant
+4. **Brittney Tools**: BYOK users get their LLM + Brittney's HoloScript capabilities
+
+**📖 [Full Implementation Plan →](./docs/specs/TIERED_CHAT_GAMEPLAN.md)**
+
+---
+
 ## 🔗 Related Projects
 
 ### uaa2-service
@@ -627,6 +722,7 @@ We're building the open metaverse together:
 - **Normie's Companion** - Creator-friendly voice building
 - **Natural Language Interface** - Build without coding
 - **Tutorial System** - Interactive learning
+- **Brittney API** - Enhanced Brittney model for Pro users
 
 ---
 
@@ -635,8 +731,11 @@ We're building the open metaverse together:
 ### Completed
 - ✅ **Q4 2025**: v1.0.0 - Foundation (core, renderer, world, react-three)
 - ✅ **Q1 2026**: v1.1.0 - Universal rendering (2D/hybrid modes)
-- ✅ **Q1 2026**: v1.2.0 - Networking & multiplayer
 - ✅ **Q1 2026**: v2.0.0 - Developer tools (formatter, linter, LSP)
+
+### In Progress
+- 🔄 **Q1-Q2 2026**: v1.2.0 - Local-first networking (P2P, ngrok tunnels, social features)
+- 🔄 **Q1-Q2 2026**: Tiered Chat (BYOK AI integration)
 
 ### Upcoming
 - **Q2 2026**: v2.1.0 - Audio system, animation system

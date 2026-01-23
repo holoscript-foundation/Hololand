@@ -1,0 +1,5 @@
+# Ignore GGUF model files (use Git LFS or download separately)
+*.gguf
+
+# But keep the README
+!README.md

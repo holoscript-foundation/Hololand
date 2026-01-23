@@ -12,6 +12,16 @@
 export { BrittneyEngine, type BrittneyEngineConfig } from './inference/BrittneyEngine';
 export { LocalInference, type LocalInferenceConfig } from './inference/LocalInference';
 export { CloudInference, type CloudInferenceConfig, type CloudProvider } from './inference/CloudInference';
+export { 
+  getModelPath, 
+  getBestAvailableModel, 
+  modelExists,
+  MODELS_DIR,
+  MODEL_FILES,
+  DEFAULT_MODEL,
+  DEFAULT_MODEL_CONFIG,
+  type ModelConfig,
+} from './inference/modelConfig';
 
 // Chat UI exports
 export { ChatWidget, type ChatWidgetConfig, type ChatWidgetState } from './chat/ChatWidget';

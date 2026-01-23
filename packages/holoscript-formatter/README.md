@@ -1,4 +1,4 @@
-o # @hololand/holoscript-formatter
+# @hololand/holoscript-formatter
 
 Code formatting tool for HoloScript (.holo) and HoloScript+ (.hsplus) files.
 

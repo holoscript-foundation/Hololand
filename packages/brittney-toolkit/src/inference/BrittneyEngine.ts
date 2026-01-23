@@ -8,10 +8,11 @@
 import type { InferenceProvider, ChatRequest, ChatResponse, StreamCallback } from '../types';
 import { LocalInference, type LocalInferenceConfig } from './LocalInference';
 import { CloudInference, type CloudProvider } from './CloudInference';
+import { getBestAvailableModel, DEFAULT_MODEL_CONFIG, type ModelConfig } from './modelConfig';
 
 export interface BrittneyEngineConfig {
-  /** Path to bundled GGUF model */
-  modelPath: string;
+  /** Path to bundled GGUF model (optional - auto-detects if not provided) */
+  modelPath?: string;
   /** Optional user API key for cloud provider */
   userApiKey?: string;
   /** Cloud provider if user provides API key */
@@ -20,6 +21,8 @@ export interface BrittneyEngineConfig {
   preferCloud?: boolean;
   /** Local inference config overrides */
   localConfig?: Partial<LocalInferenceConfig>;
+  /** Model config overrides */
+  modelConfig?: Partial<ModelConfig>;
 }
 
 /**
@@ -54,11 +57,27 @@ export class BrittneyEngine implements InferenceProvider {
 
     console.log('[Brittney] Initializing engine...');
 
-    // Always set up local inference (bundled model)
-    this.localProvider = new LocalInference({
-      modelPath: this.config.modelPath,
-      ...this.config.localConfig,
-    });
+    // Auto-detect model if not provided
+    const modelPath = this.config.modelPath ?? getBestAvailableModel();
+    
+    if (!modelPath && !this.config.userApiKey) {
+      throw new Error(
+        'No Brittney model found. Either:\n' +
+        '  1. Copy brittney-base.gguf to packages/brittney-toolkit/models/\n' +
+        '  2. Set BRITTNEY_MODEL_PATH environment variable\n' +
+        '  3. Provide userApiKey and cloudProvider for cloud inference'
+      );
+    }
+
+    // Always set up local inference if model available
+    if (modelPath) {
+      this.localProvider = new LocalInference({
+        modelPath,
+        ...DEFAULT_MODEL_CONFIG,
+        ...this.config.modelConfig,
+        ...this.config.localConfig,
+      });
+    }
 
     // Set up cloud if user provided API key
     if (this.config.userApiKey && this.config.cloudProvider) {
@@ -81,7 +100,7 @@ export class BrittneyEngine implements InferenceProvider {
     }
 
     // Initialize local if needed
-    if (!this.activeProvider) {
+    if (!this.activeProvider && this.localProvider) {
       try {
         await this.localProvider.initialize();
         this.activeProvider = this.localProvider;
@@ -98,7 +117,7 @@ export class BrittneyEngine implements InferenceProvider {
     }
 
     this.ready = true;
-    console.log(`[Brittney] Engine ready (provider: ${this.activeProvider.name})`);
+    console.log(`[Brittney] Engine ready (provider: ${this.activeProvider?.name ?? 'none'})`);
   }
 
   /**
