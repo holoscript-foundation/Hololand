@@ -1,5 +1,9 @@
 packages:
-  - packages/*
+  - packages/adapters/*
+  - packages/ar/*
+  - packages/brittney/*
+  - packages/platform/*
+  - packages/devtools/*
   - examples/*
 
 overrides:

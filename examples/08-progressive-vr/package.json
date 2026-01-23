@@ -10,11 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@hololand/react-three": "file:../../packages/react-three",
-    "@hololand/renderer": "file:../../packages/renderer",
-    "@hololand/world": "file:../../packages/world",
-    "@hololand/audio": "file:../../packages/audio",
-    "@hololand/devtools": "file:../../packages/devtools",
+    "@hololand/react-three": "workspace:*",
+    "@hololand/renderer": "workspace:*",
+    "@hololand/world": "workspace:*",
+    "@hololand/audio": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.159.0"

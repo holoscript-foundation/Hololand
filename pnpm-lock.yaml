@@ -63,14 +63,14 @@ importers:
   examples/04-react-starter:
     dependencies:
       '@hololand/react-three':
-        specifier: file:../../packages/react-three
-        version: file:packages/react-three(@hololand/renderer@file:packages/renderer(@hololand/world@file:packages/world)(three@0.159.0))(@hololand/world@file:packages/world)(react@18.3.1)(three@0.159.0)
+        specifier: workspace:*
+        version: link:../../packages/adapters/react-three
       '@hololand/renderer':
-        specifier: file:../../packages/renderer
-        version: file:packages/renderer(@hololand/world@file:packages/world)(three@0.159.0)
+        specifier: workspace:*
+        version: link:../../packages/platform/renderer
       '@hololand/world':
-        specifier: file:../../packages/world
-        version: file:packages/world
+        specifier: workspace:*
+        version: link:../../packages/platform/world
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -113,7 +113,7 @@ importers:
     dependencies:
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/platform/ui
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -126,7 +126,7 @@ importers:
     dependencies:
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/platform/ui
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -139,13 +139,13 @@ importers:
     dependencies:
       '@hololand/renderer':
         specifier: workspace:*
-        version: link:../../packages/renderer
+        version: link:../../packages/platform/renderer
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/platform/ui
       '@hololand/world':
         specifier: workspace:*
-        version: link:../../packages/world
+        version: link:../../packages/platform/world
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -157,20 +157,17 @@ importers:
   examples/08-progressive-vr:
     dependencies:
       '@hololand/audio':
-        specifier: file:../../packages/audio
-        version: link:../../packages/audio
-      '@hololand/devtools':
-        specifier: file:../../packages/devtools
-        version: link:../../packages/devtools
+        specifier: workspace:*
+        version: link:../../packages/platform/audio
       '@hololand/react-three':
-        specifier: file:../../packages/react-three
-        version: file:packages/react-three(@hololand/renderer@file:packages/renderer(@hololand/world@file:packages/world)(three@0.159.0))(@hololand/world@file:packages/world)(react@18.3.1)(three@0.159.0)
+        specifier: workspace:*
+        version: link:../../packages/adapters/react-three
       '@hololand/renderer':
-        specifier: file:../../packages/renderer
-        version: file:packages/renderer(@hololand/world@file:packages/world)(three@0.159.0)
+        specifier: workspace:*
+        version: link:../../packages/platform/renderer
       '@hololand/world':
-        specifier: file:../../packages/world
-        version: file:packages/world
+        specifier: workspace:*
+        version: link:../../packages/platform/world
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -204,13 +201,13 @@ importers:
     dependencies:
       '@hololand/network':
         specifier: workspace:*
-        version: link:../../packages/network
+        version: link:../../packages/platform/network
       '@hololand/social':
         specifier: workspace:*
-        version: link:../../packages/social
+        version: link:../../packages/platform/social
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/platform/ui
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -223,10 +220,10 @@ importers:
     dependencies:
       '@hololand/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/platform/core
       '@hololand/renderer':
         specifier: workspace:*
-        version: link:../../packages/renderer
+        version: link:../../packages/platform/renderer
       three:
         specifier: ^0.161.0
         version: 0.161.0
@@ -242,16 +239,16 @@ importers:
     dependencies:
       '@hololand/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/platform/core
       '@hololand/network':
         specifier: workspace:*
-        version: link:../../packages/network
+        version: link:../../packages/platform/network
       '@hololand/social':
         specifier: workspace:*
-        version: link:../../packages/social
+        version: link:../../packages/platform/social
       '@hololand/world':
         specifier: workspace:*
-        version: link:../../packages/world
+        version: link:../../packages/platform/world
     devDependencies:
       vite:
         specifier: ^5.0.8
@@ -261,13 +258,13 @@ importers:
     dependencies:
       '@hololand/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/platform/core
       '@hololand/network':
         specifier: workspace:*
-        version: link:../../packages/network
+        version: link:../../packages/platform/network
       '@hololand/social':
         specifier: workspace:*
-        version: link:../../packages/social
+        version: link:../../packages/platform/social
     devDependencies:
       vite:
         specifier: ^5.0.8
@@ -277,22 +274,22 @@ importers:
     dependencies:
       '@hololand/ar-anchors':
         specifier: workspace:*
-        version: link:../../packages/ar-anchors
+        version: link:../../packages/ar/anchors
       '@hololand/ar-detection':
         specifier: workspace:*
-        version: link:../../packages/ar-detection
+        version: link:../../packages/ar/detection
       '@hololand/ar-embeddings':
         specifier: workspace:*
-        version: link:../../packages/ar-embeddings
+        version: link:../../packages/ar/embeddings
       '@hololand/ar-renderer':
         specifier: workspace:*
-        version: link:../../packages/ar-renderer
+        version: link:../../packages/ar/renderer
       '@hololand/ar-tracking':
         specifier: workspace:*
-        version: link:../../packages/ar-tracking
+        version: link:../../packages/ar/tracking
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../../packages/logger
+        version: link:../../packages/platform/logger
     devDependencies:
       '@pixiv/three-vrm':
         specifier: ^2.0.0
@@ -317,16 +314,16 @@ importers:
     devDependencies:
       '@hololand/ai-bridge':
         specifier: workspace:*
-        version: link:../../packages/ai-bridge
+        version: link:../../packages/brittney/ai-bridge
       '@hololand/renderer':
         specifier: workspace:*
-        version: link:../../packages/renderer
+        version: link:../../packages/platform/renderer
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/platform/ui
       '@hololand/world':
         specifier: workspace:*
-        version: link:../../packages/world
+        version: link:../../packages/platform/world
       three:
         specifier: ^0.159.0
         version: 0.159.0
@@ -341,10 +338,10 @@ importers:
     dependencies:
       '@hololand/brittney-toolkit':
         specifier: workspace:*
-        version: link:../../packages/brittney-toolkit
+        version: link:../../packages/brittney/toolkit
       '@hololand/world':
         specifier: workspace:*
-        version: link:../../packages/world
+        version: link:../../packages/platform/world
       '@holoscript/core':
         specifier: link:../../../HoloScript/packages/core
         version: link:../../../HoloScript/packages/core
@@ -454,13 +451,13 @@ importers:
     dependencies:
       '@hololand/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/platform/core
       '@hololand/renderer':
         specifier: workspace:*
-        version: link:../../packages/renderer
+        version: link:../../packages/platform/renderer
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/platform/ui
       '@holoscript/core':
         specifier: link:../../../HoloScript/packages/core
         version: link:../../../HoloScript/packages/core
@@ -510,16 +507,16 @@ importers:
     dependencies:
       '@hololand/core':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/platform/core
       '@hololand/react-three':
         specifier: workspace:*
-        version: link:../../packages/react-three
+        version: link:../../packages/adapters/react-three
       '@hololand/renderer':
         specifier: workspace:*
-        version: link:../../packages/renderer
+        version: link:../../packages/platform/renderer
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/platform/ui
       '@react-three/drei':
         specifier: ^9.115.0
         version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0))(@types/react@18.3.27)(@types/three@0.170.0)(immer@11.1.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -555,42 +552,18 @@ importers:
         specifier: ^5.0.0
         version: 5.4.21(@types/node@22.19.6)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/ai-bridge:
+  packages/adapters/babylon:
     dependencies:
-      '@hololand/core':
-        specifier: ^1.0.0
-        version: link:../core
-      '@hololand/logger':
-        specifier: workspace:*
-        version: link:../logger
-      '@holoscript/cli':
-        specifier: link:../../../HoloScript/packages/cli
-        version: link:../../../HoloScript/packages/cli
       '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
     devDependencies:
-      '@types/node':
-        specifier: ^20.10.0
-        version: 20.19.29
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^6.13.0
-        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^6.13.0
-        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
-      eslint:
-        specifier: ^8.55.0
-        version: 8.57.1
-      eslint-config-prettier:
-        specifier: ^9.1.0
-        version: 9.1.2(eslint@8.57.1)
-      eslint-plugin-prettier:
-        specifier: ^5.0.1
-        version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@8.57.1))(eslint@8.57.1)(prettier@3.8.0)
-      prettier:
-        specifier: ^3.1.1
-        version: 3.8.0
+      '@babylonjs/core':
+        specifier: ^6.40.0
+        version: 6.49.0
+      '@babylonjs/loaders':
+        specifier: ^6.40.0
+        version: 6.49.0(@babylonjs/core@6.49.0)(babylonjs-gltf2interface@6.49.0)
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -598,14 +571,105 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
       vitest:
-        specifier: ^1.0.4
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        specifier: ^1.2.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/animation:
+  packages/adapters/playcanvas:
     dependencies:
       '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+    devDependencies:
+      playcanvas:
+        specifier: ^1.70.0
+        version: 1.77.0
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.2.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/adapters/react-three:
+    dependencies:
+      '@hololand/renderer':
+        specifier: ^1.0.0
+        version: link:../../platform/renderer
+      '@hololand/world':
+        specifier: ^1.0.0
+        version: link:../../platform/world
+      three:
+        specifier: ^0.159.0
+        version: 0.159.0
+    devDependencies:
+      '@types/react':
+        specifier: ^18.2.0
+        version: 18.3.27
+      '@types/three':
+        specifier: ^0.159.0
+        version: 0.159.0
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/adapters/three:
+    dependencies:
+      '@dimforge/rapier3d':
+        specifier: '>=0.11.0'
+        version: 0.19.3
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+    devDependencies:
+      '@types/three':
+        specifier: ^0.160.0
+        version: 0.160.0
+      jsdom:
+        specifier: ^24.0.0
+        version: 24.1.3(canvas@2.11.2)
+      three:
+        specifier: ^0.160.0
+        version: 0.160.1
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.2.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@24.1.3(canvas@2.11.2))(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/adapters/unity:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.2.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/adapters/vrchat:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -617,11 +681,11 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/ar-anchors:
+  packages/ar/anchors:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../../platform/logger
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0
@@ -639,11 +703,11 @@ importers:
         specifier: ^1.1.0
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/ar-detection:
+  packages/ar/detection:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../../platform/logger
       '@mediapipe/tasks-vision':
         specifier: ^0.10.14
         version: 0.10.21
@@ -664,11 +728,11 @@ importers:
         specifier: ^5.3.2
         version: 5.9.3
 
-  packages/ar-embeddings:
+  packages/ar/embeddings:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../../platform/logger
       '@tensorflow/tfjs':
         specifier: ^4.0.0
         version: 4.22.0(seedrandom@3.0.5)
@@ -686,23 +750,23 @@ importers:
         specifier: ^5.3.2
         version: 5.9.3
 
-  packages/ar-foundation:
+  packages/ar/foundation:
     dependencies:
       '@hololand/ar-anchors':
         specifier: workspace:*
-        version: link:../ar-anchors
+        version: link:../anchors
       '@hololand/ar-detection':
         specifier: workspace:*
-        version: link:../ar-detection
+        version: link:../detection
       '@hololand/ar-tracking':
         specifier: workspace:*
-        version: link:../ar-tracking
+        version: link:../tracking
       '@hololand/core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../../platform/core
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../../platform/logger
     devDependencies:
       '@types/node':
         specifier: ^20.10.6
@@ -717,11 +781,11 @@ importers:
         specifier: ^1.1.0
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/ar-renderer:
+  packages/ar/renderer:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../../platform/logger
       '@pixiv/three-vrm':
         specifier: ^2.0.0
         version: 2.1.3(@types/three@0.160.0)(three@0.160.1)
@@ -763,17 +827,17 @@ importers:
         specifier: ^1.0.4
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/ar-tracking:
+  packages/ar/tracking:
     dependencies:
       '@hololand/core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../../platform/core
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../../platform/logger
       '@hololand/network':
         specifier: workspace:*
-        version: link:../network
+        version: link:../../platform/network
     devDependencies:
       '@types/node':
         specifier: ^20.10.6
@@ -788,103 +852,81 @@ importers:
         specifier: ^1.1.0
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/audio:
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/auth:
+  packages/brittney/ai-bridge:
     dependencies:
+      '@hololand/core':
+        specifier: ^1.0.0
+        version: link:../../platform/core
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
-    devDependencies:
-      '@types/react':
-        specifier: ^18.2.0
-        version: 18.3.27
-      '@types/react-dom':
-        specifier: ^18.2.0
-        version: 18.3.7(@types/react@18.3.27)
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.2.0
-        version: 18.3.1(react@18.3.1)
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/babylon-adapter:
-    dependencies:
+        version: link:../../platform/logger
+      '@holoscript/cli':
+        specifier: link:../../../../HoloScript/packages/cli
+        version: link:../../../../HoloScript/packages/cli
       '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
     devDependencies:
-      '@babylonjs/core':
-        specifier: ^6.40.0
-        version: 6.49.0
-      '@babylonjs/loaders':
-        specifier: ^6.40.0
-        version: 6.49.0(@babylonjs/core@6.49.0)(babylonjs-gltf2interface@6.49.0)
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/backend:
-    dependencies:
-      '@supabase/supabase-js':
-        specifier: ^2.38.0
-        version: 2.91.0
-      express:
-        specifier: ^4.18.2
-        version: 4.22.1
-      next:
-        specifier: ^14.0.0
-        version: 14.2.35(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      nodemailer:
-        specifier: ^6.9.7
-        version: 6.10.1
-      stripe:
-        specifier: ^14.10.0
-        version: 14.25.0
-      zod:
-        specifier: ^3.22.4
-        version: 3.25.76
-    devDependencies:
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
       '@types/node':
         specifier: ^20.10.0
         version: 20.19.29
-      '@types/nodemailer':
-        specifier: ^6.4.14
-        version: 6.4.21
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^6.13.0
+        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^6.13.0
+        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.55.0
+        version: 8.57.1
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.2(eslint@8.57.1)
+      eslint-plugin-prettier:
+        specifier: ^5.0.1
+        version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@8.57.1))(eslint@8.57.1)(prettier@3.8.0)
+      prettier:
+        specifier: ^3.1.1
+        version: 3.8.0
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+      vitest:
+        specifier: ^1.0.4
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/brittney-service:
+  packages/brittney/mcp-server:
+    dependencies:
+      '@hololand/core':
+        specifier: workspace:*
+        version: link:../../platform/core
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.0
+        version: 1.25.2(hono@4.11.4)(zod@3.25.76)
+      axios:
+        specifier: ^1.7.9
+        version: 1.13.2(debug@4.4.3)
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.2
+        version: 22.19.6
+      tsx:
+        specifier: ^4.20.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.16
+        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/brittney/service:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.30.0
@@ -927,11 +969,11 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  packages/brittney-toolkit:
+  packages/brittney/toolkit:
     dependencies:
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../ui
+        version: link:../../platform/ui
       node-llama-cpp:
         specifier: ^3.15.0
         version: 3.15.0(typescript@5.9.3)
@@ -955,14 +997,14 @@ importers:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/builder:
+  packages/devtools/builder:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
-        version: link:../logger
+        version: link:../../platform/logger
       '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -974,63 +1016,7 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/commerce:
-    dependencies:
-      '@hololand/logger':
-        specifier: workspace:*
-        version: link:../logger
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/core:
-    dependencies:
-      '@hololand/ar-foundation':
-        specifier: workspace:*
-        version: link:../ar-foundation
-      '@hololand/logger':
-        specifier: workspace:*
-        version: link:../logger
-      '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
-    devDependencies:
-      '@types/node':
-        specifier: ^20.10.0
-        version: 20.19.29
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^6.13.0
-        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
-      '@typescript-eslint/parser':
-        specifier: ^6.13.0
-        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
-      eslint:
-        specifier: ^8.55.0
-        version: 8.57.1
-      eslint-config-prettier:
-        specifier: ^9.1.0
-        version: 9.1.2(eslint@8.57.1)
-      eslint-plugin-prettier:
-        specifier: ^5.0.1
-        version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@8.57.1))(eslint@8.57.1)(prettier@3.8.0)
-      prettier:
-        specifier: ^3.1.1
-        version: 3.8.0
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.0.4
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/creator-tools:
+  packages/devtools/creator-tools:
     dependencies:
       react:
         specifier: ^18.0.0
@@ -1079,19 +1065,7 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/devtools:
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/devtools-extension:
+  packages/devtools/extension:
     devDependencies:
       '@types/chrome':
         specifier: ^0.0.260
@@ -1133,128 +1107,23 @@ importers:
         specifier: ^5.1.4
         version: 5.1.4(webpack@5.104.1)
 
-  packages/holofilter:
-    dependencies:
-      '@hololand/ar-detection':
-        specifier: workspace:*
-        version: link:../ar-detection
-      '@hololand/ar-embeddings':
-        specifier: workspace:*
-        version: link:../ar-embeddings
-      '@hololand/logger':
-        specifier: workspace:*
-        version: link:../logger
-      '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
-      three:
-        specifier: '>=0.160.0'
-        version: 0.170.0
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/library: {}
-
-  packages/logger:
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/mcp-server:
-    dependencies:
-      '@hololand/core':
-        specifier: workspace:*
-        version: link:../core
-      '@modelcontextprotocol/sdk':
-        specifier: ^1.0.0
-        version: 1.25.2(hono@4.11.4)(zod@3.25.76)
-      axios:
-        specifier: ^1.7.9
-        version: 1.13.2(debug@4.4.3)
-      zod:
-        specifier: ^3.24.1
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^22.13.2
-        version: 22.19.6
-      tsx:
-        specifier: ^4.20.0
-        version: 4.21.0
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.0.16
-        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
-
-  packages/network:
-    dependencies:
-      '@hololand/logger':
-        specifier: workspace:*
-        version: link:../logger
-      '@hololand/social':
-        specifier: workspace:*
-        version: link:../social
-      '@hololand/world':
-        specifier: workspace:*
-        version: link:../world
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/playcanvas-adapter:
-    dependencies:
-      '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
-    devDependencies:
-      playcanvas:
-        specifier: ^1.70.0
-        version: 1.77.0
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/playground:
+  packages/devtools/playground:
     dependencies:
       '@hololand/brittney-toolkit':
         specifier: workspace:*
-        version: link:../brittney-toolkit
+        version: link:../../brittney/toolkit
       '@hololand/core':
         specifier: workspace:*
-        version: link:../core
+        version: link:../../platform/core
       '@hololand/mcp-server':
         specifier: workspace:*
-        version: link:../mcp-server
+        version: link:../../brittney/mcp-server
       '@hololand/renderer':
         specifier: workspace:*
-        version: link:../renderer
+        version: link:../../platform/renderer
       '@hololand/ui':
         specifier: workspace:*
-        version: link:../ui
+        version: link:../../platform/ui
       '@react-three/drei':
         specifier: ^9.100.0
         version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.160.1))(@types/react@18.3.27)(@types/three@0.160.0)(immer@11.1.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.160.1)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -1326,27 +1195,68 @@ importers:
         specifier: ^1.0.4
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/react-three:
+  packages/devtools/vscode:
     dependencies:
-      '@hololand/renderer':
+      vscode-languageclient:
+        specifier: ^9.0.1
+        version: 9.0.1
+    devDependencies:
+      '@types/vscode':
+        specifier: ^1.80.0
+        version: 1.108.1
+      '@vscode/vsce':
+        specifier: ^2.22.0
+        version: 2.32.0
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/platform/animation:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
         specifier: ^1.0.0
-        version: link:../renderer
-      '@hololand/world':
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/audio:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
         specifier: ^1.0.0
-        version: link:../world
-      three:
-        specifier: ^0.159.0
-        version: 0.159.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/auth:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       '@types/react':
         specifier: ^18.2.0
         version: 18.3.27
-      '@types/three':
-        specifier: ^0.159.0
-        version: 0.159.0
+      '@types/react-dom':
+        specifier: ^18.2.0
+        version: 18.3.7(@types/react@18.3.27)
       react:
         specifier: ^18.2.0
         version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
@@ -1354,7 +1264,158 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/renderer:
+  packages/platform/backend:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.38.0
+        version: 2.91.0
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      next:
+        specifier: ^14.0.0
+        version: 14.2.35(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      nodemailer:
+        specifier: ^6.9.7
+        version: 6.10.1
+      stripe:
+        specifier: ^14.10.0
+        version: 14.25.0
+      zod:
+        specifier: ^3.22.4
+        version: 3.25.76
+    devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.29
+      '@types/nodemailer':
+        specifier: ^6.4.14
+        version: 6.4.21
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/platform/commerce:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/platform/core:
+    dependencies:
+      '@hololand/ar-foundation':
+        specifier: workspace:*
+        version: link:../../ar/foundation
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.29
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^6.13.0
+        version: 6.21.0(@typescript-eslint/parser@6.21.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
+      '@typescript-eslint/parser':
+        specifier: ^6.13.0
+        version: 6.21.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint:
+        specifier: ^8.55.0
+        version: 8.57.1
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.2(eslint@8.57.1)
+      eslint-plugin-prettier:
+        specifier: ^5.0.1
+        version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@9.1.2(eslint@8.57.1))(eslint@8.57.1)(prettier@3.8.0)
+      prettier:
+        specifier: ^3.1.1
+        version: 3.8.0
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.4
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/holofilter:
+    dependencies:
+      '@hololand/ar-detection':
+        specifier: workspace:*
+        version: link:../../ar/detection
+      '@hololand/ar-embeddings':
+        specifier: workspace:*
+        version: link:../../ar/embeddings
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+      three:
+        specifier: '>=0.160.0'
+        version: 0.182.0
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/library: {}
+
+  packages/platform/logger:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/platform/network:
+    dependencies:
+      '@hololand/logger':
+        specifier: workspace:*
+        version: link:../logger
+      '@hololand/social':
+        specifier: workspace:*
+        version: link:../social
+      '@hololand/world':
+        specifier: workspace:*
+        version: link:../world
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/platform/renderer:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
@@ -1376,7 +1437,7 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  packages/social:
+  packages/platform/social:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
@@ -1413,7 +1474,7 @@ importers:
         specifier: ^1.0.4
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/spatial:
+  packages/platform/spatial:
     dependencies:
       '@hololand/core':
         specifier: workspace:*
@@ -1423,7 +1484,7 @@ importers:
         version: link:../logger
       three:
         specifier: '>=0.160.0'
-        version: 0.170.0
+        version: 0.182.0
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -1432,35 +1493,7 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/three-adapter:
-    dependencies:
-      '@dimforge/rapier3d':
-        specifier: '>=0.11.0'
-        version: 0.19.3
-      '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
-    devDependencies:
-      '@types/three':
-        specifier: ^0.160.0
-        version: 0.160.0
-      jsdom:
-        specifier: ^24.0.0
-        version: 24.1.3(canvas@2.11.2)
-      three:
-        specifier: ^0.160.0
-        version: 0.160.1
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@24.1.3(canvas@2.11.2))(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/ui:
+  packages/platform/ui:
     dependencies:
       three:
         specifier: ^0.159.0
@@ -1479,62 +1512,14 @@ importers:
         specifier: ^1.1.0
         version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
-  packages/unity-adapter:
-    dependencies:
-      '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/vrchat-export:
-    dependencies:
-      '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
-    devDependencies:
-      tsup:
-        specifier: ^8.0.1
-        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
-
-  packages/vscode-holoscript:
-    dependencies:
-      vscode-languageclient:
-        specifier: ^9.0.1
-        version: 9.0.1
-    devDependencies:
-      '@types/vscode':
-        specifier: ^1.80.0
-        version: 1.108.1
-      '@vscode/vsce':
-        specifier: ^2.22.0
-        version: 2.32.0
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-
-  packages/world:
+  packages/platform/world:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
         version: link:../logger
       '@holoscript/core':
-        specifier: link:../../../HoloScript/packages/core
-        version: link:../../../HoloScript/packages/core
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -2565,26 +2550,6 @@ packages:
     peerDependencies:
       '@fortawesome/fontawesome-svg-core': ~1 || ~6
       react: '>=16.3'
-
-  '@hololand/react-three@file:packages/react-three':
-    resolution: {directory: packages/react-three, type: directory}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      '@hololand/renderer': ^1.0.0
-      '@hololand/world': ^1.0.0
-      react: ^18.0.0
-      three: ^0.159.0
-
-  '@hololand/renderer@file:packages/renderer':
-    resolution: {directory: packages/renderer, type: directory}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      '@hololand/world': ^1.0.0
-      three: ^0.159.0
-
-  '@hololand/world@file:packages/world':
-    resolution: {directory: packages/world, type: directory}
-    engines: {node: '>=18.0.0'}
 
   '@hono/node-server@1.19.9':
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
@@ -5654,9 +5619,6 @@ packages:
   event-target-shim@5.0.1:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
     engines: {node: '>=6'}
-
-  eventemitter3@5.0.1:
-    resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
 
   eventemitter3@5.0.4:
     resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
@@ -10036,24 +9998,6 @@ snapshots:
       prop-types: 15.8.1
       react: 18.3.1
 
-  '@hololand/react-three@file:packages/react-three(@hololand/renderer@file:packages/renderer(@hololand/world@file:packages/world)(three@0.159.0))(@hololand/world@file:packages/world)(react@18.3.1)(three@0.159.0)':
-    dependencies:
-      '@hololand/renderer': file:packages/renderer(@hololand/world@file:packages/world)(three@0.159.0)
-      '@hololand/world': file:packages/world
-      react: 18.3.1
-      three: 0.159.0
-
-  '@hololand/renderer@file:packages/renderer(@hololand/world@file:packages/world)(three@0.159.0)':
-    dependencies:
-      '@hololand/logger': link:packages/logger
-      '@hololand/world': file:packages/world
-      three: 0.159.0
-
-  '@hololand/world@file:packages/world':
-    dependencies:
-      '@hololand/logger': link:packages/logger
-      '@holoscript/core': link:../HoloScript/packages/core
-
   '@hono/node-server@1.19.9(hono@4.11.4)':
     dependencies:
       hono: 4.11.4
@@ -12213,7 +12157,7 @@ snapshots:
       pathe: 1.1.2
       picocolors: 1.1.1
       sirv: 2.0.4
-      vitest: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+      vitest: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
   '@vitest/utils@1.6.1':
     dependencies:
@@ -13810,8 +13754,6 @@ snapshots:
 
   event-target-shim@5.0.1: {}
 
-  eventemitter3@5.0.1: {}
-
   eventemitter3@5.0.4: {}
 
   events@3.3.0: {}
@@ -14431,7 +14373,7 @@ snapshots:
       ci-info: 4.3.1
       cli-spinners: 2.9.2
       commander: 10.0.1
-      eventemitter3: 5.0.1
+      eventemitter3: 5.0.4
       filenamify: 6.0.0
       fs-extra: 11.3.3
       is-unicode-supported: 2.1.0

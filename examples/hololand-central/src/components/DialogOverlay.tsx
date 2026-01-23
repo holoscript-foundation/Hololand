@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DialogManager, DialogNode } from '../../../../packages/world/src/index';
+import { DialogManager, DialogNode } from '@hololand/world';
 
 interface DialogOverlayProps {
     manager: DialogManager;

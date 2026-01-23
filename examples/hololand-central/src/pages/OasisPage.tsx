@@ -5,7 +5,7 @@ import { OrbitControls } from '@react-three/drei';
 import { HoloScriptRenderer } from '../components/HoloScriptRenderer';
 
 import { DialogOverlay } from '../components/DialogOverlay';
-import { DialogManager } from '../../../../packages/world/src/index';
+import { DialogManager } from '@hololand/world';
 
 export function OasisPage() {
   const navigate = useNavigate();

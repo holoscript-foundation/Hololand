@@ -23,7 +23,7 @@ import {
   NPCTrait, 
   DialogManager, 
   HoloScriptLoader 
-} from '../../../../packages/world/src/index';
+} from '@hololand/world';
 
 // --- Static Helpers Moved to AssetRegistry ---
 const assetRegistry = AssetRegistry.getInstance();
