@@ -2,7 +2,9 @@
 
 **Vision: Build the Open Metaverse - A Ready Player One Universe Intersecting VR and AR**
 
-Hololand is building the **Three Plains of Reality** - a universal platform where developers and creators can build experiences across pure VR, VR Real World, and AR Real World. This roadmap outlines our journey to the world's most accessible metaverse platform.
+Hololand is the **VR/AR platform** built on [HoloScript](https://github.com/brianonbased-dev/HoloScript). This roadmap covers platform features, adapters, and ecosystem.
+
+> 📦 **Language roadmap** (parser, formatter, linter) is in the [HoloScript repo](https://github.com/brianonbased-dev/HoloScript/blob/master/ROADMAP.md).
 
 ---
 
@@ -189,6 +191,8 @@ create canvas with mode "hybrid"
 
 **Status**: Local-First Strategy - Building Foundation
 
+> 📦 **January 2026 Update**: Repository reorganization complete. HoloScript (language) is now a [separate repo](https://github.com/brianonbased-dev/HoloScript). This repo focuses on the platform (adapters, Brittney AI, apps).
+
 **Goal**: Enable real-time multiplayer starting with local/private networks, then scaling to public.
 
 ### Strategy: Local-First, Zero Server Cost
@@ -280,9 +284,11 @@ Phase 3A (Current)         Phase 3B                Phase 3C (Future)
 
 **Status**: Released v2.0.0
 
+> ⚠️ **Note**: Developer tools have moved to the [HoloScript repo](https://github.com/brianonbased-dev/HoloScript) as of January 2026.
+
 **Goal**: Professional developer tooling for HoloScript development.
 
-### New Packages
+### New Packages (Now in HoloScript Repo)
 
 #### @hololand/holoscript-formatter v2.0.0 ✅
 - [x] **Code formatting** - Consistent style enforcement
@@ -732,6 +738,7 @@ We're building the open metaverse together:
 - ✅ **Q4 2025**: v1.0.0 - Foundation (core, renderer, world, react-three)
 - ✅ **Q1 2026**: v1.1.0 - Universal rendering (2D/hybrid modes)
 - ✅ **Q1 2026**: v2.0.0 - Developer tools (formatter, linter, LSP)
+- ✅ **Q1 2026**: Repository reorganization - HoloScript language now in [separate repo](https://github.com/brianonbased-dev/HoloScript)
 
 ### In Progress
 - 🔄 **Q1-Q2 2026**: v1.2.0 - Local-first networking (P2P, ngrok tunnels, social features)
