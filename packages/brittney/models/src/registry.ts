@@ -57,7 +57,7 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
     version: '1.0.0',
     size: '1.57 GB',
     sizeBytes: 1_646_572_544,
-    checksum: 'sha256:pending-release', // Updated on release
+    checksum: 'sha256:51251b84ebdedf7959b3ad8172c12caed69f881e1793c90cab91a8e977a3e4ea',
     downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-expert.gguf`,
     license: 'MIT',
     features: [
