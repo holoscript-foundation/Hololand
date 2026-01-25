@@ -7,6 +7,11 @@ packages:
   - packages/devtools/*
   - packages/shared/*
   - examples/*
+  # Proprietary packages (excluded from public repo):
+  # - packages/adapters/unity
+  # - packages/adapters/vrchat
+  # - packages/platform/backend
+  # - packages/platform/commerce
 
 ignoredBuiltDependencies:
   - core-js

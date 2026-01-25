@@ -23,7 +23,7 @@
 | Package | What It Does | Status |
 |---------|--------------|--------|
 | [@hololand/builder](./packages/builder) | Drag-drop world creation | ✅ Ready |
-| [@hololand/commerce](./packages/commerce) | Shops & payments | ✅ Ready |
+| @hololand/commerce | Shops & payments | 🔒 Proprietary |
 | [@hololand/social](./packages/social) | Friends & avatars | ✅ Ready |
 | [@hololand/network](./packages/network) | Multiplayer | ✅ Ready |
 | [@hololand/audio](./packages/audio) | 3D sound | ✅ Ready |
@@ -63,8 +63,8 @@
 | [@hololand/babylon-adapter](./packages/babylon-adapter) | Babylon.js 3D world | ✅ Ready |
 | [@hololand/three-adapter](./packages/three-adapter) | Three.js 3D world + physics | ✅ Ready |
 | [@hololand/playcanvas-adapter](./packages/playcanvas-adapter) | PlayCanvas 3D world | ✅ Ready |
-| [@hololand/unity-adapter](./packages/unity-adapter) | Unity C# + XR export | ✅ Ready |
-| [@hololand/vrchat-export](./packages/vrchat-export) | VRChat/UdonSharp export | 🟡 Alpha |
+| @hololand/unity-adapter | Unity C# + XR export | 🔒 Proprietary |
+| @hololand/vrchat-export | VRChat/UdonSharp export | 🔒 Proprietary |
 | [@hololand/creator-tools](./packages/creator-tools) | Visual editors | ✅ Ready |
 
 ### AI & Brittney
@@ -93,7 +93,7 @@
 | Package | What It Does | Status |
 |---------|--------------|--------|
 | [@hololand/frontend](./packages/frontend) | Web dashboard | ✅ Ready |
-| [@hololand/backend](./packages/backend) | API server | ✅ Ready |
+| @hololand/backend | API server | 🔒 Proprietary |
 | [@hololand/playground](./packages/playground) | Browser IDE | ✅ Ready |
 
 ---
@@ -151,7 +151,8 @@ Your App
 
 ## 📊 Quick Stats
 
-- **38 packages** in Hololand platform repo
+- **34 packages** in Hololand platform repo (public)
+- **4 packages** proprietary (available via enterprise license)
 - **14 packages** in HoloScript language repo
 - **All building** ✅
 - **All tested** ✅
@@ -162,7 +163,7 @@ Your App
 
 | Repo | Purpose | Packages |
 |------|---------|----------|
-| **Hololand** | VR/AR platform, adapters, Brittney AI | 38 |
+| **Hololand** | VR/AR platform, adapters, Brittney AI | 34 (open) + 4 (proprietary) |
 | **HoloScript** | Language, parser, dev tools | 14 |
    - "Create a coffee shop with a counter" → Full 3D scene
    - "Build a VR office with 4 desks" → Rendered in Three.js

@@ -107,7 +107,27 @@ Hololand Central and platform features are source-available but have commercial 
 
 ---
 
-### 4. Official Hosting (Proprietary)
+### 4. Proprietary Components (Not in Public Repository)
+
+**Closed Source - Commercial Building Blocks**
+
+The following packages are developed privately and not included in the public repository:
+
+**Platform Backend & Commerce:**
+- `@hololand/backend` - Server architecture, API middleware, webhooks, database services
+- `@hololand/commerce` - Shop system, marketplace, payment processing, advanced commerce
+
+**Game Engine Adapters:**
+- `@hololand/unity-adapter` - Unity C# export, XR integration
+- `@hololand/vrchat-export` - VRChat/UdonSharp generation, prefab export
+
+These represent our competitive differentiation and are available through:
+- **Enterprise License** - Full source access and support
+- **Partnership Program** - Co-development and integration
+
+---
+
+### 5. Official Hosting (Proprietary)
 
 **Closed Source - Commercial Service**
 
@@ -180,6 +200,8 @@ This model balances several goals:
 | HoloScript | MIT | ✅ Unlimited | ✅ Yes | ✅ Yes | ✅ Yes |
 | Core Packages | MIT | ✅ Unlimited | ✅ Yes | ✅ Yes | ✅ Yes |
 | Platform Code | Elastic 2.0 | ⚠️ Internal Only | ✅ Yes | ❌ No | ⚠️ Yes* |
+| Backend/Commerce | Proprietary | 💰 Enterprise | ❌ No | ❌ No | ❌ No |
+| Unity/VRChat | Proprietary | 💰 Enterprise | ❌ No | ❌ No | ❌ No |
 | Official Hosting | Proprietary | 💰 Paid License | ❌ No | ❌ No | ❌ No |
 
 *Can fork but cannot offer as a commercial service
