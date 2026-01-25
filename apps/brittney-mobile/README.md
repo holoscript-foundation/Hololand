@@ -1,6 +1,25 @@
 # Brittney AI Mobile
 
-Mobile app for iOS and Android, powered by Capacitor.
+**V1 Expert - Best Quality, Free Forever** 🎉
+
+Brittney AI powers the **Hololand Central** mobile experience - your local-first AI assistant for HoloScript world building on iOS and Android. Part of the 3-layer Hololand architecture.
+
+## 🏗️ 3-Layer Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  UI LAYER                               │
+│  Touch interface, gestures, overlays    │
+├─────────────────────────────────────────┤
+│  WORLD LAYER                            │
+│  3D AR/VR content, HoloScript scenes    │
+├─────────────────────────────────────────┤
+│  BACKGROUND LAYER                       │
+│  Brittney AI inference (WASM/Cloud)     │
+└─────────────────────────────────────────┘
+```
+
+Brittney runs in the **Background Layer**, providing AI assistance while users build and explore worlds in the **World Layer**, all controlled via the **UI Layer**.
 
 ## Features
 
@@ -82,4 +101,14 @@ App icons and splash screens should be added to both platforms.
 
 ## License
 
-MIT
+**Brittney AI License** - Free for local use, education, research, and game development.
+
+| ✅ Permitted | ❌ Prohibited |
+|-------------|--------------|
+| Local/offline use | Hosting as API service |
+| Schools & education | Reverse engineering |
+| Research projects | Weight extraction |
+| Game development | Model distillation |
+| Mobile apps | Commercial API hosting |
+
+See [LICENSE.md](../../packages/brittney/models/LICENSE.md) for full terms.

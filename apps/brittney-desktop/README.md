@@ -2,7 +2,24 @@
 
 **V1 Expert - Best Quality, Free Forever** 🎉
 
-Local-first AI assistant for HoloScript world building, packaged as a desktop application with Tauri.
+Brittney AI powers the **Hololand Central** desktop experience - your local-first AI assistant for HoloScript world building. Part of the 3-layer Hololand architecture.
+
+## 🏗️ 3-Layer Architecture
+
+```
+┌─────────────────────────────────────────┐
+│  UI LAYER                               │
+│  Chat interface, menus, overlays        │
+├─────────────────────────────────────────┤
+│  WORLD LAYER                            │
+│  3D VR/AR content, HoloScript scenes    │
+├─────────────────────────────────────────┤
+│  BACKGROUND LAYER                       │
+│  Brittney AI inference (local GGUF)     │
+└─────────────────────────────────────────┘
+```
+
+Brittney runs in the **Background Layer**, providing AI assistance while users build and explore worlds in the **World Layer**, all controlled via the **UI Layer**.
 
 ## Features
 
@@ -136,7 +153,12 @@ pnpm tauri:build
 
 ## License
 
-MIT License - Free for personal and commercial use.
+**Brittney AI License** - Free for personal, educational, research, and game development use.
+
+- ✅ Run locally, build games, use in schools/research
+- ❌ No API hosting, no reverse engineering
+
+See [LICENSE.md](../../packages/brittney/models/LICENSE.md) for full terms.
 
 ## Links
 

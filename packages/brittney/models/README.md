@@ -8,9 +8,9 @@ Official model registry and download utilities for Brittney AI.
 
 | Model | Size | Features | License |
 |-------|------|----------|---------|
-| `v1-free` (Expert) | 1.57 GB | Full expert quality, best-in-class | MIT |
-| `v1-q4` | ~0.9 GB | Quantized, mobile-friendly | MIT |
-| `v1-q8` | ~1.2 GB | Better quality quantization | MIT |
+| `v1-free` (Expert) | 1.57 GB | Full expert quality, best-in-class | Brittney AI License |
+| `v1-q4` | ~0.9 GB | Quantized, mobile-friendly | Brittney AI License |
+| `v1-q8` | ~1.2 GB | Better quality quantization | Brittney AI License |
 
 ## Quick Start
 
@@ -118,7 +118,21 @@ pnpm verify --model v1-free --file ./models/brittney-v1-free.gguf
 
 ## License
 
-MIT License - Free for personal and commercial use.
+**Brittney AI License** - Free for personal, educational, research, and game development use.
+
+### Permitted
+- ✅ Personal/local use
+- ✅ Schools & universities
+- ✅ Research projects
+- ✅ Game development
+- ✅ Desktop/mobile apps
+
+### Prohibited
+- ❌ Hosting as API service
+- ❌ Reverse engineering
+- ❌ Weight extraction/distillation
+
+See [LICENSE.md](LICENSE.md) for full terms.
 
 The V1 Expert model is trained for:
 - HoloScript syntax and semantics (expert level)
