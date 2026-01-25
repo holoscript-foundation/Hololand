@@ -1,218 +1,430 @@
-// Playground built WITH HoloScript
 composition "HoloScript Playground" {
-  
   environment {
-    theme: "developer-dark"
-    ambient_light: 0.4
     grid: true
+    theme: "developer-dark"
   }
-  
-  state {
-    current_code: ""
-    selected_entity: null
-    errors: []
-    is_brittney_open: true
-    fps: 60
+
+  // ============================================
+  // BRIAN HUMANOIDS - Procedural Skeleton Animation
+  // 
+  // Since the GLB files have skeletons but NO embedded animations,
+  // the runtime uses procedural animation to move the bones directly.
+  // 
+  // Animation types: idle, flexing, boxing, situps, bicycleCrunch, wave, dance
+  // ============================================
+
+  object "Brian_Flexing" {
+    type: "model"
+    model: "models/Brian_Flexing.glb"
+    position: [3, 0, 3]
+    scale: [1.5, 1.5, 1.5]
+    skeleton: "humanoid"
+    animation: "flexing"
   }
-  
-  // ═══════════════════════════════════════════════════════════
-  // LAYOUT - Three-panel IDE
-  // ═══════════════════════════════════════════════════════════
-  
-  spatial_group "IDE_Layout" {
-    
-    // Left Panel: Scene Inspector
-    object "InspectorPanel" {
-      position: [-4, 1.5, -2]
-      size: [2, 3]
-      material: "glass-dark"
-      
-      object "EntityTree" {
-        position: [0, 0.5, 0.01]
-        type: "ui-list"
-        data_source: "scene.entities"
-        on_select: { state.selected_entity = event.entity }
-      }
-      
-      object "PropertyEditor" {
-        position: [0, -0.5, 0.01]
-        type: "ui-properties"
-        target: state.selected_entity
-      }
-    }
-    
-    // Center: Code Editor + Live Preview
-    spatial_group "CenterArea" {
-      
-      object "CodeEditor" {
-        position: [0, 2, -2]
-        size: [4, 2]
-        type: "monaco-editor"
-        language: "holo"
-        value: state.current_code
-        on_change: { 
-          state.current_code = event.value
-          parse_and_render(event.value)
-        }
-      }
-      
-      object "LivePreview" {
-        position: [0, 0, 0]
-        size: [4, 2]
-        type: "3d-viewport"
-        render_source: state.current_code
-        show_grid: true
-        show_axes: true
-      }
-      
-      object "ErrorBar" {
-        position: [0, -1.2, -2]
-        size: [4, 0.3]
-        type: "ui-error-list"
-        errors: state.errors
-        color: "#ff4444"
-      }
-    }
-    
-    // Right Panel: Brittney AI
-    object "BrittneyPanel" {
-      position: [4, 1.5, -2]
-      size: [2, 3]
-      material: "glass-dark"
-      visible: state.is_brittney_open
-      
-      object "ChatHistory" {
-        position: [0, 0.3, 0.01]
-        size: [1.8, 2]
-        type: "ui-chat"
-      }
-      
-      object "ChatInput" {
-        position: [0, -1.2, 0.01]
-        size: [1.8, 0.4]
-        type: "ui-input"
-        placeholder: "Ask Brittney..."
-        on_submit: { brittney_generate(event.value) }
-      }
-      
-      object "InjectButton" {
-        position: [0.7, -1.2, 0.01]
-        size: [0.3, 0.4]
-        type: "ui-button"
-        label: "⚡"
-        on_click: { inject_to_scene(brittney.last_code) }
-      }
-    }
+
+  object "Brian_Boxing" {
+    type: "model"
+    model: "models/Brian_Boxing.glb"
+    position: [-3, 0, 3]
+    scale: [1.5, 1.5, 1.5]
+    skeleton: "humanoid"
+    animation: "boxing"
   }
-  
-  // ═══════════════════════════════════════════════════════════
-  // TOOLBAR
-  // ═══════════════════════════════════════════════════════════
-  
-  spatial_group "Toolbar" {
-    position: [0, 4, -2]
-    
-    object "RunButton" {
-      position: [-1.5, 0, 0]
-      type: "ui-button"
-      label: "▶ Run"
-      color: "#00ff88"
-      on_click: { execute_holoscript(state.current_code) }
-    }
-    
-    object "FormatButton" {
-      position: [-0.5, 0, 0]
-      type: "ui-button"
-      label: "Format"
-      on_click: { state.current_code = format_holoscript(state.current_code) }
-    }
-    
-    object "LintButton" {
-      position: [0.5, 0, 0]
-      type: "ui-button"
-      label: "Lint"
-      on_click: { state.errors = lint_holoscript(state.current_code) }
-    }
-    
-    object "SaveButton" {
-      position: [1.5, 0, 0]
-      type: "ui-button"
-      label: "💾 Save"
-      on_click: { save_to_file(state.current_code) }
-    }
+
+  object "Brian_Situps" {
+    type: "model"
+    model: "models/Brian_Situps.glb"
+    position: [3, 0, -3]
+    scale: [1.5, 1.5, 1.5]
+    skeleton: "humanoid"
+    animation: "situps"
   }
-  
-  // ═══════════════════════════════════════════════════════════
-  // LOGIC
-  // ═══════════════════════════════════════════════════════════
-  
-  logic {
-    
-    // Parse code on change (debounced)
-    action parse_and_render(code) {
-      state.errors = []
-      result = parse_holo(code)
-      
-      if result.success {
-        render_to_preview("LivePreview", result.ast)
-      } else {
-        state.errors = result.errors
-      }
-    }
-    
-    // Brittney AI generation
-    async action brittney_generate(prompt) {
-      response = await brittney.chat({
-        message: prompt,
-        context: {
-          current_code: state.current_code,
-          scene_entities: get_entities()
-        }
-      })
-      
-      if response.holoscript {
-        brittney.last_code = response.holoscript
-      }
-    }
-    
-    // Inject AI-generated code
-    action inject_to_scene(code) {
-      state.current_code = state.current_code + "\n\n" + code
-      parse_and_render(state.current_code)
-    }
-    
-    // Format using @holoscript/formatter
-    action format_holoscript(code) {
-      return holoscript.format(code, { indent: 2 })
-    }
-    
-    // Lint using @holoscript/linter
-    action lint_holoscript(code) {
-      return holoscript.lint(code)
-    }
-    
-    // Execute in runtime
-    action execute_holoscript(code) {
-      runtime = holoscript.createRuntime()
-      runtime.execute(code)
-    }
-    
-    // Keyboard shortcuts
-    on_keydown(event) {
-      if event.ctrl && event.key == "s" {
-        save_to_file(state.current_code)
-      }
-      if event.ctrl && event.key == "Enter" {
-        execute_holoscript(state.current_code)
-      }
-      if event.ctrl && event.shift && event.key == "f" {
-        state.current_code = format_holoscript(state.current_code)
-      }
-    }
-    
-    // Performance monitoring
-    on_frame {
-      state.fps = get_fps()
-    }
+
+  object "Brian_BicycleCrunch" {
+    type: "model"
+    model: "models/Brian_BicycleCrunch.glb"
+    position: [-3, 0, -3]
+    scale: [1.5, 1.5, 1.5]
+    skeleton: "humanoid"
+    animation: "bicycleCrunch"
+  }
+
+  // ============================================
+  // ORIGINAL CHIPMUNK - Simple design
+  // ============================================
+
+  object "Chipmunk_Body" {
+    type: "sphere"
+    position: [0, 0.8, 5]
+    scale: [0.6, 0.7, 0.5]
+    color: "#8B4513"
+  }
+
+  object "Chipmunk_Head" {
+    type: "sphere"
+    position: [0, 1.5, 5.3]
+    scale: [0.4, 0.4, 0.35]
+    color: "#A0522D"
+  }
+
+  object "Chipmunk_Nose" {
+    type: "sphere"
+    position: [0, 1.45, 5.6]
+    scale: [0.08, 0.08, 0.1]
+    color: "#2F1810"
+  }
+
+  object "Chipmunk_Eye_Left" {
+    type: "sphere"
+    position: [-0.12, 1.55, 5.55]
+    scale: [0.08, 0.08, 0.08]
+    color: "#000000"
+  }
+
+  object "Chipmunk_Eye_Right" {
+    type: "sphere"
+    position: [0.12, 1.55, 5.55]
+    scale: [0.08, 0.08, 0.08]
+    color: "#000000"
+  }
+
+  // ============================================
+  // REALISTIC CHIPMUNK - Detailed version (x=5)
+  // ============================================
+
+  object "Realistic_Chipmunk_Stump" {
+    type: "cylinder"
+    position: [5, 0.3, 5]
+    scale: [0.6, 0.6, 0.6]
+    color: "#5D4037"
+  }
+
+  object "Realistic_Chipmunk_Stump_Top" {
+    type: "cylinder"
+    position: [5, 0.65, 5]
+    scale: [0.7, 0.1, 0.7]
+    color: "#795548"
+  }
+
+  object "Realistic_Chipmunk_Body" {
+    type: "sphere"
+    position: [5, 1.0, 5]
+    scale: [0.35, 0.4, 0.5]
+    color: "#8B4513"
+  }
+
+  object "Realistic_Chipmunk_Stripe1" {
+    type: "box"
+    position: [5, 1.05, 5]
+    scale: [0.05, 0.05, 0.45]
+    color: "#FFF8DC"
+  }
+
+  object "Realistic_Chipmunk_Stripe_L" {
+    type: "box"
+    position: [4.88, 1.0, 5]
+    scale: [0.03, 0.04, 0.4]
+    color: "#3E2723"
+  }
+
+  object "Realistic_Chipmunk_Stripe_R" {
+    type: "box"
+    position: [5.12, 1.0, 5]
+    scale: [0.03, 0.04, 0.4]
+    color: "#3E2723"
+  }
+
+  object "Realistic_Chipmunk_Head" {
+    type: "sphere"
+    position: [5, 1.35, 5.35]
+    scale: [0.3, 0.28, 0.28]
+    color: "#A0522D"
+  }
+
+  object "Realistic_Chipmunk_Cheek_L" {
+    type: "sphere"
+    position: [4.85, 1.3, 5.45]
+    scale: [0.12, 0.1, 0.1]
+    color: "#D2B48C"
+  }
+
+  object "Realistic_Chipmunk_Cheek_R" {
+    type: "sphere"
+    position: [5.15, 1.3, 5.45]
+    scale: [0.12, 0.1, 0.1]
+    color: "#D2B48C"
+  }
+
+  object "Realistic_Chipmunk_Nose" {
+    type: "sphere"
+    position: [5, 1.32, 5.58]
+    scale: [0.05, 0.04, 0.05]
+    color: "#2F1810"
+  }
+
+  object "Realistic_Chipmunk_Eye_L" {
+    type: "sphere"
+    position: [4.9, 1.4, 5.52]
+    scale: [0.07, 0.07, 0.04]
+    color: "#000000"
+  }
+
+  object "Realistic_Chipmunk_Eye_R" {
+    type: "sphere"
+    position: [5.1, 1.4, 5.52]
+    scale: [0.07, 0.07, 0.04]
+    color: "#000000"
+  }
+
+  object "Realistic_Chipmunk_Eye_Highlight_L" {
+    type: "sphere"
+    position: [4.92, 1.42, 5.54]
+    scale: [0.02, 0.02, 0.01]
+    color: "#FFFFFF"
+  }
+
+  object "Realistic_Chipmunk_Eye_Highlight_R" {
+    type: "sphere"
+    position: [5.12, 1.42, 5.54]
+    scale: [0.02, 0.02, 0.01]
+    color: "#FFFFFF"
+  }
+
+  object "Realistic_Chipmunk_Ear_L" {
+    type: "sphere"
+    position: [4.85, 1.5, 5.25]
+    scale: [0.08, 0.1, 0.05]
+    color: "#A0522D"
+  }
+
+  object "Realistic_Chipmunk_Ear_R" {
+    type: "sphere"
+    position: [5.15, 1.5, 5.25]
+    scale: [0.08, 0.1, 0.05]
+    color: "#A0522D"
+  }
+
+  object "Realistic_Chipmunk_Tail_Base" {
+    type: "sphere"
+    position: [5, 1.1, 4.55]
+    scale: [0.15, 0.15, 0.25]
+    color: "#8B4513"
+  }
+
+  object "Realistic_Chipmunk_Tail_Mid" {
+    type: "sphere"
+    position: [5, 1.35, 4.45]
+    scale: [0.18, 0.18, 0.2]
+    color: "#A0522D"
+  }
+
+  object "Realistic_Chipmunk_Tail_Tip" {
+    type: "sphere"
+    position: [5, 1.55, 4.5]
+    scale: [0.12, 0.12, 0.15]
+    color: "#D2691E"
+  }
+
+  object "Realistic_Chipmunk_Paw_L" {
+    type: "sphere"
+    position: [4.85, 0.85, 5.3]
+    scale: [0.06, 0.06, 0.08]
+    color: "#D2B48C"
+  }
+
+  object "Realistic_Chipmunk_Paw_R" {
+    type: "sphere"
+    position: [5.15, 0.85, 5.3]
+    scale: [0.06, 0.06, 0.08]
+    color: "#D2B48C"
+  }
+
+  // ============================================
+  // BABY CHIPMUNK - Brittney AI Generated (x=-5)
+  // ============================================
+
+  object "Baby_Chipmunk_Mushroom_Stem" {
+    type: "cylinder"
+    position: [-5, 0.15, 5]
+    scale: [0.15, 0.3, 0.15]
+    color: "#F5DEB3"
+  }
+
+  object "Baby_Chipmunk_Mushroom_Cap" {
+    type: "sphere"
+    position: [-5, 0.4, 5]
+    scale: [0.4, 0.2, 0.4]
+    color: "#DC143C"
+  }
+
+  object "Baby_Chipmunk_Mushroom_Spot1" {
+    type: "sphere"
+    position: [-4.85, 0.45, 5.1]
+    scale: [0.06, 0.03, 0.06]
+    color: "#FFFFFF"
+  }
+
+  object "Baby_Chipmunk_Mushroom_Spot2" {
+    type: "sphere"
+    position: [-5.1, 0.42, 4.9]
+    scale: [0.05, 0.02, 0.05]
+    color: "#FFFFFF"
+  }
+
+  object "Baby_Chipmunk_Body" {
+    type: "sphere"
+    position: [-5, 0.7, 5]
+    scale: [0.25, 0.28, 0.3]
+    color: "#CD853F"
+  }
+
+  object "Baby_Chipmunk_Tummy" {
+    type: "sphere"
+    position: [-5, 0.68, 5.12]
+    scale: [0.18, 0.2, 0.15]
+    color: "#FFECD2"
+  }
+
+  object "Baby_Chipmunk_Head" {
+    type: "sphere"
+    position: [-5, 0.95, 5.2]
+    scale: [0.22, 0.2, 0.18]
+    color: "#D2691E"
+  }
+
+  object "Baby_Chipmunk_Cheek_L" {
+    type: "sphere"
+    position: [-5.1, 0.92, 5.28]
+    scale: [0.1, 0.08, 0.08]
+    color: "#FFE4C4"
+  }
+
+  object "Baby_Chipmunk_Cheek_R" {
+    type: "sphere"
+    position: [-4.9, 0.92, 5.28]
+    scale: [0.1, 0.08, 0.08]
+    color: "#FFE4C4"
+  }
+
+  object "Baby_Chipmunk_Eye_L" {
+    type: "sphere"
+    position: [-5.06, 0.98, 5.32]
+    scale: [0.065, 0.065, 0.04]
+    color: "#1C1008"
+  }
+
+  object "Baby_Chipmunk_Eye_R" {
+    type: "sphere"
+    position: [-4.94, 0.98, 5.32]
+    scale: [0.065, 0.065, 0.04]
+    color: "#1C1008"
+  }
+
+  object "Baby_Chipmunk_Eye_Sparkle_L1" {
+    type: "sphere"
+    position: [-5.04, 1.0, 5.34]
+    scale: [0.02, 0.02, 0.01]
+    color: "#FFFFFF"
+  }
+
+  object "Baby_Chipmunk_Eye_Sparkle_L2" {
+    type: "sphere"
+    position: [-5.08, 0.97, 5.34]
+    scale: [0.012, 0.012, 0.008]
+    color: "#FFFFFF"
+  }
+
+  object "Baby_Chipmunk_Eye_Sparkle_R1" {
+    type: "sphere"
+    position: [-4.96, 1.0, 5.34]
+    scale: [0.02, 0.02, 0.01]
+    color: "#FFFFFF"
+  }
+
+  object "Baby_Chipmunk_Eye_Sparkle_R2" {
+    type: "sphere"
+    position: [-4.92, 0.97, 5.34]
+    scale: [0.012, 0.012, 0.008]
+    color: "#FFFFFF"
+  }
+
+  object "Baby_Chipmunk_Nose" {
+    type: "sphere"
+    position: [-5, 0.93, 5.36]
+    scale: [0.035, 0.03, 0.03]
+    color: "#FFB6C1"
+  }
+
+  object "Baby_Chipmunk_Ear_L" {
+    type: "sphere"
+    position: [-5.12, 1.08, 5.1]
+    scale: [0.07, 0.08, 0.04]
+    color: "#D2691E"
+  }
+
+  object "Baby_Chipmunk_Ear_R" {
+    type: "sphere"
+    position: [-4.88, 1.08, 5.1]
+    scale: [0.07, 0.08, 0.04]
+    color: "#D2691E"
+  }
+
+  object "Baby_Chipmunk_Ear_Inner_L" {
+    type: "sphere"
+    position: [-5.11, 1.08, 5.12]
+    scale: [0.04, 0.05, 0.02]
+    color: "#FFB6C1"
+  }
+
+  object "Baby_Chipmunk_Ear_Inner_R" {
+    type: "sphere"
+    position: [-4.89, 1.08, 5.12]
+    scale: [0.04, 0.05, 0.02]
+    color: "#FFB6C1"
+  }
+
+  object "Baby_Chipmunk_Tail" {
+    type: "sphere"
+    position: [-5, 0.65, 4.72]
+    scale: [0.1, 0.1, 0.12]
+    color: "#CD853F"
+  }
+
+  object "Baby_Chipmunk_Tail_Fluff" {
+    type: "sphere"
+    position: [-5, 0.7, 4.65]
+    scale: [0.08, 0.08, 0.08]
+    color: "#DEB887"
+  }
+
+  object "Baby_Chipmunk_Paw_L" {
+    type: "sphere"
+    position: [-5.1, 0.55, 5.15]
+    scale: [0.04, 0.04, 0.05]
+    color: "#FFE4C4"
+  }
+
+  object "Baby_Chipmunk_Paw_R" {
+    type: "sphere"
+    position: [-4.9, 0.55, 5.15]
+    scale: [0.04, 0.04, 0.05]
+    color: "#FFE4C4"
+  }
+
+  // ============================================
+  // INTERACTIVE OBJECTS
+  // ============================================
+
+  object "Orb_Cyan" {
+    type: "sphere"
+    position: [0, 1.5, 0]
+    scale: [0.5, 0.5, 0.5]
+    color: "#00d4ff"
+  }
+
+  object "Ring_Blue" {
+    type: "torus"
+    position: [0, 3, 0]
+    color: "#3366ff"
   }
 }

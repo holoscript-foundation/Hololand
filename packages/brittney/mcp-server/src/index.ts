@@ -20,6 +20,7 @@ import { z } from 'zod';
 // Brittney IDE Agent Integration Tools
 import { brittneyTools, handleBrittneyTool } from './brittney-tools.js';
 import { advancedBrittneyTools, handleAdvancedBrittneyTool } from './advanced-brittney-tools.js';
+import { brittneyIDETools, handleBrittneyIDETool } from './brittney-ide-tools.js';
 
 // HoloScript Graph Understanding Tools (helps agents understand .holo as visual graphs)
 import { holoGraphTools, handleHoloGraphTool } from './holo-graph-tools.js';
@@ -482,6 +483,12 @@ const tools: Tool[] = [
   // Helps agents understand .holo as visual graphs
   // =====================================================
   ...holoGraphTools,
+
+  // =====================================================
+  // BRITTNEY IDE TOOLS
+  // Project scanning, diagnostics, autocomplete, refactoring, docs
+  // =====================================================
+  ...brittneyIDETools,
 ];
 
 /**
@@ -496,7 +503,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
-    const { name, arguments: args } = request.params as any;
+    const { name, arguments: rawArgs } = request.params as any;
+    const args = rawArgs || {};
 
     switch (name) {
       case 'create_world': {
@@ -759,6 +767,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const advancedToolNames = advancedBrittneyTools.map(t => t.name);
           if (advancedToolNames.includes(name)) {
             return await handleAdvancedBrittneyTool(name, args as Record<string, unknown>);
+          }
+          // Check if it's an IDE tool
+          const ideToolNames = brittneyIDETools.map(t => t.name);
+          if (ideToolNames.includes(name)) {
+            const result = await handleBrittneyIDETool(name, args as Record<string, unknown>);
+            return {
+              content: [{ type: 'text', text: result }],
+            };
           }
           // Otherwise use standard Brittney handler
           return await handleBrittneyTool(name, args as Record<string, unknown>);

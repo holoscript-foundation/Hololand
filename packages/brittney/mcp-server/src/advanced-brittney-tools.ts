@@ -19,6 +19,7 @@ import { sharedDataBridge } from './shared-data-bridge.js';
 // =============================================================================
 
 const BRITTNEY_SERVICE_URL = process.env.BRITTNEY_SERVICE_URL || 'http://localhost:11435';
+const BRITTNEY_ADMIN_KEY = process.env.BRITTNEY_ADMIN_KEY || 'mcp-localhost-trusted';
 
 interface BrittneyResponse {
   success: boolean;
@@ -31,7 +32,10 @@ async function callBrittney(message: string, context?: object): Promise<Brittney
   try {
     const response = await fetch(`${BRITTNEY_SERVICE_URL}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${BRITTNEY_ADMIN_KEY}`,
+      },
       body: JSON.stringify({
         messages: [{ role: 'user', content: message }],
         context: context ? { browserState: context } : undefined,

@@ -1,5 +1,18 @@
 # @hololand/brittney-service
 
+> **DEPRECATED**: This service (port 11435) has been replaced by the unified inference architecture.
+>
+> **Migration Guide:**
+>
+> - All inference now goes through Ollama (port 11434) via `@hololand/inference`
+> - The Hololand MCP Server uses `@hololand/inference` directly
+> - The Brittney Desktop (Tauri) app has built-in inference with BYOK support
+> - Fine-tuned Brittney models are available in Ollama: `brittney-v4-expert:latest`
+>
+> See [`packages/shared/inference/`](../../shared/inference/) for the new unified package.
+
+---
+
 **✱brittney** - AI-powered assistant for Hololand with local & cloud inference.
 
 ## Overview

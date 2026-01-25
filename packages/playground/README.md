@@ -1,52 +1,96 @@
 # @hololand/playground
 
-**HoloScript IDE** - The centerpiece development tool for Hololand.
+**HoloScript Playground** - Build 3D worlds in real-time with AI agents.
+
+> Built WITH HoloScript, not about HoloScript.
+
+## Vision
+
+The playground is defined in `playground.holo` - the IDE is itself a HoloScript composition that the runtime renders. This proves the power of the language: you can build development tools, games, simulations, and entire applications using the same declarative syntax.
 
 ## Features
 
-### 🖊️ Monaco Editor
-- Syntax highlighting for `.holo` and `.hsplus` files
+### 🖊️ Code Editor
+- Monaco editor embedded via HoloScript `type: "monaco-editor"`
+- Syntax highlighting for `.holo`, `.hsplus`, `.hs`
 - Code completion with Brittney AI suggestions
-- Real-time error squiggles with live validation
-- Bracket matching and auto-indent
+- Real-time validation and error display
 
 ### 🎮 Live 3D Preview
-- Real-time Three.js rendering
-- Hot reload on code changes
-- Performance metrics overlay (FPS, draw calls, triangles)
-- Error visualization in 3D space
+- Real-time rendering of your HoloScript
+- Hot reload on every keystroke
+- Performance metrics overlay (FPS, draw calls)
+- VR/AR mode support with WebXR
 
-### 🤖 Brittney AI Panel
-- Natural language → HoloScript generation
-- One-click code injection to running scene
-- Code explanation and optimization suggestions
-- Context-aware scene understanding
+### 🤖 AI Agent Collaboration
+- Brittney AI for natural language → HoloScript
+- Real-time multi-agent editing (see `agent-collaboration.hsplus`)
+- Suggestions with accept/reject workflow
+- Voice command support
 
 ### 🔍 Scene Inspector
-- Hierarchical object tree
-- Live property editing
+- Live object tree
+- Property editing
 - Trait visualization
-- Performance profiling
 
 ## Quick Start
 
-```tsx
-import { Playground } from '@hololand/playground';
+```bash
+# From the Hololand monorepo
+cd packages/playground
+npm run dev
 
-function App() {
-  return (
-    <Playground
-      initialCode={`
-        composition "My Scene" {
-          environment { skybox: "sunset" }
-          object "Player" { position: [0, 1, 0] }
-        }
-      `}
-      onCodeChange={(code) => console.log('Code updated:', code)}
-    />
-  );
+# Opens at http://localhost:3000
+```
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `playground.holo` | Main composition - THE playground UI |
+| `agent-collaboration.hsplus` | AI agent real-time editing system |
+| `index.html` | Browser entry point - loads HoloScript runtime |
+
+## How It Works
+
+```
+index.html
+    ↓ loads
+@holoscript/runtime
+    ↓ parses
+playground.holo
+    ↓ renders
+IDE with Editor, 3D Preview, AI Panel
+```
+
+The HoloScript runtime does the heavy lifting:
+- Parses `.holo` compositions
+- Renders 3D objects via Three.js/WebGL
+- Handles input, networking, VR
+- Provides built-in UI components (`type: "monaco-editor"`, `type: "3d-viewport"`, etc.)
+
+## Extending
+
+Add new features by editing `playground.holo`:
+
+```holo
+// In playground.holo
+spatial_group "CustomPanel" {
+  position: [4, 2, -2]
+  
+  object "MyTool" {
+    type: "ui-button"
+    label: "My Custom Tool"
+    on_click: { do_something() }
+  }
 }
 ```
+
+## Related
+
+- [@holoscript/runtime](../runtime) - Browser runtime that powers this
+- [@hololand/brittney](../brittney) - AI assistant integration
+- [@holoscript/core](../../HoloScript/packages/core) - Parser and AST
 
 ## Components
 

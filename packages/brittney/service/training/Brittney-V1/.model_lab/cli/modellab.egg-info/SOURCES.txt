@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-cli_package/__init__.py
-cli_package/modellab.py
-modellab.egg-info/PKG-INFO
-modellab.egg-info/SOURCES.txt
-modellab.egg-info/dependency_links.txt
-modellab.egg-info/entry_points.txt
-modellab.egg-info/top_level.txt

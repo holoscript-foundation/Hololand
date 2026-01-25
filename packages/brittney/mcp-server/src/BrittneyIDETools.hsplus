@@ -1,0 +1,260 @@
+// Brittney IDE Tools Specification
+// HoloScript training notation for AI agents
+
+composition "BrittneyIDETools" {
+  environment {
+    type: "mcp-server"
+    version: "1.0.0"
+    description: "IDE integration tools for coding agents"
+  }
+
+  // =========================================================================
+  // PROJECT SCANNING
+  // =========================================================================
+  
+  template "ProjectScanner" {
+    tool_name: "brittney_scan_project"
+    description: "Scan workspace for all HoloScript files"
+    
+    state {
+      holoFiles: []
+      hsplusFiles: []
+      hsFiles: []
+      assets: []
+      allObjects: []
+      allTemplates: []
+      allTraits: []
+    }
+    
+    action scan(path, includeAssets, maxDepth) {
+      // Recursively scan directories
+      // Parse .holo/.hsplus/.hs files for metadata
+      // Return summary with objects, templates, traits
+    }
+  }
+
+  // =========================================================================
+  // DIAGNOSTICS
+  // =========================================================================
+  
+  template "DiagnosticsProvider" {
+    tool_name: "brittney_diagnostics"
+    description: "LSP-style diagnostics with quick fixes"
+    
+    state {
+      diagnostics: []
+    }
+    
+    action diagnose(code, filePath, severity) {
+      // Check for syntax errors
+      // Check for unknown traits
+      // Check for missing properties
+      // Generate quick fix suggestions
+    }
+    
+    // Diagnostic structure
+    // {
+    //   file: string,
+    //   line: number,
+    //   column: number,
+    //   severity: "error" | "warning" | "info" | "hint",
+    //   message: string,
+    //   code: string,
+    //   quickFixes: [{ title, edit }]
+    // }
+  }
+
+  // =========================================================================
+  // AUTOCOMPLETE
+  // =========================================================================
+  
+  template "CompletionProvider" {
+    tool_name: "brittney_autocomplete"
+    description: "Context-aware code completions"
+    
+    action complete(code, line, column, triggerCharacter) {
+      // After @ -> suggest traits
+      // Inside object {} -> suggest properties
+      // After "using" -> suggest templates
+      // In logic {} -> suggest object references
+    }
+    
+    // Completion item structure
+    // {
+    //   label: string,
+    //   kind: "trait" | "property" | "object" | "template" | "function" | "keyword" | "snippet",
+    //   detail: string,
+    //   documentation: string,
+    //   insertText: string,
+    //   insertTextFormat: "plaintext" | "snippet"
+    // }
+  }
+
+  // =========================================================================
+  // REFACTORING
+  // =========================================================================
+  
+  template "RefactoringProvider" {
+    tool_name: "brittney_refactor"
+    description: "Code refactoring operations"
+    
+    action rename(code, target, newName) {
+      // Find all occurrences of target
+      // Replace with newName
+      // Return refactored code
+    }
+    
+    action extract_template(code, objectName, templateName) {
+      // Find object definition
+      // Extract to template declaration
+      // Replace object with "using" reference
+    }
+    
+    action inline_template(code, templateName) {
+      // Find template definition
+      // Find all objects using template
+      // Inline template properties into objects
+      // Remove template declaration
+    }
+    
+    action organize_imports(code) {
+      // Extract all imports
+      // Sort and deduplicate
+      // Reinsert at top
+    }
+    
+    action group_objects(code, objectNames, groupName) {
+      // Find objects by name
+      // Create spatial_group wrapper
+      // Move objects into group
+      // Adjust positions to be relative
+    }
+  }
+
+  // =========================================================================
+  // DOCUMENTATION
+  // =========================================================================
+  
+  template "DocsProvider" {
+    tool_name: "brittney_docs"
+    description: "Inline documentation lookup"
+    
+    state {
+      traitDocs: {
+        grabbable: {
+          description: "Makes object grabbable by VR controllers",
+          params: {
+            snap_to_hand: "Snap to hand position when grabbed",
+            two_handed: "Requires both hands",
+            grab_distance: "Maximum grab distance"
+          },
+          example: "orb item { @grabbable(snap_to_hand: true) }"
+        }
+        // ... 48 more traits
+      }
+    }
+    
+    action lookup(query, type, context) {
+      // type: "trait" | "property" | "keyword" | "example" | "all_traits"
+      // Return documentation for query
+    }
+  }
+
+  // =========================================================================
+  // HOVER INFO
+  // =========================================================================
+  
+  template "HoverProvider" {
+    tool_name: "brittney_hover"
+    description: "Tooltip information at cursor position"
+    
+    action hover(code, line, column) {
+      // Determine symbol at position
+      // Return formatted documentation
+      // Include type info, examples
+    }
+  }
+
+  // =========================================================================
+  // NAVIGATION
+  // =========================================================================
+  
+  template "NavigationProvider" {
+    tool_name: "brittney_go_to_definition"
+    description: "Find symbol definition"
+    
+    action goToDefinition(code, symbol, projectPath) {
+      // Search current file
+      // Search project files
+      // Return file path, line, column
+    }
+  }
+  
+  template "ReferenceFinder" {
+    tool_name: "brittney_find_references"
+    description: "Find all symbol usages"
+    
+    action findReferences(symbol, projectPath, includeDeclaration) {
+      // Search all project files
+      // Return list of locations
+    }
+  }
+
+  // =========================================================================
+  // CODE ACTIONS
+  // =========================================================================
+  
+  template "CodeActionProvider" {
+    tool_name: "brittney_code_action"
+    description: "Available actions at cursor position"
+    
+    action getActions(code, line, column, diagnostics) {
+      // Quick fixes for diagnostics
+      // Refactoring suggestions
+      // Add missing traits
+      // Convert to template
+      // Add documentation
+    }
+  }
+
+  // =========================================================================
+  // TRAINING PATTERNS
+  // =========================================================================
+  
+  logic {
+    // Pattern: User asks about project structure
+    on_user_says("What files are in this project?") {
+      call brittney_scan_project()
+    }
+    
+    // Pattern: User wants trait help
+    on_user_says("How do I make something @X?") {
+      call brittney_docs(query: "X", type: "trait")
+    }
+    
+    // Pattern: User has code errors
+    on_user_says("Fix this code") {
+      call brittney_diagnostics(code: user_code)
+    }
+    
+    // Pattern: User needs completions
+    on_user_says("What can I add here?") {
+      call brittney_autocomplete(code: user_code, line: cursor_line, column: cursor_column)
+    }
+    
+    // Pattern: User wants to refactor
+    on_user_says("Rename X to Y") {
+      call brittney_refactor(code: user_code, operation: "rename", target: "X", newName: "Y")
+    }
+    
+    // Pattern: User hovers on symbol
+    on_hover(line, column) {
+      call brittney_hover(code: current_code, line: line, column: column)
+    }
+    
+    // Pattern: User goes to definition
+    on_go_to_definition(symbol) {
+      call brittney_go_to_definition(symbol: symbol)
+    }
+  }
+}

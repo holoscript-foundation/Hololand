@@ -1,0 +1,111 @@
+{
+  "name": "Hololand MCP Servers",
+  "description": "VR platform development with AI assistance",
+  "version": "1.0.0",
+  
+  "servers": {
+    "hololand": {
+      "name": "Hololand Platform",
+      "description": "VR world management, Brittney AI, browser debugging, IDE tools",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "packages/brittney/mcp-server/src/index.ts"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "HOLOLAND_API_URL": "http://localhost:3000",
+        "BRITTNEY_SERVICE_URL": "http://localhost:11435",
+        "BRITTNEY_ADMIN_KEY": "mcp-localhost-trusted"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      }
+    },
+    
+    "holoscript": {
+      "name": "HoloScript Language",
+      "description": "Parsing, validation, code generation for .hs/.hsplus/.holo",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "../HoloScript/packages/mcp-server/src/index.ts"],
+      "cwd": "${workspaceFolder}/../HoloScript",
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      }
+    }
+  },
+  
+  "toolGroups": {
+    "ide": {
+      "name": "IDE Tools",
+      "description": "Project scanning, diagnostics, completions, refactoring",
+      "tools": [
+        "brittney_scan_project",
+        "brittney_diagnostics",
+        "brittney_autocomplete",
+        "brittney_refactor",
+        "brittney_docs",
+        "brittney_hover",
+        "brittney_go_to_definition",
+        "brittney_find_references",
+        "brittney_code_action"
+      ]
+    },
+    "ai": {
+      "name": "AI Assistance",
+      "description": "Brittney AI for debugging and generation",
+      "tools": [
+        "brittney_ask_question",
+        "brittney_explain_scene",
+        "brittney_explain_error",
+        "brittney_suggest_fix",
+        "brittney_create_and_inject",
+        "brittney_auto_fix"
+      ]
+    },
+    "language": {
+      "name": "Language Tools",
+      "description": "Parsing, validation, generation",
+      "tools": [
+        "parse_hs",
+        "parse_holo",
+        "validate_holoscript",
+        "generate_object",
+        "generate_scene",
+        "explain_code"
+      ]
+    },
+    "traits": {
+      "name": "VR Traits",
+      "description": "Trait documentation and suggestions",
+      "tools": [
+        "list_traits",
+        "explain_trait",
+        "suggest_traits"
+      ]
+    },
+    "graph": {
+      "name": "Graph Visualization",
+      "description": "Understand .holo as visual graphs",
+      "tools": [
+        "holo_parse_to_graph",
+        "holo_visualize_flow",
+        "holo_get_node_connections",
+        "holo_suggest_connections"
+      ]
+    },
+    "debugging": {
+      "name": "Browser Debugging",
+      "description": "Debug running VR apps",
+      "tools": [
+        "brittney_error_monitor",
+        "brittney_performance_monitor",
+        "brittney_get_browser_state",
+        "brittney_get_console_logs"
+      ]
+    }
+  }
+}

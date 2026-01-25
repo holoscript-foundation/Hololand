@@ -28,6 +28,20 @@ export { NPCSystem, type NPCTrait } from './systems/NPCSystem';
 export { DialogManager, type DialogNode, type DialogOption } from './managers/DialogManager';
 export { HoloScriptLoader } from './utils/HoloScriptLoader';
 
+// Composition Loader (NEW - loads .holo files)
+export {
+  CompositionLoader,
+  CompositionError,
+  loadComposition,
+  loadHolo,
+  loadHsPlus,
+  type LoadedComposition,
+  type TemplateDefinition,
+  type ActionDefinition,
+  type EnvironmentConfig,
+  type CompositionLogic,
+} from './loaders/CompositionLoader';
+
 // Types
 export type { Vector3, Quaternion, BoundingBox, Transform } from './types';
 

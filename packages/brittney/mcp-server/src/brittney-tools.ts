@@ -4,12 +4,15 @@
  * These tools enable IDE agents (Claude Code, Cursor, Copilot) to get
  * visibility into the running Hololand application through Brittney.
  *
- * Architecture:
- * IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ SharedDataBridge ←→ Native Messaging Host ←→ Browser Extension ←→ Hololand App
+ * Architecture (Unified - uses shared @hololand/inference):
+ * IDE Agent ←→ MCP Protocol ←→ Brittney Tools ←→ SharedDataBridge ←→ Browser Extension ←→ Hololand App
  *                                    ↓
- *                          Brittney Service (localhost:11435)
+ *                          @hololand/inference
  *                                    ↓
- *                          LM Studio + RAG Knowledge
+ *                    ┌───────────────┴───────────────┐
+ *                    ▼                               ▼
+ *             Ollama (local)                  BYOK Cloud APIs
+ *           brittney-v4-expert             (OpenAI, Anthropic, etc.)
  *
  * Brittney is a browser-context specialist that helps IDE agents understand
  * what's happening in the running app - debugging without the blindfold.
@@ -17,19 +20,40 @@
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { sharedDataBridge } from './shared-data-bridge.js';
+import { createInferenceClient, type InferenceClient, type ChatMessage } from '@hololand/inference';
 
 // =============================================================================
-// BRITTNEY SERVICE CLIENT
+// INFERENCE CLIENT (Uses Ollama + BYOK providers)
 // =============================================================================
 
-const BRITTNEY_SERVICE_URL = process.env.BRITTNEY_SERVICE_URL || 'http://localhost:11435';
+let inferenceClient: InferenceClient | null = null;
+
+/**
+ * Get or create the inference client
+ */
+function getInferenceClient(): InferenceClient {
+  if (!inferenceClient) {
+    inferenceClient = createInferenceClient({
+      activeProvider: 'local',
+      local: {
+        enabled: true,
+        ollamaUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+        defaultModel: process.env.BRITTNEY_MODEL || 'brittney-v4-expert:latest',
+        autoDownloadModel: false, // MCP shouldn't auto-download
+      },
+      fallbackToCloud: true,
+      preferLocalWhenAvailable: true,
+    });
+  }
+  return inferenceClient;
+}
 
 interface BrittneyServiceResponse {
   success: boolean;
   response?: string;
   code?: string;
   error?: string;
-  conversationId?: string;
+  provider?: string;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -38,7 +62,7 @@ interface BrittneyServiceResponse {
 }
 
 /**
- * Browser context structure for Brittney service
+ * Browser context structure for inference
  */
 interface BrittneyBrowserContext {
   url?: string;
@@ -49,74 +73,80 @@ interface BrittneyBrowserContext {
 }
 
 /**
- * Call the Brittney service HTTP API with proper ChatRequest format
+ * Call inference via @hololand/inference (Ollama + BYOK)
  */
 async function callBrittneyService(
   message: string,
   options: {
     systemPrompt?: string;
     browserContext?: BrittneyBrowserContext;
-    conversationId?: string;
   } = {}
 ): Promise<BrittneyServiceResponse> {
   try {
-    // Build the ChatRequest format that Brittney service expects
-    const chatRequest = {
-      messages: [
-        ...(options.systemPrompt ? [{ role: 'system', content: options.systemPrompt }] : []),
-        { role: 'user', content: message },
-      ],
-      context: options.browserContext
+    const client = getInferenceClient();
+    await client.initialize();
+
+    // Build messages array
+    const messages: ChatMessage[] = [];
+
+    // Add system prompt if provided
+    if (options.systemPrompt) {
+      messages.push({ role: 'system', content: options.systemPrompt });
+    } else {
+      // Default HoloScript system prompt
+      messages.push({
+        role: 'system',
+        content: `You are Brittney, a HoloScript and VR development expert. You help with:
+- HoloScript code generation and debugging
+- Performance optimization for VR/AR
+- Understanding and fixing runtime errors
+- Explaining Hololand concepts
+
+Respond concisely and provide code examples when helpful.`,
+      });
+    }
+
+    // Add browser context to message if available
+    let enhancedMessage = message;
+    if (options.browserContext) {
+      const ctx = options.browserContext;
+      enhancedMessage = `${message}
+
+**Current Browser Context:**
+${ctx.url ? `- URL: ${ctx.url}` : ''}
+${ctx.scenes?.length ? `- Scenes: ${ctx.scenes.map((s) => s.name).join(', ')}` : ''}
+${ctx.profilerStats ? `- Performance: ${ctx.profilerStats.fps} FPS, ${ctx.profilerStats.drawCalls} draw calls` : ''}
+${ctx.errors?.length ? `- Errors: ${ctx.errors.map((e) => e.message).join('; ')}` : ''}`;
+    }
+
+    messages.push({ role: 'user', content: enhancedMessage });
+
+    // Call inference
+    const response = await client.chat({ messages });
+
+    return {
+      success: true,
+      response: response.content,
+      provider: response.provider,
+      usage: response.usage
         ? {
-            browserState: {
-              url: options.browserContext.url || 'unknown',
-              scenes: options.browserContext.scenes || [],
-              profilerStats: options.browserContext.profilerStats,
-              consoleLogs: options.browserContext.consoleLogs,
-              errors: options.browserContext.errors,
-            },
+            prompt_tokens: response.usage.promptTokens,
+            completion_tokens: response.usage.completionTokens,
+            total_tokens: response.usage.totalTokens,
           }
         : undefined,
     };
-
-    const response = await fetch(`${BRITTNEY_SERVICE_URL}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(chatRequest),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      return {
-        success: false,
-        error: `Brittney service error (${response.status}): ${errorText}`,
-      };
-    }
-
-    // Parse the ChatResponse format
-    interface ChatServiceResponse {
-      id: string;
-      content: string;
-      usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
-    }
-    const chatResponse = (await response.json()) as ChatServiceResponse;
-    return {
-      success: true,
-      response: chatResponse.content,
-      conversationId: chatResponse.id,
-      usage: chatResponse.usage,
-    };
   } catch (error: any) {
-    // Check if service is not running
-    if (error.code === 'ECONNREFUSED') {
+    // Check if Ollama is not running
+    if (error.message?.includes('ECONNREFUSED') || error.message?.includes('fetch failed')) {
       return {
         success: false,
-        error: `Brittney service not running. Start it with: npx @hololand/brittney-service start`,
+        error: `Ollama not running. Start it with: ollama serve\n\nOr configure a BYOK cloud provider in Settings.`,
       };
     }
     return {
       success: false,
-      error: `Failed to call Brittney service: ${error.message}`,
+      error: `Inference error: ${error.message}`,
     };
   }
 }
@@ -149,18 +179,29 @@ async function collectBrowserContext(): Promise<BrittneyBrowserContext> {
 }
 
 /**
- * Check if Brittney service is healthy
+ * Check if inference is available (Ollama or BYOK providers)
  */
 async function checkBrittneyHealth(): Promise<{ healthy: boolean; status?: any; error?: string }> {
   try {
-    const response = await fetch(`${BRITTNEY_SERVICE_URL}/health`);
-    if (response.ok) {
-      const status = await response.json();
-      return { healthy: true, status };
-    }
-    return { healthy: false, error: `Health check failed: ${response.status}` };
+    const client = getInferenceClient();
+    await client.initialize();
+    const status = await client.getStatus();
+
+    return {
+      healthy: status.ready,
+      status: {
+        activeProvider: status.activeProvider,
+        providers: status.providers.map((p) => ({
+          type: p.type,
+          available: p.available,
+          latencyMs: p.latencyMs,
+        })),
+        localModelDownloaded: status.localModelDownloaded,
+      },
+      error: status.ready ? undefined : 'No providers available',
+    };
   } catch (error: any) {
-    return { healthy: false, error: `Service unreachable: ${error.message}` };
+    return { healthy: false, error: `Inference check failed: ${error.message}` };
   }
 }
 

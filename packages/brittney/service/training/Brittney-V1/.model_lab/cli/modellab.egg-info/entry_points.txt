@@ -1,2 +1,0 @@
-[console_scripts]
-modellab = cli_package.modellab:main

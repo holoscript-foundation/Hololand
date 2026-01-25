@@ -14,7 +14,11 @@
     "audit": "pnpm audit --prod",
     "audit:fix": "pnpm audit --fix",
     "typecheck": "pnpm -r typecheck",
-    "format": "pnpm -r format"
+    "format": "pnpm -r format",
+    "brittney": "npx tsx scripts/start-brittney.ts",
+    "playground": "pnpm --filter @hololand/playground dev",
+    "dev": "npm-run-all --parallel brittney playground",
+    "start": "npm run dev"
   },
   "keywords": [
     "holoscript",

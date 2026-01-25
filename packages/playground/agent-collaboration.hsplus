@@ -1,0 +1,370 @@
+// HoloScript Playground - AI Agent Collaboration System
+// Enables real-time editing by AI agents like Brittney, Copilot, etc.
+
+@import "@holoscript/core" as holoscript
+@import "@hololand/brittney" as brittney
+
+// ═══════════════════════════════════════════════════════════
+// AGENT COLLABORATION STATE
+// ═══════════════════════════════════════════════════════════
+
+state {
+  // Connected agents
+  agents: {
+    brittney: { connected: true, typing: false },
+    user: { connected: true, typing: false }
+  }
+  
+  // Collaboration mode
+  mode: "collaborative"  // "solo" | "collaborative" | "agent-driven"
+  
+  // Change history for undo/redo
+  history: []
+  history_index: 0
+  
+  // Pending agent suggestions
+  suggestions: []
+  
+  // Live cursors (multi-agent editing)
+  cursors: {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// AGENT CONNECTION PROTOCOL
+// ═══════════════════════════════════════════════════════════
+
+networked_object AgentBridge {
+  @networked
+  @synced
+  
+  sync_rate: 60hz
+  
+  // Agent connection
+  on_agent_connect(agent) {
+    state.agents[agent.id] = {
+      connected: true,
+      typing: false,
+      cursor: null,
+      color: agent.color || generate_agent_color(agent.id)
+    }
+    emit("agent_joined", agent)
+  }
+  
+  on_agent_disconnect(agent) {
+    delete state.agents[agent.id]
+    delete state.cursors[agent.id]
+    emit("agent_left", agent)
+  }
+  
+  // Real-time cursor sync
+  on_cursor_move(agent_id, position) {
+    state.cursors[agent_id] = {
+      line: position.line,
+      column: position.column,
+      selection: position.selection
+    }
+  }
+  
+  // Typing indicator
+  on_typing_start(agent_id) {
+    state.agents[agent_id].typing = true
+  }
+  
+  on_typing_end(agent_id) {
+    state.agents[agent_id].typing = false
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// REAL-TIME CODE OPERATIONS
+// ═══════════════════════════════════════════════════════════
+
+system CodeOperations {
+  
+  // Operational Transform for concurrent editing
+  action transform_operation(local_op, remote_op) {
+    // OT algorithm for conflict resolution
+    if local_op.position <= remote_op.position {
+      return remote_op.shift(local_op.length)
+    }
+    return remote_op
+  }
+  
+  // Apply an edit from any agent
+  action apply_edit(agent_id, operation) {
+    // Record for undo
+    state.history.push({
+      agent: agent_id,
+      operation: operation,
+      timestamp: now()
+    })
+    state.history_index = state.history.length
+    
+    // Apply the operation
+    match operation.type {
+      "insert" => {
+        code = insert_at(state.current_code, operation.position, operation.text)
+        state.current_code = code
+      }
+      "delete" => {
+        code = delete_range(state.current_code, operation.start, operation.end)
+        state.current_code = code
+      }
+      "replace" => {
+        code = replace_range(state.current_code, operation.start, operation.end, operation.text)
+        state.current_code = code
+      }
+    }
+    
+    // Broadcast to other agents
+    broadcast("code_changed", {
+      agent: agent_id,
+      operation: operation
+    })
+    
+    // Trigger live preview update
+    parse_and_render(state.current_code)
+  }
+  
+  // Undo
+  action undo() {
+    if state.history_index > 0 {
+      state.history_index -= 1
+      op = state.history[state.history_index]
+      apply_inverse(op.operation)
+    }
+  }
+  
+  // Redo
+  action redo() {
+    if state.history_index < state.history.length {
+      op = state.history[state.history_index]
+      apply_edit("system", op.operation)
+      state.history_index += 1
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AI AGENT SUGGESTIONS SYSTEM
+// ═══════════════════════════════════════════════════════════
+
+system AgentSuggestions {
+  
+  // Suggest code insertion (Agent proposes, User accepts/rejects)
+  action suggest(agent_id, suggestion) {
+    state.suggestions.push({
+      id: generate_id(),
+      agent: agent_id,
+      type: suggestion.type,  // "insert" | "replace" | "refactor"
+      code: suggestion.code,
+      position: suggestion.position,
+      explanation: suggestion.explanation,
+      timestamp: now()
+    })
+    
+    // Show in UI
+    show_suggestion_preview(suggestion)
+  }
+  
+  // Accept suggestion
+  action accept_suggestion(suggestion_id) {
+    suggestion = find_suggestion(suggestion_id)
+    if suggestion {
+      apply_edit(suggestion.agent, {
+        type: suggestion.type,
+        position: suggestion.position,
+        text: suggestion.code
+      })
+      remove_suggestion(suggestion_id)
+    }
+  }
+  
+  // Reject suggestion
+  action reject_suggestion(suggestion_id) {
+    remove_suggestion(suggestion_id)
+  }
+  
+  // Accept all from agent
+  action accept_all_from(agent_id) {
+    for suggestion in state.suggestions {
+      if suggestion.agent == agent_id {
+        accept_suggestion(suggestion.id)
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BRITTNEY AI INTEGRATION
+// ═══════════════════════════════════════════════════════════
+
+system BrittneyIntegration {
+  
+  // Voice command handling
+  on_voice_command(command) {
+    response = brittney.process_voice(command, {
+      context: state.current_code,
+      mode: "code_edit"
+    })
+    
+    if response.action == "edit" {
+      AgentSuggestions.suggest("brittney", {
+        type: response.operation,
+        code: response.holoscript,
+        position: response.position,
+        explanation: response.explanation
+      })
+    }
+    
+    if response.action == "create" {
+      // Full scene generation
+      AgentSuggestions.suggest("brittney", {
+        type: "replace",
+        code: response.holoscript,
+        position: { line: 0, column: 0 },
+        explanation: "Created new scene: " + response.description
+      })
+    }
+  }
+  
+  // Chat-based editing
+  action chat_edit(message) {
+    response = brittney.chat({
+      message: message,
+      context: {
+        code: state.current_code,
+        cursor: get_cursor_position(),
+        selection: get_selection()
+      }
+    })
+    
+    if response.holoscript {
+      AgentSuggestions.suggest("brittney", {
+        type: "insert",
+        code: response.holoscript,
+        position: get_cursor_position(),
+        explanation: response.explanation
+      })
+    }
+  }
+  
+  // Auto-complete (real-time as you type)
+  on_typing(partial_code, cursor) {
+    completions = brittney.complete({
+      code: partial_code,
+      cursor: cursor
+    })
+    
+    show_completions(completions)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI COMPONENTS FOR COLLABORATION
+// ═══════════════════════════════════════════════════════════
+
+template "AgentCursor" {
+  @billboard
+  
+  state {
+    agent_id: ""
+    agent_color: "#00d4ff"
+    agent_name: "Agent"
+  }
+  
+  object "CursorLine" {
+    geometry: "plane"
+    size: [0.02, 0.3]
+    color: state.agent_color
+    @glowing
+  }
+  
+  object "AgentLabel" {
+    position: [0.1, 0.2, 0]
+    type: "ui-text"
+    text: state.agent_name
+    font_size: 10
+    color: state.agent_color
+    background: "#0f0f1a"
+    padding: [4, 2]
+  }
+}
+
+template "SuggestionOverlay" {
+  state {
+    suggestion: null
+    visible: false
+  }
+  
+  object "SuggestionPanel" {
+    @hoverable
+    position: [0, 0, 0.01]
+    material: "glass-dark"
+    border: { color: "#ffd700", width: 2 }
+    
+    object "PreviewCode" {
+      type: "ui-code"
+      code: state.suggestion?.code
+      language: "holo"
+      theme: "diff-add"  // Green highlight for additions
+    }
+    
+    object "ExplanationText" {
+      position: [0, -0.5, 0]
+      type: "ui-text"
+      text: state.suggestion?.explanation
+      color: "#a0a0b0"
+    }
+    
+    object "AcceptButton" {
+      position: [-0.3, -0.8, 0]
+      type: "ui-button"
+      label: "✓ Accept"
+      color: "#00ff88"
+      on_click: { accept_suggestion(state.suggestion.id) }
+    }
+    
+    object "RejectButton" {
+      position: [0.3, -0.8, 0]
+      type: "ui-button"
+      label: "✗ Reject"
+      color: "#ff4444"
+      on_click: { reject_suggestion(state.suggestion.id) }
+    }
+  }
+}
+
+// Agent activity indicator
+object "AgentActivityPanel" {
+  position: [5, 3, -2]
+  size: [1.5, 2]
+  material: "glass-dark"
+  
+  @for agent in state.agents {
+    object "AgentStatus_{agent.id}" {
+      type: "ui-row"
+      
+      object "AgentDot" {
+        geometry: "sphere"
+        size: 0.1
+        color: agent.color
+        @glowing when: agent.typing
+      }
+      
+      object "AgentName" {
+        type: "ui-text"
+        text: agent.id
+        color: agent.connected ? "#ffffff" : "#666666"
+      }
+      
+      object "TypingIndicator" {
+        visible: agent.typing
+        type: "ui-text"
+        text: "typing..."
+        color: "#a0a0b0"
+        @animated { opacity: [0.3, 1], duration: 500, loop: true }
+      }
+    }
+  }
+}

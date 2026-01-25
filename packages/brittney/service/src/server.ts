@@ -1,4 +1,20 @@
+// Load environment variables FIRST before any other imports
+import { config as dotenvConfig } from 'dotenv';
+dotenvConfig();
+
 /**
+ * @deprecated This service (port 11435) is DEPRECATED.
+ *
+ * MIGRATION:
+ * - Use @hololand/inference package with Ollama (port 11434) instead
+ * - The Hololand MCP Server now uses @hololand/inference directly
+ * - The Brittney Desktop (Tauri) app has built-in inference with BYOK support
+ * - Fine-tuned Brittney models are in Ollama: brittney-v4-expert:latest
+ *
+ * See: packages/shared/inference/
+ *
+ * ---
+ *
  * Brittney Service - Local AI Assistant for Hololand
  *
  * Runs a local GGUF model that both the Hololand app and IDE tools can connect to.
@@ -1220,6 +1236,19 @@ Provide specific, actionable recommendations.`,
 // =============================================================================
 
 async function main() {
+  // DEPRECATION WARNING
+  console.warn('\n' + '='.repeat(70));
+  console.warn('[DEPRECATED] @hololand/brittney-service (port 11435) is DEPRECATED');
+  console.warn('');
+  console.warn('MIGRATION:');
+  console.warn('  - Use @hololand/inference package with Ollama (port 11434) instead');
+  console.warn('  - The Hololand MCP Server now uses @hololand/inference directly');
+  console.warn('  - The Brittney Desktop (Tauri) app has built-in inference with BYOK');
+  console.warn('  - Fine-tuned Brittney models: ollama run brittney-v4-expert:latest');
+  console.warn('');
+  console.warn('See: packages/shared/inference/');
+  console.warn('='.repeat(70) + '\n');
+
   const config = await loadConfig();
   const server = new BrittneyServer(config);
 

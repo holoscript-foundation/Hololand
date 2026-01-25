@@ -1,7 +1,8 @@
 {
   "name": "@hololand/brittney-service",
   "version": "1.0.0",
-  "description": "✱brittney - AI-powered assistant for Hololand with local & cloud inference",
+  "description": "[DEPRECATED] Use @hololand/inference instead. ✱brittney - AI-powered assistant for Hololand",
+  "deprecated": "This service (port 11435) is deprecated. Use @hololand/inference with Ollama (port 11434) instead.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,6 +18,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.21.0",
     "node-llama-cpp": "^3.0.0",
     "openai": "^4.70.0",

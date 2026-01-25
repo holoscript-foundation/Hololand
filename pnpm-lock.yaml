@@ -903,6 +903,9 @@ importers:
       '@hololand/core':
         specifier: workspace:*
         version: link:../../platform/core
+      '@hololand/inference':
+        specifier: workspace:*
+        version: link:../../shared/inference
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.25.2(hono@4.11.4)(zod@3.25.76)
@@ -924,7 +927,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.0.16
-        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1(vitest@1.6.1))(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/brittney/service:
     dependencies:
@@ -934,6 +937,9 @@ importers:
       cors:
         specifier: ^2.8.5
         version: 2.8.5
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
       express:
         specifier: ^4.21.0
         version: 4.22.1
@@ -996,6 +1002,12 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/components:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../HoloScript/packages/core
+        version: link:../../../HoloScript/packages/core
 
   packages/devtools/builder:
     dependencies:
@@ -1493,6 +1505,15 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
+  packages/platform/three-plains:
+    dependencies:
+      '@hololand/components':
+        specifier: '>=1.0.0'
+        version: link:../../components
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+
   packages/platform/ui:
     dependencies:
       three:
@@ -1527,6 +1548,28 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/shared/inference:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.30.0
+        version: 0.30.1
+      openai:
+        specifier: ^4.70.0
+        version: 4.104.0(ws@8.19.0)(zod@3.25.76)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.2
+        version: 22.19.6
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.16
+        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1(vitest@1.6.1))(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
 packages:
 
@@ -5302,6 +5345,10 @@ packages:
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
+
+  dotenv@17.2.3:
+    resolution: {integrity: sha512-JVUnt+DUIzu87TABbhPmNfVdBDt18BLOWjMUFJMSi/Qqg7NTYtabbvSNJGOJ7afbRuv9D/lngizHtP7QyLQ+9w==}
+    engines: {node: '>=12'}
 
   dprint-node@1.0.8:
     resolution: {integrity: sha512-iVKnUtYfGrYcW1ZAlfR/F59cUVL8QIhWoBJoSjkkdua/dkWIgjZfiLMeTjiB06X0ZLkQ0M2C1VbUj/CxkIf1zg==}
@@ -12157,7 +12204,7 @@ snapshots:
       pathe: 1.1.2
       picocolors: 1.1.1
       sirv: 2.0.4
-      vitest: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+      vitest: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
 
   '@vitest/utils@1.6.1':
     dependencies:
@@ -13150,6 +13197,8 @@ snapshots:
       dom-serializer: 2.0.0
       domelementtype: 2.3.0
       domhandler: 5.0.3
+
+  dotenv@17.2.3: {}
 
   dprint-node@1.0.8:
     dependencies:
@@ -17226,7 +17275,7 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1)(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2):
+  vitest@4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1(vitest@1.6.1))(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
       '@vitest/expect': 4.0.17
       '@vitest/mocker': 4.0.17(vite@6.4.1(@types/node@22.19.6)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))

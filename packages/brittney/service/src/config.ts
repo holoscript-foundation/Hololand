@@ -87,6 +87,9 @@ export const BRITTNEY_MODELS = {
   // V2: Trained on 10K examples - broader knowledge, design patterns
   // Used in uAA2 service for agent assistance
   general: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney-v2:CzuzuPXc',
+  // V4-Expert: Trained on 36K expert examples - advanced HoloScript specialist
+  // Local GGUF model based on Qwen2.5-Coder-1.5B + LoRA fine-tuning
+  expert: 'brittney-v4-expert', // Ollama model name
   // Default for Hololand is V1 (HoloScript specialist)
   default: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4',
 };
@@ -167,25 +170,31 @@ export async function loadConfig(): Promise<BrittneyConfig> {
   };
 
   // Override with environment variables
+  // BRITTNEY_PREFER_LOCAL=true forces local GGUF model over cloud
+  const preferLocal = process.env.BRITTNEY_PREFER_LOCAL === 'true';
+  const preferCloud = !preferLocal && (process.env.BRITTNEY_PREFER_CLOUD === 'true' || config.preferCloud);
+  
   config = {
     ...config,
     modelName: process.env.BRITTNEY_MODEL_NAME || config.modelName,
     modelPath: process.env.BRITTNEY_MODEL_PATH || config.modelPath,
     contextSize: parseInt(process.env.BRITTNEY_CONTEXT_SIZE || '') || config.contextSize,
 
-    cloudProvider,
+    cloudProvider: preferLocal ? null : cloudProvider,
     apiKeys,
-    cloudApiKey: resolveApiKey(),
+    cloudApiKey: preferLocal ? undefined : resolveApiKey(),
     cloudModel: process.env.BRITTNEY_CLOUD_MODEL || config.cloudModel,
     cloudEndpoint:
       process.env.BRITTNEY_CLOUD_ENDPOINT ||
       process.env.AZURE_OPENAI_ENDPOINT ||
       config.cloudEndpoint,
-    preferCloud: process.env.BRITTNEY_PREFER_CLOUD === 'true' || config.preferCloud,
+    preferCloud,
 
     port: parseInt(process.env.BRITTNEY_PORT || '') || config.port,
     host: process.env.BRITTNEY_HOST || config.host,
 
+    adminApiKey: process.env.BRITTNEY_ADMIN_KEY || config.adminApiKey,
+    
     autoLoad: process.env.BRITTNEY_AUTO_LOAD !== 'false' && config.autoLoad,
     logLevel: (process.env.BRITTNEY_LOG_LEVEL as BrittneyConfig['logLevel']) || config.logLevel,
   };
