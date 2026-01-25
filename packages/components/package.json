@@ -1,0 +1,27 @@
+{
+  "name": "@hololand/components",
+  "version": "1.0.0",
+  "description": "Pre-built HoloScript templates for common game patterns",
+  "type": "module",
+  "main": "./index.holo",
+  "exports": {
+    ".": "./index.holo",
+    "./npcs": "./templates/npcs.holo",
+    "./weapons": "./templates/weapons.holo",
+    "./environment": "./templates/environment.holo",
+    "./ui": "./templates/ui.holo",
+    "./game-systems": "./templates/game-systems.holo"
+  },
+  "keywords": [
+    "holoscript",
+    "hololand",
+    "vr",
+    "ar",
+    "templates",
+    "components",
+    "game"
+  ],
+  "peerDependencies": {
+    "@holoscript/core": ">=2.0.0"
+  }
+}

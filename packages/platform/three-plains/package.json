@@ -1,0 +1,24 @@
+{
+  "name": "@hololand/three-plains",
+  "version": "1.0.0",
+  "description": "GPS-anchored VR/AR content system for the Three Plains",
+  "type": "module",
+  "main": "./core.holo",
+  "exports": {
+    ".": "./core.holo",
+    "./anchors": "./anchors.holo"
+  },
+  "keywords": [
+    "holoscript",
+    "hololand",
+    "gps",
+    "ar",
+    "vr",
+    "three-plains",
+    "geolocation"
+  ],
+  "peerDependencies": {
+    "@holoscript/core": ">=2.0.0",
+    "@hololand/components": ">=1.0.0"
+  }
+}

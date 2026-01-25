@@ -1,0 +1,58 @@
+// HoloScript Component Library Index
+// Import templates for reuse in compositions
+
+// NPCs
+import { BaseNPC, PatrolNPC, CombatNPC, DialogueNPC, ShopNPC } from "./templates/npcs.holo"
+
+// Weapons
+import { BaseWeapon, MeleeWeapon, Sword, Axe, RangedWeapon, Bow, MagicStaff, Projectile } from "./templates/weapons.holo"
+
+// Environment
+import { Portal, Door, Trap, Collectible, ParticleEffect, Light } from "./templates/environment.holo"
+
+// UI Components
+import { HealthBar, InventorySlot, InventoryPanel, HUD, ChatBubble } from "./templates/ui.holo"
+
+// Game Systems
+import { QuestSystem, AchievementSystem, SaveSystem, DialogueSystem } from "./templates/game-systems.holo"
+
+// Export all for use
+export {
+  // NPCs
+  BaseNPC,
+  PatrolNPC,
+  CombatNPC,
+  DialogueNPC,
+  ShopNPC,
+  
+  // Weapons
+  BaseWeapon,
+  MeleeWeapon,
+  Sword,
+  Axe,
+  RangedWeapon,
+  Bow,
+  MagicStaff,
+  Projectile,
+  
+  // Environment
+  Portal,
+  Door,
+  Trap,
+  Collectible,
+  ParticleEffect,
+  Light,
+  
+  // UI
+  HealthBar,
+  InventorySlot,
+  InventoryPanel,
+  HUD,
+  ChatBubble,
+  
+  // Systems
+  QuestSystem,
+  AchievementSystem,
+  SaveSystem,
+  DialogueSystem
+}

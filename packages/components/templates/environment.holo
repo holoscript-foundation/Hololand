@@ -1,0 +1,245 @@
+// Environmental Template Library
+// Portals, doors, hazards, particles
+
+template "Portal" {
+  model: "portal_ring"
+  
+  @collidable
+  
+  state {
+    destination: null
+    is_active: true
+    color: "#00ffff"
+    particle_count: 50
+  }
+  
+  particle_system "portal_particles" {
+    count: state.particle_count
+    spread: 2
+    speed: 1
+    color: state.color
+    shape: "ring"
+  }
+  
+  on_player_enter(player) {
+    if state.is_active && state.destination {
+      animate self {
+        scale: [1.5, 1.5, 1.5]
+        glow: 3
+        duration: 0.3
+      }
+      
+      emit "portal_activated" { portal: self, player: player }
+      teleport_player(player, state.destination)
+    }
+  }
+  
+  action activate() {
+    state.is_active = true
+    animate self { glow: 1, duration: 0.5 }
+  }
+  
+  action deactivate() {
+    state.is_active = false
+    animate self { glow: 0, duration: 0.5 }
+  }
+}
+
+template "Door" {
+  model: "door_wooden"
+  
+  @collidable
+  @interactable
+  
+  state {
+    is_open: false
+    is_locked: false
+    required_key: null
+    open_angle: 90
+    open_speed: 0.5
+  }
+  
+  action open() {
+    if !state.is_locked {
+      state.is_open = true
+      animate self {
+        rotation: [0, state.open_angle, 0]
+        duration: state.open_speed
+        easing: "ease-out"
+      }
+      emit "door_opened" { door: self }
+    }
+  }
+  
+  action close() {
+    state.is_open = false
+    animate self {
+      rotation: [0, 0, 0]
+      duration: state.open_speed
+      easing: "ease-in"
+    }
+    emit "door_closed" { door: self }
+  }
+  
+  action toggle() {
+    if state.is_open {
+      close()
+    } else {
+      open()
+    }
+  }
+  
+  action unlock(key) {
+    if key == state.required_key {
+      state.is_locked = false
+      emit "door_unlocked" { door: self }
+      return true
+    }
+    return false
+  }
+  
+  on_interact(player) {
+    if state.is_locked {
+      if player.has_item(state.required_key) {
+        unlock(state.required_key)
+        open()
+      } else {
+        emit "door_locked" { door: self }
+      }
+    } else {
+      toggle()
+    }
+  }
+}
+
+template "Trap" {
+  @collidable
+  
+  state {
+    damage: 25
+    cooldown: 3
+    is_ready: true
+    trap_type: "spike"
+  }
+  
+  action trigger() {
+    if state.is_ready {
+      state.is_ready = false
+      
+      animate self {
+        animation: "activate"
+        duration: 0.2
+      }
+      
+      emit "trap_triggered" { trap: self }
+      
+      wait(state.cooldown)
+      state.is_ready = true
+    }
+  }
+  
+  on_player_enter(player) {
+    if state.is_ready {
+      trigger()
+      player.take_damage(state.damage)
+    }
+  }
+}
+
+template "Collectible" {
+  @collidable
+  
+  state {
+    item_type: "coin"
+    value: 1
+    respawn_time: 0
+    is_collected: false
+  }
+  
+  // Floating animation
+  on_spawn {
+    animate self {
+      position: [0, 0.2, 0]
+      duration: 1
+      loop: true
+      easing: "sine"
+    }
+    animate self {
+      rotation: [0, 360, 0]
+      duration: 2
+      loop: true
+    }
+  }
+  
+  action collect(player) {
+    if !state.is_collected {
+      state.is_collected = true
+      
+      // Collection effect
+      spawn_effect("sparkle", self.position)
+      emit "item_collected" { item: state.item_type, value: state.value, player: player }
+      
+      if state.respawn_time > 0 {
+        set_visible(false)
+        wait(state.respawn_time)
+        state.is_collected = false
+        set_visible(true)
+      } else {
+        destroy()
+      }
+    }
+  }
+  
+  on_player_enter(player) {
+    collect(player)
+  }
+}
+
+template "ParticleEffect" {
+  state {
+    effect_type: "explosion"
+    duration: 2
+    auto_destroy: true
+  }
+  
+  particle_system "effect" {
+    count: 100
+    lifetime: state.duration
+    spread: 5
+  }
+  
+  on_spawn {
+    if state.auto_destroy {
+      wait(state.duration)
+      destroy()
+    }
+  }
+}
+
+template "Light" {
+  state {
+    color: "#ffffff"
+    intensity: 1
+    range: 10
+    light_type: "point"
+    shadows: false
+  }
+  
+  action flicker(min_intensity, max_intensity, speed) {
+    animate self {
+      intensity: random(min_intensity, max_intensity)
+      duration: speed
+      loop: true
+    }
+  }
+  
+  action pulse(target_intensity, speed) {
+    animate self {
+      intensity: target_intensity
+      duration: speed
+      easing: "sine"
+      loop: true
+      yoyo: true
+    }
+  }
+}

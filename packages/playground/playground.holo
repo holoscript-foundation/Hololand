@@ -1,0 +1,218 @@
+// Playground built WITH HoloScript
+composition "HoloScript Playground" {
+  
+  environment {
+    theme: "developer-dark"
+    ambient_light: 0.4
+    grid: true
+  }
+  
+  state {
+    current_code: ""
+    selected_entity: null
+    errors: []
+    is_brittney_open: true
+    fps: 60
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // LAYOUT - Three-panel IDE
+  // ═══════════════════════════════════════════════════════════
+  
+  spatial_group "IDE_Layout" {
+    
+    // Left Panel: Scene Inspector
+    object "InspectorPanel" {
+      position: [-4, 1.5, -2]
+      size: [2, 3]
+      material: "glass-dark"
+      
+      object "EntityTree" {
+        position: [0, 0.5, 0.01]
+        type: "ui-list"
+        data_source: "scene.entities"
+        on_select: { state.selected_entity = event.entity }
+      }
+      
+      object "PropertyEditor" {
+        position: [0, -0.5, 0.01]
+        type: "ui-properties"
+        target: state.selected_entity
+      }
+    }
+    
+    // Center: Code Editor + Live Preview
+    spatial_group "CenterArea" {
+      
+      object "CodeEditor" {
+        position: [0, 2, -2]
+        size: [4, 2]
+        type: "monaco-editor"
+        language: "holo"
+        value: state.current_code
+        on_change: { 
+          state.current_code = event.value
+          parse_and_render(event.value)
+        }
+      }
+      
+      object "LivePreview" {
+        position: [0, 0, 0]
+        size: [4, 2]
+        type: "3d-viewport"
+        render_source: state.current_code
+        show_grid: true
+        show_axes: true
+      }
+      
+      object "ErrorBar" {
+        position: [0, -1.2, -2]
+        size: [4, 0.3]
+        type: "ui-error-list"
+        errors: state.errors
+        color: "#ff4444"
+      }
+    }
+    
+    // Right Panel: Brittney AI
+    object "BrittneyPanel" {
+      position: [4, 1.5, -2]
+      size: [2, 3]
+      material: "glass-dark"
+      visible: state.is_brittney_open
+      
+      object "ChatHistory" {
+        position: [0, 0.3, 0.01]
+        size: [1.8, 2]
+        type: "ui-chat"
+      }
+      
+      object "ChatInput" {
+        position: [0, -1.2, 0.01]
+        size: [1.8, 0.4]
+        type: "ui-input"
+        placeholder: "Ask Brittney..."
+        on_submit: { brittney_generate(event.value) }
+      }
+      
+      object "InjectButton" {
+        position: [0.7, -1.2, 0.01]
+        size: [0.3, 0.4]
+        type: "ui-button"
+        label: "⚡"
+        on_click: { inject_to_scene(brittney.last_code) }
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // TOOLBAR
+  // ═══════════════════════════════════════════════════════════
+  
+  spatial_group "Toolbar" {
+    position: [0, 4, -2]
+    
+    object "RunButton" {
+      position: [-1.5, 0, 0]
+      type: "ui-button"
+      label: "▶ Run"
+      color: "#00ff88"
+      on_click: { execute_holoscript(state.current_code) }
+    }
+    
+    object "FormatButton" {
+      position: [-0.5, 0, 0]
+      type: "ui-button"
+      label: "Format"
+      on_click: { state.current_code = format_holoscript(state.current_code) }
+    }
+    
+    object "LintButton" {
+      position: [0.5, 0, 0]
+      type: "ui-button"
+      label: "Lint"
+      on_click: { state.errors = lint_holoscript(state.current_code) }
+    }
+    
+    object "SaveButton" {
+      position: [1.5, 0, 0]
+      type: "ui-button"
+      label: "💾 Save"
+      on_click: { save_to_file(state.current_code) }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════
+  
+  logic {
+    
+    // Parse code on change (debounced)
+    action parse_and_render(code) {
+      state.errors = []
+      result = parse_holo(code)
+      
+      if result.success {
+        render_to_preview("LivePreview", result.ast)
+      } else {
+        state.errors = result.errors
+      }
+    }
+    
+    // Brittney AI generation
+    async action brittney_generate(prompt) {
+      response = await brittney.chat({
+        message: prompt,
+        context: {
+          current_code: state.current_code,
+          scene_entities: get_entities()
+        }
+      })
+      
+      if response.holoscript {
+        brittney.last_code = response.holoscript
+      }
+    }
+    
+    // Inject AI-generated code
+    action inject_to_scene(code) {
+      state.current_code = state.current_code + "\n\n" + code
+      parse_and_render(state.current_code)
+    }
+    
+    // Format using @holoscript/formatter
+    action format_holoscript(code) {
+      return holoscript.format(code, { indent: 2 })
+    }
+    
+    // Lint using @holoscript/linter
+    action lint_holoscript(code) {
+      return holoscript.lint(code)
+    }
+    
+    // Execute in runtime
+    action execute_holoscript(code) {
+      runtime = holoscript.createRuntime()
+      runtime.execute(code)
+    }
+    
+    // Keyboard shortcuts
+    on_keydown(event) {
+      if event.ctrl && event.key == "s" {
+        save_to_file(state.current_code)
+      }
+      if event.ctrl && event.key == "Enter" {
+        execute_holoscript(state.current_code)
+      }
+      if event.ctrl && event.shift && event.key == "f" {
+        state.current_code = format_holoscript(state.current_code)
+      }
+    }
+    
+    // Performance monitoring
+    on_frame {
+      state.fps = get_fps()
+    }
+  }
+}

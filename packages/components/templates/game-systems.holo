@@ -1,0 +1,304 @@
+// Game System Templates
+// Quests, achievements, save/load
+
+template "QuestSystem" {
+  state {
+    active_quests: []
+    completed_quests: []
+    quest_definitions: {}
+  }
+  
+  action start_quest(quest_id) {
+    if !has_quest(quest_id) && state.quest_definitions[quest_id] {
+      quest = {
+        id: quest_id,
+        ...state.quest_definitions[quest_id],
+        progress: {},
+        started_at: now()
+      }
+      
+      // Initialize objective progress
+      for objective in quest.objectives {
+        quest.progress[objective.id] = 0
+      }
+      
+      state.active_quests.push(quest)
+      emit "quest_started" { quest: quest }
+    }
+  }
+  
+  action update_objective(quest_id, objective_id, amount) {
+    quest = get_quest(quest_id)
+    if quest {
+      objective = quest.objectives.find(o => o.id == objective_id)
+      if objective {
+        quest.progress[objective_id] += amount
+        
+        if quest.progress[objective_id] >= objective.target {
+          emit "objective_complete" { quest: quest, objective: objective }
+        }
+        
+        // Check if all objectives complete
+        all_complete = quest.objectives.every(o => 
+          quest.progress[o.id] >= o.target
+        )
+        
+        if all_complete {
+          complete_quest(quest_id)
+        }
+      }
+    }
+  }
+  
+  action complete_quest(quest_id) {
+    quest = get_quest(quest_id)
+    if quest {
+      state.active_quests = state.active_quests.filter(q => q.id != quest_id)
+      state.completed_quests.push({
+        ...quest,
+        completed_at: now()
+      })
+      
+      // Grant rewards
+      for reward in quest.rewards {
+        emit "grant_reward" { type: reward.type, value: reward.value }
+      }
+      
+      emit "quest_completed" { quest: quest }
+    }
+  }
+  
+  action has_quest(quest_id) {
+    return state.active_quests.some(q => q.id == quest_id)
+  }
+  
+  action get_quest(quest_id) {
+    return state.active_quests.find(q => q.id == quest_id)
+  }
+  
+  // Listen to game events for automatic tracking
+  on_enemy_killed(enemy) {
+    for quest in state.active_quests {
+      for objective in quest.objectives {
+        if objective.type == "kill" && objective.target_type == enemy.type {
+          update_objective(quest.id, objective.id, 1)
+        }
+      }
+    }
+  }
+  
+  on_item_collected(item) {
+    for quest in state.active_quests {
+      for objective in quest.objectives {
+        if objective.type == "collect" && objective.item_id == item.id {
+          update_objective(quest.id, objective.id, item.quantity)
+        }
+      }
+    }
+  }
+}
+
+template "AchievementSystem" {
+  state {
+    achievements: {}
+    unlocked: []
+    stats: {}
+  }
+  
+  action check_achievement(achievement_id) {
+    achievement = state.achievements[achievement_id]
+    if achievement && !is_unlocked(achievement_id) {
+      if evaluate_condition(achievement.condition) {
+        unlock(achievement_id)
+      }
+    }
+  }
+  
+  action unlock(achievement_id) {
+    if !is_unlocked(achievement_id) {
+      achievement = state.achievements[achievement_id]
+      state.unlocked.push({
+        id: achievement_id,
+        unlocked_at: now()
+      })
+      
+      emit "achievement_unlocked" { achievement: achievement }
+      
+      // Show notification
+      spawn("AchievementNotification", {
+        title: achievement.title,
+        description: achievement.description,
+        icon: achievement.icon
+      })
+    }
+  }
+  
+  action is_unlocked(achievement_id) {
+    return state.unlocked.some(a => a.id == achievement_id)
+  }
+  
+  action increment_stat(stat_name, amount) {
+    if !state.stats[stat_name] {
+      state.stats[stat_name] = 0
+    }
+    state.stats[stat_name] += amount
+    
+    // Check all achievements that track this stat
+    for id, achievement in state.achievements {
+      if achievement.condition.stat == stat_name {
+        check_achievement(id)
+      }
+    }
+  }
+  
+  action evaluate_condition(condition) {
+    value = state.stats[condition.stat] || 0
+    
+    switch condition.operator {
+      case ">=": return value >= condition.value
+      case ">":  return value > condition.value
+      case "==": return value == condition.value
+      case "<=": return value <= condition.value
+      case "<":  return value < condition.value
+    }
+    return false
+  }
+}
+
+template "SaveSystem" {
+  state {
+    save_slots: 3
+    current_slot: 0
+    auto_save_interval: 300  // 5 minutes
+  }
+  
+  action save(slot) {
+    save_data = {
+      timestamp: now(),
+      version: GAME_VERSION,
+      player: serialize_player(),
+      world: serialize_world(),
+      quests: serialize_quests(),
+      achievements: serialize_achievements(),
+      settings: get_settings()
+    }
+    
+    storage.save("save_" + slot, save_data)
+    emit "game_saved" { slot: slot }
+  }
+  
+  action load(slot) {
+    save_data = storage.load("save_" + slot)
+    
+    if save_data {
+      deserialize_player(save_data.player)
+      deserialize_world(save_data.world)
+      deserialize_quests(save_data.quests)
+      deserialize_achievements(save_data.achievements)
+      apply_settings(save_data.settings)
+      
+      emit "game_loaded" { slot: slot }
+      return true
+    }
+    return false
+  }
+  
+  action delete_save(slot) {
+    storage.delete("save_" + slot)
+    emit "save_deleted" { slot: slot }
+  }
+  
+  action get_save_info(slot) {
+    save_data = storage.load("save_" + slot)
+    if save_data {
+      return {
+        exists: true,
+        timestamp: save_data.timestamp,
+        player_level: save_data.player.level,
+        play_time: save_data.player.play_time
+      }
+    }
+    return { exists: false }
+  }
+  
+  action auto_save() {
+    save(state.current_slot)
+    emit "auto_saved" {}
+  }
+  
+  on_spawn {
+    // Start auto-save timer
+    set_interval(auto_save, state.auto_save_interval * 1000)
+  }
+}
+
+template "DialogueSystem" {
+  state {
+    dialogues: {}
+    current_dialogue: null
+    current_node: null
+    history: []
+  }
+  
+  action start(dialogue_id, speaker) {
+    dialogue = state.dialogues[dialogue_id]
+    if dialogue {
+      state.current_dialogue = dialogue
+      state.current_node = dialogue.start_node
+      state.history = []
+      
+      emit "dialogue_started" { dialogue: dialogue, speaker: speaker }
+      show_node(state.current_node)
+    }
+  }
+  
+  action show_node(node_id) {
+    node = state.current_dialogue.nodes[node_id]
+    if node {
+      state.current_node = node_id
+      state.history.push(node_id)
+      
+      emit "dialogue_node" { 
+        text: node.text, 
+        speaker: node.speaker,
+        options: node.options 
+      }
+    }
+  }
+  
+  action select_option(option_index) {
+    node = state.current_dialogue.nodes[state.current_node]
+    if node && node.options[option_index] {
+      option = node.options[option_index]
+      
+      // Execute any actions
+      if option.action {
+        execute_action(option.action)
+      }
+      
+      // Move to next node
+      if option.next == "end" {
+        end_dialogue()
+      } else {
+        show_node(option.next)
+      }
+    }
+  }
+  
+  action end_dialogue() {
+    emit "dialogue_ended" { dialogue: state.current_dialogue }
+    state.current_dialogue = null
+    state.current_node = null
+  }
+  
+  action execute_action(action) {
+    switch action.type {
+      case "give_item":
+        emit "give_item" { item: action.item, quantity: action.quantity }
+      case "start_quest":
+        emit "start_quest" { quest_id: action.quest_id }
+      case "set_flag":
+        set_game_flag(action.flag, action.value)
+    }
+  }
+}

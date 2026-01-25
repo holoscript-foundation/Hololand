@@ -1,0 +1,252 @@
+// UI Component Templates
+// Health bars, inventory, HUD elements
+
+template "HealthBar" {
+  type: "ui-panel"
+  
+  state {
+    current: 100
+    max: 100
+    show_text: true
+    bar_color: "#00ff00"
+    bg_color: "#333333"
+  }
+  
+  object "Background" {
+    type: "ui-rect"
+    size: [1, 0.1]
+    color: state.bg_color
+  }
+  
+  object "Fill" {
+    type: "ui-rect"
+    size: [(state.current / state.max), 0.1]
+    color: state.bar_color
+    anchor: "left"
+  }
+  
+  object "Text" {
+    type: "ui-text"
+    text: state.current + " / " + state.max
+    visible: state.show_text
+    font_size: 14
+    color: "#ffffff"
+  }
+  
+  action set_value(value) {
+    state.current = clamp(value, 0, state.max)
+    
+    // Color changes based on health
+    if state.current / state.max < 0.25 {
+      state.bar_color = "#ff0000"
+    } else if state.current / state.max < 0.5 {
+      state.bar_color = "#ffff00"
+    } else {
+      state.bar_color = "#00ff00"
+    }
+  }
+  
+  on_target_health_changed(value) {
+    set_value(value)
+  }
+}
+
+template "InventorySlot" {
+  type: "ui-panel"
+  size: [0.5, 0.5]
+  
+  @droppable
+  
+  state {
+    item: null
+    quantity: 0
+    slot_index: 0
+  }
+  
+  object "Background" {
+    type: "ui-rect"
+    size: [0.5, 0.5]
+    color: "#444444"
+    border: "#666666"
+  }
+  
+  object "ItemIcon" {
+    type: "ui-image"
+    image: state.item?.icon
+    visible: state.item != null
+    size: [0.4, 0.4]
+  }
+  
+  object "QuantityText" {
+    type: "ui-text"
+    text: state.quantity > 1 ? state.quantity : ""
+    position: [0.2, -0.2]
+    font_size: 12
+    color: "#ffffff"
+  }
+  
+  on_click {
+    if state.item {
+      emit "slot_clicked" { slot: state.slot_index, item: state.item }
+    }
+  }
+  
+  on_drop(dragged_item) {
+    emit "item_dropped" { slot: state.slot_index, item: dragged_item }
+  }
+}
+
+template "InventoryPanel" {
+  type: "ui-panel"
+  
+  state {
+    slots: 20
+    columns: 5
+    items: []
+    is_open: false
+  }
+  
+  action open() {
+    state.is_open = true
+    animate self {
+      scale: [1, 1]
+      opacity: 1
+      duration: 0.2
+    }
+  }
+  
+  action close() {
+    animate self {
+      scale: [0.9, 0.9]
+      opacity: 0
+      duration: 0.2
+    }
+    wait(0.2)
+    state.is_open = false
+  }
+  
+  action toggle() {
+    if state.is_open { close() } else { open() }
+  }
+  
+  action add_item(item, quantity) {
+    // Find existing stack or empty slot
+    for slot in state.items {
+      if slot.item?.id == item.id && slot.quantity < item.max_stack {
+        slot.quantity += quantity
+        return true
+      }
+    }
+    
+    // Find empty slot
+    for i in range(state.slots) {
+      if !state.items[i] {
+        state.items[i] = { item: item, quantity: quantity }
+        return true
+      }
+    }
+    
+    return false  // Inventory full
+  }
+  
+  // Generate slot grid
+  on_spawn {
+    for i in range(state.slots) {
+      row = floor(i / state.columns)
+      col = i % state.columns
+      
+      create_child("InventorySlot", {
+        position: [col * 0.55, -row * 0.55, 0],
+        slot_index: i
+      })
+    }
+  }
+}
+
+template "HUD" {
+  type: "ui-overlay"
+  
+  state {
+    player: null
+  }
+  
+  object "HealthBar" using "HealthBar" {
+    position: [-0.8, 0.9, 0]
+    size: [0.3, 0.03]
+  }
+  
+  object "ManaBar" using "HealthBar" {
+    position: [-0.8, 0.85, 0]
+    size: [0.3, 0.02]
+    bar_color: "#0088ff"
+  }
+  
+  object "Crosshair" {
+    type: "ui-image"
+    image: "crosshair"
+    position: [0, 0, 0]
+    size: [0.02, 0.02]
+    color: "#ffffff"
+  }
+  
+  object "AmmoCounter" {
+    type: "ui-text"
+    position: [0.8, -0.85, 0]
+    text: "30 / 90"
+    font_size: 24
+    color: "#ffffff"
+  }
+  
+  object "Minimap" {
+    type: "ui-minimap"
+    position: [0.85, 0.85, 0]
+    size: [0.15, 0.15]
+    radius: 50
+    show_player: true
+    show_enemies: true
+  }
+  
+  on_player_health_changed(value) {
+    HealthBar.set_value(value)
+  }
+  
+  on_player_mana_changed(value) {
+    ManaBar.set_value(value)
+  }
+}
+
+template "ChatBubble" {
+  type: "ui-billboard"
+  
+  state {
+    text: ""
+    duration: 5
+    fade_time: 0.5
+  }
+  
+  object "Bubble" {
+    type: "ui-rect"
+    color: "#ffffff"
+    corner_radius: 8
+    padding: 10
+    
+    object "Text" {
+      type: "ui-text"
+      text: state.text
+      color: "#000000"
+      font_size: 14
+      max_width: 200
+      word_wrap: true
+    }
+  }
+  
+  on_spawn {
+    wait(state.duration - state.fade_time)
+    animate self {
+      opacity: 0
+      duration: state.fade_time
+    }
+    wait(state.fade_time)
+    destroy()
+  }
+}

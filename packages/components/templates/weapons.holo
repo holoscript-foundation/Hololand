@@ -1,0 +1,211 @@
+// Weapon Template Library
+// Melee, ranged, and magical weapons
+
+template "BaseWeapon" {
+  @grabbable
+  @equippable
+  
+  state {
+    damage: 10
+    attack_speed: 1.0
+    is_equipped: false
+    owner: null
+  }
+  
+  action equip(player) {
+    state.is_equipped = true
+    state.owner = player
+    attach_to(player, "hand_right")
+  }
+  
+  action unequip() {
+    state.is_equipped = false
+    detach()
+    state.owner = null
+  }
+}
+
+template "MeleeWeapon" using "BaseWeapon" {
+  state {
+    swing_arc: 90
+    reach: 1.5
+    is_swinging: false
+  }
+  
+  action attack() {
+    if !state.is_swinging {
+      state.is_swinging = true
+      
+      animate self {
+        rotation: [0, state.swing_arc, 0]
+        duration: 0.3
+        easing: "ease-out"
+      }
+      
+      // Damage entities in arc
+      hits = raycast_arc(state.owner.position, state.swing_arc, state.reach)
+      for hit in hits {
+        if hit.has_component("damageable") {
+          hit.take_damage(state.damage)
+        }
+      }
+      
+      wait(1.0 / state.attack_speed)
+      state.is_swinging = false
+    }
+  }
+  
+  on_trigger_press {
+    if state.is_equipped {
+      attack()
+    }
+  }
+}
+
+template "Sword" using "MeleeWeapon" {
+  model: "sword_basic"
+  
+  state {
+    damage: 15
+    attack_speed: 1.2
+    reach: 1.8
+  }
+}
+
+template "Axe" using "MeleeWeapon" {
+  model: "axe_battle"
+  
+  state {
+    damage: 25
+    attack_speed: 0.8
+    reach: 1.5
+    swing_arc: 120
+  }
+}
+
+template "RangedWeapon" using "BaseWeapon" {
+  state {
+    projectile_type: "arrow"
+    projectile_speed: 20
+    ammo: 30
+    max_ammo: 30
+    reload_time: 2.0
+    is_reloading: false
+  }
+  
+  action shoot() {
+    if state.ammo > 0 && !state.is_reloading {
+      state.ammo -= 1
+      
+      spawn_projectile(state.projectile_type, {
+        position: self.position,
+        direction: state.owner.look_direction,
+        speed: state.projectile_speed,
+        damage: state.damage,
+        owner: state.owner
+      })
+      
+      emit "weapon_fired" { weapon: self, ammo_remaining: state.ammo }
+    } else if state.ammo == 0 {
+      reload()
+    }
+  }
+  
+  action reload() {
+    if !state.is_reloading && state.ammo < state.max_ammo {
+      state.is_reloading = true
+      
+      animate self {
+        animation: "reload"
+        duration: state.reload_time
+      }
+      
+      wait(state.reload_time)
+      state.ammo = state.max_ammo
+      state.is_reloading = false
+    }
+  }
+  
+  on_trigger_press {
+    if state.is_equipped {
+      shoot()
+    }
+  }
+}
+
+template "Bow" using "RangedWeapon" {
+  model: "bow_wooden"
+  
+  state {
+    damage: 20
+    projectile_type: "arrow"
+    projectile_speed: 25
+  }
+}
+
+template "MagicStaff" using "BaseWeapon" {
+  model: "staff_crystal"
+  
+  state {
+    damage: 30
+    mana_cost: 10
+    spell_type: "fireball"
+    cast_time: 0.5
+  }
+  
+  action cast_spell() {
+    if state.owner.mana >= state.mana_cost {
+      state.owner.mana -= state.mana_cost
+      
+      // Charge animation
+      animate self {
+        glow: 2.0
+        duration: state.cast_time
+      }
+      
+      wait(state.cast_time)
+      
+      spawn_projectile(state.spell_type, {
+        position: self.position,
+        direction: state.owner.look_direction,
+        damage: state.damage,
+        owner: state.owner
+      })
+      
+      emit "spell_cast" { spell: state.spell_type }
+    }
+  }
+  
+  on_trigger_press {
+    if state.is_equipped {
+      cast_spell()
+    }
+  }
+}
+
+template "Projectile" {
+  @physics
+  
+  state {
+    damage: 10
+    speed: 20
+    lifetime: 5
+    owner: null
+  }
+  
+  on_spawn {
+    velocity = self.direction * state.speed
+    destroy_after(state.lifetime)
+  }
+  
+  on_collision(target) {
+    if target != state.owner {
+      if target.has_component("damageable") {
+        target.take_damage(state.damage)
+      }
+      
+      spawn_effect("impact", self.position)
+      destroy()
+    }
+  }
+}

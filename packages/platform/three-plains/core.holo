@@ -1,0 +1,332 @@
+// Three Plains GPS System
+// Anchoring content to real-world coordinates
+
+composition "Three Plains Core" {
+  
+  environment {
+    coordinate_system: "wgs84"  // GPS standard
+    origin_mode: "dynamic"      // Origin follows player
+  }
+  
+  state {
+    // Current GPS position
+    current_lat: 0
+    current_lng: 0
+    current_alt: 0
+    
+    // GPS accuracy
+    accuracy_horizontal: 0
+    accuracy_vertical: 0
+    
+    // Active plain
+    active_plain: "hololand"  // "hololand" | "vr_real" | "ar_real"
+    
+    // Loaded regions (chunked world)
+    loaded_regions: []
+    region_radius: 500  // meters
+    
+    // Anchored content
+    world_anchors: []
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // PLAIN DEFINITIONS
+  // ═══════════════════════════════════════════════════════════
+  
+  template "Plain" {
+    state {
+      name: ""
+      type: ""
+      is_active: false
+      render_mode: "3d"
+    }
+  }
+  
+  // 🌌 HOLOLAND - Pure VR (no GPS anchoring)
+  object "Hololand" using "Plain" {
+    name: "Hololand"
+    type: "pure_vr"
+    render_mode: "immersive"
+    
+    // Content is relative to world origin
+    coordinate_mode: "world"
+  }
+  
+  // 🥽 VR REAL WORLD - Digital twin in VR (GPS-anchored)
+  object "VR_RealWorld" using "Plain" {
+    name: "VR Real World"
+    type: "vr_gps"
+    render_mode: "immersive"
+    
+    // Content anchored to GPS coordinates
+    coordinate_mode: "gps"
+    
+    // Earth data sources
+    terrain_source: "mapbox"
+    buildings_source: "osm"
+    satellite_source: "bing"
+  }
+  
+  // 📱 AR REAL WORLD - Overlay on reality (GPS-anchored)
+  object "AR_RealWorld" using "Plain" {
+    name: "AR Real World"
+    type: "ar_gps"
+    render_mode: "passthrough"
+    
+    // Content anchored to GPS coordinates
+    coordinate_mode: "gps"
+    
+    // AR features
+    occlusion: true          // Hide 3D behind real objects
+    light_estimation: true   // Match real lighting
+    plane_detection: true    // Find surfaces
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // GPS ANCHOR SYSTEM
+  // ═══════════════════════════════════════════════════════════
+  
+  template "GPSAnchor" {
+    state {
+      latitude: 0
+      longitude: 0
+      altitude: 0
+      altitude_mode: "relative"  // "relative" | "absolute" | "terrain"
+      
+      // Accuracy requirements
+      min_accuracy: 10  // meters
+      
+      // Visibility range
+      visible_range: 1000  // meters
+      
+      // Content
+      content: null
+    }
+    
+    action is_visible() {
+      distance = haversine_distance(
+        state.latitude, state.longitude,
+        current_lat, current_lng
+      )
+      return distance <= state.visible_range
+    }
+    
+    action get_local_position() {
+      // Convert GPS to local 3D coordinates
+      return gps_to_local(
+        state.latitude, state.longitude, state.altitude,
+        current_lat, current_lng, current_alt
+      )
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // WORLD REGION SYSTEM (Chunked Loading)
+  // ═══════════════════════════════════════════════════════════
+  
+  template "WorldRegion" {
+    state {
+      region_id: ""
+      center_lat: 0
+      center_lng: 0
+      radius: 500
+      
+      // Content
+      anchors: []
+      terrain_loaded: false
+      buildings_loaded: false
+      
+      // LOD
+      lod_level: 0  // 0 = high detail, 3 = low detail
+    }
+    
+    async action load() {
+      // Load terrain
+      terrain = await fetch_terrain(state.center_lat, state.center_lng, state.radius)
+      create_terrain_mesh(terrain)
+      state.terrain_loaded = true
+      
+      // Load buildings from OSM
+      buildings = await fetch_osm_buildings(state.center_lat, state.center_lng, state.radius)
+      for building in buildings {
+        create_building_mesh(building)
+      }
+      state.buildings_loaded = true
+      
+      // Load user-placed anchors
+      anchors = await fetch_anchors(state.center_lat, state.center_lng, state.radius)
+      state.anchors = anchors
+    }
+    
+    action unload() {
+      destroy_terrain_mesh()
+      for anchor in state.anchors {
+        anchor.unload()
+      }
+      state.terrain_loaded = false
+      state.buildings_loaded = false
+    }
+    
+    action update_lod(distance) {
+      if distance < 100 {
+        state.lod_level = 0
+      } else if distance < 300 {
+        state.lod_level = 1
+      } else if distance < 500 {
+        state.lod_level = 2
+      } else {
+        state.lod_level = 3
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // COORDINATE CONVERSION
+  // ═══════════════════════════════════════════════════════════
+  
+  logic {
+    
+    // Haversine formula for GPS distance
+    action haversine_distance(lat1, lng1, lat2, lng2) {
+      R = 6371000  // Earth radius in meters
+      
+      phi1 = radians(lat1)
+      phi2 = radians(lat2)
+      delta_phi = radians(lat2 - lat1)
+      delta_lambda = radians(lng2 - lng1)
+      
+      a = sin(delta_phi / 2) * sin(delta_phi / 2) +
+          cos(phi1) * cos(phi2) *
+          sin(delta_lambda / 2) * sin(delta_lambda / 2)
+      
+      c = 2 * atan2(sqrt(a), sqrt(1 - a))
+      
+      return R * c
+    }
+    
+    // Convert GPS to local ENU (East-North-Up) coordinates
+    action gps_to_local(lat, lng, alt, origin_lat, origin_lng, origin_alt) {
+      // Convert to radians
+      lat_rad = radians(lat)
+      lng_rad = radians(lng)
+      origin_lat_rad = radians(origin_lat)
+      origin_lng_rad = radians(origin_lng)
+      
+      // WGS84 ellipsoid constants
+      a = 6378137.0           // Semi-major axis
+      f = 1 / 298.257223563   // Flattening
+      e2 = f * (2 - f)        // Eccentricity squared
+      
+      // Calculate ECEF coordinates
+      N = a / sqrt(1 - e2 * sin(lat_rad) * sin(lat_rad))
+      
+      x = (N + alt) * cos(lat_rad) * cos(lng_rad)
+      y = (N + alt) * cos(lat_rad) * sin(lng_rad)
+      z = (N * (1 - e2) + alt) * sin(lat_rad)
+      
+      // Origin ECEF
+      N0 = a / sqrt(1 - e2 * sin(origin_lat_rad) * sin(origin_lat_rad))
+      x0 = (N0 + origin_alt) * cos(origin_lat_rad) * cos(origin_lng_rad)
+      y0 = (N0 + origin_alt) * cos(origin_lat_rad) * sin(origin_lng_rad)
+      z0 = (N0 * (1 - e2) + origin_alt) * sin(origin_lat_rad)
+      
+      // Difference
+      dx = x - x0
+      dy = y - y0
+      dz = z - z0
+      
+      // Rotation matrix to ENU
+      east = -sin(origin_lng_rad) * dx + cos(origin_lng_rad) * dy
+      north = -sin(origin_lat_rad) * cos(origin_lng_rad) * dx -
+              sin(origin_lat_rad) * sin(origin_lng_rad) * dy +
+              cos(origin_lat_rad) * dz
+      up = cos(origin_lat_rad) * cos(origin_lng_rad) * dx +
+           cos(origin_lat_rad) * sin(origin_lng_rad) * dy +
+           sin(origin_lat_rad) * dz
+      
+      // Return as [x, y, z] where x=east, y=up, z=north (Unity/Three.js convention)
+      return [east, up, north]
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // GPS UPDATES
+    // ═══════════════════════════════════════════════════════════
+    
+    on_gps_update(position) {
+      state.current_lat = position.latitude
+      state.current_lng = position.longitude
+      state.current_alt = position.altitude
+      state.accuracy_horizontal = position.accuracy
+      
+      // Update loaded regions
+      update_regions()
+    }
+    
+    action update_regions() {
+      // Calculate which region tiles should be loaded
+      needed_regions = get_region_tiles(
+        state.current_lat, 
+        state.current_lng, 
+        state.region_radius * 2
+      )
+      
+      // Unload distant regions
+      for region in state.loaded_regions {
+        if !needed_regions.includes(region.region_id) {
+          region.unload()
+        }
+      }
+      
+      // Load new regions
+      for region_id in needed_regions {
+        if !state.loaded_regions.find(r => r.region_id == region_id) {
+          new_region = create("WorldRegion", {
+            region_id: region_id,
+            center_lat: get_region_lat(region_id),
+            center_lng: get_region_lng(region_id)
+          })
+          new_region.load()
+          state.loaded_regions.push(new_region)
+        }
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // PLAIN SWITCHING
+    // ═══════════════════════════════════════════════════════════
+    
+    action switch_plain(plain_name) {
+      previous = state.active_plain
+      state.active_plain = plain_name
+      
+      // Transition effect
+      animate "transition_overlay" {
+        opacity: 1
+        duration: 0.5
+      }
+      
+      wait(0.5)
+      
+      // Switch rendering mode
+      if plain_name == "hololand" {
+        set_render_mode("immersive")
+        disable_gps_anchoring()
+      } else if plain_name == "vr_real" {
+        set_render_mode("immersive")
+        enable_gps_anchoring()
+        load_earth_data()
+      } else if plain_name == "ar_real" {
+        set_render_mode("passthrough")
+        enable_gps_anchoring()
+        enable_ar_features()
+      }
+      
+      animate "transition_overlay" {
+        opacity: 0
+        duration: 0.5
+      }
+      
+      emit "plain_switched" { from: previous, to: plain_name }
+    }
+  }
+}

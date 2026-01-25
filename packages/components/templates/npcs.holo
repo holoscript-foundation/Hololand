@@ -1,0 +1,160 @@
+// NPC Template Library
+// Reusable AI-controlled characters
+
+template "BaseNPC" {
+  model: "humanoid"
+  collider: "capsule"
+  
+  state {
+    health: 100
+    max_health: 100
+    is_alive: true
+    current_state: "idle"
+    target: null
+  }
+  
+  action take_damage(amount) {
+    state.health -= amount
+    if state.health <= 0 {
+      state.health = 0
+      state.is_alive = false
+      emit "npc_died" { npc: self }
+    }
+  }
+  
+  action heal(amount) {
+    state.health = min(state.health + amount, state.max_health)
+  }
+}
+
+template "PatrolNPC" using "BaseNPC" {
+  state {
+    patrol_points: []
+    patrol_index: 0
+    patrol_speed: 2
+    wait_time: 2
+  }
+  
+  action start_patrol() {
+    state.current_state = "patrolling"
+  }
+  
+  action stop_patrol() {
+    state.current_state = "idle"
+  }
+  
+  on_frame {
+    if state.current_state == "patrolling" && state.patrol_points.length > 0 {
+      target_point = state.patrol_points[state.patrol_index]
+      move_towards(target_point, state.patrol_speed)
+      
+      if distance_to(target_point) < 0.5 {
+        state.patrol_index = (state.patrol_index + 1) % state.patrol_points.length
+        wait(state.wait_time)
+      }
+    }
+  }
+}
+
+template "CombatNPC" using "BaseNPC" {
+  state {
+    attack_damage: 10
+    attack_range: 2
+    attack_cooldown: 1.5
+    detection_range: 10
+    can_attack: true
+  }
+  
+  action attack(target) {
+    if state.can_attack && distance_to(target) <= state.attack_range {
+      target.take_damage(state.attack_damage)
+      state.can_attack = false
+      
+      animate self {
+        animation: "attack"
+        duration: 0.5
+      }
+      
+      wait(state.attack_cooldown)
+      state.can_attack = true
+    }
+  }
+  
+  on_frame {
+    if state.is_alive && state.target {
+      if distance_to(state.target) <= state.attack_range {
+        attack(state.target)
+      } else if distance_to(state.target) <= state.detection_range {
+        move_towards(state.target.position, 3)
+      }
+    }
+  }
+  
+  on_player_enter(player) {
+    if distance_to(player) <= state.detection_range {
+      state.target = player
+      state.current_state = "combat"
+    }
+  }
+}
+
+template "DialogueNPC" using "BaseNPC" {
+  state {
+    dialogue_tree: null
+    current_node: "start"
+    is_talking: false
+  }
+  
+  action start_dialogue(player) {
+    state.is_talking = true
+    state.current_node = "start"
+    emit "dialogue_started" { npc: self, player: player }
+    show_dialogue(state.dialogue_tree[state.current_node])
+  }
+  
+  action select_option(option_index) {
+    current = state.dialogue_tree[state.current_node]
+    if current.options && current.options[option_index] {
+      next_node = current.options[option_index].next
+      if next_node == "end" {
+        end_dialogue()
+      } else {
+        state.current_node = next_node
+        show_dialogue(state.dialogue_tree[state.current_node])
+      }
+    }
+  }
+  
+  action end_dialogue() {
+    state.is_talking = false
+    emit "dialogue_ended" { npc: self }
+  }
+  
+  on_interact(player) {
+    if !state.is_talking {
+      start_dialogue(player)
+    }
+  }
+}
+
+template "ShopNPC" using "DialogueNPC" {
+  state {
+    inventory: []
+    prices: {}
+  }
+  
+  action show_shop(player) {
+    emit "shop_opened" { npc: self, items: state.inventory, prices: state.prices }
+  }
+  
+  action sell_item(item_id, player) {
+    price = state.prices[item_id]
+    if player.gold >= price {
+      player.gold -= price
+      player.add_item(item_id)
+      emit "item_purchased" { item: item_id, price: price }
+    } else {
+      emit "purchase_failed" { reason: "insufficient_gold" }
+    }
+  }
+}

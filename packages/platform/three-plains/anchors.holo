@@ -1,0 +1,193 @@
+// GPS Anchor Examples
+// Place content at real-world locations
+
+import { GPSAnchor, WorldRegion } from "./core.holo"
+import { Portal, Light, ParticleEffect } from "@hololand/components/environment"
+
+// ═══════════════════════════════════════════════════════════
+// EXAMPLE: Virtual Monument at Real Location
+// ═══════════════════════════════════════════════════════════
+
+composition "GPS Anchor Demo" {
+  
+  environment {
+    plain: "vr_real"  // Use GPS-anchored VR mode
+  }
+  
+  // Virtual statue at Times Square, NYC
+  object "TimesSquareStatue" using "GPSAnchor" {
+    latitude: 40.758896
+    longitude: -73.985130
+    altitude: 0
+    altitude_mode: "terrain"
+    visible_range: 500
+    
+    content: {
+      object "Statue" {
+        model: "liberty_statue"
+        scale: [0.5, 0.5, 0.5]
+        
+        object "Glow" using "Light" {
+          color: "#00ffff"
+          intensity: 2
+          range: 20
+        }
+      }
+    }
+  }
+  
+  // Portal at Eiffel Tower
+  object "EiffelPortal" using "GPSAnchor" {
+    latitude: 48.858370
+    longitude: 2.294481
+    altitude: 10
+    altitude_mode: "terrain"
+    visible_range: 1000
+    
+    content: {
+      object "ParisPortal" using "Portal" {
+        destination: "virtual_paris"
+        color: "#ff00ff"
+        
+        particle_system "sparkles" {
+          count: 100
+          spread: 3
+        }
+      }
+    }
+  }
+  
+  // Virtual graffiti at Berlin Wall
+  object "BerlinArt" using "GPSAnchor" {
+    latitude: 52.535152
+    longitude: 13.390206
+    altitude: 1.5
+    altitude_mode: "terrain"
+    visible_range: 100
+    
+    content: {
+      object "Mural" {
+        type: "plane"
+        size: [10, 5]
+        texture: "user_uploaded/berlin_art_001.png"
+        
+        // Only visible in AR/VR real world plains
+        visible_in: ["vr_real", "ar_real"]
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PERSISTENT WORLD ANCHOR API
+// ═══════════════════════════════════════════════════════════
+
+template "UserPlacedAnchor" using "GPSAnchor" {
+  state {
+    owner_id: ""
+    created_at: null
+    is_public: true
+    likes: 0
+    
+    // Permissions
+    can_edit: []
+    can_view: []
+  }
+  
+  async action save() {
+    await api.post("/anchors", {
+      latitude: state.latitude,
+      longitude: state.longitude,
+      altitude: state.altitude,
+      content: serialize(state.content),
+      is_public: state.is_public
+    })
+    emit "anchor_saved" { anchor: self }
+  }
+  
+  async action load_nearby(lat, lng, radius) {
+    anchors = await api.get("/anchors/nearby", {
+      lat: lat,
+      lng: lng,
+      radius: radius
+    })
+    return anchors
+  }
+  
+  action like() {
+    state.likes += 1
+    api.post("/anchors/" + state.id + "/like")
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AR PLACEMENT FLOW
+// ═══════════════════════════════════════════════════════════
+
+composition "AR Placement Mode" {
+  
+  state {
+    placement_mode: false
+    preview_object: null
+    current_surface: null
+  }
+  
+  object "PlacementUI" {
+    visible: state.placement_mode
+    
+    object "PreviewGhost" {
+      opacity: 0.5
+      model: state.preview_object?.model
+      position: state.current_surface?.position
+    }
+    
+    object "PlaceButton" {
+      type: "ui-button"
+      label: "Place Here"
+      on_click: { confirm_placement() }
+    }
+    
+    object "CancelButton" {
+      type: "ui-button"
+      label: "Cancel"
+      on_click: { cancel_placement() }
+    }
+  }
+  
+  logic {
+    action start_placement(object_template) {
+      state.placement_mode = true
+      state.preview_object = object_template
+    }
+    
+    action confirm_placement() {
+      // Get GPS coordinates of placement point
+      gps = local_to_gps(state.current_surface.position)
+      
+      // Create permanent anchor
+      anchor = create("UserPlacedAnchor", {
+        latitude: gps.lat,
+        longitude: gps.lng,
+        altitude: gps.alt,
+        content: state.preview_object
+      })
+      
+      anchor.save()
+      
+      state.placement_mode = false
+      state.preview_object = null
+    }
+    
+    action cancel_placement() {
+      state.placement_mode = false
+      state.preview_object = null
+    }
+    
+    // Track AR surface detection
+    on_ar_surface_detected(surface) {
+      if state.placement_mode {
+        state.current_surface = surface
+      }
+    }
+  }
+}
