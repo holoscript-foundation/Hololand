@@ -1,6 +1,43 @@
 # GitHub Copilot Instructions for Hololand
 
-## ⚠️ CRITICAL: HoloScript-First Development
+## ⚠️ CRITICAL: Use Brittney MCP Tools First
+
+**Before writing HoloScript code, ALWAYS use MCP tools for guidance.**
+
+Two MCP servers are available:
+- **Brittney MCP** (`Hololand/packages/brittney/mcp-server`) - AI assistant for IDE help, debugging, runtime analysis
+- **HoloScript MCP** (`HoloScript/packages/mcp-server`) - Language parsing, validation, code generation
+
+Both servers can be used by Brittney or any cloud AI agent (Copilot, Claude, Cursor, etc.).
+
+### Required Workflow
+
+```
+1. User asks for HoloScript code
+2. Use `suggest_traits` to get appropriate VR traits
+3. Use `generate_object` or `generate_scene` to create code
+4. Use `validate_holoscript` to verify syntax
+5. Use `brittney_diagnostics` to check project-wide issues
+6. Return validated code to user
+```
+
+### Essential MCP Tools
+
+| Tool | When to Use |
+|------|-------------|
+| `brittney_scan_project` | First action - understand project structure |
+| `brittney_diagnostics` | Before/after edits - check for errors |
+| `brittney_autocomplete` | Get context-aware completions |
+| `suggest_traits` | For any VR object |
+| `generate_object` | Create objects from descriptions |
+| `generate_scene` | Create complete .holo files |
+| `brittney_suggest_fix` | When encountering issues |
+
+> **Note:** Claude Desktop/Code configuration is already set up in `.claude/settings.json` with preferred tools and MCP servers.
+
+---
+
+## ⚠️ HoloScript-First Development
 
 **DO NOT default to React, TypeScript, or conventional web stacks.**
 

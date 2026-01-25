@@ -1,0 +1,90 @@
+{
+  "$schema": "https://claude.ai/schemas/settings.json",
+  "name": "Hololand Development",
+  "description": "VR/AR platform with Brittney MCP (this repo) and HoloScript MCP (HoloScript repo) - both usable by Brittney or cloud agents",
+  
+  "mcpServers": {
+    "hololand": {
+      "command": "npx",
+      "args": ["tsx", "packages/brittney/mcp-server/src/index.ts"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "HOLOLAND_API_URL": "http://localhost:3000",
+        "BRITTNEY_SERVICE_URL": "http://localhost:11435",
+        "BRITTNEY_ADMIN_KEY": "mcp-localhost-trusted"
+      }
+    },
+    "holoscript": {
+      "command": "npx",
+      "args": ["tsx", "../HoloScript/packages/mcp-server/src/index.ts"],
+      "cwd": "${workspaceFolder}"
+    }
+  },
+
+  "instructions": [
+    "You are working in the Hololand VR/AR platform repository.",
+    "",
+    "## ALWAYS Use Brittney MCP Tools",
+    "",
+    "Before writing HoloScript code, use these MCP tools:",
+    "- `brittney_scan_project` - Understand project structure",
+    "- `brittney_diagnostics` - Check for errors before/after edits",
+    "- `brittney_autocomplete` - Get context-aware suggestions",
+    "- `brittney_suggest_fix` - When you encounter issues",
+    "",
+    "For code generation:",
+    "- `generate_object` - Create HoloScript objects from descriptions",
+    "- `generate_scene` - Create complete .holo compositions",
+    "- `suggest_traits` - Get appropriate VR traits for objects",
+    "",
+    "For understanding code:",
+    "- `explain_code` - Get plain English explanation",
+    "- `analyze_code` - Get complexity metrics and suggestions",
+    "- `brittney_explain_scene` - Understand running VR scenes",
+    "",
+    "## HoloScript-First Development",
+    "",
+    "DO NOT default to React, TypeScript, or conventional web stacks.",
+    "",
+    "When asked to build features:",
+    "1. First: Can this be a `.holo` composition?",
+    "2. Second: Does it need `.hsplus` for VR traits/networking?",
+    "3. Third: Is `.hs` sufficient for simple logic?",
+    "4. Last resort: Only use TypeScript for tooling",
+    "",
+    "## File Formats",
+    "",
+    "| Extension | Purpose | When to Use |",
+    "|-----------|---------|-------------|",
+    "| `.hs` | Classic HoloScript | Simple demos, learning |",
+    "| `.hsplus` | HoloScript Plus | VR traits, networking |",
+    "| `.holo` | Compositions | AI generation, full scenes |",
+    "",
+    "## 49 VR Traits",
+    "",
+    "Always suggest appropriate traits:",
+    "- Interaction: @grabbable @throwable @clickable @hoverable",
+    "- Physics: @collidable @physics @rigid @trigger",
+    "- Visual: @glowing @emissive @transparent @animated",
+    "- Networking: @networked @synced @persistent",
+    "- Behavior: @stackable @equippable @consumable @destructible"
+  ],
+
+  "contextFiles": [
+    ".github/copilot-instructions.md",
+    "packages/brittney/README.md",
+    "docs/MCP_BEST_PRACTICES.md"
+  ],
+
+  "preferredTools": [
+    "brittney_scan_project",
+    "brittney_diagnostics",
+    "brittney_autocomplete",
+    "generate_object",
+    "generate_scene",
+    "suggest_traits",
+    "parse_hs",
+    "parse_holo",
+    "validate_holoscript"
+  ]
+}

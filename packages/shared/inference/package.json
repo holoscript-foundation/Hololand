@@ -1,0 +1,43 @@
+{
+  "name": "@hololand/inference",
+  "version": "1.0.0",
+  "description": "Unified AI inference layer - Local (Ollama/llama.cpp) + BYOK Cloud Providers",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./providers": {
+      "import": "./dist/providers/index.js",
+      "types": "./dist/providers/index.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "openai": "^4.70.0",
+    "@anthropic-ai/sdk": "^0.30.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.2",
+    "tsup": "^8.0.1",
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.16"
+  },
+  "keywords": [
+    "hololand",
+    "inference",
+    "ollama",
+    "byok",
+    "llm",
+    "brittney"
+  ],
+  "author": "Brian Joseph",
+  "license": "MIT"
+}

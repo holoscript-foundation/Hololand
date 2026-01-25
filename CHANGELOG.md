@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **@hololand/inference** - Unified AI inference layer
+  - Local-first with Ollama integration (FREE)
+  - BYOK cloud providers: OpenAI, Anthropic, Google, Grok, Azure
+  - Pre-configured Brittney models for HoloScript
+  - Automatic provider fallback and routing
+  - Streaming support for real-time responses
+  - Spatial fleet visualization bridge integration
+- **Brittney Auto-Start** - `scripts/start-brittney.ts` for automatic service launch
+- **AI Assistant Configuration** - Claude Desktop/Code and Copilot integration guides
+
 ### Planned
 - Real-time networking (@hololand/network)
-- Spatial audio (@hololand/audio)
 - Unified authentication (@hololand/auth)
 - Animation system
 - Mobile VR support
