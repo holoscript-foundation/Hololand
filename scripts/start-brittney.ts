@@ -136,9 +136,26 @@ async function main() {
     return;
   }
   
-  // Check if port is in use by something else
-  if (await checkPortInUse(BRITTNEY_PORT)) {
-    console.log(`⚠️ Port ${BRITTNEY_PORT} is in use but Brittney isn't responding.`);
+  // Check if port is in use by something else - with retry for TIME_WAIT
+  let portRetries = 10;
+  while (await checkPortInUse(BRITTNEY_PORT) && portRetries > 0) {
+    // Port in use but Brittney not responding - might be TIME_WAIT
+    if (portRetries === 10) {
+      console.log(`⏳ Port ${BRITTNEY_PORT} is in use (possibly TIME_WAIT). Waiting...`);
+    }
+    await new Promise(r => setTimeout(r, 3000));
+    portRetries--;
+    
+    // Re-check if Brittney became available
+    if (await checkBrittneyHealth()) {
+      console.log('✅ Brittney is already running at http://localhost:11435');
+      console.log('');
+      return;
+    }
+  }
+  
+  if (await checkPortInUse(BRITTNEY_PORT) && portRetries === 0) {
+    console.log(`⚠️ Port ${BRITTNEY_PORT} is still in use after waiting.`);
     console.log('   Another service may be using this port.');
     console.log('');
     return;
