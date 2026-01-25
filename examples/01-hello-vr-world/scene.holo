@@ -1,0 +1,172 @@
+/**
+ * Hello VR World
+ * 
+ * A simple introductory VR scene demonstrating HoloScript basics.
+ * This is meant to be the first example new users try.
+ */
+
+composition "Hello VR World" {
+  // === ENVIRONMENT ===
+  environment {
+    sky: "gradient"
+    sky_top: "#1a1a2e"
+    sky_bottom: "#16213e"
+    ambient_light: 0.4
+  }
+
+  // Ground plane
+  object "ground" {
+    mesh: "plane"
+    size: [20, 20]
+    material: { 
+      color: "#2d3436"
+      roughness: 0.8 
+    }
+  }
+
+  // === WELCOME MESSAGE ===
+  spatial_group "Welcome" at [0, 2.5, -3] {
+    object "title" {
+      type: "text"
+      content: "Welcome to Hololand!"
+      font_size: 0.5
+      color: "#00ff88"
+      @billboard
+    }
+
+    object "subtitle" {
+      type: "text"
+      content: "Pick up an orb to get started"
+      font_size: 0.2
+      color: "#ffffff"
+      position: [0, -0.4, 0]
+      @billboard
+    }
+  }
+
+  // === INTERACTIVE ORBS ===
+  template "InteractiveOrb" {
+    @grabbable(snap_to_hand: true)
+    @throwable(force_multiplier: 2.0)
+    @glowing
+
+    state {
+      grab_count: 0
+      throw_count: 0
+    }
+
+    action onGrab() {
+      self.grab_count += 1
+      play_sound("pickup")
+    }
+
+    action onThrow(velocity) {
+      self.throw_count += 1
+      emit_particles("sparkle", 10)
+    }
+  }
+
+  spatial_group "Orbs" at [0, 1, 0] {
+    object "red-orb" using "InteractiveOrb" {
+      position: [-2, 0, 0]
+      mesh: "sphere"
+      radius: 0.15
+      material: {
+        color: "#ff4444"
+        emissive: "#ff0000"
+        emissive_intensity: 0.5
+      }
+    }
+
+    object "green-orb" using "InteractiveOrb" {
+      position: [0, 0, 0]
+      mesh: "sphere"
+      radius: 0.15
+      @physics(mass: 1.0, bounce: 0.8)
+      material: {
+        color: "#44ff44"
+        emissive: "#00ff00"
+        emissive_intensity: 0.5
+      }
+    }
+
+    object "blue-orb" using "InteractiveOrb" {
+      position: [2, 0, 0]
+      mesh: "sphere"
+      radius: 0.15
+      @spatial_audio
+      material: {
+        color: "#4444ff"
+        emissive: "#0000ff"
+        emissive_intensity: 0.5
+      }
+
+      action onGrab() {
+        play_sound("chime", { spatial: true })
+      }
+    }
+  }
+
+  // === GUIDE ROBOT ===
+  template "GuideNPC" {
+    @talkable
+    @animate(idle: "wave")
+
+    state {
+      current_dialogue: 0
+      dialogues: [
+        "Hello! Welcome to HoloScript!",
+        "Try grabbing one of the orbs above.",
+        "You can throw them too - physics included!",
+        "In VR, use your hands. On desktop, click and drag."
+      ]
+    }
+
+    action onInteract() {
+      speak(self.dialogues[self.current_dialogue])
+      self.current_dialogue = (self.current_dialogue + 1) % len(self.dialogues)
+    }
+  }
+
+  object "guide" using "GuideNPC" {
+    position: [0, 0, 2]
+    model: "robot-assistant"
+    material: {
+      color: "#00ffff"
+      metallic: 0.8
+    }
+  }
+
+  // === LIGHTING ===
+  light "main" {
+    type: "directional"
+    position: [5, 10, 5]
+    color: "#ffffff"
+    intensity: 1.0
+    cast_shadow: true
+  }
+
+  light "fill" {
+    type: "hemisphere"
+    sky_color: "#87ceeb"
+    ground_color: "#2d3436"
+    intensity: 0.5
+  }
+
+  // === INTERACTION HINTS ===
+  logic {
+    on_scene_start {
+      wait(2s)
+      show_tooltip("guide", "Click me to chat!")
+    }
+
+    on_first_grab(orb) {
+      show_toast("🎉 You grabbed your first orb!")
+      unlock_achievement("first_grab")
+    }
+
+    on_first_throw(orb) {
+      show_toast("🚀 Great throw!")
+    }
+  }
+}

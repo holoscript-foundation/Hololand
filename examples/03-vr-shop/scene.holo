@@ -1,0 +1,408 @@
+/**
+ * VR Shop
+ * 
+ * E-commerce VR experience showcasing product browsing,
+ * 3D product inspection, cart management, and checkout.
+ */
+
+composition "VR Shop" {
+  // === ENVIRONMENT ===
+  environment {
+    preset: "indoor-showroom"
+    ambient_light: 0.4
+    ceiling_height: 5
+  }
+
+  // === STATE ===
+  state {
+    cart: []
+    cart_total: 0
+    current_category: "all"
+    inspecting_product: null
+  }
+
+  // === TEMPLATES ===
+  template "Product" {
+    @grabbable(return_on_release: true)
+    @hoverable
+    @inspectable
+
+    state {
+      id: ""
+      name: ""
+      price: 0
+      description: ""
+      is_inspecting: false
+      original_position: [0, 0, 0]
+    }
+
+    action onGrab() {
+      self.is_inspecting = true
+      self.original_position = self.position
+      show_product_details(self)
+    }
+
+    action onRelease() {
+      self.is_inspecting = false
+      animate_to(self.original_position, 0.3s)
+      hide_product_details()
+    }
+
+    action onHoverEnter() {
+      show_price_tag(self)
+      highlight(self, "#00ffff")
+    }
+
+    action onHoverExit() {
+      hide_price_tag()
+      unhighlight(self)
+    }
+  }
+
+  template "ProductPedestal" {
+    state {
+      product: null
+      is_empty: true
+    }
+
+    object "base" {
+      mesh: "cylinder"
+      size: [0.4, 0.1, 0.4]
+      material: { 
+        color: "#1a1a2e"
+        metallic: 0.9
+      }
+    }
+
+    object "glow-ring" {
+      mesh: "torus"
+      size: [0.4, 0.02]
+      position: [0, 0.05, 0]
+      @glowing
+      material: {
+        color: "#00ffff"
+        emissive: "#00ffff"
+        emissive_intensity: 1.0
+      }
+    }
+  }
+
+  // === ENTRANCE ===
+  spatial_group "Entrance" at [0, 0, -8] {
+    object "store-sign" {
+      type: "text"
+      content: "HOLOLAND STORE"
+      font_size: 1.0
+      position: [0, 4, 0]
+      color: "#ffffff"
+      @glowing
+    }
+
+    object "greeter" {
+      model: "shop-assistant-npc"
+      position: [2, 0, 0]
+      @talkable
+      @animate(idle: "greeting")
+
+      state {
+        dialogues: [
+          "Welcome to Hololand Store!",
+          "Feel free to pick up and examine any product.",
+          "Tap 'Add to Cart' while holding an item to purchase."
+        ]
+      }
+    }
+
+    object "welcome-mat" {
+      mesh: "plane"
+      size: [4, 2]
+      rotation: [-90, 0, 0]
+      material: {
+        color: "#2c3e50"
+        texture: "/textures/welcome.png"
+      }
+    }
+  }
+
+  // === CATEGORY NAVIGATION ===
+  spatial_group "Categories" at [-6, 0, 0] {
+    ui_panel "category-menu" {
+      position: [0, 1.5, 0]
+      size: [1.5, 2]
+      facing: "center"
+
+      text "header" { 
+        content: "Categories"
+        font_size: 0.1
+        color: "#00ffff"
+      }
+
+      button "electronics" {
+        icon: "📱"
+        label: "Electronics"
+        on_click: { filter_products("electronics") }
+      }
+
+      button "furniture" {
+        icon: "🪑"
+        label: "Furniture"
+        on_click: { filter_products("furniture") }
+      }
+
+      button "art" {
+        icon: "🎨"
+        label: "Art"
+        on_click: { filter_products("art") }
+      }
+
+      button "clothing" {
+        icon: "👕"
+        label: "Clothing"
+        on_click: { filter_products("clothing") }
+      }
+
+      button "all" {
+        icon: "🏠"
+        label: "View All"
+        on_click: { filter_products("all") }
+      }
+    }
+  }
+
+  // === PRODUCT DISPLAYS ===
+  spatial_group "Electronics" at [0, 0, 0] {
+    object "pedestal-1" using "ProductPedestal" {
+      position: [-2, 0, 0]
+    }
+
+    object "headphones" using "Product" {
+      position: [-2, 1.2, 0]
+      model: "/models/products/headphones.glb"
+
+      state {
+        id: "prod-001"
+        name: "HoloSound Pro"
+        price: 299.99
+        description: "Spatial audio headphones with VR tracking"
+        category: "electronics"
+      }
+    }
+
+    object "pedestal-2" using "ProductPedestal" {
+      position: [0, 0, 0]
+    }
+
+    object "smartwatch" using "Product" {
+      position: [0, 1.2, 0]
+      model: "/models/products/smartwatch.glb"
+
+      state {
+        id: "prod-002"
+        name: "HoloWatch X"
+        price: 449.99
+        description: "AR-enabled smartwatch with holographic display"
+        category: "electronics"
+      }
+    }
+
+    object "pedestal-3" using "ProductPedestal" {
+      position: [2, 0, 0]
+    }
+
+    object "drone" using "Product" {
+      position: [2, 1.2, 0]
+      model: "/models/products/drone.glb"
+
+      state {
+        id: "prod-003"
+        name: "HoloCam Drone"
+        price: 599.99
+        description: "4K drone with VR live streaming"
+        category: "electronics"
+      }
+    }
+  }
+
+  spatial_group "Furniture" at [0, 0, 5] {
+    object "chair" using "Product" {
+      position: [-3, 0.5, 0]
+      model: "/models/products/gaming-chair.glb"
+
+      state {
+        id: "prod-010"
+        name: "Ergo Gaming Chair"
+        price: 799.99
+        description: "VR-optimized ergonomic gaming chair"
+        category: "furniture"
+      }
+    }
+
+    object "desk" using "Product" {
+      position: [0, 0.4, 0]
+      model: "/models/products/standing-desk.glb"
+
+      state {
+        id: "prod-011"
+        name: "HoloDesk Pro"
+        price: 1299.99
+        description: "Smart standing desk with gesture controls"
+        category: "furniture"
+      }
+    }
+
+    object "lamp" using "Product" {
+      position: [3, 0.5, 0]
+      model: "/models/products/smart-lamp.glb"
+
+      state {
+        id: "prod-012"
+        name: "Ambient Glow"
+        price: 149.99
+        description: "Voice-controlled ambient lighting"
+        category: "furniture"
+      }
+    }
+  }
+
+  // === CART PANEL ===
+  ui_panel "cart" {
+    position: [6, 1.5, 0]
+    size: [1.5, 2.5]
+    facing: "center"
+    @follows_user(offset: [1, 0, 0], lazy: true)
+
+    text "header" {
+      content: "Shopping Cart"
+      font_size: 0.1
+      color: "#00ffff"
+    }
+
+    list "cart-items" {
+      bind: state.cart
+      template: "CartItemRow"
+      empty_text: "Your cart is empty"
+    }
+
+    separator {}
+
+    text "total" {
+      content: "Total: ${format_currency(state.cart_total)}"
+      font_size: 0.08
+      color: "#4caf50"
+    }
+
+    button "checkout" {
+      label: "Checkout"
+      style: "primary"
+      disabled: state.cart.length == 0
+      on_click: { open_checkout() }
+    }
+
+    button "clear" {
+      label: "Clear Cart"
+      style: "danger"
+      disabled: state.cart.length == 0
+      on_click: { 
+        state.cart = []
+        state.cart_total = 0
+        show_toast("Cart cleared")
+      }
+    }
+  }
+
+  template "CartItemRow" {
+    text "name" { content: self.product.name }
+    text "price" { content: format_currency(self.product.price) }
+    button "remove" {
+      icon: "🗑️"
+      on_click: { remove_from_cart(self.product.id) }
+    }
+  }
+
+  // === PRODUCT INSPECTION POPUP ===
+  ui_panel "product-details" {
+    visible: state.inspecting_product != null
+    position: [0, 2, -1]
+    facing: "user"
+
+    text "name" { 
+      content: state.inspecting_product?.name ?? ""
+      font_size: 0.12
+    }
+
+    text "price" {
+      content: format_currency(state.inspecting_product?.price ?? 0)
+      font_size: 0.15
+      color: "#4caf50"
+    }
+
+    text "description" {
+      content: state.inspecting_product?.description ?? ""
+      font_size: 0.06
+      max_width: 1.0
+    }
+
+    button "add-to-cart" {
+      label: "Add to Cart"
+      icon: "🛒"
+      style: "primary"
+      on_click: { 
+        add_to_cart(state.inspecting_product)
+        show_toast("Added to cart!")
+      }
+    }
+  }
+
+  // === LIGHTING ===
+  light "main" {
+    type: "spot"
+    position: [0, 5, 0]
+    target: [0, 0, 0]
+    color: "#ffffff"
+    intensity: 1.0
+    cone_angle: 60
+  }
+
+  for pedestal in query("ProductPedestal") {
+    light "pedestal-light-${pedestal.id}" {
+      type: "spot"
+      position: add(pedestal.position, [0, 2, 0])
+      target: pedestal.position
+      color: "#ffffff"
+      intensity: 0.5
+      cone_angle: 30
+    }
+  }
+
+  // === ACTIONS ===
+  action add_to_cart(product) {
+    state.cart = append(state.cart, { product: product, quantity: 1 })
+    state.cart_total += product.price
+  }
+
+  action remove_from_cart(product_id) {
+    item = find(state.cart, item => item.product.id == product_id)
+    if item {
+      state.cart_total -= item.product.price
+      state.cart = filter(state.cart, i => i.product.id != product_id)
+    }
+  }
+
+  action filter_products(category) {
+    state.current_category = category
+    for product in query("Product") {
+      if category == "all" or product.state.category == category {
+        show(product)
+        animate(product, "fade_in", 0.3s)
+      } else {
+        animate(product, "fade_out", 0.3s)
+        wait(0.3s)
+        hide(product)
+      }
+    }
+  }
+
+  action open_checkout() {
+    navigate_to("Checkout", { cart: state.cart })
+  }
+}

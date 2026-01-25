@@ -1,0 +1,277 @@
+/**
+ * Physics Playground
+ * 
+ * Interactive physics demonstration with stacking blocks,
+ * bouncy balls, ramps, and gravity zones.
+ */
+
+composition "Physics Playground" {
+  // === ENVIRONMENT ===
+  environment {
+    skybox: "sunset"
+    ambient_light: 0.3
+    fog: { color: "#1a1a2e", near: 20, far: 50 }
+  }
+
+  // Ground with physics
+  object "ground" {
+    mesh: "plane"
+    size: [30, 30]
+    @physics(static: true, friction: 0.6)
+    material: {
+      color: "#2d3436"
+      roughness: 0.6
+    }
+  }
+
+  // === STACKING BLOCKS ===
+  template "PhysicsBlock" {
+    @physics(mass: 1.0)
+    @grabbable
+    @breakable(threshold: 15, fragments: 6)
+    @collidable
+
+    state {
+      hits: 0
+      is_broken: false
+    }
+
+    action onCollision(other, force) {
+      self.hits += 1
+      if force > 10 {
+        emit_particles("dust", 5)
+      }
+    }
+
+    action onBreak() {
+      self.is_broken = true
+      play_sound("glass_break")
+      spawn_fragments(6)
+    }
+  }
+
+  spatial_group "BlockTower" at [-5, 0, 0] {
+    object "block-1" using "PhysicsBlock" {
+      position: [0, 0.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#e74c3c" }
+    }
+
+    object "block-2" using "PhysicsBlock" {
+      position: [0, 1.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#e67e22" }
+    }
+
+    object "block-3" using "PhysicsBlock" {
+      position: [0, 2.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#f1c40f" }
+    }
+
+    object "block-4" using "PhysicsBlock" {
+      position: [0, 3.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#2ecc71" }
+    }
+
+    object "block-5" using "PhysicsBlock" {
+      position: [0, 4.5, 0]
+      mesh: "box"
+      size: [1, 1, 1]
+      material: { color: "#3498db" }
+    }
+  }
+
+  // === BOUNCY BALLS ===
+  template "BouncyBall" {
+    @physics(bounce: 0.9)
+    @grabbable
+    @throwable(force_multiplier: 3.0)
+    @glowing
+
+    action onBounce(surface) {
+      emit_particles("sparkle", 3)
+      play_sound("bounce", { pitch: random(0.8, 1.2) })
+    }
+  }
+
+  spatial_group "BouncyBalls" at [5, 0, 0] {
+    object "ball-purple" using "BouncyBall" {
+      position: [0, 5, 0]
+      mesh: "sphere"
+      radius: 0.3
+      @physics(mass: 0.5, bounce: 0.95)
+      material: { 
+        color: "#9b59b6"
+        metallic: 0.8
+        emissive: "#9b59b6"
+        emissive_intensity: 0.3
+      }
+    }
+
+    object "ball-blue" using "BouncyBall" {
+      position: [0.5, 6, 0.5]
+      mesh: "sphere"
+      radius: 0.25
+      @physics(mass: 0.3, bounce: 0.9)
+      material: { 
+        color: "#3498db"
+        emissive: "#3498db"
+        emissive_intensity: 0.3
+      }
+    }
+
+    object "ball-teal" using "BouncyBall" {
+      position: [-0.5, 7, -0.5]
+      mesh: "sphere"
+      radius: 0.35
+      @physics(mass: 0.7, bounce: 0.85)
+      material: { 
+        color: "#1abc9c"
+        emissive: "#1abc9c"
+        emissive_intensity: 0.3
+      }
+    }
+  }
+
+  // === RAMPS ===
+  spatial_group "Ramps" at [0, 0, -5] {
+    object "main-ramp" {
+      mesh: "box"
+      size: [3, 0.2, 6]
+      position: [0, 1, 0]
+      rotation: [15, 0, 0]
+      @physics(static: true, friction: 0.3)
+      material: { color: "#34495e" }
+    }
+
+    object "side-ramp-left" {
+      mesh: "box"
+      size: [2, 0.1, 4]
+      position: [-3, 0.5, 0]
+      rotation: [0, 0, -20]
+      @physics(static: true, friction: 0.4)
+      material: { color: "#2c3e50" }
+    }
+
+    object "side-ramp-right" {
+      mesh: "box"
+      size: [2, 0.1, 4]
+      position: [3, 0.5, 0]
+      rotation: [0, 0, 20]
+      @physics(static: true, friction: 0.4)
+      material: { color: "#2c3e50" }
+    }
+  }
+
+  // === GRAVITY ZONES ===
+  template "GravityZone" {
+    @trigger
+    @gravity_modifier
+
+    state {
+      objects_inside: 0
+    }
+
+    action onEnter(object) {
+      self.objects_inside += 1
+      object.apply_gravity_modifier(self.strength)
+    }
+
+    action onExit(object) {
+      self.objects_inside -= 1
+      object.reset_gravity()
+    }
+  }
+
+  spatial_group "GravityZones" at [0, 3, 5] {
+    object "low-gravity" using "GravityZone" {
+      mesh: "sphere"
+      radius: 3
+      @gravity_modifier(strength: 0.2)
+      material: {
+        color: "#00ffff"
+        opacity: 0.1
+        transparent: true
+      }
+    }
+
+    object "reverse-gravity" using "GravityZone" {
+      position: [0, 0, 5]
+      mesh: "sphere"
+      radius: 2
+      @gravity_modifier(strength: -0.5)
+      material: {
+        color: "#ff00ff"
+        opacity: 0.1
+        transparent: true
+      }
+    }
+  }
+
+  // === SPAWNER ===
+  object "ball-spawner" {
+    position: [0, 8, 0]
+    mesh: "box"
+    size: [1, 0.5, 1]
+    @clickable
+    material: { color: "#27ae60" }
+
+    action onClick() {
+      spawn("BouncyBall", {
+        position: self.position,
+        material: { color: random_color() }
+      })
+      play_sound("spawn")
+    }
+  }
+
+  // === UI ===
+  ui_panel "controls" {
+    position: [-8, 2, 0]
+    facing: "center"
+
+    text "title" { content: "Physics Controls" }
+    
+    button "reset" {
+      label: "Reset Scene"
+      on_click: { reset_physics() }
+    }
+
+    slider "gravity" {
+      label: "Global Gravity"
+      min: 0
+      max: 20
+      default: 9.8
+      on_change(value): { set_gravity(0, -value, 0) }
+    }
+
+    toggle "slow_motion" {
+      label: "Slow Motion"
+      on_change(enabled): { 
+        set_time_scale(enabled ? 0.3 : 1.0) 
+      }
+    }
+  }
+
+  // === LIGHTING ===
+  light "sun" {
+    type: "directional"
+    position: [10, 15, 10]
+    color: "#fff5e6"
+    intensity: 1.2
+    cast_shadow: true
+  }
+
+  light "ambient" {
+    type: "hemisphere"
+    sky_color: "#87ceeb"
+    ground_color: "#3d3d3d"
+    intensity: 0.4
+  }
+}

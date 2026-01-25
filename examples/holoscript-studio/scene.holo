@@ -1,0 +1,449 @@
+/**
+ * HoloScript Studio
+ * 
+ * A visual development environment for building HoloScript apps.
+ * This defines the studio interface itself in .holo format.
+ */
+
+composition "HoloScript Studio" {
+  // === ENVIRONMENT ===
+  environment {
+    preset: "dark-workspace"
+    ambient_light: 0.2
+    grid: true
+    grid_size: 1
+    grid_color: "#1a1a3a"
+  }
+
+  // === STATE ===
+  state {
+    mode: "backend"  // "backend" | "frontend" | "preview"
+    selected_block: null
+    blocks: []
+    code_output: ""
+    preview_device: "phone"  // "phone" | "tablet" | "desktop"
+  }
+
+  // === BLOCK TEMPLATES ===
+  template "CodeBlock" {
+    @grabbable(snap_to_grid: true)
+    @connectable
+    @hoverable
+
+    state {
+      type: ""
+      config: {}
+      inputs: []
+      outputs: []
+      position: [0, 0, 0]
+    }
+
+    action onGrab() {
+      highlight(self, "#00ffff")
+      show_block_inspector(self)
+    }
+
+    action onRelease() {
+      snap_to_grid(self, 0.5)
+      update_code_output()
+    }
+
+    action onConnect(target, port) {
+      create_connection(self, target, port)
+      update_code_output()
+    }
+  }
+
+  // Backend block types
+  template "VariableBlock" extends "CodeBlock" {
+    mesh: "hexagon"
+    material: { color: "#4caf50" }
+    state {
+      type: "variable"
+      config: { name: "myVar", value: "" }
+    }
+  }
+
+  template "FunctionBlock" extends "CodeBlock" {
+    mesh: "cylinder"
+    material: { color: "#2196f3" }
+    state {
+      type: "function"
+      config: { name: "myFunction", params: [] }
+    }
+  }
+
+  template "ConditionalBlock" extends "CodeBlock" {
+    mesh: "pyramid"
+    material: { color: "#ff9800" }
+    state {
+      type: "conditional"
+      config: { condition: "" }
+    }
+  }
+
+  template "LoopBlock" extends "CodeBlock" {
+    mesh: "torus"
+    material: { color: "#9c27b0" }
+    state {
+      type: "loop"
+      config: { iterator: "i", count: 10 }
+    }
+  }
+
+  template "APIBlock" extends "CodeBlock" {
+    mesh: "sphere"
+    material: { color: "#e91e63" }
+    state {
+      type: "api"
+      config: { url: "", method: "GET" }
+    }
+  }
+
+  // Frontend block types
+  template "HeaderBlock" extends "CodeBlock" {
+    mesh: "box"
+    size: [2, 0.5, 0.1]
+    material: { color: "#3f51b5" }
+    state {
+      type: "header"
+      config: { text: "Header", level: 1 }
+    }
+  }
+
+  template "ButtonBlock" extends "CodeBlock" {
+    mesh: "box"
+    size: [1, 0.3, 0.1]
+    material: { color: "#4caf50" }
+    state {
+      type: "button"
+      config: { label: "Click Me", action: "" }
+    }
+  }
+
+  template "CardBlock" extends "CodeBlock" {
+    mesh: "box"
+    size: [1.5, 1, 0.1]
+    material: { color: "#607d8b" }
+    state {
+      type: "card"
+      config: { title: "", content: "" }
+    }
+  }
+
+  template "InputBlock" extends "CodeBlock" {
+    mesh: "box"
+    size: [1.5, 0.3, 0.1]
+    material: { color: "#00bcd4" }
+    state {
+      type: "input"
+      config: { placeholder: "", binding: "" }
+    }
+  }
+
+  // === WORKSPACE ===
+  spatial_group "Workspace" at [0, 1.5, 0] {
+    object "grid-floor" {
+      mesh: "plane"
+      size: [20, 20]
+      position: [0, -1, 0]
+      rotation: [-90, 0, 0]
+      material: {
+        color: "#0a0a1a"
+        texture: "/textures/grid.png"
+        texture_repeat: [20, 20]
+        opacity: 0.5
+      }
+    }
+
+    // Drop zones for connection snapping
+    object "backend-zone" {
+      mesh: "plane"
+      size: [8, 8]
+      position: [-5, 0, 0]
+      visible: state.mode == "backend"
+      material: {
+        color: "#1a3a1a"
+        opacity: 0.2
+      }
+    }
+
+    object "frontend-zone" {
+      mesh: "plane"
+      size: [8, 8]
+      position: [5, 0, 0]
+      visible: state.mode == "frontend"
+      material: {
+        color: "#1a1a3a"
+        opacity: 0.2
+      }
+    }
+  }
+
+  // === PALETTE ===
+  ui_panel "palette" {
+    position: [0, 0.5, -3]
+    size: [4, 1]
+    facing: "user"
+
+    text "title" {
+      content: state.mode == "backend" ? "Backend Blocks" : "Frontend Blocks"
+      font_size: 0.08
+      color: "#4fc3f7"
+    }
+
+    // Backend palette
+    group "backend-palette" {
+      visible: state.mode == "backend"
+
+      button "add-variable" {
+        icon: "📦"
+        label: "Variable"
+        color: "#4caf50"
+        on_click: { spawn_block("VariableBlock") }
+      }
+
+      button "add-function" {
+        icon: "⚙️"
+        label: "Function"
+        color: "#2196f3"
+        on_click: { spawn_block("FunctionBlock") }
+      }
+
+      button "add-conditional" {
+        icon: "🔀"
+        label: "If/Else"
+        color: "#ff9800"
+        on_click: { spawn_block("ConditionalBlock") }
+      }
+
+      button "add-loop" {
+        icon: "🔄"
+        label: "Loop"
+        color: "#9c27b0"
+        on_click: { spawn_block("LoopBlock") }
+      }
+
+      button "add-api" {
+        icon: "🌐"
+        label: "API Call"
+        color: "#e91e63"
+        on_click: { spawn_block("APIBlock") }
+      }
+    }
+
+    // Frontend palette
+    group "frontend-palette" {
+      visible: state.mode == "frontend"
+
+      button "add-header" {
+        icon: "📰"
+        label: "Header"
+        on_click: { spawn_block("HeaderBlock") }
+      }
+
+      button "add-button" {
+        icon: "🔘"
+        label: "Button"
+        on_click: { spawn_block("ButtonBlock") }
+      }
+
+      button "add-card" {
+        icon: "🃏"
+        label: "Card"
+        on_click: { spawn_block("CardBlock") }
+      }
+
+      button "add-input" {
+        icon: "✏️"
+        label: "Input"
+        on_click: { spawn_block("InputBlock") }
+      }
+    }
+  }
+
+  // === MODE TABS ===
+  ui_panel "mode-selector" {
+    position: [0, 3, -3]
+    facing: "user"
+
+    tabs "mode" {
+      bind: state.mode
+
+      tab "backend" {
+        label: "Backend"
+        icon: "⚙️"
+      }
+
+      tab "frontend" {
+        label: "Frontend"
+        icon: "🎨"
+      }
+
+      tab "preview" {
+        label: "Preview"
+        icon: "👁️"
+      }
+    }
+  }
+
+  // === CODE OUTPUT PANEL ===
+  ui_panel "code-output" {
+    position: [6, 1.5, 0]
+    size: [2, 3]
+    facing: "center"
+
+    text "header" {
+      content: "Generated Code"
+      font_size: 0.08
+      color: "#4fc3f7"
+    }
+
+    code "output" {
+      language: "javascript"
+      content: state.code_output
+      font_size: 0.04
+      line_numbers: true
+    }
+
+    button "copy" {
+      label: "Copy Code"
+      icon: "📋"
+      on_click: { 
+        copy_to_clipboard(state.code_output)
+        show_toast("Code copied!")
+      }
+    }
+
+    button "export" {
+      label: "Export Project"
+      icon: "📦"
+      on_click: { export_project() }
+    }
+  }
+
+  // === PREVIEW PANEL ===
+  ui_panel "preview" {
+    visible: state.mode == "preview"
+    position: [0, 1.5, 0]
+    size: state.preview_device == "phone" ? [0.8, 1.6] : 
+          state.preview_device == "tablet" ? [1.5, 2] : [2.5, 1.5]
+    facing: "user"
+
+    iframe "preview-frame" {
+      src: generate_preview_html()
+      interactive: true
+    }
+
+    // Device selector
+    group "device-selector" {
+      position: [0, -1.2, 0]
+
+      button "phone" {
+        icon: "📱"
+        active: state.preview_device == "phone"
+        on_click: { state.preview_device = "phone" }
+      }
+
+      button "tablet" {
+        icon: "📱"
+        active: state.preview_device == "tablet"
+        on_click: { state.preview_device = "tablet" }
+      }
+
+      button "desktop" {
+        icon: "🖥️"
+        active: state.preview_device == "desktop"
+        on_click: { state.preview_device = "desktop" }
+      }
+    }
+  }
+
+  // === BLOCK INSPECTOR ===
+  ui_panel "inspector" {
+    visible: state.selected_block != null
+    position: [-6, 1.5, 0]
+    size: [2, 2.5]
+    facing: "center"
+
+    text "header" {
+      content: "Block Properties"
+      font_size: 0.08
+      color: "#4fc3f7"
+    }
+
+    dynamic_form "block-form" {
+      bind: state.selected_block?.config
+      on_change: { update_code_output() }
+    }
+
+    button "delete" {
+      label: "Delete Block"
+      icon: "🗑️"
+      style: "danger"
+      on_click: { 
+        delete_block(state.selected_block)
+        state.selected_block = null
+      }
+    }
+  }
+
+  // === ACTIONS ===
+  action spawn_block(template_name) {
+    block = instantiate(template_name, {
+      position: [0, 1.5, -1]
+    })
+    state.blocks = append(state.blocks, block)
+    state.selected_block = block
+  }
+
+  action update_code_output() {
+    state.code_output = generate_code(state.blocks)
+  }
+
+  action generate_code(blocks) {
+    code = ""
+    for block in blocks {
+      code += block_to_code(block) + "\n"
+    }
+    return code
+  }
+
+  action block_to_code(block) {
+    switch block.type {
+      case "variable":
+        return "const ${block.config.name} = ${block.config.value};"
+      case "function":
+        return "function ${block.config.name}() {\n  // ...\n}"
+      case "conditional":
+        return "if (${block.config.condition}) {\n  // ...\n}"
+      case "loop":
+        return "for (let ${block.config.iterator} = 0; ${block.config.iterator} < ${block.config.count}; ${block.config.iterator}++) {\n  // ...\n}"
+      case "api":
+        return "await fetch('${block.config.url}', { method: '${block.config.method}' });"
+      case "header":
+        return "<h${block.config.level}>${block.config.text}</h${block.config.level}>"
+      case "button":
+        return "<button onClick={${block.config.action}}>${block.config.label}</button>"
+      case "card":
+        return "<Card title=\"${block.config.title}\">${block.config.content}</Card>"
+      case "input":
+        return "<input placeholder=\"${block.config.placeholder}\" value={${block.config.binding}} />"
+    }
+  }
+
+  // === LIGHTING ===
+  light "ambient" {
+    type: "hemisphere"
+    sky_color: "#2a2a4a"
+    ground_color: "#0a0a1a"
+    intensity: 0.3
+  }
+
+  light "main" {
+    type: "directional"
+    position: [5, 10, 5]
+    color: "#ffffff"
+    intensity: 0.5
+  }
+}
