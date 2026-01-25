@@ -6,6 +6,10 @@ packages:
   - packages/devtools/*
   - examples/*
 
+# LOCAL DEVELOPMENT ONLY
+# These overrides redirect @holoscript/* packages to the local HoloScript repo.
+# For production builds, comment these out to use npm-published versions.
+# Requires: HoloScript repo cloned at ../HoloScript
 overrides:
   '@holoscript/core': link:../HoloScript/packages/core
   '@holoscript/runtime': link:../HoloScript/packages/runtime

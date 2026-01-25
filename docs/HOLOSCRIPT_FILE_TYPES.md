@@ -316,9 +316,9 @@ Start
 ```json
 {
   "files.associations": {
-    "*.hs": "holoscript",
+    "*.hs": "holoscriptplus",
     "*.holo": "holoscript",
-    "*.hsplus": "holoscript-plus"
+    "*.hsplus": "holoscriptplus"
   }
 }
 ```

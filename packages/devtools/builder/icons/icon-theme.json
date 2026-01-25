@@ -3,17 +3,18 @@
     "holoscript": {
       "iconPath": "./holoscript.svg"
     },
-    "holoscript-plus": {
+    "holoscriptplus": {
       "iconPath": "./holoscript-plus.svg"
     }
   },
   "fileExtensions": {
     "holo": "holoscript",
-    "hsplus": "holoscript-plus"
+    "hs": "holoscriptplus",
+    "hsplus": "holoscriptplus"
   },
   "fileNames": {},
   "languageIds": {
     "holoscript": "holoscript",
-    "holoscript-plus": "holoscript-plus"
+    "holoscriptplus": "holoscriptplus"
   }
 }
