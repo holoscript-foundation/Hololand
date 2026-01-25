@@ -1,9 +1,10 @@
 [package]
 name = "brittney-desktop"
-version = "1.0.0-alpha.1"
-description = "Brittney AI Desktop - Local HoloScript Assistant with BYOK Cloud Support"
+version = "1.0.0"
+description = "Brittney AI Desktop V1 Free - Local HoloScript Assistant with Optional Cloud Support"
 authors = ["Hololand Team"]
 edition = "2021"
+license = "MIT"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

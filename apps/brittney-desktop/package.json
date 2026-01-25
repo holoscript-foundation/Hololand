@@ -1,7 +1,7 @@
 {
   "name": "@hololand/brittney-desktop",
-  "version": "1.0.0-alpha.1",
-  "description": "Brittney AI Desktop - Local-first HoloScript assistant with bundled AI model",
+  "version": "1.0.0",
+  "description": "Brittney AI Desktop - Free V1 production release. Local-first HoloScript assistant.",
   "author": "Hololand Team",
   "license": "MIT",
   "private": true,
@@ -16,10 +16,12 @@
     "tauri:build:debug": "tauri build --debug",
     "tauri:icon": "tauri icon ./src-tauri/icons/app-icon.png",
     "download:model": "node scripts/download-model.mjs",
+    "download:model:q4": "node scripts/download-model.mjs --model v1-q4",
     "postinstall": "node scripts/check-model.mjs"
   },
   "dependencies": {
     "@hololand/brittney-toolkit": "workspace:*",
+    "@hololand/brittney-models": "workspace:*",
     "@tauri-apps/api": "^2.0.0"
   },
   "devDependencies": {

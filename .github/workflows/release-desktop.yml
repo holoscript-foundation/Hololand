@@ -1,0 +1,121 @@
+# Brittney Desktop Release Workflow
+#
+# Builds and releases Brittney Desktop for Windows, macOS, and Linux.
+# Models are downloaded separately to keep binaries small.
+
+name: Release Brittney Desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'App version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  APP_NAME: brittney-desktop
+  RELEASE_TAG: brittney-desktop-v${{ github.event.inputs.version }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            artifact: 'Brittney AI.app'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            artifact: 'Brittney AI.app'
+          - platform: 'ubuntu-22.04'
+            args: ''
+            artifact: 'brittney-ai_*.deb'
+          - platform: 'windows-latest'
+            args: ''
+            artifact: 'Brittney AI_*.msi'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          projectPath: apps/brittney-desktop
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: 'Brittney Desktop v${{ github.event.inputs.version }}'
+          releaseBody: |
+            # Brittney Desktop v${{ github.event.inputs.version }}
+            
+            🤖 **Local-first AI assistant for HoloScript world building**
+            
+            ## Features
+            
+            - 🔒 **100% Local** - Runs entirely on your device
+            - 🎨 **Holographic UI** - Beautiful chat interface
+            - 🌍 **HoloScript Expert** - Trained for world building
+            - 🔑 **Optional Cloud** - Bring your own API keys
+            
+            ## Installation
+            
+            1. Download the installer for your platform below
+            2. Run the installer
+            3. On first launch, the app will download the Brittney V1 Free model (~2 GB)
+            
+            ## Model Download
+            
+            The model is not bundled to keep downloads small. It will be downloaded automatically on first run, or you can download it manually:
+            
+            ```bash
+            npx @hololand/brittney-models download v1-free
+            ```
+            
+            ## System Requirements
+            
+            - **RAM**: 4 GB minimum (8 GB recommended)
+            - **Storage**: 3 GB free space
+            - **OS**: Windows 10+, macOS 10.15+, Ubuntu 20.04+
+            
+            ## Links
+            
+            - [Documentation](https://hololand.io/docs/brittney)
+            - [Model Downloads](https://github.com/hololand/hololand/releases?q=brittney-v)
+            - [Source Code](https://github.com/hololand/hololand/tree/main/apps/brittney-desktop)
+          releaseDraft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          args: ${{ matrix.args }}

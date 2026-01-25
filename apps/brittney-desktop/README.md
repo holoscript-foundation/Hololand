@@ -1,14 +1,17 @@
 # Brittney AI Desktop
 
+**V1 Free - Production Ready** 🎉
+
 Local-first AI assistant for HoloScript world building, packaged as a desktop application with Tauri.
 
 ## Features
 
-- 🤖 **Bundled AI Model** - Brittney V1 (brittney-f16.gguf) runs 100% locally
+- 🤖 **Free AI Model** - Brittney V1 (2.0 GB) runs 100% locally
 - 🔒 **No Cloud Required** - Works completely offline
 - 🔑 **Optional Cloud APIs** - Bring your own API keys for enhanced capabilities
 - 🎨 **Holographic UI** - Beautiful, responsive chat interface
 - 🌍 **HoloScript Expert** - Trained specifically for world building
+- 📱 **Cross-Platform** - Windows, macOS, Linux
 
 ## Quick Start
 
@@ -16,8 +19,11 @@ Local-first AI assistant for HoloScript world building, packaged as a desktop ap
 # Install dependencies
 pnpm install
 
-# Download the model (required for first run)
+# Download the free V1 model (~2 GB)
 pnpm download:model
+
+# For low-memory devices (1.2 GB quantized version)
+pnpm download:model:q4
 
 # Start development
 pnpm tauri:dev
@@ -26,39 +32,40 @@ pnpm tauri:dev
 pnpm tauri:build
 ```
 
-## Model Setup
+## Download Options
 
-The Brittney GGUF model (~2.05 GB) needs to be placed in `src-tauri/models/`:
+| Model | Command | Size | RAM Required |
+|-------|---------|------|--------------|
+| V1 Free (Full) | `pnpm download:model` | 2.0 GB | 4 GB |
+| V1 Q4 (Quantized) | `pnpm download:model:q4` | 1.2 GB | 2 GB |
+
+## Model Location
+
+After download, models are stored in:
 
 ```
 src-tauri/
 ├── models/
-│   └── brittney-f16.gguf  ← Place model here
+│   └── brittney-f16.gguf  ← Model file (downloaded)
 ├── src/
 │   └── main.rs
 └── tauri.conf.json
 ```
 
-### Getting the Model
+## Alternative Model Sources
 
-1. **From Ollama** (if you have brittney installed):
+### From GitHub Releases
 
-   ```bash
-   # The model is stored in Ollama's blob storage
-   # Check: ~/.ollama/models/
-   ```
+```bash
+curl -L -o src-tauri/models/brittney-f16.gguf \
+  https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-free.gguf
+```
 
-2. **Direct copy** from the training output:
+### Using npx
 
-   ```bash
-   cp ../../✱brittney/✦brittney/brittney-f16.gguf src-tauri/models/
-   ```
-
-3. **Download script**:
-
-   ```bash
-   pnpm download:model
-   ```
+```bash
+npx @hololand/brittney-models download v1-free --dest ./src-tauri/models
+```
 
 ## Architecture
 
@@ -75,24 +82,23 @@ brittney-desktop/
 │   └── models/
 │       └── brittney-f16.gguf  # Bundled AI model
 └── scripts/
+    ├── download-model.mjs  # ModAI model (downloaded)
+└── scripts/
     ├── download-model.mjs  # Model download script
     └── check-model.mjs     # Postinstall check
 ```
 
-## Cloud API Support
+## Cloud API Support (Optional)
 
-Users can optionally add their own API keys for cloud providers:
+Brittney can optionally use cloud APIs for enhanced capabilities:
 
-| Provider  | Models              | Environment Variable  |
+| Provider  | Models              | Use Case              |
 |-----------|---------------------|-----------------------|
-| OpenAI    | GPT-4o, GPT-4o-mini | `OPENAI_API_KEY`      |
-| Anthropic | Claude 3.5 Sonnet   | `ANTHROPIC_API_KEY`   |
-| Google    | Gemini 1.5 Pro      | `GOOGLE_API_KEY`      |
-| Groq      | Llama 3.1 70B       | `GROQ_API_KEY`        |
-| Together  | Various             | `TOGETHER_API_KEY`    |
-| Ollama    | Local models        | (no key needed)       |
+| OpenAI    | GPT-4o, GPT-4o-mini | Fallback for complex queries |
+| Anthropic | Claude 3.5 Sonnet   | Alternative AI backend |
+| Ollama    | Local models        | Additional local models |
 
-Click the "Add API Key" button in the sidebar to configure.
+Click the settings icon to configure API keys.
 
 ## Building for Distribution
 
@@ -100,30 +106,39 @@ Click the "Add API Key" button in the sidebar to configure.
 
 ```bash
 pnpm tauri:build
-# Output: src-tauri/target/release/bundle/msi/
+# Output: src-tauri/target/release/bundle/msi/Brittney AI_*.msi
 ```
 
 ### macOS
 
 ```bash
 pnpm tauri:build
-# Output: src-tauri/target/release/bundle/dmg/
+# Output: src-tauri/target/release/bundle/macos/Brittney AI.app
 ```
 
 ### Linux
 
 ```bash
 pnpm tauri:build
-# Output: src-tauri/target/release/bundle/appimage/
+# Output: src-tauri/target/release/bundle/deb/brittney-ai_*.deb
+#         src-tauri/target/release/bundle/appimage/Brittney AI_*.AppImage
 ```
 
 ## System Requirements
 
-- **Minimum**: 4GB RAM, 4GB disk space
-- **Recommended**: 8GB RAM, SSD
-- **GPU**: Optional (CPU inference supported)
-- **OS**: Windows 10+, macOS 10.15+, Linux (glibc 2.31+)
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| RAM | 4 GB | 8 GB |
+| Storage | 3 GB | 5 GB |
+| OS | Windows 10, macOS 10.15, Ubuntu 20.04 | Latest |
 
 ## License
 
-MIT
+MIT License - Free for personal and commercial use.
+
+## Links
+
+- [Hololand](https://hololand.io)
+- [HoloScript Documentation](https://hololand.io/docs/holoscript)
+- [Brittney Toolkit](https://www.npmjs.com/package/@hololand/brittney-toolkit)
+- [Model Downloads](https://github.com/hololand/hololand/releases?q=brittney-v)

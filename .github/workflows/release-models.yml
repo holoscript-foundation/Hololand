@@ -1,0 +1,180 @@
+# Brittney Model Release Workflow
+# 
+# Triggered manually to release new model versions.
+# Uploads GGUF models to GitHub Releases for free distribution.
+
+name: Release Brittney Models
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Model version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      models:
+        description: 'Models to release (comma-separated: v1-free,v1-q4,v1-q8)'
+        required: true
+        default: 'v1-free,v1-q4,v1-q8'
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  MODELS_DIR: .proprietary/models
+  RELEASE_TAG: brittney-v${{ github.event.inputs.version }}
+
+jobs:
+  validate:
+    name: Validate Models
+    runs-on: ubuntu-latest
+    outputs:
+      models_json: ${{ steps.parse.outputs.models }}
+    steps:
+      - name: Parse model list
+        id: parse
+        run: |
+          MODELS="${{ github.event.inputs.models }}"
+          JSON=$(echo "$MODELS" | tr ',' '\n' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "models=$JSON" >> $GITHUB_OUTPUT
+          echo "Releasing models: $JSON"
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: validate
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check models exist
+        run: |
+          echo "Checking for model files in $MODELS_DIR..."
+          MODELS="${{ github.event.inputs.models }}"
+          for MODEL in $(echo $MODELS | tr ',' ' '); do
+            FILE="$MODELS_DIR/brittney-$MODEL.gguf"
+            if [ -f "$FILE" ]; then
+              SIZE=$(stat -f%z "$FILE" 2>/dev/null || stat -c%s "$FILE")
+              echo "✅ $MODEL: $(numfmt --to=iec $SIZE)"
+            else
+              echo "❌ Missing: $FILE"
+              exit 1
+            fi
+          done
+
+      - name: Calculate checksums
+        id: checksums
+        run: |
+          echo "Calculating SHA-256 checksums..."
+          MODELS="${{ github.event.inputs.models }}"
+          CHECKSUMS=""
+          for MODEL in $(echo $MODELS | tr ',' ' '); do
+            FILE="$MODELS_DIR/brittney-$MODEL.gguf"
+            CHECKSUM=$(sha256sum "$FILE" | cut -d' ' -f1)
+            echo "$MODEL: sha256:$CHECKSUM"
+            CHECKSUMS="$CHECKSUMS$MODEL: sha256:$CHECKSUM\n"
+          done
+          echo "checksums<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$CHECKSUMS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create release notes
+        id: notes
+        run: |
+          cat << 'EOF' > release-notes.md
+          # Brittney V${{ github.event.inputs.version }} - Free AI Model Release
+          
+          🎉 **Brittney AI** is now available for free download!
+          
+          ## Models Included
+          
+          | Model | Size | Description |
+          |-------|------|-------------|
+          | `brittney-v1-free.gguf` | ~2.0 GB | Full precision, best quality |
+          | `brittney-v1-q4.gguf` | ~1.2 GB | Quantized, mobile-friendly |
+          | `brittney-v1-q8.gguf` | ~1.6 GB | Better quality quantization |
+          
+          ## Features
+          
+          - ✅ HoloScript syntax understanding
+          - ✅ Code completion & explanation
+          - ✅ World building assistance
+          - ✅ VR/AR development concepts
+          - ✅ 100% local - no cloud required
+          
+          ## Quick Start
+          
+          ### With Brittney Desktop
+          
+          1. Download [Brittney Desktop](https://github.com/hololand/hololand/releases/latest)
+          2. The app will auto-download the model on first run
+          
+          ### With npm/pnpm
+          
+          ```bash
+          npx @hololand/brittney-models download v1-free
+          ```
+          
+          ### Direct Download
+          
+          ```bash
+          curl -L -o brittney-v1-free.gguf \
+            https://github.com/hololand/hololand/releases/download/${{ env.RELEASE_TAG }}/brittney-v1-free.gguf
+          ```
+          
+          ## Checksums (SHA-256)
+          
+          ```
+          ${{ steps.checksums.outputs.checksums }}
+          ```
+          
+          ## License
+          
+          MIT License - Free for personal and commercial use.
+          
+          ## Links
+          
+          - [Documentation](https://hololand.io/docs/brittney)
+          - [Brittney Desktop](https://github.com/hololand/hololand/tree/main/apps/brittney-desktop)
+          - [Brittney Toolkit](https://www.npmjs.com/package/@hololand/brittney-toolkit)
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Brittney V${{ github.event.inputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            ${{ env.MODELS_DIR }}/brittney-*.gguf
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update model registry checksums
+        run: |
+          echo "📝 Update packages/brittney/models/src/registry.ts with new checksums:"
+          echo "${{ steps.checksums.outputs.checksums }}"
+          echo ""
+          echo "Then run: pnpm -C packages/brittney/models build && pnpm -C packages/brittney/models publish"
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Summary
+        run: |
+          echo "## 🎉 Brittney V${{ github.event.inputs.version }} Released!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Models: ${{ github.event.inputs.models }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Release](https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }})" >> $GITHUB_STEP_SUMMARY
