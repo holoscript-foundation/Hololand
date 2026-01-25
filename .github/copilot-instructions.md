@@ -35,7 +35,7 @@ Hololand is a VR/AR platform using HoloScript - a visual flow language designed 
 |-----------|---------|--------------|--------|
 | `.hs` | Classic HoloScript | Object-centric (`orb {}`) | ✅ Working |
 | `.hsplus` | HoloScript Plus | Object + VR traits | ✅ Working |
-| `.holo` | Declarative Composition | Scene-centric (`composition {}`) | 🚧 Parser planned |
+| `.holo` | Declarative Composition | Scene-centric (`composition {}`) | ✅ Working |
 
 ---
 

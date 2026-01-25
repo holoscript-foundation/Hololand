@@ -10,7 +10,7 @@ HoloScript has **three file formats** that serve different purposes. Understandi
 |-----------|---------|--------------|---------------|
 | `.hs` | Classic HoloScript | Object-centric (`orb {}`) | ✅ Implemented |
 | `.hsplus` | HoloScript Plus | Object-centric + VR traits | ✅ Implemented |
-| `.holo` | Declarative Composition | Scene-centric (`composition {}`) | 🚧 Planned |
+| `.holo` | Declarative Composition | Scene-centric (`composition {}`) | ✅ Implemented |
 
 > **Key Insight:** `.hs` and `.hsplus` use the same parser with the same syntax. `.holo` uses a completely different declarative syntax for scene-level composition.
 
@@ -358,7 +358,7 @@ Start with `.hs` to understand the fundamentals. Upgrade to `.hsplus` when you n
 
 | Feature | `.hs` | `.hsplus` | `.holo` |
 |---------|-------|-----------|---------|
-| **Parser** | ✅ | ✅ | 🚧 Planned |
+| **Parser** | ✅ | ✅ | ✅ Implemented |
 | **Orb syntax** | ✅ | ✅ | ❌ |
 | **Composition syntax** | ❌ | ❌ | ✅ |
 | **VR Traits** | ❌ | ✅ | ❌ |

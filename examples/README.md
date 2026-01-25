@@ -2,6 +2,30 @@
 
 Welcome to the Hololand examples! These examples demonstrate different ways to build VR experiences using Hololand.
 
+---
+
+## ⚠️ HoloScript-First Development
+
+**New to Hololand? Start with HoloScript native examples:**
+
+| Category | Location | Format | Description |
+|----------|----------|--------|-------------|
+| **Showcases** | [demos/](./demos/) | `.holo` | Feature-rich demos (forest, VRChat, voice-builder) |
+| **Beginner** | [fresh/](./fresh/) | `.holo`, `.hsplus` | Simple, clean examples to learn from |
+
+These are the **recommended** starting points. HoloScript compiles to 9+ platforms from a single source.
+
+### Legacy/Bridge Examples
+
+The numbered examples below (01-13) are **older examples** that use various approaches:
+- Some are pure HTML/JS
+- Some use React (04-react-starter)
+- Some are hybrid approaches
+
+They're kept for reference and for users integrating HoloScript into existing codebases.
+
+---
+
 ## 🎯 Examples Overview
 
 | Example | Difficulty | Time | What You'll Learn |
