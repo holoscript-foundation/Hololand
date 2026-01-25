@@ -1,0 +1,344 @@
+// HoloScript Starter: Interactive Basics
+// Learn click handlers, hovers, sounds, and state changes
+//
+// This example demonstrates:
+// - Multiple interactive objects
+// - Event handlers (click, hover, proximity)
+// - Audio feedback
+// - State management
+// - UI elements (buttons, panels)
+// - Trigger zones
+
+composition "InteractiveBasics" {
+  metadata {
+    title: "Interactive Basics"
+    description: "Learn VR interaction patterns"
+    author: "Hololand Team"
+    version: "1.0.0"
+  }
+
+  environment {
+    skybox: "studio"
+    lighting {
+      ambient: { color: "#606080", intensity: 0.4 }
+      directional: { color: "#ffffff", intensity: 0.7 }
+    }
+  }
+
+  // Define reusable templates
+  template "InteractiveButton" {
+    shape: "cylinder"
+    size: [0.3, 0.1, 0.3]
+    material: { color: "#e74c3c", roughness: 0.6 }
+    traits: ["clickable", "hoverable"]
+
+    state {
+      pressed: false
+      pressCount: 0
+    }
+
+    on_hover {
+      this.scale = [1.1, 1.1, 1.1]
+      this.material.emissive = this.material.color
+      this.material.emissiveIntensity = 0.3
+    }
+
+    on_hover_end {
+      this.scale = [1, 1, 1]
+      this.material.emissiveIntensity = 0
+    }
+
+    on_click {
+      this.state.pressed = !this.state.pressed
+      this.state.pressCount += 1
+      audio.play_spatial("button_click", this.position)
+    }
+  }
+
+  template "Collectible" {
+    shape: "icosahedron"
+    size: 0.2
+    material: { color: "#f1c40f", metalness: 0.8 }
+    traits: ["collectible", "pulse", "rotate"]
+
+    state {
+      collected: false
+    }
+
+    on_collect {
+      if (!this.state.collected) {
+        this.state.collected = true
+        audio.play("collect_coin")
+        particles.burst(this.position, { count: 20, color: "#f1c40f" })
+        this.visible = false
+        game.score += 10
+      }
+    }
+  }
+
+  // Scene layout
+  spatial_group "Room" {
+
+    // Floor
+    plane "Floor" {
+      position: [0, 0, 0]
+      size: [10, 10]
+      rotation: [-90, 0, 0]
+      material: { color: "#34495e", roughness: 0.9 }
+    }
+
+    // Walls for ambiance
+    plane "BackWall" {
+      position: [0, 2.5, -5]
+      size: [10, 5]
+      material: { color: "#2c3e50" }
+    }
+  }
+
+  // Interactive buttons section
+  spatial_group "ButtonDemo" {
+    position: [-3, 0, -3]
+
+    // Label
+    text "ButtonLabel" {
+      position: [0, 2.2, 0]
+      content: "Click the Buttons"
+      size: 0.3
+      color: "#ffffff"
+    }
+
+    // Red button
+    object "RedButton" using "InteractiveButton" {
+      position: [0, 1, 0]
+      material: { color: "#e74c3c" }
+    }
+
+    // Green button
+    object "GreenButton" using "InteractiveButton" {
+      position: [0.8, 1, 0]
+      material: { color: "#27ae60" }
+    }
+
+    // Blue button
+    object "BlueButton" using "InteractiveButton" {
+      position: [-0.8, 1, 0]
+      material: { color: "#3498db" }
+    }
+
+    // Counter display
+    text "CounterDisplay" {
+      position: [0, 1.5, 0]
+      content: "Presses: 0"
+      size: 0.2
+      color: "#ecf0f1"
+    }
+  }
+
+  // Collectibles section
+  spatial_group "CollectibleDemo" {
+    position: [0, 0, -3]
+
+    text "CollectLabel" {
+      position: [0, 2.2, 0]
+      content: "Collect the Gems"
+      size: 0.3
+      color: "#ffffff"
+    }
+
+    // Floating gems
+    object "Gem1" using "Collectible" {
+      position: [-0.5, 1.5, 0]
+      material: { color: "#e74c3c" }
+    }
+
+    object "Gem2" using "Collectible" {
+      position: [0, 1.8, 0]
+      material: { color: "#3498db" }
+    }
+
+    object "Gem3" using "Collectible" {
+      position: [0.5, 1.5, 0]
+      material: { color: "#27ae60" }
+    }
+
+    // Score display
+    text "ScoreDisplay" {
+      position: [0, 1, 0]
+      content: "Score: 0"
+      size: 0.25
+      color: "#f1c40f"
+    }
+  }
+
+  // Trigger zone section
+  spatial_group "TriggerDemo" {
+    position: [3, 0, -3]
+
+    text "TriggerLabel" {
+      position: [0, 2.2, 0]
+      content: "Step Into Zone"
+      size: 0.3
+      color: "#ffffff"
+    }
+
+    // Visible trigger zone
+    zone "WelcomeZone" {
+      position: [0, 0.5, 0]
+      size: [2, 1, 2]
+      visualization: "wireframe"
+      color: "#9b59b6"
+    }
+
+    // Light that reacts to presence
+    light "ZoneLight" {
+      position: [0, 2, 0]
+      type: "point"
+      color: "#9b59b6"
+      intensity: 0
+      range: 5
+    }
+  }
+
+  // Hover preview section
+  spatial_group "HoverDemo" {
+    position: [0, 0, 0]
+
+    text "HoverLabel" {
+      position: [0, 2.2, 0]
+      content: "Hover for Info"
+      size: 0.3
+      color: "#ffffff"
+    }
+
+    // Info cube
+    cube "InfoCube" {
+      position: [0, 1, 0]
+      size: 0.5
+      material: { color: "#1abc9c" }
+      traits: ["hoverable"]
+    }
+
+    // Hidden tooltip panel
+    panel "Tooltip" {
+      position: [0, 1.8, 0]
+      size: [1.5, 0.4]
+      background: "#2c3e50"
+      opacity: 0
+      content: "This is an info cube!"
+    }
+  }
+
+  // Game state
+  state {
+    score: 0
+    totalPresses: 0
+    inZone: false
+  }
+
+  // Logic and event handlers
+  logic {
+    on_start {
+      ui.toast("Welcome! Try interacting with objects.")
+      audio.play_ambient("soft_music", { volume: 0.3, loop: true })
+    }
+
+    // Button press tracking
+    on_click("RedButton") {
+      state.totalPresses += 1
+      update_counter()
+      flash_light("red")
+    }
+
+    on_click("GreenButton") {
+      state.totalPresses += 1
+      update_counter()
+      flash_light("green")
+    }
+
+    on_click("BlueButton") {
+      state.totalPresses += 1
+      update_counter()
+      flash_light("blue")
+    }
+
+    // Update counter display
+    fn update_counter() {
+      CounterDisplay.content = "Presses: " + state.totalPresses
+    }
+
+    // Flash effect
+    fn flash_light(color) {
+      let light = spawn("PointLight", {
+        position: [0, 2, -3],
+        color: color,
+        intensity: 2
+      })
+      animate(light.intensity, 2, 0, 500)
+      despawn(light, 500)
+    }
+
+    // Collectible handling
+    on_collect("Gem1") { update_score(10, "#e74c3c") }
+    on_collect("Gem2") { update_score(15, "#3498db") }
+    on_collect("Gem3") { update_score(20, "#27ae60") }
+
+    fn update_score(points, color) {
+      state.score += points
+      ScoreDisplay.content = "Score: " + state.score
+      ScoreDisplay.color = color
+
+      if (state.score >= 45) {
+        ui.toast("All gems collected! +50 bonus!")
+        state.score += 50
+        audio.play("victory")
+      }
+    }
+
+    // Trigger zone events
+    on_enter("WelcomeZone") {
+      state.inZone = true
+      ZoneLight.intensity = 2
+      WelcomeZone.color = "#e74c3c"
+      ui.toast("You entered the zone!")
+      audio.play_spatial("zone_enter", WelcomeZone.position)
+    }
+
+    on_exit("WelcomeZone") {
+      state.inZone = false
+      ZoneLight.intensity = 0
+      WelcomeZone.color = "#9b59b6"
+    }
+
+    // Hover tooltip
+    on_hover("InfoCube") {
+      animate(Tooltip.opacity, 0, 1, 200)
+      InfoCube.material.emissive = "#1abc9c"
+      InfoCube.material.emissiveIntensity = 0.5
+    }
+
+    on_hover_end("InfoCube") {
+      animate(Tooltip.opacity, 1, 0, 200)
+      InfoCube.material.emissiveIntensity = 0
+    }
+  }
+
+  // Animations for collectibles
+  animation "GemFloat" {
+    targets: ["Gem1", "Gem2", "Gem3"]
+    property: "position.y"
+    offset: 0.2
+    duration: 1500
+    easing: "sine"
+    loop: true
+    yoyo: true
+  }
+
+  animation "GemSpin" {
+    targets: ["Gem1", "Gem2", "Gem3"]
+    property: "rotation.y"
+    from: 0
+    to: 360
+    duration: 3000
+    loop: true
+  }
+}

@@ -1,0 +1,664 @@
+// HoloScript Starter: NPC Dialogue System
+// Create talking NPCs with branching dialogue trees
+//
+// This example demonstrates:
+// - NPC character definition with traits
+// - Dialogue trees with branching paths
+// - Player choices and consequences
+// - Emotion/expression changes
+// - Quest integration basics
+// - Voice and text display
+
+composition "NPCDialogue" {
+  metadata {
+    title: "NPC Dialogue System"
+    description: "Learn to create talking NPCs with dialogue trees"
+    author: "Hololand Team"
+    version: "1.0.0"
+  }
+
+  environment {
+    skybox: "evening"
+    lighting {
+      ambient: { color: "#4a3f35", intensity: 0.3 }
+      directional: { color: "#ff9f43", intensity: 0.5, direction: [-1, -0.5, -1] }
+    }
+  }
+
+  // NPC Template - Reusable for any character
+  template "TalkableNPC" {
+    traits: ["talkable", "look_at_player"]
+
+    state {
+      currentDialogue: "greeting"
+      hasSpoken: false
+      mood: "neutral"
+      questGiven: false
+      questComplete: false
+    }
+
+    visual {
+      nameplate: true
+      speechBubble: true
+      emotionIndicator: true
+    }
+
+    on_approach {
+      this.look_at(player)
+      if (!this.state.hasSpoken) {
+        this.emote("wave")
+      }
+    }
+
+    on_interact {
+      dialogue.start(this, this.state.currentDialogue)
+    }
+  }
+
+  // Scene Setup - A cozy tavern corner
+  spatial_group "TavernCorner" {
+
+    // Floor
+    plane "WoodenFloor" {
+      position: [0, 0, 0]
+      size: [8, 8]
+      rotation: [-90, 0, 0]
+      material: {
+        color: "#5d4037"
+        texture: "wood_planks"
+        roughness: 0.8
+      }
+    }
+
+    // Back wall
+    plane "StoneWall" {
+      position: [0, 2, -4]
+      size: [8, 4]
+      material: {
+        color: "#4a4a4a"
+        texture: "stone_brick"
+      }
+    }
+
+    // Ambient fire light
+    light "FireLight" {
+      position: [-3, 1, -3]
+      type: "point"
+      color: "#ff6b35"
+      intensity: 1.5
+      range: 6
+    }
+
+    // Fireplace (decorative)
+    cube "Fireplace" {
+      position: [-3, 0.5, -3.5]
+      size: [1.5, 1, 0.5]
+      material: { color: "#2d2d2d" }
+    }
+
+    // Fire particles
+    particles "FireParticles" {
+      position: [-3, 0.8, -3.3]
+      count: 30
+      color: ["#ff6b35", "#ff9f43", "#ffcc00"]
+      size: 0.05
+      speed: 0.5
+      lifetime: 1000
+      direction: [0, 1, 0]
+    }
+  }
+
+  // The NPCs
+  spatial_group "Characters" {
+
+    // Main NPC: Tavern Keeper
+    object "Elara" using "TalkableNPC" {
+      position: [0, 0, -2]
+      model: "characters/tavern_keeper.glb"
+      scale: 1
+
+      properties {
+        name: "Elara the Tavern Keeper"
+        occupation: "Innkeeper"
+        personality: "friendly, helpful, mysterious past"
+      }
+
+      animations {
+        idle: "bartender_idle"
+        talking: "bartender_gesture"
+        thinking: "bartender_ponder"
+      }
+    }
+
+    // Secondary NPC: Mysterious Traveler
+    object "Crow" using "TalkableNPC" {
+      position: [2, 0, -2.5]
+      model: "characters/hooded_traveler.glb"
+      scale: 1
+
+      properties {
+        name: "The Crow"
+        occupation: "Unknown"
+        personality: "cryptic, knows secrets"
+      }
+
+      state {
+        revealed: false
+      }
+    }
+
+    // NPC nameplate displays
+    text "ElaraName" {
+      position: [0, 2.3, -2]
+      content: "Elara"
+      size: 0.15
+      color: "#f1c40f"
+      billboard: true
+    }
+
+    text "CrowName" {
+      position: [2, 2.3, -2.5]
+      content: "???"
+      size: 0.15
+      color: "#9b59b6"
+      billboard: true
+    }
+  }
+
+  // Dialogue UI Panel
+  spatial_group "DialogueUI" {
+    visible: false
+
+    panel "DialogueBox" {
+      position: [0, 1.2, -1]
+      size: [2, 0.8]
+      background: "rgba(0, 0, 0, 0.85)"
+      borderRadius: 0.05
+
+      // Speaker name
+      text "SpeakerName" {
+        position: [0.1, 0.65, 0.01]
+        size: 0.08
+        color: "#f1c40f"
+        content: ""
+      }
+
+      // Dialogue text
+      text "DialogueText" {
+        position: [0.1, 0.45, 0.01]
+        size: 0.06
+        color: "#ffffff"
+        content: ""
+        maxWidth: 1.8
+        lineHeight: 1.4
+      }
+
+      // Choice buttons container
+      group "Choices" {
+        position: [0.1, 0.15, 0.01]
+      }
+    }
+  }
+
+  // Dialogue Trees Definition
+  dialogues {
+
+    // Elara's dialogue tree
+    tree "elara_main" {
+
+      node "greeting" {
+        speaker: "Elara"
+        text: "Welcome to the Wanderer's Rest, traveler! I don't believe I've seen your face before. What brings you to our humble establishment?"
+        emotion: "warm"
+        animation: "wave"
+
+        choices: [
+          {
+            text: "I'm looking for information."
+            next: "info_request"
+          },
+          {
+            text: "Just passing through. What's good to drink?"
+            next: "drink_offer"
+          },
+          {
+            text: "Who's that mysterious figure in the corner?"
+            next: "about_crow"
+            condition: "Crow.visible"
+          }
+        ]
+      }
+
+      node "info_request" {
+        speaker: "Elara"
+        text: "Information, you say? *leans in* Well, I hear many things behind this bar. What exactly are you looking for?"
+        emotion: "intrigued"
+        animation: "lean_forward"
+
+        choices: [
+          {
+            text: "I'm searching for the Lost Temple."
+            next: "temple_quest"
+          },
+          {
+            text: "Any rumors about strange happenings?"
+            next: "rumors"
+          },
+          {
+            text: "Never mind. I'll have that drink instead."
+            next: "drink_offer"
+          }
+        ]
+      }
+
+      node "temple_quest" {
+        speaker: "Elara"
+        text: "The Lost Temple? *eyes widen* That's... not something most folk ask about. There are old stories, yes. But if you're serious... *glances at Crow*"
+        emotion: "surprised"
+        animation: "whisper"
+
+        effects: [
+          { action: "set_state", target: "player", key: "knows_temple", value: true },
+          { action: "unlock_dialogue", target: "Crow", dialogue: "temple_info" }
+        ]
+
+        choices: [
+          {
+            text: "Tell me what you know."
+            next: "temple_history"
+          },
+          {
+            text: "Why did you look at that hooded figure?"
+            next: "crow_connection"
+          }
+        ]
+      }
+
+      node "temple_history" {
+        speaker: "Elara"
+        text: "The Temple of Echoes, they called it. Built before the kingdom existed. They say it holds the memories of everyone who ever entered... and that something still guards it."
+        emotion: "serious"
+        animation: "storytelling"
+
+        effects: [
+          { action: "give_quest", quest: "find_temple", stage: 1 }
+        ]
+
+        next: "temple_directions"
+      }
+
+      node "temple_directions" {
+        speaker: "Elara"
+        text: "If you're truly going... *slides a worn map across the bar* Head east through the Whispering Woods. But be warned - not everyone who seeks the Temple returns."
+        emotion: "concerned"
+        animation: "slide_item"
+
+        effects: [
+          { action: "give_item", item: "old_map" },
+          { action: "update_journal", text: "Elara mentioned the Temple of Echoes lies east, through the Whispering Woods." }
+        ]
+
+        choices: [
+          {
+            text: "Thank you, Elara. I'll be careful."
+            next: "farewell_quest"
+          },
+          {
+            text: "Why are you helping me?"
+            next: "elara_backstory"
+          }
+        ]
+      }
+
+      node "drink_offer" {
+        speaker: "Elara"
+        text: "*smiles* Finally, someone who has their priorities straight! I've got Moonpetal Mead - sweet with a kick. Or there's Dragon's Breath Ale if you're feeling brave."
+        emotion: "cheerful"
+        animation: "gesture_bottles"
+
+        choices: [
+          {
+            text: "Moonpetal Mead sounds perfect."
+            next: "serve_mead"
+            effects: [{ action: "spend_gold", amount: 5 }]
+          },
+          {
+            text: "Dragon's Breath? I can handle it."
+            next: "serve_ale"
+            effects: [{ action: "spend_gold", amount: 8 }]
+          },
+          {
+            text: "Maybe later. I had some questions..."
+            next: "info_request"
+          }
+        ]
+      }
+
+      node "serve_mead" {
+        speaker: "Elara"
+        text: "*pours a shimmering golden drink* Here you are! The moonpetals are harvested under full moons. Gives it that special glow. Enjoy!"
+        emotion: "happy"
+        animation: "pour_drink"
+
+        effects: [
+          { action: "give_item", item: "moonpetal_mead" },
+          { action: "buff", type: "charisma", duration: 300 }
+        ]
+
+        next: "after_drink"
+      }
+
+      node "about_crow" {
+        speaker: "Elara"
+        text: "*lowers voice* That's the Crow. Comes here every few moons. Never orders anything, just... watches. Says strange things sometimes. I'd be careful approaching that one."
+        emotion: "wary"
+        animation: "whisper"
+
+        effects: [
+          { action: "reveal_npc", target: "Crow" },
+          { action: "update", target: "CrowName", property: "content", value: "The Crow" }
+        ]
+
+        choices: [
+          {
+            text: "Sounds like someone I should talk to."
+            next: "end_conversation"
+          },
+          {
+            text: "Thanks for the warning. Tell me about the Temple instead."
+            next: "temple_quest"
+            condition: "player.knows_temple"
+          }
+        ]
+      }
+
+      node "farewell_quest" {
+        speaker: "Elara"
+        text: "May the stars guide your path, traveler. And... if you find what you're looking for... come back and tell me. I'd like to know the end of this story."
+        emotion: "hopeful"
+        animation: "nod"
+
+        effects: [
+          { action: "set_state", target: "Elara", key: "questGiven", value: true }
+        ]
+
+        end: true
+      }
+
+      node "end_conversation" {
+        speaker: "Elara"
+        text: "Be well, traveler. My door is always open if you need anything else."
+        emotion: "friendly"
+        animation: "wave"
+        end: true
+      }
+    }
+
+    // Crow's dialogue tree
+    tree "crow_main" {
+
+      node "greeting" {
+        speaker: "The Crow"
+        text: "... *tilts head* You have questions. I can see them circling your mind like ravens. Speak, if you dare hear answers."
+        emotion: "mysterious"
+        animation: "head_tilt"
+
+        choices: [
+          {
+            text: "Who are you?"
+            next: "identity"
+          },
+          {
+            text: "Elara said you know about the Temple."
+            next: "temple_info"
+            condition: "player.knows_temple"
+          },
+          {
+            text: "Never mind."
+            next: "farewell"
+          }
+        ]
+      }
+
+      node "identity" {
+        speaker: "The Crow"
+        text: "Who am I? A shadow with memories. A voice from the spaces between. Names are cages, traveler. I am what remains when the cage breaks."
+        emotion: "cryptic"
+        animation: "spread_hands"
+
+        choices: [
+          {
+            text: "That's not a real answer."
+            next: "press_identity"
+          },
+          {
+            text: "Fair enough. What do you want?"
+            next: "crow_purpose"
+          }
+        ]
+      }
+
+      node "temple_info" {
+        speaker: "The Crow"
+        text: "*eyes glow briefly* The Temple... yes. I walked its halls once. The echoes still call to me. You seek it too? Then we are connected now, whether you wish it or not."
+        emotion: "intense"
+        animation: "eyes_glow"
+
+        effects: [
+          { action: "give_quest", quest: "find_temple", stage: 2 },
+          { action: "unlock_ability", ability: "sense_echoes" }
+        ]
+
+        next: "temple_warning"
+      }
+
+      node "temple_warning" {
+        speaker: "The Crow"
+        text: "The Temple does not welcome visitors. It... remembers you. Every secret you carry, every lie you've told. *leans close* Are you sure you want to be remembered?"
+        emotion: "warning"
+        animation: "lean_in"
+
+        choices: [
+          {
+            text: "I'm not afraid of the truth."
+            next: "temple_clue"
+          },
+          {
+            text: "What happened to you there?"
+            next: "crow_past"
+          }
+        ]
+      }
+
+      node "temple_clue" {
+        speaker: "The Crow"
+        text: "Then take this. *produces a crystal shard* When the shadows move wrong, hold it to the light. It will show you the path... and warn you of what follows."
+        emotion: "giving"
+        animation: "offer_item"
+
+        effects: [
+          { action: "give_item", item: "echo_shard" },
+          { action: "update_journal", text: "The Crow gave me an Echo Shard. It may reveal hidden paths in the Temple." }
+        ]
+
+        next: "crow_farewell"
+      }
+
+      node "crow_farewell" {
+        speaker: "The Crow"
+        text: "We will meet again, traveler. In the Temple... or in the echoes after. *fades slightly* Until then..."
+        emotion: "fading"
+        animation: "fade"
+
+        effects: [
+          { action: "set_state", target: "Crow", key: "revealed", value: true }
+        ]
+
+        end: true
+      }
+
+      node "farewell" {
+        speaker: "The Crow"
+        text: "... *returns to silence*"
+        emotion: "dismissive"
+        end: true
+      }
+    }
+  }
+
+  // Game state
+  state {
+    activeDialogue: null
+    currentNode: null
+    gold: 50
+    inventory: []
+    journal: []
+    quests: {}
+  }
+
+  // Logic
+  logic {
+    on_start {
+      ui.toast("Approach an NPC and interact to start a conversation")
+    }
+
+    // NPC approach detection
+    on_approach("Elara", distance: 3) {
+      if (!Elara.state.hasSpoken) {
+        Elara.emote("wave")
+        ui.hint("Press E to talk to Elara")
+      }
+    }
+
+    on_approach("Crow", distance: 3) {
+      if (Crow.state.revealed) {
+        Crow.look_at(player)
+        ui.hint("Press E to speak with the Crow")
+      }
+    }
+
+    // Start dialogue
+    on_interact("Elara") {
+      start_dialogue("elara_main", Elara)
+    }
+
+    on_interact("Crow") {
+      if (Crow.state.revealed) {
+        start_dialogue("crow_main", Crow)
+      } else {
+        ui.toast("The hooded figure doesn't acknowledge you...")
+      }
+    }
+
+    // Dialogue system functions
+    fn start_dialogue(tree, npc) {
+      state.activeDialogue = tree
+      DialogueUI.visible = true
+      show_node(tree, "greeting", npc)
+    }
+
+    fn show_node(tree, nodeId, npc) {
+      let node = dialogues[tree].nodes[nodeId]
+      state.currentNode = node
+
+      // Update UI
+      SpeakerName.content = node.speaker
+      DialogueText.content = ""
+
+      // Typewriter effect
+      typewrite(DialogueText, node.text, 30)
+
+      // Play animation
+      if (node.animation) {
+        npc.play_animation(node.animation)
+      }
+
+      // Show emotion
+      if (node.emotion) {
+        npc.set_emotion(node.emotion)
+      }
+
+      // Build choice buttons after text completes
+      after_typewrite {
+        if (node.choices) {
+          show_choices(node.choices)
+        } else if (node.next) {
+          after 1500 { show_node(tree, node.next, npc) }
+        } else if (node.end) {
+          after 1500 { end_dialogue() }
+        }
+      }
+    }
+
+    fn show_choices(choices) {
+      clear_children(Choices)
+
+      let y = 0
+      foreach choice in choices {
+        if (!choice.condition || evaluate(choice.condition)) {
+          let btn = spawn("DialogueChoice", {
+            parent: Choices,
+            position: [0, y, 0],
+            text: choice.text,
+            onClick: () => select_choice(choice)
+          })
+          y -= 0.08
+        }
+      }
+    }
+
+    fn select_choice(choice) {
+      // Apply effects
+      if (choice.effects) {
+        foreach effect in choice.effects {
+          apply_effect(effect)
+        }
+      }
+
+      // Go to next node
+      if (choice.next) {
+        show_node(state.activeDialogue, choice.next, current_npc())
+      }
+    }
+
+    fn apply_effect(effect) {
+      match effect.action {
+        "give_item" => {
+          state.inventory.push(effect.item)
+          ui.toast("Received: " + effect.item)
+        }
+        "give_quest" => {
+          state.quests[effect.quest] = effect.stage
+          ui.quest_notification(effect.quest)
+        }
+        "update_journal" => {
+          state.journal.push({ text: effect.text, time: now() })
+        }
+        "set_state" => {
+          let target = find_object(effect.target)
+          target.state[effect.key] = effect.value
+        }
+        "spend_gold" => {
+          if (state.gold >= effect.amount) {
+            state.gold -= effect.amount
+          }
+        }
+        "reveal_npc" => {
+          let npc = find_object(effect.target)
+          npc.state.revealed = true
+        }
+      }
+    }
+
+    fn end_dialogue() {
+      state.activeDialogue = null
+      DialogueUI.visible = false
+      current_npc().state.hasSpoken = true
+    }
+
+    // Firelight flicker animation
+    every 100 {
+      FireLight.intensity = 1.5 + random(-0.3, 0.3)
+    }
+  }
+}

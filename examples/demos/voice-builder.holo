@@ -1,0 +1,374 @@
+// Voice-Controlled World Builder
+// AI + Voice → HoloScript generation demo
+
+composition "AI Builder Studio" {
+  
+  environment {
+    theme: "creative-studio"
+    skybox: "gradient_sunset"
+    ambient_light: 0.6
+    grid: true
+  }
+  
+  state {
+    voice_enabled: true
+    last_command: ""
+    generated_objects: []
+    undo_stack: []
+    ai_context: {
+      style: "fantasy",
+      scale: "room",
+      complexity: "medium"
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // VOICE COMMAND SYSTEM
+  // ═══════════════════════════════════════════════════════════
+  
+  object "VoiceController" {
+    @voice_activated
+    
+    // Web Speech API integration
+    voice_config: {
+      language: "en-US",
+      continuous: true,
+      interim_results: true,
+      wake_word: "hey brittney"
+    }
+    
+    on_voice_command(transcript) {
+      state.last_command = transcript
+      
+      // Parse and execute
+      process_voice_command(transcript)
+    }
+    
+    on_voice_error(error) {
+      show_notification("Voice error: " + error.message)
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // AI GENERATION ENGINE
+  // ═══════════════════════════════════════════════════════════
+  
+  object "BrittneyAI" {
+    @ai_engine
+    
+    model: "brittney-holoscript-v2"
+    temperature: 0.7
+    max_tokens: 2000
+    
+    // System prompt for HoloScript generation
+    system_prompt: `
+      You are Brittney, an AI that generates HoloScript code.
+      Output ONLY valid .holo syntax.
+      Available traits: @grabbable, @throwable, @physics, @collidable, 
+      @glowing, @animated, @networked, @clickable, @hoverable.
+      Always include position, and appropriate traits for the object type.
+    `
+    
+    async action generate(prompt) {
+      // Add scene context
+      context = {
+        existing_objects: state.generated_objects.map(o => o.type),
+        style: state.ai_context.style,
+        scale: state.ai_context.scale
+      }
+      
+      response = await inference({
+        prompt: prompt,
+        context: context,
+        system: self.system_prompt
+      })
+      
+      // Parse the generated HoloScript
+      ast = parse_holo(response.text)
+      
+      if ast.success {
+        return ast
+      } else {
+        // Try to fix errors
+        fixed = await inference({
+          prompt: "Fix this HoloScript:\n" + response.text + "\nErrors: " + ast.errors.join(", "),
+          context: context
+        })
+        return parse_holo(fixed.text)
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // VOICE COMMAND HANDLERS
+  // ═══════════════════════════════════════════════════════════
+  
+  logic {
+    
+    async action process_voice_command(transcript) {
+      lower = transcript.toLowerCase()
+      
+      // Direct object creation commands
+      if lower.starts_with("add ") || lower.starts_with("create ") || lower.starts_with("spawn ") {
+        await create_from_voice(transcript)
+        return
+      }
+      
+      // Modification commands
+      if lower.starts_with("make ") {
+        await modify_from_voice(transcript)
+        return
+      }
+      
+      // Deletion commands
+      if lower.includes("delete") || lower.includes("remove") {
+        await delete_from_voice(transcript)
+        return
+      }
+      
+      // Undo
+      if lower == "undo" || lower == "undo that" {
+        undo_last_action()
+        return
+      }
+      
+      // Style commands
+      if lower.starts_with("style ") || lower.starts_with("set style ") {
+        set_style(transcript)
+        return
+      }
+      
+      // Complex scene requests - send to AI
+      await generate_complex_scene(transcript)
+    }
+    
+    async action create_from_voice(transcript) {
+      show_thinking("Creating...")
+      
+      // Examples:
+      // "Add a glowing blue orb"
+      // "Create a wooden treasure chest"
+      // "Spawn three floating crystals"
+      
+      result = await BrittneyAI.generate(
+        "Create a single object based on: " + transcript + 
+        "\nPlace it in front of the user at [0, 1, -2]"
+      )
+      
+      if result.success {
+        instantiate_from_ast(result.ast)
+        speak("Done! I've added " + describe_object(result.ast))
+      } else {
+        speak("Sorry, I couldn't create that. Try being more specific.")
+      }
+    }
+    
+    async action modify_from_voice(transcript) {
+      // "Make it bigger"
+      // "Make the orb red"
+      // "Make everything glow"
+      
+      target = find_target_from_context(transcript)
+      
+      if target {
+        result = await BrittneyAI.generate(
+          "Modify this object: " + serialize(target) + 
+          "\nUser request: " + transcript
+        )
+        
+        if result.success {
+          save_undo(target)
+          apply_modifications(target, result.ast)
+          speak("Updated!")
+        }
+      } else {
+        speak("What would you like me to modify?")
+      }
+    }
+    
+    async action delete_from_voice(transcript) {
+      // "Delete the orb"
+      // "Remove all cubes"
+      // "Delete that"
+      
+      target = find_target_from_context(transcript)
+      
+      if target {
+        save_undo(target)
+        destroy(target)
+        speak("Deleted " + target.name)
+      } else {
+        speak("What should I delete?")
+      }
+    }
+    
+    async action generate_complex_scene(transcript) {
+      show_thinking("Generating scene...")
+      
+      // "Create a magical garden with a fountain and butterflies"
+      // "Build a sci-fi control room with holographic displays"
+      // "Make a cozy living room with a fireplace"
+      
+      result = await BrittneyAI.generate(
+        "Create a complete scene based on: " + transcript +
+        "\nInclude multiple objects with appropriate traits, positions, and interactions."
+      )
+      
+      if result.success && result.ast.objects {
+        clear_undo_stack()
+        
+        for obj_ast in result.ast.objects {
+          instantiate_from_ast(obj_ast)
+        }
+        
+        count = result.ast.objects.length
+        speak("Created ${count} objects for your ${extract_theme(transcript)}")
+      }
+    }
+    
+    action undo_last_action() {
+      if state.undo_stack.length > 0 {
+        last = state.undo_stack.pop()
+        restore(last)
+        speak("Undone")
+      } else {
+        speak("Nothing to undo")
+      }
+    }
+    
+    action set_style(transcript) {
+      if transcript.includes("fantasy") {
+        state.ai_context.style = "fantasy"
+        speak("Style set to fantasy")
+      } else if transcript.includes("sci-fi") || transcript.includes("scifi") {
+        state.ai_context.style = "sci-fi"
+        speak("Style set to sci-fi")
+      } else if transcript.includes("modern") {
+        state.ai_context.style = "modern"
+        speak("Style set to modern")
+      } else if transcript.includes("nature") {
+        state.ai_context.style = "nature"
+        speak("Style set to nature")
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // UI OVERLAY
+  // ═══════════════════════════════════════════════════════════
+  
+  object "BuilderUI" {
+    type: "ui-overlay"
+    
+    object "VoiceIndicator" {
+      position: [0, 0.9, 0]
+      type: "ui-panel"
+      
+      object "MicIcon" {
+        type: "ui-image"
+        image: state.voice_enabled ? "mic_on" : "mic_off"
+        size: [0.05, 0.05]
+        color: state.voice_enabled ? "#00ff00" : "#ff0000"
+      }
+      
+      object "TranscriptText" {
+        type: "ui-text"
+        text: state.last_command
+        font_size: 18
+        color: "#ffffff"
+        max_width: 400
+      }
+    }
+    
+    object "ThinkingIndicator" {
+      position: [0, 0, 0]
+      visible: false
+      
+      object "Spinner" {
+        type: "ui-spinner"
+        color: "#00ffff"
+      }
+      
+      object "ThinkingText" {
+        type: "ui-text"
+        text: ""
+        font_size: 24
+        color: "#ffffff"
+      }
+    }
+    
+    object "QuickCommands" {
+      position: [-0.85, -0.8, 0]
+      type: "ui-panel"
+      
+      object "HintText" {
+        type: "ui-text"
+        text: "Say: 'Hey Brittney, add a [object]' or 'create a [scene]'"
+        font_size: 14
+        color: "#888888"
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // HELPER ACTIONS
+  // ═══════════════════════════════════════════════════════════
+  
+  logic {
+    
+    action show_thinking(message) {
+      ThinkingIndicator.visible = true
+      ThinkingIndicator.ThinkingText.text = message
+    }
+    
+    action hide_thinking() {
+      ThinkingIndicator.visible = false
+    }
+    
+    action speak(text) {
+      // Text-to-speech output
+      tts(text, {
+        voice: "brittney",
+        rate: 1.0,
+        pitch: 1.1
+      })
+      hide_thinking()
+    }
+    
+    action instantiate_from_ast(ast) {
+      // Convert AST to live object
+      obj = create_object(ast)
+      state.generated_objects.push(obj)
+      
+      // Entry animation
+      obj.scale = [0, 0, 0]
+      animate obj {
+        scale: ast.scale ?? [1, 1, 1]
+        duration: 0.3
+        easing: "bounce"
+      }
+      
+      return obj
+    }
+    
+    action save_undo(object) {
+      state.undo_stack.push(serialize(object))
+    }
+    
+    action find_target_from_context(transcript) {
+      // Find object by name or "that" (last created)
+      if transcript.includes("that") || transcript.includes("it") {
+        return state.generated_objects[state.generated_objects.length - 1]
+      }
+      
+      // Search by type/name
+      for obj in state.generated_objects {
+        if transcript.toLowerCase().includes(obj.name.toLowerCase()) {
+          return obj
+        }
+      }
+      
+      return null
+    }
+  }
+}

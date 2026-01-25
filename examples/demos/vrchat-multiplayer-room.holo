@@ -1,0 +1,321 @@
+// VRChat Multiplayer Room - HoloScript → VRChat Export Demo
+// Compiles to: Udon graphs + VRC components
+
+composition "Multiplayer Orb Room" {
+  
+  environment {
+    skybox: "night_stars"
+    ambient_light: 0.3
+    
+    // VRChat-specific settings
+    vrchat {
+      world_capacity: 16
+      instance_type: "friends"
+      respawn_height: -10
+      
+      // Udon sync settings
+      network_sync: "continuous"
+      late_joiner_sync: true
+    }
+  }
+  
+  state {
+    // Synced across all players
+    @networked
+    total_throws: 0
+    high_score: 0
+    current_leader: null
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // SYNCED GRABBABLE ORBS
+  // ═══════════════════════════════════════════════════════════
+  
+  template "SyncedOrb" {
+    @grabbable
+    @throwable
+    @networked
+    @physics
+    
+    // VRChat Udon behavior mapping
+    vrchat_component: "VRC_Pickup"
+    sync_mode: "continuous"
+    
+    state {
+      @synced
+      owner_id: null
+      throw_count: 0
+      last_position: [0, 0, 0]
+    }
+    
+    on_pickup(player) {
+      state.owner_id = player.id
+      
+      // Ownership transfer (VRChat pattern)
+      request_ownership(self)
+      
+      // Visual feedback
+      animate self {
+        glow: 2
+        scale: [1.1, 1.1, 1.1]
+        duration: 0.2
+      }
+    }
+    
+    on_drop {
+      animate self {
+        glow: 1
+        scale: [1, 1, 1]
+        duration: 0.2
+      }
+    }
+    
+    on_throw(direction, velocity) {
+      state.throw_count += 1
+      state.total_throws += 1  // Global synced counter
+      
+      // Spawn trail effect (synced)
+      spawn_effect("orb_trail", {
+        follow: self,
+        duration: 2,
+        color: self.color
+      })
+      
+      // Play sound (spatial, all clients hear)
+      play_sound("whoosh", {
+        position: self.position,
+        spatial: true,
+        volume: 0.8
+      })
+    }
+    
+    on_collision(target) {
+      if target.is_player && target.id != state.owner_id {
+        // Hit another player!
+        spawn_effect("impact_stars", self.position)
+        play_sound("bonk", { position: self.position })
+        
+        // Score point for thrower
+        add_score(state.owner_id, 10)
+      }
+    }
+  }
+  
+  // Spawn synced orbs
+  spatial_group "OrbSpawns" {
+    
+    object "RedOrb" using "SyncedOrb" {
+      position: [-2, 1.2, 0]
+      color: "#ff4444"
+    }
+    
+    object "BlueOrb" using "SyncedOrb" {
+      position: [0, 1.2, 0]
+      color: "#4444ff"
+    }
+    
+    object "GreenOrb" using "SyncedOrb" {
+      position: [2, 1.2, 0]
+      color: "#44ff44"
+    }
+    
+    object "GoldOrb" using "SyncedOrb" {
+      position: [0, 1.2, -2]
+      color: "#ffdd00"
+      // Special orb worth more
+      on_collision(target) {
+        if target.is_player {
+          add_score(state.owner_id, 50)
+          show_notification_all("GOLDEN HIT! +50 points")
+        }
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // ROOM ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════
+  
+  spatial_group "Arena" {
+    
+    // Floor
+    object "Floor" {
+      type: "plane"
+      size: [20, 20]
+      material: "grid_glow"
+      color: "#112233"
+      @collidable
+    }
+    
+    // Walls (transparent barriers)
+    object "Walls" {
+      type: "box"
+      size: [20, 5, 20]
+      material: "force_field"
+      opacity: 0.2
+      @collidable
+      collision_mode: "inside"
+    }
+    
+    // Scoreboard
+    object "Scoreboard" {
+      position: [0, 4, -9]
+      rotation: [0, 0, 0]
+      
+      object "ScoreText" {
+        type: "ui-text"
+        text: "Total Throws: ${state.total_throws}"
+        font_size: 48
+        color: "#00ffff"
+        
+        @synced
+        update_on: "state.total_throws"
+      }
+      
+      object "LeaderText" {
+        type: "ui-text"
+        position: [0, -0.5, 0]
+        text: "Leader: ${state.current_leader ?? 'None'}"
+        font_size: 32
+        color: "#ffff00"
+        
+        @synced
+        update_on: "state.current_leader"
+      }
+    }
+    
+    // Spawn platforms for players
+    for i in range(8) {
+      object "SpawnPad_${i}" {
+        type: "cylinder"
+        position: [
+          cos(i * 45 * DEG_TO_RAD) * 8,
+          0.1,
+          sin(i * 45 * DEG_TO_RAD) * 8
+        ]
+        size: [1.5, 0.1, 1.5]
+        material: "glow_pad"
+        color: hsl(i * 45, 80, 60)
+        
+        @spawn_point
+        spawn_index: i
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // PLAYER TRACKING
+  // ═══════════════════════════════════════════════════════════
+  
+  template "PlayerTracker" {
+    @local_only  // Each client tracks their own player
+    
+    state {
+      my_score: 0
+      my_throws: 0
+    }
+    
+    // HUD visible only to local player
+    object "LocalHUD" {
+      @local_only
+      type: "ui-overlay"
+      
+      object "MyScore" {
+        type: "ui-text"
+        position: [0.8, 0.9, 0]
+        text: "My Score: ${state.my_score}"
+        font_size: 24
+        color: "#ffffff"
+      }
+    }
+    
+    on_score_added(amount) {
+      state.my_score += amount
+      
+      // Update global leaderboard
+      if state.my_score > state.high_score {
+        state.high_score = state.my_score
+        state.current_leader = local_player.display_name
+      }
+    }
+  }
+  
+  object "MyTracker" using "PlayerTracker" {}
+  
+  // ═══════════════════════════════════════════════════════════
+  // GAME LOGIC (RUNS ON MASTER)
+  // ═══════════════════════════════════════════════════════════
+  
+  logic {
+    
+    // Master client handles global state
+    @master_only
+    action add_score(player_id, amount) {
+      emit_global "score_added" { 
+        player_id: player_id, 
+        amount: amount 
+      }
+    }
+    
+    @master_only
+    action reset_game() {
+      state.total_throws = 0
+      state.high_score = 0
+      state.current_leader = null
+      
+      // Reset all orbs to spawn positions
+      for orb in query("SyncedOrb") {
+        orb.reset_position()
+      }
+      
+      emit_global "game_reset" {}
+    }
+    
+    on_player_joined(player) {
+      // Welcome message
+      send_to_player(player, "notification", {
+        text: "Welcome to Orb Dodge! Grab and throw orbs at other players!",
+        duration: 5
+      })
+    }
+    
+    on_player_left(player) {
+      // Transfer ownership of any held objects
+      for orb in query("SyncedOrb", { owner_id: player.id }) {
+        orb.drop()
+        orb.state.owner_id = null
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// VRCHAT EXPORT CONFIGURATION
+// ═══════════════════════════════════════════════════════════
+
+export vrchat {
+  // Maps HoloScript to VRChat SDK
+  trait_mapping: {
+    "@grabbable": "VRC_Pickup",
+    "@networked": "UdonSynced",
+    "@physics": "Rigidbody",
+    "@collidable": "Collider",
+    "@spawn_point": "VRC_SceneDescriptor.spawns"
+  }
+  
+  // Udon graph generation settings
+  udon: {
+    sync_method: "Continuous",
+    network_cull: true,
+    optimization_level: "high"
+  }
+  
+  // World settings
+  world: {
+    name: "Multiplayer Orb Room",
+    author: "HoloScript",
+    capacity: 16,
+    recommended_capacity: 8,
+    tags: ["game", "social", "throwing"]
+  }
+}

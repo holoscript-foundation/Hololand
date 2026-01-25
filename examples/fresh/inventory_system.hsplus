@@ -1,0 +1,1031 @@
+// HoloScript+ Component: Inventory System
+// A complete inventory with items, slots, stacking, and equipment
+//
+// This example demonstrates:
+// - Item definitions with properties
+// - Grid-based inventory slots
+// - Drag and drop mechanics
+// - Item stacking and splitting
+// - Equipment slots and stat bonuses
+// - Loot and pickup systems
+// - Crafting basics
+
+import { Vec3, math, time } from "@holoscript/std"
+import { ui, audio, particles } from "@holoscript/runtime"
+
+// ============================================
+// TYPES & INTERFACES
+// ============================================
+
+type ItemRarity = "common" | "uncommon" | "rare" | "epic" | "legendary"
+type ItemType = "weapon" | "armor" | "consumable" | "material" | "quest" | "key"
+type EquipSlot = "head" | "chest" | "legs" | "feet" | "mainhand" | "offhand" | "ring" | "amulet"
+
+interface ItemDefinition {
+  id: string
+  name: string
+  description: string
+  type: ItemType
+  rarity: ItemRarity
+  icon: string
+  stackable: bool
+  maxStack: int
+  value: int
+  weight: float
+  equipSlot: EquipSlot?
+  stats: Map<string, int>?
+  effects: List<ItemEffect>?
+  craftingRecipe: CraftingRecipe?
+}
+
+interface ItemInstance {
+  definitionId: string
+  quantity: int
+  durability: int?
+  enchantments: List<string>?
+  customData: Map<string, any>?
+}
+
+interface InventorySlot {
+  index: int
+  item: ItemInstance?
+  locked: bool
+}
+
+interface EquipmentSlots {
+  head: ItemInstance?
+  chest: ItemInstance?
+  legs: ItemInstance?
+  feet: ItemInstance?
+  mainhand: ItemInstance?
+  offhand: ItemInstance?
+  ring: ItemInstance?
+  amulet: ItemInstance?
+}
+
+interface ItemEffect {
+  type: "heal" | "buff" | "damage" | "teleport" | "unlock"
+  value: int
+  duration: int?
+}
+
+interface CraftingRecipe {
+  materials: List<{ itemId: string, quantity: int }>
+  craftTime: int
+  requiredStation: string?
+}
+
+// ============================================
+// ITEM DATABASE
+// ============================================
+
+items {
+  // Consumables
+  "health_potion" {
+    name: "Health Potion"
+    description: "Restores 50 HP instantly"
+    type: "consumable"
+    rarity: "common"
+    icon: "items/potion_red.png"
+    stackable: true
+    maxStack: 20
+    value: 25
+    weight: 0.3
+    effects: [{ type: "heal", value: 50 }]
+  }
+
+  "mana_potion" {
+    name: "Mana Potion"
+    description: "Restores 30 MP instantly"
+    type: "consumable"
+    rarity: "common"
+    icon: "items/potion_blue.png"
+    stackable: true
+    maxStack: 20
+    value: 30
+    weight: 0.3
+    effects: [{ type: "buff", value: 30, duration: 0 }]
+  }
+
+  "strength_elixir" {
+    name: "Elixir of Strength"
+    description: "+10 Attack for 60 seconds"
+    type: "consumable"
+    rarity: "uncommon"
+    icon: "items/potion_orange.png"
+    stackable: true
+    maxStack: 10
+    value: 75
+    weight: 0.4
+    effects: [{ type: "buff", value: 10, duration: 60000 }]
+  }
+
+  // Weapons
+  "iron_sword" {
+    name: "Iron Sword"
+    description: "A reliable blade forged from iron"
+    type: "weapon"
+    rarity: "common"
+    icon: "items/sword_iron.png"
+    stackable: false
+    maxStack: 1
+    value: 100
+    weight: 3.0
+    equipSlot: "mainhand"
+    stats: { attack: 15, critChance: 5 }
+  }
+
+  "flame_blade" {
+    name: "Flame Blade"
+    description: "Burns with eternal fire. +Fire damage"
+    type: "weapon"
+    rarity: "rare"
+    icon: "items/sword_fire.png"
+    stackable: false
+    maxStack: 1
+    value: 500
+    weight: 2.8
+    equipSlot: "mainhand"
+    stats: { attack: 25, fireDamage: 10, critChance: 8 }
+  }
+
+  // Armor
+  "leather_helmet" {
+    name: "Leather Cap"
+    description: "Basic head protection"
+    type: "armor"
+    rarity: "common"
+    icon: "items/helmet_leather.png"
+    stackable: false
+    maxStack: 1
+    value: 50
+    weight: 1.0
+    equipSlot: "head"
+    stats: { defense: 3 }
+  }
+
+  "steel_chestplate" {
+    name: "Steel Chestplate"
+    description: "Heavy armor for the torso"
+    type: "armor"
+    rarity: "uncommon"
+    icon: "items/chest_steel.png"
+    stackable: false
+    maxStack: 1
+    value: 250
+    weight: 8.0
+    equipSlot: "chest"
+    stats: { defense: 15, speed: -1 }
+  }
+
+  // Materials
+  "iron_ore" {
+    name: "Iron Ore"
+    description: "Raw iron ore. Can be smelted."
+    type: "material"
+    rarity: "common"
+    icon: "items/ore_iron.png"
+    stackable: true
+    maxStack: 99
+    value: 5
+    weight: 1.0
+  }
+
+  "leather" {
+    name: "Leather"
+    description: "Tanned animal hide"
+    type: "material"
+    rarity: "common"
+    icon: "items/leather.png"
+    stackable: true
+    maxStack: 99
+    value: 8
+    weight: 0.5
+  }
+
+  "dragon_scale" {
+    name: "Dragon Scale"
+    description: "A scale from a mighty dragon"
+    type: "material"
+    rarity: "legendary"
+    icon: "items/scale_dragon.png"
+    stackable: true
+    maxStack: 10
+    value: 1000
+    weight: 0.2
+  }
+
+  // Quest items
+  "ancient_key" {
+    name: "Ancient Key"
+    description: "Opens the door to the forgotten temple"
+    type: "quest"
+    rarity: "epic"
+    icon: "items/key_ancient.png"
+    stackable: false
+    maxStack: 1
+    value: 0
+    weight: 0.1
+  }
+}
+
+// ============================================
+// INVENTORY SYSTEM
+// ============================================
+
+system InventorySystem {
+  state {
+    slots: List<InventorySlot>
+    equipment: EquipmentSlots
+    maxSlots: int = 24
+    gold: int = 0
+    totalWeight: float = 0.0
+    maxWeight: float = 100.0
+  }
+
+  fn initialize(slotCount: int = 24) {
+    state.maxSlots = slotCount
+    state.slots = []
+
+    for i in 0..slotCount {
+      state.slots.push(InventorySlot {
+        index: i,
+        item: null,
+        locked: false
+      })
+    }
+
+    state.equipment = EquipmentSlots {
+      head: null,
+      chest: null,
+      legs: null,
+      feet: null,
+      mainhand: null,
+      offhand: null,
+      ring: null,
+      amulet: null
+    }
+  }
+
+  // Add item to inventory
+  fn add_item(itemId: string, quantity: int = 1) -> bool {
+    let def = items[itemId]
+    if (!def) return false
+
+    // Check weight
+    let addedWeight = def.weight * quantity
+    if (state.totalWeight + addedWeight > state.maxWeight) {
+      ui.toast("Inventory full! Too heavy.")
+      return false
+    }
+
+    // Try to stack with existing items
+    if (def.stackable) {
+      for slot in state.slots {
+        if (slot.item && slot.item.definitionId == itemId) {
+          let canAdd = min(quantity, def.maxStack - slot.item.quantity)
+          if (canAdd > 0) {
+            slot.item.quantity += canAdd
+            quantity -= canAdd
+            state.totalWeight += def.weight * canAdd
+
+            if (quantity <= 0) {
+              emit("item_added", { itemId: itemId, quantity: canAdd })
+              return true
+            }
+          }
+        }
+      }
+    }
+
+    // Find empty slots for remaining quantity
+    while (quantity > 0) {
+      let emptySlot = find_empty_slot()
+      if (!emptySlot) {
+        ui.toast("Inventory full!")
+        return false
+      }
+
+      let stackSize = def.stackable ? min(quantity, def.maxStack) : 1
+      emptySlot.item = ItemInstance {
+        definitionId: itemId,
+        quantity: stackSize,
+        durability: def.type == "weapon" || def.type == "armor" ? 100 : null
+      }
+
+      quantity -= stackSize
+      state.totalWeight += def.weight * stackSize
+    }
+
+    audio.play("item_pickup")
+    emit("item_added", { itemId: itemId })
+    return true
+  }
+
+  // Remove item from inventory
+  fn remove_item(itemId: string, quantity: int = 1) -> bool {
+    let def = items[itemId]
+    let remaining = quantity
+
+    for slot in state.slots {
+      if (slot.item && slot.item.definitionId == itemId) {
+        let remove = min(remaining, slot.item.quantity)
+        slot.item.quantity -= remove
+        remaining -= remove
+        state.totalWeight -= def.weight * remove
+
+        if (slot.item.quantity <= 0) {
+          slot.item = null
+        }
+
+        if (remaining <= 0) {
+          emit("item_removed", { itemId: itemId, quantity: quantity })
+          return true
+        }
+      }
+    }
+
+    return remaining < quantity  // Partial success
+  }
+
+  // Check if player has item
+  fn has_item(itemId: string, quantity: int = 1) -> bool {
+    let count = 0
+    for slot in state.slots {
+      if (slot.item && slot.item.definitionId == itemId) {
+        count += slot.item.quantity
+        if (count >= quantity) return true
+      }
+    }
+    return false
+  }
+
+  // Count items
+  fn count_item(itemId: string) -> int {
+    let count = 0
+    for slot in state.slots {
+      if (slot.item && slot.item.definitionId == itemId) {
+        count += slot.item.quantity
+      }
+    }
+    return count
+  }
+
+  // Find first empty slot
+  fn find_empty_slot() -> InventorySlot? {
+    for slot in state.slots {
+      if (!slot.item && !slot.locked) {
+        return slot
+      }
+    }
+    return null
+  }
+
+  // Move item between slots
+  fn move_item(fromIndex: int, toIndex: int) -> bool {
+    let fromSlot = state.slots[fromIndex]
+    let toSlot = state.slots[toIndex]
+
+    if (!fromSlot.item || fromSlot.locked || toSlot.locked) {
+      return false
+    }
+
+    // If target is empty, just move
+    if (!toSlot.item) {
+      toSlot.item = fromSlot.item
+      fromSlot.item = null
+      return true
+    }
+
+    // If same item type and stackable, try to merge
+    if (toSlot.item.definitionId == fromSlot.item.definitionId) {
+      let def = items[fromSlot.item.definitionId]
+      if (def.stackable) {
+        let canStack = def.maxStack - toSlot.item.quantity
+        let toMove = min(canStack, fromSlot.item.quantity)
+
+        toSlot.item.quantity += toMove
+        fromSlot.item.quantity -= toMove
+
+        if (fromSlot.item.quantity <= 0) {
+          fromSlot.item = null
+        }
+        return true
+      }
+    }
+
+    // Swap items
+    let temp = toSlot.item
+    toSlot.item = fromSlot.item
+    fromSlot.item = temp
+    return true
+  }
+
+  // Split stack
+  fn split_stack(slotIndex: int, quantity: int) -> bool {
+    let slot = state.slots[slotIndex]
+    if (!slot.item || slot.item.quantity <= quantity) {
+      return false
+    }
+
+    let emptySlot = find_empty_slot()
+    if (!emptySlot) return false
+
+    emptySlot.item = ItemInstance {
+      definitionId: slot.item.definitionId,
+      quantity: quantity
+    }
+    slot.item.quantity -= quantity
+
+    return true
+  }
+
+  // Use consumable item
+  fn use_item(slotIndex: int) -> bool {
+    let slot = state.slots[slotIndex]
+    if (!slot.item) return false
+
+    let def = items[slot.item.definitionId]
+    if (def.type != "consumable") {
+      ui.toast("Cannot use this item")
+      return false
+    }
+
+    // Apply effects
+    for effect in def.effects ?? [] {
+      apply_effect(effect)
+    }
+
+    // Remove one from stack
+    slot.item.quantity -= 1
+    if (slot.item.quantity <= 0) {
+      slot.item = null
+    }
+
+    audio.play("item_use")
+    ui.toast("Used " + def.name)
+    return true
+  }
+
+  fn apply_effect(effect: ItemEffect) {
+    match effect.type {
+      "heal" => {
+        emit("heal_player", { amount: effect.value })
+        particles.burst(player.position, { color: "#27ae60", count: 15 })
+      }
+      "buff" => {
+        emit("apply_buff", {
+          stat: "attack",
+          value: effect.value,
+          duration: effect.duration
+        })
+      }
+      "damage" => {
+        emit("damage_player", { amount: effect.value })
+      }
+    }
+  }
+
+  // Equip item
+  fn equip_item(slotIndex: int) -> bool {
+    let slot = state.slots[slotIndex]
+    if (!slot.item) return false
+
+    let def = items[slot.item.definitionId]
+    if (!def.equipSlot) {
+      ui.toast("Cannot equip this item")
+      return false
+    }
+
+    // Get current equipped item
+    let currentEquipped = state.equipment[def.equipSlot]
+
+    // Swap equipment
+    state.equipment[def.equipSlot] = slot.item
+
+    if (currentEquipped) {
+      slot.item = currentEquipped
+    } else {
+      slot.item = null
+    }
+
+    // Apply stat changes
+    recalculate_stats()
+
+    audio.play("item_equip")
+    ui.toast("Equipped " + def.name)
+    emit("item_equipped", { slot: def.equipSlot, item: def })
+
+    return true
+  }
+
+  // Unequip item
+  fn unequip_item(equipSlot: EquipSlot) -> bool {
+    let equipped = state.equipment[equipSlot]
+    if (!equipped) return false
+
+    let emptySlot = find_empty_slot()
+    if (!emptySlot) {
+      ui.toast("Inventory full!")
+      return false
+    }
+
+    emptySlot.item = equipped
+    state.equipment[equipSlot] = null
+
+    recalculate_stats()
+    audio.play("item_unequip")
+    return true
+  }
+
+  // Drop item to world
+  fn drop_item(slotIndex: int, quantity: int = 1) {
+    let slot = state.slots[slotIndex]
+    if (!slot.item) return
+
+    let def = items[slot.item.definitionId]
+    let dropQty = min(quantity, slot.item.quantity)
+
+    // Spawn world item
+    spawn_world_item(slot.item.definitionId, dropQty, player.position + player.forward * 1.5)
+
+    // Remove from inventory
+    slot.item.quantity -= dropQty
+    state.totalWeight -= def.weight * dropQty
+
+    if (slot.item.quantity <= 0) {
+      slot.item = null
+    }
+
+    audio.play("item_drop")
+  }
+
+  fn spawn_world_item(itemId: string, quantity: int, position: Vec3) {
+    let def = items[itemId]
+
+    spawn("WorldItem", {
+      id: "dropped_" + time.now(),
+      itemId: itemId,
+      quantity: quantity,
+      position: position,
+      icon: def.icon,
+      rarity: def.rarity
+    })
+  }
+
+  // Calculate total stats from equipment
+  fn recalculate_stats() {
+    let stats = {
+      attack: 0,
+      defense: 0,
+      speed: 0,
+      critChance: 0
+    }
+
+    for slot in ["head", "chest", "legs", "feet", "mainhand", "offhand", "ring", "amulet"] {
+      let equipped = state.equipment[slot]
+      if (equipped) {
+        let def = items[equipped.definitionId]
+        if (def.stats) {
+          for key, value in def.stats {
+            stats[key] = (stats[key] ?? 0) + value
+          }
+        }
+      }
+    }
+
+    emit("stats_updated", stats)
+  }
+
+  // Sort inventory
+  fn sort_inventory(sortBy: "type" | "rarity" | "name" | "value" = "type") {
+    let itemsToSort = state.slots
+      .filter(s => s.item != null && !s.locked)
+      .map(s => s.item)
+
+    // Clear slots
+    for slot in state.slots {
+      if (!slot.locked) slot.item = null
+    }
+
+    // Sort items
+    let sorted = match sortBy {
+      "type" => itemsToSort.sort_by(i => items[i.definitionId].type)
+      "rarity" => itemsToSort.sort_by(i => rarity_order(items[i.definitionId].rarity))
+      "name" => itemsToSort.sort_by(i => items[i.definitionId].name)
+      "value" => itemsToSort.sort_by(i => -items[i.definitionId].value)
+    }
+
+    // Refill slots
+    let slotIndex = 0
+    for item in sorted {
+      while (state.slots[slotIndex].locked) {
+        slotIndex += 1
+      }
+      state.slots[slotIndex].item = item
+      slotIndex += 1
+    }
+
+    audio.play("inventory_sort")
+  }
+
+  fn rarity_order(rarity: ItemRarity) -> int {
+    match rarity {
+      "legendary" => 0
+      "epic" => 1
+      "rare" => 2
+      "uncommon" => 3
+      "common" => 4
+    }
+  }
+}
+
+// ============================================
+// LOOT SYSTEM
+// ============================================
+
+system LootSystem {
+  state {
+    lootTables: Map<string, LootTable>()
+  }
+
+  interface LootTable {
+    id: string
+    entries: List<LootEntry>
+  }
+
+  interface LootEntry {
+    itemId: string
+    weight: int
+    minQuantity: int
+    maxQuantity: int
+    condition: string?
+  }
+
+  fn register_table(table: LootTable) {
+    state.lootTables.set(table.id, table)
+  }
+
+  fn roll_loot(tableId: string) -> List<ItemInstance> {
+    let table = state.lootTables.get(tableId)
+    if (!table) return []
+
+    let result = []
+    let totalWeight = table.entries.sum(e => e.weight)
+
+    // Roll for each entry
+    for entry in table.entries {
+      let roll = random() * totalWeight
+      if (roll < entry.weight) {
+        let qty = random_int(entry.minQuantity, entry.maxQuantity)
+        result.push(ItemInstance {
+          definitionId: entry.itemId,
+          quantity: qty
+        })
+      }
+    }
+
+    return result
+  }
+
+  fn spawn_loot_container(position: Vec3, tableId: string) {
+    let loot = roll_loot(tableId)
+
+    spawn("LootContainer", {
+      id: "loot_" + time.now(),
+      position: position,
+      contents: loot,
+      opened: false
+    })
+  }
+}
+
+// Default loot tables
+loot_tables {
+  "goblin" {
+    entries: [
+      { itemId: "gold", weight: 100, minQuantity: 5, maxQuantity: 20 },
+      { itemId: "health_potion", weight: 30, minQuantity: 1, maxQuantity: 1 },
+      { itemId: "iron_ore", weight: 20, minQuantity: 1, maxQuantity: 3 },
+      { itemId: "leather", weight: 25, minQuantity: 1, maxQuantity: 2 }
+    ]
+  }
+
+  "chest_common" {
+    entries: [
+      { itemId: "gold", weight: 100, minQuantity: 20, maxQuantity: 50 },
+      { itemId: "health_potion", weight: 50, minQuantity: 1, maxQuantity: 3 },
+      { itemId: "iron_sword", weight: 10, minQuantity: 1, maxQuantity: 1 },
+      { itemId: "leather_helmet", weight: 15, minQuantity: 1, maxQuantity: 1 }
+    ]
+  }
+
+  "chest_rare" {
+    entries: [
+      { itemId: "gold", weight: 100, minQuantity: 100, maxQuantity: 300 },
+      { itemId: "strength_elixir", weight: 40, minQuantity: 1, maxQuantity: 2 },
+      { itemId: "flame_blade", weight: 5, minQuantity: 1, maxQuantity: 1 },
+      { itemId: "steel_chestplate", weight: 10, minQuantity: 1, maxQuantity: 1 },
+      { itemId: "dragon_scale", weight: 3, minQuantity: 1, maxQuantity: 1 }
+    ]
+  }
+}
+
+// ============================================
+// INVENTORY UI COMPOSITION
+// ============================================
+
+composition "InventoryUI" {
+  metadata {
+    title: "Inventory System"
+    description: "Item management, equipment, and loot"
+    version: "1.0.0"
+  }
+
+  state {
+    inventoryOpen: bool = false
+    selectedSlot: int = -1
+    draggedItem: ItemInstance? = null
+    dragStartSlot: int = -1
+  }
+
+  // Inventory Panel
+  panel "InventoryPanel" {
+    position: [0, 1.5, -2]
+    size: [2.4, 2.0]
+    background: "rgba(20, 20, 30, 0.95)"
+    visible: false
+    border: { color: "#4a4a5a", width: 2 }
+
+    // Title
+    text "Title" {
+      position: [0.1, 1.85, 0.01]
+      content: "Inventory"
+      size: 0.1
+      color: "#ffffff"
+    }
+
+    // Close button
+    button "CloseBtn" {
+      position: [2.2, 1.85, 0.01]
+      size: [0.15, 0.1]
+      label: "X"
+      on_click: { toggle_inventory() }
+    }
+
+    // Weight display
+    text "WeightDisplay" {
+      position: [1.8, 1.85, 0.01]
+      content: "0/100 kg"
+      size: 0.06
+      color: "#aaaaaa"
+    }
+
+    // Inventory grid (6x4 = 24 slots)
+    group "SlotGrid" {
+      position: [0.1, 0.3, 0.01]
+
+      for row in 0..4 {
+        for col in 0..6 {
+          let index = row * 6 + col
+
+          slot "Slot_{index}" {
+            position: [col * 0.35, (3 - row) * 0.35, 0]
+            size: [0.32, 0.32]
+            background: "#2a2a3a"
+            border: { color: "#3a3a4a", width: 1 }
+            slotIndex: index
+          }
+        }
+      }
+    }
+
+    // Gold display
+    text "GoldDisplay" {
+      position: [0.1, 0.15, 0.01]
+      content: "Gold: 0"
+      size: 0.08
+      color: "#f1c40f"
+    }
+
+    // Sort buttons
+    group "SortButtons" {
+      position: [1.0, 0.15, 0.01]
+
+      button "SortType" { label: "Type", on_click: { sort_inventory("type") } }
+      button "SortRarity" { label: "Rare", on_click: { sort_inventory("rarity") } }
+      button "SortValue" { label: "Value", on_click: { sort_inventory("value") } }
+    }
+  }
+
+  // Equipment Panel
+  panel "EquipmentPanel" {
+    position: [-1.3, 1.5, -2]
+    size: [0.8, 2.0]
+    background: "rgba(20, 20, 30, 0.95)"
+    visible: false
+    border: { color: "#4a4a5a", width: 2 }
+
+    text "EquipTitle" {
+      position: [0.1, 1.85, 0.01]
+      content: "Equipment"
+      size: 0.08
+      color: "#ffffff"
+    }
+
+    // Equipment slots
+    equip_slot "HeadSlot" { position: [0.25, 1.5, 0.01], slot: "head", icon: "slot_head.png" }
+    equip_slot "ChestSlot" { position: [0.25, 1.1, 0.01], slot: "chest", icon: "slot_chest.png" }
+    equip_slot "LegsSlot" { position: [0.25, 0.7, 0.01], slot: "legs", icon: "slot_legs.png" }
+    equip_slot "FeetSlot" { position: [0.25, 0.3, 0.01], slot: "feet", icon: "slot_feet.png" }
+    equip_slot "MainhandSlot" { position: [0.55, 1.1, 0.01], slot: "mainhand", icon: "slot_weapon.png" }
+    equip_slot "OffhandSlot" { position: [0.55, 0.7, 0.01], slot: "offhand", icon: "slot_shield.png" }
+  }
+
+  // Item tooltip
+  panel "ItemTooltip" {
+    position: [0, 0, -1.8]
+    size: [1.2, 0.8]
+    background: "rgba(10, 10, 20, 0.98)"
+    visible: false
+    border: { color: "#666666", width: 1 }
+
+    text "TooltipName" { position: [0.1, 0.7, 0.01], size: 0.08 }
+    text "TooltipType" { position: [0.1, 0.58, 0.01], size: 0.05, color: "#888888" }
+    text "TooltipDesc" { position: [0.1, 0.45, 0.01], size: 0.05, color: "#aaaaaa" }
+    text "TooltipStats" { position: [0.1, 0.25, 0.01], size: 0.05, color: "#88ff88" }
+    text "TooltipValue" { position: [0.1, 0.1, 0.01], size: 0.05, color: "#f1c40f" }
+  }
+
+  logic {
+    on_start {
+      InventorySystem.initialize(24)
+      LootSystem.register_table(loot_tables["goblin"])
+      LootSystem.register_table(loot_tables["chest_common"])
+      LootSystem.register_table(loot_tables["chest_rare"])
+
+      // Give starting items
+      InventorySystem.add_item("health_potion", 5)
+      InventorySystem.add_item("iron_sword", 1)
+      InventorySystem.add_item("leather_helmet", 1)
+      InventorySystem.state.gold = 100
+    }
+
+    on_input("inventory") {
+      toggle_inventory()
+    }
+
+    fn toggle_inventory() {
+      state.inventoryOpen = !state.inventoryOpen
+      InventoryPanel.visible = state.inventoryOpen
+      EquipmentPanel.visible = state.inventoryOpen
+
+      if (state.inventoryOpen) {
+        refresh_inventory_ui()
+        audio.play("inventory_open")
+      } else {
+        audio.play("inventory_close")
+      }
+    }
+
+    fn refresh_inventory_ui() {
+      // Update slots
+      for i in 0..24 {
+        let slot = InventorySystem.state.slots[i]
+        let uiSlot = find_object("Slot_" + i)
+
+        if (slot.item) {
+          let def = items[slot.item.definitionId]
+          uiSlot.icon = def.icon
+          uiSlot.quantity = slot.item.quantity > 1 ? slot.item.quantity.toString() : ""
+          uiSlot.border.color = rarity_color(def.rarity)
+        } else {
+          uiSlot.icon = null
+          uiSlot.quantity = ""
+          uiSlot.border.color = "#3a3a4a"
+        }
+      }
+
+      // Update equipment
+      for slotName in ["head", "chest", "legs", "feet", "mainhand", "offhand"] {
+        let equipped = InventorySystem.state.equipment[slotName]
+        let uiSlot = find_object(capitalize(slotName) + "Slot")
+
+        if (equipped) {
+          let def = items[equipped.definitionId]
+          uiSlot.icon = def.icon
+          uiSlot.border.color = rarity_color(def.rarity)
+        } else {
+          uiSlot.icon = uiSlot.placeholderIcon
+          uiSlot.border.color = "#3a3a4a"
+        }
+      }
+
+      // Update gold and weight
+      GoldDisplay.content = "Gold: " + InventorySystem.state.gold
+      WeightDisplay.content = floor(InventorySystem.state.totalWeight) + "/" + InventorySystem.state.maxWeight + " kg"
+    }
+
+    fn rarity_color(rarity: ItemRarity) -> string {
+      match rarity {
+        "legendary" => "#ff8800"
+        "epic" => "#a855f7"
+        "rare" => "#3b82f6"
+        "uncommon" => "#22c55e"
+        "common" => "#9ca3af"
+      }
+    }
+
+    // Slot interactions
+    on_hover_slot(slotIndex: int) {
+      let slot = InventorySystem.state.slots[slotIndex]
+      if (slot.item) {
+        show_tooltip(slot.item)
+      }
+    }
+
+    on_hover_end_slot() {
+      ItemTooltip.visible = false
+    }
+
+    fn show_tooltip(item: ItemInstance) {
+      let def = items[item.definitionId]
+
+      TooltipName.content = def.name
+      TooltipName.color = rarity_color(def.rarity)
+      TooltipType.content = capitalize(def.type) + " - " + capitalize(def.rarity)
+      TooltipDesc.content = def.description
+
+      // Build stats string
+      let statsStr = ""
+      if (def.stats) {
+        for key, value in def.stats {
+          let sign = value >= 0 ? "+" : ""
+          statsStr += sign + value + " " + capitalize(key) + "\n"
+        }
+      }
+      TooltipStats.content = statsStr
+
+      TooltipValue.content = "Value: " + def.value + " gold"
+
+      ItemTooltip.visible = true
+    }
+
+    on_click_slot(slotIndex: int) {
+      let slot = InventorySystem.state.slots[slotIndex]
+      if (!slot.item) return
+
+      let def = items[slot.item.definitionId]
+
+      if (def.type == "consumable") {
+        InventorySystem.use_item(slotIndex)
+      } else if (def.equipSlot) {
+        InventorySystem.equip_item(slotIndex)
+      }
+
+      refresh_inventory_ui()
+    }
+
+    on_right_click_slot(slotIndex: int) {
+      InventorySystem.drop_item(slotIndex, 1)
+      refresh_inventory_ui()
+    }
+
+    // Drag and drop
+    on_drag_start_slot(slotIndex: int) {
+      let slot = InventorySystem.state.slots[slotIndex]
+      if (slot.item) {
+        state.draggedItem = slot.item
+        state.dragStartSlot = slotIndex
+      }
+    }
+
+    on_drop_slot(targetIndex: int) {
+      if (state.draggedItem && state.dragStartSlot >= 0) {
+        InventorySystem.move_item(state.dragStartSlot, targetIndex)
+        state.draggedItem = null
+        state.dragStartSlot = -1
+        refresh_inventory_ui()
+      }
+    }
+
+    fn sort_inventory(sortBy: string) {
+      InventorySystem.sort_inventory(sortBy)
+      refresh_inventory_ui()
+    }
+
+    // Pickup world items
+    on_interact_world_item(worldItem) {
+      if (InventorySystem.add_item(worldItem.itemId, worldItem.quantity)) {
+        despawn(worldItem)
+        refresh_inventory_ui()
+      }
+    }
+
+    // Listen for stat updates
+    on "stats_updated" (stats) {
+      // Could update a stats panel here
+      ui.toast("Stats updated!")
+    }
+  }
+}

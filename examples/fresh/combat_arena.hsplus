@@ -1,0 +1,721 @@
+// HoloScript+ Component: Combat Arena System
+// A complete combat system with health, damage, weapons, and AI
+//
+// This example demonstrates:
+// - State machines for AI behavior
+// - Health/damage calculations
+// - Weapon systems with cooldowns
+// - Hit detection and feedback
+// - Death/respawn mechanics
+// - Combat UI (health bars, damage numbers)
+
+import { Vec3, Quat, math, time } from "@holoscript/std"
+import { physics, audio, particles, ui } from "@holoscript/runtime"
+
+// ============================================
+// TYPES & INTERFACES
+// ============================================
+
+type DamageType = "physical" | "fire" | "ice" | "lightning"
+
+interface Stats {
+  maxHealth: int
+  health: int
+  attack: int
+  defense: int
+  speed: float
+  critChance: float
+  critMultiplier: float
+}
+
+interface Weapon {
+  name: string
+  damage: int
+  damageType: DamageType
+  range: float
+  cooldown: int      // milliseconds
+  lastUsed: int
+  effects: List<string>
+}
+
+interface CombatEntity {
+  id: string
+  name: string
+  position: Vec3
+  stats: Stats
+  weapon: Weapon
+  state: CombatState
+  team: "player" | "enemy" | "neutral"
+}
+
+type CombatState = "idle" | "patrol" | "chase" | "attack" | "stagger" | "dead"
+
+// ============================================
+// COMBAT SYSTEM
+// ============================================
+
+system CombatSystem {
+  state {
+    entities: Map<string, CombatEntity>()
+    damageLog: List<DamageEvent>()
+    combatActive: bool = false
+  }
+
+  // Register an entity for combat
+  fn register(entity: CombatEntity) {
+    state.entities.set(entity.id, entity)
+    spawn_health_bar(entity)
+  }
+
+  // Unregister entity
+  fn unregister(id: string) {
+    state.entities.delete(id)
+  }
+
+  // Calculate and apply damage
+  fn deal_damage(attacker: CombatEntity, target: CombatEntity, weapon: Weapon) -> int {
+    // Base damage calculation
+    let baseDamage = weapon.damage + attacker.stats.attack
+
+    // Apply defense reduction
+    let reduction = target.stats.defense * 0.5
+    let damage = max(1, baseDamage - reduction)
+
+    // Critical hit check
+    let isCrit = random() < attacker.stats.critChance
+    if (isCrit) {
+      damage = floor(damage * attacker.stats.critMultiplier)
+    }
+
+    // Apply damage type modifiers
+    damage = apply_type_modifier(damage, weapon.damageType, target)
+
+    // Apply damage to target
+    target.stats.health = max(0, target.stats.health - damage)
+
+    // Log the damage event
+    state.damageLog.push(DamageEvent {
+      attacker: attacker.id,
+      target: target.id,
+      damage: damage,
+      isCrit: isCrit,
+      damageType: weapon.damageType,
+      timestamp: time.now()
+    })
+
+    // Visual/audio feedback
+    show_damage_number(target.position, damage, isCrit)
+    play_hit_effect(target.position, weapon.damageType)
+
+    // Check for death
+    if (target.stats.health <= 0) {
+      handle_death(target, attacker)
+    } else {
+      // Stagger if damage exceeds threshold
+      if (damage > target.stats.maxHealth * 0.2) {
+        apply_stagger(target)
+      }
+    }
+
+    return damage
+  }
+
+  fn apply_type_modifier(damage: int, type: DamageType, target: CombatEntity) -> int {
+    // Could check target resistances here
+    match type {
+      "fire" => damage * 1.1      // Fire does 10% more
+      "ice" => damage * 0.9       // Ice does less but slows
+      "lightning" => damage * 1.0 // Lightning chains (not implemented)
+      _ => damage
+    }
+  }
+
+  fn apply_stagger(entity: CombatEntity) {
+    let previous = entity.state
+    entity.state = "stagger"
+
+    // Play stagger animation
+    let obj = find_object(entity.id)
+    obj.play_animation("stagger")
+
+    // Recover after delay
+    after 500 {
+      if (entity.stats.health > 0) {
+        entity.state = previous
+      }
+    }
+  }
+
+  fn handle_death(victim: CombatEntity, killer: CombatEntity) {
+    victim.state = "dead"
+
+    let obj = find_object(victim.id)
+    obj.play_animation("death")
+
+    // Spawn death effects
+    particles.burst(victim.position, {
+      count: 30,
+      color: "#ff0000",
+      spread: 1.0
+    })
+    audio.play_spatial("death_sound", victim.position)
+
+    // Award experience/loot
+    if (killer.team == "player") {
+      emit("enemy_killed", { victim: victim, killer: killer })
+    }
+
+    // Respawn after delay (for enemies)
+    if (victim.team == "enemy") {
+      after 10000 {
+        respawn_entity(victim)
+      }
+    }
+  }
+
+  fn respawn_entity(entity: CombatEntity) {
+    entity.stats.health = entity.stats.maxHealth
+    entity.state = "idle"
+
+    let obj = find_object(entity.id)
+    obj.visible = true
+    obj.play_animation("spawn")
+
+    particles.burst(entity.position, {
+      count: 20,
+      color: "#00ff00"
+    })
+  }
+
+  fn show_damage_number(position: Vec3, damage: int, isCrit: bool) {
+    let color = isCrit ? "#ffff00" : "#ffffff"
+    let size = isCrit ? 0.4 : 0.25
+
+    let text = spawn("DamageText", {
+      position: position + [0, 1.5, 0],
+      content: (isCrit ? "CRIT! " : "") + damage.toString(),
+      color: color,
+      size: size,
+      billboard: true
+    })
+
+    // Animate up and fade
+    animate(text.position.y, position.y + 1.5, position.y + 2.5, 800)
+    animate(text.opacity, 1, 0, 800)
+
+    after 800 { despawn(text) }
+  }
+
+  fn play_hit_effect(position: Vec3, type: DamageType) {
+    let color = match type {
+      "fire" => "#ff6b35"
+      "ice" => "#74b9ff"
+      "lightning" => "#fdcb6e"
+      _ => "#ffffff"
+    }
+
+    particles.burst(position, {
+      count: 15,
+      color: color,
+      speed: 2.0,
+      lifetime: 300
+    })
+
+    audio.play_spatial("hit_" + type, position)
+  }
+
+  fn spawn_health_bar(entity: CombatEntity) {
+    spawn("HealthBar", {
+      id: entity.id + "_health",
+      target: entity.id,
+      offset: [0, 2.2, 0],
+      width: 1.0,
+      height: 0.1,
+      foreground: entity.team == "player" ? "#27ae60" : "#e74c3c",
+      background: "#2d3436"
+    })
+  }
+
+  // Update health bar display
+  fn update_health_bar(entity: CombatEntity) {
+    let bar = find_object(entity.id + "_health")
+    let percent = entity.stats.health / entity.stats.maxHealth
+    bar.fill = percent
+
+    // Color changes based on health
+    if (percent < 0.25) {
+      bar.foreground = "#e74c3c"  // Red when critical
+    } else if (percent < 0.5) {
+      bar.foreground = "#f39c12"  // Orange when wounded
+    }
+  }
+}
+
+// ============================================
+// AI BEHAVIOR SYSTEM
+// ============================================
+
+system AIBehavior {
+  state {
+    agents: Map<string, AIAgent>()
+  }
+
+  interface AIAgent {
+    entity: CombatEntity
+    target: CombatEntity?
+    patrolPath: List<Vec3>
+    patrolIndex: int
+    aggroRange: float
+    attackRange: float
+    lastDecision: int
+  }
+
+  fn register(entity: CombatEntity, config: AIConfig) {
+    state.agents.set(entity.id, AIAgent {
+      entity: entity,
+      target: null,
+      patrolPath: config.patrolPath ?? [],
+      patrolIndex: 0,
+      aggroRange: config.aggroRange ?? 10.0,
+      attackRange: config.attackRange ?? 2.0,
+      lastDecision: 0
+    })
+  }
+
+  // Main AI update loop
+  every 100 {
+    foreach agent in state.agents.values() {
+      if (agent.entity.state == "dead") continue
+
+      update_agent(agent)
+    }
+  }
+
+  fn update_agent(agent: AIAgent) {
+    let entity = agent.entity
+
+    match entity.state {
+      "idle" => {
+        // Look for targets
+        let target = find_nearest_enemy(entity)
+        if (target && distance(entity.position, target.position) < agent.aggroRange) {
+          agent.target = target
+          entity.state = "chase"
+          emit("aggro", { agent: entity, target: target })
+        } else if (agent.patrolPath.length > 0) {
+          entity.state = "patrol"
+        }
+      }
+
+      "patrol" => {
+        let waypoint = agent.patrolPath[agent.patrolIndex]
+        let dist = distance(entity.position, waypoint)
+
+        if (dist < 0.5) {
+          // Reached waypoint, go to next
+          agent.patrolIndex = (agent.patrolIndex + 1) % agent.patrolPath.length
+        } else {
+          // Move toward waypoint
+          move_toward(entity, waypoint)
+        }
+
+        // Check for enemies
+        let target = find_nearest_enemy(entity)
+        if (target && distance(entity.position, target.position) < agent.aggroRange) {
+          agent.target = target
+          entity.state = "chase"
+        }
+      }
+
+      "chase" => {
+        if (!agent.target || agent.target.stats.health <= 0) {
+          agent.target = null
+          entity.state = "idle"
+          return
+        }
+
+        let dist = distance(entity.position, agent.target.position)
+
+        if (dist > agent.aggroRange * 1.5) {
+          // Lost target
+          agent.target = null
+          entity.state = "idle"
+        } else if (dist <= agent.attackRange) {
+          // In attack range
+          entity.state = "attack"
+        } else {
+          // Chase target
+          move_toward(entity, agent.target.position)
+          look_at(entity, agent.target.position)
+        }
+      }
+
+      "attack" => {
+        if (!agent.target || agent.target.stats.health <= 0) {
+          agent.target = null
+          entity.state = "idle"
+          return
+        }
+
+        let dist = distance(entity.position, agent.target.position)
+
+        if (dist > agent.attackRange * 1.2) {
+          entity.state = "chase"
+          return
+        }
+
+        // Try to attack
+        try_attack(entity, agent.target)
+      }
+
+      "stagger" => {
+        // Handled by CombatSystem, just wait
+      }
+    }
+  }
+
+  fn find_nearest_enemy(entity: CombatEntity) -> CombatEntity? {
+    let enemies = CombatSystem.state.entities.values()
+      .filter(e => e.team != entity.team && e.team != "neutral" && e.stats.health > 0)
+
+    if (enemies.length == 0) return null
+
+    return enemies.min_by(e => distance(entity.position, e.position))
+  }
+
+  fn move_toward(entity: CombatEntity, target: Vec3) {
+    let direction = normalize(target - entity.position)
+    let speed = entity.stats.speed * 0.016  // per frame at 60fps
+
+    entity.position += direction * speed
+
+    let obj = find_object(entity.id)
+    obj.position = entity.position
+    obj.play_animation("walk")
+  }
+
+  fn look_at(entity: CombatEntity, target: Vec3) {
+    let obj = find_object(entity.id)
+    let direction = target - entity.position
+    let angle = atan2(direction.x, direction.z)
+    obj.rotation.y = degrees(angle)
+  }
+
+  fn try_attack(attacker: CombatEntity, target: CombatEntity) {
+    let weapon = attacker.weapon
+    let now = time.now()
+
+    if (now - weapon.lastUsed < weapon.cooldown) {
+      return  // Still on cooldown
+    }
+
+    weapon.lastUsed = now
+
+    // Play attack animation
+    let obj = find_object(attacker.id)
+    obj.play_animation("attack")
+
+    // Deal damage after animation wind-up
+    after 200 {
+      if (distance(attacker.position, target.position) <= weapon.range) {
+        CombatSystem.deal_damage(attacker, target, weapon)
+      }
+    }
+  }
+}
+
+// ============================================
+// WEAPON DEFINITIONS
+// ============================================
+
+weapons {
+  "Rusty Sword" {
+    damage: 10
+    damageType: "physical"
+    range: 2.0
+    cooldown: 800
+    effects: []
+  }
+
+  "Iron Sword" {
+    damage: 15
+    damageType: "physical"
+    range: 2.0
+    cooldown: 700
+    effects: []
+  }
+
+  "Flame Blade" {
+    damage: 12
+    damageType: "fire"
+    range: 2.0
+    cooldown: 900
+    effects: ["burn"]
+  }
+
+  "Frost Axe" {
+    damage: 18
+    damageType: "ice"
+    range: 1.8
+    cooldown: 1200
+    effects: ["slow"]
+  }
+
+  "Thunder Staff" {
+    damage: 8
+    damageType: "lightning"
+    range: 5.0
+    cooldown: 1500
+    effects: ["chain"]
+  }
+}
+
+// ============================================
+// ARENA COMPOSITION
+// ============================================
+
+composition "CombatArena" {
+  metadata {
+    title: "Combat Arena"
+    description: "Test your combat skills against waves of enemies"
+    version: "1.0.0"
+  }
+
+  environment {
+    skybox: "arena_sky"
+    lighting {
+      ambient: { color: "#404050", intensity: 0.4 }
+      directional: { color: "#ffffff", intensity: 0.8 }
+    }
+  }
+
+  // Arena layout
+  spatial_group "Arena" {
+    // Circular arena floor
+    cylinder "Floor" {
+      position: [0, 0, 0]
+      radius: 15
+      height: 0.5
+      material: { color: "#4a4a4a", texture: "stone_floor" }
+    }
+
+    // Arena walls
+    for i in 0..8 {
+      let angle = i * 45 * (PI / 180)
+      let x = cos(angle) * 15
+      let z = sin(angle) * 15
+
+      cube "Wall_{i}" {
+        position: [x, 1.5, z]
+        size: [3, 3, 0.5]
+        rotation: [0, -i * 45, 0]
+        material: { color: "#2d3436" }
+      }
+    }
+
+    // Torches for lighting
+    for i in 0..4 {
+      let angle = i * 90 * (PI / 180)
+      let x = cos(angle) * 12
+      let z = sin(angle) * 12
+
+      light "Torch_{i}" {
+        position: [x, 2, z]
+        type: "point"
+        color: "#ff6b35"
+        intensity: 1.5
+        range: 8
+      }
+    }
+  }
+
+  // Player setup
+  spatial_group "Player" {
+    object "PlayerCharacter" {
+      model: "characters/warrior.glb"
+      position: [0, 0, 0]
+      scale: 1
+    }
+  }
+
+  // Enemy spawn points
+  spatial_group "SpawnPoints" {
+    for i in 0..4 {
+      let angle = i * 90 * (PI / 180)
+      let x = cos(angle) * 10
+      let z = sin(angle) * 10
+
+      marker "Spawn_{i}" {
+        position: [x, 0, z]
+        type: "spawn"
+      }
+    }
+  }
+
+  // UI
+  spatial_group "CombatUI" {
+    panel "PlayerStatus" {
+      position: [-3, 3, -5]
+      size: [2, 0.5]
+      anchor: "top-left"
+
+      text "HealthLabel" { content: "HP: 100/100" }
+      bar "HealthBar" { fill: 1.0, color: "#27ae60" }
+    }
+
+    panel "WaveInfo" {
+      position: [0, 3.5, -5]
+      size: [1.5, 0.3]
+      anchor: "top-center"
+
+      text "WaveText" { content: "Wave 1" }
+    }
+
+    panel "ScorePanel" {
+      position: [3, 3, -5]
+      size: [1.5, 0.5]
+      anchor: "top-right"
+
+      text "ScoreLabel" { content: "Score: 0" }
+      text "KillsLabel" { content: "Kills: 0" }
+    }
+  }
+
+  // Game state
+  state {
+    wave: 1
+    score: 0
+    kills: 0
+    enemiesRemaining: 0
+    playerEntity: null
+  }
+
+  logic {
+    on_start {
+      // Initialize player
+      let player = create_player()
+      CombatSystem.register(player)
+      state.playerEntity = player
+
+      ui.toast("Arena Combat! Defeat the enemies!")
+
+      after 2000 {
+        start_wave(1)
+      }
+    }
+
+    fn create_player() -> CombatEntity {
+      return CombatEntity {
+        id: "PlayerCharacter",
+        name: "Hero",
+        position: [0, 0, 0],
+        stats: Stats {
+          maxHealth: 100,
+          health: 100,
+          attack: 15,
+          defense: 5,
+          speed: 5.0,
+          critChance: 0.1,
+          critMultiplier: 2.0
+        },
+        weapon: weapons["Iron Sword"],
+        state: "idle",
+        team: "player"
+      }
+    }
+
+    fn start_wave(waveNum: int) {
+      state.wave = waveNum
+      WaveText.content = "Wave " + waveNum
+
+      let enemyCount = 2 + waveNum
+      state.enemiesRemaining = enemyCount
+
+      ui.toast("Wave " + waveNum + " - " + enemyCount + " enemies!")
+
+      // Spawn enemies
+      for i in 0..enemyCount {
+        after i * 500 {
+          spawn_enemy(i % 4, waveNum)
+        }
+      }
+    }
+
+    fn spawn_enemy(spawnIndex: int, difficulty: int) {
+      let spawn = find_object("Spawn_" + spawnIndex)
+      let id = "Enemy_" + time.now()
+
+      let enemy = CombatEntity {
+        id: id,
+        name: "Goblin",
+        position: spawn.position,
+        stats: Stats {
+          maxHealth: 30 + difficulty * 10,
+          health: 30 + difficulty * 10,
+          attack: 5 + difficulty * 2,
+          defense: 2 + difficulty,
+          speed: 3.0,
+          critChance: 0.05,
+          critMultiplier: 1.5
+        },
+        weapon: weapons["Rusty Sword"],
+        state: "idle",
+        team: "enemy"
+      }
+
+      // Spawn visual
+      let obj = spawn("Enemy", {
+        id: id,
+        model: "characters/goblin.glb",
+        position: spawn.position
+      })
+
+      particles.burst(spawn.position, { count: 20, color: "#9b59b6" })
+
+      CombatSystem.register(enemy)
+      AIBehavior.register(enemy, {
+        aggroRange: 12.0,
+        attackRange: 2.0
+      })
+    }
+
+    on "enemy_killed" (data) {
+      state.kills += 1
+      state.score += 100 * state.wave
+      state.enemiesRemaining -= 1
+
+      KillsLabel.content = "Kills: " + state.kills
+      ScoreLabel.content = "Score: " + state.score
+
+      if (state.enemiesRemaining <= 0) {
+        after 2000 {
+          start_wave(state.wave + 1)
+        }
+      }
+    }
+
+    // Player input handling
+    on_input("attack") {
+      let player = state.playerEntity
+      if (player.state != "dead" && player.state != "stagger") {
+        let target = AIBehavior.find_nearest_enemy(player)
+        if (target && distance(player.position, target.position) <= player.weapon.range) {
+          AIBehavior.try_attack(player, target)
+        } else {
+          // Swing animation even if no hit
+          PlayerCharacter.play_animation("attack")
+        }
+      }
+    }
+
+    // Update player health UI
+    every 100 {
+      if (state.playerEntity) {
+        let hp = state.playerEntity.stats.health
+        let max = state.playerEntity.stats.maxHealth
+        HealthLabel.content = "HP: " + hp + "/" + max
+        HealthBar.fill = hp / max
+      }
+    }
+  }
+}

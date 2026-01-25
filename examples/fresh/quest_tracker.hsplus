@@ -1,0 +1,1151 @@
+// HoloScript+ Component: Quest Tracker System
+// A complete quest system with objectives, progress, and rewards
+//
+// This example demonstrates:
+// - Quest definitions with multiple objectives
+// - Progress tracking and persistence
+// - Quest chains and prerequisites
+// - Reward distribution
+// - Quest log UI
+// - World markers and waypoints
+// - NPC quest givers
+
+import { Vec3, time } from "@holoscript/std"
+import { ui, audio, particles } from "@holoscript/runtime"
+
+// ============================================
+// TYPES & INTERFACES
+// ============================================
+
+type QuestStatus = "locked" | "available" | "active" | "completed" | "failed"
+type ObjectiveType = "kill" | "collect" | "talk" | "explore" | "escort" | "defend" | "craft" | "deliver"
+
+interface QuestDefinition {
+  id: string
+  title: string
+  description: string
+  category: "main" | "side" | "daily" | "event"
+  level: int
+  prerequisites: List<string>
+  objectives: List<ObjectiveDefinition>
+  rewards: QuestRewards
+  timeLimit: int?              // milliseconds, null = no limit
+  repeatable: bool
+  autoComplete: bool           // Complete when all objectives done
+  chain: { previous: string?, next: string? }?
+}
+
+interface ObjectiveDefinition {
+  id: string
+  type: ObjectiveType
+  description: string
+  target: string              // Entity ID, item ID, location ID
+  required: int               // Number needed
+  optional: bool
+  hidden: bool                // Reveal only when previous complete
+  hints: List<string>?
+  location: Vec3?             // For waypoint
+}
+
+interface ObjectiveProgress {
+  objectiveId: string
+  current: int
+  completed: bool
+}
+
+interface QuestProgress {
+  questId: string
+  status: QuestStatus
+  objectives: Map<string, ObjectiveProgress>
+  startedAt: int
+  completedAt: int?
+  failedAt: int?
+}
+
+interface QuestRewards {
+  experience: int
+  gold: int
+  items: List<{ itemId: string, quantity: int }>
+  reputation: Map<string, int>?
+  unlocks: List<string>?      // Quest IDs, abilities, areas
+}
+
+// ============================================
+// QUEST DATABASE
+// ============================================
+
+quests {
+  // Main Story Quest Chain
+  "main_awakening" {
+    title: "Awakening"
+    description: "You awaken in a strange land with no memory. Find out who you are and why you're here."
+    category: "main"
+    level: 1
+    prerequisites: []
+    objectives: [
+      {
+        id: "wake_up",
+        type: "explore",
+        description: "Look around and get your bearings",
+        target: "spawn_area",
+        required: 1,
+        optional: false,
+        hidden: false
+      },
+      {
+        id: "find_elara",
+        type: "talk",
+        description: "Speak with the tavern keeper",
+        target: "Elara",
+        required: 1,
+        optional: false,
+        hidden: false,
+        location: [0, 0, -2],
+        hints: ["She seems to know something about this place"]
+      }
+    ]
+    rewards: {
+      experience: 50,
+      gold: 0,
+      items: []
+    }
+    autoComplete: true
+    chain: { previous: null, next: "main_first_steps" }
+  }
+
+  "main_first_steps" {
+    title: "First Steps"
+    description: "Elara suggested you explore the village. Perhaps someone knows who you are."
+    category: "main"
+    level: 1
+    prerequisites: ["main_awakening"]
+    objectives: [
+      {
+        id: "explore_village",
+        type: "explore",
+        description: "Explore the village",
+        target: "village_zone",
+        required: 3,
+        optional: false,
+        hidden: false,
+        hints: ["Visit different areas of the village"]
+      },
+      {
+        id: "talk_villagers",
+        type: "talk",
+        description: "Talk to villagers",
+        target: "villager",
+        required: 3,
+        optional: false,
+        hidden: false
+      },
+      {
+        id: "find_sword",
+        type: "collect",
+        description: "Find a weapon",
+        target: "iron_sword",
+        required: 1,
+        optional: false,
+        hidden: true
+      }
+    ]
+    rewards: {
+      experience: 100,
+      gold: 25,
+      items: [{ itemId: "health_potion", quantity: 3 }]
+    }
+    autoComplete: false
+    chain: { previous: "main_awakening", next: "main_the_temple" }
+  }
+
+  "main_the_temple" {
+    title: "The Temple of Echoes"
+    description: "Legends speak of an ancient temple that holds the memories of all who enter. Perhaps it holds answers about your past."
+    category: "main"
+    level: 5
+    prerequisites: ["main_first_steps"]
+    objectives: [
+      {
+        id: "find_map",
+        type: "collect",
+        description: "Obtain a map to the temple",
+        target: "old_map",
+        required: 1,
+        optional: false,
+        hidden: false,
+        hints: ["Elara might know where to find one"]
+      },
+      {
+        id: "travel_forest",
+        type: "explore",
+        description: "Travel through the Whispering Woods",
+        target: "whispering_woods",
+        required: 1,
+        optional: false,
+        hidden: true,
+        location: [100, 0, 50]
+      },
+      {
+        id: "reach_temple",
+        type: "explore",
+        description: "Reach the Temple of Echoes",
+        target: "temple_entrance",
+        required: 1,
+        optional: false,
+        hidden: true,
+        location: [200, 0, 100]
+      }
+    ]
+    rewards: {
+      experience: 500,
+      gold: 100,
+      items: [
+        { itemId: "echo_shard", quantity: 1 },
+        { itemId: "strength_elixir", quantity: 2 }
+      ],
+      unlocks: ["temple_interior"]
+    }
+    autoComplete: true
+    chain: { previous: "main_first_steps", next: "main_memories" }
+  }
+
+  // Side Quests
+  "side_pest_control" {
+    title: "Pest Control"
+    description: "The village is overrun with goblins. Help thin their numbers."
+    category: "side"
+    level: 2
+    prerequisites: ["main_awakening"]
+    objectives: [
+      {
+        id: "kill_goblins",
+        type: "kill",
+        description: "Defeat goblins",
+        target: "goblin",
+        required: 10,
+        optional: false,
+        hidden: false
+      },
+      {
+        id: "bonus_goblins",
+        type: "kill",
+        description: "Defeat more goblins (bonus)",
+        target: "goblin",
+        required: 5,
+        optional: true,
+        hidden: false
+      }
+    ]
+    rewards: {
+      experience: 150,
+      gold: 50,
+      items: [{ itemId: "iron_ore", quantity: 5 }],
+      reputation: { "village": 10 }
+    }
+    repeatable: true
+    autoComplete: true
+  }
+
+  "side_gather_herbs" {
+    title: "Herbal Remedy"
+    description: "The healer needs medicinal herbs for her potions."
+    category: "side"
+    level: 1
+    prerequisites: []
+    objectives: [
+      {
+        id: "collect_herbs",
+        type: "collect",
+        description: "Gather healing herbs",
+        target: "healing_herb",
+        required: 5,
+        optional: false,
+        hidden: false,
+        hints: ["Look near water sources"]
+      },
+      {
+        id: "deliver_herbs",
+        type: "deliver",
+        description: "Bring herbs to the healer",
+        target: "Healer",
+        required: 1,
+        optional: false,
+        hidden: true,
+        location: [5, 0, 10]
+      }
+    ]
+    rewards: {
+      experience: 75,
+      gold: 20,
+      items: [
+        { itemId: "health_potion", quantity: 5 },
+        { itemId: "mana_potion", quantity: 2 }
+      ]
+    }
+    autoComplete: false
+  }
+
+  // Daily Quest
+  "daily_training" {
+    title: "Daily Training"
+    description: "Practice your combat skills at the training grounds."
+    category: "daily"
+    level: 1
+    prerequisites: ["main_first_steps"]
+    objectives: [
+      {
+        id: "hit_dummies",
+        type: "kill",
+        description: "Strike training dummies",
+        target: "training_dummy",
+        required: 20,
+        optional: false,
+        hidden: false,
+        location: [-10, 0, 5]
+      }
+    ]
+    rewards: {
+      experience: 50,
+      gold: 10,
+      items: []
+    }
+    repeatable: true
+    autoComplete: true
+  }
+}
+
+// ============================================
+// QUEST SYSTEM
+// ============================================
+
+system QuestSystem {
+  state {
+    definitions: Map<string, QuestDefinition>
+    progress: Map<string, QuestProgress>
+    activeQuests: List<string>
+    completedQuests: List<string>
+    trackedQuest: string?
+  }
+
+  fn initialize() {
+    // Load quest definitions
+    for questId, def in quests {
+      state.definitions.set(questId, def)
+    }
+
+    // Initialize progress for all quests
+    for questId, def in state.definitions {
+      let status = def.prerequisites.length == 0 ? "available" : "locked"
+
+      let objectives = Map<string, ObjectiveProgress>()
+      for obj in def.objectives {
+        objectives.set(obj.id, ObjectiveProgress {
+          objectiveId: obj.id,
+          current: 0,
+          completed: false
+        })
+      }
+
+      state.progress.set(questId, QuestProgress {
+        questId: questId,
+        status: status,
+        objectives: objectives,
+        startedAt: 0
+      })
+    }
+  }
+
+  // Check if quest is available
+  fn is_available(questId: string) -> bool {
+    let progress = state.progress.get(questId)
+    if (!progress) return false
+    if (progress.status != "available" && progress.status != "locked") return false
+
+    let def = state.definitions.get(questId)
+    if (!def) return false
+
+    // Check prerequisites
+    for prereq in def.prerequisites {
+      if (!state.completedQuests.includes(prereq)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  // Accept a quest
+  fn accept_quest(questId: string) -> bool {
+    if (!is_available(questId)) {
+      ui.toast("Quest not available")
+      return false
+    }
+
+    let progress = state.progress.get(questId)
+    progress.status = "active"
+    progress.startedAt = time.now()
+
+    state.activeQuests.push(questId)
+
+    let def = state.definitions.get(questId)
+    ui.quest_notification("Quest Accepted: " + def.title)
+    audio.play("quest_accept")
+
+    // Show first objective waypoint
+    update_waypoints(questId)
+
+    emit("quest_accepted", { questId: questId })
+    return true
+  }
+
+  // Update objective progress
+  fn update_objective(objectiveType: ObjectiveType, targetId: string, amount: int = 1) {
+    for questId in state.activeQuests {
+      let def = state.definitions.get(questId)
+      let progress = state.progress.get(questId)
+
+      for objDef in def.objectives {
+        if (objDef.type == objectiveType && objDef.target == targetId) {
+          let objProgress = progress.objectives.get(objDef.id)
+
+          if (!objProgress.completed) {
+            objProgress.current = min(objProgress.current + amount, objDef.required)
+
+            // Check if objective completed
+            if (objProgress.current >= objDef.required) {
+              objProgress.completed = true
+              on_objective_complete(questId, objDef)
+            }
+
+            emit("objective_updated", {
+              questId: questId,
+              objectiveId: objDef.id,
+              current: objProgress.current,
+              required: objDef.required
+            })
+          }
+        }
+      }
+
+      // Check if all required objectives complete
+      if (def.autoComplete && check_quest_complete(questId)) {
+        complete_quest(questId)
+      }
+    }
+  }
+
+  fn on_objective_complete(questId: string, objective: ObjectiveDefinition) {
+    let def = state.definitions.get(questId)
+    ui.toast("Objective Complete: " + objective.description)
+    audio.play("objective_complete")
+
+    // Reveal hidden objectives
+    for obj in def.objectives {
+      if (obj.hidden) {
+        // Check if previous objectives are done
+        // (simplified - reveal all hidden when any complete)
+        obj.hidden = false
+      }
+    }
+
+    update_waypoints(questId)
+    emit("objective_completed", { questId: questId, objectiveId: objective.id })
+  }
+
+  // Check if all required objectives are complete
+  fn check_quest_complete(questId: string) -> bool {
+    let def = state.definitions.get(questId)
+    let progress = state.progress.get(questId)
+
+    for objDef in def.objectives {
+      if (!objDef.optional) {
+        let objProgress = progress.objectives.get(objDef.id)
+        if (!objProgress.completed) {
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  // Complete a quest
+  fn complete_quest(questId: string) -> bool {
+    let progress = state.progress.get(questId)
+    if (progress.status != "active") return false
+
+    if (!check_quest_complete(questId)) {
+      ui.toast("Quest objectives not complete")
+      return false
+    }
+
+    progress.status = "completed"
+    progress.completedAt = time.now()
+
+    state.activeQuests = state.activeQuests.filter(q => q != questId)
+    state.completedQuests.push(questId)
+
+    let def = state.definitions.get(questId)
+
+    // Grant rewards
+    grant_rewards(def.rewards)
+
+    ui.quest_notification("Quest Complete: " + def.title)
+    audio.play("quest_complete")
+    particles.burst(player.position, { count: 50, color: "#f1c40f", spread: 2.0 })
+
+    // Unlock next quest in chain
+    if (def.chain?.next) {
+      let nextProgress = state.progress.get(def.chain.next)
+      if (nextProgress && nextProgress.status == "locked") {
+        if (is_available(def.chain.next)) {
+          nextProgress.status = "available"
+          emit("quest_unlocked", { questId: def.chain.next })
+        }
+      }
+    }
+
+    // Clear waypoint
+    clear_waypoint(questId)
+
+    emit("quest_completed", { questId: questId, rewards: def.rewards })
+    return true
+  }
+
+  // Fail a quest
+  fn fail_quest(questId: string, reason: string = "Quest failed") {
+    let progress = state.progress.get(questId)
+    if (progress.status != "active") return
+
+    progress.status = "failed"
+    progress.failedAt = time.now()
+
+    state.activeQuests = state.activeQuests.filter(q => q != questId)
+
+    let def = state.definitions.get(questId)
+    ui.toast("Quest Failed: " + def.title + " - " + reason)
+    audio.play("quest_fail")
+
+    clear_waypoint(questId)
+    emit("quest_failed", { questId: questId, reason: reason })
+  }
+
+  // Abandon a quest
+  fn abandon_quest(questId: string) -> bool {
+    let progress = state.progress.get(questId)
+    if (progress.status != "active") return false
+
+    let def = state.definitions.get(questId)
+
+    // Reset progress
+    progress.status = "available"
+    progress.startedAt = 0
+    for objId, objProgress in progress.objectives {
+      objProgress.current = 0
+      objProgress.completed = false
+    }
+
+    state.activeQuests = state.activeQuests.filter(q => q != questId)
+
+    ui.toast("Quest Abandoned: " + def.title)
+    clear_waypoint(questId)
+
+    emit("quest_abandoned", { questId: questId })
+    return true
+  }
+
+  fn grant_rewards(rewards: QuestRewards) {
+    // Experience
+    if (rewards.experience > 0) {
+      emit("gain_experience", { amount: rewards.experience })
+      ui.toast("+" + rewards.experience + " XP")
+    }
+
+    // Gold
+    if (rewards.gold > 0) {
+      emit("gain_gold", { amount: rewards.gold })
+      ui.toast("+" + rewards.gold + " Gold")
+    }
+
+    // Items
+    for item in rewards.items {
+      emit("receive_item", { itemId: item.itemId, quantity: item.quantity })
+    }
+
+    // Reputation
+    if (rewards.reputation) {
+      for faction, amount in rewards.reputation {
+        emit("gain_reputation", { faction: faction, amount: amount })
+      }
+    }
+
+    // Unlocks
+    if (rewards.unlocks) {
+      for unlock in rewards.unlocks {
+        emit("unlock", { id: unlock })
+      }
+    }
+  }
+
+  // Track a quest (show waypoint)
+  fn track_quest(questId: string) {
+    state.trackedQuest = questId
+    update_waypoints(questId)
+    emit("quest_tracked", { questId: questId })
+  }
+
+  fn update_waypoints(questId: string) {
+    let def = state.definitions.get(questId)
+    let progress = state.progress.get(questId)
+
+    // Find first incomplete objective with location
+    for objDef in def.objectives {
+      if (objDef.hidden) continue
+
+      let objProgress = progress.objectives.get(objDef.id)
+      if (!objProgress.completed && objDef.location) {
+        set_waypoint(questId, objDef.location, objDef.description)
+        return
+      }
+    }
+  }
+
+  fn set_waypoint(questId: string, position: Vec3, label: string) {
+    // Clear existing waypoint
+    let existing = find_object("waypoint_" + questId)
+    if (existing) despawn(existing)
+
+    // Create new waypoint
+    spawn("QuestWaypoint", {
+      id: "waypoint_" + questId,
+      position: position + [0, 3, 0],
+      label: label,
+      color: "#f1c40f"
+    })
+  }
+
+  fn clear_waypoint(questId: string) {
+    let waypoint = find_object("waypoint_" + questId)
+    if (waypoint) despawn(waypoint)
+  }
+
+  // Get quest info for UI
+  fn get_quest_info(questId: string) -> QuestInfo? {
+    let def = state.definitions.get(questId)
+    let progress = state.progress.get(questId)
+    if (!def || !progress) return null
+
+    let objectives = []
+    for objDef in def.objectives {
+      if (!objDef.hidden || progress.objectives.get(objDef.id).current > 0) {
+        let objProgress = progress.objectives.get(objDef.id)
+        objectives.push({
+          description: objDef.description,
+          current: objProgress.current,
+          required: objDef.required,
+          completed: objProgress.completed,
+          optional: objDef.optional
+        })
+      }
+    }
+
+    return QuestInfo {
+      id: questId,
+      title: def.title,
+      description: def.description,
+      category: def.category,
+      status: progress.status,
+      objectives: objectives,
+      rewards: def.rewards
+    }
+  }
+}
+
+// ============================================
+// QUEST GIVER SYSTEM
+// ============================================
+
+system QuestGiverSystem {
+  state {
+    givers: Map<string, QuestGiver>()
+  }
+
+  interface QuestGiver {
+    npcId: string
+    questsToGive: List<string>
+    questsToComplete: List<string>
+  }
+
+  fn register_giver(npcId: string, quests: List<string>, completions: List<string> = []) {
+    state.givers.set(npcId, QuestGiver {
+      npcId: npcId,
+      questsToGive: quests,
+      questsToComplete: completions.length > 0 ? completions : quests
+    })
+
+    update_giver_indicator(npcId)
+  }
+
+  fn update_giver_indicator(npcId: string) {
+    let giver = state.givers.get(npcId)
+    if (!giver) return
+
+    let npc = find_object(npcId)
+    if (!npc) return
+
+    // Check for completable quests
+    for questId in giver.questsToComplete {
+      let progress = QuestSystem.state.progress.get(questId)
+      if (progress.status == "active" && QuestSystem.check_quest_complete(questId)) {
+        set_indicator(npc, "complete")  // Yellow ?
+        return
+      }
+    }
+
+    // Check for available quests
+    for questId in giver.questsToGive {
+      if (QuestSystem.is_available(questId)) {
+        set_indicator(npc, "available")  // Yellow !
+        return
+      }
+    }
+
+    // Check for in-progress quests
+    for questId in giver.questsToGive {
+      let progress = QuestSystem.state.progress.get(questId)
+      if (progress.status == "active") {
+        set_indicator(npc, "in_progress")  // Gray ?
+        return
+      }
+    }
+
+    set_indicator(npc, "none")
+  }
+
+  fn set_indicator(npc, type: string) {
+    let indicator = find_object(npc.id + "_quest_indicator")
+
+    match type {
+      "available" => {
+        indicator.visible = true
+        indicator.icon = "!"
+        indicator.color = "#f1c40f"
+        indicator.animation = "bounce"
+      }
+      "complete" => {
+        indicator.visible = true
+        indicator.icon = "?"
+        indicator.color = "#f1c40f"
+        indicator.animation = "bounce"
+      }
+      "in_progress" => {
+        indicator.visible = true
+        indicator.icon = "?"
+        indicator.color = "#888888"
+        indicator.animation = "none"
+      }
+      "none" => {
+        indicator.visible = false
+      }
+    }
+  }
+
+  fn interact_with_giver(npcId: string) {
+    let giver = state.givers.get(npcId)
+    if (!giver) return
+
+    // First check for completable quests
+    for questId in giver.questsToComplete {
+      let progress = QuestSystem.state.progress.get(questId)
+      if (progress.status == "active" && QuestSystem.check_quest_complete(questId)) {
+        show_quest_complete_dialog(questId)
+        return
+      }
+    }
+
+    // Then check for available quests
+    for questId in giver.questsToGive {
+      if (QuestSystem.is_available(questId)) {
+        show_quest_offer_dialog(questId)
+        return
+      }
+    }
+
+    // Default dialogue
+    emit("show_dialogue", { npcId: npcId, dialogueId: "default" })
+  }
+
+  fn show_quest_offer_dialog(questId: string) {
+    let info = QuestSystem.get_quest_info(questId)
+    emit("show_quest_dialog", {
+      mode: "offer",
+      quest: info,
+      onAccept: () => QuestSystem.accept_quest(questId),
+      onDecline: () => {}
+    })
+  }
+
+  fn show_quest_complete_dialog(questId: string) {
+    let info = QuestSystem.get_quest_info(questId)
+    emit("show_quest_dialog", {
+      mode: "complete",
+      quest: info,
+      onComplete: () => QuestSystem.complete_quest(questId)
+    })
+  }
+}
+
+// ============================================
+// QUEST LOG UI
+// ============================================
+
+composition "QuestLogUI" {
+  metadata {
+    title: "Quest Tracker"
+    description: "Track quests and objectives"
+    version: "1.0.0"
+  }
+
+  state {
+    logOpen: bool = false
+    selectedQuest: string? = null
+    selectedCategory: string = "all"
+  }
+
+  // Quest Log Panel
+  panel "QuestLogPanel" {
+    position: [0, 1.5, -2]
+    size: [2.5, 2.2]
+    background: "rgba(20, 20, 30, 0.95)"
+    visible: false
+    border: { color: "#4a4a5a", width: 2 }
+
+    // Header
+    text "Title" {
+      position: [0.1, 2.05, 0.01]
+      content: "Quest Log"
+      size: 0.1
+      color: "#ffffff"
+    }
+
+    button "CloseBtn" {
+      position: [2.3, 2.05, 0.01]
+      size: [0.15, 0.1]
+      label: "X"
+      on_click: { toggle_quest_log() }
+    }
+
+    // Category tabs
+    group "CategoryTabs" {
+      position: [0.1, 1.85, 0.01]
+
+      button "AllTab" { label: "All", on_click: { filter_quests("all") } }
+      button "MainTab" { label: "Main", on_click: { filter_quests("main") } }
+      button "SideTab" { label: "Side", on_click: { filter_quests("side") } }
+      button "DailyTab" { label: "Daily", on_click: { filter_quests("daily") } }
+    }
+
+    // Quest list (left side)
+    scroll_panel "QuestList" {
+      position: [0.1, 0.2, 0.01]
+      size: [0.9, 1.5]
+      background: "rgba(0, 0, 0, 0.3)"
+    }
+
+    // Quest details (right side)
+    panel "QuestDetails" {
+      position: [1.1, 0.2, 0.01]
+      size: [1.3, 1.5]
+      background: "rgba(0, 0, 0, 0.3)"
+
+      text "QuestTitle" { position: [0.1, 1.35, 0.01], size: 0.08 }
+      text "QuestDesc" { position: [0.1, 1.15, 0.01], size: 0.05, color: "#aaaaaa" }
+
+      text "ObjectivesHeader" {
+        position: [0.1, 0.95, 0.01]
+        content: "Objectives:"
+        size: 0.06
+        color: "#f1c40f"
+      }
+
+      group "ObjectivesList" {
+        position: [0.1, 0.85, 0.01]
+      }
+
+      text "RewardsHeader" {
+        position: [0.1, 0.35, 0.01]
+        content: "Rewards:"
+        size: 0.06
+        color: "#27ae60"
+      }
+
+      group "RewardsList" {
+        position: [0.1, 0.25, 0.01]
+      }
+
+      group "QuestActions" {
+        position: [0.1, 0.05, 0.01]
+
+        button "TrackBtn" { label: "Track", on_click: { track_selected_quest() } }
+        button "AbandonBtn" { label: "Abandon", on_click: { abandon_selected_quest() } }
+      }
+    }
+  }
+
+  // Active Quest HUD (always visible)
+  panel "ActiveQuestHUD" {
+    position: [1.5, 2.8, -3]
+    size: [1.0, 0.4]
+    background: "rgba(0, 0, 0, 0.6)"
+    anchor: "top-right"
+
+    text "HUDQuestTitle" {
+      position: [0.05, 0.32, 0.01]
+      size: 0.05
+      color: "#f1c40f"
+    }
+
+    text "HUDObjective" {
+      position: [0.05, 0.18, 0.01]
+      size: 0.04
+      color: "#ffffff"
+    }
+
+    text "HUDProgress" {
+      position: [0.05, 0.05, 0.01]
+      size: 0.04
+      color: "#888888"
+    }
+  }
+
+  // Quest notification popup
+  panel "QuestNotification" {
+    position: [0, 2.5, -2]
+    size: [1.5, 0.3]
+    background: "rgba(30, 30, 40, 0.95)"
+    visible: false
+    border: { color: "#f1c40f", width: 2 }
+
+    text "NotificationText" {
+      position: [0.1, 0.15, 0.01]
+      size: 0.08
+      color: "#ffffff"
+    }
+  }
+
+  logic {
+    on_start {
+      QuestSystem.initialize()
+
+      // Register quest givers
+      QuestGiverSystem.register_giver("Elara", ["main_awakening", "main_first_steps", "main_the_temple"])
+      QuestGiverSystem.register_giver("Healer", ["side_gather_herbs"])
+      QuestGiverSystem.register_giver("Guard", ["side_pest_control"])
+      QuestGiverSystem.register_giver("TrainingMaster", ["daily_training"])
+
+      // Update HUD with tracked quest
+      update_hud()
+    }
+
+    on_input("quest_log") {
+      toggle_quest_log()
+    }
+
+    fn toggle_quest_log() {
+      state.logOpen = !state.logOpen
+      QuestLogPanel.visible = state.logOpen
+
+      if (state.logOpen) {
+        refresh_quest_list()
+        audio.play("ui_open")
+      } else {
+        audio.play("ui_close")
+      }
+    }
+
+    fn filter_quests(category: string) {
+      state.selectedCategory = category
+      refresh_quest_list()
+
+      // Update tab visuals
+      AllTab.selected = category == "all"
+      MainTab.selected = category == "main"
+      SideTab.selected = category == "side"
+      DailyTab.selected = category == "daily"
+    }
+
+    fn refresh_quest_list() {
+      clear_children(QuestList)
+
+      let y = 0
+      for questId in QuestSystem.state.activeQuests {
+        let def = QuestSystem.state.definitions.get(questId)
+
+        if (state.selectedCategory != "all" && def.category != state.selectedCategory) {
+          continue
+        }
+
+        spawn("QuestListItem", {
+          parent: QuestList,
+          position: [0, y, 0],
+          questId: questId,
+          title: def.title,
+          category: def.category,
+          tracked: questId == QuestSystem.state.trackedQuest,
+          on_click: () => select_quest(questId)
+        })
+
+        y -= 0.12
+      }
+    }
+
+    fn select_quest(questId: string) {
+      state.selectedQuest = questId
+      let info = QuestSystem.get_quest_info(questId)
+
+      QuestTitle.content = info.title
+      QuestTitle.color = category_color(info.category)
+      QuestDesc.content = info.description
+
+      // Build objectives list
+      clear_children(ObjectivesList)
+      let y = 0
+      for obj in info.objectives {
+        let status = obj.completed ? "[x]" : "[ ]"
+        let progress = obj.current + "/" + obj.required
+        let color = obj.completed ? "#27ae60" : (obj.optional ? "#888888" : "#ffffff")
+
+        spawn("ObjectiveItem", {
+          parent: ObjectivesList,
+          position: [0, y, 0],
+          content: status + " " + obj.description + " (" + progress + ")",
+          color: color
+        })
+        y -= 0.08
+      }
+
+      // Build rewards list
+      clear_children(RewardsList)
+      y = 0
+      if (info.rewards.experience > 0) {
+        spawn("RewardItem", { parent: RewardsList, position: [0, y, 0], content: info.rewards.experience + " XP" })
+        y -= 0.06
+      }
+      if (info.rewards.gold > 0) {
+        spawn("RewardItem", { parent: RewardsList, position: [0, y, 0], content: info.rewards.gold + " Gold", color: "#f1c40f" })
+        y -= 0.06
+      }
+      for item in info.rewards.items {
+        let itemDef = items[item.itemId]
+        spawn("RewardItem", { parent: RewardsList, position: [0, y, 0], content: item.quantity + "x " + itemDef.name })
+        y -= 0.06
+      }
+    }
+
+    fn category_color(category: string) -> string {
+      match category {
+        "main" => "#f1c40f"
+        "side" => "#3498db"
+        "daily" => "#27ae60"
+        "event" => "#e74c3c"
+        _ => "#ffffff"
+      }
+    }
+
+    fn track_selected_quest() {
+      if (state.selectedQuest) {
+        QuestSystem.track_quest(state.selectedQuest)
+        update_hud()
+        refresh_quest_list()
+      }
+    }
+
+    fn abandon_selected_quest() {
+      if (state.selectedQuest) {
+        QuestSystem.abandon_quest(state.selectedQuest)
+        state.selectedQuest = null
+        refresh_quest_list()
+        update_hud()
+      }
+    }
+
+    fn update_hud() {
+      let tracked = QuestSystem.state.trackedQuest
+      if (!tracked) {
+        ActiveQuestHUD.visible = false
+        return
+      }
+
+      let info = QuestSystem.get_quest_info(tracked)
+      if (!info) {
+        ActiveQuestHUD.visible = false
+        return
+      }
+
+      ActiveQuestHUD.visible = true
+      HUDQuestTitle.content = info.title
+
+      // Find current objective
+      for obj in info.objectives {
+        if (!obj.completed) {
+          HUDObjective.content = obj.description
+          HUDProgress.content = obj.current + " / " + obj.required
+          return
+        }
+      }
+
+      HUDObjective.content = "Return to complete"
+      HUDProgress.content = ""
+    }
+
+    // Quest notification display
+    fn show_quest_notification(text: string) {
+      NotificationText.content = text
+      QuestNotification.visible = true
+
+      animate(QuestNotification.opacity, 0, 1, 300)
+
+      after 3000 {
+        animate(QuestNotification.opacity, 1, 0, 300)
+        after 300 { QuestNotification.visible = false }
+      }
+    }
+
+    // Event listeners
+    on "objective_updated" (data) {
+      update_hud()
+      if (state.logOpen && state.selectedQuest == data.questId) {
+        select_quest(data.questId)
+      }
+    }
+
+    on "quest_completed" (data) {
+      show_quest_notification("Quest Complete: " + QuestSystem.state.definitions.get(data.questId).title)
+      update_hud()
+      if (state.logOpen) refresh_quest_list()
+    }
+
+    on "quest_accepted" (data) {
+      show_quest_notification("New Quest: " + QuestSystem.state.definitions.get(data.questId).title)
+      QuestSystem.track_quest(data.questId)
+      update_hud()
+    }
+
+    // Game event hooks - connect to other systems
+    on "enemy_killed" (data) {
+      QuestSystem.update_objective("kill", data.victim.type)
+    }
+
+    on "item_collected" (data) {
+      QuestSystem.update_objective("collect", data.itemId, data.quantity)
+    }
+
+    on "zone_entered" (data) {
+      QuestSystem.update_objective("explore", data.zoneId)
+    }
+
+    on "npc_talked" (data) {
+      QuestSystem.update_objective("talk", data.npcId)
+      QuestGiverSystem.interact_with_giver(data.npcId)
+    }
+  }
+}

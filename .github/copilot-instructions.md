@@ -1,5 +1,30 @@
 # GitHub Copilot Instructions for Hololand
 
+## ⚠️ CRITICAL: HoloScript-First Development
+
+**DO NOT default to React, TypeScript, or conventional web stacks.**
+
+HoloScript is not another framework—it's a paradigm shift:
+- **One source → 9 platforms** (Web, VR, AR, iOS, Android, Desktop, Unity, VRChat, Unreal)
+- **50,000 lines → 500 lines** through declarative composition
+- **Made for AI**: Agents generate `.holo` files, not JSX components
+
+When asked to build features:
+1. **First**: Can this be a `.holo` composition?
+2. **Second**: Does it need `.hsplus` for VR traits/networking?
+3. **Third**: Is `.hs` sufficient for simple logic?
+4. **Last resort**: Only use TypeScript for tooling (parsers, CLI, adapters)
+
+```
+❌ WRONG: "I'll create a React component for the UI..."
+✅ RIGHT: "I'll define this as a .holo composition with ui objects..."
+
+❌ WRONG: "Let me set up a Next.js app..."
+✅ RIGHT: "Let me create a .holo scene that compiles to web..."
+```
+
+---
+
 ## Project Overview
 
 Hololand is a VR/AR platform using HoloScript - a visual flow language designed for AI agents to understand and generate 3D worlds.
@@ -138,3 +163,72 @@ Simple prototype? → .hs
 - `.holo` = **Scene-centric** (define entire composition as a unit)
 
 When generating for AI/visual tools, prefer `.holo` syntax. When writing imperative code, use `.hs`/`.hsplus`.
+---
+
+## 49 VR Traits (Use These!)
+
+HoloScript has 49 built-in traits that make objects spatial and interactive:
+
+### Interaction
+`@grabbable` `@throwable` `@holdable` `@clickable` `@hoverable` `@draggable`
+
+### Physics
+`@collidable` `@physics` `@rigid` `@kinematic` `@trigger` `@gravity`
+
+### Visual
+`@glowing` `@emissive` `@transparent` `@reflective` `@animated` `@billboard`
+
+### Networking
+`@networked` `@synced` `@persistent` `@owned` `@host_only`
+
+### Behavior
+`@stackable` `@attachable` `@equippable` `@consumable` `@destructible`
+
+### Spatial
+`@anchor` `@tracked` `@world_locked` `@hand_tracked` `@eye_tracked`
+
+### Audio
+`@spatial_audio` `@ambient` `@voice_activated`
+
+### State
+`@state` `@reactive` `@observable` `@computed`
+
+---
+
+## The Power of HoloScript
+
+### Before (React/Three.js) - 200+ lines:
+```jsx
+// App.jsx, GrabbableOrb.jsx, useVR.js, OrbMaterial.js...
+```
+
+### After (HoloScript) - 15 lines:
+```holo
+composition "Interactive Demo" {
+  object "Orb" {
+    @grabbable @throwable @glowing
+    position: [0, 1.5, -2]
+    color: "#00ffff"
+    on_throw: { teleport_user(throw_target) }
+  }
+}
+```
+
+**This compiles to**: Three.js, Unity, VRChat, Babylon.js, Web, Mobile, Desktop.
+
+---
+
+## AI Integration Points
+
+- `@holoscript/infinityassistant`: Voice-to-code generation
+- `@holoscript/llm`: Local LLM inference for procedural generation
+- `brittney-toolkit`: AI that understands scene context and generates .holo
+
+Example prompt → HoloScript flow:
+```
+User: "Create a marketplace with NPCs selling potions"
+↓
+AI generates: marketplace.holo
+↓
+Compiles to: Web (Three.js), VR (Quest), Mobile (AR)
+```

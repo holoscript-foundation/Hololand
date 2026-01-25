@@ -1,0 +1,118 @@
+// HoloScript Starter: Hello VR World
+// The simplest possible VR scene - a floating cube with lighting
+//
+// This example demonstrates:
+// - Basic composition structure
+// - Environment setup (skybox, lighting)
+// - Object placement with position, color, size
+// - Simple animation
+
+composition "HelloVR" {
+  metadata {
+    title: "Hello VR World"
+    description: "Your first HoloScript scene"
+    author: "Hololand Team"
+    version: "1.0.0"
+  }
+
+  // Environment configuration
+  environment {
+    skybox: "gradient"
+    colors: {
+      sky: "#1a1a2e"
+      horizon: "#16213e"
+      ground: "#0f3460"
+    }
+
+    lighting {
+      ambient: { color: "#404060", intensity: 0.3 }
+      directional: {
+        color: "#ffffff",
+        intensity: 0.8,
+        direction: [-1, -1, -1]
+      }
+    }
+  }
+
+  // The scene objects
+  spatial_group "Scene" {
+
+    // Ground plane
+    plane "Ground" {
+      position: [0, 0, 0]
+      size: [20, 20]
+      rotation: [-90, 0, 0]
+      material: {
+        color: "#2d3436"
+        roughness: 0.8
+      }
+    }
+
+    // The iconic floating cube
+    cube "HelloCube" {
+      position: [0, 1.5, -3]
+      size: 1
+      material: {
+        color: "#00cec9"
+        metalness: 0.3
+        roughness: 0.4
+      }
+      traits: ["hoverable", "glow"]
+    }
+
+    // Ambient particles for atmosphere
+    particles "AmbientDust" {
+      position: [0, 2, -3]
+      count: 50
+      spread: [5, 3, 5]
+      color: "#ffffff"
+      size: 0.02
+      opacity: 0.3
+      speed: 0.1
+    }
+  }
+
+  // Animations
+  animation "CubeFloat" {
+    target: "HelloCube"
+    property: "position.y"
+    from: 1.5
+    to: 2.0
+    duration: 2000
+    easing: "ease-in-out"
+    loop: true
+    yoyo: true
+  }
+
+  animation "CubeRotate" {
+    target: "HelloCube"
+    property: "rotation.y"
+    from: 0
+    to: 360
+    duration: 8000
+    easing: "linear"
+    loop: true
+  }
+
+  // Basic interactivity
+  logic {
+    on_start {
+      ui.toast("Welcome to VR! Look at the cube.")
+    }
+
+    on_hover("HelloCube") {
+      HelloCube.material.emissive = "#00cec9"
+      HelloCube.material.emissiveIntensity = 0.5
+    }
+
+    on_hover_end("HelloCube") {
+      HelloCube.material.emissiveIntensity = 0
+    }
+
+    on_click("HelloCube") {
+      audio.play("click")
+      HelloCube.material.color = random_color()
+      ui.toast("Cube color changed!")
+    }
+  }
+}

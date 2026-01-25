@@ -1,0 +1,332 @@
+// Enchanted Forest - HoloScript Demo
+// Showcases: VR traits, AI NPCs, physics, dialogs, teleportation
+
+composition "Enchanted Forest" {
+  
+  environment {
+    skybox: "fantasy_twilight"
+    ambient_light: 0.4
+    fog: {
+      color: "#1a0a2e"
+      density: 0.02
+    }
+    
+    // Atmospheric particles
+    particle_system "fireflies" {
+      count: 200
+      spread: 50
+      color: "#ffff88"
+      glow: 2
+      behavior: "wander"
+    }
+    
+    particle_system "magic_dust" {
+      count: 100
+      spread: 30
+      color: "#88ffff"
+      glow: 1.5
+      behavior: "rise"
+    }
+  }
+  
+  state {
+    player_mana: 100
+    orbs_collected: 0
+    wizard_met: false
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // THE WIZARD NPC
+  // ═══════════════════════════════════════════════════════════
+  
+  object "Wizard" {
+    model: "wizard_elder"
+    position: [0, 0, -5]
+    
+    @npc
+    @dialog
+    @look_at_player
+    
+    state {
+      has_given_quest: false
+    }
+    
+    dialogue_tree: {
+      start: {
+        text: "Welcome to the Enchanted Forest, traveler!"
+        options: [
+          { text: "Who are you?", next: "introduction" },
+          { text: "I seek adventure!", next: "quest" },
+          { text: "Farewell", next: "end" }
+        ]
+      }
+      introduction: {
+        text: "I am Meridius, keeper of this realm. The forest responds to those with pure intentions."
+        options: [
+          { text: "Tell me about the orbs", next: "orbs_info" },
+          { text: "What dangers lurk here?", next: "dangers" }
+        ]
+      }
+      orbs_info: {
+        text: "The Orbs of Transmission hold ancient power. Throw one, and you shall traverse the very fabric of space!"
+        options: [
+          { text: "I'll find them all!", next: "quest" }
+        ]
+      }
+      quest: {
+        text: "Seek the five orbs scattered throughout the forest. Each grants the power of teleportation. Return when you've mastered their use."
+        action: { type: "start_quest", quest_id: "orb_collection" }
+        options: [
+          { text: "I accept this quest", next: "end" }
+        ]
+      }
+      end: {
+        text: "May the forest guide your path..."
+      }
+    }
+    
+    on_interact {
+      state.wizard_met = true
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // TELEPORTATION ORBS
+  // ═══════════════════════════════════════════════════════════
+  
+  template "TeleportOrb" {
+    @grabbable
+    @throwable
+    @glowing
+    @physics
+    
+    state {
+      charge: 100
+      is_charging: false
+    }
+    
+    // Hover animation
+    on_spawn {
+      animate self {
+        position_offset: [0, 0.2, 0]
+        duration: 2
+        easing: "sine"
+        loop: true
+        yoyo: true
+      }
+      animate self {
+        rotation: [0, 360, 0]
+        duration: 4
+        loop: true
+      }
+    }
+    
+    on_grab(player) {
+      // Glow brighter when held
+      animate self {
+        glow: 3
+        duration: 0.3
+      }
+      emit "orb_grabbed" { orb: self, player: player }
+    }
+    
+    on_throw(direction, velocity) {
+      // Calculate landing point
+      landing = raycast(self.position, direction, 50)
+      
+      if landing {
+        // Teleport player to throw target
+        wait(0.5)  // Let orb travel
+        
+        spawn_effect("teleport_flash", player.position)
+        teleport(player, landing.point)
+        spawn_effect("teleport_arrive", landing.point)
+        
+        // Drain charge
+        state.charge -= 20
+        if state.charge <= 0 {
+          start_recharge()
+        }
+      }
+    }
+    
+    action start_recharge() {
+      state.is_charging = true
+      animate self {
+        glow: 0.5
+        duration: 0.5
+      }
+      
+      // Recharge over 10 seconds
+      wait(10)
+      state.charge = 100
+      state.is_charging = false
+      
+      animate self {
+        glow: 2
+        duration: 0.5
+      }
+    }
+  }
+  
+  // Spawn five orbs around the forest
+  spatial_group "OrbClearing" {
+    position: [0, 0, 0]
+    
+    object "Orb_Cyan" using "TeleportOrb" {
+      position: [0, 1.2, -2]
+      color: "#00ffff"
+    }
+    
+    object "Orb_Magenta" using "TeleportOrb" {
+      position: [8, 1.2, 5]
+      color: "#ff00ff"
+    }
+    
+    object "Orb_Gold" using "TeleportOrb" {
+      position: [-10, 1.2, 8]
+      color: "#ffdd00"
+    }
+    
+    object "Orb_Green" using "TeleportOrb" {
+      position: [5, 1.2, -12]
+      color: "#00ff88"
+    }
+    
+    object "Orb_White" using "TeleportOrb" {
+      position: [-7, 1.2, -8]
+      color: "#ffffff"
+      glow: 3
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // FOREST ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════
+  
+  spatial_group "Forest" {
+    
+    // Magical trees
+    template "MagicTree" {
+      model: "tree_ancient"
+      @collidable
+      
+      object "TreeGlow" {
+        type: "point_light"
+        color: "#4488ff"
+        intensity: 0.5
+        position: [0, 3, 0]
+      }
+    }
+    
+    // Scatter trees
+    for i in range(20) {
+      object "Tree_${i}" using "MagicTree" {
+        position: [
+          random(-30, 30),
+          0,
+          random(-30, 30)
+        ]
+        rotation: [0, random(0, 360), 0]
+        scale: [random(0.8, 1.2), random(0.9, 1.3), random(0.8, 1.2)]
+      }
+    }
+    
+    // Glowing mushrooms
+    template "GlowMushroom" {
+      model: "mushroom_fantasy"
+      @glowing
+      @clickable
+      
+      state { 
+        glow_color: "#ff88ff"
+        is_bright: false 
+      }
+      
+      on_click {
+        state.is_bright = !state.is_bright
+        animate self {
+          glow: state.is_bright ? 5 : 1
+          duration: 0.3
+        }
+      }
+    }
+    
+    for i in range(30) {
+      object "Mushroom_${i}" using "GlowMushroom" {
+        position: [random(-25, 25), 0, random(-25, 25)]
+        scale: [random(0.3, 0.8), random(0.3, 0.8), random(0.3, 0.8)]
+        glow_color: random_choice(["#ff88ff", "#88ffff", "#ffff88"])
+      }
+    }
+    
+    // Ancient stone portal (exit)
+    object "ExitPortal" {
+      model: "stone_arch"
+      position: [0, 0, -25]
+      
+      @collidable
+      
+      object "PortalEnergy" {
+        type: "plane"
+        size: [3, 4]
+        material: "portal_swirl"
+        position: [0, 2, 0]
+        
+        @animated
+        animation: "swirl"
+        
+        particle_system "portal_particles" {
+          count: 50
+          color: "#ff00ff"
+          spread: 2
+        }
+      }
+      
+      on_player_enter {
+        if state.orbs_collected >= 5 {
+          emit "level_complete" {}
+          transition_to("next_realm")
+        } else {
+          show_message("Collect all 5 orbs to unlock the portal")
+        }
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // GAME LOGIC
+  // ═══════════════════════════════════════════════════════════
+  
+  logic {
+    
+    on_orb_grabbed(data) {
+      if !state.wizard_met {
+        show_hint("The wizard might know about these orbs...")
+      }
+    }
+    
+    on_enter {
+      // Intro sequence
+      fade_from_black(2)
+      wait(1)
+      
+      if !state.wizard_met {
+        show_objective("Find the wizard in the forest")
+      }
+    }
+    
+    // Track orb collection for quest
+    on_item_collected(item) {
+      if item.type == "TeleportOrb" {
+        state.orbs_collected += 1
+        show_notification("Orbs: ${state.orbs_collected} / 5")
+        
+        if state.orbs_collected == 5 {
+          emit "quest_complete" { quest_id: "orb_collection" }
+          show_notification("All orbs collected! The portal awaits...")
+        }
+      }
+    }
+  }
+}
