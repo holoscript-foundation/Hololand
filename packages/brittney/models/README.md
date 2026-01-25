@@ -2,14 +2,15 @@
 
 Official model registry and download utilities for Brittney AI.
 
-## 🎉 Brittney V1 Free - Production Ready
+## 🎉 Brittney V1 Expert - Free Production Release
 
-**Brittney V1** is a free, locally-running AI assistant trained for HoloScript world building. It runs 100% on your device with no cloud dependency.
+**Brittney V1** is the **expert-level model** - the same quality used in production, now free for everyone. It runs 100% on your device with no cloud dependency.
 
 | Model | Size | Features | License |
 |-------|------|----------|---------|
-| `brittney-v1-free` | ~2.0 GB | HoloScript help, code completion, world building | MIT |
-| `brittney-v1-q4` | ~1.2 GB | Quantized for lower memory devices | MIT |
+| `v1-free` (Expert) | 1.57 GB | Full expert quality, best-in-class | MIT |
+| `v1-q4` | ~0.9 GB | Quantized, mobile-friendly | MIT |
+| `v1-q8` | ~1.2 GB | Better quality quantization | MIT |
 
 ## Quick Start
 
@@ -19,7 +20,7 @@ Official model registry and download utilities for Brittney AI.
 # Install the package
 pnpm add @hololand/brittney-models
 
-# Download the free V1 model
+# Download the expert model (free!)
 pnpm brittney-download --model v1-free
 
 # Or use the CLI directly
@@ -31,13 +32,13 @@ npx @hololand/brittney-models download v1-free
 Download from GitHub Releases:
 
 ```bash
-# V1 Free (Full precision, ~2.0 GB)
-curl -L -o brittney-v1-free.gguf \
-  https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-free.gguf
+# V1 Expert (Full precision, 1.57 GB)
+curl -L -o brittney-v1-expert.gguf \
+  https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-expert.gguf
 
-# V1 Q4 (Quantized, ~1.2 GB)
-curl -L -o brittney-v1-q4.gguf \
-  https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-q4.gguf
+# V1 Expert Q4 (Quantized, ~0.9 GB)
+curl -L -o brittney-v1-expert-q4.gguf \
+  https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-expert-q4.gguf
 ```
 
 ## Programmatic Usage
@@ -78,20 +79,15 @@ interface ModelInfo {
 
 ## Available Models
 
-### Free Tier (MIT License)
+### Free Tier (MIT License) - Expert Quality
 
 | ID | Name | Size | Min RAM | Features |
 |----|------|------|---------|----------|
-| `v1-free` | Brittney V1 Free | 2.0 GB | 4 GB | Full HoloScript, code completion |
-| `v1-q4` | Brittney V1 Q4 | 1.2 GB | 2 GB | Quantized, mobile-friendly |
-| `v1-q8` | Brittney V1 Q8 | 1.6 GB | 3 GB | Better quality quantization |
+| `v1-free` | Brittney V1 Expert | 1.57 GB | 4 GB | Full expert quality, best-in-class |
+| `v1-q4` | Brittney V1 Expert Q4 | ~0.9 GB | 2 GB | Quantized, mobile-friendly |
+| `v1-q8` | Brittney V1 Expert Q8 | ~1.2 GB | 3 GB | Better quality quantization |
 
-### Pro Tier (Proprietary - Coming Soon)
-
-| ID | Name | Size | Features |
-|----|------|------|----------|
-| `v2-pro` | Brittney V2 Pro | 4 GB | Enhanced generation, multi-world |
-| `v2-enterprise` | Brittney V2 Enterprise | 8 GB | Full training, custom fine-tuning |
+> **Note:** V1 Free IS the expert model. We're giving users the best quality - no artificial limitations.
 
 ## Integration with Brittney Desktop
 
@@ -124,10 +120,9 @@ pnpm verify --model v1-free --file ./models/brittney-v1-free.gguf
 
 MIT License - Free for personal and commercial use.
 
-The free V1 model is trained for:
-- HoloScript syntax and semantics
-- World building patterns
+The V1 Expert model is trained for:
+- HoloScript syntax and semantics (expert level)
+- World building patterns and best practices
 - VR/AR development concepts
-- Code completion and explanation
-
-For advanced features like custom fine-tuning, enterprise deployment, or extended training data, see our Pro tier.
+- Code completion, explanation, and debugging
+- Production-quality assistance

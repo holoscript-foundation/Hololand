@@ -13,27 +13,27 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const modelsDir = join(__dirname, '..', 'src-tauri', 'models');
 const modelPath = join(modelsDir, 'brittney-f16.gguf');
 
-// Model registry with GitHub releases URLs
+// Model registry with GitHub releases URLs - EXPERT MODEL (free!)
 const MODEL_REGISTRY = {
   'v1-free': {
-    name: 'Brittney V1 Free',
-    url: 'https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-free.gguf',
-    size: '2.0 GB',
-    sizeBytes: 2_147_483_648,
+    name: 'Brittney V1 Expert (Free)',
+    url: 'https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-expert.gguf',
+    size: '1.57 GB',
+    sizeBytes: 1_646_572_544,
     minMemory: '4 GB',
   },
   'v1-q4': {
-    name: 'Brittney V1 Q4 (Quantized)',
-    url: 'https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-q4.gguf',
-    size: '1.2 GB',
-    sizeBytes: 1_288_490_189,
+    name: 'Brittney V1 Expert Q4 (Quantized)',
+    url: 'https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-expert-q4.gguf',
+    size: '0.9 GB',
+    sizeBytes: 943_718_400,
     minMemory: '2 GB',
   },
   'v1-q8': {
-    name: 'Brittney V1 Q8',
-    url: 'https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-q8.gguf',
-    size: '1.6 GB',
-    sizeBytes: 1_717_986_918,
+    name: 'Brittney V1 Expert Q8',
+    url: 'https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-expert-q8.gguf',
+    size: '1.2 GB',
+    sizeBytes: 1_288_490_189,
     minMemory: '3 GB',
   },
 };
@@ -61,10 +61,10 @@ Options:
   --force, -f        Force re-download even if exists
   --help, -h         Show this help
 
-Models:
-  v1-free   Full precision (2.0 GB, needs 4 GB RAM)
-  v1-q4     Quantized (1.2 GB, needs 2 GB RAM) - mobile friendly
-  v1-q8     Better quality quantized (1.6 GB, needs 3 GB RAM)
+Models (all expert quality):
+  v1-free   Expert model (1.57 GB, needs 4 GB RAM) - RECOMMENDED
+  v1-q4     Quantized (0.9 GB, needs 2 GB RAM) - mobile friendly
+  v1-q8     Better quality quantized (1.2 GB, needs 3 GB RAM)
 `);
     process.exit(0);
   }
@@ -80,7 +80,7 @@ if (!model) {
 console.log(`
 ╔══════════════════════════════════════════════════╗
 ║     Brittney Desktop - Model Downloader          ║
-║           V1 Free - Production Ready             ║
+║      V1 Expert - Best Quality, Free Forever      ║
 ╚══════════════════════════════════════════════════╝
 
 📦 Model: ${model.name}

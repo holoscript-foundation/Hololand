@@ -88,25 +88,29 @@ jobs:
         id: notes
         run: |
           cat << 'EOF' > release-notes.md
-          # Brittney V${{ github.event.inputs.version }} - Free AI Model Release
+          # Brittney V${{ github.event.inputs.version }} - Expert Model (Free!)
           
-          🎉 **Brittney AI** is now available for free download!
+          🎉 **Brittney AI Expert** is now available for free download!
+          
+          > **No artificial limitations.** You get the same expert-quality model we use in production.
           
           ## Models Included
           
           | Model | Size | Description |
           |-------|------|-------------|
-          | `brittney-v1-free.gguf` | ~2.0 GB | Full precision, best quality |
-          | `brittney-v1-q4.gguf` | ~1.2 GB | Quantized, mobile-friendly |
-          | `brittney-v1-q8.gguf` | ~1.6 GB | Better quality quantization |
+          | `brittney-v1-expert.gguf` | 1.57 GB | Expert quality, best-in-class |
+          | `brittney-v1-expert-q4.gguf` | ~0.9 GB | Quantized, mobile-friendly |
+          | `brittney-v1-expert-q8.gguf` | ~1.2 GB | Balanced quality/speed |
           
           ## Features
           
-          - ✅ HoloScript syntax understanding
-          - ✅ Code completion & explanation
-          - ✅ World building assistance
-          - ✅ VR/AR development concepts
+          - ✅ HoloScript expert-level assistance
+          - ✅ Advanced code completion & generation
+          - ✅ World building mastery
+          - ✅ VR/AR development patterns
+          - ✅ Error diagnosis & fixes
           - ✅ 100% local - no cloud required
+          - ✅ MIT licensed - use commercially
           
           ## Quick Start
           
@@ -122,8 +126,8 @@ jobs:
           ```
           
           ### Direct Download
-          
-          ```bash
+          expert.gguf \
+            https://github.com/hololand/hololand/releases/download/${{ env.RELEASE_TAG }}/brittney-v1-expert
           curl -L -o brittney-v1-free.gguf \
             https://github.com/hololand/hololand/releases/download/${{ env.RELEASE_TAG }}/brittney-v1-free.gguf
           ```

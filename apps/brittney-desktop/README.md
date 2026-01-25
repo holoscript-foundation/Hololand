@@ -1,12 +1,12 @@
 # Brittney AI Desktop
 
-**V1 Free - Production Ready** 🎉
+**V1 Expert - Best Quality, Free Forever** 🎉
 
 Local-first AI assistant for HoloScript world building, packaged as a desktop application with Tauri.
 
 ## Features
 
-- 🤖 **Free AI Model** - Brittney V1 (2.0 GB) runs 100% locally
+- 🤖 **Expert AI Model** - Brittney V1 Expert (1.57 GB) - production quality, 100% free
 - 🔒 **No Cloud Required** - Works completely offline
 - 🔑 **Optional Cloud APIs** - Bring your own API keys for enhanced capabilities
 - 🎨 **Holographic UI** - Beautiful, responsive chat interface
@@ -19,10 +19,10 @@ Local-first AI assistant for HoloScript world building, packaged as a desktop ap
 # Install dependencies
 pnpm install
 
-# Download the free V1 model (~2 GB)
+# Download the expert model (1.57 GB, free!)
 pnpm download:model
 
-# For low-memory devices (1.2 GB quantized version)
+# For low-memory devices (0.9 GB quantized version)
 pnpm download:model:q4
 
 # Start development
@@ -36,8 +36,10 @@ pnpm tauri:build
 
 | Model | Command | Size | RAM Required |
 |-------|---------|------|--------------|
-| V1 Free (Full) | `pnpm download:model` | 2.0 GB | 4 GB |
-| V1 Q4 (Quantized) | `pnpm download:model:q4` | 1.2 GB | 2 GB |
+| V1 Expert (Full) | `pnpm download:model` | 1.57 GB | 4 GB |
+| V1 Expert Q4 (Quantized) | `pnpm download:model:q4` | 0.9 GB | 2 GB |
+
+> **Note:** V1 Expert is the same quality used in production. No artificial limitations - you get the best.
 
 ## Model Location
 
@@ -58,7 +60,7 @@ src-tauri/
 
 ```bash
 curl -L -o src-tauri/models/brittney-f16.gguf \
-  https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-free.gguf
+  https://github.com/hololand/hololand/releases/download/brittney-v1.0.0/brittney-v1-expert.gguf
 ```
 
 ### Using npx

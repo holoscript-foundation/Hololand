@@ -114,7 +114,7 @@ Example:
 console.log(`
 ╔══════════════════════════════════════════════════╗
 ║        Brittney AI - Model Downloader            ║
-║          Free V1 - Production Ready              ║
+║    V1 Expert - Best Quality, Free Forever        ║
 ╚══════════════════════════════════════════════════╝
 `);
 

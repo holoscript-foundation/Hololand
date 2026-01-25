@@ -45,25 +45,28 @@ const RELEASES_BASE = 'https://github.com/hololand/hololand/releases/download';
 
 /**
  * Model Registry - All available Brittney models
+ * 
+ * V1 Free IS the expert model - we're giving users the best quality.
  */
 export const MODEL_REGISTRY: Record<string, ModelInfo> = {
-  // ===== FREE TIER (MIT) =====
+  // ===== FREE TIER (MIT) - EXPERT MODEL =====
   
   'v1-free': {
     id: 'v1-free',
-    name: 'Brittney V1 Free',
+    name: 'Brittney V1 Expert (Free)',
     version: '1.0.0',
-    size: '2.0 GB',
-    sizeBytes: 2_147_483_648,
+    size: '1.57 GB',
+    sizeBytes: 1_646_572_544,
     checksum: 'sha256:pending-release', // Updated on release
-    downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-free.gguf`,
+    downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-expert.gguf`,
     license: 'MIT',
     features: [
-      'HoloScript syntax',
-      'Code completion',
-      'World building assistance',
-      'VR/AR concepts',
-      'Error explanation',
+      'HoloScript expert-level assistance',
+      'Advanced code completion',
+      'World building mastery',
+      'VR/AR development patterns',
+      'Error diagnosis & fixes',
+      'Best-in-class quality',
     ],
     minMemory: '4 GB',
     recommended: true,
@@ -75,16 +78,16 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
   
   'v1-q4': {
     id: 'v1-q4',
-    name: 'Brittney V1 Q4',
+    name: 'Brittney V1 Expert Q4',
     version: '1.0.0',
-    size: '1.2 GB',
-    sizeBytes: 1_288_490_189,
+    size: '0.9 GB',
+    sizeBytes: 943_718_400,
     checksum: 'sha256:pending-release',
-    downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-q4.gguf`,
+    downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-expert-q4.gguf`,
     license: 'MIT',
     features: [
-      'HoloScript syntax',
-      'Code completion (faster)',
+      'HoloScript expert assistance',
+      'Fast inference',
       'Mobile-optimized',
     ],
     minMemory: '2 GB',
@@ -96,17 +99,17 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
   
   'v1-q8': {
     id: 'v1-q8',
-    name: 'Brittney V1 Q8',
+    name: 'Brittney V1 Expert Q8',
     version: '1.0.0',
-    size: '1.6 GB',
-    sizeBytes: 1_717_986_918,
+    size: '1.2 GB',
+    sizeBytes: 1_288_490_189,
     checksum: 'sha256:pending-release',
-    downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-q8.gguf`,
+    downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-expert-q8.gguf`,
     license: 'MIT',
     features: [
-      'HoloScript syntax',
-      'Code completion',
+      'HoloScript expert assistance',
       'Better quality than Q4',
+      'Balanced speed/quality',
     ],
     minMemory: '3 GB',
     recommended: false,
