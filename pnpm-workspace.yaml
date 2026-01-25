@@ -6,6 +6,7 @@ packages:
   - packages/platform/*
   - packages/devtools/*
   - packages/shared/*
+  - packages/playground
   - examples/*
   # Proprietary packages (excluded from public repo):
   # - packages/adapters/unity
