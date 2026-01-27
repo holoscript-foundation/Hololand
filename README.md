@@ -92,12 +92,12 @@ HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn mor
 
 ## Why Hololand?
 
-- **One codebase** → Web, VR headsets, AR, mobile, desktop
-- **React components** → Build VR like you build web apps
-- **Voice & AI** → "Create a coffee shop" and watch it appear
-- **Physics included** → Gravity, collisions, interactions
-- **Native NPCs** → Define characters & dialogs directly in `.hsplus` *(New)*
-- **Source available** → Elastic License 2.0, build freely
+- **Powered by HoloScript** → Not a library or wrapper, but a full spatial programming language. [Learn more →](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/WHY_HOLOSCRIPT.md)
+- **One codebase** → Web, VR headsets, AR, mobile, desktop.
+- **AI-Native Building** → 99% reduction in boilerplate + higher accuracy from LLMs.
+- **Future-Proof** → Runtime independence ensures your experiences survive platform shifts.
+- **SQL of Spatial Computing** → Declarative, tool-agnostic, and compiler-optimized.
+- **Source available** → Elastic License 2.0, build freely.
 
 ## Examples
 

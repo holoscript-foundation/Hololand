@@ -1,0 +1,279 @@
+/**
+ * Pipeline Test Scene
+ *
+ * End-to-end test exercising every major rendering path:
+ *   - Environment presets (forest_sunset) with auto-lighting
+ *   - PBR materials (glass, metal, crystal, wood, emissive)
+ *   - Physics (@collidable static, @grabbable dynamic, @physics mass)
+ *   - GLTF model loading
+ *   - Additional light types (hemisphere, spot, point)
+ *   - Text elements
+ *   - Portal navigation
+ *   - Spatial groups & templates
+ *   - Sparkle particles
+ *   - Fog & atmosphere
+ */
+
+composition "Pipeline Test" {
+
+  // === ENVIRONMENT ===
+  environment {
+    preset: "forest_sunset"
+    fog: { color: "#2d1b4e", near: 15, far: 60 }
+    ambient_light: 0.25
+  }
+
+  state {
+    score: 0
+    orbs_collected: 0
+  }
+
+  // === TEMPLATE (top-level, state & actions only) ===
+  template "GrabbableBox" {
+    state {
+      grabbed_count: 0
+    }
+
+    action onGrab() {
+      self.grabbed_count += 1
+    }
+  }
+
+  // === GROUND ===
+  object "ground" {
+    mesh: "plane"
+    size: 40
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    @collidable
+    material: { preset: "wood", color: "#3a2a1a", roughness: 0.9 }
+  }
+
+  // === ADDITIONAL LIGHTS (as objects with type shorthand) ===
+  object "sky_hemi" {
+    type: "hemisphere"
+    intensity: 0.4
+    color: "#6699cc"
+    ground_color: "#443322"
+  }
+
+  object "accent_spot" {
+    type: "spot"
+    position: [0, 8, 0]
+    color: "#ff6600"
+    intensity: 2.0
+    angle: 0.4
+    penumbra: 0.5
+    cast_shadow: true
+  }
+
+  object "fill_point" {
+    type: "point"
+    position: [-5, 3, -5]
+    color: "#4488ff"
+    intensity: 1.0
+    distance: 15
+  }
+
+  // === PBR MATERIAL SHOWCASE ===
+  spatial_group "MaterialShowcase" {
+    position: [-6, 0, -3]
+
+    object "glass_orb" {
+      mesh: "sphere"
+      radius: 0.6
+      position: [0, 1.2, 0]
+      material: { preset: "glass", color: "#aaddff" }
+    }
+
+    object "chrome_sphere" {
+      mesh: "sphere"
+      radius: 0.5
+      position: [2, 1.0, 0]
+      material: { preset: "chrome" }
+    }
+
+    object "crystal_shard" {
+      mesh: "cone"
+      size: [0.4, 1.2, 0.4]
+      position: [4, 0.6, 0]
+      material: { preset: "crystal", color: "#ff88ff" }
+    }
+
+    object "gold_cube" {
+      mesh: "box"
+      size: [0.8, 0.8, 0.8]
+      position: [6, 0.5, 0]
+      material: { preset: "gold" }
+    }
+
+    object "emissive_torus" {
+      mesh: "torus"
+      size: [0.5, 0.15, 16, 32]
+      position: [8, 1.0, 0]
+      @bloom
+      material: {
+        color: "#00ffcc",
+        emissive: "#00ffcc",
+        emissiveIntensity: 0.8,
+        roughness: 0.3,
+        metalness: 0.6
+      }
+    }
+
+    object "showcase_label" {
+      type: "text"
+      position: [4, 2.5, 0]
+      text: "PBR Material Gallery"
+      font_size: 0.35
+      color: "#ffffff"
+    }
+  }
+
+  // === PHYSICS OBJECTS ===
+  spatial_group "PhysicsArea" {
+    position: [5, 0, -3]
+
+    object "platform" {
+      mesh: "box"
+      size: [4, 0.3, 4]
+      position: [0, 2, 0]
+      @collidable
+      material: { preset: "metal", color: "#555566" }
+    }
+
+    object "red_box" using "GrabbableBox" {
+      mesh: "box"
+      size: [0.5, 0.5, 0.5]
+      position: [0, 3.5, 0]
+      @grabbable
+      @collidable
+      @physics(mass: 1.0)
+      material: { color: "#e74c3c", roughness: 0.4, metalness: 0.1 }
+    }
+
+    object "green_box" using "GrabbableBox" {
+      mesh: "box"
+      size: [0.5, 0.5, 0.5]
+      position: [1, 3.5, 0]
+      @grabbable
+      @collidable
+      @physics(mass: 1.0)
+      material: { color: "#2ecc71", roughness: 0.4, metalness: 0.1 }
+    }
+
+    object "blue_box" using "GrabbableBox" {
+      mesh: "box"
+      size: [0.5, 0.5, 0.5]
+      position: [-1, 3.5, 0]
+      @grabbable
+      @collidable
+      @physics(mass: 1.0)
+      material: { color: "#3498db", roughness: 0.4, metalness: 0.1 }
+    }
+
+    object "physics_label" {
+      type: "text"
+      position: [0, 4.5, 0]
+      text: "Grab & Throw"
+      font_size: 0.3
+      color: "#ffcc00"
+    }
+  }
+
+  // === GLTF MODEL ===
+  spatial_group "ModelDisplay" {
+    position: [0, 0, 5]
+
+    object "display_model" {
+      model: "lamp_post"
+      position: [0, 0, 0]
+      scale: [1.5, 1.5, 1.5]
+      @collidable
+    }
+
+    object "model_label" {
+      type: "text"
+      position: [0, 3, 0]
+      text: "GLTF Model"
+      font_size: 0.25
+      color: "#88ff88"
+    }
+  }
+
+  // === PORTAL ===
+  object "exit_portal" {
+    position: [0, 0, -10]
+    @portal(destination: "/worlds/main-plaza")
+
+    object "portal_ring" {
+      mesh: "torus"
+      size: [1.5, 0.2, 16, 32]
+      material: {
+        color: "#22c55e",
+        emissive: "#22c55e",
+        emissiveIntensity: 0.5
+      }
+    }
+
+    object "portal_label" {
+      type: "text"
+      position: [0, 2.5, 0]
+      text: "Main Plaza"
+      font_size: 0.3
+      color: "#ffffff"
+    }
+  }
+
+  // === ANIMATED OBJECTS ===
+  object "floating_gem" {
+    mesh: "cone"
+    size: [0.3, 0.8, 0.3]
+    position: [3, 2, 3]
+    @animated
+    material: { preset: "crystal", color: "#44ddff" }
+  }
+
+  object "spinning_ring" {
+    mesh: "torus"
+    size: [0.6, 0.1, 16, 32]
+    position: [-3, 1.5, 3]
+    @animated(rotate: { speed: 1.5, axis: [0, 1, 0] })
+    material: { preset: "gold" }
+  }
+
+  object "pulsing_orb" {
+    mesh: "sphere"
+    radius: 0.4
+    position: [0, 1.5, -5]
+    @animated(pulse: { speed: 2, min: 0.8, max: 1.2 })
+    material: {
+      color: "#ff4488",
+      emissive: "#ff4488",
+      emissiveIntensity: 0.5
+    }
+  }
+
+  // === SPARKLE EFFECTS ===
+  object "ambient_sparkles" {
+    type: "sparkles"
+    position: [0, 3, 0]
+    count: 80
+    scale: 15
+    size: 2
+    speed: 0.3
+    color: "#ffddaa"
+  }
+
+  // === GAME LOGIC ===
+  logic {
+    on_enter {
+      show_notification("Pipeline Test Scene loaded.")
+    }
+
+    on_item_grabbed(item) {
+      state.score += 10
+      show_notification("Score: ${state.score}")
+    }
+  }
+}

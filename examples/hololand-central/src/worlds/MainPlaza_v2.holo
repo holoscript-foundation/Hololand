@@ -1,0 +1,80 @@
+{
+  "name": "MainPlaza_v2",
+  "imports": [
+    { "path": "./MainPlazaCompanion", "alias": "Hub" }
+  ],
+  "environment": {
+    "properties": [
+      { "key": "preset", "value": "city" },
+      { "key": "ambient_light", "value": 0.4 }
+    ]
+  },
+  "objects": [
+    {
+      "name": "CentralPlatform",
+      "properties": [
+        { "key": "geometry", "value": "cylinder" },
+        { "key": "args", "value": [15, 15, 0.5, 32] },
+        { "key": "position", "value": [0, -0.25, 0] },
+        { "key": "color", "value": "#1a1a1a" },
+        { "key": "materialProps", "value": { "metalness": 0.9, "roughness": 0.1 } }
+      ]
+    },
+    {
+      "name": "PillarOfLight",
+      "properties": [
+        { "key": "geometry", "value": "cylinder" },
+        { "key": "args", "value": [0.5, 0.5, 10, 32] },
+        { "key": "position", "value": [0, 5, 0] },
+        { "key": "color", "value": "#4facfe" },
+        { "key": "materialProps", "value": { "transparent": true, "opacity": 0.3, "emissive": "#4facfe", "emissiveIntensity": 1.0 } }
+      ]
+    },
+    {
+      "name": "ThemeChangerCube",
+      "properties": [
+        { "key": "geometry", "value": "box" },
+        { "key": "args", "value": [1.5, 1.5, 1.5] },
+        { "key": "position", "value": [-6, 1, 6] },
+        { "key": "color", "value": "#ff0080" }
+      ],
+      "traits": [
+        { "name": "grabbable", "config": true },
+        { "name": "hoverable", "config": true },
+        { "name": "gesture", "config": { 
+          "on_grab": "Hub.cycleTheme()",
+          "on_gesture_thumbs_up": "Hub.cycleTheme()"
+        } },
+        { "name": "haptic", "config": { "intensity": 0.8 } }
+      ]
+    },
+    {
+      "name": "Portals_Ring",
+      "properties": [
+        { "key": "position", "value": [0, 0, 0] }
+      ],
+      "children": [
+        {
+          "name": "ShopPortal",
+          "properties": [
+            { "key": "type", "value": "portal" },
+            { "key": "destination", "value": "/shop" },
+            { "key": "text", "value": "BUILDER SHOP" },
+            { "key": "color", "value": "#f093fb" },
+            { "key": "position", "value": [8, 1.5, 0] }
+          ]
+        },
+        {
+          "name": "SocialPortal",
+          "properties": [
+            { "key": "type", "value": "portal" },
+            { "key": "destination", "value": "/social" },
+            { "key": "text", "value": "SOCIAL LOUNGE" },
+            { "key": "color", "value": "#667eea" },
+            { "key": "position", "value": [-8, 1.5, 0] }
+          ]
+        }
+      ]
+    }
+  ]
+}

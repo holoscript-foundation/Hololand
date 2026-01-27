@@ -1,0 +1,56 @@
+# Hololand Main Plaza - Declarative Version
+# Powered by HoloScript + R3F
+
+environment #mainEnv {
+  name: "cyberpunk_city"
+  @bloom(intensity: 1.2)
+}
+
+# Central Platform
+cylinder #platform {
+  position: [0, 0, 0]
+  size: 15
+  color: "${theme.colors.secondary}"
+  @material(type: "pbr", metallic: 0.7, roughness: 0.3)
+  @animated(hover: true, magnitude: 0.1)
+}
+
+# Edge Glow
+torus #edgeGlow {
+  position: [0, 0.35, 0]
+  args: [15, 0.2, 16, 50]
+  color: "${theme.colors.primary}"
+  @material(type: "pbr", emission: "${theme.colors.primary}", emissionStrength: 0.8)
+}
+
+# Central Pillar
+cylinder #pillar {
+  position: [0, 2.5, 0]
+  args: [0.5, 0.8, 5, 32]
+  color: "${theme.colors.secondary}"
+  @material(type: "pbr", metallic: 0.8, roughness: 0.2)
+}
+
+# Portals
+template portal(name, color, pos) {
+  sphere#p {
+    position: pos
+    color: color
+    @hoverable(scale_on_hover: 1.2)
+    @on_click => navigate(name)
+  }
+}
+
+portal("shop", "#f093fb", [8, 2, 0])
+portal("social", "#667eea", [-8, 2, 0])
+portal("physics", "#4facfe", [0, 2, -8])
+portal("gallery", "#43e97b", [0, 2, 8])
+
+# Theme Changer
+cube#themeChanger {
+  position: [-6, 2, 6]
+  size: 1.5
+  color: "${theme.colors.accent1}"
+  @grabbable(snap_to_hand: true)
+  @on_click => cycleTheme()
+}
