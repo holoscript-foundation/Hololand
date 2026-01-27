@@ -439,6 +439,14 @@ Position-aware actions for the current cursor location.`,
         },
         diagnostics: {
           type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              code: { type: 'string' },
+              severity: { type: 'string' }
+            }
+          },
           description: 'Current diagnostics at this position (if known)',
         },
       },
@@ -591,9 +599,13 @@ export async function handleBrittneyIDETool(
               if (type === 'holo' || type === 'hsplus' || type === 'hs') {
                 try {
                   const content = fs.readFileSync(fullPath, 'utf-8');
-                  file.objects = [...content.matchAll(/(?:orb|object)\s+["']?(\w+)/g)].map(m => m[1]);
-                  file.templates = [...content.matchAll(/template\s+["'](\w+)/g)].map(m => m[1]);
-                  file.traits = [...new Set([...content.matchAll(/@(\w+)/g)].map(m => m[1]))];
+                  
+                  // Regex Helper Factory
+                  const extract = (pattern: RegExp) => [...content.matchAll(pattern)].map(m => m[1]);
+
+                  file.objects = extract(/(?:orb|object)\s+["']?(\w+)/g);
+                  file.templates = extract(/template\s+["'](\w+)/g);
+                  file.traits = [...new Set(extract(/@(\w+)/g))];
                 } catch {
                   file.errors = 1;
                 }

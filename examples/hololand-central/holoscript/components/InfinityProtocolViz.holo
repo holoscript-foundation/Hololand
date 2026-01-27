@@ -1,0 +1,33 @@
+@import "../../lib/infinity-protocol.hs"
+
+// The main visualization scene for the Infinity Protocol
+// Uses the components defined in the imported library
+component InfinityProtocolViz {
+  position: [0, 2, 0]
+  scale: 1
+  
+  // 1. The Central Phase Ring
+  ∞_phase_ring {
+    animated: true
+  }
+
+  // 2. The Compression Meter (Floating to the left)
+  // Bound to the CompressionMonitor system state
+  ∞_compression_meter {
+    position: [-4, 1, 0]
+    rotation: [0, 0.5, 0]
+    compression_percentage: @bind CompressionMonitor.state.percentage
+  }
+  
+  // 3. The Pipeline Visualization (Floating to the right)
+  ∞_compression_pipeline_viz {
+    position: [4, 1, 0]
+    rotation: [0, -0.5, 0]
+  }
+
+  // Interaction: Show philosophy on click center
+  @on_click "infinity_core" {
+    show_tooltip(∞_philosophy.core)
+    pulse("infinity_core", { color: "#FFD700", duration: 1000 })
+  }
+}

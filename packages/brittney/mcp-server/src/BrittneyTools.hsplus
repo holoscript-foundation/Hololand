@@ -376,6 +376,14 @@ const BRITTNEY_TOOLS: Tool[] = [
       }
     }
   }
+  {
+    name: "brittney_get_mesh_status",
+    description: "Get the current status of the MCP Mesh Orchestrator, including registered agents, servers, and system health.",
+    inputSchema: {
+      type: "object",
+      properties: {}
+    }
+  }
 ]
 
 // =============================================================================
@@ -423,9 +431,41 @@ module BrittneyToolHandler {
         
       case "brittney_take_screenshot":
         return this.takeScreenshot(args.format || "png", args.quality || 90)
+
+      case "brittney_get_mesh_status":
+        return this.getMeshStatus()
         
       default:
         throw new Error(`Unknown Brittney tool: ${toolName}`)
+    }
+  }
+  
+  // ... (previous handlers)
+
+  @method async getMeshStatus(): Promise<any> {
+    try {
+      // Direct call to orchestrator if reachable, or via proxy
+      const ORCHESTRATOR_URL = process.env.MCP_ORCHESTRATOR_URL || "http://localhost:5555"
+      
+      const [health, agents, servers] = await Promise.all([
+        fetch(`${ORCHESTRATOR_URL}/health`).then(r => r.json()).catch(e => ({ error: e.message })),
+        fetch(`${ORCHESTRATOR_URL}/agents`).then(r => r.json()).catch(e => ({ error: e.message })),
+        fetch(`${ORCHESTRATOR_URL}/servers`).then(r => r.json()).catch(e => ({ error: e.message }))
+      ])
+
+      return {
+        orchestrator_url: ORCHESTRATOR_URL,
+        health,
+        agents: agents.agents || [],
+        servers: servers.servers || [],
+        timestamp: new Date().toISOString()
+      }
+    } catch (error: any) {
+        return {
+            status: "error",
+            message: "Failed to query mesh orchestrator",
+            error: error.message
+        }
     }
   }
   

@@ -8,10 +8,12 @@ import { HololandCasino } from './worlds/HololandCasino';
 import { SocialLounge } from './worlds/SocialLounge';
 import { BuilderShop } from './worlds/BuilderShop';
 import { InfinityShop } from './worlds/InfinityShop';
+import { PhysicsLab } from './worlds/PhysicsLab';
 import './styles.css';
 
 // World types for navigation
-type WorldView = 'landing' | 'oasis' | 'central' | 'plaza' | 'casino' | 'lounge' | 'builder' | 'arcade' | 'infinity';
+type WorldView = 'landing' | 'oasis' | 'central' | 'plaza' | 'casino' | 'lounge' | 'builder' | 'arcade' | 'infinity' | 'physics';
+
 
 // Building configuration with HoloScript zones
 const BUILDINGS = [
@@ -21,6 +23,7 @@ const BUILDINGS = [
   { id: 'builder', name: 'Builder Shop', icon: '🛠️', description: 'Create worlds with HoloScript', color: 'green', holoZone: null },
   { id: 'arcade', name: 'Arcade District', icon: '🎮', description: "Brian's Gym & Games", color: 'yellow', holoZone: 'arcade_district.hsplus' },
   { id: 'pinball', name: 'Pinball Plus', icon: '🕹️', description: "Native Logic Demo", color: 'pink', holoZone: 'Pinball_Plus.hsplus' },
+  { id: 'physics', name: 'Physics Lab', icon: '⚛️', description: 'Experimental Gravity Chamber', color: 'orange', holoZone: null },
   { id: 'plaza', name: 'Main Plaza', icon: '🏛️', description: 'Central gathering place', color: 'blue', holoZone: 'central_plaza.hsplus' },
 ];
 
@@ -138,7 +141,7 @@ function App() {
   }
 
   // 3D World Views (HoloScript-powered or React components)
-  if (['plaza', 'casino', 'lounge', 'builder', 'arcade', 'infinity'].includes(currentView)) {
+  if (['plaza', 'casino', 'lounge', 'builder', 'arcade', 'infinity', 'physics'].includes(currentView)) {
     const building = BUILDINGS.find(b => b.id === currentView);
     
     return (
@@ -175,6 +178,7 @@ function App() {
               {currentView === 'lounge' && <SocialLounge />}
               {currentView === 'builder' && <BuilderShop />}
               {currentView === 'infinity' && <InfinityShop />}
+              {currentView === 'physics' && <PhysicsLab />}
             </>
           )}
           

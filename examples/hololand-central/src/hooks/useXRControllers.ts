@@ -27,6 +27,7 @@ interface XRControllerState {
 interface XRControllersResult {
   left: XRControllerState | null;
   right: XRControllerState | null;
+  head: { position: THREE.Vector3; rotation: THREE.Quaternion } | null;
   isPresenting: boolean;
   headsetType: 'quest' | 'vision-pro' | 'generic' | 'none';
 }
@@ -50,6 +51,7 @@ export function useXRControllers(): XRControllersResult {
   const [headsetType, setHeadsetType] = useState<'quest' | 'vision-pro' | 'generic' | 'none'>('none');
   const [left, setLeft] = useState<XRControllerState | null>(null);
   const [right, setRight] = useState<XRControllerState | null>(null);
+  const [head, setHead] = useState<{ position: THREE.Vector3; rotation: THREE.Quaternion } | null>(null);
 
   // Detect headset type
   useEffect(() => {
@@ -88,6 +90,7 @@ export function useXRControllers(): XRControllersResult {
     if (!isPresenting) {
       setLeft(null);
       setRight(null);
+      setHead(null);
       return;
     }
 
@@ -98,13 +101,21 @@ export function useXRControllers(): XRControllersResult {
       if (rightController?.inputSource?.gamepad) {
         setRight(parseGamepad(rightController, 'right', headsetType));
       }
+      
+      // Get head pose from camera group (XR reference space)
+      // In @react-three/xr, the camera position/rotation represents head
+      // This is a simplified approach - full impl would use XRFrame.getViewerPose
+      setHead({
+        position: new THREE.Vector3(0, 1.6, 0), // Placeholder - real impl gets from viewer pose
+        rotation: new THREE.Quaternion(),
+      });
     };
 
     const interval = setInterval(updateStates, 16); // ~60fps
     return () => clearInterval(interval);
   }, [isPresenting, leftController, rightController, headsetType]);
 
-  return { left, right, isPresenting, headsetType };
+  return { left, right, head, isPresenting, headsetType };
 }
 
 function parseGamepad(

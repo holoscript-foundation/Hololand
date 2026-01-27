@@ -1,0 +1,39 @@
+// CompressionStats.hsplus
+// Native monitoring logic for the Infinity Protocol
+
+@system CompressionMonitor {
+  // Public state exposed to UI
+  state: {
+    percentage: 85
+    breakdown: {
+      l1: 400
+      l2: 100
+      l3: 150
+      l4: 50
+      l5: 150
+    }
+    history: [82, 84, 83, 85, 86, 85, 85]
+  }
+
+  // Simulation loop (runs every 2 seconds)
+  @on_tick(2000) {
+    // 1. Calculate random fluctuation (+/- 1%)
+    local fluctuation = Math.floor(Math.random() * 3) - 1
+    local newPercentage = this.state.percentage + fluctuation
+
+    // 2. Clamp values to protocol limits (76% - 93%)
+    if (newPercentage < 76) newPercentage = 76
+    if (newPercentage > 93) newPercentage = 93
+
+    // 3. Update history (keep last 10 points)
+    // Note: HoloScript array operations
+    local newHistory = [...this.state.history.slice(1), newPercentage]
+
+    // 4. Update reactive state (notify listeners)
+    this.state.percentage = newPercentage
+    this.state.history = newHistory
+    
+    // 5. Emit event for debug logging
+    emit("compression_update", { percent: newPercentage })
+  }
+}

@@ -1,7 +1,19 @@
 {
   "name": "Hololand MCP Servers",
-  "description": "VR platform development with AI assistance",
-  "version": "1.0.0",
+  "description": "VR platform development with AI assistance - Quantum MCP Mesh Connected",
+  "version": "2.0.0",
+  
+  "mesh": {
+    "enabled": true,
+    "orchestratorUrl": "http://localhost:5555",
+    "workspaceId": "hololand",
+    "autoRegister": true,
+    "syncKnowledge": true,
+    "visibility": "public",
+    "allowExternalAccess": true,
+    "exposeToNetwork": true,
+    "publicEndpoint": "https://hololand.io/mcp"
+  },
   
   "servers": {
     "hololand": {
@@ -14,7 +26,8 @@
       "env": {
         "HOLOLAND_API_URL": "http://localhost:3000",
         "BRITTNEY_SERVICE_URL": "http://localhost:11435",
-        "BRITTNEY_ADMIN_KEY": "mcp-localhost-trusted"
+        "BRITTNEY_ADMIN_KEY": "mcp-localhost-trusted",
+        "MCP_MESH_URL": "http://localhost:5555"
       },
       "capabilities": {
         "tools": true,
@@ -30,9 +43,37 @@
       "command": "npx",
       "args": ["tsx", "../HoloScript/packages/mcp-server/src/index.ts"],
       "cwd": "${workspaceFolder}/../HoloScript",
+      "env": {
+        "MCP_MESH_URL": "http://localhost:5555"
+      },
       "capabilities": {
         "tools": true,
         "resources": false,
+        "prompts": false
+      }
+    },
+    
+    "mesh-orchestrator": {
+      "name": "Quantum MCP Mesh Orchestrator",
+      "description": "Global service coordination, federated knowledge, cross-workspace tools",
+      "type": "http",
+      "url": "http://localhost:5555",
+      "healthCheck": "http://localhost:5555/health"
+    },
+    
+    "ai-workspace": {
+      "name": "AI_Workspace Knowledge Hub",
+      "description": "Patterns, wisdom, gotchas, UAA2++ protocol access via mesh",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/mcp/index.ts"],
+      "cwd": "${workspaceFolder}/../AI_Workspace",
+      "env": {
+        "MCP_MESH_URL": "http://localhost:5555"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": true,
         "prompts": false
       }
     }
@@ -105,6 +146,18 @@
         "brittney_performance_monitor",
         "brittney_get_browser_state",
         "brittney_get_console_logs"
+      ]
+    },
+    "knowledge": {
+      "name": "AI_Workspace Knowledge",
+      "description": "Query patterns, wisdom, and gotchas from federated knowledge base",
+      "tools": [
+        "query_patterns",
+        "query_wisdom",
+        "query_gotchas",
+        "list_protocol_phases",
+        "list_research",
+        "get_training_stats"
       ]
     }
   }

@@ -21,6 +21,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { sharedDataBridge } from './shared-data-bridge.js';
 import { createInferenceClient, type InferenceClient, type ChatMessage } from '@hololand/inference';
+import { holohub } from './holohub-service.js';
 
 // =============================================================================
 // INFERENCE CLIENT (Uses Ollama + BYOK providers)
@@ -98,9 +99,12 @@ async function callBrittneyService(
         role: 'system',
         content: `You are Brittney, a HoloScript and VR development expert. You help with:
 - HoloScript code generation and debugging
+- **Smart Asset Creation (.hsa files)**
 - Performance optimization for VR/AR
 - Understanding and fixing runtime errors
 - Explaining Hololand concepts
+
+IMPORTANT: When the user asks for an object (e.g. "lamp", "chair", "turret"), always check if a Smart Asset is available in HoloHub using 'brittney_search_holohub' BEFORE generating code. Content > Code.
 
 Respond concisely and provide code examples when helpful.`,
       });
@@ -494,6 +498,34 @@ export const brittneyTools: Tool[] = [
       },
       required: ['description'],
     },
+  },
+
+  {
+    name: 'brittney_create_smart_asset',
+    description: 'Create a new Smart Asset (.hsa) structure. Returns the JSON descriptor for a Smart Asset including metadata, physics, and AI properties. Use this when the user asks to "package" or "create an asset".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Name of the asset' },
+        description: { type: 'string', description: 'Description of the asset' },
+        type: { type: 'string', enum: ['prop', 'npc', 'interactive', 'vehicle'], description: 'Type of asset' },
+        instructions: { type: 'string', description: 'Specific instructions for the logic/behavior' }
+      },
+      required: ['name', 'description']
+    }
+  },
+
+
+  {
+    name: 'brittney_search_holohub',
+    description: 'Search the HoloHub marketplace for high-quality Smart Assets (.hsa). Returns a list of assets matching the query. Use this BEFORE generating code to see if a pre-made asset exists.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search terms (e.g. "lamp", "turret", "furniture")' }
+      },
+      required: ['query']
+    }
   },
 
   {
@@ -933,6 +965,68 @@ export async function handleBrittneyTool(
           ],
           isError: !result.success,
         };
+      }
+
+      case 'brittney_generate_holoscript_code': {
+        const response = await callBrittneyService(
+          `Generate HoloScript for: ${String(args.description)} (Category: ${args.category || 'general'})`,
+          {
+            systemPrompt: `You are a HoloScript generator. Generate ONLY valid HoloScript code. Do not include markdown code blocks or explanations. Use the following context to ensure valid syntax.`,
+            browserContext: args.browserContext as BrittneyBrowserContext,
+          }
+        );
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: response.response || '// Error generating code',
+            },
+          ],
+        };
+      }
+
+      case 'brittney_create_smart_asset': {
+        const prompt = `Create a Smart Asset JSON descriptor for:
+Name: ${args.name}
+Type: ${args.type}
+Description: ${args.description}
+Instructions: ${args.instructions || 'Standard behavior'}
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "metadata": { "name": string, "version": "1.0.0", "description": string },
+  "script": string (HoloScript code),
+  "physics": { "mass": number, "colliderType": "box"|"sphere" },
+  "ai": { "personality": string }
+}`;
+
+        const response = await callBrittneyService(prompt, {
+          systemPrompt: `You are an expert Smart Asset creator. Generate valid JSON for the requested asset.`
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: response.response || '{}'
+            }
+          ]
+        }
+      }
+
+
+
+      case 'brittney_search_holohub': {
+        const assets = await holohub.search(String(args.query));
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(assets, null, 2)
+            }
+          ]
+        }
       }
 
       case 'brittney_suggest_fix': {
