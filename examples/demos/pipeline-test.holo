@@ -6,12 +6,22 @@
  *   - PBR materials (glass, metal, crystal, wood, emissive)
  *   - Physics (@collidable static, @grabbable dynamic, @physics mass)
  *   - GLTF model loading
- *   - Additional light types (hemisphere, spot, point)
- *   - Text elements
+ *   - First-class light blocks (light "name" type { ... })
+ *   - First-class effects block (effects { bloom { ... } })
+ *   - First-class camera block (camera perspective { ... })
+ *   - Text elements with bind() reactive expressions
  *   - Portal navigation
- *   - Spatial groups & templates
+ *   - Spatial groups with at [x,y,z] shorthand
+ *   - Template trait merging (@trait inside templates)
  *   - Sparkle particles
  *   - Fog & atmosphere
+ *   - Animation timelines (sequenced choreography)
+ *   - Spatial constraints (@attach, @orbit, @look_at, @follow)
+ *   - Audio blocks (spatial & global)
+ *   - Interaction zones (trigger volumes)
+ *   - UI/HUD overlay
+ *   - Scene transitions
+ *   - Conditional & iterative rendering
  */
 
 composition "Pipeline Test" {
@@ -28,8 +38,46 @@ composition "Pipeline Test" {
     orbs_collected: 0
   }
 
-  // === TEMPLATE (top-level, state & actions only) ===
+  // === FIRST-CLASS LIGHT BLOCKS ===
+  light "rim_light" directional {
+    color: "#ffaa44"
+    intensity: 0.8
+    position: [-10, 15, -10]
+    cast_shadow: true
+  }
+
+  light "fill_area" area {
+    color: "#8888ff"
+    intensity: 1.2
+    position: [5, 4, 0]
+  }
+
+  // === FIRST-CLASS EFFECTS BLOCK ===
+  effects {
+    bloom {
+      intensity: 1.5
+      luminanceThreshold: 0.2
+    }
+    vignette {
+      darkness: 0.5
+      offset: 0.3
+    }
+  }
+
+  // === FIRST-CLASS CAMERA BLOCK ===
+  camera perspective {
+    fov: 75
+    position: [0, 5, 15]
+    look_at: [0, 0, 0]
+    near: 0.1
+    far: 1000
+  }
+
+  // === TEMPLATE WITH @TRAIT (trait merging) ===
   template "GrabbableBox" {
+    @grabbable
+    @physics(mass: 1.0)
+
     state {
       grabbed_count: 0
     }
@@ -181,10 +229,8 @@ composition "Pipeline Test" {
     }
   }
 
-  // === GLTF MODEL ===
-  spatial_group "ModelDisplay" {
-    position: [0, 0, 5]
-
+  // === GLTF MODEL (with "at" position shorthand) ===
+  spatial_group "ModelDisplay" at [0, 0, 5] {
     object "display_model" {
       model: "lamp_post"
       position: [0, 0, 0]
@@ -254,6 +300,49 @@ composition "Pipeline Test" {
     }
   }
 
+  // === BIND EXPRESSION (reactive data binding) ===
+  object "score_display" {
+    type: "text"
+    position: [0, 6, 0]
+    text: bind(state.score)
+    font_size: 0.5
+    color: "#ffdd00"
+  }
+
+  // === SPATIAL CONSTRAINT TRAITS ===
+  object "orbiting_moon" {
+    mesh: "sphere"
+    radius: 0.3
+    position: [3, 3, 0]
+    @orbit(target: "pulsing_orb", radius: 2, speed: 0.5)
+    material: { color: "#cccccc", roughness: 0.7 }
+  }
+
+  object "attached_label" {
+    type: "text"
+    position: [0, 0.5, 0]
+    text: "Attached"
+    font_size: 0.2
+    color: "#ffffff"
+    @attach(target: "floating_gem", offset: [0, 0.8, 0])
+  }
+
+  object "follower_drone" {
+    mesh: "box"
+    size: [0.3, 0.15, 0.3]
+    position: [0, 3, 0]
+    @follow(target: "player", speed: 2.0, distance: 3)
+    material: { color: "#4488ff", metalness: 0.8, roughness: 0.2 }
+  }
+
+  object "watching_turret" {
+    mesh: "cylinder"
+    size: [0.3, 0.6, 0.3]
+    position: [8, 0.3, 8]
+    @look_at(target: "player")
+    material: { preset: "metal", color: "#666666" }
+  }
+
   // === SPARKLE EFFECTS ===
   object "ambient_sparkles" {
     type: "sparkles"
@@ -263,6 +352,288 @@ composition "Pipeline Test" {
     size: 2
     speed: 0.3
     color: "#ffddaa"
+  }
+
+  // === SEMANTIC EXPANSION: PHYSICS ===
+  spatial_group "PhysicsExpansion" at [-10, 0, 8] {
+    object "silk_curtain" {
+      mesh: "plane"
+      size: [3, 4, 1]
+      position: [0, 2, 0]
+      @cloth(stiffness: 0.8, damping: 0.1, gravity: true)
+      material: { color: "#cc4488", roughness: 0.7 }
+    }
+
+    object "water_sphere" {
+      mesh: "sphere"
+      radius: 1.0
+      position: [4, 1.5, 0]
+      @fluid(viscosity: 0.5, particle_count: 2000, surface_tension: 0.7)
+      material: { color: "#2288cc", transmission: 0.8 }
+    }
+
+    object "breakable_wall" {
+      mesh: "box"
+      size: [3, 2, 0.3]
+      position: [8, 1, 0]
+      @destruction(threshold: 50, fragments: 12, explosion_force: 5)
+      @collidable
+      material: { color: "#887766", roughness: 0.9 }
+    }
+
+    object "hanging_chain" {
+      mesh: "cylinder"
+      size: [0.05, 2, 0.05]
+      position: [0, 3, 3]
+      @chain(segments: 10, stiffness: 0.9)
+      material: { preset: "metal", color: "#888888" }
+    }
+
+    object "floating_crate" {
+      mesh: "box"
+      size: [0.8, 0.8, 0.8]
+      position: [4, 0.5, 4]
+      @buoyancy(fluid_density: 1000, fluid_level: 0)
+      @physics(mass: 5)
+      material: { color: "#aa7744", roughness: 0.8 }
+    }
+
+    object "wind_source" {
+      mesh: "cone"
+      size: [0.3, 0.5, 0.3]
+      position: [-2, 1, 0]
+      @wind(strength: 5, turbulence: 0.3, direction: [1, 0, 0])
+      material: { color: "#aaddff" }
+    }
+  }
+
+  // === SEMANTIC EXPANSION: VOLUMETRIC CONTENT ===
+  spatial_group "VolumetricShowcase" at [10, 0, 8] {
+    object "splat_tree" {
+      mesh: "sphere"
+      radius: 1.5
+      position: [0, 1.5, 0]
+      @gaussian_splat(src: "tree_scan.ply", quality: "high", splat_count: 100000)
+    }
+
+    object "neural_room" {
+      mesh: "box"
+      size: [3, 3, 3]
+      position: [4, 1.5, 0]
+      @nerf(model: "room_capture.nf", resolution: 512, render_mode: "realtime")
+    }
+
+    object "lidar_scan" {
+      mesh: "sphere"
+      radius: 2
+      position: [8, 1, 0]
+      @point_cloud(src: "terrain_scan.las", point_size: 2, color_mode: "rgb")
+    }
+  }
+
+  // === SEMANTIC EXPANSION: INPUT & TRACKING ===
+  spatial_group "InputShowcase" at [0, 0, -15] {
+    object "gaze_target" {
+      mesh: "sphere"
+      radius: 0.3
+      position: [0, 1.5, 0]
+      @eye_tracking(dwell_time: 500, highlight: true)
+      material: { color: "#ff8800", emissive: "#ff8800", emissiveIntensity: 0.3 }
+    }
+
+    object "hand_anchor" {
+      mesh: "box"
+      size: [0.1, 0.1, 0.1]
+      position: [1, 1.2, 0]
+      @hand_tracking(hand: "right", joint: "index_tip")
+      material: { color: "#00ccff" }
+    }
+
+    object "body_avatar" {
+      model: "avatar_base"
+      position: [3, 0, 0]
+      @body_tracking(skeleton: "full", retarget: true)
+    }
+
+    object "voice_orb" {
+      mesh: "sphere"
+      radius: 0.4
+      position: [-2, 1.5, 0]
+      @voice_command(commands: ["activate", "deactivate", "change_color"])
+      material: { color: "#44ff44", emissive: "#44ff44", emissiveIntensity: 0.2 }
+    }
+  }
+
+  // === SEMANTIC EXPANSION: SPATIAL AUDIO ===
+  spatial_group "AudioExpansion" at [-8, 0, -8] {
+    object "reverb_room" {
+      mesh: "box"
+      size: [6, 3, 6]
+      position: [0, 1.5, 0]
+      @reverb_zone(decay_time: 2.5, room_size: "large", diffusion: 0.8)
+      material: { color: "#554466", roughness: 0.6 }
+    }
+
+    object "hrtf_speaker" {
+      mesh: "cylinder"
+      size: [0.2, 0.4, 0.2]
+      position: [3, 1, 0]
+      @hrtf(profile: "default", distance_model: "inverse")
+      material: { color: "#333333", metalness: 0.9 }
+    }
+  }
+
+  // === SEMANTIC EXPANSION: ACCESSIBILITY ===
+  object "accessible_button" {
+    mesh: "box"
+    size: [1, 0.5, 0.1]
+    position: [12, 1.2, 0]
+    @accessible(role: "button", label: "Start Game")
+    @alt_text(description: "A large red button to start the game")
+    @high_contrast(enabled: true)
+    @grabbable
+    material: { color: "#cc2222", roughness: 0.3 }
+  }
+
+  // === SEMANTIC EXPANSION: ENVIRONMENT UNDERSTANDING ===
+  object "ar_surface" {
+    mesh: "plane"
+    size: 10
+    position: [0, 0, 20]
+    @plane_detection(mode: "horizontal", min_area: 0.5)
+    @light_estimation(mode: "ambient_intensity")
+    material: { color: "#ffffff", opacity: 0.1 }
+  }
+
+  object "world_anchor" {
+    mesh: "sphere"
+    radius: 0.1
+    position: [0, 1, 20]
+    @anchor(type: "world")
+    @persistent_anchor(cloud_id: "scene_origin_001")
+  }
+
+  // === ANIMATION TIMELINE ===
+  timeline "intro_sequence" {
+    autoplay: true
+    loop: false
+    0.0: animate "camera" { position: [0, 10, 20] }
+    1.5: animate "score_display" { opacity: 1.0 }
+    3.0: emit "scene_ready"
+    4.0: play_sound("intro_chime")
+  }
+
+  timeline "ambient_loop" {
+    loop: true
+    0.0: animate "floating_gem" { position: [3, 2.5, 3] }
+    2.0: animate "floating_gem" { position: [3, 1.5, 3] }
+    4.0: animate "floating_gem" { position: [3, 2.5, 3] }
+  }
+
+  // === AUDIO BLOCKS ===
+  audio "bg_music" {
+    src: "forest_ambience.mp3"
+    volume: 0.6
+    loop: true
+    spatial: false
+  }
+
+  audio "waterfall_sfx" {
+    src: "waterfall.ogg"
+    position: [10, 2, -5]
+    volume: 1.0
+    spatial: true
+    distance: 15
+    rolloff: 1.5
+  }
+
+  // === INTERACTION ZONES ===
+  zone "spawn_zone" {
+    shape: "box"
+    size: [10, 5, 10]
+    position: [0, 2.5, 0]
+
+    on_enter {
+      show_notification("Welcome to the test scene!")
+    }
+
+    on_exit {
+      show_notification("Leaving spawn area")
+    }
+  }
+
+  zone "secret_area" {
+    shape: "sphere"
+    radius: 3
+    position: [15, 1.5, 15]
+
+    on_enter(player) {
+      state.score += 50
+      show_notification("Secret area found!")
+    }
+  }
+
+  // === UI/HUD OVERLAY ===
+  ui {
+    element "health_bar" {
+      type: "progress"
+      position: [10, 10]
+      size: [200, 20]
+      value: bind(state.score)
+      max: 100
+      color: "#ff4444"
+    }
+
+    element "fps_counter" {
+      type: "text"
+      position: [10, 40]
+      text: "FPS: 60"
+      font_size: 14
+      color: "#00ff00"
+    }
+
+    element "minimap" {
+      type: "panel"
+      position: [580, 10]
+      size: [200, 200]
+      background: "#00000088"
+    }
+  }
+
+  // === SCENE TRANSITIONS ===
+  transition "fade_to_plaza" {
+    target: "/worlds/main-plaza"
+    effect: "fade"
+    duration: 1.5
+    color: "#000000"
+  }
+
+  transition "warp_to_arena" {
+    target: "/worlds/arena"
+    effect: "warp"
+    duration: 0.8
+    intensity: 2.0
+  }
+
+  // === CONDITIONAL RENDERING ===
+  if state.debug_mode {
+    object "debug_grid" {
+      mesh: "plane"
+      size: 100
+      position: [0, 0.01, 0]
+      rotation: [-90, 0, 0]
+      material: { color: "#00ff00", opacity: 0.1 }
+    }
+  }
+
+  // === FOR-EACH RENDERING ===
+  for item in state.inventory {
+    object "inventory_item" {
+      mesh: "box"
+      size: [0.3, 0.3, 0.3]
+      position: [0, 0, 0]
+      material: { color: "#ffaa00" }
+    }
   }
 
   // === GAME LOGIC ===
