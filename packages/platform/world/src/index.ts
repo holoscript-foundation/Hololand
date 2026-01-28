@@ -45,6 +45,9 @@ export {
 // Types
 export type { Vector3, Quaternion, BoundingBox, Transform } from './types';
 
+// Physics joints and ragdoll (merged from @holoscript/physics-joints)
+export * from './PhysicsJoints';
+
 // Constants
 export const HOLOLAND_WORLD_VERSION = '1.0.0-alpha.1';
 
@@ -98,6 +101,9 @@ export function vectorScale(v: import('./types').Vector3, scalar: number): impor
 import { HololandWorld } from './HololandWorld';
 import { SpatialObject } from './SpatialObject';
 import { PhysicsEngine } from './PhysicsEngine';
+export * from './PhysicsEngine';
+export * from './types';
+export * from './PhysicsExpansionBridge';
 import { SpatialIndex } from './SpatialIndex';
 import { EventBus } from './EventBus';
 import { NPCSystem } from './systems/NPCSystem';

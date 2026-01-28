@@ -34,6 +34,14 @@ const HoloScriptCodeParser = holoscriptCore.HoloScriptCodeParser;
 const HOLOSCRIPT_DEMO_SCRIPTS = holoscriptCore.HOLOSCRIPT_DEMO_SCRIPTS;
 const HOLOSCRIPT_VERSION = holoscriptCore.HOLOSCRIPT_VERSION;
 
+// Mesh registration with central orchestrator (optional — loaded lazily)
+let MeshClient: any = null;
+try {
+  MeshClient = require('@infinitus/shared').MeshClient;
+} catch {
+  // @infinitus/shared not installed — mesh features disabled
+}
+
 /**
  * Hololand API Client
  */
@@ -807,6 +815,32 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Hololand MCP Server running on stdio');
+
+  // Register with central MCP orchestrator mesh (if configured and @infinitus/shared available)
+  const orchestratorUrl = process.env.MCP_ORCHESTRATOR_URL;
+  const apiKey = process.env.MCP_API_KEY;
+
+  if (orchestratorUrl && apiKey && MeshClient) {
+    const toolNames = tools.map((t: Tool) => t.name);
+    const meshClient = new MeshClient({
+      orchestratorUrl,
+      apiKey,
+      serviceId: 'hololand-mcp',
+      serviceName: 'Hololand VR/AR MCP Server',
+      workspace: 'hololand',
+      tools: toolNames,
+    });
+
+    const registered = await meshClient.register();
+    if (registered) {
+      console.error(`[Mesh] Registered ${toolNames.length} tools with orchestrator`);
+    }
+
+    process.on('SIGINT', async () => {
+      await meshClient.deregister();
+      process.exit(0);
+    });
+  }
 }
 
 main().catch((error) => {

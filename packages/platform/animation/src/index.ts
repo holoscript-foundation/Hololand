@@ -717,6 +717,22 @@ export class AnimationSystem {
 }
 
 // =============================================================================
+// EMOTION DIRECTIVE PROCESSOR
+// =============================================================================
+
+export {
+  EmotionDirectiveProcessor,
+  createEmotionDirectiveProcessor,
+} from './EmotionDirectiveProcessor';
+
+export type {
+  MorphTargetApplicator,
+  AnimationClipResolver,
+  EmotionDirectiveProcessorConfig,
+  EmotionDirectiveProcessorState,
+} from './EmotionDirectiveProcessor';
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 

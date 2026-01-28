@@ -22,6 +22,7 @@
   "dependencies": {
     "@hololand/core": "workspace:*",
     "@hololand/inference": "workspace:*",
+    "@infinitus/shared": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "axios": "^1.7.9",
     "zod": "^3.24.1"

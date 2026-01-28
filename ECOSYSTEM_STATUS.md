@@ -2,7 +2,7 @@
 
 **Everything you need to build VR/AR experiences.**
 
-*Last Updated: January 22, 2026*
+*Last Updated: January 27, 2026*
 
 ---
 
@@ -25,9 +25,18 @@
 | [@hololand/builder](./packages/builder) | Drag-drop world creation | ✅ Ready |
 | @hololand/commerce | Shops & payments | 🔒 Proprietary |
 | [@hololand/social](./packages/social) | Friends & avatars | ✅ Ready |
-| [@hololand/network](./packages/network) | Multiplayer | ✅ Ready |
-| [@hololand/audio](./packages/audio) | 3D sound | ✅ Ready |
-| [@hololand/animation](./packages/animation) | Movement & motion | ✅ Ready |
+| [@hololand/network](./packages/network) | Multiplayer + CRDT state sync + WebRTC | ✅ Ready |
+| [@hololand/audio](./packages/audio) | 3D sound + lip sync + avatar embodiment pipeline | ✅ Ready |
+| [@hololand/animation](./packages/animation) | Skeletal animation + IK solvers + emotion directives | ✅ Ready |
+| [@hololand/haptics](./packages/platform/haptics) | Haptic feedback for controllers & wearables | ✅ NEW |
+| [@hololand/navigation](./packages/platform/navigation) | Pathfinding, flow fields, crowd simulation | ✅ NEW |
+| [@hololand/pcg](./packages/platform/pcg) | Procedural generation - noise, terrain, dungeons, WFC | ✅ NEW |
+| [@hololand/portals](./packages/platform/portals) | VR portals, teleportation, scene transitions | ✅ NEW |
+| [@hololand/accessibility](./packages/platform/accessibility) | W3C XR accessibility, screen readers, motor | ✅ NEW |
+| [@hololand/lod](./packages/platform/lod) | Level of Detail, frustum/occlusion culling | ✅ NEW |
+| [@hololand/voice](./packages/platform/voice) | Speech recognition (STT) and text-to-speech (TTS) | ✅ NEW |
+| [@hololand/gestures](./packages/platform/gestures) | Hand/body gesture recognition, emotion detection | ✅ NEW |
+| [@hololand/streaming](./packages/platform/streaming) | Asset streaming, caching, predictive preloading | ✅ NEW |
 
 ### AR/VRR (Reality Features)
 
@@ -151,9 +160,9 @@ Your App
 
 ## 📊 Quick Stats
 
-- **34 packages** in Hololand platform repo (public)
+- **43 packages** in Hololand platform repo (public)
 - **4 packages** proprietary (available via enterprise license)
-- **14 packages** in HoloScript language repo
+- **14 packages** in HoloScript language repo (language tools only)
 - **All building** ✅
 - **All tested** ✅
 - **TypeScript** 100%
@@ -163,8 +172,8 @@ Your App
 
 | Repo | Purpose | Packages |
 |------|---------|----------|
-| **Hololand** | VR/AR platform, adapters, Brittney AI | 34 (open) + 4 (proprietary) |
-| **HoloScript** | Language, parser, dev tools | 14 |
+| **Hololand** | VR/AR platform, adapters, Brittney AI | 43 (open) + 4 (proprietary) |
+| **HoloScript** | Language, parser, dev tools | 14 (language-only) |
    - "Create a coffee shop with a counter" → Full 3D scene
    - "Build a VR office with 4 desks" → Rendered in Three.js
    - "Add a meeting room to my workspace" → Live in VR

@@ -16,6 +16,7 @@ import { QualityManager, createQualityManager } from './QualityManager';
 import { PostProcessingPipeline, createPostProcessingPipeline } from './PostProcessing';
 import { EnvironmentManager, createEnvironmentManager } from './EnvironmentManager';
 import { MaterialFactory, createMaterialFactory } from './MaterialFactory';
+import { GPUContext } from './GPUContext';
 
 // Config type with optional fields
 type InternalConfig = Omit<Required<RendererConfig>, 'uiCanvasElement' | 'qualityOverrides' | 'environment' | 'postProcessing'> & {
@@ -51,12 +52,16 @@ export class HololandRenderer {
   private postProcessing: PostProcessingPipeline | null = null;
   private environmentManager: EnvironmentManager | null = null;
   private materialFactory: MaterialFactory;
+  private gpuContext: GPUContext;
 
   constructor(canvas: HTMLCanvasElement, world: HololandWorld, config?: RendererConfig) {
     this.world = world;
     this.objectMap = new Map();
     this.animationId = null;
     this.vrEnabled = false;
+
+    // Initialize GPU Compute
+    this.gpuContext = new GPUContext();
 
     // Resolve quality preset
     const qualityPreset = config?.quality || 'medium';
@@ -193,6 +198,9 @@ export class HololandRenderer {
     if (this.config.quality === 'auto') {
       await this.qualityManager.initialize();
     }
+
+    // Initialize WebGPU if supported
+    await this.gpuContext.initialize();
 
     // Initialize environment
     if (this.environmentManager) {
@@ -698,30 +706,6 @@ export class HololandRenderer {
    * Cleanup
    */
   dispose(): void {
-    this.stop();
-
-    // Dispose post-processing
-    if (this.postProcessing) {
-      this.postProcessing.dispose();
-    }
-
-    // Dispose environment manager
-    if (this.environmentManager) {
-      this.environmentManager.dispose();
-    }
-
-    // Dispose geometries and materials
-    this.objectMap.forEach((mesh) => {
-      if (mesh instanceof THREE.Mesh) {
-        mesh.geometry.dispose();
-        if (Array.isArray(mesh.material)) {
-          mesh.material.forEach((mat) => mat.dispose());
-        } else {
-          mesh.material.dispose();
-        }
-      }
-    });
-
     this.objectMap.clear();
     this.renderer.dispose();
 
@@ -730,5 +714,67 @@ export class HololandRenderer {
     }
 
     logger.info('[HololandRenderer] Disposed');
+  }
+
+  // =============================================================================
+  // VOLUMETRIC / COMPUTE API (Phase 4 & 5)
+  // =============================================================================
+
+  /**
+   * Create Gaussian Splat (Placeholder for Phase 4)
+   */
+  createGaussianSplat(nodeId: string, config: Record<string, unknown>): void {
+    logger.info(`[HololandRenderer] createGaussianSplat(${nodeId})`, config);
+    // Placeholder geometry
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = nodeId;
+    mesh.userData = { type: 'gaussian-splat', config };
+    
+    this.objectMap.set(nodeId, mesh);
+    this.scalingRoot.add(mesh);
+  }
+
+  /**
+   * Create Point Cloud (Placeholder for Phase 4)
+   */
+  createPointCloud(nodeId: string, config: Record<string, unknown>): void {
+    logger.info(`[HololandRenderer] createPointCloud(${nodeId})`, config);
+    const geo = new THREE.BufferGeometry();
+    const count = 1000;
+    const positions = new Float32Array(count * 3);
+    for(let i=0; i<count*3; i++) positions[i] = (Math.random() - 0.5) * 10;
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const mat = new THREE.PointsMaterial({ color: 0x00ff00, size: 0.1 });
+    const points = new THREE.Points(geo, mat);
+    points.name = nodeId;
+    points.userData = { type: 'point-cloud', config };
+
+    this.objectMap.set(nodeId, points);
+    this.scalingRoot.add(points);
+  }
+
+  /**
+   * Dispatch Compute (Phase 5)
+   */
+  dispatchCompute(nodeId: string, shader: string, workgroups: number[]): void {
+    logger.info(`[HololandRenderer] dispatchCompute(${nodeId})`, { shader, workgroups });
+    if (this.gpuContext && this.gpuContext.isSupported()) {
+      // In a real impl, we'd cache pipeline by 'shader' checksum or name
+      const pipelineName = `compute-${nodeId}-${Date.now()}`; 
+      this.gpuContext.createComputePipeline(pipelineName, shader);
+      this.gpuContext.dispatch(pipelineName, [workgroups[0] ?? 1, workgroups[1] ?? 1, workgroups[2] ?? 1]);
+    } else {
+      logger.warn('[HololandRenderer] GPUContext not supported or disabled');
+    }
+  }
+
+  /**
+   * Destroy renderable
+   */
+  destroyRenderable(nodeId: string): void {
+    this.removeObjectFromScene(nodeId);
   }
 }

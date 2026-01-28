@@ -20,6 +20,7 @@ import { sharedDataBridge } from './shared-data-bridge.js';
 
 const BRITTNEY_SERVICE_URL = process.env.BRITTNEY_SERVICE_URL || 'http://localhost:11435';
 const BRITTNEY_ADMIN_KEY = process.env.BRITTNEY_ADMIN_KEY || 'mcp-localhost-trusted';
+const UAA2_SERVICE_URL = process.env.UAA2_SERVICE_URL || 'http://localhost:3000';
 
 interface BrittneyResponse {
   success: boolean;
@@ -69,6 +70,37 @@ function getBrowserContext() {
     scenes,
     connected: sharedDataBridge.isConnected(),
   };
+}
+
+/**
+ * Fetch the latest IDE context packets from the uaa2-service IDE Context Bridge.
+ * Returns cursor, selection, and file-open events streamed from the user's IDE.
+ * Non-fatal — returns null if uaa2-service is unreachable.
+ */
+async function fetchIDEContext(limit = 5): Promise<{ contextType: string; data: any; timestamp: number; confidence: number }[] | null> {
+  try {
+    const res = await fetch(`${UAA2_SERVICE_URL}/api/mcp/call`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tool: 'uaa2_get_ide_context', args: { limit } }),
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    return data?.packets || null;
+  } catch {
+    return null; // uaa2-service not running — IDE context unavailable
+  }
+}
+
+/**
+ * Get enriched context combining browser state + IDE context.
+ * Used by AI-powered tools for richer situational awareness.
+ */
+export async function getEnrichedContext() {
+  const browser = getBrowserContext();
+  const ideContext = await fetchIDEContext();
+  return { ...browser, ideContext };
 }
 
 // =============================================================================
@@ -537,9 +569,12 @@ export async function handleAdvancedBrittneyTool(
           };
         }
         
-        const context = getBrowserContext();
+        const context = await getEnrichedContext();
+        const ideHint = context.ideContext?.length
+          ? `\n\nIDE Context (user's current activity):\n${JSON.stringify(context.ideContext.slice(0, 3), null, 2)}`
+          : '';
         const fixResult = await callBrittney(
-          `Fix this browser error in a Hololand/HoloScript app:\n\nError: ${error.message}\nStack: ${error.stack || 'N/A'}\nSource: ${error.source || 'unknown'}:${error.line || '?'}\n\nCurrent Scene: ${context.scenes?.[0]?.name || 'unknown'}\nFPS: ${context.profilerStats?.fps || 'N/A'}\n\nProvide a specific code fix. If it's HoloScript related, provide HoloScript fix.`,
+          `Fix this browser error in a Hololand/HoloScript app:\n\nError: ${error.message}\nStack: ${error.stack || 'N/A'}\nSource: ${error.source || 'unknown'}:${error.line || '?'}\n\nCurrent Scene: ${context.scenes?.[0]?.name || 'unknown'}\nFPS: ${context.profilerStats?.fps || 'N/A'}${ideHint}\n\nProvide a specific code fix. If it's HoloScript related, provide HoloScript fix.`,
           context
         );
         

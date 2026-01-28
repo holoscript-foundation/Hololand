@@ -29,3 +29,4 @@ overrides:
   '@holoscript/network': link:../HoloScript/packages/network
   '@holoscript/runtime': link:../HoloScript/packages/runtime
   '@holoscript/std': link:../HoloScript/packages/std
+  '@infinitus/shared': link:../infinitus-shared

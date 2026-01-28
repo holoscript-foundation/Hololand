@@ -56,6 +56,13 @@ export type { WorldOptions, HoloScriptConfig, WorldTraitConfig } from './World';
 export { PhysicsWorld, createPhysicsWorld } from './Physics';
 export type { PhysicsBodyConfig, PhysicsEvent, PhysicsEventType } from './Physics';
 
+// Optimization bridge (OptimizationPass from @holoscript/core)
+export {
+  OptimizationBridge,
+  getOptimizationBridge,
+} from './OptimizationBridge';
+export type { OptimizationBridgeConfig } from './OptimizationBridge';
+
 /**
  * Create a World from a config file URL
  * Convenience function that loads config and returns ready-to-use world

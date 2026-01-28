@@ -34,6 +34,10 @@
 
 // 3D Renderer (Three.js + WebXR)
 export { HololandRenderer } from './HololandRenderer';
+export * from './HololandRenderer';
+export * from './VolumetricBridge';
+export * from './GPUContext';
+export * from './types';
 
 // 2D Renderer (Canvas)
 export { Hololand2DRenderer } from './Hololand2DRenderer';
@@ -134,6 +138,12 @@ export type {
 } from './types';
 
 export { QUALITY_PRESETS } from './types';
+
+// =============================================================================
+// GPU COMPUTE (merged from @holoscript/gpu)
+// =============================================================================
+
+export * from './GPUCompute';
 
 // =============================================================================
 // VERSION

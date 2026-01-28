@@ -7,6 +7,7 @@ import { DeformableEntity } from './DeformableEntity';
 import { IntelligenceEntity } from './IntelligenceEntity';
 import { InteractionEntity } from './InteractionEntity';
 import { AnimatedEntity } from './AnimatedEntity';
+import { SpatialAgent } from './SpatialAgent';
 import { useThree } from '@react-three/fiber';
 import { getAudioManager } from './audio/AudioManager';
 import React, { useMemo, Suspense, useEffect, useCallback, useState, useContext } from 'react';
@@ -214,9 +215,25 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
     );
   }
 
-  // 0.2 Intelligence Wrapper
-  if (props.ai_driven || props.dialogue) {
-    const { ai_driven, dialogue, ...restProps } = props;
+  // 0.2 Intelligence / Agent Wrapper
+  if (props.ai_driven || props.dialogue || props.avatarEmbodiment || props.lipSync || props.emotionDirective) {
+    const { ai_driven, dialogue, avatarEmbodiment, lipSync, emotionDirective, ...restProps } = props;
+    
+    // Use high-fidelity SpatialAgent if embodiment features are requested
+    if (avatarEmbodiment || lipSync || emotionDirective) {
+      return (
+        <SpatialAgent 
+          key={key} 
+          aiDriven={ai_driven} 
+          avatarEmbodiment={avatarEmbodiment}
+          lipSync={lipSync}
+          emotionDirective={emotionDirective}
+        >
+          {renderR3FNode({ ...node, props: restProps }, onAction)}
+        </SpatialAgent>
+      );
+    }
+
     return (
       <IntelligenceEntity key={key} config={ai_driven}>
         {renderR3FNode({ ...node, props: restProps }, onAction)}

@@ -23,3 +23,20 @@ export type { Renderer } from './BabylonRenderer';
 
 export { World, createWorld } from './World';
 export type { WorldOptions, HoloScriptConfig, WorldTraitConfig } from './World';
+
+// Compiler bridge (BabylonCompiler from @holoscript/core)
+export {
+  BabylonCompilerBridge,
+  getBabylonCompilerBridge,
+} from './BabylonCompilerBridge';
+export type {
+  BabylonCompilationResult,
+  BabylonCompilerBridgeOptions,
+} from './BabylonCompilerBridge';
+
+// Optimization bridge (OptimizationPass from @holoscript/core)
+export {
+  OptimizationBridge,
+  getOptimizationBridge,
+} from './OptimizationBridge';
+export type { OptimizationBridgeConfig } from './OptimizationBridge';

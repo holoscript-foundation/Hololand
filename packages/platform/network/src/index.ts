@@ -13,7 +13,12 @@
  */
 
 // Core networking
-export { NetworkClient } from './NetworkClient';
+export * from './NetworkClient';
+export * from './CoPresenceBridge';
+export * from './AutonomousAgentBridge';
+export * from './AgentSystem';
+export * from './HololandNetwork';
+export * from './types';
 export { NetworkServer } from './NetworkServer';
 export type { ServerConfig, ClientConnection } from './NetworkServer';
 
@@ -139,6 +144,15 @@ export type {
   Vector3,
   Transform,
 } from './types';
+
+// Network transports (merged from @holoscript/network)
+export * from './NetworkTransports';
+
+// Multiplayer sync (merged from @holoscript/multiplayer)
+export * from './MultiplayerSync';
+
+// CRDT state sync (merged from @holoscript/state-sync)
+export * from './CRDTStateSync';
 
 // Version
 export const HOLOLAND_NETWORK_VERSION = '1.0.0-alpha.1';

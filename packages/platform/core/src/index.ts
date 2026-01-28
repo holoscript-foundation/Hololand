@@ -66,3 +66,31 @@ export const HOLOLAND_VERSION = '1.0.0-alpha.1';
 
 // HoloScript-to-World Bridge (connects HoloScript runtime to Hololand world)
 export { HoloScriptBridge, createBridge, type BridgeConfig, type BridgeState } from './HoloScriptBridge';
+
+// Trait Context Factory — creates real TraitContext backed by Hololand runtime APIs
+export {
+  TraitContextFactory,
+  createTraitContextFactory,
+  type TraitContextFactoryConfig,
+  type PhysicsProvider,
+  type AudioProvider,
+  type HapticsProvider,
+  type AccessibilityProvider,
+  type VRProvider,
+  type NetworkProvider,
+  type RendererProvider,
+} from './TraitContextFactory';
+
+// Trait Runtime Integration — wires VRTraitRegistry into Hololand's frame loop
+export {
+  TraitRuntimeIntegration,
+  createTraitRuntime,
+  type TrackedNode,
+  type TraitRuntimeStats,
+} from './TraitRuntimeIntegration';
+
+export * from './HoloScriptBridge';
+export * from './TraitContextFactory';
+export * from './TraitRuntimeIntegration';
+export * from './PlatformRuntime';
+export * from './holoscript';

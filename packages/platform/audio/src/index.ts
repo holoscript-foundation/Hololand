@@ -85,6 +85,7 @@ export {
   getSpatialAudioEngine,
   createSpatialAudioEngine,
 } from './SpatialAudioEngine';
+export * from './SpatialAudioBridge';
 
 // =============================================================================
 // VOICE CHAT
@@ -192,6 +193,42 @@ export function isHRTFSupported(): boolean {
 export function isVoiceChatSupported(): boolean {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 }
+
+// =============================================================================
+// LIP SYNC PROCESSOR
+// =============================================================================
+
+export {
+  LipSyncProcessor,
+  createLipSyncProcessor,
+} from './LipSyncProcessor';
+
+export type {
+  LipSyncSource,
+  LipSyncProcessorConfig,
+  LipSyncProcessorState,
+} from './LipSyncProcessor';
+
+// =============================================================================
+// AVATAR EMBODIMENT PIPELINE
+// =============================================================================
+
+export {
+  AvatarEmbodimentPipeline,
+  createAvatarEmbodimentPipeline,
+} from './AvatarEmbodimentPipeline';
+
+export type {
+  TTSProviderConfig,
+  TTSSynthesisResult,
+  LLMHandler,
+  STTHandler,
+  TTSHandler,
+  PipelineEventType,
+  PipelineEvent,
+  AvatarEmbodimentPipelineConfig,
+  PipelineState,
+} from './AvatarEmbodimentPipeline';
 
 // =============================================================================
 // VERSION
