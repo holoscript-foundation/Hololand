@@ -107,7 +107,7 @@ export class BabylonCompilerBridge {
         metadata: {
           objects: composition.objects?.length ?? 0,
           lights: composition.lights?.length ?? 0,
-          cameras: composition.cameras?.length ?? 0,
+          cameras: composition.camera ? 1 : 0,
           duration: Math.round(duration * 100) / 100,
         },
       };
@@ -142,7 +142,7 @@ export class BabylonCompilerBridge {
         metadata: {
           objects: composition.objects?.length ?? 0,
           lights: composition.lights?.length ?? 0,
-          cameras: composition.cameras?.length ?? 0,
+          cameras: composition.camera ? 1 : 0,
           duration: Math.round(duration * 100) / 100,
         },
       };
