@@ -1,0 +1,6 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "rootDirectory": "packages/brittney/mcp-server",
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter @hololand/mcp-server build",
+  "startCommand": "pnpm --filter @hololand/mcp-server start"
+}
