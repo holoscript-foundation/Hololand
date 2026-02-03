@@ -5,14 +5,16 @@ WORKDIR /app
 # Install pnpm
 RUN npm install -g pnpm@8.15.9
 
-# Copy workspace files
+# Copy workspace configuration
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages ./packages
-COPY apps ./apps
-COPY examples ./examples
 
-# Install dependencies (skip frozen-lockfile for monorepo)
-RUN pnpm install --no-frozen-lockfile --prefer-offline
+# Copy only the packages needed for MCP server (avoid examples that have unpublished deps)
+COPY packages/brittney ./packages/brittney
+COPY packages/core ./packages/core
+COPY packages/inference ./packages/inference
+
+# Install dependencies ONLY for the MCP server package
+RUN pnpm --filter @hololand/mcp-server install --no-frozen-lockfile
 
 # Build MCP server
 RUN pnpm --filter @hololand/mcp-server build
