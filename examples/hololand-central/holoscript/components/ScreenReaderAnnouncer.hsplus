@@ -94,7 +94,7 @@ component "ScreenReaderAnnouncer" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function getCurrentZoneName() {
+  function "getCurrentZoneName" {
     match app.state.currentView {
       "landing" -> "Landing Page"
       "oasis" -> "The Oasis"

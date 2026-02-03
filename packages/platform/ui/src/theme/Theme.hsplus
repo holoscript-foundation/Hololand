@@ -153,7 +153,7 @@ let VR_THEME: Theme = {
     md: 24,
     lg: 32,
     xl: 48
-  },
+  }
   typography: {
     ...DEFAULT_TYPOGRAPHY,
     fontSizeXs: 14,
@@ -162,7 +162,7 @@ let VR_THEME: Theme = {
     fontSizeLg: 28,
     fontSizeXl: 36,
     fontSizeXxl: 48
-  },
+  }
   borders: {
     ...DEFAULT_BORDERS,
     radiusSm: 4,

@@ -1,5 +1,19 @@
 /**
+ * ============================================================================
+ * PROPRIETARY AND CONFIDENTIAL
+ * ============================================================================
+ *
  * Brittney IDE Agent Integration Tools
+ * Copyright (c) 2024-2026 Hololand Technologies. All Rights Reserved.
+ *
+ * This file contains proprietary trade secrets and intellectual property
+ * of Hololand Technologies. Unauthorized copying, distribution, modification,
+ * or use of this file, via any medium, is strictly prohibited.
+ *
+ * Licensed under the Hololand Proprietary License v1.0
+ * See LICENSE.proprietary for terms.
+ *
+ * ============================================================================
  *
  * These tools enable IDE agents (Claude Code, Cursor, Copilot) to get
  * visibility into the running Hololand application through Brittney.
@@ -12,38 +26,220 @@
  *                    ┌───────────────┴───────────────┐
  *                    ▼                               ▼
  *             Ollama (local)                  BYOK Cloud APIs
- *           brittney-v4-expert             (OpenAI, Anthropic, etc.)
+ *        [Dynamic Model Selection]          (OpenAI, Anthropic, etc.)
+ *     brittney-v4 (8GB+ VRAM) or
+ *     brittney-v4-q8 (4GB+ VRAM)
  *
- * Brittney is a browser-context specialist that helps IDE agents understand
- * what's happening in the running app - debugging without the blindfold.
+ * Features:
+ * - Browser state inspection via native messaging bridge
+ * - Live HoloScript injection and hot reload
+ * - AI-powered debugging with full context
+ * - Performance analysis and optimization suggestions
+ * - uAA2++ Wisdom Compression for cross-session memory
+ *
+ * @module brittney-tools
+ * @author Brittney AI Team
+ * @version 3.0.0
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { sharedDataBridge } from './shared-data-bridge.js';
 import { createInferenceClient, type InferenceClient, type ChatMessage } from '@hololand/inference';
 import { holohub } from './holohub-service.js';
+import {
+  compressConversation,
+  loadMatrixWisdom,
+  detectMatrix,
+  getWisdomStats,
+  exportWisdomAsMarkdown,
+  type Matrix,
+} from './wisdom-compression.js';
+
+// =============================================================================
+// DYNAMIC MODEL SELECTION (brittney-v4 / brittney-v4-q8)
+// =============================================================================
+
+// Target models in priority order
+const PREFERRED_MODELS = [
+  'brittney-v4:latest',      // Full quality (7.7 GB, needs 8GB+ VRAM)
+  'brittney-v4-q8:latest',   // Quantized (4.1 GB, needs 4GB+ VRAM)
+];
+
+const VRAM_THRESHOLD_FULL = 8000;  // 8GB for full model
+const VRAM_THRESHOLD_Q8 = 4000;    // 4GB for q8 model
+
+interface OllamaModel {
+  name: string;
+  modified_at: string;
+  size: number;
+}
+
+let cachedBestModel: string | null = null;
+let modelCacheTime = 0;
+const MODEL_CACHE_TTL = 300000; // 5 minute cache (VRAM doesn't change often)
+
+/**
+ * Detect available VRAM using nvidia-smi
+ */
+async function detectVRAM(): Promise<number> {
+  try {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    const { stdout } = await execAsync(
+      'nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits',
+      { timeout: 5000 }
+    );
+
+    const freeVRAM = parseInt(stdout.trim().split('\n')[0], 10);
+    return isNaN(freeVRAM) ? 0 : freeVRAM;
+  } catch {
+    // No GPU or nvidia-smi not available
+    return 0;
+  }
+}
+
+/**
+ * Check which models are available in Ollama
+ */
+async function getAvailableModels(): Promise<Set<string>> {
+  const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+
+  try {
+    const response = await fetch(`${ollamaUrl}/api/tags`, {
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (!response.ok) return new Set();
+
+    const data = await response.json() as { models: OllamaModel[] };
+    return new Set(data.models.map(m => m.name));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Dynamically select best Brittney model based on VRAM and availability
+ *
+ * Strategy:
+ * - If 8GB+ VRAM available → use brittney-v4:latest (full quality)
+ * - If 4GB+ VRAM available → use brittney-v4-q8:latest (quantized)
+ * - Fallback to whichever is available
+ */
+async function detectBestBrittneyModel(): Promise<string> {
+  // Return cached result if fresh
+  if (cachedBestModel && Date.now() - modelCacheTime < MODEL_CACHE_TTL) {
+    return cachedBestModel;
+  }
+
+  const fallbackModel = 'brittney-v4-q8:latest';
+
+  try {
+    // Check what's available in parallel
+    const [vramMB, availableModels] = await Promise.all([
+      detectVRAM(),
+      getAvailableModels()
+    ]);
+
+    const hasFullModel = availableModels.has('brittney-v4:latest');
+    const hasQ8Model = availableModels.has('brittney-v4-q8:latest');
+
+    console.log(`[Brittney] VRAM: ${vramMB}MB | Models: v4=${hasFullModel}, v4-q8=${hasQ8Model}`);
+
+    let selectedModel: string;
+
+    // Selection logic based on VRAM and availability
+    if (vramMB >= VRAM_THRESHOLD_FULL && hasFullModel) {
+      selectedModel = 'brittney-v4:latest';
+      console.log(`[Brittney] Selected: ${selectedModel} (full quality, ${vramMB}MB VRAM available)`);
+    } else if (vramMB >= VRAM_THRESHOLD_Q8 && hasQ8Model) {
+      selectedModel = 'brittney-v4-q8:latest';
+      console.log(`[Brittney] Selected: ${selectedModel} (quantized, ${vramMB}MB VRAM available)`);
+    } else if (hasQ8Model) {
+      selectedModel = 'brittney-v4-q8:latest';
+      console.log(`[Brittney] Selected: ${selectedModel} (fallback, limited VRAM: ${vramMB}MB)`);
+    } else if (hasFullModel) {
+      selectedModel = 'brittney-v4:latest';
+      console.log(`[Brittney] Selected: ${selectedModel} (only option available)`);
+    } else {
+      // Neither preferred model available, check for any brittney model
+      const anyBrittney = Array.from(availableModels).find(m => m.startsWith('brittney'));
+      selectedModel = anyBrittney || fallbackModel;
+      console.warn(`[Brittney] Preferred models not found, using: ${selectedModel}`);
+    }
+
+    cachedBestModel = selectedModel;
+    modelCacheTime = Date.now();
+    return selectedModel;
+
+  } catch (error) {
+    console.warn('[Brittney] Model detection failed, using fallback:', error);
+    return fallbackModel;
+  }
+}
 
 // =============================================================================
 // INFERENCE CLIENT (Uses Ollama + BYOK providers)
 // =============================================================================
 
 let inferenceClient: InferenceClient | null = null;
+let inferenceClientModel: string | null = null;
 
 /**
- * Get or create the inference client
+ * Get or create the inference client with dynamic model selection
  */
-function getInferenceClient(): InferenceClient {
+async function getInferenceClientAsync(): Promise<InferenceClient> {
+  const bestModel = process.env.BRITTNEY_MODEL || await detectBestBrittneyModel();
+
+  // Recreate client if model changed
+  if (inferenceClient && inferenceClientModel !== bestModel) {
+    inferenceClient = null;
+  }
+
   if (!inferenceClient) {
+    inferenceClientModel = bestModel;
     inferenceClient = createInferenceClient({
       activeProvider: 'local',
       local: {
         enabled: true,
         ollamaUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-        defaultModel: process.env.BRITTNEY_MODEL || 'brittney-v4-expert:latest',
-        autoDownloadModel: false, // MCP shouldn't auto-download
+        defaultModel: bestModel,
+        autoDownloadModel: false,
       },
       fallbackToCloud: true,
       preferLocalWhenAvailable: true,
+    });
+    console.log(`[Brittney] Inference client initialized with model: ${bestModel}`);
+  }
+  return inferenceClient;
+}
+
+/**
+ * Sync wrapper for backward compatibility
+ */
+function getInferenceClient(): InferenceClient {
+  if (!inferenceClient) {
+    // First call - use sync fallback, async will update later
+    const fallbackModel = process.env.BRITTNEY_MODEL || 'brittney-v4-q8:latest';
+    inferenceClient = createInferenceClient({
+      activeProvider: 'local',
+      local: {
+        enabled: true,
+        ollamaUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+        defaultModel: fallbackModel,
+        autoDownloadModel: false,
+      },
+      fallbackToCloud: true,
+      preferLocalWhenAvailable: true,
+    });
+    // Trigger async model detection for next call
+    detectBestBrittneyModel().then(best => {
+      if (best !== fallbackModel) {
+        inferenceClient = null; // Force recreation on next call
+        console.log(`[Brittney] Better model detected: ${best}, will use on next request`);
+      }
     });
   }
   return inferenceClient;
@@ -73,14 +269,24 @@ interface BrittneyBrowserContext {
   errors?: Array<{ message: string; stack?: string }>;
 }
 
+// Simple in-memory history for limited context persistence
+const conversationHistory: ChatMessage[] = [];
+const MAX_HISTORY = 20;
+
+// Track last compression time to avoid over-compressing
+let lastCompressionTime = 0;
+const COMPRESSION_INTERVAL = 300000; // 5 minutes
+
 /**
  * Call inference via @hololand/inference (Ollama + BYOK)
+ * Includes uAA2++ wisdom injection for enhanced context
  */
 async function callBrittneyService(
   message: string,
   options: {
     systemPrompt?: string;
     browserContext?: BrittneyBrowserContext;
+    skipWisdom?: boolean;
   } = {}
 ): Promise<BrittneyServiceResponse> {
   try {
@@ -90,11 +296,16 @@ async function callBrittneyService(
     // Build messages array
     const messages: ChatMessage[] = [];
 
+    // Detect matrix and load relevant wisdom (RE-INTAKE)
+    const matrix = detectMatrix(message);
+    const wisdom = options.skipWisdom ? '' : loadMatrixWisdom(message, matrix);
+
     // Add system prompt if provided
     if (options.systemPrompt) {
       messages.push({ role: 'system', content: options.systemPrompt });
     } else {
-      // Default HoloScript system prompt
+      // Default HoloScript system prompt with wisdom injection
+      const wisdomSection = wisdom ? `\n\n**Learned Context (uAA2++ Wisdom):**\n${wisdom}` : '';
       messages.push({
         role: 'system',
         content: `You are Brittney, a HoloScript and VR development expert. You help with:
@@ -106,7 +317,7 @@ async function callBrittneyService(
 
 IMPORTANT: When the user asks for an object (e.g. "lamp", "chair", "turret"), always check if a Smart Asset is available in HoloHub using 'brittney_search_holohub' BEFORE generating code. Content > Code.
 
-Respond concisely and provide code examples when helpful.`,
+Respond concisely and provide code examples when helpful.${wisdomSection}`,
       });
     }
 
@@ -123,10 +334,39 @@ ${ctx.profilerStats ? `- Performance: ${ctx.profilerStats.fps} FPS, ${ctx.profil
 ${ctx.errors?.length ? `- Errors: ${ctx.errors.map((e) => e.message).join('; ')}` : ''}`;
     }
 
-    messages.push({ role: 'user', content: enhancedMessage });
+    // Add conversation history
+    messages.push(...conversationHistory);
+
+    // Add current user message
+    const userMessage: ChatMessage = { role: 'user', content: enhancedMessage };
+    messages.push(userMessage);
 
     // Call inference
-    const response = await client.chat({ messages });
+    const response = await client.chat({
+      messages,
+      temperature: 0.7,
+      maxTokens: 4096,
+      model: process.env.BRITTNEY_MODEL,
+    });
+
+    // Update history
+    conversationHistory.push(userMessage);
+    conversationHistory.push({ role: 'assistant', content: response.content });
+
+    // Trim history if needed
+    if (conversationHistory.length > MAX_HISTORY) {
+      conversationHistory.splice(0, conversationHistory.length - MAX_HISTORY);
+    }
+
+    // Trigger compression periodically (COMPRESS phase - uAA2++)
+    const now = Date.now();
+    if (conversationHistory.length >= 10 && now - lastCompressionTime > COMPRESSION_INTERVAL) {
+      lastCompressionTime = now;
+      // Run compression asynchronously to avoid blocking response
+      compressConversation(conversationHistory, matrix).catch(err => {
+        console.warn('[Brittney] Wisdom compression failed:', err);
+      });
+    }
 
     return {
       success: true,
@@ -535,6 +775,51 @@ export const brittneyTools: Tool[] = [
     inputSchema: {
       type: 'object',
       properties: {},
+    },
+  },
+
+  // =========================================================================
+  // WISDOM SYSTEM TOOLS - uAA2++ Cross-Session Memory
+  // =========================================================================
+
+  {
+    name: 'brittney_get_wisdom_stats',
+    description:
+      'Get statistics about the uAA2++ wisdom system. Shows compression stats, matrix coverage, and cross-session memory usage. Use to understand what Brittney has learned.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+
+  {
+    name: 'brittney_export_wisdom',
+    description:
+      'Export accumulated wisdom as markdown for review or backup. Returns compressed knowledge from all matrices (HoloScript, VR, Performance, etc.).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matrix: {
+          type: 'string',
+          description: 'Filter by matrix type (optional)',
+          enum: ['holoscript', 'vr', 'performance', 'debugging', 'networking', 'all'],
+        },
+      },
+    },
+  },
+
+  {
+    name: 'brittney_compress_session',
+    description:
+      'Manually trigger wisdom compression for the current session. Extracts key learnings and saves to persistent storage. Called automatically, but can be forced.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        force: {
+          type: 'boolean',
+          description: 'Force compression even if below threshold (default: false)',
+        },
+      },
     },
   },
 
@@ -1286,17 +1571,17 @@ Return ONLY a valid JSON object matching this schema:
             JSON.stringify({ error: 'Hololand Central not running' });
           }
         `;
-        
+
         const result = await nativeMessagingBridge.sendMessage<{ result: string; error?: string }>(
           'executeCode',
           { code: stateCode, awaitResult: true }
         );
-        
+
         if (result.error) {
           // Fall back to checking shared bridge
           const isConnected = sharedDataBridge.isConnected();
           const browserState = sharedDataBridge.getBrowserState();
-          
+
           return {
             content: [
               {
@@ -1306,7 +1591,7 @@ Return ONLY a valid JSON object matching this schema:
             ],
           };
         }
-        
+
         try {
           const state = JSON.parse(result.result as string);
           return {
@@ -1325,6 +1610,113 @@ Return ONLY a valid JSON object matching this schema:
                 text: `Raw result: ${result.result}`,
               },
             ],
+          };
+        }
+      }
+
+      // =========================================================================
+      // WISDOM SYSTEM TOOL HANDLERS - uAA2++ Cross-Session Memory
+      // =========================================================================
+
+      case 'brittney_get_wisdom_stats': {
+        const stats = getWisdomStats();
+
+        // Format the stats nicely
+        const matrixLines = Object.entries(stats.matrices)
+          .map(([matrix, data]) =>
+            `  **${matrix.toUpperCase()}**: ${data.wisdom} wisdom, ${data.patterns} patterns, ${data.gotchas} gotchas`
+          )
+          .join('\n');
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `## 🧠 Brittney Wisdom Stats (uAA2++)\n\n**Total Across All Matrices:**\n- Wisdom Entries: ${stats.total.wisdom}\n- Pattern Entries: ${stats.total.patterns}\n- Gotcha Entries: ${stats.total.gotchas}\n- Sessions Compressed: ${stats.total.sessions}\n\n**By Matrix:**\n${matrixLines}\n\n*Wisdom is accumulated automatically through conversations and persists across sessions.*`,
+            },
+          ],
+        };
+      }
+
+      case 'brittney_export_wisdom': {
+        // Map the tool's matrix parameter to the internal Matrix type
+        const matrixParam = args.matrix as string | undefined;
+        let internalMatrix: Matrix | undefined;
+
+        if (matrixParam && matrixParam !== 'all') {
+          // Map tool enum values to internal Matrix values
+          const matrixMap: Record<string, Matrix> = {
+            'holoscript': 'code',
+            'vr': 'vr',
+            'performance': 'debug',
+            'debugging': 'debug',
+            'networking': 'general',
+          };
+          internalMatrix = matrixMap[matrixParam] || 'general';
+        }
+
+        const markdown = exportWisdomAsMarkdown(internalMatrix);
+
+        if (markdown.trim() === '# Brittney Wisdom Export\n' || markdown.trim() === '# Brittney Wisdom Export') {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `## 📭 No Wisdom Accumulated Yet\n\nBrittney hasn't accumulated any wisdom entries yet.\n\n**How to build wisdom:**\n1. Have conversations with Brittney about HoloScript, VR development, debugging\n2. Wisdom is automatically extracted and compressed after ~10 messages\n3. Key learnings persist across sessions\n\n*Use \`brittney_compress_session\` to force compression.*`,
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: markdown,
+            },
+          ],
+        };
+      }
+
+      case 'brittney_compress_session': {
+        const force = args.force as boolean | undefined;
+
+        // Check if we have enough conversation history to compress
+        if (conversationHistory.length < 4 && !force) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `## ⏳ Not Enough Conversation to Compress\n\nCurrent conversation length: ${conversationHistory.length} messages\nMinimum required: 4 messages\n\n*Use \`force: true\` to compress anyway, or continue the conversation.*`,
+              },
+            ],
+          };
+        }
+
+        // Detect matrix from recent conversation
+        const recentContent = conversationHistory.slice(-5).map(m => m.content).join(' ');
+        const matrix = detectMatrix(recentContent);
+
+        try {
+          await compressConversation(conversationHistory, matrix);
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `## ✅ Session Compressed Successfully\n\n**Matrix:** ${matrix}\n**Messages Processed:** ${conversationHistory.length}\n\n*Wisdom has been extracted and saved to persistent storage. Use \`brittney_get_wisdom_stats\` to see updated stats.*`,
+              },
+            ],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `## ❌ Compression Failed\n\nError: ${error.message}\n\n*This may happen if the inference service is unavailable. Check \`brittney_check_service\`.*`,
+              },
+            ],
+            isError: true,
           };
         }
       }

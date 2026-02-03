@@ -325,8 +325,8 @@ composition "HoloScript Playground" {
   }
 
   TopBar {
-    onSave: () => this.save()
-    onCompile: () => this.compile()
+    onSave: "() => this.save()"
+    onCompile: "() => this.compile()"
     onLayoutChange: (l) => this.state.layout = l
   }
 
@@ -362,7 +362,7 @@ composition "HoloScript Playground" {
 
   ErrorVisualizer {
     errors: this.state.errors
-    onClear: () => this.state.errors = []
+    onClear: "() => this.state.errors = []"
     onGoToLine: (line, col) => this.goToLine(line, col)
   }
 }

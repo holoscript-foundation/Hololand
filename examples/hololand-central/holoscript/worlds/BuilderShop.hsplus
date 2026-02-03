@@ -567,29 +567,29 @@ world "BuilderShop" {
           greeting: {
             text: "Welcome to the Builder's Workshop! What would you like to create today?",
             options: [
-              { label: "How do I craft?", next: "crafting_tutorial" },
-              { label: "What materials do I need?", next: "materials_info" },
+              { label: "How do I craft?", next: "crafting_tutorial" }
+              { label: "What materials do I need?", next: "materials_info" }
               { label: "Show me blueprints", next: "blueprints_info" }
             ]
-          },
+          }
           crafting_tutorial: {
             text: "Visit any crafting station - the Forge for metals, Workbench for wood, or Tech Lab for electronics. Select a blueprint and gather the materials!",
             options: [
               { label: "Thanks!", next: "goodbye" }
             ]
-          },
+          }
           materials_info: {
             text: "Check the vendors on your left for raw materials. Each station uses different resources - metals for the forge, lumber for the workbench, components for tech.",
             options: [
               { label: "Got it!", next: "goodbye" }
             ]
-          },
+          }
           blueprints_info: {
             text: "The Blueprint Gallery on your right has designs from simple tools to complex machines. Unlock more by completing crafting challenges!",
             options: [
               { label: "I'll check it out", next: "goodbye" }
             ]
-          },
+          }
           goodbye: {
             text: "Happy building! Come back if you need any help.",
             options: []
@@ -720,7 +720,7 @@ world "BuilderShop" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function getBlueprintName(index) {
+  function "getBlueprintName" {
     const names = [
       "Basic Sword",
       "Wooden Shield",

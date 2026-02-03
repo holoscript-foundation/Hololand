@@ -204,7 +204,7 @@ component NetworkTransform {
 component NetworkAnimator {
   @state {
     synced_params: {}
-    synced_trigger: null
+    synced_trigger: "null"
   }
 
   @props {

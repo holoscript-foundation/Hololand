@@ -52,7 +52,7 @@ module HololandRenderer {
     renderer: THREE.WebGLRenderer = null,
     controls: OrbitControls = null,
     objectMap: Map<string, THREE.Object3D> = new Map(),
-    config: RendererConfig = {},
+    config: RendererConfig = {}
     animationId: number = null,
     vrEnabled: bool = false,
     currentScaleMultiplier: number = 1.0,
@@ -97,7 +97,7 @@ module HololandRenderer {
       enableControls: config.enableControls ?? true,
       antialias: config.antialias ?? (qualitySettings.antialiasing != "none"),
       backgroundColor: config.backgroundColor ?? 0x000000,
-      cameraPosition: config.cameraPosition ?? { x: 10, y: 10, z: 10 },
+      cameraPosition: config.cameraPosition ?? { x: 10, y: 10, z: 10 }
       cameraFov: config.cameraFov ?? 75,
       renderMode: config.renderMode ?? "3d",
       enable2D: config.enable2D ?? false,
@@ -418,16 +418,16 @@ module HololandRenderer {
     match obj.type {
       "sphere" | "orb" => {
         geometry = new THREE.SphereGeometry(scale.x / 2, segments, segments)
-      },
+      }
       "cube" | "box" => {
         geometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z)
-      },
+      }
       "platform" | "floor" => {
         geometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z)
-      },
+      }
       "cylinder" => {
         geometry = new THREE.CylinderGeometry(scale.x / 2, scale.x / 2, scale.y, segments)
-      },
+      }
       _ => {
         geometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z)
       }
@@ -493,7 +493,7 @@ module HololandRenderer {
     match config.lightType {
       LightType.ambient => {
         light = new THREE.AmbientLight(config.color, config.intensity)
-      },
+      }
       LightType.directional => {
         light = new THREE.DirectionalLight(config.color, config.intensity)
         if config.position {
@@ -504,7 +504,7 @@ module HololandRenderer {
           light.shadow.mapSize.width = settings.shadowMapSize
           light.shadow.mapSize.height = settings.shadowMapSize
         }
-      },
+      }
       LightType.point => {
         light = new THREE.PointLight(config.color, config.intensity, config.distance)
         if config.position {
@@ -513,7 +513,7 @@ module HololandRenderer {
         if config.castShadow && settings.shadowsEnabled {
           light.castShadow = true
         }
-      },
+      }
       LightType.spot => {
         light = new THREE.SpotLight(config.color, config.intensity, config.distance)
         if config.position {
@@ -524,7 +524,7 @@ module HololandRenderer {
           light.shadow.mapSize.width = settings.shadowMapSize
           light.shadow.mapSize.height = settings.shadowMapSize
         }
-      },
+      }
       _ => {
         light = new THREE.AmbientLight(config.color, config.intensity)
       }

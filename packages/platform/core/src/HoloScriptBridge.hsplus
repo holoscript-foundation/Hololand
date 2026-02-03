@@ -189,7 +189,7 @@ module HoloScriptBridge {
         x: self.config.defaultScale, 
         y: self.config.defaultScale, 
         z: self.config.defaultScale 
-      },
+      }
       metadata: {
         name,
         color: hologram.color,

@@ -42,7 +42,7 @@ system "TutorialSystem" {
       highlight: null
       action: null
       ariaLabel: "Tutorial step 1 of 5: Welcome to Hololand Central"
-    },
+    }
     {
       id: "navigation"
       title: "Navigate the World"
@@ -50,7 +50,7 @@ system "TutorialSystem" {
       highlight: "player-controls"
       action: "try-movement"
       ariaLabel: "Tutorial step 2 of 5: Use WASD keys or arrows to navigate"
-    },
+    }
     {
       id: "portals"
       title: "Use Portals"
@@ -58,7 +58,7 @@ system "TutorialSystem" {
       highlight: "portal-casino"
       action: "approach-portal"
       ariaLabel: "Tutorial step 3 of 5: Approach a glowing portal to travel"
-    },
+    }
     {
       id: "interact"
       title: "Interact with Objects"
@@ -66,7 +66,7 @@ system "TutorialSystem" {
       highlight: "npc-brian"
       action: "click-npc"
       ariaLabel: "Tutorial step 4 of 5: Click on characters to interact"
-    },
+    }
     {
       id: "explore"
       title: "You're Ready!"
@@ -82,16 +82,16 @@ system "TutorialSystem" {
   // ═══════════════════════════════════════════════════════════════════════════
 
   data shortcuts: [
-    { key: "W/↑", action: "Move forward" },
-    { key: "S/↓", action: "Move backward" },
-    { key: "A/←", action: "Move left" },
-    { key: "D/→", action: "Move right" },
-    { key: "Space", action: "Jump" },
-    { key: "Tab", action: "Next UI element" },
-    { key: "Enter", action: "Interact/Select" },
-    { key: "Escape", action: "Close menu/Back" },
-    { key: "?", action: "Show this help" },
-    { key: "M", action: "Toggle reduced motion" },
+    { key: "W/↑", action: "Move forward" }
+    { key: "S/↓", action: "Move backward" }
+    { key: "A/←", action: "Move left" }
+    { key: "D/→", action: "Move right" }
+    { key: "Space", action: "Jump" }
+    { key: "Tab", action: "Next UI element" }
+    { key: "Enter", action: "Interact/Select" }
+    { key: "Escape", action: "Close menu/Back" }
+    { key: "?", action: "Show this help" }
+    { key: "M", action: "Toggle reduced motion" }
     { key: "H", action: "Toggle high contrast" }
   ]
 

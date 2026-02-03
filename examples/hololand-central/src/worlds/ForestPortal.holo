@@ -2,41 +2,41 @@
   "name": "ForestPortal",
   "environment": {
     "properties": [
-      { "key": "preset", "value": "forest" },
+      { "key": "preset", "value": "forest" }
       { "key": "ambient_light", "value": 0.3 }
     ]
-  },
+  }
   "objects": [
     {
       "name": "GroundDecoration",
       "properties": [
-        { "key": "geometry", "value": "plane" },
-        { "key": "args", "value": [30, 30] },
-        { "key": "rotation", "value": [-1.5708, 0, 0] },
+        { "key": "geometry", "value": "plane" }
+        { "key": "args", "value": [30, 30] }
+        { "key": "rotation", "value": [-1.5708, 0, 0] }
         { "key": "color", "value": "#166534" }
       ]
-    },
+    }
     {
       "name": "LegendsPortal",
       "properties": [
-        { "key": "type", "value": "portal" },
-        { "key": "destination", "value": "/legends" },
-        { "key": "text", "value": "HOLOLAND LEGENDS" },
-        { "key": "color", "value": "#22c55e" },
+        { "key": "type", "value": "portal" }
+        { "key": "destination", "value": "/legends" }
+        { "key": "text", "value": "HOLOLAND LEGENDS" }
+        { "key": "color", "value": "#22c55e" }
         { "key": "position", "value": [0, 1.5, 0] }
       ]
-    },
+    }
     {
       "name": "Fireflies",
       "properties": [
-        { "key": "type", "value": "sparkles" },
-        { "key": "count", "value": 100 },
-        { "key": "scale", "value": 10 },
-        { "key": "size", "value": 2 },
-        { "key": "speed", "value": 0.2 },
+        { "key": "type", "value": "sparkles" }
+        { "key": "count", "value": 100 }
+        { "key": "scale", "value": 10 }
+        { "key": "size", "value": 2 }
+        { "key": "speed", "value": 0.2 }
         { "key": "color", "value": "#fbbf24" }
       ]
-    },
+    }
     {
       "name": "Brian_Guide",
       "properties": [
@@ -51,7 +51,7 @@
             "height": 1.8,
             "decisionMode": "hybrid"
           }
-        },
+        }
         { "name": "dialogue", "config": true }
       ]
     }

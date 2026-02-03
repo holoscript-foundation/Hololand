@@ -147,8 +147,8 @@ composition "BrittneyIDETools" {
             snap_to_hand: "Snap to hand position when grabbed",
             two_handed: "Requires both hands",
             grab_distance: "Maximum grab distance"
-          },
-          example: "orb item { @grabbable(snap_to_hand: true) }"
+          }
+          example: "object "item" { @grabbable(snap_to_hand: true) }"
         }
         // ... 48 more traits
       }

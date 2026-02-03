@@ -15,30 +15,30 @@
   currentBiome: "forest",
   encounterTables: {
     default: [
-      { id: "slime", weight: 40 },
-      { id: "goblin", weight: 30 },
-      { id: "bat", weight: 20 },
+      { id: "slime", weight: 40 }
+      { id: "goblin", weight: 30 }
+      { id: "bat", weight: 20 }
       { id: "mushroom", weight: 10 }
     ],
     forest: [
-      { id: "slime", weight: 50 },
-      { id: "goblin", weight: 30 },
-      { id: "deer", weight: 15 },
+      { id: "slime", weight: 50 }
+      { id: "goblin", weight: 30 }
+      { id: "deer", weight: 15 }
       { id: "wolf", weight: 5 }
     ],
     cave: [
-      { id: "bat", weight: 50 },
-      { id: "spider", weight: 30 },
-      { id: "crystal_golem", weight: 15 },
+      { id: "bat", weight: 50 }
+      { id: "spider", weight: 30 }
+      { id: "crystal_golem", weight: 15 }
       { id: "shadow_beast", weight: 5 }
     ],
     desert: [
-      { id: "scorpion", weight: 45 },
-      { id: "sand_wurm", weight: 25 },
-      { id: "cactus_fiend", weight: 20 },
+      { id: "scorpion", weight: 45 }
+      { id: "sand_wurm", weight: 25 }
+      { id: "cactus_fiend", weight: 20 }
       { id: "mirage_spirit", weight: 10 }
     ]
-  },
+  }
   audioEvents: {
     level_transition: "level_up",
     level_backward: "level_down",

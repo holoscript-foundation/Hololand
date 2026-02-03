@@ -13,8 +13,8 @@
     }
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
     "test": "echo \"Tests coming soon\" && exit 0"
   },
   "keywords": [
@@ -30,15 +30,15 @@
   "author": "Hololand Team",
   "license": "MIT",
   "dependencies": {
-    "@hololand/logger": "workspace:*"
+    "@hololand/logger": "file:../logger"
   },
   "devDependencies": {
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "@hololand/world": "workspace:*",
-    "@hololand/social": "workspace:*"
+    "@hololand/world": "file:../world",
+    "@hololand/social": "file:../social"
   },
   "peerDependenciesMeta": {
     "@hololand/world": {

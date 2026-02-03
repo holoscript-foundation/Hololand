@@ -57,7 +57,7 @@ let HDRI_PRESETS = {
 struct EnvironmentManagerOptions {
   scene: THREE.Scene = null,
   renderer: THREE.WebGLRenderer = null,
-  qualitySettings: QualitySettings = {},
+  qualitySettings: QualitySettings = {}
   config: EnvironmentConfig = null
 }
 
@@ -68,7 +68,7 @@ struct EnvironmentManagerOptions {
 let DEFAULT_ENV_CONFIG: EnvironmentConfig = {
   hdri: "",
   skybox: SkyboxType.gradient,
-  skyColors: { top: 0x0077FF, bottom: 0x003355 },
+  skyColors: { top: 0x0077FF, bottom: 0x003355 }
   proceduralSky: {
     turbidity: 10.0,
     rayleigh: 3.0,
@@ -76,14 +76,14 @@ let DEFAULT_ENV_CONFIG: EnvironmentConfig = {
     mieDirectionalG: 0.7,
     elevation: 2.0,
     azimuth: 180.0
-  },
+  }
   ground: {
     enabled: true,
     color: 0x808080,
     roughness: 0.8,
     metalness: 0.2,
     receiveShadow: true
-  },
+  }
   fog: {
     enabled: false,
     fogType: FogType.linear,
@@ -105,7 +105,7 @@ module EnvironmentManager {
   @state {
     scene: THREE.Scene = null,
     renderer: THREE.WebGLRenderer = null,
-    qualitySettings: QualitySettings = {},
+    qualitySettings: QualitySettings = {}
     config: EnvironmentConfig = DEFAULT_ENV_CONFIG,
     magnitudeMultiplier: number = 1.0,
 
@@ -158,13 +158,13 @@ module EnvironmentManager {
         if self.config.hdri {
           await self.loadHDRI(self.config.hdri)
         }
-      },
+      }
       SkyboxType.procedural => {
         self.createProceduralSky()
-      },
+      }
       SkyboxType.gradient => {
         self.createGradientBackground()
-      },
+      }
       SkyboxType.none => {
         self.scene.background = new THREE.Color(0x000000)
       }
@@ -210,7 +210,7 @@ module EnvironmentManager {
 
           logger.info("[EnvironmentManager] HDRI loaded", { url: adjustedUrl })
           resolve()
-        },
+        }
         undefined,
         (error) => {
           logger.error("[EnvironmentManager] HDRI load failed", { error })

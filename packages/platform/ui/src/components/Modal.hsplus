@@ -8,8 +8,8 @@ import { ModalConfig, Vector2 } from "../types.hsplus"
 module Modal {
   @state {
     id: string = "",
-    position: Vector2 = { x: 0, y: 0 },
-    size: { width: number, height: number } = { width: 400, height: 300 },
+    position: Vector2 = { x: 0, y: 0 }
+    size: { width: number, height: number } = { width: 400, height: 300 }
     visible: bool = false,
     enabled: bool = true,
     zIndex: number = 1000,

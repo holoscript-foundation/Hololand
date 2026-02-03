@@ -264,7 +264,7 @@ page "Central" {
       position: [15, 0, 0]
       rotation: -90
       color: "#ffd700"
-    },
+    }
     {
       id: "builder"
       destination: "/world/builder"
@@ -272,7 +272,7 @@ page "Central" {
       position: [10.6, 0, 10.6]
       rotation: -135
       color: "#4caf50"
-    },
+    }
     {
       id: "arcade"
       destination: "/world/arcade"
@@ -280,7 +280,7 @@ page "Central" {
       position: [0, 0, 15]
       rotation: 180
       color: "#e91e63"
-    },
+    }
     {
       id: "lounge"
       destination: "/world/lounge"
@@ -288,7 +288,7 @@ page "Central" {
       position: [-10.6, 0, 10.6]
       rotation: 135
       color: "#9c27b0"
-    },
+    }
     {
       id: "infinity"
       destination: "/world/infinity"
@@ -300,11 +300,11 @@ page "Central" {
   ]
 
   data buildings: [
-    { position: [20, 0, 20], rotation: 45, scale: [4, 8, 4], geometry: "box", color: "#667eea" },
-    { position: [-20, 0, 20], rotation: -45, scale: [4, 10, 4], geometry: "box", color: "#f093fb" },
-    { position: [20, 0, -20], rotation: -45, scale: [5, 6, 5], geometry: "box", color: "#00ffff" },
-    { position: [-20, 0, -20], rotation: 45, scale: [4, 12, 4], geometry: "box", color: "#667eea" },
-    { position: [25, 0, 0], rotation: 0, scale: [3, 15, 3], geometry: "cylinder", color: "#f093fb" },
+    { position: [20, 0, 20], rotation: 45, scale: [4, 8, 4], geometry: "box", color: "#667eea" }
+    { position: [-20, 0, 20], rotation: -45, scale: [4, 10, 4], geometry: "box", color: "#f093fb" }
+    { position: [20, 0, -20], rotation: -45, scale: [5, 6, 5], geometry: "box", color: "#00ffff" }
+    { position: [-20, 0, -20], rotation: 45, scale: [4, 12, 4], geometry: "box", color: "#667eea" }
+    { position: [25, 0, 0], rotation: 0, scale: [3, 15, 3], geometry: "cylinder", color: "#f093fb" }
     { position: [-25, 0, 0], rotation: 0, scale: [3, 15, 3], geometry: "cylinder", color: "#00ffff" }
   ]
 
@@ -312,44 +312,44 @@ page "Central" {
     start: {
       text: "Hey there, traveler! Welcome to Hololand Central. I'm Brian, the Curator.",
       options: [
-        { label: "What is this place?", next: "about" },
-        { label: "Any secrets here?", next: "secrets" },
+        { label: "What is this place?", next: "about" }
+        { label: "Any secrets here?", next: "secrets" }
         { label: "Just looking around", next: "bye" }
       ]
-    },
+    }
     about: {
       text: "This is the gateway to the open metaverse! Through those portals, you can visit the Casino, Builder Shop, Arcade, and more.",
       options: [
-        { label: "Tell me about the Casino", next: "casino" },
-        { label: "What about building?", next: "builder" },
+        { label: "Tell me about the Casino", next: "casino" }
+        { label: "What about building?", next: "builder" }
         { label: "Thanks!", next: "bye" }
       ]
-    },
+    }
     secrets: {
       text: "Ah, you've got a keen eye! There are 16 easter eggs hidden around Central. Some require special actions, others appear only at certain times...",
       options: [
-        { label: "Give me a hint!", next: "hint" },
+        { label: "Give me a hint!", next: "hint" }
         { label: "I'll find them myself", next: "bye" }
       ]
-    },
+    }
     hint: {
       text: "Try looking up... not everything is on the ground, you know.",
       options: [
         { label: "Thanks, Brian!", next: "bye" }
       ]
-    },
+    }
     casino: {
       text: "My favorite spot! Games, luck, and maybe a few secrets. The golden portal will take you there.",
       options: [
         { label: "Sounds fun!", next: "bye" }
       ]
-    },
+    }
     builder: {
       text: "The Builder Shop is where creators bring their visions to life. Brittney can help you build anything you imagine!",
       options: [
         { label: "I'll check it out", next: "bye" }
       ]
-    },
+    }
     bye: {
       text: "See you around! Don't forget to explore every corner.",
       options: []

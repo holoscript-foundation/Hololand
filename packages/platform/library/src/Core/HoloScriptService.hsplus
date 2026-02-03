@@ -178,14 +178,14 @@ module HoloScriptService {
     
     // Token patterns
     const patterns = [
-      { type: "KEYWORD", regex: /\b(object|template|trait|spatial_group|composition|logic|action|state|on_click|on_hover_enter|on_hover_exit|on_interact|every|after|if|else|for|while|return|import|export|from|using|const|let|module|struct)\b/ },
-      { type: "BOOLEAN", regex: /\b(true|false)\b/ },
-      { type: "NULL", regex: /\bnull\b/ },
-      { type: "NUMBER", regex: /\b0x[0-9a-fA-F]+\b|\b\d+\.?\d*\b/ },
-      { type: "STRING", regex: /"[^"]*"|'[^']*'/ },
-      { type: "IDENTIFIER", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/ },
-      { type: "OPERATOR", regex: /[+\-*/%=<>!&|^~]+/ },
-      { type: "PUNCTUATION", regex: /[{}()\[\];:,.]/ },
+      { type: "KEYWORD", regex: /\b(object|template|trait|spatial_group|composition|logic|action|state|on_click|on_hover_enter|on_hover_exit|on_interact|every|after|if|else|for|while|return|import|export|from|using|const|let|module|struct)\b/ }
+      { type: "BOOLEAN", regex: /\b(true|false)\b/ }
+      { type: "NULL", regex: /\bnull\b/ }
+      { type: "NUMBER", regex: /\b0x[0-9a-fA-F]+\b|\b\d+\.?\d*\b/ }
+      { type: "STRING", regex: /"[^"]*"|'[^']*'/ }
+      { type: "IDENTIFIER", regex: /\b[a-zA-Z_][a-zA-Z0-9_]*\b/ }
+      { type: "OPERATOR", regex: /[+\-*/%=<>!&|^~]+/ }
+      { type: "PUNCTUATION", regex: /[{}()\[\];:,.]/ }
       { type: "COMMENT", regex: /\/\/.*$|\/\*[\s\S]*?\*\// }
     ]
     
@@ -347,7 +347,7 @@ module HoloScriptService {
     const node = {
       type: "object",
       name,
-      properties: {},
+      properties: {}
       traits: [],
       events: [],
       line: tokens[startIndex].line
@@ -379,7 +379,7 @@ module HoloScriptService {
     const node = {
       type: "template",
       name,
-      state: {},
+      state: {}
       actions: [],
       line: tokens[startIndex].line
     }
@@ -407,7 +407,7 @@ module HoloScriptService {
     const node = {
       type: "module",
       name,
-      state: {},
+      state: {}
       actions: [],
       methods: [],
       line: tokens[startIndex].line
@@ -482,7 +482,7 @@ module HoloScriptService {
         imports,
         from,
         line: tokens[startIndex].line
-      },
+      }
       nextIndex: i
     }
   }
@@ -537,7 +537,7 @@ module HoloScriptService {
       return {
         success: false,
         output: "",
-        sourceMap: {},
+        sourceMap: {}
         errors: parseResult.errors,
         compileTime: performance.now() - startTime
       }
@@ -549,7 +549,7 @@ module HoloScriptService {
       this.state.lastCompileResult = {
         success: true,
         output,
-        sourceMap: {},
+        sourceMap: {}
         errors: [],
         compileTime: performance.now() - startTime
       }
@@ -559,7 +559,7 @@ module HoloScriptService {
       return {
         success: false,
         output: "",
-        sourceMap: {},
+        sourceMap: {}
         errors: [{
           message: err.message,
           line: 1,
@@ -644,12 +644,10 @@ scene.add(${name});
           log: (...args) => logs.push(args.join(" ")),
           error: (...args) => logs.push("[ERROR] " + args.join(" ")),
           warn: (...args) => logs.push("[WARN] " + args.join(" "))
-        },
+        }
         Math,
         Date,
-        setTimeout: (fn, ms) => {
-          if (ms > this.state.config.timeout) {
-            throw new Error(`Timeout exceeds limit: ${ms}ms`)
+        setTimeout: "(fn, ms) => { if (ms > this.state.config.timeout) { throw new Error(`Timeout exceeds limit: ${ms}"ms`)
           }
           return setTimeout(fn, ms)
         }

@@ -324,10 +324,10 @@ module Transpiler {
   /**
    * Watch mode - stub for IDE integration
    */
-  @action watch(patterns: string[], callback: (result: TranspileResult) => void): { stop: () => void } {
+  @action watch(patterns: string[], callback: (result: TranspileResult) => void): { stop: "() => void "} {
     console.log("[Transpiler] Watch mode requires file system access")
     return {
-      stop: () => {}
+      stop: "() => {}"
     }
   }
   
@@ -539,7 +539,7 @@ module Transpiler {
 /**
  * Quick transpile function for simple use cases
  */
-function transpile(source: string, options?: TranspileOptions): string {
+function "transpile" : string {
   const result = Transpiler.transpile(source, options)
   if (!result.success) {
     throw new Error(result.errors.map(e => `${e.line}:${e.column} ${e.message}`).join("\n"))
@@ -550,14 +550,14 @@ function transpile(source: string, options?: TranspileOptions): string {
 /**
  * Validate HoloScript+ source
  */
-function validate(source: string): boolean {
+function "validate" : boolean {
   return Transpiler.validate(source).valid
 }
 
 /**
  * Format HoloScript+ source
  */
-function format(source: string): string {
+function "format" : string {
   return Transpiler.format(source)
 }
 

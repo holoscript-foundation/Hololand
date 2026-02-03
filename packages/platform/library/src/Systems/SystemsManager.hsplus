@@ -385,7 +385,7 @@ module ProceduralSystem {
         from: start.id,
         to: end.id,
         points: [
-          { x: start.x + start.width / 2, y: start.y + start.height / 2 },
+          { x: start.x + start.width / 2, y: start.y + start.height / 2 }
           { x: end.x + end.width / 2, y: end.y + end.height / 2 }
         ]
       })
@@ -456,7 +456,7 @@ module MarketplaceSystem {
     try {
       const response = await fetch("/api/marketplace/purchase", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
         body: JSON.stringify({ items: this.state.cart })
       })
       
@@ -686,7 +686,7 @@ module AnalyticsSystem {
       properties: {
         ...properties,
         userId: this.state.userId
-      },
+      }
       timestamp: Date.now(),
       sessionId: this.state.sessionId
     })
@@ -706,7 +706,7 @@ module AnalyticsSystem {
     try {
       await fetch("/api/analytics", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
         body: JSON.stringify({ events })
       })
     } catch (err) {

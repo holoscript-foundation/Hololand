@@ -142,7 +142,7 @@ function parseARAnchor(node: any) -> ARAnchorNode {
   return {
     type: "ar_anchor",
     name: node.name ?? "",
-    properties: node.properties ?? {},
+    properties: node.properties ?? {}
     id: node.id ?? `anchor_${Date.now()}`,
     anchorType: node.anchorType ?? AnchorType.qr,
     properties: {
@@ -166,7 +166,7 @@ function parseARTrackedPersons(node: any) -> ARTrackedPersonNode {
   return {
     type: "ar_tracked_person",
     name: node.name ?? "",
-    properties: {},
+    properties: {}
     variable: node.variable ?? "person",
     source: "ar_tracking.persons",
     children: node.children ?? []
@@ -180,11 +180,11 @@ function parseARAvatar(node: any) -> ARAvatarNode {
   return {
     type: "ar_avatar",
     name: node.name ?? "",
-    properties: node.properties ?? {},
+    properties: node.properties ?? {}
     modelUrl: node.model ?? node.modelUrl ?? "",
     properties: {
-      position: node.position ?? { x: 0, y: 0, z: 0 },
-      rotation: node.rotation ?? { x: 0, y: 0, z: 0, w: 1 },
+      position: node.position ?? { x: 0, y: 0, z: 0 }
+      rotation: node.rotation ?? { x: 0, y: 0, z: 0, w: 1 }
       scale: node.scale ?? 1.0,
       skeleton: node.skeleton ?? "",
       expression: node.expression ?? "",

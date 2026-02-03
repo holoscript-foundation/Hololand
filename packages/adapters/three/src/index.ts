@@ -63,6 +63,15 @@ export {
 } from './OptimizationBridge';
 export type { OptimizationBridgeConfig } from './OptimizationBridge';
 
+// SmartAssetLoader integration bridge
+export {
+  SmartAssetBridge,
+  getSmartAssetBridge,
+  createSmartAssetBridge,
+  setupSmartAssetLoader,
+} from './SmartAssetBridge';
+export type { GLTFResult, SmartAssetBridgeConfig } from './SmartAssetBridge';
+
 /**
  * Create a World from a config file URL
  * Convenience function that loads config and returns ready-to-use world

@@ -79,7 +79,7 @@ component QuestJournal {
         gold: 0,
         items: [],
         reputation: {}
-      },
+      }
       
       // NPCs
       giver_npc: quest_data.giver_npc,

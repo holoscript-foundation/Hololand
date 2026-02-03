@@ -173,7 +173,7 @@ module HoloScriptToGLBConverter {
 
   @method buildGLTFDocument(rootNodes: HoloScriptNode[]) -> GLTFDocument {
     const doc: GLTFDocument = {
-      asset: { version: "2.0", generator: "HololandSpatial 1.0" },
+      asset: { version: "2.0", generator: "HololandSpatial 1.0" }
       scenes: [{ nodes: [] }],
       scene: 0,
       nodes: [],
@@ -326,7 +326,7 @@ module HoloScriptToGLBConverter {
     })
 
     const primitive: GLTFPrimitive = {
-      attributes: { POSITION: accessorIndex },
+      attributes: { POSITION: accessorIndex }
       mode: 4  // TRIANGLES
     }
 

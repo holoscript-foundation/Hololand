@@ -41,7 +41,7 @@ enum DistanceModel {
 struct AudioSourceConfig {
   id: string = "",
   sourceType: AudioSourceType = AudioSourceType.point,
-  position: Vector3 = { x: 0, y: 0, z: 0 },
+  position: Vector3 = { x: 0, y: 0, z: 0 }
   orientation: Vector3 = null,
   volume: number = 1.0,
   playbackRate: number = 1.0,
@@ -59,7 +59,7 @@ struct AudioSourceConfig {
 let DEFAULT_AUDIO_SOURCE_CONFIG: AudioSourceConfig = {
   id: "",
   sourceType: AudioSourceType.point,
-  position: { x: 0, y: 0, z: 0 },
+  position: { x: 0, y: 0, z: 0 }
   orientation: null,
   volume: 1.0,
   playbackRate: 1.0,
@@ -79,8 +79,8 @@ let DEFAULT_AUDIO_SOURCE_CONFIG: AudioSourceConfig = {
 // =============================================================================
 
 struct ListenerConfig {
-  position: Vector3 = { x: 0, y: 0, z: 0 },
-  forward: Vector3 = { x: 0, y: 0, z: -1 },
+  position: Vector3 = { x: 0, y: 0, z: 0 }
+  forward: Vector3 = { x: 0, y: 0, z: -1 }
   up: Vector3 = { x: 0, y: 1, z: 0 }
 }
 
@@ -240,7 +240,7 @@ let DEFAULT_VOICE_CONFIG: VoiceChatConfig = {
 struct VoiceParticipant {
   id: string = "",
   displayName: string = "",
-  position: Vector3 = { x: 0, y: 0, z: 0 },
+  position: Vector3 = { x: 0, y: 0, z: 0 }
   state: VoiceActivityState = VoiceActivityState.silent,
   volume: number = 1.0,
   muted: bool = false,
@@ -291,7 +291,7 @@ struct SpatialAudioEngineConfig {
   sampleRate: SampleRate = SampleRate.rate_48k,
   maxSources: number = 32,
   hrtfEnabled: bool = true,
-  hrtf: HRTFConfig = { model: HRTFModel.default_model, enabled: true },
+  hrtf: HRTFConfig = { model: HRTFModel.default_model, enabled: true }
   reverb: ReverbConfig = DEFAULT_REVERB_CONFIG,
   autoListenerUpdate: bool = true,
   distanceAttenuation: bool = true,
@@ -305,7 +305,7 @@ let DEFAULT_ENGINE_CONFIG: SpatialAudioEngineConfig = {
   sampleRate: SampleRate.rate_48k,
   maxSources: 32,
   hrtfEnabled: true,
-  hrtf: { model: HRTFModel.default_model, enabled: true },
+  hrtf: { model: HRTFModel.default_model, enabled: true }
   reverb: DEFAULT_REVERB_CONFIG,
   autoListenerUpdate: true,
   distanceAttenuation: true,

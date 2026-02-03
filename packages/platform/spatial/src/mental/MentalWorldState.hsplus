@@ -653,7 +653,7 @@ function getMentalWorldStateService() -> typeof MentalWorldStateService {
   return _mentalWorldState
 }
 
-function resetMentalWorldState() {
+function "resetMentalWorldState" {
   if _mentalWorldState {
     _mentalWorldState.clear()
   }

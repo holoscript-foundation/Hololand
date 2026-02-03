@@ -7,7 +7,7 @@ building CentralPlaza {
 }
 
 // The core water/data sculpture
-orb FountainOfBits {
+object "FountainOfBits" {
   shape: "fountain"
   position: [0, 0, 0]
   color: "#4cc9f0"
@@ -22,7 +22,7 @@ orb FountainOfBits {
 }
 
 // Decorative Arches (Art Deco)
-orb DecoArchNorth {
+object "DecoArchNorth" {
   shape: "arch"
   position: [0, 0, -20]
   color: "#ffd700" // Brass/Gold
@@ -30,7 +30,7 @@ orb DecoArchNorth {
   traits: ["climbable"]
 }
 
-orb DecoArchSouth {
+object "DecoArchSouth" {
   shape: "arch"
   position: [0, 0, 20]
   color: "#ffd700"
@@ -46,7 +46,7 @@ plant HangingVines01 {
 }
 
 // Social Area: Circular Bench
-orb SocialRing {
+object "SocialRing" {
   shape: "torus"
   position: [0, 0.5, 0]
   scale: [8, 0.4, 8]
@@ -56,7 +56,7 @@ orb SocialRing {
 }
 
 // Navigation waypoints
-orb ToCasino {
+object "ToCasino" {
   shape: "waypoint"
   position: [0, 1, -40]
   color: "#f1c40f"
@@ -65,7 +65,7 @@ orb ToCasino {
 }
 
 // Portal to Arcade District
-orb ArcadePortal {
+object "ArcadePortal" {
   shape: "bio-dome"
   position: [50, 0, 0]
   scale: [3, 4, 3]
@@ -78,14 +78,14 @@ orb ArcadePortal {
   }
 }
 
-orb SpawnPoint {
+object "SpawnPoint" {
   shape: "orb"
   type: "spawn"
   position: [0, 2, 8]
   color: "#00ff00"
   size: 0.5
 }
-orb VisitorCountDisplay {
+object "VisitorCountDisplay" {
   shape: "hologram_panel"
   position: [0, 5, -30]
   color: "#3498db"
@@ -97,7 +97,7 @@ orb VisitorCountDisplay {
 }
 
 // Portal to Hololand Legends (2D Game)
-orb LegendsPortal {
+object "LegendsPortal" {
   shape: "bio-dome"
   position: [40, 0, -50]
   scale: [3, 4, 3]

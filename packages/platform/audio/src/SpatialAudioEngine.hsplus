@@ -231,9 +231,9 @@ module SpatialAudioEngine {
     convolverGain: GainNode = null,
     dryGain: GainNode = null,
     listeners: Map<AudioEventType, Set<AudioEventListener>> = new Map(),
-    listenerPosition: Vector3 = { x: 0, y: 0, z: 0 },
-    listenerForward: Vector3 = { x: 0, y: 0, z: -1 },
-    listenerUp: Vector3 = { x: 0, y: 1, z: 0 },
+    listenerPosition: Vector3 = { x: 0, y: 0, z: 0 }
+    listenerForward: Vector3 = { x: 0, y: 0, z: -1 }
+    listenerUp: Vector3 = { x: 0, y: 1, z: 0 }
     initialized: bool = false
   }
 

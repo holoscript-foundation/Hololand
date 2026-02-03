@@ -402,9 +402,9 @@ component ProfilerToolbar {
   @props {
     title: string = "Performance Profiler"
     showChart: boolean = true
-    onToggleView: () => void
-    onReset: () => void = null
-    onExport: () => void = null
+    onToggleView: "() => void"
+    onReset: "() => void = null"
+    onExport: "() => void = null"
   }
 
   @render {
@@ -571,21 +571,21 @@ component PerformanceProfiler {
         unit: "fps",
         threshold: 60,
         status: this.props.fps >= 60 ? "good" : this.props.fps >= 30 ? "warning" : "critical"
-      },
+      }
       {
         name: "Frame Time",
         value: this.props.renderTime,
         unit: "ms",
         threshold: 16,
         status: this.props.renderTime <= 16 ? "good" : this.props.renderTime <= 33 ? "warning" : "critical"
-      },
+      }
       {
         name: "Memory",
         value: memory,
         unit: "MB",
         threshold: 200,
         status: memory <= 150 ? "good" : memory <= 200 ? "warning" : "critical"
-      },
+      }
       {
         name: "Objects",
         value: this.props.objectCount,

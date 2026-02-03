@@ -5,7 +5,7 @@ building ArcadeDistrict {
   position: [60, 0, 0]
 }
 
-orb SpawnPoint_Arcade {
+object "SpawnPoint_Arcade" {
   shape: "orb"
   type: "spawn"
   position: [65, 2, 0]
@@ -26,7 +26,7 @@ building GreenMachineArcade {
 }
 
 // Brian's Gym - Solarpunk integration
-orb BriansGym {
+object "BriansGym" {
   shape: "bio-dome"
   position: [100, 0, 40]
   size: 15
@@ -35,7 +35,7 @@ orb BriansGym {
 }
 
 // Brian - The AI Curator
-orb NPC_Brian {
+object "NPC_Brian" {
   shape: "brian_boxing"
   position: [90, 0, 30]
   color: "#3498db"
@@ -49,7 +49,7 @@ orb NPC_Brian {
 }
 
 // Modular User Shops (Art Deco facades)
-orb ShopRowA_01 {
+object "ShopRowA_01" {
   shape: "shop_front"
   position: [60, 0, -20]
   color: "#f39c12" // Orange Art Deco
@@ -58,7 +58,7 @@ orb ShopRowA_01 {
   traits: ["hoverable", "teleport_destination"]
 }
 
-orb ShopRowA_02 {
+object "ShopRowA_02" {
   shape: "shop_front"
   position: [60, 0, -40]
   color: "#9b59b6" // Purple Art Deco
@@ -66,7 +66,7 @@ orb ShopRowA_02 {
   interactive: true
 }
 
-orb ShopRowA_03 {
+object "ShopRowA_03" {
   shape: "shop_front"
   position: [60, 0, -60]
   color: "#3498db" // Blue Art Deco
@@ -83,7 +83,7 @@ plant FlowerLamp01 {
 }
 
 // Collectible Data Bits (For Brian's Quest)
-orb DataBit_01 {
+object "DataBit_01" {
   shape: "orb"
   position: [85, 1, 15]
   size: 0.3
@@ -92,7 +92,7 @@ orb DataBit_01 {
   traits: ["collectible", "pulse"]
 }
 
-orb DataBit_02 {
+object "DataBit_02" {
   shape: "orb"
   position: [75, 1, -5]
   size: 0.3
@@ -101,7 +101,7 @@ orb DataBit_02 {
   traits: ["collectible", "pulse"]
 }
 
-orb DataBit_03 {
+object "DataBit_03" {
   shape: "orb"
   position: [95, 1, 45]
   size: 0.3

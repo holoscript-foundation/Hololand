@@ -30,7 +30,7 @@ module UICanvas {
     lastTime: number = 0,
     focusedComponent: any = null,
     dirty: bool = true,
-    breakpoints: BreakpointConfig = { mobile: 480, tablet: 768, desktop: 1024 },
+    breakpoints: BreakpointConfig = { mobile: 480, tablet: 768, desktop: 1024 }
     currentBreakpoint: string = "desktop",
     animationFrameId: number = null
   }

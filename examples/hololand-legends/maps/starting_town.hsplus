@@ -83,15 +83,15 @@ map "starting_town" {
   
   // Map exits/warps
   warps: [
-    { x: 9, y: 0, to: "crystal_caves", spawnX: 5, spawnY: 13 },
-    { x: 9, y: 14, to: "misty_lake", spawnX: 5, spawnY: 1 },
-    { x: 0, y: 7, to: "shadow_forest", spawnX: 18, spawnY: 7 },
+    { x: 9, y: 0, to: "crystal_caves", spawnX: 5, spawnY: 13 }
+    { x: 9, y: 14, to: "misty_lake", spawnX: 5, spawnY: 1 }
+    { x: 0, y: 7, to: "shadow_forest", spawnX: 18, spawnY: 7 }
     { x: 19, y: 7, to: "volcano_path", spawnX: 1, spawnY: 7 }
   ]
   
   // NPCs
   npcs: [
-    { id: "elder", x: 10, y: 8, dialog: "Welcome to Meadow Village! Your adventure begins here." },
+    { id: "elder", x: 10, y: 8, dialog: "Welcome to Meadow Village! Your adventure begins here." }
     { id: "healer", x: 7, y: 5, dialog: "I can heal your creatures. Would you like me to help?", action: "heal_party" }
   ]
 }

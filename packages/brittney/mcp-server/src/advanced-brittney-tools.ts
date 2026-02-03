@@ -1,6 +1,6 @@
 /**
  * Advanced Brittney Tools for Hololand MCP
- * 
+ *
  * Power tools that extend Brittney's capabilities:
  * - One-shot generate & inject pipeline
  * - Real-time error monitoring with auto-fix
@@ -9,18 +9,38 @@
  * - Session recording & replay
  * - Visual comparison tools
  * - Scene versioning
+ *
+ * Architecture: Uses @hololand/inference → Ollama (port 11434)
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { sharedDataBridge } from './shared-data-bridge.js';
+import { createInferenceClient, type InferenceClient } from '@hololand/inference';
 
 // =============================================================================
-// BRITTNEY SERVICE CLIENT
+// INFERENCE CLIENT (Uses @hololand/inference → Ollama)
 // =============================================================================
 
-const BRITTNEY_SERVICE_URL = process.env.BRITTNEY_SERVICE_URL || 'http://localhost:11435';
-const BRITTNEY_ADMIN_KEY = process.env.BRITTNEY_ADMIN_KEY || 'mcp-localhost-trusted';
 const UAA2_SERVICE_URL = process.env.UAA2_SERVICE_URL || 'http://localhost:3000';
+
+let inferenceClient: InferenceClient | null = null;
+
+function getInferenceClient(): InferenceClient {
+  if (!inferenceClient) {
+    inferenceClient = createInferenceClient({
+      activeProvider: 'local',
+      local: {
+        enabled: true,
+        ollamaUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+        defaultModel: 'brittney-v4:latest',
+        autoDownloadModel: false,
+      },
+      fallbackToCloud: true,
+      preferLocalWhenAvailable: true,
+    });
+  }
+  return inferenceClient;
+}
 
 interface BrittneyResponse {
   success: boolean;
@@ -31,26 +51,23 @@ interface BrittneyResponse {
 
 async function callBrittney(message: string, context?: object): Promise<BrittneyResponse> {
   try {
-    const response = await fetch(`${BRITTNEY_SERVICE_URL}/chat`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${BRITTNEY_ADMIN_KEY}`,
-      },
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: message }],
-        context: context ? { browserState: context } : undefined,
-      }),
+    const client = getInferenceClient();
+    await client.initialize();
+
+    const systemPrompt = context
+      ? `You are Brittney, an AI assistant for HoloScript development. Current browser context: ${JSON.stringify(context)}`
+      : 'You are Brittney, an AI assistant for HoloScript development.';
+
+    const response = await client.chat({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message }
+      ],
     });
 
-    if (!response.ok) {
-      return { success: false, error: `Brittney service error: ${response.status}` };
-    }
-
-    const data = await response.json() as { content: string };
-    return { success: true, response: data.content };
+    return { success: true, response: response.content };
   } catch (error: any) {
-    return { success: false, error: `Failed to reach Brittney: ${error.message}` };
+    return { success: false, error: `Inference error: ${error.message}` };
   }
 }
 

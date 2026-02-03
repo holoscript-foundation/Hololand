@@ -500,7 +500,7 @@ module PreviewService {
       selected: false,
       metadata: {
         traits: node.traits || [],
-        state: node.state || {},
+        state: node.state || {}
         interactive: node.interactive || false
       }
     }

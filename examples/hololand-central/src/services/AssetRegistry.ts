@@ -1,9 +1,4 @@
-/**
- * AssetRegistry - Manages 3D asset mappings for Hololand
- * 
- * Maps friendly names (e.g. 'fountain') to GLB/GLTF URLs.
- * Support for dynamic registration and scanning.
- */
+import { resolveAssetAlias } from '@holoscript/core';
 
 export interface AssetMapping {
   name: string;
@@ -66,6 +61,9 @@ export class AssetRegistry {
       { name: 'brian_situps', url: '/assets/models/Brian_Situps.glb' },
       { name: 'brian_bicycle', url: '/assets/models/Brian_BicycleCrunch.glb' },
       { name: 'brian_flexing', url: '/assets/models/Brian_Flexing.glb' },
+      // Sample Spatial Assets
+      { name: 'garden_splat', url: 'https://huggingface.co/datasets/dylanebert/3dgs/resolve/main/garden.splat' },
+      { name: 'luma_capture', url: 'https://lumalabs.ai/capture/d6df9429-1b3c-449e-8c34-eb16886e8a4a' },
     ];
 
     defaultModels.forEach(m => this.register(m.name, m.url));
@@ -99,7 +97,8 @@ export class AssetRegistry {
    * Resolve an asset name to its URL
    */
   resolve(name: string): string | undefined {
-    return this.mappings.get(name.toLowerCase())?.url;
+    const resolvedName = resolveAssetAlias(name);
+    return this.mappings.get(resolvedName.toLowerCase())?.url || this.mappings.get(name.toLowerCase())?.url;
   }
 
   /**

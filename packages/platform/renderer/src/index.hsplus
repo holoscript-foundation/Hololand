@@ -17,7 +17,7 @@
  * // Create renderer with quality auto-detection
  * let renderer = createHololandRenderer(canvas, world, {
  *   quality: QualityPreset.auto,
- *   environment: { hdri: "sunset", skybox: SkyboxType.hdri },
+ *   environment: { hdri: "sunset", skybox: SkyboxType.hdri }
  *   postProcessing: { bloom: { enabled: true, strength: 0.5 } }
  * })
  *

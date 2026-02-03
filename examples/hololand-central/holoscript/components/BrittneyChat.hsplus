@@ -65,7 +65,7 @@ component "BrittneyChat" {
     })
   }
 
-  async function routeChat(message) {
+  async function "routeChat" {
     // Check for API key
     const provider = await storage.get("hololand:ai:provider")
     const apiKey = await storage.get("hololand:ai:key:" + provider)
@@ -87,11 +87,11 @@ component "BrittneyChat" {
     return callUserLLM(provider, apiKey, message)
   }
 
-  async function callLocalBrittney(message) {
+  async function "callLocalBrittney" {
     // Use local Brittney model (TinyLlama-based)
     const response = await fetch("/api/brittney/generate", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }
       body: JSON.stringify({
         prompt: message,
         context: buildContext()
@@ -100,13 +100,13 @@ component "BrittneyChat" {
     return response.json()
   }
 
-  async function callInfinityAssistant(apiKey, message) {
+  async function "callInfinityAssistant" {
     const response = await fetch("https://api.infinityassistant.dev/v1/brittney", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + apiKey
-      },
+      }
       body: JSON.stringify({
         prompt: message,
         context: buildContext(),
@@ -116,7 +116,7 @@ component "BrittneyChat" {
     return response.json()
   }
 
-  async function callUserLLM(provider, apiKey, message) {
+  async function "callUserLLM" {
     // Map provider to API endpoint
     const endpoints = {
       "openai": "https://api.openai.com/v1/chat/completions",
@@ -129,13 +129,13 @@ component "BrittneyChat" {
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + apiKey
-      },
+      }
       body: buildLLMRequest(provider, message)
     })
     return parseLLMResponse(provider, await response.json())
   }
 
-  function buildContext() {
+  function "buildContext" {
     return {
       currentZone: app.state.currentView,
       theme: ThemeSystem.current.id,
@@ -321,7 +321,7 @@ component "BrittneyChat" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function getModeLabel() {
+  function "getModeLabel" {
     match state.chatMode {
       "basic" -> "Basic (Local)"
       "pro-byok" -> "Pro (Your LLM)"
@@ -329,7 +329,7 @@ component "BrittneyChat" {
     }
   }
 
-  function getModeColor() {
+  function "getModeColor" {
     match state.chatMode {
       "basic" -> "rgba(255,255,255,0.5)"
       "pro-byok" -> "#4caf50"
@@ -544,7 +544,7 @@ component "chatSettingsModal" {
     }
   }
 
-  async function testConnection() {
+  async function "testConnection" {
     state.isSaving = true
     state.testResult = null
 
@@ -559,7 +559,7 @@ component "chatSettingsModal" {
     state.isSaving = false
   }
 
-  async function saveSettings() {
+  async function "saveSettings" {
     state.isSaving = true
 
     await storage.set("hololand:ai:provider", state.provider)

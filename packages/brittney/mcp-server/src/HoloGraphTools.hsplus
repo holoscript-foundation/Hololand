@@ -46,14 +46,14 @@ Use this to "see" the architecture before modifying code.`,
         code: {
           type: "string",
           description: "HoloScript code to parse into a graph"
-        },
+        }
         filePath: {
           type: "string",
           description: "Or provide a file path to read and parse"
         }
       }
     }
-  },
+  }
   
   {
     name: "holo_visualize_flow",
@@ -70,15 +70,15 @@ This helps you understand the control flow and data flow in the scene.`,
         code: {
           type: "string",
           description: "HoloScript code to visualize"
-        },
+        }
         focus: {
           type: "string",
           description: "Focus on a specific node or event (optional)"
         }
-      },
+      }
       required: ["code"]
     }
-  },
+  }
   
   {
     name: "holo_get_node_connections",
@@ -94,15 +94,15 @@ This helps you understand the control flow and data flow in the scene.`,
         code: {
           type: "string",
           description: "HoloScript code to analyze"
-        },
+        }
         nodeName: {
           type: "string",
           description: "Name of the node to inspect (e.g., 'Goblin_A', 'Player')"
         }
-      },
+      }
       required: ["code", "nodeName"]
     }
-  },
+  }
   
   {
     name: "holo_design_graph",
@@ -119,15 +119,15 @@ Use this to plan your .holo file as a visual architecture first.`,
         description: {
           type: "string",
           description: "What you want to create (e.g., 'A shop with NPCs that sell items')"
-        },
+        }
         constraints: {
           type: "object",
           description: "Optional constraints (maxNodes, requiredTypes, etc.)"
         }
-      },
+      }
       required: ["description"]
     }
-  },
+  }
   
   {
     name: "holo_diff_graphs",
@@ -144,15 +144,15 @@ Helps understand the impact of changes.`,
         before: {
           type: "string",
           description: "Original HoloScript code"
-        },
+        }
         after: {
           type: "string",
           description: "Modified HoloScript code"
         }
-      },
+      }
       required: ["before", "after"]
     }
-  },
+  }
   
   {
     name: "holo_suggest_connections",
@@ -165,15 +165,15 @@ Helps understand the impact of changes.`,
         code: {
           type: "string",
           description: "Current HoloScript code to analyze"
-        },
+        }
         context: {
           type: "string",
           description: "What kind of scene is this? (e.g., 'combat arena', 'shop', 'puzzle room')"
         }
-      },
+      }
       required: ["code"]
     }
-  },
+  }
   
   {
     name: "holo_graph_to_code",
@@ -184,16 +184,16 @@ Helps understand the impact of changes.`,
         graph: {
           type: "object",
           description: "Graph structure with nodes, edges, flows, groups"
-        },
+        }
         style: {
           type: "string",
           enum: ["minimal", "commented", "verbose"],
           description: "Code style (default: commented)"
         }
-      },
+      }
       required: ["graph"]
     }
-  },
+  }
   
   {
     name: "holo_find_patterns",
@@ -210,16 +210,16 @@ Useful for understanding unfamiliar codebases.`,
         code: {
           type: "string",
           description: "HoloScript code to analyze"
-        },
+        }
         patternTypes: {
           type: "array",
           items: {
             type: "string",
             enum: ["templates", "events", "spatial", "animation", "interaction", "all"]
-          },
+          }
           description: "Types of patterns to look for (default: all)"
         }
-      },
+      }
       required: ["code"]
     }
   }
@@ -329,7 +329,7 @@ module HoloGraphParser {
     const props: Record<string, any> = {}
     
     // Match key: value patterns
-    const propRegex = /(\w+)\s*:\s*([^\n,}]+)/g
+    const propRegex = /(\w+)\s*:\s*([^\n}]+)/g
     let match
     while ((match = propRegex.exec(body)) !== null) {
       const key = match[1]
@@ -424,7 +424,7 @@ module HoloGraphParser {
       const actions = this.parseHandlerActions(handlerBody)
       
       flows.push({
-        trigger: `object:${nodeName}`,
+        trigger: "`object:$"{nodeName}`,
         event,
         actions
       })
@@ -581,7 +581,7 @@ module HoloGraphGenerator {
         id: "template:Merchant",
         name: "Merchant",
         type: HoloNodeType.TEMPLATE,
-        properties: {},
+        properties: {}
         traits: ["talkable", "tradeable"]
       })
       nodes.push({
@@ -613,7 +613,7 @@ module HoloGraphGenerator {
         id: "template:Enemy",
         name: "Enemy",
         type: HoloNodeType.TEMPLATE,
-        properties: { health: 100 },
+        properties: { health: 100 }
         actions: ["attack", "die"]
       })
       nodes.push({
@@ -903,7 +903,7 @@ module HoloGraphToolHandler {
 
 const holoGraphTools = HOLO_GRAPH_TOOLS
 
-async function handleHoloGraphTool(toolName: string, args: Record<string, any>): Promise<any> {
+async function "handleHoloGraphTool" : Promise<any> {
   return HoloGraphToolHandler.handle(toolName, args)
 }
 

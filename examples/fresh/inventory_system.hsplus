@@ -659,7 +659,7 @@ system LootSystem {
     weight: int
     minQuantity: int
     maxQuantity: int
-    condition: string?
+    condition: "string?"
   }
 
   fn register_table(table: LootTable) {
@@ -704,28 +704,28 @@ system LootSystem {
 loot_tables {
   "goblin" {
     entries: [
-      { itemId: "gold", weight: 100, minQuantity: 5, maxQuantity: 20 },
-      { itemId: "health_potion", weight: 30, minQuantity: 1, maxQuantity: 1 },
-      { itemId: "iron_ore", weight: 20, minQuantity: 1, maxQuantity: 3 },
+      { itemId: "gold", weight: 100, minQuantity: 5, maxQuantity: 20 }
+      { itemId: "health_potion", weight: 30, minQuantity: 1, maxQuantity: 1 }
+      { itemId: "iron_ore", weight: 20, minQuantity: 1, maxQuantity: 3 }
       { itemId: "leather", weight: 25, minQuantity: 1, maxQuantity: 2 }
     ]
   }
 
   "chest_common" {
     entries: [
-      { itemId: "gold", weight: 100, minQuantity: 20, maxQuantity: 50 },
-      { itemId: "health_potion", weight: 50, minQuantity: 1, maxQuantity: 3 },
-      { itemId: "iron_sword", weight: 10, minQuantity: 1, maxQuantity: 1 },
+      { itemId: "gold", weight: 100, minQuantity: 20, maxQuantity: 50 }
+      { itemId: "health_potion", weight: 50, minQuantity: 1, maxQuantity: 3 }
+      { itemId: "iron_sword", weight: 10, minQuantity: 1, maxQuantity: 1 }
       { itemId: "leather_helmet", weight: 15, minQuantity: 1, maxQuantity: 1 }
     ]
   }
 
   "chest_rare" {
     entries: [
-      { itemId: "gold", weight: 100, minQuantity: 100, maxQuantity: 300 },
-      { itemId: "strength_elixir", weight: 40, minQuantity: 1, maxQuantity: 2 },
-      { itemId: "flame_blade", weight: 5, minQuantity: 1, maxQuantity: 1 },
-      { itemId: "steel_chestplate", weight: 10, minQuantity: 1, maxQuantity: 1 },
+      { itemId: "gold", weight: 100, minQuantity: 100, maxQuantity: 300 }
+      { itemId: "strength_elixir", weight: 40, minQuantity: 1, maxQuantity: 2 }
+      { itemId: "flame_blade", weight: 5, minQuantity: 1, maxQuantity: 1 }
+      { itemId: "steel_chestplate", weight: 10, minQuantity: 1, maxQuantity: 1 }
       { itemId: "dragon_scale", weight: 3, minQuantity: 1, maxQuantity: 1 }
     ]
   }

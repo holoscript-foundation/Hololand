@@ -114,7 +114,7 @@ struct HoloFlowAction {
 }
 
 struct HoloFlow {
-  trigger: string
+  trigger: "string"
   event: string
   actions: HoloFlowAction[] = []
 }

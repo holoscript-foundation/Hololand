@@ -118,7 +118,7 @@ component FileMenu {
       transition: background 0.2s;
     }
 
-    .dropdown-trigger:hover {
+    .dropdown-trigger:"hover"{
       background: var(--color-gray-700, #374151);
       border-radius: 0.25rem;
     }
@@ -194,10 +194,10 @@ component FileMenu {
 component ExamplesMenu {
   @props {
     examples: array<{ id: string, name: string, icon: string }> = [
-      { id: "cube", name: "Spinning Cube", icon: "🧊" },
-      { id: "sphere", name: "Shiny Sphere", icon: "🔮" },
-      { id: "grid", name: "Grid World", icon: "🏗️" },
-      { id: "particles", name: "Particle System", icon: "✨" },
+      { id: "cube", name: "Spinning Cube", icon: "🧊" }
+      { id: "sphere", name: "Shiny Sphere", icon: "🔮" }
+      { id: "grid", name: "Grid World", icon: "🏗️" }
+      { id: "particles", name: "Particle System", icon: "✨" }
       { id: "npc", name: "NPC World", icon: "🧑" }
     ]
     onLoad: function(exampleId: string)
@@ -258,7 +258,7 @@ component ExamplesMenu {
       transition: background 0.2s;
     }
 
-    .dropdown-trigger:hover {
+    .dropdown-trigger:"hover"{
       background: var(--color-gray-700, #374151);
       border-radius: 0.25rem;
     }
@@ -480,7 +480,7 @@ component LayoutSelector {
       transition: background 0.2s;
     }
 
-    .dropdown-trigger:hover {
+    .dropdown-trigger:"hover"{
       background: var(--color-gray-700, #374151);
       border-radius: 0.25rem;
     }

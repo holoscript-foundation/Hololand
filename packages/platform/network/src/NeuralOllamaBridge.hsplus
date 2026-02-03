@@ -195,7 +195,7 @@ module NeuralOllamaBridge {
     
     const response = await this.fetchWithTimeout(`${config.baseUrl}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }
       body: JSON.stringify({
         model: config.model,
         messages,
@@ -349,7 +349,7 @@ class NeuralAgent implements AutonomousAgent {
     try {
       const response = await this.bridge.query(
         [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: systemPrompt }
           ...this.formatConversationHistory(context.conversationHistory),
           { role: "user", content: contextPrompt }
         ],

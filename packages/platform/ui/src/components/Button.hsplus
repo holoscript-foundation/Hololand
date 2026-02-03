@@ -22,8 +22,8 @@ module Button {
   @state {
     // Base state (from UIComponentBase)
     id: string = "",
-    position: Vector2 = { x: 0, y: 0 },
-    size: { width: number, height: number } = { width: 120, height: 40 },
+    position: Vector2 = { x: 0, y: 0 }
+    size: { width: number, height: number } = { width: 120, height: 40 }
     visible: bool = true,
     enabled: bool = true,
     zIndex: number = 0,

@@ -617,7 +617,7 @@ composition "CombatArena" {
           speed: 5.0,
           critChance: 0.1,
           critMultiplier: 2.0
-        },
+        }
         weapon: weapons["Iron Sword"],
         state: "idle",
         team: "player"
@@ -657,7 +657,7 @@ composition "CombatArena" {
           speed: 3.0,
           critChance: 0.05,
           critMultiplier: 1.5
-        },
+        }
         weapon: weapons["Rusty Sword"],
         state: "idle",
         team: "enemy"

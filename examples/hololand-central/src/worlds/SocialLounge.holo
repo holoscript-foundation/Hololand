@@ -5,91 +5,91 @@
   ],
   "environment": {
     "properties": [
-      { "key": "preset", "value": "apartment" },
+      { "key": "preset", "value": "apartment" }
       { "key": "ambient_light", "value": 0.3 }
     ]
-  },
+  }
   "objects": [
     {
       "name": "Carpet",
       "properties": [
-        { "key": "geometry", "value": "plane" },
-        { "key": "args", "value": [30, 30] },
-        { "key": "rotation", "value": [-1.5708, 0, 0] },
-        { "key": "color", "value": "#2c1810" },
+        { "key": "geometry", "value": "plane" }
+        { "key": "args", "value": [30, 30] }
+        { "key": "rotation", "value": [-1.5708, 0, 0] }
+        { "key": "color", "value": "#2c1810" }
         { "key": "materialProps", "value": { "roughness": 0.9, "metalness": 0.1 } }
       ]
-    },
+    }
     {
       "name": "MainChandelier",
       "properties": [
-        { "key": "geometry", "value": "sphere" },
-        { "key": "args", "value": [0.5, 16, 16] },
-        { "key": "position", "value": [0, 5, 0] },
-        { "key": "color", "value": "#ffd700" },
+        { "key": "geometry", "value": "sphere" }
+        { "key": "args", "value": [0.5, 16, 16] }
+        { "key": "position", "value": [0, 5, 0] }
+        { "key": "color", "value": "#ffd700" }
         { "key": "materialProps", "value": { "metalness": 0.8, "roughness": 0.2, "emissive": "#ffd700", "emissiveIntensity": 0.5 } }
       ],
       "traits": [
-        { "name": "grabbable", "config": true },
-        { "name": "gesture", "config": { "on_grab": "Lounge.onChandelierGrab('main')" } },
+        { "name": "grabbable", "config": true }
+        { "name": "gesture", "config": { "on_grab": "Lounge.onChandelierGrab('main')" } }
         { "name": "haptic", "config": { "intensity": 0.5 } }
       ],
       "children": [
         {
           "name": "ChandelierLight",
           "properties": [
-            { "key": "type", "value": "pointLight" },
-            { "key": "intensity", "value": 1.0 },
-            { "key": "color", "value": "#ffd700" },
+            { "key": "type", "value": "pointLight" }
+            { "key": "intensity", "value": 1.0 }
+            { "key": "color", "value": "#ffd700" }
             { "key": "distance", "value": 15 }
           ]
         }
       ]
-    },
+    }
     {
       "name": "CoffeeTable",
       "properties": [
-        { "key": "geometry", "value": "cylinder" },
-        { "key": "args", "value": [2, 2, 0.1, 32] },
-        { "key": "position", "value": [0, 0.35, 0] },
-        { "key": "color", "value": "#8b4513" },
+        { "key": "geometry", "value": "cylinder" }
+        { "key": "args", "value": [2, 2, 0.1, 32] }
+        { "key": "position", "value": [0, 0.35, 0] }
+        { "key": "color", "value": "#8b4513" }
         { "key": "materialProps", "value": { "metalness": 0.3, "roughness": 0.6 } }
       ],
       "children": [
         {
           "name": "GlassTop",
           "properties": [
-            { "key": "geometry", "value": "cylinder" },
-            { "key": "args", "value": [1.9, 1.9, 0.05, 32] },
-            { "key": "position", "value": [0, 0.06, 0] },
-            { "key": "color", "value": "#ffffff" },
+            { "key": "geometry", "value": "cylinder" }
+            { "key": "args", "value": [1.9, 1.9, 0.05, 32] }
+            { "key": "position", "value": [0, 0.06, 0] }
+            { "key": "color", "value": "#ffffff" }
             { "key": "materialProps", "value": { "transparent": true, "opacity": 0.3, "metalness": 0.1, "roughness": 0, "transmission": 0.9, "ior": 1.5 } }
           ]
         }
       ]
-    },
+    }
     {
        "name": "FloatingGlass",
        "properties": [
-         { "key": "geometry", "value": "sphere" },
-         { "key": "args", "value": [0.3, 16, 16] },
-         { "key": "position", "value": [0, 1.2, 0] },
-         { "key": "color", "value": "#667eea" },
+         { "key": "geometry", "value": "sphere" }
+         { "key": "args", "value": [0.3, 16, 16] }
+         { "key": "position", "value": [0, 1.2, 0] }
+         { "key": "color", "value": "#667eea" }
          { "key": "materialProps", "value": { "transparent": true, "opacity": 0.8, "emissive": "#667eea", "emissiveIntensity": 0.3 } }
        ],
        "traits": [
-         { "name": "grabbable", "config": true },
-         { "name": "gesture", "config": { "on_grab": "Lounge.onGlassGrab()" } },
+         { "name": "grabbable", "config": true }
+         { "name": "gesture", "config": { "on_grab": "Lounge.onGlassGrab()" } }
          { "name": "animated", "config": { "rotation": [0, 0.02, 0] } }
        ]
-    },
+    }
     {
       "name": "LuxurySparkles",
       "properties": [
-        { "key": "type", "value": "sparkles" },
-        { "key": "count", "value": 50 },
-        { "key": "scale", "value": 15 },
-        { "key": "size", "value": 1.5 },
+        { "key": "type", "value": "sparkles" }
+        { "key": "count", "value": 50 }
+        { "key": "scale", "value": 15 }
+        { "key": "size", "value": 1.5 }
         { "key": "color", "value": "#ffd700" }
       ]
     }

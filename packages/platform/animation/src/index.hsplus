@@ -212,9 +212,9 @@ module Skeleton {
   @method clone(newId: string) -> typeof Skeleton {
     const boneData = Array.from(self.bones.values()).map(b => ({
       ...b,
-      localTransform: { ...b.localTransform },
-      worldTransform: { ...b.worldTransform },
-      bindPose: { ...b.bindPose },
+      localTransform: { ...b.localTransform }
+      worldTransform: { ...b.worldTransform }
+      bindPose: { ...b.bindPose }
       children: [...b.children]
     }))
     

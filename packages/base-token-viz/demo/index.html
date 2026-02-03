@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Base Token Visualizer | Hololand</title>
+  <meta name="description" content="Visualize any Base chain token in 3D VR - Clanker token to Hololand in 5 mins" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔮</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-primary: #0f0f1a;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #16213e;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --accent-primary: #00d4ff;
+      --accent-secondary: #0088cc;
+      --base-blue: #0052ff;
+      --success: #00ff88;
+      --error: #ff4466;
+      --warning: #ffaa00;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: var(--text-primary);
+      overflow-x: hidden;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem;
+      background: rgba(26, 26, 46, 0.8);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .logo-icon {
+      font-size: 2rem;
+    }
+    
+    .logo-text {
+      background: linear-gradient(90deg, var(--accent-primary), var(--base-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .badge {
+      background: var(--base-blue);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    }
+    
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(90deg, var(--accent-primary), #ffd700, var(--base-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+    
+    .chain-info {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(0, 82, 255, 0.2);
+      border: 1px solid var(--base-blue);
+      border-radius: 2rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+    
+    .chain-info img {
+      width: 20px;
+      height: 20px;
+    }
+    
+    /* Main Layout */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 2rem;
+      padding: 2rem;
+      min-height: calc(100vh - 200px);
+    }
+    
+    @media (max-width: 1024px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Input Panel */
+    .input-panel {
+      background: var(--bg-card);
+      border-radius: 1rem;
+      padding: 2rem;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+    
+    .input-panel h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+    
+    .input-with-btn {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg-primary);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      padding: 0.875rem 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    input[type="text"]:focus {
+      border-color: var(--accent-primary);
+    }
+    
+    input[type="text"]::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.5;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.875rem 1.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-secondary {
+      background: var(--bg-secondary);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Style selector */
+    .style-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .style-btn {
+      background: var(--bg-primary);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    
+    .style-btn:hover, .style-btn.active {
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+    }
+    
+    .style-btn .icon {
+      font-size: 1.5rem;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    
+    /* Token info */
+    .token-info {
+      background: var(--bg-primary);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-top: 1.5rem;
+    }
+    
+    .token-info.hidden {
+      display: none;
+    }
+    
+    .token-info h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent-primary);
+    }
+    
+    .token-info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.875rem;
+    }
+    
+    .token-info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .token-info-row .label {
+      color: var(--text-secondary);
+    }
+    
+    .token-info-row .value {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* Preview Panel */
+    .preview-panel {
+      background: var(--bg-card);
+      border-radius: 1rem;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .preview-tabs {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border-radius: 0.25rem;
+      transition: all 0.2s;
+    }
+    
+    .tab-btn:hover, .tab-btn.active {
+      background: rgba(0, 212, 255, 0.1);
+      color: var(--accent-primary);
+    }
+    
+    .preview-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .preview-content {
+      flex: 1;
+      position: relative;
+      min-height: 500px;
+    }
+    
+    #preview-3d {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0a0a1a 0%, #16213e 100%);
+    }
+    
+    .code-preview {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-primary);
+      padding: 1.5rem;
+      overflow: auto;
+      display: none;
+    }
+    
+    .code-preview.active {
+      display: block;
+    }
+    
+    .code-preview pre {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+    
+    .code-preview .keyword { color: var(--accent-primary); }
+    .code-preview .string { color: #f9a8d4; }
+    .code-preview .number { color: #fbbf24; }
+    .code-preview .comment { color: #6b7280; }
+    .code-preview .trait { color: #34d399; }
+    .code-preview .property { color: #93c5fd; }
+    
+    /* Status */
+    .status {
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      display: none;
+    }
+    
+    .status.visible {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .status.loading {
+      background: rgba(0, 212, 255, 0.1);
+      color: var(--accent-primary);
+    }
+    
+    .status.success {
+      background: rgba(0, 255, 136, 0.1);
+      color: var(--success);
+    }
+    
+    .status.error {
+      background: rgba(255, 68, 102, 0.1);
+      color: var(--error);
+    }
+    
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Example tokens */
+    .examples {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .examples h3 {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+    }
+    
+    .example-btn {
+      display: block;
+      width: 100%;
+      background: var(--bg-primary);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .example-btn:hover {
+      border-color: var(--accent-primary);
+    }
+    
+    .example-btn .name {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 0.875rem;
+    }
+    
+    .example-btn .address {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+    
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      background: var(--bg-secondary);
+      border-top: 1px solid rgba(0, 212, 255, 0.1);
+    }
+    
+    footer p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+    
+    footer a {
+      color: var(--accent-primary);
+      text-decoration: none;
+    }
+    
+    footer a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Placeholder */
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-secondary);
+    }
+    
+    .placeholder .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+    
+    .placeholder p {
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span class="logo-icon">🔮</span>
+      <span class="logo-text">Base Token Viz</span>
+      <span class="badge">Hololand</span>
+    </div>
+    <div class="chain-info">
+      <svg width="20" height="20" viewBox="0 0 111 111" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M55.5 111C86.1518 111 111 86.1518 111 55.5C111 24.8482 86.1518 0 55.5 0C24.8482 0 0 24.8482 0 55.5C0 86.1518 24.8482 111 55.5 111Z" fill="#0052FF"/>
+        <path d="M55.4209 91.8124C75.5171 91.8124 91.8124 75.5171 91.8124 55.4209C91.8124 35.3247 75.5171 19.0295 55.4209 19.0295C37.1199 19.0295 22.0312 32.4076 19.4133 49.6875H67.9097V61.1543H19.4133C22.0312 78.4342 37.1199 91.8124 55.4209 91.8124Z" fill="white"/>
+      </svg>
+      <span>Base Chain • 8453</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>Clanker Token → Hololand VR</h1>
+    <p>Paste any Base ERC-20 token address and watch it come to life as a 3D visualization. No code required.</p>
+  </section>
+
+  <main class="main-layout container">
+    <aside class="input-panel">
+      <h2>🎯 Token Address</h2>
+      
+      <div class="form-group">
+        <label for="token-address">Base ERC-20 Contract Address</label>
+        <div class="input-with-btn">
+          <input 
+            type="text" 
+            id="token-address" 
+            placeholder="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+            spellcheck="false"
+          />
+          <button class="btn" id="visualize-btn">Visualize</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Visualization Style</label>
+        <div class="style-selector">
+          <button class="style-btn active" data-style="orb">
+            <span class="icon">🔮</span>
+            Orb
+          </button>
+          <button class="style-btn" data-style="cube">
+            <span class="icon">📦</span>
+            Cube
+          </button>
+          <button class="style-btn" data-style="pedestal">
+            <span class="icon">🏛️</span>
+            Pedestal
+          </button>
+          <button class="style-btn" data-style="floating">
+            <span class="icon">✨</span>
+            Floating
+          </button>
+          <button class="style-btn" data-style="galaxy">
+            <span class="icon">🌌</span>
+            Galaxy
+          </button>
+        </div>
+      </div>
+
+      <div id="status" class="status">
+        <div class="spinner"></div>
+        <span id="status-text">Fetching token metadata...</span>
+      </div>
+
+      <div id="token-info" class="token-info hidden">
+        <h3>📊 Token Metadata</h3>
+        <div class="token-info-row">
+          <span class="label">Name</span>
+          <span class="value" id="info-name">-</span>
+        </div>
+        <div class="token-info-row">
+          <span class="label">Symbol</span>
+          <span class="value" id="info-symbol">-</span>
+        </div>
+        <div class="token-info-row">
+          <span class="label">Decimals</span>
+          <span class="value" id="info-decimals">-</span>
+        </div>
+        <div class="token-info-row">
+          <span class="label">Total Supply</span>
+          <span class="value" id="info-supply">-</span>
+        </div>
+        <div class="token-info-row">
+          <span class="label">Chain</span>
+          <span class="value">Base (8453)</span>
+        </div>
+      </div>
+
+      <div class="examples">
+        <h3>📚 Try These Tokens</h3>
+        <button class="example-btn" data-address="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913">
+          <div class="name">💵 USDC</div>
+          <div class="address">0x8335...02913</div>
+        </button>
+        <button class="example-btn" data-address="0x4200000000000000000000000000000000000006">
+          <div class="name">💎 WETH</div>
+          <div class="address">0x4200...00006</div>
+        </button>
+        <button class="example-btn" data-address="0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb">
+          <div class="name">📀 DAI</div>
+          <div class="address">0x50c5...DB0Cb</div>
+        </button>
+      </div>
+    </aside>
+
+    <section class="preview-panel">
+      <div class="preview-header">
+        <div class="preview-tabs">
+          <button class="tab-btn active" data-tab="3d">🎮 3D Preview</button>
+          <button class="tab-btn" data-tab="code">📝 HoloScript</button>
+        </div>
+        <div class="preview-actions">
+          <button class="btn btn-secondary" id="copy-btn" disabled>📋 Copy Script</button>
+          <button class="btn btn-secondary" id="download-btn" disabled>⬇️ Download .hsplus</button>
+        </div>
+      </div>
+      <div class="preview-content">
+        <div id="preview-3d">
+          <div class="placeholder">
+            <div class="icon">🔮</div>
+            <p>Enter a token address to visualize</p>
+          </div>
+        </div>
+        <div id="code-preview" class="code-preview">
+          <pre id="code-content">// HoloScript will appear here...</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      Built with ❤️ using <a href="https://github.com/brianonbased-dev/Hololand" target="_blank">Hololand</a> • 
+      Base Token Visualizer v1.0.0 • 
+      <a href="https://base.org" target="_blank">Base Chain</a>
+    </p>
+  </footer>
+
+  <script type="module">
+    // Import from CDN or bundled version
+    // In production, this would import from @hololand/base-token-viz
+    
+    // Minimal ERC-20 ABI
+    const ERC20_ABI = [
+      'function name() view returns (string)',
+      'function symbol() view returns (string)',
+      'function decimals() view returns (uint8)',
+      'function totalSupply() view returns (uint256)',
+    ];
+
+    // State
+    let currentMetadata = null;
+    let currentScript = '';
+    let selectedStyle = 'orb';
+
+    // Elements
+    const addressInput = document.getElementById('token-address');
+    const visualizeBtn = document.getElementById('visualize-btn');
+    const statusEl = document.getElementById('status');
+    const statusText = document.getElementById('status-text');
+    const tokenInfo = document.getElementById('token-info');
+    const previewEl = document.getElementById('preview-3d');
+    const codePreview = document.getElementById('code-preview');
+    const codeContent = document.getElementById('code-content');
+    const copyBtn = document.getElementById('copy-btn');
+    const downloadBtn = document.getElementById('download-btn');
+
+    // Style buttons
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedStyle = btn.dataset.style;
+        if (currentMetadata) {
+          generateScript();
+        }
+      });
+    });
+
+    // Tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        if (btn.dataset.tab === 'code') {
+          previewEl.style.display = 'none';
+          codePreview.classList.add('active');
+        } else {
+          previewEl.style.display = 'block';
+          codePreview.classList.remove('active');
+        }
+      });
+    });
+
+    // Example buttons
+    document.querySelectorAll('.example-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        addressInput.value = btn.dataset.address;
+        visualize();
+      });
+    });
+
+    // Visualize button
+    visualizeBtn.addEventListener('click', visualize);
+    addressInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') visualize();
+    });
+
+    // Copy button
+    copyBtn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(currentScript);
+      copyBtn.textContent = '✅ Copied!';
+      setTimeout(() => { copyBtn.textContent = '📋 Copy Script'; }, 2000);
+    });
+
+    // Download button
+    downloadBtn.addEventListener('click', () => {
+      const symbol = currentMetadata?.symbol || 'token';
+      const blob = new Blob([currentScript], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${symbol.toLowerCase()}_viz.hsplus`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    function showStatus(type, message) {
+      statusEl.className = `status visible ${type}`;
+      statusText.textContent = message;
+    }
+
+    function hideStatus() {
+      statusEl.className = 'status';
+    }
+
+    async function fetchTokenMetadata(address) {
+      // Use public Base RPC
+      const rpcUrl = 'https://mainnet.base.org';
+      
+      const callContract = async (method) => {
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'eth_call',
+            params: [{ to: address, data: method }, 'latest']
+          })
+        });
+        const json = await response.json();
+        if (json.error) throw new Error(json.error.message);
+        return json.result;
+      };
+
+      // name() = 0x06fdde03
+      // symbol() = 0x95d89b41
+      // decimals() = 0x313ce567
+      // totalSupply() = 0x18160ddd
+
+      const [nameData, symbolData, decimalsData, supplyData] = await Promise.all([
+        callContract('0x06fdde03'),
+        callContract('0x95d89b41'),
+        callContract('0x313ce567'),
+        callContract('0x18160ddd'),
+      ]);
+
+      // Decode string (skip first 64 chars for offset, next 64 for length)
+      const decodeString = (hex) => {
+        if (!hex || hex === '0x') return '';
+        try {
+          const data = hex.slice(2);
+          const length = parseInt(data.slice(64, 128), 16);
+          const strHex = data.slice(128, 128 + length * 2);
+          return new TextDecoder().decode(
+            new Uint8Array(strHex.match(/.{2}/g).map(b => parseInt(b, 16)))
+          );
+        } catch { return ''; }
+      };
+
+      const decodeUint = (hex) => {
+        if (!hex || hex === '0x') return 0n;
+        return BigInt(hex);
+      };
+
+      const decimals = Number(decodeUint(decimalsData));
+      const totalSupply = decodeUint(supplyData);
+
+      return {
+        address,
+        name: decodeString(nameData) || `Token ${address.slice(0, 8)}...`,
+        symbol: decodeString(symbolData) || address.slice(0, 6).toUpperCase(),
+        decimals,
+        totalSupply,
+        totalSupplyFormatted: formatSupply(totalSupply, decimals),
+        chainId: 8453,
+      };
+    }
+
+    function formatSupply(supply, decimals) {
+      if (supply === 0n) return '0';
+      const divisor = BigInt(10 ** decimals);
+      const intPart = supply / divisor;
+      return intPart.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function generateHoloScript(metadata, style) {
+      const colorSchemes = {
+        default: { primary: '#00d4ff', glow: '#00ffff', bg: '#16213e' },
+        stablecoin: { primary: '#00ff88', glow: '#66ffaa', bg: '#0f2f1f' },
+        meme: { primary: '#ff6600', glow: '#ffaa00', bg: '#2f1f0f' },
+      };
+
+      const combined = `${metadata.symbol} ${metadata.name}`.toLowerCase();
+      let colors = colorSchemes.default;
+      if (/usdc|usdt|dai|usd/i.test(combined)) colors = colorSchemes.stablecoin;
+      if (/doge|pepe|shib|moon/i.test(combined)) colors = colorSchemes.meme;
+
+      const id = metadata.symbol.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const shortAddr = `${metadata.address.slice(0, 6)}...${metadata.address.slice(-4)}`;
+
+      let script = `@world {
+  backgroundColor: "${colors.bg}"
+  fog: { type: "linear", color: "${colors.bg}", near: 10, far: 50 }
+  camera: { position: [0, 2, 6], fov: 60 }
+  ambient: 0.3
+  shadows: true
+}
+
+`;
+
+      if (style === 'orb' || style === 'floating') {
+        script += `orb#${id} @grabbable @glowing @animated {
+  position: [0, 1.5, 0]
+  color: "${colors.primary}"
+  scale: [1, 1, 1]
+  emissive: "${colors.glow}"
+  emissiveIntensity: 0.5
+  
+  label: "${metadata.symbol} - ${metadata.name}"
+  labelPosition: [0, 0.8, 0]
+  labelColor: "#ffffff"
+  labelSize: 0.15
+
+  animation rotate {
+    property: "rotation.y"
+    from: 0
+    to: 360
+    duration: 8000
+    loop: infinite
+    easing: "linear"
+  }
+  
+  animation float {
+    property: "position.y"
+    from: 1.5
+    to: 1.8
+    duration: 2000
+    loop: infinite
+    easing: "easeInOut"
+    yoyo: true
+  }
+}
+`;
+      } else if (style === 'cube') {
+        script += `cube#${id} @grabbable @glowing {
+  position: [0, 1.5, 0]
+  color: "${colors.primary}"
+  scale: [0.8, 0.8, 0.8]
+  emissive: "${colors.glow}"
+  emissiveIntensity: 0.3
+  
+  label: "${metadata.symbol}"
+  labelPosition: [0, 0.7, 0]
+  labelColor: "#ffffff"
+
+  animation rotate {
+    property: "rotation.y"
+    from: 0
+    to: 360
+    duration: 10000
+    loop: infinite
+  }
+}
+`;
+      } else if (style === 'pedestal') {
+        script += `// Pedestal base
+cylinder#pedestal_base {
+  position: [0, 0.25, 0]
+  scale: [1.2, 0.5, 1.2]
+  color: "#2a2a3a"
+}
+
+// Token orb on pedestal
+orb#${id} @grabbable @glowing {
+  position: [0, 1.2, 0]
+  color: "${colors.primary}"
+  scale: [0.6, 0.6, 0.6]
+  emissive: "${colors.glow}"
+  emissiveIntensity: 0.6
+}
+
+// Token label
+text#token_label {
+  position: [0, 2, 0]
+  content: "${metadata.symbol} - ${metadata.name}"
+  color: "#ffffff"
+  fontSize: 0.2
+  align: "center"
+}
+
+animation#spin {
+  target: "${id}"
+  property: "rotation.y"
+  from: 0
+  to: 360
+  duration: 10000
+  loop: infinite
+}
+`;
+      } else if (style === 'galaxy') {
+        script = `@world {
+  backgroundColor: "#0a0a1a"
+  fog: { type: "exponential", color: "#0a0a1a", density: 0.02 }
+  camera: { position: [0, 3, 10], fov: 60 }
+  ambient: 0.1
+}
+
+// Central token
+orb#${id}_core @grabbable @glowing {
+  position: [0, 2, 0]
+  color: "${colors.primary}"
+  scale: [1.2, 1.2, 1.2]
+  emissive: "${colors.glow}"
+  emissiveIntensity: 0.8
+  
+  label: "${metadata.symbol}"
+  labelPosition: [0, 1.5, 0]
+}
+
+// Orbiting particles
+`;
+        for (let i = 0; i < 12; i++) {
+          const angle = (i / 12) * Math.PI * 2;
+          const radius = 2 + Math.random();
+          const x = Math.cos(angle) * radius;
+          const z = Math.sin(angle) * radius;
+          const y = 2 + (Math.random() - 0.5) * 2;
+          const size = 0.1 + Math.random() * 0.15;
+          script += `orb#particle_${i} @glowing { position: [${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}] scale: [${size.toFixed(2)}, ${size.toFixed(2)}, ${size.toFixed(2)}] color: "${colors.primary}" emissive: "${colors.glow}" }\n`;
+        }
+
+        script += `
+animation#orbit {
+  property: "rotation.y"
+  from: 0
+  to: 360
+  duration: 20000
+  loop: infinite
+  easing: "linear"
+}
+`;
+      }
+
+      // Add info panel
+      script += `
+// Token info panel
+group#info_panel {
+  position: [3, 1.5, 0]
+  rotation: [0, -30, 0]
+  
+  plane#panel_bg {
+    position: [0, 0, -0.01]
+    scale: [2.5, 2, 1]
+    color: "#1a1a2e"
+    opacity: 0.9
+  }
+  
+  text#title {
+    position: [0, 0.6, 0]
+    content: "${metadata.symbol}"
+    color: "${colors.primary}"
+    fontSize: 0.25
+    fontWeight: "bold"
+  }
+  
+  text#name {
+    position: [0, 0.3, 0]
+    content: "${metadata.name}"
+    color: "#cccccc"
+    fontSize: 0.12
+  }
+  
+  text#address_label { position: [-0.8, 0, 0] content: "Address:" color: "#888888" fontSize: 0.08 }
+  text#address_value { position: [0.2, 0, 0] content: "${shortAddr}" color: "#00d4ff" fontSize: 0.08 }
+  text#supply_label { position: [-0.8, -0.2, 0] content: "Supply:" color: "#888888" fontSize: 0.08 }
+  text#supply_value { position: [0.2, -0.2, 0] content: "${metadata.totalSupplyFormatted}" color: "#ffffff" fontSize: 0.08 }
+  text#chain_label { position: [-0.8, -0.4, 0] content: "Chain:" color: "#888888" fontSize: 0.08 }
+  text#chain_value { position: [0.2, -0.4, 0] content: "Base (8453)" color: "#0052ff" fontSize: 0.08 }
+}
+`;
+
+      return script;
+    }
+
+    function highlightCode(code) {
+      return code
+        .replace(/@(\w+)/g, '<span class="trait">@$1</span>')
+        .replace(/(orb|cube|sphere|cylinder|plane|text|group|animation)#(\w+)/g, '<span class="keyword">$1</span>#<span class="property">$2</span>')
+        .replace(/:\s*"([^"]+)"/g, ': <span class="string">"$1"</span>')
+        .replace(/:\s*(\d+\.?\d*)/g, ': <span class="number">$1</span>')
+        .replace(/\[([^\]]+)\]/g, (match, inner) => {
+          return '[' + inner.replace(/(-?\d+\.?\d*)/g, '<span class="number">$1</span>') + ']';
+        })
+        .replace(/\/\/.*/g, '<span class="comment">$&</span>');
+    }
+
+    function generateScript() {
+      currentScript = generateHoloScript(currentMetadata, selectedStyle);
+      codeContent.innerHTML = highlightCode(currentScript);
+      copyBtn.disabled = false;
+      downloadBtn.disabled = false;
+    }
+
+    async function visualize() {
+      const address = addressInput.value.trim();
+      
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        showStatus('error', 'Invalid address format. Use 0x followed by 40 hex characters.');
+        return;
+      }
+
+      showStatus('loading', 'Fetching token metadata from Base...');
+      visualizeBtn.disabled = true;
+
+      try {
+        currentMetadata = await fetchTokenMetadata(address);
+        
+        // Update info panel
+        document.getElementById('info-name').textContent = currentMetadata.name;
+        document.getElementById('info-symbol').textContent = currentMetadata.symbol;
+        document.getElementById('info-decimals').textContent = currentMetadata.decimals;
+        document.getElementById('info-supply').textContent = currentMetadata.totalSupplyFormatted;
+        tokenInfo.classList.remove('hidden');
+
+        // Generate script
+        generateScript();
+
+        // Show 3D preview placeholder (in production, this would render with Three.js)
+        previewEl.innerHTML = `
+          <div class="placeholder" style="background: linear-gradient(135deg, #0a0a1a 0%, ${currentMetadata.symbol.match(/usdc|dai|usd/i) ? '#0f2f1f' : '#16213e'} 100%);">
+            <div class="icon" style="font-size: 6rem; animation: float 2s ease-in-out infinite;">🔮</div>
+            <p style="font-size: 1.5rem; color: white; margin-top: 1rem;">${currentMetadata.symbol}</p>
+            <p style="color: #aaa; margin-top: 0.5rem;">${currentMetadata.name}</p>
+            <p style="font-size: 0.875rem; color: #00d4ff; margin-top: 1rem;">✅ HoloScript generated - Switch to Code tab</p>
+          </div>
+          <style>
+            @keyframes float {
+              0%, 100% { transform: translateY(0) rotate(0deg); }
+              50% { transform: translateY(-20px) rotate(15deg); }
+            }
+          </style>
+        `;
+
+        showStatus('success', `✅ Generated ${selectedStyle} visualization for ${currentMetadata.symbol}`);
+        
+      } catch (error) {
+        console.error(error);
+        showStatus('error', `Failed to fetch token: ${error.message}`);
+      } finally {
+        visualizeBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

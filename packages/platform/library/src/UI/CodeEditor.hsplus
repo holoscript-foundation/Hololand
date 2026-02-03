@@ -579,13 +579,13 @@ component CodeEditor {
     viewportEnd: number = 30
     autocomplete: {
       visible: bool,
-      position: { x: number, y: number },
+      position: { x: number, y: number }
       suggestions: array<object>,
       selectedIndex: number
     } = { visible: false, position: { x: 0, y: 0 }, suggestions: [], selectedIndex: 0 }
     errorTooltip: {
       visible: bool,
-      position: { x: number, y: number },
+      position: { x: number, y: number }
       message: string,
       severity: string
     } = { visible: false, position: { x: 0, y: 0 }, message: "", severity: "error" }
@@ -726,9 +726,9 @@ component CodeEditor {
     // Get suggestions based on cursor context
     // This would call native HoloScript service
     return [
-      { label: "world", kind: "keyword", detail: "Define a world", insertText: "world ${1:name} {\n\t$0\n}" },
-      { label: "object", kind: "keyword", detail: "Create an object", insertText: "object ${1:name} {\n\tposition: [0, 0, 0]\n}" },
-      { label: "trait", kind: "keyword", detail: "Define behavior", insertText: "trait ${1:Name} {\n\t$0\n}" },
+      { label: "world", kind: "keyword", detail: "Define a world", insertText: "world ${1:name} {\n\t$0\n}" }
+      { label: "object", kind: "keyword", detail: "Create an object", insertText: "object ${1:name} {\n\tposition: [0, 0, 0]\n}" }
+      { label: "trait", kind: "keyword", detail: "Define behavior", insertText: "trait ${1:Name} {\n\t$0\n}" }
       { label: "component", kind: "keyword", detail: "HoloScript+ component", insertText: "component ${1:Name} {\n\t@props {}\n\t@state {}\n\t@render {}\n}" }
     ]
   }

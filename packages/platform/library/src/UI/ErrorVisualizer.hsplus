@@ -492,7 +492,7 @@ component ErrorVisualizerToolbar {
     syntaxCount: number = 0
     runtimeCount: number = 0
     warningCount: number = 0
-    onClear: () => void = null
+    onClear: "() => void = null"
     onFilter: (type: ErrorType) => void = null
     activeFilter: ErrorType = null
   }
@@ -575,7 +575,7 @@ component ErrorVisualizer {
     errors: CompilationError[] = []
     title: string = "Error Report"
     showTips: boolean = true
-    onClear: () => void = null
+    onClear: "() => void = null"
     onGoToLine: (line: number, column: number) => void = null
     onDismiss: (id: string) => void = null
   }

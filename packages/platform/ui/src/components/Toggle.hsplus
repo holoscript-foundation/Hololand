@@ -8,8 +8,8 @@ import { ToggleConfig, Vector2 } from "../types.hsplus"
 module Toggle {
   @state {
     id: string = "",
-    position: Vector2 = { x: 0, y: 0 },
-    size: { width: number, height: number } = { width: 48, height: 24 },
+    position: Vector2 = { x: 0, y: 0 }
+    size: { width: number, height: number } = { width: 48, height: 24 }
     visible: bool = true,
     enabled: bool = true,
     zIndex: number = 0,

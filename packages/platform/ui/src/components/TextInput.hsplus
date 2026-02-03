@@ -8,8 +8,8 @@ import { TextInputConfig, InputType, Vector2 } from "../types.hsplus"
 module TextInput {
   @state {
     id: string = "",
-    position: Vector2 = { x: 0, y: 0 },
-    size: { width: number, height: number } = { width: 200, height: 40 },
+    position: Vector2 = { x: 0, y: 0 }
+    size: { width: number, height: number } = { width: 200, height: 40 }
     visible: bool = true,
     enabled: bool = true,
     zIndex: number = 0,
@@ -118,37 +118,37 @@ module TextInput {
           self.emit("change", { value: self.value })
           self.dirty = true
         }
-      },
+      }
       "Delete" => {
         if self.cursorPosition < self.value.length {
           self.value = self.value.slice(0, self.cursorPosition) + self.value.slice(self.cursorPosition + 1)
           self.emit("change", { value: self.value })
           self.dirty = true
         }
-      },
+      }
       "ArrowLeft" => {
         if self.cursorPosition > 0 {
           self.cursorPosition -= 1
           self.dirty = true
         }
-      },
+      }
       "ArrowRight" => {
         if self.cursorPosition < self.value.length {
           self.cursorPosition += 1
           self.dirty = true
         }
-      },
+      }
       "Home" => {
         self.cursorPosition = 0
         self.dirty = true
-      },
+      }
       "End" => {
         self.cursorPosition = self.value.length
         self.dirty = true
-      },
+      }
       "Enter" => {
         self.emit("submit", { value: self.value })
-      },
+      }
       _ => {
         // Handle printable characters
         if key.length == 1 {

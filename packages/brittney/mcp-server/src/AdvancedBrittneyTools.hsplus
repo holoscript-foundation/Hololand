@@ -54,24 +54,24 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         description: {
           type: "string",
           description: "Natural language description of what to create (e.g., 'a glowing portal with particle effects', 'a weapon rack with swords')"
-        },
+        }
         category: {
           type: "string",
           enum: ["object", "ui", "particle", "animation", "scene", "npc", "weapon", "collectible", "audio", "material"],
           description: "Category hint for better generation"
-        },
+        }
         worldId: {
           type: "string",
           description: "Target world to inject into (default: current world)"
-        },
+        }
         validate: {
           type: "boolean",
           description: "Validate HoloScript syntax before injection (default: true)"
         }
-      },
+      }
       required: ["description"]
     }
-  },
+  }
   
   // =========================================================================
   // REAL-TIME MONITORING
@@ -86,14 +86,14 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         analyze: {
           type: "boolean",
           description: "Have Brittney analyze the latest error (default: false)"
-        },
+        }
         threshold: {
           type: "number",
           description: "Alert when error count exceeds this (default: 5)"
         }
       }
     }
-  },
+  }
   
   {
     name: "brittney_auto_fix",
@@ -104,14 +104,14 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         errorIndex: {
           type: "number",
           description: "Index of error to fix (0 = latest, default: 0)"
-        },
+        }
         apply: {
           type: "boolean",
           description: "Apply the fix automatically (default: false, preview only)"
         }
       }
     }
-  },
+  }
   
   {
     name: "brittney_performance_monitor",
@@ -122,18 +122,18 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         fpsThreshold: {
           type: "number",
           description: "Alert when FPS drops below this (default: 30)"
-        },
+        }
         memoryThresholdMB: {
           type: "number",
           description: "Alert when memory exceeds this in MB (default: 500)"
-        },
+        }
         getSuggestions: {
           type: "boolean",
           description: "Get AI optimization suggestions (default: true when thresholds exceeded)"
         }
       }
     }
-  },
+  }
   
   // =========================================================================
   // HOLOSCRIPT DEVELOPMENT
@@ -148,21 +148,21 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         code: {
           type: "string",
           description: "HoloScript code to work with"
-        },
+        }
         action: {
           type: "string",
           enum: ["validate", "explain", "optimize", "inject", "convert"],
           description: "Action to perform: validate syntax, explain code, optimize, inject to browser, or convert from another format"
-        },
+        }
         convertFrom: {
           type: "string",
           enum: ["glb", "gltf", "obj", "javascript", "json"],
           description: "Source format when action is 'convert'"
         }
-      },
+      }
       required: ["code", "action"]
     }
-  },
+  }
   
   {
     name: "brittney_holoscript_diff",
@@ -173,15 +173,15 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         newCode: {
           type: "string",
           description: "New HoloScript to compare against current browser state"
-        },
+        }
         showDetails: {
           type: "boolean",
           description: "Show detailed diff including line-by-line changes (default: false)"
         }
-      },
+      }
       required: ["newCode"]
     }
-  },
+  }
   
   {
     name: "brittney_holoscript_templates",
@@ -193,15 +193,15 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
           type: "string",
           enum: ["interactive-object", "ui-panel", "particle-system", "npc-character", "weapon", "collectible", "portal", "vehicle", "building", "environment"],
           description: "Template category"
-        },
+        }
         customize: {
           type: "object",
           description: "Customization options (varies by template)"
         }
-      },
+      }
       required: ["category"]
     }
-  },
+  }
   
   // =========================================================================
   // SESSION & VERSIONING
@@ -216,19 +216,19 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         name: {
           type: "string",
           description: "Name for this snapshot (e.g., 'before-portal-change')"
-        },
+        }
         includeScreenshot: {
           type: "boolean",
           description: "Include a screenshot (default: true)"
-        },
+        }
         includePerformance: {
           type: "boolean",
           description: "Include performance metrics (default: true)"
         }
-      },
+      }
       required: ["name"]
     }
-  },
+  }
   
   {
     name: "brittney_compare_snapshots",
@@ -239,15 +239,15 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
         snapshot1: {
           type: "string",
           description: "Name of first snapshot"
-        },
+        }
         snapshot2: {
           type: "string",
           description: "Name of second snapshot (default: current state)"
         }
-      },
+      }
       required: ["snapshot1"]
     }
-  },
+  }
   
   {
     name: "brittney_record_session",
@@ -259,20 +259,20 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
           type: "string",
           enum: ["start", "stop", "status", "export"],
           description: "Recording action"
-        },
+        }
         sessionName: {
           type: "string",
           description: "Name for the session (required for start)"
-        },
+        }
         format: {
           type: "string",
           enum: ["json", "markdown", "holoscript"],
           description: "Export format (for export action)"
         }
-      },
+      }
       required: ["action"]
     }
-  },
+  }
   
   // =========================================================================
   // ACCESSIBILITY & TESTING
@@ -289,12 +289,12 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
           items: {
             type: "string",
             enum: ["color-contrast", "motion", "text-legibility", "interaction-reach", "audio-cues", "all"]
-          },
+          }
           description: "Specific checks to run (default: all)"
         }
       }
     }
-  },
+  }
   
   {
     name: "brittney_test_scene",
@@ -306,19 +306,19 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
           type: "string",
           enum: ["performance", "holoscript-syntax", "accessibility", "visual-regression", "interaction", "all"],
           description: "Type of test to run"
-        },
+        }
         baseline: {
           type: "string",
           description: "Baseline snapshot name for regression tests"
-        },
+        }
         threshold: {
           type: "number",
           description: "Pass/fail threshold (meaning varies by test type)"
         }
-      },
+      }
       required: ["testType"]
     }
-  },
+  }
   
   {
     name: "brittney_explain_scene",
@@ -330,7 +330,7 @@ const ADVANCED_BRITTNEY_TOOLS: Tool[] = [
           type: "string",
           enum: ["overview", "detailed", "comprehensive"],
           description: "Level of detail (default: overview)"
-        },
+        }
         focus: {
           type: "string",
           enum: ["objects", "interactions", "performance", "holoscript", "all"],
@@ -773,7 +773,7 @@ Provide HoloScript code that fixes this issue.`
       alert,
       fpsBelowThreshold,
       memoryAboveThreshold,
-      thresholds: { fps: fpsThreshold, memoryMB: memoryThresholdMB },
+      thresholds: { fps: fpsThreshold, memoryMB: memoryThresholdMB }
       suggestions
     }
   }
@@ -880,7 +880,7 @@ Provide HoloScript code that fixes this issue.`
       : null
     
     return {
-      snapshot1: { name: s1.name, timestamp: s1.timestamp },
+      snapshot1: { name: s1.name, timestamp: s1.timestamp }
       snapshot2: s2 ? { name: s2.name, timestamp: s2.timestamp } : "current",
       diff: "Comparison requires scene data"
     }
@@ -1019,7 +1019,7 @@ Provide HoloScript code that fixes this issue.`
 
 const advancedBrittneyTools = ADVANCED_BRITTNEY_TOOLS
 
-async function handleAdvancedBrittneyTool(toolName: string, args: Record<string, any>): Promise<any> {
+async function "handleAdvancedBrittneyTool" : Promise<any> {
   return AdvancedBrittneyToolHandler.handle(toolName, args)
 }
 

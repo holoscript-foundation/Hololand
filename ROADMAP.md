@@ -1,795 +1,2312 @@
-# 🚀 Hololand Roadmap
+# Hololand Roadmap
 
 **Vision: Build the Open Metaverse - A Ready Player One Universe Intersecting VR and AR**
 
 Hololand is the **VR/AR platform** built on [HoloScript](https://github.com/brianonbased-dev/HoloScript). This roadmap covers platform features, adapters, and ecosystem.
 
-> 📦 **Language roadmap** (parser, formatter, linter) is in the [HoloScript repo](https://github.com/brianonbased-dev/HoloScript/blob/master/ROADMAP.md).
+> **Language roadmap** (parser, formatter, linter) is in the [HoloScript repo](https://github.com/brianonbased-dev/HoloScript/blob/master/ROADMAP.md).
 
 ---
 
-## 🌌 The Three Plains
+## AI-Accelerated Development Strategy
+
+**5 AI Agents Working in Parallel**
+
+| Agent | Focus Area | Responsibilities |
+|-------|------------|------------------|
+| **Platform Agent** | Core runtime services | Network, physics, audio, storage, ECS |
+| **Graphics Agent** | Rendering pipeline | WebGL/WebGPU, materials, post-processing, shadows |
+| **Adapter Agent** | Hardware platforms | Quest 3, VisionOS, Android XR, SteamVR, Web |
+| **Infrastructure Agent** | DevOps & scaling | CDN, analytics, deployment, monitoring |
+| **Experience Agent** | UX & examples | Demo apps, tutorials, accessibility, onboarding |
+
+**Timeline Compression**: Human-weeks → AI-days (5-10x acceleration)
+
+---
+
+## The Three Plains
 
 | Plain | Description | Target Phase |
 |-------|-------------|--------------|
-| **🌌 Hololand** | Pure VR world - the OASIS, accessible anywhere | Phase 1-3 ✅ |
-| **🥽 VR Real World** | Digital twin of Earth in VR (GPS-anchored) | Phase 4-5 |
-| **📱 AR Real World** | Augmented overlay on reality (GPS-anchored) | Phase 6-7 |
-
-**[Read Full Three Plains Architecture →](HOLOLAND_HUB_AND_AR.md)**
+| **Hololand** | Pure VR world - the OASIS, accessible anywhere | Phase 1-3 |
+| **VR Real World** | Digital twin of Earth in VR (GPS-anchored) | Phase 4-5 |
+| **AR Real World** | Augmented overlay on reality (GPS-anchored) | Phase 6-7 |
 
 ---
 
-## 🎯 Mission Statement
-
-> **"Where Everyone Can Build in VR - And Beyond"**
-
-We believe the metaverse should be:
-- **Open**: No walled gardens, open source forever
-- **Universal**: Works on any device, accessible to everyone
-- **Creator-First**: Developers and non-developers can build together
-- **Future-Ready**: Prepared for next-gen hardware (uaa2 VR glasses)
-- **Reality-Bridged**: Three Plains connecting virtual and physical worlds
-
----
-
-## Phase 1: Foundation ✅ (COMPLETE - Q4 2025)
+## Phase 1: Foundation (COMPLETE)
 
 **Status**: Released v1.0.0-alpha.1
 
-### Core Infrastructure
+### Completed
 - [x] **@hololand/core** - HoloScript language engine with voice support
 - [x] **@hololand/ai-bridge** - Natural language → code translation
 - [x] **@hololand/world** - VR world runtime with physics simulation
 - [x] **@hololand/renderer** - Three.js rendering with WebXR support
 - [x] **@hololand/react-three** - React components and hooks
-
-### Feature Systems
 - [x] **@hololand/commerce** - Virtual shops and marketplace
 - [x] **@hololand/social** - Avatars and presence tracking
 - [x] **@hololand/builder** - Visual tools and templates
 
-### Technical Achievements
-- [x] 100% TypeScript coverage
-- [x] Zero-dependency core packages
-- [x] Event-driven architecture
-- [x] Dual ESM/CJS builds
-- [x] WebXR VR support (Quest, Valve Index, Vive)
-
-### Documentation & Examples
-- [x] Comprehensive documentation (5,000+ lines)
-- [x] 4 working examples (hello-vr-world, physics-playground, vr-shop, react-starter)
-- [x] 6 copy-paste project templates
-- [x] GitHub templates and community guidelines
-
-### Service Integrations
-- [x] **uaa2-service** - Developer-focused "Builder's Workshop"
-- [x] **infinityassistant-service** - Creator-focused "Normie's Companion"
-
-**Outcome**: Solid foundation for building VR experiences with React and natural language.
-
 ---
 
-## Phase 2: Universal Rendering ✅ (COMPLETE - Q1 2026)
+## Phase 2: Universal Rendering (COMPLETE)
 
 **Status**: Released v1.1.0
 
-**Goal**: Enable 2D, 3D, and hybrid rendering modes so Hololand works on any device.
+### Completed
+- [x] 2D/3D/Hybrid rendering modes
+- [x] AR mode with plane detection
+- [x] @hololand/ui component library
+- [x] Progressive enhancement (2D → VR)
 
-### 2.1: Rendering Modes
+---
 
-#### A. 2D Mode (Desktop/Mobile Apps)
-- [x] **Orthographic camera** for 2D projection
-- [x] **2D coordinate system** (x, y instead of x, y, z)
-- [x] **DOM-based rendering** option (alternative to Three.js)
-- [x] **Touch and mouse input** handling
-- [x] **Responsive layouts** (mobile-first design)
+## Phase 3: Networking & Multiplayer (IN PROGRESS)
 
-#### B. Hybrid Mode (2D UI + 3D World)
-- [x] **Overlay system** - 2D UI on top of 3D scenes
-- [x] **Picture-in-picture** - 3D preview in 2D app
-- [x] **Seamless transitions** between 2D ↔ 3D ↔ VR
-- [x] **Dual rendering** - Canvas for 3D, DOM for UI
+### Sprint 1: Network Foundation (AI-Days 1-3)
 
-#### C. AR Mode (Mobile AR)
-- [x] **WebXR AR** support (phone cameras)
-- [x] **Plane detection** for placing objects
-- [x] **Light estimation** for realistic rendering
-- [x] **Hit testing** for spatial interactions
+#### 3.1.1 WebSocket Connection Manager
+**Agent**: Platform Agent
+**Location**: `packages/network/src/connection/`
 
-### 2.2: Core Package Updates
+**What to Build**:
+Real-time bidirectional communication layer for multiplayer state sync.
 
-#### @hololand/renderer v2.0
+**Implementation Details**:
 ```typescript
-interface RendererConfig {
-  renderMode: '2d' | '3d' | 'hybrid' | 'vr' | 'ar';
-  enableWebXR?: boolean; // VR/AR
-  enable2D?: boolean;     // Desktop/mobile
-  enableHybrid?: boolean; // Both
+// packages/network/src/connection/WebSocketManager.ts
+export interface WebSocketConfig {
+  url: string;
+  reconnectInterval: number;
+  maxReconnectAttempts: number;
+  heartbeatInterval: number;
+  messageQueueSize: number;
+}
+
+export class WebSocketManager {
+  private socket: WebSocket | null = null;
+  private messageQueue: Map<string, QueuedMessage> = new Map();
+  private reconnectAttempts = 0;
+  private heartbeatTimer: NodeJS.Timer | null = null;
+
+  // Connection lifecycle
+  connect(config: WebSocketConfig): Promise<void>;
+  disconnect(): void;
+  reconnect(): Promise<void>;
+
+  // Message handling
+  send(type: string, payload: unknown): void;
+  sendReliable(type: string, payload: unknown): Promise<void>;
+  on(type: string, handler: MessageHandler): void;
+  off(type: string, handler: MessageHandler): void;
+
+  // State
+  get isConnected(): boolean;
+  get latency(): number;
+  get connectionQuality(): ConnectionQuality;
+}
+
+// Message types for the streaming protocol
+export enum MessageType {
+  // Connection (0x00-0x0F)
+  HANDSHAKE = 0x00,
+  HANDSHAKE_ACK = 0x01,
+  HEARTBEAT = 0x02,
+  HEARTBEAT_ACK = 0x03,
+  DISCONNECT = 0x04,
+
+  // Entity sync (0x10-0x1F)
+  ENTITY_CREATE = 0x10,
+  ENTITY_UPDATE = 0x11,
+  ENTITY_DELETE = 0x12,
+  ENTITY_BATCH = 0x13,
+
+  // State sync (0x20-0x2F)
+  STATE_SNAPSHOT = 0x20,
+  STATE_DELTA = 0x21,
+  STATE_REQUEST = 0x22,
+
+  // Voice (0x30-0x3F)
+  VOICE_DATA = 0x30,
+  VOICE_MUTE = 0x31,
+
+  // Events (0x40-0x4F)
+  WORLD_EVENT = 0x40,
+  RPC_CALL = 0x41,
+  RPC_RESPONSE = 0x42
 }
 ```
 
-Features:
-- [x] Multiple rendering modes
-- [x] Automatic mode detection (device capabilities)
-- [x] Progressive enhancement (starts 2D, upgrades to VR)
-- [x] Performance optimizations per mode
+**Files to Create**:
+- `packages/network/src/connection/WebSocketManager.ts`
+- `packages/network/src/connection/ReconnectionStrategy.ts`
+- `packages/network/src/connection/MessageSerializer.ts`
+- `packages/network/src/connection/HeartbeatMonitor.ts`
+- `packages/network/src/protocol/MessageTypes.ts`
+- `packages/network/src/protocol/BinaryEncoder.ts`
+- `packages/network/src/protocol/BinaryDecoder.ts`
 
-#### @hololand/world v2.0
-- [x] **2D physics** option (simplified for flat surfaces)
-- [x] **Spatial partitioning** optimizations for 2D
-- [x] **View frustum culling** for 2D cameras
-- [x] **Layer system** (UI layer, world layer, background layer)
+**Acceptance Criteria**:
+- [ ] WebSocket connects with handshake protocol
+- [ ] Auto-reconnect with exponential backoff
+- [ ] Heartbeat keeps connection alive
+- [ ] Binary message serialization < 100 bytes for entity updates
+- [ ] Message queue for offline/reconnection scenarios
+- [ ] Connection quality detection (excellent/good/poor)
 
-### 2.3: New Package: @hololand/ui ✅
+---
 
-**Purpose**: 2D/hybrid UI components for desktop and mobile apps.
+#### 3.1.2 WebRTC P2P Layer
+**Agent**: Platform Agent
+**Location**: `packages/network/src/p2p/`
 
-Core Components:
-- [x] `<Button>` - Clickable buttons with states
-- [x] `<TextInput>` - Text entry fields
-- [x] `<Panel>` - Container panels
-- [x] `<Image>` - 2D images and sprites
-- [x] `<Text>` - Rendered text (Canvas or DOM)
-- [x] `<List>` - Scrollable lists
-- [x] `<Modal>` - Popup dialogs
-- [x] `<Slider>` - Value sliders
-- [x] `<Toggle>` - On/off switches
-- [x] `<Dropdown>` - Selection dropdowns
+**What to Build**:
+Peer-to-peer connections for low-latency direct communication.
 
-Layout Components:
-- [x] `<FlexContainer>` - Flexbox layouts
-- [x] `<GridContainer>` - Grid layouts
-- [x] `<ScrollView>` - Scrollable content
-- [x] `<TabView>` - Tabbed interfaces
+**Implementation Details**:
+```typescript
+// packages/network/src/p2p/PeerConnection.ts
+export interface PeerConfig {
+  iceServers: RTCIceServer[];
+  dataChannels: DataChannelConfig[];
+}
 
-Styling:
-- [x] Theme system (dark/light/custom)
-- [x] Responsive breakpoints
-- [x] Animation support
-- [x] Accessibility (ARIA labels, keyboard navigation)
+export interface DataChannelConfig {
+  label: string;
+  ordered: boolean;
+  maxRetransmits?: number;
+}
 
-### 2.4: HoloScript 2D Extensions ✅
+export class PeerConnection {
+  private connection: RTCPeerConnection;
+  private dataChannels: Map<string, RTCDataChannel> = new Map();
 
-Added 2D-specific commands to HoloScript:
+  // Signaling
+  createOffer(): Promise<RTCSessionDescriptionInit>;
+  createAnswer(offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit>;
+  setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void>;
+  addIceCandidate(candidate: RTCIceCandidateInit): Promise<void>;
 
-```javascript
-// UI Elements
-create button at (10, 20) with text "Submit"
-create textbox at (10, 60) with width 200
-create panel at (0, 0) with size (300, 400)
+  // Data channels
+  createDataChannel(config: DataChannelConfig): RTCDataChannel;
+  send(channel: string, data: ArrayBuffer | string): void;
+  onMessage(channel: string, handler: (data: ArrayBuffer) => void): void;
 
-// Images
-create image "logo.png" at (50, 50) with size (100, 100)
+  // Media (for voice)
+  addTrack(track: MediaStreamTrack, stream: MediaStream): void;
+  onTrack(handler: (event: RTCTrackEvent) => void): void;
+}
 
-// Layouts
-create flex-container at (0, 0) with direction "column"
-  add button "First"
-  add button "Second"
-  add button "Third"
+// packages/network/src/p2p/PeerManager.ts
+export class PeerManager {
+  private peers: Map<string, PeerConnection> = new Map();
+  private localId: string;
 
-// Hybrid (2D UI + 3D world)
-create canvas with mode "hybrid"
-  add ui-layer
-    create button at (10, 10) with text "Spawn Cube"
-  add world-layer
-    create cube at (0, 0, 0) with size 1
+  // Connection management
+  connectToPeer(peerId: string, signaling: SignalingChannel): Promise<void>;
+  disconnectFromPeer(peerId: string): void;
+
+  // Broadcasting
+  broadcast(channel: string, data: ArrayBuffer): void;
+  sendToPeer(peerId: string, channel: string, data: ArrayBuffer): void;
+
+  // Events
+  onPeerConnected(handler: (peerId: string) => void): void;
+  onPeerDisconnected(handler: (peerId: string) => void): void;
+}
 ```
 
-### 2.5: Examples ✅
+**Files to Create**:
+- `packages/network/src/p2p/PeerConnection.ts`
+- `packages/network/src/p2p/PeerManager.ts`
+- `packages/network/src/p2p/SignalingChannel.ts`
+- `packages/network/src/p2p/ICECandidateManager.ts`
+- `packages/network/src/p2p/NATTraversal.ts`
 
-- [x] **05-desktop-app** - Standard desktop application
-- [x] **06-mobile-app** - Mobile-optimized interface
-- [x] **07-hybrid-world** - 2D UI controlling 3D VR world
-- [x] **08-progressive-vr** - Starts 2D, upgrades to VR
-
-**Outcome**: Hololand works on any device - VR, desktop, mobile, AR.
-
----
-
-## Phase 3: Networking & Multiplayer 🔄 (IN PROGRESS - Q1-Q2 2026)
-
-**Status**: Local-First Strategy - Building Foundation
-
-> 📦 **January 2026 Update**: Repository reorganization complete. HoloScript (language) is now a [separate repo](https://github.com/brianonbased-dev/HoloScript). This repo focuses on the platform (adapters, Brittney AI, apps).
-
-**Goal**: Enable real-time multiplayer starting with local/private networks, then scaling to public.
-
-### Strategy: Local-First, Zero Server Cost
-
-```
-Phase 3A (Current)         Phase 3B                Phase 3C (Future)
-─────────────────────      ─────────────────       ─────────────────
-┌─────────────────┐        ┌─────────────────┐     ┌─────────────────┐
-│ Private/LAN     │   →    │ Hybrid          │  →  │ Public Cloud    │
-│ Network Layer   │        │ (Local + Relay) │     │ Full Multiplayer│
-├─────────────────┤        ├─────────────────┤     ├─────────────────┤
-│ - WebRTC P2P    │        │ - TURN fallback │     │ - Dedicated     │
-│ - ngrok tunnels │        │ - NAT traversal │     │   servers       │
-│ - Zero server   │        │ - Optional relay│     │ - Global rooms  │
-│   cost          │        │                 │     │ - Persistence   │
-└─────────────────┘        └─────────────────┘     └─────────────────┘
-```
-
-**Why Local-First?**
-- **Zero server cost** during development
-- **Low latency** (<10ms on LAN)
-- **Easy testing** with friends via ngrok
-- **Build protocol right** before scaling infrastructure
-
-### 3.1: New Package: @hololand/network 🔄
-
-#### Phase 3A: Local/Private Networking (Current Focus)
-- [x] **WebRTC P2P connections** - Direct peer-to-peer
-- [x] **Local server hosting** - User runs server on their device
-- [x] **ngrok/tunnel support** - Share with friends via URL
-- [ ] **State synchronization** - Automatic object syncing
-- [ ] **Interest management** - Spatial relevance filtering
-
-#### Phase 3B: Hybrid Networking (Next)
-- [ ] **TURN fallback** - When P2P fails
-- [ ] **NAT traversal** - Work behind firewalls
-- [ ] **Optional relay servers** - For complex networks
-
-#### Phase 3C: Public Cloud (Future)
-- [ ] **Client-server architecture** - Authoritative server option
-- [ ] **Lag compensation** - Client-side prediction
-- [ ] **Voice chat** - WebRTC audio channels with spatial audio
-- [ ] **Text chat** - Real-time messaging with emotes and channels
-
-### 3.2: Local Multiplayer Flow
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     HOST USER'S DEVICE                       │
-│                                                              │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐    │
-│  │  Hololand   │────▶│  Local      │────▶│   ngrok     │    │
-│  │  Client     │     │  Server     │     │   Tunnel    │    │
-│  └─────────────┘     └─────────────┘     └──────┬──────┘    │
-└─────────────────────────────────────────────────┼───────────┘
-                                                  │
-                                    https://abc123.ngrok.io
-                                                  │
-            ┌─────────────────────────────────────┼─────────────┐
-            │                                     │             │
-            ▼                                     ▼             ▼
-     ┌─────────────┐                      ┌─────────────┐ ┌─────────────┐
-     │  Friend 1   │                      │  Friend 2   │ │  Friend 3   │
-     │  (Browser)  │                      │  (VR)       │ │  (Mobile)   │
-     └─────────────┘                      └─────────────┘ └─────────────┘
-```
-
-### 3.3: Social Features ✅ (Complete)
-
-#### @hololand/social v2.0 ✅
-
-- [x] **Friend system** - Add/remove friends, favorites, blocking
-- [x] **Party system** - Group voice chat with invites
-- [x] **Emotes/gestures** - 20+ built-in emotes, gesture support
-- [x] **Status messages** - Custom status with activity tracking
-- [x] **Notifications** - Friend requests, party invites, achievements
-
-### 3.4: Examples ✅
-
-- [x] **09-multiplayer-lobby** - Join rooms and see avatars
-- [x] **10-collaborative-building** - Build together in real-time
-- [x] **11-social-hub** - Complete social features demo
-
-**Outcome**: Friends can play together via local hosting + ngrok, no server costs. Foundation for scaling to public multiplayer later.
+**Acceptance Criteria**:
+- [ ] WebRTC peer connections established via signaling
+- [ ] Multiple data channels (reliable ordered, unreliable)
+- [ ] ICE candidate gathering and exchange
+- [ ] NAT traversal via STUN servers
+- [ ] Graceful fallback to relay when P2P fails
+- [ ] < 50ms latency on LAN
 
 ---
 
-## Phase 3.5: Developer Tools ✅ (COMPLETE - Q1 2026)
+#### 3.1.3 State Synchronization Engine
+**Agent**: Platform Agent
+**Location**: `packages/network/src/sync/`
 
-**Status**: Released v2.0.0
+**What to Build**:
+Automatic entity state synchronization with delta compression.
 
-> ⚠️ **Note**: Developer tools have moved to the [HoloScript repo](https://github.com/brianonbased-dev/HoloScript) as of January 2026.
+**Implementation Details**:
+```typescript
+// packages/network/src/sync/StateSync.ts
+export interface SyncConfig {
+  tickRate: number;  // Hz (default: 20)
+  interpolationDelay: number;  // ms
+  snapshotInterval: number;  // ticks between full snapshots
+  deltaCompression: boolean;
+}
 
-**Goal**: Professional developer tooling for HoloScript development.
+export interface SyncEntity {
+  id: string;
+  type: string;
+  ownerId: string;
+  priority: number;
+  transform: Transform;
+  velocity?: Vector3;
+  customState: Record<string, unknown>;
+}
 
-### New Packages (Now in HoloScript Repo)
+export class StateSyncEngine {
+  private entities: Map<string, SyncEntity> = new Map();
+  private snapshots: CircularBuffer<StateSnapshot>;
+  private interpolationBuffer: InterpolationBuffer;
 
-#### @hololand/holoscript-formatter v2.0.0 ✅
-- [x] **Code formatting** - Consistent style enforcement
-- [x] **Indentation normalization** - Spaces or tabs
-- [x] **Brace style enforcement** - Same-line, next-line, Stroustrup
-- [x] **Import sorting** - Alphabetical organization
-- [x] **CLI tool** - `holoscript-format --check`, `--write`
-- [x] **Config support** - `.holoscriptrc`, `.holoscriptrc.json`
+  // Entity management
+  registerEntity(entity: SyncEntity): void;
+  unregisterEntity(id: string): void;
+  updateEntity(id: string, state: Partial<SyncEntity>): void;
 
-#### @hololand/holoscript-linter v2.0.0 ✅
-- [x] **Static analysis** - Catch errors before runtime
-- [x] **5 built-in rules** - no-duplicate-ids, composition-naming, no-deep-nesting, valid-trait-syntax, no-unused-templates
-- [x] **Pluggable rule system** - Add custom rules
-- [x] **Multiple output formats** - Stylish, JSON, compact
-- [x] **CLI tool** - `holoscript-lint --fix`, `--format`
+  // Synchronization
+  tick(): void;  // Called at tickRate
+  createSnapshot(): StateSnapshot;
+  createDelta(from: number, to: number): StateDelta;
+  applySnapshot(snapshot: StateSnapshot): void;
+  applyDelta(delta: StateDelta): void;
 
-#### @hololand/holoscript-lsp v1.0.0 ✅
-- [x] **Language Server Protocol** - IDE integration
-- [x] **Real-time diagnostics** - Errors as you type
-- [x] **Completion suggestions** - IntelliSense support
+  // Interpolation
+  getInterpolatedState(entityId: string, renderTime: number): SyncEntity | null;
+}
 
-**Outcome**: Professional-grade developer experience for HoloScript.
+// packages/network/src/sync/DeltaCompressor.ts
+export class DeltaCompressor {
+  // Binary delta format for minimal bandwidth
+  compress(previous: StateSnapshot, current: StateSnapshot): Uint8Array;
+  decompress(delta: Uint8Array, base: StateSnapshot): StateSnapshot;
 
----
+  // Field-level diffing
+  diffTransform(prev: Transform, curr: Transform): TransformDelta | null;
+  applyTransformDelta(base: Transform, delta: TransformDelta): Transform;
+}
 
-## Phase 4: Advanced Features 🔮 (Q2-Q4 2026)
+// packages/network/src/sync/InterestManagement.ts
+export class InterestManager {
+  private spatialGrid: SpatialHashGrid;
 
-**Goal**: Professional-grade features for production applications.
+  // Area of Interest
+  setPlayerPosition(playerId: string, position: Vector3): void;
+  getRelevantEntities(playerId: string): SyncEntity[];
 
-### 4.1: Audio System
+  // Priority calculation
+  calculatePriority(viewer: Vector3, entity: SyncEntity): number;
 
-#### New Package: @hololand/audio
-- [ ] **Spatial audio** - 3D positional sound
-- [ ] **Audio effects** - Reverb, echo, filters
-- [ ] **Music streaming** - Background music
-- [ ] **Voice chat** - Spatial voice (sounds come from avatars)
-- [ ] **Audio zones** - Different audio per area
-
-### 4.2: Animation System
-
-#### New Package: @hololand/animation
-- [ ] **Skeletal animation** - Character animations
-- [ ] **Keyframe animation** - Object movement
-- [ ] **Blend trees** - Smooth animation transitions
-- [ ] **IK (Inverse Kinematics)** - Procedural animation
-- [ ] **Animation clips** - Walk, run, jump, etc.
-
-### 4.3: Graphics Enhancements
-
-#### @hololand/renderer v3.0
-- [ ] **Custom shaders** - GLSL shader support
-- [ ] **Post-processing** - Bloom, DOF, color grading
-- [ ] **Advanced materials** - PBR, subsurface scattering
-- [ ] **Lighting improvements** - Global illumination, light probes
-- [ ] **Particle systems** - Fire, smoke, magic effects
-- [ ] **Dynamic weather** - Rain, snow, fog
-
-### 4.4: Developer Tools
-
-#### New Package: @hololand/devtools
-- [ ] **Performance profiler** - FPS, memory, network
-- [ ] **Visual debugger** - See colliders, raycasts
-- [ ] **Network debugger** - Monitor sync events
-- [ ] **Hot reload** - Live code updates
-- [ ] **In-VR console** - Debug in headset
-
-### 4.5: Authentication & Identity
-
-#### New Package: @hololand/auth
-- [ ] **Unified authentication** - Email, OAuth, Web3
-- [ ] **User profiles** - Display name, avatar, bio
-- [ ] **Inventory system** - Own items across worlds
-- [ ] **Achievements** - Badges and accomplishments
-- [ ] **Blockchain integration** - NFT support (optional)
-
-### 4.6: Content Creation Tools
-
-#### @hololand/builder v2.0
-- [ ] **Visual editor** - Drag-and-drop world building
-- [ ] **Asset library** - Pre-built 3D models
-- [ ] **Material editor** - Create custom materials
-- [ ] **Script editor** - Write HoloScript in-app
-- [ ] **Collaboration** - Real-time co-editing
-
-**Outcome**: Production-ready platform for serious applications.
-
----
-
-## Phase 5: Ecosystem & Marketplace 🌐 (Q2-Q4 2027)
-
-**Goal**: Build a thriving creator economy and distribution platform.
-
-### 5.1: Asset Marketplace
-
-#### New Package: @hololand/marketplace
-- [ ] **Asset store** - Buy/sell 3D models, scripts, worlds
-- [ ] **Revenue sharing** - 70/30 split (creator/platform)
-- [ ] **Asset licensing** - Commercial vs personal use
-- [ ] **Version control** - Update assets, backward compatibility
-- [ ] **Reviews & ratings** - Community feedback
-
-Asset Types:
-- 3D models (GLTF, FBX, OBJ)
-- Scripts (HoloScript, JavaScript)
-- Materials & shaders
-- Complete worlds
-- UI themes
-- Sound packs
-
-### 5.2: World Hosting & Distribution
-
-- [ ] **Hololand Cloud** - Host worlds online
-- [ ] **Custom domains** - yourworld.hololand.dev
-- [ ] **Analytics** - Visitor tracking, engagement metrics
-- [ ] **Monetization** - Subscriptions, in-world purchases
-- [ ] **World discovery** - Browse popular worlds
-
-### 5.3: Creator Tools & SDKs
-
-- [ ] **CLI tool** - `npx create-hololand-world`
-- [ ] **VS Code extension** - HoloScript syntax highlighting
-- [ ] **Blender plugin** - Export directly to Hololand
-- [ ] **Unity importer** - Convert Unity scenes
-- [ ] **Documentation site** - docs.hololand.dev
-
-### 5.4: Metaverse Client App
-
-Build the official **Hololand Metaverse App**:
-
-Desktop Client (Electron):
-- [ ] World browser and launcher
-- [ ] Built-in creator tools
-- [ ] Social features
-- [ ] Performance optimizations
-
-Mobile Client (React Native):
-- [ ] AR mode by default
-- [ ] Touch-optimized controls
-- [ ] Offline mode
-- [ ] Push notifications
-
-### 5.5: Backend Nodes (@hololand/backend)
-
-**📖 [Full Design Doc →](./docs/BACKEND_NODES_DESIGN.md)**
-
-**Purpose**: Full-stack metaverse development with declarative server components.
-
-#### Core Components
-
-- [ ] **ServerNode** - HTTP/WebSocket server with routing
-- [ ] **DatabaseNode** - ORM wrapper (Postgres, MySQL, SQLite)
-- [ ] **CacheNode** - Redis/memory caching layer
-- [ ] **AuthNode** - OAuth, email, and Web3 wallet auth
-- [ ] **StorageNode** - S3/local file storage
-- [ ] **QueueNode** - Background job processing
-
-#### Features
-
-- [ ] Declarative JSX syntax for backend services
-- [ ] HoloScript backend extensions
-- [ ] Type-safe database queries (auto-generated types)
-- [ ] Integration with @hololand/network for real-time sync
-- [ ] One-command deployment to Hololand Cloud
-- [ ] Self-hosted world instances
-
-#### HoloScript Example
-
-```javascript
-create server on port 3000
-  route GET /api/worlds
-    query all worlds where isPublic = true
-    return worlds
-
-  websocket /ws/world/:worldId
-    on connect -> join room worldId
-    on message -> broadcast to room
+  // Bandwidth management
+  filterByBandwidth(entities: SyncEntity[], maxBytes: number): SyncEntity[];
+}
 ```
 
-### 5.6: Community & Governance
+**Files to Create**:
+- `packages/network/src/sync/StateSyncEngine.ts`
+- `packages/network/src/sync/StateSnapshot.ts`
+- `packages/network/src/sync/DeltaCompressor.ts`
+- `packages/network/src/sync/InterpolationBuffer.ts`
+- `packages/network/src/sync/InterestManager.ts`
+- `packages/network/src/sync/SpatialHashGrid.ts`
+- `packages/network/src/sync/PriorityQueue.ts`
 
-- [ ] **Creator grants** - Fund promising projects
-- [ ] **Bug bounty program** - Security rewards
-- [ ] **RFC process** - Community proposals
-- [ ] **Advisory board** - Top creators and developers
-- [ ] **Annual conference** - HololandCon
-
-**Outcome**: Self-sustaining creator economy with full-stack capabilities and thousands of self-hosted worlds.
-
----
-
-## Phase 6: Hardware Integration 🥽 (2028+)
-
-**Goal**: Native support for uaa2 VR glasses and next-gen hardware.
-
-### 6.1: uaa2 VR Glasses Integration
-
-**Partnership with uaa2-service for hardware development**
-
-Features:
-- [ ] **Native runtime** - No browser needed
-- [ ] **OS integration** - Hololand OS layer
-- [ ] **Optimized performance** - 120 FPS+ rendering
-- [ ] **Eye tracking** - Foveated rendering
-- [ ] **Hand tracking** - Natural interactions
-- [ ] **Haptic feedback** - Full-body haptics
-- [ ] **Neural interface** (long-term) - Direct thought control
-
-### 6.2: Cross-Platform Runtime
-
-- [ ] **Standalone VR apps** - Native VR glass apps
-- [ ] **Desktop client** - Optimized for gaming PCs
-- [ ] **Mobile client** - iPhone/Android apps
-- [ ] **Console support** - PlayStation VR, Xbox
-- [ ] **Cloud streaming** - Play on any device
-
-### 6.3: Advanced Hardware Features
-
-- [ ] **Biometric sensors** - Heart rate, stress levels
-- [ ] **Environmental sensors** - Room mapping, lighting
-- [ ] **AI co-processor** - On-device AI assistance
-- [ ] **Mesh networking** - Direct device-to-device
-- [ ] **Battery optimization** - 8+ hour sessions
-
-### 6.4: Metaverse Standards
-
-Lead industry standards:
-- [ ] **Open metaverse protocol** - Interoperability with other platforms
-- [ ] **Avatar portability** - Use same avatar everywhere
-- [ ] **Asset portability** - Items work across worlds
-- [ ] **Identity standard** - One login, all metaverses
-
-**Outcome**: The definitive platform for next-generation VR hardware.
+**Acceptance Criteria**:
+- [ ] 20 tick/second state synchronization
+- [ ] Delta compression reduces bandwidth by 80%+
+- [ ] Interpolation buffer smooths entity movement
+- [ ] Interest management filters by distance
+- [ ] Priority system for bandwidth-constrained scenarios
+- [ ] Snapshot + delta hybrid for late joiners
 
 ---
 
-## Phase 7: The Open Metaverse 🌌 (2029+)
+### Sprint 2: Physics & Audio (AI-Days 4-6)
 
-**Vision: The Ready Player One World, Built by Everyone**
+#### 3.2.1 Rapier Physics Integration
+**Agent**: Platform Agent
+**Location**: `packages/physics/src/`
 
-### 7.1: Massive Scale
+**What to Build**:
+Full-featured physics simulation using Rapier WASM.
 
-- [ ] **Millions of concurrent users** - Distributed infrastructure
-- [ ] **Seamless world portals** - Jump between worlds instantly
-- [ ] **Persistent metaverse** - Always online, always evolving
-- [ ] **AI-generated content** - Infinite worlds
-- [ ] **Quantum rendering** (future tech) - Photorealistic graphics
+**Implementation Details**:
+```typescript
+// packages/physics/src/PhysicsWorld.ts
+import RAPIER from '@dimforge/rapier3d';
 
-### 7.2: Interoperability
+export interface PhysicsConfig {
+  gravity: Vector3;
+  timestep: number;
+  substeps: number;
+  enableCCD: boolean;
+}
 
-- [ ] **Cross-platform avatars** - One identity everywhere
-- [ ] **Universal inventory** - Items work in any world
-- [ ] **Federated worlds** - Anyone can host
-- [ ] **Bridge protocols** - Connect to Decentraland, Roblox, etc.
+export class PhysicsWorld {
+  private world: RAPIER.World;
+  private bodies: Map<string, RAPIER.RigidBody> = new Map();
+  private colliders: Map<string, RAPIER.Collider> = new Map();
 
-### 7.3: Real-World Integration & AR Layer
+  // World management
+  initialize(config: PhysicsConfig): Promise<void>;
+  step(deltaTime: number): void;
+  dispose(): void;
 
-**📖 [Full Design Doc →](./HOLOLAND_HUB_AND_AR.md)**
+  // Rigid bodies
+  createRigidBody(config: RigidBodyConfig): string;
+  removeRigidBody(id: string): void;
+  setBodyPosition(id: string, position: Vector3): void;
+  setBodyVelocity(id: string, velocity: Vector3): void;
+  applyForce(id: string, force: Vector3): void;
+  applyImpulse(id: string, impulse: Vector3): void;
 
-#### Hololand Plains (Central VR Spaces)
-- [ ] **Multiple Plains** - Default spawn points for all users (regional, themed, community-specific)
-- [ ] **World portal system** - Discover and jump to any world
-- [ ] **Social zones** - Meeting areas, event stages, shopping districts
-- [ ] **Auto-scaling instances** - 100 users per instance, unlimited instances
+  // Colliders
+  createCollider(bodyId: string, config: ColliderConfig): string;
+  removeCollider(id: string): void;
 
-#### AR Real-World Layer
-- [ ] **Geospatial anchoring (@hololand/geo)** - Virtual content at GPS locations
-- [ ] **AR overlay system (@hololand/ar)** - Augmented reality via mobile/glasses
-- [ ] **Real-world space ownership** - Claim virtual spaces at physical locations
-- [ ] **Business verification** - Verified AR storefronts for real businesses
-- [ ] **AR advertising platform** - Digital billboards in physical world
+  // Queries
+  raycast(origin: Vector3, direction: Vector3, maxDist: number): RaycastHit | null;
+  shapecast(shape: ColliderShape, origin: Vector3, direction: Vector3): ShapecastHit | null;
+  overlapTest(shape: ColliderShape, position: Vector3): string[];
 
-#### Real-World Space Marketplace
-- [ ] **Space claiming system** - Purchase/rent locations
-- [ ] **Geospatial marketplace** - Buy/sell virtual real estate
-- [ ] **Business analytics** - Track AR impressions, clicks, revenue
-- [ ] **Location pricing** - Dynamic pricing based on foot traffic
+  // Events
+  onCollisionStart(handler: CollisionHandler): void;
+  onCollisionEnd(handler: CollisionHandler): void;
+}
 
-#### Use Cases
-- **Business Storefronts**: Restaurants show menus in AR above doors
-- **Advertising**: Brands place 3D ads at high-traffic locations
-- **Art Installations**: Creators place virtual art in parks
-- **Real Estate**: Virtual tours via AR at properties
-- **Events**: AR treasure hunts, games, social experiences
+export interface RigidBodyConfig {
+  type: 'dynamic' | 'static' | 'kinematic';
+  position: Vector3;
+  rotation: Quaternion;
+  mass?: number;
+  linearDamping?: number;
+  angularDamping?: number;
+  enableCCD?: boolean;
+}
 
-#### Digital twins & Commerce
-- [ ] **Real locations in VR** - Replicate physical spaces
-- [ ] **Virtual commerce** - Buy real products in VR/AR
-- [ ] **Remote work** - Virtual offices with AR integration
-- [ ] **Education** - Virtual classrooms with real-world tie-ins
-- [ ] **Healthcare** - VR therapy and training
+export interface ColliderConfig {
+  shape: ColliderShape;
+  friction: number;
+  restitution: number;
+  isSensor: boolean;
+  collisionGroups: number;
+  collisionMask: number;
+}
 
-### 7.4: AI & Automation
-
-- [ ] **AI-powered NPCs** - Intelligent virtual beings
-- [ ] **Procedural worlds** - Generate infinite content
-- [ ] **Natural language building** - "Create a cyberpunk city"
-- [ ] **AI assistants** - Personal guides in metaverse
-
-**Outcome**: The open metaverse that rivals Ready Player One's OASIS.
-
----
-
-## 🎯 Product-Market Fit: Three User Personas
-
-**Target Users**: Anyone who wants to build in VR - from casual gamers to professional developers.
-
-| Persona | Key Metric | Conversion Path |
-|---------|------------|-----------------|
-| **🎮 Gamers** | <30 seconds to first VR experience | Download → VR World → Social → Creator |
-| **🎨 Creators** | <1 hour to publish first world | Templates → Voice Building → Marketplace |
-| **💻 Developers** | 99% less code than Unity/Unreal | HoloScript → TypeScript SDK → Backend Nodes |
-
-### Competitive Moat
-
-| Advantage | Description |
-|-----------|-------------|
-| **Brittney AI** | Voice-first VR building - "Create a medieval castle" generates 3D world instantly |
-| **HoloScript DSL** | Plain English programming: `create cube at (0, 1, 0) with color red` |
-| **Hot Reload** | Edit code in VR headset, see changes <100ms |
-| **Progressive Disclosure** | Start with templates, graduate to full SDK - no ceiling |
-| **Three Plains Architecture** | Only platform unifying pure VR, VR Real World (digital twin), and AR Real World |
-
-### Risks & Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| AI Hallucinations | Brittney validates all generated HoloScript before execution; sandbox mode for untrusted code |
-| Accessibility Gaps | WCAG 2.1 AA compliance; voice-only mode; screen reader support planned |
-| Hardware Fragmentation | WebXR-first strategy; progressive enhancement from 2D → VR |
-| Platform Lock-in | 100% open source; self-hosting supported; federated world hosting |
-
----
-
-## 📊 Success Metrics
-
-### Community Growth
-- GitHub Stars: Target 10K+ (currently 0)
-- Active Contributors: Target 100+
-- Discord Members: Target 10K+
-- Monthly Active Worlds: Target 1M+
-
-### Technical Milestones
-- Sub-20ms frame time (60 FPS minimum)
-- Support 1000+ concurrent users per world
-- 99.9% uptime for hosted worlds
-- Sub-100ms latency for multiplayer
-
-### Creator Economy
-- 10,000+ creators earning income
-- $10M+ in creator payouts (annual)
-- 100,000+ assets in marketplace
-- 1M+ worlds created
-
----
-
-## 🤝 How to Contribute
-
-We're building the open metaverse together:
-
-### For Developers
-- Pick an issue from the roadmap
-- Submit PRs for new features
-- Improve documentation
-- Report bugs and suggest improvements
-
-### For Creators
-- Build worlds and share them
-- Create tutorials and guides
-- Test new features
-- Provide feedback on tools
-
-### For Community
-- Spread the word
-- Help newcomers
-- Organize events
-- Translate documentation
-
----
-
-## 🤖 AI Strategy: BYOK (Bring Your Own Key)
-
-**Goal**: Zero AI infrastructure cost for Hololand while giving users maximum flexibility.
-
-### Tiered Chat System
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    HOLOLAND PLATFORM                         │
-│                                                              │
-│  ┌───────────┐    ┌───────────┐    ┌───────────┐            │
-│  │  Basic    │    │ Pro (BYOK)│    │ Pro (IA)  │            │
-│  │  No Key   │    │ User's LLM│    │ IA Key    │            │
-│  │  Free     │    │ + Brittney│    │ Better    │            │
-│  └─────┬─────┘    └─────┬─────┘    └─────┬─────┘            │
-│        │                │                │                   │
-│        └────────────────┼────────────────┘                   │
-│                         ▼                                    │
-│             ┌───────────────────────┐                        │
-│             │   ChatWidget.ts       │                        │
-│             │   (mode: basic|pro)   │                        │
-│             └───────────┬───────────┘                        │
-│                         │                                    │
-│             ┌───────────────────────┐                        │
-│             │   API Key Store       │  ← Stored locally      │
-│             │   (encrypted)         │    (never sent to us)  │
-│             └───────────────────────┘                        │
-└─────────────────────────────────────────────────────────────┘
+export type ColliderShape =
+  | { type: 'box'; halfExtents: Vector3 }
+  | { type: 'sphere'; radius: number }
+  | { type: 'capsule'; halfHeight: number; radius: number }
+  | { type: 'cylinder'; halfHeight: number; radius: number }
+  | { type: 'convexHull'; points: Vector3[] }
+  | { type: 'trimesh'; vertices: Float32Array; indices: Uint32Array };
 ```
 
-### Tier Comparison
+**Files to Create**:
+- `packages/physics/src/PhysicsWorld.ts`
+- `packages/physics/src/RigidBodyManager.ts`
+- `packages/physics/src/ColliderFactory.ts`
+- `packages/physics/src/CollisionEvents.ts`
+- `packages/physics/src/PhysicsDebugRenderer.ts`
+- `packages/physics/src/CharacterController.ts`
+- `packages/physics/src/VehicleController.ts`
 
-| Tier | AI Model | Cost | Features |
-|------|----------|------|----------|
-| **Basic** | Local Brittney (TinyLlama 1.1B) | Free | Quick generation, runs on device |
-| **Pro (BYOK)** | User's LLM (OpenAI, Anthropic, etc) + Brittney Tools | User pays their provider | Full planning, their LLM limits |
-| **Pro (IA)** | Bigger Brittney via Infinity Assistant API | User pays IA | Enhanced model, full features |
-
-### Key Principles
-
-1. **Keys Stay Local**: User's API keys are encrypted and stored on their device
-2. **Never Sent to Hololand**: We don't route through our servers
-3. **User Choice**: Free local, bring their own key, or Infinity Assistant
-4. **Brittney Tools**: BYOK users get their LLM + Brittney's HoloScript capabilities
-
-**📖 [Full Implementation Plan →](./docs/specs/TIERED_CHAT_GAMEPLAN.md)**
-
----
-
-## 🔗 Related Projects
-
-### uaa2-service
-- **uAA2++ Protocol** - Multi-agent AI orchestration
-- **VR Hardware Development** - Next-gen VR glasses
-- **Builder's Workshop** - Developer tools and automation
-
-### infinityassistant-service
-- **Normie's Companion** - Creator-friendly voice building
-- **Natural Language Interface** - Build without coding
-- **Tutorial System** - Interactive learning
-- **Brittney API** - Enhanced Brittney model for Pro users
+**Acceptance Criteria**:
+- [ ] Rapier WASM loads and initializes
+- [ ] Dynamic/static/kinematic body types
+- [ ] All primitive collider shapes
+- [ ] Convex hull and trimesh for complex geometry
+- [ ] Raycast and shape queries
+- [ ] Collision events with contact points
+- [ ] Character controller for player movement
+- [ ] < 2ms physics step for 1000 bodies
 
 ---
 
-## 📅 Release Schedule
+#### 3.2.2 Web Audio Spatial System
+**Agent**: Platform Agent
+**Location**: `packages/audio/src/`
 
-### Completed
-- ✅ **Q4 2025**: v1.0.0 - Foundation (core, renderer, world, react-three)
-- ✅ **Q1 2026**: v1.1.0 - Universal rendering (2D/hybrid modes)
-- ✅ **Q1 2026**: v2.0.0 - Developer tools (formatter, linter, LSP)
-- ✅ **Q1 2026**: Repository reorganization - HoloScript language now in [separate repo](https://github.com/brianonbased-dev/HoloScript)
+**What to Build**:
+3D spatial audio with HRTF and environmental effects.
 
-### In Progress
-- 🔄 **Q1-Q2 2026**: v1.2.0 - Local-first networking (P2P, ngrok tunnels, social features)
-- 🔄 **Q1-Q2 2026**: Tiered Chat (BYOK AI integration)
-- 🔄 **Q1-Q2 2026**: HoloScript-First Migration (Hololand Central rewrite)
+**Implementation Details**:
+```typescript
+// packages/audio/src/AudioEngine.ts
+export interface AudioConfig {
+  maxSources: number;
+  distanceModel: 'linear' | 'inverse' | 'exponential';
+  rolloffFactor: number;
+  refDistance: number;
+  maxDistance: number;
+}
 
-**📖 [HoloScript Migration Plan →](./docs/specs/HOLOSCRIPT_FIRST_MIGRATION.md)**
+export class AudioEngine {
+  private context: AudioContext;
+  private listener: AudioListener;
+  private sources: Map<string, AudioSource3D> = new Map();
+  private convolver: ConvolverNode | null = null;
 
-### Upcoming
-- **Q2 2026**: v2.1.0 - Audio system, animation system
-- **Q3 2026**: v2.2.0 - Graphics enhancements, post-processing
-- **Q4 2026**: v2.3.0 - Authentication & identity
-- **Q1 2027**: v3.0.0 - Marketplace & ecosystem
-- **Q2 2027**: v3.1.0 - Metaverse client app, backend nodes
-- **2028+**: v4.0.0 - Hardware integration (uaa2 VR glasses)
+  // Lifecycle
+  initialize(config: AudioConfig): Promise<void>;
+  resume(): Promise<void>;  // Required for user gesture
+  suspend(): Promise<void>;
+  dispose(): void;
+
+  // Listener (camera/player position)
+  setListenerPosition(position: Vector3): void;
+  setListenerOrientation(forward: Vector3, up: Vector3): void;
+
+  // Sources
+  createSource(id: string, config: SourceConfig): AudioSource3D;
+  removeSource(id: string): void;
+
+  // Global effects
+  setMasterVolume(volume: number): void;
+  setReverbImpulse(buffer: AudioBuffer): void;
+  setReverbMix(wet: number): void;
+}
+
+// packages/audio/src/AudioSource3D.ts
+export interface SourceConfig {
+  position: Vector3;
+  loop: boolean;
+  volume: number;
+  pitch: number;
+  spatialize: boolean;
+  minDistance: number;
+  maxDistance: number;
+}
+
+export class AudioSource3D {
+  private panner: PannerNode;
+  private gain: GainNode;
+  private source: AudioBufferSourceNode | MediaElementAudioSourceNode | null;
+
+  // Playback
+  play(buffer: AudioBuffer): void;
+  playStream(element: HTMLAudioElement): void;
+  stop(): void;
+  pause(): void;
+  resume(): void;
+
+  // Properties
+  setPosition(position: Vector3): void;
+  setVolume(volume: number): void;
+  setPitch(pitch: number): void;
+  setDistanceModel(model: DistanceModelType): void;
+
+  // Spatial
+  setConeInnerAngle(angle: number): void;
+  setConeOuterAngle(angle: number): void;
+  setConeOuterGain(gain: number): void;
+}
+
+// packages/audio/src/AudioZone.ts
+export class AudioZone {
+  private bounds: AABB;
+  private reverb: ConvolverNode;
+  private lowpass: BiquadFilterNode;
+
+  // Zone configuration
+  setBounds(min: Vector3, max: Vector3): void;
+  setReverbImpulse(buffer: AudioBuffer): void;
+  setLowpassFrequency(frequency: number): void;
+  setVolume(volume: number): void;
+
+  // Check if listener is inside
+  containsPoint(point: Vector3): boolean;
+  getBlendFactor(point: Vector3): number;  // For smooth transitions
+}
+```
+
+**Files to Create**:
+- `packages/audio/src/AudioEngine.ts`
+- `packages/audio/src/AudioSource3D.ts`
+- `packages/audio/src/AudioListener.ts`
+- `packages/audio/src/AudioZone.ts`
+- `packages/audio/src/AudioLoader.ts`
+- `packages/audio/src/ReverbPresets.ts`
+- `packages/audio/src/OcclusionCalculator.ts`
+
+**Acceptance Criteria**:
+- [ ] Web Audio API spatial audio
+- [ ] HRTF for accurate 3D positioning
+- [ ] Distance attenuation models
+- [ ] Audio zones with reverb presets
+- [ ] Smooth zone transitions
+- [ ] Occlusion through geometry
+- [ ] Master volume and global effects
+- [ ] < 1ms audio processing overhead
 
 ---
 
-## 💭 Philosophy
+#### 3.2.3 Voice Chat System
+**Agent**: Platform Agent
+**Location**: `packages/voice/src/`
 
-### Why Open Source?
+**What to Build**:
+Real-time voice communication with spatial audio and echo cancellation.
 
-We believe the metaverse should be:
-- **Owned by everyone**, not corporations
-- **Built by the community**, for the community
-- **Accessible to all**, regardless of wealth or location
-- **Transparent**, with open standards and protocols
+**Implementation Details**:
+```typescript
+// packages/voice/src/VoiceChat.ts
+export interface VoiceConfig {
+  sampleRate: number;
+  channels: number;
+  echoCancellation: boolean;
+  noiseSuppression: boolean;
+  autoGainControl: boolean;
+  spatialAudio: boolean;
+}
 
-### The OASIS Vision
+export class VoiceChat {
+  private localStream: MediaStream | null = null;
+  private peers: Map<string, VoicePeer> = new Map();
+  private processor: AudioWorkletNode | null = null;
 
-Like Ready Player One's OASIS, Hololand should be:
-- A place anyone can access
-- A world anyone can build in
-- An economy anyone can participate in
-- A future we all want to live in
+  // Local microphone
+  initialize(config: VoiceConfig): Promise<void>;
+  startCapture(): Promise<void>;
+  stopCapture(): void;
+  setMuted(muted: boolean): void;
 
-**But unlike OASIS, Hololand will never be controlled by one person or company. It's open source forever.**
+  // Peers
+  addPeer(peerId: string, connection: RTCPeerConnection): VoicePeer;
+  removePeer(peerId: string): void;
+  setPeerVolume(peerId: string, volume: number): void;
+  setPeerMuted(peerId: string, muted: boolean): void;
+
+  // Spatial audio
+  setListenerPosition(position: Vector3): void;
+  setPeerPosition(peerId: string, position: Vector3): void;
+
+  // Push-to-talk
+  setPushToTalk(enabled: boolean): void;
+  startTransmit(): void;
+  endTransmit(): void;
+
+  // Voice activity detection
+  onVoiceActivity(handler: (peerId: string, active: boolean) => void): void;
+  getVoiceLevel(peerId: string): number;
+}
+
+// packages/voice/src/VoicePeer.ts
+export class VoicePeer {
+  private connection: RTCPeerConnection;
+  private audioElement: HTMLAudioElement;
+  private panner: PannerNode;
+  private gain: GainNode;
+
+  // Connection
+  setRemoteStream(stream: MediaStream): void;
+
+  // Spatial
+  setPosition(position: Vector3): void;
+  setDistance(minDistance: number, maxDistance: number): void;
+
+  // Volume
+  setVolume(volume: number): void;
+  setMuted(muted: boolean): void;
+
+  // Activity
+  getVoiceLevel(): number;
+}
+
+// packages/voice/src/VoiceActivityDetector.ts
+export class VoiceActivityDetector {
+  private analyser: AnalyserNode;
+  private threshold: number;
+
+  // Detection
+  isActive(): boolean;
+  getLevel(): number;
+  setThreshold(threshold: number): void;
+
+  // Events
+  onActivityStart(handler: () => void): void;
+  onActivityEnd(handler: () => void): void;
+}
+```
+
+**Files to Create**:
+- `packages/voice/src/VoiceChat.ts`
+- `packages/voice/src/VoicePeer.ts`
+- `packages/voice/src/VoiceActivityDetector.ts`
+- `packages/voice/src/AudioProcessor.ts` (AudioWorklet)
+- `packages/voice/src/EchoCanceller.ts`
+- `packages/voice/src/NoiseGate.ts`
+- `packages/voice/src/Compressor.ts`
+
+**Acceptance Criteria**:
+- [ ] WebRTC audio streams
+- [ ] Echo cancellation via Web Audio
+- [ ] Noise suppression
+- [ ] Voice activity detection
+- [ ] Push-to-talk mode
+- [ ] Spatial voice positioning
+- [ ] Per-peer volume control
+- [ ] < 100ms voice latency
 
 ---
 
-## 🌟 Join Us
+### Sprint 3: Graphics Pipeline (AI-Days 7-10)
 
-The future is being built right now. Be part of it:
+#### 3.3.1 WebGL 2.0 Renderer
+**Agent**: Graphics Agent
+**Location**: `packages/renderer/src/webgl/`
 
-- **Star the repo**: https://github.com/brianonbased-dev/Hololand
-- **Join Discord**: [Coming soon]
-- **Follow updates**: @HololandDev [Coming soon]
-- **Read docs**: docs.hololand.dev [Coming soon]
+**What to Build**:
+High-performance WebGL 2.0 rendering with PBR materials.
+
+**Implementation Details**:
+```typescript
+// packages/renderer/src/webgl/WebGLRenderer.ts
+export interface RendererConfig {
+  canvas: HTMLCanvasElement;
+  antialias: boolean;
+  alpha: boolean;
+  depth: boolean;
+  stencil: boolean;
+  powerPreference: 'default' | 'high-performance' | 'low-power';
+  preserveDrawingBuffer: boolean;
+}
+
+export class WebGLRenderer {
+  private gl: WebGL2RenderingContext;
+  private shaderCache: Map<string, WebGLProgram> = new Map();
+  private textureCache: Map<string, WebGLTexture> = new Map();
+  private renderQueue: RenderCommand[] = [];
+
+  // Lifecycle
+  initialize(config: RendererConfig): void;
+  dispose(): void;
+  resize(width: number, height: number): void;
+
+  // Rendering
+  beginFrame(): void;
+  render(scene: Scene, camera: Camera): void;
+  endFrame(): void;
+
+  // Resources
+  createMesh(geometry: Geometry): GPUMesh;
+  createTexture(source: TextureSource): GPUTexture;
+  createMaterial(config: MaterialConfig): GPUMaterial;
+  createRenderTarget(width: number, height: number, config: RenderTargetConfig): GPURenderTarget;
+
+  // State
+  setViewport(x: number, y: number, width: number, height: number): void;
+  setClearColor(r: number, g: number, b: number, a: number): void;
+  setDepthTest(enabled: boolean): void;
+  setBlendMode(mode: BlendMode): void;
+}
+
+// packages/renderer/src/webgl/PBRMaterial.ts
+export interface PBRMaterialConfig {
+  albedo: Color | Texture;
+  metallic: number | Texture;
+  roughness: number | Texture;
+  normal?: Texture;
+  ao?: Texture;
+  emissive?: Color | Texture;
+  emissiveIntensity?: number;
+  alphaMode: 'opaque' | 'mask' | 'blend';
+  alphaCutoff?: number;
+  doubleSided: boolean;
+}
+
+export class PBRMaterial {
+  // Uniforms
+  setAlbedo(value: Color | Texture): void;
+  setMetallic(value: number): void;
+  setRoughness(value: number): void;
+  setNormalMap(texture: Texture | null): void;
+  setAOMap(texture: Texture | null): void;
+  setEmissive(color: Color, intensity: number): void;
+
+  // Rendering
+  bind(gl: WebGL2RenderingContext): void;
+  unbind(): void;
+}
+```
+
+**Shader Architecture**:
+```glsl
+// PBR vertex shader
+#version 300 es
+precision highp float;
+
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in vec3 a_normal;
+layout(location = 2) in vec2 a_texcoord;
+layout(location = 3) in vec4 a_tangent;
+
+uniform mat4 u_model;
+uniform mat4 u_view;
+uniform mat4 u_projection;
+uniform mat4 u_normalMatrix;
+
+out vec3 v_worldPosition;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out mat3 v_TBN;
+
+void main() {
+  vec4 worldPos = u_model * vec4(a_position, 1.0);
+  v_worldPosition = worldPos.xyz;
+  v_normal = normalize((u_normalMatrix * vec4(a_normal, 0.0)).xyz);
+  v_texcoord = a_texcoord;
+
+  // Tangent space
+  vec3 T = normalize((u_model * vec4(a_tangent.xyz, 0.0)).xyz);
+  vec3 B = cross(v_normal, T) * a_tangent.w;
+  v_TBN = mat3(T, B, v_normal);
+
+  gl_Position = u_projection * u_view * worldPos;
+}
+```
+
+**Files to Create**:
+- `packages/renderer/src/webgl/WebGLRenderer.ts`
+- `packages/renderer/src/webgl/ShaderCompiler.ts`
+- `packages/renderer/src/webgl/BufferManager.ts`
+- `packages/renderer/src/webgl/TextureManager.ts`
+- `packages/renderer/src/webgl/RenderQueue.ts`
+- `packages/renderer/src/webgl/PBRMaterial.ts`
+- `packages/renderer/src/webgl/UnlitMaterial.ts`
+- `packages/renderer/src/shaders/pbr.vert`
+- `packages/renderer/src/shaders/pbr.frag`
+- `packages/renderer/src/shaders/unlit.vert`
+- `packages/renderer/src/shaders/unlit.frag`
+
+**Acceptance Criteria**:
+- [ ] WebGL 2.0 context initialization
+- [ ] PBR material pipeline
+- [ ] Normal mapping
+- [ ] Metallic-roughness workflow
+- [ ] Texture atlas support
+- [ ] Instanced rendering
+- [ ] Front-to-back sorting for opaques
+- [ ] Back-to-front sorting for transparents
+- [ ] 60 FPS with 1000 objects
 
 ---
 
-**Built with ❤️ by the Hololand community**
+#### 3.3.2 Shadow Mapping System
+**Agent**: Graphics Agent
+**Location**: `packages/renderer/src/shadows/`
 
-*Last updated: 2026-01-22*
+**What to Build**:
+Real-time shadow rendering with cascaded shadow maps.
+
+**Implementation Details**:
+```typescript
+// packages/renderer/src/shadows/ShadowMapper.ts
+export interface ShadowConfig {
+  enabled: boolean;
+  resolution: number;
+  cascades: number;
+  cascadeSplits: number[];
+  bias: number;
+  normalBias: number;
+  softShadows: boolean;
+  pcfSamples: number;
+}
+
+export class ShadowMapper {
+  private cascadeFramebuffers: WebGLFramebuffer[] = [];
+  private cascadeTextures: WebGLTexture[] = [];
+  private cascadeMatrices: Matrix4[] = [];
+
+  // Setup
+  initialize(config: ShadowConfig): void;
+  dispose(): void;
+
+  // Per-frame
+  updateCascades(camera: Camera, lightDirection: Vector3): void;
+  renderShadowMaps(scene: Scene): void;
+
+  // Shader integration
+  bindShadowMaps(textureUnits: number[]): void;
+  getCascadeMatrices(): Matrix4[];
+  getCascadeSplits(): number[];
+}
+
+// packages/renderer/src/shadows/CascadeCalculator.ts
+export class CascadeCalculator {
+  // Split frustum into cascades
+  calculateCascadeSplits(nearPlane: number, farPlane: number, cascadeCount: number, lambda: number): number[];
+
+  // Calculate tight-fitting shadow frustum
+  calculateLightMatrix(cascade: Frustum, lightDirection: Vector3): Matrix4;
+
+  // Stabilize shadow edges
+  snapToTexels(matrix: Matrix4, resolution: number): Matrix4;
+}
+```
+
+**Shadow Shader**:
+```glsl
+// Shadow sampling with PCF
+float sampleShadowPCF(sampler2D shadowMap, vec3 shadowCoord, float bias) {
+  float shadow = 0.0;
+  vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
+
+  for (int x = -1; x <= 1; ++x) {
+    for (int y = -1; y <= 1; ++y) {
+      vec2 offset = vec2(x, y) * texelSize;
+      float depth = texture(shadowMap, shadowCoord.xy + offset).r;
+      shadow += shadowCoord.z - bias > depth ? 0.0 : 1.0;
+    }
+  }
+  return shadow / 9.0;
+}
+
+// Cascade selection
+int selectCascade(float viewDepth, vec4 cascadeSplits) {
+  for (int i = 0; i < 4; ++i) {
+    if (viewDepth < cascadeSplits[i]) return i;
+  }
+  return 3;
+}
+```
+
+**Files to Create**:
+- `packages/renderer/src/shadows/ShadowMapper.ts`
+- `packages/renderer/src/shadows/CascadeCalculator.ts`
+- `packages/renderer/src/shadows/ShadowAtlas.ts`
+- `packages/renderer/src/shadows/PointLightShadows.ts`
+- `packages/renderer/src/shaders/shadow.vert`
+- `packages/renderer/src/shaders/shadow.frag`
+- `packages/renderer/src/shaders/shadow_sampling.glsl`
+
+**Acceptance Criteria**:
+- [ ] Cascaded shadow maps (4 cascades)
+- [ ] PCF soft shadows
+- [ ] Shadow bias to prevent acne
+- [ ] Stable shadow edges (texel snapping)
+- [ ] Point light shadows (cubemap)
+- [ ] Shadow fade at distance
+- [ ] < 2ms shadow pass for 1000 casters
+
+---
+
+#### 3.3.3 Post-Processing Pipeline
+**Agent**: Graphics Agent
+**Location**: `packages/renderer/src/postprocess/`
+
+**What to Build**:
+Full post-processing stack with common effects.
+
+**Implementation Details**:
+```typescript
+// packages/renderer/src/postprocess/PostProcessPipeline.ts
+export interface PostProcessConfig {
+  enabled: boolean;
+  effects: PostProcessEffect[];
+  outputToScreen: boolean;
+}
+
+export class PostProcessPipeline {
+  private effects: PostProcessEffect[] = [];
+  private pingPongBuffers: GPURenderTarget[] = [];
+  private currentBuffer = 0;
+
+  // Setup
+  initialize(width: number, height: number): void;
+  resize(width: number, height: number): void;
+  dispose(): void;
+
+  // Effects
+  addEffect(effect: PostProcessEffect): void;
+  removeEffect(effect: PostProcessEffect): void;
+  setEffectEnabled(effectName: string, enabled: boolean): void;
+
+  // Rendering
+  process(input: GPURenderTarget): GPURenderTarget;
+  renderToScreen(): void;
+}
+
+// packages/renderer/src/postprocess/effects/Bloom.ts
+export interface BloomConfig {
+  threshold: number;
+  intensity: number;
+  radius: number;
+  passes: number;
+}
+
+export class BloomEffect implements PostProcessEffect {
+  name = 'bloom';
+
+  // Configuration
+  setThreshold(value: number): void;
+  setIntensity(value: number): void;
+  setRadius(value: number): void;
+
+  // Processing
+  render(input: GPURenderTarget, output: GPURenderTarget): void;
+}
+
+// packages/renderer/src/postprocess/effects/ToneMapping.ts
+export class ToneMappingEffect implements PostProcessEffect {
+  name = 'tonemapping';
+
+  // Operators
+  setOperator(operator: 'aces' | 'reinhard' | 'uncharted2' | 'filmic'): void;
+  setExposure(value: number): void;
+  setGamma(value: number): void;
+}
+
+// packages/renderer/src/postprocess/effects/SSAO.ts
+export interface SSAOConfig {
+  samples: number;
+  radius: number;
+  intensity: number;
+  bias: number;
+}
+
+export class SSAOEffect implements PostProcessEffect {
+  name = 'ssao';
+
+  // SSAO needs depth and normal buffers
+  setDepthTexture(texture: GPUTexture): void;
+  setNormalTexture(texture: GPUTexture): void;
+}
+```
+
+**Files to Create**:
+- `packages/renderer/src/postprocess/PostProcessPipeline.ts`
+- `packages/renderer/src/postprocess/PostProcessEffect.ts`
+- `packages/renderer/src/postprocess/effects/Bloom.ts`
+- `packages/renderer/src/postprocess/effects/ToneMapping.ts`
+- `packages/renderer/src/postprocess/effects/SSAO.ts`
+- `packages/renderer/src/postprocess/effects/Vignette.ts`
+- `packages/renderer/src/postprocess/effects/ColorGrading.ts`
+- `packages/renderer/src/postprocess/effects/FXAA.ts`
+- `packages/renderer/src/postprocess/effects/DepthOfField.ts`
+- `packages/renderer/src/shaders/postprocess/bloom.frag`
+- `packages/renderer/src/shaders/postprocess/tonemapping.frag`
+- `packages/renderer/src/shaders/postprocess/ssao.frag`
+- `packages/renderer/src/shaders/postprocess/fxaa.frag`
+
+**Acceptance Criteria**:
+- [ ] Ping-pong buffer rendering
+- [ ] Bloom with threshold and radius
+- [ ] ACES/Reinhard tone mapping
+- [ ] SSAO ambient occlusion
+- [ ] Vignette effect
+- [ ] Color grading (LUT support)
+- [ ] FXAA anti-aliasing
+- [ ] < 3ms total post-process time
+
+---
+
+### Sprint 4: Platform Adapters (AI-Days 11-14)
+
+#### 3.4.1 Quest 3 Native Adapter
+**Agent**: Adapter Agent
+**Location**: `packages/adapters/src/quest/`
+
+**What to Build**:
+Native Meta Quest 3 support via WebXR.
+
+**Implementation Details**:
+```typescript
+// packages/adapters/src/quest/QuestAdapter.ts
+export interface QuestConfig {
+  refreshRate: 90 | 120;
+  foveatedRendering: boolean;
+  foveationLevel: 'low' | 'medium' | 'high';
+  handTracking: boolean;
+  passthrough: boolean;
+  boundaryMode: 'stationary' | 'roomscale';
+}
+
+export class QuestAdapter implements PlatformAdapter {
+  private session: XRSession | null = null;
+  private referenceSpace: XRReferenceSpace | null = null;
+  private inputSources: Map<string, QuestController> = new Map();
+
+  // Platform info
+  get platformId(): string { return 'quest3'; }
+  get capabilities(): PlatformCapabilities;
+
+  // Session lifecycle
+  isSupported(): Promise<boolean>;
+  requestSession(config: QuestConfig): Promise<void>;
+  endSession(): Promise<void>;
+
+  // Rendering
+  getViewport(view: XRView): { x: number; y: number; width: number; height: number };
+  getProjectionMatrix(view: XRView): Float32Array;
+  getViewMatrix(view: XRView): Float32Array;
+
+  // Input
+  getControllers(): QuestController[];
+  getHandTracking(): HandTrackingData | null;
+
+  // Features
+  enablePassthrough(): void;
+  disablePassthrough(): void;
+  setFoveationLevel(level: 'low' | 'medium' | 'high'): void;
+
+  // Haptics
+  vibrate(controller: 'left' | 'right', intensity: number, duration: number): void;
+}
+
+// packages/adapters/src/quest/QuestController.ts
+export interface QuestController {
+  handedness: 'left' | 'right';
+  position: Vector3;
+  orientation: Quaternion;
+
+  // Buttons
+  trigger: number;
+  grip: number;
+  thumbstick: Vector2;
+  thumbstickPressed: boolean;
+  buttonA: boolean;
+  buttonB: boolean;
+  buttonX: boolean;
+  buttonY: boolean;
+
+  // Pose
+  aimPose: XRPose;
+  gripPose: XRPose;
+}
+
+// packages/adapters/src/quest/QuestHandTracking.ts
+export interface HandTrackingData {
+  left: HandJoints | null;
+  right: HandJoints | null;
+}
+
+export interface HandJoints {
+  wrist: JointPose;
+  thumb: JointPose[];  // 4 joints
+  index: JointPose[];  // 4 joints
+  middle: JointPose[]; // 4 joints
+  ring: JointPose[];   // 4 joints
+  pinky: JointPose[];  // 4 joints
+}
+
+export interface JointPose {
+  position: Vector3;
+  orientation: Quaternion;
+  radius: number;
+}
+```
+
+**Files to Create**:
+- `packages/adapters/src/quest/QuestAdapter.ts`
+- `packages/adapters/src/quest/QuestController.ts`
+- `packages/adapters/src/quest/QuestHandTracking.ts`
+- `packages/adapters/src/quest/QuestPassthrough.ts`
+- `packages/adapters/src/quest/QuestFoveation.ts`
+- `packages/adapters/src/quest/QuestBoundary.ts`
+- `packages/adapters/src/quest/QuestHaptics.ts`
+
+**Acceptance Criteria**:
+- [ ] WebXR session on Quest 3
+- [ ] 90Hz rendering (120Hz optional)
+- [ ] Controller tracking with all buttons
+- [ ] Hand tracking with full skeleton
+- [ ] Passthrough AR mode
+- [ ] Fixed foveated rendering
+- [ ] Haptic feedback
+- [ ] Guardian boundary integration
+
+---
+
+#### 3.4.2 VisionOS Adapter
+**Agent**: Adapter Agent
+**Location**: `packages/adapters/src/visionos/`
+
+**What to Build**:
+Apple Vision Pro support via WebXR and visionOS APIs.
+
+**Implementation Details**:
+```typescript
+// packages/adapters/src/visionos/VisionOSAdapter.ts
+export interface VisionOSConfig {
+  immersionStyle: 'mixed' | 'full' | 'progressive';
+  upperLimbVisibility: 'automatic' | 'visible' | 'hidden';
+  handTracking: boolean;
+  eyeTracking: boolean;
+}
+
+export class VisionOSAdapter implements PlatformAdapter {
+  private session: XRSession | null = null;
+  private immersionStyle: string;
+
+  // Platform info
+  get platformId(): string { return 'visionos'; }
+  get capabilities(): PlatformCapabilities;
+
+  // Session
+  isSupported(): Promise<boolean>;
+  requestSession(config: VisionOSConfig): Promise<void>;
+  endSession(): Promise<void>;
+
+  // Immersion
+  setImmersionStyle(style: 'mixed' | 'full' | 'progressive'): void;
+
+  // Input
+  getHandTracking(): HandTrackingData | null;
+  getEyeTracking(): EyeTrackingData | null;
+
+  // Gestures
+  onTap(handler: (position: Vector3) => void): void;
+  onPinch(handler: (position: Vector3, scale: number) => void): void;
+  onRotate(handler: (rotation: number) => void): void;
+}
+
+// packages/adapters/src/visionos/VisionOSEyeTracking.ts
+export interface EyeTrackingData {
+  gazePoint: Vector3;
+  gazeDirection: Vector3;
+  leftEye: EyePose;
+  rightEye: EyePose;
+  focusedElement: string | null;
+}
+
+export interface EyePose {
+  position: Vector3;
+  direction: Vector3;
+  openness: number;
+}
+```
+
+**Files to Create**:
+- `packages/adapters/src/visionos/VisionOSAdapter.ts`
+- `packages/adapters/src/visionos/VisionOSHandTracking.ts`
+- `packages/adapters/src/visionos/VisionOSEyeTracking.ts`
+- `packages/adapters/src/visionos/VisionOSGestures.ts`
+- `packages/adapters/src/visionos/VisionOSWindowing.ts`
+
+**Acceptance Criteria**:
+- [ ] WebXR immersive-ar session
+- [ ] Mixed/full immersion modes
+- [ ] Hand tracking gestures
+- [ ] Eye tracking for gaze
+- [ ] Natural gesture recognition (tap, pinch, rotate)
+- [ ] visionOS windowing integration
+- [ ] 90Hz rendering
+
+---
+
+#### 3.4.3 SteamVR/PCVR Adapter
+**Agent**: Adapter Agent
+**Location**: `packages/adapters/src/steamvr/`
+
+**What to Build**:
+PCVR support for Index, Vive, and other SteamVR headsets.
+
+**Implementation Details**:
+```typescript
+// packages/adapters/src/steamvr/SteamVRAdapter.ts
+export interface SteamVRConfig {
+  refreshRate: 80 | 90 | 120 | 144;
+  supersampling: number;
+  motionSmoothing: boolean;
+}
+
+export class SteamVRAdapter implements PlatformAdapter {
+  // Platform info
+  get platformId(): string { return 'steamvr'; }
+  get capabilities(): PlatformCapabilities;
+
+  // Session
+  isSupported(): Promise<boolean>;
+  requestSession(config: SteamVRConfig): Promise<void>;
+  endSession(): Promise<void>;
+
+  // Rendering
+  getSupersampling(): number;
+  setSupersampling(value: number): void;
+
+  // Controllers
+  getControllers(): SteamVRController[];
+
+  // Index-specific
+  getFingerTracking(): FingerTrackingData | null;
+
+  // Vive Trackers
+  getTrackers(): ViveTracker[];
+}
+
+// packages/adapters/src/steamvr/IndexController.ts
+export interface IndexController extends XRInputSource {
+  fingerCurl: {
+    thumb: number;
+    index: number;
+    middle: number;
+    ring: number;
+    pinky: number;
+  };
+  fingerSplay: {
+    thumbIndex: number;
+    indexMiddle: number;
+    middleRing: number;
+    ringPinky: number;
+  };
+  trackpadPosition: Vector2;
+  trackpadForce: number;
+  gripForce: number;
+}
+```
+
+**Files to Create**:
+- `packages/adapters/src/steamvr/SteamVRAdapter.ts`
+- `packages/adapters/src/steamvr/IndexController.ts`
+- `packages/adapters/src/steamvr/ViveController.ts`
+- `packages/adapters/src/steamvr/ViveTracker.ts`
+- `packages/adapters/src/steamvr/FingerTracking.ts`
+- `packages/adapters/src/steamvr/Lighthouse.ts`
+
+**Acceptance Criteria**:
+- [ ] WebXR on Chromium browsers
+- [ ] Valve Index finger tracking
+- [ ] Vive wand support
+- [ ] Vive tracker support
+- [ ] Variable refresh rate
+- [ ] Supersampling control
+- [ ] Motion smoothing toggle
+
+---
+
+#### 3.4.4 Android XR Adapter
+**Agent**: Adapter Agent
+**Location**: `packages/adapters/src/android/`
+
+**What to Build**:
+Android XR support for Samsung and other Android headsets.
+
+**Implementation Details**:
+```typescript
+// packages/adapters/src/android/AndroidXRAdapter.ts
+export interface AndroidXRConfig {
+  arMode: boolean;
+  environmentBlending: boolean;
+  planeDetection: boolean;
+}
+
+export class AndroidXRAdapter implements PlatformAdapter {
+  // Platform info
+  get platformId(): string { return 'android-xr'; }
+  get capabilities(): PlatformCapabilities;
+
+  // Session
+  isSupported(): Promise<boolean>;
+  requestSession(config: AndroidXRConfig): Promise<void>;
+  endSession(): Promise<void>;
+
+  // AR features
+  getPlanes(): XRPlane[];
+  hitTest(origin: Vector3, direction: Vector3): XRHitTestResult[];
+
+  // Environment
+  getLightEstimate(): XRLightEstimate | null;
+}
+```
+
+**Files to Create**:
+- `packages/adapters/src/android/AndroidXRAdapter.ts`
+- `packages/adapters/src/android/AndroidController.ts`
+- `packages/adapters/src/android/PlaneDetection.ts`
+- `packages/adapters/src/android/LightEstimation.ts`
+
+**Acceptance Criteria**:
+- [ ] WebXR on Chrome Android
+- [ ] AR plane detection
+- [ ] Hit testing
+- [ ] Light estimation
+- [ ] Controller support
+- [ ] 72Hz minimum rendering
+
+---
+
+### Sprint 5: Infrastructure & DevOps (AI-Days 15-17)
+
+#### 3.5.1 CDN & Asset Delivery
+**Agent**: Infrastructure Agent
+**Location**: `packages/cdn/src/`
+
+**What to Build**:
+Edge-distributed asset delivery for global low-latency loading.
+
+**Implementation Details**:
+```typescript
+// packages/cdn/src/AssetDelivery.ts
+export interface CDNConfig {
+  baseUrl: string;
+  regions: string[];
+  cacheControl: string;
+  compressionLevel: number;
+}
+
+export class AssetDelivery {
+  // URL generation
+  getAssetUrl(assetId: string, options?: AssetOptions): string;
+  getOptimizedUrl(assetId: string, device: DeviceProfile): string;
+
+  // Preloading
+  preloadAssets(assetIds: string[]): Promise<void>;
+  preloadWorld(worldId: string): Promise<void>;
+
+  // Caching
+  getCachedAsset(assetId: string): CachedAsset | null;
+  clearCache(): void;
+
+  // Progress
+  onProgress(handler: (progress: LoadProgress) => void): void;
+}
+
+// packages/cdn/src/AssetOptimizer.ts
+export class AssetOptimizer {
+  // Texture optimization
+  generateMipmaps(texture: Texture): Texture[];
+  compressTexture(texture: Texture, format: 'etc2' | 'astc' | 'bc7'): CompressedTexture;
+
+  // Mesh optimization
+  generateLODs(mesh: Mesh, levels: number[]): Mesh[];
+  simplifiyMesh(mesh: Mesh, targetRatio: number): Mesh;
+
+  // Audio optimization
+  convertToOpus(audio: AudioBuffer, bitrate: number): Uint8Array;
+}
+```
+
+**Files to Create**:
+- `packages/cdn/src/AssetDelivery.ts`
+- `packages/cdn/src/AssetOptimizer.ts`
+- `packages/cdn/src/CacheManager.ts`
+- `packages/cdn/src/RegionRouter.ts`
+- `packages/cdn/src/CompressionUtils.ts`
+
+**Acceptance Criteria**:
+- [ ] Multi-region URL generation
+- [ ] Texture compression (ETC2, ASTC, BC7)
+- [ ] Automatic LOD selection by device
+- [ ] Progressive mesh streaming
+- [ ] Asset preloading
+- [ ] < 100ms TTFB globally
+
+---
+
+#### 3.5.2 Analytics & Telemetry
+**Agent**: Infrastructure Agent
+**Location**: `packages/analytics/src/`
+
+**What to Build**:
+Performance monitoring and user analytics.
+
+**Implementation Details**:
+```typescript
+// packages/analytics/src/Analytics.ts
+export interface AnalyticsConfig {
+  endpoint: string;
+  batchSize: number;
+  flushInterval: number;
+  anonymize: boolean;
+}
+
+export class Analytics {
+  private eventQueue: AnalyticsEvent[] = [];
+
+  // Initialize
+  initialize(config: AnalyticsConfig): void;
+
+  // Events
+  trackEvent(name: string, properties?: Record<string, unknown>): void;
+  trackPageView(worldId: string): void;
+  trackSession(userId: string | null): void;
+
+  // Performance
+  trackFrameTime(frameTime: number): void;
+  trackLoadTime(assetId: string, loadTime: number): void;
+  trackNetworkLatency(latency: number): void;
+
+  // User actions
+  trackInteraction(type: string, targetId: string): void;
+  trackError(error: Error, context?: Record<string, unknown>): void;
+
+  // Flushing
+  flush(): Promise<void>;
+}
+
+// packages/analytics/src/PerformanceMonitor.ts
+export class PerformanceMonitor {
+  private frameTimes: RingBuffer<number>;
+  private gpuTimes: RingBuffer<number>;
+
+  // Metrics
+  getAverageFrameTime(): number;
+  getP95FrameTime(): number;
+  getGPUUtilization(): number;
+  getMemoryUsage(): MemoryStats;
+
+  // Thresholds
+  setFrameTimeThreshold(ms: number): void;
+  onPerformanceWarning(handler: (warning: PerformanceWarning) => void): void;
+}
+```
+
+**Files to Create**:
+- `packages/analytics/src/Analytics.ts`
+- `packages/analytics/src/PerformanceMonitor.ts`
+- `packages/analytics/src/EventBatcher.ts`
+- `packages/analytics/src/Anonymizer.ts`
+- `packages/analytics/src/MetricsCollector.ts`
+
+**Acceptance Criteria**:
+- [ ] Event batching and flushing
+- [ ] Frame time percentiles
+- [ ] Memory usage tracking
+- [ ] Error reporting with stack traces
+- [ ] Privacy-compliant anonymization
+- [ ] < 1ms overhead per frame
+
+---
+
+#### 3.5.3 Deployment Pipeline
+**Agent**: Infrastructure Agent
+**Location**: `.github/workflows/`, `infra/`
+
+**What to Build**:
+CI/CD for automated testing and deployment.
+
+**Implementation Details**:
+```yaml
+# .github/workflows/ci.yml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm test
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+      - run: pnpm install
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: packages/*/dist
+
+  deploy-preview:
+    if: github.event_name == 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          command: pages deploy --project-name=hololand-preview
+
+  deploy-production:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          command: pages deploy --project-name=hololand
+```
+
+**Files to Create**:
+- `.github/workflows/ci.yml`
+- `.github/workflows/release.yml`
+- `.github/workflows/benchmark.yml`
+- `infra/terraform/main.tf`
+- `infra/terraform/cdn.tf`
+- `infra/terraform/monitoring.tf`
+- `infra/docker/Dockerfile`
+- `infra/docker/docker-compose.yml`
+
+**Acceptance Criteria**:
+- [ ] Automated tests on PR
+- [ ] Preview deployments for PRs
+- [ ] Production deploy on main merge
+- [ ] Semantic versioning and changelogs
+- [ ] Performance benchmarks in CI
+- [ ] < 5 minute CI time
+
+---
+
+### Sprint 6: Entity Component System (AI-Days 18-21)
+
+#### 3.6.1 ECS Core Architecture
+**Agent**: Platform Agent
+**Location**: `packages/ecs/src/`
+
+**What to Build**:
+Data-oriented Entity Component System for optimal performance.
+
+**Implementation Details**:
+```typescript
+// packages/ecs/src/World.ts
+export class World {
+  private entities: EntityManager;
+  private components: ComponentManager;
+  private systems: SystemManager;
+  private queries: QueryManager;
+
+  // Entity operations
+  createEntity(): Entity;
+  destroyEntity(entity: Entity): void;
+  isAlive(entity: Entity): boolean;
+
+  // Component operations
+  addComponent<T extends Component>(entity: Entity, component: T): void;
+  removeComponent<T extends Component>(entity: Entity, type: ComponentType<T>): void;
+  getComponent<T extends Component>(entity: Entity, type: ComponentType<T>): T | null;
+  hasComponent<T extends Component>(entity: Entity, type: ComponentType<T>): boolean;
+
+  // Systems
+  registerSystem(system: System): void;
+  unregisterSystem(system: System): void;
+
+  // Update loop
+  update(deltaTime: number): void;
+}
+
+// packages/ecs/src/ComponentManager.ts
+export class ComponentManager {
+  private pools: Map<ComponentType, ComponentPool> = new Map();
+
+  // Storage
+  registerComponent<T extends Component>(type: ComponentType<T>): void;
+  getPool<T extends Component>(type: ComponentType<T>): ComponentPool<T>;
+
+  // Archetype support
+  getArchetype(componentMask: bigint): Archetype;
+  migrateEntity(entity: Entity, fromArchetype: Archetype, toArchetype: Archetype): void;
+}
+
+// packages/ecs/src/Query.ts
+export class Query<T extends ComponentTuple> {
+  // Define query
+  static all<T extends ComponentTuple>(...components: T): Query<T>;
+  static any<T extends ComponentTuple>(...components: T): Query<T>;
+  static not<T extends Component>(component: ComponentType<T>): QueryModifier;
+
+  // Iteration
+  forEach(callback: (entity: Entity, ...components: InstanceTypes<T>) => void): void;
+  map<R>(callback: (entity: Entity, ...components: InstanceTypes<T>) => R): R[];
+
+  // Access
+  get entities(): ReadonlyArray<Entity>;
+  get count(): number;
+}
+
+// packages/ecs/src/System.ts
+export abstract class System {
+  abstract readonly query: Query<ComponentTuple>;
+  priority: number = 0;
+
+  // Lifecycle
+  onInit?(world: World): void;
+  onDestroy?(world: World): void;
+
+  // Update
+  abstract update(deltaTime: number): void;
+
+  // Entity events
+  onEntityAdded?(entity: Entity): void;
+  onEntityRemoved?(entity: Entity): void;
+}
+```
+
+**Example Systems**:
+```typescript
+// packages/ecs/src/systems/TransformSystem.ts
+export class TransformSystem extends System {
+  query = Query.all(Transform, LocalTransform);
+
+  update(deltaTime: number): void {
+    this.query.forEach((entity, transform, local) => {
+      // Update world transform from local
+      const parent = this.world.getComponent(entity, Parent);
+      if (parent) {
+        const parentTransform = this.world.getComponent(parent.entity, Transform);
+        transform.matrix = mat4.multiply(parentTransform.matrix, local.matrix);
+      } else {
+        transform.matrix = local.matrix;
+      }
+    });
+  }
+}
+
+// packages/ecs/src/systems/PhysicsSystem.ts
+export class PhysicsSystem extends System {
+  query = Query.all(RigidBody, Transform);
+
+  update(deltaTime: number): void {
+    // Step physics world
+    this.physicsWorld.step(deltaTime);
+
+    // Sync transforms from physics
+    this.query.forEach((entity, rigidBody, transform) => {
+      const body = this.physicsWorld.getBody(rigidBody.handle);
+      transform.position = body.position;
+      transform.rotation = body.rotation;
+    });
+  }
+}
+```
+
+**Files to Create**:
+- `packages/ecs/src/World.ts`
+- `packages/ecs/src/Entity.ts`
+- `packages/ecs/src/Component.ts`
+- `packages/ecs/src/ComponentManager.ts`
+- `packages/ecs/src/EntityManager.ts`
+- `packages/ecs/src/SystemManager.ts`
+- `packages/ecs/src/Query.ts`
+- `packages/ecs/src/Archetype.ts`
+- `packages/ecs/src/ComponentPool.ts`
+- `packages/ecs/src/systems/TransformSystem.ts`
+- `packages/ecs/src/systems/PhysicsSystem.ts`
+- `packages/ecs/src/systems/RenderSystem.ts`
+- `packages/ecs/src/systems/AudioSystem.ts`
+- `packages/ecs/src/systems/NetworkSystem.ts`
+
+**Acceptance Criteria**:
+- [ ] Archetype-based storage for cache efficiency
+- [ ] O(1) component add/remove/get
+- [ ] Query caching with automatic invalidation
+- [ ] System priority ordering
+- [ ] < 0.1ms iteration over 10,000 entities
+- [ ] Entity pooling for zero allocation
+- [ ] Deferred entity destruction
+
+---
+
+#### 3.6.2 Built-in Components
+**Agent**: Platform Agent
+**Location**: `packages/ecs/src/components/`
+
+**What to Build**:
+Standard component library for common functionality.
+
+**Implementation Details**:
+```typescript
+// packages/ecs/src/components/Transform.ts
+export interface Transform extends Component {
+  position: Vector3;
+  rotation: Quaternion;
+  scale: Vector3;
+  matrix: Matrix4;
+}
+
+// packages/ecs/src/components/RigidBody.ts
+export interface RigidBody extends Component {
+  handle: number;  // Physics engine handle
+  type: 'dynamic' | 'static' | 'kinematic';
+  mass: number;
+  linearDamping: number;
+  angularDamping: number;
+}
+
+// packages/ecs/src/components/Collider.ts
+export interface Collider extends Component {
+  handle: number;
+  shape: ColliderShape;
+  friction: number;
+  restitution: number;
+  isSensor: boolean;
+}
+
+// packages/ecs/src/components/MeshRenderer.ts
+export interface MeshRenderer extends Component {
+  mesh: GPUMesh;
+  material: GPUMaterial;
+  castShadows: boolean;
+  receiveShadows: boolean;
+  layer: number;
+}
+
+// packages/ecs/src/components/AudioSource.ts
+export interface AudioSource extends Component {
+  clip: AudioClip;
+  volume: number;
+  pitch: number;
+  loop: boolean;
+  spatial: boolean;
+  minDistance: number;
+  maxDistance: number;
+}
+
+// packages/ecs/src/components/NetworkIdentity.ts
+export interface NetworkIdentity extends Component {
+  networkId: number;
+  ownerId: string;
+  authority: 'server' | 'owner' | 'none';
+  syncInterval: number;
+}
+
+// packages/ecs/src/components/Interactable.ts
+export interface Interactable extends Component {
+  interactionType: 'grab' | 'use' | 'touch';
+  highlightColor: Color;
+  interactionDistance: number;
+  onInteract?: (source: Entity) => void;
+}
+```
+
+**Files to Create**:
+- `packages/ecs/src/components/Transform.ts`
+- `packages/ecs/src/components/RigidBody.ts`
+- `packages/ecs/src/components/Collider.ts`
+- `packages/ecs/src/components/MeshRenderer.ts`
+- `packages/ecs/src/components/AudioSource.ts`
+- `packages/ecs/src/components/NetworkIdentity.ts`
+- `packages/ecs/src/components/Interactable.ts`
+- `packages/ecs/src/components/Camera.ts`
+- `packages/ecs/src/components/Light.ts`
+- `packages/ecs/src/components/Parent.ts`
+- `packages/ecs/src/components/Name.ts`
+- `packages/ecs/src/components/Tag.ts`
+
+**Acceptance Criteria**:
+- [ ] All core components defined
+- [ ] Components are plain data (no methods)
+- [ ] Serialization support for networking
+- [ ] Default values for optional fields
+- [ ] TypeScript strict mode compatible
+
+---
+
+### Sprint 7: Animation System (AI-Days 22-25)
+
+#### 3.7.1 Skeletal Animation
+**Agent**: Graphics Agent
+**Location**: `packages/animation/src/`
+
+**What to Build**:
+Full-featured skeletal animation with blend trees.
+
+**Implementation Details**:
+```typescript
+// packages/animation/src/AnimationSystem.ts
+export class AnimationSystem {
+  private animators: Map<Entity, Animator> = new Map();
+
+  // Animator management
+  createAnimator(entity: Entity, skeleton: Skeleton): Animator;
+  removeAnimator(entity: Entity): void;
+
+  // Update all animators
+  update(deltaTime: number): void;
+}
+
+// packages/animation/src/Animator.ts
+export class Animator {
+  private skeleton: Skeleton;
+  private currentState: AnimationState;
+  private layers: AnimationLayer[] = [];
+  private parameters: Map<string, number | boolean> = new Map();
+
+  // State machine
+  setState(stateName: string): void;
+  setTrigger(name: string): void;
+  setBool(name: string, value: boolean): void;
+  setFloat(name: string, value: number): void;
+
+  // Layers
+  addLayer(layer: AnimationLayer): void;
+  setLayerWeight(index: number, weight: number): void;
+
+  // Playback
+  play(clipName: string, options?: PlayOptions): void;
+  crossFade(clipName: string, duration: number): void;
+
+  // Sampling
+  sample(time: number): SkeletonPose;
+}
+
+// packages/animation/src/BlendTree.ts
+export interface BlendTree {
+  type: '1d' | '2d' | 'direct';
+  parameter: string;
+  parameter2?: string;
+  children: BlendTreeChild[];
+}
+
+export interface BlendTreeChild {
+  clip: AnimationClip;
+  threshold: number;
+  threshold2?: number;
+  weight?: number;
+}
+
+export class BlendTree1D implements BlendTree {
+  type: '1d' = '1d';
+
+  // Evaluate blend
+  evaluate(parameter: number): AnimationClip[];
+}
+
+export class BlendTree2D implements BlendTree {
+  type: '2d' = '2d';
+
+  // Evaluate 2D blend (e.g., walk/run + strafe)
+  evaluate(param1: number, param2: number): AnimationClip[];
+}
+
+// packages/animation/src/IKSolver.ts
+export class IKSolver {
+  // Two-bone IK (arms, legs)
+  solveTwoBone(
+    root: JointTransform,
+    mid: JointTransform,
+    end: JointTransform,
+    target: Vector3,
+    pole: Vector3
+  ): void;
+
+  // FABRIK for chains
+  solveFABRIK(
+    chain: JointTransform[],
+    target: Vector3,
+    iterations: number
+  ): void;
+
+  // Look-at for head/eyes
+  solveLookAt(
+    joint: JointTransform,
+    target: Vector3,
+    limits: RotationLimits
+  ): void;
+}
+```
+
+**Files to Create**:
+- `packages/animation/src/AnimationSystem.ts`
+- `packages/animation/src/Animator.ts`
+- `packages/animation/src/AnimationClip.ts`
+- `packages/animation/src/AnimationState.ts`
+- `packages/animation/src/AnimationLayer.ts`
+- `packages/animation/src/BlendTree.ts`
+- `packages/animation/src/StateMachine.ts`
+- `packages/animation/src/Skeleton.ts`
+- `packages/animation/src/SkeletonPose.ts`
+- `packages/animation/src/IKSolver.ts`
+- `packages/animation/src/RetargetingMap.ts`
+
+**Acceptance Criteria**:
+- [ ] Skeletal animation playback
+- [ ] Animation blending (crossfade)
+- [ ] 1D and 2D blend trees
+- [ ] Animation layers with masking
+- [ ] State machine transitions
+- [ ] Two-bone IK for limbs
+- [ ] FABRIK for chains
+- [ ] < 1ms for 100 animated characters
+
+---
+
+#### 3.7.2 Morph Targets (Blend Shapes)
+**Agent**: Graphics Agent
+**Location**: `packages/animation/src/morph/`
+
+**What to Build**:
+Facial expressions and deformation via morph targets.
+
+**Implementation Details**:
+```typescript
+// packages/animation/src/morph/MorphTargetManager.ts
+export interface MorphTarget {
+  name: string;
+  vertices: Float32Array;
+  normals?: Float32Array;
+}
+
+export class MorphTargetManager {
+  private targets: MorphTarget[] = [];
+  private weights: Float32Array;
+
+  // Management
+  addTarget(target: MorphTarget): number;
+  removeTarget(index: number): void;
+
+  // Weights
+  setWeight(index: number, weight: number): void;
+  setWeightByName(name: string, weight: number): void;
+  getWeight(index: number): number;
+
+  // Apply to mesh
+  apply(baseVertices: Float32Array, baseNormals: Float32Array): { vertices: Float32Array; normals: Float32Array };
+}
+
+// packages/animation/src/morph/FacialExpressionController.ts
+export class FacialExpressionController {
+  private morphManager: MorphTargetManager;
+  private presets: Map<string, ExpressionPreset> = new Map();
+
+  // Presets (Visemes, emotions)
+  addPreset(name: string, weights: Record<string, number>): void;
+  playPreset(name: string, duration: number): void;
+
+  // Lip sync
+  setViseme(viseme: Viseme, weight: number): void;
+
+  // Blend between expressions
+  blend(from: string, to: string, t: number): void;
+}
+
+export type Viseme = 'sil' | 'PP' | 'FF' | 'TH' | 'DD' | 'kk' | 'CH' | 'SS' | 'nn' | 'RR' | 'aa' | 'E' | 'ih' | 'oh' | 'ou';
+```
+
+**Files to Create**:
+- `packages/animation/src/morph/MorphTargetManager.ts`
+- `packages/animation/src/morph/FacialExpressionController.ts`
+- `packages/animation/src/morph/VisemeMapper.ts`
+- `packages/animation/src/morph/ExpressionPresets.ts`
+
+**Acceptance Criteria**:
+- [ ] Multiple morph targets per mesh
+- [ ] GPU-accelerated morphing
+- [ ] Facial expression presets
+- [ ] Viseme support for lip sync
+- [ ] Smooth blending between expressions
+- [ ] < 0.5ms for 50 morph targets
+
+---
+
+## Phase 4: Advanced Features (Q2-Q4 2026)
+
+### Sprint 8: WebGPU Renderer (AI-Days 26-30)
+
+#### 4.1.1 WebGPU Backend
+**Agent**: Graphics Agent
+**Location**: `packages/renderer/src/webgpu/`
+
+**What to Build**:
+Next-generation rendering with WebGPU.
+
+**Implementation Details**:
+```typescript
+// packages/renderer/src/webgpu/WebGPURenderer.ts
+export class WebGPURenderer {
+  private device: GPUDevice;
+  private context: GPUCanvasContext;
+  private pipelines: Map<string, GPURenderPipeline> = new Map();
+
+  // Lifecycle
+  async initialize(canvas: HTMLCanvasElement): Promise<void>;
+  dispose(): void;
+
+  // Resources
+  createBuffer(descriptor: GPUBufferDescriptor): GPUBuffer;
+  createTexture(descriptor: GPUTextureDescriptor): GPUTexture;
+  createBindGroup(descriptor: GPUBindGroupDescriptor): GPUBindGroup;
+
+  // Rendering
+  beginFrame(): GPUCommandEncoder;
+  beginRenderPass(encoder: GPUCommandEncoder, descriptor: GPURenderPassDescriptor): GPURenderPassEncoder;
+  endFrame(encoder: GPUCommandEncoder): void;
+
+  // Compute
+  beginComputePass(encoder: GPUCommandEncoder): GPUComputePassEncoder;
+}
+
+// packages/renderer/src/webgpu/ComputeShaders.ts
+export class GPUParticleSystem {
+  private computePipeline: GPUComputePipeline;
+  private particleBuffer: GPUBuffer;
+
+  // Simulate particles on GPU
+  update(encoder: GPUCommandEncoder, deltaTime: number): void;
+
+  // Render particles
+  render(pass: GPURenderPassEncoder): void;
+}
+
+export class GPUSkinning {
+  private computePipeline: GPUComputePipeline;
+
+  // Skin mesh on GPU
+  compute(encoder: GPUCommandEncoder, skeleton: Skeleton, mesh: Mesh): void;
+}
+```
+
+**Files to Create**:
+- `packages/renderer/src/webgpu/WebGPURenderer.ts`
+- `packages/renderer/src/webgpu/WebGPUPipeline.ts`
+- `packages/renderer/src/webgpu/WebGPUBuffer.ts`
+- `packages/renderer/src/webgpu/WebGPUTexture.ts`
+- `packages/renderer/src/webgpu/WebGPUBindGroup.ts`
+- `packages/renderer/src/webgpu/ComputeShaders.ts`
+- `packages/renderer/src/webgpu/GPUParticleSystem.ts`
+- `packages/renderer/src/webgpu/GPUSkinning.ts`
+- `packages/renderer/src/shaders/wgsl/pbr.wgsl`
+- `packages/renderer/src/shaders/wgsl/particle.wgsl`
+- `packages/renderer/src/shaders/wgsl/skinning.wgsl`
+
+**Acceptance Criteria**:
+- [ ] WebGPU device initialization
+- [ ] PBR rendering in WGSL
+- [ ] Compute shader skinning
+- [ ] GPU particle systems
+- [ ] Automatic fallback to WebGL
+- [ ] 2x performance over WebGL
+
+---
+
+### Sprint 9: Asset Pipeline (AI-Days 31-35)
+
+#### 4.2.1 glTF 2.0 Loader
+**Agent**: Platform Agent
+**Location**: `packages/assets/src/gltf/`
+
+**What to Build**:
+Complete glTF 2.0 support with all extensions.
+
+**Implementation Details**:
+```typescript
+// packages/assets/src/gltf/GLTFLoader.ts
+export interface GLTFLoadOptions {
+  baseUri: string;
+  loadTextures: boolean;
+  loadAnimations: boolean;
+  generateMipmaps: boolean;
+}
+
+export class GLTFLoader {
+  // Loading
+  async load(uri: string, options?: GLTFLoadOptions): Promise<GLTFScene>;
+  async loadFromArrayBuffer(buffer: ArrayBuffer, options?: GLTFLoadOptions): Promise<GLTFScene>;
+
+  // Extensions
+  registerExtension(name: string, handler: ExtensionHandler): void;
+}
+
+// Supported extensions
+const SUPPORTED_EXTENSIONS = [
+  'KHR_draco_mesh_compression',
+  'KHR_texture_basisu',
+  'KHR_mesh_quantization',
+  'KHR_materials_transmission',
+  'KHR_materials_volume',
+  'KHR_materials_ior',
+  'KHR_materials_specular',
+  'KHR_materials_clearcoat',
+  'KHR_materials_sheen',
+  'KHR_materials_unlit',
+  'KHR_lights_punctual',
+  'EXT_mesh_gpu_instancing',
+];
+
+// packages/assets/src/gltf/GLTFScene.ts
+export interface GLTFScene {
+  nodes: GLTFNode[];
+  meshes: Mesh[];
+  materials: Material[];
+  textures: Texture[];
+  animations: AnimationClip[];
+  cameras: Camera[];
+  lights: Light[];
+  skins: Skeleton[];
+}
+```
+
+**Files to Create**:
+- `packages/assets/src/gltf/GLTFLoader.ts`
+- `packages/assets/src/gltf/GLTFParser.ts`
+- `packages/assets/src/gltf/GLTFScene.ts`
+- `packages/assets/src/gltf/extensions/DracoDecoder.ts`
+- `packages/assets/src/gltf/extensions/BasisDecoder.ts`
+- `packages/assets/src/gltf/extensions/MaterialExtensions.ts`
+- `packages/assets/src/gltf/MeshBuilder.ts`
+- `packages/assets/src/gltf/MaterialBuilder.ts`
+- `packages/assets/src/gltf/AnimationBuilder.ts`
+
+**Acceptance Criteria**:
+- [ ] Core glTF 2.0 spec
+- [ ] Draco mesh compression
+- [ ] Basis Universal textures
+- [ ] PBR materials with extensions
+- [ ] Skeletal animations
+- [ ] Morph targets
+- [ ] Punctual lights
+- [ ] GPU instancing
+
+---
+
+### Sprint 10: Authentication & Accounts (AI-Days 36-40)
+
+#### 4.3.1 Auth System
+**Agent**: Platform Agent
+**Location**: `packages/auth/src/`
+
+**What to Build**:
+Unified authentication supporting multiple providers.
+
+**Implementation Details**:
+```typescript
+// packages/auth/src/AuthService.ts
+export interface AuthConfig {
+  providers: AuthProvider[];
+  sessionDuration: number;
+  refreshThreshold: number;
+}
+
+export class AuthService {
+  private session: Session | null = null;
+  private providers: Map<string, AuthProvider> = new Map();
+
+  // Authentication
+  async signIn(provider: string, credentials?: unknown): Promise<Session>;
+  async signOut(): Promise<void>;
+  async refreshSession(): Promise<Session>;
+
+  // Session
+  getSession(): Session | null;
+  isAuthenticated(): boolean;
+
+  // Events
+  onAuthStateChange(handler: (session: Session | null) => void): void;
+}
+
+// packages/auth/src/providers/OAuthProvider.ts
+export class OAuthProvider implements AuthProvider {
+  // OAuth 2.0 flow
+  async authorize(): Promise<string>;  // Returns code
+  async exchangeCode(code: string): Promise<TokenResponse>;
+  async refreshToken(refreshToken: string): Promise<TokenResponse>;
+}
+
+// packages/auth/src/providers/Web3Provider.ts
+export class Web3Provider implements AuthProvider {
+  // Wallet connection
+  async connect(): Promise<string>;  // Returns address
+  async signMessage(message: string): Promise<string>;
+  async verifySignature(address: string, message: string, signature: string): Promise<boolean>;
+}
+
+// packages/auth/src/Session.ts
+export interface Session {
+  userId: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  provider: string;
+  profile: UserProfile;
+}
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  avatar?: string;
+  email?: string;
+  walletAddress?: string;
+}
+```
+
+**Files to Create**:
+- `packages/auth/src/AuthService.ts`
+- `packages/auth/src/Session.ts`
+- `packages/auth/src/providers/OAuthProvider.ts`
+- `packages/auth/src/providers/GoogleProvider.ts`
+- `packages/auth/src/providers/DiscordProvider.ts`
+- `packages/auth/src/providers/Web3Provider.ts`
+- `packages/auth/src/providers/EmailProvider.ts`
+- `packages/auth/src/TokenManager.ts`
+- `packages/auth/src/SessionStorage.ts`
+
+**Acceptance Criteria**:
+- [ ] OAuth 2.0 (Google, Discord)
+- [ ] Web3 wallet signing
+- [ ] Email/password
+- [ ] Session persistence
+- [ ] Token refresh
+- [ ] Secure token storage
+
+---
+
+## Phase 5: Ecosystem (Q1-Q2 2027)
+
+### Sprint 11-15: Marketplace & Cloud (AI-Days 41-60)
+
+**High-Level Features**:
+- [ ] Asset marketplace with revenue sharing
+- [ ] World hosting on Hololand Cloud
+- [ ] Creator analytics dashboard
+- [ ] VS Code extension for HoloScript
+- [ ] Blender export plugin
+- [ ] Desktop and mobile clients
+
+---
+
+## Phase 6: Hardware Integration (2028+)
+
+**Planned Features**:
+- [ ] uaa2 VR glasses native runtime
+- [ ] Eye tracking with foveated rendering
+- [ ] Full-body haptics
+- [ ] Neural interface R&D
+
+---
+
+## Phase 7: Open Metaverse (2029+)
+
+**Vision Features**:
+- [ ] Millions of concurrent users
+- [ ] Federated world hosting
+- [ ] AI-generated content
+- [ ] Cross-platform avatars and items
+- [ ] Three Plains architecture complete
+
+---
+
+## Success Metrics
+
+| Metric | Target |
+|--------|--------|
+| GitHub Stars | 10K+ |
+| Active Contributors | 100+ |
+| Monthly Active Worlds | 1M+ |
+| Creator Payouts | $10M+/year |
+| Frame Time P95 | <16ms (60 FPS) |
+| Network Latency P95 | <100ms |
+| World Load Time | <3s |
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+**For Developers**: Pick issues from this roadmap
+**For Creators**: Build worlds and share tutorials
+**For Community**: Help newcomers, translate docs
+
+---
+
+**Built with love by the Hololand community**
+
+*Last updated: 2026-01-28*

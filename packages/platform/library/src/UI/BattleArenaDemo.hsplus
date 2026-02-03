@@ -178,9 +178,9 @@ component BattleControls {
   @props {
     isRunning: boolean = false
     hasNPCs: boolean = false
-    onStart: () => void
-    onStop: () => void
-    onReset: () => void
+    onStart: "() => void"
+    onStop: "() => void"
+    onReset: "() => void"
     onSpawnNPC: (type: CharacterType) => void = null
   }
 
@@ -626,7 +626,7 @@ component EventLog {
   @props {
     events: BattleEvent[] = []
     maxHeight: string = "24rem"
-    onClear: () => void = null
+    onClear: "() => void = null"
   }
 
   @state {
@@ -864,8 +864,8 @@ component BattleArenaDemo {
       maxHealth: 80,
       mana: 100,
       maxMana: 100,
-      stats: { attack: 25, defense: 10, speed: 15, magicPower: 30 },
-      position: { x: 0, y: 5, z: 0 },
+      stats: { attack: 25, defense: 10, speed: 15, magicPower: 30 }
+      position: { x: 0, y: 5, z: 0 }
       alive: true
     }
 
@@ -878,14 +878,14 @@ component BattleArenaDemo {
       maxHealth: 100,
       mana: 80,
       maxMana: 80,
-      stats: { attack: 18, defense: 20, speed: 12, magicPower: 25 },
-      position: { x: 30, y: 5, z: 0 },
+      stats: { attack: 18, defense: 20, speed: 12, magicPower: 25 }
+      position: { x: 30, y: 5, z: 0 }
       alive: true
     }
 
     this.state.npcs = [fireMage, waterElem]
     this.state.healthStatus = {
-      "fire-mage-1": { current: 80, max: 80, alive: true },
+      "fire-mage-1": { current: 80, max: 80, alive: true }
       "water-elem-1": { current: 100, max: 100, alive: true }
     }
 
@@ -936,8 +936,8 @@ component BattleArenaDemo {
       maxHealth: 100,
       mana: 100,
       maxMana: 100,
-      stats: { attack: 20, defense: 15, speed: 15, magicPower: 20 },
-      position: { x: Math.random() * 50, y: 5, z: Math.random() * 50 },
+      stats: { attack: 20, defense: 15, speed: 15, magicPower: 20 }
+      position: { x: Math.random() * 50, y: 5, z: Math.random() * 50 }
       alive: true
     }
 

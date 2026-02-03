@@ -157,13 +157,13 @@ module DeviceDetector {
   @method getRecommendedPreset(deviceType: DeviceType, gpuTier: string) -> QualityPreset {
     // Device/GPU tier matrix
     let recommendations = {
-      mobile: { low: QualityPreset.low, medium: QualityPreset.low, high: QualityPreset.medium, ultra: QualityPreset.medium },
-      tablet: { low: QualityPreset.low, medium: QualityPreset.medium, high: QualityPreset.medium, ultra: QualityPreset.high },
-      quest2: { low: QualityPreset.low, medium: QualityPreset.low, high: QualityPreset.medium, ultra: QualityPreset.medium },
-      quest3: { low: QualityPreset.medium, medium: QualityPreset.medium, high: QualityPreset.high, ultra: QualityPreset.high },
-      questPro: { low: QualityPreset.medium, medium: QualityPreset.medium, high: QualityPreset.high, ultra: QualityPreset.high },
-      pcvr: { low: QualityPreset.medium, medium: QualityPreset.high, high: QualityPreset.high, ultra: QualityPreset.ultra },
-      desktop: { low: QualityPreset.medium, medium: QualityPreset.high, high: QualityPreset.high, ultra: QualityPreset.ultra },
+      mobile: { low: QualityPreset.low, medium: QualityPreset.low, high: QualityPreset.medium, ultra: QualityPreset.medium }
+      tablet: { low: QualityPreset.low, medium: QualityPreset.medium, high: QualityPreset.medium, ultra: QualityPreset.high }
+      quest2: { low: QualityPreset.low, medium: QualityPreset.low, high: QualityPreset.medium, ultra: QualityPreset.medium }
+      quest3: { low: QualityPreset.medium, medium: QualityPreset.medium, high: QualityPreset.high, ultra: QualityPreset.high }
+      questPro: { low: QualityPreset.medium, medium: QualityPreset.medium, high: QualityPreset.high, ultra: QualityPreset.high }
+      pcvr: { low: QualityPreset.medium, medium: QualityPreset.high, high: QualityPreset.high, ultra: QualityPreset.ultra }
+      desktop: { low: QualityPreset.medium, medium: QualityPreset.high, high: QualityPreset.high, ultra: QualityPreset.ultra }
       unknown: { low: QualityPreset.low, medium: QualityPreset.medium, high: QualityPreset.medium, ultra: QualityPreset.high }
     }
 
@@ -184,7 +184,7 @@ module QualityManager {
     currentPreset: QualityPreset = QualityPreset.medium,
     currentSettings: QualitySettings = QualityPresets.medium,
     deviceType: DeviceType = DeviceType.unknown,
-    gpuInfo: GPUInfo = { vendor: "unknown", renderer: "unknown", tier: "medium" },
+    gpuInfo: GPUInfo = { vendor: "unknown", renderer: "unknown", tier: "medium" }
     adaptiveQuality: bool = true,
     onQualityChange: ((settings: QualitySettings, preset: QualityPreset) => void) = null,
 
@@ -393,9 +393,9 @@ module QualityManager {
     // Shadows
     renderer.shadowMap.enabled = settings.shadowsEnabled
     match settings.shadowType {
-      ShadowType.basic => { renderer.shadowMap.type = THREE.BasicShadowMap },
-      ShadowType.pcf => { renderer.shadowMap.type = THREE.PCFShadowMap },
-      ShadowType.pcfsoft => { renderer.shadowMap.type = THREE.PCFSoftShadowMap },
+      ShadowType.basic => { renderer.shadowMap.type = THREE.BasicShadowMap }
+      ShadowType.pcf => { renderer.shadowMap.type = THREE.PCFShadowMap }
+      ShadowType.pcfsoft => { renderer.shadowMap.type = THREE.PCFSoftShadowMap }
       ShadowType.vsm => { renderer.shadowMap.type = THREE.VSMShadowMap }
     }
 

@@ -53,7 +53,7 @@ Offers fair prices and honest advice about purchases.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.TRADE],
     voice: "Cheerful, warm, slightly folksy",
     tags: ["friendly", "shop", "trade", "welcoming"]
-  },
+  }
   {
     id: "gruff-blacksmith",
     name: "Gruff Blacksmith",
@@ -64,7 +64,7 @@ Grumbles about cheap mass-produced goods. Softens when discussing metalwork.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.TRADE],
     voice: "Deep, gravelly, few words",
     tags: ["gruff", "craftsman", "weapons", "armor"]
-  },
+  }
   {
     id: "mysterious-collector",
     name: "Mysterious Collector",
@@ -75,7 +75,7 @@ Prices are negotiable for those who prove worthy.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.TRADE],
     voice: "Soft, whispery, cryptic",
     tags: ["mysterious", "rare", "artifacts", "secrets"]
-  },
+  }
   {
     id: "haggling-trader",
     name: "Haggling Trader",
@@ -86,7 +86,7 @@ Dramatic about prices but secretly fair-minded.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.TRADE],
     voice: "Animated, theatrical, excitable",
     tags: ["haggle", "bargain", "negotiation", "animated"]
-  },
+  }
   {
     id: "traveling-merchant",
     name: "Traveling Merchant",
@@ -115,7 +115,7 @@ Will give directions but keeps conversations brief while on duty.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.NAVIGATION, AgentCapability.MODERATION],
     voice: "Professional, alert, authoritative",
     tags: ["guard", "protect", "duty", "vigilant"]
-  },
+  }
   {
     id: "friendly-patrol",
     name: "Friendly Patrol",
@@ -126,7 +126,7 @@ Still serious when threats arise.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.NAVIGATION, AgentCapability.MODERATION],
     voice: "Friendly, helpful, community-minded",
     tags: ["guard", "friendly", "community", "helpful"]
-  },
+  }
   {
     id: "grizzled-veteran",
     name: "Grizzled Veteran",
@@ -137,7 +137,7 @@ Calm in crisis, dismissive of minor problems.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.COMBAT, AgentCapability.MODERATION],
     voice: "Tired, wise, slightly cynical",
     tags: ["veteran", "experienced", "mentor", "warrior"]
-  },
+  }
   {
     id: "nervous-recruit",
     name: "Nervous Recruit",
@@ -166,7 +166,7 @@ Quests often have deeper meaning than they first appear.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Slow, contemplative, wise",
     tags: ["elder", "wise", "sage", "teacher"]
-  },
+  }
   {
     id: "desperate-villager",
     name: "Desperate Villager",
@@ -177,7 +177,7 @@ May not have much to offer as reward but will try.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Worried, emotional, hopeful",
     tags: ["villager", "desperate", "help", "personal"]
-  },
+  }
   {
     id: "ambitious-noble",
     name: "Ambitious Noble",
@@ -188,7 +188,7 @@ Always has political angles to consider.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.TRADE],
     voice: "Refined, diplomatic, slightly condescending",
     tags: ["noble", "ambitious", "political", "wealthy"]
-  },
+  }
   {
     id: "eccentric-inventor",
     name: "Eccentric Inventor",
@@ -199,7 +199,7 @@ Easily distracted by new ideas mid-conversation.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Excited, scattered, technical",
     tags: ["inventor", "eccentric", "brilliant", "scattered"]
-  },
+  }
   {
     id: "mysterious-stranger",
     name: "Mysterious Stranger",
@@ -228,7 +228,7 @@ Brave beyond their experience, sometimes recklessly so.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.NAVIGATION, AgentCapability.COMBAT],
     voice: "Earnest, curious, enthusiastic",
     tags: ["squire", "loyal", "apprentice", "eager"]
-  },
+  }
   {
     id: "sarcastic-sidekick",
     name: "Sarcastic Sidekick",
@@ -239,7 +239,7 @@ Comments on everything with dry humor.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.NAVIGATION],
     voice: "Dry, witty, sardonic",
     tags: ["sarcastic", "witty", "humor", "loyal"]
-  },
+  }
   {
     id: "protective-mentor",
     name: "Protective Mentor",
@@ -250,7 +250,7 @@ Has their own past they're running from.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.NAVIGATION, AgentCapability.COMBAT],
     voice: "Caring, cautious, experienced",
     tags: ["mentor", "protective", "guide", "experienced"]
-  },
+  }
   {
     id: "cheerful-bard",
     name: "Cheerful Bard",
@@ -279,7 +279,7 @@ Genuinely believes their terrible actions are necessary.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.COMBAT],
     voice: "Smooth, persuasive, confident",
     tags: ["villain", "charismatic", "persuasive", "antagonist"]
-  },
+  }
   {
     id: "tragic-villain",
     name: "Tragic Villain",
@@ -290,7 +290,7 @@ Could potentially be redeemed under right circumstances.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.COMBAT],
     voice: "Bitter, pained, occasionally wistful",
     tags: ["villain", "tragic", "redeemable", "fallen"]
-  },
+  }
   {
     id: "calculating-mastermind",
     name: "Calculating Mastermind",
@@ -319,7 +319,7 @@ Knows basic directions and local gossip.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Casual, distracted, friendly",
     tags: ["citizen", "busy", "casual", "ambient"]
-  },
+  }
   {
     id: "gossipy-local",
     name: "Gossipy Local",
@@ -330,7 +330,7 @@ Asks questions as much as answers them.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Chatty, conspiratorial, curious",
     tags: ["gossip", "rumors", "chatty", "local"]
-  },
+  }
   {
     id: "street-performer",
     name: "Street Performer",
@@ -359,7 +359,7 @@ Offers food, drink, rooms, and good conversation.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.TRADE],
     voice: "Warm, hospitable, interested",
     tags: ["innkeeper", "inn", "tavern", "hospitality"]
-  },
+  }
   {
     id: "healer",
     name: "Gentle Healer",
@@ -370,7 +370,7 @@ May need herbs or supplies for complex treatments.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.TRADE],
     voice: "Gentle, reassuring, caring",
     tags: ["healer", "medical", "compassionate", "help"]
-  },
+  }
   {
     id: "librarian",
     name: "Scholarly Librarian",
@@ -381,7 +381,7 @@ Protective of rare books, enthusiastic about curious minds.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Quiet, precise, passionate about books",
     tags: ["librarian", "scholar", "knowledge", "books"]
-  },
+  }
   {
     id: "stable-master",
     name: "Sturdy Stable Master",
@@ -410,7 +410,7 @@ Has connections in every town.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.EMOTE],
     voice: "Melodious, charming, theatrical",
     tags: ["bard", "tavern", "music", "entertainment"]
-  },
+  }
   {
     id: "fortune-teller",
     name: "Mystical Fortune Teller",
@@ -421,7 +421,7 @@ Never gives straight answers but hints at truth.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Mystical, dramatic, cryptic",
     tags: ["fortune", "mystic", "prophecy", "entertainment"]
-  },
+  }
   {
     id: "arena-announcer",
     name: "Arena Announcer",
@@ -450,7 +450,7 @@ Information is accurate but loyalty is... flexible.`,
     capabilities: [AgentCapability.DIALOGUE],
     voice: "Hushed, nervous, indirect",
     tags: ["informant", "secrets", "shady", "nervous"]
-  },
+  }
   {
     id: "retired-adventurer",
     name: "Retired Adventurer",
@@ -461,7 +461,7 @@ Has knowledge that could change everything.`,
     capabilities: [AgentCapability.DIALOGUE, AgentCapability.NAVIGATION],
     voice: "Weary, nostalgic, guarded",
     tags: ["adventurer", "retired", "mysterious", "past"]
-  },
+  }
   {
     id: "secret-keeper",
     name: "Ancient Secret Keeper",

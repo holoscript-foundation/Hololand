@@ -8,8 +8,8 @@ import { GridContainerConfig, Vector2 } from "../types.hsplus"
 module GridContainer {
   @state {
     id: string = "",
-    position: Vector2 = { x: 0, y: 0 },
-    size: { width: number, height: number } = { width: 400, height: 400 },
+    position: Vector2 = { x: 0, y: 0 }
+    size: { width: number, height: number } = { width: 400, height: 400 }
     visible: bool = true,
     enabled: bool = true,
     zIndex: number = 0,

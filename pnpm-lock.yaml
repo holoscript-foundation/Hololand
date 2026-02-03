@@ -5,15 +5,16 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@holoscript/core': link:../HoloScript/packages/core
-  '@holoscript/runtime': link:../HoloScript/packages/runtime
   '@holoscript/cli': link:../HoloScript/packages/cli
-  '@holoscript/linter': link:../HoloScript/packages/linter
+  '@holoscript/core': link:../HoloScript/packages/core
   '@holoscript/formatter': link:../HoloScript/packages/formatter
-  '@holoscript/lsp': link:../HoloScript/packages/lsp
-  '@holoscript/std': link:../HoloScript/packages/std
   '@holoscript/fs': link:../HoloScript/packages/fs
+  '@holoscript/linter': link:../HoloScript/packages/linter
+  '@holoscript/lsp': link:../HoloScript/packages/lsp
   '@holoscript/network': link:../HoloScript/packages/network
+  '@holoscript/runtime': link:../HoloScript/packages/runtime
+  '@holoscript/std': link:../HoloScript/packages/std
+  '@infinitus/shared': link:../infinitus-shared
 
 importers:
 
@@ -61,7 +62,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.4
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   examples/04-react-starter:
     dependencies:
@@ -351,6 +352,9 @@ importers:
       '@holoscript/runtime':
         specifier: link:../../../HoloScript/packages/runtime
         version: link:../../../HoloScript/packages/runtime
+      '@lumaai/luma-web':
+        specifier: ^0.2.2
+        version: 0.2.2(@types/three@0.170.0)(three@0.170.0)
       '@react-three/drei':
         specifier: ^9.114.3
         version: 9.122.0(@react-three/fiber@8.18.0(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0))(@types/react@18.3.27)(@types/three@0.170.0)(immer@11.1.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -575,7 +579,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/adapters/playcanvas:
     dependencies:
@@ -594,7 +598,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/adapters/react-three:
     dependencies:
@@ -612,22 +616,22 @@ importers:
         version: link:../../platform/world
       '@react-three/drei':
         specifier: ^10.7.7
-        version: 10.7.7(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(@types/react@18.3.27)(@types/three@0.159.0)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)
+        version: 10.7.7(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(@types/react@18.3.27)(@types/three@0.159.0)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)
       '@react-three/fiber':
         specifier: ^9.5.0
-        version: 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)
+        version: 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)
       '@react-three/postprocessing':
         specifier: ^3.0.4
-        version: 3.0.4(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(@types/three@0.159.0)(react@18.3.1)(three@0.182.0)
+        version: 3.0.4(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(@types/three@0.159.0)(react@18.3.1)(three@0.159.0)
       '@react-three/rapier':
         specifier: ^2.2.0
-        version: 2.2.0(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(react@18.3.1)(three@0.182.0)
+        version: 2.2.0(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(react@18.3.1)(three@0.159.0)
       '@react-three/xr':
         specifier: ^6.6.29
-        version: 6.6.29(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)
+        version: 6.6.29(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)
       three:
         specifier: ^0.159.0
-        version: 0.182.0
+        version: 0.159.0
     devDependencies:
       '@types/react':
         specifier: ^18.2.0
@@ -687,7 +691,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/adapters/vrchat:
     dependencies:
@@ -703,7 +707,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/ar/anchors:
     dependencies:
@@ -725,7 +729,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.1.0
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/ar/detection:
     dependencies:
@@ -803,7 +807,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.1.0
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/ar/renderer:
     dependencies:
@@ -849,7 +853,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.4
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/ar/tracking:
     dependencies:
@@ -874,7 +878,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.1.0
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/brittney/ai-bridge:
     dependencies:
@@ -920,7 +924,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.4
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/brittney/mcp-server:
     dependencies:
@@ -930,6 +934,9 @@ importers:
       '@hololand/inference':
         specifier: workspace:*
         version: link:../../shared/inference
+      '@infinitus/shared':
+        specifier: link:../../../../infinitus-shared
+        version: link:../../../../infinitus-shared
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.25.2(hono@4.11.4)(zod@3.25.76)
@@ -951,7 +958,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.0.16
-        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1(vitest@1.6.1))(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/brittney/models:
     dependencies:
@@ -977,6 +984,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.30.0
         version: 0.30.1
+      '@infinitus/shared':
+        specifier: link:../../../../infinitus-shared
+        version: link:../../../../infinitus-shared
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -1044,7 +1054,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.0
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/components:
     dependencies:
@@ -1069,7 +1079,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.2.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/devtools/creator-tools:
     dependencies:
@@ -1118,7 +1128,7 @@ importers:
         version: 5.4.21(@types/node@20.19.29)(lightningcss@1.30.2)(terser@5.46.0)
       vitest:
         specifier: ^1.0.0
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/devtools/extension:
     devDependencies:
@@ -1162,6 +1172,25 @@ importers:
         specifier: ^5.1.4
         version: 5.1.4(webpack@5.104.1)
 
+  packages/platform/accessibility:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+      three:
+        specifier: ^0.170.0
+        version: 0.170.0
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
+
   packages/platform/animation:
     dependencies:
       '@holoscript/core':
@@ -1176,9 +1205,13 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/audio:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
     devDependencies:
       tsup:
         specifier: ^8.0.1
@@ -1188,7 +1221,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/auth:
     dependencies:
@@ -1306,7 +1339,35 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.4
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/gestures:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/haptics:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/holofilter:
     dependencies:
@@ -1334,9 +1395,21 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/library: {}
+
+  packages/platform/lod:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/logger:
     devDependencies:
@@ -1346,6 +1419,22 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/platform/navigation:
+    dependencies:
+      '@holoscript/core':
+        specifier: link:../../../../HoloScript/packages/core
+        version: link:../../../../HoloScript/packages/core
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/network:
     dependencies:
@@ -1365,6 +1454,30 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/platform/pcg:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/portals:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/renderer:
     dependencies:
@@ -1423,7 +1536,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.0.4
-        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/spatial:
     dependencies:
@@ -1442,7 +1555,19 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.6.1
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/streaming:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/three-plains:
     dependencies:
@@ -1470,7 +1595,19 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.1.0
-        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
+
+  packages/platform/voice:
+    devDependencies:
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.0.0
+        version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   packages/platform/world:
     dependencies:
@@ -1518,7 +1655,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.0.16
-        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1(vitest@1.6.1))(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+        version: 4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
 packages:
 
@@ -2721,6 +2858,12 @@ packages:
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
 
+  '@lumaai/luma-web@0.2.2':
+    resolution: {integrity: sha512-NTzVK36cfeNVRuBAof6ghMITaVKGggLGp/BXNhx7jyhp5PpBFX9Q46ibw5Caxy+Kvm5xlCkG7ASCboO/ZHy05w==}
+    peerDependencies:
+      '@types/three': ^0.157.2
+      three: ^0.157.0
+
   '@mapbox/node-pre-gyp@1.0.11':
     resolution: {integrity: sha512-Yhlar6v9WQgUp/He7BdgzOz8lqMQ8sU+jkCq7Wx8Myc5YFJLbEe7lgui/V7G1qB1DJykHSGwreceSaD60Y0PUQ==}
     hasBin: true
@@ -2869,6 +3012,10 @@ packages:
   '@noble/hashes@1.3.2':
     resolution: {integrity: sha512-MVC8EAQp7MvEcm30KWENFjgR+Mkmf+D189XJTkFIlwohU5hcBbn1ZkKq7KVTi2Hme3PMGF390DaL52beVrIihQ==}
     engines: {node: '>= 16'}
+
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
 
   '@node-llama-cpp/linux-arm64@3.15.0':
     resolution: {integrity: sha512-IaHIllWlj6tGjhhCtyp1w6xA7AHaGJiVaXAZ+78hDs8X1SL9ySBN2Qceju8AQJALePtynbAfjgjTqjQ7Hyk+IQ==}
@@ -9659,7 +9806,9 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@exodus/bytes@1.9.0':
+  '@exodus/bytes@1.9.0(@noble/hashes@1.8.0)':
+    optionalDependencies:
+      '@noble/hashes': 1.8.0
     optional: true
 
   '@fortawesome/fontawesome-common-types@6.6.0': {}
@@ -9871,6 +10020,11 @@ snapshots:
 
   '@kwsites/promise-deferred@1.1.1': {}
 
+  '@lumaai/luma-web@0.2.2(@types/three@0.170.0)(three@0.170.0)':
+    dependencies:
+      '@types/three': 0.170.0
+      three: 0.170.0
+
   '@mapbox/node-pre-gyp@1.0.11':
     dependencies:
       detect-libc: 2.1.2
@@ -9914,6 +10068,11 @@ snapshots:
     transitivePeerDependencies:
       - hono
       - supports-color
+
+  '@monogrid/gainmap-js@3.4.0(three@0.159.0)':
+    dependencies:
+      promise-worker-transferable: 1.0.4
+      three: 0.159.0
 
   '@monogrid/gainmap-js@3.4.0(three@0.170.0)':
     dependencies:
@@ -9996,6 +10155,9 @@ snapshots:
       '@noble/hashes': 1.3.2
 
   '@noble/hashes@1.3.2': {}
+
+  '@noble/hashes@1.8.0':
+    optional: true
 
   '@node-llama-cpp/linux-arm64@3.15.0':
     optional: true
@@ -10319,6 +10481,20 @@ snapshots:
 
   '@pmndrs/pointer-events@6.6.29': {}
 
+  '@pmndrs/xr@6.6.29(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)(three@0.159.0)':
+    dependencies:
+      '@iwer/devui': 1.1.2(@types/react@18.3.27)(immer@11.1.3)(iwer@2.1.1)
+      '@iwer/sem': 0.2.5(iwer@2.1.1)
+      '@pmndrs/pointer-events': 6.6.29
+      iwer: 2.1.1
+      meshline: 3.3.1(three@0.159.0)
+      three: 0.159.0
+      zustand: 4.5.7(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - react
+
   '@pmndrs/xr@6.6.29(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)(three@0.170.0)':
     dependencies:
       '@iwer/devui': 1.1.2(@types/react@18.3.27)(immer@11.1.3)(iwer@2.1.1)
@@ -10327,20 +10503,6 @@ snapshots:
       iwer: 2.1.1
       meshline: 3.3.1(three@0.170.0)
       three: 0.170.0
-      zustand: 4.5.7(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)
-    transitivePeerDependencies:
-      - '@types/react'
-      - immer
-      - react
-
-  '@pmndrs/xr@6.6.29(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)(three@0.182.0)':
-    dependencies:
-      '@iwer/devui': 1.1.2(@types/react@18.3.27)(immer@11.1.3)(iwer@2.1.1)
-      '@iwer/sem': 0.2.5(iwer@2.1.1)
-      '@pmndrs/pointer-events': 6.6.29
-      iwer: 2.1.1
-      meshline: 3.3.1(three@0.182.0)
-      three: 0.182.0
       zustand: 4.5.7(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)
     transitivePeerDependencies:
       - '@types/react'
@@ -10405,28 +10567,28 @@ snapshots:
 
   '@react-spring/types@9.7.5': {}
 
-  '@react-three/drei@10.7.7(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(@types/react@18.3.27)(@types/three@0.159.0)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)':
+  '@react-three/drei@10.7.7(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(@types/react@18.3.27)(@types/three@0.159.0)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)':
     dependencies:
       '@babel/runtime': 7.28.6
       '@mediapipe/tasks-vision': 0.10.17
-      '@monogrid/gainmap-js': 3.4.0(three@0.182.0)
-      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)
+      '@monogrid/gainmap-js': 3.4.0(three@0.159.0)
+      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)
       '@use-gesture/react': 10.3.1(react@18.3.1)
-      camera-controls: 3.1.2(three@0.182.0)
+      camera-controls: 3.1.2(three@0.159.0)
       cross-env: 7.0.3
       detect-gpu: 5.0.70
       glsl-noise: 0.0.0
       hls.js: 1.6.15
-      maath: 0.10.8(@types/three@0.159.0)(three@0.182.0)
-      meshline: 3.3.1(three@0.182.0)
+      maath: 0.10.8(@types/three@0.159.0)(three@0.159.0)
+      meshline: 3.3.1(three@0.159.0)
       react: 18.3.1
-      stats-gl: 2.4.2(@types/three@0.159.0)(three@0.182.0)
+      stats-gl: 2.4.2(@types/three@0.159.0)(three@0.159.0)
       stats.js: 0.17.0
       suspend-react: 0.1.3(react@18.3.1)
-      three: 0.182.0
-      three-mesh-bvh: 0.8.3(three@0.182.0)
-      three-stdlib: 2.36.1(three@0.182.0)
-      troika-three-text: 0.52.4(three@0.182.0)
+      three: 0.159.0
+      three-mesh-bvh: 0.8.3(three@0.159.0)
+      three-stdlib: 2.36.1(three@0.159.0)
+      troika-three-text: 0.52.4(three@0.159.0)
       tunnel-rat: 0.1.2(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)
       use-sync-external-store: 1.6.0(react@18.3.1)
       utility-types: 3.11.0
@@ -10526,7 +10688,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)':
+  '@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)':
     dependencies:
       '@babel/runtime': 7.28.6
       '@types/webxr': 0.5.24
@@ -10537,7 +10699,7 @@ snapshots:
       react-use-measure: 2.1.7(react-dom@19.2.3(react@18.3.1))(react@18.3.1)
       scheduler: 0.27.0
       suspend-react: 0.1.3(react@18.3.1)
-      three: 0.182.0
+      three: 0.159.0
       use-sync-external-store: 1.6.0(react@18.3.1)
       zustand: 5.0.10(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)(use-sync-external-store@1.6.0(react@18.3.1))
     optionalDependencies:
@@ -10566,14 +10728,14 @@ snapshots:
       - '@types/react'
       - immer
 
-  '@react-three/postprocessing@3.0.4(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(@types/three@0.159.0)(react@18.3.1)(three@0.182.0)':
+  '@react-three/postprocessing@3.0.4(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(@types/three@0.159.0)(react@18.3.1)(three@0.159.0)':
     dependencies:
-      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)
-      maath: 0.6.0(@types/three@0.159.0)(three@0.182.0)
-      n8ao: 1.10.1(postprocessing@6.38.2(three@0.182.0))(three@0.182.0)
-      postprocessing: 6.38.2(three@0.182.0)
+      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)
+      maath: 0.6.0(@types/three@0.159.0)(three@0.159.0)
+      n8ao: 1.10.1(postprocessing@6.38.2(three@0.159.0))(three@0.159.0)
+      postprocessing: 6.38.2(three@0.159.0)
       react: 18.3.1
-      three: 0.182.0
+      three: 0.159.0
     transitivePeerDependencies:
       - '@types/three'
 
@@ -10588,14 +10750,14 @@ snapshots:
     transitivePeerDependencies:
       - '@types/three'
 
-  '@react-three/rapier@2.2.0(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(react@18.3.1)(three@0.182.0)':
+  '@react-three/rapier@2.2.0(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(react@18.3.1)(three@0.159.0)':
     dependencies:
       '@dimforge/rapier3d-compat': 0.19.2
-      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)
+      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)
       react: 18.3.1
       suspend-react: 0.1.3(react@18.3.1)
-      three: 0.182.0
-      three-stdlib: 2.36.1(three@0.182.0)
+      three: 0.159.0
+      three-stdlib: 2.36.1(three@0.159.0)
 
   '@react-three/xr@6.6.29(@react-three/fiber@8.18.0(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0))(@types/react@18.3.27)(immer@11.1.3)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(three@0.170.0)':
     dependencies:
@@ -10612,15 +10774,15 @@ snapshots:
       - '@types/react'
       - immer
 
-  '@react-three/xr@6.6.29(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0))(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)':
+  '@react-three/xr@6.6.29(@react-three/fiber@9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0))(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)':
     dependencies:
       '@pmndrs/pointer-events': 6.6.29
-      '@pmndrs/xr': 6.6.29(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)(three@0.182.0)
-      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.182.0)
+      '@pmndrs/xr': 6.6.29(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)(three@0.159.0)
+      '@react-three/fiber': 9.5.0(@types/react@18.3.27)(immer@11.1.3)(react-dom@19.2.3(react@18.3.1))(react@18.3.1)(three@0.159.0)
       react: 18.3.1
       react-dom: 19.2.3(react@18.3.1)
       suspend-react: 0.1.3(react@18.3.1)
-      three: 0.182.0
+      three: 0.159.0
       tunnel-rat: 0.1.2(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)
       zustand: 4.5.7(@types/react@18.3.27)(immer@11.1.3)(react@18.3.1)
     transitivePeerDependencies:
@@ -11762,7 +11924,7 @@ snapshots:
       std-env: 3.10.0
       strip-literal: 2.1.1
       test-exclude: 6.0.0
-      vitest: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+      vitest: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -11831,7 +11993,7 @@ snapshots:
       pathe: 1.1.2
       picocolors: 1.1.1
       sirv: 2.0.4
-      vitest: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)
+      vitest: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
   '@vitest/utils@1.6.1':
     dependencies:
@@ -12332,6 +12494,10 @@ snapshots:
   camera-controls@2.10.1(three@0.170.0):
     dependencies:
       three: 0.170.0
+
+  camera-controls@3.1.2(three@0.159.0):
+    dependencies:
+      three: 0.159.0
 
   camera-controls@3.1.2(three@0.182.0):
     dependencies:
@@ -13796,9 +13962,9 @@ snapshots:
     dependencies:
       whatwg-encoding: 3.1.1
 
-  html-encoding-sniffer@6.0.0:
+  html-encoding-sniffer@6.0.0(@noble/hashes@1.8.0):
     dependencies:
-      '@exodus/bytes': 1.9.0
+      '@exodus/bytes': 1.9.0(@noble/hashes@1.8.0)
     transitivePeerDependencies:
       - '@noble/hashes'
     optional: true
@@ -14203,15 +14369,15 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  jsdom@27.4.0:
+  jsdom@27.4.0(@noble/hashes@1.8.0):
     dependencies:
       '@acemir/cssom': 0.9.31
       '@asamuzakjp/dom-selector': 6.7.6
-      '@exodus/bytes': 1.9.0
+      '@exodus/bytes': 1.9.0(@noble/hashes@1.8.0)
       cssstyle: 5.3.7
       data-urls: 6.0.1
       decimal.js: 10.6.0
-      html-encoding-sniffer: 6.0.0
+      html-encoding-sniffer: 6.0.0(@noble/hashes@1.8.0)
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
       is-potential-custom-element-name: 1.0.1
@@ -14412,10 +14578,10 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  maath@0.10.8(@types/three@0.159.0)(three@0.182.0):
+  maath@0.10.8(@types/three@0.159.0)(three@0.159.0):
     dependencies:
       '@types/three': 0.159.0
-      three: 0.182.0
+      three: 0.159.0
 
   maath@0.10.8(@types/three@0.170.0)(three@0.170.0):
     dependencies:
@@ -14427,10 +14593,10 @@ snapshots:
       '@types/three': 0.170.0
       three: 0.182.0
 
-  maath@0.6.0(@types/three@0.159.0)(three@0.182.0):
+  maath@0.6.0(@types/three@0.159.0)(three@0.159.0):
     dependencies:
       '@types/three': 0.159.0
-      three: 0.182.0
+      three: 0.159.0
 
   maath@0.6.0(@types/three@0.170.0)(three@0.182.0):
     dependencies:
@@ -14478,6 +14644,10 @@ snapshots:
   merge-stream@2.0.0: {}
 
   merge2@1.4.1: {}
+
+  meshline@3.3.1(three@0.159.0):
+    dependencies:
+      three: 0.159.0
 
   meshline@3.3.1(three@0.170.0):
     dependencies:
@@ -14578,6 +14748,11 @@ snapshots:
       any-promise: 1.3.0
       object-assign: 4.1.1
       thenify-all: 1.6.0
+
+  n8ao@1.10.1(postprocessing@6.38.2(three@0.159.0))(three@0.159.0):
+    dependencies:
+      postprocessing: 6.38.2(three@0.159.0)
+      three: 0.159.0
 
   n8ao@1.10.1(postprocessing@6.38.2(three@0.182.0))(three@0.182.0):
     dependencies:
@@ -15154,6 +15329,10 @@ snapshots:
       nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  postprocessing@6.38.2(three@0.159.0):
+    dependencies:
+      three: 0.159.0
 
   postprocessing@6.38.2(three@0.170.0):
     dependencies:
@@ -15811,10 +15990,10 @@ snapshots:
 
   stackback@0.0.2: {}
 
-  stats-gl@2.4.2(@types/three@0.159.0)(three@0.182.0):
+  stats-gl@2.4.2(@types/three@0.159.0)(three@0.159.0):
     dependencies:
       '@types/three': 0.159.0
-      three: 0.182.0
+      three: 0.159.0
 
   stats-gl@2.4.2(@types/three@0.170.0)(three@0.170.0):
     dependencies:
@@ -16109,9 +16288,23 @@ snapshots:
     dependencies:
       three: 0.170.0
 
+  three-mesh-bvh@0.8.3(three@0.159.0):
+    dependencies:
+      three: 0.159.0
+
   three-mesh-bvh@0.8.3(three@0.182.0):
     dependencies:
       three: 0.182.0
+
+  three-stdlib@2.36.1(three@0.159.0):
+    dependencies:
+      '@types/draco3d': 1.4.10
+      '@types/offscreencanvas': 2019.7.3
+      '@types/webxr': 0.5.24
+      draco3d: 1.5.7
+      fflate: 0.6.10
+      potpack: 1.0.2
+      three: 0.159.0
 
   three-stdlib@2.36.1(three@0.170.0):
     dependencies:
@@ -16209,6 +16402,14 @@ snapshots:
 
   tree-kill@1.2.2: {}
 
+  troika-three-text@0.52.4(three@0.159.0):
+    dependencies:
+      bidi-js: 1.0.3
+      three: 0.159.0
+      troika-three-utils: 0.52.4(three@0.159.0)
+      troika-worker-utils: 0.52.0
+      webgl-sdf-generator: 1.1.1
+
   troika-three-text@0.52.4(three@0.170.0):
     dependencies:
       bidi-js: 1.0.3
@@ -16224,6 +16425,10 @@ snapshots:
       troika-three-utils: 0.52.4(three@0.182.0)
       troika-worker-utils: 0.52.0
       webgl-sdf-generator: 1.1.1
+
+  troika-three-utils@0.52.4(three@0.159.0):
+    dependencies:
+      three: 0.159.0
 
   troika-three-utils@0.52.4(three@0.170.0):
     dependencies:
@@ -16595,7 +16800,7 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.8.2
 
-  vitest@1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0):
+  vitest@1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0):
     dependencies:
       '@vitest/expect': 1.6.1
       '@vitest/runner': 1.6.1
@@ -16620,7 +16825,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.19.29
       '@vitest/ui': 1.6.1(vitest@1.6.1)
-      jsdom: 27.4.0
+      jsdom: 27.4.0(@noble/hashes@1.8.0)
     transitivePeerDependencies:
       - less
       - lightningcss
@@ -16667,7 +16872,7 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0):
+  vitest@1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0):
     dependencies:
       '@vitest/expect': 1.6.1
       '@vitest/runner': 1.6.1
@@ -16692,7 +16897,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.19.6
       '@vitest/ui': 1.6.1(vitest@1.6.1)
-      jsdom: 27.4.0
+      jsdom: 27.4.0(@noble/hashes@1.8.0)
     transitivePeerDependencies:
       - less
       - lightningcss
@@ -16703,7 +16908,7 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1(vitest@1.6.1))(jiti@2.6.1)(jsdom@27.4.0)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2):
+  vitest@4.0.17(@types/node@22.19.6)(@vitest/ui@1.6.1)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
       '@vitest/expect': 4.0.17
       '@vitest/mocker': 4.0.17(vite@6.4.1(@types/node@22.19.6)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -16728,7 +16933,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.19.6
       '@vitest/ui': 1.6.1(vitest@1.6.1)
-      jsdom: 27.4.0
+      jsdom: 27.4.0(@noble/hashes@1.8.0)
     transitivePeerDependencies:
       - jiti
       - less

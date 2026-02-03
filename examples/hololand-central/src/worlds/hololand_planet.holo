@@ -1,0 +1,93 @@
+composition "HololandPlanet" {
+    @manifest(version: "3.0", author: "Antigravity")
+    
+    // Zero-Config Systems
+    system Networking { 
+        room: "hololand_oasis", 
+        type: "p2p",
+        broker: "quantum-mesh"
+    }
+    
+    system Physics { 
+        gravity: [0, -9.81, 0],
+        precision: "high"
+    }
+    
+    // Core Configuration
+    core_config { 
+        preset: "oasis", 
+        ambient_light: 0.5,
+        bloom: 1.2,
+        theme: "vibrant"
+    }
+
+    // Narrative System - The Oasis Initiation
+    narrative OasisInitiation {
+        quest WelcomeToOasis {
+            title: "The Oasis Awakening"
+            description: "You have arrived in the Oasis. Find the Central Platform to begin your journey."
+            objective ReachCenter { 
+                description: "Walk to the Pillar of Light",
+                targetCount: 1 
+            }
+            onComplete: "show(DiscoveryPrompt)"
+        }
+
+        dialogue WelcomeGuide {
+            speaker: "Oasis AI",
+            text: "Welcome, Traveler. The Quantum Mesh has stabilized your presence here."
+            choice "Where am I?" { nextNode: "ExplainOasis" }
+            choice "How do I start?" { nextNode: "ExplainStart" }
+        }
+    }
+
+    // World Objects
+    object "CentralPlatform" {
+        geometry: "cylinder",
+        args: [15, 15, 0.5, 64],
+        position: [0, -0.25, 0],
+        color: "#1a1a1a"
+        @snappable
+    }
+
+    object "PillarOfLight" {
+        geometry: "cylinder",
+        args: [0.5, 0.5, 20, 32],
+        position: [0, 10, 0],
+        color: "#4facfe"
+        @visual_metadata {
+            emissive: true,
+            bloom_strength: 2.5
+        }
+    }
+
+    object "NavigationCube" {
+        geometry: "box",
+        args: [1, 1, 1],
+        position: [-5, 1, 5],
+        color: "#ff0080"
+        @grabbable
+        @hoverable
+        @gesture(on_grab: "OasisInitiation.start()")
+    }
+
+    object "PortalRing" {
+        position: [0, 0, 0]
+        
+        object "ArcadePortal" {
+            type: "portal",
+            destination: "/arcade",
+            text: "ARCADE DISTRICT",
+            color: "#f093fb",
+            position: [10, 1.5, 10]
+        }
+        
+        object "SocialPortal" {
+            type: "portal",
+            destination: "/social",
+            text: "SOCIAL LOUNGE",
+            color: "#667eea",
+            position: [-10, 1.5, -10]
+        }
+    }
+}

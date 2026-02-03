@@ -8,8 +8,8 @@ import { ImageConfig, ImageFit, Vector2 } from "../types.hsplus"
 module Image {
   @state {
     id: string = "",
-    position: Vector2 = { x: 0, y: 0 },
-    size: { width: number, height: number } = { width: 100, height: 100 },
+    position: Vector2 = { x: 0, y: 0 }
+    size: { width: number, height: number } = { width: 100, height: 100 }
     visible: bool = true,
     enabled: bool = true,
     zIndex: number = 0,
@@ -116,23 +116,23 @@ module Image {
           drawH = imgH * scale
           drawX = x + (w - drawW) / 2
           drawY = y + (h - drawH) / 2
-        },
+        }
         ImageFit.cover => {
           let scale = Math.max(w / imgW, h / imgH)
           drawW = imgW * scale
           drawH = imgH * scale
           drawX = x + (w - drawW) / 2
           drawY = y + (h - drawH) / 2
-        },
+        }
         ImageFit.fill => {
           // Use full container size
-        },
+        }
         ImageFit.none => {
           drawW = imgW
           drawH = imgH
           drawX = x + (w - drawW) / 2
           drawY = y + (h - drawH) / 2
-        },
+        }
         ImageFit.scale_down => {
           if imgW > w || imgH > h {
             let scale = Math.min(w / imgW, h / imgH)

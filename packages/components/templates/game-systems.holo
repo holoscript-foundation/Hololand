@@ -13,7 +13,7 @@ template "QuestSystem" {
       quest = {
         id: quest_id,
         ...state.quest_definitions[quest_id],
-        progress: {},
+        progress: {}
         started_at: now()
       }
       

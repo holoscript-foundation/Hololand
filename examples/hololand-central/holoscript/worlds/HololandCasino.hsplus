@@ -31,9 +31,9 @@ world "HololandCasino" {
 
     // Warm casino lighting
     points: [
-      { color: "#ffd700", intensity: 1.2, position: [0, 8, 0], distance: 30 },
-      { color: "#ff00ff", intensity: 0.8, position: [-15, 5, 0], distance: 20 },
-      { color: "#00ffff", intensity: 0.8, position: [15, 5, 0], distance: 20 },
+      { color: "#ffd700", intensity: 1.2, position: [0, 8, 0], distance: 30 }
+      { color: "#ff00ff", intensity: 0.8, position: [-15, 5, 0], distance: 20 }
+      { color: "#00ffff", intensity: 0.8, position: [15, 5, 0], distance: 20 }
       { color: "#ffd700", intensity: 0.6, position: [0, 3, -15], distance: 15 }
     ]
 
@@ -382,7 +382,7 @@ world "HololandCasino" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function getColorHex(colorName) {
+  function "getColorHex" {
     match colorName {
       "red" -> "#ff0000"
       "blue" -> "#0000ff"
@@ -392,14 +392,14 @@ world "HololandCasino" {
     }
   }
 
-  function randomSlotResult() {
+  function "randomSlotResult" {
     const rand = Math.random()
     if (rand < 0.01) return "jackpot"
     if (rand < 0.1) return "win"
     return "lose"
   }
 
-  function spawnConfetti(position) {
+  function "spawnConfetti" {
     particles {
       type: "confetti"
       position: position
@@ -409,7 +409,7 @@ world "HololandCasino" {
     }
   }
 
-  function spawnRewardParticles(position) {
+  function "spawnRewardParticles" {
     particles {
       type: "sparkle"
       position: position

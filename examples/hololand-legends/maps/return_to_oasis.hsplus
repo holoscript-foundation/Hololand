@@ -41,7 +41,7 @@ composition "return_to_oasis" {
         title: "Return to Oasis?",
         message: "Your progress will be saved.",
         options: [
-          { label: "Yes, return", action: "confirm_exit" },
+          { label: "Yes, return", action: "confirm_exit" }
           { label: "Keep playing", action: "cancel_exit" }
         ]
       })

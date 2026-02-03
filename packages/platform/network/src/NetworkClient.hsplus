@@ -172,7 +172,7 @@ module NetworkClient {
     this.send({
       type: "handshake",
       category: MessageCategory.CONNECTION,
-      payload: { clientId: this.state.clientId },
+      payload: { clientId: this.state.clientId }
       timestamp: Date.now()
     })
     
@@ -248,7 +248,7 @@ module NetworkClient {
         this.send({
           type: "ping",
           category: MessageCategory.CONNECTION,
-          payload: { timestamp: this.state.pingTimestamp },
+          payload: { timestamp: this.state.pingTimestamp }
           timestamp: this.state.pingTimestamp
         })
       }
@@ -346,7 +346,7 @@ module NetworkClient {
     return this.send({
       type,
       category: MessageCategory.ROOM,
-      payload: { roomId, ...payload },
+      payload: { roomId, ...payload }
       timestamp: Date.now()
     })
   }
@@ -374,7 +374,7 @@ module NetworkClient {
       this.send({
         type: "rpc_request",
         category: MessageCategory.RPC,
-        payload: { id: requestId, method, params },
+        payload: { id: requestId, method, params }
         timestamp: Date.now()
       })
     })

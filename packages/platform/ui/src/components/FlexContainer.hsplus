@@ -8,8 +8,8 @@ import { FlexContainerConfig, FlexDirection, FlexJustify, FlexAlign, Vector2 } f
 module FlexContainer {
   @state {
     id: string = "",
-    position: Vector2 = { x: 0, y: 0 },
-    size: { width: number, height: number } = { width: 400, height: 200 },
+    position: Vector2 = { x: 0, y: 0 }
+    size: { width: number, height: number } = { width: 400, height: 200 }
     visible: bool = true,
     enabled: bool = true,
     zIndex: number = 0,
@@ -93,17 +93,17 @@ module FlexContainer {
         if self.children.length > 1 {
           gapSize = self.gap + freeSpace / (self.children.length - 1)
         }
-      },
+      }
       FlexJustify.space_around => {
         let space = freeSpace / self.children.length
         mainStart += space / 2
         gapSize = self.gap + space
-      },
+      }
       FlexJustify.space_evenly => {
         let space = freeSpace / (self.children.length + 1)
         mainStart += space
         gapSize = self.gap + space
-      },
+      }
       _ => {}
     }
 
@@ -132,7 +132,7 @@ module FlexContainer {
           } else {
             size.w = crossSize
           }
-        },
+        }
         _ => {}
       }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, Suspense, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Text, useGLTF, Html, Environment, Sparkles, Stars, ContactShadows } from '@react-three/drei';
+import { Text, useGLTF, useAnimations, Html, Environment, Sparkles, Stars, ContactShadows } from '@react-three/drei';
 // Post-processing temporarily disabled - uncomment when needed
 // import { EffectComposer, Bloom, Vignette, Noise, ToneMapping } from '@react-three/postprocessing';
 import { 
@@ -24,6 +24,9 @@ import {
   DialogManager, 
   HoloScriptLoader 
 } from '@hololand/world';
+import { SplatRenderer } from './spatial/SplatRenderer';
+import { NeRFRenderer } from './spatial/NeRFRenderer';
+import { VolumetricPlayer } from './spatial/VolumetricPlayer';
 
 // --- Static Helpers Moved to AssetRegistry ---
 const assetRegistry = AssetRegistry.getInstance();
@@ -208,28 +211,95 @@ interface HoloEntityProps {
 }
 
 // --- 3. Sub-components for Rendering ---
-const GLBModel: React.FC<{ url: string }> = ({ url }) => {
+const GLBModel: React.FC<{ url: string; animation?: string }> = ({ url, animation }) => {
   try {
-    const { scene } = useGLTF(url);
-    // Use a memoized clone to avoid re-cloning on every frame if the component re-renders
+    const { scene, animations } = useGLTF(url);
     const clonedScene = useMemo(() => scene.clone(), [scene]);
-    return <primitive object={clonedScene} />;
+    const { ref, actions } = useAnimations(animations, clonedScene);
+
+    useEffect(() => {
+      if (actions && animation && actions[animation]) {
+        actions[animation].fadeIn(0.5).play();
+        return () => {
+          actions[animation]?.fadeOut(0.5).stop();
+        };
+      } else if (actions && Object.keys(actions).length > 0) {
+        // Play first animation if none specified
+        const firstAction = actions[Object.keys(actions)[0]];
+        firstAction?.fadeIn(0.5).play();
+        return () => {
+           firstAction?.fadeOut(0.5).stop();
+        };
+      }
+    }, [actions, animation]);
+
+    return <primitive ref={ref} object={clonedScene} />;
   } catch (err) {
     console.warn(`Failed to load GLB: ${url}`, err);
     return <boxGeometry args={[1, 1, 1]} />;
   }
 };
 
-const GeometryRenderer: React.FC<{ assetKey: string; assetUrl?: string }> = ({
+const Avatar: React.FC<{ url: string; animation?: string }> = ({ url, animation }) => {
+  return (
+    <Suspense fallback={<Text color="white">Loading Avatar...</Text>}>
+      <GLBModel url={url} animation={animation} />
+    </Suspense>
+  );
+};
+
+const DNA: React.FC<{ properties: Record<string, any> }> = ({ properties }) => {
+  // DNA is a metadata node, it doesn't render anything itself but might affect parent
+  return null;
+};
+
+const GeometryRenderer: React.FC<{ assetKey: string; assetUrl?: string; entity: HoloEntityData }> = ({
   assetKey,
   assetUrl,
+  entity
 }) => {
   const isGLB = assetUrl && assetUrl.endsWith('.glb');
+
+  if (entity.type === 'Avatar' || entity.type === 'avatar') {
+    return <Avatar url={assetUrl || ''} animation={entity.properties?.animation as string} />;
+  }
+
+  if (entity.type === 'DNA' || entity.type === 'dna') {
+    return <DNA properties={entity.properties || {}} />;
+  }
+
+  if (entity.type === 'GaussianSplat' || entity.type === 'gaussian_splat' || entity.type === 'splat') {
+    return (
+      <SplatRenderer 
+        src={assetUrl || (entity.properties?.src as string)} 
+        opacity={(entity.properties?.opacity as number) || 1}
+      />
+    );
+  }
+
+  if (entity.type === 'NeRF' || entity.type === 'nerf') {
+    return (
+      <NeRFRenderer 
+        src={assetUrl || (entity.properties?.src as string)} 
+        quality={entity.properties?.quality as any}
+      />
+    );
+  }
+
+  if (entity.type === 'VolumetricVideo' || entity.type === 'volumetric_video') {
+    return (
+      <VolumetricPlayer 
+        src={assetUrl || (entity.properties?.src as string)}
+        autoplay={entity.properties?.autoplay !== false}
+        loop={entity.properties?.loop !== false}
+      />
+    );
+  }
 
   if (isGLB && assetUrl)
     return (
       <Suspense fallback={null}>
-        <GLBModel url={assetUrl} />
+        <GLBModel url={assetUrl} animation={entity.properties?.animation as string} />
       </Suspense>
     );
 
@@ -317,17 +387,19 @@ const HoloEntity: React.FC<HoloEntityProps> = ({ entity, runtime, playerPosition
       )}
 
       <mesh ref={meshRef}>
-        <GeometryRenderer assetKey={assetKey} assetUrl={assetUrl} />
-        <meshStandardMaterial
-          color={color}
-          roughness={0.2}
-          metalness={0.8}
-          emissive={entity.glow ? color : 'black'}
-          emissiveIntensity={entity.glow ? 0.5 : 0}
-          transparent={!!entity.properties?.transparent}
-          opacity={(entity.properties?.opacity as number) || 1}
-          side={2} // DoubleSide
-        />
+        <GeometryRenderer assetKey={assetKey} assetUrl={assetUrl} entity={entity} />
+        {(!assetUrl || !assetUrl.endsWith('.glb')) && (
+          <meshStandardMaterial
+            color={color}
+            roughness={0.2}
+            metalness={0.8}
+            emissive={entity.glow ? color : 'black'}
+            emissiveIntensity={entity.glow ? 0.5 : 0}
+            transparent={!!entity.properties?.transparent}
+            opacity={(entity.properties?.opacity as number) || 1}
+            side={2} // DoubleSide
+          />
+        )}
       </mesh>
       {/* Particle Effects for Special Entities */}
       {entity.glow && (

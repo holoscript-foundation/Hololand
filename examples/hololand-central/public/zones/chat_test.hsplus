@@ -1,7 +1,7 @@
 // HoloScript+ Brittney Chat Integration Test
 // Demonstrates opening the chat window from code
 
-orb BrittneyLink {
+object "BrittneyLink" {
   at: [2, 2, -3]
   shape: "sphere"
   color: "#a78bfa"

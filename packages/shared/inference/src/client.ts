@@ -48,7 +48,7 @@ export class InferenceClient {
       local: {
         enabled: true,
         ollamaUrl: 'http://localhost:11434',
-        defaultModel: 'brittney-v4-expert:latest',
+        defaultModel: 'brittney-v4:latest',
         autoDownloadModel: true,
       },
       providers: {
@@ -315,7 +315,7 @@ export class InferenceClient {
 
     if (providerType === 'local') {
       model = isHoloScript
-        ? 'brittney-v4-expert:latest'
+        ? 'brittney-v4-q8:latest'
         : this.settings.local.defaultModel;
     } else if (providerType === 'openai' && isHoloScript) {
       // Use fine-tuned Brittney model for HoloScript on OpenAI

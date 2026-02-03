@@ -67,7 +67,7 @@ module BrittneyService {
       
       const response = await fetch(`${BRITTNEY_SERVICE_URL}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
         body: JSON.stringify(chatRequest)
       })
       
@@ -168,7 +168,7 @@ const BRITTNEY_TOOLS: Tool[] = [
       type: "object",
       properties: {}
     }
-  },
+  }
   
   {
     name: "brittney_list_scenes",
@@ -177,7 +177,7 @@ const BRITTNEY_TOOLS: Tool[] = [
       type: "object",
       properties: {}
     }
-  },
+  }
   
   {
     name: "brittney_get_profiler_stats",
@@ -191,7 +191,7 @@ const BRITTNEY_TOOLS: Tool[] = [
         }
       }
     }
-  },
+  }
   
   {
     name: "brittney_get_console_logs",
@@ -202,7 +202,7 @@ const BRITTNEY_TOOLS: Tool[] = [
         limit: {
           type: "number",
           description: "Number of recent logs to retrieve (default: 20)"
-        },
+        }
         level: {
           type: "string",
           enum: ["all", "log", "warn", "error", "info", "debug"],
@@ -210,7 +210,7 @@ const BRITTNEY_TOOLS: Tool[] = [
         }
       }
     }
-  },
+  }
   
   {
     name: "brittney_get_runtime_errors",
@@ -224,7 +224,7 @@ const BRITTNEY_TOOLS: Tool[] = [
         }
       }
     }
-  },
+  }
   
   // =========================================================================
   // AI ANALYSIS TOOLS
@@ -243,7 +243,7 @@ const BRITTNEY_TOOLS: Tool[] = [
         }
       }
     }
-  },
+  }
   
   {
     name: "brittney_ask",
@@ -254,15 +254,15 @@ const BRITTNEY_TOOLS: Tool[] = [
         question: {
           type: "string",
           description: "Question to ask Brittney about the running app"
-        },
+        }
         includeContext: {
           type: "boolean",
           description: "Include full browser context in query (default: true)"
         }
-      },
+      }
       required: ["question"]
     }
-  },
+  }
   
   {
     name: "brittney_explain_error",
@@ -276,7 +276,7 @@ const BRITTNEY_TOOLS: Tool[] = [
         }
       }
     }
-  },
+  }
   
   // =========================================================================
   // CODE GENERATION
@@ -291,16 +291,16 @@ const BRITTNEY_TOOLS: Tool[] = [
         description: {
           type: "string",
           description: "Natural language description of what to create"
-        },
+        }
         category: {
           type: "string",
           enum: ["object", "ui", "particle", "animation", "scene", "npc", "weapon", "collectible"],
           description: "Category hint for better generation"
         }
-      },
+      }
       required: ["description"]
     }
-  },
+  }
   
   {
     name: "brittney_inject_holoscript",
@@ -311,19 +311,19 @@ const BRITTNEY_TOOLS: Tool[] = [
         code: {
           type: "string",
           description: "HoloScript code to inject"
-        },
+        }
         worldId: {
           type: "string",
           description: "Target world ID (default: current world)"
-        },
+        }
         validate: {
           type: "boolean",
           description: "Validate syntax before injection (default: true)"
         }
-      },
+      }
       required: ["code"]
     }
-  },
+  }
   
   // =========================================================================
   // NAVIGATION & CONTROL
@@ -339,10 +339,10 @@ const BRITTNEY_TOOLS: Tool[] = [
           type: "string",
           description: "World ID to navigate to (e.g., 'plaza', 'casino', 'builder')"
         }
-      },
+      }
       required: ["worldId"]
     }
-  },
+  }
   
   {
     name: "brittney_reload_scene",
@@ -356,7 +356,7 @@ const BRITTNEY_TOOLS: Tool[] = [
         }
       }
     }
-  },
+  }
   
   {
     name: "brittney_take_screenshot",
@@ -368,7 +368,7 @@ const BRITTNEY_TOOLS: Tool[] = [
           type: "string",
           enum: ["png", "jpeg", "webp"],
           description: "Image format (default: png)"
-        },
+        }
         quality: {
           type: "number",
           description: "Quality for JPEG/WebP (0-100, default: 90)"
@@ -632,7 +632,7 @@ Return only the HoloScript code, no explanation.`
 
 const brittneyTools = BRITTNEY_TOOLS
 
-async function handleBrittneyTool(toolName: string, args: Record<string, any>): Promise<any> {
+async function "handleBrittneyTool" : Promise<any> {
   return BrittneyToolHandler.handle(toolName, args)
 }
 

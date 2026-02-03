@@ -209,11 +209,11 @@ module BrittneyGameModule {
         name: npcName,
         type: npcType,
         emotion
-      },
+      }
       context: {
         ...this.state.gameContext,
         playerContext
-      },
+      }
       instructions: `Generate dialogue for ${npcName}, a ${emotion} ${npcType}. 
 Include a greeting, 3-5 response options, and any hints about quests or secrets.`
     }
@@ -266,7 +266,7 @@ Include a greeting, 3-5 response options, and any hints about quests or secrets.
         theme,
         difficulty,
         location: location || this.state.gameContext.currentLocation
-      },
+      }
       context: this.state.gameContext,
       instructions: `Generate a ${difficulty} quest about "${theme}". 
 Include 2-4 objectives, appropriate rewards, and any prerequisites.`
@@ -322,7 +322,7 @@ Include 2-4 objectives, appropriate rewards, and any prerequisites.`
         abilityType,
         characterClass,
         level
-      },
+      }
       context: this.state.gameContext,
       instructions: `Generate a ${abilityType} ability for a level ${level} ${characterClass}. 
 Include damage, mana cost, cooldown, special effects, and animation suggestions.`
@@ -350,7 +350,7 @@ Include damage, mana cost, cooldown, special effects, and animation suggestions.
         description: response.description || "",
         npcs: response.npcs || [],
         objects: response.objects || [],
-        lighting: response.lighting || { ambient: 0.5, directional: 0.8 },
+        lighting: response.lighting || { ambient: 0.5, directional: 0.8 }
         ambiance: response.ambiance || "peaceful",
         holoScriptCode: response.holoScriptCode || this.generateDefaultSceneCode(sceneConcept)
       }
@@ -373,7 +373,7 @@ Include damage, mana cost, cooldown, special effects, and animation suggestions.
       parameters: {
         concept: sceneConcept,
         npcCount
-      },
+      }
       context: this.state.gameContext,
       instructions: `Generate a scene for "${sceneConcept}" with ${npcCount} NPCs. 
 Include environment objects, lighting, and HoloScript code.`

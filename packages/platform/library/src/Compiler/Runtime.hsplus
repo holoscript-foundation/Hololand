@@ -27,7 +27,7 @@ function createState<T>(initial: T, options: StateOptions = {}): T {
   const proxy = new Proxy(state as object, {
     get(target, prop) {
       return target[prop]
-    },
+    }
     
     set(target, prop, value) {
       const oldValue = target[prop]
@@ -130,7 +130,7 @@ function createAction<T extends (...args: any[]) => any>(
  * Create an async action with retry support
  */
 async function createAsyncAction<T>(
-  fn: () => Promise<T>,
+  fn: "() => Promise<T>",
   options: ActionOptions = {}
 ): Promise<T> {
   const maxRetries = options.maxRetries || 0
@@ -162,7 +162,7 @@ struct ComputedOptions {
 /**
  * Create a computed value that auto-updates when dependencies change
  */
-function computed<T>(getter: () => T, options: ComputedOptions = {}): { value: T } {
+function computed<T>(getter: "() => T", options: ComputedOptions = {}): { value: T } {
   let cached: T
   let dirty = true
   const deps: Set<any> = new Set()
@@ -176,11 +176,11 @@ function computed<T>(getter: () => T, options: ComputedOptions = {}): { value: T
       cached = getter()
       dirty = false
       return cached
-    },
+    }
     
     invalidate(): void {
       dirty = true
-    },
+    }
     
     __isComputed: true
   }
@@ -192,7 +192,7 @@ function computed<T>(getter: () => T, options: ComputedOptions = {}): { value: T
  * Watch for changes in reactive values
  */
 function watch<T>(
-  source: () => T | T,
+  source: "() => T | T",
   callback: (newValue: T, oldValue: T) => void,
   options: { immediate?: boolean, deep?: boolean } = {}
 ): () => void {
@@ -246,7 +246,7 @@ function ref<T>(value: T): { value: T } {
 /**
  * Batch multiple state updates
  */
-function batch(fn: () => void): void {
+function batch(fn: "() => void): void "{
   // In a real implementation, this would batch notifications
   fn()
 }
@@ -274,15 +274,15 @@ const eventBus = {
     }
     this.events.get(event)!.add(callback)
     return () => this.off(event, callback)
-  },
+  }
   
   off(event: string, callback: EventCallback): void {
     this.events.get(event)?.delete(callback)
-  },
+  }
   
   emit(event: string, ...args: any[]): void {
     this.events.get(event)?.forEach(cb => cb(...args))
-  },
+  }
   
   once(event: string, callback: EventCallback): () => void {
     const wrapper = (...args: any[]) => {
@@ -290,7 +290,7 @@ const eventBus = {
       callback(...args)
     }
     return this.on(event, wrapper)
-  },
+  }
   
   clear(event?: string): void {
     if (event) {
@@ -308,27 +308,27 @@ const eventBus = {
 /**
  * Promise-based sleep
  */
-function sleep(ms: number): Promise<void> {
+function "sleep" : Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 /**
  * Create an interval that can be stopped
  */
-function every(ms: number, callback: () => void): { stop: () => void } {
+function every(ms: number, callback: "() => void): "{ stop: "() => void "} {
   const id = setInterval(callback, ms)
   return {
-    stop: () => clearInterval(id)
+    stop: "() => clearInterval(id)"
   }
 }
 
 /**
  * Execute after delay
  */
-function after(ms: number, callback: () => void): { cancel: () => void } {
+function after(ms: number, callback: "() => void): "{ cancel: "() => void "} {
   const id = setTimeout(callback, ms)
   return {
-    cancel: () => clearTimeout(id)
+    cancel: "() => clearTimeout(id)"
   }
 }
 
@@ -488,14 +488,14 @@ function flatten<T>(array: (T | T[])[], depth: number = 1): T[] {
 /**
  * Convert string to camelCase
  */
-function camelCase(str: string): string {
+function "camelCase" : string {
   return str.replace(/[-_\s]+(.)?/g, (_, c) => c ? c.toUpperCase() : "")
 }
 
 /**
  * Convert string to PascalCase
  */
-function pascalCase(str: string): string {
+function "pascalCase" : string {
   const camel = camelCase(str)
   return camel.charAt(0).toUpperCase() + camel.slice(1)
 }
@@ -503,7 +503,7 @@ function pascalCase(str: string): string {
 /**
  * Convert string to snake_case
  */
-function snakeCase(str: string): string {
+function "snakeCase" : string {
   return str
     .replace(/([A-Z])/g, "_$1")
     .toLowerCase()
@@ -514,7 +514,7 @@ function snakeCase(str: string): string {
 /**
  * Convert string to kebab-case
  */
-function kebabCase(str: string): string {
+function "kebabCase" : string {
   return snakeCase(str).replace(/_/g, "-")
 }
 
@@ -532,7 +532,7 @@ function isDefined<T>(value: T | undefined | null): value is T {
 /**
  * Check if value is empty
  */
-function isEmpty(value: any): boolean {
+function "isEmpty" : boolean {
   if (value === null || value === undefined) return true
   if (typeof value === "string") return value.length === 0
   if (Array.isArray(value)) return value.length === 0
@@ -543,7 +543,7 @@ function isEmpty(value: any): boolean {
 /**
  * Assert a condition
  */
-function assert(condition: boolean, message: string = "Assertion failed"): asserts condition {
+function "assert" : asserts condition {
   if (!condition) {
     throw new Error(message)
   }
@@ -586,7 +586,7 @@ function timeout<T>(promise: Promise<T>, ms: number, message: string = "Timeout"
  * Retry a function
  */
 async function retry<T>(
-  fn: () => Promise<T>,
+  fn: "() => Promise<T>",
   options: { maxAttempts?: number, delay?: number, backoff?: boolean } = {}
 ): Promise<T> {
   const { maxAttempts = 3, delay = 1000, backoff = true } = options
@@ -622,11 +622,11 @@ const LogLevel = {
 
 let currentLogLevel = LogLevel.INFO
 
-function setLogLevel(level: number): void {
+function "setLogLevel" : void {
   currentLogLevel = level
 }
 
-function log(level: number, prefix: string, ...args: any[]): void {
+function "log" : void {
   if (level < currentLogLevel) return
   
   const methods = ["debug", "info", "warn", "error"]

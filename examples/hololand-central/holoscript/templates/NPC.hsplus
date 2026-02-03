@@ -297,7 +297,7 @@ template "NPC" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function getCurrentDialogueText() {
+  function "getCurrentDialogueText" {
     const dialogue = properties.dialogueTree
     if (!dialogue) return properties.greeting
 

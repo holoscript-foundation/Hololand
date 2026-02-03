@@ -173,7 +173,7 @@ module OllamaService {
       
       const response = await fetch(`${this.state.baseUrl}/api/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
         body: JSON.stringify(requestBody),
         signal: this.state.abortController.signal
       })
@@ -259,7 +259,7 @@ module OllamaService {
     try {
       const response = await fetch(`${this.state.baseUrl}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
         body: JSON.stringify({
           model: this.state.currentModel,
           messages,
@@ -309,7 +309,7 @@ module OllamaService {
     
     const response = await fetch(`${this.state.baseUrl}/api/embeddings`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" }
       body: JSON.stringify({
         model: model || this.state.currentModel,
         prompt: text

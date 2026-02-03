@@ -136,7 +136,7 @@ module NetworkServer {
     connection.send({
       type: "handshake_ack",
       category: MessageCategory.CONNECTION,
-      payload: { clientId: connection.id },
+      payload: { clientId: connection.id }
       timestamp: Date.now()
     })
   }
@@ -249,7 +249,7 @@ module NetworkServer {
     this.broadcastToRoom(roomId, {
       type: "playerJoined",
       category: MessageCategory.ROOM,
-      payload: { roomId, player },
+      payload: { roomId, player }
       timestamp: Date.now()
     }, clientId)
     
@@ -278,7 +278,7 @@ module NetworkServer {
     this.broadcastToRoom(roomId, {
       type: "playerLeft",
       category: MessageCategory.ROOM,
-      payload: { roomId, playerId: clientId, reason: "left" },
+      payload: { roomId, playerId: clientId, reason: "left" }
       timestamp: Date.now()
     })
     
@@ -291,7 +291,7 @@ module NetworkServer {
       this.broadcastToRoom(roomId, {
         type: "hostChanged",
         category: MessageCategory.ROOM,
-        payload: { roomId, newHostId: newHost.id },
+        payload: { roomId, newHostId: newHost.id }
         timestamp: Date.now()
       })
     }
@@ -316,7 +316,7 @@ module NetworkServer {
     this.broadcastToRoom(roomId, {
       type: "roomStateChanged",
       category: MessageCategory.ROOM,
-      payload: { roomId, state },
+      payload: { roomId, state }
       timestamp: Date.now()
     })
   }
@@ -469,7 +469,7 @@ module NetworkServer {
         client.send({
           type: "error",
           category: MessageCategory.ROOM,
-          payload: { message: err.message },
+          payload: { message: err.message }
           timestamp: Date.now()
         })
       }
@@ -487,14 +487,14 @@ module NetworkServer {
         client.send({
           type: "room_joined",
           category: MessageCategory.ROOM,
-          payload: { room, player },
+          payload: { room, player }
           timestamp: Date.now()
         })
       } catch (err) {
         client.send({
           type: "error",
           category: MessageCategory.ROOM,
-          payload: { message: err.message },
+          payload: { message: err.message }
           timestamp: Date.now()
         })
       }

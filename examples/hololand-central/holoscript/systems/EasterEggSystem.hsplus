@@ -56,7 +56,7 @@ system "EasterEggSystem" {
         icon: "magnifying-glass"
       }
       hint: "Not everything is as it appears at first glance..."
-    },
+    }
     {
       id: "plaza-fountain-code"
       zone: "MainPlaza"
@@ -73,7 +73,7 @@ system "EasterEggSystem" {
         animation: "water-dance"
       }
       hint: "The fountain remembers the old dance..."
-    },
+    }
     {
       id: "plaza-skywalk"
       zone: "MainPlaza"
@@ -89,7 +89,7 @@ system "EasterEggSystem" {
         icon: "cloud-walking"
       }
       hint: "Look up and believe..."
-    },
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // BUILDER SHOP (Zone 2)
@@ -109,7 +109,7 @@ system "EasterEggSystem" {
         item: "keyboard-hologram"
       }
       hint: "Every builder needs the right tools..."
-    },
+    }
     {
       id: "builder-blueprint"
       zone: "BuilderShop"
@@ -117,10 +117,10 @@ system "EasterEggSystem" {
       description: "Collect all 5 hidden blueprints"
       triggerType: "multi_collect"
       collectibles: [
-        { id: "bp-1", position: [2, 2, 3] },
-        { id: "bp-2", position: [-4, 1, 6] },
-        { id: "bp-3", position: [0, 3, -2] },
-        { id: "bp-4", position: [5, 1, -4] },
+        { id: "bp-1", position: [2, 2, 3] }
+        { id: "bp-2", position: [-4, 1, 6] }
+        { id: "bp-3", position: [0, 3, -2] }
+        { id: "bp-4", position: [5, 1, -4] }
         { id: "bp-5", position: [-3, 2, 0] }
       ]
       reward: {
@@ -130,7 +130,7 @@ system "EasterEggSystem" {
         image: "architect-badge"
       }
       hint: "Scattered pages of wisdom await collection..."
-    },
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // CASINO (Zone 3)
@@ -151,7 +151,7 @@ system "EasterEggSystem" {
         effect: "neon-glow"
       }
       hint: "The colors tell a story..."
-    },
+    }
     {
       id: "casino-trivia"
       zone: "HololandCasino"
@@ -167,7 +167,7 @@ system "EasterEggSystem" {
         icon: "four-leaf-clover"
       }
       hint: "Brian knows more than he lets on..."
-    },
+    }
     {
       id: "casino-jackpot-room"
       zone: "HololandCasino"
@@ -183,7 +183,7 @@ system "EasterEggSystem" {
         icon: "diamond"
       }
       hint: "Fortune favors the persistent explorer..."
-    },
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // ARCADE DISTRICT (Zone 4)
@@ -203,7 +203,7 @@ system "EasterEggSystem" {
         animation: "perfect-dance"
       }
       hint: "Feel the beat, become the beat..."
-    },
+    }
     {
       id: "arcade-classic-cabinets"
       zone: "ArcadeDistrict"
@@ -211,8 +211,8 @@ system "EasterEggSystem" {
       description: "Find all 3 hidden retro cabinets"
       triggerType: "multi_collect"
       collectibles: [
-        { id: "cabinet-pac", position: [8, 0, 12] },
-        { id: "cabinet-space", position: [-6, 0, 8] },
+        { id: "cabinet-pac", position: [8, 0, 12] }
+        { id: "cabinet-space", position: [-6, 0, 8] }
         { id: "cabinet-donkey", position: [3, 0, -5] }
       ]
       reward: {
@@ -222,7 +222,7 @@ system "EasterEggSystem" {
         image: "pixel-heart"
       }
       hint: "Legends of gaming past are hiding in plain sight..."
-    },
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // SOCIAL LOUNGE (Zone 5)
@@ -242,7 +242,7 @@ system "EasterEggSystem" {
         item: "phantom-mask"
       }
       hint: "Some conversations are meant to be private..."
-    },
+    }
     {
       id: "lounge-dance-floor"
       zone: "SocialLounge"
@@ -260,7 +260,7 @@ system "EasterEggSystem" {
         animation: "moonlight-waltz"
       }
       hint: "When the stars come out, the floor comes alive..."
-    },
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // INFINITY SHOP (Zone 6)
@@ -280,7 +280,7 @@ system "EasterEggSystem" {
         item: "portal-frame"
       }
       hint: "Look deep into yourself..."
-    },
+    }
     {
       id: "infinity-brittney-secret"
       zone: "InfinityShop"
@@ -296,7 +296,7 @@ system "EasterEggSystem" {
         icon: "brain"
       }
       hint: "AI ponders the big questions too..."
-    },
+    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // THEME VARIANTS (Special)
@@ -317,7 +317,7 @@ system "EasterEggSystem" {
         effect: "digital-glitch"
       }
       hint: "Reality bends in the neon light..."
-    },
+    }
     {
       id: "theme-holiday-snowman"
       zone: "MainPlaza"
@@ -531,7 +531,7 @@ system "EasterEggSystem" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function calculateDistance(pos1, pos2) {
+  function "calculateDistance" {
     const dx = pos1[0] - pos2[0]
     const dy = pos1[1] - pos2[1]
     const dz = pos1[2] - pos2[2]

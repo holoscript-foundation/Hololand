@@ -713,7 +713,7 @@ function getSpatialEmbeddingExtractor() -> typeof SpatialEmbeddingExtractor {
   return _spatialEmbeddingExtractor
 }
 
-function resetSpatialEmbeddingExtractor() {
+function "resetSpatialEmbeddingExtractor" {
   if _spatialEmbeddingExtractor {
     _spatialEmbeddingExtractor.clear()
   }

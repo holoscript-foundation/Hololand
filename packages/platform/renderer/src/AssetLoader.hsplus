@@ -56,7 +56,7 @@ struct LoadedTexture extends LoadedAsset {
  */
 struct AssetLoaderOptions {
   renderer: THREE.WebGLRenderer = null,
-  qualitySettings: QualitySettings = {},
+  qualitySettings: QualitySettings = {}
   dracoPath: string = "https://www.gstatic.com/draco/versioned/decoders/1.5.6/",
   ktx2Path: string = "https://www.gstatic.com/basis-universal/versioned/2021-04-15-ba1c3e4/",
   cacheSize: number = 100
@@ -152,7 +152,7 @@ module AssetLoader {
     dracoLoader: DRACOLoader = null,
     ktx2Loader: KTX2Loader = null,
     cache: typeof AssetCache = null,
-    qualitySettings: QualitySettings = {},
+    qualitySettings: QualitySettings = {}
     loadingCount: number = 0,
     nextId: number = 1
   }
@@ -221,7 +221,7 @@ module AssetLoader {
         id: self.generateId(),
         assetType: AssetType.gltf,
         url: url,
-        data: { scene, animations, cameras },
+        data: { scene, animations, cameras }
         metadata: metadata
       }
 
@@ -250,7 +250,7 @@ module AssetLoader {
           if event.lengthComputable && onProgress {
             onProgress(event.loaded / event.total)
           }
-        },
+        }
         reject
       )
     })
@@ -371,7 +371,7 @@ module AssetLoader {
     // Get bounding box
     let box = new THREE.Box3().setFromObject(scene)
     let bounds: BoundingBox = {
-      min: { x: box.min.x, y: box.min.y, z: box.min.z },
+      min: { x: box.min.x, y: box.min.y, z: box.min.z }
       max: { x: box.max.x, y: box.max.y, z: box.max.z }
     }
 

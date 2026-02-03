@@ -1,7 +1,7 @@
 // HoloScript+ Settings Integration Test
 // Demonstrates opening the settings modal from code
 
-orb SettingsController {
+object "SettingsController" {
   at: [0, 2, -3]
   shape: "cube"
   color: "#4ade80"

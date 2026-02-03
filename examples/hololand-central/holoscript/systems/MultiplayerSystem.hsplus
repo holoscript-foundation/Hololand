@@ -290,15 +290,15 @@ system "MultiplayerSystem" {
   // INTERNAL NETWORKING
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function generateSessionId() {
+  function "generateSessionId" {
     return "session-" + Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 6)
   }
 
-  function generatePlayerId() {
+  function "generatePlayerId" {
     return "player-" + Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 6)
   }
 
-  function startLocalServer() {
+  function "startLocalServer" {
     // In browser context, this would use a service worker or
     // for Electron/Tauri, a real local server
     console.log("Starting local server on port", config.localServerPort)
@@ -307,11 +307,11 @@ system "MultiplayerSystem" {
     // The @hololand/network package handles this
   }
 
-  function stopLocalServer() {
+  function "stopLocalServer" {
     console.log("Stopping local server")
   }
 
-  async function createTunnel() {
+  async function "createTunnel" {
     // Use ngrok or similar tunneling service
     // This requires the ngrok binary or API
 
@@ -323,11 +323,11 @@ system "MultiplayerSystem" {
     return "https://your-session.ngrok.io"
   }
 
-  function closeTunnel() {
+  function "closeTunnel" {
     console.log("Closing tunnel")
   }
 
-  async function connectToPeer(url) {
+  async function "connectToPeer" {
     try {
       const peer = new RTCPeerConnection({ iceServers: config.iceServers })
 
@@ -359,7 +359,7 @@ system "MultiplayerSystem" {
     }
   }
 
-  function closePeerConnection(peerId) {
+  function "closePeerConnection" {
     const peer = state.peers[peerId]
     const channel = state.dataChannels[peerId]
 
@@ -374,7 +374,7 @@ system "MultiplayerSystem" {
     }
   }
 
-  function setupDataChannel(channel, peerId) {
+  function "setupDataChannel" {
     channel.onopen = () -> {
       console.log("Data channel open with", peerId)
       state.dataChannels[peerId] = channel
@@ -396,7 +396,7 @@ system "MultiplayerSystem" {
     }
   }
 
-  function handleMessage(peerId, message) {
+  function "handleMessage" {
     match message.type {
       "player-join" -> {
         state.remotePlayers[message.player.id] = message.player
@@ -443,7 +443,7 @@ system "MultiplayerSystem" {
     }
   }
 
-  function handlePeerDisconnect(peerId) {
+  function "handlePeerDisconnect" {
     // Find and remove player associated with this peer
     for (playerId of Object.keys(state.remotePlayers)) {
       const player = state.remotePlayers[playerId]
@@ -456,11 +456,11 @@ system "MultiplayerSystem" {
     }
   }
 
-  function queueSync(message) {
+  function "queueSync" {
     state.syncQueue.push(message)
   }
 
-  function broadcast(message) {
+  function "broadcast" {
     const data = JSON.stringify(message)
     for (channel of Object.values(state.dataChannels)) {
       if (channel.readyState === "open") {
@@ -469,7 +469,7 @@ system "MultiplayerSystem" {
     }
   }
 
-  function send(peer, message) {
+  function "send" {
     const channel = state.dataChannels[peer]
     if (channel && channel.readyState === "open") {
       channel.send(JSON.stringify(message))
@@ -478,12 +478,12 @@ system "MultiplayerSystem" {
 
   // Placeholder signaling functions
   // Real implementation would use WebSocket signaling server
-  async function signalOffer(url, offer) {
+  async function "signalOffer" {
     // Exchange SDP offer/answer
     return null
   }
 
-  function signalCandidate(url, candidate) {
+  function "signalCandidate" {
     // Exchange ICE candidates
   }
 
@@ -560,7 +560,7 @@ system "MultiplayerSystem" {
     leaveSession()
   }
 
-  function lerp(a, b, t) {
+  function "lerp" {
     return a + (b - a) * t
   }
 }

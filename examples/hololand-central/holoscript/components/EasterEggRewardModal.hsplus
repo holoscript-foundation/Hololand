@@ -32,9 +32,9 @@ component "EasterEggRewardModal" {
   // ═══════════════════════════════════════════════════════════════════════════
 
   data rarityColors: {
-    common: { color: "#9e9e9e", glow: "rgba(158, 158, 158, 0.3)" },
-    rare: { color: "#2196f3", glow: "rgba(33, 150, 243, 0.4)" },
-    epic: { color: "#9c27b0", glow: "rgba(156, 39, 176, 0.4)" },
+    common: { color: "#9e9e9e", glow: "rgba(158, 158, 158, 0.3)" }
+    rare: { color: "#2196f3", glow: "rgba(33, 150, 243, 0.4)" }
+    epic: { color: "#9c27b0", glow: "rgba(156, 39, 176, 0.4)" }
     legendary: { color: "#ffd700", glow: "rgba(255, 215, 0, 0.5)" }
   }
 
@@ -279,11 +279,11 @@ component "EasterEggRewardModal" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function canEquip(type) {
+  function "canEquip" {
     return ["cosmetic", "emote", "title"].includes(type)
   }
 
-  function getRewardTypeLabel(type) {
+  function "getRewardTypeLabel" {
     match type {
       "badge" -> "Achievement Badge"
       "cosmetic" -> "Cosmetic Item"

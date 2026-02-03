@@ -108,7 +108,7 @@ module HololandClient {
   }): Promise<any> {
     const response = await axios.post(
       `${this.state.baseUrl}/api/v1/worlds/${params.worldId}/invite`,
-      { agentId: params.agentId, permissions: params.permissions || ["view", "edit"] },
+      { agentId: params.agentId, permissions: params.permissions || ["view", "edit"] }
       { headers: this.getHeaders() }
     )
     return response.data
@@ -193,25 +193,25 @@ const CORE_TOOLS: Tool[] = [
         name: {
           type: "string",
           description: "Name of the world (e.g., 'Agent Workspace - Data Analysis')"
-        },
+        }
         template: {
           type: "string",
           description: "World template",
           enum: ["blank", "office", "gallery", "playground", "analytics", "collaboration"]
-        },
+        }
         privacy: {
           type: "string",
           description: "World privacy setting",
           enum: ["public", "private", "agent-only"]
-        },
+        }
         ownerId: {
           type: "string",
           description: "Agent ID that owns this world"
         }
-      },
+      }
       required: ["name"]
     }
-  },
+  }
   {
     name: "execute_holoscript",
     description: "Execute HoloScript code to build or modify VR worlds. HoloScript is the declarative language for spatial computing.",
@@ -221,19 +221,19 @@ const CORE_TOOLS: Tool[] = [
         worldId: {
           type: "string",
           description: "World ID to execute HoloScript in"
-        },
+        }
         code: {
           type: "string",
           description: "HoloScript code to execute"
-        },
+        }
         context: {
           type: "object",
           description: "Optional execution context"
         }
-      },
+      }
       required: ["worldId", "code"]
     }
-  },
+  }
   {
     name: "visualize_data",
     description: "Visualize data in 3D. Supports charts, graphs, heatmaps, and 3D models.",
@@ -243,20 +243,20 @@ const CORE_TOOLS: Tool[] = [
         worldId: {
           type: "string",
           description: "World ID to add visualization to"
-        },
+        }
         data: {
           type: "object",
           description: "Data to visualize"
-        },
+        }
         vizType: {
           type: "string",
           description: "Visualization type",
           enum: ["chart", "graph", "heatmap", "3d-model"]
         }
-      },
+      }
       required: ["worldId", "data", "vizType"]
     }
-  },
+  }
   {
     name: "invite_agent",
     description: "Invite another AI agent to collaborate in a world.",
@@ -266,20 +266,20 @@ const CORE_TOOLS: Tool[] = [
         worldId: {
           type: "string",
           description: "World ID to invite agent to"
-        },
+        }
         agentId: {
           type: "string",
           description: "Agent ID to invite"
-        },
+        }
         permissions: {
           type: "array",
-          items: { type: "string" },
+          items: { type: "string" }
           description: "Permissions to grant (view, edit, admin)"
         }
-      },
+      }
       required: ["worldId", "agentId"]
     }
-  },
+  }
   {
     name: "get_world",
     description: "Get details about a specific world.",
@@ -290,10 +290,10 @@ const CORE_TOOLS: Tool[] = [
           type: "string",
           description: "World ID to get details for"
         }
-      },
+      }
       required: ["worldId"]
     }
-  },
+  }
   {
     name: "list_worlds",
     description: "List all worlds, optionally filtered by owner or type.",
@@ -303,14 +303,14 @@ const CORE_TOOLS: Tool[] = [
         ownerId: {
           type: "string",
           description: "Filter by owner ID"
-        },
+        }
         type: {
           type: "string",
           description: "Filter by world type"
         }
       }
     }
-  },
+  }
   {
     name: "add_object",
     description: "Add a 3D object to a world.",
@@ -320,36 +320,36 @@ const CORE_TOOLS: Tool[] = [
         worldId: {
           type: "string",
           description: "World ID to add object to"
-        },
+        }
         type: {
           type: "string",
           description: "Object type (box, sphere, cylinder, model, etc.)"
-        },
+        }
         position: {
           type: "object",
           properties: {
-            x: { type: "number" },
-            y: { type: "number" },
+            x: { type: "number" }
+            y: { type: "number" }
             z: { type: "number" }
-          },
+          }
           required: ["x", "y", "z"]
-        },
+        }
         metadata: {
           type: "object",
           description: "Additional object metadata"
-        },
+        }
         physics: {
           type: "object",
           properties: {
-            enabled: { type: "boolean" },
-            mass: { type: "number" },
+            enabled: { type: "boolean" }
+            mass: { type: "number" }
             restitution: { type: "number" }
           }
         }
-      },
+      }
       required: ["worldId", "type", "position"]
     }
-  },
+  }
   {
     name: "remove_object",
     description: "Remove a 3D object from a world.",
@@ -359,15 +359,15 @@ const CORE_TOOLS: Tool[] = [
         worldId: {
           type: "string",
           description: "World ID"
-        },
+        }
         objectId: {
           type: "string",
           description: "Object ID to remove"
         }
-      },
+      }
       required: ["worldId", "objectId"]
     }
-  },
+  }
   {
     name: "list_objects",
     description: "List all objects in a world.",
@@ -378,10 +378,10 @@ const CORE_TOOLS: Tool[] = [
           type: "string",
           description: "World ID to list objects from"
         }
-      },
+      }
       required: ["worldId"]
     }
-  },
+  }
   {
     name: "get_holoscript_version",
     description: "Get the current HoloScript version and supported platforms. No API connection required.",
@@ -389,7 +389,7 @@ const CORE_TOOLS: Tool[] = [
       type: "object",
       properties: {}
     }
-  },
+  }
   {
     name: "validate_holoscript",
     description: "Validate HoloScript syntax without executing. Returns AST or errors.",
@@ -400,10 +400,10 @@ const CORE_TOOLS: Tool[] = [
           type: "string",
           description: "HoloScript code to validate"
         }
-      },
+      }
       required: ["code"]
     }
-  },
+  }
   {
     name: "parse_holoscript",
     description: "Parse HoloScript and return the AST (Abstract Syntax Tree).",
@@ -414,7 +414,7 @@ const CORE_TOOLS: Tool[] = [
           type: "string",
           description: "HoloScript code to parse"
         }
-      },
+      }
       required: ["code"]
     }
   }
@@ -506,7 +506,7 @@ module MCPServer {
   
   @action async start(): Promise<void> {
     this.state.server = new Server(
-      { name: "hololand", version: "2.0.0" },
+      { name: "hololand", version: "2.0.0" }
       { capabilities: { tools: {} } }
     )
     

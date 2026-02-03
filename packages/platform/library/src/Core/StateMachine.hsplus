@@ -30,7 +30,7 @@ component StateMachine {
       enter: config.enter || (() => {}),
       update: config.update || (() => {}),
       exit: config.exit || (() => {}),
-      transitions: config.transitions || {},
+      transitions: config.transitions || {}
       children: config.children || null,
       parent: config.parent || null
     }
@@ -439,8 +439,8 @@ component GOAPPlanner {
     props.actions.push({
       name: config.name,
       cost: config.cost || 1,
-      preconditions: config.preconditions || {},
-      effects: config.effects || {},
+      preconditions: config.preconditions || {}
+      effects: config.effects || {}
       execute: config.execute,
       isValid: config.isValid || (() => true)
     })

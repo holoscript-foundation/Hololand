@@ -86,7 +86,7 @@ module CodeTemplates {
     roughness: 0.5
   }
 }`
-      },
+      }
       {
         id: "grouped_objects",
         name: "Grouped Objects",
@@ -112,7 +112,7 @@ module CodeTemplates {
     trait Material { color: 0x0000ff }
   }
 }`
-      },
+      }
       {
         id: "template_pattern",
         name: "Template Pattern",
@@ -171,7 +171,7 @@ spatial_group "Forest" {
     roughness: 0.7
   }
 }`
-      },
+      }
       {
         id: "sphere",
         name: "Sphere",
@@ -193,7 +193,7 @@ spatial_group "Forest" {
     roughness: 0.2
   }
 }`
-      },
+      }
       {
         id: "plane",
         name: "Ground Plane",
@@ -219,7 +219,7 @@ spatial_group "Forest" {
     receive: true
   }
 }`
-      },
+      }
       {
         id: "cylinder",
         name: "Cylinder",
@@ -283,7 +283,7 @@ spatial_group "Forest" {
     }
   }
 }`
-      },
+      }
       {
         id: "hoverable_object",
         name: "Hover Effect",
@@ -316,7 +316,7 @@ spatial_group "Forest" {
     self.scale = [1, 1, 1]
   }
 }`
-      },
+      }
       {
         id: "draggable_object",
         name: "Draggable Object",
@@ -352,7 +352,7 @@ spatial_group "Forest" {
     self.material.color = 0x2ecc71
   }
 }`
-      },
+      }
       {
         id: "trigger_zone",
         name: "Trigger Zone",
@@ -422,7 +422,7 @@ spatial_group "Forest" {
     loop: true
   }
 }`
-      },
+      }
       {
         id: "point_light",
         name: "Point Light",
@@ -442,7 +442,7 @@ spatial_group "Forest" {
     castShadow: true
   }
 }`
-      },
+      }
       {
         id: "spotlight",
         name: "Spotlight",
@@ -469,7 +469,7 @@ spatial_group "Forest" {
     self.rotation[1] += 0.5
   }
 }`
-      },
+      }
       {
         id: "animated_material",
         name: "Animated Material",
@@ -546,7 +546,7 @@ spatial_group "Forest" {
     after(2000) { self.playAnimation("idle") }
   }
 }`
-      },
+      }
       {
         id: "patrol_npc",
         name: "Patrol NPC",
@@ -591,7 +591,7 @@ spatial_group "Forest" {
     self.moveToWaypoint()
   }
 }`
-      },
+      }
       {
         id: "enemy_npc",
         name: "Enemy NPC",
@@ -687,7 +687,7 @@ spatial_group "Forest" {
     self.lookAt(camera.position)
   }
 }`
-      },
+      }
       {
         id: "health_bar",
         name: "Health Bar",
@@ -801,7 +801,7 @@ spatial_group "Forest" {
     }
   }
 }`
-      },
+      }
       {
         id: "game_scene",
         name: "Game Scene",
@@ -892,25 +892,16 @@ spatial_group "Forest" {
   
   const states = {
     idle: {
-      enter: () => self.playAnimation("idle"),
-      update: () => {
-        if (detectPlayer()) transition("chase")
-      }
-    },
+      enter: "() => self.playAnimation(\"idle\")",
+      update: "() => { if (detectPlayer()) transition(\"chase\") }"
+    }
     chase: {
-      enter: () => self.playAnimation("run"),
-      update: () => {
-        const player = getPlayer()
-        moveTowards(self, player.position, 0.1)
-        if (distance(self, player) < 2) transition("attack")
-        if (distance(self, player) > 15) transition("idle")
-      }
-    },
+      enter: "() => self.playAnimation(\"run\")",
+      update: "() => { const player = getPlayer() moveTowards(self, player.position, 0.1) if (distance(self, player) < 2) transition(\"attack\") if (distance(self, player) > 15) transition(\"idle\") }"
+    }
     attack: {
-      enter: () => self.playAnimation("attack"),
-      update: () => {
-        if (self.state.stateTime > 1000) transition("chase")
-      }
+      enter: "() => self.playAnimation(\"attack\")",
+      update: "() => { if (self.state.stateTime > 1000) transition(\"chase\") }"
     }
   }
   
@@ -926,7 +917,7 @@ spatial_group "Forest" {
     states[self.state.currentState].update()
   }
 }`
-      },
+      }
       {
         id: "object_pool",
         name: "Object Pool",

@@ -148,25 +148,25 @@ const BRITTNEY_ACTIONS = [
     label: "Generate Child Object...",
     icon: "✨",
     shortcut: "Ctrl+Shift+G"
-  },
+  }
   {
     id: "explain",
     label: "Explain This Object",
     icon: "💡",
     shortcut: "Ctrl+Shift+E"
-  },
+  }
   {
     id: "add-interaction",
     label: "Add Interaction...",
     icon: "🎯",
     shortcut: null
-  },
+  }
   {
     id: "optimize",
     label: "Optimize Scene",
     icon: "⚡",
     shortcut: "Ctrl+Shift+O"
-  },
+  }
   {
     id: "duplicate-varied",
     label: "Duplicate with Variations",

@@ -25,6 +25,9 @@ import { brittneyIDETools, handleBrittneyIDETool } from './brittney-ide-tools.js
 // HoloScript Graph Understanding Tools (helps agents understand .holo as visual graphs)
 import { holoGraphTools, handleHoloGraphTool } from './holo-graph-tools.js';
 
+// Agent-Friendly Tools (optimized for AI agent efficiency)
+import { agentTools, handleAgentTool } from './agent-tools.js';
+
 // Import HoloScript code parser for local validation
 // Using dynamic require to work around @holoscript/core ESM resolution issue
 import { createRequire } from 'module';
@@ -170,10 +173,67 @@ const server = new Server(
   }
 );
 
+const buildResponse = (tool: string, traceId: string, data: unknown) => ({
+  content: [
+    {
+      type: 'text',
+      text: JSON.stringify({
+        ok: true,
+        server: 'hololand',
+        tool,
+        traceId,
+        timestamp: new Date().toISOString(),
+        data,
+      }, null, 2),
+    },
+  ],
+});
+
+const buildErrorResponse = (tool: string, traceId: string, error: unknown) => ({
+  content: [
+    {
+      type: 'text',
+      text: JSON.stringify({
+        ok: false,
+        server: 'hololand',
+        tool,
+        traceId,
+        timestamp: new Date().toISOString(),
+        error: (error && typeof error === 'object') ? error : { message: String(error) },
+      }, null, 2),
+    },
+  ],
+  isError: true,
+});
+
 /**
  * Tool Definitions
  */
 const tools: Tool[] = [
+  {
+    name: 'mcp_get_info',
+    description: 'Return MCP server metadata and tool inventory',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'mcp_get_health',
+    description: 'Return MCP server health status',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'mcp_get_capabilities',
+    description: 'Return MCP tool capability schemas',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
   {
     name: 'create_world',
     description:
@@ -497,6 +557,12 @@ const tools: Tool[] = [
   // Project scanning, diagnostics, autocomplete, refactoring, docs
   // =====================================================
   ...brittneyIDETools,
+
+  // =====================================================
+  // AGENT-FRIENDLY TOOLS (NEW)
+  // Optimized for AI agents: batch ops, single-call status, autonomous workflows
+  // =====================================================
+  ...agentTools,
 ];
 
 /**
@@ -510,105 +576,75 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
  * Call Tool Handler
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: rawArgs } = request.params as any;
+  const args = rawArgs || {};
+  const traceId = `hololand_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
   try {
-    const { name, arguments: rawArgs } = request.params as any;
-    const args = rawArgs || {};
 
     switch (name) {
+      case 'mcp_get_info': {
+        return buildResponse(name, traceId, {
+          server: 'hololand',
+          version: '1.0.0',
+          toolCount: tools.length,
+          tools: tools.map(tool => tool.name),
+        });
+      }
+      case 'mcp_get_health': {
+        return buildResponse(name, traceId, {
+          status: 'ok',
+          server: 'hololand',
+        });
+      }
+      case 'mcp_get_capabilities': {
+        return buildResponse(name, traceId, {
+          server: 'hololand',
+          tools: tools.map(tool => ({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema
+          })),
+        });
+      }
       case 'create_world': {
         const result = await hololandClient.createWorld(args as any);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'execute_holoscript': {
         const result = await hololandClient.executeHoloScript(args as any);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'visualize_data': {
         const result = await hololandClient.visualizeData(args as any);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'invite_agent': {
         const result = await hololandClient.inviteAgent(args as any);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'get_world': {
         const result = await hololandClient.getWorld(args.worldId);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'list_worlds': {
         const result = await hololandClient.listWorlds(args as any);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'update_world': {
         const result = await hololandClient.updateWorld(args.worldId, args.updates);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'delete_world': {
         const result = await hololandClient.deleteWorld(args.worldId);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       // =====================================================
@@ -617,48 +653,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'parse_holoscript': {
         const parseResult = holoScriptParser.parse(args.code);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  success: parseResult.success,
-                  ast: parseResult.ast,
-                  nodeCount: parseResult.ast?.length || 0,
-                  errors: parseResult.errors,
-                  warnings: parseResult.warnings,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, {
+          success: parseResult.success,
+          ast: parseResult.ast,
+          nodeCount: parseResult.ast?.length || 0,
+          errors: parseResult.errors,
+          warnings: parseResult.warnings,
+        });
       }
 
       case 'validate_holoscript': {
         const validationResult = holoScriptParser.parse(args.code);
         const isValid = validationResult.success && validationResult.errors.length === 0;
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  valid: isValid,
-                  errors: validationResult.errors,
-                  warnings: validationResult.warnings,
-                  summary: isValid
-                    ? `✓ Code is valid (${validationResult.ast?.length || 0} nodes parsed)`
-                    : `✗ Found ${validationResult.errors.length} error(s)`,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, {
+          valid: isValid,
+          errors: validationResult.errors,
+          warnings: validationResult.warnings,
+          summary: isValid
+            ? `✓ Code is valid (${validationResult.ast?.length || 0} nodes parsed)`
+            : `✗ Found ${validationResult.errors.length} error(s)`,
+        });
       }
 
       case 'get_holoscript_examples': {
@@ -673,56 +687,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  category,
-                  examples,
-                  availableCategories: Object.keys(HOLOSCRIPT_DEMO_SCRIPTS),
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, {
+          category,
+          examples,
+          availableCategories: Object.keys(HOLOSCRIPT_DEMO_SCRIPTS),
+        });
       }
 
       case 'get_holoscript_version': {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  version: HOLOSCRIPT_VERSION,
-                  mcpServerVersion: '1.0.0',
-                  features: [
-                    '3D VR world creation',
-                    '2D UI components',
-                    'Physics simulation',
-                    'Voice command parsing',
-                    'Gesture recognition',
-                    'Multi-agent collaboration',
-                  ],
-                  supportedPlatforms: [
-                    'WebXR',
-                    'Oculus Quest',
-                    'HTC Vive',
-                    'Valve Index',
-                    'Apple Vision Pro',
-                    'Windows Mixed Reality',
-                  ],
-                },
-                null,
-                2
-              ),
-            },
+        return buildResponse(name, traceId, {
+          version: HOLOSCRIPT_VERSION,
+          mcpServerVersion: '1.0.0',
+          features: [
+            '3D VR world creation',
+            '2D UI components',
+            'Physics simulation',
+            'Voice command parsing',
+            'Gesture recognition',
+            'Multi-agent collaboration',
           ],
-        };
+          supportedPlatforms: [
+            'WebXR',
+            'Oculus Quest',
+            'HTC Vive',
+            'Valve Index',
+            'Apple Vision Pro',
+            'Windows Mixed Reality',
+          ],
+        });
       }
 
       // =====================================================
@@ -731,38 +723,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'add_object': {
         const result = await hololandClient.addObject(args as any);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'remove_object': {
         const result = await hololandClient.removeObject(args.worldId, args.objectId);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       case 'list_objects': {
         const result = await hololandClient.listObjects(args.worldId);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return buildResponse(name, traceId, result);
       }
 
       // =====================================================
@@ -771,40 +742,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       default:
         // Check if it's a Brittney tool
         if (name.startsWith('brittney_')) {
+          // Check if it's an Agent-Friendly tool FIRST (most specific)
+          const agentToolNames = agentTools.map((t: any) => t.name);
+          if (agentToolNames.includes(name)) {
+            const result = await handleAgentTool(name, args as Record<string, unknown>, {
+              brittneyService: process.env.BRITTNEY_SERVICE_URL || 'http://localhost:11435',
+              apiKey: process.env.BRITTNEY_ADMIN_KEY,
+              workspacePath: process.env.HOLOLAND_WORKSPACE_PATH || process.cwd()
+            });
+            return buildResponse(name, traceId, result);
+          }
           // Check if it's an advanced Brittney tool
           const advancedToolNames = advancedBrittneyTools.map(t => t.name);
           if (advancedToolNames.includes(name)) {
-            return await handleAdvancedBrittneyTool(name, args as Record<string, unknown>);
+            const result = await handleAdvancedBrittneyTool(name, args as Record<string, unknown>);
+            return buildResponse(name, traceId, result);
           }
           // Check if it's an IDE tool
           const ideToolNames = brittneyIDETools.map(t => t.name);
           if (ideToolNames.includes(name)) {
             const result = await handleBrittneyIDETool(name, args as Record<string, unknown>);
-            return {
-              content: [{ type: 'text', text: result }],
-            };
+            return buildResponse(name, traceId, { result });
           }
           // Otherwise use standard Brittney handler
-          return await handleBrittneyTool(name, args as Record<string, unknown>);
+          const result = await handleBrittneyTool(name, args as Record<string, unknown>);
+          return buildResponse(name, traceId, result);
         }
 
         // Check if it's a HoloScript Graph tool
         if (name.startsWith('holo_')) {
-          return await handleHoloGraphTool(name, args as Record<string, unknown>);
+          const result = await handleHoloGraphTool(name, args as Record<string, unknown>);
+          return buildResponse(name, traceId, result);
         }
 
-        throw new Error(`Unknown tool: ${name}`);
+        return buildErrorResponse(name, traceId, `Unknown tool: ${name}`);
     }
   } catch (error: any) {
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Error: ${error.message}`,
-        },
-      ],
-      isError: true,
-    };
+    return buildErrorResponse(name, traceId, error);
   }
 });
 

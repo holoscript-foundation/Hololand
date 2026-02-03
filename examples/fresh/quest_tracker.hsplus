@@ -91,7 +91,7 @@ quests {
         required: 1,
         optional: false,
         hidden: false
-      },
+      }
       {
         id: "find_elara",
         type: "talk",
@@ -129,7 +129,7 @@ quests {
         optional: false,
         hidden: false,
         hints: ["Visit different areas of the village"]
-      },
+      }
       {
         id: "talk_villagers",
         type: "talk",
@@ -138,7 +138,7 @@ quests {
         required: 3,
         optional: false,
         hidden: false
-      },
+      }
       {
         id: "find_sword",
         type: "collect",
@@ -174,7 +174,7 @@ quests {
         optional: false,
         hidden: false,
         hints: ["Elara might know where to find one"]
-      },
+      }
       {
         id: "travel_forest",
         type: "explore",
@@ -184,7 +184,7 @@ quests {
         optional: false,
         hidden: true,
         location: [100, 0, 50]
-      },
+      }
       {
         id: "reach_temple",
         type: "explore",
@@ -200,7 +200,7 @@ quests {
       experience: 500,
       gold: 100,
       items: [
-        { itemId: "echo_shard", quantity: 1 },
+        { itemId: "echo_shard", quantity: 1 }
         { itemId: "strength_elixir", quantity: 2 }
       ],
       unlocks: ["temple_interior"]
@@ -225,7 +225,7 @@ quests {
         required: 10,
         optional: false,
         hidden: false
-      },
+      }
       {
         id: "bonus_goblins",
         type: "kill",
@@ -262,7 +262,7 @@ quests {
         optional: false,
         hidden: false,
         hints: ["Look near water sources"]
-      },
+      }
       {
         id: "deliver_herbs",
         type: "deliver",
@@ -278,7 +278,7 @@ quests {
       experience: 75,
       gold: 20,
       items: [
-        { itemId: "health_potion", quantity: 5 },
+        { itemId: "health_potion", quantity: 5 }
         { itemId: "mana_potion", quantity: 2 }
       ]
     }
@@ -779,8 +779,8 @@ system QuestGiverSystem {
     emit("show_quest_dialog", {
       mode: "offer",
       quest: info,
-      onAccept: () => QuestSystem.accept_quest(questId),
-      onDecline: () => {}
+      onAccept: "() => QuestSystem.accept_quest(questId)",
+      onDecline: "() => {}"
     })
   }
 
@@ -789,7 +789,7 @@ system QuestGiverSystem {
     emit("show_quest_dialog", {
       mode: "complete",
       quest: info,
-      onComplete: () => QuestSystem.complete_quest(questId)
+      onComplete: "() => QuestSystem.complete_quest(questId)"
     })
   }
 }
@@ -991,7 +991,7 @@ composition "QuestLogUI" {
           title: def.title,
           category: def.category,
           tracked: questId == QuestSystem.state.trackedQuest,
-          on_click: () => select_quest(questId)
+          on_click: "() => select_quest(questId)"
         })
 
         y -= 0.12

@@ -317,7 +317,7 @@ module BattleArenaModule {
       id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       ownerId: config.ownerId,
       targetId: config.targetId,
-      position: { ...config.position },
+      position: { ...config.position }
       velocity,
       damage: config.damage || owner.stats.attack,
       projectileType: config.projectileType || "default",
@@ -500,7 +500,7 @@ module BattleArenaModule {
     this.fireProjectile({
       ownerId: attacker.id,
       targetId: target.id,
-      position: { ...attacker.position },
+      position: { ...attacker.position }
       damage: attacker.stats.attack + attacker.stats.magicPower * 0.5,
       projectileType: this.getProjectileType(attacker.type)
     })

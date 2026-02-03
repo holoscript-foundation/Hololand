@@ -1,0 +1,70 @@
+{
+  "name": "@hololand/base-token-viz",
+  "version": "1.0.0",
+  "description": "Base chain token visualization for Hololand - 'Clanker for worlds'",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./fetcher": {
+      "import": "./dist/BaseTokenFetcher.js",
+      "types": "./dist/BaseTokenFetcher.d.ts"
+    },
+    "./generator": {
+      "import": "./dist/HoloScriptGenerator.js",
+      "types": "./dist/HoloScriptGenerator.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "demo"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "demo": "npx serve demo -p 3001"
+  },
+  "keywords": [
+    "hololand",
+    "holoscript",
+    "base",
+    "clanker",
+    "erc20",
+    "token",
+    "visualization",
+    "vr",
+    "3d"
+  ],
+  "author": "brianonbased-dev",
+  "license": "Elastic-2.0",
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "peerDependencies": {
+    "@hololand/three-adapter": "workspace:*",
+    "@holoscript/core": "^2.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@hololand/three-adapter": {
+      "optional": true
+    },
+    "@holoscript/core": {
+      "optional": true
+    }
+  }
+}

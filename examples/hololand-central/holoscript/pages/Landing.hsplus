@@ -218,27 +218,27 @@ page "Landing" {
               image: "/images/zones/plaza.jpg"
               title: "Main Plaza"
               description: "The central hub with portals to all zones"
-            },
+            }
             {
               image: "/images/zones/casino.jpg"
               title: "Hololand Casino"
               description: "Brian's domain - games, luck, and secrets"
-            },
+            }
             {
               image: "/images/zones/builder.jpg"
               title: "Builder Shop"
               description: "Create and customize your worlds"
-            },
+            }
             {
               image: "/images/zones/arcade.jpg"
               title: "Arcade District"
               description: "Retro games and modern experiences"
-            },
+            }
             {
               image: "/images/zones/lounge.jpg"
               title: "Social Lounge"
               description: "Relax and meet other travelers"
-            },
+            }
             {
               image: "/images/zones/infinity.jpg"
               title: "Infinity Shop"

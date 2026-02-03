@@ -86,7 +86,7 @@ module TextChat {
     NetworkClient.send({
       type: "chatJoin",
       category: MessageCategory.CHAT,
-      payload: { roomId },
+      payload: { roomId }
       timestamp: Date.now()
     })
     
@@ -99,7 +99,7 @@ module TextChat {
     NetworkClient.send({
       type: "chatLeave",
       category: MessageCategory.CHAT,
-      payload: { roomId: this.state.roomId },
+      payload: { roomId: this.state.roomId }
       timestamp: Date.now()
     })
     

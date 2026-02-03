@@ -78,9 +78,7 @@ function createBattleArenaFixture() -> BattleArenaFixture {
     npcs: [],
     projectiles: [],
     events,
-    cleanup: () => {
-      events.length = 0
-    }
+    cleanup: "() => { events.length = 0 }"
   }
 }
 
@@ -138,7 +136,7 @@ function createMockNPC(overrides: object = {}) -> NPCState {
     id: "mock-npc-1",
     name: "Mock NPC",
     type: "fire-mage",
-    position: { x: 0, y: 0, z: 0 },
+    position: { x: 0, y: 0, z: 0 }
     health: 50,
     maxHealth: 100,
     mana: 30,
@@ -149,7 +147,7 @@ function createMockNPC(overrides: object = {}) -> NPCState {
       defense: 5,
       speed: 10,
       attackRange: 25
-    },
+    }
     ...overrides
   }
 }
@@ -160,8 +158,8 @@ function createMockNPC(overrides: object = {}) -> NPCState {
 function createMockProjectile(overrides: object = {}) -> ProjectileState {
   return {
     id: "mock-projectile-1",
-    position: { x: 0, y: 0, z: 0 },
-    velocity: { x: 1, y: 0, z: 0 },
+    position: { x: 0, y: 0, z: 0 }
+    velocity: { x: 1, y: 0, z: 0 }
     owner: "mock-npc-1",
     targetId: "mock-npc-2",
     damage: 10,
@@ -180,7 +178,7 @@ function createMockProjectile(overrides: object = {}) -> ProjectileState {
  * Wait for a condition to be true
  */
 function waitFor(
-  condition: function() -> bool,
+  condition: "function() -> bool",
   timeout: int = 1000,
   interval: int = 50
 ) -> Promise<void> {

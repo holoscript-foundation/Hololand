@@ -84,6 +84,29 @@
     #vr-button:hover {
       transform: scale(1.05);
     }
+
+    /* Load button */
+    #load-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 100;
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+    }
+
+    #load-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: #00d4ff;
+      color: #00d4ff;
+    }
   </style>
 </head>
 <body>
@@ -95,6 +118,8 @@
   
   <div id="holo-root"></div>
   
+  <input type="file" id="scene-loader" accept=".holo,.hsplus" style="display:none">
+  <button id="load-btn">Load Scene</button>
   <button id="vr-button">Enter VR</button>
   
   <!-- HoloScript Runtime (Three.js bundled inside) -->
@@ -222,6 +247,51 @@
             runtime.start();
             document.getElementById('loading').classList.add('hidden');
           });
+
+        // Scene Loader Logic
+        const loadBtn = document.getElementById('load-btn');
+        const fileInput = document.getElementById('scene-loader');
+
+        loadBtn.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const content = event.target.result;
+            console.log('Loading scene:', file.name);
+            
+            // Show loading
+            const loading = document.getElementById('loading');
+            loading.classList.remove('hidden');
+            loading.querySelector('p').textContent = `Loading ${file.name}...`;
+
+            // Reset runtime if needed, or just load new code
+            // Note: In a real app we might want to dispose/recreate to clear state
+            // For now, we utilize runtime.load() which presumably handles replacement or addition
+            try {
+              runtime.stop(); // Stop loop
+              // Ideally runtime.clear() or similar? Assuming load() replaces or adds.
+              // If load() adds, we might have duplicate scenes. 
+              // But runtime interface usually implies loading a "world".
+              
+              runtime.load(content);
+              runtime.start();
+              
+              setTimeout(() => {
+                loading.classList.add('hidden');
+                loading.querySelector('p').textContent = 'Loading runtime...';
+              }, 500);
+            } catch (err) {
+              console.error('Failed to load scene:', err);
+              alert('Error loading scene: ' + err.message);
+              loading.classList.add('hidden');
+            }
+          };
+          reader.readAsText(file);
+        };
       }
       
       if (document.readyState === 'loading') {

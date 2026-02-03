@@ -114,7 +114,7 @@ module PlaygroundStore {
     }
     
     inspector: InspectorData = {
-      properties: {},
+      properties: {}
       traits: [],
       methods: [],
       events: []
@@ -359,7 +359,7 @@ module PlaygroundStore {
       isLoading: false
     }
     this.state.inspector = {
-      properties: {},
+      properties: {}
       traits: [],
       methods: [],
       events: []

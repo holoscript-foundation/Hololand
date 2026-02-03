@@ -703,36 +703,36 @@ world "ArcadeDistrict" {
           greeting: {
             text: "Welcome to the Arcade District! Ready to set some high scores?",
             options: [
-              { label: "How do I play?", next: "how_to_play" },
-              { label: "Tell me about prizes", next: "prizes" },
+              { label: "How do I play?", next: "how_to_play" }
+              { label: "Tell me about prizes", next: "prizes" }
               { label: "Any tips?", next: "tips" }
             ]
-          },
+          }
           how_to_play: {
             text: "Insert a token at any cabinet to play! Earn points to climb the leaderboard and win prizes!",
             options: [
-              { label: "Where do I get tokens?", next: "tokens" },
+              { label: "Where do I get tokens?", next: "tokens" }
               { label: "Thanks!", next: "goodbye" }
             ]
-          },
+          }
           tokens: {
             text: "The Token Machine near the entrance! You can also earn bonus tokens by achieving high scores.",
             options: [
               { label: "Cool!", next: "goodbye" }
             ]
-          },
+          }
           prizes: {
             text: "Check out the Prize Counter! Trade your tickets for exclusive items, avatar gear, and rare collectibles.",
             options: [
               { label: "Awesome!", next: "goodbye" }
             ]
-          },
+          }
           tips: {
             text: "Pro tip: The multiplayer VS zone gives double points! Challenge other players for the best rewards.",
             options: [
               { label: "I'll try it!", next: "goodbye" }
             ]
-          },
+          }
           goodbye: {
             text: "Good luck! May the high score be with you!",
             options: []
@@ -888,12 +888,12 @@ world "ArcadeDistrict" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function formatLeaderboard() {
+  function "formatLeaderboard" {
     const scores = [
-      { name: "AAA", score: 99999 },
-      { name: "BBB", score: 88888 },
-      { name: "CCC", score: 77777 },
-      { name: "DDD", score: 66666 },
+      { name: "AAA", score: 99999 }
+      { name: "BBB", score: 88888 }
+      { name: "CCC", score: 77777 }
+      { name: "DDD", score: 66666 }
       { name: "EEE", score: 55555 }
     ]
 

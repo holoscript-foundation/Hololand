@@ -55,7 +55,7 @@ module VoiceChat {
     // WebRTC config
     rtcConfig: RTCConfiguration = {
       iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun.l.google.com:19302" }
         { urls: "stun:stun1.l.google.com:19302" }
       ]
     }
@@ -98,7 +98,7 @@ module VoiceChat {
       NetworkClient.send({
         type: "voiceJoin",
         category: MessageCategory.VOICE,
-        payload: { roomId },
+        payload: { roomId }
         timestamp: Date.now()
       })
       
@@ -134,7 +134,7 @@ module VoiceChat {
       NetworkClient.send({
         type: "voiceLeave",
         category: MessageCategory.VOICE,
-        payload: { roomId: this.state.roomId },
+        payload: { roomId: this.state.roomId }
         timestamp: Date.now()
       })
     }
@@ -248,7 +248,7 @@ module VoiceChat {
           payload: {
             targetId: peerId,
             candidate: event.candidate
-          },
+          }
           timestamp: Date.now()
         })
       }
@@ -279,7 +279,7 @@ module VoiceChat {
       payload: {
         targetId: peerId,
         offer
-      },
+      }
       timestamp: Date.now()
     })
   }
@@ -315,7 +315,7 @@ module VoiceChat {
             payload: {
               targetId: peerId,
               candidate: event.candidate
-            },
+            }
             timestamp: Date.now()
           })
         }
@@ -334,7 +334,7 @@ module VoiceChat {
       payload: {
         targetId: peerId,
         answer
-      },
+      }
       timestamp: Date.now()
     })
   }
@@ -492,7 +492,7 @@ module VoiceChat {
       payload: {
         state: this.state.localState,
         position: this.state.localPosition
-      },
+      }
       timestamp: Date.now()
     })
   }

@@ -122,7 +122,7 @@ module LibraryService {
         rating: 4.5,
         createdAt: Date.now(),
         updatedAt: Date.now()
-      },
+      }
       {
         id: "builtin_sphere",
         name: "Basic Sphere",
@@ -142,7 +142,7 @@ module LibraryService {
         rating: 4.3,
         createdAt: Date.now(),
         updatedAt: Date.now()
-      },
+      }
       {
         id: "builtin_npc",
         name: "Basic NPC",
@@ -171,7 +171,7 @@ module LibraryService {
         rating: 4.8,
         createdAt: Date.now(),
         updatedAt: Date.now()
-      },
+      }
       {
         id: "builtin_button",
         name: "Interactive Button",
@@ -204,7 +204,7 @@ module LibraryService {
         rating: 4.6,
         createdAt: Date.now(),
         updatedAt: Date.now()
-      },
+      }
       {
         id: "builtin_particles",
         name: "Particle Emitter",
@@ -230,7 +230,7 @@ module LibraryService {
         rating: 4.7,
         createdAt: Date.now(),
         updatedAt: Date.now()
-      },
+      }
       {
         id: "builtin_light",
         name: "Point Light",

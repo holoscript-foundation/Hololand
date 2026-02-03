@@ -648,29 +648,29 @@ world "SocialLounge" {
           greeting: {
             text: "Welcome to the Social Lounge! Make yourself at home. What can I help you with?",
             options: [
-              { label: "What can I do here?", next: "activities" },
-              { label: "How do I meet people?", next: "social" },
+              { label: "What can I do here?", next: "activities" }
+              { label: "How do I meet people?", next: "social" }
               { label: "Tell me about the dance floor", next: "dance" }
             ]
-          },
+          }
           activities: {
             text: "Grab a drink at the bar, play games at the activity corner, take photos at the booth, or just relax by the fireplace!",
             options: [
               { label: "Sounds fun!", next: "goodbye" }
             ]
-          },
+          }
           social: {
             text: "Everyone here is friendly! Wave at someone, join an activity together, or head to the dance floor. The private booths are great for group chats.",
             options: [
               { label: "Thanks!", next: "goodbye" }
             ]
-          },
+          }
           dance: {
             text: "Step onto the dance floor to activate it! The lights sync to the music. Use emotes to show off your moves!",
             options: [
               { label: "Let's dance!", next: "goodbye" }
             ]
-          },
+          }
           goodbye: {
             text: "Enjoy your time here! Let me know if you need anything.",
             options: []
@@ -843,7 +843,7 @@ world "SocialLounge" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function getRandomColor() {
+  function "getRandomColor" {
     const colors = ["#ff0066", "#00ffff", "#ff00ff", "#ffff00", "#00ff00", "#ff6600"]
     return colors[Math.floor(Math.random() * colors.length)]
   }

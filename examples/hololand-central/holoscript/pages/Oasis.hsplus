@@ -357,13 +357,13 @@ page "Oasis" {
   // ═══════════════════════════════════════════════════════════════════════════
 
   data avatarOptions: [
-    { id: "explorer", name: "Explorer", image: "/avatars/explorer.png" },
-    { id: "builder", name: "Builder", image: "/avatars/builder.png" },
-    { id: "gamer", name: "Gamer", image: "/avatars/gamer.png" },
-    { id: "artist", name: "Artist", image: "/avatars/artist.png" },
-    { id: "robot", name: "Robot", image: "/avatars/robot.png" },
-    { id: "alien", name: "Alien", image: "/avatars/alien.png" },
-    { id: "ninja", name: "Ninja", image: "/avatars/ninja.png" },
+    { id: "explorer", name: "Explorer", image: "/avatars/explorer.png" }
+    { id: "builder", name: "Builder", image: "/avatars/builder.png" }
+    { id: "gamer", name: "Gamer", image: "/avatars/gamer.png" }
+    { id: "artist", name: "Artist", image: "/avatars/artist.png" }
+    { id: "robot", name: "Robot", image: "/avatars/robot.png" }
+    { id: "alien", name: "Alien", image: "/avatars/alien.png" }
+    { id: "ninja", name: "Ninja", image: "/avatars/ninja.png" }
     { id: "astronaut", name: "Astronaut", image: "/avatars/astronaut.png" }
   ]
 

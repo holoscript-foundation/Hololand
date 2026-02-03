@@ -330,7 +330,7 @@ composition "HololandCentral" {
         visible: false
       }
 
-      on_trigger: () -> {
+      on_trigger: "() ->"{
         if (!this.state.discovered) {
           this.state.discovered = true
           this.state.visible = true

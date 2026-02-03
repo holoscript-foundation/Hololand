@@ -108,7 +108,7 @@ module VoiceActivityDetector {
 module RemoteVoiceRenderer {
   @state {
     id: string = "",
-    position: Vector3 = { x: 0, y: 0, z: 0 },
+    position: Vector3 = { x: 0, y: 0, z: 0 }
     volume: number = 1.0,
     muted: bool = false,
     context: AudioContext = null,
@@ -222,7 +222,7 @@ module VoiceChat {
     localState: VoiceActivityState = VoiceActivityState.silent,
     vadIntervalId: number = null,
     pttActive: bool = false,
-    listenerPosition: Vector3 = { x: 0, y: 0, z: 0 },
+    listenerPosition: Vector3 = { x: 0, y: 0, z: 0 }
     initialized: bool = false
   }
 

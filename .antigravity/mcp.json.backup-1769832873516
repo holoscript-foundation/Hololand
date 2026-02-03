@@ -1,0 +1,164 @@
+{
+  "name": "Hololand MCP Servers",
+  "description": "VR platform development with AI assistance - Quantum MCP Mesh Connected",
+  "version": "2.0.0",
+  
+  "mesh": {
+    "enabled": true,
+    "orchestratorUrl": "http://localhost:5555",
+    "workspaceId": "hololand",
+    "autoRegister": true,
+    "syncKnowledge": true,
+    "visibility": "public",
+    "allowExternalAccess": true,
+    "exposeToNetwork": true,
+    "publicEndpoint": "https://hololand.io/mcp"
+  },
+  
+  "servers": {
+    "hololand": {
+      "name": "Hololand Platform",
+      "description": "VR world management, Brittney AI, browser debugging, IDE tools",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "packages/brittney/mcp-server/src/index.ts"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "HOLOLAND_API_URL": "http://localhost:3000",
+        "BRITTNEY_SERVICE_URL": "http://localhost:11435",
+        "BRITTNEY_ADMIN_KEY": "mcp-localhost-trusted",
+        "MCP_MESH_URL": "http://localhost:5555"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      }
+    },
+    
+    "holoscript": {
+      "name": "HoloScript Language",
+      "description": "Parsing, validation, code generation for .hs/.hsplus/.holo",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "../HoloScript/packages/mcp-server/src/index.ts"],
+      "cwd": "${workspaceFolder}/../HoloScript",
+      "env": {
+        "MCP_MESH_URL": "http://localhost:5555"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      }
+    },
+    
+    "mesh-orchestrator": {
+      "name": "Quantum MCP Mesh Orchestrator",
+      "description": "Global service coordination, federated knowledge, cross-workspace tools",
+      "type": "http",
+      "url": "http://localhost:5555",
+      "healthCheck": "http://localhost:5555/health"
+    },
+    
+    "ai-workspace": {
+      "name": "AI_Workspace Knowledge Hub",
+      "description": "Patterns, wisdom, gotchas, UAA2++ protocol access via mesh",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/mcp/index.ts"],
+      "cwd": "${workspaceFolder}/../AI_Workspace",
+      "env": {
+        "MCP_MESH_URL": "http://localhost:5555"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": true,
+        "prompts": false
+      }
+    }
+  },
+  
+  "toolGroups": {
+    "ide": {
+      "name": "IDE Tools",
+      "description": "Project scanning, diagnostics, completions, refactoring",
+      "tools": [
+        "brittney_scan_project",
+        "brittney_diagnostics",
+        "brittney_autocomplete",
+        "brittney_refactor",
+        "brittney_docs",
+        "brittney_hover",
+        "brittney_go_to_definition",
+        "brittney_find_references",
+        "brittney_code_action"
+      ]
+    },
+    "ai": {
+      "name": "AI Assistance",
+      "description": "Brittney AI for debugging and generation",
+      "tools": [
+        "brittney_ask_question",
+        "brittney_explain_scene",
+        "brittney_explain_error",
+        "brittney_suggest_fix",
+        "brittney_create_and_inject",
+        "brittney_auto_fix"
+      ]
+    },
+    "language": {
+      "name": "Language Tools",
+      "description": "Parsing, validation, generation",
+      "tools": [
+        "parse_hs",
+        "parse_holo",
+        "validate_holoscript",
+        "generate_object",
+        "generate_scene",
+        "explain_code"
+      ]
+    },
+    "traits": {
+      "name": "VR Traits",
+      "description": "Trait documentation and suggestions",
+      "tools": [
+        "list_traits",
+        "explain_trait",
+        "suggest_traits"
+      ]
+    },
+    "graph": {
+      "name": "Graph Visualization",
+      "description": "Understand .holo as visual graphs",
+      "tools": [
+        "holo_parse_to_graph",
+        "holo_visualize_flow",
+        "holo_get_node_connections",
+        "holo_suggest_connections"
+      ]
+    },
+    "debugging": {
+      "name": "Browser Debugging",
+      "description": "Debug running VR apps",
+      "tools": [
+        "brittney_error_monitor",
+        "brittney_performance_monitor",
+        "brittney_get_browser_state",
+        "brittney_get_console_logs"
+      ]
+    },
+    "knowledge": {
+      "name": "AI_Workspace Knowledge",
+      "description": "Query patterns, wisdom, and gotchas from federated knowledge base",
+      "tools": [
+        "query_patterns",
+        "query_wisdom",
+        "query_gotchas",
+        "list_protocol_phases",
+        "list_research",
+        "get_training_stats"
+      ]
+    }
+  }
+}

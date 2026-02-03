@@ -37,7 +37,7 @@ component "MenuOverlay" {
       path: "/central"
       color: "#667eea"
       description: "The central hub with portals to all zones"
-    },
+    }
     {
       id: "casino"
       name: "Hololand Casino"
@@ -45,7 +45,7 @@ component "MenuOverlay" {
       path: "/world/casino"
       color: "#ffd700"
       description: "Brian's domain - games and luck"
-    },
+    }
     {
       id: "builder"
       name: "Builder Shop"
@@ -53,7 +53,7 @@ component "MenuOverlay" {
       path: "/world/builder"
       color: "#4caf50"
       description: "Create and customize worlds"
-    },
+    }
     {
       id: "arcade"
       name: "Arcade District"
@@ -61,7 +61,7 @@ component "MenuOverlay" {
       path: "/world/arcade"
       color: "#e91e63"
       description: "Retro games and modern experiences"
-    },
+    }
     {
       id: "lounge"
       name: "Social Lounge"
@@ -69,7 +69,7 @@ component "MenuOverlay" {
       path: "/world/lounge"
       color: "#9c27b0"
       description: "Relax and meet other travelers"
-    },
+    }
     {
       id: "infinity"
       name: "Infinity Shop"

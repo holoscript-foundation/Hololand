@@ -31,10 +31,10 @@ import { rendererLogger as logger } from "./logger.hsplus"
  */
 let VignetteShader = {
   uniforms: {
-    tDiffuse: { value: null },
-    offset: { value: 1.0 },
+    tDiffuse: { value: null }
+    offset: { value: 1.0 }
     darkness: { value: 1.0 }
-  },
+  }
   vertexShader: `
     varying vec2 vUv;
     void main() {
@@ -62,11 +62,11 @@ let VignetteShader = {
  */
 let ColorGradingShader = {
   uniforms: {
-    tDiffuse: { value: null },
-    brightness: { value: 0.0 },
-    contrast: { value: 1.0 },
+    tDiffuse: { value: null }
+    brightness: { value: 0.0 }
+    contrast: { value: 1.0 }
     saturation: { value: 1.0 }
-  },
+  }
   vertexShader: `
     varying vec2 vUv;
     void main() {
@@ -110,9 +110,9 @@ let ColorGradingShader = {
  */
 let ChromaticAberrationShader = {
   uniforms: {
-    tDiffuse: { value: null },
+    tDiffuse: { value: null }
     offset: { value: 0.005 }
-  },
+  }
   vertexShader: `
     varying vec2 vUv;
     void main() {
@@ -152,7 +152,7 @@ struct PostProcessingOptions {
   renderer: THREE.WebGLRenderer = null,
   scene: THREE.Scene = null,
   camera: THREE.Camera = null,
-  qualitySettings: QualitySettings = {},
+  qualitySettings: QualitySettings = {}
   config: PostProcessingConfig = null
 }
 
@@ -279,19 +279,19 @@ module PostProcessingPipeline {
         self.fxaaPass.uniforms.resolution.value.set(1 / width, 1 / height)
         self.composer.addPass(self.fxaaPass)
         logger.debug("[PostProcessing] FXAA enabled")
-      },
+      }
       AntialiasingMode.smaa => {
         self.smaaPass = new SMAAPass(width, height)
         self.composer.addPass(self.smaaPass)
         logger.debug("[PostProcessing] SMAA enabled")
-      },
+      }
       AntialiasingMode.taa => {
         // TAA would require custom implementation or different library
         // Fall back to SMAA for now
         self.smaaPass = new SMAAPass(width, height)
         self.composer.addPass(self.smaaPass)
         logger.debug("[PostProcessing] TAA requested, using SMAA fallback")
-      },
+      }
       _ => {}
     }
 

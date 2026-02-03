@@ -63,27 +63,27 @@ system "AccessibilitySystem" {
 
   data shortcuts: {
     navigation: [
-      { key: "Tab", action: "focusNext", description: "Move to next element" },
-      { key: "Shift+Tab", action: "focusPrevious", description: "Move to previous element" },
-      { key: "Enter", action: "activate", description: "Activate focused element" },
-      { key: "Space", action: "activate", description: "Activate focused element" },
-      { key: "Escape", action: "closeOrBack", description: "Close dialog or go back" },
-      { key: "ArrowUp", action: "navigateUp", description: "Navigate up in list" },
-      { key: "ArrowDown", action: "navigateDown", description: "Navigate down in list" },
-      { key: "ArrowLeft", action: "navigateLeft", description: "Navigate left" },
-      { key: "ArrowRight", action: "navigateRight", description: "Navigate right" },
-      { key: "Home", action: "navigateFirst", description: "Go to first item" },
+      { key: "Tab", action: "focusNext", description: "Move to next element" }
+      { key: "Shift+Tab", action: "focusPrevious", description: "Move to previous element" }
+      { key: "Enter", action: "activate", description: "Activate focused element" }
+      { key: "Space", action: "activate", description: "Activate focused element" }
+      { key: "Escape", action: "closeOrBack", description: "Close dialog or go back" }
+      { key: "ArrowUp", action: "navigateUp", description: "Navigate up in list" }
+      { key: "ArrowDown", action: "navigateDown", description: "Navigate down in list" }
+      { key: "ArrowLeft", action: "navigateLeft", description: "Navigate left" }
+      { key: "ArrowRight", action: "navigateRight", description: "Navigate right" }
+      { key: "Home", action: "navigateFirst", description: "Go to first item" }
       { key: "End", action: "navigateLast", description: "Go to last item" }
     ],
     accessibility: [
-      { key: "?", action: "showHelp", description: "Show keyboard shortcuts" },
-      { key: "m", action: "toggleMotion", description: "Toggle reduced motion" },
-      { key: "h", action: "toggleContrast", description: "Toggle high contrast" },
+      { key: "?", action: "showHelp", description: "Show keyboard shortcuts" }
+      { key: "m", action: "toggleMotion", description: "Toggle reduced motion" }
+      { key: "h", action: "toggleContrast", description: "Toggle high contrast" }
       { key: "r", action: "readCurrentFocus", description: "Read focused element" }
     ],
     zones: [
-      { key: "1", action: "jumpToZone", zone: "main", description: "Jump to main content" },
-      { key: "2", action: "jumpToZone", zone: "navigation", description: "Jump to navigation" },
+      { key: "1", action: "jumpToZone", zone: "main", description: "Jump to main content" }
+      { key: "2", action: "jumpToZone", zone: "navigation", description: "Jump to navigation" }
       { key: "3", action: "jumpToZone", zone: "chat", description: "Jump to chat" }
     ]
   }
@@ -98,20 +98,20 @@ system "AccessibilitySystem" {
       label: "Navigation Menu"
       elements: ["menu-button", "zone-portal-*", "settings-button"]
       wrapAround: true
-    },
+    }
     tutorial: {
       id: "tutorial"
       label: "Tutorial"
       elements: ["tutorial-prev", "tutorial-next", "tutorial-skip"]
       wrapAround: false
-    },
+    }
     dialog: {
       id: "dialog"
       label: "Dialog"
       elements: []  // Dynamically populated
       wrapAround: true
       trapFocus: true
-    },
+    }
     world: {
       id: "world"
       label: "3D World"
@@ -404,7 +404,7 @@ system "AccessibilitySystem" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function processAnnouncement() {
+  function "processAnnouncement" {
     if (state.announcementQueue.length === 0) {
       state.isAnnouncing = false
       return
@@ -423,7 +423,7 @@ system "AccessibilitySystem" {
     }
   }
 
-  function getKeyString(event) {
+  function "getKeyString" {
     let key = event.key
 
     if (event.shiftKey && key !== "Shift") {
@@ -439,7 +439,7 @@ system "AccessibilitySystem" {
     return key
   }
 
-  function executeShortcut(shortcut) {
+  function "executeShortcut" {
     match shortcut.action {
       "focusNext" -> focusNext()
       "focusPrevious" -> focusPrevious()

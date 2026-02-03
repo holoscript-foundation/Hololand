@@ -47,43 +47,43 @@ system "AudioSystem" {
 
   data sounds: {
     // UI sounds
-    "ui-click": { url: "/audio/sfx/click.mp3", volume: 0.5 },
-    "ui-hover": { url: "/audio/sfx/hover.mp3", volume: 0.3 },
-    "ui-open": { url: "/audio/sfx/open.mp3", volume: 0.4 },
-    "ui-close": { url: "/audio/sfx/close.mp3", volume: 0.4 },
-    "ui-success": { url: "/audio/sfx/success.mp3", volume: 0.6 },
-    "ui-error": { url: "/audio/sfx/error.mp3", volume: 0.5 },
+    "ui-click": { url: "/audio/sfx/click.mp3", volume: 0.5 }
+    "ui-hover": { url: "/audio/sfx/hover.mp3", volume: 0.3 }
+    "ui-open": { url: "/audio/sfx/open.mp3", volume: 0.4 }
+    "ui-close": { url: "/audio/sfx/close.mp3", volume: 0.4 }
+    "ui-success": { url: "/audio/sfx/success.mp3", volume: 0.6 }
+    "ui-error": { url: "/audio/sfx/error.mp3", volume: 0.5 }
 
     // Portal sounds
-    "portal-hover": { url: "/audio/sfx/portal-hum.mp3", volume: 0.4, loop: true },
-    "portal-activate": { url: "/audio/sfx/portal-whoosh.mp3", volume: 0.7 },
-    "portal-arrive": { url: "/audio/sfx/portal-arrive.mp3", volume: 0.6 },
+    "portal-hover": { url: "/audio/sfx/portal-hum.mp3", volume: 0.4, loop: true }
+    "portal-activate": { url: "/audio/sfx/portal-whoosh.mp3", volume: 0.7 }
+    "portal-arrive": { url: "/audio/sfx/portal-arrive.mp3", volume: 0.6 }
 
     // Easter egg sounds
-    "egg-discover": { url: "/audio/sfx/egg-chime.mp3", volume: 0.8 },
-    "egg-reveal": { url: "/audio/sfx/egg-fanfare.mp3", volume: 0.7 },
+    "egg-discover": { url: "/audio/sfx/egg-chime.mp3", volume: 0.8 }
+    "egg-reveal": { url: "/audio/sfx/egg-fanfare.mp3", volume: 0.7 }
 
     // Ambient sounds
-    "ambient-plaza": { url: "/audio/ambient/plaza.mp3", volume: 0.3, loop: true, spatial: true },
-    "ambient-casino": { url: "/audio/ambient/casino.mp3", volume: 0.4, loop: true, spatial: true },
-    "ambient-arcade": { url: "/audio/ambient/arcade.mp3", volume: 0.35, loop: true, spatial: true },
-    "ambient-lounge": { url: "/audio/ambient/lounge.mp3", volume: 0.25, loop: true, spatial: true },
+    "ambient-plaza": { url: "/audio/ambient/plaza.mp3", volume: 0.3, loop: true, spatial: true }
+    "ambient-casino": { url: "/audio/ambient/casino.mp3", volume: 0.4, loop: true, spatial: true }
+    "ambient-arcade": { url: "/audio/ambient/arcade.mp3", volume: 0.35, loop: true, spatial: true }
+    "ambient-lounge": { url: "/audio/ambient/lounge.mp3", volume: 0.25, loop: true, spatial: true }
 
     // NPC sounds
-    "npc-greeting": { url: "/audio/sfx/npc-hello.mp3", volume: 0.6 },
-    "npc-chat": { url: "/audio/sfx/npc-chat.mp3", volume: 0.4 },
+    "npc-greeting": { url: "/audio/sfx/npc-hello.mp3", volume: 0.6 }
+    "npc-chat": { url: "/audio/sfx/npc-chat.mp3", volume: 0.4 }
 
     // Movement sounds
-    "footstep": { url: "/audio/sfx/footstep.mp3", volume: 0.2 },
-    "jump": { url: "/audio/sfx/jump.mp3", volume: 0.4 },
+    "footstep": { url: "/audio/sfx/footstep.mp3", volume: 0.2 }
+    "jump": { url: "/audio/sfx/jump.mp3", volume: 0.4 }
     "land": { url: "/audio/sfx/land.mp3", volume: 0.3 }
   }
 
   data music: {
-    "cyberpunk": { url: "/audio/music/cyberpunk-ambient.mp3", bpm: 100 },
-    "wild-west": { url: "/audio/music/western-ambient.mp3", bpm: 85 },
-    "cityscape": { url: "/audio/music/city-ambient.mp3", bpm: 110 },
-    "snowy-town": { url: "/audio/music/winter-ambient.mp3", bpm: 70 },
+    "cyberpunk": { url: "/audio/music/cyberpunk-ambient.mp3", bpm: 100 }
+    "wild-west": { url: "/audio/music/western-ambient.mp3", bpm: 85 }
+    "cityscape": { url: "/audio/music/city-ambient.mp3", bpm: 110 }
+    "snowy-town": { url: "/audio/music/winter-ambient.mp3", bpm: 70 }
     "holiday": { url: "/audio/music/holiday-ambient.mp3", bpm: 90 }
   }
 
@@ -298,11 +298,11 @@ system "AudioSystem" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function generateId() {
+  function "generateId" {
     return "sound-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9)
   }
 
-  function applySpatialAudio(audio, position) {
+  function "applySpatialAudio" {
     if (!config.spatialAudio) return
 
     const dx = position[0] - state.listenerPosition[0]
@@ -321,7 +321,7 @@ system "AudioSystem" {
     // This is a simplified version
   }
 
-  function fadeOut(audio, duration) {
+  function "fadeOut" {
     const steps = 20
     const stepTime = duration / steps
     const initialVolume = audio.volume
@@ -338,7 +338,7 @@ system "AudioSystem" {
     }, stepTime)
   }
 
-  function updateAllVolumes() {
+  function "updateAllVolumes" {
     updateMusicVolume()
 
     for (sound of state.activeSounds) {
@@ -349,7 +349,7 @@ system "AudioSystem" {
     }
   }
 
-  function updateMusicVolume() {
+  function "updateMusicVolume" {
     if (state.currentMusic?.audio && !state.isMuted) {
       state.currentMusic.audio.volume = config.musicVolume * config.masterVolume
     }

@@ -45,7 +45,7 @@ export class ReactHoloRenderer implements Renderer {
       text: (properties.text as string) || (properties.content as string),
       glow: !!properties.glow,
       interactive: properties.interactive !== false,
-      traits: [], // Traits are managed by the runtime/trait system separately
+      traits: (properties.traits as string[]) || [], // Extract traits if provided
       properties,
       visible: properties.visible !== false,
     };
@@ -75,6 +75,7 @@ export class ReactHoloRenderer implements Renderer {
           text: (properties.text as string) || (properties.content as string) || e.text,
           glow: properties.glow !== undefined ? !!properties.glow : e.glow,
           interactive: properties.interactive !== undefined ? !!properties.interactive : e.interactive,
+          traits: (properties.traits as string[]) || e.traits,
           visible: properties.visible !== undefined ? !!properties.visible : e.visible,
           properties: { ...e.properties, ...properties },
         };

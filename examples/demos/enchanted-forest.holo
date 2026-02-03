@@ -55,15 +55,15 @@ composition "Enchanted Forest" {
       start: {
         text: "Welcome to the Enchanted Forest, traveler!"
         options: [
-          { text: "Who are you?", next: "introduction" },
-          { text: "I seek adventure!", next: "quest" },
+          { text: "Who are you?", next: "introduction" }
+          { text: "I seek adventure!", next: "quest" }
           { text: "Farewell", next: "end" }
         ]
       }
       introduction: {
         text: "I am Meridius, keeper of this realm. The forest responds to those with pure intentions."
         options: [
-          { text: "Tell me about the orbs", next: "orbs_info" },
+          { text: "Tell me about the orbs", next: "orbs_info" }
           { text: "What dangers lurk here?", next: "dangers" }
         ]
       }

@@ -727,43 +727,43 @@ world "InfinityShop" {
           greeting: {
             text: "Welcome to Infinity Shop. How may I assist you today?",
             options: [
-              { label: "What's new?", next: "new_arrivals" },
-              { label: "Looking for avatars", next: "avatars" },
+              { label: "What's new?", next: "new_arrivals" }
+              { label: "Looking for avatars", next: "avatars" }
               { label: "Help me find something", next: "search" }
             ]
-          },
+          }
           new_arrivals: {
             text: "Our featured collection showcases this season's finest pieces. The central display has our most sought-after items.",
             options: [
               { label: "Show me", next: "goodbye" }
             ]
-          },
+          }
           avatars: {
             text: "Our avatar collection is on the left. Each avatar comes with exclusive animations and customization options.",
             options: [
               { label: "Thanks!", next: "goodbye" }
             ]
-          },
+          }
           search: {
             text: "What are you looking for? Avatars, wearables, accessories, or furniture for your space?",
             options: [
-              { label: "Avatars", next: "avatars" },
-              { label: "Wearables", next: "wearables" },
+              { label: "Avatars", next: "avatars" }
+              { label: "Wearables", next: "wearables" }
               { label: "Furniture", next: "furniture" }
             ]
-          },
+          }
           wearables: {
             text: "Our wearables collection is on the right. You'll find clothing, accessories, and limited edition items.",
             options: [
               { label: "Perfect!", next: "goodbye" }
             ]
-          },
+          }
           furniture: {
             text: "The furniture section is in the back. We have complete room sets and individual pieces for your personal space.",
             options: [
               { label: "I'll check it out", next: "goodbye" }
             ]
-          },
+          }
           goodbye: {
             text: "Enjoy your shopping. I'm here if you need any assistance.",
             options: []
@@ -944,21 +944,21 @@ world "InfinityShop" {
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  function getFeaturedItemModel() {
+  function "getFeaturedItemModel" {
     return "/models/shop/featured-main.glb"
   }
 
-  function getItemPrice(index) {
+  function "getItemPrice" {
     const prices = ["$99", "$149", "$199", "$249"]
     return prices[index] || "$99"
   }
 
-  function getAvatarName(index) {
+  function "getAvatarName" {
     const names = ["Lumina", "Shadow", "Nova", "Crystal", "Phoenix", "Storm"]
     return names[index] || "Avatar"
   }
 
-  function getAvatarPrice(index) {
+  function "getAvatarPrice" {
     const prices = ["$29.99", "$34.99", "$39.99", "$49.99", "$59.99", "$79.99"]
     return prices[index] || "$29.99"
   }

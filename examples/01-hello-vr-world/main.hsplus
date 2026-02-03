@@ -166,7 +166,7 @@ module HelloWorld {
   @action startUpdateLoop() {
     let lastTime = performance.now()
 
-    function update() {
+    function "update" {
       const now = performance.now()
       const deltaTime = (now - lastTime) / 1000
       lastTime = now
@@ -200,7 +200,7 @@ module HelloWorld {
 // ENTRY POINT
 // =============================================================================
 
-async function main() {
+async function "main" {
   const world = HelloWorld
   await world.initialize()
   await world.start()

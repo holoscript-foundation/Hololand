@@ -11,7 +11,7 @@
 state {
   // Connected agents
   agents: {
-    brittney: { connected: true, typing: false },
+    brittney: { connected: true, typing: false }
     user: { connected: true, typing: false }
   }
   
@@ -222,7 +222,7 @@ system BrittneyIntegration {
       AgentSuggestions.suggest("brittney", {
         type: "replace",
         code: response.holoscript,
-        position: { line: 0, column: 0 },
+        position: { line: 0, column: 0 }
         explanation: "Created new scene: " + response.description
       })
     }

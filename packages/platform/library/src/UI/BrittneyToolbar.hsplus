@@ -21,10 +21,10 @@ component BrittneyToolbar {
 
   // Available actions
   const ACTIONS = [
-    { id: "generate", icon: "✨", label: "Generate", shortcut: "Ctrl+Shift+G", color: "#7c3aed" },
-    { id: "explain", icon: "💡", label: "Explain", shortcut: "Ctrl+Shift+E", color: "#22c55e" },
-    { id: "optimize", icon: "⚡", label: "Optimize", shortcut: "Ctrl+Shift+O", color: "#f97316" },
-    { id: "convert", icon: "🔄", label: "Convert", shortcut: "Ctrl+Shift+C", color: "#3b82f6" },
+    { id: "generate", icon: "✨", label: "Generate", shortcut: "Ctrl+Shift+G", color: "#7c3aed" }
+    { id: "explain", icon: "💡", label: "Explain", shortcut: "Ctrl+Shift+E", color: "#22c55e" }
+    { id: "optimize", icon: "⚡", label: "Optimize", shortcut: "Ctrl+Shift+O", color: "#f97316" }
+    { id: "convert", icon: "🔄", label: "Convert", shortcut: "Ctrl+Shift+C", color: "#3b82f6" }
     { id: "suggest", icon: "🎯", label: "Suggest", shortcut: "Ctrl+Shift+S", color: "#ec4899" }
   ]
 

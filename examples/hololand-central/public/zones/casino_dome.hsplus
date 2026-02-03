@@ -8,7 +8,7 @@ building HololandCasino {
 }
 
 // The outer shell structure
-orb CasinoDomeShell {
+object "CasinoDomeShell" {
   shape: "sphere"
   position: [0, 0, -100]
   size: 30
@@ -18,7 +18,7 @@ orb CasinoDomeShell {
 }
 
 // Brass Ribbing for the Dome
-orb DomeRibbing {
+object "DomeRibbing" {
   shape: "wireframe_dome"
   position: [0, 0, -100]
   size: 30.2
@@ -27,7 +27,7 @@ orb DomeRibbing {
 }
 
 // Grand Entrance Pillars
-orb EntrancePillarLeft {
+object "EntrancePillarLeft" {
   shape: "column"
   position: [-10, 0, -70]
   scale: [2, 15, 2]
@@ -35,7 +35,7 @@ orb EntrancePillarLeft {
   style: "fluted"
 }
 
-orb EntrancePillarRight {
+object "EntrancePillarRight" {
   shape: "column"
   position: [10, 0, -70]
   scale: [2, 15, 2]
@@ -44,7 +44,7 @@ orb EntrancePillarRight {
 }
 
 // The Holographic Signage
-orb CasinoSign {
+object "CasinoSign" {
   shape: "hologram_panel"
   position: [0, 25, -70]
   size: [15, 5, 0.1]
@@ -53,7 +53,7 @@ orb CasinoSign {
   traits: ["flicker"]
 }
 
-orb EntrancePortal {
+object "EntrancePortal" {
   shape: "bio-dome"
   position: [0, 0, -70]
   scale: [5, 5, 2]

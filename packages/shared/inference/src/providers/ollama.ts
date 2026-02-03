@@ -162,24 +162,40 @@ export class OllamaProvider {
    */
   async chat(request: InferenceRequest): Promise<InferenceResponse> {
     const start = Date.now();
-    const model = request.model || 'brittney-v4-expert:latest';
+    const model = request.model || 'brittney-v4-q8:latest';
+
+    const requestBody = {
+      model,
+      messages: request.messages,
+      options: {
+        temperature: request.temperature ?? 0.7,
+        num_predict: request.maxTokens ?? 2048,
+      },
+      stream: false,
+    };
+
+    console.log(`[Ollama] Chat request:`, {
+      url: `${this.baseUrl}/api/chat`,
+      model,
+      messageCount: request.messages.length
+    });
 
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: request.messages,
-        options: {
-          temperature: request.temperature ?? 0.7,
-          num_predict: request.maxTokens ?? 2048,
-        },
-        stream: false,
-      }),
+      body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(this.timeout),
     });
 
     if (!response.ok) {
+      const errorBody = await response.text().catch(() => 'Unable to read error response');
+      console.error(`[Ollama] Chat failed:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: `${this.baseUrl}/api/chat`,
+        model,
+        errorBody
+      });
       throw new Error(`Ollama chat failed: ${response.status} ${response.statusText}`);
     }
 
@@ -203,7 +219,7 @@ export class OllamaProvider {
    * Streaming chat completion
    */
   async *chatStream(request: InferenceRequest): AsyncGenerator<StreamChunk> {
-    const model = request.model || 'brittney-v4-expert:latest';
+    const model = request.model || 'brittney-v4-q8:latest';
 
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
