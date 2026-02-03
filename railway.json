@@ -1,5 +1,5 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
-  "buildCommand": "pnpm install --no-frozen-lockfile && pnpm --filter @hololand/mcp-server build",
-  "startCommand": "pnpm --filter @hololand/mcp-server start"
+  "builder": "dockerfile",
+  "dockerfile": "./Dockerfile"
 }
