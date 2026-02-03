@@ -17,9 +17,14 @@ RUN pnpm install --no-frozen-lockfile --prefer-offline
 # Build MCP server
 RUN pnpm --filter @hololand/mcp-server build
 
+# Copy startup script and make it executable
+COPY packages/brittney/mcp-server/scripts/railway-start.sh /app/railway-start.sh
+RUN chmod +x /app/railway-start.sh
+
 # Set environment
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Start health server + MCP server
-CMD ["pnpm", "--filter", "@hololand/mcp-server", "start"]
+# Navigate to the built package and start both servers
+WORKDIR /app/packages/brittney/mcp-server
+CMD ["/app/railway-start.sh"]
