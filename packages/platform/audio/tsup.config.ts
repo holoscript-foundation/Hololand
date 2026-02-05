@@ -8,11 +8,11 @@ export default defineConfig({
     effects: 'src/AudioEffects.ts',
   },
   format: ['cjs', 'esm'],
-  dts: true,
+  dts: false, // TODO: Enable once @hololand/core types are complete
   clean: true,
   sourcemap: true,
   splitting: true,
   treeshake: true,
   minify: false,
-  external: [],
+  external: ['@holoscript/core', '@hololand/core', 'three'],
 });

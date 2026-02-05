@@ -84,7 +84,7 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
     sizeBytes: 943_718_400,
     checksum: 'sha256:pending-release',
     downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-expert-q4.gguf`,
-    license: 'MIT',
+    license: 'Brittney-AI-1.0',
     features: [
       'HoloScript expert assistance',
       'Fast inference',
@@ -92,7 +92,6 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
     ],
     minMemory: '2 GB',
     recommended: false,
-    license: 'Brittney-AI-1.0',
     format: 'gguf',
     quantization: 'q4_k_m',
     releaseDate: '2026-01-25',
@@ -106,7 +105,7 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
     sizeBytes: 1_288_490_189,
     checksum: 'sha256:pending-release',
     downloadUrl: `${RELEASES_BASE}/brittney-v1.0.0/brittney-v1-expert-q8.gguf`,
-    license: 'MIT',
+    license: 'Brittney-AI-1.0',
     features: [
       'HoloScript expert assistance',
       'Better quality than Q4',
@@ -114,7 +113,6 @@ export const MODEL_REGISTRY: Record<string, ModelInfo> = {
     ],
     minMemory: '3 GB',
     recommended: false,
-    license: 'Brittney-AI-1.0',
     format: 'gguf',
     quantization: 'q8_0',
     releaseDate: '2026-01-25',
