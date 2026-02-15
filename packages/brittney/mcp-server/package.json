@@ -20,8 +20,10 @@
     "test": "echo 'No tests yet' && exit 0"
   },
   "dependencies": {
+    "@hololand/ai-bridge": "workspace:*",
     "@hololand/core": "workspace:*",
     "@hololand/inference": "workspace:*",
+    "@hololand/world": "workspace:*",
     "@infinitus/shared": "^1.0.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "axios": "^1.7.9",

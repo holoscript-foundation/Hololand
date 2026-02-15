@@ -16,6 +16,7 @@ import type {
   NetworkEventHandler,
   MessageCategory,
 } from './types';
+import type { LatencyTracker } from './LatencyTracker';
 
 const DEFAULT_CONFIG: Required<Omit<ConnectionConfig, 'url'>> = {
   reconnect: true,
@@ -36,6 +37,7 @@ export class NetworkClient {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private pingTimestamp: number = 0;
   private messageSequence: number = 0;
+  private latencyTrackerRef: LatencyTracker | null = null;
 
   private eventListeners: Map<
     NetworkEventType,
@@ -218,8 +220,17 @@ export class NetworkClient {
     }
   }
 
+  /** Inject a LatencyTracker to receive rolling RTT statistics. */
+  setLatencyTracker(tracker: LatencyTracker): void {
+    this.latencyTrackerRef = tracker;
+  }
+
   private handlePong(timestamp: number): void {
     this.latency = Date.now() - timestamp;
+    // Feed sample to rolling RTT tracker
+    if (this.latencyTrackerRef) {
+      this.latencyTrackerRef.addSample(this.latency);
+    }
     this.emit('latency', { ms: this.latency });
     logger.debug('Latency measured', { ms: this.latency });
   }

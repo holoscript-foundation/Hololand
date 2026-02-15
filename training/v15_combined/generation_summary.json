@@ -1,0 +1,92 @@
+{
+  "version": "v15-full",
+  "generated_at": "2026-02-05T06:02:16.626Z",
+  "total_examples": 72,
+  "by_difficulty": {
+    "easy": 6,
+    "medium": 17,
+    "hard": 32,
+    "frontier": 17
+  },
+  "by_category": {
+    "syntax": 13,
+    "materials": 7,
+    "traits": 6,
+    "avatars": 4,
+    "world": 5,
+    "environments": 5,
+    "protocol": 5,
+    "systems": 8,
+    "interactions": 6,
+    "physics": 6,
+    "multiplayer": 7
+  },
+  "sources": [
+    {
+      "name": "HoloScript Syntax",
+      "count": 11
+    },
+    {
+      "name": "HoloScript Traits",
+      "count": 6
+    },
+    {
+      "name": "HoloScript Systems",
+      "count": 3
+    },
+    {
+      "name": "HoloScript Multiplayer",
+      "count": 2
+    },
+    {
+      "name": "Avatar Customization",
+      "count": 4
+    },
+    {
+      "name": "Environment Design",
+      "count": 5
+    },
+    {
+      "name": "PBR Materials Guide",
+      "count": 3
+    },
+    {
+      "name": "VR World Creation",
+      "count": 5
+    },
+    {
+      "name": "VR Interactions",
+      "count": 6
+    },
+    {
+      "name": "VR Physics",
+      "count": 6
+    },
+    {
+      "name": "UAA2++ Protocol",
+      "count": 5
+    },
+    {
+      "name": "Multiplayer Expanded",
+      "count": 5
+    },
+    {
+      "name": "Systems Expanded",
+      "count": 5
+    },
+    {
+      "name": "Materials Expanded",
+      "count": 4
+    },
+    {
+      "name": "Syntax Expanded",
+      "count": 2
+    }
+  ],
+  "curriculum_distribution": {
+    "easy_percentage": 8,
+    "medium_percentage": 24,
+    "hard_percentage": 44,
+    "frontier_percentage": 24
+  }
+}

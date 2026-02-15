@@ -1,0 +1,11 @@
+{
+  "version": "v14",
+  "total_examples": 56,
+  "curriculum": {
+    "easy": 13,
+    "medium": 9,
+    "hard": 22,
+    "frontier": 12
+  },
+  "base_model": "microsoft/Phi-3.5-mini-instruct"
+}

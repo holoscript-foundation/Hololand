@@ -9,4 +9,5 @@ export { OpenAIProvider, type OpenAIProviderConfig, createBrittneyCloudProvider 
 export { AnthropicProvider, type AnthropicProviderConfig } from './anthropic.js';
 export { GoogleProvider, type GoogleProviderConfig } from './google.js';
 export { GrokProvider, type GrokProviderConfig } from './grok.js';
+export { DeepSeekProvider, type DeepSeekProviderConfig } from './deepseek.js';
 export { InfinityAssistantProvider, type InfinityAssistantProviderConfig } from './infinityassistant.js';

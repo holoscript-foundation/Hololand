@@ -13,7 +13,7 @@ describe('BrittneyIntegration', () => {
       const config: BrittneyConfig = {
         apiEndpoint: 'https://custom.api.com/brittney',
         apiKey: 'test-key-123',
-        model: 'brittney-v4',
+        model: 'brittney-qwen-v23',
         maxTokens: 4096,
         temperature: 0.5,
         timeout: 60000,
@@ -24,7 +24,7 @@ describe('BrittneyIntegration', () => {
 
       expect(result.apiEndpoint).toBe('https://custom.api.com/brittney');
       expect(result.apiKey).toBe('test-key-123');
-      expect(result.model).toBe('brittney-v4');
+      expect(result.model).toBe('brittney-qwen-v23');
       expect(result.maxTokens).toBe(4096);
       expect(result.temperature).toBe(0.5);
       expect(result.timeout).toBe(60000);

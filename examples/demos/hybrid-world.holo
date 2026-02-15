@@ -1,0 +1,549 @@
+// Hybrid World - HoloScript Demo
+// Refactored from legacy 07-hybrid-world/main.ts
+// Showcases: 2D UI controlling 3D world, object spawning, real-time manipulation
+
+composition "Hybrid World" {
+
+  environment {
+    skybox: "night_gradient"
+    ambient_light: 0.4
+    background: 0x0a0a12
+
+    camera {
+      position: [8, 6, 8]
+      look_at: [0, 0, 0]
+      fov: 60
+    }
+
+    // Enable hybrid rendering mode
+    render_mode: "hybrid"  // 2D UI overlay + 3D world
+    enable_vr: true
+    enable_shadows: true
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    @local_only
+    selected_object_type: "cube"
+    spawned_objects: []
+    object_counter: 0
+
+    // Central orb properties
+    orb_size: 2
+    orb_height: 2
+    orb_glow: true
+
+    // Camera settings
+    auto_rotate: false
+
+    // Stats
+    fps: 60
+    triangle_count: 1200
+    render_mode: "Desktop"
+  }
+
+  const colors = {
+    panel_bg: "rgba(26, 26, 46, 0.95)",
+    surface: "rgba(37, 37, 66, 0.9)",
+    primary: "#6366f1",
+    text: "#e0e0e0",
+    text_secondary: "#9ca3af",
+    success: "#10b981",
+    warning: "#f59e0b",
+    error: "#ef4444"
+  }
+
+  const object_types = [
+    { value: "cube", label: "Cube" },
+    { value: "sphere", label: "Sphere" },
+    { value: "cylinder", label: "Cylinder" }
+  ]
+
+  // ═══════════════════════════════════════════════════════════
+  // 3D WORLD OBJECTS
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "World3D" {
+
+    // Ground platform
+    object "Platform" {
+      type: "box"
+      position: [0, -0.5, 0]
+      size: [20, 1, 20]
+      color: "#1a1a2e"
+      material: "standard"
+
+      @collidable
+    }
+
+    // Central orb - controllable from UI
+    object "CentralOrb" {
+      type: "sphere"
+      position: [0, state.orb_height, 0]
+      size: [state.orb_size, state.orb_size, state.orb_size]
+      color: "#6366f1"
+      material: "emissive"
+
+      @glowing
+      glow: state.orb_glow ? 2 : 0
+
+      @animated
+      animation: "float"
+      animation_speed: 0.5
+    }
+
+    // Container for spawned objects
+    spatial_group "SpawnedObjects" {
+      @dynamic
+
+      // Objects spawned via UI appear here
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 2D UI CONTROL PANEL (Overlay)
+  // ═══════════════════════════════════════════════════════════
+
+  object "ControlPanel" {
+    type: "ui-panel"
+    position: [10, 10]
+    size: [300, 580]
+    background: colors.panel_bg
+    border_radius: 16
+
+    @local_only
+    @ui_layer  // Renders on 2D overlay
+
+    // Title
+    object "Title" {
+      type: "ui-text"
+      position: [20, 20]
+      text: "World Controls"
+      font_size: 20
+      font_weight: "600"
+      color: colors.text
+    }
+
+    object "Subtitle" {
+      type: "ui-text"
+      position: [20, 48]
+      text: "2D UI controlling 3D world"
+      font_size: 12
+      color: colors.text_secondary
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // SPAWN OBJECTS SECTION
+    // ═══════════════════════════════════════════════════════
+
+    object "SpawnSection" {
+      position: [0, 80]
+
+      object "SpawnTitle" {
+        type: "ui-text"
+        position: [20, 10]
+        text: "Spawn Objects"
+        font_size: 14
+        font_weight: "500"
+        color: colors.text
+      }
+
+      object "ObjectTypeDropdown" {
+        type: "ui-dropdown"
+        position: [20, 35]
+        size: [180, 36]
+        options: object_types
+        value: state.selected_object_type
+        background: colors.surface
+        text_color: colors.text
+        border_radius: 8
+
+        on_change: (value) => {
+          state.selected_object_type = value
+        }
+      }
+
+      object "SpawnButton" {
+        type: "ui-button"
+        position: [210, 35]
+        size: [70, 36]
+        text: "Spawn"
+        background: colors.primary
+        text_color: "#ffffff"
+        border_radius: 8
+
+        @clickable
+        on_click: spawn_object
+      }
+
+      object "ObjectCountText" {
+        type: "ui-text"
+        position: [20, 85]
+        text: "Objects: ${2 + state.spawned_objects.length}"
+        font_size: 12
+        color: colors.text_secondary
+      }
+
+      object "ClearButton" {
+        type: "ui-button"
+        position: [160, 78]
+        size: [120, 28]
+        text: "Clear All"
+        background: colors.error
+        text_color: "#ffffff"
+        border_radius: 6
+        font_size: 12
+
+        @clickable
+        on_click: clear_all_objects
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // CENTRAL ORB CONTROLS
+    // ═══════════════════════════════════════════════════════
+
+    object "OrbSection" {
+      position: [0, 200]
+
+      object "OrbTitle" {
+        type: "ui-text"
+        position: [20, 0]
+        text: "Central Orb"
+        font_size: 14
+        font_weight: "500"
+        color: colors.text
+      }
+
+      // Size slider
+      object "SizeLabel" {
+        type: "ui-text"
+        position: [20, 35]
+        text: "Size"
+        font_size: 12
+        color: colors.text_secondary
+      }
+
+      object "SizeSlider" {
+        type: "ui-slider"
+        position: [60, 28]
+        size: [180, 24]
+        min: 0.5
+        max: 5
+        step: 0.1
+        value: state.orb_size
+        show_value: true
+        active_color: colors.primary
+
+        on_change: (value) => {
+          state.orb_size = value
+        }
+      }
+
+      // Height slider
+      object "HeightLabel" {
+        type: "ui-text"
+        position: [20, 75]
+        text: "Height"
+        font_size: 12
+        color: colors.text_secondary
+      }
+
+      object "HeightSlider" {
+        type: "ui-slider"
+        position: [60, 68]
+        size: [180, 24]
+        min: 1
+        max: 10
+        step: 0.5
+        value: state.orb_height
+        show_value: true
+        active_color: colors.warning
+
+        on_change: (value) => {
+          state.orb_height = value
+        }
+      }
+
+      // Glow toggle
+      object "GlowToggle" {
+        type: "ui-toggle"
+        position: [20, 110]
+        label: "Enable Glow"
+        checked: state.orb_glow
+        color_on: colors.primary
+        label_color: colors.text
+
+        on_change: (checked) => {
+          state.orb_glow = checked
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // CAMERA CONTROLS
+    // ═══════════════════════════════════════════════════════
+
+    object "CameraSection" {
+      position: [0, 360]
+
+      object "CameraTitle" {
+        type: "ui-text"
+        position: [20, 0]
+        text: "Camera"
+        font_size: 14
+        font_weight: "500"
+        color: colors.text
+      }
+
+      object "RotateToggle" {
+        type: "ui-toggle"
+        position: [20, 30]
+        label: "Auto-Rotate"
+        checked: state.auto_rotate
+        color_on: colors.success
+        label_color: colors.text
+
+        on_change: (checked) => {
+          state.auto_rotate = checked
+          set_camera_auto_rotate(checked)
+        }
+      }
+
+      object "ResetCameraButton" {
+        type: "ui-button"
+        position: [20, 75]
+        size: [120, 36]
+        text: "Reset View"
+        background: colors.surface
+        text_color: colors.text
+        border_radius: 8
+
+        @clickable
+        on_click: reset_camera
+      }
+
+      object "EnterVRButton" {
+        type: "ui-button"
+        position: [150, 75]
+        size: [130, 36]
+        text: "Enter VR"
+        background: colors.primary
+        text_color: "#ffffff"
+        border_radius: 8
+
+        @clickable
+        on_click: () => {
+          if platform.vr_supported {
+            platform.request_vr_session()
+          } else {
+            show_notification("VR not available")
+          }
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // STATS DISPLAY
+    // ═══════════════════════════════════════════════════════
+
+    object "StatsPanel" {
+      type: "ui-panel"
+      position: [20, 490]
+      size: [260, 60]
+      background: colors.surface
+      border_radius: 8
+
+      object "FPSText" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "FPS: ${state.fps}"
+        font_size: 12
+        color: colors.success
+      }
+
+      object "TrianglesText" {
+        type: "ui-text"
+        position: [15, 35]
+        text: "Triangles: ~${(state.triangle_count / 1000).toFixed(1)}K"
+        font_size: 12
+        color: colors.text_secondary
+      }
+
+      object "ModeText" {
+        type: "ui-text"
+        position: [130, 15]
+        text: "Mode: ${state.render_mode}"
+        font_size: 12
+        color: colors.text
+      }
+
+      object "RendererText" {
+        type: "ui-text"
+        position: [130, 35]
+        text: "Renderer: WebGL2"
+        font_size: 12
+        color: colors.text_secondary
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // NOTIFICATION TOAST
+  // ═══════════════════════════════════════════════════════════
+
+  object "NotificationToast" {
+    type: "ui-panel"
+    position: [10, "calc(100% - 80px)"]
+    size: [300, 60]
+    background: colors.surface
+    border_radius: 12
+    visible: false
+
+    @local_only
+    @ui_layer
+
+    object "NotificationText" {
+      type: "ui-text"
+      position: [15, 20]
+      text: ""
+      font_size: 14
+      color: colors.text
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SPAWNABLE OBJECT TEMPLATE
+  // ═══════════════════════════════════════════════════════════
+
+  template "SpawnedObject" {
+    @physics
+    @selectable
+    @clickable
+
+    state {
+      object_type: "cube"
+      spawn_color: 0xffffff
+    }
+
+    object "Mesh" {
+      type: state.object_type
+      size: [1, 1, 1]
+      color: state.spawn_color
+      material: "standard"
+
+      @collidable
+    }
+
+    on_click {
+      // Select object for manipulation
+      emit "object_selected" { object: self }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    action spawn_object() {
+      // Random position on platform
+      x = (random() - 0.5) * 10
+      z = (random() - 0.5) * 10
+      color = random_color()
+
+      obj = spawn "SpawnedObject" in "SpawnedObjects" {
+        position: [x, 1, z]
+        state: {
+          object_type: state.selected_object_type,
+          spawn_color: color
+        }
+      }
+
+      state.spawned_objects.push(obj.id)
+      state.object_counter += 1
+
+      show_notification("Spawned ${state.selected_object_type} at (${x.toFixed(1)}, 1, ${z.toFixed(1)})")
+    }
+
+    action clear_all_objects() {
+      for id in state.spawned_objects {
+        obj = find_by_id(id)
+        if obj { destroy(obj) }
+      }
+
+      state.spawned_objects = []
+      state.object_counter = 0
+
+      show_notification("Cleared all spawned objects")
+    }
+
+    action reset_camera() {
+      animate camera {
+        position: [8, 6, 8]
+        look_at: [0, 0, 0]
+        duration: 0.5
+        easing: "ease_out"
+      }
+      show_notification("Camera reset")
+    }
+
+    action set_camera_auto_rotate(enabled) {
+      camera.auto_rotate = enabled
+      camera.auto_rotate_speed = enabled ? 2 : 0
+    }
+
+    action show_notification(message) {
+      NotificationToast.NotificationText.text = message
+      NotificationToast.visible = true
+
+      wait(3)
+      NotificationToast.visible = false
+    }
+
+    // FPS counter
+    frame_count = 0
+    last_fps_time = now()
+
+    on_update {
+      frame_count += 1
+      elapsed = now() - last_fps_time
+
+      if elapsed >= 1000 {
+        state.fps = frame_count
+        frame_count = 0
+        last_fps_time = now()
+      }
+    }
+
+    // Entry point
+    on_enter {
+      log("Hololand Hybrid World started!")
+      log("")
+      log("This example demonstrates:")
+      log("- 2D UI overlay on 3D world")
+      log("- Spawning 3D objects from UI controls")
+      log("- Real-time object manipulation")
+      log("- Camera controls")
+      log("- VR-ready rendering")
+
+      fade_from_black(1)
+    }
+
+    // Handle VR mode changes
+    on_vr_session_start {
+      state.render_mode = "VR"
+      // Hide 2D panel in VR, use spatial UI instead
+      ControlPanel.visible = false
+    }
+
+    on_vr_session_end {
+      state.render_mode = "Desktop"
+      ControlPanel.visible = true
+    }
+  }
+}

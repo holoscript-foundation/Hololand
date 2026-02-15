@@ -252,6 +252,23 @@ export class HandTrackingService {
   }
 
   /**
+   * Get overall tracking confidence (max of both hands)
+   */
+  get confidence(): number {
+    const leftConf = this.leftHandData?.confidence || 0;
+    const rightConf = this.rightHandData?.confidence || 0;
+    return Math.max(leftConf, rightConf);
+  }
+
+  /**
+   * Placeholder for recalibration logic
+   */
+  recalibrate(): void {
+    console.log('Recalibrating hand tracking sensors...');
+    // In a real implementation, this might reset joint smoothing or anchor offsets
+  }
+
+  /**
    * Get position of a specific joint
    */
   getJointPosition(hand: 'left' | 'right', jointName: XRHandJointName): { x: number; y: number; z: number } | null {

@@ -163,7 +163,7 @@ export const QUALITY_PRESETS: Record<Exclude<QualityPreset, 'auto'>, QualitySett
     maxAnimatedObjects: 100,
     physicsSubsteps: 4,
     targetFPS: 60,
-    pixelRatio: window?.devicePixelRatio || 1.5,
+    pixelRatio: typeof window !== 'undefined' && window && window.devicePixelRatio ? window.devicePixelRatio : 1.5,
   },
 };
 

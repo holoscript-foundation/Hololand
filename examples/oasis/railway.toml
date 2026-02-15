@@ -1,0 +1,21 @@
+# Railway deployment configuration
+# Hololand Oasis - Monorepo deployment
+
+# NOTE: This file is a fallback. Railway primarily uses railway.json
+# For monorepo deployment, we use Dockerfile builder
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "examples/oasis/Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[environments.production]
+NODE_ENV = "production"
+
+[environments.staging]
+NODE_ENV = "staging"

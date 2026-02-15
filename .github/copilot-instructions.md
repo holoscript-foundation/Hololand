@@ -82,18 +82,26 @@ Hololand is a VR/AR platform using HoloScript - a visual flow language designed 
 - **Parser**: ✅ Implemented in `@holoscript/core`
 
 ```hs
-orb player {
-  position: { x: 0, y: 1.6, z: 0 }
-  health: 100
-  color: "#00ffff"
-}
+composition "PlayerDemo" {
+  template "Player" {
+    @physics
+    @collidable
+    geometry: "humanoid"
+    color: "#00ffff"
 
-function attack(target) {
-  target.health -= 10
-}
+    state {
+      health: 100
+    }
+  }
 
-connect inventory to player as "items"
-execute init
+  object "Player" using "Player" {
+    position: [0, 1.6, 0]
+  }
+
+  action attack(target) {
+    target.state.health -= 10
+  }
+}
 ```
 
 ---
@@ -104,22 +112,28 @@ execute init
 - **Parser**: ✅ Implemented in `@holoscript/core`
 
 ```hsplus
-orb player {
-  @grabbable
-  @collidable
-  @networked
-  
-  position: [0, 1.6, 0]
-  
-  state {
-    health: 100
-    isAlive: true
-  }
-}
+composition "NetworkedPlayerDemo" {
+  template "NetworkedPlayer" {
+    @physics
+    @collidable
+    @grabbable
+    @networked
+    geometry: "humanoid"
 
-networked_object syncedPlayer {
-  sync_rate: 20hz
-  position: synced
+    state {
+      health: 100
+      isAlive: true
+    }
+
+    networked {
+      sync_rate: 20hz
+      position: synced
+    }
+  }
+
+  object "Player" using "NetworkedPlayer" {
+    position: [0, 1.6, 0]
+  }
 }
 ```
 
@@ -170,10 +184,10 @@ Simple prototype? → .hs
 ### .hs / .hsplus Syntax
 | Construct | Example |
 |-----------|---------|
-| Object | `orb name { property: value }` |
-| Function | `function name() { ... }` |
-| Connect | `connect A to B as "link"` |
-| VR Trait (.hsplus) | `@grabbable`, `@collidable` |
+| Composition | `composition "Name" { }` |
+| Template | `template "Type" { @traits; properties }` |
+| Object | `object "Name" using "Template" { position: [x,y,z] }` |
+| VR Trait (.hsplus) | `@grabbable`, `@collidable`, `@networked` |
 | State (.hsplus) | `state { key: value }` |
 
 ### .holo Syntax
@@ -242,11 +256,22 @@ HoloScript has 49 built-in traits that make objects spatial and interactive:
 ### After (HoloScript) - 15 lines:
 ```holo
 composition "Interactive Demo" {
-  object "Orb" {
-    @grabbable @throwable @glowing
-    position: [0, 1.5, -2]
+  template "TeleportOrb" {
+    @physics
+    @collidable
+    @grabbable
+    @throwable
+    @glowing
+    geometry: "sphere"
     color: "#00ffff"
-    on_throw: { teleport_user(throw_target) }
+
+    on_throw() {
+      teleport_user(throw_target)
+    }
+  }
+
+  object "Orb" using "TeleportOrb" {
+    position: [0, 1.5, -2]
   }
 }
 ```

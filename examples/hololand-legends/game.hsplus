@@ -60,126 +60,140 @@
   debug_logs: true
 }
 
-orb#HololandLegends {
-  environment: {
-    mode: "2d",
-    tile_size: 16,
-    scale: 3,
-    viewport: [320, 240],
-    
+composition "HololandLegends" {
+  environment {
+    mode: "2d"
+    tile_size: 16
+    scale: 3
+    viewport: [320, 240]
+
     audio: {
-      ambient: "meadow_theme",
+      ambient: "meadow_theme"
       volume: 0.5
+    }
+  }
+
+  // ==========================================================================
+  // TEMPLATES
+  // ==========================================================================
+
+  template "TileMap" {
+    layer: "background"
+    tileset: "tiles.png"
+    tileSize: 16
+
+    on_mount() {
+      // self.loadMap(state.currentMap)
+    }
+  }
+
+  template "Hero" {
+    sprite: "player.png"
+    layer: "entities"
+    size: [32, 32]
+    anchor: [0.5, 1.0]
+
+    on_update(delta) {
+      // Animation logic
+    }
+  }
+
+  template "BattleScene" {
+    layer: "ui"
+
+    on_update(delta) {
+      if (state.isBattleActive) {
+        // Battle Logic Update
+      }
     }
   }
 
   // ==========================================================================
   // OBJECT DEFINITIONS
   // ==========================================================================
-  
-  orb#TileMap {
-     layer: "background"
-     tileset: "tiles.png"
-     tileSize: 16
-     
-     @on_mount {
-        // self.loadMap(state.currentMap)
-     }
+
+  object "TileMap" using "TileMap" {
+    position: [0, 0, 0]
   }
 
   // ==========================================================================
   // PLAYER
   // ==========================================================================
-  
-  orb#Hero {
-    sprite: "player.png"
-    layer: "entities"
-    size: [32, 32]
-    anchor: [0.5, 1.0]
-    
+
+  object "Hero" using "Hero" {
     // Bind position to state
     position: [state.playerX * 16, state.playerY * 16, 0]
-    
-    @on_update(delta) {
-        // Animation logic
-    }
   }
 
   // ==========================================================================
   // BATTLE UI
   // ==========================================================================
-  
-  orb#BattleScene {
-    layer: "ui"
+
+  object "BattleScene" using "BattleScene" {
     position: [0, 0, 1] // On top
-    
-    @visible(state.isBattleActive)
-    
-    @on_update(delta) {
-       if (state.isBattleActive) {
-          // Battle Logic Update
-       }
-    }
+    visible: state.isBattleActive
   }
 
   // ==========================================================================
   // INPUT HANDLERS (Global Logic)
   // ==========================================================================
-  
-  @on_update {
-     // --- MULTI-DIRECTIONAL LEVEL TRANSITIONS (Script-Driven) ---
-     // Note: For web, Player.ts handles input & movement
-     //       For desktop/mobile, input will be handled here in full runtime
-     
-     // RIGHT EDGE: Advance to next level
-     if (state.playerX >= state.levelWidth - 1) {
-         state.currentLevel = state.currentLevel + 1
-         
-         // Cycle through biomes every 3 levels (forest -> cave -> desert -> repeat)
-         const biomeIndex = Math.floor(state.currentLevel / 3) % 3
-         if (biomeIndex == 0) state.currentBiome = "forest"
-         if (biomeIndex == 1) state.currentBiome = "cave"
-         if (biomeIndex == 2) state.currentBiome = "desert"
-         
-         emit("level_transition", state.currentLevel)
-         emit("system_message", "Level " + state.currentLevel + " - " + state.currentBiome)
-         
-         load_scene("generated_level_" + state.currentLevel)
-         state.playerX = 1  // Reset to left edge
-         play_audio("level_up")
-     }
-     
-     // LEFT EDGE: Go back to previous level (if not level 1)
-     if (state.playerX <= 0 && state.currentLevel > 1) {
-         state.currentLevel = state.currentLevel - 1
-         
-         // Update biome for previous level
-         const biomeIndex = Math.floor(state.currentLevel / 3) % 3
-         if (biomeIndex == 0) state.currentBiome = "forest"
-         if (biomeIndex == 1) state.currentBiome = "cave"
-         if (biomeIndex == 2) state.currentBiome = "desert"
-         
-         emit("system_message", "Returning to Level " + state.currentLevel)
-         load_scene("generated_level_" + state.currentLevel)
-         state.playerX = state.levelWidth - 2  // Reset to right side
-         play_audio("level_down")
-     }
-     
-     // TOP EDGE: Secret area (bonus level)
-     if (state.playerY <= 0) {
-         emit("system_message", "Found Secret Area!")
-         load_scene("secret_bonus_" + state.currentLevel)
-         state.playerY = state.levelHeight - 2
-         play_audio("secret_found")
-     }
-     
-     // BOTTOM EDGE: Return from secret area
-     if (state.playerY >= state.levelHeight - 1 && state.currentMap.startsWith("secret_")) {
-         emit("system_message", "Returning to main path")
-         load_scene("generated_level_" + state.currentLevel)
-         state.playerY = 1
-         play_audio("teleport")
-     }
+
+  logic {
+    on_update {
+      // --- MULTI-DIRECTIONAL LEVEL TRANSITIONS (Script-Driven) ---
+      // Note: For web, Player.ts handles input & movement
+      //       For desktop/mobile, input will be handled here in full runtime
+
+      // RIGHT EDGE: Advance to next level
+      if (state.playerX >= state.levelWidth - 1) {
+        state.currentLevel = state.currentLevel + 1
+
+        // Cycle through biomes every 3 levels (forest -> cave -> desert -> repeat)
+        const biomeIndex = Math.floor(state.currentLevel / 3) % 3
+        if (biomeIndex == 0) state.currentBiome = "forest"
+        if (biomeIndex == 1) state.currentBiome = "cave"
+        if (biomeIndex == 2) state.currentBiome = "desert"
+
+        emit("level_transition", state.currentLevel)
+        emit("system_message", "Level " + state.currentLevel + " - " + state.currentBiome)
+
+        load_scene("generated_level_" + state.currentLevel)
+        state.playerX = 1  // Reset to left edge
+        play_audio("level_up")
+      }
+
+      // LEFT EDGE: Go back to previous level (if not level 1)
+      if (state.playerX <= 0 && state.currentLevel > 1) {
+        state.currentLevel = state.currentLevel - 1
+
+        // Update biome for previous level
+        const biomeIndex = Math.floor(state.currentLevel / 3) % 3
+        if (biomeIndex == 0) state.currentBiome = "forest"
+        if (biomeIndex == 1) state.currentBiome = "cave"
+        if (biomeIndex == 2) state.currentBiome = "desert"
+
+        emit("system_message", "Returning to Level " + state.currentLevel)
+        load_scene("generated_level_" + state.currentLevel)
+        state.playerX = state.levelWidth - 2  // Reset to right side
+        play_audio("level_down")
+      }
+
+      // TOP EDGE: Secret area (bonus level)
+      if (state.playerY <= 0) {
+        emit("system_message", "Found Secret Area!")
+        load_scene("secret_bonus_" + state.currentLevel)
+        state.playerY = state.levelHeight - 2
+        play_audio("secret_found")
+      }
+
+      // BOTTOM EDGE: Return from secret area
+      if (state.playerY >= state.levelHeight - 1 && state.currentMap.startsWith("secret_")) {
+        emit("system_message", "Returning to main path")
+        load_scene("generated_level_" + state.currentLevel)
+        state.playerY = 1
+        play_audio("teleport")
+      }
+    }
   }
 }
 
@@ -191,97 +205,110 @@ orb#HololandLegends {
   debug_logs: true
 }
 
-scene HololandLegends {
-  environment: {
-    mode: "2d",
-    tile_size: 16,
-    scale: 3,
-    viewport: [320, 240],
-    
+// Alternative scene definition using composition syntax
+composition "HololandLegendsAlt" {
+  environment {
+    mode: "2d"
+    tile_size: 16
+    scale: 3
+    viewport: [320, 240]
+
     audio: {
-      ambient: "meadow_theme",
+      ambient: "meadow_theme"
       volume: 0.5
+    }
+  }
+
+  // ==========================================================================
+  // TEMPLATES
+  // ==========================================================================
+
+  template "TileMapAlt" {
+    // Implementation would use a grid or custom renderer
+    layer: "background"
+    tileset: "tiles.png"
+    tileSize: 16
+
+    on_mount() {
+      // self.loadMap(state.currentMap)
+    }
+  }
+
+  template "HeroAlt" {
+    sprite: "player.png"
+    layer: "entities"
+    size: [32, 32]
+    anchor: [0.5, 1.0]
+
+    on_update(delta) {
+      // Animation logic
+    }
+  }
+
+  template "BattleSceneAlt" {
+    layer: "ui"
+
+    on_update(delta) {
+      if (state.isBattleActive) {
+        // Battle Logic Update
+      }
     }
   }
 
   // ==========================================================================
   // OBJECT DEFINITIONS
   // ==========================================================================
-  
-  object TileMap {
-     // Implementation would use a grid or custom renderer
-     layer: "background"
-     tileset: "tiles.png"
-     tileSize: 16
-     
-     @on_mount {
-        // self.loadMap(state.currentMap)
-     }
+
+  object "TileMapAlt" using "TileMapAlt" {
+    position: [0, 0, 0]
   }
 
   // ==========================================================================
   // PLAYER
   // ==========================================================================
-  
-  object Hero {
-    sprite: "player.png"
-    layer: "entities"
-    size: [32, 32]
-    anchor: [0.5, 1.0]
-    
+
+  object "HeroAlt" using "HeroAlt" {
     // Bind position to state
     position: [state.playerX * 16, state.playerY * 16, 0]
-    
-    @on_update(delta) {
-        // Animation logic
-    }
   }
 
   // ==========================================================================
   // BATTLE UI
   // ==========================================================================
-  
-  object BattleScene @visible(state.isBattleActive) {
-    layer: "ui"
+
+  object "BattleSceneAlt" using "BattleSceneAlt" {
     position: [0, 0, 1] // On top
-    
-    @on_update(delta) {
-       if (state.isBattleActive) {
-          // Battle Logic Update
-       }
-    }
+    visible: state.isBattleActive
   }
 
   // ==========================================================================
   // INPUT HANDLERS (Global Logic)
   // ==========================================================================
-  
-  // ==========================================================================
-  // INPUT HANDLERS (Global Logic)
-  // ==========================================================================
-  
-  @on_update {
-     // Standard input polling
-     // Basic 4-direction movement logic
-     if (input.getKey("ArrowUp") || input.getKey("w")) {
-        state.playerY = state.playerY - 1
-     }
-     if (input.getKey("ArrowDown") || input.getKey("s")) {
-        state.playerY = state.playerY + 1
-     }
-     if (input.getKey("ArrowLeft") || input.getKey("a")) {
-        state.playerX = state.playerX - 1
-     }
-     if (input.getKey("ArrowRight") || input.getKey("d")) {
-        state.playerX = state.playerX + 1
-     }
 
-     // --- Map Transitions (HoloScript Logic) ---
-     if (state.currentMap == "starting_town" && state.playerX >= 19) {
-         emit("system_message", "Leaving Town...")
-         load_scene("forest")
-         state.playerX = 1
-         state.playerY = 7
-     }
+  logic {
+    on_update {
+      // Standard input polling
+      // Basic 4-direction movement logic
+      if (input.getKey("ArrowUp") || input.getKey("w")) {
+        state.playerY = state.playerY - 1
+      }
+      if (input.getKey("ArrowDown") || input.getKey("s")) {
+        state.playerY = state.playerY + 1
+      }
+      if (input.getKey("ArrowLeft") || input.getKey("a")) {
+        state.playerX = state.playerX - 1
+      }
+      if (input.getKey("ArrowRight") || input.getKey("d")) {
+        state.playerX = state.playerX + 1
+      }
+
+      // --- Map Transitions (HoloScript Logic) ---
+      if (state.currentMap == "starting_town" && state.playerX >= 19) {
+        emit("system_message", "Leaving Town...")
+        load_scene("forest")
+        state.playerX = 1
+        state.playerY = 7
+      }
+    }
   }
 }

@@ -1,0 +1,515 @@
+// Multiplayer Lobby - HoloScript Demo
+// Refactored from legacy 09-multiplayer-lobby/main.ts
+// Showcases: @networked state, room management, text/voice chat, player presence
+
+composition "Multiplayer Lobby" {
+
+  environment {
+    skybox: "cyber_grid"
+    ambient_light: 0.5
+    fog: {
+      color: "#16213e"
+      density: 0.01
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // NETWORKED STATE
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    @networked
+    rooms: []           // Available rooms
+    current_room: null  // Current room info
+    players: []         // Players in current room
+
+    @synced
+    chat_messages: []   // Last 50 messages
+
+    @local_only
+    display_name: "Player_" + random_id(4)
+    is_connected: false
+    voice_enabled: false
+    is_muted: false
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PLAYER AVATAR TEMPLATE
+  // ═══════════════════════════════════════════════════════════
+
+  template "PlayerAvatar" {
+    @networked
+    @synced
+
+    state {
+      player_id: null
+      display_name: "Unknown"
+      role: "player"  // "host" or "player"
+      position: [0, 0, 0]
+    }
+
+    object "AvatarBody" {
+      type: "sphere"
+      size: [0.6, 0.6, 0.6]
+      material: "avatar_glow"
+
+      // Color based on role
+      color: state.role == "host" ? "#f59e0b" : "#6366f1"
+    }
+
+    object "NameTag" {
+      type: "ui-text"
+      position: [0, 0.8, 0]
+      text: "${state.display_name}"
+      font_size: 16
+      color: "#ffffff"
+      billboard: true
+
+      // Show host badge
+      object "HostBadge" {
+        visible: state.role == "host"
+        type: "ui-text"
+        position: [0, -0.2, 0]
+        text: "HOST"
+        font_size: 10
+        color: "#f59e0b"
+      }
+    }
+
+    // Voice indicator
+    object "VoiceIndicator" {
+      type: "sphere"
+      size: [0.1, 0.1, 0.1]
+      position: [0.4, 0.3, 0]
+      color: "#10b981"
+      visible: false
+
+      @animated
+      animation: "pulse"
+      animation_speed: 2
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOBBY ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "LobbyArena" {
+
+    // Floor with grid pattern
+    object "Floor" {
+      type: "plane"
+      size: [30, 30]
+      material: "grid_cyber"
+      color: "#16213e"
+      @collidable
+    }
+
+    // Spawn points in a circle
+    for i in range(8) {
+      object "SpawnPoint_${i}" {
+        type: "cylinder"
+        position: [
+          cos(i * 45 * DEG_TO_RAD) * 8,
+          0.05,
+          sin(i * 45 * DEG_TO_RAD) * 8
+        ]
+        size: [1.2, 0.1, 1.2]
+        material: "glow_pad"
+        color: hsl(i * 45, 70, 60)
+
+        @spawn_point
+        spawn_index: i
+      }
+    }
+
+    // Center platform
+    object "CenterPlatform" {
+      type: "cylinder"
+      position: [0, 0.1, 0]
+      size: [4, 0.2, 4]
+      material: "metal_dark"
+      color: "#1a1a2e"
+      @collidable
+    }
+
+    // Holographic room display
+    object "RoomDisplay" {
+      position: [0, 3, 0]
+
+      object "RoomNameText" {
+        type: "ui-text"
+        text: state.current_room ? state.current_room.name : "Not in a room"
+        font_size: 48
+        color: "#00ffff"
+        billboard: true
+
+        @synced
+        update_on: "state.current_room"
+      }
+
+      object "PlayerCountText" {
+        type: "ui-text"
+        position: [0, -0.5, 0]
+        text: "Players: ${state.players.length}/${state.current_room?.max_players ?? 0}"
+        font_size: 24
+        color: "#9ca3af"
+        billboard: true
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // UI PANELS
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "UIOverlay" {
+    @local_only
+    position: "attached_to_player"
+
+    // Connection status panel
+    object "ConnectionPanel" {
+      type: "ui-panel"
+      position: [-1.5, 1.5, 2]
+      size: [300, 180]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "Title" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "Connection"
+        font_size: 18
+        color: "#e0e0e0"
+      }
+
+      object "StatusText" {
+        type: "ui-text"
+        position: [15, 45]
+        text: state.is_connected ? "Connected" : "Disconnected"
+        font_size: 12
+        color: state.is_connected ? "#10b981" : "#ef4444"
+      }
+
+      object "NameInput" {
+        type: "ui-input"
+        position: [15, 75]
+        size: [200, 32]
+        placeholder: "Display Name..."
+        value: state.display_name
+        on_change: (value) => { state.display_name = value }
+      }
+
+      object "ConnectButton" {
+        type: "ui-button"
+        position: [15, 120]
+        size: [130, 32]
+        text: "Connect"
+        color: "#6366f1"
+        @clickable
+        on_click: connect_to_server
+      }
+
+      object "DisconnectButton" {
+        type: "ui-button"
+        position: [155, 120]
+        size: [130, 32]
+        text: "Disconnect"
+        color: "#ef4444"
+        @clickable
+        on_click: disconnect
+      }
+    }
+
+    // Room list panel
+    object "RoomListPanel" {
+      type: "ui-panel"
+      position: [-1.5, 0.8, 2]
+      size: [300, 250]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "Title" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "Available Rooms"
+        font_size: 18
+        color: "#e0e0e0"
+      }
+
+      object "RefreshButton" {
+        type: "ui-button"
+        position: [200, 10]
+        size: [85, 28]
+        text: "Refresh"
+        color: "#374151"
+        @clickable
+        on_click: refresh_room_list
+      }
+
+      object "RoomList" {
+        type: "ui-list"
+        position: [15, 50]
+        size: [270, 140]
+        items: state.rooms.map(r => "${r.name} (${r.player_count}/${r.max_players})")
+        @clickable
+        on_item_click: (index) => join_room(state.rooms[index].id)
+      }
+
+      object "CreateRoomButton" {
+        type: "ui-button"
+        position: [15, 205]
+        size: [270, 32]
+        text: "Create New Room"
+        color: "#10b981"
+        @clickable
+        on_click: create_room
+      }
+    }
+
+    // Voice controls panel
+    object "VoicePanel" {
+      type: "ui-panel"
+      position: [-1.5, 0.1, 2]
+      size: [300, 100]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "Title" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "Voice Chat"
+        font_size: 18
+        color: "#e0e0e0"
+      }
+
+      object "VoiceToggle" {
+        type: "ui-toggle"
+        position: [15, 50]
+        label: "Join Voice"
+        checked: state.voice_enabled
+        color_on: "#10b981"
+        on_change: (checked) => toggle_voice(checked)
+      }
+
+      object "MuteToggle" {
+        type: "ui-toggle"
+        position: [150, 50]
+        label: "Mute"
+        checked: state.is_muted
+        color_on: "#f59e0b"
+        on_change: (checked) => toggle_mute(checked)
+      }
+    }
+
+    // Chat panel (bottom)
+    object "ChatPanel" {
+      type: "ui-panel"
+      position: [0, -0.8, 2]
+      size: [600, 180]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "ChatMessages" {
+        type: "ui-list"
+        position: [15, 15]
+        size: [570, 110]
+        items: state.chat_messages.slice(-10).map(format_chat_message)
+        auto_scroll: true
+      }
+
+      object "ChatInput" {
+        type: "ui-input"
+        position: [15, 135]
+        size: [480, 32]
+        placeholder: "Type a message..."
+        on_submit: (value) => send_chat_message(value)
+      }
+
+      object "SendButton" {
+        type: "ui-button"
+        position: [505, 135]
+        size: [80, 32]
+        text: "Send"
+        color: "#6366f1"
+        @clickable
+        on_click: () => send_chat_message(ChatInput.value)
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PLAYER SPAWNING
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "PlayerAvatars" {
+    @networked
+
+    // Dynamically spawn avatars for each player
+    @for player in state.players {
+      object "Avatar_${player.id}" using "PlayerAvatar" {
+        position: get_spawn_position(player.index)
+        state: {
+          player_id: player.id
+          display_name: player.display_name
+          role: player.role
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GAME LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    // Helper functions
+    function get_spawn_position(index) {
+      angle = index * 45 * DEG_TO_RAD
+      return [cos(angle) * 8, 0.5, sin(angle) * 8]
+    }
+
+    function format_chat_message(msg) {
+      if msg.type == "system" {
+        return "[System] ${msg.content}"
+      }
+      return "${msg.sender_name}: ${msg.content}"
+    }
+
+    // Network actions
+    @networked
+    action connect_to_server() {
+      network.connect("wss://lobby.hololand.io")
+      state.is_connected = true
+      emit "connected" {}
+      refresh_room_list()
+    }
+
+    action disconnect() {
+      if state.current_room {
+        leave_room()
+      }
+      network.disconnect()
+      state.is_connected = false
+      state.rooms = []
+    }
+
+    @networked
+    action refresh_room_list() {
+      state.rooms = await network.get_rooms()
+    }
+
+    @networked
+    action create_room() {
+      room = await network.create_room({
+        name: "${state.display_name}'s Room",
+        max_players: 10
+      })
+      state.current_room = room
+      state.players = [{
+        id: local_player.id,
+        display_name: state.display_name,
+        role: "host",
+        index: 0
+      }]
+      add_system_message("Room created: ${room.name}")
+    }
+
+    @networked
+    action join_room(room_id) {
+      room = await network.join_room(room_id)
+      state.current_room = room
+      state.players = room.players
+      add_system_message("Joined: ${room.name}")
+    }
+
+    action leave_room() {
+      network.leave_room()
+      state.current_room = null
+      state.players = []
+      state.chat_messages = []
+    }
+
+    @synced
+    action send_chat_message(content) {
+      if !content.trim() { return }
+
+      message = {
+        id: uuid(),
+        type: "text",
+        sender_id: local_player.id,
+        sender_name: state.display_name,
+        content: content.trim(),
+        timestamp: now()
+      }
+
+      state.chat_messages.push(message)
+      if state.chat_messages.length > 50 {
+        state.chat_messages.shift()
+      }
+    }
+
+    action add_system_message(content) {
+      state.chat_messages.push({
+        id: uuid(),
+        type: "system",
+        content: content,
+        timestamp: now()
+      })
+    }
+
+    action toggle_voice(enabled) {
+      state.voice_enabled = enabled
+      if enabled {
+        voice.join(state.current_room.id)
+      } else {
+        voice.leave()
+      }
+    }
+
+    action toggle_mute(muted) {
+      state.is_muted = muted
+      if muted {
+        voice.mute()
+      } else {
+        voice.unmute()
+      }
+    }
+
+    // Event handlers
+    on_player_joined(player) {
+      state.players.push({
+        ...player,
+        index: state.players.length
+      })
+      add_system_message("${player.display_name} joined")
+
+      // Update avatar positions
+      reposition_avatars()
+    }
+
+    on_player_left(player) {
+      state.players = state.players.filter(p => p.id != player.id)
+      add_system_message("${player.display_name} left")
+      reposition_avatars()
+    }
+
+    action reposition_avatars() {
+      for (player, index) in state.players {
+        player.index = index
+        animate "Avatar_${player.id}" {
+          position: get_spawn_position(index)
+          duration: 0.5
+          easing: "ease_out"
+        }
+      }
+    }
+
+    // Entry point
+    on_enter {
+      fade_from_black(1)
+      show_notification("Welcome to the Multiplayer Lobby!")
+    }
+  }
+}

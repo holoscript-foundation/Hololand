@@ -1,0 +1,568 @@
+// Universal Dashboard - HoloScript Demo
+// Refactored from legacy 13-universal-dashboard/src/main.ts
+// Showcases: Cross-platform analytics, adaptive layout, voice AI, mode switching
+
+composition "Universal Dashboard" {
+
+  environment {
+    skybox: "gradient_dark"
+    ambient_light: 0.5
+
+    render_mode: "hybrid"
+    enable_vr: true
+
+    // Adaptive quality based on device
+    quality: "auto"
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    @local_only
+    @persisted
+    user_mode: "simple"  // "simple" (kid-friendly) or "expert" (pro)
+    device_type: "desktop"  // "desktop", "mobile", "vr", "ar"
+
+    // Voice AI state
+    voice_active: false
+    voice_level: 0
+    ai_status: "Ready"
+    ai_connected: false
+
+    // Dashboard metrics
+    metrics: {
+      scale_multiplier: 1.0,
+      scale_magnitude: "1:1",
+      fps: 60,
+      latency: 12
+    }
+
+    // World state
+    current_scale: 1.0
+  }
+
+  const colors = {
+    bg: "#0f0f1a",
+    surface: "rgba(26, 26, 46, 0.95)",
+    primary: "#6366f1",
+    success: "#00E676",
+    warning: "#f59e0b",
+    text: "#e0e0e0",
+    text_muted: "#9ca3af"
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ADAPTIVE LAYOUT SYSTEM
+  // ═══════════════════════════════════════════════════════════
+
+  // Layout changes based on device and user mode
+  computed layout = {
+    panel_width: state.device_type == "mobile" ? 280 : 320,
+    font_scale: state.user_mode == "simple" ? 1.2 : 1.0,
+    button_size: state.user_mode == "simple" ? 60 : 44,
+    show_advanced: state.user_mode == "expert",
+    spacing: state.user_mode == "simple" ? 20 : 12
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 3D WORLD VIEW
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "WorldView" {
+
+    // Scale reference grid
+    object "ScaleGrid" {
+      type: "grid"
+      size: [20, 20]
+      cell_size: 1
+      color: "rgba(99, 102, 241, 0.2)"
+      position: [0, 0, 0]
+    }
+
+    // Central reference object
+    object "ReferenceOrb" {
+      type: "sphere"
+      position: [0, 2, 0]
+      size: [1, 1, 1]
+      color: colors.primary
+      material: "emissive"
+
+      @glowing
+      glow: 1.5
+
+      @animated
+      animation: "float"
+    }
+
+    // Scale indicator pillars
+    for i in range(4) {
+      object "ScalePillar_${i}" {
+        type: "cylinder"
+        position: [
+          cos(i * 90 * DEG_TO_RAD) * 5,
+          1,
+          sin(i * 90 * DEG_TO_RAD) * 5
+        ]
+        size: [0.3, 2, 0.3]
+        color: hsl(i * 90, 70, 60)
+        material: "standard"
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATUS HUD
+  // ═══════════════════════════════════════════════════════════
+
+  object "StatusHUD" {
+    type: "ui-panel"
+    position: [20, 20]
+    size: [layout.panel_width - 100, 100]
+    background: colors.surface
+    border_radius: 12
+
+    @local_only
+
+    object "ScaleDisplay" {
+      position: [15, 15]
+
+      object "ScaleLabel" {
+        type: "ui-text"
+        text: "Scale"
+        font_size: 12 * layout.font_scale
+        color: colors.text_muted
+      }
+
+      object "ScaleValue" {
+        type: "ui-text"
+        position: [0, 20]
+        text: "${state.metrics.scale_multiplier.toFixed(2)}x"
+        font_size: 24 * layout.font_scale
+        font_weight: "600"
+        color: colors.text
+      }
+
+      object "ScaleMagnitude" {
+        type: "ui-text"
+        position: [0, 50]
+        text: state.metrics.scale_magnitude
+        font_size: 14 * layout.font_scale
+        color: colors.primary
+      }
+    }
+
+    object "AIStatus" {
+      position: [120, 15]
+
+      object "AILabel" {
+        type: "ui-text"
+        text: "AI Status"
+        font_size: 12 * layout.font_scale
+        color: colors.text_muted
+      }
+
+      object "AIStatusValue" {
+        type: "ui-text"
+        position: [0, 20]
+        text: state.ai_status
+        font_size: 16 * layout.font_scale
+        color: state.ai_connected ? colors.success : colors.warning
+      }
+
+      object "AIIndicator" {
+        type: "ui-circle"
+        position: [0, 50]
+        size: [10, 10]
+        fill: state.ai_connected ? colors.success : colors.warning
+
+        @animated
+        animation: state.ai_connected ? "pulse" : "none"
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODE SWITCHER
+  // ═══════════════════════════════════════════════════════════
+
+  object "ModeSwitcher" {
+    type: "ui-panel"
+    position: [20, 140]
+    size: [layout.panel_width - 100, layout.button_size + 20]
+    background: colors.surface
+    border_radius: 12
+
+    @local_only
+
+    object "ModeButton" {
+      type: "ui-button"
+      position: [10, 10]
+      size: [layout.panel_width - 120, layout.button_size]
+      text: state.user_mode == "simple" ? "Switch to Pro Mode" : "Switch to Kid Mode"
+      background: state.user_mode == "simple" ? colors.primary : colors.success
+      text_color: "#ffffff"
+      border_radius: 8
+      font_size: 14 * layout.font_scale
+
+      @clickable
+      on_click: toggle_user_mode
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VOICE VISUALIZER
+  // ═══════════════════════════════════════════════════════════
+
+  object "VoicePanel" {
+    type: "ui-panel"
+    position: [20, 140 + layout.button_size + 40]
+    size: [layout.panel_width - 100, 80]
+    background: colors.surface
+    border_radius: 12
+
+    @local_only
+
+    object "VoiceLabel" {
+      type: "ui-text"
+      position: [15, 10]
+      text: "Voice Input"
+      font_size: 12 * layout.font_scale
+      color: colors.text_muted
+    }
+
+    object "VoiceVisualizer" {
+      type: "ui-audio-visualizer"
+      position: [15, 35]
+      size: [layout.panel_width - 130, 30]
+      color: colors.success
+      style: "waveform"
+      level: state.voice_level
+      active: state.voice_active
+    }
+
+    object "VoiceToggle" {
+      type: "ui-button"
+      position: [15, 35]
+      size: [30, 30]
+      icon: state.voice_active ? "mic" : "mic_off"
+      background: state.voice_active ? colors.success : colors.text_muted
+      border_radius: 15
+      visible: false  // Overlaid on visualizer when needed
+
+      @clickable
+      on_click: toggle_voice
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ADVANCED CONTROLS (Expert Mode Only)
+  // ═══════════════════════════════════════════════════════════
+
+  object "AdvancedControls" {
+    type: "ui-panel"
+    position: [20, 300]
+    size: [layout.panel_width - 100, 200]
+    background: colors.surface
+    border_radius: 12
+    visible: layout.show_advanced
+
+    @local_only
+
+    object "AdvancedTitle" {
+      type: "ui-text"
+      position: [15, 15]
+      text: "Advanced Controls"
+      font_size: 14
+      font_weight: "500"
+      color: colors.text
+    }
+
+    // Scale control
+    object "ScaleControl" {
+      position: [15, 45]
+
+      object "ScaleControlLabel" {
+        type: "ui-text"
+        text: "World Scale"
+        font_size: 12
+        color: colors.text_muted
+      }
+
+      object "ScaleSlider" {
+        type: "ui-slider"
+        position: [0, 20]
+        size: [layout.panel_width - 130, 24]
+        min: 0.1
+        max: 10
+        step: 0.1
+        value: state.current_scale
+        show_value: true
+        active_color: colors.primary
+
+        on_change: (value) => {
+          state.current_scale = value
+          apply_scale(value)
+        }
+      }
+    }
+
+    // Quality preset
+    object "QualityControl" {
+      position: [15, 100]
+
+      object "QualityLabel" {
+        type: "ui-text"
+        text: "Quality"
+        font_size: 12
+        color: colors.text_muted
+      }
+
+      object "QualityDropdown" {
+        type: "ui-dropdown"
+        position: [0, 20]
+        size: [layout.panel_width - 130, 36]
+        options: [
+          { value: "auto", label: "Auto" },
+          { value: "low", label: "Performance" },
+          { value: "medium", label: "Balanced" },
+          { value: "high", label: "Quality" }
+        ]
+        value: "auto"
+        background: "rgba(55, 65, 81, 0.8)"
+        text_color: colors.text
+
+        on_change: (value) => {
+          renderer.set_quality(value)
+        }
+      }
+    }
+
+    // Performance stats
+    object "PerfStats" {
+      position: [15, 160]
+
+      object "FPSText" {
+        type: "ui-text"
+        text: "FPS: ${state.metrics.fps}"
+        font_size: 11
+        color: state.metrics.fps >= 55 ? colors.success : colors.warning
+      }
+
+      object "LatencyText" {
+        type: "ui-text"
+        position: [80, 0]
+        text: "Latency: ${state.metrics.latency}ms"
+        font_size: 11
+        color: state.metrics.latency < 50 ? colors.success : colors.warning
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DEVICE MODE INDICATOR
+  // ═══════════════════════════════════════════════════════════
+
+  object "DeviceIndicator" {
+    type: "ui-panel"
+    position: ["calc(100% - 150px)", 20]
+    size: [130, 40]
+    background: colors.surface
+    border_radius: 8
+
+    @local_only
+
+    object "DeviceIcon" {
+      type: "ui-icon"
+      position: [10, 10]
+      icon: get_device_icon(state.device_type)
+      size: [20, 20]
+      color: colors.text
+    }
+
+    object "DeviceLabel" {
+      type: "ui-text"
+      position: [38, 12]
+      text: capitalize(state.device_type)
+      font_size: 14
+      color: colors.text
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VR MODE UI
+  // ═══════════════════════════════════════════════════════════
+
+  object "VRUI" {
+    visible: state.device_type == "vr"
+
+    @vr_ui
+    @local_only
+
+    object "VRStatusPanel" {
+      type: "ui-panel"
+      position: "attached_to_wrist_left"
+      size: [0.15, 0.08]
+      background: colors.surface
+      border_radius: 0.01
+
+      object "VRScaleText" {
+        type: "ui-text"
+        position: [0.01, 0.01]
+        text: "Scale: ${state.metrics.scale_magnitude}"
+        font_size: 0.015
+        color: colors.text
+      }
+
+      object "VRModeText" {
+        type: "ui-text"
+        position: [0.01, 0.04]
+        text: "Mode: ${state.user_mode}"
+        font_size: 0.012
+        color: colors.text_muted
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    function get_device_icon(device) {
+      match device {
+        "desktop" => "monitor"
+        "mobile" => "smartphone"
+        "vr" => "headset"
+        "ar" => "glasses"
+        _ => "device"
+      }
+    }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1)
+    }
+
+    action toggle_user_mode() {
+      if state.user_mode == "simple" {
+        state.user_mode = "expert"
+        state.ai_status = "Mode: Expert"
+      } else {
+        state.user_mode = "simple"
+        state.ai_status = "Mode: Simple"
+      }
+
+      emit "mode_changed" { mode: state.user_mode }
+    }
+
+    action toggle_voice() {
+      state.voice_active = !state.voice_active
+
+      if state.voice_active {
+        voice.start_listening()
+      } else {
+        voice.stop_listening()
+      }
+    }
+
+    action apply_scale(multiplier) {
+      state.metrics.scale_multiplier = multiplier
+
+      // Calculate magnitude display
+      if multiplier < 1 {
+        state.metrics.scale_magnitude = "1:${(1/multiplier).toFixed(0)}"
+      } else if multiplier > 1 {
+        state.metrics.scale_magnitude = "${multiplier.toFixed(0)}:1"
+      } else {
+        state.metrics.scale_magnitude = "1:1"
+      }
+
+      // Apply to world
+      animate "WorldView" {
+        scale: [multiplier, multiplier, multiplier]
+        duration: 0.3
+        easing: "ease_out"
+      }
+
+      emit "scale_change" {
+        multiplier: multiplier,
+        magnitude: state.metrics.scale_magnitude
+      }
+    }
+
+    // Voice input handling
+    on_voice_level_change(level) {
+      state.voice_level = level
+    }
+
+    on_voice_command(command) {
+      state.ai_status = "Processing..."
+
+      // Simple command handling
+      if command.includes("bigger") || command.includes("zoom in") {
+        apply_scale(state.current_scale * 1.5)
+        state.ai_status = "Zoomed in"
+      } else if command.includes("smaller") || command.includes("zoom out") {
+        apply_scale(state.current_scale / 1.5)
+        state.ai_status = "Zoomed out"
+      } else if command.includes("pro mode") || command.includes("expert") {
+        state.user_mode = "expert"
+        state.ai_status = "Switched to Pro Mode"
+      } else if command.includes("simple") || command.includes("kid") {
+        state.user_mode = "simple"
+        state.ai_status = "Switched to Kid Mode"
+      } else {
+        state.ai_status = "Ready"
+      }
+    }
+
+    // Device detection
+    on_enter {
+      // Detect device type
+      if platform.is_vr {
+        state.device_type = "vr"
+      } else if platform.is_ar {
+        state.device_type = "ar"
+      } else if platform.is_mobile {
+        state.device_type = "mobile"
+      } else {
+        state.device_type = "desktop"
+      }
+
+      // Initialize AI connection
+      ai_result = await ai.connect()
+      state.ai_connected = ai_result.success
+      state.ai_status = ai_result.success ? "Ready" : "Offline"
+
+      log("Universal Dashboard Running")
+      log("Device: ${state.device_type}")
+      log("Mode: ${state.user_mode}")
+    }
+
+    // FPS tracking
+    frame_count = 0
+    last_fps_time = now()
+
+    on_update {
+      frame_count += 1
+      elapsed = now() - last_fps_time
+
+      if elapsed >= 1000 {
+        state.metrics.fps = frame_count
+        frame_count = 0
+        last_fps_time = now()
+      }
+    }
+
+    // Handle VR mode changes
+    on_vr_session_start {
+      state.device_type = "vr"
+    }
+
+    on_vr_session_end {
+      state.device_type = platform.is_mobile ? "mobile" : "desktop"
+    }
+  }
+}

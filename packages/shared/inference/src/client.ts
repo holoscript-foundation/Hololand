@@ -18,8 +18,11 @@ import {
   AnthropicProvider,
   GoogleProvider,
   GrokProvider,
+  DeepSeekProvider,
   InfinityAssistantProvider,
 } from './providers/index.js';
+
+import { injectWisdom } from './wisdom-injector.js';
 
 import type {
   ProviderType,
@@ -34,7 +37,14 @@ import type {
   DEFAULT_SETTINGS,
 } from './types.js';
 
-type Provider = OllamaProvider | OpenAIProvider | AnthropicProvider | GoogleProvider | GrokProvider | InfinityAssistantProvider;
+type Provider =
+  | OllamaProvider
+  | OpenAIProvider
+  | AnthropicProvider
+  | GoogleProvider
+  | GrokProvider
+  | DeepSeekProvider
+  | InfinityAssistantProvider;
 
 export class InferenceClient {
   private settings: InferenceSettings;
@@ -48,7 +58,7 @@ export class InferenceClient {
       local: {
         enabled: true,
         ollamaUrl: 'http://localhost:11434',
-        defaultModel: 'brittney-v4:latest',
+        defaultModel: 'brittney-qwen-v23:latest',
         autoDownloadModel: true,
       },
       providers: {
@@ -134,6 +144,12 @@ export class InferenceClient {
           defaultModel: config.model || 'grok-3',
         });
 
+      case 'deepseek':
+        return new DeepSeekProvider({
+          apiKey: config.apiKey!,
+          defaultModel: config.model || 'deepseek-chat',
+        });
+
       case 'azure':
         return new OpenAIProvider(
           {
@@ -146,7 +162,7 @@ export class InferenceClient {
 
       case 'infinityassistant':
         return new InfinityAssistantProvider({
-          apiKey: config.apiKey,  // Optional for InfinityAssistant
+          apiKey: config.apiKey, // Optional for InfinityAssistant
           endpoint: config.endpoint || 'http://localhost:3002',
           defaultModel: config.model || 'mistral-nemo:12b',
         });
@@ -304,25 +320,29 @@ export class InferenceClient {
    * Enhance request with appropriate model selection
    */
   private enhanceRequest(request: InferenceRequest, providerType: ProviderType): InferenceRequest {
-    // If model already specified, use it
-    if (request.model) return request;
+    let enhanced = request;
+    const isHoloScript = this.isHoloScriptRequest(enhanced);
 
-    // Detect HoloScript-related requests
-    const isHoloScript = this.isHoloScriptRequest(request);
+    // Model selection (only if not already specified)
+    if (!enhanced.model) {
+      let model: string | undefined;
 
-    // Select model based on provider and task
-    let model: string | undefined;
+      if (providerType === 'local') {
+        model = isHoloScript ? 'brittney-qwen-v23:latest' : this.settings.local.defaultModel;
+      } else if (providerType === 'openai' && isHoloScript) {
+        // Use fine-tuned Brittney model for HoloScript on OpenAI
+        model = 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4';
+      }
 
-    if (providerType === 'local') {
-      model = isHoloScript
-        ? 'brittney-v4-q8:latest'
-        : this.settings.local.defaultModel;
-    } else if (providerType === 'openai' && isHoloScript) {
-      // Use fine-tuned Brittney model for HoloScript on OpenAI
-      model = 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4';
+      enhanced = { ...enhanced, model };
     }
 
-    return { ...request, model };
+    // uAA2++ wisdom injection for BYOK users
+    if (isHoloScript) {
+      enhanced = injectWisdom(enhanced, providerType, enhanced.model, this.settings.wisdomInjection);
+    }
+
+    return enhanced;
   }
 
   /**

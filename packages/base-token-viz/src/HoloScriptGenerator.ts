@@ -196,21 +196,28 @@ export class HoloScriptGenerator {
     }
 
     script += `
-orb#${id} ${traits} {
-  position: [0, 1.5, 0]
-  color: "${showLogo ? '#ffffff' : colors.primary}"
-  scale: [${opts.scale}, ${opts.scale}, ${opts.scale}]
-  ${opts.glow ? `emissive: "${colors.glow}"` : ''}
-  ${opts.glow ? `emissiveIntensity: ${showLogo ? 0.15 : 0.4}` : ''}
-  ${showLogo ? `texture: "${metadata.logoUrl}"` : ''}
-  ${showLogo ? 'textureRepeat: [3, 3]' : ''}
-  ${showLogo ? 'textureOffset: [0.33, 0.33]' : ''}
+composition "TokenViz_${id}" {
+  template "TokenOrb" {
+    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    geometry: "sphere"
+    color: "${showLogo ? '#ffffff' : colors.primary}"
+    ${opts.glow ? `emissive: "${colors.glow}"` : ''}
+    ${opts.glow ? `emissiveIntensity: ${showLogo ? 0.15 : 0.4}` : ''}
+    ${showLogo ? `texture: "${metadata.logoUrl}"` : ''}
+    ${showLogo ? 'textureRepeat: [3, 3]' : ''}
+    ${showLogo ? 'textureOffset: [0.33, 0.33]' : ''}
 
-  label: "${metadata.symbol || 'TOKEN'} - ${metadata.name || 'Unknown Token'}"
-  labelPosition: [0, 0.8, 0]
-  labelColor: "#ffffff"
-  labelSize: 0.15
+    label: "${metadata.symbol || 'TOKEN'} - ${metadata.name || 'Unknown Token'}"
+    labelPosition: [0, 0.8, 0]
+    labelColor: "#ffffff"
+    labelSize: 0.15
 ${opts.animated ? this.generateAnimation('orb', id) : ''}
+  }
+
+  object "${id}" using "TokenOrb" {
+    position: [0, 1.5, 0]
+    scale: [${opts.scale}, ${opts.scale}, ${opts.scale}]
+  }
 }
 `.trim();
 
@@ -239,17 +246,24 @@ ${opts.animated ? this.generateAnimation('orb', id) : ''}
     const cubeScale = (opts.scale ?? 1) * 0.8;
 
     script += `
-cube#${id} ${traits} {
-  position: [0, 1.5, 0]
-  color: "${colors.primary}"
-  scale: [${cubeScale}, ${cubeScale}, ${cubeScale}]
-  ${opts.glow ? `emissive: "${colors.glow}"` : ''}
-  ${opts.glow ? 'emissiveIntensity: 0.3' : ''}
+composition "TokenCubeViz_${id}" {
+  template "TokenCube" {
+    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    geometry: "box"
+    color: "${colors.primary}"
+    ${opts.glow ? `emissive: "${colors.glow}"` : ''}
+    ${opts.glow ? 'emissiveIntensity: 0.3' : ''}
 
-  label: "${metadata.symbol || 'TOKEN'}"
-  labelPosition: [0, 0.7, 0]
-  labelColor: "#ffffff"
+    label: "${metadata.symbol || 'TOKEN'}"
+    labelPosition: [0, 0.7, 0]
+    labelColor: "#ffffff"
 ${opts.animated ? this.generateAnimation('cube', id) : ''}
+  }
+
+  object "${id}" using "TokenCube" {
+    position: [0, 1.5, 0]
+    scale: [${cubeScale}, ${cubeScale}, ${cubeScale}]
+  }
 }
 `.trim();
 
@@ -280,39 +294,60 @@ ${opts.animated ? this.generateAnimation('cube', id) : ''}
     }
 
     script += `
-// Pedestal base
-cylinder#pedestal_base {
-  position: [0, 0.25, 0]
-  scale: [1.2, 0.5, 1.2]
-  color: "#2a2a3a"
-}
+composition "TokenPedestal_${id}" {
+  template "PedestalBase" {
+    @static
+    geometry: "cylinder"
+    color: "#2a2a3a"
+  }
 
-// Token orb on pedestal
-orb#${id} ${traits} {
-  position: [0, 1.2, 0]
-  color: "${colors.primary}"
-  scale: [${(opts.scale ?? 1) * 0.6}, ${(opts.scale ?? 1) * 0.6}, ${(opts.scale ?? 1) * 0.6}]
-  ${opts.glow ? `emissive: "${colors.glow}"` : ''}
-  ${opts.glow ? 'emissiveIntensity: 0.5' : ''}
-}
+  template "TokenOrb" {
+    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    geometry: "sphere"
+    color: "${colors.primary}"
+    ${opts.glow ? `emissive: "${colors.glow}"` : ''}
+    ${opts.glow ? 'emissiveIntensity: 0.5' : ''}
+  }
 ${showLogo && metadata.logoUrl ? `
-// Token logo
-image#logo_front @billboard {
-  position: [0, 1.2, ${(opts.scale ?? 1) * 0.35}]
-  scale: [${(opts.scale ?? 1) * 0.3}, ${(opts.scale ?? 1) * 0.3}, 1]
-  src: "${metadata.logoUrl}"
-  opacity: 0.95
-}` : ''}
+  template "TokenLogo" {
+    @billboard
+    type: "image"
+    src: "${metadata.logoUrl}"
+    opacity: 0.95
+  }
+` : ''}
+  template "TokenLabel" {
+    type: "text"
+    content: "${metadata.symbol || 'TOKEN'} - ${metadata.name || 'Unknown'}"
+    color: "#ffffff"
+    fontSize: 0.2
+    align: "center"
+  }
 
-// Token label
-text#label {
-  position: [0, 2, 0]
-  content: "${metadata.symbol || 'TOKEN'} - ${metadata.name || 'Unknown'}"
-  color: "#ffffff"
-  fontSize: 0.2
-  align: "center"
-}
+  // Pedestal base
+  object "PedestalBase" using "PedestalBase" {
+    position: [0, 0.25, 0]
+    scale: [1.2, 0.5, 1.2]
+  }
+
+  // Token orb on pedestal
+  object "${id}" using "TokenOrb" {
+    position: [0, 1.2, 0]
+    scale: [${(opts.scale ?? 1) * 0.6}, ${(opts.scale ?? 1) * 0.6}, ${(opts.scale ?? 1) * 0.6}]
+  }
+${showLogo && metadata.logoUrl ? `
+  // Token logo
+  object "LogoFront" using "TokenLogo" {
+    position: [0, 1.2, ${(opts.scale ?? 1) * 0.35}]
+    scale: [${(opts.scale ?? 1) * 0.3}, ${(opts.scale ?? 1) * 0.3}, 1]
+  }
+` : ''}
+  // Token label
+  object "Label" using "TokenLabel" {
+    position: [0, 2, 0]
+  }
 ${opts.animated ? this.generateAnimation('pedestal', id) : ''}
+}
 `.trim();
 
     script += this.generateInfoPanel(metadata, colors, opts);
@@ -344,19 +379,46 @@ ${opts.animated ? this.generateAnimation('pedestal', id) : ''}
       [1, 2.2, -1],
     ];
 
+    script += `
+composition "TokenFloating_${id}" {
+  template "MainOrb" {
+    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    geometry: "sphere"
+    color: "${colors.primary}"
+    emissive: "${colors.glow}"
+    emissiveIntensity: 0.5
+    label: "${metadata.symbol || 'TOKEN'}"
+  }
+
+  template "FloatingOrb" {
+    @glowing
+    geometry: "sphere"
+    color: "${colors.secondary}"
+    emissive: "${colors.glow}"
+    emissiveIntensity: 0.3
+  }
+`;
     positions.forEach((pos, i) => {
       const size = i === 0 ? opts.scale! : opts.scale! * (0.3 + Math.random() * 0.3);
-      script += `
-orb#${id}_${i} ${i === 0 ? traits : '@glowing'} {
-  position: [${pos.join(', ')}]
-  color: "${i === 0 ? colors.primary : colors.secondary}"
-  scale: [${size}, ${size}, ${size}]
-  emissive: "${colors.glow}"
-  emissiveIntensity: ${i === 0 ? 0.5 : 0.3}
-  ${i === 0 ? `label: "${metadata.symbol || 'TOKEN'}"` : ''}
+      if (i === 0) {
+        script += `
+  object "${id}_main" using "MainOrb" {
+    position: [${pos.join(', ')}]
+    scale: [${size}, ${size}, ${size}]
+  }
+`;
+      } else {
+        script += `
+  object "${id}_${i}" using "FloatingOrb" {
+    position: [${pos.join(', ')}]
+    scale: [${size}, ${size}, ${size}]
+  }
+`;
+      }
+    });
+    script += `
 }
 `;
-    });
 
     script += this.generateAnimation('floating', id);
     script += this.generateInfoPanel(metadata, colors, opts);
@@ -378,7 +440,8 @@ orb#${id}_${i} ${i === 0 ? traits : '@glowing'} {
 
     if (opts.includeWorld) {
       script += `
-@world {
+// Environment configuration
+environment {
   backgroundColor: "#0a0a1a"
   fog: { type: "exponential", color: "#0a0a1a", density: 0.02 }
   camera: { position: [0, 3, 10], fov: 60 }
@@ -391,27 +454,44 @@ orb#${id}_${i} ${i === 0 ? traits : '@glowing'} {
     const galaxyOrbScale = opts.scale! * 1.2;
 
     script += `
-// Central token
-orb#${id}_core ${traits} {
-  position: [0, 2, 0]
-  color: "${colors.primary}"
-  scale: [${galaxyOrbScale}, ${galaxyOrbScale}, ${galaxyOrbScale}]
-  emissive: "${colors.glow}"
-  emissiveIntensity: 0.6
-
-  label: "${metadata.symbol || 'TOKEN'}"
-  labelPosition: [0, 1.5, 0]
-}
+composition "TokenGalaxy_${id}" {
+  template "CoreOrb" {
+    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    geometry: "sphere"
+    color: "${colors.primary}"
+    emissive: "${colors.glow}"
+    emissiveIntensity: 0.6
+    label: "${metadata.symbol || 'TOKEN'}"
+    labelPosition: [0, 1.5, 0]
+  }
 ${showLogo && metadata.logoUrl ? `
-// Token logo
-image#logo_front @billboard {
-  position: [0, 2, ${galaxyOrbScale * 0.65}]
-  scale: [${galaxyOrbScale * 0.5}, ${galaxyOrbScale * 0.5}, 1]
-  src: "${metadata.logoUrl}"
-  opacity: 0.95
-}` : ''}
+  template "TokenLogo" {
+    @billboard
+    type: "image"
+    src: "${metadata.logoUrl}"
+    opacity: 0.95
+  }
+` : ''}
+  template "OrbitParticle" {
+    @glowing
+    geometry: "sphere"
+    color: "${colors.secondary}"
+    emissive: "${colors.glow}"
+  }
 
-// Orbiting particles
+  // Central token
+  object "${id}_core" using "CoreOrb" {
+    position: [0, 2, 0]
+    scale: [${galaxyOrbScale}, ${galaxyOrbScale}, ${galaxyOrbScale}]
+  }
+${showLogo && metadata.logoUrl ? `
+  // Token logo
+  object "LogoFront" using "TokenLogo" {
+    position: [0, 2, ${galaxyOrbScale * 0.65}]
+    scale: [${galaxyOrbScale * 0.5}, ${galaxyOrbScale * 0.5}, 1]
+  }
+` : ''}
+  // Orbiting particles
 `;
 
     // Add orbiting particles
@@ -424,8 +504,9 @@ image#logo_front @billboard {
       const y = 2 + (Math.random() - 0.5) * 2;
       const size = 0.1 + Math.random() * 0.15;
 
-      script += `orb#particle_${i} @glowing { position: [${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}] scale: [${size.toFixed(2)}, ${size.toFixed(2)}, ${size.toFixed(2)}] color: "${colors.secondary}" emissive: "${colors.glow}" }\n`;
+      script += `  object "particle_${i}" using "OrbitParticle" { position: [${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}] scale: [${size.toFixed(2)}, ${size.toFixed(2)}, ${size.toFixed(2)}] }\n`;
     }
+    script += `}`;
 
     script += this.generateAnimation('galaxy', id);
     script += this.generateInfoPanel(metadata, colors, opts);
@@ -437,7 +518,8 @@ image#logo_front @billboard {
    * Generate world configuration block
    */
   private generateWorldConfig(colors: ColorScheme): string {
-    return `@world {
+    return `// Environment configuration
+environment {
   backgroundColor: "${colors.background}"
   fog: { type: "linear", color: "${colors.background}", near: 10, far: 50 }
   camera: { position: [0, 2, 6], fov: 60 }
@@ -583,19 +665,21 @@ animation#orbit {
 
     return `
 
-// Token info panel
-group#info_panel {
+// Token info panel (using spatial_group for grouped elements)
+spatial_group "InfoPanel" {
   position: [3, 1.5, 0]
   rotation: [0, -30, 0]
 
-  plane#panel_bg {
+  object "PanelBackground" {
+    type: "plane"
     position: [0, 0, -0.01]
     scale: [2.5, ${panelHeight}, 1]
     color: "#1a1a2e"
     opacity: 0.9
   }
 ${logoSection}
-  text#title {
+  object "Title" {
+    type: "text"
     position: [${showLogo ? '0.3' : '0'}, 0.6, 0]
     content: "${metadata.symbol || 'TOKEN'}"
     color: "${colors.primary}"
@@ -603,49 +687,56 @@ ${logoSection}
     fontWeight: "bold"
   }
 
-  text#name {
+  object "Name" {
+    type: "text"
     position: [${showLogo ? '0.3' : '0'}, 0.3, 0]
     content: "${metadata.name || 'Unknown Token'}"
     color: "#cccccc"
     fontSize: 0.12
   }
 
-  text#address_label {
+  object "AddressLabel" {
+    type: "text"
     position: [-0.8, 0, 0]
     content: "Address:"
     color: "#888888"
     fontSize: 0.08
   }
 
-  text#address_value {
+  object "AddressValue" {
+    type: "text"
     position: [0.2, 0, 0]
     content: "${address.slice(0, 6)}...${address.slice(-4)}"
     color: "#00d4ff"
     fontSize: 0.08
   }
 
-  text#supply_label {
+  object "SupplyLabel" {
+    type: "text"
     position: [-0.8, -0.2, 0]
     content: "Supply:"
     color: "#888888"
     fontSize: 0.08
   }
 
-  text#supply_value {
+  object "SupplyValue" {
+    type: "text"
     position: [0.2, -0.2, 0]
     content: "${supply}"
     color: "#ffffff"
     fontSize: 0.08
   }
 
-  text#chain_label {
+  object "ChainLabel" {
+    type: "text"
     position: [-0.8, -0.4, 0]
     content: "Chain:"
     color: "#888888"
     fontSize: 0.08
   }
 
-  text#chain_value {
+  object "ChainValue" {
+    type: "text"
     position: [0.2, -0.4, 0]
     content: "${chain} (8453)"
     color: "#0052ff"
@@ -666,12 +757,14 @@ ${clankerSection}
     // Clanker badge
     lines.push(`
   // Clanker badge
-  plane#clanker_badge {
+  object "ClankerBadge" {
+    type: "plane"
     position: [0.8, 0.6, 0.01]
     scale: [0.4, 0.15, 1]
     color: "#7c3aed"
   }
-  text#clanker_label {
+  object "ClankerLabel" {
+    type: "text"
     position: [0.8, 0.6, 0.02]
     content: "CLANKER"
     color: "#ffffff"
@@ -681,13 +774,15 @@ ${clankerSection}
     // Factory version
     if (metadata.factoryVersion && metadata.factoryVersion !== 'unknown') {
       lines.push(`
-  text#factory_label {
+  object "FactoryLabel" {
+    type: "text"
     position: [-0.8, ${yOffset}, 0]
     content: "Factory:"
     color: "#888888"
     fontSize: 0.08
   }
-  text#factory_value {
+  object "FactoryValue" {
+    type: "text"
     position: [0.2, ${yOffset}, 0]
     content: "${metadata.factoryVersion}"
     color: "#a78bfa"
@@ -699,13 +794,15 @@ ${clankerSection}
     // Farcaster ID
     if (metadata.fid) {
       lines.push(`
-  text#fid_label {
+  object "FidLabel" {
+    type: "text"
     position: [-0.8, ${yOffset}, 0]
     content: "Creator FID:"
     color: "#888888"
     fontSize: 0.08
   }
-  text#fid_value {
+  object "FidValue" {
+    type: "text"
     position: [0.2, ${yOffset}, 0]
     content: "#${metadata.fid}"
     color: "#8b5cf6"
@@ -718,13 +815,15 @@ ${clankerSection}
     if (metadata.deployedAt) {
       const dateStr = metadata.deployedAt.toLocaleDateString();
       lines.push(`
-  text#deployed_label {
+  object "DeployedLabel" {
+    type: "text"
     position: [-0.8, ${yOffset}, 0]
     content: "Deployed:"
     color: "#888888"
     fontSize: 0.08
   }
-  text#deployed_value {
+  object "DeployedValue" {
+    type: "text"
     position: [0.2, ${yOffset}, 0]
     content: "${dateStr}"
     color: "#cccccc"
@@ -738,19 +837,22 @@ ${clankerSection}
       const warningText = metadata.warnings.join(', ');
       lines.push(`
   // Warning indicator
-  plane#warning_bg {
+  object "WarningBackground" {
+    type: "plane"
     position: [0, ${yOffset - 0.1}, 0]
     scale: [2.2, 0.25, 1]
     color: "#ef4444"
     opacity: 0.3
   }
-  text#warning_icon {
+  object "WarningIcon" {
+    type: "text"
     position: [-0.9, ${yOffset - 0.1}, 0.01]
     content: "⚠"
     color: "#ef4444"
     fontSize: 0.12
   }
-  text#warning_text {
+  object "WarningText" {
+    type: "text"
     position: [0, ${yOffset - 0.1}, 0.01]
     content: "${warningText.length > 30 ? warningText.slice(0, 27) + '...' : warningText}"
     color: "#fca5a5"
@@ -767,7 +869,8 @@ ${clankerSection}
   private generateLogoSection(logoUrl: string): string {
     return `
   // Token logo
-  image#token_logo {
+  object "TokenLogo" {
+    type: "image"
     position: [-0.9, 0.45, 0.02]
     scale: [0.35, 0.35, 1]
     src: "${logoUrl}"
@@ -784,7 +887,9 @@ ${clankerSection}
     return `
 
 // Token logo (front)
-image#logo_front @billboard {
+object "LogoFront" {
+  @billboard
+  type: "image"
   position: [0, 1.5, ${scale * 0.55}]
   scale: [${logoScale}, ${logoScale}, 1]
   src: "${logoUrl}"

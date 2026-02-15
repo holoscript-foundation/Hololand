@@ -1,0 +1,550 @@
+// Mobile App - HoloScript Demo
+// Refactored from legacy 06-mobile-app/main.ts
+// Showcases: @mobile touch controls, responsive layout, large touch targets, bottom nav
+
+composition "Mobile App" {
+
+  environment {
+    type: "2d-canvas"
+    background: "#0f0f1a"
+
+    // Mobile-specific settings
+    mobile {
+      orientation: "portrait"
+      safe_area: true
+      haptic_feedback: true
+      min_touch_target: 44  // iOS/Android recommended minimum
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // THEME & STATE
+  // ═══════════════════════════════════════════════════════════
+
+  const colors = {
+    bg: "#0f0f1a",
+    card: "#1a1a2e",
+    card_hover: "#252542",
+    primary: "#6366f1",
+    primary_light: "#818cf8",
+    text: "#e0e0e0",
+    text_secondary: "#9ca3af",
+    success: "#10b981",
+    border: "#2d2d44"
+  }
+
+  state {
+    @local_only
+    @persisted
+    current_tab: "home"
+    haptics_enabled: true
+    sound_volume: 80
+    selected_world: null
+
+    // User info
+    user_name: "Alex Chen"
+    user_initials: "AC"
+  }
+
+  // Recent worlds data
+  const worlds = [
+    { id: "1", name: "My VR Home", last_visit: "2h ago" },
+    { id: "2", name: "Team Workspace", last_visit: "yesterday" },
+    { id: "3", name: "Game Arena", last_visit: "3 days ago" },
+    { id: "4", name: "Art Gallery", last_visit: "last week" }
+  ]
+
+  // ═══════════════════════════════════════════════════════════
+  // STATUS BAR
+  // ═══════════════════════════════════════════════════════════
+
+  object "StatusBar" {
+    type: "ui-panel"
+    position: [0, 0]
+    size: ["100%", 44]
+    background: colors.bg
+
+    @safe_area_top
+
+    object "TimeDisplay" {
+      type: "ui-text"
+      position: ["50%", 14]
+      text: format_time(now())
+      font_size: 14
+      font_weight: "600"
+      color: colors.text
+      text_align: "center"
+
+      // Update every minute
+      on_interval(60000) {
+        self.text = format_time(now())
+      }
+    }
+
+    object "BatteryIcon" {
+      type: "ui-icon"
+      position: ["calc(100% - 30px)", 14]
+      icon: "battery"
+      size: [20, 12]
+      color: colors.text
+    }
+
+    object "SignalIcon" {
+      type: "ui-icon"
+      position: ["calc(100% - 55px)", 14]
+      icon: "signal"
+      size: [16, 12]
+      color: colors.text
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HEADER
+  // ═══════════════════════════════════════════════════════════
+
+  object "Header" {
+    type: "ui-panel"
+    position: [0, 44]
+    size: ["100%", 60]
+    background: colors.bg
+
+    object "Greeting" {
+      type: "ui-text"
+      position: [20, 10]
+      text: get_greeting()
+      font_size: 14
+      color: colors.text_secondary
+    }
+
+    object "UserName" {
+      type: "ui-text"
+      position: [20, 30]
+      text: state.user_name
+      font_size: 22
+      font_weight: "600"
+      color: colors.text
+    }
+
+    object "ProfileButton" {
+      type: "ui-button"
+      position: ["calc(100% - 64px)", 8]
+      size: [44, 44]  // Minimum touch target
+      text: state.user_initials
+      background: colors.primary
+      text_color: "#ffffff"
+      border_radius: 22
+      font_size: 14
+
+      @clickable
+      @haptic
+      on_click: () => {
+        state.current_tab = "profile"
+        trigger_haptic("light")
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // QUICK ACTIONS (Large Touch Targets)
+  // ═══════════════════════════════════════════════════════════
+
+  object "QuickActions" {
+    type: "ui-panel"
+    position: [0, 104]
+    size: ["100%", 120]
+    background: "transparent"
+
+    object "ActionsRow" {
+      type: "ui-flex"
+      position: [20, 10]
+      size: ["calc(100% - 40px)", 100]
+      direction: "row"
+      gap: 10
+      justify: "space-between"
+
+      object "VRButton" {
+        type: "ui-button"
+        size: ["calc(33% - 7px)", 70]
+        text: "VR"
+        font_size: 20
+        font_weight: "700"
+        background: colors.primary
+        text_color: "#ffffff"
+        border_radius: 16
+
+        @clickable
+        @haptic
+        on_click: () => {
+          trigger_haptic("medium")
+          enter_vr_mode()
+        }
+      }
+
+      object "ARButton" {
+        type: "ui-button"
+        size: ["calc(33% - 7px)", 70]
+        text: "AR"
+        font_size: 20
+        font_weight: "700"
+        background: "#ec4899"
+        text_color: "#ffffff"
+        border_radius: 16
+
+        @clickable
+        @haptic
+        on_click: () => {
+          trigger_haptic("medium")
+          enter_ar_mode()
+        }
+      }
+
+      object "CreateButton" {
+        type: "ui-button"
+        size: ["calc(33% - 7px)", 70]
+        text: "+"
+        font_size: 24
+        font_weight: "700"
+        background: colors.success
+        text_color: "#ffffff"
+        border_radius: 16
+
+        @clickable
+        @haptic
+        on_click: () => {
+          trigger_haptic("medium")
+          show_create_modal()
+        }
+      }
+    }
+
+    // Labels below buttons
+    object "LabelsRow" {
+      type: "ui-flex"
+      position: [20, 88]
+      size: ["calc(100% - 40px)", 20]
+      direction: "row"
+      justify: "space-around"
+
+      @for label in ["Enter VR", "AR Mode", "Create"] {
+        object "Label_${label}" {
+          type: "ui-text"
+          text: label
+          font_size: 12
+          color: colors.text_secondary
+          text_align: "center"
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RECENT WORLDS SECTION
+  // ═══════════════════════════════════════════════════════════
+
+  object "RecentSection" {
+    position: [0, 224]
+    size: ["100%", 260]
+
+    object "SectionTitle" {
+      type: "ui-text"
+      position: [20, 10]
+      text: "Recent Worlds"
+      font_size: 18
+      font_weight: "600"
+      color: colors.text
+    }
+
+    object "WorldsList" {
+      type: "ui-list"
+      position: [20, 40]
+      size: ["calc(100% - 40px)", 200]
+      background: colors.card
+      item_height: 56
+      item_background: "transparent"
+      item_hover_color: colors.card_hover
+      text_color: colors.text
+      subtext_color: colors.text_secondary
+      border_radius: 16
+      border_color: colors.border
+
+      items: worlds.map(w => ({
+        id: w.id,
+        text: w.name,
+        subtext: "Last visited ${w.last_visit}",
+        icon: "world"
+      }))
+
+      @clickable
+      @haptic
+      on_item_click: (item) => {
+        trigger_haptic("light")
+        state.selected_world = item.id
+        open_world(item.id)
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // QUICK SETTINGS PANEL
+  // ═══════════════════════════════════════════════════════════
+
+  object "SettingsPanel" {
+    type: "ui-panel"
+    position: [20, 484]
+    size: ["calc(100% - 40px)", 120]
+    background: colors.card
+    border_radius: 16
+
+    object "SettingsTitle" {
+      type: "ui-text"
+      position: [16, 16]
+      text: "Quick Settings"
+      font_size: 14
+      color: colors.text_secondary
+    }
+
+    object "HapticsToggle" {
+      type: "ui-toggle"
+      position: [16, 50]
+      label: "Haptic Feedback"
+      label_color: colors.text
+      checked: state.haptics_enabled
+      color_on: colors.primary
+
+      // Touch-friendly size
+      track_size: [51, 31]
+      thumb_size: 27
+
+      on_change: (checked) => {
+        state.haptics_enabled = checked
+        if checked {
+          trigger_haptic("light")
+        }
+      }
+    }
+
+    object "SoundLabel" {
+      type: "ui-text"
+      position: [16, 90]
+      text: "Sound"
+      font_size: 12
+      color: colors.text_secondary
+    }
+
+    object "SoundSlider" {
+      type: "ui-slider"
+      position: [80, 82]
+      size: ["calc(100% - 110px)", 36]  // Taller for easier touch
+      min: 0
+      max: 100
+      value: state.sound_volume
+      thumb_size: 28  // Large thumb for touch
+      active_color: colors.primary
+
+      on_change: (value) => {
+        state.sound_volume = value
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BOTTOM NAVIGATION
+  // ═══════════════════════════════════════════════════════════
+
+  object "BottomNav" {
+    type: "ui-panel"
+    position: [0, "calc(100% - 80px)"]
+    size: ["100%", 80]
+    background: colors.card
+
+    @safe_area_bottom
+
+    const nav_items = [
+      { id: "home", icon: "home", label: "Home" },
+      { id: "explore", icon: "compass", label: "Explore" },
+      { id: "create", icon: "plus_circle", label: "Create" },
+      { id: "profile", icon: "user", label: "Profile" }
+    ]
+
+    object "NavRow" {
+      type: "ui-flex"
+      position: [0, 0]
+      size: ["100%", 70]
+      direction: "row"
+      justify: "space-around"
+      align: "center"
+
+      @for item in nav_items {
+        object "NavItem_${item.id}" {
+          type: "ui-button"
+          size: [60, 50]
+          background: "transparent"
+
+          @clickable
+          @haptic
+          on_click: () => {
+            trigger_haptic("light")
+            state.current_tab = item.id
+          }
+
+          object "NavIcon" {
+            type: "ui-icon"
+            position: [20, 5]
+            icon: item.icon
+            size: [20, 20]
+            color: state.current_tab == item.id ? colors.primary : colors.text_secondary
+          }
+
+          object "NavLabel" {
+            type: "ui-text"
+            position: [0, 30]
+            size: [60, 15]
+            text: item.label
+            font_size: 10
+            color: state.current_tab == item.id ? colors.primary : colors.text_secondary
+            text_align: "center"
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MODALS
+  // ═══════════════════════════════════════════════════════════
+
+  object "ActionModal" {
+    type: "ui-modal"
+    position: ["center", "center"]
+    size: [300, 200]
+    background: colors.card
+    border_radius: 20
+    overlay_color: "rgba(0, 0, 0, 0.7)"
+    visible: false
+
+    @local_only
+
+    object "ModalTitle" {
+      type: "ui-text"
+      position: [20, 20]
+      text: "Action"
+      font_size: 18
+      font_weight: "600"
+      color: colors.text
+    }
+
+    object "ModalContent" {
+      type: "ui-text"
+      position: [20, 60]
+      size: [260, 80]
+      text: ""
+      font_size: 14
+      color: colors.text_secondary
+    }
+
+    object "CloseButton" {
+      type: "ui-button"
+      position: [20, 150]
+      size: [260, 40]
+      text: "Close"
+      background: colors.primary
+      text_color: "#ffffff"
+      border_radius: 12
+
+      @clickable
+      on_click: () => { ActionModal.visible = false }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    function get_greeting() {
+      hour = now().getHours()
+      if hour < 12 { return "Good morning" }
+      if hour < 17 { return "Good afternoon" }
+      return "Good evening"
+    }
+
+    function format_time(date) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    }
+
+    action trigger_haptic(intensity) {
+      if state.haptics_enabled && platform.supports_haptic {
+        platform.haptic(intensity)
+      }
+    }
+
+    action enter_vr_mode() {
+      show_modal("Entering VR Mode...")
+      wait(1)
+      platform.request_vr_session()
+    }
+
+    action enter_ar_mode() {
+      show_modal("Entering AR Mode...")
+      wait(1)
+      platform.request_ar_session()
+    }
+
+    action show_create_modal() {
+      show_modal("Create a new world or experience")
+    }
+
+    action open_world(world_id) {
+      world = worlds.find(w => w.id == world_id)
+      show_modal("Entering ${world.name}...")
+      wait(1.5)
+      navigate_to("world/${world_id}")
+    }
+
+    action show_modal(message) {
+      ActionModal.ModalContent.text = message
+      ActionModal.visible = true
+
+      wait(2)
+      ActionModal.visible = false
+    }
+
+    on_enter {
+      log("Hololand Mobile App started!")
+      log("Touch-optimized features:")
+      log("- Large 44px+ touch targets")
+      log("- High contrast colors")
+      log("- Bottom navigation")
+      log("- Haptic feedback")
+    }
+
+    // Swipe gestures
+    on_swipe_left {
+      // Navigate to next tab
+      tabs = ["home", "explore", "create", "profile"]
+      current_index = tabs.indexOf(state.current_tab)
+      if current_index < tabs.length - 1 {
+        trigger_haptic("light")
+        state.current_tab = tabs[current_index + 1]
+      }
+    }
+
+    on_swipe_right {
+      // Navigate to previous tab
+      tabs = ["home", "explore", "create", "profile"]
+      current_index = tabs.indexOf(state.current_tab)
+      if current_index > 0 {
+        trigger_haptic("light")
+        state.current_tab = tabs[current_index - 1]
+      }
+    }
+
+    // Pull to refresh
+    on_pull_to_refresh {
+      trigger_haptic("medium")
+      // Refresh worlds list
+      show_notification("Refreshing...")
+    }
+  }
+}

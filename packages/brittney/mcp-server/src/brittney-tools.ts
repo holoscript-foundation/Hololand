@@ -27,8 +27,8 @@
  *                    ▼                               ▼
  *             Ollama (local)                  BYOK Cloud APIs
  *        [Dynamic Model Selection]          (OpenAI, Anthropic, etc.)
- *     brittney-v4 (8GB+ VRAM) or
- *     brittney-v4-q8 (4GB+ VRAM)
+ *     brittney-qwen-v23 (preferred)
+ *     brittney-qwen (V22 fallback)
  *
  * Features:
  * - Browser state inspection via native messaging bridge
@@ -56,13 +56,13 @@ import {
 } from './wisdom-compression.js';
 
 // =============================================================================
-// DYNAMIC MODEL SELECTION (brittney-v4 / brittney-v4-q8)
+// DYNAMIC MODEL SELECTION (V23 preferred, V22 fallback, legacy last)
 // =============================================================================
 
 // Target models in priority order
 const PREFERRED_MODELS = [
-  'brittney-v4:latest',      // Full quality (7.7 GB, needs 8GB+ VRAM)
-  'brittney-v4-q8:latest',   // Quantized (4.1 GB, needs 4GB+ VRAM)
+  'brittney-qwen-v23:latest',  // V23 Qwen 7B Q8_0 (7.6 GB, best quality - 201K examples)
+  'brittney-qwen:latest',      // V22 Qwen 7B Q8_0 (7.6 GB, fallback)
 ];
 
 const VRAM_THRESHOLD_FULL = 8000;  // 8GB for full model
@@ -121,12 +121,10 @@ async function getAvailableModels(): Promise<Set<string>> {
 }
 
 /**
- * Dynamically select best Brittney model based on VRAM and availability
+ * Dynamically select best Brittney model based on availability
  *
- * Strategy:
- * - If 8GB+ VRAM available → use brittney-v4:latest (full quality)
- * - If 4GB+ VRAM available → use brittney-v4-q8:latest (quantized)
- * - Fallback to whichever is available
+ * Strategy: Walk PREFERRED_MODELS in priority order, pick first available.
+ * Falls back to any brittney-* model if none of the preferred are found.
  */
 async function detectBestBrittneyModel(): Promise<string> {
   // Return cached result if fresh
@@ -134,37 +132,24 @@ async function detectBestBrittneyModel(): Promise<string> {
     return cachedBestModel;
   }
 
-  const fallbackModel = 'brittney-v4-q8:latest';
+  const fallbackModel = PREFERRED_MODELS[PREFERRED_MODELS.length - 1];
 
   try {
-    // Check what's available in parallel
-    const [vramMB, availableModels] = await Promise.all([
-      detectVRAM(),
-      getAvailableModels()
-    ]);
+    const availableModels = await getAvailableModels();
 
-    const hasFullModel = availableModels.has('brittney-v4:latest');
-    const hasQ8Model = availableModels.has('brittney-v4-q8:latest');
+    let selectedModel: string | undefined;
 
-    console.log(`[Brittney] VRAM: ${vramMB}MB | Models: v4=${hasFullModel}, v4-q8=${hasQ8Model}`);
+    // Walk preferred list in priority order
+    for (const model of PREFERRED_MODELS) {
+      if (availableModels.has(model)) {
+        selectedModel = model;
+        console.log(`[Brittney] Selected: ${model} (preferred, available)`);
+        break;
+      }
+    }
 
-    let selectedModel: string;
-
-    // Selection logic based on VRAM and availability
-    if (vramMB >= VRAM_THRESHOLD_FULL && hasFullModel) {
-      selectedModel = 'brittney-v4:latest';
-      console.log(`[Brittney] Selected: ${selectedModel} (full quality, ${vramMB}MB VRAM available)`);
-    } else if (vramMB >= VRAM_THRESHOLD_Q8 && hasQ8Model) {
-      selectedModel = 'brittney-v4-q8:latest';
-      console.log(`[Brittney] Selected: ${selectedModel} (quantized, ${vramMB}MB VRAM available)`);
-    } else if (hasQ8Model) {
-      selectedModel = 'brittney-v4-q8:latest';
-      console.log(`[Brittney] Selected: ${selectedModel} (fallback, limited VRAM: ${vramMB}MB)`);
-    } else if (hasFullModel) {
-      selectedModel = 'brittney-v4:latest';
-      console.log(`[Brittney] Selected: ${selectedModel} (only option available)`);
-    } else {
-      // Neither preferred model available, check for any brittney model
+    if (!selectedModel) {
+      // None of the preferred models found, check for any brittney model
       const anyBrittney = Array.from(availableModels).find(m => m.startsWith('brittney'));
       selectedModel = anyBrittney || fallbackModel;
       console.warn(`[Brittney] Preferred models not found, using: ${selectedModel}`);
@@ -222,7 +207,7 @@ async function getInferenceClientAsync(): Promise<InferenceClient> {
 function getInferenceClient(): InferenceClient {
   if (!inferenceClient) {
     // First call - use sync fallback, async will update later
-    const fallbackModel = process.env.BRITTNEY_MODEL || 'brittney-v4-q8:latest';
+    const fallbackModel = process.env.BRITTNEY_MODEL || 'brittney-qwen-v23:latest';
     inferenceClient = createInferenceClient({
       activeProvider: 'local',
       local: {

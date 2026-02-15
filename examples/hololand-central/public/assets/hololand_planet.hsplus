@@ -19,77 +19,87 @@ composition "hololand_planet" {
   // HOLOLAND - THE EARTH-LIKE PLANET
   // ============================================
 
-  group PlanetHololand {
+  // Templates for planet layers
+  template "OceanLayer" {
+    @static
+    geometry: "sphere"
+    color: "#1e40af"
+    metalness: 0.3
+    roughness: 0.7
+  }
+
+  template "ContinentsLayer" {
+    @static
+    geometry: "sphere"
+    color: "#15803d"
+    metalness: 0.1
+    roughness: 0.9
+    opacity: 0.8
+    transparent: true
+  }
+
+  template "DesertsLayer" {
+    @static
+    geometry: "sphere"
+    color: "#92400e"
+    metalness: 0.1
+    roughness: 1
+    opacity: 0.4
+    transparent: true
+  }
+
+  template "CloudsLayer" {
+    @static
+    @rotate-slow
+    @pulse
+    geometry: "sphere"
+    color: "#ffffff"
+    opacity: 0.25
+    transparent: true
+    roughness: 1
+  }
+
+  template "AtmosphereLayer" {
+    @static
+    @glow
+    geometry: "sphere"
+    color: "#60a5fa"
+    opacity: 0.12
+    transparent: true
+    side: "back"
+  }
+
+  spatial_group "PlanetHololand" {
     position: [0, 0, 0]
-    
+
     // Ocean Base (Blue)
-    orb#Ocean {
-      shape: "sphere"
+    object "Ocean" using "OceanLayer" {
       position: [0, 0, 0]
-      size: 5
-      color: "#1e40af"
-      properties: {
-        "metalness": 0.3,
-        "roughness": 0.7,
-        "isStatic": true
-      }
+      scale: [5, 5, 5]
     }
-    
+
     // Continents Layer (Green)
-    orb#Continents {
-      shape: "sphere"
+    object "Continents" using "ContinentsLayer" {
       position: [0, 0, 0]
-      size: 5.02
-      color: "#15803d"
-      properties: {
-        "metalness": 0.1,
-        "roughness": 0.9,
-        "opacity": 0.8,
-        "transparent": true
-      }
+      scale: [5.02, 5.02, 5.02]
     }
-    
+
     // Desert/Rocky Areas (Brown)
-    orb#Deserts {
-      shape: "sphere"
+    object "Deserts" using "DesertsLayer" {
       position: [0, 0, 0]
-      size: 5.025
-      color: "#92400e"
-      properties: {
-        "metalness": 0.1,
-        "roughness": 1,
-        "opacity": 0.4,
-        "transparent": true
-      }
+      scale: [5.025, 5.025, 5.025]
     }
-    
+
     // Clouds (White, rotating)
-    orb#Clouds {
-      shape: "sphere"
+    object "Clouds" using "CloudsLayer" {
       position: [0, 0, 0]
-      size: 5.2
-      color: "#ffffff"
-      @trait(rotate-slow)
-      @trait(pulse)
-      properties: {
-        "opacity": 0.25,
-        "transparent": true,
-        "roughness": 1
-      }
+      scale: [5.2, 5.2, 5.2]
     }
-    
+
     // Atmosphere Glow (Blue)
-    orb#Atmosphere {
-      shape: "sphere"
+    object "Atmosphere" using "AtmosphereLayer" {
       position: [0, 0, 0]
-      size: 5.4
-      color: "#60a5fa"
-      @trait(glow)
-      properties: {
-        "opacity": 0.12,
-        "transparent": true,
-        "side": "back"
-      }
+      scale: [5.4, 5.4, 5.4]
     }
   }
 
@@ -99,77 +109,94 @@ composition "hololand_planet" {
   // INTERACTIVE PORTAL TO CENTRAL
   // ============================================
 
-  orb#EnterCentralPortal {
-    shape: "torus"
+  template "CentralPortal" {
+    @physics
+    @collidable
+    @portal-gate
+    @glow
+    @pulse
+    geometry: "torus"
+    color: "#00ffff"
+    text: "ENTER CENTRAL"
+    destination: "central"
+    fontSize: 0.8
+  }
+
+  object "EnterCentralPortal" using "CentralPortal" {
     position: [0, -7, -5]
     scale: [3, 3, 1]
     rotation: [90, 0, 0]
-    color: "#00ffff"
-    text: "ENTER CENTRAL"
-    
-    @trait(portal-gate, { "destination": "central" })
-    @trait(glow)
-    @trait(pulse)
-    
-    properties: {
-      "fontSize": 0.8
-    }
   }
 
   // ============================================
   // DOWNTOWN CORE ZONES (PHASE 0)
   // ============================================
 
-  group WelcomePlaza {
+  template "PlazaFloor" {
+    @static
+    geometry: "plane"
+    color: "#1e293b"
+  }
+
+  template "GymStructure" {
+    @static
+    @glow
+    geometry: "box"
+    color: "#ef4444"
+    text: "GYM"
+  }
+
+  template "ArcadeStructure" {
+    @static
+    @glow
+    geometry: "box"
+    color: "#22c55e"
+    text: "ARCADE"
+  }
+
+  template "AmbientParticle" {
+    @glow
+    @float
+    geometry: "sphere"
+    color: "#4cc9f0"
+  }
+
+  spatial_group "WelcomePlaza" {
     position: [0, 0, 5]
-    orb#PlazaFloor {
-       shape: "plane"
-       position: [0, -0.01, 0]
-       rotation: [-90, 0, 0]
-       scale: [10, 10, 1]
-       color: "#1e293b"
+
+    object "PlazaFloor" using "PlazaFloor" {
+      position: [0, -0.01, 0]
+      rotation: [-90, 0, 0]
+      scale: [10, 10, 1]
     }
   }
 
-  group BriansGym {
+  spatial_group "BriansGym" {
     position: [10, 0, 0]
-    orb#GymStructure {
-       shape: "cube"
-       position: [0, 1, 0]
-       scale: [4, 2, 4]
-       color: "#ef4444"
-       text: "GYM"
-       @trait(glow)
+
+    object "GymStructure" using "GymStructure" {
+      position: [0, 1, 0]
+      scale: [4, 2, 4]
     }
   }
 
-  group GreenMachineArcade {
+  spatial_group "GreenMachineArcade" {
     position: [-10, 0, 0]
-    orb#ArcadeStructure {
-       shape: "cube"
-       position: [0, 1, 0]
-       scale: [4, 2, 4]
-       color: "#22c55e"
-       text: "ARCADE"
-       @trait(glow)
+
+    object "ArcadeStructure" using "ArcadeStructure" {
+      position: [0, 1, 0]
+      scale: [4, 2, 4]
     }
   }
 
-  // Ambient Particles
-  @for i in range(0, 50) {
-    orb Particle_${i} {
-      shape: "orb"
-      position: [
-        Math.random() * 30 - 15,
-        Math.random() * 30 - 15,
-        Math.random() * 30 - 15
-      ]
-      size: 0.05
-      color: "#4cc9f0"
-      traits: ["glow", "float"]
-      properties: {
-        "opacity": Math.random() * 0.3 + 0.2
-      }
-    }
+  // Ambient Particles (procedurally generated at runtime)
+  // Note: Use particle system for dynamic generation
+  particles "AmbientParticles" {
+    count: 50
+    template: "AmbientParticle"
+    area: [30, 30, 30]
+    offset: [-15, -15, -15]
+    size: 0.05
+    opacity_range: [0.2, 0.5]
   }
 }

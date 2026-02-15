@@ -138,7 +138,7 @@ impl OllamaClient {
     pub async fn chat(&self, request: InferenceRequest) -> Result<InferenceResponse> {
         let url = format!("{}/api/chat", self.base_url);
 
-        let model = request.model.unwrap_or_else(|| "brittney-v4-expert:latest".to_string());
+        let model = request.model.unwrap_or_else(|| "brittney-qwen-v23:latest".to_string());
 
         let ollama_request = OllamaChatRequest {
             model: model.clone(),

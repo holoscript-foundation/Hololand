@@ -1,0 +1,12 @@
+C:\Users\josep\Documents\GitHub\Hololand\examples\oasis\src-tauri\target\debug\deps\serde-944bdf3fedc31e46.d: C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\josep\Documents\GitHub\Hololand\examples\oasis\src-tauri\target\debug\build\serde-068568e497476155\out/private.rs
+
+C:\Users\josep\Documents\GitHub\Hololand\examples\oasis\src-tauri\target\debug\deps\libserde-944bdf3fedc31e46.rmeta: C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\josep\Documents\GitHub\Hololand\examples\oasis\src-tauri\target\debug\build\serde-068568e497476155\out/private.rs
+
+C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\josep\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+C:\Users\josep\Documents\GitHub\Hololand\examples\oasis\src-tauri\target\debug\build\serde-068568e497476155\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\josep\\Documents\\GitHub\\Hololand\\examples\\oasis\\src-tauri\\target\\debug\\build\\serde-068568e497476155\\out

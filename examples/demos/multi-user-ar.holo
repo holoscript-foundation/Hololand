@@ -1,0 +1,626 @@
+// Multi-User AR - HoloScript Demo
+// Refactored from legacy 12-multi-user-ar (placeholder → full implementation)
+// Showcases: @ar_capable, shared anchors, spatial awareness, collaborative AR
+
+composition "Multi-User AR" {
+
+  environment {
+    type: "ar"
+
+    ar {
+      plane_detection: true
+      light_estimation: true
+      hit_testing: true
+      anchors: true
+
+      // Shared spatial anchors for multiplayer
+      cloud_anchors: true
+      anchor_provider: "azure_spatial_anchors"
+    }
+
+    // Multiplayer settings
+    network {
+      sync_rate: 30
+      position_interpolation: true
+      anchor_sync: true
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    @networked
+    shared_anchors: []
+    placed_objects: []
+    room_code: null
+
+    @local_only
+    ar_supported: false
+    ar_session_active: false
+    planes_detected: []
+    selected_object_type: "cube"
+    placement_mode: true
+  }
+
+  const colors = {
+    primary: "#6366f1",
+    success: "#10b981",
+    warning: "#f59e0b",
+    error: "#ef4444",
+    surface: "rgba(26, 26, 46, 0.9)"
+  }
+
+  const placeable_objects = [
+    { id: "cube", label: "Cube", icon: "cube" },
+    { id: "sphere", label: "Sphere", icon: "sphere" },
+    { id: "cylinder", label: "Cylinder", icon: "cylinder" },
+    { id: "character", label: "Character", icon: "person" }
+  ]
+
+  // ═══════════════════════════════════════════════════════════
+  // AR PLAYER CURSOR TEMPLATE
+  // ═══════════════════════════════════════════════════════════
+
+  template "ARPlayerCursor" {
+    @networked
+    @synced
+    @ar_anchored
+
+    state {
+      player_id: null
+      player_name: "User"
+      cursor_position: [0, 0, 0]
+      cursor_color: "#ffffff"
+    }
+
+    // Cursor indicator (visible to other players)
+    object "CursorRing" {
+      type: "torus"
+      size: [0.1, 0.02, 0.1]
+      rotation: [90, 0, 0]
+      color: state.cursor_color
+      material: "unlit"
+      opacity: 0.8
+
+      @billboard
+      billboard_axis: "y"
+    }
+
+    object "PlayerLabel" {
+      type: "ui-text"
+      position: [0, 0.15, 0]
+      text: state.player_name
+      font_size: 12
+      color: state.cursor_color
+
+      @billboard
+      @ar_overlay
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SHARED AR OBJECT TEMPLATE
+  // ═══════════════════════════════════════════════════════════
+
+  template "SharedARObject" {
+    @networked
+    @synced
+    @ar_anchored
+    @grabbable
+    @physics
+
+    state {
+      object_id: uuid()
+      object_type: "cube"
+      color: "#6366f1"
+      anchor_id: null
+      placed_by: null
+      scale: 0.2
+    }
+
+    object "Mesh" {
+      type: state.object_type
+      size: [state.scale, state.scale, state.scale]
+      color: state.color
+      material: "standard"
+
+      @collidable
+      @shadow_receiver
+      @shadow_caster
+    }
+
+    // Selection indicator
+    object "SelectionRing" {
+      type: "torus"
+      size: [state.scale * 1.5, 0.01, state.scale * 1.5]
+      position: [0, 0.01, 0]
+      rotation: [90, 0, 0]
+      color: "#00ffff"
+      material: "unlit"
+      visible: false
+    }
+
+    on_grab(player) {
+      SelectionRing.visible = true
+
+      // Detach from anchor while moving
+      if state.anchor_id {
+        ar.detach_from_anchor(self, state.anchor_id)
+      }
+    }
+
+    on_release(player, position) {
+      SelectionRing.visible = false
+
+      // Re-anchor at new position
+      anchor = await ar.create_cloud_anchor(position)
+      if anchor {
+        state.anchor_id = anchor.id
+        ar.attach_to_anchor(self, anchor.id)
+        sync_anchor(anchor)
+      }
+    }
+
+    @clickable
+    on_click {
+      emit "object_selected" { object: self }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PLANE VISUALIZATION
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "DetectedPlanes" {
+    @local_only
+    @ar_planes
+
+    // Planes are automatically populated by AR system
+    // Each detected plane becomes a visual mesh
+
+    template "PlaneVisualization" {
+      object "PlaneMesh" {
+        type: "plane"
+        material: "ar_plane_grid"
+        color: "rgba(99, 102, 241, 0.3)"
+        opacity: 0.3
+
+        @ar_plane
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SHARED OBJECTS CONTAINER
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "SharedObjects" {
+    @networked
+
+    // SharedARObjects are spawned here and synced across users
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // REMOTE PLAYER CURSORS
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "PlayerCursors" {
+    @networked
+
+    @for player in query_remote_players() {
+      object "Cursor_${player.id}" using "ARPlayerCursor" {
+        state: {
+          player_id: player.id,
+          player_name: player.display_name,
+          cursor_color: player.color
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // AR UI OVERLAY
+  // ═══════════════════════════════════════════════════════════
+
+  object "ARUI" {
+    @local_only
+    @ar_overlay
+
+    // Status bar at top
+    object "StatusBar" {
+      type: "ui-panel"
+      position: [20, 50]
+      size: [200, 60]
+      background: colors.surface
+      border_radius: 12
+
+      object "ARStatusText" {
+        type: "ui-text"
+        position: [15, 10]
+        text: state.ar_session_active ? "AR Active" : "AR Inactive"
+        font_size: 14
+        color: state.ar_session_active ? colors.success : colors.error
+      }
+
+      object "PlayersText" {
+        type: "ui-text"
+        position: [15, 32]
+        text: "Players: ${query_all_players().length}"
+        font_size: 12
+        color: "#9ca3af"
+      }
+
+      object "RoomCodeText" {
+        type: "ui-text"
+        position: [120, 10]
+        text: state.room_code ? "Room: ${state.room_code}" : ""
+        font_size: 12
+        color: "#9ca3af"
+        visible: state.room_code != null
+      }
+    }
+
+    // Object selector at bottom
+    object "ObjectSelector" {
+      type: "ui-panel"
+      position: ["center", "calc(100% - 120px)"]
+      size: [320, 80]
+      background: colors.surface
+      border_radius: 16
+
+      object "SelectorRow" {
+        type: "ui-flex"
+        position: [15, 15]
+        size: [290, 50]
+        direction: "row"
+        gap: 10
+        justify: "center"
+
+        @for obj in placeable_objects {
+          object "ObjectButton_${obj.id}" {
+            type: "ui-button"
+            size: [60, 50]
+            icon: obj.icon
+            tooltip: obj.label
+            background: state.selected_object_type == obj.id ? colors.primary : "rgba(55, 65, 81, 0.8)"
+            border_radius: 12
+
+            @clickable
+            on_click: () => {
+              state.selected_object_type = obj.id
+            }
+          }
+        }
+      }
+    }
+
+    // Placement reticle (center of screen)
+    object "PlacementReticle" {
+      type: "ui-panel"
+      position: ["center", "center"]
+      size: [60, 60]
+      background: "transparent"
+      visible: state.placement_mode
+
+      object "ReticleRing" {
+        type: "ui-circle"
+        position: [10, 10]
+        size: [40, 40]
+        stroke_color: colors.primary
+        stroke_width: 2
+        fill: "transparent"
+
+        @animated
+        animation: "pulse"
+        animation_speed: 1
+      }
+
+      object "ReticleDot" {
+        type: "ui-circle"
+        position: [26, 26]
+        size: [8, 8]
+        fill: colors.primary
+      }
+    }
+
+    // Place button
+    object "PlaceButton" {
+      type: "ui-button"
+      position: ["center", "calc(100% - 200px)"]
+      size: [80, 80]
+      text: "+"
+      font_size: 32
+      background: colors.primary
+      text_color: "#ffffff"
+      border_radius: 40
+
+      @clickable
+      on_click: place_object_at_reticle
+    }
+
+    // Room controls
+    object "RoomControls" {
+      type: "ui-panel"
+      position: ["calc(100% - 140px)", 50]
+      size: [120, 100]
+      background: colors.surface
+      border_radius: 12
+
+      object "CreateRoomButton" {
+        type: "ui-button"
+        position: [10, 10]
+        size: [100, 35]
+        text: "Create Room"
+        font_size: 11
+        background: colors.success
+        border_radius: 8
+        visible: state.room_code == null
+
+        @clickable
+        on_click: create_room
+      }
+
+      object "JoinRoomButton" {
+        type: "ui-button"
+        position: [10, 55]
+        size: [100, 35]
+        text: "Join Room"
+        font_size: 11
+        background: colors.primary
+        border_radius: 8
+        visible: state.room_code == null
+
+        @clickable
+        on_click: show_join_dialog
+      }
+
+      object "LeaveRoomButton" {
+        type: "ui-button"
+        position: [10, 10]
+        size: [100, 35]
+        text: "Leave Room"
+        font_size: 11
+        background: colors.error
+        border_radius: 8
+        visible: state.room_code != null
+
+        @clickable
+        on_click: leave_room
+      }
+
+      object "ShareButton" {
+        type: "ui-button"
+        position: [10, 55]
+        size: [100, 35]
+        text: "Share"
+        icon: "share"
+        font_size: 11
+        background: colors.warning
+        border_radius: 8
+        visible: state.room_code != null
+
+        @clickable
+        on_click: share_room
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    // AR hit testing for placement
+    current_hit_result = null
+
+    on_update {
+      if state.ar_session_active && state.placement_mode {
+        // Perform hit test from screen center
+        hit = ar.hit_test_from_screen_center()
+        if hit {
+          current_hit_result = hit
+          // Update reticle position in 3D space
+          PlacementReticle.world_position = hit.position
+        }
+      }
+
+      // Broadcast local cursor position to other players
+      if current_hit_result {
+        broadcast_cursor_position(current_hit_result.position)
+      }
+    }
+
+    action place_object_at_reticle() {
+      if !current_hit_result {
+        show_notification("Point at a surface to place objects")
+        return
+      }
+
+      // Create cloud anchor at hit position
+      anchor = await ar.create_cloud_anchor(current_hit_result.position)
+      if !anchor {
+        show_notification("Failed to create anchor")
+        return
+      }
+
+      // Spawn networked object
+      obj = spawn "SharedARObject" in "SharedObjects" {
+        position: current_hit_result.position
+        state: {
+          object_type: state.selected_object_type,
+          color: random_color(),
+          anchor_id: anchor.id,
+          placed_by: local_player.id
+        }
+      }
+
+      // Attach to anchor
+      ar.attach_to_anchor(obj, anchor.id)
+
+      // Sync anchor with other users
+      sync_anchor(anchor)
+
+      state.placed_objects.push(obj.state.object_id)
+
+      show_notification("Object placed!")
+      trigger_haptic("medium")
+    }
+
+    @synced
+    action sync_anchor(anchor) {
+      state.shared_anchors.push({
+        id: anchor.id,
+        cloud_id: anchor.cloud_id,
+        position: anchor.position,
+        created_by: local_player.id
+      })
+    }
+
+    @synced
+    action broadcast_cursor_position(position) {
+      emit_to_others "cursor_update" {
+        player_id: local_player.id,
+        position: position
+      }
+    }
+
+    on_cursor_update(data) {
+      cursor = find("Cursor_${data.player_id}")
+      if cursor {
+        cursor.position = data.position
+      }
+    }
+
+    // Room management
+    @networked
+    action create_room() {
+      room = await network.create_room({
+        name: "${local_player.display_name}'s AR Room",
+        type: "ar_collab",
+        max_players: 8
+      })
+
+      state.room_code = room.code
+      show_notification("Room created: ${room.code}")
+    }
+
+    action show_join_dialog() {
+      show_dialog("join_room", {
+        title: "Join AR Room",
+        input_placeholder: "Enter room code...",
+        on_submit: (code) => join_room(code)
+      })
+    }
+
+    @networked
+    action join_room(code) {
+      room = await network.join_room_by_code(code)
+      if room {
+        state.room_code = room.code
+
+        // Resolve existing cloud anchors
+        for anchor_data in state.shared_anchors {
+          resolved = await ar.resolve_cloud_anchor(anchor_data.cloud_id)
+          if resolved {
+            // Objects attached to this anchor will appear
+          }
+        }
+
+        show_notification("Joined room!")
+      } else {
+        show_notification("Room not found")
+      }
+    }
+
+    action leave_room() {
+      network.leave_room()
+      state.room_code = null
+      state.shared_anchors = []
+
+      // Remove remote objects
+      for obj in query("SharedARObject") {
+        if obj.state.placed_by != local_player.id {
+          destroy(obj)
+        }
+      }
+
+      show_notification("Left room")
+    }
+
+    action share_room() {
+      share_url = "hololand://ar-room/${state.room_code}"
+      platform.share({
+        title: "Join my AR Room",
+        text: "Room code: ${state.room_code}",
+        url: share_url
+      })
+    }
+
+    action show_notification(message) {
+      // Use platform toast notification
+      platform.toast(message, { duration: 2000 })
+    }
+
+    action trigger_haptic(intensity) {
+      platform.haptic(intensity)
+    }
+
+    // Handle new player joining
+    on_player_joined(player) {
+      show_notification("${player.display_name} joined")
+
+      // Spawn their cursor
+      spawn "ARPlayerCursor" in "PlayerCursors" {
+        id: "Cursor_${player.id}"
+        state: {
+          player_id: player.id,
+          player_name: player.display_name,
+          cursor_color: player.color ?? "#ffffff"
+        }
+      }
+    }
+
+    on_player_left(player) {
+      show_notification("${player.display_name} left")
+
+      cursor = find("Cursor_${player.id}")
+      if cursor { destroy(cursor) }
+    }
+
+    // AR lifecycle
+    on_enter {
+      state.ar_supported = platform.ar_supported
+
+      if !state.ar_supported {
+        show_notification("AR not supported on this device")
+        return
+      }
+
+      // Request AR session
+      result = await ar.request_session({
+        plane_detection: true,
+        light_estimation: true
+      })
+
+      if result.success {
+        state.ar_session_active = true
+        show_notification("AR session started - point at surfaces!")
+      } else {
+        show_notification("Failed to start AR: ${result.error}")
+      }
+    }
+
+    on_ar_plane_detected(plane) {
+      state.planes_detected.push(plane.id)
+    }
+
+    on_exit {
+      if state.ar_session_active {
+        ar.end_session()
+      }
+    }
+  }
+}

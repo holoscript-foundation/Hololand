@@ -142,47 +142,67 @@ Convert: `src/worlds/MainPlaza.tsx` → `src/zones/main_plaza.hsplus`
 
 ```hsplus
 // src/zones/main_plaza.hsplus
-world "MainPlaza" {
+composition "MainPlaza" {
   environment {
     skybox: "daytime"
     ambientLight: 0.4
     fog: { color: "#87ceeb", near: 50, far: 200 }
   }
 
-  // Ground
-  orb#ground @static {
+  // Templates
+  template "Ground" {
+    @static
     type: "plane"
     size: [100, 100]
-    position: [0, 0, 0]
-    rotation: [-90deg, 0, 0]
     material: { type: "grass", repeat: [20, 20] }
   }
 
-  // Central fountain
-  orb#fountain @interactive {
+  template "Fountain" {
+    @physics
+    @collidable
+    @interactive
     model: "/models/fountain.glb"
-    position: [0, 0, 0]
-    on_click: () -> {
+
+    on_click() {
       audio.play("water_splash")
       particles.emit("splash", position)
     }
   }
 
+  // Ground
+  object "Ground" using "Ground" {
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+  }
+
+  // Central fountain
+  object "Fountain" using "Fountain" {
+    position: [0, 0, 0]
+  }
+
+  // Portal template
+  template "Portal" {
+    @physics
+    @collidable
+    @glowing
+    geometry: "torus"
+  }
+
   // Portals to other zones
   spatial_group "Portals" {
-    orb#casino_portal using "Portal" {
+    object "CasinoPortal" using "Portal" {
       position: [20, 0, 0]
       destination: "Casino"
       label: "Casino"
     }
 
-    orb#builder_portal using "Portal" {
+    object "BuilderPortal" using "Portal" {
       position: [-20, 0, 0]
       destination: "BuilderShop"
       label: "Builder Shop"
     }
 
-    orb#lounge_portal using "Portal" {
+    object "LoungePortal" using "Portal" {
       position: [0, 0, 20]
       destination: "SocialLounge"
       label: "Social Lounge"
@@ -190,7 +210,7 @@ world "MainPlaza" {
   }
 
   // NPCs
-  include "./npcs/plaza_npcs.hsplus"
+  @import "./npcs/plaza_npcs.hsplus"
 }
 ```
 
@@ -274,25 +294,26 @@ system TutorialSystem {
   // UI is declared in HoloScript, rendered by runtime
   ui {
     if (state.visible) {
-      panel#tutorial @overlay {
+      panel "Tutorial" {
+        @overlay
         position: "center"
         style: "glass"
 
-        text#title {
+        text "Title" {
           content: steps[state.currentStep].title
           size: "large"
         }
 
-        text#message {
+        text "Message" {
           content: steps[state.currentStep].message
         }
 
-        button#next {
+        button "Next" {
           label: steps[state.currentStep].action == "finish" ? "Got it!" : "Next"
           on_click: next
         }
 
-        button#skip {
+        button "Skip" {
           label: "Skip"
           on_click: skip
         }
@@ -493,31 +514,32 @@ system MultiplayerSystem {
   }
 
   ui {
-    panel#multiplayer @overlay {
+    panel "Multiplayer" {
+      @overlay
       position: "top-right"
 
       if (!state.connected) {
-        button#host {
+        button "Host" {
           label: "Host Session"
           on_click: host
         }
-        textinput#join_url {
+        textinput "JoinUrl" {
           placeholder: "Paste session URL..."
         }
-        button#join {
+        button "Join" {
           label: "Join"
-          on_click: () -> join(ui.get("join_url").value)
+          on_click: () -> join(ui.get("JoinUrl").value)
         }
       } else {
-        text#status {
+        text "Status" {
           content: state.isHost
             ? "Hosting: " + state.sessionUrl
             : "Connected"
         }
-        text#player_count {
+        text "PlayerCount" {
           content: state.players.length + " players"
         }
-        button#disconnect {
+        button "Disconnect" {
           label: "Disconnect"
           on_click: disconnect
         }
@@ -552,7 +574,7 @@ component MobileControls {
   ui {
     if (device.isMobile && props.visible) {
       // Virtual joystick
-      joystick#move {
+      joystick "Move" {
         position: "bottom-left"
         size: props.joystickSize
         deadzone: props.deadzone
@@ -568,20 +590,20 @@ component MobileControls {
       }
 
       // Action buttons
-      button#jump {
+      button "Jump" {
         position: "bottom-right"
         icon: "jump"
         on_press: () -> input.jump()
       }
 
-      button#interact {
+      button "Interact" {
         position: "bottom-right"
         offset: [0, -80]
         icon: "hand"
         on_press: () -> input.interact()
       }
 
-      button#menu {
+      button "Menu" {
         position: "top-right"
         icon: "menu"
         on_press: () -> ui.toggleMenu()

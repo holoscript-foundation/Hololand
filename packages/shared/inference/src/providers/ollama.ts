@@ -162,7 +162,7 @@ export class OllamaProvider {
    */
   async chat(request: InferenceRequest): Promise<InferenceResponse> {
     const start = Date.now();
-    const model = request.model || 'brittney-v4-q8:latest';
+    const model = request.model || 'brittney-qwen-v23:latest';
 
     const requestBody = {
       model,
@@ -219,7 +219,7 @@ export class OllamaProvider {
    * Streaming chat completion
    */
   async *chatStream(request: InferenceRequest): AsyncGenerator<StreamChunk> {
-    const model = request.model || 'brittney-v4-q8:latest';
+    const model = request.model || 'brittney-qwen-v23:latest';
 
     const response = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',

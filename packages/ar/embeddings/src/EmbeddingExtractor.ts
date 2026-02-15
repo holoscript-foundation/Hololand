@@ -169,20 +169,89 @@ export class EmbeddingExtractor {
       detectionId: number;
     }>
   ): Promise<PersonEmbedding[]> {
-    // For now, process sequentially
-    // TODO: Implement true batching for better GPU utilization
-    const results: PersonEmbedding[] = [];
-    
-    for (const crop of crops) {
-      const embedding = await this.extractWithMetadata(
-        crop.source,
-        crop.boundingBox,
-        crop.detectionId
+    if (crops.length === 0) return [];
+    if (crops.length === 1) {
+      return [await this.extractWithMetadata(crops[0].source, crops[0].boundingBox, crops[0].detectionId)];
+    }
+    if (!this.isInitialized) await this.initialize();
+
+    const N = crops.length;
+    const H = this.config.inputSize.height;
+    const W = this.config.inputSize.width;
+    const C = 3;
+
+    // Preprocess all crops and stack into a single batch tensor (NCHW)
+    const batchTensor = new Float32Array(N * C * H * W);
+    const qualityMetrics: Array<{ quality: number; occlusion: number }> = [];
+
+    for (let i = 0; i < N; i++) {
+      const tensor = this.preprocessor.preprocess(crops[i].source, crops[i].boundingBox);
+      batchTensor.set(tensor, i * C * H * W);
+      const quality = this.preprocessor.calculateQuality(crops[i].source);
+      const occlusion = this.preprocessor.estimateOcclusion(
+        crops[i].source, crops[i].boundingBox, crops[i].source.width, crops[i].source.height
       );
-      results.push(embedding);
+      qualityMetrics.push({ quality, occlusion });
     }
 
+    // Run batched inference
+    let batchOutput: Float32Array;
+    if (this.config.backend === 'onnx') {
+      batchOutput = await this.runONNXBatch(batchTensor, N);
+    } else {
+      batchOutput = await this.runTFJSBatch(batchTensor, N);
+    }
+
+    // Split output into individual embeddings
+    const dim = this.config.outputDimensions;
+    const results: PersonEmbedding[] = [];
+    for (let i = 0; i < N; i++) {
+      const vector = batchOutput.slice(i * dim, (i + 1) * dim);
+      if (this.config.normalize) this.l2Normalize(vector);
+      results.push({
+        vector,
+        dimensions: dim,
+        normalized: this.config.normalize,
+        timestamp: Date.now(),
+        detectionId: crops[i].detectionId,
+        boundingBox: crops[i].boundingBox,
+        quality: qualityMetrics[i].quality,
+        occlusion: qualityMetrics[i].occlusion,
+      });
+    }
     return results;
+  }
+
+  /**
+   * Run batched ONNX inference (N crops in one GPU dispatch)
+   */
+  private async runONNXBatch(batchTensor: Float32Array, batchSize: number): Promise<Float32Array> {
+    const ort = await import('onnxruntime-web');
+    const inputTensor = new ort.Tensor(
+      'float32',
+      batchTensor,
+      [batchSize, 3, this.config.inputSize.height, this.config.inputSize.width]
+    );
+    const feeds: Record<string, typeof inputTensor> = {};
+    feeds[this.session!.inputNames[0]] = inputTensor;
+    const results = await this.session!.run(feeds);
+    return new Float32Array(results[this.session!.outputNames[0]].data);
+  }
+
+  /**
+   * Run batched TensorFlow.js inference
+   */
+  private async runTFJSBatch(batchTensor: Float32Array, batchSize: number): Promise<Float32Array> {
+    const tf = await import('@tensorflow/tfjs');
+    const input = tf.tensor4d(
+      batchTensor,
+      [batchSize, this.config.inputSize.height, this.config.inputSize.width, 3]
+    );
+    const output = this.tfModel!.predict(input) as any;
+    const data = await output.data();
+    input.dispose();
+    output.dispose();
+    return new Float32Array(data);
   }
 
   /**

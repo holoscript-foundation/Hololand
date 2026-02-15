@@ -33,7 +33,7 @@ describe('@hololand/inference', () => {
 
   describe('BRITTNEY_MODELS', () => {
     it('should have local models defined', () => {
-      expect(BRITTNEY_MODELS.local.expert).toBe('brittney-v4-expert:latest');
+      expect(BRITTNEY_MODELS.local.expert).toBe('brittney-qwen-v23:latest');
       expect(BRITTNEY_MODELS.local.holoscript).toBe('brittney-v1:latest');
       expect(BRITTNEY_MODELS.local.general).toBe('brittney-v2:latest');
     });

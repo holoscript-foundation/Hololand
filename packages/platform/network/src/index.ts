@@ -31,6 +31,19 @@ export { StateSync } from './StateSync';
 export { RelayService } from './RelayService';
 export type { RelayConfig, AutonomousAgent } from './RelayService';
 
+// Latency compensation
+export { LatencyTracker } from './LatencyTracker';
+export { JitterBuffer } from './JitterBuffer';
+export { CorrectionBudget } from './CorrectionBudget';
+export type { BlendType, PendingCorrection, CorrectedState } from './CorrectionBudget';
+
+// Math utilities for networked interpolation
+export {
+  vec3Add, vec3Sub, vec3Scale, vec3Lerp, vec3Length, vec3Distance,
+  quatNormalize, quatSlerp, quatFromEuler, quatToEuler,
+  catmullRom, hermiteInterpolate, cubicBezier,
+} from './MathUtils';
+
 // Neural Ollama Bridge - AI Agent Integration
 export {
   NeuralOllamaBridge,
@@ -111,6 +124,8 @@ export type {
   SyncConfig,
   SyncState,
   StateSnapshot,
+  Quaternion,
+  ObjectPriority,
 
   // Interest management
   InterestConfig,

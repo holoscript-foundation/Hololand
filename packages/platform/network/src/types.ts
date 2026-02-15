@@ -81,14 +81,41 @@ export interface SyncConfig {
   predictionEnabled?: boolean;
   snapshotRate?: number;
   priorityByDistance?: boolean;
+  /** Use adaptive delay based on RTT jitter (overrides interpolationDelay) */
+  adaptiveDelay?: boolean;
+  /** Enable velocity-based extrapolation when no future states available */
+  extrapolationEnabled?: boolean;
+  /** Max extrapolation time in ms (prevents runaway prediction) */
+  extrapolationLimit?: number;
+  /** Per-frame correction budget in meters (limits visual pop) */
+  correctionBudgetPerFrame?: number;
+  /** Jitter buffer size (number of states to hold for reordering) */
+  jitterBufferSize?: number;
 }
+
+/** Quaternion for gimbal-lock-free rotation */
+export interface Quaternion {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+/** Object priority for tiered correction blending */
+export type ObjectPriority = 'local' | 'high' | 'medium' | 'low';
 
 export interface SyncState {
   objectId: string;
   position?: Vector3;
   rotation?: Vector3;
+  /** Quaternion rotation (preferred over Euler rotation) */
+  rotationQuat?: Quaternion;
   scale?: Vector3;
   velocity?: Vector3;
+  /** Angular velocity for rotation prediction */
+  angularVelocity?: Vector3;
+  /** Linear acceleration for quadratic extrapolation */
+  acceleration?: Vector3;
   metadata?: Record<string, unknown>;
   timestamp: number;
   sequence: number;

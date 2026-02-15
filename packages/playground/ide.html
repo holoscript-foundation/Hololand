@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HoloScript Playground - IDE</title>
+  <meta name="description" content="HoloScript IDE with Monaco editor, live 3D preview, and AI assistance" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1e1e1e; font-family: 'Inter', sans-serif; }
+
+    /* ── Layout ── */
+    #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+    #toolbar {
+      display: flex; align-items: center; gap: 8px;
+      height: 40px; padding: 0 12px;
+      background: #252526; border-bottom: 1px solid #3c3c3c;
+      flex-shrink: 0;
+    }
+    #toolbar .brand {
+      font-weight: 600; font-size: 14px;
+      background: linear-gradient(90deg, #00d4ff, #ffd700);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-right: 8px;
+    }
+    #toolbar .sep { width: 1px; height: 20px; background: #3c3c3c; margin: 0 4px; }
+    .tb-btn {
+      padding: 4px 10px; background: rgba(255,255,255,0.06); border: 1px solid #3c3c3c;
+      border-radius: 4px; color: #ccc; font-size: 12px; cursor: pointer;
+      font-family: 'Inter', sans-serif; transition: all 0.15s;
+    }
+    .tb-btn:hover { background: rgba(255,255,255,0.12); color: #fff; border-color: #555; }
+    .tb-btn.primary { background: #0e639c; border-color: #1177bb; color: #fff; }
+    .tb-btn.primary:hover { background: #1177bb; }
+    .tb-btn.success { background: #1a7f37; border-color: #238636; color: #fff; }
+    .tb-btn.success:hover { background: #238636; }
+
+    #toolbar select {
+      padding: 3px 6px; background: #3c3c3c; border: 1px solid #555;
+      border-radius: 4px; color: #ccc; font-size: 12px; font-family: 'Inter', sans-serif;
+    }
+    #toolbar .spacer { flex: 1; }
+    #toolbar .status { font-size: 11px; color: #888; }
+
+    #workspace { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Editor panel ── */
+    #editor-panel {
+      display: flex; flex-direction: column;
+      width: 50%; min-width: 300px;
+      border-right: 2px solid #007acc;
+    }
+    #editor-tabs {
+      display: flex; align-items: center; height: 32px;
+      background: #252526; border-bottom: 1px solid #3c3c3c;
+      padding: 0 4px; gap: 2px; overflow-x: auto; flex-shrink: 0;
+    }
+    .tab {
+      padding: 4px 12px; font-size: 12px; color: #999; cursor: pointer;
+      border-bottom: 2px solid transparent; white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: #ddd; }
+    .tab.active { color: #fff; border-bottom-color: #007acc; background: #1e1e1e; }
+    #editor-container { flex: 1; overflow: hidden; }
+
+    /* ── Preview panel ── */
+    #preview-panel {
+      display: flex; flex-direction: column;
+      flex: 1; min-width: 300px;
+    }
+    #preview-header {
+      display: flex; align-items: center; height: 32px;
+      background: #252526; border-bottom: 1px solid #3c3c3c;
+      padding: 0 12px; flex-shrink: 0;
+    }
+    #preview-header span { font-size: 12px; color: #999; }
+    #preview-header .spacer { flex: 1; }
+    #preview-canvas-container { flex: 1; position: relative; background: #0f0f1a; overflow: hidden; }
+    #preview-canvas { width: 100%; height: 100%; display: block; }
+
+    /* ── Bottom panel (output/errors) ── */
+    #bottom-panel {
+      height: 160px; flex-shrink: 0; display: flex; flex-direction: column;
+      border-top: 1px solid #3c3c3c; background: #1e1e1e;
+    }
+    #bottom-tabs {
+      display: flex; height: 28px; background: #252526;
+      border-bottom: 1px solid #3c3c3c; padding: 0 8px; gap: 2px;
+    }
+    .btab { padding: 4px 10px; font-size: 11px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; }
+    .btab:hover { color: #ccc; }
+    .btab.active { color: #ddd; border-bottom-color: #007acc; }
+    #output-content {
+      flex: 1; overflow-y: auto; padding: 8px 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: #ccc; line-height: 1.6;
+    }
+    .log-info { color: #3794ff; }
+    .log-warn { color: #cca700; }
+    .log-error { color: #f14c4c; }
+    .log-success { color: #89d185; }
+    .log-time { color: #666; font-size: 10px; margin-right: 8px; }
+
+    /* ── Resizer ── */
+    #h-resizer {
+      width: 4px; cursor: col-resize; background: transparent;
+      transition: background 0.2s; flex-shrink: 0;
+    }
+    #h-resizer:hover, #h-resizer.active { background: #007acc; }
+    #v-resizer {
+      height: 4px; cursor: row-resize; background: transparent;
+      transition: background 0.2s; flex-shrink: 0;
+    }
+    #v-resizer:hover, #v-resizer.active { background: #007acc; }
+
+    /* ── Loading overlay ── */
+    #loading-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #1e1e1e; z-index: 9999; transition: opacity 0.4s;
+    }
+    #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    #loading-overlay h1 {
+      font-size: 1.8em; margin-bottom: 16px;
+      background: linear-gradient(90deg, #00d4ff, #ffd700);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #00d4ff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-overlay p { margin-top: 12px; color: #666; font-size: 13px; }
+
+    /* ── AST Tree panel (toggled) ── */
+    #ast-panel {
+      display: none; width: 280px; border-left: 1px solid #3c3c3c;
+      background: #252526; overflow-y: auto; padding: 8px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #ccc;
+    }
+    #ast-panel.open { display: block; }
+    #ast-panel .ast-node { padding: 2px 0 2px 12px; border-left: 1px solid #3c3c3c; }
+    #ast-panel .ast-key { color: #9cdcfe; }
+    #ast-panel .ast-str { color: #ce9178; }
+    #ast-panel .ast-num { color: #b5cea8; }
+    #ast-panel .ast-bool { color: #569cd6; }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <h1>HoloScript Playground IDE</h1>
+  <div class="spinner"></div>
+  <p>Loading Monaco Editor...</p>
+</div>
+
+<div id="app">
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <span class="brand">HoloScript Playground</span>
+    <div class="sep"></div>
+    <button class="tb-btn primary" id="btn-run" title="Run (Ctrl+Enter)">&#9654; Run</button>
+    <button class="tb-btn" id="btn-format" title="Format code">Format</button>
+    <div class="sep"></div>
+    <select id="example-select" title="Load example">
+      <option value="">Load Example...</option>
+      <optgroup label="Basics">
+        <option value="hello-world">Hello World</option>
+        <option value="interactive-cube">Interactive Cube</option>
+        <option value="animation-demo">Animation Demo</option>
+      </optgroup>
+      <optgroup label="NPCs">
+        <option value="warrior">Warrior NPC</option>
+        <option value="mage">Mage NPC</option>
+        <option value="merchant">Merchant NPC</option>
+      </optgroup>
+      <optgroup label="Weapons">
+        <option value="sword">Sword</option>
+        <option value="bow">Bow</option>
+        <option value="staff">Staff</option>
+      </optgroup>
+      <optgroup label="Game Systems">
+        <option value="portal">Portal System</option>
+        <option value="dialogue">Dialogue System</option>
+        <option value="crafting">Crafting System</option>
+      </optgroup>
+    </select>
+    <button class="tb-btn" id="btn-load" title="Load .holo file">Open File</button>
+    <button class="tb-btn" id="btn-save" title="Save .holo file">Save</button>
+    <div class="sep"></div>
+    <button class="tb-btn" id="btn-ast" title="Toggle AST view">AST</button>
+    <span class="spacer"></span>
+    <span class="status" id="parse-status">Ready</span>
+    <div class="sep"></div>
+    <button class="tb-btn success" id="btn-vr" style="display:none" title="Enter VR">VR</button>
+  </div>
+
+  <!-- Workspace -->
+  <div id="workspace">
+    <!-- Editor -->
+    <div id="editor-panel">
+      <div id="editor-tabs">
+        <div class="tab active" data-tab="main">playground.holo</div>
+      </div>
+      <div id="editor-container"></div>
+    </div>
+
+    <div id="h-resizer"></div>
+
+    <!-- Preview -->
+    <div id="preview-panel">
+      <div id="preview-header">
+        <span>3D Preview</span>
+        <span class="spacer"></span>
+        <span id="fps-counter" style="font-size:11px;color:#666;">-- fps</span>
+      </div>
+      <div id="preview-canvas-container">
+        <canvas id="preview-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- AST Panel (hidden by default) -->
+    <div id="ast-panel"></div>
+  </div>
+
+  <div id="v-resizer"></div>
+
+  <!-- Bottom Panel -->
+  <div id="bottom-panel">
+    <div id="bottom-tabs">
+      <div class="btab active" data-panel="output">Output</div>
+      <div class="btab" data-panel="errors">Errors</div>
+      <div class="btab" data-panel="ast-text">AST</div>
+    </div>
+    <div id="output-content"></div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".holo,.hsplus,.hs" style="display:none">
+
+<!-- Monaco Editor from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+<!-- Three.js for 3D Preview -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+// ─── HoloScript Language Definition ───
+const HOLOSCRIPT_LANG = {
+  id: 'holoscript',
+  extensions: ['.holo', '.hs', '.hsplus'],
+  aliases: ['HoloScript', 'holoscript', 'holo'],
+
+  keywords: [
+    'composition', 'template', 'object', 'using', 'environment', 'spatial_group',
+    'logic', 'action', 'state', 'children', 'animation', 'networked', 'physics',
+    'import', 'as', 'if', 'else', 'for', 'in', 'while', 'return', 'true', 'false',
+    'null', 'this', 'parent', 'other', 'player', 'min', 'max', 'on_start'
+  ],
+
+  traits: [
+    '@grabbable', '@throwable', '@holdable', '@clickable', '@hoverable', '@draggable',
+    '@pointable', '@scalable', '@collidable', '@physics', '@rigid', '@kinematic',
+    '@trigger', '@gravity', '@glowing', '@emissive', '@transparent', '@reflective',
+    '@animated', '@billboard', '@networked', '@synced', '@persistent', '@owned',
+    '@host_only', '@stackable', '@attachable', '@equippable', '@consumable',
+    '@destructible', '@anchor', '@tracked', '@world_locked', '@hand_tracked',
+    '@eye_tracked', '@spatial_audio', '@ambient', '@voice_activated',
+    '@state', '@reactive', '@observable', '@computed'
+  ],
+
+  events: [
+    'onPoint', 'onGrab', 'onRelease', 'onHoverEnter', 'onHoverExit',
+    'onTriggerEnter', 'onTriggerExit', 'onSwing', 'onClick', 'onGesture'
+  ],
+
+  geometries: [
+    'cube', 'sphere', 'cylinder', 'cone', 'torus', 'capsule', 'plane',
+    'text', 'model', 'humanoid'
+  ],
+
+  properties: [
+    'position', 'rotation', 'scale', 'color', 'geometry', 'opacity',
+    'visible', 'type', 'text', 'model', 'skeleton', 'mass', 'restitution',
+    'friction', 'intensity', 'distance', 'duration', 'loop', 'easing',
+    'from', 'to', 'property', 'skybox', 'ambient_light', 'grid', 'theme',
+    'sync_rate', 'highlight_color'
+  ],
+
+  tokenizer: {
+    root: [
+      // Comments
+      [/\/\/.*$/, 'comment'],
+      [/\/\*/, 'comment', '@comment'],
+
+      // Traits (@keyword)
+      [/@[a-zA-Z_]\w*/, {
+        cases: { '$0': 'keyword.trait' }
+      }],
+
+      // Strings
+      [/"([^"\\]|\\.)*$/, 'string.invalid'],
+      [/"/, 'string', '@string'],
+      [/'([^'\\]|\\.)*$/, 'string.invalid'],
+      [/'/, 'string', '@stringSingle'],
+
+      // Numbers
+      [/\d+(\.\d+)?/, 'number'],
+      [/-\d+(\.\d+)?/, 'number'],
+
+      // Event handlers
+      [/on[A-Z]\w*/, 'keyword.event'],
+
+      // Identifiers & keywords
+      [/[a-zA-Z_]\w*/, {
+        cases: {
+          '@keywords': 'keyword',
+          '@default': 'identifier'
+        }
+      }],
+
+      // Brackets
+      [/[{}()\[\]]/, '@brackets'],
+
+      // Operators
+      [/[+\-*/%=<>!&|^~?]/, 'operator'],
+      [/[;,.:]+/, 'delimiter'],
+
+      // Whitespace
+      [/\s+/, 'white'],
+    ],
+
+    comment: [
+      [/[^/*]+/, 'comment'],
+      [/\*\//, 'comment', '@pop'],
+      [/[/*]/, 'comment']
+    ],
+
+    string: [
+      [/[^"\\]+/, 'string'],
+      [/\\./, 'string.escape'],
+      [/"/, 'string', '@pop']
+    ],
+
+    stringSingle: [
+      [/[^'\\]+/, 'string'],
+      [/\\./, 'string.escape'],
+      [/'/, 'string', '@pop']
+    ]
+  }
+};
+
+// ─── Theme ───
+const HOLOSCRIPT_THEME = {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [
+    { token: 'keyword', foreground: '569cd6', fontStyle: 'bold' },
+    { token: 'keyword.trait', foreground: 'dcdcaa', fontStyle: 'italic' },
+    { token: 'keyword.event', foreground: 'c586c0' },
+    { token: 'string', foreground: 'ce9178' },
+    { token: 'number', foreground: 'b5cea8' },
+    { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+    { token: 'identifier', foreground: '9cdcfe' },
+    { token: 'operator', foreground: 'd4d4d4' },
+    { token: 'delimiter', foreground: 'd4d4d4' },
+    { token: 'string.escape', foreground: 'd7ba7d' },
+    { token: 'string.invalid', foreground: 'f44747' },
+  ],
+  colors: {
+    'editor.background': '#1e1e1e',
+    'editor.foreground': '#d4d4d4',
+    'editorLineNumber.foreground': '#5a5a5a',
+    'editorCursor.foreground': '#00d4ff',
+    'editor.selectionBackground': '#264f7844',
+    'editor.lineHighlightBackground': '#2a2d2e',
+    'editorBracketMatch.background': '#0064001a',
+    'editorBracketMatch.border': '#888888',
+  }
+};
+
+// ─── Example Code ───
+const EXAMPLES = {
+  'hello-world': `composition "Hello World" {
+  environment {
+    skybox: "default"
+    ambient_light: 0.5
+    grid: true
+  }
+
+  object "WelcomeText" {
+    geometry: "text"
+    text: "Hello, HoloScript!"
+    color: "#00d4ff"
+    position: [0, 2, -3]
+    scale: [1.5, 1.5, 1]
+  }
+
+  object "Floor" {
+    geometry: "plane"
+    color: "#333333"
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    scale: [20, 20, 1]
+  }
+
+  object "Cube" {
+    geometry: "cube"
+    color: "#ff6644"
+    position: [0, 0.5, -3]
+    scale: [1, 1, 1]
+  }
+}`,
+
+  'interactive-cube': `composition "Interactive Demo" {
+  environment {
+    skybox: "sunset"
+    ambient_light: 0.4
+  }
+
+  template "InteractiveCube" {
+    @grabbable
+    @collidable
+    @glowing
+    geometry: "cube"
+    color: "#00ffaa"
+
+    physics: {
+      type: "dynamic"
+      mass: 1.0
+      restitution: 0.5
+    }
+
+    state {
+      grabbed: false
+      hitCount: 0
+    }
+
+    onGrab: {
+      this.state.grabbed = true
+      this.color = "#ff00aa"
+      haptic.feedback("medium")
+    }
+
+    onRelease: {
+      this.state.grabbed = false
+      this.color = "#00ffaa"
+    }
+
+    onTriggerEnter: {
+      this.state.hitCount += 1
+      audio.play("bounce.mp3")
+    }
+  }
+
+  object "Cube1" using "InteractiveCube" {
+    position: [-1, 1, -3]
+  }
+
+  object "Cube2" using "InteractiveCube" {
+    position: [1, 1, -3]
+    color: "#ffaa00"
+  }
+}`,
+
+  'animation-demo': `composition "Animation Demo" {
+  environment {
+    skybox: "nebula"
+    ambient_light: 0.3
+  }
+
+  template "BouncingSphere" {
+    @glowing
+    @emissive
+    geometry: "sphere"
+    color: "#00d4ff"
+
+    animation bounce {
+      property: "position.y"
+      from: 1
+      to: 3
+      duration: 1000
+      loop: infinite
+      easing: "easeInOut"
+    }
+
+    animation rotate {
+      property: "rotation.y"
+      from: 0
+      to: 360
+      duration: 3000
+      loop: infinite
+      easing: "linear"
+    }
+  }
+
+  template "OrbitingCube" {
+    geometry: "cube"
+    scale: [0.3, 0.3, 0.3]
+
+    animation orbit {
+      property: "position.x"
+      from: -2
+      to: 2
+      duration: 2000
+      loop: infinite
+      easing: "easeInOut"
+    }
+  }
+
+  object "MainSphere" using "BouncingSphere" {
+    position: [0, 1, -4]
+  }
+
+  object "Orbiter1" using "OrbitingCube" {
+    position: [-2, 2, -4]
+    color: "#ff4444"
+  }
+
+  object "Orbiter2" using "OrbitingCube" {
+    position: [2, 2, -4]
+    color: "#44ff44"
+  }
+}`,
+
+  'warrior': `composition "Warrior NPC" {
+  template "Warrior" {
+    @collidable
+    @physics
+    @spatial_audio
+    geometry: "humanoid"
+    color: "#cc4444"
+    scale: [1, 1, 1]
+
+    state {
+      health: 150
+      maxHealth: 150
+      attackPower: 25
+      defense: 15
+      isAggro: false
+      patrolPath: [[0, 0, 5], [5, 0, 5], [5, 0, 0], [0, 0, 0]]
+      currentPatrolIndex: 0
+    }
+
+    action patrol() {
+      target = this.state.patrolPath[this.state.currentPatrolIndex]
+      animation.moveTo(this, target, 2000)
+      this.state.currentPatrolIndex = (this.state.currentPatrolIndex + 1) % this.state.patrolPath.length
+    }
+
+    action attack(target) {
+      damage = this.state.attackPower - target.state.defense
+      if (damage > 0) {
+        target.takeDamage(damage)
+        audio.play("sword_swing.mp3")
+      }
+    }
+
+    action takeDamage(amount) {
+      this.state.health -= amount
+      if (this.state.health <= 0) {
+        events.emit("npc_defeated", this)
+      }
+    }
+  }
+
+  object "Guard" using "Warrior" {
+    position: [0, 0, 5]
+  }
+}`,
+
+  'mage': `composition "Mage NPC" {
+  template "Mage" {
+    @spatial_audio
+    @glowing
+    @emissive
+    geometry: "humanoid"
+    color: "#4444cc"
+
+    state {
+      health: 80
+      maxHealth: 80
+      mana: 200
+      maxMana: 200
+      spellPower: 40
+    }
+
+    action castFireball(target) {
+      if (this.state.mana >= 30) {
+        this.state.mana -= 30
+        target.takeDamage(this.state.spellPower * 1.5)
+        audio.play("fireball.mp3")
+      }
+    }
+
+    action castHeal(target) {
+      if (this.state.mana >= 25) {
+        this.state.mana -= 25
+        target.state.health = min(target.state.health + 30, target.state.maxHealth)
+        audio.play("heal.mp3")
+      }
+    }
+
+    action regenerateMana() {
+      this.state.mana = min(this.state.mana + 2, this.state.maxMana)
+    }
+  }
+
+  object "Wizard" using "Mage" {
+    position: [3, 0, 5]
+  }
+}`,
+
+  'merchant': `composition "Merchant NPC" {
+  template "Merchant" {
+    @clickable
+    @hoverable
+    @spatial_audio
+    geometry: "humanoid"
+    color: "#44aa44"
+
+    state {
+      gold: 5000
+      inventory: [
+        { name: "Health Potion", price: 50, stock: 10 },
+        { name: "Mana Potion", price: 75, stock: 8 },
+        { name: "Iron Sword", price: 200, stock: 3 },
+        { name: "Leather Armor", price: 150, stock: 5 }
+      ]
+    }
+
+    action sell(itemName, buyer) {
+      item = this.state.inventory.find(i => i.name == itemName)
+      if (item && item.stock > 0 && buyer.gold >= item.price) {
+        buyer.gold -= item.price
+        this.state.gold += item.price
+        item.stock -= 1
+        buyer.inventory.addItem({ name: item.name })
+        audio.play("coin.mp3")
+        ui.toast("Purchased: " + item.name)
+      }
+    }
+
+    onClick: {
+      ui.showShop(this.state.inventory)
+    }
+
+    onHoverEnter: {
+      ui.tooltip("Merchant - Click to trade")
+    }
+  }
+
+  object "Shopkeeper" using "Merchant" {
+    position: [-3, 0, 5]
+  }
+}`,
+
+  'sword': `composition "Sword Weapon" {
+  template "Sword" {
+    @grabbable
+    @throwable
+    @equippable
+    @collidable
+    @spatial_audio
+    geometry: "cube"
+    color: "#C0C0C0"
+    scale: [0.08, 0.5, 0.04]
+
+    state {
+      damage: 25
+      durability: 100
+      equipped: false
+    }
+
+    action strike(target) {
+      target.takeDamage(this.state.damage)
+      this.state.durability -= 1
+      audio.play("sword_hit.mp3")
+      haptic.feedback("medium")
+    }
+
+    onGrab: {
+      this.state.equipped = true
+      audio.play("sword_draw.mp3")
+      haptic.feedback("light")
+    }
+
+    onRelease: {
+      this.state.equipped = false
+    }
+  }
+
+  object "IronSword" using "Sword" {
+    position: [0, 1, -2]
+  }
+}`,
+
+  'bow': `composition "Bow Weapon" {
+  template "Bow" {
+    @grabbable
+    @equippable
+    @spatial_audio
+    geometry: "torus"
+    color: "#8B4513"
+    scale: [0.4, 0.6, 0.1]
+
+    state {
+      damage: 20
+      ammo: 30
+      maxAmmo: 30
+      drawStrength: 0
+      isDrawn: false
+    }
+
+    action draw() {
+      this.state.isDrawn = true
+      this.state.drawStrength = 0
+      audio.play("bow_draw.mp3")
+    }
+
+    action shoot(target) {
+      if (this.state.isDrawn && this.state.ammo > 0) {
+        damage = this.state.damage * this.state.drawStrength
+        target.takeDamage(damage)
+        this.state.ammo -= 1
+        this.state.isDrawn = false
+        audio.play("bow_release.mp3")
+      }
+    }
+
+    onGrab: {
+      this.draw()
+    }
+  }
+
+  object "HunterBow" using "Bow" {
+    position: [1, 1, -2]
+  }
+}`,
+
+  'staff': `composition "Staff Weapon" {
+  template "Staff" {
+    @grabbable
+    @equippable
+    @glowing
+    @emissive
+    @spatial_audio
+    geometry: "cylinder"
+    color: "#4B0082"
+    scale: [0.06, 1.2, 0.06]
+
+    state {
+      spellPower: 35
+      manaBonus: 50
+      chargeLevel: 0
+    }
+
+    action castSpell(spellName, target) {
+      spells = {
+        "fireball": { cost: 30, multiplier: 1.5 },
+        "ice_shard": { cost: 20, multiplier: 1.0 },
+        "lightning": { cost: 40, multiplier: 2.0 }
+      }
+      spell = spells[spellName]
+      if (spell) {
+        damage = this.state.spellPower * spell.multiplier
+        target.takeDamage(damage)
+        audio.play(spellName + ".mp3")
+      }
+    }
+
+    action charge() {
+      this.state.chargeLevel = min(this.state.chargeLevel + 0.1, 1.0)
+      this.material.emission.intensity = this.state.chargeLevel
+    }
+
+    onGrab: {
+      this.material.emission.intensity = 0.3
+      audio.play("staff_hum.mp3")
+    }
+  }
+
+  object "ArcaneStaff" using "Staff" {
+    position: [2, 1, -2]
+  }
+}`,
+
+  'portal': `composition "Portal System" {
+  template "Portal" {
+    @collidable
+    @glowing
+    @emissive
+    @spatial_audio
+    @animated
+    geometry: "torus"
+    color: "#8800ff"
+    scale: [1.5, 2, 0.3]
+
+    state {
+      destination: ""
+      isActive: true
+      cooldown: 0
+    }
+
+    animation swirl {
+      property: "rotation.z"
+      from: 0
+      to: 360
+      duration: 3000
+      loop: infinite
+      easing: "linear"
+    }
+
+    action teleport(entity) {
+      if (this.state.isActive && this.state.cooldown <= 0) {
+        audio.play("portal_teleport.mp3")
+        haptic.feedback("strong")
+        entity.position = this.state.destination
+      }
+    }
+
+    onTriggerEnter: {
+      if (other.isPlayer) {
+        this.teleport(other)
+      }
+    }
+  }
+
+  spatial_group "PortalPair" {
+    object "Portal_A" using "Portal" {
+      position: [0, 1.5, 0]
+      state { destination: "Portal_B" }
+    }
+
+    object "Portal_B" using "Portal" {
+      position: [20, 1.5, 0]
+      state { destination: "Portal_A" }
+      color: "#ff8800"
+    }
+  }
+}`,
+
+  'dialogue': `composition "Dialogue System" {
+  template "DialogueManager" {
+    state {
+      currentNodeId: "start"
+      isActive: false
+      speakerName: ""
+      dialogueTree: {}
+    }
+
+    action startDialogue(npcName, tree) {
+      this.state.speakerName = npcName
+      this.state.dialogueTree = tree
+      this.state.currentNodeId = "start"
+      this.state.isActive = true
+      this.showCurrentNode()
+    }
+
+    action showCurrentNode() {
+      node = this.state.dialogueTree[this.state.currentNodeId]
+      if (node) {
+        ui.showDialogue({
+          speaker: node.speaker || this.state.speakerName,
+          text: node.text,
+          choices: node.choices || []
+        })
+      }
+    }
+
+    action selectChoice(choiceIndex) {
+      node = this.state.dialogueTree[this.state.currentNodeId]
+      choice = node.choices[choiceIndex]
+      if (choice.next) {
+        this.state.currentNodeId = choice.next
+        this.showCurrentNode()
+      } else {
+        this.endDialogue()
+      }
+    }
+
+    action endDialogue() {
+      this.state.isActive = false
+      ui.hideDialogue()
+    }
+  }
+
+  object "DialogueSystem" using "DialogueManager" {
+    position: [0, 0, 0]
+  }
+}`,
+
+  'crafting': `composition "Crafting System" {
+  template "CraftingStation" {
+    @clickable
+    @hoverable
+    @spatial_audio
+    @collidable
+    geometry: "cube"
+    color: "#8B4513"
+    scale: [1.5, 1, 1.5]
+
+    state {
+      stationType: "workbench"
+      recipes: {}
+      isOpen: false
+    }
+
+    action registerRecipe(recipe) {
+      this.state.recipes[recipe.id] = recipe
+    }
+
+    action craft(recipeId) {
+      recipe = this.state.recipes[recipeId]
+      if (!recipe) { return false }
+
+      for (ingredient in recipe.ingredients) {
+        has = player.inventory.countItem(ingredient.name)
+        if (has < ingredient.amount) {
+          ui.toast("Not enough ingredients")
+          return false
+        }
+      }
+
+      for (ingredient in recipe.ingredients) {
+        player.inventory.removeItem(ingredient.name, ingredient.amount)
+      }
+
+      player.inventory.addItem(recipe.result)
+      ui.toast("Crafted: " + recipe.result.name)
+      audio.play("crafting_complete.mp3")
+      return true
+    }
+
+    onClick: {
+      this.state.isOpen = true
+      ui.showCrafting(this.state.recipes)
+    }
+
+    onHoverEnter: {
+      ui.tooltip("Crafting: " + this.state.stationType)
+    }
+  }
+
+  object "Workbench" using "CraftingStation" {
+    position: [5, 0.5, 5]
+  }
+}`
+};
+
+// ─── Playground App ───
+(function() {
+  let editor = null;
+  let scene, camera, renderer, controls;
+  let sceneObjects = [];
+  let animationId = null;
+  let frameCount = 0;
+  let lastFpsUpdate = 0;
+
+  // ── Initialize Monaco ──
+  require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
+
+  require(['vs/editor/editor.main'], function() {
+    // Register HoloScript language
+    monaco.languages.register({ id: 'holoscript', extensions: ['.holo', '.hs', '.hsplus'] });
+    monaco.languages.setMonarchTokensProvider('holoscript', HOLOSCRIPT_LANG);
+    monaco.editor.defineTheme('holoscript-dark', HOLOSCRIPT_THEME);
+
+    // Register completions
+    monaco.languages.registerCompletionItemProvider('holoscript', {
+      provideCompletionItems: function(model, position) {
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        };
+
+        const suggestions = [];
+
+        // Keyword completions
+        HOLOSCRIPT_LANG.keywords.forEach(kw => {
+          suggestions.push({
+            label: kw,
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: kw,
+            range: range
+          });
+        });
+
+        // Trait completions
+        HOLOSCRIPT_LANG.traits.forEach(t => {
+          suggestions.push({
+            label: t,
+            kind: monaco.languages.CompletionItemKind.Property,
+            insertText: t,
+            range: range,
+            detail: 'VR Trait'
+          });
+        });
+
+        // Geometry completions
+        HOLOSCRIPT_LANG.geometries.forEach(g => {
+          suggestions.push({
+            label: g,
+            kind: monaco.languages.CompletionItemKind.Value,
+            insertText: '"' + g + '"',
+            range: range,
+            detail: 'Geometry type'
+          });
+        });
+
+        // Snippet: composition
+        suggestions.push({
+          label: 'composition',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'composition "${1:Name}" {\n  environment {\n    skybox: "${2:default}"\n    ambient_light: ${3:0.5}\n  }\n\n  $0\n}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: range,
+          detail: 'Scene composition'
+        });
+
+        // Snippet: template
+        suggestions.push({
+          label: 'template',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'template "${1:Name}" {\n  geometry: "${2:cube}"\n  color: "${3:#ffffff}"\n\n  state {\n    $0\n  }\n}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: range,
+          detail: 'Object template'
+        });
+
+        // Snippet: object
+        suggestions.push({
+          label: 'object',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'object "${1:Name}" {\n  geometry: "${2:cube}"\n  position: [${3:0}, ${4:0}, ${5:0}]\n  color: "${6:#ffffff}"\n}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: range,
+          detail: 'Scene object'
+        });
+
+        // Snippet: action
+        suggestions.push({
+          label: 'action',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          insertText: 'action ${1:name}(${2:params}) {\n  $0\n}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: range,
+          detail: 'Action method'
+        });
+
+        return { suggestions };
+      }
+    });
+
+    // Create editor
+    editor = monaco.editor.create(document.getElementById('editor-container'), {
+      value: EXAMPLES['hello-world'],
+      language: 'holoscript',
+      theme: 'holoscript-dark',
+      fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+      fontSize: 14,
+      lineHeight: 1.6,
+      minimap: { enabled: true, scale: 2 },
+      automaticLayout: true,
+      tabSize: 2,
+      scrollBeyondLastLine: false,
+      renderLineHighlight: 'all',
+      bracketPairColorization: { enabled: true },
+      guides: { bracketPairs: true, indentation: true },
+      suggest: { showKeywords: true, showSnippets: true },
+      wordWrap: 'on',
+      padding: { top: 8 }
+    });
+
+    // Ctrl+Enter to run
+    editor.addAction({
+      id: 'run-holoscript',
+      label: 'Run HoloScript',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+      run: function() { runCode(); }
+    });
+
+    // Ctrl+S to save
+    editor.addAction({
+      id: 'save-holoscript',
+      label: 'Save HoloScript',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+      run: function() { saveFile(); }
+    });
+
+    // Live parse on change (debounced)
+    let parseTimer = null;
+    editor.onDidChangeModelContent(() => {
+      clearTimeout(parseTimer);
+      parseTimer = setTimeout(() => {
+        parseAndValidate(editor.getValue());
+      }, 500);
+    });
+
+    // Init 3D preview
+    init3D();
+
+    // Run initial code
+    runCode();
+
+    // Hide loading
+    document.getElementById('loading-overlay').classList.add('hidden');
+    log('HoloScript Playground IDE loaded', 'success');
+    log('Monaco Editor v0.45.0 | Three.js r161', 'info');
+    log('Press Ctrl+Enter to run, Ctrl+S to save', 'info');
+  });
+
+  // ── Three.js 3D Preview ──
+  function init3D() {
+    const container = document.getElementById('preview-canvas-container');
+    const canvas = document.getElementById('preview-canvas');
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f0f1a);
+    scene.fog = new THREE.FogExp2(0x0f0f1a, 0.02);
+
+    camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(5, 4, 8);
+    camera.lookAt(0, 1, 0);
+
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+
+    controls = new THREE.OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 1, 0);
+
+    // Default lights
+    const ambient = new THREE.AmbientLight(0x404060, 0.6);
+    scene.add(ambient);
+
+    const directional = new THREE.DirectionalLight(0xffffff, 1.0);
+    directional.position.set(5, 10, 5);
+    directional.castShadow = true;
+    directional.shadow.mapSize.set(1024, 1024);
+    scene.add(directional);
+
+    const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x362d1b, 0.3);
+    scene.add(hemiLight);
+
+    // Grid
+    const grid = new THREE.GridHelper(20, 20, 0x333355, 0x222244);
+    grid.material.opacity = 0.4;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    // Resize
+    const ro = new ResizeObserver(() => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+    ro.observe(container);
+
+    // Animation loop
+    function animate() {
+      animationId = requestAnimationFrame(animate);
+      controls.update();
+
+      // Animate objects
+      const time = performance.now() * 0.001;
+      sceneObjects.forEach(obj => {
+        if (obj.userData.animate) {
+          if (obj.userData.animate === 'rotate') {
+            obj.rotation.y += 0.01;
+          } else if (obj.userData.animate === 'bounce') {
+            obj.position.y = obj.userData.baseY + Math.sin(time * 2) * 0.5;
+          } else if (obj.userData.animate === 'float') {
+            obj.position.y = obj.userData.baseY + Math.sin(time * 1.5) * 0.2;
+          }
+        }
+      });
+
+      renderer.render(scene, camera);
+
+      // FPS counter
+      frameCount++;
+      if (time - lastFpsUpdate > 1) {
+        document.getElementById('fps-counter').textContent = frameCount + ' fps';
+        frameCount = 0;
+        lastFpsUpdate = time;
+      }
+    }
+    animate();
+  }
+
+  // ── Parse & Validate ──
+  function parseAndValidate(code) {
+    const status = document.getElementById('parse-status');
+    const errors = [];
+    let ast = null;
+
+    try {
+      ast = simpleParseHolo(code);
+      if (ast.errors.length > 0) {
+        status.textContent = ast.errors.length + ' error(s)';
+        status.style.color = '#f14c4c';
+        ast.errors.forEach(e => errors.push(e));
+      } else {
+        status.textContent = 'Valid';
+        status.style.color = '#89d185';
+      }
+    } catch (e) {
+      status.textContent = 'Parse error';
+      status.style.color = '#f14c4c';
+      errors.push(e.message);
+    }
+
+    // Update error markers in Monaco
+    if (editor) {
+      const markers = errors.map((e, i) => ({
+        severity: monaco.MarkerSeverity.Error,
+        message: typeof e === 'string' ? e : e.message || 'Unknown error',
+        startLineNumber: typeof e === 'object' && e.line ? e.line : 1,
+        startColumn: 1,
+        endLineNumber: typeof e === 'object' && e.line ? e.line : 1,
+        endColumn: 1000
+      }));
+      monaco.editor.setModelMarkers(editor.getModel(), 'holoscript', markers);
+    }
+
+    return ast;
+  }
+
+  // ── Simple .holo Parser ──
+  function simpleParseHolo(code) {
+    const ast = { type: 'composition', name: '', environment: {}, templates: {}, objects: [], groups: [], errors: [] };
+
+    // Extract composition name
+    const compMatch = code.match(/composition\s+"([^"]+)"/);
+    if (compMatch) { ast.name = compMatch[1]; }
+
+    // Check bracket balance
+    let braces = 0;
+    for (let i = 0; i < code.length; i++) {
+      if (code[i] === '{') braces++;
+      if (code[i] === '}') braces--;
+      if (braces < 0) {
+        ast.errors.push({ message: 'Unexpected closing brace', line: code.substring(0, i).split('\n').length });
+        break;
+      }
+    }
+    if (braces > 0) {
+      ast.errors.push({ message: `Missing ${braces} closing brace(s)`, line: code.split('\n').length });
+    }
+
+    // Extract environment
+    const envMatch = code.match(/environment\s*\{([^}]*)\}/s);
+    if (envMatch) {
+      const envBody = envMatch[1];
+      const props = envBody.match(/(\w+)\s*:\s*("?[^"\n,}]+"?|\[[^\]]*\]|\d+\.?\d*|true|false)/g);
+      if (props) {
+        props.forEach(p => {
+          const [key, val] = p.split(/\s*:\s*/);
+          ast.environment[key.trim()] = val.trim().replace(/^"|"$/g, '');
+        });
+      }
+    }
+
+    // Extract templates
+    const templateRegex = /template\s+"([^"]+)"\s*\{/g;
+    let match;
+    while ((match = templateRegex.exec(code)) !== null) {
+      const name = match[1];
+      const startIdx = match.index + match[0].length;
+      const body = extractBlock(code, startIdx);
+      const traits = [];
+      const traitRegex = /@(\w+)/g;
+      let tm;
+      while ((tm = traitRegex.exec(body)) !== null) {
+        traits.push('@' + tm[1]);
+      }
+      const geomMatch = body.match(/geometry\s*:\s*"([^"]+)"/);
+      const colorMatch = body.match(/color\s*:\s*"([^"]+)"/);
+      ast.templates[name] = {
+        name,
+        traits,
+        geometry: geomMatch ? geomMatch[1] : 'cube',
+        color: colorMatch ? colorMatch[1] : '#ffffff',
+        body
+      };
+    }
+
+    // Extract objects
+    const objRegex = /object\s+"([^"]+)"(?:\s+using\s+"([^"]+)")?\s*\{/g;
+    while ((match = objRegex.exec(code)) !== null) {
+      const name = match[1];
+      const templateName = match[2] || null;
+      const startIdx = match.index + match[0].length;
+      const body = extractBlock(code, startIdx);
+
+      const posMatch = body.match(/position\s*:\s*\[([^\]]+)\]/);
+      const scaleMatch = body.match(/scale\s*:\s*\[([^\]]+)\]/);
+      const rotMatch = body.match(/rotation\s*:\s*\[([^\]]+)\]/);
+      const colorMatch = body.match(/color\s*:\s*"([^"]+)"/);
+      const geomMatch = body.match(/geometry\s*:\s*"([^"]+)"/);
+
+      const obj = {
+        name,
+        template: templateName,
+        position: posMatch ? posMatch[1].split(',').map(Number) : [0, 0, 0],
+        scale: scaleMatch ? scaleMatch[1].split(',').map(Number) : [1, 1, 1],
+        rotation: rotMatch ? rotMatch[1].split(',').map(Number) : [0, 0, 0],
+        color: colorMatch ? colorMatch[1] : null,
+        geometry: geomMatch ? geomMatch[1] : null,
+        body
+      };
+
+      // Inherit from template
+      if (templateName && ast.templates[templateName]) {
+        const tmpl = ast.templates[templateName];
+        if (!obj.color) obj.color = tmpl.color;
+        if (!obj.geometry) obj.geometry = tmpl.geometry;
+        obj.traits = tmpl.traits;
+      }
+
+      ast.objects.push(obj);
+    }
+
+    return ast;
+  }
+
+  function extractBlock(code, startIdx) {
+    let depth = 1;
+    let i = startIdx;
+    while (i < code.length && depth > 0) {
+      if (code[i] === '{') depth++;
+      if (code[i] === '}') depth--;
+      i++;
+    }
+    return code.substring(startIdx, i - 1);
+  }
+
+  // ── Run Code → 3D Preview ──
+  function runCode() {
+    const code = editor ? editor.getValue() : '';
+    log('Running HoloScript...', 'info');
+
+    // Parse
+    const ast = parseAndValidate(code);
+    if (!ast || ast.errors.length > 0) {
+      log('Fix errors before running', 'error');
+      return;
+    }
+
+    // Clear scene objects
+    sceneObjects.forEach(obj => {
+      scene.remove(obj);
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(m => m.dispose());
+        } else {
+          obj.material.dispose();
+        }
+      }
+    });
+    sceneObjects = [];
+
+    // Build objects
+    ast.objects.forEach(objDef => {
+      const mesh = createMeshFromDef(objDef);
+      if (mesh) {
+        scene.add(mesh);
+        sceneObjects.push(mesh);
+      }
+    });
+
+    log(`Scene "${ast.name}" loaded: ${ast.objects.length} objects, ${Object.keys(ast.templates).length} templates`, 'success');
+
+    // Update AST panel
+    updateASTPanel(ast);
+  }
+
+  function createMeshFromDef(def) {
+    const geomType = def.geometry || 'cube';
+    let geometry;
+
+    switch (geomType) {
+      case 'cube': geometry = new THREE.BoxGeometry(1, 1, 1); break;
+      case 'sphere': geometry = new THREE.SphereGeometry(0.5, 32, 32); break;
+      case 'cylinder': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); break;
+      case 'cone': geometry = new THREE.ConeGeometry(0.5, 1, 32); break;
+      case 'torus': geometry = new THREE.TorusGeometry(0.5, 0.15, 16, 48); break;
+      case 'capsule': geometry = new THREE.CapsuleGeometry(0.3, 0.6, 8, 16); break;
+      case 'plane': geometry = new THREE.PlaneGeometry(1, 1); break;
+      case 'text':
+      case 'humanoid':
+        geometry = new THREE.CapsuleGeometry(0.3, 1.0, 8, 16);
+        break;
+      default:
+        geometry = new THREE.BoxGeometry(1, 1, 1);
+    }
+
+    const color = def.color || '#ffffff';
+    const hasGlow = def.traits && (def.traits.includes('@glowing') || def.traits.includes('@emissive'));
+
+    const material = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(color),
+      metalness: 0.1,
+      roughness: 0.6,
+      emissive: hasGlow ? new THREE.Color(color) : new THREE.Color(0x000000),
+      emissiveIntensity: hasGlow ? 0.4 : 0,
+    });
+
+    if (def.traits && def.traits.includes('@transparent')) {
+      material.transparent = true;
+      material.opacity = 0.6;
+    }
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = def.name;
+
+    // Position
+    if (def.position) {
+      mesh.position.set(def.position[0] || 0, def.position[1] || 0, def.position[2] || 0);
+    }
+
+    // Scale
+    if (def.scale) {
+      mesh.scale.set(def.scale[0] || 1, def.scale[1] || 1, def.scale[2] || 1);
+    }
+
+    // Rotation (degrees → radians)
+    if (def.rotation) {
+      mesh.rotation.set(
+        (def.rotation[0] || 0) * Math.PI / 180,
+        (def.rotation[1] || 0) * Math.PI / 180,
+        (def.rotation[2] || 0) * Math.PI / 180
+      );
+    }
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // Animation hints
+    if (hasGlow) {
+      mesh.userData.animate = 'float';
+      mesh.userData.baseY = mesh.position.y;
+    } else if (def.traits && def.traits.includes('@animated')) {
+      mesh.userData.animate = 'rotate';
+    }
+
+    return mesh;
+  }
+
+  // ── AST Panel ──
+  function updateASTPanel(ast) {
+    const panel = document.getElementById('ast-panel');
+    panel.innerHTML = renderAST(ast, 0);
+  }
+
+  function renderAST(obj, depth) {
+    if (depth > 8) return '<span class="ast-str">...</span>';
+    if (obj === null || obj === undefined) return '<span class="ast-bool">null</span>';
+    if (typeof obj === 'string') return `<span class="ast-str">"${escapeHtml(obj.substring(0, 60))}"</span>`;
+    if (typeof obj === 'number') return `<span class="ast-num">${obj}</span>`;
+    if (typeof obj === 'boolean') return `<span class="ast-bool">${obj}</span>`;
+    if (Array.isArray(obj)) {
+      if (obj.length === 0) return '[]';
+      let html = '[<div class="ast-node">';
+      obj.forEach((item, i) => {
+        html += renderAST(item, depth + 1);
+        if (i < obj.length - 1) html += ', ';
+      });
+      return html + '</div>]';
+    }
+    if (typeof obj === 'object') {
+      const keys = Object.keys(obj).filter(k => k !== 'body');
+      if (keys.length === 0) return '{}';
+      let html = '{<div class="ast-node">';
+      keys.forEach(key => {
+        html += `<span class="ast-key">${escapeHtml(key)}</span>: ${renderAST(obj[key], depth + 1)}<br>`;
+      });
+      return html + '</div>}';
+    }
+    return String(obj);
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ── Output/Log ──
+  function log(msg, type) {
+    const el = document.getElementById('output-content');
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const cls = type ? 'log-' + type : '';
+    el.innerHTML += `<div><span class="log-time">${time}</span><span class="${cls}">${escapeHtml(msg)}</span></div>`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // ── Save File ──
+  function saveFile() {
+    if (!editor) return;
+    const code = editor.getValue();
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'scene.holo';
+    a.click();
+    URL.revokeObjectURL(url);
+    log('File saved as scene.holo', 'success');
+  }
+
+  // ── Load File ──
+  function loadFile() {
+    document.getElementById('file-input').click();
+  }
+
+  // ── Event Bindings ──
+  document.addEventListener('DOMContentLoaded', function() {
+    // Toolbar buttons
+    document.getElementById('btn-run').onclick = runCode;
+    document.getElementById('btn-format').onclick = function() {
+      if (editor) {
+        editor.getAction('editor.action.formatDocument')?.run();
+        log('Code formatted', 'info');
+      }
+    };
+    document.getElementById('btn-load').onclick = loadFile;
+    document.getElementById('btn-save').onclick = saveFile;
+    document.getElementById('btn-ast').onclick = function() {
+      document.getElementById('ast-panel').classList.toggle('open');
+    };
+
+    // File input
+    document.getElementById('file-input').onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        if (editor) {
+          editor.setValue(ev.target.result);
+          log('Loaded: ' + file.name, 'success');
+          runCode();
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    };
+
+    // Example selector
+    document.getElementById('example-select').onchange = function(e) {
+      const key = e.target.value;
+      if (key && EXAMPLES[key] && editor) {
+        editor.setValue(EXAMPLES[key]);
+        log('Loaded example: ' + key, 'info');
+        runCode();
+        e.target.value = '';
+      }
+    };
+
+    // Bottom tabs
+    document.querySelectorAll('.btab').forEach(tab => {
+      tab.onclick = function() {
+        document.querySelectorAll('.btab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+      };
+    });
+
+    // Horizontal resizer
+    const hResizer = document.getElementById('h-resizer');
+    let isResizingH = false;
+    hResizer.onmousedown = function(e) {
+      isResizingH = true;
+      hResizer.classList.add('active');
+      e.preventDefault();
+    };
+
+    // Vertical resizer
+    const vResizer = document.getElementById('v-resizer');
+    let isResizingV = false;
+    vResizer.onmousedown = function(e) {
+      isResizingV = true;
+      vResizer.classList.add('active');
+      e.preventDefault();
+    };
+
+    document.onmousemove = function(e) {
+      if (isResizingH) {
+        const editorPanel = document.getElementById('editor-panel');
+        const newWidth = e.clientX;
+        if (newWidth > 200 && newWidth < window.innerWidth - 200) {
+          editorPanel.style.width = newWidth + 'px';
+          editorPanel.style.flex = 'none';
+        }
+      }
+      if (isResizingV) {
+        const bottomPanel = document.getElementById('bottom-panel');
+        const newHeight = window.innerHeight - e.clientY;
+        if (newHeight > 80 && newHeight < window.innerHeight - 200) {
+          bottomPanel.style.height = newHeight + 'px';
+        }
+      }
+    };
+
+    document.onmouseup = function() {
+      isResizingH = false;
+      isResizingV = false;
+      hResizer.classList.remove('active');
+      vResizer.classList.remove('active');
+    };
+  });
+})();
+</script>
+</body>
+</html>

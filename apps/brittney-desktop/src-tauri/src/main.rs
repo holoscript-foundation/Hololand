@@ -230,7 +230,7 @@ async fn download_model(
     state: tauri::State<'_, AppState>,
     model: Option<String>,
 ) -> Result<(), String> {
-    let model_name = model.unwrap_or_else(|| "brittney-v4-expert:latest".to_string());
+    let model_name = model.unwrap_or_else(|| "brittney-qwen-v23:latest".to_string());
     state.ollama.pull_model(&model_name).await.map_err(|e| e.to_string())
 }
 
@@ -242,7 +242,7 @@ fn get_model_path(app: tauri::AppHandle) -> Result<String, String> {
         .resource_dir()
         .map_err(|e| e.to_string())?
         .join("models")
-        .join("brittney-v4-expert.gguf");
+        .join("brittney-qwen-v23.gguf");
 
     Ok(resource_path.to_string_lossy().to_string())
 }

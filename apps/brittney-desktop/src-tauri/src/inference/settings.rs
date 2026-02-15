@@ -63,7 +63,7 @@ impl Default for InferenceSettings {
             local: LocalSettings {
                 enabled: true,
                 ollama_url: "http://localhost:11434".to_string(),
-                default_model: "brittney-v4-expert:latest".to_string(),
+                default_model: "brittney-qwen-v23:latest".to_string(),
                 auto_download_model: true,
             },
             providers: Providers {
@@ -181,7 +181,7 @@ pub fn get_settings_schema() -> SettingsSchema {
                         label: "Enable Local AI".to_string(),
                         field_type: FieldType::Toggle,
                         placeholder: None,
-                        help: Some("Uses Ollama with brittney-v4-expert model".to_string()),
+                        help: Some("Uses Ollama with brittney-qwen-v23 model".to_string()),
                         required: false,
                     },
                     SettingsField {
@@ -197,7 +197,7 @@ pub fn get_settings_schema() -> SettingsSchema {
                         label: "Auto-download Brittney model".to_string(),
                         field_type: FieldType::Toggle,
                         placeholder: None,
-                        help: Some("Download brittney-v4-expert (1.6GB) on first use".to_string()),
+                        help: Some("Download brittney-qwen-v23 (7.6GB) on first use".to_string()),
                         required: false,
                     },
                 ],

@@ -1,0 +1,712 @@
+// Collaborative Building - HoloScript Demo
+// Refactored from legacy 10-collaborative-building/main.ts
+// Showcases: @networked objects, real-time sync, cursor visualization, ownership/locking
+
+composition "Collaborative Building" {
+
+  environment {
+    skybox: "studio_soft"
+    ambient_light: 0.7
+    grid_visible: true
+
+    // Networking configuration
+    network {
+      sync_rate: 20  // 20 updates per second
+      interpolation: true
+      ownership_transfer: "request"
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // NETWORKED STATE
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    @networked
+    room_name: "Build Room"
+    created_objects: []
+    object_locks: {}  // { object_id: player_id }
+
+    @synced
+    chat_messages: []
+
+    @local_only
+    selected_tool: "cube"
+    selected_color: "#6366f1"
+    grid_snap: true
+    snap_size: 0.5
+    is_connected: false
+    my_player_id: null
+  }
+
+  // Tool palette options
+  const tools = [
+    { id: "cube", label: "Cube", icon: "cube" },
+    { id: "sphere", label: "Sphere", icon: "sphere" },
+    { id: "cylinder", label: "Cylinder", icon: "cylinder" },
+    { id: "plane", label: "Plane", icon: "plane" },
+    { id: "select", label: "Select", icon: "cursor" },
+    { id: "delete", label: "Delete", icon: "trash" }
+  ]
+
+  const colors = [
+    "#ef4444", "#f59e0b", "#10b981", "#3b82f6",
+    "#6366f1", "#8b5cf6", "#ec4899", "#ffffff"
+  ]
+
+  // ═══════════════════════════════════════════════════════════
+  // PLAYER CURSOR TEMPLATE
+  // ═══════════════════════════════════════════════════════════
+
+  template "RemoteCursor" {
+    @networked
+    @synced
+
+    state {
+      player_id: null
+      player_name: "Unknown"
+      position: [0, 0, 0]
+      rotation: [0, 0, 0]
+      active_tool: "cube"
+      cursor_color: "#ffffff"
+    }
+
+    object "CursorBody" {
+      type: "cone"
+      size: [0.1, 0.2, 0.1]
+      rotation: [180, 0, 0]
+      color: state.cursor_color
+      material: "unlit"
+
+      @billboard
+      billboard_axis: "y"
+    }
+
+    object "CursorLabel" {
+      type: "ui-text"
+      position: [0, 0.3, 0]
+      text: state.player_name
+      font_size: 12
+      color: state.cursor_color
+
+      @billboard
+    }
+
+    object "ToolIndicator" {
+      type: "ui-text"
+      position: [0.15, 0, 0]
+      text: state.active_tool
+      font_size: 10
+      color: "#9ca3af"
+
+      @billboard
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUILDABLE OBJECT TEMPLATE
+  // ═══════════════════════════════════════════════════════════
+
+  template "BuildableObject" {
+    @networked
+    @synced
+    @selectable
+    @transformable
+
+    state {
+      object_id: uuid()
+      object_type: "cube"
+      color: "#6366f1"
+      position: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+      owner_id: null
+      locked_by: null
+      created_at: now()
+    }
+
+    // Dynamic mesh based on type
+    object "Mesh" {
+      type: state.object_type
+      size: state.scale
+      color: state.color
+      material: "standard"
+
+      @collidable
+      @clickable
+    }
+
+    // Lock indicator
+    object "LockIcon" {
+      type: "sprite"
+      sprite: "lock_icon"
+      position: [0, state.scale[1] / 2 + 0.2, 0]
+      size: [0.15, 0.15]
+      visible: state.locked_by != null && state.locked_by != local_player.id
+
+      @billboard
+    }
+
+    // Selection outline
+    object "SelectionOutline" {
+      type: "outline"
+      target: "Mesh"
+      color: "#00ffff"
+      width: 2
+      visible: false
+    }
+
+    on_click {
+      if state.current_tool == "select" {
+        try_select(self)
+      } else if state.current_tool == "delete" {
+        try_delete(self)
+      }
+    }
+
+    on_drag_start {
+      request_lock(state.object_id)
+    }
+
+    on_drag_end {
+      release_lock(state.object_id)
+      sync_transform(self)
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUILD ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "BuildArea" {
+
+    // Build platform
+    object "BuildPlatform" {
+      type: "box"
+      position: [0, -0.5, 0]
+      size: [30, 1, 30]
+      material: "grid_dark"
+      color: "#1a1a2e"
+
+      @collidable
+    }
+
+    // Grid visualization
+    object "GridOverlay" {
+      type: "grid"
+      position: [0, 0.01, 0]
+      size: [30, 30]
+      cell_size: state.snap_size
+      color: "rgba(99, 102, 241, 0.3)"
+      visible: state.grid_snap
+    }
+
+    // Boundary walls (transparent)
+    object "Boundaries" {
+      type: "box"
+      size: [32, 10, 32]
+      material: "force_field"
+      opacity: 0.1
+      collision_mode: "inside"
+
+      @collidable
+    }
+
+    // Dynamic objects container
+    spatial_group "CreatedObjects" {
+      @networked
+      @dynamic
+
+      // BuildableObjects are spawned here
+    }
+
+    // Remote cursor container
+    spatial_group "RemoteCursors" {
+      @networked
+
+      // RemoteCursor instances for each connected player
+      @for player in query_remote_players() {
+        object "Cursor_${player.id}" using "RemoteCursor" {
+          state: {
+            player_id: player.id,
+            player_name: player.display_name,
+            cursor_color: player.color
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // UI PANELS
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "UIOverlay" {
+    @local_only
+
+    // Tool palette
+    object "ToolPalette" {
+      type: "ui-panel"
+      position: [20, 100]
+      size: [70, 320]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "PaletteTitle" {
+        type: "ui-text"
+        position: [10, 10]
+        text: "Tools"
+        font_size: 12
+        color: "#9ca3af"
+      }
+
+      @for (tool, index) in tools {
+        object "ToolButton_${tool.id}" {
+          type: "ui-button"
+          position: [10, 35 + index * 45]
+          size: [50, 40]
+          icon: tool.icon
+          tooltip: tool.label
+          background: state.selected_tool == tool.id ? "#6366f1" : "#374151"
+          border_radius: 8
+
+          @clickable
+          on_click: () => { state.selected_tool = tool.id }
+        }
+      }
+    }
+
+    // Color palette
+    object "ColorPalette" {
+      type: "ui-panel"
+      position: [20, 440]
+      size: [70, 180]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "ColorTitle" {
+        type: "ui-text"
+        position: [10, 10]
+        text: "Color"
+        font_size: 12
+        color: "#9ca3af"
+      }
+
+      @for (color, index) in colors {
+        object "ColorButton_${index}" {
+          type: "ui-button"
+          position: [10 + (index % 2) * 25, 35 + floor(index / 2) * 25]
+          size: [20, 20]
+          background: color
+          border: state.selected_color == color ? "2px solid #ffffff" : "none"
+          border_radius: 4
+
+          @clickable
+          on_click: () => { state.selected_color = color }
+        }
+      }
+    }
+
+    // Settings panel
+    object "SettingsPanel" {
+      type: "ui-panel"
+      position: [100, 20]
+      size: [200, 60]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "SnapToggle" {
+        type: "ui-toggle"
+        position: [15, 15]
+        label: "Grid Snap"
+        checked: state.grid_snap
+        color_on: "#6366f1"
+
+        on_change: (checked) => { state.grid_snap = checked }
+      }
+    }
+
+    // Player list panel
+    object "PlayerList" {
+      type: "ui-panel"
+      position: ["calc(100% - 220px)", 20]
+      size: [200, 200]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "PlayerListTitle" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "Players (${query_all_players().length})"
+        font_size: 14
+        color: "#e0e0e0"
+      }
+
+      object "PlayerListItems" {
+        type: "ui-list"
+        position: [15, 45]
+        size: [170, 140]
+        items: query_all_players().map(p => ({
+          text: p.display_name,
+          color: p.color,
+          icon: p.id == network.master_id ? "crown" : null
+        }))
+      }
+    }
+
+    // Chat panel
+    object "ChatPanel" {
+      type: "ui-panel"
+      position: ["calc(100% - 320px)", "calc(100% - 220px)"]
+      size: [300, 200]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+
+      object "ChatMessages" {
+        type: "ui-list"
+        position: [15, 15]
+        size: [270, 130]
+        items: state.chat_messages.slice(-20).map(format_chat_message)
+        auto_scroll: true
+      }
+
+      object "ChatInput" {
+        type: "ui-input"
+        position: [15, 155]
+        size: [210, 32]
+        placeholder: "Type message..."
+
+        on_submit: (text) => send_chat(text)
+      }
+
+      object "SendButton" {
+        type: "ui-button"
+        position: [235, 155]
+        size: [50, 32]
+        text: "Send"
+        background: "#6366f1"
+
+        @clickable
+        on_click: () => send_chat(ChatInput.value)
+      }
+    }
+
+    // Object info panel (when selected)
+    object "ObjectInfoPanel" {
+      type: "ui-panel"
+      position: [100, 100]
+      size: [250, 200]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 12
+      visible: state.selected_object != null
+
+      object "InfoTitle" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "Selected Object"
+        font_size: 14
+        color: "#e0e0e0"
+      }
+
+      object "TypeText" {
+        type: "ui-text"
+        position: [15, 45]
+        text: "Type: ${state.selected_object?.object_type ?? 'None'}"
+        font_size: 12
+        color: "#9ca3af"
+      }
+
+      object "PositionText" {
+        type: "ui-text"
+        position: [15, 70]
+        text: "Position: ${format_vector(state.selected_object?.position)}"
+        font_size: 12
+        color: "#9ca3af"
+      }
+
+      object "DuplicateButton" {
+        type: "ui-button"
+        position: [15, 110]
+        size: [100, 32]
+        text: "Duplicate"
+        background: "#374151"
+
+        @clickable
+        on_click: duplicate_selected
+      }
+
+      object "DeleteButton" {
+        type: "ui-button"
+        position: [125, 110]
+        size: [100, 32]
+        text: "Delete"
+        background: "#ef4444"
+
+        @clickable
+        on_click: delete_selected
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PLACEMENT PREVIEW
+  // ═══════════════════════════════════════════════════════════
+
+  object "PlacementPreview" {
+    @local_only
+
+    visible: state.selected_tool != "select" && state.selected_tool != "delete"
+
+    object "PreviewMesh" {
+      type: state.selected_tool
+      size: [1, 1, 1]
+      color: state.selected_color
+      opacity: 0.5
+      material: "unlit"
+    }
+
+    // Updates position based on raycast
+    on_update {
+      hit = raycast_from_cursor("BuildPlatform")
+      if hit {
+        pos = state.grid_snap ? snap_to_grid(hit.point, state.snap_size) : hit.point
+        self.position = [pos.x, pos.y + 0.5, pos.z]
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GAME LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    // Helper functions
+    function format_chat_message(msg) {
+      return "${msg.sender_name}: ${msg.text}"
+    }
+
+    function format_vector(v) {
+      if !v { return "N/A" }
+      return "(${v[0].toFixed(1)}, ${v[1].toFixed(1)}, ${v[2].toFixed(1)})"
+    }
+
+    function snap_to_grid(point, size) {
+      return [
+        round(point.x / size) * size,
+        round(point.y / size) * size,
+        round(point.z / size) * size
+      ]
+    }
+
+    // Network actions
+    @networked
+    action create_object(type, position, color) {
+      obj = spawn "BuildableObject" in "CreatedObjects" {
+        state: {
+          object_type: type,
+          position: position,
+          color: color,
+          owner_id: local_player.id
+        }
+      }
+
+      state.created_objects.push({
+        id: obj.state.object_id,
+        type: type,
+        position: position
+      })
+
+      emit "object_created" { object: obj, player: local_player }
+    }
+
+    @networked
+    action delete_object(object_id) {
+      obj = find_by_id(object_id)
+      if obj {
+        destroy(obj)
+        state.created_objects = state.created_objects.filter(o => o.id != object_id)
+        emit "object_deleted" { object_id: object_id }
+      }
+    }
+
+    @networked
+    action request_lock(object_id) {
+      if !state.object_locks[object_id] {
+        state.object_locks[object_id] = local_player.id
+        return true
+      }
+      return state.object_locks[object_id] == local_player.id
+    }
+
+    @networked
+    action release_lock(object_id) {
+      if state.object_locks[object_id] == local_player.id {
+        delete state.object_locks[object_id]
+      }
+    }
+
+    @synced
+    action sync_transform(obj) {
+      // Transform is automatically synced via @synced state
+      emit "object_transformed" {
+        object_id: obj.state.object_id,
+        position: obj.position,
+        rotation: obj.rotation,
+        scale: obj.scale
+      }
+    }
+
+    @synced
+    action send_chat(text) {
+      if !text.trim() { return }
+
+      state.chat_messages.push({
+        id: uuid(),
+        sender_id: local_player.id,
+        sender_name: local_player.display_name,
+        text: text.trim(),
+        timestamp: now()
+      })
+
+      // Keep last 100 messages
+      if state.chat_messages.length > 100 {
+        state.chat_messages = state.chat_messages.slice(-100)
+      }
+    }
+
+    action try_select(obj) {
+      // Can't select locked objects
+      if obj.state.locked_by && obj.state.locked_by != local_player.id {
+        show_notification("Object is being edited by another player")
+        return
+      }
+
+      // Deselect previous
+      if state.selected_object {
+        prev = find_by_id(state.selected_object.object_id)
+        if prev {
+          prev.SelectionOutline.visible = false
+        }
+      }
+
+      state.selected_object = obj.state
+      obj.SelectionOutline.visible = true
+    }
+
+    action duplicate_selected() {
+      if !state.selected_object { return }
+
+      new_pos = [
+        state.selected_object.position[0] + 1,
+        state.selected_object.position[1],
+        state.selected_object.position[2]
+      ]
+
+      create_object(
+        state.selected_object.object_type,
+        new_pos,
+        state.selected_object.color
+      )
+    }
+
+    action delete_selected() {
+      if !state.selected_object { return }
+
+      delete_object(state.selected_object.object_id)
+      state.selected_object = null
+    }
+
+    action try_delete(obj) {
+      if obj.state.locked_by && obj.state.locked_by != local_player.id {
+        show_notification("Object is being edited by another player")
+        return
+      }
+
+      delete_object(obj.state.object_id)
+    }
+
+    // Cursor position broadcasting
+    @synced
+    action broadcast_cursor(position, tool) {
+      emit_to_others "cursor_update" {
+        player_id: local_player.id,
+        position: position,
+        tool: tool
+      }
+    }
+
+    // Click handler for placement
+    on_click(hit) {
+      if hit.object == "BuildPlatform" && state.selected_tool != "select" && state.selected_tool != "delete" {
+        pos = state.grid_snap ? snap_to_grid(hit.point, state.snap_size) : hit.point
+        create_object(state.selected_tool, [pos.x, pos.y + 0.5, pos.z], state.selected_color)
+      }
+    }
+
+    // Update cursor position each frame
+    on_update {
+      hit = raycast_from_cursor("BuildPlatform")
+      if hit {
+        broadcast_cursor(hit.point, state.selected_tool)
+      }
+    }
+
+    // Handle remote cursor updates
+    on_cursor_update(data) {
+      cursor = find("Cursor_${data.player_id}")
+      if cursor {
+        cursor.position = data.position
+        cursor.state.active_tool = data.tool
+      }
+    }
+
+    // Handle player events
+    on_player_joined(player) {
+      send_chat("[System] ${player.display_name} joined the room")
+
+      // Spawn cursor for new player
+      spawn "RemoteCursor" in "RemoteCursors" {
+        id: "Cursor_${player.id}"
+        state: {
+          player_id: player.id,
+          player_name: player.display_name,
+          cursor_color: player.color
+        }
+      }
+    }
+
+    on_player_left(player) {
+      send_chat("[System] ${player.display_name} left the room")
+
+      // Remove their cursor
+      cursor = find("Cursor_${player.id}")
+      if cursor { destroy(cursor) }
+
+      // Release any locks they held
+      for (obj_id, locker_id) in state.object_locks {
+        if locker_id == player.id {
+          delete state.object_locks[obj_id]
+        }
+      }
+    }
+
+    // Entry point
+    on_enter {
+      fade_from_black(1)
+      show_notification("Welcome to Collaborative Building!")
+      show_notification("Select a tool and click to place objects")
+    }
+
+    // Keyboard shortcuts
+    on_key_press("1") { state.selected_tool = "cube" }
+    on_key_press("2") { state.selected_tool = "sphere" }
+    on_key_press("3") { state.selected_tool = "cylinder" }
+    on_key_press("4") { state.selected_tool = "plane" }
+    on_key_press("s") { state.selected_tool = "select" }
+    on_key_press("d") { state.selected_tool = "delete" }
+    on_key_press("g") { state.grid_snap = !state.grid_snap }
+    on_key_press("Delete") { delete_selected() }
+    on_key_press("Escape") { state.selected_object = null }
+  }
+}

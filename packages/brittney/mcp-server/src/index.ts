@@ -1,10 +1,25 @@
 /**
- * Hololand MCP Server
- * Enables AI agents to create and manage VR/AR worlds, execute HoloScript, and collaborate in spatial environments
+ * Hololand MCP Server (Premium)
  *
- * Enhanced with:
- * - Local HoloScript parsing and validation (no API required)
- * - Brittney IDE Agent Integration (browser context visibility for coding agents)
+ * Enables AI agents to create and manage VR/AR worlds, execute HoloScript,
+ * and collaborate in spatial environments.
+ *
+ * Premium features:
+ * - Live browser context visibility via Brittney
+ * - AI-powered debugging with full context
+ * - One-shot generate & inject pipeline
+ * - Real-time error monitoring with auto-fix
+ * - Performance guard with AI optimization
+ * - Session recording & replay
+ * - Scene versioning
+ * - Batch agent operations
+ *
+ * NOTE: Graph understanding tools (holo_*) and IDE tools (brittney_scan_project,
+ * brittney_diagnostics, brittney_autocomplete, brittney_refactor, brittney_docs,
+ * brittney_hover, brittney_code_action, brittney_go_to_definition, brittney_find_references)
+ * have been migrated to @holoscript/mcp-server (free tier) as of v3.0.0.
+ * Use the holoscript-mcp server for those tools. This server retains them as
+ * deprecated aliases that delegate to the same logic for backward compatibility.
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -164,7 +179,7 @@ const hololandClient = new HololandClient(HOLOLAND_API_URL, HOLOLAND_API_KEY);
 const server = new Server(
   {
     name: 'hololand',
-    version: '1.0.0',
+    version: '3.0.0',
   },
   {
     capabilities: {
@@ -547,14 +562,17 @@ const tools: Tool[] = [
   ...advancedBrittneyTools,
 
   // =====================================================
-  // HOLOSCRIPT GRAPH UNDERSTANDING TOOLS
-  // Helps agents understand .holo as visual graphs
+  // HOLOSCRIPT GRAPH UNDERSTANDING TOOLS (DEPRECATED)
+  // Migrated to @holoscript/mcp-server (free tier) as of v3.0.0
+  // Kept here as backward-compatible aliases
+  // Use holoscript-mcp: holo_parse_to_graph, holo_visualize_flow, etc.
   // =====================================================
   ...holoGraphTools,
 
   // =====================================================
-  // BRITTNEY IDE TOOLS
-  // Project scanning, diagnostics, autocomplete, refactoring, docs
+  // BRITTNEY IDE TOOLS (DEPRECATED)
+  // Migrated to @holoscript/mcp-server as hs_* tools (free tier)
+  // Use holoscript-mcp: hs_scan_project, hs_diagnostics, etc.
   // =====================================================
   ...brittneyIDETools,
 
@@ -586,7 +604,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'mcp_get_info': {
         return buildResponse(name, traceId, {
           server: 'hololand',
-          version: '1.0.0',
+          version: '3.0.0',
           toolCount: tools.length,
           tools: tools.map(tool => tool.name),
         });
@@ -697,7 +715,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_holoscript_version': {
         return buildResponse(name, traceId, {
           version: HOLOSCRIPT_VERSION,
-          mcpServerVersion: '1.0.0',
+          mcpServerVersion: '3.0.0',
           features: [
             '3D VR world creation',
             '2D UI components',

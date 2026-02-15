@@ -13,6 +13,7 @@
 import { z } from 'zod';
 import { sharedDataBridge } from './shared-data-bridge.js';
 import { createInferenceClient, type InferenceClient } from '@hololand/inference';
+import { serializeObjects, serializeScene, type SerializedObject } from '@hololand/ai-bridge';
 
 // Tool definitions for MCP registration
 export const agentTools = [
@@ -248,6 +249,52 @@ export const agentTools = [
   },
 
   // ============================================
+  // PERCEIVE SCENE - Brittney's "eyes"
+  // ============================================
+  {
+    name: 'brittney_perceive_scene',
+    description: `Get a compact text description of the current scene that Brittney can "see". Returns object names, types, traits, positions, and spatial relationships. Designed for ~200 token LLM perception. Provide a .holo/.hsplus file path, raw objects JSON, or omit both for browser scene metadata.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filePath: {
+          type: 'string',
+          description: 'Path to a .holo or .hsplus file to perceive (optional)'
+        },
+        objects: {
+          type: 'array',
+          description: 'Raw serialized objects array from browser (optional)',
+          items: { type: 'object' }
+        },
+        viewerPosition: {
+          type: 'object',
+          description: 'Viewer position for distance sorting (default: origin)',
+          properties: {
+            x: { type: 'number' },
+            y: { type: 'number' },
+            z: { type: 'number' }
+          }
+        },
+        viewerRadius: {
+          type: 'number',
+          description: 'Only include objects within this radius in meters (default: all)'
+        },
+        detailLevel: {
+          type: 'string',
+          enum: ['minimal', 'standard', 'detailed'],
+          description: 'How much detail per object (default: standard)',
+          default: 'standard'
+        },
+        maxTokens: {
+          type: 'number',
+          description: 'Target token budget (default: 200)',
+          default: 200
+        }
+      }
+    }
+  },
+
+  // ============================================
   // DIFF AND MERGE - Smart code updates
   // ============================================
   {
@@ -311,6 +358,9 @@ export async function handleAgentTool(
 
     case 'brittney_iterate_until_done':
       return await iterateUntilDone(brittneyService, apiKey, args);
+
+    case 'brittney_perceive_scene':
+      return await perceiveScene(args, workspacePath);
 
     case 'brittney_diff_and_merge':
       return await diffAndMerge(brittneyService, apiKey, args);
@@ -856,7 +906,7 @@ function getInferenceClient(): InferenceClient {
       local: {
         enabled: true,
         ollamaUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-        defaultModel: 'brittney-v4:latest',
+        defaultModel: 'brittney-qwen-v23:latest',
         autoDownloadModel: false,
       },
       fallbackToCloud: true,
@@ -927,4 +977,110 @@ async function callBrittney(
 
   // Default: return success for unknown endpoints
   return { success: true };
+}
+
+// ============================================
+// Perceive Scene - Brittney's "eyes"
+// ============================================
+
+async function perceiveScene(
+  args: Record<string, unknown>,
+  workspacePath?: string,
+): Promise<unknown> {
+  const filePath = args.filePath as string | undefined;
+  const rawObjects = args.objects as SerializedObject[] | undefined;
+  const viewerPosition = args.viewerPosition as { x: number; y: number; z: number } | undefined;
+  const viewerRadius = args.viewerRadius as number | undefined;
+  const detailLevel = (args.detailLevel as 'minimal' | 'standard' | 'detailed') || 'standard';
+  const maxTokens = (args.maxTokens as number) || 200;
+
+  const options = {
+    viewerPosition,
+    viewerRadius,
+    detailLevel,
+    maxTokens,
+  };
+
+  // Path 1: Raw objects provided directly (from browser extension)
+  if (rawObjects && rawObjects.length > 0) {
+    const result = serializeObjects(rawObjects, options);
+    return {
+      success: true,
+      perception: result.text,
+      tokenEstimate: result.tokenEstimate,
+      objectCount: result.objectCount,
+      describedCount: result.describedCount,
+      source: 'raw_objects',
+    };
+  }
+
+  // Path 2: File path provided — load and serialize
+  if (filePath) {
+    try {
+      const { readFileSync } = await import('fs');
+      const { resolve } = await import('path');
+      const fullPath = resolve(workspacePath || process.cwd(), filePath);
+      const source = readFileSync(fullPath, 'utf-8');
+      const ext = fullPath.split('.').pop()?.toLowerCase();
+
+      // Lazy-load CompositionLoader to avoid hard dep at import time
+      const { CompositionLoader } = await import('@hololand/world');
+      const loader = new CompositionLoader(filePath);
+      const fileType = ext === 'hsplus' ? 'hsplus' : ext === 'hs' ? 'hs' : 'holo';
+      const composition = loader.load(source, fileType as 'holo' | 'hsplus' | 'hs');
+
+      const result = serializeScene(composition.world, options);
+      return {
+        success: true,
+        perception: result.text,
+        tokenEstimate: result.tokenEstimate,
+        objectCount: result.objectCount,
+        describedCount: result.describedCount,
+        source: 'file',
+        filePath: fullPath,
+        environment: composition.environment,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to load scene file: ${(error as Error).message}`,
+        source: 'file',
+        filePath,
+      };
+    }
+  }
+
+  // Path 3: No input — use SharedDataBridge for basic scene metadata
+  const scenes = sharedDataBridge.getScenes();
+  const browserState = sharedDataBridge.getBrowserState();
+
+  if (scenes.length === 0) {
+    return {
+      success: true,
+      perception: 'No scene loaded. Browser ' + (browserState?.connected ? 'connected' : 'disconnected') + '.',
+      tokenEstimate: 5,
+      objectCount: 0,
+      describedCount: 0,
+      source: 'bridge_metadata',
+      hint: 'Provide a filePath (.holo/.hsplus) or objects array for full scene perception.',
+    };
+  }
+
+  // Build a basic perception from scene metadata
+  const activeScene = scenes.find(s => s.isActive) || scenes[0];
+  const text = [
+    `${activeScene.name} | ${activeScene.objectCount} objects | ${activeScene.componentCount} components`,
+    scenes.length > 1 ? `${scenes.length} scenes loaded, "${activeScene.name}" is active` : '',
+    'Note: For full spatial perception, provide a filePath or objects array.',
+  ].filter(Boolean).join('\n');
+
+  return {
+    success: true,
+    perception: text,
+    tokenEstimate: Math.ceil(text.length / 4),
+    objectCount: activeScene.objectCount,
+    describedCount: 0,
+    source: 'bridge_metadata',
+    scenes: scenes.map(s => ({ name: s.name, objectCount: s.objectCount, isActive: s.isActive })),
+  };
 }

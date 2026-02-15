@@ -1,0 +1,441 @@
+// Progressive VR - HoloScript Demo
+// Refactored from legacy 08-progressive-vr/src/App.tsx
+// Showcases: @vr_capable, progressive enhancement, seamless desktop→VR transition
+
+composition "Progressive VR Experience" {
+
+  environment {
+    skybox: "gradient_sunset"
+    ambient_light: 0.6
+
+    // Progressive VR settings
+    vr {
+      enable_if_available: true
+      fallback: "desktop"
+      controller_models: "generic"
+      teleport_enabled: true
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    @persisted
+    user_preferences: {
+      movement_speed: 1.0,
+      comfort_mode: "teleport",
+      show_tutorial: true
+    }
+
+    @local_only
+    vr_mode: false
+    vr_available: false
+    current_view: "desktop"  // "desktop", "vr", "ar"
+
+    // Scene state
+    selected_object: null
+    objects_placed: 0
+  }
+
+  // Computed VR capability
+  computed vr_status = {
+    available: platform.vr_supported,
+    active: state.vr_mode,
+    headset: platform.vr_headset_name ?? "None detected"
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VR MODE TOGGLE BUTTON
+  // ═══════════════════════════════════════════════════════════
+
+  object "VRTogglePanel" {
+    type: "ui-panel"
+    position: state.vr_mode ? "attached_to_controller_left" : [20, 20]
+    size: [200, 100]
+    background: "rgba(30, 30, 60, 0.9)"
+    border_radius: 12
+
+    @local_only
+
+    object "VRStatusText" {
+      type: "ui-text"
+      position: [15, 15]
+      text: vr_status.available ? "VR Ready: ${vr_status.headset}" : "VR Not Available"
+      font_size: 12
+      color: vr_status.available ? "#10b981" : "#9ca3af"
+    }
+
+    object "EnterVRButton" {
+      type: "ui-button"
+      position: [15, 45]
+      size: [170, 40]
+      text: state.vr_mode ? "Exit VR" : "Enter VR"
+      background: state.vr_mode ? "#ef4444" : "#6366f1"
+      text_color: "#ffffff"
+      border_radius: 8
+      visible: vr_status.available
+
+      @clickable
+      on_click: toggle_vr_mode
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DESKTOP VIEW UI
+  // ═══════════════════════════════════════════════════════════
+
+  object "DesktopUI" {
+    visible: !state.vr_mode
+
+    @local_only
+
+    object "Header" {
+      type: "ui-panel"
+      position: [0, 0]
+      size: ["100%", 60]
+      background: "#1a1a2e"
+
+      object "Title" {
+        type: "ui-text"
+        position: [20, 18]
+        text: "Progressive VR Demo"
+        font_size: 20
+        font_weight: "600"
+        color: "#e0e0e0"
+      }
+
+      object "ViewModeSelector" {
+        type: "ui-button-group"
+        position: [600, 15]
+
+        buttons: [
+          { id: "desktop", label: "Desktop", icon: "monitor" },
+          { id: "vr", label: "VR", icon: "headset", disabled: !vr_status.available },
+          { id: "ar", label: "AR", icon: "glasses", disabled: !platform.ar_supported }
+        ]
+
+        active: state.current_view
+        on_change: (view) => switch_view(view)
+      }
+    }
+
+    // Instructions panel
+    object "InstructionsPanel" {
+      type: "ui-panel"
+      position: [20, 80]
+      size: [300, 200]
+      background: "rgba(37, 37, 74, 0.95)"
+      border_radius: 12
+      visible: state.user_preferences.show_tutorial
+
+      object "InstructionsTitle" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "How to Use"
+        font_size: 16
+        font_weight: "600"
+        color: "#e0e0e0"
+      }
+
+      object "InstructionsList" {
+        type: "ui-text"
+        position: [15, 45]
+        text: "Desktop: Click to place objects\nVR: Point & trigger to place\n\nUse WASD/joystick to move\nScroll/thumbstick to zoom"
+        font_size: 12
+        color: "#9ca3af"
+        line_height: 1.6
+      }
+
+      object "DismissButton" {
+        type: "ui-button"
+        position: [15, 150]
+        size: [120, 32]
+        text: "Got it!"
+        background: "#374151"
+
+        @clickable
+        on_click: () => {
+          state.user_preferences.show_tutorial = false
+        }
+      }
+    }
+
+    // Object counter
+    object "StatsPanel" {
+      type: "ui-panel"
+      position: [20, "calc(100% - 80px)"]
+      size: [200, 60]
+      background: "rgba(37, 37, 74, 0.95)"
+      border_radius: 12
+
+      object "ObjectCount" {
+        type: "ui-text"
+        position: [15, 20]
+        text: "Objects Placed: ${state.objects_placed}"
+        font_size: 14
+        color: "#e0e0e0"
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VR VIEW UI (Attached to controllers/gaze)
+  // ═══════════════════════════════════════════════════════════
+
+  object "VRUI" {
+    visible: state.vr_mode
+
+    @local_only
+    @vr_ui
+
+    // Wrist menu on left controller
+    object "WristMenu" {
+      type: "ui-panel"
+      position: "attached_to_wrist_left"
+      size: [0.15, 0.1]  // Meters in VR
+      background: "rgba(30, 30, 60, 0.95)"
+      border_radius: 0.01
+
+      object "ObjectCountVR" {
+        type: "ui-text"
+        position: [0.01, 0.01]
+        text: "Objects: ${state.objects_placed}"
+        font_size: 0.02
+        color: "#e0e0e0"
+      }
+
+      object "ExitButton" {
+        type: "ui-button"
+        position: [0.01, 0.05]
+        size: [0.13, 0.04]
+        text: "Exit VR"
+        background: "#ef4444"
+
+        @clickable
+        on_click: exit_vr
+      }
+    }
+
+    // Pointer ray visualization
+    object "RightPointer" {
+      type: "ray"
+      origin: "controller_right"
+      length: 10
+      color: "#6366f1"
+      width: 0.002
+      visible: true
+
+      @vr_pointer
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 3D SCENE (Shared between desktop and VR)
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "SharedScene" {
+
+    // Ground plane
+    object "Ground" {
+      type: "plane"
+      size: [50, 50]
+      material: "grid_subtle"
+      color: "#1a1a2e"
+
+      @collidable
+      @clickable
+
+      on_click(hit_point) {
+        place_object(hit_point)
+      }
+    }
+
+    // Ambient decorations
+    for i in range(10) {
+      object "Pillar_${i}" {
+        type: "cylinder"
+        position: [
+          cos(i * 36 * DEG_TO_RAD) * 20,
+          2.5,
+          sin(i * 36 * DEG_TO_RAD) * 20
+        ]
+        size: [1, 5, 1]
+        material: "marble_dark"
+        color: "#25254a"
+
+        @collidable
+      }
+    }
+
+    // Dynamic objects container
+    spatial_group "PlacedObjects" {
+      @dynamic
+
+      // Objects are spawned here via place_object()
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PLACEABLE OBJECT TEMPLATE
+  // ═══════════════════════════════════════════════════════════
+
+  template "PlaceableObject" {
+    @grabbable
+    @physics
+    @selectable
+
+    state {
+      created_at: now()
+      created_by: local_player.id
+    }
+
+    object "Body" {
+      type: "sphere"
+      size: [0.5, 0.5, 0.5]
+      material: "glass"
+      color: random_color()
+
+      @glowing
+      glow: 1
+    }
+
+    on_select {
+      animate "Body" {
+        glow: 2
+        scale: [1.1, 1.1, 1.1]
+        duration: 0.2
+      }
+    }
+
+    on_deselect {
+      animate "Body" {
+        glow: 1
+        scale: [1, 1, 1]
+        duration: 0.2
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    // Check VR availability on load
+    on_enter {
+      state.vr_available = platform.vr_supported
+
+      // Restore persisted preferences
+      saved = storage.get("user_preferences")
+      if saved {
+        state.user_preferences = { ...state.user_preferences, ...saved }
+      }
+
+      fade_from_black(1)
+
+      if state.user_preferences.show_tutorial {
+        show_notification("Welcome! Click anywhere to place objects.")
+      }
+    }
+
+    action toggle_vr_mode() {
+      if state.vr_mode {
+        exit_vr()
+      } else {
+        enter_vr()
+      }
+    }
+
+    action enter_vr() {
+      if !vr_status.available {
+        show_notification("VR headset not detected")
+        return
+      }
+
+      result = await platform.request_vr_session()
+      if result.success {
+        state.vr_mode = true
+        state.current_view = "vr"
+
+        // Adjust scene for VR scale
+        animate "SharedScene" {
+          scale: [1, 1, 1]
+          duration: 0.5
+        }
+
+        show_notification("Entered VR mode")
+        emit "vr_entered" {}
+      } else {
+        show_notification("Failed to enter VR: ${result.error}")
+      }
+    }
+
+    action exit_vr() {
+      platform.exit_vr_session()
+      state.vr_mode = false
+      state.current_view = "desktop"
+
+      show_notification("Exited VR mode")
+      emit "vr_exited" {}
+    }
+
+    action switch_view(view) {
+      if view == "vr" {
+        enter_vr()
+      } else if view == "ar" {
+        enter_ar()
+      } else {
+        if state.vr_mode { exit_vr() }
+        state.current_view = "desktop"
+      }
+    }
+
+    action enter_ar() {
+      if !platform.ar_supported {
+        show_notification("AR not supported on this device")
+        return
+      }
+
+      result = await platform.request_ar_session()
+      if result.success {
+        state.current_view = "ar"
+        show_notification("Entered AR mode")
+      }
+    }
+
+    action place_object(position) {
+      spawn "PlaceableObject" in "PlacedObjects" {
+        position: [position.x, position.y + 0.25, position.z]
+      }
+
+      state.objects_placed += 1
+
+      // Play feedback
+      play_sound("pop", { position: position, volume: 0.5 })
+      spawn_effect("sparkle", position)
+    }
+
+    // Save preferences when they change
+    on_state_change("user_preferences") {
+      storage.set("user_preferences", state.user_preferences)
+    }
+
+    // VR controller input handling
+    on_vr_trigger_press(controller, hit) {
+      if hit && hit.object == "Ground" {
+        place_object(hit.point)
+      }
+    }
+
+    on_vr_grip_press(controller) {
+      // Grab nearest object
+      nearest = find_nearest("PlaceableObject", controller.position, 0.5)
+      if nearest {
+        grab(nearest, controller)
+      }
+    }
+  }
+}

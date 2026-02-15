@@ -1,0 +1,49 @@
+{
+  "name": "@hololand/ar-hooks",
+  "version": "0.1.0",
+  "description": "React hooks for Hololand AR - pose detection, anchors, geofencing, multi-user AR",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hololand/ar-anchors": "workspace:*",
+    "@hololand/ar-detection": "workspace:*",
+    "@hololand/ar-foundation": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "@react-three/fiber": "^8.0.0",
+    "@react-three/drei": "^9.0.0",
+    "three": ">=0.150.0",
+    "socket.io-client": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@react-three/fiber": { "optional": true },
+    "@react-three/drei": { "optional": true },
+    "three": { "optional": true },
+    "socket.io-client": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/three": "^0.170.0",
+    "react": "^18.2.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2"
+  },
+  "keywords": ["ar", "hooks", "react", "pose-detection", "geofencing", "multi-user", "hololand"],
+  "license": "MIT"
+}

@@ -1,0 +1,15 @@
+{
+  "version": "v14",
+  "total_examples": 57328,
+  "sources": {
+    "v13_comprehensive": 57272,
+    "v14_hololand_oasis": 56
+  },
+  "curriculum": {
+    "easy": 21270,
+    "medium": 31637,
+    "hard": 3584,
+    "frontier": 837
+  },
+  "base_model": "microsoft/Phi-3.5-mini-instruct"
+}

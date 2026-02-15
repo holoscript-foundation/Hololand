@@ -4,6 +4,9 @@
  * Unified types for all AI providers (Local + BYOK Cloud)
  */
 
+import type { WisdomInjectionConfig, WisdomInjectionLevel } from './wisdom-injector.js';
+export type { WisdomInjectionConfig, WisdomInjectionLevel };
+
 // =============================================================================
 // Provider Types
 // =============================================================================
@@ -14,6 +17,7 @@ export type ProviderType =
   | 'anthropic'          // Anthropic API (BYOK)
   | 'google'             // Google AI / Gemini (BYOK)
   | 'grok'               // xAI Grok (BYOK)
+  | 'deepseek'           // DeepSeek API (BYOK) - 86% cheaper than GPT-4
   | 'azure'              // Azure OpenAI (BYOK)
   | 'infinityassistant'  // InfinityAssistant.io cloud service
   | 'custom';            // Custom OpenAI-compatible endpoint
@@ -91,10 +95,8 @@ export interface ModelInfo {
 export const BRITTNEY_MODELS = {
   // Local GGUF models (Ollama)
   local: {
-    expert: 'brittney-v4-expert:latest',
-    holoscript: 'brittney-v1:latest',
-    general: 'brittney-v2:latest',
-    quantized: 'brittney-v3-q4:latest',
+    expert: 'brittney-qwen-v23:latest',    // V23 Qwen2.5-Coder-7B (201K examples, 3 epochs)
+    v22: 'brittney-qwen:latest',           // V22 Qwen2.5-Coder-7B fallback
   },
   // Cloud fine-tuned models (OpenAI - for BYOK users)
   cloud: {
@@ -129,6 +131,9 @@ export interface InferenceSettings {
   // Performance
   maxRetries: number;
   timeoutMs: number;
+
+  // uAA2++ wisdom injection for BYOK users (auto-injects HoloScript+ knowledge)
+  wisdomInjection?: WisdomInjectionConfig;
 }
 
 export const DEFAULT_SETTINGS: InferenceSettings = {
@@ -147,6 +152,7 @@ export const DEFAULT_SETTINGS: InferenceSettings = {
     anthropic: { type: 'anthropic', enabled: false },
     google: { type: 'google', enabled: false },
     grok: { type: 'grok', enabled: false },
+    deepseek: { type: 'deepseek', enabled: false },
     azure: { type: 'azure', enabled: false },
     infinityassistant: { type: 'infinityassistant', enabled: false, endpoint: 'http://localhost:3002' },
     custom: { type: 'custom', enabled: false },
@@ -157,6 +163,12 @@ export const DEFAULT_SETTINGS: InferenceSettings = {
 
   maxRetries: 2,
   timeoutMs: 120000,
+
+  wisdomInjection: {
+    level: 'full',
+    skipForLocalBrittney: true,
+    skipForFineTunedModels: true,
+  },
 };
 
 // =============================================================================

@@ -1,0 +1,1095 @@
+// Social Hub - HoloScript Demo
+// Refactored from legacy 11-social-hub/main.ts
+// Showcases: @hololand/social v2.0 - Friends, Parties, Emotes, Notifications
+
+composition "Social Hub" {
+
+  environment {
+    skybox: "lounge_warm"
+    ambient_light: 0.6
+    music: {
+      track: "chill_ambient"
+      volume: 0.3
+      loop: true
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    @networked
+    online_users: []
+    active_parties: []
+
+    @local_only
+    friends_list: []
+    friend_requests: []
+    blocked_users: []
+    current_party: null
+    party_invites: []
+    notifications: []
+    active_tab: "friends"  // "friends", "party", "emotes", "settings"
+    profile_open: false
+    viewing_profile: null
+  }
+
+  // Emote definitions
+  const emotes = [
+    { id: "wave", name: "Wave", animation: "emote_wave", icon: "wave_icon" },
+    { id: "dance", name: "Dance", animation: "emote_dance", icon: "dance_icon" },
+    { id: "clap", name: "Clap", animation: "emote_clap", icon: "clap_icon" },
+    { id: "laugh", name: "Laugh", animation: "emote_laugh", icon: "laugh_icon" },
+    { id: "thumbsup", name: "Thumbs Up", animation: "emote_thumbsup", icon: "thumbsup_icon" },
+    { id: "heart", name: "Heart", animation: "emote_heart", icon: "heart_icon" },
+    { id: "shrug", name: "Shrug", animation: "emote_shrug", icon: "shrug_icon" },
+    { id: "bow", name: "Bow", animation: "emote_bow", icon: "bow_icon" }
+  ]
+
+  // ═══════════════════════════════════════════════════════════
+  // PLAYER AVATAR WITH SOCIAL FEATURES
+  // ═══════════════════════════════════════════════════════════
+
+  template "SocialAvatar" {
+    @networked
+    @synced
+
+    state {
+      user_id: null
+      display_name: "User"
+      avatar_model: "default_avatar"
+      status: "online"  // "online", "away", "busy", "invisible"
+      current_emote: null
+      party_id: null
+    }
+
+    object "AvatarModel" {
+      model: state.avatar_model
+      position: [0, 0, 0]
+
+      @animated
+      animation: state.current_emote ? emotes.find(e => e.id == state.current_emote).animation : "idle"
+    }
+
+    object "NameTag" {
+      type: "ui-text"
+      position: [0, 2.2, 0]
+      text: state.display_name
+      font_size: 16
+      color: "#ffffff"
+
+      @billboard
+    }
+
+    object "StatusIndicator" {
+      type: "sphere"
+      position: [0.3, 2.2, 0]
+      size: [0.08, 0.08, 0.08]
+      color: status_color(state.status)
+      material: "unlit"
+
+      @billboard
+    }
+
+    object "PartyIcon" {
+      type: "sprite"
+      sprite: "party_icon"
+      position: [-0.3, 2.2, 0]
+      size: [0.15, 0.15]
+      visible: state.party_id != null
+
+      @billboard
+    }
+
+    // Emote effect spawner
+    object "EmoteEffect" {
+      position: [0, 2.5, 0]
+      visible: false
+    }
+
+    on_emote_play(emote_id) {
+      state.current_emote = emote_id
+
+      // Spawn particle effect
+      emote = emotes.find(e => e.id == emote_id)
+      spawn_effect("emote_particles", {
+        position: EmoteEffect.position,
+        icon: emote.icon,
+        duration: 2
+      })
+
+      // Reset after animation
+      wait(3)
+      state.current_emote = null
+    }
+
+    @clickable
+    on_click {
+      if state.user_id != local_player.id {
+        show_profile(state.user_id)
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HUB ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "HubEnvironment" {
+
+    // Lounge floor
+    object "Floor" {
+      type: "plane"
+      size: [40, 40]
+      material: "wood_polished"
+      color: "#2d1f1a"
+
+      @collidable
+    }
+
+    // Seating areas
+    for i in range(4) {
+      object "SeatingArea_${i}" {
+        position: [
+          cos(i * 90 * DEG_TO_RAD) * 12,
+          0,
+          sin(i * 90 * DEG_TO_RAD) * 12
+        ]
+
+        object "Sofa" {
+          model: "lounge_sofa"
+          rotation: [0, -i * 90, 0]
+
+          @collidable
+          @sittable
+        }
+
+        object "CoffeeTable" {
+          model: "coffee_table"
+          position: [0, 0, 2]
+
+          @collidable
+        }
+      }
+    }
+
+    // Central fountain/feature
+    object "CenterFeature" {
+      model: "hologram_pedestal"
+      position: [0, 0, 0]
+
+      object "HologramDisplay" {
+        type: "sphere"
+        size: [2, 2, 2]
+        material: "hologram"
+        color: "#00ffff"
+        opacity: 0.3
+
+        @animated
+        animation: "rotate_slow"
+      }
+    }
+
+    // Ambient lighting
+    for i in range(8) {
+      object "Light_${i}" {
+        type: "point_light"
+        position: [
+          cos(i * 45 * DEG_TO_RAD) * 15,
+          4,
+          sin(i * 45 * DEG_TO_RAD) * 15
+        ]
+        color: "#ffd700"
+        intensity: 0.5
+        range: 10
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PLAYER INSTANCES
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "Players" {
+    @networked
+
+    @for user in state.online_users {
+      object "Player_${user.id}" using "SocialAvatar" {
+        position: user.position ?? [random(-10, 10), 0, random(-10, 10)]
+        state: {
+          user_id: user.id,
+          display_name: user.display_name,
+          avatar_model: user.avatar_model,
+          status: user.status,
+          party_id: user.party_id
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SOCIAL UI PANELS
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "SocialUI" {
+    @local_only
+
+    // Main social panel
+    object "SocialPanel" {
+      type: "ui-panel"
+      position: [20, 80]
+      size: [350, 500]
+      background: "rgba(26, 26, 46, 0.95)"
+      border_radius: 16
+
+      // Tab bar
+      object "TabBar" {
+        type: "ui-tabs"
+        position: [0, 0]
+        size: [350, 50]
+
+        tabs: [
+          { id: "friends", label: "Friends", icon: "users" },
+          { id: "party", label: "Party", icon: "party" },
+          { id: "emotes", label: "Emotes", icon: "smile" },
+          { id: "settings", label: "Settings", icon: "gear" }
+        ]
+
+        active_tab: state.active_tab
+        on_tab_change: (tab) => { state.active_tab = tab }
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // FRIENDS TAB
+      // ═══════════════════════════════════════════════════════
+
+      object "FriendsTab" {
+        visible: state.active_tab == "friends"
+        position: [0, 55]
+        size: [350, 445]
+
+        // Friend requests section
+        object "RequestsHeader" {
+          type: "ui-text"
+          position: [15, 10]
+          text: "Friend Requests (${state.friend_requests.length})"
+          font_size: 12
+          color: "#9ca3af"
+          visible: state.friend_requests.length > 0
+        }
+
+        object "RequestsList" {
+          type: "ui-list"
+          position: [15, 35]
+          size: [320, 80]
+          visible: state.friend_requests.length > 0
+
+          items: state.friend_requests.map(r => ({
+            text: r.from_name,
+            subtext: "Wants to be friends",
+            actions: [
+              { icon: "check", color: "#10b981", on_click: () => accept_friend_request(r.id) },
+              { icon: "x", color: "#ef4444", on_click: () => decline_friend_request(r.id) }
+            ]
+          }))
+        }
+
+        // Online friends
+        object "OnlineHeader" {
+          type: "ui-text"
+          position: [15, state.friend_requests.length > 0 ? 125 : 10]
+          text: "Online (${count_online_friends()})"
+          font_size: 12
+          color: "#10b981"
+        }
+
+        object "OnlineFriendsList" {
+          type: "ui-list"
+          position: [15, state.friend_requests.length > 0 ? 150 : 35]
+          size: [320, 150]
+
+          items: get_online_friends().map(f => ({
+            text: f.display_name,
+            icon: status_icon(f.status),
+            icon_color: status_color(f.status),
+            on_click: () => show_profile(f.id)
+          }))
+        }
+
+        // Offline friends
+        object "OfflineHeader" {
+          type: "ui-text"
+          position: [15, state.friend_requests.length > 0 ? 310 : 195]
+          text: "Offline (${count_offline_friends()})"
+          font_size: 12
+          color: "#6b7280"
+        }
+
+        object "OfflineFriendsList" {
+          type: "ui-list"
+          position: [15, state.friend_requests.length > 0 ? 335 : 220]
+          size: [320, 100]
+
+          items: get_offline_friends().map(f => ({
+            text: f.display_name,
+            subtext: "Last seen: ${format_time_ago(f.last_online)}",
+            opacity: 0.6,
+            on_click: () => show_profile(f.id)
+          }))
+        }
+
+        // Add friend button
+        object "AddFriendButton" {
+          type: "ui-button"
+          position: [15, 400]
+          size: [320, 35]
+          text: "Add Friend"
+          icon: "user_plus"
+          background: "#6366f1"
+
+          @clickable
+          on_click: show_add_friend_dialog
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // PARTY TAB
+      // ═══════════════════════════════════════════════════════
+
+      object "PartyTab" {
+        visible: state.active_tab == "party"
+        position: [0, 55]
+        size: [350, 445]
+
+        // Current party section
+        object "CurrentPartySection" {
+          visible: state.current_party != null
+          position: [0, 0]
+          size: [350, 200]
+
+          object "PartyTitle" {
+            type: "ui-text"
+            position: [15, 10]
+            text: "Your Party"
+            font_size: 14
+            font_weight: "600"
+            color: "#e0e0e0"
+          }
+
+          object "PartyMembersList" {
+            type: "ui-list"
+            position: [15, 40]
+            size: [320, 110]
+
+            items: state.current_party?.members.map(m => ({
+              text: m.display_name,
+              icon: m.id == state.current_party.leader_id ? "crown" : null,
+              icon_color: "#f59e0b"
+            })) ?? []
+          }
+
+          object "LeavePartyButton" {
+            type: "ui-button"
+            position: [15, 160]
+            size: [150, 32]
+            text: "Leave Party"
+            background: "#ef4444"
+
+            @clickable
+            on_click: leave_party
+          }
+
+          object "InviteToPartyButton" {
+            type: "ui-button"
+            position: [175, 160]
+            size: [160, 32]
+            text: "Invite Friend"
+            background: "#10b981"
+            visible: state.current_party?.leader_id == local_player.id
+
+            @clickable
+            on_click: show_party_invite_dialog
+          }
+        }
+
+        // No party section
+        object "NoPartySection" {
+          visible: state.current_party == null
+          position: [0, 0]
+
+          object "NoPartyText" {
+            type: "ui-text"
+            position: [15, 10]
+            text: "You're not in a party"
+            font_size: 14
+            color: "#9ca3af"
+          }
+
+          object "CreatePartyButton" {
+            type: "ui-button"
+            position: [15, 45]
+            size: [320, 40]
+            text: "Create Party"
+            icon: "party"
+            background: "#6366f1"
+
+            @clickable
+            on_click: create_party
+          }
+        }
+
+        // Party invites section
+        object "InvitesSection" {
+          position: [0, state.current_party ? 210 : 100]
+
+          object "InvitesHeader" {
+            type: "ui-text"
+            position: [15, 0]
+            text: "Party Invites (${state.party_invites.length})"
+            font_size: 12
+            color: "#9ca3af"
+          }
+
+          object "InvitesList" {
+            type: "ui-list"
+            position: [15, 25]
+            size: [320, 150]
+
+            items: state.party_invites.map(inv => ({
+              text: "${inv.from_name}'s Party",
+              subtext: "${inv.member_count} members",
+              actions: [
+                { text: "Join", color: "#10b981", on_click: () => accept_party_invite(inv.id) },
+                { text: "Decline", color: "#6b7280", on_click: () => decline_party_invite(inv.id) }
+              ]
+            }))
+
+            empty_text: "No pending invites"
+          }
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // EMOTES TAB
+      // ═══════════════════════════════════════════════════════
+
+      object "EmotesTab" {
+        visible: state.active_tab == "emotes"
+        position: [0, 55]
+        size: [350, 445]
+
+        object "EmotesTitle" {
+          type: "ui-text"
+          position: [15, 10]
+          text: "Emotes"
+          font_size: 14
+          font_weight: "600"
+          color: "#e0e0e0"
+        }
+
+        // Emote grid
+        object "EmoteGrid" {
+          type: "ui-grid"
+          position: [15, 45]
+          size: [320, 380]
+          columns: 4
+          gap: 10
+
+          @for (emote, index) in emotes {
+            object "EmoteButton_${emote.id}" {
+              type: "ui-button"
+              size: [70, 70]
+              icon: emote.icon
+              tooltip: emote.name
+              background: "#374151"
+              border_radius: 12
+
+              @clickable
+              @hoverable
+
+              on_click: () => play_emote(emote.id)
+              on_hover: () => preview_emote(emote.id)
+            }
+          }
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════
+      // SETTINGS TAB
+      // ═══════════════════════════════════════════════════════
+
+      object "SettingsTab" {
+        visible: state.active_tab == "settings"
+        position: [0, 55]
+        size: [350, 445]
+
+        object "StatusSection" {
+          object "StatusLabel" {
+            type: "ui-text"
+            position: [15, 15]
+            text: "Status"
+            font_size: 12
+            color: "#9ca3af"
+          }
+
+          object "StatusDropdown" {
+            type: "ui-dropdown"
+            position: [15, 40]
+            size: [200, 36]
+
+            options: [
+              { value: "online", label: "Online", icon: "circle", icon_color: "#10b981" },
+              { value: "away", label: "Away", icon: "circle", icon_color: "#f59e0b" },
+              { value: "busy", label: "Busy", icon: "circle", icon_color: "#ef4444" },
+              { value: "invisible", label: "Invisible", icon: "circle", icon_color: "#6b7280" }
+            ]
+
+            value: local_player.status
+            on_change: (status) => set_status(status)
+          }
+        }
+
+        object "PrivacySection" {
+          position: [0, 100]
+
+          object "PrivacyLabel" {
+            type: "ui-text"
+            position: [15, 0]
+            text: "Privacy"
+            font_size: 12
+            color: "#9ca3af"
+          }
+
+          object "AllowRequestsToggle" {
+            type: "ui-toggle"
+            position: [15, 25]
+            label: "Allow friend requests"
+            checked: true
+          }
+
+          object "ShowStatusToggle" {
+            type: "ui-toggle"
+            position: [15, 60]
+            label: "Show online status"
+            checked: true
+          }
+
+          object "AllowInvitesToggle" {
+            type: "ui-toggle"
+            position: [15, 95]
+            label: "Allow party invites"
+            checked: true
+          }
+        }
+
+        object "BlockedSection" {
+          position: [0, 220]
+
+          object "BlockedLabel" {
+            type: "ui-text"
+            position: [15, 0]
+            text: "Blocked Users (${state.blocked_users.length})"
+            font_size: 12
+            color: "#9ca3af"
+          }
+
+          object "ManageBlockedButton" {
+            type: "ui-button"
+            position: [15, 25]
+            size: [200, 32]
+            text: "Manage Blocked Users"
+            background: "#374151"
+
+            @clickable
+            on_click: show_blocked_users_dialog
+          }
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // PROFILE POPUP
+    // ═══════════════════════════════════════════════════════
+
+    object "ProfilePopup" {
+      type: "ui-panel"
+      position: [400, 150]
+      size: [300, 350]
+      background: "rgba(26, 26, 46, 0.98)"
+      border_radius: 16
+      visible: state.profile_open
+
+      object "CloseButton" {
+        type: "ui-button"
+        position: [260, 10]
+        size: [30, 30]
+        icon: "x"
+        background: "transparent"
+
+        @clickable
+        on_click: () => { state.profile_open = false }
+      }
+
+      object "ProfileAvatar" {
+        type: "ui-image"
+        position: [100, 20]
+        size: [100, 100]
+        src: state.viewing_profile?.avatar_url ?? "default_avatar"
+        border_radius: 50
+      }
+
+      object "ProfileName" {
+        type: "ui-text"
+        position: [0, 130]
+        size: [300, 30]
+        text: state.viewing_profile?.display_name ?? ""
+        font_size: 18
+        font_weight: "600"
+        color: "#e0e0e0"
+        text_align: "center"
+      }
+
+      object "ProfileStatus" {
+        type: "ui-text"
+        position: [0, 160]
+        size: [300, 20]
+        text: state.viewing_profile?.status ?? "Offline"
+        font_size: 12
+        color: status_color(state.viewing_profile?.status)
+        text_align: "center"
+      }
+
+      // Action buttons
+      object "ProfileActions" {
+        position: [15, 200]
+
+        object "SendMessageButton" {
+          type: "ui-button"
+          position: [0, 0]
+          size: [130, 36]
+          text: "Message"
+          icon: "message"
+          background: "#6366f1"
+
+          @clickable
+          on_click: () => open_dm(state.viewing_profile.id)
+        }
+
+        object "InviteButton" {
+          type: "ui-button"
+          position: [140, 0]
+          size: [130, 36]
+          text: "Invite"
+          icon: "party"
+          background: "#10b981"
+          visible: state.current_party?.leader_id == local_player.id
+
+          @clickable
+          on_click: () => send_party_invite(state.viewing_profile.id)
+        }
+
+        object "AddFriendProfileButton" {
+          type: "ui-button"
+          position: [0, 45]
+          size: [270, 36]
+          text: is_friend(state.viewing_profile?.id) ? "Remove Friend" : "Add Friend"
+          background: is_friend(state.viewing_profile?.id) ? "#ef4444" : "#374151"
+
+          @clickable
+          on_click: () => toggle_friend(state.viewing_profile.id)
+        }
+
+        object "BlockButton" {
+          type: "ui-button"
+          position: [0, 90]
+          size: [270, 36]
+          text: is_blocked(state.viewing_profile?.id) ? "Unblock" : "Block User"
+          background: "#374151"
+
+          @clickable
+          on_click: () => toggle_block(state.viewing_profile.id)
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // NOTIFICATIONS
+    // ═══════════════════════════════════════════════════════
+
+    object "NotificationContainer" {
+      position: ["calc(100% - 340px)", 20]
+
+      @for (notif, index) in state.notifications.slice(0, 5) {
+        object "Notification_${notif.id}" {
+          type: "ui-panel"
+          position: [0, index * 70]
+          size: [320, 60]
+          background: "rgba(26, 26, 46, 0.95)"
+          border_radius: 12
+          border_left: "4px solid ${notif.color ?? '#6366f1'}"
+
+          object "NotifIcon" {
+            type: "ui-icon"
+            position: [15, 18]
+            icon: notif.icon ?? "bell"
+            size: [24, 24]
+            color: notif.color ?? "#6366f1"
+          }
+
+          object "NotifText" {
+            type: "ui-text"
+            position: [50, 12]
+            text: notif.title
+            font_size: 13
+            color: "#e0e0e0"
+          }
+
+          object "NotifSubtext" {
+            type: "ui-text"
+            position: [50, 32]
+            text: notif.message
+            font_size: 11
+            color: "#9ca3af"
+          }
+
+          object "DismissButton" {
+            type: "ui-button"
+            position: [280, 18]
+            size: [24, 24]
+            icon: "x"
+            background: "transparent"
+
+            @clickable
+            on_click: () => dismiss_notification(notif.id)
+          }
+
+          // Auto-dismiss animation
+          on_spawn {
+            wait(5)
+            if find("Notification_${notif.id}") {
+              animate self {
+                opacity: 0
+                position_offset: [20, 0]
+                duration: 0.3
+              }
+              wait(0.3)
+              dismiss_notification(notif.id)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GAME LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    // Helper functions
+    function status_color(status) {
+      match status {
+        "online" => "#10b981"
+        "away" => "#f59e0b"
+        "busy" => "#ef4444"
+        "invisible" => "#6b7280"
+        _ => "#6b7280"
+      }
+    }
+
+    function status_icon(status) {
+      match status {
+        "online" => "circle_filled"
+        "away" => "moon"
+        "busy" => "minus_circle"
+        "invisible" => "eye_off"
+        _ => "circle"
+      }
+    }
+
+    function format_time_ago(timestamp) {
+      diff = now() - timestamp
+      if diff < 60 { return "just now" }
+      if diff < 3600 { return "${floor(diff / 60)} minutes ago" }
+      if diff < 86400 { return "${floor(diff / 3600)} hours ago" }
+      return "${floor(diff / 86400)} days ago"
+    }
+
+    function get_online_friends() {
+      return state.friends_list.filter(f => f.status != "offline" && f.status != "invisible")
+    }
+
+    function get_offline_friends() {
+      return state.friends_list.filter(f => f.status == "offline")
+    }
+
+    function count_online_friends() {
+      return get_online_friends().length
+    }
+
+    function count_offline_friends() {
+      return get_offline_friends().length
+    }
+
+    function is_friend(user_id) {
+      return state.friends_list.some(f => f.id == user_id)
+    }
+
+    function is_blocked(user_id) {
+      return state.blocked_users.includes(user_id)
+    }
+
+    // Social actions
+    @networked
+    action set_status(status) {
+      local_player.status = status
+      emit "status_changed" { player_id: local_player.id, status: status }
+    }
+
+    @networked
+    action send_friend_request(user_id) {
+      network.send_friend_request(user_id)
+      add_notification({
+        title: "Friend Request Sent",
+        message: "Waiting for response...",
+        icon: "user_plus",
+        color: "#6366f1"
+      })
+    }
+
+    action accept_friend_request(request_id) {
+      request = state.friend_requests.find(r => r.id == request_id)
+      if request {
+        network.accept_friend_request(request_id)
+        state.friend_requests = state.friend_requests.filter(r => r.id != request_id)
+        state.friends_list.push(request.from_user)
+
+        add_notification({
+          title: "Friend Added",
+          message: "${request.from_name} is now your friend",
+          icon: "user_check",
+          color: "#10b981"
+        })
+      }
+    }
+
+    action decline_friend_request(request_id) {
+      network.decline_friend_request(request_id)
+      state.friend_requests = state.friend_requests.filter(r => r.id != request_id)
+    }
+
+    action toggle_friend(user_id) {
+      if is_friend(user_id) {
+        network.remove_friend(user_id)
+        state.friends_list = state.friends_list.filter(f => f.id != user_id)
+      } else {
+        send_friend_request(user_id)
+      }
+    }
+
+    action toggle_block(user_id) {
+      if is_blocked(user_id) {
+        network.unblock_user(user_id)
+        state.blocked_users = state.blocked_users.filter(id => id != user_id)
+      } else {
+        network.block_user(user_id)
+        state.blocked_users.push(user_id)
+        state.friends_list = state.friends_list.filter(f => f.id != user_id)
+      }
+    }
+
+    // Party actions
+    @networked
+    action create_party() {
+      party = await network.create_party()
+      state.current_party = party
+      add_notification({
+        title: "Party Created",
+        message: "Invite friends to join!",
+        icon: "party",
+        color: "#10b981"
+      })
+    }
+
+    @networked
+    action leave_party() {
+      network.leave_party()
+      state.current_party = null
+    }
+
+    @networked
+    action send_party_invite(user_id) {
+      network.send_party_invite(user_id)
+      add_notification({
+        title: "Invite Sent",
+        message: "Party invite sent",
+        icon: "mail",
+        color: "#6366f1"
+      })
+    }
+
+    action accept_party_invite(invite_id) {
+      invite = state.party_invites.find(i => i.id == invite_id)
+      if invite {
+        party = await network.accept_party_invite(invite_id)
+        state.current_party = party
+        state.party_invites = state.party_invites.filter(i => i.id != invite_id)
+      }
+    }
+
+    action decline_party_invite(invite_id) {
+      network.decline_party_invite(invite_id)
+      state.party_invites = state.party_invites.filter(i => i.id != invite_id)
+    }
+
+    // Emote actions
+    @synced
+    action play_emote(emote_id) {
+      emit "emote_play" { player_id: local_player.id, emote_id: emote_id }
+
+      // Play locally
+      avatar = find("Player_${local_player.id}")
+      if avatar {
+        avatar.on_emote_play(emote_id)
+      }
+    }
+
+    action preview_emote(emote_id) {
+      // Show preview animation on local avatar
+      emote = emotes.find(e => e.id == emote_id)
+      show_tooltip("${emote.name} - Click to play")
+    }
+
+    // UI actions
+    action show_profile(user_id) {
+      user = find_user(user_id)
+      if user {
+        state.viewing_profile = user
+        state.profile_open = true
+      }
+    }
+
+    action show_add_friend_dialog() {
+      show_dialog("add_friend", {
+        title: "Add Friend",
+        input_placeholder: "Enter username...",
+        on_submit: (username) => {
+          user = find_user_by_name(username)
+          if user {
+            send_friend_request(user.id)
+          } else {
+            show_notification("User not found")
+          }
+        }
+      })
+    }
+
+    action show_party_invite_dialog() {
+      show_dialog("party_invite", {
+        title: "Invite to Party",
+        list: get_online_friends().filter(f => !state.current_party.members.some(m => m.id == f.id)),
+        on_select: (friend) => send_party_invite(friend.id)
+      })
+    }
+
+    action show_blocked_users_dialog() {
+      show_dialog("blocked_users", {
+        title: "Blocked Users",
+        list: state.blocked_users.map(id => find_user(id)),
+        on_item_action: (user) => toggle_block(user.id)
+      })
+    }
+
+    // Notification system
+    action add_notification(notif) {
+      state.notifications.unshift({
+        id: uuid(),
+        ...notif,
+        timestamp: now()
+      })
+
+      // Keep max 10 notifications
+      if state.notifications.length > 10 {
+        state.notifications = state.notifications.slice(0, 10)
+      }
+    }
+
+    action dismiss_notification(notif_id) {
+      state.notifications = state.notifications.filter(n => n.id != notif_id)
+    }
+
+    // Network event handlers
+    on_friend_request_received(data) {
+      state.friend_requests.push(data)
+      add_notification({
+        title: "Friend Request",
+        message: "${data.from_name} wants to be friends",
+        icon: "user_plus",
+        color: "#6366f1"
+      })
+    }
+
+    on_party_invite_received(data) {
+      state.party_invites.push(data)
+      add_notification({
+        title: "Party Invite",
+        message: "${data.from_name} invited you to their party",
+        icon: "party",
+        color: "#10b981"
+      })
+    }
+
+    on_friend_status_changed(data) {
+      friend = state.friends_list.find(f => f.id == data.user_id)
+      if friend {
+        prev_status = friend.status
+        friend.status = data.status
+
+        // Notify when friend comes online
+        if prev_status == "offline" && data.status == "online" {
+          add_notification({
+            title: "Friend Online",
+            message: "${friend.display_name} is now online",
+            icon: "circle",
+            color: "#10b981"
+          })
+        }
+      }
+    }
+
+    on_emote_play(data) {
+      if data.player_id != local_player.id {
+        avatar = find("Player_${data.player_id}")
+        if avatar {
+          avatar.on_emote_play(data.emote_id)
+        }
+      }
+    }
+
+    // Entry point
+    on_enter {
+      fade_from_black(1)
+
+      // Load friends list
+      state.friends_list = await network.get_friends()
+      state.friend_requests = await network.get_friend_requests()
+      state.party_invites = await network.get_party_invites()
+
+      // Check for existing party
+      party = await network.get_current_party()
+      if party {
+        state.current_party = party
+      }
+
+      show_notification("Welcome to the Social Hub!")
+    }
+
+    // Keyboard shortcuts for emotes
+    on_key_press("1") { play_emote("wave") }
+    on_key_press("2") { play_emote("dance") }
+    on_key_press("3") { play_emote("clap") }
+    on_key_press("4") { play_emote("thumbsup") }
+  }
+}

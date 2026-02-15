@@ -20,7 +20,7 @@
  *   local: {
  *     enabled: true,
  *     ollamaUrl: 'http://localhost:11434',
- *     defaultModel: 'brittney-v4-expert:latest',
+ *     defaultModel: 'brittney-qwen-v23:latest',
  *   },
  * });
  *
@@ -73,8 +73,27 @@ export {
   AnthropicProvider,
   GoogleProvider,
   GrokProvider,
+  DeepSeekProvider,
   createBrittneyCloudProvider,
 } from './providers/index.js';
+
+// uAA2++ wisdom injection
+export {
+  injectWisdom,
+  DEFAULT_WISDOM_CONFIG,
+  type WisdomInjectionConfig,
+  type WisdomInjectionLevel,
+} from './wisdom-injector.js';
+
+// Cost tracking
+export {
+  CostTracker,
+  getCostTracker,
+  MODEL_PRICING,
+  type CallCostRecord,
+  type CostSummary,
+  type ModelPricing,
+} from './cost-tracker.js';
 
 // Integrations (safe public interfaces for external systems)
 export {

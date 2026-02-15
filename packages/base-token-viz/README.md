@@ -86,40 +86,51 @@ const script = generator.generate(metadata, {
 Example output for USDC (`orb` style):
 
 ```hsplus
-@world {
-  backgroundColor: "#0f2f1f"
-  fog: { type: "linear", color: "#0f2f1f", near: 10, far: 50 }
-  camera: { position: [0, 2, 6], fov: 60 }
-  ambient: 0.3
-  shadows: true
-}
-
-orb#usdc @grabbable @glowing @animated {
-  position: [0, 1.5, 0]
-  color: "#00ff88"
-  scale: [1, 1, 1]
-  emissive: "#66ffaa"
-  emissiveIntensity: 0.5
-  
-  label: "USDC - USD Coin"
-  labelPosition: [0, 0.8, 0]
-  labelColor: "#ffffff"
-  labelSize: 0.15
-
-  animation rotate {
-    property: "rotation.y"
-    from: 0
-    to: 360
-    duration: 8000
-    loop: infinite
-    easing: "linear"
+composition "TokenViz_usdc" {
+  environment {
+    backgroundColor: "#0f2f1f"
+    fog: { type: "linear", color: "#0f2f1f", near: 10, far: 50 }
+    camera: { position: [0, 2, 6], fov: 60 }
+    ambient: 0.3
+    shadows: true
   }
-}
 
-// Token info panel
-group#info_panel {
-  position: [3, 1.5, 0]
-  // ... metadata display
+  template "TokenOrb" {
+    @physics
+    @collidable
+    @grabbable
+    @glowing
+    @animated
+    geometry: "sphere"
+    color: "#00ff88"
+    emissive: "#66ffaa"
+    emissiveIntensity: 0.5
+
+    label: "USDC - USD Coin"
+    labelPosition: [0, 0.8, 0]
+    labelColor: "#ffffff"
+    labelSize: 0.15
+
+    animation rotate {
+      property: "rotation.y"
+      from: 0
+      to: 360
+      duration: 8000
+      loop: infinite
+      easing: "linear"
+    }
+  }
+
+  object "usdc" using "TokenOrb" {
+    position: [0, 1.5, 0]
+    scale: [1, 1, 1]
+  }
+
+  // Token info panel
+  spatial_group "InfoPanel" {
+    position: [3, 1.5, 0]
+    // ... metadata display
+  }
 }
 ```
 

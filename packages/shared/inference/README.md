@@ -27,7 +27,7 @@ const client = createInferenceClient({
   local: {
     enabled: true,
     ollamaUrl: 'http://localhost:11434',
-    defaultModel: 'brittney-v4-expert:latest',
+    defaultModel: 'brittney-qwen-v23:latest',
   },
 });
 
@@ -106,7 +106,7 @@ Optimized for HoloScript code generation:
 import { BRITTNEY_MODELS } from '@hololand/inference';
 
 // Local models (Ollama GGUF)
-BRITTNEY_MODELS.local.expert    // 'brittney-v4-expert:latest'
+BRITTNEY_MODELS.local.expert    // 'brittney-qwen-v23:latest'
 BRITTNEY_MODELS.local.holoscript // 'brittney-v1:latest'
 BRITTNEY_MODELS.local.general   // 'brittney-v2:latest'
 

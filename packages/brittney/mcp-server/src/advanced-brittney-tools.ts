@@ -32,7 +32,7 @@ function getInferenceClient(): InferenceClient {
       local: {
         enabled: true,
         ollamaUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-        defaultModel: 'brittney-v4:latest',
+        defaultModel: 'brittney-qwen-v23:latest',
         autoDownloadModel: false,
       },
       fallbackToCloud: true,

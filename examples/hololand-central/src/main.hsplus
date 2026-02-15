@@ -1,16 +1,23 @@
-
-orb#HololandCentral {
-  environment: {
-    sky: "azure_day_clouds",
+composition "HololandCentral" {
+  environment {
+    sky: "azure_day_clouds"
     lighting: "warm_sun"
   }
 
   // Imports (Mocked for now as we don't have a real module loader yet)
-  // import { CentralPlaza } from "./zones/central_plaza.hsplus"
+  // @import "./zones/central_plaza.hsplus" as CentralPlaza
 
-  orb#CentralHub {
-     @on_mount {
-        // dynamic behavior
-     }
+  template "CentralHub" {
+    @physics
+    @collidable
+    geometry: "sphere"
+
+    on_mount() {
+      // dynamic behavior
+    }
+  }
+
+  object "CentralHub" using "CentralHub" {
+    position: [0, 0, 0]
   }
 }

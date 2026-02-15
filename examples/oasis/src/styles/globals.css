@@ -1,0 +1,263 @@
+/* Font imports must be first */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-meadow-cream-light text-meadow-text font-sans antialiased;
+    min-height: 100vh;
+    /* Subtle sunlight and sky tint overlay */
+    background-image:
+      radial-gradient(circle at 85% 5%, rgba(255, 213, 79, 0.15) 0%, transparent 40%),
+      linear-gradient(180deg, rgba(135, 206, 235, 0.08) 0%, transparent 25%);
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Warm scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-meadow-cream-dark/50;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-meadow-text/20 rounded-full;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-meadow-grass/50;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-meadow-grass/30 text-meadow-text;
+  }
+}
+
+@layer components {
+  /* Warm cream card with subtle shadow */
+  .card {
+    @apply bg-meadow-cream border border-meadow-text/10 rounded-2xl overflow-hidden;
+    box-shadow:
+      0 4px 20px rgba(61, 41, 20, 0.06),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300;
+  }
+
+  .card-hover:hover {
+    @apply border-meadow-grass/40;
+    box-shadow:
+      0 8px 30px rgba(124, 179, 66, 0.15),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
+  }
+
+  /* Glass effect with warm tint */
+  .glass {
+    @apply bg-meadow-cream/90 backdrop-blur-lg border border-meadow-text/5;
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .glass-sky {
+    @apply bg-meadow-sky-light/20 backdrop-blur-lg border border-white/20;
+  }
+
+  /* Button styles - Pill shaped with nature colors */
+  .btn {
+    @apply px-5 py-2.5 rounded-full font-medium transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-meadow-cream-light;
+  }
+
+  .btn-primary {
+    @apply btn bg-meadow-grass hover:bg-meadow-grass-light text-white;
+    @apply focus:ring-meadow-grass shadow-grass;
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 6px 24px rgba(124, 179, 66, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    @apply btn bg-meadow-cream-dark hover:bg-meadow-cream text-meadow-text;
+    @apply border border-meadow-text/10 focus:ring-meadow-terracotta;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent hover:bg-meadow-cream text-meadow-text;
+  }
+
+  .btn-sky {
+    @apply btn bg-meadow-sky hover:bg-meadow-sky-light text-white;
+    @apply focus:ring-meadow-sky shadow-md;
+  }
+
+  .btn-golden {
+    @apply btn bg-meadow-golden hover:bg-meadow-sunlight text-meadow-text;
+    @apply focus:ring-meadow-golden;
+  }
+
+  /* Input styles - Soft and warm */
+  .input {
+    @apply w-full px-4 py-3 bg-white rounded-xl;
+    @apply border-2 border-meadow-cream-dark text-meadow-text;
+    @apply placeholder-meadow-text-muted/60;
+    @apply focus:outline-none focus:border-meadow-grass focus:ring-2 focus:ring-meadow-grass/20;
+    @apply transition-all duration-200;
+    box-shadow: inset 0 2px 4px rgba(61, 41, 20, 0.03);
+  }
+
+  .input:hover:not(:focus) {
+    @apply border-meadow-text/20;
+  }
+
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-grass {
+    @apply badge bg-meadow-grass/15 text-meadow-grass-dark;
+  }
+
+  .badge-sky {
+    @apply badge bg-meadow-sky/15 text-meadow-sky-dark;
+  }
+
+  .badge-golden {
+    @apply badge bg-meadow-golden/20 text-meadow-terracotta;
+  }
+
+  .badge-terracotta {
+    @apply badge bg-meadow-terracotta-light/30 text-meadow-terracotta;
+  }
+
+  /* Online status indicator */
+  .status-online {
+    @apply w-3 h-3 bg-meadow-success rounded-full;
+    box-shadow: 0 0 8px rgba(67, 160, 71, 0.5);
+  }
+
+  .status-away {
+    @apply w-3 h-3 bg-meadow-warning rounded-full;
+  }
+
+  .status-busy {
+    @apply w-3 h-3 bg-meadow-error rounded-full;
+  }
+
+  .status-offline {
+    @apply w-3 h-3 bg-meadow-text-muted/40 rounded-full;
+  }
+
+  /* Sidebar navigation item */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl;
+    @apply text-meadow-text-muted font-medium;
+    @apply transition-all duration-200;
+  }
+
+  .nav-item:hover {
+    @apply bg-meadow-cream text-meadow-text;
+  }
+
+  .nav-item.active {
+    @apply bg-meadow-grass/10 text-meadow-grass-dark;
+    box-shadow: inset 0 0 0 1px rgba(124, 179, 66, 0.2);
+  }
+
+  /* Decorative cloud */
+  .cloud {
+    @apply absolute bg-white rounded-full opacity-80;
+    filter: blur(1px);
+  }
+
+  /* Sunlight beam effect */
+  .sunlight-beam {
+    @apply absolute pointer-events-none;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 213, 79, 0.3) 0%,
+      rgba(255, 213, 79, 0) 100%
+    );
+    transform: rotate(-15deg);
+  }
+}
+
+@layer utilities {
+  /* Text gradient - nature themed */
+  .text-gradient {
+    @apply bg-gradient-to-r from-meadow-grass to-meadow-sky bg-clip-text text-transparent;
+  }
+
+  .text-gradient-warm {
+    @apply bg-gradient-to-r from-meadow-terracotta to-meadow-golden bg-clip-text text-transparent;
+  }
+
+  /* Subtle text shadow for outdoor readability */
+  .text-shadow-soft {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+  }
+
+  /* Animation utilities */
+  .animate-in {
+    animation: animateIn 0.3s ease-out forwards;
+  }
+
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-transform duration-300;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  /* Focus ring for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-meadow-grass focus:ring-offset-2 focus:ring-offset-meadow-cream-light;
+  }
+
+  /* Decorative border with terracotta accent */
+  .border-terracotta-accent {
+    border-left: 4px solid theme('colors.meadow.terracotta');
+  }
+}

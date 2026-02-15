@@ -80,9 +80,8 @@ Always output valid HoloScript syntax. Prefer .holo files for scenes."#;
 /// Brittney models optimized for HoloScript
 pub mod models {
     /// Local Ollama models
-    pub const LOCAL_EXPERT: &str = "brittney-v4-expert:latest";
-    pub const LOCAL_HOLOSCRIPT: &str = "brittney-v1:latest";
-    pub const LOCAL_GENERAL: &str = "brittney-v2:latest";
+    pub const LOCAL_EXPERT: &str = "brittney-qwen-v23:latest";
+    pub const LOCAL_V22: &str = "brittney-qwen:latest";
 
     /// Cloud fine-tuned models (OpenAI - BYOK)
     pub const CLOUD_HOLOSCRIPT: &str = "ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4";

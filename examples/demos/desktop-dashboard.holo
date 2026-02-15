@@ -1,0 +1,395 @@
+// Desktop Dashboard - HoloScript Demo
+// Refactored from legacy 05-desktop-app/main.ts
+// Showcases: @themed UI, panels, tabs, forms, responsive layout
+
+composition "Desktop Dashboard" {
+
+  environment {
+    type: "2d-canvas"
+    background: theme.background
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // THEME SYSTEM
+  // ═══════════════════════════════════════════════════════════
+
+  const themes = {
+    dark: {
+      background: "#1a1a2e",
+      surface: "#25254a",
+      surface_variant: "#2d2d52",
+      primary: "#6366f1",
+      success: "#10b981",
+      warning: "#f59e0b",
+      error: "#ef4444",
+      text_primary: "#e0e0e0",
+      text_secondary: "#9ca3af",
+      border: "#374151"
+    },
+    light: {
+      background: "#f3f4f6",
+      surface: "#ffffff",
+      surface_variant: "#e5e7eb",
+      primary: "#4f46e5",
+      success: "#059669",
+      warning: "#d97706",
+      error: "#dc2626",
+      text_primary: "#1f2937",
+      text_secondary: "#6b7280",
+      border: "#d1d5db"
+    }
+  }
+
+  state {
+    @local_only
+    current_theme: "dark"
+    active_tab: "dashboard"
+    username: "hololand_user"
+    volume: 75
+    notifications_enabled: true
+  }
+
+  // Computed theme
+  computed theme = themes[state.current_theme]
+
+  // ═══════════════════════════════════════════════════════════
+  // HEADER
+  // ═══════════════════════════════════════════════════════════
+
+  object "Header" {
+    type: "ui-panel"
+    position: [0, 0]
+    size: ["100%", 60]
+    background: theme.surface
+
+    @themed
+
+    object "Title" {
+      type: "ui-text"
+      position: [20, 20]
+      text: "Hololand Desktop App"
+      font_size: 20
+      font_weight: "600"
+      color: theme.text_primary
+    }
+
+    object "ThemeToggle" {
+      type: "ui-toggle"
+      position: [880, 18]
+      label: "Dark Mode"
+      label_position: "left"
+      checked: state.current_theme == "dark"
+      color_on: theme.primary
+      label_color: theme.text_secondary
+
+      @clickable
+      on_change: (checked) => {
+        state.current_theme = checked ? "dark" : "light"
+        emit "theme_changed" { theme: state.current_theme }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SIDEBAR NAVIGATION
+  // ═══════════════════════════════════════════════════════════
+
+  object "Sidebar" {
+    type: "ui-panel"
+    position: [0, 60]
+    size: [250, "calc(100% - 60px)"]
+    background: theme.surface_variant
+
+    @themed
+
+    object "NavTitle" {
+      type: "ui-text"
+      position: [20, 20]
+      text: "Navigation"
+      font_size: 14
+      font_weight: "500"
+      color: theme.text_secondary
+    }
+
+    // Navigation items
+    @for (item, index) in ["Dashboard", "Projects", "Settings", "Help"] {
+      object "NavButton_${index}" {
+        type: "ui-button"
+        position: [15, 50 + index * 50]
+        size: [220, 40]
+        text: item
+        background: "transparent"
+        text_color: theme.text_primary
+        hover_color: theme.surface
+        border_radius: 8
+
+        @clickable
+        @hoverable
+        on_click: () => {
+          if item == "Settings" {
+            state.active_tab = "settings"
+          } else if item == "Dashboard" {
+            state.active_tab = "dashboard"
+          }
+          emit "nav_clicked" { item: item }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // MAIN CONTENT AREA
+  // ═══════════════════════════════════════════════════════════
+
+  object "MainContent" {
+    type: "ui-panel"
+    position: [250, 60]
+    size: [750, "calc(100% - 60px)"]
+    background: theme.background
+
+    @themed
+
+    // Tab bar
+    object "TabBar" {
+      type: "ui-tabs"
+      position: [10, 10]
+      size: [730, 40]
+
+      tabs: [
+        { id: "dashboard", label: "Dashboard" },
+        { id: "settings", label: "Settings" }
+      ]
+
+      active_tab: state.active_tab
+      background: "transparent"
+      active_color: theme.surface
+      text_color: theme.text_secondary
+      active_text_color: theme.text_primary
+      indicator_color: theme.primary
+
+      on_tab_change: (tab_id) => { state.active_tab = tab_id }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // DASHBOARD TAB
+    // ═══════════════════════════════════════════════════════
+
+    object "DashboardContent" {
+      visible: state.active_tab == "dashboard"
+      position: [10, 60]
+      size: [730, 550]
+
+      // Stats row
+      object "StatsContainer" {
+        type: "ui-flex"
+        position: [10, 10]
+        size: [710, 100]
+        direction: "row"
+        gap: 20
+
+        @for (stat, index) in [
+          { label: "Total Users", value: "12,345" },
+          { label: "Active Sessions", value: "1,234" },
+          { label: "Revenue", value: "$45,678" }
+        ] {
+          object "StatCard_${index}" {
+            type: "ui-panel"
+            size: [220, 80]
+            background: theme.surface
+            border_radius: 8
+
+            object "Value" {
+              type: "ui-text"
+              position: [20, 20]
+              text: stat.value
+              font_size: 24
+              font_weight: "600"
+              color: theme.primary
+            }
+
+            object "Label" {
+              type: "ui-text"
+              position: [20, 50]
+              text: stat.label
+              font_size: 12
+              color: theme.text_secondary
+            }
+          }
+        }
+      }
+
+      // Activity section
+      object "ActivityTitle" {
+        type: "ui-text"
+        position: [10, 130]
+        text: "Recent Activity"
+        font_size: 16
+        font_weight: "600"
+        color: theme.text_primary
+      }
+
+      object "ActivityList" {
+        type: "ui-list"
+        position: [10, 160]
+        size: [710, 300]
+        background: theme.surface
+        item_background: "transparent"
+        item_hover_color: theme.surface_variant
+        text_color: theme.text_primary
+        subtext_color: theme.text_secondary
+        border_radius: 8
+
+        items: [
+          { text: "New user registered", subtext: "2 minutes ago" },
+          { text: 'Project "VR World" created', subtext: "15 minutes ago" },
+          { text: "Payment received", subtext: "1 hour ago" },
+          { text: "Server update completed", subtext: "3 hours ago" },
+          { text: "New feature deployed", subtext: "5 hours ago" }
+        ]
+
+        @clickable
+        on_item_click: (item, index) => {
+          emit "activity_clicked" { item: item, index: index }
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // SETTINGS TAB
+    // ═══════════════════════════════════════════════════════
+
+    object "SettingsContent" {
+      visible: state.active_tab == "settings"
+      position: [10, 60]
+      size: [730, 550]
+
+      object "SettingsTitle" {
+        type: "ui-text"
+        position: [10, 10]
+        text: "Application Settings"
+        font_size: 18
+        font_weight: "600"
+        color: theme.text_primary
+      }
+
+      // Volume control
+      object "VolumeLabel" {
+        type: "ui-text"
+        position: [10, 70]
+        text: "Volume"
+        font_size: 14
+        color: theme.text_secondary
+      }
+
+      object "VolumeSlider" {
+        type: "ui-slider"
+        position: [10, 95]
+        size: [300, 30]
+        min: 0
+        max: 100
+        value: state.volume
+        show_value: true
+        track_color: theme.surface_variant
+        active_color: theme.primary
+
+        on_change: (value) => {
+          state.volume = value
+          emit "volume_changed" { volume: value }
+        }
+      }
+
+      // Notifications toggle
+      object "NotifLabel" {
+        type: "ui-text"
+        position: [10, 150]
+        text: "Notifications"
+        font_size: 14
+        color: theme.text_secondary
+      }
+
+      object "NotifToggle" {
+        type: "ui-toggle"
+        position: [10, 175]
+        label: "Enable push notifications"
+        checked: state.notifications_enabled
+        color_on: theme.success
+        label_color: theme.text_primary
+
+        on_change: (checked) => {
+          state.notifications_enabled = checked
+        }
+      }
+
+      // Username input
+      object "UsernameLabel" {
+        type: "ui-text"
+        position: [10, 240]
+        text: "Username"
+        font_size: 14
+        color: theme.text_secondary
+      }
+
+      object "UsernameInput" {
+        type: "ui-input"
+        position: [10, 265]
+        size: [300, 40]
+        placeholder: "Enter username..."
+        value: state.username
+        background: theme.surface
+        text_color: theme.text_primary
+        border_color: theme.border
+        border_radius: 8
+
+        on_change: (value) => { state.username = value }
+      }
+
+      // Save button
+      object "SaveButton" {
+        type: "ui-button"
+        position: [10, 330]
+        size: [120, 40]
+        text: "Save Settings"
+        background: theme.primary
+        text_color: "#ffffff"
+        border_radius: 8
+
+        @clickable
+        on_click: () => {
+          emit "settings_saved" {
+            volume: state.volume,
+            notifications: state.notifications_enabled,
+            username: state.username
+          }
+          show_notification("Settings saved!")
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    on_enter {
+      log("Hololand Desktop App started!")
+      log("Features: Dark/Light theme, Sidebar nav, Tabbed content, Dashboard stats")
+    }
+
+    on_theme_changed(data) {
+      log("Theme changed to: ${data.theme}")
+      // All @themed components auto-update
+    }
+
+    on_settings_saved(data) {
+      log("Settings saved:", data)
+      // Persist to storage
+      storage.set("user_settings", data)
+    }
+
+    on_activity_clicked(data) {
+      log("Activity clicked:", data.item.text)
+    }
+  }
+}

@@ -72,6 +72,17 @@ export interface ARModuleAPI {
   stopDetection: () => void;
 }
 
+export interface ARRuntimeConfig {
+  /** AR tracking server URL */
+  serverUrl?: string;
+  /** Headset or device identifier */
+  headsetId?: string;
+  /** Device type for tracking client */
+  deviceType?: 'quest3' | 'vision_pro' | 'phone_lidar' | 'phone_no_depth' | 'other';
+  /** Whether the device has a depth sensor */
+  hasDepthSensor?: boolean;
+}
+
 // =============================================================================
 // AR RUNTIME IMPLEMENTATION
 // =============================================================================
@@ -81,7 +92,7 @@ export interface ARModuleAPI {
  *
  * This connects HoloScript AR declarations to the actual AR packages.
  */
-export function createARRuntime(): {
+export function createARRuntime(config: ARRuntimeConfig = {}): {
   state: ARModuleState;
   api: ARModuleAPI;
 } {
@@ -148,13 +159,12 @@ export function createARRuntime(): {
     bindPersonToUser: async (personId: string, userId: string) => {
       if (!trackingClient) {
         const { ARTrackingClient } = await import('@hololand/ar-tracking/client');
-        // Note: This is a placeholder config - actual values should come from app config
         trackingClient = new ARTrackingClient({
-          serverUrl: '',
-          headsetId: 'default',
+          serverUrl: config.serverUrl ?? '',
+          headsetId: config.headsetId ?? 'default',
           userId: userId,
-          deviceType: 'other',
-          hasDepthSensor: false,
+          deviceType: config.deviceType ?? 'other',
+          hasDepthSensor: config.hasDepthSensor ?? false,
         });
       }
       trackingClient.bindUserToTrack(userId, personId);
