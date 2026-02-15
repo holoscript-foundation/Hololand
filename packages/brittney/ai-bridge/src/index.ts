@@ -24,6 +24,10 @@ export type { VoiceProcessingResult } from './VoiceProcessor';
 export { VoiceVisualizer } from './VoiceVisualizer';
 export type { VisualizerOptions } from './VoiceVisualizer';
 
+// Voice → MCP Pipeline (Phase 3: Spatial Brittney)
+export { VoiceMCPPipeline } from './VoiceMCPPipeline';
+export type { VoiceMCPConfig, VoicePipelineResult, MCPToolCall, MCPToolResult } from './VoiceMCPPipeline';
+
 // Code Explainer
 export { CodeExplainer } from './CodeExplainer';
 export type { ExplanationResult, LineExplanation } from './CodeExplainer';
@@ -31,6 +35,15 @@ export type { ExplanationResult, LineExplanation } from './CodeExplainer';
 // Code Optimizer
 export { CodeOptimizer } from './CodeOptimizer';
 export type { OptimizationResult, OptimizationSuggestion, CodeMetrics } from './CodeOptimizer';
+
+// Scene Perception (Brittney's "eyes")
+export { serializeScene, serializeObjects } from './ScenePerception';
+export type {
+  ScenePerceptionOptions,
+  ScenePerception,
+  SerializedObject,
+  WorldLike,
+} from './ScenePerception';
 
 // Logger Interface
 export { setHololandAILogger, resetLogger, type HololandAILogger } from './logger';
@@ -88,14 +101,19 @@ import { CodeExplainer } from './CodeExplainer';
 import { CodeOptimizer } from './CodeOptimizer';
 
 import { VoiceVisualizer } from './VoiceVisualizer';
+import { VoiceMCPPipeline } from './VoiceMCPPipeline';
+import { serializeScene, serializeObjects } from './ScenePerception';
 
 export default {
   HololandAIBridge,
   NaturalLanguageTranslator,
   VoiceProcessor,
   VoiceVisualizer,
+  VoiceMCPPipeline,
   CodeExplainer,
   CodeOptimizer,
+  serializeScene,
+  serializeObjects,
   createAIBridge,
   isVoiceSupported,
   HOLOLAND_AI_BRIDGE_VERSION,

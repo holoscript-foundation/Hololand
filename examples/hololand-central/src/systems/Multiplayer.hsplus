@@ -1,0 +1,182 @@
+// src/systems/Multiplayer.hsplus
+// Multiplayer system — host or join sessions, sync players
+import { NetworkClient } from "@hololand/network"
+
+system MultiplayerSystem {
+  state {
+    connected: false
+    isHost: false
+    players: []
+    sessionUrl: null
+    ping: 0
+    maxPlayers: 32
+  }
+
+  action host() {
+    const server = network.createLocalServer({
+      maxPlayers: state.maxPlayers,
+      tickRate: 20
+    })
+    const tunnel = network.createTunnel("ngrok")
+    state.sessionUrl = tunnel.url
+    state.isHost = true
+    state.connected = true
+
+    server.on("player_join", (player) -> {
+      state.players.push(player)
+      spawn_avatar(player)
+      emit("player_joined", player)
+      announce(player.name + " joined the session")
+    })
+
+    server.on("player_leave", (player) -> {
+      state.players = state.players.filter(p -> p.id != player.id)
+      remove_avatar(player)
+      emit("player_left", player)
+      announce(player.name + " left the session")
+    })
+
+    server.on("state_sync", (syncData) -> {
+      apply_state_sync(syncData)
+    })
+
+    emit("session_hosted", state.sessionUrl)
+  }
+
+  action join(url) {
+    const client = network.connect(url)
+
+    client.on("connected", () -> {
+      state.connected = true
+      emit("session_joined", url)
+    })
+
+    client.on("player_list", (players) -> {
+      state.players = players
+      players.forEach(spawn_avatar)
+    })
+
+    client.on("ping", (ms) -> {
+      state.ping = ms
+    })
+
+    client.on("disconnected", (reason) -> {
+      state.connected = false
+      state.players = []
+      emit("session_disconnected", reason)
+    })
+  }
+
+  action disconnect() {
+    network.disconnect()
+    state.connected = false
+    state.isHost = false
+    state.players = []
+    state.sessionUrl = null
+    state.ping = 0
+    emit("session_ended")
+  }
+
+  action copySessionUrl() {
+    if (state.sessionUrl) {
+      clipboard.write(state.sessionUrl)
+      ui.toast("Session URL copied!")
+    }
+  }
+
+  // Avatar sync handled by network runtime
+  on_player_move(player, position, rotation) {
+    update_avatar(player.id, position, rotation)
+  }
+
+  on_player_emote(player, emote) {
+    play_avatar_emote(player.id, emote)
+  }
+
+  ui {
+    panel "Multiplayer" {
+      @overlay
+      position: "top-right"
+      style: "glass"
+      width: 280
+
+      if (!state.connected) {
+        text "Title" {
+          content: "Multiplayer"
+          size: "large"
+          weight: "bold"
+        }
+
+        button "Host" {
+          label: "🌐 Host Session"
+          style: "primary"
+          on_click: host
+        }
+
+        row "JoinRow" {
+          gap: 8
+          marginTop: 8
+
+          textinput "JoinUrl" {
+            placeholder: "Paste session URL..."
+            flex: 1
+          }
+
+          button "Join" {
+            label: "Join"
+            style: "secondary"
+            on_click: () -> join(ui.get("JoinUrl").value)
+          }
+        }
+      } else {
+        text "Status" {
+          content: state.isHost ? "Hosting" : "Connected"
+          size: "medium"
+          weight: "bold"
+          color: "#00ff88"
+        }
+
+        if (state.isHost && state.sessionUrl) {
+          row "ShareRow" {
+            gap: 8
+
+            text "Url" {
+              content: state.sessionUrl
+              size: "small"
+              color: "#888888"
+              truncate: true
+              flex: 1
+            }
+
+            button "Copy" {
+              label: "📋"
+              style: "icon"
+              on_click: copySessionUrl
+            }
+          }
+        }
+
+        text "PlayerCount" {
+          content: state.players.length + " / " + state.maxPlayers + " players"
+          size: "small"
+          color: "#aaaaaa"
+        }
+
+        if (state.ping > 0) {
+          text "Ping" {
+            content: state.ping + "ms"
+            size: "small"
+            color: state.ping < 50 ? "#00ff88" : state.ping < 100 ? "#ffaa00" : "#ff4444"
+          }
+        }
+
+        button "Disconnect" {
+          label: "Disconnect"
+          style: "danger"
+          on_click: disconnect
+          marginTop: 8
+        }
+      }
+    }
+  }
+}

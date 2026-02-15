@@ -1,0 +1,84 @@
+// src/templates/Portal.hsplus
+// Reusable portal template — teleports players between zones
+template "Portal" {
+  @physics
+  @collidable
+  @glowing
+  geometry: "torus"
+  scale: [2, 2, 0.3]
+  material: { emissive: true }
+
+  state {
+    destination: ""
+    label: ""
+    active: true
+    cooldown: false
+    cooldownTime: 2000
+  }
+
+  // Pulsing glow animation
+  animation pulse {
+    property: "material.emission.intensity"
+    from: 0.4
+    to: 1.0
+    duration: 2000
+    loop: infinite
+    easing: "easeInOut"
+  }
+
+  // Subtle rotation
+  animation spin {
+    property: "rotation.z"
+    from: 0
+    to: 360
+    duration: 10000
+    loop: infinite
+    easing: "linear"
+  }
+
+  // Label text floating above
+  child "Label" {
+    @billboard
+    geometry: "plane"
+    position: [0, 2, 0]
+    scale: [2, 0.5, 1]
+    text: state.label
+    textColor: "#ffffff"
+    textSize: "medium"
+    material: { transparent: true, opacity: 0 }
+  }
+
+  // Particle ring
+  particles "Ring" {
+    type: "ring"
+    count: 30
+    radius: 1
+    color: this.color || "#00ffff"
+    size: 0.05
+    speed: 0.5
+    lifetime: 2000
+  }
+
+  on_trigger_enter(player) {
+    if (state.active && !state.cooldown && state.destination) {
+      state.cooldown = true
+      audio.play("portal_whoosh")
+      particles.burst("teleport_flash", this.position, 50)
+      emit("zone_transition", state.destination)
+
+      delay(state.cooldownTime, () -> {
+        state.cooldown = false
+      })
+    }
+  }
+
+  onHoverEnter() {
+    this.scale = [2.2, 2.2, 0.35]
+    audio.play("portal_hum", { volume: 0.3, loop: true })
+  }
+
+  onHoverExit() {
+    this.scale = [2, 2, 0.3]
+    audio.stop("portal_hum")
+  }
+}

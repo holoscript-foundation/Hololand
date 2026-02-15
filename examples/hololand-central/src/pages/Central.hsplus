@@ -1,0 +1,146 @@
+// src/pages/Central.hsplus
+// Central page — the main game world hub that loads zones
+import { MobileControls } from "../ui/MobileControls.hsplus"
+import { MenuOverlay } from "../ui/MenuOverlay.hsplus"
+
+composition "CentralPage" {
+  environment {
+    skybox: "daytime"
+    ambientLight: 0.5
+    fog: { color: "#87ceeb", near: 50, far: 200 }
+    directionalLight: {
+      color: "#ffffff"
+      intensity: 0.8
+      position: [50, 100, 50]
+      castShadow: true
+    }
+  }
+
+  state {
+    currentZone: "MainPlaza"
+    previousZone: null
+    transitionActive: false
+  }
+
+  // Zone registry — maps names to compositions
+  zones: {
+    MainPlaza: "./zones/main_plaza.hsplus",
+    Casino: "./zones/casino.hsplus",
+    BuilderShop: "./zones/builder_shop.hsplus",
+    SocialLounge: "./zones/social_lounge.hsplus",
+    Arcade: "./zones/arcade.hsplus"
+  }
+
+  // Load current zone
+  zone_container "ActiveZone" {
+    source: zones[state.currentZone]
+  }
+
+  // Zone transition handler
+  action transitionToZone(zoneName) {
+    if (zones[zoneName] && !state.transitionActive) {
+      state.transitionActive = true
+      state.previousZone = state.currentZone
+
+      // Fade out
+      ui.fadeScreen("black", 500)
+
+      delay(500, () -> {
+        state.currentZone = zoneName
+        app.enterZone(zoneName)
+
+        // Fade in
+        delay(200, () -> {
+          ui.fadeScreen("clear", 500)
+          state.transitionActive = false
+        })
+      })
+    }
+  }
+
+  // Listen for zone transition events from portals
+  on_event("zone_transition") {
+    transitionToZone(event.data)
+  }
+
+  // Player spawn position per zone
+  spawn_positions: {
+    MainPlaza: [0, 1, -5],
+    Casino: [0, 1, -20],
+    BuilderShop: [0, 1, -12],
+    SocialLounge: [0, 1, -12],
+    Arcade: [0, 1, -10]
+  }
+
+  on_start() {
+    const spawnPos = spawn_positions[state.currentZone]
+    if (spawnPos) {
+      player.teleportTo(spawnPos)
+    }
+  }
+
+  // Mobile controls (auto-hidden on desktop)
+  component MobileControls {
+    visible: true
+    joystickSize: 120
+    deadzone: 0.1
+    opacity: 0.7
+  }
+
+  // Menu overlay (toggled by ESC or menu button)
+  component MenuOverlay {
+    visible: false
+  }
+
+  // HUD
+  ui {
+    // Zone indicator — top center
+    row "ZoneHUD" {
+      position: "top-center"
+      marginTop: 10
+
+      text "ZoneName" {
+        content: state.currentZone
+        size: "medium"
+        color: "#ffffff"
+        weight: "bold"
+        style: "outlined"
+      }
+    }
+
+    // Mini-map placeholder — top left
+    panel "MiniMap" {
+      position: "top-left"
+      offset: [10, 10]
+      width: 120
+      height: 120
+      style: "glass"
+      opacity: 0.6
+
+      text "Map" {
+        content: "🗺️"
+        size: "xlarge"
+        align: "center"
+      }
+    }
+
+    // VR button (desktop only, top right)
+    if (!device.isMobile && xr.isAvailable()) {
+      button "VRToggle" {
+        position: "top-right"
+        offset: [10, 10]
+        label: app.state.vrEnabled ? "Exit VR" : "Enter VR"
+        icon: "vr_headset"
+        style: "glass"
+        on_click: () -> app.toggleVR()
+      }
+    }
+  }
+
+  // Keyboard shortcuts
+  keyboard {
+    "Escape": () -> ui.togglePanel("MenuOverlay")
+    "m": () -> ui.togglePanel("MiniMap")
+    "t": () -> ThemeSystem.cycleTheme()
+  }
+}

@@ -1,0 +1,173 @@
+// src/zones/builder_shop.hsplus
+// The Builder Shop — where creators make things in HoloScript
+composition "BuilderShop" {
+  environment {
+    skybox: "workshop"
+    ambientLight: 0.5
+    fog: { color: "#2a3a4a", near: 40, far: 180 }
+  }
+
+  template "Workbench" {
+    @interactive
+    @collidable
+    @physics
+    model: "/models/workbench.glb"
+
+    state {
+      activeProject: null
+      tools: ["hammer", "wrench", "paintbrush", "code_editor"]
+    }
+
+    on_click() {
+      ui.show("BuilderPanel", { bench: this })
+      audio.play("workbench_open")
+    }
+  }
+
+  template "DisplayCase" {
+    @interactive
+    @glowing
+    model: "/models/display_case.glb"
+
+    state {
+      item: null
+      forSale: false
+      price: 0
+    }
+
+    on_click() {
+      if (state.item) {
+        ui.show("ItemPreview", {
+          item: state.item,
+          price: state.price,
+          forSale: state.forSale
+        })
+      }
+    }
+  }
+
+  template "ToolRack" {
+    @static
+    model: "/models/tool_rack.glb"
+    scale: [1.5, 2, 0.5]
+  }
+
+  template "Blueprint" {
+    @interactive
+    @hoverable
+    geometry: "plane"
+    material: { color: "#1a3a5a", opacity: 0.9 }
+    scale: [1, 1.4, 0.01]
+
+    state {
+      template: null
+      name: ""
+    }
+
+    on_click() {
+      ui.show("BlueprintViewer", { blueprint: state.template })
+    }
+
+    onHoverEnter() {
+      this.scale = [1.1, 1.54, 0.01]
+      this.material.emission.intensity = 0.3
+    }
+
+    onHoverExit() {
+      this.scale = [1, 1.4, 0.01]
+      this.material.emission.intensity = 0
+    }
+  }
+
+  // ---------- Scene Objects ----------
+
+  // Main workspace
+  spatial_group "Workspace" {
+    object "MainBench" using "Workbench" {
+      position: [0, 0, 0]
+    }
+
+    object "SecondBench" using "Workbench" {
+      position: [5, 0, 0]
+    }
+
+    object "Tools_01" using "ToolRack" {
+      position: [-3, 0, -3]
+    }
+  }
+
+  // Showcase area — community creations
+  spatial_group "Showcase" {
+    object "Display_01" using "DisplayCase" {
+      position: [10, 0, 5]
+      item: "CrystalSword"
+      forSale: true
+      price: 50
+    }
+
+    object "Display_02" using "DisplayCase" {
+      position: [10, 0, 8]
+      item: "HoloHelmet"
+      forSale: true
+      price: 75
+    }
+
+    object "Display_03" using "DisplayCase" {
+      position: [10, 0, 11]
+      item: "DragonPet"
+      forSale: false
+    }
+  }
+
+  // Blueprint wall — starter templates
+  spatial_group "Blueprints" {
+    object "BP_Weapon" using "Blueprint" {
+      position: [-5, 1.5, -5]
+      name: "Weapon Template"
+      template: "weapon_base"
+    }
+
+    object "BP_Armor" using "Blueprint" {
+      position: [-5, 1.5, -3]
+      name: "Armor Template"
+      template: "armor_base"
+    }
+
+    object "BP_Pet" using "Blueprint" {
+      position: [-5, 1.5, -1]
+      name: "Pet Template"
+      template: "pet_base"
+    }
+
+    object "BP_Vehicle" using "Blueprint" {
+      position: [-5, 1.5, 1]
+      name: "Vehicle Template"
+      template: "vehicle_base"
+    }
+  }
+
+  // Portal back
+  object "PlazaPortal" {
+    @collidable
+    @glowing
+    geometry: "torus"
+    position: [0, 1.5, -15]
+    color: "#00ff88"
+    scale: [2, 2, 0.3]
+
+    on_trigger_enter(player) {
+      emit("zone_transition", "MainPlaza")
+    }
+  }
+
+  logic {
+    on_player_enter() {
+      audio.playAmbient("workshop_ambience")
+      emit("zone_entered", "BuilderShop")
+    }
+
+    on_player_exit() {
+      audio.stopAmbient()
+    }
+  }
+}

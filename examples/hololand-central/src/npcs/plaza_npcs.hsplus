@@ -1,0 +1,109 @@
+// src/npcs/plaza_npcs.hsplus
+// NPCs for the Main Plaza zone
+import { NPC } from "../templates/NPC.hsplus"
+
+// Welcome greeter — introduces new players
+object "Greeter" using "NPC" {
+  position: [3, 0, -3]
+  name: "Maya"
+  role: "Welcome Guide"
+  model: "/models/npc_maya.glb"
+  color: "#00ccff"
+
+  patrolPath: [[3, 0, -3], [5, 0, 0], [3, 0, 3], [0, 0, 3], [-3, 0, 0]]
+  patrolSpeed: 0.8
+
+  dialogue: [
+    {
+      text: "Hey there! Welcome to Hololand Central! 🌟 I'm Maya, your guide."
+      options: [
+        { id: "tour", label: "Give me a tour!", next: 1 },
+        { id: "zones", label: "What zones are there?", next: 2 },
+        { id: "bye", label: "Just exploring, thanks!", next: 4 }
+      ]
+    },
+    {
+      text: "I'd love to! See that glowing portal over there? That's the Casino — full of games and prizes. Try your luck!"
+      options: [
+        { id: "more", label: "What else?", next: 2 },
+        { id: "go", label: "I'll check it out!", next: 4 }
+      ]
+    },
+    {
+      text: "We've got the Casino 🎰, Builder Shop 🔧 for creating things, the Social Lounge 🛋️ for hanging out, and the Arcade 🕹️ for competitive games!"
+      options: [
+        { id: "builder", label: "Tell me about the Builder Shop", next: 3 },
+        { id: "thanks", label: "Awesome, thanks!", next: 4 }
+      ]
+    },
+    {
+      text: "The Builder Shop is where creators shine! You can use HoloScript to build anything — weapons, pets, vehicles. Your imagination is the limit!"
+    },
+    {
+      text: "Have fun exploring! If you need me, I'll be walking around the plaza. 👋"
+    }
+  ]
+}
+
+// Merchant NPC — sells basic items
+object "Merchant" using "NPC" {
+  position: [-5, 0, 5]
+  name: "Theo"
+  role: "Merchant"
+  model: "/models/npc_merchant.glb"
+  color: "#ffaa00"
+
+  patrolPath: [[-5, 0, 5], [-3, 0, 5]]
+  patrolSpeed: 0.3
+
+  dialogue: [
+    {
+      text: "Welcome to my humble shop! I've got the finest wares in all of Hololand."
+      options: [
+        { id: "browse", label: "Let me see your wares", next: 1, action: () -> ui.show("ShopPanel", { npc: "Merchant" }) },
+        { id: "info", label: "What do you sell?", next: 2 },
+        { id: "bye", label: "Just browsing", next: 3 }
+      ]
+    },
+    {
+      text: "Take your time! Everything's reasonably priced."
+    },
+    {
+      text: "I sell potions, cosmetics, and basic building materials. The rare stuff? You'll find that in the Builder Shop!"
+    },
+    {
+      text: "Come back anytime! I'm always here."
+    }
+  ]
+}
+
+// Lore NPC — tells stories about Hololand
+object "Storyteller" using "NPC" {
+  position: [8, 0, 8]
+  name: "Old Zephyr"
+  role: "Storyteller"
+  model: "/models/npc_storyteller.glb"
+  color: "#aa88ff"
+
+  patrolPath: []  // stays in one spot
+  patrolSpeed: 0
+
+  dialogue: [
+    {
+      text: "Ah, a visitor! Come, sit by the fountain. Let me tell you the tale of how Hololand came to be..."
+      options: [
+        { id: "listen", label: "I'd love to hear it", next: 1 },
+        { id: "skip", label: "Maybe later", next: 3 }
+      ]
+    },
+    {
+      text: "Long ago, the digital realm was fractured — a thousand platforms, none connected. Then the Architect created HoloScript, a language that bridges all worlds..."
+    },
+    {
+      text: "With HoloScript, anyone could build. Not just coders — artists, dreamers, children. And from their dreams, Hololand was born."
+    },
+    {
+      text: "Perhaps another time, then. The stories of Hololand are patient — they'll wait for you."
+    }
+  ]
+}

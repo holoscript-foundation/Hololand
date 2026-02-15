@@ -1,0 +1,139 @@
+// src/zones/social_lounge.hsplus
+// The Social Lounge — hangout, chat, relax
+composition "SocialLounge" {
+  environment {
+    skybox: "sunset"
+    ambientLight: 0.35
+    fog: { color: "#ff9966", near: 40, far: 200 }
+  }
+
+  template "Couch" {
+    @interactive
+    @collidable
+    model: "/models/couch.glb"
+
+    state {
+      occupied: false
+      seatCount: 3
+    }
+
+    on_click() {
+      if (!state.occupied) {
+        player.sit(this.position)
+        state.occupied = true
+      }
+    }
+  }
+
+  template "Jukebox" {
+    @interactive
+    @glowing
+    @spatial_audio
+    model: "/models/jukebox.glb"
+
+    state {
+      playing: false
+      currentTrack: 0
+      playlist: [
+        "lofi_chill_01",
+        "synthwave_sunset",
+        "jazz_cafe",
+        "ambient_dream",
+        "chiptune_groove"
+      ]
+    }
+
+    on_click() {
+      if (state.playing) {
+        audio.stop(state.playlist[state.currentTrack])
+        state.currentTrack = (state.currentTrack + 1) % state.playlist.length
+      }
+      audio.play(state.playlist[state.currentTrack])
+      state.playing = true
+    }
+  }
+
+  template "DanceFloor" {
+    @collidable
+    @glowing
+    geometry: "plane"
+    size: [10, 10]
+    material: { color: "#1a1a2e", emissive: true }
+
+    animation colorCycle {
+      property: "material.emission.color"
+      keyframes: ["#ff0000", "#00ff00", "#0000ff", "#ff00ff", "#ffff00"]
+      duration: 5000
+      loop: infinite
+    }
+  }
+
+  template "BarStool" {
+    @interactive
+    model: "/models/bar_stool.glb"
+
+    on_click() {
+      player.sit(this.position)
+    }
+  }
+
+  template "Bar" {
+    @static
+    @collidable
+    model: "/models/bar_counter.glb"
+    scale: [3, 1, 1]
+  }
+
+  // ---------- Scene Objects ----------
+
+  // Seating area
+  spatial_group "Seating" {
+    object "Couch_01" using "Couch" { position: [-8, 0, -5] }
+    object "Couch_02" using "Couch" { position: [-8, 0, 0] }
+    object "Couch_03" using "Couch" { position: [-8, 0, 5] }
+  }
+
+  // Music area
+  object "Jukebox" using "Jukebox" {
+    position: [0, 0, -10]
+  }
+
+  // Dance floor
+  object "DanceFloor" using "DanceFloor" {
+    position: [0, 0.01, 0]
+  }
+
+  // Bar area
+  spatial_group "BarArea" {
+    object "Bar" using "Bar" { position: [10, 0, 0] }
+    object "Stool_01" using "BarStool" { position: [8, 0, -2] }
+    object "Stool_02" using "BarStool" { position: [8, 0, 0] }
+    object "Stool_03" using "BarStool" { position: [8, 0, 2] }
+    object "Stool_04" using "BarStool" { position: [8, 0, 4] }
+  }
+
+  // Portal back
+  object "PlazaPortal" {
+    @collidable
+    @glowing
+    geometry: "torus"
+    position: [0, 1.5, -15]
+    color: "#8844ff"
+    scale: [2, 2, 0.3]
+
+    on_trigger_enter(player) {
+      emit("zone_transition", "MainPlaza")
+    }
+  }
+
+  logic {
+    on_player_enter() {
+      audio.playAmbient("lounge_ambience")
+      emit("zone_entered", "SocialLounge")
+    }
+
+    on_player_exit() {
+      audio.stopAmbient()
+    }
+  }
+}

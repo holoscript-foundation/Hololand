@@ -1,0 +1,104 @@
+// src/ui/MobileControls.hsplus
+// Touch controls for mobile devices — joystick, buttons, menu
+component MobileControls {
+  props {
+    visible: true
+    joystickSize: 120
+    deadzone: 0.1
+    opacity: 0.7
+  }
+
+  state {
+    joystickPosition: [0, 0]
+    isMoving: false
+    lookDelta: [0, 0]
+  }
+
+  ui {
+    if (device.isMobile && props.visible) {
+      // Virtual joystick — bottom left
+      joystick "Move" {
+        position: "bottom-left"
+        offset: [30, 30]
+        size: props.joystickSize
+        deadzone: props.deadzone
+        opacity: props.opacity
+        style: "modern"
+
+        on_move: (x, y) -> {
+          state.joystickPosition = [x, y]
+          state.isMoving = true
+          input.setMovement(x, y)
+        }
+
+        on_release: () -> {
+          state.joystickPosition = [0, 0]
+          state.isMoving = false
+          input.setMovement(0, 0)
+        }
+      }
+
+      // Look area — right side of screen
+      toucharea "Look" {
+        position: "right-half"
+        on_drag: (dx, dy) -> {
+          state.lookDelta = [dx, dy]
+          input.setLookDelta(dx * 0.3, dy * 0.3)
+        }
+      }
+
+      // Action buttons — bottom right
+      column "Actions" {
+        position: "bottom-right"
+        offset: [20, 30]
+        gap: 12
+
+        button "Jump" {
+          icon: "arrow_up"
+          size: 56
+          shape: "circle"
+          opacity: props.opacity
+          color: "#00ffff"
+          on_press: () -> input.jump()
+          on_release: () -> input.jumpRelease()
+        }
+
+        button "Interact" {
+          icon: "hand"
+          size: 56
+          shape: "circle"
+          opacity: props.opacity
+          color: "#ff6600"
+          on_press: () -> input.interact()
+        }
+      }
+
+      // Quick menu — top right
+      button "Menu" {
+        position: "top-right"
+        offset: [10, 10]
+        icon: "menu"
+        size: 44
+        shape: "circle"
+        opacity: props.opacity
+        color: "#ffffff"
+        on_press: () -> ui.togglePanel("MobileMenu")
+      }
+
+      // VR button — top center (if headset available)
+      if (xr.isAvailable()) {
+        button "EnterVR" {
+          position: "top-center"
+          offset: [0, 10]
+          label: "VR"
+          icon: "vr_headset"
+          size: 44
+          shape: "pill"
+          opacity: props.opacity
+          color: "#8844ff"
+          on_press: () -> xr.requestSession("immersive-vr")
+        }
+      }
+    }
+  }
+}

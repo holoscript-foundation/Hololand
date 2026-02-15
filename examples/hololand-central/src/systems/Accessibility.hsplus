@@ -1,0 +1,207 @@
+// src/systems/Accessibility.hsplus
+// Accessibility system — ensures Hololand is usable by everyone
+system AccessibilitySystem {
+  state {
+    reducedMotion: false
+    highContrast: false
+    screenReaderEnabled: false
+    fontSize: "medium"
+    captionsEnabled: false
+    colorBlindMode: "none"  // none, protanopia, deuteranopia, tritanopia
+    hapticFeedback: true
+    subtitleSize: "medium"
+  }
+
+  on_start {
+    // Detect system preferences
+    state.reducedMotion = device.prefersReducedMotion()
+    state.highContrast = device.prefersHighContrast()
+    state.screenReaderEnabled = device.hasScreenReader()
+
+    // Load user preferences
+    const prefs = storage.get("accessibility_prefs")
+    if (prefs) {
+      Object.assign(state, prefs)
+      applyAll()
+    }
+  }
+
+  action save_prefs() {
+    storage.set("accessibility_prefs", state)
+  }
+
+  action applyAll() {
+    setReducedMotion(state.reducedMotion)
+    setHighContrast(state.highContrast)
+    setFontSize(state.fontSize)
+    setColorBlindMode(state.colorBlindMode)
+  }
+
+  action setReducedMotion(enabled) {
+    state.reducedMotion = enabled
+    animation.setGlobalDuration(enabled ? 0 : 300)
+    particles.setEnabled(!enabled)
+    save_prefs()
+    announce("Reduced motion " + (enabled ? "enabled" : "disabled"))
+  }
+
+  action setHighContrast(enabled) {
+    state.highContrast = enabled
+    theme.setContrast(enabled ? "high" : "normal")
+    save_prefs()
+    announce("High contrast " + (enabled ? "enabled" : "disabled"))
+  }
+
+  action setFontSize(size) {
+    state.fontSize = size
+    ui.setGlobalFontSize(size)
+    save_prefs()
+  }
+
+  action setCaptions(enabled) {
+    state.captionsEnabled = enabled
+    audio.setCaptionsEnabled(enabled)
+    save_prefs()
+    announce("Captions " + (enabled ? "enabled" : "disabled"))
+  }
+
+  action setColorBlindMode(mode) {
+    state.colorBlindMode = mode
+    renderer.setColorBlindFilter(mode)
+    save_prefs()
+    if (mode != "none") {
+      announce("Color blind mode: " + mode)
+    }
+  }
+
+  action setHapticFeedback(enabled) {
+    state.hapticFeedback = enabled
+    haptic.setEnabled(enabled)
+    save_prefs()
+  }
+
+  action announce(message, priority = "polite") {
+    if (state.screenReaderEnabled) {
+      screenReader.announce(message, priority)
+    }
+  }
+
+  // Keyboard shortcuts for accessibility
+  keyboard {
+    "?": () -> ui.showModal("KeyboardShortcuts")
+    "Alt+m": () -> setReducedMotion(!state.reducedMotion)
+    "Alt+h": () -> setHighContrast(!state.highContrast)
+    "Alt+c": () -> setCaptions(!state.captionsEnabled)
+    "Tab": () -> ui.focusNext()
+    "Shift+Tab": () -> ui.focusPrev()
+    "Escape": () -> ui.closeModal()
+    "Alt+a": () -> ui.togglePanel("AccessibilitySettings")
+  }
+
+  // Focus management for screen readers
+  on_zone_enter(zone) {
+    announce("Entering " + zone, "assertive")
+  }
+
+  on_modal_open(modal) {
+    announce("Dialog opened: " + modal.title, "assertive")
+    ui.trapFocus(modal)
+  }
+
+  on_modal_close() {
+    ui.releaseFocus()
+  }
+
+  ui {
+    panel "AccessibilitySettings" {
+      @overlay
+      position: "center"
+      style: "glass"
+      width: 400
+      visible: false
+      role: "dialog"
+      aria_label: "Accessibility Settings"
+
+      text "Title" {
+        content: "Accessibility"
+        size: "large"
+        weight: "bold"
+      }
+
+      // Motion
+      row "MotionRow" {
+        label: "Reduced Motion"
+        toggle "ReducedMotion" {
+          checked: state.reducedMotion
+          on_change: (v) -> setReducedMotion(v)
+          aria_label: "Toggle reduced motion"
+        }
+      }
+
+      // Contrast
+      row "ContrastRow" {
+        label: "High Contrast"
+        toggle "HighContrast" {
+          checked: state.highContrast
+          on_change: (v) -> setHighContrast(v)
+          aria_label: "Toggle high contrast"
+        }
+      }
+
+      // Captions
+      row "CaptionsRow" {
+        label: "Captions"
+        toggle "Captions" {
+          checked: state.captionsEnabled
+          on_change: (v) -> setCaptions(v)
+          aria_label: "Toggle captions"
+        }
+      }
+
+      // Haptic feedback (VR)
+      row "HapticRow" {
+        label: "Haptic Feedback"
+        toggle "Haptic" {
+          checked: state.hapticFeedback
+          on_change: (v) -> setHapticFeedback(v)
+          aria_label: "Toggle haptic feedback"
+        }
+      }
+
+      // Font size
+      row "FontRow" {
+        label: "Font Size"
+        select "FontSize" {
+          value: state.fontSize
+          options: ["small", "medium", "large", "extra-large"]
+          on_change: (v) -> setFontSize(v)
+          aria_label: "Select font size"
+        }
+      }
+
+      // Color blind mode
+      row "ColorBlindRow" {
+        label: "Color Blind Mode"
+        select "ColorBlind" {
+          value: state.colorBlindMode
+          options: [
+            { value: "none", label: "None" },
+            { value: "protanopia", label: "Protanopia (Red)" },
+            { value: "deuteranopia", label: "Deuteranopia (Green)" },
+            { value: "tritanopia", label: "Tritanopia (Blue)" }
+          ]
+          on_change: (v) -> setColorBlindMode(v)
+          aria_label: "Select color blind assistance mode"
+        }
+      }
+
+      // Keyboard shortcut hint
+      text "ShortcutsHint" {
+        content: "Press Alt+A to toggle this panel. Press ? for all shortcuts."
+        size: "small"
+        color: "#888888"
+        marginTop: 16
+      }
+    }
+  }
+}

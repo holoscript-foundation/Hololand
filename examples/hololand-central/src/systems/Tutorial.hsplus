@@ -1,0 +1,136 @@
+// src/systems/Tutorial.hsplus
+// Onboarding tutorial — guides new players through Hololand
+system TutorialSystem {
+  state {
+    currentStep: 0
+    completed: false
+    visible: true
+  }
+
+  steps: [
+    {
+      title: "Welcome to Hololand"
+      message: "This is your gateway to the metaverse. A world built in HoloScript."
+      action: "next"
+      highlight: null
+    },
+    {
+      title: "Movement"
+      message: "Use WASD or joystick to move around. Click and drag to look."
+      action: "next"
+      highlight: "controls"
+    },
+    {
+      title: "Interaction"
+      message: "Click on objects to interact. Some can be grabbed in VR!"
+      action: "next"
+      highlight: "Fountain"
+    },
+    {
+      title: "Portals"
+      message: "Walk through glowing portals to visit different zones."
+      action: "next"
+      highlight: "CasinoPortal"
+    },
+    {
+      title: "VR Mode"
+      message: "Click 'Enter VR' to experience full immersion with your headset."
+      action: "next"
+      highlight: "vr_button"
+    },
+    {
+      title: "You're Ready!"
+      message: "Explore, create, and have fun. The metaverse is yours."
+      action: "finish"
+      highlight: null
+    }
+  ]
+
+  on_start {
+    if (storage.get("tutorial_completed")) {
+      state.visible = false
+      state.completed = true
+    }
+  }
+
+  action next() {
+    state.currentStep += 1
+    if (state.currentStep >= steps.length) {
+      finish()
+    } else {
+      const step = steps[state.currentStep]
+      if (step.highlight) {
+        emit("tutorial_highlight", step.highlight)
+      }
+    }
+  }
+
+  action skip() {
+    finish()
+  }
+
+  action finish() {
+    state.visible = false
+    state.completed = true
+    storage.set("tutorial_completed", true)
+    emit("tutorial_complete")
+  }
+
+  action restart() {
+    state.currentStep = 0
+    state.completed = false
+    state.visible = true
+    storage.remove("tutorial_completed")
+  }
+
+  // UI declared in HoloScript, rendered by runtime
+  ui {
+    if (state.visible) {
+      panel "Tutorial" {
+        @overlay
+        position: "center"
+        style: "glass"
+        width: 420
+        padding: 24
+
+        text "StepIndicator" {
+          content: (state.currentStep + 1) + " / " + steps.length
+          size: "small"
+          color: "#888888"
+          align: "right"
+        }
+
+        text "Title" {
+          content: steps[state.currentStep].title
+          size: "large"
+          weight: "bold"
+          color: "#ffffff"
+        }
+
+        text "Message" {
+          content: steps[state.currentStep].message
+          size: "medium"
+          color: "#cccccc"
+          marginTop: 8
+        }
+
+        row "Buttons" {
+          marginTop: 16
+          gap: 12
+
+          button "Next" {
+            label: steps[state.currentStep].action == "finish" ? "Got it!" : "Next →"
+            style: "primary"
+            on_click: next
+          }
+
+          button "Skip" {
+            label: "Skip Tutorial"
+            style: "text"
+            on_click: skip
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,150 @@
+// src/templates/Collectible.hsplus
+// Reusable collectible template — items that can be picked up
+template "Collectible" {
+  @interactive
+  @collidable
+  @glowing
+  @physics
+
+  state {
+    itemId: ""
+    itemName: ""
+    itemType: "generic"    // generic, coin, gem, key, powerup, fragment
+    rarity: "common"       // common, uncommon, rare, epic, legendary
+    collected: false
+    value: 1
+    respawnTime: 0         // 0 = no respawn
+  }
+
+  // Floating bob animation
+  animation float {
+    property: "position.y"
+    from: 0.8
+    to: 1.2
+    duration: 1500
+    loop: infinite
+    easing: "easeInOut"
+  }
+
+  // Slow rotation
+  animation rotate {
+    property: "rotation.y"
+    from: 0
+    to: 360
+    duration: 4000
+    loop: infinite
+    easing: "linear"
+  }
+
+  // Glow based on rarity
+  on_start() {
+    const colors = {
+      common: "#aaaaaa",
+      uncommon: "#00ff88",
+      rare: "#0088ff",
+      epic: "#aa00ff",
+      legendary: "#ffd700"
+    }
+    this.material.emission.color = colors[state.rarity] || "#ffffff"
+    this.material.emission.intensity = state.rarity == "legendary" ? 0.8 : 0.4
+  }
+
+  // Sparkle particles for rare+
+  particles "Sparkle" {
+    enabled: state.rarity != "common" && state.rarity != "uncommon"
+    type: "sparkle"
+    count: state.rarity == "legendary" ? 20 : 10
+    color: this.material.emission.color
+    size: 0.03
+    speed: 0.2
+    lifetime: 1500
+  }
+
+  on_click() {
+    if (!state.collected) {
+      collect()
+    }
+  }
+
+  on_trigger_enter(player) {
+    if (!state.collected) {
+      collect()
+    }
+  }
+
+  action collect() {
+    state.collected = true
+
+    // Visual feedback
+    animation.play("collect_burst", {
+      property: "scale",
+      to: [0, 0, 0],
+      duration: 300,
+      easing: "easeIn"
+    })
+
+    // Audio
+    const sounds = {
+      common: "collect_pop",
+      uncommon: "collect_chime",
+      rare: "collect_sparkle",
+      epic: "collect_magic",
+      legendary: "collect_fanfare"
+    }
+    audio.play(sounds[state.rarity] || "collect_pop")
+
+    // Particles
+    particles.burst("collect_sparkle", this.position, 30)
+
+    // Add to inventory
+    inventory.add({
+      id: state.itemId,
+      name: state.itemName,
+      type: state.itemType,
+      rarity: state.rarity,
+      value: state.value
+    })
+
+    // Notify systems
+    emit("item_collected", {
+      id: state.itemId,
+      type: state.itemType,
+      position: this.position
+    })
+
+    // HUD popup
+    ui.toast(state.itemName + " collected!", {
+      icon: state.itemType,
+      color: this.material.emission.color
+    })
+
+    // Respawn or destroy
+    if (state.respawnTime > 0) {
+      this.visible = false
+      delay(state.respawnTime, () -> {
+        state.collected = false
+        this.visible = true
+        this.scale = [1, 1, 1]
+      })
+    } else {
+      delay(500, () -> {
+        this.destroy()
+      })
+    }
+  }
+
+  onHoverEnter() {
+    this.scale = [1.2, 1.2, 1.2]
+    ui.setCursor("grab")
+    ui.showTooltip(state.itemName, {
+      rarity: state.rarity,
+      type: state.itemType
+    })
+  }
+
+  onHoverExit() {
+    this.scale = [1, 1, 1]
+    ui.setCursor("default")
+    ui.hideTooltip()
+  }
+}

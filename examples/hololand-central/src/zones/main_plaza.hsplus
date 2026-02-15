@@ -1,0 +1,173 @@
+// src/zones/main_plaza.hsplus
+// The central gathering area — first zone players see after landing
+composition "MainPlaza" {
+  environment {
+    skybox: "daytime"
+    ambientLight: 0.4
+    fog: { color: "#87ceeb", near: 50, far: 200 }
+  }
+
+  // ---------- Templates ----------
+
+  template "Ground" {
+    @static
+    type: "plane"
+    size: [100, 100]
+    material: { type: "grass", repeat: [20, 20] }
+  }
+
+  template "Fountain" {
+    @physics
+    @collidable
+    @interactive
+    model: "/models/fountain.glb"
+
+    state {
+      active: true
+      splashCount: 0
+    }
+
+    on_click() {
+      audio.play("water_splash")
+      particles.emit("splash", position)
+      state.splashCount += 1
+    }
+  }
+
+  template "Portal" {
+    @physics
+    @collidable
+    @glowing
+    geometry: "torus"
+    scale: [2, 2, 0.3]
+
+    state {
+      destination: ""
+      label: ""
+    }
+
+    animation pulse {
+      property: "material.emission.intensity"
+      from: 0.4
+      to: 1.0
+      duration: 2000
+      loop: infinite
+      easing: "easeInOut"
+    }
+
+    on_trigger_enter(player) {
+      emit("zone_transition", state.destination)
+      audio.play("portal_whoosh")
+    }
+  }
+
+  template "Bench" {
+    @static
+    @interactive
+    geometry: "cube"
+    scale: [2, 0.5, 0.6]
+    material: { color: "#8B4513" }
+
+    on_click() {
+      player.sit(this.position)
+    }
+  }
+
+  template "Tree" {
+    @static
+    model: "/models/oak_tree.glb"
+    scale: [1.5, 1.5, 1.5]
+  }
+
+  template "Lamp" {
+    @static
+    @glowing
+    model: "/models/street_lamp.glb"
+    emission: { color: "#ffe4b5", intensity: 0.6 }
+  }
+
+  // ---------- Scene Objects ----------
+
+  // Ground
+  object "Ground" using "Ground" {
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+  }
+
+  // Central fountain
+  object "Fountain" using "Fountain" {
+    position: [0, 0, 0]
+  }
+
+  // Portals to other zones
+  spatial_group "Portals" {
+    object "CasinoPortal" using "Portal" {
+      position: [20, 1.5, 0]
+      color: "#ff6600"
+      destination: "Casino"
+      label: "Casino"
+    }
+
+    object "BuilderPortal" using "Portal" {
+      position: [-20, 1.5, 0]
+      color: "#00ff88"
+      destination: "BuilderShop"
+      label: "Builder Shop"
+    }
+
+    object "LoungePortal" using "Portal" {
+      position: [0, 1.5, 20]
+      color: "#8844ff"
+      destination: "SocialLounge"
+      label: "Social Lounge"
+    }
+
+    object "ArcadePortal" using "Portal" {
+      position: [0, 1.5, -20]
+      color: "#ff0088"
+      destination: "Arcade"
+      label: "Arcade"
+    }
+  }
+
+  // Seating
+  spatial_group "Seating" {
+    object "Bench_N" using "Bench" { position: [0, 0.25, -8] }
+    object "Bench_S" using "Bench" { position: [0, 0.25, 8] }
+    object "Bench_E" using "Bench" { position: [8, 0.25, 0]; rotation: [0, 90, 0] }
+    object "Bench_W" using "Bench" { position: [-8, 0.25, 0]; rotation: [0, 90, 0] }
+  }
+
+  // Trees around perimeter
+  spatial_group "Trees" {
+    object "Tree_01" using "Tree" { position: [15, 0, 15] }
+    object "Tree_02" using "Tree" { position: [-15, 0, 15] }
+    object "Tree_03" using "Tree" { position: [15, 0, -15] }
+    object "Tree_04" using "Tree" { position: [-15, 0, -15] }
+    object "Tree_05" using "Tree" { position: [10, 0, -18] }
+    object "Tree_06" using "Tree" { position: [-10, 0, -18] }
+  }
+
+  // Lighting
+  spatial_group "Lamps" {
+    object "Lamp_01" using "Lamp" { position: [6, 0, 6] }
+    object "Lamp_02" using "Lamp" { position: [-6, 0, 6] }
+    object "Lamp_03" using "Lamp" { position: [6, 0, -6] }
+    object "Lamp_04" using "Lamp" { position: [-6, 0, -6] }
+  }
+
+  // NPCs
+  @import "./npcs/plaza_npcs.hsplus"
+
+  // Logic
+  logic {
+    on_player_enter() {
+      audio.playAmbient("plaza_ambience")
+      emit("zone_entered", "MainPlaza")
+    }
+
+    on_player_exit() {
+      audio.stopAmbient()
+    }
+  }
+}

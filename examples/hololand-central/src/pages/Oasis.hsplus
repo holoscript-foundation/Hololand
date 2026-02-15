@@ -1,0 +1,161 @@
+// src/pages/Oasis.hsplus
+// Oasis page — orbital view of the Hololand planet, zone selection from above
+composition "OasisPage" {
+  environment {
+    skybox: "deep_space"
+    ambientLight: 0.3
+    fog: { color: "#000011", near: 200, far: 1000 }
+  }
+
+  template "OrbitalPlanet" {
+    @animated
+    @interactive
+    geometry: "sphere"
+    scale: [30, 30, 30]
+    material: {
+      map: "/textures/planet_surface.jpg"
+      emissiveMap: "/textures/planet_zones.jpg"
+      emissiveIntensity: 0.3
+    }
+
+    animation slowRotate {
+      property: "rotation.y"
+      from: 0
+      to: 360
+      duration: 180000
+      loop: infinite
+      easing: "linear"
+    }
+  }
+
+  template "ZoneMarker" {
+    @billboard
+    @glowing
+    @interactive
+    geometry: "sphere"
+    scale: [0.5, 0.5, 0.5]
+
+    state {
+      zoneName: ""
+      label: ""
+      description: ""
+    }
+
+    animation pulse {
+      property: "material.emission.intensity"
+      from: 0.5
+      to: 1.0
+      duration: 1500
+      loop: infinite
+      easing: "easeInOut"
+    }
+
+    on_click() {
+      app.navigate("Central")
+      app.enterZone(state.zoneName)
+    }
+
+    onHoverEnter() {
+      this.scale = [0.7, 0.7, 0.7]
+      ui.showTooltip(state.label + "\n" + state.description)
+    }
+
+    onHoverExit() {
+      this.scale = [0.5, 0.5, 0.5]
+      ui.hideTooltip()
+    }
+  }
+
+  template "OrbitRing" {
+    @static
+    geometry: "torus"
+    scale: [35, 35, 0.1]
+    rotation: [90, 0, 0]
+    material: { color: "#00ffff", opacity: 0.15, transparent: true }
+  }
+
+  // ---------- Scene ----------
+
+  object "Planet" using "OrbitalPlanet" {
+    position: [0, -10, -60]
+  }
+
+  object "Ring" using "OrbitRing" {
+    position: [0, -10, -60]
+  }
+
+  // Zone markers on the planet surface
+  spatial_group "ZoneMarkers" {
+    object "PlazaMarker" using "ZoneMarker" {
+      position: [0, -3, -42]
+      color: "#00ff88"
+      zoneName: "MainPlaza"
+      label: "Main Plaza"
+      description: "Central gathering area"
+    }
+
+    object "CasinoMarker" using "ZoneMarker" {
+      position: [8, -5, -48]
+      color: "#ff6600"
+      zoneName: "Casino"
+      label: "Casino"
+      description: "Games of chance and fortune"
+    }
+
+    object "BuilderMarker" using "ZoneMarker" {
+      position: [-8, -5, -48]
+      color: "#00ff88"
+      zoneName: "BuilderShop"
+      label: "Builder Shop"
+      description: "Create and craft"
+    }
+
+    object "LoungeMarker" using "ZoneMarker" {
+      position: [5, -8, -55]
+      color: "#8844ff"
+      zoneName: "SocialLounge"
+      label: "Social Lounge"
+      description: "Hang out and chat"
+    }
+
+    object "ArcadeMarker" using "ZoneMarker" {
+      position: [-5, -8, -55]
+      color: "#ff0088"
+      zoneName: "Arcade"
+      label: "Arcade"
+      description: "Competitive games"
+    }
+  }
+
+  // UI
+  ui {
+    row "OasisHeader" {
+      position: "top-center"
+      marginTop: 20
+
+      text "Title" {
+        content: "HOLOLAND — ORBITAL VIEW"
+        size: "large"
+        color: "#00ffff"
+        weight: "bold"
+      }
+    }
+
+    button "Back" {
+      position: "top-left"
+      offset: [20, 20]
+      label: "← Back"
+      style: "text"
+      on_click: () -> app.navigate("Landing")
+    }
+
+    button "Descend" {
+      position: "bottom-center"
+      offset: [0, 40]
+      label: "Descend to Central"
+      style: "hero"
+      color: "#00ffff"
+      on_click: () -> app.navigate("Central")
+    }
+  }
+}

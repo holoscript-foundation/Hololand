@@ -1,0 +1,167 @@
+// src/templates/NPC.hsplus
+// Reusable NPC template — talkable, animated, patrol-capable
+template "NPC" {
+  @interactive
+  @collidable
+  @animated
+  @spatial_audio
+  geometry: "humanoid"
+  scale: [1, 1, 1]
+
+  state {
+    name: ""
+    role: ""
+    dialogue: []
+    dialogueIndex: 0
+    isInteracting: false
+    patrolPath: []
+    patrolIndex: 0
+    patrolSpeed: 1.0
+    isPatrolling: true
+    mood: "neutral"      // neutral, happy, angry, sad, excited
+    idleAnimation: "idle"
+  }
+
+  // Idle animation
+  animation idle {
+    property: "model.animation"
+    clip: "idle"
+    loop: infinite
+  }
+
+  // Walk animation (while patrolling)
+  animation walk {
+    property: "model.animation"
+    clip: "walk"
+    loop: infinite
+  }
+
+  // Talk animation (during dialogue)
+  animation talk {
+    property: "model.animation"
+    clip: "talk"
+    loop: infinite
+  }
+
+  // Name tag above head
+  child "NameTag" {
+    @billboard
+    geometry: "plane"
+    position: [0, 2.2, 0]
+    scale: [1.5, 0.3, 1]
+    text: state.name
+    textColor: "#ffffff"
+    textSize: "small"
+    material: { transparent: true, opacity: 0 }
+  }
+
+  // Role badge
+  child "RoleBadge" {
+    @billboard
+    geometry: "plane"
+    position: [0, 2.5, 0]
+    scale: [1, 0.2, 1]
+    text: state.role
+    textColor: "#aaaaaa"
+    textSize: "tiny"
+    material: { transparent: true, opacity: 0 }
+  }
+
+  // Interaction
+  on_click() {
+    if (!state.isInteracting && state.dialogue.length > 0) {
+      startDialogue()
+    } else if (state.isInteracting) {
+      advanceDialogue()
+    }
+  }
+
+  action startDialogue() {
+    state.isInteracting = true
+    state.isPatrolling = false
+    state.dialogueIndex = 0
+    animation.play("talk")
+
+    // Face the player
+    this.lookAt(player.position)
+
+    ui.show("DialoguePanel", {
+      npc: this,
+      text: state.dialogue[0].text,
+      speaker: state.name,
+      options: state.dialogue[0].options || null
+    })
+
+    audio.play("npc_greet", { spatial: true, position: this.position })
+  }
+
+  action advanceDialogue() {
+    state.dialogueIndex += 1
+    if (state.dialogueIndex >= state.dialogue.length) {
+      endDialogue()
+    } else {
+      const line = state.dialogue[state.dialogueIndex]
+      ui.update("DialoguePanel", {
+        text: line.text,
+        options: line.options || null
+      })
+    }
+  }
+
+  action endDialogue() {
+    state.isInteracting = false
+    state.isPatrolling = true
+    state.dialogueIndex = 0
+    animation.play("idle")
+    ui.hide("DialoguePanel")
+  }
+
+  action selectOption(optionId) {
+    const line = state.dialogue[state.dialogueIndex]
+    if (line.options) {
+      const option = line.options.find(o -> o.id == optionId)
+      if (option && option.action) {
+        option.action()
+      }
+      if (option && option.next != null) {
+        state.dialogueIndex = option.next
+        const nextLine = state.dialogue[state.dialogueIndex]
+        ui.update("DialoguePanel", {
+          text: nextLine.text,
+          options: nextLine.options || null
+        })
+      } else {
+        endDialogue()
+      }
+    }
+  }
+
+  // Patrol behavior
+  on_update(dt) {
+    if (state.isPatrolling && state.patrolPath.length > 1) {
+      const target = state.patrolPath[state.patrolIndex]
+      const dist = distance(this.position, target)
+
+      if (dist < 0.5) {
+        state.patrolIndex = (state.patrolIndex + 1) % state.patrolPath.length
+      } else {
+        const dir = normalize(subtract(target, this.position))
+        this.position = add(this.position, scale(dir, state.patrolSpeed * dt))
+        this.lookAt(target)
+        animation.play("walk")
+      }
+    }
+  }
+
+  onHoverEnter() {
+    this.child("NameTag").material.opacity = 1
+    this.child("RoleBadge").material.opacity = 1
+    ui.setCursor("talk")
+  }
+
+  onHoverExit() {
+    this.child("NameTag").material.opacity = 0
+    this.child("RoleBadge").material.opacity = 0
+    ui.setCursor("default")
+  }
+}

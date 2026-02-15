@@ -1,0 +1,72 @@
+// Main application entry point - HoloScript-first architecture
+// TypeScript is ONLY the bootstrap layer (main.ts). Everything else is HoloScript.
+import { TutorialSystem } from "./systems/Tutorial.hsplus"
+import { EasterEggSystem } from "./systems/EasterEggs.hsplus"
+import { ThemeSystem } from "./systems/Themes.hsplus"
+import { MultiplayerSystem } from "./systems/Multiplayer.hsplus"
+import { AccessibilitySystem } from "./systems/Accessibility.hsplus"
+
+composition "HololandCentral" {
+  config {
+    title: "Hololand Central"
+    version: "1.0.0"
+    renderMode: "progressive"  // desktop → VR
+    defaultTheme: "cyberpunk"
+    maxPlayers: 32
+  }
+
+  // Global systems (always active)
+  system TutorialSystem
+  system EasterEggSystem
+  system ThemeSystem
+  system MultiplayerSystem
+  system AccessibilitySystem
+
+  // Global state
+  state {
+    currentPage: "Landing"
+    currentZone: null
+    playerProfile: null
+    vrEnabled: false
+  }
+
+  // Entry flow — pages manage zone transitions
+  page "Landing" {
+    include "./pages/Landing.hsplus"
+  }
+
+  page "Oasis" {
+    include "./pages/Oasis.hsplus"
+  }
+
+  page "Central" {
+    include "./pages/Central.hsplus"
+  }
+
+  // Navigation
+  action navigate(pageName) {
+    state.currentPage = pageName
+    emit("page_change", pageName)
+  }
+
+  action enterZone(zoneName) {
+    state.currentZone = zoneName
+    emit("zone_enter", zoneName)
+  }
+
+  action leaveZone() {
+    const prev = state.currentZone
+    state.currentZone = null
+    emit("zone_leave", prev)
+  }
+
+  // VR toggle
+  action toggleVR() {
+    state.vrEnabled = !state.vrEnabled
+    if (state.vrEnabled) {
+      xr.requestSession("immersive-vr")
+    } else {
+      xr.endSession()
+    }
+  }
+}

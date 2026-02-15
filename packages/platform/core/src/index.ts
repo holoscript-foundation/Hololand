@@ -94,3 +94,23 @@ export * from './TraitContextFactory';
 export * from './TraitRuntimeIntegration';
 export * from './PlatformRuntime';
 export * from './holoscript';
+
+// Phase 5: Self-Building World — Hot-reload & Git integration
+export {
+  HoloScriptHotReloader,
+  createHotReloader,
+  type HotReloaderConfig,
+  type FileChange,
+  type PatchResult,
+  type HotReloaderStats,
+} from './HoloScriptHotReloader';
+
+export {
+  VRGitIntegration,
+  createVRGitIntegration,
+  type GitConfig,
+  type CommitInfo,
+  type GitOperationResult,
+  type RollbackResult,
+  type SnapshotResult,
+} from './VRGitIntegration';

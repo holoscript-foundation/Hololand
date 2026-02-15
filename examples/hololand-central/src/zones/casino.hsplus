@@ -1,0 +1,156 @@
+// src/zones/casino.hsplus
+// The Casino exterior and lobby — glamour, neon, and chance
+composition "Casino" {
+  environment {
+    skybox: "night_neon"
+    ambientLight: 0.2
+    fog: { color: "#1a0033", near: 30, far: 150 }
+  }
+
+  template "CasinoBuilding" {
+    @static
+    @collidable
+    model: "/models/casino_exterior.glb"
+    scale: [3, 3, 3]
+    emission: { color: "#ff00ff", intensity: 0.3 }
+  }
+
+  template "NeonSign" {
+    @static
+    @glowing
+    @billboard
+    geometry: "plane"
+    material: { emissive: true }
+
+    animation flicker {
+      property: "material.emission.intensity"
+      from: 0.7
+      to: 1.0
+      duration: 500
+      loop: infinite
+      easing: "easeInOut"
+    }
+  }
+
+  template "SlotMachine" {
+    @interactive
+    @physics
+    model: "/models/slot_machine.glb"
+
+    state {
+      spinning: false
+      credits: 100
+      lastResult: null
+    }
+
+    on_click() {
+      if (!state.spinning && state.credits > 0) {
+        state.spinning = true
+        state.credits -= 1
+        audio.play("slot_pull")
+
+        delay(2000, () -> {
+          state.lastResult = random.pick(["cherry", "bar", "seven", "lemon", "star"])
+          state.spinning = false
+
+          if (state.lastResult == "seven") {
+            state.credits += 50
+            audio.play("jackpot")
+            particles.emit("confetti", this.position)
+          }
+        })
+      }
+    }
+  }
+
+  template "RouletteTable" {
+    @interactive
+    @physics
+    @collidable
+    model: "/models/roulette_table.glb"
+
+    state {
+      spinning: false
+      result: null
+      bets: []
+    }
+
+    on_click() {
+      if (!state.spinning) {
+        state.spinning = true
+        audio.play("roulette_spin")
+
+        delay(5000, () -> {
+          state.result = random.int(0, 36)
+          state.spinning = false
+          audio.play("ball_drop")
+          emit("roulette_result", state.result)
+        })
+      }
+    }
+  }
+
+  // ---------- Scene Objects ----------
+
+  object "Building" using "CasinoBuilding" {
+    position: [0, 0, 0]
+  }
+
+  // Neon signage
+  spatial_group "Signs" {
+    object "MainSign" using "NeonSign" {
+      position: [0, 12, -25]
+      scale: [8, 2, 1]
+      color: "#ff00ff"
+      text: "HOLOLAND CASINO"
+    }
+
+    object "EnterSign" using "NeonSign" {
+      position: [0, 4, -20]
+      scale: [3, 1, 1]
+      color: "#00ffff"
+      text: "ENTER"
+    }
+  }
+
+  // Gaming floor
+  spatial_group "GamingFloor" {
+    object "Slot_01" using "SlotMachine" { position: [-8, 0, 5] }
+    object "Slot_02" using "SlotMachine" { position: [-8, 0, 8] }
+    object "Slot_03" using "SlotMachine" { position: [-8, 0, 11] }
+    object "Slot_04" using "SlotMachine" { position: [-5, 0, 5] }
+    object "Slot_05" using "SlotMachine" { position: [-5, 0, 8] }
+    object "Slot_06" using "SlotMachine" { position: [-5, 0, 11] }
+
+    object "Roulette_01" using "RouletteTable" { position: [5, 0, 8] }
+    object "Roulette_02" using "RouletteTable" { position: [10, 0, 8] }
+  }
+
+  // Portal back to plaza
+  object "PlazaPortal" {
+    @collidable
+    @glowing
+    geometry: "torus"
+    position: [0, 1.5, -25]
+    color: "#00ffff"
+    scale: [2, 2, 0.3]
+
+    on_trigger_enter(player) {
+      emit("zone_transition", "MainPlaza")
+    }
+  }
+
+  // Casino NPCs
+  @import "./npcs/casino_npcs.hsplus"
+
+  logic {
+    on_player_enter() {
+      audio.playAmbient("casino_ambience")
+      emit("zone_entered", "Casino")
+    }
+
+    on_player_exit() {
+      audio.stopAmbient()
+    }
+  }
+}

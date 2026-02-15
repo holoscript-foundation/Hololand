@@ -1,0 +1,163 @@
+// src/ui/Modals.hsplus
+// Reusable modal dialogs — reward popups, confirmations, info panels
+component ConfirmModal {
+  props {
+    title: ""
+    message: ""
+    confirmLabel: "Confirm"
+    cancelLabel: "Cancel"
+    onConfirm: null
+    onCancel: null
+  }
+
+  ui {
+    panel "ConfirmDialog" {
+      @overlay
+      position: "center"
+      style: "glass"
+      width: 380
+      role: "alertdialog"
+      aria_label: props.title
+
+      text "Title" {
+        content: props.title
+        size: "large"
+        weight: "bold"
+      }
+
+      text "Message" {
+        content: props.message
+        size: "medium"
+        color: "#cccccc"
+        marginTop: 8
+      }
+
+      row "Buttons" {
+        marginTop: 20
+        gap: 12
+        justify: "flex-end"
+
+        button "Cancel" {
+          label: props.cancelLabel
+          style: "secondary"
+          on_click: props.onCancel
+        }
+
+        button "Confirm" {
+          label: props.confirmLabel
+          style: "primary"
+          on_click: props.onConfirm
+        }
+      }
+    }
+  }
+}
+
+component EasterEggRewardModal {
+  props {
+    reward: null
+    onClose: null
+  }
+
+  ui {
+    if (props.reward) {
+      panel "RewardDialog" {
+        @overlay
+        position: "center"
+        style: "reward"
+        width: 360
+        role: "dialog"
+        aria_label: "Easter Egg Found!"
+
+        text "Title" {
+          content: "🥚 Easter Egg Found!"
+          size: "large"
+          weight: "bold"
+          color: "#ffd700"
+          align: "center"
+        }
+
+        text "RewardName" {
+          content: props.reward.name
+          size: "xlarge"
+          weight: "bold"
+          align: "center"
+          marginTop: 12
+        }
+
+        text "RewardType" {
+          content: props.reward.type
+          size: "small"
+          color: "#aaaaaa"
+          align: "center"
+        }
+
+        text "Rarity" {
+          content: props.reward.rarity
+          size: "medium"
+          color: rarityColor(props.reward.rarity)
+          weight: "bold"
+          align: "center"
+          marginTop: 4
+        }
+
+        button "Close" {
+          label: "Awesome!"
+          style: "primary"
+          marginTop: 20
+          on_click: props.onClose
+        }
+      }
+    }
+  }
+}
+
+component InfoModal {
+  props {
+    title: ""
+    content: ""
+    onClose: null
+  }
+
+  ui {
+    panel "InfoDialog" {
+      @overlay
+      position: "center"
+      style: "glass"
+      width: 420
+      role: "dialog"
+      aria_label: props.title
+
+      text "Title" {
+        content: props.title
+        size: "large"
+        weight: "bold"
+      }
+
+      text "Content" {
+        content: props.content
+        size: "medium"
+        color: "#cccccc"
+        marginTop: 8
+        whiteSpace: "pre-wrap"
+      }
+
+      button "Close" {
+        label: "Close"
+        style: "secondary"
+        marginTop: 16
+        on_click: props.onClose
+      }
+    }
+  }
+}
+
+// Utility function for rarity colors
+function rarityColor(rarity) {
+  if (rarity == "common") { return "#aaaaaa" }
+  if (rarity == "uncommon") { return "#00ff88" }
+  if (rarity == "rare") { return "#0088ff" }
+  if (rarity == "epic") { return "#aa00ff" }
+  if (rarity == "legendary") { return "#ffd700" }
+  return "#ffffff"
+}

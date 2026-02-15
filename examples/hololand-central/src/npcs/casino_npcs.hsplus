@@ -1,0 +1,109 @@
+// src/npcs/casino_npcs.hsplus
+// NPCs for the Casino zone
+import { NPC } from "../templates/NPC.hsplus"
+
+// Casino host — welcomes players, explains games
+object "CasinoHost" using "NPC" {
+  position: [0, 0, -18]
+  name: "Ace"
+  role: "Casino Host"
+  model: "/models/npc_dealer.glb"
+  color: "#ff6600"
+
+  patrolPath: [[0, 0, -18], [5, 0, -15], [0, 0, -12], [-5, 0, -15]]
+  patrolSpeed: 0.5
+
+  dialogue: [
+    {
+      text: "Welcome to the Hololand Casino! 🎰 Feeling lucky tonight?"
+      options: [
+        { id: "slots", label: "How do the slots work?", next: 1 },
+        { id: "roulette", label: "Tell me about roulette", next: 2 },
+        { id: "vip", label: "Is there a VIP area?", next: 3 },
+        { id: "play", label: "Let me play!", next: 4 }
+      ]
+    },
+    {
+      text: "Simple! Walk up to any slot machine and click it. Each spin costs 1 credit. Hit three 7s and you win the jackpot — 50 credits! 🎰"
+      options: [
+        { id: "more", label: "What else can I play?", next: 2 },
+        { id: "go", label: "I'll try it!", next: 4 }
+      ]
+    },
+    {
+      text: "Roulette is our crown jewel! Place your bets, watch the wheel spin, and hope for your number. The payouts can be huge! 🎡"
+    },
+    {
+      text: "The VIP lounge opens when you've won 500+ credits total. High-stakes tables, exclusive cosmetics, and... a secret or two. 😏"
+    },
+    {
+      text: "That's the spirit! Good luck out there. Remember — the house always wins... usually. 😉"
+    }
+  ]
+}
+
+// Bartender — serves drinks, shares gossip
+object "Bartender" using "NPC" {
+  position: [12, 0, 5]
+  name: "Jinx"
+  role: "Bartender"
+  model: "/models/npc_bartender.glb"
+  color: "#00ffaa"
+
+  patrolPath: []
+  patrolSpeed: 0
+
+  dialogue: [
+    {
+      text: "What'll it be? Virtual drinks, on the house! I also know a thing or two about this place..."
+      options: [
+        { id: "drink", label: "I'll have a drink", next: 1 },
+        { id: "gossip", label: "Got any gossip?", next: 2 },
+        { id: "secret", label: "Any secrets?", next: 3 }
+      ]
+    },
+    {
+      text: "Here you go — a Neon Sunrise! 🍹 It changes color every few seconds. Cheers!",
+      action: () -> {
+        inventory.add({ id: "neon_sunrise", name: "Neon Sunrise", type: "consumable" })
+      }
+    },
+    {
+      text: "Word is, there's a hidden room behind the roulette tables. Something about clicking the tables in the right order... but I didn't tell you that. 🤫"
+    },
+    {
+      text: "Let's just say... if you visit between midnight and 5 AM, you might find something the daytime crowd never sees. Night owl perks! 🦉"
+    }
+  ]
+}
+
+// Lucky Cat — mascot NPC, gives random tips
+object "LuckyCat" using "NPC" {
+  position: [-10, 0, 10]
+  name: "Felix"
+  role: "Lucky Mascot"
+  model: "/models/npc_cat.glb"
+  color: "#ffd700"
+  scale: [0.8, 0.8, 0.8]
+
+  patrolPath: [[-10, 0, 10], [-8, 0, 12], [-6, 0, 10], [-8, 0, 8]]
+  patrolSpeed: 0.6
+
+  dialogue: [
+    {
+      text: "Meow! 🐱 Felix brings luck to all! Click me for a fortune..."
+      options: [
+        { id: "fortune", label: "Tell me my fortune!", next: 1 }
+      ]
+    },
+    {
+      text: random.pick([
+        "The stars say... try the third slot machine from the left. Just a feeling! ⭐",
+        "Felix senses rare treasure near the fountain in the plaza! Go look! 💎",
+        "Tonight is YOUR night! The roulette wheel favors the bold! 🎡",
+        "Psst... there's a collectible hiding in the arcade. Felix has spoken! 🕹️",
+        "The Builder Shop has a secret blueprint. Only the curious find it! 🔧"
+      ])
+    }
+  ]
+}

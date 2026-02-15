@@ -1,0 +1,128 @@
+// src/systems/Themes.hsplus
+// Visual theme system — changes the look and feel of all zones
+system ThemeSystem {
+  state {
+    currentTheme: "cyberpunk"
+  }
+
+  themes: {
+    cyberpunk: {
+      name: "Cyberpunk Station"
+      skyColor: "#1a0a2e"
+      accentColor: "#ff00ff"
+      fogColor: "#2a0a4e"
+      ambientLight: 0.3
+      neonGlow: true
+      particles: "data_rain"
+    },
+    western: {
+      name: "Wild West Frontier"
+      skyColor: "#f4a460"
+      accentColor: "#8b4513"
+      fogColor: "#d2b48c"
+      ambientLight: 0.6
+      dust: true
+      particles: "tumbleweeds"
+    },
+    urban: {
+      name: "Urban Cityscape"
+      skyColor: "#1a1a2e"
+      accentColor: "#00ffff"
+      fogColor: "#2a2a4e"
+      ambientLight: 0.4
+      rain: false
+      particles: "city_lights"
+    },
+    snowy: {
+      name: "Snowy Village"
+      skyColor: "#e8e8e8"
+      accentColor: "#ff6b6b"
+      fogColor: "#ffffff"
+      ambientLight: 0.7
+      snow: true
+      particles: "snowflakes"
+    },
+    tropical: {
+      name: "Tropical Paradise"
+      skyColor: "#87ceeb"
+      accentColor: "#32cd32"
+      fogColor: "#98fb98"
+      ambientLight: 0.8
+      palms: true
+      particles: "fireflies"
+    }
+  }
+
+  action setTheme(themeName) {
+    if (themes[themeName]) {
+      state.currentTheme = themeName
+      apply_theme(themes[themeName])
+      storage.set("selected_theme", themeName)
+      emit("theme_changed", themeName)
+    }
+  }
+
+  action apply_theme(theme) {
+    environment.setSkyColor(theme.skyColor)
+    environment.setFogColor(theme.fogColor)
+    environment.setAmbientLight(theme.ambientLight)
+
+    // Apply accent color to all @glowing objects
+    scene.query("@glowing").forEach(obj -> {
+      obj.material.emission.color = theme.accentColor
+    })
+
+    // Particle effects
+    if (theme.particles) {
+      particles.setGlobal(theme.particles)
+    }
+
+    // Weather effects
+    if (theme.snow) { weather.enable("snow") }
+    else if (theme.rain) { weather.enable("rain") }
+    else if (theme.dust) { weather.enable("dust") }
+    else { weather.disable() }
+  }
+
+  action cycleTheme() {
+    const names = Object.keys(themes)
+    const idx = names.indexOf(state.currentTheme)
+    const next = names[(idx + 1) % names.length]
+    setTheme(next)
+  }
+
+  action getThemeNames() {
+    return Object.keys(themes)
+  }
+
+  action getCurrentTheme() {
+    return themes[state.currentTheme]
+  }
+
+  on_start {
+    const saved = storage.get("selected_theme")
+    if (saved && themes[saved]) {
+      setTheme(saved)
+    } else {
+      apply_theme(themes[state.currentTheme])
+    }
+  }
+
+  ui {
+    panel "ThemePicker" {
+      @overlay
+      position: "bottom-left"
+      style: "compact"
+      visible: false
+
+      for (name, theme in themes) {
+        button name {
+          label: theme.name
+          color: theme.accentColor
+          active: state.currentTheme == name
+          on_click: () -> setTheme(name)
+        }
+      }
+    }
+  }
+}

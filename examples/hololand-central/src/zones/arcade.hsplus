@@ -1,0 +1,184 @@
+// src/zones/arcade.hsplus
+// The Arcade — retro games, leaderboards, competitive fun
+composition "Arcade" {
+  environment {
+    skybox: "neon_grid"
+    ambientLight: 0.15
+    fog: { color: "#0a0020", near: 20, far: 100 }
+  }
+
+  template "ArcadeCabinet" {
+    @interactive
+    @collidable
+    @glowing
+    model: "/models/arcade_cabinet.glb"
+
+    state {
+      gameName: ""
+      highScore: 0
+      isPlaying: false
+      currentScore: 0
+    }
+
+    animation screenGlow {
+      property: "material.emission.intensity"
+      from: 0.5
+      to: 0.8
+      duration: 1500
+      loop: infinite
+      easing: "easeInOut"
+    }
+
+    on_click() {
+      if (!state.isPlaying) {
+        state.isPlaying = true
+        state.currentScore = 0
+        ui.show("ArcadeGame", { game: state.gameName, cabinet: this })
+        audio.play("coin_insert")
+      }
+    }
+  }
+
+  template "Leaderboard" {
+    @billboard
+    @glowing
+    geometry: "plane"
+    scale: [2, 3, 0.05]
+    material: { color: "#000033", emissive: true }
+
+    state {
+      scores: []
+      gameName: ""
+    }
+
+    on_start() {
+      state.scores = storage.get("leaderboard_" + state.gameName) || []
+    }
+  }
+
+  template "PrizeMachine" {
+    @interactive
+    @glowing
+    model: "/models/prize_machine.glb"
+
+    state {
+      tickets: 0
+      prizes: [
+        { name: "Neon Hat", cost: 10 },
+        { name: "Pixel Sword", cost: 25 },
+        { name: "Retro Pet", cost: 50 },
+        { name: "Arcade Crown", cost: 100 }
+      ]
+    }
+
+    on_click() {
+      ui.show("PrizeShop", { machine: this })
+    }
+  }
+
+  template "NeonTube" {
+    @static
+    @glowing
+    geometry: "cylinder"
+    scale: [0.05, 3, 0.05]
+    material: { emissive: true }
+
+    animation pulse {
+      property: "material.emission.intensity"
+      from: 0.6
+      to: 1.0
+      duration: 1000
+      loop: infinite
+      easing: "easeInOut"
+    }
+  }
+
+  // ---------- Scene Objects ----------
+
+  // Arcade cabinets — row 1
+  spatial_group "Row1" {
+    object "Cabinet_SpaceBlaster" using "ArcadeCabinet" {
+      position: [-10, 0, -5]
+      gameName: "Space Blaster"
+    }
+
+    object "Cabinet_PixelRacer" using "ArcadeCabinet" {
+      position: [-7, 0, -5]
+      gameName: "Pixel Racer"
+    }
+
+    object "Cabinet_DungeonCrawl" using "ArcadeCabinet" {
+      position: [-4, 0, -5]
+      gameName: "Dungeon Crawl"
+    }
+  }
+
+  // Arcade cabinets — row 2
+  spatial_group "Row2" {
+    object "Cabinet_HoloPong" using "ArcadeCabinet" {
+      position: [-10, 0, 0]
+      gameName: "Holo Pong"
+    }
+
+    object "Cabinet_BlockStack" using "ArcadeCabinet" {
+      position: [-7, 0, 0]
+      gameName: "Block Stack"
+    }
+
+    object "Cabinet_CyberRun" using "ArcadeCabinet" {
+      position: [-4, 0, 0]
+      gameName: "Cyber Run"
+    }
+  }
+
+  // Leaderboard displays
+  spatial_group "Leaderboards" {
+    object "LB_SpaceBlaster" using "Leaderboard" {
+      position: [5, 2, -5]
+      gameName: "Space Blaster"
+    }
+
+    object "LB_PixelRacer" using "Leaderboard" {
+      position: [5, 2, 0]
+      gameName: "Pixel Racer"
+    }
+  }
+
+  // Prize corner
+  object "PrizeMachine" using "PrizeMachine" {
+    position: [8, 0, 5]
+  }
+
+  // Neon decorations
+  spatial_group "NeonDecor" {
+    object "Neon_01" using "NeonTube" { position: [-12, 0, -8]; color: "#ff00ff" }
+    object "Neon_02" using "NeonTube" { position: [-12, 0, 3]; color: "#00ffff" }
+    object "Neon_03" using "NeonTube" { position: [3, 0, -8]; color: "#ff6600" }
+    object "Neon_04" using "NeonTube" { position: [3, 0, 3]; color: "#00ff88" }
+  }
+
+  // Portal back
+  object "PlazaPortal" {
+    @collidable
+    @glowing
+    geometry: "torus"
+    position: [0, 1.5, -12]
+    color: "#ff0088"
+    scale: [2, 2, 0.3]
+
+    on_trigger_enter(player) {
+      emit("zone_transition", "MainPlaza")
+    }
+  }
+
+  logic {
+    on_player_enter() {
+      audio.playAmbient("arcade_ambience")
+      emit("zone_entered", "Arcade")
+    }
+
+    on_player_exit() {
+      audio.stopAmbient()
+    }
+  }
+}

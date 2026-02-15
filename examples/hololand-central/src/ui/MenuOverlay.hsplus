@@ -1,0 +1,167 @@
+// src/ui/MenuOverlay.hsplus
+// Main menu overlay — settings, profile, navigation
+component MenuOverlay {
+  props {
+    visible: false
+  }
+
+  state {
+    activeTab: "navigation"
+  }
+
+  ui {
+    if (props.visible) {
+      panel "MenuOverlay" {
+        @overlay
+        position: "center"
+        style: "glass"
+        width: 500
+        maxHeight: "80vh"
+        role: "dialog"
+        aria_label: "Main Menu"
+
+        // Header
+        row "Header" {
+          justify: "space-between"
+          align: "center"
+
+          text "Title" {
+            content: "Hololand"
+            size: "large"
+            weight: "bold"
+            color: "#ffffff"
+          }
+
+          button "Close" {
+            icon: "close"
+            style: "icon"
+            on_click: () -> ui.hidePanel("MenuOverlay")
+            aria_label: "Close menu"
+          }
+        }
+
+        // Tab bar
+        row "Tabs" {
+          gap: 4
+          marginTop: 12
+
+          button "NavTab" {
+            label: "Navigate"
+            style: state.activeTab == "navigation" ? "primary" : "text"
+            on_click: () -> state.activeTab = "navigation"
+          }
+
+          button "SettingsTab" {
+            label: "Settings"
+            style: state.activeTab == "settings" ? "primary" : "text"
+            on_click: () -> state.activeTab = "settings"
+          }
+
+          button "ProfileTab" {
+            label: "Profile"
+            style: state.activeTab == "profile" ? "primary" : "text"
+            on_click: () -> state.activeTab = "profile"
+          }
+        }
+
+        divider { marginTop: 12 }
+
+        // Navigation tab
+        if (state.activeTab == "navigation") {
+          column "NavContent" {
+            gap: 8
+            marginTop: 12
+
+            button "GoPlaza" {
+              label: "🌳 Main Plaza"
+              style: "menu-item"
+              on_click: () -> { emit("zone_transition", "MainPlaza"); ui.hidePanel("MenuOverlay") }
+            }
+
+            button "GoCasino" {
+              label: "🎰 Casino"
+              style: "menu-item"
+              on_click: () -> { emit("zone_transition", "Casino"); ui.hidePanel("MenuOverlay") }
+            }
+
+            button "GoBuilder" {
+              label: "🔧 Builder Shop"
+              style: "menu-item"
+              on_click: () -> { emit("zone_transition", "BuilderShop"); ui.hidePanel("MenuOverlay") }
+            }
+
+            button "GoLounge" {
+              label: "🛋️ Social Lounge"
+              style: "menu-item"
+              on_click: () -> { emit("zone_transition", "SocialLounge"); ui.hidePanel("MenuOverlay") }
+            }
+
+            button "GoArcade" {
+              label: "🕹️ Arcade"
+              style: "menu-item"
+              on_click: () -> { emit("zone_transition", "Arcade"); ui.hidePanel("MenuOverlay") }
+            }
+          }
+        }
+
+        // Settings tab
+        if (state.activeTab == "settings") {
+          column "SettingsContent" {
+            gap: 12
+            marginTop: 12
+
+            row "ThemeRow" {
+              label: "Theme"
+              select "ThemeSelect" {
+                value: ThemeSystem.state.currentTheme
+                options: ThemeSystem.getThemeNames()
+                on_change: (v) -> ThemeSystem.setTheme(v)
+              }
+            }
+
+            row "AudioRow" {
+              label: "Master Volume"
+              slider "Volume" {
+                min: 0
+                max: 100
+                value: audio.getMasterVolume() * 100
+                on_change: (v) -> audio.setMasterVolume(v / 100)
+              }
+            }
+
+            button "Accessibility" {
+              label: "♿ Accessibility Settings"
+              style: "menu-item"
+              on_click: () -> ui.togglePanel("AccessibilitySettings")
+            }
+          }
+        }
+
+        // Profile tab
+        if (state.activeTab == "profile") {
+          column "ProfileContent" {
+            gap: 12
+            marginTop: 12
+
+            text "Username" {
+              content: player.name || "Guest"
+              size: "large"
+              weight: "bold"
+            }
+
+            text "EggProgress" {
+              content: "Easter Eggs: " + EasterEggSystem.getProgress().discovered + " / " + EasterEggSystem.getProgress().total
+              size: "medium"
+            }
+
+            text "Zone" {
+              content: "Current Zone: " + (app.state.currentZone || "None")
+              size: "small"
+              color: "#aaaaaa"
+            }
+          }
+        }
+      }
+    }
+  }
+}

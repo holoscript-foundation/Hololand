@@ -1,0 +1,139 @@
+// src/pages/Landing.hsplus
+// Landing page — the first thing users see before entering Hololand
+composition "LandingPage" {
+  environment {
+    skybox: "space_nebula"
+    ambientLight: 0.6
+    fog: { color: "#0a0020", near: 100, far: 500 }
+  }
+
+  // Floating title
+  template "FloatingTitle" {
+    @billboard
+    @glowing
+    geometry: "plane"
+    material: { transparent: true, opacity: 0 }
+
+    animation fadeIn {
+      property: "opacity"
+      from: 0
+      to: 1
+      duration: 2000
+      easing: "easeOut"
+      autoplay: true
+    }
+  }
+
+  // Planet (Hololand Central visible in the distance)
+  template "Planet" {
+    @animated
+    geometry: "sphere"
+    scale: [15, 15, 15]
+    material: {
+      map: "/textures/planet_surface.jpg"
+      emissiveMap: "/textures/planet_city_lights.jpg"
+      emissiveIntensity: 0.4
+    }
+
+    animation rotate {
+      property: "rotation.y"
+      from: 0
+      to: 360
+      duration: 120000
+      loop: infinite
+      easing: "linear"
+    }
+  }
+
+  // Star field
+  template "StarField" {
+    @static
+    particles: {
+      type: "points"
+      count: 2000
+      spread: [200, 200, 200]
+      color: "#ffffff"
+      size: 0.1
+      twinkle: true
+    }
+  }
+
+  // ---------- Scene Objects ----------
+
+  object "Stars" using "StarField" {
+    position: [0, 0, 0]
+  }
+
+  object "HololandPlanet" using "Planet" {
+    position: [0, -20, -80]
+  }
+
+  // Title text
+  object "Title" using "FloatingTitle" {
+    position: [0, 5, -20]
+    scale: [10, 3, 1]
+    text: "HOLOLAND"
+    textColor: "#00ffff"
+    textSize: "hero"
+    weight: "bold"
+  }
+
+  object "Subtitle" using "FloatingTitle" {
+    position: [0, 3, -20]
+    scale: [8, 1.5, 1]
+    text: "The Metaverse Built in HoloScript"
+    textColor: "#aaaacc"
+    textSize: "large"
+  }
+
+  // UI overlay
+  ui {
+    column "LandingUI" {
+      position: "center"
+      align: "center"
+      gap: 16
+      marginTop: "60vh"
+
+      button "Enter" {
+        label: "Enter Hololand"
+        style: "hero"
+        size: "large"
+        color: "#00ffff"
+        on_click: () -> app.navigate("Central")
+        aria_label: "Enter Hololand Central"
+      }
+
+      if (xr.isAvailable()) {
+        button "EnterVR" {
+          label: "Enter in VR"
+          style: "hero-secondary"
+          size: "large"
+          color: "#8844ff"
+          icon: "vr_headset"
+          on_click: () -> {
+            app.toggleVR()
+            app.navigate("Central")
+          }
+          aria_label: "Enter Hololand in Virtual Reality"
+        }
+      }
+
+      row "QuickLinks" {
+        gap: 12
+        marginTop: 24
+
+        button "Oasis" {
+          label: "View from Space"
+          style: "text"
+          on_click: () -> app.navigate("Oasis")
+        }
+
+        button "About" {
+          label: "About HoloScript"
+          style: "text"
+          on_click: () -> ui.showModal("About")
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,170 @@
+// src/systems/EasterEggs.hsplus
+// Hidden discoveries throughout Hololand — rewards exploration
+system EasterEggSystem {
+  state {
+    discovered: []
+    totalEggs: 16
+  }
+
+  eggs: [
+    {
+      id: "fountain_secret"
+      zone: "MainPlaza"
+      trigger: { type: "proximity", position: [5, 0, 3], radius: 2 }
+      reward: { type: "badge", name: "Explorer", rarity: "common" }
+      hint: "Something shimmers near the water..."
+    },
+    {
+      id: "casino_jackpot"
+      zone: "Casino"
+      trigger: { type: "sequence", actions: ["spin", "spin", "spin"] }
+      reward: { type: "title", name: "Lucky One", rarity: "rare" }
+      hint: "Three times the charm at the slots."
+    },
+    {
+      id: "builder_masterpiece"
+      zone: "BuilderShop"
+      trigger: { type: "craft", item: "golden_hammer" }
+      reward: { type: "tool", name: "Master's Hammer", rarity: "epic" }
+      hint: "A true craftsman forges their own tools."
+    },
+    {
+      id: "lounge_dj"
+      zone: "SocialLounge"
+      trigger: { type: "sequence", actions: ["jukebox_click", "jukebox_click", "jukebox_click", "jukebox_click", "jukebox_click"] }
+      reward: { type: "title", name: "DJ Master", rarity: "uncommon" }
+      hint: "Play every track at the jukebox."
+    },
+    {
+      id: "arcade_perfectionist"
+      zone: "Arcade"
+      trigger: { type: "score", game: "Space Blaster", min: 10000 }
+      reward: { type: "badge", name: "Arcade God", rarity: "legendary" }
+      hint: "Only the best of the best in Space Blaster."
+    },
+    {
+      id: "hidden_door"
+      zone: "MainPlaza"
+      trigger: { type: "proximity", position: [-25, 0, -25], radius: 1 }
+      reward: { type: "zone_access", name: "Secret Garden", rarity: "rare" }
+      hint: "Not all paths are visible."
+    },
+    {
+      id: "night_owl"
+      zone: "Casino"
+      trigger: { type: "time", after: "23:00", before: "05:00" }
+      reward: { type: "badge", name: "Night Owl", rarity: "uncommon" }
+      hint: "The casino never sleeps, and neither do you."
+    },
+    {
+      id: "social_butterfly"
+      zone: "SocialLounge"
+      trigger: { type: "interact_count", target: "npcs", count: 10 }
+      reward: { type: "title", name: "Social Butterfly", rarity: "common" }
+      hint: "Talk to everyone!"
+    },
+    {
+      id: "speedrunner"
+      zone: "Arcade"
+      trigger: { type: "time_trial", game: "Cyber Run", maxTime: 30000 }
+      reward: { type: "badge", name: "Speed Demon", rarity: "epic" }
+      hint: "Finish Cyber Run in under 30 seconds."
+    },
+    {
+      id: "tree_climber"
+      zone: "MainPlaza"
+      trigger: { type: "position", y_min: 5 }
+      reward: { type: "badge", name: "Tree Climber", rarity: "uncommon" }
+      hint: "How did you get up there?"
+    },
+    {
+      id: "dance_king"
+      zone: "SocialLounge"
+      trigger: { type: "emote_sequence", emotes: ["wave", "dance", "bow"] }
+      reward: { type: "title", name: "Dance Royalty", rarity: "rare" }
+      hint: "Show off your moves in the right order."
+    },
+    {
+      id: "neon_collector"
+      zone: "Arcade"
+      trigger: { type: "collect_all", category: "neon_fragments" }
+      reward: { type: "cosmetic", name: "Neon Aura", rarity: "epic" }
+      hint: "Collect all the fragments scattered in the arcade."
+    },
+    {
+      id: "couch_potato"
+      zone: "SocialLounge"
+      trigger: { type: "idle", duration: 300000 }
+      reward: { type: "badge", name: "Couch Potato", rarity: "common" }
+      hint: "Sometimes the best thing to do is nothing."
+    },
+    {
+      id: "portal_hopper"
+      zone: "*"
+      trigger: { type: "portal_count", count: 20 }
+      reward: { type: "title", name: "Dimension Hopper", rarity: "rare" }
+      hint: "Travel through 20 portals."
+    },
+    {
+      id: "early_bird"
+      zone: "*"
+      trigger: { type: "time", after: "05:00", before: "07:00" }
+      reward: { type: "badge", name: "Early Bird", rarity: "uncommon" }
+      hint: "The early bird gets the worm."
+    },
+    {
+      id: "completionist"
+      zone: "*"
+      trigger: { type: "discover_count", count: 15 }
+      reward: { type: "title", name: "Completionist", rarity: "legendary" }
+      hint: "Find all other easter eggs first."
+    }
+  ]
+
+  on_start {
+    state.discovered = storage.get("discovered_eggs") || []
+  }
+
+  on_player_enter_zone(zone) {
+    for (egg in eggs) {
+      if ((egg.zone == zone || egg.zone == "*") && !state.discovered.includes(egg.id)) {
+        activate_trigger(egg)
+      }
+    }
+  }
+
+  action discover(eggId) {
+    if (!state.discovered.includes(eggId)) {
+      state.discovered.push(eggId)
+      const egg = eggs.find(e -> e.id == eggId)
+      emit("egg_discovered", egg)
+      grant_reward(egg.reward)
+      storage.set("discovered_eggs", state.discovered)
+
+      // Check completionist
+      if (state.discovered.length >= state.totalEggs - 1) {
+        discover("completionist")
+      }
+    }
+  }
+
+  action grant_reward(reward) {
+    inventory.add(reward)
+    ui.show_modal("EasterEggReward", { reward })
+    audio.play("reward_fanfare")
+    particles.emit("sparkle", player.position)
+  }
+
+  action getProgress() {
+    return {
+      discovered: state.discovered.length,
+      total: state.totalEggs,
+      percentage: Math.floor((state.discovered.length / state.totalEggs) * 100)
+    }
+  }
+
+  action getHint(eggId) {
+    const egg = eggs.find(e -> e.id == eggId)
+    return egg ? egg.hint : null
+  }
+}
