@@ -152,6 +152,24 @@
     .panel-content { display: none; flex: 1; overflow-y: auto; padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #ccc; line-height: 1.6; }
     .panel-content.active { display: block; }
 
+    /* ── Compiled Output Panel ── */
+    #compiled-content { padding: 0; }
+    #compiled-toolbar { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #252526; border-bottom: 1px solid #3c3c3c; }
+    #compiled-toolbar label { font-size: 11px; color: #888; }
+    #compiled-toolbar select { padding: 2px 6px; background: #3c3c3c; border: 1px solid #555; border-radius: 3px; color: #ccc; font-size: 11px; font-family: 'Inter', sans-serif; }
+    #compiled-toolbar .copy-btn { padding: 2px 8px; background: rgba(255,255,255,0.06); border: 1px solid #3c3c3c; border-radius: 3px; color: #aaa; font-size: 11px; cursor: pointer; font-family: 'Inter', sans-serif; }
+    #compiled-toolbar .copy-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    #compiled-code { flex: 1; overflow: auto; padding: 8px 12px; white-space: pre; tab-size: 2; font-size: 12px; line-height: 1.5; color: #d4d4d4; }
+    #compiled-code .ck { color: #569cd6; }   /* keyword */
+    #compiled-code .cs { color: #ce9178; }   /* string */
+    #compiled-code .cn { color: #b5cea8; }   /* number */
+    #compiled-code .cc { color: #6a9955; }   /* comment */
+    #compiled-code .cf { color: #dcdcaa; }   /* function */
+    #compiled-code .ct { color: #4ec9b0; }   /* type */
+    #compiled-code .co { color: #9cdcfe; }   /* object/var */
+    #compiled-code .cp { color: #c586c0; }   /* punctuation/operator */
+    #compiled-stats { padding: 4px 12px; background: #1b1b2f; font-size: 10px; color: #666; border-top: 1px solid #2d2d3d; }
+
     /* ── Performance Dashboard ── */
     #perf-content { padding: 12px; }
     .perf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -277,12 +295,28 @@
       <div class="btab" data-panel="errors">Errors</div>
       <div class="btab" data-panel="ast-text">AST</div>
       <div class="btab" data-panel="perf">Performance</div>
+      <div class="btab" data-panel="compiled">Compiled Output</div>
       <div class="btab" data-panel="multiedit">Multi-Edit</div>
     </div>
     <div id="output-content" class="panel-content active"></div>
     <div id="errors-content" class="panel-content"></div>
     <div id="ast-text-content" class="panel-content"></div>
     <div id="perf-content" class="panel-content"></div>
+    <div id="compiled-content" class="panel-content" style="display:none;flex-direction:column;">
+      <div id="compiled-toolbar">
+        <label>Target:</label>
+        <select id="compile-target">
+          <option value="threejs" selected>Three.js</option>
+          <option value="babylon">Babylon.js</option>
+          <option value="playcanvas">PlayCanvas</option>
+        </select>
+        <button class="copy-btn" id="btn-copy-compiled" title="Copy to clipboard">Copy</button>
+        <span style="flex:1"></span>
+        <span id="compiled-line-count" style="font-size:10px;color:#666;"></span>
+      </div>
+      <div id="compiled-code"></div>
+      <div id="compiled-stats"></div>
+    </div>
     <div id="multiedit-content" class="panel-content"></div>
   </div>
 </div>
@@ -1439,6 +1473,13 @@ const EXAMPLES = {
 
     log(`Scene "${ast.name}" loaded: ${ast.objects.length} objects, ${Object.keys(ast.templates).length} templates`, 'success');
 
+    // Update compiled output
+    lastCompiledAST = ast;
+    const compiledTab = document.querySelector('.btab[data-panel="compiled"]');
+    if (compiledTab && compiledTab.classList.contains('active')) {
+      renderCompiledPanel();
+    }
+
     // Update AST panel
     updateASTPanel(ast);
   }
@@ -1633,12 +1674,19 @@ const EXAMPLES = {
         this.classList.add('active');
         // Switch content panels
         const panelId = this.getAttribute('data-panel');
-        document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.panel-content').forEach(p => {
+          p.classList.remove('active');
+          p.style.display = 'none';
+        });
         const target = document.getElementById(panelId + '-content');
-        if (target) target.classList.add('active');
+        if (target) {
+          target.classList.add('active');
+          target.style.display = panelId === 'compiled' ? 'flex' : 'block';
+        }
         // Refresh panel content
         if (panelId === 'perf') renderPerformancePanel();
         if (panelId === 'multiedit') renderMultiEditPanel();
+        if (panelId === 'compiled') renderCompiledPanel();
       };
     });
 
@@ -1790,6 +1838,464 @@ const EXAMPLES = {
   }
 
   // ─── Performance Panel ───
+
+  // ── Compiled Output System ──
+  let lastCompiledAST = null;
+
+  function renderCompiledPanel() {
+    if (!lastCompiledAST) {
+      document.getElementById('compiled-code').textContent = '// Run your HoloScript first (Ctrl+Enter)';
+      return;
+    }
+    const target = document.getElementById('compile-target').value;
+    const raw = compileToTarget(lastCompiledAST, target);
+    document.getElementById('compiled-code').innerHTML = highlightJS(raw);
+    const lines = raw.split('\n').length;
+    document.getElementById('compiled-line-count').textContent = lines + ' lines';
+    document.getElementById('compiled-stats').textContent =
+      'Target: ' + { threejs: 'Three.js (r161)', babylon: 'Babylon.js 6.x', playcanvas: 'PlayCanvas 1.x' }[target] +
+      ' | Objects: ' + lastCompiledAST.objects.length +
+      ' | Templates: ' + Object.keys(lastCompiledAST.templates).length;
+  }
+
+  // Wire up target selector change
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('compile-target').onchange = renderCompiledPanel;
+    document.getElementById('btn-copy-compiled').onclick = function() {
+      if (!lastCompiledAST) return;
+      const target = document.getElementById('compile-target').value;
+      const raw = compileToTarget(lastCompiledAST, target);
+      navigator.clipboard.writeText(raw).then(() => {
+        log('Compiled code copied to clipboard', 'success');
+        this.textContent = 'Copied!';
+        setTimeout(() => { this.textContent = 'Copy'; }, 1500);
+      }).catch(() => { log('Copy failed', 'error'); });
+    };
+  });
+
+  function compileToTarget(ast, target) {
+    switch (target) {
+      case 'threejs': return compileToThreeJS(ast);
+      case 'babylon': return compileToBabylon(ast);
+      case 'playcanvas': return compileToPlayCanvas(ast);
+      default: return '// Unknown target: ' + target;
+    }
+  }
+
+  // ── Simple JS Syntax Highlighter ──
+  function highlightJS(code) {
+    return code
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // Comments
+      .replace(/(\/\/[^\n]*)/g, '<span class="cc">$1</span>')
+      // Strings
+      .replace(/('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/g, '<span class="cs">$1</span>')
+      // Numbers
+      .replace(/\b(\d+\.?\d*)\b/g, '<span class="cn">$1</span>')
+      // Keywords
+      .replace(/\b(const|let|var|new|function|return|if|else|for|while|true|false|null|import|from|export|class|extends|this|async|await)\b/g, '<span class="ck">$1</span>')
+      // Known types
+      .replace(/\b(THREE|BABYLON|pc)\b/g, '<span class="ct">$1</span>')
+      // Known constructors/methods
+      .replace(/\b(Scene|Mesh|BoxGeometry|SphereGeometry|CylinderGeometry|ConeGeometry|TorusGeometry|CapsuleGeometry|PlaneGeometry|MeshStandardMaterial|Color|AmbientLight|DirectionalLight|PointLight|SpotLight|PerspectiveCamera|WebGLRenderer|Vector3|Engine|HemisphericLight|MeshBuilder|StandardMaterial|Color3|Color4|ArcRotateCamera|FreeCamera|Application|Entity|createBox|createSphere|createCylinder|createCone|createTorus|createPlane)\b/g, '<span class="cf">$1</span>');
+  }
+
+  // ── Three.js Compiler ──
+  function compileToThreeJS(ast) {
+    let out = [];
+    out.push("// Generated by HoloScript Compiler — Target: Three.js r161");
+    out.push("// Source: " + (ast.name || 'Untitled') + ".holo");
+    out.push("import * as THREE from 'three';");
+    out.push("import { OrbitControls } from 'three/addons/controls/OrbitControls.js';");
+    out.push("");
+    out.push("// ── Scene Setup ──");
+    out.push("const scene = new THREE.Scene();");
+
+    // Environment
+    const env = ast.environment || {};
+    const bgColor = env.background || '#0f0f1a';
+    out.push("scene.background = new THREE.Color('" + bgColor + "');");
+    if (env.fog) out.push("scene.fog = new THREE.FogExp2('" + bgColor + "', 0.02);");
+
+    out.push("");
+    out.push("const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);");
+    out.push("camera.position.set(5, 4, 8);");
+    out.push("");
+    out.push("const renderer = new THREE.WebGLRenderer({ antialias: true });");
+    out.push("renderer.setSize(window.innerWidth, window.innerHeight);");
+    out.push("renderer.shadowMap.enabled = true;");
+    out.push("document.body.appendChild(renderer.domElement);");
+    out.push("");
+    out.push("const controls = new OrbitControls(camera, renderer.domElement);");
+    out.push("controls.enableDamping = true;");
+    out.push("");
+
+    // Lights
+    const ambientLevel = env.ambient_light || 0.5;
+    out.push("// ── Lighting ──");
+    out.push("scene.add(new THREE.AmbientLight(0x404060, " + ambientLevel + "));");
+    out.push("const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);");
+    out.push("dirLight.position.set(5, 10, 5);");
+    out.push("dirLight.castShadow = true;");
+    out.push("scene.add(dirLight);");
+    out.push("");
+
+    // Ground
+    out.push("// ── Ground ──");
+    out.push("const ground = new THREE.Mesh(");
+    out.push("  new THREE.PlaneGeometry(20, 20),");
+    out.push("  new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.9 })");
+    out.push(");");
+    out.push("ground.rotation.x = -Math.PI / 2;");
+    out.push("ground.receiveShadow = true;");
+    out.push("scene.add(ground);");
+    out.push("");
+
+    // Objects
+    out.push("// ── Objects ──");
+    ast.objects.forEach(obj => {
+      const varName = sanitizeName(obj.name);
+      out.push("");
+      out.push("// " + obj.name + (obj.template ? ' (template: ' + obj.template + ')' : ''));
+
+      // Geometry
+      out.push("const " + varName + "_geom = new THREE." + mapGeomThree(obj.geometry || 'cube') + ";");
+
+      // Material
+      const color = obj.color || '#ffffff';
+      const hasGlow = obj.traits && (obj.traits.includes('@glowing') || obj.traits.includes('@emissive'));
+      const isTransparent = obj.traits && obj.traits.includes('@transparent');
+      out.push("const " + varName + "_mat = new THREE.MeshStandardMaterial({");
+      out.push("  color: new THREE.Color('" + color + "'),");
+      out.push("  metalness: 0.1,");
+      out.push("  roughness: 0.6,");
+      if (hasGlow) {
+        out.push("  emissive: new THREE.Color('" + color + "'),");
+        out.push("  emissiveIntensity: 0.4,");
+      }
+      if (isTransparent) {
+        out.push("  transparent: true,");
+        out.push("  opacity: 0.6,");
+      }
+      out.push("});");
+
+      // Mesh
+      out.push("const " + varName + " = new THREE.Mesh(" + varName + "_geom, " + varName + "_mat);");
+      out.push(varName + ".name = '" + obj.name + "';");
+
+      // Transform
+      const pos = obj.position || [0, 0, 0];
+      out.push(varName + ".position.set(" + pos.join(', ') + ");");
+      if (obj.scale && (obj.scale[0] !== 1 || obj.scale[1] !== 1 || obj.scale[2] !== 1)) {
+        out.push(varName + ".scale.set(" + obj.scale.join(', ') + ");");
+      }
+      if (obj.rotation && (obj.rotation[0] || obj.rotation[1] || obj.rotation[2])) {
+        out.push(varName + ".rotation.set(" + obj.rotation.map(d => (d * Math.PI / 180).toFixed(4)).join(', ') + ");");
+      }
+      out.push(varName + ".castShadow = true;");
+      out.push(varName + ".receiveShadow = true;");
+      out.push("scene.add(" + varName + ");");
+
+      // Trait comments
+      if (obj.traits && obj.traits.length > 0) {
+        out.push("// Traits: " + obj.traits.join(', '));
+      }
+    });
+
+    // Animation loop
+    out.push("");
+    out.push("// ── Animation Loop ──");
+    out.push("function animate() {");
+    out.push("  requestAnimationFrame(animate);");
+    out.push("  controls.update();");
+
+    // Float animation for glowing objects
+    const glowObjs = ast.objects.filter(o => o.traits && (o.traits.includes('@glowing') || o.traits.includes('@animated')));
+    if (glowObjs.length > 0) {
+      out.push("  const t = performance.now() * 0.001;");
+      glowObjs.forEach(obj => {
+        const v = sanitizeName(obj.name);
+        const baseY = (obj.position || [0, 0, 0])[1];
+        if (obj.traits.includes('@glowing')) {
+          out.push("  " + v + ".position.y = " + baseY + " + Math.sin(t * 2) * 0.15;");
+        } else {
+          out.push("  " + v + ".rotation.y += 0.01;");
+        }
+      });
+    }
+
+    out.push("  renderer.render(scene, camera);");
+    out.push("}");
+    out.push("animate();");
+    out.push("");
+    out.push("// ── Resize Handler ──");
+    out.push("window.addEventListener('resize', () => {");
+    out.push("  camera.aspect = window.innerWidth / window.innerHeight;");
+    out.push("  camera.updateProjectionMatrix();");
+    out.push("  renderer.setSize(window.innerWidth, window.innerHeight);");
+    out.push("});");
+
+    return out.join('\n');
+  }
+
+  // ── Babylon.js Compiler ──
+  function compileToBabylon(ast) {
+    let out = [];
+    out.push("// Generated by HoloScript Compiler — Target: Babylon.js 6.x");
+    out.push("// Source: " + (ast.name || 'Untitled') + ".holo");
+    out.push("import { Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight,");
+    out.push("  MeshBuilder, StandardMaterial, Color3, Color4, Vector3, ShadowGenerator } from '@babylonjs/core';");
+    out.push("");
+    out.push("// ── Engine Setup ──");
+    out.push("const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;");
+    out.push("const engine = new Engine(canvas, true);");
+    out.push("");
+    out.push("const createScene = (): Scene => {");
+    out.push("  const scene = new Scene(engine);");
+
+    // Environment
+    const env = ast.environment || {};
+    const bgColor = env.background || '#0f0f1a';
+    const rgb = hexToRGB(bgColor);
+    out.push("  scene.clearColor = new Color4(" + rgb.r + ", " + rgb.g + ", " + rgb.b + ", 1);");
+    if (env.fog) out.push("  scene.fogMode = Scene.FOGMODE_EXP2;");
+
+    out.push("");
+    out.push("  // Camera");
+    out.push("  const camera = new ArcRotateCamera('camera', -Math.PI / 4, Math.PI / 3, 12, Vector3.Zero(), scene);");
+    out.push("  camera.attachControl(canvas, true);");
+    out.push("");
+
+    // Lights
+    const ambientLevel = env.ambient_light || 0.5;
+    out.push("  // Lighting");
+    out.push("  const hemiLight = new HemisphericLight('hemi', new Vector3(0, 1, 0), scene);");
+    out.push("  hemiLight.intensity = " + ambientLevel + ";");
+    out.push("  const dirLight = new DirectionalLight('dir', new Vector3(-1, -2, -1), scene);");
+    out.push("  dirLight.intensity = 0.8;");
+    out.push("  const shadowGen = new ShadowGenerator(1024, dirLight);");
+    out.push("");
+
+    // Ground
+    out.push("  // Ground");
+    out.push("  const ground = MeshBuilder.CreateGround('ground', { width: 20, height: 20 }, scene);");
+    out.push("  const groundMat = new StandardMaterial('groundMat', scene);");
+    out.push("  groundMat.diffuseColor = new Color3(0.1, 0.1, 0.18);");
+    out.push("  ground.material = groundMat;");
+    out.push("  ground.receiveShadows = true;");
+    out.push("");
+
+    // Objects
+    out.push("  // ── Objects ──");
+    ast.objects.forEach(obj => {
+      const varName = sanitizeName(obj.name);
+      out.push("");
+      out.push("  // " + obj.name + (obj.template ? ' (template: ' + obj.template + ')' : ''));
+
+      // Mesh
+      const builder = mapGeomBabylon(obj.geometry || 'cube');
+      out.push("  const " + varName + " = MeshBuilder." + builder.fn + "('" + obj.name + "', " + builder.opts + ", scene);");
+
+      // Material
+      const color = obj.color || '#ffffff';
+      const cRgb = hexToRGB(color);
+      const hasGlow = obj.traits && (obj.traits.includes('@glowing') || obj.traits.includes('@emissive'));
+      const isTransparent = obj.traits && obj.traits.includes('@transparent');
+      out.push("  const " + varName + "Mat = new StandardMaterial('" + varName + "Mat', scene);");
+      out.push("  " + varName + "Mat.diffuseColor = new Color3(" + cRgb.r + ", " + cRgb.g + ", " + cRgb.b + ");");
+      if (hasGlow) {
+        out.push("  " + varName + "Mat.emissiveColor = new Color3(" + cRgb.r + ", " + cRgb.g + ", " + cRgb.b + ");");
+      }
+      if (isTransparent) {
+        out.push("  " + varName + "Mat.alpha = 0.6;");
+      }
+      out.push("  " + varName + ".material = " + varName + "Mat;");
+
+      // Transform
+      const pos = obj.position || [0, 0, 0];
+      out.push("  " + varName + ".position = new Vector3(" + pos.join(', ') + ");");
+      if (obj.scale && (obj.scale[0] !== 1 || obj.scale[1] !== 1 || obj.scale[2] !== 1)) {
+        out.push("  " + varName + ".scaling = new Vector3(" + obj.scale.join(', ') + ");");
+      }
+      if (obj.rotation && (obj.rotation[0] || obj.rotation[1] || obj.rotation[2])) {
+        out.push("  " + varName + ".rotation = new Vector3(" + obj.rotation.map(d => (d * Math.PI / 180).toFixed(4)).join(', ') + ");");
+      }
+      out.push("  shadowGen.addShadowCaster(" + varName + ");");
+
+      if (obj.traits && obj.traits.length > 0) {
+        out.push("  // Traits: " + obj.traits.join(', '));
+      }
+    });
+
+    out.push("");
+    out.push("  return scene;");
+    out.push("};");
+    out.push("");
+    out.push("const scene = createScene();");
+    out.push("");
+    out.push("// ── Render Loop ──");
+    out.push("engine.runRenderLoop(() => scene.render());");
+    out.push("window.addEventListener('resize', () => engine.resize());");
+
+    return out.join('\n');
+  }
+
+  // ── PlayCanvas Compiler ──
+  function compileToPlayCanvas(ast) {
+    let out = [];
+    out.push("// Generated by HoloScript Compiler — Target: PlayCanvas 1.x");
+    out.push("// Source: " + (ast.name || 'Untitled') + ".holo");
+    out.push("const canvas = document.getElementById('application');");
+    out.push("const app = new pc.Application(canvas, {");
+    out.push("  mouse: new pc.Mouse(canvas),");
+    out.push("  touch: new pc.TouchDevice(canvas),");
+    out.push("  keyboard: new pc.Keyboard(window),");
+    out.push("});");
+    out.push("app.setCanvasResolution(pc.RESOLUTION_AUTO);");
+    out.push("app.setCanvasFillMode(pc.FILLMODE_FILL_WINDOW);");
+    out.push("app.start();");
+    out.push("");
+
+    // Camera
+    out.push("// ── Camera ──");
+    out.push("const camera = new pc.Entity('Camera');");
+    out.push("camera.addComponent('camera', {");
+
+    const env = ast.environment || {};
+    const bgColor = env.background || '#0f0f1a';
+    const rgb = hexToRGB(bgColor);
+    out.push("  clearColor: new pc.Color(" + rgb.r + ", " + rgb.g + ", " + rgb.b + "),");
+    out.push("  fov: 60,");
+    out.push("});");
+    out.push("camera.setPosition(5, 4, 8);");
+    out.push("camera.lookAt(0, 1, 0);");
+    out.push("app.root.addChild(camera);");
+    out.push("");
+
+    // Lights
+    const ambientLevel = env.ambient_light || 0.5;
+    out.push("// ── Lighting ──");
+    out.push("app.scene.ambientLight = new pc.Color(" + (ambientLevel * 0.25).toFixed(2) + ", " + (ambientLevel * 0.25).toFixed(2) + ", " + (ambientLevel * 0.37).toFixed(2) + ");");
+    out.push("const dirLight = new pc.Entity('DirectionalLight');");
+    out.push("dirLight.addComponent('light', { type: 'directional', castShadows: true, intensity: 1.0 });");
+    out.push("dirLight.setEulerAngles(45, 30, 0);");
+    out.push("app.root.addChild(dirLight);");
+    out.push("");
+
+    // Ground
+    out.push("// ── Ground ──");
+    out.push("const ground = new pc.Entity('Ground');");
+    out.push("ground.addComponent('render', { type: 'plane' });");
+    out.push("ground.setLocalScale(20, 1, 20);");
+    out.push("const groundMat = new pc.StandardMaterial();");
+    out.push("groundMat.diffuse = new pc.Color(0.1, 0.1, 0.18);");
+    out.push("groundMat.update();");
+    out.push("ground.render.meshInstances[0].material = groundMat;");
+    out.push("app.root.addChild(ground);");
+    out.push("");
+
+    // Objects
+    out.push("// ── Objects ──");
+    ast.objects.forEach(obj => {
+      const varName = sanitizeName(obj.name);
+      out.push("");
+      out.push("// " + obj.name + (obj.template ? ' (template: ' + obj.template + ')' : ''));
+
+      const pcType = mapGeomPlayCanvas(obj.geometry || 'cube');
+      out.push("const " + varName + " = new pc.Entity('" + obj.name + "');");
+      out.push(varName + ".addComponent('render', { type: '" + pcType + "' });");
+
+      // Material
+      const color = obj.color || '#ffffff';
+      const cRgb = hexToRGB(color);
+      const hasGlow = obj.traits && (obj.traits.includes('@glowing') || obj.traits.includes('@emissive'));
+      const isTransparent = obj.traits && obj.traits.includes('@transparent');
+      out.push("const " + varName + "Mat = new pc.StandardMaterial();");
+      out.push(varName + "Mat.diffuse = new pc.Color(" + cRgb.r + ", " + cRgb.g + ", " + cRgb.b + ");");
+      if (hasGlow) {
+        out.push(varName + "Mat.emissive = new pc.Color(" + cRgb.r + ", " + cRgb.g + ", " + cRgb.b + ");");
+        out.push(varName + "Mat.emissiveIntensity = 0.4;");
+      }
+      if (isTransparent) {
+        out.push(varName + "Mat.opacity = 0.6;");
+        out.push(varName + "Mat.blendType = pc.BLEND_NORMAL;");
+      }
+      out.push(varName + "Mat.update();");
+      out.push(varName + ".render.meshInstances[0].material = " + varName + "Mat;");
+
+      // Transform
+      const pos = obj.position || [0, 0, 0];
+      out.push(varName + ".setPosition(" + pos.join(', ') + ");");
+      if (obj.scale && (obj.scale[0] !== 1 || obj.scale[1] !== 1 || obj.scale[2] !== 1)) {
+        out.push(varName + ".setLocalScale(" + obj.scale.join(', ') + ");");
+      }
+      if (obj.rotation && (obj.rotation[0] || obj.rotation[1] || obj.rotation[2])) {
+        out.push(varName + ".setEulerAngles(" + obj.rotation.join(', ') + ");");
+      }
+      out.push("app.root.addChild(" + varName + ");");
+
+      if (obj.traits && obj.traits.length > 0) {
+        out.push("// Traits: " + obj.traits.join(', '));
+      }
+    });
+
+    // Resize
+    out.push("");
+    out.push("// ── Resize ──");
+    out.push("window.addEventListener('resize', () => app.resizeCanvas());");
+
+    return out.join('\n');
+  }
+
+  // ── Compiler Helpers ──
+  function sanitizeName(name) {
+    return name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^(\d)/, '_$1');
+  }
+
+  function hexToRGB(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const num = parseInt(hex, 16);
+    return {
+      r: (((num >> 16) & 255) / 255).toFixed(3),
+      g: (((num >> 8) & 255) / 255).toFixed(3),
+      b: ((num & 255) / 255).toFixed(3)
+    };
+  }
+
+  function mapGeomThree(type) {
+    const map = {
+      cube: 'BoxGeometry(1, 1, 1)', sphere: 'SphereGeometry(0.5, 32, 32)',
+      cylinder: 'CylinderGeometry(0.5, 0.5, 1, 32)', cone: 'ConeGeometry(0.5, 1, 32)',
+      torus: 'TorusGeometry(0.5, 0.15, 16, 48)', capsule: 'CapsuleGeometry(0.3, 0.6, 8, 16)',
+      plane: 'PlaneGeometry(1, 1)', humanoid: 'CapsuleGeometry(0.3, 1.0, 8, 16)'
+    };
+    return map[type] || map.cube;
+  }
+
+  function mapGeomBabylon(type) {
+    const map = {
+      cube: { fn: 'CreateBox', opts: '{ size: 1 }' },
+      sphere: { fn: 'CreateSphere', opts: '{ diameter: 1, segments: 32 }' },
+      cylinder: { fn: 'CreateCylinder', opts: '{ height: 1, diameter: 1 }' },
+      cone: { fn: 'CreateCylinder', opts: '{ height: 1, diameterTop: 0, diameterBottom: 1 }' },
+      torus: { fn: 'CreateTorus', opts: '{ diameter: 1, thickness: 0.3 }' },
+      capsule: { fn: 'CreateCapsule', opts: '{ radius: 0.3, height: 1.2 }' },
+      plane: { fn: 'CreateGround', opts: '{ width: 1, height: 1 }' },
+      humanoid: { fn: 'CreateCapsule', opts: '{ radius: 0.3, height: 1.6 }' }
+    };
+    return map[type] || map.cube;
+  }
+
+  function mapGeomPlayCanvas(type) {
+    const map = {
+      cube: 'box', sphere: 'sphere', cylinder: 'cylinder',
+      cone: 'cone', torus: 'torus', capsule: 'capsule',
+      plane: 'plane', humanoid: 'capsule'
+    };
+    return map[type] || 'box';
+  }
+
 
   const GEOMETRY_TRIS = { cube: 12, sphere: 960, cylinder: 64, cone: 32, torus: 768, capsule: 512, plane: 2, humanoid: 5000, model: 10000 };
 

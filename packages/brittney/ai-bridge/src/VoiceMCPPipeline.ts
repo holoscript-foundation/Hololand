@@ -9,7 +9,7 @@
  */
 
 import { logger } from './logger';
-import { VoiceProcessor, type VoiceProcessingResult } from './VoiceProcessor';
+import { VoiceProcessor } from './VoiceProcessor';
 import { CompilerBridge, getCompilerBridge } from './CompilerBridge';
 
 // ─── Types ───────────────────────────────────────────────────
@@ -489,7 +489,7 @@ export class VoiceMCPPipeline {
         this.config.onDiagnostics('✓ Compiled successfully', true);
         return result.r3fCode || null;
       } else {
-        this.config.onDiagnostics(`✗ Compilation: ${result.errors?.join(', ')}`, false);
+        this.config.onDiagnostics(`✗ Compilation: ${result.error || 'Unknown error'}`, false);
         return null;
       }
     } catch (error) {
