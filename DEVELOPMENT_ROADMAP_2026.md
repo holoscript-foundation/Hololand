@@ -6,8 +6,8 @@ Hololand consumes [HoloScript](https://github.com/brianonbased-dev/HoloScript) a
 
 > **Relationship:** HoloScript is the language. Hololand is the platform that hosts, renders, and deploys HoloScript worlds — plus Brittney AI, adapters, and social/commerce infrastructure.
 
-**Current Status**: All Multiplayer P2 Tasks Complete ✅  
-**Last Updated**: February 15, 2026
+**Current Status**: P4 Advanced Platform Features Complete ✅ | 1,184 tests passing  
+**Last Updated**: February 16, 2026
 
 ---
 
@@ -176,16 +176,22 @@ All P2 multiplayer tasks completed! ✅
 
 ---
 
-## 📋 Future: Advanced Platform Features
+## ✅ P4: Advanced Platform Features (COMPLETE)
 
-These are longer-term platform capabilities (not language features):
+AI Companions, Procedural Worlds, and Cross-Platform Export — 237 tests, all green.
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **AI Companions** | NPCs with persistent memory, dialogue, behavior trees, relationships, world knowledge | ✅ Complete (89 tests) |
+| **Procedural Worlds** | Seed-based deterministic generation, 12 biomes, chunks, structures, resources, presets | ✅ Complete (67 tests) |
+| **Cross-Platform Export** | 9 target platforms, 6-stage build pipeline, asset conversion, artifact versioning | ✅ Complete (81 tests) |
+| LobbyServer wiring | 56 new message types (ai_*, pcg_*, xp_*) with full dispatch | ✅ Complete |
+
+### Remaining Future Features
 
 | Feature | Description | Depends On |
 |---------|-------------|------------|
 | **VRR Scanning** | Turn real objects into VR assets via holofilter | @hololand/holofilter |
-| **AI Companions** | NPCs with persistent memory using Brittney | @hololand/brittney-service |
-| **Procedural Worlds** | AI-generated infinite exploration | @hololand/pcg + Brittney |
-| **Cross-Platform Export** | Unity/VRChat/Unreal output from .holo | @hololand/adapters/* |
 | **Mobile AR App** | Standalone AR viewer for published worlds | @hololand/ar-* |
 | **Desktop App** | Tauri-based native Hololand editor | @hololand/devtools/native-host |
 

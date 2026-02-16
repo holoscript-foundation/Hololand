@@ -44,6 +44,12 @@ import { MarketplaceService } from './MarketplaceService';
 import type { MarketplaceServiceConfig } from './MarketplaceService';
 import { ProductionDeployService } from './ProductionDeployService';
 import type { DeployConfig } from './ProductionDeployService';
+import { AICompanionService } from './AICompanionService';
+import type { AICompanionConfig } from './AICompanionService';
+import { ProceduralWorldService } from './ProceduralWorldService';
+import type { ProceduralWorldConfig } from './ProceduralWorldService';
+import { CrossPlatformExportService } from './CrossPlatformExportService';
+import type { CrossPlatformExportConfig } from './CrossPlatformExportService';
 
 // ============================================================================
 // Types
@@ -99,6 +105,12 @@ export interface LobbyServerConfig {
   marketplace?: MarketplaceServiceConfig;
   /** Production deploy configuration. */
   deploy?: DeployConfig;
+  /** AI companion configuration. */
+  companions?: AICompanionConfig;
+  /** Procedural world configuration. */
+  procworld?: ProceduralWorldConfig;
+  /** Cross-platform export configuration. */
+  exportService?: CrossPlatformExportConfig;
 }
 
 export type LobbyEventType =
@@ -227,6 +239,65 @@ const LOBBY_MESSAGE_TYPES = [
   'deploy_register_domain',
   'deploy_enable_ssl',
   'deploy_stats',
+  // AI Companions
+  'ai_create_companion',
+  'ai_get_companion',
+  'ai_list_companions',
+  'ai_remove_companion',
+  'ai_set_behavior',
+  'ai_set_mood',
+  'ai_update_position',
+  'ai_add_memory',
+  'ai_recall_memories',
+  'ai_forget_memory',
+  'ai_start_conversation',
+  'ai_add_dialogue',
+  'ai_end_conversation',
+  'ai_update_relationship',
+  'ai_get_relationship',
+  'ai_add_knowledge',
+  'ai_query_knowledge',
+  'ai_set_schedule',
+  'ai_companion_stats',
+  // Procedural Worlds
+  'pcg_create_world',
+  'pcg_create_world_preset',
+  'pcg_get_world',
+  'pcg_list_worlds',
+  'pcg_remove_world',
+  'pcg_start_generation',
+  'pcg_cancel_generation',
+  'pcg_job_status',
+  'pcg_list_jobs',
+  'pcg_load_chunk',
+  'pcg_unload_chunk',
+  'pcg_get_chunk',
+  'pcg_loaded_chunks',
+  'pcg_set_lod',
+  'pcg_deplete_resource',
+  'pcg_respawn_resources',
+  'pcg_biomes',
+  'pcg_biome_distribution',
+  'pcg_regenerate_chunk',
+  'pcg_presets',
+  'pcg_register_preset',
+  'pcg_stats',
+  // Cross-Platform Export
+  'xp_platforms',
+  'xp_enabled_platforms',
+  'xp_platform_info',
+  'xp_set_platform_enabled',
+  'xp_validate_scene',
+  'xp_create_job',
+  'xp_start_job',
+  'xp_cancel_job',
+  'xp_job_status',
+  'xp_list_jobs',
+  'xp_list_artifacts',
+  'xp_get_artifact',
+  'xp_latest_artifact',
+  'xp_delete_artifact',
+  'xp_stats',
 ] as const;
 
 export type LobbyMessageType = (typeof LOBBY_MESSAGE_TYPES)[number];
@@ -246,6 +317,9 @@ const DEFAULT_CONFIG: Required<LobbyServerConfig> = {
   finetune: {},
   marketplace: {},
   deploy: {},
+  companions: {},
+  procworld: {},
+  exportService: {},
 };
 
 // ============================================================================
@@ -262,6 +336,9 @@ export class LobbyServer {
   readonly finetune: BrittneyFineTuneService;
   readonly marketplace: MarketplaceService;
   readonly deploy: ProductionDeployService;
+  readonly companions: AICompanionService;
+  readonly procworld: ProceduralWorldService;
+  readonly exportService: CrossPlatformExportService;
 
   private sessions: Map<string, LobbySession> = new Map();
   private peerToSession: Map<string, string> = new Map(); // peerId → sessionId
@@ -283,6 +360,9 @@ export class LobbyServer {
     this.finetune = new BrittneyFineTuneService(this.config.finetune);
     this.marketplace = new MarketplaceService(this.config.marketplace);
     this.deploy = new ProductionDeployService(this.config.deploy);
+    this.companions = new AICompanionService(this.config.companions);
+    this.procworld = new ProceduralWorldService(this.config.procworld);
+    this.exportService = new CrossPlatformExportService(this.config.exportService);
 
     this.wireInternalEvents();
   }
@@ -300,6 +380,9 @@ export class LobbyServer {
     this.finetune.start();
     this.marketplace.start();
     this.deploy.start();
+    this.companions.start();
+    this.procworld.start();
+    this.exportService.start();
   }
 
   /** Stop the lobby server. */
@@ -311,6 +394,9 @@ export class LobbyServer {
     this.finetune.stop();
     this.marketplace.stop();
     this.deploy.stop();
+    this.companions.stop();
+    this.procworld.stop();
+    this.exportService.stop();
   }
 
   /** Full cleanup — stops everything, clears all state. */
@@ -327,6 +413,9 @@ export class LobbyServer {
     this.finetune.stop();
     this.marketplace.stop();
     this.deploy.stop();
+    this.companions.stop();
+    this.procworld.stop();
+    this.exportService.stop();
   }
 
   /** Set the authentication function. */
@@ -768,6 +857,68 @@ export class LobbyServer {
         case 'deploy_stats':
           this.handleDeployStats(session, message);
           break;
+
+        // AI Companions
+        case 'ai_create_companion': this.handleAiCreateCompanion(session, message); break;
+        case 'ai_get_companion': this.handleAiGetCompanion(session, message); break;
+        case 'ai_list_companions': this.handleAiListCompanions(session, message); break;
+        case 'ai_remove_companion': this.handleAiRemoveCompanion(session, message); break;
+        case 'ai_set_behavior': this.handleAiSetBehavior(session, message); break;
+        case 'ai_set_mood': this.handleAiSetMood(session, message); break;
+        case 'ai_update_position': this.handleAiUpdatePosition(session, message); break;
+        case 'ai_add_memory': this.handleAiAddMemory(session, message); break;
+        case 'ai_recall_memories': this.handleAiRecallMemories(session, message); break;
+        case 'ai_forget_memory': this.handleAiForgetMemory(session, message); break;
+        case 'ai_start_conversation': this.handleAiStartConversation(session, message); break;
+        case 'ai_add_dialogue': this.handleAiAddDialogue(session, message); break;
+        case 'ai_end_conversation': this.handleAiEndConversation(session, message); break;
+        case 'ai_update_relationship': this.handleAiUpdateRelationship(session, message); break;
+        case 'ai_get_relationship': this.handleAiGetRelationship(session, message); break;
+        case 'ai_add_knowledge': this.handleAiAddKnowledge(session, message); break;
+        case 'ai_query_knowledge': this.handleAiQueryKnowledge(session, message); break;
+        case 'ai_set_schedule': this.handleAiSetSchedule(session, message); break;
+        case 'ai_companion_stats': this.handleAiCompanionStats(session, message); break;
+
+        // Procedural Worlds
+        case 'pcg_create_world': this.handlePcgCreateWorld(session, message); break;
+        case 'pcg_create_world_preset': this.handlePcgCreateWorldPreset(session, message); break;
+        case 'pcg_get_world': this.handlePcgGetWorld(session, message); break;
+        case 'pcg_list_worlds': this.handlePcgListWorlds(session, message); break;
+        case 'pcg_remove_world': this.handlePcgRemoveWorld(session, message); break;
+        case 'pcg_start_generation': this.handlePcgStartGeneration(session, message); break;
+        case 'pcg_cancel_generation': this.handlePcgCancelGeneration(session, message); break;
+        case 'pcg_job_status': this.handlePcgJobStatus(session, message); break;
+        case 'pcg_list_jobs': this.handlePcgListJobs(session, message); break;
+        case 'pcg_load_chunk': this.handlePcgLoadChunk(session, message); break;
+        case 'pcg_unload_chunk': this.handlePcgUnloadChunk(session, message); break;
+        case 'pcg_get_chunk': this.handlePcgGetChunk(session, message); break;
+        case 'pcg_loaded_chunks': this.handlePcgLoadedChunks(session, message); break;
+        case 'pcg_set_lod': this.handlePcgSetLod(session, message); break;
+        case 'pcg_deplete_resource': this.handlePcgDepleteResource(session, message); break;
+        case 'pcg_respawn_resources': this.handlePcgRespawnResources(session, message); break;
+        case 'pcg_biomes': this.handlePcgBiomes(session, message); break;
+        case 'pcg_biome_distribution': this.handlePcgBiomeDistribution(session, message); break;
+        case 'pcg_regenerate_chunk': this.handlePcgRegenerateChunk(session, message); break;
+        case 'pcg_presets': this.handlePcgPresets(session, message); break;
+        case 'pcg_register_preset': this.handlePcgRegisterPreset(session, message); break;
+        case 'pcg_stats': this.handlePcgStats(session, message); break;
+
+        // Cross-Platform Export
+        case 'xp_platforms': this.handleXpPlatforms(session, message); break;
+        case 'xp_enabled_platforms': this.handleXpEnabledPlatforms(session, message); break;
+        case 'xp_platform_info': this.handleXpPlatformInfo(session, message); break;
+        case 'xp_set_platform_enabled': this.handleXpSetPlatformEnabled(session, message); break;
+        case 'xp_validate_scene': this.handleXpValidateScene(session, message); break;
+        case 'xp_create_job': this.handleXpCreateJob(session, message); break;
+        case 'xp_start_job': this.handleXpStartJob(session, message); break;
+        case 'xp_cancel_job': this.handleXpCancelJob(session, message); break;
+        case 'xp_job_status': this.handleXpJobStatus(session, message); break;
+        case 'xp_list_jobs': this.handleXpListJobs(session, message); break;
+        case 'xp_list_artifacts': this.handleXpListArtifacts(session, message); break;
+        case 'xp_get_artifact': this.handleXpGetArtifact(session, message); break;
+        case 'xp_latest_artifact': this.handleXpLatestArtifact(session, message); break;
+        case 'xp_delete_artifact': this.handleXpDeleteArtifact(session, message); break;
+        case 'xp_stats': this.handleXpStats(session, message); break;
 
         default:
           this.sendError(session, message, `Unknown message type: ${message.type}`);
@@ -2129,6 +2280,347 @@ export class LobbyServer {
 
   private handleDeployStats(session: LobbySession, message: LobbyMessage): void {
     const stats = this.deploy.getStats();
+    this.sendResponse(session, message, true, { stats });
+  }
+
+  // ============================================================================
+  // AI Companion Handlers
+  // ============================================================================
+
+  private handleAiCreateCompanion(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const companion = this.companions.createCompanion(p);
+    this.sendResponse(session, message, true, { companion });
+  }
+
+  private handleAiGetCompanion(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const companion = this.companions.getCompanion(p.companionId);
+    this.sendResponse(session, message, !!companion, companion ? { companion } : { error: 'not found' });
+  }
+
+  private handleAiListCompanions(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const companions = this.companions.listCompanions(p.worldId);
+    this.sendResponse(session, message, true, { companions });
+  }
+
+  private handleAiRemoveCompanion(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const removed = this.companions.removeCompanion(p.companionId);
+    this.sendResponse(session, message, removed, removed ? {} : { error: 'not found' });
+  }
+
+  private handleAiSetBehavior(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.companions.setBehavior(p.companionId, p.behavior);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleAiSetMood(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.companions.setMood(p.companionId, p.mood);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleAiUpdatePosition(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.companions.updatePosition(p.companionId, p.position);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleAiAddMemory(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const memory = this.companions.addMemory(p.companionId, p.memory);
+    this.sendResponse(session, message, !!memory, memory ? { memory } : { error: 'not found' });
+  }
+
+  private handleAiRecallMemories(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const memories = this.companions.recallMemories(p.companionId, p.query, p.limit);
+    this.sendResponse(session, message, true, { memories });
+  }
+
+  private handleAiForgetMemory(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.companions.forgetMemory(p.companionId, p.memoryId);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleAiStartConversation(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const conversation = this.companions.startConversation(p.companionId, p.userId, p.topic);
+    this.sendResponse(session, message, !!conversation, conversation ? { conversation } : { error: 'failed' });
+  }
+
+  private handleAiAddDialogue(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const turn = this.companions.addDialogue(p.companionId, p.conversationId, p.speaker, p.text, p.emotion);
+    this.sendResponse(session, message, !!turn, turn ? { turn } : { error: 'failed' });
+  }
+
+  private handleAiEndConversation(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.companions.endConversation(p.companionId, p.conversationId);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleAiUpdateRelationship(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const rel = this.companions.updateRelationship(p.companionId, p.userId, p.affinityDelta, p.trustDelta, p.interactionType);
+    this.sendResponse(session, message, !!rel, rel ? { relationship: rel } : { error: 'not found' });
+  }
+
+  private handleAiGetRelationship(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const rel = this.companions.getRelationship(p.companionId, p.userId);
+    this.sendResponse(session, message, !!rel, rel ? { relationship: rel } : { error: 'not found' });
+  }
+
+  private handleAiAddKnowledge(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const knowledge = this.companions.addWorldKnowledge(p.companionId, p.knowledge);
+    this.sendResponse(session, message, !!knowledge, knowledge ? { knowledge } : { error: 'failed' });
+  }
+
+  private handleAiQueryKnowledge(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const results = this.companions.queryKnowledge(p.companionId, p.query, p.limit);
+    this.sendResponse(session, message, true, { results });
+  }
+
+  private handleAiSetSchedule(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.companions.setSchedule(p.companionId, p.entries);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleAiCompanionStats(session: LobbySession, message: LobbyMessage): void {
+    const stats = this.companions.getStats();
+    this.sendResponse(session, message, true, { stats });
+  }
+
+  // ============================================================================
+  // Procedural World Handlers
+  // ============================================================================
+
+  private handlePcgCreateWorld(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const world = this.procworld.createWorld(p);
+    this.sendResponse(session, message, !!world, world ? { world } : { error: 'failed' });
+  }
+
+  private handlePcgCreateWorldPreset(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const world = this.procworld.createWorldFromPreset(p.presetName, p.name, p.seed);
+    this.sendResponse(session, message, !!world, world ? { world } : { error: 'preset not found' });
+  }
+
+  private handlePcgGetWorld(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const world = this.procworld.getWorld(p.worldId);
+    this.sendResponse(session, message, !!world, world ? { world } : { error: 'not found' });
+  }
+
+  private handlePcgListWorlds(session: LobbySession, message: LobbyMessage): void {
+    const worlds = this.procworld.listWorlds();
+    this.sendResponse(session, message, true, { worlds });
+  }
+
+  private handlePcgRemoveWorld(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.procworld.removeWorld(p.worldId);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handlePcgStartGeneration(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const job = this.procworld.startGeneration(p.worldId, p.options);
+    this.sendResponse(session, message, !!job, job ? { job } : { error: 'failed' });
+  }
+
+  private handlePcgCancelGeneration(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.procworld.cancelGeneration(p.jobId);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handlePcgJobStatus(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const job = this.procworld.getJob(p.jobId);
+    this.sendResponse(session, message, !!job, job ? { job } : { error: 'not found' });
+  }
+
+  private handlePcgListJobs(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const jobs = this.procworld.listJobs(p.worldId);
+    this.sendResponse(session, message, true, { jobs });
+  }
+
+  private handlePcgLoadChunk(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const chunk = this.procworld.loadChunk(p.worldId, p.coord);
+    this.sendResponse(session, message, !!chunk, chunk ? { chunk } : { error: 'failed' });
+  }
+
+  private handlePcgUnloadChunk(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.procworld.unloadChunk(p.worldId, p.coord);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handlePcgGetChunk(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const chunk = this.procworld.getChunk(p.worldId, p.coord);
+    this.sendResponse(session, message, !!chunk, chunk ? { chunk } : { error: 'not found' });
+  }
+
+  private handlePcgLoadedChunks(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const chunks = this.procworld.getLoadedChunks(p.worldId);
+    this.sendResponse(session, message, true, { chunks });
+  }
+
+  private handlePcgSetLod(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.procworld.setChunkLOD(p.worldId, p.coord, p.lod);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handlePcgDepleteResource(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.procworld.depleteResource(p.worldId, p.coord, p.resourceId, p.amount);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'failed' });
+  }
+
+  private handlePcgRespawnResources(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const count = this.procworld.respawnResources(p.worldId, p.coord);
+    this.sendResponse(session, message, true, { respawned: count });
+  }
+
+  private handlePcgBiomes(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const biomes = this.procworld.getBiomesForWorld(p.worldId);
+    this.sendResponse(session, message, true, { biomes });
+  }
+
+  private handlePcgBiomeDistribution(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const distribution = this.procworld.getBiomeDistribution(p.worldId);
+    this.sendResponse(session, message, true, { distribution });
+  }
+
+  private handlePcgRegenerateChunk(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const chunk = this.procworld.regenerateChunk(p.worldId, p.coord);
+    this.sendResponse(session, message, !!chunk, chunk ? { chunk } : { error: 'failed' });
+  }
+
+  private handlePcgPresets(session: LobbySession, message: LobbyMessage): void {
+    const presets = this.procworld.getPresets();
+    this.sendResponse(session, message, true, { presets });
+  }
+
+  private handlePcgRegisterPreset(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    this.procworld.registerPreset(p.preset);
+    this.sendResponse(session, message, true, {});
+  }
+
+  private handlePcgStats(session: LobbySession, message: LobbyMessage): void {
+    const stats = this.procworld.getStats();
+    this.sendResponse(session, message, true, { stats });
+  }
+
+  // ============================================================================
+  // Cross-Platform Export Handlers
+  // ============================================================================
+
+  private handleXpPlatforms(session: LobbySession, message: LobbyMessage): void {
+    const platforms = this.exportService.getPlatforms();
+    this.sendResponse(session, message, true, { platforms });
+  }
+
+  private handleXpEnabledPlatforms(session: LobbySession, message: LobbyMessage): void {
+    const platforms = this.exportService.getEnabledPlatforms();
+    this.sendResponse(session, message, true, { platforms });
+  }
+
+  private handleXpPlatformInfo(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const platform = this.exportService.getPlatform(p.platform);
+    this.sendResponse(session, message, !!platform, platform ? { platform } : { error: 'not found' });
+  }
+
+  private handleXpSetPlatformEnabled(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.exportService.setPlatformEnabled(p.platform, p.enabled);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleXpValidateScene(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const result = this.exportService.validateScene(p.scene, p.platform);
+    this.sendResponse(session, message, true, { result });
+  }
+
+  private handleXpCreateJob(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const job = this.exportService.createExportJob(p);
+    this.sendResponse(session, message, !!job, job ? { job } : { error: 'failed' });
+  }
+
+  private handleXpStartJob(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.exportService.startExportJob(p.jobId);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'failed' });
+  }
+
+  private handleXpCancelJob(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.exportService.cancelExportJob(p.jobId);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleXpJobStatus(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const job = this.exportService.getExportJob(p.jobId);
+    this.sendResponse(session, message, !!job, job ? { job } : { error: 'not found' });
+  }
+
+  private handleXpListJobs(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const jobs = this.exportService.listExportJobs(p.filter);
+    this.sendResponse(session, message, true, { jobs });
+  }
+
+  private handleXpListArtifacts(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const artifacts = this.exportService.listArtifacts(p.platform);
+    this.sendResponse(session, message, true, { artifacts });
+  }
+
+  private handleXpGetArtifact(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const artifact = this.exportService.getArtifact(p.artifactId);
+    this.sendResponse(session, message, !!artifact, artifact ? { artifact } : { error: 'not found' });
+  }
+
+  private handleXpLatestArtifact(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const artifact = this.exportService.getLatestArtifact(p.platform);
+    this.sendResponse(session, message, !!artifact, artifact ? { artifact } : { error: 'not found' });
+  }
+
+  private handleXpDeleteArtifact(session: LobbySession, message: LobbyMessage): void {
+    const p = message.payload ?? {};
+    const ok = this.exportService.deleteArtifact(p.artifactId);
+    this.sendResponse(session, message, ok, ok ? {} : { error: 'not found' });
+  }
+
+  private handleXpStats(session: LobbySession, message: LobbyMessage): void {
+    const stats = this.exportService.getStats();
     this.sendResponse(session, message, true, { stats });
   }
 
