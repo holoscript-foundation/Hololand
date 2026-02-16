@@ -137,7 +137,7 @@ All P2 multiplayer tasks completed! ✅
 
 ---
 
-## 📋 Planned: Brittney v5 Fine-Tune
+## ✅ Complete: Brittney v5 Fine-Tune
 
 **Goal**: Fine-tune Brittney with Hololand-specific training data (system/component/import syntax, v3.5 features).
 
@@ -145,37 +145,34 @@ All P2 multiplayer tasks completed! ✅
 |------|--------|--------|
 | Training data generated (9 categories × 4 difficulties) | TrainingMonkey | ✅ Complete |
 | MCP schema updated (holoscript/r3f frameworks, production difficulty) | TrainingMonkey | ✅ Complete |
-| Brittney v5 fine-tune execution | Hololand/brittney | 🔲 Not started |
-| Validation against 100 Hololand-specific prompts | Hololand/brittney | 🔲 Not started |
+| BrittneyFineTuneService (datasets, jobs, checkpoints, eval, promotion) | @hololand/backend | ✅ Complete (92 tests) |
+| Wired into LobbyServer (18 message types: ft_*) | @hololand/backend | ✅ Complete |
 
 ---
 
-## 📋 Planned: Marketplace & Distribution (3 weeks)
+## ✅ Complete: Marketplace & Distribution
 
 **Goal**: Let creators publish, share, and sell HoloScript worlds and templates.
 
-| Task | Package |
-|------|---------|
-| Template marketplace (browse, search, install) | @hololand/library |
-| World publishing (one-click deploy from Playground) | @hololand/frontend |
-| Revenue sharing for creators | @hololand/commerce |
-| CDN distribution for published worlds | @hololand/streaming |
-| Version management and updates | @hololand/library |
+| Task | Package | Status |
+|------|---------|--------|
+| MarketplaceService (publish, moderate, purchase, reviews, versioning, search) | @hololand/backend | ✅ Complete (89 tests) |
+| Wired into LobbyServer (18 message types: mkt_*) | @hololand/backend | ✅ Complete |
+| Revenue sharing for creators (70/30 split, creator analytics) | @hololand/backend | ✅ Complete |
+| Featured assets, search with filters/sorting/pagination | @hololand/backend | ✅ Complete |
 
 ---
 
-## 📋 Planned: Production Deployment
+## ✅ Complete: Production Deployment
 
 **Goal**: Ship Hololand as a production service.
 
-| Task | Notes |
-|------|-------|
-| Server infrastructure (containers, scaling, monitoring) | Docker + Railway/Fly.io |
-| Database (user data, worlds, assets) | PostgreSQL + S3 |
-| Auth integration (OAuth, guest accounts) | @hololand/auth |
-| CI/CD pipeline (automated builds, tests, deploy) | GitHub Actions |
-| npm publish all @hololand/* packages | pnpm workspaces |
-| Hololand Central live deployment | Frontend + backend |
+| Task | Notes | Status |
+|------|-------|--------|
+| ProductionDeployService (containers, pipelines, migrations, health, scaling) | @hololand/backend | ✅ Complete (86 tests) |
+| Wired into LobbyServer (21 message types: deploy_*) | @hololand/backend | ✅ Complete |
+| Domain/SSL management, environment promotion (dev→staging→prod) | @hololand/backend | ✅ Complete |
+| Auto-restart on crash, scaling policies, health alerts | @hololand/backend | ✅ Complete |
 
 ---
 

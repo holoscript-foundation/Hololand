@@ -39,6 +39,12 @@ export { SpatialVoiceMixer } from './services/SpatialVoiceMixer';
 export type { SpatialVoiceMixerConfig, VoicePosition, VoiceGain, VoiceOrientation, VoiceZone, RolloffModel } from './services/SpatialVoiceMixer';
 export { ServerAntiCheat } from './services/ServerAntiCheat';
 export type { ServerAntiCheatConfig, Vec3, ViolationType, PenaltyAction, Violation, Penalty, PlayerRecordInfo, PositionValidation, ActionValidation, StateValidation, AntiCheatEventType, AntiCheatEvent, AntiCheatStats, OwnershipCheckFn } from './services/ServerAntiCheat';
+export { BrittneyFineTuneService } from './services/BrittneyFineTuneService';
+export type { DatasetFormat, DatasetStatus, JobStatus, ModelStage, EvalStatus, TrainingExample, DatasetRecord, TrainingJob, CheckpointRecord, EvaluationRun, ModelRecord, DatasetInfo, JobInfo, ModelInfo, FineTuneConfig, FineTuneEvent } from './services/BrittneyFineTuneService';
+export { MarketplaceService } from './services/MarketplaceService';
+export type { AssetType, AssetStatus, LicenseType, SortField, AssetInfo, ReviewInfo, PurchaseInfo, SearchQuery, SearchResult, MarketplaceServiceConfig, MarketplaceEvent, MarketplaceStats } from './services/MarketplaceService';
+export { ProductionDeployService } from './services/ProductionDeployService';
+export type { Environment, ContainerStatus, PipelineStatus, HealthStatus, AlertSeverity, ContainerInfo, PipelineInfo, DeployConfig, DeployEvent, DeployStats, ScalingPolicy, ScalingEvent, DomainRecord, MigrationRecord, AlertRecord, HealthCheckResult } from './services/ProductionDeployService';
 
 // Lib utilities
 export * from './lib/api';

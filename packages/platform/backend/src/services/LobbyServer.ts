@@ -38,6 +38,12 @@ import type { VoiceChannelConfig, ChannelCreateOptions, VoiceChannelInfo, VoiceP
 import type { VoicePosition } from './SpatialVoiceMixer';
 import { ServerAntiCheat } from './ServerAntiCheat';
 import type { ServerAntiCheatConfig, PlayerRecordInfo, Violation, Penalty, ViolationType } from './ServerAntiCheat';
+import { BrittneyFineTuneService } from './BrittneyFineTuneService';
+import type { FineTuneServiceConfig } from './BrittneyFineTuneService';
+import { MarketplaceService } from './MarketplaceService';
+import type { MarketplaceServiceConfig } from './MarketplaceService';
+import { ProductionDeployService } from './ProductionDeployService';
+import type { DeployConfig } from './ProductionDeployService';
 
 // ============================================================================
 // Types
@@ -87,6 +93,12 @@ export interface LobbyServerConfig {
   voice?: VoiceChannelConfig;
   /** Anti-cheat configuration. */
   anticheat?: ServerAntiCheatConfig;
+  /** Brittney fine-tuning configuration. */
+  finetune?: FineTuneServiceConfig;
+  /** Marketplace configuration. */
+  marketplace?: MarketplaceServiceConfig;
+  /** Production deploy configuration. */
+  deploy?: DeployConfig;
 }
 
 export type LobbyEventType =
@@ -156,6 +168,65 @@ const LOBBY_MESSAGE_TYPES = [
   'ac_trust',
   'ac_report',
   'ac_stats',
+  // Fine-tune
+  'ft_create_dataset',
+  'ft_list_datasets',
+  'ft_add_examples',
+  'ft_validate_dataset',
+  'ft_create_job',
+  'ft_start_job',
+  'ft_pause_job',
+  'ft_cancel_job',
+  'ft_job_status',
+  'ft_list_jobs',
+  'ft_report_progress',
+  'ft_save_checkpoint',
+  'ft_create_eval',
+  'ft_submit_eval',
+  'ft_promote_model',
+  'ft_list_models',
+  'ft_stats',
+  // Marketplace
+  'mkt_publish',
+  'mkt_get_asset',
+  'mkt_update_asset',
+  'mkt_delete_asset',
+  'mkt_submit_review_mod',
+  'mkt_approve',
+  'mkt_reject',
+  'mkt_suspend',
+  'mkt_purchase',
+  'mkt_download_free',
+  'mkt_submit_review',
+  'mkt_search',
+  'mkt_feature',
+  'mkt_unfeature',
+  'mkt_featured',
+  'mkt_creator_revenue',
+  'mkt_release_version',
+  'mkt_stats',
+  // Deploy
+  'deploy_register_container',
+  'deploy_start_container',
+  'deploy_stop_container',
+  'deploy_remove_container',
+  'deploy_create_pipeline',
+  'deploy_start_pipeline',
+  'deploy_complete_stage',
+  'deploy_cancel_pipeline',
+  'deploy_register_migration',
+  'deploy_apply_migration',
+  'deploy_rollback_migration',
+  'deploy_health_check',
+  'deploy_ack_alert',
+  'deploy_active_alerts',
+  'deploy_set_scaling',
+  'deploy_scale',
+  'deploy_cpu_usage',
+  'deploy_promote',
+  'deploy_register_domain',
+  'deploy_enable_ssl',
+  'deploy_stats',
 ] as const;
 
 export type LobbyMessageType = (typeof LOBBY_MESSAGE_TYPES)[number];
@@ -172,6 +243,9 @@ const DEFAULT_CONFIG: Required<LobbyServerConfig> = {
   matchmaking: {},
   voice: {},
   anticheat: {},
+  finetune: {},
+  marketplace: {},
+  deploy: {},
 };
 
 // ============================================================================
@@ -185,6 +259,9 @@ export class LobbyServer {
   readonly matchmaking: MatchmakingService;
   readonly voice: VoiceChannel;
   readonly anticheat: ServerAntiCheat;
+  readonly finetune: BrittneyFineTuneService;
+  readonly marketplace: MarketplaceService;
+  readonly deploy: ProductionDeployService;
 
   private sessions: Map<string, LobbySession> = new Map();
   private peerToSession: Map<string, string> = new Map(); // peerId → sessionId
@@ -203,6 +280,9 @@ export class LobbyServer {
     });
     this.voice = new VoiceChannel(this.config.voice);
     this.anticheat = new ServerAntiCheat(this.config.anticheat);
+    this.finetune = new BrittneyFineTuneService(this.config.finetune);
+    this.marketplace = new MarketplaceService(this.config.marketplace);
+    this.deploy = new ProductionDeployService(this.config.deploy);
 
     this.wireInternalEvents();
   }
@@ -217,6 +297,9 @@ export class LobbyServer {
     this.running = true;
     this.presence.start();
     this.matchmaking.start();
+    this.finetune.start();
+    this.marketplace.start();
+    this.deploy.start();
   }
 
   /** Stop the lobby server. */
@@ -225,6 +308,9 @@ export class LobbyServer {
     this.running = false;
     this.presence.stop();
     this.matchmaking.stop();
+    this.finetune.stop();
+    this.marketplace.stop();
+    this.deploy.stop();
   }
 
   /** Full cleanup — stops everything, clears all state. */
@@ -238,6 +324,9 @@ export class LobbyServer {
     this.matchmaking.destroy();
     this.voice.destroy();
     this.anticheat.destroy();
+    this.finetune.stop();
+    this.marketplace.stop();
+    this.deploy.stop();
   }
 
   /** Set the authentication function. */
@@ -505,6 +594,181 @@ export class LobbyServer {
         case 'ac_stats':
           this.handleAcStats(session, message);
           break;
+
+        // ---- Fine-Tune ----
+        case 'ft_create_dataset':
+          this.handleFtCreateDataset(session, message);
+          break;
+        case 'ft_list_datasets':
+          this.handleFtListDatasets(session, message);
+          break;
+        case 'ft_add_examples':
+          this.handleFtAddExamples(session, message);
+          break;
+        case 'ft_validate_dataset':
+          this.handleFtValidateDataset(session, message);
+          break;
+        case 'ft_create_job':
+          this.handleFtCreateJob(session, message);
+          break;
+        case 'ft_start_job':
+          this.handleFtStartJob(session, message);
+          break;
+        case 'ft_pause_job':
+          this.handleFtPauseJob(session, message);
+          break;
+        case 'ft_cancel_job':
+          this.handleFtCancelJob(session, message);
+          break;
+        case 'ft_job_status':
+          this.handleFtJobStatus(session, message);
+          break;
+        case 'ft_list_jobs':
+          this.handleFtListJobs(session, message);
+          break;
+        case 'ft_report_progress':
+          this.handleFtReportProgress(session, message);
+          break;
+        case 'ft_save_checkpoint':
+          this.handleFtSaveCheckpoint(session, message);
+          break;
+        case 'ft_create_eval':
+          this.handleFtCreateEval(session, message);
+          break;
+        case 'ft_submit_eval':
+          this.handleFtSubmitEval(session, message);
+          break;
+        case 'ft_promote_model':
+          this.handleFtPromoteModel(session, message);
+          break;
+        case 'ft_list_models':
+          this.handleFtListModels(session, message);
+          break;
+        case 'ft_stats':
+          this.handleFtStats(session, message);
+          break;
+
+        // ---- Marketplace ----
+        case 'mkt_publish':
+          this.handleMktPublish(session, message);
+          break;
+        case 'mkt_get_asset':
+          this.handleMktGetAsset(session, message);
+          break;
+        case 'mkt_update_asset':
+          this.handleMktUpdateAsset(session, message);
+          break;
+        case 'mkt_delete_asset':
+          this.handleMktDeleteAsset(session, message);
+          break;
+        case 'mkt_submit_review_mod':
+          this.handleMktSubmitForReview(session, message);
+          break;
+        case 'mkt_approve':
+          this.handleMktApprove(session, message);
+          break;
+        case 'mkt_reject':
+          this.handleMktReject(session, message);
+          break;
+        case 'mkt_suspend':
+          this.handleMktSuspend(session, message);
+          break;
+        case 'mkt_purchase':
+          this.handleMktPurchase(session, message);
+          break;
+        case 'mkt_download_free':
+          this.handleMktDownloadFree(session, message);
+          break;
+        case 'mkt_submit_review':
+          this.handleMktSubmitReview(session, message);
+          break;
+        case 'mkt_search':
+          this.handleMktSearch(session, message);
+          break;
+        case 'mkt_feature':
+          this.handleMktFeature(session, message);
+          break;
+        case 'mkt_unfeature':
+          this.handleMktUnfeature(session, message);
+          break;
+        case 'mkt_featured':
+          this.handleMktFeatured(session, message);
+          break;
+        case 'mkt_creator_revenue':
+          this.handleMktCreatorRevenue(session, message);
+          break;
+        case 'mkt_release_version':
+          this.handleMktReleaseVersion(session, message);
+          break;
+        case 'mkt_stats':
+          this.handleMktStats(session, message);
+          break;
+
+        // ---- Deploy ----
+        case 'deploy_register_container':
+          this.handleDeployRegisterContainer(session, message);
+          break;
+        case 'deploy_start_container':
+          this.handleDeployStartContainer(session, message);
+          break;
+        case 'deploy_stop_container':
+          this.handleDeployStopContainer(session, message);
+          break;
+        case 'deploy_remove_container':
+          this.handleDeployRemoveContainer(session, message);
+          break;
+        case 'deploy_create_pipeline':
+          this.handleDeployCreatePipeline(session, message);
+          break;
+        case 'deploy_start_pipeline':
+          this.handleDeployStartPipeline(session, message);
+          break;
+        case 'deploy_complete_stage':
+          this.handleDeployCompleteStage(session, message);
+          break;
+        case 'deploy_cancel_pipeline':
+          this.handleDeployCancelPipeline(session, message);
+          break;
+        case 'deploy_register_migration':
+          this.handleDeployRegisterMigration(session, message);
+          break;
+        case 'deploy_apply_migration':
+          this.handleDeployApplyMigration(session, message);
+          break;
+        case 'deploy_rollback_migration':
+          this.handleDeployRollbackMigration(session, message);
+          break;
+        case 'deploy_health_check':
+          this.handleDeployHealthCheck(session, message);
+          break;
+        case 'deploy_ack_alert':
+          this.handleDeployAckAlert(session, message);
+          break;
+        case 'deploy_active_alerts':
+          this.handleDeployActiveAlerts(session, message);
+          break;
+        case 'deploy_set_scaling':
+          this.handleDeploySetScaling(session, message);
+          break;
+        case 'deploy_scale':
+          this.handleDeployScale(session, message);
+          break;
+        case 'deploy_cpu_usage':
+          this.handleDeployCpuUsage(session, message);
+          break;
+        case 'deploy_promote':
+          this.handleDeployPromote(session, message);
+          break;
+        case 'deploy_register_domain':
+          this.handleDeployRegisterDomain(session, message);
+          break;
+        case 'deploy_enable_ssl':
+          this.handleDeployEnableSsl(session, message);
+          break;
+        case 'deploy_stats':
+          this.handleDeployStats(session, message);
+          break;
+
         default:
           this.sendError(session, message, `Unknown message type: ${message.type}`);
       }
@@ -1280,6 +1544,591 @@ export class LobbyServer {
 
   private handleAcStats(session: LobbySession, message: LobbyMessage): void {
     const stats = this.anticheat.getStats();
+    this.sendResponse(session, message, true, { stats });
+  }
+
+  // ============================================================================
+  // Fine-Tune Handlers
+  // ============================================================================
+
+  private handleFtCreateDataset(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { name, format, description } = (message.payload ?? {}) as { name?: string; format?: string; description?: string };
+    if (!name || !format) {
+      this.sendError(session, message, 'name and format required');
+      return;
+    }
+    const dataset = this.finetune.createDataset({ name, format: format as any, description });
+    this.sendResponse(session, message, true, { dataset });
+  }
+
+  private handleFtListDatasets(session: LobbySession, message: LobbyMessage): void {
+    const datasets = this.finetune.listDatasets();
+    this.sendResponse(session, message, true, { datasets });
+  }
+
+  private handleFtAddExamples(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { datasetId, examples } = (message.payload ?? {}) as { datasetId?: string; examples?: any[] };
+    if (!datasetId || !examples) {
+      this.sendError(session, message, 'datasetId and examples required');
+      return;
+    }
+    const result = this.finetune.addExamples(datasetId, examples);
+    this.sendResponse(session, message, true, { ...result });
+  }
+
+  private handleFtValidateDataset(session: LobbySession, message: LobbyMessage): void {
+    const { datasetId } = (message.payload ?? {}) as { datasetId?: string };
+    if (!datasetId) {
+      this.sendError(session, message, 'datasetId required');
+      return;
+    }
+    const dataset = this.finetune.validateDataset(datasetId);
+    this.sendResponse(session, message, true, { dataset });
+  }
+
+  private handleFtCreateJob(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as any;
+    if (!payload.name || !payload.datasetId || !payload.baseModel) {
+      this.sendError(session, message, 'name, datasetId, and baseModel required');
+      return;
+    }
+    const job = this.finetune.createJob(payload);
+    this.sendResponse(session, message, true, { job });
+  }
+
+  private handleFtStartJob(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { jobId } = (message.payload ?? {}) as { jobId?: string };
+    if (!jobId) {
+      this.sendError(session, message, 'jobId required');
+      return;
+    }
+    const job = this.finetune.startJob(jobId);
+    this.sendResponse(session, message, true, { job });
+  }
+
+  private handleFtPauseJob(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { jobId } = (message.payload ?? {}) as { jobId?: string };
+    if (!jobId) {
+      this.sendError(session, message, 'jobId required');
+      return;
+    }
+    const job = this.finetune.pauseJob(jobId);
+    this.sendResponse(session, message, true, { job });
+  }
+
+  private handleFtCancelJob(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { jobId } = (message.payload ?? {}) as { jobId?: string };
+    if (!jobId) {
+      this.sendError(session, message, 'jobId required');
+      return;
+    }
+    const job = this.finetune.cancelJob(jobId);
+    this.sendResponse(session, message, true, { job });
+  }
+
+  private handleFtJobStatus(session: LobbySession, message: LobbyMessage): void {
+    const { jobId } = (message.payload ?? {}) as { jobId?: string };
+    if (!jobId) {
+      this.sendError(session, message, 'jobId required');
+      return;
+    }
+    const job = this.finetune.getJob(jobId);
+    if (!job) {
+      this.sendError(session, message, 'Job not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { job });
+  }
+
+  private handleFtListJobs(session: LobbySession, message: LobbyMessage): void {
+    const { status, datasetId } = (message.payload ?? {}) as { status?: string; datasetId?: string };
+    const jobs = this.finetune.listJobs({ status: status as any, datasetId });
+    this.sendResponse(session, message, true, { jobs });
+  }
+
+  private handleFtReportProgress(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { jobId, ...progress } = (message.payload ?? {}) as any;
+    if (!jobId) {
+      this.sendError(session, message, 'jobId required');
+      return;
+    }
+    const job = this.finetune.reportProgress(jobId, progress);
+    this.sendResponse(session, message, true, { job });
+  }
+
+  private handleFtSaveCheckpoint(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { jobId, ...checkpoint } = (message.payload ?? {}) as any;
+    if (!jobId) {
+      this.sendError(session, message, 'jobId required');
+      return;
+    }
+    const record = this.finetune.saveCheckpoint(jobId, checkpoint);
+    this.sendResponse(session, message, true, { checkpoint: record });
+  }
+
+  private handleFtCreateEval(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { jobId, benchmarks, checkpointId } = (message.payload ?? {}) as any;
+    if (!jobId || !benchmarks) {
+      this.sendError(session, message, 'jobId and benchmarks required');
+      return;
+    }
+    const evaluation = this.finetune.createEvaluation(jobId, benchmarks, checkpointId);
+    this.sendResponse(session, message, true, { evaluation });
+  }
+
+  private handleFtSubmitEval(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { evalId, ...result } = (message.payload ?? {}) as any;
+    if (!evalId) {
+      this.sendError(session, message, 'evalId required');
+      return;
+    }
+    const evaluation = this.finetune.submitEvalResult(evalId, result);
+    this.sendResponse(session, message, true, { evaluation });
+  }
+
+  private handleFtPromoteModel(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { jobId, stage, checkpointId, description } = (message.payload ?? {}) as any;
+    if (!jobId || !stage) {
+      this.sendError(session, message, 'jobId and stage required');
+      return;
+    }
+    const model = this.finetune.promoteModel(jobId, stage, { checkpointId, description });
+    this.sendResponse(session, message, true, { model });
+  }
+
+  private handleFtListModels(session: LobbySession, message: LobbyMessage): void {
+    const { stage, baseModel } = (message.payload ?? {}) as any;
+    const models = this.finetune.listModels({ stage, baseModel });
+    this.sendResponse(session, message, true, { models });
+  }
+
+  private handleFtStats(session: LobbySession, message: LobbyMessage): void {
+    const stats = this.finetune.getStats();
+    this.sendResponse(session, message, true, { stats });
+  }
+
+  // ============================================================================
+  // Marketplace Handlers
+  // ============================================================================
+
+  private handleMktPublish(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as any;
+    if (!payload.name || !payload.type || !payload.creatorId) {
+      this.sendError(session, message, 'name, type, and creatorId required');
+      return;
+    }
+    const asset = this.marketplace.publishAsset(payload);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktGetAsset(session: LobbySession, message: LobbyMessage): void {
+    const { assetId } = (message.payload ?? {}) as { assetId?: string };
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const asset = this.marketplace.getAsset(assetId);
+    if (!asset) {
+      this.sendError(session, message, 'Asset not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktUpdateAsset(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId, ...updates } = (message.payload ?? {}) as any;
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const asset = this.marketplace.updateAsset(assetId, updates);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktDeleteAsset(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId } = (message.payload ?? {}) as { assetId?: string };
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const deleted = this.marketplace.deleteAsset(assetId);
+    if (!deleted) {
+      this.sendError(session, message, 'Asset not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { assetId, deleted: true });
+  }
+
+  private handleMktSubmitForReview(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId } = (message.payload ?? {}) as { assetId?: string };
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const asset = this.marketplace.submitForReview(assetId);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktApprove(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId, moderatorId, reason } = (message.payload ?? {}) as any;
+    if (!assetId || !moderatorId) {
+      this.sendError(session, message, 'assetId and moderatorId required');
+      return;
+    }
+    const asset = this.marketplace.approveAsset(assetId, moderatorId, reason);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktReject(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId, moderatorId, reason } = (message.payload ?? {}) as any;
+    if (!assetId || !moderatorId || !reason) {
+      this.sendError(session, message, 'assetId, moderatorId, and reason required');
+      return;
+    }
+    const asset = this.marketplace.rejectAsset(assetId, moderatorId, reason);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktSuspend(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId, reason } = (message.payload ?? {}) as any;
+    if (!assetId || !reason) {
+      this.sendError(session, message, 'assetId and reason required');
+      return;
+    }
+    const asset = this.marketplace.suspendAsset(assetId, reason);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktPurchase(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId } = (message.payload ?? {}) as { assetId?: string };
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const purchase = this.marketplace.purchaseAsset(assetId, session.peerId);
+    this.sendResponse(session, message, true, { purchase });
+  }
+
+  private handleMktDownloadFree(session: LobbySession, message: LobbyMessage): void {
+    const { assetId } = (message.payload ?? {}) as { assetId?: string };
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const asset = this.marketplace.downloadFreeAsset(assetId, session.peerId);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktSubmitReview(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId, rating, comment } = (message.payload ?? {}) as any;
+    if (!assetId || !rating) {
+      this.sendError(session, message, 'assetId and rating required');
+      return;
+    }
+    const review = this.marketplace.submitReview(assetId, { userId: session.peerId, rating, comment });
+    this.sendResponse(session, message, true, { review });
+  }
+
+  private handleMktSearch(session: LobbySession, message: LobbyMessage): void {
+    const query = (message.payload ?? {}) as any;
+    const results = this.marketplace.search(query);
+    this.sendResponse(session, message, true, { results });
+  }
+
+  private handleMktFeature(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId } = (message.payload ?? {}) as { assetId?: string };
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const asset = this.marketplace.featureAsset(assetId);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktUnfeature(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId } = (message.payload ?? {}) as { assetId?: string };
+    if (!assetId) {
+      this.sendError(session, message, 'assetId required');
+      return;
+    }
+    const asset = this.marketplace.unfeatureAsset(assetId);
+    this.sendResponse(session, message, true, { asset });
+  }
+
+  private handleMktFeatured(session: LobbySession, message: LobbyMessage): void {
+    const { limit } = (message.payload ?? {}) as { limit?: number };
+    const assets = this.marketplace.getFeaturedAssets(limit);
+    this.sendResponse(session, message, true, { assets });
+  }
+
+  private handleMktCreatorRevenue(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { creatorId } = (message.payload ?? {}) as { creatorId?: string };
+    const targetCreator = creatorId ?? session.peerId;
+    const revenue = this.marketplace.getCreatorRevenue(targetCreator);
+    this.sendResponse(session, message, true, { revenue });
+  }
+
+  private handleMktReleaseVersion(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { assetId, version, changelog, fileSizeMB } = (message.payload ?? {}) as any;
+    if (!assetId || !version || !changelog) {
+      this.sendError(session, message, 'assetId, version, and changelog required');
+      return;
+    }
+    const ver = this.marketplace.releaseVersion(assetId, { version, changelog, fileSizeMB });
+    this.sendResponse(session, message, true, { version: ver });
+  }
+
+  private handleMktStats(session: LobbySession, message: LobbyMessage): void {
+    const stats = this.marketplace.getStats();
+    this.sendResponse(session, message, true, { stats });
+  }
+
+  // ============================================================================
+  // Deploy Handlers
+  // ============================================================================
+
+  private handleDeployRegisterContainer(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as any;
+    if (!payload.name || !payload.image || !payload.environment) {
+      this.sendError(session, message, 'name, image, and environment required');
+      return;
+    }
+    const container = this.deploy.registerContainer(payload);
+    this.sendResponse(session, message, true, { container });
+  }
+
+  private handleDeployStartContainer(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { containerId } = (message.payload ?? {}) as { containerId?: string };
+    if (!containerId) {
+      this.sendError(session, message, 'containerId required');
+      return;
+    }
+    const container = this.deploy.startContainer(containerId);
+    this.sendResponse(session, message, true, { container });
+  }
+
+  private handleDeployStopContainer(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { containerId } = (message.payload ?? {}) as { containerId?: string };
+    if (!containerId) {
+      this.sendError(session, message, 'containerId required');
+      return;
+    }
+    const container = this.deploy.stopContainer(containerId);
+    this.sendResponse(session, message, true, { container });
+  }
+
+  private handleDeployRemoveContainer(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { containerId } = (message.payload ?? {}) as { containerId?: string };
+    if (!containerId) {
+      this.sendError(session, message, 'containerId required');
+      return;
+    }
+    const removed = this.deploy.removeContainer(containerId);
+    if (!removed) {
+      this.sendError(session, message, 'Container not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { containerId, removed: true });
+  }
+
+  private handleDeployCreatePipeline(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as any;
+    if (!payload.name || !payload.environment || !payload.stages) {
+      this.sendError(session, message, 'name, environment, and stages required');
+      return;
+    }
+    const pipeline = this.deploy.createPipeline(payload);
+    this.sendResponse(session, message, true, { pipeline });
+  }
+
+  private handleDeployStartPipeline(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { pipelineId } = (message.payload ?? {}) as { pipelineId?: string };
+    if (!pipelineId) {
+      this.sendError(session, message, 'pipelineId required');
+      return;
+    }
+    const pipeline = this.deploy.startPipeline(pipelineId);
+    this.sendResponse(session, message, true, { pipeline });
+  }
+
+  private handleDeployCompleteStage(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { pipelineId, stageName, passed, logs } = (message.payload ?? {}) as any;
+    if (!pipelineId || !stageName || passed === undefined) {
+      this.sendError(session, message, 'pipelineId, stageName, and passed required');
+      return;
+    }
+    const pipeline = this.deploy.completeStage(pipelineId, stageName, passed, logs);
+    this.sendResponse(session, message, true, { pipeline });
+  }
+
+  private handleDeployCancelPipeline(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { pipelineId } = (message.payload ?? {}) as { pipelineId?: string };
+    if (!pipelineId) {
+      this.sendError(session, message, 'pipelineId required');
+      return;
+    }
+    const pipeline = this.deploy.cancelPipeline(pipelineId);
+    this.sendResponse(session, message, true, { pipeline });
+  }
+
+  private handleDeployRegisterMigration(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as any;
+    if (!payload.name || !payload.version || !payload.environment || !payload.sql) {
+      this.sendError(session, message, 'name, version, environment, and sql required');
+      return;
+    }
+    const migration = this.deploy.registerMigration(payload);
+    this.sendResponse(session, message, true, { migration });
+  }
+
+  private handleDeployApplyMigration(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { migrationId } = (message.payload ?? {}) as { migrationId?: string };
+    if (!migrationId) {
+      this.sendError(session, message, 'migrationId required');
+      return;
+    }
+    const migration = this.deploy.applyMigration(migrationId);
+    this.sendResponse(session, message, true, { migration });
+  }
+
+  private handleDeployRollbackMigration(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { migrationId } = (message.payload ?? {}) as { migrationId?: string };
+    if (!migrationId) {
+      this.sendError(session, message, 'migrationId required');
+      return;
+    }
+    const migration = this.deploy.rollbackMigration(migrationId);
+    this.sendResponse(session, message, true, { migration });
+  }
+
+  private handleDeployHealthCheck(session: LobbySession, message: LobbyMessage): void {
+    const payload = (message.payload ?? {}) as any;
+    if (!payload.containerId || !payload.status) {
+      this.sendError(session, message, 'containerId and status required');
+      return;
+    }
+    this.deploy.reportHealthCheck(payload);
+    this.sendResponse(session, message, true, { reported: true });
+  }
+
+  private handleDeployAckAlert(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { alertId } = (message.payload ?? {}) as { alertId?: string };
+    if (!alertId) {
+      this.sendError(session, message, 'alertId required');
+      return;
+    }
+    const alert = this.deploy.acknowledgeAlert(alertId);
+    this.sendResponse(session, message, true, { alert });
+  }
+
+  private handleDeployActiveAlerts(session: LobbySession, message: LobbyMessage): void {
+    const alerts = this.deploy.getActiveAlerts();
+    this.sendResponse(session, message, true, { alerts });
+  }
+
+  private handleDeploySetScaling(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { containerId, ...opts } = (message.payload ?? {}) as any;
+    if (!containerId) {
+      this.sendError(session, message, 'containerId required');
+      return;
+    }
+    const policy = this.deploy.setScalingPolicy(containerId, opts);
+    this.sendResponse(session, message, true, { policy });
+  }
+
+  private handleDeployScale(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { containerId, replicas, reason } = (message.payload ?? {}) as any;
+    if (!containerId || replicas === undefined || !reason) {
+      this.sendError(session, message, 'containerId, replicas, and reason required');
+      return;
+    }
+    const container = this.deploy.scaleContainer(containerId, replicas, reason);
+    this.sendResponse(session, message, true, { container });
+  }
+
+  private handleDeployCpuUsage(session: LobbySession, message: LobbyMessage): void {
+    const { containerId, cpuPercent, memoryMB } = (message.payload ?? {}) as any;
+    if (!containerId || cpuPercent === undefined || memoryMB === undefined) {
+      this.sendError(session, message, 'containerId, cpuPercent, and memoryMB required');
+      return;
+    }
+    const container = this.deploy.reportCpuUsage(containerId, cpuPercent, memoryMB);
+    this.sendResponse(session, message, true, { container });
+  }
+
+  private handleDeployPromote(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { targetEnv, containerId } = (message.payload ?? {}) as any;
+    if (!targetEnv || !containerId) {
+      this.sendError(session, message, 'targetEnv and containerId required');
+      return;
+    }
+    const container = this.deploy.promote(targetEnv, containerId);
+    this.sendResponse(session, message, true, { container });
+  }
+
+  private handleDeployRegisterDomain(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as any;
+    if (!payload.domain || !payload.containerId) {
+      this.sendError(session, message, 'domain and containerId required');
+      return;
+    }
+    const domain = this.deploy.registerDomain(payload);
+    this.sendResponse(session, message, true, { domain });
+  }
+
+  private handleDeployEnableSsl(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { domainId, expiresAt } = (message.payload ?? {}) as any;
+    if (!domainId || !expiresAt) {
+      this.sendError(session, message, 'domainId and expiresAt required');
+      return;
+    }
+    const domain = this.deploy.enableSsl(domainId, expiresAt);
+    this.sendResponse(session, message, true, { domain });
+  }
+
+  private handleDeployStats(session: LobbySession, message: LobbyMessage): void {
+    const stats = this.deploy.getStats();
     this.sendResponse(session, message, true, { stats });
   }
 
