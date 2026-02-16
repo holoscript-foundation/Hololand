@@ -85,6 +85,15 @@ export type { PersonalityTemplate, PersonalityCategory } from './PersonalityTemp
 
 // Interest management
 export { InterestManager } from './InterestManager';
+export { SpatialHashGrid } from './SpatialHashGrid';
+export type { CellCoords, GridStats } from './SpatialHashGrid';
+export { ServerInterestManager } from './ServerInterestManager';
+export type {
+  ServerInterestConfig,
+  ViewerState,
+  EntityRelevance,
+  InterestStats,
+} from './ServerInterestManager';
 
 // Voice chat
 export { VoiceChat } from './VoiceChat';

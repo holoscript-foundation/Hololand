@@ -6,7 +6,7 @@ Hololand consumes [HoloScript](https://github.com/brianonbased-dev/HoloScript) a
 
 > **Relationship:** HoloScript is the language. Hololand is the platform that hosts, renders, and deploys HoloScript worlds — plus Brittney AI, adapters, and social/commerce infrastructure.
 
-**Current Status**: Multiplayer Runtime In Progress 🔨 | Interest Management Next  
+**Current Status**: Multiplayer Runtime In Progress 🔨 | Matchmaking Integration Next  
 **Last Updated**: February 16, 2026
 
 ---
@@ -114,13 +114,15 @@ The infrastructure is partially built:
 | `PresenceTracker` (backend) | Heartbeat monitoring, online/idle/away status, room location tracking, reaper | 43 |
 | `RoomService` (backend) | Room CRUD, join/leave, search/filter, categories, password protection, host migration | 64 |
 | `LobbyServer` (backend) | Session management, 16 message handlers, broadcasting, pluggable auth, presence+room orchestration | 60 |
-| **Total** | | **254** |
+| `SpatialHashGrid` (network) | O(1) spatial partitioning — cell-based 3D grid, radius queries, neighbor lookups | 35 |
+| `ServerInterestManager` (network) | Multi-viewer server-side interest — priority tiers, rate throttling, bandwidth budget, snapshot filtering | 62 |
+| `NetworkServer` interest integration | Per-client filtered snapshots, viewer/entity lifecycle hooks, always-relevant entities | 16 |
+| **Total** | | **367** |
 
 ### Remaining Work
 
 | Task | Package | Priority |
 |------|---------|----------|
-| Interest management — only sync nearby objects | @hololand/network | P1 |
 | Matchmaking integration — connect HoloScript Matchmaker to live rooms | @hololand/network | P1 |
 | Voice chat relay — spatial voice via WebRTC | @hololand/voice | P2 |
 | Anti-cheat enforcement — server-side validation | @hololand/backend | P2 |

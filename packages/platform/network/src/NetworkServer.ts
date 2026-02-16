@@ -16,6 +16,7 @@ import type {
   StateSnapshot,
   Vector3,
 } from './types';
+import { ServerInterestManager, type ServerInterestConfig } from './ServerInterestManager';
 
 export interface ServerConfig {
   maxRooms?: number;
@@ -23,6 +24,10 @@ export interface ServerConfig {
   tickRate?: number; // Updates per second
   snapshotRate?: number; // Snapshots per second
   authRequired?: boolean;
+  /** Enable spatial interest management — only sync nearby objects per viewer. */
+  interestManagement?: boolean;
+  /** Configuration for the interest manager (view distance, cell size, etc.). */
+  interestConfig?: Partial<ServerInterestConfig>;
 }
 
 export interface ClientConnection {
@@ -53,6 +58,9 @@ export class NetworkServer {
   private isRunning: boolean = false;
   private stateSequence: number = 0;
 
+  /** Server-side interest manager for spatial filtering (null when disabled). */
+  private interestManager: ServerInterestManager | null = null;
+
   // Message handlers by type
   private messageHandlers: Map<
     string,
@@ -61,6 +69,13 @@ export class NetworkServer {
 
   constructor(config: ServerConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+
+    // Initialize interest management if enabled
+    if (config.interestManagement) {
+      this.interestManager = new ServerInterestManager(config.interestConfig);
+      logger.info('Interest management enabled', { interestConfig: config.interestConfig });
+    }
+
     this.registerDefaultHandlers();
     logger.info('NetworkServer initialized', { config: this.config });
   }
@@ -235,6 +250,11 @@ export class NetworkServer {
     room.playerCount = players.size;
     client.roomId = roomId;
 
+    // Register viewer in interest manager
+    if (this.interestManager) {
+      this.interestManager.addViewer(clientId, player.position, roomId);
+    }
+
     // Notify other players
     this.broadcastToRoom(roomId, {
       type: 'playerJoined',
@@ -264,6 +284,11 @@ export class NetworkServer {
       client.roomId = null;
     }
 
+    // Remove viewer from interest manager
+    if (this.interestManager) {
+      this.interestManager.removeViewer(clientId);
+    }
+
     // Notify other players
     this.broadcastToRoom(roomId, {
       type: 'playerLeft',
@@ -291,6 +316,12 @@ export class NetworkServer {
       this.rooms.delete(roomId);
       this.roomPlayers.delete(roomId);
       this.roomStates.delete(roomId);
+
+      // Clean up interest manager data for this room
+      if (this.interestManager) {
+        this.interestManager.clearRoom(roomId);
+      }
+
       logger.info('Empty room deleted', { roomId });
     }
 
@@ -335,10 +366,27 @@ export class NetworkServer {
     state.sequence = this.stateSequence++;
     state.timestamp = Date.now();
     states.set(state.objectId, state);
+
+    // Update entity position in interest manager
+    if (this.interestManager && state.position) {
+      this.interestManager.updateEntityPosition(state.objectId, state.position);
+    }
   }
 
   removeState(roomId: string, objectId: string): void {
     this.roomStates.get(roomId)?.delete(objectId);
+
+    // Remove entity from interest manager
+    if (this.interestManager) {
+      this.interestManager.removeEntity(objectId);
+    }
+  }
+
+  /**
+   * Get the interest manager instance (null if interest management is disabled).
+   */
+  getInterestManager(): ServerInterestManager | null {
+    return this.interestManager;
   }
 
   private tick(): void {
@@ -347,22 +395,54 @@ export class NetworkServer {
   }
 
   private broadcastSnapshots(): void {
+    // Advance interest manager tick counter
+    if (this.interestManager) {
+      this.interestManager.tick();
+    }
+
     this.rooms.forEach((room, roomId) => {
       const states = this.roomStates.get(roomId);
       if (!states || states.size === 0) return;
 
-      const snapshot: StateSnapshot = {
+      const fullSnapshot: StateSnapshot = {
         timestamp: Date.now(),
         sequence: this.stateSequence,
         states: Array.from(states.values()),
       };
 
-      this.broadcastToRoom(roomId, {
-        type: 'snapshot',
-        category: 'state',
-        payload: snapshot,
-        timestamp: snapshot.timestamp,
-      });
+      if (this.interestManager) {
+        // Per-client filtered snapshots
+        const players = this.roomPlayers.get(roomId);
+        if (!players) return;
+
+        players.forEach((_, playerId) => {
+          const client = this.clients.get(playerId);
+          if (!client) return;
+
+          const filtered = this.interestManager!.filterSnapshotForViewer(
+            playerId,
+            fullSnapshot
+          );
+
+          // Only send if there are relevant states
+          if (filtered.states.length > 0) {
+            client.send({
+              type: 'snapshot',
+              category: 'state',
+              payload: filtered,
+              timestamp: filtered.timestamp,
+            });
+          }
+        });
+      } else {
+        // Legacy: broadcast everything to everyone
+        this.broadcastToRoom(roomId, {
+          type: 'snapshot',
+          category: 'state',
+          payload: fullSnapshot,
+          timestamp: fullSnapshot.timestamp,
+        });
+      }
     });
   }
 
@@ -383,6 +463,11 @@ export class NetworkServer {
     if (!player) return;
 
     player.position = position;
+
+    // Update viewer position in interest manager
+    if (this.interestManager) {
+      this.interestManager.updateViewerPosition(clientId, position);
+    }
 
     // Create sync state for player
     this.updateState(roomId, {
