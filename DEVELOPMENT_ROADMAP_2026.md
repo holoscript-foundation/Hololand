@@ -6,8 +6,8 @@ Hololand consumes [HoloScript](https://github.com/brianonbased-dev/HoloScript) a
 
 > **Relationship:** HoloScript is the language. Hololand is the platform that hosts, renders, and deploys HoloScript worlds — plus Brittney AI, adapters, and social/commerce infrastructure.
 
-**Current Status**: Matchmaking Complete ✅ | Voice Chat Relay Next  
-**Last Updated**: February 16, 2026
+**Current Status**: All Multiplayer P2 Tasks Complete ✅  
+**Last Updated**: February 15, 2026
 
 ---
 
@@ -122,13 +122,13 @@ The infrastructure is partially built:
 | `SpatialVoiceMixer` (backend) | 3D spatial audio parameter calculator — distance attenuation (linear/inverse/exponential), stereo panning, voice zones with isolation, per-peer position tracking | 47 |
 | `VoiceChannel` (backend) | Server-side voice channel management — channel CRUD, participant join/leave, mute/deafen/speaking/volume, spatial integration via SpatialVoiceMixer, voice routing tables, auto-destroy empty channels | 80 |
 | `LobbyServer` voice wiring | 14 new voice_* message handlers, event forwarding to room members, session cleanup on disconnect, voice stats integration | — |
-| **Total** | | **586** |
+| `ServerAntiCheat` (backend) | Trust-score anti-cheat engine — position validation (speed/teleport), action rate limiting, state ownership checks, violation tracking, auto-penalty enforcement (warn/kick/ban), temp penalty expiry, trust recovery | 95 |
+| `LobbyServer` anti-cheat wiring | 9 new ac_* message handlers (ban/unban/mute/unmute/pardon/violations/trust/report/stats), penalty event forwarding (kick/ban → session destroy, violations → notify), session lifecycle integration | — |
+| **Total** | | **681** |
 
 ### Remaining Work
 
-| Task | Package | Priority |
-|------|---------|----------|
-| Anti-cheat enforcement — server-side validation | @hololand/backend | P2 |
+All P2 multiplayer tasks completed! ✅
 
 ### Success Metrics
 - 2-8 players in shared VR space with < 50ms sync latency

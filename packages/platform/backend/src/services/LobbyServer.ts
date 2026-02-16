@@ -36,6 +36,8 @@ import type { GameModeConfig, EnqueueOptions, MatchmakingServiceConfig } from '.
 import { VoiceChannel } from './VoiceChannel';
 import type { VoiceChannelConfig, ChannelCreateOptions, VoiceChannelInfo, VoiceParticipantInfo } from './VoiceChannel';
 import type { VoicePosition } from './SpatialVoiceMixer';
+import { ServerAntiCheat } from './ServerAntiCheat';
+import type { ServerAntiCheatConfig, PlayerRecordInfo, Violation, Penalty, ViolationType } from './ServerAntiCheat';
 
 // ============================================================================
 // Types
@@ -83,6 +85,8 @@ export interface LobbyServerConfig {
   matchmaking?: Omit<MatchmakingServiceConfig, 'roomService'>;
   /** Voice channel configuration. */
   voice?: VoiceChannelConfig;
+  /** Anti-cheat configuration. */
+  anticheat?: ServerAntiCheatConfig;
 }
 
 export type LobbyEventType =
@@ -143,6 +147,15 @@ const LOBBY_MESSAGE_TYPES = [
   'voice_participants',
   'voice_channels',
   'voice_gains',
+  'ac_ban',
+  'ac_unban',
+  'ac_mute',
+  'ac_unmute',
+  'ac_pardon',
+  'ac_violations',
+  'ac_trust',
+  'ac_report',
+  'ac_stats',
 ] as const;
 
 export type LobbyMessageType = (typeof LOBBY_MESSAGE_TYPES)[number];
@@ -158,6 +171,7 @@ const DEFAULT_CONFIG: Required<LobbyServerConfig> = {
   rooms: {},
   matchmaking: {},
   voice: {},
+  anticheat: {},
 };
 
 // ============================================================================
@@ -170,6 +184,7 @@ export class LobbyServer {
   readonly rooms: RoomService;
   readonly matchmaking: MatchmakingService;
   readonly voice: VoiceChannel;
+  readonly anticheat: ServerAntiCheat;
 
   private sessions: Map<string, LobbySession> = new Map();
   private peerToSession: Map<string, string> = new Map(); // peerId → sessionId
@@ -187,6 +202,7 @@ export class LobbyServer {
       roomService: this.rooms,
     });
     this.voice = new VoiceChannel(this.config.voice);
+    this.anticheat = new ServerAntiCheat(this.config.anticheat);
 
     this.wireInternalEvents();
   }
@@ -221,6 +237,7 @@ export class LobbyServer {
     this.rooms.destroy();
     this.matchmaking.destroy();
     this.voice.destroy();
+    this.anticheat.destroy();
   }
 
   /** Set the authentication function. */
@@ -263,6 +280,9 @@ export class LobbyServer {
     this.sessions.set(session.id, session);
     this.peerToSession.set(peerId, session.id);
 
+    // Register in anti-cheat
+    this.anticheat.registerPlayer(peerId);
+
     // Register in presence
     this.presence.connect(peerId, {
       displayName: session.displayName,
@@ -298,6 +318,9 @@ export class LobbyServer {
 
     // Remove from matchmaking queue
     this.matchmaking.dequeue(session.peerId);
+
+    // Unregister from anti-cheat
+    this.anticheat.unregisterPlayer(session.peerId);
 
     // Leave voice channel
     this.voice.leave(session.peerId);
@@ -454,6 +477,33 @@ export class LobbyServer {
           break;
         case 'voice_gains':
           this.handleVoiceGains(session, message);
+          break;
+        case 'ac_ban':
+          this.handleAcBan(session, message);
+          break;
+        case 'ac_unban':
+          this.handleAcUnban(session, message);
+          break;
+        case 'ac_mute':
+          this.handleAcMute(session, message);
+          break;
+        case 'ac_unmute':
+          this.handleAcUnmute(session, message);
+          break;
+        case 'ac_pardon':
+          this.handleAcPardon(session, message);
+          break;
+        case 'ac_violations':
+          this.handleAcViolations(session, message);
+          break;
+        case 'ac_trust':
+          this.handleAcTrust(session, message);
+          break;
+        case 'ac_report':
+          this.handleAcReport(session, message);
+          break;
+        case 'ac_stats':
+          this.handleAcStats(session, message);
           break;
         default:
           this.sendError(session, message, `Unknown message type: ${message.type}`);
@@ -1111,6 +1161,129 @@ export class LobbyServer {
   }
 
   // ============================================================================
+  // Anti-Cheat Handlers
+  // ============================================================================
+
+  private handleAcBan(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { peerId, duration } = (message.payload ?? {}) as { peerId?: string; duration?: number };
+    if (!peerId) {
+      this.sendError(session, message, 'Peer ID required');
+      return;
+    }
+    const success = this.anticheat.ban(peerId, duration);
+    if (!success) {
+      this.sendError(session, message, 'Player not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { peerId, banned: true, duration });
+  }
+
+  private handleAcUnban(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { peerId } = (message.payload ?? {}) as { peerId?: string };
+    if (!peerId) {
+      this.sendError(session, message, 'Peer ID required');
+      return;
+    }
+    const success = this.anticheat.unban(peerId);
+    if (!success) {
+      this.sendError(session, message, 'Player not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { peerId, banned: false });
+  }
+
+  private handleAcMute(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { peerId, duration } = (message.payload ?? {}) as { peerId?: string; duration?: number };
+    if (!peerId) {
+      this.sendError(session, message, 'Peer ID required');
+      return;
+    }
+    const success = this.anticheat.mute(peerId, duration);
+    if (!success) {
+      this.sendError(session, message, 'Player not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { peerId, muted: true, duration });
+  }
+
+  private handleAcUnmute(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { peerId } = (message.payload ?? {}) as { peerId?: string };
+    if (!peerId) {
+      this.sendError(session, message, 'Peer ID required');
+      return;
+    }
+    const success = this.anticheat.unmute(peerId);
+    if (!success) {
+      this.sendError(session, message, 'Player not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { peerId, muted: false });
+  }
+
+  private handleAcPardon(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { peerId } = (message.payload ?? {}) as { peerId?: string };
+    if (!peerId) {
+      this.sendError(session, message, 'Peer ID required');
+      return;
+    }
+    const success = this.anticheat.pardon(peerId);
+    if (!success) {
+      this.sendError(session, message, 'Player not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { peerId, pardoned: true });
+  }
+
+  private handleAcViolations(session: LobbySession, message: LobbyMessage): void {
+    const { peerId } = (message.payload ?? {}) as { peerId?: string };
+    const targetPeer = peerId ?? session.peerId;
+    const violations = this.anticheat.getViolations(targetPeer);
+    this.sendResponse(session, message, true, { peerId: targetPeer, violations });
+  }
+
+  private handleAcTrust(session: LobbySession, message: LobbyMessage): void {
+    const { peerId } = (message.payload ?? {}) as { peerId?: string };
+    const targetPeer = peerId ?? session.peerId;
+    const player = this.anticheat.getPlayer(targetPeer);
+    if (!player) {
+      this.sendError(session, message, 'Player not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { player });
+  }
+
+  private handleAcReport(session: LobbySession, message: LobbyMessage): void {
+    const { peerId, type, severity, description } = (message.payload ?? {}) as {
+      peerId?: string;
+      type?: ViolationType;
+      severity?: number;
+      description?: string;
+    };
+    if (!peerId || !type || !severity || !description) {
+      this.sendError(session, message, 'peerId, type, severity, and description required');
+      return;
+    }
+    const success = this.anticheat.reportViolation(peerId, type, severity, description, {
+      reportedBy: session.peerId,
+    });
+    if (!success) {
+      this.sendError(session, message, 'Player not found');
+      return;
+    }
+    this.sendResponse(session, message, true, { peerId, reported: true });
+  }
+
+  private handleAcStats(session: LobbySession, message: LobbyMessage): void {
+    const stats = this.anticheat.getStats();
+    this.sendResponse(session, message, true, { stats });
+  }
+
+  // ============================================================================
   // Broadcasting
   // ============================================================================
 
@@ -1168,10 +1341,13 @@ export class LobbyServer {
     matchmakingModes: number;
     voiceChannels: number;
     voiceParticipants: number;
+    anticheatPlayers: number;
+    anticheatBanned: number;
     running: boolean;
   } {
     const mmStats = this.matchmaking.getStats();
     const voiceStats = this.voice.getStats();
+    const acStats = this.anticheat.getStats();
     return {
       sessions: this.sessions.size,
       rooms: this.rooms.getRoomCount(),
@@ -1180,6 +1356,8 @@ export class LobbyServer {
       matchmakingModes: mmStats.modes,
       voiceChannels: voiceStats.channels,
       voiceParticipants: voiceStats.participants,
+      anticheatPlayers: acStats.players,
+      anticheatBanned: acStats.banned,
       running: this.running,
     };
   }
@@ -1197,6 +1375,8 @@ export class LobbyServer {
         if (sessionId) {
           // Remove from matchmaking queue
           this.matchmaking.dequeue(event.peerId);
+          // Unregister from anti-cheat
+          this.anticheat.unregisterPlayer(event.peerId);
           // Leave voice channel
           this.voice.leave(event.peerId);
           // Remove from rooms
@@ -1270,6 +1450,54 @@ export class LobbyServer {
               timestamp: now,
             });
           }
+        }
+      }
+    });
+
+    // Forward anti-cheat penalty events — kick/ban triggers session destroy
+    this.anticheat.onEvent((event) => {
+      if (event.type === 'penalty_kick') {
+        const sessionId = this.peerToSession.get(event.peerId);
+        if (sessionId) {
+          const session = this.sessions.get(sessionId);
+          if (session) {
+            session.send({
+              type: 'ac_kicked',
+              payload: { reason: 'Anti-cheat: trust score too low', trustScore: event.data.trustScore } as Record<string, unknown>,
+              timestamp: event.timestamp,
+            });
+          }
+          this.destroySession(sessionId, 'anticheat_kick');
+        }
+      }
+      if (event.type === 'penalty_ban') {
+        const sessionId = this.peerToSession.get(event.peerId);
+        if (sessionId) {
+          const session = this.sessions.get(sessionId);
+          if (session) {
+            session.send({
+              type: 'ac_banned',
+              payload: { reason: 'Anti-cheat: banned', duration: event.data.duration, permanent: event.data.permanent } as Record<string, unknown>,
+              timestamp: event.timestamp,
+            });
+          }
+          this.destroySession(sessionId, 'anticheat_ban');
+        }
+      }
+      if (event.type === 'violation') {
+        // Notify the offending player
+        const session = this.getSessionByPeer(event.peerId);
+        if (session) {
+          session.send({
+            type: 'ac_violation',
+            payload: {
+              violationType: event.data.violationType,
+              severity: event.data.severity,
+              description: event.data.description,
+              trustScore: event.data.trustScore,
+            } as Record<string, unknown>,
+            timestamp: event.timestamp,
+          });
         }
       }
     });

@@ -37,6 +37,8 @@ export { VoiceChannel } from './services/VoiceChannel';
 export type { ChannelCreateOptions, VoiceChannelRecord, VoiceChannelInfo, VoiceParticipant, VoiceParticipantInfo, VoiceChannelEvent, VoiceChannelEventType, VoiceChannelConfig } from './services/VoiceChannel';
 export { SpatialVoiceMixer } from './services/SpatialVoiceMixer';
 export type { SpatialVoiceMixerConfig, VoicePosition, VoiceGain, VoiceOrientation, VoiceZone, RolloffModel } from './services/SpatialVoiceMixer';
+export { ServerAntiCheat } from './services/ServerAntiCheat';
+export type { ServerAntiCheatConfig, Vec3, ViolationType, PenaltyAction, Violation, Penalty, PlayerRecordInfo, PositionValidation, ActionValidation, StateValidation, AntiCheatEventType, AntiCheatEvent, AntiCheatStats, OwnershipCheckFn } from './services/ServerAntiCheat';
 
 // Lib utilities
 export * from './lib/api';
