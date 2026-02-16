@@ -33,6 +33,10 @@ export { LobbyServer } from './services/LobbyServer';
 export type { LobbySession, LobbySessionSend, LobbyMessage, LobbyResponse, LobbyServerConfig, LobbyEvent, AuthenticateFn } from './services/LobbyServer';
 export { MatchmakingService } from './services/MatchmakingService';
 export type { GameModeConfig, EnqueueOptions, QueueEntry, MatchTeam, MatchResult, QueueStats, MatchmakingEvent, MatchmakingEventType, MatchmakingServiceConfig } from './services/MatchmakingService';
+export { VoiceChannel } from './services/VoiceChannel';
+export type { ChannelCreateOptions, VoiceChannelRecord, VoiceChannelInfo, VoiceParticipant, VoiceParticipantInfo, VoiceChannelEvent, VoiceChannelEventType, VoiceChannelConfig } from './services/VoiceChannel';
+export { SpatialVoiceMixer } from './services/SpatialVoiceMixer';
+export type { SpatialVoiceMixerConfig, VoicePosition, VoiceGain, VoiceOrientation, VoiceZone, RolloffModel } from './services/SpatialVoiceMixer';
 
 // Lib utilities
 export * from './lib/api';

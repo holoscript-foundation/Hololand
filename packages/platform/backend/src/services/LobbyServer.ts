@@ -33,6 +33,9 @@ import { RoomService } from './RoomService';
 import type { RoomRecord, RoomPublicInfo, RoomSearchQuery, RoomSearchResult, RoomServiceConfig, RoomStatus } from './RoomService';
 import { MatchmakingService } from './MatchmakingService';
 import type { GameModeConfig, EnqueueOptions, MatchmakingServiceConfig } from './MatchmakingService';
+import { VoiceChannel } from './VoiceChannel';
+import type { VoiceChannelConfig, ChannelCreateOptions, VoiceChannelInfo, VoiceParticipantInfo } from './VoiceChannel';
+import type { VoicePosition } from './SpatialVoiceMixer';
 
 // ============================================================================
 // Types
@@ -78,6 +81,8 @@ export interface LobbyServerConfig {
   rooms?: RoomServiceConfig;
   /** Matchmaking service configuration. */
   matchmaking?: Omit<MatchmakingServiceConfig, 'roomService'>;
+  /** Voice channel configuration. */
+  voice?: VoiceChannelConfig;
 }
 
 export type LobbyEventType =
@@ -125,6 +130,19 @@ const LOBBY_MESSAGE_TYPES = [
   'mm_dequeue',
   'mm_queue_status',
   'mm_queue_stats',
+  'voice_create_channel',
+  'voice_destroy_channel',
+  'voice_join',
+  'voice_leave',
+  'voice_mute',
+  'voice_deafen',
+  'voice_speaking',
+  'voice_volume',
+  'voice_update_position',
+  'voice_channel_info',
+  'voice_participants',
+  'voice_channels',
+  'voice_gains',
 ] as const;
 
 export type LobbyMessageType = (typeof LOBBY_MESSAGE_TYPES)[number];
@@ -139,6 +157,7 @@ const DEFAULT_CONFIG: Required<LobbyServerConfig> = {
   presence: {},
   rooms: {},
   matchmaking: {},
+  voice: {},
 };
 
 // ============================================================================
@@ -150,6 +169,7 @@ export class LobbyServer {
   readonly presence: PresenceTracker;
   readonly rooms: RoomService;
   readonly matchmaking: MatchmakingService;
+  readonly voice: VoiceChannel;
 
   private sessions: Map<string, LobbySession> = new Map();
   private peerToSession: Map<string, string> = new Map(); // peerId → sessionId
@@ -166,6 +186,7 @@ export class LobbyServer {
       ...this.config.matchmaking,
       roomService: this.rooms,
     });
+    this.voice = new VoiceChannel(this.config.voice);
 
     this.wireInternalEvents();
   }
@@ -199,6 +220,7 @@ export class LobbyServer {
     this.presence.destroy();
     this.rooms.destroy();
     this.matchmaking.destroy();
+    this.voice.destroy();
   }
 
   /** Set the authentication function. */
@@ -276,6 +298,9 @@ export class LobbyServer {
 
     // Remove from matchmaking queue
     this.matchmaking.dequeue(session.peerId);
+
+    // Leave voice channel
+    this.voice.leave(session.peerId);
 
     // Remove from rooms
     this.rooms.handlePlayerDisconnect(session.peerId);
@@ -390,6 +415,45 @@ export class LobbyServer {
           break;
         case 'mm_queue_stats':
           this.handleMmQueueStats(session, message);
+          break;
+        case 'voice_create_channel':
+          this.handleVoiceCreateChannel(session, message);
+          break;
+        case 'voice_destroy_channel':
+          this.handleVoiceDestroyChannel(session, message);
+          break;
+        case 'voice_join':
+          this.handleVoiceJoin(session, message);
+          break;
+        case 'voice_leave':
+          this.handleVoiceLeave(session, message);
+          break;
+        case 'voice_mute':
+          this.handleVoiceMute(session, message);
+          break;
+        case 'voice_deafen':
+          this.handleVoiceDeafen(session, message);
+          break;
+        case 'voice_speaking':
+          this.handleVoiceSpeaking(session, message);
+          break;
+        case 'voice_volume':
+          this.handleVoiceVolume(session, message);
+          break;
+        case 'voice_update_position':
+          this.handleVoiceUpdatePosition(session, message);
+          break;
+        case 'voice_channel_info':
+          this.handleVoiceChannelInfo(session, message);
+          break;
+        case 'voice_participants':
+          this.handleVoiceParticipants(session, message);
+          break;
+        case 'voice_channels':
+          this.handleVoiceChannels(session, message);
+          break;
+        case 'voice_gains':
+          this.handleVoiceGains(session, message);
           break;
         default:
           this.sendError(session, message, `Unknown message type: ${message.type}`);
@@ -871,6 +935,182 @@ export class LobbyServer {
   }
 
   // ============================================================================
+  // Voice Handlers
+  // ============================================================================
+
+  private handleVoiceCreateChannel(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as {
+      name?: string;
+      roomId?: string;
+      maxParticipants?: number;
+      spatial?: boolean;
+      spatialConfig?: Record<string, unknown>;
+      persistent?: boolean;
+      metadata?: Record<string, unknown>;
+    };
+
+    if (!payload.name) {
+      this.sendError(session, message, 'Channel name required');
+      return;
+    }
+
+    const channel = this.voice.createChannel({
+      name: payload.name,
+      roomId: payload.roomId,
+      maxParticipants: payload.maxParticipants,
+      spatial: payload.spatial,
+      spatialConfig: payload.spatialConfig,
+      persistent: payload.persistent,
+      metadata: payload.metadata,
+    });
+
+    this.sendResponse(session, message, true, { channel });
+  }
+
+  private handleVoiceDestroyChannel(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { channelId } = (message.payload ?? {}) as { channelId?: string };
+    if (!channelId) {
+      this.sendError(session, message, 'Channel ID required');
+      return;
+    }
+
+    const destroyed = this.voice.destroyChannel(channelId);
+    if (!destroyed) {
+      this.sendError(session, message, 'Channel not found');
+      return;
+    }
+
+    this.sendResponse(session, message, true, { channelId, destroyed: true });
+  }
+
+  private handleVoiceJoin(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const { channelId, metadata } = (message.payload ?? {}) as {
+      channelId?: string;
+      metadata?: Record<string, unknown>;
+    };
+    if (!channelId) {
+      this.sendError(session, message, 'Channel ID required');
+      return;
+    }
+
+    const participant = this.voice.join(channelId, session.peerId, metadata);
+    if (!participant) {
+      this.sendError(session, message, 'Cannot join voice channel');
+      return;
+    }
+
+    this.sendResponse(session, message, true, { channelId, participant });
+  }
+
+  private handleVoiceLeave(session: LobbySession, message: LobbyMessage): void {
+    const left = this.voice.leave(session.peerId);
+    this.sendResponse(session, message, true, { left });
+  }
+
+  private handleVoiceMute(session: LobbySession, message: LobbyMessage): void {
+    const { muted } = (message.payload ?? {}) as { muted?: boolean };
+    const success = this.voice.setMuted(session.peerId, muted ?? true);
+    if (!success) {
+      this.sendError(session, message, 'Not in a voice channel');
+      return;
+    }
+    this.sendResponse(session, message, true, { muted: muted ?? true });
+  }
+
+  private handleVoiceDeafen(session: LobbySession, message: LobbyMessage): void {
+    const { deafened } = (message.payload ?? {}) as { deafened?: boolean };
+    const success = this.voice.setDeafened(session.peerId, deafened ?? true);
+    if (!success) {
+      this.sendError(session, message, 'Not in a voice channel');
+      return;
+    }
+    this.sendResponse(session, message, true, { deafened: deafened ?? true });
+  }
+
+  private handleVoiceSpeaking(session: LobbySession, message: LobbyMessage): void {
+    const { speaking } = (message.payload ?? {}) as { speaking?: boolean };
+    const success = this.voice.setSpeaking(session.peerId, speaking ?? true);
+    if (!success) {
+      this.sendError(session, message, 'Not in a voice channel or muted');
+      return;
+    }
+    this.sendResponse(session, message, true, { speaking: speaking ?? true });
+  }
+
+  private handleVoiceVolume(session: LobbySession, message: LobbyMessage): void {
+    const { volume } = (message.payload ?? {}) as { volume?: number };
+    if (volume === undefined) {
+      this.sendError(session, message, 'Volume required');
+      return;
+    }
+    const success = this.voice.setVolume(session.peerId, volume);
+    if (!success) {
+      this.sendError(session, message, 'Not in a voice channel');
+      return;
+    }
+    this.sendResponse(session, message, true, { volume });
+  }
+
+  private handleVoiceUpdatePosition(session: LobbySession, message: LobbyMessage): void {
+    const { position } = (message.payload ?? {}) as { position?: VoicePosition };
+    if (!position || typeof position.x !== 'number' || typeof position.y !== 'number' || typeof position.z !== 'number') {
+      this.sendError(session, message, 'Valid position {x, y, z} required');
+      return;
+    }
+    const success = this.voice.updatePosition(session.peerId, position);
+    if (!success) {
+      this.sendError(session, message, 'Not in a spatial voice channel');
+      return;
+    }
+    this.sendResponse(session, message, true, { position });
+  }
+
+  private handleVoiceChannelInfo(session: LobbySession, message: LobbyMessage): void {
+    const { channelId } = (message.payload ?? {}) as { channelId?: string };
+    if (!channelId) {
+      this.sendError(session, message, 'Channel ID required');
+      return;
+    }
+
+    const info = this.voice.getChannelInfo(channelId);
+    if (!info) {
+      this.sendError(session, message, 'Channel not found');
+      return;
+    }
+
+    this.sendResponse(session, message, true, { channel: info });
+  }
+
+  private handleVoiceParticipants(session: LobbySession, message: LobbyMessage): void {
+    const { channelId } = (message.payload ?? {}) as { channelId?: string };
+    if (!channelId) {
+      this.sendError(session, message, 'Channel ID required');
+      return;
+    }
+
+    const participants = this.voice.getParticipants(channelId);
+    this.sendResponse(session, message, true, { channelId, participants });
+  }
+
+  private handleVoiceChannels(session: LobbySession, message: LobbyMessage): void {
+    const { roomId } = (message.payload ?? {}) as { roomId?: string };
+
+    const channels = roomId
+      ? this.voice.getChannelsByRoom(roomId)
+      : this.voice.getChannels();
+
+    this.sendResponse(session, message, true, { channels });
+  }
+
+  private handleVoiceGains(session: LobbySession, message: LobbyMessage): void {
+    const gains = this.voice.getVoiceGains(session.peerId);
+    this.sendResponse(session, message, true, { gains });
+  }
+
+  // ============================================================================
   // Broadcasting
   // ============================================================================
 
@@ -926,15 +1166,20 @@ export class LobbyServer {
     onlinePeers: number;
     matchmakingQueued: number;
     matchmakingModes: number;
+    voiceChannels: number;
+    voiceParticipants: number;
     running: boolean;
   } {
     const mmStats = this.matchmaking.getStats();
+    const voiceStats = this.voice.getStats();
     return {
       sessions: this.sessions.size,
       rooms: this.rooms.getRoomCount(),
       onlinePeers: this.presence.getPeerCount(),
       matchmakingQueued: mmStats.totalQueued,
       matchmakingModes: mmStats.modes,
+      voiceChannels: voiceStats.channels,
+      voiceParticipants: voiceStats.participants,
       running: this.running,
     };
   }
@@ -952,6 +1197,8 @@ export class LobbyServer {
         if (sessionId) {
           // Remove from matchmaking queue
           this.matchmaking.dequeue(event.peerId);
+          // Leave voice channel
+          this.voice.leave(event.peerId);
           // Remove from rooms
           this.rooms.handlePlayerDisconnect(event.peerId);
           // Then clean up session
@@ -1023,6 +1270,32 @@ export class LobbyServer {
               timestamp: now,
             });
           }
+        }
+      }
+    });
+
+    // Forward voice events to room members
+    this.voice.onEvent((event) => {
+      if (
+        event.type === 'participant_joined' ||
+        event.type === 'participant_left' ||
+        event.type === 'participant_speaking' ||
+        event.type === 'participant_stopped_speaking' ||
+        event.type === 'participant_muted' ||
+        event.type === 'participant_unmuted'
+      ) {
+        const { channelId } = event;
+        const channelInfo = this.voice.getChannelInfo(channelId);
+        if (channelInfo?.roomId) {
+          this.broadcastToRoom(channelInfo.roomId, {
+            type: `voice_${event.type}`,
+            payload: {
+              channelId,
+              peerId: event.peerId,
+              ...event.data,
+            } as Record<string, unknown>,
+            timestamp: event.timestamp,
+          });
         }
       }
     });

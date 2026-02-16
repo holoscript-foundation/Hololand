@@ -119,13 +119,15 @@ The infrastructure is partially built:
 | `NetworkServer` interest integration | Per-client filtered snapshots, viewer/entity lifecycle hooks, always-relevant entities | 16 |
 | `MatchmakingService` (backend) | Skill-based matchmaking — queue management, MMR tolerance expansion, party support, backfill, region selection, snake-draft team balancing, auto room creation via RoomService | 92 |
 | `LobbyServer` matchmaking wiring | 6 new message handlers (mm_register_mode, mm_enqueue, mm_enqueue_party, mm_dequeue, mm_queue_status, mm_queue_stats), event forwarding, lifecycle integration | — |
-| **Total** | | **459** |
+| `SpatialVoiceMixer` (backend) | 3D spatial audio parameter calculator — distance attenuation (linear/inverse/exponential), stereo panning, voice zones with isolation, per-peer position tracking | 47 |
+| `VoiceChannel` (backend) | Server-side voice channel management — channel CRUD, participant join/leave, mute/deafen/speaking/volume, spatial integration via SpatialVoiceMixer, voice routing tables, auto-destroy empty channels | 80 |
+| `LobbyServer` voice wiring | 14 new voice_* message handlers, event forwarding to room members, session cleanup on disconnect, voice stats integration | — |
+| **Total** | | **586** |
 
 ### Remaining Work
 
 | Task | Package | Priority |
 |------|---------|----------|
-| Voice chat relay — spatial voice via WebRTC | @hololand/voice | P2 |
 | Anti-cheat enforcement — server-side validation | @hololand/backend | P2 |
 
 ### Success Metrics
