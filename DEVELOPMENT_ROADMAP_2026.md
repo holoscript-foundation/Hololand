@@ -7,7 +7,7 @@ Hololand consumes [HoloScript](https://github.com/brianonbased-dev/HoloScript) a
 > **Relationship:** HoloScript is the language. Hololand is the platform that hosts, renders, and deploys HoloScript worlds — plus Brittney AI, adapters, and social/commerce infrastructure.
 
 **Current Status**: Multiplayer Runtime In Progress 🔨 | Interest Management Next  
-**Last Updated**: February 15, 2026
+**Last Updated**: February 16, 2026
 
 ---
 
@@ -111,13 +111,15 @@ The infrastructure is partially built:
 | `@networked` registered in VRTraitSystem | Import + register + export in `VRTraitSystem.ts` | — |
 | `NetworkedRuntime` (Hololand) | Platform runtime connecting trait events → CoPresenceBridge → NetworkClient | 20 |
 | `StateAuthority` module | Centralized ownership with server/owner/shared modes, conflict resolution, lock/unlock, peer disconnect | 45 |
-| **Total** | | **87** |
+| `PresenceTracker` (backend) | Heartbeat monitoring, online/idle/away status, room location tracking, reaper | 43 |
+| `RoomService` (backend) | Room CRUD, join/leave, search/filter, categories, password protection, host migration | 64 |
+| `LobbyServer` (backend) | Session management, 16 message handlers, broadcasting, pluggable auth, presence+room orchestration | 60 |
+| **Total** | | **254** |
 
 ### Remaining Work
 
 | Task | Package | Priority |
 |------|---------|----------|
-| Lobby/room server — create/join/leave rooms, presence | @hololand/backend | P0 |
 | Interest management — only sync nearby objects | @hololand/network | P1 |
 | Matchmaking integration — connect HoloScript Matchmaker to live rooms | @hololand/network | P1 |
 | Voice chat relay — spatial voice via WebRTC | @hololand/voice | P2 |
@@ -227,7 +229,7 @@ These are longer-term platform capabilities (not language features):
 | Mobile | React Native (client), Tauri (desktop) |
 | Backend | Node.js, PostgreSQL, S3 |
 | Deployment | Vercel (web), Railway (API), Docker |
-| Testing | Vitest (109+ builder tests), HoloScript test suite (6,000+) |
+| Testing | Vitest (254+ multiplayer + builder tests), HoloScript test suite (6,000+) |
 
 ---
 
