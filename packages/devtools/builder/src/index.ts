@@ -109,4 +109,51 @@ export type {
   BrittneyUIEventListener,
 } from './BrittneyUI';
 
-export const HOLOLAND_BUILDER_VERSION = '1.0.0-alpha.1';
+// Multi-Object Editor
+export {
+  MultiObjectEditor,
+  getAvailableTraits,
+  getTraitsByCategory,
+  getTrait,
+  validateTraitCombination,
+} from './MultiObjectEditor';
+
+export type {
+  VRTrait,
+  TraitCategory,
+  BatchResult,
+  PropertyEdit,
+  SelectionGroup,
+  AnimationSyncConfig,
+  PhysicsConstraint,
+  ConstraintType,
+  AlignAxis,
+  AlignMode,
+  DistributeMode,
+} from './MultiObjectEditor';
+
+// Performance Tools
+export {
+  PerformanceProfiler,
+  createProfiler,
+  analyzeSceneComplexity,
+  estimateRenderStats,
+  estimateMemoryStats,
+  generateRecommendations,
+  getBudgetPreset,
+} from './PerformanceTools';
+
+export type {
+  FrameStats,
+  RenderStats,
+  MemoryStats,
+  SceneComplexity,
+  OptimizationRecommendation,
+  OptimizationType,
+  PerformanceSnapshot,
+  PerformanceBudget,
+  ProfileConfig,
+  ProfileRecording,
+} from './PerformanceTools';
+
+export const HOLOLAND_BUILDER_VERSION = '1.1.0';

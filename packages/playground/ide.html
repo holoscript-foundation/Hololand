@@ -147,6 +147,47 @@
     #ast-panel .ast-str { color: #ce9178; }
     #ast-panel .ast-num { color: #b5cea8; }
     #ast-panel .ast-bool { color: #569cd6; }
+
+    /* ── Panel Content Switching ── */
+    .panel-content { display: none; flex: 1; overflow-y: auto; padding: 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #ccc; line-height: 1.6; }
+    .panel-content.active { display: block; }
+
+    /* ── Performance Dashboard ── */
+    #perf-content { padding: 12px; }
+    .perf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .perf-card { background: #2d2d30; border: 1px solid #3c3c3c; border-radius: 6px; padding: 10px 14px; }
+    .perf-card .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .perf-card .value { font-size: 20px; font-weight: 600; margin-top: 2px; color: #ddd; }
+    .perf-card .value.good { color: #89d185; }
+    .perf-card .value.warn { color: #cca700; }
+    .perf-card .value.bad { color: #f14c4c; }
+    .perf-recs { margin-top: 8px; }
+    .perf-rec { display: flex; align-items: center; gap: 8px; padding: 4px 8px; margin: 4px 0; background: #252526; border-radius: 4px; font-size: 11px; }
+    .perf-rec .severity { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .perf-rec .severity.high { background: #f14c4c; }
+    .perf-rec .severity.medium { background: #cca700; }
+    .perf-rec .severity.low { background: #3794ff; }
+
+    /* ── Multi-Edit Panel ── */
+    #multiedit-content { padding: 12px; }
+    .me-section { margin-bottom: 14px; }
+    .me-section h4 { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid #3c3c3c; }
+    .me-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+    .me-btn { padding: 4px 10px; font-size: 11px; background: #2d2d30; border: 1px solid #3c3c3c; color: #ccc; border-radius: 4px; cursor: pointer; font-family: 'JetBrains Mono', monospace; }
+    .me-btn:hover { background: #3c3c3c; color: #fff; }
+    .me-btn.active { background: #007acc; border-color: #007acc; color: #fff; }
+    .me-trait-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 4px; }
+    .me-trait { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 3px 6px; background: #252526; border-radius: 3px; cursor: pointer; }
+    .me-trait:hover { background: #2d2d30; }
+    .me-trait input[type="checkbox"] { accent-color: #007acc; }
+    .me-empty { color: #666; font-style: italic; font-size: 12px; padding: 20px; text-align: center; }
+    .me-batch-row { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+    .me-batch-row label { font-size: 11px; color: #999; width: 60px; }
+    .me-batch-row input { flex: 1; background: #2d2d30; border: 1px solid #3c3c3c; color: #ccc; padding: 3px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .me-sel-count { font-size: 12px; color: #3794ff; margin-bottom: 8px; padding: 6px 10px; background: #1a2a40; border: 1px solid #1a3a5c; border-radius: 4px; }
+
+    /* ── Selection Highlight in Preview ── */
+    #selection-overlay { position: absolute; top: 34px; right: 8px; font-size: 11px; color: #3794ff; background: rgba(0,30,60,0.8); padding: 4px 10px; border-radius: 4px; display: none; z-index: 10; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -219,6 +260,7 @@
       </div>
       <div id="preview-canvas-container">
         <canvas id="preview-canvas"></canvas>
+        <div id="selection-overlay"></div>
       </div>
     </div>
 
@@ -234,8 +276,14 @@
       <div class="btab active" data-panel="output">Output</div>
       <div class="btab" data-panel="errors">Errors</div>
       <div class="btab" data-panel="ast-text">AST</div>
+      <div class="btab" data-panel="perf">Performance</div>
+      <div class="btab" data-panel="multiedit">Multi-Edit</div>
     </div>
-    <div id="output-content"></div>
+    <div id="output-content" class="panel-content active"></div>
+    <div id="errors-content" class="panel-content"></div>
+    <div id="ast-text-content" class="panel-content"></div>
+    <div id="perf-content" class="panel-content"></div>
+    <div id="multiedit-content" class="panel-content"></div>
   </div>
 </div>
 
@@ -1363,6 +1411,9 @@ const EXAMPLES = {
       return;
     }
 
+    // Clear selection before rebuilding
+    clearSelection();
+
     // Clear scene objects
     sceneObjects.forEach(obj => {
       scene.remove(obj);
@@ -1452,6 +1503,9 @@ const EXAMPLES = {
 
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+
+    // Store definition for selection & multi-edit
+    mesh.userData.holoDef = { ...def };
 
     // Animation hints
     if (hasGlow) {
@@ -1577,6 +1631,14 @@ const EXAMPLES = {
       tab.onclick = function() {
         document.querySelectorAll('.btab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
+        // Switch content panels
+        const panelId = this.getAttribute('data-panel');
+        document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+        const target = document.getElementById(panelId + '-content');
+        if (target) target.classList.add('active');
+        // Refresh panel content
+        if (panelId === 'perf') renderPerformancePanel();
+        if (panelId === 'multiedit') renderMultiEditPanel();
       };
     });
 
@@ -1622,7 +1684,490 @@ const EXAMPLES = {
       hResizer.classList.remove('active');
       vResizer.classList.remove('active');
     };
+
+    // ── Multi-Select System ──
+    initSelection();
   });
+
+  // ─── Selection & Multi-Edit System ───
+
+  let selectedObjects = [];
+  let raycaster = null;
+  let mouse = new THREE.Vector2();
+
+  function initSelection() {
+    raycaster = new THREE.Raycaster();
+    const canvas = document.getElementById('preview-canvas');
+
+    canvas.addEventListener('click', function(e) {
+      if (!scene || !camera) return;
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const selectable = sceneObjects.filter(o => o.userData.holoDef);
+      const intersects = raycaster.intersectObjects(selectable, true);
+
+      if (intersects.length > 0) {
+        let target = intersects[0].object;
+        // Walk up to find the holoDef root
+        while (target.parent && !target.userData.holoDef && target.parent !== scene) {
+          target = target.parent;
+        }
+
+        if (e.shiftKey) {
+          // Toggle selection
+          const idx = selectedObjects.indexOf(target);
+          if (idx >= 0) {
+            deselectObject(target);
+            selectedObjects.splice(idx, 1);
+          } else {
+            selectObject(target);
+            selectedObjects.push(target);
+          }
+        } else {
+          // Single select
+          clearSelection();
+          selectObject(target);
+          selectedObjects = [target];
+        }
+      } else if (!e.shiftKey) {
+        clearSelection();
+      }
+
+      updateSelectionOverlay();
+      // Refresh multi-edit panel if visible
+      const meTab = document.querySelector('.btab[data-panel="multiedit"]');
+      if (meTab && meTab.classList.contains('active')) {
+        renderMultiEditPanel();
+      }
+    });
+  }
+
+  function selectObject(obj) {
+    if (!obj.userData._origEmissive) {
+      const mat = obj.material;
+      if (mat) {
+        obj.userData._origEmissive = mat.emissive ? mat.emissive.getHex() : 0x000000;
+        obj.userData._origEmissiveIntensity = mat.emissiveIntensity || 0;
+        if (mat.emissive) {
+          mat.emissive.setHex(0x007acc);
+          mat.emissiveIntensity = 0.4;
+        }
+      }
+    }
+  }
+
+  function deselectObject(obj) {
+    const mat = obj.material;
+    if (mat && obj.userData._origEmissive !== undefined) {
+      if (mat.emissive) {
+        mat.emissive.setHex(obj.userData._origEmissive);
+        mat.emissiveIntensity = obj.userData._origEmissiveIntensity;
+      }
+      delete obj.userData._origEmissive;
+      delete obj.userData._origEmissiveIntensity;
+    }
+  }
+
+  function clearSelection() {
+    selectedObjects.forEach(o => deselectObject(o));
+    selectedObjects = [];
+    updateSelectionOverlay();
+  }
+
+  function updateSelectionOverlay() {
+    const overlay = document.getElementById('selection-overlay');
+    if (!overlay) return;
+    if (selectedObjects.length > 0) {
+      overlay.style.display = 'block';
+      const names = selectedObjects.map(o => o.userData.holoDef?.name || o.name || 'Object').join(', ');
+      overlay.textContent = selectedObjects.length + ' selected: ' + names;
+    } else {
+      overlay.style.display = 'none';
+    }
+  }
+
+  // ─── Performance Panel ───
+
+  const GEOMETRY_TRIS = { cube: 12, sphere: 960, cylinder: 64, cone: 32, torus: 768, capsule: 512, plane: 2, humanoid: 5000, model: 10000 };
+
+  const perfState = {
+    frames: [],
+    maxFrames: 300,
+    lastUpdate: 0
+  };
+
+  // Hook into animation loop for performance tracking
+  const _origAnimate = window.requestAnimationFrame;
+  let perfFrameStart = 0;
+  function trackFrame() {
+    const now = performance.now();
+    if (perfFrameStart > 0) {
+      perfState.frames.push(now - perfFrameStart);
+      if (perfState.frames.length > perfState.maxFrames) perfState.frames.shift();
+    }
+    perfFrameStart = now;
+  }
+
+  // Patch into the FPS counter update to also track perf
+  const _origFpsUpdater = setInterval(function() {
+    if (perfState.frames.length > 0) {
+      // Auto-refresh perf panel if active
+      const perfTab = document.querySelector('.btab[data-panel="perf"]');
+      if (perfTab && perfTab.classList.contains('active')) {
+        renderPerformancePanel();
+      }
+    }
+  }, 2000);
+
+  function estimateSceneStats() {
+    let triangles = 0, drawCalls = 0, materials = new Set(), lights = 0;
+    const objCount = sceneObjects.length;
+
+    sceneObjects.forEach(obj => {
+      const geomType = obj.userData.holoDef?.geometry || 'cube';
+      triangles += GEOMETRY_TRIS[geomType] || GEOMETRY_TRIS.cube;
+      drawCalls++;
+      if (obj.material) materials.add(obj.material.uuid);
+    });
+
+    // Count lights
+    if (scene) {
+      scene.traverse(child => {
+        if (child.isLight) lights++;
+      });
+    }
+
+    return { triangles, drawCalls, materials: materials.size, lights, objectCount: objCount };
+  }
+
+  function getAvgFps() {
+    if (perfState.frames.length < 2) return 0;
+    const avg = perfState.frames.reduce((s, f) => s + f, 0) / perfState.frames.length;
+    return avg > 0 ? Math.round(1000 / avg) : 0;
+  }
+
+  function getP95FrameTime() {
+    if (perfState.frames.length < 10) return 0;
+    const sorted = [...perfState.frames].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length * 0.95)].toFixed(1);
+  }
+
+  function generateRecommendations(stats) {
+    const recs = [];
+    if (stats.triangles > 500000) recs.push({ severity: 'high', text: 'High triangle count (' + stats.triangles.toLocaleString() + '). Consider using simpler geometry or LODs.' });
+    if (stats.drawCalls > 100) recs.push({ severity: 'medium', text: 'High draw calls (' + stats.drawCalls + '). Merge materials or use instancing.' });
+    if (stats.materials > 20) recs.push({ severity: 'medium', text: 'Many unique materials (' + stats.materials + '). Share materials between similar objects.' });
+    if (stats.lights > 5) recs.push({ severity: 'low', text: 'Multiple lights (' + stats.lights + '). Consider baking or reducing dynamic lights.' });
+    if (stats.objectCount > 50) recs.push({ severity: 'medium', text: 'Many objects (' + stats.objectCount + '). Consider spatial grouping or merge static geometry.' });
+    const fps = getAvgFps();
+    if (fps > 0 && fps < 30) recs.push({ severity: 'high', text: 'Low FPS (' + fps + '). Reduce scene complexity or disable shadows.' });
+    else if (fps > 0 && fps < 60) recs.push({ severity: 'low', text: 'FPS below 60 (' + fps + '). Optimize for smoother experience.' });
+    if (recs.length === 0) recs.push({ severity: 'low', text: 'Scene looks performant. No issues detected.' });
+    return recs;
+  }
+
+  function renderPerformancePanel() {
+    const el = document.getElementById('perf-content');
+    if (!el) return;
+
+    // Track frame for timing
+    trackFrame();
+
+    const stats = estimateSceneStats();
+    const fps = getAvgFps();
+    const p95 = getP95FrameTime();
+    const memEst = Math.round((stats.triangles * 40 + stats.materials * 1024) / 1024);
+    const recs = generateRecommendations(stats);
+
+    const fpsClass = fps >= 60 ? 'good' : fps >= 30 ? 'warn' : 'bad';
+    const triClass = stats.triangles < 100000 ? 'good' : stats.triangles < 500000 ? 'warn' : 'bad';
+
+    el.innerHTML = `
+      <div class="perf-grid">
+        <div class="perf-card"><div class="label">FPS (Avg)</div><div class="value ${fpsClass}">${fps || '--'}</div></div>
+        <div class="perf-card"><div class="label">P95 Frame (ms)</div><div class="value">${p95 || '--'}</div></div>
+        <div class="perf-card"><div class="label">Triangles</div><div class="value ${triClass}">${stats.triangles.toLocaleString()}</div></div>
+        <div class="perf-card"><div class="label">Draw Calls</div><div class="value">${stats.drawCalls}</div></div>
+        <div class="perf-card"><div class="label">Materials</div><div class="value">${stats.materials}</div></div>
+        <div class="perf-card"><div class="label">Lights</div><div class="value">${stats.lights}</div></div>
+        <div class="perf-card"><div class="label">Objects</div><div class="value">${stats.objectCount}</div></div>
+        <div class="perf-card"><div class="label">Memory (est.)</div><div class="value">${memEst} KB</div></div>
+      </div>
+      <div class="perf-recs">
+        <h4 style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 6px 0;">Recommendations</h4>
+        ${recs.map(r => `<div class="perf-rec"><span class="severity ${r.severity}"></span><span>${r.text}</span></div>`).join('')}
+      </div>
+    `;
+  }
+
+  // ─── Multi-Edit Panel ───
+
+  const ME_TRAITS = [
+    { name: '@grabbable', cat: 'Interaction' }, { name: '@throwable', cat: 'Interaction' },
+    { name: '@clickable', cat: 'Interaction' }, { name: '@hoverable', cat: 'Interaction' },
+    { name: '@pointable', cat: 'Interaction' }, { name: '@draggable', cat: 'Interaction' },
+    { name: '@collidable', cat: 'Physics' }, { name: '@physics', cat: 'Physics' },
+    { name: '@rigid', cat: 'Physics' }, { name: '@kinematic', cat: 'Physics' },
+    { name: '@trigger', cat: 'Physics' }, { name: '@gravity', cat: 'Physics' },
+    { name: '@glowing', cat: 'Visual' }, { name: '@emissive', cat: 'Visual' },
+    { name: '@transparent', cat: 'Visual' }, { name: '@reflective', cat: 'Visual' },
+    { name: '@animated', cat: 'Visual' }, { name: '@billboard', cat: 'Visual' },
+    { name: '@networked', cat: 'Networking' }, { name: '@synced', cat: 'Networking' },
+    { name: '@persistent', cat: 'Networking' }, { name: '@spatial_audio', cat: 'Audio' },
+  ];
+
+  function renderMultiEditPanel() {
+    const el = document.getElementById('multiedit-content');
+    if (!el) return;
+
+    if (selectedObjects.length === 0) {
+      el.innerHTML = '<div class="me-empty">Click objects in the 3D preview to select them.<br>Hold Shift to multi-select.</div>';
+      return;
+    }
+
+    const names = selectedObjects.map(o => o.userData.holoDef?.name || o.name || 'Object');
+    const commonTraits = getCommonTraits();
+
+    el.innerHTML = `
+      <div class="me-sel-count">${selectedObjects.length} object(s) selected: ${names.join(', ')}</div>
+
+      <div class="me-section">
+        <h4>Alignment</h4>
+        <div class="me-buttons">
+          <button class="me-btn" onclick="meAlign('x','min')" title="Align Left">⬅ X</button>
+          <button class="me-btn" onclick="meAlign('x','center')" title="Align Center X">⬌ X</button>
+          <button class="me-btn" onclick="meAlign('x','max')" title="Align Right">➡ X</button>
+          <button class="me-btn" onclick="meAlign('y','min')" title="Align Bottom">⬇ Y</button>
+          <button class="me-btn" onclick="meAlign('y','center')" title="Align Center Y">⬌ Y</button>
+          <button class="me-btn" onclick="meAlign('y','max')" title="Align Top">⬆ Y</button>
+          <button class="me-btn" onclick="meAlign('z','min')" title="Align Back">⬅ Z</button>
+          <button class="me-btn" onclick="meAlign('z','center')" title="Align Center Z">⬌ Z</button>
+          <button class="me-btn" onclick="meAlign('z','max')" title="Align Front">➡ Z</button>
+        </div>
+      </div>
+
+      <div class="me-section">
+        <h4>Distribution</h4>
+        <div class="me-buttons">
+          <button class="me-btn" onclick="meDistribute('x')" title="Distribute evenly on X">Distribute X</button>
+          <button class="me-btn" onclick="meDistribute('y')" title="Distribute evenly on Y">Distribute Y</button>
+          <button class="me-btn" onclick="meDistribute('z')" title="Distribute evenly on Z">Distribute Z</button>
+        </div>
+      </div>
+
+      <div class="me-section">
+        <h4>Arrange</h4>
+        <div class="me-buttons">
+          <button class="me-btn" onclick="meGrid()" title="Arrange in grid">Grid</button>
+          <button class="me-btn" onclick="meCircle()" title="Arrange in circle">Circle</button>
+          <button class="me-btn" onclick="meLine('x')" title="Line on X axis">Line X</button>
+          <button class="me-btn" onclick="meLine('z')" title="Line on Z axis">Line Z</button>
+        </div>
+      </div>
+
+      <div class="me-section">
+        <h4>Batch Properties</h4>
+        <div class="me-batch-row">
+          <label>Color</label>
+          <input type="color" id="me-color" value="#00d4ff" style="width:40px;height:24px;padding:0;border:none;cursor:pointer;">
+          <button class="me-btn" onclick="meBatchColor()">Apply</button>
+        </div>
+        <div class="me-batch-row">
+          <label>Scale</label>
+          <input type="number" id="me-scale" value="1.0" step="0.1" min="0.1" max="10">
+          <button class="me-btn" onclick="meBatchScale()">Apply</button>
+        </div>
+      </div>
+
+      <div class="me-section">
+        <h4>VR Traits</h4>
+        <div class="me-trait-grid">
+          ${ME_TRAITS.map(t => {
+            const checked = commonTraits.includes(t.name) ? 'checked' : '';
+            return `<label class="me-trait"><input type="checkbox" ${checked} onchange="meToggleTrait('${t.name}', this.checked)"><span>${t.name}</span></label>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="me-section">
+        <h4>Bulk Actions</h4>
+        <div class="me-buttons">
+          <button class="me-btn" onclick="meDuplicate()">Duplicate All</button>
+          <button class="me-btn" onclick="meDelete()" style="color:#f14c4c;">Delete All</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function getCommonTraits() {
+    if (selectedObjects.length === 0) return [];
+    const traitSets = selectedObjects.map(o => (o.userData.holoDef?.traits || []).map(t => t.startsWith('@') ? t : '@' + t));
+    if (traitSets.length === 0) return [];
+    return traitSets[0].filter(t => traitSets.every(ts => ts.includes(t)));
+  }
+
+  // ── Alignment ──
+  function meAlign(axis, mode) {
+    if (selectedObjects.length < 2) return;
+    const positions = selectedObjects.map(o => o.position[axis]);
+    let target;
+    if (mode === 'min') target = Math.min(...positions);
+    else if (mode === 'max') target = Math.max(...positions);
+    else target = positions.reduce((s, v) => s + v, 0) / positions.length;
+
+    selectedObjects.forEach(o => { o.position[axis] = target; });
+    log('Aligned ' + selectedObjects.length + ' objects on ' + axis.toUpperCase() + ' (' + mode + ')', 'info');
+    renderMultiEditPanel();
+  }
+
+  // ── Distribution ──
+  function meDistribute(axis) {
+    if (selectedObjects.length < 3) { log('Need 3+ objects to distribute', 'warn'); return; }
+    const sorted = [...selectedObjects].sort((a, b) => a.position[axis] - b.position[axis]);
+    const min = sorted[0].position[axis];
+    const max = sorted[sorted.length - 1].position[axis];
+    const step = (max - min) / (sorted.length - 1);
+    sorted.forEach((o, i) => { o.position[axis] = min + step * i; });
+    log('Distributed ' + selectedObjects.length + ' objects on ' + axis.toUpperCase(), 'info');
+  }
+
+  // ── Arrange: Grid ──
+  function meGrid() {
+    if (selectedObjects.length < 2) return;
+    const cols = Math.ceil(Math.sqrt(selectedObjects.length));
+    const spacing = 2;
+    const center = getCenterOfSelection();
+    selectedObjects.forEach((o, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      o.position.x = center.x + (col - (cols - 1) / 2) * spacing;
+      o.position.z = center.z + (row - Math.floor((selectedObjects.length - 1) / cols) / 2) * spacing;
+    });
+    log('Arranged ' + selectedObjects.length + ' objects in grid', 'info');
+  }
+
+  // ── Arrange: Circle ──
+  function meCircle() {
+    if (selectedObjects.length < 2) return;
+    const radius = Math.max(2, selectedObjects.length * 0.5);
+    const center = getCenterOfSelection();
+    selectedObjects.forEach((o, i) => {
+      const angle = (i / selectedObjects.length) * Math.PI * 2;
+      o.position.x = center.x + Math.cos(angle) * radius;
+      o.position.z = center.z + Math.sin(angle) * radius;
+    });
+    log('Arranged ' + selectedObjects.length + ' objects in circle (r=' + radius.toFixed(1) + ')', 'info');
+  }
+
+  // ── Arrange: Line ──
+  function meLine(axis) {
+    if (selectedObjects.length < 2) return;
+    const center = getCenterOfSelection();
+    const totalLen = (selectedObjects.length - 1) * 2;
+    selectedObjects.forEach((o, i) => {
+      o.position[axis] = center[axis] - totalLen / 2 + i * 2;
+    });
+    log('Arranged ' + selectedObjects.length + ' objects in line on ' + axis.toUpperCase(), 'info');
+  }
+
+  function getCenterOfSelection() {
+    const c = { x: 0, y: 0, z: 0 };
+    selectedObjects.forEach(o => { c.x += o.position.x; c.y += o.position.y; c.z += o.position.z; });
+    c.x /= selectedObjects.length; c.y /= selectedObjects.length; c.z /= selectedObjects.length;
+    return c;
+  }
+
+  // ── Batch Properties ──
+  function meBatchColor() {
+    const hex = document.getElementById('me-color').value;
+    const color = new THREE.Color(hex);
+    selectedObjects.forEach(o => {
+      if (o.material) {
+        o.material.color.copy(color);
+        if (o.userData.holoDef) o.userData.holoDef.color = hex;
+      }
+    });
+    log('Set color ' + hex + ' on ' + selectedObjects.length + ' objects', 'info');
+  }
+
+  function meBatchScale() {
+    const s = parseFloat(document.getElementById('me-scale').value) || 1;
+    selectedObjects.forEach(o => {
+      o.scale.set(s, s, s);
+      if (o.userData.holoDef) o.userData.holoDef.scale = [s, s, s];
+    });
+    log('Set scale ' + s + ' on ' + selectedObjects.length + ' objects', 'info');
+  }
+
+  // ── Traits ──
+  function meToggleTrait(trait, enabled) {
+    selectedObjects.forEach(o => {
+      if (!o.userData.holoDef) return;
+      if (!o.userData.holoDef.traits) o.userData.holoDef.traits = [];
+      const cleanTrait = trait.replace(/^@/, '');
+      const idx = o.userData.holoDef.traits.indexOf(cleanTrait);
+      if (enabled && idx < 0) {
+        o.userData.holoDef.traits.push(cleanTrait);
+        // Apply visual effect for glowing
+        if (cleanTrait === 'glowing' && o.material && o.material.emissive) {
+          o.material.emissive.setHex(0x00d4ff);
+          o.material.emissiveIntensity = 0.3;
+        }
+        if (cleanTrait === 'transparent' && o.material) {
+          o.material.transparent = true;
+          o.material.opacity = 0.5;
+        }
+      } else if (!enabled && idx >= 0) {
+        o.userData.holoDef.traits.splice(idx, 1);
+        if (cleanTrait === 'glowing' && o.material && o.material.emissive) {
+          o.material.emissive.setHex(0x000000);
+          o.material.emissiveIntensity = 0;
+        }
+        if (cleanTrait === 'transparent' && o.material) {
+          o.material.transparent = false;
+          o.material.opacity = 1.0;
+        }
+      }
+    });
+    log((enabled ? 'Added' : 'Removed') + ' ' + trait + ' on ' + selectedObjects.length + ' objects', 'info');
+  }
+
+  // ── Bulk Actions ──
+  function meDuplicate() {
+    const newObjs = [];
+    selectedObjects.forEach(o => {
+      const clone = o.clone();
+      clone.position.x += 2;
+      clone.userData = { ...o.userData, holoDef: o.userData.holoDef ? { ...o.userData.holoDef, name: (o.userData.holoDef.name || 'Object') + '_copy' } : undefined };
+      scene.add(clone);
+      sceneObjects.push(clone);
+      newObjs.push(clone);
+    });
+    clearSelection();
+    newObjs.forEach(o => { selectObject(o); selectedObjects.push(o); });
+    updateSelectionOverlay();
+    log('Duplicated ' + newObjs.length + ' objects', 'success');
+    renderMultiEditPanel();
+  }
+
+  function meDelete() {
+    const count = selectedObjects.length;
+    selectedObjects.forEach(o => {
+      deselectObject(o);
+      scene.remove(o);
+      const idx = sceneObjects.indexOf(o);
+      if (idx >= 0) sceneObjects.splice(idx, 1);
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
+    selectedObjects = [];
+    updateSelectionOverlay();
+    log('Deleted ' + count + ' objects', 'warn');
+    renderMultiEditPanel();
+  }
 })();
 </script>
 </body>
