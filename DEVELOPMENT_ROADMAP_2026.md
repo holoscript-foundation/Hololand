@@ -6,7 +6,7 @@ Hololand consumes [HoloScript](https://github.com/brianonbased-dev/HoloScript) a
 
 > **Relationship:** HoloScript is the language. Hololand is the platform that hosts, renders, and deploys HoloScript worlds — plus Brittney AI, adapters, and social/commerce infrastructure.
 
-**Current Status**: Platform Foundation Complete ✅ | Multiplayer Runtime Next 🔨  
+**Current Status**: Multiplayer Runtime In Progress 🔨 | Interest Management Next  
 **Last Updated**: February 15, 2026
 
 ---
@@ -103,13 +103,21 @@ The infrastructure is partially built:
 - ✅ HoloScript v3.4 networking modules (Matchmaker, AntiCheat, Prediction — 18 modules)
 - ✅ @hololand/network package (WebRTC + WebSocket + CRDT)
 
+### Completed
+
+| Task | Deliverable | Tests |
+|------|-------------|-------|
+| `@networked` TraitHandler (HoloScript) | `NetworkedTraitHandler.ts` — bridges `NetworkedTrait` class into `VRTraitRegistry` lifecycle | 22 |
+| `@networked` registered in VRTraitSystem | Import + register + export in `VRTraitSystem.ts` | — |
+| `NetworkedRuntime` (Hololand) | Platform runtime connecting trait events → CoPresenceBridge → NetworkClient | 20 |
+| `StateAuthority` module | Centralized ownership with server/owner/shared modes, conflict resolution, lock/unlock, peer disconnect | 45 |
+| **Total** | | **87** |
+
 ### Remaining Work
 
 | Task | Package | Priority |
 |------|---------|----------|
-| `@networked` trait runtime — sync position/rotation/state between clients | @hololand/network | P0 |
 | Lobby/room server — create/join/leave rooms, presence | @hololand/backend | P0 |
-| State authority — host-authoritative vs. owner-authoritative modes | @hololand/network | P0 |
 | Interest management — only sync nearby objects | @hololand/network | P1 |
 | Matchmaking integration — connect HoloScript Matchmaker to live rooms | @hololand/network | P1 |
 | Voice chat relay — spatial voice via WebRTC | @hololand/voice | P2 |

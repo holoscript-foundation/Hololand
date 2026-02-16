@@ -169,6 +169,14 @@ export * from './MultiplayerSync';
 // CRDT state sync (merged from @holoscript/state-sync)
 export * from './CRDTStateSync';
 
+// Networked Runtime — connects @networked trait to network transport
+export { NetworkedRuntime } from './NetworkedRuntime';
+export type { NetworkedEntityConfig, NetworkedRuntimeConfig, RuntimeStats, NetworkedRuntimeEvent } from './NetworkedRuntime';
+
+// State Authority — centralized ownership management
+export { StateAuthority } from './StateAuthority';
+export type { AuthorityMode, ConflictStrategy, AuthorityEntry, AuthorityClaim, AuthorityConfig, AuthorityEvent } from './StateAuthority';
+
 // Version
 export const HOLOLAND_NETWORK_VERSION = '1.0.0-alpha.1';
 
@@ -182,6 +190,8 @@ import { InterestManager } from './InterestManager';
 import { VoiceChat } from './VoiceChat';
 import { TextChat } from './TextChat';
 import { NeuralOllamaBridge, AgentFactory } from './NeuralOllamaBridge';
+import { NetworkedRuntime } from './NetworkedRuntime';
+import { StateAuthority } from './StateAuthority';
 
 export default {
   NetworkClient,
@@ -195,5 +205,7 @@ export default {
   TextChat,
   NeuralOllamaBridge,
   AgentFactory,
+  NetworkedRuntime,
+  StateAuthority,
   HOLOLAND_NETWORK_VERSION,
 };
