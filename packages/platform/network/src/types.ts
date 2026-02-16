@@ -300,3 +300,119 @@ export interface Transform {
   rotation: Vector3;
   scale: Vector3;
 }
+
+// ============================================================================
+// Transport Types (used by WebSocketTransport, WebRTCTransport, NetworkManager)
+// ============================================================================
+
+/** Opaque identifier for a networked entity. */
+export type NetworkId = string;
+
+/** Opaque identifier for a connected peer. */
+export type PeerId = string;
+
+/** Opaque identifier for a room/session. */
+export type RoomId = string;
+
+/** Which transport layer is active. */
+export type TransportType = 'websocket' | 'webrtc' | 'hybrid';
+
+/** How an entity is synchronised across the network. */
+export type SyncMode = 'owner' | 'server' | 'shared';
+
+/** Lightweight state for a single networked entity. */
+export interface EntityState {
+  networkId: NetworkId;
+  ownerId: PeerId;
+  type: string; // e.g. 'player', 'npc', 'object'
+  position?: Vector3;
+  rotation?: Vector3;
+  scale?: Vector3;
+  velocity?: Vector3;
+  metadata?: Record<string, unknown>;
+  timestamp: number;
+  syncMode: SyncMode;
+}
+
+/** Information about a connected peer. */
+export interface PeerInfo {
+  peerId: PeerId;
+  displayName: string;
+  joinedAt: number;
+  latency: number;
+  transport: TransportType;
+  metadata?: Record<string, unknown>;
+}
+
+/** Configuration for the high-level NetworkManager. */
+export interface NetworkConfig {
+  serverUrl: string;
+  transport: TransportType;
+  syncRate?: number;           // updates per second (default 20)
+  interpolation?: boolean;
+  prediction?: boolean;
+  maxPeers?: number;
+  iceServers?: RTCIceServerConfig[];
+  heartbeatInterval?: number;
+  reconnect?: boolean;
+  reconnectAttempts?: number;
+}
+
+/** ICE server configuration for WebRTC. */
+export interface RTCIceServerConfig {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+/** Configuration for a trait's networked properties. */
+export interface NetworkedTraitConfig {
+  entityType: string;
+  syncMode: SyncMode;
+  properties: string[];       // e.g. ['position', 'rotation']
+  interpolation?: boolean;
+  priority?: ObjectPriority;
+}
+
+/** RPC method definition. */
+export interface RPCDefinition {
+  method: string;
+  params?: Record<string, string>; // param name → type hint
+  returns?: string;
+  reliable?: boolean;
+}
+
+/** Event map for the transport-level network manager. */
+export interface NetworkEvents {
+  connected: { peerId: PeerId; roomId: RoomId };
+  disconnected: { reason: string };
+  peerJoined: { peer: PeerInfo };
+  peerLeft: { peerId: PeerId; reason: string };
+  entitySpawned: { entity: EntityState };
+  entityUpdated: { entity: EntityState };
+  entityDespawned: { networkId: NetworkId };
+  message: { type: string; data: unknown; senderId: PeerId };
+  error: { message: string; code?: string };
+  reconnecting: { attempt: number };
+  signalOffer: { peerId: PeerId; sdp: string };
+  signalAnswer: { peerId: PeerId; sdp: string };
+  signalCandidate: { peerId: PeerId; candidate: string };
+}
+
+/** Callback type for network events. */
+export type NetworkEventCallback<K extends keyof NetworkEvents> = (
+  event: NetworkEvents[K],
+) => void;
+
+/** Abstract transport interface implemented by WebSocket and WebRTC transports. */
+export interface NetworkTransport {
+  readonly type: TransportType;
+  readonly connected: boolean;
+  connect(url: string, roomId: RoomId): Promise<PeerId>;
+  disconnect(reason?: string): void;
+  send(message: NetworkMessage): boolean;
+  on<K extends keyof NetworkEvents>(event: K, handler: NetworkEventCallback<K>): () => void;
+  off<K extends keyof NetworkEvents>(event: K, handler: NetworkEventCallback<K>): void;
+  getLatency(): number;
+  getPeerId(): PeerId;
+}
