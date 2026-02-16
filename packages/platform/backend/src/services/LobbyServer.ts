@@ -31,6 +31,8 @@ import { PresenceTracker } from './PresenceTracker';
 import type { PeerPresence, PresenceStatus, PresenceSnapshot, PresenceConfig } from './PresenceTracker';
 import { RoomService } from './RoomService';
 import type { RoomRecord, RoomPublicInfo, RoomSearchQuery, RoomSearchResult, RoomServiceConfig, RoomStatus } from './RoomService';
+import { MatchmakingService } from './MatchmakingService';
+import type { GameModeConfig, EnqueueOptions, MatchmakingServiceConfig } from './MatchmakingService';
 
 // ============================================================================
 // Types
@@ -74,6 +76,8 @@ export interface LobbyServerConfig {
   presence?: PresenceConfig;
   /** Room service configuration. */
   rooms?: RoomServiceConfig;
+  /** Matchmaking service configuration. */
+  matchmaking?: Omit<MatchmakingServiceConfig, 'roomService'>;
 }
 
 export type LobbyEventType =
@@ -115,6 +119,12 @@ const LOBBY_MESSAGE_TYPES = [
   'get_presence',
   'get_room_presence',
   'set_display_name',
+  'mm_register_mode',
+  'mm_enqueue',
+  'mm_enqueue_party',
+  'mm_dequeue',
+  'mm_queue_status',
+  'mm_queue_stats',
 ] as const;
 
 export type LobbyMessageType = (typeof LOBBY_MESSAGE_TYPES)[number];
@@ -128,6 +138,7 @@ const DEFAULT_CONFIG: Required<LobbyServerConfig> = {
   requireAuth: false,
   presence: {},
   rooms: {},
+  matchmaking: {},
 };
 
 // ============================================================================
@@ -138,6 +149,7 @@ export class LobbyServer {
   private config: Required<LobbyServerConfig>;
   readonly presence: PresenceTracker;
   readonly rooms: RoomService;
+  readonly matchmaking: MatchmakingService;
 
   private sessions: Map<string, LobbySession> = new Map();
   private peerToSession: Map<string, string> = new Map(); // peerId → sessionId
@@ -150,6 +162,10 @@ export class LobbyServer {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.presence = new PresenceTracker(this.config.presence);
     this.rooms = new RoomService(this.config.rooms);
+    this.matchmaking = new MatchmakingService({
+      ...this.config.matchmaking,
+      roomService: this.rooms,
+    });
 
     this.wireInternalEvents();
   }
@@ -158,11 +174,12 @@ export class LobbyServer {
   // Lifecycle
   // ============================================================================
 
-  /** Start the lobby server (presence reaper, etc.). */
+  /** Start the lobby server (presence reaper, matchmaking, etc.). */
   start(): void {
     if (this.running) return;
     this.running = true;
     this.presence.start();
+    this.matchmaking.start();
   }
 
   /** Stop the lobby server. */
@@ -170,6 +187,7 @@ export class LobbyServer {
     if (!this.running) return;
     this.running = false;
     this.presence.stop();
+    this.matchmaking.stop();
   }
 
   /** Full cleanup — stops everything, clears all state. */
@@ -180,6 +198,7 @@ export class LobbyServer {
     this.listeners.clear();
     this.presence.destroy();
     this.rooms.destroy();
+    this.matchmaking.destroy();
   }
 
   /** Set the authentication function. */
@@ -254,6 +273,9 @@ export class LobbyServer {
   destroySession(sessionId: string, reason = 'disconnect'): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
+
+    // Remove from matchmaking queue
+    this.matchmaking.dequeue(session.peerId);
 
     // Remove from rooms
     this.rooms.handlePlayerDisconnect(session.peerId);
@@ -350,6 +372,24 @@ export class LobbyServer {
           break;
         case 'set_display_name':
           this.handleSetDisplayName(session, message);
+          break;
+        case 'mm_register_mode':
+          this.handleMmRegisterMode(session, message);
+          break;
+        case 'mm_enqueue':
+          this.handleMmEnqueue(session, message);
+          break;
+        case 'mm_enqueue_party':
+          this.handleMmEnqueueParty(session, message);
+          break;
+        case 'mm_dequeue':
+          this.handleMmDequeue(session, message);
+          break;
+        case 'mm_queue_status':
+          this.handleMmQueueStatus(session, message);
+          break;
+        case 'mm_queue_stats':
+          this.handleMmQueueStats(session, message);
           break;
         default:
           this.sendError(session, message, `Unknown message type: ${message.type}`);
@@ -710,6 +750,127 @@ export class LobbyServer {
   }
 
   // ============================================================================
+  // Matchmaking Handlers
+  // ============================================================================
+
+  private handleMmRegisterMode(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as { name?: string } & GameModeConfig;
+
+    if (!payload.name) {
+      this.sendError(session, message, 'Mode name required');
+      return;
+    }
+
+    const { name, ...config } = payload;
+    this.matchmaking.addMode(name, config);
+    this.sendResponse(session, message, true, { mode: name, registered: true });
+  }
+
+  private handleMmEnqueue(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as {
+      mode?: string;
+      skillRating?: number;
+      region?: string;
+      metadata?: Record<string, unknown>;
+    };
+
+    if (!payload.mode) {
+      this.sendError(session, message, 'Mode required');
+      return;
+    }
+
+    const entry = this.matchmaking.enqueue(session.peerId, payload.mode, {
+      skillRating: payload.skillRating,
+      region: payload.region,
+      metadata: payload.metadata,
+    });
+
+    this.sendResponse(session, message, true, {
+      entryId: entry.id,
+      mode: entry.mode,
+      position: this.matchmaking.getQueuePosition(session.peerId),
+    });
+  }
+
+  private handleMmEnqueueParty(session: LobbySession, message: LobbyMessage): void {
+    this.requireAuth(session);
+    const payload = (message.payload ?? {}) as {
+      mode?: string;
+      memberIds?: string[];
+      skillRating?: number;
+      region?: string;
+      metadata?: Record<string, unknown>;
+    };
+
+    if (!payload.mode) {
+      this.sendError(session, message, 'Mode required');
+      return;
+    }
+
+    if (!payload.memberIds || payload.memberIds.length === 0) {
+      this.sendError(session, message, 'Member IDs required');
+      return;
+    }
+
+    const entry = this.matchmaking.enqueueParty(
+      session.peerId,
+      payload.memberIds,
+      payload.mode,
+      {
+        skillRating: payload.skillRating,
+        region: payload.region,
+        metadata: payload.metadata,
+      }
+    );
+
+    this.sendResponse(session, message, true, {
+      entryId: entry.id,
+      mode: entry.mode,
+      playerIds: entry.playerIds,
+      position: this.matchmaking.getQueuePosition(session.peerId),
+    });
+  }
+
+  private handleMmDequeue(session: LobbySession, message: LobbyMessage): void {
+    const removed = this.matchmaking.dequeue(session.peerId);
+    this.sendResponse(session, message, true, { removed });
+  }
+
+  private handleMmQueueStatus(session: LobbySession, message: LobbyMessage): void {
+    const entry = this.matchmaking.getQueueEntry(session.peerId);
+    if (!entry) {
+      this.sendResponse(session, message, true, { queued: false });
+      return;
+    }
+
+    this.sendResponse(session, message, true, {
+      queued: true,
+      mode: entry.mode,
+      position: this.matchmaking.getQueuePosition(session.peerId),
+      enqueuedAt: entry.enqueuedAt,
+      waitTime: Date.now() - entry.enqueuedAt,
+    });
+  }
+
+  private handleMmQueueStats(session: LobbySession, message: LobbyMessage): void {
+    const payload = (message.payload ?? {}) as { mode?: string };
+
+    if (payload.mode) {
+      const stats = this.matchmaking.getQueueStats(payload.mode);
+      if (!stats) {
+        this.sendError(session, message, `Mode "${payload.mode}" not found`);
+        return;
+      }
+      this.sendResponse(session, message, true, { stats });
+    } else {
+      const allStats = this.matchmaking.getAllQueueStats();
+      this.sendResponse(session, message, true, { stats: allStats });
+    }
+  }
+
+  // ============================================================================
   // Broadcasting
   // ============================================================================
 
@@ -763,12 +924,17 @@ export class LobbyServer {
     sessions: number;
     rooms: number;
     onlinePeers: number;
+    matchmakingQueued: number;
+    matchmakingModes: number;
     running: boolean;
   } {
+    const mmStats = this.matchmaking.getStats();
     return {
       sessions: this.sessions.size,
       rooms: this.rooms.getRoomCount(),
       onlinePeers: this.presence.getPeerCount(),
+      matchmakingQueued: mmStats.totalQueued,
+      matchmakingModes: mmStats.modes,
       running: this.running,
     };
   }
@@ -779,12 +945,14 @@ export class LobbyServer {
 
   /** Wire internal events between subsystems. */
   private wireInternalEvents(): void {
-    // When presence times out a peer, clean up session and rooms
+    // When presence times out a peer, clean up session, rooms, and matchmaking
     this.presence.onEvent((event) => {
       if (event.type === 'peer_timeout') {
         const sessionId = this.peerToSession.get(event.peerId);
         if (sessionId) {
-          // Remove from rooms first
+          // Remove from matchmaking queue
+          this.matchmaking.dequeue(event.peerId);
+          // Remove from rooms
           this.rooms.handlePlayerDisconnect(event.peerId);
           // Then clean up session
           this.peerToSession.delete(event.peerId);
@@ -807,6 +975,54 @@ export class LobbyServer {
         const currentRoom = this.rooms.getPlayerRoom(playerId);
         if (!currentRoom) {
           this.presence.setRoom(playerId, null);
+        }
+      }
+    });
+
+    // When matchmaking finds a match, notify matched players
+    this.matchmaking.onEvent((event) => {
+      if (event.type === 'match_found' || event.type === 'backfill_found') {
+        const playerIds = event.data.playerIds as string[];
+        const now = Date.now();
+        for (const playerId of playerIds) {
+          const session = this.getSessionByPeer(playerId);
+          if (session) {
+            session.send({
+              type: 'mm_match_found',
+              payload: {
+                matchId: event.data.matchId,
+                mode: event.data.mode,
+                roomId: event.data.roomId,
+                playerIds: event.data.playerIds,
+                teams: event.data.teams,
+                isBackfill: event.type === 'backfill_found',
+              } as Record<string, unknown>,
+              timestamp: now,
+            });
+
+            // Update presence with room
+            if (event.data.roomId) {
+              this.presence.setRoom(playerId, event.data.roomId as string);
+            }
+          }
+        }
+      }
+
+      if (event.type === 'queue_expired') {
+        const playerIds = event.data.playerIds as string[];
+        const now = Date.now();
+        for (const playerId of playerIds) {
+          const session = this.getSessionByPeer(playerId);
+          if (session) {
+            session.send({
+              type: 'mm_queue_expired',
+              payload: {
+                mode: event.data.mode,
+                waitTime: event.data.waitTime,
+              } as Record<string, unknown>,
+              timestamp: now,
+            });
+          }
         }
       }
     });

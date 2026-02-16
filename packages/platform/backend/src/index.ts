@@ -31,6 +31,8 @@ export { RoomService } from './services/RoomService';
 export type { RoomRecord, RoomPublicInfo, RoomStatus, RoomSearchQuery, RoomSearchResult, RoomServiceConfig, RoomEvent } from './services/RoomService';
 export { LobbyServer } from './services/LobbyServer';
 export type { LobbySession, LobbySessionSend, LobbyMessage, LobbyResponse, LobbyServerConfig, LobbyEvent, AuthenticateFn } from './services/LobbyServer';
+export { MatchmakingService } from './services/MatchmakingService';
+export type { GameModeConfig, EnqueueOptions, QueueEntry, MatchTeam, MatchResult, QueueStats, MatchmakingEvent, MatchmakingEventType, MatchmakingServiceConfig } from './services/MatchmakingService';
 
 // Lib utilities
 export * from './lib/api';
