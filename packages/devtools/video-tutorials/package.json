@@ -1,0 +1,25 @@
+{
+  "name": "@hololand/video-tutorials",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio",
+    "render": "tsx scripts/render-all.ts",
+    "render:intro": "tsx scripts/render-all.ts --filter intro",
+    "render:brittney": "tsx scripts/render-all.ts --filter brittney",
+    "render:adapter": "tsx scripts/render-all.ts --filter adapter"
+  },
+  "dependencies": {
+    "remotion": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "@remotion/bundler": "^4.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0"
+  }
+}
