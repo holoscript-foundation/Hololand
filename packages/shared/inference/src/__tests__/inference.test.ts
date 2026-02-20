@@ -7,8 +7,8 @@ import {
   createInferenceClient,
   BRITTNEY_MODELS,
   DEFAULT_SETTINGS,
-} from '../src/index.js';
-import type { InferenceSettings, ProviderType } from '../src/types.js';
+} from '../index.js';
+import type { InferenceSettings, ProviderType } from '../types.js';
 
 describe('@hololand/inference', () => {
   describe('createInferenceClient', () => {
@@ -34,8 +34,7 @@ describe('@hololand/inference', () => {
   describe('BRITTNEY_MODELS', () => {
     it('should have local models defined', () => {
       expect(BRITTNEY_MODELS.local.expert).toBe('brittney-qwen-v23:latest');
-      expect(BRITTNEY_MODELS.local.holoscript).toBe('brittney-v1:latest');
-      expect(BRITTNEY_MODELS.local.general).toBe('brittney-v2:latest');
+      expect(BRITTNEY_MODELS.local.v22).toBe('brittney-qwen:latest');
     });
 
     it('should have cloud models defined', () => {

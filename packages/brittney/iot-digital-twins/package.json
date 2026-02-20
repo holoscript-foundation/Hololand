@@ -1,0 +1,43 @@
+{
+  "name": "@hololand/iot-digital-twins",
+  "version": "1.0.0",
+  "description": "IoT device discovery to HoloScript digital twin generation - Clawdbot integration for Brittney",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "demo": "node demo/smart-home-showcase.mjs",
+    "record": "node demo/record-demo.mjs web",
+    "record:terminal": "node demo/record-demo.mjs terminal"
+  },
+  "keywords": [
+    "holoscript",
+    "iot",
+    "home-assistant",
+    "mqtt",
+    "digital-twins",
+    "clawdbot",
+    "brittney",
+    "hololand"
+  ],
+  "author": "Brian Joseph",
+  "license": "MIT",
+  "dependencies": {
+    "@hololand/world": "workspace:*",
+    "@holoscript/core": "^2.1.0",
+    "mqtt": "^5.3.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "puppeteer": "^22.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.16"
+  }
+}
