@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { StateSyncNetworkManager, SyncMessage, CRDTOperation } from '@holoscript/multiplayer';
+import { StateSyncNetworkManager, SyncMessage, CRDTOperation } from '@hololand/network';
 
 // Use BroadcastChannel for tab-to-tab communication (same origin)
 const CHANNEL_NAME = 'holoscript-crdt-demo';

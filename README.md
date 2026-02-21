@@ -99,6 +99,55 @@ HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn mor
 - **SQL of Spatial Computing** → Declarative, tool-agnostic, and compiler-optimized.
 - **Source available** → Elastic License 2.0, build freely.
 
+---
+
+## Architecture
+
+**Hololand is built ON HoloScript, not INTO HoloScript.**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    HOLOLAND APPLICATION                       │
+│                    (@hololand/* packages)                     │
+│  ├─ @hololand/gestures (gesture recognition)                │
+│  ├─ @hololand/navigation (pathfinding, flow fields)         │
+│  ├─ @hololand/network (multiplayer, CRDT state sync)        │
+│  ├─ @hololand/social (friends, voice chat, parties)         │
+│  └─ 40+ more @hololand/* packages                           │
+├──────────────────────────────────────────────────────────────┤
+│                    HOLOSCRIPT FRAMEWORK                       │
+│              (PUBLIC APIs - Available to Everyone)            │
+│  ├─ @holoscript/core (Parser, Compiler, Runtime)            │
+│  ├─ @holoscript/runtime (ThreeJSRenderer, Physics)          │
+│  └─ @holoscript/cli (Command-line tools)                    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Framework vs. Application Layer
+
+| Layer | Packages | License | Purpose |
+|-------|----------|---------|---------|
+| **Framework** | `@holoscript/*` | MIT (open-source) | Commons-based meta-framework for spatial computing |
+| **Application** | `@hololand/*` | ELv2 (source-available) | Hololand-specific VR social platform features |
+
+**Key Point**: Hololand uses **ONLY** public HoloScript APIs. No privileged access, no special treatment.
+
+### Even Playing Field
+
+This architecture proves the "even playing field" strategy:
+- ✅ **You can build competing platforms** using the same HoloScript APIs
+- ✅ **No vendor lock-in** (HoloScript is commons-based, neutral governance)
+- ✅ **Transparent quarterly audits** validate Hololand uses public APIs only
+
+**Want to compete?** Build your own `@yourplatform/*` packages on HoloScript:
+- VR training platform → `@vrtraining/scenarios`
+- Robotics simulation → `@robotics/urdf-export`
+- AR e-commerce → `@arstore/furniture-preview`
+
+**[📘 Build Your Own Platform Guide →](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/BUILD_YOUR_OWN_PLATFORM.md)**
+
+---
+
 ## Examples
 
 ### React Component

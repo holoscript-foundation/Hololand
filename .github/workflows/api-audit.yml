@@ -1,0 +1,137 @@
+name: API Audit - Verify Public HoloScript APIs Only
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main, development]
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  audit-holoscript-imports:
+    name: Audit @holoscript/* Imports
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify no private @holoscript imports
+        run: |
+          echo "🔍 Scanning for non-public @holoscript package imports..."
+          echo ""
+          echo "✅ Allowed: @holoscript/core, @holoscript/runtime, @holoscript/cli"
+          echo "❌ Forbidden: All other @holoscript/* packages (use @hololand/* instead)"
+          echo ""
+
+          # Search for @holoscript imports in src/ and packages/, excluding examples/
+          FORBIDDEN_IMPORTS=$(grep -r "from ['\"]@holoscript/" packages/ src/ 2>/dev/null | grep -vE "(core|runtime|cli)['\"]" || true)
+
+          if [ -n "$FORBIDDEN_IMPORTS" ]; then
+            echo "❌ ERROR: Found imports from non-public @holoscript packages:"
+            echo ""
+            echo "$FORBIDDEN_IMPORTS"
+            echo ""
+            echo "These packages are NOT public in the HoloScript monorepo."
+            echo "Please use @hololand/* packages instead:"
+            echo "  - @holoscript/multiplayer → @hololand/network"
+            echo "  - @holoscript/gestures → @hololand/gestures"
+            echo "  - @holoscript/navigation → @hololand/navigation"
+            echo "  - @holoscript/loader → @hololand/core"
+            exit 1
+          fi
+
+          echo "✅ PASS: All @holoscript imports are from public packages only"
+          echo ""
+
+          # Count valid imports for reporting
+          CORE_COUNT=$(grep -r "from ['\"]@holoscript/core" packages/ src/ 2>/dev/null | wc -l || echo "0")
+          RUNTIME_COUNT=$(grep -r "from ['\"]@holoscript/runtime" packages/ src/ 2>/dev/null | wc -l || echo "0")
+          CLI_COUNT=$(grep -r "from ['\"]@holoscript/cli" packages/ src/ 2>/dev/null | wc -l || echo "0")
+
+          echo "📊 Import Summary:"
+          echo "  - @holoscript/core: $CORE_COUNT imports"
+          echo "  - @holoscript/runtime: $RUNTIME_COUNT imports"
+          echo "  - @holoscript/cli: $CLI_COUNT imports"
+          echo ""
+          echo "🎉 'Even playing field' validated - Hololand uses public APIs only!"
+
+      - name: Check examples/ directory (warnings only)
+        run: |
+          echo ""
+          echo "⚠️  Checking examples/ directory (warnings only, won't fail build)..."
+
+          EXAMPLE_ISSUES=$(grep -r "from ['\"]@holoscript/" examples/ 2>/dev/null | grep -vE "(core|runtime|cli)['\"]" || true)
+
+          if [ -n "$EXAMPLE_ISSUES" ]; then
+            echo "⚠️  WARNING: Found non-public @holoscript imports in examples/:"
+            echo ""
+            echo "$EXAMPLE_ISSUES"
+            echo ""
+            echo "These should be updated but won't fail the build since they're example code."
+            echo "Please fix these when convenient."
+          else
+            echo "✅ No issues in examples/ directory"
+          fi
+
+      - name: Generate audit report
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: |
+          echo "# Hololand API Audit Report" > audit-report.md
+          echo "" >> audit-report.md
+          echo "**Date**: $(date -u +"%Y-%m-%d %H:%M UTC")" >> audit-report.md
+          echo "**Commit**: ${{ github.sha }}" >> audit-report.md
+          echo "" >> audit-report.md
+          echo "## Status: ✅ PASSED" >> audit-report.md
+          echo "" >> audit-report.md
+          echo "Hololand uses ONLY public HoloScript APIs." >> audit-report.md
+          echo "" >> audit-report.md
+          echo "### Public Packages Used" >> audit-report.md
+          echo "- \`@holoscript/core\` - Parser, compiler, runtime" >> audit-report.md
+          echo "- \`@holoscript/runtime\` - ThreeJS renderer, physics" >> audit-report.md
+          echo "- \`@holoscript/cli\` - Command-line tools" >> audit-report.md
+          echo "" >> audit-report.md
+          echo "### Import Counts" >> audit-report.md
+          echo "- \`@holoscript/core\`: $(grep -r "from ['\"]@holoscript/core" packages/ src/ 2>/dev/null | wc -l) imports" >> audit-report.md
+          echo "- \`@holoscript/runtime\`: $(grep -r "from ['\"]@holoscript/runtime" packages/ src/ 2>/dev/null | wc -l) imports" >> audit-report.md
+          echo "- \`@holoscript/cli\`: $(grep -r "from ['\"]@holoscript/cli" packages/ src/ 2>/dev/null | wc -l) imports" >> audit-report.md
+          echo "" >> audit-report.md
+          echo "---" >> audit-report.md
+          echo "" >> audit-report.md
+          echo "*This audit validates the 'even playing field' claim - Hololand has no privileged access to HoloScript APIs.*" >> audit-report.md
+
+          cat audit-report.md
+
+      - name: Upload audit report
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-audit-report-${{ github.sha }}
+          path: audit-report.md
+          retention-days: 90
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ✅ API Audit Passed
+
+              Hololand uses ONLY public HoloScript APIs.
+
+              **Allowed packages:**
+              - \`@holoscript/core\`
+              - \`@holoscript/runtime\`
+              - \`@holoscript/cli\`
+
+              **Forbidden packages:** All other \`@holoscript/*\` packages (use \`@hololand/*\` instead)
+
+              This PR maintains the "even playing field" - no privileged API access. 🎉`
+            })

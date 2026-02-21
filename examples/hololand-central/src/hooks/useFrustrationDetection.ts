@@ -7,7 +7,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useXRControllers } from './useXRControllers';
-import { FrustrationEstimator } from '@holoscript/gestures';
+import { FrustrationEstimator } from '@hololand/gestures';
 
 export interface FrustrationState {
   /** Current frustration level (0-1) */

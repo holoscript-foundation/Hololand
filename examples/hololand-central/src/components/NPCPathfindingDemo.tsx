@@ -6,7 +6,7 @@
 
 import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { FlowFieldGenerator } from '@holoscript/navigation';
+import { FlowFieldGenerator } from '@hololand/navigation';
 import * as THREE from 'three';
 
 interface NPC {
