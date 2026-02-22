@@ -8,11 +8,6 @@ packages:
   - packages/shared/*
   - packages/playground
   - examples/*
-  # Proprietary packages (excluded from public repo):
-  # - packages/adapters/unity
-  # - packages/adapters/vrchat
-  # - packages/platform/backend
-  # - packages/platform/commerce
 
 ignoredBuiltDependencies:
   - core-js
@@ -30,3 +25,26 @@ overrides:
   '@holoscript/runtime': link:../HoloScript/packages/runtime
   '@holoscript/std': link:../HoloScript/packages/std
   '@infinitus/shared': link:../infinitus-shared
+  '@modelcontextprotocol/sdk@>=1.10.0 <=1.25.3': '>=1.26.0'
+  ajv@<6.14.0: '>=6.14.0'
+  ajv@>=7.0.0-alpha.0 <8.18.0: '>=8.18.0'
+  axios@>=1.0.0 <=1.13.4: '>=1.13.5'
+  esbuild@<=0.24.2: '>=0.25.0'
+  fast-xml-parser@>=4.1.3 <5.3.5: '>=5.3.5'
+  fast-xml-parser@>=4.1.3 <5.3.6: '>=5.3.6'
+  fast-xml-parser@>=5.0.9 <=5.3.3: '>=5.3.4'
+  hono@<4.11.10: '>=4.11.10'
+  hono@<4.11.7: '>=4.11.7'
+  minimatch@<10.2.1: '>=10.2.1'
+  next@>=10.0.0 <15.5.10: '>=15.5.10'
+  next@>=13.0.0 <15.0.8: '>=15.0.8'
+  next@>=15.6.0-canary.0 <16.1.5: '>=16.1.5'
+  next@>=16.0.0-beta.0 <16.1.5: '>=16.1.5'
+  next@>=16.1.0-canary.0 <16.1.5: '>=16.1.5'
+  nodemailer@<7.0.7: '>=7.0.7'
+  nodemailer@<=7.0.10: '>=7.0.11'
+  qs@>=6.7.0 <=6.14.1: '>=6.14.2'
+  tar@<7.5.7: '>=7.5.7'
+  tar@<7.5.8: '>=7.5.8'
+  tar@<=7.5.2: '>=7.5.3'
+  tar@<=7.5.3: '>=7.5.4'
