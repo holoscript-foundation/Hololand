@@ -59,6 +59,20 @@ cd examples/hololand-central && pnpm dev
 
 📖 **Full guide:** [QUICKSTART.md](./QUICKSTART.md)
 
+### Deploy Your World
+
+```bash
+# Build and publish to Hololand network
+holoscript build my-world.hsplus
+holoscript publish my-world.hsplus --public
+
+# Or deploy to your own server
+holoscript build my-world.hsplus --target web
+vercel deploy ./dist
+```
+
+🚀 **Deployment guide:** [USER_DEPLOYMENT_GUIDE.md](./docs/USER_DEPLOYMENT_GUIDE.md)
+
 ---
 
 ## 🚀 What's New (January 2026)
@@ -371,6 +385,8 @@ pnpm test
 
 ## Links
 
+- [Quick Start](./QUICKSTART.md) - Get started in 5 minutes
+- [**Deployment Guide**](./docs/USER_DEPLOYMENT_GUIDE.md) - Publish your worlds
 - [Documentation Index](./docs/INDEX.md) - All docs in one place
 - [HoloScript](https://github.com/brianonbased-dev/holoscript) - The language
 - [Infinity Assistant](https://infinityassistant.io) - AI building service
