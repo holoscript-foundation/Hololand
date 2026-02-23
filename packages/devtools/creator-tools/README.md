@@ -585,7 +585,7 @@ MIT © 2026 HoloScript+ Team
 - 📖 [Full Documentation](./PHASE_6_UI_COMPONENTS_GUIDE.md)
 - 🐛 [Bug Reports](https://github.com/HoloScript/HoloScript/issues)
 - 💬 [Discussions](https://github.com/HoloScript/HoloScript/discussions)
-- 📧 [Email Support](mailto:support@holoscript.dev)
+- 📧 [Email Support](mailto:support@holoscript.net)
 
 ---
 
