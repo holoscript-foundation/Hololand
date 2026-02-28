@@ -1,0 +1,126 @@
+# Monitoring Stack for Brittney Cloud API
+# Runs Prometheus, Grafana, and AlertManager locally for development
+
+version: '3.8'
+
+services:
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: brittney-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alerts:/etc/prometheus/alerts
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    networks:
+      - brittney-monitoring
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: brittney-grafana
+    ports:
+      - '3000:3000'
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+    networks:
+      - brittney-monitoring
+    depends_on:
+      - prometheus
+
+  # AlertManager
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: brittney-alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - '9093:9093'
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/config.yml
+      - alertmanager-data:/alertmanager
+    restart: unless-stopped
+    networks:
+      - brittney-monitoring
+
+  # Redis Exporter
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: brittney-redis-exporter
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - '9121:9121'
+    networks:
+      - brittney-monitoring
+    depends_on:
+      - redis
+
+  # PostgreSQL Exporter
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: brittney-postgres-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://brittney:password@postgres:5432/brittney_prod?sslmode=disable
+    ports:
+      - '9187:9187'
+    networks:
+      - brittney-monitoring
+    depends_on:
+      - postgres
+
+  # Redis (for development)
+  redis:
+    image: redis:7-alpine
+    container_name: brittney-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - brittney-monitoring
+
+  # PostgreSQL (for development)
+  postgres:
+    image: postgres:15-alpine
+    container_name: brittney-postgres
+    environment:
+      - POSTGRES_USER=brittney
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=brittney_prod
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - brittney-monitoring
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
+  redis-data:
+  postgres-data:
+
+networks:
+  brittney-monitoring:
+    driver: bridge

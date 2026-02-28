@@ -1,10 +1,141 @@
-# Hololand Roadmap
+# Hololand Technical Vision & Architecture Roadmap
 
-**Vision: Build the Open Metaverse - A Ready Player One Universe Intersecting VR and AR**
+> ⚠️ **IMPORTANT**: This is a **forward-looking technical vision document** outlining the full architectural potential of Hololand.
+>
+> **For current project status, completed features, and active development, see:**
+> - **[DEVELOPMENT_ROADMAP_2026.md](./DEVELOPMENT_ROADMAP_2026.md)** - Current implementation status & completed milestones
+> - **[ECOSYSTEM_STATUS.md](./ECOSYSTEM_STATUS.md)** - Package inventory & what's ready now
+> - **[README.md](./README.md)** - Quick start & getting started guide
+>
+> This document describes the **complete architectural vision** for Hololand's future development, including features that may be implemented over multiple years. Not all features described here are currently available.
 
-Hololand is the **VR/AR platform** built on [HoloScript](https://github.com/brianonbased-dev/HoloScript). This roadmap covers platform features, adapters, and ecosystem.
+---
+
+## Vision: The Open Metaverse
+
+**Build. Explore. Earn. Connect.**
+
+HoloLand is the **social creation platform** where users become creators, creators become entrepreneurs, and the metaverse builds itself. A seamless, immersive virtual universe built on [HoloScript](https://github.com/brianonbased-dev/HoloScript).
+
+### Core Vision
+
+- 🎨 **User-Generated Content Platform** - Anyone can create worlds using voice commands, visual tools, or code
+- 🌍 **Seamless Metaverse** - Walk through portals between infinite worlds, zero loading screens
+- 🤝 **Social by Default** - Friends, parties, voice chat, events, communities
+- 💰 **Creator Economy** - Monetize worlds and creations (70% revenue share)
+- 🥽 **Holographic Interface** - Futuristic UI with gesture control and voice commands
+- 🔓 **Truly Open** - Source-available, open APIs, no platform lock-in
+
+**[📖 Read Full Platform Vision →](./docs/PLATFORM_VISION.md)**
 
 > **Language roadmap** (parser, formatter, linter) is in the [HoloScript repo](https://github.com/brianonbased-dev/HoloScript/blob/master/ROADMAP.md).
+
+---
+
+## Platform Roadmap: User-Facing Features
+
+This section outlines the platform experience for players and creators. Technical implementation details follow in later sections.
+
+### Phase 1: Foundation ✅ COMPLETE
+**Core Creation Tools**
+
+- [x] Voice building ("Create a floating island")
+- [x] Visual editor (drag-drop interface)
+- [x] HoloScript+ programming language
+- [x] Basic multiplayer (up to 20 players)
+- [x] Avatar system
+- [x] World publishing
+
+### Phase 2: Social Layer 🚧 Q2-Q3 2026
+**Connect & Collaborate**
+
+- [ ] Friends system (add, invite, join)
+- [ ] Parties (up to 50 players)
+- [ ] Voice chat (proximity + party channels)
+- [ ] Emotes and gestures
+- [ ] Personal space settings (comfort bubbles)
+- [ ] Block/mute/report system
+- [ ] World chat (text)
+
+### Phase 3: Discovery & Exploration 📅 Q3-Q4 2026
+**Find & Explore Worlds**
+
+- [ ] World browser with search
+- [ ] Categories (Games, Social, Creative, Education)
+- [ ] Trending algorithm
+- [ ] Ratings and reviews
+- [ ] Featured worlds curation
+- [ ] HoloLand Central (hub world)
+- [ ] Portal network (seamless world traversal)
+- [ ] Shareable world links
+
+### Phase 4: Creator Tools 📅 Q4 2026-Q1 2027
+**Enhanced Creation**
+
+- [ ] In-VR building mode
+- [ ] Visual scripting editor
+- [ ] Asset marketplace (buy/sell models, sounds)
+- [ ] Templates and prefabs
+- [ ] Creator analytics dashboard
+- [ ] Version control for worlds
+- [ ] Collaboration (multi-creator worlds)
+- [ ] Import/export (glTF, FBX support)
+
+### Phase 5: Economy 📅 Q1-Q2 2027
+**Monetization & Commerce**
+
+- [ ] Payment processing integration
+- [ ] World monetization (entry fees, subscriptions)
+- [ ] Virtual goods marketplace
+- [ ] Creator revenue dashboard (70% revenue share)
+- [ ] Tips and donations
+- [ ] Promotional tools (featured spots, ads)
+- [ ] Currency system (HoloCoins)
+- [ ] Withdrawal to real currency
+
+### Phase 6: Events & Communities 📅 Q2-Q3 2027
+**Social Platform Features**
+
+- [ ] Guilds/clans system
+- [ ] Event scheduling and tickets
+- [ ] Live concert support (stage, audio, video)
+- [ ] Video streaming integration
+- [ ] Community moderation tools
+- [ ] Verified creator badges
+- [ ] Leaderboards and achievements
+- [ ] Event discovery page
+
+### Phase 7: Mobile & AR 📅 Q3-Q4 2027
+**Expanded Platform**
+
+- [ ] iOS AR support (ARKit)
+- [ ] Android AR support (ARCore)
+- [ ] Mobile-optimized worlds
+- [ ] Cross-platform inventory
+- [ ] Spectator mode (watch on phone)
+- [ ] AR portal discovery (real-world portals)
+
+### Phase 8: Enterprise & Education 📅 2028
+**Professional Features**
+
+- [ ] White-label instances
+- [ ] SSO and enterprise auth (SAML, LDAP)
+- [ ] Private world hosting
+- [ ] LMS integrations (Canvas, Blackboard)
+- [ ] Analytics API
+- [ ] Custom branding
+- [ ] SLA and support tiers
+- [ ] Training/simulation tools
+
+---
+
+## The Three Plains
+
+| Plain | Description | Target Phase |
+|-------|-------------|--------------|
+| **Hololand** | Pure VR metaverse - accessible anywhere, infinite user-created worlds | Phase 1-6 |
+| **VR Real World** | Digital twin of Earth in VR (GPS-anchored virtual tourism) | Phase 7-8 |
+| **AR Real World** | Augmented overlay on reality (GPS-anchored mixed reality) | Phase 7-8 |
 
 ---
 

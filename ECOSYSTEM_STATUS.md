@@ -52,21 +52,28 @@
 
 > **Note:** HoloScript is now maintained in a [separate repository](https://github.com/brianonbased-dev/HoloScript) for better modularity.
 
+**Current Version:** v3.42.0 (Production-Ready) 🚀
+
 | Package | What It Does | Status |
 |---------|--------------|--------|
-| [@holoscript/core](https://github.com/brianonbased-dev/HoloScript) | Parser & runtime | ✅ v2.1.0 |
-| [@holoscript/runtime](https://github.com/brianonbased-dev/HoloScript) | Execution engine | ✅ v2.1.0 |
-| [@holoscript/cli](https://github.com/brianonbased-dev/HoloScript) | Command line tools | ✅ v2.1.0 |
-| [@holoscript/formatter](https://github.com/brianonbased-dev/HoloScript) | Code formatting | ✅ v2.0.0 |
-| [@holoscript/linter](https://github.com/brianonbased-dev/HoloScript) | Static analysis | ✅ v2.0.0 |
-| [@holoscript/lsp](https://github.com/brianonbased-dev/HoloScript) | Language Server | ✅ v1.0.0 |
-| [@holoscript/collaboration](https://github.com/brianonbased-dev/HoloScript) | CRDT collaborative editing | ✅ NEW |
-| [@holoscript/self-improvement](https://github.com/brianonbased-dev/HoloScript) | Auto-correction pipeline | ✅ NEW |
-| [@holoscript/components](https://github.com/brianonbased-dev/HoloScript) | 25 reusable .holo templates | ✅ NEW |
-| [@holoscript/std](https://github.com/brianonbased-dev/HoloScript) | Standard library | ✅ Ready |
-| [@holoscript/fs](https://github.com/brianonbased-dev/HoloScript) | File system utils | ✅ Ready |
-| [@holoscript/network](https://github.com/brianonbased-dev/HoloScript) | Multiplayer sync | ✅ Ready |
+| [@holoscript/core](https://github.com/brianonbased-dev/HoloScript) | Parser, runtime, type-checker, debugger | ✅ v3.42.0 |
+| [@holoscript/runtime](https://github.com/brianonbased-dev/HoloScript) | Execution engine with R3F integration | ✅ v3.1.1 |
+| [@holoscript/cli](https://github.com/brianonbased-dev/HoloScript) | Command line tools & compilation | ✅ v3.6.0 |
+| [@holoscript/compiler](https://github.com/brianonbased-dev/HoloScript) | **Cross-platform compilation** (20 targets) | ✅ v3.42.0 |
+| [@holoscript/formatter](https://github.com/brianonbased-dev/HoloScript) | Code formatting | ✅ v3.2.0 |
+| [@holoscript/linter](https://github.com/brianonbased-dev/HoloScript) | Static analysis & linting | ✅ v3.2.0 |
+| [@holoscript/lsp](https://github.com/brianonbased-dev/HoloScript) | Language Server Protocol | ✅ v3.2.0 |
+| [@holoscript/sdk](https://github.com/brianonbased-dev/HoloScript) | SDK for building HoloScript tools | ✅ v3.6.0 |
+| [@holoscript/collaboration](https://github.com/brianonbased-dev/HoloScript) | CRDT collaborative editing | ✅ v3.4.0 |
+| [@holoscript/self-improvement](https://github.com/brianonbased-dev/HoloScript) | Auto-correction pipeline | ✅ v3.4.0 |
+| [@holoscript/components](https://github.com/brianonbased-dev/HoloScript) | 25 reusable .holo templates | ✅ v3.4.0 |
+| [@holoscript/std](https://github.com/brianonbased-dev/HoloScript) | Standard library | ✅ v3.4.0 |
+| [@holoscript/fs](https://github.com/brianonbased-dev/HoloScript) | File system utils | ✅ v3.4.0 |
+| [@holoscript/network](https://github.com/brianonbased-dev/HoloScript) | Multiplayer sync | ✅ v3.4.0 |
+| [@holoscript/benchmark](https://github.com/brianonbased-dev/HoloScript) | Performance benchmarking | ✅ v3.4.0 |
 | [@hololand/vscode-holoscript](./packages/vscode-holoscript) | VS Code Extension | ✅ Ready |
+
+**Compiler Targets (20):** Unity, Unreal, Godot, Babylon.js, R3F, PlayCanvas, VRChat, WebGPU, WASM, OpenXR, VisionOS, iOS, Android, Robotics (ROS2, MoveIt, Gazebo), Medical (HL7 FHIR, DICOM), IoT (MQTT, OPC-UA)
 
 ### Platform Adapters
 

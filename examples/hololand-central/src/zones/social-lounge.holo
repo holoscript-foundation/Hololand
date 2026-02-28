@@ -1,0 +1,453 @@
+/**
+ * Social Lounge Zone
+ *
+ * A cozy meeting space for hanging out with friends, forming parties,
+ * and socializing in the Holoverse. Features seating areas, emote stations,
+ * and a friendly atmosphere.
+ *
+ * Created for the Holoverse
+ */
+
+// Zone metadata
+@zone "Social Lounge" category:"social" maxPlayers:75
+
+composition "Social Lounge" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -25, y: 0, z: -25 }
+      max: { x: 25, y: 15, z: 25 }
+    }
+    skybox: "night_city"
+    ambientLight: { intensity: 0.3, color: "#ffeaa7" }
+    fog: { color: "#1a1a2e", near: 30, far: 60 }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+  spawnpoint "entrance-1" {
+    position: [0, 1, 20]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [3, 1, 20]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-3, 1, 20]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-4" {
+    position: [6, 1, 20]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-5" {
+    position: [-6, 1, 20]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+  object "Floor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [50, 1, 50]
+    material: {
+      color: "#2d3436"
+      roughness: 0.3
+      metalness: 0.2
+    }
+  }
+
+  // === CENTRAL FOUNTAIN ===
+  object "FountainBase" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [0, 1, 0]
+    scale: [4, 2, 4]
+    material: {
+      color: "#34495e"
+      roughness: 0.2
+      metalness: 0.8
+    }
+  }
+
+  object "FountainWater" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [0, 2.5, 0]
+    scale: [2, 2, 2]
+    material: {
+      color: "#4a90e2"
+      emissive: "#4a90e2"
+      emissiveIntensity: 0.3
+      transparent: true
+      opacity: 0.6
+    }
+  }
+
+  // === SEATING AREAS ===
+
+  // North Seating Area
+  object "Couch1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [0, 0.6, -10]
+    scale: [4, 1.2, 1.5]
+    material: {
+      color: "#9b59b6"
+      roughness: 0.8
+    }
+  }
+
+  object "Couch2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [5, 0.6, -10]
+    scale: [4, 1.2, 1.5]
+    material: {
+      color: "#e74c3c"
+      roughness: 0.8
+    }
+  }
+
+  object "Couch3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-5, 0.6, -10]
+    scale: [4, 1.2, 1.5]
+    material: {
+      color: "#3498db"
+      roughness: 0.8
+    }
+  }
+
+  // East Seating Area - Circle Formation
+  object "Chair1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [12, 0.5, 0]
+    scale: [1, 1, 1]
+    material: {
+      color: "#2ecc71"
+      roughness: 0.7
+    }
+  }
+
+  object "Chair2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [12, 0.5, 3]
+    scale: [1, 1, 1]
+    material: {
+      color: "#2ecc71"
+      roughness: 0.7
+    }
+  }
+
+  object "Chair3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [12, 0.5, -3]
+    scale: [1, 1, 1]
+    material: {
+      color: "#2ecc71"
+      roughness: 0.7
+    }
+  }
+
+  object "CircleTable" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [14, 0.7, 0]
+    scale: [1.5, 0.2, 1.5]
+    material: {
+      color: "#95a5a6"
+      metalness: 0.5
+    }
+  }
+
+  // West Seating Area - Booth Style
+  object "BoothSeating1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-12, 0.6, 3]
+    scale: [3, 1.2, 1]
+    material: {
+      color: "#f39c12"
+      roughness: 0.8
+    }
+  }
+
+  object "BoothSeating2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-12, 0.6, -3]
+    scale: [3, 1.2, 1]
+    material: {
+      color: "#f39c12"
+      roughness: 0.8
+    }
+  }
+
+  object "BoothTable" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-12, 0.7, 0]
+    scale: [2.5, 0.2, 2]
+    material: {
+      color: "#34495e"
+      roughness: 0.3
+    }
+  }
+
+  // === EMOTE STATIONS ===
+  object "EmoteStation1" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [8, 1.5, -8]
+    scale: [1, 1, 0.5]
+    material: {
+      color: "#ff6b6b"
+      emissive: "#ff6b6b"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "EmoteStation2" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [-8, 1.5, -8]
+    scale: [1, 1, 0.5]
+    material: {
+      color: "#4ecdc4"
+      emissive: "#4ecdc4"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // === DANCE FLOOR ===
+  object "DanceFloorBase" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.1, 12]
+    scale: [8, 0.2, 8]
+    material: {
+      color: "#2d3436"
+      metalness: 0.9
+      roughness: 0.1
+      emissive: "#00ffff"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "DanceFloorLight1" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [-2, 0.15, 10]
+    scale: [1.5, 0.1, 1.5]
+    material: {
+      color: "#ff00ff"
+      emissive: "#ff00ff"
+      emissiveIntensity: 0.8
+    }
+  }
+
+  object "DanceFloorLight2" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [2, 0.15, 10]
+    scale: [1.5, 0.1, 1.5]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.8
+    }
+  }
+
+  object "DanceFloorLight3" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [-2, 0.15, 14]
+    scale: [1.5, 0.1, 1.5]
+    material: {
+      color: "#ffff00"
+      emissive: "#ffff00"
+      emissiveIntensity: 0.8
+    }
+  }
+
+  object "DanceFloorLight4" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [2, 0.15, 14]
+    scale: [1.5, 0.1, 1.5]
+    material: {
+      color: "#ff0000"
+      emissive: "#ff0000"
+      emissiveIntensity: 0.8
+    }
+  }
+
+  // === AMBIENT DECORATIONS ===
+  object "Pillar1" {
+    @spatial @networked @emissive
+    geometry: "cylinder"
+    position: [10, 3, 10]
+    scale: [0.5, 6, 0.5]
+    material: {
+      color: "#7f8c8d"
+      emissive: "#4a90e2"
+      emissiveIntensity: 0.1
+      metalness: 0.8
+    }
+  }
+
+  object "Pillar2" {
+    @spatial @networked @emissive
+    geometry: "cylinder"
+    position: [-10, 3, 10]
+    scale: [0.5, 6, 0.5]
+    material: {
+      color: "#7f8c8d"
+      emissive: "#4a90e2"
+      emissiveIntensity: 0.1
+      metalness: 0.8
+    }
+  }
+
+  object "Pillar3" {
+    @spatial @networked @emissive
+    geometry: "cylinder"
+    position: [10, 3, -10]
+    scale: [0.5, 6, 0.5]
+    material: {
+      color: "#7f8c8d"
+      emissive: "#4a90e2"
+      emissiveIntensity: 0.1
+      metalness: 0.8
+    }
+  }
+
+  object "Pillar4" {
+    @spatial @networked @emissive
+    geometry: "cylinder"
+    position: [-10, 3, -10]
+    scale: [0.5, 6, 0.5]
+    material: {
+      color: "#7f8c8d"
+      emissive: "#4a90e2"
+      emissiveIntensity: 0.1
+      metalness: 0.8
+    }
+  }
+
+  // === NPC CONCIERGE ===
+  npc "Concierge" {
+    @spatial @networked @dialogue
+    position: [0, 0, -18]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "greeting"
+  }
+
+  // === DIALOGUE ===
+  dialog "greeting" {
+    text: "Welcome to the Social Lounge! This is the perfect place to hang out with friends and meet new people."
+
+    option "What can I do here?" -> @dialog("features")
+    option "How do I make friends?" -> @dialog("social")
+    option "Where can I sit?" -> @dialog("seating")
+    option "Thanks!" -> @close
+  }
+
+  dialog "features" {
+    text: "You can sit on the couches, use the emote stations to express yourself, or dance on the light-up dance floor! This zone is all about socializing."
+
+    option "How do I make friends?" -> @dialog("social")
+    option "Tell me about emotes" -> @dialog("emotes")
+    option "Got it!" -> @close
+  }
+
+  dialog "social" {
+    text: "Use your social menu to send friend requests, create parties, and invite people to hang out. Everyone here is friendly!"
+
+    option "Tell me about emotes" -> @dialog("emotes")
+    option "Where can I sit?" -> @dialog("seating")
+    option "Thanks!" -> @close
+  }
+
+  dialog "emotes" {
+    text: "Interact with the emote stations to unlock new expressions! You can wave, dance, clap, and more. Try them all!"
+
+    option "What can I do here?" -> @dialog("features")
+    option "Where can I sit?" -> @dialog("seating")
+    option "Cool!" -> @close
+  }
+
+  dialog "seating" {
+    text: "We have couches along the north wall, circular seating on the east side, and booth-style seating on the west. Pick your favorite spot!"
+
+    option "What can I do here?" -> @dialog("features")
+    option "How do I make friends?" -> @dialog("social")
+    option "Perfect!" -> @close
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [-18, 1, -18]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+  light "MainLight" {
+    type: "point"
+    position: [0, 8, 0]
+    color: "#ffeaa7"
+    intensity: 0.8
+    castShadows: true
+  }
+
+  light "DanceLight1" {
+    type: "spot"
+    position: [0, 6, 12]
+    color: "#ff00ff"
+    intensity: 1.0
+  }
+
+  light "AmbientWarmth" {
+    type: "hemisphere"
+    skyColor: "#ffeaa7"
+    groundColor: "#34495e"
+    intensity: 0.3
+  }
+
+  light "FountainGlow" {
+    type: "point"
+    position: [0, 2.5, 0]
+    color: "#4a90e2"
+    intensity: 0.5
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "LoungeMusic" {
+    source: "ambient_lounge.mp3"
+    loop: true
+    volume: 0.25
+    spatial: false
+  }
+
+  audio "FountainSounds" {
+    source: "water_fountain.mp3"
+    loop: true
+    volume: 0.15
+    spatial: true
+    position: [0, 2, 0]
+  }
+}

@@ -1,0 +1,251 @@
+// Holoverse Database Schema
+// Railway Postgres
+// Version: 1.0
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE USER TABLES
+// ============================================================================
+
+model User {
+  id               String   @id @default(uuid()) @db.Uuid
+  email            String?  @unique @db.VarChar(255)
+  walletAddress    String?  @unique @map("wallet_address") @db.VarChar(42)
+  did              String?  @unique @db.VarChar(255)
+  passwordHash     String?  @map("password_hash") @db.VarChar(255)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamp
+  lastLogin        DateTime? @map("last_login") @db.Timestamp
+  isVerified       Boolean  @default(false) @map("is_verified")
+  isBanned         Boolean  @default(false) @map("is_banned")
+  subscriptionTier String   @default("free") @map("subscription_tier") @db.VarChar(50)
+
+  // Relations
+  profile          UserProfile?
+  sessions         UserSession[]
+  questProgress    QuestProgress[]
+  skillLevels      SkillLevel[]
+  portalUnlocks    PortalUnlock[]
+  badges           Badge[]
+  npcConversations NpcConversation[]
+  relationships    UserRelationship[] @relation("UserRelationships")
+  targetRelationships UserRelationship[] @relation("TargetRelationships")
+  createdWorlds    UserWorld[]
+  purchases        WorldTransaction[] @relation("WorldPurchases")
+  sales            WorldTransaction[] @relation("WorldSales")
+
+  @@map("users")
+}
+
+model UserProfile {
+  userId       String  @id @map("user_id") @db.Uuid
+  username     String  @unique @db.VarChar(50)
+  displayName  String? @map("display_name") @db.VarChar(100)
+  avatarUrl    String? @map("avatar_url") @db.Text
+  bio          String? @db.Text
+  location     String? @db.VarChar(100)
+  website      String? @db.Text
+  socialLinks  Json?   @map("social_links") @db.JsonB
+  preferences  Json?   @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamp
+
+  // Relations
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserSession {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  tokenHash         String   @map("token_hash") @db.VarChar(255)
+  refreshTokenHash  String?  @map("refresh_token_hash") @db.VarChar(255)
+  deviceInfo        Json?    @map("device_info") @db.JsonB
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp
+  expiresAt         DateTime @map("expires_at") @db.Timestamp
+  lastActive        DateTime @default(now()) @map("last_active") @db.Timestamp
+
+  // Relations
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+// ============================================================================
+// QUEST & PROGRESSION TABLES
+// ============================================================================
+
+model QuestProgress {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  questId          String    @map("quest_id") @db.VarChar(255)
+  status           String    @default("active") @db.VarChar(50)
+  progress         Int       @default(0)
+  currentStage     Int       @default(1) @map("current_stage")
+  startedAt        DateTime  @default(now()) @map("started_at") @db.Timestamp
+  completedAt      DateTime? @map("completed_at") @db.Timestamp
+  timeSpentSeconds Int       @default(0) @map("time_spent_seconds")
+  rewards          Json?     @db.JsonB
+  metadata         Json?     @db.JsonB
+
+  // Relations
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId], name: "user_id_quest_id")
+  @@index([userId])
+  @@index([status])
+  @@map("quest_progress")
+}
+
+model SkillLevel {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  skillName     String    @map("skill_name") @db.VarChar(100)
+  level         Int       @default(0)
+  experience    Int       @default(0)
+  lastIncreased DateTime? @map("last_increased") @db.Timestamp
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillName], name: "user_id_skill_name")
+  @@index([userId])
+  @@map("skill_levels")
+}
+
+model PortalUnlock {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  portalId    String   @map("portal_id") @db.VarChar(255)
+  unlockedAt  DateTime @default(now()) @map("unlocked_at") @db.Timestamp
+  unlockedBy  String?  @map("unlocked_by") @db.VarChar(255)
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, portalId], name: "user_id_portal_id")
+  @@index([userId])
+  @@map("portal_unlocks")
+}
+
+model Badge {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  badgeName  String   @map("badge_name") @db.VarChar(255)
+  earnedAt   DateTime @default(now()) @map("earned_at") @db.Timestamp
+  metadata   Json?    @db.JsonB
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeName], name: "user_id_badge_name")
+  @@index([userId])
+  @@map("badges")
+}
+
+// ============================================================================
+// SOCIAL & INTERACTION TABLES
+// ============================================================================
+
+model NpcConversation {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  npcId          String   @map("npc_id") @db.VarChar(255)
+  messageRole    String   @map("message_role") @db.VarChar(50)
+  messageContent String   @map("message_content") @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp
+  metadata       Json?    @db.JsonB
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([npcId])
+  @@map("npc_conversations")
+}
+
+model UserRelationship {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  targetUserId     String   @map("target_user_id") @db.Uuid
+  relationshipType String   @map("relationship_type") @db.VarChar(50)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp
+
+  // Relations
+  user             User     @relation("UserRelationships", fields: [userId], references: [id], onDelete: Cascade)
+  targetUser       User     @relation("TargetRelationships", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetUserId, relationshipType], name: "unique_relationship")
+  @@index([userId])
+  @@index([targetUserId])
+  @@map("user_relationships")
+}
+
+// ============================================================================
+// CREATOR ECONOMY TABLES
+// ============================================================================
+
+model UserWorld {
+  id                 String    @id @default(uuid()) @db.Uuid
+  creatorId          String    @map("creator_id") @db.Uuid
+  title              String    @db.VarChar(255)
+  description        String?   @db.Text
+  holoscriptSource   String    @map("holoscript_source") @db.Text
+  thumbnailUrl       String?   @map("thumbnail_url") @db.Text
+  isPublished        Boolean   @default(false) @map("is_published")
+  isFeatured         Boolean   @default(false) @map("is_featured")
+  priceCents         Int       @default(0) @map("price_cents")
+  revenueSplit       Int       @default(70) @map("revenue_split")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamp
+  publishedAt        DateTime? @map("published_at") @db.Timestamp
+  totalVisits        Int       @default(0) @map("total_visits")
+  totalRevenueCents  Int       @default(0) @map("total_revenue_cents")
+  tags               String[]
+  metadata           Json?     @db.JsonB
+
+  // Relations
+  creator            User      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  transactions       WorldTransaction[]
+
+  @@index([creatorId])
+  @@index([isPublished])
+  @@index([isFeatured])
+  @@map("user_worlds")
+}
+
+model WorldTransaction {
+  id                   String   @id @default(uuid()) @db.Uuid
+  worldId              String   @map("world_id") @db.Uuid
+  buyerId              String   @map("buyer_id") @db.Uuid
+  creatorId            String?  @map("creator_id") @db.Uuid
+  amountCents          Int      @map("amount_cents")
+  creatorShareCents    Int      @map("creator_share_cents")
+  platformShareCents   Int      @map("platform_share_cents")
+  paymentMethod        String?  @map("payment_method") @db.VarChar(50)
+  paymentId            String?  @map("payment_id") @db.VarChar(255)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamp
+  metadata             Json?    @db.JsonB
+
+  // Relations
+  world                UserWorld @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  buyer                User      @relation("WorldPurchases", fields: [buyerId], references: [id], onDelete: Cascade)
+  creator              User?     @relation("WorldSales", fields: [creatorId], references: [id])
+
+  @@index([worldId])
+  @@index([buyerId])
+  @@index([creatorId])
+  @@map("world_transactions")
+}

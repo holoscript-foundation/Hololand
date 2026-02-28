@@ -1,0 +1,26 @@
+{
+  "name": "Builder Sandbox",
+  "slug": "builder-sandbox",
+  "category": "entertainment",
+  "description": "Creative collaborative building space with platforms, primitives, and tools for team creation",
+  "features": [
+    "4 team building platforms",
+    "Example primitives (cubes, spheres, cylinders)",
+    "7-color material palette",
+    "4 tool stations",
+    "Central inspiration tower",
+    "Grid reference lines",
+    "Builder guide NPC",
+    "Physics-enabled objects"
+  ],
+  "portal": {
+    "position": [0, 1, -15],
+    "color": "#f39c12",
+    "label": "Builder Sandbox"
+  },
+  "maxPlayers": 30,
+  "holoScriptFile": "builder-sandbox.holo",
+  "convertedFrom": "examples/10-collaborative-building",
+  "convertedAt": "2026-02-19T00:00:00.000Z",
+  "notes": "Converted from collaborative building demo into a 3D sandbox with team platforms"
+}

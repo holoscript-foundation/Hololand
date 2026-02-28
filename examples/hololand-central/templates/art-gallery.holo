@@ -1,0 +1,147 @@
+/**
+ * Art Gallery Template
+ * A minimalist gallery space with white walls and spotlight paintings
+ */
+
+# Floor - Polished marble
+plane #floor {
+  position: [0, 0, 0]
+  size: [30, 1, 30]
+  color: "#F5F5F5"
+  @material(type: "pbr", roughness: 0.1, metallic: 0.9)
+}
+
+# Walls
+cube #wall_north {
+  position: [0, 3, 15]
+  size: [30, 6, 0.2]
+  color: "#FFFFFF"
+}
+
+cube #wall_south {
+  position: [0, 3, -15]
+  size: [30, 6, 0.2]
+  color: "#FFFFFF"
+}
+
+cube #wall_east {
+  position: [15, 3, 0]
+  size: [0.2, 6, 30]
+  color: "#FFFFFF"
+}
+
+cube #wall_west {
+  position: [-15, 3, 0]
+  size: [0.2, 6, 30]
+  color: "#FFFFFF"
+}
+
+# Ceiling
+plane #ceiling {
+  position: [0, 6, 0]
+  size: [30, 1, 30]
+  color: "#FFFFFF"
+  rotation: [180, 0, 0]
+}
+
+# Painting 1 - Abstract Blue
+cube #painting_1_frame {
+  position: [0, 3, 14.8]
+  size: [2.2, 3.2, 0.1]
+  color: "#000000"
+}
+
+cube #painting_1_canvas {
+  position: [0, 3, 14.7]
+  size: [2, 3, 0.05]
+  color: "#3498DB"
+  @material(type: "standard", emissive: "#2980B9", emissiveIntensity: 0.2)
+}
+
+# Painting 2 - Abstract Red
+cube #painting_2_frame {
+  position: [6, 3, 14.8]
+  size: [2.2, 3.2, 0.1]
+  color: "#000000"
+}
+
+cube #painting_2_canvas {
+  position: [6, 3, 14.7]
+  size: [2, 3, 0.05]
+  color: "#E74C3C"
+  @material(type: "standard", emissive: "#C0392B", emissiveIntensity: 0.2)
+}
+
+# Painting 3 - Abstract Green
+cube #painting_3_frame {
+  position: [-6, 3, 14.8]
+  size: [2.2, 3.2, 0.1]
+  color: "#000000"
+}
+
+cube #painting_3_canvas {
+  position: [-6, 3, 14.7]
+  size: [2, 3, 0.05]
+  color: "#2ECC71"
+  @material(type: "standard", emissive: "#27AE60", emissiveIntensity: 0.2)
+}
+
+# Sculpture - Abstract form
+sphere #sculpture {
+  position: [0, 1.5, 0]
+  size: 1
+  color: "#95A5A6"
+  @material(type: "pbr", roughness: 0.2, metallic: 0.8)
+}
+
+cube #sculpture_base {
+  position: [0, 0.5, 0]
+  size: [1.5, 1, 1.5]
+  color: "#34495E"
+}
+
+# Spotlights for paintings
+light #spotlight_1 {
+  type: "spot"
+  position: [0, 5.5, 12]
+  target: [0, 3, 14.7]
+  color: "#FFFFFF"
+  intensity: 1.5
+  angle: 30
+  penumbra: 0.3
+}
+
+light #spotlight_2 {
+  type: "spot"
+  position: [6, 5.5, 12]
+  target: [6, 3, 14.7]
+  color: "#FFFFFF"
+  intensity: 1.5
+  angle: 30
+  penumbra: 0.3
+}
+
+light #spotlight_3 {
+  type: "spot"
+  position: [-6, 5.5, 12]
+  target: [-6, 3, 14.7]
+  color: "#FFFFFF"
+  intensity: 1.5
+  angle: 30
+  penumbra: 0.3
+}
+
+# Ambient lighting
+light #ambient {
+  type: "ambient"
+  color: "#FFFFFF"
+  intensity: 0.3
+}
+
+# Main light
+light #main {
+  type: "directional"
+  position: [10, 10, 10]
+  color: "#FFFFFF"
+  intensity: 0.5
+}

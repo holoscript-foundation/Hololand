@@ -1,0 +1,543 @@
+/**
+ * Builder Sandbox Zone
+ *
+ * Creative collaborative building space where users can create, modify,
+ * and share 3D creations together. Features building platforms, tool
+ * stations, and a material library.
+ *
+ * Created for the Holoverse
+ */
+
+// Zone metadata
+@zone "Builder Sandbox" category:"entertainment" maxPlayers:30
+
+composition "Builder Sandbox" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -40, y: 0, z: -40 }
+      max: { x: 40, y: 30, z: 40 }
+    }
+    skybox: "creative_space"
+    ambientLight: { intensity: 0.5, color: "#f0f0f0" }
+    fog: { color: "#e0e0e0", near: 50, far: 100 }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+  spawnpoint "entrance-1" {
+    position: [0, 1, 30]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [5, 1, 30]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-5, 1, 30]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-4" {
+    position: [10, 1, 30]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-5" {
+    position: [-10, 1, 30]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+  object "Floor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [80, 1, 80]
+    material: {
+      color: "#ecf0f1"
+      roughness: 0.9
+    }
+  }
+
+  // Grid lines for building reference
+  object "GridLineX1" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, 0]
+    scale: [80, 0.02, 0.1]
+    material: {
+      color: "#bdc3c7"
+      opacity: 0.5
+      transparent: true
+    }
+  }
+
+  object "GridLineZ1" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, 0]
+    scale: [0.1, 0.02, 80]
+    material: {
+      color: "#bdc3c7"
+      opacity: 0.5
+      transparent: true
+    }
+  }
+
+  // === BUILDING PLATFORMS ===
+
+  // Platform 1 (Northwest) - Red team area
+  object "Platform1Base" {
+    @spatial @networked
+    geometry: "box"
+    position: [-20, 0.5, -20]
+    scale: [12, 1, 12]
+    material: {
+      color: "#e74c3c"
+      roughness: 0.7
+    }
+  }
+
+  object "Platform1Border" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [-20, 0.55, -20]
+    scale: [12.5, 0.1, 12.5]
+    material: {
+      color: "#c0392b"
+      emissive: "#c0392b"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // Platform 2 (Northeast) - Blue team area
+  object "Platform2Base" {
+    @spatial @networked
+    geometry: "box"
+    position: [20, 0.5, -20]
+    scale: [12, 1, 12]
+    material: {
+      color: "#3498db"
+      roughness: 0.7
+    }
+  }
+
+  object "Platform2Border" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [20, 0.55, -20]
+    scale: [12.5, 0.1, 12.5]
+    material: {
+      color: "#2980b9"
+      emissive: "#2980b9"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // Platform 3 (Southwest) - Green team area
+  object "Platform3Base" {
+    @spatial @networked
+    geometry: "box"
+    position: [-20, 0.5, 20]
+    scale: [12, 1, 12]
+    material: {
+      color: "#2ecc71"
+      roughness: 0.7
+    }
+  }
+
+  object "Platform3Border" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [-20, 0.55, 20]
+    scale: [12.5, 0.1, 12.5]
+    material: {
+      color: "#27ae60"
+      emissive: "#27ae60"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // Platform 4 (Southeast) - Orange team area
+  object "Platform4Base" {
+    @spatial @networked
+    geometry: "box"
+    position: [20, 0.5, 20]
+    scale: [12, 1, 12]
+    material: {
+      color: "#f39c12"
+      roughness: 0.7
+    }
+  }
+
+  object "Platform4Border" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [20, 0.55, 20]
+    scale: [12.5, 0.1, 12.5]
+    material: {
+      color: "#e67e22"
+      emissive: "#e67e22"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // === EXAMPLE PRIMITIVES (for inspiration) ===
+
+  // Cubes
+  object "ExampleCube1" {
+    @spatial @physics @networked @grabbable
+    geometry: "box"
+    position: [-25, 2, 0]
+    scale: [1, 1, 1]
+    material: { color: "#e74c3c" }
+    physics: { mass: 1.0 }
+  }
+
+  object "ExampleCube2" {
+    @spatial @physics @networked @grabbable
+    geometry: "box"
+    position: [-25, 3.5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#3498db" }
+    physics: { mass: 1.0 }
+  }
+
+  object "ExampleCube3" {
+    @spatial @physics @networked @grabbable
+    geometry: "box"
+    position: [-25, 5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#2ecc71" }
+    physics: { mass: 1.0 }
+  }
+
+  // Spheres
+  object "ExampleSphere1" {
+    @spatial @physics @networked @grabbable
+    geometry: "sphere"
+    position: [25, 2, 0]
+    scale: [1, 1, 1]
+    material: { color: "#9b59b6" }
+    physics: { mass: 0.8, restitution: 0.7 }
+  }
+
+  object "ExampleSphere2" {
+    @spatial @physics @networked @grabbable
+    geometry: "sphere"
+    position: [25, 3.5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#f39c12" }
+    physics: { mass: 0.8, restitution: 0.7 }
+  }
+
+  object "ExampleSphere3" {
+    @spatial @physics @networked @grabbable
+    geometry: "sphere"
+    position: [25, 5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#1abc9c" }
+    physics: { mass: 0.8, restitution: 0.7 }
+  }
+
+  // Cylinders
+  object "ExampleCylinder1" {
+    @spatial @physics @networked @grabbable
+    geometry: "cylinder"
+    position: [0, 2, -25]
+    scale: [0.5, 1.5, 0.5]
+    material: { color: "#e67e22" }
+    physics: { mass: 1.0 }
+  }
+
+  object "ExampleCylinder2" {
+    @spatial @physics @networked @grabbable
+    geometry: "cylinder"
+    position: [0, 4, -25]
+    scale: [0.5, 1.5, 0.5]
+    material: { color: "#16a085" }
+    physics: { mass: 1.0 }
+  }
+
+  // === MATERIAL PALETTE (visual reference) ===
+  object "PaletteRed" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [-15, 1.5, 25]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#e74c3c"
+      emissive: "#e74c3c"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "PaletteBlue" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [-10, 1.5, 25]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "PaletteGreen" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [-5, 1.5, 25]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#2ecc71"
+      emissive: "#2ecc71"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "PaletteYellow" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [0, 1.5, 25]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#f1c40f"
+      emissive: "#f1c40f"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "PalettePurple" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [5, 1.5, 25]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#9b59b6"
+      emissive: "#9b59b6"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "PaletteOrange" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [10, 1.5, 25]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#f39c12"
+      emissive: "#f39c12"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "PaletteTeal" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [15, 1.5, 25]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#1abc9c"
+      emissive: "#1abc9c"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  // === TOOL STATIONS ===
+  object "ToolStation1" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [-30, 1.5, -10]
+    scale: [2, 1, 1]
+    material: {
+      color: "#34495e"
+      emissive: "#2c3e50"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "ToolStation2" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [30, 1.5, -10]
+    scale: [2, 1, 1]
+    material: {
+      color: "#34495e"
+      emissive: "#2c3e50"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "ToolStation3" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [-30, 1.5, 10]
+    scale: [2, 1, 1]
+    material: {
+      color: "#34495e"
+      emissive: "#2c3e50"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "ToolStation4" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [30, 1.5, 10]
+    scale: [2, 1, 1]
+    material: {
+      color: "#34495e"
+      emissive: "#2c3e50"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // === INSPIRATION TOWER (central feature) ===
+  object "InspirationBase" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [0, 2, 0]
+    scale: [3, 4, 3]
+    material: {
+      color: "#7f8c8d"
+      metalness: 0.8
+      roughness: 0.3
+    }
+  }
+
+  object "InspirationTop" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [0, 5, 0]
+    scale: [2, 2, 2]
+    material: {
+      color: "#f39c12"
+      emissive: "#f39c12"
+      emissiveIntensity: 0.5
+      transparent: true
+      opacity: 0.7
+    }
+  }
+
+  // === NPC BUILDER GUIDE ===
+  npc "BuilderGuide" {
+    @spatial @networked @dialogue
+    position: [0, 0, 15]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "greeting"
+  }
+
+  // === DIALOGUE ===
+  dialog "greeting" {
+    text: "Welcome to the Builder Sandbox! This is where creativity meets collaboration. Ready to build something amazing?"
+
+    option "How do I build here?" -> @dialog("building")
+    option "What are the platforms for?" -> @dialog("platforms")
+    option "Can I collaborate?" -> @dialog("collaborate")
+    option "Thanks!" -> @close
+  }
+
+  dialog "building" {
+    text: "Grab the example primitives (cubes, spheres, cylinders) and drag them to a platform. Stack, arrange, and create! Use the tool stations to access building tools."
+
+    option "What are the platforms for?" -> @dialog("platforms")
+    option "Can I collaborate?" -> @dialog("collaborate")
+    option "Got it!" -> @close
+  }
+
+  dialog "platforms" {
+    text: "The 4 colored platforms are team building areas. Red, Blue, Green, and Orange - pick a color and build with your team!"
+
+    option "How do I build here?" -> @dialog("building")
+    option "Can I collaborate?" -> @dialog("collaborate")
+    option "Perfect!" -> @close
+  }
+
+  dialog "collaborate" {
+    text: "Absolutely! Multiple people can work on the same platform. Grab objects, move them, stack them - everything syncs in real-time. The color palette spheres show material options!"
+
+    option "How do I build here?" -> @dialog("building")
+    option "What are the platforms for?" -> @dialog("platforms")
+    option "Awesome!" -> @close
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [-35, 1, -35]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+  light "MainSunlight" {
+    type: "directional"
+    position: [20, 30, 20]
+    color: "#ffffff"
+    intensity: 1.2
+    castShadows: true
+  }
+
+  light "Platform1Light" {
+    type: "point"
+    position: [-20, 5, -20]
+    color: "#e74c3c"
+    intensity: 0.5
+  }
+
+  light "Platform2Light" {
+    type: "point"
+    position: [20, 5, -20]
+    color: "#3498db"
+    intensity: 0.5
+  }
+
+  light "Platform3Light" {
+    type: "point"
+    position: [-20, 5, 20]
+    color: "#2ecc71"
+    intensity: 0.5
+  }
+
+  light "Platform4Light" {
+    type: "point"
+    position: [20, 5, 20]
+    color: "#f39c12"
+    intensity: 0.5
+  }
+
+  light "InspirationGlow" {
+    type: "point"
+    position: [0, 5, 0]
+    color: "#f39c12"
+    intensity: 0.8
+  }
+
+  light "AmbientLight" {
+    type: "hemisphere"
+    skyColor: "#ffffff"
+    groundColor: "#ecf0f1"
+    intensity: 0.6
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "CreativeAmbience" {
+    source: "ambient_creative.mp3"
+    loop: true
+    volume: 0.2
+    spatial: false
+  }
+
+  audio "InspirationHum" {
+    source: "inspiration_hum.mp3"
+    loop: true
+    volume: 0.1
+    spatial: true
+    position: [0, 5, 0]
+  }
+}

@@ -17,8 +17,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean --treeshake",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest run",
     "typecheck": "tsc --noEmit && eslint src --ext .ts",
@@ -45,7 +45,6 @@
     "directory": "packages/core"
   },
   "dependencies": {
-    "@hololand/ar-foundation": "workspace:*",
     "@hololand/logger": "workspace:*",
     "@holoscript/core": "^2.0.0"
   },

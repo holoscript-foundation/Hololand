@@ -1,0 +1,166 @@
+@zone "Weather Realm" category:"environment" maxPlayers:30
+
+composition "Weather Realm" {
+  // ========================================
+  // WEATHER & ENVIRONMENT SHOWCASE
+  // ========================================
+
+  // Central weather control tower
+  object "WeatherTower" {
+    @spatial @networked @interactive
+    geometry: "cylinder"
+    position: [0, 5, 0]
+    scale: [2, 10, 2]
+    material: {
+      color: "#2c3e50"
+      metallic: 0.8
+      roughness: 0.3
+    }
+  }
+
+  // Weather crystal - controls zone weather
+  object "WeatherCrystal" {
+    @spatial @networked @interactive @rotate @emissive @pulse @orbit
+    @weather(type: "rain", intensity: 0.7)
+    geometry: "sphere"
+    position: [0, 12, 0]
+    scale: [1, 1, 1]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 1.0
+      transparent: true
+      opacity: 0.8
+    }
+  }
+
+  // Fog zone - mystical fog area
+  object "MysticFogZone" {
+    @spatial @fog(density: 0.3, color: "#9b59b6")
+    @particle(count: 1000, size: 0.05, color: "#9b59b6")
+    geometry: "sphere"
+    position: [-15, 2, 0]
+    scale: [10, 4, 10]
+    material: {
+      color: "#9b59b6"
+      transparent: true
+      opacity: 0.1
+    }
+  }
+
+  // Wind chimes - demonstrate wind trait
+  object "WindChime1" {
+    @spatial @networked @wind(strength: 1.5, direction: [1, 0, 0])
+    @audioSource(src: "wind-chime.mp3", loop: true)
+    @spatialAudio(maxDistance: 15)
+    @sway
+    geometry: "cylinder"
+    position: [10, 8, 0]
+    scale: [0.2, 3, 0.2]
+    material: {
+      color: "#e67e22"
+      metallic: 0.9
+      roughness: 0.1
+    }
+  }
+
+  object "WindChime2" {
+    @spatial @networked @wind(strength: 2.0, direction: [0, 0, 1])
+    @audioSource(src: "wind-chime.mp3", loop: true)
+    @spatialAudio(maxDistance: 15)
+    @sway
+    geometry: "cylinder"
+    position: [-10, 8, 0]
+    scale: [0.2, 3, 0.2]
+    material: {
+      color: "#e67e22"
+      metallic: 0.9
+      roughness: 0.1
+    }
+  }
+
+  // Floating rain cloud
+  object "RainCloud" {
+    @spatial @bob(speed: 0.3, amount: 0.5)
+    @particle(count: 5000, size: 0.02, color: "#3498db")
+    geometry: "sphere"
+    position: [0, 15, -20]
+    scale: [8, 4, 8]
+    material: {
+      color: "#95a5a6"
+      transparent: true
+      opacity: 0.6
+    }
+  }
+
+  // Weather information board
+  object "WeatherBoard" {
+    @spatial @networked @interactive
+    @label(text: "Weather Control", color: "#ffffff", size: 1)
+    @tooltip(text: "Click to change weather", delay: 0.5)
+    geometry: "plane"
+    position: [0, 3, -10]
+    rotation: [0, 0, 0]
+    scale: [5, 3, 1]
+    material: {
+      color: "#34495e"
+      roughness: 0.5
+    }
+  }
+
+  // Reflective water pool
+  object "WaterPool" {
+    @spatial @reflection(quality: "high", metalness: 0.95)
+    @wobble(intensity: 0.05)
+    geometry: "plane"
+    position: [0, 0.1, 10]
+    rotation: [-90, 0, 0]
+    scale: [15, 15, 1]
+    material: {
+      color: "#3498db"
+      metallic: 0.95
+      roughness: 0.05
+      transparent: true
+      opacity: 0.8
+    }
+  }
+
+  // ========================================
+  // LIGHTING
+  // ========================================
+
+  // Soft ambient light
+  light "AmbientLight" {
+    type: "ambient"
+    color: "#ecf0f1"
+    intensity: 0.4
+  }
+
+  // Main sun (dim for weather effect)
+  light "Sun" {
+    type: "directional"
+    position: [20, 30, 10]
+    color: "#95a5a6"
+    intensity: 0.6
+  }
+
+  // Weather tower beacon
+  light "TowerBeacon" {
+    type: "point"
+    position: [0, 12, 0]
+    color: "#3498db"
+    intensity: 2.0
+    range: 30
+  }
+
+  // ========================================
+  // PORTALS
+  // ========================================
+
+  portal "ReturnToHub" {
+    @spatial @networked @interactive @rotate @emissive
+    position: [0, 1, 30]
+    destination: "main_plaza"
+    label: "← Return to Main Plaza"
+  }
+}

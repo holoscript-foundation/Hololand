@@ -1,0 +1,562 @@
+/**
+ * Multiplayer Lobby Zone
+ *
+ * Central gathering space for forming groups, chatting, and coordinating
+ * before entering other zones. Features room areas, chat stations, and
+ * voice booths for team coordination.
+ *
+ * Created for the Holoverse
+ */
+
+// Zone metadata
+@zone "Multiplayer Lobby" category:"social" maxPlayers:100
+
+composition "Multiplayer Lobby" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -30, y: 0, z: -30 }
+      max: { x: 30, y: 20, z: 30 }
+    }
+    skybox: "cyber_grid"
+    ambientLight: { intensity: 0.4, color: "#e8f4f8" }
+    fog: { color: "#1a1a2e", near: 40, far: 80 }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+  // More spawn points since this is the main gathering area
+  spawnpoint "main-1" {
+    position: [0, 1, 25]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "main-2" {
+    position: [5, 1, 25]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "main-3" {
+    position: [-5, 1, 25]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "main-4" {
+    position: [10, 1, 25]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "main-5" {
+    position: [-10, 1, 25]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "side-1" {
+    position: [20, 1, 0]
+    rotation: [0, 270, 0]
+  }
+
+  spawnpoint "side-2" {
+    position: [-20, 1, 0]
+    rotation: [0, 90, 0]
+  }
+
+  // === ENVIRONMENT ===
+  object "Floor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [60, 1, 60]
+    material: {
+      color: "#16213e"
+      roughness: 0.2
+      metalness: 0.3
+    }
+  }
+
+  // === CENTRAL INFO DISPLAY ===
+  object "InfoPillar" {
+    @spatial @networked @emissive
+    geometry: "cylinder"
+    position: [0, 3, 0]
+    scale: [2, 6, 2]
+    material: {
+      color: "#4a90e2"
+      emissive: "#4a90e2"
+      emissiveIntensity: 0.3
+      metalness: 0.9
+    }
+  }
+
+  object "InfoHologram" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [0, 5, 0]
+    scale: [1.5, 1.5, 1.5]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.5
+      transparent: true
+      opacity: 0.7
+    }
+  }
+
+  // === ROOM AREA 1 (NORTHWEST) ===
+  object "Room1Floor" {
+    @spatial @networked
+    geometry: "box"
+    position: [-15, 0.1, -15]
+    scale: [8, 0.2, 8]
+    material: {
+      color: "#e74c3c"
+      emissive: "#e74c3c"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "Room1Table" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [-15, 0.7, -15]
+    scale: [2, 0.2, 2]
+    material: {
+      color: "#c0392b"
+      roughness: 0.3
+    }
+  }
+
+  object "Room1Seat1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-13, 0.5, -15]
+    scale: [1, 1, 1]
+    material: { color: "#e74c3c" }
+  }
+
+  object "Room1Seat2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-17, 0.5, -15]
+    scale: [1, 1, 1]
+    material: { color: "#e74c3c" }
+  }
+
+  object "Room1Seat3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-15, 0.5, -13]
+    scale: [1, 1, 1]
+    material: { color: "#e74c3c" }
+  }
+
+  object "Room1Seat4" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-15, 0.5, -17]
+    scale: [1, 1, 1]
+    material: { color: "#e74c3c" }
+  }
+
+  // === ROOM AREA 2 (NORTHEAST) ===
+  object "Room2Floor" {
+    @spatial @networked
+    geometry: "box"
+    position: [15, 0.1, -15]
+    scale: [8, 0.2, 8]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "Room2Table" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [15, 0.7, -15]
+    scale: [2, 0.2, 2]
+    material: {
+      color: "#2980b9"
+      roughness: 0.3
+    }
+  }
+
+  object "Room2Seat1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [13, 0.5, -15]
+    scale: [1, 1, 1]
+    material: { color: "#3498db" }
+  }
+
+  object "Room2Seat2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [17, 0.5, -15]
+    scale: [1, 1, 1]
+    material: { color: "#3498db" }
+  }
+
+  object "Room2Seat3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [15, 0.5, -13]
+    scale: [1, 1, 1]
+    material: { color: "#3498db" }
+  }
+
+  object "Room2Seat4" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [15, 0.5, -17]
+    scale: [1, 1, 1]
+    material: { color: "#3498db" }
+  }
+
+  // === ROOM AREA 3 (SOUTHWEST) ===
+  object "Room3Floor" {
+    @spatial @networked
+    geometry: "box"
+    position: [-15, 0.1, 15]
+    scale: [8, 0.2, 8]
+    material: {
+      color: "#2ecc71"
+      emissive: "#2ecc71"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "Room3Table" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [-15, 0.7, 15]
+    scale: [2, 0.2, 2]
+    material: {
+      color: "#27ae60"
+      roughness: 0.3
+    }
+  }
+
+  object "Room3Seat1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-13, 0.5, 15]
+    scale: [1, 1, 1]
+    material: { color: "#2ecc71" }
+  }
+
+  object "Room3Seat2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-17, 0.5, 15]
+    scale: [1, 1, 1]
+    material: { color: "#2ecc71" }
+  }
+
+  object "Room3Seat3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-15, 0.5, 13]
+    scale: [1, 1, 1]
+    material: { color: "#2ecc71" }
+  }
+
+  object "Room3Seat4" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-15, 0.5, 17]
+    scale: [1, 1, 1]
+    material: { color: "#2ecc71" }
+  }
+
+  // === ROOM AREA 4 (SOUTHEAST) ===
+  object "Room4Floor" {
+    @spatial @networked
+    geometry: "box"
+    position: [15, 0.1, 15]
+    scale: [8, 0.2, 8]
+    material: {
+      color: "#f39c12"
+      emissive: "#f39c12"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "Room4Table" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [15, 0.7, 15]
+    scale: [2, 0.2, 2]
+    material: {
+      color: "#e67e22"
+      roughness: 0.3
+    }
+  }
+
+  object "Room4Seat1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [13, 0.5, 15]
+    scale: [1, 1, 1]
+    material: { color: "#f39c12" }
+  }
+
+  object "Room4Seat2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [17, 0.5, 15]
+    scale: [1, 1, 1]
+    material: { color: "#f39c12" }
+  }
+
+  object "Room4Seat3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [15, 0.5, 13]
+    scale: [1, 1, 1]
+    material: { color: "#f39c12" }
+  }
+
+  object "Room4Seat4" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [15, 0.5, 17]
+    scale: [1, 1, 1]
+    material: { color: "#f39c12" }
+  }
+
+  // === VOICE BOOTHS (SOUTH) ===
+  object "VoiceBooth1" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-8, 1.5, 20]
+    scale: [2, 3, 2]
+    material: {
+      color: "#9b59b6"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  object "VoiceBooth2" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [0, 1.5, 20]
+    scale: [2, 3, 2]
+    material: {
+      color: "#9b59b6"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  object "VoiceBooth3" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [8, 1.5, 20]
+    scale: [2, 3, 2]
+    material: {
+      color: "#9b59b6"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  // === CHAT STATIONS (NORTH) ===
+  object "ChatStation1" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [-10, 1.5, -20]
+    scale: [1.5, 1, 0.5]
+    material: {
+      color: "#1abc9c"
+      emissive: "#1abc9c"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "ChatStation2" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [0, 1.5, -20]
+    scale: [1.5, 1, 0.5]
+    material: {
+      color: "#1abc9c"
+      emissive: "#1abc9c"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "ChatStation3" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [10, 1.5, -20]
+    scale: [1.5, 1, 0.5]
+    material: {
+      color: "#1abc9c"
+      emissive: "#1abc9c"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // === PLAYER INDICATORS (floating above rooms) ===
+  object "Room1Indicator" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [-15, 3, -15]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#e74c3c"
+      emissive: "#e74c3c"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  object "Room2Indicator" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [15, 3, -15]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  object "Room3Indicator" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [-15, 3, 15]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#2ecc71"
+      emissive: "#2ecc71"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  object "Room4Indicator" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [15, 3, 15]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#f39c12"
+      emissive: "#f39c12"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  // === NPC LOBBY COORDINATOR ===
+  npc "LobbyCoordinator" {
+    @spatial @networked @dialogue
+    position: [0, 0, -8]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "greeting"
+  }
+
+  // === DIALOGUE ===
+  dialog "greeting" {
+    text: "Welcome to the Multiplayer Lobby! This is where you can meet up with friends and form groups before exploring other zones."
+
+    option "How do rooms work?" -> @dialog("rooms")
+    option "What are the voice booths?" -> @dialog("voice")
+    option "Tell me about chat stations" -> @dialog("chat")
+    option "Thanks!" -> @close
+  }
+
+  dialog "rooms" {
+    text: "We have 4 room areas - Red, Blue, Green, and Orange. Each has seating for 4 people. Pick a room color and gather your team there!"
+
+    option "What are the voice booths?" -> @dialog("voice")
+    option "Tell me about chat stations" -> @dialog("chat")
+    option "Got it!" -> @close
+  }
+
+  dialog "voice" {
+    text: "The purple voice booths let you have private voice conversations. Step inside to activate spatial voice chat with others in the booth."
+
+    option "How do rooms work?" -> @dialog("rooms")
+    option "Tell me about chat stations" -> @dialog("chat")
+    option "Perfect!" -> @close
+  }
+
+  dialog "chat" {
+    text: "The teal chat stations along the north wall are for text messaging. Interact with them to open the chat interface and message everyone in the lobby!"
+
+    option "How do rooms work?" -> @dialog("rooms")
+    option "What are the voice booths?" -> @dialog("voice")
+    option "Thanks!" -> @close
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [-25, 1, -25]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+  light "MainLight" {
+    type: "point"
+    position: [0, 10, 0]
+    color: "#e8f4f8"
+    intensity: 0.8
+    castShadows: true
+  }
+
+  light "Room1Light" {
+    type: "point"
+    position: [-15, 4, -15]
+    color: "#e74c3c"
+    intensity: 0.6
+  }
+
+  light "Room2Light" {
+    type: "point"
+    position: [15, 4, -15]
+    color: "#3498db"
+    intensity: 0.6
+  }
+
+  light "Room3Light" {
+    type: "point"
+    position: [-15, 4, 15]
+    color: "#2ecc71"
+    intensity: 0.6
+  }
+
+  light "Room4Light" {
+    type: "point"
+    position: [15, 4, 15]
+    color: "#f39c12"
+    intensity: 0.6
+  }
+
+  light "AmbientGlow" {
+    type: "hemisphere"
+    skyColor: "#e8f4f8"
+    groundColor: "#16213e"
+    intensity: 0.4
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "LobbyAmbience" {
+    source: "ambient_lobby.mp3"
+    loop: true
+    volume: 0.2
+    spatial: false
+  }
+
+  audio "CentralHum" {
+    source: "hologram_hum.mp3"
+    loop: true
+    volume: 0.1
+    spatial: true
+    position: [0, 5, 0]
+  }
+}

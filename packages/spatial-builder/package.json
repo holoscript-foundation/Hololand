@@ -1,0 +1,21 @@
+{
+  "name": "@hololand/spatial-builder",
+  "version": "1.0.0",
+  "description": "Casual in-world UI builder elements for Hololand (Radial Menus, Voice Prompts)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "lucide-react": "^0.314.0",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.48",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0"
+  }
+}

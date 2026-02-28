@@ -1,6 +1,8 @@
-# Hololand
+# HoloLand
 
-**Build VR/AR experiences in minutes, not months.**
+**The Open Metaverse for Creators and Explorers**
+
+Build, explore, and monetize immersive worlds in a seamless social VR/AR platform. Anyone can create. Everyone can play. Creators earn.
 
 <p align="center">
   <img src="https://img.shields.io/badge/🚀_January_2026-What's_New-00cc66?style=for-the-badge" alt="What's New">
@@ -12,16 +14,154 @@
 <p align="center">
   <img src="docs/assets/gifs/hololand-hero.gif" alt="Hololand in action - building a VR world with voice commands" width="700">
   <br>
-  <em>"Create a floating island with waterfalls" → Built in seconds</em>
+  <em>"Create a floating island with waterfalls" → Built in seconds with voice commands</em>
 </p>
 
 ---
 
-> 💬 **Talk or type to your AI assistant.** Powered by [Infinity Assistant](https://infinityassistant.io).
->
-> - 🥽 **VR:** "Create a treehouse with a rope ladder and fairy lights"
-> - 🌍 **VRR (Virtual Reality Reality):** "Scan my storefront and turn it into a virtual shop" *(coming soon)*
-> - 📱 **AR:** "Show me how this couch looks in my room"
+## 🌍 What is HoloLand?
+
+HoloLand is a **user-generated content metaverse** where you can:
+
+- 🎨 **Create Anything** - Build worlds with voice commands, visual tools, or code
+- 🚪 **Explore Infinite Worlds** - Walk through portals to user-created experiences
+- 🤝 **Connect Socially** - Meet friends, form communities, attend live events
+- 💰 **Earn as Creator** - Monetize your worlds and creations (70% revenue share)
+- 🥽 **Seamless Experience** - Holographic UI, no loading screens, persistent identity
+
+> **The Vision:** A social creation platform where users become creators, creators become entrepreneurs, and the metaverse builds itself.
+
+**[📖 Read the Full Platform Vision →](./docs/PLATFORM_VISION.md)**
+
+---
+
+## 👥 Built for Everyone
+
+**All ages. All interests. All professions. All skill levels.**
+
+HoloLand serves everyone:
+- 👶 **All Ages** - Kids to seniors, safe and accessible for each age group
+- 🎯 **All Interests** - Gaming, social, creative, fitness, learning, shopping, entertainment
+- 💼 **All Professions** - Sales, research, education, healthcare, architecture, and 12+ more industries
+- 📊 **All Skill Levels** - From zero-skill players to professional developers
+
+HoloLand has **multiple layers of experience** - start at any level:
+
+### 🎮 Layer 1: Players
+**No skills needed - just explore**
+- Visit worlds built by others
+- Play games, attend concerts, hang out with friends
+- Zero learning curve - just put on headset and go
+
+### 🗣️ Layer 2: Voice Creators
+**No coding - just speak**
+- "Create a medieval castle with a moat"
+- Build worlds using natural language
+- AI translates your ideas into reality instantly
+
+### 🎨 Layer 3: Visual Builders
+**No code - use drag & drop**
+- HoloScript's visual editor (Unity-like interface)
+- Place objects, adjust properties, connect logic
+- Templates and prefabs to start quickly
+
+### 💻 Layer 4: Script Creators
+**Some coding - powerful control**
+- Write HoloScript+ for custom behaviors
+- Access full engine features
+- Still easier than traditional game dev
+
+### 🔧 Layer 5: Platform Developers
+**Full development - extend the platform**
+- Build plugins and integrations
+- Create custom tools and workflows
+- Contribute to open-source ecosystem
+
+### 🏢 Layer 6: Professional Users
+**Every profession can use HoloLand**
+
+**Sales & Marketing** - Product demos, client presentations, trade shows, brand experiences
+**Research & Science** - Data visualization, virtual labs, collaborative research, conferences
+**Education & Training** - Virtual classrooms, field trips, simulations, student projects
+**Healthcare** - Medical training, patient education, therapy, anatomy visualization
+**Architecture & Real Estate** - Property tours, client walkthroughs, interior design, urban planning
+**Manufacturing** - Safety training, equipment operation, process optimization, factory tours
+**Legal & Government** - Virtual courtrooms, crime scene reconstruction, public hearings, disaster response
+**Corporate** - Remote collaboration, virtual offices, company events, onboarding
+**Creative Industries** - Virtual galleries, performance spaces, film pre-viz, fashion shows
+
+**And more:** Retail, hospitality, automotive, aerospace, energy, finance, logistics...
+
+**→ Start at any layer. Grow into others as you learn.**
+
+---
+
+## 🎮 Experience HoloLand
+
+### For Players: Explore & Create
+
+Put on your VR headset and jump into infinite worlds:
+
+- 🌟 **Explore** - Visit user-created worlds (games, hangouts, art galleries, concerts)
+- 🗣️ **Voice Building** - "Create a treehouse with a rope ladder" - built instantly
+- 🚀 **Portal Network** - Walk through doorways between worlds, zero loading
+- 👥 **Social** - Voice chat, gestures, parties, events
+- 🎒 **Persistent Identity** - Your avatar, inventory, and friends travel with you
+
+**[🎮 Player Guide →](./docs/PLAYER_GUIDE.md)** *(coming soon)*
+
+### For Creators: Build & Monetize
+
+Turn your ideas into immersive worlds:
+
+- 💬 **Voice Building** - "Create a medieval castle" with AI assistance
+- 🖱️ **Visual Editor** - Drag-drop interface for non-coders
+- 💻 **HoloScript+** - Full spatial programming language for advanced control
+- 💰 **Monetization** - Charge admission, sell items, earn 70% revenue
+- 📊 **Analytics** - Track visitors, ratings, earnings in real-time
+
+**[🛠️ Creator Guide →](#-for-developers-build-with-holoscript)** (below)
+
+---
+
+## 🥽 The Holographic Interface
+
+HoloLand features a **futuristic holographic UI** inspired by advanced AR systems. When you're in VR, you're wearing virtual smart glasses with a swipeable, spatial interface.
+
+### Key Features
+
+- **Non-Intrusive** - UI appears only when needed, full immersion by default
+- **Gesture Control** - Swipe up/down/left/right to navigate menus
+- **Voice Activated** - "Show worlds", "Call friend", "Take photo"
+- **3D Native** - Panels float in space at comfortable viewing distance
+- **Context-Aware** - Shows relevant options based on what you're doing
+
+### Quick Actions
+
+```
+Player View (Clean):
+┌─────────────────────────────────┐
+│                                 │  ← Full immersion
+│     YOUR VR WORLD VIEW          │
+│                                 │
+│  [Friend dots]  [Compass]      │  ← Minimal indicators
+└─────────────────────────────────┘
+
+Swipe Up → Holographic Menu:
+┌─────────────────────────────────┐
+│  ╔═══════════════════════╗     │
+│  ║ 🌍 Worlds  👥 Friends ║     │  ← Swipeable panels
+│  ║ 🎒 Inventory  ⚙️ Settings ║  │
+│  ╚═══════════════════════╝     │
+│         YOUR VIEW               │
+└─────────────────────────────────┘
+```
+
+**[📖 Full Holographic UI Guide →](./docs/HOLOGRAPHIC_UI.md)**
+
+---
+
+## 🚀 For Developers: Build with HoloScript
 
 ```tsx
 import { HololandCanvas, HololandObject } from '@hololand/react-three';
@@ -29,7 +169,7 @@ import { HololandCanvas, HololandObject } from '@hololand/react-three';
 function App() {
   return (
     <HololandCanvas worldConfig={{ enablePhysics: true }}>
-      <HololandObject type="sphere" position={{ x: 0, y: 2, z: 0 }} 
+      <HololandObject type="sphere" position={{ x: 0, y: 2, z: 0 }}
         physics={{ enabled: true, mass: 1 }} />
     </HololandCanvas>
   );
@@ -37,6 +177,35 @@ function App() {
 ```
 
 That's it. VR-ready, physics-enabled, runs everywhere.
+
+### Built on HoloScript Game Engine
+
+HoloLand **extends HoloScript's game engine and editor** with platform-specific features:
+
+**HoloScript Engine (Foundation):**
+- 🎮 **Visual Editor** - Unity-like scene editor with hierarchy, inspector, viewport
+- 🎬 **Scene System** - GameObject hierarchy and component architecture
+- 📦 **Asset Pipeline** - Import models, textures, sounds, animations
+- ⚡ **Physics Engine** - Collision detection and rigid body simulation
+- 🎨 **Rendering** - WebGL/WebGPU-based 3D rendering
+- 💻 **Scripting** - HoloScript+ language for gameplay logic
+- 🔨 **Build System** - Compile to WebXR for all platforms
+
+**HoloLand Platform Enhancements:**
+- 🌍 **World Publishing** - Instant deployment to HoloLand network
+- 🚪 **Portal System** - Visual editor for cross-world connections
+- 🤖 **AI Builder** - Natural language → scene generation
+- 👥 **Multiplayer Tools** - Built-in networking and player sync
+- 💰 **Monetization** - Integrate payments, analytics, ads
+- 🎨 **Asset Marketplace** - Browse/buy community assets in-editor
+- 📊 **Live Analytics** - Real-time player metrics and heatmaps
+- 🔗 **Social Integration** - Friends, parties, events API
+
+**Think of it as:**
+- **HoloScript** = Unity (the game engine + editor)
+- **HoloLand** = Platform ecosystem built on HoloScript (metaverse with social features, economy, discovery)
+
+**[📖 HoloScript Engine Docs →](https://github.com/brianonbased-dev/HoloScript)**
 
 ---
 
@@ -75,7 +244,13 @@ vercel deploy ./dist
 
 ---
 
-## 🚀 What's New (January 2026)
+## 🚀 What's New (February 2026)
+
+### 🧠 Autonomize Framework (Phase 11)
+HoloLand now fully implements the uAA2++ Autonomize roadmap!
+- **Cross-Modal Memory Bounds**: Query spatial semantic indices explicitly using `visualContext` and `audioContext`.
+- **Episodic Replay Debugger**: Extract timeline graphs (`replay_episodic_timeline`) mapping simulated sequences sequentially.
+- **Scene Graph Supervision**: Octree bound proximity algorithms generating standard geometric AI training triplets via `extract_scene_graph_labels`.
 
 ### 🎮 VRChat Export Alpha
 HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn more →](https://github.com/brianonbased-dev/holoscript#-vrchat-alpha)
@@ -385,16 +560,27 @@ pnpm test
 
 ## Links
 
+### Getting Started
 - [Quick Start](./QUICKSTART.md) - Get started in 5 minutes
 - [**Deployment Guide**](./docs/USER_DEPLOYMENT_GUIDE.md) - Publish your worlds
 - [Documentation Index](./docs/INDEX.md) - All docs in one place
+
+### Project Status
+- [**Development Roadmap**](./DEVELOPMENT_ROADMAP_2026.md) - Current implementation status & completed features
+- [Technical Vision](./ROADMAP.md) - Long-term architectural vision
+- [Full Ecosystem](./ECOSYSTEM_STATUS.md) - All 40+ packages
+
+### Resources
 - [HoloScript](https://github.com/brianonbased-dev/holoscript) - The language
 - [Infinity Assistant](https://infinityassistant.io) - AI building service
 - [Examples](./examples/) - Working demos
-- [Full Ecosystem](./ECOSYSTEM_STATUS.md) - All 40+ packages
 
 ---
 
 **Built with ❤️ by the Hololand community**
 
 *Where everyone can build in VR.*
+
+---
+
+**Last Updated**: February 26, 2026

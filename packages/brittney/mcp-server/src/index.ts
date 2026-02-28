@@ -43,6 +43,15 @@ import { holoGraphTools, handleHoloGraphTool } from './holo-graph-tools.js';
 // Agent-Friendly Tools (optimized for AI agent efficiency)
 import { agentTools, handleAgentTool } from './agent-tools.js';
 
+// Memory Persistence Tools
+import { memoryTools, handleMemoryTool } from './memory-tools.js';
+
+// Spatial Indexing Tools
+import { spatialTools, handleSpatialTool } from './spatial-tools.js';
+
+// Dataset Extraction Tools
+import { datasetTools, handleDatasetTool } from './dataset-tools.js';
+
 // Import HoloScript code parser for local validation
 // Using dynamic require to work around @holoscript/core ESM resolution issue
 import { createRequire } from 'module';
@@ -581,6 +590,13 @@ const tools: Tool[] = [
   // Optimized for AI agents: batch ops, single-call status, autonomous workflows
   // =====================================================
   ...agentTools,
+
+  // =====================================================
+  // AI PERSISTENCE & SPATIAL INDEXING
+  // =====================================================
+  ...(memoryTools as any),
+  ...(spatialTools as any),
+  ...(datasetTools as any),
 ];
 
 /**
@@ -755,6 +771,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       // =====================================================
+      // DATASET EXTRACTION TOOLS
+      // =====================================================
+      case 'generate_spatial_dataset': {
+        const result = await handleDatasetTool(name, args as Record<string, unknown>);
+        return buildResponse(name, traceId, result);
+      }
+
+      // =====================================================
       // BRITTNEY IDE AGENT INTEGRATION TOOLS
       // =====================================================
       default:
@@ -790,6 +814,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Check if it's a HoloScript Graph tool
         if (name.startsWith('holo_')) {
           const result = await handleHoloGraphTool(name, args as Record<string, unknown>);
+          return buildResponse(name, traceId, result);
+        }
+
+        // Check Memory & Spatial Tools
+        if (memoryTools.map(t => t.name).includes(name)) {
+          const result = await handleMemoryTool(name, args as Record<string, unknown>);
+          return buildResponse(name, traceId, result);
+        }
+        
+        if (spatialTools.map(t => t.name).includes(name)) {
+          const result = await handleSpatialTool(name, args as Record<string, unknown>);
           return buildResponse(name, traceId, result);
         }
 

@@ -1,0 +1,26 @@
+{
+  "name": "Multiplayer Lobby",
+  "slug": "multiplayer-lobby",
+  "category": "social",
+  "description": "Central gathering space with 4 room areas, voice booths, and chat stations for team coordination",
+  "features": [
+    "4 color-coded room areas",
+    "16 seats total (4 per room)",
+    "3 voice booths for private chat",
+    "3 chat stations",
+    "Central info hologram",
+    "Room indicators",
+    "Lobby coordinator NPC",
+    "7 spawn points"
+  ],
+  "portal": {
+    "position": [-15, 1, 0],
+    "color": "#4a90e2",
+    "label": "Multiplayer Lobby"
+  },
+  "maxPlayers": 100,
+  "holoScriptFile": "multiplayer-lobby.holo",
+  "convertedFrom": "examples/09-multiplayer-lobby",
+  "convertedAt": "2026-02-19T00:00:00.000Z",
+  "notes": "Converted from network demo into a 3D lobby space with room areas"
+}

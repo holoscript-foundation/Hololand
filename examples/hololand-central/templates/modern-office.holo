@@ -1,0 +1,117 @@
+/**
+ * Modern Office Template
+ * A professional workspace with desk, chair, and ambient lighting
+ */
+
+# Floor
+plane #floor {
+  position: [0, 0, 0]
+  size: [20, 1, 20]
+  color: "#E8E8E8"
+  @material(type: "pbr", roughness: 0.8, metallic: 0.1)
+}
+
+# Desk
+cube #desk {
+  position: [0, 0.75, 5]
+  size: [3, 0.1, 1.5]
+  color: "#2C3E50"
+  @material(type: "pbr", roughness: 0.3, metallic: 0.7)
+}
+
+cube #desk_leg_1 {
+  position: [-1.3, 0.375, 4.5]
+  size: [0.1, 0.75, 0.1]
+  color: "#34495E"
+}
+
+cube #desk_leg_2 {
+  position: [1.3, 0.375, 4.5]
+  size: [0.1, 0.75, 0.1]
+  color: "#34495E"
+}
+
+cube #desk_leg_3 {
+  position: [-1.3, 0.375, 5.5]
+  size: [0.1, 0.75, 0.1]
+  color: "#34495E"
+}
+
+cube #desk_leg_4 {
+  position: [1.3, 0.375, 5.5]
+  size: [0.1, 0.75, 0.1]
+  color: "#34495E"
+}
+
+# Monitor
+cube #monitor {
+  position: [0, 1.3, 5.2]
+  size: [1.2, 0.7, 0.05]
+  color: "#1A1A1A"
+  @material(type: "standard", emissive: "#3498DB", emissiveIntensity: 0.3)
+}
+
+# Keyboard
+cube #keyboard {
+  position: [0, 0.82, 4.5]
+  size: [0.6, 0.02, 0.2]
+  color: "#2C3E50"
+}
+
+# Chair
+cylinder #chair_seat {
+  position: [0, 0.5, 3]
+  size: [0.5, 0.1]
+  color: "#E74C3C"
+  @material(type: "pbr", roughness: 0.5, metallic: 0.2)
+}
+
+cylinder #chair_base {
+  position: [0, 0.2, 3]
+  size: [0.3, 0.3]
+  color: "#34495E"
+}
+
+# Lighting
+light #ambient {
+  type: "ambient"
+  color: "#FFFFFF"
+  intensity: 0.4
+}
+
+light #main {
+  type: "directional"
+  position: [5, 10, 5]
+  color: "#FFFFFF"
+  intensity: 0.8
+  @shadows(enabled: true, mapSize: 2048)
+}
+
+# Ceiling
+plane #ceiling {
+  position: [0, 4, 0]
+  size: [20, 1, 20]
+  color: "#FFFFFF"
+  rotation: [180, 0, 0]
+}
+
+# Walls
+cube #wall_back {
+  position: [0, 2, 10]
+  size: [20, 4, 0.2]
+  color: "#BDC3C7"
+}
+
+cube #wall_left {
+  position: [-10, 2, 0]
+  size: [0.2, 4, 20]
+  color: "#BDC3C7"
+}
+
+# Window (with emissive glow)
+cube #window {
+  position: [8, 2, 10]
+  size: [3, 2, 0.1]
+  color: "#87CEEB"
+  @material(type: "standard", emissive: "#87CEEB", emissiveIntensity: 0.5, transparent: true, opacity: 0.6)
+}

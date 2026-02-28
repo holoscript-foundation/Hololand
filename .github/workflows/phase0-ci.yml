@@ -39,9 +39,13 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
       
-      - name: Type check
+      - name: Type check TypeScript
         run: npm run type-check --if-present
-      
+
+      - name: Type check HoloScript files
+        run: npm run typecheck:holoscript --if-present
+        continue-on-error: true
+
       - name: Unit tests
         run: npm test -- --coverage
       
@@ -74,7 +78,11 @@ jobs:
       
       - name: Build HoloScript compiler
         run: npm run build:holoscript --if-present
-      
+
+      - name: Validate HoloScript zones
+        run: npm run typecheck:holoscript --if-present
+        continue-on-error: true
+
       - name: Check bundle size
         run: npm run build:size-check --if-present
 

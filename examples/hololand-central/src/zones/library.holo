@@ -1,0 +1,917 @@
+/**
+ * Library Zone
+ *
+ * Educational and cultural hub featuring interactive exhibits, learning stations,
+ * knowledge archives, and curator NPCs. The intellectual heart of the Holoverse.
+ *
+ * Created for the Holoverse
+ */
+
+// Zone metadata
+@zone "Library" category:"education" maxPlayers:60
+
+composition "Library" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -70, y: 0, z: -70 }
+      max: { x: 70, y: 25, z: 70 }
+    }
+    skybox: "library_interior"
+    ambientLight: { intensity: 0.6, color: "#f5f5dc" }
+    fog: { color: "#ede7d9", near: 80, far: 160 }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+
+  spawnpoint "entrance-1" {
+    position: [0, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [5, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-5, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-4" {
+    position: [10, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-5" {
+    position: [-10, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+
+  // Main Hall Floor
+  object "MainFloor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [140, 1, 140]
+    material: {
+      color: "#8b7355"
+      roughness: 0.8
+    }
+  }
+
+  // Decorative Rug - Main Entrance
+  object "EntranceRug" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, 40]
+    scale: [20, 0.02, 15]
+    material: {
+      color: "#800020"
+      roughness: 0.9
+    }
+  }
+
+  // Central Atrium Circle
+  object "AtriumCircle" {
+    @spatial @networked @emissive
+    geometry: "cylinder"
+    position: [0, 0.01, 0]
+    scale: [12, 0.02, 12]
+    material: {
+      color: "#d4af37"
+      emissive: "#d4af37"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // === CENTRAL KNOWLEDGE TOWER ===
+
+  object "KnowledgeTowerBase" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [0, 5, 0]
+    scale: [6, 10, 6]
+    material: {
+      color: "#5d4037"
+      roughness: 0.6
+    }
+  }
+
+  object "KnowledgeTowerTop" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [0, 11, 0]
+    scale: [4, 4, 4]
+    material: {
+      color: "#00bcd4"
+      emissive: "#00bcd4"
+      emissiveIntensity: 0.6
+      transparent: true
+      opacity: 0.7
+    }
+  }
+
+  object "KnowledgeTowerRing1" {
+    @spatial @networked @emissive
+    geometry: "torus"
+    position: [0, 7, 0]
+    rotation: [90, 0, 0]
+    scale: [5, 5, 5]
+    material: {
+      color: "#ffd700"
+      emissive: "#ffd700"
+      emissiveIntensity: 0.4
+    }
+  }
+
+  object "KnowledgeTowerRing2" {
+    @spatial @networked @emissive
+    geometry: "torus"
+    position: [0, 9, 0]
+    rotation: [90, 45, 0]
+    scale: [5, 5, 5]
+    material: {
+      color: "#ffd700"
+      emissive: "#ffd700"
+      emissiveIntensity: 0.4
+    }
+  }
+
+  // === NORTH WING: SCIENCE & TECHNOLOGY EXHIBITS ===
+
+  object "ScienceWingFloor" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, -40]
+    scale: [40, 0.02, 20]
+    material: {
+      color: "#3498db"
+      opacity: 0.1
+      transparent: true
+    }
+  }
+
+  // Science Exhibit Pedestals
+  object "SciencePedestal1" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [-15, 1, -40]
+    scale: [2, 2, 2]
+    material: {
+      color: "#2c3e50"
+      metalness: 0.7
+      roughness: 0.3
+    }
+  }
+
+  object "ScienceExhibit1" {
+    @spatial @networked @interactive @grabbable @emissive
+    geometry: "sphere"
+    position: [-15, 2.5, -40]
+    scale: [1.2, 1.2, 1.2]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "SciencePedestal2" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [0, 1, -40]
+    scale: [2, 2, 2]
+    material: {
+      color: "#2c3e50"
+      metalness: 0.7
+      roughness: 0.3
+    }
+  }
+
+  object "ScienceExhibit2" {
+    @spatial @networked @interactive @grabbable
+    geometry: "box"
+    position: [0, 2.5, -40]
+    rotation: [45, 45, 0]
+    scale: [1, 1, 1]
+    material: {
+      color: "#1abc9c"
+      metalness: 0.5
+    }
+  }
+
+  object "SciencePedestal3" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [15, 1, -40]
+    scale: [2, 2, 2]
+    material: {
+      color: "#2c3e50"
+      metalness: 0.7
+      roughness: 0.3
+    }
+  }
+
+  object "ScienceExhibit3" {
+    @spatial @networked @interactive @grabbable @emissive
+    geometry: "torus"
+    position: [15, 2.5, -40]
+    scale: [1, 1, 1]
+    material: {
+      color: "#9b59b6"
+      emissive: "#9b59b6"
+      emissiveIntensity: 0.4
+    }
+  }
+
+  // Science Curator NPC
+  npc "ScienceCurator" {
+    @spatial @networked @dialogue
+    position: [0, 0, -35]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "science_greeting"
+  }
+
+  // === SOUTH WING: HISTORY & CULTURE EXHIBITS ===
+
+  object "HistoryWingFloor" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, 40]
+    scale: [40, 0.02, 20]
+    material: {
+      color: "#e67e22"
+      opacity: 0.1
+      transparent: true
+    }
+  }
+
+  // History Display Cases
+  object "HistoryCase1" {
+    @spatial @networked @collision @interactive
+    geometry: "box"
+    position: [-15, 2, 40]
+    scale: [3, 4, 2]
+    material: {
+      color: "#34495e"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  object "HistoryArtifact1" {
+    @spatial @networked @interactive @grabbable
+    geometry: "cylinder"
+    position: [-15, 2, 40]
+    scale: [0.5, 1, 0.5]
+    material: {
+      color: "#d4af37"
+      metalness: 0.9
+      roughness: 0.2
+    }
+  }
+
+  object "HistoryCase2" {
+    @spatial @networked @collision @interactive
+    geometry: "box"
+    position: [0, 2, 40]
+    scale: [3, 4, 2]
+    material: {
+      color: "#34495e"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  object "HistoryArtifact2" {
+    @spatial @networked @interactive @grabbable
+    geometry: "box"
+    position: [0, 2, 40]
+    scale: [0.6, 0.8, 0.3]
+    material: {
+      color: "#8b4513"
+    }
+  }
+
+  object "HistoryCase3" {
+    @spatial @networked @collision @interactive
+    geometry: "box"
+    position: [15, 2, 40]
+    scale: [3, 4, 2]
+    material: {
+      color: "#34495e"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  object "HistoryArtifact3" {
+    @spatial @networked @interactive @grabbable
+    geometry: "sphere"
+    position: [15, 2, 40]
+    scale: [0.6, 0.6, 0.6]
+    material: {
+      color: "#c0392b"
+    }
+  }
+
+  // History Curator NPC
+  npc "HistoryCurator" {
+    @spatial @networked @dialogue
+    position: [0, 0, 45]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "history_greeting"
+  }
+
+  // === EAST WING: ART & CREATIVITY GALLERY ===
+
+  object "ArtWingFloor" {
+    @spatial @networked
+    geometry: "box"
+    position: [40, 0.01, 0]
+    scale: [20, 0.02, 40]
+    material: {
+      color: "#9b59b6"
+      opacity: 0.1
+      transparent: true
+    }
+  }
+
+  // Art Frames (wall-mounted)
+  object "ArtFrame1Back" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [35, 3, -15]
+    scale: [0.2, 4, 3]
+    material: { color: "#34495e" }
+  }
+
+  object "ArtFrame1" {
+    @spatial @networked @interactive @emissive
+    geometry: "box"
+    position: [35, 3, -15]
+    scale: [0.1, 3.5, 2.5]
+    material: {
+      color: "#e91e63"
+      emissive: "#e91e63"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "ArtFrame2Back" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [35, 3, 0]
+    scale: [0.2, 4, 3]
+    material: { color: "#34495e" }
+  }
+
+  object "ArtFrame2" {
+    @spatial @networked @interactive @emissive
+    geometry: "box"
+    position: [35, 3, 0]
+    scale: [0.1, 3.5, 2.5]
+    material: {
+      color: "#00bcd4"
+      emissive: "#00bcd4"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  object "ArtFrame3Back" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [35, 3, 15]
+    scale: [0.2, 4, 3]
+    material: { color: "#34495e" }
+  }
+
+  object "ArtFrame3" {
+    @spatial @networked @interactive @emissive
+    geometry: "box"
+    position: [35, 3, 15]
+    scale: [0.1, 3.5, 2.5]
+    material: {
+      color: "#ffc107"
+      emissive: "#ffc107"
+      emissiveIntensity: 0.2
+    }
+  }
+
+  // Art Curator NPC
+  npc "ArtCurator" {
+    @spatial @networked @dialogue
+    position: [38, 0, 0]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "art_greeting"
+  }
+
+  // === WEST WING: INTERACTIVE LEARNING STATIONS ===
+
+  object "LearningWingFloor" {
+    @spatial @networked
+    geometry: "box"
+    position: [-40, 0.01, 0]
+    scale: [20, 0.02, 40]
+    material: {
+      color: "#2ecc71"
+      opacity: 0.1
+      transparent: true
+    }
+  }
+
+  // Learning Station 1: Holography
+  object "LearningStation1Table" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-40, 1, -15]
+    scale: [4, 1.5, 3]
+    material: {
+      color: "#34495e"
+      roughness: 0.5
+    }
+  }
+
+  object "LearningStation1Display" {
+    @spatial @networked @interactive @emissive
+    geometry: "box"
+    position: [-40, 2.5, -15]
+    scale: [2, 2, 0.2]
+    material: {
+      color: "#2ecc71"
+      emissive: "#2ecc71"
+      emissiveIntensity: 0.5
+    }
+  }
+
+  // Learning Station 2: Physics
+  object "LearningStation2Table" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-40, 1, 0]
+    scale: [4, 1.5, 3]
+    material: {
+      color: "#34495e"
+      roughness: 0.5
+    }
+  }
+
+  object "LearningStation2Display" {
+    @spatial @networked @interactive @emissive
+    geometry: "box"
+    position: [-40, 2.5, 0]
+    scale: [2, 2, 0.2]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 0.5
+    }
+  }
+
+  // Learning Station 3: Programming
+  object "LearningStation3Table" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-40, 1, 15]
+    scale: [4, 1.5, 3]
+    material: {
+      color: "#34495e"
+      roughness: 0.5
+    }
+  }
+
+  object "LearningStation3Display" {
+    @spatial @networked @interactive @emissive
+    geometry: "box"
+    position: [-40, 2.5, 15]
+    scale: [2, 2, 0.2]
+    material: {
+      color: "#9b59b6"
+      emissive: "#9b59b6"
+      emissiveIntensity: 0.5
+    }
+  }
+
+  // Learning Curator NPC
+  npc "LearningCurator" {
+    @spatial @networked @dialogue
+    position: [-38, 0, 0]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "learning_greeting"
+  }
+
+  // === READING AREAS & SEATING ===
+
+  // Reading Tables - North
+  object "ReadingTable1" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-20, 0.8, -20]
+    scale: [4, 0.2, 2]
+    material: { color: "#795548" }
+  }
+
+  object "ReadingChair1A" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-21, 0.4, -20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  object "ReadingChair1B" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-19, 0.4, -20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  object "ReadingTable2" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [20, 0.8, -20]
+    scale: [4, 0.2, 2]
+    material: { color: "#795548" }
+  }
+
+  object "ReadingChair2A" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [21, 0.4, -20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  object "ReadingChair2B" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [19, 0.4, -20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  // Reading Tables - South
+  object "ReadingTable3" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-20, 0.8, 20]
+    scale: [4, 0.2, 2]
+    material: { color: "#795548" }
+  }
+
+  object "ReadingChair3A" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-21, 0.4, 20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  object "ReadingChair3B" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-19, 0.4, 20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  object "ReadingTable4" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [20, 0.8, 20]
+    scale: [4, 0.2, 2]
+    material: { color: "#795548" }
+  }
+
+  object "ReadingChair4A" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [21, 0.4, 20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  object "ReadingChair4B" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [19, 0.4, 20]
+    scale: [0.8, 0.6, 0.8]
+    material: { color: "#5d4037" }
+  }
+
+  // === BOOKSHELF WALLS ===
+
+  object "BookshelfNorth1" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-30, 3, -55]
+    scale: [10, 6, 1]
+    material: { color: "#5d4037" }
+  }
+
+  object "BookshelfNorth2" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [30, 3, -55]
+    scale: [10, 6, 1]
+    material: { color: "#5d4037" }
+  }
+
+  object "BookshelfSouth1" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-30, 3, 55]
+    scale: [10, 6, 1]
+    material: { color: "#5d4037" }
+  }
+
+  object "BookshelfSouth2" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [30, 3, 55]
+    scale: [10, 6, 1]
+    material: { color: "#5d4037" }
+  }
+
+  object "BookshelfEast" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [55, 3, 30]
+    scale: [1, 6, 20]
+    material: { color: "#5d4037" }
+  }
+
+  object "BookshelfWest" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-55, 3, 30]
+    scale: [1, 6, 20]
+    material: { color: "#5d4037" }
+  }
+
+  // === INFORMATION DESK (CENTER ENTRANCE) ===
+
+  object "InfoDesk" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [0, 1.2, 48]
+    scale: [8, 2, 3]
+    material: {
+      color: "#6d4c41"
+      roughness: 0.6
+    }
+  }
+
+  npc "HeadLibrarian" {
+    @spatial @networked @dialogue
+    position: [0, 0, 46]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "librarian_greeting"
+  }
+
+  // === DIALOGUES ===
+
+  dialog "librarian_greeting" {
+    text: "Welcome to the Holoverse Library! I'm the head librarian. We house knowledge from across dimensions - science, history, art, and interactive learning. How can I guide you?"
+
+    option "Tell me about the wings" -> @dialog("wings_info")
+    option "What can I learn here?" -> @dialog("learning_info")
+    option "Any special exhibits?" -> @dialog("special_exhibits")
+    option "Thanks!" -> @close
+  }
+
+  dialog "wings_info" {
+    text: "We have 4 main wings: Science & Technology (North), History & Culture (South), Art & Creativity (East), and Interactive Learning (West). Each wing has a dedicated curator!"
+
+    option "What can I learn here?" -> @dialog("learning_info")
+    option "Any special exhibits?" -> @dialog("special_exhibits")
+    option "Perfect!" -> @close
+  }
+
+  dialog "learning_info" {
+    text: "Everything! Explore exhibits, interact with displays, attend workshops, use learning stations, or just read in the quiet areas. Knowledge is limitless here!"
+
+    option "Tell me about the wings" -> @dialog("wings_info")
+    option "Any special exhibits?" -> @dialog("special_exhibits")
+    option "Amazing!" -> @close
+  }
+
+  dialog "special_exhibits" {
+    text: "The Knowledge Tower at the center rotates exhibits monthly. Currently featuring 'Origins of the Holoverse' - a journey through our shared history. Check it out!"
+
+    option "Tell me about the wings" -> @dialog("wings_info")
+    option "What can I learn here?" -> @dialog("learning_info")
+    option "Will do!" -> @close
+  }
+
+  dialog "science_greeting" {
+    text: "Welcome to Science & Technology! Here we showcase the latest discoveries, inventions, and the physics that powers the Holoverse. Grab an exhibit to learn more!"
+
+    option "What exhibits are here?" -> @dialog("science_exhibits")
+    option "Can I interact with them?" -> @dialog("science_interact")
+    option "Thanks!" -> @close
+  }
+
+  dialog "science_exhibits" {
+    text: "We have quantum physics demonstrations, holographic projection systems, AI evolution timelines, and space exploration archives. All interactive!"
+
+    option "Can I interact with them?" -> @dialog("science_interact")
+    option "Fascinating!" -> @close
+  }
+
+  dialog "science_interact" {
+    text: "Absolutely! Pick up exhibits, rotate them, trigger animations. The blue sphere explains quantum entanglement, the cube shows crystal structures, and the torus demonstrates electromagnetic fields!"
+
+    option "What exhibits are here?" -> @dialog("science_exhibits")
+    option "Cool!" -> @close
+  }
+
+  dialog "history_greeting" {
+    text: "Welcome to History & Culture! Journey through time and explore the rich tapestry of civilizations, events, and cultural milestones. Every artifact has a story!"
+
+    option "What's the oldest artifact?" -> @dialog("history_oldest")
+    option "Can I touch them?" -> @dialog("history_touch")
+    option "Thanks!" -> @close
+  }
+
+  dialog "history_oldest" {
+    text: "The golden cylinder dates back to the first digital civilization! It contains encrypted messages from founders of virtual worlds. It's said to unlock secrets..."
+
+    option "Can I touch them?" -> @dialog("history_touch")
+    option "Incredible!" -> @close
+  }
+
+  dialog "history_touch" {
+    text: "Yes! The display cases are interactive. Select an artifact to see its full history, 3D scans, and related stories. Some artifacts can even be examined outside the case!"
+
+    option "What's the oldest artifact?" -> @dialog("history_oldest")
+    option "Got it!" -> @close
+  }
+
+  dialog "art_greeting" {
+    text: "Welcome to the Art Gallery! Here we celebrate creativity across all dimensions - digital art, sculptures, music, and immersive experiences. Let art inspire you!"
+
+    option "Who created these?" -> @dialog("art_creators")
+    option "Can I submit art?" -> @dialog("art_submit")
+    option "Thanks!" -> @close
+  }
+
+  dialog "art_creators" {
+    text: "These pieces are from renowned artists across the Holoverse! The pink frame is by @PixelMaster, cyan by @HoloSculptor, and yellow by @DreamWeaver. Each month we rotate featured artists!"
+
+    option "Can I submit art?" -> @dialog("art_submit")
+    option "Beautiful!" -> @close
+  }
+
+  dialog "art_submit" {
+    text: "Yes! Visit our submission portal at the info desk. We accept all forms of digital art. Popular pieces get featured here, and artists receive recognition badges!"
+
+    option "Who created these?" -> @dialog("art_creators")
+    option "Awesome!" -> @close
+  }
+
+  dialog "learning_greeting" {
+    text: "Welcome to Interactive Learning! Hands-on stations for all skill levels. Learn holography, physics simulations, coding, and more. Pick a station and dive in!"
+
+    option "What can I learn?" -> @dialog("learning_topics")
+    option "Is there a tutorial?" -> @dialog("learning_tutorial")
+    option "Thanks!" -> @close
+  }
+
+  dialog "learning_topics" {
+    text: "Green station teaches holography fundamentals, blue station covers physics simulations, purple station is for programming basics. Each has guided lessons and free practice modes!"
+
+    option "Is there a tutorial?" -> @dialog("learning_tutorial")
+    option "Perfect!" -> @close
+  }
+
+  dialog "learning_tutorial" {
+    text: "Yes! Interact with any station's display to start. Lessons are self-paced with real-time feedback. Complete challenges to earn skill badges that unlock advanced content!"
+
+    option "What can I learn?" -> @dialog("learning_topics")
+    option "Excellent!" -> @close
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [0, 1, 65]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+
+  light "MainCeilingLight" {
+    type: "directional"
+    position: [0, 20, 0]
+    color: "#f5f5dc"
+    intensity: 1.0
+    castShadows: true
+  }
+
+  light "KnowledgeTowerGlow" {
+    type: "point"
+    position: [0, 11, 0]
+    color: "#00bcd4"
+    intensity: 1.2
+  }
+
+  light "ScienceWingLight" {
+    type: "spot"
+    position: [0, 8, -40]
+    color: "#3498db"
+    intensity: 0.8
+  }
+
+  light "HistoryWingLight" {
+    type: "spot"
+    position: [0, 8, 40]
+    color: "#e67e22"
+    intensity: 0.8
+  }
+
+  light "ArtWingLight" {
+    type: "spot"
+    position: [40, 8, 0]
+    color: "#9b59b6"
+    intensity: 0.8
+  }
+
+  light "LearningWingLight" {
+    type: "spot"
+    position: [-40, 8, 0]
+    color: "#2ecc71"
+    intensity: 0.8
+  }
+
+  light "ReadingLight1" {
+    type: "point"
+    position: [-20, 3, -20]
+    color: "#fff8dc"
+    intensity: 0.5
+  }
+
+  light "ReadingLight2" {
+    type: "point"
+    position: [20, 3, -20]
+    color: "#fff8dc"
+    intensity: 0.5
+  }
+
+  light "ReadingLight3" {
+    type: "point"
+    position: [-20, 3, 20]
+    color: "#fff8dc"
+    intensity: 0.5
+  }
+
+  light "ReadingLight4" {
+    type: "point"
+    position: [20, 3, 20]
+    color: "#fff8dc"
+    intensity: 0.5
+  }
+
+  light "AmbientLight" {
+    type: "hemisphere"
+    skyColor: "#f5f5dc"
+    groundColor: "#8b7355"
+    intensity: 0.5
+  }
+
+  // === AMBIENT AUDIO ===
+
+  audio "LibraryAmbience" {
+    source: "library_quiet.mp3"
+    loop: true
+    volume: 0.15
+    spatial: false
+  }
+
+  audio "PageTurning" {
+    source: "pages_ambient.mp3"
+    loop: true
+    volume: 0.08
+    spatial: false
+  }
+
+  audio "KnowledgeTowerHum" {
+    source: "mystical_hum.mp3"
+    loop: true
+    volume: 0.12
+    spatial: true
+    position: [0, 11, 0]
+  }
+}

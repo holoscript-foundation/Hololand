@@ -1,0 +1,30 @@
+{
+  "name": "Market District",
+  "slug": "market-district",
+  "category": "business",
+  "description": "Expansive commerce hub with multiple vendor stalls, diverse product categories, and merchant NPCs. The economic heart of the Holoverse.",
+  "features": [
+    "4 distinct vendor districts (Electronics, Fashion, Furniture, Collectibles)",
+    "6 merchant NPCs with unique personalities",
+    "Central fountain landmark",
+    "Interactive product inspection",
+    "Shopping cart system",
+    "Information kiosk",
+    "Seating areas for socializing",
+    "Decorative street lamps",
+    "Food & beverage stalls",
+    "Weekly Market Day events",
+    "Special item powers and bonuses",
+    "Multiple product categories"
+  ],
+  "portal": {
+    "position": [15, 1, -15],
+    "color": "#2ecc71",
+    "label": "Market District"
+  },
+  "maxPlayers": 50,
+  "holoScriptFile": "market-district.holo",
+  "redesignedFrom": "vr-shop.holo",
+  "redesignedAt": "2026-02-19T00:00:00.000Z",
+  "notes": "Expanded from single VR Shop into comprehensive Market District with multiple vendor stalls, merchant NPCs, and shopping district layout"
+}

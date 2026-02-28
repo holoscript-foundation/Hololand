@@ -1,0 +1,299 @@
+@zone "Quest Village" category:"gameplay" maxPlayers:50
+
+composition "Quest Village" {
+  // ========================================
+  // VILLAGE CENTER
+  // ========================================
+
+  // Village well (crafting station)
+  object "VillageWell" {
+    @spatial @networked @interactive
+    @crafting(recipes: [
+      { name: "Health Potion", ingredients: ["herb", "water"], result: "potion" },
+      { name: "Iron Sword", ingredients: ["iron", "wood"], result: "sword" }
+    ])
+    @label(text: "Crafting Well", color: "#27ae60", size: 0.8)
+    geometry: "cylinder"
+    position: [0, 1, 0]
+    scale: [2, 2, 2]
+    material: {
+      color: "#7f8c8d"
+      roughness: 0.8
+    }
+  }
+
+  // Quest board
+  object "QuestBoard" {
+    @spatial @networked @interactive
+    @questGiver(quests: [
+      { name: "Gather Herbs", reward: 100, type: "collect" },
+      { name: "Defeat Goblins", reward: 500, type: "combat" },
+      { name: "Find Ancient Relic", reward: 1000, type: "explore" }
+    ])
+    @label(text: "! Quest Board", color: "#f39c12", size: 1.2)
+    @tooltip(text: "Available Quests", delay: 0.3)
+    geometry: "plane"
+    position: [0, 3, -5]
+    rotation: [0, 0, 0]
+    scale: [4, 3, 1]
+    material: {
+      color: "#8b4513"
+      roughness: 0.9
+    }
+  }
+
+  // ========================================
+  // SHOPS
+  // ========================================
+
+  // Weapon shop
+  npc "WeaponSmith" {
+    @spatial @networked @dialogue @interactive
+    @shop(
+      items: [
+        { name: "Iron Sword", price: 100, currency: "gold" },
+        { name: "Steel Axe", price: 150, currency: "gold" },
+        { name: "Magic Staff", price: 500, currency: "gold" }
+      ],
+      currency: "gold"
+    )
+    @label(text: "Weapon Smith", color: "#e74c3c", size: 0.7)
+    @healthBar(width: 1.5, height: 0.2)
+    position: [-10, 0, -10]
+    model: "blacksmith"
+    animation: "idle"
+  }
+
+  // Potion shop
+  npc "AlchemistMerchant" {
+    @spatial @networked @dialogue @interactive
+    @shop(
+      items: [
+        { name: "Health Potion", price: 20, currency: "gold" },
+        { name: "Mana Potion", price: 30, currency: "gold" },
+        { name: "Speed Potion", price: 50, currency: "gold" }
+      ],
+      currency: "gold"
+    )
+    @label(text: "Alchemist", color: "#9b59b6", size: 0.7)
+    position: [10, 0, -10]
+    model: "alchemist"
+    animation: "brewing"
+  }
+
+  // General goods
+  npc "GeneralMerchant" {
+    @spatial @networked @dialogue @interactive
+    @shop(
+      items: [
+        { name: "Bread", price: 5, currency: "gold" },
+        { name: "Rope", price: 10, currency: "gold" },
+        { name: "Torch", price: 8, currency: "gold" }
+      ],
+      currency: "gold"
+    )
+    @label(text: "General Store", color: "#2ecc71", size: 0.7)
+    position: [10, 0, 10]
+    model: "merchant"
+    animation: "idle"
+  }
+
+  // ========================================
+  // COLLECTIBLES
+  // ========================================
+
+  // Gold coins scattered around
+  object "GoldCoin1" {
+    @spatial @networked @collectible(value: 10, autoCollect: true, respawn: true)
+    @rotate(speed: 2, axis: 'y')
+    @bob(speed: 1, amount: 0.3)
+    @emissive(color: "#f1c40f", intensity: 0.8)
+    @minimap(icon: "coin", color: "#f1c40f")
+    geometry: "cylinder"
+    position: [5, 1, 5]
+    scale: [0.3, 0.1, 0.3]
+    material: {
+      color: "#f1c40f"
+      emissive: "#f1c40f"
+      emissiveIntensity: 0.5
+      metallic: 0.9
+      roughness: 0.1
+    }
+  }
+
+  object "GoldCoin2" {
+    @spatial @networked @collectible(value: 10, autoCollect: true, respawn: true)
+    @rotate(speed: 2, axis: 'y')
+    @bob(speed: 1, amount: 0.3)
+    @emissive(color: "#f1c40f", intensity: 0.8)
+    @minimap(icon: "coin", color: "#f1c40f")
+    geometry: "cylinder"
+    position: [-5, 1, 5]
+    scale: [0.3, 0.1, 0.3]
+    material: {
+      color: "#f1c40f"
+      emissive: "#f1c40f"
+      emissiveIntensity: 0.5
+      metallic: 0.9
+      roughness: 0.1
+    }
+  }
+
+  object "GoldCoin3" {
+    @spatial @networked @collectible(value: 10, autoCollect: true, respawn: true)
+    @rotate(speed: 2, axis: 'y')
+    @bob(speed: 1, amount: 0.3)
+    @emissive(color: "#f1c40f", intensity: 0.8)
+    @minimap(icon: "coin", color: "#f1c40f")
+    geometry: "cylinder"
+    position: [0, 1, 15]
+    scale: [0.3, 0.1, 0.3]
+    material: {
+      color: "#f1c40f"
+      emissive: "#f1c40f"
+      emissiveIntensity: 0.5
+      metallic: 0.9
+      roughness: 0.1
+    }
+  }
+
+  // Rare chest
+  object "TreasureChest" {
+    @spatial @networked @interactive
+    @inventory(slots: 20)
+    @label(text: "Treasure Chest", color: "#f39c12", size: 0.6)
+    @glow(strength: 1.2, radius: 0.5)
+    geometry: "cube"
+    position: [0, 0.5, 20]
+    scale: [1.5, 1, 1]
+    material: {
+      color: "#8b4513"
+      roughness: 0.7
+    }
+  }
+
+  // ========================================
+  // QUEST GIVERS
+  // ========================================
+
+  npc "VillageElder" {
+    @spatial @networked @dialogue @interactive
+    @questGiver(quests: [
+      { name: "Save the Village", reward: 2000, type: "main_quest" },
+      { name: "Recruit Warriors", reward: 500, type: "side_quest" }
+    ])
+    @label(text: "Elder Markus", color: "#3498db", size: 0.8)
+    @follow(target: "player", distance: 3, speed: 1.5)
+    position: [-5, 0, 0]
+    model: "elder"
+    animation: "think"
+  }
+
+  npc "AdventurerGuild" {
+    @spatial @networked @dialogue @interactive
+    @questGiver(quests: [
+      { name: "Dungeon Dive", reward: 1500, type: "combat" },
+      { name: "Escort Mission", reward: 800, type: "protect" }
+    ])
+    @label(text: "Guild Master", color: "#e74c3c", size: 0.8)
+    position: [5, 0, 0]
+    model: "warrior"
+    animation: "idle"
+  }
+
+  // ========================================
+  // VILLAGE DECORATIONS
+  // ========================================
+
+  // Village fountain
+  object "Fountain" {
+    @spatial @networked
+    @audioSource(src: "water-fountain.mp3", loop: true, volume: 0.6)
+    @spatialAudio(maxDistance: 20)
+    @particle(count: 2000, size: 0.03, color: "#3498db")
+    geometry: "cylinder"
+    position: [15, 1, 0]
+    scale: [3, 2, 3]
+    material: {
+      color: "#7f8c8d"
+      roughness: 0.4
+    }
+  }
+
+  // Village banner
+  object "VillageBanner" {
+    @spatial @wind(strength: 0.8, direction: [1, 0, 0])
+    @sway
+    geometry: "plane"
+    position: [0, 8, -5]
+    scale: [3, 4, 1]
+    material: {
+      color: "#e74c3c"
+      roughness: 0.8
+    }
+  }
+
+  // ========================================
+  // LIGHTING
+  // ========================================
+
+  light "Sun" {
+    type: "directional"
+    position: [20, 30, 10]
+    color: "#fff8e1"
+    intensity: 1.2
+  }
+
+  // Street lamps
+  light "Lamp1" {
+    type: "point"
+    position: [-10, 5, -10]
+    color: "#ffa500"
+    intensity: 1.5
+    range: 15
+  }
+
+  light "Lamp2" {
+    type: "point"
+    position: [10, 5, -10]
+    color: "#ffa500"
+    intensity: 1.5
+    range: 15
+  }
+
+  light "Lamp3" {
+    type: "point"
+    position: [-10, 5, 10]
+    color: "#ffa500"
+    intensity: 1.5
+    range: 15
+  }
+
+  light "Lamp4" {
+    type: "point"
+    position: [10, 5, 10]
+    color: "#ffa500"
+    intensity: 1.5
+    range: 15
+  }
+
+  // ========================================
+  // PORTALS
+  // ========================================
+
+  portal "ExitVillage" {
+    @spatial @networked @interactive @rotate @emissive
+    position: [0, 1, -30]
+    destination: "main_plaza"
+    label: "← Return to Plaza"
+  }
+
+  portal "DungeonEntrance" {
+    @spatial @networked @interactive
+    @glow(strength: 2, radius: 0.8)
+    @minimap(icon: "dungeon", color: "#8e44ad")
+    position: [25, 1, 0]
+    destination: "dark_dungeon"
+    label: "→ Dungeon (Level 10+)"
+  }
+}

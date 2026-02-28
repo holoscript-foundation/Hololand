@@ -1,0 +1,27 @@
+{
+  "name": "Central Plaza",
+  "slug": "central-plaza",
+  "category": "social",
+  "description": "The heart of the Holoverse - welcome hub, social lounge, and team coordination all in one",
+  "features": [
+    "Tutorial orbs for new users",
+    "Welcome guide NPC",
+    "Social lounge with seating",
+    "4 team coordination zones",
+    "Dance floor",
+    "Portal plaza access",
+    "Central Holoverse crystal monument",
+    "7 spawn points",
+    "Portal guide NPC"
+  ],
+  "portal": {
+    "position": [0, 1, 0],
+    "color": "#667eea",
+    "label": "Central Plaza"
+  },
+  "maxPlayers": 200,
+  "holoScriptFile": "central-plaza.holo",
+  "convertedFrom": "Merged: hello-world + social-lounge + multiplayer-lobby",
+  "convertedAt": "2026-02-19T00:00:00.000Z",
+  "notes": "Consolidated zone combining tutorial, social, and coordination features"
+}

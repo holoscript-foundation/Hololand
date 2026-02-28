@@ -14,6 +14,7 @@
 
 import {
   OllamaProvider,
+  BrittneyCloudProvider,
   OpenAIProvider,
   AnthropicProvider,
   GoogleProvider,
@@ -39,6 +40,7 @@ import type {
 
 type Provider =
   | OllamaProvider
+  | BrittneyCloudProvider
   | OpenAIProvider
   | AnthropicProvider
   | GoogleProvider
@@ -119,6 +121,12 @@ export class InferenceClient {
     if (!config.apiKey && type !== 'infinityassistant') return null;
 
     switch (type) {
+      case 'brittney-cloud':
+        return new BrittneyCloudProvider({
+          apiKey: config.apiKey!,
+          apiUrl: config.endpoint,
+        });
+
       case 'openai':
         return new OpenAIProvider({
           apiKey: config.apiKey!,

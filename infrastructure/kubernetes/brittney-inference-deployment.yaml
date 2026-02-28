@@ -1,0 +1,210 @@
+---
+# Brittney Inference Service - Kubernetes Deployment
+# Runs Ollama with brittney-qwen-v23 model for production inference
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: brittney-inference
+  namespace: brittney-prod
+  labels:
+    app: brittney-inference
+    component: ai-service
+    version: v1
+spec:
+  replicas: 3  # Initial replicas, HPA will scale 3-50
+  selector:
+    matchLabels:
+      app: brittney-inference
+  template:
+    metadata:
+      labels:
+        app: brittney-inference
+        component: ai-service
+        version: v1
+    spec:
+      # GPU node affinity - schedule on nodes with T4/A10/L4 GPUs
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: cloud.google.com/gke-accelerator
+                operator: In
+                values:
+                - nvidia-tesla-t4
+                - nvidia-tesla-a10g
+                - nvidia-tesla-l4
+
+      # Tolerations for GPU nodes
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      containers:
+      - name: ollama-brittney
+        image: gcr.io/hololand-production/brittney-inference:latest
+        imagePullPolicy: Always
+
+        ports:
+        - name: http
+          containerPort: 11434
+          protocol: TCP
+
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0:11434"
+        - name: OLLAMA_NUM_PARALLEL
+          value: "3"
+        - name: OLLAMA_NUM_CTX
+          value: "4096"
+        - name: OLLAMA_NUM_GPU
+          value: "1"
+        - name: OLLAMA_KEEP_ALIVE
+          value: "5m"  # Keep model loaded for 5 minutes
+
+        # Resource requests and limits
+        resources:
+          requests:
+            cpu: "2000m"      # 2 CPU cores
+            memory: "8Gi"     # 8GB RAM
+            nvidia.com/gpu: 1 # 1 GPU
+          limits:
+            cpu: "4000m"      # Max 4 CPU cores
+            memory: "16Gi"    # Max 16GB RAM
+            nvidia.com/gpu: 1 # 1 GPU
+
+        # Liveness probe - restart if unhealthy
+        livenessProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        # Readiness probe - don't send traffic until ready
+        readinessProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # Startup probe - allow time for model loading
+        startupProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30  # Allow up to 5 minutes for startup
+
+        # Volume mounts for model persistence
+        volumeMounts:
+        - name: ollama-models
+          mountPath: /root/.ollama/models
+
+      volumes:
+      - name: ollama-models
+        emptyDir: {}  # Use ephemeral storage (models pre-loaded in image)
+
+---
+# Horizontal Pod Autoscaler
+# Scales brittney-inference deployment based on CPU, memory, and custom metrics
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: brittney-inference-hpa
+  namespace: brittney-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: brittney-inference
+
+  minReplicas: 3   # Minimum 3 pods always running
+  maxReplicas: 50  # Scale up to 50 pods under load
+
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale up at 70% CPU
+
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Scale up at 80% memory
+
+  # Custom metric: Active requests per pod
+  - type: Pods
+    pods:
+      metric:
+        name: active_requests
+      target:
+        type: AverageValue
+        averageValue: "10"  # Scale up if > 10 active requests per pod
+
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100  # Double capacity per scale-up
+        periodSeconds: 60
+      - type: Pods
+        value: 5    # Or add 5 pods
+        periodSeconds: 60
+      selectPolicy: Max  # Use whichever is more aggressive
+
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Pods
+        value: 1     # Remove 1 pod at a time
+        periodSeconds: 60
+      selectPolicy: Min  # Conservative scale-down
+
+---
+# Service - Internal load balancer for brittney-inference pods
+apiVersion: v1
+kind: Service
+metadata:
+  name: brittney-inference
+  namespace: brittney-prod
+  labels:
+    app: brittney-inference
+spec:
+  type: ClusterIP
+  selector:
+    app: brittney-inference
+  ports:
+  - name: http
+    port: 11434
+    targetPort: 11434
+    protocol: TCP
+  sessionAffinity: None  # Use least-connections load balancing
+
+---
+# PodDisruptionBudget - Ensure availability during updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: brittney-inference-pdb
+  namespace: brittney-prod
+spec:
+  minAvailable: 2  # Always keep at least 2 pods running
+  selector:
+    matchLabels:
+      app: brittney-inference

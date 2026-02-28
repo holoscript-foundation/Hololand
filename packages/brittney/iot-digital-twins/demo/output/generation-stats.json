@@ -1,0 +1,164 @@
+{
+  "timestamp": "2026-02-20T01:58:28.146Z",
+  "deviceCount": 24,
+  "generationTime": 1,
+  "holoScriptSize": 11171,
+  "linesOfCode": 408,
+  "deviceTypes": {
+    "light": 10,
+    "climate": 2,
+    "media_player": 1,
+    "sensor": 4,
+    "binary_sensor": 1,
+    "switch": 1,
+    "camera": 2,
+    "lock": 2,
+    "cover": 1
+  },
+  "devices": [
+    {
+      "id": "light.living_room_chandelier",
+      "type": "light",
+      "name": "Living Room Chandelier",
+      "state": "on"
+    },
+    {
+      "id": "light.living_room_accent_lights",
+      "type": "light",
+      "name": "Living Room Accent Lights",
+      "state": "on"
+    },
+    {
+      "id": "climate.living_room",
+      "type": "climate",
+      "name": "Living Room Thermostat",
+      "state": "heat"
+    },
+    {
+      "id": "media_player.living_room_tv",
+      "type": "media_player",
+      "name": "Living Room TV",
+      "state": "playing"
+    },
+    {
+      "id": "light.kitchen_ceiling",
+      "type": "light",
+      "name": "Kitchen Ceiling Lights",
+      "state": "on"
+    },
+    {
+      "id": "light.kitchen_under_cabinet",
+      "type": "light",
+      "name": "Kitchen Under-Cabinet Lights",
+      "state": "on"
+    },
+    {
+      "id": "sensor.refrigerator_temperature",
+      "type": "sensor",
+      "name": "Refrigerator Temperature",
+      "state": "3.5"
+    },
+    {
+      "id": "binary_sensor.dishwasher_running",
+      "type": "binary_sensor",
+      "name": "Dishwasher",
+      "state": "on"
+    },
+    {
+      "id": "light.bedroom_ceiling",
+      "type": "light",
+      "name": "Bedroom Ceiling Light",
+      "state": "off"
+    },
+    {
+      "id": "light.bedroom_bedside_left",
+      "type": "light",
+      "name": "Bedside Lamp (Left)",
+      "state": "on"
+    },
+    {
+      "id": "light.bedroom_bedside_right",
+      "type": "light",
+      "name": "Bedside Lamp (Right)",
+      "state": "on"
+    },
+    {
+      "id": "climate.bedroom",
+      "type": "climate",
+      "name": "Bedroom AC",
+      "state": "cool"
+    },
+    {
+      "id": "sensor.bedroom_humidity",
+      "type": "sensor",
+      "name": "Bedroom Humidity",
+      "state": "45"
+    },
+    {
+      "id": "light.office_desk",
+      "type": "light",
+      "name": "Office Desk Lamp",
+      "state": "on"
+    },
+    {
+      "id": "switch.office_monitor_power",
+      "type": "switch",
+      "name": "Monitor Power",
+      "state": "on"
+    },
+    {
+      "id": "sensor.office_air_quality",
+      "type": "sensor",
+      "name": "Office Air Quality (CO2)",
+      "state": "450"
+    },
+    {
+      "id": "camera.front_door",
+      "type": "camera",
+      "name": "Front Door Camera",
+      "state": "idle"
+    },
+    {
+      "id": "camera.backyard",
+      "type": "camera",
+      "name": "Backyard Camera",
+      "state": "recording"
+    },
+    {
+      "id": "lock.front_door",
+      "type": "lock",
+      "name": "Front Door Lock",
+      "state": "locked"
+    },
+    {
+      "id": "lock.garage_door",
+      "type": "lock",
+      "name": "Garage Door Lock",
+      "state": "unlocked"
+    },
+    {
+      "id": "cover.garage_door",
+      "type": "cover",
+      "name": "Garage Door",
+      "state": "closed"
+    },
+    {
+      "id": "light.garage",
+      "type": "light",
+      "name": "Garage Light",
+      "state": "off"
+    },
+    {
+      "id": "light.porch",
+      "type": "light",
+      "name": "Porch Light",
+      "state": "on"
+    },
+    {
+      "id": "sensor.outdoor_temperature",
+      "type": "sensor",
+      "name": "Outdoor Temperature",
+      "state": "15.5"
+    }
+  ]
+}

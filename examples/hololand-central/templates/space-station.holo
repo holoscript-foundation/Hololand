@@ -1,0 +1,200 @@
+/**
+ * Space Station Template
+ * A futuristic space station interior with viewports and control panels
+ */
+
+# Main floor - Metal grating
+plane #floor {
+  position: [0, 0, 0]
+  size: [25, 1, 25]
+  color: "#34495E"
+  @material(type: "pbr", roughness: 0.4, metallic: 0.9)
+}
+
+# Ceiling
+plane #ceiling {
+  position: [0, 5, 0]
+  size: [25, 1, 25]
+  color: "#2C3E50"
+  rotation: [180, 0, 0]
+  @material(type: "pbr", roughness: 0.5, metallic: 0.8)
+}
+
+# Viewport window - Looking into space
+cube #viewport_frame {
+  position: [0, 2.5, 12.3]
+  size: [8, 4, 0.3]
+  color: "#95A5A6"
+  @material(type: "pbr", roughness: 0.3, metallic: 0.9)
+}
+
+cube #viewport_glass {
+  position: [0, 2.5, 12.2]
+  size: [7.5, 3.5, 0.1]
+  color: "#000033"
+  @material(type: "standard", emissive: "#000066", emissiveIntensity: 0.3, transparent: true, opacity: 0.5)
+}
+
+# Stars visible through viewport
+sphere #star_1 {
+  position: [2, 3, 13]
+  size: 0.1
+  color: "#FFFFFF"
+  @material(type: "standard", emissive: "#FFFFFF", emissiveIntensity: 5)
+}
+
+sphere #star_2 {
+  position: [-3, 2, 13]
+  size: 0.08
+  color: "#FFFFFF"
+  @material(type: "standard", emissive: "#FFFFFF", emissiveIntensity: 5)
+}
+
+sphere #star_3 {
+  position: [4, 3.5, 13]
+  size: 0.12
+  color: "#FFFFFF"
+  @material(type: "standard", emissive: "#FFFFFF", emissiveIntensity: 5)
+}
+
+# Control console
+cube #console_base {
+  position: [0, 0.8, 8]
+  size: [4, 1.6, 1.5]
+  color: "#2C3E50"
+  @material(type: "pbr", roughness: 0.6, metallic: 0.7)
+}
+
+# Console screens
+cube #screen_1 {
+  position: [-1, 1.5, 7.3]
+  size: [0.8, 0.6, 0.05]
+  color: "#00FF00"
+  @material(type: "standard", emissive: "#00FF00", emissiveIntensity: 1)
+}
+
+cube #screen_2 {
+  position: [0, 1.5, 7.3]
+  size: [0.8, 0.6, 0.05]
+  color: "#00FFFF"
+  @material(type: "standard", emissive: "#00FFFF", emissiveIntensity: 1)
+}
+
+cube #screen_3 {
+  position: [1, 1.5, 7.3]
+  size: [0.8, 0.6, 0.05]
+  color: "#FFA500"
+  @material(type: "standard", emissive: "#FFA500", emissiveIntensity: 1)
+}
+
+# Support pillars
+cylinder #pillar_1 {
+  position: [-10, 2.5, -10]
+  size: [0.4, 5]
+  color: "#7F8C8D"
+  @material(type: "pbr", roughness: 0.4, metallic: 0.9)
+}
+
+cylinder #pillar_2 {
+  position: [10, 2.5, -10]
+  size: [0.4, 5]
+  color: "#7F8C8D"
+  @material(type: "pbr", roughness: 0.4, metallic: 0.9)
+}
+
+cylinder #pillar_3 {
+  position: [-10, 2.5, 10]
+  size: [0.4, 5]
+  color: "#7F8C8D"
+  @material(type: "pbr", roughness: 0.4, metallic: 0.9)
+}
+
+cylinder #pillar_4 {
+  position: [10, 2.5, 10]
+  size: [0.4, 5]
+  color: "#7F8C8D"
+  @material(type: "pbr", roughness: 0.4, metallic: 0.9)
+}
+
+# Ceiling lights - Blue glow
+cube #light_strip_1 {
+  position: [0, 4.9, 0]
+  size: [20, 0.1, 0.5]
+  color: "#00BFFF"
+  @material(type: "standard", emissive: "#00BFFF", emissiveIntensity: 2)
+}
+
+cube #light_strip_2 {
+  position: [0, 4.9, 5]
+  size: [20, 0.1, 0.5]
+  color: "#00BFFF"
+  @material(type: "standard", emissive: "#00BFFF", emissiveIntensity: 2)
+}
+
+cube #light_strip_3 {
+  position: [0, 4.9, -5]
+  size: [20, 0.1, 0.5]
+  color: "#00BFFF"
+  @material(type: "standard", emissive: "#00BFFF", emissiveIntensity: 2)
+}
+
+# Storage crates
+cube #crate_1 {
+  position: [8, 0.75, -8]
+  size: [1.5, 1.5, 1.5]
+  color: "#C0C0C0"
+  @material(type: "pbr", roughness: 0.8, metallic: 0.5)
+}
+
+cube #crate_2 {
+  position: [8, 0.75, -6]
+  size: [1.5, 1.5, 1.5]
+  color: "#C0C0C0"
+  @material(type: "pbr", roughness: 0.8, metallic: 0.5)
+}
+
+# Command chair
+cylinder #chair_seat {
+  position: [0, 0.8, 6]
+  size: [0.6, 0.2]
+  color: "#1C1C1C"
+}
+
+cylinder #chair_back {
+  position: [0, 1.5, 6.3]
+  size: [0.5, 1]
+  color: "#1C1C1C"
+}
+
+cylinder #chair_base {
+  position: [0, 0.3, 6]
+  size: [0.5, 0.6]
+  color: "#34495E"
+}
+
+# Lighting - Cool spaceship ambiance
+light #ambient {
+  type: "ambient"
+  color: "#0D1F2D"
+  intensity: 0.3
+}
+
+light #main {
+  type: "directional"
+  position: [5, 8, 5]
+  color: "#547498"
+  intensity: 0.6
+}
+
+light #console_glow {
+  type: "point"
+  position: [0, 1.5, 7]
+  color: "#00FFFF"
+  intensity: 2
+  distance: 10
+}
+
+# Environment
+environment #space_env {
+  background: "#000011"
+}

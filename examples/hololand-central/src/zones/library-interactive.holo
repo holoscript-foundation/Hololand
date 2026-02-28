@@ -1,0 +1,993 @@
+/**
+ * Grand Hall - Interactive Library (StoryWeaver Protocol)
+ *
+ * This is the UPGRADED Library zone demonstrating HoloScript's advanced features:
+ * - @state for quest progression tracking
+ * - @event for portal activation and quest triggers
+ * - @reactive for dynamic UI and portal states
+ * - @ai-powered for embodied genre companions
+ * - @quest for structured learning experiences
+ *
+ * Transforms from static educational space into living portal system
+ * where books become adventures and learning becomes questing.
+ *
+ * Based on: The StoryWeaver (1994) - "Books are adventure. Books are magic."
+ */
+
+// Zone metadata
+@zone "Grand Hall" category:"education" maxPlayers:60
+
+// ==========================================
+// GLOBAL STATE MANAGEMENT
+// ==========================================
+
+@state QuestProgress {
+  // Player info
+  player: {
+    id: string
+    name: string
+    level: number
+    position: [number, number, number]
+  }
+
+  // Portal unlock states
+  portals: {
+    adventure: boolean    // Always unlocked (entry point)
+    fantasy: boolean      // Unlocked after 1 adventure quest
+    horror: boolean       // Unlocked after 1 fantasy quest
+    history: boolean      // Unlocked after 3 total quests
+    science: boolean      // Unlocked after mastery quest
+  }
+
+  // Skill progression (0-100 scale)
+  skills: {
+    courage: number       // Adventure domain
+    imagination: number   // Fantasy domain
+    resilience: number    // Horror domain
+    wisdom: number        // History domain
+    knowledge: number     // Science domain
+  }
+
+  // Quest tracking
+  quests: {
+    active: string[]
+    completed: string[]
+    available: string[]
+  }
+
+  // Achievements
+  badges: string[]
+  timeSpent: number
+  npcsInteracted: string[]
+}
+
+// Initialize state
+@init QuestProgress {
+  player: { id: "", name: "Adventurer", level: 1, position: [0, 1, 60] }
+  portals: { adventure: true, fantasy: false, horror: false, history: false, science: false }
+  skills: { courage: 0, imagination: 0, resilience: 0, wisdom: 0, knowledge: 0 }
+  quests: {
+    active: []
+    completed: []
+    available: ["treasure_island_intro"]
+  }
+  badges: []
+  timeSpent: 0
+  npcsInteracted: []
+}
+
+// ==========================================
+// EVENT DEFINITIONS
+// ==========================================
+
+@event PortalActivated {
+  portalId: string
+  genre: string
+  timestamp: number
+}
+
+@event QuestTriggered {
+  questId: string
+  genre: string
+  difficulty: string
+}
+
+@event QuestCompleted {
+  questId: string
+  rewards: {
+    skills: object
+    badges: string[]
+    unlocks: string[]
+  }
+}
+
+@event SkillIncreased {
+  skill: string
+  oldValue: number
+  newValue: number
+  source: string  // Which quest/action caused increase
+}
+
+@event PortalUnlocked {
+  portalId: string
+  genre: string
+  unlockedBy: string  // Quest that unlocked it
+}
+
+// ==========================================
+// MAIN COMPOSITION
+// ==========================================
+
+composition "Grand Hall" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -70, y: 0, z: -70 }
+      max: { x: 70, y: 25, z: 70 }
+    }
+    skybox: "library_magical"
+    ambientLight: { intensity: 0.6, color: "#f5f5dc" }
+    fog: { color: "#ede7d9", near: 80, far: 160 }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+
+  spawnpoint "entrance-1" {
+    position: [0, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [5, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-5, 1, 60]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+
+  object "MainFloor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [140, 1, 140]
+    material: {
+      color: "#8b7355"
+      roughness: 0.8
+    }
+  }
+
+  object "EntranceRug" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, 40]
+    scale: [20, 0.02, 15]
+    material: {
+      color: "#800020"
+      roughness: 0.9
+    }
+  }
+
+  // === CENTRAL KNOWLEDGE TOWER (Progress Tracker) ===
+
+  object "KnowledgeTowerBase" {
+    @spatial @networked @collision
+    @event-listener(QuestCompleted, PortalUnlocked, SkillIncreased)
+    geometry: "cylinder"
+    position: [0, 5, 0]
+    scale: [6, 10, 6]
+    material: {
+      color: "#5d4037"
+      roughness: 0.6
+    }
+
+    // Tower glows as quests complete
+    on_event(QuestCompleted, event) {
+      particle_effect: "celebration_burst"
+      glow_pulse: { duration: 2, intensity: 1.5 }
+    }
+  }
+
+  object "KnowledgeTowerOrb" {
+    @spatial @networked @emissive @reactive
+    @reactive(QuestProgress.quests.completed)
+    geometry: "sphere"
+    position: [0, 11, 0]
+    scale: [4, 4, 4]
+
+    // Orb brightness grows with progress
+    material: computed {
+      const completed = QuestProgress.quests.completed.length
+      const intensity = 0.3 + (completed * 0.1)  // Brighter with each quest
+
+      return {
+        color: "#00bcd4"
+        emissive: "#00bcd4"
+        emissiveIntensity: Math.min(intensity, 1.0)
+        transparent: true
+        opacity: 0.7
+      }
+    }
+  }
+
+  // Skill rings around tower (visualize progression)
+  object "CourageRing" {
+    @spatial @networked @emissive @reactive
+    @reactive(QuestProgress.skills.courage)
+    geometry: "torus"
+    position: [0, 7, 0]
+    rotation: [90, 0, 0]
+    scale: computed {
+      const skillLevel = QuestProgress.skills.courage / 100
+      const baseScale = 5
+      const maxScale = 7
+      const size = baseScale + (skillLevel * (maxScale - baseScale))
+      return [size, size, size]
+    }
+    material: {
+      color: "#e74c3c"
+      emissive: "#e74c3c"
+      emissiveIntensity: computed {
+        return QuestProgress.skills.courage / 100
+      }
+    }
+  }
+
+  object "ImaginationRing" {
+    @spatial @networked @emissive @reactive
+    @reactive(QuestProgress.skills.imagination)
+    geometry: "torus"
+    position: [0, 9, 0]
+    rotation: [90, 45, 0]
+    scale: computed {
+      const skillLevel = QuestProgress.skills.imagination / 100
+      return [5 + skillLevel * 2, 5 + skillLevel * 2, 5 + skillLevel * 2]
+    }
+    material: {
+      color: "#9b59b6"
+      emissive: "#9b59b6"
+      emissiveIntensity: computed {
+        return QuestProgress.skills.imagination / 100
+      }
+    }
+  }
+
+  // === GENRE PORTALS (Upgraded from static wings) ===
+
+  // ADVENTURE PORTAL (North - Always Unlocked)
+  portal "AdventurePortal" {
+    @spatial @networked @interactive @emissive
+    @event-emitter(PortalActivated)
+    @reactive(QuestProgress.portals.adventure)
+
+    position: [0, 3, -40]
+    destination: "adventure_hub"
+    genre: "adventure"
+
+    // Visual state based on unlock
+    state: computed {
+      if (QuestProgress.portals.adventure) return "unlocked"
+      return "locked"
+    }
+
+    // Portal appearance
+    geometry: "box"
+    scale: [8, 12, 0.5]
+    material: computed {
+      if (state == "unlocked") {
+        return {
+          color: "#e74c3c"
+          emissive: "#e74c3c"
+          emissiveIntensity: 0.8
+          transparent: true
+          opacity: 0.7
+        }
+      } else {
+        return {
+          color: "#34495e"
+          opacity: 0.3
+        }
+      }
+    }
+
+    // Particle effects
+    particles: computed {
+      if (state == "unlocked") return "swirling_maps_compasses"
+      return "none"
+    }
+
+    // Label
+    text_label: {
+      content: "🗺️ ADVENTURE PORTAL"
+      position: [0, 6, -40]
+      color: "#ffffff"
+      fontSize: 24
+    }
+
+    // Activation
+    on_click: {
+      if (QuestProgress.portals.adventure) {
+        emit(PortalActivated, {
+          portalId: "adventure_portal"
+          genre: "adventure"
+          timestamp: now()
+        })
+        transition_to_scene("adventure_hub")
+        play_sound("portal_whoosh")
+      } else {
+        show_message("This portal is locked! Complete the tutorial first.")
+      }
+    }
+  }
+
+  // FANTASY PORTAL (East - Unlocks after 1 adventure quest)
+  portal "FantasyPortal" {
+    @spatial @networked @interactive @emissive
+    @event-emitter(PortalActivated)
+    @reactive(QuestProgress.portals.fantasy, QuestProgress.quests.completed)
+
+    position: [40, 3, 0]
+    destination: "fantasy_hub"
+    genre: "fantasy"
+
+    // Unlock logic
+    state: computed {
+      if (QuestProgress.portals.fantasy) return "unlocked"
+      const adventureQuests = QuestProgress.quests.completed.filter(q => q.startsWith("adventure_"))
+      if (adventureQuests.length > 0) return "unlocking"
+      return "locked"
+    }
+
+    geometry: "box"
+    scale: [8, 12, 0.5]
+    material: computed {
+      if (state == "unlocked") {
+        return {
+          color: "#9b59b6"
+          emissive: "#9b59b6"
+          emissiveIntensity: 0.8
+          transparent: true
+          opacity: 0.7
+        }
+      } else if (state == "unlocking") {
+        return {
+          color: "#9b59b6"
+          emissive: "#9b59b6"
+          emissiveIntensity: 0.3
+          opacity: 0.5
+          animation: "pulsing"
+        }
+      } else {
+        return {
+          color: "#34495e"
+          opacity: 0.3
+        }
+      }
+    }
+
+    particles: computed {
+      if (state == "unlocked") return "magical_sparkles_runes"
+      else if (state == "unlocking") return "magical_sparkles_forming"
+      return "none"
+    }
+
+    text_label: {
+      content: "✨ FANTASY PORTAL"
+      position: [40, 6, 0]
+      color: "#ffffff"
+      fontSize: 24
+    }
+
+    on_click: {
+      if (state == "unlocked") {
+        emit(PortalActivated, {
+          portalId: "fantasy_portal"
+          genre: "fantasy"
+          timestamp: now()
+        })
+        transition_to_scene("fantasy_hub")
+      } else if (state == "unlocking") {
+        // Auto-unlock!
+        QuestProgress.portals.fantasy = true
+        emit(PortalUnlocked, {
+          portalId: "fantasy_portal"
+          genre: "fantasy"
+          unlockedBy: "adventure_quest_complete"
+        })
+        particle_effect: "unlock_burst"
+        play_sound("portal_unlock")
+      } else {
+        show_message("Complete an Adventure quest first! 🗺️")
+      }
+    }
+  }
+
+  // HORROR PORTAL (West - Unlocks after 1 fantasy quest)
+  portal "HorrorPortal" {
+    @spatial @networked @interactive @emissive
+    @event-emitter(PortalActivated)
+    @reactive(QuestProgress.portals.horror, QuestProgress.quests.completed)
+
+    position: [-40, 3, 0]
+    destination: "horror_hub"
+    genre: "horror"
+
+    state: computed {
+      if (QuestProgress.portals.horror) return "unlocked"
+      const fantasyQuests = QuestProgress.quests.completed.filter(q => q.startsWith("fantasy_"))
+      if (fantasyQuests.length > 0) return "unlocking"
+      return "locked"
+    }
+
+    geometry: "box"
+    scale: [8, 12, 0.5]
+    material: computed {
+      if (state == "unlocked") {
+        return {
+          color: "#2c3e50"
+          emissive: "#8e44ad"
+          emissiveIntensity: 0.6
+          transparent: true
+          opacity: 0.8
+        }
+      } else if (state == "unlocking") {
+        return {
+          color: "#34495e"
+          emissive: "#8e44ad"
+          emissiveIntensity: 0.2
+          opacity: 0.5
+          animation: "ominous_pulse"
+        }
+      } else {
+        return {
+          color: "#1a1a1a"
+          opacity: 0.3
+        }
+      }
+    }
+
+    particles: computed {
+      if (state == "unlocked") return "dark_mist_shadows"
+      else if (state == "unlocking") return "shadows_gathering"
+      return "none"
+    }
+
+    text_label: {
+      content: "🌙 HORROR PORTAL"
+      position: [-40, 6, 0]
+      color: "#ffffff"
+      fontSize: 24
+    }
+
+    on_click: {
+      if (state == "unlocked") {
+        emit(PortalActivated, {
+          portalId: "horror_portal"
+          genre: "horror"
+          timestamp: now()
+        })
+        transition_to_scene("horror_hub")
+      } else if (state == "unlocking") {
+        QuestProgress.portals.horror = true
+        emit(PortalUnlocked, {
+          portalId: "horror_portal"
+          genre: "horror"
+          unlockedBy: "fantasy_quest_complete"
+        })
+        particle_effect: "shadow_unlock"
+        play_sound("ominous_unlock")
+      } else {
+        show_message("The shadows await... Complete a Fantasy quest first. ✨")
+      }
+    }
+  }
+
+  // HISTORY PORTAL (South - Unlocks after 3 total quests)
+  portal "HistoryPortal" {
+    @spatial @networked @interactive @emissive
+    @event-emitter(PortalActivated)
+    @reactive(QuestProgress.portals.history, QuestProgress.quests.completed)
+
+    position: [0, 3, 40]
+    destination: "history_hub"
+    genre: "history"
+
+    state: computed {
+      if (QuestProgress.portals.history) return "unlocked"
+      if (QuestProgress.quests.completed.length >= 3) return "unlocking"
+      return "locked"
+    }
+
+    geometry: "box"
+    scale: [8, 12, 0.5]
+    material: computed {
+      if (state == "unlocked") {
+        return {
+          color: "#f39c12"
+          emissive: "#f39c12"
+          emissiveIntensity: 0.8
+          transparent: true
+          opacity: 0.7
+        }
+      } else if (state == "unlocking") {
+        return {
+          color: "#f39c12"
+          emissive: "#f39c12"
+          emissiveIntensity: 0.3
+          opacity: 0.5
+          animation: "time_spiral"
+        }
+      } else {
+        return {
+          color: "#34495e"
+          opacity: 0.3
+        }
+      }
+    }
+
+    particles: computed {
+      if (state == "unlocked") return "time_spiral_artifacts"
+      else if (state == "unlocking") return "time_forming"
+      return "none"
+    }
+
+    text_label: {
+      content: "⏳ HISTORY PORTAL"
+      position: [0, 6, 40]
+      color: "#ffffff"
+      fontSize: 24
+    }
+
+    on_click: {
+      if (state == "unlocked") {
+        emit(PortalActivated, {
+          portalId: "history_portal"
+          genre: "history"
+          timestamp: now()
+        })
+        transition_to_scene("history_hub")
+      } else if (state == "unlocking") {
+        QuestProgress.portals.history = true
+        emit(PortalUnlocked, {
+          portalId: "history_portal"
+          genre: "history"
+          unlockedBy: "three_quests_complete"
+        })
+        particle_effect: "temporal_unlock"
+        play_sound("time_unlock")
+      } else {
+        const remaining = 3 - QuestProgress.quests.completed.length
+        show_message(`Complete ${remaining} more quest(s) to unlock the History Portal. ⏳`)
+      }
+    }
+  }
+
+  // === AI-POWERED GENRE COMPANIONS ===
+
+  // Adventure Guide
+  npc "AdventureGuide" {
+    @spatial @networked @dialogue
+    @ai-powered(provider: "openai", model: "gpt-4")
+    @reactive(QuestProgress.skills.courage, QuestProgress.quests)
+
+    name: "Captain Compass"
+    position: [0, 0, -35]
+    model: "swashbuckler_explorer"
+    animation: "idle_confident"
+
+    personality: {
+      traits: ["brave", "optimistic", "encouraging", "action-oriented"]
+      voice_tone: "energetic_confident"
+      catchphrase: "Fortune favors the bold!"
+      humor_level: 0.7
+    }
+
+    ai_context: `
+      You are Captain Compass, the Adventure Guide in the Grand Hall.
+
+      Player Stats:
+      - Courage: {{QuestProgress.skills.courage}}
+      - Quests Completed: {{QuestProgress.quests.completed.length}}
+      - Current Quest: {{QuestProgress.quests.active[0] || "none"}}
+
+      Your role:
+      - Guide players through adventure quests
+      - Encourage risk-taking and exploration
+      - Provide hints when stuck (without spoiling)
+      - Celebrate successes enthusiastically
+
+      Personality:
+      - Bold and optimistic
+      - Action-oriented (bias toward trying things)
+      - Use nautical metaphors occasionally
+      - Encouraging without being patronizing
+
+      Adapt dialogue to player skill level.
+    `
+
+    start_dialog: "adventure_greeting"
+
+    // Dynamic greeting based on progress
+    greeting: computed {
+      const courage = QuestProgress.skills.courage
+      const completed = QuestProgress.quests.completed.length
+
+      if (completed == 0 && courage == 0) {
+        return "Ahoy, new recruit! Welcome to the Grand Hall. Ready for your first adventure?"
+      } else if (courage < 30) {
+        return "Welcome back! You're getting braver by the day. Ready for more?"
+      } else if (courage < 70) {
+        return "Ahoy, seasoned adventurer! I can see the courage in your eyes!"
+      } else {
+        return "Well met, legendary hero! What grand adventure calls to you today?"
+      }
+    }
+  }
+
+  dialog "adventure_greeting" {
+    text: computed {
+      return AdventureGuide.greeting
+    }
+
+    option "Tell me about the Adventure Portal" -> @dialog("adventure_portal_info")
+    option "What quests are available?" -> @dialog("available_quests")
+    option "Give me a hint" -> @ai_generated_hint
+    option "Let's talk!" -> @ai_powered_chat
+    option "Thanks!" -> @close
+  }
+
+  dialog "adventure_portal_info" {
+    text: "The Adventure Portal leads to worlds of exploration, courage, and discovery! Pirate ships, treasure hunts, daring escapes - it's all waiting for you. Step through when you're ready!"
+
+    option "What quests are available?" -> @dialog("available_quests")
+    option "I'm ready! Let's go!" -> activate_portal("AdventurePortal")
+    option "Thanks!" -> @close
+  }
+
+  dialog "available_quests" {
+    text: computed {
+      const available = QuestProgress.quests.available
+      if (available.length == 0) {
+        return "You've completed all available Adventure quests! Check back later for more, or explore other genres!"
+      } else {
+        const questList = available.map(q => `• ${q}`).join("\n")
+        return `Here are your available quests:\n\n${questList}\n\nWhich one calls to you?`
+      }
+    }
+
+    option "Start first quest" -> trigger_quest(QuestProgress.quests.available[0])
+    option "Tell me more about the Adventure Portal" -> @dialog("adventure_portal_info")
+    option "Maybe later" -> @close
+  }
+
+  // Fantasy Guide
+  npc "FantasyGuide" {
+    @spatial @networked @dialogue
+    @ai-powered(provider: "openai", model: "gpt-4")
+    @reactive(QuestProgress.skills.imagination, QuestProgress.portals.fantasy)
+
+    name: "Lumina Starweaver"
+    position: [38, 0, 0]
+    model: "ethereal_mage"
+    animation: "idle_mystical"
+
+    personality: {
+      traits: ["imaginative", "wise", "patient", "mystical"]
+      voice_tone: "calm_melodic"
+      catchphrase: "Magic is just science we don't understand yet..."
+      humor_level: 0.5
+    }
+
+    // Only appears after Fantasy portal is unlocked
+    visible: computed {
+      return QuestProgress.portals.fantasy == true
+    }
+
+    ai_context: `
+      You are Lumina Starweaver, the Fantasy Guide in the Grand Hall.
+
+      Player Stats:
+      - Imagination: {{QuestProgress.skills.imagination}}
+      - Fantasy Portal: {{QuestProgress.portals.fantasy ? "Unlocked" : "Locked"}}
+
+      Your role:
+      - Guide players through fantasy quests
+      - Encourage creative thinking and wonder
+      - Help players see possibilities
+      - Speak in gentle, mystical tones
+
+      Personality:
+      - Imaginative and wise
+      - Patient and encouraging
+      - Use metaphors about light, stars, magic
+      - Gentle but not condescending
+    `
+
+    start_dialog: "fantasy_greeting"
+  }
+
+  // Horror Guide
+  npc "HorrorGuide" {
+    @spatial @networked @dialogue
+    @ai-powered(provider: "openai", model: "gpt-4")
+    @reactive(QuestProgress.skills.resilience, QuestProgress.portals.horror)
+
+    name: "Raven Shadowmere"
+    position: [-38, 0, 0]
+    model: "gothic_scholar"
+    animation: "idle_cautious"
+
+    personality: {
+      traits: ["cautious", "analytical", "dark_humor", "protective"]
+      voice_tone: "measured_slightly_ominous"
+      catchphrase: "Fear is information. Listen to it."
+      humor_level: 0.6
+    }
+
+    visible: computed {
+      return QuestProgress.portals.horror == true
+    }
+
+    ai_context: `
+      You are Raven Shadowmere, the Horror Guide in the Grand Hall.
+
+      Player Stats:
+      - Resilience: {{QuestProgress.skills.resilience}}
+      - Horror Portal: {{QuestProgress.portals.horror ? "Unlocked" : "Locked"}}
+
+      Your role:
+      - Guide players through horror quests
+      - Teach facing fears with wisdom
+      - Use dark humor to ease tension
+      - Encourage calculated courage
+
+      Personality:
+      - Cautious but not cowardly
+      - Analytical and perceptive
+      - Dark humor (not mean)
+      - Protective of players
+    `
+
+    start_dialog: "horror_greeting"
+  }
+
+  // === QUEST TRIGGER OBJECTS ===
+
+  // Quest trigger books
+  object "AdventureQuestBook" {
+    @spatial @networked @interactive @grabbable @emissive
+    @event-emitter(QuestTriggered)
+
+    position: [-15, 2, -35]
+    geometry: "box"
+    scale: [0.3, 0.5, 0.2]
+    material: {
+      color: "#e74c3c"
+      emissive: "#e74c3c"
+      emissiveIntensity: 0.4
+    }
+
+    text_label: {
+      content: "📖 Treasure Island"
+      position: [-15, 2.8, -35]
+      fontSize: 14
+    }
+
+    on_interact: {
+      emit(QuestTriggered, {
+        questId: "treasure_island_intro"
+        genre: "adventure"
+        difficulty: "beginner"
+      })
+      show_message("Quest Available: Treasure Island!")
+      add_to_available_quests("treasure_island_intro")
+    }
+  }
+
+  // === INFORMATION DESK ===
+
+  object "InfoDesk" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [0, 1.2, 48]
+    scale: [8, 2, 3]
+    material: {
+      color: "#6d4c41"
+      roughness: 0.6
+    }
+  }
+
+  npc "HeadLibrarian" {
+    @spatial @networked @dialogue
+    position: [0, 0, 46]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "librarian_greeting"
+  }
+
+  dialog "librarian_greeting" {
+    text: "Welcome to the Grand Hall! I'm the head librarian. This is where your journey begins. The portals around you lead to different genre worlds - each one a unique adventure!"
+
+    option "How does this work?" -> @dialog("how_it_works")
+    option "What are the portals?" -> @dialog("portal_explanation")
+    option "Show me my progress" -> @show_progress_ui
+    option "Thanks!" -> @close
+  }
+
+  dialog "how_it_works" {
+    text: "Each genre portal leads to a world of quests. Complete quests to gain skills and unlock new portals. Start with Adventure (it's always open), then Fantasy unlocks, then Horror, and finally History. Your skills grow as you explore!"
+
+    option "What are the portals?" -> @dialog("portal_explanation")
+    option "Show me my progress" -> @show_progress_ui
+    option "Got it!" -> @close
+  }
+
+  dialog "portal_explanation" {
+    text: "🗺️ Adventure - Courage and exploration\n✨ Fantasy - Imagination and wonder\n🌙 Horror - Resilience and facing fears\n⏳ History - Wisdom and synthesis\n\nEach portal unlocks as you progress. The Knowledge Tower in the center tracks your journey!"
+
+    option "How does this work?" -> @dialog("how_it_works")
+    option "Show me my progress" -> @show_progress_ui
+    option "Perfect!" -> @close
+  }
+
+  // === PORTAL BACK TO CENTRAL PLAZA ===
+
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [0, 1, 65]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+
+  light "MainCeilingLight" {
+    type: "directional"
+    position: [0, 20, 0]
+    color: "#f5f5dc"
+    intensity: 1.0
+    castShadows: true
+  }
+
+  light "KnowledgeTowerGlow" {
+    type: "point"
+    position: [0, 11, 0]
+    color: "#00bcd4"
+    intensity: 1.2
+  }
+
+  light "AdventurePortalGlow" {
+    type: "spot"
+    position: [0, 8, -40]
+    color: "#e74c3c"
+    intensity: computed {
+      return QuestProgress.portals.adventure ? 0.8 : 0.2
+    }
+  }
+
+  light "FantasyPortalGlow" {
+    type: "spot"
+    position: [40, 8, 0]
+    color: "#9b59b6"
+    intensity: computed {
+      return QuestProgress.portals.fantasy ? 0.8 : 0.2
+    }
+  }
+
+  light "HorrorPortalGlow" {
+    type: "spot"
+    position: [-40, 8, 0]
+    color: "#8e44ad"
+    intensity: computed {
+      return QuestProgress.portals.horror ? 0.6 : 0.1
+    }
+  }
+
+  light "HistoryPortalGlow" {
+    type: "spot"
+    position: [0, 8, 40]
+    color: "#f39c12"
+    intensity: computed {
+      return QuestProgress.portals.history ? 0.8 : 0.2
+    }
+  }
+
+  light "AmbientLight" {
+    type: "hemisphere"
+    skyColor: "#f5f5dc"
+    groundColor: "#8b7355"
+    intensity: 0.5
+  }
+
+  // === AMBIENT AUDIO ===
+
+  audio "GrandHallAmbience" {
+    source: "library_magical.mp3"
+    loop: true
+    volume: 0.15
+    spatial: false
+  }
+
+  audio "PageTurning" {
+    source: "pages_ambient.mp3"
+    loop: true
+    volume: 0.08
+    spatial: false
+  }
+
+  audio "KnowledgeTowerHum" {
+    source: "mystical_hum.mp3"
+    loop: true
+    volume: 0.12
+    spatial: true
+    position: [0, 11, 0]
+  }
+
+  // Dynamic portal ambience
+  audio "AdventurePortalAmbience" {
+    source: "ocean_wind.mp3"
+    loop: true
+    volume: computed {
+      return QuestProgress.portals.adventure ? 0.1 : 0
+    }
+    spatial: true
+    position: [0, 3, -40]
+  }
+
+  audio "FantasyPortalAmbience" {
+    source: "magical_chimes.mp3"
+    loop: true
+    volume: computed {
+      return QuestProgress.portals.fantasy ? 0.1 : 0
+    }
+    spatial: true
+    position: [40, 3, 0]
+  }
+
+  audio "HorrorPortalAmbience" {
+    source: "ominous_whispers.mp3"
+    loop: true
+    volume: computed {
+      return QuestProgress.portals.horror ? 0.08 : 0
+    }
+    spatial: true
+    position: [-40, 3, 0]
+  }
+}
+
+// ==========================================
+// QUEST DEFINITIONS (Separate File in Production)
+// ==========================================
+
+// Note: In production, these would be in separate files
+// For demo purposes, showing structure here
+
+/* Example Quest Structure:
+
+@quest "Treasure Island Intro" {
+  id: "treasure_island_intro"
+  genre: "adventure"
+  difficulty: "beginner"
+  estimated_time: "15 minutes"
+
+  learning_objectives: [
+    "Navigation and map reading",
+    "Problem-solving under pressure",
+    "Character motivation analysis"
+  ]
+
+  rewards: {
+    skills: { courage: +10, wisdom: +5 }
+    badges: ["First Voyage"]
+    unlocks: ["fantasy_portal"]
+    items: ["compass", "treasure_map"]
+  }
+
+  stages: [...]
+}
+
+*/

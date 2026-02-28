@@ -1,0 +1,49 @@
+{
+  "name": "@hololand/traits",
+  "version": "1.0.0",
+  "description": "HoloScript Trait System - 50+ traits for VR interactions, physics, animation, and gameplay",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "holoscript",
+    "vr",
+    "traits",
+    "physics",
+    "animation",
+    "gameplay"
+  ],
+  "author": "Hololand Team",
+  "license": "Elastic-2.0",
+  "dependencies": {
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "peerDependencies": {
+    "three": ">=0.150.0"
+  }
+}

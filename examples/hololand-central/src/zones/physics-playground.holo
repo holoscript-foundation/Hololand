@@ -1,0 +1,306 @@
+/**
+ * Physics Playground Zone
+ *
+ * Interactive physics demonstration with stacking blocks,
+ * bouncy balls, ramps, and gravity zones.
+ *
+ * Converted from standalone example to Holoverse zone
+ */
+
+// Zone metadata
+@zone "Physics Playground" category:"entertainment" maxPlayers:20
+
+composition "Physics Playground" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -20, y: 0, z: -20 }
+      max: { x: 20, y: 30, z: 20 }
+    }
+    skybox: "sunset"
+    ambientLight: { intensity: 0.3, color: "#ffffff" }
+    fog: { color: "#1a1a2e", near: 20, far: 50 }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+  spawnpoint "entrance-1" {
+    position: [0, 1, 15]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [2, 1, 15]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-2, 1, 15]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+  object "Ground" {
+    @spatial @networked @collision
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [30, 1, 30]
+    material: {
+      color: "#2d3436"
+      roughness: 0.6
+    }
+    physics: {
+      static: true
+      friction: 0.6
+    }
+  }
+
+  // === STACKING BLOCKS ===
+  object "block-1" {
+    @spatial @physics @networked @grabbable @breakable
+    geometry: "box"
+    position: [-5, 0.5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#e74c3c" }
+    physics: {
+      mass: 1.0
+      restitution: 0.3
+    }
+  }
+
+  object "block-2" {
+    @spatial @physics @networked @grabbable @breakable
+    geometry: "box"
+    position: [-5, 1.5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#e67e22" }
+    physics: {
+      mass: 1.0
+      restitution: 0.3
+    }
+  }
+
+  object "block-3" {
+    @spatial @physics @networked @grabbable @breakable
+    geometry: "box"
+    position: [-5, 2.5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#f1c40f" }
+    physics: {
+      mass: 1.0
+      restitution: 0.3
+    }
+  }
+
+  object "block-4" {
+    @spatial @physics @networked @grabbable @breakable
+    geometry: "box"
+    position: [-5, 3.5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#2ecc71" }
+    physics: {
+      mass: 1.0
+      restitution: 0.3
+    }
+  }
+
+  object "block-5" {
+    @spatial @physics @networked @grabbable @breakable
+    geometry: "box"
+    position: [-5, 4.5, 0]
+    scale: [1, 1, 1]
+    material: { color: "#3498db" }
+    physics: {
+      mass: 1.0
+      restitution: 0.3
+    }
+  }
+
+  // === BOUNCY BALLS ===
+  object "ball-purple" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [5, 5, 0]
+    scale: [0.6, 0.6, 0.6]
+    material: {
+      color: "#9b59b6"
+      metalness: 0.8
+      emissive: "#9b59b6"
+      emissiveIntensity: 0.3
+    }
+    physics: {
+      mass: 0.5
+      restitution: 0.95
+    }
+  }
+
+  object "ball-blue" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [5.5, 6, 0.5]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 0.3
+    }
+    physics: {
+      mass: 0.3
+      restitution: 0.9
+    }
+  }
+
+  object "ball-teal" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [4.5, 7, -0.5]
+    scale: [0.7, 0.7, 0.7]
+    material: {
+      color: "#1abc9c"
+      emissive: "#1abc9c"
+      emissiveIntensity: 0.3
+    }
+    physics: {
+      mass: 0.7
+      restitution: 0.85
+    }
+  }
+
+  // === RAMPS ===
+  object "main-ramp" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [0, 1, -5]
+    scale: [3, 0.2, 6]
+    rotation: [15, 0, 0]
+    material: { color: "#34495e" }
+    physics: {
+      static: true
+      friction: 0.3
+    }
+  }
+
+  object "side-ramp-left" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-3, 0.5, -5]
+    scale: [2, 0.1, 4]
+    rotation: [0, 0, -20]
+    material: { color: "#2c3e50" }
+    physics: {
+      static: true
+      friction: 0.4
+    }
+  }
+
+  object "side-ramp-right" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [3, 0.5, -5]
+    scale: [2, 0.1, 4]
+    rotation: [0, 0, 20]
+    material: { color: "#2c3e50" }
+    physics: {
+      static: true
+      friction: 0.4
+    }
+  }
+
+  // === GRAVITY ZONES ===
+  object "low-gravity-zone" {
+    @spatial @networked @trigger
+    geometry: "sphere"
+    position: [0, 3, 5]
+    scale: [6, 6, 6]
+    material: {
+      color: "#00ffff"
+      transparent: true
+      opacity: 0.1
+    }
+  }
+
+  object "reverse-gravity-zone" {
+    @spatial @networked @trigger
+    geometry: "sphere"
+    position: [0, 3, 10]
+    scale: [4, 4, 4]
+    material: {
+      color: "#ff00ff"
+      transparent: true
+      opacity: 0.1
+    }
+  }
+
+  // === BALL SPAWNER ===
+  object "ball-spawner" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [0, 8, 0]
+    scale: [1, 0.5, 1]
+    material: { color: "#27ae60" }
+  }
+
+  // === NPC GUIDE ===
+  npc "PhysicsGuide" {
+    @spatial @networked @dialogue
+    position: [8, 0, 8]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "greeting"
+  }
+
+  // === DIALOGUE ===
+  dialog "greeting" {
+    text: "Welcome to the Physics Playground! Want to learn about the experiments here?"
+
+    option "Tell me about the zones" -> @dialog("zones")
+    option "How do I interact?" -> @dialog("controls")
+    option "Thanks!" -> @close
+  }
+
+  dialog "zones" {
+    text: "We have gravity zones! The cyan sphere reduces gravity to 20%, the magenta one reverses it! Try throwing balls through them."
+
+    option "What else can I do?" -> @dialog("controls")
+    option "Cool!" -> @close
+  }
+
+  dialog "controls" {
+    text: "You can grab and throw objects! The stacking blocks break if you hit them hard enough. Try the green spawner to create more balls!"
+
+    option "Tell me about zones" -> @dialog("zones")
+    option "Got it!" -> @close
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [-15, 1, -15]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+  light "Sun" {
+    type: "directional"
+    position: [10, 15, 10]
+    color: "#fff5e6"
+    intensity: 1.2
+    castShadows: true
+  }
+
+  light "Ambient" {
+    type: "hemisphere"
+    skyColor: "#87ceeb"
+    groundColor: "#3d3d3d"
+    intensity: 0.4
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "BackgroundMusic" {
+    source: "ambient_physics.mp3"
+    loop: true
+    volume: 0.2
+    spatial: false
+  }
+}

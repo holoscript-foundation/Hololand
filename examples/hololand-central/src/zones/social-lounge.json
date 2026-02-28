@@ -1,0 +1,26 @@
+{
+  "name": "Social Lounge",
+  "slug": "social-lounge",
+  "category": "social",
+  "description": "Cozy meeting space with seating areas, emote stations, and dance floor",
+  "features": [
+    "Multiple seating areas",
+    "Central fountain",
+    "Emote stations",
+    "Light-up dance floor",
+    "Booth seating",
+    "Circle seating",
+    "Ambient music",
+    "Concierge NPC"
+  ],
+  "portal": {
+    "position": [15, 1, 15],
+    "color": "#9b59b6",
+    "label": "Social Lounge"
+  },
+  "maxPlayers": 75,
+  "holoScriptFile": "social-lounge.holo",
+  "convertedFrom": "examples/11-social-hub",
+  "convertedAt": "2026-02-19T00:00:00.000Z",
+  "notes": "Converted from UI-focused social systems demo into a 3D social lounge space"
+}

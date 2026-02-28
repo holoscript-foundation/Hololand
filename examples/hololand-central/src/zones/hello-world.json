@@ -1,0 +1,23 @@
+{
+  "name": "Hello World",
+  "slug": "hello-world",
+  "category": "social",
+  "description": "Welcoming introductory space with interactive orbs and friendly guide",
+  "features": [
+    "Interactive glowing orbs",
+    "Physics demonstrations",
+    "Guide robot NPC",
+    "Beginner-friendly",
+    "Multiple spawn points",
+    "Welcome messages"
+  ],
+  "portal": {
+    "position": [-15, 1, -15],
+    "color": "#00ff88",
+    "label": "Hello World"
+  },
+  "maxPlayers": 50,
+  "holoScriptFile": "hello-world.holo",
+  "convertedFrom": "examples/01-hello-vr-world",
+  "convertedAt": "2026-02-19T00:00:00.000Z"
+}

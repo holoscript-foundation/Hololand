@@ -1,0 +1,165 @@
+/**
+ * Cyberpunk Alley Template
+ * A neon-lit futuristic alleyway with holographic signs
+ */
+
+# Ground - Wet asphalt
+plane #ground {
+  position: [0, 0, 0]
+  size: [8, 1, 40]
+  color: "#1A1A1A"
+  @material(type: "pbr", roughness: 0.3, metallic: 0.7)
+}
+
+# Left wall
+cube #wall_left {
+  position: [-4, 5, 0]
+  size: [0.5, 10, 40]
+  color: "#0D0D0D"
+}
+
+# Right wall
+cube #wall_right {
+  position: [4, 5, 0]
+  size: [0.5, 10, 40]
+  color: "#0D0D0D"
+}
+
+# Neon sign 1 - Pink "OPEN"
+cube #neon_sign_1 {
+  position: [-3.7, 6, 5]
+  size: [0.1, 1, 2]
+  color: "#FF1493"
+  @material(type: "standard", emissive: "#FF1493", emissiveIntensity: 2)
+}
+
+# Neon sign 2 - Cyan "24/7"
+cube #neon_sign_2 {
+  position: [3.7, 7, -5]
+  size: [0.1, 0.8, 1.5]
+  color: "#00FFFF"
+  @material(type: "standard", emissive: "#00FFFF", emissiveIntensity: 2)
+}
+
+# Neon sign 3 - Purple bar
+cube #neon_sign_3 {
+  position: [-3.7, 4, -10]
+  size: [0.1, 0.5, 3]
+  color: "#9400D3"
+  @material(type: "standard", emissive: "#9400D3", emissiveIntensity: 2)
+}
+
+# Holographic billboard
+cube #billboard {
+  position: [0, 8, 15]
+  size: [6, 3, 0.2]
+  color: "#00FF00"
+  @material(type: "standard", emissive: "#00FF00", emissiveIntensity: 1.5, transparent: true, opacity: 0.7)
+}
+
+# Fire escape stairs
+cube #stairs_support_1 {
+  position: [3, 3, 10]
+  size: [0.2, 6, 0.2]
+  color: "#8B4513"
+  @material(type: "pbr", roughness: 0.8, metallic: 0.6)
+}
+
+cube #stairs_platform_1 {
+  position: [2.5, 3, 10]
+  size: [1, 0.1, 2]
+  color: "#654321"
+}
+
+# Dumpster
+cube #dumpster {
+  position: [-2, 1, -15]
+  size: [2, 2, 1.5]
+  color: "#2F4F4F"
+  @material(type: "pbr", roughness: 0.9, metallic: 0.3)
+}
+
+# Steam vents
+cylinder #steam_vent_1 {
+  position: [1, 0.5, 0]
+  size: [0.3, 1]
+  color: "#FFFFFF"
+  @material(type: "standard", emissive: "#FFFFFF", emissiveIntensity: 0.5, transparent: true, opacity: 0.3)
+}
+
+cylinder #steam_vent_2 {
+  position: [-1.5, 0.5, -8]
+  size: [0.3, 1]
+  color: "#FFFFFF"
+  @material(type: "standard", emissive: "#FFFFFF", emissiveIntensity: 0.5, transparent: true, opacity: 0.3)
+}
+
+# Puddles (reflective)
+cylinder #puddle_1 {
+  position: [0, 0.05, 5]
+  size: [1.5, 0.05]
+  color: "#000066"
+  @material(type: "pbr", roughness: 0.1, metallic: 1, transparent: true, opacity: 0.8)
+}
+
+cylinder #puddle_2 {
+  position: [-2, 0.05, -3]
+  size: [1, 0.05]
+  color: "#000066"
+  @material(type: "pbr", roughness: 0.1, metallic: 1, transparent: true, opacity: 0.8)
+}
+
+# Overhead wires
+cylinder #wire_1 {
+  position: [0, 8, 0]
+  size: [0.05, 40]
+  rotation: [0, 0, 90]
+  color: "#1C1C1C"
+}
+
+cylinder #wire_2 {
+  position: [0, 7.5, 5]
+  size: [0.05, 40]
+  rotation: [0, 0, 90]
+  color: "#1C1C1C"
+}
+
+# Lighting - Neon glow
+light #ambient {
+  type: "ambient"
+  color: "#1A0033"
+  intensity: 0.2
+}
+
+light #neon_pink {
+  type: "point"
+  position: [-3, 6, 5]
+  color: "#FF1493"
+  intensity: 3
+  distance: 15
+}
+
+light #neon_cyan {
+  type: "point"
+  position: [3, 7, -5]
+  color: "#00FFFF"
+  intensity: 3
+  distance: 15
+}
+
+light #neon_purple {
+  type: "point"
+  position: [-3, 4, -10]
+  color: "#9400D3"
+  intensity: 3
+  distance: 15
+}
+
+# Fog
+environment #cyberpunk_env {
+  fog: {
+    color: "#0A0A1A"
+    near: 10
+    far: 35
+  }
+}

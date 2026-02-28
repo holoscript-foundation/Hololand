@@ -1,0 +1,763 @@
+// RPG Template Base System for Hololand
+// Activates RPG-specific features when world uses @template("tabletop_rpg")
+
+import { NetworkedWorldState } from "@hololand/network"
+import { BrittneyAI } from "@hololand/brittney-service"
+import { PlayerData } from "@hololand/persistence"
+import { VoiceZone } from "@hololand/audio"
+
+// ============================================
+// RPG Template Configuration
+// ============================================
+
+template "tabletop_rpg" {
+  version: "1.0.0"
+  description: "Full-featured tabletop RPG system with AI DM, quests, NPCs, and progression"
+
+  // Optional features (world creators can toggle)
+  features: {
+    quest_system: true,
+    npc_dialogue: true,
+    inventory_system: true,
+    experience_system: true,
+    dice_mechanics: "narrative",  // "narrative" | "5e-compatible" | "custom" | false
+    character_sheets: false,      // Enable for 5e-style stat tracking
+    party_system: true,
+    cross_campaign_memory: true,  // RAG-powered character reputation
+    ai_quest_generation: true,    // Brittney generates quests
+    ai_npc_generation: true       // Brittney generates NPCs
+  }
+
+  // Default settings
+  settings: {
+    max_party_size: 6,
+    save_frequency: "auto",  // Save on significant events
+    difficulty: "medium",    // "easy" | "medium" | "hard" | "deadly"
+    session_length: "flexible"  // "short" (1-2h) | "medium" (2-4h) | "long" (4-6h) | "flexible"
+  }
+}
+
+// ============================================
+// Character Progression System
+// ============================================
+
+networked_object PlayerCharacter {
+  @player_owned
+  @persistent  // Saves to database on significant events
+
+  // Core identity
+  sync_rate: 20hz
+  character_name: synced string
+  character_class: synced string  // "warrior" | "mage" | "rogue" | "cleric" | etc.
+
+  // Progression (always tracked, even in narrative mode)
+  level: synced int = 1
+  experience: synced int = 0
+
+  // Inventory (always available)
+  inventory: synced array<Item> = []
+  equipped_weapon: synced Item | null = null
+  equipped_armor: synced Item | null = null
+  gold: synced int = 0
+
+  // Optional 5e-style stats (only if dice_mechanics = "5e-compatible")
+  stats: synced {
+    strength: int = 10,
+    dexterity: int = 10,
+    constitution: int = 10,
+    intelligence: int = 10,
+    wisdom: int = 10,
+    charisma: int = 10
+  } if (features.character_sheets)
+
+  // Optional 5e-style derived values
+  armor_class: synced int = 10 if (features.character_sheets)
+  hit_points: synced int = 20 if (features.character_sheets)
+  max_hit_points: synced int = 20 if (features.character_sheets)
+
+  // Quest tracking
+  active_quests: synced array<string> = []  // quest IDs
+  completed_quests: synced array<string> = []
+
+  // Cross-campaign reputation (RAG-powered)
+  reputation_score: synced int = 50  // 0-100, affects NPC reactions
+  moral_alignment: synced string = "neutral"  // "good" | "neutral" | "evil"
+
+  // Position & state
+  position: synced vector3
+  rotation: synced quaternion
+  is_in_combat: synced bool = false
+  current_dialogue_npc: synced string | null = null
+
+  // Methods
+  on_spawn() {
+    // Load persistent data from database
+    const saved_data = await PlayerData.load(player_id);
+    if (saved_data) {
+      this.level = saved_data.level;
+      this.experience = saved_data.experience;
+      this.inventory = saved_data.inventory;
+      this.completed_quests = saved_data.completed_quests;
+      this.reputation_score = saved_data.reputation_score;
+      this.moral_alignment = saved_data.moral_alignment;
+    }
+
+    // Query RAG for cross-campaign history
+    if (features.cross_campaign_memory) {
+      const campaign_history = await RAG_retrieve(player_id, {
+        filter: "all_campaigns",
+        limit: 10
+      });
+      this.reputation_score = calculate_reputation(campaign_history);
+      this.moral_alignment = infer_alignment(campaign_history);
+    }
+  }
+
+  on_significant_event(event_type: string, event_data: any) {
+    // Auto-save on quest completion, level up, major decisions
+    if (["quest_complete", "level_up", "moral_choice"].includes(event_type)) {
+      this.save_to_database();
+
+      // Store in RAG for cross-campaign memory
+      if (features.cross_campaign_memory) {
+        RAG_store(player_id, {
+          campaign_id: world_id,
+          event_type: event_type,
+          event_data: event_data,
+          timestamp: Date.now()
+        });
+      }
+    }
+  }
+
+  save_to_database() {
+    PlayerData.save(player_id, {
+      character_name: this.character_name,
+      character_class: this.character_class,
+      level: this.level,
+      experience: this.experience,
+      inventory: this.inventory,
+      equipped_weapon: this.equipped_weapon,
+      equipped_armor: this.equipped_armor,
+      gold: this.gold,
+      active_quests: this.active_quests,
+      completed_quests: this.completed_quests,
+      reputation_score: this.reputation_score,
+      moral_alignment: this.moral_alignment,
+      last_position: this.position,
+      last_world_id: world_id,
+      updated_at: Date.now()
+    });
+  }
+
+  gain_experience(amount: int) {
+    this.experience += amount;
+
+    // Check for level up (simple formula: 1000 * level XP per level)
+    const xp_needed = 1000 * this.level;
+    if (this.experience >= xp_needed) {
+      this.level_up();
+    }
+  }
+
+  level_up() {
+    this.level += 1;
+    this.experience = 0;  // Reset XP for next level
+
+    // Notify player
+    show_notification("🎉 Level Up! You are now level " + this.level);
+
+    // Play level up effect
+    play_sound("level_up", { position: this.position });
+    spawn_particle_effect("level_up_sparkles", this.position, 3.0);
+
+    // If using 5e mechanics, increase HP
+    if (features.character_sheets) {
+      const hp_gain = roll_hit_die(this.character_class);
+      this.max_hit_points += hp_gain;
+      this.hit_points = this.max_hit_points;  // Full heal on level up
+    }
+
+    // Trigger event
+    this.on_significant_event("level_up", { level: this.level });
+  }
+
+  add_item(item: Item) {
+    this.inventory.push(item);
+    show_notification("📦 Received: " + item.name);
+  }
+
+  remove_item(item_id: string): bool {
+    const index = this.inventory.findIndex(i => i.id === item_id);
+    if (index >= 0) {
+      this.inventory.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  equip_weapon(item: Item) {
+    if (item.type !== "weapon") return;
+
+    // Unequip current weapon
+    if (this.equipped_weapon) {
+      this.add_item(this.equipped_weapon);
+    }
+
+    // Equip new weapon
+    this.equipped_weapon = item;
+    this.remove_item(item.id);
+
+    // Update appearance
+    update_weapon_visual(item);
+  }
+}
+
+// ============================================
+// Quest System
+// ============================================
+
+type Quest = {
+  id: string,
+  title: string,
+  description: string,
+  objectives: array<QuestObjective>,
+  reward_xp: int,
+  reward_gold: int,
+  reward_items: array<Item>,
+  quest_giver_npc: string,  // NPC ID
+  status: "available" | "active" | "completed" | "failed",
+  is_main_quest: bool,  // Main story vs. side quest
+  required_level: int,
+  generated_by_ai: bool
+}
+
+type QuestObjective = {
+  id: string,
+  description: string,
+  type: "kill" | "collect" | "talk" | "explore" | "escort" | "solve",
+  target: string,  // Enemy type, item ID, NPC ID, or location
+  current: int,
+  required: int,
+  completed: bool
+}
+
+object QuestManager {
+  @world_singleton  // One instance per world
+
+  available_quests: array<Quest> = []
+  active_quests: map<string, Quest> = {}  // player_id -> Quest
+
+  on_init() {
+    // Load pre-authored quests from world manifest
+    this.load_authored_quests();
+
+    // Generate AI quests if enabled
+    if (features.ai_quest_generation) {
+      this.generate_ai_quests_async();
+    }
+  }
+
+  load_authored_quests() {
+    // Load quests defined by world creator
+    const quest_files = glob("quests/*.holo");
+    for (const file of quest_files) {
+      const quest = parse_quest_file(file);
+      this.available_quests.push(quest);
+    }
+  }
+
+  async generate_ai_quests_async() {
+    // Query world manifest to ground AI generation
+    const world_manifest = await get_world_manifest();
+    const available_npcs = world_manifest.npcs.map(npc => npc.name);
+    const available_items = world_manifest.items.map(item => item.id);
+    const available_locations = world_manifest.locations.map(loc => loc.name);
+
+    // Generate 3-5 side quests using Brittney AI
+    for (let i = 0; i < 3; i++) {
+      const quest = await BrittneyAI.generate({
+        prompt: "Generate a side quest appropriate for level 1-5 characters",
+        context: {
+          world_theme: world_manifest.theme,
+          available_npcs: available_npcs,
+          available_items: available_items,
+          available_locations: available_locations,
+          difficulty: settings.difficulty
+        },
+        constraints: {
+          npcs_must_exist_in: available_npcs,
+          items_must_exist_in: available_items,
+          locations_must_exist_in: available_locations
+        },
+        temperature: 0.7,
+        format: "quest_json"
+      });
+
+      // Validate quest references real entities
+      if (validate_quest_entities(quest, world_manifest)) {
+        quest.generated_by_ai = true;
+        this.available_quests.push(quest);
+      } else {
+        console.warn("AI generated quest with invalid entities, using fallback template");
+        this.available_quests.push(fallback_quest_template());
+      }
+    }
+  }
+
+  offer_quest(player: PlayerCharacter, quest_id: string) {
+    const quest = this.available_quests.find(q => q.id === quest_id);
+    if (!quest) return;
+
+    // Check if player meets requirements
+    if (player.level < quest.required_level) {
+      show_message("You must be level " + quest.required_level + " to accept this quest.");
+      return;
+    }
+
+    // Show quest UI
+    show_quest_dialog({
+      title: quest.title,
+      description: quest.description,
+      objectives: quest.objectives,
+      rewards: {
+        xp: quest.reward_xp,
+        gold: quest.reward_gold,
+        items: quest.reward_items
+      },
+      buttons: [
+        { text: "Accept", action: () => this.accept_quest(player, quest_id) },
+        { text: "Decline", action: () => close_dialog() }
+      ]
+    });
+  }
+
+  accept_quest(player: PlayerCharacter, quest_id: string) {
+    const quest = this.available_quests.find(q => q.id === quest_id);
+    if (!quest) return;
+
+    // Add to player's active quests
+    quest.status = "active";
+    player.active_quests.push(quest_id);
+    this.active_quests[player.player_id] = quest;
+
+    // Save progress
+    player.save_to_database();
+
+    // Show notification
+    show_notification("📜 Quest Accepted: " + quest.title);
+
+    // Trigger quest start event (for quest-specific logic)
+    emit_event("quest_started", { player: player, quest: quest });
+  }
+
+  update_quest_objective(player: PlayerCharacter, quest_id: string, objective_id: string, progress: int) {
+    const quest = this.active_quests[player.player_id];
+    if (!quest || quest.id !== quest_id) return;
+
+    const objective = quest.objectives.find(obj => obj.id === objective_id);
+    if (!objective) return;
+
+    objective.current = Math.min(objective.current + progress, objective.required);
+
+    // Check if objective completed
+    if (objective.current >= objective.required) {
+      objective.completed = true;
+      show_notification("✓ " + objective.description + " (" + objective.current + "/" + objective.required + ")");
+
+      // Check if all objectives completed
+      if (quest.objectives.every(obj => obj.completed)) {
+        this.complete_quest(player, quest_id);
+      }
+    } else {
+      // Show progress update
+      show_notification(objective.description + " (" + objective.current + "/" + objective.required + ")");
+    }
+  }
+
+  complete_quest(player: PlayerCharacter, quest_id: string) {
+    const quest = this.active_quests[player.player_id];
+    if (!quest || quest.id !== quest_id) return;
+
+    // Mark completed
+    quest.status = "completed";
+    player.completed_quests.push(quest_id);
+    player.active_quests = player.active_quests.filter(id => id !== quest_id);
+
+    // Award rewards
+    player.gain_experience(quest.reward_xp);
+    player.gold += quest.reward_gold;
+    for (const item of quest.reward_items) {
+      player.add_item(item);
+    }
+
+    // Show completion dialog
+    show_quest_complete_dialog({
+      title: quest.title,
+      rewards: {
+        xp: quest.reward_xp,
+        gold: quest.reward_gold,
+        items: quest.reward_items
+      }
+    });
+
+    // Save progress
+    player.on_significant_event("quest_complete", { quest_id: quest_id, quest_title: quest.title });
+    player.save_to_database();
+
+    // Clean up
+    delete this.active_quests[player.player_id];
+  }
+}
+
+// ============================================
+// NPC Dialogue System
+// ============================================
+
+type DialogueNode = {
+  id: string,
+  speaker: "npc" | "player",
+  text: string,
+  options: array<DialogueOption>,
+  quest_trigger: string | null,  // Quest ID to offer
+  reputation_change: int,  // Affect player reputation
+  animation: string | null
+}
+
+type DialogueOption = {
+  text: string,
+  next_node: string,
+  conditions: array<DialogueCondition>,
+  skill_check: SkillCheck | null
+}
+
+type DialogueCondition = {
+  type: "quest_completed" | "has_item" | "level_min" | "reputation_min",
+  value: any
+}
+
+type SkillCheck = {
+  skill: "persuasion" | "intimidation" | "deception" | "investigation",
+  dc: int,  // Difficulty class (5e style)
+  success_node: string,
+  failure_node: string
+}
+
+object NPC {
+  @talkable
+  @ai_generated  // Can be generated by Brittney AI
+
+  npc_id: string
+  npc_name: string
+  personality: {
+    traits: array<string>,  // ["grumpy", "honest", "impatient"]
+    voice_tone: string,     // "gruff", "cheerful", "mysterious"
+    catchphrase: string
+  }
+
+  dialogue_tree: map<string, DialogueNode>
+  current_dialogue_node: string = "start"
+
+  // Quest giver
+  offers_quest: string | null = null  // Quest ID
+
+  // Merchant
+  is_merchant: bool = false
+  merchant_inventory: array<Item> = []
+
+  on_interact(player: PlayerCharacter) {
+    // Check cross-campaign reputation
+    if (features.cross_campaign_memory) {
+      const greeting = this.get_reputation_based_greeting(player);
+      this.current_dialogue_node = greeting;
+    } else {
+      this.current_dialogue_node = "start";
+    }
+
+    // Start dialogue
+    player.current_dialogue_npc = this.npc_id;
+    this.show_dialogue(player);
+  }
+
+  get_reputation_based_greeting(player: PlayerCharacter): string {
+    if (player.reputation_score >= 80) {
+      return "reputation_high";  // "Ah, the legendary hero! How may I assist you?"
+    } else if (player.reputation_score >= 50) {
+      return "start";  // Default greeting
+    } else {
+      return "reputation_low";  // "I've heard of your... questionable deeds."
+    }
+  }
+
+  show_dialogue(player: PlayerCharacter) {
+    const node = this.dialogue_tree[this.current_dialogue_node];
+    if (!node) {
+      console.error("Dialogue node not found: " + this.current_dialogue_node);
+      return;
+    }
+
+    // Filter options based on conditions
+    const available_options = node.options.filter(opt =>
+      this.check_conditions(player, opt.conditions)
+    );
+
+    // Show dialogue UI
+    show_dialogue_ui({
+      npc_name: this.npc_name,
+      npc_portrait: get_npc_portrait(this.npc_id),
+      text: node.text,
+      options: available_options.map(opt => ({
+        text: opt.text,
+        action: () => this.select_option(player, opt)
+      })),
+      close_action: () => this.end_dialogue(player)
+    });
+
+    // Play animation
+    if (node.animation) {
+      play_animation(this.npc_id, node.animation);
+    }
+
+    // Apply reputation change
+    if (node.reputation_change !== 0) {
+      player.reputation_score = Math.max(0, Math.min(100,
+        player.reputation_score + node.reputation_change
+      ));
+    }
+
+    // Offer quest if applicable
+    if (node.quest_trigger) {
+      QuestManager.offer_quest(player, node.quest_trigger);
+    }
+  }
+
+  check_conditions(player: PlayerCharacter, conditions: array<DialogueCondition>): bool {
+    for (const cond of conditions) {
+      switch (cond.type) {
+        case "quest_completed":
+          if (!player.completed_quests.includes(cond.value)) return false;
+          break;
+        case "has_item":
+          if (!player.inventory.some(item => item.id === cond.value)) return false;
+          break;
+        case "level_min":
+          if (player.level < cond.value) return false;
+          break;
+        case "reputation_min":
+          if (player.reputation_score < cond.value) return false;
+          break;
+      }
+    }
+    return true;
+  }
+
+  select_option(player: PlayerCharacter, option: DialogueOption) {
+    // Handle skill check if present
+    if (option.skill_check) {
+      const success = this.perform_skill_check(player, option.skill_check);
+      this.current_dialogue_node = success ?
+        option.skill_check.success_node :
+        option.skill_check.failure_node;
+    } else {
+      this.current_dialogue_node = option.next_node;
+    }
+
+    // Continue dialogue
+    this.show_dialogue(player);
+  }
+
+  perform_skill_check(player: PlayerCharacter, check: SkillCheck): bool {
+    if (features.dice_mechanics === "5e-compatible") {
+      // D&D 5e style roll
+      const roll = d20();
+      const modifier = get_ability_modifier(player, check.skill);
+      const total = roll + modifier;
+
+      show_dice_roll_animation({
+        dice: "d20",
+        result: roll,
+        modifier: modifier,
+        total: total,
+        dc: check.dc,
+        success: total >= check.dc
+      });
+
+      return total >= check.dc;
+    } else {
+      // Narrative mode: 60% success chance
+      return Math.random() < 0.6;
+    }
+  }
+
+  end_dialogue(player: PlayerCharacter) {
+    player.current_dialogue_npc = null;
+    close_dialogue_ui();
+  }
+}
+
+// ============================================
+// AI NPC Generation (Brittney-powered)
+// ============================================
+
+async function generate_npc_with_ai(
+  archetype: string,  // "merchant", "quest_giver", "guard", "enemy"
+  context: any
+): NPC {
+
+  const npc_data = await BrittneyAI.generate({
+    prompt: `Generate a ${archetype} NPC with personality and dialogue tree`,
+    context: {
+      world_theme: context.world_theme,
+      location: context.location,
+      difficulty: settings.difficulty
+    },
+    temperature: 0.8,
+    format: "npc_json"
+  });
+
+  // Create NPC object
+  const npc = new NPC({
+    npc_id: generate_uuid(),
+    npc_name: npc_data.name,
+    personality: npc_data.personality,
+    dialogue_tree: npc_data.dialogue_tree,
+    is_merchant: archetype === "merchant",
+    merchant_inventory: archetype === "merchant" ? npc_data.inventory : []
+  });
+
+  return npc;
+}
+
+// ============================================
+// Optional D&D 5e Mechanics
+// ============================================
+
+function d20(): int {
+  return Math.floor(Math.random() * 20) + 1;
+}
+
+function d6(): int {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
+function roll_hit_die(character_class: string): int {
+  switch (character_class) {
+    case "warrior": return d10();  // d10 hit die
+    case "rogue": return d8();     // d8 hit die
+    case "mage": return d6();      // d6 hit die
+    case "cleric": return d8();    // d8 hit die
+    default: return d8();
+  }
+}
+
+function get_ability_modifier(player: PlayerCharacter, skill: string): int {
+  if (!features.character_sheets) return 0;
+
+  // Map skill to ability score
+  const ability_map = {
+    persuasion: "charisma",
+    intimidation: "charisma",
+    deception: "charisma",
+    investigation: "intelligence",
+    perception: "wisdom",
+    athletics: "strength",
+    acrobatics: "dexterity"
+  };
+
+  const ability = ability_map[skill] || "charisma";
+  const score = player.stats[ability];
+
+  // D&D 5e modifier formula: (score - 10) / 2, rounded down
+  return Math.floor((score - 10) / 2);
+}
+
+// ============================================
+// Helper Functions
+// ============================================
+
+function calculate_reputation(campaign_history: array<any>): int {
+  // Analyze past actions to determine reputation
+  let reputation = 50;  // Start neutral
+
+  for (const event of campaign_history) {
+    if (event.event_type === "npc_helped") reputation += 5;
+    if (event.event_type === "npc_betrayed") reputation -= 10;
+    if (event.event_type === "quest_complete") reputation += 3;
+    if (event.event_type === "moral_choice_good") reputation += 8;
+    if (event.event_type === "moral_choice_evil") reputation -= 8;
+  }
+
+  return Math.max(0, Math.min(100, reputation));
+}
+
+function infer_alignment(campaign_history: array<any>): string {
+  let good_score = 0;
+  let evil_score = 0;
+
+  for (const event of campaign_history) {
+    if (event.event_data?.moral_impact === "good") good_score++;
+    if (event.event_data?.moral_impact === "evil") evil_score++;
+  }
+
+  if (good_score > evil_score + 3) return "good";
+  if (evil_score > good_score + 3) return "evil";
+  return "neutral";
+}
+
+function validate_quest_entities(quest: Quest, manifest: any): bool {
+  // Check that all NPCs, items, locations referenced in quest actually exist
+  const mentioned_npcs = extract_entity_names(quest.description, "npc");
+  const mentioned_items = extract_entity_names(quest.description, "item");
+  const mentioned_locations = extract_entity_names(quest.description, "location");
+
+  for (const npc of mentioned_npcs) {
+    if (!manifest.npcs.some(n => n.name === npc)) return false;
+  }
+
+  for (const item of mentioned_items) {
+    if (!manifest.items.some(i => i.id === item)) return false;
+  }
+
+  for (const loc of mentioned_locations) {
+    if (!manifest.locations.some(l => l.name === loc)) return false;
+  }
+
+  return true;
+}
+
+function fallback_quest_template(): Quest {
+  // Simple fallback quest if AI generation fails
+  return {
+    id: "fallback_" + generate_uuid(),
+    title: "Explore the Area",
+    description: "Look around and see what you can find nearby.",
+    objectives: [{
+      id: "explore_1",
+      description: "Walk 100 meters",
+      type: "explore",
+      target: "anywhere",
+      current: 0,
+      required: 100,
+      completed: false
+    }],
+    reward_xp: 50,
+    reward_gold: 10,
+    reward_items: [],
+    quest_giver_npc: "none",
+    status: "available",
+    is_main_quest: false,
+    required_level: 1,
+    generated_by_ai: false
+  };
+}
+
+export {
+  PlayerCharacter,
+  QuestManager,
+  NPC,
+  generate_npc_with_ai,
+  Quest,
+  DialogueNode,
+  d20,
+  d6
+};

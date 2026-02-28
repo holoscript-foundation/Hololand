@@ -48,6 +48,32 @@ export type { Vector3, Quaternion, BoundingBox, Transform } from './types';
 // Physics joints and ragdoll (merged from @holoscript/physics-joints)
 export * from './PhysicsJoints';
 
+// Procedural World Generation (Plan-and-Execute Pattern)
+export {
+  ProceduralWorldOrchestrator,
+  type ProceduralWorldConfig,
+  type WorldGenerationRequest,
+  type WorldGenerationResult,
+  type WorldPlan,
+  type Zone,
+  type Landmark,
+  type LayoutStrategy,
+  type MaterialPalette,
+  type LightingPlan,
+  type ExecutionStep,
+  type ReviewFeedback,
+  type CostBreakdown,
+  type GenerationMetrics,
+} from './procedural/ProceduralWorldOrchestrator';
+
+// Procedural Asset Generation with Semantic Caching
+export {
+  ProceduralAssetGenerator,
+  proceduralAssetGenerator,
+  type AssetGenerationOptions,
+  type GeneratedAsset,
+} from './procedural/ProceduralAssetGenerator';
+
 // Constants
 export const HOLOLAND_WORLD_VERSION = '1.0.0-alpha.1';
 

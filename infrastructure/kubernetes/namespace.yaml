@@ -1,0 +1,49 @@
+---
+# Brittney Production Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: brittney-prod
+  labels:
+    name: brittney-prod
+    environment: production
+    team: ai-platform
+
+---
+# Resource Quotas - Prevent runaway costs
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: brittney-prod-quota
+  namespace: brittney-prod
+spec:
+  hard:
+    requests.cpu: "200"        # Max 200 CPU cores
+    requests.memory: "800Gi"   # Max 800GB RAM
+    requests.nvidia.com/gpu: "50"  # Max 50 GPUs
+    pods: "100"                # Max 100 pods
+    services: "20"             # Max 20 services
+
+---
+# Limit Ranges - Per-pod defaults and limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: brittney-prod-limits
+  namespace: brittney-prod
+spec:
+  limits:
+  - max:
+      cpu: "8"
+      memory: "32Gi"
+      nvidia.com/gpu: "2"
+    min:
+      cpu: "500m"
+      memory: "2Gi"
+    default:
+      cpu: "2"
+      memory: "8Gi"
+    defaultRequest:
+      cpu: "2"
+      memory: "8Gi"
+    type: Container

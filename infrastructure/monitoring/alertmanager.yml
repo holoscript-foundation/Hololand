@@ -1,0 +1,84 @@
+# AlertManager Configuration for Brittney Cloud API
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: 'SLACK_WEBHOOK_URL_HERE'
+
+# Route alerts to receivers
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  routes:
+    # Critical alerts go to PagerDuty
+    - match:
+        severity: critical
+      receiver: 'pagerduty'
+      continue: true
+
+    # Warning alerts go to Slack
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+
+    # Business metrics go to Slack business channel
+    - match:
+        component: business
+      receiver: 'slack-business'
+
+    # Info alerts go to Slack info channel
+    - match:
+        severity: info
+      receiver: 'slack-info'
+
+# Alert receivers
+receivers:
+  - name: 'default'
+    slack_configs:
+      - channel: '#brittney-alerts'
+        title: 'Brittney Cloud Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'
+
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: 'PAGERDUTY_SERVICE_KEY_HERE'
+        description: '{{ .CommonAnnotations.summary }}'
+
+  - name: 'slack-warnings'
+    slack_configs:
+      - channel: '#brittney-warnings'
+        title: '⚠️ Warning: {{ .CommonAnnotations.summary }}'
+        text: '{{ .CommonAnnotations.description }}'
+        color: 'warning'
+
+  - name: 'slack-business'
+    slack_configs:
+      - channel: '#brittney-business'
+        title: '📊 Business Alert: {{ .CommonAnnotations.summary }}'
+        text: '{{ .CommonAnnotations.description }}'
+        color: 'good'
+
+  - name: 'slack-info'
+    slack_configs:
+      - channel: '#brittney-info'
+        title: 'ℹ️ Info: {{ .CommonAnnotations.summary }}'
+        text: '{{ .CommonAnnotations.description }}'
+        color: '#439FE0'
+
+# Inhibition rules (suppress certain alerts when others are firing)
+inhibit_rules:
+  # If instance is down, don't alert on high latency
+  - source_match:
+      alertname: 'InstanceDown'
+    target_match:
+      alertname: 'HighLatency'
+    equal: ['instance']
+
+  # If there's a queue backlog, don't alert on high latency
+  - source_match:
+      alertname: 'QueueBacklog'
+    target_match:
+      alertname: 'HighLatency'

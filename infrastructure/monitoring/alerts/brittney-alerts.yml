@@ -1,0 +1,187 @@
+# AlertManager Rules for Brittney Cloud API
+
+groups:
+  - name: brittney_api_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(brittney_errors_total[5m]))
+          /
+          sum(rate(brittney_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      # High latency
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(brittney_request_duration_seconds_bucket[10m])) by (le)
+          ) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API latency detected"
+          description: "P95 latency is {{ $value }}s (threshold: 5s)"
+
+      # Queue backlog
+      - alert: QueueBacklog
+        expr: brittney_queue_depth > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: inference
+        annotations:
+          summary: "High queue depth"
+          description: "Queue depth is {{ $value }} requests (threshold: 100)"
+
+      # Instance down
+      - alert: InstanceDown
+        expr: up{job="brittney-cloud-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Brittney API instance down"
+          description: "Instance {{ $labels.instance }} has been down for more than 1 minute"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+          /
+          node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      # High GPU utilization
+      - alert: HighGPUUtilization
+        expr: DCGM_FI_DEV_GPU_UTIL > 95
+        for: 10m
+        labels:
+          severity: info
+          component: inference
+        annotations:
+          summary: "High GPU utilization"
+          description: "GPU {{ $labels.gpu }} utilization is {{ $value }}% (sustained high load)"
+
+      # Cost spike
+      - alert: CostSpike
+        expr: |
+          sum(increase(brittney_cost_usd_total[1h])) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: billing
+        annotations:
+          summary: "Hourly cost spike detected"
+          description: "Cost in the last hour: ${{ $value }} (threshold: $100/hour)"
+
+      # Rate limit abuse
+      - alert: RateLimitAbuse
+        expr: |
+          sum(rate(brittney_rate_limit_hits_total[5m])) by (tier) > 10
+        for: 10m
+        labels:
+          severity: info
+          component: security
+        annotations:
+          summary: "High rate limit hits for tier {{ $labels.tier }}"
+          description: "{{ $value }} rate limit hits per second"
+
+      # Low free tier usage (business metric)
+      - alert: LowFreeTierConversion
+        expr: |
+          sum(brittney_requests_total{tier="free"})
+          /
+          sum(brittney_requests_total) > 0.8
+        for: 1h
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "High percentage of free tier usage"
+          description: "{{ $value | humanizePercentage }} of requests from free tier (target: <80%)"
+
+  - name: brittney_inference_alerts
+    interval: 30s
+    rules:
+      # Inference pod down
+      - alert: InferencePodDown
+        expr: up{job="brittney-inference"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: inference
+        annotations:
+          summary: "Inference pod down"
+          description: "Pod {{ $labels.pod }} has been down for 2 minutes"
+
+      # Low replica count
+      - alert: LowReplicaCount
+        expr: |
+          count(up{job="brittney-inference"} == 1) < 3
+        for: 5m
+        labels:
+          severity: critical
+          component: inference
+        annotations:
+          summary: "Inference replica count below minimum"
+          description: "Only {{ $value }} replicas running (minimum: 3)"
+
+      # Model loading failures
+      - alert: ModelLoadingFailures
+        expr: |
+          sum(rate(brittney_errors_total{type="model_load"}[10m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: inference
+        annotations:
+          summary: "Model loading failures detected"
+          description: "{{ $value }} model load failures per second"
+
+  - name: brittney_business_alerts
+    interval: 5m
+    rules:
+      # Daily revenue drop
+      - alert: DailyRevenueDrop
+        expr: |
+          sum(increase(brittney_cost_usd_total{tier!="free"}[1d]))
+          <
+          sum(increase(brittney_cost_usd_total{tier!="free"}[1d] offset 1d)) * 0.7
+        for: 30m
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "Daily revenue drop detected"
+          description: "Revenue is down 30% compared to yesterday"
+
+      # Signup spike
+      - alert: SignupSpike
+        expr: |
+          sum(increase(brittney_requests_total{tier="free"}[1h]))
+          >
+          sum(increase(brittney_requests_total{tier="free"}[1h] offset 1h)) * 2
+        for: 15m
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "Signup spike detected"
+          description: "Free tier requests doubled in the last hour (possible viral growth or abuse)"

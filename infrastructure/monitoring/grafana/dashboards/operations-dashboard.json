@@ -1,0 +1,231 @@
+{
+  "dashboard": {
+    "title": "Brittney Cloud API - Operations",
+    "tags": ["brittney", "operations", "infrastructure"],
+    "timezone": "utc",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate (RPS)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(brittney_requests_total[5m]))",
+            "legendFormat": "Total RPS"
+          },
+          {
+            "expr": "sum(rate(brittney_requests_total{status=~\"5..\"}[5m]))",
+            "legendFormat": "5xx Errors"
+          }
+        ],
+        "yaxes": [
+          {"label": "requests/sec", "format": "reqps"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Request Latency (P50/P95/P99)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(brittney_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(brittney_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(brittney_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99"
+          }
+        ],
+        "yaxes": [
+          {"label": "seconds", "format": "s"},
+          {"show": false}
+        ],
+        "alert": {
+          "name": "High P95 Latency",
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "query": {"params": ["B", "5m", "now"]},
+              "type": "query"
+            }
+          ],
+          "frequency": "1m",
+          "handler": 1,
+          "message": "P95 latency exceeded 5 seconds"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(brittney_errors_total[5m])) by (type)",
+            "legendFormat": "{{type}}"
+          }
+        ],
+        "yaxes": [
+          {"label": "errors/sec", "format": "short"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Queue Depth",
+        "type": "graph",
+        "gridPos": {"x": 8, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "brittney_queue_depth",
+            "legendFormat": "Queue Depth"
+          }
+        ],
+        "yaxes": [
+          {"label": "requests", "format": "short"},
+          {"show": false}
+        ],
+        "thresholds": [
+          {"value": 100, "op": "gt", "colorMode": "critical"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Active Requests",
+        "type": "stat",
+        "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(brittney_active_requests)"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "justifyMode": "auto",
+          "orientation": "auto"
+        }
+      },
+      {
+        "id": 6,
+        "title": "GPU Utilization",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "avg(DCGM_FI_DEV_GPU_UTIL) by (gpu)",
+            "legendFormat": "GPU {{gpu}}"
+          }
+        ],
+        "yaxes": [
+          {"label": "utilization %", "format": "percent", "max": 100},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+            "legendFormat": "Memory %"
+          }
+        ],
+        "yaxes": [
+          {"label": "usage %", "format": "percent", "max": 100},
+          {"show": false}
+        ],
+        "thresholds": [
+          {"value": 80, "op": "gt", "colorMode": "warning"},
+          {"value": 90, "op": "gt", "colorMode": "critical"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Active Inference Pods",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "count(up{job=\"brittney-inference\"} == 1)"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name"
+        },
+        "thresholds": {
+          "steps": [
+            {"value": 0, "color": "red"},
+            {"value": 3, "color": "green"}
+          ]
+        }
+      },
+      {
+        "id": 9,
+        "title": "Token Processing Rate",
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 24, "w": 18, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(brittney_tokens_total[5m])) by (type)",
+            "legendFormat": "{{type}}"
+          }
+        ],
+        "yaxes": [
+          {"label": "tokens/sec", "format": "short"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Rate Limit Hits",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 32, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(brittney_rate_limit_hits_total[5m])) by (tier)",
+            "legendFormat": "{{tier}}"
+          }
+        ],
+        "yaxes": [
+          {"label": "hits/sec", "format": "short"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Database Connections",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 32, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "yaxes": [
+          {"label": "connections", "format": "short"},
+          {"show": false}
+        ]
+      }
+    ],
+    "refresh": "5s"
+  }
+}

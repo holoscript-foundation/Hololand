@@ -5,6 +5,7 @@
  */
 
 export { OllamaProvider, type OllamaConfig, type OllamaModel } from './ollama.js';
+export { BrittneyCloudProvider, type BrittneyCloudConfig } from './brittney-cloud.js';
 export { OpenAIProvider, type OpenAIProviderConfig, createBrittneyCloudProvider } from './openai.js';
 export { AnthropicProvider, type AnthropicProviderConfig } from './anthropic.js';
 export { GoogleProvider, type GoogleProviderConfig } from './google.js';

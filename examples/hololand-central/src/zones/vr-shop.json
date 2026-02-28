@@ -1,0 +1,23 @@
+{
+  "name": "VR Shop",
+  "slug": "vr-shop",
+  "category": "business",
+  "description": "Virtual retail store with products on pedestals, interactive shopping experience",
+  "features": [
+    "Product displays",
+    "3D product inspection",
+    "Shopping cart system",
+    "Checkout counter",
+    "Shop assistant NPC",
+    "Category browsing"
+  ],
+  "portal": {
+    "position": [15, 1, -15],
+    "color": "#2ecc71",
+    "label": "VR Shop"
+  },
+  "maxPlayers": 30,
+  "holoScriptFile": "vr-shop.holo",
+  "convertedFrom": "examples/03-vr-shop",
+  "convertedAt": "2026-02-19T00:00:00.000Z"
+}

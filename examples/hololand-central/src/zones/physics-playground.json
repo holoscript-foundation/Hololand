@@ -1,0 +1,23 @@
+{
+  "name": "Physics Playground",
+  "slug": "physics-playground",
+  "category": "entertainment",
+  "description": "Interactive physics sandbox with gravity zones, bouncing balls, and breakable blocks",
+  "features": [
+    "Stacking blocks",
+    "Bouncy balls",
+    "Gravity zones",
+    "Ramps",
+    "Ball spawner",
+    "Physics guide NPC"
+  ],
+  "portal": {
+    "position": [-15, 1, 15],
+    "color": "#e74c3c",
+    "label": "Physics Lab"
+  },
+  "maxPlayers": 20,
+  "holoScriptFile": "physics-playground.holo",
+  "convertedFrom": "examples/02-physics-playground",
+  "convertedAt": "2026-02-19T00:00:00.000Z"
+}

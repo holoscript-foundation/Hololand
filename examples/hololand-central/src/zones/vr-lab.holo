@@ -1,0 +1,420 @@
+@zone "VR Interaction Lab" category:"vr" maxPlayers:20
+
+composition "VR Lab" {
+  // ========================================
+  // ADVANCED VR INTERACTION SHOWCASE
+  // ========================================
+
+  // Central info display
+  object "InfoDisplay" {
+    @spatial @networked @interactive
+    @label(text: "VR Interaction Lab", color: "#00ff00", size: 1.5)
+    @tooltip(text: "Try all VR interactions!", delay: 0.2)
+    @progressBar(max: 100, current: 50)
+    geometry: "plane"
+    position: [0, 4, -10]
+    rotation: [0, 0, 0]
+    scale: [8, 4, 1]
+    material: {
+      color: "#1a1a1a"
+      emissive: "#00ff00"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  // ========================================
+  // GRABBABLE & THROWABLE SECTION
+  // ========================================
+
+  object "Ball1" {
+    @spatial @networked @grabbable(twoHanded: false, throwable: true)
+    @throwable(maxVelocity: 25)
+    @physics(mass: 1, friction: 0.5, restitution: 0.8)
+    @rigidbody(mass: 1, useGravity: true)
+    @bounce(height: 0.5, speed: 3)
+    @label(text: "Throwable Ball", color: "#e74c3c", size: 0.4)
+    geometry: "sphere"
+    position: [-5, 2, 0]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#e74c3c"
+      roughness: 0.3
+    }
+  }
+
+  object "Ball2" {
+    @spatial @networked @grabbable(twoHanded: false, throwable: true)
+    @throwable(maxVelocity: 25)
+    @physics(mass: 1, friction: 0.5, restitution: 0.8)
+    @rigidbody(mass: 1, useGravity: true)
+    @bounce(height: 0.5, speed: 3)
+    @label(text: "Throwable Ball", color: "#3498db", size: 0.4)
+    geometry: "sphere"
+    position: [-3, 2, 0]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#3498db"
+      roughness: 0.3
+    }
+  }
+
+  // Pushable cube
+  object "PushableCube" {
+    @spatial @networked @pushable(force: 15)
+    @physics(mass: 5, friction: 0.7, restitution: 0.2)
+    @rigidbody(mass: 5, useGravity: true)
+    @label(text: "Push Me", color: "#f39c12", size: 0.5)
+    geometry: "cube"
+    position: [-5, 0.5, 3]
+    scale: [1, 1, 1]
+    material: {
+      color: "#f39c12"
+      roughness: 0.5
+    }
+  }
+
+  // ========================================
+  // SCALABLE & ROTATABLE SECTION
+  // ========================================
+
+  object "ScalableCrystal" {
+    @spatial @networked @grabbable
+    @scalable(minScale: 0.2, maxScale: 5)
+    @rotatable(snapAngle: 45)
+    @rotate(speed: 0.5, axis: 'y')
+    @emissive(color: "#9b59b6", intensity: 0.8)
+    @glow(strength: 1.5, radius: 0.6)
+    @label(text: "Scalable Crystal", color: "#9b59b6", size: 0.5)
+    geometry: "dodecahedron"
+    position: [5, 2, 0]
+    scale: [1, 1, 1]
+    material: {
+      color: "#9b59b6"
+      emissive: "#9b59b6"
+      emissiveIntensity: 0.5
+      transparent: true
+      opacity: 0.8
+    }
+  }
+
+  // ========================================
+  // CLONEABLE & SNAP SECTION
+  // ========================================
+
+  object "CloneableOrb" {
+    @spatial @networked @grabbable
+    @cloneable(maxClones: 10)
+    @snap(snapDistance: 1.0)
+    @orbit(radius: 2, speed: 0.5, axis: 'y')
+    @emissive(color: "#00ffff", intensity: 0.6)
+    @label(text: "Cloneable", color: "#00ffff", size: 0.4)
+    @minimap(icon: "star", color: "#00ffff")
+    geometry: "sphere"
+    position: [0, 2, 5]
+    scale: [0.4, 0.4, 0.4]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.4
+      metallic: 0.8
+      roughness: 0.2
+    }
+  }
+
+  // Snap points
+  object "SnapPoint1" {
+    @spatial @label(text: "Snap Point", color: "#2ecc71", size: 0.3)
+    geometry: "cube"
+    position: [-3, 1, 8]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#2ecc71"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  object "SnapPoint2" {
+    @spatial @label(text: "Snap Point", color: "#2ecc71", size: 0.3)
+    geometry: "cube"
+    position: [0, 1, 8]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#2ecc71"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  object "SnapPoint3" {
+    @spatial @label(text: "Snap Point", color: "#2ecc71", size: 0.3)
+    geometry: "cube"
+    position: [3, 1, 8]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#2ecc71"
+      transparent: true
+      opacity: 0.3
+    }
+  }
+
+  // ========================================
+  // INVENTORY & OWNERSHIP DEMO
+  // ========================================
+
+  object "InventoryChest" {
+    @spatial @networked @interactive
+    @inventory(slots: 30)
+    @ownership(transferable: true)
+    @label(text: "Personal Inventory", color: "#8e44ad", size: 0.6)
+    @healthBar(width: 2, height: 0.15)
+    geometry: "cube"
+    position: [8, 1, 0]
+    scale: [2, 1.5, 1.5]
+    material: {
+      color: "#8e44ad"
+      metallic: 0.6
+      roughness: 0.4
+    }
+  }
+
+  // Shareable item
+  object "ShareableGem" {
+    @spatial @networked @grabbable @interactive
+    @shareable
+    @ownership(transferable: true)
+    @rotate(speed: 1.5, axis: 'y')
+    @bob(speed: 1, amount: 0.2)
+    @emissive(color: "#ff00ff", intensity: 0.7)
+    @label(text: "Shareable Gem", color: "#ff00ff", size: 0.4)
+    geometry: "dodecahedron"
+    position: [8, 3, 3]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#ff00ff"
+      emissive: "#ff00ff"
+      emissiveIntensity: 0.5
+      metallic: 0.9
+      roughness: 0.1
+    }
+  }
+
+  // ========================================
+  // ANIMATED OBJECTS
+  // ========================================
+
+  // Wobbling tower
+  object "WobblingTower" {
+    @spatial @wobble(intensity: 0.15)
+    @label(text: "Wobbling Tower", color: "#e67e22", size: 0.5)
+    geometry: "cylinder"
+    position: [-8, 3, 0]
+    scale: [0.8, 6, 0.8]
+    material: {
+      color: "#e67e22"
+      roughness: 0.6
+    }
+  }
+
+  // Swaying palm
+  object "SwayingPalm" {
+    @spatial @sway(speed: 0.5, amount: 0.2)
+    @wind(strength: 1.0, direction: [1, 0, 0])
+    @label(text: "Swaying Tree", color: "#27ae60", size: 0.5)
+    geometry: "cylinder"
+    position: [-8, 3, -5]
+    scale: [0.5, 6, 0.5]
+    material: {
+      color: "#27ae60"
+      roughness: 0.8
+    }
+  }
+
+  // Orbiting satellites
+  object "Satellite1" {
+    @spatial @orbit(radius: 4, speed: 1.5, axis: 'y')
+    @rotate(speed: 3, axis: 'z')
+    @emissive(color: "#00ff00", intensity: 0.5)
+    geometry: "cube"
+    position: [0, 5, 0]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#00ff00"
+      emissive: "#00ff00"
+      emissiveIntensity: 0.5
+      metallic: 0.8
+    }
+  }
+
+  object "Satellite2" {
+    @spatial @orbit(radius: 4, speed: 2, axis: 'y')
+    @rotate(speed: 4, axis: 'x')
+    @emissive(color: "#ff0000", intensity: 0.5)
+    geometry: "sphere"
+    position: [0, 5, 0]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#ff0000"
+      emissive: "#ff0000"
+      emissiveIntensity: 0.5
+      metallic: 0.8
+    }
+  }
+
+  object "Satellite3" {
+    @spatial @orbit(radius: 4, speed: 1, axis: 'y')
+    @rotate(speed: 2, axis: 'y')
+    @emissive(color: "#0000ff", intensity: 0.5)
+    geometry: "dodecahedron"
+    position: [0, 5, 0]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#0000ff"
+      emissive: "#0000ff"
+      emissiveIntensity: 0.5
+      metallic: 0.8
+    }
+  }
+
+  // ========================================
+  // TELEPORTATION TARGETS
+  // ========================================
+
+  object "TeleportPad1" {
+    @spatial @teleportable(indicatorColor: "#00ff00")
+    @label(text: "Teleport Here", color: "#00ff00", size: 0.5)
+    geometry: "cylinder"
+    position: [-10, 0.1, 8]
+    scale: [2, 0.2, 2]
+    material: {
+      color: "#00ff00"
+      emissive: "#00ff00"
+      emissiveIntensity: 0.3
+      transparent: true
+      opacity: 0.7
+    }
+  }
+
+  object "TeleportPad2" {
+    @spatial @teleportable(indicatorColor: "#00ffff")
+    @label(text: "Teleport Here", color: "#00ffff", size: 0.5)
+    geometry: "cylinder"
+    position: [10, 0.1, 8]
+    scale: [2, 0.2, 2]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.3
+      transparent: true
+      opacity: 0.7
+    }
+  }
+
+  // ========================================
+  // PERFORMANCE OPTIMIZATION DEMO
+  // ========================================
+
+  object "LODObject" {
+    @spatial @networked
+    @lod(distances: [10, 25, 50], levels: 3)
+    @occlusion
+    @label(text: "LOD Optimized", color: "#95a5a6", size: 0.4)
+    geometry: "sphere"
+    position: [0, 2, -20]
+    scale: [2, 2, 2]
+    material: {
+      color: "#95a5a6"
+      roughness: 0.5
+    }
+  }
+
+  // ========================================
+  // FLOOR & WALLS
+  // ========================================
+
+  object "Floor" {
+    @spatial @reflection(quality: "medium", metalness: 0.3)
+    @shadowReceiver
+    geometry: "plane"
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    scale: [50, 50, 1]
+    material: {
+      color: "#2c3e50"
+      metallic: 0.3
+      roughness: 0.7
+    }
+  }
+
+  // ========================================
+  // LIGHTING
+  // ========================================
+
+  light "MainLight" {
+    type: "directional"
+    position: [10, 20, 10]
+    color: "#ffffff"
+    intensity: 1.0
+  }
+
+  // Accent lights
+  light "Accent1" {
+    type: "point"
+    position: [-8, 5, 0]
+    color: "#e74c3c"
+    intensity: 2.0
+    range: 15
+  }
+
+  light "Accent2" {
+    type: "point"
+    position: [8, 5, 0]
+    color: "#3498db"
+    intensity: 2.0
+    range: 15
+  }
+
+  light "Accent3" {
+    type: "point"
+    position: [0, 8, 5]
+    color: "#2ecc71"
+    intensity: 2.0
+    range: 15
+  }
+
+  light "Accent4" {
+    type: "point"
+    position: [0, 8, -5]
+    color: "#9b59b6"
+    intensity: 2.0
+    range: 15
+  }
+
+  // ========================================
+  // VOICE CHAT ZONE
+  // ========================================
+
+  object "VoiceChatZone" {
+    @spatial @voiceChat(range: 15, falloff: 0.7)
+    @label(text: "Voice Chat Area", color: "#3498db", size: 0.7)
+    geometry: "sphere"
+    position: [0, 5, -15]
+    scale: [8, 8, 8]
+    material: {
+      color: "#3498db"
+      transparent: true
+      opacity: 0.1
+    }
+  }
+
+  // ========================================
+  // EXIT PORTAL
+  // ========================================
+
+  portal "ExitLab" {
+    @spatial @networked @interactive @rotate @emissive
+    position: [0, 1, 25]
+    destination: "main_plaza"
+    label: "← Exit VR Lab"
+  }
+}

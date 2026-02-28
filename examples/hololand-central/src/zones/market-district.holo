@@ -1,0 +1,933 @@
+/**
+ * Market District Zone
+ *
+ * Expansive commerce hub featuring multiple vendor stalls, shopping streets,
+ * merchant NPCs, and diverse product categories. The economic heart of the Holoverse.
+ *
+ * Redesigned from VR Shop for the Holoverse
+ */
+
+// Zone metadata
+@zone "Market District" category:"business" maxPlayers:50
+
+composition "Market District" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -50, y: 0, z: -50 }
+      max: { x: 50, y: 15, z: 50 }
+    }
+    skybox: "market_day"
+    ambientLight: { intensity: 0.6, color: "#fff8e1" }
+    fog: { color: "#f5f5dc", near: 60, far: 120 }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+  spawnpoint "entrance-1" {
+    position: [0, 1, 45]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [5, 1, 45]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-5, 1, 45]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-4" {
+    position: [10, 1, 45]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-5" {
+    position: [-10, 1, 45]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+  // Main Plaza Floor
+  object "PlazaFloor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [100, 1, 100]
+    material: {
+      color: "#d4af37"
+      roughness: 0.7
+    }
+  }
+
+  // Decorative cobblestone pattern
+  object "MainStreetX" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, 0]
+    scale: [100, 0.02, 5]
+    material: {
+      color: "#8b7355"
+      roughness: 0.9
+    }
+  }
+
+  object "MainStreetZ" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.01, 0]
+    scale: [5, 0.02, 100]
+    material: {
+      color: "#8b7355"
+      roughness: 0.9
+    }
+  }
+
+  // === CENTRAL FOUNTAIN (district landmark) ===
+  object "FountainBase" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [0, 0.5, 0]
+    scale: [4, 1, 4]
+    material: {
+      color: "#7f8c8d"
+      roughness: 0.4
+    }
+  }
+
+  object "FountainWater" {
+    @spatial @networked @emissive
+    geometry: "cylinder"
+    position: [0, 1, 0]
+    scale: [3, 1.5, 3]
+    material: {
+      color: "#00bcd4"
+      emissive: "#00bcd4"
+      emissiveIntensity: 0.3
+      transparent: true
+      opacity: 0.6
+    }
+  }
+
+  object "FountainTop" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [0, 2.5, 0]
+    scale: [1, 1, 1]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.6
+      transparent: true
+      opacity: 0.7
+    }
+  }
+
+  // === NORTHWEST QUARTER: ELECTRONICS DISTRICT ===
+
+  // Tech Vendor Stall 1
+  object "TechStall1Roof" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-20, 3, -20]
+    scale: [8, 0.3, 6]
+    material: { color: "#3498db" }
+  }
+
+  object "TechStall1Counter" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-20, 1, -20]
+    scale: [7, 1.5, 2]
+    material: {
+      color: "#2c3e50"
+      roughness: 0.5
+    }
+  }
+
+  // Tech Products - HoloDevices
+  object "TechPedestal1" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-23, 1.7, -20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#34495e"
+      metalness: 0.8
+      roughness: 0.3
+    }
+  }
+
+  object "HoloPhone" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [-23, 2.1, -20]
+    scale: [0.3, 0.5, 0.05]
+    material: { color: "#3498db" }
+  }
+
+  object "TechPedestal2" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-20, 1.7, -20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#34495e"
+      metalness: 0.8
+      roughness: 0.3
+    }
+  }
+
+  object "HoloTablet" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [-20, 2.1, -20]
+    scale: [0.5, 0.7, 0.05]
+    material: { color: "#2ecc71" }
+  }
+
+  object "TechPedestal3" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-17, 1.7, -20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#34495e"
+      metalness: 0.8
+      roughness: 0.3
+    }
+  }
+
+  object "HoloGlasses" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [-17, 2.1, -20]
+    scale: [0.4, 0.1, 0.3]
+    material: { color: "#e74c3c" }
+  }
+
+  // Tech Merchant NPC
+  npc "TechMerchant" {
+    @spatial @networked @dialogue
+    position: [-20, 0, -18]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "tech_greeting"
+  }
+
+  // === NORTHEAST QUARTER: FASHION DISTRICT ===
+
+  // Fashion Vendor Stall 1
+  object "FashionStall1Roof" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [20, 3, -20]
+    scale: [8, 0.3, 6]
+    material: { color: "#e91e63" }
+  }
+
+  object "FashionStall1Counter" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [20, 1, -20]
+    scale: [7, 1.5, 2]
+    material: {
+      color: "#880e4f"
+      roughness: 0.5
+    }
+  }
+
+  // Fashion Products - Avatars
+  object "FashionPedestal1" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [17, 1.7, -20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#ad1457"
+      metalness: 0.5
+      roughness: 0.4
+    }
+  }
+
+  object "AvatarOutfit1" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [17, 2.3, -20]
+    scale: [0.4, 0.8, 0.2]
+    material: { color: "#f06292" }
+  }
+
+  object "FashionPedestal2" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [20, 1.7, -20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#ad1457"
+      metalness: 0.5
+      roughness: 0.4
+    }
+  }
+
+  object "AvatarOutfit2" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [20, 2.3, -20]
+    scale: [0.4, 0.8, 0.2]
+    material: { color: "#ba68c8" }
+  }
+
+  object "FashionPedestal3" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [23, 1.7, -20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#ad1457"
+      metalness: 0.5
+      roughness: 0.4
+    }
+  }
+
+  object "AvatarAccessory" {
+    @spatial @networked @grabbable @interactive
+    geometry: "sphere"
+    position: [23, 2.1, -20]
+    scale: [0.3, 0.3, 0.3]
+    material: { color: "#ffd700" }
+  }
+
+  // Fashion Merchant NPC
+  npc "FashionMerchant" {
+    @spatial @networked @dialogue
+    position: [20, 0, -18]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "fashion_greeting"
+  }
+
+  // === SOUTHWEST QUARTER: FURNITURE & HOME ===
+
+  // Furniture Vendor Stall 1
+  object "FurnitureStall1Roof" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-20, 3, 20]
+    scale: [10, 0.3, 8]
+    material: { color: "#795548" }
+  }
+
+  object "FurnitureStall1Counter" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-20, 1, 20]
+    scale: [9, 1.5, 2]
+    material: {
+      color: "#5d4037"
+      roughness: 0.6
+    }
+  }
+
+  // Furniture Products
+  object "FurniturePedestal1" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-24, 1.7, 20]
+    scale: [0.8, 0.1, 0.8]
+    material: {
+      color: "#6d4c41"
+      roughness: 0.5
+    }
+  }
+
+  object "GamingChair" {
+    @spatial @networked @grabbable @interactive @sittable
+    geometry: "box"
+    position: [-24, 2.2, 20]
+    scale: [0.6, 1.0, 0.6]
+    material: { color: "#9b59b6" }
+  }
+
+  object "FurniturePedestal2" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-20, 1.7, 20]
+    scale: [0.8, 0.1, 0.8]
+    material: {
+      color: "#6d4c41"
+      roughness: 0.5
+    }
+  }
+
+  object "StandingDesk" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [-20, 2.0, 20]
+    scale: [1.0, 0.8, 0.6]
+    material: { color: "#f39c12" }
+  }
+
+  object "FurniturePedestal3" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-16, 1.7, 20]
+    scale: [0.8, 0.1, 0.8]
+    material: {
+      color: "#6d4c41"
+      roughness: 0.5
+    }
+  }
+
+  object "BookshelfModel" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [-16, 2.5, 20]
+    scale: [0.8, 1.5, 0.3]
+    material: { color: "#8d6e63" }
+  }
+
+  // Furniture Merchant NPC
+  npc "FurnitureMerchant" {
+    @spatial @networked @dialogue
+    position: [-20, 0, 22]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "furniture_greeting"
+  }
+
+  // === SOUTHEAST QUARTER: ARTIFACTS & COLLECTIBLES ===
+
+  // Collectibles Vendor Stall 1
+  object "CollectiblesStall1Roof" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [20, 3, 20]
+    scale: [8, 0.3, 6]
+    material: { color: "#ff9800" }
+  }
+
+  object "CollectiblesStall1Counter" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [20, 1, 20]
+    scale: [7, 1.5, 2]
+    material: {
+      color: "#e65100"
+      roughness: 0.5
+    }
+  }
+
+  // Collectible Products
+  object "CollectiblePedestal1" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [17, 1.7, 20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#bf360c"
+      metalness: 0.7
+      roughness: 0.3
+    }
+  }
+
+  object "RareArtifact1" {
+    @spatial @networked @grabbable @interactive @emissive
+    geometry: "sphere"
+    position: [17, 2.2, 20]
+    scale: [0.4, 0.4, 0.4]
+    material: {
+      color: "#ffd700"
+      emissive: "#ffd700"
+      emissiveIntensity: 0.3
+    }
+  }
+
+  object "CollectiblePedestal2" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [20, 1.7, 20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#bf360c"
+      metalness: 0.7
+      roughness: 0.3
+    }
+  }
+
+  object "RareArtifact2" {
+    @spatial @networked @grabbable @interactive @emissive
+    geometry: "box"
+    position: [20, 2.2, 20]
+    rotation: [45, 45, 0]
+    scale: [0.4, 0.4, 0.4]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.4
+    }
+  }
+
+  object "CollectiblePedestal3" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [23, 1.7, 20]
+    scale: [0.6, 0.1, 0.6]
+    material: {
+      color: "#bf360c"
+      metalness: 0.7
+      roughness: 0.3
+    }
+  }
+
+  object "RareArtifact3" {
+    @spatial @networked @grabbable @interactive @emissive
+    geometry: "torus"
+    position: [23, 2.2, 20]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#ff00ff"
+      emissive: "#ff00ff"
+      emissiveIntensity: 0.5
+    }
+  }
+
+  // Collectibles Merchant NPC
+  npc "CollectiblesMerchant" {
+    @spatial @networked @dialogue
+    position: [20, 0, 22]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "collectibles_greeting"
+  }
+
+  // === FOOD & BEVERAGE STALLS (North side) ===
+
+  // Food Stall 1
+  object "FoodStall1Roof" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-35, 3, -35]
+    scale: [6, 0.3, 5]
+    material: { color: "#ff5722" }
+  }
+
+  object "FoodStall1Counter" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-35, 1, -35]
+    scale: [5, 1.5, 2]
+    material: {
+      color: "#d84315"
+      roughness: 0.6
+    }
+  }
+
+  object "FoodItem1" {
+    @spatial @networked @grabbable @interactive
+    geometry: "sphere"
+    position: [-35, 2, -35]
+    scale: [0.3, 0.3, 0.3]
+    material: { color: "#ff6f00" }
+  }
+
+  npc "FoodVendor" {
+    @spatial @networked @dialogue
+    position: [-35, 0, -33]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "food_greeting"
+  }
+
+  // === INFORMATION KIOSK (Center North) ===
+  object "InfoKiosk" {
+    @spatial @networked @interactive @emissive
+    geometry: "box"
+    position: [0, 2, -30]
+    scale: [2, 3, 0.5]
+    material: {
+      color: "#00bcd4"
+      emissive: "#00bcd4"
+      emissiveIntensity: 0.4
+    }
+  }
+
+  npc "InfoGuide" {
+    @spatial @networked @dialogue
+    position: [0, 0, -28]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "info_greeting"
+  }
+
+  // === SEATING AREAS ===
+  object "Bench1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [8, 0.4, 0]
+    scale: [2, 0.3, 0.8]
+    material: { color: "#795548" }
+  }
+
+  object "Bench2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-8, 0.4, 0]
+    scale: [2, 0.3, 0.8]
+    material: { color: "#795548" }
+  }
+
+  object "Bench3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [0, 0.4, 8]
+    scale: [0.8, 0.3, 2]
+    material: { color: "#795548" }
+  }
+
+  object "Bench4" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [0, 0.4, -8]
+    scale: [0.8, 0.3, 2]
+    material: { color: "#795548" }
+  }
+
+  // === DECORATIVE STREET LAMPS ===
+  object "Lamp1Post" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-10, 2, -10]
+    scale: [0.2, 4, 0.2]
+    material: { color: "#34495e" }
+  }
+
+  object "Lamp1Light" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [-10, 4.5, -10]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#fff8dc"
+      emissive: "#fff8dc"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  object "Lamp2Post" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [10, 2, -10]
+    scale: [0.2, 4, 0.2]
+    material: { color: "#34495e" }
+  }
+
+  object "Lamp2Light" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [10, 4.5, -10]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#fff8dc"
+      emissive: "#fff8dc"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  object "Lamp3Post" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-10, 2, 10]
+    scale: [0.2, 4, 0.2]
+    material: { color: "#34495e" }
+  }
+
+  object "Lamp3Light" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [-10, 4.5, 10]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#fff8dc"
+      emissive: "#fff8dc"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  object "Lamp4Post" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [10, 2, 10]
+    scale: [0.2, 4, 0.2]
+    material: { color: "#34495e" }
+  }
+
+  object "Lamp4Light" {
+    @spatial @networked @emissive
+    geometry: "sphere"
+    position: [10, 4.5, 10]
+    scale: [0.5, 0.5, 0.5]
+    material: {
+      color: "#fff8dc"
+      emissive: "#fff8dc"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  // === DIALOGUE TREES ===
+
+  dialog "tech_greeting" {
+    text: "Welcome to HoloTech! We've got the latest devices - phones, tablets, AR glasses, and more. Everything you need to stay connected in the Holoverse!"
+
+    option "What's your best seller?" -> @dialog("tech_bestseller")
+    option "Can I try before buying?" -> @dialog("tech_try")
+    option "Thanks!" -> @close
+  }
+
+  dialog "tech_bestseller" {
+    text: "The HoloGlasses are flying off the shelves! Full AR overlay, 8K resolution, and they sync with all your Holoverse accounts. Grab one and inspect it!"
+
+    option "Can I try before buying?" -> @dialog("tech_try")
+    option "Sounds great!" -> @close
+  }
+
+  dialog "tech_try" {
+    text: "Absolutely! Pick up any product and inspect it in 3D. Turn it, zoom in, check the specs. When you're ready, take it to the checkout at the info kiosk!"
+
+    option "What's your best seller?" -> @dialog("tech_bestseller")
+    option "Perfect!" -> @close
+  }
+
+  dialog "fashion_greeting" {
+    text: "Welcome to Avatar Fashion! Transform your look with our exclusive outfits, accessories, and customizations. Express yourself!"
+
+    option "What styles do you have?" -> @dialog("fashion_styles")
+    option "How does it work?" -> @dialog("fashion_howto")
+    option "Thanks!" -> @close
+  }
+
+  dialog "fashion_styles" {
+    text: "We have everything from casual wear to formal attire, cyberpunk aesthetics to fantasy armor. Plus accessories like hats, jewelry, and emotes!"
+
+    option "How does it work?" -> @dialog("fashion_howto")
+    option "Cool!" -> @close
+  }
+
+  dialog "fashion_howto" {
+    text: "Pick up any outfit to preview it on your avatar. When you find something you like, purchase it and it's added to your wardrobe permanently!"
+
+    option "What styles do you have?" -> @dialog("fashion_styles")
+    option "Got it!" -> @close
+  }
+
+  dialog "furniture_greeting" {
+    text: "Welcome to Holo Furnishings! Building your virtual space? We have everything from gaming chairs to libraries. Make your zone feel like home!"
+
+    option "What categories do you offer?" -> @dialog("furniture_categories")
+    option "Can I customize items?" -> @dialog("furniture_custom")
+    option "Thanks!" -> @close
+  }
+
+  dialog "furniture_categories" {
+    text: "We have gaming setups, office furniture, home decor, outdoor items, and special event pieces. Everything is interactive and can be placed in your personal zones!"
+
+    option "Can I customize items?" -> @dialog("furniture_custom")
+    option "Great!" -> @close
+  }
+
+  dialog "furniture_custom" {
+    text: "Yes! Many items come with color and material options. The gaming chair has 12 colors, and the desk has height adjustment. Try them out!"
+
+    option "What categories do you offer?" -> @dialog("furniture_categories")
+    option "Perfect!" -> @close
+  }
+
+  dialog "collectibles_greeting" {
+    text: "Welcome to Rare Finds! I deal in unique artifacts, limited editions, and one-of-a-kind treasures. Some items have special powers in certain zones!"
+
+    option "What kind of artifacts?" -> @dialog("collectibles_artifacts")
+    option "Special powers?" -> @dialog("collectibles_powers")
+    option "Interesting!" -> @close
+  }
+
+  dialog "collectibles_artifacts" {
+    text: "I have ancient relics, digital art pieces, commemorative items from Holoverse events, and rare crafted goods from the Builder Sandbox. All authenticated!"
+
+    option "Special powers?" -> @dialog("collectibles_powers")
+    option "Amazing!" -> @close
+  }
+
+  dialog "collectibles_powers" {
+    text: "Some artifacts grant bonuses - the Golden Sphere speeds up movement, the Cyan Cube enhances building abilities, and the Magenta Ring unlocks special emotes!"
+
+    option "What kind of artifacts?" -> @dialog("collectibles_artifacts")
+    option "Wow!" -> @close
+  }
+
+  dialog "food_greeting" {
+    text: "Hungry? Thirsty? We've got virtual refreshments that restore your energy in the Holoverse! Try our special HoloBrew!"
+
+    option "What do you recommend?" -> @dialog("food_recommend")
+    option "Do I need to eat?" -> @dialog("food_mechanics")
+    option "Maybe later!" -> @close
+  }
+
+  dialog "food_recommend" {
+    text: "The HoloBrew is our signature! Gives you a speed boost for 10 minutes. We also have energy bars for stamina and focus drinks for building zones."
+
+    option "Do I need to eat?" -> @dialog("food_mechanics")
+    option "I'll take one!" -> @close
+  }
+
+  dialog "food_mechanics" {
+    text: "Not required, but helpful! Food and drinks give temporary bonuses - speed, stamina, building efficiency. They make your Holoverse experience even better!"
+
+    option "What do you recommend?" -> @dialog("food_recommend")
+    option "Good to know!" -> @close
+  }
+
+  dialog "info_greeting" {
+    text: "Welcome to the Market District! I'm your info guide. Need directions? Want to know about vendors? Ready to checkout? I'm here to help!"
+
+    option "Tell me about the districts" -> @dialog("info_districts")
+    option "How do I buy things?" -> @dialog("info_checkout")
+    option "What's special here?" -> @dialog("info_special")
+    option "Thanks!" -> @close
+  }
+
+  dialog "info_districts" {
+    text: "We have 4 main districts: Electronics (NW), Fashion (NE), Furniture (SW), and Collectibles (SE). Plus food vendors and seating areas. Each merchant specializes in their craft!"
+
+    option "How do I buy things?" -> @dialog("info_checkout")
+    option "What's special here?" -> @dialog("info_special")
+    option "Perfect!" -> @close
+  }
+
+  dialog "info_checkout" {
+    text: "Pick up items to inspect them. When ready to purchase, bring them here to the info kiosk or ask any merchant. Purchases sync to your account instantly!"
+
+    option "Tell me about the districts" -> @dialog("info_districts")
+    option "What's special here?" -> @dialog("info_special")
+    option "Got it!" -> @close
+  }
+
+  dialog "info_special" {
+    text: "The central fountain is a meeting spot. Benches are great for socializing. And every week we host a Market Day event with special limited items and discounts!"
+
+    option "Tell me about the districts" -> @dialog("info_districts")
+    option "How do I buy things?" -> @dialog("info_checkout")
+    option "Awesome!" -> @close
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [0, 1, 48]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+  light "MainSunlight" {
+    type: "directional"
+    position: [30, 40, 30]
+    color: "#fff8e1"
+    intensity: 1.3
+    castShadows: true
+  }
+
+  light "FountainGlow" {
+    type: "point"
+    position: [0, 2, 0]
+    color: "#00ffff"
+    intensity: 0.8
+  }
+
+  light "Lamp1Glow" {
+    type: "point"
+    position: [-10, 4.5, -10]
+    color: "#fff8dc"
+    intensity: 0.6
+  }
+
+  light "Lamp2Glow" {
+    type: "point"
+    position: [10, 4.5, -10]
+    color: "#fff8dc"
+    intensity: 0.6
+  }
+
+  light "Lamp3Glow" {
+    type: "point"
+    position: [-10, 4.5, 10]
+    color: "#fff8dc"
+    intensity: 0.6
+  }
+
+  light "Lamp4Glow" {
+    type: "point"
+    position: [10, 4.5, 10]
+    color: "#fff8dc"
+    intensity: 0.6
+  }
+
+  light "TechStallLight" {
+    type: "spot"
+    position: [-20, 5, -20]
+    color: "#3498db"
+    intensity: 0.7
+  }
+
+  light "FashionStallLight" {
+    type: "spot"
+    position: [20, 5, -20]
+    color: "#e91e63"
+    intensity: 0.7
+  }
+
+  light "FurnitureStallLight" {
+    type: "spot"
+    position: [-20, 5, 20]
+    color: "#795548"
+    intensity: 0.7
+  }
+
+  light "CollectiblesStallLight" {
+    type: "spot"
+    position: [20, 5, 20]
+    color: "#ff9800"
+    intensity: 0.7
+  }
+
+  light "AmbientLight" {
+    type: "hemisphere"
+    skyColor: "#fff8e1"
+    groundColor: "#d4af37"
+    intensity: 0.5
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "MarketAmbience" {
+    source: "market_chatter.mp3"
+    loop: true
+    volume: 0.25
+    spatial: false
+  }
+
+  audio "FountainSounds" {
+    source: "water_fountain.mp3"
+    loop: true
+    volume: 0.15
+    spatial: true
+    position: [0, 1, 0]
+  }
+
+  audio "MarketMusic" {
+    source: "market_music.mp3"
+    loop: true
+    volume: 0.12
+    spatial: false
+  }
+}

@@ -1,0 +1,292 @@
+/**
+ * Hello World Zone
+ *
+ * A welcoming introductory space for new users to the Holoverse.
+ * Features interactive orbs, a guide NPC, and simple physics demonstrations.
+ *
+ * Converted from standalone example to Holoverse zone
+ */
+
+// Zone metadata
+@zone "Hello World" category:"social" maxPlayers:50
+
+composition "Hello World" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -15, y: 0, z: -15 }
+      max: { x: 15, y: 10, z: 15 }
+    }
+    skybox: "gradient"
+    skyTopColor: "#1a1a2e"
+    skyBottomColor: "#16213e"
+    ambientLight: { intensity: 0.4, color: "#ffffff" }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+  spawnpoint "entrance-1" {
+    position: [0, 1, 8]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [2, 1, 8]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-2, 1, 8]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-4" {
+    position: [4, 1, 8]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "entrance-5" {
+    position: [-4, 1, 8]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+  object "Ground" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [30, 1, 30]
+    material: {
+      color: "#2d3436"
+      roughness: 0.8
+    }
+  }
+
+  // === WELCOME MESSAGE ===
+  object "WelcomeTitle" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 2.5, -3]
+    scale: [5, 0.5, 0.2]
+    material: {
+      color: "#00ff88"
+      emissive: "#00ff88"
+      emissiveIntensity: 0.5
+    }
+  }
+
+  object "Subtitle" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 2.0, -3]
+    scale: [4, 0.3, 0.2]
+    material: {
+      color: "#ffffff"
+      opacity: 0.8
+    }
+  }
+
+  // === INTERACTIVE ORBS ===
+  object "RedOrb" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [-2, 1.5, 0]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#ff4444"
+      emissive: "#ff0000"
+      emissiveIntensity: 0.5
+      metalness: 0.7
+    }
+    physics: {
+      mass: 0.5
+      restitution: 0.6
+    }
+  }
+
+  object "GreenOrb" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [0, 1.5, 0]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#44ff44"
+      emissive: "#00ff00"
+      emissiveIntensity: 0.5
+      metalness: 0.7
+    }
+    physics: {
+      mass: 1.0
+      restitution: 0.8
+    }
+  }
+
+  object "BlueOrb" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [2, 1.5, 0]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#4444ff"
+      emissive: "#0000ff"
+      emissiveIntensity: 0.5
+      metalness: 0.7
+    }
+    physics: {
+      mass: 0.5
+      restitution: 0.6
+    }
+  }
+
+  object "YellowOrb" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [-1, 1.5, -1]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#ffff44"
+      emissive: "#ffff00"
+      emissiveIntensity: 0.5
+      metalness: 0.7
+    }
+    physics: {
+      mass: 0.8
+      restitution: 0.7
+    }
+  }
+
+  object "CyanOrb" {
+    @spatial @physics @networked @grabbable @throwable @emissive
+    geometry: "sphere"
+    position: [1, 1.5, -1]
+    scale: [0.3, 0.3, 0.3]
+    material: {
+      color: "#44ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.5
+      metalness: 0.7
+    }
+    physics: {
+      mass: 0.8
+      restitution: 0.7
+    }
+  }
+
+  // === GUIDE NPC ===
+  npc "GuideRobot" {
+    @spatial @networked @dialogue
+    position: [0, 0, 3]
+    model: "robot"
+    animation: "idle"
+    start_dialog: "greeting"
+  }
+
+  // === DIALOGUE ===
+  dialog "greeting" {
+    text: "Hello! Welcome to the Holoverse! I'm here to help you get started."
+
+    option "What is this place?" -> @dialog("about")
+    option "How do I interact?" -> @dialog("controls")
+    option "Thanks!" -> @close
+  }
+
+  dialog "about" {
+    text: "This is the Holoverse - a persistent metaverse where everything exists in one connected world. You can portal between different zones!"
+
+    option "How do I interact?" -> @dialog("controls")
+    option "Where can I go?" -> @dialog("zones")
+    option "Got it!" -> @close
+  }
+
+  dialog "controls" {
+    text: "In VR, use your controllers to grab and throw the orbs. On desktop, click and drag with your mouse. Try it out!"
+
+    option "What is this place?" -> @dialog("about")
+    option "Where can I go?" -> @dialog("zones")
+    option "Thanks!" -> @close
+  }
+
+  dialog "zones" {
+    text: "Portal back to the Main Plaza to explore other zones! There's a physics playground, a VR shop, and more. New zones are added all the time!"
+
+    option "What is this place?" -> @dialog("about")
+    option "How do I interact?" -> @dialog("controls")
+    option "Awesome!" -> @close
+  }
+
+  // === DECORATIVE ELEMENTS ===
+  object "Pedestal1" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-2, 0.5, 0]
+    scale: [0.5, 1, 0.5]
+    material: {
+      color: "#34495e"
+      metalness: 0.8
+      roughness: 0.3
+    }
+  }
+
+  object "Pedestal2" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [0, 0.5, 0]
+    scale: [0.5, 1, 0.5]
+    material: {
+      color: "#34495e"
+      metalness: 0.8
+      roughness: 0.3
+    }
+  }
+
+  object "Pedestal3" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [2, 0.5, 0]
+    scale: [0.5, 1, 0.5]
+    material: {
+      color: "#34495e"
+      metalness: 0.8
+      roughness: 0.3
+    }
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [-10, 1, -10]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+  light "MainLight" {
+    type: "directional"
+    position: [5, 10, 5]
+    color: "#ffffff"
+    intensity: 1.0
+    castShadows: true
+  }
+
+  light "FillLight" {
+    type: "hemisphere"
+    skyColor: "#87ceeb"
+    groundColor: "#2d3436"
+    intensity: 0.5
+  }
+
+  light "OrbSpotlight" {
+    type: "point"
+    position: [0, 3, 0]
+    color: "#ffffff"
+    intensity: 0.5
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "BackgroundMusic" {
+    source: "ambient_welcome.mp3"
+    loop: true
+    volume: 0.2
+    spatial: false
+  }
+}

@@ -1,0 +1,357 @@
+/**
+ * VR Shop Zone
+ *
+ * E-commerce VR experience showcasing product browsing,
+ * 3D product inspection, cart management, and checkout.
+ *
+ * Converted from standalone example to Holoverse zone
+ */
+
+// Zone metadata
+@zone "VR Shop" category:"business" maxPlayers:30
+
+composition "VR Shop" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -15, y: 0, z: -15 }
+      max: { x: 15, y: 10, z: 15 }
+    }
+    skybox: "indoor_showroom"
+    ambientLight: { intensity: 0.4, color: "#ffffff" }
+  }
+
+  // === MULTIPLAYER SPAWN POINTS ===
+  spawnpoint "entrance-1" {
+    position: [0, 1, -10]
+    rotation: [0, 0, 0]
+  }
+
+  spawnpoint "entrance-2" {
+    position: [2, 1, -10]
+    rotation: [0, 0, 0]
+  }
+
+  spawnpoint "entrance-3" {
+    position: [-2, 1, -10]
+    rotation: [0, 0, 0]
+  }
+
+  // === ENVIRONMENT ===
+  object "Floor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [30, 1, 30]
+    material: {
+      color: "#1a1a2e"
+      roughness: 0.5
+    }
+  }
+
+  object "Ceiling" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 8, 0]
+    rotation: [180, 0, 0]
+    scale: [30, 1, 30]
+    material: {
+      color: "#0f0f1a"
+    }
+  }
+
+  // Walls
+  object "NorthWall" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [0, 4, -15]
+    scale: [30, 8, 0.5]
+    material: { color: "#16213e" }
+  }
+
+  object "SouthWall" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [0, 4, 15]
+    scale: [30, 8, 0.5]
+    material: { color: "#16213e" }
+  }
+
+  object "WestWall" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [-15, 4, 0]
+    scale: [0.5, 8, 30]
+    material: { color: "#16213e" }
+  }
+
+  object "EastWall" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [15, 4, 0]
+    scale: [0.5, 8, 30]
+    material: { color: "#16213e" }
+  }
+
+  // === STORE SIGN ===
+  object "StoreSign" {
+    @spatial @networked @emissive
+    geometry: "box"
+    position: [0, 6, -10]
+    scale: [8, 1, 0.2]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.8
+    }
+  }
+
+  // === NPC GREETER ===
+  npc "ShopAssistant" {
+    @spatial @networked @dialogue
+    position: [2, 0, -6]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "greeting"
+  }
+
+  // === PRODUCT PEDESTALS ===
+  object "Pedestal1" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-6, 0.5, 0]
+    scale: [0.8, 0.2, 0.8]
+    material: {
+      color: "#1a1a2e"
+      metalness: 0.9
+      roughness: 0.3
+    }
+  }
+
+  object "Pedestal1Glow" {
+    @spatial @networked @emissive
+    geometry: "torus"
+    position: [-6, 0.55, 0]
+    scale: [0.8, 0.04, 0.8]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  // Product 1: HoloSound Headphones
+  object "Product1" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [-6, 1.2, 0]
+    scale: [0.4, 0.3, 0.4]
+    material: { color: "#3498db" }
+  }
+
+  object "Pedestal2" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [0, 0.5, 0]
+    scale: [0.8, 0.2, 0.8]
+    material: {
+      color: "#1a1a2e"
+      metalness: 0.9
+      roughness: 0.3
+    }
+  }
+
+  object "Pedestal2Glow" {
+    @spatial @networked @emissive
+    geometry: "torus"
+    position: [0, 0.55, 0]
+    scale: [0.8, 0.04, 0.8]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  // Product 2: HoloWatch
+  object "Product2" {
+    @spatial @networked @grabbable @interactive
+    geometry: "cylinder"
+    position: [0, 1.2, 0]
+    scale: [0.3, 0.1, 0.3]
+    material: { color: "#2ecc71" }
+  }
+
+  object "Pedestal3" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [6, 0.5, 0]
+    scale: [0.8, 0.2, 0.8]
+    material: {
+      color: "#1a1a2e"
+      metalness: 0.9
+      roughness: 0.3
+    }
+  }
+
+  object "Pedestal3Glow" {
+    @spatial @networked @emissive
+    geometry: "torus"
+    position: [6, 0.55, 0]
+    scale: [0.8, 0.04, 0.8]
+    material: {
+      color: "#00ffff"
+      emissive: "#00ffff"
+      emissiveIntensity: 1.0
+    }
+  }
+
+  // Product 3: HoloCam Drone
+  object "Product3" {
+    @spatial @networked @grabbable @interactive
+    geometry: "sphere"
+    position: [6, 1.2, 0]
+    scale: [0.4, 0.4, 0.4]
+    material: { color: "#e74c3c" }
+  }
+
+  // === FURNITURE SECTION ===
+  object "Pedestal4" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [-6, 0.5, 5]
+    scale: [0.8, 0.2, 0.8]
+    material: {
+      color: "#1a1a2e"
+      metalness: 0.9
+      roughness: 0.3
+    }
+  }
+
+  // Product 4: Gaming Chair
+  object "Product4" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [-6, 1.0, 5]
+    scale: [0.5, 0.8, 0.5]
+    material: { color: "#9b59b6" }
+  }
+
+  object "Pedestal5" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [0, 0.5, 5]
+    scale: [0.8, 0.2, 0.8]
+    material: {
+      color: "#1a1a2e"
+      metalness: 0.9
+      roughness: 0.3
+    }
+  }
+
+  // Product 5: Standing Desk
+  object "Product5" {
+    @spatial @networked @grabbable @interactive
+    geometry: "box"
+    position: [0, 1.0, 5]
+    scale: [0.8, 0.6, 0.5]
+    material: { color: "#f39c12" }
+  }
+
+  // === CHECKOUT COUNTER ===
+  object "CheckoutCounter" {
+    @spatial @networked @collision
+    geometry: "box"
+    position: [10, 1, 0]
+    scale: [2, 1.5, 4]
+    material: {
+      color: "#2c3e50"
+      roughness: 0.4
+    }
+  }
+
+  object "CashRegister" {
+    @spatial @networked @interactive
+    geometry: "box"
+    position: [10, 2, 0]
+    scale: [0.5, 0.3, 0.4]
+    material: { color: "#34495e" }
+  }
+
+  // === DIALOGUES ===
+  dialog "greeting" {
+    text: "Welcome to the Hololand VR Shop! Feel free to pick up and examine any product."
+
+    option "What products do you have?" -> @dialog("products")
+    option "How do I buy something?" -> @dialog("howto")
+    option "Thanks!" -> @close
+  }
+
+  dialog "products" {
+    text: "We have electronics like the HoloSound headphones and HoloWatch, plus furniture like gaming chairs and standing desks!"
+
+    option "How do I buy something?" -> @dialog("howto")
+    option "Cool!" -> @close
+  }
+
+  dialog "howto" {
+    text: "Pick up any product to inspect it. When you're ready, bring it to the checkout counter and interact with the register!"
+
+    option "What products do you have?" -> @dialog("products")
+    option "Got it!" -> @close
+  }
+
+  // === PORTAL BACK TO PLAZA ===
+  portal "ReturnToPlaza" {
+    @spatial @networked @interactive
+    position: [-12, 1, -12]
+    destination: "main_plaza"
+    label: "← Back to Plaza"
+    effect: "swirl"
+  }
+
+  // === LIGHTING ===
+  light "MainLight" {
+    type: "spot"
+    position: [0, 7, 0]
+    intensity: 1.0
+    color: "#ffffff"
+    castShadows: true
+  }
+
+  light "Pedestal1Light" {
+    type: "spot"
+    position: [-6, 3, 0]
+    intensity: 0.5
+    color: "#ffffff"
+  }
+
+  light "Pedestal2Light" {
+    type: "spot"
+    position: [0, 3, 0]
+    intensity: 0.5
+    color: "#ffffff"
+  }
+
+  light "Pedestal3Light" {
+    type: "spot"
+    position: [6, 3, 0]
+    intensity: 0.5
+    color: "#ffffff"
+  }
+
+  light "AmbientLight" {
+    type: "hemisphere"
+    skyColor: "#87ceeb"
+    groundColor: "#1a1a2e"
+    intensity: 0.4
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "BackgroundMusic" {
+    source: "ambient_shop.mp3"
+    loop: true
+    volume: 0.15
+    spatial: false
+  }
+}

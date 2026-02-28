@@ -3,8 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import { Text, useGLTF, useAnimations, Html, Environment, Sparkles, Stars, ContactShadows } from '@react-three/drei';
 // Post-processing temporarily disabled - uncomment when needed
 // import { EffectComposer, Bloom, Vignette, Noise, ToneMapping } from '@react-three/postprocessing';
-import { 
-  HoloScriptPlusParser, 
+import {
+  HoloScriptPlusParser,
   HoloScriptPlusRuntimeImpl,
   VRTraitRegistry
 } from '@holoscript/core';
@@ -17,16 +17,17 @@ import { ReactHoloRenderer, HoloEntityData } from '../services/HoloPlusRendererB
 import { OasisHUD } from './OasisHUD';
 import { THEMES, getNextTheme } from '../themes/themes';
 import { Theme } from '../themes/types';
-import { 
-  EventBus, 
-  NPCSystem, 
-  NPCTrait, 
-  DialogManager, 
-  HoloScriptLoader 
+import {
+  EventBus,
+  NPCSystem,
+  NPCTrait,
+  DialogManager,
+  HoloScriptLoader
 } from '@hololand/world';
 import { SplatRenderer } from './spatial/SplatRenderer';
 import { NeRFRenderer } from './spatial/NeRFRenderer';
 import { VolumetricPlayer } from './spatial/VolumetricPlayer';
+import { traitRegistry } from '@hololand/traits';
 
 // --- Static Helpers Moved to AssetRegistry ---
 const assetRegistry = AssetRegistry.getInstance();
@@ -78,6 +79,23 @@ const useTraits = (
   const [collected, setCollected] = useState(false);
   const [nearPlayer, setNearPlayer] = useState(false);
   const preloadedRef = useRef(false);
+  const traitsAppliedRef = useRef(false);
+
+  // Apply traits when mesh is available
+  useEffect(() => {
+    if (!meshRef.current || traitsAppliedRef.current || !entity.traits) return;
+
+    // Apply all traits from the trait registry
+    entity.traits.forEach((trait) => {
+      // Map legacy trait names to new @-prefixed names
+      const traitName = trait.startsWith('@') ? trait : `@${trait}`;
+
+      // Apply trait with entity properties
+      traitRegistry.apply(meshRef.current!, traitName, entity.properties);
+    });
+
+    traitsAppliedRef.current = true;
+  }, [meshRef.current, entity.traits, entity.properties]);
 
   useFrame((state, delta) => {
     if (!meshRef.current || collected) return;
@@ -102,46 +120,27 @@ const useTraits = (
       }
     }
 
-    // ... existing traits ...
-    if (entity.traits?.includes('rotate') || (entity.properties?.rotate as boolean)) {
+    // Update all active traits via trait registry
+    traitRegistry.update(delta);
+
+    // Legacy fallback: Handle traits not yet in registry
+    if (entity.traits?.includes('rotate') && !entity.traits.includes('@rotate')) {
       meshRef.current.rotation.y += delta * 0.5;
     }
 
-    if (entity.traits?.includes('float')) {
+    if (entity.traits?.includes('float') && !entity.traits.includes('@float')) {
       meshRef.current.position.y = entity.position[1] + Math.sin(state.clock.elapsedTime) * 0.2;
     }
 
-    if (entity.glow || entity.traits?.includes('pulse')) {
-      const scale = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.05;
-      meshRef.current.scale.set(
-        entity.scale[0] * scale,
-        entity.scale[1] * scale,
-        entity.scale[2] * scale
-      );
-    }
-
-    if (entity.traits?.includes('sway')) {
-      meshRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
-      meshRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 0.3) * 0.05;
-    }
-
-    if (entity.traits?.includes('flicker')) {
-      meshRef.current.visible = Math.random() > 0.02;
-    }
-
-    if (entity.traits?.includes('rotate-slow')) {
-      meshRef.current.rotation.y += delta * 0.1;
-    }
-
-    // HoloScript+ Trait: @grabbable
+    // Custom grabbable behavior with active state
     if (entity.traits?.includes('grabbable') && active && playerPosition) {
-        const targetPos = playerPosition.clone().add(new Vector3(0, 0.5, -2));
-        meshRef.current.position.lerp(targetPos, 0.1);
+      const targetPos = playerPosition.clone().add(new Vector3(0, 0.5, -2));
+      meshRef.current.position.lerp(targetPos, 0.1);
     }
 
-    // HoloScript+ Trait: @lookAtPlayer
+    // Custom lookAtPlayer behavior
     if (entity.traits?.includes('lookAtPlayer') && playerPosition) {
-        meshRef.current.lookAt(playerPosition);
+      meshRef.current.lookAt(playerPosition);
     }
   });
 

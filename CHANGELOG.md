@@ -220,3 +220,7 @@ This is the first release, no migration needed!
 
 [Unreleased]: https://github.com/brianonbased-dev/Hololand/compare/v1.0.0-alpha.1...HEAD
 [1.0.0-alpha.1]: https://github.com/brianonbased-dev/Hololand/releases/tag/v1.0.0-alpha.1
+
+---
+
+**Last Updated**: February 21, 2026

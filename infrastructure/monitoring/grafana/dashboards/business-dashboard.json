@@ -1,0 +1,247 @@
+{
+  "dashboard": {
+    "title": "Brittney Cloud API - Business Metrics",
+    "tags": ["brittney", "business", "revenue"],
+    "timezone": "utc",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-30d",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Monthly Recurring Revenue (MRR)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(brittney_cost_usd_total{tier!=\"free\"}[30d])) / 30 * 30"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "value",
+          "textMode": "value_and_name",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 0
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Daily Active Users (DAU)",
+        "type": "graph",
+        "gridPos": {"x": 6, "y": 0, "w": 18, "h": 8},
+        "targets": [
+          {
+            "expr": "count(count by (user_id) (increase(brittney_requests_total[1d])))",
+            "legendFormat": "DAU"
+          }
+        ],
+        "yaxes": [
+          {"label": "users", "format": "short"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Requests by Tier",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(brittney_requests_total[24h])) by (tier)",
+            "legendFormat": "{{tier}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Revenue by Tier",
+        "type": "piechart",
+        "gridPos": {"x": 8, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(brittney_cost_usd_total[24h])) by (tier)",
+            "legendFormat": "{{tier}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Token Usage by Model",
+        "type": "piechart",
+        "gridPos": {"x": 16, "y": 8, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(brittney_tokens_total[24h])) by (model)",
+            "legendFormat": "{{model}}"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Daily Revenue",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(brittney_cost_usd_total{tier!=\"free\"}[1d]))",
+            "legendFormat": "Daily Revenue"
+          }
+        ],
+        "yaxes": [
+          {"label": "USD", "format": "currencyUSD"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Conversion Funnel",
+        "type": "bargauge",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "count(count by (user_id) (brittney_requests_total{tier=\"free\"}))",
+            "legendFormat": "Free Users"
+          },
+          {
+            "expr": "count(count by (user_id) (brittney_requests_total{tier=\"payg\"}))",
+            "legendFormat": "PAYG Users"
+          },
+          {
+            "expr": "count(count by (user_id) (brittney_requests_total{tier=\"pro\"}))",
+            "legendFormat": "Pro Users"
+          },
+          {
+            "expr": "count(count by (user_id) (brittney_requests_total{tier=\"enterprise\"}))",
+            "legendFormat": "Enterprise Users"
+          }
+        ],
+        "options": {
+          "displayMode": "gradient",
+          "orientation": "horizontal"
+        }
+      },
+      {
+        "id": 8,
+        "title": "Average Revenue Per User (ARPU)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(brittney_cost_usd_total{tier!=\"free\"}[30d])) / count(count by (user_id) (increase(brittney_requests_total{tier!=\"free\"}[30d])))"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Paid Conversion Rate",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "count(count by (user_id) (brittney_requests_total{tier!=\"free\"})) / count(count by (user_id) (brittney_requests_total)) * 100"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 1
+          }
+        },
+        "thresholds": {
+          "steps": [
+            {"value": 0, "color": "red"},
+            {"value": 10, "color": "yellow"},
+            {"value": 15, "color": "green"}
+          ]
+        }
+      },
+      {
+        "id": 10,
+        "title": "Cost per 1M Tokens",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(brittney_cost_usd_total[24h])) / (sum(increase(brittney_tokens_total[24h])) / 1000000)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Churn Risk Users (Heavy Free Tier)",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "count(count by (user_id) (increase(brittney_requests_total{tier=\"free\"}[7d])) > 80)"
+          }
+        ],
+        "options": {
+          "colorMode": "value"
+        },
+        "thresholds": {
+          "steps": [
+            {"value": 0, "color": "green"},
+            {"value": 50, "color": "yellow"},
+            {"value": 100, "color": "red"}
+          ]
+        }
+      },
+      {
+        "id": 12,
+        "title": "Top Users by Usage",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 28, "w": 24, "h": 10},
+        "targets": [
+          {
+            "expr": "topk(10, sum by (tier) (increase(brittney_requests_total[24h])))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "align": "auto",
+              "displayMode": "auto"
+            }
+          },
+          "overrides": []
+        }
+      }
+    ],
+    "refresh": "1m"
+  }
+}

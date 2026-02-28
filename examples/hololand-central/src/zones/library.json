@@ -1,0 +1,33 @@
+{
+  "name": "Library",
+  "slug": "library",
+  "category": "education",
+  "description": "Educational and cultural hub featuring interactive exhibits, learning stations, knowledge archives, and curator NPCs. The intellectual heart of the Holoverse.",
+  "features": [
+    "4 specialized wings (Science, History, Art, Learning)",
+    "Central Knowledge Tower landmark",
+    "Interactive science exhibits",
+    "Historical artifact displays",
+    "Art gallery with featured artists",
+    "3 hands-on learning stations",
+    "Multiple reading areas with seating",
+    "Extensive bookshelf collections",
+    "5 curator NPCs with expertise",
+    "Monthly rotating exhibits",
+    "Skill badge system",
+    "Art submission portal",
+    "Quiet study zones",
+    "Collaborative learning spaces",
+    "Knowledge archives",
+    "Guided lessons with feedback"
+  ],
+  "portal": {
+    "position": [15, 1, 15],
+    "color": "#f39c12",
+    "label": "Library"
+  },
+  "maxPlayers": 60,
+  "holoScriptFile": "library.holo",
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "notes": "Designed as THE educational zone for the Holoverse with 4 specialized wings, interactive exhibits, and learning stations"
+}

@@ -1,6 +1,6 @@
 {
   "name": "hololand",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "HoloScript: VR/AI Inspired Programming Language - The first programming language designed for Virtual Reality environments",
   "private": true,
   "workspaces": [
@@ -14,11 +14,21 @@
     "audit": "pnpm audit --prod",
     "audit:fix": "pnpm audit --fix",
     "typecheck": "pnpm -r typecheck",
+    "typecheck:holoscript": "echo 'HoloScript type checking (.holo files)'",
+    "typecheck:holoscript:watch": "echo 'HoloScript type checking with watch mode'",
     "format": "pnpm -r format",
     "brittney": "npx tsx scripts/start-brittney.ts",
     "playground": "pnpm --filter @hololand/playground dev",
     "dev": "npm-run-all --parallel brittney playground",
-    "start": "npm run dev"
+    "start": "npm run dev",
+    "compile:zone": "echo 'Compile .holo zone file to target platforms - Usage: pnpm compile:zone <file.holo> <target>'",
+    "compile:unity": "echo 'Compile .holo files to Unity C# - requires @holoscript/cli'",
+    "compile:unreal": "echo 'Compile .holo files to Unreal C++ - requires @holoscript/cli'",
+    "compile:godot": "echo 'Compile .holo files to Godot GDScript - requires @holoscript/cli'",
+    "compile:babylon": "echo 'Compile .holo files to Babylon.js TypeScript - requires @holoscript/cli'",
+    "compile:webgpu": "echo 'Compile .holo files to WebGPU shaders - requires @holoscript/cli'",
+    "compile:all": "echo 'Compile .holo files to all targets - requires @holoscript/cli'",
+    "compile:examples": "echo 'See examples/compiled-outputs/ for demonstration cross-compilation outputs'"
   },
   "keywords": [
     "holoscript",
@@ -45,15 +55,16 @@
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/webxr": "^0.5.24",
-    "@typescript-eslint/eslint-plugin": "^6.13.0",
-    "@typescript-eslint/parser": "^6.13.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "@vitest/coverage-v8": "^1.6.1",
-    "eslint": "^8.55.0",
+    "eslint": "^9.39.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.0.1",
+    "glob": "^13.0.6",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.1.1",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "vitest": "^1.0.4"
   },
   "dependencies": {

@@ -21,6 +21,7 @@ const ROOT = path.resolve(__dirname, '..');
 
 // GGUF model locations (in priority order)
 const GGUF_PATHS = [
+  path.join(ROOT, 'models', 'brittney-qwen-v43-q8_0.gguf'),
   path.join(ROOT, 'models', 'brittney-qwen-v23.gguf'),
   path.join(ROOT, 'packages', 'brittney', 'service', 'models', 'brittney-qwen-v23.gguf'),
   process.env.BRITTNEY_MODEL_PATH || '',

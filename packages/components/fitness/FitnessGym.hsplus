@@ -1,0 +1,785 @@
+/**
+ * FitnessGym.hsplus - VR Fitness Gym World Template
+ *
+ * A spatial workout environment with body tracking zones, performance displays,
+ * and haptic feedback integration. Optimized for 90fps VR presence.
+ *
+ * Features:
+ * - Exercise zones (cardio, strength, yoga, boxing)
+ * - Real-time performance HUD
+ * - Body tracking visualization
+ * - Form correction overlays
+ * - Multi-user support for fitness classes
+ * - Spatial audio for trainer voice
+ * - Dynamic music integration
+ */
+
+import { World, Zone, HUD, ParticleSystem, SpatialAudio } from '@holoscript/core';
+import { BodyTracker, FormAnalyzer, HapticFeedback } from '@hololand/fitness';
+import { NetworkedObject } from '@hololand/network';
+
+// ============================================================================
+// World Configuration
+// ============================================================================
+
+world FitnessGym {
+  name: "VR Fitness Gym"
+  description: "Spatial workout environment with real-time tracking"
+  category: "fitness"
+  difficulty: "intermediate"
+  targetFPS: 90  // Critical for VR presence
+
+  // World settings
+  settings {
+    gravity: { x: 0, y: -9.81, z: 0 }
+    skybox: "open_sky"
+    lighting: "natural_bright"
+    ambientSound: "gym_ambience"
+    musicEnabled: true
+    bodyTrackingEnabled: true
+    hapticFeedbackEnabled: true
+  }
+
+  // ============================================================================
+  // Environment Setup
+  // ============================================================================
+
+  // Floor - High-performance mesh (low poly)
+  floor {
+    type: plane
+    position: { x: 0, y: 0, z: 0 }
+    rotation: { x: -90, y: 0, z: 0 }
+    scale: { x: 50, y: 50, z: 1 }
+    material: {
+      type: "physical"
+      color: "#2C3E50"
+      roughness: 0.8
+      metalness: 0.2
+    }
+    physics: {
+      enabled: true
+      static: true
+      friction: 0.6
+    }
+  }
+
+  // Walls - Low poly for performance
+  wall_north {
+    type: box
+    position: { x: 0, y: 3, z: -25 }
+    scale: { x: 50, y: 6, z: 0.5 }
+    material: {
+      color: "#34495E"
+      roughness: 0.9
+    }
+  }
+
+  wall_south {
+    type: box
+    position: { x: 0, y: 3, z: 25 }
+    scale: { x: 50, y: 6, z: 0.5 }
+    material: {
+      color: "#34495E"
+      roughness: 0.9
+    }
+  }
+
+  wall_west {
+    type: box
+    position: { x: -25, y: 3, z: 0 }
+    scale: { x: 0.5, y: 6, z: 50 }
+    material: {
+      color: "#34495E"
+      roughness: 0.9
+    }
+  }
+
+  wall_east {
+    type: box
+    position: { x: 25, y: 3, z: 0 }
+    scale: { x: 0.5, y: 6, z: 50 }
+    material: {
+      color: "#34495E"
+      roughness: 0.9
+    }
+  }
+
+  // ============================================================================
+  // Exercise Zones
+  // ============================================================================
+
+  // Cardio Zone - Treadmill area with speed tracking
+  zone cardio_zone {
+    position: { x: -15, y: 0, z: -15 }
+    dimensions: { x: 8, y: 6, z: 8 }
+    color: "#E74C3C"  // Red
+
+    // Zone boundary visualization
+    boundary {
+      type: "outline"
+      thickness: 0.05
+      glowIntensity: 0.3
+      animated: true
+    }
+
+    // Virtual treadmill
+    treadmill {
+      position: { x: -15, y: 0.2, z: -15 }
+      type: box
+      scale: { x: 2, y: 0.1, z: 4 }
+      material: {
+        color: "#2C3E50"
+      }
+
+      // Speed display
+      speed_display {
+        type: text
+        position: { x: -15, y: 1.5, z: -13 }
+        text: "Speed: 0.0 km/h"
+        fontSize: 0.3
+        color: "#00FF00"
+        @networked  // Sync across users
+      }
+    }
+
+    // Cardio tracking
+    traits: ["body_tracking", "heart_rate_monitor", "calorie_counter"]
+  }
+
+  // Strength Zone - Weight training with form analysis
+  zone strength_zone {
+    position: { x: 15, y: 0, z: -15 }
+    dimensions: { x: 8, y: 6, z: 8 }
+    color: "#3498DB"  // Blue
+
+    boundary {
+      type: "outline"
+      thickness: 0.05
+      glowIntensity: 0.3
+      animated: true
+    }
+
+    // Virtual dumbbells (physics-enabled)
+    dumbbell_left {
+      position: { x: 14, y: 1, z: -15 }
+      type: cylinder
+      rotation: { x: 0, y: 0, z: 90 }
+      scale: { x: 0.1, y: 0.3, z: 0.1 }
+      material: {
+        color: "#7F8C8D"
+        metalness: 0.8
+      }
+      physics: {
+        enabled: true
+        mass: 10  // 10kg dumbbell
+        grabbable: true
+      }
+      @networked
+    }
+
+    dumbbell_right {
+      position: { x: 16, y: 1, z: -15 }
+      type: cylinder
+      rotation: { x: 0, y: 0, z: 90 }
+      scale: { x: 0.1, y: 0.3, z: 0.1 }
+      material: {
+        color: "#7F8C8D"
+        metalness: 0.8
+      }
+      physics: {
+        enabled: true
+        mass: 10
+        grabbable: true
+      }
+      @networked
+    }
+
+    // Form analysis mirror (virtual mirror showing body tracking skeleton)
+    form_mirror {
+      position: { x: 15, y: 2, z: -19 }
+      type: plane
+      scale: { x: 3, y: 3, z: 1 }
+      material: {
+        type: "mirror"
+        reflectivity: 0.8
+      }
+
+      // Overlay body tracking skeleton
+      skeleton_overlay {
+        enabled: true
+        showJoints: true
+        showConnections: true
+        highlightErrors: true  // Red joints for poor form
+      }
+    }
+
+    // Rep counter
+    rep_counter {
+      type: text
+      position: { x: 15, y: 4, z: -13 }
+      text: "Reps: 0"
+      fontSize: 0.4
+      color: "#00FF00"
+      @networked
+    }
+
+    traits: ["body_tracking", "form_analysis", "rep_counter", "haptic_feedback"]
+  }
+
+  // Yoga Zone - Calm environment with pose guidance
+  zone yoga_zone {
+    position: { x: -15, y: 0, z: 15 }
+    dimensions: { x: 8, y: 6, z: 8 }
+    color: "#9B59B6"  // Purple
+
+    boundary {
+      type: "outline"
+      thickness: 0.05
+      glowIntensity: 0.2
+      animated: false
+    }
+
+    // Yoga mat
+    yoga_mat {
+      position: { x: -15, y: 0.01, z: 15 }
+      type: plane
+      rotation: { x: -90, y: 0, z: 0 }
+      scale: { x: 2, y: 3, z: 1 }
+      material: {
+        color: "#8E44AD"
+        roughness: 0.9
+      }
+    }
+
+    // Pose reference hologram
+    pose_hologram {
+      position: { x: -15, y: 1, z: 12 }
+      type: "avatar_skeleton"
+      scale: { x: 1, y: 1, z: 1 }
+      material: {
+        type: "holographic"
+        color: "#9B59B6"
+        opacity: 0.6
+        animated: true
+      }
+
+      // Current pose
+      currentPose: "warrior_one"
+      transitionSpeed: 0.5
+    }
+
+    // Balance score
+    balance_display {
+      type: text
+      position: { x: -15, y: 4, z: 13 }
+      text: "Balance: 0%"
+      fontSize: 0.3
+      color: "#00FF00"
+    }
+
+    // Ambient settings for yoga zone
+    ambientLight: {
+      intensity: 0.6
+      color: "#9B59B6"
+    }
+    ambientSound: "zen_garden"
+
+    traits: ["body_tracking", "balance_analyzer", "breathing_guide"]
+  }
+
+  // Boxing Zone - Punching bags with impact tracking
+  zone boxing_zone {
+    position: { x: 15, y: 0, z: 15 }
+    dimensions: { x: 8, y: 6, z: 8 }
+    color: "#E67E22"  // Orange
+
+    boundary {
+      type: "outline"
+      thickness: 0.05
+      glowIntensity: 0.3
+      animated: true
+    }
+
+    // Heavy bag
+    punching_bag {
+      position: { x: 15, y: 2, z: 15 }
+      type: cylinder
+      scale: { x: 0.4, y: 1.5, z: 0.4 }
+      material: {
+        color: "#C0392B"
+        roughness: 0.8
+      }
+      physics: {
+        enabled: true
+        mass: 50
+        swingable: true
+        damping: 0.8
+      }
+
+      // Impact tracking
+      onImpact: {
+        measureForce: true
+        showImpactEffect: true
+        playSound: "punch_impact"
+        triggerHaptic: {
+          pattern: "impact_heavy"
+          intensity: 0.8
+        }
+      }
+
+      @networked
+    }
+
+    // Punch counter
+    punch_counter {
+      type: text
+      position: { x: 15, y: 4, z: 13 }
+      text: "Punches: 0 | Power: 0%"
+      fontSize: 0.3
+      color: "#00FF00"
+      @networked
+    }
+
+    // Target pads (spawn on trigger)
+    target_spawner {
+      position: { x: 15, y: 2, z: 18 }
+      spawnInterval: 2000  // 2 seconds
+      maxTargets: 5
+      targetType: "boxing_pad"
+      randomPositions: true
+      scoreOnHit: 10
+    }
+
+    traits: ["hand_tracking", "punch_power_analyzer", "combo_detector", "haptic_feedback"]
+  }
+
+  // ============================================================================
+  // Central Performance HUD
+  // ============================================================================
+
+  hud performance_hud {
+    position: { x: 0, y: 2.5, z: 0 }  // Center of gym, elevated
+    type: "holographic_panel"
+    scale: { x: 4, y: 2, z: 0.1 }
+
+    // Make it always face the player
+    billboarding: true
+
+    // Main stats panel
+    stats_panel {
+      layout: "grid"
+      columns: 3
+
+      // Heart rate
+      heart_rate {
+        icon: "heart"
+        label: "Heart Rate"
+        value: "0 BPM"
+        color: "#E74C3C"
+        fontSize: 0.25
+        updateRate: 1000  // Update every second
+
+        // Heart rate zone indicator
+        zone_indicator {
+          type: "progress_bar"
+          zones: ["rest", "warmup", "fat_burn", "cardio", "peak"]
+          colors: ["#95A5A6", "#3498DB", "#F39C12", "#E67E22", "#E74C3C"]
+        }
+      }
+
+      // Calories burned
+      calories {
+        icon: "fire"
+        label: "Calories"
+        value: "0 kcal"
+        color: "#E67E22"
+        fontSize: 0.25
+        updateRate: 5000  // Update every 5 seconds
+      }
+
+      // Active time
+      active_time {
+        icon: "clock"
+        label: "Active Time"
+        value: "00:00"
+        color: "#3498DB"
+        fontSize: 0.25
+        updateRate: 1000
+      }
+
+      // Form score (average across all exercises)
+      form_score {
+        icon: "star"
+        label: "Form Score"
+        value: "0%"
+        color: "#2ECC71"
+        fontSize: 0.25
+        updateRate: 2000
+
+        // Visual feedback
+        scoreColor: {
+          poor: "#E74C3C"      // < 60%
+          fair: "#F39C12"      // 60-80%
+          good: "#2ECC71"      // > 80%
+        }
+      }
+
+      // Current exercise
+      current_exercise {
+        icon: "dumbbell"
+        label: "Exercise"
+        value: "None"
+        color: "#9B59B6"
+        fontSize: 0.25
+      }
+
+      // Leaderboard rank
+      rank {
+        icon: "trophy"
+        label: "Rank"
+        value: "#-"
+        color: "#F1C40F"
+        fontSize: 0.25
+      }
+    }
+
+    // Performance chart (scrolling line graph)
+    performance_chart {
+      position: { x: 0, y: -0.8, z: 0 }
+      type: "line_chart"
+      scale: { x: 3, y: 1, z: 0.1 }
+
+      datasets: [
+        { name: "Heart Rate", color: "#E74C3C" },
+        { name: "Calories/min", color: "#E67E22" }
+      ]
+
+      timeWindow: 300  // 5 minutes
+      updateRate: 1000
+    }
+
+    // Achievement notifications
+    achievement_popup {
+      position: { x: 0, y: 1.5, z: 0 }
+      type: "notification_panel"
+      autoHide: 5000  // Hide after 5 seconds
+
+      animations: {
+        show: "slide_down"
+        hide: "fade_out"
+      }
+    }
+  }
+
+  // ============================================================================
+  // Body Tracking Skeleton Visualization
+  // ============================================================================
+
+  body_tracker {
+    enabled: true
+    showSkeleton: true  // Visual feedback for debugging
+    trackingMode: "full_body"  // Options: "controllers_only", "head_hands", "full_body"
+
+    // Joint visualization
+    joints: {
+      radius: 0.03
+      color: "#2ECC71"
+      errorColor: "#E74C3C"  // Red when form is incorrect
+    }
+
+    // Bone connections
+    bones: {
+      thickness: 0.02
+      color: "#3498DB"
+      errorColor: "#E74C3C"
+    }
+
+    // Ghost overlay for target pose (yoga/form guidance)
+    ghostOverlay: {
+      enabled: false  // Enable in yoga zone
+      color: "#9B59B6"
+      opacity: 0.4
+    }
+  }
+
+  // ============================================================================
+  // Trainer Avatar (for live classes)
+  // ============================================================================
+
+  trainer_avatar {
+    position: { x: 0, y: 0, z: -10 }
+    type: "avatar"
+    scale: { x: 1, y: 1, z: 1 }
+
+    // Networking
+    @networked
+    authority: "trainer"  // Only trainer can control
+
+    // Spatial voice
+    voice: {
+      enabled: true
+      spatialAudio: true
+      maxDistance: 20
+      rolloffFactor: 1.5
+    }
+
+    // Animations
+    animations: {
+      idle: "standing_idle"
+      demonstrate: "exercise_demo"
+      encourage: "thumbs_up"
+    }
+
+    // Visibility based on class type
+    visibleInMultiplayer: true
+    visibleInSolo: false
+  }
+
+  // ============================================================================
+  // Multiplayer Avatars (other users in class)
+  // ============================================================================
+
+  user_avatar_spawner {
+    spawnOnJoin: true
+    maxUsers: 20
+
+    avatar_template {
+      type: "avatar"
+      scale: { x: 0.9, y: 0.9, z: 0.9 }  // Slightly smaller to distinguish
+
+      // Networking
+      @networked
+
+      // Show user name tag
+      nameTag: {
+        enabled: true
+        offset: { x: 0, y: 2.2, z: 0 }
+        fontSize: 0.15
+        billboarding: true
+      }
+
+      // Show their stats (optional privacy setting)
+      statsIndicator: {
+        enabled: true
+        showHeartRate: true
+        showCalories: false
+      }
+    }
+  }
+
+  // ============================================================================
+  // Music System
+  // ============================================================================
+
+  music_player {
+    enabled: true
+    volume: 0.6
+
+    // Playlist based on workout intensity
+    playlists: {
+      warmup: "playlist_relaxed_120bpm"
+      cardio: "playlist_energetic_140bpm"
+      hiit: "playlist_intense_160bpm"
+      cooldown: "playlist_calm_100bpm"
+    }
+
+    // Auto-switch based on heart rate zone
+    autoSwitchByZone: true
+
+    // Spatial audio (comes from virtual speakers)
+    spatialAudio: false  // Global music, not spatial
+  }
+
+  // Virtual speakers (visual only)
+  speaker_left {
+    position: { x: -24, y: 3, z: 0 }
+    type: box
+    scale: { x: 0.5, y: 1, z: 0.3 }
+    material: {
+      color: "#2C3E50"
+    }
+
+    // Animated equalizer bars
+    equalizer: {
+      enabled: true
+      bars: 8
+      reactToMusic: true
+      color: "#3498DB"
+    }
+  }
+
+  speaker_right {
+    position: { x: 24, y: 3, z: 0 }
+    type: box
+    scale: { x: 0.5, y: 1, z: 0.3 }
+    material: {
+      color: "#2C3E50"
+    }
+
+    equalizer: {
+      enabled: true
+      bars: 8
+      reactToMusic: true
+      color: "#3498DB"
+    }
+  }
+
+  // ============================================================================
+  // Haptic Feedback System
+  // ============================================================================
+
+  haptic_controller {
+    enabled: true
+
+    // Form correction patterns
+    patterns: {
+      gentle_reminder: {
+        intensity: 0.3
+        duration: 100
+        waveform: "pulse"
+      }
+
+      medium_alert: {
+        intensity: 0.6
+        duration: 200
+        waveform: "double_pulse"
+      }
+
+      strong_warning: {
+        intensity: 0.9
+        duration: 300
+        waveform: "triple_pulse"
+      }
+
+      achievement: {
+        intensity: 0.5
+        duration: 500
+        waveform: "celebration"
+      }
+    }
+
+    // Trigger rules
+    triggers: {
+      form_error_minor: "gentle_reminder"
+      form_error_major: "strong_warning"
+      rep_completed: "gentle_reminder"
+      personal_record: "achievement"
+      target_hit: "medium_alert"
+    }
+  }
+
+  // ============================================================================
+  // Performance Optimization
+  // ============================================================================
+
+  // LOD (Level of Detail) system
+  lod_system {
+    enabled: true
+
+    // Reduce quality for distant objects
+    levels: [
+      { distance: 0,  quality: "high" },
+      { distance: 10, quality: "medium" },
+      { distance: 20, quality: "low" }
+    ]
+
+    // Cull objects not in view
+    frustumCulling: true
+
+    // Occlusion culling (don't render hidden objects)
+    occlusionCulling: true
+  }
+
+  // Rendering optimization
+  rendering {
+    targetFPS: 90
+
+    // Adaptive quality
+    adaptiveQuality: {
+      enabled: true
+      minFPS: 85  // If FPS drops below 85, reduce quality
+      targetFPS: 90
+      adjustShadows: true
+      adjustParticles: true
+      adjustPostProcessing: true
+    }
+
+    // Shadow quality
+    shadows: {
+      enabled: true
+      quality: "medium"
+      maxDistance: 15
+    }
+
+    // Anti-aliasing
+    antialiasing: {
+      enabled: true
+      method: "FXAA"  // Fast for VR
+    }
+  }
+
+  // ============================================================================
+  // Particle Effects (Performance-optimized)
+  // ============================================================================
+
+  particle_sweat {
+    enabled: true
+    maxParticles: 50  // Low count for performance
+    emissionRate: 5
+
+    // Only emit when in peak heart rate zone
+    condition: "heartRateZone === 'peak'"
+
+    particle: {
+      lifetime: 2000
+      size: 0.02
+      color: "#3498DB"
+      gravity: { x: 0, y: -0.5, z: 0 }
+    }
+  }
+
+  particle_achievement {
+    enabled: true
+    maxParticles: 100
+
+    // Burst on achievement unlock
+    mode: "burst"
+    burstCount: 50
+
+    particle: {
+      lifetime: 3000
+      size: 0.05
+      color: "#F1C40F"
+      velocity: { x: random(-1, 1), y: random(1, 2), z: random(-1, 1) }
+    }
+  }
+
+  // ============================================================================
+  // Exit Portal
+  // ============================================================================
+
+  exit_portal {
+    position: { x: 0, y: 1, z: -24 }
+    type: "portal"
+    scale: { x: 2, y: 3, z: 0.1 }
+
+    destination: "fitness_hub"  // Return to main fitness lobby
+
+    // Visual
+    material: {
+      type: "portal"
+      color: "#3498DB"
+      animated: true
+      glowIntensity: 0.5
+    }
+
+    // Sign above portal
+    exit_sign {
+      position: { x: 0, y: 2, z: -23.8 }
+      type: text
+      text: "Exit Gym"
+      fontSize: 0.3
+      color: "#ECF0F1"
+    }
+  }
+}

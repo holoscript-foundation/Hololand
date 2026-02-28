@@ -1,0 +1,447 @@
+/**
+ * Central Plaza - The Heart of the Holoverse
+ *
+ * The main social hub where everyone enters the Holoverse.
+ * Combines welcome/tutorial, social hangout, and team coordination.
+ * This is where your journey begins.
+ *
+ * Merges: Hello World + Social Lounge + Multiplayer Lobby
+ */
+
+// Zone metadata
+@zone "Central Plaza" category:"social" maxPlayers:200
+
+composition "Central Plaza" {
+  // === ZONE CONFIGURATION ===
+  config {
+    bounds: {
+      min: { x: -60, y: 0, z: -60 }
+      max: { x: 60, y: 25, z: 60 }
+    }
+    skybox: "holoverse_sky"
+    ambientLight: { intensity: 0.5, color: "#e8f4f8" }
+    fog: { color: "#c8d6e5", near: 80, far: 120 }
+  }
+
+  // === SPAWN AREA (Welcome/Tutorial Section) ===
+  // New users spawn here, see tutorial NPCs and welcome message
+
+  spawnpoint "welcome-1" {
+    position: [0, 1, 50]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "welcome-2" {
+    position: [5, 1, 50]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "welcome-3" {
+    position: [-5, 1, 50]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "welcome-4" {
+    position: [10, 1, 50]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "welcome-5" {
+    position: [-10, 1, 50]
+    rotation: [0, 180, 0]
+  }
+
+  // Additional spawns for high capacity
+  spawnpoint "plaza-1" {
+    position: [20, 1, 40]
+    rotation: [0, 180, 0]
+  }
+
+  spawnpoint "plaza-2" {
+    position: [-20, 1, 40]
+    rotation: [0, 180, 0]
+  }
+
+  // === ENVIRONMENT ===
+  object "MainFloor" {
+    @spatial @networked
+    geometry: "plane"
+    position: [0, 0, 0]
+    scale: [120, 1, 120]
+    material: {
+      color: "#ecf0f1"
+      roughness: 0.3
+      metalness: 0.2
+    }
+  }
+
+  // === CENTRAL MONUMENT (Info Hub) ===
+  object "HoloverseCrystal" {
+    @spatial @networked @emissive @interactive
+    geometry: "sphere"
+    position: [0, 5, 0]
+    scale: [3, 3, 3]
+    material: {
+      color: "#667eea"
+      emissive: "#667eea"
+      emissiveIntensity: 0.6
+      transparent: true
+      opacity: 0.8
+    }
+  }
+
+  object "CrystalBase" {
+    @spatial @networked
+    geometry: "cylinder"
+    position: [0, 1.5, 0]
+    scale: [5, 3, 5]
+    material: {
+      color: "#95a5a6"
+      metalness: 0.9
+      roughness: 0.2
+    }
+  }
+
+  // === WELCOME AREA (Tutorial Zone) ===
+  // Interactive orbs for new users to learn controls
+
+  object "TutorialOrb1" {
+    @spatial @physics @networked @grabbable @emissive
+    geometry: "sphere"
+    position: [-3, 1.5, 35]
+    scale: [0.4, 0.4, 0.4]
+    material: {
+      color: "#e74c3c"
+      emissive: "#e74c3c"
+      emissiveIntensity: 0.4
+    }
+    physics: { mass: 0.5, restitution: 0.7 }
+  }
+
+  object "TutorialOrb2" {
+    @spatial @physics @networked @grabbable @emissive
+    geometry: "sphere"
+    position: [0, 1.5, 35]
+    scale: [0.4, 0.4, 0.4]
+    material: {
+      color: "#2ecc71"
+      emissive: "#2ecc71"
+      emissiveIntensity: 0.4
+    }
+    physics: { mass: 0.5, restitution: 0.7 }
+  }
+
+  object "TutorialOrb3" {
+    @spatial @physics @networked @grabbable @emissive
+    geometry: "sphere"
+    position: [3, 1.5, 35]
+    scale: [0.4, 0.4, 0.4]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 0.4
+    }
+    physics: { mass: 0.5, restitution: 0.7 }
+  }
+
+  // Welcome Guide NPC
+  npc "WelcomeGuide" {
+    @spatial @networked @dialogue
+    position: [0, 0, 40]
+    model: "humanoid"
+    animation: "wave"
+    start_dialog: "welcome"
+  }
+
+  // === SOCIAL LOUNGE AREA (Northwest) ===
+  // Comfortable seating for casual hangouts
+
+  object "LoungeFloor" {
+    @spatial @networked
+    geometry: "box"
+    position: [-30, 0.2, -30]
+    scale: [20, 0.4, 20]
+    material: {
+      color: "#9b59b6"
+      roughness: 0.6
+    }
+  }
+
+  // Circular seating arrangement
+  object "LoungeCouch1" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-30, 0.6, -25]
+    scale: [6, 1.2, 2]
+    material: { color: "#8e44ad" }
+  }
+
+  object "LoungeCouch2" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-30, 0.6, -35]
+    scale: [6, 1.2, 2]
+    material: { color: "#8e44ad" }
+  }
+
+  object "LoungeCouch3" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-35, 0.6, -30]
+    scale: [2, 1.2, 6]
+    material: { color: "#8e44ad" }
+  }
+
+  object "LoungeCouch4" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [-25, 0.6, -30]
+    scale: [2, 1.2, 6]
+    material: { color: "#8e44ad" }
+  }
+
+  object "LoungeCenterTable" {
+    @spatial @networked @collision
+    geometry: "cylinder"
+    position: [-30, 0.7, -30]
+    scale: [2, 0.2, 2]
+    material: { color: "#34495e" }
+  }
+
+  // === TEAM COORDINATION AREA (Northeast) ===
+  // 4 team zones for group formation
+
+  object "TeamZone1" {
+    @spatial @networked
+    geometry: "box"
+    position: [30, 0.2, -30]
+    scale: [8, 0.4, 8]
+    material: {
+      color: "#e74c3c"
+      emissive: "#e74c3c"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "TeamSeating1A" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [28, 0.5, -30]
+    scale: [1, 1, 1]
+    material: { color: "#c0392b" }
+  }
+
+  object "TeamSeating1B" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [32, 0.5, -30]
+    scale: [1, 1, 1]
+    material: { color: "#c0392b" }
+  }
+
+  object "TeamSeating1C" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [30, 0.5, -28]
+    scale: [1, 1, 1]
+    material: { color: "#c0392b" }
+  }
+
+  object "TeamSeating1D" {
+    @spatial @networked @collision @sittable
+    geometry: "box"
+    position: [30, 0.5, -32]
+    scale: [1, 1, 1]
+    material: { color: "#c0392b" }
+  }
+
+  object "TeamZone2" {
+    @spatial @networked
+    geometry: "box"
+    position: [30, 0.2, -15]
+    scale: [8, 0.4, 8]
+    material: {
+      color: "#3498db"
+      emissive: "#3498db"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "TeamZone3" {
+    @spatial @networked
+    geometry: "box"
+    position: [30, 0.2, 0]
+    scale: [8, 0.4, 8]
+    material: {
+      color: "#2ecc71"
+      emissive: "#2ecc71"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  object "TeamZone4" {
+    @spatial @networked
+    geometry: "box"
+    position: [30, 0.2, 15]
+    scale: [8, 0.4, 8]
+    material: {
+      color: "#f39c12"
+      emissive: "#f39c12"
+      emissiveIntensity: 0.1
+    }
+  }
+
+  // === DANCE FLOOR (South) ===
+  object "DanceFloor" {
+    @spatial @networked
+    geometry: "box"
+    position: [0, 0.15, 35]
+    scale: [12, 0.3, 12]
+    material: {
+      color: "#2c3e50"
+      emissive: "#00ffff"
+      emissiveIntensity: 0.2
+      metalness: 0.9
+    }
+  }
+
+  // === PORTAL PLAZA (West) ===
+  // This is where portals to other zones will appear
+
+  object "PortalPlaza" {
+    @spatial @networked
+    geometry: "box"
+    position: [-40, 0.2, 0]
+    scale: [25, 0.4, 50]
+    material: {
+      color: "#34495e"
+      roughness: 0.4
+    }
+  }
+
+  // Portal Info NPC
+  npc "PortalGuide" {
+    @spatial @networked @dialogue
+    position: [-40, 0, 20]
+    model: "humanoid"
+    animation: "idle"
+    start_dialog: "portals"
+  }
+
+  // === NPCS & DIALOGUE ===
+
+  dialog "welcome" {
+    text: "Welcome to the Holoverse! I'm here to help you get started. This is Central Plaza - the heart of everything."
+
+    option "What can I do here?" -> @dialog("plaza_features")
+    option "How do I move around?" -> @dialog("controls")
+    option "Where can I go?" -> @dialog("zones")
+    option "Thanks!" -> @close
+  }
+
+  dialog "plaza_features" {
+    text: "Central Plaza has everything! Try the interactive orbs to learn controls, relax in the lounge, join a team in the coordination area, or dance on the light-up floor!"
+
+    option "How do I move around?" -> @dialog("controls")
+    option "Where can I go?" -> @dialog("zones")
+    option "Got it!" -> @close
+  }
+
+  dialog "controls" {
+    text: "In VR, use your controllers to grab and move. On desktop, click and drag. Try grabbing the glowing orbs to practice!"
+
+    option "What can I do here?" -> @dialog("plaza_features")
+    option "Where can I go?" -> @dialog("zones")
+    option "Thanks!" -> @close
+  }
+
+  dialog "zones" {
+    text: "Head west to the Portal Plaza to explore other zones! There's a physics playground, builder sandbox, shops, and more. New zones added regularly!"
+
+    option "What can I do here?" -> @dialog("plaza_features")
+    option "How do I move around?" -> @dialog("controls")
+    option "Perfect!" -> @close
+  }
+
+  dialog "portals" {
+    text: "Welcome to Portal Plaza! Each glowing portal leads to a different zone in the Holoverse. Step through to explore!"
+
+    option "What zones are available?" -> @dialog("zone_list")
+    option "How do portals work?" -> @dialog("portal_info")
+    option "Thanks!" -> @close
+  }
+
+  dialog "zone_list" {
+    text: "We have Physics Playground for experiments, Builder Sandbox for creation, VR Shop for commerce, and more! Each portal is color-coded by category."
+
+    option "How do portals work?" -> @dialog("portal_info")
+    option "Cool!" -> @close
+  }
+
+  dialog "portal_info" {
+    text: "Just walk or teleport through a portal. You'll instantly travel to that zone. To return, every zone has a portal back to Central Plaza."
+
+    option "What zones are available?" -> @dialog("zone_list")
+    option "Perfect!" -> @close
+  }
+
+  // === LIGHTING ===
+  light "CrystalGlow" {
+    type: "point"
+    position: [0, 5, 0]
+    color: "#667eea"
+    intensity: 1.0
+  }
+
+  light "MainSunlight" {
+    type: "directional"
+    position: [30, 40, 30]
+    color: "#ffffff"
+    intensity: 1.0
+    castShadows: true
+  }
+
+  light "LoungeAmbience" {
+    type: "point"
+    position: [-30, 4, -30]
+    color: "#9b59b6"
+    intensity: 0.6
+  }
+
+  light "TeamZoneLight" {
+    type: "point"
+    position: [30, 4, 0]
+    color: "#ffffff"
+    intensity: 0.7
+  }
+
+  light "DanceFloorLights" {
+    type: "point"
+    position: [0, 3, 35]
+    color: "#00ffff"
+    intensity: 0.8
+  }
+
+  light "AmbientGlow" {
+    type: "hemisphere"
+    skyColor: "#e8f4f8"
+    groundColor: "#ecf0f1"
+    intensity: 0.5
+  }
+
+  // === AMBIENT AUDIO ===
+  audio "PlazaAmbience" {
+    source: "ambient_plaza.mp3"
+    loop: true
+    volume: 0.2
+    spatial: false
+  }
+
+  audio "CrystalHum" {
+    source: "crystal_hum.mp3"
+    loop: true
+    volume: 0.15
+    spatial: true
+    position: [0, 5, 0]
+  }
+}

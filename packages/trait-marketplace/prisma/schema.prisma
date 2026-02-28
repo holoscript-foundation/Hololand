@@ -1,0 +1,242 @@
+// Trait Marketplace Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  username      String   @unique
+  walletAddress String?  @unique
+  avatar        String?
+  bio           String?
+
+  // Seller information
+  isSeller      Boolean  @default(false)
+  sellerTier    SellerTier @default(FREE)
+  stripeAccountId String?
+  totalSales    Int      @default(0)
+  totalRevenue  Float    @default(0)
+  rating        Float    @default(0)
+
+  // Relations
+  createdTraits Trait[]  @relation("CreatedTraits")
+  purchases     Purchase[]
+  reviews       Review[]
+  favorites     Favorite[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([username])
+  @@index([walletAddress])
+}
+
+enum SellerTier {
+  FREE      // 30% commission
+  PRO       // 20% commission - $29/month
+  PREMIUM   // 15% commission - $99/month
+  ENTERPRISE // 10% commission - $299/month
+}
+
+// Trait model
+model Trait {
+  id              String   @id @default(cuid())
+  name            String   // e.g., "@customTrait"
+  displayName     String   // e.g., "Custom Trait"
+  description     String
+  longDescription String?
+  category        TraitCategory
+  tags            String[]
+
+  // Code
+  code            String   @db.Text
+  version         String   @default("1.0.0")
+  dependencies    String[] // Other trait IDs this depends on
+
+  // Pricing
+  price           Float    // USD
+  currency        Currency @default(USD)
+  license         License  @default(PERSONAL)
+
+  // Blockchain (optional NFT)
+  isNFT           Boolean  @default(false)
+  nftContractAddress String?
+  nftTokenId      String?
+  nftChain        String?  @default("ethereum")
+
+  // Stats
+  downloads       Int      @default(0)
+  views           Int      @default(0)
+  rating          Float    @default(0)
+  reviewCount     Int      @default(0)
+  favoriteCount   Int      @default(0)
+
+  // Status
+  status          TraitStatus @default(PENDING)
+  featured        Boolean  @default(false)
+  verified        Boolean  @default(false)
+
+  // Media
+  thumbnail       String?
+  demo VideoUrl      String?
+  screenshots     String[]
+
+  // Creator
+  creatorId       String
+  creator         User     @relation("CreatedTraits", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  // Relations
+  purchases       Purchase[]
+  reviews         Review[]
+  favorites       Favorite[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  publishedAt     DateTime?
+
+  @@index([creatorId])
+  @@index([category])
+  @@index([status])
+  @@index([featured])
+  @@index([rating])
+}
+
+enum TraitCategory {
+  SPATIAL
+  PHYSICS
+  ANIMATION
+  AUDIO
+  VR_INTERACTION
+  NETWORKING
+  VISUAL_EFFECTS
+  GAMEPLAY
+  AI
+  ENVIRONMENT
+  UTILITY
+  OTHER
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+  ETH
+  MATIC
+}
+
+enum License {
+  PERSONAL        // Single user
+  COMMERCIAL      // Commercial use
+  UNLIMITED       // Unlimited use
+  OPEN_SOURCE     // Free & open source
+}
+
+enum TraitStatus {
+  PENDING         // Awaiting review
+  APPROVED        // Approved and live
+  REJECTED        // Rejected
+  SUSPENDED       // Suspended by admin
+  ARCHIVED        // Archived by creator
+}
+
+// Purchase model
+model Purchase {
+  id              String   @id @default(cuid())
+
+  traitId         String
+  trait           Trait    @relation(fields: [traitId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  price           Float
+  currency        Currency @default(USD)
+
+  // Payment
+  stripePaymentId String?
+  nftTransactionHash String?
+
+  // License key
+  licenseKey      String   @unique
+  activations     Int      @default(0)
+  maxActivations  Int      @default(1)
+
+  purchasedAt     DateTime @default(now())
+
+  @@unique([traitId, userId])
+  @@index([userId])
+  @@index([traitId])
+}
+
+// Review model
+model Review {
+  id          String   @id @default(cuid())
+
+  traitId     String
+  trait       Trait    @relation(fields: [traitId], references: [id], onDelete: Cascade)
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rating      Int      // 1-5 stars
+  title       String?
+  comment     String?
+
+  // Verification
+  verified    Boolean  @default(false) // Verified purchase
+  helpful     Int      @default(0)     // Helpful votes
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([traitId, userId])
+  @@index([traitId])
+  @@index([userId])
+}
+
+// Favorite model
+model Favorite {
+  id        String   @id @default(cuid())
+
+  traitId   String
+  trait     Trait    @relation(fields: [traitId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([traitId, userId])
+  @@index([userId])
+  @@index([traitId])
+}
+
+// Analytics model
+model Analytics {
+  id          String   @id @default(cuid())
+  traitId     String
+  event       AnalyticsEvent
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([traitId])
+  @@index([event])
+  @@index([createdAt])
+}
+
+enum AnalyticsEvent {
+  VIEW
+  DOWNLOAD
+  PURCHASE
+  REVIEW
+  FAVORITE
+  SHARE
+}

@@ -1,0 +1,34 @@
+{
+  "name": "Arena",
+  "slug": "arena",
+  "category": "entertainment",
+  "description": "Competitive gaming and entertainment hub featuring combat arenas, spectator seating, leaderboards, and multiple game modes. Where champions are made.",
+  "features": [
+    "Team Deathmatch mode",
+    "Capture the Flag mode",
+    "King of the Hill mode",
+    "Free-for-All mode",
+    "Limited-time special modes",
+    "3-tier spectator stands (4 sides)",
+    "Live leaderboards",
+    "Real-time score displays",
+    "Power-up spawn pads",
+    "Strategic cover positions",
+    "Center high-ground platform",
+    "Neutral pillars for cover",
+    "Arena Master NPC guide",
+    "Game mode selection terminal",
+    "Crowd ambience system",
+    "Combat music",
+    "Red vs Blue team zones"
+  ],
+  "portal": {
+    "position": [-15, 1, -15],
+    "color": "#e74c3c",
+    "label": "Arena"
+  },
+  "maxPlayers": 40,
+  "holoScriptFile": "arena.holo",
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "notes": "Designed as THE competitive zone for the Holoverse with support for multiple game modes, spectators, and strategic combat"
+}

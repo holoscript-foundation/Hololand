@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@hololand/brittney-toolkit": "workspace:*",
+    "@hololand/traits": "workspace:*",
     "@hololand/world": "workspace:*",
     "@holoscript/core": "^3.41.0",
     "@holoscript/runtime": "^3.1.1",

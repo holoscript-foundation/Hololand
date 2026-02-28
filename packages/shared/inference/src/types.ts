@@ -13,6 +13,7 @@ export type { WisdomInjectionConfig, WisdomInjectionLevel };
 
 export type ProviderType =
   | 'local'              // Ollama or embedded llama.cpp
+  | 'brittney-cloud'     // Brittney Cloud managed API (https://api.brittney.ai)
   | 'openai'             // OpenAI API (BYOK)
   | 'anthropic'          // Anthropic API (BYOK)
   | 'google'             // Google AI / Gemini (BYOK)
@@ -148,6 +149,7 @@ export const DEFAULT_SETTINGS: InferenceSettings = {
 
   providers: {
     local: { type: 'local', enabled: true },
+    'brittney-cloud': { type: 'brittney-cloud', enabled: false },
     openai: { type: 'openai', enabled: false },
     anthropic: { type: 'anthropic', enabled: false },
     google: { type: 'google', enabled: false },

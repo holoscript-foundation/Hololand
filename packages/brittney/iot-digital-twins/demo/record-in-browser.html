@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IoT Demo - Recording Mode</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .recording-controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.9);
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 250px;
+    }
+
+    .recording-controls button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .recording-controls button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .record-btn {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .record-btn.recording {
+      background: #c0392b;
+      animation: pulse 1.5s infinite;
+    }
+
+    .stop-btn {
+      background: #95a5a6;
+      color: white;
+    }
+
+    .stop-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .download-btn {
+      background: #27ae60;
+      color: white;
+    }
+
+    .download-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      color: white;
+      font-size: 14px;
+      text-align: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+    }
+
+    .timer {
+      color: #3498db;
+      font-size: 24px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Import visualizer styles */
+    .device-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 40px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .device-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .device-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .device-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .device-icon {
+      font-size: 32px;
+    }
+
+    .device-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .device-state {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .state-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+
+    .state-label {
+      color: #7f8c8d;
+    }
+
+    .state-value {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .overlay {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 30px 50px;
+      border-radius: 15px;
+      font-size: 28px;
+      font-weight: bold;
+      z-index: 9999;
+      animation: fadeIn 0.5s;
+      text-align: center;
+      max-width: 80%;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateX(-50%) translateY(0); }
+      to { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Recording Controls -->
+  <div class="recording-controls">
+    <div class="status" id="status">Ready to record</div>
+    <div class="timer" id="timer">00:00</div>
+    <button class="record-btn" id="recordBtn" onclick="startRecording()">
+      🔴 Start Recording
+    </button>
+    <button class="stop-btn" id="stopBtn" onclick="stopRecording()" disabled>
+      ⏹️ Stop
+    </button>
+    <button class="download-btn" id="downloadBtn" onclick="downloadVideo()" disabled>
+      📥 Download Video
+    </button>
+  </div>
+
+  <!-- Device Grid (will be populated) -->
+  <div class="device-grid" id="deviceGrid"></div>
+
+  <script>
+    // Sample devices
+    const devices = [
+      { icon: '💡', name: 'Living Room Chandelier', type: 'light', state: 'on', brightness: 200, color: '#fff7fb' },
+      { icon: '💡', name: 'Living Room Accent Lights', type: 'light', state: 'on', brightness: 150, color: '#ff7832' },
+      { icon: '🌡️', name: 'Living Room Thermostat', type: 'climate', temperature: 21.5, target: 22 },
+      { icon: '📺', name: 'Living Room TV', type: 'media', state: 'playing', media: 'Planet Earth II' },
+      { icon: '💡', name: 'Kitchen Ceiling Lights', type: 'light', state: 'on', brightness: 255 },
+      { icon: '💡', name: 'Kitchen Under-Cabinet Lights', type: 'light', state: 'on', brightness: 180 },
+      { icon: '📊', name: 'Refrigerator Temperature', type: 'sensor', value: 3.5, unit: '°C' },
+      { icon: '⚡', name: 'Dishwasher', type: 'binary_sensor', state: 'running' },
+      { icon: '💡', name: 'Bedroom Ceiling Light', type: 'light', state: 'off', brightness: 0 },
+      { icon: '💡', name: 'Bedside Lamp (Left)', type: 'light', state: 'on', brightness: 80 },
+      { icon: '💡', name: 'Bedside Lamp (Right)', type: 'light', state: 'on', brightness: 80 },
+      { icon: '🌡️', name: 'Bedroom AC', type: 'climate', temperature: 19, target: 19 },
+      { icon: '📊', name: 'Bedroom Humidity', type: 'sensor', value: 45, unit: '%' },
+      { icon: '💡', name: 'Office Desk Lamp', type: 'light', state: 'on', brightness: 255 },
+      { icon: '🔌', name: 'Monitor Power', type: 'switch', state: 'on', energy: 45 },
+      { icon: '📊', name: 'Office Air Quality (CO2)', type: 'sensor', value: 450, unit: 'ppm' },
+      { icon: '📹', name: 'Front Door Camera', type: 'camera', motion: false, recording: true },
+      { icon: '📹', name: 'Backyard Camera', type: 'camera', motion: true, recording: true },
+      { icon: '🔒', name: 'Front Door Lock', type: 'lock', locked: false, battery: 92 },
+      { icon: '🔒', name: 'Garage Door Lock', type: 'lock', locked: false, battery: 100 },
+      { icon: '🚪', name: 'Garage Door', type: 'cover', position: 0, state: 'closed' },
+      { icon: '💡', name: 'Garage Light', type: 'light', state: 'off', brightness: 0 },
+      { icon: '💡', name: 'Porch Light', type: 'light', state: 'on', brightness: 200 },
+      { icon: '📊', name: 'Outdoor Temperature', type: 'sensor', value: 15.5, unit: '°C' },
+    ];
+
+    // Populate device grid
+    const grid = document.getElementById('deviceGrid');
+    devices.forEach(device => {
+      const card = document.createElement('div');
+      card.className = 'device-card';
+      card.innerHTML = `
+        <div class="device-header">
+          <div class="device-icon">${device.icon}</div>
+          <div class="device-name">${device.name}</div>
+        </div>
+        <div class="device-state">
+          ${Object.keys(device).filter(k => !['icon', 'name', 'type'].includes(k))
+            .map(k => `
+              <div class="state-item">
+                <span class="state-label">${k}:</span>
+                <span class="state-value">${device[k]}</span>
+              </div>
+            `).join('')}
+        </div>
+      `;
+      card.onclick = () => {
+        showOverlay(`🎮 ${device.name}`, `State: ${device.state || 'active'}`);
+      };
+      grid.appendChild(card);
+    });
+
+    // Recording functionality
+    let mediaRecorder;
+    let recordedChunks = [];
+    let startTime;
+    let timerInterval;
+
+    function showOverlay(title, subtitle = '') {
+      const overlay = document.createElement('div');
+      overlay.className = 'overlay';
+      overlay.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 10px;">${title}</div>
+        ${subtitle ? `<div style="font-size: 24px;">${subtitle}</div>` : ''}
+      `;
+      document.body.appendChild(overlay);
+
+      setTimeout(() => {
+        overlay.style.animation = 'fadeOut 0.5s';
+        setTimeout(() => overlay.remove(), 500);
+      }, 3000);
+    }
+
+    async function startRecording() {
+      try {
+        // Capture the entire page
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { mediaSource: 'screen' },
+          audio: false
+        });
+
+        mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9',
+          videoBitsPerSecond: 8000000
+        });
+
+        recordedChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          document.getElementById('downloadBtn').disabled = false;
+          document.getElementById('status').textContent = 'Recording complete!';
+          clearInterval(timerInterval);
+        };
+
+        mediaRecorder.start();
+
+        // UI updates
+        document.getElementById('recordBtn').disabled = true;
+        document.getElementById('recordBtn').classList.add('recording');
+        document.getElementById('stopBtn').disabled = false;
+        document.getElementById('status').textContent = '🔴 Recording...';
+
+        // Start timer
+        startTime = Date.now();
+        timerInterval = setInterval(updateTimer, 100);
+
+        // Start automated demo sequence
+        runDemoSequence();
+
+      } catch (error) {
+        console.error('Error starting recording:', error);
+        document.getElementById('status').textContent = 'Error: ' + error.message;
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+
+        document.getElementById('recordBtn').disabled = false;
+        document.getElementById('recordBtn').classList.remove('recording');
+        document.getElementById('stopBtn').disabled = true;
+      }
+    }
+
+    function downloadVideo() {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'iot-demo-recording.webm';
+      a.click();
+      URL.revokeObjectURL(url);
+
+      document.getElementById('status').textContent = 'Download started!';
+    }
+
+    function updateTimer() {
+      const elapsed = Date.now() - startTime;
+      const minutes = Math.floor(elapsed / 60000);
+      const seconds = Math.floor((elapsed % 60000) / 1000);
+      document.getElementById('timer').textContent =
+        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    // Automated demo sequence
+    async function runDemoSequence() {
+      await wait(2000);
+      showOverlay('⚡ IoT Digital Twins', 'Transform Devices into VR in 2ms');
+
+      await wait(5000);
+      showOverlay('📊 Performance', '⚡ 2ms generation<br>📱 24 devices<br>📝 408 lines');
+
+      await wait(5000);
+      // Click some devices
+      const cards = document.querySelectorAll('.device-card');
+      if (cards[0]) cards[0].click();
+
+      await wait(3000);
+      if (cards[11]) cards[11].click();
+
+      await wait(3000);
+      if (cards[16]) cards[16].click();
+
+      await wait(3000);
+      showOverlay('🔌 Real-Time MQTT Sync', 'VR ↔ Physical Devices<br><100ms latency');
+
+      await wait(5000);
+      showOverlay('🌐 18+ Platforms', 'Quest | Vision Pro | WebXR<br>Unity | Unreal | Godot');
+
+      await wait(5000);
+      showOverlay('⭐ Star us on GitHub', 'github.com/hololand/hololand');
+
+      await wait(5000);
+      // Optionally auto-stop after 2 minutes
+      // stopRecording();
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Show initial overlay
+    setTimeout(() => {
+      showOverlay('🎥 Recording Mode', 'Click "Start Recording" and select this tab');
+    }, 1000);
+  </script>
+</body>
+</html>

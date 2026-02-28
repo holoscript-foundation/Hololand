@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏡 Smart Home VR - Device Visualizer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 3em;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .subtitle {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .stat-value {
+      font-size: 2.5em;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 0.9em;
+      opacity: 0.8;
+    }
+
+    .devices-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .device-card {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+
+    .device-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .device-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .device-icon {
+      font-size: 2em;
+      margin-right: 10px;
+    }
+
+    .device-name {
+      font-size: 1.1em;
+      font-weight: 600;
+    }
+
+    .device-type {
+      font-size: 0.8em;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .device-state {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .state-item {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+      font-size: 0.9em;
+    }
+
+    .state-label {
+      opacity: 0.8;
+    }
+
+    .state-value {
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.75em;
+      font-weight: 600;
+      margin-left: 5px;
+    }
+
+    .badge-on {
+      background: #48bb78;
+      color: white;
+    }
+
+    .badge-off {
+      background: #718096;
+      color: white;
+    }
+
+    .badge-active {
+      background: #ed8936;
+      color: white;
+    }
+
+    .mqtt-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      padding: 15px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .pulse {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #48bb78;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 60px;
+      padding: 20px;
+      opacity: 0.8;
+    }
+
+    .powered-by {
+      font-size: 0.9em;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🏡 Smart Home VR Dashboard</h1>
+      <p class="subtitle">Real-time IoT Device Visualization powered by Hololand</p>
+    </header>
+
+    <div class="stats" id="stats">
+      <div class="stat-card">
+        <div class="stat-value">24</div>
+        <div class="stat-label">Total Devices</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">9</div>
+        <div class="stat-label">Device Types</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">2ms</div>
+        <div class="stat-label">Generation Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">~40ms</div>
+        <div class="stat-label">MQTT Latency</div>
+      </div>
+    </div>
+
+    <div class="devices-grid" id="devices"></div>
+
+    <div class="footer">
+      <p>🚀 Generated with <strong>Clawdbot IoT Generator</strong></p>
+      <p class="powered-by">Powered by <strong>Hololand</strong> - The Unity for Spatial Computing</p>
+    </div>
+  </div>
+
+  <div class="mqtt-indicator">
+    <span class="pulse"></span>
+    MQTT Real-time Sync Active
+  </div>
+
+  <script>
+    // Device configuration matching the demo
+    const devices = [
+      { icon: '💡', name: 'Living Room Chandelier', type: 'light', state: 'on', brightness: 200, color: '#fff7fb' },
+      { icon: '💡', name: 'Living Room Accent Lights', type: 'light', state: 'on', brightness: 150, color: '#ff7832' },
+      { icon: '🌡️', name: 'Living Room Thermostat', type: 'climate', state: 'heat', temp: 21.5, target: 22.0 },
+      { icon: '📺', name: 'Living Room TV', type: 'media_player', state: 'playing', volume: 35 },
+
+      { icon: '💡', name: 'Kitchen Ceiling Lights', type: 'light', state: 'on', brightness: 255 },
+      { icon: '💡', name: 'Kitchen Under-Cabinet', type: 'light', state: 'on', brightness: 180 },
+      { icon: '📊', name: 'Refrigerator Temperature', type: 'sensor', value: '3.5°C' },
+      { icon: '⚡', name: 'Dishwasher', type: 'binary_sensor', state: 'running' },
+
+      { icon: '💡', name: 'Bedroom Ceiling Light', type: 'light', state: 'off' },
+      { icon: '💡', name: 'Bedside Lamp (Left)', type: 'light', state: 'on', brightness: 80 },
+      { icon: '💡', name: 'Bedside Lamp (Right)', type: 'light', state: 'on', brightness: 80 },
+      { icon: '🌡️', name: 'Bedroom AC', type: 'climate', state: 'cool', temp: 20.5, target: 19.0 },
+      { icon: '📊', name: 'Bedroom Humidity', type: 'sensor', value: '45%' },
+
+      { icon: '💡', name: 'Office Desk Lamp', type: 'light', state: 'on', brightness: 255 },
+      { icon: '🔌', name: 'Monitor Power', type: 'switch', state: 'on', power: '45W' },
+      { icon: '📊', name: 'Office Air Quality', type: 'sensor', value: '450 ppm CO₂' },
+
+      { icon: '📹', name: 'Front Door Camera', type: 'camera', state: 'idle', battery: 95 },
+      { icon: '📹', name: 'Backyard Camera', type: 'camera', state: 'recording', motion: true, battery: 78 },
+      { icon: '🔒', name: 'Front Door Lock', type: 'lock', state: 'locked', battery: 92 },
+      { icon: '🔒', name: 'Garage Door Lock', type: 'lock', state: 'unlocked', battery: 100 },
+
+      { icon: '🚪', name: 'Garage Door', type: 'cover', state: 'closed' },
+      { icon: '💡', name: 'Garage Light', type: 'light', state: 'off' },
+
+      { icon: '💡', name: 'Porch Light', type: 'light', state: 'on', brightness: 200 },
+      { icon: '📊', name: 'Outdoor Temperature', type: 'sensor', value: '15.5°C' },
+    ];
+
+    // Render device cards
+    function renderDevices() {
+      const devicesContainer = document.getElementById('devices');
+
+      devices.forEach(device => {
+        const card = document.createElement('div');
+        card.className = 'device-card';
+
+        const stateBadge = device.state === 'on' || device.state === 'playing' || device.state === 'running' || device.state === 'recording'
+          ? '<span class="badge badge-on">ON</span>'
+          : device.state === 'off' || device.state === 'idle'
+          ? '<span class="badge badge-off">OFF</span>'
+          : `<span class="badge badge-active">${device.state.toUpperCase()}</span>`;
+
+        let stateInfo = '';
+        if (device.brightness !== undefined) {
+          stateInfo += `<div class="state-item"><span class="state-label">Brightness:</span><span class="state-value">${device.brightness}</span></div>`;
+        }
+        if (device.temp !== undefined) {
+          stateInfo += `<div class="state-item"><span class="state-label">Current:</span><span class="state-value">${device.temp}°C</span></div>`;
+          stateInfo += `<div class="state-item"><span class="state-label">Target:</span><span class="state-value">${device.target}°C</span></div>`;
+        }
+        if (device.volume !== undefined) {
+          stateInfo += `<div class="state-item"><span class="state-label">Volume:</span><span class="state-value">${device.volume}%</span></div>`;
+        }
+        if (device.power !== undefined) {
+          stateInfo += `<div class="state-item"><span class="state-label">Power:</span><span class="state-value">${device.power}</span></div>`;
+        }
+        if (device.battery !== undefined) {
+          stateInfo += `<div class="state-item"><span class="state-label">Battery:</span><span class="state-value">${device.battery}%</span></div>`;
+        }
+        if (device.motion !== undefined) {
+          stateInfo += `<div class="state-item"><span class="state-label">Motion:</span><span class="state-value">${device.motion ? 'Detected' : 'None'}</span></div>`;
+        }
+        if (device.value !== undefined) {
+          stateInfo += `<div class="state-item"><span class="state-label">Value:</span><span class="state-value">${device.value}</span></div>`;
+        }
+
+        card.innerHTML = `
+          <div class="device-header">
+            <div class="device-icon">${device.icon}</div>
+            <div>
+              <div class="device-name">${device.name}${stateBadge}</div>
+              <div class="device-type">${device.type}</div>
+            </div>
+          </div>
+          ${stateInfo ? `<div class="device-state">${stateInfo}</div>` : ''}
+        `;
+
+        card.addEventListener('click', () => {
+          alert(`🎮 VR Control Panel\n\nDevice: ${device.name}\nType: ${device.type}\nState: ${device.state}\n\n✨ In VR, you can interact with this device using hand gestures or controllers!`);
+        });
+
+        devicesContainer.appendChild(card);
+      });
+    }
+
+    // Simulate real-time updates
+    function simulateRealtime() {
+      setInterval(() => {
+        // Random device gets updated
+        const randomDevice = devices[Math.floor(Math.random() * devices.length)];
+
+        if (randomDevice.type === 'light' && randomDevice.brightness !== undefined) {
+          randomDevice.brightness = Math.floor(Math.random() * 255);
+        }
+        if (randomDevice.type === 'climate' && randomDevice.temp !== undefined) {
+          randomDevice.temp = (18 + Math.random() * 6).toFixed(1);
+        }
+
+        // Re-render (in real app, this would be MQTT-driven)
+        document.getElementById('devices').innerHTML = '';
+        renderDevices();
+      }, 5000); // Update every 5 seconds
+    }
+
+    // Initialize
+    renderDevices();
+    simulateRealtime();
+  </script>
+</body>
+</html>
