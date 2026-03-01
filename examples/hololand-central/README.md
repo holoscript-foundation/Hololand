@@ -380,7 +380,7 @@ Solution: Reduce complexity or enable optimizations:
 
 ### Hololand Docs
 - [Main README](../../README.md) - Platform overview
-- [Architecture](../../README_ARCHITECTURE.md) - System design
+- [Architecture](../../docs/ARCHITECTURE_DECISIONS.md) - System design
 - [HoloScript Guide](../../docs/HOLOSCRIPT.md) - Language spec
 
 ### Three.js & React Three Fiber

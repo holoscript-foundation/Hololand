@@ -394,14 +394,15 @@ cd examples/03-vr-shop && pnpm dev                  # Virtual store
 | `@hololand/social` | 1.0.0 | Friends, avatars, chat | ✅ |
 | `@hololand/commerce` | 1.0.0 | Shops & marketplace | ✅ |
 
-### 🕶️ AR Suite
-| Package | Purpose | Docs |
-|---------|---------|------|
-| `@hololand/ar-foundation` | Unified AR runtime bridge | [README](./packages/ar-foundation/README.md) |
-| `@hololand/ar-tracking` | SLAM & Image tracking | [README](./packages/ar-tracking/README.md) |
-| `@hololand/ar-anchors` | Geo-spatial persistence | [README](./packages/ar-anchors/README.md) |
-| `@hololand/ar-detection` | Pose & object detection | [README](./packages/ar-detection/README.md) |
-| `@hololand/ar-renderer` | AR overlay rendering | [README](./packages/ar-renderer/README.md) |
+### AR Suite
+| Package | Purpose | Location |
+|---------|---------|----------|
+| `@hololand/ar-foundation` | Unified AR runtime bridge | [packages/ar/foundation](./packages/ar/foundation) |
+| `@hololand/ar-tracking` | SLAM & Image tracking | [packages/ar/tracking](./packages/ar/tracking) |
+| `@hololand/ar-anchors` | Geo-spatial persistence | [packages/ar/anchors](./packages/ar/anchors) |
+| `@hololand/ar-detection` | Pose & object detection | [packages/ar/detection](./packages/ar/detection) |
+| `@hololand/ar-renderer` | AR overlay rendering | [packages/ar/renderer](./packages/ar/renderer) |
+| `@hololand/ar-mobile-companion` | Flutter + ARKit/ARCore | [packages/ar/mobile-companion](./packages/ar/mobile-companion) |
 
 ### 🤖 Brittney Suite (AI Architect)
 | Package | Purpose |
@@ -426,16 +427,17 @@ cd examples/03-vr-shop && pnpm dev                  # Virtual store
 | `@holoscript/linter` | 2.0.0 | Static analysis & linting |
 | `@holoscript/lsp` | 1.0.0 | Language server protocol |
 
-### 🎮 Platform Adapters
+### Platform Adapters
 
-| Package | Purpose |
-|---------|---------|
-| `@hololand/three-adapter` | Three.js 3D world + physics |
-| `@hololand/babylon-adapter` | Babylon.js integration |
-| `@hololand/unity-adapter` | Unity C#/XR export |
-| `@hololand/vrchat-export` | VRChat/UdonSharp (alpha) |
+| Package | Purpose | Location |
+|---------|---------|----------|
+| `@hololand/three-adapter` | Three.js 3D world + physics | [packages/adapters/three](./packages/adapters/three) |
+| `@hololand/babylon-adapter` | Babylon.js integration | [packages/adapters/babylon](./packages/adapters/babylon) |
+| `@hololand/playcanvas-adapter` | PlayCanvas 3D world | [packages/adapters/playcanvas](./packages/adapters/playcanvas) |
+| `@hololand/unity-adapter` | Unity C#/XR export | Proprietary |
+| `@hololand/vrchat-export` | VRChat/UdonSharp (alpha) | Proprietary |
 
-See [full package list](./ECOSYSTEM_STATUS.md) for all packages.
+See [full package list](./ECOSYSTEM_STATUS.md) for all 60+ packages.
 
 ## Runs On
 
@@ -568,7 +570,7 @@ pnpm test
 ### Project Status
 - [**Development Roadmap**](./DEVELOPMENT_ROADMAP_2026.md) - Current implementation status & completed features
 - [Technical Vision](./ROADMAP.md) - Long-term architectural vision
-- [Full Ecosystem](./ECOSYSTEM_STATUS.md) - All 40+ packages
+- [Full Ecosystem](./ECOSYSTEM_STATUS.md) - All 60+ packages
 
 ### Resources
 - [HoloScript](https://github.com/brianonbased-dev/holoscript) - The language
