@@ -1,5 +1,3 @@
-@zone "VR Interaction Lab" category:"vr" maxPlayers:20
-
 composition "VR Lab" {
   // ========================================
   // ADVANCED VR INTERACTION SHOWCASE

@@ -9,8 +9,6 @@
  */
 
 // Zone metadata
-@zone "Builder Sandbox" category:"entertainment" maxPlayers:30
-
 composition "Builder Sandbox" {
   // === ZONE CONFIGURATION ===
   config {

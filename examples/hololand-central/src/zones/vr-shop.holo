@@ -8,8 +8,6 @@
  */
 
 // Zone metadata
-@zone "VR Shop" category:"business" maxPlayers:30
-
 composition "VR Shop" {
   // === ZONE CONFIGURATION ===
   config {

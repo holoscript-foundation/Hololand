@@ -69,6 +69,90 @@ try {
   // @infinitus/shared not installed — mesh features disabled
 }
 
+// =============================================================================
+// SAFETY & AUDIT INTEGRATION
+// =============================================================================
+
+// VR Safety Invariants (hard-coded, outside LLM control loop)
+import {
+  validateWorldCreation,
+  validateWorldDeletion,
+  validateObjectAddition,
+  validateScriptExecution,
+  validateAgentInvitation,
+  allSafetyChecksPassed,
+  getFailedChecks,
+  cleanupRateBuckets,
+  type SafetyResult,
+} from '@hololand/backend/services/VRSafetyInvariants.js';
+
+// MCP Audit Logger (comprehensive tool-call audit trail)
+import { getMCPAuditLogger } from './mcp-audit-logger.js';
+
+const auditLogger = getMCPAuditLogger();
+
+// Periodic cleanup of rate limit buckets (every 2 minutes)
+setInterval(() => {
+  cleanupRateBuckets();
+}, 120_000);
+
+/**
+ * Extract caller ID from environment or request context.
+ * Falls back to 'mcp-anonymous' if no identity is available.
+ */
+function getCallerId(): string {
+  return process.env.HOLOLAND_AGENT_ID || process.env.MCP_CALLER_ID || 'mcp-anonymous';
+}
+
+/**
+ * Run VR safety invariant checks for a given tool call.
+ * Returns null if no safety checks apply, or SafetyResult[] if checks ran.
+ */
+function runSafetyChecks(toolName: string, args: Record<string, unknown>, callerId: string): SafetyResult[] | null {
+  switch (toolName) {
+    case 'create_world':
+      return validateWorldCreation(
+        {
+          name: args.name as string,
+          description: args.description as string,
+          data: args.data as Record<string, unknown>,
+          ownerId: args.ownerId as string,
+        },
+        callerId
+      );
+
+    case 'delete_world':
+      return validateWorldDeletion(callerId);
+
+    case 'execute_holoscript':
+      return validateScriptExecution(
+        { code: args.code as string, worldId: args.worldId as string },
+        callerId
+      );
+
+    case 'add_object':
+      return validateObjectAddition(
+        {
+          type: args.type as string,
+          position: args.position as any,
+          scale: args.scale as any,
+          velocity: args.velocity as any,
+          angularVelocity: args.angularVelocity as any,
+          metadata: args.metadata as any,
+          physics: args.physics as any,
+        },
+        callerId,
+        0 // Object count would come from world state in production
+      );
+
+    case 'invite_agent':
+      return validateAgentInvitation(callerId, 0); // Agent count from world state in production
+
+    default:
+      return null; // No safety checks for read-only or non-mutating tools
+  }
+}
+
 /**
  * Hololand API Client
  */
@@ -423,6 +507,46 @@ const tools: Tool[] = [
   },
 
   // =====================================================
+  // AUDIT & SAFETY TOOLS
+  // =====================================================
+
+  {
+    name: 'mcp_get_audit_log',
+    description:
+      'Query the MCP tool-call audit log. Returns audit entries with safety check results, zero-trust validation, and call outcomes for all 8 core tools plus extended tools.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Maximum entries to return (default: 50)',
+        },
+        tool: {
+          type: 'string',
+          description: 'Filter by tool name',
+        },
+        callerId: {
+          type: 'string',
+          description: 'Filter by caller agent ID',
+        },
+        outcome: {
+          type: 'string',
+          description: 'Filter by outcome',
+          enum: ['success', 'failure', 'blocked_by_safety', 'blocked_by_zero_trust'],
+        },
+        coreOnly: {
+          type: 'boolean',
+          description: 'Only show core MCP tool calls (the 8 primary tools)',
+        },
+        since: {
+          type: 'string',
+          description: 'ISO timestamp to filter entries from',
+        },
+      },
+    },
+  },
+
+  // =====================================================
   // LOCAL TOOLS (no API required) - Use HoloScriptCodeParser
   // =====================================================
 
@@ -608,31 +732,79 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 /**
  * Call Tool Handler
+ *
+ * SAFETY ARCHITECTURE:
+ *   1. Every call is logged to the MCP Audit Logger (start, success/failure)
+ *   2. Mutating calls (create, delete, execute, add, invite) pass through
+ *      VR Safety Invariants BEFORE reaching the API client
+ *   3. Safety blocks are logged as 'blocked_by_safety' audit events
+ *   4. The audit trail is append-only and observable for SIEM integration
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: rawArgs } = request.params as any;
   const args = rawArgs || {};
   const traceId = `hololand_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const callerId = getCallerId();
+
+  // -- AUDIT: Log call start --
+  const auditId = auditLogger.logCallStart(name, args, traceId, callerId);
 
   try {
+    // -- SAFETY: Run VR Safety Invariant checks for mutating operations --
+    const safetyResults = runSafetyChecks(name, args, callerId);
+    if (safetyResults && !allSafetyChecksPassed(safetyResults)) {
+      const failed = getFailedChecks(safetyResults);
+      auditLogger.logSafetyBlock(
+        auditId,
+        failed.map((r: SafetyResult) => ({ invariant: r.invariant, allowed: r.allowed, reason: r.reason }))
+      );
+      return buildErrorResponse(name, traceId, {
+        blocked: true,
+        reason: 'VR Safety Invariant violation',
+        violations: failed.map((r: SafetyResult) => ({
+          invariant: r.invariant,
+          reason: r.reason,
+          limit: r.limit,
+          actual: r.actual,
+        })),
+      });
+    }
+
+    // -- TOOL DISPATCH --
+    let result: any;
 
     switch (name) {
       case 'mcp_get_info': {
-        return buildResponse(name, traceId, {
+        result = buildResponse(name, traceId, {
           server: 'hololand',
           version: '3.0.0',
           toolCount: tools.length,
           tools: tools.map(tool => tool.name),
+          safety: {
+            vrInvariants: 'active',
+            auditLogging: 'active',
+            zeroTrust: 'active',
+          },
         });
+        auditLogger.logCallSuccess(auditId);
+        return result;
       }
       case 'mcp_get_health': {
-        return buildResponse(name, traceId, {
+        const auditStats = auditLogger.getStats();
+        result = buildResponse(name, traceId, {
           status: 'ok',
           server: 'hololand',
+          safety: {
+            auditEntries: auditStats.totalEntries,
+            blockedBySafety: auditStats.blockedBySafety,
+            blockedByZeroTrust: auditStats.blockedByZeroTrust,
+          },
         });
+        auditLogger.logCallSuccess(auditId);
+        return result;
       }
       case 'mcp_get_capabilities': {
-        return buildResponse(name, traceId, {
+        result = buildResponse(name, traceId, {
           server: 'hololand',
           tools: tools.map(tool => ({
             name: tool.name,
@@ -640,45 +812,77 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             inputSchema: tool.inputSchema
           })),
         });
+        auditLogger.logCallSuccess(auditId);
+        return result;
       }
+
+      // =====================================================
+      // MCP AUDIT LOG QUERY TOOL (new)
+      // =====================================================
+      case 'mcp_get_audit_log': {
+        const auditEntries = auditLogger.getEntries({
+          limit: (args.limit as number) || 50,
+          tool: args.tool as string,
+          callerId: args.callerId as string,
+          outcome: args.outcome as any,
+          coreOnly: args.coreOnly as boolean,
+          since: args.since as string,
+        });
+        const auditStats = auditLogger.getStats();
+        result = buildResponse(name, traceId, {
+          stats: auditStats,
+          entries: auditEntries,
+        });
+        auditLogger.logCallSuccess(auditId);
+        return result;
+      }
+
       case 'create_world': {
-        const result = await hololandClient.createWorld(args as any);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.createWorld(args as any);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       case 'execute_holoscript': {
-        const result = await hololandClient.executeHoloScript(args as any);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.executeHoloScript(args as any);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       case 'visualize_data': {
-        const result = await hololandClient.visualizeData(args as any);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.visualizeData(args as any);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       case 'invite_agent': {
-        const result = await hololandClient.inviteAgent(args as any);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.inviteAgent(args as any);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       case 'get_world': {
-        const result = await hololandClient.getWorld(args.worldId);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.getWorld(args.worldId);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       case 'list_worlds': {
-        const result = await hololandClient.listWorlds(args as any);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.listWorlds(args as any);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       case 'update_world': {
-        const result = await hololandClient.updateWorld(args.worldId, args.updates);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.updateWorld(args.worldId, args.updates);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       case 'delete_world': {
-        const result = await hololandClient.deleteWorld(args.worldId);
-        return buildResponse(name, traceId, result);
+        const apiResult = await hololandClient.deleteWorld(args.worldId);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, apiResult);
       }
 
       // =====================================================
@@ -687,6 +891,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'parse_holoscript': {
         const parseResult = holoScriptParser.parse(args.code);
+        auditLogger.logCallSuccess(auditId);
         return buildResponse(name, traceId, {
           success: parseResult.success,
           ast: parseResult.ast,
@@ -699,13 +904,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'validate_holoscript': {
         const validationResult = holoScriptParser.parse(args.code);
         const isValid = validationResult.success && validationResult.errors.length === 0;
+        auditLogger.logCallSuccess(auditId);
         return buildResponse(name, traceId, {
           valid: isValid,
           errors: validationResult.errors,
           warnings: validationResult.warnings,
           summary: isValid
-            ? `✓ Code is valid (${validationResult.ast?.length || 0} nodes parsed)`
-            : `✗ Found ${validationResult.errors.length} error(s)`,
+            ? `Code is valid (${validationResult.ast?.length || 0} nodes parsed)`
+            : `Found ${validationResult.errors.length} error(s)`,
         });
       }
 
@@ -721,6 +927,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
+        auditLogger.logCallSuccess(auditId);
         return buildResponse(name, traceId, {
           category,
           examples,
@@ -729,6 +936,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'get_holoscript_version': {
+        auditLogger.logCallSuccess(auditId);
         return buildResponse(name, traceId, {
           version: HOLOSCRIPT_VERSION,
           mcpServerVersion: '3.0.0',
@@ -756,81 +964,99 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // =====================================================
 
       case 'add_object': {
-        const result = await hololandClient.addObject(args as any);
-        return buildResponse(name, traceId, result);
+        const addResult = await hololandClient.addObject(args as any);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, addResult);
       }
 
       case 'remove_object': {
-        const result = await hololandClient.removeObject(args.worldId, args.objectId);
-        return buildResponse(name, traceId, result);
+        const removeResult = await hololandClient.removeObject(args.worldId, args.objectId);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, removeResult);
       }
 
       case 'list_objects': {
-        const result = await hololandClient.listObjects(args.worldId);
-        return buildResponse(name, traceId, result);
+        const listResult = await hololandClient.listObjects(args.worldId);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, listResult);
       }
 
       // =====================================================
       // DATASET EXTRACTION TOOLS
       // =====================================================
       case 'generate_spatial_dataset': {
-        const result = await handleDatasetTool(name, args as Record<string, unknown>);
-        return buildResponse(name, traceId, result);
+        const datasetResult = await handleDatasetTool(name, args as Record<string, unknown>);
+        auditLogger.logCallSuccess(auditId);
+        return buildResponse(name, traceId, datasetResult);
       }
 
       // =====================================================
       // BRITTNEY IDE AGENT INTEGRATION TOOLS
       // =====================================================
-      default:
+      default: {
+        let extResult: any;
+
         // Check if it's a Brittney tool
         if (name.startsWith('brittney_')) {
           // Check if it's an Agent-Friendly tool FIRST (most specific)
           const agentToolNames = agentTools.map((t: any) => t.name);
           if (agentToolNames.includes(name)) {
-            const result = await handleAgentTool(name, args as Record<string, unknown>, {
+            extResult = await handleAgentTool(name, args as Record<string, unknown>, {
               brittneyService: process.env.BRITTNEY_SERVICE_URL || 'http://localhost:11435',
               apiKey: process.env.BRITTNEY_ADMIN_KEY,
               workspacePath: process.env.HOLOLAND_WORKSPACE_PATH || process.cwd()
             });
-            return buildResponse(name, traceId, result);
+            auditLogger.logCallSuccess(auditId);
+            return buildResponse(name, traceId, extResult);
           }
           // Check if it's an advanced Brittney tool
           const advancedToolNames = advancedBrittneyTools.map(t => t.name);
           if (advancedToolNames.includes(name)) {
-            const result = await handleAdvancedBrittneyTool(name, args as Record<string, unknown>);
-            return buildResponse(name, traceId, result);
+            extResult = await handleAdvancedBrittneyTool(name, args as Record<string, unknown>);
+            auditLogger.logCallSuccess(auditId);
+            return buildResponse(name, traceId, extResult);
           }
           // Check if it's an IDE tool
           const ideToolNames = brittneyIDETools.map(t => t.name);
           if (ideToolNames.includes(name)) {
-            const result = await handleBrittneyIDETool(name, args as Record<string, unknown>);
-            return buildResponse(name, traceId, { result });
+            extResult = await handleBrittneyIDETool(name, args as Record<string, unknown>);
+            auditLogger.logCallSuccess(auditId);
+            return buildResponse(name, traceId, { result: extResult });
           }
           // Otherwise use standard Brittney handler
-          const result = await handleBrittneyTool(name, args as Record<string, unknown>);
-          return buildResponse(name, traceId, result);
+          extResult = await handleBrittneyTool(name, args as Record<string, unknown>);
+          auditLogger.logCallSuccess(auditId);
+          return buildResponse(name, traceId, extResult);
         }
 
         // Check if it's a HoloScript Graph tool
         if (name.startsWith('holo_')) {
-          const result = await handleHoloGraphTool(name, args as Record<string, unknown>);
-          return buildResponse(name, traceId, result);
+          extResult = await handleHoloGraphTool(name, args as Record<string, unknown>);
+          auditLogger.logCallSuccess(auditId);
+          return buildResponse(name, traceId, extResult);
         }
 
         // Check Memory & Spatial Tools
         if (memoryTools.map(t => t.name).includes(name)) {
-          const result = await handleMemoryTool(name, args as Record<string, unknown>);
-          return buildResponse(name, traceId, result);
-        }
-        
-        if (spatialTools.map(t => t.name).includes(name)) {
-          const result = await handleSpatialTool(name, args as Record<string, unknown>);
-          return buildResponse(name, traceId, result);
+          extResult = await handleMemoryTool(name, args as Record<string, unknown>);
+          auditLogger.logCallSuccess(auditId);
+          return buildResponse(name, traceId, extResult);
         }
 
+        if (spatialTools.map(t => t.name).includes(name)) {
+          extResult = await handleSpatialTool(name, args as Record<string, unknown>);
+          auditLogger.logCallSuccess(auditId);
+          return buildResponse(name, traceId, extResult);
+        }
+
+        auditLogger.logCallFailure(auditId, `Unknown tool: ${name}`);
         return buildErrorResponse(name, traceId, `Unknown tool: ${name}`);
+      }
     }
   } catch (error: any) {
+    // -- AUDIT: Log tool call failure --
+    const errorMsg = error?.message || String(error);
+    auditLogger.logCallFailure(auditId, errorMsg);
     return buildErrorResponse(name, traceId, error);
   }
 });

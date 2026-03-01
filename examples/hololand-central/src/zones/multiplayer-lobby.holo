@@ -9,8 +9,6 @@
  */
 
 // Zone metadata
-@zone "Multiplayer Lobby" category:"social" maxPlayers:100
-
 composition "Multiplayer Lobby" {
   // === ZONE CONFIGURATION ===
   config {

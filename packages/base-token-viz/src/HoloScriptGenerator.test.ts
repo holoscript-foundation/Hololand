@@ -30,7 +30,7 @@ describe('HoloScriptGenerator', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generate(mockMetadata);
 
-      expect(script).toContain('orb#usdc');
+      expect(script).toContain('composition "TokenViz_usdc"');
       expect(script).toContain('@grabbable');
       expect(script).toContain('USDC - USD Coin');
     });
@@ -39,30 +39,30 @@ describe('HoloScriptGenerator', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generate(mockMetadata, { style: 'cube' });
 
-      expect(script).toContain('cube#usdc');
+      expect(script).toContain('composition "TokenCubeViz_usdc"');
     });
 
     it('generates pedestal style when specified', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generate(mockMetadata, { style: 'pedestal' });
 
-      expect(script).toContain('cylinder#pedestal_base');
-      expect(script).toContain('orb#usdc');
+      expect(script).toContain('object "PedestalBase" using "PedestalBase"');
+      expect(script).toContain('object "usdc" using "TokenOrb"');
     });
 
     it('generates floating style when specified', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generate(mockMetadata, { style: 'floating' });
 
-      expect(script).toContain('orb#usdc_0');
-      expect(script).toContain('orb#usdc_1');
+      expect(script).toContain('object "usdc_main" using "MainOrb"');
+      expect(script).toContain('object "usdc_1" using "FloatingOrb"');
     });
 
     it('generates galaxy style when specified', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generate(mockMetadata, { style: 'galaxy' });
 
-      expect(script).toContain('orb#usdc_core');
+      expect(script).toContain('object "usdc_core" using "CoreOrb"');
       expect(script).toContain('particle_');
       expect(script).toContain('exponential');
     });
@@ -73,7 +73,7 @@ describe('HoloScriptGenerator', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generateOrb(mockMetadata);
 
-      expect(script).toContain('@world');
+      expect(script).toContain('environment {');
       expect(script).toContain('backgroundColor');
       expect(script).toContain('camera');
     });
@@ -82,7 +82,7 @@ describe('HoloScriptGenerator', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generateOrb(mockMetadata, { includeWorld: false });
 
-      expect(script).not.toContain('@world');
+      expect(script).not.toContain('environment {');
     });
 
     it('includes glow when enabled', () => {
@@ -181,7 +181,7 @@ describe('HoloScriptGenerator', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generate(mockMetadata);
 
-      expect(script).toContain('group#info_panel');
+      expect(script).toContain('spatial_group "InfoPanel"');
       expect(script).toContain('USDC');
       expect(script).toContain('USD Coin');
       expect(script).toContain('Base (8453)');
@@ -207,7 +207,7 @@ describe('HoloScriptGenerator', () => {
       const generator = new HoloScriptGenerator();
       const script = generator.generate({});
 
-      expect(script).toContain('orb#token');
+      expect(script).toContain('object "token" using "TokenOrb"');
       expect(script).toContain('TOKEN - Unknown Token');
     });
 
@@ -218,7 +218,7 @@ describe('HoloScriptGenerator', () => {
         symbol: 'USD$COIN',
       });
 
-      expect(script).toContain('orb#usd_coin');
+      expect(script).toContain('object "usd_coin" using "TokenOrb"');
     });
 
     it('handles empty symbol', () => {
@@ -228,7 +228,7 @@ describe('HoloScriptGenerator', () => {
         symbol: '',
       });
 
-      expect(script).toContain('orb#token');
+      expect(script).toContain('object "token" using "TokenOrb"');
     });
   });
 });

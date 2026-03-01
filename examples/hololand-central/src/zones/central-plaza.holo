@@ -9,8 +9,6 @@
  */
 
 // Zone metadata
-@zone "Central Plaza" category:"social" maxPlayers:200
-
 composition "Central Plaza" {
   // === ZONE CONFIGURATION ===
   config {

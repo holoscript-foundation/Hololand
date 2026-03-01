@@ -1,12 +1,12 @@
 /**
  * Grand Hall - Interactive Library (StoryWeaver Protocol)
  *
- * This is the UPGRADED Library zone demonstrating HoloScript's advanced features:
- * - @state for quest progression tracking
- * - @event for portal activation and quest triggers
- * - @reactive for dynamic UI and portal states
- * - @ai-powered for embodied genre companions
- * - @quest for structured learning experiences
+ * Demonstrates HoloScript's advanced features:
+ * - state declarations for quest progression tracking
+ * - computed expressions for reactive UI and portal states
+ * - npc objects with personality and dialog hooks
+ * - portal objects with state-machine unlock chains
+ * - dialog trees with option -> target branching
  *
  * Transforms from static educational space into living portal system
  * where books become adventures and learning becomes questing.
@@ -14,104 +14,18 @@
  * Based on: The StoryWeaver (1994) - "Books are adventure. Books are magic."
  */
 
-// Zone metadata
-@zone "Grand Hall" category:"education" maxPlayers:60
-
 // ==========================================
-// GLOBAL STATE MANAGEMENT
+// GLOBAL STATE
 // ==========================================
 
-@state QuestProgress {
-  // Player info
-  player: {
-    id: string
-    name: string
-    level: number
-    position: [number, number, number]
-  }
-
-  // Portal unlock states
-  portals: {
-    adventure: boolean    // Always unlocked (entry point)
-    fantasy: boolean      // Unlocked after 1 adventure quest
-    horror: boolean       // Unlocked after 1 fantasy quest
-    history: boolean      // Unlocked after 3 total quests
-    science: boolean      // Unlocked after mastery quest
-  }
-
-  // Skill progression (0-100 scale)
-  skills: {
-    courage: number       // Adventure domain
-    imagination: number   // Fantasy domain
-    resilience: number    // Horror domain
-    wisdom: number        // History domain
-    knowledge: number     // Science domain
-  }
-
-  // Quest tracking
-  quests: {
-    active: string[]
-    completed: string[]
-    available: string[]
-  }
-
-  // Achievements
-  badges: string[]
-  timeSpent: number
-  npcsInteracted: string[]
-}
-
-// Initialize state
-@init QuestProgress {
+state QuestProgress {
   player: { id: "", name: "Adventurer", level: 1, position: [0, 1, 60] }
   portals: { adventure: true, fantasy: false, horror: false, history: false, science: false }
   skills: { courage: 0, imagination: 0, resilience: 0, wisdom: 0, knowledge: 0 }
-  quests: {
-    active: []
-    completed: []
-    available: ["treasure_island_intro"]
-  }
+  quests: { active: [], completed: [], available: ["treasure_island_intro"] }
   badges: []
   timeSpent: 0
   npcsInteracted: []
-}
-
-// ==========================================
-// EVENT DEFINITIONS
-// ==========================================
-
-@event PortalActivated {
-  portalId: string
-  genre: string
-  timestamp: number
-}
-
-@event QuestTriggered {
-  questId: string
-  genre: string
-  difficulty: string
-}
-
-@event QuestCompleted {
-  questId: string
-  rewards: {
-    skills: object
-    badges: string[]
-    unlocks: string[]
-  }
-}
-
-@event SkillIncreased {
-  skill: string
-  oldValue: number
-  newValue: number
-  source: string  // Which quest/action caused increase
-}
-
-@event PortalUnlocked {
-  portalId: string
-  genre: string
-  unlockedBy: string  // Quest that unlocked it
 }
 
 // ==========================================
@@ -175,7 +89,6 @@ composition "Grand Hall" {
 
   object "KnowledgeTowerBase" {
     @spatial @networked @collision
-    @event-listener(QuestCompleted, PortalUnlocked, SkillIncreased)
     geometry: "cylinder"
     position: [0, 5, 0]
     scale: [6, 10, 6]
@@ -260,7 +173,6 @@ composition "Grand Hall" {
   // ADVENTURE PORTAL (North - Always Unlocked)
   portal "AdventurePortal" {
     @spatial @networked @interactive @emissive
-    @event-emitter(PortalActivated)
     @reactive(QuestProgress.portals.adventure)
 
     position: [0, 3, -40]
@@ -326,7 +238,6 @@ composition "Grand Hall" {
   // FANTASY PORTAL (East - Unlocks after 1 adventure quest)
   portal "FantasyPortal" {
     @spatial @networked @interactive @emissive
-    @event-emitter(PortalActivated)
     @reactive(QuestProgress.portals.fantasy, QuestProgress.quests.completed)
 
     position: [40, 3, 0]
@@ -408,7 +319,6 @@ composition "Grand Hall" {
   // HORROR PORTAL (West - Unlocks after 1 fantasy quest)
   portal "HorrorPortal" {
     @spatial @networked @interactive @emissive
-    @event-emitter(PortalActivated)
     @reactive(QuestProgress.portals.horror, QuestProgress.quests.completed)
 
     position: [-40, 3, 0]
@@ -488,7 +398,6 @@ composition "Grand Hall" {
   // HISTORY PORTAL (South - Unlocks after 3 total quests)
   portal "HistoryPortal" {
     @spatial @networked @interactive @emissive
-    @event-emitter(PortalActivated)
     @reactive(QuestProgress.portals.history, QuestProgress.quests.completed)
 
     position: [0, 3, 40]
@@ -570,7 +479,6 @@ composition "Grand Hall" {
   // Adventure Guide
   npc "AdventureGuide" {
     @spatial @networked @dialogue
-    @ai-powered(provider: "openai", model: "gpt-4")
     @reactive(QuestProgress.skills.courage, QuestProgress.quests)
 
     name: "Captain Compass"
@@ -584,29 +492,6 @@ composition "Grand Hall" {
       catchphrase: "Fortune favors the bold!"
       humor_level: 0.7
     }
-
-    ai_context: `
-      You are Captain Compass, the Adventure Guide in the Grand Hall.
-
-      Player Stats:
-      - Courage: {{QuestProgress.skills.courage}}
-      - Quests Completed: {{QuestProgress.quests.completed.length}}
-      - Current Quest: {{QuestProgress.quests.active[0] || "none"}}
-
-      Your role:
-      - Guide players through adventure quests
-      - Encourage risk-taking and exploration
-      - Provide hints when stuck (without spoiling)
-      - Celebrate successes enthusiastically
-
-      Personality:
-      - Bold and optimistic
-      - Action-oriented (bias toward trying things)
-      - Use nautical metaphors occasionally
-      - Encouraging without being patronizing
-
-      Adapt dialogue to player skill level.
-    `
 
     start_dialog: "adventure_greeting"
 
@@ -666,7 +551,6 @@ composition "Grand Hall" {
   // Fantasy Guide
   npc "FantasyGuide" {
     @spatial @networked @dialogue
-    @ai-powered(provider: "openai", model: "gpt-4")
     @reactive(QuestProgress.skills.imagination, QuestProgress.portals.fantasy)
 
     name: "Lumina Starweaver"
@@ -686,33 +570,12 @@ composition "Grand Hall" {
       return QuestProgress.portals.fantasy == true
     }
 
-    ai_context: `
-      You are Lumina Starweaver, the Fantasy Guide in the Grand Hall.
-
-      Player Stats:
-      - Imagination: {{QuestProgress.skills.imagination}}
-      - Fantasy Portal: {{QuestProgress.portals.fantasy ? "Unlocked" : "Locked"}}
-
-      Your role:
-      - Guide players through fantasy quests
-      - Encourage creative thinking and wonder
-      - Help players see possibilities
-      - Speak in gentle, mystical tones
-
-      Personality:
-      - Imaginative and wise
-      - Patient and encouraging
-      - Use metaphors about light, stars, magic
-      - Gentle but not condescending
-    `
-
     start_dialog: "fantasy_greeting"
   }
 
   // Horror Guide
   npc "HorrorGuide" {
     @spatial @networked @dialogue
-    @ai-powered(provider: "openai", model: "gpt-4")
     @reactive(QuestProgress.skills.resilience, QuestProgress.portals.horror)
 
     name: "Raven Shadowmere"
@@ -731,26 +594,6 @@ composition "Grand Hall" {
       return QuestProgress.portals.horror == true
     }
 
-    ai_context: `
-      You are Raven Shadowmere, the Horror Guide in the Grand Hall.
-
-      Player Stats:
-      - Resilience: {{QuestProgress.skills.resilience}}
-      - Horror Portal: {{QuestProgress.portals.horror ? "Unlocked" : "Locked"}}
-
-      Your role:
-      - Guide players through horror quests
-      - Teach facing fears with wisdom
-      - Use dark humor to ease tension
-      - Encourage calculated courage
-
-      Personality:
-      - Cautious but not cowardly
-      - Analytical and perceptive
-      - Dark humor (not mean)
-      - Protective of players
-    `
-
     start_dialog: "horror_greeting"
   }
 
@@ -759,8 +602,6 @@ composition "Grand Hall" {
   // Quest trigger books
   object "AdventureQuestBook" {
     @spatial @networked @interactive @grabbable @emissive
-    @event-emitter(QuestTriggered)
-
     position: [-15, 2, -35]
     geometry: "box"
     scale: [0.3, 0.5, 0.2]

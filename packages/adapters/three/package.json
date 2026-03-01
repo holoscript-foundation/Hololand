@@ -33,8 +33,8 @@
   "author": "HoloScript Team",
   "license": "MIT",
   "peerDependencies": {
-    "three": ">=0.150.0",
-    "@dimforge/rapier3d": ">=0.11.0"
+    "@dimforge/rapier3d": ">=0.11.0",
+    "three": ">=0.150.0"
   },
   "peerDependenciesMeta": {
     "@dimforge/rapier3d": {
@@ -45,8 +45,14 @@
     "@holoscript/core": "workspace:*"
   },
   "devDependencies": {
+    "@testing-library/react": "^14.3.1",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/three": "^0.160.0",
     "jsdom": "^24.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "three": "^0.160.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",

@@ -1,5 +1,3 @@
-@zone "Quest Village" category:"gameplay" maxPlayers:50
-
 composition "Quest Village" {
   // ========================================
   // VILLAGE CENTER

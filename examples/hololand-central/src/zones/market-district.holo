@@ -8,8 +8,6 @@
  */
 
 // Zone metadata
-@zone "Market District" category:"business" maxPlayers:50
-
 composition "Market District" {
   // === ZONE CONFIGURATION ===
   config {

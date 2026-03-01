@@ -66,5 +66,135 @@ export {
   type SmartModelInstancesProps,
 } from './SmartModel';
 
+// Progressive GLTF Loading with 3-Tier LOD
+export {
+  useProgressiveAsset,
+  useProgressiveModel,
+  usePreloadProgressiveAssets,
+  useProgressiveLoadMetrics,
+  useProgressiveAssetContext,
+  ProgressiveAssetProvider,
+  type UseProgressiveAssetOptions,
+  type UseProgressiveAssetReturn,
+  type ProgressiveAssetProviderProps,
+  type ProgressiveAssetContextValue,
+  type ProgressivePreloadEntry,
+} from './useProgressiveAsset';
+
+// Re-export progressive loading types
+export {
+  LODTier,
+  LoadingState,
+  type ProgressiveAssetConfig,
+  type ProgressiveAssetResult,
+  type ProgressiveGLTFLoaderConfig,
+  type ProgressiveLoadMetrics,
+} from './useProgressiveAsset';
+
 // Re-export types from bridge
 export type { GLTFResult, SmartAssetBridgeConfig } from './useSmartAsset';
+
+// Studio IDE Components (Asset Import with Drag-and-Drop + Progressive Preview)
+export {
+  // Types
+  AssetCategory,
+  ImportState,
+  PreviewStage,
+  DropZoneState,
+  ValidationSeverity,
+  EXTENSION_CATEGORY_MAP,
+  MAX_FILE_SIZES,
+  DEFAULT_IMPORT_QUEUE_CONFIG,
+  type ImportEntry,
+  type ImportQueueConfig,
+  type ImportEvents,
+  type AssetPreview,
+  type ModelPreviewInfo,
+  type AudioPreviewInfo,
+  type ValidationResult,
+  type ValidationMessage,
+  type AssetMetadataResult,
+  // Utilities
+  classifyFile,
+  extractFileMetadata,
+  validateFile,
+  generateImageThumbnail,
+  generateAudioPreview,
+  generateVideoThumbnail,
+  extractGLBMetadata,
+  computeFileHash,
+  formatFileSize,
+  formatDuration,
+  generateImportId,
+  getCategoryLabel,
+  getFileExtension,
+  getAcceptString,
+  createEmptyPreview,
+  // Hook
+  useAssetImport,
+  type UseAssetImportOptions,
+  type UseAssetImportReturn,
+  // Components
+  AssetDropZone,
+  type AssetDropZoneProps,
+  AssetPreviewCard,
+  type AssetPreviewCardProps,
+  ImportQueuePanel,
+  type ImportQueuePanelProps,
+  AssetImportDialog,
+  type AssetImportDialogProps,
+  // Renderer Detection & Toggle
+  hasWebGPUAPI,
+  hasWebGL2,
+  getWebGL2RendererInfo,
+  probeWebGPU,
+  detectRendererCapabilities,
+  saveRendererPreference,
+  loadRendererPreference,
+  clearRendererPreference,
+  resolveRendererBackend,
+  type RendererBackend,
+  type RendererCapabilities,
+  type GPUAdapterInfo,
+  // Performance Monitoring
+  PerformanceMonitor,
+  type RenderStats,
+  type PerformanceMonitorConfig,
+  // Renderer Toggle Hook
+  useRendererToggle,
+  type UseRendererToggleOptions,
+  type UseRendererToggleReturn,
+  // Renderer Stats Overlay
+  RendererStatsOverlay,
+  type RendererStatsOverlayProps,
+  // Post-Processing Types
+  DEFAULT_POST_PROCESSING,
+  DEFAULT_BLOOM,
+  DEFAULT_DEPTH_OF_FIELD,
+  DEFAULT_MOTION_BLUR,
+  DEFAULT_COLOR_GRADING,
+  SLIDER_RANGES,
+  BUILT_IN_PRESETS,
+  type PostProcessingSettings,
+  type BloomSettings,
+  type DepthOfFieldSettings,
+  type MotionBlurSettings,
+  type ColorGradingSettings,
+  type PostProcessingPreset,
+  type PostProcessingEvents,
+  type SliderRange,
+  // Post-Processing Hook
+  usePostProcessing,
+  type UsePostProcessingOptions,
+  type UsePostProcessingReturn,
+  // Post-Processing Controls Component
+  PostProcessingControls,
+  type PostProcessingControlsProps,
+  // Post-Processing Preview (Three.js render pipeline bridge)
+  PostProcessingPreview,
+  type PostProcessingPreviewConfig,
+  // Post-Processing HoloScript Export
+  exportPostProcessingToHoloScript,
+  exportPostProcessingMinimal,
+  parsePostProcessingFromHoloScript,
+} from './studio';

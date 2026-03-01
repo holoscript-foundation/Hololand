@@ -8,8 +8,6 @@
  */
 
 // Zone metadata
-@zone "Library" category:"education" maxPlayers:60
-
 composition "Library" {
   // === ZONE CONFIGURATION ===
   config {

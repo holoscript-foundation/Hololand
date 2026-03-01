@@ -46,6 +46,26 @@ export type { AssetType, AssetStatus, LicenseType, SortField, AssetInfo, ReviewI
 export { ProductionDeployService } from './services/ProductionDeployService';
 export type { Environment, ContainerStatus, PipelineStatus, HealthStatus, AlertSeverity, ContainerInfo, PipelineInfo, DeployConfig, DeployEvent, DeployStats, ScalingPolicy, ScalingEvent, DomainRecord, MigrationRecord, AlertRecord, HealthCheckResult } from './services/ProductionDeployService';
 
+// VR Safety (hard-coded invariants outside LLM control loop)
+export {
+  validateWorldCreation,
+  validateWorldDeletion,
+  validateObjectAddition,
+  validateScriptExecution,
+  validateSensoryParameters,
+  validateAgentInvitation,
+  scanForBlockedContent,
+  allSafetyChecksPassed,
+  getFailedChecks,
+  cleanupRateBuckets,
+  VR_PHYSICS_LIMITS,
+  VR_RESOURCE_LIMITS,
+  VR_SENSORY_LIMITS,
+  VR_CONTENT_LIMITS,
+  VR_OPERATION_RATE_LIMITS,
+} from './services/VRSafetyInvariants';
+export type { SafetyResult } from './services/VRSafetyInvariants';
+
 // Lib utilities
 export * from './lib/api';
 export * from './lib/supabase';

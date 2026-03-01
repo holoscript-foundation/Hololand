@@ -1,5 +1,3 @@
-@zone "Weather Realm" category:"environment" maxPlayers:30
-
 composition "Weather Realm" {
   // ========================================
   // WEATHER & ENVIRONMENT SHOWCASE

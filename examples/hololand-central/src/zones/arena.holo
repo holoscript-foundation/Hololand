@@ -9,8 +9,6 @@
  */
 
 // Zone metadata
-@zone "Arena" category:"entertainment" maxPlayers:40
-
 composition "Arena" {
   // === ZONE CONFIGURATION ===
   config {

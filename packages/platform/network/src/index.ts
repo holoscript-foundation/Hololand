@@ -206,6 +206,44 @@ export type { NetworkedEntityConfig, NetworkedRuntimeConfig, RuntimeStats, Netwo
 export { StateAuthority } from './StateAuthority';
 export type { AuthorityMode, ConflictStrategy, AuthorityEntry, AuthorityClaim, AuthorityConfig, AuthorityEvent } from './StateAuthority';
 
+// CRDT Room System — conflict-free multiplayer rooms with spatial partitioning
+export { CRDTRoom } from './CRDTRoom';
+export type {
+  EntityCRDTState,
+  PlayerPresenceData,
+  ChatEntry,
+  InterestRegion,
+  SyncTier,
+  CRDTRoomConfig,
+  CRDTRoomEventMap,
+  CRDTRoomEventType,
+  CRDTRoomEventHandler,
+  SerializedCRDTRoomState,
+} from './CRDTRoom';
+
+// CRDT Room Manager — room lifecycle, directory, sharding, persistence
+export { CRDTRoomManager } from './CRDTRoomManager';
+export type {
+  CRDTRoomDirectoryEntry,
+  CRDTRoomManagerConfig,
+  RoomPersistenceAdapter,
+  RoomShard,
+  CRDTRoomManagerEventMap,
+  CRDTRoomManagerEventType,
+  CRDTRoomManagerEventHandler,
+} from './CRDTRoomManager';
+
+// Spatial CRDT Sync — bridges CRDT room state to Three.js scene graph
+export { SpatialCRDTSync } from './SpatialCRDTSync';
+export type {
+  SpatialObject3D,
+  SpatialScene,
+  SpatialCamera,
+  EntityObjectFactory,
+  AvatarFactory,
+  SpatialCRDTSyncConfig,
+} from './SpatialCRDTSync';
+
 // Version
 export const HOLOLAND_NETWORK_VERSION = '1.0.0-alpha.1';
 
@@ -221,6 +259,9 @@ import { TextChat } from './TextChat';
 import { NeuralOllamaBridge, AgentFactory } from './NeuralOllamaBridge';
 import { NetworkedRuntime } from './NetworkedRuntime';
 import { StateAuthority } from './StateAuthority';
+import { CRDTRoom } from './CRDTRoom';
+import { CRDTRoomManager } from './CRDTRoomManager';
+import { SpatialCRDTSync } from './SpatialCRDTSync';
 
 export default {
   NetworkClient,
@@ -236,5 +277,8 @@ export default {
   AgentFactory,
   NetworkedRuntime,
   StateAuthority,
+  CRDTRoom,
+  CRDTRoomManager,
+  SpatialCRDTSync,
   HOLOLAND_NETWORK_VERSION,
 };

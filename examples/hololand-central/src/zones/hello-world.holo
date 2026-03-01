@@ -8,8 +8,6 @@
  */
 
 // Zone metadata
-@zone "Hello World" category:"social" maxPlayers:50
-
 composition "Hello World" {
   // === ZONE CONFIGURATION ===
   config {

@@ -72,6 +72,70 @@ export {
 } from './SmartAssetBridge';
 export type { GLTFResult, SmartAssetBridgeConfig } from './SmartAssetBridge';
 
+// Progressive GLTF Loader with 3-Tier LOD
+export {
+  ProgressiveGLTFLoader,
+  getProgressiveGLTFLoader,
+  createProgressiveGLTFLoader,
+  createProgressiveConfig,
+  LODTier,
+  LoadingState,
+} from './ProgressiveGLTFLoader';
+export type {
+  ProgressiveAssetConfig,
+  ProgressiveAssetResult,
+  ProgressiveGLTFLoaderConfig,
+  ProgressiveLoadMetrics,
+  LODTierSource,
+} from './ProgressiveGLTFLoader';
+
+// GPU Compute Particle System (WebGPU/WebGL2 via TSL)
+export {
+  // Core particle system
+  GPUParticleSystem,
+  createGPUParticleSystem,
+  createFireEffect,
+  createSnowEffect,
+  createSparkleEffect,
+  createVRParticleFountain,
+  FORCE_TYPE,
+  // Force field presets
+  createEarthGravity,
+  createLowGravity,
+  createZeroGravity,
+  createRadialGravity,
+  createBreeze,
+  createWindGust,
+  createUpdraft,
+  createVortex,
+  createDustDevil,
+  createBlackHole,
+  createAttractor,
+  createRepulsor,
+  createVRHandRepulsor,
+  createTurbulence,
+  createFineTurbulence,
+  createCoarseTurbulence,
+  createDragZone,
+  createCampfireForces,
+  createPortalForces,
+  createOceanSprayForces,
+  createExplosionForces,
+  // Integration
+  GPUParticleIntegration,
+  createGPUParticleIntegration,
+} from './gpu';
+export type {
+  GPUParticleSystemConfig,
+  ForceFieldDescriptor,
+  CollisionPlaneDescriptor,
+  CollisionSphereDescriptor,
+  EmissionShape,
+  ParticleBlendMode,
+  ParticleSortMode,
+  GPUParticleIntegrationConfig,
+} from './gpu';
+
 /**
  * Create a World from a config file URL
  * Convenience function that loads config and returns ready-to-use world

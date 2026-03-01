@@ -8,8 +8,6 @@
  */
 
 // Zone metadata
-@zone "Physics Playground" category:"entertainment" maxPlayers:20
-
 composition "Physics Playground" {
   // === ZONE CONFIGURATION ===
   config {
