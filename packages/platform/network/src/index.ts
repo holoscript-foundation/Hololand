@@ -178,6 +178,26 @@ export * from './MultiplayerSync';
 // CRDT state sync (merged from @holoscript/state-sync)
 export * from './CRDTStateSync';
 
+// Yjs-compatible CRDT Collaboration — awareness protocol, cursor presence, conflict resolution
+export {
+  AwarenessProtocol,
+  ConflictDetector,
+  createAwarenessProtocol,
+  createConflictDetector,
+} from './YjsCollaboration';
+export type {
+  UserColor,
+  CursorPosition,
+  SelectionRange,
+  AwarenessState,
+  AwarenessEventType,
+  AwarenessEvent,
+  AwarenessConfig,
+  EditConflict,
+  ConflictingEdit,
+  ConflictResolutionStrategy,
+} from './YjsCollaboration';
+
 // Networked Runtime — connects @networked trait to network transport
 export { NetworkedRuntime } from './NetworkedRuntime';
 export type { NetworkedEntityConfig, NetworkedRuntimeConfig, RuntimeStats, NetworkedRuntimeEvent } from './NetworkedRuntime';

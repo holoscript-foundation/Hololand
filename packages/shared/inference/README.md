@@ -1,11 +1,11 @@
 # @hololand/inference
 
-**Unified AI inference layer for Hololand** — Local-first with BYOK cloud fallback.
+**Unified AI inference layer for Hololand** — Local-first with BYOK cloud for AI orchestrations in Hololand setups.
 
 ## Features
 
 - 🏠 **Local First** — Ollama integration for free, private AI
-- ☁️ **BYOK Cloud** — Bring your own API keys (OpenAI, Anthropic, Google, Grok, Azure)
+- ☁️ **BYOK Cloud** — Bring your own AI provider keys for building orchestrations in Hololand (OpenAI, Anthropic, Google, Grok, Azure)
 - 🤖 **HoloScript Optimized** — Pre-configured Brittney models for code generation
 - 🔄 **Automatic Fallback** — Seamlessly switch between providers
 - 🎯 **Smart Routing** — Task-based model selection
@@ -53,9 +53,10 @@ for await (const chunk of client.chatStream({ messages })) {
 }
 ```
 
-## BYOK Providers
+## BYOK Providers (AI Orchestrations)
 
-Configure your own API keys to use cloud providers:
+Configure your own API keys for building AI orchestrations in your Hololand setups.
+AI-powered studio features are available separately through HoloScript Cloud (Pro subscription):
 
 ```typescript
 const client = createInferenceClient({
@@ -176,7 +177,7 @@ Stream chat responses. Returns `AsyncIterable<StreamChunk>`.
 
 ### `client.configureProvider(type, config)`
 
-Configure or update a BYOK provider at runtime.
+Configure or update a BYOK provider at runtime for AI orchestrations.
 
 ### `client.getStatus()`
 

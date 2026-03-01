@@ -2,15 +2,20 @@
 
 ## Overview
 
-Implement a tiered chat system where Hololand handles API keys locally.
+Implement a tiered chat system for Hololand AI orchestrations.
 
-**Basic Tier**: No API key → Local Brittney (smaller model, free)
-**Pro Tier (BYOK)**: User's own LLM key → Their LLM + Brittney tools
-**Pro Tier (Infinity Assistant)**: API key from Infinity Assistant → Bigger Brittney model
+**Free (email sign-up)**: Brittney AI + all manual tools + marketplace (revenue share) — everything works, sign up to try
+**Cloud Tokens**: Pay-per-token Brittney usage via HoloScript Cloud — primary revenue driver
+**Pro Subscription**: Vision model + priority processing + reduced marketplace commission
+**BYOK**: User's own LLM key → Their LLM + Brittney tools for AI orchestrations in Hololand
+**Infinity Assistant**: API key from Infinity Assistant → Bigger Brittney model
 
-Users can either:
-- Use local Brittney for free (smaller model, runs on device)
-- Bring their own LLM API key (pay their provider, get their LLM + Brittney tools)
+Users can:
+- Sign up free (email) to use Brittney and all manual studio tools
+- Pay per token for cloud Brittney usage (scene generation, code assistance, etc.)
+- Publish and sell on the marketplace for free (HoloScript takes a revenue share commission)
+- Subscribe to Pro for the vision model, priority processing, and reduced marketplace commission
+- Bring their own LLM API key for building AI orchestrations in their Hololand setups (BYOK)
 - Get an API key from Infinity Assistant (pay IA for access to bigger Brittney model)
 
 ---
@@ -173,13 +178,13 @@ async function detectMode(): Promise<'basic' | 'pro'> {
 
 **3.2 UI Differentiation**
 
-| Feature | Basic | Pro (BYOK) | Pro (IA) |
-|---------|-------|------------|----------|
-| Header | "Brittney" | "Brittney Pro" | "Brittney Pro" |
-| LLM Used | Local Brittney | User's LLM + Brittney | Better Brittney |
-| Planning | Quick gen only | Full planning | Full planning |
-| Context | Limited | User's LLM limit | Enhanced |
-| Cost | Free | User pays their LLM | User pays IA |
+| Feature | Basic | Pro (HoloScript Cloud) | Pro (BYOK Orchestration) | Pro (IA) |
+|---------|-------|------------------------|--------------------------|----------|
+| Header | "Brittney" | "Brittney Pro" | "Brittney Pro" | "Brittney Pro" |
+| LLM Used | Local Brittney | HoloScript vision model | User's LLM + Brittney | Better Brittney |
+| Use Case | Basic HoloScript | Character/avatar creation | AI orchestrations | Full planning |
+| Context | Limited | Vision model context | User's LLM limit | Enhanced |
+| Cost | Free | Pro subscription | User pays their LLM | User pays IA |
 
 **3.3 Upgrade Prompt**
 
@@ -215,7 +220,7 @@ apps/hololand-app/src/pages/settings/api-keys.tsx
 ### Modified Files
 
 ```
-packages/brittney-service/src/model-router.ts   # Add BYOK routing
+packages/brittney-service/src/model-router.ts   # Add BYOK orchestration routing
 packages/brittney-toolkit/src/chat/ChatWidget.ts  # Mode detection
 ```
 
@@ -266,7 +271,7 @@ Phases 3 and 4 can run in parallel after Phase 2.
 ## Success Metrics
 
 - Basic users can generate HoloScript via local Brittney
-- BYOK users get their LLM + Brittney tools
+- BYOK orchestration users get their LLM + Brittney tools for Hololand setups
 - Keys are stored locally (encrypted, never sent to server)
 - Upgrade path is clear: "Add your API key"
 - Chat UI reflects current mode

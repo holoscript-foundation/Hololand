@@ -161,6 +161,9 @@ npm run test -- --coverage    # Coverage report
 ### "I want to understand what was tested"
 → See [TEST_SUITE_DOCUMENTATION.md](packages/brittney-toolkit/TEST_SUITE_DOCUMENTATION.md)
 
+### "I want to migrate from Microsoft Mesh / HoloLens 2"
+→ See [Microsoft Mesh Migration Guide](docs/guides/MICROSOFT_MESH_MIGRATION_GUIDE.md)
+
 ### "I want to plan the next phase"
 → See [DEVELOPMENT_ROADMAP_2026.md](DEVELOPMENT_ROADMAP_2026.md)
 

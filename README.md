@@ -265,7 +265,7 @@ HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn mor
 - 403.7K training samples with weighted superpowers
 - 97% loss improvement in code generation
 - Ready for Vast.ai deployment
-- **NEW:** `@hololand/inference` — Unified AI with local (Ollama) + BYOK cloud support
+- **NEW:** `@hololand/inference` — Unified AI with local (Ollama) + BYOK cloud for AI orchestrations
 
 ### 🔌 AI Integration
 - **Claude Desktop/Code** — `.claude/settings.json` pre-configured
@@ -409,7 +409,7 @@ cd examples/03-vr-shop && pnpm dev                  # Virtual store
 | `@hololand/brittney-service` | The AI that builds worlds |
 | `@hololand/brittney-toolkit` | Tools for self-modification |
 | `@hololand/mcp-server` | Model Context Protocol for AI agents ([docs](./packages/mcp-server/README.md)) |
-| `@hololand/inference` | Unified AI inference — Local (Ollama) + BYOK Cloud ([docs](./packages/shared/inference/README.md)) |
+| `@hololand/inference` | Unified AI inference — Local (Ollama) + BYOK Cloud for AI orchestrations ([docs](./packages/shared/inference/README.md)) |
 
 **Getting Started with Brittney:**
 - [IDE Integration Setup](./packages/mcp-server/BRITTNEY_SETUP.md) - Connect Copilot/Claude/Cursor to your running app

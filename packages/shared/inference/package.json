@@ -1,7 +1,7 @@
 {
   "name": "@hololand/inference",
   "version": "1.0.0",
-  "description": "Unified AI inference layer - Local (Ollama/llama.cpp) + BYOK Cloud Providers",
+  "description": "Unified AI inference layer - Local (Ollama/llama.cpp) + BYOK Cloud for AI orchestrations in Hololand",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

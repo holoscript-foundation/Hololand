@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>HoloLand Preview</title>
+  <meta name="description" content="Immersive 3D world preview on HoloLand - no download required" />
+
+  <!-- Preconnect to API for fastest possible data fetch -->
+  <link rel="preconnect" href="https://central.hololand.io" crossorigin>
+  <link rel="dns-prefetch" href="https://central.hololand.io">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>" />
+
+  <style>
+    /* === CRITICAL CSS - INLINED FOR <3s LOAD === */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #0a0a14;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color: #e0e0e0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Loading Screen */
+    #loading-screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a0a14 0%, #12122a 50%, #0a0a14 100%);
+      z-index: 1000;
+      transition: opacity 0.4s ease-out;
+    }
+
+    #loading-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-logo {
+      font-size: 3rem;
+      margin-bottom: 1.5rem;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.3)); }
+      50% { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.7)); }
+    }
+
+    .loading-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      background: linear-gradient(90deg, #00d4ff, #667eea, #ffd700);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradient-shift 3s linear infinite;
+      margin-bottom: 0.5rem;
+    }
+
+    @keyframes gradient-shift {
+      0% { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .loading-status {
+      font-size: 0.85rem;
+      color: #667;
+      margin-bottom: 2rem;
+    }
+
+    /* Progress bar */
+    .progress-track {
+      width: 240px; height: 3px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #667eea);
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.3s ease-out;
+    }
+
+    /* 3D Canvas */
+    #preview-canvas {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    /* HUD Overlay */
+    #hud {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 50;
+      background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    #hud.visible { opacity: 1; }
+
+    .hud-info {
+      pointer-events: auto;
+    }
+
+    .hud-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+
+    .hud-creator {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      margin-top: 2px;
+    }
+
+    .hud-actions {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(12px);
+      color: #fff;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(0, 212, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-vr {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(102, 126, 234, 0.3));
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    .btn-vr:hover {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.5), rgba(102, 126, 234, 0.5));
+    }
+
+    .btn-ar {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 140, 0, 0.3));
+      border-color: rgba(255, 215, 0, 0.4);
+    }
+
+    /* Bottom bar */
+    #bottom-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 50;
+      background: linear-gradient(0deg, rgba(0,0,0,0.5) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    #bottom-bar.visible { opacity: 1; }
+
+    .perf-stats {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.4);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .powered-by {
+      pointer-events: auto;
+    }
+
+    .powered-by a {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.4);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .powered-by a:hover {
+      color: #00d4ff;
+    }
+
+    /* Share modal */
+    #share-modal {
+      display: none;
+      position: fixed; inset: 0;
+      z-index: 200;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+    }
+
+    #share-modal.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 28px;
+      max-width: 480px;
+      width: 90%;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .share-url-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .share-url-box input {
+      flex: 1;
+      padding: 10px 12px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .embed-code {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: #888;
+      word-break: break-all;
+      margin-bottom: 16px;
+    }
+
+    .modal-close {
+      float: right;
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 4px;
+    }
+
+    .modal-close:hover { color: #fff; }
+
+    /* Error state */
+    #error-screen {
+      display: none;
+      position: fixed; inset: 0;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #0a0a14;
+      z-index: 900;
+      text-align: center;
+      padding: 40px;
+    }
+
+    #error-screen.visible {
+      display: flex;
+    }
+
+    .error-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .error-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .error-msg { color: #888; max-width: 400px; line-height: 1.6; }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .hud-title { font-size: 0.95rem; }
+      .btn { padding: 6px 12px; font-size: 0.8rem; }
+      .modal-card { padding: 20px; }
+    }
+
+    /* Embed mode - minimal chrome */
+    body.embed-mode #hud { padding: 8px 12px; }
+    body.embed-mode .hud-title { font-size: 0.9rem; }
+    body.embed-mode #bottom-bar { padding: 6px 12px; }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Screen (shown first for perceived performance) -->
+  <div id="loading-screen">
+    <div class="loading-logo">🌐</div>
+    <div class="loading-title" id="loading-world-name">Loading World...</div>
+    <div class="loading-status" id="loading-status">Connecting to HoloLand</div>
+    <div class="progress-track">
+      <div class="progress-fill" id="loading-progress"></div>
+    </div>
+  </div>
+
+  <!-- 3D Canvas -->
+  <canvas id="preview-canvas"></canvas>
+
+  <!-- HUD Overlay -->
+  <div id="hud">
+    <div class="hud-info">
+      <div class="hud-title" id="hud-title"></div>
+      <div class="hud-creator" id="hud-creator"></div>
+    </div>
+    <div class="hud-actions" id="hud-actions">
+      <button class="btn" id="btn-share" title="Share this world">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        Share
+      </button>
+      <button class="btn" id="btn-fullscreen" title="Fullscreen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+      </button>
+      <button class="btn btn-vr" id="btn-vr" style="display:none" title="Enter VR">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="3"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><path d="M10 12h4"/></svg>
+        Enter VR
+      </button>
+      <button class="btn btn-ar" id="btn-ar" style="display:none" title="Enter AR">
+        AR
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div id="bottom-bar">
+    <div class="perf-stats" id="perf-stats"></div>
+    <div class="powered-by">
+      <a href="https://central.hololand.io" target="_blank" rel="noopener">Powered by HoloLand</a>
+    </div>
+  </div>
+
+  <!-- Share Modal -->
+  <div id="share-modal">
+    <div class="modal-card">
+      <button class="modal-close" id="modal-close">&times;</button>
+      <div class="modal-title">Share This World</div>
+      <div class="share-url-box">
+        <input type="text" id="share-url" readonly />
+        <button class="btn" id="copy-url">Copy</button>
+      </div>
+      <div class="embed-code" id="embed-code"></div>
+      <button class="btn" id="copy-embed">Copy Embed Code</button>
+    </div>
+  </div>
+
+  <!-- Error Screen -->
+  <div id="error-screen">
+    <div class="error-icon">&#9888;&#65039;</div>
+    <div class="error-title" id="error-title">Preview Not Found</div>
+    <div class="error-msg" id="error-msg">This preview link may have expired or been revoked.</div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- THREE.JS + WEBXR PREVIEW ENGINE             -->
+  <!-- Loaded as ES module for tree-shaking         -->
+  <!-- ============================================ -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { VRButton } from 'three/addons/webxr/VRButton.js';
+    import { ARButton } from 'three/addons/webxr/ARButton.js';
+
+    // ============================================
+    // CONFIG & STATE
+    // ============================================
+    const API_BASE = window.HOLOLAND_API || 'https://central.hololand.io/api/v1';
+    const PERF_START = performance.now();
+
+    const state = {
+      token: null,
+      previewData: null,
+      isEmbed: false,
+      renderer: null,
+      scene: null,
+      camera: null,
+      controls: null,
+      clock: new THREE.Clock(),
+      frameCount: 0,
+      fpsAccum: 0,
+      lastFpsUpdate: 0,
+      animationMixers: [],
+      xrSession: null,
+    };
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+
+    function parseParams() {
+      const url = new URL(window.location.href);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+
+      // Support /preview/<token> and /embed/<token>
+      if (pathParts[0] === 'embed') {
+        state.isEmbed = true;
+        document.body.classList.add('embed-mode');
+        state.token = pathParts[1];
+      } else if (pathParts[0] === 'preview') {
+        state.token = pathParts[1];
+      }
+
+      // Also support ?token=<token> query param
+      if (!state.token) {
+        state.token = url.searchParams.get('token') || url.searchParams.get('t');
+      }
+
+      return state.token;
+    }
+
+    function setProgress(pct) {
+      const el = document.getElementById('loading-progress');
+      if (el) el.style.width = pct + '%';
+    }
+
+    function setStatus(text) {
+      const el = document.getElementById('loading-status');
+      if (el) el.textContent = text;
+    }
+
+    function showError(title, msg) {
+      const screen = document.getElementById('error-screen');
+      document.getElementById('error-title').textContent = title;
+      document.getElementById('error-msg').textContent = msg;
+      screen.classList.add('visible');
+      document.getElementById('loading-screen').classList.add('fade-out');
+    }
+
+    // ============================================
+    // DATA FETCHING
+    // ============================================
+
+    async function fetchPreviewData(token) {
+      setStatus('Fetching world data...');
+      setProgress(15);
+
+      try {
+        const res = await fetch(`${API_BASE}/preview/${token}`, {
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (res.status === 404) {
+          showError('Preview Not Found', 'This preview link does not exist or has been removed.');
+          return null;
+        }
+
+        if (res.status === 410) {
+          const data = await res.json().catch(() => ({}));
+          showError('Preview Expired', data.error || 'This preview link has expired.');
+          return null;
+        }
+
+        if (!res.ok) {
+          showError('Loading Failed', 'Could not load the world preview. Please try again.');
+          return null;
+        }
+
+        const data = await res.json();
+        setProgress(35);
+        return data;
+      } catch (err) {
+        console.error('Fetch error:', err);
+        showError('Connection Error', 'Could not connect to HoloLand. Check your internet connection.');
+        return null;
+      }
+    }
+
+    // ============================================
+    // THREE.JS SCENE SETUP
+    // ============================================
+
+    function initRenderer() {
+      const canvas = document.getElementById('preview-canvas');
+
+      state.renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+      });
+
+      state.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      state.renderer.setSize(window.innerWidth, window.innerHeight);
+      state.renderer.shadowMap.enabled = true;
+      state.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      state.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      state.renderer.toneMappingExposure = 1.2;
+      state.renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      return state.renderer;
+    }
+
+    function initScene() {
+      state.scene = new THREE.Scene();
+
+      // Sky gradient background
+      const bgColor = new THREE.Color(0x0a0a14);
+      state.scene.background = bgColor;
+      state.scene.fog = new THREE.FogExp2(bgColor, 0.015);
+
+      // Camera
+      state.camera = new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        500
+      );
+      state.camera.position.set(0, 2, 8);
+
+      // Controls
+      state.controls = new OrbitControls(state.camera, state.renderer.domElement);
+      state.controls.enableDamping = true;
+      state.controls.dampingFactor = 0.08;
+      state.controls.maxPolarAngle = Math.PI * 0.85;
+      state.controls.minDistance = 1;
+      state.controls.maxDistance = 100;
+      state.controls.target.set(0, 1, 0);
+
+      // Lighting
+      setupLighting(state.scene);
+
+      // Grid floor
+      setupFloor(state.scene);
+
+      return state.scene;
+    }
+
+    function setupLighting(scene) {
+      // Ambient
+      const ambient = new THREE.AmbientLight(0x404060, 0.6);
+      scene.add(ambient);
+
+      // Hemisphere
+      const hemi = new THREE.HemisphereLight(0x87CEEB, 0x362a14, 0.5);
+      scene.add(hemi);
+
+      // Key light
+      const sun = new THREE.DirectionalLight(0xfff4e6, 1.2);
+      sun.position.set(10, 15, 8);
+      sun.castShadow = true;
+      sun.shadow.mapSize.width = 1024;
+      sun.shadow.mapSize.height = 1024;
+      sun.shadow.camera.near = 0.5;
+      sun.shadow.camera.far = 50;
+      sun.shadow.camera.left = -15;
+      sun.shadow.camera.right = 15;
+      sun.shadow.camera.top = 15;
+      sun.shadow.camera.bottom = -15;
+      scene.add(sun);
+
+      // Fill light
+      const fill = new THREE.DirectionalLight(0x6688cc, 0.3);
+      fill.position.set(-8, 5, -5);
+      scene.add(fill);
+
+      // Rim accent
+      const rim = new THREE.PointLight(0x00d4ff, 0.5, 30);
+      rim.position.set(0, 5, -10);
+      scene.add(rim);
+    }
+
+    function setupFloor(scene) {
+      // Grid
+      const grid = new THREE.GridHelper(40, 40, 0x222244, 0x111133);
+      grid.material.opacity = 0.3;
+      grid.material.transparent = true;
+      scene.add(grid);
+
+      // Ground plane (for shadows)
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100),
+        new THREE.ShadowMaterial({ opacity: 0.15 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+    }
+
+    // ============================================
+    // SCENE POPULATION FROM PREVIEW DATA
+    // ============================================
+
+    const PRIMITIVE_GEOMETRIES = {
+      box: () => new THREE.BoxGeometry(1, 1, 1),
+      sphere: () => new THREE.SphereGeometry(0.5, 32, 32),
+      cylinder: () => new THREE.CylinderGeometry(0.5, 0.5, 1, 32),
+      cone: () => new THREE.ConeGeometry(0.5, 1, 32),
+      torus: () => new THREE.TorusGeometry(0.5, 0.15, 16, 48),
+      plane: () => new THREE.PlaneGeometry(1, 1),
+    };
+
+    function createMaterial(color, type) {
+      const c = new THREE.Color(color || '#888888');
+
+      if (type === 'ui-text') {
+        return new THREE.MeshBasicMaterial({ color: c, transparent: true });
+      }
+
+      return new THREE.MeshStandardMaterial({
+        color: c,
+        roughness: 0.5,
+        metalness: 0.1,
+      });
+    }
+
+    function populateSceneFromData(scene, data) {
+      if (!data) return;
+
+      setStatus('Building scene...');
+      setProgress(60);
+
+      const sceneObjects = data.scene?.data?.objects
+        || data.scene?.data
+        || [];
+
+      if (Array.isArray(sceneObjects)) {
+        for (const obj of sceneObjects) {
+          addObjectToScene(scene, obj);
+        }
+      }
+
+      // Handle HoloScript composition format
+      if (data.scene?.data?.composition) {
+        const comp = data.scene.data.composition;
+        if (Array.isArray(comp.objects)) {
+          for (const obj of comp.objects) {
+            addObjectToScene(scene, obj);
+          }
+        }
+      }
+
+      setProgress(80);
+    }
+
+    function addObjectToScene(scene, objData) {
+      if (!objData) return;
+
+      const type = (objData.type || 'box').toLowerCase();
+      const pos = objData.position || [0, 0, 0];
+      const scale = objData.scale || [1, 1, 1];
+      const rotation = objData.rotation || [0, 0, 0];
+      const color = objData.color || '#888888';
+
+      // Text objects
+      if (type === 'ui-text' || type === 'text') {
+        const textGeo = createTextPlane(objData.text || objData.name || '', color);
+        textGeo.position.set(pos[0], pos[1], pos[2]);
+        scene.add(textGeo);
+        return;
+      }
+
+      // Model references (GLB/GLTF)
+      if (type === 'model' && objData.model) {
+        loadGLTFModel(scene, objData);
+        return;
+      }
+
+      // Primitive geometry
+      const geoFactory = PRIMITIVE_GEOMETRIES[type] || PRIMITIVE_GEOMETRIES.box;
+      const geometry = geoFactory();
+      const material = createMaterial(color, type);
+      const mesh = new THREE.Mesh(geometry, material);
+
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      mesh.scale.set(scale[0], scale[1], scale[2]);
+
+      if (rotation.length === 3) {
+        mesh.rotation.set(
+          THREE.MathUtils.degToRad(rotation[0]),
+          THREE.MathUtils.degToRad(rotation[1]),
+          THREE.MathUtils.degToRad(rotation[2])
+        );
+      }
+
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.name = objData.name || '';
+
+      scene.add(mesh);
+    }
+
+    function createTextPlane(text, color) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 512;
+      canvas.height = 128;
+
+      ctx.fillStyle = 'transparent';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = 'bold 32px -apple-system, sans-serif';
+      ctx.fillStyle = color || '#00d4ff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.minFilter = THREE.LinearFilter;
+
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide,
+      });
+
+      const plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(4, 1),
+        material
+      );
+
+      return plane;
+    }
+
+    function loadGLTFModel(scene, objData) {
+      const loader = new GLTFLoader();
+
+      // Set up Draco decoder for compressed models
+      const dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/');
+      loader.setDRACOLoader(dracoLoader);
+
+      const pos = objData.position || [0, 0, 0];
+      const scale = objData.scale || [1, 1, 1];
+      const modelUrl = objData.model;
+
+      loader.load(
+        modelUrl,
+        (gltf) => {
+          const model = gltf.scene;
+          model.position.set(pos[0], pos[1], pos[2]);
+          model.scale.set(scale[0], scale[1], scale[2]);
+          model.name = objData.name || '';
+
+          model.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+
+          // Handle animations
+          if (gltf.animations && gltf.animations.length > 0) {
+            const mixer = new THREE.AnimationMixer(model);
+            gltf.animations.forEach((clip) => {
+              mixer.clipAction(clip).play();
+            });
+            state.animationMixers.push(mixer);
+          }
+
+          scene.add(model);
+        },
+        undefined,
+        (err) => console.warn('Failed to load model:', modelUrl, err)
+      );
+    }
+
+    // ============================================
+    // WEBXR SETUP
+    // ============================================
+
+    function setupWebXR(renderer, previewData) {
+      const features = previewData?.preview?.features || {};
+
+      // VR Support
+      if (features.vr && 'xr' in navigator) {
+        navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+          if (supported) {
+            renderer.xr.enabled = true;
+            const vrBtn = document.getElementById('btn-vr');
+            vrBtn.style.display = 'flex';
+            vrBtn.addEventListener('click', () => {
+              enterXR('immersive-vr');
+            });
+          }
+        }).catch(() => {});
+      }
+
+      // AR Support
+      if (features.ar && 'xr' in navigator) {
+        navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+          if (supported) {
+            renderer.xr.enabled = true;
+            const arBtn = document.getElementById('btn-ar');
+            arBtn.style.display = 'flex';
+            arBtn.addEventListener('click', () => {
+              enterXR('immersive-ar');
+            });
+          }
+        }).catch(() => {});
+      }
+    }
+
+    async function enterXR(mode) {
+      try {
+        const sessionInit = mode === 'immersive-ar'
+          ? { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'] }
+          : { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'] };
+
+        const session = await navigator.xr.requestSession(mode, sessionInit);
+        state.renderer.xr.setSession(session);
+        state.xrSession = session;
+
+        session.addEventListener('end', () => {
+          state.xrSession = null;
+        });
+      } catch (err) {
+        console.error('Failed to enter XR:', err);
+      }
+    }
+
+    // ============================================
+    // UI BINDINGS
+    // ============================================
+
+    function setupUI(previewData) {
+      const world = previewData.world;
+
+      // HUD
+      document.getElementById('hud-title').textContent = world.name || 'Untitled World';
+      document.getElementById('hud-creator').textContent =
+        world.creator ? `by ${world.creator.displayName || world.creator.username}` : '';
+
+      // Show HUD
+      document.getElementById('hud').classList.add('visible');
+      document.getElementById('bottom-bar').classList.add('visible');
+
+      // Share button
+      document.getElementById('btn-share').addEventListener('click', () => {
+        const modal = document.getElementById('share-modal');
+        modal.classList.add('open');
+        document.getElementById('share-url').value = window.location.href;
+
+        const baseUrl = window.location.origin;
+        document.getElementById('embed-code').textContent =
+          `<iframe src="${baseUrl}/embed/${state.token}" width="800" height="600" allow="xr-spatial-tracking; fullscreen" frameborder="0" loading="lazy"></iframe>`;
+      });
+
+      // Modal close
+      document.getElementById('modal-close').addEventListener('click', () => {
+        document.getElementById('share-modal').classList.remove('open');
+      });
+
+      document.getElementById('share-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) {
+          e.currentTarget.classList.remove('open');
+        }
+      });
+
+      // Copy URL
+      document.getElementById('copy-url').addEventListener('click', () => {
+        const input = document.getElementById('share-url');
+        navigator.clipboard.writeText(input.value).then(() => {
+          document.getElementById('copy-url').textContent = 'Copied!';
+          setTimeout(() => {
+            document.getElementById('copy-url').textContent = 'Copy';
+          }, 2000);
+        });
+      });
+
+      // Copy embed
+      document.getElementById('copy-embed').addEventListener('click', () => {
+        const code = document.getElementById('embed-code').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          document.getElementById('copy-embed').textContent = 'Copied!';
+          setTimeout(() => {
+            document.getElementById('copy-embed').textContent = 'Copy Embed Code';
+          }, 2000);
+        });
+      });
+
+      // Fullscreen
+      document.getElementById('btn-fullscreen').addEventListener('click', () => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          document.documentElement.requestFullscreen();
+        }
+      });
+
+      // Resize handler
+      window.addEventListener('resize', onResize);
+    }
+
+    function onResize() {
+      if (!state.camera || !state.renderer) return;
+      state.camera.aspect = window.innerWidth / window.innerHeight;
+      state.camera.updateProjectionMatrix();
+      state.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // ============================================
+    // RENDER LOOP
+    // ============================================
+
+    function startRenderLoop() {
+      state.renderer.setAnimationLoop(render);
+    }
+
+    function render() {
+      const delta = state.clock.getDelta();
+
+      // Update animation mixers
+      for (const mixer of state.animationMixers) {
+        mixer.update(delta);
+      }
+
+      // Update controls
+      if (state.controls && !state.xrSession) {
+        state.controls.update();
+      }
+
+      // FPS counter
+      state.frameCount++;
+      state.fpsAccum += delta;
+      if (state.fpsAccum >= 1.0) {
+        const fps = Math.round(state.frameCount / state.fpsAccum);
+        const statsEl = document.getElementById('perf-stats');
+        if (statsEl) {
+          statsEl.textContent = `${fps} FPS`;
+        }
+        state.frameCount = 0;
+        state.fpsAccum = 0;
+      }
+
+      // Render
+      state.renderer.render(state.scene, state.camera);
+    }
+
+    // ============================================
+    // MAIN ENTRY POINT
+    // ============================================
+
+    async function main() {
+      // 1. Parse token from URL
+      const token = parseParams();
+      if (!token) {
+        showError('No Preview Token', 'Please use a valid HoloLand preview link.');
+        return;
+      }
+
+      setProgress(5);
+
+      // 2. Initialize renderer early (GPU warmup)
+      const renderer = initRenderer();
+      setProgress(10);
+
+      // 3. Fetch preview data (parallel with GPU init)
+      const previewData = await fetchPreviewData(token);
+      if (!previewData) return;
+
+      state.previewData = previewData;
+
+      // Update loading screen with world name
+      const worldName = previewData.world?.name || 'World';
+      document.getElementById('loading-world-name').textContent = worldName;
+      document.title = `${worldName} - HoloLand Preview`;
+
+      setStatus('Initializing 3D scene...');
+      setProgress(45);
+
+      // 4. Build scene
+      const scene = initScene();
+
+      // 5. Populate with world objects
+      populateSceneFromData(scene, previewData);
+
+      setStatus('Starting WebXR...');
+      setProgress(90);
+
+      // 6. Setup WebXR
+      setupWebXR(renderer, previewData);
+
+      // 7. Setup UI
+      setupUI(previewData);
+
+      // 8. Start rendering
+      startRenderLoop();
+
+      // 9. Hide loading screen
+      setProgress(100);
+      const loadTime = Math.round(performance.now() - PERF_START);
+      console.log(`[HoloLand Preview] Loaded in ${loadTime}ms`);
+
+      setTimeout(() => {
+        document.getElementById('loading-screen').classList.add('fade-out');
+      }, 200);
+
+      // 10. Track visit (fire-and-forget)
+      if (previewData.world?.id) {
+        fetch(`${API_BASE.replace('/preview', '')}/worlds/${previewData.world.id}/visit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }).catch(() => {});
+      }
+    }
+
+    // Boot
+    main().catch((err) => {
+      console.error('[HoloLand Preview] Fatal error:', err);
+      showError('Something went wrong', 'An unexpected error occurred. Please try refreshing the page.');
+    });
+  </script>
+</body>
+</html>

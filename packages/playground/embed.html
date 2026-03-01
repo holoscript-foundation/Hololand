@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>HoloLand Embed</title>
+
+  <!-- Preconnect -->
+  <link rel="preconnect" href="https://central.hololand.io" crossorigin>
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: #0a0a14;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      color: #e0e0e0;
+    }
+
+    /* Embed loading */
+    #embed-loading {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #0a0a14;
+      z-index: 100;
+      transition: opacity 0.3s;
+    }
+
+    #embed-loading.hidden { opacity: 0; pointer-events: none; }
+
+    .embed-loading-text {
+      font-size: 0.85rem;
+      color: #667;
+      margin-top: 12px;
+    }
+
+    .embed-spinner {
+      width: 32px; height: 32px;
+      border: 2px solid #1a1a2e;
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Canvas */
+    #embed-canvas {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    /* Minimal embed overlay */
+    .embed-overlay {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      padding: 6px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+      z-index: 50;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .embed-overlay.visible { opacity: 1; }
+
+    .embed-overlay:hover { opacity: 1 !important; }
+
+    .embed-name {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.7);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .embed-actions {
+      display: flex; gap: 6px;
+    }
+
+    .embed-btn {
+      padding: 4px 10px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.7rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .embed-btn:hover {
+      background: rgba(0, 212, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    .embed-vr-btn {
+      background: rgba(0, 212, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+
+    /* Error */
+    .embed-error {
+      display: none;
+      position: fixed; inset: 0;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #0a0a14;
+      z-index: 200;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    .embed-error.visible { display: flex; }
+  </style>
+</head>
+<body>
+  <div id="embed-loading">
+    <div class="embed-spinner"></div>
+    <div class="embed-loading-text">Loading world...</div>
+  </div>
+
+  <canvas id="embed-canvas"></canvas>
+
+  <div class="embed-overlay" id="embed-overlay">
+    <span class="embed-name" id="embed-name"></span>
+    <div class="embed-actions">
+      <button class="embed-btn embed-vr-btn" id="embed-vr-btn" style="display:none">VR</button>
+      <a class="embed-btn" id="embed-open-btn" href="#" target="_blank" rel="noopener">Open</a>
+    </div>
+  </div>
+
+  <div class="embed-error" id="embed-error">
+    <div>Preview unavailable</div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const API_BASE = window.HOLOLAND_API || 'https://central.hololand.io/api/v1';
+    const BASE_URL = window.HOLOLAND_BASE || 'https://central.hololand.io';
+
+    // Extract token from URL path /embed/<token> or ?token=<token>
+    function getToken() {
+      const url = new URL(window.location.href);
+      const parts = url.pathname.split('/').filter(Boolean);
+      if (parts[0] === 'embed' && parts[1]) return parts[1];
+      return url.searchParams.get('token') || url.searchParams.get('t');
+    }
+
+    const PRIMITIVES = {
+      box: () => new THREE.BoxGeometry(1, 1, 1),
+      sphere: () => new THREE.SphereGeometry(0.5, 24, 24),
+      cylinder: () => new THREE.CylinderGeometry(0.5, 0.5, 1, 24),
+      cone: () => new THREE.ConeGeometry(0.5, 1, 24),
+      torus: () => new THREE.TorusGeometry(0.5, 0.15, 12, 32),
+      plane: () => new THREE.PlaneGeometry(1, 1),
+    };
+
+    async function main() {
+      const token = getToken();
+      if (!token) {
+        document.getElementById('embed-error').classList.add('visible');
+        document.getElementById('embed-loading').classList.add('hidden');
+        return;
+      }
+
+      // Fetch preview data
+      let data;
+      try {
+        const res = await fetch(`${API_BASE}/preview/${token}`);
+        if (!res.ok) throw new Error(res.status);
+        data = await res.json();
+      } catch (e) {
+        document.getElementById('embed-error').classList.add('visible');
+        document.getElementById('embed-loading').classList.add('hidden');
+        return;
+      }
+
+      // Setup renderer
+      const canvas = document.getElementById('embed-canvas');
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      // Scene
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0a14);
+      scene.fog = new THREE.FogExp2(0x0a0a14, 0.02);
+
+      // Camera
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
+      camera.position.set(0, 2, 8);
+
+      // Controls
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.target.set(0, 1, 0);
+      controls.maxPolarAngle = Math.PI * 0.85;
+
+      // Lights
+      scene.add(new THREE.AmbientLight(0x404060, 0.6));
+      scene.add(new THREE.HemisphereLight(0x87CEEB, 0x362a14, 0.5));
+      const sun = new THREE.DirectionalLight(0xfff4e6, 1.0);
+      sun.position.set(10, 15, 8);
+      scene.add(sun);
+
+      // Grid
+      const grid = new THREE.GridHelper(40, 40, 0x222244, 0x111133);
+      grid.material.opacity = 0.3;
+      grid.material.transparent = true;
+      scene.add(grid);
+
+      // Populate objects from cached scene data
+      const objects = data.scene?.data?.objects || data.scene?.data || [];
+      if (Array.isArray(objects)) {
+        for (const obj of objects) {
+          const type = (obj.type || 'box').toLowerCase();
+          if (type === 'model' || type === 'ui-text' || type === 'text') continue; // skip heavy assets in embed
+          const factory = PRIMITIVES[type] || PRIMITIVES.box;
+          const geo = factory();
+          const mat = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(obj.color || '#888888'),
+            roughness: 0.5,
+            metalness: 0.1,
+          });
+          const mesh = new THREE.Mesh(geo, mat);
+          const p = obj.position || [0, 0, 0];
+          const s = obj.scale || [1, 1, 1];
+          mesh.position.set(p[0], p[1], p[2]);
+          mesh.scale.set(s[0], s[1], s[2]);
+          scene.add(mesh);
+        }
+      }
+
+      // UI
+      const world = data.world || {};
+      document.getElementById('embed-name').textContent = world.name || 'HoloLand World';
+      document.getElementById('embed-open-btn').href = `${BASE_URL}/preview/${token}`;
+      document.getElementById('embed-overlay').classList.add('visible');
+
+      // VR button in embed
+      if (data.preview?.features?.vr && 'xr' in navigator) {
+        navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
+          if (ok) {
+            renderer.xr.enabled = true;
+            const vrBtn = document.getElementById('embed-vr-btn');
+            vrBtn.style.display = 'inline-block';
+            vrBtn.addEventListener('click', async () => {
+              try {
+                const session = await navigator.xr.requestSession('immersive-vr', {
+                  optionalFeatures: ['local-floor'],
+                });
+                renderer.xr.setSession(session);
+              } catch (err) {
+                console.error('VR failed:', err);
+              }
+            });
+          }
+        }).catch(() => {});
+      }
+
+      // Hide loading
+      document.getElementById('embed-loading').classList.add('hidden');
+
+      // Resize
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      // Render loop
+      const clock = new THREE.Clock();
+      renderer.setAnimationLoop(() => {
+        controls.update();
+        renderer.render(scene, camera);
+      });
+    }
+
+    main().catch((err) => {
+      console.error('[HoloLand Embed] Error:', err);
+      document.getElementById('embed-error').classList.add('visible');
+      document.getElementById('embed-loading').classList.add('hidden');
+    });
+  </script>
+</body>
+</html>

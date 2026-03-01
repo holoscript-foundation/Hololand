@@ -1,0 +1,51 @@
+{
+  "name": "@hololand/ar-mobile-companion",
+  "version": "0.1.0",
+  "description": "Mobile AR Companion for HoloLand - Flutter + ARKit/ARCore with spatial mesh scanning and IoT entity binding",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "flutter",
+    "ARCHITECTURE.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "hololand",
+    "ar",
+    "arkit",
+    "arcore",
+    "flutter",
+    "spatial-mesh",
+    "iot",
+    "mobile-ar",
+    "mesh-scanning",
+    "spatial-computing"
+  ],
+  "author": "brianonbased-dev",
+  "license": "Elastic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brianonbased-dev/Hololand.git",
+    "directory": "packages/ar/mobile-companion"
+  },
+  "peerDependencies": {
+    "@hololand/ar-anchors": "^1.0.0",
+    "@hololand/ar-detection": "^1.0.0",
+    "@hololand/ar-tracking": "^1.0.0",
+    "@hololand/ar-foundation": "^1.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^1.0.4"
+  }
+}
