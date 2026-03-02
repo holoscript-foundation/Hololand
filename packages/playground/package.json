@@ -6,13 +6,16 @@
   "main": "./playground.holo",
   "files": [
     "index.html",
+    "ide.html",
+    "creator-studio.html",
     "playground.holo",
     "agent-collaboration.hsplus"
   ],
   "scripts": {
     "dev": "npx serve . -p 3000",
     "start": "npx serve . -p 3000",
-    "preview": "open http://localhost:3000"
+    "preview": "open http://localhost:3000",
+    "studio": "open http://localhost:3000/creator-studio.html"
   },
   "dependencies": {
     "@holoscript/runtime": "^2.1.0"

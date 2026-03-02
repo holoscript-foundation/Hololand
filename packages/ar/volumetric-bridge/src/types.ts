@@ -133,6 +133,54 @@ export interface VolumetricLoadResult {
 
   /** Dispose all GPU resources. Must call on cleanup. */
   dispose: () => void;
+
+  /**
+   * Per-frame LOD update function (Gaussian Splatting only).
+   *
+   * Call this every frame in the render loop to update LOD selection,
+   * frustum-cull octree nodes, and drive geo.instanceCount.
+   *
+   * @param cameraX - Camera world X
+   * @param cameraY - Camera world Y
+   * @param cameraZ - Camera world Z
+   * @param viewProjectionMatrix - Column-major 4x4 VP matrix elements (16 floats)
+   *   for frustum culling. Pass null to skip frustum culling.
+   * @returns Whether the visible set changed (caller should update GPU buffers)
+   */
+  updateLOD?: (
+    cameraX: number,
+    cameraY: number,
+    cameraZ: number,
+    viewProjectionMatrix: ArrayLike<number> | null,
+  ) => {
+    changed: boolean;
+    visibleCount: number;
+    visibleIndices: Uint32Array;
+    visibilityBuffer: Uint8Array;
+    /**
+     * Cross-fade blending state for smooth LOD transitions.
+     * When crossFade.active is true, the renderer should blend between
+     * outgoing and incoming LOD levels using the provided alpha values.
+     * outgoingAlpha decreases from 1->0, incomingAlpha increases from 0->1
+     * over 150ms using smooth-step interpolation.
+     */
+    crossFade: {
+      active: boolean;
+      progress: number;
+      outgoingAlpha: number;
+      incomingAlpha: number;
+    };
+    /**
+     * Motion-aware LOD bias state.
+     * When motionBias.active is true, the LOD level has been reduced
+     * to maintain framerate during fast camera movement.
+     */
+    motionBias: {
+      active: boolean;
+      levelsDropped: number;
+      smoothedVelocity: number;
+    };
+  };
 }
 
 export interface VolumetricMetadata {

@@ -36,6 +36,8 @@ import type {
   VolumetricEventHandler,
   IVolumetricLoader,
 } from './types';
+import { OctreeLODSystem, extractFrustumPlanes } from './OctreeLODSystem';
+import { VR_OPTIMIZED_CONFIG } from './GaussianSplatLODManager';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -811,6 +813,24 @@ export class GaussianSplatLoader implements IVolumetricLoader {
     // ── Phase 3: Memory pre-check ─────────────────────────────────────────
     checkMemoryBudget(data.count, maxMemoryMB);
 
+    // ── Phase 3.5: Build OctreeLOD system from parsed splat data ─────────
+    this.emit({ type: 'progress', loaded: 0.55, total: 1, phase: 'building octree LOD' });
+
+    const octreeLOD = new OctreeLODSystem({
+      hysteresisDelayMs: 200,
+      frustumCullingEnabled: true,
+      lodConfig: {
+        ...VR_OPTIMIZED_CONFIG,
+        gaussianBudget: config.maxSplats ?? 180_000,
+      },
+    });
+
+    octreeLOD.buildFromSplatData({
+      positions: data.positions,
+      scales: data.scales,
+      count: data.count,
+    });
+
     this.emit({ type: 'progress', loaded: 0.7, total: 1, phase: 'building geometry' });
 
     // ── Phase 4: Apply scale multiplier ───────────────────────────────────
@@ -891,8 +911,75 @@ export class GaussianSplatLoader implements IVolumetricLoader {
       center,
       metadata,
       dispose: () => {
+        octreeLOD.clear();
         geo.dispose();
         material.dispose();
+      },
+      /**
+       * Per-frame LOD update driven by the OctreeLODSystem.
+       *
+       * Call every frame in the render loop. Performs:
+       * 1. Camera-distance LOD selection via GaussianSplatLODManager
+       * 2. LOD hysteresis (200ms delay between level transitions)
+       * 3. Frustum-culled octree traversal to skip out-of-view nodes
+       * 4. Visibility buffer population
+       * 5. geo.instanceCount update to render only visible Gaussians
+       *
+       * @param cameraX - Camera world position X
+       * @param cameraY - Camera world position Y
+       * @param cameraZ - Camera world position Z
+       * @param viewProjectionMatrix - Column-major 4x4 VP matrix (16 floats)
+       *   from camera.projectionMatrix * camera.matrixWorldInverse.
+       *   Pass null to skip frustum culling.
+       */
+      updateLOD: (
+        cameraX: number,
+        cameraY: number,
+        cameraZ: number,
+        viewProjectionMatrix: ArrayLike<number> | null,
+      ) => {
+        const frustum = viewProjectionMatrix
+          ? extractFrustumPlanes(viewProjectionMatrix)
+          : null;
+        const timestamp = typeof performance !== 'undefined'
+          ? performance.now()
+          : Date.now();
+
+        const lodResult = octreeLOD.update(
+          cameraX, cameraY, cameraZ,
+          frustum,
+          timestamp,
+        );
+
+        // Drive geo.instanceCount from LOD result
+        if (lodResult.changed) {
+          geo.instanceCount = lodResult.visibleCount;
+
+          // Emit lod-changed event for external listeners
+          this.emit({
+            type: 'lod-changed',
+            level: lodResult.activeLODLevel,
+            distance: lodResult.cameraDistance,
+          });
+        }
+
+        return {
+          changed: lodResult.changed,
+          visibleCount: lodResult.visibleCount,
+          visibleIndices: lodResult.visibleIndices,
+          visibilityBuffer: lodResult.visibilityBuffer,
+          crossFade: {
+            active: lodResult.crossFade.active,
+            progress: lodResult.crossFade.progress,
+            outgoingAlpha: lodResult.crossFade.outgoingAlpha,
+            incomingAlpha: lodResult.crossFade.incomingAlpha,
+          },
+          motionBias: {
+            active: lodResult.motionBias.active,
+            levelsDropped: lodResult.motionBias.levelsDropped,
+            smoothedVelocity: lodResult.motionBias.smoothedVelocity,
+          },
+        };
       },
     };
 

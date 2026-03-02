@@ -1,0 +1,62 @@
+{
+  "name": "@hololand/creation-tools",
+  "version": "1.0.0",
+  "description": "HoloLand MVP Creation Tools - Scene editor, preview, templates, assets, collaboration, and sharing",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./editor": {
+      "import": "./dist/editor/index.js",
+      "types": "./dist/editor/index.d.ts"
+    },
+    "./preview": {
+      "import": "./dist/preview/index.js",
+      "types": "./dist/preview/index.d.ts"
+    },
+    "./templates": {
+      "import": "./dist/templates/index.js",
+      "types": "./dist/templates/index.d.ts"
+    },
+    "./assets": {
+      "import": "./dist/assets/index.js",
+      "types": "./dist/assets/index.d.ts"
+    },
+    "./collaboration": {
+      "import": "./dist/collaboration/index.js",
+      "types": "./dist/collaboration/index.d.ts"
+    },
+    "./sharing": {
+      "import": "./dist/sharing/index.js",
+      "types": "./dist/sharing/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "monaco-editor": "^0.45.0",
+    "three": "^0.161.0",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "@types/three": "^0.161.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.1",
+    "rimraf": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@hololand/renderer": ">=1.0.0"
+  }
+}

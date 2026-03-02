@@ -58,6 +58,20 @@ export type {
   LODUpdateResult,
 } from './GaussianSplatLODManager';
 
+// Octree LOD System (spatial partitioning + frustum culling + hysteresis)
+export {
+  OctreeLODSystem,
+  extractFrustumPlanes,
+} from './OctreeLODSystem';
+export type {
+  AABB,
+  FrustumPlanes,
+  OctreeLODConfig,
+  OctreeLODUpdateResult,
+  CrossFadeState,
+  MotionLODBiasState,
+} from './OctreeLODSystem';
+
 // Budget Manager (per-frame Gaussian budget enforcement for VR/AR)
 export {
   GaussianBudgetManager,

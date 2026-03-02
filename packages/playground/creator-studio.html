@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HoloLand Creator Studio</title>
+  <meta name="description" content="Create, preview, and share 3D scenes with HoloScript - the spatial programming language for VR/AR" />
+  <meta property="og:title" content="HoloLand Creator Studio" />
+  <meta property="og:description" content="Build 3D worlds with HoloScript" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="HoloLand" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F30D;</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #1a1a2e;
+      --bg-secondary: #16213e;
+      --bg-tertiary: #0f3460;
+      --bg-surface: #252540;
+      --border-color: #2a2a4a;
+      --text-primary: #e0e0e0;
+      --text-secondary: #888;
+      --text-muted: #555;
+      --accent: #00d4ff;
+      --accent-hover: #33ddff;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --error: #f87171;
+      --gold: #ffd700;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg-primary); font-family: 'Inter', sans-serif; color: var(--text-primary); }
+
+    /* Layout */
+    #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+    /* Header */
+    #header {
+      display: flex; align-items: center; gap: 12px;
+      height: 48px; padding: 0 16px;
+      background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+    .logo {
+      font-weight: 700; font-size: 16px;
+      background: linear-gradient(90deg, var(--accent), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-sub { font-size: 11px; color: var(--text-secondary); margin-left: 4px; }
+    .sep { width: 1px; height: 24px; background: var(--border-color); }
+    .btn {
+      padding: 6px 14px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color);
+      border-radius: 6px; color: var(--text-primary); font-size: 12px; cursor: pointer;
+      font-family: 'Inter', sans-serif; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { background: rgba(255,255,255,0.12); border-color: #555; }
+    .btn.primary { background: var(--bg-tertiary); border-color: var(--accent); color: var(--accent); }
+    .btn.primary:hover { background: var(--accent); color: #fff; }
+    .btn.success { background: rgba(74,222,128,0.1); border-color: var(--success); color: var(--success); }
+    .btn.success:hover { background: var(--success); color: #000; }
+    .btn.share { background: rgba(255,215,0,0.1); border-color: var(--gold); color: var(--gold); }
+    .btn.share:hover { background: var(--gold); color: #000; }
+    .spacer { flex: 1; }
+    .status-badge { font-size: 11px; color: var(--text-muted); padding: 3px 8px; background: var(--bg-surface); border-radius: 4px; }
+
+    /* Main workspace */
+    #workspace { display: flex; flex: 1; overflow: hidden; }
+
+    /* Left sidebar - Asset panel */
+    #asset-panel {
+      width: 240px; min-width: 200px; max-width: 350px;
+      background: var(--bg-secondary); border-right: 1px solid var(--border-color);
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    #asset-panel.collapsed { width: 40px; min-width: 40px; }
+    #asset-panel .panel-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px; border-bottom: 1px solid var(--border-color);
+      font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    #asset-panel .panel-header .toggle-btn { margin-left: auto; cursor: pointer; color: var(--text-muted); }
+    .asset-category { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .asset-category h4 {
+      font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 6px; cursor: pointer;
+    }
+    .asset-category h4:hover { color: var(--text-secondary); }
+    .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    .asset-item {
+      padding: 8px 6px; background: var(--bg-surface); border: 1px solid transparent;
+      border-radius: 4px; cursor: grab; text-align: center; transition: all 0.15s; font-size: 10px; color: var(--text-secondary);
+    }
+    .asset-item:hover { border-color: var(--accent); background: rgba(0,212,255,0.05); color: var(--text-primary); }
+    .asset-item:active { cursor: grabbing; }
+    .asset-item .icon { font-size: 20px; display: block; margin-bottom: 2px; }
+    .asset-search {
+      width: calc(100% - 24px); margin: 8px 12px; padding: 6px 10px;
+      background: var(--bg-surface); border: 1px solid var(--border-color);
+      border-radius: 4px; color: var(--text-primary); font-size: 12px; font-family: 'Inter', sans-serif;
+    }
+    .asset-search:focus { outline: none; border-color: var(--accent); }
+    #asset-list { flex: 1; overflow-y: auto; }
+
+    /* Editor panel */
+    #editor-panel {
+      display: flex; flex-direction: column; width: 45%; min-width: 300px;
+      border-right: 1px solid var(--accent);
+    }
+    #editor-tabs {
+      display: flex; align-items: center; height: 32px;
+      background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);
+      padding: 0 8px; overflow-x: auto; flex-shrink: 0;
+    }
+    .tab {
+      padding: 6px 14px; font-size: 12px; color: var(--text-muted); cursor: pointer;
+      border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text-secondary); }
+    .tab.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+    #editor-container { flex: 1; overflow: hidden; }
+
+    /* Preview panel */
+    #preview-panel { display: flex; flex-direction: column; flex: 1; min-width: 300px; }
+    #preview-header {
+      display: flex; align-items: center; height: 32px;
+      background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);
+      padding: 0 12px; flex-shrink: 0; gap: 8px;
+    }
+    #preview-header span { font-size: 12px; color: var(--text-secondary); }
+    #preview-header .spacer { flex: 1; }
+    #preview-canvas-wrap { flex: 1; position: relative; background: var(--bg-primary); overflow: hidden; }
+    #preview-canvas { width: 100%; height: 100%; display: block; }
+
+    /* Template modal */
+    #template-modal {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    #template-modal.open { display: flex; }
+    .modal-content {
+      background: var(--bg-secondary); border: 1px solid var(--border-color);
+      border-radius: 12px; width: 700px; max-width: 90vw; max-height: 80vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header {
+      display: flex; align-items: center; padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .modal-header h2 { font-size: 18px; flex: 1; }
+    .modal-close { background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; }
+    .modal-close:hover { color: var(--text-primary); }
+    .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+    .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .template-card {
+      background: var(--bg-surface); border: 1px solid var(--border-color);
+      border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.15s;
+    }
+    .template-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .template-card img { width: 100%; height: 120px; object-fit: cover; background: var(--bg-primary); }
+    .template-card .info { padding: 10px; }
+    .template-card .info h3 { font-size: 14px; margin-bottom: 4px; }
+    .template-card .info p { font-size: 11px; color: var(--text-secondary); line-height: 1.4; }
+    .template-card .info .meta { display: flex; gap: 8px; margin-top: 6px; font-size: 10px; color: var(--text-muted); }
+    .template-card .info .meta .badge {
+      padding: 1px 6px; border-radius: 3px; background: rgba(0,212,255,0.1); color: var(--accent);
+    }
+
+    /* Share modal */
+    #share-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    #share-modal.open { display: flex; }
+    .share-url {
+      display: flex; align-items: center; gap: 8px; margin: 12px 0;
+      padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px;
+    }
+    .share-url input {
+      flex: 1; background: none; border: none; color: var(--accent); font-size: 13px;
+      font-family: 'JetBrains Mono', monospace; outline: none;
+    }
+    .share-url .copy-btn {
+      padding: 4px 10px; background: var(--accent); border: none; color: #000;
+      border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;
+    }
+    .share-qr { text-align: center; margin: 16px 0; }
+    .share-qr img { border: 8px solid #fff; border-radius: 8px; }
+    .share-social { display: flex; gap: 8px; justify-content: center; margin: 12px 0; }
+    .share-social a {
+      padding: 8px 16px; background: var(--bg-surface); border: 1px solid var(--border-color);
+      border-radius: 6px; color: var(--text-primary); text-decoration: none; font-size: 12px;
+      transition: all 0.15s;
+    }
+    .share-social a:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); }
+
+    /* Bottom status bar */
+    #statusbar {
+      display: flex; align-items: center; height: 24px; padding: 0 12px;
+      background: var(--bg-secondary); border-top: 1px solid var(--border-color);
+      font-size: 11px; color: var(--text-muted); gap: 16px; flex-shrink: 0;
+    }
+    #statusbar .success { color: var(--success); }
+    #statusbar .error { color: var(--error); }
+
+    /* Collaborators bar */
+    .collab-bar { display: flex; align-items: center; gap: 4px; }
+    .collab-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600; color: #fff;
+      border: 2px solid var(--bg-secondary);
+    }
+
+    /* Loading overlay */
+    #loading-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: var(--bg-primary); z-index: 9999; transition: opacity 0.5s;
+    }
+    #loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    #loading-overlay h1 {
+      font-size: 2em; margin-bottom: 16px;
+      background: linear-gradient(90deg, var(--accent), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--bg-surface); border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Resizer */
+    .h-resizer { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; transition: background 0.2s; }
+    .h-resizer:hover, .h-resizer.active { background: var(--accent); }
+
+    /* Geometry icons as unicode shapes */
+    .geo-cube::before { content: '\25A0'; }
+    .geo-sphere::before { content: '\25CF'; }
+    .geo-cylinder::before { content: '\25AE'; }
+    .geo-cone::before { content: '\25B2'; }
+    .geo-torus::before { content: '\25EF'; }
+    .geo-capsule::before { content: '\2B2D'; }
+    .geo-plane::before { content: '\25AD'; }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <h1>HoloLand Creator Studio</h1>
+  <div class="spinner"></div>
+  <p style="margin-top:12px;color:var(--text-muted);font-size:13px;">Loading editor and 3D preview...</p>
+</div>
+
+<div id="app">
+  <!-- Header -->
+  <div id="header">
+    <span class="logo">HoloLand</span>
+    <span class="logo-sub">Creator Studio</span>
+    <div class="sep"></div>
+    <button class="btn primary" id="btn-run" title="Run preview (Ctrl+Enter)">&#9654; Run</button>
+    <button class="btn" id="btn-templates" title="Browse templates">Templates</button>
+    <button class="btn" id="btn-format" title="Format code">Format</button>
+    <div class="sep"></div>
+    <button class="btn" id="btn-save" title="Save file">Save</button>
+    <button class="btn" id="btn-open" title="Open file">Open</button>
+    <div class="sep"></div>
+    <button class="btn share" id="btn-share" title="Share scene">Share</button>
+    <button class="btn" id="btn-export-html" title="Export as standalone HTML">Export HTML</button>
+    <span class="spacer"></span>
+    <div class="collab-bar" id="collab-bar"></div>
+    <span class="status-badge" id="parse-status">Ready</span>
+  </div>
+
+  <!-- Workspace -->
+  <div id="workspace">
+    <!-- Asset panel -->
+    <div id="asset-panel">
+      <div class="panel-header">
+        <span>Assets</span>
+        <span class="toggle-btn" id="toggle-assets" title="Toggle panel">&#9776;</span>
+      </div>
+      <input type="text" class="asset-search" id="asset-search" placeholder="Search assets..." />
+      <div id="asset-list"></div>
+    </div>
+
+    <!-- Editor -->
+    <div id="editor-panel">
+      <div id="editor-tabs">
+        <div class="tab active" data-tab="main">scene.holo</div>
+      </div>
+      <div id="editor-container"></div>
+    </div>
+
+    <div class="h-resizer" id="h-resizer"></div>
+
+    <!-- Preview -->
+    <div id="preview-panel">
+      <div id="preview-header">
+        <span>3D Preview</span>
+        <span class="spacer"></span>
+        <span id="object-count" style="font-size:11px;color:var(--text-muted);">0 objects</span>
+        <span style="color:var(--text-muted);">|</span>
+        <span id="fps-counter" style="font-size:11px;color:var(--text-muted);">-- fps</span>
+      </div>
+      <div id="preview-canvas-wrap">
+        <canvas id="preview-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div id="statusbar">
+    <span id="cursor-pos">Ln 1, Col 1</span>
+    <span id="status-msg" class="success">Ready</span>
+    <span class="spacer"></span>
+    <span>HoloScript v2.1</span>
+    <span>|</span>
+    <span>Creator Studio v1.0</span>
+  </div>
+</div>
+
+<!-- Template modal -->
+<div id="template-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Template Gallery</h2>
+      <button class="modal-close" id="close-templates">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="template-grid" id="template-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Share modal -->
+<div id="share-modal">
+  <div class="modal-content" style="width:500px;">
+    <div class="modal-header">
+      <h2>Share Scene</h2>
+      <button class="modal-close" id="close-share">&times;</button>
+    </div>
+    <div class="modal-body" id="share-body">
+      <p style="color:var(--text-secondary);margin-bottom:12px;">Your scene is ready to share!</p>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".holo,.hsplus,.hs" style="display:none">
+
+<!-- External dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+/**
+ * HoloLand Creator Studio - Bootstrap
+ *
+ * Initializes and coordinates all creation tools:
+ * - Monaco editor with HoloScript language
+ * - Three.js 3D preview
+ * - Template gallery
+ * - Asset library with drag-and-drop
+ * - Scene sharing
+ */
+
+// ── HoloScript Language ──
+const HOLOSCRIPT_LANG = {
+  id: 'holoscript', extensions: ['.holo','.hs','.hsplus'], aliases: ['HoloScript','holoscript'],
+  keywords: ['composition','template','object','using','environment','spatial_group','logic','action','state','children','animation','networked','physics','import','as','if','else','for','in','while','return','true','false','null','this','parent','other','player','min','max','on_start','zone','region','spawn','trigger','material','shader','light','camera','audio','particle'],
+  traits: ['@grabbable','@throwable','@holdable','@clickable','@hoverable','@draggable','@pointable','@scalable','@collidable','@physics','@rigid','@kinematic','@trigger','@gravity','@glowing','@emissive','@transparent','@reflective','@animated','@billboard','@networked','@synced','@persistent','@owned','@host_only','@stackable','@attachable','@equippable','@consumable','@destructible','@anchor','@tracked','@world_locked','@hand_tracked','@eye_tracked','@spatial_audio','@ambient','@voice_activated','@state','@reactive','@observable','@computed'],
+  geometries: ['cube','sphere','cylinder','cone','torus','capsule','plane','text','model','humanoid','box','ring','dodecahedron','icosahedron','octahedron','tetrahedron'],
+  properties: ['position','rotation','scale','color','geometry','opacity','visible','type','text','model','skeleton','mass','restitution','friction','intensity','distance','duration','loop','easing','from','to','property','skybox','ambient_light','grid','theme','sync_rate','highlight_color'],
+  tokenizer: {
+    root: [
+      [/\/\/.*$/, 'comment'], [/\/\*/, 'comment', '@comment'],
+      [/@[a-zA-Z_]\w*/, 'keyword.trait'],
+      [/"([^"\\]|\\.)*$/, 'string.invalid'], [/"/, 'string', '@string'],
+      [/'([^'\\]|\\.)*$/, 'string.invalid'], [/'/, 'string', '@stringSingle'],
+      [/#[0-9a-fA-F]{3,8}/, 'number.hex'], [/\d+(\.\d+)?/, 'number'], [/-\d+(\.\d+)?/, 'number'],
+      [/on[A-Z]\w*/, 'keyword.event'],
+      [/[a-zA-Z_]\w*/, { cases: { '@keywords': 'keyword', '@geometries': 'type.geometry', '@properties': 'variable.property', '@default': 'identifier' } }],
+      [/[{}()\[\]]/, '@brackets'], [/[+\-*/%=<>!&|^~?]/, 'operator'], [/[;,.:]+/, 'delimiter'], [/\s+/, 'white'],
+    ],
+    comment: [[/[^/*]+/, 'comment'], [/\*\//, 'comment', '@pop'], [/[/*]/, 'comment']],
+    string: [[/[^"\\]+/, 'string'], [/\\./, 'string.escape'], [/"/, 'string', '@pop']],
+    stringSingle: [[/[^'\\]+/, 'string'], [/\\./, 'string.escape'], [/'/, 'string', '@pop']],
+  }
+};
+
+const HOLOSCRIPT_THEME = {
+  base: 'vs-dark', inherit: true,
+  rules: [
+    { token: 'keyword', foreground: '569cd6', fontStyle: 'bold' },
+    { token: 'keyword.trait', foreground: 'dcdcaa', fontStyle: 'italic' },
+    { token: 'keyword.event', foreground: 'c586c0' },
+    { token: 'type.geometry', foreground: '4ec9b0' },
+    { token: 'variable.property', foreground: '9cdcfe' },
+    { token: 'string', foreground: 'ce9178' }, { token: 'string.escape', foreground: 'd7ba7d' },
+    { token: 'number', foreground: 'b5cea8' }, { token: 'number.hex', foreground: 'b5cea8' },
+    { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+    { token: 'identifier', foreground: 'd4d4d4' }, { token: 'operator', foreground: 'd4d4d4' },
+  ],
+  colors: {
+    'editor.background': '#1a1a2e', 'editor.foreground': '#d4d4d4',
+    'editorLineNumber.foreground': '#5a5a5a', 'editorCursor.foreground': '#00d4ff',
+    'editor.selectionBackground': '#264f7844', 'editor.lineHighlightBackground': '#2a2d2e',
+  }
+};
+
+// ── Templates ──
+const TEMPLATES = [
+  { id:'empty-room', name:'Empty Room', desc:'Minimal room with floor and lighting', category:'starter', difficulty:'beginner', objects:5, thumb:'#444' },
+  { id:'forest', name:'Enchanted Forest', desc:'Nature with trees, mushrooms, and crystals', category:'nature', difficulty:'beginner', objects:18, thumb:'#1a3a1a' },
+  { id:'city-block', name:'City Block', desc:'Urban environment with buildings and streets', category:'environment', difficulty:'intermediate', objects:16, thumb:'#2a2a3a' },
+  { id:'gallery', name:'Art Gallery', desc:'Gallery with frames, pedestals, and spotlights', category:'art', difficulty:'beginner', objects:15, thumb:'#d0d0d0' },
+  { id:'game-arena', name:'Game Arena', desc:'PvP arena with spawns and obstacles', category:'game', difficulty:'intermediate', objects:20, thumb:'#1a0a2e' },
+  { id:'living-room', name:'Cozy Living Room', desc:'Warm interior with furniture and fireplace', category:'social', difficulty:'beginner', objects:14, thumb:'#2a1a0e' },
+  { id:'space-station', name:'Space Station', desc:'Sci-fi corridor with holo-displays', category:'scifi', difficulty:'intermediate', objects:16, thumb:'#0a0a2a' },
+  { id:'underwater', name:'Underwater World', desc:'Ocean floor with coral and fish', category:'nature', difficulty:'intermediate', objects:18, thumb:'#0a2a4a' },
+];
+
+// ── Assets ──
+const ASSETS = {
+  primitives: [
+    { id:'prim-cube', name:'Cube', geo:'cube', icon:'\u25A0', color:'#4488ff' },
+    { id:'prim-sphere', name:'Sphere', geo:'sphere', icon:'\u25CF', color:'#44ff88' },
+    { id:'prim-cylinder', name:'Cylinder', geo:'cylinder', icon:'\u25AE', color:'#ff8844' },
+    { id:'prim-cone', name:'Cone', geo:'cone', icon:'\u25B2', color:'#ff4488' },
+    { id:'prim-torus', name:'Torus', geo:'torus', icon:'\u25EF', color:'#8844ff' },
+    { id:'prim-plane', name:'Plane', geo:'plane', icon:'\u25AD', color:'#888888' },
+  ],
+  architecture: [
+    { id:'arch-wall', name:'Wall', geo:'box', icon:'\u2588', color:'#cccccc' },
+    { id:'arch-pillar', name:'Pillar', geo:'cylinder', icon:'\u2503', color:'#aaaaaa' },
+    { id:'arch-step', name:'Step', geo:'box', icon:'\u2582', color:'#888888' },
+  ],
+  nature: [
+    { id:'nat-trunk', name:'Trunk', geo:'cylinder', icon:'\u2502', color:'#5D4037' },
+    { id:'nat-canopy', name:'Canopy', geo:'sphere', icon:'\u2B24', color:'#2E7D32' },
+    { id:'nat-rock', name:'Rock', geo:'dodecahedron', icon:'\u25C6', color:'#666666' },
+    { id:'nat-crystal', name:'Crystal', geo:'octahedron', icon:'\u25C7', color:'#00ffaa' },
+  ],
+  interactive: [
+    { id:'int-button', name:'Button', geo:'cylinder', icon:'\u25CB', color:'#ff4444' },
+    { id:'int-orb', name:'Orb', geo:'sphere', icon:'\u2B55', color:'#00d4ff' },
+    { id:'int-portal', name:'Portal', geo:'torus', icon:'\u29BE', color:'#8800ff' },
+  ],
+  lighting: [
+    { id:'lit-spot', name:'Spot', geo:'cone', icon:'\u2600', color:'#FFD700' },
+    { id:'lit-lamp', name:'Lamp', geo:'sphere', icon:'\u2B50', color:'#FFFFCC' },
+    { id:'lit-neon', name:'Neon', geo:'box', icon:'\u2501', color:'#ff00ff' },
+  ],
+};
+
+// ── Default scene ──
+const DEFAULT_CODE = `composition "My Scene" {
+  environment {
+    skybox: "default"
+    ambient_light: 0.5
+    grid: true
+  }
+
+  object "Floor" {
+    geometry: "plane"
+    color: "#333333"
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    scale: [20, 20, 1]
+  }
+
+  object "Cube" {
+    geometry: "cube"
+    color: "#00d4ff"
+    position: [0, 0.5, -3]
+    scale: [1, 1, 1]
+  }
+
+  object "Sphere" {
+    geometry: "sphere"
+    color: "#ff6644"
+    position: [2, 0.5, -3]
+    scale: [1, 1, 1]
+  }
+}`;
+
+// ── State ──
+let editor = null;
+let scene, camera, renderer, controls;
+let objects = {};
+let nameCounters = {};
+
+// ── Initialization ──
+(function boot() {
+  // Build asset panel
+  const assetList = document.getElementById('asset-list');
+  for (const [cat, items] of Object.entries(ASSETS)) {
+    const sec = document.createElement('div');
+    sec.className = 'asset-category';
+    sec.innerHTML = `<h4>${cat}</h4><div class="asset-grid">${
+      items.map(a => `<div class="asset-item" draggable="true" data-asset-id="${a.id}" data-geo="${a.geo}" data-color="${a.color}" title="${a.name}"><span class="icon" style="color:${a.color}">${a.icon}</span>${a.name}</div>`).join('')
+    }</div>`;
+    assetList.appendChild(sec);
+  }
+
+  // Asset drag setup
+  assetList.addEventListener('dragstart', e => {
+    const item = e.target.closest('.asset-item');
+    if (item) e.dataTransfer.setData('application/x-hololand-asset', JSON.stringify({
+      id: item.dataset.assetId,
+      geo: item.dataset.geo,
+      color: item.dataset.color,
+      name: item.querySelector('.icon').nextSibling.textContent.trim()
+    }));
+  });
+
+  // Asset search
+  document.getElementById('asset-search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    assetList.querySelectorAll('.asset-item').forEach(el => {
+      el.style.display = el.textContent.toLowerCase().includes(q) || !q ? '' : 'none';
+    });
+  });
+
+  // Build template grid
+  const tplGrid = document.getElementById('template-grid');
+  TEMPLATES.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'template-card';
+    card.innerHTML = `<div style="width:100%;height:120px;background:${t.thumb};display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff80">${t.name.charAt(0)}</div><div class="info"><h3>${t.name}</h3><p>${t.desc}</p><div class="meta"><span class="badge">${t.difficulty}</span><span>${t.objects} objects</span></div></div>`;
+    card.onclick = () => loadTemplate(t.id);
+    tplGrid.appendChild(card);
+  });
+
+  // Init Monaco
+  require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+  require(['vs/editor/editor.main'], function(monaco) {
+    monaco.languages.register({ id: 'holoscript', extensions: ['.holo','.hsplus'], aliases: ['HoloScript'] });
+    monaco.languages.setMonarchTokensProvider('holoscript', HOLOSCRIPT_LANG);
+    monaco.editor.defineTheme('holoscript-dark', HOLOSCRIPT_THEME);
+
+    editor = monaco.editor.create(document.getElementById('editor-container'), {
+      value: DEFAULT_CODE,
+      language: 'holoscript',
+      theme: 'holoscript-dark',
+      fontSize: 14,
+      minimap: { enabled: true },
+      automaticLayout: true,
+      scrollBeyondLastLine: false,
+      wordWrap: 'on',
+      tabSize: 2,
+      bracketPairColorization: { enabled: true },
+      guides: { bracketPairs: true, indentation: true },
+      folding: true,
+      smoothScrolling: true,
+      cursorBlinking: 'smooth',
+      cursorSmoothCaretAnimation: 'on',
+      renderLineHighlight: 'all',
+      lineNumbers: 'on',
+      glyphMargin: true,
+    });
+
+    // Live preview on change
+    let previewTimer = null;
+    editor.onDidChangeModelContent(() => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => { updatePreview(); }, 300);
+    });
+
+    // Cursor position tracking
+    editor.onDidChangeCursorPosition(e => {
+      document.getElementById('cursor-pos').textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+    });
+
+    // Init 3D preview
+    init3DPreview();
+    updatePreview();
+
+    // Hide loading
+    document.getElementById('loading-overlay').classList.add('hidden');
+  });
+
+  // Button handlers
+  document.getElementById('btn-run').onclick = () => updatePreview();
+  document.getElementById('btn-templates').onclick = () => document.getElementById('template-modal').classList.add('open');
+  document.getElementById('close-templates').onclick = () => document.getElementById('template-modal').classList.remove('open');
+  document.getElementById('btn-format').onclick = () => editor?.getAction('editor.action.formatDocument')?.run();
+  document.getElementById('btn-share').onclick = shareScene;
+  document.getElementById('close-share').onclick = () => document.getElementById('share-modal').classList.remove('open');
+  document.getElementById('btn-save').onclick = saveFile;
+  document.getElementById('btn-open').onclick = () => document.getElementById('file-input').click();
+  document.getElementById('btn-export-html').onclick = exportHTML;
+  document.getElementById('toggle-assets').onclick = () => document.getElementById('asset-panel').classList.toggle('collapsed');
+
+  document.getElementById('file-input').onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { editor?.setValue(ev.target.result); };
+    reader.readAsText(file);
+  };
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); updatePreview(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveFile(); }
+  });
+
+  // Preview canvas drag-and-drop
+  const canvas = document.getElementById('preview-canvas');
+  canvas.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  canvas.addEventListener('drop', e => {
+    e.preventDefault();
+    const data = e.dataTransfer.getData('application/x-hololand-asset');
+    if (!data) return;
+    try {
+      const asset = JSON.parse(data);
+      // Calculate approximate 3D position from drop point
+      const rect = canvas.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width - 0.5) * 10;
+      const z = ((e.clientY - rect.top) / rect.height - 0.5) * -10;
+      insertAssetCode(asset, [Math.round(x*10)/10, 0.5, Math.round(z*10)/10]);
+    } catch(err) { console.error('Drop error:', err); }
+  });
+})();
+
+// ── 3D Preview ──
+function init3DPreview() {
+  const canvas = document.getElementById('preview-canvas');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color('#1a1a2e');
+
+  camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+  camera.position.set(5, 5, 8);
+
+  controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+  sun.position.set(5, 10, 5);
+  sun.castShadow = true;
+  scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0x87ceeb, 0x362d1b, 0.3));
+
+  // Grid
+  scene.add(new THREE.GridHelper(20, 20, 0x444444, 0x222222));
+
+  // Resize
+  function resize() {
+    const w = canvas.parentElement.clientWidth;
+    const h = canvas.parentElement.clientHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(canvas.parentElement);
+  resize();
+
+  // Render loop
+  let lastFps = 0, frameCount = 0, fpsAcc = 0, lastFpsTime = performance.now();
+  function animate() {
+    requestAnimationFrame(animate);
+    const now = performance.now();
+    frameCount++; fpsAcc += now - lastFpsTime;
+    if (now - lastFpsTime >= 1000 || fpsAcc >= 1000) {
+      lastFps = Math.round(frameCount * 1000 / fpsAcc);
+      document.getElementById('fps-counter').textContent = lastFps + ' fps';
+      frameCount = 0; fpsAcc = 0;
+    }
+    lastFpsTime = now;
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+}
+
+function updatePreview() {
+  if (!editor) return;
+  const code = editor.getValue();
+
+  // Clear existing objects
+  for (const [name, mesh] of Object.entries(objects)) {
+    if (mesh.geometry) mesh.geometry.dispose();
+    if (mesh.material) mesh.material.dispose();
+    scene.remove(mesh);
+  }
+  objects = {};
+
+  // Parse and build
+  const lines = code.split('\n');
+  let currentObj = null;
+  const props = {};
+  let objCount = 0;
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t || t.startsWith('//')) continue;
+
+    const objMatch = t.match(/^object\s+"([^"]+)"/);
+    if (objMatch) { currentObj = objMatch[1]; props[currentObj] = {}; continue; }
+
+    if (currentObj && t === '}') {
+      buildObject(currentObj, props[currentObj]);
+      objCount++;
+      currentObj = null;
+      continue;
+    }
+
+    if (currentObj) {
+      const pm = t.match(/^(\w+)\s*:\s*(.+)$/);
+      if (pm) {
+        let v = pm[2].replace(/,?\s*$/, '');
+        if (v === 'true') v = true;
+        else if (v === 'false') v = false;
+        else if (v.match(/^-?\d+(\.\d+)?$/)) v = parseFloat(v);
+        else if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
+        else if (v.startsWith('[')) { try { v = JSON.parse(v); } catch(e) {} }
+        props[currentObj][pm[1]] = v;
+      }
+    }
+  }
+
+  document.getElementById('object-count').textContent = objCount + ' objects';
+  document.getElementById('parse-status').textContent = 'Parsed OK';
+  document.getElementById('parse-status').style.color = '#4ade80';
+  document.getElementById('status-msg').textContent = `Scene updated: ${objCount} objects`;
+  document.getElementById('status-msg').className = 'success';
+}
+
+function buildObject(name, p) {
+  const geoType = p.geometry || p.type || 'cube';
+  let geo;
+  switch(geoType) {
+    case 'sphere': geo = new THREE.SphereGeometry(0.5,32,32); break;
+    case 'cylinder': geo = new THREE.CylinderGeometry(0.5,0.5,1,32); break;
+    case 'cone': geo = new THREE.ConeGeometry(0.5,1,32); break;
+    case 'torus': geo = new THREE.TorusGeometry(0.5,0.15,16,32); break;
+    case 'capsule': geo = new THREE.CapsuleGeometry(0.3,0.5,8,16); break;
+    case 'plane': geo = new THREE.PlaneGeometry(1,1); break;
+    case 'dodecahedron': geo = new THREE.DodecahedronGeometry(0.5); break;
+    case 'octahedron': geo = new THREE.OctahedronGeometry(0.5); break;
+    case 'icosahedron': geo = new THREE.IcosahedronGeometry(0.5); break;
+    case 'ring': geo = new THREE.RingGeometry(0.3,0.5,32); break;
+    case 'tetrahedron': geo = new THREE.TetrahedronGeometry(0.5); break;
+    default: geo = new THREE.BoxGeometry(1,1,1);
+  }
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(p.color || '#888'),
+    roughness: p.roughness || 0.5,
+    metalness: p.metalness || 0.1,
+  });
+  if (p.opacity != null && p.opacity < 1) { mat.transparent = true; mat.opacity = p.opacity; }
+
+  const mesh = new THREE.Mesh(geo, mat);
+  if (p.position) mesh.position.set(...p.position);
+  if (p.rotation) mesh.rotation.set(p.rotation[0]*Math.PI/180, p.rotation[1]*Math.PI/180, p.rotation[2]*Math.PI/180);
+  if (p.scale) { Array.isArray(p.scale) ? mesh.scale.set(...p.scale) : mesh.scale.setScalar(p.scale); }
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.name = name;
+
+  scene.add(mesh);
+  objects[name] = mesh;
+}
+
+// ── Asset drop → code insertion ──
+function insertAssetCode(asset, position) {
+  if (!editor) return;
+  const counter = (nameCounters[asset.name] || 0) + 1;
+  nameCounters[asset.name] = counter;
+  const name = counter === 1 ? asset.name : `${asset.name}_${counter}`;
+
+  const snippet = `\n  object "${name}" {\n    geometry: "${asset.geo}"\n    color: "${asset.color}"\n    position: [${position.join(', ')}]\n    scale: [1, 1, 1]\n  }\n`;
+
+  // Insert before the last closing brace
+  const code = editor.getValue();
+  const lastBrace = code.lastIndexOf('}');
+  if (lastBrace > 0) {
+    const before = code.substring(0, lastBrace);
+    const after = code.substring(lastBrace);
+    editor.setValue(before + snippet + after);
+  }
+  updatePreview();
+}
+
+// ── Template loading ──
+async function loadTemplate(id) {
+  // Fetch template code from the creation-tools package
+  // For now we embed a simple fetch from the template gallery or fallback
+  try {
+    const resp = await fetch(`../creation-tools/src/templates/TemplateGallery.ts`);
+    if (resp.ok) {
+      // Parse the template code out of the TypeScript file
+      const text = await resp.text();
+      const regex = new RegExp(`id:\\s*'${id}'[\\s\\S]*?code:\\s*\`([\\s\\S]*?)\``, 'm');
+      const match = text.match(regex);
+      if (match) {
+        editor?.setValue(match[1]);
+        updatePreview();
+        document.getElementById('template-modal').classList.remove('open');
+        return;
+      }
+    }
+  } catch(e) { /* fallback below */ }
+
+  // Fallback - use the default scene with a note
+  editor?.setValue(`// Template: ${id}\n// Load the @hololand/creation-tools package for full template support\n\n${DEFAULT_CODE}`);
+  updatePreview();
+  document.getElementById('template-modal').classList.remove('open');
+}
+
+// ── Sharing ──
+async function shareScene() {
+  const code = editor?.getValue() || '';
+  const hash = hashCode(code);
+  const previewUrl = `https://hololand.io/preview/${hash}`;
+  const qrSvg = generateQR(previewUrl);
+
+  const body = document.getElementById('share-body');
+  body.innerHTML = `
+    <p style="color:var(--text-secondary);margin-bottom:12px;">Your scene is ready to share!</p>
+    <div class="share-url">
+      <input type="text" value="${previewUrl}" readonly id="share-url-input" />
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('${previewUrl}');this.textContent='Copied!';">Copy</button>
+    </div>
+    <div class="share-qr"><img src="${qrSvg}" width="160" height="160" alt="QR Code" /></div>
+    <h4 style="font-size:12px;color:var(--text-secondary);margin:12px 0 8px;">Share on social media</h4>
+    <div class="share-social">
+      <a href="https://twitter.com/intent/tweet?url=${encodeURIComponent(previewUrl)}&text=${encodeURIComponent('Check out my 3D scene on HoloLand!')}" target="_blank">Twitter</a>
+      <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(previewUrl)}" target="_blank">Facebook</a>
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(previewUrl)}" target="_blank">LinkedIn</a>
+      <a href="mailto:?subject=${encodeURIComponent('My HoloLand Scene')}&body=${encodeURIComponent('Check out my 3D scene: ' + previewUrl)}" target="_blank">Email</a>
+    </div>
+    <h4 style="font-size:12px;color:var(--text-secondary);margin:12px 0 8px;">Embed code</h4>
+    <div class="share-url">
+      <input type="text" value='<iframe src="${previewUrl}?embed=true" width="800" height="600" frameborder="0" allowfullscreen></iframe>' readonly />
+      <button class="copy-btn" onclick="navigator.clipboard.writeText(this.previousElementSibling.value);this.textContent='Copied!';">Copy</button>
+    </div>
+  `;
+  document.getElementById('share-modal').classList.add('open');
+}
+
+function hashCode(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36) + Date.now().toString(36).slice(-4);
+}
+
+function generateQR(url) {
+  const size = 160, cells = 21, cs = size/cells;
+  const grid = Array.from({length:cells}, () => Array(cells).fill(false));
+  const fp = (ox,oy) => { for(let y=0;y<7;y++) for(let x=0;x<7;x++) { const o=y===0||y===6||x===0||x===6, i=y>=2&&y<=4&&x>=2&&x<=4; grid[oy+y][ox+x]=o||i; } };
+  fp(0,0); fp(cells-7,0); fp(0,cells-7);
+  const bytes = url.split('').map(c=>c.charCodeAt(0));
+  let bi = 0;
+  for(let y=9;y<cells-1;y++) for(let x=9;x<cells-1;x++) if(!grid[y][x]) { grid[y][x]=((bytes[bi%bytes.length]>>(Math.floor(bi/bytes.length)%8))&1)===1; bi++; }
+  for(let i=8;i<cells-8;i++) { grid[6][i]=i%2===0; grid[i][6]=i%2===0; }
+  let rects = '';
+  for(let y=0;y<cells;y++) for(let x=0;x<cells;x++) if(grid[y][x]) rects += `<rect x="${x*cs}" y="${y*cs}" width="${cs}" height="${cs}" fill="#000"/>`;
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="#fff"/>${rects}</svg>`)}`;
+}
+
+// ── File operations ──
+function saveFile() {
+  const code = editor?.getValue() || '';
+  const blob = new Blob([`// HoloScript Scene\n// Created with HoloLand Creator Studio\n// ${new Date().toISOString()}\n\n${code}`], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scene.holo';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportHTML() {
+  const code = editor?.getValue() || '';
+  const escaped = code.replace(/`/g,'\\`').replace(/\$/g,'\\$');
+  const sharing = new (class { generateStandaloneHTML(c,t) { /* inline simplified */ } })();
+
+  // Build standalone HTML
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>HoloLand Scene Preview</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#0f0f1a}#c{width:100%;height:100%}
+#info{position:fixed;bottom:12px;right:12px;background:rgba(0,0,0,0.7);color:#888;padding:6px 12px;border-radius:6px;font:11px sans-serif}#info a{color:#00d4ff;text-decoration:none}</style></head>
+<body><canvas id="c"></canvas><div id="info">Created with <a href="https://hololand.io">HoloLand</a></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js/controls/OrbitControls.js"><\/script>
+<script>const CODE=\`${escaped}\`;const c=document.getElementById('c');const r=new THREE.WebGLRenderer({canvas:c,antialias:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.setSize(innerWidth,innerHeight);r.shadowMap.enabled=true;const s=new THREE.Scene();s.background=new THREE.Color('#1a1a2e');const cam=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,1000);cam.position.set(5,5,8);const ct=new THREE.OrbitControls(cam,c);ct.enableDamping=true;s.add(new THREE.AmbientLight(0xffffff,0.4));const sl=new THREE.DirectionalLight(0xffffff,0.8);sl.position.set(5,10,5);s.add(sl);s.add(new THREE.GridHelper(20,20,0x444444,0x222222));const ls=CODE.split('\\n');let co=null;const ps={};for(const l of ls){const t=l.trim();const om=t.match(/^object\\s+"([^"]+)"/);if(om){co=om[1];ps[co]={};continue}if(co&&t==='}'){const p=ps[co];const gt=p.geometry||p.type||'cube';let g;switch(gt){case'sphere':g=new THREE.SphereGeometry(0.5,32,32);break;case'cylinder':g=new THREE.CylinderGeometry(0.5,0.5,1,32);break;case'cone':g=new THREE.ConeGeometry(0.5,1,32);break;case'torus':g=new THREE.TorusGeometry(0.5,0.15,16,32);break;case'plane':g=new THREE.PlaneGeometry(1,1);break;case'dodecahedron':g=new THREE.DodecahedronGeometry(0.5);break;case'octahedron':g=new THREE.OctahedronGeometry(0.5);break;case'icosahedron':g=new THREE.IcosahedronGeometry(0.5);break;default:g=new THREE.BoxGeometry(1,1,1)}const mt=new THREE.MeshStandardMaterial({color:new THREE.Color(p.color||'#888'),roughness:0.5});if(p.opacity!=null&&p.opacity<1){mt.transparent=true;mt.opacity=p.opacity}const m=new THREE.Mesh(g,mt);if(p.position)m.position.set(...p.position);if(p.rotation)m.rotation.set(p.rotation[0]*Math.PI/180,p.rotation[1]*Math.PI/180,p.rotation[2]*Math.PI/180);if(p.scale){Array.isArray(p.scale)?m.scale.set(...p.scale):m.scale.setScalar(p.scale)}m.castShadow=true;m.receiveShadow=true;s.add(m);co=null;continue}if(co){const pm=t.match(/^(\\w+)\\s*:\\s*(.+)$/);if(pm){let v=pm[2].replace(/,?\\s*$/,'');if(v==='true')v=true;else if(v==='false')v=false;else if(v.match(/^-?\\d+(\\.\\d+)?$/))v=parseFloat(v);else if(v.startsWith('"')&&v.endsWith('"'))v=v.slice(1,-1);else if(v.startsWith('[')){try{v=JSON.parse(v)}catch(e){}}ps[co][pm[1]]=v}}}function a(){requestAnimationFrame(a);ct.update();r.render(s,cam)}a();addEventListener('resize',()=>{r.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()})<\/script></body></html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scene.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
