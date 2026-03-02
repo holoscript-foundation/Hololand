@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --studio-bg: #0f1117;
+    --studio-panel: #1a1d27;
+    --studio-surface: #242736;
+    --studio-border: #2e3246;
+    --studio-text: #e4e6ef;
+    --studio-muted: #8b8fa3;
+    --studio-accent: #5c7cfa;
+    --studio-accent-hover: #4c6ef5;
+  }
+
+  html,
+  body {
+    @apply bg-studio-bg text-studio-text antialiased;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #__next {
+    height: 100%;
+  }
+}
+
+@layer components {
+  .studio-panel {
+    @apply bg-studio-panel border border-studio-border rounded-lg;
+  }
+
+  .studio-input {
+    @apply bg-studio-surface border border-studio-border rounded-md px-3 py-2
+           text-sm text-studio-text placeholder-studio-muted
+           focus:outline-none focus:ring-2 focus:ring-holo-500 focus:border-transparent
+           transition-colors;
+  }
+
+  .studio-btn {
+    @apply px-4 py-2 rounded-md text-sm font-medium transition-colors
+           focus:outline-none focus:ring-2 focus:ring-holo-500 focus:ring-offset-2 focus:ring-offset-studio-bg;
+  }
+
+  .studio-btn-primary {
+    @apply studio-btn bg-holo-600 text-white hover:bg-holo-700 active:bg-holo-800;
+  }
+
+  .studio-btn-secondary {
+    @apply studio-btn bg-studio-surface text-studio-text border border-studio-border
+           hover:bg-studio-border active:bg-studio-panel;
+  }
+
+  .studio-slider {
+    @apply w-full h-2 bg-studio-surface rounded-full appearance-none cursor-pointer
+           [&::-webkit-slider-thumb]:appearance-none
+           [&::-webkit-slider-thumb]:w-4
+           [&::-webkit-slider-thumb]:h-4
+           [&::-webkit-slider-thumb]:rounded-full
+           [&::-webkit-slider-thumb]:bg-holo-500
+           [&::-webkit-slider-thumb]:cursor-pointer
+           [&::-webkit-slider-thumb]:transition-colors
+           [&::-webkit-slider-thumb]:hover:bg-holo-400;
+  }
+
+  .studio-tab {
+    @apply px-4 py-2.5 text-sm font-medium text-studio-muted
+           border-b-2 border-transparent transition-colors cursor-pointer
+           hover:text-studio-text hover:border-studio-border;
+  }
+
+  .studio-tab-active {
+    @apply text-holo-400 border-holo-500;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--studio-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--studio-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--studio-muted);
+}
