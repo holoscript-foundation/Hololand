@@ -140,6 +140,24 @@ export type {
 export { QUALITY_PRESETS } from './types';
 
 // =============================================================================
+// SMART PROXY VR PREVIEW
+// =============================================================================
+
+export {
+  SmartProxyRenderer,
+  createSmartProxyRenderer,
+  PROXY_TIER_DESCRIPTIONS,
+  getProxyTierSettings,
+} from './SmartProxyRenderer';
+
+export type {
+  SmartProxyMode,
+  SmartProxyConfig,
+  ProxyQualityTier,
+  PreviewMetrics,
+} from './SmartProxyRenderer';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -149,7 +167,7 @@ export * from './GPUCompute';
 // VERSION
 // =============================================================================
 
-export const HOLOLAND_RENDERER_VERSION = '1.0.0-alpha.2';
+export const HOLOLAND_RENDERER_VERSION = '1.0.0-alpha.3';
 
 // =============================================================================
 // DEFAULT EXPORT
@@ -162,15 +180,17 @@ import { PostProcessingPipeline } from './PostProcessing';
 import { EnvironmentManager, HDRI_PRESETS } from './EnvironmentManager';
 import { AssetLoader } from './AssetLoader';
 import { MaterialFactory } from './MaterialFactory';
+import { SmartProxyRenderer } from './SmartProxyRenderer';
 
 export default {
   HololandRenderer,
   Hololand2DRenderer,
+  SmartProxyRenderer,
   QualityManager,
   PostProcessingPipeline,
   EnvironmentManager,
   AssetLoader,
   MaterialFactory,
   HDRI_PRESETS,
-  HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.2',
+  HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.3',
 };

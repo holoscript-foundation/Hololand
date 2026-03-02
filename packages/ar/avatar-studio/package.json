@@ -1,0 +1,67 @@
+{
+  "name": "@hololand/avatar-studio",
+  "version": "0.1.0",
+  "description": "VRM avatar authoring studio - create, customize, and export interoperable avatars for HoloLand and beyond",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup --treeshake",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit && eslint src --ext .ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@hololand/ar-renderer": "workspace:*",
+    "@hololand/logger": "workspace:*"
+  },
+  "peerDependencies": {
+    "three": "^0.160.0",
+    "@pixiv/three-vrm": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@pixiv/three-vrm": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/three": "^0.160.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "prettier": "^3.1.1",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  },
+  "keywords": [
+    "avatar",
+    "vrm",
+    "avatar-studio",
+    "character-creator",
+    "three.js",
+    "webxr",
+    "hololand",
+    "ready-player-me-alternative",
+    "digital-fashion",
+    "avatar-economy"
+  ],
+  "license": "MIT"
+}
