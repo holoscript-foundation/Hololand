@@ -29,6 +29,7 @@ const EXTENSION_MAP: Record<string, VolumetricSourceType> = {
   // Gaussian Splatting
   splat: 'gaussian_splat',
   ksplat: 'gaussian_splat',
+  spz: 'gaussian_splat',
   // PLY can be either — check header
   ply: 'gaussian_splat', // Default to splat; photogrammetry would use .obj/.gltf
 
@@ -39,9 +40,9 @@ const EXTENSION_MAP: Record<string, VolumetricSourceType> = {
   usdz: 'photogrammetry',
   fbx: 'photogrammetry',
 
-  // NeRF (future)
-  // ingp: 'nerf',
-  // msgpack: 'nerf',
+  // NeRF (supported via NeRF-to-GS capture flow)
+  ingp: 'nerf',
+  msgpack: 'nerf',
 };
 
 function detectSourceType(url: string): VolumetricSourceType {

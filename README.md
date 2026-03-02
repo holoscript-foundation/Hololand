@@ -67,8 +67,8 @@ HoloLand has **multiple layers of experience** - start at any level:
 
 ### 💻 Layer 4: Script Creators
 **Some coding - powerful control**
-- Write HoloScript+ for custom behaviors
-- Access full engine features
+- Write `.hs` templates, `.hsplus` modules, or `.holo` compositions
+- Access the full three-format language system
 - Still easier than traditional game dev
 
 ### 🔧 Layer 5: Platform Developers
@@ -178,23 +178,22 @@ function App() {
 
 That's it. VR-ready, physics-enabled, runs everywhere.
 
-### Built on HoloScript Game Engine
+### Built on the HoloScript Framework
 
-HoloLand **extends HoloScript's game engine and editor** with platform-specific features:
+HoloLand **extends HoloScript's spatial computing framework** with platform-specific features:
 
-**HoloScript Engine (Foundation):**
+**HoloScript Framework (Foundation):**
+- 📝 **Three-Format Language** - `.holo` (Scene Graph) + `.hs` (Core Language) + `.hsplus` (TypeScript for XR)
 - 🎮 **Visual Editor** - Unity-like scene editor with hierarchy, inspector, viewport
-- 🎬 **Scene System** - GameObject hierarchy and component architecture
-- 📦 **Asset Pipeline** - Import models, textures, sounds, animations
-- ⚡ **Physics Engine** - Collision detection and rigid body simulation
+- 🎬 **Scene System** - Composition-based architecture with spatial groups
+- ⚡ **Physics Engine** - Collision detection, joints, constraints, rigid body simulation
 - 🎨 **Rendering** - WebGL/WebGPU-based 3D rendering
-- 💻 **Scripting** - HoloScript+ language for gameplay logic
-- 🔨 **Build System** - Compile to WebXR for all platforms
+- 🔨 **Build System** - Compile to 18+ targets (Unity, Unreal, WebXR, VRChat)
 
 **HoloLand Platform Enhancements:**
 - 🌍 **World Publishing** - Instant deployment to HoloLand network
 - 🚪 **Portal System** - Visual editor for cross-world connections
-- 🤖 **AI Builder** - Natural language → scene generation
+- 🤖 **AI Builder** - Natural language → scene generation via Brittney
 - 👥 **Multiplayer Tools** - Built-in networking and player sync
 - 💰 **Monetization** - Integrate payments, analytics, ads
 - 🎨 **Asset Marketplace** - Browse/buy community assets in-editor
@@ -202,10 +201,10 @@ HoloLand **extends HoloScript's game engine and editor** with platform-specific 
 - 🔗 **Social Integration** - Friends, parties, events API
 
 **Think of it as:**
-- **HoloScript** = Unity (the game engine + editor)
-- **HoloLand** = Platform ecosystem built on HoloScript (metaverse with social features, economy, discovery)
+- **HoloScript** = The spatial computing framework (language + editor + compiler + runtime)
+- **HoloLand** = The spatial experience platform that enhances HoloScript (social, portals, monetization, discovery)
 
-**[📖 HoloScript Engine Docs →](https://github.com/brianonbased-dev/HoloScript)**
+**[📖 HoloScript Framework Docs →](https://github.com/brianonbased-dev/HoloScript)**
 
 ---
 
@@ -448,47 +447,61 @@ See [full package list](./ECOSYSTEM_STATUS.md) for all 60+ packages.
 
 ## HoloScript
 
-Hololand uses [HoloScript](https://github.com/brianonbased-dev/holoscript) - a declarative language that reduces codebase size by up to 90%.
+Hololand uses [HoloScript](https://github.com/brianonbased-dev/holoscript) — a spatial computing framework with three specialized languages that reduces codebase size by up to 90%.
 
 ### File Types
 
-HoloScript uses **two complementary formats** for different purposes:
+HoloScript provides **three specialized formats** for different domains:
 
-| Extension | Purpose | Best For |
-|-----------|---------|----------|
-| `.holo` | Declarative, visual | World layouts, agent definitions, AI-generated content |
-| `.hsplus` | Imperative, full language | Complex logic, backends, custom systems |
+| Extension | Domain | Best For |
+|-----------|--------|----------|
+| `.holo` | Scene Graph | Immersive worlds, environments, NPC dialogs, quests, networking |
+| `.hs` | Core Language | Templates, agents, IoT streams, logic gates, spatial awareness |
+| `.hsplus` | TypeScript for XR | Full applications: modules, types, physics, state machines, async |
 
-### `.holo` - Declarative World Definition
+### `.holo` — Scene Graph
 ```holo
-// Visual, AI-friendly format for worlds and agents
-agent Shopkeeper {
-  position: [5, 0, 0]
-  goals: ["sell_items", "greet_customers"]
-  traits: ["talkable", "merchant"]
-}
+composition "My World" {
+  environment {
+    skybox: "sunset_4k"
+    ambient_light: 0.6
+  }
 
-cube my_cube {
-  position: [0, 1, 0]
-  color: "#ff0000"
-  interactive: true
+  spatial_group "MainArea" {
+    object "WelcomeSign" {
+      geometry: "plane"
+      position: [0, 2, -3]
+      text: "Welcome to HoloLand!"
+    }
+  }
 }
 ```
 
-### `.hsplus` - Full Programming Language
+### `.hs` — Core Language
+```hs
+// Reusable templates, agent AI, IoT streams
+template "GuardAgent" {
+  @agent { type: "guard" }
+  @spatialAwareness { detection_radius: 15 }
+  @patrol { waypoints: [[0,0,0], [10,0,0], [10,0,10]] }
+}
+```
+
+### `.hsplus` — TypeScript for XR
 ```hsplus
-// Imperative code for complex systems
-import { NetworkedWorldState } from "./systems/NetworkedWorldState.hsplus"
-
-networked_object player {
-  sync_rate: 20hz
-  interpolation: true
-  position: synced
+// Full programming language with modules and types
+module GameState {
+  export let score: number = 0;
+  export function addScore(points: number) {
+    score += points;
+    emit("score_changed", score);
+  }
 }
 ```
 
-**Use `.holo`** for world layouts, agents, and AI-generated content.  
-**Use `.hsplus`** for game systems, networking, and complex logic.
+**Use `.holo`** for world compositions and scene layout.
+**Use `.hs`** for reusable templates, agents, and utilities.
+**Use `.hsplus`** for complex game systems and typed application logic.
 
 See [HoloScript File Types Guide](./docs/HOLOSCRIPT_FILE_TYPES.md) for complete documentation.
 
@@ -538,11 +551,11 @@ pnpm test
 ## 🛠️ Development Tools
 
 ### CLI & Parsers
-- **`@holoscript/cli`**: Parse and validate `.hsplus` files.
-- **VS Code Extension**: Full syntax support.
+- **`@holoscript/cli`**: Parse and validate `.holo`, `.hs`, and `.hsplus` files.
+- **VS Code Extension**: Full syntax support for all three formats.
 
 ### Content Workflow
-1. Write `.hsplus` in VS Code with the extension.
+1. Write `.holo` scenes, `.hs` templates/agents, and `.hsplus` modules in VS Code.
 2. Use `HoloScriptLoader` to hot-reload content in Hololand.
 3. Test interactions in VR mode.
 
@@ -585,4 +598,4 @@ pnpm test
 
 ---
 
-**Last Updated**: February 26, 2026
+**Last Updated**: March 1, 2026

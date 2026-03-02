@@ -1,7 +1,7 @@
 {
   "name": "@hololand/core",
   "version": "1.0.0",
-  "description": "Core HoloScript engine - Parser, Runtime, and Types for VR spatial programming",
+  "description": "Hololand platform core - extends @holoscript/core with platform features",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@hololand/logger": "workspace:*",
-    "@holoscript/core": "^2.0.0"
+    "@holoscript/core": "^3.43.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

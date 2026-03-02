@@ -39,6 +39,7 @@ import type {
   BodyProportions,
   FaceMorphs,
 } from './types';
+import { ProceduralBodyGenerator } from './ProceduralBodyGenerator';
 
 // =============================================================================
 // TYPES
@@ -153,6 +154,7 @@ export class AvatarMeshAssembler {
   private assetCache: Map<string, THREE.Group> = new Map();
   private textureCache: Map<string, THREE.Texture> = new Map();
   private loader: any = null;
+  private bodyGenerator: ProceduralBodyGenerator;
 
   constructor(config: Partial<MeshAssemblerConfig> = {}) {
     this.config = {
@@ -162,6 +164,10 @@ export class AvatarMeshAssembler {
       enableLOD: config.enableLOD ?? false,
       targetPlatform: config.targetPlatform ?? 'desktop',
     };
+    this.bodyGenerator = new ProceduralBodyGenerator({
+      radialSegments: this.config.targetPlatform === 'mobile' ? 12 : 16,
+      heightSegments: this.config.targetPlatform === 'mobile' ? 6 : 8,
+    });
   }
 
   // ===========================================================================
@@ -374,6 +380,14 @@ export class AvatarMeshAssembler {
   }
 
   /**
+   * Get the procedural body generator instance.
+   * Useful for generating standalone body meshes or exporting GLB files.
+   */
+  getBodyGenerator(): ProceduralBodyGenerator {
+    return this.bodyGenerator;
+  }
+
+  /**
    * Clear all cached assets and textures
    */
   clearCache(): void {
@@ -491,24 +505,35 @@ export class AvatarMeshAssembler {
       };
     }
 
-    // Fallback: Create a procedural humanoid skeleton + mesh
-    const { skeleton, rootBone, boneCount } = this.createHumanoidSkeleton();
-    const { mesh: bodyMesh, vertexCount, triangleCount } = this.createProceduralBody(
-      skeleton, skinMaterial, body
-    );
+    // Fallback: Use ProceduralBodyGenerator for high-quality procedural mesh
+    const genResult = this.bodyGenerator.generate(body.genderPresentation);
+    const generatedMesh = genResult.skinnedMesh;
 
-    bodyGroup.add(bodyMesh);
-    bodyGroup.add(rootBone); // Add bone hierarchy to scene
+    // Apply skin material to the generated mesh
+    generatedMesh.material = skinMaterial;
+    generatedMesh.userData.materialType = 'skin';
+
+    // Register morph targets from the procedural generator
+    if (generatedMesh.morphTargetDictionary) {
+      for (const [name, index] of Object.entries(generatedMesh.morphTargetDictionary)) {
+        if (BODY_MORPH_TARGETS.includes(name as any)) {
+          bodyMorphs.set(name, { mesh: generatedMesh, index: index as number });
+        }
+      }
+    }
+
+    bodyGroup.add(generatedMesh);
+    bodyGroup.add(genResult.rootBone);
 
     return {
       mesh: bodyGroup,
-      skeleton,
-      rootBone,
+      skeleton: genResult.skeleton,
+      rootBone: genResult.rootBone,
       skinMaterials: [skinMaterial],
       bodyMorphs,
-      vertexCount,
-      triangleCount,
-      boneCount,
+      vertexCount: genResult.stats.vertexCount,
+      triangleCount: genResult.stats.triangleCount,
+      boneCount: genResult.stats.boneCount,
     };
   }
 

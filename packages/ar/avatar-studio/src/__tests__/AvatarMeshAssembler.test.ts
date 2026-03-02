@@ -22,14 +22,21 @@ vi.mock('three', () => {
     getY: vi.fn((i: number) => array[i * itemSize + 1]),
   }));
 
-  const BufferGeometry = vi.fn().mockImplementation(() => ({
-    setAttribute: vi.fn(),
-    getAttribute: vi.fn().mockReturnValue({ count: 100 }),
-    index: { count: 300 },
-    morphAttributes: {},
-    userData: {},
-    dispose: vi.fn(),
-  }));
+  const BufferGeometry = vi.fn().mockImplementation(() => {
+    const geo: any = {
+      attributes: {},
+      index: { count: 300 },
+      morphAttributes: {},
+      morphTargetsRelative: false,
+      userData: {},
+      dispose: vi.fn(),
+      setAttribute: vi.fn((name: string, attr: any) => { geo.attributes[name] = attr; }),
+      getAttribute: vi.fn((name: string) => geo.attributes[name] ?? { count: 100 }),
+      setIndex: vi.fn((indexAttr: any) => { geo.index = indexAttr; }),
+      getIndex: vi.fn(() => geo.index),
+    };
+    return geo;
+  });
 
   const MeshStandardMaterial = vi.fn().mockImplementation((params) => ({
     ...params,
@@ -56,8 +63,11 @@ vi.mock('three', () => {
 
   const SkinnedMesh = vi.fn().mockImplementation((geo, mat) => ({
     ...new (Mesh as any)(geo, mat),
+    geometry: geo ?? new BufferGeometry(),
+    material: mat ?? new MeshStandardMaterial({}),
     skeleton: null,
     bind: vi.fn(),
+    morphTargetDictionary: null,
     morphTargetInfluences: [],
   }));
 
@@ -98,6 +108,14 @@ vi.mock('three', () => {
   const SphereGeometry = vi.fn().mockImplementation(() => makeGeo());
   const BoxGeometry = vi.fn().mockImplementation(() => makeGeo());
 
+  const Matrix4 = vi.fn().mockImplementation(() => ({
+    elements: new Float32Array(16),
+    makeTranslation: vi.fn().mockReturnThis(),
+    toArray: vi.fn((arr: Float32Array, offset: number) => {
+      for (let i = 0; i < 16; i++) arr[offset + i] = i === 0 || i === 5 || i === 10 || i === 15 ? 1 : 0;
+    }),
+  }));
+
   return {
     Vector3,
     Color,
@@ -112,8 +130,11 @@ vi.mock('three', () => {
     Bone,
     Skeleton,
     Group,
+    Matrix4,
+    FrontSide: 0,
     DoubleSide: 2,
     MathUtils: {
+      lerp: (a: number, b: number, t: number) => a + (b - a) * t,
       degToRad: (deg: number) => deg * Math.PI / 180,
     },
   };

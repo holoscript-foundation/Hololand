@@ -2,13 +2,17 @@
  * Avatar Preview Renderer
  *
  * Renders a real-time 3D preview of the avatar being authored.
- * Integrates with @pixiv/three-vrm for VRM model display and
- * @hololand/ar-renderer for the Three.js scene management.
+ * Integrates with @pixiv/three-vrm for VRM model display,
+ * AvatarMeshAssembler for blueprint-to-mesh conversion,
+ * and @pixiv/three-vrm-springbone for hair/clothing physics.
  *
  * This renderer watches the AvatarBlueprintManager for changes and
  * updates the 3D preview in real time. It manages:
  * - Scene setup with studio lighting
  * - Camera orbiting and view presets
+ * - Blueprint-driven mesh assembly (replacing placeholder mannequin)
+ * - Real-time morph target updates for body/face sliders
+ * - Spring bone physics for hair and clothing dynamics
  * - Expression preview with animation
  * - Performance HUD overlay
  * - Turntable auto-rotation
@@ -24,6 +28,11 @@ import type {
 } from './types';
 import { DEFAULT_PERFORMANCE_BUDGET } from './types';
 import type { AvatarBlueprintManager } from './AvatarBlueprintManager';
+import {
+  AvatarMeshAssembler,
+  type MeshAssemblerConfig,
+  type AssemblyResult,
+} from './AvatarMeshAssembler';
 
 // =============================================================================
 // TYPES
@@ -48,6 +57,10 @@ export interface PreviewRendererConfig {
   autoRotateSpeed?: number;
   /** Performance budget for warnings */
   performanceBudget?: PerformanceBudget;
+  /** Configuration for the mesh assembler */
+  meshAssemblerConfig?: Partial<MeshAssemblerConfig>;
+  /** Whether to enable spring bone physics for hair/clothing */
+  enableSpringBonePhysics?: boolean;
 }
 
 export interface CameraPreset {
@@ -89,6 +102,23 @@ const CAMERA_PRESETS: Record<StudioViewAngle, CameraPreset> = {
   },
 };
 
+/**
+ * Structural fields in the blueprint that require a full reassembly
+ * when changed (as opposed to incremental updates like colors/morphs).
+ */
+function computeStructuralFingerprint(blueprint: Readonly<AvatarBlueprint>): string {
+  return JSON.stringify({
+    hairStyleId: blueprint.hair.styleId,
+    hairPhysics: blueprint.hair.physics,
+    hairLengthFactor: blueprint.hair.lengthFactor,
+    hairVolume: blueprint.hair.volume,
+    bodyPreset: blueprint.body.preset,
+    bodyGender: blueprint.body.genderPresentation,
+    clothing: blueprint.clothing.map((c) => ({ slot: c.slot, assetId: c.assetId })),
+    accessories: blueprint.accessories.map((a) => ({ slot: a.slot, assetId: a.assetId })),
+  });
+}
+
 // =============================================================================
 // PREVIEW RENDERER
 // =============================================================================
@@ -105,6 +135,16 @@ export class AvatarPreviewRenderer {
   // Avatar model
   private avatarGroup: THREE.Group = new THREE.Group();
   private currentVRM: any = null;
+
+  // Mesh assembler integration
+  private meshAssembler: AvatarMeshAssembler;
+  private currentAssembly: AssemblyResult | null = null;
+  private isAssembling: boolean = false;
+  private lastStructuralFingerprint: string = '';
+
+  // Spring bone physics
+  private springBoneManager: any = null; // VRMSpringBoneManager
+  private springBonePhysicsEnabled: boolean;
 
   // Lighting
   private keyLight: THREE.DirectionalLight;
@@ -123,13 +163,12 @@ export class AvatarPreviewRenderer {
 
   // Blueprint manager reference
   private blueprintManager: AvatarBlueprintManager | null = null;
-  private unsubscribe: (() => void) | null = null;
+  private unsubscribers: (() => void)[] = [];
 
   // Performance tracking
   private frameCount: number = 0;
   private lastFpsUpdate: number = 0;
   private currentFps: number = 60;
-  private triangleCount: number = 0;
 
   // Expression animation
   private activeExpression: string | null = null;
@@ -138,6 +177,10 @@ export class AvatarPreviewRenderer {
 
   constructor(config: PreviewRendererConfig) {
     this.config = config;
+    this.springBonePhysicsEnabled = config.enableSpringBonePhysics ?? true;
+
+    // Initialize mesh assembler
+    this.meshAssembler = new AvatarMeshAssembler(config.meshAssemblerConfig);
 
     // Create renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -205,29 +248,38 @@ export class AvatarPreviewRenderer {
   // ===========================================================================
 
   /**
-   * Connect to a blueprint manager for reactive updates
+   * Connect to a blueprint manager for reactive updates.
+   * Subscribes to fine-grained events for optimal update performance:
+   * - color:changed  -> material color updates only (fast path)
+   * - morph:changed  -> morph target weight updates only (fast path)
+   * - asset:equipped / asset:unequipped -> full reassembly (structural change)
+   * - blueprint:changed -> general update with structural fingerprint check
    */
   connectBlueprintManager(manager: AvatarBlueprintManager): void {
     // Disconnect previous if any
     this.disconnectBlueprintManager();
 
     this.blueprintManager = manager;
-    this.unsubscribe = manager.on('blueprint:changed', () => {
-      this.updateFromBlueprint(manager.getBlueprint());
-    });
 
-    // Initial render
-    this.updateFromBlueprint(manager.getBlueprint());
+    // Subscribe to fine-grained events for optimized reactive updates
+    this.unsubscribers.push(
+      manager.on('blueprint:changed', () => {
+        this.handleBlueprintChanged(manager.getBlueprint());
+      }),
+    );
+
+    // Perform initial assembly from the current blueprint
+    this.assembleFromBlueprint(manager.getBlueprint());
   }
 
   /**
    * Disconnect from blueprint manager
    */
   disconnectBlueprintManager(): void {
-    if (this.unsubscribe) {
-      this.unsubscribe();
-      this.unsubscribe = null;
+    for (const unsub of this.unsubscribers) {
+      unsub();
     }
+    this.unsubscribers = [];
     this.blueprintManager = null;
   }
 
@@ -280,6 +332,15 @@ export class AvatarPreviewRenderer {
       this.currentVRM = null;
     }
 
+    // Clear spring bone manager
+    this.springBoneManager = null;
+
+    // Clear assembly result
+    this.currentAssembly = null;
+
+    // Clear assembler cache
+    this.meshAssembler.clearCache();
+
     // Dispose scene
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
@@ -294,6 +355,35 @@ export class AvatarPreviewRenderer {
     this.scene.clear();
 
     this.renderer.dispose();
+  }
+
+  // ===========================================================================
+  // MESH ASSEMBLER ACCESS
+  // ===========================================================================
+
+  /**
+   * Get the mesh assembler instance (for advanced usage)
+   */
+  getMeshAssembler(): AvatarMeshAssembler {
+    return this.meshAssembler;
+  }
+
+  /**
+   * Get the current assembly result (for inspection or export)
+   */
+  getCurrentAssembly(): AssemblyResult | null {
+    return this.currentAssembly;
+  }
+
+  /**
+   * Force a full reassembly from the current blueprint.
+   * Useful after asset loading or configuration changes.
+   */
+  async forceReassemble(): Promise<void> {
+    if (this.blueprintManager) {
+      this.lastStructuralFingerprint = ''; // Force fingerprint mismatch
+      await this.assembleFromBlueprint(this.blueprintManager.getBlueprint());
+    }
   }
 
   // ===========================================================================
@@ -402,6 +492,14 @@ export class AvatarPreviewRenderer {
     drawCalls: number;
     textureMemoryMB: number;
     withinBudget: boolean;
+    assemblyStats?: {
+      totalVertices: number;
+      totalTriangles: number;
+      totalBones: number;
+      totalMorphTargets: number;
+      totalSpringBoneChains: number;
+      assemblyTimeMs: number;
+    };
   } {
     const info = this.renderer.info;
     const budget = this.config.performanceBudget ?? DEFAULT_PERFORMANCE_BUDGET;
@@ -412,6 +510,16 @@ export class AvatarPreviewRenderer {
       drawCalls: info.render.calls,
       textureMemoryMB: (info.memory.textures * 4) / (1024 * 1024), // rough estimate
       withinBudget: true,
+      assemblyStats: this.currentAssembly
+        ? {
+            totalVertices: this.currentAssembly.stats.totalVertices,
+            totalTriangles: this.currentAssembly.stats.totalTriangles,
+            totalBones: this.currentAssembly.stats.totalBones,
+            totalMorphTargets: this.currentAssembly.stats.totalMorphTargets,
+            totalSpringBoneChains: this.currentAssembly.stats.totalSpringBoneChains,
+            assemblyTimeMs: this.currentAssembly.stats.assemblyTimeMs,
+          }
+        : undefined,
     };
 
     metrics.withinBudget =
@@ -484,9 +592,14 @@ export class AvatarPreviewRenderer {
       }
     }
 
-    // Update VRM
+    // Update VRM (handles VRM-level spring bones, expressions, lookAt)
     if (this.currentVRM) {
       this.currentVRM.update(delta);
+    }
+
+    // Update spring bone physics for assembled meshes (hair/clothing dynamics)
+    if (this.springBoneManager && this.springBonePhysicsEnabled) {
+      this.springBoneManager.update(delta);
     }
 
     // Render
@@ -503,13 +616,55 @@ export class AvatarPreviewRenderer {
   };
 
   // ===========================================================================
-  // INTERNAL: BLUEPRINT UPDATE
+  // INTERNAL: BLUEPRINT UPDATE (Smart Routing)
   // ===========================================================================
 
   /**
-   * Update 3D preview from blueprint changes
+   * Handle blueprint changes with intelligent update routing.
+   *
+   * Uses a structural fingerprint to decide between:
+   * 1. Full reassembly (structural changes like hair style, clothing slots)
+   * 2. Incremental update (color/morph changes only - much faster)
    */
-  private updateFromBlueprint(blueprint: Readonly<AvatarBlueprint>): void {
+  private handleBlueprintChanged(blueprint: Readonly<AvatarBlueprint>): void {
+    const newFingerprint = computeStructuralFingerprint(blueprint);
+
+    if (newFingerprint !== this.lastStructuralFingerprint) {
+      // Structural change detected -- full reassembly required
+      this.assembleFromBlueprint(blueprint);
+    } else {
+      // Incremental update only -- fast path for colors/morphs/scale
+      this.applyIncrementalUpdate(blueprint);
+    }
+  }
+
+  /**
+   * Apply incremental (non-structural) updates to the current assembly.
+   * This is the fast path for slider drags, color pickers, and height changes.
+   */
+  private applyIncrementalUpdate(blueprint: Readonly<AvatarBlueprint>): void {
+    if (!this.currentAssembly) {
+      // No assembly yet, fall back to legacy placeholder update
+      this.updateFromBlueprintLegacy(blueprint);
+      return;
+    }
+
+    // Update material colors (skin, hair, eye, clothing)
+    this.meshAssembler.updateMaterials(this.currentAssembly.materials, blueprint);
+
+    // Update morph targets (body proportions, face morphs)
+    this.meshAssembler.updateMorphTargets(this.currentAssembly.morphTargets, blueprint);
+
+    // Update height scale
+    const heightScale = blueprint.body.height / 1.7;
+    this.avatarGroup.scale.setScalar(heightScale);
+  }
+
+  /**
+   * Legacy update method for when no assembly is available (placeholder mode).
+   * Kept for backward compatibility with VRM-only or placeholder preview.
+   */
+  private updateFromBlueprintLegacy(blueprint: Readonly<AvatarBlueprint>): void {
     // Update skin material color
     this.updateSkinColor(blueprint.body.skinColor.hex);
 
@@ -517,16 +672,12 @@ export class AvatarPreviewRenderer {
     this.updateHairColor(blueprint.hair.primaryColor.hex);
 
     // Update model scale based on height
-    const heightScale = blueprint.body.height / 1.7; // normalize to default
+    const heightScale = blueprint.body.height / 1.7;
     this.avatarGroup.scale.setScalar(heightScale);
-
-    // Body proportions would be applied via morph targets on the VRM model
-    // For now, the preview shows the color/scale changes in real-time
-    // Full morph target support is part of the mesh generation pipeline
   }
 
   /**
-   * Update skin material color across all body meshes
+   * Update skin material color across all body meshes (legacy placeholder path)
    */
   private updateSkinColor(hex: string): void {
     const color = new THREE.Color(hex);
@@ -540,7 +691,7 @@ export class AvatarPreviewRenderer {
   }
 
   /**
-   * Update hair material color
+   * Update hair material color (legacy placeholder path)
    */
   private updateHairColor(hex: string): void {
     const color = new THREE.Color(hex);
@@ -551,6 +702,239 @@ export class AvatarPreviewRenderer {
         }
       }
     });
+  }
+
+  // ===========================================================================
+  // INTERNAL: MESH ASSEMBLY FROM BLUEPRINT
+  // ===========================================================================
+
+  /**
+   * Assemble the full avatar mesh from a blueprint, replacing whatever
+   * is currently in the avatar group (placeholder or previous assembly).
+   *
+   * This is the core integration point between AvatarMeshAssembler and
+   * AvatarPreviewRenderer. It:
+   * 1. Runs the assembler pipeline (body, face, hair, clothing, accessories)
+   * 2. Replaces the avatar group contents with the assembled group
+   * 3. Configures shadow casting on all meshes
+   * 4. Sets up spring bone physics chains for hair/clothing
+   * 5. Stores the assembly result for incremental updates
+   */
+  private async assembleFromBlueprint(blueprint: Readonly<AvatarBlueprint>): Promise<void> {
+    // Prevent concurrent assemblies
+    if (this.isAssembling) return;
+    this.isAssembling = true;
+
+    try {
+      const result = await this.meshAssembler.assemble(blueprint);
+
+      // Clear existing avatar content
+      this.clearAvatarGroup();
+
+      // Add assembled group to the avatar group
+      this.avatarGroup.add(result.group);
+
+      // Configure shadows on all meshes in the assembled group
+      result.group.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.castShadow = true;
+          object.receiveShadow = true;
+        }
+      });
+
+      // Apply height scale
+      const heightScale = blueprint.body.height / 1.7;
+      this.avatarGroup.scale.setScalar(heightScale);
+
+      // Store assembly result for incremental updates
+      this.currentAssembly = result;
+      this.lastStructuralFingerprint = computeStructuralFingerprint(blueprint);
+
+      // Setup spring bone physics for hair and clothing
+      if (this.springBonePhysicsEnabled && result.stats.totalSpringBoneChains > 0) {
+        await this.setupSpringBonePhysics(result);
+      }
+
+      console.log(
+        `Avatar assembled: ${result.stats.totalVertices} verts, ` +
+        `${result.stats.totalTriangles} tris, ` +
+        `${result.stats.totalBones} bones, ` +
+        `${result.stats.totalMorphTargets} morphs, ` +
+        `${result.stats.totalSpringBoneChains} spring chains ` +
+        `(${result.stats.assemblyTimeMs}ms)`
+      );
+    } catch (error) {
+      console.error('Avatar assembly failed, using placeholder:', error);
+      // Fall back to placeholder mannequin on assembly failure
+      this.addPlaceholderMannequin();
+      this.currentAssembly = null;
+      this.lastStructuralFingerprint = '';
+    } finally {
+      this.isAssembling = false;
+    }
+  }
+
+  /**
+   * Clear all children from the avatar group, disposing geometry and materials.
+   */
+  private clearAvatarGroup(): void {
+    // Dispose geometry and materials before removing
+    this.avatarGroup.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.geometry?.dispose();
+        if (Array.isArray(object.material)) {
+          object.material.forEach((m) => m.dispose());
+        } else if (object.material) {
+          object.material.dispose();
+        }
+      }
+    });
+
+    while (this.avatarGroup.children.length > 0) {
+      this.avatarGroup.remove(this.avatarGroup.children[0]);
+    }
+
+    // Clear spring bone manager when clearing the avatar
+    this.springBoneManager = null;
+  }
+
+  // ===========================================================================
+  // INTERNAL: SPRING BONE PHYSICS
+  // ===========================================================================
+
+  /**
+   * Setup spring bone physics for hair and clothing dynamics.
+   *
+   * Spring bones create natural-looking secondary motion for:
+   * - Hair strands that sway with head movement
+   * - Long clothing (skirts, coats, capes) that flows with body movement
+   * - Accessories (earrings, pendants) that dangle
+   *
+   * Uses @pixiv/three-vrm-springbone which provides:
+   * - Verlet integration for spring simulation
+   * - Collider support to prevent mesh penetration
+   * - Per-joint stiffness, gravity, and drag settings
+   */
+  private async setupSpringBonePhysics(assembly: AssemblyResult): Promise<void> {
+    try {
+      const { VRMSpringBoneManager, VRMSpringBoneJoint } = await import(
+        '@pixiv/three-vrm-springbone'
+      );
+
+      const manager = new VRMSpringBoneManager();
+
+      // Find spring bone chains in the assembled group.
+      // Convention: bones with userData.springBone = true are part of a chain,
+      // organized as parent->child chains under bones named "*_spring_*".
+      assembly.group.traverse((object) => {
+        if (
+          object instanceof THREE.Bone &&
+          object.userData.springBone === true &&
+          object.children.length > 0
+        ) {
+          // Each spring bone chain: this bone is the root, children are the chain
+          const chainBones = this.collectSpringBoneChain(object);
+
+          for (let i = 0; i < chainBones.length - 1; i++) {
+            const bone = chainBones[i];
+            const child = chainBones[i + 1];
+
+            // Read per-joint settings from bone userData or use defaults
+            const settings = {
+              stiffness: bone.userData.springStiffness ?? 1.0,
+              gravityPower: bone.userData.springGravityPower ?? 0.0,
+              gravityDir: new THREE.Vector3(
+                bone.userData.springGravityDirX ?? 0,
+                bone.userData.springGravityDirY ?? -1,
+                bone.userData.springGravityDirZ ?? 0,
+              ),
+              dragForce: bone.userData.springDragForce ?? 0.4,
+              hitRadius: bone.userData.springHitRadius ?? 0.02,
+            };
+
+            const joint = new VRMSpringBoneJoint(bone, child, settings);
+            manager.addJoint(joint);
+          }
+        }
+      });
+
+      // Also handle spring bones configured via asset metadata on Group nodes
+      assembly.group.traverse((object) => {
+        if (
+          object instanceof THREE.Group &&
+          object.userData.springBoneChains &&
+          Array.isArray(object.userData.springBoneConfig)
+        ) {
+          for (const chainConfig of object.userData.springBoneConfig) {
+            const rootBone = this.findBoneByName(assembly.group, chainConfig.rootBone);
+            if (!rootBone) continue;
+
+            const chainBones = this.collectSpringBoneChain(rootBone);
+            for (let i = 0; i < chainBones.length - 1; i++) {
+              const joint = new VRMSpringBoneJoint(
+                chainBones[i],
+                chainBones[i + 1],
+                {
+                  stiffness: chainConfig.stiffness ?? 1.0,
+                  gravityPower: chainConfig.gravityPower ?? 0.0,
+                  gravityDir: new THREE.Vector3(0, -1, 0),
+                  dragForce: chainConfig.dragForce ?? 0.4,
+                  hitRadius: chainConfig.hitRadius ?? 0.02,
+                },
+              );
+              manager.addJoint(joint);
+            }
+          }
+        }
+      });
+
+      // Initialize spring bone state
+      manager.setInitState();
+
+      this.springBoneManager = manager;
+
+      const jointCount = manager.joints.size;
+      if (jointCount > 0) {
+        console.log(`Spring bone physics: ${jointCount} joints configured`);
+      }
+    } catch (error) {
+      console.warn('Spring bone physics unavailable:', error);
+      this.springBoneManager = null;
+    }
+  }
+
+  /**
+   * Collect a chain of bones starting from a root bone.
+   * Follows single-child chains (for branching, only the first child is taken).
+   */
+  private collectSpringBoneChain(root: THREE.Object3D): THREE.Object3D[] {
+    const chain: THREE.Object3D[] = [root];
+    let current = root;
+
+    while (current.children.length > 0) {
+      // Follow the first bone child
+      const boneChild = current.children.find(
+        (c) => c instanceof THREE.Bone || c.userData.springBone === true
+      );
+      if (!boneChild) break;
+      chain.push(boneChild);
+      current = boneChild;
+    }
+
+    return chain;
+  }
+
+  /**
+   * Find a bone by name in the hierarchy.
+   */
+  private findBoneByName(root: THREE.Object3D, name: string): THREE.Bone | null {
+    let found: THREE.Bone | null = null;
+    root.traverse((obj) => {
+      if (obj instanceof THREE.Bone && obj.name === name && !found) {
+        found = obj;
+      }
+    });
+    return found;
   }
 
   // ===========================================================================
@@ -604,10 +988,16 @@ export class AvatarPreviewRenderer {
   }
 
   /**
-   * Load a base mesh for authoring (procedural or from URL)
+   * Load a base mesh for authoring (procedural or from URL).
+   * When a blueprint manager is connected, assembles from the blueprint instead.
    */
   loadPlaceholder(): void {
-    this.addPlaceholderMannequin();
+    if (this.blueprintManager) {
+      // If we have a blueprint manager, assemble from the blueprint
+      this.assembleFromBlueprint(this.blueprintManager.getBlueprint());
+    } else {
+      this.addPlaceholderMannequin();
+    }
   }
 
   // ===========================================================================
@@ -637,16 +1027,7 @@ export class AvatarPreviewRenderer {
 
   private addPlaceholderMannequin(): void {
     // Clear existing avatar content
-    while (this.avatarGroup.children.length > 0) {
-      const child = this.avatarGroup.children[0];
-      this.avatarGroup.remove(child);
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose();
-        if (child.material instanceof THREE.Material) {
-          child.material.dispose();
-        }
-      }
-    }
+    this.clearAvatarGroup();
 
     const skinMaterial = new THREE.MeshStandardMaterial({
       color: 0xe0b896,
@@ -746,6 +1127,9 @@ export class AvatarPreviewRenderer {
     const rightIris = new THREE.Mesh(irisGeometry.clone(), irisMaterial.clone());
     rightIris.position.set(0.04, 1.56, 0.115);
     this.avatarGroup.add(rightIris);
+
+    // Clear assembly reference since we are using placeholder
+    this.currentAssembly = null;
   }
 
   // ===========================================================================

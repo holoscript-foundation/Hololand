@@ -31,11 +31,15 @@
   },
   "peerDependencies": {
     "three": "^0.160.0",
-    "@pixiv/three-vrm": "^2.0.0"
+    "@pixiv/three-vrm": "^2.0.0",
+    "@pixiv/three-vrm-springbone": "^2.0.0"
   },
   "peerDependenciesMeta": {
     "@pixiv/three-vrm": {
       "optional": false
+    },
+    "@pixiv/three-vrm-springbone": {
+      "optional": true
     }
   },
   "devDependencies": {

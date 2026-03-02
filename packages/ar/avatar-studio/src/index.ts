@@ -175,6 +175,14 @@ export type {
   AvatarVersion,
 } from './AvatarCloudService';
 
+// Procedural body generation
+export { ProceduralBodyGenerator } from './ProceduralBodyGenerator';
+export type {
+  BodyGeneratorConfig,
+  BodyGenerationResult,
+  BodyGenerationStats,
+} from './ProceduralBodyGenerator';
+
 // HoloScript bridge
 export { HoloScriptAvatarBridge } from './HoloScriptAvatarBridge';
 export type { HoloScriptAvatarNode } from './HoloScriptAvatarBridge';

@@ -72,9 +72,10 @@ import type {
 } from './types';
 
 import { AvatarBlueprintManager } from './AvatarBlueprintManager';
-import { AvatarPreviewRenderer, type PreviewRendererConfig } from './AvatarPreviewRenderer';
+import { AvatarPreviewRenderer } from './AvatarPreviewRenderer';
 import { AssetCatalog, type AssetCatalogConfig } from './AssetCatalog';
 import { VRMExporter, type ExportResult, type ExportProgressCallback } from './VRMExporter';
+import type { MeshAssemblerConfig, AssemblyResult } from './AvatarMeshAssembler';
 
 // =============================================================================
 // TYPES
@@ -103,6 +104,10 @@ export interface AvatarStudioConfig {
   performanceBudget?: PerformanceBudget;
   /** Base VRM model URL for preview */
   baseModelUrl?: string;
+  /** Configuration for the mesh assembler (asset base URL, physics, LOD, etc.) */
+  meshAssemblerConfig?: Partial<MeshAssemblerConfig>;
+  /** Enable spring bone physics for hair/clothing dynamics (default: true) */
+  enableSpringBonePhysics?: boolean;
 }
 
 // =============================================================================
@@ -132,6 +137,8 @@ export class AvatarStudio {
       shadows: config.shadows ?? true,
       autoRotate: config.autoRotate ?? false,
       performanceBudget: config.performanceBudget,
+      meshAssemblerConfig: config.meshAssemblerConfig,
+      enableSpringBonePhysics: config.enableSpringBonePhysics ?? true,
     });
 
     this.assetCatalog = new AssetCatalog(config.catalog);
@@ -143,23 +150,33 @@ export class AvatarStudio {
   // ===========================================================================
 
   /**
-   * Initialize the studio (must be called before use)
+   * Initialize the studio (must be called before use).
+   *
+   * When no `baseModelUrl` is provided, the renderer will assemble the avatar
+   * from the current blueprint using AvatarMeshAssembler, replacing the
+   * placeholder mannequin with actual assembled meshes. This enables:
+   * - Real-time morph target updates for body/face sliders
+   * - Spring bone physics for hair and clothing
+   * - Full material mapping for color picker reactivity
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    // Connect renderer to blueprint manager for reactive updates
+    // Connect renderer to blueprint manager for reactive updates.
+    // This sets up event subscriptions that drive both incremental
+    // and structural updates through the mesh assembler pipeline.
     this.previewRenderer.connectBlueprintManager(this.blueprintManager);
 
-    // Load base model if provided
+    // Load base model if provided (external VRM), otherwise assemble from blueprint
     if (this.config.baseModelUrl) {
       await this.previewRenderer.loadVRMModel(this.config.baseModelUrl);
     } else {
-      // Use placeholder mannequin
+      // loadPlaceholder() now assembles from blueprint when a manager is connected,
+      // falling back to the geometric placeholder if assembly fails
       this.previewRenderer.loadPlaceholder();
     }
 
-    // Start rendering
+    // Start rendering (includes spring bone physics updates in the loop)
     this.previewRenderer.start();
 
     this.isInitialized = true;
@@ -539,6 +556,26 @@ export class AvatarStudio {
    */
   off(type: StudioEventType, handler: StudioEventHandler): void {
     this.blueprintManager.off(type, handler);
+  }
+
+  // ===========================================================================
+  // MESH ASSEMBLY
+  // ===========================================================================
+
+  /**
+   * Force a full reassembly of the avatar from the current blueprint.
+   * Useful after loading new assets or changing assembler configuration.
+   */
+  async forceReassemble(): Promise<void> {
+    await this.previewRenderer.forceReassemble();
+  }
+
+  /**
+   * Get the current assembly result (for inspection, export, or advanced usage).
+   * Returns null if the avatar is showing a placeholder or VRM model.
+   */
+  getCurrentAssembly(): AssemblyResult | null {
+    return this.previewRenderer.getCurrentAssembly();
   }
 
   // ===========================================================================

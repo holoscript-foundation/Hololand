@@ -13,7 +13,7 @@ import type { Object3D, Vector3 as ThreeVector3, Box3 } from 'three';
 export type VolumetricSourceType = 'nerf' | 'gaussian_splat' | 'photogrammetry' | 'point_cloud';
 
 export type NerfFormat = 'instant_ngp' | 'nerfacto' | 'mipnerf360' | 'tensorf' | 'zip_nerf' | 'custom';
-export type SplatFormat = 'ply' | 'splat' | 'ksplat' | 'compressed';
+export type SplatFormat = 'ply' | 'splat' | 'ksplat' | 'spz' | 'compressed';
 export type PhotogrammetryFormat = 'obj' | 'gltf' | 'glb' | 'usdz' | 'fbx' | 'ply';
 
 // ─── Load Config ────────────────────────────────────────────────────────────

@@ -7,67 +7,141 @@
  * This package adds Hololand-specific features under the Elastic License 2.0.
  */
 
-// Re-export from @holoscript/core (MIT licensed)
-// NOTE: HoloScript v3.42.0 game engine has different export structure than when
-// HoloLand was originally built. Many exports have been renamed or removed.
-// Full migration to v3.42.0 API required.
+// =============================================================================
+// Re-exports from @holoscript/core v3.43.0 (MIT licensed)
+// =============================================================================
 
-// Minimal working exports (confirmed to exist in v3.42.0)
+// Parsers
+export {
+  HoloScriptParser,
+  HoloScript2DParser,
+  HoloScriptPlusParser,
+  createParser,
+  parseHoloScriptPlus,
+  HoloCompositionParser,
+  parseHolo,
+  parseHoloStrict,
+} from '@holoscript/core';
+
+// Validator & Code Parser
+export { HoloScriptValidator, type ValidationError } from '@holoscript/core';
+export { HoloScriptCodeParser } from '@holoscript/core';
+
+// Runtime
 export {
   HoloScriptRuntime,
+  HoloScriptPlusRuntimeImpl,
+  createRuntime,
+} from '@holoscript/core';
+
+// Debugger
+export {
   HoloScriptDebugger,
+  createDebugger,
+  type Breakpoint,
+  type StackFrame,
+  type DebugState,
+  type DebugEvent,
+  type StepMode,
+} from '@holoscript/core';
+
+// Logger
+export {
+  setHoloScriptLogger,
+  enableConsoleLogging,
+  resetLogger,
+  NoOpLogger,
+  ConsoleLogger,
+  type HoloScriptLogger,
+} from '@holoscript/core';
+
+// Environment & Capabilities
+export {
   createHoloScriptEnvironment,
   isHoloScriptSupported,
   HOLOSCRIPT_VERSION,
   HOLOSCRIPT_DEMO_SCRIPTS,
-  createRuntime,
-  createParser,
+  HOLOSCRIPT_SUPPORTED_PLATFORMS,
+  HOLOSCRIPT_VOICE_COMMANDS,
+  HOLOSCRIPT_GESTURES,
 } from '@holoscript/core';
 
-// DISABLED: These exports don't exist or have different names in v3.42.0
-// Uncomment and fix after migrating to new HoloScript game engine API
-/*
+// VR Traits
+export { VRTraitRegistry, vrTraitRegistry } from '@holoscript/core';
+
+// Core Types
+export type {
+  // Spatial
+  SpatialPosition,
+  Position2D,
+  Size2D,
+
+  // Hologram
+  HologramProperties,
+
+  // Input
+  VoiceCommand,
+  GestureData,
+
+  // AST Nodes
+  ASTNode,
+  OrbNode,
+  MethodNode,
+  ParameterNode,
+  ConnectionNode,
+  GateNode,
+  StreamNode,
+  TransformationNode,
+
+  // 2D UI
+  UIElementType,
+  UI2DNode,
+  UIStyle,
+
+  // Runtime
+  RuntimeContext,
+  ExecutionResult,
+  ParticleSystem,
+} from '@holoscript/core';
+
+// Composition Types
+export type {
+  HoloComposition,
+  HoloEnvironment,
+  HoloState,
+  HoloTemplate,
+  HoloObjectDecl,
+  HoloSpatialGroup,
+  HoloLogic,
+  HoloAction,
+  HoloImport,
+  HoloParseResult,
+  HoloParseError,
+} from '@holoscript/core';
+
+// Compilers
 export {
-  HoloScriptParser,           // ❌ Use HoloScriptPlusParser instead?
-  HoloScript2DParser,          // ❌ Use HoloScriptPlusParser instead?
-  HoloScriptCodeParser,        // ❌ Use HoloScriptPlusParser instead?
-  HoloScriptValidator,         // ❌ Check new validation API
-  setHoloScriptLogger,         // ❌ Check logger API
-  resetLogger,                 // ❌ Check logger API
-  enableConsoleLogging,        // ❌ Check logger API
-  NoOpLogger,                  // ❌ Check logger API
-  ConsoleLogger,               // ❌ Check logger API
-  HOLOSCRIPT_SUPPORTED_PLATFORMS,  // ❌ May be renamed
-  HOLOSCRIPT_VOICE_COMMANDS,       // ❌ May be renamed
-  HOLOSCRIPT_GESTURES,             // ❌ May be renamed
-
-  // Types - may not be exported at top level anymore
-  type SpatialPosition,
-  type Position2D,
-  type Size2D,
-  type HologramProperties,
-  type VoiceCommand,
-  type GestureData,
-  type ASTNode,
-  type OrbNode,
-  type MethodNode,
-  type ParameterNode,
-  type ConnectionNode,
-  type GateNode,              // ❌ Doesn't exist, use ASTNode?
-  type StreamNode,
-  type TransformationNode,
-  type UI2DNode,
-  type UIElementType,
-  type UIStyle,
-  type RuntimeContext,
-  type ExecutionResult,
-  type ParticleSystem,
-  type ParseResult,
-  type ParseError,
-  type HoloScriptLogger,      // ❌ Renamed to HoloScriptDebugger
-  type ValidationError,
+  R3FCompiler,
+  UnityCompiler,
+  GodotCompiler,
+  VisionOSCompiler,
+  VRChatCompiler,
+  UnrealCompiler,
 } from '@holoscript/core';
-*/
+
+// State Management
+export {
+  ReactiveState,
+  createState,
+  reactive,
+  effect,
+  computed,
+  bind,
+} from '@holoscript/core';
+
+// =============================================================================
+// Hololand Platform (Elastic License 2.0)
+// =============================================================================
 
 // Hololand version (platform version, separate from HoloScript language version)
 export const HOLOLAND_VERSION = '1.0.0-alpha.1';
@@ -101,8 +175,6 @@ export * from './HoloScriptBridge';
 export * from './TraitContextFactory';
 export * from './TraitRuntimeIntegration';
 export * from './PlatformRuntime';
-// DISABLED: Missing directory - HoloScript v3.42.0 migration needed
-// export * from './holoscript';
 
 // Phase 5: Self-Building World — Hot-reload & Git integration
 export {

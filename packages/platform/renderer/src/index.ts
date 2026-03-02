@@ -158,6 +158,38 @@ export type {
 } from './SmartProxyRenderer';
 
 // =============================================================================
+// VR MATERIAL PREVIEW
+// =============================================================================
+
+export {
+  VRMaterialPreviewSystem,
+  createVRMaterialPreviewSystem,
+} from './VRMaterialPreviewSystem';
+
+export type {
+  MaterialDefinition,
+  HoloMaterialType,
+  TextureChannel,
+  TextureMapDef,
+  ShaderPassDef,
+  GalleryLayout,
+  VRMaterialPreviewConfig,
+  PreviewSphereConfig,
+  VRPreviewMetrics,
+} from './VRMaterialPreviewSystem';
+
+// =============================================================================
+// HOLOSCRIPT MATERIAL PARSER
+// =============================================================================
+
+export { HoloScriptMaterialParser } from './HoloScriptMaterialParser';
+
+export type {
+  ASTNode,
+  CompositionMaterialNode,
+} from './HoloScriptMaterialParser';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -181,11 +213,15 @@ import { EnvironmentManager, HDRI_PRESETS } from './EnvironmentManager';
 import { AssetLoader } from './AssetLoader';
 import { MaterialFactory } from './MaterialFactory';
 import { SmartProxyRenderer } from './SmartProxyRenderer';
+import { VRMaterialPreviewSystem } from './VRMaterialPreviewSystem';
+import { HoloScriptMaterialParser } from './HoloScriptMaterialParser';
 
 export default {
   HololandRenderer,
   Hololand2DRenderer,
   SmartProxyRenderer,
+  VRMaterialPreviewSystem,
+  HoloScriptMaterialParser,
   QualityManager,
   PostProcessingPipeline,
   EnvironmentManager,
