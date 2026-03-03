@@ -1,0 +1,61 @@
+{
+  "name": "@hololand/mobile",
+  "version": "1.0.0",
+  "description": "Capacitor-based mobile runtime shell for HoloLand VR/AR spatial computing platform",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest run",
+    "cap:sync": "npx cap sync",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
+    "cap:run:ios": "npx cap run ios",
+    "cap:run:android": "npx cap run android"
+  },
+  "keywords": [
+    "hololand",
+    "capacitor",
+    "mobile",
+    "vr",
+    "ar",
+    "webxr",
+    "spatial-computing",
+    "native-bridge"
+  ],
+  "author": "Hololand Team",
+  "license": "ELv2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/platform/mobile"
+  },
+  "dependencies": {
+    "@capacitor/camera": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/browser": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  }
+}

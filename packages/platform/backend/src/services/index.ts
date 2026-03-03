@@ -32,3 +32,20 @@ export * from './MarketplaceCheckout';
 
 // Content Moderation Pipeline
 export * from './moderation';
+
+// Public Launch Infrastructure
+export * from './RateLimitService';
+export * from './EmailVerificationService';
+export * from './AbusePreventionService';
+
+// Enterprise Tier Services
+export * from './enterprise';
+
+// Scaling Infrastructure (Connection Pool, Cache, Job Queue)
+export * from './ScalingInfrastructureService';
+
+// Open Signup & Feature Flags
+export * from './OpenSignupService';
+
+// Platform Monitoring & Alerting
+export * from './MonitoringService';
