@@ -187,5 +187,20 @@ export type {
 export { HoloScriptAvatarBridge } from './HoloScriptAvatarBridge';
 export type { HoloScriptAvatarNode } from './HoloScriptAvatarBridge';
 
+// React UI Components
+export { ScenarioGallery } from './components/ScenarioGallery';
+export type {
+  ScenarioGalleryProps,
+  AvatarScenario,
+  ScenarioCategory,
+} from './components/ScenarioGallery';
+
+export { StudioModeSwitcher } from './components/StudioModeSwitcher';
+export type {
+  StudioModeSwitcherProps,
+  StudioMode,
+  StudioModeConfig,
+} from './components/StudioModeSwitcher';
+
 // All types
 export * from './types';

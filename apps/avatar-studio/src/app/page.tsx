@@ -1,8 +1,11 @@
 'use client';
 
 import { useBlueprint } from '@/hooks/useBlueprint';
+import { useStudioCommands } from '@/hooks/useStudioCommands';
+import { useCommandPalette } from '@/hooks/useCommandPalette';
 import { AvatarPreview } from '@/components/preview/AvatarPreview';
 import { TabBar } from '@/components/editor/TabBar';
+import { CommandPalette } from '@/components/command-palette';
 import {
   BodyTab,
   FaceTab,
@@ -15,6 +18,8 @@ import {
 
 export default function StudioPage() {
   const store = useBlueprint();
+  const commands = useStudioCommands(store);
+  const palette = useCommandPalette({ commands });
 
   const renderActiveTab = () => {
     switch (store.activeTab) {
@@ -48,6 +53,37 @@ export default function StudioPage() {
           <span className="text-xs text-studio-muted">Avatar Studio</span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Command Palette trigger */}
+          <button
+            onClick={palette.open}
+            className="studio-btn-secondary flex items-center gap-2 px-2.5 py-1.5 text-xs"
+            title="Command Palette"
+          >
+            <svg
+              className="w-3.5 h-3.5 text-studio-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <span className="hidden sm:inline text-studio-muted">Search</span>
+            <kbd className="hidden sm:inline-flex items-center px-1 py-0.5 text-[10px] font-mono
+                            text-studio-muted bg-studio-bg border border-studio-border rounded ml-1">
+              {typeof navigator !== 'undefined' &&
+              /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+                ? '\u2318K'
+                : 'Ctrl+K'}
+            </kbd>
+          </button>
+
+          <div className="w-px h-5 bg-studio-border mx-1" />
+
           {/* Undo / Redo */}
           <button
             onClick={store.undo}
@@ -121,6 +157,9 @@ export default function StudioPage() {
           </div>
         </aside>
       </div>
+
+      {/* Command Palette overlay */}
+      <CommandPalette palette={palette} />
     </div>
   );
 }

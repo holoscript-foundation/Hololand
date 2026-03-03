@@ -93,3 +93,56 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--studio-muted);
 }
+
+/* -----------------------------------------------------------------------
+   Command Palette (Cmd+K)
+   ----------------------------------------------------------------------- */
+
+.cmd-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  animation: cmd-backdrop-in 150ms ease-out;
+}
+
+.cmd-palette-container {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 16px;
+  background: var(--studio-panel);
+  border: 1px solid var(--studio-border);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 20px 60px -10px rgba(0, 0, 0, 0.5),
+    0 0 80px -20px rgba(92, 124, 250, 0.15);
+  overflow: hidden;
+  animation: cmd-container-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top center;
+}
+
+@keyframes cmd-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cmd-container-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

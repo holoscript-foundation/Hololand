@@ -244,6 +244,40 @@ export type {
   SpatialCRDTSyncConfig,
 } from './SpatialCRDTSync';
 
+// Voice Module — SFU transport, spatial audio engine, channel management
+export {
+  WebRTCVoiceTransport,
+  SpatialAudioEngine,
+  VoiceChannelManager,
+} from './voice';
+export type {
+  // Transport types
+  ICEServerConfig,
+  WebRTCVoiceTransportConfig,
+  VoiceTransportState,
+  VoiceParticipantInfo,
+  VoiceTransportEventMap,
+  VoiceTransportEventType,
+  VoiceTransportEventHandler,
+  // Spatial audio types
+  SpatialAudioConfig,
+  AudioZone,
+  ReverbSettings,
+  OcclusionRaycastCallback,
+  AudioSourceNode,
+  // Channel types
+  ChannelPermission,
+  VoiceChannel,
+  ChannelParticipant,
+  InputMode,
+  VoiceChannelConfig,
+  VoiceChannelEventMap,
+  VoiceChannelEventType,
+  VoiceChannelEventHandler,
+  // Sync types
+  VoiceSyncState,
+} from './voice';
+
 // Version
 export const HOLOLAND_NETWORK_VERSION = '1.0.0-alpha.1';
 
@@ -262,6 +296,7 @@ import { StateAuthority } from './StateAuthority';
 import { CRDTRoom } from './CRDTRoom';
 import { CRDTRoomManager } from './CRDTRoomManager';
 import { SpatialCRDTSync } from './SpatialCRDTSync';
+import { WebRTCVoiceTransport, SpatialAudioEngine, VoiceChannelManager } from './voice';
 
 export default {
   NetworkClient,
@@ -280,5 +315,8 @@ export default {
   CRDTRoom,
   CRDTRoomManager,
   SpatialCRDTSync,
+  WebRTCVoiceTransport,
+  SpatialAudioEngine,
+  VoiceChannelManager,
   HOLOLAND_NETWORK_VERSION,
 };

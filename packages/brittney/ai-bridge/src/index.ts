@@ -45,6 +45,27 @@ export type {
   WorldLike,
 } from './ScenePerception';
 
+// React Agent SDK Integration (Phase 4: Embodied VR Brittney Avatar)
+export { ReactAgentAvatarBridge } from './react-agent/ReactAgentAvatarBridge';
+export { useAvatarAgent } from './react-agent/useAvatarAgent';
+export { VRAvatarAgentProvider, useAvatarAgentContext } from './react-agent/VRAvatarAgentProvider';
+export type {
+  AgentState,
+  AvatarEmotion,
+  AvatarGesture,
+  AvatarToolCall,
+  AgentStreamChunk,
+  AgentAvatarBridgeConfig,
+  UseAvatarAgentReturn,
+  AgentMessage,
+  VRAvatarAgentProviderProps,
+} from './react-agent/types';
+export {
+  DEFAULT_AGENT_CONFIG,
+  DEFAULT_STREAM_CONFIG,
+  BRITTNEY_VR_SYSTEM_PROMPT,
+} from './react-agent/types';
+
 // Logger Interface
 export { setHololandAILogger, resetLogger, type HololandAILogger } from './logger';
 
@@ -104,6 +125,10 @@ import { VoiceVisualizer } from './VoiceVisualizer';
 import { VoiceMCPPipeline } from './VoiceMCPPipeline';
 import { serializeScene, serializeObjects } from './ScenePerception';
 
+import { ReactAgentAvatarBridge } from './react-agent/ReactAgentAvatarBridge';
+import { useAvatarAgent } from './react-agent/useAvatarAgent';
+import { VRAvatarAgentProvider, useAvatarAgentContext } from './react-agent/VRAvatarAgentProvider';
+
 export default {
   HololandAIBridge,
   NaturalLanguageTranslator,
@@ -114,6 +139,10 @@ export default {
   CodeOptimizer,
   serializeScene,
   serializeObjects,
+  ReactAgentAvatarBridge,
+  useAvatarAgent,
+  VRAvatarAgentProvider,
+  useAvatarAgentContext,
   createAIBridge,
   isVoiceSupported,
   HOLOLAND_AI_BRIDGE_VERSION,
