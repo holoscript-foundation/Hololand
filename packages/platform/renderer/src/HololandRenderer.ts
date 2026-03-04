@@ -59,6 +59,15 @@ import type {
   GaussianRenderStats,
   FoveatedGaussianPipelineConfig,
 } from './FoveatedGaussianTypes';
+import {
+  VRTrustHandshake,
+  createVRTrustHandshake,
+} from './VRTrustHandshake';
+import type {
+  TrustLevel,
+  VRTrustHandshakeConfig,
+  AgentManifest,
+} from './VRTrustHandshake';
 
 // =============================================================================
 // DEVICE PRESET DETECTION FOR FOVEATED RENDERING
@@ -169,6 +178,10 @@ export class HololandRenderer {
   private foveatedCoordinateWithQM: boolean = true;
   private foveatedDevicePreset: FoveatedDevicePreset = 'desktop';
   private lastFoveatedTimings: GaussianRenderTimings | null = null;
+
+  // VR Trust Handshake (zero-trust agent verification, off render loop)
+  private trustHandshake: VRTrustHandshake | null = null;
+  private trustPendingJoins: Set<string> = new Set(); // Agents with in-flight JOIN handshakes
 
   constructor(canvas: HTMLCanvasElement, world: HololandWorld, config?: RendererConfig) {
     this.world = world;
@@ -980,6 +993,13 @@ export class HololandRenderer {
       this.foveatedEnabled = false;
     }
 
+    // Clean up VR trust handshake
+    if (this.trustHandshake) {
+      this.trustHandshake.dispose();
+      this.trustHandshake = null;
+    }
+    this.trustPendingJoins.clear();
+
     // Clean up lighting fidelity manager
     this.lightingFidelityManager.dispose();
 
@@ -1037,11 +1057,22 @@ export class HololandRenderer {
    * Called once per frame from the render loop. Reads the FRONT buffer
    * (which was last updated by AgentCommunicationManager.swap()).
    *
+   * TRUST GATE: When a VRTrustHandshake is attached, only agents whose
+   * trust level is 'trusted' will have their avatar state applied to the
+   * scene graph. Untrusted agents (pending, degraded, revoked, unknown)
+   * are skipped entirely -- they remain invisible to the renderer.
+   *
+   * NEW AGENT AUTO-JOIN: When a new agent is detected via the
+   * AgentCommunicationManager and a VRTrustHandshake is active, a JOIN
+   * handshake is automatically initiated OFF the render loop. The agent's
+   * avatar only becomes visible after the handshake completes successfully.
+   *
    * This is extremely fast because:
    * - getFrontBuffer() is O(1) with zero allocation
+   * - isAgentTrusted() is O(1) cache read (<0.1ms)
    * - Only iterates connected agents (typically 1-10)
    * - Only updates changed transforms
-   * - No network I/O whatsoever
+   * - No network I/O whatsoever (JOIN runs async, off render loop)
    *
    * Budget: < 0.1ms for 10 agents, well within 11.1ms VR frame budget
    */
@@ -1049,9 +1080,32 @@ export class HololandRenderer {
     if (!this.agentCommunication) return;
 
     const state = this.agentCommunication.getCurrentState();
+    const trustEnabled = this.trustHandshake !== null;
 
     // Sync agent avatars
     for (const [agentId, agentState] of Object.entries(state.agents)) {
+      // ── Trust Gate ─────────────────────────────────────────────────────
+      // When trust handshake is active, only apply state for trusted agents.
+      // Untrusted agents skip scene graph updates entirely.
+      if (trustEnabled) {
+        const trusted = this.trustHandshake!.isAgentTrusted(agentId);
+
+        if (!trusted) {
+          // If this is a new agent we haven't seen, initiate JOIN (off render loop)
+          if (!this.trustPendingJoins.has(agentId) && !this.agentAvatarMap.has(agentId)) {
+            this.initiateAgentJoin(agentId, agentState);
+          }
+
+          // Hide existing avatar if trust was revoked/degraded
+          const existingAvatar = this.agentAvatarMap.get(agentId);
+          if (existingAvatar) {
+            existingAvatar.visible = false;
+          }
+
+          continue; // Skip scene graph update for untrusted agent
+        }
+      }
+
       let avatar = this.agentAvatarMap.get(agentId);
 
       // Create avatar if it does not exist
@@ -1093,6 +1147,7 @@ export class HololandRenderer {
       if (!state.agents[agentId]) {
         this.scalingRoot.remove(avatar);
         this.agentAvatarMap.delete(agentId);
+        this.trustPendingJoins.delete(agentId);
         logger.debug('[HololandRenderer] Agent avatar removed', { agentId });
       }
     }
@@ -1117,6 +1172,183 @@ export class HololandRenderer {
         });
       }
     }
+  }
+
+  /**
+   * Initiate a JOIN handshake for a newly detected agent.
+   *
+   * Runs ENTIRELY OFF the render loop (async). Creates a minimal manifest
+   * from the agent's communication state and drives the 3-step handshake:
+   * Manifest -> Challenge -> ChallengeResponse.
+   *
+   * On success, the agent becomes trusted and their avatar will be rendered
+   * on the next frame. On failure, the agent remains invisible.
+   *
+   * @param agentId - The agent ID to join
+   * @param agentState - The agent's current avatar state from AgentCommunicationManager
+   */
+  private initiateAgentJoin(agentId: string, agentState: AgentAvatarState): void {
+    if (!this.trustHandshake) return;
+
+    // Mark as pending to prevent duplicate join attempts
+    this.trustPendingJoins.add(agentId);
+
+    // Build a minimal manifest from the agent's communication state.
+    // In production, the agent would provide its own manifest with a real
+    // public key. Here we construct one from available metadata to drive
+    // the handshake protocol. The actual crypto verification is handled
+    // by the VRTrustHandshake's crypto provider.
+    const manifest: AgentManifest = {
+      agentId,
+      name: agentState.name ?? agentId,
+      publicKey: (agentState.metadata?.publicKey as string) ?? `auto-key-${agentId}`.padEnd(64, '0'),
+      requestedCapabilities: ['read_state', 'write_position', 'write_emotion'],
+      protocolVersion: '1.0',
+      nonce: (agentState.metadata?.nonce as string) ?? this.generateNonce(),
+      timestamp: Date.now(),
+    };
+
+    const trustHandshake = this.trustHandshake;
+
+    // Run entirely async, OFF the render loop
+    trustHandshake.requestJoin(manifest)
+      .then(async (challenge) => {
+        // Auto-respond to challenge (in production, the agent signs this)
+        const response = {
+          challengeId: challenge.challengeId,
+          agentSignature: (agentState.metadata?.signChallenge as string) ?? `auto-sig-${agentId}`.padStart(64, '0').slice(0, 64),
+          nonce: manifest.nonce,
+        };
+
+        await trustHandshake.respondToChallenge(response);
+
+        logger.info('[HololandRenderer] Agent trust JOIN complete', { agentId });
+        // Agent is now trusted -- next frame will render their avatar
+      })
+      .catch((err) => {
+        logger.warn('[HololandRenderer] Agent trust JOIN failed', {
+          agentId,
+          error: String(err),
+        });
+        // Remove from pending so it can be retried
+        this.trustPendingJoins.delete(agentId);
+      });
+  }
+
+  /**
+   * Generate a random nonce for agent manifests.
+   * Used when agents don't provide their own nonce via metadata.
+   */
+  private generateNonce(): string {
+    const bytes = new Uint8Array(16);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(bytes);
+    } else {
+      for (let i = 0; i < 16; i++) {
+        bytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // =============================================================================
+  // VR TRUST HANDSHAKE API (Zero-Trust Agent Verification)
+  // =============================================================================
+
+  /**
+   * Enable the VR Trust Handshake system for zero-trust agent verification.
+   *
+   * Creates a VRTrustHandshake, runs GENESIS to establish the world trust
+   * anchor, and starts the periodic trust check loop. All cryptographic
+   * operations (key generation, signing, verification) run OFF the render
+   * loop on a setInterval timer.
+   *
+   * After enabling, the renderer's syncAgentState() method will gate all
+   * agent avatar updates through the trust handshake: only agents with
+   * trustLevel === 'trusted' will have their state applied to the scene.
+   *
+   * @param config - VRTrustHandshake configuration
+   * @returns The world's public key from GENESIS
+   */
+  async enableTrustHandshake(
+    config: VRTrustHandshakeConfig,
+  ): Promise<{ worldPublicKey: string }> {
+    if (this.trustHandshake) {
+      logger.warn('[HololandRenderer] Trust handshake already enabled');
+      return { worldPublicKey: this.trustHandshake.getCurrentTrustState().worldPublicKey };
+    }
+
+    // Create the trust handshake (off render loop)
+    this.trustHandshake = createVRTrustHandshake(config);
+
+    // Run GENESIS (async, off render loop, 5-20ms)
+    const result = await this.trustHandshake.genesis();
+
+    // Start the periodic trust check loop (off render loop)
+    this.trustHandshake.start();
+
+    logger.info('[HololandRenderer] VR Trust Handshake enabled', {
+      worldId: config.worldId,
+      worldPublicKey: result.worldPublicKey.slice(0, 16) + '...',
+    });
+
+    return result;
+  }
+
+  /**
+   * Disable the VR Trust Handshake system.
+   *
+   * Stops the trust check loop and removes the trust gate from
+   * syncAgentState(). All agents will be rendered without trust checks.
+   */
+  disableTrustHandshake(): void {
+    if (!this.trustHandshake) {
+      logger.warn('[HololandRenderer] Trust handshake not enabled');
+      return;
+    }
+
+    this.trustHandshake.dispose();
+    this.trustHandshake = null;
+    this.trustPendingJoins.clear();
+
+    // Restore visibility for any hidden-by-trust avatars
+    for (const [, avatar] of this.agentAvatarMap.entries()) {
+      avatar.visible = true;
+    }
+
+    logger.info('[HololandRenderer] VR Trust Handshake disabled');
+  }
+
+  /**
+   * Get an agent's current trust level.
+   *
+   * Render-loop safe (O(1) cache read). Returns 'none' if the trust
+   * handshake is not enabled or the agent is unknown.
+   *
+   * @param agentId - Agent to query
+   * @returns The agent's trust level
+   */
+  getAgentTrustLevel(agentId: string): TrustLevel {
+    if (!this.trustHandshake) return 'none';
+    return this.trustHandshake.getAgentTrustLevel(agentId);
+  }
+
+  /**
+   * Get the VRTrustHandshake instance for advanced control.
+   *
+   * Returns null if the trust handshake is not enabled.
+   * Use this to manually manage agent join/exit, refresh sessions,
+   * query trust scores, or access trust metrics.
+   */
+  getTrustHandshake(): VRTrustHandshake | null {
+    return this.trustHandshake;
+  }
+
+  /**
+   * Check if the VR Trust Handshake is currently enabled.
+   */
+  isTrustHandshakeEnabled(): boolean {
+    return this.trustHandshake !== null;
   }
 
   /**

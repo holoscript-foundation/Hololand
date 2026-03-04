@@ -324,6 +324,40 @@ export type {
 } from './BehavioralTrustScoring';
 
 // =============================================================================
+// BEHAVIORAL TRUST BRIDGE (Feeds Avatar Observations into Behavioral Scoring)
+// =============================================================================
+
+export {
+  BehavioralTrustBridge,
+  createBehavioralTrustBridge,
+} from './BehavioralTrustBridge';
+
+export type {
+  BoundingBox,
+  ZoneDefinition,
+  BehavioralTrustBridgeConfig,
+  BehavioralTrustBridgeMetrics,
+} from './BehavioralTrustBridge';
+
+// =============================================================================
+// TRUST INTEGRATION LAYER (Wires Handshake + Gossip + Behavioral)
+// =============================================================================
+
+export {
+  TrustIntegrationLayer,
+  createTrustIntegrationLayer,
+} from './TrustIntegrationLayer';
+
+export type {
+  TrustMetrics,
+  TrustIntegrationLayerConfig,
+  TrustIntegrationEvent,
+  TrustIntegrationEventType,
+  TrustIntegrationFactoryConfig,
+  TrustIntegrationFactoryResult,
+} from './TrustIntegrationLayer';
+
+// =============================================================================
 // SPATIAL INFERENCE SCHEDULING (Hierarchical 1-5Hz / 90Hz Architecture)
 // =============================================================================
 
@@ -652,6 +686,48 @@ export type {
 } from './components/economic-dashboard';
 
 // =============================================================================
+// MARKETPLACE TRADING UI (Bonding Curve Visualization + Price Impact Preview)
+// =============================================================================
+
+export {
+  MarketplaceTradingUI,
+} from './components/marketplace-trading';
+
+export type {
+  MarketplaceTradingUIProps,
+} from './components/marketplace-trading';
+
+export {
+  useMarketplaceTrading,
+} from './components/marketplace-trading';
+
+export type {
+  UseMarketplaceTradingConfig,
+} from './components/marketplace-trading';
+
+export {
+  DEFAULT_MARKETPLACE_THEME,
+  MARKETPLACE_BUDGET,
+} from './components/marketplace-trading';
+
+export type {
+  BondingCurveType,
+  PolynomialCurveParams,
+  SigmoidCurveParams,
+  BondingCurveParams,
+  TradeDirection,
+  MarketplaceTransaction,
+  PriceImpactPreview,
+  PriceImpactSeverity,
+  MarketplaceDisplayMode,
+  MarketplaceTradingState,
+  MarketplaceTradingActions,
+  CurveChartPoint,
+  CurveAnnotation,
+  MarketplaceTheme,
+} from './components/marketplace-trading';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -683,6 +759,8 @@ import { VRTrustHandshake } from './VRTrustHandshake';
 import { BloomFilterRevocation } from './BloomFilterRevocation';
 import { GossipTrustMesh } from './GossipTrustMesh';
 import { BehavioralTrustScoring } from './BehavioralTrustScoring';
+import { BehavioralTrustBridge } from './BehavioralTrustBridge';
+import { TrustIntegrationLayer } from './TrustIntegrationLayer';
 import { SpatialReasoningEngine } from './SpatialReasoningEngine';
 import { InferenceScheduler } from './InferenceScheduler';
 import { GaussianBudgetManager } from './GaussianBudgetManager';
@@ -698,6 +776,7 @@ import { VRPerformanceDashboard } from './components/vr-performance-dashboard';
 import { GaussianBudgetUtilization } from './components/vr-performance-dashboard';
 import { FrameTimeWaterfall } from './components/vr-performance-dashboard';
 import { EconomicDashboard } from './components/economic-dashboard';
+import { MarketplaceTradingUI } from './components/marketplace-trading';
 
 export default {
   HololandRenderer,
@@ -716,6 +795,8 @@ export default {
   BloomFilterRevocation,
   GossipTrustMesh,
   BehavioralTrustScoring,
+  BehavioralTrustBridge,
+  TrustIntegrationLayer,
   SpatialReasoningEngine,
   InferenceScheduler,
   GaussianBudgetManager,
@@ -731,6 +812,7 @@ export default {
   GaussianBudgetUtilization,
   FrameTimeWaterfall,
   EconomicDashboard,
+  MarketplaceTradingUI,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };
