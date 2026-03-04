@@ -18,6 +18,9 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@holoscript/core": "^4.2.0"
+  },
   "peerDependencies": {
     "three": ">=0.150.0",
     "@react-three/fiber": "^8.0.0"

@@ -31,9 +31,12 @@ export type {
   GaussianSplatViewerActions,
   GaussianSplatViewerTheme,
   GaussianSplatDisplayMode,
+  FoveatedFrameMetrics,
+  FoveatedPipelineStage,
 } from './types';
 
 export {
+  FoveatedZone,
   DEFAULT_CAMERA_STATE,
   DEFAULT_CAMERA_CONTROLLER_CONFIG,
   DEFAULT_RENDER_CONFIG,
@@ -61,3 +64,21 @@ export { OrbitCameraController, createOrbitCameraController } from './OrbitCamer
 
 // PLY loader
 export { loadPlyFromUrl, parsePlyBuffer, parseSplatBuffer } from './PlyLoader';
+
+// Foveated Gaussian Pipeline (advanced: foveated sort + tile assignment + StopThePop)
+export {
+  FoveatedGaussianPipeline,
+  createFoveatedGaussianPipeline,
+  DEFAULT_FOVEATION_CONFIG,
+  DEFAULT_TILE_CONFIG,
+  DEFAULT_STP_CONFIG,
+  DEFAULT_FOVEATED_PIPELINE_CONFIG,
+} from './FoveatedGaussianPipeline';
+export type {
+  FoveationConfig,
+  TileConfig,
+  StopThePopConfig,
+  FoveatedPipelineConfig,
+  FoveatedGPUBuffers,
+  FoveatedFrameMetrics as FoveatedPipelineMetrics,
+} from './FoveatedGaussianPipeline';

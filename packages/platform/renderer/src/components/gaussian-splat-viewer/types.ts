@@ -412,6 +412,60 @@ export const DEFAULT_RENDER_CONFIG: SplatRenderConfig = {
 };
 
 // =============================================================================
+// FOVEATED PIPELINE TYPES
+// =============================================================================
+
+/**
+ * Foveated zone classification.
+ * Used by the sort-key-gen and tile-assignment shaders.
+ */
+export enum FoveatedZone {
+  /** Full quality, no decimation */
+  Foveal = 0,
+  /** Moderate quality, some decimation */
+  MidPeripheral = 1,
+  /** Low quality, aggressive decimation */
+  Peripheral = 2,
+  /** Beyond depth threshold or off-screen */
+  Culled = 3,
+}
+
+/**
+ * Per-frame foveated pipeline metrics (extended).
+ * Provides detailed breakdown of each compute stage.
+ */
+export interface FoveatedFrameMetrics {
+  /** Sort key generation time (ms) */
+  sortKeyGenMs: number;
+  /** Total radix sort time across 4 digit passes (ms) */
+  radixSortMs: number;
+  /** Per-digit-pass breakdown [pass0, pass1, pass2, pass3] (ms each) */
+  digitPassMs: [number, number, number, number];
+  /** Tile assignment time (ms) */
+  tileAssignmentMs: number;
+  /** StopThePop re-sort time (ms) */
+  stopThePopMs: number;
+  /** Total compute time before rasterization (ms) */
+  totalComputeMs: number;
+  /** Number of sort workgroups dispatched */
+  sortWorkgroupCount: number;
+  /** Number of tiles dispatched for StopThePop */
+  tileCount: number;
+}
+
+/**
+ * Foveated pipeline stage identifiers (for profiling).
+ */
+export type FoveatedPipelineStage =
+  | 'sort-key-gen'
+  | 'radix-histogram'
+  | 'prefix-sum'
+  | 'radix-scatter'
+  | 'tile-classify'
+  | 'tile-assignment'
+  | 'stop-the-pop';
+
+// =============================================================================
 // UTILITY FUNCTIONS
 // =============================================================================
 

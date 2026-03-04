@@ -5,12 +5,12 @@
  * - .ply (standard 3DGS format with dynamic stride detection from header properties)
  * - .splat (compressed binary format)
  * - .ksplat (compressed with KD-tree spatial indexing)
- * - .spz (Niantic SPZ v2/v3: 90% compression with fixed-point dequantization)
+ * - .spz (Niantic SPZ v2/v3: delegates to @holoscript/core SpzCodec via GaussianCodecRegistry)
  *
  * Features:
  * - Streaming chunk loading via ReadableStream (replaces monolithic fetch)
  * - Dynamic PLY stride detection from header property enumeration (G.030.02 fix)
- * - SPZ decompression with fixed-point dequantization (W.031)
+ * - SPZ decoding via canonical @holoscript/core SpzCodec (eliminates duplicated logic)
  * - Memory footprint pre-check before allocation (G.030.06)
  *
  * Renders via instanced quads with custom shader that evaluates
@@ -38,23 +38,13 @@ import type {
 } from './types';
 import { OctreeLODSystem, extractFrustumPlanes } from './OctreeLODSystem';
 import { VR_OPTIMIZED_CONFIG } from './GaussianSplatLODManager';
+import { getGlobalCodecRegistry } from '@holoscript/core';
+import type { GaussianSplatData } from '@holoscript/core';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-/** SPZ magic number: 0x5053474e ("NGSP" in little-endian) */
-const SPZ_MAGIC = 0x5053474e;
-
-/** Maximum points allowed in SPZ file to prevent memory exhaustion */
-const SPZ_MAX_POINTS = 10_000_000;
-
 /** Default memory budget in MB if not specified in config */
 const DEFAULT_MAX_MEMORY_MB = 512;
-
-/** SH coefficient color scale used by SPZ format */
-const SPZ_COLOR_SCALE = 0.15;
-
-/** sqrt(1/2) constant for quaternion smallest-three decoding */
-const SQRT1_2 = Math.SQRT1_2;
 
 // ─── Splat Data Structure ───────────────────────────────────────────────────
 
@@ -65,18 +55,6 @@ interface SplatData {
   colors: Float32Array;      // rgba per splat (N*4)
   opacities: Float32Array;   // alpha per splat (N)
   count: number;
-}
-
-// ─── SPZ Header ─────────────────────────────────────────────────────────────
-
-interface SpzHeader {
-  magic: number;
-  version: number;        // 1, 2, or 3
-  numPoints: number;
-  shDegree: number;       // 0-3
-  fractionalBits: number; // typically 12
-  flags: number;          // bit 0: antialiased
-  reserved: number;
 }
 
 // ─── PLY Property Descriptor ────────────────────────────────────────────────
@@ -398,287 +376,52 @@ function parsePLY(buffer: ArrayBuffer, maxSplats: number): SplatData {
   return { positions, scales, rotations, colors, opacities, count };
 }
 
-// ─── SPZ Decompression (W.031) ──────────────────────────────────────────────
+// ─── SPZ Decoding via @holoscript/core SpzCodec ─────────────────────────────
 
 /**
- * Decompress a gzipped SPZ buffer using the DecompressionStream API.
- * Falls back to attempting raw parse if DecompressionStream is unavailable.
- */
-async function decompressGzip(compressed: ArrayBuffer): Promise<ArrayBuffer> {
-  // Modern browsers (Chrome 80+, Firefox 113+, Safari 16.4+) support DecompressionStream
-  if (typeof DecompressionStream !== 'undefined') {
-    const ds = new DecompressionStream('gzip');
-    const writer = ds.writable.getWriter();
-    const reader = ds.readable.getReader();
-
-    // Write compressed data
-    writer.write(new Uint8Array(compressed));
-    writer.close();
-
-    // Read decompressed chunks
-    const chunks: Uint8Array[] = [];
-    let totalLength = 0;
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      totalLength += value.byteLength;
-    }
-
-    const result = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      result.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return result.buffer;
-  }
-
-  // Fallback: try pako if available in global scope (bundled environments)
-  if (typeof globalThis !== 'undefined' && (globalThis as any).pako) {
-    const pako = (globalThis as any).pako;
-    const decompressed: Uint8Array = pako.inflate(new Uint8Array(compressed));
-    return decompressed.buffer as ArrayBuffer;
-  }
-
-  throw new Error(
-    'SPZ decompression requires DecompressionStream API (modern browsers) or pako library. ' +
-    'Neither is available in this environment.'
-  );
-}
-
-/**
- * Parse the 16-byte SPZ header from a decompressed buffer.
- */
-function parseSpzHeader(view: DataView): SpzHeader {
-  return {
-    magic: view.getUint32(0, true),
-    version: view.getUint32(4, true),
-    numPoints: view.getUint32(8, true),
-    shDegree: view.getUint8(12),
-    fractionalBits: view.getUint8(13),
-    flags: view.getUint8(14),
-    reserved: view.getUint8(15),
-  };
-}
-
-/**
- * Compute number of SH dimensions for a given degree.
- * degree 0 -> 0, degree 1 -> 3, degree 2 -> 8, degree 3 -> 15
- */
-function shDimForDegree(degree: number): number {
-  switch (degree) {
-    case 0: return 0;
-    case 1: return 3;
-    case 2: return 8;
-    case 3: return 15;
-    default: return 0;
-  }
-}
-
-/**
- * Decode v2 quaternion: 3 bytes, first-three encoding.
- * Each byte is a signed value in [0, 255] mapped to [-1, 1].
- * w is reconstructed from unit quaternion constraint.
- */
-function decodeQuaternionV2(
-  data: Uint8Array,
-  offset: number,
-): [number, number, number, number] {
-  const x = (data[offset] / 127.5) - 1;
-  const y = (data[offset + 1] / 127.5) - 1;
-  const z = (data[offset + 2] / 127.5) - 1;
-  const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z));
-  return [x, y, z, w];
-}
-
-/**
- * Decode v3 quaternion: 4 bytes, smallest-three-components encoding.
- * Top 2 bits: index of largest component.
- * Remaining 30 bits: 3 x (1 sign bit + 9 magnitude bits) for the other three.
- * Largest component is reconstructed from unit quaternion constraint.
- */
-function decodeQuaternionV3(
-  data: Uint8Array,
-  offset: number,
-): [number, number, number, number] {
-  const comp = data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16) | (data[offset + 3] << 24);
-  const iLargest = (comp >>> 30) & 0x3;
-  const MASK_9 = (1 << 9) - 1; // 511
-
-  const quat: [number, number, number, number] = [0, 0, 0, 0];
-  let sumSquares = 0;
-  let bitPos = 0;
-
-  for (let i = 0; i < 4; i++) {
-    if (i === iLargest) continue;
-    const mag = (comp >>> bitPos) & MASK_9;
-    const negBit = (comp >>> (bitPos + 9)) & 0x1;
-    bitPos += 10;
-
-    let value = SQRT1_2 * mag / MASK_9;
-    if (negBit === 1) value = -value;
-    quat[i] = value;
-    sumSquares += value * value;
-  }
-
-  quat[iLargest] = Math.sqrt(Math.max(0, 1 - sumSquares));
-  return quat;
-}
-
-/**
- * Parse a Niantic SPZ file from a compressed (gzipped) buffer.
+ * Decode an SPZ file by delegating to the canonical @holoscript/core SpzCodec
+ * via the GaussianCodecRegistry. This eliminates duplicated SPZ v2/v3 parsing
+ * logic and ensures both HoloScript and HoloLand use the same decoder.
  *
- * SPZ binary layout (after gzip decompression):
- *   [Header: 16 bytes]
- *   [Positions: N * 9 bytes (3 coords * 3 bytes each, 24-bit fixed-point)]
- *   [Alphas: N * 1 byte]
- *   [Colors: N * 3 bytes]
- *   [Scales: N * 3 bytes]
- *   [Rotations: N * 3 bytes (v2) or N * 4 bytes (v3)]
- *   [SH coefficients: N * shDim * 3 bytes]
+ * The SpzCodec handles:
+ *   - Gzip decompression (DecompressionStream / pako fallback)
+ *   - Header parsing & validation (magic, version, point count, SH degree)
+ *   - Position decoding (24-bit signed fixed-point)
+ *   - Alpha decoding (sigmoid-compressed uint8)
+ *   - Color decoding (SH DC coefficient + offset/scale)
+ *   - Scale decoding (log-encoded uint8)
+ *   - Rotation decoding (v2 first-three / v3 smallest-three)
+ *   - Memory budget pre-check (G.030.06)
  *
- * Reference: W.031, G.030.04
+ * Reference: W.031, G.030.04, W.038
  */
 async function parseSPZ(compressedBuffer: ArrayBuffer, maxSplats: number): Promise<SplatData> {
-  // Step 1: Decompress gzip wrapper
-  const raw = await decompressGzip(compressedBuffer);
-  const data = new Uint8Array(raw);
-  const view = new DataView(raw);
+  const registry = getGlobalCodecRegistry();
+  const codec = registry.requireCodec('khr.spz.v2');
 
-  // Step 2: Parse header
-  if (data.length < 16) {
-    throw new Error('SPZ file too small: less than 16 bytes after decompression');
-  }
+  const result = await codec.decode(compressedBuffer, {
+    maxGaussians: maxSplats,
+  });
 
-  const header = parseSpzHeader(view);
+  return codecDataToSplatData(result.data);
+}
 
-  // Validate magic
-  if (header.magic !== SPZ_MAGIC) {
-    throw new Error(
-      `Invalid SPZ magic: 0x${header.magic.toString(16).toUpperCase()}, ` +
-      `expected 0x${SPZ_MAGIC.toString(16).toUpperCase()} ("NGSP")`
-    );
-  }
-
-  // Validate version
-  if (header.version < 1 || header.version > 3) {
-    throw new Error(`Unsupported SPZ version: ${header.version} (supported: 1-3)`);
-  }
-
-  // Validate point count
-  if (header.numPoints > SPZ_MAX_POINTS) {
-    throw new Error(
-      `SPZ file contains ${header.numPoints.toLocaleString()} points, ` +
-      `exceeding maximum of ${SPZ_MAX_POINTS.toLocaleString()}`
-    );
-  }
-
-  if (header.shDegree > 3) {
-    throw new Error(`Invalid SPZ SH degree: ${header.shDegree} (max 3)`);
-  }
-
-  const N = Math.min(header.numPoints, maxSplats);
-  const isV3 = header.version >= 3;
-  const rotBytes = isV3 ? 4 : 3;
-  const shDim = shDimForDegree(header.shDegree);
-  const posScale = 1.0 / (1 << header.fractionalBits);
-
-  // Step 3: Compute block offsets
-  const posStart = 16;
-  const posSize = header.numPoints * 9;            // 3 coords * 3 bytes
-  const alphaStart = posStart + posSize;
-  const alphaSize = header.numPoints;
-  const colorStart = alphaStart + alphaSize;
-  const colorSize = header.numPoints * 3;
-  const scaleStart = colorStart + colorSize;
-  const scaleSize = header.numPoints * 3;
-  const rotStart = scaleStart + scaleSize;
-  const rotSize = header.numPoints * rotBytes;
-  const shStart = rotStart + rotSize;
-  const shSize = header.numPoints * shDim * 3;
-
-  // Validate buffer length
-  const expectedSize = shStart + shSize;
-  if (data.length < expectedSize) {
-    throw new Error(
-      `SPZ buffer too short: ${data.length} bytes, expected at least ${expectedSize} bytes ` +
-      `for ${header.numPoints} points with SH degree ${header.shDegree}`
-    );
-  }
-
-  // Step 4: Allocate output arrays
-  const positions = new Float32Array(N * 3);
-  const scales = new Float32Array(N * 3);
-  const rotations = new Float32Array(N * 4);
-  const colors = new Float32Array(N * 4);
-  const opacities = new Float32Array(N);
-
-  // Step 5: Decode positions (24-bit signed fixed-point per coordinate)
-  for (let i = 0; i < N; i++) {
-    const pOff = posStart + i * 9;
-    for (let c = 0; c < 3; c++) {
-      const byteOff = pOff + c * 3;
-      let fixed32 = data[byteOff] | (data[byteOff + 1] << 8) | (data[byteOff + 2] << 16);
-      // Sign extension from 24-bit to 32-bit
-      if (fixed32 & 0x800000) fixed32 |= 0xFF000000;
-      // Convert from signed integer to 32-bit signed using bitwise OR 0
-      fixed32 = fixed32 | 0;
-      positions[i * 3 + c] = fixed32 * posScale;
-    }
-  }
-
-  // Step 6: Decode alphas (uint8 sigmoid-compressed)
-  for (let i = 0; i < N; i++) {
-    const rawAlpha = data[alphaStart + i] / 255;
-    // SPZ stores sigmoid-compressed alpha; decode to logit then re-apply sigmoid
-    // The stored value IS the sigmoid output, so use directly for rendering
-    opacities[i] = rawAlpha;
-    colors[i * 4 + 3] = rawAlpha;
-  }
-
-  // Step 7: Decode colors (uint8, offset + scale decode)
-  for (let i = 0; i < N; i++) {
-    const cOff = colorStart + i * 3;
-    for (let c = 0; c < 3; c++) {
-      // Decode: ((value / 255) - 0.5) / colorScale gives SH DC coefficient
-      // Then convert SH DC to RGB: 0.5 + C0 * coeff
-      const normalized = data[cOff + c] / 255;
-      const shCoeff = (normalized - 0.5) / SPZ_COLOR_SCALE;
-      const rgb = 0.5 + 0.2820948 * shCoeff;
-      colors[i * 4 + c] = Math.max(0, Math.min(1, rgb));
-    }
-  }
-
-  // Step 8: Decode scales (uint8 log-encoded)
-  for (let i = 0; i < N; i++) {
-    const sOff = scaleStart + i * 3;
-    for (let c = 0; c < 3; c++) {
-      // Decode: value / 16 - 10 gives log-scale; then exp() for actual scale
-      const logScale = data[sOff + c] / 16.0 - 10.0;
-      scales[i * 3 + c] = Math.exp(logScale);
-    }
-  }
-
-  // Step 9: Decode rotations (v2: 3-byte first-three, v3: 4-byte smallest-three)
-  for (let i = 0; i < N; i++) {
-    const rOff = rotStart + i * rotBytes;
-    let quat: [number, number, number, number];
-
-    if (isV3) {
-      quat = decodeQuaternionV3(data, rOff);
-    } else {
-      quat = decodeQuaternionV2(data, rOff);
-    }
-
-    rotations[i * 4] = quat[0];      // x
-    rotations[i * 4 + 1] = quat[1];  // y
-    rotations[i * 4 + 2] = quat[2];  // z
-    rotations[i * 4 + 3] = quat[3];  // w
-  }
-
-  return { positions, scales, rotations, colors, opacities, count: N };
+/**
+ * Convert GaussianSplatData from @holoscript/core codec to the local SplatData
+ * interface used by the volumetric-bridge rendering pipeline.
+ *
+ * The two formats are structurally identical (SoA Float32Arrays), so this is
+ * a zero-cost adaptation -- we pass the typed arrays by reference, not copy.
+ */
+function codecDataToSplatData(codec: GaussianSplatData): SplatData {
+  return {
+    positions: codec.positions,
+    scales: codec.scales,
+    rotations: codec.rotations,
+    colors: codec.colors,
+    opacities: codec.opacities,
+    count: codec.count,
+  };
 }
 
 // ─── Format Detection ───────────────────────────────────────────────────────
