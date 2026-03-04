@@ -19,6 +19,8 @@ type RapierWorld = any;
 type RigidBody = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Collider = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type EventQueue = any;
 
 /**
  * Physics body configuration
@@ -56,8 +58,11 @@ export interface PhysicsEvent {
 export class PhysicsWorld {
   private rapier: RAPIER | null = null;
   private world: RapierWorld | null = null;
+  private eventQueue: EventQueue | null = null;
   private bodies: Map<THREE.Object3D, RigidBody> = new Map();
   private colliders: Map<THREE.Object3D, Collider> = new Map();
+  /** Reverse map: collider handle -> Object3D for O(1) lookup in raycast and event dispatch */
+  private colliderToObject: Map<number, THREE.Object3D> = new Map();
   private eventListeners: Map<PhysicsEventType, Set<(event: PhysicsEvent) => void>> = new Map();
   private gravity: THREE.Vector3;
   private initialized = false;
@@ -80,6 +85,7 @@ export class PhysicsWorld {
 
       this.rapier = RAPIER;
       this.world = new RAPIER.World({ x: this.gravity.x, y: this.gravity.y, z: this.gravity.z });
+      this.eventQueue = new RAPIER.EventQueue(true);
       this.initialized = true;
     } catch (error) {
       console.warn('Rapier physics not available. Install @dimforge/rapier3d to enable physics.', error);
@@ -148,8 +154,12 @@ export class PhysicsWorld {
         colliderDesc.setSensor(true);
       }
 
+      // Enable collision events so the EventQueue receives them
+      colliderDesc.setActiveEvents(this.rapier.ActiveEvents.COLLISION_EVENTS);
+
       const collider = this.world.createCollider(colliderDesc, rigidBody);
       this.colliders.set(object, collider);
+      this.colliderToObject.set(collider.handle, object);
     }
 
     // Store reference for sync
@@ -175,15 +185,89 @@ export class PhysicsWorld {
         return this.rapier.ColliderDesc.ball(radius);
       }
       case 'capsule': {
-        const radius = Math.max(size.x, size.z) / 2;
-        const halfHeight = size.y / 2 - radius;
-        return this.rapier.ColliderDesc.capsule(Math.max(0, halfHeight), radius);
+        const capsuleRadius = Math.max(size.x, size.z) / 2;
+        const halfHeight = size.y / 2 - capsuleRadius;
+        return this.rapier.ColliderDesc.capsule(Math.max(0, halfHeight), capsuleRadius);
+      }
+      case 'trimesh': {
+        const trimeshDesc = this.createTrimeshDesc(object);
+        if (trimeshDesc) return trimeshDesc;
+        // Fall through to box if geometry is unavailable
+        console.warn('PhysicsWorld: trimesh collider requires BufferGeometry with index; falling back to box.');
+        return this.rapier.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2);
+      }
+      case 'convex': {
+        const convexDesc = this.createConvexHullDesc(object);
+        if (convexDesc) return convexDesc;
+        // Fall through to box if geometry is unavailable
+        console.warn('PhysicsWorld: convex hull collider requires BufferGeometry; falling back to box.');
+        return this.rapier.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2);
       }
       case 'box':
       default: {
         return this.rapier.ColliderDesc.cuboid(size.x / 2, size.y / 2, size.z / 2);
       }
     }
+  }
+
+  /**
+   * Create a trimesh collider description from a Mesh's BufferGeometry.
+   * Returns null if the object doesn't have suitable geometry.
+   */
+  private createTrimeshDesc(object: THREE.Object3D): ReturnType<typeof this.rapier.ColliderDesc.trimesh> | null {
+    if (!this.rapier) return null;
+    if (!(object instanceof THREE.Mesh)) return null;
+
+    const geometry = object.geometry;
+    if (!(geometry instanceof THREE.BufferGeometry)) return null;
+
+    const positionAttr = geometry.getAttribute('position');
+    if (!positionAttr) return null;
+
+    // Rapier expects a Float32Array of vertices
+    const vertices = new Float32Array(positionAttr.count * 3);
+    for (let i = 0; i < positionAttr.count; i++) {
+      vertices[i * 3] = positionAttr.getX(i);
+      vertices[i * 3 + 1] = positionAttr.getY(i);
+      vertices[i * 3 + 2] = positionAttr.getZ(i);
+    }
+
+    // Rapier expects a Uint32Array of triangle indices
+    const index = geometry.getIndex();
+    if (!index) return null; // trimesh requires indexed geometry
+
+    const indices = new Uint32Array(index.count);
+    for (let i = 0; i < index.count; i++) {
+      indices[i] = index.getX(i);
+    }
+
+    return this.rapier.ColliderDesc.trimesh(vertices, indices);
+  }
+
+  /**
+   * Create a convex hull collider description from a Mesh's BufferGeometry.
+   * Returns null if the object doesn't have suitable geometry.
+   */
+  private createConvexHullDesc(object: THREE.Object3D): ReturnType<typeof this.rapier.ColliderDesc.convexHull> | null {
+    if (!this.rapier) return null;
+    if (!(object instanceof THREE.Mesh)) return null;
+
+    const geometry = object.geometry;
+    if (!(geometry instanceof THREE.BufferGeometry)) return null;
+
+    const positionAttr = geometry.getAttribute('position');
+    if (!positionAttr) return null;
+
+    // Rapier expects a Float32Array of points for convex hull computation
+    const points = new Float32Array(positionAttr.count * 3);
+    for (let i = 0; i < positionAttr.count; i++) {
+      points[i * 3] = positionAttr.getX(i);
+      points[i * 3 + 1] = positionAttr.getY(i);
+      points[i * 3 + 2] = positionAttr.getZ(i);
+    }
+
+    // convexHull returns null if the point set is degenerate
+    return this.rapier.ColliderDesc.convexHull(points);
   }
 
   /**
@@ -212,6 +296,7 @@ export class PhysicsWorld {
 
     const collider = this.colliders.get(object);
     if (collider) {
+      this.colliderToObject.delete(collider.handle);
       this.colliders.delete(object);
     }
 
@@ -224,8 +309,18 @@ export class PhysicsWorld {
   step(deltaTime?: number): void {
     if (!this.world) return;
 
-    // Step the world
-    this.world.step();
+    // Apply custom timestep when provided
+    if (deltaTime !== undefined) {
+      this.world.timestep = deltaTime;
+    }
+
+    // Step the world with event queue to collect collision events
+    if (this.eventQueue) {
+      this.world.step(this.eventQueue);
+      this.drainCollisionEvents();
+    } else {
+      this.world.step();
+    }
 
     // Sync Three.js objects with physics bodies
     this.bodies.forEach((body, object) => {
@@ -235,6 +330,117 @@ export class PhysicsWorld {
 
         object.position.set(translation.x, translation.y, translation.z);
         object.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+      }
+    });
+  }
+
+  /**
+   * Drain collision events from the event queue and dispatch to listeners.
+   *
+   * Rapier's drainCollisionEvents callback receives:
+   *   handle1: number  - collider handle of first body
+   *   handle2: number  - collider handle of second body
+   *   started: boolean - true if collision began, false if ended
+   *
+   * For sensor (trigger) colliders the events map to trigger-enter / trigger-exit.
+   * For solid colliders they map to collision-start / collision-end.
+   */
+  private drainCollisionEvents(): void {
+    if (!this.eventQueue || !this.world) return;
+
+    this.eventQueue.drainCollisionEvents((handle1: number, handle2: number, started: boolean) => {
+      const objectA = this.colliderToObject.get(handle1);
+      const objectB = this.colliderToObject.get(handle2);
+
+      // Both colliders must map to tracked objects
+      if (!objectA || !objectB) return;
+
+      // Determine if either collider is a sensor (trigger)
+      const colliderA = this.colliders.get(objectA);
+      const colliderB = this.colliders.get(objectB);
+      const isTrigger = (colliderA && colliderA.isSensor()) || (colliderB && colliderB.isSensor());
+
+      let eventType: PhysicsEventType;
+      if (isTrigger) {
+        eventType = started ? 'trigger-enter' : 'trigger-exit';
+      } else {
+        eventType = started ? 'collision-start' : 'collision-end';
+      }
+
+      // Build contact info for solid collision-start events
+      let contact: PhysicsEvent['contact'];
+      if (!isTrigger && started) {
+        contact = this.extractContactInfo(handle1, handle2);
+      }
+
+      const event: PhysicsEvent = {
+        type: eventType,
+        bodyA: objectA,
+        bodyB: objectB,
+        contact,
+      };
+
+      this.emitEvent(event);
+    });
+  }
+
+  /**
+   * Extract contact point, normal, and impulse from the narrow-phase contact pair.
+   */
+  private extractContactInfo(
+    handle1: number,
+    handle2: number
+  ): PhysicsEvent['contact'] | undefined {
+    if (!this.world) return undefined;
+
+    try {
+      const contactPair = this.world.narrowPhase?.contactPair(handle1, handle2);
+      if (!contactPair) return undefined;
+
+      // Iterate manifolds to find the deepest contact
+      let deepestPoint: { point: THREE.Vector3; normal: THREE.Vector3; impulse: number } | undefined;
+      let maxImpulse = -Infinity;
+
+      contactPair.forEachManifold(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (manifold: any) => {
+          const normal = manifold.normal();
+          const numPoints = manifold.numSolverContacts?.() ?? manifold.numContacts?.() ?? 0;
+
+          for (let i = 0; i < numPoints; i++) {
+            const pt = manifold.solverContactPoint?.(i) ?? manifold.contactPoint?.(i);
+            const impulse = manifold.solverContactImpulse?.(i) ?? manifold.contactImpulse?.(i) ?? 0;
+
+            if (pt && impulse > maxImpulse) {
+              maxImpulse = impulse;
+              deepestPoint = {
+                point: new THREE.Vector3(pt.x, pt.y, pt.z),
+                normal: new THREE.Vector3(normal.x, normal.y, normal.z),
+                impulse,
+              };
+            }
+          }
+        }
+      );
+
+      return deepestPoint;
+    } catch {
+      // Contact info is best-effort; gracefully degrade
+      return undefined;
+    }
+  }
+
+  /**
+   * Emit a physics event to all registered listeners
+   */
+  private emitEvent(event: PhysicsEvent): void {
+    const listeners = this.eventListeners.get(event.type);
+    if (!listeners) return;
+    listeners.forEach((callback) => {
+      try {
+        callback(event);
+      } catch (error) {
+        console.error(`PhysicsWorld: Error in ${event.type} listener:`, error);
       }
     });
   }
@@ -334,14 +540,8 @@ export class PhysicsWorld {
     const hit = this.world.castRay(ray, maxDistance, true);
     if (!hit) return null;
 
-    // Find the Three.js object for this collider
-    let hitObject: THREE.Object3D | null = null;
-    this.colliders.forEach((collider, object) => {
-      if (collider === hit.collider) {
-        hitObject = object;
-      }
-    });
-
+    // O(1) reverse lookup: collider handle -> Three.js object
+    const hitObject = this.colliderToObject.get(hit.collider?.handle) ?? null;
     if (!hitObject) return null;
 
     const point = ray.pointAt(hit.timeOfImpact);
@@ -359,8 +559,13 @@ export class PhysicsWorld {
    * Dispose of physics resources
    */
   dispose(): void {
+    if (this.eventQueue) {
+      this.eventQueue.free();
+      this.eventQueue = null;
+    }
     this.bodies.clear();
     this.colliders.clear();
+    this.colliderToObject.clear();
     this.world = null;
     this.rapier = null;
     this.initialized = false;

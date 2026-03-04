@@ -190,6 +190,37 @@ export type {
 } from './HoloScriptMaterialParser';
 
 // =============================================================================
+// AGENT COMMUNICATION (Double-Buffered, Off Render Loop)
+// =============================================================================
+
+export {
+  AgentStateBuffer,
+  createAgentStateBuffer,
+  createEmptyAgentWorldState,
+  createDefaultAgentAvatarState,
+} from './AgentStateBuffer';
+
+export type {
+  Vec3,
+  Quat,
+  AgentAvatarState,
+  AgentCommand,
+  AgentWorldState,
+  AgentStateBufferMetrics,
+} from './AgentStateBuffer';
+
+export {
+  AgentCommunicationManager,
+  createAgentCommunicationManager,
+} from './AgentCommunicationManager';
+
+export type {
+  AgentCommunicationConfig,
+  AgentMessage,
+  AgentCommunicationMetrics,
+} from './AgentCommunicationManager';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -199,7 +230,7 @@ export * from './GPUCompute';
 // VERSION
 // =============================================================================
 
-export const HOLOLAND_RENDERER_VERSION = '1.0.0-alpha.3';
+export const HOLOLAND_RENDERER_VERSION = '1.0.0-alpha.4';
 
 // =============================================================================
 // DEFAULT EXPORT
@@ -215,6 +246,8 @@ import { MaterialFactory } from './MaterialFactory';
 import { SmartProxyRenderer } from './SmartProxyRenderer';
 import { VRMaterialPreviewSystem } from './VRMaterialPreviewSystem';
 import { HoloScriptMaterialParser } from './HoloScriptMaterialParser';
+import { AgentStateBuffer } from './AgentStateBuffer';
+import { AgentCommunicationManager } from './AgentCommunicationManager';
 
 export default {
   HololandRenderer,
@@ -227,6 +260,8 @@ export default {
   EnvironmentManager,
   AssetLoader,
   MaterialFactory,
+  AgentStateBuffer,
+  AgentCommunicationManager,
   HDRI_PRESETS,
-  HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.3',
+  HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.4',
 };

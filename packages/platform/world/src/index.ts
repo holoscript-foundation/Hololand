@@ -14,6 +14,15 @@ export { SpatialObject, type SpatialObjectConfig } from './SpatialObject';
 // Physics engine
 export { PhysicsEngine } from './PhysicsEngine';
 
+// Unified physics backend (Rapier3D + built-in fallback)
+export {
+  SpatialEngineBridge,
+  createSpatialEngineBridge,
+  type SpatialEngineBridgeConfig,
+  type PhysicsCollisionEvent,
+  type PhysicsBackend,
+} from './SpatialEngineBridge';
+
 // Spatial indexing
 export { SpatialIndex } from './SpatialIndex';
 
@@ -127,9 +136,11 @@ export function vectorScale(v: import('./types').Vector3, scalar: number): impor
 import { HololandWorld } from './HololandWorld';
 import { SpatialObject } from './SpatialObject';
 import { PhysicsEngine } from './PhysicsEngine';
+import { SpatialEngineBridge } from './SpatialEngineBridge';
 export * from './PhysicsEngine';
 export * from './types';
 export * from './PhysicsExpansionBridge';
+export * from './SpatialEngineBridge';
 import { SpatialIndex } from './SpatialIndex';
 import { EventBus } from './EventBus';
 import { NPCSystem } from './systems/NPCSystem';
@@ -140,6 +151,7 @@ export default {
   HololandWorld,
   SpatialObject,
   PhysicsEngine,
+  SpatialEngineBridge,
   SpatialIndex,
   EventBus,
   NPCSystem,
