@@ -43,6 +43,14 @@ export {
   // HUD components
   HudComponent,
   StatusHud,
+  // Economy dashboard components
+  EconomyComponent,
+  FaucetSinkGauge,
+  GiniChart,
+  VelocityMeter,
+  BondingCurveChart,
+  PIDStatusDisplay,
+  ECONOMY_COLORS,
 } from './components';
 
 export type {
@@ -67,6 +75,21 @@ export type {
   ScrollViewConfig,
   TabViewConfig,
   Tab,
+  // Economy dashboard types
+  RenderingContext,
+  WebXRGeometryData,
+  EconomyComponentConfig,
+  TimeSeriesPoint,
+  FaucetSinkData,
+  FaucetSinkGaugeConfig,
+  GiniChartConfig,
+  VelocityMeterConfig,
+  BondingCurveType,
+  BondingCurveChartConfig,
+  PIDLoopData,
+  PIDStatusDisplayConfig,
+  A11yAnnouncement,
+  A11yDescription,
 } from './components';
 
 // Version

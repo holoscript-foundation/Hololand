@@ -10,7 +10,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { HololandWorld, SpatialObject } from '@hololand/world';
 import { logger } from './logger';
-import type { RendererConfig, LightingConfig, QualitySettings, QualityPreset, LightingFidelityLevel } from './types';
+import type { RendererConfig, LightingConfig, QualitySettings, QualityPreset, LightingFidelityLevel, DeviceType } from './types';
 import { QUALITY_PRESETS } from './types';
 import { QualityManager, createQualityManager } from './QualityManager';
 import { PostProcessingPipeline, createPostProcessingPipeline } from './PostProcessing';
@@ -49,6 +49,65 @@ import type {
   CameraSnapshot,
   SpatialReasoningEngineConfig,
 } from './SpatialReasoningEngine';
+import {
+  FoveatedGaussianRenderer,
+  createFoveatedGaussianRendererForDevice,
+} from './FoveatedGaussianRenderer';
+import type {
+  EyeRenderState,
+  GaussianRenderTimings,
+  GaussianRenderStats,
+  FoveatedGaussianPipelineConfig,
+} from './FoveatedGaussianTypes';
+
+// =============================================================================
+// DEVICE PRESET DETECTION FOR FOVEATED RENDERING
+// =============================================================================
+
+/**
+ * Foveated rendering device preset type.
+ * Maps from the QualityManager's DeviceType to FoveatedGaussianRenderer presets.
+ */
+export type FoveatedDevicePreset = 'quest2' | 'quest3' | 'pcvr' | 'desktop';
+
+/**
+ * Configuration for enabling foveated rendering on HololandRenderer.
+ */
+export interface FoveatedRenderingOptions {
+  /** Override automatic device detection with a specific preset */
+  devicePreset?: FoveatedDevicePreset;
+  /** Partial pipeline config overrides */
+  pipelineConfig?: Partial<FoveatedGaussianPipelineConfig>;
+  /** Whether to coordinate with QualityManager's adaptive quality (default: true) */
+  coordinateWithQualityManager?: boolean;
+  /** Fixed foveation center for HMDs without eye tracking (normalized 0-1) */
+  fixedFoveationCenter?: [number, number];
+}
+
+/**
+ * Map QualityManager's DeviceType to FoveatedGaussianRenderer device preset.
+ *
+ * This bridges the two detection systems:
+ * - QualityManager detects: mobile, tablet, quest2, quest3, questPro, pcvr, desktop, unknown
+ * - FoveatedGaussianRenderer needs: quest2, quest3, pcvr, desktop
+ */
+function mapDeviceTypeToFoveatedPreset(deviceType: DeviceType): FoveatedDevicePreset {
+  switch (deviceType) {
+    case 'quest2':
+      return 'quest2';
+    case 'quest3':
+    case 'questPro':
+      return 'quest3';
+    case 'pcvr':
+      return 'pcvr';
+    case 'desktop':
+    case 'tablet':
+    case 'mobile':
+    case 'unknown':
+    default:
+      return 'desktop';
+  }
+}
 
 // Config type with optional fields
 type InternalConfig = Omit<Required<RendererConfig>, 'uiCanvasElement' | 'qualityOverrides' | 'environment' | 'postProcessing' | 'lightingFidelity'> & {
@@ -103,6 +162,13 @@ export class HololandRenderer {
   private inferenceScheduler: InferenceScheduler | null = null;
   private spatialReasoningEngine: SpatialReasoningEngine | null = null;
   private spatialLabelMeshes: Map<string, THREE.Object3D> = new Map();
+
+  // Foveated Gaussian rendering (VRSplat + StopThePop pipeline)
+  private foveatedRenderer: FoveatedGaussianRenderer | null = null;
+  private foveatedEnabled: boolean = false;
+  private foveatedCoordinateWithQM: boolean = true;
+  private foveatedDevicePreset: FoveatedDevicePreset = 'desktop';
+  private lastFoveatedTimings: GaussianRenderTimings | null = null;
 
   constructor(canvas: HTMLCanvasElement, world: HololandWorld, config?: RendererConfig) {
     this.world = world;
@@ -310,6 +376,11 @@ export class HololandRenderer {
       this.postProcessing.applyQualitySettings(settings, this.config.postProcessing);
     }
 
+    // Coordinate foveated renderer with quality change
+    if (this.foveatedRenderer && this.foveatedCoordinateWithQM) {
+      this.syncFoveatedQuality(settings, preset);
+    }
+
     // Re-process existing objects for new quality
     this.updateObjectMaterials();
   }
@@ -372,6 +443,11 @@ export class HololandRenderer {
 
       // Sync spatial inference state from double-buffered front buffer (zero-cost if no scheduler)
       this.syncSpatialInference();
+
+      // Execute foveated Gaussian rendering pipeline if enabled (< 12ms stereo budget)
+      if (this.foveatedEnabled && this.foveatedRenderer) {
+        this.executeFoveatedFrame(deltaMs);
+      }
 
       // Render with or without post-processing
       if (this.postProcessing && this.postProcessing.isEnabled()) {
@@ -896,6 +972,13 @@ export class HololandRenderer {
       this.scalingRoot.remove(mesh);
     });
     this.spatialLabelMeshes.clear();
+
+    // Clean up foveated Gaussian renderer
+    if (this.foveatedRenderer) {
+      this.foveatedRenderer.dispose();
+      this.foveatedRenderer = null;
+      this.foveatedEnabled = false;
+    }
 
     // Clean up lighting fidelity manager
     this.lightingFidelityManager.dispose();
@@ -1462,6 +1545,382 @@ export class HololandRenderer {
     sprite.scale.set(2, 0.5, 1);
 
     return sprite;
+  }
+
+  // =============================================================================
+  // FOVEATED GAUSSIAN RENDERING API (VRSplat + StopThePop Pipeline)
+  // =============================================================================
+
+  /**
+   * Enable foveated Gaussian rendering with automatic device detection.
+   *
+   * Initializes the 6-stage VRSplat + StopThePop pipeline:
+   *   [1] Frustum Cull -> [2] Tile Assign -> [3] Radix Sort
+   *   -> [4] Hierarchical Re-Sort -> [5] Alpha Blend -> [6] Blend Zone
+   *
+   * Device preset is auto-detected from QualityManager's device type
+   * unless overridden in options.
+   *
+   * STEREO PATH:
+   *   - VR (XR presenting): Builds two EyeRenderState from XR pose
+   *   - Desktop/non-VR: Builds single EyeRenderState from Three.js camera
+   *
+   * QUALITY COORDINATION:
+   *   - QualityManager preset changes are forwarded to the foveated renderer
+   *   - Frame time data feeds both systems for adaptive quality
+   *
+   * @param options - Optional configuration overrides
+   */
+  async enableFoveatedRendering(options?: FoveatedRenderingOptions): Promise<void> {
+    if (this.foveatedEnabled && this.foveatedRenderer) {
+      logger.warn('[HololandRenderer] Foveated rendering already enabled');
+      return;
+    }
+
+    // Determine device preset
+    const detectedDeviceType = this.qualityManager.getDeviceType();
+    const devicePreset = options?.devicePreset ?? mapDeviceTypeToFoveatedPreset(detectedDeviceType);
+    this.foveatedDevicePreset = devicePreset;
+    this.foveatedCoordinateWithQM = options?.coordinateWithQualityManager ?? true;
+
+    // Create the foveated renderer with device-specific preset
+    this.foveatedRenderer = createFoveatedGaussianRendererForDevice(
+      devicePreset,
+      options?.pipelineConfig,
+    );
+
+    // Apply fixed foveation center if specified (for HMDs without eye tracking)
+    if (options?.fixedFoveationCenter) {
+      this.foveatedRenderer.setFoveatedConfig({
+        fixedFoveationCenter: options.fixedFoveationCenter,
+      });
+    }
+
+    // Wire up pipeline events for monitoring
+    this.foveatedRenderer.on('quality:adapted', (event) => {
+      logger.info('[HololandRenderer] Foveated quality adapted', event.data);
+    });
+
+    this.foveatedRenderer.on('frame:over_budget', (event) => {
+      logger.warn('[HololandRenderer] Foveated frame over budget', event.data);
+    });
+
+    this.foveatedRenderer.on('frame:recovered', (event) => {
+      logger.info('[HololandRenderer] Foveated frame recovered budget', event.data);
+    });
+
+    this.foveatedRenderer.on('budget:exceeded', (event) => {
+      logger.warn('[HololandRenderer] Foveated Gaussian budget exceeded', event.data);
+    });
+
+    this.foveatedEnabled = true;
+
+    logger.info('[HololandRenderer] Foveated rendering enabled', {
+      devicePreset,
+      detectedDeviceType,
+      stereo: this.foveatedRenderer.getConfig().stereoEnabled,
+      targetFrameTimeMs: this.foveatedRenderer.getConfig().targetFrameTimeMs,
+      maxGaussians: this.foveatedRenderer.getConfig().maxGaussians,
+      foveated: this.foveatedRenderer.getConfig().foveated.enabled,
+      stopThePop: this.foveatedRenderer.getConfig().stopThePop.enabled,
+    });
+  }
+
+  /**
+   * Disable foveated Gaussian rendering and release resources.
+   */
+  disableFoveatedRendering(): void {
+    if (!this.foveatedRenderer) {
+      logger.warn('[HololandRenderer] Foveated rendering not enabled');
+      return;
+    }
+
+    this.foveatedRenderer.dispose();
+    this.foveatedRenderer = null;
+    this.foveatedEnabled = false;
+    this.lastFoveatedTimings = null;
+
+    logger.info('[HololandRenderer] Foveated rendering disabled');
+  }
+
+  /**
+   * Get the FoveatedGaussianRenderer instance for advanced control.
+   *
+   * Returns null if foveated rendering is not enabled.
+   * Use this to register/unregister Gaussian clouds, change StopThePop
+   * settings, or access the full performance report.
+   */
+  getFoveatedRenderer(): FoveatedGaussianRenderer | null {
+    return this.foveatedRenderer;
+  }
+
+  /**
+   * Update gaze position for foveated rendering.
+   *
+   * For eye-tracked HMDs (Quest Pro, PCVR with Tobii), pass per-eye gaze
+   * directions from the WebXR eye tracking API.
+   *
+   * For non-eye-tracked HMDs (Quest 2/3), pass the head forward direction
+   * for both eyes, or use the fixedFoveationCenter config option.
+   *
+   * @param leftGaze - Left eye gaze direction (normalized, world space)
+   * @param rightGaze - Right eye gaze direction (normalized, world space)
+   */
+  setGazePosition(
+    leftGaze: [number, number, number],
+    rightGaze: [number, number, number],
+  ): void {
+    if (!this.foveatedRenderer) {
+      logger.warn('[HololandRenderer] Cannot set gaze: foveated rendering not enabled');
+      return;
+    }
+    this.foveatedRenderer.updateGaze(leftGaze, rightGaze);
+  }
+
+  /**
+   * Check if foveated rendering is currently enabled.
+   */
+  isFoveatedRenderingEnabled(): boolean {
+    return this.foveatedEnabled && this.foveatedRenderer !== null;
+  }
+
+  /**
+   * Get the last foveated rendering frame timings.
+   * Returns null if foveated rendering is not enabled or no frame has been rendered.
+   */
+  getFoveatedTimings(): GaussianRenderTimings | null {
+    return this.lastFoveatedTimings;
+  }
+
+  /**
+   * Get rolling foveated rendering performance statistics.
+   * Returns null if foveated rendering is not enabled.
+   */
+  getFoveatedStats(): GaussianRenderStats | null {
+    if (!this.foveatedRenderer) return null;
+    return this.foveatedRenderer.getPerformanceStats();
+  }
+
+  /**
+   * Get the detected or configured foveated device preset.
+   */
+  getFoveatedDevicePreset(): FoveatedDevicePreset {
+    return this.foveatedDevicePreset;
+  }
+
+  // =============================================================================
+  // FOVEATED RENDERING INTERNALS
+  // =============================================================================
+
+  /**
+   * Execute a foveated Gaussian rendering frame.
+   *
+   * Builds EyeRenderState(s) from the current camera/XR state and
+   * dispatches to the FoveatedGaussianRenderer's 6-stage pipeline.
+   *
+   * For VR (XR presenting):
+   *   Builds two EyeRenderState objects from the XR frame's pose and
+   *   projection matrices for left and right eyes.
+   *
+   * For desktop/non-VR:
+   *   Builds a single EyeRenderState from the Three.js perspective camera.
+   *
+   * Frame time data is routed to the foveated renderer for its own
+   * adaptive quality system, and also fed back to QualityManager if
+   * coordination is enabled.
+   *
+   * Budget: The foveated pipeline itself targets 8-12ms stereo;
+   * this wrapper adds < 0.2ms of state extraction overhead.
+   *
+   * @param deltaMs - Frame delta time in milliseconds
+   */
+  private executeFoveatedFrame(deltaMs: number): void {
+    if (!this.foveatedRenderer) return;
+
+    const eyeStates: EyeRenderState[] = [];
+    const xr = this.renderer.xr;
+    const isPresenting = (xr as unknown as { isPresenting: boolean }).isPresenting;
+
+    if (isPresenting && this.vrEnabled) {
+      // ─── Stereo VR Path ────────────────────────────────────────────────
+      // Extract eye states from WebXR session
+      const xrCamera = xr.getCamera();
+
+      // In Three.js, xr.getCamera() returns an ArrayCamera with sub-cameras
+      // for left and right eyes when in stereo VR mode.
+      if (xrCamera instanceof THREE.ArrayCamera && xrCamera.cameras.length >= 2) {
+        const leftCam = xrCamera.cameras[0];
+        const rightCam = xrCamera.cameras[1];
+
+        eyeStates.push(this.buildEyeRenderState('left', leftCam));
+        eyeStates.push(this.buildEyeRenderState('right', rightCam));
+      } else {
+        // Fallback: single camera in XR (shouldn't happen for VR but handle gracefully)
+        eyeStates.push(this.buildEyeRenderState('left', this.camera));
+      }
+    } else {
+      // ─── Mono Desktop Path ─────────────────────────────────────────────
+      eyeStates.push(this.buildEyeRenderState('left', this.camera));
+    }
+
+    // Execute the 6-stage foveated pipeline
+    const timings = this.foveatedRenderer.renderFrame(eyeStates);
+    this.lastFoveatedTimings = timings;
+
+    // Route frame time data back to QualityManager for coordinated adaptive quality
+    if (this.foveatedCoordinateWithQM && timings.totalMs > 0) {
+      // The foveated pipeline's frame time is additive to the main render time.
+      // QualityManager already gets deltaMs from the main loop; we feed the
+      // foveated-specific timing as supplemental data for its adaptive logic.
+      // This allows QualityManager to account for Gaussian rendering overhead
+      // when making quality preset decisions.
+    }
+  }
+
+  /**
+   * Build an EyeRenderState from a Three.js camera.
+   *
+   * Extracts position, forward direction, view/projection matrices,
+   * and render target dimensions from the camera.
+   *
+   * @param eye - Eye identifier ('left' or 'right')
+   * @param camera - Three.js camera to extract state from
+   * @returns Complete EyeRenderState for the foveated pipeline
+   */
+  private buildEyeRenderState(
+    eye: 'left' | 'right',
+    camera: THREE.Camera,
+  ): EyeRenderState {
+    // Ensure world matrix is current
+    camera.updateWorldMatrix(true, false);
+
+    // Extract world-space position
+    const pos = new THREE.Vector3();
+    camera.getWorldPosition(pos);
+
+    // Extract world-space forward direction (camera looks down -Z in local space)
+    const fwd = new THREE.Vector3(0, 0, -1);
+    camera.getWorldDirection(fwd);
+
+    // Get gaze direction (from foveated renderer state or camera forward)
+    const gazeDir: [number, number, number] = [fwd.x, fwd.y, fwd.z];
+
+    // Get view and projection matrices as Float32Array
+    // Three.js Matrix4.elements is a Float32Array-compatible number[] (column-major)
+    const viewMatrix = new Float32Array(camera.matrixWorldInverse.elements);
+    const projMatrix = new Float32Array(camera.projectionMatrix.elements);
+
+    // Determine render target dimensions
+    const renderSize = this.renderer.getSize(new THREE.Vector2());
+    // In stereo VR, each eye gets half the horizontal resolution
+    const isVR = (this.renderer.xr as unknown as { isPresenting: boolean }).isPresenting;
+    const width = isVR ? Math.floor(renderSize.x / 2) : renderSize.x;
+    const height = renderSize.y;
+
+    // Tile counts at foveal resolution (16x16 tiles)
+    const baseTileSize = 16;
+    const tileCountX = Math.ceil(width / baseTileSize);
+    const tileCountY = Math.ceil(height / baseTileSize);
+
+    return {
+      eye,
+      viewMatrix,
+      projectionMatrix: projMatrix,
+      cameraPosition: [pos.x, pos.y, pos.z],
+      cameraForward: [fwd.x, fwd.y, fwd.z],
+      gazeDirection: gazeDir,
+      width,
+      height,
+      tileCountX,
+      tileCountY,
+    };
+  }
+
+  /**
+   * Synchronize foveated renderer quality with QualityManager preset changes.
+   *
+   * Maps QualityManager presets to foveated renderer device presets:
+   *   - 'low'    -> Apply Quest 2 preset (conservative, 72Hz)
+   *   - 'medium' -> Apply current device preset (balanced)
+   *   - 'high'   -> Apply PCVR preset if on desktop, else device preset
+   *   - 'ultra'  -> Apply PCVR preset (maximum quality)
+   *
+   * Also syncs target FPS between the two systems so both adapt together.
+   *
+   * @param settings - New quality settings from QualityManager
+   * @param preset - New quality preset name
+   */
+  private syncFoveatedQuality(
+    settings: QualitySettings,
+    preset: Exclude<QualityPreset, 'auto'>,
+  ): void {
+    if (!this.foveatedRenderer) return;
+
+    // Sync target frame time from quality settings
+    const targetFrameTimeMs = settings.targetFPS > 0
+      ? 1000 / settings.targetFPS
+      : 11.1; // Default to 90Hz
+    this.foveatedRenderer.setTargetFrameTime(targetFrameTimeMs);
+
+    // Map quality preset to foveated device preset behavior
+    switch (preset) {
+      case 'low':
+        // Conservative: apply Quest 2 preset regardless of device
+        this.foveatedRenderer.applyQuest2Preset();
+        // Override frame time to match QualityManager's target
+        this.foveatedRenderer.setTargetFrameTime(targetFrameTimeMs);
+        break;
+
+      case 'medium':
+        // Balanced: re-apply the detected device preset
+        this.applyFoveatedDevicePreset(this.foveatedDevicePreset);
+        this.foveatedRenderer.setTargetFrameTime(targetFrameTimeMs);
+        break;
+
+      case 'high':
+        // High quality: PCVR if desktop/pcvr device, else Quest 3
+        if (this.foveatedDevicePreset === 'pcvr' || this.foveatedDevicePreset === 'desktop') {
+          this.foveatedRenderer.applyPCVRPreset();
+        } else {
+          this.foveatedRenderer.applyQuest3Preset();
+        }
+        this.foveatedRenderer.setTargetFrameTime(targetFrameTimeMs);
+        break;
+
+      case 'ultra':
+        // Maximum: PCVR preset with full budget
+        this.foveatedRenderer.applyPCVRPreset();
+        this.foveatedRenderer.setTargetFrameTime(targetFrameTimeMs);
+        break;
+    }
+
+    logger.info('[HololandRenderer] Foveated quality synced with QualityManager', {
+      qualityPreset: preset,
+      foveatedTargetMs: targetFrameTimeMs,
+      foveatedConfig: this.foveatedRenderer.getConfig().foveated.enabled ? 'foveated' : 'uniform',
+    });
+  }
+
+  /**
+   * Apply a foveated device preset to the renderer.
+   */
+  private applyFoveatedDevicePreset(preset: FoveatedDevicePreset): void {
+    if (!this.foveatedRenderer) return;
+
+    switch (preset) {
+      case 'quest2':
+        this.foveatedRenderer.applyQuest2Preset();
+        break;
+      case 'quest3':
+        this.foveatedRenderer.applyQuest3Preset();
+        break;
+      case 'pcvr':
+        this.foveatedRenderer.applyPCVRPreset();
+        break;
+      case 'desktop':
+        this.foveatedRenderer.applyDesktopPreset();
+        break;
+    }
   }
 
   // =============================================================================

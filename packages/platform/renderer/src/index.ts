@@ -466,6 +466,23 @@ export type {
 } from './FoveatedGaussianTypes';
 
 // =============================================================================
+// BUDGET-ENFORCED GAUSSIAN RENDERER (GaussianBudgetManager + FoveatedGaussianRenderer)
+// =============================================================================
+
+export {
+  BudgetEnforcedGaussianRenderer,
+  createBudgetEnforcedGaussianRenderer,
+  createBudgetEnforcedGaussianRendererForDevice,
+} from './BudgetEnforcedGaussianRenderer';
+
+export type {
+  BudgetEnforcedRendererConfig,
+  IntegratedMetrics,
+  LayerEnforcementResult,
+  IntegratedEventType,
+} from './BudgetEnforcedGaussianRenderer';
+
+// =============================================================================
 // SPATIAL INFERENCE COMPUTE PIPELINE (WebGPU Compute Shader Backend)
 // =============================================================================
 
@@ -592,6 +609,49 @@ export type {
 } from './components/vr-performance-dashboard';
 
 // =============================================================================
+// HOLOGRAPHIC ECONOMIC DASHBOARD (Layer 6 Transparency, 11.1ms Frame Budget)
+// =============================================================================
+
+export {
+  EconomicDashboard,
+} from './components/economic-dashboard';
+
+export type {
+  EconomicDashboardProps,
+} from './components/economic-dashboard';
+
+export {
+  useEconomicDashboard,
+} from './components/economic-dashboard';
+
+export type {
+  UseEconomicDashboardConfig,
+} from './components/economic-dashboard';
+
+export {
+  DEFAULT_ECON_DASHBOARD_THEME,
+  FRAME_BUDGET,
+} from './components/economic-dashboard';
+
+export type {
+  EconDashboardDisplayMode,
+  EconDashboardPanel,
+  EconDashboardTheme,
+  EconHealthState,
+  EconTimeSample,
+  InflationSnapshot,
+  GiniSnapshot,
+  VelocitySnapshot,
+  FaucetSinkSnapshot,
+  EconBreakdownEntry,
+  PIDMode,
+  PIDControllerSnapshot,
+  EconomicDashboardState,
+  EconomicDashboardActions,
+  EconomicAlert,
+} from './components/economic-dashboard';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -628,6 +688,7 @@ import { InferenceScheduler } from './InferenceScheduler';
 import { GaussianBudgetManager } from './GaussianBudgetManager';
 import { SharedSpatialAnchorManager } from './SharedSpatialAnchorManager';
 import { FoveatedGaussianRenderer } from './FoveatedGaussianRenderer';
+import { BudgetEnforcedGaussianRenderer } from './BudgetEnforcedGaussianRenderer';
 import { SpatialInferenceComputePipeline } from './SpatialInferenceComputePipeline';
 import { LightingFidelityManager } from './LightingFidelityManager';
 import { GaussianSplatViewer } from './components/gaussian-splat-viewer';
@@ -636,6 +697,7 @@ import { OrbitCameraController } from './components/gaussian-splat-viewer';
 import { VRPerformanceDashboard } from './components/vr-performance-dashboard';
 import { GaussianBudgetUtilization } from './components/vr-performance-dashboard';
 import { FrameTimeWaterfall } from './components/vr-performance-dashboard';
+import { EconomicDashboard } from './components/economic-dashboard';
 
 export default {
   HololandRenderer,
@@ -659,6 +721,7 @@ export default {
   GaussianBudgetManager,
   SharedSpatialAnchorManager,
   FoveatedGaussianRenderer,
+  BudgetEnforcedGaussianRenderer,
   SpatialInferenceComputePipeline,
   LightingFidelityManager,
   GaussianSplatViewer,
@@ -667,6 +730,7 @@ export default {
   VRPerformanceDashboard,
   GaussianBudgetUtilization,
   FrameTimeWaterfall,
+  EconomicDashboard,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };

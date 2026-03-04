@@ -54,3 +54,31 @@ export type { TabViewConfig, Tab } from './TabView';
 
 // HUD components
 export { HudComponent, StatusHud } from './HudComponent';
+
+// Economy dashboard components (Layer 6: Transparency)
+export {
+  EconomyComponent,
+  FaucetSinkGauge,
+  GiniChart,
+  VelocityMeter,
+  BondingCurveChart,
+  PIDStatusDisplay,
+  ECONOMY_COLORS,
+} from './economy';
+
+export type {
+  RenderingContext,
+  WebXRGeometryData,
+  EconomyComponentConfig,
+  TimeSeriesPoint,
+  FaucetSinkData,
+  FaucetSinkGaugeConfig,
+  GiniChartConfig,
+  VelocityMeterConfig,
+  BondingCurveType,
+  BondingCurveChartConfig,
+  PIDLoopData,
+  PIDStatusDisplayConfig,
+  A11yAnnouncement,
+  A11yDescription,
+} from './economy';
