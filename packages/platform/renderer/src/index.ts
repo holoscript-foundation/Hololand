@@ -482,6 +482,116 @@ export type {
 } from './SpatialInferenceComputePipeline';
 
 // =============================================================================
+// GAUSSIAN SPLAT VIEWER (WebGPU + WebSplatter Wait-Free Radix Sort)
+// =============================================================================
+
+export {
+  GaussianSplatViewer,
+} from './components/gaussian-splat-viewer';
+
+export type {
+  GaussianSplatViewerProps,
+  GaussianSplatPanel,
+} from './components/gaussian-splat-viewer';
+
+export {
+  useGaussianSplatViewer,
+} from './components/gaussian-splat-viewer';
+
+export type {
+  UseGaussianSplatViewerConfig,
+} from './components/gaussian-splat-viewer';
+
+export {
+  WebGPUSplatRenderer,
+  createWebGPUSplatRenderer,
+} from './components/gaussian-splat-viewer';
+
+export {
+  OrbitCameraController,
+  createOrbitCameraController,
+} from './components/gaussian-splat-viewer';
+
+export {
+  loadPlyFromUrl,
+  parsePlyBuffer,
+  parseSplatBuffer,
+} from './components/gaussian-splat-viewer';
+
+export {
+  DEFAULT_GSPLAT_THEME,
+} from './components/gaussian-splat-viewer';
+
+export type {
+  ViewerStatus as GaussianViewerStatus,
+  SplatCloudData,
+  SplatGPUBuffers,
+  CameraState as GaussianCameraState,
+  CameraControllerConfig,
+  SplatRenderConfig,
+  SplatFrameMetrics,
+  SplatRenderStats,
+  GaussianSplatViewerState,
+  GaussianSplatViewerActions,
+  GaussianSplatViewerTheme,
+  GaussianSplatDisplayMode,
+} from './components/gaussian-splat-viewer';
+
+// =============================================================================
+// VR PERFORMANCE DASHBOARD (Gaussian Budget + Frame Time Waterfall)
+// =============================================================================
+
+export {
+  VRPerformanceDashboard,
+} from './components/vr-performance-dashboard';
+
+export type {
+  VRPerformanceDashboardProps,
+} from './components/vr-performance-dashboard';
+
+export {
+  GaussianBudgetUtilization,
+} from './components/vr-performance-dashboard';
+
+export type {
+  GaussianBudgetUtilizationProps,
+} from './components/vr-performance-dashboard';
+
+export {
+  FrameTimeWaterfall,
+} from './components/vr-performance-dashboard';
+
+export type {
+  FrameTimeWaterfallProps,
+} from './components/vr-performance-dashboard';
+
+export {
+  useVRPerformance,
+} from './components/vr-performance-dashboard';
+
+export type {
+  UseVRPerformanceConfig,
+} from './components/vr-performance-dashboard';
+
+export {
+  DEFAULT_VR_PERF_THEME,
+  LAYER_DISPLAY_CONFIG,
+  WATERFALL_PHASES,
+} from './components/vr-performance-dashboard';
+
+export type {
+  VRPerfDisplayMode,
+  VRPerfPanel,
+  VRPerfTheme,
+  VRPerformanceState,
+  VRPerformanceActions,
+  FrameTimeSample,
+  PerformanceAlert,
+  LayerDisplayMeta,
+  WaterfallPhase,
+} from './components/vr-performance-dashboard';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -520,6 +630,12 @@ import { SharedSpatialAnchorManager } from './SharedSpatialAnchorManager';
 import { FoveatedGaussianRenderer } from './FoveatedGaussianRenderer';
 import { SpatialInferenceComputePipeline } from './SpatialInferenceComputePipeline';
 import { LightingFidelityManager } from './LightingFidelityManager';
+import { GaussianSplatViewer } from './components/gaussian-splat-viewer';
+import { WebGPUSplatRenderer } from './components/gaussian-splat-viewer';
+import { OrbitCameraController } from './components/gaussian-splat-viewer';
+import { VRPerformanceDashboard } from './components/vr-performance-dashboard';
+import { GaussianBudgetUtilization } from './components/vr-performance-dashboard';
+import { FrameTimeWaterfall } from './components/vr-performance-dashboard';
 
 export default {
   HololandRenderer,
@@ -545,6 +661,12 @@ export default {
   FoveatedGaussianRenderer,
   SpatialInferenceComputePipeline,
   LightingFidelityManager,
+  GaussianSplatViewer,
+  WebGPUSplatRenderer,
+  OrbitCameraController,
+  VRPerformanceDashboard,
+  GaussianBudgetUtilization,
+  FrameTimeWaterfall,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };
