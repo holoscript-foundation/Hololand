@@ -10,28 +10,53 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { HololandWorld, SpatialObject } from '@hololand/world';
 import { logger } from './logger';
-import type { RendererConfig, LightingConfig, QualitySettings, QualityPreset } from './types';
+import type { RendererConfig, LightingConfig, QualitySettings, QualityPreset, LightingFidelityLevel } from './types';
 import { QUALITY_PRESETS } from './types';
 import { QualityManager, createQualityManager } from './QualityManager';
 import { PostProcessingPipeline, createPostProcessingPipeline } from './PostProcessing';
 import { EnvironmentManager, createEnvironmentManager } from './EnvironmentManager';
 import { MaterialFactory, createMaterialFactory } from './MaterialFactory';
 import { GPUContext } from './GPUContext';
+import {
+  LightingFidelityManager,
+  createLightingFidelityManager,
+} from './LightingFidelityManager';
+import type { LightingFidelityMetrics } from './LightingFidelityManager';
 import type {
   AgentCommunicationManager,
 } from './AgentCommunicationManager';
 import type {
+  Vec3,
   AgentWorldState,
   AgentAvatarState,
   AgentCommand,
 } from './AgentStateBuffer';
+import type {
+  CachedSpatialState,
+  InferenceSchedulerConfig,
+  InferenceSchedulerMetrics,
+} from './SpatialInferenceTypes';
+import {
+  InferenceScheduler,
+  createInferenceScheduler,
+} from './InferenceScheduler';
+import {
+  SpatialReasoningEngine,
+  createSpatialReasoningEngine,
+} from './SpatialReasoningEngine';
+import type {
+  ObjectSnapshot,
+  CameraSnapshot,
+  SpatialReasoningEngineConfig,
+} from './SpatialReasoningEngine';
 
 // Config type with optional fields
-type InternalConfig = Omit<Required<RendererConfig>, 'uiCanvasElement' | 'qualityOverrides' | 'environment' | 'postProcessing'> & {
+type InternalConfig = Omit<Required<RendererConfig>, 'uiCanvasElement' | 'qualityOverrides' | 'environment' | 'postProcessing' | 'lightingFidelity'> & {
   uiCanvasElement?: HTMLCanvasElement;
   qualityOverrides?: Partial<QualitySettings>;
   environment?: RendererConfig['environment'];
   postProcessing?: RendererConfig['postProcessing'];
+  lightingFidelity?: RendererConfig['lightingFidelity'];
 };
 
 interface RenderableUI {
@@ -52,6 +77,12 @@ export class HololandRenderer {
   private uiCanvas: RenderableUI | null = null;
   private lastFrameTime: number = 0;
 
+  // Lighting fidelity adaptive evaluation
+  private lfmFrameTimeAccum: number = 0;
+  private lfmFrameCount: number = 0;
+  private lastLfmEvalTime: number = 0;
+  private readonly LFM_EVAL_INTERVAL_MS = 2000; // Evaluate every 2 seconds
+
   // Scene structure
   private scalingRoot: THREE.Group;
 
@@ -61,11 +92,17 @@ export class HololandRenderer {
   private environmentManager: EnvironmentManager | null = null;
   private materialFactory: MaterialFactory;
   private gpuContext: GPUContext;
+  private lightingFidelityManager: LightingFidelityManager;
 
   // Agent communication (double-buffered, off render loop)
   private agentCommunication: AgentCommunicationManager | null = null;
   private agentAvatarMap: Map<string, THREE.Object3D> = new Map();
   private agentCommandHandlers: Map<string, (command: AgentCommand) => void> = new Map();
+
+  // Spatial inference scheduling (Tier 1: 1-5Hz inference, Tier 2: 90Hz consumption)
+  private inferenceScheduler: InferenceScheduler | null = null;
+  private spatialReasoningEngine: SpatialReasoningEngine | null = null;
+  private spatialLabelMeshes: Map<string, THREE.Object3D> = new Map();
 
   constructor(canvas: HTMLCanvasElement, world: HololandWorld, config?: RendererConfig) {
     this.world = world;
@@ -92,6 +129,16 @@ export class HololandRenderer {
     // Initialize material factory
     this.materialFactory = createMaterialFactory(qualitySettings);
 
+    // Initialize lighting fidelity manager (Levels 0-4 spectrum)
+    this.lightingFidelityManager = createLightingFidelityManager({
+      ...config?.lightingFidelity,
+      onLevelChange: (oldLevel, newLevel, reason) => {
+        this.onLightingFidelityChange(oldLevel, newLevel, reason);
+        config?.lightingFidelity?.onLevelChange?.(oldLevel, newLevel, reason);
+      },
+    });
+    this.lightingFidelityManager.setTargetFPS(qualitySettings.targetFPS);
+
     this.config = {
       // Quality
       quality: qualityPreset,
@@ -113,6 +160,7 @@ export class HololandRenderer {
       // Advanced options
       environment: config?.environment,
       postProcessing: config?.postProcessing,
+      lightingFidelity: config?.lightingFidelity,
     };
 
     // Initialize Three.js scene
@@ -184,10 +232,12 @@ export class HololandRenderer {
       });
     }
 
-    // Setup default lighting (unless using HDRI environment)
-    if (!this.config.environment?.hdri) {
-      this.setupDefaultLighting();
-    }
+    // Setup lighting via the fidelity manager (replaces setupDefaultLighting)
+    // Attach managed lights to the scene. If HDRI environment is configured,
+    // the environment manager will supplement with IBL; the fidelity manager
+    // still provides the primary scene lights.
+    this.lightingFidelityManager.attachToScene(this.scene);
+    this.lightingFidelityManager.applyShadowSettings(this.renderer);
 
     // Sync with Hololand world
     this.setupWorldSync();
@@ -238,6 +288,9 @@ export class HololandRenderer {
 
     // Update material factory
     this.materialFactory.setQualitySettings(settings);
+
+    // Update lighting fidelity manager's target FPS
+    this.lightingFidelityManager.setTargetFPS(settings.targetFPS);
 
     // Update environment
     if (this.environmentManager) {
@@ -292,6 +345,13 @@ export class HololandRenderer {
       this.lastFrameTime = time;
       this.qualityManager.recordFrameTime(deltaMs);
 
+      // Feed the lighting fidelity manager's adaptive evaluation.
+      // This piggybacks on the QualityManager's 2-second check interval.
+      // We only evaluate when we have a meaningful delta (skip first frame).
+      if (deltaMs > 0) {
+        this.evaluateLightingFidelity(deltaMs);
+      }
+
       if ((this.renderer.xr as unknown as { isPresenting: boolean }).isPresenting) {
         this.renderer.setAnimationLoop(animate);
         this.animationId = -1; // Flag XR loop
@@ -309,6 +369,9 @@ export class HololandRenderer {
 
       // Sync agent state from double-buffered front buffer (zero-cost if no agents)
       this.syncAgentState();
+
+      // Sync spatial inference state from double-buffered front buffer (zero-cost if no scheduler)
+      this.syncSpatialInference();
 
       // Render with or without post-processing
       if (this.postProcessing && this.postProcessing.isEnabled()) {
@@ -625,6 +688,98 @@ export class HololandRenderer {
   }
 
   // =============================================================================
+  // LIGHTING FIDELITY API (Levels 0-4 Spectrum)
+  // =============================================================================
+
+  /**
+   * Set the lighting fidelity level (0-4).
+   * Level 0=Unlit, 1=Basic, 2=Standard, 3=Enhanced, 4=Cinematic.
+   */
+  setLightingFidelity(level: LightingFidelityLevel): void {
+    this.lightingFidelityManager.setLevel(level);
+  }
+
+  /**
+   * Get the current lighting fidelity level.
+   */
+  getLightingFidelity(): LightingFidelityLevel {
+    return this.lightingFidelityManager.getLevel();
+  }
+
+  /**
+   * Get the LightingFidelityManager for advanced control.
+   */
+  getLightingFidelityManager(): LightingFidelityManager {
+    return this.lightingFidelityManager;
+  }
+
+  /**
+   * Get lighting fidelity metrics (levels, downgrade/upgrade counts, light counts).
+   */
+  getLightingFidelityMetrics(): LightingFidelityMetrics {
+    return this.lightingFidelityManager.getMetrics();
+  }
+
+  /**
+   * Enable or disable automatic lighting downgrade based on FPS.
+   */
+  setLightingAutoDowngrade(enabled: boolean): void {
+    this.lightingFidelityManager.setAutoDowngrade(enabled);
+  }
+
+  /**
+   * Enable or disable automatic lighting upgrade when headroom exists.
+   */
+  setLightingAutoUpgrade(enabled: boolean): void {
+    this.lightingFidelityManager.setAutoUpgrade(enabled);
+  }
+
+  /**
+   * Accumulate frame times and periodically evaluate lighting fidelity.
+   * Runs every LFM_EVAL_INTERVAL_MS (2 seconds). Cost: ~0 when not evaluating.
+   */
+  private evaluateLightingFidelity(deltaMs: number): void {
+    this.lfmFrameTimeAccum += deltaMs;
+    this.lfmFrameCount++;
+
+    const now = performance.now();
+    if (now - this.lastLfmEvalTime < this.LFM_EVAL_INTERVAL_MS) {
+      return;
+    }
+
+    // Calculate average FPS over the evaluation window
+    if (this.lfmFrameCount > 0) {
+      const avgFrameTimeMs = this.lfmFrameTimeAccum / this.lfmFrameCount;
+      const averageFPS = avgFrameTimeMs > 0 ? 1000 / avgFrameTimeMs : 0;
+      this.lightingFidelityManager.evaluatePerformance(averageFPS);
+    }
+
+    // Reset accumulators
+    this.lfmFrameTimeAccum = 0;
+    this.lfmFrameCount = 0;
+    this.lastLfmEvalTime = now;
+  }
+
+  /**
+   * Callback when the lighting fidelity level changes (auto or manual).
+   * Updates shadow settings on the renderer and logs the transition.
+   */
+  private onLightingFidelityChange(
+    oldLevel: LightingFidelityLevel,
+    newLevel: LightingFidelityLevel,
+    reason: string,
+  ): void {
+    // Update renderer shadow map settings to match the new level
+    this.lightingFidelityManager.applyShadowSettings(this.renderer);
+
+    logger.info('[HololandRenderer] Lighting fidelity changed', {
+      from: oldLevel,
+      to: newLevel,
+      reason,
+    });
+  }
+
+  // =============================================================================
   // ENVIRONMENT API
   // =============================================================================
 
@@ -730,6 +885,20 @@ export class HololandRenderer {
     });
     this.agentAvatarMap.clear();
     this.agentCommandHandlers.clear();
+
+    // Clean up spatial inference
+    if (this.inferenceScheduler) {
+      this.inferenceScheduler.dispose();
+      this.inferenceScheduler = null;
+    }
+    this.spatialReasoningEngine = null;
+    this.spatialLabelMeshes.forEach((mesh) => {
+      this.scalingRoot.remove(mesh);
+    });
+    this.spatialLabelMeshes.clear();
+
+    // Clean up lighting fidelity manager
+    this.lightingFidelityManager.dispose();
 
     this.renderer.dispose();
 
@@ -938,6 +1107,361 @@ export class HololandRenderer {
       0xff3d00, // red-orange
     ];
     return agentColors[Math.abs(hash) % agentColors.length];
+  }
+
+  // =============================================================================
+  // SPATIAL INFERENCE SCHEDULING (Tier 1: 1-5Hz, Tier 2: 90Hz)
+  // =============================================================================
+
+  /**
+   * Enable the hierarchical spatial inference scheduling system.
+   *
+   * Creates a SpatialReasoningEngine (Tier 1) that runs at 1-5Hz on its own
+   * timing loop, producing a CachedSpatialState. The VR renderer (Tier 2)
+   * reads this cached state at 90Hz via the double-buffered front buffer.
+   *
+   * ARCHITECTURE:
+   * ```
+   *   Scene Graph (Three.js)
+   *        |
+   *        v
+   *   createSceneSnapshot()           <-- Between frames, < 1ms
+   *        |
+   *        v
+   *   SpatialReasoningEngine.infer()  <-- 1-5Hz, OFF render loop (200-1000ms budget)
+   *        |
+   *        v
+   *   AgentStateBuffer.swap()         <-- Atomic double-buffer swap
+   *        |
+   *        v
+   *   syncSpatialInference()          <-- 90Hz, ON render loop (< 0.5ms budget)
+   * ```
+   *
+   * @param engineConfig - Configuration for the SpatialReasoningEngine
+   * @param schedulerConfig - Configuration for the InferenceScheduler
+   */
+  async enableSpatialInference(
+    engineConfig?: SpatialReasoningEngineConfig,
+    schedulerConfig?: InferenceSchedulerConfig,
+  ): Promise<void> {
+    if (this.inferenceScheduler) {
+      logger.warn('[HololandRenderer] Spatial inference already enabled');
+      return;
+    }
+
+    // Create the spatial reasoning engine (Tier 1: slow path)
+    this.spatialReasoningEngine = createSpatialReasoningEngine(engineConfig);
+
+    // Create the inference scheduler (orchestrator)
+    this.inferenceScheduler = createInferenceScheduler(
+      this.spatialReasoningEngine,
+      {
+        minHz: 1,
+        maxHz: 5,
+        initialHz: 2,
+        maxInferenceBudgetMs: 200,
+        adaptiveFrequency: true,
+        stalenessThresholdMs: 2000,
+        onFrequencyChange: (oldHz, newHz, reason) => {
+          logger.info('[HololandRenderer] Inference frequency changed', {
+            from: oldHz,
+            to: newHz,
+            reason,
+          });
+        },
+        ...schedulerConfig,
+      },
+    );
+
+    // Register the scene snapshot callback so the scheduler can capture
+    // object transforms without touching the Three.js scene graph during inference
+    this.inferenceScheduler.setSnapshotCallback(() => this.createSceneSnapshot());
+
+    // Start the inference loop (runs on setInterval, NOT on requestAnimationFrame)
+    await this.inferenceScheduler.start();
+
+    logger.info('[HololandRenderer] Spatial inference enabled', {
+      engineConfig: engineConfig ?? 'default',
+      schedulerHz: this.inferenceScheduler.getCurrentHz(),
+    });
+  }
+
+  /**
+   * Disable the spatial inference system and release resources.
+   */
+  disableSpatialInference(): void {
+    if (!this.inferenceScheduler) {
+      logger.warn('[HololandRenderer] Spatial inference not enabled');
+      return;
+    }
+
+    this.inferenceScheduler.dispose();
+    this.inferenceScheduler = null;
+    this.spatialReasoningEngine = null;
+
+    // Clean up spatial label meshes
+    this.spatialLabelMeshes.forEach((mesh) => {
+      this.scalingRoot.remove(mesh);
+    });
+    this.spatialLabelMeshes.clear();
+
+    logger.info('[HololandRenderer] Spatial inference disabled');
+  }
+
+  /**
+   * Get the current cached spatial state (front buffer) for external consumers.
+   *
+   * Returns null if spatial inference is not enabled.
+   * Cost: O(1), zero allocation -- safe to call at 90Hz.
+   */
+  getSpatialState(): Readonly<CachedSpatialState> | null {
+    if (!this.inferenceScheduler) return null;
+    return this.inferenceScheduler.getCurrentState();
+  }
+
+  /**
+   * Get the inference scheduler for advanced control (frequency, metrics, etc.)
+   */
+  getInferenceScheduler(): InferenceScheduler | null {
+    return this.inferenceScheduler;
+  }
+
+  /**
+   * Get the spatial reasoning engine for configuration changes.
+   */
+  getSpatialReasoningEngine(): SpatialReasoningEngine | null {
+    return this.spatialReasoningEngine;
+  }
+
+  /**
+   * Get inference scheduler metrics for performance monitoring.
+   */
+  getInferenceMetrics(): InferenceSchedulerMetrics | null {
+    if (!this.inferenceScheduler) return null;
+    return this.inferenceScheduler.getMetrics();
+  }
+
+  /**
+   * Create a lightweight snapshot of the current scene for spatial inference.
+   *
+   * Captures object transforms and camera state from the Three.js scene graph.
+   * This is called by the InferenceScheduler between frames (NOT during render),
+   * so it can take a few milliseconds without affecting frame rate.
+   *
+   * Cost: O(n) where n = number of scene objects, typically < 1ms for 500 objects.
+   *
+   * @returns Object and camera snapshots for the inference engine
+   */
+  private createSceneSnapshot(): { objects: ObjectSnapshot[]; camera: CameraSnapshot } {
+    const objects: ObjectSnapshot[] = [];
+
+    for (const [objectId, mesh] of this.objectMap.entries()) {
+      // Ensure world matrix is up to date
+      mesh.updateWorldMatrix(true, false);
+
+      // Compute bounding box
+      let boundsMin: Vec3 = { x: -0.5, y: -0.5, z: -0.5 };
+      let boundsMax: Vec3 = { x: 0.5, y: 0.5, z: 0.5 };
+
+      if (mesh instanceof THREE.Mesh && mesh.geometry) {
+        if (!mesh.geometry.boundingBox) {
+          mesh.geometry.computeBoundingBox();
+        }
+        const bb = mesh.geometry.boundingBox;
+        if (bb) {
+          // Transform bounding box to world space
+          const min = bb.min.clone().applyMatrix4(mesh.matrixWorld);
+          const max = bb.max.clone().applyMatrix4(mesh.matrixWorld);
+          boundsMin = { x: min.x, y: min.y, z: min.z };
+          boundsMax = { x: max.x, y: max.y, z: max.z };
+        }
+      } else if (mesh instanceof THREE.Group) {
+        // For groups, compute bounding box from children
+        const box = new THREE.Box3().setFromObject(mesh);
+        if (!box.isEmpty()) {
+          boundsMin = { x: box.min.x, y: box.min.y, z: box.min.z };
+          boundsMax = { x: box.max.x, y: box.max.y, z: box.max.z };
+        }
+      }
+
+      // Get world-space position
+      const worldPos = new THREE.Vector3();
+      mesh.getWorldPosition(worldPos);
+
+      // Get Euler rotation from world quaternion
+      const worldQuat = new THREE.Quaternion();
+      mesh.getWorldQuaternion(worldQuat);
+      const euler = new THREE.Euler().setFromQuaternion(worldQuat);
+
+      // Get world-space scale
+      const worldScale = new THREE.Vector3();
+      mesh.getWorldScale(worldScale);
+
+      // Determine object label from the world if available
+      const worldObj = this.world.getObject(objectId);
+      const label = worldObj?.getMetadata()?.label as string | undefined;
+
+      objects.push({
+        id: objectId,
+        type: mesh instanceof THREE.Mesh ? (mesh.geometry?.type ?? 'mesh') : 'group',
+        position: { x: worldPos.x, y: worldPos.y, z: worldPos.z },
+        rotation: { x: euler.x, y: euler.y, z: euler.z },
+        scale: { x: worldScale.x, y: worldScale.y, z: worldScale.z },
+        boundsMin,
+        boundsMax,
+        visible: mesh.visible,
+        label,
+      });
+    }
+
+    // Camera snapshot
+    const camPos = this.camera.position;
+    const camDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
+    const camRight = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+
+    const camera: CameraSnapshot = {
+      position: { x: camPos.x, y: camPos.y, z: camPos.z },
+      forward: { x: camDir.x, y: camDir.y, z: camDir.z },
+      up: { x: camUp.x, y: camUp.y, z: camUp.z },
+      right: { x: camRight.x, y: camRight.y, z: camRight.z },
+      fov: this.camera.fov,
+      near: this.camera.near,
+      far: this.camera.far,
+    };
+
+    return { objects, camera };
+  }
+
+  /**
+   * Sync spatial inference state from the double-buffered front buffer.
+   *
+   * Called once per frame from the render loop (90Hz). Reads the FRONT buffer
+   * of the CachedSpatialState and applies results to the scene:
+   *
+   * - Occlusion culling: Hide objects that the inference engine determined
+   *   are not potentially visible from the current camera position
+   * - Spatial labels: Create/update/remove billboard text sprites for
+   *   labels generated by inference
+   *
+   * Budget: < 0.5ms for typical scenes (100-500 objects, 10-50 labels)
+   *
+   * NOTE: The spatial state was computed at 1-5Hz, so it may be up to
+   * 200-1000ms old. This is acceptable because:
+   * - Occlusion is conservative (may show objects that are actually occluded)
+   * - Labels are positionally stable (anchored to world coordinates)
+   * - The renderer's own frustum culling handles frame-accurate culling
+   */
+  private syncSpatialInference(): void {
+    if (!this.inferenceScheduler) return;
+
+    const state = this.inferenceScheduler.getCurrentState();
+
+    // Skip if no inference has completed yet (sequence 0)
+    if (state.sequence === 0) return;
+
+    // ─── Apply Occlusion Hints ──────────────────────────────────────────
+    // Use the inference engine's conservative occlusion estimates to hide
+    // objects that are definitely not visible. This supplements the GPU's
+    // own frustum culling with CPU-computed occlusion data.
+    for (const [objectId, mesh] of this.objectMap.entries()) {
+      const occlusion = state.occlusionStates[objectId];
+      if (occlusion) {
+        // Only hide objects that inference determined are NOT potentially visible.
+        // If the world says the object should be visible but inference says it is
+        // fully occluded, we can safely hide it to save GPU draw calls.
+        const worldObj = this.world.getObject(objectId);
+        const worldVisible = worldObj ? worldObj.isVisible() : true;
+
+        if (worldVisible && !occlusion.potentiallyVisible) {
+          // Inference says this object is occluded -- skip rendering
+          mesh.visible = false;
+        } else if (worldVisible) {
+          // Inference says potentially visible -- restore visibility
+          mesh.visible = true;
+        }
+        // If world says invisible, respect that regardless of inference
+      }
+    }
+
+    // ─── Sync Spatial Labels ────────────────────────────────────────────
+    // Create/update/remove label sprites based on inference results.
+    const activeLabelIds = new Set<string>();
+
+    for (const label of state.labels) {
+      activeLabelIds.add(label.id);
+
+      let labelMesh = this.spatialLabelMeshes.get(label.id);
+
+      if (!labelMesh) {
+        // Create new label sprite
+        labelMesh = this.createLabelSprite(label.text, label.category);
+        this.spatialLabelMeshes.set(label.id, labelMesh);
+        this.scalingRoot.add(labelMesh);
+      }
+
+      // Update position
+      labelMesh.position.set(label.position.x, label.position.y, label.position.z);
+      labelMesh.visible = true;
+
+      // Distance-based visibility
+      const distToCamera = labelMesh.position.distanceTo(this.camera.position);
+      if (distToCamera > label.maxVisibilityDistance) {
+        labelMesh.visible = false;
+      }
+    }
+
+    // Remove labels that are no longer in the inference state
+    for (const [labelId, mesh] of this.spatialLabelMeshes.entries()) {
+      if (!activeLabelIds.has(labelId)) {
+        this.scalingRoot.remove(mesh);
+        this.spatialLabelMeshes.delete(labelId);
+      }
+    }
+  }
+
+  /**
+   * Create a simple text sprite for spatial labels.
+   * Uses a canvas-rendered texture on a sprite for GPU-efficient billboarding.
+   */
+  private createLabelSprite(
+    text: string,
+    category: 'info' | 'warning' | 'highlight' | 'measurement' | 'annotation',
+  ): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+
+    // Background based on category
+    const bgColors: Record<string, string> = {
+      info: 'rgba(0, 120, 255, 0.7)',
+      warning: 'rgba(255, 180, 0, 0.7)',
+      highlight: 'rgba(0, 255, 120, 0.7)',
+      measurement: 'rgba(200, 200, 200, 0.7)',
+      annotation: 'rgba(160, 80, 255, 0.7)',
+    };
+    ctx.fillStyle = bgColors[category] ?? 'rgba(100, 100, 100, 0.7)';
+    ctx.roundRect(0, 0, 256, 64, 8);
+    ctx.fill();
+
+    // Text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 128, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+    });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(2, 0.5, 1);
+
+    return sprite;
   }
 
   // =============================================================================

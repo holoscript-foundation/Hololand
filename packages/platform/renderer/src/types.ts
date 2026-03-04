@@ -215,6 +215,9 @@ export interface RendererConfig {
 
   // Post-processing overrides
   postProcessing?: PostProcessingConfig;
+
+  // Lighting fidelity (Levels 0-4 spectrum)
+  lightingFidelity?: LightingFidelityConfig;
 }
 
 // =============================================================================
@@ -365,4 +368,195 @@ export interface LightingConfig {
   position?: { x: number; y: number; z: number };
   distance?: number;
   castShadow?: boolean;
+}
+
+// =============================================================================
+// LIGHTING FIDELITY SPECTRUM (Levels 0-4)
+// =============================================================================
+
+/**
+ * Lighting fidelity levels defining a progressive quality spectrum.
+ *
+ * - Level 0 (Unlit):     Emissive-only, ambient at minimal intensity. Fallback for lowest-end devices.
+ * - Level 1 (Basic):     Single directional light, no shadows. Baked-style illumination.
+ * - Level 2 (Standard):  Directional + ambient, PCF shadows, single shadow cascade. Standard VR.
+ * - Level 3 (Enhanced):  Multiple lights, PCF soft shadows, higher shadow maps, light probe IBL.
+ * - Level 4 (Cinematic): All lights, max shadow resolution, HDRI lighting, real-time reflections.
+ */
+export type LightingFidelityLevel = 0 | 1 | 2 | 3 | 4;
+
+/**
+ * Human-readable names for each lighting fidelity level.
+ */
+export const LIGHTING_FIDELITY_NAMES: Record<LightingFidelityLevel, string> = {
+  0: 'Unlit',
+  1: 'Basic',
+  2: 'Standard',
+  3: 'Enhanced',
+  4: 'Cinematic',
+};
+
+/**
+ * Per-level lighting configuration settings.
+ */
+export interface LightingFidelitySettings {
+  /** Fidelity level identifier */
+  level: LightingFidelityLevel;
+  /** Human-readable name */
+  name: string;
+
+  // --- Ambient ---
+  /** Whether an ambient light is present */
+  ambientEnabled: boolean;
+  /** Ambient light intensity (0-1) */
+  ambientIntensity: number;
+
+  // --- Directional (Sun) ---
+  /** Whether the primary directional light is enabled */
+  directionalEnabled: boolean;
+  /** Directional light intensity */
+  directionalIntensity: number;
+  /** Whether the directional light casts shadows */
+  directionalShadow: boolean;
+  /** Shadow map type: 'none' | 'basic' | 'pcf' | 'pcfsoft' | 'vsm' */
+  shadowType: 'none' | 'basic' | 'pcf' | 'pcfsoft' | 'vsm';
+  /** Shadow map resolution (per side) */
+  shadowMapSize: number;
+
+  // --- Additional Lights ---
+  /** Maximum number of additional dynamic lights (point, spot) */
+  maxAdditionalLights: number;
+  /** Whether additional lights can cast shadows */
+  additionalLightShadows: boolean;
+
+  // --- Environment / IBL ---
+  /** Whether image-based lighting (IBL) from HDRI/probes is active */
+  iblEnabled: boolean;
+  /** IBL environment map resolution */
+  iblResolution: number;
+  /** Whether real-time reflections are enabled */
+  realTimeReflections: boolean;
+
+  // --- Performance ---
+  /** Estimated GPU cost multiplier relative to Level 0 (1.0 = baseline) */
+  gpuCostMultiplier: number;
+}
+
+/**
+ * Predefined lighting fidelity presets for each level.
+ */
+export const LIGHTING_FIDELITY_PRESETS: Record<LightingFidelityLevel, LightingFidelitySettings> = {
+  0: {
+    level: 0,
+    name: 'Unlit',
+    ambientEnabled: true,
+    ambientIntensity: 0.15,
+    directionalEnabled: false,
+    directionalIntensity: 0,
+    directionalShadow: false,
+    shadowType: 'none',
+    shadowMapSize: 0,
+    maxAdditionalLights: 0,
+    additionalLightShadows: false,
+    iblEnabled: false,
+    iblResolution: 0,
+    realTimeReflections: false,
+    gpuCostMultiplier: 1.0,
+  },
+  1: {
+    level: 1,
+    name: 'Basic',
+    ambientEnabled: true,
+    ambientIntensity: 0.4,
+    directionalEnabled: true,
+    directionalIntensity: 0.6,
+    directionalShadow: false,
+    shadowType: 'none',
+    shadowMapSize: 0,
+    maxAdditionalLights: 0,
+    additionalLightShadows: false,
+    iblEnabled: false,
+    iblResolution: 0,
+    realTimeReflections: false,
+    gpuCostMultiplier: 1.5,
+  },
+  2: {
+    level: 2,
+    name: 'Standard',
+    ambientEnabled: true,
+    ambientIntensity: 0.5,
+    directionalEnabled: true,
+    directionalIntensity: 0.8,
+    directionalShadow: true,
+    shadowType: 'pcf',
+    shadowMapSize: 1024,
+    maxAdditionalLights: 2,
+    additionalLightShadows: false,
+    iblEnabled: false,
+    iblResolution: 256,
+    realTimeReflections: false,
+    gpuCostMultiplier: 3.0,
+  },
+  3: {
+    level: 3,
+    name: 'Enhanced',
+    ambientEnabled: true,
+    ambientIntensity: 0.5,
+    directionalEnabled: true,
+    directionalIntensity: 0.9,
+    directionalShadow: true,
+    shadowType: 'pcfsoft',
+    shadowMapSize: 2048,
+    maxAdditionalLights: 6,
+    additionalLightShadows: true,
+    iblEnabled: true,
+    iblResolution: 512,
+    realTimeReflections: false,
+    gpuCostMultiplier: 5.0,
+  },
+  4: {
+    level: 4,
+    name: 'Cinematic',
+    ambientEnabled: true,
+    ambientIntensity: 0.4,
+    directionalEnabled: true,
+    directionalIntensity: 1.0,
+    directionalShadow: true,
+    shadowType: 'pcfsoft',
+    shadowMapSize: 4096,
+    maxAdditionalLights: 12,
+    additionalLightShadows: true,
+    iblEnabled: true,
+    iblResolution: 1024,
+    realTimeReflections: true,
+    gpuCostMultiplier: 8.0,
+  },
+};
+
+/**
+ * Configuration for the LightingFidelityManager auto-downgrade system.
+ */
+export interface LightingFidelityConfig {
+  /** Initial lighting fidelity level (default: 2) */
+  initialLevel?: LightingFidelityLevel;
+  /** Enable auto-downgrade based on frame rate (default: true) */
+  autoDowngrade?: boolean;
+  /** Enable auto-upgrade when performance headroom exists (default: true) */
+  autoUpgrade?: boolean;
+  /** Minimum allowed level when auto-downgrading (default: 0) */
+  minLevel?: LightingFidelityLevel;
+  /** Maximum allowed level when auto-upgrading (default: 4) */
+  maxLevel?: LightingFidelityLevel;
+  /** FPS threshold below which a downgrade is triggered (default: 0.85 * targetFPS) */
+  downgradeThresholdFactor?: number;
+  /** FPS threshold above which an upgrade is considered (default: 1.25 * targetFPS) */
+  upgradeThresholdFactor?: number;
+  /** Number of consecutive check intervals below threshold before downgrading (default: 3) */
+  downgradeConsecutiveChecks?: number;
+  /** Number of consecutive check intervals above threshold before upgrading (default: 5) */
+  upgradeConsecutiveChecks?: number;
+  /** Cooldown in milliseconds after a level change before another can occur (default: 4000) */
+  changeCooldownMs?: number;
+  /** Callback when lighting fidelity level changes */
+  onLevelChange?: (oldLevel: LightingFidelityLevel, newLevel: LightingFidelityLevel, reason: string) => void;
 }

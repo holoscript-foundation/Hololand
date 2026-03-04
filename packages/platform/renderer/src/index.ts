@@ -56,6 +56,18 @@ export {
 export type { QualityManagerOptions } from './QualityManager';
 
 // =============================================================================
+// LIGHTING FIDELITY (Levels 0-4 Spectrum with Auto-Downgrade)
+// =============================================================================
+
+export {
+  LightingFidelityManager,
+  createLightingFidelityManager,
+  createLightingFidelityManagerForDevice,
+} from './LightingFidelityManager';
+
+export type { LightingFidelityMetrics } from './LightingFidelityManager';
+
+// =============================================================================
 // POST-PROCESSING
 // =============================================================================
 
@@ -128,6 +140,10 @@ export type {
   // Materials & Lighting
   MaterialConfig,
   LightingConfig,
+  // Lighting Fidelity
+  LightingFidelityLevel,
+  LightingFidelitySettings,
+  LightingFidelityConfig,
   // Environment
   EnvironmentConfig,
   // Post-processing
@@ -137,7 +153,11 @@ export type {
   LoadedAsset,
 } from './types';
 
-export { QUALITY_PRESETS } from './types';
+export {
+  QUALITY_PRESETS,
+  LIGHTING_FIDELITY_PRESETS,
+  LIGHTING_FIDELITY_NAMES,
+} from './types';
 
 // =============================================================================
 // SMART PROXY VR PREVIEW
@@ -221,6 +241,247 @@ export type {
 } from './AgentCommunicationManager';
 
 // =============================================================================
+// VR TRUST HANDSHAKE (5-Phase Zero-Trust Protocol)
+// =============================================================================
+
+export {
+  VRTrustHandshake,
+  createVRTrustHandshake,
+  createEmptyTrustWorldState,
+  DefaultTrustCryptoProvider,
+  DEFAULT_TRUST_POLICY,
+} from './VRTrustHandshake';
+
+export type {
+  TrustLevel,
+  TrustPhase,
+  AgentCapability,
+  AgentManifest,
+  TrustChallenge,
+  ChallengeResponse,
+  TrustSessionToken,
+  AgentTrustState,
+  TrustWorldState,
+  TrustPolicy,
+  VRTrustHandshakeConfig,
+  TrustCryptoProvider,
+  VRTrustHandshakeMetrics,
+} from './VRTrustHandshake';
+
+// =============================================================================
+// BLOOM FILTER REVOCATION (O(1) Render-Loop Safe Revocation Check)
+// =============================================================================
+
+export {
+  BloomFilterRevocation,
+  createBloomFilterRevocation,
+} from './BloomFilterRevocation';
+
+export type {
+  BloomFilterConfig,
+  BloomFilterMetrics,
+  BloomFilterSnapshot,
+} from './BloomFilterRevocation';
+
+// =============================================================================
+// GOSSIP TRUST MESH (Epidemic Protocol, Fan-Out 3, O(log2 n) Convergence)
+// =============================================================================
+
+export {
+  GossipTrustMesh,
+  createGossipTrustMesh,
+} from './GossipTrustMesh';
+
+export type {
+  VectorClock,
+  TrustUpdate,
+  GossipMessage,
+  GossipPeer,
+  GossipTrustMeshConfig,
+  GossipTrustMeshMetrics,
+} from './GossipTrustMesh';
+
+// =============================================================================
+// BEHAVIORAL TRUST SCORING (4-Dimension Avatar Trust)
+// =============================================================================
+
+export {
+  BehavioralTrustScoring,
+  createBehavioralTrustScoring,
+  DEFAULT_BEHAVIORAL_SCORING_CONFIG,
+} from './BehavioralTrustScoring';
+
+export type {
+  TrustDimension,
+  TrustAction,
+  BehavioralEventType,
+  BehavioralEvent,
+  DimensionScore,
+  AgentBehavioralState,
+  BehavioralTrustScoringConfig,
+  TrustActionDetails,
+  BehavioralTrustScoringMetrics,
+} from './BehavioralTrustScoring';
+
+// =============================================================================
+// SPATIAL INFERENCE SCHEDULING (Hierarchical 1-5Hz / 90Hz Architecture)
+// =============================================================================
+
+export {
+  SpatialReasoningEngine,
+  createSpatialReasoningEngine,
+} from './SpatialReasoningEngine';
+
+export type {
+  ObjectSnapshot,
+  CameraSnapshot,
+  SpatialReasoningEngineConfig,
+} from './SpatialReasoningEngine';
+
+export {
+  InferenceScheduler,
+  createInferenceScheduler,
+} from './InferenceScheduler';
+
+export type {
+  SceneSnapshotCallback,
+} from './InferenceScheduler';
+
+export {
+  createEmptyCachedSpatialState,
+} from './SpatialInferenceTypes';
+
+export type {
+  SpatialRelationship,
+  SpatialRelationType,
+  SpatialRegion,
+  SpatialRegionType,
+  OcclusionState,
+  NavigationHint,
+  SpatialLabel,
+  CachedSpatialState,
+  InferenceSchedulerConfig,
+  InferenceSchedulerMetrics,
+  SpatialReasoningProvider,
+} from './SpatialInferenceTypes';
+
+// =============================================================================
+// GAUSSIAN SPLAT BUDGET MANAGER (Layered 120K+30K+10K=160K on Quest 3)
+// =============================================================================
+
+export {
+  GaussianBudgetManager,
+  createGaussianBudgetManager,
+  createGaussianBudgetManagerForDevice,
+  SPLAT_MEMORY_BYTES,
+  SPLAT_RENDER_COST,
+} from './GaussianBudgetManager';
+
+export type {
+  GaussianLayerType,
+  GaussianLODLevel,
+  GaussianSplatEntry,
+  LayerBudgetConfig,
+  FoveatedConfig,
+  GaussianBudgetManagerConfig,
+  LayerBudgetState,
+  GaussianBudgetMetrics,
+  GaussianBudgetEvent,
+} from './GaussianBudgetManager';
+
+// =============================================================================
+// SHARED SPATIAL ANCHORS (CRDT-Backed Multi-Agent Collaboration Foundation)
+// =============================================================================
+
+export {
+  SharedSpatialAnchorManager,
+  createSharedSpatialAnchorManager,
+} from './SharedSpatialAnchorManager';
+
+export type {
+  AnchorDelta,
+} from './SharedSpatialAnchorManager';
+
+export {
+  createEmptyAnchorWorldState,
+  createDefaultAnchor,
+  makeAnchorId,
+  parseAnchorId,
+} from './SharedSpatialAnchorTypes';
+
+export type {
+  AnchorId,
+  AnchorNamespace,
+  AnchorType,
+  AnchorPersistence,
+  AnchorMergeStrategy,
+  AnchorPriorityMap,
+  AnchorLockState,
+  AnchorSpatialState,
+  AnchorWorldState,
+  AnchorEventMap,
+  AnchorEventType,
+  AnchorEventHandler,
+  AnchorQuery,
+  SharedSpatialAnchor,
+  SharedSpatialAnchorManagerConfig,
+  SharedSpatialAnchorMetrics,
+} from './SharedSpatialAnchorTypes';
+
+// =============================================================================
+// FOVEATED GAUSSIAN RENDERING (VRSplat + StopThePop Pipeline)
+// =============================================================================
+
+export {
+  FoveatedGaussianRenderer,
+  createFoveatedGaussianRenderer,
+  createFoveatedGaussianRendererForDevice,
+} from './FoveatedGaussianRenderer';
+
+export {
+  DEFAULT_FOVEATED_ZONES,
+  DEFAULT_STOPTHEPOP_CONFIG,
+  DEFAULT_FOVEATED_RENDER_CONFIG,
+  DEFAULT_PIPELINE_CONFIG,
+  QUEST3_PIPELINE_CONFIG,
+  PCVR_PIPELINE_CONFIG,
+} from './FoveatedGaussianTypes';
+
+export type {
+  GaussianSplatData,
+  SortKey,
+  FoveatedZone,
+  FoveatedZoneConfig,
+  FoveatedRenderConfig,
+  StopThePopConfig,
+  EyeRenderState,
+  TileClassification,
+  SortBufferState,
+  GaussianRenderTimings,
+  GaussianRenderStats,
+  FoveatedGaussianPipelineConfig,
+  GaussianCloudParams,
+  PipelineEventType,
+  PipelineEvent,
+} from './FoveatedGaussianTypes';
+
+// =============================================================================
+// SPATIAL INFERENCE COMPUTE PIPELINE (WebGPU Compute Shader Backend)
+// =============================================================================
+
+export {
+  SpatialInferenceComputePipeline,
+  createSpatialInferenceComputePipeline,
+  REL_TYPE_BITS,
+} from './SpatialInferenceComputePipeline';
+
+export type {
+  GPURelationshipResult,
+  SpatialInferenceComputeConfig,
+  SpatialInferenceComputeMetrics,
+} from './SpatialInferenceComputePipeline';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -230,7 +491,7 @@ export * from './GPUCompute';
 // VERSION
 // =============================================================================
 
-export const HOLOLAND_RENDERER_VERSION = '1.0.0-alpha.4';
+export const HOLOLAND_RENDERER_VERSION = '1.0.0-alpha.5';
 
 // =============================================================================
 // DEFAULT EXPORT
@@ -248,6 +509,17 @@ import { VRMaterialPreviewSystem } from './VRMaterialPreviewSystem';
 import { HoloScriptMaterialParser } from './HoloScriptMaterialParser';
 import { AgentStateBuffer } from './AgentStateBuffer';
 import { AgentCommunicationManager } from './AgentCommunicationManager';
+import { VRTrustHandshake } from './VRTrustHandshake';
+import { BloomFilterRevocation } from './BloomFilterRevocation';
+import { GossipTrustMesh } from './GossipTrustMesh';
+import { BehavioralTrustScoring } from './BehavioralTrustScoring';
+import { SpatialReasoningEngine } from './SpatialReasoningEngine';
+import { InferenceScheduler } from './InferenceScheduler';
+import { GaussianBudgetManager } from './GaussianBudgetManager';
+import { SharedSpatialAnchorManager } from './SharedSpatialAnchorManager';
+import { FoveatedGaussianRenderer } from './FoveatedGaussianRenderer';
+import { SpatialInferenceComputePipeline } from './SpatialInferenceComputePipeline';
+import { LightingFidelityManager } from './LightingFidelityManager';
 
 export default {
   HololandRenderer,
@@ -262,6 +534,17 @@ export default {
   MaterialFactory,
   AgentStateBuffer,
   AgentCommunicationManager,
+  VRTrustHandshake,
+  BloomFilterRevocation,
+  GossipTrustMesh,
+  BehavioralTrustScoring,
+  SpatialReasoningEngine,
+  InferenceScheduler,
+  GaussianBudgetManager,
+  SharedSpatialAnchorManager,
+  FoveatedGaussianRenderer,
+  SpatialInferenceComputePipeline,
+  LightingFidelityManager,
   HDRI_PRESETS,
-  HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.4',
+  HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };
