@@ -20,6 +20,8 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useVRDashboardAgent } from '../../ag-ui/hooks';
+import { AgentOverlay, AgentThinkingIndicator, AgentNotificationBar } from '../../ag-ui/components';
 import {
   sellerAPI,
   type SellerEarningsSummary,
@@ -406,6 +408,9 @@ export function SellerDashboard({
   sellerId,
   onListingClick,
 }: SellerDashboardProps) {
+  // AG-UI: Agent interaction for seller dashboard
+  const { reportActivity, isThinking, agentState } = useVRDashboardAgent();
+
   // ---- State ----
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [loading, setLoading] = useState(true);
@@ -459,6 +464,27 @@ export function SellerDashboard({
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  // AG-UI: Report tab navigation to agent
+  useEffect(() => {
+    reportActivity('dashboard_navigation', {
+      panel: activeTab,
+      dashboardType: 'seller',
+      sellerId,
+    });
+  }, [activeTab, reportActivity, sellerId]);
+
+  // AG-UI: Report earnings data to agent when available
+  useEffect(() => {
+    if (earnings) {
+      reportActivity('data_refresh', {
+        dataType: 'earnings',
+        grossRevenue: earnings.grossRevenue,
+        netEarnings: earnings.netEarnings,
+        activeListings: activeListings.length,
+      });
+    }
+  }, [earnings, activeListings.length, reportActivity]);
 
   // ---- Handlers ----
   const handlePauseListing = useCallback(async (listingId: string) => {
@@ -526,14 +552,21 @@ export function SellerDashboard({
 
   // ---- Render ----
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ position: 'relative' }}>
+      {/* AG-UI: Notification bar */}
+      <AgentNotificationBar style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50 }} />
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Seller Dashboard</h1>
-              <p className="text-gray-600 mt-1">Manage your marketplace listings and earnings</p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Seller Dashboard</h1>
+                <p className="text-gray-600 mt-1">Manage your marketplace listings and earnings</p>
+              </div>
+              {/* AG-UI: Agent thinking indicator */}
+              <AgentThinkingIndicator />
             </div>
             <button
               onClick={() => setShowNewListingModal(true)}
@@ -911,6 +944,9 @@ export function SellerDashboard({
           onCreated={handleListingCreated}
         />
       )}
+
+      {/* AG-UI: Agent overlay */}
+      <AgentOverlay position="bottom-right" showChat={true} showSuggestions={true} />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { worldsAPI, creatorAPI, analyticsAPI } from '@/lib/api';
+import { useVRDashboardAgent } from '../../ag-ui/hooks';
+import { AgentOverlay, AgentThinkingIndicator, AgentNotificationBar } from '../../ag-ui/components';
 
 interface DashboardProps {
   userId: string;
@@ -13,9 +15,32 @@ export function Dashboard({ userId }: DashboardProps) {
   const [stats, setStats] = useState({ worlds: 0, earnings: 0, visitors: 0 });
   const [activeTab, setActiveTab] = useState('home');
 
+  // AG-UI: Agent interaction for the creator dashboard
+  const {
+    isThinking,
+    notifications,
+    suggestions,
+    highlights,
+    reportActivity,
+    navigateToPanel,
+    agentState,
+  } = useVRDashboardAgent();
+
   useEffect(() => {
     loadDashboard();
   }, [userId]);
+
+  // AG-UI: Report tab navigation to the agent
+  useEffect(() => {
+    reportActivity('dashboard_navigation', { panel: activeTab, dashboardType: 'creator' });
+  }, [activeTab, reportActivity]);
+
+  // AG-UI: Respond to agent-driven navigation
+  useEffect(() => {
+    if (agentState.activePanel && agentState.activePanel !== activeTab) {
+      setActiveTab(agentState.activePanel);
+    }
+  }, [agentState.activePanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadDashboard() {
     // Load creator profile
@@ -41,12 +66,21 @@ export function Dashboard({ userId }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ position: 'relative' }}>
+      {/* AG-UI: Agent notification bar */}
+      <AgentNotificationBar style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50 }} />
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold">Creator Dashboard</h1>
-          <p className="text-gray-600">Manage your worlds and track earnings</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Creator Dashboard</h1>
+              <p className="text-gray-600">Manage your worlds and track earnings</p>
+            </div>
+            {/* AG-UI: Agent thinking indicator in header */}
+            <AgentThinkingIndicator />
+          </div>
         </div>
       </header>
 
@@ -196,6 +230,9 @@ export function Dashboard({ userId }: DashboardProps) {
           </div>
         )}
       </main>
+
+      {/* AG-UI: Agent overlay with chat, suggestions, and notifications */}
+      <AgentOverlay position="bottom-right" showChat={true} showSuggestions={true} />
     </div>
   );
 }

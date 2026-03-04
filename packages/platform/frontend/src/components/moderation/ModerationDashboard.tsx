@@ -15,6 +15,8 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useVRDashboardAgent } from '../../ag-ui/hooks';
+import { AgentThinkingIndicator, AgentSuggestionCards, AgentNotificationBar } from '../../ag-ui/components';
 import {
   type ModerationItem,
   type ModerationFilters,
@@ -291,6 +293,26 @@ export const ModerationDashboard = React.memo<ModerationDashboardProps>(
       loading = false,
     } = props;
 
+    // AG-UI: Agent interaction for moderation dashboard
+    const {
+      reportActivity,
+      isThinking: agentIsThinking,
+      suggestions: agentSuggestions,
+    } = useVRDashboardAgent();
+
+    // AG-UI: Report moderation queue stats to agent
+    useEffect(() => {
+      reportActivity('dashboard_navigation', {
+        panel: 'moderation',
+        dashboardType: 'moderation',
+        stats: {
+          totalPending: stats.totalPending,
+          slaCompliance: stats.slaCompliancePercent,
+          resolvedToday: stats.resolvedToday,
+        },
+      });
+    }, [stats, reportActivity]);
+
     // -----------------------------------------------------------------------
     // State
     // -----------------------------------------------------------------------
@@ -405,11 +427,20 @@ export const ModerationDashboard = React.memo<ModerationDashboardProps>(
     // -----------------------------------------------------------------------
     return (
       <div style={adminStyles.panelRoot} role="region" aria-label="Moderation dashboard">
+        {/* AG-UI: Agent notification bar */}
+        <AgentNotificationBar style={{ margin: '0 16px 4px 16px' }} />
+
         {/* ================================================================= */}
         {/* HEADER                                                            */}
         {/* ================================================================= */}
         <div style={adminStyles.panelHeader}>
-          <span style={adminStyles.panelTitle}>Moderation Queue</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={adminStyles.panelTitle}>Moderation Queue</span>
+            {/* AG-UI: Agent thinking indicator */}
+            {agentIsThinking && (
+              <AgentThinkingIndicator style={{ padding: '2px 8px', fontSize: 9 }} />
+            )}
+          </div>
           {loading && (
             <span style={{ fontSize: 9, color: COLORS.textMuted }}>Loading...</span>
           )}
@@ -781,6 +812,11 @@ export const ModerationDashboard = React.memo<ModerationDashboardProps>(
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* AG-UI: Agent suggestions for moderation actions */}
+        <div style={{ padding: '4px 16px' }}>
+          <AgentSuggestionCards />
         </div>
 
         {/* ================================================================= */}

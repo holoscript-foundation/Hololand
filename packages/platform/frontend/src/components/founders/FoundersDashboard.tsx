@@ -19,6 +19,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useVRDashboardAgent } from '../../ag-ui/hooks';
+import { AgentOverlay, AgentThinkingIndicator } from '../../ag-ui/components';
 import {
   foundersAPI,
   onboardingAPI,
@@ -368,6 +370,9 @@ function getTimeAgo(dateStr: string): string {
 // ============================================================================
 
 export function FoundersDashboard({ userId, founderId }: FoundersDashboardProps) {
+  // AG-UI: Agent interaction for founders dashboard
+  const { reportActivity, isThinking, agentState } = useVRDashboardAgent();
+
   const [founder, setFounder] = useState<Founder | null>(null);
   const [onboardingProgress, setOnboardingProgress] = useState<OnboardingProgress | null>(null);
   const [quotas, setQuotas] = useState<FounderQuotas | null>(null);
@@ -414,6 +419,18 @@ export function FoundersDashboard({ userId, founderId }: FoundersDashboardProps)
     loadDashboard();
   }, [userId, founderId]);
 
+  // AG-UI: Report founders dashboard load to agent
+  useEffect(() => {
+    if (!loading && founder) {
+      reportActivity('dashboard_navigation', {
+        panel: 'founders',
+        dashboardType: 'founders',
+        badgeTier: founder.badgeTier,
+        referralCount: founder.referralCount,
+      });
+    }
+  }, [loading, founder, reportActivity]);
+
   // Feature toggle handler
   const handleFeatureToggle = useCallback(
     async (featureId: string, enabled: boolean) => {
@@ -454,12 +471,18 @@ export function FoundersDashboard({ userId, founderId }: FoundersDashboardProps)
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ position: 'relative' }}>
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold">Founders Dashboard</h1>
-          <p className="text-gray-600">Your Founders Program hub</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Founders Dashboard</h1>
+              <p className="text-gray-600">Your Founders Program hub</p>
+            </div>
+            {/* AG-UI: Agent thinking indicator */}
+            <AgentThinkingIndicator />
+          </div>
         </div>
       </header>
 
@@ -621,6 +644,9 @@ export function FoundersDashboard({ userId, founderId }: FoundersDashboardProps)
           </div>
         </div>
       </main>
+
+      {/* AG-UI: Agent overlay */}
+      <AgentOverlay position="bottom-right" showChat={true} showSuggestions={true} />
     </div>
   );
 }

@@ -5,8 +5,27 @@
  * with live metrics, recommendations, and optimization insights.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useContext } from 'react'
 import { RealtimePreviewEngine, PreviewDevice, PreviewMetrics, PreviewState } from '../RealtimePreviewEngine'
+
+// AG-UI: Lightweight integration point for the preview dashboard.
+// Uses a simple custom event pattern since this component lives in
+// a separate package from the AG-UI provider. The parent app bridges
+// events between the AGUIProvider and this component via props.
+
+/** AG-UI event bridge interface for cross-package integration */
+export interface AGUIPreviewBridge {
+  /** Report activity to the AG-UI agent */
+  reportActivity?: (type: string, data: Record<string, unknown>) => void
+  /** Whether the agent is currently thinking */
+  isAgentThinking?: boolean
+  /** Agent suggestions to display */
+  agentSuggestions?: Array<{ id: string; text: string; action?: string; priority: 'low' | 'medium' | 'high' }>
+  /** Agent notifications */
+  agentNotifications?: Array<{ id: string; message: string; severity: 'info' | 'warning' | 'error' | 'success' }>
+  /** Dismiss a notification callback */
+  onDismissNotification?: (id: string) => void
+}
 
 interface PreviewDashboardProps {
   traitCode: string
@@ -14,6 +33,8 @@ interface PreviewDashboardProps {
   onRecommendation?: (recommendation: string) => void
   autoRefresh?: boolean
   refreshInterval?: number
+  /** AG-UI bridge for agent interaction (optional, for cross-package integration) */
+  aguiBridge?: AGUIPreviewBridge
 }
 
 interface MetricsHistory {
@@ -30,6 +51,7 @@ export const PreviewDashboard: React.FC<PreviewDashboardProps> = ({
   onRecommendation,
   autoRefresh = true,
   refreshInterval = 1000,
+  aguiBridge,
 }) => {
   const engineRef = useRef<RealtimePreviewEngine | null>(null)
   const [previews, setPreviews] = useState<Map<string, PreviewState>>(new Map())
@@ -134,10 +156,68 @@ export const PreviewDashboard: React.FC<PreviewDashboardProps> = ({
     document.body.removeChild(element)
   }, [previews, traitCode])
 
+  // AG-UI: Report monitoring state changes to agent
+  useEffect(() => {
+    aguiBridge?.reportActivity?.('dashboard_navigation', {
+      panel: 'preview',
+      dashboardType: 'preview',
+      isMonitoring,
+      deviceCount: previews.size,
+    })
+  }, [isMonitoring, previews.size, aguiBridge])
+
+  // AG-UI: Report metrics updates to agent
+  useEffect(() => {
+    if (selectedDevice && previews.has(selectedDevice)) {
+      const preview = previews.get(selectedDevice)!
+      aguiBridge?.reportActivity?.('data_refresh', {
+        dataType: 'preview_metrics',
+        device: selectedDevice,
+        fps: preview.metrics.fps,
+        gpuMemoryPercent: preview.metrics.gpuMemoryPercent,
+        warnings: preview.warnings.length,
+        errors: preview.errors.length,
+      })
+    }
+  }, [selectedDevice, previews, aguiBridge])
+
   const selectedPreview = selectedDevice ? previews.get(selectedDevice) : null
 
   return (
     <div style={styles.container}>
+      {/* AG-UI: Agent notifications */}
+      {aguiBridge?.agentNotifications && aguiBridge.agentNotifications.length > 0 && (
+        <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {aguiBridge.agentNotifications.map((notification) => (
+            <div
+              key={notification.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 10px',
+                backgroundColor: notification.severity === 'error' ? '#ffebee'
+                  : notification.severity === 'warning' ? '#fff3e0'
+                  : notification.severity === 'success' ? '#e8f5e9'
+                  : '#e3f2fd',
+                borderRadius: 4,
+                fontSize: '0.85rem',
+              }}
+            >
+              <span>{notification.message}</span>
+              {aguiBridge.onDismissNotification && (
+                <button
+                  onClick={() => aguiBridge.onDismissNotification!(notification.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6 }}
+                >
+                  x
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div style={styles.header}>
         <h2 style={styles.title}>Real-Time Preview Dashboard</h2>
@@ -161,6 +241,14 @@ export const PreviewDashboard: React.FC<PreviewDashboardProps> = ({
           <button onClick={handleExportMetrics} style={styles.button}>
             📊 Export Metrics
           </button>
+
+          {/* AG-UI: Agent thinking indicator */}
+          {aguiBridge?.isAgentThinking && (
+            <span style={{ fontSize: '0.85rem', color: '#6366f1', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ animation: 'agui-pulse 1.4s ease-in-out infinite' }}>●</span>
+              Agent thinking...
+            </span>
+          )}
         </div>
       </div>
 
@@ -222,6 +310,43 @@ export const PreviewDashboard: React.FC<PreviewDashboardProps> = ({
           <h3 style={styles.sectionTitle}>Warnings & Errors</h3>
           <WarningsErrorsPanel previews={previews} />
         </div>
+
+        {/* AG-UI: Agent suggestions */}
+        {aguiBridge?.agentSuggestions && aguiBridge.agentSuggestions.length > 0 && (
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>Agent Suggestions</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {aguiBridge.agentSuggestions.map((suggestion) => (
+                <div
+                  key={suggestion.id}
+                  style={{
+                    ...styles.recommendationItem,
+                    borderLeftColor: suggestion.priority === 'high' ? '#ef4444'
+                      : suggestion.priority === 'medium' ? '#f59e0b'
+                      : '#3b82f6',
+                  }}
+                >
+                  <span style={styles.recommendationIcon}>
+                    {suggestion.priority === 'high' ? '⚠' : '💡'}
+                  </span>
+                  <span style={{ flex: 1 }}>{suggestion.text}</span>
+                  {suggestion.action && (
+                    <button
+                      style={{
+                        ...styles.button,
+                        backgroundColor: '#6366f1',
+                        fontSize: '0.8rem',
+                        padding: '0.3rem 0.75rem',
+                      }}
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

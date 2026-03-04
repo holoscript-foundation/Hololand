@@ -13,7 +13,7 @@
  * @module admin/AdminDashboard
  */
 
-import React, { useState, useMemo, useCallback, type CSSProperties } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, type CSSProperties } from 'react';
 import {
   type AdminTab,
   type Organization,
@@ -39,6 +39,12 @@ import { RealTimePerformanceMonitor, type RealTimePerformanceMonitorProps } from
 import { AuditLogViewer, type AuditLogViewerProps } from './AuditLogViewer';
 import { FoundersProgramPage } from '../../pages/FoundersProgramPage';
 import { MarketplacePages } from '../../pages/MarketplacePages';
+import { useVRDashboardAgent } from '../../ag-ui/hooks';
+import {
+  AgentOverlay,
+  AgentThinkingIndicator,
+  AgentNotificationBar,
+} from '../../ag-ui/components';
 
 // =============================================================================
 // PROPS
@@ -196,6 +202,34 @@ export const AdminDashboard = React.memo<AdminDashboardProps>(
 
     const [activeTab, setActiveTab] = useState<AdminTab>(defaultTab);
 
+    // AG-UI: Agent interaction for the admin dashboard
+    const {
+      isThinking: agentIsThinking,
+      notifications: agentNotifications,
+      suggestions: agentSuggestions,
+      reportActivity,
+      agentState,
+    } = useVRDashboardAgent();
+
+    // AG-UI: Report tab navigation to agent
+    useEffect(() => {
+      reportActivity('dashboard_navigation', {
+        panel: activeTab,
+        dashboardType: 'admin',
+        adminUser: adminUser.email,
+      });
+    }, [activeTab, reportActivity, adminUser.email]);
+
+    // AG-UI: Respond to agent-driven navigation
+    useEffect(() => {
+      if (agentState.activePanel && agentState.activePanel !== activeTab) {
+        const validTab = ADMIN_TABS.find((t) => t.id === agentState.activePanel);
+        if (validTab) {
+          setActiveTab(validTab.id);
+        }
+      }
+    }, [agentState.activePanel]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // -----------------------------------------------------------------------
     // Platform status summary
     // -----------------------------------------------------------------------
@@ -319,10 +353,15 @@ export const AdminDashboard = React.memo<AdminDashboardProps>(
           color: COLORS.textPrimary,
           backgroundColor: COLORS.bg,
           overflow: 'hidden',
+          position: 'relative',
         }}
         role="application"
         aria-label="Admin Dashboard"
       >
+        {/* AG-UI: Notification bar at top */}
+        <AgentNotificationBar
+          style={{ position: 'absolute', top: 0, left: 180, right: 0, zIndex: 50 }}
+        />
         {/* ================================================================= */}
         {/* SIDEBAR                                                           */}
         {/* ================================================================= */}
@@ -460,11 +499,18 @@ export const AdminDashboard = React.memo<AdminDashboardProps>(
             overflow: 'hidden',
             padding: 12,
             gap: 0,
+            position: 'relative',
           }}
           role="main"
           aria-label={`${ADMIN_TABS.find((t) => t.id === activeTab)?.label || 'Admin'} panel`}
         >
+          {/* AG-UI: Agent thinking indicator */}
+          {agentIsThinking && (
+            <AgentThinkingIndicator style={{ marginBottom: 8 }} />
+          )}
           {renderPanel()}
+          {/* AG-UI: Agent overlay with chat and suggestions */}
+          <AgentOverlay position="bottom-right" showChat={true} showSuggestions={true} />
         </main>
       </div>
     );
