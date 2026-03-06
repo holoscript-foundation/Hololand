@@ -1,0 +1,1675 @@
+// GRPO Training Dashboard - HoloScript VR Composition
+// @holoscript-version 3.4
+//
+// Real-time VR dashboard for monitoring Brittney 7B GRPO training.
+// Visualizes 5 QualityScore reward functions, KL divergence,
+// completion sampling, OPLoRA forgetting indicators, and GPU metrics.
+//
+// Showcases: dataviz blocks, bind() reactive data, @networked polling,
+//            spatial_group layout, VR/desktop hybrid, interactive controls
+
+composition "GRPO Training Dashboard" {
+
+  metadata {
+    title: "GRPO Training Dashboard"
+    description: "Real-time VR monitoring for Brittney 7B GRPO training with 5 QualityScore reward functions"
+    author: "HoloLand Platform"
+    version: "1.0.0"
+    tags: ["training", "grpo", "dashboard", "dataviz", "brittney"]
+  }
+
+  // =====================================================================
+  // ENVIRONMENT - Dark command center aesthetic
+  // =====================================================================
+
+  environment {
+    skybox: "void_dark"
+    ambient_light: 0.15
+
+    render_mode: "hybrid"
+    enable_vr: true
+
+    quality: "auto"
+
+    fog: { color: "#050510", near: 40, far: 80 }
+
+    vr {
+      enable_if_available: true
+      fallback: "desktop"
+      controller_models: "generic"
+      teleport_enabled: true
+    }
+  }
+
+  effects {
+    bloom {
+      intensity: 1.2
+      luminanceThreshold: 0.3
+    }
+    vignette {
+      darkness: 0.4
+      offset: 0.2
+    }
+  }
+
+  camera perspective {
+    fov: 70
+    position: [0, 4, 12]
+    look_at: [0, 3, 0]
+    near: 0.1
+    far: 200
+  }
+
+  // =====================================================================
+  // THEME CONSTANTS
+  // =====================================================================
+
+  const colors = {
+    // Reward function colors
+    test_pass: "#22C55E",           // green - testPassReward
+    type_check: "#A855F7",          // purple - typeCheckReward
+    lint: "#F97316",                // orange - lintReward
+    coverage: "#3B82F6",            // blue - coverageReward
+    circuit_breaker: "#EF4444",     // red - circuitBreakerReward
+    composite: "#FFD700",           // gold - weighted composite
+
+    // UI colors
+    bg: "#0A0A1A",
+    surface: "rgba(15, 15, 35, 0.92)",
+    surface_light: "rgba(25, 25, 55, 0.88)",
+    border: "#1E293B",
+    text: "#E2E8F0",
+    text_muted: "#94A3B8",
+    accent: "#6366F1",
+    success: "#10B981",
+    warning: "#F59E0B",
+    danger: "#EF4444",
+    kl_healthy: "#22C55E",
+    kl_warning: "#F59E0B",
+    kl_danger: "#EF4444"
+  }
+
+  // =====================================================================
+  // STATE MANAGEMENT
+  // =====================================================================
+
+  state {
+    @persisted
+    @local_only
+
+    // Training status
+    training_active: true
+    current_step: 0
+    total_steps: 10000
+    current_epoch: 1
+    total_epochs: 2
+    steps_per_sec: 0.0
+    eta_minutes: 0
+    elapsed_minutes: 0
+
+    // GPU metrics
+    gpu_utilization: 0
+    gpu_memory_used: 0
+    gpu_memory_total: 0
+    gpu_temperature: 0
+
+    // Hyperparameters (adjustable)
+    temperature: 0.7
+    beta: 0.04
+    learning_rate: 0.0002
+
+    // KL divergence tracking
+    kl_current: 0.0
+    kl_history: []
+    kl_alert: false
+
+    // Reward curves (arrays of {step, value} points)
+    rewards: {
+      test_pass: [],
+      type_check: [],
+      lint: [],
+      coverage: [],
+      circuit_breaker: [],
+      composite: []
+    }
+
+    // Completion samples
+    completions: []
+    selected_completion_index: 0
+
+    // OPLoRA forgetting indicators
+    oplora: {
+      orthogonal_satisfaction: 0.0,
+      humaneval_score: 0.0,
+      humaneval_baseline: 33.5,
+      humaneval_history: [],
+      mbpp_score: 0.0,
+      mbpp_baseline: 45.2,
+      mbpp_history: [],
+      holoscript_score: 0.0,
+      holoscript_history: [],
+      forgetting_alert: false
+    }
+
+    // UI state
+    vr_mode: false
+    active_panel: "rewards"
+    polling_interval: 5000
+    show_legend: true
+  }
+
+  // =====================================================================
+  // DATA SOURCES - REST endpoint bindings with polling
+  // =====================================================================
+
+  data_source "grpo_metrics" {
+    url: "http://localhost:8080/api/training/metrics"
+    method: "GET"
+    polling_interval: bind(state.polling_interval)
+    on_data: update_training_metrics
+  }
+
+  data_source "grpo_rewards" {
+    url: "http://localhost:8080/api/training/rewards"
+    method: "GET"
+    polling_interval: bind(state.polling_interval)
+    on_data: update_reward_curves
+  }
+
+  data_source "grpo_completions" {
+    url: "http://localhost:8080/api/training/completions"
+    method: "GET"
+    polling_interval: 10000
+    on_data: update_completions
+  }
+
+  data_source "grpo_kl" {
+    url: "http://localhost:8080/api/training/kl-divergence"
+    method: "GET"
+    polling_interval: bind(state.polling_interval)
+    on_data: update_kl_divergence
+  }
+
+  data_source "grpo_oplora" {
+    url: "http://localhost:8080/api/training/oplora"
+    method: "GET"
+    polling_interval: 30000
+    on_data: update_oplora_metrics
+  }
+
+  // =====================================================================
+  // FLOOR & STRUCTURAL ELEMENTS
+  // =====================================================================
+
+  // Dark reflective floor
+  object "Floor" {
+    mesh: "plane"
+    size: [60, 60]
+    position: [0, 0, 0]
+    rotation: [-90, 0, 0]
+    material: {
+      color: "#080818",
+      metalness: 0.4,
+      roughness: 0.2
+    }
+    @collidable
+  }
+
+  // Cyan grid overlay
+  object "GridOverlay" {
+    mesh: "plane"
+    size: [60, 60]
+    position: [0, 0.02, 0]
+    rotation: [-90, 0, 0]
+    material: {
+      color: "#00FFFF",
+      emissive: "#00FFFF",
+      emissiveIntensity: 0.15,
+      transparent: true,
+      opacity: 0.08
+    }
+  }
+
+  // =====================================================================
+  // 1. CENTER - REWARD CURVE VISUALIZATION (Main Screen)
+  // =====================================================================
+
+  spatial_group "RewardCurveCenter" {
+
+    // Main display backing panel
+    object "MainScreenBacking" {
+      mesh: "plane"
+      position: [0, 4.5, -6]
+      size: [16, 8]
+      material: {
+        color: "#001020",
+        emissive: "#0A1628",
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.92
+      }
+    }
+
+    // Title text
+    object "RewardTitle" {
+      type: "text"
+      position: [0, 8.2, -5.9]
+      text: "GRPO Reward Curves - Brittney 7B QualityScore"
+      font_size: 0.35
+      color: colors.text
+      font_weight: "600"
+    }
+
+    // Step counter
+    object "StepCounter" {
+      type: "text"
+      position: [0, 7.7, -5.9]
+      text: "Step ${state.current_step} / ${state.total_steps} | Epoch ${state.current_epoch}/${state.total_epochs}"
+      font_size: 0.22
+      color: colors.text_muted
+    }
+
+    // ── Individual Reward Charts ──
+
+    // testPassReward (weight 0.40) - largest, center-left
+    chart "TestPassReward" {
+      type: "line_3d"
+      position: [-5.5, 5.5, -5.8]
+      size: [4.5, 2.5]
+      data_source: bind(state.rewards.test_pass)
+      color: colors.test_pass
+      line_width: 3
+      fill_opacity: 0.15
+      x_label: "Step"
+      y_label: "Reward"
+      y_range: [0, 1]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      object "TestPassLabel" {
+        type: "text"
+        position: [0, 1.4, 0.1]
+        text: "testPassReward (w=0.40)"
+        font_size: 0.15
+        color: colors.test_pass
+      }
+    }
+
+    // typeCheckReward (weight 0.20) - center-right
+    chart "TypeCheckReward" {
+      type: "line_3d"
+      position: [0.5, 5.5, -5.8]
+      size: [4.5, 2.5]
+      data_source: bind(state.rewards.type_check)
+      color: colors.type_check
+      line_width: 3
+      fill_opacity: 0.15
+      x_label: "Step"
+      y_label: "Reward"
+      y_range: [0, 1]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      object "TypeCheckLabel" {
+        type: "text"
+        position: [0, 1.4, 0.1]
+        text: "typeCheckReward (w=0.20)"
+        font_size: 0.15
+        color: colors.type_check
+      }
+    }
+
+    // lintReward (weight 0.15) - bottom-left
+    chart "LintReward" {
+      type: "line_3d"
+      position: [-5.5, 2.5, -5.8]
+      size: [3.5, 2]
+      data_source: bind(state.rewards.lint)
+      color: colors.lint
+      line_width: 2.5
+      fill_opacity: 0.12
+      x_label: "Step"
+      y_label: "Reward"
+      y_range: [0, 1]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      object "LintLabel" {
+        type: "text"
+        position: [0, 1.1, 0.1]
+        text: "lintReward (w=0.15)"
+        font_size: 0.14
+        color: colors.lint
+      }
+    }
+
+    // coverageReward (weight 0.15) - bottom-center
+    chart "CoverageReward" {
+      type: "line_3d"
+      position: [-0.5, 2.5, -5.8]
+      size: [3.5, 2]
+      data_source: bind(state.rewards.coverage)
+      color: colors.coverage
+      line_width: 2.5
+      fill_opacity: 0.12
+      x_label: "Step"
+      y_label: "Reward"
+      y_range: [0, 1]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      object "CoverageLabel" {
+        type: "text"
+        position: [0, 1.1, 0.1]
+        text: "coverageReward (w=0.15)"
+        font_size: 0.14
+        color: colors.coverage
+      }
+    }
+
+    // circuitBreakerReward (weight 0.10) - bottom-right
+    chart "CircuitBreakerReward" {
+      type: "line_3d"
+      position: [4.5, 2.5, -5.8]
+      size: [3.5, 2]
+      data_source: bind(state.rewards.circuit_breaker)
+      color: colors.circuit_breaker
+      line_width: 2.5
+      fill_opacity: 0.12
+      x_label: "Step"
+      y_label: "Reward"
+      y_range: [0, 1]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      object "CircuitBreakerLabel" {
+        type: "text"
+        position: [0, 1.1, 0.1]
+        text: "circuitBreakerReward (w=0.10)"
+        font_size: 0.14
+        color: colors.circuit_breaker
+      }
+    }
+
+    // Composite reward curve (weighted sum) - overlaid top-right
+    chart "CompositeReward" {
+      type: "line_3d"
+      position: [4.5, 5.5, -5.7]
+      size: [4.5, 2.5]
+      data_source: bind(state.rewards.composite)
+      color: colors.composite
+      line_width: 4
+      fill_opacity: 0.2
+      x_label: "Step"
+      y_label: "Composite"
+      y_range: [0, 1]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.08)"
+      glow: true
+
+      object "CompositeLabel" {
+        type: "text"
+        position: [0, 1.4, 0.1]
+        text: "Composite Reward (weighted sum)"
+        font_size: 0.16
+        color: colors.composite
+        font_weight: "600"
+      }
+    }
+
+    // Legend panel
+    object "LegendPanel" {
+      type: "ui-panel"
+      position: [6.5, 1.5, -5.5]
+      size: [3, 2.8]
+      background: colors.surface
+      border_radius: 8
+      visible: state.show_legend
+
+      object "LegendTitle" {
+        type: "ui-text"
+        position: [0.15, 0.15]
+        text: "Reward Weights"
+        font_size: 0.14
+        font_weight: "600"
+        color: colors.text
+      }
+
+      @for (reward, index) in [
+        { name: "testPassReward", weight: "0.40", color: colors.test_pass },
+        { name: "typeCheckReward", weight: "0.20", color: colors.type_check },
+        { name: "lintReward", weight: "0.15", color: colors.lint },
+        { name: "coverageReward", weight: "0.15", color: colors.coverage },
+        { name: "circuitBreakerReward", weight: "0.10", color: colors.circuit_breaker },
+        { name: "composite", weight: "1.00", color: colors.composite }
+      ] {
+        object "LegendEntry_${index}" {
+          position: [0.15, 0.5 + index * 0.35]
+
+          object "LegendDot_${index}" {
+            type: "ui-circle"
+            size: [10, 10]
+            fill: reward.color
+          }
+
+          object "LegendText_${index}" {
+            type: "ui-text"
+            position: [0.2, 0]
+            text: "${reward.name} (${reward.weight})"
+            font_size: 0.11
+            color: colors.text_muted
+          }
+        }
+      }
+    }
+  }
+
+  // =====================================================================
+  // 2. LEFT WING - KL DIVERGENCE MONITOR
+  // =====================================================================
+
+  spatial_group "KLDivergenceWing" {
+
+    // Backing panel - angled left
+    object "KLBackingPanel" {
+      mesh: "plane"
+      position: [-12, 4, 0]
+      rotation: [0, 40, 0]
+      size: [8, 7]
+      material: {
+        color: "#001020",
+        emissive: "#0A1628",
+        emissiveIntensity: 0.25,
+        transparent: true,
+        opacity: 0.9
+      }
+    }
+
+    // KL Title
+    object "KLTitle" {
+      type: "text"
+      position: [-12.5, 7.2, 0.5]
+      rotation: [0, 40, 0]
+      text: "KL Divergence Monitor"
+      font_size: 0.3
+      color: colors.text
+      font_weight: "600"
+    }
+
+    // KL line chart
+    chart "KLDivergenceChart" {
+      type: "line_3d"
+      position: [-12, 5, 0.6]
+      rotation: [0, 40, 0]
+      size: [7, 3.5]
+      data_source: bind(state.kl_history)
+      color: state.kl_alert ? colors.kl_danger : colors.kl_healthy
+      line_width: 3
+      fill_opacity: 0.2
+      x_label: "Step"
+      y_label: "KL Div"
+      y_range: [0, 0.1]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      // Beta threshold line (at 0.04)
+      object "BetaThresholdLine" {
+        type: "line"
+        points: [[0, 0.04], [1, 0.04]]
+        color: colors.danger
+        line_width: 2
+        dash_pattern: [0.02, 0.01]
+      }
+
+      object "ThresholdLabel" {
+        type: "text"
+        position: [3.2, 1.4, 0.1]
+        text: "beta threshold = ${state.beta}"
+        font_size: 0.12
+        color: colors.danger
+      }
+    }
+
+    // KL current value display (large)
+    object "KLCurrentValue" {
+      type: "text"
+      position: [-12.5, 2.8, 0.5]
+      rotation: [0, 40, 0]
+      text: "KL: ${state.kl_current.toFixed(6)}"
+      font_size: 0.4
+      color: state.kl_alert ? colors.danger : colors.success
+      font_weight: "700"
+    }
+
+    // KL status indicator orb
+    object "KLStatusOrb" {
+      mesh: "sphere"
+      position: [-10, 2.5, 1.5]
+      size: [0.3, 0.3, 0.3]
+      material: {
+        color: state.kl_alert ? colors.danger : colors.kl_healthy,
+        emissive: state.kl_alert ? colors.danger : colors.kl_healthy,
+        emissiveIntensity: state.kl_alert ? 3.0 : 1.5
+      }
+      @animated(pulse: { speed: state.kl_alert ? 3 : 1, min: 0.8, max: 1.3 })
+    }
+
+    // Alert text
+    object "KLAlertText" {
+      type: "text"
+      position: [-12, 2.2, 0.5]
+      rotation: [0, 40, 0]
+      text: state.kl_alert ? "WARNING: KL exceeds beta threshold!" : "KL within healthy range"
+      font_size: 0.16
+      color: state.kl_alert ? colors.danger : colors.text_muted
+      visible: true
+    }
+
+    // KL gradient bar (green-to-red health indicator)
+    object "KLGradientBar" {
+      type: "ui-panel"
+      position: [-13, 1.5, 0.8]
+      rotation: [0, 40, 0]
+      size: [6, 0.4]
+      background: "linear-gradient(to right, ${colors.kl_healthy}, ${colors.kl_warning}, ${colors.kl_danger})"
+      border_radius: 4
+
+      // Needle indicator
+      object "KLNeedle" {
+        mesh: "cylinder"
+        position: [clamp(state.kl_current / 0.1, 0, 1) * 6, 0, 0.1]
+        size: [0.03, 0.5, 0.03]
+        material: {
+          color: "#FFFFFF",
+          emissive: "#FFFFFF",
+          emissiveIntensity: 2
+        }
+      }
+    }
+  }
+
+  // =====================================================================
+  // 3. RIGHT WING - COMPLETION QUALITY SAMPLER
+  // =====================================================================
+
+  spatial_group "CompletionSamplerWing" {
+
+    // Backing panel - angled right
+    object "CompletionBackingPanel" {
+      mesh: "plane"
+      position: [12, 4, 0]
+      rotation: [0, -40, 0]
+      size: [8, 7]
+      material: {
+        color: "#001020",
+        emissive: "#0A1628",
+        emissiveIntensity: 0.25,
+        transparent: true,
+        opacity: 0.9
+      }
+    }
+
+    // Title
+    object "CompletionTitle" {
+      type: "text"
+      position: [12.5, 7.2, 0.5]
+      rotation: [0, -40, 0]
+      text: "GRPO Completion Sampler"
+      font_size: 0.3
+      color: colors.text
+      font_weight: "600"
+    }
+
+    // Scrollable completion panel
+    object "CompletionScrollPanel" {
+      type: "ui-panel"
+      position: [11, 4, 0.6]
+      rotation: [0, -40, 0]
+      size: [7, 5.5]
+      background: colors.surface
+      border_radius: 8
+      overflow: "scroll"
+
+      // Prompt display
+      object "PromptSection" {
+        type: "ui-panel"
+        position: [0.2, 0.2]
+        size: [6.6, 1.2]
+        background: "rgba(30, 30, 60, 0.8)"
+        border_radius: 6
+
+        object "PromptLabel" {
+          type: "ui-text"
+          position: [0.1, 0.08]
+          text: "Prompt (Instruction)"
+          font_size: 0.1
+          color: colors.accent
+          font_weight: "600"
+        }
+
+        object "PromptText" {
+          type: "ui-text"
+          position: [0.1, 0.3]
+          text: bind(state.completions[state.selected_completion_index]?.prompt ?? "Awaiting completions...")
+          font_size: 0.1
+          color: colors.text
+          max_width: 6.4
+          word_wrap: true
+        }
+      }
+
+      // Best completion (highest reward) - green border
+      object "BestCompletionSection" {
+        type: "ui-panel"
+        position: [0.2, 1.5]
+        size: [6.6, 1.4]
+        background: "rgba(16, 185, 129, 0.08)"
+        border_color: colors.success
+        border_width: 2
+        border_radius: 6
+
+        object "BestLabel" {
+          type: "ui-text"
+          position: [0.1, 0.08]
+          text: "Best Completion (Highest Reward)"
+          font_size: 0.1
+          color: colors.success
+          font_weight: "600"
+        }
+
+        object "BestText" {
+          type: "ui-text"
+          position: [0.1, 0.3]
+          text: bind(state.completions[state.selected_completion_index]?.best_completion ?? "...")
+          font_size: 0.09
+          color: colors.text
+          max_width: 6.4
+          word_wrap: true
+        }
+
+        object "BestScore" {
+          type: "ui-text"
+          position: [0.1, 1.15]
+          text: bind("Score: " + (state.completions[state.selected_completion_index]?.best_score?.toFixed(4) ?? "N/A"))
+          font_size: 0.1
+          color: colors.success
+          font_weight: "600"
+        }
+      }
+
+      // Worst completion (lowest reward) - red border
+      object "WorstCompletionSection" {
+        type: "ui-panel"
+        position: [0.2, 3.0]
+        size: [6.6, 1.4]
+        background: "rgba(239, 68, 68, 0.08)"
+        border_color: colors.danger
+        border_width: 2
+        border_radius: 6
+
+        object "WorstLabel" {
+          type: "ui-text"
+          position: [0.1, 0.08]
+          text: "Worst Completion (Lowest Reward)"
+          font_size: 0.1
+          color: colors.danger
+          font_weight: "600"
+        }
+
+        object "WorstText" {
+          type: "ui-text"
+          position: [0.1, 0.3]
+          text: bind(state.completions[state.selected_completion_index]?.worst_completion ?? "...")
+          font_size: 0.09
+          color: colors.text
+          max_width: 6.4
+          word_wrap: true
+        }
+
+        object "WorstScore" {
+          type: "ui-text"
+          position: [0.1, 1.15]
+          text: bind("Score: " + (state.completions[state.selected_completion_index]?.worst_score?.toFixed(4) ?? "N/A"))
+          font_size: 0.1
+          color: colors.danger
+          font_weight: "600"
+        }
+      }
+
+      // Per-reward breakdown
+      object "RewardBreakdownSection" {
+        type: "ui-panel"
+        position: [0.2, 4.5]
+        size: [6.6, 0.8]
+        background: "rgba(20, 20, 50, 0.8)"
+        border_radius: 6
+
+        object "BreakdownTitle" {
+          type: "ui-text"
+          position: [0.1, 0.06]
+          text: "Per-Reward Breakdown (Best)"
+          font_size: 0.1
+          color: colors.text_muted
+          font_weight: "500"
+        }
+
+        @for (rw, idx) in [
+          { key: "test_pass", name: "TestPass", color: colors.test_pass },
+          { key: "type_check", name: "TypeCheck", color: colors.type_check },
+          { key: "lint", name: "Lint", color: colors.lint },
+          { key: "coverage", name: "Coverage", color: colors.coverage },
+          { key: "circuit_breaker", name: "CircuitBreaker", color: colors.circuit_breaker }
+        ] {
+          object "BreakdownItem_${idx}" {
+            type: "ui-text"
+            position: [0.1 + idx * 1.3, 0.35]
+            text: bind(rw.name + ": " + (state.completions[state.selected_completion_index]?.breakdown?.[rw.key]?.toFixed(2) ?? "-"))
+            font_size: 0.08
+            color: rw.color
+          }
+        }
+      }
+    }
+
+    // Navigation buttons for cycling completions
+    object "PrevCompletion" {
+      type: "ui-button"
+      position: [9.5, 1.2, 1]
+      rotation: [0, -40, 0]
+      size: [1.2, 0.5]
+      text: "< Prev"
+      background: colors.accent
+      text_color: "#FFFFFF"
+      border_radius: 6
+
+      @clickable
+      on_click: () => {
+        if state.selected_completion_index > 0 {
+          state.selected_completion_index -= 1
+        }
+      }
+    }
+
+    object "NextCompletion" {
+      type: "ui-button"
+      position: [13.5, 1.2, 1]
+      rotation: [0, -40, 0]
+      size: [1.2, 0.5]
+      text: "Next >"
+      background: colors.accent
+      text_color: "#FFFFFF"
+      border_radius: 6
+
+      @clickable
+      on_click: () => {
+        if state.selected_completion_index < state.completions.length - 1 {
+          state.selected_completion_index += 1
+        }
+      }
+    }
+
+    object "CompletionCounter" {
+      type: "text"
+      position: [11.5, 1.2, 1]
+      rotation: [0, -40, 0]
+      text: bind("${state.selected_completion_index + 1} / ${state.completions.length}")
+      font_size: 0.18
+      color: colors.text_muted
+    }
+  }
+
+  // =====================================================================
+  // 4. REAR - OPLORA FORGETTING INDICATORS
+  // =====================================================================
+
+  spatial_group "OPLoRAPanel" {
+
+    // Backing panel - behind the viewer
+    object "OPLoRABackingPanel" {
+      mesh: "plane"
+      position: [0, 4, 10]
+      rotation: [0, 180, 0]
+      size: [14, 7]
+      material: {
+        color: "#100818",
+        emissive: "#180C28",
+        emissiveIntensity: 0.2,
+        transparent: true,
+        opacity: 0.9
+      }
+    }
+
+    // Title
+    object "OPLoRATitle" {
+      type: "text"
+      position: [0, 7.2, 9.9]
+      rotation: [0, 180, 0]
+      text: "OPLoRA Forgetting Indicators"
+      font_size: 0.3
+      color: colors.text
+      font_weight: "600"
+    }
+
+    // Orthogonal projection constraint satisfaction gauge
+    object "OrthogonalGauge" {
+      type: "ui-panel"
+      position: [-5, 5, 9.8]
+      rotation: [0, 180, 0]
+      size: [3.5, 3]
+      background: colors.surface
+      border_radius: 8
+
+      object "OrthoTitle" {
+        type: "ui-text"
+        position: [0.15, 0.1]
+        text: "Orthogonal Projection"
+        font_size: 0.14
+        color: colors.text
+        font_weight: "500"
+      }
+
+      object "OrthoValue" {
+        type: "ui-text"
+        position: [0.15, 0.5]
+        text: bind("Satisfaction: ${(state.oplora.orthogonal_satisfaction * 100).toFixed(1)}%")
+        font_size: 0.2
+        color: state.oplora.orthogonal_satisfaction > 0.95 ? colors.success : colors.warning
+        font_weight: "700"
+      }
+
+      // Progress bar
+      object "OrthoBar" {
+        type: "ui-panel"
+        position: [0.15, 1]
+        size: [3.2, 0.3]
+        background: "rgba(50,50,80,0.5)"
+        border_radius: 4
+
+        object "OrthoFill" {
+          type: "ui-panel"
+          size: [bind(state.oplora.orthogonal_satisfaction * 3.2), 0.3]
+          background: state.oplora.orthogonal_satisfaction > 0.95 ? colors.success : colors.warning
+          border_radius: 4
+        }
+      }
+
+      object "OrthoDescription" {
+        type: "ui-text"
+        position: [0.15, 1.5]
+        text: "Constraint keeps GRPO updates\northogonal to general knowledge"
+        font_size: 0.08
+        color: colors.text_muted
+        line_height: 1.5
+      }
+    }
+
+    // HumanEval benchmark chart
+    chart "HumanEvalChart" {
+      type: "line_3d"
+      position: [-0.5, 5, 9.8]
+      rotation: [0, 180, 0]
+      size: [4, 2.5]
+      data_source: bind(state.oplora.humaneval_history)
+      color: "#38BDF8"
+      line_width: 2.5
+      fill_opacity: 0.1
+      x_label: "Step"
+      y_label: "HumanEval %"
+      y_range: [0, 50]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      // Baseline reference line
+      object "HumanEvalBaseline" {
+        type: "line"
+        points: [[0, 33.5], [1, 33.5]]
+        color: colors.warning
+        line_width: 1.5
+        dash_pattern: [0.015, 0.01]
+      }
+
+      object "HumanEvalLabel" {
+        type: "text"
+        position: [0, 1.4, 0.1]
+        text: bind("HumanEval: ${state.oplora.humaneval_score.toFixed(1)}% (baseline: ${state.oplora.humaneval_baseline}%)")
+        font_size: 0.12
+        color: "#38BDF8"
+      }
+    }
+
+    // MBPP benchmark chart
+    chart "MBPPChart" {
+      type: "line_3d"
+      position: [4.5, 5, 9.8]
+      rotation: [0, 180, 0]
+      size: [4, 2.5]
+      data_source: bind(state.oplora.mbpp_history)
+      color: "#FB923C"
+      line_width: 2.5
+      fill_opacity: 0.1
+      x_label: "Step"
+      y_label: "MBPP %"
+      y_range: [0, 60]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      object "MBPPBaseline" {
+        type: "line"
+        points: [[0, 45.2], [1, 45.2]]
+        color: colors.warning
+        line_width: 1.5
+        dash_pattern: [0.015, 0.01]
+      }
+
+      object "MBPPLabel" {
+        type: "text"
+        position: [0, 1.4, 0.1]
+        text: bind("MBPP: ${state.oplora.mbpp_score.toFixed(1)}% (baseline: ${state.oplora.mbpp_baseline}%)")
+        font_size: 0.12
+        color: "#FB923C"
+      }
+    }
+
+    // HoloScript-specific improvement vs general ability
+    chart "HoloScriptProgress" {
+      type: "line_3d"
+      position: [-0.5, 2.2, 9.8]
+      rotation: [0, 180, 0]
+      size: [8, 2]
+      data_source: bind(state.oplora.holoscript_history)
+      color: colors.accent
+      line_width: 3
+      fill_opacity: 0.15
+      x_label: "Step"
+      y_label: "HoloScript Score"
+      y_range: [0, 100]
+      show_grid: true
+      grid_color: "rgba(255,255,255,0.06)"
+
+      object "HoloScriptLabel" {
+        type: "text"
+        position: [0, 1.1, 0.1]
+        text: bind("HoloScript-Specific: ${state.oplora.holoscript_score.toFixed(1)}%")
+        font_size: 0.14
+        color: colors.accent
+        font_weight: "500"
+      }
+    }
+
+    // Forgetting alert
+    object "ForgettingAlert" {
+      type: "ui-panel"
+      position: [5, 2, 9.8]
+      rotation: [0, 180, 0]
+      size: [3, 1.5]
+      background: state.oplora.forgetting_alert ? "rgba(239, 68, 68, 0.2)" : colors.surface
+      border_color: state.oplora.forgetting_alert ? colors.danger : colors.border
+      border_width: state.oplora.forgetting_alert ? 2 : 1
+      border_radius: 8
+
+      object "AlertIcon" {
+        mesh: "sphere"
+        position: [1.5, 0.3, 0.1]
+        size: [0.15, 0.15, 0.15]
+        material: {
+          color: state.oplora.forgetting_alert ? colors.danger : colors.success,
+          emissive: state.oplora.forgetting_alert ? colors.danger : colors.success,
+          emissiveIntensity: state.oplora.forgetting_alert ? 3 : 1
+        }
+        @animated(pulse: { speed: state.oplora.forgetting_alert ? 3 : 0.5, min: 0.8, max: 1.2 })
+      }
+
+      object "AlertText" {
+        type: "ui-text"
+        position: [0.15, 0.6]
+        text: state.oplora.forgetting_alert ? "ALERT: General ability\ndropped > 2% from baseline" : "General coding ability\nwithin safe range"
+        font_size: 0.11
+        color: state.oplora.forgetting_alert ? colors.danger : colors.text_muted
+        line_height: 1.6
+      }
+
+      object "DropMetric" {
+        type: "ui-text"
+        position: [0.15, 1.1]
+        text: bind("HumanEval delta: ${(state.oplora.humaneval_score - state.oplora.humaneval_baseline).toFixed(1)}%")
+        font_size: 0.1
+        color: (state.oplora.humaneval_score - state.oplora.humaneval_baseline) < -2 ? colors.danger : colors.success
+      }
+    }
+  }
+
+  // =====================================================================
+  // 5. OVERHEAD - TRAINING PROGRESS HUD
+  // =====================================================================
+
+  spatial_group "OverheadHUD" {
+
+    // Ceiling-mounted status strip
+    object "HUDBacking" {
+      mesh: "plane"
+      position: [0, 9.5, 2]
+      rotation: [70, 0, 0]
+      size: [18, 2.5]
+      material: {
+        color: "#0A0A20",
+        emissive: "#101030",
+        emissiveIntensity: 0.2,
+        transparent: true,
+        opacity: 0.85
+      }
+    }
+
+    // GPU Utilization
+    metric "GPUUtilization" {
+      position: [-7, 9.2, 2.3]
+      rotation: [70, 0, 0]
+      label: "GPU Util"
+      value: bind("${state.gpu_utilization}%")
+      font_size: 0.22
+      label_color: colors.text_muted
+      value_color: state.gpu_utilization > 90 ? colors.success : colors.warning
+    }
+
+    // GPU Memory
+    metric "GPUMemory" {
+      position: [-4, 9.2, 2.3]
+      rotation: [70, 0, 0]
+      label: "VRAM"
+      value: bind("${state.gpu_memory_used}/${state.gpu_memory_total} GB")
+      font_size: 0.22
+      label_color: colors.text_muted
+      value_color: (state.gpu_memory_used / state.gpu_memory_total) > 0.9 ? colors.danger : colors.text
+    }
+
+    // Steps/sec
+    metric "StepsPerSec" {
+      position: [-1, 9.2, 2.3]
+      rotation: [70, 0, 0]
+      label: "Steps/sec"
+      value: bind("${state.steps_per_sec.toFixed(2)}")
+      font_size: 0.22
+      label_color: colors.text_muted
+      value_color: colors.accent
+    }
+
+    // ETA
+    metric "ETA" {
+      position: [2, 9.2, 2.3]
+      rotation: [70, 0, 0]
+      label: "ETA"
+      value: bind(format_eta(state.eta_minutes))
+      font_size: 0.22
+      label_color: colors.text_muted
+      value_color: colors.text
+    }
+
+    // Epoch / Step
+    metric "EpochStep" {
+      position: [5, 9.2, 2.3]
+      rotation: [70, 0, 0]
+      label: "Epoch"
+      value: bind("${state.current_epoch}/${state.total_epochs} (${state.current_step}/${state.total_steps})")
+      font_size: 0.22
+      label_color: colors.text_muted
+      value_color: colors.text
+    }
+
+    // GPU Temperature
+    metric "GPUTemp" {
+      position: [8, 9.2, 2.3]
+      rotation: [70, 0, 0]
+      label: "GPU Temp"
+      value: bind("${state.gpu_temperature}C")
+      font_size: 0.22
+      label_color: colors.text_muted
+      value_color: state.gpu_temperature > 80 ? colors.danger : state.gpu_temperature > 70 ? colors.warning : colors.success
+    }
+
+    // Progress bar across the top
+    object "TrainingProgressBar" {
+      type: "ui-panel"
+      position: [-8.5, 8.5, 2.8]
+      rotation: [70, 0, 0]
+      size: [17, 0.25]
+      background: "rgba(30, 30, 60, 0.6)"
+      border_radius: 4
+
+      object "ProgressFill" {
+        type: "ui-panel"
+        size: [bind((state.current_step / state.total_steps) * 17), 0.25]
+        background: colors.accent
+        border_radius: 4
+      }
+    }
+
+    object "ProgressPercent" {
+      type: "text"
+      position: [0, 8.2, 3]
+      rotation: [70, 0, 0]
+      text: bind("${((state.current_step / state.total_steps) * 100).toFixed(1)}% Complete")
+      font_size: 0.18
+      color: colors.accent
+      font_weight: "600"
+    }
+
+    // Hyperparameter display
+    object "HyperparamDisplay" {
+      type: "text"
+      position: [0, 7.8, 3.2]
+      rotation: [70, 0, 0]
+      text: bind("LR: ${state.learning_rate} | Temp: ${state.temperature} | Beta: ${state.beta}")
+      font_size: 0.14
+      color: colors.text_muted
+    }
+  }
+
+  // =====================================================================
+  // 6. INTERACTIVE CONTROLS - Training management
+  // =====================================================================
+
+  spatial_group "ControlPanel" {
+
+    // Central control pedestal
+    object "ControlPedestal" {
+      mesh: "cylinder"
+      position: [0, 0.6, 6]
+      size: [1.8, 1.2, 1.8]
+      material: {
+        color: "#15152A",
+        metalness: 0.6,
+        roughness: 0.3,
+        emissive: colors.accent,
+        emissiveIntensity: 0.1
+      }
+    }
+
+    // Control surface
+    object "ControlSurface" {
+      type: "ui-panel"
+      position: [-2, 1.3, 6]
+      rotation: [-30, 0, 0]
+      size: [4, 2.5]
+      background: colors.surface
+      border_radius: 12
+
+      // Pause/Resume button
+      object "PauseResumeBtn" {
+        type: "ui-button"
+        position: [0.2, 0.2]
+        size: [1.6, 0.5]
+        text: state.training_active ? "Pause Training" : "Resume Training"
+        background: state.training_active ? colors.warning : colors.success
+        text_color: "#FFFFFF"
+        border_radius: 8
+        font_size: 0.12
+
+        @clickable
+        on_click: toggle_training
+      }
+
+      // Temperature slider
+      object "TempLabel" {
+        type: "ui-text"
+        position: [0.2, 0.85]
+        text: "Temperature"
+        font_size: 0.1
+        color: colors.text_muted
+      }
+
+      object "TempSlider" {
+        type: "ui-slider"
+        position: [0.2, 1.05]
+        size: [2, 0.2]
+        min: 0.1
+        max: 2.0
+        step: 0.05
+        value: state.temperature
+        show_value: true
+        active_color: colors.accent
+        track_color: "rgba(50,50,80,0.5)"
+
+        on_change: (value) => {
+          state.temperature = value
+          emit "temperature_changed" { temperature: value }
+        }
+      }
+
+      object "TempValue" {
+        type: "ui-text"
+        position: [2.5, 1.05]
+        text: bind("${state.temperature.toFixed(2)}")
+        font_size: 0.12
+        color: colors.text
+      }
+
+      // Beta slider
+      object "BetaLabel" {
+        type: "ui-text"
+        position: [0.2, 1.45]
+        text: "KL Beta (penalty weight)"
+        font_size: 0.1
+        color: colors.text_muted
+      }
+
+      object "BetaSlider" {
+        type: "ui-slider"
+        position: [0.2, 1.65]
+        size: [2, 0.2]
+        min: 0.001
+        max: 0.2
+        step: 0.001
+        value: state.beta
+        show_value: true
+        active_color: colors.accent
+        track_color: "rgba(50,50,80,0.5)"
+
+        on_change: (value) => {
+          state.beta = value
+          emit "beta_changed" { beta: value }
+        }
+      }
+
+      object "BetaValue" {
+        type: "ui-text"
+        position: [2.5, 1.65]
+        text: bind("${state.beta.toFixed(3)}")
+        font_size: 0.12
+        color: colors.text
+      }
+
+      // Trigger benchmark evaluation
+      object "RunBenchmarkBtn" {
+        type: "ui-button"
+        position: [2.2, 0.2]
+        size: [1.6, 0.5]
+        text: "Run Benchmark"
+        background: colors.accent
+        text_color: "#FFFFFF"
+        border_radius: 8
+        font_size: 0.12
+
+        @clickable
+        on_click: trigger_benchmark
+      }
+
+      // Polling interval control
+      object "PollingLabel" {
+        type: "ui-text"
+        position: [0.2, 2.1]
+        text: "Polling Interval"
+        font_size: 0.1
+        color: colors.text_muted
+      }
+
+      object "PollingDropdown" {
+        type: "ui-dropdown"
+        position: [1.5, 2.05]
+        size: [1.5, 0.3]
+        options: [
+          { value: 2000, label: "2s (fast)" },
+          { value: 5000, label: "5s (normal)" },
+          { value: 10000, label: "10s (slow)" }
+        ]
+        value: state.polling_interval
+        background: "rgba(50,50,80,0.8)"
+        text_color: colors.text
+
+        on_change: (value) => {
+          state.polling_interval = value
+        }
+      }
+    }
+  }
+
+  // =====================================================================
+  // VR MODE CONTROLS
+  // =====================================================================
+
+  object "VRUI" {
+    visible: state.vr_mode
+
+    @local_only
+    @vr_ui
+
+    // Wrist-mounted status on left controller
+    object "WristStatus" {
+      type: "ui-panel"
+      position: "attached_to_wrist_left"
+      size: [0.18, 0.12]
+      background: colors.surface
+      border_radius: 0.01
+
+      object "WristStep" {
+        type: "ui-text"
+        position: [0.01, 0.01]
+        text: bind("Step: ${state.current_step}")
+        font_size: 0.015
+        color: colors.text
+      }
+
+      object "WristReward" {
+        type: "ui-text"
+        position: [0.01, 0.035]
+        text: bind("Reward: ${state.rewards.composite[state.rewards.composite.length - 1]?.value?.toFixed(3) ?? 'N/A'}")
+        font_size: 0.012
+        color: colors.composite
+      }
+
+      object "WristKL" {
+        type: "ui-text"
+        position: [0.01, 0.055]
+        text: bind("KL: ${state.kl_current.toFixed(5)}")
+        font_size: 0.012
+        color: state.kl_alert ? colors.danger : colors.success
+      }
+
+      object "WristGPU" {
+        type: "ui-text"
+        position: [0.01, 0.075]
+        text: bind("GPU: ${state.gpu_utilization}% | ${state.gpu_temperature}C")
+        font_size: 0.01
+        color: colors.text_muted
+      }
+
+      object "WristStatus" {
+        type: "ui-text"
+        position: [0.01, 0.095]
+        text: state.training_active ? "TRAINING" : "PAUSED"
+        font_size: 0.012
+        color: state.training_active ? colors.success : colors.warning
+        font_weight: "600"
+      }
+    }
+
+    // VR pointer ray
+    object "RightPointer" {
+      type: "ray"
+      origin: "controller_right"
+      length: 15
+      color: colors.accent
+      width: 0.002
+      visible: true
+
+      @vr_pointer
+    }
+  }
+
+  // =====================================================================
+  // LIGHTING
+  // =====================================================================
+
+  light "AmbientLight" {
+    type: "ambient"
+    color: "#0A0A2A"
+    intensity: 0.2
+  }
+
+  light "MainDirectional" {
+    type: "directional"
+    position: [10, 15, 5]
+    color: "#4466AA"
+    intensity: 0.4
+    cast_shadow: true
+  }
+
+  light "CenterGlow" {
+    type: "point"
+    position: [0, 5, -5]
+    color: "#6366F1"
+    intensity: 3
+    range: 20
+  }
+
+  light "LeftWingGlow" {
+    type: "point"
+    position: [-12, 4, 0]
+    color: state.kl_alert ? "#EF4444" : "#22C55E"
+    intensity: 2
+    range: 15
+  }
+
+  light "RightWingGlow" {
+    type: "point"
+    position: [12, 4, 0]
+    color: "#6366F1"
+    intensity: 2
+    range: 15
+  }
+
+  light "RearGlow" {
+    type: "point"
+    position: [0, 4, 10]
+    color: "#A855F7"
+    intensity: 2
+    range: 15
+  }
+
+  light "ControlPedestalGlow" {
+    type: "point"
+    position: [0, 1.5, 6]
+    color: colors.accent
+    intensity: 1.5
+    range: 5
+  }
+
+  // =====================================================================
+  // AMBIENT VISUAL ELEMENTS
+  // =====================================================================
+
+  // Floating data particles
+  object "DataParticles" {
+    type: "sparkles"
+    position: [0, 5, 0]
+    count: 120
+    scale: 25
+    size: 1.5
+    speed: 0.2
+    color: "#6366F1"
+  }
+
+  // Orbiting status satellites around the room
+  for i in range(6) {
+    object "StatusSatellite_${i}" {
+      mesh: "sphere"
+      position: [
+        cos(i * 60 * DEG_TO_RAD) * 15,
+        7 + sin(i * 60 * DEG_TO_RAD) * 1.5,
+        sin(i * 60 * DEG_TO_RAD) * 15
+      ]
+      size: [0.15, 0.15, 0.15]
+      material: {
+        color: [colors.test_pass, colors.type_check, colors.lint, colors.coverage, colors.circuit_breaker, colors.composite][i],
+        emissive: [colors.test_pass, colors.type_check, colors.lint, colors.coverage, colors.circuit_breaker, colors.composite][i],
+        emissiveIntensity: 2.0,
+        metalness: 0.9,
+        roughness: 0.1
+      }
+      @orbit(radius: 15, speed: 0.3 + i * 0.05, axis: "y")
+    }
+  }
+
+  // Connection beams from satellites to center
+  for i in range(6) {
+    object "ConnectionBeam_${i}" {
+      mesh: "cylinder"
+      position: [
+        cos(i * 60 * DEG_TO_RAD) * 7.5,
+        7,
+        sin(i * 60 * DEG_TO_RAD) * 7.5
+      ]
+      size: [0.02, 15, 0.02]
+      rotation: [0, i * 60, 90]
+      material: {
+        color: [colors.test_pass, colors.type_check, colors.lint, colors.coverage, colors.circuit_breaker, colors.composite][i],
+        emissive: [colors.test_pass, colors.type_check, colors.lint, colors.coverage, colors.circuit_breaker, colors.composite][i],
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.15
+      }
+    }
+  }
+
+  // =====================================================================
+  // LOGIC & EVENT HANDLERS
+  // =====================================================================
+
+  logic {
+
+    function format_eta(minutes) {
+      if minutes < 60 {
+        return "${minutes}m"
+      }
+      hours = floor(minutes / 60)
+      mins = minutes % 60
+      return "${hours}h ${mins}m"
+    }
+
+    // ── Data update handlers ──
+
+    action update_training_metrics(data) {
+      state.current_step = data.step
+      state.total_steps = data.total_steps
+      state.current_epoch = data.epoch
+      state.total_epochs = data.total_epochs
+      state.steps_per_sec = data.steps_per_sec
+      state.eta_minutes = data.eta_minutes
+      state.elapsed_minutes = data.elapsed_minutes
+      state.gpu_utilization = data.gpu_utilization
+      state.gpu_memory_used = data.gpu_memory_used
+      state.gpu_memory_total = data.gpu_memory_total
+      state.gpu_temperature = data.gpu_temperature
+      state.learning_rate = data.learning_rate
+      state.training_active = data.is_training
+    }
+
+    action update_reward_curves(data) {
+      // Append new data points to each reward curve
+      state.rewards.test_pass = data.test_pass_reward
+      state.rewards.type_check = data.type_check_reward
+      state.rewards.lint = data.lint_reward
+      state.rewards.coverage = data.coverage_reward
+      state.rewards.circuit_breaker = data.circuit_breaker_reward
+      state.rewards.composite = data.composite_reward
+    }
+
+    action update_completions(data) {
+      state.completions = data.recent_completions
+
+      // Reset index if out of bounds
+      if state.selected_completion_index >= state.completions.length {
+        state.selected_completion_index = max(0, state.completions.length - 1)
+      }
+    }
+
+    action update_kl_divergence(data) {
+      state.kl_current = data.current_kl
+      state.kl_history = data.kl_history
+
+      // Check if KL exceeds beta threshold
+      previous_alert = state.kl_alert
+      state.kl_alert = data.current_kl > state.beta
+
+      // Trigger alert notification if newly exceeded
+      if state.kl_alert && !previous_alert {
+        show_notification("KL Divergence Alert: ${data.current_kl.toFixed(6)} exceeds beta ${state.beta}")
+        play_sound("alert_warning", { volume: 0.5 })
+      }
+    }
+
+    action update_oplora_metrics(data) {
+      state.oplora.orthogonal_satisfaction = data.orthogonal_satisfaction
+      state.oplora.humaneval_score = data.humaneval_score
+      state.oplora.humaneval_history = data.humaneval_history
+      state.oplora.mbpp_score = data.mbpp_score
+      state.oplora.mbpp_history = data.mbpp_history
+      state.oplora.holoscript_score = data.holoscript_score
+      state.oplora.holoscript_history = data.holoscript_history
+
+      // Check forgetting threshold (>2% drop from baseline)
+      humaneval_drop = state.oplora.humaneval_baseline - data.humaneval_score
+      mbpp_drop = state.oplora.mbpp_baseline - data.mbpp_score
+      previous_forgetting = state.oplora.forgetting_alert
+      state.oplora.forgetting_alert = humaneval_drop > 2 || mbpp_drop > 2
+
+      if state.oplora.forgetting_alert && !previous_forgetting {
+        show_notification("OPLoRA Alert: General ability drop detected! HumanEval: -${humaneval_drop.toFixed(1)}%, MBPP: -${mbpp_drop.toFixed(1)}%")
+        play_sound("alert_critical", { volume: 0.7 })
+      }
+    }
+
+    // ── Interactive control actions ──
+
+    action toggle_training() {
+      if state.training_active {
+        // Send pause command to training server
+        fetch("http://localhost:8080/api/training/pause", { method: "POST" })
+        state.training_active = false
+        show_notification("Training paused")
+      } else {
+        fetch("http://localhost:8080/api/training/resume", { method: "POST" })
+        state.training_active = true
+        show_notification("Training resumed")
+      }
+    }
+
+    action trigger_benchmark() {
+      show_notification("Triggering benchmark evaluation...")
+      fetch("http://localhost:8080/api/training/benchmark", { method: "POST" })
+    }
+
+    // ── Event handlers ──
+
+    on_temperature_changed(data) {
+      fetch("http://localhost:8080/api/training/config", {
+        method: "PATCH",
+        body: { temperature: data.temperature }
+      })
+      log("Temperature adjusted to: ${data.temperature}")
+    }
+
+    on_beta_changed(data) {
+      fetch("http://localhost:8080/api/training/config", {
+        method: "PATCH",
+        body: { beta: data.beta }
+      })
+      log("Beta adjusted to: ${data.beta}")
+    }
+
+    // ── Lifecycle ──
+
+    on_enter {
+      log("GRPO Training Dashboard initialized")
+      log("Monitoring Brittney 7B with 5 QualityScore reward functions")
+      log("Polling interval: ${state.polling_interval}ms")
+
+      // Detect device type for VR mode
+      if platform.is_vr {
+        state.vr_mode = true
+      }
+
+      fade_from_black(1.5)
+      show_notification("GRPO Training Dashboard - Connected")
+    }
+
+    on_vr_session_start {
+      state.vr_mode = true
+    }
+
+    on_vr_session_end {
+      state.vr_mode = false
+    }
+
+    // Keyboard shortcuts
+    on_key_press("Space") {
+      toggle_training()
+    }
+
+    on_key_press("b") {
+      trigger_benchmark()
+    }
+
+    on_key_press("l") {
+      state.show_legend = !state.show_legend
+    }
+  }
+}
