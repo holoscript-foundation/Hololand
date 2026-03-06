@@ -1,0 +1,61 @@
+{
+  "name": "@hololand/ar-akida-bridge",
+  "version": "0.1.0",
+  "description": "BrainChip Akida AKD1500 neuromorphic processor integration for edge AR spatial perception with PointNet++ point cloud classification",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@hololand/ar-detection": "^0.1.0",
+    "@hololand/ar-tracking": "^0.1.0",
+    "@hololand/ar-foundation": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@hololand/ar-detection": { "optional": true },
+    "@hololand/ar-tracking": { "optional": true },
+    "@hololand/ar-foundation": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.4"
+  },
+  "keywords": [
+    "akida",
+    "brainchip",
+    "akd1500",
+    "neuromorphic",
+    "pointnet",
+    "lidar",
+    "point-cloud",
+    "edge-ai",
+    "ar",
+    "spatial-perception",
+    "hololand"
+  ],
+  "author": "brianonbased-dev",
+  "license": "Elastic-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brianonbased-dev/Hololand.git",
+    "directory": "packages/ar/akida-bridge"
+  }
+}

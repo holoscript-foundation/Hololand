@@ -728,6 +728,124 @@ export type {
 } from './components/marketplace-trading';
 
 // =============================================================================
+// DISTRIBUTED SCENE GRAPH (MA3DSG-Inspired Multi-Agent World Creation)
+// =============================================================================
+
+export {
+  AgentLocalGraphBuilder,
+  createAgentLocalGraphBuilder,
+} from './AgentLocalGraphBuilder';
+
+export type {
+  AgentLocalGraphBuilderConfig,
+} from './AgentLocalGraphBuilder';
+
+export {
+  TrainingFreeAlignmentMerger,
+  createTrainingFreeAlignmentMerger,
+} from './TrainingFreeAlignmentMerger';
+
+export type {
+  MergeResult,
+} from './TrainingFreeAlignmentMerger';
+
+export {
+  SpatialRelationshipExtractor,
+  createSpatialRelationshipExtractor,
+} from './SpatialRelationshipExtractor';
+
+export type {
+  SpatialRelationshipExtractorConfig,
+  ExtractionResult,
+} from './SpatialRelationshipExtractor';
+
+export {
+  DistributedSceneGraphOrchestrator,
+  createDistributedSceneGraphOrchestrator,
+} from './DistributedSceneGraphOrchestrator';
+
+export type {
+  DistributedSceneGraphEventListener,
+} from './DistributedSceneGraphOrchestrator';
+
+export {
+  createEmptyLocalSceneGraph,
+  createEmptyGlobalSceneGraph,
+  DEFAULT_ALIGNMENT_CONFIG,
+  DEFAULT_DISTRIBUTED_SCENE_GRAPH_CONFIG,
+} from './DistributedSceneGraphTypes';
+
+export type {
+  SceneGraphSegment,
+  SceneGraphNode,
+  SceneGraphEdge,
+  DistributedSpatialRelationType,
+  LocalSceneGraph,
+  GlobalSceneGraph,
+  MergeEvent,
+  NodeMatch,
+  TripletMatch,
+  AlignmentConfig,
+  DistributedSceneGraphConfig,
+  DistributedSceneGraphMetrics,
+  DistributedSceneGraphEvent,
+  DistributedSceneGraphEventType,
+} from './DistributedSceneGraphTypes';
+
+// =============================================================================
+// SNN PERCEPTION (Spiking Neural Network, WebGPU Compute, Off Render Loop)
+// =============================================================================
+
+export {
+  SNNPerceptionWorker,
+  createSNNPerceptionWorker,
+} from './SNNPerceptionWorker';
+
+export {
+  SharedPerceptionBuffer,
+  createSharedPerceptionBuffer,
+} from './SharedPerceptionBuffer';
+
+export {
+  SNNPerceptionBridge,
+  createSNNPerceptionBridge,
+} from './SNNPerceptionBridge';
+
+export type {
+  SceneInputExtractor,
+} from './SNNPerceptionBridge';
+
+export {
+  DEFAULT_SNN_NETWORK_CONFIG,
+  DEFAULT_WORKER_CONFIG as DEFAULT_SNN_WORKER_CONFIG,
+  DEFAULT_BRIDGE_CONFIG as DEFAULT_SNN_BRIDGE_CONFIG,
+  SAB_HEADER,
+  SAB_ENTRY_SIZE,
+  SALIENCE_ENCODING,
+  SALIENCE_DECODING,
+  calculateBufferLayout,
+  createEmptySNNPerceptionState,
+} from './SNNPerceptionTypes';
+
+export type {
+  LIFLayerConfig,
+  SNNNetworkConfig,
+  AttentionScore,
+  SalienceLevel,
+  SpatialAttentionField,
+  SNNPerceptionState,
+  PerceptionObjectInput,
+  PerceptionSceneInput,
+  WorkerInMessage,
+  WorkerOutMessage,
+  InferenceMetrics as SNNInferenceMetrics,
+  SNNPerceptionWorkerConfig,
+  SNNPerceptionBridgeConfig,
+  SNNPerceptionBridgeMetrics,
+  SharedBufferLayout,
+} from './SNNPerceptionTypes';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -777,6 +895,13 @@ import { GaussianBudgetUtilization } from './components/vr-performance-dashboard
 import { FrameTimeWaterfall } from './components/vr-performance-dashboard';
 import { EconomicDashboard } from './components/economic-dashboard';
 import { MarketplaceTradingUI } from './components/marketplace-trading';
+import { AgentLocalGraphBuilder } from './AgentLocalGraphBuilder';
+import { TrainingFreeAlignmentMerger } from './TrainingFreeAlignmentMerger';
+import { SpatialRelationshipExtractor } from './SpatialRelationshipExtractor';
+import { DistributedSceneGraphOrchestrator } from './DistributedSceneGraphOrchestrator';
+import { SNNPerceptionWorker } from './SNNPerceptionWorker';
+import { SharedPerceptionBuffer } from './SharedPerceptionBuffer';
+import { SNNPerceptionBridge } from './SNNPerceptionBridge';
 
 export default {
   HololandRenderer,
@@ -813,6 +938,13 @@ export default {
   FrameTimeWaterfall,
   EconomicDashboard,
   MarketplaceTradingUI,
+  AgentLocalGraphBuilder,
+  TrainingFreeAlignmentMerger,
+  SpatialRelationshipExtractor,
+  DistributedSceneGraphOrchestrator,
+  SNNPerceptionWorker,
+  SharedPerceptionBuffer,
+  SNNPerceptionBridge,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };

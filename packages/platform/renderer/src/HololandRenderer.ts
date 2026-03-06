@@ -68,6 +68,15 @@ import type {
   VRTrustHandshakeConfig,
   AgentManifest,
 } from './VRTrustHandshake';
+import {
+  SNNPerceptionBridge,
+  createSNNPerceptionBridge,
+} from './SNNPerceptionBridge';
+import type {
+  SNNPerceptionBridgeConfig,
+  SNNPerceptionBridgeMetrics,
+  SNNPerceptionState,
+} from './SNNPerceptionTypes';
 
 // =============================================================================
 // DEVICE PRESET DETECTION FOR FOVEATED RENDERING
@@ -182,6 +191,9 @@ export class HololandRenderer {
   // VR Trust Handshake (zero-trust agent verification, off render loop)
   private trustHandshake: VRTrustHandshake | null = null;
   private trustPendingJoins: Set<string> = new Set(); // Agents with in-flight JOIN handshakes
+
+  // SNN Perception (Spiking Neural Network, WebGPU compute, off render loop)
+  private perceptionBridge: SNNPerceptionBridge | null = null;
 
   constructor(canvas: HTMLCanvasElement, world: HololandWorld, config?: RendererConfig) {
     this.world = world;
@@ -456,6 +468,9 @@ export class HololandRenderer {
 
       // Sync spatial inference state from double-buffered front buffer (zero-cost if no scheduler)
       this.syncSpatialInference();
+
+      // Sync SNN perception state from SharedArrayBuffer (< 0.01ms, zero-cost if no bridge)
+      this.syncSNNPerception();
 
       // Execute foveated Gaussian rendering pipeline if enabled (< 12ms stereo budget)
       if (this.foveatedEnabled && this.foveatedRenderer) {
@@ -999,6 +1014,12 @@ export class HololandRenderer {
       this.trustHandshake = null;
     }
     this.trustPendingJoins.clear();
+
+    // Clean up SNN perception
+    if (this.perceptionBridge) {
+      this.perceptionBridge.dispose();
+      this.perceptionBridge = null;
+    }
 
     // Clean up lighting fidelity manager
     this.lightingFidelityManager.dispose();
@@ -2153,6 +2174,211 @@ export class HololandRenderer {
         this.foveatedRenderer.applyDesktopPreset();
         break;
     }
+  }
+
+  // =============================================================================
+  // SNN PERCEPTION API (Spiking Neural Network, WebGPU, Off Render Loop)
+  // =============================================================================
+
+  /**
+   * Enable asynchronous SNN perception.
+   *
+   * Creates an SNNPerceptionBridge that:
+   * 1. Runs LIF neuron simulation on a Web Worker with WebGPU compute shaders
+   * 2. Writes spatial perception results to SharedArrayBuffer
+   * 3. The VR render thread reads latest results asynchronously at 90Hz
+   *
+   * The inference runs at a configurable frequency (1-30Hz) independent of
+   * the render rate. All GPU compute and neural simulation happens off the
+   * render loop, with only a sub-0.01ms SAB read on each frame.
+   *
+   * ARCHITECTURE:
+   * ```
+   *   Scene Graph (Three.js) ── 90Hz ──────────────────────────
+   *        |
+   *   captureSceneInput()     <- Extract positions (< 0.5ms)
+   *        |
+   *   SNNPerceptionWorker     <- 1-30Hz, OFF render loop
+   *        |  (WebGPU LIF)
+   *   SharedArrayBuffer       <- Lock-free, Atomics
+   *        |
+   *   syncSNNPerception()     <- 90Hz, < 0.01ms read
+   *        |
+   *   HololandRenderer        <- Apply attention, salience
+   * ```
+   *
+   * @param config - Optional bridge configuration
+   * @returns Whether WebGPU is available for acceleration
+   */
+  async enableSNNPerception(
+    config?: Partial<SNNPerceptionBridgeConfig>,
+  ): Promise<{ gpuAvailable: boolean; adapterInfo: string }> {
+    if (this.perceptionBridge) {
+      logger.warn('[HololandRenderer] SNN perception already enabled');
+      return {
+        gpuAvailable: this.perceptionBridge.isGPUAvailable(),
+        adapterInfo: 'already-initialized',
+      };
+    }
+
+    // Create and initialize the bridge
+    this.perceptionBridge = createSNNPerceptionBridge(config);
+    const result = await this.perceptionBridge.initialize();
+
+    // Register scene extractor
+    this.perceptionBridge.setSceneExtractor(() => this.extractSceneForPerception());
+
+    // Start the perception loop
+    this.perceptionBridge.start();
+
+    logger.info('[HololandRenderer] SNN perception enabled', {
+      gpuAvailable: result.gpuAvailable,
+      adapterInfo: result.adapterInfo,
+    });
+
+    return result;
+  }
+
+  /**
+   * Disable SNN perception and release resources.
+   */
+  disableSNNPerception(): void {
+    if (!this.perceptionBridge) {
+      logger.warn('[HololandRenderer] SNN perception not enabled');
+      return;
+    }
+
+    this.perceptionBridge.dispose();
+    this.perceptionBridge = null;
+
+    logger.info('[HololandRenderer] SNN perception disabled');
+  }
+
+  /**
+   * Get the current SNN perception state.
+   *
+   * Returns the latest perception data read from the SharedArrayBuffer.
+   * Cost: O(1), < 0.01ms. Safe for 90Hz render loop.
+   *
+   * @returns Latest perception state, or null if perception is not enabled
+   */
+  getSNNPerceptionState(): Readonly<SNNPerceptionState> | null {
+    if (!this.perceptionBridge) return null;
+    return this.perceptionBridge.readPerception();
+  }
+
+  /**
+   * Get the SNNPerceptionBridge for advanced control.
+   *
+   * Returns null if SNN perception is not enabled.
+   */
+  getPerceptionBridge(): SNNPerceptionBridge | null {
+    return this.perceptionBridge;
+  }
+
+  /**
+   * Get SNN perception metrics for performance monitoring.
+   */
+  getSNNPerceptionMetrics(): SNNPerceptionBridgeMetrics | null {
+    if (!this.perceptionBridge) return null;
+    return this.perceptionBridge.getMetrics();
+  }
+
+  /**
+   * Set the SNN perception inference frequency.
+   *
+   * @param hz - Target frequency (1-30Hz, clamped)
+   */
+  setSNNPerceptionFrequency(hz: number): void {
+    if (!this.perceptionBridge) {
+      logger.warn('[HololandRenderer] Cannot set frequency: SNN perception not enabled');
+      return;
+    }
+    this.perceptionBridge.setTargetHz(hz);
+  }
+
+  /**
+   * Check if SNN perception is enabled.
+   */
+  isSNNPerceptionEnabled(): boolean {
+    return this.perceptionBridge !== null && this.perceptionBridge.isActive();
+  }
+
+  /**
+   * Sync SNN perception state from SharedArrayBuffer.
+   *
+   * Called once per frame from the render loop (90Hz).
+   * Reads the latest perception results using Atomics acquire semantics.
+   *
+   * Cost: < 0.01ms (single Atomics.load + conditional float reads).
+   * Zero-cost if no perception bridge is attached.
+   *
+   * The perception state provides:
+   * - Per-object attention scores (which objects the SNN considers salient)
+   * - Global anomaly level (fraction of anomaly neurons firing)
+   * - Focus point (weighted centroid of high-attention objects)
+   * - Network-wide spike rate metrics
+   */
+  private syncSNNPerception(): void {
+    if (!this.perceptionBridge) return;
+
+    // Read latest state from SAB (< 0.01ms)
+    // The bridge handles Atomics.load acquire fence internally
+    // State is consumed by external systems via getSNNPerceptionState()
+    this.perceptionBridge.readPerception();
+  }
+
+  /**
+   * Extract scene objects and camera state for SNN perception input.
+   *
+   * Creates a lightweight snapshot of the scene graph for the perception
+   * worker to process. Only extracts positions, scales, and visibility --
+   * no heavy geometry or material data.
+   *
+   * Cost: O(n) where n = number of scene objects, typically < 0.5ms.
+   */
+  private extractSceneForPerception(): {
+    objects: Array<{
+      id: string;
+      position: Vec3;
+      scale: Vec3;
+      visible: boolean;
+    }>;
+    cameraPosition: Vec3;
+    cameraForward: Vec3;
+  } {
+    const objects: Array<{
+      id: string;
+      position: Vec3;
+      scale: Vec3;
+      visible: boolean;
+    }> = [];
+
+    for (const [objectId, mesh] of this.objectMap.entries()) {
+      objects.push({
+        id: objectId,
+        position: {
+          x: mesh.position.x,
+          y: mesh.position.y,
+          z: mesh.position.z,
+        },
+        scale: {
+          x: mesh.scale.x,
+          y: mesh.scale.y,
+          z: mesh.scale.z,
+        },
+        visible: mesh.visible,
+      });
+    }
+
+    const camPos = this.camera.position;
+    const camFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+
+    return {
+      objects,
+      cameraPosition: { x: camPos.x, y: camPos.y, z: camPos.z },
+      cameraForward: { x: camFwd.x, y: camFwd.y, z: camFwd.z },
+    };
   }
 
   // =============================================================================
