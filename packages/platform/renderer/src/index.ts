@@ -974,6 +974,73 @@ export type {
 } from './components/webxr-platform';
 
 // =============================================================================
+// ROBOT TELEOPERATION (XR Headset + GR00T N1.6 Policy Streaming)
+// =============================================================================
+
+export {
+  TeleoperationHub,
+  createTeleoperationHub,
+} from './TeleoperationHub';
+
+export {
+  RobotPolicyStreamClient,
+  createRobotPolicyStreamClient,
+} from './RobotPolicyStreamClient';
+
+export {
+  RobotCameraOverlay,
+  createRobotCameraOverlay,
+} from './RobotCameraOverlay';
+
+export {
+  RobotTelemetryDisplay,
+  createRobotTelemetryDisplay,
+} from './RobotTelemetryDisplay';
+
+export {
+  SafetyBoundarySystem,
+  createSafetyBoundarySystem,
+} from './SafetyBoundarySystem';
+
+export {
+  InverseKinematicsSolver,
+  createInverseKinematicsSolver,
+} from './InverseKinematicsSolver';
+
+export {
+  GR00TN16PolicyClient,
+  createGR00TN16PolicyClient,
+} from './GR00TN16PolicyClient';
+
+export type {
+  GR00TN16Config,
+  GR00TObservation,
+  GR00TActionChunk,
+  GR00TActionStep,
+  GR00TPolicyMode,
+  GR00TConnectionState,
+  GR00TN16Metrics,
+  GR00TEvent,
+  GR00TEventType,
+  GR00TEventListener,
+  GR00TJointName,
+  PolicyModeConfig,
+  ActionChunkingConfig,
+  CameraEmbeddingConfig,
+} from './GR00TN16PolicyClientTypes';
+
+export {
+  DEFAULT_GROOT_N16_CONFIG,
+  DEFAULT_POLICY_MODES,
+  DEFAULT_ACTION_CHUNKING_CONFIG,
+  OBSERVATION_TOTAL_DIM,
+  ACTION_DIM,
+  ACTION_JOINT_COUNT,
+  GROOT_37DOF_JOINT_NAMES,
+  createEmptyGR00TMetrics,
+} from './GR00TN16PolicyClientTypes';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -1036,6 +1103,8 @@ import { DNFPerceptionIntegration } from './DNFPerceptionIntegration';
 import { DNFVisualizationDataBuilder } from './DNFVisualizationData';
 import { PlatformCapabilityBadge } from './components/webxr-platform';
 import { detectWebXRPlatform, detectPlatformSync } from './components/webxr-platform';
+import { TeleoperationHub } from './TeleoperationHub';
+import { GR00TN16PolicyClient } from './GR00TN16PolicyClient';
 
 export default {
   HololandRenderer,
@@ -1086,6 +1155,8 @@ export default {
   PlatformCapabilityBadge,
   detectWebXRPlatform,
   detectPlatformSync,
+  TeleoperationHub,
+  GR00TN16PolicyClient,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };
