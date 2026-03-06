@@ -846,6 +846,69 @@ export type {
 } from './SNNPerceptionTypes';
 
 // =============================================================================
+// DNF (Dynamic Neural Fields - Amari Equation, Lava-DNF Inspired)
+// =============================================================================
+
+export {
+  DynamicNeuralField,
+  createDynamicNeuralField,
+} from './DynamicNeuralField';
+
+export {
+  DNFSpatialAttentionField,
+  createDNFSpatialAttentionField,
+} from './DNFSpatialAttentionField';
+
+export {
+  DNFPerceptionIntegration,
+  createDNFPerceptionIntegration,
+  DEFAULT_DNF_INTEGRATION_CONFIG,
+} from './DNFPerceptionIntegration';
+
+export type {
+  DNFPerceptionIntegrationConfig,
+} from './DNFPerceptionIntegration';
+
+export {
+  DNFVisualizationDataBuilder,
+  createDNFVisualizationDataBuilder,
+  DEFAULT_DNF_COLOR_MAP,
+} from './DNFVisualizationData';
+
+export type {
+  DNFTimeSample,
+  DNFColorMap,
+  DNFDashboardData,
+} from './DNFVisualizationData';
+
+export {
+  DEFAULT_DNF_KERNEL,
+  DEFAULT_DNF_ACTIVATION,
+  DEFAULT_DNF_CONFIG,
+  DEFAULT_WORLD_MAPPING,
+  DEFAULT_SPATIAL_ATTENTION_CONFIG,
+  createEmptyDNFFieldState,
+  createEmptyDNFStatistics,
+  createEmptyVisualizationSnapshot,
+} from './DynamicNeuralFieldTypes';
+
+export type {
+  DNFKernelType,
+  DNFKernelConfig,
+  DNFActivationFunctionType,
+  DNFActivationConfig,
+  DNFDimensionality,
+  DynamicNeuralFieldConfig,
+  DNFFieldState,
+  DNFFieldStatistics,
+  DNFPeak,
+  DNFWorldMapping,
+  SpatialAttentionFieldConfig,
+  DNFVisualizationSnapshot,
+  DNFIntegrationMetrics,
+} from './DynamicNeuralFieldTypes';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -902,6 +965,10 @@ import { DistributedSceneGraphOrchestrator } from './DistributedSceneGraphOrches
 import { SNNPerceptionWorker } from './SNNPerceptionWorker';
 import { SharedPerceptionBuffer } from './SharedPerceptionBuffer';
 import { SNNPerceptionBridge } from './SNNPerceptionBridge';
+import { DynamicNeuralField } from './DynamicNeuralField';
+import { DNFSpatialAttentionField } from './DNFSpatialAttentionField';
+import { DNFPerceptionIntegration } from './DNFPerceptionIntegration';
+import { DNFVisualizationDataBuilder } from './DNFVisualizationData';
 
 export default {
   HololandRenderer,
@@ -945,6 +1012,10 @@ export default {
   SNNPerceptionWorker,
   SharedPerceptionBuffer,
   SNNPerceptionBridge,
+  DynamicNeuralField,
+  DNFSpatialAttentionField,
+  DNFPerceptionIntegration,
+  DNFVisualizationDataBuilder,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };
