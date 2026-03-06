@@ -77,6 +77,16 @@ import type {
   SNNPerceptionBridgeMetrics,
   SNNPerceptionState,
 } from './SNNPerceptionTypes';
+import {
+  AdaptiveFrameRateManager,
+  createAdaptiveFrameRateManager,
+} from './AdaptiveFrameRateManager';
+import type {
+  AdaptiveFrameRateConfig,
+  AdaptiveFrameRateMetrics,
+  FrameRateTier,
+  FrameRateChangeReason,
+} from './AdaptiveFrameRateManager';
 
 // =============================================================================
 // DEVICE PRESET DETECTION FOR FOVEATED RENDERING
@@ -194,6 +204,9 @@ export class HololandRenderer {
 
   // SNN Perception (Spiking Neural Network, WebGPU compute, off render loop)
   private perceptionBridge: SNNPerceptionBridge | null = null;
+
+  // Adaptive frame rate (Quest 4 XR2 Gen 3 thermal-aware: 144/120/90/72 Hz)
+  private adaptiveFrameRate: AdaptiveFrameRateManager | null = null;
 
   constructor(canvas: HTMLCanvasElement, world: HololandWorld, config?: RendererConfig) {
     this.world = world;
@@ -436,6 +449,11 @@ export class HololandRenderer {
     logger.info('[HololandRenderer] Starting render loop');
 
     const animate = (time: number) => {
+      // Signal adaptive frame rate manager at frame start
+      if (this.adaptiveFrameRate) {
+        this.adaptiveFrameRate.onFrameStart();
+      }
+
       // Calculate delta time for adaptive quality
       const deltaMs = time - (this.lastFrameTime || time); // Use time if lastFrameTime is not set
       this.lastFrameTime = time;
@@ -487,6 +505,11 @@ export class HololandRenderer {
       // Render 2D UI if active
       if (this.uiCanvas && this.uiCanvas.renderOnce) {
         this.uiCanvas.renderOnce();
+      }
+
+      // Signal adaptive frame rate manager at frame end
+      if (this.adaptiveFrameRate) {
+        this.adaptiveFrameRate.onFrameEnd();
       }
     };
 
@@ -1021,6 +1044,12 @@ export class HololandRenderer {
       this.perceptionBridge = null;
     }
 
+    // Clean up adaptive frame rate manager
+    if (this.adaptiveFrameRate) {
+      this.adaptiveFrameRate.dispose();
+      this.adaptiveFrameRate = null;
+    }
+
     // Clean up lighting fidelity manager
     this.lightingFidelityManager.dispose();
 
@@ -1516,6 +1545,11 @@ export class HololandRenderer {
     // Start the inference loop (runs on setInterval, NOT on requestAnimationFrame)
     await this.inferenceScheduler.start();
 
+    // Notify adaptive frame rate manager that AI inference is now active
+    if (this.adaptiveFrameRate) {
+      this.adaptiveFrameRate.setAIInferenceActive(true);
+    }
+
     logger.info('[HololandRenderer] Spatial inference enabled', {
       engineConfig: engineConfig ?? 'default',
       schedulerHz: this.inferenceScheduler.getCurrentHz(),
@@ -1534,6 +1568,11 @@ export class HololandRenderer {
     this.inferenceScheduler.dispose();
     this.inferenceScheduler = null;
     this.spatialReasoningEngine = null;
+
+    // Notify adaptive frame rate manager that AI inference is no longer active
+    if (this.adaptiveFrameRate) {
+      this.adaptiveFrameRate.setAIInferenceActive(false);
+    }
 
     // Clean up spatial label meshes
     this.spatialLabelMeshes.forEach((mesh) => {
@@ -2379,6 +2418,100 @@ export class HololandRenderer {
       cameraPosition: { x: camPos.x, y: camPos.y, z: camPos.z },
       cameraForward: { x: camFwd.x, y: camFwd.y, z: camFwd.z },
     };
+  }
+
+  // =============================================================================
+  // ADAPTIVE FRAME RATE (Quest 4 XR2 Gen 3 Thermal-Aware)
+  // =============================================================================
+
+  /**
+   * Enable adaptive frame rate management for Quest 4 thermal constraints.
+   *
+   * Monitors GPU/NPU thermal state via frame timing analysis and switches
+   * between frame rate tiers:
+   *   - 144Hz: Rendering-only mode, cool thermal state
+   *   - 120Hz: Moderate thermal state or transition
+   *   - 90Hz:  AI inference active (NPU drawing thermal budget)
+   *   - 72Hz:  Emergency thermal throttle
+   *
+   * Integrates with the InferenceScheduler to detect AI activity and
+   * automatically lower frame rate when NPU is active.
+   *
+   * @param config - Optional configuration overrides
+   */
+  enableAdaptiveFrameRate(config?: AdaptiveFrameRateConfig): void {
+    if (this.adaptiveFrameRate) {
+      logger.warn('[HololandRenderer] Adaptive frame rate already enabled');
+      return;
+    }
+
+    this.adaptiveFrameRate = createAdaptiveFrameRateManager({
+      ...config,
+      onFrameRateChange: (oldHz, newHz, reason) => {
+        logger.info('[HololandRenderer] Adaptive frame rate changed', {
+          from: oldHz,
+          to: newHz,
+          reason,
+        });
+        config?.onFrameRateChange?.(oldHz, newHz, reason);
+      },
+      onThermalStateChange: (oldState, newState) => {
+        logger.info('[HololandRenderer] Thermal state changed', {
+          from: oldState,
+          to: newState,
+        });
+        config?.onThermalStateChange?.(oldState, newState);
+      },
+    });
+
+    this.adaptiveFrameRate.start();
+
+    // If inference scheduler is already running, notify frame rate manager
+    if (this.inferenceScheduler && this.inferenceScheduler.getIsRunning()) {
+      this.adaptiveFrameRate.setAIInferenceActive(true);
+    }
+
+    logger.info('[HololandRenderer] Adaptive frame rate enabled', {
+      initialHz: this.adaptiveFrameRate.getCurrentHz(),
+    });
+  }
+
+  /**
+   * Disable adaptive frame rate management and release resources.
+   */
+  disableAdaptiveFrameRate(): void {
+    if (!this.adaptiveFrameRate) {
+      logger.warn('[HololandRenderer] Adaptive frame rate not enabled');
+      return;
+    }
+
+    this.adaptiveFrameRate.dispose();
+    this.adaptiveFrameRate = null;
+
+    logger.info('[HololandRenderer] Adaptive frame rate disabled');
+  }
+
+  /**
+   * Get the adaptive frame rate manager for advanced control.
+   * Returns null if adaptive frame rate is not enabled.
+   */
+  getAdaptiveFrameRateManager(): AdaptiveFrameRateManager | null {
+    return this.adaptiveFrameRate;
+  }
+
+  /**
+   * Get adaptive frame rate metrics for the performance dashboard.
+   */
+  getAdaptiveFrameRateMetrics(): AdaptiveFrameRateMetrics | null {
+    if (!this.adaptiveFrameRate) return null;
+    return this.adaptiveFrameRate.getMetrics();
+  }
+
+  /**
+   * Check if adaptive frame rate is enabled.
+   */
+  isAdaptiveFrameRateEnabled(): boolean {
+    return this.adaptiveFrameRate !== null;
   }
 
   // =============================================================================

@@ -909,6 +909,71 @@ export type {
 } from './DynamicNeuralFieldTypes';
 
 // =============================================================================
+// WEBXR PLATFORM DETECTION (Multi-Platform Capability Detection + Badge UI)
+// =============================================================================
+
+export {
+  PlatformCapabilityBadge,
+} from './components/webxr-platform';
+
+export type {
+  PlatformCapabilityBadgeProps,
+} from './components/webxr-platform';
+
+export {
+  useWebXRPlatform,
+} from './components/webxr-platform';
+
+export type {
+  UseWebXRPlatformOptions,
+} from './components/webxr-platform';
+
+export {
+  detectWebXRPlatform,
+  detectPlatformSync,
+  detectFeatures,
+  getRecommendedFeatures,
+  identifyPlatform,
+  checkSessionModeSupport,
+  detectSessionModes,
+  isVisionOSSafari,
+  isMetaQuestBrowser,
+  isChromeAndroidXR,
+} from './components/webxr-platform';
+
+export type {
+  DetectionConfig,
+} from './components/webxr-platform';
+
+export {
+  PLATFORM_LABELS,
+  PLATFORM_ICONS,
+  FEATURE_STATUS_ICONS,
+  FEATURE_DESCRIPTIONS,
+  DEFAULT_XR_PLATFORM_THEME,
+  DEFAULT_SESSION_MODE_SUPPORT,
+  PLATFORM_RECOMMENDED_FEATURES,
+} from './components/webxr-platform';
+
+export type {
+  XRPlatformType,
+  XRSessionMode as XRSessionModeType,
+  XRSessionModeStatus,
+  XRSessionModeSupport,
+  XRFeatureName,
+  XRFeatureStatus,
+  XRFeatureCapability,
+  XRRecommendedFeatures,
+  XRPlatformCapabilities,
+  UseWebXRPlatformState,
+  CapabilityBadgeSize,
+  CapabilityBadgeVariant,
+  CapabilityBadgeDisplayMode,
+  XRPlatformTheme,
+  PlatformColorSet,
+} from './components/webxr-platform';
+
+// =============================================================================
 // GPU COMPUTE (merged from @holoscript/gpu)
 // =============================================================================
 
@@ -969,6 +1034,8 @@ import { DynamicNeuralField } from './DynamicNeuralField';
 import { DNFSpatialAttentionField } from './DNFSpatialAttentionField';
 import { DNFPerceptionIntegration } from './DNFPerceptionIntegration';
 import { DNFVisualizationDataBuilder } from './DNFVisualizationData';
+import { PlatformCapabilityBadge } from './components/webxr-platform';
+import { detectWebXRPlatform, detectPlatformSync } from './components/webxr-platform';
 
 export default {
   HololandRenderer,
@@ -1016,6 +1083,9 @@ export default {
   DNFSpatialAttentionField,
   DNFPerceptionIntegration,
   DNFVisualizationDataBuilder,
+  PlatformCapabilityBadge,
+  detectWebXRPlatform,
+  detectPlatformSync,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };

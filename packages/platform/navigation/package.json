@@ -1,0 +1,44 @@
+{
+  "name": "@hololand/navigation",
+  "version": "1.0.0",
+  "description": "Navigation and pathfinding system - flow fields, crowd simulation, hierarchical A* for VR worlds",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest run"
+  },
+  "keywords": ["hololand", "navigation", "pathfinding", "flow-field", "crowd-simulation", "a-star", "vr", "metaverse"],
+  "author": "Hololand Team",
+  "license": "ELv2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/platform/navigation"
+  },
+  "peerDependencies": {
+    "@holoscript/core": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@holoscript/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  }
+}

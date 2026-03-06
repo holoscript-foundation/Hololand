@@ -1,0 +1,36 @@
+{
+  "name": "@hololand/haptics",
+  "version": "1.0.0",
+  "description": "Haptic feedback system for VR/AR controllers and wearables - vibration patterns, spatial haptics, and force feedback",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest run"
+  },
+  "keywords": ["hololand", "haptics", "vibration", "vr", "ar", "webxr", "force-feedback", "metaverse"],
+  "author": "Hololand Team",
+  "license": "ELv2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hololand/hololand.git",
+    "directory": "packages/platform/haptics"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.0"
+  }
+}

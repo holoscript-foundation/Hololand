@@ -19,7 +19,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "echo \"Tests coming soon\" && exit 0",
+    "test": "vitest run --config vitest.config.ts src/components/grpo-training-dashboard",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
@@ -44,12 +44,17 @@
     "@hololand/logger": "workspace:*"
   },
   "devDependencies": {
+    "@types/react": "^18.2.0",
     "@types/three": "^0.159.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
     "@hololand/world": "^1.0.0",
+    "react": ">=17.0.0",
+    "react-dom": ">=17.0.0",
     "three": "^0.159.0"
   },
   "engines": {
