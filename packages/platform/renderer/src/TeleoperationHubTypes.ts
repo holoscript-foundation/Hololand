@@ -718,6 +718,8 @@ export interface TeleoperationHubConfig {
   enableNpuInference: boolean;
   /** NPU inference rate in Hz (default: 30) */
   npuInferenceRateHz: number;
+  /** Whether to enable the GR00T N1.6 policy client for server-side inference (default: false) */
+  enableGR00TPolicy: boolean;
 }
 
 /**
@@ -732,6 +734,7 @@ export const DEFAULT_HUB_CONFIG: TeleoperationHubConfig = {
   npuModelName: 'groot-n1.6-agent',
   enableNpuInference: true,
   npuInferenceRateHz: 30,
+  enableGR00TPolicy: false,
 };
 
 /**

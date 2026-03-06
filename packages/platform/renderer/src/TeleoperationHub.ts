@@ -14,7 +14,7 @@
  *   │  ┌──────────────┐  ┌────────────────────┐                  │
  *   │  │   IK Solver   │  │ PolicyStreamClient  │                 │
  *   │  │  (XRHand →    │  │  (WS Binary Proto)  │                 │
- *   │  │   Joints)     │──│  (GR00T N1.6)       │                 │
+ *   │  │   Joints)     │──│  (Robot Controller)  │                 │
  *   │  └──────────────┘  └────────────────────┘                  │
  *   │                                                             │
  *   │  ┌──────────────┐  ┌────────────────────┐                  │
@@ -22,6 +22,13 @@
  *   │  │ Overlay      │  │ (HUD Panel)         │                 │
  *   │  │ (VR Viewport)│  │ (Joints/Forces/Bat) │                 │
  *   │  └──────────────┘  └────────────────────┘                  │
+ *   │                                                             │
+ *   │  ┌──────────────────────────────────────┐                  │
+ *   │  │ GR00TN16PolicyClient (Optional)      │                  │
+ *   │  │  (WS → Inference Server, 30Hz obs)   │                  │
+ *   │  │  (256-dim → 37-DOF, Action Chunking) │                  │
+ *   │  │  (Policy Switch: manip/nav/bimanual) │                  │
+ *   │  └──────────────────────────────────────┘                  │
  *   │                                                             │
  *   │  ┌──────────────────────────────────────┐                  │
  *   │  │     Safety Boundary System           │                  │
@@ -98,6 +105,11 @@ import {
   SafetyBoundarySystem,
   createSafetyBoundarySystem,
 } from './SafetyBoundarySystem';
+import {
+  GR00TN16PolicyClient,
+  createGR00TN16PolicyClient,
+} from './GR00TN16PolicyClient';
+import type { GR00TN16Config, GR00TPolicyMode } from './GR00TN16PolicyClientTypes';
 
 // =============================================================================
 // TELEOPERATION HUB
@@ -112,6 +124,7 @@ export class TeleoperationHub {
   readonly cameraOverlay: RobotCameraOverlay;
   readonly telemetryDisplay: RobotTelemetryDisplay;
   readonly safetySystem: SafetyBoundarySystem;
+  readonly grootPolicy: GR00TN16PolicyClient | null;
 
   /** State. */
   private running: boolean = false;
@@ -167,6 +180,15 @@ export class TeleoperationHub {
     this.telemetryDisplay = createRobotTelemetryDisplay(this.config.telemetry);
     this.safetySystem = createSafetyBoundarySystem(this.config.safety);
 
+    // Create GR00T N1.6 policy client if enabled
+    if (this.config.enableGR00TPolicy) {
+      this.grootPolicy = createGR00TN16PolicyClient(
+        (config as { grootPolicy?: Partial<GR00TN16Config> }).grootPolicy,
+      );
+    } else {
+      this.grootPolicy = null;
+    }
+
     // Wire up event handling
     this.wireEvents();
 
@@ -217,6 +239,28 @@ export class TeleoperationHub {
       this.emitEvent(event);
     });
     this.cleanupHandles.push(eventUnsub);
+
+    // GR00T N1.6 policy client integration
+    if (this.grootPolicy) {
+      // Feed robot state updates to GR00T client for observation assembly
+      const grootStateUnsub = this.policyStream.onStateUpdate((state) => {
+        this.grootPolicy!.updateRobotState(state as RobotState);
+      });
+      this.cleanupHandles.push(grootStateUnsub);
+
+      // Forward GR00T events to hub listeners
+      const grootEventUnsub = this.grootPolicy.addEventListener((event) => {
+        // Map GR00T events to teleoperation events
+        if (event.type === 'connected' || event.type === 'disconnected' || event.type === 'error') {
+          this.emitEvent({
+            type: event.type as TeleoperationEvent['type'],
+            timestamp: event.timestamp,
+            data: { source: 'groot_policy', ...((event.data as object) || {}) },
+          });
+        }
+      });
+      this.cleanupHandles.push(grootEventUnsub);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -234,6 +278,9 @@ export class TeleoperationHub {
     this.connectionState = 'connecting';
     this.metrics.connectionState = 'connecting';
     this.policyStream.connect();
+    if (this.grootPolicy) {
+      this.grootPolicy.connect();
+    }
   }
 
   /**
@@ -241,6 +288,9 @@ export class TeleoperationHub {
    */
   disconnect(): void {
     this.policyStream.disconnect();
+    if (this.grootPolicy) {
+      this.grootPolicy.disconnect();
+    }
     this.connectionState = 'disconnected';
     this.metrics.connectionState = 'disconnected';
   }
@@ -253,6 +303,9 @@ export class TeleoperationHub {
     this.running = true;
     this.startTime = performance.now();
     this.frameCount = 0;
+    if (this.grootPolicy && this.grootPolicy.isConnected()) {
+      this.grootPolicy.startObservationStreaming();
+    }
     logger.info('[TeleoperationHub] Started');
   }
 
@@ -261,6 +314,9 @@ export class TeleoperationHub {
    */
   stop(): void {
     this.running = false;
+    if (this.grootPolicy) {
+      this.grootPolicy.stopObservationStreaming();
+    }
     logger.info('[TeleoperationHub] Stopped');
   }
 
@@ -304,8 +360,41 @@ export class TeleoperationHub {
     }
 
     // 3. Safety check and clamping
-    const safeAngles = this.safetySystem.clampJointCommands(jointAngles, this.latestRobotState);
+    let safeAngles = this.safetySystem.clampJointCommands(jointAngles, this.latestRobotState);
     this.metrics.boundaryViolations = this.safetySystem.getViolationCount();
+
+    // 3b. Merge GR00T N1.6 policy actions (if enabled and available)
+    if (this.grootPolicy) {
+      const policyAction = this.grootPolicy.getNextAction();
+      if (policyAction) {
+        // Policy actions are merged with IK: policy controls active joints,
+        // IK controls hand/arm joints in teleoperation mode.
+        // When GR00T is in navigation mode, policy takes precedence for legs.
+        // When in manipulation mode, IK takes precedence for arms.
+        const policyMode = this.grootPolicy.getPolicyMode();
+        if (policyMode === 'navigation') {
+          // Policy controls legs and torso; IK controls arms
+          safeAngles = { ...policyAction, ...safeAngles };
+        } else {
+          // IK controls arms; policy fills in anything IK doesn't set
+          safeAngles = { ...safeAngles, ...policyAction };
+          // Override with IK results for arm joints (IK has priority)
+          if (leftIK) {
+            for (const [key, val] of Object.entries(leftIK.jointAngles)) {
+              safeAngles[key as RobotJointName] = val;
+            }
+          }
+          if (rightIK) {
+            for (const [key, val] of Object.entries(rightIK.jointAngles)) {
+              safeAngles[key as RobotJointName] = val;
+            }
+          }
+        }
+        // Re-run safety clamping on merged output
+        safeAngles = this.safetySystem.clampJointCommands(safeAngles, this.latestRobotState);
+        this.metrics.npuInferenceTimeMs = this.grootPolicy.getMetrics().avgInferenceLatencyMs;
+      }
+    }
 
     // 4. Send joint commands (rate limited)
     const now = performance.now();
@@ -332,6 +421,37 @@ export class TeleoperationHub {
    */
   sendPolicyAction(actions: Float32Array | number[]): boolean {
     return this.policyStream.sendPolicyAction(actions);
+  }
+
+  /**
+   * Switch the GR00T N1.6 policy mode.
+   * Only available when enableGR00TPolicy is true.
+   *
+   * @param mode The target policy mode ('manipulation', 'navigation', 'bimanual', 'idle')
+   * @returns true if the switch request was sent, false if not available
+   */
+  switchGR00TPolicy(mode: GR00TPolicyMode): boolean {
+    if (!this.grootPolicy) {
+      logger.warn('[TeleoperationHub] GR00T policy client not enabled');
+      return false;
+    }
+    return this.grootPolicy.switchPolicy(mode);
+  }
+
+  /**
+   * Get the current GR00T N1.6 policy mode.
+   */
+  getGR00TPolicyMode(): GR00TPolicyMode | null {
+    return this.grootPolicy ? this.grootPolicy.getPolicyMode() : null;
+  }
+
+  /**
+   * Update the camera frame embedding for GR00T N1.6 observation assembly.
+   */
+  updateCameraEmbedding(embedding: Float32Array): void {
+    if (this.grootPolicy) {
+      this.grootPolicy.updateCameraEmbedding(embedding);
+    }
   }
 
   /**
@@ -438,6 +558,9 @@ export class TeleoperationHub {
     this.cameraOverlay.reset();
     this.telemetryDisplay.reset();
     this.safetySystem.reset();
+    if (this.grootPolicy) {
+      this.grootPolicy.reset();
+    }
     this.lastLeftIK = null;
     this.lastRightIK = null;
     this.latestRobotState = createEmptyRobotState();
@@ -465,6 +588,9 @@ export class TeleoperationHub {
     this.cameraOverlay.destroy();
     this.telemetryDisplay.destroy();
     this.safetySystem.destroy();
+    if (this.grootPolicy) {
+      this.grootPolicy.destroy();
+    }
 
     this.eventListeners = [];
     logger.info('[TeleoperationHub] Destroyed');
