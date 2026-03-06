@@ -159,7 +159,7 @@ describe('formatSplatCount', () => {
 
   it('formats millions with M suffix', () => {
     expect(formatSplatCount(1000000)).toBe('1.0M');
-    expect(formatSplatCount(1250000)).toBe('1.2M');
+    expect(formatSplatCount(1250000)).toBe('1.3M');
   });
 });
 
@@ -179,7 +179,7 @@ describe('formatMs', () => {
   });
 
   it('handles near-zero values', () => {
-    expect(formatMs(0.005)).toBe('<0.01ms');
+    expect(formatMs(0.005)).toBe('5us');
   });
 });
 

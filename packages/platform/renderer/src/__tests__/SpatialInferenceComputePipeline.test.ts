@@ -132,7 +132,7 @@ function createMockGPUDevice(): GPUDevice {
       writeBuffer: vi.fn(),
       submit: vi.fn(),
     },
-    lost: Promise.resolve({ reason: undefined, message: '' }) as unknown as Promise<GPUDeviceLostInfo>,
+    lost: new Promise(() => {}) as unknown as Promise<GPUDeviceLostInfo>,
     destroy: vi.fn(),
   } as unknown as GPUDevice;
 }
@@ -164,6 +164,24 @@ function setupMockWebGPU(): { device: GPUDevice; adapter: GPUAdapter } {
     configurable: true,
   });
 
+  // Mock WebGPU global constants (not available in jsdom)
+  (globalThis as any).GPUBufferUsage = {
+    MAP_READ:      0x0001,
+    MAP_WRITE:     0x0002,
+    COPY_SRC:      0x0004,
+    COPY_DST:      0x0008,
+    INDEX:         0x0010,
+    VERTEX:        0x0020,
+    UNIFORM:       0x0040,
+    STORAGE:       0x0080,
+    INDIRECT:      0x0100,
+    QUERY_RESOLVE: 0x0200,
+  };
+  (globalThis as any).GPUMapMode = {
+    READ:  0x0001,
+    WRITE: 0x0002,
+  };
+
   return { device, adapter };
 }
 
@@ -173,6 +191,8 @@ function removeMockWebGPU(): void {
     writable: true,
     configurable: true,
   });
+  delete (globalThis as any).GPUBufferUsage;
+  delete (globalThis as any).GPUMapMode;
 }
 
 // =============================================================================

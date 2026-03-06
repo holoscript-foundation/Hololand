@@ -21,8 +21,8 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
 vi.mock('../../../logger', () => ({
   logger: {
@@ -159,6 +159,10 @@ function createRunningState(): SpatialInferenceState {
 describe('SpatialInference Component', () => {
   let mockActions: SpatialInferenceActions;
 
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockActions = createMockActions();
@@ -254,7 +258,8 @@ describe('SpatialInference Component', () => {
         />,
       );
 
-      expect(screen.getByText('CPU')).toBeTruthy();
+      // "CPU" appears in both the header badge and the status panel's Backend field
+      expect(screen.getAllByText('CPU').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should render all panels with full running state', () => {
@@ -481,7 +486,8 @@ describe('SpatialInference Component', () => {
         />,
       );
 
-      expect(screen.getByText('150')).toBeTruthy(); // totalPasses
+      // "150" appears in both the scheduler panel (Total Passes) and the GPU panel (Total Passes)
+      expect(screen.getAllByText('150').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should show buffer staleness indicator', () => {

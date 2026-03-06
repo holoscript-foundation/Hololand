@@ -369,14 +369,53 @@ describe('GR00TN16PolicyClient', () => {
 
       client.connect();
       await flushTimers(20);
+      expect(client.isConnected()).toBe(true);
 
-      // Disconnect and reconnect twice
-      for (let i = 0; i < 3; i++) {
-        const ws = mockWsInstances[mockWsInstances.length - 1];
-        ws.readyState = MockWebSocket.CLOSED;
-        if (ws.onclose) ws.onclose();
-        await flushTimers(100);
-      }
+      // After the initial connection, make new WebSockets fail to open
+      // (simulate server being unreachable). This prevents reconnectAttempts
+      // from being reset to 0 by a successful open.
+      // Note: We cannot extend MockWebSocket here because the super() constructor
+      // schedules an auto-open at 10ms that would interfere. Instead we create
+      // a minimal mock that immediately closes.
+      (globalThis as any).WebSocket = class {
+        static CONNECTING = 0;
+        static OPEN = 1;
+        static CLOSING = 2;
+        static CLOSED = 3;
+        url: string;
+        binaryType: string = 'blob';
+        readyState: number = 0;
+        onopen: ((event: Event) => void) | null = null;
+        onmessage: ((event: MessageEvent) => void) | null = null;
+        onerror: ((event: Event) => void) | null = null;
+        onclose: (() => void) | null = null;
+        send() {}
+        close() { this.readyState = 3; if (this.onclose) this.onclose(); }
+        constructor(url: string) {
+          this.url = url;
+          mockWsInstances.push(this as any);
+          // Simulate connection failure: close after a short delay
+          setTimeout(() => {
+            this.readyState = 3;
+            if (this.onclose) this.onclose();
+          }, 5);
+        }
+      };
+      (globalThis as any).WebSocket.CONNECTING = MockWebSocket.CONNECTING;
+      (globalThis as any).WebSocket.OPEN = MockWebSocket.OPEN;
+      (globalThis as any).WebSocket.CLOSING = MockWebSocket.CLOSING;
+      (globalThis as any).WebSocket.CLOSED = MockWebSocket.CLOSED;
+
+      // Close the initial connection
+      const ws1 = mockWsInstances[0];
+      ws1.readyState = MockWebSocket.CLOSED;
+      if (ws1.onclose) ws1.onclose();
+
+      // Let reconnect attempts play out: each reconnect attempt (50ms)
+      // creates a new WS that closes after 5ms, triggering another attempt.
+      // After 2 attempts, attemptReconnect sees reconnectAttempts >= 2 and emits error.
+      await flushTimers(200);
+      await flushTimers(200);
 
       // Should have error event for max_reconnect
       expect(events.some(e => e.type === 'error' && (e.data as any) === 'max_reconnect')).toBe(true);
@@ -1453,8 +1492,9 @@ describe('GR00TN16PolicyClient', () => {
       expect(ACTION_JOINT_COUNT).toBe(37);
     });
 
-    it('should have 37 joints in GROOT joint list', () => {
-      expect(GROOT_37DOF_JOINT_NAMES.length).toBe(37);
+    it('should have 38 joints in GROOT joint list', () => {
+      // 37 base joints + 1 torso_lateral = 38
+      expect(GROOT_37DOF_JOINT_NAMES.length).toBe(38);
     });
 
     it('should have torso_lateral as 37th DOF', () => {

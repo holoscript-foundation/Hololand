@@ -56,13 +56,9 @@
     "vitest": "^1.0.4"
   },
   "peerDependencies": {
-    "@hololand/three-adapter": "workspace:*",
     "@holoscript/core": "^2.1.0"
   },
   "peerDependenciesMeta": {
-    "@hololand/three-adapter": {
-      "optional": true
-    },
     "@holoscript/core": {
       "optional": true
     }

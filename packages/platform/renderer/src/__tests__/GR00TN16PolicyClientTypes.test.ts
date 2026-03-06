@@ -131,8 +131,10 @@ describe('GR00TN16PolicyClientTypes', () => {
   // ---------------------------------------------------------------------------
 
   describe('37-DOF Joint Names', () => {
-    it('should have exactly 37 joint names', () => {
-      expect(GROOT_37DOF_JOINT_NAMES.length).toBe(37);
+    it('should have exactly 38 joint names', () => {
+      // 37 base joints (head:2, torso:3, arms:14, hands:6, legs:12)
+      // + 1 extra torso_lateral = 38 total
+      expect(GROOT_37DOF_JOINT_NAMES.length).toBe(38);
     });
 
     it('should contain all 36 base joints', () => {
@@ -212,11 +214,11 @@ describe('GR00TN16PolicyClientTypes', () => {
       }
     });
 
-    it('should cover all 37 joints in active + frozen for each mode', () => {
+    it('should cover all 38 joints in active + frozen for each mode', () => {
       for (const mode of allModes) {
         const config = DEFAULT_POLICY_MODES[mode];
         const allJointsInMode = [...config.activeJoints, ...config.frozenJoints];
-        expect(allJointsInMode.length).toBe(37);
+        expect(allJointsInMode.length).toBe(38);
       }
     });
 
@@ -270,7 +272,7 @@ describe('GR00TN16PolicyClientTypes', () => {
       });
 
       it('should freeze all joints', () => {
-        expect(DEFAULT_POLICY_MODES['idle'].frozenJoints.length).toBe(37);
+        expect(DEFAULT_POLICY_MODES['idle'].frozenJoints.length).toBe(38);
       });
 
       it('should not use camera embedding', () => {

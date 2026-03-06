@@ -53,11 +53,14 @@ const DEFAULT_POLICY: PrunePolicy = {
 export class MemoryPruner {
   private memory: EpisodicMemory;
   private policy: PrunePolicy;
+  private simpleThresholdMode: boolean = false;
 
   constructor(memory: EpisodicMemory, policyOrThreshold?: number | Partial<PrunePolicy>) {
     this.memory = memory;
     if (typeof policyOrThreshold === 'number') {
-      this.policy = { ...DEFAULT_POLICY, pruneThreshold: policyOrThreshold };
+      // Simple threshold mode: prune purely by importance, no min retain
+      this.policy = { ...DEFAULT_POLICY, pruneThreshold: policyOrThreshold, minRetainCount: 0 };
+      this.simpleThresholdMode = true;
     } else {
       this.policy = { ...DEFAULT_POLICY, ...policyOrThreshold };
     }
@@ -66,6 +69,25 @@ export class MemoryPruner {
   // ── Original prune API (preserved) ───────────────────────────────
 
   prune(): number {
+    if (this.simpleThresholdMode) {
+      // Backward compat: prune episodes whose importance is below threshold
+      const episodes = this.memory.getEpisodes();
+      const toKeep = episodes.filter((ep) => ep.importance >= this.policy.pruneThreshold);
+      const pruned = episodes.length - toKeep.length;
+      if (pruned > 0) {
+        this.memory.clear();
+        for (const ep of toKeep) {
+          this.memory.store({
+            description: ep.description,
+            context: ep.context,
+            importance: ep.importance,
+            participants: ep.participants,
+            emotionalValence: ep.emotionalValence,
+          });
+        }
+      }
+      return pruned;
+    }
     const result = this.pruneDetailed();
     return result.prunedCount;
   }

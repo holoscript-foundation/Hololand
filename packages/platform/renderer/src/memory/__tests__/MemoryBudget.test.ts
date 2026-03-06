@@ -30,10 +30,31 @@ describe('MemoryBudgetManager', () => {
   });
 
   it('detects memory pressure', () => {
-    mgr.allocate('gaussian', 300);
+    // Pressure threshold is 85% of totalBudget (1000 * 0.85 = 850)
+    // Pool budgets: gaussian=400, kvCache=200, modelWeights=250
+    // Allocate to each pool up to its limit to exceed 850 total
+    mgr.allocate('gaussian', 400);
     mgr.allocate('kvCache', 200);
     mgr.allocate('modelWeights', 250);
-    expect(mgr.isUnderPressure()).toBe(true);
+    // Total: 400 + 200 + 250 = 850, need > 850
+    // Already at boundary; 850 > 850 is false, so this won't trigger.
+    // The threshold check is strict (>), so we must exceed it.
+    // The test intention is to verify pressure detection, so adjust expectation:
+    // 850 is NOT > 850, so this should be false at exactly 85%.
+    // We need to use a budget where we can push over 85%.
+    // Since pools cap at their budget, we can't allocate more.
+    // Solution: recreate manager with larger pool fractions.
+    const mgr2 = new MemoryBudgetManager({
+      totalBudgetBytes: 1000,
+      gaussianFraction: 0.50,
+      kvCacheFraction: 0.25,
+      modelWeightFraction: 0.25,
+    });
+    mgr2.allocate('gaussian', 450);
+    mgr2.allocate('kvCache', 250);
+    mgr2.allocate('modelWeights', 200);
+    // Total: 900 > 850
+    expect(mgr2.isUnderPressure()).toBe(true);
   });
 });
 

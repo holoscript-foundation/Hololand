@@ -20,33 +20,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 
 // ---------------------------------------------------------------------------
-// Mock react-router-dom
+// Mock react-router-dom (vi.hoisted to avoid TDZ with vi.mock hoisting)
 // ---------------------------------------------------------------------------
 
-const mockNavLink = vi.fn().mockImplementation(({ children, to, style, ...props }) => {
-  const computedStyle = typeof style === 'function' ? style({ isActive: false }) : style;
-  return React.createElement('a', {
-    href: to,
-    style: computedStyle,
-    'aria-label': props['aria-label'],
-    'data-testid': `nav-link-${to}`,
-    onMouseEnter: props.onMouseEnter,
-    onFocus: props.onFocus,
-  }, children);
-});
-
-const mockOutlet = vi.fn().mockImplementation(() =>
-  React.createElement('div', { 'data-testid': 'outlet' }),
-);
+const {
+  mockNavLink,
+  mockOutlet,
+  mockPrefetchGRPO,
+  mockPrefetchPipeline,
+} = vi.hoisted(() => ({
+  mockNavLink: vi.fn(),
+  mockOutlet: vi.fn(),
+  mockPrefetchGRPO: vi.fn(),
+  mockPrefetchPipeline: vi.fn(),
+}));
 
 vi.mock('react-router-dom', () => ({
   NavLink: mockNavLink,
   Outlet: mockOutlet,
 }));
-
-// Mock lazy-routes prefetch map
-const mockPrefetchGRPO = vi.fn();
-const mockPrefetchPipeline = vi.fn();
 
 vi.mock('../lazy-routes', () => ({
   routePrefetchMap: {
@@ -65,6 +57,22 @@ import { AppLayout } from '../pages/components/AppLayout';
 describe('AppLayout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    mockNavLink.mockImplementation(({ children, to, style, ...props }: any) => {
+      const computedStyle = typeof style === 'function' ? style({ isActive: false }) : style;
+      return React.createElement('a', {
+        href: to,
+        style: computedStyle,
+        'aria-label': props['aria-label'],
+        'data-testid': `nav-link-${to}`,
+        onMouseEnter: props.onMouseEnter,
+        onFocus: props.onFocus,
+      }, children);
+    });
+
+    mockOutlet.mockImplementation(() =>
+      React.createElement('div', { 'data-testid': 'outlet' }),
+    );
   });
 
   it('creates a valid React element', () => {
@@ -114,8 +122,8 @@ describe('Accessibility', () => {
 // =============================================================================
 
 describe('Prefetch behavior', () => {
-  it('prefetch functions are provided in routePrefetchMap', () => {
-    const { routePrefetchMap } = require('../lazy-routes');
+  it('prefetch functions are provided in routePrefetchMap', async () => {
+    const { routePrefetchMap } = await import('../lazy-routes');
     expect(routePrefetchMap['/grpo']).toBeDefined();
     expect(routePrefetchMap['/pipeline']).toBeDefined();
   });
@@ -156,11 +164,11 @@ describe('Route coverage', () => {
 // =============================================================================
 
 describe('Semantic structure', () => {
-  it('component exports correctly', () => {
+  it('component exports correctly', async () => {
     expect(AppLayout).toBeDefined();
     // Default export should also work
-    const defaultExport = require('../pages/components/AppLayout').default;
-    expect(defaultExport).toBeDefined();
-    expect(defaultExport).toBe(AppLayout);
+    const mod = await import('../pages/components/AppLayout');
+    expect(mod.default).toBeDefined();
+    expect(mod.default).toBe(AppLayout);
   });
 });

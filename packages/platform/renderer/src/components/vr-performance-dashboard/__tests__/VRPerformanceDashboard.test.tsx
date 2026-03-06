@@ -23,11 +23,15 @@ import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 
 // Mock the EventEmitter since GaussianBudgetManager extends it
-vi.mock('events', () => ({
-  EventEmitter: vi.fn().mockImplementation(function () {
-    return { on: vi.fn(), emit: vi.fn(), removeAllListeners: vi.fn() };
-  }),
-}));
+vi.mock('events', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('events')>();
+  return {
+    ...actual,
+    EventEmitter: vi.fn().mockImplementation(function () {
+      return { on: vi.fn(), emit: vi.fn(), removeAllListeners: vi.fn() };
+    }),
+  };
+});
 
 vi.mock('../../../logger', () => ({
   logger: {

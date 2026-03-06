@@ -28,6 +28,23 @@ import {
 import { QUALITY_PRESETS } from '../types';
 
 // =============================================================================
+// MOCK THREE.TextureLoader — prevent hanging texture loads in jsdom
+// =============================================================================
+// THREE.TextureLoader.load() uses internal image loading that never completes
+// in jsdom, causing async methods like loadMaterials() to hang indefinitely.
+// Mock it so the error callback fires immediately (textures return null).
+const _OriginalTextureLoader = THREE.TextureLoader;
+vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(
+  function (this: THREE.TextureLoader, _url: string, _onLoad?: Function, _onProgress?: Function, onError?: Function) {
+    // Simulate texture not found — the source catches this and returns null
+    if (onError) {
+      setTimeout(() => onError(new Error('Texture not found (jsdom mock)')), 0);
+    }
+    return new THREE.Texture();
+  } as any,
+);
+
+// =============================================================================
 // MOCK FIXTURES — HoloScript material_block examples from grammar
 // =============================================================================
 
@@ -630,13 +647,20 @@ describe('VRMaterialPreviewSystem', () => {
         c => c instanceof THREE.Mesh && c.name === 'preview_BrushedSteel'
       ) as THREE.Mesh;
 
-      // Select
+      // Ensure world matrices are up-to-date for raycasting
+      scene.updateMatrixWorld(true);
+
+      // Compute a direction from origin through the mesh center (world space)
+      const meshWorldPos = new THREE.Vector3();
+      mesh.getWorldPosition(meshWorldPos);
       const origin = new THREE.Vector3(
-        mesh.position.x,
-        mesh.position.y,
-        mesh.position.z + 5,
+        meshWorldPos.x,
+        meshWorldPos.y,
+        meshWorldPos.z + 5,
       );
-      system.selectWithRay(origin, new THREE.Vector3(0, 0, -1));
+      const direction = new THREE.Vector3(0, 0, -1);
+
+      system.selectWithRay(origin, direction);
 
       const focused = system.getFocusedMaterial();
       expect(focused?.name).toBe('BrushedSteel');

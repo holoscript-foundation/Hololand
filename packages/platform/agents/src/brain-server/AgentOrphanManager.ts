@@ -105,8 +105,14 @@ export class AgentOrphanManager {
       // Check heartbeat timeout
       if (timeSinceHeartbeat > this.policy.heartbeatTimeoutMs) {
         if (!this.orphanedAt.has(agentId)) {
-          // Mark as orphaned
-          this.orphanedAt.set(agentId, now);
+          // If total elapsed already exceeds timeout + grace, clean up immediately
+          if (timeSinceHeartbeat > this.policy.heartbeatTimeoutMs + this.policy.gracePeriodMs) {
+            orphans.push(agentId);
+            this.cleanup(agentId, 'heartbeat_timeout');
+          } else {
+            // Mark as orphaned, wait for grace period on next check
+            this.orphanedAt.set(agentId, now);
+          }
         } else {
           // Check grace period
           const orphanTime = now - this.orphanedAt.get(agentId)!;

@@ -9,6 +9,7 @@ packages:
   - packages/shared/*
   - packages/playground
   - packages/traits
+  - packages/base-token-viz
   - examples/*
 
 ignoredBuiltDependencies:

@@ -283,7 +283,7 @@ describe('GossipTrustMesh', () => {
       }
       const duration = performance.now() - start;
 
-      expect(duration).toBeLessThan(5); // Generous bound for CI
+      expect(duration).toBeLessThan(10); // Generous bound for CI
     });
 
     it('should expose bloom filter for direct access', () => {

@@ -91,9 +91,13 @@ const DEFAULT_CONFIG: PreprocessorConfig = {
 export class SharedPreprocessor {
   private config: PreprocessorConfig;
 
-  constructor(config?: Partial<PreprocessorConfig>) {
-    // Support legacy positional args: (cullDistance, minOpacity)
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  constructor(config?: Partial<PreprocessorConfig> | number) {
+    // Support legacy positional args: (cullDistance)
+    if (typeof config === 'number') {
+      this.config = { ...DEFAULT_CONFIG, cullDistance: config };
+    } else {
+      this.config = { ...DEFAULT_CONFIG, ...config };
+    }
   }
 
   // ── Original API (preserved) ─────────────────────────────────────

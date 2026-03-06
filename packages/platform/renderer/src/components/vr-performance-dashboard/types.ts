@@ -373,8 +373,11 @@ export function formatSplatCount(count: number): string {
  * Format milliseconds for display.
  */
 export function formatMs(ms: number): string {
-  if (ms < 0.01) return '<0.01ms';
-  if (ms < 1) return `${(ms * 1000).toFixed(0)}us`;
+  if (ms < 1) {
+    const us = ms * 1000;
+    if (us < 1) return '<0.01ms';
+    return `${us.toFixed(0)}us`;
+  }
   if (ms < 100) return `${ms.toFixed(2)}ms`;
   return `${ms.toFixed(0)}ms`;
 }

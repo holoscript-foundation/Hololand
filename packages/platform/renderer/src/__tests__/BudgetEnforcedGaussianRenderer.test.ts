@@ -318,16 +318,22 @@ describe('BudgetEnforcedGaussianRenderer', () => {
         },
       });
 
-      integrated.registerCloud(createTestCloudParams('high', 50_000, { layer: 'baked', priority: 10 }));
-      integrated.registerCloud(createTestCloudParams('low', 50_000, { layer: 'baked', priority: 1 }));
+      // First cloud accepted (50K < 80K budget)
+      const accepted1 = integrated.registerCloud(createTestCloudParams('high', 50_000, { layer: 'baked', priority: 10 }));
+      expect(accepted1).toBe(true);
+
+      // Second cloud rejected at registration (50K+50K > 80K, borrowing disabled)
+      const accepted2 = integrated.registerCloud(createTestCloudParams('low', 50_000, { layer: 'baked', priority: 1 }));
+      expect(accepted2).toBe(false);
 
       const eyeState = createTestEyeState();
       integrated.renderFrame([eyeState]);
 
+      // Only the first cloud is registered, so totalRequested = 50K
       const enforcement = integrated.getLayerEnforcement();
-      expect(enforcement.baked.totalRequested).toBe(100_000);
-      expect(enforcement.baked.budgetLimited).toBe(true);
-      // High priority should get full budget, low priority gets remainder
+      expect(enforcement.baked.totalRequested).toBe(50_000);
+      // Single cloud fits within 80K budget, so no budget limiting
+      expect(enforcement.baked.budgetLimited).toBe(false);
       expect(enforcement.baked.totalAllowed).toBeLessThanOrEqual(80_000);
     });
 
@@ -720,7 +726,10 @@ describe('BudgetEnforcedGaussianRenderer', () => {
 
   describe('integrated metrics', () => {
     it('should return combined metrics from both systems', () => {
-      const integrated = createTestIntegrated();
+      // Disable frame time routing: in jsdom, CPU processing time for 50K splats
+      // exceeds the 5.5ms budget target, which would trigger emergency state.
+      // This test validates metrics structure, not performance state transitions.
+      const integrated = createTestIntegrated({ routeFrameTimings: false });
       integrated.registerCloud(createTestCloudParams('env', 50_000, { layer: 'baked' }));
 
       const eyeState = createTestEyeState({ width: 128, height: 128 });

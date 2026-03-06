@@ -769,6 +769,37 @@ export class BudgetEnforcedGaussianRenderer extends EventEmitter {
   }
 
   /**
+   * Handle a performance state event emitted by the budget manager.
+   *
+   * This directly uses the event-indicated state rather than re-reading
+   * from metrics, since the event may be emitted before metrics update.
+   */
+  private handlePerformanceStateEvent(state: GaussianBudgetMetrics['performanceState']): void {
+    if (state !== this.lastBudgetState) {
+      const targetQuality = this.budgetStateToQualityLevel(state);
+      const currentRendererQuality = this.renderer.getQualityLevel();
+
+      if (targetQuality > currentRendererQuality && !this.emergencyShedActive) {
+        this.renderer.forceQualityLevel(targetQuality);
+      }
+
+      if (state === 'nominal' && this.lastBudgetState !== 'nominal') {
+        if (!this.emergencyShedActive) {
+          this.renderer.resetQuality();
+        }
+      }
+
+      this.lastBudgetState = state;
+      this.lastRendererQuality = this.renderer.getQualityLevel();
+
+      this.emit('integrated:performance_sync', {
+        budgetState: state,
+        rendererQuality: this.renderer.getQualityLevel(),
+      });
+    }
+  }
+
+  /**
    * Map budget performance state to renderer quality level.
    */
   private budgetStateToQualityLevel(state: GaussianBudgetMetrics['performanceState']): number {
@@ -795,19 +826,19 @@ export class BudgetEnforcedGaussianRenderer extends EventEmitter {
 
     this.budgetManager.on('performance:pressure', () => {
       if (this.syncPerformanceStates) {
-        this.synchronizePerformanceStates();
+        this.handlePerformanceStateEvent('pressure');
       }
     });
 
     this.budgetManager.on('performance:critical', () => {
       if (this.syncPerformanceStates) {
-        this.synchronizePerformanceStates();
+        this.handlePerformanceStateEvent('critical');
       }
     });
 
     this.budgetManager.on('performance:nominal', () => {
       if (this.syncPerformanceStates) {
-        this.synchronizePerformanceStates();
+        this.handlePerformanceStateEvent('nominal');
       }
     });
 

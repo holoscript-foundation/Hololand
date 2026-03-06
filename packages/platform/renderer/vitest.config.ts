@@ -11,6 +11,10 @@ export default defineConfig({
       // Resolve from the pnpm store until the broken dep is fixed.
       'react': path.resolve(__dirname, '../../../node_modules/.pnpm/react@18.3.1/node_modules/react'),
       'react-dom': path.resolve(__dirname, '../../../node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom'),
+      'react-router-dom': path.resolve(__dirname, '../../../node_modules/.pnpm/react-router-dom@6.30.3_rea_8738f2f356869a9d467b32612b8c1bd5/node_modules/react-router-dom'),
+      'react-router': path.resolve(__dirname, '../../../node_modules/.pnpm/react-router@6.30.3_react@18.3.1/node_modules/react-router'),
+      '@testing-library/react': path.resolve(__dirname, '../../../node_modules/.pnpm/@testing-library+react@14.3_74c3128c78ade5a5140014720e7753bf/node_modules/@testing-library/react'),
+      '@testing-library/dom': path.resolve(__dirname, '../../../node_modules/.pnpm/@testing-library+dom@9.3.4/node_modules/@testing-library/dom'),
     },
   },
   test: {
