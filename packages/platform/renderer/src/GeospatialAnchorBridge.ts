@@ -383,6 +383,68 @@ export class GeospatialAnchorBridge {
   }
 
   // ---------------------------------------------------------------------------
+  // VPS (VISUAL POSITIONING SYSTEM) CALIBRATION
+  // ---------------------------------------------------------------------------
+
+  /**
+   * VPS calibration result from a visual positioning service.
+   * VPS matches camera images against a pre-mapped 3D point cloud to determine
+   * precise position (typically <1m accuracy vs GPS's 3-15m).
+   */
+  calibrateFromVPS(
+    coordinate: GeospatialCoordinate,
+    headingOffsetDeg: number,
+    confidence: number,
+    provider: string = 'unknown',
+  ): { quality: number; improved: boolean } {
+    const previousOrigin = this.origin;
+    const previousQuality = previousOrigin?.quality ?? 0;
+
+    // Scale accuracy by confidence (higher confidence = better accuracy)
+    const vpsCoordinate: GeospatialCoordinate = {
+      ...coordinate,
+      source: 'vps',
+      horizontalAccuracy: Math.max(0.1, coordinate.horizontalAccuracy * (1 - confidence * 0.8)),
+    };
+
+    this.calibrateOrigin(vpsCoordinate, headingOffsetDeg);
+
+    const newQuality = this.origin!.quality;
+    const improved = newQuality > previousQuality;
+
+    this.emit('vps:calibrated', {
+      provider,
+      confidence,
+      quality: newQuality,
+      improved,
+      previousQuality,
+    });
+
+    logger.info(`[GeoBridge] VPS calibration from ${provider}: quality ${previousQuality.toFixed(2)} → ${newQuality.toFixed(2)} (confidence: ${(confidence * 100).toFixed(1)}%)`);
+
+    return { quality: newQuality, improved };
+  }
+
+  /**
+   * Attempt progressive refinement: only accept a new calibration if it
+   * improves upon the current origin quality.
+   * Returns true if the calibration was accepted.
+   */
+  refineOrigin(coordinate: GeospatialCoordinate, headingOffsetDeg: number = 0): boolean {
+    const candidateQuality = this.estimateQuality(coordinate);
+    const currentQuality = this.origin?.quality ?? 0;
+
+    if (candidateQuality > currentQuality) {
+      this.calibrateOrigin(coordinate, headingOffsetDeg);
+      logger.info(`[GeoBridge] Origin refined: ${currentQuality.toFixed(2)} → ${candidateQuality.toFixed(2)}`);
+      return true;
+    }
+
+    logger.debug(`[GeoBridge] Refinement rejected: candidate ${candidateQuality.toFixed(2)} <= current ${currentQuality.toFixed(2)}`);
+    return false;
+  }
+
+  // ---------------------------------------------------------------------------
   // INTERNAL
   // ---------------------------------------------------------------------------
 

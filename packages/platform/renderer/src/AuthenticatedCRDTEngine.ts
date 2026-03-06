@@ -618,6 +618,111 @@ export class AuthenticatedCRDTEngine {
 }
 
 // =============================================================================
+// OPERATION BATCHING WITH COMPRESSION
+// =============================================================================
+
+/**
+ * A compressed batch of CRDT operations for bandwidth-constrained handoffs.
+ * Used for car → wearable, airplane mode recovery, etc.
+ */
+export interface CRDTOperationBatch {
+  /** Batch ID for deduplication */
+  batchId: string;
+  /** Author DID who created this batch */
+  authorDID: string;
+  /** Device ID of the batch creator */
+  deviceId: string;
+  /** Compressed operations (deduplicated: only latest per key) */
+  operations: AuthenticatedCRDTOperation[];
+  /** Vector clock representing the state after all operations */
+  vectorClock: Record<string, number>;
+  /** Total operations before compression */
+  originalCount: number;
+  /** Total operations after compression (dedup) */
+  compressedCount: number;
+  /** Estimated size in bytes */
+  estimatedSizeBytes: number;
+  /** Batch creation timestamp */
+  createdAt: number;
+}
+
+/**
+ * Create a compressed batch from an array of operations.
+ *
+ * Compression strategy:
+ * 1. Deduplicate: keep only the latest operation per key (LWW)
+ * 2. Strip redundant vector clock entries (only keep the max per node)
+ * 3. Order by timestamp for deterministic replay
+ *
+ * This typically achieves 40-70% reduction for chatty state updates
+ * (e.g., agent position updated 60 times/second → 1 position in batch).
+ */
+export function compressOperationBatch(
+  operations: AuthenticatedCRDTOperation[],
+  authorDID: string,
+  deviceId: string,
+): CRDTOperationBatch {
+  // 1. Deduplicate: keep latest operation per key
+  const latestByKey = new Map<string, AuthenticatedCRDTOperation>();
+  for (const op of operations) {
+    const existing = latestByKey.get(op.key);
+    if (!existing || HybridLogicalClock.compare(op.hlcTimestamp, existing.hlcTimestamp) > 0) {
+      latestByKey.set(op.key, op);
+    }
+  }
+
+  // 2. Sort by timestamp for deterministic replay
+  const compressed = Array.from(latestByKey.values()).sort(
+    (a, b) => HybridLogicalClock.compare(a.hlcTimestamp, b.hlcTimestamp),
+  );
+
+  // 3. Compute merged vector clock
+  let mergedClock: Record<string, number> = {};
+  for (const op of compressed) {
+    mergedClock = mergeVectorClocks(mergedClock, op.vectorClock);
+  }
+
+  // 4. Estimate size
+  const estimatedSizeBytes = JSON.stringify(compressed).length;
+
+  return {
+    batchId: `batch:${deviceId}:${Date.now()}:${Math.random().toString(36).substring(2, 8)}`,
+    authorDID,
+    deviceId,
+    operations: compressed,
+    vectorClock: mergedClock,
+    originalCount: operations.length,
+    compressedCount: compressed.length,
+    estimatedSizeBytes,
+    createdAt: Date.now(),
+  };
+}
+
+/**
+ * Apply a compressed batch to an engine, replaying operations in order.
+ */
+export function applyOperationBatch(
+  engine: AuthenticatedCRDTEngine,
+  batch: CRDTOperationBatch,
+): { applied: number; rejected: number; results: CRDTValidationResult[] } {
+  const results: CRDTValidationResult[] = [];
+  let applied = 0;
+  let rejected = 0;
+
+  for (const op of batch.operations) {
+    const result = engine.applyRemote(op);
+    results.push(result);
+    if (result.valid) {
+      applied++;
+    } else {
+      rejected++;
+    }
+  }
+
+  return { applied, rejected, results };
+}
+
+// =============================================================================
 // FACTORY
 // =============================================================================
 

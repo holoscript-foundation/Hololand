@@ -1047,6 +1047,17 @@ export {
 export * from './GPUCompute';
 
 // =============================================================================
+// CROSS-REALITY AGENT CONTINUITY
+// =============================================================================
+
+export * from './CrossRealityContinuityTypes';
+export * from './AuthenticatedCRDTEngine';
+export * from './GeospatialAnchorBridge';
+export * from './CrossRealityHandoffProtocol';
+export * from './CrossRealityAnchorSystem';
+export * from './components/webxr-agent-embodiment';
+
+// =============================================================================
 // VERSION
 // =============================================================================
 
