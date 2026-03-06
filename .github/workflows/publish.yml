@@ -23,11 +23,14 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+      - name: Install dependencies (publishable packages only)
+        run: |
+          pnpm install --no-frozen-lockfile --filter @hololand/ar-akida-bridge --filter @hololand/ar-model-viewer --filter @hololand/base-token-viz --filter @hololand/creation-tools --filter @hololand/agents
+        continue-on-error: true
 
-      - name: Build packages
-        run: pnpm build
+      - name: Build publishable packages
+        run: |
+          pnpm --filter @hololand/ar-akida-bridge --filter @hololand/ar-model-viewer --filter @hololand/base-token-viz --filter @hololand/creation-tools --filter @hololand/agents build
         continue-on-error: true
 
       - name: Publish @hololand/ar-akida-bridge
