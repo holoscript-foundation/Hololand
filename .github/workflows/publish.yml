@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -51,7 +54,7 @@ jobs:
 
       - name: Publish @hololand/base-token-viz
         run: |
-          cd packages/platform/base-token-viz
+          cd packages/base-token-viz
           pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -59,7 +62,7 @@ jobs:
 
       - name: Publish @hololand/creation-tools
         run: |
-          cd packages/platform/creation-tools
+          cd packages/creation-tools
           pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
