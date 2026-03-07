@@ -1064,7 +1064,11 @@ export * from './CrossRealityAgent';
 export * from './VendorAnchorCloudProvider';
 export * from './MVCPayloadCompressor';
 export * from './HandoffNormEnforcer';
+export * from './CrossRealityCRDTBridge';
+export * from './WebSocketTransportBackend';
+export * from './AgentIdentityContinuity';
 export * from './components/webxr-agent-embodiment';
+export * from './components/cross-reality-monitor';
 
 // =============================================================================
 // VERSION
