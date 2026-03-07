@@ -1055,6 +1055,11 @@ export * from './AuthenticatedCRDTEngine';
 export * from './GeospatialAnchorBridge';
 export * from './CrossRealityHandoffProtocol';
 export * from './CrossRealityAnchorSystem';
+export * from './MVCSerializer';
+export * from './NetworkTransportAdapter';
+export * from './OfflineRecoveryQueue';
+export * from './EmbodimentTransitionAnimator';
+export * from './CrossRealitySessionManager';
 export * from './components/webxr-agent-embodiment';
 
 // =============================================================================
