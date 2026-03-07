@@ -1060,6 +1060,10 @@ export * from './NetworkTransportAdapter';
 export * from './OfflineRecoveryQueue';
 export * from './EmbodimentTransitionAnimator';
 export * from './CrossRealitySessionManager';
+export * from './CrossRealityAgent';
+export * from './VendorAnchorCloudProvider';
+export * from './MVCPayloadCompressor';
+export * from './HandoffNormEnforcer';
 export * from './components/webxr-agent-embodiment';
 
 // =============================================================================
