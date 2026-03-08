@@ -1,0 +1,45 @@
+/* Vertical Selector Styles */
+
+.selectorContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #2c3e50;
+  border-radius: 4px;
+}
+
+.label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ecf0f1;
+}
+
+.select {
+  padding: 0.75rem;
+  font-size: 1rem;
+  background: #34495e;
+  color: #ecf0f1;
+  border: 1px solid #4a5f7f;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.select:hover {
+  background: #3d5467;
+  border-color: #5a7fa0;
+}
+
+.select:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #95a5a6;
+  line-height: 1.5;
+}

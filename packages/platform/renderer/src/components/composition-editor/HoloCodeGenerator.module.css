@@ -1,0 +1,119 @@
+/* HoloScript Code Generator Styles */
+
+.generator {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #2c3e50;
+  border-radius: 4px;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #34495e;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #ecf0f1;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.copyButton,
+.exportButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.copyButton {
+  background: #3498db;
+  color: #fff;
+}
+
+.copyButton:hover {
+  background: #2980b9;
+}
+
+.exportButton {
+  background: #27ae60;
+  color: #fff;
+}
+
+.exportButton:hover {
+  background: #229954;
+}
+
+.codePreview {
+  flex: 1;
+  margin: 0;
+  padding: 1.5rem;
+  background: #1a1a2e;
+  border: 1px solid #34495e;
+  border-radius: 4px;
+  color: #ecf0f1;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  overflow: auto;
+}
+
+.codePreview code {
+  font-family: inherit;
+}
+
+.footer {
+  display: flex;
+  gap: 2rem;
+  padding-top: 1rem;
+  border-top: 2px solid #34495e;
+  font-size: 0.85rem;
+  color: #95a5a6;
+}
+
+.lineCount,
+.charCount {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.lineCount::before {
+  content: '📄';
+}
+
+.charCount::before {
+  content: '📝';
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .copyButton,
+  .exportButton {
+    flex: 1;
+  }
+}

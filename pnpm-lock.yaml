@@ -43,6 +43,9 @@ importers:
 
   .:
     dependencies:
+      '@holoscript/agent-protocol':
+        specifier: file:../HoloScript/packages/agent-protocol
+        version: file:../HoloScript/packages/agent-protocol
       '@holoscript/core':
         specifier: link:../HoloScript/packages/core
         version: link:../HoloScript/packages/core
@@ -3401,6 +3404,9 @@ packages:
   '@hololand/core@file:packages/platform/core':
     resolution: {directory: packages/platform/core, type: directory}
     engines: {node: '>=18.0.0'}
+
+  '@holoscript/agent-protocol@file:../HoloScript/packages/agent-protocol':
+    resolution: {directory: ../HoloScript/packages/agent-protocol, type: directory}
 
   '@hono/node-server@1.19.9':
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
@@ -12044,6 +12050,8 @@ snapshots:
     dependencies:
       '@hololand/logger': link:packages/platform/logger
       '@holoscript/core': link:../HoloScript/packages/core
+
+  '@holoscript/agent-protocol@file:../HoloScript/packages/agent-protocol': {}
 
   '@hono/node-server@1.19.9(hono@4.12.1)':
     dependencies:

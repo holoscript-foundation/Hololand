@@ -1,0 +1,386 @@
+/**
+ * Mobile Quest Standalone App Composition
+ *
+ * Example composition demonstrating the mobile quality profile
+ * for battery-efficient Quest 2/3/Pro standalone applications.
+ */
+
+composition MobileQuestApp {
+  metadata {
+    // Mobile profile: Performance and battery efficiency
+    // - Aggressive LOD (5 levels, 2× distance multiplier)
+    // - 512px textures, no normal maps
+    // - Simplified materials (no PBR)
+    // - No post-processing
+    // - Basic physics with discrete collision
+    // - 5Hz network sync with compression
+    // - 72 FPS target with 0.75× pixel ratio
+    profile: "mobile",
+
+    // Quest 3-specific optimizations
+    // (Quest 3 can handle slightly better than Quest 2)
+    overrides: {
+      targetFPS: 90,           // Quest 3 supports 90Hz
+      pixelRatio: 1.0,         // Better display resolution
+      maxTextureSize: 1024     // Upgrade from default 512
+    },
+
+    traitOverrides: {
+      // Keep aggressive LOD for battery life
+      lod: {
+        levels: 5,
+        distanceMultiplier: 2.5,  // Even more aggressive
+        autoSwitch: true
+      }
+    }
+  }
+
+  // Simple environment (no HDRI, basic skybox)
+  environment {
+    @skybox(type: "gradient")
+    skyColor: #87CEEB
+    horizonColor: #B0C4DE
+    groundColor: #8FBC8F
+
+    // No post-processing (from mobile profile)
+    // No bloom, SSAO, SSR
+  }
+
+  // Optimized ground plane
+  entity ground {
+    @transform(position: [0, 0, 0], scale: [50, 0.1, 50])
+    @material(
+      type: "standard",        // Not physical (from mobile profile)
+      color: #7CFC00,
+      roughness: 0.8
+    )
+    @collision(shape: "box", static: true)
+
+    mesh: "plane"
+    // No textures - use solid color for performance
+  }
+
+  // Low-poly environment with aggressive LOD
+  entity forest {
+    @lod(
+      levels: 5,               // From mobile profile
+      distanceMultiplier: 2.5, // From override
+      autoSwitch: true
+    )
+
+    // Generate procedural trees (cheaper than loading models)
+    for (let i = 0; i < 20; i++) {
+      entity tree_{i} {
+        @transform(
+          position: [
+            Math.random() * 40 - 20,
+            0,
+            Math.random() * 40 - 20
+          ],
+          scale: [1, Math.random() * 0.5 + 0.75, 1]
+        )
+        @lod(
+          levels: 5,
+          distances: [5, 10, 20, 40, 80]  // Aggressive culling
+        )
+
+        component simple_tree {
+          // LOD 0: Detailed (< 5m)
+          lod0: {
+            trunk: { mesh: "cylinder", color: #8B4513, subdivisions: 8 },
+            foliage: { mesh: "sphere", color: #228B22, subdivisions: 16 }
+          }
+
+          // LOD 1: Medium (5-10m)
+          lod1: {
+            trunk: { mesh: "cylinder", color: #8B4513, subdivisions: 4 },
+            foliage: { mesh: "sphere", color: #228B22, subdivisions: 8 }
+          }
+
+          // LOD 2: Low (10-20m)
+          lod2: {
+            combined: { mesh: "cone", color: #2E8B57, subdivisions: 6 }
+          }
+
+          // LOD 3: Billboard (20-40m)
+          lod3: {
+            billboard: { texture: "textures/tree_billboard_512.png" }
+          }
+
+          // LOD 4: Hidden (> 40m)
+          lod4: {
+            visible: false
+          }
+        }
+
+        // No collision on distant trees
+        @collision(
+          shape: "cylinder",
+          enabled: ${distance_to_camera < 15}
+        )
+      }
+    }
+  }
+
+  // Simple character controller for Quest hand tracking
+  entity player {
+    @transform(position: [0, 1.6, 5])
+    @physics(
+      accuracy: "basic",       // From mobile profile
+      collisionDetection: "discrete",
+      substeps: 1
+    )
+
+    component character_controller {
+      speed: 3.0
+      jump_force: 5.0
+
+      // Quest hand tracking input
+      on_hand_gesture: (gesture) => {
+        switch (gesture) {
+          case "thumbs_up":
+            this.jump()
+            break
+          case "pointing":
+            this.teleport_raycast()
+            break
+        }
+      }
+    }
+
+    // Simple capsule collider (cheaper than mesh)
+    @collision(shape: "capsule", height: 1.6, radius: 0.3)
+  }
+
+  // Low-poly collectible items
+  entity collectibles {
+    for (let i = 0; i < 10; i++) {
+      entity coin_{i} {
+        @transform(
+          position: [
+            Math.random() * 30 - 15,
+            1,
+            Math.random() * 30 - 15
+          ]
+        )
+        @material(
+          type: "standard",
+          color: #FFD700,
+          emissive: true,
+          emissiveIntensity: 0.5  // Cheap glow effect
+        )
+        @lod(
+          levels: 3,
+          distances: [10, 20, 40]
+        )
+
+        mesh: "cylinder"  // Simple geometry
+        height: 0.1
+        radius: 0.3
+        subdivisions: 12  // Low poly
+
+        // Simple rotation animation (cheap)
+        @animation(
+          maxFPS: 30,      // From mobile profile
+          blending: false
+        )
+
+        component spin {
+          update: (deltaTime) => {
+            this.rotation.y += 90 * deltaTime  // 90 deg/sec
+          }
+        }
+
+        // Collision detection for pickup
+        @collision(
+          shape: "cylinder",
+          isTrigger: true
+        )
+
+        on_trigger_enter: (other) => {
+          if (other === player) {
+            this.collect()
+            audio.play("coin_pickup")
+          }
+        }
+
+        collect: () => {
+          game_state.coins += 1
+          this.destroy()
+        }
+      }
+    }
+  }
+
+  // Simple UI overlay (not world-space, cheaper)
+  ui {
+    @ui(type: "overlay", resolution: [1280, 720])
+
+    component game_hud {
+      render: () => (
+        <HUD>
+          <ScoreDisplay>
+            Coins: {game_state.coins} / 10
+          </ScoreDisplay>
+          <FPSCounter>
+            {renderer.fps} FPS
+          </FPSCounter>
+          <BatteryIndicator>
+            Battery: {device.battery}%
+          </BatteryIndicator>
+        </HUD>
+      )
+    }
+  }
+
+  // Basic lighting (no shadows for performance)
+  entity sun {
+    @light(
+      type: "directional",
+      intensity: 1.0,
+      castShadows: true,
+      shadowMapSize: 512  // From mobile profile (low quality)
+    )
+    @transform(rotation: [-45, 45, 0])
+    color: #FFFFFF
+  }
+
+  entity ambient {
+    @light(type: "ambient", intensity: 0.5)
+    color: #87CEEB
+  }
+
+  // Low-quality audio
+  audio {
+    @audio(
+      quality: "low",          // From mobile profile
+      spatialAudio: true,
+      reverbEnabled: false     // Too expensive for mobile
+    )
+
+    component sound_effects {
+      coin_pickup: "audio/coin_low.wav",  // Compressed, mono
+      footstep: "audio/step_low.wav"
+    }
+
+    // Limit simultaneous sounds
+    max_simultaneous: 4
+  }
+
+  // Conservative networking for battery
+  networking {
+    @networking(
+      syncRate: 5,             // From mobile profile
+      interpolation: true,
+      compression: true        // From mobile profile
+    )
+
+    // Only sync essential data
+    sync_transforms: [player]
+
+    // Delta compression for bandwidth
+    component delta_sync {
+      enabled: true
+      threshold: 0.01  // Only sync if changed > 1cm
+    }
+
+    // Interest management (don't sync distant objects)
+    component interest_manager {
+      radius: 30  // Only sync objects within 30m
+      update_rate: 1  // Check every second
+    }
+  }
+
+  // Performance monitoring
+  component performance_monitor {
+    target_fps: 90  // From override (Quest 3)
+
+    update: () => {
+      const fps = renderer.fps
+      const target = this.target_fps
+
+      if (fps < target * 0.8) {
+        // Performance degradation
+        console.warn(`FPS low: ${fps}/${target}`)
+
+        // Auto-reduce quality if needed
+        if (fps < 60) {
+          this.emergency_quality_reduction()
+        }
+      }
+    }
+
+    emergency_quality_reduction: () => {
+      // Disable shadows
+      sun.castShadows = false
+
+      // Reduce LOD distances
+      collectibles.forEach(coin => {
+        coin.lod.distanceMultiplier *= 0.75
+      })
+
+      // Reduce texture resolution
+      renderer.maxTextureSize = 512
+
+      console.log("Emergency quality reduction applied")
+    }
+  }
+
+  // Battery optimization
+  component battery_optimizer {
+    threshold_low: 20  // 20% battery
+
+    update: () => {
+      const battery = device.battery
+
+      if (battery < this.threshold_low) {
+        this.activate_battery_saver()
+      }
+    }
+
+    activate_battery_saver: () => {
+      // Reduce frame rate
+      renderer.targetFPS = 72  // Down from 90
+
+      // Disable shadows entirely
+      sun.castShadows = false
+
+      // Reduce network sync rate
+      networking.syncRate = 2  // Down from 5
+
+      // Hide distant objects
+      forest.forEach(tree => {
+        tree.lod.distanceMultiplier *= 0.5
+      })
+
+      // Show notification
+      ui.show_notification("Battery Saver Mode Activated")
+
+      console.log("Battery saver mode activated")
+    }
+  }
+
+  // Simplified game state management
+  state game_state {
+    coins: 0
+    level: 1
+    time: 0
+
+    update: (deltaTime) => {
+      this.time += deltaTime
+
+      // Check win condition
+      if (this.coins >= 10) {
+        this.level_complete()
+      }
+    }
+
+    level_complete: () => {
+      ui.show_victory_screen()
+      audio.play("level_complete")
+
+      // Generate new level
+      collectibles.respawn()
+    }
+  }
+}

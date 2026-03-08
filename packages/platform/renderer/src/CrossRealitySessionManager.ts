@@ -26,6 +26,7 @@ import { NetworkTransportAdapter, type NetworkTransportConfig, type TransportMes
 import { MVCSerializer, type MVCValidationResult, MVC_MAX_SIZE_BYTES } from './MVCSerializer';
 import { OfflineRecoveryQueue, type OfflineRecoveryQueueConfig, type QueueState } from './OfflineRecoveryQueue';
 import { EmbodimentTransitionAnimator, type EmbodimentTransitionAnimatorConfig, type TransitionState } from './EmbodimentTransitionAnimator';
+import { GeospatialAnchorProvider, createGeospatialAnchorProvider } from './GeospatialAnchorProvider';
 import type {
   FormFactor,
   EmbodimentType,
@@ -83,6 +84,7 @@ export class CrossRealitySessionManager {
   readonly serializer: MVCSerializer;
   readonly offlineQueue: OfflineRecoveryQueue;
   readonly transitionAnimator: EmbodimentTransitionAnimator;
+  readonly geospatialProvider: GeospatialAnchorProvider;
 
   private state: SessionState = 'idle';
   private config: CrossRealitySessionConfig;
@@ -105,6 +107,7 @@ export class CrossRealitySessionManager {
     this.serializer = new MVCSerializer();
     this.offlineQueue = new OfflineRecoveryQueue(config.offlineQueue);
     this.transitionAnimator = new EmbodimentTransitionAnimator(config.transitionAnimator);
+    this.geospatialProvider = createGeospatialAnchorProvider();
 
     this.wireTransportHandlers();
 
@@ -218,10 +221,10 @@ export class CrossRealitySessionManager {
   /**
    * Initiate a handoff to a connected device.
    */
-  initiateHandoff(
+  async initiateHandoff(
     targetDeviceId: string,
     callbacks: HandoffCallbacks,
-  ): { payload: MVCPayload | null; validation: MVCValidationResult | null } {
+  ): Promise<{ payload: MVCPayload | null; validation: MVCValidationResult | null }> {
     const capabilities = this.discoveredDevices.get(targetDeviceId);
     if (!capabilities) {
       logger.warn(`[Session] Cannot handoff: device ${targetDeviceId} not found`);
@@ -243,6 +246,9 @@ export class CrossRealitySessionManager {
       this.emit('state:changed', { state: 'connected' });
       return { payload: null, validation: null };
     }
+
+    // Enrich with real geospatial data
+    await this.enrichWithGeospatialData(payload);
 
     // Serialize and validate
     const { data, validation } = this.serializer.serialize(payload);
@@ -386,6 +392,7 @@ export class CrossRealitySessionManager {
       anchors: this.anchorSystem.getMetrics(),
       transport: this.transport.getMetrics(),
       offlineQueue: this.offlineQueue.getMetrics(),
+      geospatial: this.geospatialProvider.getMetrics(),
       handoff: {
         history: this.handoffProtocol.getHandoffHistory().length,
         active: this.handoffProtocol.isHandoffInProgress(),
@@ -397,6 +404,30 @@ export class CrossRealitySessionManager {
         history: this.transitionAnimator.getHistory().length,
       },
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // GEOSPATIAL ENRICHMENT
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Enrich MVC payload with real geospatial position data.
+   * Populates spatialContext.geospatial from GPS/Wi-Fi RTT/IP geolocation.
+   */
+  private async enrichWithGeospatialData(payload: MVCPayload): Promise<void> {
+    try {
+      const position = await this.geospatialProvider.getCurrentPosition();
+      payload.spatialContext.geospatial = position.coordinate;
+
+      logger.info('[Session] Enriched handoff with geospatial data', {
+        method: position.accuracy.method,
+        accuracy: position.accuracy.horizontal,
+        confidence: position.accuracy.confidence,
+      });
+    } catch (error) {
+      logger.warn('[Session] Failed to acquire geospatial position for handoff', { error });
+      // Continue without geospatial data (spatialContext.geospatial remains null)
+    }
   }
 
   // ---------------------------------------------------------------------------

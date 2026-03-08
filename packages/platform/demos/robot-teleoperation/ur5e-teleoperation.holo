@@ -1,0 +1,1051 @@
+// VR Robot Teleoperation Demonstration
+// Meta Quest 3 controlling simulated UR5e arm in NVIDIA Isaac Sim
+// Showcases: TeleoperationHub, GR00TN16PolicyClient, IK solving, force feedback, safety boundaries
+
+composition "UR5e Robot Teleoperation" {
+
+  metadata {
+    title: "VR Robot Teleoperation - UR5e in Isaac Sim"
+    description: "Complete teleoperation demo with 6-DOF robot arm, force feedback, camera overlay, and safety constraints"
+    author: "HoloLand Platform Team"
+    version: "1.0.0"
+    target_hardware: "Meta Quest 3"
+    simulated_robot: "UR5e (Universal Robots)"
+    simulator: "NVIDIA Isaac Sim"
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ENVIRONMENT CONFIGURATION
+  // ═══════════════════════════════════════════════════════════
+
+  environment {
+    skybox: "studio_neutral"
+    ambient_light: 0.4
+
+    lighting {
+      ambient: { color: "#505070", intensity: 0.4 }
+      directional: {
+        color: "#ffffff",
+        intensity: 0.9,
+        direction: [-0.5, -1, -0.3],
+        cast_shadow: true
+      }
+      point: {
+        position: [2, 3, 2],
+        color: "#ffa500",
+        intensity: 0.6,
+        range: 10
+      }
+    }
+
+    // Virtual workspace representing Isaac Sim environment
+    workspace {
+      bounds: [
+        min: [-1.5, -0.1, -1.5],
+        max: [1.5, 2.5, 1.5]
+      ]
+      grid_visible: true
+      grid_size: 0.1
+      floor_level: 0.0
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    // Connection state
+    robot_connected: false
+    groot_connected: false
+    connection_error: null
+
+    // Teleoperation mode
+    teleop_mode: "direct_ik"  // "direct_ik" | "groot_manipulation" | "groot_navigation" | "idle"
+    control_hand: "both"       // "left" | "right" | "both"
+
+    // Robot state
+    robot_position: [0, 0.9, 0.5]
+    robot_joints: {}  // Updated from TeleoperationHub
+    end_effector_position: { left: [0, 0, 0], right: [0, 0, 0] }
+    contact_forces: { left: 0, right: 0 }
+    battery_level: 100
+    network_latency: 0
+
+    // Safety state
+    emergency_stop_active: false
+    boundary_violations: 0
+    haptic_intensity: { left: 0, right: 0 }
+    safety_warnings: []
+
+    // Performance metrics
+    ik_solve_time: 0
+    policy_inference_time: 0
+    camera_fps: 0
+    command_rate: 60
+
+    // UI visibility
+    show_telemetry: true
+    show_camera_feed: true
+    show_safety_bounds: true
+    show_joint_diagram: true
+    show_force_vectors: true
+
+    // Calibration
+    calibration_required: true
+    calibration_complete: false
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TELEOPERATION HUB SERVICE
+  // ═══════════════════════════════════════════════════════════
+
+  service "TeleoperationHub" {
+    type: "teleoperation_hub"
+
+    config: {
+      // IK Solver configuration
+      ikSolver: {
+        targetArm: "ur5e",        // UR5e kinematics model
+        armCount: 1,               // Single arm (UR5e)
+        maxIterations: 50,
+        convergenceThreshold: 0.001,
+        dampingFactor: 0.1,
+        jointLimits: {
+          shoulder_pan: { min: -360, max: 360, maxVel: 3.15, maxTorque: 150 },
+          shoulder_lift: { min: -360, max: 360, maxVel: 3.15, maxTorque: 150 },
+          elbow: { min: -360, max: 360, maxVel: 3.15, maxTorque: 150 },
+          wrist_1: { min: -360, max: 360, maxVel: 3.2, maxTorque: 28 },
+          wrist_2: { min: -360, max: 360, maxVel: 3.2, maxTorque: 28 },
+          wrist_3: { min: -360, max: 360, maxVel: 3.2, maxTorque: 28 }
+        }
+      },
+
+      // WebSocket policy stream to Isaac Sim
+      policyStream: {
+        robotUrl: "ws://localhost:9090/robot/ur5e",
+        commandRateHz: 60,
+        reconnectIntervalMs: 2000,
+        maxReconnectAttempts: 10,
+        heartbeatIntervalMs: 1000,
+        enableCompression: true
+      },
+
+      // Camera overlay configuration
+      cameraOverlay: {
+        position: [0, 1.8, -0.5],  // In front of user in VR
+        size: [0.4, 0.3],           // 40cm x 30cm virtual screen
+        opacity: 0.9,
+        resolution: [640, 480],
+        followGaze: false,
+        showLatency: true,
+        showFrameRate: true
+      },
+
+      // Telemetry HUD display
+      telemetry: {
+        position: [-0.3, 1.5, -0.4],  // Left side of view
+        size: [0.25, 0.35],
+        updateRateHz: 10,
+        showJointDiagram: true,
+        showForceVectors: true,
+        showBattery: true,
+        showLatency: true,
+        showHealth: true,
+        warningThresholds: {
+          batteryLow: 20,
+          latencyHigh: 100,
+          temperatureHigh: 60,
+          forceHigh: 80
+        }
+      },
+
+      // Safety boundary system
+      safety: {
+        boundaries: [
+          {
+            id: "workspace",
+            shape: "box",
+            center: { x: 0, y: 0.9, z: 0.5 },
+            dimensions: { x: 0.8, y: 0.8, z: 0.6 },
+            type: "workspace",
+            softMargin: 0.05,
+            hardMargin: 0.01,
+            active: true,
+            visualize: true,
+            color: "#00ff00"
+          },
+          {
+            id: "exclusion_zone",
+            shape: "sphere",
+            center: { x: -0.3, y: 0.6, z: 0.3 },
+            radius: 0.15,
+            type: "exclusion",
+            softMargin: 0.08,
+            hardMargin: 0.03,
+            active: true,
+            visualize: true,
+            color: "#ff0000"
+          }
+        ],
+        enableHaptics: true,
+        hapticFrequency: 200,
+        maxContactForce: 100,
+        maxJointVelocity: 3.0,
+        visualizeBoundaries: true
+      },
+
+      // GR00T N1.6 Policy Client (NVIDIA humanoid policies)
+      enableGR00TPolicy: true,
+      grootPolicy: {
+        serverUrl: "ws://localhost:8765/groot/inference",
+        observationRateHz: 30,
+        initialPolicyMode: "manipulation",
+        actionChunking: {
+          chunkSize: 16,
+          executeHorizon: 8,
+          confidenceThreshold: 0.6,
+          useExponentialWeighting: true,
+          weightDecay: 0.95,
+          chunkBlendFactor: 0.3
+        },
+        cameraEmbedding: {
+          dimension: 512,
+          encoderModel: "dinov2_vits14",
+          deviceType: "npu"
+        },
+        enableActionSmoothing: true,
+        actionSmoothingAlpha: 0.7,
+        maxInferenceLatencyMs: 200,
+        heartbeatIntervalMs: 1000,
+        heartbeatTimeoutMs: 5000
+      },
+
+      // NPU on-device inference
+      enableNpuInference: false,  // Disabled for this demo (using server-side GR00T)
+      npuModelName: "ur5e_manipulation_1b.onnx"
+    }
+
+    // Event handlers for TeleoperationHub
+    on_connected: () => {
+      state.robot_connected = true
+      state.connection_error = null
+      show_notification("✓ Connected to UR5e robot", "success")
+      audio.play("connection_success")
+    }
+
+    on_disconnected: () => {
+      state.robot_connected = false
+      show_notification("⚠ Disconnected from robot", "warning")
+      audio.play("connection_lost")
+    }
+
+    on_error: (error) => {
+      state.connection_error = error.message
+      show_notification("✗ Teleoperation error: ${error.message}", "error")
+      audio.play("error")
+    }
+
+    on_state_update: (robot_state) => {
+      state.robot_joints = robot_state.joints
+      state.end_effector_position = robot_state.endEffectors
+      state.contact_forces = {
+        left: robot_state.contactForces.leftHand,
+        right: robot_state.contactForces.rightHand
+      }
+      state.battery_level = robot_state.batteryLevel
+      state.network_latency = robot_state.networkLatencyMs
+    }
+
+    on_boundary_violation: (violation) => {
+      state.boundary_violations += 1
+      state.safety_warnings.push({
+        type: "boundary",
+        message: "Approaching ${violation.boundaryId} limit",
+        severity: violation.inHardZone ? "critical" : "warning",
+        timestamp: now()
+      })
+
+      if violation.inHardZone {
+        audio.play("safety_alert_high")
+      } else if violation.inSoftZone {
+        audio.play("safety_alert_low")
+      }
+    }
+
+    on_emergency_stop: (reason) => {
+      state.emergency_stop_active = true
+      state.teleop_mode = "idle"
+      show_notification("🛑 EMERGENCY STOP: ${reason}", "critical")
+      audio.play("emergency_stop")
+    }
+
+    on_camera_frame: (frame, width, height) => {
+      // Camera frame is automatically rendered by RobotCameraOverlay
+      state.camera_fps = this.getMetrics().cameraFps
+    }
+
+    on_latency_warning: (latency) => {
+      if latency > 150 {
+        state.safety_warnings.push({
+          type: "latency",
+          message: "High network latency: ${latency}ms",
+          severity: "warning",
+          timestamp: now()
+        })
+      }
+    }
+
+    on_battery_warning: (level) => {
+      state.safety_warnings.push({
+        type: "battery",
+        message: "Low battery: ${level}%",
+        severity: level < 10 ? "critical" : "warning",
+        timestamp: now()
+      })
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VR HAND TRACKING INTEGRATION
+  // ═══════════════════════════════════════════════════════════
+
+  service "HandTracking" {
+    type: "xr_hand_tracking"
+
+    config: {
+      trackingMode: "high_fidelity",
+      updateRateHz: 90,
+      enableGestures: true,
+      enablePinch: true,
+      enableGrip: true,
+      confidenceThreshold: 0.7
+    }
+
+    on_hands_updated: (left, right, head, delta) => {
+      // Forward hand tracking data to TeleoperationHub for IK solving
+      if state.robot_connected && !state.emergency_stop_active {
+        services.TeleoperationHub.update(
+          left,
+          right,
+          head.position,
+          head.forward,
+          delta
+        )
+
+        // Update metrics
+        metrics = services.TeleoperationHub.getMetrics()
+        state.ik_solve_time = metrics.ikSolveTimeMs
+        state.policy_inference_time = metrics.npuInferenceTimeMs
+        state.command_rate = metrics.commandRateHz
+        state.haptic_intensity = services.TeleoperationHub.getHapticState()
+      }
+    }
+
+    on_gesture: (hand, gesture) => {
+      if gesture == "pinch" && hand == "right" {
+        // Right pinch = emergency stop toggle
+        if state.emergency_stop_active {
+          resume_teleoperation()
+        } else {
+          trigger_emergency_stop("Manual trigger")
+        }
+      } else if gesture == "pinch" && hand == "left" {
+        // Left pinch = toggle camera overlay
+        state.show_camera_feed = !state.show_camera_feed
+      } else if gesture == "thumbs_up" {
+        // Thumbs up = calibration complete
+        if state.calibration_required {
+          complete_calibration()
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ROBOT VISUALIZATION (ISAAC SIM MIRROR)
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "RobotVisualization" {
+    position: state.robot_position
+
+    // UR5e robot arm model
+    model "UR5eArm" {
+      source: "assets/robots/ur5e/ur5e.gltf"
+      scale: [1, 1, 1]
+
+      // Joint angle updates from telemetry
+      on_update {
+        if state.robot_joints {
+          this.setJointAngles(state.robot_joints)
+        }
+      }
+
+      // Visual joint indicators
+      @for joint in ["shoulder_pan", "shoulder_lift", "elbow", "wrist_1", "wrist_2", "wrist_3"] {
+        object "JointMarker_${joint}" {
+          type: "sphere"
+          size: 0.03
+          color: "#00ff88"
+          material: "emissive"
+          position: this.getJointPosition(joint)
+          visible: state.show_joint_diagram
+        }
+      }
+    }
+
+    // End effector visualization
+    object "EndEffector" {
+      type: "mesh"
+      source: "assets/robots/ur5e/gripper.gltf"
+      position: state.end_effector_position.right
+      material: {
+        color: "#ffffff",
+        metalness: 0.8,
+        roughness: 0.3
+      }
+    }
+
+    // Force vector visualization
+    object "ForceVectorLeft" {
+      type: "arrow"
+      start: state.end_effector_position.left
+      direction: state.contact_forces.left.direction
+      length: state.contact_forces.left.magnitude / 50  // Scale to meters
+      color: force_to_color(state.contact_forces.left.magnitude)
+      thickness: 0.01
+      visible: state.show_force_vectors && state.contact_forces.left.magnitude > 1
+    }
+
+    object "ForceVectorRight" {
+      type: "arrow"
+      start: state.end_effector_position.right
+      direction: state.contact_forces.right.direction
+      length: state.contact_forces.right.magnitude / 50
+      color: force_to_color(state.contact_forces.right.magnitude)
+      thickness: 0.01
+      visible: state.show_force_vectors && state.contact_forces.right.magnitude > 1
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SAFETY BOUNDARY VISUALIZATION
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "SafetyBoundaries" {
+    visible: state.show_safety_bounds
+
+    // Workspace boundary (box)
+    object "WorkspaceBoundary" {
+      type: "box"
+      position: [0, 0.9, 0.5]
+      size: [0.8, 0.8, 0.6]
+      material: "wireframe"
+      color: "#00ff00"
+      opacity: 0.3
+      line_width: 2
+
+      @collidable: false
+    }
+
+    // Soft margin (inner box)
+    object "SoftMargin" {
+      type: "box"
+      position: [0, 0.9, 0.5]
+      size: [0.7, 0.7, 0.5]  // 5cm smaller each side
+      material: "wireframe"
+      color: "#ffaa00"
+      opacity: 0.2
+      line_width: 1
+
+      @collidable: false
+    }
+
+    // Exclusion zone (sphere)
+    object "ExclusionZone" {
+      type: "sphere"
+      position: [-0.3, 0.6, 0.3]
+      radius: 0.15
+      material: "wireframe"
+      color: "#ff0000"
+      opacity: 0.4
+      line_width: 2
+
+      @collidable: false
+
+      // Pulsing animation for critical zone
+      animation "ExclusionPulse" {
+        target: "opacity"
+        from: 0.2
+        to: 0.6
+        duration: 1000
+        easing: "ease-in-out"
+        loop: true
+        yoyo: true
+      }
+    }
+
+    // Boundary label
+    object "BoundaryLabel" {
+      type: "ui-text"
+      position: [0, 1.6, 0.5]
+      text: "Safe Workspace"
+      font_size: 16
+      color: "#00ff00"
+      background: "rgba(0, 0, 0, 0.7)"
+      padding: [5, 10]
+      border_radius: 4
+
+      @billboard
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ENVIRONMENT OBJECTS (ISAAC SIM SCENE)
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "WorkEnvironment" {
+
+    // Workbench
+    object "Workbench" {
+      type: "box"
+      position: [0, 0.45, 0.5]
+      size: [1.2, 0.9, 0.8]
+      material: {
+        color: "#2c3e50",
+        metalness: 0.2,
+        roughness: 0.8
+      }
+
+      @collidable
+    }
+
+    // Table surface
+    object "TableSurface" {
+      type: "plane"
+      position: [0, 0.91, 0.5]
+      size: [1.2, 0.8]
+      material: {
+        color: "#34495e",
+        roughness: 0.6,
+        normalMap: "assets/textures/wood_normal.jpg"
+      }
+
+      @collidable
+    }
+
+    // Objects to manipulate
+    spatial_group "ManipulationObjects" {
+
+      object "RedCube" {
+        type: "cube"
+        position: [-0.2, 0.96, 0.3]
+        size: 0.05
+        material: {
+          color: "#e74c3c",
+          roughness: 0.4
+        }
+
+        @collidable
+        @graspable
+
+        physics {
+          mass: 0.1
+          friction: 0.6
+          restitution: 0.3
+        }
+      }
+
+      object "BlueCube" {
+        type: "cube"
+        position: [0.1, 0.96, 0.4]
+        size: 0.05
+        material: {
+          color: "#3498db",
+          roughness: 0.4
+        }
+
+        @collidable
+        @graspable
+
+        physics {
+          mass: 0.1
+          friction: 0.6
+          restitution: 0.3
+        }
+      }
+
+      object "GreenCylinder" {
+        type: "cylinder"
+        position: [0.2, 0.96, 0.5]
+        size: [0.03, 0.08]
+        material: {
+          color: "#2ecc71",
+          roughness: 0.4
+        }
+
+        @collidable
+        @graspable
+
+        physics {
+          mass: 0.08
+          friction: 0.7
+          restitution: 0.2
+        }
+      }
+    }
+
+    // Floor grid
+    object "FloorGrid" {
+      type: "grid"
+      position: [0, 0, 0]
+      size: [5, 5]
+      cell_size: 0.1
+      color: "rgba(100, 120, 150, 0.3)"
+
+      @collidable: false
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VR UI PANELS
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "VRInterface" {
+    @local_only
+
+    // Main control panel (right side)
+    object "ControlPanel" {
+      type: "ui-panel"
+      position: [0.35, 1.5, -0.4]
+      rotation: [0, -15, 0]
+      size: [0.3, 0.4]
+      background: "rgba(20, 25, 35, 0.95)"
+      border_radius: 12
+
+      object "PanelTitle" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "Robot Teleoperation"
+        font_size: 14
+        color: "#e0e0e0"
+        font_weight: "bold"
+      }
+
+      // Connection status
+      object "ConnectionStatus" {
+        type: "ui-status"
+        position: [15, 45]
+        label: "Robot"
+        status: state.robot_connected ? "connected" : "disconnected"
+        icon: state.robot_connected ? "check-circle" : "x-circle"
+        color: state.robot_connected ? "#00ff88" : "#ff4444"
+      }
+
+      object "GRootStatus" {
+        type: "ui-status"
+        position: [15, 75]
+        label: "GR00T N1.6"
+        status: state.groot_connected ? "active" : "inactive"
+        icon: state.groot_connected ? "cpu" : "x-circle"
+        color: state.groot_connected ? "#00aaff" : "#888888"
+      }
+
+      // Mode selector
+      object "ModeLabel" {
+        type: "ui-text"
+        position: [15, 115]
+        text: "Control Mode"
+        font_size: 12
+        color: "#9ca3af"
+      }
+
+      object "ModeSelector" {
+        type: "ui-segmented-control"
+        position: [15, 140]
+        options: [
+          { value: "direct_ik", label: "Direct IK" },
+          { value: "groot_manipulation", label: "GR00T Manip" },
+          { value: "groot_navigation", label: "GR00T Nav" }
+        ]
+        selected: state.teleop_mode
+
+        on_change: (mode) => switch_teleoperation_mode(mode)
+      }
+
+      // Emergency stop button
+      object "EmergencyStopButton" {
+        type: "ui-button"
+        position: [15, 190]
+        size: [260, 50]
+        text: state.emergency_stop_active ? "RESUME" : "EMERGENCY STOP"
+        background: state.emergency_stop_active ? "#00aa00" : "#ff0000"
+        color: "#ffffff"
+        font_size: 16
+        font_weight: "bold"
+        border_radius: 8
+
+        @clickable
+        on_click: () => {
+          if state.emergency_stop_active {
+            resume_teleoperation()
+          } else {
+            trigger_emergency_stop("Manual trigger")
+          }
+        }
+      }
+
+      // Calibration button
+      object "CalibrateButton" {
+        type: "ui-button"
+        position: [15, 255]
+        size: [260, 40]
+        text: state.calibration_complete ? "Recalibrate" : "Calibrate"
+        background: state.calibration_complete ? "#374151" : "#6366f1"
+        color: "#ffffff"
+        border_radius: 8
+        visible: !state.emergency_stop_active
+
+        @clickable
+        on_click: start_calibration
+      }
+
+      // View toggles
+      object "ViewToggles" {
+        type: "ui-group"
+        position: [15, 310]
+
+        object "TelemetryToggle" {
+          type: "ui-checkbox"
+          position: [0, 0]
+          label: "Telemetry"
+          checked: state.show_telemetry
+          on_change: (checked) => { state.show_telemetry = checked }
+        }
+
+        object "CameraToggle" {
+          type: "ui-checkbox"
+          position: [0, 25]
+          label: "Camera Feed"
+          checked: state.show_camera_feed
+          on_change: (checked) => { state.show_camera_feed = checked }
+        }
+
+        object "BoundsToggle" {
+          type: "ui-checkbox"
+          position: [0, 50]
+          label: "Safety Bounds"
+          checked: state.show_safety_bounds
+          on_change: (checked) => { state.show_safety_bounds = checked }
+        }
+      }
+    }
+
+    // Performance metrics panel (top right)
+    object "MetricsPanel" {
+      type: "ui-panel"
+      position: [0.35, 2.0, -0.4]
+      rotation: [0, -15, 0]
+      size: [0.3, 0.22]
+      background: "rgba(20, 25, 35, 0.95)"
+      border_radius: 12
+
+      object "MetricsTitle" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "Performance"
+        font_size: 12
+        color: "#9ca3af"
+      }
+
+      object "IKTime" {
+        type: "ui-metric"
+        position: [15, 45]
+        label: "IK Solve"
+        value: "${state.ik_solve_time.toFixed(2)}ms"
+        color: state.ik_solve_time < 1 ? "#00ff88" : "#ffaa00"
+      }
+
+      object "PolicyTime" {
+        type: "ui-metric"
+        position: [15, 75]
+        label: "Policy Inference"
+        value: "${state.policy_inference_time.toFixed(1)}ms"
+        color: state.policy_inference_time < 50 ? "#00ff88" : "#ffaa00"
+        visible: state.teleop_mode != "direct_ik"
+      }
+
+      object "Latency" {
+        type: "ui-metric"
+        position: [15, 105]
+        label: "Network"
+        value: "${state.network_latency.toFixed(0)}ms"
+        color: latency_to_color(state.network_latency)
+      }
+
+      object "CommandRate" {
+        type: "ui-metric"
+        position: [15, 135]
+        label: "Cmd Rate"
+        value: "${state.command_rate.toFixed(0)}Hz"
+        color: state.command_rate >= 55 ? "#00ff88" : "#ff4444"
+      }
+
+      object "CameraFPS" {
+        type: "ui-metric"
+        position: [15, 165]
+        label: "Camera"
+        value: "${state.camera_fps.toFixed(0)} FPS"
+        color: state.camera_fps >= 25 ? "#00ff88" : "#ffaa00"
+      }
+    }
+
+    // Safety warnings panel (bottom)
+    object "WarningsPanel" {
+      type: "ui-panel"
+      position: [0, 0.3, -0.5]
+      size: [0.5, 0.15]
+      background: "rgba(40, 20, 20, 0.95)"
+      border_radius: 12
+      visible: state.safety_warnings.length > 0
+
+      object "WarningsTitle" {
+        type: "ui-text"
+        position: [15, 15]
+        text: "⚠ Safety Warnings (${state.safety_warnings.length})"
+        font_size: 14
+        color: "#ff8800"
+        font_weight: "bold"
+      }
+
+      object "WarningsList" {
+        type: "ui-list"
+        position: [15, 45]
+        size: [470, 90]
+        items: state.safety_warnings.slice(-3).map(w => ({
+          text: w.message,
+          color: warning_to_color(w.severity),
+          icon: warning_to_icon(w.severity)
+        }))
+      }
+    }
+
+    // Haptic feedback visualization
+    object "HapticIndicator" {
+      type: "ui-panel"
+      position: [-0.15, 1.2, -0.3]
+      size: [0.12, 0.05]
+      background: haptic_to_color(state.haptic_intensity.left)
+      border_radius: 4
+      opacity: state.haptic_intensity.left
+      visible: state.haptic_intensity.left > 0.1
+
+      object "HapticLabel" {
+        type: "ui-text"
+        position: [5, 5]
+        text: "L: ${(state.haptic_intensity.left * 100).toFixed(0)}%"
+        font_size: 10
+        color: "#ffffff"
+      }
+    }
+
+    object "HapticIndicatorRight" {
+      type: "ui-panel"
+      position: [0.15, 1.2, -0.3]
+      size: [0.12, 0.05]
+      background: haptic_to_color(state.haptic_intensity.right)
+      border_radius: 4
+      opacity: state.haptic_intensity.right
+      visible: state.haptic_intensity.right > 0.1
+
+      object "HapticLabelRight" {
+        type: "ui-text"
+        position: [5, 5]
+        text: "R: ${(state.haptic_intensity.right * 100).toFixed(0)}%"
+        font_size: 10
+        color: "#ffffff"
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC AND EVENT HANDLERS
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+
+    // Helper functions
+    function force_to_color(magnitude) {
+      if magnitude < 20 { return "#00ff00" }
+      else if magnitude < 50 { return "#ffaa00" }
+      else if magnitude < 80 { return "#ff6600" }
+      else { return "#ff0000" }
+    }
+
+    function latency_to_color(latency) {
+      if latency < 50 { return "#00ff88" }
+      else if latency < 100 { return "#ffaa00" }
+      else { return "#ff4444" }
+    }
+
+    function warning_to_color(severity) {
+      if severity == "critical" { return "#ff0000" }
+      else if severity == "warning" { return "#ffaa00" }
+      else { return "#aaaaaa" }
+    }
+
+    function warning_to_icon(severity) {
+      if severity == "critical" { return "alert-circle" }
+      else if severity == "warning" { return "alert-triangle" }
+      else { return "info" }
+    }
+
+    function haptic_to_color(intensity) {
+      if intensity < 0.3 { return "rgba(0, 255, 136, ${intensity})" }
+      else if intensity < 0.7 { return "rgba(255, 170, 0, ${intensity})" }
+      else { return "rgba(255, 68, 68, ${intensity})" }
+    }
+
+    // Teleoperation mode switching
+    action switch_teleoperation_mode(mode) {
+      if !state.robot_connected {
+        show_notification("Connect to robot first", "warning")
+        return
+      }
+
+      if state.emergency_stop_active {
+        show_notification("Clear emergency stop first", "warning")
+        return
+      }
+
+      if mode == "groot_manipulation" || mode == "groot_navigation" {
+        if !state.groot_connected {
+          show_notification("GR00T policy server not available", "error")
+          return
+        }
+
+        policy_mode = mode == "groot_manipulation" ? "manipulation" : "navigation"
+        success = services.TeleoperationHub.switchGR00TPolicy(policy_mode)
+
+        if success {
+          state.teleop_mode = mode
+          show_notification("Switched to ${mode} mode", "success")
+        } else {
+          show_notification("Failed to switch policy mode", "error")
+        }
+      } else {
+        state.teleop_mode = mode
+        show_notification("Switched to ${mode} mode", "success")
+      }
+    }
+
+    // Emergency stop control
+    action trigger_emergency_stop(reason) {
+      services.TeleoperationHub.emergencyStop()
+      state.emergency_stop_active = true
+      state.teleop_mode = "idle"
+
+      // Visual feedback
+      spatial.pulse_object("EmergencyStopButton", 0.5, 3)
+      audio.play("emergency_stop")
+
+      show_notification("🛑 EMERGENCY STOP: ${reason}", "critical")
+    }
+
+    action resume_teleoperation() {
+      if !state.calibration_complete {
+        show_notification("Complete calibration first", "warning")
+        return
+      }
+
+      services.TeleoperationHub.resume()
+      state.emergency_stop_active = false
+      state.teleop_mode = "direct_ik"
+      state.safety_warnings = []
+
+      show_notification("✓ Teleoperation resumed", "success")
+      audio.play("resume")
+    }
+
+    // Calibration flow
+    action start_calibration() {
+      state.calibration_required = true
+      state.calibration_complete = false
+
+      show_notification("Calibration started", "info")
+      show_notification("Move hands to neutral position and make thumbs-up gesture", "info")
+
+      audio.play("calibration_start")
+    }
+
+    action complete_calibration() {
+      state.calibration_required = false
+      state.calibration_complete = true
+
+      show_notification("✓ Calibration complete", "success")
+      audio.play("calibration_complete")
+
+      // Emit calibration event
+      services.TeleoperationHub.emit("calibration_complete", { timestamp: now() })
+    }
+
+    // Entry point
+    on_enter {
+      fade_from_black(1.5)
+
+      // Connect to robot and GR00T server
+      services.TeleoperationHub.connect()
+
+      // Wait for connection
+      wait_for(() => state.robot_connected, 5000)
+        .then(() => {
+          show_notification("Welcome to VR Robot Teleoperation", "info")
+          show_notification("Complete calibration to begin", "info")
+          start_calibration()
+        })
+        .catch(() => {
+          show_notification("Failed to connect to robot. Check Isaac Sim.", "error")
+        })
+    }
+
+    // Cleanup on exit
+    on_exit {
+      if state.robot_connected {
+        trigger_emergency_stop("Session ending")
+        services.TeleoperationHub.disconnect()
+      }
+
+      fade_to_black(1)
+    }
+
+    // Periodic safety check
+    on_interval(1000) {
+      // Clean up old warnings (keep last 2 minutes)
+      cutoff = now() - 120000
+      state.safety_warnings = state.safety_warnings.filter(w => w.timestamp > cutoff)
+
+      // Check battery level
+      if state.battery_level < 20 && state.robot_connected {
+        if !state.safety_warnings.some(w => w.type == "battery") {
+          state.safety_warnings.push({
+            type: "battery",
+            message: "Low battery: ${state.battery_level}%",
+            severity: state.battery_level < 10 ? "critical" : "warning",
+            timestamp: now()
+          })
+        }
+      }
+    }
+
+    // Keyboard shortcuts for desktop testing
+    on_key_press("e") { trigger_emergency_stop("Keyboard shortcut") }
+    on_key_press("r") { resume_teleoperation() }
+    on_key_press("c") { start_calibration() }
+    on_key_press("1") { switch_teleoperation_mode("direct_ik") }
+    on_key_press("2") { switch_teleoperation_mode("groot_manipulation") }
+    on_key_press("3") { switch_teleoperation_mode("groot_navigation") }
+    on_key_press("t") { state.show_telemetry = !state.show_telemetry }
+    on_key_press("v") { state.show_camera_feed = !state.show_camera_feed }
+    on_key_press("b") { state.show_safety_bounds = !state.show_safety_bounds }
+  }
+}

@@ -41,7 +41,8 @@
     "directory": "packages/renderer"
   },
   "dependencies": {
-    "@hololand/logger": "workspace:*"
+    "@hololand/logger": "workspace:*",
+    "@holoscript/agent-protocol": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

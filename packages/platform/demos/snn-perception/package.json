@@ -1,0 +1,61 @@
+{
+  "name": "@hololand/snn-perception-demo",
+  "version": "1.0.0",
+  "description": "Spiking Neural Network (SNN) perception demonstration for edge computing in spatial AR applications",
+  "main": "src/index.tsx",
+  "scripts": {
+    "dev": "vite",
+    "dev:desktop": "vite --mode desktop",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "lint": "eslint . --ext .ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "snn",
+    "spiking-neural-network",
+    "neuromorphic",
+    "edge-computing",
+    "perception",
+    "object-detection",
+    "ar-glasses",
+    "warehouse",
+    "inventory",
+    "quest3",
+    "webxr",
+    "webgpu",
+    "norse",
+    "snntorch",
+    "energy-efficiency"
+  ],
+  "author": "HoloLand Platform Team",
+  "license": "MIT",
+  "dependencies": {
+    "@hololand/platform": "workspace:*",
+    "@hololand/platform-renderer": "workspace:*",
+    "@hololand/holoscript-runtime": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.160.0",
+    "@react-three/fiber": "^8.15.0",
+    "@react-three/drei": "^9.92.0",
+    "recharts": "^2.10.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/three": "^0.160.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.0",
+    "@typescript-eslint/parser": "^6.18.0"
+  },
+  "peerDependencies": {
+    "@hololand/platform": "*",
+    "@hololand/platform-renderer": "*"
+  }
+}

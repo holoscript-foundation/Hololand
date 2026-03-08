@@ -106,7 +106,7 @@ export type FormFactor =
   | 'vr-headset'   // Meta Quest, PCVR, Apple Vision Pro
   | 'ar-glasses'   // Android XR glasses, visionOS AR mode
   | 'phone'        // iOS/Android smartphones
-  | 'desktop'      // Windows/macOS/Linux
+  | 'desktop'      // Windows/macOS/Linux desktop
   | 'car'          // Android Automotive, CarPlay
   | 'wearable';    // Watch, smart band
 
@@ -116,9 +116,12 @@ export type FormFactor =
 export type EmbodimentType =
   | 'Avatar3D'        // Full 3D character (VR)
   | 'SpatialPersona'  // 3D presence in real-world space (AR)
+  | 'VoiceOnly'       // Voice-only, no visual (car safety mode)
+  | 'UIMinimal'       // Minimal UI for small screens (wearable)
   | 'VoiceHUD'        // Voice-only with heads-up display (car)
   | 'UI2D'            // 2D interface (phone, wearable)
   | 'FullGUI'         // Multi-window desktop UI (desktop)
+  | 'HUDUI'           // Heads-up display UI (car alternate)
   | 'WebXR';          // WebXR fallback (cross-ecosystem bridge)
 
 /**
@@ -128,9 +131,9 @@ export const DEFAULT_EMBODIMENT: Record<FormFactor, EmbodimentType> = {
   'vr-headset': 'Avatar3D',
   'ar-glasses': 'SpatialPersona',
   'phone': 'UI2D',
-  'desktop': 'FullGUI',
-  'car': 'VoiceHUD',
-  'wearable': 'UI2D',
+  'desktop': 'UI2D',
+  'car': 'VoiceOnly',
+  'wearable': 'UIMinimal',
 };
 
 /**
@@ -148,10 +151,32 @@ export interface FormFactorBudget {
 export const FORM_FACTOR_BUDGETS: Record<FormFactor, FormFactorBudget> = {
   'vr-headset':  { frameBudgetMs: 11.1,  agentBudgetMs: 5,    computeModel: 'edge-first' },
   'ar-glasses':  { frameBudgetMs: 16.6,  agentBudgetMs: 10,   computeModel: 'edge-first' },
-  'car':         { frameBudgetMs: 30,     agentBudgetMs: 15,   computeModel: 'safety-critical' },
-  'phone':       { frameBudgetMs: 16.6,   agentBudgetMs: 100,  computeModel: 'cloud-first' },
-  'desktop':     { frameBudgetMs: 16.6,   agentBudgetMs: 200,  computeModel: 'cloud-first' },
-  'wearable':    { frameBudgetMs: 50,     agentBudgetMs: 50,   computeModel: 'cloud-first' },
+  'car':         { frameBudgetMs: 30,    agentBudgetMs: 15,   computeModel: 'safety-critical' },
+  'phone':       { frameBudgetMs: 16.6,  agentBudgetMs: 100,  computeModel: 'cloud-first' },
+  'desktop':     { frameBudgetMs: 16.6,  agentBudgetMs: 200,  computeModel: 'cloud-first' },
+  'wearable':    { frameBudgetMs: 50,    agentBudgetMs: 50,   computeModel: 'cloud-first' },
+};
+
+/**
+ * MVC payload size budgets per form factor.
+ * Determines maximum handoff payload size for network transfer.
+ */
+export interface MVCPayloadBudget {
+  /** Minimum acceptable payload size in bytes */
+  min: number;
+  /** Maximum acceptable payload size in bytes */
+  max: number;
+  /** Recommended target size in bytes */
+  recommended: number;
+}
+
+export const MVC_PAYLOAD_SIZE_BUDGETS: Record<FormFactor, MVCPayloadBudget> = {
+  'vr-headset':  { min: 8192,  max: 10240,  recommended: 10240 },
+  'ar-glasses':  { min: 8192,  max: 10240,  recommended: 10240 },
+  'car':         { min: 4096,  max: 8192,   recommended: 6144 },
+  'phone':       { min: 8192,  max: 10240,  recommended: 10240 },
+  'desktop':     { min: 8192,  max: 102400, recommended: 16384 },
+  'wearable':    { min: 2048,  max: 4096,   recommended: 3072 },
 };
 
 // =============================================================================

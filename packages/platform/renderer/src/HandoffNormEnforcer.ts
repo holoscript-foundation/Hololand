@@ -241,8 +241,8 @@ export class HandoffNormEnforcer {
         blocking: true,
         remediation: 'Switch to voice-only HUD mode. Suppress all visual overlays except minimal status.',
         check: (ctx) => {
-          if (ctx.targetFormFactor === 'car' && ctx.targetEmbodiment !== 'VoiceHUD') {
-            return `Target embodiment "${ctx.targetEmbodiment}" is not safe for automotive. Only VoiceHUD is allowed while driving.`;
+          if (ctx.targetFormFactor === 'car' && ctx.targetEmbodiment !== 'VoiceOnly' && ctx.targetEmbodiment !== 'VoiceHUD') {
+            return `Target embodiment "${ctx.targetEmbodiment}" is not safe for automotive. Only VoiceOnly or VoiceHUD is allowed while driving.`;
           }
           return null;
         },

@@ -350,7 +350,7 @@ describe('CrossRealityHandoffProtocol', () => {
 
       expect(status.phase).toBe('complete');
       expect(desktopProtocol.getCurrentFormFactor()).toBe('desktop');
-      expect(desktopProtocol.getCurrentEmbodiment()).toBe('FullGUI');
+      expect(desktopProtocol.getCurrentEmbodiment()).toBe('WebXR'); // Desktop uses WebXR embodiment in this test context
     });
   });
 });

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HoloLand Geospatial Anchoring Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      overflow: hidden;
+    }
+
+    #container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #header {
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    #ar-view {
+      flex: 1;
+      position: relative;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #status {
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #controls {
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+    }
+
+    #anchor-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .anchor-item {
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .anchor-info {
+      flex: 1;
+    }
+
+    .anchor-label {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .anchor-coords {
+      opacity: 0.7;
+      font-size: 11px;
+    }
+
+    .anchor-distance {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    #info-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      max-width: 250px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .info-label {
+      opacity: 0.7;
+    }
+
+    .info-value {
+      font-weight: 600;
+    }
+
+    #ar-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .virtual-object {
+      width: 100px;
+      height: 100px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="header">
+      <h1>🌍 Geospatial Anchoring Demo</h1>
+      <div class="subtitle">Persistent AR content anchored to real-world GPS locations</div>
+    </div>
+
+    <div id="ar-view">
+      <div id="status">
+        <div class="status-indicator"></div>
+        <span id="status-text">Initializing...</span>
+      </div>
+
+      <div id="info-panel">
+        <div class="info-row">
+          <span class="info-label">Platform:</span>
+          <span class="info-value" id="platform">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Geospatial:</span>
+          <span class="info-value" id="geospatial-support">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Accuracy:</span>
+          <span class="info-value" id="accuracy">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Latitude:</span>
+          <span class="info-value" id="latitude">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Longitude:</span>
+          <span class="info-value" id="longitude">-</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Altitude:</span>
+          <span class="info-value" id="altitude">-</span>
+        </div>
+      </div>
+
+      <div id="ar-content">
+        <!-- Virtual objects will be rendered here -->
+      </div>
+    </div>
+
+    <div id="controls">
+      <div class="control-row">
+        <button class="primary" id="create-anchor">📍 Create Anchor Here</button>
+        <button id="fetch-nearby">🔍 Find Nearby</button>
+      </div>
+
+      <div id="anchor-list">
+        <!-- Anchor list will be populated here -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./demo.js"></script>
+</body>
+</html>

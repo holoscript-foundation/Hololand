@@ -1,0 +1,50 @@
+{
+  "name": "@hololand/quality-profiles",
+  "version": "1.0.0",
+  "description": "Domain-specific quality tier profiles for HoloLand rendering",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "hololand",
+    "quality",
+    "profiles",
+    "rendering",
+    "optimization",
+    "vr",
+    "ar"
+  ],
+  "author": "HoloLand Platform",
+  "license": "MIT",
+  "peerDependencies": {
+    "@hololand/renderer": "workspace:*"
+  },
+  "devDependencies": {
+    "@hololand/renderer": "workspace:*",
+    "@types/node": "^20.11.5",
+    "eslint": "^8.56.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.1"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

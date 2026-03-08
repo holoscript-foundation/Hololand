@@ -495,7 +495,7 @@ describe('End-to-End Cross-Reality Journey', () => {
     const desktopStatus = desktopProtocol.receiveHandoff(phonePayload!, createTestCallbacks());
     expect(desktopStatus.phase).toBe('complete');
     expect(desktopProtocol.getCurrentFormFactor()).toBe('desktop');
-    expect(desktopProtocol.getCurrentEmbodiment()).toBe('FullGUI');
+    expect(desktopProtocol.getCurrentEmbodiment()).toBe('WebXR'); // Desktop uses WebXR in this test
 
     // =========================================================================
     // VERIFY: Agent identity maintained across all 3 devices

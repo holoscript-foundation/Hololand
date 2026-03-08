@@ -1,0 +1,30 @@
+{
+  "name": "@hololand/geospatial-anchoring-demo",
+  "version": "1.0.0",
+  "description": "Geospatial anchoring demo - persistent AR content at GPS locations",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@hololand/ar-anchors": "workspace:*",
+    "@hololand/platform": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11"
+  },
+  "keywords": [
+    "hololand",
+    "ar",
+    "geospatial",
+    "anchors",
+    "wgs84",
+    "gps",
+    "arcore",
+    "arkit"
+  ],
+  "license": "MIT"
+}

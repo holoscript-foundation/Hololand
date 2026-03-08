@@ -1,0 +1,263 @@
+/**
+ * Industrial Digital Twin Composition
+ *
+ * Example composition demonstrating the industrial quality profile
+ * for high-precision IoT factory visualization.
+ */
+
+composition IndustrialDigitalTwin {
+  metadata {
+    // Industrial profile: Data accuracy and precision
+    // - Exact physics with continuous collision detection
+    // - High-precision geometry (500K poly count)
+    // - Minimal post-processing (data clarity)
+    // - 10Hz network sync for real-time IoT data
+    // - Medium audio quality for alerts
+    profile: "industrial",
+
+    // Custom overrides for this specific use case
+    overrides: {
+      // Increase target FPS for smoother monitoring
+      targetFPS: 90,
+
+      // Better shadows for depth perception in 3D space
+      shadowMapSize: 2048
+    },
+
+    // Trait configuration overrides
+    traitOverrides: {
+      // Faster network sync for critical IoT updates
+      networking: {
+        syncRate: 20,
+        compression: false  // Prioritize latency over bandwidth
+      },
+
+      // Enable all physics features for safety zone detection
+      physics: {
+        enabled: true,
+        accuracy: "exact",
+        collisionDetection: "continuous",
+        substeps: 4
+      }
+    }
+  }
+
+  // Factory floor base
+  entity floor {
+    @transform(position: [0, 0, 0], scale: [100, 0.1, 100])
+    @material(type: "physical", roughness: 0.8, metallic: 0.2)
+    @collision(shape: "box", static: true)
+
+    mesh: "plane"
+    color: #2C3E50
+  }
+
+  // Industrial machine with high-precision collision
+  entity cnc_machine {
+    @transform(position: [10, 0, 5], rotation: [0, 45, 0])
+    @lod(
+      levels: 3,
+      distanceMultiplier: 1.5,  // From industrial profile
+      autoSwitch: true
+    )
+    @physics(
+      accuracy: "exact",        // From industrial profile
+      collisionDetection: "continuous",
+      substeps: 4,
+      mass: 5000
+    )
+    @networking(
+      syncRate: 20,             // From override
+      interpolation: true,
+      compression: false        // From override
+    )
+
+    mesh: "models/cnc_machine.glb"
+
+    // IoT sensor data binding
+    component iot_sensor {
+      type: "temperature"
+      update_rate: 20  // Matches network sync
+      threshold_warning: 60
+      threshold_critical: 80
+    }
+
+    // Status indicator light
+    entity status_light {
+      @transform(position: [0, 2.5, 0])
+      @emissive(intensity: 2.0)
+
+      mesh: "sphere"
+      radius: 0.2
+      color: ${sensor.temperature > 80 ? "#FF0000" : "#00FF00"}
+    }
+  }
+
+  // Precision assembly robot
+  entity assembly_robot {
+    @transform(position: [-5, 0, 8])
+    @physics(
+      accuracy: "exact",
+      collisionDetection: "continuous",
+      substeps: 4
+    )
+    @animation(
+      maxFPS: 30,               // From industrial profile
+      blending: false
+    )
+
+    mesh: "models/robot_arm.glb"
+
+    component inverse_kinematics {
+      target_precision: 0.001  // 1mm accuracy
+      max_iterations: 100
+    }
+
+    // Safety zone collision detection
+    entity safety_zone {
+      @transform(scale: [3, 3, 3])
+      @collision(
+        shape: "sphere",
+        isTrigger: true,
+        continuousDetection: true  // Critical for safety
+      )
+
+      visible: false
+
+      on_trigger_enter: (other) => {
+        if (other.type === "worker") {
+          robot.pause()
+          alert_system.trigger("safety_zone_breach")
+        }
+      }
+    }
+  }
+
+  // IoT dashboard panel with real-time data
+  entity dashboard_panel {
+    @transform(position: [0, 2, -10], rotation: [0, 180, 0])
+    @ui(type: "world_space", resolution: [1920, 1080])
+
+    component realtime_dashboard {
+      update_rate: 10  // Matches industrial profile network sync
+
+      data_sources: [
+        { sensor: cnc_machine.iot_sensor, metric: "temperature" },
+        { sensor: assembly_robot.iot_sensor, metric: "status" },
+        { sensor: conveyor_belt.iot_sensor, metric: "speed" }
+      ]
+
+      render: () => (
+        <Dashboard>
+          <MetricCard
+            title="CNC Machine"
+            value={cnc_machine.iot_sensor.temperature}
+            unit="°C"
+            status={cnc_machine.iot_sensor.status}
+          />
+          <MetricCard
+            title="Robot Arm"
+            value={assembly_robot.iot_sensor.cycles}
+            unit="cycles/min"
+            status={assembly_robot.iot_sensor.status}
+          />
+          <AlertPanel
+            alerts={alert_system.active_alerts}
+          />
+        </Dashboard>
+      )
+    }
+  }
+
+  // Conveyor belt with precise physics
+  entity conveyor_belt {
+    @transform(position: [0, 0.5, -5])
+    @physics(
+      accuracy: "exact",
+      collisionDetection: "continuous"
+    )
+    @material(
+      type: "physical",
+      roughness: 0.7,
+      metallic: 0.3
+    )
+
+    mesh: "models/conveyor.glb"
+
+    component belt_motor {
+      speed: 0.5  // m/s
+      direction: [1, 0, 0]
+
+      // Apply constant velocity to objects on belt
+      on_collision_stay: (object) => {
+        object.velocity = this.direction * this.speed
+      }
+    }
+
+    component iot_sensor {
+      type: "speed"
+      update_rate: 10
+    }
+  }
+
+  // Alert system for safety and monitoring
+  system alert_system {
+    @networking(syncRate: 20)  // Critical alerts sync fast
+
+    component audio_alerts {
+      quality: "medium"  // From industrial profile
+
+      alert_sounds: {
+        safety_zone_breach: "sounds/alarm_critical.wav",
+        temperature_warning: "sounds/alert_warning.wav",
+        system_error: "sounds/alert_error.wav"
+      }
+    }
+
+    trigger: (alert_type: string, metadata?: object) => {
+      // Log to IoT backend
+      iot_backend.log_alert(alert_type, metadata)
+
+      // Play spatial audio alert
+      audio_alerts.play(alert_type, metadata.position)
+
+      // Show visual indicator on dashboard
+      dashboard_panel.show_alert(alert_type)
+
+      // Notify operators
+      notify_operators(alert_type, metadata)
+    }
+  }
+
+  // Lighting optimized for industrial environment
+  entity ambient_light {
+    @light(type: "ambient", intensity: 0.4)
+    color: #FFFFFF
+  }
+
+  entity directional_light {
+    @light(
+      type: "directional",
+      intensity: 0.8,
+      castShadows: true,
+      shadowMapSize: 2048  // From override
+    )
+    @transform(rotation: [-45, 45, 0])
+    color: #FFFFFF
+  }
+
+  // Multiple point lights for factory floor
+  for (let i = 0; i < 10; i++) {
+    entity ceiling_light_{i} {
+      @light(
+        type: "point",
+        intensity: 1.0,
+        distance: 15,
+        castShadows: true,
+        shadowMapSize: 1024  // From industrial profile
+      )
+      @transform(position: [i * 10 - 45, 5, 0])
+      color: #FFE4B5
+    }
+  }
+}

@@ -1,0 +1,175 @@
+/* Trait Detail Panel Styles */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: #2c3e50;
+  border-radius: 4px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #95a5a6;
+  text-align: center;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #34495e;
+}
+
+.traitName {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #3498db;
+  font-weight: 600;
+}
+
+.relevanceBadge {
+  padding: 0.5rem 1rem;
+  background: #27ae60;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #ecf0f1;
+  font-weight: 600;
+}
+
+.rationale {
+  margin: 0;
+  color: #bdc3c7;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.configHint {
+  padding: 0.75rem;
+  background: #34495e;
+  border-left: 3px solid #3498db;
+  border-radius: 4px;
+  color: #bdc3c7;
+  font-size: 0.85rem;
+  font-family: 'Courier New', monospace;
+}
+
+.configEditor {
+  width: 100%;
+  min-height: 200px;
+  padding: 0.75rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  background: #1a1a2e;
+  color: #ecf0f1;
+  border: 1px solid #34495e;
+  border-radius: 4px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.configEditor:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.updateButton {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  background: #3498db;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.updateButton:hover {
+  background: #2980b9;
+}
+
+.codeExample {
+  margin: 0;
+  padding: 1rem;
+  background: #1a1a2e;
+  border: 1px solid #34495e;
+  border-radius: 4px;
+  color: #2ecc71;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  overflow-x: auto;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid #34495e;
+}
+
+.addButton,
+.removeButton {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.addButton {
+  background: #27ae60;
+  color: #fff;
+}
+
+.addButton:hover {
+  background: #229954;
+}
+
+.removeButton {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.removeButton:hover {
+  background: #c0392b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+}

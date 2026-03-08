@@ -20,6 +20,7 @@
  * @module CrossRealityAgent
  */
 
+import { BaseAgent, type AgentIdentity, type PhaseResult, type CycleResult, ProtocolPhase, GoalSynthesizer } from '@holoscript/agent-protocol';
 import { logger } from './logger';
 import type {
   FormFactor,
@@ -30,49 +31,15 @@ import type {
 import { FORM_FACTOR_BUDGETS, DEFAULT_EMBODIMENT } from './CrossRealityContinuityTypes';
 import type { DeviceCapabilities } from './CrossRealityHandoffProtocol';
 
-// =============================================================================
-// AGENT IDENTITY
-// =============================================================================
-
-export interface CrossRealityAgentIdentity {
-  id: string;
-  name: string;
-  domain: string;
-  version: string;
-  capabilities: string[];
-}
-
-// =============================================================================
-// PROTOCOL PHASES
-// =============================================================================
-
-export enum AgentPhase {
-  INTAKE = 0,
-  REFLECT = 1,
-  EXECUTE = 2,
-  COMPRESS = 3,
-  REINTAKE = 4,
-  GROW = 5,
-  EVOLVE = 6,
-}
-
-export interface AgentPhaseResult {
-  phase: AgentPhase;
-  status: 'success' | 'failure' | 'skipped';
-  data: unknown;
-  durationMs: number;
-  timestamp: number;
-}
-
-export interface AgentCycleResult {
-  cycleId: string;
-  task: string;
-  phases: AgentPhaseResult[];
-  status: 'complete' | 'partial' | 'failed';
-  totalDurationMs: number;
-  startedAt: number;
-  completedAt: number;
-}
+// Backwards compatibility aliases
+/** @deprecated Use ProtocolPhase from @holoscript/agent-protocol */
+export const AgentPhase = ProtocolPhase;
+/** @deprecated Use PhaseResult from @holoscript/agent-protocol */
+export type AgentPhaseResult = PhaseResult;
+/** @deprecated Use CycleResult from @holoscript/agent-protocol */
+export type AgentCycleResult = CycleResult;
+/** @deprecated Use AgentIdentity from @holoscript/agent-protocol */
+export type CrossRealityAgentIdentity = AgentIdentity;
 
 // =============================================================================
 // HANDOFF DECISION
@@ -116,7 +83,7 @@ export interface HandoffLearning {
 // =============================================================================
 
 export interface CrossRealityAgentConfig {
-  identity: CrossRealityAgentIdentity;
+  identity: AgentIdentity;
   /** Current device form factor */
   currentFormFactor: FormFactor;
   /** Auto-handoff when better device detected (default: false) */
@@ -127,22 +94,22 @@ export interface CrossRealityAgentConfig {
   maxHandoffsPerMinute?: number;
 }
 
-export class CrossRealityAgent {
-  readonly identity: CrossRealityAgentIdentity;
+export class CrossRealityAgent extends BaseAgent {
+  readonly identity: AgentIdentity;
 
   private currentFormFactor: FormFactor;
   private autoHandoff: boolean;
   private autoHandoffThreshold: number;
   private maxHandoffsPerMinute: number;
   private learnings: HandoffLearning[] = [];
-  private cycleHistory: AgentCycleResult[] = [];
+  private cycleHistory: CycleResult[] = [];
   private handoffTimestamps: number[] = [];
   private listeners: Map<string, Set<(event: any) => void>> = new Map();
-
-  // Adaptive timing budgets (evolved over time)
+  private goalSynthesizer = new GoalSynthesizer();
   private adaptiveTimingBudgets: Map<string, number> = new Map();
 
   constructor(config: CrossRealityAgentConfig) {
+    super();
     this.identity = config.identity;
     this.currentFormFactor = config.currentFormFactor;
     this.autoHandoff = config.autoHandoff ?? false;
@@ -162,6 +129,7 @@ export class CrossRealityAgent {
 
   /**
    * Run a complete 7-phase handoff evaluation cycle.
+   * Wrapper around BaseAgent.runCycle that handles cross-reality specific context.
    */
   async runCycle(
     task: string,
@@ -169,81 +137,11 @@ export class CrossRealityAgent {
       discoveredDevices: DeviceCapabilities[];
       currentPayload?: MVCPayload;
     },
-  ): Promise<AgentCycleResult> {
-    const startedAt = Date.now();
-    const cycleId = `cycle_${startedAt}_${Math.random().toString(36).slice(2, 8)}`;
-    const phases: AgentPhaseResult[] = [];
+  ): Promise<CycleResult> {
+    // Call the BaseAgent's runCycle with the context
+    const result = await super.runCycle(task, context);
 
-    const runPhase = async (
-      phase: AgentPhase,
-      fn: () => Promise<AgentPhaseResult>,
-    ): Promise<AgentPhaseResult> => {
-      const start = Date.now();
-      try {
-        const result = await fn();
-        result.durationMs = Date.now() - start;
-        phases.push(result);
-        return result;
-      } catch (err) {
-        const failResult: AgentPhaseResult = {
-          phase,
-          status: 'failure',
-          data: err instanceof Error ? err.message : String(err),
-          durationMs: Date.now() - start,
-          timestamp: Date.now(),
-        };
-        phases.push(failResult);
-        return failResult;
-      }
-    };
-
-    // Phase 0: INTAKE — Gather device capabilities and spatial context
-    const intakeResult = await runPhase(AgentPhase.INTAKE, () =>
-      this.intake(context.discoveredDevices),
-    );
-
-    // Phase 1: REFLECT — Analyze handoff feasibility
-    const reflectResult = await runPhase(AgentPhase.REFLECT, () =>
-      this.reflect(intakeResult.data as DeviceCapabilities[]),
-    );
-
-    // Phase 2: EXECUTE — Make handoff decision
-    const decision = reflectResult.data as HandoffDecision;
-    const executeResult = await runPhase(AgentPhase.EXECUTE, () =>
-      this.execute(decision),
-    );
-
-    // Phase 3: COMPRESS — Trim learnings
-    const compressResult = await runPhase(AgentPhase.COMPRESS, () =>
-      this.compress(executeResult.data),
-    );
-
-    // Phase 4: REINTAKE — Post-handoff state check
-    const reintakeResult = await runPhase(AgentPhase.REINTAKE, () =>
-      this.reintake(compressResult.data),
-    );
-
-    // Phase 5: GROW — Learn from this cycle
-    const growResult = await runPhase(AgentPhase.GROW, () =>
-      this.grow(reintakeResult.data),
-    );
-
-    // Phase 6: EVOLVE — Adapt timing budgets
-    await runPhase(AgentPhase.EVOLVE, () =>
-      this.evolve(growResult.data),
-    );
-
-    const failed = phases.some(p => p.status === 'failure');
-    const result: AgentCycleResult = {
-      cycleId,
-      task,
-      phases,
-      status: failed ? 'partial' : 'complete',
-      totalDurationMs: Date.now() - startedAt,
-      startedAt,
-      completedAt: Date.now(),
-    };
-
+    // Store in history and emit event
     this.cycleHistory.push(result);
     this.emit('cycle:complete', result);
     return result;
@@ -256,7 +154,15 @@ export class CrossRealityAgent {
   /**
    * Phase 0: INTAKE — Gather and filter device capabilities.
    */
-  private async intake(devices: DeviceCapabilities[]): Promise<AgentPhaseResult> {
+  async intake(input: unknown): Promise<PhaseResult> {
+    // Parse input as array of devices or object with devices property
+    let devices: DeviceCapabilities[] = [];
+    if (Array.isArray(input)) {
+      devices = input as DeviceCapabilities[];
+    } else if (input && typeof input === 'object' && 'discoveredDevices' in input) {
+      devices = (input as any).discoveredDevices || [];
+    }
+
     // Filter to available devices with compatible capabilities
     const viable = devices.filter(d => {
       // Must have a form factor budget defined
@@ -264,7 +170,7 @@ export class CrossRealityAgent {
     });
 
     return {
-      phase: AgentPhase.INTAKE,
+      phase: ProtocolPhase.INTAKE,
       status: 'success',
       data: viable,
       durationMs: 0,
@@ -275,10 +181,12 @@ export class CrossRealityAgent {
   /**
    * Phase 1: REFLECT — Analyze and score each potential handoff target.
    */
-  private async reflect(devices: DeviceCapabilities[]): Promise<AgentPhaseResult> {
+  async reflect(data: unknown): Promise<PhaseResult> {
+    const devices = (Array.isArray(data) ? data : []) as DeviceCapabilities[];
+
     if (devices.length === 0) {
       return {
-        phase: AgentPhase.REFLECT,
+        phase: ProtocolPhase.REFLECT,
         status: 'success',
         data: { shouldHandoff: false, targetDeviceId: null, confidence: 1.0, reasoning: 'No devices available', estimatedLatencyMs: 0, gained: [], lost: [] } satisfies HandoffDecision,
         durationMs: 0,
@@ -357,7 +265,7 @@ export class CrossRealityAgent {
     };
 
     return {
-      phase: AgentPhase.REFLECT,
+      phase: ProtocolPhase.REFLECT,
       status: 'success',
       data: decision,
       durationMs: 0,
@@ -368,10 +276,12 @@ export class CrossRealityAgent {
   /**
    * Phase 2: EXECUTE — Apply the handoff decision.
    */
-  private async execute(decision: HandoffDecision): Promise<AgentPhaseResult> {
+  async execute(plan: unknown): Promise<PhaseResult> {
+    const decision = plan as HandoffDecision;
+
     if (!decision.shouldHandoff) {
       return {
-        phase: AgentPhase.EXECUTE,
+        phase: ProtocolPhase.EXECUTE,
         status: 'skipped',
         data: { action: 'no-handoff', reason: decision.reasoning },
         durationMs: 0,
@@ -382,7 +292,7 @@ export class CrossRealityAgent {
     // Check rate limiting
     if (this.isRateLimited()) {
       return {
-        phase: AgentPhase.EXECUTE,
+        phase: ProtocolPhase.EXECUTE,
         status: 'skipped',
         data: { action: 'rate-limited', reason: `Exceeds ${this.maxHandoffsPerMinute} handoffs/min` },
         durationMs: 0,
@@ -393,7 +303,7 @@ export class CrossRealityAgent {
     // Check auto-handoff threshold
     if (this.autoHandoff && decision.confidence < this.autoHandoffThreshold) {
       return {
-        phase: AgentPhase.EXECUTE,
+        phase: ProtocolPhase.EXECUTE,
         status: 'skipped',
         data: { action: 'below-threshold', confidence: decision.confidence, threshold: this.autoHandoffThreshold },
         durationMs: 0,
@@ -412,7 +322,7 @@ export class CrossRealityAgent {
     });
 
     return {
-      phase: AgentPhase.EXECUTE,
+      phase: ProtocolPhase.EXECUTE,
       status: 'success',
       data: { action: 'handoff-recommended', decision },
       durationMs: 0,
@@ -423,7 +333,7 @@ export class CrossRealityAgent {
   /**
    * Phase 3: COMPRESS — Trim data, record compact learnings.
    */
-  private async compress(executeData: unknown): Promise<AgentPhaseResult> {
+  async compress(results: unknown): Promise<PhaseResult> {
     // Trim cycle history to last 50 entries
     if (this.cycleHistory.length > 50) {
       this.cycleHistory = this.cycleHistory.slice(-50);
@@ -434,9 +344,9 @@ export class CrossRealityAgent {
     }
 
     return {
-      phase: AgentPhase.COMPRESS,
+      phase: ProtocolPhase.COMPRESS,
       status: 'success',
-      data: executeData,
+      data: results,
       durationMs: 0,
       timestamp: Date.now(),
     };
@@ -445,9 +355,9 @@ export class CrossRealityAgent {
   /**
    * Phase 4: REINTAKE — Post-handoff state evaluation.
    */
-  private async reintake(data: unknown): Promise<AgentPhaseResult> {
+  async reintake(compressed: unknown): Promise<PhaseResult> {
     return {
-      phase: AgentPhase.REINTAKE,
+      phase: ProtocolPhase.REINTAKE,
       status: 'success',
       data: { currentFormFactor: this.currentFormFactor, learningsCount: this.learnings.length },
       durationMs: 0,
@@ -458,7 +368,7 @@ export class CrossRealityAgent {
   /**
    * Phase 5: GROW — Learn from handoff patterns.
    */
-  private async grow(data: unknown): Promise<AgentPhaseResult> {
+  async grow(learnings: unknown): Promise<PhaseResult> {
     // Compute success rate per form factor pair
     const pairStats = new Map<string, { success: number; total: number }>();
     for (const l of this.learnings) {
@@ -470,7 +380,7 @@ export class CrossRealityAgent {
     }
 
     return {
-      phase: AgentPhase.GROW,
+      phase: ProtocolPhase.GROW,
       status: 'success',
       data: {
         pairStats: Object.fromEntries(pairStats),
@@ -484,7 +394,7 @@ export class CrossRealityAgent {
   /**
    * Phase 6: EVOLVE — Adapt timing budgets based on learnings.
    */
-  private async evolve(growData: unknown): Promise<AgentPhaseResult> {
+  async evolve(adaptations: unknown): Promise<PhaseResult> {
     // Update adaptive timing budgets based on observed latencies
     for (const learning of this.learnings.slice(-20)) {
       const key = `${learning.from}->${learning.to}`;
@@ -498,7 +408,7 @@ export class CrossRealityAgent {
     }
 
     return {
-      phase: AgentPhase.EVOLVE,
+      phase: ProtocolPhase.EVOLVE,
       status: 'success',
       data: {
         adaptiveBudgets: Object.fromEntries(this.adaptiveTimingBudgets),
@@ -506,6 +416,19 @@ export class CrossRealityAgent {
       durationMs: 0,
       timestamp: Date.now(),
     };
+  }
+
+  /** Convenience: run handoff evaluation with typed context */
+  async evaluateHandoff(
+    task: string,
+    context: { discoveredDevices: DeviceCapabilities[]; currentPayload?: MVCPayload },
+  ): Promise<AgentCycleResult> {
+    return this.runCycle(task, context);
+  }
+
+  /** uAA2++ AUTONOMIZE: synthesize a goal when idle */
+  synthesizeGoal() {
+    return this.goalSynthesizer.synthesize(this.identity.domain, 'autonomous-boredom');
   }
 
   // ---------------------------------------------------------------------------
@@ -570,7 +493,7 @@ export class CrossRealityAgent {
     return [...this.learnings];
   }
 
-  getCycleHistory(): AgentCycleResult[] {
+  getCycleHistory(): CycleResult[] {
     return [...this.cycleHistory];
   }
 

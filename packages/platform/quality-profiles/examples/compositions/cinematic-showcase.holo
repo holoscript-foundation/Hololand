@@ -1,0 +1,356 @@
+/**
+ * Cinematic Product Showcase Composition
+ *
+ * Example composition demonstrating the cinematic quality profile
+ * for high-fidelity marketing and product visualization.
+ */
+
+composition CinematicProductShowcase {
+  metadata {
+    // Cinematic profile: Maximum visual quality
+    // - 4K shadow maps and textures
+    // - Full post-processing (bloom, SSAO, SSR, TAA)
+    // - Ray-traced reflections
+    // - Studio audio quality
+    // - 20Hz network sync for smooth multi-user
+    profile: "cinematic",
+
+    // Custom overrides for product showcase
+    overrides: {
+      // Maximize reflection quality for shiny products
+      realTimeReflections: true,
+      envMapResolution: 1024,
+
+      // Enable all post-processing
+      bloom: true,
+      bloomStrength: 0.8,
+      ssao: true,
+      ssr: true,
+      toneMapping: true
+    }
+  }
+
+  // High-quality HDRI environment
+  environment {
+    @hdri(
+      texture: "environments/studio_sunset_4k.hdr",
+      resolution: 1024,  // From cinematic profile
+      intensity: 1.2,
+      rotation: 0
+    )
+    @skybox(type: "hdri")
+
+    // Post-processing stack
+    @postprocessing(
+      bloom: {
+        enabled: true,
+        strength: 0.8,
+        threshold: 0.85,
+        radius: 0.5
+      },
+      ssao: {
+        enabled: true,
+        radius: 0.5,
+        intensity: 1.0,
+        bias: 0.01
+      },
+      ssr: {
+        enabled: true,
+        thickness: 0.018,
+        maxDistance: 3.0
+      },
+      toneMappingExposure: 1.0,
+      antialiasing: "taa"  // From cinematic profile
+    )
+  }
+
+  // Luxury car product showcase
+  entity luxury_car {
+    @transform(
+      position: [0, 0, 0],
+      rotation: [0, 30, 0],
+      scale: [1, 1, 1]
+    )
+    @material(
+      type: "physical",          // From cinematic profile
+      roughness: 0.1,
+      metallic: 0.9,
+      clearcoat: 1.0,            // High-end car paint
+      clearcoatRoughness: 0.05,
+      envMapIntensity: 1.5
+    )
+    @lod(
+      levels: 4,                 // From cinematic profile
+      distanceMultiplier: 0.8,   // Prefer higher quality
+      autoSwitch: true
+    )
+
+    mesh: "models/luxury_car_highpoly.glb"  // 2M triangles
+
+    // High-resolution textures
+    textures: {
+      baseColor: "textures/car_basecolor_4k.png",
+      normal: "textures/car_normal_4k.png",
+      roughness: "textures/car_roughness_4k.png",
+      metallic: "textures/car_metallic_4k.png"
+    }
+
+    // Animated turntable
+    component turntable {
+      @animation(
+        maxFPS: 60,              // From cinematic profile
+        blending: true,
+        morphTargets: false
+      )
+
+      rotation_speed: 10  // degrees per second
+
+      update: (deltaTime) => {
+        this.rotation.y += this.rotation_speed * deltaTime
+      }
+    }
+
+    // Interior camera fly-through
+    entity interior_camera {
+      @transform(position: [0, 1.2, 0])
+      @camera(
+        fov: 45,
+        near: 0.1,
+        far: 100
+      )
+
+      component camera_path {
+        @animation(
+          maxFPS: 60,
+          blending: true
+        )
+
+        keyframes: [
+          { time: 0, position: [-2, 1.5, 2], lookAt: [0, 0.8, 0] },
+          { time: 5, position: [0, 1.2, 0], lookAt: [0, 0.8, -1] },
+          { time: 10, position: [2, 1.5, -2], lookAt: [0, 0.8, 0] },
+          { time: 15, position: [0, 2.5, 3], lookAt: [0, 0, 0] }
+        ]
+
+        loop: true
+        duration: 15
+      }
+    }
+  }
+
+  // Photorealistic showroom floor
+  entity showroom_floor {
+    @transform(position: [0, 0, 0], scale: [20, 0.1, 20])
+    @material(
+      type: "physical",
+      roughness: 0.2,
+      metallic: 0.0,
+      clearcoat: 0.8,           // Polished floor
+      clearcoatRoughness: 0.1
+    )
+    @collision(shape: "box", static: true)
+
+    mesh: "plane"
+
+    textures: {
+      baseColor: "textures/marble_basecolor_4k.png",
+      normal: "textures/marble_normal_4k.png",
+      roughness: "textures/marble_roughness_4k.png"
+    }
+
+    // Reflection of car
+    @ssr(enabled: true, intensity: 1.0)
+  }
+
+  // Dramatic three-point lighting setup
+  entity key_light {
+    @light(
+      type: "directional",
+      intensity: 1.5,
+      castShadows: true,
+      shadowMapSize: 4096,      // From cinematic profile
+      shadowBias: -0.0001
+    )
+    @transform(rotation: [-30, 45, 0])
+    color: #FFF5E6  // Warm key light
+
+    component soft_shadows {
+      enabled: true
+      radius: 2.0
+      samples: 32
+    }
+  }
+
+  entity fill_light {
+    @light(
+      type: "directional",
+      intensity: 0.5,
+      castShadows: false
+    )
+    @transform(rotation: [-20, -135, 0])
+    color: #E6F3FF  // Cool fill light
+  }
+
+  entity rim_light {
+    @light(
+      type: "spot",
+      intensity: 2.0,
+      angle: 30,
+      penumbra: 0.5,
+      castShadows: true,
+      shadowMapSize: 2048
+    )
+    @transform(
+      position: [-5, 4, -5],
+      lookAt: [0, 1, 0]
+    )
+    color: #FFFFFF  // White rim light for edge definition
+  }
+
+  // Additional accent lights for product highlights
+  entity accent_light_1 {
+    @light(
+      type: "point",
+      intensity: 1.0,
+      distance: 5,
+      decay: 2
+    )
+    @transform(position: [3, 1, 2])
+    color: #FFD700  // Gold accent
+  }
+
+  entity accent_light_2 {
+    @light(
+      type: "point",
+      intensity: 1.0,
+      distance: 5,
+      decay: 2
+    )
+    @transform(position: [-3, 1, -2])
+    color: #4169E1  // Royal blue accent
+  }
+
+  // Interactive product info panels
+  entity info_panel {
+    @transform(position: [4, 2, 0], rotation: [0, -90, 0])
+    @ui(type: "world_space", resolution: [1920, 1080])
+    @material(
+      type: "physical",
+      roughness: 0.3,
+      emissive: true,
+      emissiveIntensity: 0.5
+    )
+
+    component product_info {
+      render: () => (
+        <ProductShowcase>
+          <Title>Luxury GT 2026</Title>
+          <Specs>
+            <Spec label="Engine">V12 Twin-Turbo</Spec>
+            <Spec label="Power">800 HP</Spec>
+            <Spec label="0-60">2.8 seconds</Spec>
+            <Spec label="Top Speed">220 mph</Spec>
+          </Specs>
+          <PriceTag>$450,000</PriceTag>
+          <CallToAction>Configure Your Dream Car</CallToAction>
+        </ProductShowcase>
+      )
+    }
+
+    // Smooth fade-in animation
+    @animation(
+      maxFPS: 60,
+      blending: true
+    )
+
+    component fade_in {
+      opacity: 0
+      on_mount: () => {
+        animate(this.opacity, 1.0, { duration: 1.5, easing: "ease-in-out" })
+      }
+    }
+  }
+
+  // Particle effects for premium feel
+  entity particle_sparkles {
+    @transform(position: [0, 0.5, 0])
+    @particles(
+      count: 200,
+      texture: "textures/sparkle.png",
+      size: 0.05,
+      sizeVariation: 0.02,
+      lifeTime: 3.0,
+      velocity: [0, 0.2, 0],
+      velocityVariation: [0.1, 0.1, 0.1]
+    )
+
+    emitter: {
+      shape: "sphere",
+      radius: 2.0,
+      rate: 20  // particles per second
+    }
+
+    color: #FFD700  // Gold sparkles
+    opacity: 0.6
+
+    // Only visible near car
+    @lod(
+      levels: 2,
+      distances: [5, 10]
+    )
+  }
+
+  // Studio audio atmosphere
+  audio {
+    @audio(
+      quality: "studio",        // From cinematic profile
+      spatialAudio: true,
+      reverbEnabled: true
+    )
+
+    component ambient_music {
+      source: "audio/luxury_ambience.mp3"
+      volume: 0.3
+      loop: true
+      fadeIn: 2.0
+    }
+
+    component car_sounds {
+      engine_idle: "audio/luxury_engine_idle.wav"
+      door_open: "audio/door_premium.wav"
+      volume: 0.7
+      spatialBlend: 1.0  // Full 3D audio
+    }
+  }
+
+  // Multi-user networking for live presentations
+  networking {
+    @networking(
+      syncRate: 20,             // From cinematic profile
+      interpolation: true,
+      compression: false        // Quality over bandwidth
+    )
+
+    // Sync camera positions for guided tours
+    sync_transforms: [
+      luxury_car.turntable,
+      interior_camera.camera_path
+    ]
+
+    // Shared annotation system
+    component annotations {
+      allow_drawing: true
+      sync_realtime: true
+      persist: false
+    }
+  }
+
+  // High-quality screen recording support
+  component screen_capture {
+    resolution: [3840, 2160]  // 4K
+    framerate: 60
+    quality: "high"
+    format: "mp4"
+    codec: "h264"
+  }
+}

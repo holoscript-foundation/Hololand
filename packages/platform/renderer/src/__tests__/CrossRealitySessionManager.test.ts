@@ -601,13 +601,13 @@ describe('CrossRealitySessionManager', () => {
     expect(paired).toBe(false);
   });
 
-  it('initiates a handoff to a connected device', () => {
+  it('initiates a handoff to a connected device', async () => {
     // Setup
     session.registerDiscoveredDevice(createTestCapabilities('phone-1', 'phone'));
     session.pairWithDevice('phone-1');
 
     // Handoff
-    const { payload, validation } = session.initiateHandoff('phone-1', {
+    const { payload, validation } = await session.initiateHandoff('phone-1', {
       gatherDecisionHistory: () => createEmptyDecisionHistory(),
       gatherActiveTask: () => createEmptyActiveTaskState(),
       gatherUserPreferences: () => createDefaultUserPreferences(),
@@ -680,7 +680,7 @@ describe('CrossRealitySessionManager', () => {
 // =============================================================================
 
 describe('End-to-End Cross-Reality Session', () => {
-  it('VR device discovers, pairs, and hands off to phone', () => {
+  it('VR device discovers, pairs, and hands off to phone', async () => {
     // 1. Create VR session
     const vrSession = createCrossRealitySessionManager({
       agentId: 'brittney',
@@ -710,7 +710,7 @@ describe('End-to-End Cross-Reality Session', () => {
     expect(vrSession.getState()).toBe('connected');
 
     // 5. VR initiates handoff
-    const { payload, validation } = vrSession.initiateHandoff('pixel9', {
+    const { payload, validation } = await vrSession.initiateHandoff('pixel9', {
       gatherDecisionHistory: () => ({
         decisions: [{
           id: 'd1', summary: 'Navigate to kitchen', rationale: 'User asked',

@@ -110,9 +110,9 @@ describe('FormFactor and Embodiment', () => {
     expect(DEFAULT_EMBODIMENT['vr-headset']).toBe('Avatar3D');
     expect(DEFAULT_EMBODIMENT['ar-glasses']).toBe('SpatialPersona');
     expect(DEFAULT_EMBODIMENT['phone']).toBe('UI2D');
-    expect(DEFAULT_EMBODIMENT['desktop']).toBe('FullGUI');
-    expect(DEFAULT_EMBODIMENT['car']).toBe('VoiceHUD');
-    expect(DEFAULT_EMBODIMENT['wearable']).toBe('UI2D');
+    expect(DEFAULT_EMBODIMENT['desktop']).toBe('UI2D'); // Desktop defaults to UI2D
+    expect(DEFAULT_EMBODIMENT['car']).toBe('VoiceOnly'); // Car defaults to VoiceOnly
+    expect(DEFAULT_EMBODIMENT['wearable']).toBe('UIMinimal'); // Wearable defaults to UIMinimal
   });
 
   it('defines performance budgets for all form factors', () => {
@@ -252,7 +252,7 @@ describe('SpatialContextSummary', () => {
   it('preserves source embodiment from previous form factor', () => {
     const ctx = createEmptySpatialContext('car');
     expect(ctx.previousFormFactor).toBe('car');
-    expect(ctx.previousEmbodiment).toBe('VoiceHUD');
+    expect(ctx.previousEmbodiment).toBe('VoiceOnly'); // Car defaults to VoiceOnly
   });
 });
 
