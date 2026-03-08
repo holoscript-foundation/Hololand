@@ -56,6 +56,40 @@ export {
 export type { QualityManagerOptions } from './QualityManager';
 
 // =============================================================================
+// LOD SYSTEM (Distance-Based + Foveated)
+// =============================================================================
+
+export {
+  LODManager,
+} from './LODManager';
+
+export type {
+  LODLevel,
+  LODDistanceThresholds,
+  LODManagerConfig,
+} from './LODManager';
+
+export {
+  ProceduralGeometryLODManager,
+} from './ProceduralGeometryLOD';
+
+export type {
+  ProceduralGeometryType,
+  ProceduralLODLevel,
+  HullLODConfig,
+  SplineLODConfig,
+  MembraneLODConfig,
+  FoveatedLODModifiers,
+  ProceduralGeometryLODConfig,
+  ProceduralGeometryObject,
+} from './ProceduralGeometryLOD';
+
+export {
+  ProceduralGeometryLODIntegration,
+  createProceduralGeometryLODIntegration,
+} from './ProceduralGeometryLODIntegration';
+
+// =============================================================================
 // LIGHTING FIDELITY (Levels 0-4 Spectrum with Auto-Downgrade)
 // =============================================================================
 
@@ -1069,6 +1103,155 @@ export * from './WebSocketTransportBackend';
 export * from './AgentIdentityContinuity';
 export * from './components/webxr-agent-embodiment';
 export * from './components/cross-reality-monitor';
+
+// =============================================================================
+// CROSS-REALITY ECS (Entity-Component-System for Agent State Persistence)
+// =============================================================================
+
+export * from './CrossRealityECS';
+
+// =============================================================================
+// WEBXR SESSION BRIDGE (WebXR Device API Integration for VR/AR Handoffs)
+// =============================================================================
+
+export {
+  WebXRSessionBridge,
+  createWebXRSessionBridge,
+} from './WebXRSessionBridge';
+export type {
+  XRSessionMode,
+  XRReferenceSpaceType,
+  WebXRCapabilities as WebXRSessionCapabilities,
+  XRSessionState,
+} from './WebXRSessionBridge';
+
+// =============================================================================
+// GDPR COMPLIANCE (Right to Erasure, Data Portability, Consent Tracking)
+// =============================================================================
+
+export * from './security/GDPRComplianceManager';
+
+// =============================================================================
+// VR SCENE PERFORMANCE BUDGET (Draw Call Analysis, Frame Budget, Batching)
+// =============================================================================
+
+export {
+  analyzeScenePerformanceBudget,
+  createDragonMeshDescriptors,
+} from './VRScenePerformanceBudget';
+
+export type {
+  VRTargetPlatform,
+  GeometryComplexity,
+  MeshCategory,
+  FrameBudgetAllocation,
+  DrawCallAnalysis,
+  AnimationAnalysis,
+  VolumetricAnalysis,
+  LightingAnalysis,
+  ScenePerformanceBudget,
+  OptimizationRecommendation,
+  SceneMeshDescriptor,
+} from './VRScenePerformanceBudget';
+
+// =============================================================================
+// DRAGON MESH BATCHER (163 Meshes -> 10-20 Draw Calls)
+// =============================================================================
+
+export {
+  DragonMeshBatcher,
+  createDragonMeshBatcher,
+} from './DragonMeshBatcher';
+
+export type {
+  BatchGroupType,
+  CreatureBodyRegion,
+  BatchMeshEntry,
+  BatchGroup,
+  BatchingPlan,
+  BatchingConfig,
+} from './DragonMeshBatcher';
+
+// =============================================================================
+// CREATURE LOD PROFILE (Dragon-Specific LOD for Procedural Geometry)
+// =============================================================================
+
+export {
+  generateCreatureLODProfile,
+  createDragonLODProfile,
+  DRAGON_LOD_PROFILE,
+} from './CreatureLODProfile';
+
+export type {
+  CreatureSizeClass,
+  RegionDetailImportance,
+  CreatureLODProfileConfig,
+  CreatureLODOutput,
+  RegionLODRecommendation,
+  AnimationLODConfig,
+  AnimationLODThreshold,
+  DetailMergingConfig,
+} from './CreatureLODProfile';
+
+// =============================================================================
+// CREATURE FOVEATED PROFILE (Gaze-Contingent VR Rendering for Organic Models)
+// =============================================================================
+
+export {
+  CreatureFoveatedRenderer,
+  createCreatureFoveatedRenderer,
+} from './CreatureFoveatedProfile';
+
+export type {
+  FoveatedZoneType,
+  EyeTrackingData,
+  FoveatedZoneConfig as CreatureFoveatedZoneConfig,
+  RegionFoveatedState,
+  CreatureFoveatedConfig,
+  CreatureFoveatedMetrics,
+} from './CreatureFoveatedProfile';
+
+// =============================================================================
+// VR SCENE PROFILER DASHBOARD (Real-Time Performance Profiling UI)
+// =============================================================================
+
+export {
+  SceneProfilerDashboard,
+} from './components/scene-profiler';
+
+export type {
+  SceneProfilerDashboardProps,
+} from './components/scene-profiler';
+
+export {
+  useSceneProfiler,
+} from './components/scene-profiler';
+
+export type {
+  UseSceneProfilerConfig,
+} from './components/scene-profiler';
+
+export {
+  DEFAULT_SCENE_PROFILER_THEME,
+  FRAME_BUDGET_90HZ as SCENE_PROFILER_FRAME_BUDGET_90HZ,
+  FRAME_BUDGET_60HZ as SCENE_PROFILER_FRAME_BUDGET_60HZ,
+  PANEL_LABELS as SCENE_PROFILER_PANEL_LABELS,
+  BATCH_TYPE_LABELS,
+  BATCH_TYPE_COLORS,
+} from './components/scene-profiler';
+
+export type {
+  SceneProfilerPanel,
+  ProfilerDisplayMode,
+  ProfilerFrameSample,
+  BatchingStatus,
+  LODStatus as SceneProfilerLODStatus,
+  VolumetricFireStatus,
+  BudgetHealthStatus,
+  SceneProfilerState,
+  SceneProfilerActions,
+  SceneProfilerTheme,
+} from './components/scene-profiler';
 
 // =============================================================================
 // VERSION
