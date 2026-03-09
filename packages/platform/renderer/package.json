@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@hololand/logger": "workspace:*",
-    "@holoscript/agent-protocol": "workspace:*"
+    "@hololand/quality-profiles": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

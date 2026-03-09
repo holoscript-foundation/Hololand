@@ -87,6 +87,14 @@ import type {
   FrameRateTier,
   FrameRateChangeReason,
 } from './AdaptiveFrameRateManager';
+import {
+  QualityProfileManager,
+  createQualityProfileManager,
+  type QualityProfileManagerOptions,
+  type QualityProfileName,
+  type CompositionQualityMetadata,
+  type QualityProfile,
+} from '@hololand/quality-profiles';
 
 // =============================================================================
 // DEVICE PRESET DETECTION FOR FOVEATED RENDERING
@@ -175,6 +183,7 @@ export class HololandRenderer {
 
   // Advanced systems
   private qualityManager: QualityManager;
+  private qualityProfileManager: QualityProfileManager | null = null;
   private postProcessing: PostProcessingPipeline | null = null;
   private environmentManager: EnvironmentManager | null = null;
   private materialFactory: MaterialFactory;
@@ -228,6 +237,34 @@ export class HololandRenderer {
       overrides: config?.qualityOverrides,
       adaptiveQuality: true,
       onQualityChange: (settings, preset) => this.onQualityChange(settings, preset),
+    });
+
+    // Initialize quality profile manager
+    // This provides domain-specific quality tier profiles (industrial, cinematic, mobile)
+    // that can be set via composition metadata or programmatically
+    this.qualityProfileManager = createQualityProfileManager({
+      defaultProfile: 'industrial', // Conservative default
+      autoApply: true,
+      onProfileChange: (profile, metadata) => {
+        logger.info('[HololandRenderer] Quality profile changed', {
+          profile: profile.name,
+          displayName: profile.displayName,
+          priority: profile.priority,
+        });
+
+        // Apply the profile's render settings to the quality manager
+        const effectiveSettings = this.qualityProfileManager?.getEffectiveQualitySettings();
+        if (effectiveSettings) {
+          this.qualityManager.applyOverrides(effectiveSettings);
+        }
+      },
+      onTraitConfigChange: (traitConfig) => {
+        logger.info('[HololandRenderer] Trait config updated from quality profile', {
+          physics: traitConfig.physics?.accuracy,
+          networking: traitConfig.networking?.syncRate,
+        });
+        // Trait config can be used by physics, networking, etc. in the future
+      },
     });
 
     // Initialize material factory
@@ -585,6 +622,44 @@ export class HololandRenderer {
     this.world.on('object:removed', (event) => {
       this.removeObjectFromScene(event.data.objectId);
     });
+
+    // Check for composition quality metadata in world objects
+    // Look for a special metadata object with type "composition:metadata"
+    this.loadCompositionQualityMetadata();
+  }
+
+  /**
+   * Load composition quality metadata from the world if present.
+   *
+   * Looks for a SpatialObject with type "composition:metadata" that contains
+   * quality profile configuration in its metadata field.
+   */
+  private loadCompositionQualityMetadata(): void {
+    if (!this.qualityProfileManager) {
+      return;
+    }
+
+    // Search for composition metadata object
+    const allObjects = this.world.getAllObjects();
+    for (const obj of allObjects) {
+      if (obj.type === 'composition:metadata') {
+        const metadata = obj.getMetadata();
+        if (metadata.qualityProfile) {
+          logger.info('[HololandRenderer] Found composition quality metadata', {
+            profile: metadata.qualityProfile.profile,
+          });
+
+          try {
+            this.applyCompositionQualityMetadata(metadata.qualityProfile as CompositionQualityMetadata);
+          } catch (error) {
+            logger.error('[HololandRenderer] Failed to apply composition quality metadata', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        break; // Only use the first metadata object found
+      }
+    }
   }
 
   /**
@@ -812,6 +887,81 @@ export class HololandRenderer {
    */
   getQualityManager(): QualityManager {
     return this.qualityManager;
+  }
+
+  // =============================================================================
+  // QUALITY PROFILE API (Domain-Specific Tier Profiles)
+  // =============================================================================
+
+  /**
+   * Get the quality profile manager for advanced control
+   */
+  getQualityProfileManager(): QualityProfileManager | null {
+    return this.qualityProfileManager;
+  }
+
+  /**
+   * Set quality profile by name (industrial, cinematic, mobile)
+   *
+   * This applies a complete domain-specific quality configuration
+   * optimized for specific use cases:
+   * - industrial: Data accuracy over visual fidelity (digital twins, IoT)
+   * - cinematic: Maximal visual quality (marketing, archviz)
+   * - mobile: Aggressive optimization (Quest standalone, mobile AR)
+   */
+  setQualityProfile(profile: QualityProfileName, metadata?: CompositionQualityMetadata): void {
+    if (!this.qualityProfileManager) {
+      logger.warn('[HololandRenderer] Quality profile manager not initialized');
+      return;
+    }
+
+    this.qualityProfileManager.setProfile(profile, metadata);
+  }
+
+  /**
+   * Get the current quality profile
+   */
+  getQualityProfile(): Readonly<QualityProfile> | null {
+    return this.qualityProfileManager?.getProfile() ?? null;
+  }
+
+  /**
+   * Apply quality settings from composition metadata
+   *
+   * This is called automatically when loading HoloScript compositions
+   * that include quality profile metadata.
+   */
+  applyCompositionQualityMetadata(metadata: CompositionQualityMetadata): void {
+    if (!this.qualityProfileManager) {
+      logger.warn('[HololandRenderer] Quality profile manager not initialized');
+      return;
+    }
+
+    // Validate metadata before applying
+    const validation = this.qualityProfileManager.validateMetadata(metadata);
+    if (!validation.valid) {
+      logger.error('[HololandRenderer] Invalid composition quality metadata', {
+        errors: validation.errors,
+      });
+      return;
+    }
+
+    this.qualityProfileManager.applyFromMetadata(metadata);
+  }
+
+  /**
+   * Recommend a quality profile based on current device type
+   *
+   * Uses the QualityManager's device detection to suggest an
+   * appropriate domain-specific profile.
+   */
+  recommendQualityProfile(): QualityProfileName | null {
+    if (!this.qualityProfileManager) {
+      return null;
+    }
+
+    const deviceType = this.qualityManager.getDeviceType();
+    return this.qualityProfileManager.recommendProfileByDevice(deviceType);
   }
 
   // =============================================================================

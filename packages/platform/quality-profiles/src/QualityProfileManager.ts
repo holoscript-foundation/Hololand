@@ -123,11 +123,11 @@ export class QualityProfileManager {
     const overrides = this.currentMetadata?.traitOverrides ?? {};
 
     return {
-      lod: { ...baseConfig.lod, ...overrides.lod },
-      physics: { ...baseConfig.physics, ...overrides.physics },
-      networking: { ...baseConfig.networking, ...overrides.networking },
-      material: { ...baseConfig.material, ...overrides.material },
-      animation: { ...baseConfig.animation, ...overrides.animation },
+      lod: { ...baseConfig.lod, ...overrides.lod } as typeof baseConfig.lod,
+      physics: { ...baseConfig.physics, ...overrides.physics } as typeof baseConfig.physics,
+      networking: { ...baseConfig.networking, ...overrides.networking } as typeof baseConfig.networking,
+      material: { ...baseConfig.material, ...overrides.material } as typeof baseConfig.material,
+      animation: { ...baseConfig.animation, ...overrides.animation } as typeof baseConfig.animation,
     };
   }
 

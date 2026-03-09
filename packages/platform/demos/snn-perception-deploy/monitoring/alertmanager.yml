@@ -1,0 +1,124 @@
+# Alertmanager Configuration for SNN Perception Demo
+# Routes alerts to appropriate channels (email, Slack, PagerDuty, etc.)
+
+global:
+  resolve_timeout: 5m
+  # SMTP configuration for email alerts
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@hololand.io'
+  smtp_auth_username: 'alerts@hololand.io'
+  smtp_auth_password: 'REPLACE_WITH_SMTP_PASSWORD'
+  smtp_require_tls: true
+
+# Templates for alert formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing tree for alerts
+route:
+  # Default grouping and notification settings
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  # Child routes for specific alert types
+  routes:
+    # Critical alerts go to PagerDuty
+    - match:
+        severity: critical
+      receiver: 'pagerduty'
+      continue: true
+
+    # Warning alerts go to Slack
+    - match:
+        severity: warning
+      receiver: 'slack'
+      continue: true
+
+    # Info alerts only to email
+    - match:
+        severity: info
+      receiver: 'email'
+
+    # SNN inference specific alerts
+    - match:
+        component: snn-inference
+      receiver: 'snn-team'
+      group_by: ['alertname', 'component']
+
+    # System resource alerts
+    - match:
+        component: system
+      receiver: 'ops-team'
+
+# Alert receivers
+receivers:
+  # Default receiver (email)
+  - name: 'default'
+    email_configs:
+      - to: 'team@hololand.io'
+        headers:
+          Subject: '[SNN Perception] {{ .GroupLabels.alertname }}'
+
+  # PagerDuty for critical alerts
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: 'REPLACE_WITH_PAGERDUTY_KEY'
+        description: '{{ .GroupLabels.alertname }} - {{ .CommonAnnotations.summary }}'
+        severity: '{{ .CommonLabels.severity }}'
+
+  # Slack for warnings
+  - name: 'slack'
+    slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#snn-perception-alerts'
+        username: 'Alertmanager'
+        icon_emoji: ':warning:'
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+  # Email for info
+  - name: 'email'
+    email_configs:
+      - to: 'monitoring@hololand.io'
+        headers:
+          Subject: '[Info] {{ .GroupLabels.alertname }}'
+
+  # SNN team specific alerts
+  - name: 'snn-team'
+    slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#snn-inference'
+        username: 'SNN Monitor'
+        icon_emoji: ':brain:'
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+    email_configs:
+      - to: 'snn-team@hololand.io'
+
+  # Ops team for system alerts
+  - name: 'ops-team'
+    email_configs:
+      - to: 'ops@hololand.io'
+    slack_configs:
+      - api_url: 'REPLACE_WITH_SLACK_WEBHOOK_URL'
+        channel: '#ops-alerts'
+
+# Inhibition rules (suppress alerts based on other alerts)
+inhibit_rules:
+  # Suppress warning if critical alert is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+
+  # Suppress individual service alerts if entire cluster is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['cluster']

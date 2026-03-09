@@ -2187,11 +2187,35 @@ importers:
         specifier: ^1.0.0
         version: 1.6.1(@types/node@22.19.6)(@vitest/ui@1.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
 
+  packages/platform/quality-profiles:
+    devDependencies:
+      '@hololand/renderer':
+        specifier: workspace:*
+        version: link:../renderer
+      '@types/node':
+        specifier: ^20.11.5
+        version: 20.19.29
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.1
+      tsup:
+        specifier: ^8.0.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
+      vitest:
+        specifier: ^1.2.1
+        version: 1.6.1(@types/node@20.19.29)(@vitest/ui@1.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)(terser@5.46.0)
+
   packages/platform/renderer:
     dependencies:
       '@hololand/logger':
         specifier: workspace:*
         version: link:../logger
+      '@hololand/quality-profiles':
+        specifier: workspace:*
+        version: link:../quality-profiles
       '@hololand/world':
         specifier: ^1.0.0
         version: link:../world

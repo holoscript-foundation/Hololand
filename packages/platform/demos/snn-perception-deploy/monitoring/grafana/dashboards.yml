@@ -1,0 +1,15 @@
+# Grafana Dashboard Provisioning Configuration
+# Auto-loads dashboards from /var/lib/grafana/dashboards
+
+apiVersion: 1
+
+providers:
+  - name: 'SNN Perception Dashboards'
+    orgId: 1
+    folder: 'SNN Perception'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

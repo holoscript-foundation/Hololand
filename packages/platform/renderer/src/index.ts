@@ -1254,6 +1254,195 @@ export type {
 } from './components/scene-profiler';
 
 // =============================================================================
+// WEBGPU COMPUTE SHADER CONTROLS
+// =============================================================================
+
+export {
+  ComputeShaderPanel,
+} from './components/webgpu-compute';
+
+export type {
+  ComputeShaderPanelProps,
+} from './components/webgpu-compute';
+
+export {
+  FluidSimulationControls,
+} from './components/webgpu-compute';
+
+export type {
+  FluidSimulationControlsProps,
+} from './components/webgpu-compute';
+
+export {
+  ParticleSystemControls,
+} from './components/webgpu-compute';
+
+export type {
+  ParticleSystemControlsProps,
+} from './components/webgpu-compute';
+
+export {
+  ClothSimulationControls,
+} from './components/webgpu-compute';
+
+export type {
+  ClothSimulationControlsProps,
+} from './components/webgpu-compute';
+
+export {
+  GPUPerformanceOverlay,
+} from './components/webgpu-compute';
+
+export type {
+  GPUPerformanceOverlayProps,
+} from './components/webgpu-compute';
+
+export {
+  ShaderEditorPanel,
+} from './components/webgpu-compute';
+
+export type {
+  ShaderEditorPanelProps,
+} from './components/webgpu-compute';
+
+export {
+  useComputeShaderPanel,
+  useFluidSimulation,
+  useParticleSystem,
+  useClothSimulation,
+  useGPUPerformance,
+  useShaderEditor,
+} from './components/webgpu-compute';
+
+export type {
+  UseComputeShaderPanelConfig,
+  UseFluidSimulationConfig,
+  UseParticleSystemConfig,
+  UseClothSimulationConfig,
+  UseGPUPerformanceConfig,
+  UseShaderEditorConfig,
+} from './components/webgpu-compute';
+
+export {
+  DEFAULT_WEBGPU_COMPUTE_THEME,
+  MAX_PARTICLE_COUNT,
+  DEFAULT_FLUID_PARAMS,
+  DEFAULT_PARTICLE_PARAMS,
+  DEFAULT_CLOTH_PARAMS,
+  WGSL_TEMPLATES,
+  WGSL_KEYWORDS,
+  WGSL_TYPES,
+  WGSL_BUILTINS,
+  WGSL_ATTRIBUTES,
+  VELOCITY_FIELD_LABELS,
+  FORCE_FIELD_LABELS,
+  EMITTER_SHAPE_LABELS,
+} from './components/webgpu-compute';
+
+export type {
+  PipelineStatus,
+  WorkgroupSize,
+  DispatchSize,
+  ComputePipelineState,
+  ComputeShaderPanelState,
+  ComputeShaderPanelActions,
+  FluidSolverType,
+  BoundaryCondition,
+  FluidSimulationParams,
+  VelocityFieldDisplay,
+  FluidSimulationState,
+  FluidSimulationActions,
+  EmitterShape,
+  ForceFieldType,
+  GradientStop,
+  ForceField,
+  ParticleSystemParams,
+  ParticleSystemState,
+  ParticleSystemActions,
+  ClothIntegrationMethod,
+  PinPoint,
+  ClothSimulationParams,
+  ClothSimulationState,
+  ClothSimulationActions,
+  GPUPerformanceSample,
+  GPUBufferInfo,
+  GPUPerformanceOverlayState,
+  GPUPerfPanel,
+  GPUPerformanceOverlayActions,
+  ShaderCompilationStatus,
+  ShaderCompilationError,
+  WGSLTokenType,
+  ShaderEditorState,
+  ShaderEditorActions,
+  WebGPUComputeTheme,
+} from './components/webgpu-compute';
+
+// =============================================================================
+// SPECTATOR CAMERA (Non-XR Scene Capture + Multi-Mode Camera Control)
+// =============================================================================
+
+export {
+  SpectatorCameraPanel,
+} from './components/spectator-camera';
+
+export type {
+  SpectatorCameraPanelProps,
+} from './components/spectator-camera';
+
+export {
+  SpectatorCameraController,
+  createSpectatorCameraController,
+} from './components/spectator-camera';
+
+export {
+  SpectatorCaptureEngine,
+  createSpectatorCaptureEngine,
+} from './components/spectator-camera';
+
+export {
+  useSpectatorCamera,
+} from './components/spectator-camera';
+
+export type {
+  UseSpectatorCameraConfig,
+} from './components/spectator-camera';
+
+export {
+  CAMERA_MODE_LABELS,
+  CAMERA_MODE_DESCRIPTIONS,
+  CAPTURE_RESOLUTION_PRESETS,
+  DEFAULT_SPECTATOR_CAMERA_STATE,
+  DEFAULT_ORBIT_CONFIG,
+  DEFAULT_FLY_CONFIG,
+  DEFAULT_CINEMATIC_CONFIG,
+  DEFAULT_CAPTURE_CONFIG,
+  DEFAULT_PLAYBACK_STATE,
+  DEFAULT_SPECTATOR_THEME,
+  EASING_FUNCTIONS,
+} from './components/spectator-camera';
+
+export type {
+  SpectatorCameraMode,
+  SpectatorCameraState,
+  SpectatorOrbitConfig,
+  SpectatorFlyConfig,
+  SpectatorCinematicConfig,
+  CinematicWaypoint,
+  CinematicEasing,
+  CinematicPlaybackState,
+  CaptureFormat,
+  CaptureResolutionPreset,
+  SpectatorCaptureConfig,
+  CaptureResult,
+  CaptureHistoryEntry,
+  SpectatorStatus,
+  SpectatorPerformanceMetrics,
+  SpectatorCameraHookState,
+  SpectatorCameraHookActions,
+  SpectatorCameraTheme,
+} from './components/spectator-camera';
+
+// =============================================================================
 // VERSION
 // =============================================================================
 
@@ -1312,6 +1501,15 @@ import { PlatformCapabilityBadge } from './components/webxr-platform';
 import { detectWebXRPlatform, detectPlatformSync } from './components/webxr-platform';
 import { TeleoperationHub } from './TeleoperationHub';
 import { GR00TN16PolicyClient } from './GR00TN16PolicyClient';
+import { ComputeShaderPanel } from './components/webgpu-compute';
+import { FluidSimulationControls } from './components/webgpu-compute';
+import { ParticleSystemControls } from './components/webgpu-compute';
+import { ClothSimulationControls } from './components/webgpu-compute';
+import { GPUPerformanceOverlay } from './components/webgpu-compute';
+import { ShaderEditorPanel } from './components/webgpu-compute';
+import { SpectatorCameraPanel } from './components/spectator-camera';
+import { SpectatorCameraController } from './components/spectator-camera';
+import { SpectatorCaptureEngine } from './components/spectator-camera';
 
 export default {
   HololandRenderer,
@@ -1364,6 +1562,15 @@ export default {
   detectPlatformSync,
   TeleoperationHub,
   GR00TN16PolicyClient,
+  ComputeShaderPanel,
+  FluidSimulationControls,
+  ParticleSystemControls,
+  ClothSimulationControls,
+  GPUPerformanceOverlay,
+  ShaderEditorPanel,
+  SpectatorCameraPanel,
+  SpectatorCameraController,
+  SpectatorCaptureEngine,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };

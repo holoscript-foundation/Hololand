@@ -268,6 +268,29 @@ npm run test -- LocalInference.test.ts
 
 ---
 
+## 🔬 PILOT PROGRAMS
+
+### Neuromorphic AI Warehouse Training Pilot
+📋 **[docs/pilots/NEUROMORPHIC_WAREHOUSE_PILOT.md](docs/pilots/NEUROMORPHIC_WAREHOUSE_PILOT.md)** (60 min read)
+- Comprehensive 4-week pilot plan for neuromorphic AI VR training
+- Partner selection criteria (logistics companies, 100+ workers)
+- Deployment timeline and technical requirements
+- Success metrics: 6-hour battery life, $12K/worker/year ROI validation
+- SNN accuracy benchmarking vs. CNN baseline
+- Intel Loihi 2 integration roadmap for 2027
+- Partner outreach templates and pilot proposal deck
+
+📊 **[docs/pilots/NEUROMORPHIC_PILOT_EXECUTIVE_SUMMARY.md](docs/pilots/NEUROMORPHIC_PILOT_EXECUTIVE_SUMMARY.md)** (5 min read)
+- 1-page executive summary for leadership decision-making
+- Investment required: $81K for Q2 2026 pilot
+- Expected ROI: $1.5M ARR by 2027, $6M ARR by 2028
+- Go/no-go decision framework and risk mitigation
+- 2027 strategic vision with Intel partnership
+
+**Read this when**: Planning neuromorphic VR deployments or warehouse logistics partnerships
+
+---
+
 ## 🎓 LEARNING RESOURCES
 
 All documentation follows these patterns:

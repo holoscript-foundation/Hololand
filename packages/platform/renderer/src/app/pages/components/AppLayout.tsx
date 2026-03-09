@@ -13,12 +13,13 @@
  *   - Focus indicators visible (2px outline)
  *   - Minimum 4.5:1 contrast ratios
  *   - Prefetch on hover/focus for lazy-loaded routes
+ *   - Keyboard shortcuts: Ctrl+E (Editor), Ctrl+A (Audit)
  *
  * @module pages/components/AppLayout
  */
 
-import React, { useCallback } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import React, { useCallback, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { routePrefetchMap } from '../../lazy-routes';
 
 // =============================================================================
@@ -31,13 +32,31 @@ interface NavItem {
   /** Display label (also used as accessible name) */
   label: string;
   /** Group for visual separation */
-  group: 'overview' | 'training';
+  group: 'overview' | 'training' | 'tools';
+  /** Optional icon (emoji or symbol) */
+  icon?: string;
+  /** Optional description for tooltips */
+  description?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Overview', group: 'overview' },
   { to: '/grpo', label: 'GRPO Training', group: 'training' },
   { to: '/pipeline', label: 'Pipeline', group: 'training' },
+  {
+    to: '/composition-editor',
+    label: 'Composition Editor',
+    group: 'tools',
+    icon: '⊞',
+    description: 'HoloScript composition editor with trait matrix'
+  },
+  {
+    to: '/a11y-audit',
+    label: 'Accessibility Audit',
+    group: 'tools',
+    icon: '♿',
+    description: 'WCAG 2.1 compliance scanner'
+  },
 ];
 
 // =============================================================================
@@ -137,6 +156,8 @@ const STYLES = {
 // =============================================================================
 
 export const AppLayout: React.FC = () => {
+  const navigate = useNavigate();
+
   const handlePrefetch = useCallback((path: string) => {
     const prefetchFn = routePrefetchMap[path];
     if (prefetchFn) {
@@ -144,9 +165,30 @@ export const AppLayout: React.FC = () => {
     }
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+E: Navigate to Composition Editor
+      if (event.ctrlKey && event.key === 'e') {
+        event.preventDefault();
+        navigate('/composition-editor');
+      }
+      // Ctrl+A: Navigate to Accessibility Audit
+      // Note: Ctrl+A is "Select All" by default, so we need to prevent default
+      if (event.ctrlKey && event.key === 'a') {
+        event.preventDefault();
+        navigate('/a11y-audit');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
+
   // Group nav items
   const overviewItems = NAV_ITEMS.filter((item) => item.group === 'overview');
   const trainingItems = NAV_ITEMS.filter((item) => item.group === 'training');
+  const toolsItems = NAV_ITEMS.filter((item) => item.group === 'tools');
 
   return (
     <div style={STYLES.layout}>
@@ -212,6 +254,33 @@ export const AppLayout: React.FC = () => {
                       ...(isActive ? STYLES.navLinkActive : {}),
                     })}
                   >
+                    {item.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Tools group */}
+          <div style={STYLES.navGroup} role="group" aria-label="Development Tools">
+            <div style={STYLES.navGroupLabel} aria-hidden="true">
+              Tools
+            </div>
+            <ul style={STYLES.navList}>
+              {toolsItems.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    aria-label={item.description || item.label}
+                    title={item.description}
+                    onMouseEnter={() => handlePrefetch(item.to)}
+                    onFocus={() => handlePrefetch(item.to)}
+                    style={({ isActive }) => ({
+                      ...STYLES.navLink,
+                      ...(isActive ? STYLES.navLinkActive : {}),
+                    })}
+                  >
+                    {item.icon && <span aria-hidden="true" style={{ marginRight: '0.5rem' }}>{item.icon}</span>}
                     {item.label}
                   </NavLink>
                 </li>

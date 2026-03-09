@@ -48,6 +48,28 @@ export type {
   FrameRateCallback,
 } from './PerformanceAdapter';
 
+export { default as GeospatialBridge } from './GeospatialBridge';
+export type {
+  WGS84Coordinate,
+  Quaternion,
+  NativeGeospatialAnchor,
+  ARSessionState,
+  VPSAvailability,
+  GeospatialCapabilities,
+  CreateGeospatialAnchorOptions,
+  ResolveGeospatialAnchorOptions,
+  GeospatialBridgePlugin,
+} from './GeospatialBridge';
+export {
+  isGeospatialSupported,
+  isVPSAvailable,
+  ensureLocationPermission,
+  initializeGeospatialAR,
+  haversineDistance,
+  calculateBearing,
+  identityQuaternion,
+} from './GeospatialBridge';
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -56,6 +78,7 @@ import { CameraBridge } from './CameraBridge';
 import { PushNotificationBridge } from './PushNotificationBridge';
 import { HapticBridge } from './HapticBridge';
 import { PerformanceAdapter } from './PerformanceAdapter';
+import GeospatialBridge from './GeospatialBridge';
 
 /** The platform the app is running on */
 export type NativePlatform = 'ios' | 'android' | 'web';
@@ -74,6 +97,8 @@ export interface NativeBridgeAPI {
   haptics: HapticBridge;
   /** Adaptive performance and quality management */
   performance: PerformanceAdapter;
+  /** Geospatial AR bridge for ARKit/ARCore location anchors */
+  geospatial: typeof GeospatialBridge;
   /** Dispose all bridges and clean up resources */
   dispose: () => Promise<void>;
 }
@@ -170,11 +195,18 @@ export async function initializeNativeBridge(): Promise<NativeBridgeAPI | null> 
     pushNotifications,
     haptics,
     performance,
+    geospatial: GeospatialBridge,
 
     async dispose() {
       await camera.dispose();
       await pushNotifications.dispose();
       performance.dispose();
+      // Stop geospatial AR session if active
+      try {
+        await GeospatialBridge.stopARSession();
+      } catch (error) {
+        // Ignore errors (session may not be running)
+      }
       bridgeInstance = null;
       console.info('[NativeBridge] Disposed all bridges.');
     },

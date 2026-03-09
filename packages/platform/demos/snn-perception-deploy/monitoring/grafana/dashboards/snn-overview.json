@@ -1,0 +1,124 @@
+{
+  "dashboard": {
+    "title": "SNN Perception Demo - Overview",
+    "tags": ["snn", "perception", "neuromorphic", "energy"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Inference Latency (ms)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "snn_inference_latency_ms",
+            "legendFormat": "SNN Latency",
+            "refId": "A"
+          },
+          {
+            "expr": "4.2",
+            "legendFormat": "Target (4.2ms)",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "id": 2,
+        "title": "Power Consumption (W)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "snn_power_consumption_w",
+            "legendFormat": "SNN Power",
+            "refId": "A"
+          },
+          {
+            "expr": "0.9",
+            "legendFormat": "Budget (0.9W)",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "id": 3,
+        "title": "Inference Accuracy (%)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "snn_inference_accuracy * 100",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4}
+      },
+      {
+        "id": 4,
+        "title": "Battery Life Estimate (hours)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "snn_estimated_battery_hours",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4}
+      },
+      {
+        "id": 5,
+        "title": "Active Connections",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "nginx_connections_active",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4}
+      },
+      {
+        "id": 6,
+        "title": "Requests per Second",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(nginx_http_requests_total[1m])",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 4}
+      },
+      {
+        "id": 7,
+        "title": "Tracked Objects",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "snn_tracked_objects_count",
+            "legendFormat": "Objects",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8}
+      },
+      {
+        "id": 8,
+        "title": "Inference Frequency (Hz)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "snn_inference_frequency_hz",
+            "legendFormat": "Frequency",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8}
+      }
+    ],
+    "refresh": "5s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  }
+}

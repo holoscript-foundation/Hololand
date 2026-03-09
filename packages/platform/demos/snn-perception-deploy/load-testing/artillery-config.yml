@@ -1,0 +1,191 @@
+# Artillery Load Testing Configuration for SNN Perception Demo
+# Tests performance under 100+ concurrent users
+
+config:
+  target: "https://snn-perception.hololand.io"
+  phases:
+    # Warm-up phase
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm-up: 5 users/sec"
+
+    # Ramp up to 50 concurrent users
+    - duration: 120
+      arrivalRate: 10
+      rampTo: 25
+      name: "Ramp-up: 10-25 users/sec"
+
+    # Sustained load at 100 concurrent users
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained: 50 users/sec (100+ concurrent)"
+
+    # Spike test
+    - duration: 60
+      arrivalRate: 100
+      name: "Spike: 100 users/sec"
+
+    # Cool down
+    - duration: 60
+      arrivalRate: 10
+      name: "Cool-down: 10 users/sec"
+
+  # Performance thresholds
+  ensure:
+    # P95 latency under 200ms
+    p95: 200
+    # P99 latency under 500ms
+    p99: 500
+    # Max latency under 2 seconds
+    max: 2000
+    # Error rate under 1%
+    maxErrorRate: 1
+
+  # Metrics reporting
+  plugins:
+    expect: {}
+    metrics-by-endpoint:
+      stripQueryString: true
+
+  # HTTP settings
+  http:
+    timeout: 10
+    pool: 50
+
+  # Custom variables
+  variables:
+    modelPath: "/models/warehouse-snn-v1.json"
+    healthEndpoint: "/health"
+    metricsEndpoint: "/metrics"
+
+scenarios:
+  # ============================================================================
+  # Scenario 1: Initial Page Load (WebGPU initialization)
+  # ============================================================================
+  - name: "Initial Page Load"
+    weight: 40
+    flow:
+      - get:
+          url: "/"
+          headers:
+            User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; Quest 3) AppleWebKit/537.36"
+          expect:
+            - statusCode: 200
+            - contentType: "text/html"
+            - hasHeader: "Cross-Origin-Embedder-Policy"
+            - hasHeader: "Cross-Origin-Opener-Policy"
+
+      # Load main JavaScript bundle
+      - get:
+          url: "/assets/index.js"
+          expect:
+            - statusCode: 200
+            - contentType: "application/javascript"
+
+      # Load CSS
+      - get:
+          url: "/assets/index.css"
+          expect:
+            - statusCode: 200
+            - contentType: "text/css"
+
+      # Load SNN model (critical path)
+      - get:
+          url: "{{ modelPath }}"
+          expect:
+            - statusCode: 200
+            - contentType: "application/json"
+          capture:
+            - json: "$.metadata.inference_latency_ms"
+              as: "expectedLatency"
+
+      # Think time (user reads instructions)
+      - think: 2
+
+  # ============================================================================
+  # Scenario 2: Returning User (Cached Assets)
+  # ============================================================================
+  - name: "Returning User (Cached)"
+    weight: 30
+    flow:
+      - get:
+          url: "/"
+          headers:
+            If-None-Match: '"cached-etag"'
+          expect:
+            - statusCode: [200, 304]
+
+      # Model should be cached
+      - get:
+          url: "{{ modelPath }}"
+          headers:
+            If-None-Match: '"model-cached"'
+          expect:
+            - statusCode: [200, 304]
+
+      - think: 1
+
+  # ============================================================================
+  # Scenario 3: Health Check Monitoring
+  # ============================================================================
+  - name: "Health Check"
+    weight: 10
+    flow:
+      - get:
+          url: "{{ healthEndpoint }}"
+          expect:
+            - statusCode: 200
+            - contentType: "text/plain"
+            - hasBody: "healthy"
+
+  # ============================================================================
+  # Scenario 4: Metrics Scraping (Prometheus)
+  # ============================================================================
+  - name: "Metrics Scrape"
+    weight: 5
+    flow:
+      - get:
+          url: "{{ metricsEndpoint }}"
+          expect:
+            - statusCode: 200
+
+  # ============================================================================
+  # Scenario 5: WebSocket Connection (Future Enhancement)
+  # ============================================================================
+  - name: "WebSocket Connection"
+    weight: 5
+    engine: "ws"
+    flow:
+      - connect:
+          target: "wss://snn-perception.hololand.io/ws"
+
+      - send:
+          payload: '{"type": "subscribe", "channel": "perception"}'
+
+      - think: 5
+
+      - disconnect: {}
+
+  # ============================================================================
+  # Scenario 6: Static Asset Load (Images, Fonts)
+  # ============================================================================
+  - name: "Static Assets"
+    weight: 10
+    flow:
+      # Load favicon
+      - get:
+          url: "/favicon.ico"
+          expect:
+            - statusCode: [200, 404]
+
+      # Load font files
+      - get:
+          url: "/assets/fonts/roboto.woff2"
+          expect:
+            - statusCode: [200, 404]
+
+      # Load images
+      - get:
+          url: "/assets/logo.png"
+          expect:
+            - statusCode: [200, 404]

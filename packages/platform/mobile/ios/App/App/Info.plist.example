@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- App Configuration -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>HoloLand</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+
+    <!-- ========================================== -->
+    <!-- GEOSPATIAL AR PERMISSIONS                  -->
+    <!-- ========================================== -->
+
+    <!-- Location Permission (Required for ARKit Location Anchors) -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>HoloLand needs your location to anchor AR content to real-world GPS coordinates. This enables persistent AR experiences tied to physical locations.</string>
+
+    <!-- Alternative: Background location (if you need background tracking) -->
+    <!--
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>HoloLand needs your location even when the app is in the background to maintain AR anchors.</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>HoloLand needs your location to maintain AR anchors.</string>
+    -->
+
+    <!-- Camera Permission (Required for ARKit) -->
+    <key>NSCameraUsageDescription</key>
+    <string>HoloLand uses the camera to provide augmented reality experiences.</string>
+
+    <!-- ========================================== -->
+    <!-- DEVICE CAPABILITIES                        -->
+    <!-- ========================================== -->
+
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <!-- ARKit support (iPhone 6s+) -->
+        <string>arkit</string>
+        <!-- GPS/Location services -->
+        <string>gps</string>
+        <!-- Magnetometer/Compass (for heading) -->
+        <string>magnetometer</string>
+    </array>
+
+    <!-- ========================================== -->
+    <!-- APP TRANSPORT SECURITY                     -->
+    <!-- ========================================== -->
+
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- Allow localhost for development -->
+        <key>NSAllowsArbitraryLoadsInWebContent</key>
+        <true/>
+        <!-- For production, remove above and use HTTPS only -->
+    </dict>
+
+    <!-- ========================================== -->
+    <!-- SUPPORTED INTERFACE ORIENTATIONS           -->
+    <!-- ========================================== -->
+
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <!-- ========================================== -->
+    <!-- UI CONFIGURATION                           -->
+    <!-- ========================================== -->
+
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <true/>
+
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+
+    <key>UIMainStoryboardFile</key>
+    <string>Main</string>
+
+    <!-- Prevent screenshot dimming in app switcher -->
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+
+    <!-- ========================================== -->
+    <!-- BACKGROUND MODES (Optional)                -->
+    <!-- ========================================== -->
+
+    <!-- Uncomment if you need background location tracking -->
+    <!--
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+    </array>
+    -->
+
+</dict>
+</plist>

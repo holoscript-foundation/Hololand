@@ -15,6 +15,8 @@ export default defineConfig({
       'react-router': path.resolve(__dirname, '../../../node_modules/.pnpm/react-router@6.30.3_react@18.3.1/node_modules/react-router'),
       '@testing-library/react': path.resolve(__dirname, '../../../node_modules/.pnpm/@testing-library+react@14.3_74c3128c78ade5a5140014720e7753bf/node_modules/@testing-library/react'),
       '@testing-library/dom': path.resolve(__dirname, '../../../node_modules/.pnpm/@testing-library+dom@9.3.4/node_modules/@testing-library/dom'),
+      '@testing-library/user-event': path.resolve(__dirname, '../../../node_modules/.pnpm/@testing-library+user-event@14.5.2_@testing-library+dom@9.3.4/node_modules/@testing-library/user-event'),
+      '@holoscript/mvc-schema': path.resolve(__dirname, 'src/__tests__/__mocks__/mvc-schema.ts'),
     },
   },
   test: {

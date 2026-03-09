@@ -1,0 +1,183 @@
+# Prometheus Alert Rules for SNN Perception Demo
+# Monitors inference performance, energy consumption, and system health
+
+groups:
+  # ============================================================================
+  # Application Health Alerts
+  # ============================================================================
+  - name: application_health
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job="snn-perception-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: snn-perception
+        annotations:
+          summary: "SNN Perception Demo is down"
+          description: "The SNN Perception Demo service has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: rate(nginx_http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: nginx
+        annotations:
+          summary: "High 5xx error rate"
+          description: "Nginx is experiencing {{ $value | humanizePercentage }} 5xx errors over the last 5 minutes."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(nginx_http_request_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: nginx
+        annotations:
+          summary: "High request latency"
+          description: "95th percentile latency is {{ $value }}s, exceeding 1s threshold."
+
+  # ============================================================================
+  # SNN Inference Performance Alerts
+  # ============================================================================
+  - name: snn_inference_performance
+    interval: 30s
+    rules:
+      - alert: SlowInferenceLatency
+        expr: snn_inference_latency_ms > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: snn-inference
+        annotations:
+          summary: "SNN inference latency exceeds target"
+          description: "SNN inference latency is {{ $value }}ms, exceeding 10ms target (should be ~4.2ms)."
+
+      - alert: LowInferenceAccuracy
+        expr: snn_inference_accuracy < 0.85
+        for: 10m
+        labels:
+          severity: critical
+          component: snn-inference
+        annotations:
+          summary: "SNN inference accuracy degraded"
+          description: "SNN accuracy has dropped to {{ $value | humanizePercentage }}, below 85% threshold."
+
+      - alert: HighEnergyConsumption
+        expr: snn_power_consumption_w > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: energy-monitoring
+        annotations:
+          summary: "SNN power consumption exceeds budget"
+          description: "SNN is consuming {{ $value }}W, exceeding 1.0W budget (target: 0.83W)."
+
+      - alert: LowBatteryLife
+        expr: snn_estimated_battery_hours < 5.0
+        for: 10m
+        labels:
+          severity: warning
+          component: energy-monitoring
+        annotations:
+          summary: "Estimated battery life below target"
+          description: "Estimated battery life is {{ $value }} hours, below 5-hour threshold (target: 6 hours)."
+
+  # ============================================================================
+  # System Resource Alerts
+  # ============================================================================
+  - name: system_resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value | humanize }}%, exceeding 80% threshold."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanize }}%, exceeding 85% threshold."
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value | humanize }}%, exceeding 80% threshold."
+
+  # ============================================================================
+  # Connection and Load Alerts
+  # ============================================================================
+  - name: connection_load
+    interval: 30s
+    rules:
+      - alert: HighConnectionCount
+        expr: nginx_connections_active > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: nginx
+        annotations:
+          summary: "High number of active connections"
+          description: "Nginx has {{ $value }} active connections, exceeding 1000 threshold."
+
+      - alert: TooManyRequests
+        expr: rate(nginx_http_requests_total[1m]) > 100
+        for: 5m
+        labels:
+          severity: info
+          service: nginx
+        annotations:
+          summary: "High request rate"
+          description: "Nginx is handling {{ $value }} requests/second, which may indicate high load or potential attack."
+
+      - alert: ConcurrentUserLimit
+        expr: snn_concurrent_users > 100
+        for: 5m
+        labels:
+          severity: info
+          component: application
+        annotations:
+          summary: "High concurrent user count"
+          description: "{{ $value }} concurrent users detected (load testing target: 100+)."
+
+  # ============================================================================
+  # WebGPU and Browser Compatibility Alerts
+  # ============================================================================
+  - name: client_compatibility
+    interval: 60s
+    rules:
+      - alert: HighWebGPUFallbackRate
+        expr: rate(snn_webgpu_fallback_total[10m]) / rate(snn_page_loads_total[10m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: webgpu
+        annotations:
+          summary: "High WebGPU fallback rate"
+          description: "{{ $value | humanizePercentage }} of sessions are falling back to CPU inference (WebGPU unavailable)."
+
+      - alert: HighClientErrorRate
+        expr: rate(snn_client_errors_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          component: client
+        annotations:
+          summary: "High client-side error rate"
+          description: "Client errors are occurring at {{ $value }}/s, investigate browser console logs."

@@ -1,0 +1,56 @@
+{
+  "name": "@hololand/services",
+  "version": "1.0.0",
+  "description": "Agent communication services with CRDT sync and MVC persistence for HoloLand VR/AR platform",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "hololand",
+    "agent-communication",
+    "crdt",
+    "webrtc",
+    "p2p",
+    "messaging",
+    "persistence",
+    "indexeddb",
+    "mvc-schema",
+    "delta-sync"
+  ],
+  "author": "HoloLand Team",
+  "license": "MIT",
+  "dependencies": {
+    "@holoscript/crdt": "workspace:*",
+    "@holoscript/mvc-schema": "workspace:*",
+    "@hololand/agents": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
+  },
+  "peerDependencies": {
+    "@hololand/network": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@hololand/network": {
+      "optional": true
+    }
+  }
+}

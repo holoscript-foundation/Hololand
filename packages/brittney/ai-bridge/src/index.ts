@@ -66,11 +66,54 @@ export {
   BRITTNEY_VR_SYSTEM_PROMPT,
 } from './react-agent/types';
 
+// TalkingHead Lip-Sync Integration (Phase 5: Audio-Driven Lip-Sync for Brittney)
+export {
+  TalkingHeadAdapter,
+  createTalkingHeadAdapter,
+  TalkingHeadLipSyncEngine,
+  createTalkingHeadLipSyncEngine,
+  TalkingHeadAvatarBridge,
+  createTalkingHeadAvatarBridge,
+  VISEME_ID_TO_CODE,
+  VISEME_CODE_TO_ID,
+  VISEME_TO_VRM_BLEND_SHAPES,
+  VISEME_TO_SIMPLE_VRM,
+  DEFAULT_BRITTNEY_TTS_CONFIG,
+  DEFAULT_BRITTNEY_AVATAR_SPEC,
+  DEFAULT_INTEGRATION_CONFIG as DEFAULT_TALKINGHEAD_INTEGRATION_CONFIG,
+  DEFAULT_LIP_SYNC_CONFIG,
+  DEFAULT_AVATAR_BRIDGE_CONFIG,
+} from './talkinghead';
+
+export type {
+  OculusVisemeId,
+  OculusVisemeCode,
+  TalkingHeadMood,
+  TalkingHeadCameraView,
+  TalkingHeadLipSyncLang,
+  TalkingHeadTTSConfig,
+  TalkingHeadAudioData,
+  TalkingHeadStreamConfig,
+  StreamingMetrics,
+  TalkingHeadAvatarSpec,
+  TalkingHeadConstructorOptions,
+  TalkingHeadEventType,
+  TalkingHeadSpeakOptions,
+  VisemeBlendShapeMapping,
+  TalkingHeadIntegrationConfig,
+  TalkingHeadAdapterState,
+  TalkingHeadAdapterMetrics,
+  VisemeFrame,
+  LipSyncEngineConfig,
+  LipSyncEngineMetrics,
+  TalkingHeadAvatarBridgeConfig,
+} from './talkinghead';
+
 // Logger Interface
 export { setHololandAILogger, resetLogger, type HololandAILogger } from './logger';
 
 // Constants
-export const HOLOLAND_AI_BRIDGE_VERSION = '1.0.0-alpha.1';
+export const HOLOLAND_AI_BRIDGE_VERSION = '1.0.0-alpha.2';
 
 export const SUPPORTED_NATURAL_LANGUAGE_PATTERNS = [
   'create a [type] called [name]',
@@ -129,6 +172,8 @@ import { ReactAgentAvatarBridge } from './react-agent/ReactAgentAvatarBridge';
 import { useAvatarAgent } from './react-agent/useAvatarAgent';
 import { VRAvatarAgentProvider, useAvatarAgentContext } from './react-agent/VRAvatarAgentProvider';
 
+import { TalkingHeadAvatarBridge, createTalkingHeadAvatarBridge } from './talkinghead';
+
 export default {
   HololandAIBridge,
   NaturalLanguageTranslator,
@@ -143,6 +188,8 @@ export default {
   useAvatarAgent,
   VRAvatarAgentProvider,
   useAvatarAgentContext,
+  TalkingHeadAvatarBridge,
+  createTalkingHeadAvatarBridge,
   createAIBridge,
   isVoiceSupported,
   HOLOLAND_AI_BRIDGE_VERSION,

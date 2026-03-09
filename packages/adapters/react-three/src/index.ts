@@ -69,3 +69,7 @@ export type {
   LightingConfig,
   MaterialConfig,
 } from '@hololand/renderer';
+
+// Dragon Preview Component (Studio/Inspector Tool)
+export { DragonPreview } from './DragonPreview';
+export type { DragonPreviewProps } from './DragonPreview';

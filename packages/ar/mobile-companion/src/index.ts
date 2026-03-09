@@ -198,3 +198,46 @@ export {
   DEFAULT_IOT_DISCOVERY_CONFIG,
   IOT_BINDING_JSONLD_CONTEXT,
 } from './iot/types';
+
+// =============================================================================
+// MOBILE AR UI COMPONENTS
+// =============================================================================
+
+export {
+  // Components
+  PlaneDetectionReticle,
+  AnchorPlacementControls,
+  GeospatialPOIMarker,
+  DistanceIndicator,
+  SurfaceConstraintVisualization,
+  LightEstimationFeedback,
+} from './ui';
+
+export type {
+  // PlaneDetectionReticle
+  PlaneDetectionReticleProps,
+
+  // AnchorPlacementControls
+  AnchorPlacementControlsProps,
+  AnchorTransform,
+
+  // GeospatialPOIMarker
+  GeospatialPOIMarkerProps,
+  GeospatialPOI,
+  POICategory,
+
+  // DistanceIndicator
+  DistanceIndicatorProps,
+  MeasurementMode,
+  DistanceUnit,
+  MeasurementPoint,
+  Measurement,
+
+  // SurfaceConstraintVisualization
+  SurfaceConstraintVisualizationProps,
+  SurfaceConstraint,
+  SurfaceAnalysis,
+
+  // LightEstimationFeedback
+  LightEstimationFeedbackProps,
+} from './ui';

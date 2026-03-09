@@ -1,21 +1,41 @@
 {
   "name": "@hololand/spatial-builder",
-  "version": "1.0.0",
-  "description": "Casual in-world UI builder elements for Hololand (Radial Menus, Voice Prompts)",
+  "version": "1.1.0",
+  "description": "Casual in-world UI builder and drag-and-drop scene editor for Hololand (R3F + drei TransformControls)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./scene-editor": {
+      "types": "./dist/scene-editor/index.d.ts",
+      "import": "./dist/scene-editor/index.js",
+      "require": "./dist/scene-editor/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rimraf dist"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "lucide-react": "^0.314.0",
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.48",
+    "@types/three": "^0.170.0",
     "typescript": "^5.3.3",
     "vite": "^5.1.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "three": ">=0.150.0"
   }
 }
