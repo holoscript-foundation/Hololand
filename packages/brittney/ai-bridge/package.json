@@ -52,7 +52,6 @@
   "homepage": "https://github.com/brianonbased-dev/Hololand#readme",
   "dependencies": {
     "@hololand/logger": "workspace:*",
-    "@holoscript/cli": "^2.0.1",
     "@holoscript/core": "^2.0.0"
   },
   "devDependencies": {

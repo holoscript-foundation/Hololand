@@ -34,8 +34,8 @@
   "author": "HoloLand Team",
   "license": "MIT",
   "dependencies": {
-    "@holoscript/crdt": "workspace:*",
-    "@holoscript/mvc-schema": "workspace:*",
+    "@holoscript/crdt": "file:../../../../HoloScript/packages/crdt",
+    "@holoscript/mvc-schema": "file:../../../../HoloScript/packages/mvc-schema",
     "@hololand/agents": "workspace:*"
   },
   "devDependencies": {

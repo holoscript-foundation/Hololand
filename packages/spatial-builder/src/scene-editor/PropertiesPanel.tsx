@@ -10,8 +10,9 @@
 
 import React, { useCallback } from 'react';
 import { Move, RotateCw, Maximize2, Palette, Lightbulb } from 'lucide-react';
-import type { SceneObject, Vec3, EulerRotation, SceneMaterial, SceneLightProps } from './types';
+import type { SceneObject, Vec3, EulerRotation, SceneMaterial, SceneLightProps, SceneAnimationBehavior } from './types';
 import type { SceneEditorAPI } from './useSceneEditor';
+import { BehaviorDropdown } from './BehaviorDropdown';
 
 export interface PropertiesPanelProps {
   editor: SceneEditorAPI;
@@ -239,6 +240,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ editor }) => {
     [editor, selectedObject]
   );
 
+  const handleBehaviorChange = useCallback(
+    (behavior: SceneAnimationBehavior | null) => {
+      if (!selectedObject) return;
+      editor.updateBehavior(selectedObject.id, behavior);
+    },
+    [editor, selectedObject]
+  );
+
   return (
     <div className="flex flex-col h-full bg-neutral-900/95 border-l border-white/10">
       {/* Header */}
@@ -334,6 +343,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ editor }) => {
                   label="Wireframe"
                   value={selectedObject.material.wireframe}
                   onChange={(wireframe) => handleMaterialChange({ wireframe })}
+                />
+              </Section>
+            )}
+
+            {/* Behavior (animation presets, available for primitives and imported objects) */}
+            {(selectedObject.kind === 'primitive' || selectedObject.kind === 'imported') && (
+              <Section title="Behavior">
+                <BehaviorDropdown
+                  selectedObject={selectedObject}
+                  onApplyBehavior={handleBehaviorChange}
                 />
               </Section>
             )}

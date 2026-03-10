@@ -623,6 +623,49 @@ export type {
 } from './components/gaussian-splat-viewer';
 
 // =============================================================================
+// GAUSSIAN SPLAT NODE (R3F Component for HoloScript @gaussian_splat Trait)
+// =============================================================================
+
+export {
+  GaussianSplatNode,
+  hasGaussianSplatTrait,
+} from './components/gaussian-splat-node';
+
+export type {
+  GaussianSplatNodeProps,
+} from './components/gaussian-splat-node';
+
+export {
+  useGaussianSplatNode,
+} from './components/gaussian-splat-node';
+
+export type {
+  UseGaussianSplatNodeConfig,
+  GaussianSplatNodeResult,
+  SplatDataRef,
+  ResolvedPlatformConfig,
+  LODUpdateResult as GaussianSplatLODUpdateResult,
+} from './components/gaussian-splat-node';
+
+export {
+  PLATFORM_BUDGETS,
+  PLATFORM_MEMORY_MB,
+  PLATFORM_MAX_SPLATS,
+  DEFAULT_GAUSSIAN_SPLAT_NODE_STATE,
+} from './components/gaussian-splat-node';
+
+export type {
+  SplatFileFormat,
+  GaussianPlatform,
+  LODEventType,
+  LoadingPhase,
+  GaussianSplatNodeConfig,
+  LODUpdateEvent,
+  LoadingProgressEvent,
+  GaussianSplatNodeState,
+} from './components/gaussian-splat-node';
+
+// =============================================================================
 // VR PERFORMANCE DASHBOARD (Gaussian Budget + Frame Time Waterfall)
 // =============================================================================
 
@@ -1443,6 +1486,87 @@ export type {
 } from './components/spectator-camera';
 
 // =============================================================================
+// CINEMATIC CAMERA (Keyframe Timeline + Multi-Curve Interpolation + Remotion Export)
+// =============================================================================
+
+export {
+  CinematicCameraPanel,
+} from './components/cinematic-camera';
+
+export type {
+  CinematicCameraPanelProps,
+} from './components/cinematic-camera';
+
+export {
+  CinematicPathEngine,
+  createCinematicPathEngine,
+} from './components/cinematic-camera';
+
+export {
+  RemotionExportBridge,
+  createRemotionExportBridge,
+} from './components/cinematic-camera';
+
+export {
+  generatePresetKeyframes,
+  getDefaultPresetConfig,
+  getAllPresetTypes,
+  PRESET_CATEGORIES,
+} from './components/cinematic-camera';
+
+export {
+  useCinematicCamera,
+} from './components/cinematic-camera';
+
+export type {
+  UseCinematicCameraConfig,
+} from './components/cinematic-camera';
+
+export {
+  DEFAULT_CINEMATIC_THEME,
+  DEFAULT_CINEMATIC_PLAYBACK,
+  DEFAULT_EVALUATED_CAMERA,
+  DEFAULT_REMOTION_EXPORT,
+  DEFAULT_EXPORT_PROGRESS,
+  DEFAULT_TIMELINE_SELECTION,
+  DEFAULT_PRESET_CONFIG,
+  INTERPOLATION_LABELS,
+  EASING_LABELS,
+  CINEMATIC_EASING_FUNCTIONS,
+  CAMERA_PRESET_LABELS,
+  CAMERA_PRESET_DESCRIPTIONS,
+  VIDEO_FORMAT_LABELS,
+  VIDEO_RESOLUTION_PRESETS,
+  createDefaultKeyframe,
+  createDefaultSequence,
+  generateKeyframeId,
+  generateSequenceId,
+} from './components/cinematic-camera';
+
+export type {
+  InterpolationCurve,
+  CinematicKeyframe,
+  CinematicEasingType,
+  CameraPresetType,
+  CameraPresetConfig,
+  CinematicSequence,
+  CinematicPlaybackState as CinematicTimelinePlaybackState,
+  EvaluatedCameraState,
+  VideoExportFormat,
+  VideoResolutionPreset,
+  VideoFPSPreset,
+  RemotionExportConfig,
+  RemotionRenderRequest,
+  RemotionRenderResult,
+  ExportProgress,
+  TimelinePanelSection,
+  TimelineSelection,
+  CinematicCameraHookState,
+  CinematicCameraHookActions,
+  CinematicCameraTheme,
+} from './components/cinematic-camera';
+
+// =============================================================================
 // VERSION
 // =============================================================================
 
@@ -1481,6 +1605,7 @@ import { LightingFidelityManager } from './LightingFidelityManager';
 import { GaussianSplatViewer } from './components/gaussian-splat-viewer';
 import { WebGPUSplatRenderer } from './components/gaussian-splat-viewer';
 import { OrbitCameraController } from './components/gaussian-splat-viewer';
+import { GaussianSplatNode } from './components/gaussian-splat-node';
 import { VRPerformanceDashboard } from './components/vr-performance-dashboard';
 import { GaussianBudgetUtilization } from './components/vr-performance-dashboard';
 import { FrameTimeWaterfall } from './components/vr-performance-dashboard';
@@ -1510,6 +1635,9 @@ import { ShaderEditorPanel } from './components/webgpu-compute';
 import { SpectatorCameraPanel } from './components/spectator-camera';
 import { SpectatorCameraController } from './components/spectator-camera';
 import { SpectatorCaptureEngine } from './components/spectator-camera';
+import { CinematicCameraPanel } from './components/cinematic-camera';
+import { CinematicPathEngine } from './components/cinematic-camera';
+import { RemotionExportBridge } from './components/cinematic-camera';
 
 export default {
   HololandRenderer,
@@ -1539,6 +1667,7 @@ export default {
   SpatialInferenceComputePipeline,
   LightingFidelityManager,
   GaussianSplatViewer,
+  GaussianSplatNode,
   WebGPUSplatRenderer,
   OrbitCameraController,
   VRPerformanceDashboard,
@@ -1571,6 +1700,9 @@ export default {
   SpectatorCameraPanel,
   SpectatorCameraController,
   SpectatorCaptureEngine,
+  CinematicCameraPanel,
+  CinematicPathEngine,
+  RemotionExportBridge,
   HDRI_PRESETS,
   HOLOLAND_RENDERER_VERSION: '1.0.0-alpha.5',
 };

@@ -58,6 +58,9 @@ export type { PropertiesPanelProps } from './PropertiesPanel';
 export { EditorToolbar } from './EditorToolbar';
 export type { EditorToolbarProps } from './EditorToolbar';
 
+export { BehaviorDropdown } from './BehaviorDropdown';
+export type { BehaviorDropdownProps } from './BehaviorDropdown';
+
 // 3D components
 export { EditorObject } from './EditorObject';
 export type { EditorObjectProps } from './EditorObject';
@@ -84,6 +87,10 @@ export type {
   EulerRotation,
   SceneMaterial,
   SceneLightProps,
+  SceneAnimationBehavior,
+  AnimationPresetName,
+  AnimationPresetCategory,
+  AnimationLoopMode,
   SceneObject,
   SceneEditorState,
   SceneEditorAction,
@@ -95,6 +102,7 @@ export type {
 export {
   DEFAULT_MATERIAL,
   DEFAULT_LIGHT_PROPS,
+  DEFAULT_ANIMATION_BEHAVIOR,
   PALETTE_ITEMS,
   ACCEPTED_ASSET_EXTENSIONS,
   MAX_ASSET_FILE_SIZE,

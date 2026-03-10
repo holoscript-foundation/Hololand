@@ -70,7 +70,16 @@
   },
   "dependencies": {
     "@holoscript/agent-protocol": "file:../HoloScript/packages/agent-protocol",
-    "@holoscript/core": "^2.1.0",
+    "@holoscript/core": "file:../HoloScript/packages/core",
     "ethers": "^6.16.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@holoscript/core": "file:../HoloScript/packages/core",
+      "@holoscript/crdt": "file:../HoloScript/packages/crdt",
+      "@holoscript/mvc-schema": "file:../HoloScript/packages/mvc-schema",
+      "@holoscript/runtime": "file:../HoloScript/packages/runtime",
+      "@holoscript/agent-protocol": "file:../HoloScript/packages/agent-protocol"
+    }
   }
 }

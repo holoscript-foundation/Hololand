@@ -17,6 +17,7 @@ import type {
   EulerRotation,
   SceneMaterial,
   SceneLightProps,
+  SceneAnimationBehavior,
   PrimitiveType,
   LightType,
   ImportedAssetMeta,
@@ -53,6 +54,7 @@ function cloneObject(obj: SceneObject, newId: string): SceneObject {
     scale: { ...obj.scale },
     material: { ...obj.material },
     lightProps: obj.lightProps ? { ...obj.lightProps } : undefined,
+    animationBehavior: obj.animationBehavior ? { ...obj.animationBehavior } : undefined,
     assetMeta: obj.assetMeta ? { ...obj.assetMeta } : undefined,
     childIds: [],
     parentId: obj.parentId,
@@ -163,6 +165,19 @@ function sceneReducer(state: SceneEditorState, action: SceneEditorAction): Scene
       newObjects.set(id, {
         ...obj,
         lightProps: { ...obj.lightProps, ...lightProps },
+      });
+      return { ...state, objects: newObjects };
+    }
+
+    case 'UPDATE_BEHAVIOR': {
+      const { id, behavior } = action.payload;
+      const obj = state.objects.get(id);
+      if (!obj) return state;
+
+      const newObjects = new Map(state.objects);
+      newObjects.set(id, {
+        ...obj,
+        animationBehavior: behavior ?? undefined,
       });
       return { ...state, objects: newObjects };
     }
@@ -458,6 +473,13 @@ export function useSceneEditor() {
     dispatch({ type: 'UPDATE_LIGHT', payload: { id, lightProps } });
   }, []);
 
+  // ------ Behavior ------
+
+  const updateBehavior = useCallback((id: string, behavior: SceneAnimationBehavior | null) => {
+    dispatch({ type: 'PUSH_UNDO' });
+    dispatch({ type: 'UPDATE_BEHAVIOR', payload: { id, behavior } });
+  }, []);
+
   // ------ Hierarchy ------
 
   const renameObject = useCallback((id: string, name: string) => {
@@ -520,6 +542,7 @@ export function useSceneEditor() {
     setTransformSpace,
     updateMaterial,
     updateLight,
+    updateBehavior,
     renameObject,
     toggleVisibility,
     toggleLock,

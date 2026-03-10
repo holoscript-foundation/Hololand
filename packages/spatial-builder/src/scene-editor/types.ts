@@ -109,6 +109,70 @@ export const DEFAULT_MATERIAL: SceneMaterial = {
 };
 
 // =============================================================================
+// ANIMATION BEHAVIOR
+// =============================================================================
+
+/**
+ * Loop mode controlling animation playback repetition.
+ * Mirrors @holoscript/animation-presets LoopMode.
+ */
+export type AnimationLoopMode = 'once' | 'loop' | 'pingpong' | 'clamp';
+
+/**
+ * Preset category for organizational grouping.
+ * Mirrors @holoscript/animation-presets PresetCategory.
+ */
+export type AnimationPresetCategory =
+  | 'locomotion'
+  | 'combat'
+  | 'social'
+  | 'emote'
+  | 'environmental';
+
+/**
+ * The 15 canonical animation preset names.
+ * Mirrors @holoscript/animation-presets PresetName.
+ */
+export type AnimationPresetName =
+  | 'walk'
+  | 'idle'
+  | 'attack'
+  | 'speak'
+  | 'dance'
+  | 'run'
+  | 'jump'
+  | 'wave'
+  | 'sit'
+  | 'sleep'
+  | 'crouch'
+  | 'swim'
+  | 'fly'
+  | 'climb'
+  | 'emote';
+
+/**
+ * Animation behavior assigned to a scene object via the @animated trait.
+ * Stores the selected preset and user-customizable overrides.
+ */
+export interface SceneAnimationBehavior {
+  /** Selected animation preset name. */
+  presetName: AnimationPresetName;
+  /** Playback speed multiplier (1.0 = normal). */
+  speedMultiplier: number;
+  /** Whether the animation loops. */
+  loop: boolean;
+  /** Blend weight for animation layering (0.0 - 1.0). */
+  blendWeight: number;
+}
+
+export const DEFAULT_ANIMATION_BEHAVIOR: SceneAnimationBehavior = {
+  presetName: 'idle',
+  speedMultiplier: 1.0,
+  loop: true,
+  blendWeight: 1.0,
+};
+
+// =============================================================================
 // LIGHT PROPERTIES
 // =============================================================================
 
@@ -160,6 +224,9 @@ export interface SceneObject {
 
   // Light-specific props
   lightProps?: SceneLightProps;
+
+  // Animation behavior (set via BehaviorDropdown / @animated trait)
+  animationBehavior?: SceneAnimationBehavior;
 
   // Imported asset metadata (if kind === 'imported')
   assetMeta?: ImportedAssetMeta;
@@ -221,6 +288,7 @@ export type SceneEditorAction =
   | { type: 'UPDATE_TRANSFORM'; payload: { id: string; position?: Vec3; rotation?: EulerRotation; scale?: Vec3 } }
   | { type: 'UPDATE_MATERIAL'; payload: { id: string; material: Partial<SceneMaterial> } }
   | { type: 'UPDATE_LIGHT'; payload: { id: string; lightProps: Partial<SceneLightProps> } }
+  | { type: 'UPDATE_BEHAVIOR'; payload: { id: string; behavior: SceneAnimationBehavior | null } }
   | { type: 'RENAME_OBJECT'; payload: { id: string; name: string } }
   | { type: 'TOGGLE_VISIBILITY'; payload: { id: string } }
   | { type: 'TOGGLE_LOCK'; payload: { id: string } }
