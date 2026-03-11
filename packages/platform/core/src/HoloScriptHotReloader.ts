@@ -11,6 +11,10 @@
  *   4. Patch the running scene graph via TraitRuntimeIntegration + HoloScriptBridge
  *   5. Emit events so HUD / Brittney can notify the user
  *
+ * NOTE: This file stays in Hololand — depends on @hololand/logger, fs.watch,
+ * and local platform bridges. When TraitRuntimeIntegration migrates,
+ * update import to use @holoscript/core.
+ *
  * Supported environments:
  *   - Node.js (uses fs.watch)
  *   - Browser  (polling or external WebSocket push)

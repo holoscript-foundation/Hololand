@@ -3,6 +3,10 @@
  *
  * Connects the HoloScript runtime to the Hololand world,
  * translating AST execution into spatial objects and world events.
+ *
+ * NOTE: This file stays in Hololand — it IS the platform boundary.
+ * It imports from @holoscript/core (language) and @hololand/* (platform).
+ * When TraitContextFactory migrates, update import to use @holoscript/core.
  */
 
 import {

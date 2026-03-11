@@ -79,7 +79,8 @@
       "@holoscript/crdt": "file:../HoloScript/packages/crdt",
       "@holoscript/mvc-schema": "file:../HoloScript/packages/mvc-schema",
       "@holoscript/runtime": "file:../HoloScript/packages/runtime",
-      "@holoscript/agent-protocol": "file:../HoloScript/packages/agent-protocol"
+      "@holoscript/agent-protocol": "file:../HoloScript/packages/agent-protocol",
+      "@holoscript/r3f-renderer": "file:../HoloScript/packages/r3f-renderer"
     }
   }
 }

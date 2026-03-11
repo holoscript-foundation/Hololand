@@ -60,6 +60,8 @@
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",
     "@hololand/network": "workspace:*",
+    "@holoscript/core": "^3.43.0",
+    "@holoscript/r3f-renderer": "file:../../../../HoloScript/packages/r3f-renderer",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@react-three/postprocessing": "^3.0.4",

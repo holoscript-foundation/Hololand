@@ -4,6 +4,28 @@
  * Provides import/export functionality between WorldBuilder scenes and HoloScript (.holo) format.
  * This enables seamless integration between the visual editor and the HoloScript language.
  *
+ * ⚠️ MIGRATION NOTICE:
+ * Language-level code (AST types, fallback parser, expression evaluation, value formatting)
+ * has been moved to the canonical source at @holoscript/core:
+ *   packages/core/src/io/HoloScriptIO.ts
+ *
+ * When @holoscript/core is next rebuilt, replace inline AST types (lines 28-108) with:
+ *   import type {
+ *     CoreParseResult, CoreProgram, CoreWorldDeclaration, CoreOrbDeclaration,
+ *     CoreOrbProperty, CoreExpression, HoloScriptAST, HoloScriptASTNode,
+ *     HoloScriptASTLogic, HoloScriptExportOptions, HoloScriptImportOptions,
+ *     HoloScriptError,
+ *   } from '@holoscript/core';
+ *   import {
+ *     initHoloScriptParser, parseWithCoreParser, expressionToValue,
+ *     programToInternalAST, extractWorldSettings, orbToASTNode,
+ *     parseHoloScriptSimplified, parseProperties, parseValue,
+ *     escapeHoloString, formatHoloValue,
+ *   } from '@holoscript/core';
+ *
+ * Scene-specific code (exportToHoloScript, importFromHoloScript, internalAstToScene,
+ * astNodeToSceneNode, visual script tracing) stays in this file.
+ *
  * @module HoloScriptIO
  */
 

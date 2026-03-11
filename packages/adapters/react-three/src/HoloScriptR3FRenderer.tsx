@@ -2,6 +2,7 @@ import { Environment, PositionalAudio, Gltf, OrbitControls, Text, Sparkles } fro
 import { EffectComposer, Bloom, SSAO, Vignette } from '@react-three/postprocessing';
 import { Physics, RigidBody, CuboidCollider, BallCollider, MeshCollider, CapsuleCollider, CylinderCollider } from '@react-three/rapier';
 import { R3FCompiler, HSPlusAST, R3FNode } from '@holoscript/core';
+import { getGeometry, getMaterialProps, ShaderMeshNode, hasShaderTrait } from '@holoscript/r3f-renderer';
 import { SyncedEntity } from './SyncedEntity';
 import { DeformableEntity } from './DeformableEntity';
 import { IntelligenceEntity } from './IntelligenceEntity';
@@ -342,35 +343,22 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
     );
   }
 
-  // 4. Primitives with PBR Materials
+  // 3.5 Shader Mesh — @shader trait renders with custom GLSL
+  if (type === 'mesh' && hasShaderTrait(node)) {
+    return <ShaderMeshNode key={key} node={node} />;
+  }
+
+  // 4. Primitives with full PBR Materials (via @holoscript/r3f-renderer)
   if (type === 'mesh') {
-    const { materialProps, color, args, hsType, collider, emissive, ...meshProps } = props;
-    const needsPhysical = materialProps && (
-      materialProps.transmission !== undefined ||
-      materialProps.ior !== undefined ||
-      materialProps.iridescence !== undefined ||
-      materialProps.clearcoat !== undefined ||
-      materialProps.sheen !== undefined
-    );
-    const matColor = color || materialProps?.color || '#888888';
-    const emissiveColor = emissive || materialProps?.emissive || matColor;
+    const { collider, ...meshProps } = props;
+    const matProps = getMaterialProps(node);
+    const hsType = props.hsType || 'sphere';
+    const size = props.size || 1;
     return (
       <mesh key={key} {...meshProps} castShadow receiveShadow>
-        {renderGeometry(hsType || 'sphere', args)}
-        {needsPhysical ? (
-          <meshPhysicalMaterial
-            color={matColor}
-            emissive={materialProps?.emissiveIntensity ? emissiveColor : undefined}
-            {...materialProps}
-          />
-        ) : (
-          <meshStandardMaterial
-            color={matColor}
-            emissive={materialProps?.emissiveIntensity ? emissiveColor : undefined}
-            {...materialProps}
-          />
-        )}
-        {collider && renderCollider(hsType || 'sphere', args)}
+        {getGeometry(hsType, size, props)}
+        <meshPhysicalMaterial {...matProps} />
+        {collider && renderCollider(hsType, props.args)}
         {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
       </mesh>
     );
@@ -422,33 +410,6 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
       {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
     </Component>
   );
-}
-
-function renderGeometry(type: string, args: any[] = []): React.ReactNode {
-  const a = args as any;
-  switch (type) {
-    case 'sphere':
-    case 'orb':
-      return <sphereGeometry args={a} />;
-    case 'cube':
-    case 'box':
-      return <boxGeometry args={a} />;
-    case 'cylinder':
-      return <cylinderGeometry args={a} />;
-    case 'pyramid':
-    case 'cone':
-      return <coneGeometry args={a} />;
-    case 'plane':
-      return <planeGeometry args={a} />;
-    case 'torus':
-      return <torusGeometry args={a} />;
-    case 'ring':
-      return <ringGeometry args={a} />;
-    case 'capsule':
-      return <capsuleGeometry args={a} />;
-    default:
-      return <sphereGeometry args={[1, 32, 32] as any} />;
-  }
 }
 
 function renderCollider(type: string, args: any[] = []): React.ReactNode {

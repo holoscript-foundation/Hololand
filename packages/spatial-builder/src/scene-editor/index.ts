@@ -75,6 +75,21 @@ export type { AssetDropZoneProps } from './AssetDropZone';
 export { GLTFPreview } from './GLTFPreview';
 export type { GLTFPreviewProps } from './GLTFPreview';
 
+// Operations Hub components (Track 1: Studio DX & Operations)
+export { HistoryPanel } from './HistoryPanel';
+export type { HistoryPanelProps, BlameEntry, DiffEntry } from './HistoryPanel';
+
+export { ConformanceSuite } from './ConformanceSuite';
+export type {
+  ConformanceSuiteProps,
+  ConformanceRule,
+  ConformanceResult,
+  ConformanceStatus,
+} from './ConformanceSuite';
+
+export { ErrorBoundary, getAuditLog, clearAuditLog } from './ErrorBoundary';
+export type { ErrorBoundaryProps, AuditLogEntry } from './ErrorBoundary';
+
 // Types
 export type {
   PrimitiveType,

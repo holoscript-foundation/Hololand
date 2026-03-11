@@ -1,9 +1,22 @@
 /**
  * Hololand Parser Bridge
- * 
+ *
  * Connects Phase 6 trait system to Hololand parser
  * Handles code generation, registration, validation, and error recovery
- * 
+ *
+ * ⚠️ MIGRATION NOTICE:
+ * Validation types and HSPlus validation logic have been moved to @holoscript/core:
+ *   packages/core/src/validation/HSPlusValidator.ts
+ *
+ * When @holoscript/core is next rebuilt, replace inline types with:
+ *   import type {
+ *     ParserValidationError, DeviceOptimizationContext,
+ *     CodeGenerationOptions, ParserRegistrationResult,
+ *   } from '@holoscript/core';
+ *   import { validateHSPlus } from '@holoscript/core';
+ *
+ * The HololandParserBridge class itself stays here (depends on TraitAnnotationEditor).
+ *
  * @module HololandParserBridge
  */
 

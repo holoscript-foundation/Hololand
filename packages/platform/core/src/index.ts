@@ -129,6 +129,16 @@ export {
   UnrealCompiler,
 } from '@holoscript/core';
 
+// R3F Types (used by renderers in @hololand/react-three and @holoscript/r3f-renderer)
+export type { R3FNode, HSPlusAST } from '@holoscript/core';
+
+// Material System
+export { MATERIAL_PRESETS } from '@holoscript/core';
+export type { MaterialDefinition, HoloMaterialType } from '@holoscript/core';
+
+// Shader System
+export { ShaderTrait, SHADER_PRESETS, createShaderTrait } from '@holoscript/core';
+
 // State Management
 export {
   ReactiveState,

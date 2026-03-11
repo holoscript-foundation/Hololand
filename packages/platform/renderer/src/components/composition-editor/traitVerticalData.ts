@@ -1,9 +1,14 @@
 /**
  * Trait-Vertical Mappings Data
  *
- * This is a copy of the trait-vertical mappings from HoloScript LSP
- * for use in the composition editor UI. Ideally this would be imported
- * from a shared package, but for now we maintain a local copy.
+ * ⚠️ MIGRATION NOTICE:
+ * The canonical source for trait-vertical mappings is @holoscript/lsp:
+ *   packages/lsp/src/data/trait-vertical-mappings.ts (15 verticals, full data)
+ *
+ * This local copy has only 2 verticals (healthcare, education).
+ * When @holoscript/lsp is next rebuilt, replace this file with:
+ *   export { VERTICAL_MAPPINGS, getVerticalById, findVerticalsByTags } from '@holoscript/lsp';
+ *   export type { TraitRecommendation, VerticalMapping } from '@holoscript/lsp';
  *
  * Source: @holoscript/lsp/src/data/trait-vertical-mappings.ts
  */
@@ -47,7 +52,7 @@ export const VERTICAL_MAPPINGS: VerticalMapping[] = [
       { trait: '@material', relevance: 0.6, rationale: 'Visual differentiation of interactive vs. static objects.', configHint: 'emissive: [0.2, 0.5, 1.0]' },
     ],
   },
-  // Add all other verticals here... (truncated for brevity, but should include all 15)
+  // NOTE: 13 more verticals available in @holoscript/lsp canonical source
 ];
 
 /**
