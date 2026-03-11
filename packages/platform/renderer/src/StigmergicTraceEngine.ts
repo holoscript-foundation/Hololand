@@ -437,6 +437,7 @@ export class StigmergicTraceEngine {
       metadata: request.metadata ?? {},
       tags: request.tags ?? [],
       textContent: request.textContent ?? '',
+      normProvenance: request.normProvenance ? { ...request.normProvenance } : undefined,
     };
 
     // Add to traces map
@@ -608,6 +609,11 @@ export class StigmergicTraceEngine {
           metadata: { ghost: true },
           tags: ['diffusion'],
           textContent: '',
+          normProvenance: {
+            originInteractionId: `diffusion:${cellId}:${Date.now()}`,
+            originatingAgent: delta.agentId,
+            confidenceClassification: 'confabulated',
+          },
         };
         state.traces.set(ghostId, ghostTrace);
         this.addTraceToCell(state, ghostTrace);
@@ -805,6 +811,7 @@ export class StigmergicTraceEngine {
         color: [...trace.color],
         metadata: { ...trace.metadata },
         tags: [...trace.tags],
+        normProvenance: trace.normProvenance ? { ...trace.normProvenance } : undefined,
       });
     }
 

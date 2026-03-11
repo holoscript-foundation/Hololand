@@ -41,6 +41,8 @@ import {
   createDefaultRendererConfig,
   TRACE_CATEGORY_DEFAULTS,
   type TraceDepositRequest,
+  type NormProvenance,
+  type ConfidenceClassification,
 } from '../CulturalTraceTypes';
 
 import {
@@ -569,6 +571,165 @@ describe('StigmergicTraceEngine', () => {
       expect(front3.traces.size).toBe(2);
     });
   });
+
+  describe('norm_provenance (W.069 three-mode framework)', () => {
+    it('deposits a trace with genuine norm_provenance', () => {
+      engine.start();
+      const provenance: NormProvenance = {
+        originInteractionId: 'interaction-001',
+        originatingAgent: 'agent-1',
+        confidenceClassification: 'genuine',
+      };
+      engine.deposit(createTestDeposit({ normProvenance: provenance }));
+      vi.advanceTimersByTime(20);
+
+      const trace = Array.from(engine.getTraces().values())[0];
+      expect(trace.normProvenance).toBeDefined();
+      expect(trace.normProvenance!.originInteractionId).toBe('interaction-001');
+      expect(trace.normProvenance!.originatingAgent).toBe('agent-1');
+      expect(trace.normProvenance!.confidenceClassification).toBe('genuine');
+    });
+
+    it('deposits a trace with confabulated norm_provenance', () => {
+      engine.start();
+      engine.deposit(createTestDeposit({
+        normProvenance: {
+          originInteractionId: 'interaction-002',
+          originatingAgent: 'agent-1',
+          confidenceClassification: 'confabulated',
+        },
+      }));
+      vi.advanceTimersByTime(20);
+
+      const trace = Array.from(engine.getTraces().values())[0];
+      expect(trace.normProvenance!.confidenceClassification).toBe('confabulated');
+    });
+
+    it('deposits a trace with bullshitted norm_provenance', () => {
+      engine.start();
+      engine.deposit(createTestDeposit({
+        normProvenance: {
+          originInteractionId: 'interaction-003',
+          originatingAgent: 'agent-1',
+          confidenceClassification: 'bullshitted',
+        },
+      }));
+      vi.advanceTimersByTime(20);
+
+      const trace = Array.from(engine.getTraces().values())[0];
+      expect(trace.normProvenance!.confidenceClassification).toBe('bullshitted');
+    });
+
+    it('deposits a trace without norm_provenance (backward compatibility)', () => {
+      engine.start();
+      engine.deposit(createTestDeposit());
+      vi.advanceTimersByTime(20);
+
+      const trace = Array.from(engine.getTraces().values())[0];
+      expect(trace.normProvenance).toBeUndefined();
+    });
+
+    it('preserves norm_provenance during reinforcement', () => {
+      engine.start();
+      const pos = { x: 5, y: 0, z: 3 };
+
+      // First deposit with provenance
+      engine.deposit(createTestDeposit({
+        position: pos,
+        category: 'visit',
+        normProvenance: {
+          originInteractionId: 'original-interaction',
+          originatingAgent: 'agent-1',
+          confidenceClassification: 'genuine',
+        },
+      }));
+      vi.advanceTimersByTime(20);
+
+      // Second deposit at same position (reinforcement)
+      engine.deposit(createTestDeposit({
+        position: pos,
+        category: 'visit',
+      }));
+      vi.advanceTimersByTime(20);
+
+      // The original provenance should be preserved on the reinforced trace
+      const trace = Array.from(engine.getTraces().values())[0];
+      expect(trace.reinforcementCount).toBe(1);
+      expect(trace.normProvenance).toBeDefined();
+      expect(trace.normProvenance!.originInteractionId).toBe('original-interaction');
+      expect(trace.normProvenance!.confidenceClassification).toBe('genuine');
+    });
+
+    it('preserves norm_provenance across buffer swaps', () => {
+      engine.start();
+      engine.deposit(createTestDeposit({
+        normProvenance: {
+          originInteractionId: 'swap-test-interaction',
+          originatingAgent: 'agent-1',
+          confidenceClassification: 'confabulated',
+        },
+      }));
+      vi.advanceTimersByTime(20); // Cycle 1: deposit processed
+
+      // Trigger another cycle (buffer swap happens)
+      vi.advanceTimersByTime(20); // Cycle 2: another swap
+
+      const trace = Array.from(engine.getTraces().values())[0];
+      expect(trace.normProvenance).toBeDefined();
+      expect(trace.normProvenance!.originInteractionId).toBe('swap-test-interaction');
+      expect(trace.normProvenance!.confidenceClassification).toBe('confabulated');
+    });
+
+    it('norm_provenance is deep-cloned during buffer swap (mutation safety)', () => {
+      engine.start();
+      const provenance: NormProvenance = {
+        originInteractionId: 'mutation-test',
+        originatingAgent: 'agent-1',
+        confidenceClassification: 'genuine',
+      };
+      engine.deposit(createTestDeposit({ normProvenance: provenance }));
+      vi.advanceTimersByTime(20);
+
+      const front1Trace = Array.from(engine.getFrontBuffer().traces.values())[0];
+
+      // Trigger buffer swap
+      vi.advanceTimersByTime(20);
+
+      const front2Trace = Array.from(engine.getFrontBuffer().traces.values())[0];
+
+      // They should be separate objects (deep-cloned), not the same reference
+      expect(front2Trace.normProvenance).toEqual(front1Trace.normProvenance);
+      if (front1Trace.normProvenance && front2Trace.normProvenance) {
+        expect(front2Trace.normProvenance).not.toBe(front1Trace.normProvenance);
+      }
+    });
+
+    it('accepts all three ConfidenceClassification values', () => {
+      const classifications: ConfidenceClassification[] = ['genuine', 'confabulated', 'bullshitted'];
+      engine.start();
+
+      for (let i = 0; i < classifications.length; i++) {
+        engine.deposit(createTestDeposit({
+          agentId: `agent-${i}`,
+          position: { x: i * 20, y: 0, z: 0 },
+          normProvenance: {
+            originInteractionId: `interaction-${i}`,
+            originatingAgent: `agent-${i}`,
+            confidenceClassification: classifications[i],
+          },
+        }));
+      }
+      vi.advanceTimersByTime(20);
+
+      const traces = Array.from(engine.getTraces().values());
+      expect(traces).toHaveLength(3);
+
+      const classificationSet = new Set(
+        traces.map((t) => t.normProvenance!.confidenceClassification),
+      );
+      expect(classificationSet).toEqual(new Set(classifications));
+    });
+  });
 });
 
 // =============================================================================
@@ -970,6 +1131,43 @@ describe('CulturalTraceManager', () => {
       expect(manager.getEngine()).toBeInstanceOf(StigmergicTraceEngine);
       expect(manager.getAggregator()).toBeInstanceOf(CollectiveMemoryAggregator);
       expect(manager.getRenderer()).toBeInstanceOf(CulturalTraceRenderer);
+    });
+  });
+
+  describe('norm_provenance via manager deposit API', () => {
+    it('passes norm_provenance through to engine deposit', () => {
+      manager.start();
+      manager.deposit({
+        worldId: 'test-world',
+        agentId: 'brittney',
+        agentName: 'Brittney',
+        position: { x: 1, y: 0, z: 1 },
+        category: 'annotate',
+        textContent: 'Important finding',
+        normProvenance: {
+          originInteractionId: 'manager-test-001',
+          originatingAgent: 'brittney',
+          confidenceClassification: 'genuine',
+        },
+      });
+      vi.advanceTimersByTime(20);
+
+      const traces = Array.from(manager.getTraces().values());
+      expect(traces).toHaveLength(1);
+      expect(traces[0].normProvenance).toBeDefined();
+      expect(traces[0].normProvenance!.originInteractionId).toBe('manager-test-001');
+      expect(traces[0].normProvenance!.originatingAgent).toBe('brittney');
+      expect(traces[0].normProvenance!.confidenceClassification).toBe('genuine');
+    });
+
+    it('convenience methods create traces without normProvenance by default', () => {
+      manager.start();
+      manager.depositVisit({ x: 0, y: 0, z: 0 });
+      vi.advanceTimersByTime(20);
+
+      const traces = Array.from(manager.getTraces().values());
+      expect(traces).toHaveLength(1);
+      expect(traces[0].normProvenance).toBeUndefined();
     });
   });
 });

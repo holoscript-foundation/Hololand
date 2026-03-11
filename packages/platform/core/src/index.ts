@@ -186,6 +186,34 @@ export * from './TraitContextFactory';
 export * from './TraitRuntimeIntegration';
 export * from './PlatformRuntime';
 
+// Physics Safety Envelope — immutable platform-level physics bounds
+export {
+  PHYSICS_SAFETY_ENVELOPE,
+  clampSymmetric,
+  clampRange,
+  vectorMagnitude,
+  clampVectorMagnitude,
+  enforceLinearVelocity,
+  enforceAngularVelocity,
+  enforceForce,
+  enforceImpulse,
+  enforceGravityScale,
+  enforceMass,
+  enforcePosition,
+  validateEnvelope,
+  type PhysicsSafetyBounds,
+  type ClampEvent,
+} from './PhysicsSafetyEnvelope';
+
+export {
+  PhysicsSafetyEnforcer,
+  createPhysicsSafetyEnforcer,
+  wrapWithSafetyEnvelope,
+  type ClampEventHandler,
+  type PhysicsSafetyEnforcerConfig,
+  type SafetyEnforcerStats,
+} from './PhysicsSafetyEnforcer';
+
 // Phase 5: Self-Building World — Hot-reload & Git integration
 export {
   HoloScriptHotReloader,
@@ -205,3 +233,40 @@ export {
   type RollbackResult,
   type SnapshotResult,
 } from './VRGitIntegration';
+
+// Cross-Validation Protocol — 3-validator consensus for multi-agent world creation
+export {
+  // Engine
+  CrossValidationEngine,
+  createCrossValidationEngine,
+  createCustomCrossValidationEngine,
+  createStateDelta,
+  // Validators
+  PhysicsValidator,
+  createPhysicsValidator,
+  MaterialsValidator,
+  createMaterialsValidator,
+  SchemaValidator,
+  createSchemaValidator,
+} from './validation';
+
+export type {
+  // Core Types
+  ValidatorId,
+  ValidationVerdict,
+  StateDeltaCategory,
+  StateDelta,
+  StateDeltaPayload,
+  PhysicsDeltaPayload,
+  MaterialDeltaPayload,
+  TraitDeltaPayload,
+  TransformDeltaPayload,
+  WorldDeltaPayload,
+  CompositeDeltaPayload,
+  ValidationResult,
+  ValidationViolation,
+  ConsensusResult,
+  Validator,
+  CrossValidationConfig,
+  CrossValidationStats,
+} from './validation';
