@@ -2,7 +2,15 @@ import { Environment, PositionalAudio, Gltf, OrbitControls, Text, Sparkles } fro
 import { EffectComposer, Bloom, SSAO, Vignette } from '@react-three/postprocessing';
 import { Physics, RigidBody, CuboidCollider, BallCollider, MeshCollider, CapsuleCollider, CylinderCollider } from '@react-three/rapier';
 import { R3FCompiler, HSPlusAST, R3FNode } from '@holoscript/core';
-import { getGeometry, getMaterialProps, ShaderMeshNode, hasShaderTrait } from '@holoscript/r3f-renderer';
+import {
+  getGeometry,
+  getMaterialProps,
+  ShaderMeshNode,
+  hasShaderTrait,
+  AnimatedMeshNode,
+  LODMeshNode,
+  hasLOD,
+} from '@holoscript/r3f-renderer';
 import { SyncedEntity } from './SyncedEntity';
 import { DeformableEntity } from './DeformableEntity';
 import { IntelligenceEntity } from './IntelligenceEntity';
@@ -346,6 +354,17 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
   // 3.5 Shader Mesh — @shader trait renders with custom GLSL
   if (type === 'mesh' && hasShaderTrait(node)) {
     return <ShaderMeshNode key={key} node={node} />;
+  }
+
+  // 3.6 LOD Mesh — Level-of-detail rendering with drei Detailed
+  if (type === 'mesh' && hasLOD(node)) {
+    const distances = props.lodDistances || [0, 25, 50];
+    return <LODMeshNode key={key} node={node} distances={distances} />;
+  }
+
+  // 3.7 Animated Mesh — keyframe animation via useFrame
+  if (type === 'mesh' && props.keyframes && Array.isArray(props.keyframes) && props.keyframes.length > 0) {
+    return <AnimatedMeshNode key={key} node={node} />;
   }
 
   // 4. Primitives with full PBR Materials (via @holoscript/r3f-renderer)
