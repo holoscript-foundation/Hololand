@@ -71,7 +71,7 @@ Dedicated page showcasing the killer IoT → VR demo feature.
 - 📦 Installation & Setup (prerequisites, install, test)
 - 🎓 Tutorial: Build Your Own (4-step walkthrough)
 - 🏆 Success Metrics (tracking table)
-- 🌍 Platform Support (18+ platforms)
+- 🌍 Platform Support (25+ platforms)
 - 📚 Additional Resources (docs, guides, examples)
 
 **Stats:**

@@ -6,14 +6,15 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "brittney-mcp": "./dist/index.js",
+    "brittney-mcp": "./start.js",
     "brittney-native-host": "./dist/native-messaging-host.js"
   },
   "scripts": {
     "dev": "tsx src/health-server.ts & tsx src/index.ts",
     "dev:native-host": "tsx src/native-messaging-host.ts",
     "build": "tsc",
-    "start": "node dist/health-server.js & node dist/index.js",
+    "prepare": "tsc",
+    "start": "node start.js",
     "start:native-host": "node dist/native-messaging-host.js",
     "install:native-host:win": "powershell -ExecutionPolicy Bypass -File native-host/install-windows.ps1",
     "install:native-host:unix": "bash native-host/install-unix.sh",

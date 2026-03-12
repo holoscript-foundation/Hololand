@@ -33,6 +33,34 @@ Both servers can be used by Brittney or any cloud AI agent (Copilot, Claude, Cur
 | `generate_scene` | Create complete .holo files |
 | `brittney_suggest_fix` | When encountering issues |
 
+### Codebase Intelligence (HoloScript MCP — Cache-First)
+
+> **Use before editing TypeScript. `force=false` returns in ~21ms from cache if < 24h old.**
+
+| Tool | When to Use |
+|------|-------------|
+| `holo_graph_status` | **First**: check cache freshness |
+| `holo_absorb_repo` | Scan codebase (omit `force` to use cache) |
+| `holo_query_codebase` | Architectural Q&A (auto-loads cache) |
+| `holo_impact_analysis` | Blast radius for a symbol (auto-loads cache) |
+| `holo_detect_changes` | Compare two git refs — always fresh |
+
+**NEVER call `holo_absorb_repo` with `force: true`** unless `holo_graph_status` says stale.
+
+### MCP Recovery Protocol
+
+If any MCP tool call fails:
+
+1. **Diagnose** — `npx tsx packages/mcp-server/src/index.ts --help`
+2. **Start** — `npx tsx packages/mcp-server/src/index.ts` (background)
+3. **Verify** — retry `holo_graph_status({})` or `brittney_diagnostics({})`
+4. **CLI fallbacks** if server won't start:
+   - `holo_absorb_repo` → `npx tsx packages/cli/src/cli.ts absorb <dir> --json`
+   - `holo_query_codebase` → `npx tsx packages/cli/src/cli.ts query "<question>"`
+   - `validate_holoscript` → `npx tsx packages/cli/src/cli.ts parse <file>`
+   - `suggest_traits` / `generate_*` → no CLI equivalent; notify user
+5. **Notify user**: `"Start server: npx tsx packages/mcp-server/src/index.ts"`
+
 > **Note:** Claude Desktop/Code configuration is already set up in `.claude/settings.json` with preferred tools and MCP servers.
 
 ---

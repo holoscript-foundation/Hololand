@@ -54,7 +54,7 @@ export class SocialCausalEngine {
          // (Because we use deterministic hashing or semantic exact mapping in the cluster)
          const consolidatedNodes = new Map<string, SCMNode & { observationCount: number }>();
          
-         const edgeMap = new Map<string, SCMEdge & { observationCount: number, cumulativeWeight: number }>();
+         const edgeMap = new Map<string, SCMEdge & { observationCount: number, cumulativeWeight: number, weights: Array<{ weight: number, agentId: string | undefined }> }>();
 
          for (const dag of safeDags) {
              // Map unique nodes

@@ -88,7 +88,7 @@ Our latest demo generates a complete VR smart home from 24 realistic IoT devices
 
 ## 🌟 What is Hololand? {#what-is-hololand}
 
-Hololand is a comprehensive platform for building spatial computing experiences using **HoloScript**, a declarative language that compiles to 18+ platforms.
+Hololand is a comprehensive platform for building spatial computing experiences using **HoloScript**, a declarative language that compiles to 25+ platforms.
 
 ### Key Features
 

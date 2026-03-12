@@ -184,13 +184,27 @@ logic {
 
 ## MCP Tools Available
 
-Use these tools to work with HoloScript:
+### Brittney MCP (runtime, scenes, debugging)
 
 - `brittney_generate_holoscript` - Generate .holo from description
 - `brittney_inject_holoscript` - Inject into running app
 - `brittney_holoscript_playground` - Parse, validate, explain code
 - `execute_holoscript` - Execute in a world
 - `brittney_explain_scene` - Understand current scene
+
+### HoloScript MCP (language, codebase intelligence)
+
+Start with: `npx tsx packages/mcp-server/src/index.ts` in the HoloScript repo.
+
+| Tool | When to Use |
+|------|-------------|
+| `suggest_traits` | Before writing any .hsplus object |
+| `generate_object` / `generate_scene` | Create HoloScript from description |
+| `validate_holoscript` | After generating any code |
+| `holo_graph_status` | Before editing TypeScript — check cache age |
+| `holo_absorb_repo` | Scan codebase (cache-first: ~21ms if < 24h old) |
+| `holo_impact_analysis` | Blast radius before refactoring |
+| `holo_query_codebase` | Architectural questions (auto-loads cache) |
 
 ## Key Insight for Agents
 

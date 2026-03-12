@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { LRUCache } from './utils/lru-cache';
+import { LRUCache } from './utils/lru-cache.js';
 
 // The Hololand Backend URL for pgvector storage
 const HOLOLAND_API_URL = process.env.HOLOLAND_API_URL || 'http://localhost:3000';

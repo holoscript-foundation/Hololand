@@ -370,7 +370,7 @@ Intelligent understanding of device types and capabilities.
 Bidirectional MQTT with <100ms latency.
 
 ### 5. **Cross-Platform Output**
-Generate once, deploy to 18+ platforms.
+Generate once, deploy to 25+ platforms.
 
 ### 6. **Extensible Architecture**
 Easy to add new device types and custom mappings.

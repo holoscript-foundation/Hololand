@@ -93,7 +93,7 @@ pnpm dev
 - 🏠 24 devices, 9 types
 - 📝 408 lines generated
 - 🔄 <100ms MQTT sync
-- 🌐 18+ platforms
+- 🌐 25+ platforms
 
 </td>
 <td width="60%">
