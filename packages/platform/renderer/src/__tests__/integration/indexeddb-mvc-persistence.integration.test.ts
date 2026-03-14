@@ -145,12 +145,12 @@ class InMemoryObjectStore {
     };
 
     // Trigger first cursor position asynchronously
-    setTimeout(() => {
+    queueMicrotask(() => {
       advance();
       if ((request as any).onsuccess) {
         (request as any).onsuccess({ target: request });
       }
-    }, 0);
+    });
 
     return request;
   }
@@ -180,22 +180,38 @@ class InMemoryDatabase {
 
   transaction(storeNames: string[], mode?: string): any {
     const self = this;
-    return {
+    let _oncomplete: (() => void) | null = null;
+
+    const txObj: any = {
       objectStore: (name: string) => {
         const store = self.stores.get(name);
         if (!store) throw new Error(`Object store '${name}' not found`);
         return store;
       },
-      oncomplete: null as any,
       onerror: null as any,
       onabort: null as any,
-      // Auto-complete transaction after microtask
-      _complete() {
-        setTimeout(() => {
-          if (this.oncomplete) this.oncomplete();
-        }, 0);
-      },
     };
+
+    // Use a setter so that when promisifyTransaction assigns oncomplete,
+    // we auto-schedule the completion after all pending queueMicrotask callbacks
+    // from prior put/delete/clear requests have already fired (FIFO microtask order).
+    Object.defineProperty(txObj, 'oncomplete', {
+      get() { return _oncomplete; },
+      set(fn: (() => void) | null) {
+        _oncomplete = fn;
+        if (fn) {
+          queueMicrotask(() => {
+            if (_oncomplete) {
+              _oncomplete();
+              _oncomplete = null;
+            }
+          });
+        }
+      },
+      configurable: true,
+    });
+
+    return txObj;
   }
 
   close(): void {
@@ -212,11 +228,11 @@ function createSuccessRequest<T>(result: T): IDBRequest<T> {
   };
 
   // Trigger onsuccess asynchronously
-  setTimeout(() => {
+  queueMicrotask(() => {
     if (request.onsuccess) {
       request.onsuccess({ target: request });
     }
-  }, 0);
+  });
 
   return request as IDBRequest<T>;
 }
@@ -240,7 +256,7 @@ function setupIndexedDBMock(): void {
         onupgradeneeded: null,
       };
 
-      setTimeout(() => {
+      queueMicrotask(() => {
         if (!existing || existing.version < ver) {
           const db = new InMemoryDatabase(name, ver);
           databases.set(name, db);
@@ -256,22 +272,23 @@ function setupIndexedDBMock(): void {
         if (request.onsuccess) {
           request.onsuccess({ target: request });
         }
-      }, 0);
+      });
 
       return request;
     },
     deleteDatabase: (name: string) => {
       databases.delete(name);
       const request: any = { onsuccess: null, onerror: null };
-      setTimeout(() => {
+      queueMicrotask(() => {
         if (request.onsuccess) request.onsuccess();
-      }, 0);
+      });
       return request;
     },
   };
 
   // Mock crypto.subtle for checksum computation
-  (globalThis as any).crypto = {
+  // Use vi.stubGlobal because `crypto` is a read-only native getter in Node 19+
+  vi.stubGlobal('crypto', {
     subtle: {
       digest: async (_algo: string, data: ArrayBuffer) => {
         // Simple FNV-1a hash for testing (not cryptographic)
@@ -289,7 +306,7 @@ function setupIndexedDBMock(): void {
         return result;
       },
     },
-  };
+  });
 
   // Mock navigator.storage for quota estimation
   (globalThis as any).navigator = {

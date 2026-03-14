@@ -240,7 +240,7 @@ export const INDUSTRIAL_PROFILE: QualityProfile = {
   },
 
   tags: ['digital-twin', 'iot', 'precision', 'simulation', 'cad', 'bim'],
-  recommendedDevices: ['desktop', 'pcvr', 'quest3', 'questPro'],
+  recommendedDevices: ['hololens2', 'hololens', 'varjo', 'workstation'],
 };
 
 /**

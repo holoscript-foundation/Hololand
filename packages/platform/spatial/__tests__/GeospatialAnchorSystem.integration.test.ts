@@ -67,13 +67,13 @@ function createFakeIndexedDB() {
             const key = value.id;
             storeData.set(key, JSON.parse(JSON.stringify(value)));
             const req: any = {};
-            setTimeout(() => req.onsuccess?.(), 0);
+            queueMicrotask(() => req.onsuccess?.());
             return req;
           },
           get: (key: string) => {
             const result = storeData.get(key) || null;
             const req: any = { result: result ? JSON.parse(JSON.stringify(result)) : null };
-            setTimeout(() => req.onsuccess?.(), 0);
+            queueMicrotask(() => req.onsuccess?.());
             return req;
           },
           getAll: () => {
@@ -81,19 +81,19 @@ function createFakeIndexedDB() {
               JSON.parse(JSON.stringify(v)),
             );
             const req: any = { result };
-            setTimeout(() => req.onsuccess?.(), 0);
+            queueMicrotask(() => req.onsuccess?.());
             return req;
           },
           delete: (key: string) => {
             storeData.delete(key);
             const req: any = {};
-            setTimeout(() => req.onsuccess?.(), 0);
+            queueMicrotask(() => req.onsuccess?.());
             return req;
           },
           clear: () => {
             storeData.clear();
             const req: any = {};
-            setTimeout(() => req.onsuccess?.(), 0);
+            queueMicrotask(() => req.onsuccess?.());
             return req;
           },
         };
@@ -107,12 +107,12 @@ function createFakeIndexedDB() {
 
     request.result = dbObj;
 
-    setTimeout(() => {
+    queueMicrotask(() => {
       if (needsUpgrade) {
         request.onupgradeneeded?.({ target: request });
       }
       request.onsuccess?.();
-    }, 0);
+    });
 
     return request;
   }
@@ -122,7 +122,7 @@ function createFakeIndexedDB() {
     deleteDatabase: (name: string) => {
       databases.delete(name);
       const req: any = {};
-      setTimeout(() => req.onsuccess?.(), 0);
+      queueMicrotask(() => req.onsuccess?.());
       return req;
     },
     _databases: databases,

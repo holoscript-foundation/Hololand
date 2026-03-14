@@ -219,6 +219,8 @@ describe('Quality Profile Definitions', () => {
   });
 
   describe('profile differentiation', () => {
+    const profiles = Object.values(QUALITY_PROFILES);
+
     it('should have different priorities', () => {
       const priorities = profiles.map(p => p.priority);
       const uniquePriorities = new Set(priorities);

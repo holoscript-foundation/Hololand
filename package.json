@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm -r --workspace-concurrency=1 test",
     "lint": "pnpm -r lint",
     "clean": "pnpm -r clean",
     "audit": "pnpm audit --prod",

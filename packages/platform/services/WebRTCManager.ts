@@ -230,8 +230,14 @@ export class WebRTCManager {
       }
     }
 
+    // Preserve reconnect counters from existing peer (tracks attempts across reconnections)
+    const existingReconnect = this.peers.get(peerDid)?.reconnect;
+
     // Create peer connection
     const peer = this.createPeerConnection(peerDid);
+    if (existingReconnect) {
+      peer.reconnect = { ...existingReconnect };
+    }
     this.peers.set(peerDid, peer);
 
     // Create offer
@@ -728,6 +734,9 @@ export class WebRTCManager {
   }
 
   private handleConnectionFailure(peer: PeerConnection): void {
+    // Ensure peer is marked as failed so reconnect attempts can proceed through connect()
+    peer.state = 'failed';
+
     if (peer.reconnect.attempts >= this.config.maxReconnectAttempts) {
       console.error(`Max reconnect attempts reached for peer ${peer.peerId}`);
       this.disconnect(peer.peerId);

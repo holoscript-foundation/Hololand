@@ -38,8 +38,8 @@ describe('GeospatialCoordinateConverter', () => {
 
       const enu = converter.wgs84ToENU(point);
 
-      // Expect roughly 111m in each direction (1 degree ≈ 111km)
-      expect(enu.x).toBeCloseTo(111, -1); // East
+      // +0.001° latitude ≈ 111m north; +0.001° longitude at ~38°N ≈ 88m east (cos(38°) ≈ 0.788)
+      expect(enu.x).toBeCloseTo(88, -1); // East (~88m at this latitude)
       expect(enu.y).toBe(10); // Up
       expect(enu.z).toBeCloseTo(-111, -1); // -North (HoloLand convention)
     });
@@ -99,13 +99,13 @@ describe('GeospatialCoordinateConverter', () => {
       };
 
       const point2: WGS84Coordinate = {
-        latitude: 37.7759, // ~1.1km north
+        latitude: 37.7759, // ~111m north (0.001 degrees ≈ 111m)
         longitude: -122.4194,
         altitude: 0,
       };
 
       const distance = converter.haversineDistance(point1, point2);
-      expect(distance).toBeCloseTo(1111, -1); // ~1.1km
+      expect(distance).toBeCloseTo(111, -1); // ~111m
     });
 
     it('calculates distance between distant cities', () => {
@@ -365,11 +365,77 @@ describe('GeospatialAnchorSystem', () => {
 // =============================================================================
 
 async function mockIndexedDB() {
-  // Mock IndexedDB for testing
-  // In real tests, use fake-indexeddb or similar
-  if (typeof global.indexedDB === 'undefined') {
-    const fakeIndexedDB = await import('fake-indexeddb');
-    global.indexedDB = fakeIndexedDB.default;
-    global.IDBKeyRange = fakeIndexedDB.IDBKeyRange;
+  if (typeof (globalThis as any).indexedDB !== 'undefined') return;
+
+  // Inline in-memory IDB mock — fake-indexeddb package is not a dependency
+  const databases = new Map<string, Map<string, Map<string, any>>>();
+
+  function openDB(name: string, _version: number): any {
+    const request: any = {};
+    let db = databases.get(name);
+    const needsUpgrade = !db;
+    if (!db) { db = new Map(); databases.set(name, db); }
+
+    const dbObj: any = {
+      objectStoreNames: { contains: (n: string) => db!.has(n) },
+      createObjectStore: (storeName: string) => {
+        const store = new Map<string, any>();
+        db!.set(storeName, store);
+        return { createIndex: () => ({}) };
+      },
+      transaction: (storeNames: string[]) => {
+        const storeName = storeNames[0];
+        const storeData = db!.get(storeName) || new Map();
+        const objectStore: any = {
+          put: (value: any) => {
+            storeData.set(value.id, JSON.parse(JSON.stringify(value)));
+            const req: any = {};
+            queueMicrotask(() => req.onsuccess?.());
+            return req;
+          },
+          get: (key: string) => {
+            const result = storeData.get(key) || null;
+            const req: any = { result: result ? JSON.parse(JSON.stringify(result)) : null };
+            queueMicrotask(() => req.onsuccess?.());
+            return req;
+          },
+          getAll: () => {
+            const result = Array.from(storeData.values()).map((v: any) => JSON.parse(JSON.stringify(v)));
+            const req: any = { result };
+            queueMicrotask(() => req.onsuccess?.());
+            return req;
+          },
+          delete: (key: string) => {
+            storeData.delete(key);
+            const req: any = {};
+            queueMicrotask(() => req.onsuccess?.());
+            return req;
+          },
+          clear: () => {
+            storeData.clear();
+            const req: any = {};
+            queueMicrotask(() => req.onsuccess?.());
+            return req;
+          },
+        };
+        return { objectStore: () => objectStore };
+      },
+      close: () => {},
+    };
+
+    request.result = dbObj;
+    queueMicrotask(() => {
+      if (needsUpgrade) request.onupgradeneeded?.({ target: request });
+      request.onsuccess?.();
+    });
+    return request;
   }
+
+  (globalThis as any).indexedDB = { open: openDB };
+  (globalThis as any).IDBKeyRange = {
+    bound: (lower: any, upper: any) => ({ lower, upper }),
+    only: (value: any) => ({ only: value }),
+    lowerBound: (lower: any) => ({ lower }),
+    upperBound: (upper: any) => ({ upper }),
+  };
 }

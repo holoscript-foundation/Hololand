@@ -221,7 +221,7 @@ describe('VerticalTraitMatrix', () => {
 
       expect(getRelevanceOpacity(0.0)).toBe(0.3);
       expect(getRelevanceOpacity(1.0)).toBe(1.0);
-      expect(getRelevanceOpacity(0.5)).toBe(0.65);
+      expect(getRelevanceOpacity(0.5)).toBeCloseTo(0.65);
     });
   });
 

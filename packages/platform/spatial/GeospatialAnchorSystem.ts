@@ -155,7 +155,8 @@ export class GeospatialCoordinateConverter {
     const up = coords.altitude - this.origin.altitude;
 
     // HoloLand convention: Y-up, Z=-North
-    return { x: east, y: up, z: -north };
+    // Use || 0 to normalize -0 to +0 (JS Object.is(-0, 0) is false)
+    return { x: east || 0, y: up || 0, z: -north || 0 };
   }
 
   /**
@@ -665,12 +666,13 @@ export class GeospatialAnchorSystem {
   ): Promise<GeospatialAnchor> {
     if (!this.initialized) throw new Error('System not initialized');
 
+    const { contentId, ...anchorMetadata } = metadata;
     const anchor: GeospatialAnchor = {
       id: `geo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       coordinates,
       rotation,
       metadata: {
-        ...metadata,
+        ...anchorMetadata,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         platform: this.platform.getCapabilities()?.platform || 'unknown',
@@ -678,6 +680,7 @@ export class GeospatialAnchorSystem {
         verticalAccuracy: this.platform.getCapabilities()?.verticalAccuracy,
       },
       sharedWith: [],
+      ...(contentId !== undefined ? { contentId } : {}),
     };
 
     // Store locally
