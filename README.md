@@ -204,6 +204,14 @@ HoloLand **extends HoloScript's spatial computing framework** with platform-spec
 - **HoloScript** = The spatial computing framework (language + editor + compiler + runtime)
 - **HoloLand** = The spatial experience platform that enhances HoloScript (social, portals, monetization, discovery)
 
+For Brittney's role across the ecosystem:
+
+- **HoloScript** is Brittney's substrate
+- **Studio** is Brittney's primary creation surface
+- **HoloLand** is Brittney's flagship runtime embodiment
+
+See [docs/BRITTNEY_OWNERSHIP_MODEL.md](./docs/BRITTNEY_OWNERSHIP_MODEL.md).
+
 **[📖 HoloScript Framework Docs →](https://github.com/brianonbased-dev/HoloScript)**
 
 ---

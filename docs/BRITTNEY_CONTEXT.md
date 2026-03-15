@@ -7,6 +7,8 @@
 
 This document provides Brittney with comprehensive context about the HoloScript integration layer, all 10 systems, API patterns, and code generation guidelines.
 
+**Architectural note:** Brittney spans HoloScript, Studio, and Hololand. In this repository, the focus is Brittney's runtime and experiential role inside Hololand. For the cross-ecosystem responsibility split, see [BRITTNEY_OWNERSHIP_MODEL.md](./BRITTNEY_OWNERSHIP_MODEL.md).
+
 **Audience**: Brittney AI model, system architects, advanced developers  
 **Purpose**: Code generation for HoloScript systems, React components, and multiplayer features  
 **Framework**: React + TypeScript + HoloScript  

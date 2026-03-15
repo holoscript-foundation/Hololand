@@ -35,6 +35,7 @@ Not sure which file format to use?
 | [QUICK_STATUS.md](QUICK_STATUS.md) | 2 min | Test stats, quality metrics |
 | [README.md](README.md) | 5 min | Getting started, install, basic usage |
 | [QUICKSTART.md](QUICKSTART.md) | 5 min | AI integration, voice commands |
+| [docs/BRITTNEY_OWNERSHIP_MODEL.md](docs/BRITTNEY_OWNERSHIP_MODEL.md) | 4 min | Brittney's ownership split across HoloScript, Studio, and Hololand |
 
 ---
 

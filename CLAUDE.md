@@ -7,6 +7,7 @@ You are working in the Hololand codebase. This guide teaches you how to understa
 ### `.holo` - Visual Flow Language (FOR AGENTS)
 
 **.holo files are designed for YOU (AI agents) to read and write.** They represent a visual graph of:
+
 - **Nodes** (objects with purposes)
 - **Connections** (how they relate)
 - **Flow** (events → actions → effects)
@@ -16,6 +17,7 @@ When you read a .holo file, think of it as a **visual architecture diagram**, no
 ### `.hsplus` - Full Programming Language
 
 .hsplus is for complex logic, systems, backends. Use it when you need:
+
 - Variables, loops, conditionals
 - Async/await, promises
 - Complex state management
@@ -48,7 +50,8 @@ composition "Battle Arena" {
 ```
 
 **Your mental model should be:**
-```
+
+```text
 [Player] ──attack()──→ [Enemy]
     ↑                      ↑
     └── both are "Fighter" ┘
@@ -121,6 +124,7 @@ composition "Marketplace" {
 ## Common Patterns
 
 ### NPC with Dialogue
+
 ```holo
 object "Guard" {
   position: [10, 0, 0]
@@ -133,6 +137,7 @@ object "Guard" {
 ```
 
 ### Interactive Object
+
 ```holo
 orb "TreasureChest" {
   shape: "chest"
@@ -149,6 +154,7 @@ orb "TreasureChest" {
 ```
 
 ### Event Flow
+
 ```holo
 logic {
   // Trigger → Action → Effect
@@ -161,6 +167,7 @@ logic {
 ```
 
 ### Periodic Systems
+
 ```holo
 logic {
   every(5000) {  // Every 5 seconds
@@ -174,7 +181,7 @@ logic {
 ## When to Use Each File Type
 
 | Task | File Type | Why |
-|------|-----------|-----|
+| ---- | --------- | --- |
 | Create a scene/world | `.holo` | Visual structure, easy to understand |
 | Define objects/NPCs | `.holo` | Declarative, clear relationships |
 | Complex game logic | `.hsplus` | Need variables, loops, functions |
@@ -197,7 +204,7 @@ logic {
 Start with: `npx tsx packages/mcp-server/src/index.ts` in the HoloScript repo.
 
 | Tool | When to Use |
-|------|-------------|
+| ---- | ----------- |
 | `suggest_traits` | Before writing any .hsplus object |
 | `generate_object` / `generate_scene` | Create HoloScript from description |
 | `validate_holoscript` | After generating any code |
@@ -211,8 +218,20 @@ Start with: `npx tsx packages/mcp-server/src/index.ts` in the HoloScript repo.
 **.holo is your interface to the 3D world.**
 
 When a user asks you to "build X", think:
+
 1. What does X look like as a graph of connected objects?
 2. Write that graph in .holo syntax
 3. The runtime turns your .holo into a 3D scene
 
 You're not writing code - you're **drawing a blueprint** that gets built.
+
+## Strategic Product Direction
+
+When making architectural or roadmap decisions in this repo, assume:
+
+- Brittney is the primary interface
+- Studio is the primary creation environment
+- Hololand is Brittney's runtime embodiment in live worlds
+- HoloScript is the underlying substrate
+
+Use Hololand for runtime presence, player guidance, social/spatial interaction, and experiential delivery of Brittney's intelligence. Do not treat generic IDE workflows as the strategic center of gravity.

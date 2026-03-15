@@ -143,3 +143,21 @@ We observed that AI agents (including Brittney herself) are building features fa
 | **Phase 2** | Spatial Anchoring (Shared AR) | ✅ Live |
 | **Phase 3** | "Living World" (Agents modify own code) | 🟡 Beta |
 | **Phase 4** | Full Autonomy (Brittney releases updates) | 🧪 Alpha |
+
+---
+
+## 5. Ownership Model Across HoloScript, Studio, and Hololand
+
+Brittney spans all three layers of the ecosystem, but with different responsibilities:
+
+- **HoloScript** provides Brittney's language, generation, and systems substrate.
+- **Studio** is Brittney's primary home surface for creation, refinement, and memory accumulation.
+- **Hololand** is Brittney's runtime embodiment inside live worlds and social/spatial experiences.
+
+Short version:
+
+- In HoloScript, Brittney is the **builder**.
+- In Studio, Brittney is the **creator**.
+- In Hololand, Brittney is the **embodied guide/operator**.
+
+See [Brittney Ownership Model](./docs/BRITTNEY_OWNERSHIP_MODEL.md) for the full split.
