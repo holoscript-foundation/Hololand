@@ -1,0 +1,346 @@
+// HoloScript Composition: Knowledge Graph Builder
+// Headless Demo #3 -- Door 1 Adoption (no spatial rendering)
+//
+// This composition defines the knowledge graph agents, shared graph state,
+// and multi-round collaboration protocol using native HoloScript syntax.
+// The companion knowledge-graph.mjs implements this as a runnable Node.js script.
+
+composition "Knowledge Graph Builder" {
+
+  // --- Configuration -----------------------------------------------------------
+  config {
+    mode: "headless"            // No 3D rendering -- pure agent collaboration
+    protocol: "multi-round"
+    max_rounds: 10
+    confidence_threshold: 0.60
+    phases: ["EXTRACT", "MAP", "RESOLVE"]
+  }
+
+  // --- Broadcast Channels ------------------------------------------------------
+  channel "graph:coordinator" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Round lifecycle events and orchestration directives"
+  }
+
+  channel "graph:entities" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Entity extraction results from extractor agent"
+  }
+
+  channel "graph:relationships" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Relationship mapping results from mapper agent"
+  }
+
+  channel "graph:conflicts" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Conflict detection and resolution reports from resolver agent"
+  }
+
+  // --- Shared Knowledge Graph --------------------------------------------------
+  // CRDT-like versioned graph with merge semantics
+  shared_state "graph" {
+    nodes: {}           // Map<node_id, GraphNode>
+    edges: {}           // Map<edge_id, GraphEdge>
+    conflicts: []       // Conflict[]
+    version: 0
+  }
+
+  // --- Entity Extractor Agent --------------------------------------------------
+  agent "Entity Extractor" {
+    @knowledge
+    @autonomous
+    @adaptive
+
+    state {
+      entities_found: []
+      extraction_rounds: 0
+    }
+
+    action extract(text, round) {
+      knowledge.increment("extraction_rounds")
+      entities = pattern_extract_entities(text)
+      added_nodes = []
+
+      for entity in entities {
+        // CRDT merge: addNode checks for existing by label/alias
+        node = graph.add_node({
+          label: entity.label,
+          type: entity.type,
+          confidence: entity.confidence,
+          aliases: entity.aliases,
+          properties: entity.properties,
+          source: self.id
+        })
+        added_nodes.push(node)
+
+        knowledge.append("entities_found", {
+          node_id: node.id,
+          label: node.label,
+          type: node.type,
+          confidence: node.confidence,
+          round: round,
+          timestamp: now()
+        })
+      }
+
+      broadcast("graph:entities", {
+        action: "entities_extracted",
+        payload: {
+          round: round,
+          count: added_nodes.length,
+          entities: added_nodes.map(n => {
+            id: n.id, label: n.label, type: n.type, confidence: n.confidence
+          })
+        },
+        priority: "high"
+      })
+
+      return added_nodes
+    }
+
+    on_event("graph:coordinator", "round_start") {
+      knowledge.set("current_round", event.payload.round)
+    }
+  }
+
+  // --- Relationship Mapper Agent -----------------------------------------------
+  agent "Relationship Mapper" {
+    @knowledge
+    @autonomous
+    @conversational
+
+    state {
+      relationships_found: []
+      mapping_rounds: 0
+    }
+
+    action map_relationships(text, round) {
+      knowledge.increment("mapping_rounds")
+      relationships = pattern_extract_relationships(text)
+      added_edges = []
+
+      for rel in relationships {
+        // Resolve node IDs from labels
+        source_node = graph.find_node_by_label(rel.source_label)
+        target_node = graph.find_node_by_label(rel.target_label)
+
+        if (source_node == null || target_node == null) { continue }
+        if (source_node.id == target_node.id) { continue }
+
+        // CRDT merge: addEdge checks for existing by source+target+relation
+        edge = graph.add_edge({
+          source: source_node.id,
+          target: target_node.id,
+          relation: rel.relation,
+          label: rel.label,
+          confidence: rel.confidence,
+          weight: rel.weight,
+          added_by: self.id
+        })
+        added_edges.push(edge)
+
+        knowledge.append("relationships_found", {
+          edge_id: edge.id,
+          source: source_node.label,
+          target: target_node.label,
+          relation: rel.relation,
+          confidence: edge.confidence,
+          round: round,
+          timestamp: now()
+        })
+      }
+
+      broadcast("graph:relationships", {
+        action: "relationships_mapped",
+        payload: {
+          round: round,
+          count: added_edges.length,
+          edges: added_edges.map(e => {
+            id: e.id, source: e.source, target: e.target,
+            relation: e.relation, confidence: e.confidence
+          })
+        },
+        priority: "high"
+      })
+
+      return added_edges
+    }
+
+    on_event("graph:entities", "entities_extracted") {
+      knowledge.append("entity_notifications", {
+        round: event.payload.round,
+        count: event.payload.count,
+        timestamp: event.timestamp
+      })
+    }
+
+    on_event("graph:coordinator", "round_start") {
+      knowledge.set("current_round", event.payload.round)
+    }
+  }
+
+  // --- Conflict Resolver Agent -------------------------------------------------
+  agent "Conflict Resolver" {
+    @knowledge
+    @autonomous
+    @goal_oriented
+
+    state {
+      conflicts_detected: []
+      conflicts_resolved: []
+      trust_scores: {
+        "agent-extractor": 0.85,
+        "agent-mapper": 0.80,
+        "agent-resolver": 0.90,
+        "unknown": 0.50
+      }
+    }
+
+    action resolve_conflicts(round) {
+      conflicts = []
+
+      // Check 1: Duplicate nodes (alias overlap)
+      nodes = graph.get_nodes()
+      for i in range(0, nodes.length) {
+        for j in range(i + 1, nodes.length) {
+          a = nodes[i]
+          b = nodes[j]
+          a_labels = [a.label.lower(), ...a.aliases.map(x => x.lower())]
+          b_labels = [b.label.lower(), ...b.aliases.map(x => x.lower())]
+
+          if (a_labels.intersect(b_labels).length > 0) {
+            // CRDT merge: higher confidence wins
+            keep = a.confidence >= b.confidence ? a : b
+            merge = a.confidence >= b.confidence ? b : a
+            graph.merge_node(keep.id, merge)
+
+            conflict = graph.add_conflict({
+              type: "duplicate_node",
+              involved_ids: [a.id, b.id],
+              description: "Duplicate: " + a.label + " and " + b.label,
+              resolution: "Merged into " + keep.label
+            })
+            conflicts.push(conflict)
+          }
+        }
+      }
+
+      // Check 2: Contradictory edges (same pair, same relation)
+      edges = graph.get_edges()
+      pair_map = group_by(edges, e => e.source + ":" + e.target)
+      for pair in pair_map {
+        if (pair.edges.length > 1) {
+          relations = pair.edges.map(e => e.relation)
+          if (has_duplicates(relations)) {
+            // Trust-weighted selection
+            sorted = pair.edges.sort_by(e =>
+              -(e.confidence * self.trust_scores[e.added_by])
+            )
+            winner = sorted[0]
+
+            conflict = graph.add_conflict({
+              type: "contradictory_edge",
+              involved_ids: pair.edges.map(e => e.id),
+              description: "Contradictory edges with relation: " + pair.edges[0].relation,
+              resolution: "Kept " + winner.id + " (trust-weighted)"
+            })
+            conflicts.push(conflict)
+          }
+        }
+      }
+
+      // Check 3: Low-confidence entries
+      threshold = config.confidence_threshold
+      for node in graph.get_nodes() {
+        if (node.confidence < threshold) {
+          conflict = graph.add_conflict({
+            type: "confidence_dispute",
+            involved_ids: [node.id],
+            description: node.label + " has low confidence: " + node.confidence,
+            resolution: "Retained with flag -- needs corroboration"
+          })
+          conflicts.push(conflict)
+        }
+      }
+
+      broadcast("graph:conflicts", {
+        action: "conflicts_resolved",
+        payload: {
+          round: round,
+          detected: conflicts.length,
+          resolved: conflicts.filter(c => c.resolution != "unresolved").length
+        },
+        priority: "high"
+      })
+
+      return conflicts
+    }
+
+    on_event("graph:entities", "entities_extracted") {
+      knowledge.append("entity_events", {
+        round: event.payload.round,
+        count: event.payload.count,
+        from: event.from,
+        timestamp: event.timestamp
+      })
+    }
+
+    on_event("graph:relationships", "relationships_mapped") {
+      knowledge.append("relationship_events", {
+        round: event.payload.round,
+        count: event.payload.count,
+        from: event.from,
+        timestamp: event.timestamp
+      })
+    }
+
+    on_event("graph:coordinator", "round_start") {
+      knowledge.set("current_round", event.payload.round)
+    }
+  }
+
+  // --- Multi-Round Collaboration Protocol --------------------------------------
+  logic {
+    on_start {
+      texts = config.texts ?? SAMPLE_CORPUS
+      rounds = config.rounds ?? texts.length
+
+      for round in range(1, rounds + 1) {
+        text = texts[(round - 1) % texts.length]
+
+        // Announce round
+        broadcast("graph:coordinator", {
+          action: "round_start",
+          payload: { round: round, total_rounds: rounds },
+          priority: "critical"
+        })
+
+        // Phase 1: Extract entities
+        nodes = EntityExtractor.extract(text, round)
+
+        // Phase 2: Map relationships
+        edges = RelationshipMapper.map_relationships(text, round)
+
+        // Phase 3: Resolve conflicts
+        conflicts = ConflictResolver.resolve_conflicts(round)
+      }
+
+      // Final report
+      broadcast("graph:coordinator", {
+        action: "build_complete",
+        payload: {
+          nodes: graph.node_count(),
+          edges: graph.edge_count(),
+          conflicts: graph.conflict_count(),
+          version: graph.version
+        },
+        priority: "critical"
+      })
+    }
+  }
+}

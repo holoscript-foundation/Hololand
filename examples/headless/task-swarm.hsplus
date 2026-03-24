@@ -1,0 +1,345 @@
+// HoloScript Composition: Agent Swarm Task Decomposition
+// Headless Demo #2 -- Door 1 Adoption (no spatial rendering)
+//
+// This composition defines the swarm's coordinator, workers, channels,
+// and scheduling protocol using native HoloScript syntax. The companion
+// task-swarm.mjs implements this as a runnable Node.js script.
+
+composition "Task Swarm" {
+
+  // --- Configuration -----------------------------------------------------------
+  config {
+    mode: "headless"            // No 3D rendering -- pure agent coordination
+    protocol: "wave-parallel"
+    max_workers: 5
+    phases: ["DECOMPOSE", "ASSIGN", "EXECUTE", "AGGREGATE"]
+  }
+
+  // --- Broadcast Channels ------------------------------------------------------
+  // Mirrors AgentMessage.to = "broadcast" from @holoscript/core
+
+  channel "swarm:coordinator" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Coordinator directives and swarm lifecycle events"
+  }
+
+  channel "swarm:tasks" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Task offerings from coordinator to workers"
+  }
+
+  channel "swarm:claims" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Workers claim tasks by publishing skill-match responses"
+  }
+
+  channel "swarm:progress" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "Real-time progress updates from workers"
+  }
+
+  channel "swarm:results" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Completed task results from workers to coordinator"
+  }
+
+  // --- Coordinator Agent -------------------------------------------------------
+  agent "Coordinator" {
+    @autonomous
+    @goal_oriented
+    @knowledge
+
+    state {
+      task_tree: null
+      assignments: {}
+      results: {}
+      timeline: []
+    }
+
+    action decompose(task) {
+      subtasks = lookup_decomposition(task)
+      knowledge.set("task_tree", {
+        root_task: task,
+        subtasks: subtasks,
+        decomposed_at: now()
+      })
+      knowledge.append("timeline", {
+        event: "task_decomposed",
+        task: task,
+        subtask_count: subtasks.length,
+        timestamp: now()
+      })
+      broadcast("swarm:coordinator", {
+        action: "task_decomposed",
+        payload: { root_task: task, subtasks: subtasks },
+        priority: "critical"
+      })
+    }
+
+    action find_best_worker(subtask, workers) {
+      best = null
+      best_score = 0
+      for worker in workers {
+        if (!worker.busy) {
+          score = skill_match(worker.skills, subtask.required_skills)
+          if (score > best_score) {
+            best = worker
+            best_score = score
+          }
+        }
+      }
+      // Fallback: any available worker
+      if (best == null) {
+        best = workers.find(w => !w.busy)
+      }
+      return best
+    }
+
+    action assign(subtask, worker) {
+      knowledge.get("assignments")[subtask.id] = {
+        worker_id: worker.id,
+        worker_name: worker.name,
+        assigned_at: now()
+      }
+      knowledge.append("timeline", {
+        event: "task_assigned",
+        subtask_id: subtask.id,
+        worker_id: worker.id,
+        timestamp: now()
+      })
+      send(worker.id, "swarm:coordinator", {
+        action: "assignment_confirmed",
+        payload: { subtask_id: subtask.id },
+        priority: "high"
+      })
+    }
+
+    action record_result(subtask_id, result) {
+      knowledge.get("results")[subtask_id] = result
+      knowledge.append("timeline", {
+        event: result.success ? "task_completed" : "task_failed",
+        subtask_id: subtask_id,
+        worker_id: result.worker_id,
+        duration_ms: result.duration_ms,
+        timestamp: now()
+      })
+    }
+
+    action aggregate(root_task, subtasks) {
+      results = knowledge.get("results")
+      completed = subtasks.filter(s => s.status == "completed")
+      critical_path = compute_critical_path(subtasks, results)
+
+      aggregation = {
+        root_task: root_task,
+        status: completed.length == subtasks.length ? "SUCCESS" : "PARTIAL_FAILURE",
+        completed_count: completed.length,
+        total_count: subtasks.length,
+        critical_path_ms: critical_path,
+        parallel_speedup: sum_durations(results) / critical_path
+      }
+
+      knowledge.set("final_aggregation", aggregation)
+      broadcast("swarm:coordinator", {
+        action: "swarm_complete",
+        payload: aggregation,
+        priority: "critical"
+      })
+    }
+
+    on_event("swarm:claims", "task_claimed") {
+      knowledge.append("claims_received", {
+        subtask_id: event.payload.subtask_id,
+        worker_id: event.payload.worker_id,
+        skill_match: event.payload.skill_match,
+        timestamp: event.timestamp
+      })
+    }
+
+    on_event("swarm:progress", "*") {
+      knowledge.append("progress_log", {
+        action: event.action,
+        subtask_id: event.payload.subtask_id,
+        worker_id: event.payload.worker_id,
+        timestamp: event.timestamp
+      })
+    }
+  }
+
+  // --- Worker Template ---------------------------------------------------------
+  template "Worker" {
+    @autonomous
+    @knowledge
+    @adaptive
+
+    state {
+      skills: []
+      busy: false
+      claimed_tasks: []
+      completed_tasks: []
+      failed_tasks: []
+    }
+
+    action skill_match(subtask) {
+      matched = subtask.required_skills.filter(s => self.skills.includes(s))
+      return matched.length
+    }
+
+    action claim(subtask) {
+      self.busy = true
+      knowledge.append("claimed_tasks", {
+        subtask_id: subtask.id,
+        title: subtask.title,
+        claimed_at: now()
+      })
+      broadcast("swarm:claims", {
+        action: "task_claimed",
+        payload: {
+          subtask_id: subtask.id,
+          worker_id: self.id,
+          worker_name: self.name,
+          skill_match: self.skill_match(subtask),
+          matched_skills: subtask.required_skills.filter(s => self.skills.includes(s))
+        },
+        priority: "high"
+      })
+    }
+
+    action execute(subtask) {
+      // Report started
+      broadcast("swarm:progress", {
+        action: "task_started",
+        payload: { subtask_id: subtask.id, worker_id: self.id },
+        priority: "medium"
+      })
+
+      // Execute task logic
+      result = simulate_execution(subtask)
+
+      // Report completion
+      broadcast("swarm:progress", {
+        action: result.success ? "task_completed" : "task_failed",
+        payload: {
+          subtask_id: subtask.id,
+          worker_id: self.id,
+          duration_ms: result.duration_ms
+        },
+        priority: result.success ? "medium" : "high"
+      })
+
+      // Send result to coordinator
+      broadcast("swarm:results", {
+        action: "task_result",
+        payload: {
+          subtask_id: subtask.id,
+          worker_id: self.id,
+          success: result.success,
+          result: result.detail,
+          artifacts: result.artifacts,
+          duration_ms: result.duration_ms
+        },
+        priority: "high"
+      })
+
+      // Update knowledge
+      if (result.success) {
+        knowledge.append("completed_tasks", {
+          subtask_id: subtask.id,
+          duration_ms: result.duration_ms,
+          completed_at: now()
+        })
+      } else {
+        knowledge.append("failed_tasks", {
+          subtask_id: subtask.id,
+          reason: result.detail,
+          failed_at: now()
+        })
+      }
+
+      self.busy = false
+      return result
+    }
+
+    on_event("swarm:tasks", "task_offered") {
+      knowledge.append("tasks_seen", {
+        subtask_id: event.payload.subtask_id,
+        title: event.payload.title,
+        timestamp: event.timestamp
+      })
+    }
+
+    on_event("swarm:coordinator", "assignment_confirmed") {
+      knowledge.set("current_assignment", event.payload)
+    }
+  }
+
+  // --- Worker Instances --------------------------------------------------------
+  agent "Alpha" using "Worker" {
+    skills: ["architecture", "documentation", "monitoring"]
+  }
+
+  agent "Beta" using "Worker" {
+    skills: ["networking", "security", "concurrency"]
+  }
+
+  agent "Gamma" using "Worker" {
+    skills: ["data-processing", "storage", "parsing"]
+  }
+
+  agent "Delta" using "Worker" {
+    skills: ["testing", "monitoring", "documentation"]
+  }
+
+  agent "Epsilon" using "Worker" {
+    skills: ["networking", "data-processing", "architecture"]
+  }
+
+  // --- Swarm Protocol ----------------------------------------------------------
+  logic {
+    on_start {
+      task = config.task ?? "Build a web scraping pipeline"
+
+      // Phase 1: Decompose
+      Coordinator.decompose(task)
+      subtasks = Coordinator.knowledge.get("task_tree").subtasks
+      subtask_map = map_by_id(subtasks)
+
+      // Phase 2 & 3: Assign & Execute (wave-based)
+      wave = 0
+      while (subtasks.some(s => s.status == "pending" || s.status == "in_progress")) {
+        wave = wave + 1
+
+        // Find ready tasks (dependencies met)
+        ready = subtasks.filter(s =>
+          s.status == "pending" &&
+          s.dependencies.every(dep => subtask_map[dep].status == "completed")
+        )
+
+        if (ready.length == 0) { break }
+
+        // Assign and execute each ready task
+        for subtask in ready {
+          worker = Coordinator.find_best_worker(subtask, workers)
+          if (worker != null) {
+            subtask.assigned_to = worker.id
+            subtask.status = "in_progress"
+            Coordinator.assign(subtask, worker)
+            worker.claim(subtask)
+
+            result = worker.execute(subtask)
+            subtask.status = result.success ? "completed" : "failed"
+            Coordinator.record_result(subtask.id, result)
+          }
+        }
+      }
+
+      // Phase 4: Aggregate
+      Coordinator.aggregate(task, subtasks)
+    }
+  }
+}
