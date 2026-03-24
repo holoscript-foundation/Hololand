@@ -1,0 +1,250 @@
+// HoloScript Composition: Multi-Agent Debate Society
+// Headless Demo #1 — Door 1 Adoption (no spatial rendering)
+//
+// This composition defines the debate society's agents, channels,
+// and protocol using native HoloScript syntax. The companion
+// debate-society.mjs implements this as a runnable Node.js script.
+
+composition "Debate Society" {
+
+  // ─── Configuration ─────────────────────────────────────────────────
+  config {
+    mode: "headless"            // No 3D rendering — pure agent communication
+    protocol: "turn-based"
+    max_agents: 5
+    phases: ["PROPOSE", "ARGUE", "REBUT", "VOTE"]
+  }
+
+  // ─── Broadcast Channels ────────────────────────────────────────────
+  // Mirrors AgentMessage.to = "broadcast" from @holoscript/core
+  channel "debate:moderator" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Moderator commands and phase transitions"
+  }
+
+  channel "debate:floor" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "Open debate floor — all agents publish and subscribe"
+  }
+
+  // ─── Moderator Agent ───────────────────────────────────────────────
+  agent "Moderator" {
+    @knowledge
+    @autonomous
+    @goal_oriented
+
+    state {
+      rules: [
+        "Each agent speaks once per phase before the next phase begins.",
+        "Agents cannot vote for themselves.",
+        "Arguments must address the topic; off-topic remarks are flagged.",
+        "Personal attacks are prohibited; critique ideas, not agents.",
+        "The moderator's phase transitions are final."
+      ]
+      violations: []
+      phase_log: []
+      vote_tally: {}
+    }
+
+    action announce_phase(phase, metadata) {
+      knowledge.append("phase_log", { phase: phase, timestamp: now() })
+      broadcast("debate:moderator", {
+        action: "phase_change",
+        payload: { phase: phase, ...metadata },
+        priority: "critical"
+      })
+    }
+
+    action issue_violation(agent_id, rule, detail) {
+      knowledge.append("violations", {
+        agent_id: agent_id,
+        rule: rule,
+        detail: detail,
+        timestamp: now()
+      })
+      send(agent_id, "debate:moderator", {
+        action: "rule_violation",
+        payload: { rule: rule, detail: detail },
+        priority: "high"
+      })
+    }
+
+    action tally_votes(votes) {
+      tally = {}
+      for vote in votes {
+        if (vote.voted_for == vote.voter) {
+          self.issue_violation(vote.voter, "self-vote", "Cannot vote for self.")
+        } else {
+          tally[vote.voted_for] = (tally[vote.voted_for] ?? 0) + 1
+        }
+      }
+      knowledge.set("vote_tally", tally)
+      broadcast("debate:moderator", {
+        action: "vote_result",
+        payload: { tally: tally, winner: max_key(tally) },
+        priority: "critical"
+      })
+    }
+
+    on_event("debate:floor", "argument") {
+      if (event.payload.content.length < 10) {
+        self.issue_violation(event.from, "insufficient-argument",
+          "Arguments must be substantive (10+ characters).")
+      }
+    }
+  }
+
+  // ─── Debater Template ──────────────────────────────────────────────
+  template "Debater" {
+    @knowledge
+    @conversational
+    @adaptive
+
+    state {
+      perspective: ""
+      arguments_made: []
+      rebuttals_made: []
+      votes_cast: []
+      opponents_arguments: []
+      current_topic: ""
+    }
+
+    action propose(topic) {
+      knowledge.set("current_topic", topic)
+      proposal = generate_proposal(self.perspective, topic)
+      knowledge.append("arguments_made", {
+        phase: "PROPOSE",
+        content: proposal,
+        timestamp: now()
+      })
+      broadcast("debate:floor", {
+        action: "proposal",
+        payload: { content: proposal, perspective: self.perspective },
+        priority: "high"
+      })
+    }
+
+    action argue(topic) {
+      opponents = knowledge.get("opponents_arguments")
+      argument = generate_argument(self.perspective, topic, opponents)
+      knowledge.append("arguments_made", {
+        phase: "ARGUE",
+        content: argument,
+        timestamp: now()
+      })
+      broadcast("debate:floor", {
+        action: "argument",
+        payload: { content: argument, perspective: self.perspective },
+        priority: "medium"
+      })
+    }
+
+    action rebut(topic) {
+      opponents = knowledge.get("opponents_arguments")
+      rebuttal = generate_rebuttal(self.perspective, topic, opponents)
+      knowledge.append("rebuttals_made", {
+        phase: "REBUT",
+        content: rebuttal,
+        timestamp: now()
+      })
+      broadcast("debate:floor", {
+        action: "rebuttal",
+        payload: { content: rebuttal, perspective: self.perspective },
+        priority: "high"
+      })
+    }
+
+    action vote(candidates) {
+      // Filter out self, vote based on strongest impression
+      others = candidates.filter(c => c.id != self.id)
+      voted_for = select_most_compelling(others, knowledge.get("opponents_arguments"))
+      reason = generate_vote_reason(self.perspective, voted_for)
+      knowledge.append("votes_cast", {
+        voted_for: voted_for.id,
+        reason: reason,
+        timestamp: now()
+      })
+      broadcast("debate:floor", {
+        action: "vote",
+        payload: { voted_for: voted_for.id, reason: reason },
+        priority: "critical"
+      })
+    }
+
+    // Listen for opponent arguments and store in knowledge
+    on_event("debate:floor", "*") {
+      if (event.from != self.id) {
+        knowledge.append("opponents_arguments", {
+          from: event.from,
+          action: event.action,
+          content: event.payload.content,
+          perspective: event.payload.perspective,
+          timestamp: event.timestamp
+        })
+      }
+    }
+
+    // Listen for moderator phase changes
+    on_event("debate:moderator", "phase_change") {
+      knowledge.set("current_phase", event.payload.phase)
+    }
+  }
+
+  // ─── Agent Instances ───────────────────────────────────────────────
+  agent "Dr. Pragma" using "Debater" {
+    perspective: "pragmatist"
+  }
+
+  agent "Prof. Ideal" using "Debater" {
+    perspective: "idealist"
+  }
+
+  agent "The Skeptic" using "Debater" {
+    perspective: "skeptic"
+  }
+
+  // ─── Debate Protocol ───────────────────────────────────────────────
+  logic {
+    on_start {
+      topic = config.topic ?? "Should AI systems be granted legal personhood?"
+      rounds = config.rounds ?? 1
+
+      Moderator.announce_phase("SETUP", { topic: topic, rounds: rounds })
+
+      for round in range(1, rounds + 1) {
+        // PROPOSE phase
+        Moderator.announce_phase("PROPOSE", { round: round })
+        for agent in agents {
+          agent.propose(topic)
+        }
+
+        // ARGUE phase
+        Moderator.announce_phase("ARGUE", { round: round })
+        for agent in agents {
+          agent.argue(topic)
+        }
+
+        // REBUT phase
+        Moderator.announce_phase("REBUT", { round: round })
+        for agent in agents {
+          agent.rebut(topic)
+        }
+
+        // VOTE phase
+        Moderator.announce_phase("VOTE", { round: round })
+        candidates = agents.map(a => { id: a.id, name: a.name })
+        votes = []
+        for agent in agents {
+          vote = agent.vote(candidates)
+          votes.push({ voted_for: vote.voted_for, voter: agent.id })
+        }
+
+        Moderator.tally_votes(votes)
+      }
+
+      Moderator.announce_phase("SUMMARY")
+    }
+  }
+}
