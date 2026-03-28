@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { HoloScriptRenderer } from '../components/HoloScriptRenderer';
+import { SpatialFeedRenderer } from '@holoscript/r3f-renderer';
 
 import { DialogOverlay } from '../components/DialogOverlay';
 import { DialogManager } from '@hololand/world';
@@ -85,6 +86,12 @@ export function OasisPage() {
         <HoloScriptRenderer 
           scriptContent={holoScript}
         />
+        
+        {/* A2A Gossip Mesh / Spatial Feed Layer */}
+        <SpatialFeedRenderer 
+          worldStatePath="./.holomesh/worldstate.crdt"
+        />
+
         <OrbitControls 
           enablePan={true}
           enableZoom={true}
