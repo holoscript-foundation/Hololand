@@ -1,0 +1,236 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    SERVICE DASHBOARD - PENTAGON LAYOUT                       ║
+║                         (Top-Down View, Y=4)                                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+                                    North (+Z)
+                                        ↑
+                                        │
+                              HoloScript MCP 🌐
+                                 (3.71, 11.41)
+                                    Station 2
+                                        │
+                                        │
+                        Semantic     ◯─────◯     MCP Orchestrator
+                        Search 🔍   /   🔷   \   🔀 (12.00, 0.00)
+                        (-9.71,    /  LOGO  \   Station 1
+                         7.05)    /  Rotating \
+                        Station 3 ◯───────────◯
+                                   \         /
+                                    \       /
+                        Brittney     ◯─────◯     UAA2 Service
+                        Hololand 🏰           🤖 (3.71, -11.41)
+                        (-9.71, -7.05)          Station 5
+                        Station 4
+                                        │
+                                        │
+                                        ↓
+                                    South (-Z)
+
+West (-X) ←────────────────────────────────────────────────────→ East (+X)
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           STATION BREAKDOWN                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STATION 1: MCP Orchestrator 🔀                                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Position:  (12.00, 4, 0.00)         Rotation: 90° (facing center)           │
+│ Angle:     0° (East, right side)                                             │
+│ Health:    https://mcp-orchestrator-production-45f9.up.railway.app/health   │
+│ Metrics:   Uptime, Server count, Knowledge entries                           │
+│ Color:     Green/Yellow/Red based on response                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STATION 2: HoloScript MCP 🌐                                                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Position:  (3.71, 4, 11.41)         Rotation: 162° (facing center)          │
+│ Angle:     72° (Northeast)                                                   │
+│ Health:    https://mcp.holoscript.net/health                                 │
+│ Metrics:   Tool count, Version, Status                                       │
+│ Extras:    Fetches /.well-known/mcp for tool manifest                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STATION 3: Semantic Search Hub 🔍                                            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Position:  (-9.71, 4, 7.05)         Rotation: 234° (facing center)          │
+│ Angle:     144° (Northwest)                                                  │
+│ Health:    Via MCP orchestrator (semantic-search-hub server)                 │
+│ Metrics:   Knowledge entry count, Search queries                             │
+│ Status:    Simulated for demo (would use orchestrator /servers endpoint)    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STATION 4: Brittney Hololand 🏰                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Position:  (-9.71, 4, -7.05)        Rotation: 306° (facing center)          │
+│ Angle:     216° (Southwest)                                                  │
+│ Health:    Via MCP orchestrator (brittney-hololand server)                   │
+│ Metrics:   Active world count, Player count                                  │
+│ Status:    Simulated for demo (would use orchestrator /servers endpoint)    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ STATION 5: UAA2 Service 🤖                                                   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Position:  (3.71, 4, -11.41)        Rotation: 18° (facing center)           │
+│ Angle:     288° (Southeast)                                                  │
+│ Health:    Via MCP orchestrator (uaa2-service server)                        │
+│ Metrics:   Active agent count, Request rate                                  │
+│ Status:    Simulated for demo (would use orchestrator /servers endpoint)    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                         CENTRAL LOGO (Y=3)                                   ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+                          ┌──────────────────┐
+                          │   Rotating Cube  │  ← Outer: 2×2×2, 0.5 rad/s CW
+                          │    🔷 HoloScript │
+                          │   + Wireframe    │  ← Inner: 1.5×1.5×1.5, 1.0 rad/s CCW
+                          └──────────────────┘
+                                   │
+                            Glow Sphere (3 units)
+                            Pulsing 3.0 → 3.2
+                                   │
+                          "HoloScript" text label
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      STATION COMPONENT BREAKDOWN                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Each station (spatial_group using "ServiceStation" template) contains:
+
+┌────────────────────────────────────────────────────────────────────────┐
+│  TOP (Y = +2.0)                                                        │
+│    🎯 Service Icon (2.0 font size, emissive white)                     │
+│                                                                        │
+│  UPPER (Y = +1.2 to +0.8)                                              │
+│    📝 Service Name Text (0.3 font size)                                │
+│    🟢 Health Status Text (0.25 font size, color-coded)                 │
+│                                                                        │
+│  CENTER (Y = +0.5)                                                     │
+│    💫 Health Glow Sphere (5 unit radius, 15% opacity, pulsing)         │
+│                                                                        │
+│  PLATFORM (Y = 0)                                                      │
+│    🔲 Station Base (4×0.2×3 box, emissive edge glow)                   │
+│                                                                        │
+│  ACTIVITY LOG (Y = +0.3, Z = -1.2)                                     │
+│    📜 Dark Panel (3.5×1.5×0.1 box, 90% opacity)                        │
+│    📋 5 Text Lines (stacked, opacity fade 100%→20%)                    │
+│        • Activity 1 (newest)   Y = +0.6                                │
+│        • Activity 2             Y = +0.4                                │
+│        • Activity 3             Y = +0.2                                │
+│        • Activity 4             Y = +0.0                                │
+│        • Activity 5 (oldest)    Y = -0.2                                │
+│                                                                        │
+│  ACTION BUTTONS (Y = -0.5, Z = +1.0)                                   │
+│    🔵 Deploy Button    (X = -1.2, blue emissive)                       │
+│    🟠 Rollback Button  (X =  0.0, orange emissive)                     │
+│    🟣 Logs Button      (X = +1.2, purple emissive)                     │
+│                                                                        │
+│  CONNECTING BEAM                                                       │
+│    ⚡ Cylinder to center (0.05 radius, 8 length, 45° angle, pulsing)   │
+└────────────────────────────────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                           COLOR SYSTEM                                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────┬────────────┬──────────────────────────────────────────────────┐
+│ Health State │ Hex Color  │ Used For                                         │
+├──────────────┼────────────┼──────────────────────────────────────────────────┤
+│ 🟢 Green     │ #00ff00    │ Glow sphere, beam, status text, ambient (healthy)│
+│ 🟡 Yellow    │ #ffff00    │ Glow sphere, beam, status text, ambient (warning)│
+│ 🔴 Red       │ #ff0000    │ Glow sphere, beam, status text, ambient (critical)│
+│ ⚪ Gray      │ #666666    │ Glow sphere, beam, status text (unknown/init)    │
+├──────────────┼────────────┼──────────────────────────────────────────────────┤
+│ Platform     │ #2a2a4a    │ Base color for station platform                  │
+│ Logo Cube    │ #6666ff    │ Central HoloScript logo (purple-blue)            │
+│ Ground       │ #1a1a2e    │ Base platform (dark purple-gray)                 │
+│ Ring         │ #4a4a6a    │ Outer ring around ground (lighter purple-gray)   │
+│ Panel        │ #1a1a2e    │ Activity log background (dark purple-gray)       │
+│ Text         │ #ffffff    │ Default text color (white)                       │
+└──────────────┴────────────┴──────────────────────────────────────────────────┘
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        ANIMATION TIMELINE                                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Time (seconds)      Central Logo          Station Glows        Beams
+─────────────────────────────────────────────────────────────────────────────
+    0.0             Rotation: 0°          Opacity: 0.10        Intensity: 0.30
+                    Scale: 3.0
+
+    0.5             Rotation: 28.6°       Opacity: 0.125       Intensity: 0.45
+                    Scale: 3.05
+
+    1.0             Rotation: 57.3°       Opacity: 0.15        Intensity: 0.60
+                    Scale: 3.10 (peak)
+
+    1.5             Rotation: 85.9°       Opacity: 0.175       Intensity: 0.70 (peak)
+                    Scale: 3.05
+
+    2.0             Rotation: 114.6°      Opacity: 0.20 (peak) Intensity: 0.50
+                    Scale: 3.0  (trough)
+
+    2.5             Rotation: 143.2°      Opacity: 0.175       Intensity: 0.35
+
+    3.0             Rotation: 171.9°      Opacity: 0.15        Intensity: 0.30 (trough)
+
+    ... (repeats)
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     PERFORMANCE BREAKDOWN                                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Component                    Polygons    Draw Calls    Memory (MB)
+─────────────────────────────────────────────────────────────────────
+Ground Platform (cylinder)      128         1             0.5
+Outer Ring (torus)              400         1             0.8
+Central Logo (3 objects)        200         3             0.3
+Service Stations (5×)
+  ├─ Platform (box)              24         5             0.2
+  ├─ Glow Sphere (sphere)       512         5             1.0
+  ├─ Activity Panel (box)        12         5             0.1
+  ├─ Buttons (3 boxes)           36         15            0.3
+  └─ Beam (cylinder)             16         5             0.1
+───────────────────────────────────────────────────────────────────
+Total                         ~3000        ~40           ~5 MB
+
+Target: < 5000 polygons, < 50 draw calls, < 50 MB
+Status: ✅ Well within limits
+
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                         POLL CYCLE TIMELINE                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+T+0.0s    Poll initiated (every 5 seconds)
+  ├─ Fetch orchestrator/health (parallel)
+  ├─ Fetch holoscriptMcp/health (parallel)
+  ├─ Simulate semanticSearch health (random)
+  ├─ Simulate brittneyHololand health (random)
+  └─ Simulate uaa2 health (random)
+
+T+0.5s    All requests complete (or timeout)
+  ├─ Update service states
+  ├─ Add activities to logs
+  └─ Calculate overall health
+
+T+0.6s    Re-render triggered
+  ├─ Material colors update
+  ├─ Glow sphere colors change
+  ├─ Ambient light color shifts
+  └─ Activity text updates
+
+T+5.0s    Next poll cycle begins

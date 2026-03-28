@@ -1,9 +1,0 @@
-{
-  "name": "com.holoverse.devtools",
-  "description": "Holoverse DevTools Native Host",
-  "path": "host.js",
-  "type": "stdio",
-  "allowed_origins": [
-    "chrome-extension://knldjmfmopnpolahpmmgbagdohdnhkik/"
-  ]
-}

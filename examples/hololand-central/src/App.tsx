@@ -9,10 +9,11 @@ import { SocialLounge } from './worlds/SocialLounge';
 import { BuilderShop } from './worlds/BuilderShop';
 import { InfinityShop } from './worlds/InfinityShop';
 import { PhysicsLab } from './worlds/PhysicsLab';
+import { ServiceDashboard } from './worlds/ServiceDashboard';
 import './styles.css';
 
 // World types for navigation
-type WorldView = 'landing' | 'oasis' | 'central' | 'plaza' | 'casino' | 'lounge' | 'builder' | 'arcade' | 'infinity' | 'physics';
+type WorldView = 'landing' | 'oasis' | 'central' | 'plaza' | 'casino' | 'lounge' | 'builder' | 'arcade' | 'infinity' | 'physics' | 'dashboard';
 
 
 // Building configuration with HoloScript zones
@@ -25,6 +26,7 @@ const BUILDINGS = [
   { id: 'pinball', name: 'Pinball Plus', icon: '🕹️', description: "Native Logic Demo", color: 'pink', holoZone: 'Pinball_Plus.hsplus' },
   { id: 'physics', name: 'Physics Lab', icon: '⚛️', description: 'Experimental Gravity Chamber', color: 'orange', holoZone: null },
   { id: 'plaza', name: 'Main Plaza', icon: '🏛️', description: 'Central gathering place', color: 'blue', holoZone: 'central_plaza.hsplus' },
+  { id: 'dashboard', name: 'Service Dashboard', icon: '📊', description: 'Real-time monitoring of ecosystem services', color: 'teal', holoZone: null },
 ];
 
 function App() {
@@ -141,7 +143,7 @@ function App() {
   }
 
   // 3D World Views (HoloScript-powered or React components)
-  if (['plaza', 'casino', 'lounge', 'builder', 'arcade', 'infinity', 'physics'].includes(currentView)) {
+  if (['plaza', 'casino', 'lounge', 'builder', 'arcade', 'infinity', 'physics', 'dashboard'].includes(currentView)) {
     const building = BUILDINGS.find(b => b.id === currentView);
     
     return (
@@ -179,6 +181,7 @@ function App() {
               {currentView === 'builder' && <BuilderShop />}
               {currentView === 'infinity' && <InfinityShop />}
               {currentView === 'physics' && <PhysicsLab />}
+              {currentView === 'dashboard' && <ServiceDashboard />}
             </>
           )}
           
