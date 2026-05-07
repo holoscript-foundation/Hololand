@@ -14,6 +14,7 @@
     "clean": "pnpm -r clean",
     "audit": "pnpm audit --prod",
     "audit:fix": "pnpm audit --fix",
+    "audit:hardware": "node scripts/hardware-audit.mjs",
     "typecheck": "pnpm -r typecheck",
     "typecheck:holoscript": "echo 'HoloScript type checking (.holo files)'",
     "typecheck:holoscript:watch": "echo 'HoloScript type checking with watch mode'",
