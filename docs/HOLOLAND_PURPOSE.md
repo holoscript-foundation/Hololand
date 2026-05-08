@@ -21,7 +21,7 @@ enter.
 | Product experience | Players, creators, portals, discovery, identity, parties, events, and publishing. |
 | Hardware reality | Browser, desktop, WebXR, headset, AR, performance, accessibility, and device validation. |
 | Agent presence | Brittney and other agents operating inside live worlds with receipts. |
-| Platform bridges | Renderer adapters, host APIs, networking, storage, payments, analytics, and deployment glue. |
+| Platform integration | Renderer targets, host APIs, networking, storage, payments, analytics, deployment glue, and the evidence that they are driven by HoloScript source. |
 | Feedback loop | Discover missing primitives and push them upstream to HoloScript instead of hiding them here. |
 
 ## What HoloLand Does Not Own
@@ -32,20 +32,33 @@ enter.
 | Traits and semantic primitives | HoloScript |
 | Parser, validator, compiler, runtime contracts | HoloScript |
 | Canonical gameplay, simulation, world rules, NPC logic, quests, items, and encounters | HoloScript source files consumed by HoloLand |
+| Hand-authored TypeScript or TSX as product truth | Not allowed; remaining `.ts` and `.tsx` are migration debt |
 | Hand-authored renderer output as product truth | Not allowed; generated output is disposable build material |
 
-## TypeScript Boundary
+## Zero TypeScript Boundary
 
-TypeScript is allowed in HoloLand when it is infrastructure:
+The strategic target is explicit: HoloLand should have **zero hand-authored
+`.ts` and `.tsx` files**.
 
-- runtime bootstrap
-- renderer and host API bridges
-- WebXR, AR, browser, native, and hardware integration
-- networking, persistence, deployment, tests, tooling, and CI
+HoloLand source is HoloScript:
 
-TypeScript is not the canonical place for new world behavior. If a feature
-changes what exists, how it behaves, how it progresses, or what the player can
-do, it needs `.holo`, `.hs`, or `.hsplus` source.
+- `.holo` for worlds, scenes, UI surfaces, interactions, and spatial content
+- `.hs` for reusable semantic programs, templates, agents, and utilities
+- `.hsplus` for typed systems, state machines, runtime modules, and platform logic
+
+Current TypeScript and TSX files are not acceptable end-state infrastructure.
+They are migration debt. During the migration, they may exist only as clearly
+bounded bridge/runtime/tooling work while the durable capability moves into one
+of three places:
+
+- HoloScript source in this repository
+- HoloScript runtime/compiler/tooling upstream
+- ignored generated output that can be recreated from HoloScript source
+
+If a feature changes what exists, how it behaves, how it progresses, or what the
+player can do, it needs `.holo`, `.hs`, or `.hsplus` source now. New
+hand-authored `.ts` or `.tsx` requires an explicit migration exception, not a
+casual "bridge" label.
 
 ## Product Direction
 

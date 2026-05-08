@@ -36,6 +36,17 @@ code. Its job is to make HoloScript worlds livable:
 HoloLand proves that HoloScript can operate an actual world, not just generate a
 demo.
 
+### Zero TypeScript Goal
+
+The end state is **zero hand-authored `.ts` and `.tsx` files in HoloLand**.
+HoloLand source should be HoloScript: `.holo`, `.hs`, and `.hsplus`.
+
+Any remaining TypeScript or TSX in this repository is migration debt. Bridge
+code, renderer glue, host APIs, tests, and build plumbing are temporary surfaces
+until they are expressed as HoloScript runtime/compiler capabilities, moved
+upstream into the HoloScript toolchain, or generated as ignored disposable
+output.
+
 **[Read the HoloLand Purpose Doc ->](./docs/HOLOLAND_PURPOSE.md)**
 
 ---
@@ -193,8 +204,9 @@ pnpm exec hs parse path\to\StarterWorld.holo
 pnpm exec hs run path\to\StarterWorld.holo
 ```
 
-TypeScript packages still exist for adapters, renderers, host APIs, tooling, and
-tests. They are infrastructure. New world behavior starts in HoloScript.
+Current TypeScript packages for adapters, renderers, host APIs, tooling, and
+tests are migration debt. New world behavior starts in HoloScript, and the final
+HoloLand platform should require no hand-authored TypeScript or TSX.
 
 ### Built on the HoloScript Source Layer
 
@@ -233,9 +245,19 @@ See [docs/BRITTNEY_OWNERSHIP_MODEL.md](./docs/BRITTNEY_OWNERSHIP_MODEL.md).
 
 **Prerequisites:** [Node.js 18+](https://nodejs.org/) and [pnpm](https://pnpm.io/installation)
 
-### Option A: Use in Your React App
-```bash
-npm install @hololand/react-three @hololand/world @hololand/renderer three
+### Option A: Write a HoloScript World
+```holo
+composition "MyFirstWorld" {
+  environment {
+    skybox: "clear_day"
+  }
+
+  object "Beacon" {
+    shape: "sphere"
+    position: [0, 2, -4]
+    material: { color: "#00c2a8" }
+  }
+}
 ```
 
 ### Option B: Clone and Explore
@@ -386,17 +408,27 @@ composition "PhysicsGarden" {
 
 ### AI-Powered Building
 
-This is a bridge API. The output is HoloScript source, and that source is what
-HoloLand should validate and execute.
+AI building must emit HoloScript source. That source is what HoloLand validates,
+executes, materializes, and records.
 
-```typescript
-import { HololandAIBridge } from '@hololand/ai-bridge';
+```holo
+composition "ReadingNook" {
+  environment {
+    skybox: "warm_library"
+  }
 
-const bridge = new HololandAIBridge();
-const result = await bridge.translateToHoloScript({
-  naturalLanguage: "create a cozy reading nook with bookshelves"
-});
-// Result: Working HoloScript code
+  spatial_group "Nook" {
+    object "Bookshelves" {
+      shape: "wall_shelf"
+      position: [-2, 1, -4]
+    }
+
+    object "ReadingChair" {
+      shape: "chair"
+      position: [0, 0, -3]
+    }
+  }
+}
 ```
 
 ### Ready-to-Run Demos
@@ -408,6 +440,10 @@ cd examples/03-vr-shop && pnpm dev                  # Virtual store
 ```
 
 ## Packages
+
+This table is current implementation inventory, not the target architecture.
+Packages whose purpose is React, Three.js, or TypeScript bridging are migration
+surfaces until HoloLand reaches the zero-TypeScript source contract.
 
 | Package | Version | Purpose | Status |
 |---------|---------|---------|--------|
@@ -535,18 +571,9 @@ See [HoloScript File Types Guide](./docs/HOLOSCRIPT_FILE_TYPES.md) for complete 
 
 AI can see and build inside Hololand *(perception coming soon)*:
 
-```typescript
-import { HololandAgentBridge } from '@hololand/ai-bridge';
-
-const agent = new HololandAgentBridge({
-  name: 'BuilderBot',
-  provider: 'openai',
-  capabilities: { perception: true, creation: true }
-});
-
-await agent.enterWorld('my-world');
-// Agent can now see and create in VR
-```
+Agents should enter through HoloScript-authored capabilities, world receipts,
+and runtime permissions. Direct TypeScript agent bridge code remains migration
+debt until the equivalent behavior is owned by HoloScript source/runtime tools.
 
 Access **Brittney** (AI building assistant) at [infinityassistant.io](https://infinityassistant.io).
 
@@ -591,7 +618,7 @@ pnpm test
 
 1. Fork → Branch → Commit → PR
 2. Add HoloScript source for product behavior.
-3. Keep TypeScript scoped to bridge/runtime/tooling work unless the source contract says otherwise.
+3. Do not add hand-authored `.ts` or `.tsx` without an explicit migration exception.
 4. Add tests for new features.
 
 ## License

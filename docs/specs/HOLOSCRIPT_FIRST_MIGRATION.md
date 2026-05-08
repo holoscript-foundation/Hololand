@@ -2,9 +2,13 @@
 
 ## Overview
 
-Migrate Hololand Central and establish HoloScript (.hsplus) as the **primary language** for building Hololand applications. TypeScript becomes the **bootstrap/platform layer only**.
+Migrate Hololand Central and establish HoloScript (`.holo`, `.hs`, `.hsplus`)
+as the **only durable source language** for building Hololand applications.
+TypeScript and TSX are migration debt, not platform identity. The target is
+zero hand-authored `.ts` and `.tsx`. See `NO_TSX_MIGRATION.md`.
 
-**Problem**: HoloScript is a full language that compiles to browser code, yet the flagship product (Hololand Central) is 90% TypeScript.
+**Problem**: HoloScript is a full language with a runtime and compiler, yet the
+flagship product still depends heavily on TypeScript and TSX.
 
 **Solution**: Eat our own dogfood - rebuild Hololand Central in HoloScript to showcase the language.
 
@@ -28,16 +32,18 @@ Migrate Hololand Central and establish HoloScript (.hsplus) as the **primary lan
 │                           │                                  │
 │                           ▼                                  │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              TypeScript (Bootstrap Only)             │    │
-│  │  - index.html + main.ts (entry point)               │    │
-│  │  - HoloScript runtime initialization                │    │
-│  │  - Build tooling (Vite config)                      │    │
-│  │  - Platform packages (@hololand/*)                  │    │
+│  │       Temporary Host/Generated Target Layer          │    │
+│  │  - Runtime entry generated or owned upstream        │    │
+│  │  - Renderer target output outside tracked source    │    │
+│  │  - Hardware/browser glue driven by HoloScript       │    │
+│  │  - No hand-authored TS/TSX in final HoloLand        │    │
 │  └─────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Rule**: If it's content, logic, or behavior → HoloScript. If it's platform/bootstrap → TypeScript.
+**Rule**: If it exists in HoloLand source, it should be HoloScript. If a host
+surface currently needs TypeScript, that is a migration gap to close upstream or
+through generated output.
 
 ---
 
@@ -47,10 +53,9 @@ Migrate Hololand Central and establish HoloScript (.hsplus) as the **primary lan
 
 | Type | Count | Should Be |
 |------|-------|-----------|
-| `.tsx` files | ~50 | ~5 (bootstrap only) |
-| `.ts` files | ~30 | ~10 (services/config) |
+| `.ts`/`.tsx` files | 1851 | 0 |
 | `.hsplus` files | ~10 | ~50+ |
-| `.holo` files | 1 | 0 (deprecated) |
+| `.holo` files | multiple | primary visual/world source |
 
 ### What's Currently in TypeScript That Should Be HoloScript
 
@@ -109,28 +114,15 @@ composition "HololandCentral" {
 }
 ```
 
-**1.2 Minimal TypeScript Bootstrap**
+**1.2 Interim Runtime Bootstrap**
 
-Location: `examples/hololand-central/src/main.ts`
+Target: no checked-in `examples/hololand-central/src/main.ts`, no checked-in
+`App.tsx`, and no hand-authored app-shell TypeScript.
 
-```typescript
-// ONLY bootstrap code - everything else is HoloScript
-import { createRuntime } from '@holoscript/core/runtime';
-import { loadComposition } from '@holoscript/loader';
-
-async function main() {
-  const composition = await loadComposition('./app.hsplus');
-  const runtime = createRuntime(composition, {
-    target: document.getElementById('root'),
-    mode: 'progressive',
-  });
-  runtime.start();
-}
-
-main();
-```
-
-**This is the ONLY TypeScript file needed for the app.**
+The HoloScript runtime should own browser entrypoint generation from
+`app.hsplus`. If an interim host entry is needed during migration, it must be
+generated or upstream-owned and carry a deletion path. It is not a HoloLand
+source pattern.
 
 ---
 
@@ -681,7 +673,7 @@ system AccessibilitySystem {
 examples/hololand-central/
 ├── src/
 │   ├── app.hsplus                    # Main composition (NEW)
-│   ├── main.ts                       # Bootstrap only (MINIMAL)
+│   ├── runtime-entry.generated.js    # Generated or upstream-owned entry
 │   │
 │   ├── pages/
 │   │   ├── Landing.hsplus            # Landing page
@@ -722,11 +714,11 @@ examples/hololand-central/
 │   └── models/
 │
 ├── index.html
-├── vite.config.ts                    # Build config (stays TS)
+├── runtime-entry.generated.js        # Generated or upstream-owned host entry
 └── package.json
 ```
 
-**Result**: ~5 TypeScript files, ~50+ HoloScript files
+**Result**: 0 TypeScript/TSX files, 50+ HoloScript files
 
 ---
 
@@ -735,7 +727,7 @@ examples/hololand-central/
 | Phase | Focus | Effort | Dependencies |
 |-------|-------|--------|--------------|
 | 1.1 | Main composition (app.hsplus) | Medium | None |
-| 1.2 | Bootstrap refactor (main.ts) | Low | 1.1 |
+| 1.2 | Runtime entrypoint migration | Low | 1.1 |
 | 2.* | Zone migrations | High | 1.* |
 | 3.1 | Tutorial system | Medium | 1.* |
 | 3.2 | Easter egg system | Medium | 1.* |
@@ -766,7 +758,8 @@ Before migration, verify these work:
 ## Success Metrics
 
 - **HoloScript files**: 50+ (up from ~10)
-- **TypeScript files**: <10 (down from ~80)
+- **TypeScript files**: 0
+- **TSX files**: 0
 - **Showcase**: Flagship product demonstrates the language
 - **Documentation**: Example serves as HoloScript tutorial
 - **AI-friendly**: Brittney can read/write the entire app
@@ -796,4 +789,4 @@ npx holoscript dev
 # That's it. No React, no TypeScript knowledge needed.
 ```
 
-**HoloScript IS the platform. TypeScript is just the bootstrap.**
+**HoloScript IS the platform. TypeScript is only current migration debt.**
