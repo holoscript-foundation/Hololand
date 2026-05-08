@@ -1,8 +1,10 @@
 # HoloLand
 
-**The Open Metaverse for Creators and Explorers**
+**The lived platform for HoloScript worlds**
 
-Build, explore, and monetize immersive worlds in a seamless social VR/AR platform. Anyone can create. Everyone can play. Creators earn.
+HoloLand is where HoloScript becomes a persistent, social, hardware-tested
+world. HoloScript defines the source semantics; HoloLand materializes them as
+playable browser, VR, AR, and agent-inhabited experiences.
 
 <p align="center">
   <img src="https://img.shields.io/badge/🚀_January_2026-What's_New-00cc66?style=for-the-badge" alt="What's New">
@@ -19,19 +21,22 @@ Build, explore, and monetize immersive worlds in a seamless social VR/AR platfor
 
 ---
 
-## 🌍 What is HoloLand?
+## What Is HoloLand?
 
-HoloLand is a **user-generated content metaverse** where you can:
+HoloLand is the product/runtime layer of the HoloScript ecosystem. Its job is
+not to redefine the language or hide product behavior in hand-written renderer
+code. Its job is to make HoloScript worlds livable:
 
-- 🎨 **Create Anything** - Build worlds with voice commands, visual tools, or code
-- 🚪 **Explore Infinite Worlds** - Walk through portals to user-created experiences
-- 🤝 **Connect Socially** - Meet friends, form communities, attend live events
-- 💰 **Earn as Creator** - Monetize your worlds and creations (70% revenue share)
-- 🥽 **Seamless Experience** - Holographic UI, no loading screens, persistent identity
+- Run validated `.holo`, `.hs`, and `.hsplus` source through the HoloScript runtime/compiler stack.
+- Materialize worlds on browser, desktop, VR, AR, and hardware-specific surfaces.
+- Host identity, multiplayer, portals, discovery, creator publishing, commerce, analytics, and receipts.
+- Give Brittney and other agents a world-facing embodiment.
+- Send missing primitives upstream to HoloScript instead of turning TypeScript bridges into product truth.
 
-> **The Vision:** A social creation platform where users become creators, creators become entrepreneurs, and the metaverse builds itself.
+HoloLand proves that HoloScript can operate an actual world, not just generate a
+demo.
 
-**[📖 Read the Full Platform Vision →](./docs/PLATFORM_VISION.md)**
+**[Read the HoloLand Purpose Doc ->](./docs/HOLOLAND_PURPOSE.md)**
 
 ---
 
@@ -116,7 +121,7 @@ Turn your ideas into immersive worlds:
 
 - 💬 **Voice Building** - "Create a medieval castle" with AI assistance
 - 🖱️ **Visual Editor** - Drag-drop interface for non-coders
-- 💻 **HoloScript+** - Full spatial programming language for advanced control
+- 💻 **HoloScript+** - Typed HoloScript systems for advanced control
 - 💰 **Monetization** - Charge admission, sell items, earn 70% revenue
 - 📊 **Analytics** - Track visitors, ratings, earnings in real-time
 
@@ -163,46 +168,54 @@ Swipe Up → Holographic Menu:
 
 ## 🚀 For Developers: Build with HoloScript
 
-```tsx
-import { HololandCanvas, HololandObject } from '@hololand/react-three';
+```holo
+composition "StarterWorld" {
+  environment {
+    skybox: "clear_day"
+    ambient_light: 0.6
+  }
 
-function App() {
-  return (
-    <HololandCanvas worldConfig={{ enablePhysics: true }}>
-      <HololandObject type="sphere" position={{ x: 0, y: 2, z: 0 }}
-        physics={{ enabled: true, mass: 1 }} />
-    </HololandCanvas>
-  );
+  spatial_group "Spawn" {
+    object "WelcomeOrb" {
+      shape: "sphere"
+      position: [0, 2, -3]
+      material: { color: "#00c2a8" }
+      physics: { enabled: true, mass: 1 }
+    }
+  }
 }
 ```
 
-That's it. VR-ready, physics-enabled, runs everywhere.
+Validate it, run it, then let HoloLand materialize it.
 
-### Built on the HoloScript Framework
+```powershell
+pnpm exec hs parse path\to\StarterWorld.holo
+pnpm exec hs run path\to\StarterWorld.holo
+```
 
-HoloLand **extends HoloScript's spatial computing framework** with platform-specific features:
+TypeScript packages still exist for adapters, renderers, host APIs, tooling, and
+tests. They are infrastructure. New world behavior starts in HoloScript.
 
-**HoloScript Framework (Foundation):**
-- 📝 **Three-Format Language** - `.holo` (Scene Graph) + `.hs` (Core Language) + `.hsplus` (TypeScript for XR)
-- 🎮 **Visual Editor** - Unity-like scene editor with hierarchy, inspector, viewport
-- 🎬 **Scene System** - Composition-based architecture with spatial groups
-- ⚡ **Physics Engine** - Collision detection, joints, constraints, rigid body simulation
-- 🎨 **Rendering** - WebGL/WebGPU-based 3D rendering
-- 🔨 **Build System** - Compile to 18+ targets (Unity, Unreal, WebXR, VRChat)
+### Built on the HoloScript Source Layer
+
+HoloLand consumes HoloScript as the source layer:
+
+- **Three source formats** - `.holo` compositions, `.hs` reusable semantic programs, `.hsplus` typed systems.
+- **Validation and diagnostics** - syntax, traits, contracts, and graph shape.
+- **Runtime and compiler targets** - direct execution when possible, target compilation when needed.
+- **Provenance** - replayable receipts for generated worlds, agent actions, and runtime claims.
 
 **HoloLand Platform Enhancements:**
-- 🌍 **World Publishing** - Instant deployment to HoloLand network
-- 🚪 **Portal System** - Visual editor for cross-world connections
-- 🤖 **AI Builder** - Natural language → scene generation via Brittney
-- 👥 **Multiplayer Tools** - Built-in networking and player sync
-- 💰 **Monetization** - Integrate payments, analytics, ads
-- 🎨 **Asset Marketplace** - Browse/buy community assets in-editor
-- 📊 **Live Analytics** - Real-time player metrics and heatmaps
-- 🔗 **Social Integration** - Friends, parties, events API
+- **World publishing** - Deploy HoloScript-authored worlds to the HoloLand network.
+- **Runtime materialization** - Turn source artifacts into playable browser, VR, AR, and desktop experiences.
+- **Brittney and agent embodiment** - Let agents create, inspect, guide, and steward live worlds.
+- **Multiplayer and persistence** - Identity, parties, portals, state sync, receipts, and social systems.
+- **Creator economy** - Publishing, marketplace, analytics, payments, and moderation.
+- **Hardware validation** - Local browser, WebXR, headset, AR, and performance checks.
 
 **Think of it as:**
-- **HoloScript** = The spatial computing framework (language + editor + compiler + runtime)
-- **HoloLand** = The spatial experience platform that enhances HoloScript (social, portals, monetization, discovery)
+- **HoloScript** = source of reality: language, semantics, validators, compilers, runtime contracts.
+- **HoloLand** = lived platform: worlds, players, creators, agents, devices, publishing, and receipts.
 
 For Brittney's role across the ecosystem:
 
@@ -288,33 +301,32 @@ HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn mor
 
 ## Why Hololand?
 
-- **Powered by HoloScript** → Not a library or wrapper, but a full spatial programming language. [Learn more →](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/WHY_HOLOSCRIPT.md)
-- **One codebase** → Web, VR headsets, AR, mobile, desktop.
-- **AI-Native Building** → 99% reduction in boilerplate + higher accuracy from LLMs.
-- **Future-Proof** → Runtime independence ensures your experiences survive platform shifts.
-- **SQL of Spatial Computing** → Declarative, tool-agnostic, and compiler-optimized.
-- **Source available** → Elastic License 2.0, build freely.
+- **Powered by HoloScript** - HoloScript is the source/runtime substrate, not a decorative export. [Learn more ->](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/WHY_HOLOSCRIPT.md)
+- **Runtime first** - HoloLand can execute HoloScript directly, then compile or bridge to target renderers when needed.
+- **Hardware checked** - Browser, desktop, VR, AR, and headset claims need local validation.
+- **Agent inhabited** - Brittney and other agents can create, inspect, guide, and steward live worlds.
+- **Platform scoped** - HoloLand owns product experience and host bridges; HoloScript owns canonical semantics.
 
 ---
 
 ## Architecture
 
-**Hololand is built ON HoloScript, not INTO HoloScript.**
+**HoloLand is built on HoloScript, not into HoloScript.**
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    HOLOLAND APPLICATION                       │
+│                    HOLOLAND PRODUCT/RUNTIME                    │
 │                    (@hololand/* packages)                     │
 │  ├─ @hololand/gestures (gesture recognition)                │
 │  ├─ @hololand/navigation (pathfinding, flow fields)         │
 │  ├─ @hololand/network (multiplayer, CRDT state sync)        │
 │  ├─ @hololand/social (friends, voice chat, parties)         │
-│  └─ 40+ more @hololand/* packages                           │
+│  └─ platform bridges, adapters, hardware, and product APIs   │
 ├──────────────────────────────────────────────────────────────┤
-│                    HOLOSCRIPT FRAMEWORK                       │
+│                    HOLOSCRIPT SOURCE LAYER                    │
 │              (PUBLIC APIs - Available to Everyone)            │
 │  ├─ @holoscript/core (Parser, Compiler, Runtime)            │
-│  ├─ @holoscript/runtime (ThreeJSRenderer, Physics)          │
+│  ├─ @holoscript/runtime (execution contracts)               │
 │  └─ @holoscript/cli (Command-line tools)                    │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -323,10 +335,10 @@ HoloScript now exports directly to VRChat! Write `.hsplus`, get Udon. [Learn mor
 
 | Layer | Packages | License | Purpose |
 |-------|----------|---------|---------|
-| **Framework** | `@holoscript/*` | MIT (open-source) | Commons-based meta-framework for spatial computing |
-| **Application** | `@hololand/*` | ELv2 (source-available) | Hololand-specific VR social platform features |
+| **Source layer** | `@holoscript/*` | MIT (open-source) | Language, semantics, validation, compiler, runtime contracts |
+| **Platform layer** | `@hololand/*` | ELv2 (source-available) | HoloLand-specific worlds, players, creators, agents, bridges, and hardware validation |
 
-**Key Point**: Hololand uses **ONLY** public HoloScript APIs. No privileged access, no special treatment.
+**Key Point**: HoloLand uses public HoloScript APIs. No privileged language path, no private semantic fork.
 
 ### Even Playing Field
 
@@ -346,30 +358,36 @@ This architecture proves the "even playing field" strategy:
 
 ## Examples
 
-### React Component
+### HoloScript Composition
 
-```tsx
-import { HololandCanvas, HololandObject } from '@hololand/react-three';
+```holo
+composition "PhysicsGarden" {
+  environment {
+    skybox: "clear_day"
+    ambient_light: 0.6
+  }
 
-function MyWorld() {
-  return (
-    <HololandCanvas rendererConfig={{ enableVR: true }}>
-      {/* Ground */}
-      <HololandObject type="plane" 
-        rotation={{ x: -Math.PI / 2 }} 
-        metadata={{ width: 50, height: 50 }} />
-      
-      {/* Bouncing ball */}
-      <HololandObject type="sphere"
-        position={{ x: 0, y: 5, z: 0 }}
-        metadata={{ radius: 1, color: 0xff0000 }}
-        physics={{ enabled: true, restitution: 0.8 }} />
-    </HololandCanvas>
-  );
+  spatial_group "MainArea" {
+    object "Ground" {
+      shape: "plane"
+      position: [0, 0, 0]
+      size: [50, 1, 50]
+    }
+
+    object "BouncingBall" {
+      shape: "sphere"
+      position: [0, 5, 0]
+      material: { color: "#ff3366" }
+      physics: { enabled: true, restitution: 0.8 }
+    }
+  }
 }
 ```
 
 ### AI-Powered Building
+
+This is a bridge API. The output is HoloScript source, and that source is what
+HoloLand should validate and execute.
 
 ```typescript
 import { HololandAIBridge } from '@hololand/ai-bridge';
@@ -455,7 +473,7 @@ See [full package list](./ECOSYSTEM_STATUS.md) for all 60+ packages.
 
 ## HoloScript
 
-Hololand uses [HoloScript](https://github.com/brianonbased-dev/holoscript) — a spatial computing framework with three specialized languages that reduces codebase size by up to 90%.
+HoloLand uses [HoloScript](https://github.com/brianonbased-dev/holoscript) as its source and runtime substrate.
 
 ### File Types
 
@@ -465,7 +483,7 @@ HoloScript provides **three specialized formats** for different domains:
 |-----------|--------|----------|
 | `.holo` | Scene Graph | Immersive worlds, environments, NPC dialogs, quests, networking |
 | `.hs` | Core Language | Templates, agents, IoT streams, logic gates, spatial awareness |
-| `.hsplus` | TypeScript for XR | Full applications: modules, types, physics, state machines, async |
+| `.hsplus` | Typed systems | Full applications: modules, types, physics, state machines, async |
 
 ### `.holo` — Scene Graph
 ```holo
@@ -495,7 +513,7 @@ template "GuardAgent" {
 }
 ```
 
-### `.hsplus` — TypeScript for XR
+### `.hsplus` — Typed Systems
 ```hsplus
 // Full programming language with modules and types
 module GameState {
@@ -572,8 +590,9 @@ pnpm test
 [Elastic License 2.0](./LICENSE). PRs welcome.
 
 1. Fork → Branch → Commit → PR
-2. Follow TypeScript best practices
-3. Add tests for new features
+2. Add HoloScript source for product behavior.
+3. Keep TypeScript scoped to bridge/runtime/tooling work unless the source contract says otherwise.
+4. Add tests for new features.
 
 ## License
 
