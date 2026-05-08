@@ -1,0 +1,559 @@
+// HoloScript Survival Frontier Benchmark
+// HoloLand source-of-truth benchmark for a procedural survival/crafting loop.
+//
+// This file is intentionally HoloScript-only. Runtime, renderer, and compiler
+// layers may materialize it, but terrain, resources, crafting, building, and
+// provenance semantics live here.
+
+composition "HoloSurvivalFrontier" {
+  metadata {
+    title: "HoloScript Survival Frontier"
+    description: "Deterministic procedural terrain, resource gathering, crafting, snap building, and receipts."
+    author: "HoloLand Agent Mesh"
+    version: "0.1.0"
+    source_contract: "HoloScript defines the world; HoloLand runtime executes it."
+  }
+
+  environment {
+    skybox: "clear_frontier"
+    ambient_light: 0.42
+    grid_visible: true
+    lighting: "frontier_day"
+    terrain_profile: {
+      mode: "procedural",
+      seed: 260508,
+      chunk_size: 32,
+      view_radius: 4,
+      frequency: 0.052,
+      octaves: 5,
+      persistence: 0.52,
+      lacunarity: 2.08,
+      height_scale: 18,
+      waterline: -0.12,
+      deterministic: true,
+      receipt_stream: true
+    }
+  }
+
+  state {
+    seed: 260508
+    tick: 0
+    active_chunk: [0, 0]
+    selected_building: "foundation"
+
+    player: {
+      id: "founder_player",
+      position: [0, 2, 0],
+      facing: [0, 0, -1],
+      equipped_tool: "hands",
+      stamina: 100
+    }
+
+    terrain_params: {
+      frequency: 0.052,
+      octaves: 5,
+      persistence: 0.52,
+      lacunarity: 2.08,
+      height_scale: 18,
+      waterline: -0.12,
+      chunk_size: 32,
+      view_radius: 4
+    }
+
+    biomes: [
+      { id: "snow_peaks", label: "Snow Peaks", color: "#dce9f6", min_height: 0.56, moisture_min: 0.34, density: 0.18 },
+      { id: "stone_desert", label: "Stone Desert", color: "#d4b37f", min_height: -0.02, moisture_max: 0.28, density: 0.22 },
+      { id: "cedar_forest", label: "Cedar Forest", color: "#2f6e4f", min_height: -0.18, moisture_min: 0.29, density: 0.62 },
+      { id: "reed_delta", label: "Reed Delta", color: "#6c9f75", max_height: -0.10, moisture_min: 0.42, density: 0.38 }
+    ]
+
+    inventory: {
+      wood: 0,
+      stone: 0,
+      fiber: 0,
+      reed: 0,
+      snow_lichen: 0,
+      stone_axe: 0,
+      camp_marker: 0,
+      foundation: 0
+    }
+
+    recipes: {
+      stone_axe: {
+        output: "stone_axe",
+        quantity: 1,
+        requires: { wood: 2, stone: 2, fiber: 1 },
+        station: "field"
+      },
+      foundation: {
+        output: "foundation",
+        quantity: 1,
+        requires: { wood: 4, stone: 2 },
+        station: "field"
+      },
+      camp_marker: {
+        output: "camp_marker",
+        quantity: 1,
+        requires: { wood: 1, fiber: 2, reed: 1 },
+        station: "field"
+      }
+    }
+
+    input_bindings: [
+      { event: "gather", key: "E", action: "gather_nearest_resource" },
+      { event: "craft_axe", key: "1", action: "craft_stone_axe" },
+      { event: "craft_foundation", key: "2", action: "craft_foundation" },
+      { event: "craft_marker", key: "3", action: "craft_camp_marker" },
+      { event: "build", key: "B", action: "place_selected_building_at_nearest_slot" }
+    ]
+
+    known_chunks: []
+    spawned_resources: []
+    placed_buildings: []
+    receipts: []
+    receipt_counter: 0
+  }
+
+  template "BiomeProbe" {
+    shape: "cylinder"
+    size: [4, 0.04, 4]
+    material: { color: "#6c9f75", roughness: 0.85 }
+    traits: ["semantic_biome", "deterministic_sample", "runtime_materialized"]
+
+    state {
+      biome_id: "cedar_forest"
+      height_sample: 0
+      moisture_sample: 0
+      chunk: [0, 0]
+    }
+  }
+
+  template "ResourceNode" {
+    shape: "capsule"
+    size: [0.4, 1.2, 0.4]
+    material: { color: "#2f6e4f", roughness: 0.72 }
+    traits: ["gatherable", "receipt_emitting", "deterministic_spawn"]
+
+    state {
+      resource_id: "tree"
+      yields: "wood"
+      amount: 2
+      requires_tool: "hands"
+      remaining: 1
+      chunk: [0, 0]
+      sample_key: "0:0:tree"
+    }
+
+    action gather(player_id) {
+      gather_resource(self, player_id)
+    }
+  }
+
+  template "BuildSlot" {
+    shape: "cube"
+    size: [2, 0.08, 2]
+    material: { color: "#7a8790", opacity: 0.42 }
+    traits: ["snap_slot", "buildable", "receipt_emitting"]
+
+    state {
+      slot_id: "slot_0_0"
+      grid: [0, 0]
+      occupied: false
+      accepts: ["foundation", "camp_marker"]
+    }
+
+    action place(player_id) {
+      place_selected_building(self, player_id)
+    }
+  }
+
+  template "ReceiptPillar" {
+    shape: "cylinder"
+    size: [0.08, 0.8, 0.08]
+    material: { color: "#00c2a8", emissive: "#00c2a8", emissiveIntensity: 0.28 }
+    traits: ["provenance_anchor", "replay_marker"]
+
+    state {
+      receipt_id: "receipt_0"
+      kind: "bootstrap"
+      summary: "World initialized"
+    }
+  }
+
+  spatial_group "RuntimeSourceObjects" {
+    object "TerrainKernel" {
+      type: "procedural-terrain"
+      position: [0, 0, 0]
+      seed: 260508
+      params: "state.terrain_params"
+      traits: ["chunked", "seeded", "noise_octaves", "receipt_stream"]
+    }
+
+    object "PlayerController" {
+      type: "character-controller"
+      position: [0, 2, 0]
+      speed: 4.2
+      step_height: 0.35
+      radius: 0.42
+      traits: ["local_player", "terrain_aligned", "inventory_owner"]
+    }
+
+    object "StarterBuildSlot_0_0" using "BuildSlot" {
+      position: [0, 0.04, -5]
+      state {
+        slot_id: "starter_slot_0_0"
+        grid: [0, 0]
+        occupied: false
+      }
+    }
+
+    object "StarterBuildSlot_1_0" using "BuildSlot" {
+      position: [2, 0.04, -5]
+      state {
+        slot_id: "starter_slot_1_0"
+        grid: [1, 0]
+        occupied: false
+      }
+    }
+
+    object "StarterBuildSlot_0_1" using "BuildSlot" {
+      position: [0, 0.04, -7]
+      state {
+        slot_id: "starter_slot_0_1"
+        grid: [0, 1]
+        occupied: false
+      }
+    }
+
+    object "BenchmarkReceiptAnchor" using "ReceiptPillar" {
+      position: [-3, 0.4, -4]
+      state {
+        receipt_id: "receipt_anchor"
+        kind: "source"
+        summary: "HoloScript source anchor"
+      }
+    }
+  }
+
+  spatial_group "HUD" {
+    @local_only
+
+    object "InventoryPanel" {
+      type: "ui-panel"
+      position: [20, 20]
+      size: [280, 160]
+      background: "rgba(12, 18, 22, 0.86)"
+      border_radius: 8
+
+      object "InventoryText" {
+        type: "ui-text"
+        position: [14, 14]
+        text: "wood ${state.inventory.wood}  stone ${state.inventory.stone}  fiber ${state.inventory.fiber}"
+        font_size: 13
+        color: "#eef7f2"
+      }
+
+      object "ToolText" {
+        type: "ui-text"
+        position: [14, 44]
+        text: "tool ${state.player.equipped_tool}"
+        font_size: 12
+        color: "#9fd6c5"
+      }
+
+      object "ReceiptText" {
+        type: "ui-text"
+        position: [14, 74]
+        text: "receipts ${state.receipt_counter}"
+        font_size: 12
+        color: "#f0d58a"
+      }
+    }
+  }
+
+  logic {
+    action deterministic_noise(x, z, salt) {
+      let raw = sin((x * 12.9898) + (z * 78.233) + (salt * 37.719) + state.seed) * 43758.5453
+      return raw - floor(raw)
+    }
+
+    action fractal_height(x, z) {
+      let amplitude = 1.0
+      let frequency = state.terrain_params.frequency
+      let total = 0.0
+      let normalizer = 0.0
+
+      for octave in 0..state.terrain_params.octaves {
+        total += (deterministic_noise(x * frequency, z * frequency, octave) * 2 - 1) * amplitude
+        normalizer += amplitude
+        amplitude *= state.terrain_params.persistence
+        frequency *= state.terrain_params.lacunarity
+      }
+
+      return total / normalizer
+    }
+
+    action moisture_at(x, z) {
+      return deterministic_noise(x * 0.031, z * 0.031, 91)
+    }
+
+    action biome_at(x, z) {
+      let h = fractal_height(x, z)
+      let m = moisture_at(x, z)
+
+      if (h >= 0.56 && m >= 0.34) return "snow_peaks"
+      if (h <= -0.10 && m >= 0.42) return "reed_delta"
+      if (m <= 0.28 && h >= -0.02) return "stone_desert"
+      return "cedar_forest"
+    }
+
+    action resource_for_biome(biome_id, x, z) {
+      let roll = deterministic_noise(x, z, 211)
+
+      if (biome_id == "snow_peaks") {
+        if (roll > 0.82) return { id: "lichen_patch", yields: "snow_lichen", amount: 1, requires_tool: "hands" }
+        return { id: "granite", yields: "stone", amount: 2, requires_tool: "stone_axe" }
+      }
+
+      if (biome_id == "stone_desert") {
+        if (roll > 0.64) return { id: "desert_rock", yields: "stone", amount: 3, requires_tool: "hands" }
+        return { id: "dry_fiber", yields: "fiber", amount: 1, requires_tool: "hands" }
+      }
+
+      if (biome_id == "reed_delta") {
+        if (roll > 0.52) return { id: "reed_stand", yields: "reed", amount: 2, requires_tool: "hands" }
+        return { id: "willow_sapling", yields: "wood", amount: 1, requires_tool: "hands" }
+      }
+
+      if (roll > 0.42) return { id: "cedar_tree", yields: "wood", amount: 2, requires_tool: "hands" }
+      return { id: "forest_stone", yields: "stone", amount: 1, requires_tool: "hands" }
+    }
+
+    action materialize_chunk(cx, cz) {
+      let chunk_key = cx + ":" + cz
+      if (state.known_chunks.includes(chunk_key)) return
+
+      state.known_chunks.push(chunk_key)
+
+      for ix in 0..4 {
+        for iz in 0..4 {
+          let wx = (cx * state.terrain_params.chunk_size) + (ix * 8)
+          let wz = (cz * state.terrain_params.chunk_size) + (iz * 8)
+          let biome_id = biome_at(wx, wz)
+          let height = fractal_height(wx, wz) * state.terrain_params.height_scale
+          let density_roll = deterministic_noise(wx, wz, 307)
+
+          spawn "BiomeProbe" {
+            id: "biome_" + chunk_key + "_" + ix + "_" + iz
+            position: [wx, height * 0.08, wz]
+            state: { biome_id: biome_id, height_sample: height, moisture_sample: moisture_at(wx, wz), chunk: [cx, cz] }
+          }
+
+          if (density_roll > 0.54) {
+            let resource = resource_for_biome(biome_id, wx, wz)
+            let node_id = "resource_" + chunk_key + "_" + ix + "_" + iz
+
+            spawn "ResourceNode" {
+              id: node_id
+              position: [wx + 2, max(0.4, height * 0.08 + 0.6), wz + 2]
+              state: {
+                resource_id: resource.id
+                yields: resource.yields
+                amount: resource.amount
+                requires_tool: resource.requires_tool
+                remaining: 1
+                chunk: [cx, cz]
+                sample_key: node_id
+              }
+            }
+
+            state.spawned_resources.push(node_id)
+          }
+        }
+      }
+
+      write_receipt("chunk_materialized", chunk_key)
+    }
+
+    action add_item(item_id, amount) {
+      state.inventory[item_id] = (state.inventory[item_id] || 0) + amount
+    }
+
+    action consume_item(item_id, amount) {
+      if ((state.inventory[item_id] || 0) < amount) return false
+      state.inventory[item_id] -= amount
+      return true
+    }
+
+    action gather_resource(node, player_id) {
+      if (!node || node.state.remaining <= 0) return false
+
+      if (node.state.requires_tool != "hands" && state.player.equipped_tool != node.state.requires_tool) {
+        write_receipt("gather_blocked", node.state.resource_id + ":requires:" + node.state.requires_tool)
+        emit("system_message", "Need " + node.state.requires_tool)
+        return false
+      }
+
+      node.state.remaining = 0
+      node.visible = false
+      add_item(node.state.yields, node.state.amount)
+
+      write_receipt("resource_gathered", node.state.resource_id + ":" + node.state.yields + ":" + node.state.amount)
+      emit("inventory_changed", state.inventory)
+      return true
+    }
+
+    action gather_nearest_resource() {
+      let node = nearest("ResourceNode", state.player.position, 3.0)
+      return gather_resource(node, state.player.id)
+    }
+
+    action craft(recipe_id) {
+      let recipe = state.recipes[recipe_id]
+      if (!recipe) return false
+
+      for item_id, required in recipe.requires {
+        if ((state.inventory[item_id] || 0) < required) {
+          write_receipt("craft_blocked", recipe_id + ":missing:" + item_id)
+          emit("system_message", "Missing " + item_id)
+          return false
+        }
+      }
+
+      for item_id, required in recipe.requires {
+        consume_item(item_id, required)
+      }
+
+      add_item(recipe.output, recipe.quantity)
+
+      if (recipe.output == "stone_axe") {
+        state.player.equipped_tool = "stone_axe"
+      }
+
+      write_receipt("recipe_crafted", recipe_id)
+      emit("inventory_changed", state.inventory)
+      return true
+    }
+
+    action craft_stone_axe() {
+      return craft("stone_axe")
+    }
+
+    action craft_foundation() {
+      return craft("foundation")
+    }
+
+    action craft_camp_marker() {
+      return craft("camp_marker")
+    }
+
+    action place_building(slot, building_id) {
+      if (!slot || slot.state.occupied) return false
+      if ((state.inventory[building_id] || 0) <= 0) {
+        write_receipt("build_blocked", building_id + ":missing_item")
+        return false
+      }
+
+      consume_item(building_id, 1)
+      slot.state.occupied = true
+
+      spawn "BuildableObject" {
+        id: "placed_" + building_id + "_" + state.receipt_counter
+        type: building_id == "camp_marker" ? "beacon" : "foundation"
+        position: [slot.position[0], slot.position[1] + 0.12, slot.position[2]]
+        size: building_id == "camp_marker" ? [0.4, 2.0, 0.4] : [2, 0.16, 2]
+        material: { color: building_id == "camp_marker" ? "#00c2a8" : "#766a58" }
+        traits: ["player_built", "snap_aligned", "receipt_backed"]
+      }
+
+      state.placed_buildings.push({
+        id: building_id
+        slot: slot.state.slot_id
+        grid: slot.state.grid
+      })
+
+      write_receipt("building_placed", building_id + ":" + slot.state.slot_id)
+      emit("building_changed", state.placed_buildings)
+      return true
+    }
+
+    action place_selected_building(slot, player_id) {
+      if (state.inventory.foundation > 0) return place_building(slot, "foundation")
+      if (state.inventory.camp_marker > 0) return place_building(slot, "camp_marker")
+      write_receipt("build_blocked", "no_placeable_inventory")
+      return false
+    }
+
+    action place_selected_building_at_nearest_slot() {
+      let slot = nearest("BuildSlot", state.player.position, 4.0)
+      return place_selected_building(slot, state.player.id)
+    }
+
+    action receipt_hash(kind, payload) {
+      return "hsf-" + state.seed + "-" + state.receipt_counter + "-" + kind + "-" + payload
+    }
+
+    action write_receipt(kind, payload) {
+      state.receipt_counter += 1
+
+      let receipt = {
+        id: "receipt_" + state.receipt_counter
+        kind: kind
+        payload: payload
+        seed: state.seed
+        tick: state.tick
+        chunk: state.active_chunk
+        hash: receipt_hash(kind, payload)
+      }
+
+      state.receipts.push(receipt)
+      emit("receipt_written", receipt)
+      return receipt
+    }
+
+    action update_active_chunk() {
+      state.tick += 1
+      state.active_chunk = [
+        floor(state.player.position[0] / state.terrain_params.chunk_size),
+        floor(state.player.position[2] / state.terrain_params.chunk_size)
+      ]
+    }
+
+    action bootstrap_frontier() {
+      materialize_chunk(0, 0)
+      materialize_chunk(1, 0)
+      materialize_chunk(0, 1)
+      materialize_chunk(-1, 0)
+      write_receipt("frontier_bootstrap", "initial_radius")
+    }
+
+    on_start {
+      bootstrap_frontier()
+      emit("survival_frontier_ready")
+    }
+
+    on_update {
+      update_active_chunk()
+    }
+
+    on_gather {
+      gather_nearest_resource()
+    }
+
+    on_craft_axe {
+      craft_stone_axe()
+    }
+
+    on_craft_foundation {
+      craft_foundation()
+    }
+
+    on_craft_marker {
+      craft_camp_marker()
+    }
+
+    on_build {
+      place_selected_building_at_nearest_slot()
+    }
+  }
+}
