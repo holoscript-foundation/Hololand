@@ -554,16 +554,101 @@ export const HoloScriptRenderer: React.FC<HoloScriptRendererProps> = ({ scriptCo
   }, []);
 
   // Update runtime animations on every frame
-  useFrame((state, delta) => {
+  useFrame((state, delta, frame) => {
     if (runtimeRef.current) {
-      // Update VR context for traits
+      // Gather WebXR controller and hand tracking data
+      const xr = (state.gl as any).xr;
+      const session = xr?.getSession?.();
+      const referenceSpace = xr?.getReferenceSpace?.();
+
+      let leftController: any = null;
+      let rightController: any = null;
+      let leftHand: any = null;
+      let rightHand: any = null;
+
+      if (session && frame && referenceSpace) {
+        for (const inputSource of session.inputSources as any[]) {
+          const handedness = inputSource.handedness as 'left' | 'right' | 'none';
+          if (handedness !== 'left' && handedness !== 'right') continue;
+
+          // Controller pose from gripSpace
+          if (inputSource.gripSpace) {
+            const pose = (frame as XRFrame).getPose(inputSource.gripSpace, referenceSpace);
+            if (pose) {
+              const gamepad = inputSource.gamepad;
+              const controllerData = {
+                connected: true,
+                position: [pose.transform.position.x, pose.transform.position.y, pose.transform.position.z] as [number, number, number],
+                rotation: [pose.transform.orientation.x, pose.transform.orientation.y, pose.transform.orientation.z, pose.transform.orientation.w] as [number, number, number, number],
+                trigger: gamepad?.buttons[0]?.pressed || false,
+                grip: gamepad?.buttons[1]?.pressed || false,
+                thumbstick: { x: gamepad?.axes[2] || 0, y: gamepad?.axes[3] || 0 },
+              };
+              if (handedness === 'left') leftController = controllerData;
+              else rightController = controllerData;
+            }
+          }
+
+          // Hand tracking via WebXR Hand API
+          if (inputSource.hand && (frame as any).getJointPose) {
+            const handJoints: any[] = [];
+            const jointNames = [
+              'wrist',
+              'thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip',
+              'index-finger-metacarpal', 'index-finger-phalanx-proximal', 'index-finger-phalanx-intermediate', 'index-finger-phalanx-distal', 'index-finger-tip',
+              'middle-finger-metacarpal', 'middle-finger-phalanx-proximal', 'middle-finger-phalanx-intermediate', 'middle-finger-phalanx-distal', 'middle-finger-tip',
+              'ring-finger-metacarpal', 'ring-finger-phalanx-proximal', 'ring-finger-phalanx-intermediate', 'ring-finger-phalanx-distal', 'ring-finger-tip',
+              'pinky-finger-metacarpal', 'pinky-finger-phalanx-proximal', 'pinky-finger-phalanx-intermediate', 'pinky-finger-phalanx-distal', 'pinky-finger-tip',
+            ];
+
+            for (const jointName of jointNames) {
+              const joint = inputSource.hand.get(jointName);
+              if (!joint) continue;
+              const jointPose = (frame as any).getJointPose(joint, referenceSpace);
+              if (jointPose) {
+                handJoints.push({
+                  name: jointName,
+                  position: [jointPose.transform.position.x, jointPose.transform.position.y, jointPose.transform.position.z] as [number, number, number],
+                  rotation: [jointPose.transform.orientation.x, jointPose.transform.orientation.y, jointPose.transform.orientation.z, jointPose.transform.orientation.w] as [number, number, number, number],
+                  radius: jointPose.radius || 0.01,
+                });
+              }
+            }
+
+            // Simple gesture detection (pinch)
+            const thumbTip = handJoints.find((j: any) => j.name === 'thumb-tip');
+            const indexTip = handJoints.find((j: any) => j.name === 'index-finger-tip');
+            const wrist = handJoints.find((j: any) => j.name === 'wrist');
+            let gesture: string | null = null;
+            if (thumbTip && indexTip && wrist) {
+              const dist = Math.sqrt(
+                Math.pow(thumbTip.position[0] - indexTip.position[0], 2) +
+                Math.pow(thumbTip.position[1] - indexTip.position[1], 2) +
+                Math.pow(thumbTip.position[2] - indexTip.position[2], 2)
+              );
+              if (dist < 0.03) gesture = 'pinch';
+            }
+
+            const handData = {
+              joints: handJoints,
+              gesture,
+              confidence: Math.min(handJoints.length / 25, 1.0),
+            };
+
+            if (handedness === 'left') leftHand = handData;
+            else rightHand = handData;
+          }
+        }
+      }
+
+      // Update VR context for traits (@hand_tracked, @grabbable, controller-driven)
       runtimeRef.current.updateVRContext({
-          hands: { left: null, right: null }, // TODO: Integrate with controllers
-          headset: { 
+          hands: { left: leftHand, right: rightHand },
+          headset: {
               position: [state.camera.position.x, state.camera.position.y, state.camera.position.z],
               rotation: [state.camera.rotation.x, state.camera.rotation.y, state.camera.rotation.z]
           },
-          controllers: { left: null, right: null }
+          controllers: { left: leftController, right: rightController }
       });
 
       // Update the plus engine (this drives the renderer bridge)
