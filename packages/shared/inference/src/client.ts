@@ -65,10 +65,12 @@ export class InferenceClient {
       },
       providers: {
         local: { type: 'local', enabled: true },
+        'brittney-cloud': { type: 'brittney-cloud', enabled: false },
         openai: { type: 'openai', enabled: false },
         anthropic: { type: 'anthropic', enabled: false },
         google: { type: 'google', enabled: false },
         grok: { type: 'grok', enabled: false },
+        deepseek: { type: 'deepseek', enabled: false },
         azure: { type: 'azure', enabled: false },
         infinityassistant: { type: 'infinityassistant', enabled: false },
         custom: { type: 'custom', enabled: false },

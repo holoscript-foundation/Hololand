@@ -8,6 +8,7 @@
 import type {
   InferenceRequest,
   InferenceResponse,
+  ProviderStatus,
   StreamChunk,
 } from '../types.js';
 
@@ -56,12 +57,20 @@ export class BrittneyCloudProvider {
         throw new Error(`Brittney Cloud API error (${response.status}): ${errorBody}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+        usage?: {
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          total_tokens?: number;
+        };
+      };
 
       // Transform Brittney Cloud API response to InferenceResponse format
-      const content = data.choices[0]?.message?.content || '';
+      const content = data.choices?.[0]?.message?.content || '';
 
       return {
+        id: `brittney_cloud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         content,
         usage: {
           promptTokens: data.usage?.prompt_tokens || 0,
@@ -89,6 +98,30 @@ export class BrittneyCloudProvider {
       content: response.content,
       done: true,
     };
+  }
+
+  async *chatStream(request: InferenceRequest): AsyncGenerator<StreamChunk> {
+    yield* this.stream(request);
+  }
+
+  async getStatus(): Promise<ProviderStatus> {
+    const start = Date.now();
+    try {
+      const available = await this.isAvailable();
+      return {
+        type: 'brittney-cloud',
+        available,
+        latencyMs: Date.now() - start,
+        error: available ? undefined : 'Brittney Cloud API unavailable',
+      };
+    } catch (error: any) {
+      return {
+        type: 'brittney-cloud',
+        available: false,
+        latencyMs: Date.now() - start,
+        error: error.message,
+      };
+    }
   }
 
   /**

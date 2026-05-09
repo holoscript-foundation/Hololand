@@ -13,7 +13,7 @@
 import { z } from 'zod';
 import { sharedDataBridge } from './shared-data-bridge.js';
 import { createInferenceClient, type InferenceClient } from '@hololand/inference';
-import { serializeObjects, serializeScene, type SerializedObject } from '@hololand/ai-bridge';
+import { serializeObjects, serializeScene, type SerializedObject } from './scene-perception.js';
 
 // Tool definitions for MCP registration
 export const agentTools = [
