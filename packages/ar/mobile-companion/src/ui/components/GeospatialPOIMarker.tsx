@@ -246,10 +246,10 @@ export const GeospatialPOIMarker: React.FC<GeospatialPOIMarkerProps> = ({
     // For geospatial, we need lat/lon. Assuming userPose includes geospatial coords
     // This is a simplified example - actual implementation would use ARCore Geospatial API
 
-    // Placeholder: assuming userPose.position[0] = lat, position[1] = alt, position[2] = lon
-    const userLat = userPose.position[0];
-    const userLon = userPose.position[2];
-    const userAlt = userPose.position[1];
+    // Placeholder: assuming x = latitude, y = altitude, z = longitude.
+    const userLat = userPose.position.x;
+    const userLon = userPose.position.z;
+    const userAlt = userPose.position.y;
 
     const dist = calculateDistance(userLat, userLon, poi.latitude, poi.longitude);
     const bear = calculateBearing(userLat, userLon, poi.latitude, poi.longitude);

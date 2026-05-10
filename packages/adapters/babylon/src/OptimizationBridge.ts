@@ -8,6 +8,21 @@
 
 import type { OptimizationReport, OptimizationOptions } from '@holoscript/core';
 
+type OptimizationPassInstance = {
+  analyze?: (tree: unknown) => OptimizationReport | Promise<OptimizationReport>;
+  analyzeComposition?: (
+    ast: unknown,
+    compiler?: unknown
+  ) => OptimizationReport | Promise<OptimizationReport>;
+};
+
+type OptimizationPassCtor = new (options?: OptimizationOptions) => OptimizationPassInstance;
+
+type CoreWithOptimization = typeof import('@holoscript/core') & {
+  BabylonCompiler?: new (options?: unknown) => unknown;
+  OptimizationPass?: OptimizationPassCtor;
+};
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -28,7 +43,7 @@ export interface OptimizationBridgeConfig {
 // ---------------------------------------------------------------------------
 
 export class OptimizationBridge {
-  private modules: { OptimizationPass: any } | null = null;
+  private modules: { OptimizationPass: OptimizationPassCtor } | null = null;
   private initialized = false;
   private config: OptimizationBridgeConfig;
 
@@ -40,7 +55,10 @@ export class OptimizationBridge {
     if (this.initialized) return;
 
     try {
-      const core = await import('@holoscript/core');
+      const core = (await import('@holoscript/core')) as CoreWithOptimization;
+      if (!core.OptimizationPass) {
+        throw new Error('@holoscript/core does not export OptimizationPass');
+      }
       this.modules = { OptimizationPass: core.OptimizationPass };
       this.initialized = true;
     } catch (error: unknown) {
@@ -57,18 +75,23 @@ export class OptimizationBridge {
     await this.initialize();
     if (!this.modules) throw new Error('Modules not loaded');
 
-    const core = await import('@holoscript/core');
+    const core = (await import('@holoscript/core')) as CoreWithOptimization;
     const parser = new core.HoloCompositionParser();
     const parseResult = parser.parse(source);
 
     if (parseResult.errors.length > 0) {
       throw new Error(
-        `Parse errors: ${parseResult.errors.map((e: { message: string }) => e.message).join('; ')}`,
+        `Parse errors: ${parseResult.errors.map((e: { message: string }) => e.message).join('; ')}`
       );
     }
 
     const pass = new this.modules.OptimizationPass(this.buildOptions());
-    return pass.analyzeComposition(parseResult.ast, new core.BabylonCompiler());
+    if (typeof pass.analyzeComposition !== 'function') {
+      throw new Error('OptimizationPass does not expose analyzeComposition');
+    }
+
+    const compiler = core.BabylonCompiler ? new core.BabylonCompiler() : undefined;
+    return pass.analyzeComposition(parseResult.ast, compiler);
   }
 
   /**
@@ -79,6 +102,9 @@ export class OptimizationBridge {
     if (!this.modules) throw new Error('Modules not loaded');
 
     const pass = new this.modules.OptimizationPass(this.buildOptions());
+    if (typeof pass.analyze !== 'function') {
+      throw new Error('OptimizationPass does not expose analyze');
+    }
     return pass.analyze(tree);
   }
 
@@ -96,9 +122,7 @@ export class OptimizationBridge {
 
 let instance: OptimizationBridge | null = null;
 
-export function getOptimizationBridge(
-  config?: OptimizationBridgeConfig,
-): OptimizationBridge {
+export function getOptimizationBridge(config?: OptimizationBridgeConfig): OptimizationBridge {
   if (!instance) {
     instance = new OptimizationBridge(config);
   }

@@ -237,12 +237,21 @@ export class ProceduralWorldOrchestrator {
     this.inferenceClient = createInferenceClient({
       activeProvider: 'anthropic',
       providers: {
+        local: { type: 'local', enabled: false },
+        'brittney-cloud': { type: 'brittney-cloud', enabled: false },
+        openai: { type: 'openai', enabled: false },
         anthropic: {
           type: 'anthropic',
           apiKey: config.apiKey,
           enabled: true,
-          defaultModel: this.designerModel,
+          model: this.designerModel,
         },
+        google: { type: 'google', enabled: false },
+        grok: { type: 'grok', enabled: false },
+        deepseek: { type: 'deepseek', enabled: false },
+        azure: { type: 'azure', enabled: false },
+        infinityassistant: { type: 'infinityassistant', enabled: false },
+        custom: { type: 'custom', enabled: false },
       },
     });
 
@@ -397,6 +406,8 @@ export class ProceduralWorldOrchestrator {
 
       // Parse and validate final HoloScript
       const parseResult = parseHoloScriptPlus(finalHoloScript);
+      const parseErrors = parseResult.errors || [];
+      const parseSuccess = parseErrors.length === 0;
 
       // Calculate total costs
       costs.tokensUsed.total =
@@ -409,7 +420,7 @@ export class ProceduralWorldOrchestrator {
       metrics.objectsGenerated = (finalHoloScript.match(/object\s+"/g) || []).length;
 
       logger.info('[Orchestrator] Generation complete', {
-        success: parseResult.success,
+        success: parseSuccess,
         totalCost: `$${costs.totalCost.toFixed(4)}`,
         totalTokens: costs.tokensUsed.total,
         totalTime: `${metrics.totalTimeMs}ms`,
@@ -422,8 +433,8 @@ export class ProceduralWorldOrchestrator {
         review,
         costs,
         metrics,
-        success: parseResult.success,
-        errors: parseResult.success ? undefined : parseResult.errors?.map(e => e.message),
+        success: parseSuccess,
+        errors: parseSuccess ? undefined : parseErrors.map((e) => e.message),
       };
     } catch (error: any) {
       logger.error('[Orchestrator] Generation failed', { error: error.message });
@@ -525,7 +536,7 @@ Focus on strategic decisions. The Builder agent will handle implementation detai
 
     return {
       ...plan,
-      tokensUsed: response.usage?.inputTokens + response.usage?.outputTokens || 0,
+      tokensUsed: response.usage?.totalTokens || 0,
     };
   }
 
@@ -602,7 +613,7 @@ Generate ONLY HoloScript code in a \`\`\`holoscript code block. No explanations.
       action: 'generate_world',
       target: request.metadata?.name || 'world',
       result: 'success',
-      tokensUsed: response.usage?.inputTokens + response.usage?.outputTokens || 0,
+      tokensUsed: response.usage?.totalTokens || 0,
       timeMs: Date.now() - stepStart,
     });
 
@@ -670,7 +681,7 @@ Review the implementation and provide feedback.`;
 
     return {
       ...review,
-      tokensUsed: response.usage?.inputTokens + response.usage?.outputTokens || 0,
+      tokensUsed: response.usage?.totalTokens || 0,
     };
   }
 
@@ -749,6 +760,7 @@ Review the implementation and provide feedback.`;
     world: HololandWorld,
     loader: HoloScriptLoader
   ): Promise<WorldGenerationResult> {
+    void world;
     const result = await this.generateWorld(request);
 
     if (result.success && result.holoScript) {
@@ -775,6 +787,7 @@ Review the implementation and provide feedback.`;
     savings: number;
     savingsPercent: number;
   } {
+    void worldDescription;
     // Estimate Sonnet-only approach
     // Assumes ~15K input tokens + ~10K output tokens for full world generation
     const sonnetOnlyInputTokens = 15000;

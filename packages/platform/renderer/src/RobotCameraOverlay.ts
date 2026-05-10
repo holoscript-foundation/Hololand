@@ -22,13 +22,8 @@
  */
 
 import { logger } from './logger';
-import type {
-  Vec3,
-  CameraOverlayConfig,
-} from './TeleoperationHubTypes';
-import {
-  DEFAULT_CAMERA_OVERLAY_CONFIG,
-} from './TeleoperationHubTypes';
+import type { Vec3, CameraOverlayConfig } from './TeleoperationHubTypes';
+import { DEFAULT_CAMERA_OVERLAY_CONFIG } from './TeleoperationHubTypes';
 
 // =============================================================================
 // CAMERA OVERLAY
@@ -180,7 +175,7 @@ export class RobotCameraOverlay {
 
       return true;
     } catch (err) {
-      logger.warn('[RobotCameraOverlay] Frame decode error:', err);
+      logger.warn('[RobotCameraOverlay] Frame decode error', { error: String(err) });
       return false;
     }
   }
@@ -281,7 +276,7 @@ export class RobotCameraOverlay {
   updateConfig(partial: Partial<CameraOverlayConfig>): void {
     this.config = { ...this.config, ...partial };
 
-    if (this.canvas && (partial.resolution)) {
+    if (this.canvas && partial.resolution) {
       this.canvas.width = this.config.resolution.width;
       this.canvas.height = this.config.resolution.height;
     }
@@ -322,7 +317,7 @@ export class RobotCameraOverlay {
  * Create a RobotCameraOverlay with optional config overrides.
  */
 export function createRobotCameraOverlay(
-  config?: Partial<CameraOverlayConfig>,
+  config?: Partial<CameraOverlayConfig>
 ): RobotCameraOverlay {
   return new RobotCameraOverlay(config);
 }

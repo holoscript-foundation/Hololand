@@ -13,6 +13,12 @@ import * as pc from 'playcanvas';
 import { PlayCanvasRenderer } from './PlayCanvasRenderer';
 import { HoloScriptPlusParser, createRuntime } from '@holoscript/core';
 
+type AdapterRuntime = ReturnType<typeof createRuntime> & {
+  update?: (dt: number) => void;
+  on?: (event: string, handler: (payload: unknown) => void) => () => void;
+  emit?: (event: string, payload?: unknown) => void;
+};
+
 /**
  * World configuration options
  */
@@ -59,7 +65,7 @@ export class World {
   private app: pc.Application;
   private camera: pc.Entity;
   private playcanvasRenderer: PlayCanvasRenderer;
-  private holoRuntime: ReturnType<typeof createRuntime> | null = null;
+  private holoRuntime: AdapterRuntime | null = null;
   private parser: HoloScriptPlusParser;
   private xrEnabled: boolean;
   private basePath: string;
@@ -98,7 +104,7 @@ export class World {
     this.playcanvasRenderer = new PlayCanvasRenderer(this.app);
 
     // Parser
-    this.parser = new HoloScriptPlusParser({ enableVRTraits: true });
+    this.parser = new HoloScriptPlusParser();
 
     // Setup default lighting
     this.setupDefaultLighting();
@@ -179,21 +185,25 @@ export class World {
 
     const result = this.parser.parse(source);
 
-    if (!result.success) {
+    if ((result.errors?.length ?? 0) > 0) {
       console.error('HoloScript parse errors:', result.errors);
       return;
     }
 
     if (this.holoRuntime) {
-      this.holoRuntime.unmount();
+      this.holoRuntime.dispose();
     }
 
-    this.holoRuntime = createRuntime(result.ast, {
+    this.holoRuntime = createRuntime({
       renderer: this.playcanvasRenderer,
       vrEnabled: this.xrEnabled,
     });
 
-    this.holoRuntime.mount(this.app.root);
+    void this.holoRuntime.execute(result.ast, {
+      app: this.app,
+      renderer: this.playcanvasRenderer,
+      root: this.app.root,
+    });
   }
 
   /**
@@ -411,14 +421,14 @@ export class World {
    */
   on(event: string, handler: (payload: unknown) => void): () => void {
     if (!this.holoRuntime) return () => {};
-    return this.holoRuntime.on(event, handler);
+    return this.holoRuntime.on?.(event, handler) ?? (() => {});
   }
 
   /**
    * Emit an event
    */
   emit(event: string, payload?: unknown): void {
-    this.holoRuntime?.emit(event, payload);
+    this.holoRuntime?.emit?.(event, payload);
   }
 
   /**
@@ -428,7 +438,7 @@ export class World {
     this.stop();
 
     if (this.holoRuntime) {
-      this.holoRuntime.unmount();
+      this.holoRuntime.dispose();
       this.holoRuntime = null;
     }
 

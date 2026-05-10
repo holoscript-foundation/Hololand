@@ -43,7 +43,7 @@
     }
   },
   "dependencies": {
-    "@holoscript/core": "workspace:*"
+    "@holoscript/core": "^3.43.0"
   },
   "devDependencies": {
     "@babylonjs/core": "^6.40.0",

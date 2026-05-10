@@ -12,10 +12,14 @@
  */
 
 import { useRef, useMemo } from 'react';
+import type { ComponentType } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 import { Vector3 } from 'three';
 import type { AgentState } from './useLiveBridge';
+
+const BillboardComponent = Billboard as unknown as ComponentType<Record<string, unknown>>;
+const TextComponent = Text as unknown as ComponentType<Record<string, unknown>>;
 
 // ─── Phase Colors ───────────────────────────────────────────────────────────
 
@@ -164,19 +168,19 @@ export function GhostOrb({
 
       {/* Label */}
       {showLabel && (
-        <Billboard
+        <BillboardComponent
           follow
           position={[pos.x, pos.y + 0.25 * scale, pos.z]}
         >
-          <Text
+          <TextComponent
             fontSize={0.06 * scale}
             color={color}
             anchorX="center"
             anchorY="bottom"
           >
             {agent.type || agent.id}
-          </Text>
-        </Billboard>
+          </TextComponent>
+        </BillboardComponent>
       )}
     </group>
   );

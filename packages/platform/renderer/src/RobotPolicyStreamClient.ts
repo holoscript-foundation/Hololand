@@ -74,7 +74,7 @@ function encodeHeader(
   buffer: DataView,
   type: WsMessageType,
   sequence: number,
-  timestamp: number,
+  timestamp: number
 ): void {
   buffer.setUint8(0, type);
   buffer.setUint32(1, sequence, true); // little-endian
@@ -195,12 +195,15 @@ export class RobotPolicyStreamClient {
       logger.warn('[RobotPolicyStreamClient] Cannot connect, client is destroyed');
       return;
     }
-    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)
+    ) {
       logger.warn('[RobotPolicyStreamClient] Already connected or connecting');
       return;
     }
 
-    logger.info('[RobotPolicyStreamClient] Connecting to', this.config.robotUrl);
+    logger.info('[RobotPolicyStreamClient] Connecting to', { robotUrl: this.config.robotUrl });
     this.ws = new WebSocket(this.config.robotUrl);
     this.ws.binaryType = 'arraybuffer';
 
@@ -281,7 +284,7 @@ export class RobotPolicyStreamClient {
     if (!this.isConnected()) return false;
 
     const seq = this.sequence++;
-    const now = Date.now() & 0xFFFFFFFF;
+    const now = Date.now() & 0xffffffff;
 
     encodeHeader(this.jointCommandView, WsMessageType.JOINT_COMMAND, seq, now);
 
@@ -307,7 +310,7 @@ export class RobotPolicyStreamClient {
     if (!this.isConnected()) return false;
 
     const seq = this.sequence++;
-    const now = Date.now() & 0xFFFFFFFF;
+    const now = Date.now() & 0xffffffff;
 
     encodeHeader(this.policyActionView, WsMessageType.POLICY_ACTION, seq, now);
 
@@ -331,7 +334,7 @@ export class RobotPolicyStreamClient {
     if (!this.isConnected()) return false;
 
     const seq = this.sequence++;
-    const now = Date.now() & 0xFFFFFFFF;
+    const now = Date.now() & 0xffffffff;
     encodeHeader(this.emergencyStopView, WsMessageType.EMERGENCY_STOP, seq, now);
     this.ws!.send(this.emergencyStopBuffer);
     this.messagesSent++;
@@ -348,7 +351,7 @@ export class RobotPolicyStreamClient {
     if (!this.isConnected()) return false;
 
     const seq = this.sequence++;
-    const now = Date.now() & 0xFFFFFFFF;
+    const now = Date.now() & 0xffffffff;
     const buffer = new ArrayBuffer(WS_HEADER_SIZE);
     const view = new DataView(buffer);
     encodeHeader(view, WsMessageType.RESUME, seq, now);
@@ -447,7 +450,15 @@ export class RobotPolicyStreamClient {
       offset += 4;
       state.isCharging = view.getUint8(offset) === 1;
       offset += 1;
-      const modeMap = ['idle', 'teleoperation', 'autonomous', 'policy_streaming', 'calibrating', 'emergency_stop', 'error'] as const;
+      const modeMap = [
+        'idle',
+        'teleoperation',
+        'autonomous',
+        'policy_streaming',
+        'calibrating',
+        'emergency_stop',
+        'error',
+      ] as const;
       const modeIndex = view.getUint8(offset);
       state.operatingMode = modeMap[modeIndex] ?? 'idle';
       offset += 1;
@@ -490,7 +501,7 @@ export class RobotPolicyStreamClient {
     }
 
     // Compute local latency from send timestamp
-    const now = Date.now() & 0xFFFFFFFF;
+    const now = Date.now() & 0xffffffff;
     this.latencyMs = now - timestamp;
     if (this.latencyMs < 0) this.latencyMs = 0;
 
@@ -523,8 +534,8 @@ export class RobotPolicyStreamClient {
    */
   private handleHeartbeatResponse(timestamp: number): void {
     this.lastHeartbeatResponse = performance.now();
-    const now = Date.now() & 0xFFFFFFFF;
-    this.latencyMs = (now - timestamp);
+    const now = Date.now() & 0xffffffff;
+    this.latencyMs = now - timestamp;
     if (this.latencyMs < 0) this.latencyMs = 0;
   }
 
@@ -537,7 +548,7 @@ export class RobotPolicyStreamClient {
     if (view.byteLength > WS_HEADER_SIZE) {
       errorCode = view.getUint32(WS_HEADER_SIZE, true);
     }
-    logger.error('[RobotPolicyStreamClient] Robot error:', errorCode);
+    logger.error('[RobotPolicyStreamClient] Robot error', { errorCode });
     this.emitEvent({ type: 'error', timestamp: Date.now(), data: { errorCode } });
   }
 
@@ -551,7 +562,7 @@ export class RobotPolicyStreamClient {
       if (!this.isConnected()) return;
 
       const seq = this.sequence++;
-      const now = Date.now() & 0xFFFFFFFF;
+      const now = Date.now() & 0xffffffff;
       encodeHeader(this.heartbeatView, WsMessageType.HEARTBEAT, seq, now);
       this.ws!.send(this.heartbeatBuffer);
       this.messagesSent++;
@@ -593,7 +604,9 @@ export class RobotPolicyStreamClient {
     }
 
     this.reconnectAttempts++;
-    logger.info(`[RobotPolicyStreamClient] Reconnecting (${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`);
+    logger.info(
+      `[RobotPolicyStreamClient] Reconnecting (${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`
+    );
     this.clearReconnectTimer();
     this.reconnectTimer = setTimeout(() => {
       this.connect();
@@ -617,7 +630,7 @@ export class RobotPolicyStreamClient {
   onStateUpdate(listener: (state: RobotState) => void): () => void {
     this.stateListeners.push(listener);
     return () => {
-      this.stateListeners = this.stateListeners.filter(l => l !== listener);
+      this.stateListeners = this.stateListeners.filter((l) => l !== listener);
     };
   }
 
@@ -627,7 +640,7 @@ export class RobotPolicyStreamClient {
   onCameraFrame(listener: (frame: ArrayBuffer, width: number, height: number) => void): () => void {
     this.cameraListeners.push(listener);
     return () => {
-      this.cameraListeners = this.cameraListeners.filter(l => l !== listener);
+      this.cameraListeners = this.cameraListeners.filter((l) => l !== listener);
     };
   }
 
@@ -637,7 +650,7 @@ export class RobotPolicyStreamClient {
   addEventListener(listener: TeleoperationEventListener): () => void {
     this.eventListeners.push(listener);
     return () => {
-      this.eventListeners = this.eventListeners.filter(l => l !== listener);
+      this.eventListeners = this.eventListeners.filter((l) => l !== listener);
     };
   }
 
@@ -704,7 +717,7 @@ export class RobotPolicyStreamClient {
  * Create a RobotPolicyStreamClient with optional config overrides.
  */
 export function createRobotPolicyStreamClient(
-  config?: Partial<PolicyStreamConfig>,
+  config?: Partial<PolicyStreamConfig>
 ): RobotPolicyStreamClient {
   return new RobotPolicyStreamClient(config);
 }

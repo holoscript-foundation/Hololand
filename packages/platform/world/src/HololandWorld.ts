@@ -453,7 +453,7 @@ export class HololandWorld {
    * PhysicsExpansionBridge and other existing consumers.
    */
   getPhysicsEngine(): PhysicsEngine {
-    return this.spatialEngineBridge.getBuiltInEngine();
+    return this.physics;
   }
 
   /**
@@ -467,7 +467,9 @@ export class HololandWorld {
    * Get world statistics
    */
   getStats() {
+    const bridgeStats = this.spatialEngineBridge.getStats();
     return {
+      ...bridgeStats,
       name: this.config.name,
       objectCount: this.objects.size,
       activeObjects: Array.from(this.objects.values()).filter((o) => o.isActive()).length,
@@ -477,7 +479,6 @@ export class HololandWorld {
       physicsEnabled: this.config.enablePhysics,
       physicsBackend: this.spatialEngineBridge.getBackend(),
       physicsSubsteps: this.config.physicsSubsteps,
-      ...this.spatialEngineBridge.getStats(),
     };
   }
 

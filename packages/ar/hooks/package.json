@@ -14,8 +14,8 @@
   },
   "files": ["dist", "README.md"],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
-    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts --format esm --dts --external react --external react/jsx-runtime --external @react-three/fiber --external @react-three/drei --external three --external socket.io-client",
+    "dev": "tsup src/index.ts --format esm --dts --external react --external react/jsx-runtime --external @react-three/fiber --external @react-three/drei --external three --external socket.io-client --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

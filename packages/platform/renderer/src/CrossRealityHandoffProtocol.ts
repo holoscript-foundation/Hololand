@@ -53,6 +53,8 @@ import {
 export interface DeviceCapabilities {
   formFactor: FormFactor;
   deviceId: string;
+  /** Human-readable device or agent label from discovery */
+  displayName?: string;
   /** Supported embodiment types on this device */
   supportedEmbodiments: EmbodimentType[];
   /** Available input modalities */
@@ -109,7 +111,7 @@ export class CrossRealityHandoffProtocol {
     agentId: string,
     agentName: string,
     currentFormFactor: FormFactor,
-    currentEmbodiment?: EmbodimentType,
+    currentEmbodiment?: EmbodimentType
   ) {
     this.agentId = agentId;
     this.agentName = agentName;
@@ -127,7 +129,7 @@ export class CrossRealityHandoffProtocol {
    */
   initiateHandoff(
     targetCapabilities: DeviceCapabilities,
-    callbacks: HandoffCallbacks,
+    callbacks: HandoffCallbacks
   ): MVCPayload | null {
     if (this.activeHandoff) {
       logger.warn('[Handoff] Cannot initiate: handoff already in progress');
@@ -179,7 +181,7 @@ export class CrossRealityHandoffProtocol {
         spatialContext: callbacks.gatherSpatialContext(),
         evidenceTrail: callbacks.gatherEvidenceTrail(),
         targetEmbodiment: this.activeHandoff.target.embodiment,
-      },
+      }
     );
 
     const payloadSize = estimateMVCPayloadSize(payload);
@@ -196,7 +198,9 @@ export class CrossRealityHandoffProtocol {
       transferMs: Date.now() - this.activeHandoff.initiatedAt,
     });
 
-    logger.info(`[Handoff] ${handoffId}: MVC payload created (${payloadSize} bytes) for ${this.currentFormFactor} → ${targetFormFactor}`);
+    logger.info(
+      `[Handoff] ${handoffId}: MVC payload created (${payloadSize} bytes) for ${this.currentFormFactor} → ${targetFormFactor}`
+    );
 
     // Source-side handoff is complete once the payload is created and ready to transmit.
     // The target device will call receiveHandoff() with this payload.
@@ -212,10 +216,7 @@ export class CrossRealityHandoffProtocol {
   /**
    * Receive a handoff on the target device.
    */
-  receiveHandoff(
-    payload: MVCPayload,
-    callbacks: HandoffCallbacks,
-  ): HandoffStatus {
+  receiveHandoff(payload: MVCPayload, callbacks: HandoffCallbacks): HandoffStatus {
     const handoffId = payload.handoffId;
 
     this.activeHandoff = {
@@ -273,7 +274,9 @@ export class CrossRealityHandoffProtocol {
     const status = this.completeHandoff(true);
     callbacks.onComplete(status);
 
-    logger.info(`[Handoff] ${handoffId}: Complete (${payload.sourceFormFactor} → ${payload.targetFormFactor}) in ${status.elapsedMs}ms`);
+    logger.info(
+      `[Handoff] ${handoffId}: Complete (${payload.sourceFormFactor} → ${payload.targetFormFactor}) in ${status.elapsedMs}ms`
+    );
     return status;
   }
 
@@ -410,7 +413,7 @@ export function createCrossRealityHandoffProtocol(
   agentId: string,
   agentName: string,
   currentFormFactor: FormFactor,
-  currentEmbodiment?: EmbodimentType,
+  currentEmbodiment?: EmbodimentType
 ): CrossRealityHandoffProtocol {
   return new CrossRealityHandoffProtocol(agentId, agentName, currentFormFactor, currentEmbodiment);
 }

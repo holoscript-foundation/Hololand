@@ -505,36 +505,58 @@ export class AvatarMeshAssembler {
       };
     }
 
-    // Fallback: Use ProceduralBodyGenerator for high-quality procedural mesh
-    const genResult = this.bodyGenerator.generate(body.genderPresentation);
-    const generatedMesh = genResult.skinnedMesh;
+    try {
+      // Fallback: Use ProceduralBodyGenerator for high-quality procedural mesh
+      const genResult = this.bodyGenerator.generate(body.genderPresentation);
+      const generatedMesh = genResult.skinnedMesh;
 
-    // Apply skin material to the generated mesh
-    generatedMesh.material = skinMaterial;
-    generatedMesh.userData.materialType = 'skin';
+      // Apply skin material to the generated mesh
+      generatedMesh.material = skinMaterial;
+      generatedMesh.userData.materialType = 'skin';
 
-    // Register morph targets from the procedural generator
-    if (generatedMesh.morphTargetDictionary) {
-      for (const [name, index] of Object.entries(generatedMesh.morphTargetDictionary)) {
-        if (BODY_MORPH_TARGETS.includes(name as any)) {
-          bodyMorphs.set(name, { mesh: generatedMesh, index: index as number });
+      // Register morph targets from the procedural generator
+      if (generatedMesh.morphTargetDictionary) {
+        for (const [name, index] of Object.entries(generatedMesh.morphTargetDictionary)) {
+          if (BODY_MORPH_TARGETS.includes(name as any)) {
+            bodyMorphs.set(name, { mesh: generatedMesh, index: index as number });
+          }
         }
       }
+
+      bodyGroup.add(generatedMesh);
+      bodyGroup.add(genResult.rootBone);
+
+      return {
+        mesh: bodyGroup,
+        skeleton: genResult.skeleton,
+        rootBone: genResult.rootBone,
+        skinMaterials: [skinMaterial],
+        bodyMorphs,
+        vertexCount: genResult.stats.vertexCount,
+        triangleCount: genResult.stats.triangleCount,
+        boneCount: genResult.stats.boneCount,
+      };
+    } catch {
+      const fallbackSkeleton = this.createHumanoidSkeleton();
+      const fallbackBody = this.createProceduralBody(
+        fallbackSkeleton.skeleton,
+        skinMaterial,
+        body,
+      );
+
+      bodyGroup.add(fallbackBody.mesh);
+
+      return {
+        mesh: bodyGroup,
+        skeleton: fallbackSkeleton.skeleton,
+        rootBone: fallbackSkeleton.rootBone,
+        skinMaterials: [skinMaterial],
+        bodyMorphs,
+        vertexCount: fallbackBody.vertexCount,
+        triangleCount: fallbackBody.triangleCount,
+        boneCount: fallbackSkeleton.boneCount,
+      };
     }
-
-    bodyGroup.add(generatedMesh);
-    bodyGroup.add(genResult.rootBone);
-
-    return {
-      mesh: bodyGroup,
-      skeleton: genResult.skeleton,
-      rootBone: genResult.rootBone,
-      skinMaterials: [skinMaterial],
-      bodyMorphs,
-      vertexCount: genResult.stats.vertexCount,
-      triangleCount: genResult.stats.triangleCount,
-      boneCount: genResult.stats.boneCount,
-    };
   }
 
   // ===========================================================================

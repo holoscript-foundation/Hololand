@@ -1,0 +1,32 @@
+declare module 'three/tsl' {
+  type TSLValue = any;
+
+  export const Fn: TSLValue;
+  export const float: TSLValue;
+  export const vec2: TSLValue;
+  export const vec3: TSLValue;
+  export const vec4: TSLValue;
+  export const instanceIndex: TSLValue;
+  export const instancedArray: TSLValue;
+  export const uniform: TSLValue;
+  export const storage: TSLValue;
+  export const If: TSLValue;
+  export const Loop: TSLValue;
+  export const Break: TSLValue;
+  export const sin: TSLValue;
+  export const cos: TSLValue;
+  export const sqrt: TSLValue;
+  export const abs: TSLValue;
+  export const max: TSLValue;
+  export const min: TSLValue;
+  export const mix: TSLValue;
+  export const smoothstep: TSLValue;
+  export const length: TSLValue;
+  export const normalize: TSLValue;
+  export const dot: TSLValue;
+  export const cross: TSLValue;
+  export const floor: TSLValue;
+  export const fract: TSLValue;
+  export const clamp: TSLValue;
+  export const uv: TSLValue;
+}

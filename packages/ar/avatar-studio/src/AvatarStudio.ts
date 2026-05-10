@@ -66,14 +66,13 @@ import type {
   FaceMorphs,
   ClothingSlotName,
   AccessorySlotName,
-  AssetFilter,
   CatalogAsset,
   PerformanceBudget,
 } from './types';
 
 import { AvatarBlueprintManager } from './AvatarBlueprintManager';
 import { AvatarPreviewRenderer } from './AvatarPreviewRenderer';
-import { AssetCatalog, type AssetCatalogConfig } from './AssetCatalog';
+import { AssetCatalog, type AssetCatalogConfig, type AssetFilter } from './AssetCatalog';
 import { VRMExporter, type ExportResult, type ExportProgressCallback } from './VRMExporter';
 import type { MeshAssemblerConfig, AssemblyResult } from './AvatarMeshAssembler';
 

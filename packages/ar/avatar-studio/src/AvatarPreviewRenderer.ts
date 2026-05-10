@@ -821,7 +821,8 @@ export class AvatarPreviewRenderer {
         '@pixiv/three-vrm-springbone'
       );
 
-      const manager = new VRMSpringBoneManager();
+      const manager = new VRMSpringBoneManager() as any;
+      const SpringBoneJoint = VRMSpringBoneJoint as any;
 
       // Find spring bone chains in the assembled group.
       // Convention: bones with userData.springBone = true are part of a chain,
@@ -852,7 +853,7 @@ export class AvatarPreviewRenderer {
               hitRadius: bone.userData.springHitRadius ?? 0.02,
             };
 
-            const joint = new VRMSpringBoneJoint(bone, child, settings);
+            const joint = new SpringBoneJoint(bone, child, settings);
             manager.addJoint(joint);
           }
         }
@@ -871,7 +872,7 @@ export class AvatarPreviewRenderer {
 
             const chainBones = this.collectSpringBoneChain(rootBone);
             for (let i = 0; i < chainBones.length - 1; i++) {
-              const joint = new VRMSpringBoneJoint(
+              const joint = new SpringBoneJoint(
                 chainBones[i],
                 chainBones[i + 1],
                 {

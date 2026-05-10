@@ -11,8 +11,6 @@
   "dependencies": {
     "@hololand/core": "workspace:*",
     "@hololand/renderer": "workspace:*",
-    "@hololand/core": "workspace:*",
-    "@hololand/renderer": "workspace:*",
     "@hololand/ui": "workspace:*",
     "@holoscript/core": "*"
   },

@@ -48,15 +48,8 @@
  */
 
 import { logger } from './logger';
-import type {
-  RobotState,
-  RobotJointName,
-} from './TeleoperationHubTypes';
-import {
-  ALL_JOINT_NAMES,
-  JOINT_COUNT,
-  createEmptyRobotState,
-} from './TeleoperationHubTypes';
+import type { RobotState, RobotJointName } from './TeleoperationHubTypes';
+import { ALL_JOINT_NAMES, JOINT_COUNT, createEmptyRobotState } from './TeleoperationHubTypes';
 import type {
   GR00TObservation,
   GR00TActionChunk,
@@ -101,7 +94,7 @@ function encodeGR00THeader(
   view: DataView,
   type: GR00TMessageType,
   sequence: number,
-  timestamp: number,
+  timestamp: number
 ): void {
   view.setUint8(0, type);
   view.setUint32(1, sequence, true);
@@ -186,7 +179,8 @@ export class GR00TN16PolicyClient {
   private eventListeners: GR00TEventListener[] = [];
 
   /** Action output listeners (consumers like TeleoperationHub). */
-  private actionListeners: Array<(jointTargets: Partial<Record<RobotJointName, number>>) => void> = [];
+  private actionListeners: Array<(jointTargets: Partial<Record<RobotJointName, number>>) => void> =
+    [];
 
   constructor(config: Partial<GR00TN16Config> = {}) {
     this.config = {
@@ -245,14 +239,17 @@ export class GR00TN16PolicyClient {
       logger.warn('[GR00TN16PolicyClient] Cannot connect, client is destroyed');
       return;
     }
-    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)
+    ) {
       logger.warn('[GR00TN16PolicyClient] Already connected or connecting');
       return;
     }
 
     this.connectionState = 'connecting';
     this.metrics.connectionState = 'connecting';
-    logger.info('[GR00TN16PolicyClient] Connecting to', this.config.serverUrl);
+    logger.info('[GR00TN16PolicyClient] Connecting', { serverUrl: this.config.serverUrl });
 
     this.ws = new WebSocket(this.config.serverUrl);
     this.ws.binaryType = 'arraybuffer';
@@ -344,7 +341,9 @@ export class GR00TN16PolicyClient {
       this.sendObservation();
     }, this.observationIntervalMs);
 
-    logger.info('[GR00TN16PolicyClient] Observation streaming started at', this.config.observationRateHz, 'Hz');
+    logger.info('[GR00TN16PolicyClient] Observation streaming started', {
+      observationRateHz: this.config.observationRateHz,
+    });
   }
 
   /**
@@ -379,7 +378,9 @@ export class GR00TN16PolicyClient {
    */
   updateCameraEmbedding(embedding: Float32Array): void {
     if (embedding.length !== OBSERVATION_EMBEDDING_DIM) {
-      logger.warn('[GR00TN16PolicyClient] Camera embedding dimension mismatch:', embedding.length);
+      logger.warn('[GR00TN16PolicyClient] Camera embedding dimension mismatch', {
+        embeddingLength: embedding.length,
+      });
       return;
     }
     this.currentCameraEmbedding = embedding;
@@ -392,7 +393,7 @@ export class GR00TN16PolicyClient {
     if (!this.isConnected() || this.policyMode === 'idle') return;
 
     const seq = this.sequence++;
-    const now = Date.now() & 0xFFFFFFFF;
+    const now = Date.now() & 0xffffffff;
 
     encodeGR00THeader(this.observationView, GR00TMessageType.OBSERVATION, seq, now);
 
@@ -700,7 +701,10 @@ export class GR00TN16PolicyClient {
       if (activeSet.has(jointName)) {
         // Active joint: apply action delta, clamped by max magnitude
         let delta = rawAction[ACTION_TO_JOINT_OFFSET + j];
-        delta = Math.max(-modeConfig.maxActionMagnitude, Math.min(modeConfig.maxActionMagnitude, delta));
+        delta = Math.max(
+          -modeConfig.maxActionMagnitude,
+          Math.min(modeConfig.maxActionMagnitude, delta)
+        );
         jointTargets[j] = delta;
       } else {
         // Frozen joint: zero delta
@@ -780,7 +784,8 @@ export class GR00TN16PolicyClient {
     if (this.config.enableActionSmoothing) {
       const blend = this.chunkingConfig.chunkBlendFactor;
       for (let j = 0; j < ACTION_JOINT_COUNT; j++) {
-        this.smoothedJointTargets[j] = blend * jointTargets[j] + (1 - blend) * this.previousJointTargets[j];
+        this.smoothedJointTargets[j] =
+          blend * jointTargets[j] + (1 - blend) * this.previousJointTargets[j];
       }
       this.previousJointTargets.set(this.smoothedJointTargets);
       jointTargets = this.smoothedJointTargets;
@@ -844,14 +849,14 @@ export class GR00TN16PolicyClient {
       return false;
     }
     if (mode === this.policyMode) {
-      logger.info('[GR00TN16PolicyClient] Already in', mode, 'mode');
+      logger.info('[GR00TN16PolicyClient] Already in requested policy mode', { mode });
       return true;
     }
 
     this.pendingPolicySwitch = mode;
 
     const seq = this.sequence++;
-    const now = Date.now() & 0xFFFFFFFF;
+    const now = Date.now() & 0xffffffff;
     encodeGR00THeader(this.policySwitchView, GR00TMessageType.POLICY_SWITCH, seq, now);
 
     // Write mode index
@@ -870,7 +875,7 @@ export class GR00TN16PolicyClient {
     this.ws!.send(new Uint8Array(this.policySwitchBuffer, 0, GROOT_HEADER_SIZE + 1 + headIdLen));
     this.metrics.bytesSent += GROOT_HEADER_SIZE + 1 + headIdLen;
 
-    logger.info('[GR00TN16PolicyClient] Policy switch requested:', mode);
+    logger.info('[GR00TN16PolicyClient] Policy switch requested', { mode });
     return true;
   }
 
@@ -897,7 +902,7 @@ export class GR00TN16PolicyClient {
       this.smoothedJointTargets.fill(0);
       this.previousJointTargets.fill(0);
 
-      logger.info('[GR00TN16PolicyClient] Policy switched to:', confirmedMode);
+      logger.info('[GR00TN16PolicyClient] Policy switched', { mode: confirmedMode });
       this.emitEvent({
         type: 'policy_switched',
         timestamp: Date.now(),
@@ -938,7 +943,7 @@ export class GR00TN16PolicyClient {
       if (!this.isConnected()) return;
 
       const seq = this.sequence++;
-      const now = Date.now() & 0xFFFFFFFF;
+      const now = Date.now() & 0xffffffff;
       const buffer = new ArrayBuffer(GROOT_HEADER_SIZE);
       const view = new DataView(buffer);
       encodeGR00THeader(view, GR00TMessageType.HEARTBEAT, seq, now);
@@ -981,7 +986,7 @@ export class GR00TN16PolicyClient {
     if (view.byteLength > GROOT_HEADER_SIZE) {
       errorCode = view.getUint32(GROOT_HEADER_SIZE, true);
     }
-    logger.error('[GR00TN16PolicyClient] Inference error:', errorCode);
+    logger.error('[GR00TN16PolicyClient] Inference error', { errorCode });
     this.emitEvent({ type: 'error', timestamp: Date.now(), data: { errorCode } });
   }
 
@@ -1005,7 +1010,9 @@ export class GR00TN16PolicyClient {
     this.reconnectAttempts++;
     this.connectionState = 'reconnecting';
     this.metrics.connectionState = 'reconnecting';
-    logger.info(`[GR00TN16PolicyClient] Reconnecting (${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`);
+    logger.info(
+      `[GR00TN16PolicyClient] Reconnecting (${this.reconnectAttempts}/${this.config.maxReconnectAttempts})`
+    );
 
     this.clearReconnectTimer();
     this.reconnectTimer = setTimeout(() => {
@@ -1030,7 +1037,7 @@ export class GR00TN16PolicyClient {
   addEventListener(listener: GR00TEventListener): () => void {
     this.eventListeners.push(listener);
     return () => {
-      this.eventListeners = this.eventListeners.filter(l => l !== listener);
+      this.eventListeners = this.eventListeners.filter((l) => l !== listener);
     };
   }
 
@@ -1041,7 +1048,7 @@ export class GR00TN16PolicyClient {
   onAction(listener: (jointTargets: Partial<Record<RobotJointName, number>>) => void): () => void {
     this.actionListeners.push(listener);
     return () => {
-      this.actionListeners = this.actionListeners.filter(l => l !== listener);
+      this.actionListeners = this.actionListeners.filter((l) => l !== listener);
     };
   }
 
@@ -1137,8 +1144,6 @@ export class GR00TN16PolicyClient {
 /**
  * Create a GR00TN16PolicyClient with optional config overrides.
  */
-export function createGR00TN16PolicyClient(
-  config?: Partial<GR00TN16Config>,
-): GR00TN16PolicyClient {
+export function createGR00TN16PolicyClient(config?: Partial<GR00TN16Config>): GR00TN16PolicyClient {
   return new GR00TN16PolicyClient(config);
 }

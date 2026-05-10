@@ -67,7 +67,7 @@
  * ```
  */
 
-import React, { createContext, useContext, useEffect, useRef, useMemo } from 'react';
+import { createContext, useContext, useEffect, useRef, useMemo } from 'react';
 
 import type { AvatarStudio } from '@hololand/avatar-studio';
 

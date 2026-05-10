@@ -31,6 +31,7 @@
   },
   "peerDependencies": {
     "three": "^0.160.0",
+    "react": ">=18.0.0",
     "@pixiv/three-vrm": "^2.0.0",
     "@pixiv/three-vrm-springbone": "^2.0.0"
   },
@@ -44,6 +45,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@types/react": "^18.3.0",
     "@types/three": "^0.160.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",

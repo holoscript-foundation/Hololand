@@ -378,8 +378,8 @@ export const LightEstimationFeedback: React.FC<LightEstimationFeedbackProps> = (
                     {
                       rotate: `${
                         Math.atan2(
-                          lightEstimate.primaryLightDirection[0],
-                          lightEstimate.primaryLightDirection[2]
+                          lightEstimate.primaryLightDirection.x,
+                          lightEstimate.primaryLightDirection.z
                         ) *
                         (180 / Math.PI)
                       }deg`,

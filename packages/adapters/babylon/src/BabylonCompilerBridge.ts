@@ -9,6 +9,14 @@
 
 import type { HoloComposition } from '@holoscript/core';
 
+type BabylonCompilerCtor = new (options?: unknown) => {
+  compile(composition: HoloComposition): string;
+};
+
+type CoreWithBabylonCompiler = typeof import('@holoscript/core') & {
+  BabylonCompiler?: BabylonCompilerCtor;
+};
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -41,7 +49,7 @@ export interface BabylonCompilerBridgeOptions {
 export class BabylonCompilerBridge {
   private modules: {
     HoloCompositionParser: any;
-    BabylonCompiler: any;
+    BabylonCompiler: BabylonCompilerCtor;
   } | null = null;
   private initialized = false;
   private options: BabylonCompilerBridgeOptions;
@@ -54,7 +62,10 @@ export class BabylonCompilerBridge {
     if (this.initialized) return;
 
     try {
-      const core = await import('@holoscript/core');
+      const core = (await import('@holoscript/core')) as CoreWithBabylonCompiler;
+      if (!core.BabylonCompiler) {
+        throw new Error('@holoscript/core does not export BabylonCompiler');
+      }
       this.modules = {
         HoloCompositionParser: core.HoloCompositionParser,
         BabylonCompiler: core.BabylonCompiler,
@@ -156,7 +167,7 @@ export class BabylonCompilerBridge {
 let instance: BabylonCompilerBridge | null = null;
 
 export function getBabylonCompilerBridge(
-  options?: BabylonCompilerBridgeOptions,
+  options?: BabylonCompilerBridgeOptions
 ): BabylonCompilerBridge {
   if (!instance) {
     instance = new BabylonCompilerBridge(options);

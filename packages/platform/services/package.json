@@ -13,8 +13,8 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
-    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "build": "tsup index.ts --format esm,cjs --dts",
+    "dev": "tsup index.ts --format esm,cjs --dts --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -35,8 +35,7 @@
   "license": "MIT",
   "dependencies": {
     "@holoscript/crdt": "file:../../../../HoloScript/packages/crdt",
-    "@holoscript/mvc-schema": "file:../../../../HoloScript/packages/mvc-schema",
-    "@hololand/agents": "workspace:*"
+    "@holoscript/mvc-schema": "file:../../../../HoloScript/packages/mvc-schema"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

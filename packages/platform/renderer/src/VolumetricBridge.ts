@@ -17,7 +17,7 @@
  *   - volumetricVideoHandler  (Volumetric video playback)
  */
 
-import type { RendererProvider } from '@hololand/core';
+import type { RendererProvider } from '@holoscript/core';
 import type { HololandRenderer } from './HololandRenderer';
 import type {
   GaussianBudgetManager,
@@ -156,11 +156,14 @@ export class VolumetricBridge implements RendererProvider {
 
   // ---- 2. nerfHandler -----------------------------------------------------
 
-  createNeRF(nodeId: string, config: {
-    modelUrl: string;
-    resolution?: number;
-    samplesPerRay?: number;
-  }): void {
+  createNeRF(
+    nodeId: string,
+    config: {
+      modelUrl: string;
+      resolution?: number;
+      samplesPerRay?: number;
+    }
+  ): void {
     if (this.renderables.has(nodeId)) return;
     this.renderables.add(nodeId);
     // this.renderer.addNeRF(nodeId, config);
@@ -186,11 +189,14 @@ export class VolumetricBridge implements RendererProvider {
 
   // ---- 4. photogrammetryHandler -------------------------------------------
 
-  createPhotogrammetry(nodeId: string, config: {
-    meshUrl: string;
-    textureUrl?: string;
-    lodLevels?: number;
-  }): void {
+  createPhotogrammetry(
+    nodeId: string,
+    config: {
+      meshUrl: string;
+      textureUrl?: string;
+      lodLevels?: number;
+    }
+  ): void {
     if (this.renderables.has(nodeId)) return;
     this.renderables.add(nodeId);
     // this.renderer.addPhotogrammetryMesh(nodeId, config);
@@ -210,12 +216,15 @@ export class VolumetricBridge implements RendererProvider {
 
   // ---- 6. gpuParticleHandler ----------------------------------------------
 
-  createGPUParticleSystem(nodeId: string, config: {
-    maxParticles: number;
-    emitRate: number;
-    lifetime: number;
-    shader?: string;
-  }): void {
+  createGPUParticleSystem(
+    nodeId: string,
+    config: {
+      maxParticles: number;
+      emitRate: number;
+      lifetime: number;
+      shader?: string;
+    }
+  ): void {
     if (this.particleSystems.size >= this.config.maxParticleSystems) return;
     if (this.particleSystems.has(nodeId)) return;
 
@@ -244,12 +253,15 @@ export class VolumetricBridge implements RendererProvider {
 
   // ---- 7. gpuPhysicsHandler -----------------------------------------------
 
-  dispatchGPUPhysics(nodeId: string, config: {
-    shader: string;
-    bodyCount: number;
-    constraintCount?: number;
-    substeps?: number;
-  }): void {
+  dispatchGPUPhysics(
+    nodeId: string,
+    config: {
+      shader: string;
+      bodyCount: number;
+      constraintCount?: number;
+      substeps?: number;
+    }
+  ): void {
     if (!this.config.enableCompute) return;
     this.computePasses.set(`physics_${nodeId}`, {
       shader: config.shader,
@@ -260,11 +272,14 @@ export class VolumetricBridge implements RendererProvider {
 
   // ---- 8. gpuBufferHandler ------------------------------------------------
 
-  createGPUBuffer(nodeId: string, config: {
-    size: number;
-    usage: 'storage' | 'uniform' | 'vertex' | 'index';
-    data?: Float32Array | Uint32Array;
-  }): void {
+  createGPUBuffer(
+    nodeId: string,
+    config: {
+      size: number;
+      usage: 'storage' | 'uniform' | 'vertex' | 'index';
+      data?: Float32Array | Uint32Array;
+    }
+  ): void {
     if (this.gpuBuffers.size >= this.config.maxGPUBuffers) return;
 
     const binding: GPUBufferBinding = {
@@ -290,11 +305,14 @@ export class VolumetricBridge implements RendererProvider {
 
   // ---- 9. volumetricVideoHandler ------------------------------------------
 
-  createVolumetricVideo(nodeId: string, config: {
-    url: string;
-    autoplay?: boolean;
-    loop?: boolean;
-  }): void {
+  createVolumetricVideo(
+    nodeId: string,
+    config: {
+      url: string;
+      autoplay?: boolean;
+      loop?: boolean;
+    }
+  ): void {
     if (this.renderables.has(nodeId)) return;
     this.renderables.add(nodeId);
 

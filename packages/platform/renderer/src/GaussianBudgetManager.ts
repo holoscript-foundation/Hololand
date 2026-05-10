@@ -250,14 +250,14 @@ const DEFAULT_LAYER_BUDGETS: Record<GaussianLayerType, LayerBudgetConfig> = {
     reservedSplats: 40_000,
     canBorrow: true,
     canLend: true,
-    maxLendPercent: 0.40, // Can lend up to 40% of unused budget
+    maxLendPercent: 0.4, // Can lend up to 40% of unused budget
   },
   relightable: {
     maxSplats: 30_000,
     reservedSplats: 10_000,
     canBorrow: true,
     canLend: true,
-    maxLendPercent: 0.30,
+    maxLendPercent: 0.3,
   },
   interactive: {
     maxSplats: 10_000,
@@ -283,21 +283,87 @@ const DEFAULT_FOVEATED_CONFIG: FoveatedConfig = {
  */
 const DEFAULT_LOD_LEVELS: Record<GaussianLayerType, GaussianLODLevel[]> = {
   baked: [
-    { level: 0, splatMultiplier: 1.0, shBandLimit: 3, distanceThreshold: 5, compressedCovariance: false },
-    { level: 1, splatMultiplier: 0.5, shBandLimit: 2, distanceThreshold: 15, compressedCovariance: false },
-    { level: 2, splatMultiplier: 0.2, shBandLimit: 1, distanceThreshold: 30, compressedCovariance: true },
-    { level: 3, splatMultiplier: 0.05, shBandLimit: 0, distanceThreshold: Infinity, compressedCovariance: true },
+    {
+      level: 0,
+      splatMultiplier: 1.0,
+      shBandLimit: 3,
+      distanceThreshold: 5,
+      compressedCovariance: false,
+    },
+    {
+      level: 1,
+      splatMultiplier: 0.5,
+      shBandLimit: 2,
+      distanceThreshold: 15,
+      compressedCovariance: false,
+    },
+    {
+      level: 2,
+      splatMultiplier: 0.2,
+      shBandLimit: 1,
+      distanceThreshold: 30,
+      compressedCovariance: true,
+    },
+    {
+      level: 3,
+      splatMultiplier: 0.05,
+      shBandLimit: 0,
+      distanceThreshold: Infinity,
+      compressedCovariance: true,
+    },
   ],
   relightable: [
-    { level: 0, splatMultiplier: 1.0, shBandLimit: 2, distanceThreshold: 3, compressedCovariance: false },
-    { level: 1, splatMultiplier: 0.6, shBandLimit: 1, distanceThreshold: 10, compressedCovariance: false },
-    { level: 2, splatMultiplier: 0.25, shBandLimit: 0, distanceThreshold: 20, compressedCovariance: true },
-    { level: 3, splatMultiplier: 0.08, shBandLimit: 0, distanceThreshold: Infinity, compressedCovariance: true },
+    {
+      level: 0,
+      splatMultiplier: 1.0,
+      shBandLimit: 2,
+      distanceThreshold: 3,
+      compressedCovariance: false,
+    },
+    {
+      level: 1,
+      splatMultiplier: 0.6,
+      shBandLimit: 1,
+      distanceThreshold: 10,
+      compressedCovariance: false,
+    },
+    {
+      level: 2,
+      splatMultiplier: 0.25,
+      shBandLimit: 0,
+      distanceThreshold: 20,
+      compressedCovariance: true,
+    },
+    {
+      level: 3,
+      splatMultiplier: 0.08,
+      shBandLimit: 0,
+      distanceThreshold: Infinity,
+      compressedCovariance: true,
+    },
   ],
   interactive: [
-    { level: 0, splatMultiplier: 1.0, shBandLimit: 2, distanceThreshold: 10, compressedCovariance: false },
-    { level: 1, splatMultiplier: 0.75, shBandLimit: 1, distanceThreshold: 20, compressedCovariance: false },
-    { level: 2, splatMultiplier: 0.4, shBandLimit: 0, distanceThreshold: Infinity, compressedCovariance: true },
+    {
+      level: 0,
+      splatMultiplier: 1.0,
+      shBandLimit: 2,
+      distanceThreshold: 10,
+      compressedCovariance: false,
+    },
+    {
+      level: 1,
+      splatMultiplier: 0.75,
+      shBandLimit: 1,
+      distanceThreshold: 20,
+      compressedCovariance: false,
+    },
+    {
+      level: 2,
+      splatMultiplier: 0.4,
+      shBandLimit: 0,
+      distanceThreshold: Infinity,
+      compressedCovariance: true,
+    },
     // No level 3 for interactive: physics breaks below 40% splat density
   ],
 };
@@ -370,8 +436,16 @@ export class GaussianBudgetManager extends EventEmitter {
 
   // State
   private splats: Map<string, GaussianSplatEntry> = new Map();
-  private lentBudgets: Record<GaussianLayerType, number> = { baked: 0, relightable: 0, interactive: 0 };
-  private borrowedBudgets: Record<GaussianLayerType, number> = { baked: 0, relightable: 0, interactive: 0 };
+  private lentBudgets: Record<GaussianLayerType, number> = {
+    baked: 0,
+    relightable: 0,
+    interactive: 0,
+  };
+  private borrowedBudgets: Record<GaussianLayerType, number> = {
+    baked: 0,
+    relightable: 0,
+    interactive: 0,
+  };
 
   // Performance monitoring
   private frameTimeHistory: number[] = [];
@@ -410,9 +484,9 @@ export class GaussianBudgetManager extends EventEmitter {
 
     // LOD thresholds (deep copy to prevent mutation of defaults)
     this.lodLevels = {
-      baked: DEFAULT_LOD_LEVELS.baked.map(l => ({ ...l })),
-      relightable: DEFAULT_LOD_LEVELS.relightable.map(l => ({ ...l })),
-      interactive: DEFAULT_LOD_LEVELS.interactive.map(l => ({ ...l })),
+      baked: DEFAULT_LOD_LEVELS.baked.map((l) => ({ ...l })),
+      relightable: DEFAULT_LOD_LEVELS.relightable.map((l) => ({ ...l })),
+      interactive: DEFAULT_LOD_LEVELS.interactive.map((l) => ({ ...l })),
     };
     if (config.lodThresholds) {
       for (const [layer, thresholds] of Object.entries(config.lodThresholds)) {
@@ -429,7 +503,7 @@ export class GaussianBudgetManager extends EventEmitter {
     // Scalar configs
     this.targetFrameTimeMs = config.targetFrameTimeMs ?? 5.5;
     this.rebalanceIntervalMs = config.rebalanceIntervalMs ?? 1000;
-    this.emergencyShedThreshold = config.emergencyShedThreshold ?? 0.90;
+    this.emergencyShedThreshold = config.emergencyShedThreshold ?? 0.9;
     this.enableBorrowing = config.enableBorrowing ?? true;
     this.enableAdaptive = config.enableAdaptive ?? true;
     this.verbose = config.verbose ?? false;
@@ -674,7 +748,7 @@ export class GaussianBudgetManager extends EventEmitter {
    */
   private updateSplatDistances(
     cameraPosition: [number, number, number],
-    splatPositions?: Map<string, [number, number, number]>,
+    splatPositions?: Map<string, [number, number, number]>
   ): void {
     if (!splatPositions) return;
 
@@ -698,16 +772,16 @@ export class GaussianBudgetManager extends EventEmitter {
    */
   private updateFoveation(
     cameraPosition: [number, number, number],
-    gazeDirection: [number, number, number],
+    gazeDirection: [number, number, number]
   ): void {
     const fovealCosAngle = Math.cos((this.foveatedConfig.fovealAngleDeg * Math.PI) / 180);
     const blendCosAngle = Math.cos(
-      ((this.foveatedConfig.fovealAngleDeg + this.foveatedConfig.blendZoneDeg) * Math.PI) / 180,
+      ((this.foveatedConfig.fovealAngleDeg + this.foveatedConfig.blendZoneDeg) * Math.PI) / 180
     );
 
     // Normalize gaze direction
     const gazeLen = Math.sqrt(
-      gazeDirection[0] ** 2 + gazeDirection[1] ** 2 + gazeDirection[2] ** 2,
+      gazeDirection[0] ** 2 + gazeDirection[1] ** 2 + gazeDirection[2] ** 2
     );
     const gx = gazeDirection[0] / gazeLen;
     const gy = gazeDirection[1] / gazeLen;
@@ -750,7 +824,10 @@ export class GaussianBudgetManager extends EventEmitter {
 
       // Apply foveated bias: if NOT in foveal region, increase LOD
       if (this.foveatedConfig.enabled && !entry.inFovealRegion) {
-        targetLevel = Math.min(targetLevel + this.foveatedConfig.peripheralLODBias, levels.length - 1);
+        targetLevel = Math.min(
+          targetLevel + this.foveatedConfig.peripheralLODBias,
+          levels.length - 1
+        );
       }
 
       // Apply performance pressure bias
@@ -792,7 +869,7 @@ export class GaussianBudgetManager extends EventEmitter {
       if (this.foveatedConfig.enabled && entry.inFovealRegion) {
         effectiveCount = Math.min(
           Math.floor(effectiveCount * this.foveatedConfig.fovealBudgetMultiplier),
-          entry.baseSplatCount, // Never exceed base count
+          entry.baseSplatCount // Never exceed base count
         );
       }
 
@@ -812,11 +889,12 @@ export class GaussianBudgetManager extends EventEmitter {
 
     for (const layer of layers) {
       const config = this.layerConfigs[layer];
-      const effectiveBudget = config.maxSplats - this.lentBudgets[layer] + this.borrowedBudgets[layer];
+      const effectiveBudget =
+        config.maxSplats - this.lentBudgets[layer] + this.borrowedBudgets[layer];
 
       // Get all visible entries for this layer, sorted by priority (ascending = cull first)
       const entries = this.getLayerEntries(layer)
-        .filter(e => e.isVisible)
+        .filter((e) => e.isVisible)
         .sort((a, b) => {
           // Pinned objects always last (never culled)
           if (a.pinned !== b.pinned) return a.pinned ? 1 : -1;
@@ -833,7 +911,7 @@ export class GaussianBudgetManager extends EventEmitter {
       // If within budget, restore any previously culled objects
       if (totalEffective <= effectiveBudget) {
         // Try to restore culled objects
-        const culled = this.getLayerEntries(layer).filter(e => !e.isVisible && !e.pinned);
+        const culled = this.getLayerEntries(layer).filter((e) => !e.isVisible && !e.pinned);
         for (const entry of culled) {
           const restoredTotal = totalEffective + entry.effectiveSplatCount;
           if (restoredTotal <= effectiveBudget) {
@@ -897,7 +975,8 @@ export class GaussianBudgetManager extends EventEmitter {
       const lenderState = this.getLayerState(lender);
 
       // How much can this layer lend?
-      const unusedBudget = lenderConfig.maxSplats - lenderState.allocatedSplats - this.lentBudgets[lender];
+      const unusedBudget =
+        lenderConfig.maxSplats - lenderState.allocatedSplats - this.lentBudgets[lender];
       const maxLendable = Math.floor(lenderConfig.maxSplats * lenderConfig.maxLendPercent);
       const canLend = Math.min(unusedBudget, maxLendable - this.lentBudgets[lender]);
 
@@ -1135,9 +1214,10 @@ export class GaussianBudgetManager extends EventEmitter {
   getLayerState(layer: GaussianLayerType): LayerBudgetState {
     const config = this.layerConfigs[layer];
     const entries = this.getLayerEntries(layer);
-    const visibleEntries = entries.filter(e => e.isVisible);
+    const visibleEntries = entries.filter((e) => e.isVisible);
     const allocated = visibleEntries.reduce((sum, e) => sum + e.effectiveSplatCount, 0);
-    const effectiveBudget = config.maxSplats - this.lentBudgets[layer] + this.borrowedBudgets[layer];
+    const effectiveBudget =
+      config.maxSplats - this.lentBudgets[layer] + this.borrowedBudgets[layer];
     const estimatedVRAM = allocated * SPLAT_MEMORY_BYTES[layer];
 
     return {
@@ -1249,13 +1329,19 @@ export class GaussianBudgetManager extends EventEmitter {
     for (const layer of layerNames) {
       const s = m.layers[layer];
       lines.push(`  ── ${layer.toUpperCase()} Layer ──`);
-      lines.push(`    Budget:      ${this.formatNumber(s.maxSplats)} (effective: ${this.formatNumber(s.effectiveBudget)})`);
-      lines.push(`    Allocated:   ${this.formatNumber(s.allocatedSplats)} (${(s.utilization * 100).toFixed(1)}%)`);
+      lines.push(
+        `    Budget:      ${this.formatNumber(s.maxSplats)} (effective: ${this.formatNumber(s.effectiveBudget)})`
+      );
+      lines.push(
+        `    Allocated:   ${this.formatNumber(s.allocatedSplats)} (${(s.utilization * 100).toFixed(1)}%)`
+      );
       lines.push(`    Objects:     ${s.objectCount} total, ${s.visibleObjectCount} visible`);
       lines.push(`    Lent:        ${this.formatNumber(s.lentSplats)}`);
       lines.push(`    Borrowed:    ${this.formatNumber(s.borrowedSplats)}`);
       lines.push(`    VRAM:        ${this.formatBytes(s.estimatedVRAMBytes)}`);
-      lines.push(`    Cost/splat:  ${SPLAT_MEMORY_BYTES[layer]}B memory, ${SPLAT_RENDER_COST[layer]}x render`);
+      lines.push(
+        `    Cost/splat:  ${SPLAT_MEMORY_BYTES[layer]}B memory, ${SPLAT_RENDER_COST[layer]}x render`
+      );
       lines.push('');
     }
 
@@ -1282,7 +1368,7 @@ export class GaussianBudgetManager extends EventEmitter {
    */
   setFoveatedConfig(config: Partial<FoveatedConfig>): void {
     Object.assign(this.foveatedConfig, config);
-    logger.info('[GaussianBudgetManager] Foveated config updated', this.foveatedConfig);
+    logger.info('[GaussianBudgetManager] Foveated config updated', { ...this.foveatedConfig });
   }
 
   /**
@@ -1428,7 +1514,7 @@ export class GaussianBudgetManager extends EventEmitter {
  * Create a GaussianBudgetManager with Quest 3 defaults
  */
 export function createGaussianBudgetManager(
-  config?: GaussianBudgetManagerConfig,
+  config?: GaussianBudgetManagerConfig
 ): GaussianBudgetManager {
   return new GaussianBudgetManager(config);
 }
@@ -1438,7 +1524,7 @@ export function createGaussianBudgetManager(
  */
 export function createGaussianBudgetManagerForDevice(
   deviceType: 'quest2' | 'quest3' | 'pcvr' | 'desktop',
-  config?: GaussianBudgetManagerConfig,
+  config?: GaussianBudgetManagerConfig
 ): GaussianBudgetManager {
   const manager = new GaussianBudgetManager(config);
 

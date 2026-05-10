@@ -46,6 +46,7 @@ import type {
   OculusVisemeCode,
   OculusVisemeId,
   TalkingHeadStreamConfig,
+  StreamingMetrics,
 } from './TalkingHeadTypes';
 
 import {
@@ -85,7 +86,7 @@ interface TalkingHeadInstance {
   playPose(url: string, onProgress?: ((p: number) => void) | null, dur?: number, ndx?: number, scale?: number): void;
   stopPose(): void;
   // Streaming
-  streamStart(opt: Record<string, unknown>, onAudioStart?: () => void, onAudioEnd?: () => void, onSubtitles?: (text: string) => void, onMetrics?: (metrics: unknown) => void): void;
+  streamStart(opt: Record<string, unknown>, onAudioStart?: () => void, onAudioEnd?: () => void, onSubtitles?: (text: string) => void, onMetrics?: (metrics: StreamingMetrics) => void): void;
   streamAudio(audio: Int16Array): void;
   streamNotifyEnd(): void;
   streamInterrupt(): void;

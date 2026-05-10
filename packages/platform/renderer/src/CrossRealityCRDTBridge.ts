@@ -30,6 +30,7 @@ import type {
   UserPreferences,
   SpatialContextSummary,
   EvidenceTrail,
+  AuthenticatedCRDTOperation,
 } from './CrossRealityContinuityTypes';
 import {
   DEFAULT_EMBODIMENT,
@@ -39,14 +40,8 @@ import {
   createEmptySpatialContext,
   createEmptyEvidenceTrail,
 } from './CrossRealityContinuityTypes';
-import {
-  AuthenticatedCRDTEngine,
-  compressOperationBatch,
-} from './AuthenticatedCRDTEngine';
-import type {
-  AuthenticatedCRDTEngineConfig,
-  AuthenticatedCRDTOperation,
-} from './AuthenticatedCRDTEngine';
+import { AuthenticatedCRDTEngine, compressOperationBatch } from './AuthenticatedCRDTEngine';
+import type { AuthenticatedCRDTEngineConfig } from './AuthenticatedCRDTEngine';
 import type { NetworkTransportAdapter } from './NetworkTransportAdapter';
 
 // =============================================================================
@@ -166,10 +161,7 @@ export class CrossRealityCRDTBridge {
 
     // Start periodic flush if configured
     if (this.config.realtimeSync && this.config.syncIntervalMs > 0) {
-      this.syncTimer = setInterval(
-        () => this.flushPendingOps(),
-        this.config.syncIntervalMs,
-      );
+      this.syncTimer = setInterval(() => this.flushPendingOps(), this.config.syncIntervalMs);
     }
 
     logger.info('[CRDTBridge] Transport attached');
@@ -224,7 +216,7 @@ export class CrossRealityCRDTBridge {
     sourceFormFactor: FormFactor,
     targetFormFactor: FormFactor,
     sourceEmbodiment?: EmbodimentType,
-    targetEmbodiment?: EmbodimentType,
+    targetEmbodiment?: EmbodimentType
   ): MVCSnapshot {
     const state = this.engine.getState();
     const now = Date.now();
@@ -234,27 +226,27 @@ export class CrossRealityCRDTBridge {
     const decisionHistory = this.extractCategoryOrDefault<DecisionHistory>(
       state,
       'decisionHistory',
-      createEmptyDecisionHistory(),
+      createEmptyDecisionHistory()
     );
     const activeTask = this.extractCategoryOrDefault<ActiveTaskState>(
       state,
       'activeTask',
-      createEmptyActiveTaskState(),
+      createEmptyActiveTaskState()
     );
     const userPreferences = this.extractCategoryOrDefault<UserPreferences>(
       state,
       'userPreferences',
-      createDefaultUserPreferences(),
+      createDefaultUserPreferences()
     );
     const spatialContext = this.extractCategoryOrDefault<SpatialContextSummary>(
       state,
       'spatialContext',
-      createEmptySpatialContext(sourceFormFactor),
+      createEmptySpatialContext(sourceFormFactor)
     );
     const evidenceTrail = this.extractCategoryOrDefault<EvidenceTrail>(
       state,
       'evidenceTrail',
-      createEmptyEvidenceTrail(),
+      createEmptyEvidenceTrail()
     );
 
     const payload: MVCPayload = {
@@ -319,10 +311,7 @@ export class CrossRealityCRDTBridge {
           const crdtKey = `mvc.${cat}.${key}`;
           const existing = this.engine.get(crdtKey);
 
-          if (
-            existing !== undefined &&
-            JSON.stringify(existing) !== JSON.stringify(value)
-          ) {
+          if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(value)) {
             this.conflicts.push({
               key: crdtKey,
               localValue: existing,
@@ -357,9 +346,7 @@ export class CrossRealityCRDTBridge {
    * In a production implementation, this would filter by comparing
    * per-node counters in the vector clock.
    */
-  computeDelta(
-    _sinceVectorClock: Record<string, number>,
-  ): AuthenticatedCRDTOperation[] {
+  computeDelta(_sinceVectorClock: Record<string, number>): AuthenticatedCRDTOperation[] {
     // Return pending ops (future: filter by vector clock comparison)
     return [...this.pendingOps];
   }
@@ -430,10 +417,7 @@ export class CrossRealityCRDTBridge {
 
   private queueForSync(op: AuthenticatedCRDTOperation): void {
     this.pendingOps.push(op);
-    if (
-      this.config.syncIntervalMs === 0 ||
-      this.pendingOps.length >= this.config.maxPendingOps
-    ) {
+    if (this.config.syncIntervalMs === 0 || this.pendingOps.length >= this.config.maxPendingOps) {
       this.flushPendingOps();
     }
   }
@@ -448,7 +432,7 @@ export class CrossRealityCRDTBridge {
       const batch = compressOperationBatch(
         this.pendingOps,
         this.engine.getIdentity().did,
-        this.config.crdtConfig.deviceId,
+        this.config.crdtConfig.deviceId
       );
       this.transport.broadcast('sync:crdt-batch', batch);
     } else {
@@ -460,8 +444,7 @@ export class CrossRealityCRDTBridge {
     this.metrics.deltaSyncs++;
     this.metrics.operationsSynced += this.pendingOps.length;
     this.metrics.averageSyncLatencyMs =
-      (this.metrics.averageSyncLatencyMs * (this.metrics.deltaSyncs - 1) +
-        elapsed) /
+      (this.metrics.averageSyncLatencyMs * (this.metrics.deltaSyncs - 1) + elapsed) /
       this.metrics.deltaSyncs;
 
     this.pendingOps = [];
@@ -474,20 +457,20 @@ export class CrossRealityCRDTBridge {
    * and overlays them onto the provided default, so that any fields not
    * present in CRDT still have valid default values.
    */
-  private extractCategoryOrDefault<T extends Record<string, unknown>>(
+  private extractCategoryOrDefault<T extends object>(
     state: Record<string, unknown>,
     category: MVCCategory,
-    defaultValue: T,
+    defaultValue: T
   ): T {
     const prefix = `mvc.${category}.`;
-    const result = { ...defaultValue };
+    const result = { ...(defaultValue as Record<string, unknown>) };
     for (const [key, value] of Object.entries(state)) {
       if (key.startsWith(prefix)) {
         const field = key.slice(prefix.length);
-        (result as Record<string, unknown>)[field] = value;
+        result[field] = value;
       }
     }
-    return result;
+    return result as T;
   }
 
   private emit(event: string, data: unknown): void {
@@ -502,8 +485,6 @@ export class CrossRealityCRDTBridge {
 // FACTORY
 // =============================================================================
 
-export function createCrossRealityCRDTBridge(
-  config: CRDTBridgeConfig,
-): CrossRealityCRDTBridge {
+export function createCrossRealityCRDTBridge(config: CRDTBridgeConfig): CrossRealityCRDTBridge {
   return new CrossRealityCRDTBridge(config);
 }

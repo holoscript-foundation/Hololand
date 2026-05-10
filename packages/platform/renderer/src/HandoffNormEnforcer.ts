@@ -125,10 +125,7 @@ export class HandoffNormEnforcer {
       blockOnCritical: config?.blockOnCritical ?? true,
     };
 
-    this.rules = [
-      ...this.getBuiltinRules(),
-      ...(config?.customRules ?? []),
-    ];
+    this.rules = [...this.getBuiltinRules(), ...(config?.customRules ?? [])];
 
     logger.info('[HandoffNormEnforcer] Initialized', {
       ruleCount: this.rules.length,
@@ -168,13 +165,13 @@ export class HandoffNormEnforcer {
     this.applyModifications(context, violations, modifications);
 
     // Determine if handoff is allowed
-    const criticalViolations = violations.filter(v => v.blocking);
-    const allowed = this.config.blockOnCritical
-      ? criticalViolations.length === 0
-      : true;
+    const criticalViolations = violations.filter((v) => v.blocking);
+    const allowed = this.config.blockOnCritical ? criticalViolations.length === 0 : true;
 
     if (!allowed) {
-      logger.warn(`[HandoffNormEnforcer] Handoff BLOCKED: ${criticalViolations.length} critical violations`);
+      logger.warn(
+        `[HandoffNormEnforcer] Handoff BLOCKED: ${criticalViolations.length} critical violations`
+      );
     }
 
     // Record timestamp
@@ -193,10 +190,7 @@ export class HandoffNormEnforcer {
   /**
    * Convenience: enforce using an MVC payload directly.
    */
-  enforceForPayload(
-    payload: MVCPayload,
-    userPreferences: UserPreferences,
-  ): NormEnforcementResult {
+  enforceForPayload(payload: MVCPayload, userPreferences: UserPreferences): NormEnforcementResult {
     return this.enforce({
       sourceFormFactor: payload.sourceFormFactor,
       targetFormFactor: payload.targetFormFactor,
@@ -239,9 +233,14 @@ export class HandoffNormEnforcer {
         severity: 'critical',
         category: 'safety',
         blocking: true,
-        remediation: 'Switch to voice-only HUD mode. Suppress all visual overlays except minimal status.',
+        remediation:
+          'Switch to voice-only HUD mode. Suppress all visual overlays except minimal status.',
         check: (ctx) => {
-          if (ctx.targetFormFactor === 'car' && ctx.targetEmbodiment !== 'VoiceOnly' && ctx.targetEmbodiment !== 'VoiceHUD') {
+          if (
+            ctx.targetFormFactor === 'car' &&
+            ctx.targetEmbodiment !== 'VoiceOnly' &&
+            ctx.targetEmbodiment !== 'VoiceHUD'
+          ) {
             return `Target embodiment "${ctx.targetEmbodiment}" is not safe for automotive. Only VoiceOnly or VoiceHUD is allowed while driving.`;
           }
           return null;
@@ -253,13 +252,15 @@ export class HandoffNormEnforcer {
         severity: 'critical',
         category: 'safety',
         blocking: false,
-        remediation: 'Queue non-essential notifications. Only deliver critical alerts via brief audio.',
+        remediation:
+          'Queue non-essential notifications. Only deliver critical alerts via brief audio.',
         check: (ctx) => {
           if (ctx.targetFormFactor === 'car') {
             // Check if payload has evidence items that would generate visual notifications
-            const visualEvidence = ctx.payload.evidenceTrail?.items?.filter(
-              (item) => item.type !== 'audio' && item.type !== 'system',
-            );
+            const visualEvidence = ctx.payload.evidenceTrail?.items?.filter((item) => {
+              const evidenceKind = (item as { type?: string }).type ?? item.sourceType;
+              return evidenceKind !== 'audio' && evidenceKind !== 'system';
+            });
             if (visualEvidence && visualEvidence.length > 3) {
               return `${visualEvidence.length} pending visual notifications would distract driver. Queue for later.`;
             }
@@ -275,8 +276,9 @@ export class HandoffNormEnforcer {
         blocking: true,
         remediation: 'Route handoff through an intermediate device (phone or wearable) first.',
         check: (ctx) => {
-          const directVRCar = (ctx.sourceFormFactor === 'vr-headset' && ctx.targetFormFactor === 'car')
-            || (ctx.sourceFormFactor === 'car' && ctx.targetFormFactor === 'vr-headset');
+          const directVRCar =
+            (ctx.sourceFormFactor === 'vr-headset' && ctx.targetFormFactor === 'car') ||
+            (ctx.sourceFormFactor === 'car' && ctx.targetFormFactor === 'vr-headset');
           if (directVRCar) {
             return `Direct handoff between VR headset and car is unsafe. User must be fully alert before operating vehicle.`;
           }
@@ -293,7 +295,10 @@ export class HandoffNormEnforcer {
         check: (ctx) => {
           if (ctx.lastHandoffTimestamp) {
             const elapsed = Date.now() - ctx.lastHandoffTimestamp;
-            if (elapsed < 5000 && (ctx.targetFormFactor === 'car' || ctx.sourceFormFactor === 'car')) {
+            if (
+              elapsed < 5000 &&
+              (ctx.targetFormFactor === 'car' || ctx.sourceFormFactor === 'car')
+            ) {
               return `Handoff cooldown: only ${elapsed}ms since last handoff. Safety-critical devices require 5s cooldown.`;
             }
           }
@@ -323,7 +328,8 @@ export class HandoffNormEnforcer {
         severity: 'warning',
         category: 'accessibility',
         blocking: false,
-        remediation: 'Enable audio descriptions on the target device. Provide TTS for all visual content.',
+        remediation:
+          'Enable audio descriptions on the target device. Provide TTS for all visual content.',
         check: (ctx) => {
           if (ctx.userPreferences.accessibility.screenReader && ctx.targetFormFactor === 'car') {
             return `User requires screen reader but target is voice-only (car). Ensure all content has audio descriptions.`;
@@ -339,8 +345,10 @@ export class HandoffNormEnforcer {
         blocking: false,
         remediation: 'Apply font scale from user preferences to target device UI.',
         check: (ctx) => {
-          if (ctx.userPreferences.accessibility.fontScale > 1.5 &&
-              (ctx.targetFormFactor === 'wearable' || ctx.targetFormFactor === 'car')) {
+          if (
+            ctx.userPreferences.accessibility.fontScale > 1.5 &&
+            (ctx.targetFormFactor === 'wearable' || ctx.targetFormFactor === 'car')
+          ) {
             return `Large font scale (${ctx.userPreferences.accessibility.fontScale}x) may not display correctly on ${ctx.targetFormFactor}.`;
           }
           return null;
@@ -360,7 +368,7 @@ export class HandoffNormEnforcer {
           const spatial = ctx.payload.spatialContext;
           if (spatial && spatial.nearbyLandmarks) {
             const inQuietZone = spatial.nearbyLandmarks.some(
-              (l) => l.type === 'quiet_zone' || l.type === 'gallery' || l.type === 'library',
+              (l) => l.type === 'region' && /quiet[_ -]?zone|gallery|library/i.test(l.label)
             );
             if (inQuietZone) {
               return `Agent is in a quiet zone. Audio should be muted or reduced on ${ctx.targetFormFactor}.`;
@@ -380,8 +388,9 @@ export class HandoffNormEnforcer {
         remediation: 'Strip spatial context from MVC payload before handoff.',
         check: (ctx) => {
           if (!ctx.userPreferences.privacy.locationSharingConsent) {
-            const hasSpatial = ctx.payload.spatialContext &&
-              ctx.payload.spatialContext.lastKnownPosition;
+            const hasSpatial =
+              ctx.payload.spatialContext &&
+              (ctx.payload.spatialContext.geospatial || ctx.payload.spatialContext.localPosition);
             if (hasSpatial) {
               return `User has not consented to location sharing, but MVC payload contains spatial context.`;
             }
@@ -414,7 +423,7 @@ export class HandoffNormEnforcer {
   private applyModifications(
     context: NormCheckContext,
     violations: NormViolation[],
-    modifications: ContentModification[],
+    modifications: ContentModification[]
   ): void {
     // Auto-apply safe modifications for non-blocking violations
     for (const violation of violations) {
@@ -451,8 +460,6 @@ export class HandoffNormEnforcer {
 // FACTORY
 // =============================================================================
 
-export function createHandoffNormEnforcer(
-  config?: HandoffNormEnforcerConfig,
-): HandoffNormEnforcer {
+export function createHandoffNormEnforcer(config?: HandoffNormEnforcerConfig): HandoffNormEnforcer {
   return new HandoffNormEnforcer(config);
 }

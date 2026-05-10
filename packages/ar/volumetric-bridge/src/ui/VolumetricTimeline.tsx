@@ -18,7 +18,14 @@
  * @module volumetric-bridge/ui
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { VolumetricTimelineProps, TimelineKeyframe } from './types';
 import type { FrameIndexEntry } from '../volumetric-video/types';
 
@@ -131,9 +138,9 @@ const styles = {
   }),
   keyframeIndicator: (pct: number, type: TimelineKeyframe['type']) => {
     const colorMap: Record<TimelineKeyframe['type'], string> = {
-      scheduled: '#ffa500',   // orange for scheduled I-frames
-      adaptive: '#ff4488',    // pink for adaptive keyframes
-      seek: '#44ff88',        // green for seek keyframes
+      scheduled: '#ffa500', // orange for scheduled I-frames
+      adaptive: '#ff4488', // pink for adaptive keyframes
+      seek: '#44ff88', // green for seek keyframes
     };
     return {
       position: 'absolute' as const,
@@ -226,7 +233,7 @@ function formatBandwidth(kbps: number): string {
  * />
  * ```
  */
-export const VolumetricTimeline: React.FC<VolumetricTimelineProps> = ({
+export const VolumetricTimeline = ({
   currentTime,
   duration,
   onSeek,
@@ -241,7 +248,7 @@ export const VolumetricTimeline: React.FC<VolumetricTimelineProps> = ({
   showFrameStrip = false,
   showBandwidth = false,
   className,
-}) => {
+}: VolumetricTimelineProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -260,20 +267,20 @@ export const VolumetricTimeline: React.FC<VolumetricTimelineProps> = ({
       const pct = Math.max(0, Math.min(1, x / rect.width));
       return pct * duration;
     },
-    [duration],
+    [duration]
   );
 
   const handleTrackClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: ReactMouseEvent) => {
       if (disabled) return;
       const time = getTimeFromEvent(e.clientX);
       onSeek(time);
     },
-    [disabled, getTimeFromEvent, onSeek],
+    [disabled, getTimeFromEvent, onSeek]
   );
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: ReactMouseEvent) => {
       if (disabled) return;
       e.preventDefault();
       setIsDragging(true);
@@ -292,31 +299,44 @@ export const VolumetricTimeline: React.FC<VolumetricTimelineProps> = ({
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     },
-    [disabled, getTimeFromEvent, onSeek],
+    [disabled, getTimeFromEvent, onSeek]
   );
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: KeyboardEvent) => {
       if (disabled) return;
       let delta = 0;
       switch (e.key) {
-        case 'ArrowRight': delta = 1; break;
-        case 'ArrowLeft': delta = -1; break;
-        case 'ArrowUp': delta = 5; break;
-        case 'ArrowDown': delta = -5; break;
-        case 'Home': onSeek(0); return;
-        case 'End': onSeek(duration); return;
+        case 'ArrowRight':
+          delta = 1;
+          break;
+        case 'ArrowLeft':
+          delta = -1;
+          break;
+        case 'ArrowUp':
+          delta = 5;
+          break;
+        case 'ArrowDown':
+          delta = -5;
+          break;
+        case 'Home':
+          onSeek(0);
+          return;
+        case 'End':
+          onSeek(duration);
+          return;
         case ' ':
           e.preventDefault();
           onPlayPause();
           return;
-        default: return;
+        default:
+          return;
       }
       e.preventDefault();
       const newTime = Math.max(0, Math.min(duration, currentTime + delta));
       onSeek(newTime);
     },
-    [disabled, currentTime, duration, onSeek, onPlayPause],
+    [disabled, currentTime, duration, onSeek, onPlayPause]
   );
 
   // -------------------------------------------------------------------------
@@ -391,12 +411,7 @@ export const VolumetricTimeline: React.FC<VolumetricTimelineProps> = ({
             {bufferedRanges.map(([start, end], i) => {
               const startPct = duration > 0 ? (start / duration) * 100 : 0;
               const widthPct = duration > 0 ? ((end - start) / duration) * 100 : 0;
-              return (
-                <div
-                  key={`buf-${i}`}
-                  style={styles.bufferedFill(startPct, widthPct)}
-                />
-              );
+              return <div key={`buf-${i}`} style={styles.bufferedFill(startPct, widthPct)} />;
             })}
 
             {/* Progress fill */}
@@ -416,10 +431,7 @@ export const VolumetricTimeline: React.FC<VolumetricTimelineProps> = ({
           {frameStripData && (
             <div style={styles.frameStrip}>
               {frameStripData.map((tick, i) => (
-                <div
-                  key={`fs-${i}`}
-                  style={styles.frameTick(tick.isKeyframe, tick.widthPct)}
-                />
+                <div key={`fs-${i}`} style={styles.frameTick(tick.isKeyframe, tick.widthPct)} />
               ))}
             </div>
           )}
@@ -464,7 +476,8 @@ export const VolumetricTimeline: React.FC<VolumetricTimelineProps> = ({
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             {qualityTier && (
               <span style={{ fontSize: '10px', color: '#666' }}>
-                Tier: <span style={{ color: '#aaa', fontWeight: 600 }}>{qualityTier.toUpperCase()}</span>
+                Tier:{' '}
+                <span style={{ color: '#aaa', fontWeight: 600 }}>{qualityTier.toUpperCase()}</span>
               </span>
             )}
             {showBandwidth && (

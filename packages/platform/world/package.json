@@ -47,6 +47,7 @@
   },
   "homepage": "https://github.com/brianonbased-dev/Hololand#readme",
   "dependencies": {
+    "@hololand/inference": "workspace:*",
     "@hololand/logger": "workspace:*",
     "@holoscript/core": "^2.0.0"
   },

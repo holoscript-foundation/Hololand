@@ -1263,10 +1263,9 @@ function writeGLB(result: BodyGenerationResult): ArrayBuffer {
       byteLength: data.byteLength,
       target,
     });
-    bufferParts.push(data.buffer.slice(
-      data.byteOffset,
-      data.byteOffset + data.byteLength,
-    ));
+    const copy = new Uint8Array(data.byteLength);
+    copy.set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+    bufferParts.push(copy.buffer);
     byteOffset += data.byteLength;
     return idx;
   };

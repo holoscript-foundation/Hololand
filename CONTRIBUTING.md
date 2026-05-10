@@ -66,9 +66,22 @@ Branch naming conventions:
 
 > 📖 Details: [docs/HOLOSCRIPT_FILE_TYPES.md](docs/HOLOSCRIPT_FILE_TYPES.md)
 
+### HoloScript-First Source Contract (Required)
+
+Hololand is a platform layer that **consumes HoloScript as source of truth**.
+
+- ✅ New gameplay/simulation/IoT twin behavior must be expressed in `.holo`, `.hs`, or `.hsplus`
+- ✅ TypeScript is for runtime plumbing, host/platform bridges, and tooling
+- ❌ Do not ship TS-only feature logic in gameplay domains
+
+See the full policy: [docs/HOLOSCRIPT_SOURCE_CONTRACT.md](docs/HOLOSCRIPT_SOURCE_CONTRACT.md)
+
+> CI enforces this on pull requests. If you intentionally submit bridge-only TS changes, add a `ts-bridge-only` label to the PR and explain why.
+
 ### Code Style
 
-- **TypeScript**: Use TypeScript for all new code
+- **HoloScript-first**: Author feature behavior in `.holo` / `.hs` / `.hsplus` first
+- **TypeScript**: Use TypeScript for runtime internals, platform adapters, and tooling
 - **Formatting**: Code will be automatically formatted (follow existing patterns)
 - **Naming**: Use clear, descriptive names for variables and functions
 - **Comments**: Add comments for complex logic, but prefer self-documenting code
@@ -182,6 +195,7 @@ When suggesting a feature, include:
 ### Before Submitting
 
 - [ ] Code follows the style guidelines
+- [ ] HoloScript Source Contract is respected (or PR labeled `ts-bridge-only` with rationale)
 - [ ] Tests pass (`pnpm test`)
 - [ ] Build succeeds (`pnpm build`)
 - [ ] Documentation is updated

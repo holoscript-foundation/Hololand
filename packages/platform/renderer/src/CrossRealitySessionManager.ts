@@ -20,19 +20,43 @@
  */
 
 import { logger } from './logger';
-import { CrossRealityAnchorSystem, type CrossRealityAnchorSystemConfig } from './CrossRealityAnchorSystem';
-import { CrossRealityHandoffProtocol, type DeviceCapabilities, type HandoffCallbacks } from './CrossRealityHandoffProtocol';
-import { NetworkTransportAdapter, type NetworkTransportConfig, type TransportMessage, type PeerInfo } from './NetworkTransportAdapter';
+import {
+  CrossRealityAnchorSystem,
+  type CrossRealityAnchorSystemConfig,
+} from './CrossRealityAnchorSystem';
+import {
+  CrossRealityHandoffProtocol,
+  type DeviceCapabilities,
+  type HandoffCallbacks,
+} from './CrossRealityHandoffProtocol';
+import {
+  NetworkTransportAdapter,
+  type NetworkTransportConfig,
+  type TransportMessage,
+  type PeerInfo,
+} from './NetworkTransportAdapter';
 import { MVCSerializer, type MVCValidationResult, MVC_MAX_SIZE_BYTES } from './MVCSerializer';
-import { OfflineRecoveryQueue, type OfflineRecoveryQueueConfig, type QueueState } from './OfflineRecoveryQueue';
-import { EmbodimentTransitionAnimator, type EmbodimentTransitionAnimatorConfig, type TransitionState } from './EmbodimentTransitionAnimator';
-import { GeospatialAnchorProvider, createGeospatialAnchorProvider } from './GeospatialAnchorProvider';
+import {
+  OfflineRecoveryQueue,
+  type OfflineRecoveryQueueConfig,
+  type QueueState,
+} from './OfflineRecoveryQueue';
+import {
+  EmbodimentTransitionAnimator,
+  type EmbodimentTransitionAnimatorConfig,
+  type TransitionState,
+} from './EmbodimentTransitionAnimator';
+import {
+  GeospatialAnchorProvider,
+  createGeospatialAnchorProvider,
+} from './GeospatialAnchorProvider';
 import type {
   FormFactor,
   EmbodimentType,
   MVCPayload,
   HandoffStatus,
   GeospatialCoordinate,
+  GeospatialSource,
 } from './CrossRealityContinuityTypes';
 
 // =============================================================================
@@ -40,13 +64,13 @@ import type {
 // =============================================================================
 
 export type SessionState =
-  | 'idle'           // No active cross-reality session
-  | 'discovering'    // Scanning for nearby devices
-  | 'pairing'        // Negotiating with a specific device
-  | 'connected'      // Connected and syncing anchors
-  | 'handing-off'    // Handoff in progress
-  | 'receiving'      // Receiving a handoff
-  | 'complete';      // Handoff complete, agent on new device
+  | 'idle' // No active cross-reality session
+  | 'discovering' // Scanning for nearby devices
+  | 'pairing' // Negotiating with a specific device
+  | 'connected' // Connected and syncing anchors
+  | 'handing-off' // Handoff in progress
+  | 'receiving' // Receiving a handoff
+  | 'complete'; // Handoff complete, agent on new device
 
 // =============================================================================
 // CONFIGURATION
@@ -101,7 +125,7 @@ export class CrossRealitySessionManager {
       config.agentId,
       config.agentName,
       config.formFactor,
-      config.embodiment,
+      config.embodiment
     );
     this.transport = new NetworkTransportAdapter(config.transport);
     this.serializer = new MVCSerializer();
@@ -147,7 +171,9 @@ export class CrossRealitySessionManager {
     this.discoveryTimer = setTimeout(() => {
       if (this.state === 'discovering') {
         this.emit('discovery:timeout', { devicesFound: this.discoveredDevices.size });
-        logger.info(`[Session] Discovery timed out. Found ${this.discoveredDevices.size} device(s).`);
+        logger.info(
+          `[Session] Discovery timed out. Found ${this.discoveredDevices.size} device(s).`
+        );
       }
     }, timeout);
 
@@ -223,7 +249,7 @@ export class CrossRealitySessionManager {
    */
   async initiateHandoff(
     targetDeviceId: string,
-    callbacks: HandoffCallbacks,
+    callbacks: HandoffCallbacks
   ): Promise<{ payload: MVCPayload | null; validation: MVCValidationResult | null }> {
     const capabilities = this.discoveredDevices.get(targetDeviceId);
     if (!capabilities) {
@@ -263,7 +289,7 @@ export class CrossRealitySessionManager {
     this.transitionAnimator.startTransition(
       payload.sourceEmbodiment,
       payload.targetEmbodiment,
-      payload.targetFormFactor,
+      payload.targetFormFactor
     );
 
     this.state = 'complete';
@@ -285,10 +311,7 @@ export class CrossRealitySessionManager {
   /**
    * Receive a handoff from a remote device.
    */
-  receiveHandoff(
-    payload: MVCPayload,
-    callbacks: HandoffCallbacks,
-  ): HandoffStatus {
+  receiveHandoff(payload: MVCPayload, callbacks: HandoffCallbacks): HandoffStatus {
     this.state = 'receiving';
     this.emit('state:changed', { state: 'receiving' });
 
@@ -296,7 +319,7 @@ export class CrossRealitySessionManager {
     this.transitionAnimator.startTransition(
       payload.sourceEmbodiment,
       payload.targetEmbodiment,
-      payload.targetFormFactor,
+      payload.targetFormFactor
     );
 
     // Apply handoff
@@ -368,7 +391,7 @@ export class CrossRealitySessionManager {
     coordinate: GeospatialCoordinate,
     headingOffsetDeg: number,
     confidence: number,
-    provider?: string,
+    provider?: string
   ): void {
     this.anchorSystem.calibrateFromVPS(coordinate, headingOffsetDeg, confidence, provider);
   }
@@ -417,12 +440,29 @@ export class CrossRealitySessionManager {
   private async enrichWithGeospatialData(payload: MVCPayload): Promise<void> {
     try {
       const position = await this.geospatialProvider.getCurrentPosition();
-      payload.spatialContext.geospatial = position.coordinate;
+      const source: GeospatialSource =
+        position.source === 'wifi-rtt'
+          ? 'wifi-fingerprint'
+          : position.source === 'arkit-arcore'
+            ? 'vps'
+            : position.source === 'uwb'
+              ? 'ble-beacon'
+              : position.source;
+      const coordinate: GeospatialCoordinate = {
+        latitude: position.latitude,
+        longitude: position.longitude,
+        altitude: position.altitude,
+        horizontalAccuracy: position.accuracy,
+        verticalAccuracy: null,
+        heading: null,
+        source,
+        capturedAt: position.timestamp,
+      };
+      payload.spatialContext.geospatial = coordinate;
 
       logger.info('[Session] Enriched handoff with geospatial data', {
-        method: position.accuracy.method,
-        accuracy: position.accuracy.horizontal,
-        confidence: position.accuracy.confidence,
+        source: position.source,
+        horizontalAccuracy: position.accuracy,
       });
     } catch (error) {
       logger.warn('[Session] Failed to acquire geospatial position for handoff', { error });
@@ -539,7 +579,7 @@ export class CrossRealitySessionManager {
 // =============================================================================
 
 export function createCrossRealitySessionManager(
-  config: CrossRealitySessionConfig,
+  config: CrossRealitySessionConfig
 ): CrossRealitySessionManager {
   return new CrossRealitySessionManager(config);
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { HoloScriptRenderer } from '../components/HoloScriptRenderer';
-import { SpatialFeedRenderer } from '@holoscript/r3f-renderer';
+import { SpatialFeedRenderer } from '../components/SpatialFeedRenderer';
 
 import { DialogOverlay } from '../components/DialogOverlay';
 import { DialogManager } from '@hololand/world';

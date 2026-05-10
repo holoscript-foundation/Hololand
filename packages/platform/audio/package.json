@@ -4,29 +4,29 @@
   "description": "Spatial audio engine for Hololand - 3D positional sound, HRTF, voice chat, and audio effects",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./spatial": {
       "types": "./dist/spatial.d.ts",
-      "import": "./dist/spatial.mjs",
-      "require": "./dist/spatial.js"
+      "import": "./dist/spatial.js",
+      "require": "./dist/spatial.cjs"
     },
     "./voice": {
       "types": "./dist/voice.d.ts",
-      "import": "./dist/voice.mjs",
-      "require": "./dist/voice.js"
+      "import": "./dist/voice.js",
+      "require": "./dist/voice.cjs"
     },
     "./effects": {
       "types": "./dist/effects.d.ts",
-      "import": "./dist/effects.mjs",
-      "require": "./dist/effects.js"
+      "import": "./dist/effects.js",
+      "require": "./dist/effects.cjs"
     }
   },
   "scripts": {

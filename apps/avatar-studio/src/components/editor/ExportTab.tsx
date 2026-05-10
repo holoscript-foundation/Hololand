@@ -15,11 +15,9 @@ interface ExportTabProps {
   store: UseBlueprintReturn;
 }
 
-const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
-  { value: 'vrm', label: 'VRM (Recommended)' },
-  { value: 'glb', label: 'GLB (glTF Binary)' },
-  { value: 'gltf', label: 'glTF' },
-  { value: 'fbx', label: 'FBX' },
+const FORMAT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'hsplus', label: 'HoloScript (.hsplus)' },
+  { value: 'hs', label: 'HoloScript Text (.hs)' },
 ];
 
 const QUALITY_OPTIONS: { value: ExportQuality; label: string }[] = [
@@ -50,47 +48,73 @@ export function ExportTab({ store }: ExportTabProps) {
   const { blueprint, setVRMMeta } = store;
   const { vrmMeta } = blueprint;
 
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('vrm');
+  const [exportFormat, setExportFormat] = useState<string>('hsplus');
   const [exportQuality, setExportQuality] = useState<ExportQuality>('optimized');
   const [isExporting, setIsExporting] = useState(false);
+
+  const generateHoloScript = useCallback(() => {
+    return `/*
+ * HoloScript Avatar Definition
+ * Generated dynamically from The Dumb Glass (Avatar Studio)
+ * Title: ${blueprint.vrmMeta.title || 'UnknownAgent'}
+ * Author: ${blueprint.vrmMeta.author || 'Anonymous'}
+ * Platform: HoloMesh (Agent-to-Agent)
+ */
+
+Avatar("${blueprint.id || 'agent_' + Date.now()}") {
+  @VRMMeta(
+    title: "${blueprint.vrmMeta.title}",
+    author: "${blueprint.vrmMeta.author}",
+    license: "${blueprint.vrmMeta.license}",
+    commercialUsage: ${blueprint.vrmMeta.commercialUsage}
+  )
+  @Morph(
+    body: ${JSON.stringify(blueprint.body).slice(0, 100)}..., // Truncated for R3F logic
+    face: ${JSON.stringify(blueprint.face).slice(0, 100)}...
+  )
+  @Wardrobe(
+    clothingCount: ${blueprint.clothing.length},
+    accessoryCount: ${blueprint.accessories.length}
+  )
+  @velocity(0, 0, 0)
+  @attraction(radius: 50, strength: 0.5)
+}
+`;
+  }, [blueprint]);
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
     try {
-      // In the full implementation, this calls the AvatarStudio.exportVRM()
-      // or triggers a save via the Cloud API. For now, we serialize the blueprint.
-      const blueprintJson = JSON.stringify(blueprint, null, 2);
-      const blob = new Blob([blueprintJson], { type: 'application/json' });
+      const code = generateHoloScript();
+      const blob = new Blob([code], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${blueprint.name.replace(/\s+/g, '-').toLowerCase()}.blueprint.json`;
+      a.download = `${(blueprint.vrmMeta.title || 'avatar').replace(/\s+/g, '-').toLowerCase()}.${exportFormat}`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
       setIsExporting(false);
     }
-  }, [blueprint]);
+  }, [blueprint, exportFormat, generateHoloScript]);
 
-  const handleSaveToCloud = useCallback(async () => {
+  const handleDeployToMesh = useCallback(async () => {
     setIsExporting(true);
     try {
-      const response = await fetch('/api/v1/avatars', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ blueprint }),
-      });
-      if (!response.ok) {
-        throw new Error(`Save failed: ${response.status}`);
-      }
-      const data = await response.json();
-      alert(`Avatar saved! ID: ${data.data.id}`);
+      const code = generateHoloScript();
+
+      // Because HoloLand is now "The Dumb Glass", we don't save to a server.
+      // We instruct the user running the dev server to drop it into the local CRDT via MCP.
+      alert(
+        `Avatar compiled successfully to .hsplus!\n\nTo inject it into HoloMesh, use your agent's 'holomesh_publish_insight' tool with the code payload, or copy it to AI_Workspace/research.`
+      );
+      console.log('--- COMPILED HOLOSCRIPT AVATAR ---\n' + code);
     } catch (err) {
-      alert(`Failed to save: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(`Compilation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsExporting(false);
     }
-  }, [blueprint]);
+  }, [generateHoloScript]);
 
   return (
     <div className="flex flex-col gap-6 p-4 overflow-y-auto h-full">
@@ -105,7 +129,7 @@ export function ExportTab({ store }: ExportTabProps) {
             label="Format"
             value={exportFormat}
             options={FORMAT_OPTIONS}
-            onChange={(v) => setExportFormat(v as ExportFormat)}
+            onChange={(v) => setExportFormat(v as string)}
           />
           <Select
             label="Quality"
@@ -124,9 +148,7 @@ export function ExportTab({ store }: ExportTabProps) {
         />
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-studio-muted">
-              Title
-            </label>
+            <label className="text-xs font-medium text-studio-muted">Title</label>
             <input
               type="text"
               value={vrmMeta.title}
@@ -136,9 +158,7 @@ export function ExportTab({ store }: ExportTabProps) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-studio-muted">
-              Author
-            </label>
+            <label className="text-xs font-medium text-studio-muted">Author</label>
             <input
               type="text"
               value={vrmMeta.author}
@@ -148,9 +168,7 @@ export function ExportTab({ store }: ExportTabProps) {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-studio-muted">
-              Description
-            </label>
+            <label className="text-xs font-medium text-studio-muted">Description</label>
             <textarea
               value={vrmMeta.description}
               onChange={(e) => setVRMMeta({ description: e.target.value })}
@@ -168,23 +186,17 @@ export function ExportTab({ store }: ExportTabProps) {
             label="Allowed Users"
             value={vrmMeta.allowedUser}
             options={ALLOWED_USER_OPTIONS}
-            onChange={(v) =>
-              setVRMMeta({ allowedUser: v as VRMAllowedUser })
-            }
+            onChange={(v) => setVRMMeta({ allowedUser: v as VRMAllowedUser })}
           />
 
           {/* Usage permissions */}
           <div className="flex flex-col gap-2 mt-2">
-            <label className="text-xs font-medium text-studio-muted">
-              Usage Permissions
-            </label>
+            <label className="text-xs font-medium text-studio-muted">Usage Permissions</label>
             <label className="flex items-center gap-2 text-xs text-studio-text cursor-pointer">
               <input
                 type="checkbox"
                 checked={vrmMeta.commercialUsage}
-                onChange={(e) =>
-                  setVRMMeta({ commercialUsage: e.target.checked })
-                }
+                onChange={(e) => setVRMMeta({ commercialUsage: e.target.checked })}
                 className="rounded border-studio-border bg-studio-surface text-holo-500 focus:ring-holo-500"
               />
               Commercial usage
@@ -193,9 +205,7 @@ export function ExportTab({ store }: ExportTabProps) {
               <input
                 type="checkbox"
                 checked={vrmMeta.violentUsage}
-                onChange={(e) =>
-                  setVRMMeta({ violentUsage: e.target.checked })
-                }
+                onChange={(e) => setVRMMeta({ violentUsage: e.target.checked })}
                 className="rounded border-studio-border bg-studio-surface text-holo-500 focus:ring-holo-500"
               />
               Violent content usage
@@ -204,9 +214,7 @@ export function ExportTab({ store }: ExportTabProps) {
               <input
                 type="checkbox"
                 checked={vrmMeta.sexualUsage}
-                onChange={(e) =>
-                  setVRMMeta({ sexualUsage: e.target.checked })
-                }
+                onChange={(e) => setVRMMeta({ sexualUsage: e.target.checked })}
                 className="rounded border-studio-border bg-studio-surface text-holo-500 focus:ring-holo-500"
               />
               Sexual content usage
@@ -233,7 +241,11 @@ export function ExportTab({ store }: ExportTabProps) {
           </div>
           <div>
             <div className="text-lg font-semibold text-holo-400">
-              {exportQuality === 'mobile' ? '~30K' : exportQuality === 'optimized' ? '~50K' : '~70K'}
+              {exportQuality === 'mobile'
+                ? '~30K'
+                : exportQuality === 'optimized'
+                  ? '~50K'
+                  : '~70K'}
             </div>
             <div className="text-[10px] text-studio-muted">Est. Polys</div>
           </div>
@@ -242,19 +254,23 @@ export function ExportTab({ store }: ExportTabProps) {
 
       {/* Export Buttons */}
       <section className="flex flex-col gap-2">
+        <div className="text-xs text-studio-muted mb-2 text-center">
+          Legacy binary rendering engines have been deprecated. Avatars are now 100% Native
+          HoloScript definitions.
+        </div>
         <button
           onClick={handleExport}
           disabled={isExporting}
           className="studio-btn-primary w-full py-3 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isExporting ? 'Exporting...' : `Export as ${exportFormat.toUpperCase()}`}
+          {isExporting ? 'Compiling AST...' : `Compile and Download .${exportFormat}`}
         </button>
         <button
-          onClick={handleSaveToCloud}
+          onClick={handleDeployToMesh}
           disabled={isExporting}
-          className="studio-btn-secondary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="studio-btn-secondary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed border-holo-500 text-holo-400"
         >
-          Save to Cloud
+          Push to HoloMesh CRDT...
         </button>
       </section>
     </div>

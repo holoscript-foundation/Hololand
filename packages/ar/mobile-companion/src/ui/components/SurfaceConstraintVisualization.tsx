@@ -86,7 +86,7 @@ const CLASSIFICATION_LABELS: Record<PlaneClassification, string> = {
   seat: '💺 Seat',
   door: '🚪 Door',
   window: '🪟 Window',
-  none: '❓ Unknown',
+  unknown: '❓ Unknown',
 };
 
 const CLASSIFICATION_COLORS: Record<PlaneClassification, string> = {
@@ -97,13 +97,11 @@ const CLASSIFICATION_COLORS: Record<PlaneClassification, string> = {
   seat: '#EC4899',
   door: '#EF4444',
   window: '#06B6D4',
-  none: '#6B7280',
+  unknown: '#6B7280',
 };
 
 const ALIGNMENT_LABELS: Record<PlaneAlignment, string> = {
   horizontal: 'Horizontal',
-  horizontalUpward: 'Horizontal ↑',
-  horizontalDownward: 'Horizontal ↓',
   vertical: 'Vertical',
   arbitrary: 'Angled',
 };
@@ -135,7 +133,7 @@ const calculateStability = (plane: ARPlane): number => {
   if (area > 2.0) stability += 0.1;
 
   // Classification factor (known types are more stable)
-  if (plane.classification && plane.classification !== 'none') {
+  if (plane.classification !== 'unknown') {
     stability += 0.2;
   }
 
@@ -228,14 +226,14 @@ export const SurfaceConstraintVisualization: React.FC<SurfaceConstraintVisualiza
 
   const classificationColor = useMemo(() => {
     if (!plane || !plane.classification) {
-      return CLASSIFICATION_COLORS.none;
+      return CLASSIFICATION_COLORS.unknown;
     }
     return CLASSIFICATION_COLORS[plane.classification];
   }, [plane]);
 
   const classificationLabel = useMemo(() => {
     if (!plane || !plane.classification) {
-      return CLASSIFICATION_LABELS.none;
+      return CLASSIFICATION_LABELS.unknown;
     }
     return CLASSIFICATION_LABELS[plane.classification];
   }, [plane]);

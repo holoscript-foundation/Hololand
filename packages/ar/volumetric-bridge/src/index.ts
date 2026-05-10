@@ -1,3 +1,5 @@
+/// <reference path="./types/react-shim.d.ts" />
+
 /**
  * @hololand/volumetric-bridge
  *
@@ -59,10 +61,7 @@ export type {
 } from './GaussianSplatLODManager';
 
 // Octree LOD System (spatial partitioning + frustum culling + hysteresis)
-export {
-  OctreeLODSystem,
-  extractFrustumPlanes,
-} from './OctreeLODSystem';
+export { OctreeLODSystem, extractFrustumPlanes } from './OctreeLODSystem';
 export type {
   AABB,
   FrustumPlanes,

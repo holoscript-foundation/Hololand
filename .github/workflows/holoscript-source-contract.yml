@@ -1,0 +1,27 @@
+name: HoloScript Source Contract
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check HoloScript source contract
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.sha }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: node scripts/check-holoscript-source-contract.mjs

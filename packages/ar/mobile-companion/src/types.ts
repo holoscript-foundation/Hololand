@@ -138,6 +138,8 @@ export interface LightEstimate {
   ambientColorTemperature: number;
   /** Primary light direction (for shadow casting) */
   primaryLightDirection?: { x: number; y: number; z: number };
+  /** Whether the platform reports environmental HDR light estimation */
+  hdrCapable?: boolean;
   /** Primary light intensity (lux) */
   primaryLightIntensity?: number;
   /** Spherical harmonics coefficients (9 for L2 SH) */

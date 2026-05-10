@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useBlueprint } from '@/hooks/useBlueprint';
 import {
@@ -32,9 +32,8 @@ import {
  *
  * Query params are set by AvatarStudioSDK.buildStudioUrl() in the SDK package.
  */
-export default function EmbedPage() {
+function EmbedPageContent() {
   const searchParams = useSearchParams();
-  const [isReady, setIsReady] = useState(false);
 
   // Parse embed params from URL
   const embedParams = useMemo<Partial<EmbedParams>>(() => {
@@ -71,7 +70,6 @@ export default function EmbedPage() {
     if (!isEmbedded()) return;
 
     notifyReady();
-    setIsReady(true);
 
     // Listen for commands from parent (SDK)
     const cleanup = onParentMessage((type, payload) => {
@@ -91,7 +89,7 @@ export default function EmbedPage() {
     });
 
     return cleanup;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleExportAndNotify = () => {
     // In full implementation: export via AvatarStudio, then send to parent
@@ -182,5 +180,13 @@ export default function EmbedPage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+export default function EmbedPage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-studio-bg" />}>
+      <EmbedPageContent />
+    </Suspense>
   );
 }

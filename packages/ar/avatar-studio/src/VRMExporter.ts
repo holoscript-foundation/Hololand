@@ -136,7 +136,6 @@ export class VRMExporter {
     const startTime = performance.now();
     const exportConfig = this.resolveConfig(config);
     const warnings: string[] = [];
-    const errors: string[] = [];
 
     try {
       // Step 1: Validate blueprint

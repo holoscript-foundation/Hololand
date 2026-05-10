@@ -76,7 +76,7 @@ import {
  *   @group(0) @binding(5) - Uniforms (decay, threshold, rest, refractory, counts)
  *   @group(0) @binding(6) - Refractory counters (read-write)
  */
-const LIF_SIMULATION_SHADER = /* wgsl */`
+const LIF_SIMULATION_SHADER = /* wgsl */ `
 struct LIFUniforms {
   neuronCount: u32,
   inputCount: u32,
@@ -148,7 +148,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
  *   @group(0) @binding(1) - Output spike counts (read-write, atomic)
  *   @group(0) @binding(2) - Uniforms (neuron count)
  */
-const SPIKE_COUNT_SHADER = /* wgsl */`
+const SPIKE_COUNT_SHADER = /* wgsl */ `
 struct CountUniforms {
   neuronCount: u32,
   _pad0: u32,
@@ -460,7 +460,7 @@ export class SNNPerceptionWorker {
     const maxObj = Math.min(scene.objects.length, this.config.maxObjects);
 
     // Update object ID map
-    this.objectIdMap = scene.objects.slice(0, maxObj).map(o => o.id);
+    this.objectIdMap = scene.objects.slice(0, maxObj).map((o) => o.id);
 
     const neuronsPerFeature = Math.floor(n / 4);
 
@@ -478,8 +478,8 @@ export class SNNPerceptionWorker {
       // Velocity encoding
       const vel = Math.sqrt(
         obj.velocity.x * obj.velocity.x +
-        obj.velocity.y * obj.velocity.y +
-        obj.velocity.z * obj.velocity.z,
+          obj.velocity.y * obj.velocity.y +
+          obj.velocity.z * obj.velocity.z
       );
       const velCurrent = Math.min(1.0, vel / 10.0);
       currents[neuronsPerFeature * 2 + i] = velCurrent * 0.8;
@@ -507,11 +507,7 @@ export class SNNPerceptionWorker {
     let totalSpikes = 0;
 
     // Upload input currents to input layer
-    this.device.queue.writeBuffer(
-      this.inputLayer.externalCurrentBuffer,
-      0,
-      inputCurrents,
-    );
+    this.device.queue.writeBuffer(this.inputLayer.externalCurrentBuffer, 0, inputCurrents);
 
     // Zero hidden and output external currents
     const hiddenZeros = new Float32Array(this.config.network.hiddenLayer.neuronCount);
@@ -523,22 +519,14 @@ export class SNNPerceptionWorker {
       const commandEncoder = this.device.createCommandEncoder();
 
       // Reset spike counts
-      this.device.queue.writeBuffer(
-        this.inputLayer.spikeCountBuffer, 0, new Uint32Array([0]),
-      );
-      this.device.queue.writeBuffer(
-        this.hiddenLayer.spikeCountBuffer, 0, new Uint32Array([0]),
-      );
-      this.device.queue.writeBuffer(
-        this.outputLayer.spikeCountBuffer, 0, new Uint32Array([0]),
-      );
+      this.device.queue.writeBuffer(this.inputLayer.spikeCountBuffer, 0, new Uint32Array([0]));
+      this.device.queue.writeBuffer(this.hiddenLayer.spikeCountBuffer, 0, new Uint32Array([0]));
+      this.device.queue.writeBuffer(this.outputLayer.spikeCountBuffer, 0, new Uint32Array([0]));
 
       // Forward pass: Input -> Hidden -> Output
 
       // Input layer LIF
-      const inputWG = Math.ceil(
-        this.config.network.inputLayer.neuronCount / 64,
-      );
+      const inputWG = Math.ceil(this.config.network.inputLayer.neuronCount / 64);
       const inputPass = commandEncoder.beginComputePass();
       inputPass.setPipeline(this.inputLayer.lifPipeline);
       inputPass.setBindGroup(0, this.inputLayer.lifBindGroup);
@@ -553,9 +541,7 @@ export class SNNPerceptionWorker {
       inputCountPass.end();
 
       // Hidden layer LIF (reads input layer spikes via binding)
-      const hiddenWG = Math.ceil(
-        this.config.network.hiddenLayer.neuronCount / 64,
-      );
+      const hiddenWG = Math.ceil(this.config.network.hiddenLayer.neuronCount / 64);
       const hiddenPass = commandEncoder.beginComputePass();
       hiddenPass.setPipeline(this.hiddenLayer.lifPipeline);
       hiddenPass.setBindGroup(0, this.hiddenLayer.lifBindGroup);
@@ -563,9 +549,7 @@ export class SNNPerceptionWorker {
       hiddenPass.end();
 
       // Output layer LIF (reads hidden layer spikes)
-      const outputWG = Math.ceil(
-        this.config.network.outputLayer.neuronCount / 64,
-      );
+      const outputWG = Math.ceil(this.config.network.outputLayer.neuronCount / 64);
       const outputPass = commandEncoder.beginComputePass();
       outputPass.setPipeline(this.outputLayer.lifPipeline);
       outputPass.setBindGroup(0, this.outputLayer.lifBindGroup);
@@ -581,8 +565,11 @@ export class SNNPerceptionWorker {
 
       // Copy spike counts to readback
       commandEncoder.copyBufferToBuffer(
-        this.outputLayer.spikeCountBuffer, 0,
-        this.outputLayer.spikeCountReadbackBuffer, 0, 4,
+        this.outputLayer.spikeCountBuffer,
+        0,
+        this.outputLayer.spikeCountReadbackBuffer,
+        0,
+        4
       );
 
       this.device.queue.submit([commandEncoder.finish()]);
@@ -591,7 +578,7 @@ export class SNNPerceptionWorker {
     // Readback total output spikes from last timestep
     await this.outputLayer.spikeCountReadbackBuffer.mapAsync(GPUMapMode.READ);
     const countData = new Uint32Array(
-      this.outputLayer.spikeCountReadbackBuffer.getMappedRange().slice(0),
+      this.outputLayer.spikeCountReadbackBuffer.getMappedRange().slice(0)
     );
     totalSpikes = countData[0];
     this.outputLayer.spikeCountReadbackBuffer.unmap();
@@ -623,7 +610,7 @@ export class SNNPerceptionWorker {
         0,
         net.inputLayer,
         inputCurrents,
-        null, // No previous layer for input
+        null // No previous layer for input
       );
 
       // Hidden layer (reads input spikes)
@@ -631,7 +618,7 @@ export class SNNPerceptionWorker {
         1,
         net.hiddenLayer,
         new Float32Array(net.hiddenLayer.neuronCount), // No external for hidden
-        this.cpuSpikes[0], // Input layer spikes
+        this.cpuSpikes[0] // Input layer spikes
       );
 
       // Output layer (reads hidden spikes)
@@ -639,7 +626,7 @@ export class SNNPerceptionWorker {
         2,
         net.outputLayer,
         new Float32Array(net.outputLayer.neuronCount),
-        this.cpuSpikes[1], // Hidden layer spikes
+        this.cpuSpikes[1] // Hidden layer spikes
       );
     }
 
@@ -653,7 +640,7 @@ export class SNNPerceptionWorker {
     layerIdx: number,
     config: LIFLayerConfig,
     externalCurrents: Float32Array,
-    prevLayerSpikes: Float32Array | null,
+    prevLayerSpikes: Float32Array | null
   ): number {
     const membrane = this.cpuMembranePotentials[layerIdx];
     const spikes = this.cpuSpikes[layerIdx];
@@ -721,7 +708,9 @@ export class SNNPerceptionWorker {
 
     const attentionScores: AttentionScore[] = [];
     let totalSpikes = 0;
-    let weightedX = 0, weightedY = 0, weightedZ = 0;
+    let weightedX = 0,
+      weightedY = 0,
+      weightedZ = 0;
     let totalWeight = 0;
 
     for (let i = 0; i < maxObj; i++) {
@@ -742,8 +731,8 @@ export class SNNPerceptionWorker {
       }
 
       // Check anomaly
-      const isAnomalous = this.config.enableAnomalyDetection &&
-        attention >= this.config.anomalyThreshold;
+      const isAnomalous =
+        this.config.enableAnomalyDetection && attention >= this.config.anomalyThreshold;
 
       const obj = scene.objects[i];
 
@@ -768,17 +757,16 @@ export class SNNPerceptionWorker {
     attentionScores.sort((a, b) => b.attention - a.attention);
 
     // Calculate global anomaly level
-    const anomalyCount = attentionScores.filter(s => s.isAnomalous).length;
+    const anomalyCount = attentionScores.filter((s) => s.isAnomalous).length;
     const globalAnomalyLevel = maxObj > 0 ? anomalyCount / maxObj : 0;
 
     // Calculate focus point
-    const focusPoint: Vec3 = totalWeight > 0
-      ? { x: weightedX / totalWeight, y: weightedY / totalWeight, z: weightedZ / totalWeight }
-      : { x: 0, y: 0, z: 0 };
+    const focusPoint: Vec3 =
+      totalWeight > 0
+        ? { x: weightedX / totalWeight, y: weightedY / totalWeight, z: weightedZ / totalWeight }
+        : { x: 0, y: 0, z: 0 };
 
-    const focusConfidence = totalWeight > 0
-      ? Math.min(1.0, totalWeight / maxObj)
-      : 0;
+    const focusConfidence = totalWeight > 0 ? Math.min(1.0, totalWeight / maxObj) : 0;
 
     const avgSpikeRate = this.calculateAverageSpikeRate();
 
@@ -825,12 +813,15 @@ export class SNNPerceptionWorker {
     float32[SAB_HEADER.AVG_SPIKE_RATE] = state.averageSpikeRate;
 
     Atomics.store(int32, SAB_HEADER.TOTAL_SPIKES, state.totalSpikes);
-    Atomics.store(int32, SAB_HEADER.INFERENCE_DURATION_US,
-      Math.round(state.lastInferenceDurationMs * 1000));
+    Atomics.store(
+      int32,
+      SAB_HEADER.INFERENCE_DURATION_US,
+      Math.round(state.lastInferenceDurationMs * 1000)
+    );
 
     // Timestamp as two Int32 values
     const timestamp = state.lastInferenceTimestamp;
-    Atomics.store(int32, SAB_HEADER.TIMESTAMP_LOW, timestamp & 0xFFFFFFFF);
+    Atomics.store(int32, SAB_HEADER.TIMESTAMP_LOW, timestamp & 0xffffffff);
     Atomics.store(int32, SAB_HEADER.TIMESTAMP_HIGH, Math.floor(timestamp / 0x100000000));
 
     Atomics.store(int32, SAB_HEADER.CURRENT_HZ_X100, Math.round(state.currentHz * 100));
@@ -840,7 +831,7 @@ export class SNNPerceptionWorker {
     const entryOffset = SAB_HEADER.HEADER_SIZE; // Start of entries in Float32 indices
     const maxEntries = Math.min(
       state.attentionScores.length,
-      this.bufferLayout.maxAttentionEntries,
+      this.bufferLayout.maxAttentionEntries
     );
 
     for (let i = 0; i < maxEntries; i++) {
@@ -851,8 +842,7 @@ export class SNNPerceptionWorker {
       float32[baseIdx + 1] = score.spikeRate;
 
       // Pack flags: bit 0 = isAnomalous, bits 1-2 = salience
-      const flags = (score.isAnomalous ? 1 : 0) |
-        (SALIENCE_ENCODING[score.salience] << 1);
+      const flags = (score.isAnomalous ? 1 : 0) | (SALIENCE_ENCODING[score.salience] << 1);
       float32[baseIdx + 2] = flags; // Stored as float for simplicity
 
       // Store object index (will be mapped back to ID on main thread)
@@ -889,7 +879,7 @@ export class SNNPerceptionWorker {
 
       this.device = await this.adapter.requestDevice();
 
-      this.device.lost.then((info) => {
+      this.device.lost.then((info: GPUDeviceLostInfo) => {
         logger.error('[SNNPerceptionWorker] GPU device lost', {
           reason: info.reason,
           message: info.message,
@@ -942,7 +932,7 @@ export class SNNPerceptionWorker {
       net.inputLayer.neuronCount, // Input count = self (external currents only)
       lifPipeline,
       countPipeline,
-      null, // No prev layer spike buffer
+      null // No prev layer spike buffer
     );
 
     // Hidden layer: receives input layer spikes
@@ -951,7 +941,7 @@ export class SNNPerceptionWorker {
       net.inputLayer.neuronCount,
       lifPipeline,
       countPipeline,
-      this.inputLayer.spikeBuffer,
+      this.inputLayer.spikeBuffer
     );
 
     // Output layer: receives hidden layer spikes
@@ -960,7 +950,7 @@ export class SNNPerceptionWorker {
       net.hiddenLayer.neuronCount,
       lifPipeline,
       countPipeline,
-      this.hiddenLayer.spikeBuffer,
+      this.hiddenLayer.spikeBuffer
     );
 
     // Also initialize CPU fallback arrays for output decoding
@@ -975,7 +965,7 @@ export class SNNPerceptionWorker {
     inputCount: number,
     lifPipeline: GPUComputePipeline,
     countPipeline: GPUComputePipeline,
-    prevLayerSpikeBuffer: GPUBuffer | null,
+    prevLayerSpikeBuffer: GPUBuffer | null
   ): GPUNeuronLayer {
     const device = this.device!;
     const n = config.neuronCount;
@@ -988,8 +978,9 @@ export class SNNPerceptionWorker {
     });
     // Initialize to rest potential
     device.queue.writeBuffer(
-      membranePotentialBuffer, 0,
-      new Float32Array(n).fill(config.restPotential),
+      membranePotentialBuffer,
+      0,
+      new Float32Array(n).fill(config.restPotential)
     );
 
     // Spike buffer (n floats)
@@ -1061,11 +1052,13 @@ export class SNNPerceptionWorker {
     });
 
     // Use prevLayerSpikeBuffer if available, otherwise create a dummy buffer
-    const prevSpikeBuf = prevLayerSpikeBuffer ?? device.createBuffer({
-      label: `snn-prev-spikes-dummy-${n}`,
-      size: Math.max(4, inputCount * 4),
-      usage: GPUBufferUsage.STORAGE,
-    });
+    const prevSpikeBuf =
+      prevLayerSpikeBuffer ??
+      device.createBuffer({
+        label: `snn-prev-spikes-dummy-${n}`,
+        size: Math.max(4, inputCount * 4),
+        usage: GPUBufferUsage.STORAGE,
+      });
 
     // Create bind groups
     const lifBindGroup = device.createBindGroup({
@@ -1149,11 +1142,11 @@ export class SNNPerceptionWorker {
       net.hiddenLayer.neuronCount, // Output: from hidden
     ];
 
-    this.cpuMembranePotentials = layers.map(
-      l => new Float32Array(l.neuronCount).fill(l.restPotential),
+    this.cpuMembranePotentials = layers.map((l) =>
+      new Float32Array(l.neuronCount).fill(l.restPotential)
     );
-    this.cpuSpikes = layers.map(l => new Float32Array(l.neuronCount));
-    this.cpuRefractoryCounters = layers.map(l => new Uint32Array(l.neuronCount));
+    this.cpuSpikes = layers.map((l) => new Float32Array(l.neuronCount));
+    this.cpuRefractoryCounters = layers.map((l) => new Uint32Array(l.neuronCount));
     this.cpuWeights = layers.map((l, idx) => {
       const w = new Float32Array(l.neuronCount * inputCounts[idx]);
       for (let i = 0; i < w.length; i++) {
@@ -1189,7 +1182,7 @@ export class SNNPerceptionWorker {
  * Create an SNNPerceptionWorker with optional configuration.
  */
 export function createSNNPerceptionWorker(
-  config?: Partial<SNNPerceptionWorkerConfig>,
+  config?: Partial<SNNPerceptionWorkerConfig>
 ): SNNPerceptionWorker {
   return new SNNPerceptionWorker(config);
 }

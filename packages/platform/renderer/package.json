@@ -41,10 +41,12 @@
     "directory": "packages/renderer"
   },
   "dependencies": {
+    "@holoscript/core": "^3.43.0",
     "@hololand/logger": "workspace:*",
     "@hololand/quality-profiles": "workspace:*"
   },
   "devDependencies": {
+    "@react-three/fiber": "^8.18.0",
     "@types/react": "^18.2.0",
     "@types/three": "^0.159.0",
     "react": "^18.2.0",
@@ -53,6 +55,7 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
+    "@react-three/fiber": "^8.0.0",
     "@hololand/world": "^1.0.0",
     "react": ">=17.0.0",
     "react-dom": ">=17.0.0",

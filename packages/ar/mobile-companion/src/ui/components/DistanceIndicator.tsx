@@ -302,9 +302,9 @@ export const DistanceIndicator: React.FC<DistanceIndicatorProps> = ({
     const newPoint: MeasurementPoint = {
       id: `point-${Date.now()}`,
       position: [
-        cameraPose.position[0],
-        cameraPose.position[1],
-        cameraPose.position[2] - 1, // 1m in front of camera
+        cameraPose.position.x,
+        cameraPose.position.y,
+        cameraPose.position.z - 1, // 1m in front of camera
       ],
       timestamp: Date.now(),
     };

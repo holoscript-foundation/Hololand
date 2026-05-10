@@ -28,6 +28,7 @@ import type {
   OperationLog,
   RBACConflictResolver,
 } from '@holoscript/crdt';
+import { CRDTOperationType } from '@holoscript/crdt';
 import type { RBACEnforcer, AgentTokenPayload } from '@hololand/agents';
 import { createHash } from 'crypto';
 
@@ -154,6 +155,35 @@ export interface DeltaCRDTSyncConfig {
 
   /** Conflict resolution strategy */
   conflictResolution?: 'lww' | 'rbac' | 'custom';
+}
+
+type CapturedOperationData = {
+  method: string;
+  args: unknown[];
+};
+
+function operationTypeForMethod(method: string): CRDTOperationType {
+  switch (method) {
+    case 'add':
+    case 'insert':
+      return CRDTOperationType.OR_SET_ADD;
+    case 'remove':
+      return CRDTOperationType.OR_SET_REMOVE;
+    case 'increment':
+    case 'decrement':
+      return CRDTOperationType.G_COUNTER_INCREMENT;
+    case 'set':
+    default:
+      return CRDTOperationType.LWW_SET;
+  }
+}
+
+function getCapturedOperationData(operation: CRDTOperation): CapturedOperationData {
+  const data = operation.data as Partial<CapturedOperationData> | undefined;
+  return {
+    method: typeof data?.method === 'string' ? data.method : operation.type,
+    args: Array.isArray(data?.args) ? data.args : [operation.data],
+  };
 }
 
 // ============================================================================
@@ -389,7 +419,7 @@ export class DeltaCRDTSyncEngine {
 
     // Mark operations as synced
     metadata.lastSyncedOperationId =
-      metadata.pendingOperations[metadata.pendingOperations.length - 1]?.signature || '';
+      metadata.pendingOperations[metadata.pendingOperations.length - 1]?.operation.id || '';
     metadata.lastSyncTimestamp = Date.now();
     metadata.pendingOperations = [];
 
@@ -559,13 +589,12 @@ export class DeltaCRDTSyncEngine {
           const result = original(...args);
 
           // Create and sign operation
-          const operation: CRDTOperation = {
-            type: method as any,
-            args,
-            timestamp: Date.now(),
-            agentDid: this.config.agentDid,
-            crdtId: metadata.crdtId,
-          };
+          const operation = this.config.didSigner.createOperation(
+            operationTypeForMethod(method),
+            metadata.crdtId,
+            { method, args } satisfies CapturedOperationData,
+            metadata.vectorClock,
+          );
 
           const signedOperation = await this.signOperation(operation);
 
@@ -590,26 +619,12 @@ export class DeltaCRDTSyncEngine {
   }
 
   private async signOperation(operation: CRDTOperation): Promise<SignedOperation> {
-    // Use DID signer to sign operation
-    const payload = JSON.stringify(operation);
-    const signature = await this.config.didSigner.sign(payload);
-
-    return {
-      operation,
-      signature,
-      signer: this.config.agentDid,
-      timestamp: Date.now(),
-    };
+    return this.config.didSigner.signOperation(operation);
   }
 
   private async verifyOperation(signedOperation: SignedOperation): Promise<boolean> {
-    // Verify signature using DID signer
-    const payload = JSON.stringify(signedOperation.operation);
-    return this.config.didSigner.verify(
-      payload,
-      signedOperation.signature,
-      signedOperation.signer,
-    );
+    const result = await this.config.didSigner.verifyOperation(signedOperation);
+    return result.valid;
   }
 
   private async applyOperationToCRDT(
@@ -618,19 +633,20 @@ export class DeltaCRDTSyncEngine {
   ): Promise<void> {
     const op = operation.operation;
     const instance = metadata.instance;
+    const captured = getCapturedOperationData(op);
 
     // Apply operation to CRDT instance
-    if (typeof instance[op.type] === 'function') {
-      instance[op.type](...op.args);
+    if (typeof instance[captured.method] === 'function') {
+      instance[captured.method](...captured.args);
     }
 
     // Update metadata
     metadata.operationLog.push(operation);
 
     // Update vector clock
-    if (op.agentDid) {
-      metadata.vectorClock[op.agentDid] =
-        Math.max(metadata.vectorClock[op.agentDid] || 0, op.timestamp || 0);
+    if (op.actorDid) {
+      metadata.vectorClock[op.actorDid] =
+        Math.max(metadata.vectorClock[op.actorDid] || 0, op.timestamp || 0);
     }
 
     // Add to Merkle tree

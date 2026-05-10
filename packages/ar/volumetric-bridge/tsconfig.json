@@ -10,10 +10,16 @@
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "react": ["src/types/react-shim.d.ts"],
+      "react/jsx-runtime": ["src/types/react-shim.d.ts"]
+    },
     "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

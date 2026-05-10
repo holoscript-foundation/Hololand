@@ -42,6 +42,12 @@ import type {
 import { EmotionDirectiveTrait } from '@holoscript/core';
 import type { AnimationSystem, AnimationClip, Skeleton } from './index';
 
+type EmotionDirectiveRuntime = Omit<EmotionDirectiveTrait, 'update' | 'on' | 'off'> & {
+  update(deltaTime: number): Record<string, number>;
+  on(event: string, callback: (event: EmotionDirectiveEvent) => void): void;
+  off(event: string, callback: (event: EmotionDirectiveEvent) => void): void;
+};
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -118,7 +124,7 @@ export interface EmotionDirectiveProcessorState {
 // =============================================================================
 
 export class EmotionDirectiveProcessor {
-  private trait: EmotionDirectiveTrait;
+  private trait: EmotionDirectiveRuntime;
   private config: EmotionDirectiveProcessorConfig;
   private animationSystem: AnimationSystem | null;
   private skeletonId: string | null;
@@ -134,7 +140,7 @@ export class EmotionDirectiveProcessor {
     trait?: EmotionDirectiveTrait,
     animationSystem?: AnimationSystem,
     skeletonId?: string,
-    config?: EmotionDirectiveProcessorConfig,
+    config?: EmotionDirectiveProcessorConfig
   ) {
     this.config = {
       autoApplyExpressions: false,
@@ -145,12 +151,13 @@ export class EmotionDirectiveProcessor {
       ...config,
     };
 
-    this.trait = trait ?? new EmotionDirectiveTrait(config?.traitConfig);
+    this.trait = (trait ??
+      new EmotionDirectiveTrait(config?.traitConfig)) as unknown as EmotionDirectiveRuntime;
     this.animationSystem = animationSystem ?? null;
     this.skeletonId = skeletonId ?? config?.skeletonId ?? null;
 
     // Wire trait events to animation playback
-    this.trait.on('animation-change', (event) => {
+    this.trait.on('animation-change', (event: EmotionDirectiveEvent & { animation?: string }) => {
       if (this.config.autoPlayAnimations && event.animation) {
         this.playAnimationClip(event.animation);
       }
@@ -169,7 +176,7 @@ export class EmotionDirectiveProcessor {
    * Get the underlying EmotionDirectiveTrait
    */
   public getTrait(): EmotionDirectiveTrait {
-    return this.trait;
+    return this.trait as unknown as EmotionDirectiveTrait;
   }
 
   /**
@@ -407,14 +414,20 @@ export class EmotionDirectiveProcessor {
   /**
    * Register event listener
    */
-  public on(event: EmotionDirectiveEventType, callback: (event: EmotionDirectiveEvent) => void): void {
+  public on(
+    event: EmotionDirectiveEventType,
+    callback: (event: EmotionDirectiveEvent) => void
+  ): void {
     this.trait.on(event, callback);
   }
 
   /**
    * Unregister event listener
    */
-  public off(event: EmotionDirectiveEventType, callback: (event: EmotionDirectiveEvent) => void): void {
+  public off(
+    event: EmotionDirectiveEventType,
+    callback: (event: EmotionDirectiveEvent) => void
+  ): void {
     this.trait.off(event, callback);
   }
 
@@ -444,7 +457,7 @@ export class EmotionDirectiveProcessor {
 export function createEmotionDirectiveProcessor(
   animationSystem?: AnimationSystem,
   skeletonId?: string,
-  config?: EmotionDirectiveProcessorConfig,
+  config?: EmotionDirectiveProcessorConfig
 ): EmotionDirectiveProcessor {
   return new EmotionDirectiveProcessor(undefined, animationSystem, skeletonId, config);
 }

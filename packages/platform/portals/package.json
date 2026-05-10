@@ -4,23 +4,30 @@
   "description": "VR portal and scene transition system - portals, teleportation, comfort features, and cross-server traversal",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest run"
   },
-  "keywords": ["hololand", "portals", "teleport", "scene-transition", "vr", "metaverse"],
+  "keywords": [
+    "hololand",
+    "portals",
+    "teleport",
+    "scene-transition",
+    "vr",
+    "metaverse"
+  ],
   "author": "Hololand Team",
   "license": "ELv2",
   "repository": {

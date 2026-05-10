@@ -23,7 +23,7 @@ export function useStudioCommands(store: UseBlueprintReturn): Command[] {
       { id: 'clothing', label: 'Go to Clothing', keywords: ['clothing', 'clothes', 'outfit', 'shirt', 'pants', 'dress'] },
       { id: 'accessories', label: 'Go to Accessories', keywords: ['accessories', 'hat', 'glasses', 'jewelry', 'earrings'] },
       { id: 'expressions', label: 'Go to Expressions', keywords: ['expressions', 'emotion', 'smile', 'angry', 'happy', 'sad'] },
-      { id: 'export', label: 'Go to Export', keywords: ['export', 'download', 'vrm', 'save', 'file'] },
+      { id: 'export', label: 'Go to Compile/Export', keywords: ['export', 'compile', 'ast', 'hsplus', 'save', 'file'] },
     ];
 
     for (const tab of tabs) {
@@ -116,11 +116,11 @@ export function useStudioCommands(store: UseBlueprintReturn): Command[] {
     });
 
     commands.push({
-      id: 'quick-export-vrm',
-      label: 'Export as VRM',
+      id: 'quick-export-hsplus',
+      label: 'Compile to .hsplus',
       group: 'Quick Actions',
       icon: 'export',
-      keywords: ['export', 'vrm', 'download', 'file', 'avatar'],
+      keywords: ['export', 'hsplus', 'compile', 'holoscript', 'avatar'],
       action: () => store.setTab('export'),
     });
 

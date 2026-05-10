@@ -1,25 +1,25 @@
 {
-  "name": "@hololand/ui",
+  "name": "@hololand/studio-ui",
   "version": "1.0.0",
   "description": "Shared React/TypeScript UI component library for HoloScript Web Studio and Desktop IDE",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
       "types": "./dist/index.d.ts"
     },
     "./tokens": {
-      "import": "./dist/tokens/index.mjs",
-      "require": "./dist/tokens/index.js",
+      "import": "./dist/tokens/index.js",
+      "require": "./dist/tokens/index.cjs",
       "types": "./dist/tokens/index.d.ts"
     },
     "./monaco": {
-      "import": "./dist/components/MonacoEditor/index.mjs",
-      "require": "./dist/components/MonacoEditor/index.js",
+      "import": "./dist/components/MonacoEditor/index.js",
+      "require": "./dist/components/MonacoEditor/index.cjs",
       "types": "./dist/components/MonacoEditor/index.d.ts"
     },
     "./styles.css": "./dist/styles.css"

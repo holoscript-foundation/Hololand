@@ -12,7 +12,7 @@
  * @module volumetric-bridge/ui
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { RenderingMetricsDisplayProps, RenderingMetrics } from './types';
 import type { MemoryState } from '../GaussianBudgetManager';
 
@@ -210,11 +210,7 @@ interface FPSGraphProps {
   width?: number;
 }
 
-const FPSGraph: React.FC<FPSGraphProps> = ({
-  history,
-  targetFPS = 60,
-  width = 60,
-}) => {
+const FPSGraph = ({ history, targetFPS = 60, width = 60 }: FPSGraphProps) => {
   const maxFPS = Math.max(targetFPS * 1.2, ...history);
   const visibleBars = Math.min(history.length, width);
   const recentHistory = history.slice(-visibleBars);
@@ -224,12 +220,7 @@ const FPSGraph: React.FC<FPSGraphProps> = ({
       {recentHistory.map((fps, i) => {
         const heightPct = maxFPS > 0 ? (fps / maxFPS) * 100 : 0;
         const color = getFPSColor(fps, targetFPS);
-        return (
-          <div
-            key={i}
-            style={styles.fpsBar(heightPct, color)}
-          />
-        );
+        return <div key={i} style={styles.fpsBar(heightPct, color)} />;
       })}
     </div>
   );
@@ -266,13 +257,13 @@ const FPSGraph: React.FC<FPSGraphProps> = ({
  * />
  * ```
  */
-export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = ({
+export const RenderingMetricsDisplay = ({
   metrics,
   layout = 'panel',
   showMemoryBar = true,
   showFPSGraph = false,
   className,
-}) => {
+}: RenderingMetricsDisplayProps) => {
   const fpsColor = getFPSColor(metrics.fps, 60);
 
   // Memory bar percentage (assume 1.5GB ceiling for mobile VR)
@@ -288,18 +279,12 @@ export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = (
   if (layout === 'minimal') {
     return (
       <div className={className} style={{ ...styles.container, ...styles.minimal }}>
-        <span style={styles.metricValueSmall(fpsColor)}>
-          {metrics.fps}
-        </span>
+        <span style={styles.metricValueSmall(fpsColor)}>{metrics.fps}</span>
         <span style={{ color: '#666', fontSize: '9px' }}>FPS</span>
         <span style={{ color: '#444' }}>|</span>
-        <span style={styles.metricValueSmall()}>
-          {formatCount(metrics.gaussianCount)}
-        </span>
+        <span style={styles.metricValueSmall()}>{formatCount(metrics.gaussianCount)}</span>
         <span style={{ color: '#666', fontSize: '9px' }}>splats</span>
-        {metrics.budgetCapped && (
-          <span style={styles.budgetCappedBadge}>CAPPED</span>
-        )}
+        {metrics.budgetCapped && <span style={styles.budgetCappedBadge}>CAPPED</span>}
       </div>
     );
   }
@@ -316,15 +301,11 @@ export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = (
           <span style={styles.metricUnit}>FPS</span>
         </div>
         <div style={styles.metricInline}>
-          <span style={styles.metricValueSmall()}>
-            {formatCount(metrics.gaussianCount)}
-          </span>
+          <span style={styles.metricValueSmall()}>{formatCount(metrics.gaussianCount)}</span>
           <span style={styles.metricUnit}>splats</span>
         </div>
         <div style={styles.metricInline}>
-          <span style={styles.metricValueSmall()}>
-            {formatMemoryMB(metrics.memoryMB)}
-          </span>
+          <span style={styles.metricValueSmall()}>{formatMemoryMB(metrics.memoryMB)}</span>
           <span style={styles.metricUnit}>{getMemoryUnit(metrics.memoryMB)}</span>
         </div>
         <div style={styles.metricInline}>
@@ -332,12 +313,8 @@ export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = (
             LOD {metrics.activeLODLevel}/{metrics.totalLODLevels}
           </span>
         </div>
-        {metrics.budgetCapped && (
-          <span style={styles.budgetCappedBadge}>BUDGET CAPPED</span>
-        )}
-        <span style={styles.statusBadge(metrics.memoryState)}>
-          {metrics.memoryState}
-        </span>
+        {metrics.budgetCapped && <span style={styles.budgetCappedBadge}>BUDGET CAPPED</span>}
+        <span style={styles.statusBadge(metrics.memoryState)}>{metrics.memoryState}</span>
       </div>
     );
   }
@@ -357,12 +334,8 @@ export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = (
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={styles.sectionTitle}>Rendering Metrics</span>
         <div style={{ display: 'flex', gap: '4px' }}>
-          {metrics.budgetCapped && (
-            <span style={styles.budgetCappedBadge}>BUDGET CAPPED</span>
-          )}
-          <span style={styles.statusBadge(metrics.memoryState)}>
-            {metrics.memoryState}
-          </span>
+          {metrics.budgetCapped && <span style={styles.budgetCappedBadge}>BUDGET CAPPED</span>}
+          <span style={styles.statusBadge(metrics.memoryState)}>{metrics.memoryState}</span>
         </div>
       </div>
 
@@ -370,9 +343,7 @@ export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = (
       <div style={styles.metricGroup}>
         {/* Gaussian Count */}
         <div style={styles.metric}>
-          <span
-            style={styles.metricValue(metrics.budgetCapped ? '#ff6b6b' : undefined)}
-          >
+          <span style={styles.metricValue(metrics.budgetCapped ? '#ff6b6b' : undefined)}>
             {formatCount(metrics.gaussianCount)}
           </span>
           <span style={styles.metricLabel}>Gaussians</span>
@@ -381,11 +352,7 @@ export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = (
         {/* GPU Memory */}
         <div style={styles.metric}>
           <div style={styles.metricInline}>
-            <span
-              style={styles.metricValue(
-                MEMORY_STATE_COLORS[metrics.memoryState],
-              )}
-            >
+            <span style={styles.metricValue(MEMORY_STATE_COLORS[metrics.memoryState])}>
               {formatMemoryMB(metrics.memoryMB)}
             </span>
             <span style={styles.metricUnit}>{getMemoryUnit(metrics.memoryMB)}</span>
@@ -395,18 +362,14 @@ export const RenderingMetricsDisplay: React.FC<RenderingMetricsDisplayProps> = (
 
         {/* FPS */}
         <div style={styles.metric}>
-          <span style={styles.metricValue(fpsColor)}>
-            {metrics.fps}
-          </span>
+          <span style={styles.metricValue(fpsColor)}>{metrics.fps}</span>
           <span style={styles.metricLabel}>FPS</span>
         </div>
 
         {/* LOD Level */}
         <div style={styles.metric}>
           <div style={styles.metricInline}>
-            <span style={styles.metricValue()}>
-              {metrics.activeLODLevel}
-            </span>
+            <span style={styles.metricValue()}>{metrics.activeLODLevel}</span>
             <span style={styles.metricUnit}>/ {metrics.totalLODLevels}</span>
           </div>
           <span style={styles.metricLabel}>
@@ -478,12 +441,12 @@ export interface FPSHistoryGraphProps {
  * return <FPSHistoryGraph history={fpsHistory} targetFPS={72} />;
  * ```
  */
-export const FPSHistoryGraph: React.FC<FPSHistoryGraphProps> = ({
+export const FPSHistoryGraph = ({
   history,
   targetFPS = 60,
   barCount = 60,
   className,
-}) => {
+}: FPSHistoryGraphProps) => {
   return (
     <div className={className}>
       <FPSGraph history={history} targetFPS={targetFPS} width={barCount} />

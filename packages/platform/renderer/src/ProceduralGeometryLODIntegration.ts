@@ -8,6 +8,7 @@
  */
 
 import { QualityProfileManager } from '@hololand/quality-profiles';
+import type { CompositionQualityMetadata, QualityProfile } from '@hololand/quality-profiles';
 import { ProceduralGeometryLODManager, ProceduralGeometryLODConfig } from './ProceduralGeometryLOD';
 import { logger } from './logger';
 
@@ -37,7 +38,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.4,
         curveDetail: 0.4,
         collisionDetail: 0.2,
-        memorySavings: 0.50,
+        memorySavings: 0.5,
         cpuSavings: 0.45,
       },
       {
@@ -55,8 +56,8 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.1,
         curveDetail: 0.1,
         collisionDetail: 0.0,
-        memorySavings: 0.90,
-        cpuSavings: 0.90,
+        memorySavings: 0.9,
+        cpuSavings: 0.9,
       },
     ],
     hull: {
@@ -106,7 +107,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.6,
         curveDetail: 0.7,
         collisionDetail: 0.5,
-        memorySavings: 0.40,
+        memorySavings: 0.4,
         cpuSavings: 0.35,
       },
       {
@@ -115,7 +116,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.3,
         curveDetail: 0.4,
         collisionDetail: 0.2,
-        memorySavings: 0.70,
+        memorySavings: 0.7,
         cpuSavings: 0.65,
       },
       {
@@ -125,7 +126,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         curveDetail: 0.2,
         collisionDetail: 0.0,
         memorySavings: 0.85,
-        cpuSavings: 0.90,
+        cpuSavings: 0.9,
       },
     ],
     smoothTransitions: true,
@@ -152,7 +153,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         curveDetail: 0.9,
         collisionDetail: 0.7,
         memorySavings: 0.25,
-        cpuSavings: 0.20,
+        cpuSavings: 0.2,
       },
       {
         level: 2,
@@ -160,7 +161,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.5,
         curveDetail: 0.6,
         collisionDetail: 0.4,
-        memorySavings: 0.50,
+        memorySavings: 0.5,
         cpuSavings: 0.45,
       },
       {
@@ -169,7 +170,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.2,
         curveDetail: 0.3,
         collisionDetail: 0.1,
-        memorySavings: 0.70,
+        memorySavings: 0.7,
         cpuSavings: 0.75,
       },
     ],
@@ -223,7 +224,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         curveDetail: 0.95,
         collisionDetail: 0.9,
         memorySavings: 0.15,
-        cpuSavings: 0.10,
+        cpuSavings: 0.1,
       },
       {
         level: 2,
@@ -232,7 +233,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         curveDetail: 0.8,
         collisionDetail: 0.6,
         memorySavings: 0.35,
-        cpuSavings: 0.30,
+        cpuSavings: 0.3,
       },
       {
         level: 3,
@@ -241,7 +242,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         curveDetail: 0.5,
         collisionDetail: 0.3,
         memorySavings: 0.55,
-        cpuSavings: 0.60,
+        cpuSavings: 0.6,
       },
     ],
     hull: {
@@ -293,7 +294,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.75,
         curveDetail: 0.85,
         collisionDetail: 0.5,
-        memorySavings: 0.30,
+        memorySavings: 0.3,
         cpuSavings: 0.25,
       },
       {
@@ -302,7 +303,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.5,
         curveDetail: 0.6,
         collisionDetail: 0.2,
-        memorySavings: 0.60,
+        memorySavings: 0.6,
         cpuSavings: 0.55,
       },
       {
@@ -311,7 +312,7 @@ const PROFILE_LOD_CONFIGS: Record<string, Partial<ProceduralGeometryLODConfig>> 
         subdivisionLevel: 0.2,
         curveDetail: 0.3,
         collisionDetail: 0.0,
-        memorySavings: 0.80,
+        memorySavings: 0.8,
         cpuSavings: 0.85,
       },
     ],
@@ -349,10 +350,7 @@ export class ProceduralGeometryLODIntegration {
   private qualityManager: QualityProfileManager;
   private lodManager: ProceduralGeometryLODManager;
 
-  constructor(
-    qualityManager: QualityProfileManager,
-    lodManager: ProceduralGeometryLODManager
-  ) {
+  constructor(qualityManager: QualityProfileManager, lodManager: ProceduralGeometryLODManager) {
     this.qualityManager = qualityManager;
     this.lodManager = lodManager;
 
@@ -367,7 +365,10 @@ export class ProceduralGeometryLODIntegration {
    */
   initialize(): void {
     // Listen for quality profile changes
-    this.qualityManager['options'].onProfileChange = (profile, metadata) => {
+    this.qualityManager['options'].onProfileChange = (
+      profile: QualityProfile,
+      _metadata?: CompositionQualityMetadata
+    ) => {
       logger.info('[ProceduralGeometryLODIntegration] Quality profile changed', {
         profile: profile.name,
       });
@@ -445,8 +446,7 @@ export class ProceduralGeometryLODIntegration {
 
     // If FPS is below target and we have many high-LOD objects, recommend lower quality
     if (avgFPS < targetFPS * 0.9) {
-      const highDetailPercent =
-        (lodStats.lodDistribution[0] || 0) / lodStats.totalObjects;
+      const highDetailPercent = (lodStats.lodDistribution[0] || 0) / lodStats.totalObjects;
 
       if (highDetailPercent > 0.5) {
         logger.info('[ProceduralGeometryLODIntegration] Recommending mobile profile', {

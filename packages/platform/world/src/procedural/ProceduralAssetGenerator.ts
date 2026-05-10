@@ -10,12 +10,34 @@
  * - Time Saved: 145-795ms per hit
  */
 
-import type {
-  ProceduralAssetParams,
-  CachedAsset,
-  CacheMetrics,
-} from '../../../../platform/backend/src/cache/ProceduralAssetCache';
 import { logger } from '../logger';
+
+export interface ProceduralAssetParams {
+  type: 'grass' | 'tree' | 'rock' | 'terrain' | 'texture' | 'custom';
+  seed: number;
+  resolution: 'low' | 'medium' | 'high';
+  noiseFunction?: string;
+  params?: Record<string, unknown>;
+}
+
+export interface CachedAsset {
+  data: unknown;
+  hitCount: number;
+  metadata: {
+    type: string;
+    seed: number;
+    resolution: string;
+    sizeBytes: number;
+  };
+}
+
+export interface CacheMetrics {
+  hits: number;
+  misses: number;
+  hitRate: number;
+  entries?: number;
+  [key: string]: unknown;
+}
 
 export interface AssetGenerationOptions {
   /** Force regeneration (skip cache) */
@@ -436,6 +458,7 @@ export class ProceduralAssetGenerator {
    * Helper: Generate heightmap
    */
   private generateHeightmap(random: () => number, size: number, noiseType: string): number[] {
+    void noiseType;
     const heightmap: number[] = [];
 
     for (let y = 0; y < size; y++) {

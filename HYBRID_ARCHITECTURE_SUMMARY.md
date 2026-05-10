@@ -343,7 +343,7 @@ aws ce get-cost-and-usage \
 2. **[HYBRID_DEPLOYMENT_STRATEGY.md](./HYBRID_DEPLOYMENT_STRATEGY.md)** - Complete strategy
 3. **[DNS_CONFIGURATION.md](./DNS_CONFIGURATION.md)** - DNS setup guide
 4. **[HYBRID_ARCHITECTURE.md](./HYBRID_ARCHITECTURE.md)** - Architecture deep dive
-5. **[PHASE1_INFRASTRUCTURE_COMPLETE.md](./PHASE1_INFRASTRUCTURE_COMPLETE.md)** - AWS resources
+5. **[PHASE1_INFRASTRUCTURE_COMPLETE.md](./.archive/deprecated-docs/PHASE1_INFRASTRUCTURE_COMPLETE.md)** - AWS resources (archived snapshot)
 
 ---
 

@@ -18,6 +18,16 @@ export interface BrittneyCloudConfig {
   timeout?: number;
 }
 
+interface BrittneyCloudResponse {
+  id?: string;
+  choices?: Array<{ message?: { content?: string } }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
 export class BrittneyCloudProvider {
   private config: Required<BrittneyCloudConfig>;
 
@@ -57,20 +67,13 @@ export class BrittneyCloudProvider {
         throw new Error(`Brittney Cloud API error (${response.status}): ${errorBody}`);
       }
 
-      const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-        usage?: {
-          prompt_tokens?: number;
-          completion_tokens?: number;
-          total_tokens?: number;
-        };
-      };
+      const data = (await response.json()) as BrittneyCloudResponse;
 
       // Transform Brittney Cloud API response to InferenceResponse format
       const content = data.choices?.[0]?.message?.content || '';
 
       return {
-        id: `brittney_cloud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id: data.id || `brittney_cloud_${Date.now()}`,
         content,
         usage: {
           promptTokens: data.usage?.prompt_tokens || 0,

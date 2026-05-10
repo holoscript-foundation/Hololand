@@ -1,6 +1,24 @@
 # HoloScript Agent Guide
 
+> **NORTH STAR**: Read `NORTH_STAR.md` in this repo for project-specific decisions. Read `~/.ai-ecosystem/NORTH_STAR.md` for ecosystem-wide decision trees. Consult both before asking the user.
+> **GOLD VAULT**: When D: is mounted, `D:/GOLD/` contains graduated knowledge that overrides the knowledge store.
+> **STATUS**: HoloLand is the platform/product surface that fully utilizes HoloScript. Build canonical gaps in HoloScript first, then consume them here.
+> **AGENT TOOLING**: Read `docs/AGENT_HOLOSCRIPT_TOOLING.md` before changing behavior. HoloScript tools are the first path for generation, validation, graph analysis, compilation, and impact analysis.
+
 You are working in the Hololand codebase. This guide teaches you how to understand and work with HoloScript files.
+
+## Mandatory Agent Workflow
+
+1. Classify the task as docs-only, HoloScript source, TS bridge, product/platform integration, or migration work.
+2. Read the relevant local files before describing or changing them.
+3. Use HoloScript MCP/Absorb tools when available:
+   - `suggest_tools_for_goal` / `get_tool_manifest` for tool routing
+   - `suggest_traits`, `generate_scene`, `generate_object` for HoloScript authoring
+   - `validate_holoscript`, `hs_diagnostics`, `hs_ai_fix_code` for validation
+   - `holo_graph_status`, `holo_absorb_repo`, `holo_query_codebase`, `holo_impact_analysis` for codebase intelligence
+   - `compile_holoscript` or target-specific compilers when runtime output matters
+4. Follow `docs/HOLOSCRIPT_SOURCE_CONTRACT.md`: feature behavior needs `.holo`, `.hs`, or `.hsplus` source, with TypeScript as bootstrap/bridge/runtime infrastructure.
+5. Leave unrelated dirty worktree changes untouched.
 
 ## The Two File Types
 

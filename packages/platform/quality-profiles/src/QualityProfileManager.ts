@@ -5,12 +5,12 @@
  * Integrates with HololandRenderer and HoloScript compositions.
  */
 
-import type { QualitySettings } from '@hololand/renderer';
 import {
   QualityProfileName,
   QualityProfile,
   CompositionQualityMetadata,
   QualityTraitConfig,
+  QualitySettings,
   QUALITY_PROFILES,
   RenderingPriority,
 } from './types';
@@ -125,7 +125,10 @@ export class QualityProfileManager {
     return {
       lod: { ...baseConfig.lod, ...overrides.lod } as typeof baseConfig.lod,
       physics: { ...baseConfig.physics, ...overrides.physics } as typeof baseConfig.physics,
-      networking: { ...baseConfig.networking, ...overrides.networking } as typeof baseConfig.networking,
+      networking: {
+        ...baseConfig.networking,
+        ...overrides.networking,
+      } as typeof baseConfig.networking,
       material: { ...baseConfig.material, ...overrides.material } as typeof baseConfig.material,
       animation: { ...baseConfig.animation, ...overrides.animation } as typeof baseConfig.animation,
     };

@@ -35,6 +35,10 @@ Not sure which file format to use?
 | [QUICK_STATUS.md](QUICK_STATUS.md) | 2 min | Test stats, quality metrics |
 | [README.md](README.md) | 5 min | Getting started, install, basic usage |
 | [QUICKSTART.md](QUICKSTART.md) | 5 min | AI integration, voice commands |
+| [docs/AGENT_HOLOSCRIPT_TOOLING.md](docs/AGENT_HOLOSCRIPT_TOOLING.md) | 8 min | Agent workflow for HoloScript MCP, Absorb, validation, source contract, and platform/source boundaries |
+| [docs/specs/HOLOLAND_FRONTIER_NORTH_STAR.md](docs/specs/HOLOLAND_FRONTIER_NORTH_STAR.md) | 8 min | Living frontier MMO north star, first playable shard, HoloScript-first implementation policy |
+| [docs/audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md](docs/audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md) | 12 min | Codebase should-exist/should-not-exist tally, source-contract gaps, cleanup priorities |
+| [docs/strategy/HOLOLAND_LIVING_COMPETITOR_GAP_MATRIX.md](docs/strategy/HOLOLAND_LIVING_COMPETITOR_GAP_MATRIX.md) | 10 min | Living competitor and gap matrix across product, AI development, and hardware development verticals |
 | [docs/BRITTNEY_OWNERSHIP_MODEL.md](docs/BRITTNEY_OWNERSHIP_MODEL.md) | 4 min | Brittney's ownership split across HoloScript, Studio, and Hololand |
 
 ---

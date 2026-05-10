@@ -10,7 +10,8 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            '@hololand/world': path.resolve(__dirname, '../../packages/world/src/index.ts'),
+            '@holoscript/core': path.resolve(__dirname, './src/compat/holoscript-core-browser'),
+            '@hololand/world': path.resolve(__dirname, '../../packages/platform/world/src/index.ts'),
         },
         dedupe: ['three', '@react-three/fiber', '@react-three/drei', '@react-three/xr'],
     },
@@ -20,7 +21,7 @@ export default defineConfig({
         fs: {
             allow: [
                 '.',
-                '../../packages/world',
+                '../../packages/platform/world',
                 '../../node_modules',
             ],
         },

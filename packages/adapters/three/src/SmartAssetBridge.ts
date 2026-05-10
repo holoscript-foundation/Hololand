@@ -159,8 +159,12 @@ export class SmartAssetBridge {
         (gltf) => {
           const result = this.processLoadedGLTF(gltf, {
             id: url,
+            name: url.split('/').pop() || url,
+            type: 'model',
+            format: url.toLowerCase().endsWith('.glb') ? 'glb' : 'gltf',
+            size: 0,
             sourcePath: url,
-          } as AssetMetadata);
+          });
           resolve(result);
         },
         (event) => {
@@ -196,7 +200,10 @@ export class SmartAssetBridge {
           }
 
           // Apply texture transforms
-          if (this.config.textureTransform && child.material instanceof THREE.MeshStandardMaterial) {
+          if (
+            this.config.textureTransform &&
+            child.material instanceof THREE.MeshStandardMaterial
+          ) {
             if (child.material.map) {
               child.material.map = this.config.textureTransform(child.material.map);
             }
@@ -317,7 +324,11 @@ export function createSmartAssetBridge(config?: SmartAssetBridgeConfig): SmartAs
  * ```
  */
 export function setupSmartAssetLoader(
-  loader: { setModelParser: (parser: <T>(buffer: ArrayBuffer, metadata: AssetMetadata) => Promise<T>) => void },
+  loader: {
+    setModelParser: (
+      parser: <T>(buffer: ArrayBuffer, metadata: AssetMetadata) => Promise<T>
+    ) => void;
+  },
   bridgeConfig?: SmartAssetBridgeConfig
 ): SmartAssetBridge {
   const bridge = getSmartAssetBridge(bridgeConfig);

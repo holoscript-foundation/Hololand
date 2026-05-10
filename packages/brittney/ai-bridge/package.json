@@ -51,11 +51,13 @@
   },
   "homepage": "https://github.com/brianonbased-dev/Hololand#readme",
   "dependencies": {
+    "@hololand/avatar-studio": "workspace:*",
     "@hololand/logger": "workspace:*",
     "@holoscript/core": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@types/react": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "eslint": "^8.55.0",
@@ -67,7 +69,14 @@
     "vitest": "^1.0.4"
   },
   "peerDependencies": {
-    "@hololand/core": "^1.0.0"
+    "@hololand/core": "^1.0.0",
+    "@met4citizen/talkinghead": "^1.4.0",
+    "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@met4citizen/talkinghead": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=18.0.0"

@@ -37,7 +37,7 @@
     "playcanvas": ">=1.60.0"
   },
   "dependencies": {
-    "@holoscript/core": "workspace:*"
+    "@holoscript/core": "^3.43.0"
   },
   "devDependencies": {
     "playcanvas": "^1.70.0",

@@ -156,12 +156,7 @@ export const GaussianSplatNode: React.FC<GaussianSplatNodeProps> = ({
   const { camera } = useThree();
 
   // ─── Hook: Lifecycle Management ───────────────────────────────────
-  const {
-    state,
-    splatData,
-    platformConfig,
-    updateLOD,
-  } = useGaussianSplatNode({
+  const { state, splatData, platformConfig, updateLOD } = useGaussianSplatNode({
     config: gaussianSplat,
     onLoaded,
     onError,
@@ -184,22 +179,10 @@ export const GaussianSplatNode: React.FC<GaussianSplatNodeProps> = ({
     geo.attributes.uv = baseGeo.attributes.uv;
 
     // Per-instance attributes
-    geo.setAttribute(
-      'splatPosition',
-      new THREE.InstancedBufferAttribute(splatData.positions, 3),
-    );
-    geo.setAttribute(
-      'splatScale',
-      new THREE.InstancedBufferAttribute(splatData.scales, 3),
-    );
-    geo.setAttribute(
-      'splatRotation',
-      new THREE.InstancedBufferAttribute(splatData.rotations, 4),
-    );
-    geo.setAttribute(
-      'splatColor',
-      new THREE.InstancedBufferAttribute(splatData.colors, 4),
-    );
+    geo.setAttribute('splatPosition', new THREE.InstancedBufferAttribute(splatData.positions, 3));
+    geo.setAttribute('splatScale', new THREE.InstancedBufferAttribute(splatData.scales, 3));
+    geo.setAttribute('splatRotation', new THREE.InstancedBufferAttribute(splatData.rotations, 4));
+    geo.setAttribute('splatColor', new THREE.InstancedBufferAttribute(splatData.colors, 4));
     geo.instanceCount = splatData.count;
 
     geometryRef.current = geo;
@@ -220,16 +203,16 @@ export const GaussianSplatNode: React.FC<GaussianSplatNodeProps> = ({
 
   // ─── Transform ────────────────────────────────────────────────────
   const position = useMemo(
-    () => gaussianSplat.position ?? [0, 0, 0] as [number, number, number],
-    [gaussianSplat.position],
+    () => gaussianSplat.position ?? ([0, 0, 0] as [number, number, number]),
+    [gaussianSplat.position]
   );
   const rotation = useMemo(
-    () => gaussianSplat.rotation ?? [0, 0, 0] as [number, number, number],
-    [gaussianSplat.rotation],
+    () => gaussianSplat.rotation ?? ([0, 0, 0] as [number, number, number]),
+    [gaussianSplat.rotation]
   );
   const scale = useMemo(() => {
     const s = gaussianSplat.scale ?? 1;
-    return typeof s === 'number' ? [s, s, s] as [number, number, number] : s;
+    return typeof s === 'number' ? ([s, s, s] as [number, number, number]) : s;
   }, [gaussianSplat.scale]);
 
   // ─── Per-Frame LOD Update ─────────────────────────────────────────
@@ -270,17 +253,12 @@ export const GaussianSplatNode: React.FC<GaussianSplatNodeProps> = ({
     }
 
     // Optional: render a placeholder while loading
-    if (state.phase !== 'idle' && state.phase !== 'error') {
+    if (state.phase !== 'idle') {
       return (
         <group position={position} rotation={rotation} scale={scale}>
           <mesh>
             <boxGeometry args={[0.5, 0.5, 0.5]} />
-            <meshBasicMaterial
-              color="#8b5cf6"
-              wireframe
-              transparent
-              opacity={0.3}
-            />
+            <meshBasicMaterial color="#8b5cf6" wireframe transparent opacity={0.3} />
           </mesh>
         </group>
       );
@@ -307,11 +285,7 @@ export const GaussianSplatNode: React.FC<GaussianSplatNodeProps> = ({
 
       {/* Selection wireframe (editor mode) */}
       {isSelected && splatData && (
-        <mesh
-          position={position}
-          rotation={rotation}
-          scale={scale}
-        >
+        <mesh position={position} rotation={rotation} scale={scale}>
           <boxGeometry
             args={[
               splatData.boundsMax[0] - splatData.boundsMin[0],
@@ -319,24 +293,13 @@ export const GaussianSplatNode: React.FC<GaussianSplatNodeProps> = ({
               splatData.boundsMax[2] - splatData.boundsMin[2],
             ]}
           />
-          <meshBasicMaterial
-            color="#3b82f6"
-            wireframe
-            transparent
-            opacity={0.4}
-          />
+          <meshBasicMaterial color="#3b82f6" wireframe transparent opacity={0.4} />
         </mesh>
       )}
 
       {/* Debug bounding box */}
       {showBounds && splatData && (
-        <mesh
-          position={[
-            splatData.center[0],
-            splatData.center[1],
-            splatData.center[2],
-          ]}
-        >
+        <mesh position={[splatData.center[0], splatData.center[1], splatData.center[2]]}>
           <boxGeometry
             args={[
               splatData.boundsMax[0] - splatData.boundsMin[0],
@@ -344,12 +307,7 @@ export const GaussianSplatNode: React.FC<GaussianSplatNodeProps> = ({
               splatData.boundsMax[2] - splatData.boundsMin[2],
             ]}
           />
-          <meshBasicMaterial
-            color="#10b981"
-            wireframe
-            transparent
-            opacity={0.2}
-          />
+          <meshBasicMaterial color="#10b981" wireframe transparent opacity={0.2} />
         </mesh>
       )}
     </group>

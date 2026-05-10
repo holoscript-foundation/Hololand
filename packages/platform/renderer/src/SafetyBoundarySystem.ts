@@ -46,10 +46,7 @@ import type {
   RobotState,
   RobotJointName,
 } from './TeleoperationHubTypes';
-import {
-  DEFAULT_SAFETY_CONFIG,
-  ALL_JOINT_NAMES,
-} from './TeleoperationHubTypes';
+import { DEFAULT_SAFETY_CONFIG, ALL_JOINT_NAMES } from './TeleoperationHubTypes';
 
 // =============================================================================
 // MATH HELPERS
@@ -98,7 +95,9 @@ export class SafetyBoundarySystem {
   private hapticIntensity: { left: number; right: number } = { left: 0, right: 0 };
 
   /** Listeners for boundary violation events. */
-  private violationListeners: Array<(result: BoundaryProximityResult, hand: 'left' | 'right') => void> = [];
+  private violationListeners: Array<
+    (result: BoundaryProximityResult, hand: 'left' | 'right') => void
+  > = [];
   private emergencyStopListeners: Array<(reason: string) => void> = [];
 
   /** Destroyed flag. */
@@ -162,20 +161,20 @@ export class SafetyBoundarySystem {
     const absDist = Math.abs(distance);
 
     // Determine zones
-    const inSoftZone = boundary.type === 'workspace'
-      ? distance < boundary.softMargin && distance >= boundary.hardMargin
-      : absDist < boundary.softMargin && !isViolation;
+    const inSoftZone =
+      boundary.type === 'workspace'
+        ? distance < boundary.softMargin && distance >= boundary.hardMargin
+        : absDist < boundary.softMargin && !isViolation;
 
-    const inHardZone = boundary.type === 'workspace'
-      ? distance < boundary.hardMargin
-      : isViolation;
+    const inHardZone = boundary.type === 'workspace' ? distance < boundary.hardMargin : isViolation;
 
     // Calculate haptic intensity
     let hapticIntensity = 0;
     if (inSoftZone || inHardZone) {
       const range = boundary.softMargin - boundary.hardMargin;
       if (range > 0) {
-        const penetration = boundary.softMargin - (boundary.type === 'workspace' ? distance : absDist);
+        const penetration =
+          boundary.softMargin - (boundary.type === 'workspace' ? distance : absDist);
         hapticIntensity = clamp(penetration / range, 0, 1) * this.config.maxHapticIntensity;
       } else {
         hapticIntensity = this.config.maxHapticIntensity;
@@ -203,7 +202,7 @@ export class SafetyBoundarySystem {
    */
   private boxDistance(
     point: Vec3,
-    boundary: SafetyBoundary,
+    boundary: SafetyBoundary
   ): { distance: number; closestPoint: Vec3; normal: Vec3 } {
     const halfExtents = boundary.dimensions;
     const local = vec3Sub(point, boundary.center);
@@ -222,9 +221,18 @@ export class SafetyBoundarySystem {
       else normal = { x: 0, y: 0, z: Math.sign(local.z) };
 
       const closestPoint: Vec3 = {
-        x: boundary.center.x + (local.x > 0 ? halfExtents.x : -halfExtents.x) * (minDist === dx ? 1 : 0) + local.x * (minDist !== dx ? 1 : 0),
-        y: boundary.center.y + (local.y > 0 ? halfExtents.y : -halfExtents.y) * (minDist === dy ? 1 : 0) + local.y * (minDist !== dy ? 1 : 0),
-        z: boundary.center.z + (local.z > 0 ? halfExtents.z : -halfExtents.z) * (minDist === dz ? 1 : 0) + local.z * (minDist !== dz ? 1 : 0),
+        x:
+          boundary.center.x +
+          (local.x > 0 ? halfExtents.x : -halfExtents.x) * (minDist === dx ? 1 : 0) +
+          local.x * (minDist !== dx ? 1 : 0),
+        y:
+          boundary.center.y +
+          (local.y > 0 ? halfExtents.y : -halfExtents.y) * (minDist === dy ? 1 : 0) +
+          local.y * (minDist !== dy ? 1 : 0),
+        z:
+          boundary.center.z +
+          (local.z > 0 ? halfExtents.z : -halfExtents.z) * (minDist === dz ? 1 : 0) +
+          local.z * (minDist !== dz ? 1 : 0),
       };
 
       return {
@@ -258,7 +266,7 @@ export class SafetyBoundarySystem {
    */
   private sphereDistance(
     point: Vec3,
-    boundary: SafetyBoundary,
+    boundary: SafetyBoundary
   ): { distance: number; closestPoint: Vec3; normal: Vec3 } {
     const radius = boundary.dimensions.x;
     const toPoint = vec3Sub(point, boundary.center);
@@ -266,9 +274,10 @@ export class SafetyBoundarySystem {
     const normal = dist > 0 ? vec3Normalize(toPoint) : { x: 0, y: 1, z: 0 };
     const closestPoint = vec3Add(boundary.center, vec3Scale(normal, radius));
 
-    const signedDist = boundary.type === 'workspace'
-      ? radius - dist   // Inside workspace = positive
-      : dist - radius;  // Outside exclusion = positive
+    const signedDist =
+      boundary.type === 'workspace'
+        ? radius - dist // Inside workspace = positive
+        : dist - radius; // Outside exclusion = positive
 
     return { distance: signedDist, closestPoint, normal };
   }
@@ -278,7 +287,7 @@ export class SafetyBoundarySystem {
    */
   private cylinderDistance(
     point: Vec3,
-    boundary: SafetyBoundary,
+    boundary: SafetyBoundary
   ): { distance: number; closestPoint: Vec3; normal: Vec3 } {
     const radius = boundary.dimensions.x;
     const halfHeight = boundary.dimensions.y;
@@ -298,14 +307,18 @@ export class SafetyBoundarySystem {
       let normal: Vec3;
       if (radialDist < verticalDist) {
         // Closer to cylindrical wall
-        normal = horizontalDist > 0
-          ? { x: local.x / horizontalDist, y: 0, z: local.z / horizontalDist }
-          : { x: 1, y: 0, z: 0 };
+        normal =
+          horizontalDist > 0
+            ? { x: local.x / horizontalDist, y: 0, z: local.z / horizontalDist }
+            : { x: 1, y: 0, z: 0 };
       } else {
         // Closer to cap
         normal = { x: 0, y: Math.sign(local.y), z: 0 };
       }
-      const closestPoint = vec3Add(boundary.center, vec3Scale(normal, boundary.type === 'workspace' ? radius : 0));
+      const closestPoint = vec3Add(
+        boundary.center,
+        vec3Scale(normal, boundary.type === 'workspace' ? radius : 0)
+      );
       return {
         distance: boundary.type === 'workspace' ? minDist : -minDist,
         closestPoint,
@@ -385,8 +398,10 @@ export class SafetyBoundarySystem {
 
       // Emergency stop conditions
       if (this.config.emergencyStopDistance > 0) {
-        if (leftResult.distance < -this.config.emergencyStopDistance ||
-            rightResult.distance < -this.config.emergencyStopDistance) {
+        if (
+          leftResult.distance < -this.config.emergencyStopDistance ||
+          rightResult.distance < -this.config.emergencyStopDistance
+        ) {
           shouldStop = true;
           stopReason = `Boundary "${boundary.id}" violated beyond emergency stop distance`;
         }
@@ -428,7 +443,7 @@ export class SafetyBoundarySystem {
     // Trigger emergency stop if needed
     if (shouldStop && !this.emergencyStopTriggered) {
       this.emergencyStopTriggered = true;
-      logger.error('[SafetyBoundarySystem] Emergency stop triggered:', stopReason);
+      logger.error('[SafetyBoundarySystem] Emergency stop triggered', { reason: stopReason });
       for (const listener of this.emergencyStopListeners) {
         listener(stopReason);
       }
@@ -448,7 +463,7 @@ export class SafetyBoundarySystem {
    */
   clampJointCommands(
     jointAngles: Partial<Record<RobotJointName, number>>,
-    state: RobotState,
+    state: RobotState
   ): Partial<Record<RobotJointName, number>> {
     if (this.emergencyStopTriggered) {
       // Return current angles (no motion) during e-stop
@@ -467,8 +482,8 @@ export class SafetyBoundarySystem {
     const leftPrefix = 'left_';
     const rightPrefix = 'right_';
 
-    const leftInHardZone = safety.leftHand.some(r => r.inHardZone);
-    const rightInHardZone = safety.rightHand.some(r => r.inHardZone);
+    const leftInHardZone = safety.leftHand.some((r) => r.inHardZone);
+    const rightInHardZone = safety.rightHand.some((r) => r.inHardZone);
 
     if (leftInHardZone) {
       for (const name of ALL_JOINT_NAMES) {
@@ -528,17 +543,17 @@ export class SafetyBoundarySystem {
    */
   addBoundary(boundary: SafetyBoundary): void {
     this.config.boundaries.push(boundary);
-    logger.info('[SafetyBoundarySystem] Boundary added:', boundary.id);
+    logger.info('[SafetyBoundarySystem] Boundary added', { boundaryId: boundary.id });
   }
 
   /**
    * Remove a boundary by ID.
    */
   removeBoundary(id: string): boolean {
-    const idx = this.config.boundaries.findIndex(b => b.id === id);
+    const idx = this.config.boundaries.findIndex((b) => b.id === id);
     if (idx >= 0) {
       this.config.boundaries.splice(idx, 1);
-      logger.info('[SafetyBoundarySystem] Boundary removed:', id);
+      logger.info('[SafetyBoundarySystem] Boundary removed', { boundaryId: id });
       return true;
     }
     return false;
@@ -548,7 +563,7 @@ export class SafetyBoundarySystem {
    * Enable or disable a boundary.
    */
   setBoundaryActive(id: string, active: boolean): boolean {
-    const boundary = this.config.boundaries.find(b => b.id === id);
+    const boundary = this.config.boundaries.find((b) => b.id === id);
     if (boundary) {
       boundary.active = active;
       return true;
@@ -570,10 +585,12 @@ export class SafetyBoundarySystem {
   /**
    * Register a boundary violation listener.
    */
-  onViolation(listener: (result: BoundaryProximityResult, hand: 'left' | 'right') => void): () => void {
+  onViolation(
+    listener: (result: BoundaryProximityResult, hand: 'left' | 'right') => void
+  ): () => void {
     this.violationListeners.push(listener);
     return () => {
-      this.violationListeners = this.violationListeners.filter(l => l !== listener);
+      this.violationListeners = this.violationListeners.filter((l) => l !== listener);
     };
   }
 
@@ -583,7 +600,7 @@ export class SafetyBoundarySystem {
   onEmergencyStop(listener: (reason: string) => void): () => void {
     this.emergencyStopListeners.push(listener);
     return () => {
-      this.emergencyStopListeners = this.emergencyStopListeners.filter(l => l !== listener);
+      this.emergencyStopListeners = this.emergencyStopListeners.filter((l) => l !== listener);
     };
   }
 
@@ -652,7 +669,7 @@ export class SafetyBoundarySystem {
  * Create a SafetyBoundarySystem with optional config overrides.
  */
 export function createSafetyBoundarySystem(
-  config?: Partial<SafetyBoundaryConfig>,
+  config?: Partial<SafetyBoundaryConfig>
 ): SafetyBoundarySystem {
   return new SafetyBoundarySystem(config);
 }

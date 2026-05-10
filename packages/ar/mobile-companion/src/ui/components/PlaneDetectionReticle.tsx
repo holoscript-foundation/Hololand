@@ -25,7 +25,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
-import type { PlaneAlignment, TrackingState, ARPlane } from '../../types';
+import type { TrackingState, ARPlane } from '../../types';
 
 // =============================================================================
 // TYPES
@@ -86,9 +86,6 @@ const TRACKING_QUALITY_COLORS = {
 
 const PLANE_COLORS = {
   horizontal: '#3B82F6', // blue
-  vertical: '#10B981',   // green
-  horizontalUpward: '#3B82F6',
-  horizontalDownward: '#3B82F6',
   vertical: '#10B981',
   arbitrary: '#F59E0B', // yellow
 } as const;
@@ -132,7 +129,7 @@ export const PlaneDetectionReticle: React.FC<PlaneDetectionReticleProps> = ({
 
     const alignment = detectedPlane.alignment;
     const baseColor = (() => {
-      if (alignment === 'horizontal' || alignment === 'horizontalUpward' || alignment === 'horizontalDownward') {
+      if (alignment === 'horizontal') {
         return colors.horizontal || PLANE_COLORS.horizontal;
       } else if (alignment === 'vertical') {
         return colors.vertical || PLANE_COLORS.vertical;
@@ -144,10 +141,9 @@ export const PlaneDetectionReticle: React.FC<PlaneDetectionReticleProps> = ({
     const label = (() => {
       switch (alignment) {
         case 'horizontal':
-        case 'horizontalUpward':
-          return 'Floor detected';
-        case 'horizontalDownward':
-          return 'Ceiling detected';
+          return detectedPlane.classification === 'ceiling'
+            ? 'Ceiling detected'
+            : 'Floor detected';
         case 'vertical':
           return 'Wall detected';
         default:

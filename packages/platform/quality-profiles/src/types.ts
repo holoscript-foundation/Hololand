@@ -5,11 +5,36 @@
  * cinematic, and mobile use cases.
  */
 
-import type { QualitySettings } from '@hololand/renderer';
-
 // =============================================================================
 // QUALITY PROFILE TYPES
 // =============================================================================
+
+/**
+ * Renderer quality settings consumed by quality profiles.
+ */
+export interface QualitySettings {
+  shadowsEnabled: boolean;
+  shadowMapSize: number;
+  shadowType: 'basic' | 'pcf' | 'pcfsoft' | 'vsm';
+  materialType: 'basic' | 'standard' | 'physical';
+  maxTextureSize: number;
+  anisotropy: number;
+  maxPolyCount: number;
+  lodBias: number;
+  postProcessing: boolean;
+  bloom: boolean;
+  ssao: boolean;
+  ssr: boolean;
+  toneMapping: boolean;
+  antialiasing: 'none' | 'fxaa' | 'smaa' | 'taa';
+  hdriEnvironment: boolean;
+  envMapResolution: number;
+  realTimeReflections: boolean;
+  maxAnimatedObjects: number;
+  physicsSubsteps: number;
+  targetFPS: number;
+  pixelRatio: number;
+}
 
 /**
  * Quality profile names for domain-specific optimization
@@ -20,9 +45,9 @@ export type QualityProfileName = 'industrial' | 'cinematic' | 'mobile';
  * Rendering priority for profile optimization
  */
 export type RenderingPriority =
-  | 'data-accuracy'      // Precise measurements, collision, IoT
-  | 'visual-fidelity'    // Ray tracing, high-res textures, post-processing
-  | 'performance';       // Aggressive LOD, compression, simplified shaders
+  | 'data-accuracy' // Precise measurements, collision, IoT
+  | 'visual-fidelity' // Ray tracing, high-res textures, post-processing
+  | 'performance'; // Aggressive LOD, compression, simplified shaders
 
 /**
  * Physics accuracy levels
@@ -161,7 +186,8 @@ export interface CompositionQualityMetadata {
 export const INDUSTRIAL_PROFILE: QualityProfile = {
   name: 'industrial',
   displayName: 'Industrial',
-  description: 'Prioritizes data accuracy, high-precision collision, minimal visual fidelity. Optimized for digital twin and IoT use cases.',
+  description:
+    'Prioritizes data accuracy, high-precision collision, minimal visual fidelity. Optimized for digital twin and IoT use cases.',
   priority: 'data-accuracy',
 
   renderSettings: {
@@ -256,7 +282,8 @@ export const INDUSTRIAL_PROFILE: QualityProfile = {
 export const CINEMATIC_PROFILE: QualityProfile = {
   name: 'cinematic',
   displayName: 'Cinematic',
-  description: 'Maximal visual quality with ray tracing, high-res textures, advanced post-processing for entertainment and marketing.',
+  description:
+    'Maximal visual quality with ray tracing, high-res textures, advanced post-processing for entertainment and marketing.',
   priority: 'visual-fidelity',
 
   renderSettings: {
@@ -350,7 +377,8 @@ export const CINEMATIC_PROFILE: QualityProfile = {
 export const MOBILE_PROFILE: QualityProfile = {
   name: 'mobile',
   displayName: 'Mobile',
-  description: 'Aggressive LOD, texture compression, simplified shaders for Quest standalone and mobile AR.',
+  description:
+    'Aggressive LOD, texture compression, simplified shaders for Quest standalone and mobile AR.',
   priority: 'performance',
 
   renderSettings: {

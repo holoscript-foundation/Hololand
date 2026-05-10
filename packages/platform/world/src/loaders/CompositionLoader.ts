@@ -115,8 +115,9 @@ export class CompositionLoader {
       this.processHoloComposition(result.ast);
     } else {
       const result = parseHoloScriptPlus(source);
-      if (!result.success) {
-        throw new CompositionError('Parse failed', result.errors || []);
+      const errors = result.errors || [];
+      if (errors.length > 0 || !result.ast) {
+        throw new CompositionError('Parse failed', errors);
       }
       this.processHsPlusAST(result.ast);
     }
@@ -200,7 +201,7 @@ export class CompositionLoader {
     for (const action of template.actions || []) {
       def.actions.set(action.name, {
         name: action.name,
-        params: action.parameters?.map(p => p.name) || [],
+        params: action.parameters?.map((p: { name: string }) => p.name) || [],
         body: action.body
       });
     }
@@ -292,7 +293,7 @@ export class CompositionLoader {
     for (const action of logic.actions || []) {
       this.logic.actions.set(action.name, {
         name: action.name,
-        params: action.parameters?.map(p => p.name) || [],
+        params: action.parameters?.map((p: { name: string }) => p.name) || [],
         body: action.body
       });
     }
@@ -314,7 +315,7 @@ export class CompositionLoader {
       } else {
         this.logic.eventHandlers.set(handler.event, {
           name: handler.event,
-          params: handler.parameters?.map(p => p.name) || ['event'],
+          params: handler.parameters?.map((p: { name: string }) => p.name) || ['event'],
           body: handler.body
         });
       }

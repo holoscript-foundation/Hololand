@@ -11,8 +11,9 @@
     "moduleResolution": "bundler",
     "module": "ESNext",
     "target": "ES2022",
+    "jsx": "react-jsx",
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
   "exclude": ["node_modules", "dist", "flutter", "**/*.test.ts"]
 }

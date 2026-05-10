@@ -94,7 +94,7 @@ export const webStudioConfig: HoloEditorConfig = {
     formatOnPaste: false,
     formatOnType: false,
     linkedEditing: false,
-    inlayHints: { enabled: 'off' as unknown as monaco.editor.ShowLightbulbIconMode },
+    inlayHints: { enabled: 'off' },
   },
   minimapEnabled: true,
   diffEditorEnabled: false,
@@ -144,7 +144,7 @@ export const desktopIdeConfig: HoloEditorConfig = {
     formatOnPaste: true,
     formatOnType: true,
     linkedEditing: true,
-    inlayHints: { enabled: 'on' as unknown as monaco.editor.ShowLightbulbIconMode },
+    inlayHints: { enabled: 'on' },
     // Desktop-specific
     mouseWheelZoom: true,
     smoothScrolling: true,

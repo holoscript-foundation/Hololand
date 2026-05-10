@@ -88,7 +88,7 @@ const INTENT_MAP: Record<string, (transcript: string, context?: string) => Inten
     description: 'Modify existing HoloScript code',
   }),
 
-  explain: (transcript, context) => ({
+  explain: (_transcript, context) => ({
     tools: [
       { tool: 'brittney_explain_scene', args: { code: context || '' } },
     ],
@@ -144,7 +144,6 @@ const INTENT_MAP: Record<string, (transcript: string, context?: string) => Inten
 // ─── Pipeline Class ─────────────────────────────────────────
 
 export class VoiceMCPPipeline {
-  private voiceProcessor: VoiceProcessor;
   private compilerBridge: CompilerBridge;
   private config: Required<VoiceMCPConfig>;
   private recognition: any = null;
@@ -170,7 +169,6 @@ export class VoiceMCPPipeline {
       onPreviewUpdate: config.onPreviewUpdate ?? (() => {}),
     };
 
-    this.voiceProcessor = new VoiceProcessor();
     this.compilerBridge = getCompilerBridge();
 
     logger.info('[VoiceMCPPipeline] Initialized', {

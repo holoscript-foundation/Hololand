@@ -71,6 +71,7 @@ pnpm test
 <!-- Mark completed items with an "x" -->
 
 - [ ] My code follows the project's style guidelines
+- [ ] I complied with `docs/HOLOSCRIPT_SOURCE_CONTRACT.md` (or labeled this PR `ts-bridge-only` with rationale)
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation

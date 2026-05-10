@@ -1,47 +1,97 @@
 // src/pages/Landing.hsplus
-// Landing page — the first thing users see before entering Hololand
+// Landing page - instant playable entry before the deeper HoloLand surfaces
 composition "LandingPage" {
   environment {
-    skybox: "space_nebula"
-    ambientLight: 0.6
-    fog: { color: "#0a0020", near: 100, far: 500 }
+    skybox: "bright_plaza_day"
+    ambientLight: 0.85
+    fog: { color: "#71def2", near: 140, far: 520 }
   }
 
-  // Floating title
-  template "FloatingTitle" {
-    @billboard
-    @glowing
-    geometry: "plane"
-    material: { transparent: true, opacity: 0 }
+  state {
+    visualReference: "/assets/hololand-plaza-mockup.jpg"
+    visualTarget: "bright social plaza with mixed architecture, playful residents, portal landmarks, and immediate playable entry"
+    entryMode: null
+    objectives: [
+      { id: "enter-plaza", label: "Enter the plaza", complete: false },
+      { id: "meet-local", label: "Meet a local", complete: false },
+      { id: "open-portal", label: "Open a portal", complete: false }
+    ]
+  }
 
-    animation fadeIn {
-      property: "opacity"
-      from: 0
-      to: 1
-      duration: 2000
-      easing: "easeOut"
+  action launch(mode) {
+    state.entryMode = mode
+    state.objectives[0].complete = true
+    if (mode == "singleplayer") {
+      app.navigate("Oasis", { mode: "singleplayer" })
+    } else {
+      app.navigate("Central", { mode: "multiplayer" })
+    }
+  }
+
+  template "FrontierPlatform" {
+    @static
+    geometry: "cylinder"
+    scale: [10, 0.1, 10]
+    material: {
+      color: "#bdf7f7"
+      roughness: 0.9
+      metalness: 0.05
+    }
+  }
+
+  template "OasisCore" {
+    @animated
+    @glowing
+    geometry: "octahedron"
+    scale: [1.55, 1.55, 1.55]
+    material: {
+      color: "#00a7c7"
+      emissive: "#00a7c7"
+      emissiveIntensity: 0.35
+    }
+
+    animation breathe {
+      property: "scale"
+      from: [1.45, 1.45, 1.45]
+      to: [1.65, 1.65, 1.65]
+      duration: 2400
+      loop: alternate
+      easing: "easeInOut"
       autoplay: true
     }
   }
 
-  // Planet (Hololand Central visible in the distance)
-  template "Planet" {
-    @animated
-    geometry: "sphere"
-    scale: [15, 15, 15]
+  template "PortalRing" {
+    @interactive
+    @glowing
+    geometry: "torus"
+    scale: [0.72, 0.72, 0.72]
     material: {
-      map: "/textures/planet_surface.jpg"
-      emissiveMap: "/textures/planet_city_lights.jpg"
-      emissiveIntensity: 0.4
+      color: "#ffe58a"
+      emissive: "#ffba38"
+      emissiveIntensity: 0.9
     }
+  }
 
-    animation rotate {
+  template "Landmark" {
+    @static
+    geometry: "box"
+    material: {
+      color: "#60a5fa"
+      emissiveIntensity: 0.12
+    }
+  }
+
+  template "InstantWorldRoot" {
+    @animated
+    animation drift {
       property: "rotation.y"
-      from: 0
-      to: 360
-      duration: 120000
-      loop: infinite
-      easing: "linear"
+      from: -0.18
+      to: 0.18
+      duration: 6800
+      loop: alternate
+      easing: "easeInOut"
+      autoplay: true
     }
   }
 
@@ -50,9 +100,9 @@ composition "LandingPage" {
     @static
     particles: {
       type: "points"
-      count: 2000
+      count: 500
       spread: [200, 200, 200]
-      color: "#ffffff"
+      color: "#fffef6"
       size: 0.1
       twinkle: true
     }
@@ -64,26 +114,39 @@ composition "LandingPage" {
     position: [0, 0, 0]
   }
 
-  object "HololandPlanet" using "Planet" {
-    position: [0, -20, -80]
-  }
+  object "InstantWorld" using "InstantWorldRoot" {
+    position: [0, 0, 0]
 
-  // Title text
-  object "Title" using "FloatingTitle" {
-    position: [0, 5, -20]
-    scale: [10, 3, 1]
-    text: "HOLOLAND"
-    textColor: "#00ffff"
-    textSize: "hero"
-    weight: "bold"
-  }
+    object "Platform" using "FrontierPlatform" {
+      position: [0, -0.05, 0]
+    }
 
-  object "Subtitle" using "FloatingTitle" {
-    position: [0, 3, -20]
-    scale: [8, 1.5, 1]
-    text: "The Metaverse Built in HoloScript"
-    textColor: "#aaaacc"
-    textSize: "large"
+    object "Core" using "OasisCore" {
+      position: [0, 1.65, 0]
+    }
+
+    object "BuilderShopBeacon" using "Landmark" {
+      position: [-4.8, 0.6, -1.6]
+      scale: [0.8, 1.44, 0.8]
+      material: { color: "#60a5fa", emissive: "#60a5fa" }
+    }
+
+    object "SocialBeacon" using "Landmark" {
+      position: [4.7, 0.9, -2.2]
+      scale: [1.1, 1.98, 1.1]
+      material: { color: "#a78bfa", emissive: "#a78bfa" }
+    }
+
+    object "PortalA" using "PortalRing" {
+      position: [4.2, 1.2, 0]
+      on_click: () -> launch("singleplayer")
+    }
+
+    object "PortalB" using "PortalRing" {
+      position: [-2.1, 1.2, 3.6]
+      rotation: [90, 0, 120]
+      on_click: () -> launch("multiplayer")
+    }
   }
 
   // UI overlay
@@ -92,48 +155,44 @@ composition "LandingPage" {
       position: "center"
       align: "center"
       gap: 16
-      marginTop: "60vh"
 
-      button "Enter" {
-        label: "Enter Hololand"
+      text "Title" {
+        value: "HoloLand"
         style: "hero"
-        size: "large"
-        color: "#00ffff"
-        on_click: () -> app.navigate("Central")
-        aria_label: "Enter Hololand Central"
       }
 
-      if (xr.isAvailable()) {
-        button "EnterVR" {
-          label: "Enter in VR"
-          style: "hero-secondary"
-          size: "large"
-          color: "#8844ff"
-          icon: "vr_headset"
-          on_click: () -> {
-            app.toggleVR()
-            app.navigate("Central")
-          }
-          aria_label: "Enter Hololand in Virtual Reality"
-        }
-      }
-
-      row "QuickLinks" {
+      row "Modes" {
         gap: 12
-        marginTop: 24
 
-        button "Oasis" {
-          label: "View from Space"
-          style: "text"
-          on_click: () -> app.navigate("Oasis")
+        button "Singleplayer" {
+          label: "Singleplayer"
+          style: "primary"
+          size: "large"
+          on_click: () -> launch("singleplayer")
+          aria_label: "Start HoloLand singleplayer"
         }
 
-        button "About" {
-          label: "About HoloScript"
-          style: "text"
-          on_click: () -> ui.showModal("About")
+        button "Multiplayer" {
+          label: "Online Multiplayer"
+          style: "secondary"
+          size: "large"
+          on_click: () -> launch("multiplayer")
+          aria_label: "Start HoloLand multiplayer"
         }
       }
     }
+
+    column "StarterObjectives" {
+      position: "top-left"
+      gap: 8
+      for objective in state.objectives {
+        checkbox objective.id {
+          label: objective.label
+          checked: objective.complete
+          readonly: true
+        }
+      }
+    }
+
   }
 }

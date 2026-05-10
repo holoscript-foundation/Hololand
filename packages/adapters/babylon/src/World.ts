@@ -23,6 +23,12 @@ import {
 import { BabylonRenderer } from './BabylonRenderer';
 import { HoloScriptPlusParser, createRuntime } from '@holoscript/core';
 
+type AdapterRuntime = ReturnType<typeof createRuntime> & {
+  update?: (dt: number) => void;
+  on?: (event: string, handler: (payload: unknown) => void) => () => void;
+  emit?: (event: string, payload?: unknown) => void;
+};
+
 /**
  * World configuration options
  */
@@ -73,7 +79,7 @@ export class World {
   private scene: Scene;
   private camera: FreeCamera;
   private babylonRenderer: BabylonRenderer;
-  private holoRuntime: ReturnType<typeof createRuntime> | null = null;
+  private holoRuntime: AdapterRuntime | null = null;
   private parser: HoloScriptPlusParser;
   private xrExperience: WebXRDefaultExperience | null = null;
   private xrEnabled: boolean;
@@ -95,7 +101,11 @@ export class World {
     }
 
     // Camera
-    this.camera = new FreeCamera('camera', new Vector3(...(options.cameraPosition ?? [0, 1.6, 5])), this.scene);
+    this.camera = new FreeCamera(
+      'camera',
+      new Vector3(...(options.cameraPosition ?? [0, 1.6, 5])),
+      this.scene
+    );
     this.camera.setTarget(Vector3.Zero());
     this.camera.attachControl(this.canvas, true);
 
@@ -103,7 +113,7 @@ export class World {
     this.babylonRenderer = new BabylonRenderer(this.scene);
 
     // Parser
-    this.parser = new HoloScriptPlusParser({ enableVRTraits: true });
+    this.parser = new HoloScriptPlusParser();
 
     // Setup default lighting
     this.setupDefaultLighting();
@@ -164,21 +174,24 @@ export class World {
 
     const result = this.parser.parse(source);
 
-    if (!result.success) {
+    if ((result.errors?.length ?? 0) > 0) {
       console.error('HoloScript parse errors:', result.errors);
       return;
     }
 
     if (this.holoRuntime) {
-      this.holoRuntime.unmount();
+      this.holoRuntime.dispose();
     }
 
-    this.holoRuntime = createRuntime(result.ast, {
+    this.holoRuntime = createRuntime({
       renderer: this.babylonRenderer,
       vrEnabled: this.xrEnabled,
     });
 
-    this.holoRuntime.mount(this.scene);
+    void this.holoRuntime.execute(result.ast, {
+      renderer: this.babylonRenderer,
+      scene: this.scene,
+    });
   }
 
   /**
@@ -383,14 +396,14 @@ export class World {
    */
   on(event: string, handler: (payload: unknown) => void): () => void {
     if (!this.holoRuntime) return () => {};
-    return this.holoRuntime.on(event, handler);
+    return this.holoRuntime.on?.(event, handler) ?? (() => {});
   }
 
   /**
    * Emit an event
    */
   emit(event: string, payload?: unknown): void {
-    this.holoRuntime?.emit(event, payload);
+    this.holoRuntime?.emit?.(event, payload);
   }
 
   /**
@@ -414,7 +427,7 @@ export class World {
     this.stop();
 
     if (this.holoRuntime) {
-      this.holoRuntime.unmount();
+      this.holoRuntime.dispose();
       this.holoRuntime = null;
     }
 

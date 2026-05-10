@@ -1,0 +1,36 @@
+{
+  "name": "@hololand/auth",
+  "version": "1.0.0",
+  "description": "Compatibility auth provider for HoloLand examples",
+  "type": "module",
+  "main": "./src/index.tsx",
+  "module": "./src/index.tsx",
+  "types": "./src/index.tsx",
+  "exports": {
+    ".": {
+      "types": "./src/index.tsx",
+      "import": "./src/index.tsx",
+      "require": "./src/index.tsx"
+    }
+  },
+  "scripts": {
+    "build": "echo \"source-only compatibility facade\"",
+    "dev": "echo \"source-only compatibility facade\"",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "hololand",
+    "auth",
+    "compatibility"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  }
+}

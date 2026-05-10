@@ -72,6 +72,10 @@ export interface GPUMemoryManagerConfig {
   estimationBuffer?: number;
 }
 
+type ResolvedGPUMemoryManagerConfig = Omit<Required<GPUMemoryManagerConfig>, 'thresholds'> & {
+  thresholds: MemoryThresholds;
+};
+
 /**
  * Tracked resource metadata
  */
@@ -126,13 +130,13 @@ export type MemoryEvent =
 // =============================================================================
 
 const DEFAULT_THRESHOLDS: MemoryThresholds = {
-  alert: 0.70,
-  reduction: 0.80,
-  critical: 0.90,
+  alert: 0.7,
+  reduction: 0.8,
+  critical: 0.9,
   emergency: 0.95,
 };
 
-const DEFAULT_CONFIG: Required<GPUMemoryManagerConfig> = {
+const DEFAULT_CONFIG: ResolvedGPUMemoryManagerConfig = {
   budgetMB: 2048, // 2GB default, auto-detected if possible
   thresholds: DEFAULT_THRESHOLDS,
   useWebGPU: true,
@@ -174,7 +178,7 @@ const DEFAULT_CONFIG: Required<GPUMemoryManagerConfig> = {
  * ```
  */
 export class GPUMemoryManager extends EventEmitter {
-  private config: Required<GPUMemoryManagerConfig>;
+  private config: ResolvedGPUMemoryManagerConfig;
   private resources: Map<string, TrackedResource> = new Map();
   private currentBreakdown: MemoryBreakdown;
   private lastMeasurement: number = 0;
@@ -230,7 +234,7 @@ export class GPUMemoryManager extends EventEmitter {
       logger.info('[GPUMemoryManager] WebGPU memory tracking enabled');
       return true;
     } catch (error) {
-      logger.warn('[GPUMemoryManager] WebGPU initialization failed', error);
+      logger.warn('[GPUMemoryManager] WebGPU initialization failed', { error: String(error) });
       return false;
     }
   }
@@ -414,7 +418,11 @@ export class GPUMemoryManager extends EventEmitter {
     const resource = this.resources.get(id);
     if (resource) {
       this.resources.delete(id);
-      this.emit('resource:unloaded', { id, type: resource.type, memoryBytes: resource.memoryBytes });
+      this.emit('resource:unloaded', {
+        id,
+        type: resource.type,
+        memoryBytes: resource.memoryBytes,
+      });
 
       if (this.config.verbose) {
         logger.debug('[GPUMemoryManager] Untracked resource', {
@@ -447,7 +455,11 @@ export class GPUMemoryManager extends EventEmitter {
 
   private addResource(resource: TrackedResource): void {
     this.resources.set(resource.id, resource);
-    this.emit('resource:loaded', { id: resource.id, type: resource.type, memoryBytes: resource.memoryBytes });
+    this.emit('resource:loaded', {
+      id: resource.id,
+      type: resource.type,
+      memoryBytes: resource.memoryBytes,
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -467,8 +479,7 @@ export class GPUMemoryManager extends EventEmitter {
     // Bytes per pixel based on format
     let bytesPerPixel = 4; // Default RGBA
 
-    // Compressed formats use less memory
-    if (texture.format === THREE.RGB) bytesPerPixel = 3;
+    if (texture.format === THREE.RedFormat) bytesPerPixel = 1;
 
     // Account for mipmaps (adds ~33% memory)
     const mipmapMultiplier = texture.generateMipmaps ? 1.33 : 1.0;
@@ -686,7 +697,7 @@ export class GPUMemoryManager extends EventEmitter {
 
     this.monitoringInterval = setInterval(() => {
       this.measureMemory().catch((error) => {
-        logger.error('[GPUMemoryManager] Measurement failed', error);
+        logger.error('[GPUMemoryManager] Measurement failed', { error: String(error) });
       });
     }, this.config.measurementInterval);
 
@@ -850,7 +861,9 @@ export class GPUMemoryManager extends EventEmitter {
       lines.push('── Largest Resources ──');
       for (const resource of largest) {
         const pct = ((resource.memoryBytes / breakdown.total) * 100).toFixed(1);
-        lines.push(`  ${resource.id.padEnd(25)} ${this.formatBytes(resource.memoryBytes).padStart(12)} (${pct}%)`);
+        lines.push(
+          `  ${resource.id.padEnd(25)} ${this.formatBytes(resource.memoryBytes).padStart(12)} (${pct}%)`
+        );
       }
     }
 

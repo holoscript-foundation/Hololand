@@ -4,14 +4,14 @@
   "description": "Voice processing system - speech recognition (STT), text-to-speech (TTS), and voice command interface",
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "scripts": {
@@ -20,7 +20,16 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest run"
   },
-  "keywords": ["hololand", "voice", "stt", "tts", "speech-recognition", "text-to-speech", "vr", "metaverse"],
+  "keywords": [
+    "hololand",
+    "voice",
+    "stt",
+    "tts",
+    "speech-recognition",
+    "text-to-speech",
+    "vr",
+    "metaverse"
+  ],
   "author": "Hololand Team",
   "license": "ELv2",
   "repository": {

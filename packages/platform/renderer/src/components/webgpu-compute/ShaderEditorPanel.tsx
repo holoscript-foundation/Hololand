@@ -140,32 +140,50 @@ interface HighlightedLineProps {
 }
 
 const HighlightedLine: React.FC<HighlightedLineProps> = ({
-  line, lineNumber, showLineNumbers, hasError, theme, fontSize,
+  line,
+  lineNumber,
+  showLineNumbers,
+  hasError,
+  theme,
+  fontSize,
 }) => {
   const tokens = useMemo(() => tokenizeLine(line), [line]);
 
   return (
-    <div style={{
-      display: 'flex',
-      minHeight: fontSize + 6,
-      background: hasError ? theme.error + '15' : 'transparent',
-      borderLeft: hasError ? `2px solid ${theme.error}` : '2px solid transparent',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        minHeight: fontSize + 6,
+        background: hasError ? theme.error + '15' : 'transparent',
+        borderLeft: hasError ? `2px solid ${theme.error}` : '2px solid transparent',
+      }}
+    >
       {showLineNumbers && (
-        <span style={{
-          width: 40, minWidth: 40, textAlign: 'right',
-          paddingRight: 8, color: theme.textSecondary,
-          fontSize: fontSize - 1, fontFamily: theme.monoFontFamily,
-          userSelect: 'none', lineHeight: `${fontSize + 6}px`,
-        }}>
+        <span
+          style={{
+            width: 40,
+            minWidth: 40,
+            textAlign: 'right',
+            paddingRight: 8,
+            color: theme.textSecondary,
+            fontSize: fontSize - 1,
+            fontFamily: theme.monoFontFamily,
+            userSelect: 'none',
+            lineHeight: `${fontSize + 6}px`,
+          }}
+        >
           {lineNumber}
         </span>
       )}
-      <span style={{
-        flex: 1, fontFamily: theme.monoFontFamily,
-        fontSize, lineHeight: `${fontSize + 6}px`,
-        whiteSpace: 'pre',
-      }}>
+      <span
+        style={{
+          flex: 1,
+          fontFamily: theme.monoFontFamily,
+          fontSize,
+          lineHeight: `${fontSize + 6}px`,
+          whiteSpace: 'pre',
+        }}
+      >
         {tokens.map((token, i) => (
           <span
             key={i}
@@ -190,7 +208,11 @@ interface CompilationStatusProps {
 }
 
 const CompilationStatus: React.FC<CompilationStatusProps> = ({
-  status, errors, compilationTimeMs, dirty, theme,
+  status,
+  errors,
+  compilationTimeMs,
+  dirty,
+  theme,
 }) => {
   const statusConfig: Record<ShaderCompilationStatus, { color: string; label: string }> = {
     idle: { color: theme.textSecondary, label: 'IDLE' },
@@ -204,24 +226,28 @@ const CompilationStatus: React.FC<CompilationStatusProps> = ({
   const warningCount = errors.filter((e) => e.severity === 'warning').length;
 
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '4px 8px', background: theme.panelBg,
-      borderTop: `1px solid ${theme.border}`,
-      fontSize: theme.fontSize - 1,
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '4px 8px',
+        background: theme.panelBg,
+        borderTop: `1px solid ${theme.border}`,
+        fontSize: theme.fontSize - 1,
+      }}
+    >
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{
-          color: config.color, fontWeight: 600,
-          fontFamily: theme.monoFontFamily,
-        }}>
+        <span
+          style={{
+            color: config.color,
+            fontWeight: 600,
+            fontFamily: theme.monoFontFamily,
+          }}
+        >
           {config.label}
         </span>
-        {dirty && (
-          <span style={{ color: theme.warning }}>
-            (unsaved changes)
-          </span>
-        )}
+        {dirty && <span style={{ color: theme.warning }}>(unsaved changes)</span>}
         {errorCount > 0 && (
           <span style={{ color: theme.error }}>
             {errorCount} error{errorCount !== 1 ? 's' : ''}
@@ -234,9 +260,7 @@ const CompilationStatus: React.FC<CompilationStatusProps> = ({
         )}
       </div>
       {compilationTimeMs > 0 && (
-        <span style={{ color: theme.textSecondary }}>
-          {compilationTimeMs.toFixed(1)}ms
-        </span>
+        <span style={{ color: theme.textSecondary }}>{compilationTimeMs.toFixed(1)}ms</span>
       )}
     </div>
   );
@@ -251,25 +275,49 @@ const ErrorList: React.FC<ErrorListProps> = ({ errors, theme }) => {
   if (errors.length === 0) return null;
 
   return (
-    <div style={{
-      maxHeight: 120, overflowY: 'auto',
-      borderTop: `1px solid ${theme.border}`,
-    }}>
+    <div
+      style={{
+        maxHeight: 120,
+        overflowY: 'auto',
+        borderTop: `1px solid ${theme.border}`,
+      }}
+    >
       {errors.map((error, i) => (
-        <div key={i} style={{
-          display: 'flex', gap: 6, padding: '4px 8px',
-          fontSize: theme.fontSize - 1,
-          background: error.severity === 'error' ? theme.error + '10' : error.severity === 'warning' ? theme.warning + '10' : 'transparent',
-          borderBottom: `1px solid ${theme.border}20`,
-        }}>
-          <span style={{
-            color: error.severity === 'error' ? theme.error : error.severity === 'warning' ? theme.warning : theme.info,
-            fontWeight: 600, fontFamily: theme.monoFontFamily, minWidth: 50,
-          }}>
+        <div
+          key={i}
+          style={{
+            display: 'flex',
+            gap: 6,
+            padding: '4px 8px',
+            fontSize: theme.fontSize - 1,
+            background:
+              error.severity === 'error'
+                ? theme.error + '10'
+                : error.severity === 'warning'
+                  ? theme.warning + '10'
+                  : 'transparent',
+            borderBottom: `1px solid ${theme.border}20`,
+          }}
+        >
+          <span
+            style={{
+              color:
+                error.severity === 'error'
+                  ? theme.error
+                  : error.severity === 'warning'
+                    ? theme.warning
+                    : theme.info,
+              fontWeight: 600,
+              fontFamily: theme.monoFontFamily,
+              minWidth: 50,
+            }}
+          >
             {error.severity.toUpperCase()}
           </span>
           {error.lineNumber !== null && (
-            <span style={{ color: theme.textSecondary, fontFamily: theme.monoFontFamily, minWidth: 40 }}>
+            <span
+              style={{ color: theme.textSecondary, fontFamily: theme.monoFontFamily, minWidth: 40 }}
+            >
               L{error.lineNumber}
               {error.columnNumber !== null ? `:${error.columnNumber}` : ''}
             </span>
@@ -327,7 +375,7 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
 
   const { state, actions } = useShaderEditor({
     initialSource,
-    pipelineName: pipelineName ?? null,
+    pipelineName,
     onCompile,
     onSourceChange,
   });
@@ -403,25 +451,39 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
       }}
     >
       {/* Toolbar */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '8px 12px',
-        background: theme.panelBg,
-        borderBottom: `1px solid ${theme.border}`,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 12px',
+          background: theme.panelBg,
+          borderBottom: `1px solid ${theme.border}`,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h3 style={{
-            margin: 0, fontSize: theme.fontSize + 1, fontWeight: 700,
-            color: theme.accent, fontFamily: theme.monoFontFamily,
-          }}>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: theme.fontSize + 1,
+              fontWeight: 700,
+              color: theme.accent,
+              fontFamily: theme.monoFontFamily,
+            }}
+          >
             WGSL Editor
           </h3>
           {pipelineName && (
-            <span style={{
-              padding: '2px 6px', background: theme.compute + '20',
-              color: theme.compute, borderRadius: 3,
-              fontSize: theme.fontSize - 1, fontFamily: theme.monoFontFamily,
-            }}>
+            <span
+              style={{
+                padding: '2px 6px',
+                background: theme.compute + '20',
+                color: theme.compute,
+                borderRadius: 3,
+                fontSize: theme.fontSize - 1,
+                fontFamily: theme.monoFontFamily,
+              }}
+            >
               {pipelineName}
             </span>
           )}
@@ -438,10 +500,15 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
             }}
             aria-label="Load shader template"
             style={{
-              padding: '4px 6px', background: theme.inputBg,
-              border: `1px solid ${theme.border}`, borderRadius: 3,
-              color: theme.textSecondary, fontSize: theme.fontSize - 1,
-              fontFamily: theme.monoFontFamily, outline: 'none', cursor: 'pointer',
+              padding: '4px 6px',
+              background: theme.inputBg,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 3,
+              color: theme.textSecondary,
+              fontSize: theme.fontSize - 1,
+              fontFamily: theme.monoFontFamily,
+              outline: 'none',
+              cursor: 'pointer',
             }}
           >
             <option value="">Templates</option>
@@ -457,10 +524,14 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
             onClick={actions.formatSource}
             aria-label="Format shader source"
             style={{
-              padding: '4px 8px', background: theme.inputBg,
-              color: theme.textSecondary, border: `1px solid ${theme.border}`,
-              borderRadius: 3, cursor: 'pointer',
-              fontSize: theme.fontSize - 1, fontFamily: theme.monoFontFamily,
+              padding: '4px 8px',
+              background: theme.inputBg,
+              color: theme.textSecondary,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: theme.fontSize - 1,
+              fontFamily: theme.monoFontFamily,
             }}
           >
             Format
@@ -472,11 +543,14 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
             aria-label={state.showLineNumbers ? 'Hide line numbers' : 'Show line numbers'}
             aria-pressed={state.showLineNumbers}
             style={{
-              padding: '4px 8px', background: state.showLineNumbers ? theme.accent + '20' : theme.inputBg,
+              padding: '4px 8px',
+              background: state.showLineNumbers ? theme.accent + '20' : theme.inputBg,
               color: state.showLineNumbers ? theme.accent : theme.textSecondary,
               border: `1px solid ${state.showLineNumbers ? theme.accent + '40' : theme.border}`,
-              borderRadius: 3, cursor: 'pointer',
-              fontSize: theme.fontSize - 1, fontFamily: theme.monoFontFamily,
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: theme.fontSize - 1,
+              fontFamily: theme.monoFontFamily,
             }}
           >
             #
@@ -489,10 +563,15 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
             aria-label="Compile shader (Ctrl+Enter)"
             style={{
               padding: '4px 12px',
-              background: state.compilationStatus === 'compiling' ? theme.textSecondary : theme.success,
-              color: '#fff', border: 'none', borderRadius: 3,
+              background:
+                state.compilationStatus === 'compiling' ? theme.textSecondary : theme.success,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 3,
               cursor: state.compilationStatus === 'compiling' ? 'not-allowed' : 'pointer',
-              fontSize: theme.fontSize, fontFamily: theme.monoFontFamily, fontWeight: 600,
+              fontSize: theme.fontSize,
+              fontFamily: theme.monoFontFamily,
+              fontWeight: 600,
             }}
           >
             Compile
@@ -508,10 +587,15 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
             aria-label="Compile and dispatch shader (Ctrl+Shift+Enter)"
             style={{
               padding: '4px 12px',
-              background: state.compilationStatus === 'compiling' ? theme.textSecondary : theme.compute,
-              color: '#fff', border: 'none', borderRadius: 3,
+              background:
+                state.compilationStatus === 'compiling' ? theme.textSecondary : theme.compute,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 3,
               cursor: state.compilationStatus === 'compiling' ? 'not-allowed' : 'pointer',
-              fontSize: theme.fontSize, fontFamily: theme.monoFontFamily, fontWeight: 600,
+              fontSize: theme.fontSize,
+              fontFamily: theme.monoFontFamily,
+              fontWeight: 600,
             }}
           >
             Run
@@ -520,18 +604,22 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
       </div>
 
       {/* Editor area */}
-      <div style={{
-        position: 'relative',
-        flex: 1,
-        minHeight: 300,
-        overflow: 'auto',
-      }}>
+      <div
+        style={{
+          position: 'relative',
+          flex: 1,
+          minHeight: 300,
+          overflow: 'auto',
+        }}
+      >
         {/* Highlighted code overlay (for display) */}
         <div
           aria-hidden="true"
           style={{
             position: 'absolute',
-            top: 0, left: 0, right: 0,
+            top: 0,
+            left: 0,
+            right: 0,
             padding: '8px 0',
             pointerEvents: 'none',
             zIndex: 1,
@@ -598,20 +686,22 @@ export const ShaderEditorPanel: React.FC<ShaderEditorPanelProps> = ({
       <ErrorList errors={state.errors} theme={theme} />
 
       {/* Footer info */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        padding: '3px 8px',
-        fontSize: theme.fontSize - 2, color: theme.textSecondary,
-        borderTop: `1px solid ${theme.border}`,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: '3px 8px',
+          fontSize: theme.fontSize - 2,
+          color: theme.textSecondary,
+          borderTop: `1px solid ${theme.border}`,
+        }}
+      >
         <span>
           {state.lineCount} line{state.lineCount !== 1 ? 's' : ''}
           {' | '}
           Ln {state.cursorPosition.line}, Col {state.cursorPosition.column}
         </span>
-        <span>
-          Ctrl+Enter: Compile | Ctrl+Shift+Enter: Run | Tab: Indent
-        </span>
+        <span>Ctrl+Enter: Compile | Ctrl+Shift+Enter: Run | Tab: Indent</span>
       </div>
     </div>
   );

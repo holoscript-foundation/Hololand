@@ -79,9 +79,10 @@ const DEFAULT_HOOK_CONFIG: Required<UseSpectatorCameraConfig> = {
  * @param config Hook configuration
  * @returns State and actions for controlling the spectator camera
  */
-export function useSpectatorCamera(
-  config?: UseSpectatorCameraConfig,
-): { state: SpectatorCameraHookState; actions: SpectatorCameraHookActions } {
+export function useSpectatorCamera(config?: UseSpectatorCameraConfig): {
+  state: SpectatorCameraHookState;
+  actions: SpectatorCameraHookActions;
+} {
   const mergedConfig = { ...DEFAULT_HOOK_CONFIG, ...config };
 
   // Refs for mutable instances
@@ -102,7 +103,7 @@ export function useSpectatorCamera(
     ...mergedConfig.captureConfig,
   });
   const [playback, setPlayback] = useState<CinematicPlaybackState>(DEFAULT_PLAYBACK_STATE);
-  const [performance, setPerformance] = useState<SpectatorPerformanceMetrics>({
+  const [performanceMetrics, setPerformance] = useState<SpectatorPerformanceMetrics>({
     fps: 0,
     frameTimeMs: 0,
     renderWidth: 0,
@@ -172,7 +173,8 @@ export function useSpectatorCamera(
 
         // Update performance metrics every 30 frames
         if (frameTimesRef.current.length % 30 === 0) {
-          const avgFrameMs = frameTimesRef.current.reduce((a, b) => a + b, 0) / frameTimesRef.current.length;
+          const avgFrameMs =
+            frameTimesRef.current.reduce((a, b) => a + b, 0) / frameTimesRef.current.length;
           setPerformance((prev) => ({
             ...prev,
             fps: 1000 / avgFrameMs,
@@ -210,9 +212,12 @@ export function useSpectatorCamera(
     setCamera((prev) => ({ ...prev, mode }));
   }, []);
 
-  const setCameraAction = useCallback((position: [number, number, number], target: [number, number, number]) => {
-    controllerRef.current?.setCamera(position, target);
-  }, []);
+  const setCameraAction = useCallback(
+    (position: [number, number, number], target: [number, number, number]) => {
+      controllerRef.current?.setCamera(position, target);
+    },
+    []
+  );
 
   const setFovY = useCallback((fov: number) => {
     controllerRef.current?.setFovY(fov);
@@ -227,46 +232,49 @@ export function useSpectatorCamera(
     captureEngineRef.current?.setConfig(config);
   }, []);
 
-  const capture = useCallback(async (canvas: HTMLCanvasElement): Promise<CaptureResult> => {
-    const engine = captureEngineRef.current;
-    const controller = controllerRef.current;
-    if (!engine || !controller) {
-      throw new Error('Spectator camera not initialized');
-    }
+  const capture = useCallback(
+    async (canvas: HTMLCanvasElement): Promise<CaptureResult> => {
+      const engine = captureEngineRef.current;
+      const controller = controllerRef.current;
+      if (!engine || !controller) {
+        throw new Error('Spectator camera not initialized');
+      }
 
-    setStatus('capturing');
-    setError(null);
+      setStatus('capturing');
+      setError(null);
 
-    try {
-      const currentCamera = controller.getCamera();
-      const result = await engine.capture(canvas, { ...currentCamera });
+      try {
+        const currentCamera = controller.getCamera();
+        const result = await engine.capture(canvas, { ...currentCamera });
 
-      // Add to history
-      const entry = engine.createHistoryEntry(result);
-      setHistory((prev) => {
-        const updated = [entry, ...prev];
-        if (updated.length > mergedConfig.maxHistory) {
-          updated.pop();
-        }
-        return updated;
-      });
+        // Add to history
+        const entry = engine.createHistoryEntry(result);
+        setHistory((prev) => {
+          const updated = [entry, ...prev];
+          if (updated.length > mergedConfig.maxHistory) {
+            updated.pop();
+          }
+          return updated;
+        });
 
-      // Update performance
-      setPerformance((prev) => ({
-        ...prev,
-        captureCount: engine.getCaptureCount(),
-        historyMemoryBytes: engine.estimateHistoryMemory(history),
-      }));
+        // Update performance
+        setPerformance((prev) => ({
+          ...prev,
+          captureCount: engine.getCaptureCount(),
+          historyMemoryBytes: engine.estimateHistoryMemory(history),
+        }));
 
-      setStatus('previewing');
-      return result;
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown capture error';
-      setError(errorMsg);
-      setStatus('error');
-      throw err;
-    }
-  }, [history, mergedConfig.maxHistory]);
+        setStatus('previewing');
+        return result;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Unknown capture error';
+        setError(errorMsg);
+        setStatus('error');
+        throw err;
+      }
+    },
+    [history, mergedConfig.maxHistory]
+  );
 
   const clearHistory = useCallback(() => {
     setHistory([]);
@@ -325,7 +333,7 @@ export function useSpectatorCamera(
     camera,
     captureConfig,
     playback,
-    performance,
+    performance: performanceMetrics,
     history,
     error,
   };

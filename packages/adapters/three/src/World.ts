@@ -13,6 +13,12 @@ import * as THREE from 'three';
 import { ThreeRenderer } from './ThreeRenderer';
 import { HoloScriptPlusParser, createRuntime } from '@holoscript/core';
 
+type AdapterRuntime = ReturnType<typeof createRuntime> & {
+  update?: (dt: number) => void;
+  on?: (event: string, handler: (payload: unknown) => void) => () => void;
+  emit?: (event: string, payload?: unknown) => void;
+};
+
 /**
  * World configuration options
  */
@@ -60,7 +66,9 @@ export interface HoloScriptConfig {
  */
 export interface WorldTraitConfig {
   backgroundColor?: string;
-  fog?: { type: 'linear'; color: string; near: number; far: number } | { type: 'exponential'; color: string; density: number };
+  fog?:
+    | { type: 'linear'; color: string; near: number; far: number }
+    | { type: 'exponential'; color: string; density: number };
   xr?: boolean;
   shadows?: boolean | 'low' | 'medium' | 'high' | 'ultra';
   camera?: { position: [number, number, number]; fov?: number; near?: number; far?: number };
@@ -80,7 +88,7 @@ export class World {
 
   // HoloScript integration
   private threeRenderer: ThreeRenderer;
-  private holoRuntime: ReturnType<typeof createRuntime> | null = null;
+  private holoRuntime: AdapterRuntime | null = null;
   private parser: HoloScriptPlusParser;
 
   // Animation
@@ -150,7 +158,7 @@ export class World {
     this.threeRenderer.setAudioListener(audioListener);
 
     // Parser
-    this.parser = new HoloScriptPlusParser({ enableVRTraits: true });
+    this.parser = new HoloScriptPlusParser();
 
     // Setup default lighting
     this.setupDefaultLighting();
@@ -240,24 +248,26 @@ export class World {
     // Parse the source
     const result = this.parser.parse(source);
 
-    if (!result.success) {
+    if ((result.errors?.length ?? 0) > 0) {
       console.error('HoloScript parse errors:', result.errors);
       return;
     }
 
     // Unmount previous runtime
     if (this.holoRuntime) {
-      this.holoRuntime.unmount();
+      this.holoRuntime.dispose();
     }
 
     // Create new runtime with Three.js renderer
-    this.holoRuntime = createRuntime(result.ast, {
+    this.holoRuntime = createRuntime({
       renderer: this.threeRenderer,
       vrEnabled: this.xrEnabled,
     });
 
-    // Mount to scene
-    this.holoRuntime.mount(this.scene);
+    void this.holoRuntime.execute(result.ast, {
+      renderer: this.threeRenderer,
+      scene: this.scene,
+    });
   }
 
   /**
@@ -265,15 +275,18 @@ export class World {
    */
   loadAST(ast: unknown): void {
     if (this.holoRuntime) {
-      this.holoRuntime.unmount();
+      this.holoRuntime.dispose();
     }
 
-    this.holoRuntime = createRuntime(ast as any, {
+    this.holoRuntime = createRuntime({
       renderer: this.threeRenderer,
       vrEnabled: this.xrEnabled,
     });
 
-    this.holoRuntime.mount(this.scene);
+    void this.holoRuntime.execute(ast, {
+      renderer: this.threeRenderer,
+      scene: this.scene,
+    });
   }
 
   /**
@@ -337,7 +350,7 @@ export class World {
     // Load entry files
     if (config.files && config.files.length > 0) {
       const baseDir = path.substring(0, path.lastIndexOf('/') + 1) || this.basePath;
-      const fullPaths = config.files.map(f =>
+      const fullPaths = config.files.map((f) =>
         f.startsWith('/') || f.startsWith('http') ? f : `${baseDir}${f}`
       );
       await this.loadFiles(fullPaths);
@@ -398,14 +411,17 @@ export class World {
    */
   private parseSimpleConfig(source: string): HoloScriptConfig {
     const config: HoloScriptConfig = {};
-    const lines = source.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
+    const lines = source
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('//'));
 
     for (const line of lines) {
       const match = line.match(/(\w+)\s*:\s*(.+)/);
       if (match) {
         const [, key, value] = match;
         if (key === 'files') {
-          config.files = value.split(',').map(f => f.trim().replace(/["']/g, ''));
+          config.files = value.split(',').map((f) => f.trim().replace(/["']/g, ''));
         } else if (key === 'autoStart') {
           config.autoStart = value.trim() === 'true';
         } else if (key === 'assets') {
@@ -422,7 +438,10 @@ export class World {
    */
   private parseConfigObject(content: string): Record<string, unknown> {
     const obj: Record<string, unknown> = {};
-    const lines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
+    const lines = content
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('//'));
 
     for (const line of lines) {
       const match = line.match(/(\w+)\s*:\s*(.+)/);
@@ -440,7 +459,10 @@ export class World {
    */
   private parseConfigArray(content: string): string[] {
     const items: string[] = [];
-    const lines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
+    const lines = content
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('//'));
 
     for (const line of lines) {
       const match = line.match(/["']([^"']+)["']/);
@@ -475,7 +497,7 @@ export class World {
     // Array
     if (value.startsWith('[') && value.endsWith(']')) {
       const inner = value.slice(1, -1);
-      return inner.split(',').map(v => this.parseConfigValue(v.trim()));
+      return inner.split(',').map((v) => this.parseConfigValue(v.trim()));
     }
 
     return value;
@@ -491,7 +513,10 @@ export class World {
 
     if (settings.fog) {
       if ('density' in settings.fog) {
-        this.scene.fog = new THREE.FogExp2(new THREE.Color(settings.fog.color).getHex(), settings.fog.density);
+        this.scene.fog = new THREE.FogExp2(
+          new THREE.Color(settings.fog.color).getHex(),
+          settings.fog.density
+        );
       } else {
         this.scene.fog = new THREE.Fog(settings.fog.color, settings.fog.near, settings.fog.far);
       }
@@ -520,7 +545,10 @@ export class World {
     const mapSize = sizes[quality] || 2048;
 
     this.scene.traverse((obj) => {
-      if (obj instanceof THREE.Light && (obj as THREE.Light & { shadow?: THREE.LightShadow }).shadow) {
+      if (
+        obj instanceof THREE.Light &&
+        (obj as THREE.Light & { shadow?: THREE.LightShadow }).shadow
+      ) {
         const shadow = (obj as THREE.Light & { shadow: THREE.LightShadow }).shadow;
         shadow.mapSize.width = mapSize;
         shadow.mapSize.height = mapSize;
@@ -597,7 +625,11 @@ export class World {
       const cameraConfig: any = {};
       const posMatch = cameraMatch[1].match(/position\s*:\s*\[([^\]]+)\]/);
       if (posMatch) {
-        cameraConfig.position = posMatch[1].split(',').map(n => parseFloat(n.trim())) as [number, number, number];
+        cameraConfig.position = posMatch[1].split(',').map((n) => parseFloat(n.trim())) as [
+          number,
+          number,
+          number,
+        ];
       }
       const fovMatch = cameraMatch[1].match(/fov\s*:\s*([\d.]+)/);
       if (fovMatch) cameraConfig.fov = parseFloat(fovMatch[1]);
@@ -619,7 +651,11 @@ export class World {
 
       if (fogType === 'exponential') {
         const densityMatch = fogContent.match(/density\s*:\s*([\d.]+)/);
-        config.fog = { type: 'exponential', color: fogColor, density: parseFloat(densityMatch?.[1] || '0.02') };
+        config.fog = {
+          type: 'exponential',
+          color: fogColor,
+          density: parseFloat(densityMatch?.[1] || '0.02'),
+        };
       } else {
         const nearMatch = fogContent.match(/near\s*:\s*([\d.]+)/);
         const farMatch = fogContent.match(/far\s*:\s*([\d.]+)/);
@@ -627,7 +663,7 @@ export class World {
           type: 'linear',
           color: fogColor,
           near: parseFloat(nearMatch?.[1] || '10'),
-          far: parseFloat(farMatch?.[1] || '100')
+          far: parseFloat(farMatch?.[1] || '100'),
         };
       }
     }
@@ -647,7 +683,10 @@ export class World {
     // Fog
     if (config.fog) {
       if (config.fog.type === 'exponential') {
-        this.scene.fog = new THREE.FogExp2(new THREE.Color(config.fog.color).getHex(), config.fog.density);
+        this.scene.fog = new THREE.FogExp2(
+          new THREE.Color(config.fog.color).getHex(),
+          config.fog.density
+        );
       } else {
         this.scene.fog = new THREE.Fog(config.fog.color, config.fog.near, config.fog.far);
       }
@@ -708,7 +747,7 @@ export class World {
         lightsToRemove.push(obj);
       }
     });
-    lightsToRemove.forEach(light => this.scene.remove(light));
+    lightsToRemove.forEach((light) => this.scene.remove(light));
 
     switch (preset) {
       case 'none':
@@ -778,7 +817,7 @@ export class World {
 
       // Update HoloScript runtime
       if (this.holoRuntime) {
-        (this.holoRuntime as any).update?.(delta);
+        this.holoRuntime.update?.(delta);
       }
 
       // Render
@@ -851,7 +890,7 @@ export class World {
       console.warn('No runtime loaded. Event handler not registered.');
       return () => {};
     }
-    return this.holoRuntime.on(event, handler);
+    return this.holoRuntime.on?.(event, handler) ?? (() => {});
   }
 
   /**
@@ -859,7 +898,7 @@ export class World {
    */
   emit(event: string, payload?: unknown): void {
     if (this.holoRuntime) {
-      this.holoRuntime.emit(event, payload);
+      this.holoRuntime.emit?.(event, payload);
     }
   }
 
@@ -905,7 +944,7 @@ export class World {
 
     // Unmount runtime
     if (this.holoRuntime) {
-      this.holoRuntime.unmount();
+      this.holoRuntime.dispose();
       this.holoRuntime = null;
     }
 

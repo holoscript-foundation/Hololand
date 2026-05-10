@@ -718,10 +718,10 @@ export class FoveatedGaussianRenderer extends EventEmitter {
     const RADIX_MASK = RADIX_SIZE - 1;
     const histogram = new Uint32Array(RADIX_SIZE);
 
-    let srcKeys = keys;
-    let srcIndices = indices;
-    let dstKeys = tempKeys;
-    let dstIndices = tempIndices;
+    let srcKeys: Uint32Array<ArrayBufferLike> = keys;
+    let srcIndices: Uint32Array<ArrayBufferLike> = indices;
+    let dstKeys: Uint32Array<ArrayBufferLike> = tempKeys;
+    let dstIndices: Uint32Array<ArrayBufferLike> = tempIndices;
 
     for (let shift = 0; shift < 32; shift += RADIX_BITS) {
       // Build histogram

@@ -16,7 +16,7 @@
  * @module volumetric-bridge/ui
  */
 
-import React, { useCallback, useMemo } from 'react';
+import { type KeyboardEvent, useCallback, useMemo } from 'react';
 import type { QualityTierSelectorProps } from './types';
 import type { VolumetricQualityTier } from '../volumetric-video/types';
 import { QUALITY_TIER_CONFIGS } from '../volumetric-video/types';
@@ -27,7 +27,10 @@ import { QUALITY_TIER_CONFIGS } from '../volumetric-video/types';
 
 const TIERS: VolumetricQualityTier[] = ['low', 'mid', 'high'];
 
-const TIER_DISPLAY: Record<VolumetricQualityTier, { label: string; shortLabel: string; description: string }> = {
+const TIER_DISPLAY: Record<
+  VolumetricQualityTier,
+  { label: string; shortLabel: string; description: string }
+> = {
   low: {
     label: 'Low',
     shortLabel: 'LO',
@@ -208,7 +211,7 @@ function formatFrameSize(kb: number): string {
  * />
  * ```
  */
-export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
+export const QualityTierSelector = ({
   value,
   onChange,
   adaptiveEnabled = true,
@@ -217,7 +220,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
   bandwidthKbps = 0,
   disabled = false,
   className,
-}) => {
+}: QualityTierSelectorProps) => {
   const currentConfig = QUALITY_TIER_CONFIGS[value];
 
   // -------------------------------------------------------------------------
@@ -228,7 +231,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
     (tier: VolumetricQualityTier) => {
       if (!disabled) onChange(tier);
     },
-    [disabled, onChange],
+    [disabled, onChange]
   );
 
   const handleAdaptiveToggle = useCallback(() => {
@@ -241,7 +244,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
 
   const bandwidthPct = useMemo(() => {
     // Estimate max bandwidth as High tier at 30fps
-    const maxBandwidthKbps = (QUALITY_TIER_CONFIGS.high.approxFrameSizeKB * 30 * 8);
+    const maxBandwidthKbps = QUALITY_TIER_CONFIGS.high.approxFrameSizeKB * 30 * 8;
     return bandwidthKbps > 0 ? (bandwidthKbps / maxBandwidthKbps) * 100 : 0;
   }, [bandwidthKbps]);
 
@@ -282,11 +285,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
       </div>
 
       {/* Segmented buttons */}
-      <div
-        style={styles.segmentGroup}
-        role="radiogroup"
-        aria-label="Quality tier selection"
-      >
+      <div style={styles.segmentGroup} role="radiogroup" aria-label="Quality tier selection">
         {TIERS.map((tier, i) => {
           const isActive = tier === value;
           const config = QUALITY_TIER_CONFIGS[tier];
@@ -308,9 +307,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
               title={display.description}
             >
               <span>{display.label}</span>
-              <span
-                style={isActive ? styles.segmentSubActive : styles.segmentSub}
-              >
+              <span style={isActive ? styles.segmentSubActive : styles.segmentSub}>
                 {formatFrameSize(config.approxFrameSizeKB)}/f
               </span>
             </button>
@@ -325,9 +322,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
           <span>layers</span>
         </div>
         <div style={styles.metricItem}>
-          <span style={styles.metricValue}>
-            {formatFrameSize(currentConfig.approxFrameSizeKB)}
-          </span>
+          <span style={styles.metricValue}>{formatFrameSize(currentConfig.approxFrameSizeKB)}</span>
           <span>/frame</span>
         </div>
         <div style={styles.metricItem}>
@@ -340,9 +335,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
         </div>
         {metrics && (
           <div style={styles.metricItem}>
-            <span style={styles.metricValue}>
-              {metrics.effectiveFPS.toFixed(0)}
-            </span>
+            <span style={styles.metricValue}>{metrics.effectiveFPS.toFixed(0)}</span>
             <span>FPS</span>
           </div>
         )}
@@ -388,7 +381,7 @@ export const QualityTierSelector: React.FC<QualityTierSelectorProps> = ({
             aria-checked={adaptiveEnabled}
             aria-label="Toggle adaptive quality"
             tabIndex={0}
-            onKeyDown={(e) => {
+            onKeyDown={(e: KeyboardEvent) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 handleAdaptiveToggle();

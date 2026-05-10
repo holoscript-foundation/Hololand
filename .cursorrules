@@ -1,6 +1,19 @@
 # Hololand Cursor Rules
 
+> **NORTH STAR**: `NORTH_STAR.md` (this repo) + `~/.ai-ecosystem/NORTH_STAR.md` for ecosystem decision trees.
+> **GOLD VAULT**: `D:/GOLD/` when mounted -- graduated knowledge overrides knowledge store.
+> **STATUS**: HoloLand is the platform/product surface that fully utilizes HoloScript. Build canonical gaps in HoloScript first, then consume them here.
+> **AGENT TOOLING**: Follow `docs/AGENT_HOLOSCRIPT_TOOLING.md` and `docs/HOLOSCRIPT_SOURCE_CONTRACT.md`.
+
 You are working in the Hololand codebase - a VR/AR platform with the HoloScript language.
+
+## Cursor Agent Workflow
+
+- Read before editing; this repo is often dirty.
+- New gameplay/world behavior belongs in HoloScript source first.
+- Use HoloScript MCP tools when configured: `suggest_traits`, `generate_scene`, `validate_holoscript`, `holo_parse_to_graph`, `compile_holoscript`, `holo_impact_analysis`.
+- TypeScript is bootstrap, bridge, runtime infrastructure, hardware integration, tests, and tooling unless paired with `.holo`, `.hs`, or `.hsplus`.
+- Do not invent HoloScript syntax without validation.
 
 ## HoloScript File Types
 
@@ -57,10 +70,10 @@ Periodic: `every(5000) { action() }`
 
 ## Project Structure
 
-- `/packages/core` - Parser, validator, runtime
-- `/packages/holoscript-*` - Standard library packages
-- `/packages/mcp-server` - MCP tools for agents
-- `/packages/brittney-service` - Local AI assistant
+- `../HoloScript/packages/core` - Parser, validator, traits, compilers, runtime source of truth
+- `../HoloScript/packages/mcp-server` - MCP tools for agents
+- `/packages/platform` - HoloLand runtime/platform bridge code
+- `/packages/brittney` - Brittney agent/toolkit code
 - `/examples/` - Example worlds
 
 ## Key Principle

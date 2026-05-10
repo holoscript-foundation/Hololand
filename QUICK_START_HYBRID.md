@@ -241,7 +241,7 @@ aws ecs run-task \
 1. **[HYBRID_DEPLOYMENT_STRATEGY.md](./HYBRID_DEPLOYMENT_STRATEGY.md)** - Complete strategy guide
 2. **[DNS_CONFIGURATION.md](./DNS_CONFIGURATION.md)** - DNS setup instructions
 3. **[HYBRID_ARCHITECTURE.md](./HYBRID_ARCHITECTURE.md)** - Architecture deep dive
-4. **[PHASE1_INFRASTRUCTURE_COMPLETE.md](./PHASE1_INFRASTRUCTURE_COMPLETE.md)** - AWS resources
+4. **[PHASE1_INFRASTRUCTURE_COMPLETE.md](./.archive/deprecated-docs/PHASE1_INFRASTRUCTURE_COMPLETE.md)** - AWS resources (archived snapshot)
 
 ### Scripts
 - **Railway Deploy:** `./scripts/railway/deploy.sh`

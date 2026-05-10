@@ -12,7 +12,8 @@
   "dependencies": {
     "@hololand/world": "workspace:*",
     "@hololand/renderer": "workspace:*",
-    "@hololand/ui": "workspace:*"
+    "@hololand/ui": "workspace:*",
+    "three": "^0.159.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

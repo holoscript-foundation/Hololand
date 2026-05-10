@@ -11,8 +11,8 @@
     "ARCHITECTURE.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
-    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "build": "tsup src/index.ts --format esm,cjs --dts --external react --external react/jsx-runtime --external react-native",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --external react --external react/jsx-runtime --external react-native --watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
@@ -40,10 +40,14 @@
   "peerDependencies": {
     "@hololand/ar-anchors": "^1.0.0",
     "@hololand/ar-detection": "^1.0.0",
+    "@hololand/ar-foundation": "^1.0.0",
     "@hololand/ar-tracking": "^1.0.0",
-    "@hololand/ar-foundation": "^1.0.0"
+    "react": ">=18.0.0",
+    "react-native": ">=0.72.0"
   },
   "devDependencies": {
+    "@types/react": "^18.3.0",
+    "react": "^18.3.1",
     "tsup": "^8.0.0",
     "typescript": "^5.9.3",
     "vitest": "^1.0.4"

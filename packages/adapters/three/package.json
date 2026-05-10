@@ -42,7 +42,7 @@
     }
   },
   "dependencies": {
-    "@holoscript/core": "workspace:*"
+    "@holoscript/core": "^3.43.0"
   },
   "devDependencies": {
     "@testing-library/react": "^14.3.1",

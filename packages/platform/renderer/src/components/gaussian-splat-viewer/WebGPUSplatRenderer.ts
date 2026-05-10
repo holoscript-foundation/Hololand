@@ -50,7 +50,7 @@ import { DEFAULT_RENDER_CONFIG, DEFAULT_CAMERA_STATE } from './types';
  *   3. Encode depth as sortable uint32 (IEEE 754 bit trick)
  *   4. Write key and value (original index) to sort buffers
  */
-const SORT_KEY_GEN_SHADER = /* wgsl */`
+const SORT_KEY_GEN_SHADER = /* wgsl */ `
 struct Uniforms {
   viewMatrix: mat4x4<f32>,
   projMatrix: mat4x4<f32>,
@@ -109,7 +109,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
  * then writes the per-workgroup histogram to global memory.
  * A subsequent prefix sum computes global offsets.
  */
-const RADIX_HISTOGRAM_SHADER = /* wgsl */`
+const RADIX_HISTOGRAM_SHADER = /* wgsl */ `
 struct SortParams {
   count: u32,
   digitShift: u32,
@@ -162,7 +162,7 @@ fn main(
  * This computes an exclusive prefix sum over the histogram array,
  * yielding the global scatter offset for each (digit, workgroup) pair.
  */
-const RADIX_PREFIX_SUM_SHADER = /* wgsl */`
+const RADIX_PREFIX_SUM_SHADER = /* wgsl */ `
 struct SortParams {
   count: u32,
   digitShift: u32,
@@ -214,7 +214,7 @@ fn main(
  * the digit bucket, looks up the global offset from the prefix-summed
  * histogram, and scatters keys and values to their sorted positions.
  */
-const RADIX_SCATTER_SHADER = /* wgsl */`
+const RADIX_SCATTER_SHADER = /* wgsl */ `
 struct SortParams {
   count: u32,
   digitShift: u32,
@@ -306,7 +306,7 @@ fn main(
  * footprint. The fragment shader evaluates the 2D Gaussian and applies
  * alpha blending.
  */
-const SPLAT_RENDER_SHADER = /* wgsl */`
+const SPLAT_RENDER_SHADER = /* wgsl */ `
 struct Uniforms {
   viewMatrix: mat4x4<f32>,
   projMatrix: mat4x4<f32>,
@@ -586,10 +586,7 @@ export class WebGPUSplatRenderer {
   private isRendering: boolean = false;
   private canvas: HTMLCanvasElement | null = null;
 
-  constructor(
-    config?: Partial<SplatRenderConfig>,
-    camera?: Partial<CameraState>,
-  ) {
+  constructor(config?: Partial<SplatRenderConfig>, camera?: Partial<CameraState>) {
     this.config = { ...DEFAULT_RENDER_CONFIG, ...config };
     this.camera = { ...DEFAULT_CAMERA_STATE, ...camera };
   }
@@ -654,7 +651,7 @@ export class WebGPUSplatRenderer {
 
       return true;
     } catch (error) {
-      logger.error('[WebGPUSplatRenderer] Initialization failed', error);
+      logger.error('[WebGPUSplatRenderer] Initialization failed', { error: String(error) });
       return false;
     }
   }
@@ -790,7 +787,7 @@ export class WebGPUSplatRenderer {
       label: string,
       size: number,
       usage: GPUBufferUsageFlags,
-      data?: ArrayBufferView,
+      data?: ArrayBufferView
     ): GPUBuffer => {
       const buffer = this.device!.createBuffer({
         label,
@@ -809,7 +806,12 @@ export class WebGPUSplatRenderer {
     const STORAGE_COPY = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
 
     this.buffers = {
-      positions: createBuffer('positions', count * 3 * 4, STORAGE_COPY, data.positions.subarray(0, count * 3)),
+      positions: createBuffer(
+        'positions',
+        count * 3 * 4,
+        STORAGE_COPY,
+        data.positions.subarray(0, count * 3)
+      ),
       splatData: createBuffer('splatData', count * 16 * 4, STORAGE_COPY),
       sortKeys: createBuffer('sortKeys', count * 4, STORAGE_COPY),
       sortValues: createBuffer('sortValues', count * 4, STORAGE_COPY),
@@ -818,31 +820,46 @@ export class WebGPUSplatRenderer {
       histogram: createBuffer('histogram', 256 * workgroupCount * 4, STORAGE_COPY),
       digitOffsets: createBuffer('digitOffsets', 256 * 4, STORAGE_COPY),
       uniforms: createBuffer('uniforms', 256, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
-      opacities: createBuffer('opacities', count * 4, STORAGE_COPY, data.opacities.subarray(0, count)),
+      opacities: createBuffer(
+        'opacities',
+        count * 4,
+        STORAGE_COPY,
+        data.opacities.subarray(0, count)
+      ),
       colors: createBuffer('colors', count * 3 * 4, STORAGE_COPY, data.shDC.subarray(0, count * 3)),
-      scales: createBuffer('scales', count * 3 * 4, STORAGE_COPY, data.scales.subarray(0, count * 3)),
-      rotations: createBuffer('rotations', count * 4 * 4, STORAGE_COPY, data.rotations.subarray(0, count * 4)),
+      scales: createBuffer(
+        'scales',
+        count * 3 * 4,
+        STORAGE_COPY,
+        data.scales.subarray(0, count * 3)
+      ),
+      rotations: createBuffer(
+        'rotations',
+        count * 4 * 4,
+        STORAGE_COPY,
+        data.rotations.subarray(0, count * 4)
+      ),
     };
 
     // Sort params uniform buffer
     this.sortParamsBuffer = createBuffer(
       'sortParams',
       16, // 4 uint32s
-      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     );
 
     // Calculate VRAM estimate
     this.gpuMemoryBytes =
-      count * 3 * 4 +        // positions
-      count * 16 * 4 +       // splatData
-      count * 4 * 4 +        // sortKeys (x2 for ping-pong) + sortValues (x2)
+      count * 3 * 4 + // positions
+      count * 16 * 4 + // splatData
+      count * 4 * 4 + // sortKeys (x2 for ping-pong) + sortValues (x2)
       256 * workgroupCount * 4 + // histogram
-      256 * 4 +              // digitOffsets
-      256 +                  // uniforms
-      count * 4 +            // opacities
-      count * 3 * 4 +        // colors
-      count * 3 * 4 +        // scales
-      count * 4 * 4;         // rotations
+      256 * 4 + // digitOffsets
+      256 + // uniforms
+      count * 4 + // opacities
+      count * 3 * 4 + // colors
+      count * 3 * 4 + // scales
+      count * 4 * 4; // rotations
 
     logger.info('[WebGPUSplatRenderer] Uploaded splat data', {
       count: this.splatCount,
@@ -890,12 +907,7 @@ export class WebGPUSplatRenderer {
     const viewMatrix = this.lookAt(cam.position, cam.target, cam.up);
 
     // Build projection matrix (perspective)
-    const projMatrix = this.perspective(
-      cam.fovY * Math.PI / 180,
-      cam.aspect,
-      cam.near,
-      cam.far,
-    );
+    const projMatrix = this.perspective((cam.fovY * Math.PI) / 180, cam.aspect, cam.near, cam.far);
 
     // Camera forward direction
     const fwd: [number, number, number] = [
@@ -1005,7 +1017,7 @@ export class WebGPUSplatRenderer {
     this.device.queue.submit([commandEncoder.finish()]);
 
     metrics.totalMs = performance.now() - frameStart;
-    metrics.withinBudget = metrics.totalMs <= (1000 / this.config.targetFPS);
+    metrics.withinBudget = metrics.totalMs <= 1000 / this.config.targetFPS;
 
     this.recordMetrics(metrics);
     return metrics;
@@ -1073,8 +1085,14 @@ export class WebGPUSplatRenderer {
   }
 
   private dispatchRadixSort(commandEncoder: GPUCommandEncoder): void {
-    if (!this.device || !this.buffers || !this.histogramPipeline ||
-        !this.prefixSumPipeline || !this.scatterPipeline || !this.sortParamsBuffer) {
+    if (
+      !this.device ||
+      !this.buffers ||
+      !this.histogramPipeline ||
+      !this.prefixSumPipeline ||
+      !this.scatterPipeline ||
+      !this.sortParamsBuffer
+    ) {
       return;
     }
 
@@ -1238,7 +1256,7 @@ export class WebGPUSplatRenderer {
     const history = this.frameMetrics;
     if (history.length === 0) return null;
 
-    const frameTimes = history.map(m => m.totalMs);
+    const frameTimes = history.map((m) => m.totalMs);
     const sorted = [...frameTimes].sort((a, b) => a - b);
     const sum = frameTimes.reduce((a, b) => a + b, 0);
     const avg = sum / frameTimes.length;
@@ -1267,9 +1285,7 @@ export class WebGPUSplatRenderer {
    * Get the last frame metrics.
    */
   getLastMetrics(): SplatFrameMetrics | null {
-    return this.frameMetrics.length > 0
-      ? this.frameMetrics[this.frameMetrics.length - 1]
-      : null;
+    return this.frameMetrics.length > 0 ? this.frameMetrics[this.frameMetrics.length - 1] : null;
   }
 
   /**
@@ -1356,28 +1372,41 @@ export class WebGPUSplatRenderer {
   private lookAt(
     eye: [number, number, number],
     center: [number, number, number],
-    up: [number, number, number],
+    up: [number, number, number]
   ): Float32Array {
     const zx = eye[0] - center[0];
     const zy = eye[1] - center[1];
     const zz = eye[2] - center[2];
     let len = Math.sqrt(zx * zx + zy * zy + zz * zz);
-    const z0 = zx / len, z1 = zy / len, z2 = zz / len;
+    const z0 = zx / len,
+      z1 = zy / len,
+      z2 = zz / len;
 
     const xx = up[1] * z2 - up[2] * z1;
     const xy = up[2] * z0 - up[0] * z2;
     const xz = up[0] * z1 - up[1] * z0;
     len = Math.sqrt(xx * xx + xy * xy + xz * xz);
-    const x0 = xx / len, x1 = xy / len, x2 = xz / len;
+    const x0 = xx / len,
+      x1 = xy / len,
+      x2 = xz / len;
 
     const y0 = z1 * x2 - z2 * x1;
     const y1 = z2 * x0 - z0 * x2;
     const y2 = z0 * x1 - z1 * x0;
 
     return new Float32Array([
-      x0, y0, z0, 0,
-      x1, y1, z1, 0,
-      x2, y2, z2, 0,
+      x0,
+      y0,
+      z0,
+      0,
+      x1,
+      y1,
+      z1,
+      0,
+      x2,
+      y2,
+      z2,
+      0,
       -(x0 * eye[0] + x1 * eye[1] + x2 * eye[2]),
       -(y0 * eye[0] + y1 * eye[1] + y2 * eye[2]),
       -(z0 * eye[0] + z1 * eye[1] + z2 * eye[2]),
@@ -1388,20 +1417,27 @@ export class WebGPUSplatRenderer {
   /**
    * Build a perspective projection matrix (column-major).
    */
-  private perspective(
-    fovYRad: number,
-    aspect: number,
-    near: number,
-    far: number,
-  ): Float32Array {
+  private perspective(fovYRad: number, aspect: number, near: number, far: number): Float32Array {
     const f = 1.0 / Math.tan(fovYRad / 2);
     const rangeInv = 1.0 / (near - far);
 
     return new Float32Array([
-      f / aspect, 0, 0, 0,
-      0, f, 0, 0,
-      0, 0, (far + near) * rangeInv, -1,
-      0, 0, 2 * far * near * rangeInv, 0,
+      f / aspect,
+      0,
+      0,
+      0,
+      0,
+      f,
+      0,
+      0,
+      0,
+      0,
+      (far + near) * rangeInv,
+      -1,
+      0,
+      0,
+      2 * far * near * rangeInv,
+      0,
     ]);
   }
 }
@@ -1412,7 +1448,7 @@ export class WebGPUSplatRenderer {
 
 export function createWebGPUSplatRenderer(
   config?: Partial<SplatRenderConfig>,
-  camera?: Partial<CameraState>,
+  camera?: Partial<CameraState>
 ): WebGPUSplatRenderer {
   return new WebGPUSplatRenderer(config, camera);
 }

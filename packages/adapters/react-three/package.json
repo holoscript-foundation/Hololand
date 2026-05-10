@@ -4,10 +4,10 @@
   "description": "React components for Hololand VR worlds with Three.js integration",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./src/index.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     }
@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.19.3",
+    "@hololand/audio": "workspace:*",
     "@hololand/network": "workspace:*",
     "@holoscript/core": "^3.43.0",
     "@holoscript/r3f-renderer": "file:../../../../HoloScript/packages/r3f-renderer",

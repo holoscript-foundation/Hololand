@@ -67,6 +67,12 @@ export interface GPUDetectionResult {
 /** Frame rate monitor callback */
 export type FrameRateCallback = (fps: number, averageFps: number, dropped: boolean) => void;
 
+type NavigatorWithWebGPU = Navigator & {
+  gpu?: {
+    requestAdapter(): Promise<unknown | null>;
+  };
+};
+
 // =============================================================================
 // GPU TIER CLASSIFICATION PATTERNS
 // =============================================================================
@@ -363,7 +369,7 @@ export class PerformanceAdapter {
     try {
       if (typeof navigator === 'undefined') return false;
 
-      const nav = navigator as Navigator & { gpu?: GPU };
+      const nav = navigator as NavigatorWithWebGPU;
       if (!nav.gpu) return false;
 
       const adapter = await nav.gpu.requestAdapter();

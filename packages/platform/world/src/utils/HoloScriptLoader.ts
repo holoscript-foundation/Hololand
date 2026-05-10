@@ -11,14 +11,16 @@ export class HoloScriptLoader {
 
   load(source: string) {
     const result = parse(source);
+    const errors = result.errors || [];
     
-    if (!result.success) {
-      console.error('Failed to parse HoloScript source', result.errors);
+    if (errors.length > 0 || !result.ast) {
+      console.error('Failed to parse HoloScript source', errors);
       return;
     }
 
     // Handle both conventional root and fragment root
-    const directives = result.ast.root.directives || result.ast.body;
+    const ast = result.ast as any;
+    const directives = ast.root?.directives || ast.body || [];
 
     directives.forEach((d: unknown) => {
       // Cast to any to access custom properties not yet in the strict type definition if necessary

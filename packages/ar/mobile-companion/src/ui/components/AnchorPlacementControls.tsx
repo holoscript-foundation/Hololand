@@ -256,13 +256,13 @@ export const AnchorPlacementControls: React.FC<AnchorPlacementControlsProps> = (
         }
       },
 
-      onPanResponderMove: (evt: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+      onPanResponderMove: (evt: GestureResponderEvent, panGestureState: PanResponderGestureState) => {
         const touches = evt.nativeEvent.touches;
 
         if (touches.length === 1) {
           // Single-finger drag: translate in XZ plane
-          const dx = gestureState.dx * TRANSLATION_SENSITIVITY;
-          const dz = -gestureState.dy * TRANSLATION_SENSITIVITY; // Inverted Y for forward/backward
+          const dx = panGestureState.dx * TRANSLATION_SENSITIVITY;
+          const dz = -panGestureState.dy * TRANSLATION_SENSITIVITY; // Inverted Y for forward/backward
 
           let newX = transform.position[0] + dx;
           let newZ = transform.position[2] + dz;

@@ -8,5 +8,20 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   minify: false,
-  external: ['three', '@hololand/world'],
+  loader: {
+    '.wgsl': 'text',
+  },
+  external: [
+    'three',
+    'react',
+    'react-dom',
+    'react/jsx-runtime',
+    '@react-three/fiber',
+    '@hololand/world',
+    '@hololand/logger',
+    '@hololand/quality-profiles',
+    '@holoscript/core',
+    '@coinbase/agentkit',
+    'jsonwebtoken',
+  ],
 });

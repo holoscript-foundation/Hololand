@@ -1,0 +1,82 @@
+// Canonical HoloLand landing source.
+// The checked-in React host is temporary migration debt; this file is the product source.
+composition "LandingPage" {
+  environment {
+    skybox: "bright_plaza_day"
+    ambientLight: 0.85
+    visualReference: "/assets/hololand-plaza-mockup.jpg"
+  }
+
+  state {
+    entryMode: null
+    objectives: ["Enter the plaza", "Meet a local", "Open a portal"]
+  }
+
+  action launch(mode) {
+    state.entryMode = mode
+    app.navigate(mode == "singleplayer" ? "Oasis" : "Central", { mode: mode })
+  }
+
+  object "BackgroundMockup" {
+    type: "image-plane"
+    image: "/assets/hololand-plaza-mockup.jpg"
+    position: [0, 2, -10]
+    size: [16, 9]
+    @static
+  }
+
+  object "PlazaPlatform" {
+    type: "cylinder"
+    position: [0, -0.05, 0]
+    scale: [10, 0.1, 10]
+    color: "#bdf7f7"
+    @static
+  }
+
+  object "SingleplayerPortal" {
+    type: "torus"
+    position: [4.2, 1.2, 0]
+    destination: "Oasis"
+    mode: "singleplayer"
+    @interactive
+    @portal
+    @glowing
+  }
+
+  object "MultiplayerPortal" {
+    type: "torus"
+    position: [-2.1, 1.2, 3.6]
+    rotation: [90, 0, 120]
+    destination: "Central"
+    mode: "multiplayer"
+    @interactive
+    @portal
+    @glowing
+  }
+
+  ui {
+    element "title" {
+      type: "text"
+      position: [640, 310]
+      text: "HoloLand"
+      font_size: 96
+      color: "#fffef5"
+    }
+
+    element "singleplayer" {
+      type: "button"
+      position: [505, 430]
+      size: [190, 52]
+      text: "Singleplayer"
+      action: "launch(singleplayer)"
+    }
+
+    element "multiplayer" {
+      type: "button"
+      position: [725, 430]
+      size: [230, 52]
+      text: "Online Multiplayer"
+      action: "launch(multiplayer)"
+    }
+  }
+}

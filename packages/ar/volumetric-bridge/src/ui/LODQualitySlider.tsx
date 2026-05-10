@@ -24,7 +24,7 @@
  * @module volumetric-bridge/ui
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import { type KeyboardEvent, useCallback, useMemo, useRef } from 'react';
 import type { LODQualitySliderProps, LODQualityTier } from './types';
 import { LOD_TIER_MAPPINGS } from './types';
 
@@ -265,7 +265,7 @@ function formatMemory(mb: number): string {
  * />
  * ```
  */
-export const LODQualitySlider: React.FC<LODQualitySliderProps> = ({
+export const LODQualitySlider = ({
   value,
   onChange,
   disabled = false,
@@ -277,7 +277,7 @@ export const LODQualitySlider: React.FC<LODQualitySliderProps> = ({
   orientation = 'horizontal',
   size = 'default',
   'aria-label': ariaLabel,
-}) => {
+}: LODQualitySliderProps) => {
   const sliderRef = useRef<HTMLDivElement>(null);
   const isVertical = orientation === 'vertical';
   const currentIndex = TIER_INDICES[value];
@@ -292,11 +292,11 @@ export const LODQualitySlider: React.FC<LODQualitySliderProps> = ({
     (tier: LODQualityTier) => {
       if (!disabled) onChange(tier);
     },
-    [disabled, onChange],
+    [disabled, onChange]
   );
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: KeyboardEvent) => {
       if (disabled) return;
 
       let newIndex = currentIndex;
@@ -327,7 +327,7 @@ export const LODQualitySlider: React.FC<LODQualitySliderProps> = ({
         onChange(TIERS[newIndex]);
       }
     },
-    [disabled, currentIndex, onChange],
+    [disabled, currentIndex, onChange]
   );
 
   // -------------------------------------------------------------------------
@@ -404,13 +404,7 @@ export const LODQualitySlider: React.FC<LODQualitySliderProps> = ({
         />
 
         {/* Track fill */}
-        <div
-          style={
-            isVertical
-              ? styles.trackFillVertical(fillPct)
-              : styles.trackFill(fillPct)
-          }
-        />
+        <div style={isVertical ? styles.trackFillVertical(fillPct) : styles.trackFill(fillPct)} />
 
         {/* Tier stops */}
         {TIERS.map((tier, i) => {
@@ -465,7 +459,9 @@ export const LODQualitySlider: React.FC<LODQualitySliderProps> = ({
               <span style={styles.metricLabel}>splats</span>
             </div>
             <div style={styles.metricItem}>
-              <span style={styles.metricValue(metricsData.memoryMB > mapping.estimatedMemoryMB * 1.2)}>
+              <span
+                style={styles.metricValue(metricsData.memoryMB > mapping.estimatedMemoryMB * 1.2)}
+              >
                 {formatMemory(metricsData.memoryMB)}
               </span>
               <span style={styles.metricLabel}>VRAM</span>
@@ -478,9 +474,7 @@ export const LODQualitySlider: React.FC<LODQualitySliderProps> = ({
             </div>
             {metricsData.levelsDropped > 0 && (
               <div style={styles.metricItem}>
-                <span style={styles.metricValue(true)}>
-                  -{metricsData.levelsDropped}
-                </span>
+                <span style={styles.metricValue(true)}>-{metricsData.levelsDropped}</span>
                 <span style={styles.metricLabel}>dropped</span>
               </div>
             )}

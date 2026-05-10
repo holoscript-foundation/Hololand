@@ -59,7 +59,7 @@ import type { ObjectSnapshot, CameraSnapshot } from './SpatialReasoningEngine';
  *   @group(0) @binding(1) - Distance matrix output (read-write, N*(N-1)/2 float32)
  *   @group(0) @binding(2) - Uniforms (object count, thresholds)
  */
-const PAIRWISE_DISTANCE_SHADER = /* wgsl */`
+const PAIRWISE_DISTANCE_SHADER = /* wgsl */ `
 struct Uniforms {
   objectCount: u32,
   nearThreshold: f32,
@@ -120,7 +120,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
  *   @group(0) @binding(2) - Classification output (read-write, packed u32)
  *   @group(0) @binding(3) - Uniforms (thresholds, camera data)
  */
-const CLASSIFICATION_SHADER = /* wgsl */`
+const CLASSIFICATION_SHADER = /* wgsl */ `
 struct ClassifyUniforms {
   objectCount: u32,
   nearThreshold: f32,
@@ -297,16 +297,16 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
  * Used to decode GPU-computed relationship types back to SpatialRelationType.
  */
 export const REL_TYPE_BITS = {
-  near:        0x001,
-  far:         0x002,
-  above:       0x004,
-  below:       0x008,
-  left_of:     0x010,
-  right_of:    0x020,
+  near: 0x001,
+  far: 0x002,
+  above: 0x004,
+  below: 0x008,
+  left_of: 0x010,
+  right_of: 0x020,
   in_front_of: 0x040,
-  behind:      0x080,
-  adjacent:    0x100,
-  aligned:     0x200,
+  behind: 0x080,
+  adjacent: 0x100,
+  aligned: 0x200,
 } as const;
 
 /**
@@ -460,14 +460,15 @@ export class SpatialInferenceComputePipeline {
       // Capture adapter info
       if (this.adapter.info) {
         const info = this.adapter.info;
-        this.adapterInfoString = `${info.vendor ?? 'unknown'} ${info.architecture ?? ''} ${info.device ?? ''}`.trim();
+        this.adapterInfoString =
+          `${info.vendor ?? 'unknown'} ${info.architecture ?? ''} ${info.device ?? ''}`.trim();
       }
 
       // Request device
       this.device = await this.adapter.requestDevice();
 
       // Handle device loss
-      this.device.lost.then((info) => {
+      this.device.lost.then((info: GPUDeviceLostInfo) => {
         logger.error('[SpatialInferenceComputePipeline] Device lost', {
           reason: info.reason,
           message: info.message,
@@ -557,7 +558,7 @@ export class SpatialInferenceComputePipeline {
    */
   async computeRelationships(
     objects: ObjectSnapshot[],
-    camera: CameraSnapshot,
+    camera: CameraSnapshot
   ): Promise<GPURelationshipResult[] | null> {
     if (!this._isReady || !this.device) {
       return null;
@@ -586,7 +587,7 @@ export class SpatialInferenceComputePipeline {
       this.resetResultCount();
 
       // Step 5: Dispatch compute passes
-      const totalPairs = objectCount * (objectCount - 1) / 2;
+      const totalPairs = (objectCount * (objectCount - 1)) / 2;
       const workgroupCount = Math.ceil(totalPairs / this.config.workgroupSize);
 
       const commandEncoder = this.device.createCommandEncoder();
@@ -608,14 +609,18 @@ export class SpatialInferenceComputePipeline {
       // Step 6: Copy results to readback buffers
       const resultByteLength = this.config.maxRelationships * 32; // 8 floats * 4 bytes
       commandEncoder.copyBufferToBuffer(
-        this.resultBuffer!, 0,
-        this.resultReadbackBuffer!, 0,
-        resultByteLength,
+        this.resultBuffer!,
+        0,
+        this.resultReadbackBuffer!,
+        0,
+        resultByteLength
       );
       commandEncoder.copyBufferToBuffer(
-        this.resultCountBuffer!, 0,
-        this.resultCountReadbackBuffer!, 0,
-        4,
+        this.resultCountBuffer!,
+        0,
+        this.resultCountReadbackBuffer!,
+        0,
+        4
       );
 
       // Submit and wait
@@ -637,7 +642,6 @@ export class SpatialInferenceComputePipeline {
       });
 
       return results;
-
     } catch (error) {
       logger.error('[SpatialInferenceComputePipeline] Compute failed', {
         error: String(error),
@@ -655,9 +659,7 @@ export class SpatialInferenceComputePipeline {
    * @param objects - Scene object snapshots
    * @returns Upper-triangle distance matrix, or null if GPU unavailable
    */
-  async computePairwiseDistances(
-    objects: ObjectSnapshot[],
-  ): Promise<Float32Array | null> {
+  async computePairwiseDistances(objects: ObjectSnapshot[]): Promise<Float32Array | null> {
     if (!this._isReady || !this.device) {
       return null;
     }
@@ -672,7 +674,7 @@ export class SpatialInferenceComputePipeline {
       this.updateDistanceUniforms(objectCount);
       this.rebuildBindGroups(objectCount);
 
-      const totalPairs = objectCount * (objectCount - 1) / 2;
+      const totalPairs = (objectCount * (objectCount - 1)) / 2;
       const workgroupCount = Math.ceil(totalPairs / this.config.workgroupSize);
 
       const commandEncoder = this.device.createCommandEncoder();
@@ -685,21 +687,20 @@ export class SpatialInferenceComputePipeline {
 
       const distByteLength = totalPairs * 4;
       commandEncoder.copyBufferToBuffer(
-        this.distanceBuffer!, 0,
-        this.distanceReadbackBuffer!, 0,
-        Math.min(distByteLength, this.distanceReadbackBuffer!.size),
+        this.distanceBuffer!,
+        0,
+        this.distanceReadbackBuffer!,
+        0,
+        Math.min(distByteLength, this.distanceReadbackBuffer!.size)
       );
 
       this.device.queue.submit([commandEncoder.finish()]);
 
       await this.distanceReadbackBuffer!.mapAsync(GPUMapMode.READ);
-      const mapped = new Float32Array(
-        this.distanceReadbackBuffer!.getMappedRange().slice(0),
-      );
+      const mapped = new Float32Array(this.distanceReadbackBuffer!.getMappedRange().slice(0));
       this.distanceReadbackBuffer!.unmap();
 
       return mapped.subarray(0, totalPairs);
-
     } catch (error) {
       logger.error('[SpatialInferenceComputePipeline] Distance compute failed', {
         error: String(error),
@@ -712,21 +713,23 @@ export class SpatialInferenceComputePipeline {
    * Get pipeline metrics for monitoring.
    */
   getMetrics(): SpatialInferenceComputeMetrics {
-    const avgCompute = this.computeDurations.length > 0
-      ? this.computeDurations.reduce((a, b) => a + b, 0) / this.computeDurations.length
-      : 0;
-    const peakCompute = this.computeDurations.length > 0
-      ? Math.max(...this.computeDurations)
-      : 0;
-    const lastCompute = this.computeDurations.length > 0
-      ? this.computeDurations[this.computeDurations.length - 1]
-      : 0;
-    const avgObjects = this.objectCounts.length > 0
-      ? this.objectCounts.reduce((a, b) => a + b, 0) / this.objectCounts.length
-      : 0;
-    const avgRelationships = this.relationshipCounts.length > 0
-      ? this.relationshipCounts.reduce((a, b) => a + b, 0) / this.relationshipCounts.length
-      : 0;
+    const avgCompute =
+      this.computeDurations.length > 0
+        ? this.computeDurations.reduce((a, b) => a + b, 0) / this.computeDurations.length
+        : 0;
+    const peakCompute = this.computeDurations.length > 0 ? Math.max(...this.computeDurations) : 0;
+    const lastCompute =
+      this.computeDurations.length > 0
+        ? this.computeDurations[this.computeDurations.length - 1]
+        : 0;
+    const avgObjects =
+      this.objectCounts.length > 0
+        ? this.objectCounts.reduce((a, b) => a + b, 0) / this.objectCounts.length
+        : 0;
+    const avgRelationships =
+      this.relationshipCounts.length > 0
+        ? this.relationshipCounts.reduce((a, b) => a + b, 0) / this.relationshipCounts.length
+        : 0;
 
     return {
       isReady: this._isReady,
@@ -785,7 +788,7 @@ export class SpatialInferenceComputePipeline {
     if (!this.device) return;
 
     const maxN = this.config.maxObjects;
-    const maxPairs = maxN * (maxN - 1) / 2;
+    const maxPairs = (maxN * (maxN - 1)) / 2;
     const maxResults = this.config.maxRelationships;
 
     // Position buffer: Nx4 float32 (xyz + padding)
@@ -934,7 +937,7 @@ export class SpatialInferenceComputePipeline {
   private rebuildBindGroups(objectCount: number): void {
     if (!this.device || !this.distancePipeline || !this.classifyPipeline) return;
 
-    const totalPairs = objectCount * (objectCount - 1) / 2;
+    const totalPairs = (objectCount * (objectCount - 1)) / 2;
     const distSize = Math.max(totalPairs * 4, 4);
 
     // Distance bind group
@@ -973,9 +976,7 @@ export class SpatialInferenceComputePipeline {
 
     // Read result count
     await this.resultCountReadbackBuffer.mapAsync(GPUMapMode.READ);
-    const countData = new Uint32Array(
-      this.resultCountReadbackBuffer.getMappedRange().slice(0),
-    );
+    const countData = new Uint32Array(this.resultCountReadbackBuffer.getMappedRange().slice(0));
     const resultCount = Math.min(countData[0], this.config.maxRelationships);
     this.resultCountReadbackBuffer.unmap();
 
@@ -985,9 +986,7 @@ export class SpatialInferenceComputePipeline {
 
     // Read results
     await this.resultReadbackBuffer.mapAsync(GPUMapMode.READ);
-    const resultData = new Float32Array(
-      this.resultReadbackBuffer.getMappedRange().slice(0),
-    );
+    const resultData = new Float32Array(this.resultReadbackBuffer.getMappedRange().slice(0));
     this.resultReadbackBuffer.unmap();
 
     // Parse results
@@ -1056,7 +1055,7 @@ export class SpatialInferenceComputePipeline {
  * @returns Uninitialized pipeline (call .initialize() before use)
  */
 export function createSpatialInferenceComputePipeline(
-  config?: SpatialInferenceComputeConfig,
+  config?: SpatialInferenceComputeConfig
 ): SpatialInferenceComputePipeline {
   return new SpatialInferenceComputePipeline(config);
 }

@@ -7,5 +7,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ['three', '@pixiv/three-vrm'],
+  external: ['react', 'three', '@pixiv/three-vrm'],
 });
