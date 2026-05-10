@@ -25,17 +25,17 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "lucide-react": "^0.314.0",
-    "react": "^18.2.0",
+    "react": "^19.2.0",
     "three": "^0.182.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.48",
+    "@types/react": "^19.2.7",
     "@types/three": "^0.170.0",
-    "typescript": "^5.3.3",
+    "typescript": "^5.9.3",
     "vite": "^5.1.0"
   },
   "peerDependencies": {
-    "react": "^18.0.0",
+    "react": "^19.2.0",
     "three": ">=0.150.0"
   }
 }

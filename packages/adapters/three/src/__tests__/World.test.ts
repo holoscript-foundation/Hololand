@@ -134,6 +134,8 @@ vi.mock('@holoscript/core', () => ({
   createRuntime: vi.fn().mockReturnValue({
     mount: vi.fn(),
     unmount: vi.fn(),
+    execute: vi.fn(),
+    dispose: vi.fn(),
     on: vi.fn().mockReturnValue(() => {}),
     emit: vi.fn(),
     setState: vi.fn(),
