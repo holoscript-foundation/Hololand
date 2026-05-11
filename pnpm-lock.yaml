@@ -2159,9 +2159,6 @@ importers:
 
   packages/platform/quality-profiles:
     devDependencies:
-      '@hololand/renderer':
-        specifier: workspace:*
-        version: link:../renderer
       '@types/node':
         specifier: ^20.11.5
         version: 20.19.29

@@ -32,11 +32,7 @@
   ],
   "author": "HoloLand Platform",
   "license": "MIT",
-  "peerDependencies": {
-    "@hololand/renderer": "workspace:*"
-  },
   "devDependencies": {
-    "@hololand/renderer": "workspace:*",
     "@types/node": "^20.11.5",
     "eslint": "^8.56.0",
     "tsup": "^8.0.1",
