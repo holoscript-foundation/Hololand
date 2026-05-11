@@ -1,0 +1,60 @@
+// HoloLand Frontier Encounter Manifest
+// Source-of-truth HoloScript contract paired with frontier-encounter-manifest.schema.json.
+
+composition "Frontier Encounter Manifest Contract" {
+  state {
+    schema_version: "1.0.0"
+    paired_json_schema: "frontier-encounter-manifest.schema.json"
+    apex_requires_cognitive_attack_vector: true
+    player_assumption_gate: "cognitiveAttackVector.targetedAssumption reviewed"
+  }
+
+  object "EncounterManifest" {
+    type: "schema_contract"
+    required_fields: ["id", "version", "title", "tier", "summary", "mechanics", "review"]
+    tiers: ["standard", "elite", "apex"]
+    apex_rule: "Apex encounters must declare the player model-of-world assumption they target."
+  }
+
+  object "EncounterMechanics" {
+    type: "schema_section"
+    required_fields: ["winCondition", "failureCondition", "primaryLoop"]
+  }
+
+  object "CognitiveAttackVector" {
+    type: "required_apex_section"
+    required_for_tier: "apex"
+    required_fields: ["targetedAssumption", "vectorKind", "playerSignal", "designSafeguard"]
+    targeted_assumption_rule: "One sentence naming the player's model-of-world assumption."
+    targeted_assumption_pattern: "^[A-Z][^\\n]*[.!?]$"
+    vector_kinds: [
+      "victory-condition",
+      "privacy-boundary",
+      "perception-integrity",
+      "npc-trust",
+      "rule-model",
+      "identity-continuity",
+      "social-contract",
+      "custom"
+    ]
+    paper21_threat_model: "adversarial-trust-injection"
+  }
+
+  object "ApexReviewGate" {
+    type: "review_gate"
+    rejects_without: "cognitiveAttackVector.targetedAssumption"
+    required_confirmation: "cognitiveAttackVector.targetedAssumption reviewed"
+    originality_policy: "Shipped manifests stay franchise-neutral unless a license is explicitly recorded."
+  }
+
+  object "MercyDuelExample" {
+    type: "apex_encounter_example"
+    id: "mercy-duel"
+    tier: "apex"
+    targeted_assumption: "Player assumes the only valid victory condition is reducing HP to zero."
+    vector_kind: "victory-condition"
+    player_signal: "Player stops attacking after the encounter changes its stance and dialogue."
+    design_safeguard: "The encounter gives visible state changes and repeatable dialogue before punishing a wrong assumption."
+    review_gate: "cognitiveAttackVector.targetedAssumption reviewed"
+  }
+}

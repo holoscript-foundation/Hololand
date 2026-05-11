@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hololand.dev/schemas/frontier-encounter-manifest.schema.json",
+  "title": "HoloLand Frontier Encounter Manifest",
+  "description": "Review schema for HoloLand frontier encounters. Apex-tier encounters must declare the player's mental model they attack before any content can be accepted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "version", "title", "tier", "summary", "mechanics", "review"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 120
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["standard", "elite", "apex"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 800
+    },
+    "mechanics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["winCondition", "failureCondition", "primaryLoop"],
+      "properties": {
+        "winCondition": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 240
+        },
+        "failureCondition": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 240
+        },
+        "primaryLoop": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 240
+        }
+      }
+    },
+    "cognitiveAttackVector": {
+      "$ref": "#/$defs/cognitiveAttackVector"
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentOriginality", "safetyReview", "playerAssumptionGate"],
+      "properties": {
+        "contentOriginality": {
+          "type": "string",
+          "enum": ["franchise-neutral", "licensed", "blocked"]
+        },
+        "safetyReview": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 400
+        },
+        "playerAssumptionGate": {
+          "type": "string",
+          "description": "For apex-tier encounters, reviewers must confirm cognitiveAttackVector.targetedAssumption was stated as one sentence.",
+          "enum": [
+            "not-apex",
+            "cognitiveAttackVector.targetedAssumption reviewed"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tier": { "const": "apex" }
+        },
+        "required": ["tier"]
+      },
+      "then": {
+        "required": ["cognitiveAttackVector"],
+        "properties": {
+          "review": {
+            "properties": {
+              "playerAssumptionGate": {
+                "const": "cognitiveAttackVector.targetedAssumption reviewed"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "cognitiveAttackVector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetedAssumption",
+        "vectorKind",
+        "playerSignal",
+        "designSafeguard"
+      ],
+      "properties": {
+        "targetedAssumption": {
+          "type": "string",
+          "description": "One sentence naming the player's model-of-world assumption that the apex encounter targets. PRs without this sentence are rejected.",
+          "minLength": 20,
+          "maxLength": 220,
+          "pattern": "^[A-Z][^\\n]*[.!?]$",
+          "examples": [
+            "Player assumes trusted NPC guidance is safe to follow.",
+            "Player assumes private voice chat cannot be perceived by the world.",
+            "Player assumes the only valid victory condition is reducing HP to zero."
+          ]
+        },
+        "vectorKind": {
+          "type": "string",
+          "enum": [
+            "victory-condition",
+            "privacy-boundary",
+            "perception-integrity",
+            "npc-trust",
+            "rule-model",
+            "identity-continuity",
+            "social-contract",
+            "custom"
+          ]
+        },
+        "playerSignal": {
+          "type": "string",
+          "description": "Observable player behavior proving the assumption was engaged.",
+          "minLength": 12,
+          "maxLength": 300
+        },
+        "designSafeguard": {
+          "type": "string",
+          "description": "How the encounter stays fair, replayable, and consent-respecting while attacking the assumption.",
+          "minLength": 12,
+          "maxLength": 400
+        },
+        "paper21ThreatModel": {
+          "type": "string",
+          "description": "Optional link to the adversarial trust injection threat model category.",
+          "maxLength": 240
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "mercy-duel",
+      "version": "1.0.0",
+      "title": "Mercy Duel",
+      "tier": "apex",
+      "summary": "A duel whose resolution depends on recognizing that mercy, not HP depletion, is the real victory condition.",
+      "mechanics": {
+        "winCondition": "Player chooses mercy after identifying the encounter's hidden social contract.",
+        "failureCondition": "Player keeps pursuing HP depletion after the opponent has yielded.",
+        "primaryLoop": "Observe behavior, test assumptions, and decide whether continuing combat is still valid."
+      },
+      "cognitiveAttackVector": {
+        "targetedAssumption": "Player assumes the only valid victory condition is reducing HP to zero.",
+        "vectorKind": "victory-condition",
+        "playerSignal": "Player stops attacking after the encounter changes its stance and dialogue.",
+        "designSafeguard": "The encounter gives visible state changes and repeatable dialogue before punishing a wrong assumption.",
+        "paper21ThreatModel": "adversarial-trust-injection"
+      },
+      "review": {
+        "contentOriginality": "franchise-neutral",
+        "safetyReview": "Uses original names and mechanics; no protected characters, lore, or setting material.",
+        "playerAssumptionGate": "cognitiveAttackVector.targetedAssumption reviewed"
+      }
+    }
+  ]
+}

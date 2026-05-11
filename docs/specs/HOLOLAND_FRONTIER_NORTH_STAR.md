@@ -334,6 +334,9 @@ Frontier Shard 0 is credible only when:
 
 - Finalize Frontier Shard 0 scope.
 - Draft HoloScript schema primitives for zone, encounter, item, skill, event, and receipt.
+  - Encounter manifests start at [`frontier-encounter-manifest.holo`](frontier-encounter-manifest.holo) and [`frontier-encounter-manifest.schema.json`](frontier-encounter-manifest.schema.json).
+  - Apex-tier encounter PRs must include `cognitiveAttackVector.targetedAssumption`: one sentence naming the player's model-of-world assumption the encounter targets, or review rejects the manifest.
+  - Shipped manifests must stay franchise-neutral unless a license is explicitly recorded; outside media examples belong in research notes, not product content.
 - Inventory which existing HoloLand examples can serve as migration evidence.
 - Define the first player profile and validation receipt shape.
 
