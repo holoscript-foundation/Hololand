@@ -3,10 +3,17 @@
 
 composition "Frontier Encounter Manifest Contract" {
   state {
-    schema_version: "1.0.0"
+    schema_version: "1.1.0"
     paired_json_schema: "frontier-encounter-manifest.schema.json"
     apex_requires_cognitive_attack_vector: true
     player_assumption_gate: "cognitiveAttackVector.targetedAssumption reviewed"
+    intricacy_track_fields: [
+      "unlockCondition",
+      "prereqBehavior",
+      "movementModifiers",
+      "worldClock",
+      "compositeTriggers"
+    ]
   }
 
   object "EncounterManifest" {
@@ -14,6 +21,7 @@ composition "Frontier Encounter Manifest Contract" {
     required_fields: ["id", "version", "title", "tier", "summary", "mechanics", "review"]
     tiers: ["standard", "elite", "apex"]
     apex_rule: "Apex encounters must declare the player model-of-world assumption they target."
+    optional_world_intricacies: "worldIntricacies"
   }
 
   object "EncounterMechanics" {
@@ -40,6 +48,56 @@ composition "Frontier Encounter Manifest Contract" {
     paper21_threat_model: "adversarial-trust-injection"
   }
 
+  object "WorldIntricacies" {
+    type: "world_manifest_extension"
+    ownership: "HoloLand world-design schema, not @holoscript/core trait library"
+    fields: [
+      "unlockCondition",
+      "prereqBehavior",
+      "movementModifiers",
+      "worldClock",
+      "compositeTriggers"
+    ]
+    purpose: "Model hidden questions, behavior prerequisites, terrain mechanics, scheduled encounters, and composite environmental triggers."
+  }
+
+  object "UnlockCondition" {
+    type: "llm_evaluable_lore_gate"
+    required_fields: ["id", "evaluator", "prompt", "evidenceRequired"]
+    evaluators: ["llm", "rule", "hybrid"]
+    evidence_kinds: ["question", "observation", "dialogue", "item", "location", "behavior"]
+    example: "Pass only when the player asks about the rootless dead tree after inspecting nearby flowers."
+  }
+
+  object "PrereqBehavior" {
+    type: "sliding_window_behavior_gate"
+    required_fields: ["id", "behavior", "windowSeconds", "successCondition"]
+    example_behavior: "no-damage-as-vanguard"
+    example_window_seconds: 300
+    reset_on_failure: true
+  }
+
+  object "MovementModifiers" {
+    type: "per_tile_terrain_mechanics"
+    modifier_kinds: ["slow", "sticky", "no-fly", "slippery", "no-teleport", "custom"]
+    examples: ["mudflat-a7: sticky", "grotto-canopy: no-fly"]
+  }
+
+  object "WorldClockSchedule" {
+    type: "time_gated_encounter_manifest"
+    modes: ["fixed", "simulated", "real-time", "lunar-phase"]
+    time_units: ["second", "minute", "hour", "day", "phase"]
+    scheduled_encounter_required_fields: ["encounterId", "activeWhen"]
+    example: "moonlit-grotto-shift active at night during full_moon"
+  }
+
+  object "CompositeTrigger" {
+    type: "hidden_environmental_trigger"
+    required_fields: ["id", "requireAll", "effect"]
+    require_all_dimensions: ["location", "time", "item", "observation", "behavior", "worldClock"]
+    example: "requireAll location + time + item + observation before revealing a unique scenario gate"
+  }
+
   object "ApexReviewGate" {
     type: "review_gate"
     rejects_without: "cognitiveAttackVector.targetedAssumption"
@@ -56,5 +114,17 @@ composition "Frontier Encounter Manifest Contract" {
     player_signal: "Player stops attacking after the encounter changes its stance and dialogue."
     design_safeguard: "The encounter gives visible state changes and repeatable dialogue before punishing a wrong assumption."
     review_gate: "cognitiveAttackVector.targetedAssumption reviewed"
+  }
+
+  object "HiddenGrottoMoonwatchExample" {
+    type: "elite_world_intricacy_example"
+    id: "hidden-grotto-moonwatch"
+    tier: "elite"
+    unlock_condition: "ask-rootless-tree"
+    prereq_behavior: "no-damage-as-vanguard for 300 seconds"
+    movement_modifiers: ["mudflat-a7 sticky", "grotto-canopy no-fly"]
+    world_clock: "full_moon night activates moonlit-grotto-shift"
+    composite_trigger: "location + time + item + observation reveals unique scenario gate"
+    originality_policy: "Franchise-neutral names and landmarks only unless license metadata is attached."
   }
 }

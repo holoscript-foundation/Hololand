@@ -54,6 +54,9 @@
     "cognitiveAttackVector": {
       "$ref": "#/$defs/cognitiveAttackVector"
     },
+    "worldIntricacies": {
+      "$ref": "#/$defs/worldIntricacies"
+    },
     "review": {
       "type": "object",
       "additionalProperties": false,
@@ -71,10 +74,7 @@
         "playerAssumptionGate": {
           "type": "string",
           "description": "For apex-tier encounters, reviewers must confirm cognitiveAttackVector.targetedAssumption was stated as one sentence.",
-          "enum": [
-            "not-apex",
-            "cognitiveAttackVector.targetedAssumption reviewed"
-          ]
+          "enum": ["not-apex", "cognitiveAttackVector.targetedAssumption reviewed"]
         }
       }
     }
@@ -102,15 +102,275 @@
     }
   ],
   "$defs": {
+    "worldIntricacies": {
+      "type": "object",
+      "description": "World-design mechanics for lore-gated, terrain-gated, time-gated, and composite-trigger encounters. These are HoloLand world-manifest concerns, not HoloScript trait-library concerns.",
+      "additionalProperties": false,
+      "properties": {
+        "unlockCondition": {
+          "$ref": "#/$defs/unlockCondition"
+        },
+        "prereqBehavior": {
+          "$ref": "#/$defs/prereqBehavior"
+        },
+        "movementModifiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/movementModifier"
+          }
+        },
+        "worldClock": {
+          "$ref": "#/$defs/worldClock"
+        },
+        "compositeTriggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/compositeTrigger"
+          }
+        }
+      },
+      "anyOf": [
+        { "required": ["unlockCondition"] },
+        { "required": ["prereqBehavior"] },
+        { "required": ["movementModifiers"] },
+        { "required": ["worldClock"] },
+        { "required": ["compositeTriggers"] }
+      ]
+    },
+    "unlockCondition": {
+      "type": "object",
+      "description": "LLM-evaluable lore gate: did the player ask the right question, notice the right detail, or connect the right observation?",
+      "additionalProperties": false,
+      "required": ["id", "evaluator", "prompt", "evidenceRequired"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+        },
+        "evaluator": {
+          "type": "string",
+          "enum": ["llm", "rule", "hybrid"]
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 600
+        },
+        "evidenceRequired": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["question", "observation", "dialogue", "item", "location", "behavior"]
+          }
+        },
+        "successState": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "failureHint": {
+          "type": "string",
+          "maxLength": 240
+        }
+      }
+    },
+    "prereqBehavior": {
+      "type": "object",
+      "description": "Sliding-window prerequisite behavior for EX-style scenarios, such as no-damage-as-vanguard for a fixed window.",
+      "additionalProperties": false,
+      "required": ["id", "behavior", "windowSeconds", "successCondition"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+        },
+        "behavior": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 120
+        },
+        "role": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "windowSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "maxDamageTaken": {
+          "type": "number",
+          "minimum": 0
+        },
+        "successCondition": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 300
+        },
+        "resetOnFailure": {
+          "type": "boolean"
+        }
+      }
+    },
+    "movementModifier": {
+      "type": "object",
+      "description": "Per-tile terrain-as-mechanic rule, such as slow, sticky, or no-fly terrain.",
+      "additionalProperties": false,
+      "required": ["tile", "modifier"],
+      "properties": {
+        "tile": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "terrain": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "modifier": {
+          "type": "string",
+          "enum": ["slow", "sticky", "no-fly", "slippery", "no-teleport", "custom"]
+        },
+        "movementMultiplier": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "appliesTo": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "maxLength": 80
+          }
+        }
+      }
+    },
+    "worldClock": {
+      "type": "object",
+      "description": "World clock and scheduled encounter manifest for time-of-day, phase, or calendar-gated encounters.",
+      "additionalProperties": false,
+      "required": ["mode", "timeUnit", "scheduledEncounters"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["fixed", "simulated", "real-time", "lunar-phase"]
+        },
+        "timeUnit": {
+          "type": "string",
+          "enum": ["second", "minute", "hour", "day", "phase"]
+        },
+        "cycleLengthMinutes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lunarPhase": {
+          "type": "string",
+          "enum": ["none", "new_moon", "waxing", "full_moon", "waning"]
+        },
+        "scheduledEncounters": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/scheduledEncounter"
+          }
+        }
+      }
+    },
+    "scheduledEncounter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["encounterId", "activeWhen"],
+      "properties": {
+        "encounterId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+        },
+        "activeWhen": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "timeOfDay": {
+              "type": "string",
+              "enum": ["dawn", "day", "dusk", "night", "full_moon", "new_moon", "custom"]
+            },
+            "lunarPhase": {
+              "type": "string",
+              "enum": ["new_moon", "waxing", "full_moon", "waning"]
+            },
+            "cron": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "worldState": {
+              "type": "string",
+              "maxLength": 120
+            }
+          }
+        },
+        "transitionMode": {
+          "type": "string",
+          "enum": ["spawn", "despawn", "phase-shift", "dialogue-shift", "custom"]
+        }
+      }
+    },
+    "compositeTrigger": {
+      "type": "object",
+      "description": "Composite environmental trigger. requireAll names the dimensions that must all be true before the effect fires.",
+      "additionalProperties": false,
+      "required": ["id", "requireAll", "effect"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+        },
+        "requireAll": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["location", "time", "item", "observation", "behavior", "worldClock"]
+          }
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "time": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "item": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "observation": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "behavior": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "worldClock": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "effect": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 240
+        }
+      }
+    },
     "cognitiveAttackVector": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "targetedAssumption",
-        "vectorKind",
-        "playerSignal",
-        "designSafeguard"
-      ],
+      "required": ["targetedAssumption", "vectorKind", "playerSignal", "designSafeguard"],
       "properties": {
         "targetedAssumption": {
           "type": "string",
@@ -180,6 +440,84 @@
         "contentOriginality": "franchise-neutral",
         "safetyReview": "Uses original names and mechanics; no protected characters, lore, or setting material.",
         "playerAssumptionGate": "cognitiveAttackVector.targetedAssumption reviewed"
+      }
+    },
+    {
+      "id": "hidden-grotto-moonwatch",
+      "version": "1.1.0",
+      "title": "Hidden Grotto Moonwatch",
+      "tier": "elite",
+      "summary": "A lore-gated encounter whose entrance appears only when the player reads the terrain, asks about the right landmark, carries the right token, and arrives under the correct moon phase.",
+      "mechanics": {
+        "winCondition": "Player identifies the hidden environmental trigger and enters the revealed grotto.",
+        "failureCondition": "Player brute-forces the area without observing the landmark, item, and clock conditions.",
+        "primaryLoop": "Explore terrain, inspect suspicious details, ask NPCs contextual questions, and time the approach."
+      },
+      "worldIntricacies": {
+        "unlockCondition": {
+          "id": "ask-rootless-tree",
+          "evaluator": "llm",
+          "prompt": "Pass only when the player asks about the rootless dead tree after inspecting the crimson bellflowers nearby.",
+          "evidenceRequired": ["question", "observation"],
+          "successState": "grotto_map_revealed",
+          "failureHint": "The player needs to connect the flowers, the dead tree, and local lore."
+        },
+        "prereqBehavior": {
+          "id": "vanguard-no-damage",
+          "behavior": "no-damage-as-vanguard",
+          "role": "vanguard",
+          "windowSeconds": 300,
+          "maxDamageTaken": 0,
+          "successCondition": "Player assigned to vanguard takes no damage for the full five-minute approach window.",
+          "resetOnFailure": true
+        },
+        "movementModifiers": [
+          {
+            "tile": "mudflat-a7",
+            "terrain": "black_mud",
+            "modifier": "sticky",
+            "movementMultiplier": 0.55,
+            "appliesTo": ["players", "mounts"]
+          },
+          {
+            "tile": "grotto-canopy",
+            "terrain": "root_canopy",
+            "modifier": "no-fly",
+            "appliesTo": ["players", "companions"]
+          }
+        ],
+        "worldClock": {
+          "mode": "lunar-phase",
+          "timeUnit": "phase",
+          "cycleLengthMinutes": 72,
+          "lunarPhase": "full_moon",
+          "scheduledEncounters": [
+            {
+              "encounterId": "moonlit-grotto-shift",
+              "activeWhen": {
+                "timeOfDay": "night",
+                "lunarPhase": "full_moon"
+              },
+              "transitionMode": "phase-shift"
+            }
+          ]
+        },
+        "compositeTriggers": [
+          {
+            "id": "grotto-env-composite",
+            "requireAll": ["location", "time", "item", "observation"],
+            "location": "fallen-cedar-grotto",
+            "time": "full_moon_night",
+            "item": "crimson_lily_charm",
+            "observation": "player_inspected_crimson_bellflowers_and_dead_tree",
+            "effect": "reveal_unique_scenario_gate"
+          }
+        ]
+      },
+      "review": {
+        "contentOriginality": "franchise-neutral",
+        "safetyReview": "Uses original names, landmarks, and mechanics while preserving the intended class of hidden-gameplay intricacy.",
+        "playerAssumptionGate": "not-apex"
       }
     }
   ]
