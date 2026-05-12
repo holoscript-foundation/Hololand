@@ -24,6 +24,7 @@
 |---|---|
 | [HOLOLAND_PURPOSE.md](./HOLOLAND_PURPOSE.md) | What HoloLand owns vs HoloScript |
 | [HOLOSCRIPT_SOURCE_CONTRACT.md](./HOLOSCRIPT_SOURCE_CONTRACT.md) | `.holo` / `.hs` / `.hsplus` is source; `.ts` / `.tsx` is migration debt |
+| [PROPERTY_RIGHTS_AND_PRIVACY.md](./PROPERTY_RIGHTS_AND_PRIVACY.md) | Spatial-ownership policy + privacy posture (design intent, not shipped) |
 | [specs/HOLOSCRIPT_FIRST_MIGRATION.md](./specs/HOLOSCRIPT_FIRST_MIGRATION.md) | Why HoloScript leads |
 | [specs/NO_TSX_MIGRATION.md](./specs/NO_TSX_MIGRATION.md) | The no-TSX policy |
 
