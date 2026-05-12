@@ -2,6 +2,35 @@
 **Date**: March 2026
 **Target**: `c:\Users\josep\Documents\GitHub\Hololand\docs`
 
+> **CORRECTION (2026-05-11):** the "Epoch 8 / Dumb Glass" framing below is
+> wrong, and several of its retire-list verdicts are wrong. The 2026-05-07
+> [should-exist audit](./audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md)
+> reverses or qualifies them based on disk evidence:
+>
+> - **Brittney is not deprecated.** `packages/brittney/*` is classified as
+>   **Keep — product-critical**. Six of seven sub-packages are alive
+>   (`mcp-server`, `toolkit`, `ai-bridge`, `iot-digital-twins`, `models`,
+>   plus the empty `loras` placeholder). Only `packages/brittney/service` is
+>   deprecated, and only because it has been superseded by
+>   `@hololand/inference` — not because Brittney was retired. Current
+>   runtime doc: [BRITTNEY_CONTEXT.md](./BRITTNEY_CONTEXT.md).
+> - **Avatar Studio is not deprecated.** `packages/ar/avatar-studio/`
+>   exists with src + tests on disk. The should-exist audit lists it as
+>   needing a bridge rationale, not retirement.
+> - **The backend was not "completely deleted".** What was deleted was
+>   `apps/brittney-desktop` and `apps/brittney-mobile`, plus parts of
+>   `packages/platform/{auth,dashboard}` (in dirty worktree, restore-or-
+>   replace pending). The platform packages, inference layer
+>   (`packages/shared/inference`), and Brittney sub-packages remain alive.
+> - **HoloLand is the platform/product surface that fully utilizes
+>   HoloScript**, not a "dumb glass" R3F endpoint. Renderer is one of many
+>   surfaces; runtime, agent presence, IoT, NL→HoloScript, and live world
+>   tooling all live in `packages/`.
+>
+> The retire-list below should be treated as partially invalid. Use the
+> 2026-05-07 should-exist audit as the source of truth for what should and
+> should not exist; this March audit is preserved for history only.
+
 ## Executive Summary
 Following the rigorous purging of HoloLand's monolithic structure (auth, dashboard, brittle physics loops, mobile, and desktop fat-clients), the platform has transitioned purely into an autonomous spatial renderer backed by the `crdt://holomesh/feed` protocol via `@holoscript/r3f-renderer`. 
 

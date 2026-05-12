@@ -1,146 +1,108 @@
-# Brittney Fine-Tuned Models Deployment
+# Brittney Models & Deployment
 
-## Model Overview
+How Brittney inference is wired in HoloLand. Verified against on-disk source
+2026-05-11. For the broader Brittney role/ownership picture, see
+[BRITTNEY_CONTEXT.md](./BRITTNEY_CONTEXT.md) and
+[BRITTNEY_OWNERSHIP_MODEL.md](./BRITTNEY_OWNERSHIP_MODEL.md).
 
-| Model | ID | Examples | Purpose | Location |
-|-------|-----|----------|---------|----------|
-| **V1** | `ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4` | 94 | HoloScript code generation | Hololand (FREE LLM) |
-| **V2** | `ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney-v2:CzuzuPXc` | 10,000 | General agent assistance | uAA2 Service |
+## Two deployment paths
 
----
+HoloLand has two live deployment paths and one deprecated one.
 
-## Hololand Integration (V1)
+| Path | Package | Use case |
+|---|---|---|
+| **Bundled local model** | [`@hololand/brittney-toolkit`](../packages/brittney/toolkit) | Embed Brittney in HoloLand apps with no API key. Ships a chat widget, local + cloud inference modes, and a setup CLI (`brittney-setup`). |
+| **Unified inference layer** | [`@hololand/inference`](../packages/shared/inference) | Server-side and downstream-package inference. Local (Ollama) + BYOK cloud providers under one client. |
+| **(deprecated)** Standalone Express server | [`@hololand/brittney-service`](../packages/brittney/service) | Old port-11435 server. Marked `deprecated` in its `package.json`; do not use for new integrations. |
 
-**Location**: `packages/brittney-service/`
+The model-file lifecycle (registry, checksums, downloader CLI) is owned by
+[`@hololand/brittney-models`](../packages/brittney/models) — see
+[`packages/brittney/models/src/registry.ts`](../packages/brittney/models/src/registry.ts)
+for the live list and
+[`packages/brittney/models/bin/download.mjs`](../packages/brittney/models/bin/download.mjs)
+for the CLI. Do not enumerate models here; the registry is the source of
+truth.
 
-**Files Modified**:
-- [config.ts](../packages/brittney-service/src/config.ts) - Added `BRITTNEY_MODELS` constant
-- [cloud-provider.ts](../packages/brittney-service/src/cloud-provider.ts) - Simplified to always use V1
+## Bundled local model (toolkit)
 
-**Usage**:
+`@hololand/brittney-toolkit` is the path for embedding Brittney in
+applications that need an offline-capable assistant. Source:
+[`packages/brittney/toolkit/src/inference/BrittneyEngine.ts`](../packages/brittney/toolkit/src/inference/BrittneyEngine.ts).
+
 ```typescript
-import { BRITTNEY_MODELS } from './config.js';
+import { BrittneyEngine } from '@hololand/brittney-toolkit';
 
-// Hololand always uses V1 (HoloScript specialist)
-const model = BRITTNEY_MODELS.holoscript;
+const engine = new BrittneyEngine({ mode: 'local' });
+await engine.initialize();
+const result = await engine.generate({ prompt: 'Build a medieval castle' });
 ```
 
-**Configuration**:
-```typescript
-export const BRITTNEY_MODELS = {
-  holoscript: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4',
-  general: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney-v2:CzuzuPXc',
-  default: 'ft:gpt-4o-mini-2024-07-18:brian-x-base-llc:brittney:CztHDZP4', // V1 for Hololand
-};
-```
+Modes are `local` (bundled GGUF via local inference) and a cloud mode that
+delegates to [`CloudInference.ts`](../packages/brittney/toolkit/src/inference/CloudInference.ts).
+Model selection comes from
+[`modelConfig.ts`](../packages/brittney/toolkit/src/inference/modelConfig.ts);
+the chat widget surface is
+[`packages/brittney/toolkit/src/chat/ChatWidget.ts`](../packages/brittney/toolkit/src/chat/ChatWidget.ts).
 
----
+The setup binary (`brittney-setup`) handles first-run provisioning.
 
-## uAA2 Service Integration (V2)
+## Unified inference layer
 
-**Location**: `AI_Workspace/uAA2++_Protocol/config/`
+`@hololand/inference` is the server-side / downstream-package path. It
+unifies local Ollama with BYOK cloud providers under one client. See
+[`packages/shared/inference/src/client.ts`](../packages/shared/inference/src/client.ts)
+and the providers under
+[`packages/shared/inference/src/providers/`](../packages/shared/inference/src/providers/).
+Provider names ship in the source tree, not pinned here — list with
+`ls packages/shared/inference/src/providers/` rather than trusting a
+hardcoded count.
 
-**Files Created**:
-- [brittney-models.ts](../uAA2++_Protocol/config/brittney-models.ts) - Model config for uAA2
+`@hololand/brittney-service` (legacy) used to expose this surface as an
+HTTP server on port 11435; that path is deprecated in favor of running
+Ollama directly on port 11434 and consuming `@hololand/inference` from
+each downstream package.
 
-**Usage**:
-```typescript
-import BRITTNEY_MODELS, { selectBrittneyModel } from './config/brittney-models';
+## Configuration
 
-// uAA2 defaults to V2 (general assistant)
-const model = BRITTNEY_MODELS.default; // V2
-
-// Or intelligently select based on task
-const smartModel = selectBrittneyModel(taskDescription);
-```
-
----
-
-## API Configuration
-
-Both models require an OpenAI API key:
+Cloud-provider keys (when used at all) are typed in
+[`packages/brittney/service/src/config.ts`](../packages/brittney/service/src/config.ts)
+and read from environment variables with a `~/.hololand/config.json`
+fallback. The same shape is the reference contract for the inference layer's
+BYOK mode. Examples:
 
 ```bash
-OPENAI_API_KEY=sk-proj-...
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+GOOGLE_API_KEY=...
 ```
 
-**Request Format**:
-```typescript
-const response = await openai.chat.completions.create({
-  model: BRITTNEY_MODELS.holoscript, // or .general
-  messages: [
-    { role: 'system', content: 'You are Brittney, the AI assistant for Hololand and HoloScript development.' },
-    { role: 'user', content: 'Create a scene with...' }
-  ],
-  temperature: 0.7,
-  max_tokens: 2000
-});
-```
+## Removed surfaces
 
----
+- `apps/brittney-desktop` and `apps/brittney-mobile` are deleted in the
+  current dirty worktree (see
+  [audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md](./audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md)
+  § Dirty Worktree Decisions). Anything documented as "Tauri/Capacitor app
+  shipping the bundled model" in older docs no longer corresponds to a
+  shipping HoloLand surface; the bundled-model path is the toolkit, not a
+  first-party desktop/mobile app.
+- The OpenAI fine-tune model IDs that earlier versions of this doc listed
+  (`ft:gpt-4o-mini-...:brittney:*`) are not visible in current source under
+  `packages/brittney/`. Any model the runtime actually selects today comes
+  from the registry above and the configured provider keys; OpenAI fine-tune
+  IDs should not be carried as canonical without disk evidence.
 
-## Training Details
-
-### V1 - HoloScript Specialist
-- **Training Date**: January 19, 2026
-- **Base Model**: gpt-4o-mini-2024-07-18
-- **Examples**: 94 curated HoloScript code samples
-- **Focus**: Code generation, DSL syntax, game mechanics, VR/AR scenes
-- **Training File**: `brittney-training-clean.jsonl`
-
-### V2 - General Assistant
-- **Training Date**: January 19, 2026
-- **Base Model**: gpt-4o-mini-2024-07-18
-- **Examples**: 10,000 (sampled from 120K+ dataset)
-- **Focus**: Agent assistance, planning, design patterns, general queries
-- **Training File**: `brittney-10k-clean.jsonl`
-
----
-
-## Build & Test
+## Build
 
 ```bash
-# Hololand brittney-service
-cd packages/brittney-service
-npm run build
-
-# Test the integration
-npm run dev
+pnpm --filter @hololand/brittney-toolkit build
+pnpm --filter @hololand/inference build
+pnpm --filter @hololand/brittney-models build
 ```
 
----
+## See also
 
-## Bundled Model (Desktop & Mobile)
-
-For **Tauri** (desktop) and **Capacitor/React Native** (mobile) apps, use the bundled local model:
-
-| Property | Value |
-|----------|-------|
-| **Package** | `@hololand/brittney-toolkit` |
-| **Model** | TinyLlama 1.1B (fine-tuned on HoloScript) |
-| **Format** | GGUF (quantized) |
-| **Size** | ~2 GB |
-| **Inference** | llama.cpp via WASM |
-
-```typescript
-import { BrittneyEngine, BUNDLED_MODEL } from '@hololand/brittney-toolkit';
-
-const brittney = new BrittneyEngine({
-  mode: 'local',
-  model: BUNDLED_MODEL, // Works offline
-});
-
-await brittney.initialize();
-const scene = await brittney.generate({ prompt: 'Medieval village' });
-```
-
----
-
-## Next Steps
-
-1. ✅ Hololand brittney-service configured with V1
-2. ✅ uAA2 config created with V2
-3. ✅ Bundled GGUF model for Tauri/mobile apps
-4. ⏳ Set `OPENAI_API_KEY` in production environment
-5. ⏳ Integrate brittney-models.ts into uAA2-service package
-6. ⏳ Test end-to-end with both services
+- [BRITTNEY_CONTEXT.md](./BRITTNEY_CONTEXT.md)
+- [BRITTNEY_OWNERSHIP_MODEL.md](./BRITTNEY_OWNERSHIP_MODEL.md)
+- [HOLOSCRIPT_SOURCE_CONTRACT.md](./HOLOSCRIPT_SOURCE_CONTRACT.md) —
+  `packages/brittney/**` is in scope; gameplay/runtime behavior must have
+  HoloScript source.

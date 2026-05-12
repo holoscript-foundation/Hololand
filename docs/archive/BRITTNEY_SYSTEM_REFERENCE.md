@@ -1,5 +1,19 @@
 # Brittney HoloScript Systems Reference
 
+> **ARCHIVED 2026-05-11.** This doc described a "10 HoloScript systems" API
+> surface (`getHoloScriptAPI()`, `useAllSystems()`, `HoloScriptSystemsAPI`,
+> and the `NetworkedWorldState.hsplus` / `PhysicsConstraints.hsplus` /
+> `HoloScriptMarketplace.hsplus` / `SceneVersionControl.hsplus` /
+> `ProceduralGeneration.hsplus` families) that does not exist in current
+> HoloLand source. A repo-wide grep for those identifiers and filenames
+> returns no hits in `packages/**`, `apps/**`, or `examples/**` — only this
+> archived doc and other archived docs reference them. Kept here for history.
+>
+> Current Brittney runtime documentation:
+> [`../BRITTNEY_CONTEXT.md`](../BRITTNEY_CONTEXT.md).
+> Current source-of-truth on what should and should not exist:
+> [`../audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md`](../audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md).
+
 Complete technical reference for all 10 HoloScript systems integrated with React and TypeScript.
 
 ---

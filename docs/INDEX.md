@@ -29,10 +29,12 @@
 
 | Doc | Description |
 |-----|-------------|
-| [BRITTNEY_AI_PACKAGE_INDEX.md](./BRITTNEY_AI_PACKAGE_INDEX.md) | Complete Brittney documentation |
-| [BRITTNEY_SYSTEM_REFERENCE.md](./BRITTNEY_SYSTEM_REFERENCE.md) | System architecture |
+| [BRITTNEY_CONTEXT.md](./BRITTNEY_CONTEXT.md) | Canonical: Brittney in HoloLand (sub-packages, roles, runtime) |
+| [BRITTNEY_OWNERSHIP_MODEL.md](./BRITTNEY_OWNERSHIP_MODEL.md) | Cross-repo split: HoloScript / Studio / HoloLand |
+| [BRITTNEY_MODELS_DEPLOYMENT.md](./BRITTNEY_MODELS_DEPLOYMENT.md) | Inference deployment: toolkit (bundled GGUF) + `@hololand/inference` |
+| [BRITTNEY_AI_PACKAGE_INDEX.md](./BRITTNEY_AI_PACKAGE_INDEX.md) | Brittney package index (verify before relying on it) |
 | [BRITTNEY_FINETUNING_INSTRUCTIONS.md](./BRITTNEY_FINETUNING_INSTRUCTIONS.md) | Train your own model |
-| [BRITTNEY_MODELS_DEPLOYMENT.md](./BRITTNEY_MODELS_DEPLOYMENT.md) | Deploy to Vast.ai/cloud |
+| [archive/BRITTNEY_SYSTEM_REFERENCE.md](./archive/BRITTNEY_SYSTEM_REFERENCE.md) | Archived 2026-05-11 — described an API surface no longer in source |
 
 ---
 
