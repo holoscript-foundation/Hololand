@@ -1,245 +1,57 @@
-# Creator Program - Phase 0 Quick Start Guide
+# Creator Quickstart
 
-## 🚀 Getting Started as a Hololand Creator
+> The original 2026-01-15 version of this doc described a `hololand.io`
+> creator program with welcome credits, Stripe payouts, and a no-code
+> dashboard. None of those surfaces ship in this repo. They were
+> Phase-0 plan material that did not become product. The plan itself is
+> archived at [`archive/PHASE_0_DEVELOPMENT_ROADMAP.md`](./archive/PHASE_0_DEVELOPMENT_ROADMAP.md)
+> and [`archive/PHASE_0_IMPLEMENTATION_PLAN.md`](./archive/PHASE_0_IMPLEMENTATION_PLAN.md).
+>
+> Today, "creator" means a developer authoring `.holo` / `.hs` / `.hsplus`
+> source that HoloLand renders. This doc is a thin pointer; the canonical
+> creator path is HoloScript-canonical.
 
-Welcome! This guide walks you through creating your first VR world on Hololand in 15 minutes.
+## The real path
 
-### What You Get
-- **$100 Welcome Credit**: Use it to feature your first worlds
-- **Creator Dashboard**: Track visits, earnings, reviews
-- **No-Code Builder**: Drag-and-drop world creation (no coding required)
-- **70% Revenue Share**: Keep 70% of all purchases in your worlds
-- **Creator Tools**: Analytics, templates, asset library
+| Step | Where |
+|---|---|
+| 1. Install HoloScript + VS Code extension | [`HoloScript/docs/guides/installation.md`](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/guides/installation.md) |
+| 2. Write your first scene (5-min) | [`HoloScript/docs/guides/quick-start.md`](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/guides/quick-start.md) |
+| 3. Build a scene with Brittney AI (15-min) | [`HoloScript/docs/guides/first-ai-scene.md`](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/guides/first-ai-scene.md) |
+| 4. Add an AI NPC (30-min) | [`HoloScript/docs/guides/first-ai-npc.md`](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/guides/first-ai-npc.md) |
+| 5. Render in HoloLand | [`GETTING_STARTED.md`](./GETTING_STARTED.md) Step 3 |
+| 6. Publish | [`HoloScript/docs/guides/publishing-platform-terms.md`](https://github.com/brianonbased-dev/HoloScript/blob/main/docs/guides/publishing-platform-terms.md) |
 
----
+## HoloLand-specific creator surfaces
 
-## Part 1: Account Setup (2 minutes)
+These are the HoloLand-side things a creator interacts with after authoring in HoloScript. Verify each path with `ls` before relying on it — HoloLand directory shape moves.
 
-1. **Sign Up**
-   - Go to [hololand.io](https://hololand.io)
-   - Click "Creator Sign Up"
-   - Enter email + username + password
-   - Verify your email (check inbox)
+| Surface | Where it lives | What it does |
+|---|---|---|
+| Flagship example world | `examples/hololand-central/` | Reference HoloLand render target — drop your `.holo` source into `examples/hololand-central/holoscript/` and run `pnpm dev`. |
+| Templates | `examples/hololand-central/templates/` | Starter `.holo` / `.hs` / `.hsplus` files to copy. |
+| Avatar pipeline | `packages/ar/avatar-studio/` | VRM 1.0 export, Ready Player Me migration path. See [AVATAR_STUDIO_BRIDGE.md](./AVATAR_STUDIO_BRIDGE.md). |
+| Holographic UI | `packages/components/`, `packages/ar/` | UI primitives composable from `.holo`. See [HOLOGRAPHIC_UI.md](./HOLOGRAPHIC_UI.md). |
+| IoT digital twins | `packages/brittney/iot-digital-twins/` | Ingest IoT devices, emit `.holo`. See [IOT_DIGITAL_TWINS_SHOWCASE.md](./IOT_DIGITAL_TWINS_SHOWCASE.md). |
 
-2. **Your Welcome Bonus**
-   - $100 credit automatically added
-   - See it in your Dashboard → Earnings tab
-   - Use it to publish and feature worlds
+## What does not exist
 
----
+The following items in the January 2026 version were aspirational, not shipped. Do not propagate them:
 
-## Part 2: Create Your First World (10 minutes)
+- **`hololand.io` web app, dashboard, sign-up flow** — no source on disk; no deploy.
+- **$100 welcome credit, Stripe creator payouts, 70/30 revenue split** — no payments routes; no Stripe integration.
+- **No-code drag-and-drop builder** — `packages/spatial-builder/` exists but is not the dashboard described in the original. Verify with `ls packages/spatial-builder/`.
+- **Asset library with 500+ models** — no curated asset library exists; Brittney generates assets procedurally per [CACHING.md](./CACHING.md).
+- **Creator Discord, office hours, `creators@hololand.io`** — none verified.
 
-### Step 1: Choose a Template
-1. Go to **Dashboard → Worlds**
-2. Click **"Create New World"**
-3. Pick a template:
-   - **Starter Plaza** - Simple social space
-   - **Retail Shop** - Buy/sell items
-   - **Game Arena** - Competitive games
-   - **Art Gallery** - Showcase content
-   - **Conference** - Meetings + events
+If you need any of these built, file an issue describing the actual product gap; do not cite this doc as evidence they exist.
 
-### Step 2: Customize with the Builder
-1. **World Settings**
-   - Title: "My First World" (any name)
-   - Description: What will visitors find?
-   - Thumbnail: Upload a preview image
-   - Category: Social / Games / Shopping / Art / Education
+## Source contract for creators
 
-2. **Add Objects** (using No-Code Builder)
-   - Drag assets from left panel → Canvas
-   - Adjust position (X, Y, Z)
-   - Change color/size/rotation
-   - Add interactions (click → sound, message, teleport)
+Per [HOLOSCRIPT_SOURCE_CONTRACT.md](./HOLOSCRIPT_SOURCE_CONTRACT.md): if your creation changes runtime behavior, the source-of-truth file MUST be `.holo`, `.hs`, or `.hsplus`. Hand-authored `.ts` and `.tsx` are migration debt and require an explicit founder exception.
 
-3. **Add Interactions**
-   - **On Click**: Sound effect / Teleport / Message
-   - **Hover**: Color change / Glow effect
-   - **Example**: Click sign → Play "Welcome!" sound
+## See also
 
-### Step 3: Save & Publish
-1. Click **"Save Draft"** anytime (auto-saves every 30s)
-2. Click **"Preview"** to test in VR
-3. Click **"Publish"** → World goes live!
-   - Your $100 welcome credit is auto-applied
-   - World appears in discovery
-   - Visitors can enter immediately
-
----
-
-## Part 3: Manage Your Worlds
-
-### Dashboard Tabs
-
-**Home**
-- Total visitors this week
-- Earnings so far
-- Quick links to new worlds
-
-**Worlds**
-- All your worlds (published + drafts)
-- Visit count per world
-- Average rating
-- Edit / Preview / Delete buttons
-
-**Earnings**
-- Transaction history
-- Payouts schedule
-- Daily/weekly/monthly breakdown
-- Top-performing worlds
-
-**Analytics**
-- Visitor graph (7d, 30d, 90d)
-- Revenue chart
-- Popular regions
-- Traffic sources
-
-**Profile**
-- Display name
-- Bio + avatar
-- Social links (Twitter, Discord)
-- Payout method (Stripe connected)
-
----
-
-## Part 4: Make Money
-
-### How Revenue Works
-- **Item Price**: You set ($0.99 - $99.99)
-- **Your Share**: 70% (e.g., $10 item = $7 for you)
-- **Hololand Fee**: 30% (payment processing + platform)
-- **Payouts**: Weekly to your bank account (via Stripe)
-
-### Add Purchasable Items
-1. Edit world → **Items Tab**
-2. Click **"Add Item"**
-3. Set name, description, price, icon
-4. In builder: Click object → **"Make Purchasable"**
-5. Visitors can buy with their Hololand wallet
-
-### Drive Visitors
-- **Share**: Copy world link → Twitter / Discord / Email
-- **Feature**: Spend credits to feature in Discovery (coming Week 3)
-- **Trending**: Worlds with most visits appear first
-- **Reviews**: High-rated worlds recommended
-
----
-
-## Part 5: Best Practices
-
-### Content Tips
-✅ **DO**
-- Clear descriptions ("A cozy coffee shop with music")
-- Professional thumbnail (take screenshot in VR)
-- Intuitive interactions (obvious what's clickable)
-- Regular updates (refresh content weekly)
-- Test before publishing (use Preview)
-
-❌ **DON'T**
-- Overload with objects (limit to 50 for performance)
-- Confusing layouts (make clear navigation paths)
-- Broken links (check all interactions work)
-- Inappropriate content (will be removed)
-
-### Growing Your Audience
-1. **Day 1-3**: Publish 2-3 worlds
-2. **Week 2**: Ask for reviews (star prompts on exit)
-3. **Week 3**: Feature top world if performance good
-4. **Month 2**: Collab with other creators
-5. **Month 3**: Build signature world series
-
----
-
-## Part 6: Tools & Resources
-
-### Asset Library
-- 500+ 3D models (free)
-- 100+ sound effects (free)
-- Custom textures + materials
-
-### Templates
-- 5 starter worlds (free)
-- Copy + customize instantly
-- Full edit access
-
-### Documentation
-- [Builder Guide](docs/builder-guide.md)
-- [HoloScript Language](docs/holoscript-guide.md)
-- [Best Practices](docs/creator-best-practices.md)
-- [API Reference](docs/api.md)
-
-### Community
-- [Creator Discord](https://discord.gg/hololand)
-- Weekly office hours (Thursdays 2pm PT)
-- Creator challenges (prizes!)
-- Feedback channel
-
----
-
-## Part 7: Advanced Features (Week 2+)
-
-### Custom Scripting (HoloScript)
-Write simple code to create complex interactions:
-```holoscript
-ZONE arcade {
-  ENTITY game_machine {
-    position: (0, 0, 0)
-    model: "arcade.glb"
-    
-    ON_CLICK {
-      PLAY_SOUND("arcade_start.mp3")
-      NAVIGATE("arcade_game_world")
-    }
-  }
-}
-```
-
-### Multiplayer (Week 3)
-- Invite visitors to shared worlds
-- Real-time collaboration
-- Voice chat built-in
-
-### Monetization Pro (Week 3)
-- Subscriptions ($4.99/mo)
-- VIP rooms (exclusive areas)
-- Sponsorships (brands featured)
-
----
-
-## FAQ
-
-**Q: Can I delete a world?**
-A: Yes, anytime from Worlds tab. Drafts disappear. Published worlds stay accessible 30 days (grace period).
-
-**Q: How do I get paid?**
-A: Connect your bank account (Stripe setup in Profile). Payouts every Friday.
-
-**Q: Can I use custom 3D models?**
-A: Yes! Upload GLB/GLTF files in builder. (Pro: models stay free; Hololand takes 30%)
-
-**Q: How many worlds can I create?**
-A: Unlimited! Create as many as you want.
-
-**Q: What if my world gets bad reviews?**
-A: Don't worry! Feedback helps. Update content, fix issues, ask for re-reviews.
-
----
-
-## Next Steps
-
-1. **Right now**: Create your first world (15 min)
-2. **Tomorrow**: Publish 2 more worlds
-3. **This week**: Get 10 reviews + 100 visits
-4. **Month 1**: Hit $1,000 earnings
-5. **Month 3**: Launch signature world series
-
----
-
-**Need help?**
-- Email: creators@hololand.io
-- Discord: @CreatorSupport
-- Docs: hololand.io/docs/creator
-- Status: hololand.io/status
-
-**Happy creating!** 🚀
+- [HOLOLAND_PURPOSE.md](./HOLOLAND_PURPOSE.md) — what HoloLand owns vs HoloScript
+- [INDEX.md](./INDEX.md) — full HoloLand docs map
+- [specs/HOLOLAND_FRONTIER_NORTH_STAR.md](./specs/HOLOLAND_FRONTIER_NORTH_STAR.md) — programmable living frontier scope
