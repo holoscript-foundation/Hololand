@@ -23,3 +23,10 @@ pnpm exec holoscript parse ..\Hololand\examples\native-authoring-pipeline\asset_
 ```
 
 The paired sample receipt shows the shape HoloLand should persist after local runtime validation.
+
+Run the proof harness to validate the native Frontier Shard 0, Twin Earth, and NPC stewardship paths together:
+
+```powershell
+cd C:\Users\josep\Documents\GitHub\Hololand
+pnpm check:native-proof
+```
