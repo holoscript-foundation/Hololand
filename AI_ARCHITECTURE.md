@@ -10,13 +10,14 @@
 
 **Brittney** is the native AI agent embedded within Hololand. She allows games to generate infinite content on the fly.
 
-### Deployment Tiers
+### Deployment Routes
 
 | Tier | Package | Model | Use Case |
 |------|---------|-------|----------|
-| **Local** | `@hololand/brittney-toolkit` | Bundled GGUF (2GB) | Tauri apps, mobile, offline |
-| **Cloud** | `@hololand/brittney-service` | Fine-tuned GPT-4o-mini | Web apps, enterprise |
-| **Hybrid** | Both | Local first, cloud fallback | Best of both |
+| **Local** | `@hololand/brittney-toolkit` | Bundled GGUF (2GB) | Tauri apps, mobile, offline worlds, sovereign NPCs |
+| **Self-hosted/BYOK** | `@hololand/inference` | Ollama, LAN, or user-supplied provider keys | Creator tools, private worlds, agent stewardship |
+| **Managed** | HoloLand-hosted runtime | Hosted models behind receipts and cost ceilings | Convenience, uptime, premium scale |
+| **Legacy** | `@hololand/brittney-service` | Deprecated fine-tune service | Back-compat only; not a target for new lineage work |
 
 ### Architecture
 
@@ -28,10 +29,10 @@ graph TD
         Local --> WASM["llama.cpp WASM"]
     end
     
-    subgraph "Web (Browser)"
-        App2["App"] --> Service["brittney-service"]
-        Service --> Cloud["Cloud API"]
-        Cloud --> GPT["Fine-tuned GPT-4o-mini"]
+    subgraph "Web / Hosted"
+        App2["App"] --> Inference["hololand-inference"]
+        Inference --> Byok["BYOK / Ollama / Managed Route"]
+        Byok --> Hosted["Model Backend"]
     end
     
     subgraph "Hybrid"
@@ -68,7 +69,8 @@ const scene = await brittney.generate({ prompt: 'Medieval village' });
 
 ### Cloud Models (Web & Enterprise)
 
-For web apps or enhanced capabilities, use cloud inference:
+For web apps or enhanced capabilities, use the inference layer. Managed cloud is
+a route, not the definition of Brittney:
 
 | Model ID | Examples | Purpose |
 |----------|----------|---------|
@@ -77,7 +79,7 @@ For web apps or enhanced capabilities, use cloud inference:
 
 ```typescript
 // Web app - requires API key
-import { CloudInference } from '@hololand/brittney-toolkit';
+import { CloudInference } from '@hololand/inference';
 
 const cloud = new CloudInference({
   provider: 'openai',
@@ -101,6 +103,28 @@ const cloud = new CloudInference({
     questLog.add(quest);
 };
 ```
+
+### AGI Lineage Contract
+
+Brittney is the seed intelligence pattern for HoloScript, Studio, and HoloLand.
+She must not collapse into one centralized chat endpoint or a set of isolated
+product bots.
+
+Per D.040, HoloMesh teammates, HoloLand NPCs/items/encounters, and
+uaa2-orchestrated services are the same kind of entity at different scales.
+They should consume the HoloScript sovereign trait library:
+`@verbalFingerprint`, `@autonomousAgenda`, `@reputationLedger`,
+`@vocabularyRegister`, `@speechAwareEncounter`, and `@avatarIntent`.
+
+HoloLand manifests define role, world context, privacy boundary, cost ceiling,
+local/BYOK/managed routing, and receipts. HoloScript owns the trait semantics.
+HoloLand turns those traits into embodied runtime behavior for guides, world
+stewards, NPCs, item arcs, encounters, and creator copilots.
+
+New Brittney descendants must therefore start from HoloScript traits and
+receipted runtime manifests. Do not build new AGI surfaces as one-off
+TypeScript chatbots, remote-only inference calls, or per-product assistant
+identities.
 
 ---
 
@@ -159,5 +183,7 @@ Short version:
 - In HoloScript, Brittney is the **builder**.
 - In Studio, Brittney is the **creator**.
 - In Hololand, Brittney is the **embodied guide/operator**.
+- In the AGI program, Brittney is the **lineage seed** consumed through
+  HoloScript traits by teammates, NPCs, items, encounters, and uaa2 services.
 
 See [Brittney Ownership Model](./docs/BRITTNEY_OWNERSHIP_MODEL.md) for the full split.
