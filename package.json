@@ -21,6 +21,7 @@
     "audit:zero-typescript": "node scripts/check-zero-typescript.mjs",
     "check:zero-typescript": "node scripts/check-zero-typescript.mjs --strict",
     "check:holoscript-source-contract": "node scripts/check-holoscript-source-contract.mjs",
+    "check:generated-output": "node scripts/check-generated-output-clean.mjs",
     "format": "pnpm -r format",
     "brittney": "npx tsx scripts/start-brittney.ts",
     "playground": "pnpm --filter @hololand/playground dev",
