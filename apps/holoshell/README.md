@@ -54,13 +54,28 @@ capability is being used, what risk exists, and what receipt proves the result.
 ```text
 source/holoshell-home.hsplus
 source/holoshell-phase1-workflows.hsplus
+source/holoshell-holoscript-bridge.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
 docs/ABSORPTION_PILOTS.md
+docs/HOLOSCRIPT_SURFACE_BRIDGE.md
 docs/LEGACY_ABSORPTION_ARCHETYPES.md
 prototype/local-capability-room.html
 ```
+
+## HoloScript Surface Bridge
+
+HoloShell should consume HoloScript surfaces before rebuilding tools:
+
+- REST/API for passive health, discovery, and public status.
+- MCP/RPC for typed tool manifests and authenticated tool calls.
+- CLI for local, offline, hardware-proven source and runtime operations.
+
+Those surfaces are projected into HoloShell rooms and machines by
+`source/holoshell-holoscript-bridge.hsplus`. The first live adapter is
+`scripts/holoshell-holoscript-surface-map.mjs`, which writes the discovered
+surface map to `.tmp/holoshell/holoscript-surface-map.json`.
 
 ## Local Checks
 
@@ -69,6 +84,7 @@ From the HoloScript repo:
 ```powershell
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-home.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-phase1-workflows.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-holoscript-bridge.hsplus
 ```
 
 From the HoloLand repo:
@@ -76,6 +92,7 @@ From the HoloLand repo:
 ```powershell
 node scripts\holoshell-capability-inventory.mjs --no-hardware-audit --redact-private --self-test
 node scripts\holoshell-capability-inventory.mjs --self-test
+node scripts\holoshell-holoscript-surface-map.mjs --self-test
 ```
 
 The script writes local discovery output to `.tmp/holoshell/`, which is ignored.

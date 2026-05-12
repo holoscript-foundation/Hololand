@@ -42,6 +42,7 @@ These are the first-class objects of HoloShell.
 | --- | --- | --- |
 | Home Pulse | Calm health/status view of the machine. | Stubbed in `holoshell-home.hsplus`. |
 | Capability Room | Shows hardware, HoloScript, HoloMesh, browser, projects, CLI, and legacy app capability families. | Inventory adapter and static projection exist. |
+| HoloScript Surface Bridge | Projects HoloScript REST, MCP/RPC, and CLI tools into HoloShell rooms and machines. | Bridge source and surface-map adapter exist. |
 | Legacy Machine Gallery | Groups absorbed apps by capability archetype, not by raw installed app name. | Archetype research exists; live grouping next. |
 | Agent Operator Room | Shows active agents, current task, permission boundary, and receipts. | Static projection exists; HoloMesh live binding next. |
 | Trust Timeline | Shows local action receipts and rollback state. | Receipt model seeded; live receipt linker next. |
@@ -66,6 +67,27 @@ Acceptance:
 - The room can refresh without opening a terminal.
 - The user sees capability families and trust state.
 - Unknown or unsafe capabilities are explicit, not hidden.
+
+### Slice 1B: HoloScript Surface Bridge
+
+Use HoloScript's existing API, REST, MCP/RPC, and CLI surfaces as the first
+class engines for HoloShell.
+
+Deliverables:
+
+- Read `.tmp/holoshell/holoscript-surface-map.json`.
+- Render HoloScript Source Room, Runtime Machine, Codebase Intelligence Room,
+  HoloMesh Coordination Room, and Protocol Machine from the surface map.
+- Prefer public REST discovery for passive status, MCP/RPC for typed tool
+  invocation, and CLI for local/offline hardware proof.
+- Convert each tool call into a permission envelope and receipt.
+
+Acceptance:
+
+- HoloShell shows HoloScript capabilities as rooms, not raw endpoint lists.
+- Read-only discovery works without exposing secrets.
+- Authenticated, mutating, publish, payment, deploy, install, credential, and
+  delete operations are routed through guarded or break-glass policy.
 
 ### Slice 2: Browser Pilot
 
@@ -186,4 +208,3 @@ These should stay in HoloLand:
 - Tauri architecture: lightweight desktop app shell using system webviews and
   Rust host integration.
   <https://v2.tauri.app/concept/architecture/>
-

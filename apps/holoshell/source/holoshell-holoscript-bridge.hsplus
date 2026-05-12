@@ -1,0 +1,167 @@
+// HoloShell HoloScript Bridge
+//
+// HoloShell consumes HoloScript API, REST, RPC/MCP, and CLI surfaces as
+// capability providers. HoloLand owns the product projection; HoloScript remains
+// the source layer.
+
+composition "HoloShell HoloScript Bridge" {
+  config {
+    title: "HoloScript Surface Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-holoscript-surface-map.mjs"
+    projection: "rooms_and_machines"
+  }
+
+  state {
+    restSurfaceCount: 0
+    mcpToolCount: 0
+    cliCommandCount: 0
+    selectedRoom: ""
+    selectedTool: ""
+    lastReceiptId: ""
+  }
+
+  channel "holoshell:holoscript:rest" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "REST/API health, discovery, public tool, compile, and service probes"
+  }
+
+  channel "holoshell:holoscript:mcp" {
+    type: "request_response"
+    priority: "high"
+    description: "MCP JSON-RPC tool discovery and authenticated tool calls"
+  }
+
+  channel "holoshell:holoscript:cli" {
+    type: "request_response"
+    priority: "high"
+    description: "Local HoloScript CLI commands executed through guarded host adapter"
+  }
+
+  channel "holoshell:holoscript:receipt" {
+    type: "append_only"
+    priority: "high"
+    description: "Receipts produced by REST, MCP, and CLI HoloScript tool use"
+  }
+
+  template "ToolSurface" {
+    type: "capability_provider"
+    sourceKinds: ["rest", "rpc", "mcp", "cli"]
+    trustState: "unknown"
+    permissionEnvelope: "read_only"
+    receiptRequired: true
+  }
+
+  template "ToolRoom" {
+    type: "ui"
+    uiType: "tool_room"
+    visualForm: "room"
+    exposesRawTools: false
+    showsReceipts: true
+  }
+
+  room "HoloScriptSourceRoom" using "ToolRoom" {
+    label: "HoloScript Source Room"
+    userQuestion: "Can this source become reality?"
+    consumes: ["parse", "validate", "ast", "traits", "suggest", "generate", "templates"]
+    permissionEnvelope: "read_or_guarded_execute"
+  }
+
+  room "HoloScriptRuntimeMachine" using "ToolRoom" {
+    label: "HoloScript Runtime Machine"
+    userQuestion: "Can we execute or ship it?"
+    consumes: ["compile", "build", "run", "headless", "screenshot", "pdf", "package", "deploy"]
+    permissionEnvelope: "guarded_execute"
+  }
+
+  room "CodebaseIntelligenceRoom" using "ToolRoom" {
+    label: "Codebase Intelligence Room"
+    userQuestion: "What does this codebase mean?"
+    consumes: ["absorb", "graph-status", "query", "impact", "holo_query_codebase", "holo_ask_codebase"]
+    permissionEnvelope: "read_or_guarded_execute"
+  }
+
+  room "HoloMeshCoordinationRoom" using "ToolRoom" {
+    label: "HoloMesh Coordination Room"
+    userQuestion: "Who is acting and what changed?"
+    consumes: ["holomesh_board", "holomesh_heartbeat", "holomesh_knowledge", "holomesh_send_message"]
+    permissionEnvelope: "team_auth_required"
+  }
+
+  room "HoloScriptProtocolMachine" using "ToolRoom" {
+    label: "HoloScript Protocol Machine"
+    userQuestion: "What value or entitlement moved?"
+    consumes: ["holo_protocol", "x402", "payment"]
+    permissionEnvelope: "break_glass_for_value_transfer"
+  }
+
+  policy "PassiveDiscovery" {
+    appliesTo: ["rest_health", "mcp_tools_list", "cli_help"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  policy "GuardedToolExecution" {
+    appliesTo: ["compile", "run", "build", "headless", "query", "impact", "browser_bridge"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  policy "BreakGlassToolExecution" {
+    appliesTo: ["deploy", "publish", "payment", "token", "access", "install", "delete", "credential"]
+    permissionEnvelope: "break_glass"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  action consume_surface_map(surfaceMap) {
+    state.restSurfaceCount = surfaceMap.summary.restSurfaceCount
+    state.mcpToolCount = surfaceMap.summary.mcpToolCount
+    state.cliCommandCount = surfaceMap.summary.cliCommandCount
+    emit("holoshell:holoscript:surface_map_consumed", {
+      rest: state.restSurfaceCount,
+      mcp: state.mcpToolCount,
+      cli: state.cliCommandCount,
+      rooms: surfaceMap.summary.holoshellRoomCount
+    })
+  }
+
+  action select_room(roomId) {
+    state.selectedRoom = roomId
+    emit("holoshell:holoscript:room_selected", {
+      room: roomId,
+      exposesRawTools: false
+    })
+  }
+
+  action request_tool_run(toolRequest) {
+    if (toolRequest.kind in BreakGlassToolExecution.appliesTo) {
+      emit("holoshell:approval", {
+        operation: toolRequest,
+        reason: "HoloScript tool can mutate value, credentials, deployment, access, or local state",
+        receipt_required: true
+      })
+      return "approval_required"
+    }
+
+    emit("holoshell:holoscript:mcp", {
+      request: toolRequest,
+      permissionEnvelope: toolRequest.permissionEnvelope || "guarded_execute",
+      receiptRequired: true
+    })
+    return "queued"
+  }
+
+  action record_tool_receipt(receipt) {
+    state.lastReceiptId = receipt.id
+    emit("holoshell:holoscript:receipt", {
+      receipt: receipt,
+      selectedRoom: state.selectedRoom,
+      selectedTool: state.selectedTool
+    })
+  }
+}
