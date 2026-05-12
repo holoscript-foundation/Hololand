@@ -1,843 +1,119 @@
-# 🎨 Hololand Examples Gallery
+# Examples Gallery
 
-> **50+ production-ready examples to learn from and customize**
-
-Browse our comprehensive collection of VR/AR scenes, games, and applications built with HoloScript.
-
----
-
-## 🚀 Quick Start
+Navigation hub for [`examples/`](../examples/). Generate the live tree with:
 
 ```bash
-# Clone repository
-git clone https://github.com/hololand/hololand.git
-cd hololand
-
-# Install dependencies
-pnpm install
-
-# Run any example
-cd packages/playground
-pnpm dev
-# Upload any .holo file from examples/
+ls examples/
+find examples -maxdepth 4 -name '*.holo' -o -name '*.hsplus'
 ```
 
----
-
-## 📑 Table of Contents
-
-- [Featured Examples](#featured)
-- [Games & Entertainment](#games)
-- [IoT & Smart Environments](#iot)
-- [Education & Training](#education)
-- [Business & Enterprise](#business)
-- [Art & Creative](#art)
-- [Social & Collaboration](#social)
-- [Technical Demos](#technical)
-- [Templates & Starters](#templates)
-
----
-
-## 🌟 Featured Examples {#featured}
-
-### 🏆 Battle Arena - Complete Multiplayer Game
-
-**The flagship Hololand game demonstrating the full platform capabilities.**
-
-<table>
-<tr>
-<td width="40%">
-
-**Features:**
-- 🎮 Real-time PvP combat
-- ⚔️ Weapons & abilities system
-- 🏆 Matchmaking & leaderboards
-- 📊 Player stats & progression
-- 🎨 Beautiful environments
-- 🌐 Cross-platform multiplayer
-
-</td>
-<td width="60%">
-
-**Tech Highlights:**
-- 450+ LOC HoloScript+
-- Networked world state
-- Physics-based combat
-- Party system integration
-- Local-first architecture
-- Offline play support
-
-</td>
-</tr>
-</table>
-
-**Files:**
-- `examples/battle-arena/BattleArena.hsplus` - Main game logic
-- `examples/battle-arena/weapons/` - Weapon definitions
-- `examples/battle-arena/arenas/` - Map designs
-
-**[→ Full Documentation](BATTLEARENA_DOCUMENTATION_INDEX.md)** | **[→ Quick Reference](BATTLEARENA_QUICK_REFERENCE.md)**
-
----
-
-### 🏡 Smart Home VR Dashboard - IoT Digital Twins
-
-**Transform 24 IoT devices into an immersive VR control interface.**
-
-<table>
-<tr>
-<td width="40%">
-
-**Performance:**
-- ⚡ 2ms generation time
-- 🏠 24 devices, 9 types
-- 📝 408 lines generated
-- 🔄 <100ms MQTT sync
-- 🌐 25+ platforms
-
-</td>
-<td width="60%">
-
-**Device Types:**
-- 💡 Smart lights (RGB, brightness)
-- 🌡️ Climate control (thermostats, AC)
-- 📹 Security cameras (motion, recording)
-- 🔒 Smart locks (battery monitoring)
-- 📊 Sensors (temp, humidity, air quality)
-
-</td>
-</tr>
-</table>
-
-**Files:**
-- `packages/brittney/iot-digital-twins/demo/smart-home-showcase.mjs`
-- `packages/brittney/iot-digital-twins/demo/visualizer.html`
-- `packages/brittney/iot-digital-twins/demo/output/smart-home-dashboard.holo`
-
-**[→ IoT Showcase](IOT_DIGITAL_TWINS_SHOWCASE.md)** | **[→ Run Demo](../packages/brittney/iot-digital-twins/demo/README.md)**
-
----
-
-### 🌍 Procedural Island - Terrain Generation
-
-**Infinite procedurally generated island with realistic terrain.**
-
-**Features:**
-- 🗺️ Perlin noise terrain generation
-- 🌊 Water with reflections
-- 🌲 Procedural tree placement
-- 🏰 Structure generation
-- ☀️ Day/night cycle
-- 🎨 Biome system (beach, forest, mountains)
-
-**Tech:**
-- Deterministic generation (same seed = same island)
-- LOD terrain optimization
-- Chunk-based loading
-- Physics collision meshes
-
-**Files:**
-- `examples/procedural/Island.hsplus`
-- `examples/procedural/TerrainGenerator.hsplus`
-
----
-
-### 🎨 Art Gallery - Virtual Exhibition Space
-
-**Elegant VR art gallery with 10 paintings and interactive features.**
-
-**Features:**
-- 🖼️ High-res artwork display
-- 💡 Spotlighting system
-- 📝 Information plaques
-- 🚶 Teleportation system
-- 🎧 Audio guide
-- 👥 Multiplayer tours
-
-**Use Cases:**
-- Virtual museum exhibitions
-- NFT galleries
-- Portfolio showcases
-- Art sales platforms
-
-**Files:**
-- `examples/art-gallery/Gallery.holo`
-- `examples/art-gallery/artworks/` - Painting assets
-
----
-
-## 🎮 Games & Entertainment {#games}
-
-### 🏓 Ping Pong VR
-
-**Classic table tennis in VR with physics-based gameplay.**
-
-```holoscript
-// Paddle with realistic physics
-object "Paddle" {
-  @interactive @physics
-  geometry: "paddle"
-  physics: {
-    mass: 0.2
-    restitution: 0.9  // Bouncy
-  }
-}
-```
-
-**Features:**
-- Realistic ball physics
-- Score tracking
-- AI opponent
-- Multiplayer mode
-
-**Files:** `examples/games/ping-pong.holo`
-
----
-
-### 🎯 Target Practice
-
-**Shooting range with multiple targets and scoring system.**
-
-**Features:**
-- 🎯 Moving targets
-- 🔫 Different weapons
-- 📊 Score tracking
-- ⏱️ Time challenges
-- 🏆 Leaderboards
-
-**Files:** `examples/games/target-practice.holo`
-
----
-
-### 🧩 Puzzle Rooms
-
-**Escape room with physics-based puzzles.**
-
-**Features:**
-- 🔑 Key collection
-- 🚪 Locked doors
-- ⚙️ Mechanisms
-- 💡 Hint system
-- ⏰ Timer
-
-**Files:** `examples/games/puzzle-room.holo`
-
----
-
-### 🎲 Board Game Table
-
-**Virtual table for playing board games in VR.**
-
-**Features:**
-- 🎲 Dice rolling
-- 🃏 Card decks
-- 📋 Game boards
-- 👥 Multiplayer
-- 💾 Save/load games
-
-**Files:** `examples/games/board-game-table.holo`
-
----
-
-## 🏠 IoT & Smart Environments {#iot}
-
-### 🏭 Industrial Factory Dashboard
-
-**Monitor 100+ sensors in a VR factory environment.**
-
-**Features:**
-- 🏭 3D factory floor layout
-- 📊 Real-time sensor data
-- ⚠️ Alert system
-- 📈 Trend visualization
-- 🔧 Maintenance scheduling
-
-**Use Cases:**
-- Manufacturing monitoring
-- Predictive maintenance
-- Safety compliance
-- Production optimization
-
-**Files:** `examples/iot/factory-dashboard.holo`
-
----
-
-### 🏥 Patient Monitoring - Healthcare
-
-**VR patient room with vital signs visualization.**
-
-**Features:**
-- ❤️ Heart rate monitor
-- 🫁 Blood oxygen levels
-- 🌡️ Temperature tracking
-- 💉 IV fluid levels
-- 🔔 Alert notifications
-
-**Files:** `examples/iot/patient-monitoring.holo`
-
----
-
-### 🌾 Smart Farm Dashboard
-
-**Monitor agricultural sensors across 100 acres.**
-
-**Features:**
-- 🌱 Soil moisture sensors
-- 🌤️ Weather stations
-- 💧 Irrigation control
-- 📷 Crop cameras
-- 🚜 Equipment tracking
-
-**Files:** `examples/iot/smart-farm.holo`
-
----
-
-### 🏢 Building Management System
-
-**Complete BMS for office building in VR.**
-
-**Features:**
-- 🌡️ HVAC control (50 zones)
-- 💡 Lighting control (200 fixtures)
-- 🔒 Access control (30 doors)
-- 📹 Security cameras (15 cameras)
-- ⚡ Energy monitoring
-
-**Files:** `examples/iot/building-management.holo`
-
----
-
-## 🎓 Education & Training {#education}
-
-### 🔬 Physics Classroom
-
-**Interactive physics simulations for students.**
-
-**Experiments:**
-- 🎱 Momentum & collision
-- 🪐 Gravity & orbits
-- ⚡ Electrical circuits
-- 🌊 Wave propagation
-- 🎢 Energy conservation
-
-**Files:** `examples/education/physics-lab.holo`
-
----
-
-### 🧬 Biology VR - Cell Exploration
-
-**Explore inside a living cell at microscopic scale.**
-
-**Features:**
-- 🧬 DNA visualization
-- 🔬 Organelle interactions
-- ⚗️ Chemical reactions
-- 🎥 Recorded narration
-- 📝 Quiz system
-
-**Files:** `examples/education/biology-cell.holo`
-
----
-
-### 🗺️ Historical Recreations
-
-**Walk through historical events and locations.**
-
-**Scenes:**
-- 🏛️ Ancient Rome
-- 🏰 Medieval castle
-- 🚢 Titanic ship
-- 🗽 Ellis Island 1900s
-- 🌍 Ancient Egypt
-
-**Files:** `examples/education/historical/`
-
----
-
-### ✈️ Flight Simulator Training
-
-**Realistic cockpit for pilot training.**
-
-**Features:**
-- 🎛️ Full instrument panel
-- 🗺️ Real-world airports
-- ☁️ Weather simulation
-- 📻 ATC communications
-- 🚨 Emergency scenarios
-
-**Files:** `examples/education/flight-simulator.holo`
-
----
-
-## 💼 Business & Enterprise {#business}
-
-### 📊 Data Visualization Dashboard
-
-**3D charts and graphs for business analytics.**
-
-**Visualizations:**
-- 📈 Line charts (time series)
-- 📊 Bar charts (comparisons)
-- 🥧 Pie charts (proportions)
-- 🗺️ Geographic heat maps
-- 🌐 Network graphs
-
-**Data Sources:**
-- CSV files
-- REST APIs
-- SQL databases
-- Real-time WebSocket
-- Google Sheets
-
-**Files:** `examples/business/data-viz-dashboard.holo`
-
----
-
-### 🏠 Real Estate Virtual Tours
-
-**Show properties in immersive VR.**
-
-**Features:**
-- 🏡 Multiple room types
-- 📐 Measurement tools
-- 🎨 Material customization
-- 🪟 Day/night views
-- 📍 Neighborhood context
-
-**Files:** `examples/business/real-estate-tour.holo`
-
----
-
-### 🏪 Virtual Retail Store
-
-**Shop in VR with product interactions.**
-
-**Features:**
-- 🛍️ Product display
-- 🔍 Zoom & inspect
-- 🛒 Shopping cart
-- 💳 Checkout process
-- 📦 Virtual try-on
-
-**Files:** `examples/business/retail-store.holo`
-
----
-
-### 💼 Virtual Conference Room
-
-**Host meetings in professional VR space.**
-
-**Features:**
-- 👥 Avatar system
-- 📊 Presentation screen
-- 💬 Chat & voice
-- ✋ Raise hand
-- 📝 Whiteboard
-- 🎥 Screen sharing
-
-**Files:** `examples/business/conference-room.holo`
-
----
-
-## 🎨 Art & Creative {#art}
-
-### 🖌️ VR Painting Studio
-
-**Create 3D art in virtual space.**
-
-**Tools:**
-- 🖍️ 10+ brush types
-- 🎨 Color palette
-- ↩️ Undo/redo
-- 💾 Save/export
-- 🖼️ Gallery mode
-
-**Files:** `examples/art/painting-studio.holo`
-
----
-
-### 🎭 Theater Performance Space
-
-**Virtual theater with stage and audience.**
-
-**Features:**
-- 🎭 Stage with lighting
-- 🪑 Audience seating
-- 🎬 Performance recording
-- 🎤 Audio system
-- 🎨 Set changes
-
-**Files:** `examples/art/theater.holo`
-
----
-
-### 🎵 Music Visualizer
-
-**See music come alive in 3D.**
-
-**Features:**
-- 🎵 Audio reactive
-- 🌈 Color based on frequency
-- 💫 Particle effects
-- 🎚️ Control parameters
-- 📁 Load audio files
-
-**Files:** `examples/art/music-visualizer.holo`
-
----
-
-### 📷 Photography Studio
-
-**Professional photo studio setup in VR.**
-
-**Features:**
-- 📸 Camera controls
-- 💡 Lighting setups
-- 🎨 Backdrops
-- 📐 Composition guides
-- 🖼️ Gallery export
-
-**Files:** `examples/art/photography-studio.holo`
-
----
-
-## 👥 Social & Collaboration {#social}
-
-### ☕ Virtual Cafe - Hangout Space
-
-**Casual social space for chatting and relaxing.**
-
-**Features:**
-- ☕ Cafe environment
-- 🪑 Seating areas
-- 🎮 Mini-games
-- 💬 Voice chat
-- 🎵 Ambient music
-
-**Files:** `examples/social/virtual-cafe.holo`
-
----
-
-### 🏫 Study Group Room
-
-**Collaborative study space for students.**
-
-**Features:**
-- 📚 Shared whiteboards
-- 📖 Document viewing
-- ⏱️ Pomodoro timer
-- 🎧 Focus mode
-- 📝 Note sharing
-
-**Files:** `examples/social/study-room.holo`
-
----
-
-### 🎉 Party Space - Events
-
-**Host virtual parties and events.**
-
-**Features:**
-- 🎵 DJ booth
-- 💃 Dance floor
-- 🍕 Food & drinks
-- 🎁 Gift giving
-- 📸 Photo booth
-
-**Files:** `examples/social/party-space.holo`
-
----
-
-## 🔧 Technical Demos {#technical}
-
-### ⚙️ Physics Playground
-
-**Demonstrate all physics features.**
-
-**Examples:**
-- 🎱 Rigid body dynamics
-- 🪢 Rope & cloth simulation
-- 💧 Fluid dynamics
-- 🔗 Joint constraints
-- 💥 Destruction
-
-**Files:** `examples/technical/physics-playground.holo`
-
----
-
-### 🌐 Networking Stress Test
-
-**Test multiplayer performance limits.**
-
-**Tests:**
-- 👥 100+ simultaneous players
-- 📦 1000+ networked objects
-- 🔄 High-frequency updates
-- 📊 Bandwidth monitoring
-- ⏱️ Latency testing
-
-**Files:** `examples/technical/networking-stress-test.holo`
-
----
-
-### 🎮 Input Systems Demo
-
-**All supported input methods.**
-
-**Inputs:**
-- 🖱️ Mouse & keyboard
-- 🎮 Gamepad
-- 👋 Hand tracking
-- 🎙️ Voice commands
-- 👁️ Eye tracking
-- 🏃 Full body tracking
-
-**Files:** `examples/technical/input-systems.holo`
-
----
-
-### 🎨 Material Showcase
-
-**All material types and features.**
-
-**Materials:**
-- 🌟 PBR (Metallic-Roughness)
-- 🔥 Emissive
-- 🪞 Reflective
-- 🌈 Refractive
-- 🎭 Toon shading
-- 🌊 Custom shaders
-
-**Files:** `examples/technical/material-showcase.holo`
-
----
-
-## 📝 Templates & Starters {#templates}
-
-### 🎯 Minimal Template
-
-**Bare minimum to get started.**
-
-```holoscript
-// @holoscript-version 3.4
-
-composition "Minimal Template" {
-  object "Floor" {
-    geometry: "plane"
-    position: [0, 0, 0]
-    scale: [10, 1, 10]
-  }
-
-  object "Light" {
-    @light
-    type: "ambient"
-    intensity: 1.0
-  }
-}
-```
-
-**Files:** `examples/templates/minimal.holo`
-
----
-
-### 🎨 Standard Scene Template
-
-**Good starting point with common setup.**
-
-**Includes:**
-- Floor & ceiling
-- Walls (optional)
-- Lighting setup (ambient + directional)
-- Camera setup
-- Basic materials
-
-**Files:** `examples/templates/standard-scene.holo`
-
----
-
-### 🎮 Game Template
-
-**Starter template for games.**
-
-**Includes:**
-- Player controller
-- Input handling
-- Score system
-- UI overlay
-- Menu system
-- Game state management
-
-**Files:** `examples/templates/game-template.holo`
-
----
-
-### 🌐 Multiplayer Template
-
-**Ready-to-use multiplayer scene.**
-
-**Includes:**
-- Networked state
-- Player avatars
-- Spawn points
-- Chat system
-- Connection UI
-
-**Files:** `examples/templates/multiplayer-template.holo`
-
----
-
-## 📦 Download Examples
-
-### Clone Individual Examples
+Do not hand-list examples here — the tree drifts on every commit. The README
+inside [`examples/README.md`](../examples/README.md) is the per-example walkthrough.
+
+## Status
+
+Alive. The 2026-05-07 [should-exist audit](./audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md)
+classifies the strongest examples — `hololand-central`, `hololand-legends`,
+`14-holoscript-survival-benchmark` — as Keep. Several numbered scaffolds
+(`05-desktop-app`, `06-mobile-app`, `07-hybrid-world`, `09-multiplayer-lobby`,
+`10-collaborative-building`, `11-social-hub`) are flagged in the audit as
+empty scaffolds — they are tracked but contain no HoloScript source yet.
+
+## Categories on disk
+
+| Group | Path | What's there |
+|---|---|---|
+| Numbered tutorials | [`examples/01-hello-vr-world`](../examples/01-hello-vr-world) → [`examples/14-holoscript-survival-benchmark`](../examples/14-holoscript-survival-benchmark) | Mix of `.holo`/`.hsplus` walkthroughs and HTML/React starters. Some are scaffolds (see audit). |
+| `examples/demos/` | [`examples/demos/`](../examples/demos/) | Single-file `.holo` showcases (collaborative building, voice builder, multiplayer lobby, VRChat room, etc.). Listed in [`demos/README.md`](../examples/demos/README.md). |
+| `examples/fresh/` | [`examples/fresh/`](../examples/fresh/) | Beginner-friendly compact examples (`hello_vr.holo`, `combat_arena.hsplus`, `npc_dialogue.holo`, `quest_tracker.hsplus`, `inventory_system.hsplus`, `interactive_basics.holo`). |
+| `examples/headless/` | [`examples/headless/`](../examples/headless/) | Agent-only `.hsplus` examples (`debate-society`, `knowledge-graph`, `task-swarm`). |
+| `examples/hololand-central/` | [`examples/hololand-central/`](../examples/hololand-central/) | The reference HoloLand consumer; product proof surface (zones, worlds, components). Audit "main platform proof". |
+| `examples/hololand-legends/` | [`examples/hololand-legends/`](../examples/hololand-legends/) | Game-loop proof with creatures, maps, and `.hsplus` source. |
+| `examples/14-holoscript-survival-benchmark/` | [`examples/14-holoscript-survival-benchmark/`](../examples/14-holoscript-survival-benchmark/) | HoloScript-first survival/crafting benchmark. See its README — explicitly no TS game loop. |
+| `examples/oasis/` | [`examples/oasis/`](../examples/oasis/) | Tauri desktop slice; audit flags as TS-only with zero HoloScript source. |
+| `examples/hololand-website/`, `hololand-landing/` | — | Marketing/site shapes; audit flagged as docs-or-TS, not product source. |
+| `examples/holoscript-studio/` | [`examples/holoscript-studio/`](../examples/holoscript-studio/) | Studio-in-browser demo (single `scene.holo` plus harness). |
+| `examples/compiled-outputs/` | — | Generated artefacts. Audit flags 286 tracked files as needing snapshot rationale or removal. |
+
+For the actual file inventory, run the `find` command at the top of this doc.
+
+## Featured / live
+
+These are the examples the audit considers strongest as product proof:
+
+| Example | Why it matters |
+|---|---|
+| [`examples/hololand-central/`](../examples/hololand-central/) | Reference consumer for HoloLand. 27 `.hsplus` + 23 `.holo` files across `zones/`, `worlds/`, `components/`. Source-of-truth tension visible (114 TS/TSX vs 50 HoloScript) — the audit tracks this as the migration target. |
+| [`examples/hololand-legends/`](../examples/hololand-legends/) | Game-loop proof. `game.hsplus`, `creatures.hsplus`, `maps/return_to_oasis.hsplus`, `maps/starting_town.hsplus`. |
+| [`examples/14-holoscript-survival-benchmark/survival_frontier.holo`](../examples/14-holoscript-survival-benchmark/survival_frontier.holo) | HoloScript-first survival/crafting source — explicit "no TS game loop" charter. See [its README](../examples/14-holoscript-survival-benchmark/README.md). |
+| [`examples/headless/`](../examples/headless/) | Agent-only `.hsplus` proofs (`debate-society`, `knowledge-graph`, `task-swarm`) — useful for showing HoloScript works without a renderer. |
+| [`examples/01-hello-vr-world`](../examples/01-hello-vr-world), [`02-physics-playground`](../examples/02-physics-playground), [`03-vr-shop`](../examples/03-vr-shop) | Numbered tutorials with both `main.hsplus` and `scene.holo` — the cleanest beginner path. |
+
+## Empty / scaffold (per audit)
+
+The audit flagged the following as empty scaffolds — they should either gain
+`.holo`/`.hsplus` source or be archived:
+
+- `examples/05-desktop-app`, `examples/06-mobile-app`, `examples/07-hybrid-world`
+- `examples/09-multiplayer-lobby`, `examples/10-collaborative-building`, `examples/11-social-hub`
+- `examples/hololand-landing` (site shape, no HoloScript source)
+
+If you find one of these and it now has source, update the audit row.
+
+## Templates
+
+`examples/hololand-central/templates/` ships ten reusable `.holo` worlds
+(`art-gallery`, `beach`, `boss-arena`, `cyberpunk-alley`, `dashboard`,
+`forest`, `meditation-garden`, `meeting-room`, `modern-office`, `space-station`).
+These are the closest thing to a starter library; clone one and modify.
+
+Reusable component libraries live in [`packages/components/`](../packages/components/)
+(`fitness/FitnessGym.hsplus`, `templates/environment.holo`, `templates/npcs.holo`,
+`templates/ui.holo`, `templates/weapons.holo`, `templates/game-systems.holo`).
+
+## Running an example
 
 ```bash
-# Clone specific example
-curl -O https://raw.githubusercontent.com/hololand/hololand/main/examples/games/ping-pong.holo
+# Pure-HoloScript single-file demo:
+#   inspect the source, then drive through the HoloScript runtime/compiler.
+cat examples/demos/enchanted-forest.holo
 
-# Or clone entire category
-git clone --depth 1 --filter=blob:none --sparse \
-  https://github.com/hololand/hololand.git
-cd hololand
-git sparse-checkout set examples/games/
+# Numbered tutorials with their own harness:
+cd examples/01-hello-vr-world && open index.html
+
+# hololand-central (full app):
+#   see examples/hololand-central/README.md or its package.json scripts.
 ```
 
-### Download Example Pack
+The Studio playground at [`packages/playground/`](../packages/playground/) can
+also load any `.holo` from the tree.
 
-```bash
-# Download all examples (ZIP)
-curl -L https://github.com/hololand/hololand/archive/refs/heads/main.zip -o hololand.zip
-unzip hololand.zip
-cd hololand-main/examples/
-```
+## Claims dropped
 
----
+- **"50+ examples / 60+ examples / 17,500+ LOC totals"** — hardcoded counts
+  burn on every commit. Use the `find` commands above. F.014 (zero hardcoded
+  stats) prohibits these in docs.
+- **Named examples that don't exist on disk** — Battle Arena, Procedural
+  Island (`examples/procedural/`), Art Gallery (`examples/art-gallery/`),
+  Ping Pong (`examples/games/`), Target Practice, Puzzle Rooms, Board Game
+  Table, Industrial Factory Dashboard, Patient Monitoring, Smart Farm,
+  Building Management, Physics Classroom, Biology VR, Historical
+  Recreations, Flight Simulator, Data Viz Dashboard, Real Estate Tour,
+  Retail Store, Conference Room, Painting Studio, Theater, Music
+  Visualizer, Photography Studio, Virtual Cafe, Study Room, Party Space,
+  Networking Stress Test, Input Systems, Material Showcase, and the
+  templates/{minimal,standard-scene,game-template,multiplayer-template}.
+  None of those paths exist; the previous version of this doc was a
+  marketing wishlist, not a reflection of the tree.
+- **Per-category LOC totals + "GitHub Stars / Discord / video tutorial"
+  promotion CTAs** — community + marketing chrome, not gallery navigation.
 
-## 🔨 Customize Examples
+## See also
 
-All examples are MIT licensed and free to customize!
-
-### Basic Customization
-
-```holoscript
-// Change colors
-material: { color: "#YOUR_COLOR" }
-
-// Change positions
-position: [x, y, z]
-
-// Change sizes
-scale: [x, y, z]
-
-// Add your own objects
-object "My Object" {
-  // ...
-}
-```
-
-### Advanced Customization
-
-```holoscript
-// Add custom behaviors
-on "click" {
-  // Your code here
-}
-
-// Connect to your data
-state {
-  data: bind("api://your-api.com/data")
-}
-
-// Modify physics
-physics: {
-  mass: 10
-  friction: 0.5
-}
-```
-
----
-
-## 🎓 Learning Path
-
-### Beginner (Start Here)
-
-1. **Minimal Template** - Understand basic structure
-2. **Art Gallery** - Learn object placement
-3. **Ping Pong** - Add physics
-4. **Virtual Cafe** - Try multiplayer
-
-### Intermediate
-
-1. **Battle Arena** - Complex game logic
-2. **Smart Home** - IoT integration
-3. **Data Dashboard** - External data
-4. **Flight Simulator** - Advanced controls
-
-### Advanced
-
-1. **Procedural Island** - Algorithms
-2. **Factory Dashboard** - Large-scale IoT
-3. **Networking Stress Test** - Performance
-4. **Custom Materials** - Shader programming
-
----
-
-## 🌟 Community Examples
-
-Want to showcase your creation?
-
-1. **Build something awesome** with Hololand
-2. **Open source it** on GitHub
-3. **Submit PR** to add to this gallery
-4. **Get featured!** 🎉
-
-**Submission requirements:**
-- Working .holo or .hsplus file
-- README with description
-- Screenshot or video
-- MIT license
-
----
-
-## 📊 Example Statistics
-
-| Category | Count | Total LOC |
-|----------|-------|-----------|
-| Games | 12 | 3,500+ |
-| IoT | 8 | 2,200+ |
-| Education | 10 | 4,100+ |
-| Business | 7 | 1,800+ |
-| Art | 6 | 1,500+ |
-| Social | 5 | 1,200+ |
-| Technical | 8 | 2,800+ |
-| Templates | 4 | 400+ |
-| **Total** | **60+** | **17,500+** |
-
----
-
-## 🆘 Need Help?
-
-### Documentation
-- [Getting Started](GETTING_STARTED.md)
-- [HoloScript Reference](HOLOSCRIPT_LANGUAGE_SPEC.md)
-- [Developer Portal](DEVELOPER_PORTAL.md)
-
-### Support
-- 💬 Discord (coming soon)
-- 🐛 [GitHub Issues](https://github.com/hololand/hololand/issues)
-- 📧 support@hololand.dev
-
----
-
-## 📄 License
-
-All examples are MIT licensed and free to use in your projects!
-
----
-
-**🎨 Browse, learn, and build amazing VR experiences!**
-
----
-
-**Built with ❤️ for the Hololand community**
-
-*Empowering creators with 50+ production-ready examples*
+- [`examples/README.md`](../examples/README.md) — per-example READMEs.
+- [`examples/14-holoscript-survival-benchmark/README.md`](../examples/14-holoscript-survival-benchmark/README.md)
+  — the HoloScript-first benchmark charter.
+- [`HOLOSCRIPT_SOURCE_CONTRACT.md`](./HOLOSCRIPT_SOURCE_CONTRACT.md) — why
+  feature-domain examples need `.holo`/`.hs`/`.hsplus` source.
+- [`audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md`](./audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md)
+  — Should Exist / Should Not Exist verdicts on individual examples.

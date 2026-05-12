@@ -1,105 +1,60 @@
-# Tiered Chat Window - Implementation Game Plan
+# Tiered Chat Gameplan
 
-## Overview
+Plan for the multi-tier Brittney chat surface in HoloLand: free local model,
+HoloScript Cloud cost-tracked tier, BYOK orchestration, and Infinity-Assistant
+enhanced model.
 
-Implement a tiered chat system for Hololand AI orchestrations.
+> **Status:** plan, partial wiring. The chat widget, model registry, and
+> inference layer all ship today. The API-key store, tier routing, and the
+> in-app settings UI are NOT shipped — that's the gap this plan closes.
+> The original draft cited `@hololand/brittney-service`; that package is
+> **deprecated** in favour of `@hololand/inference` (see [`BRITTNEY_CONTEXT.md`](../BRITTNEY_CONTEXT.md)).
+> Treat any old `brittney-service`-routed instructions as migration debt.
 
-**Free (email sign-up)**: Brittney AI + all manual tools + marketplace (revenue share) — everything works, sign up to try
-**Cloud Tokens**: Pay-per-token Brittney usage via HoloScript Cloud — primary revenue driver
-**Pro Subscription**: Vision model + priority processing + reduced marketplace commission
-**BYOK**: User's own LLM key → Their LLM + Brittney tools for AI orchestrations in Hololand
-**Infinity Assistant**: API key from Infinity Assistant → Bigger Brittney model
+## What ships today
 
-Users can:
-- Sign up free (email) to use Brittney and all manual studio tools
-- Pay per token for cloud Brittney usage (scene generation, code assistance, etc.)
-- Publish and sell on the marketplace for free (HoloScript takes a revenue share commission)
-- Subscribe to Pro for the vision model, priority processing, and reduced marketplace commission
-- Bring their own LLM API key for building AI orchestrations in their Hololand setups (BYOK)
-- Get an API key from Infinity Assistant (pay IA for access to bigger Brittney model)
+| Surface | Source-of-truth file |
+|---|---|
+| Chat widget | [`packages/brittney/toolkit/src/chat/`](../../packages/brittney/toolkit/src/chat/) |
+| Bundled local model + chat layout | [`packages/brittney/toolkit/src/`](../../packages/brittney/toolkit/src/) (`inference/`, `layout/`, `bin/`) |
+| Inference client (unified provider layer) | [`packages/shared/inference/src/client.ts`](../../packages/shared/inference/src/client.ts) |
+| Provider integrations | [`packages/shared/inference/src/providers/`](../../packages/shared/inference/src/providers/), [`packages/shared/inference/src/integrations/`](../../packages/shared/inference/src/integrations/) |
+| Cost tracker | [`packages/shared/inference/src/cost-tracker.ts`](../../packages/shared/inference/src/cost-tracker.ts) |
+| Inference public exports | [`packages/shared/inference/src/index.ts`](../../packages/shared/inference/src/index.ts) |
+| NL → HoloScript translator | [`packages/brittney/ai-bridge/src/`](../../packages/brittney/ai-bridge/src/) |
+| Premium MCP tool surface (Brittney tools the LLM can call) | [`packages/brittney/mcp-server/src/`](../../packages/brittney/mcp-server/src/) |
+| Model registry + downloader | [`packages/brittney/models/src/registry.ts`](../../packages/brittney/models/src/registry.ts), [`packages/brittney/models/bin/download.mjs`](../../packages/brittney/models/bin/download.mjs) |
 
----
+The deprecated path that the original draft routed through:
+[`packages/brittney/service/package.json`](../../packages/brittney/service/package.json)
+(`"deprecated": "This service (port 11435) is deprecated. Use @hololand/inference
+with Ollama (port 11434) instead."`). Do not target `@hololand/brittney-service`
+in new work.
 
-## Architecture
+## Tiers
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    HOLOLAND PLATFORM                         │
-│                                                              │
-│  ┌───────────┐    ┌───────────┐    ┌───────────┐            │
-│  │  Basic    │    │ Pro (BYOK)│    │ Pro (IA)  │            │
-│  │  No Key   │    │ User's LLM│    │ IA Key    │            │
-│  │  Free     │    │ + Brittney│    │ Better    │            │
-│  └─────┬─────┘    └─────┬─────┘    └─────┬─────┘            │
-│        │                │                │                   │
-│        └────────────────┼────────────────┘                   │
-│                         ▼                                    │
-│             ┌───────────────────────┐                        │
-│             │   ChatWidget.ts       │                        │
-│             │   (mode: basic|pro)   │                        │
-│             └───────────┬───────────┘                        │
-│                         │                                    │
-│                         ▼                                    │
-│             ┌───────────────────────┐                        │
-│             │   API Key Store       │  ← Stored locally      │
-│             │   (encrypted)         │                        │
-│             └───────────┬───────────┘                        │
-└─────────────────────────┼───────────────────────────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        │                 │                 │
-        ▼                 ▼                 ▼
-┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ Local       │  │ User's LLM      │  │ Infinity        │
-│ Brittney    │  │ (OpenAI, etc)   │  │ Assistant API   │
-│             │  │                 │  │                 │
-│ - Free      │  │ + Brittney      │  │ - Better        │
-│ - Limited   │  │   Tools         │  │   Brittney      │
-└─────────────┘  └─────────────────┘  └─────────────────┘
-```
+| Tier | What the user gets | Where it routes |
+|---|---|---|
+| Free (local) | Bundled local model, all manual studio tools, marketplace publishing (revenue share). | `@hololand/brittney-toolkit`'s bundled model surface. |
+| Cloud tokens (pay-per-token) | Cloud Brittney via HoloScript Cloud (vision-capable model, priority queue). | Cloud provider through `@hololand/inference`. |
+| Pro subscription | Vision model, priority processing, reduced marketplace commission. | `@hololand/inference` with Pro entitlement. |
+| BYOK | User's LLM (OpenAI / Anthropic / Google / etc.) + Brittney tools injected. | User-provided key through `@hololand/inference` provider; Brittney MCP tools attached on the request. |
+| Infinity Assistant | Larger Brittney model accessed through an Infinity-Assistant API key. | IA provider through `@hololand/inference`. |
 
-**Key Points**:
-- Infinity Assistant is ALSO a 2D builder (FREE onramp)
-- Infinity Assistant API provides a better/enhanced Brittney model
-- Users choose: free local, their own LLM, or Infinity Assistant API
+## Gap
 
----
+| Gap | Where it lands |
+|---|---|
+| Encrypted local API-key store (per provider) | New `packages/shared/inference/src/api-key-store.ts` (or in toolkit if it ends up chat-only). |
+| Provider auto-selection in inference router (no key → local; key → routed) | Update `packages/shared/inference/src/client.ts` (verify current router shape before editing). |
+| Brittney-tool injection on BYOK requests | Wire `packages/brittney/mcp-server` exports into the inference call when a user-provided LLM is selected. |
+| ChatWidget mode detection (basic / pro) | Update [`packages/brittney/toolkit/src/chat/`](../../packages/brittney/toolkit/src/chat/) — verify the current ChatWidget shape before changing the public surface. |
+| In-app settings UI for keys | Lives in the consuming app (`examples/hololand-central/` or future `apps/hololand-app/`); the original draft assumed `apps/hololand-app/` exists — verify before scheduling. |
 
-## Current State (Audit Summary)
+## API-key store contract (target)
 
-### Already Implemented
-
-| Component | Location | Status |
-|-----------|----------|--------|
-| brittney-service | `packages/brittney-service/` | Local Brittney model |
-| Model Router | `brittney-service/src/model-router.ts` | Multi-provider support |
-| ChatWidget UI | `brittney-toolkit/src/chat/ChatWidget.ts` | Device-responsive |
-| Brittney MCP Tools | `brittney-mcp/` | HoloScript generation |
-| ai-bridge | `packages/ai-bridge/` | Natural language → HoloScript |
-
-### Not Yet Implemented
-
-| Component | Priority | Complexity |
-|-----------|----------|------------|
-| Local API Key Storage | HIGH | Medium |
-| Chat Mode Switching | HIGH | Low |
-| LLM Routing with Brittney Tools | HIGH | Medium |
-| Settings UI for Keys | MEDIUM | Low |
-
----
-
-## Implementation Tasks
-
-### Phase 1: Local API Key Storage
-
-**1.1 API Key Store Service**
-
-Location: `packages/brittney-service/src/services/api-key-store.ts`
-
-```typescript
+```ts
 interface APIKeyStore {
-  // Store user's LLM keys locally (encrypted)
-  // Providers: openai, anthropic, google, infinity-assistant
   setKey(provider: string, key: string): Promise<void>;
   getKey(provider: string): Promise<string | null>;
   removeKey(provider: string): Promise<void>;
@@ -109,169 +64,96 @@ interface APIKeyStore {
 }
 ```
 
-**1.2 Encryption**
+Constraints:
 
-- Encrypt keys at rest using device-specific key
-- Keys never leave user's device
-- Keys never sent to Hololand servers
+- **Keys never leave the device.** Encrypted at rest with a device-specific key.
+- **Validate on save** — issue a small completion request to the provider; surface failure synchronously.
+- **No logging** — provider keys must never appear in logs or telemetry.
 
-**1.3 Key Validation**
+## Routing contract (target)
 
-- Test API call on save (small completion request)
-- Show validation status in UI
-
-### Phase 2: Chat Routing
-
-**2.1 Update Model Router**
-
-Location: `packages/brittney-service/src/model-router.ts`
-
-```typescript
-async function routeChat(message: string, context: ChatContext) {
+```ts
+async function routeChat(message, context) {
   const provider = await apiKeyStore.getPreferredProvider();
 
   if (!provider) {
-    // Basic tier: Local Brittney only
-    return brittney.generate(message, context);
+    return localBrittney.generate(message, context);  // free tier
   }
 
   const key = await apiKeyStore.getKey(provider);
 
   if (provider === 'infinity-assistant') {
-    // Pro tier (IA): Better Brittney via Infinity Assistant API
     return callInfinityAssistant(key, message, context);
-  } else {
-    // Pro tier (BYOK): User's LLM + Brittney tools
-    return callUserLLM(provider, key, message, {
-      tools: brittneyMCPTools,  // Inject Brittney capabilities
-      context
-    });
   }
+
+  return callUserLLM(provider, key, message, {
+    tools: brittneyMCPTools,  // inject Brittney's MCP tool surface
+    context,
+  });
 }
 ```
 
-**2.2 Brittney Tool Injection**
+The actual implementation must mirror the live shape of
+[`packages/shared/inference/src/client.ts`](../../packages/shared/inference/src/client.ts);
+do not assume a hand-written router replaces what already exists.
 
-When using user's LLM, inject these tools:
+## ChatWidget mode (target)
 
-- `brittney_generate_holoscript` - Generate HoloScript from description
-- `brittney_validate_holoscript` - Check syntax
-- `brittney_explain_scene` - Explain existing HoloScript
-- `brittney_optimize_code` - Suggest improvements
+- `mode: 'basic' | 'pro' | 'auto'`. `auto` checks `apiKeyStore.hasKey(any)`.
+- Header reflects active tier ("Brittney" / "Brittney Pro").
+- Upgrade prompt rendered when basic capability is exceeded.
 
-### Phase 3: Frontend Chat Mode
+## Phases
 
-**3.1 ChatWidget Mode Detection**
+1. **API-key store + validation** (no UI surface change).
+2. **Inference router** consumes the key store + injects Brittney tools on BYOK.
+3. **ChatWidget mode detection** + tier-aware header / upgrade prompt.
+4. **Settings UI** in the consuming app (Central or future hololand-app).
 
-```typescript
-// packages/brittney-toolkit/src/chat/ChatWidget.ts
-interface ChatWidgetConfig {
-  mode: 'basic' | 'pro' | 'auto';
-  // auto = detect from API key presence
-}
+Phase 3 + 4 can run in parallel after phase 2.
 
-async function detectMode(): Promise<'basic' | 'pro'> {
-  const hasKey = await apiKeyStore.hasKey(anyProvider);
-  return hasKey ? 'pro' : 'basic';
-}
-```
+## Security
 
-**3.2 UI Differentiation**
+- AES-256-GCM with device-specific key for at-rest encryption.
+- Test request before persisting (catches typos / wrong scopes).
+- No keys in logs / metrics / sessions / telemetry.
+- Clear-on-logout option.
 
-| Feature | Basic | Pro (HoloScript Cloud) | Pro (BYOK Orchestration) | Pro (IA) |
-|---------|-------|------------------------|--------------------------|----------|
-| Header | "Brittney" | "Brittney Pro" | "Brittney Pro" | "Brittney Pro" |
-| LLM Used | Local Brittney | HoloScript vision model | User's LLM + Brittney | Better Brittney |
-| Use Case | Basic HoloScript | Character/avatar creation | AI orchestrations | Full planning |
-| Context | Limited | Vision model context | User's LLM limit | Enhanced |
-| Cost | Free | Pro subscription | User pays their LLM | User pays IA |
+## Testing
 
-**3.3 Upgrade Prompt**
+- Unit: encryption round-trip, router with-key vs without-key, tool injection
+  when BYOK is active.
+- Integration: basic flow (local), Pro flow (cloud), BYOK flow with each
+  supported provider.
+- E2E: add key, validate, route, remove key.
 
-- Show when basic user needs more capability
-- "Add your API key for full planning mode"
-- Link to settings
+## Success criteria
 
-### Phase 4: Settings UI
+- A user with no key can chat through bundled local Brittney.
+- A user with a provider key gets that LLM + Brittney tool surface.
+- Keys never leave the device.
+- Mode toggle in ChatWidget reflects actual capability.
 
-**4.1 API Key Settings Page**
+## Claims dropped
 
-Location: `apps/hololand-app/src/pages/settings/api-keys.tsx`
+- **All `@hololand/brittney-service` routing** — package is deprecated; route
+  through `@hololand/inference` instead.
+- **`apps/hololand-app/src/pages/settings/api-keys.tsx`** — neither the
+  `apps/hololand-app/` directory nor the cited path was verified on disk in
+  this refresh. Settings UI placement is open.
+- **`packages/brittney-toolkit/src/chat/ChatWidget.ts` exact path** — the live
+  path is [`packages/brittney/toolkit/src/chat/`](../../packages/brittney/toolkit/src/chat/);
+  the inner ChatWidget file shape may differ from the original draft. Verify
+  before editing.
 
-- Input fields for each provider (OpenAI, Anthropic, Google, Infinity Assistant)
-- "Get key from Infinity Assistant" link for users who want enhanced Brittney
-- Validation status indicator (green checkmark / red X)
-- "Test Connection" button
-- Current mode display (Basic / Pro)
-- Provider selector (which key to use by default)
-- Clear explanation: "Your keys stay on your device"
+## See also
 
----
-
-## File Changes Summary
-
-### New Files
-
-```
-packages/brittney-service/src/services/api-key-store.ts
-apps/hololand-app/src/pages/settings/api-keys.tsx
-```
-
-### Modified Files
-
-```
-packages/brittney-service/src/model-router.ts   # Add BYOK orchestration routing
-packages/brittney-toolkit/src/chat/ChatWidget.ts  # Mode detection
-```
-
----
-
-## Security Considerations
-
-1. **Keys Stay Local**: User's API keys never sent to Hololand servers
-2. **Encrypted Storage**: AES-256-GCM with device-specific key
-3. **Key Validation**: Test before storing (catches typos)
-4. **No Logging**: Never log API keys
-5. **Clear on Logout**: Option to clear keys when logging out
-
----
-
-## Testing Plan
-
-1. **Unit Tests**
-   - API key encryption/decryption
-   - Routing logic (no key vs has key)
-   - Brittney tool injection
-
-2. **Integration Tests**
-   - Basic chat flow (Brittney only)
-   - Pro chat flow (User's LLM + Brittney tools)
-   - Mode switching in ChatWidget
-
-3. **E2E Tests**
-   - Add API key flow
-   - Remove API key flow
-   - Chat with different providers
-
----
-
-## Implementation Order
-
-| Phase | Focus | Dependencies |
-|-------|-------|--------------|
-| 1 | API Key Store | None |
-| 2 | Chat Routing | Phase 1 |
-| 3 | ChatWidget Mode | Phase 2 |
-| 4 | Settings UI | Phase 1 |
-
-Phases 3 and 4 can run in parallel after Phase 2.
-
----
-
-## Success Metrics
-
-- Basic users can generate HoloScript via local Brittney
-- BYOK orchestration users get their LLM + Brittney tools for Hololand setups
-- Keys are stored locally (encrypted, never sent to server)
-- Upgrade path is clear: "Add your API key"
-- Chat UI reflects current mode
+- [`BRITTNEY_CONTEXT.md`](../BRITTNEY_CONTEXT.md) — Brittney sub-package layout
+  + the `@hololand/brittney-service` deprecation note.
+- [`BRITTNEY_MODELS_DEPLOYMENT.md`](../BRITTNEY_MODELS_DEPLOYMENT.md) — model
+  deployment paths.
+- [`HOLOSCRIPT_SOURCE_CONTRACT.md`](../HOLOSCRIPT_SOURCE_CONTRACT.md) — chat
+  product behaviour belongs in HoloScript when it describes runtime semantics;
+  TS is acceptable for the bridge / settings layer.
+- [`audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md`](../audits/HOLOLAND_CODEBASE_SHOULD_EXIST_AUDIT_2026-05-07.md)
+  — Brittney sub-packages classified Keep.
