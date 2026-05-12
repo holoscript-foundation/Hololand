@@ -50,6 +50,7 @@ External canonical:
 | [BRITTNEY_CONTEXT.md](./BRITTNEY_CONTEXT.md) | Canonical: Brittney sub-packages, roles, runtime |
 | [BRITTNEY_OWNERSHIP_MODEL.md](./BRITTNEY_OWNERSHIP_MODEL.md) | Cross-repo split (HoloScript / Studio / HoloLand) |
 | [BRITTNEY_MODELS_DEPLOYMENT.md](./BRITTNEY_MODELS_DEPLOYMENT.md) | Inference deployment (toolkit GGUF + `@hololand/inference`) |
+| [BRITTNEY_ACCESS_CONTRACT.md](./BRITTNEY_ACCESS_CONTRACT.md) | Required access matrix and receipt declaration for Brittney descendants |
 | [BRITTNEY_AI_PACKAGE_INDEX.md](./BRITTNEY_AI_PACKAGE_INDEX.md) | → redirect to HoloScript canonical (verify before use) |
 | [BRITTNEY_HOLOSCRIPT_CONTEXT.md](./BRITTNEY_HOLOSCRIPT_CONTEXT.md) | → redirect to HoloScript canonical |
 
