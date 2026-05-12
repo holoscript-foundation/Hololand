@@ -1,0 +1,147 @@
+// HoloShell Phase 1 Workflows
+//
+// Source-level workflow map for the first HoloShell planning and research
+// sprint. Host adapters may render or execute these workflows, but the product
+// grammar lives here.
+
+composition "HoloShell Phase 1 Workflows" {
+  config {
+    title: "HoloShell Phase 1"
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    mode: "intent_capability_receipt"
+    defaultRiskPolicy: "calm_until_break_glass"
+  }
+
+  state {
+    activeWorkflow: ""
+    selectedPilot: ""
+    approvalCount: 0
+    receiptCount: 0
+    blockedReason: ""
+  }
+
+  template "OutcomeFlow" {
+    type: "workflow"
+    input: "intent"
+    planner: "agent"
+    requiresCapability: true
+    requiresReceipt: true
+    visualForm: "timeline"
+  }
+
+  template "PermissionEnvelope" {
+    type: "policy"
+    readOnly: true
+    guardedWrite: false
+    breakGlass: false
+    receiptRequired: true
+  }
+
+  workflow "PrepareComputerForHoloLand" using "OutcomeFlow" {
+    intent: "Prepare this computer for HoloLand work"
+    capabilityPath: [
+      "hardware-proof",
+      "holoscript-mcp",
+      "holomesh-team",
+      "local-projects",
+      "cli-dev-stack"
+    ]
+    risk: "guarded_execute"
+    receiptPath: [
+      "hardware_receipt",
+      "mcp_health_receipt",
+      "team_board_receipt",
+      "command_receipt"
+    ]
+    userView: "show readiness, blockers, and next safe action"
+  }
+
+  workflow "CheckWebSurface" using "OutcomeFlow" {
+    intent: "Check whether this web surface is healthy"
+    capabilityPath: ["browser-operator", "holoscript-mcp"]
+    risk: "browser_session_boundary"
+    receiptPath: ["browser_action_receipt", "screenshot_witness", "dom_witness"]
+    userView: "show target, session boundary, visible result, and witness"
+  }
+
+  workflow "RunProjectCheck" using "OutcomeFlow" {
+    intent: "Check this project without making me use a terminal"
+    capabilityPath: ["local-projects", "cli-dev-stack", "hardware-proof"]
+    risk: "guarded_execute"
+    receiptPath: ["command_receipt", "git_diff_receipt", "build_receipt"]
+    userView: "show pass/fail, changed files, and raw output behind receipt"
+  }
+
+  workflow "ClassifyLegacyApp" using "OutcomeFlow" {
+    intent: "Tell me what this installed app can safely help agents do"
+    capabilityPath: ["legacy-apps"]
+    risk: "local_inventory_privacy"
+    receiptPath: ["legacy_inventory_receipt", "classification_receipt"]
+    userView: "show capability group, adapter path, trust default, and replacement path"
+  }
+
+  policy "SilentRead" using "PermissionEnvelope" {
+    readOnly: true
+    guardedWrite: false
+    breakGlass: false
+    receiptRequired: true
+    appliesTo: ["health_check", "inventory_summary", "project_status", "mcp_discovery"]
+  }
+
+  policy "GuardedWrite" using "PermissionEnvelope" {
+    readOnly: false
+    guardedWrite: true
+    breakGlass: false
+    receiptRequired: true
+    appliesTo: ["build", "test", "browser_form_draft", "local_file_edit"]
+  }
+
+  policy "BreakGlass" using "PermissionEnvelope" {
+    readOnly: false
+    guardedWrite: true
+    breakGlass: true
+    receiptRequired: true
+    appliesTo: [
+      "install",
+      "uninstall",
+      "delete",
+      "registry_mutation",
+      "credential_access",
+      "payment",
+      "deploy",
+      "system_setting_change",
+      "robot_or_actuator_command"
+    ]
+  }
+
+  action select_workflow(name) {
+    state.activeWorkflow = name
+    emit("holoshell:workflow:selected", {
+      workflow: name,
+      surface: "holoshell",
+      receipt_required: true
+    })
+  }
+
+  action classify_risk(operation) {
+    if (operation.kind in BreakGlass.appliesTo) {
+      state.approvalCount = state.approvalCount + 1
+      return "break_glass"
+    }
+    if (operation.kind in GuardedWrite.appliesTo) {
+      return "guarded_write"
+    }
+    return "silent_read"
+  }
+
+  action record_phase1_receipt(receipt) {
+    state.receiptCount = state.receiptCount + 1
+    emit("holoshell:phase1:receipt", {
+      receipt: receipt,
+      workflow: state.activeWorkflow,
+      count: state.receiptCount
+    })
+  }
+}
+

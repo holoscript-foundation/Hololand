@@ -53,8 +53,11 @@ capability is being used, what risk exists, and what receipt proves the result.
 
 ```text
 source/holoshell-home.hsplus
+source/holoshell-phase1-workflows.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
+docs/PHASE_1_ROADMAP.md
+docs/ABSORPTION_PILOTS.md
 docs/LEGACY_ABSORPTION_ARCHETYPES.md
 prototype/local-capability-room.html
 ```
@@ -65,6 +68,7 @@ From the HoloScript repo:
 
 ```powershell
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-home.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-phase1-workflows.hsplus
 ```
 
 From the HoloLand repo:
