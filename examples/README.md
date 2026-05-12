@@ -12,6 +12,7 @@ Welcome to the Hololand examples! These examples demonstrate different ways to b
 |----------|----------|--------|-------------|
 | **Showcases** | [demos/](./demos/) | `.holo` | Feature-rich demos (forest, VRChat, voice-builder) |
 | **Beginner** | [fresh/](./fresh/) | `.holo`, `.hsplus` | Simple, clean examples to learn from |
+| **Twin Earth** | [twin-earth/](./twin-earth/) | `.holo` | First playable game-layer slice for real-world anchors, consent, and receipts |
 
 These are the **recommended** starting points. HoloScript compiles to 9+ platforms from a single source.
 
