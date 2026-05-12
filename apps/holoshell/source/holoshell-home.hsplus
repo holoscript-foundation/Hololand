@@ -1,0 +1,227 @@
+// HoloShell Home
+//
+// Canonical HoloScript source for the HoloLand non-developer hardware surface.
+// TypeScript, Tauri, Windows UI Automation, browser automation, and MCP bridges
+// are host adapters. The product behavior starts here.
+
+composition "HoloShell Home" {
+  config {
+    title: "HoloShell"
+    owner: "HoloLand"
+    audience: "non_developer"
+    renderMode: "desktop_spatial"
+    sourceLayer: "HoloScript"
+    operationModel: "intent_capability_receipt"
+  }
+
+  state {
+    compositeHealth: "unknown"
+    activeIntent: ""
+    activeAgent: ""
+    selectedCapability: ""
+    pendingApprovals: 0
+    capabilityCount: 0
+    legacyMachineCount: 0
+    receiptCount: 0
+    trustFilter: "all"
+  }
+
+  channel "holoshell:intent" {
+    type: "request_response"
+    priority: "critical"
+    description: "Natural-language user outcomes entering the local operating surface"
+  }
+
+  channel "holoshell:capabilities" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Discovered local, HoloScript, HoloLand, HoloMesh, MCP, browser, CLI, and app capabilities"
+  }
+
+  channel "holoshell:legacy" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "Installed programs and old workflows absorbed as HoloScript capability objects"
+  }
+
+  channel "holoshell:receipts" {
+    type: "append_only"
+    priority: "high"
+    description: "Runtime, hardware, HoloDoor, and agent action receipts"
+  }
+
+  channel "holoshell:approval" {
+    type: "request_response"
+    priority: "critical"
+    description: "Break-glass approval lane for risky local actions"
+  }
+
+  template "CapabilityGlyph" {
+    type: "ui"
+    uiType: "capability_glyph"
+    width: 180
+    height: 120
+    trust_state: "unknown"
+    permission: "read_only"
+    receipt_required: true
+  }
+
+  template "LegacyMachine" {
+    type: "ui"
+    uiType: "legacy_machine"
+    width: 260
+    height: 170
+    trust_state: "unknown"
+    adapter: "unclassified"
+    replacement_path: "undecided"
+  }
+
+  template "ReceiptNode" {
+    type: "ui"
+    uiType: "receipt_node"
+    width: 320
+    height: 96
+    state: "pending"
+    rollback: "unknown"
+  }
+
+  page "Home" {
+    object "SystemPulse" {
+      type: "ui"
+      uiType: "status_banner"
+      text: "HoloShell is reading the local machine"
+      health: $compositeHealth
+      position: [0, 0]
+    }
+
+    spatial_group "CapabilityMap" at [0, 1, -3] {
+      object "HardwareProof" using "CapabilityGlyph" {
+        label: "Hardware Proof"
+        source_kind: "hardware"
+        trust_state: "partial"
+        permission: "read_only"
+      }
+
+      object "HoloScriptRuntime" using "CapabilityGlyph" {
+        label: "HoloScript Runtime"
+        source_kind: "holoscript"
+        trust_state: "unknown"
+        permission: "read_execute"
+      }
+
+      object "HoloMeshTeam" using "CapabilityGlyph" {
+        label: "Agent Team"
+        source_kind: "holomesh"
+        trust_state: "unknown"
+        permission: "coordinate"
+      }
+
+      object "BrowserOperator" using "CapabilityGlyph" {
+        label: "Browser"
+        source_kind: "browser"
+        trust_state: "unknown"
+        permission: "guarded_write"
+      }
+
+      object "LocalFiles" using "CapabilityGlyph" {
+        label: "Files"
+        source_kind: "filesystem"
+        trust_state: "unknown"
+        permission: "guarded_write"
+      }
+
+      object "LegacyApps" using "CapabilityGlyph" {
+        label: "Legacy Apps"
+        source_kind: "app"
+        trust_state: "unknown"
+        permission: "classified_per_app"
+      }
+    }
+
+    spatial_group "LegacyMachineGallery" at [-3, 1, -2] {
+      object "UnclassifiedProgram" using "LegacyMachine" {
+        label: "Unclassified Program"
+        adapter: "pending_discovery"
+        replacement_path: "wrap_then_reimagine"
+      }
+    }
+
+    spatial_group "AgentOperatorRoom" at [3, 1, -2] {
+      object "ActiveAgent" {
+        type: "ui"
+        uiType: "agent_operator"
+        label: $activeAgent == "" ? "No active operator" : $activeAgent
+        status: "standing_by"
+        permission: "bounded_by_holodoor"
+      }
+    }
+
+    spatial_group "TrustTimeline" at [0, -1, -2] {
+      object "LatestReceipt" using "ReceiptNode" {
+        label: "Waiting for first receipt"
+        state: "pending"
+        rollback: "not_applicable"
+      }
+    }
+
+    object "ApprovalLane" {
+      type: "ui"
+      uiType: "break_glass_lane"
+      label: "Approvals"
+      count: $pendingApprovals
+      visible_when: $pendingApprovals > 0
+      position: [0, 3]
+    }
+  }
+
+  action submit_intent(intentText) {
+    state.activeIntent = intentText
+    emit("holoshell:intent", {
+      intent: intentText,
+      surface: "holoshell",
+      user_model: "non_developer",
+      requires_plan: true,
+      requires_receipt: true
+    })
+  }
+
+  action absorb_capability(capability) {
+    state.capabilityCount = state.capabilityCount + 1
+    emit("holoshell:capabilities", {
+      action: "capability_absorbed",
+      capability: capability,
+      trust_state: capability.trust_state || "unknown"
+    })
+  }
+
+  action absorb_legacy_machine(programManifest) {
+    state.legacyMachineCount = state.legacyMachineCount + 1
+    emit("holoshell:legacy", {
+      action: "legacy_machine_absorbed",
+      manifest: programManifest,
+      adapter: programManifest.adapter || "unclassified",
+      replacement_path: programManifest.replacement_path || "wrap_then_reimagine"
+    })
+  }
+
+  action request_approval(operation) {
+    state.pendingApprovals = state.pendingApprovals + 1
+    emit("holoshell:approval", {
+      operation: operation,
+      reason: operation.reason,
+      risk: operation.risk || "unknown",
+      receipt_required: true
+    })
+  }
+
+  action record_receipt(receipt) {
+    state.receiptCount = state.receiptCount + 1
+    emit("holoshell:receipts", {
+      action: "receipt_recorded",
+      receipt: receipt,
+      trust_state: receipt.trust_state || "unknown",
+      rollback: receipt.rollback || "unknown"
+    })
+  }
+}
+

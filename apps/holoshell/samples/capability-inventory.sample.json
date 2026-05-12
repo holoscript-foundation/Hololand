@@ -1,0 +1,184 @@
+{
+  "schemaVersion": "hololand.holoshell.capability-inventory.v0.1.0",
+  "generatedAt": "2026-05-12T00:00:00.000Z",
+  "sourceAnchors": {
+    "composition": "apps/holoshell/source/holoshell-home.hsplus",
+    "spec": "docs/specs/HOLOSHELL_HARDWARE_NATIVE_SURFACE.md",
+    "appReadme": "apps/holoshell/README.md"
+  },
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "[redacted-release]"
+  },
+  "summary": {
+    "capabilityCount": 7,
+    "verified": 2,
+    "partial": 4,
+    "unknown": 1,
+    "legacyProgramCount": 40,
+    "legacyArchetypes": {
+      "cli_dev_stack": 15,
+      "unclassified_program": 18,
+      "system_component": 6,
+      "creative_runtime": 1
+    }
+  },
+  "capabilities": [
+    {
+      "id": "hardware-proof",
+      "displayName": "Hardware Proof",
+      "category": "hardware",
+      "sourceKind": "hardware",
+      "trustState": "unknown",
+      "permissionEnvelope": "read_only",
+      "inputs": ["local runtime", "browser hardware APIs", "WASM SIMD probe"],
+      "outputs": ["hardware receipt"],
+      "receiptTypes": ["hololand.hardware-receipt.v1"],
+      "visualForm": "glyph",
+      "adapter": "node_hardware_audit",
+      "replacementPath": "preserve_as_truth_source",
+      "evidence": {
+        "skipped": true
+      }
+    },
+    {
+      "id": "holoscript-mcp",
+      "displayName": "HoloScript MCP",
+      "category": "source_substrate",
+      "sourceKind": "mcp",
+      "trustState": "verified",
+      "permissionEnvelope": "network_read_then_tool_auth",
+      "inputs": ["HoloScript source", "tool requests"],
+      "outputs": ["validation", "compilation", "tool manifests"],
+      "receiptTypes": ["mcp health response", "tool invocation receipt"],
+      "visualForm": "room",
+      "adapter": "https_json",
+      "replacementPath": "source_layer",
+      "evidence": {
+        "healthStatus": 200,
+        "service": "holoscript-mcp",
+        "version": "7.0.0",
+        "tools": 253,
+        "discoveryStatus": 200
+      }
+    },
+    {
+      "id": "holomesh-team",
+      "displayName": "HoloMesh Agent Team",
+      "category": "coordination",
+      "sourceKind": "holomesh",
+      "trustState": "verified",
+      "permissionEnvelope": "team_auth_required",
+      "inputs": ["team id", "agent identity", "board state"],
+      "outputs": ["team slots", "tasks", "messages", "knowledge"],
+      "receiptTypes": ["team heartbeat", "board task receipt"],
+      "visualForm": "room",
+      "adapter": "holomesh_http",
+      "replacementPath": "coordinate_agents",
+      "evidence": {
+        "status": 200,
+        "mode": "security"
+      }
+    },
+    {
+      "id": "browser-operator",
+      "displayName": "Browser Operator",
+      "category": "browser",
+      "sourceKind": "browser",
+      "trustState": "partial",
+      "permissionEnvelope": "guarded_write",
+      "inputs": ["URL", "profile/session boundary", "intent"],
+      "outputs": ["web action result", "screenshot", "DOM witness"],
+      "receiptTypes": ["browser action receipt", "visual witness"],
+      "visualForm": "machine",
+      "adapter": "local_browser_executable",
+      "replacementPath": "wrap_then_reimagine",
+      "evidence": {
+        "browserPath": "[redacted-browser-path]"
+      }
+    },
+    {
+      "id": "local-projects",
+      "displayName": "Local Projects",
+      "category": "filesystem",
+      "sourceKind": "filesystem",
+      "trustState": "partial",
+      "permissionEnvelope": "guarded_write",
+      "inputs": ["project path", "task intent"],
+      "outputs": ["file edits", "build receipts", "git commits"],
+      "receiptTypes": ["git diff", "build/test receipt"],
+      "visualForm": "room",
+      "adapter": "filesystem_git",
+      "replacementPath": "preserve_as_work_substrate",
+      "evidence": {
+        "projects": [
+          { "name": "HoloLand", "path": "[redacted-local-path]", "exists": true, "git": true },
+          { "name": "HoloScript", "path": "[redacted-local-path]", "exists": true, "git": true },
+          { "name": "ai-ecosystem", "path": "[redacted-local-path]", "exists": true, "git": true }
+        ]
+      }
+    },
+    {
+      "id": "cli-dev-stack",
+      "displayName": "CLI Dev Stack",
+      "category": "cli",
+      "sourceKind": "cli",
+      "trustState": "partial",
+      "permissionEnvelope": "guarded_execute",
+      "inputs": ["command plan", "working directory", "timeout"],
+      "outputs": ["stdout", "stderr", "exit code"],
+      "receiptTypes": ["command receipt"],
+      "visualForm": "machine",
+      "adapter": "process_spawn",
+      "replacementPath": "hide_under_intent_flow",
+      "evidence": {
+        "nodeVersion": "v24.15.0",
+        "pnpmVersion": "10.28.2",
+        "gitVersion": "git version 2.51.0.windows.2"
+      }
+    },
+    {
+      "id": "legacy-apps",
+      "displayName": "Legacy Apps",
+      "category": "legacy",
+      "sourceKind": "app",
+      "trustState": "partial",
+      "permissionEnvelope": "classified_per_app",
+      "inputs": ["program manifest", "operation intent"],
+      "outputs": ["wrapped app action", "legacy witness"],
+      "receiptTypes": ["legacy app action receipt", "manual witness when automation unavailable"],
+      "visualForm": "machine_gallery",
+      "adapter": "windows_registry_inventory",
+      "replacementPath": "wrap_then_reimagine",
+      "evidence": {
+        "status": 0,
+        "count": 40,
+        "archetypes": {
+          "cli_dev_stack": 15,
+          "unclassified_program": 18,
+          "system_component": 6,
+          "creative_runtime": 1
+        }
+      }
+    }
+  ],
+  "upstreamGaps": [
+    {
+      "id": "holoscript-capability-object-schema",
+      "layer": "HoloScript",
+      "need": "Canonical Capability object schema and validator for sourceKind, trustState, permissionEnvelope, receiptTypes, and visualForm."
+    },
+    {
+      "id": "holoscript-legacy-adapter-contract",
+      "layer": "HoloScript",
+      "need": "Reusable contract for API, CLI, browser, UI Automation, and vision fallback adapters."
+    },
+    {
+      "id": "holoscript-receipt-linker",
+      "layer": "HoloScript",
+      "need": "Cross-receipt relation model that links hardware, tool, browser, and legacy app witnesses into one HoloShell timeline."
+    }
+  ]
+}
+

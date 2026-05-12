@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hololand.local/schemas/holoshell/capability-inventory.schema.json",
+  "title": "HoloShell Capability Inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "sourceAnchors",
+    "host",
+    "summary",
+    "capabilities",
+    "upstreamGaps"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "hololand.holoshell.capability-inventory.v0.1.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceAnchors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["composition", "spec", "appReadme"],
+      "properties": {
+        "composition": { "type": "string" },
+        "spec": { "type": "string" },
+        "appReadme": { "type": "string" }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["platform", "arch"],
+      "properties": {
+        "platform": { "type": "string" },
+        "arch": { "type": "string" },
+        "release": { "type": "string" },
+        "hostname": { "type": "string" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capabilityCount",
+        "verified",
+        "partial",
+        "unknown",
+        "legacyProgramCount",
+        "legacyArchetypes"
+      ],
+      "properties": {
+        "capabilityCount": { "type": "integer", "minimum": 0 },
+        "verified": { "type": "integer", "minimum": 0 },
+        "partial": { "type": "integer", "minimum": 0 },
+        "unknown": { "type": "integer", "minimum": 0 },
+        "legacyProgramCount": { "type": "integer", "minimum": 0 },
+        "legacyArchetypes": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "upstreamGaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "layer", "need"],
+        "properties": {
+          "id": { "type": "string" },
+          "layer": { "type": "string" },
+          "need": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "displayName",
+        "category",
+        "sourceKind",
+        "trustState",
+        "permissionEnvelope",
+        "inputs",
+        "outputs",
+        "receiptTypes",
+        "visualForm",
+        "adapter",
+        "replacementPath",
+        "evidence"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "sourceKind": {
+          "type": "string",
+          "enum": [
+            "holoscript",
+            "hololand",
+            "holomesh",
+            "mcp",
+            "cli",
+            "app",
+            "service",
+            "browser",
+            "hardware",
+            "filesystem"
+          ]
+        },
+        "trustState": {
+          "type": "string",
+          "enum": ["verified", "partial", "stale", "disputed", "unsafe", "unknown"]
+        },
+        "permissionEnvelope": { "type": "string", "minLength": 1 },
+        "inputs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "receiptTypes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "visualForm": { "type": "string", "minLength": 1 },
+        "adapter": { "type": "string", "minLength": 1 },
+        "replacementPath": { "type": "string", "minLength": 1 },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}
+
