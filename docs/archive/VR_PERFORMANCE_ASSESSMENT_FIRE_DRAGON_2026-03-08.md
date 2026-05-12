@@ -1,4 +1,7 @@
-# VR Performance Assessment: Fire Dragon Composition
+# VR Performance Assessment: Fire Dragon Composition (Historical, 2026-03-08)
+
+> **ARCHIVED 2026-05-11.** This is a hypothetical-composition analysis from 2026-03-08 with computed nanosecond × splat-count math for which no source line defines the constants. Several "missing platform features" called out below have since landed in code (see [`packages/platform/renderer/src/DragonMeshBatcher.ts`](../../packages/platform/renderer/src/DragonMeshBatcher.ts), [`BudgetEnforcedGaussianRenderer.ts`](../../packages/platform/renderer/src/BudgetEnforcedGaussianRenderer.ts), [`FoveatedGaussianPipeline.ts`](../../packages/platform/renderer/src/components/gaussian-splat-viewer/FoveatedGaussianPipeline.ts), [`AdaptiveFrameRateManager.ts`](../../packages/platform/renderer/src/AdaptiveFrameRateManager.ts), [`VRPerformanceBudget.ts`](../../packages/platform/renderer/src/VRPerformanceBudget.ts)). Treat the numbers below as historical estimates, not current measurements. Live performance posture: [`docs/PERFORMANCE_TUNING.md`](../PERFORMANCE_TUNING.md), [`docs/AUTONOMOUS_VR_OPTIMIZATION_ROADMAP.md`](../AUTONOMOUS_VR_OPTIMIZATION_ROADMAP.md).
+
 ## HoloLand Platform • Quest 3 Optimization Analysis • 2026-03-08
 
 ---
