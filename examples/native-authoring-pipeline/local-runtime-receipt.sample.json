@@ -1,0 +1,27 @@
+{
+  "id": "pipeline_receipt_7",
+  "kind": "runtime_validated",
+  "payload": "frontier-shard-0-local-runtime:pass",
+  "sourceFile": "examples/native-authoring-pipeline/asset_world_pipeline.holo",
+  "sourceHash": "sha256-local-dev-placeholder",
+  "runtime": "hololand-local",
+  "tick": 0,
+  "evidence": [
+    "source_parsed",
+    "assets_materialized",
+    "placements_resolved",
+    "encounter_playable",
+    "npc_dialogue_available",
+    "item_arc_replayable",
+    "receipts_written"
+  ],
+  "outputs": [
+    "asset_pack",
+    "world_shard",
+    "encounter_manifest",
+    "npc_manifest",
+    "item_arc",
+    "runtime_receipt"
+  ],
+  "hash": "hlap-260512-7-runtime_validated-frontier-shard-0-local-runtime:pass"
+}

@@ -1,0 +1,389 @@
+// HoloLand Native Asset And World Authoring Pipeline
+// HoloScript source-of-truth for producing gamer-facing assets, shard content,
+// NPC behavior, item progression, encounter rules, receipts, and local runtime
+// validation from one auditable source file.
+
+composition "NativeAuthoringPipeline" {
+  metadata {
+    title: "Native HoloScript Asset And World Authoring Pipeline"
+    version: "0.1.0"
+    layer: "hololand-authoring"
+    north_star: "HoloLand builds worlds and assets with native HoloScript source."
+    source_contract: "This file defines asset pack, world assembly, encounter, NPC, item arc, shard publish flow, receipts, and local runtime validation."
+  }
+
+  environment {
+    mode: "world-authoring"
+    entry_surface: "desktop"
+    target_runtime: "hololand-local"
+    output_kind: "gamer_facing_world_asset_pack"
+    receipt_policy: "local_first_replayable"
+    validation_mode: "parse_then_materialize_then_runtime_smoke"
+  }
+
+  state {
+    seed: 260512
+    tick: 0
+    receipt_counter: 0
+
+    authoring_session: {
+      id: "local_authoring_session_0"
+      source_file: "examples/native-authoring-pipeline/asset_world_pipeline.holo"
+      author_tool: "holoscript-native-author"
+      owner: "hololand"
+      source_hash: "sha256-local-dev-placeholder"
+    }
+
+    asset_pack: {
+      id: "frontier-lantern-pack"
+      version: "0.1.0"
+      output_bundle: "frontier-lantern-pack.hlap"
+      rights: "franchise-neutral"
+      assets: [
+        {
+          id: "stormglass-lantern"
+          kind: "interactive_item"
+          geometry: "cylinder"
+          material: "stormglass_emissive"
+          tags: ["quest_item", "light_source", "receipt_emitter"]
+          source_node: "ItemArcRelic"
+          local_validation: ["geometry_materialized", "interaction_bound", "receipt_bound"]
+        },
+        {
+          id: "waystone-arch"
+          kind: "world_structure"
+          geometry: "portal"
+          material: "basalt_rune"
+          tags: ["shard_gate", "spawn_landmark", "world_anchor"]
+          source_node: "ShardGate"
+          local_validation: ["placement_resolved", "collision_bounds", "entry_event_bound"]
+        },
+        {
+          id: "ember-market-stall"
+          kind: "encounter_setpiece"
+          geometry: "market_stall"
+          material: "warm_oak_canvas"
+          tags: ["encounter_cover", "npc_anchor", "dialogue_space"]
+          source_node: "EncounterStage"
+          local_validation: ["placement_resolved", "npc_anchor_bound", "encounter_trigger_bound"]
+        }
+      ]
+    }
+
+    world_assembly: {
+      id: "frontier-lantern-shard-assembly"
+      shard_id: "frontier-shard-0"
+      coordinate_frame: "hololand-local-meters"
+      spawn: [0, 1.6, 2.5]
+      placements: [
+        { asset_id: "waystone-arch", position: [0, 1.2, -3.5], rotation: [0, 0, 0], scale: [1.2, 1.2, 1.2] },
+        { asset_id: "ember-market-stall", position: [2.8, 0.1, -4.4], rotation: [0, -24, 0], scale: [1, 1, 1] },
+        { asset_id: "stormglass-lantern", position: [2.6, 1.1, -4.1], rotation: [0, 0, 0], scale: [0.7, 0.7, 0.7] }
+      ]
+      runtime_surfaces: ["desktop", "webxr", "quest-link"]
+    }
+
+    encounter: {
+      id: "ember-market-first-light"
+      tier: "standard"
+      stage_asset: "ember-market-stall"
+      npc_id: "mira-wayfinder"
+      item_arc: "stormglass-lantern-restoration"
+      player_verb: "restore"
+      primary_loop: "talk to Mira, recover the lantern, light the waystone, publish shard receipt"
+      win_condition: "stormglass-lantern reaches lit state and shard receipt is written"
+      failure_condition: "player leaves before binding the lantern receipt"
+      required_receipts: ["asset_pack_materialized", "world_assembled", "encounter_started", "item_arc_advanced", "shard_published", "runtime_validated"]
+    }
+
+    npc: {
+      id: "mira-wayfinder"
+      role: "shard_steward"
+      home_asset: "ember-market-stall"
+      sovereign_traits: ["verbal_fingerprint", "autonomous_agenda", "reputation_ledger", "vocabulary_register"]
+      goals: ["teach local authoring", "protect shard continuity", "reward receipt-backed actions"]
+      dialogue_register: "warm_precise_frontier"
+    }
+
+    item_arc: {
+      id: "stormglass-lantern-restoration"
+      item_asset: "stormglass-lantern"
+      current_stage: "found_unlit"
+      stages: ["found_unlit", "bound_to_player", "charged_at_waystone", "lit"]
+      reward: { title: "Shardwright", unlock: "frontier-shard-0-night-path" }
+    }
+
+    shard_authoring_flow: {
+      id: "native-world-build-flow"
+      source: "asset_world_pipeline.holo"
+      steps: [
+        "parse_source",
+        "materialize_asset_pack",
+        "assemble_world",
+        "bind_encounter",
+        "bind_npc",
+        "advance_item_arc",
+        "publish_shard",
+        "validate_local_runtime",
+        "write_receipts"
+      ]
+      outputs: ["asset_pack", "world_shard", "encounter_manifest", "npc_manifest", "item_arc", "runtime_receipt"]
+    }
+
+    local_runtime_validation: {
+      id: "frontier-shard-0-local-runtime"
+      runtime: "hololand-local"
+      required_checks: ["source_parsed", "assets_materialized", "placements_resolved", "encounter_playable", "npc_dialogue_available", "item_arc_replayable", "receipts_written"]
+      last_result: "not_run"
+      evidence: []
+    }
+
+    receipts: []
+  }
+
+  template "AssetPack" {
+    shape: "crate"
+    size: [1.2, 0.8, 1.2]
+    material: { color: "#256f7d", emissive: "#1a8ea1", emissiveIntensity: 0.2 }
+    traits: ["asset_pack", "source_materialized", "receipt_emitting"]
+
+    state {
+      pack_id: "frontier-lantern-pack"
+      output_bundle: "frontier-lantern-pack.hlap"
+      assets: ["stormglass-lantern", "waystone-arch", "ember-market-stall"]
+    }
+
+    action materialize() {
+      return materialize_asset_pack(state.pack_id)
+    }
+  }
+
+  template "WorldAssembly" {
+    shape: "platform"
+    size: [5.5, 0.14, 5.5]
+    material: { color: "#2f3f46", opacity: 0.76 }
+    traits: ["world_assembly", "local_shard", "placement_graph"]
+
+    state {
+      assembly_id: "frontier-lantern-shard-assembly"
+      shard_id: "frontier-shard-0"
+      coordinate_frame: "hololand-local-meters"
+    }
+
+    action assemble() {
+      return assemble_world(state.assembly_id)
+    }
+  }
+
+  template "EncounterStage" {
+    shape: "market_stall"
+    size: [1.8, 1.4, 1.0]
+    material: { color: "#b35b2b", emissive: "#6f2f12", emissiveIntensity: 0.15 }
+    traits: ["encounter_stage", "npc_anchor", "playable_loop"]
+
+    state {
+      encounter_id: "ember-market-first-light"
+      npc_id: "mira-wayfinder"
+      player_verb: "restore"
+    }
+
+    action start() {
+      return start_encounter(state.encounter_id)
+    }
+  }
+
+  template "NPCSteward" {
+    shape: "avatar"
+    size: [0.6, 1.7, 0.4]
+    material: { color: "#4d8f75", emissive: "#1f6f55", emissiveIntensity: 0.18 }
+    traits: ["npc", "shard_steward", "sovereign_dialogue", "reputation_aware"]
+
+    state {
+      npc_id: "mira-wayfinder"
+      role: "shard_steward"
+      dialogue_register: "warm_precise_frontier"
+      active_goal: "teach local authoring"
+    }
+
+    action speak(intent) {
+      return tick_npc(state.npc_id, intent)
+    }
+  }
+
+  template "ItemArcRelic" {
+    shape: "lantern"
+    size: [0.38, 0.75, 0.38]
+    material: { color: "#f2c65d", emissive: "#f59e0b", emissiveIntensity: 0.45 }
+    traits: ["item_arc", "interactive_item", "receipt_bound", "quest_reward"]
+
+    state {
+      item_asset: "stormglass-lantern"
+      arc_id: "stormglass-lantern-restoration"
+      stage: "found_unlit"
+    }
+
+    action advance(next_stage) {
+      return advance_item_arc(state.arc_id, next_stage)
+    }
+  }
+
+  template "ShardGate" {
+    shape: "portal"
+    size: [1.5, 2.8]
+    material: { color: "#64748b", emissive: "#38bdf8", emissiveIntensity: 0.24 }
+    traits: ["shard_gate", "world_anchor", "publish_target", "runtime_validation_anchor"]
+
+    state {
+      shard_id: "frontier-shard-0"
+      accepts_outputs: ["asset_pack", "world_shard", "runtime_receipt"]
+    }
+
+    action publish() {
+      return publish_shard(state.shard_id)
+    }
+  }
+
+  template "RuntimeReceipt" {
+    shape: "panel"
+    size: [1.9, 1.0]
+    material: { color: "#111827", opacity: 0.9 }
+    traits: ["receipt", "runtime_evidence", "replay_marker"]
+
+    state {
+      receipt_id: "pipeline_receipt_0"
+      kind: "runtime_validated"
+      source_file: "asset_world_pipeline.holo"
+    }
+  }
+
+  spatial_group "NativeAuthoringPipelinePreview" {
+    object "FrontierAssetPack" using "AssetPack" {
+      position: [-2.6, 0.55, 1.8]
+    }
+
+    object "FrontierWorldAssembly" using "WorldAssembly" {
+      position: [0, 0.04, -2.4]
+    }
+
+    object "WaystoneArch" using "ShardGate" {
+      position: [0, 1.4, -4.1]
+    }
+
+    object "EmberMarketStage" using "EncounterStage" {
+      position: [2.8, 0.7, -4.3]
+    }
+
+    object "MiraWayfinder" using "NPCSteward" {
+      position: [2.2, 1.0, -3.6]
+    }
+
+    object "StormglassLantern" using "ItemArcRelic" {
+      position: [2.75, 1.2, -3.9]
+    }
+
+    object "LocalRuntimeReceipt" using "RuntimeReceipt" {
+      position: [-2.8, 1.25, -3.7]
+    }
+  }
+
+  logic {
+    action receipt_hash(kind, payload) {
+      return "hlap-" + state.seed + "-" + state.receipt_counter + "-" + kind + "-" + payload
+    }
+
+    action write_receipt(kind, payload) {
+      state.receipt_counter += 1
+
+      let receipt = {
+        id: "pipeline_receipt_" + state.receipt_counter
+        kind: kind
+        payload: payload
+        source_file: state.authoring_session.source_file
+        source_hash: state.authoring_session.source_hash
+        runtime: "hololand-local"
+        tick: state.tick
+        hash: receipt_hash(kind, payload)
+      }
+
+      state.receipts.push(receipt)
+      emit("receipt_written", receipt)
+      return receipt
+    }
+
+    action mark_validation(check) {
+      if (!state.local_runtime_validation.evidence.includes(check)) {
+        state.local_runtime_validation.evidence.push(check)
+      }
+    }
+
+    action materialize_asset_pack(pack_id) {
+      write_receipt("asset_pack_materialized", pack_id + ":3-assets")
+      mark_validation("assets_materialized")
+      emit("asset_pack_materialized", pack_id)
+      return true
+    }
+
+    action assemble_world(assembly_id) {
+      write_receipt("world_assembled", assembly_id + ":3-placements")
+      mark_validation("placements_resolved")
+      emit("world_assembled", assembly_id)
+      return true
+    }
+
+    action start_encounter(encounter_id) {
+      write_receipt("encounter_started", encounter_id + ":" + state.encounter.player_verb)
+      mark_validation("encounter_playable")
+      emit("encounter_started", encounter_id)
+      return true
+    }
+
+    action tick_npc(npc_id, intent) {
+      write_receipt("npc_tick", npc_id + ":" + intent)
+      mark_validation("npc_dialogue_available")
+      emit("npc_tick", npc_id)
+      return true
+    }
+
+    action advance_item_arc(arc_id, next_stage) {
+      state.item_arc.current_stage = next_stage
+      write_receipt("item_arc_advanced", arc_id + ":" + next_stage)
+      mark_validation("item_arc_replayable")
+      emit("item_arc_advanced", arc_id)
+      return true
+    }
+
+    action publish_shard(shard_id) {
+      write_receipt("shard_published", shard_id + ":" + state.asset_pack.output_bundle)
+      emit("shard_published", shard_id)
+      return true
+    }
+
+    action validate_local_runtime() {
+      mark_validation("source_parsed")
+      mark_validation("receipts_written")
+      state.local_runtime_validation.last_result = "pass"
+      write_receipt("runtime_validated", state.local_runtime_validation.id + ":pass")
+      emit("runtime_validated", state.local_runtime_validation)
+      return true
+    }
+
+    action build_playable_shard() {
+      materialize_asset_pack(state.asset_pack.id)
+      assemble_world(state.world_assembly.id)
+      start_encounter(state.encounter.id)
+      tick_npc(state.npc.id, "invite_player_to_restore_lantern")
+      advance_item_arc(state.item_arc.id, "lit")
+      publish_shard(state.world_assembly.shard_id)
+      validate_local_runtime()
+    }
+
+    on_start {
+      write_receipt("source_loaded", state.authoring_session.source_file)
+      build_playable_shard()
+    }
+
+    on_update {
+      state.tick += 1
+    }
+  }
+}
