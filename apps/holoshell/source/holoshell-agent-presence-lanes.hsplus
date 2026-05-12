@@ -1,0 +1,201 @@
+// HoloShell Agent Presence Lanes
+//
+// Agents can operate from shells, desktop apps, IDEs, browser/vision surfaces,
+// and HoloMesh. HoloShell turns those presences into visible lanes while
+// preserving semantic metadata for agent consumption.
+
+composition "HoloShell Agent Presence Lanes" {
+  config {
+    title: "Agent Presence Lanes"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-agent-lanes.mjs"
+    visualModel: "color_lanes_with_semantic_truth"
+  }
+
+  state {
+    laneCount: 0
+    activeLaneCount: 0
+    selectedLane: ""
+    selectedAgentInstance: ""
+    lastLaneReceiptId: ""
+  }
+
+  channel "holoshell:agents:presence" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Agent heartbeats from Codex, Claude, shells, IDEs, browsers, and HoloMesh"
+  }
+
+  channel "holoshell:agents:lane" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Semantic lane assignments for active agent instances"
+  }
+
+  channel "holoshell:agents:ansi" {
+    type: "pub_sub"
+    priority: "low"
+    description: "Optional ANSI color projection for terminal surfaces"
+  }
+
+  channel "holoshell:agents:receipt" {
+    type: "append_only"
+    priority: "high"
+    description: "Receipts proving which lane acted, on which surface, under which permission"
+  }
+
+  template "AgentLane" {
+    type: "ui"
+    uiType: "agent_lane"
+    width: 320
+    height: 72
+    colorIsVisualHintOnly: true
+    requiresSemanticLaneId: true
+    requiresReceipt: true
+  }
+
+  template "LaneReceipt" {
+    type: "receipt"
+    receiptType: "agent_lane_action"
+    laneId: ""
+    agentInstanceId: ""
+    surfaceKind: ""
+    colorHex: ""
+    semanticPrefix: ""
+  }
+
+  room "AgentPresenceRoom" {
+    label: "Agent Presence"
+    userQuestion: "Who is active, what surface are they using, and what did they do?"
+    visualForm: "lane_stack"
+    liveFeed: "holoshell:agents:presence"
+
+    object "CodexHardwareLane" using "AgentLane" {
+      laneId: "codex-hardware"
+      label: "Codex Hardware"
+      agentKind: "codex"
+      surfaceKind: "hardware_shell"
+      colorHex: "#0087D7"
+      semanticPrefix: "[lane:codex-hardware agent:codex surface:hardware_shell]"
+    }
+
+    object "ClaudeDesktopLane" using "AgentLane" {
+      laneId: "claude-desktop"
+      label: "Claude Desktop"
+      agentKind: "claude"
+      surfaceKind: "desktop_app"
+      colorHex: "#D97706"
+      semanticPrefix: "[lane:claude-desktop agent:claude surface:desktop_app]"
+    }
+
+    object "ClaudeCodeLane" using "AgentLane" {
+      laneId: "claude-code"
+      label: "Claude Code / Cursor"
+      agentKind: "claude"
+      surfaceKind: "ide"
+      colorHex: "#7C3AED"
+      semanticPrefix: "[lane:claude-code agent:claude surface:ide]"
+    }
+
+    object "GeminiAntigravityLane" using "AgentLane" {
+      laneId: "gemini-antigravity"
+      label: "Gemini Antigravity"
+      agentKind: "gemini"
+      surfaceKind: "browser_vision"
+      colorHex: "#10B981"
+      semanticPrefix: "[lane:gemini-antigravity agent:gemini surface:browser_vision]"
+    }
+
+    object "CopilotVSCodeLane" using "AgentLane" {
+      laneId: "copilot-vscode"
+      label: "Copilot / VS Code"
+      agentKind: "copilot"
+      surfaceKind: "ide_completion"
+      colorHex: "#84CC16"
+      semanticPrefix: "[lane:copilot-vscode agent:copilot surface:ide_completion]"
+    }
+
+    object "LocalShellLane" using "AgentLane" {
+      laneId: "local-shell"
+      label: "Local Shell"
+      agentKind: "shell"
+      surfaceKind: "terminal"
+      colorHex: "#EAB308"
+      semanticPrefix: "[lane:local-shell agent:shell surface:terminal]"
+    }
+
+    object "HoloMeshTeamLane" using "AgentLane" {
+      laneId: "holomesh-team"
+      label: "HoloMesh Team"
+      agentKind: "holomesh"
+      surfaceKind: "network_presence"
+      colorHex: "#EC4899"
+      semanticPrefix: "[lane:holomesh-team agent:holomesh surface:network_presence]"
+    }
+  }
+
+  policy "SemanticLaneTruth" {
+    appliesTo: ["terminal_text", "desktop_message", "browser_witness", "receipt_text"]
+    colorIsPrimaryTruth: false
+    requiredFields: ["laneId", "agentKind", "surfaceKind", "semanticPrefix"]
+  }
+
+  policy "StableInstanceColor" {
+    appliesTo: ["agent_registered", "agent_heartbeat", "agent_reconnected"]
+    colorSource: "agent_instance_id"
+    fallbackSource: "agent_kind_and_surface_kind"
+    persistentAcrossSessions: true
+  }
+
+  policy "AccessibleLaneRendering" {
+    appliesTo: ["visual_lane", "terminal_lane", "receipt_lane"]
+    requireTextLabel: true
+    requireIconOrPattern: true
+    colorAloneIsInsufficient: true
+  }
+
+  action consume_agent_lane_manifest(manifest) {
+    state.laneCount = manifest.summary.laneCount
+    state.activeLaneCount = manifest.summary.activeLaneCount
+    emit("holoshell:agents:lane_manifest_consumed", {
+      lanes: state.laneCount,
+      active: state.activeLaneCount,
+      semantic: manifest.summary.semanticLaneCount
+    })
+  }
+
+  action assign_agent_lane(agentPresence) {
+    state.selectedLane = agentPresence.laneId
+    state.selectedAgentInstance = agentPresence.agentInstanceId || ""
+    emit("holoshell:agents:lane", {
+      laneId: agentPresence.laneId,
+      agentKind: agentPresence.agentKind,
+      surfaceKind: agentPresence.surfaceKind,
+      agentInstanceId: state.selectedAgentInstance,
+      colorHex: agentPresence.colorHex,
+      semanticPrefix: agentPresence.semanticPrefix,
+      receiptRequired: true
+    })
+  }
+
+  action render_agent_message(message) {
+    emit("holoshell:agents:ansi", {
+      laneId: message.laneId,
+      semanticPrefix: message.semanticPrefix,
+      ansiSgr: message.ansiSgr,
+      text: message.text,
+      colorIsVisualHintOnly: true
+    })
+  }
+
+  action record_lane_receipt(receipt) {
+    state.lastLaneReceiptId = receipt.id
+    emit("holoshell:agents:receipt", {
+      receipt: receipt,
+      laneId: receipt.laneId,
+      agentInstanceId: receipt.agentInstanceId,
+      semanticPrefix: receipt.semanticPrefix
+    })
+  }
+}

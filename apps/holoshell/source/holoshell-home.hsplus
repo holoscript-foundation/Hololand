@@ -22,6 +22,7 @@ composition "HoloShell Home" {
     pendingApprovals: 0
     capabilityCount: 0
     legacyMachineCount: 0
+    activeAgentLaneCount: 0
     receiptCount: 0
     trustFilter: "all"
   }
@@ -48,6 +49,12 @@ composition "HoloShell Home" {
     type: "append_only"
     priority: "high"
     description: "Runtime, hardware, HoloDoor, and agent action receipts"
+  }
+
+  channel "holoshell:agent-presence" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Active agent lane presence from shells, IDEs, desktop apps, browsers, and HoloMesh"
   }
 
   channel "holoshell:approval" {
@@ -83,6 +90,16 @@ composition "HoloShell Home" {
     height: 96
     state: "pending"
     rollback: "unknown"
+  }
+
+  template "AgentLaneGlyph" {
+    type: "ui"
+    uiType: "agent_lane_glyph"
+    width: 260
+    height: 72
+    colorIsVisualHintOnly: true
+    requiresSemanticLaneId: true
+    receipt_required: true
   }
 
   page "Home" {
@@ -154,6 +171,13 @@ composition "HoloShell Home" {
         status: "standing_by"
         permission: "bounded_by_holodoor"
       }
+
+      object "AgentLaneStack" using "AgentLaneGlyph" {
+        label: "Agent Lanes"
+        active_lanes: $activeAgentLaneCount
+        source_kind: "agent_presence"
+        color_semantics: "metadata_first"
+      }
     }
 
     spatial_group "TrustTimeline" at [0, -1, -2] {
@@ -204,6 +228,16 @@ composition "HoloShell Home" {
     })
   }
 
+  action update_agent_presence(laneManifest) {
+    state.activeAgentLaneCount = laneManifest.summary.activeLaneCount
+    emit("holoshell:agent-presence", {
+      action: "agent_lanes_updated",
+      lanes: laneManifest.summary.laneCount,
+      active_lanes: state.activeAgentLaneCount,
+      color_is_visual_hint_only: true
+    })
+  }
+
   action request_approval(operation) {
     state.pendingApprovals = state.pendingApprovals + 1
     emit("holoshell:approval", {
@@ -224,4 +258,3 @@ composition "HoloShell Home" {
     })
   }
 }
-

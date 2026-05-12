@@ -35,6 +35,7 @@ These are the first-class objects of HoloShell.
 | Approval | A break-glass decision. | What needs my consent? |
 | Timeline | Ordered action memory. | What changed? |
 | Room | A visual grouping of related capabilities and actors. | Where do I inspect this class of work? |
+| Lane | A stable visual and semantic identity for an active agent instance. | Which agent surface is acting? |
 
 ## Surface Hierarchy
 
@@ -43,6 +44,7 @@ These are the first-class objects of HoloShell.
 | Home Pulse | Calm health/status view of the machine. | Stubbed in `holoshell-home.hsplus`. |
 | Capability Room | Shows hardware, HoloScript, HoloMesh, browser, projects, CLI, and legacy app capability families. | Inventory adapter and static projection exist. |
 | HoloScript Surface Bridge | Projects HoloScript REST, MCP/RPC, and CLI tools into HoloShell rooms and machines. | Bridge source and surface-map adapter exist. |
+| Agent Presence Fabric | Shows active shells, desktop agents, IDE agents, browser/vision agents, and HoloMesh presence as color lanes. | Lane source and local adapter exist. |
 | Legacy Machine Gallery | Groups absorbed apps by capability archetype, not by raw installed app name. | Archetype research exists; live grouping next. |
 | Agent Operator Room | Shows active agents, current task, permission boundary, and receipts. | Static projection exists; HoloMesh live binding next. |
 | Trust Timeline | Shows local action receipts and rollback state. | Receipt model seeded; live receipt linker next. |
@@ -88,6 +90,25 @@ Acceptance:
 - Read-only discovery works without exposing secrets.
 - Authenticated, mutating, publish, payment, deploy, install, credential, and
   delete operations are routed through guarded or break-glass policy.
+
+### Slice 1C: Agent Presence Color Lanes
+
+Make active agents improve HoloShell's operating picture.
+
+Deliverables:
+
+- Read `.tmp/holoshell/agent-lanes.json`.
+- Render active Codex, Claude, Gemini, Copilot, shell, and HoloMesh lanes.
+- Preserve lane metadata in text, receipts, and structured events.
+- Treat color as a human-visible cue, not the agent-readable truth.
+
+Acceptance:
+
+- Each active agent instance has a stable `laneId`.
+- Every colored message also carries `agentKind`, `surfaceKind`, and
+  `semanticPrefix`.
+- Receipts show which lane acted and which permission envelope was used.
+- The user can scan active lanes without opening terminals or IDEs.
 
 ### Slice 2: Browser Pilot
 
@@ -170,6 +191,8 @@ Acceptance:
    exposing old UI/UX?
 4. What receipt chain is enough for a non-developer to trust local actions?
 5. What belongs upstream in HoloScript versus HoloLand product experience?
+6. How should HoloMesh presence merge remote agents and local app/process
+   evidence into one stable lane identity?
 
 ## Upstream Candidates
 
@@ -180,6 +203,7 @@ shape:
 - Adapter contract for MCP, API, CLI, browser, UI Automation, and vision.
 - Permission envelope trait family.
 - Receipt linker and timeline model.
+- Agent presence, lane, color hint, and lane receipt schema.
 - HoloScript visual primitive for capability glyphs and legacy machines.
 
 ## HoloLand-Owned Product Work
