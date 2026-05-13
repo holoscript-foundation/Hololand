@@ -25,6 +25,7 @@
     "check:native-proof": "node scripts/check-native-holoscript-proof.mjs",
     "check:hololand-mcp-manifest": "node scripts/check-hololand-mcp-manifest.mjs",
     "check:npc-manifest-spec": "node scripts/check-npc-manifest-spec.mjs",
+    "check:product-authority-boundary": "node scripts/check-product-authority-boundary.mjs",
     "format": "pnpm -r format",
     "brittney": "npx tsx scripts/start-brittney.ts",
     "playground": "pnpm --filter @hololand/playground dev",

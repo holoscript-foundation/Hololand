@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "hololand.product-authority-boundary.v1",
+  "manifestVersion": "1.0.0",
+  "date": "2026-05-12",
+  "status": "governance-manifest",
+  "decision": "HoloLand product direction is controlled by the founder team; HoloScript substrate direction is controlled by the broader HoloScript ecosystem.",
+  "changeClasses": {
+    "founder-team-product": {
+      "authority": "founder-team",
+      "description": "HoloLand-specific decisions about the game, world, content, UX, and live product operation.",
+      "domains": [
+        "art-direction",
+        "gamer-loops",
+        "assets",
+        "shard-choices",
+        "product-ux",
+        "world-canon",
+        "creator-economy-policy",
+        "live-ops-tone",
+        "event-cadence"
+      ],
+      "requiredGates": [
+        "authority-classification",
+        "founder-team-product-receipt",
+        "holoScript-source-contract"
+      ]
+    },
+    "holoscript-substrate": {
+      "authority": "holoscript-ecosystem",
+      "description": "Reusable language, runtime, validation, compiler, and developer tooling decisions.",
+      "domains": [
+        "language-syntax",
+        "semantic-traits",
+        "parser",
+        "validator",
+        "compiler",
+        "runtime-primitives",
+        "developer-apis",
+        "mcp-source-tools",
+        "graph-understanding",
+        "absorb-code-intelligence"
+      ],
+      "requiredGates": [
+        "authority-classification",
+        "holoscript-substrate-routing"
+      ]
+    },
+    "cross-boundary": {
+      "authority": "founder-team-and-holoscript-ecosystem",
+      "description": "A HoloLand product need that requires a reusable HoloScript primitive, validator, compiler/runtime capability, or receipt format.",
+      "domains": [
+        "reusable-receipt-format",
+        "world-write-admission",
+        "source-validation-for-product-loop",
+        "runtime-capability-needed-by-product",
+        "shared-robot-ai-safety-primitive"
+      ],
+      "requiredGates": [
+        "authority-classification",
+        "founder-team-product-receipt",
+        "holoscript-substrate-routing",
+        "holoScript-source-contract",
+        "world-write-authority"
+      ]
+    }
+  },
+  "reviewGates": [
+    {
+      "id": "authority-classification",
+      "blocking": true,
+      "appliesTo": ["founder-team-product", "holoscript-substrate", "cross-boundary"],
+      "evidence": ["changeClass", "authority", "affectedSurfaces", "rationale"]
+    },
+    {
+      "id": "founder-team-product-receipt",
+      "blocking": true,
+      "appliesTo": ["founder-team-product", "cross-boundary"],
+      "ownedDomains": [
+        "art-direction",
+        "gamer-loops",
+        "assets",
+        "shard-choices",
+        "product-ux",
+        "world-canon",
+        "creator-economy-policy",
+        "live-ops-tone",
+        "event-cadence"
+      ],
+      "evidence": ["decisionReceipt", "founderTeamReviewer", "productDoctrineCitation"]
+    },
+    {
+      "id": "holoscript-substrate-routing",
+      "blocking": true,
+      "appliesTo": ["holoscript-substrate", "cross-boundary"],
+      "ownedDomains": [
+        "language-syntax",
+        "semantic-traits",
+        "parser",
+        "validator",
+        "compiler",
+        "runtime-primitives",
+        "developer-apis",
+        "mcp-source-tools",
+        "graph-understanding",
+        "absorb-code-intelligence"
+      ],
+      "evidence": ["upstreamIssueOrCommit", "substrateReuseRationale", "notHoloLandOnly"]
+    },
+    {
+      "id": "holoScript-source-contract",
+      "blocking": true,
+      "appliesTo": ["founder-team-product", "cross-boundary"],
+      "evidence": ["holoSourcePath", "validationCommand", "bridgeExceptionIfAny"]
+    },
+    {
+      "id": "asset-world-shard-review",
+      "blocking": true,
+      "appliesTo": ["founder-team-product"],
+      "evidence": ["originalityCheck", "assetProvenance", "performanceTarget", "rollbackPlan"]
+    },
+    {
+      "id": "product-ux-review",
+      "blocking": true,
+      "appliesTo": ["founder-team-product"],
+      "evidence": ["userFlow", "hardwareTarget", "accessibilityNote", "founderTeamReceipt"]
+    },
+    {
+      "id": "world-write-authority",
+      "blocking": true,
+      "appliesTo": ["cross-boundary"],
+      "evidence": ["actorSession", "permission", "sourceHash", "safetyEnvelope", "runtimeOutcome", "rollbackPath"]
+    }
+  ],
+  "governanceRules": [
+    {
+      "id": "classify-before-review",
+      "rule": "Every product-impacting change must be classified before review."
+    },
+    {
+      "id": "product-not-auto-substrate",
+      "rule": "HoloLand product work must not be upstreamed to HoloScript merely because it is important to HoloLand."
+    },
+    {
+      "id": "substrate-not-product-taste",
+      "rule": "HoloScript substrate must not encode HoloLand-specific art direction, world canon, shard policy, or monetization policy."
+    },
+    {
+      "id": "cross-boundary-requires-both",
+      "rule": "Cross-boundary changes require both founder-team product receipt and HoloScript substrate routing."
+    },
+    {
+      "id": "agent-output-is-advisory",
+      "rule": "Agents, model output, forked packages, generated assets, and creator submissions are advisory until authority gates pass."
+    },
+    {
+      "id": "live-world-effects-receipted",
+      "rule": "Live-world, Twin Earth, payment, safety, robot/AI, or player-impacting changes require receipts with source, authority, runtime target, and rollback."
+    }
+  ],
+  "prohibitedShortcuts": [
+    "Do not let parser, compiler, or trait improvements decide HoloLand product taste.",
+    "Do not move HoloLand-only assets, art direction, player loops, or shard operations into HoloScript without a named reusable substrate primitive.",
+    "Do not accept creator, agent, or forked source into live-world authority because it parses.",
+    "Do not ship founder-team product decisions as anonymous agent consensus.",
+    "Do not use hand-authored TypeScript as durable product authority for a new HoloLand feature."
+  ]
+}
