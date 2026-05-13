@@ -1,0 +1,85 @@
+// Hololand Central — World Registry
+// Single source of truth for all hub buildings and zone mappings.
+// TypeScript bootstrap loads this at runtime and renders the UI from it.
+
+composition "WorldRegistry" {
+  building "casino" {
+    name: "Casino"
+    icon: "🎰"
+    description: "Try your luck at the Hololand Casino"
+    color: "purple"
+    zone: "casino_interior.hsplus"
+  }
+
+  building "coffee_shop" {
+    name: "Coffee Shop"
+    icon: "☕"
+    description: "Relax at the virtual coffee shop"
+    color: "yellow"
+    zone: null
+  }
+
+  building "lounge" {
+    name: "Social Lounge"
+    icon: "👥"
+    description: "Meet and connect with others"
+    color: "pink"
+    zone: null
+  }
+
+  building "builder" {
+    name: "Builder Shop"
+    icon: "🛠️"
+    description: "Create and customize your worlds"
+    color: "green"
+    zone: null
+  }
+
+  building "arcade" {
+    name: "Arcade District"
+    icon: "🎮"
+    description: "Classic and modern games"
+    color: "cyan"
+    zone: "arcade_district.hsplus"
+  }
+
+  building "plaza" {
+    name: "Main Plaza"
+    icon: "🏛️"
+    description: "Central gathering place"
+    color: "blue"
+    zone: "central_plaza.hsplus"
+  }
+
+  building "infinity" {
+    name: "Infinity Shop"
+    icon: "∞"
+    description: "Meet Brittney — Your AI Assistant"
+    color: "cyan"
+    zone: null
+  }
+
+  building "pinball" {
+    name: "Pinball Plus"
+    icon: "🕹️"
+    description: "Native Logic Demo"
+    color: "pink"
+    zone: "Pinball_Plus.hsplus"
+  }
+
+  building "physics" {
+    name: "Physics Lab"
+    icon: "⚛️"
+    description: "Experimental Gravity Chamber"
+    color: "orange"
+    zone: null
+  }
+
+  building "dashboard" {
+    name: "Service Dashboard"
+    icon: "📊"
+    description: "Real-time monitoring of ecosystem services"
+    color: "teal"
+    zone: null
+  }
+}
