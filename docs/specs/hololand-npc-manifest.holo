@@ -1,0 +1,132 @@
+// HoloLand NPC Manifest Contract
+// Paired with hololand-npc-manifest.schema.json.
+// Research citation: C:/Users/josep/.ai-ecosystem/research/2026-05-10_shangri-la-frontier-npc-feel-EVOLVED.md
+
+composition "HoloLand NPC Manifest Contract" {
+  state {
+    schema_version: "1.0.0"
+    paired_json_schema: "hololand-npc-manifest.schema.json"
+    cited_research: "C:/Users/josep/.ai-ecosystem/research/2026-05-10_shangri-la-frontier-npc-feel-EVOLVED.md"
+    originality_policy: "NPC manifests inherit feel and architecture only; shipped product content stays franchise-neutral unless licensed."
+    required_traits: [
+      "verbalFingerprint",
+      "vocabularyRegister",
+      "autonomousAgenda",
+      "reputationLedger",
+      "speechAwareEncounter"
+    ]
+    required_gates: [
+      "privacyDeletion",
+      "costCeiling",
+      "transcriptAttributionTest",
+      "wontExplainTopic"
+    ]
+  }
+
+  object "NPCManifest" {
+    type: "schema_contract"
+    required_fields: [
+      "id",
+      "version",
+      "displayName",
+      "lineage",
+      "source",
+      "traits",
+      "runtime",
+      "wontExplainTopic",
+      "privacyDeletion",
+      "costCeiling",
+      "transcriptAttributionTest",
+      "review"
+    ]
+    source_layer: "HoloScript traits own reusable behavior; HoloLand manifest owns product role, world context, privacy, cost, receipts, and runtime routing."
+  }
+
+  object "Lineage" {
+    type: "brittney_descendant_contract"
+    modes: ["local-gguf", "lan-ollama", "byok-cloud", "managed-hololand", "holoScript-cli", "hybrid"]
+    rule: "Brittney lineage is a mother pattern, not one monopoly endpoint."
+  }
+
+  object "VerbalFingerprint" {
+    type: "sovereign_trait_contract"
+    upstream_trait: "@verbalFingerprint"
+    required_fields: ["sentenceEnders", "preferredTerms", "bannedTerms", "rhetoricalSignature", "enforcement"]
+    enforcement_modes: ["rewrite", "reject-and-resample", "warn-only"]
+    attribution_gate: "20-line blind attribution must pass at >= 0.8 accuracy."
+  }
+
+  object "VocabularyRegister" {
+    type: "sovereign_trait_contract"
+    upstream_trait: "@vocabularyRegister"
+    required_term_banks: ["era", "faction", "profession", "origin"]
+    injection_frequency: ["every-turn", "every-3-turns", "on-topic-shift", "agenda-tick-only"]
+  }
+
+  object "AutonomousAgenda" {
+    type: "sovereign_trait_contract"
+    upstream_trait: "@autonomousAgenda"
+    required_fields: ["goals", "interruptionPolicy", "stateLog"]
+    tick_contract: "HoloLand NPCs default to one tick per in-world hour and one LLM call per tick."
+  }
+
+  object "ReputationLedger" {
+    type: "sovereign_trait_contract"
+    upstream_trait: "@reputationLedger"
+    trust_scale: "0-100"
+    behavior_fact_log_default_max: 20
+    behavior_fact_log_default_ttl_days: 90
+    privacy_blocker: "Persistent player behavior facts require disclosure, export, and self-serve deletion."
+  }
+
+  object "SpeechAwareEncounter" {
+    type: "sovereign_trait_contract"
+    upstream_trait: "@speechAwareEncounter"
+    v1_channel: "text-fallback"
+    v2_channel: "voice-v2"
+    required_fields: ["channel", "triggerPhrases", "responsePolicy", "telegraphRequirement"]
+    telegraph_rule: "Every speech-aware NPC must visibly signal that it heard the player."
+  }
+
+  object "WontExplainTopic" {
+    type: "player_boundary_contract"
+    required_fields: ["topicId", "refusalStyle", "redirectTo", "loggable"]
+    refusal_styles: ["in-character", "safety-boundary", "privacy-boundary", "spoiler-boundary"]
+    rule: "Refusals are designed product boundaries, not model failure."
+  }
+
+  object "PrivacyDeletion" {
+    type: "v1_blocker"
+    required_fields: ["disclosure", "deletionPath", "ttlDays", "exportPath"]
+    default_ttl_days: 90
+    allowed_deletion_paths: ["self-serve-world-entry", "profile-settings", "admin-request", "disabled"]
+  }
+
+  object "CostCeiling" {
+    type: "runtime_gate"
+    default_daily_usd: 0.5
+    tick_routing_default: "l2-ollama-cloud-claude"
+    interaction_routing_default: "l1-anthropic-claude"
+    overdraw_behavior: ["last-known-good", "admin-visible-overdraw", "pause-agenda"]
+  }
+
+  object "TranscriptAttributionTest" {
+    type: "ci_gate"
+    sample_line_count: 20
+    min_blind_accuracy: 0.8
+    failure_action: "reject-manifest"
+    purpose: "Prove the verbal fingerprint survives model swaps and does not collapse into generic NPC prose."
+  }
+
+  object "MiraWayfinderExample" {
+    type: "franchise_neutral_example"
+    id: "mira-wayfinder"
+    lineage_kind: "world-steward"
+    holoscript_artifact: "examples/native-authoring-pipeline/asset_world_pipeline.holo#NPCSteward"
+    originality_boundary: "franchise-neutral"
+    wont_explain_topic: "hidden-route-solution"
+    privacy_ttl_days: 90
+    daily_cost_ceiling_usd: 0.5
+    transcript_test: "20 lines at >= 0.8 blind attribution accuracy"
+  }
+}

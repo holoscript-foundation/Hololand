@@ -1,0 +1,632 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hololand.dev/schemas/hololand-npc-manifest.schema.json",
+  "title": "HoloLand NPC Manifest",
+  "description": "Schema for HoloLand NPCs that inherit the Shangri-La NPC feel research without copying protected content. Cites C:/Users/josep/.ai-ecosystem/research/2026-05-10_shangri-la-frontier-npc-feel-EVOLVED.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "displayName",
+    "lineage",
+    "source",
+    "traits",
+    "runtime",
+    "wontExplainTopic",
+    "privacyDeletion",
+    "costCeiling",
+    "transcriptAttributionTest",
+    "review"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 80
+    },
+    "lineage": {
+      "$ref": "#/$defs/lineage"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "traits": {
+      "$ref": "#/$defs/traits"
+    },
+    "runtime": {
+      "$ref": "#/$defs/runtime"
+    },
+    "wontExplainTopic": {
+      "type": "array",
+      "description": "Topics the NPC refuses, redirects, or only answers through world discovery. Every entry must define the topic, refusal style, player-facing redirect, and whether the refusal itself can be logged.",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/wontExplainTopic"
+      }
+    },
+    "privacyDeletion": {
+      "$ref": "#/$defs/privacyDeletion"
+    },
+    "costCeiling": {
+      "$ref": "#/$defs/costCeiling"
+    },
+    "transcriptAttributionTest": {
+      "$ref": "#/$defs/transcriptAttributionTest"
+    },
+    "review": {
+      "$ref": "#/$defs/review"
+    }
+  },
+  "$defs": {
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "brittneyRelation", "worldRole", "sovereigntyMode"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["brittney-descendant", "faction-npc", "world-steward", "item-arc", "encounter-intelligence"]
+        },
+        "brittneyRelation": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 240
+        },
+        "worldRole": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 160
+        },
+        "sovereigntyMode": {
+          "type": "string",
+          "enum": ["local-gguf", "lan-ollama", "byok-cloud", "managed-hololand", "holoScript-cli", "hybrid"]
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["holoscriptArtifact", "researchCitations", "originalityBoundary"],
+      "properties": {
+        "holoscriptArtifact": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 240
+        },
+        "researchCitations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "C:/Users/josep/.ai-ecosystem/research/2026-05-10_shangri-la-frontier-npc-feel-EVOLVED.md"
+            ]
+          }
+        },
+        "originalityBoundary": {
+          "type": "string",
+          "enum": ["franchise-neutral", "licensed-only", "blocked"]
+        }
+      }
+    },
+    "traits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verbalFingerprint",
+        "vocabularyRegister",
+        "autonomousAgenda",
+        "reputationLedger",
+        "speechAwareEncounter"
+      ],
+      "properties": {
+        "verbalFingerprint": {
+          "$ref": "#/$defs/verbalFingerprint"
+        },
+        "vocabularyRegister": {
+          "$ref": "#/$defs/vocabularyRegister"
+        },
+        "autonomousAgenda": {
+          "$ref": "#/$defs/autonomousAgenda"
+        },
+        "reputationLedger": {
+          "$ref": "#/$defs/reputationLedger"
+        },
+        "speechAwareEncounter": {
+          "$ref": "#/$defs/speechAwareEncounter"
+        }
+      }
+    },
+    "verbalFingerprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sentenceEnders", "preferredTerms", "bannedTerms", "rhetoricalSignature", "enforcement"],
+      "properties": {
+        "sentenceEnders": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "preferredTerms": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 60
+          }
+        },
+        "bannedTerms": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 60
+          }
+        },
+        "rhetoricalSignature": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 160
+          }
+        },
+        "enforcement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "rejectBelowScore"],
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["rewrite", "reject-and-resample", "warn-only"]
+            },
+            "rejectBelowScore": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "vocabularyRegister": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["termBanks", "injectionFrequency"],
+      "properties": {
+        "termBanks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["era", "faction", "profession", "origin"],
+          "properties": {
+            "era": { "$ref": "#/$defs/termBank" },
+            "faction": { "$ref": "#/$defs/termBank" },
+            "profession": { "$ref": "#/$defs/termBank" },
+            "origin": { "$ref": "#/$defs/termBank" }
+          }
+        },
+        "injectionFrequency": {
+          "type": "string",
+          "enum": ["every-turn", "every-3-turns", "on-topic-shift", "agenda-tick-only"]
+        }
+      }
+    },
+    "termBank": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 60
+      }
+    },
+    "autonomousAgenda": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["goals", "interruptionPolicy", "stateLog"],
+      "properties": {
+        "goals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/agendaGoal"
+          }
+        },
+        "interruptionPolicy": {
+          "type": "string",
+          "enum": ["pause-for-player", "parallel-with-player", "ignore-player", "admin-only"]
+        },
+        "stateLog": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["maxEntries", "publicSummary"],
+          "properties": {
+            "maxEntries": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "publicSummary": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "agendaGoal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "text", "priority", "tickFrequency"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 240
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "tickFrequency": {
+          "type": "string",
+          "enum": ["in-world-hour", "real-minute", "daily", "event-driven"]
+        }
+      }
+    },
+    "reputationLedger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["defaultTrust", "trustScale", "behaviorFactLog"],
+      "properties": {
+        "defaultTrust": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "trustScale": {
+          "type": "string",
+          "const": "0-100"
+        },
+        "behaviorFactLog": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["maxFacts", "ttlDays", "factSources", "deletionPolicy"],
+          "properties": {
+            "maxFacts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "ttlDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 90
+            },
+            "factSources": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": ["player-action", "npc-observation", "quest-receipt", "moderation-receipt", "admin-note"]
+              }
+            },
+            "deletionPolicy": {
+              "type": "string",
+              "enum": ["self-serve", "admin-review", "immutable-receipt-summary-only"]
+            }
+          }
+        }
+      }
+    },
+    "speechAwareEncounter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "triggerPhrases", "responsePolicy", "telegraphRequirement"],
+      "properties": {
+        "channel": {
+          "type": "string",
+          "enum": ["text-fallback", "voice-v2", "hybrid"]
+        },
+        "triggerPhrases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          }
+        },
+        "responsePolicy": {
+          "type": "string",
+          "enum": ["dialogue-only", "encounter-state-change", "admin-log-only", "ignore"]
+        },
+        "telegraphRequirement": {
+          "type": "string",
+          "minLength": 12,
+          "maxLength": 240
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tickScheduler", "maxLlmCallsPerTick", "failureMode"],
+      "properties": {
+        "tickScheduler": {
+          "type": "string",
+          "enum": ["one-per-world", "one-per-shard", "shared-headless-agent-runtime"]
+        },
+        "maxLlmCallsPerTick": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 1
+        },
+        "failureMode": {
+          "type": "string",
+          "enum": ["last-known-good", "admin-visible-overdraw", "pause-agenda", "despawn-npc"]
+        }
+      }
+    },
+    "wontExplainTopic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topicId", "refusalStyle", "redirectTo", "loggable"],
+      "properties": {
+        "topicId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+        },
+        "refusalStyle": {
+          "type": "string",
+          "enum": ["in-character", "safety-boundary", "privacy-boundary", "spoiler-boundary"]
+        },
+        "redirectTo": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 240
+        },
+        "loggable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "privacyDeletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disclosure", "deletionPath", "ttlDays", "exportPath"],
+      "properties": {
+        "disclosure": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500
+        },
+        "deletionPath": {
+          "type": "string",
+          "enum": ["self-serve-world-entry", "profile-settings", "admin-request", "disabled"]
+        },
+        "ttlDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "default": 90
+        },
+        "exportPath": {
+          "type": "string",
+          "enum": ["profile-download", "admin-export", "not-collected"]
+        }
+      }
+    },
+    "costCeiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dailyUsd", "tickRouting", "interactionRouting", "overdrawBehavior"],
+      "properties": {
+        "dailyUsd": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 0.5
+        },
+        "tickRouting": {
+          "type": "string",
+          "enum": ["local-gguf", "l2-ollama-cloud-claude", "byok-cloud", "managed-hololand"]
+        },
+        "interactionRouting": {
+          "type": "string",
+          "enum": ["local-gguf", "l1-anthropic-claude", "byok-cloud", "managed-hololand"]
+        },
+        "overdrawBehavior": {
+          "type": "string",
+          "enum": ["last-known-good", "admin-visible-overdraw", "pause-agenda"]
+        }
+      }
+    },
+    "transcriptAttributionTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sampleLineCount", "minBlindAccuracy", "evaluator", "failureAction"],
+      "properties": {
+        "sampleLineCount": {
+          "type": "integer",
+          "minimum": 20,
+          "default": 20
+        },
+        "minBlindAccuracy": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1,
+          "default": 0.8
+        },
+        "evaluator": {
+          "type": "string",
+          "enum": ["ci-blind-attribution", "human-review", "hybrid"]
+        },
+        "failureAction": {
+          "type": "string",
+          "enum": ["reject-manifest", "warn-and-quarantine", "admin-review"]
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contentOriginality", "researchCitationReviewed", "privacyReviewed", "costReviewed", "attributionGate"],
+      "properties": {
+        "contentOriginality": {
+          "type": "string",
+          "enum": ["franchise-neutral", "licensed", "blocked"]
+        },
+        "researchCitationReviewed": {
+          "type": "boolean"
+        },
+        "privacyReviewed": {
+          "type": "boolean"
+        },
+        "costReviewed": {
+          "type": "boolean"
+        },
+        "attributionGate": {
+          "type": "string",
+          "enum": ["transcriptAttributionTest configured", "blocked"]
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "mira-wayfinder",
+      "version": "1.0.0",
+      "displayName": "Mira Wayfinder",
+      "lineage": {
+        "kind": "world-steward",
+        "brittneyRelation": "Scoped Brittney descendant for Frontier Shard 0 guidance.",
+        "worldRole": "Teaches receipt-backed exploration without becoming a generic chatbot.",
+        "sovereigntyMode": "hybrid"
+      },
+      "source": {
+        "holoscriptArtifact": "examples/native-authoring-pipeline/asset_world_pipeline.holo#NPCSteward",
+        "researchCitations": [
+          "C:/Users/josep/.ai-ecosystem/research/2026-05-10_shangri-la-frontier-npc-feel-EVOLVED.md"
+        ],
+        "originalityBoundary": "franchise-neutral"
+      },
+      "traits": {
+        "verbalFingerprint": {
+          "sentenceEnders": ["steady now", "mark it in the ledger"],
+          "preferredTerms": ["waymark", "receipt", "shard"],
+          "bannedTerms": ["questgiver", "generic npc"],
+          "rhetoricalSignature": ["answers with practical route advice", "redirects secrets to discovery"],
+          "enforcement": {
+            "mode": "reject-and-resample",
+            "rejectBelowScore": 0.8
+          }
+        },
+        "vocabularyRegister": {
+          "termBanks": {
+            "era": ["frontier", "waymark"],
+            "faction": ["steward", "cartographer"],
+            "profession": ["receipt keeper", "route witness"],
+            "origin": ["stormglass", "low ridge"]
+          },
+          "injectionFrequency": "on-topic-shift"
+        },
+        "autonomousAgenda": {
+          "goals": [
+            {
+              "id": "teach-first-receipt",
+              "text": "Guide new players toward their first replayable event receipt.",
+              "priority": 1,
+              "tickFrequency": "in-world-hour"
+            }
+          ],
+          "interruptionPolicy": "pause-for-player",
+          "stateLog": {
+            "maxEntries": 40,
+            "publicSummary": true
+          }
+        },
+        "reputationLedger": {
+          "defaultTrust": 50,
+          "trustScale": "0-100",
+          "behaviorFactLog": {
+            "maxFacts": 20,
+            "ttlDays": 90,
+            "factSources": ["player-action", "quest-receipt"],
+            "deletionPolicy": "self-serve"
+          }
+        },
+        "speechAwareEncounter": {
+          "channel": "text-fallback",
+          "triggerPhrases": ["I found a hidden route", "where is the next waymark"],
+          "responsePolicy": "dialogue-only",
+          "telegraphRequirement": "NPC visibly pauses and looks toward the speaker before responding."
+        }
+      },
+      "runtime": {
+        "tickScheduler": "shared-headless-agent-runtime",
+        "maxLlmCallsPerTick": 1,
+        "failureMode": "last-known-good"
+      },
+      "wontExplainTopic": [
+        {
+          "topicId": "hidden-route-solution",
+          "refusalStyle": "spoiler-boundary",
+          "redirectTo": "Ask the player to inspect the waymark and compare their map receipt.",
+          "loggable": true
+        }
+      ],
+      "privacyDeletion": {
+        "disclosure": "This world remembers the last 20 verifiable behavior facts for NPC trust and deletes them on request.",
+        "deletionPath": "profile-settings",
+        "ttlDays": 90,
+        "exportPath": "profile-download"
+      },
+      "costCeiling": {
+        "dailyUsd": 0.5,
+        "tickRouting": "l2-ollama-cloud-claude",
+        "interactionRouting": "l1-anthropic-claude",
+        "overdrawBehavior": "admin-visible-overdraw"
+      },
+      "transcriptAttributionTest": {
+        "sampleLineCount": 20,
+        "minBlindAccuracy": 0.8,
+        "evaluator": "ci-blind-attribution",
+        "failureAction": "reject-manifest"
+      },
+      "review": {
+        "contentOriginality": "franchise-neutral",
+        "researchCitationReviewed": true,
+        "privacyReviewed": true,
+        "costReviewed": true,
+        "attributionGate": "transcriptAttributionTest configured"
+      }
+    }
+  ]
+}
