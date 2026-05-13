@@ -1,0 +1,706 @@
+{
+  "schemaVersion": "hololand.mcp.sovereign-manifest.v1",
+  "manifestVersion": "1.0.0",
+  "date": "2026-05-12",
+  "status": "architecture-manifest",
+  "sourcePackage": "@hololand/mcp-server",
+  "sourcePackageVersion": "1.0.0",
+  "registeredToolSources": [
+    {
+      "sourceCategory": "core-world-service",
+      "path": "packages/brittney/mcp-server/src/index.ts",
+      "ignoreNames": ["hololand"]
+    },
+    {
+      "sourceCategory": "brittney-runtime",
+      "path": "packages/brittney/mcp-server/src/brittney-tools.ts"
+    },
+    {
+      "sourceCategory": "advanced-brittney-runtime",
+      "path": "packages/brittney/mcp-server/src/advanced-brittney-tools.ts"
+    },
+    {
+      "sourceCategory": "deprecated-holoscript-graph-aliases",
+      "path": "packages/brittney/mcp-server/src/holo-graph-tools.ts"
+    },
+    {
+      "sourceCategory": "deprecated-holoscript-ide-aliases",
+      "path": "packages/brittney/mcp-server/src/brittney-ide-tools.ts"
+    },
+    {
+      "sourceCategory": "agent-helpers",
+      "path": "packages/brittney/mcp-server/src/agent-tools.ts"
+    },
+    {
+      "sourceCategory": "memory-helpers",
+      "path": "packages/brittney/mcp-server/src/memory-tools.ts"
+    },
+    {
+      "sourceCategory": "spatial-helpers",
+      "path": "packages/brittney/mcp-server/src/spatial-tools.ts"
+    },
+    {
+      "sourceCategory": "dataset-helpers",
+      "path": "packages/brittney/mcp-server/src/dataset-tools.ts"
+    }
+  ],
+  "ownershipBoundaries": {
+    "holoscriptMcpOwns": [
+      "parse",
+      "validate",
+      "compile",
+      "traits",
+      "diagnostics",
+      "graph-understanding",
+      "absorb-code-intelligence",
+      "semantic-primitive-definitions"
+    ],
+    "mcpOrchestratorOwns": [
+      "agent-identity",
+      "task-routing",
+      "tool-discovery",
+      "cross-mcp-receipt-storage",
+      "knowledge-store",
+      "board-state",
+      "cross-repo-coordination"
+    ],
+    "hololandMcpOwns": [
+      "live-shard-operations",
+      "frontier-gameplay-operations",
+      "twin-earth-anchors",
+      "creator-publishing",
+      "agent-stewardship",
+      "brittney-and-npc-runtime-lineage",
+      "runtime-receipts",
+      "hardware-and-browser-validation",
+      "fork-admission-for-world-write-authority"
+    ],
+    "explicitForbiddenDuplication": [
+      "Do not implement a HoloScript parser in HoloLand; delegate parse to @holoscript/mcp-server or @holoscript/core.",
+      "Do not implement HoloScript validation or diagnostics in HoloLand; delegate validate and diagnostics to HoloScript tools.",
+      "Do not implement HoloScript compiler targets in HoloLand; delegate compile to HoloScript tools.",
+      "Do not define canonical HoloScript trait registries in HoloLand; consume upstream trait definitions.",
+      "Do not own HoloScript graph understanding in HoloLand; delegate graph and Absorb code intelligence to HoloScript MCP."
+    ]
+  },
+  "requiredFamilies": [
+    {
+      "id": "asset_world_building",
+      "description": "Build and assemble HoloLand-specific assets, scenes, zones, and creator-authored world material from trusted HoloScript source.",
+      "sovereignTools": [
+        "hololand_asset_build",
+        "hololand_asset_pack_validate",
+        "hololand_world_assemble",
+        "hololand_world_theme_apply",
+        "hololand_creator_tool_run",
+        "hololand_founder_art_direction_receipt"
+      ]
+    },
+    {
+      "id": "shard_world",
+      "description": "Operate live worlds and shards with explicit action receipts.",
+      "sovereignTools": [
+        "hololand_shard_status",
+        "hololand_list_shards",
+        "hololand_create_shard_from_source",
+        "hololand_world_state_snapshot",
+        "hololand_world_event_schedule",
+        "hololand_world_event_cancel",
+        "hololand_invite_agent_to_shard",
+        "hololand_retire_shard"
+      ]
+    },
+    {
+      "id": "frontier_gameplay",
+      "description": "Publish and validate Frontier MMO gameplay units.",
+      "sovereignTools": [
+        "hololand_publish_zone",
+        "hololand_publish_encounter",
+        "hololand_run_party_sim",
+        "hololand_get_player_profile",
+        "hololand_award_receipted_reward",
+        "hololand_report_broken_mechanic"
+      ]
+    },
+    {
+      "id": "twin_earth",
+      "description": "Create real-world anchors and AR overlays with privacy receipts.",
+      "sovereignTools": [
+        "hololand_create_geo_anchor",
+        "hololand_list_nearby_places",
+        "hololand_place_to_quest",
+        "hololand_validate_privacy_receipt",
+        "hololand_publish_ar_overlay",
+        "hololand_resolve_realworld_context"
+      ]
+    },
+    {
+      "id": "twin_earth_robot_ai",
+      "description": "Register and coordinate robot and AI actors in Twin Earth with capability, permission, and safety checks.",
+      "sovereignTools": [
+        "hololand_twin_earth_register_robot",
+        "hololand_twin_earth_register_ai_actor",
+        "hololand_robot_capability_manifest_validate",
+        "hololand_robot_task_plan",
+        "hololand_robot_task_receipt",
+        "hololand_sensor_feed_bind",
+        "hololand_actuator_permission_check",
+        "hololand_robot_safety_envelope_validate",
+        "hololand_twin_earth_operational_graph_query",
+        "hololand_ai_robot_handoff"
+      ]
+    },
+    {
+      "id": "creator_publishing",
+      "description": "Review, publish, remix, and measure creator-facing HoloLand content.",
+      "sovereignTools": [
+        "hololand_creator_template_test",
+        "hololand_publish_challenge",
+        "hololand_review_creator_submission",
+        "hololand_get_creator_metrics",
+        "hololand_remix_source_artifact"
+      ]
+    },
+    {
+      "id": "agent_stewardship",
+      "description": "Let agents steward live HoloLand spaces through receipted, reversible actions.",
+      "sovereignTools": [
+        "hololand_steward_tick",
+        "hololand_summarize_world_activity",
+        "hololand_file_world_issue",
+        "hololand_propose_live_event",
+        "hololand_rollback_event"
+      ]
+    },
+    {
+      "id": "brittney_npc_lineage",
+      "description": "Preserve Brittney lineage across guides, NPCs, item arcs, and runtime stewards without binding it to one cloud endpoint.",
+      "sovereignTools": [
+        "hololand_brittney_runtime_status",
+        "hololand_brittney_route_select",
+        "hololand_npc_manifest_validate",
+        "hololand_npc_daily_loop_tick",
+        "hololand_npc_reputation_query",
+        "hololand_npc_transcript_attribution_test",
+        "hololand_item_arc_tick",
+        "hololand_encounter_cognitive_attack_validate"
+      ]
+    },
+    {
+      "id": "runtime_receipt",
+      "description": "Capture cross-MCP evidence that HoloScript source validation led to a HoloLand runtime action.",
+      "sovereignTools": [
+        "hololand_capture_runtime_receipt"
+      ]
+    },
+    {
+      "id": "hardware_validation",
+      "description": "Prove HoloLand renders and behaves on browser, desktop, mobile, VR, AR, and local hardware surfaces.",
+      "sovereignTools": [
+        "hololand_validate_surface",
+        "hololand_profile_xr_session",
+        "hololand_compare_session_replay"
+      ]
+    },
+    {
+      "id": "trust_fork_admission",
+      "description": "Admit HoloScript-looking artifacts only after conformance, provenance, sandbox, permission, and world-write gates pass.",
+      "sovereignTools": [
+        "hololand_holoscript_artifact_admit",
+        "hololand_holoscript_conformance_check",
+        "hololand_source_signature_verify",
+        "hololand_package_provenance_verify",
+        "hololand_runtime_adapter_sandbox",
+        "hololand_world_write_authority_check",
+        "hololand_fork_risk_report"
+      ]
+    }
+  ],
+  "crossMcpReceiptEnvelope": {
+    "schemaVersion": "hololand.cross-mcp-receipt.v1",
+    "mutatingToolRequirement": "Every HoloLand tool that mutates world, shard, player, creator, robot, AI, sensor, actuator, or runtime state must emit this envelope or a stricter successor.",
+    "sourceTrustStatusEnum": [
+      "official",
+      "third-party-conformance-pass",
+      "sandboxed-experimental",
+      "rejected",
+      "unknown"
+    ],
+    "requiredFields": [
+      "actorId",
+      "surface",
+      "toolName",
+      "argumentsHash",
+      "traceId",
+      "sourceTrustStatus",
+      "holoscriptSourceArtifact",
+      "holoscriptValidation",
+      "worldOrShardRef",
+      "runtimeOutcome",
+      "hardwareEvidence",
+      "rollbackPlan"
+    ],
+    "conditionalFields": [
+      "zoneId",
+      "twinEarthAnchorId",
+      "robotId",
+      "aiActorId",
+      "sensorFeedId",
+      "actuatorId",
+      "taskId",
+      "safetyEnvelopeId",
+      "creatorSubmissionId",
+      "playerId"
+    ]
+  },
+  "existingToolDisposition": {
+    "keep": {
+      "mcp_get_info": {
+        "family": "runtime_receipt",
+        "reason": "MCP service metadata stays as a standard service inspection tool."
+      },
+      "mcp_get_health": {
+        "family": "runtime_receipt",
+        "reason": "Health status is service evidence and does not duplicate HoloScript."
+      },
+      "mcp_get_capabilities": {
+        "family": "runtime_receipt",
+        "reason": "Capability introspection is required for Orchestrator registration and agent routing."
+      },
+      "mcp_get_audit_log": {
+        "family": "runtime_receipt",
+        "reason": "Existing audit log queries remain useful as evidence until receipts supersede them."
+      },
+      "brittney_get_browser_state": {
+        "family": "hardware_validation",
+        "reason": "Live browser state is HoloLand product runtime truth."
+      },
+      "brittney_list_scenes": {
+        "family": "hardware_validation",
+        "reason": "Scene inventory is HoloLand runtime visibility."
+      },
+      "brittney_inspect_component": {
+        "family": "hardware_validation",
+        "reason": "Component inspection observes the running HoloLand surface."
+      },
+      "brittney_get_profiler_stats": {
+        "family": "hardware_validation",
+        "reason": "FPS and frame evidence belong to HoloLand's lived product surface."
+      },
+      "brittney_get_console_logs": {
+        "family": "hardware_validation",
+        "reason": "Runtime logs support product QA and hardware validation."
+      },
+      "brittney_get_runtime_errors": {
+        "family": "hardware_validation",
+        "reason": "Runtime errors are HoloLand evidence, not source-language diagnostics."
+      },
+      "brittney_take_screenshot": {
+        "family": "hardware_validation",
+        "reason": "Screenshots are surface evidence for browser and headset validation."
+      },
+      "brittney_explain_error": {
+        "family": "brittney_npc_lineage",
+        "reason": "Read-only runtime explanation can remain a Brittney product operation."
+      },
+      "brittney_suggest_fix": {
+        "family": "brittney_npc_lineage",
+        "reason": "Read-only fix suggestions remain useful when source changes still route through HoloScript validation."
+      },
+      "brittney_ask_question": {
+        "family": "brittney_npc_lineage",
+        "reason": "Question answering over live HoloLand context is a product feature."
+      },
+      "brittney_analyze_performance": {
+        "family": "hardware_validation",
+        "reason": "Performance analysis is tied to the running HoloLand surface."
+      },
+      "brittney_search_holohub": {
+        "family": "creator_publishing",
+        "reason": "HoloHub search is creator/product inventory, not HoloScript substrate."
+      },
+      "brittney_check_service": {
+        "family": "runtime_receipt",
+        "reason": "Brittney service checks are runtime availability evidence."
+      },
+      "brittney_get_live_state": {
+        "family": "shard_world",
+        "reason": "Live app state belongs to HoloLand world truth."
+      },
+      "brittney_quick_status": {
+        "family": "runtime_receipt",
+        "reason": "Single-call product status is useful for agents and does not own source semantics."
+      }
+    },
+    "rename": {
+      "create_world": {
+        "family": "shard_world",
+        "sovereignTool": "hololand_create_shard_from_source",
+        "reason": "World creation must name shard/source trust and emit a receipt."
+      },
+      "execute_holoscript": {
+        "family": "frontier_gameplay",
+        "sovereignTool": "hololand_publish_zone",
+        "reason": "Raw execution should become a source-validated zone or shard update."
+      },
+      "visualize_data": {
+        "family": "asset_world_building",
+        "sovereignTool": "hololand_world_assemble",
+        "reason": "Visualization should be expressed as a world assembly action from trusted source."
+      },
+      "invite_agent": {
+        "family": "agent_stewardship",
+        "sovereignTool": "hololand_invite_agent_to_shard",
+        "reason": "Agent access should bind identity, permissions, and receipt metadata."
+      },
+      "get_world": {
+        "family": "shard_world",
+        "sovereignTool": "hololand_shard_status",
+        "reason": "World reads should converge on shard-aware naming."
+      },
+      "list_worlds": {
+        "family": "shard_world",
+        "sovereignTool": "hololand_list_shards",
+        "reason": "World lists should become shard/world inventory."
+      },
+      "update_world": {
+        "family": "frontier_gameplay",
+        "sovereignTool": "hololand_publish_zone",
+        "reason": "World updates should identify the source artifact and runtime receipt."
+      },
+      "delete_world": {
+        "family": "shard_world",
+        "sovereignTool": "hololand_retire_shard",
+        "reason": "Destructive deletion needs shard lifecycle naming and rollback policy."
+      },
+      "add_object": {
+        "family": "asset_world_building",
+        "sovereignTool": "hololand_asset_build",
+        "reason": "Object insertion should be asset-building from source, not ad hoc geometry mutation."
+      },
+      "remove_object": {
+        "family": "frontier_gameplay",
+        "sovereignTool": "hololand_publish_zone",
+        "reason": "Object removal should be a receipted zone update."
+      },
+      "list_objects": {
+        "family": "shard_world",
+        "sovereignTool": "hololand_world_state_snapshot",
+        "reason": "Object inventory should become a state snapshot with provenance."
+      },
+      "brittney_create_smart_asset": {
+        "family": "asset_world_building",
+        "sovereignTool": "hololand_asset_build",
+        "reason": "Smart assets are product assets that must carry source and validation receipts."
+      },
+      "brittney_reload_scene": {
+        "family": "trust_fork_admission",
+        "sovereignTool": "hololand_runtime_adapter_sandbox",
+        "reason": "Reloading a runtime adapter should be sandboxed and receipted."
+      },
+      "brittney_inject_holoscript": {
+        "family": "frontier_gameplay",
+        "sovereignTool": "hololand_publish_zone",
+        "reason": "Injection should become source-admitted publishing."
+      },
+      "brittney_navigate_to_world": {
+        "family": "hardware_validation",
+        "sovereignTool": "hololand_validate_surface",
+        "reason": "Navigation should be part of a surface validation flow."
+      },
+      "brittney_create_and_inject": {
+        "family": "shard_world",
+        "sovereignTool": "hololand_create_shard_from_source",
+        "reason": "One-shot creation must split source generation, HoloScript validation, and HoloLand runtime receipt."
+      },
+      "brittney_create_and_deploy": {
+        "family": "frontier_gameplay",
+        "sovereignTool": "hololand_publish_zone",
+        "reason": "Deploy should become a receipted zone or shard publish action."
+      },
+      "index_spatial_object": {
+        "family": "twin_earth_robot_ai",
+        "sovereignTool": "hololand_twin_earth_operational_graph_query",
+        "reason": "Spatial indexing should live under Twin Earth operational graph semantics."
+      },
+      "query_spatial": {
+        "family": "twin_earth_robot_ai",
+        "sovereignTool": "hololand_twin_earth_operational_graph_query",
+        "reason": "Spatial reads should become Twin Earth operational graph queries."
+      },
+      "semantic_spatial_query": {
+        "family": "twin_earth_robot_ai",
+        "sovereignTool": "hololand_twin_earth_operational_graph_query",
+        "reason": "Semantic spatial queries belong to the HoloLand operational graph once source semantics are upstream."
+      },
+      "verify_accessibility_semantics": {
+        "family": "hardware_validation",
+        "sovereignTool": "hololand_validate_surface",
+        "reason": "Accessibility semantics should be checked as surface validation while language rules stay upstream."
+      }
+    },
+    "delegate": {
+      "parse_holoscript": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.parse-or-validate",
+        "reason": "HoloLand must not own HoloScript parsing."
+      },
+      "validate_holoscript": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.validate_holoscript",
+        "reason": "HoloLand must not own HoloScript validation."
+      },
+      "get_holoscript_examples": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.examples-or-docs",
+        "reason": "Language examples belong to the source layer."
+      },
+      "get_holoscript_version": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.version",
+        "reason": "HoloScript version truth belongs upstream."
+      },
+      "brittney_generate_holoscript": {
+        "family": "asset_world_building",
+        "delegateTo": "@holoscript/mcp-server.generate_scene",
+        "reason": "Source generation is HoloScript substrate; HoloLand may consume the result."
+      },
+      "brittney_get_wisdom_stats": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh knowledge store",
+        "reason": "Knowledge statistics are coordination truth, not HoloLand world truth."
+      },
+      "brittney_export_wisdom": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh knowledge store",
+        "reason": "Wisdom export should use the shared knowledge pipeline."
+      },
+      "brittney_compress_session": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh knowledge store",
+        "reason": "Session compression belongs to team knowledge unless it becomes NPC memory with a HoloLand receipt."
+      },
+      "brittney_holoscript_playground": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server",
+        "reason": "Interactive HoloScript language behavior belongs upstream."
+      },
+      "brittney_holoscript_diff": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.diagnostics",
+        "reason": "HoloScript source diff semantics should be owned upstream."
+      },
+      "brittney_holoscript_templates": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.templates",
+        "reason": "Language templates are HoloScript substrate."
+      },
+      "brittney_learn_holoscript": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.docs",
+        "reason": "Learning the language should route to source docs and tools."
+      },
+      "holo_parse_to_graph": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.holo_parse_to_graph",
+        "reason": "Graph understanding has already moved to HoloScript MCP."
+      },
+      "holo_visualize_flow": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.holo_visualize_flow",
+        "reason": "Graph visualization has already moved to HoloScript MCP."
+      },
+      "holo_get_node_connections": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.holo_get_node_connections",
+        "reason": "Node connection analysis is HoloScript graph truth."
+      },
+      "holo_design_graph": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.holo_design_graph",
+        "reason": "Graph design belongs to HoloScript tooling."
+      },
+      "holo_diff_graphs": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.holo_diff_graphs",
+        "reason": "Graph diffing belongs to HoloScript tooling."
+      },
+      "holo_suggest_connections": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.holo_suggest_connections",
+        "reason": "Graph suggestions belong to HoloScript tooling."
+      },
+      "brittney_scan_project": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_scan_project",
+        "reason": "IDE project scanning is HoloScript developer tooling."
+      },
+      "brittney_diagnostics": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_diagnostics",
+        "reason": "Diagnostics belong to HoloScript MCP."
+      },
+      "brittney_autocomplete": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_autocomplete",
+        "reason": "Language completion belongs upstream."
+      },
+      "brittney_refactor": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_refactor",
+        "reason": "Language refactors belong upstream."
+      },
+      "brittney_docs": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_docs",
+        "reason": "Source-language documentation belongs upstream."
+      },
+      "brittney_code_action": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_code_action",
+        "reason": "Code actions belong to HoloScript MCP."
+      },
+      "brittney_hover": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_hover",
+        "reason": "Hover semantics belong to the language source layer."
+      },
+      "brittney_go_to_definition": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_go_to_definition",
+        "reason": "Definition resolution belongs upstream."
+      },
+      "brittney_find_references": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server.hs_find_references",
+        "reason": "Reference search belongs upstream."
+      },
+      "brittney_workspace_summary": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh or HoloScript codebase intelligence",
+        "reason": "Workspace summaries are coordination/codebase truth, not live-world truth."
+      },
+      "brittney_suggest_next": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh board and knowledge routing",
+        "reason": "Next-task routing belongs to Orchestrator/HoloMesh."
+      },
+      "brittney_diff_and_merge": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server or repo-native git workflow",
+        "reason": "Source merge semantics should not be a HoloLand runtime tool."
+      },
+      "store_memory": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh knowledge store",
+        "reason": "Generic memory storage belongs to the shared knowledge layer."
+      },
+      "recall_similar": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh knowledge store",
+        "reason": "Generic recall belongs to the shared knowledge layer."
+      },
+      "query_rag_knowledge": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh knowledge store",
+        "reason": "Generic RAG knowledge belongs to the shared knowledge layer."
+      },
+      "load_skill": {
+        "family": "agent_stewardship",
+        "delegateTo": "HoloMesh skill registry",
+        "reason": "Generic skill loading is a coordination concern."
+      },
+      "extract_scene_graph_labels": {
+        "family": "trust_fork_admission",
+        "delegateTo": "@holoscript/mcp-server graph tools",
+        "reason": "Source scene graph labels belong to HoloScript graph understanding."
+      }
+    },
+    "deprecate": {
+      "brittney_execute_in_browser": {
+        "family": "trust_fork_admission",
+        "replacement": "hololand_runtime_adapter_sandbox",
+        "deprecationReason": "Raw browser execution is too broad for sovereign agent exposure without sandbox and receipt boundaries."
+      },
+      "brittney_auto_fix": {
+        "family": "brittney_npc_lineage",
+        "replacement": "hololand_brittney_route_select plus hololand_publish_zone",
+        "deprecationReason": "Automatic live fixes must split suggestion, source validation, world-write authority, and receipt emission."
+      },
+      "brittney_batch_execute": {
+        "family": "runtime_receipt",
+        "replacement": "hololand_capture_runtime_receipt",
+        "deprecationReason": "Batch execution must be replaced by per-action receipt fan-out."
+      },
+      "brittney_smart_fix_all": {
+        "family": "brittney_npc_lineage",
+        "replacement": "hololand_brittney_route_select plus HoloScript validation",
+        "deprecationReason": "Bulk autofix behavior is not acceptable without source-level validation and live-world admission gates."
+      },
+      "brittney_iterate_until_done": {
+        "family": "agent_stewardship",
+        "replacement": "hololand_steward_tick",
+        "deprecationReason": "Open-ended autonomous loops need bounded steward ticks and receipts."
+      },
+      "execute_skill": {
+        "family": "agent_stewardship",
+        "replacement": "HoloMesh skill registry execution",
+        "deprecationReason": "Generic skill execution should not be exposed through HoloLand world tooling."
+      }
+    },
+    "test": {
+      "brittney_error_monitor": {
+        "family": "hardware_validation",
+        "testRequirement": "Prove monitor start, event capture, timeout, and receipt emission on a local browser target."
+      },
+      "brittney_performance_monitor": {
+        "family": "hardware_validation",
+        "testRequirement": "Prove threshold behavior and sampled FPS/frame-time evidence on local hardware."
+      },
+      "brittney_scene_snapshot": {
+        "family": "shard_world",
+        "testRequirement": "Prove deterministic snapshot shape and artifact hashing."
+      },
+      "brittney_compare_snapshots": {
+        "family": "hardware_validation",
+        "testRequirement": "Prove stable diff output across saved snapshot fixtures."
+      },
+      "brittney_record_session": {
+        "family": "runtime_receipt",
+        "testRequirement": "Prove recording start/stop and replay metadata are written as receipts."
+      },
+      "brittney_test_scene": {
+        "family": "hardware_validation",
+        "testRequirement": "Prove scene test failure and success paths with local HoloLand fixtures."
+      },
+      "brittney_accessibility_check": {
+        "family": "hardware_validation",
+        "testRequirement": "Prove accessibility findings map to source artifacts and surface evidence."
+      },
+      "brittney_explain_scene": {
+        "family": "brittney_npc_lineage",
+        "testRequirement": "Prove explanation cites live scene evidence and does not invent source semantics."
+      },
+      "brittney_full_audit": {
+        "family": "hardware_validation",
+        "testRequirement": "Prove audit output includes browser, HoloScript validation, and receipt coverage."
+      },
+      "brittney_explain_everything": {
+        "family": "brittney_npc_lineage",
+        "testRequirement": "Prove broad explanations cite concrete runtime, source, and receipt evidence."
+      },
+      "brittney_perceive_scene": {
+        "family": "hardware_validation",
+        "testRequirement": "Prove perception output is deterministic enough for agent use and labels evidence source."
+      },
+      "generate_spatial_dataset": {
+        "family": "twin_earth_robot_ai",
+        "testRequirement": "Prove dataset rows carry HoloScript source, world, and actor provenance."
+      },
+      "replay_episodic_timeline": {
+        "family": "runtime_receipt",
+        "testRequirement": "Prove replay reads receipts and cannot mutate live state."
+      }
+    }
+  }
+}
