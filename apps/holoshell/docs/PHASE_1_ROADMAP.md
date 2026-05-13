@@ -36,6 +36,7 @@ These are the first-class objects of HoloShell.
 | Timeline | Ordered action memory. | What changed? |
 | Room | A visual grouping of related capabilities and actors. | Where do I inspect this class of work? |
 | Lane | A stable visual and semantic identity for an active agent instance. | Which agent surface is acting? |
+| Run | A local process, shell command, watcher, build, browser, or service under custody. | What is consuming the hardware? |
 
 ## Surface Hierarchy
 
@@ -45,6 +46,7 @@ These are the first-class objects of HoloShell.
 | Capability Room | Shows hardware, HoloScript, HoloMesh, browser, projects, CLI, and legacy app capability families. | Inventory adapter and static projection exist. |
 | HoloScript Surface Bridge | Projects HoloScript REST, MCP/RPC, and CLI tools into HoloShell rooms and machines. | Bridge source and surface-map adapter exist. |
 | Agent Presence Fabric | Shows active shells, desktop agents, IDE agents, browser/vision agents, and HoloMesh presence as color lanes. | Lane source and local adapter exist. |
+| Process Health Room | Shows PID custody, shell/dev runs, stale runs, high-memory pressure, and cleanup approvals. | Source and read-only adapter exist. |
 | Legacy Machine Gallery | Groups absorbed apps by capability archetype, not by raw installed app name. | Archetype research exists; live grouping next. |
 | Agent Operator Room | Shows active agents, current task, permission boundary, and receipts. | Static projection exists; HoloMesh live binding next. |
 | Trust Timeline | Shows local action receipts and rollback state. | Receipt model seeded; live receipt linker next. |
@@ -109,6 +111,29 @@ Acceptance:
   `semanticPrefix`.
 - Receipts show which lane acted and which permission envelope was used.
 - The user can scan active lanes without opening terminals or IDEs.
+
+### Slice 1D: PID And Shell Run Custody
+
+Make hardware health an agent responsibility.
+
+Deliverables:
+
+- Read `.tmp/holoshell/process-health.json`.
+- Render process count, shell/dev run count, stale run count, high-memory count,
+  and parent-not-visible count in the Process Health Room.
+- Link shell/dev runs to agent lanes when possible.
+- Generate stop plans without stopping anything.
+- Route actual termination through break-glass approval.
+
+Acceptance:
+
+- Agents check process health before starting heavy builds, tests, browser
+  audits, or watchers.
+- HoloShell shows stale and high-memory runs without exposing raw command lines
+  by default.
+- A process cannot be stopped without exact PID, reason, approval policy, and
+  receipt.
+- The user sees hardware pressure as plain language, not Task Manager noise.
 
 ### Slice 2: Browser Pilot
 
@@ -193,6 +218,8 @@ Acceptance:
 5. What belongs upstream in HoloScript versus HoloLand product experience?
 6. How should HoloMesh presence merge remote agents and local app/process
    evidence into one stable lane identity?
+7. How should process health and HoloMesh heartbeats agree on which agent owns
+   a long-running PID?
 
 ## Upstream Candidates
 
@@ -204,6 +231,7 @@ shape:
 - Permission envelope trait family.
 - Receipt linker and timeline model.
 - Agent presence, lane, color hint, and lane receipt schema.
+- Process health, run custody, shell run, and stop-plan receipt schema.
 - HoloScript visual primitive for capability glyphs and legacy machines.
 
 ## HoloLand-Owned Product Work

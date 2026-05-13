@@ -23,6 +23,9 @@ composition "HoloShell Home" {
     capabilityCount: 0
     legacyMachineCount: 0
     activeAgentLaneCount: 0
+    processHealthStatus: "unknown"
+    activeShellRunCount: 0
+    processRiskCount: 0
     receiptCount: 0
     trustFilter: "all"
   }
@@ -55,6 +58,12 @@ composition "HoloShell Home" {
     type: "pub_sub"
     priority: "high"
     description: "Active agent lane presence from shells, IDEs, desktop apps, browsers, and HoloMesh"
+  }
+
+  channel "holoshell:process-health" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "PID custody, shell-run health, and local hardware pressure"
   }
 
   channel "holoshell:approval" {
@@ -153,6 +162,13 @@ composition "HoloShell Home" {
         trust_state: "unknown"
         permission: "classified_per_app"
       }
+
+      object "ProcessHealth" using "CapabilityGlyph" {
+        label: "Process Health"
+        source_kind: "process_table"
+        trust_state: "partial"
+        permission: "read_only_then_break_glass"
+      }
     }
 
     spatial_group "LegacyMachineGallery" at [-3, 1, -2] {
@@ -177,6 +193,16 @@ composition "HoloShell Home" {
         active_lanes: $activeAgentLaneCount
         source_kind: "agent_presence"
         color_semantics: "metadata_first"
+      }
+
+      object "ProcessHealthPulse" {
+        type: "ui"
+        uiType: "process_health_pulse"
+        label: "Process Health"
+        status: $processHealthStatus
+        shell_runs: $activeShellRunCount
+        risks: $processRiskCount
+        stop_policy: "break_glass_required"
       }
     }
 
@@ -235,6 +261,21 @@ composition "HoloShell Home" {
       lanes: laneManifest.summary.laneCount,
       active_lanes: state.activeAgentLaneCount,
       color_is_visual_hint_only: true
+    })
+  }
+
+  action update_process_health(processHealth) {
+    state.processHealthStatus = processHealth.summary.riskState
+    state.activeShellRunCount = processHealth.summary.shellRunCount
+    state.processRiskCount = processHealth.summary.staleRunCount
+      + processHealth.summary.highMemoryCount
+      + processHealth.summary.orphanLikeCount
+    emit("holoshell:process-health", {
+      action: "process_health_updated",
+      risk_state: state.processHealthStatus,
+      shell_runs: state.activeShellRunCount,
+      risk_count: state.processRiskCount,
+      automatic_termination_allowed: false
     })
   }
 

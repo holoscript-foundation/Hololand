@@ -1,0 +1,177 @@
+// HoloShell Process Health Room
+//
+// PID, shell-run, and resource custody for hardware-native agents. HoloShell
+// must know which runs exist before agents can safely clean them up.
+
+composition "HoloShell Process Health Room" {
+  config {
+    title: "Process Health Room"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-process-health.mjs"
+    defaultMode: "read_only_custody"
+  }
+
+  state {
+    processCount: 0
+    shellRunCount: 0
+    staleRunCount: 0
+    highMemoryCount: 0
+    orphanLikeCount: 0
+    riskState: "unknown"
+    selectedPid: 0
+    lastProcessReceiptId: ""
+  }
+
+  channel "holoshell:process:health" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Local process table, shell-run candidates, stale runs, and resource pressure"
+  }
+
+  channel "holoshell:process:receipt" {
+    type: "append_only"
+    priority: "high"
+    description: "Receipts for process inventory, custody decisions, and approved stop plans"
+  }
+
+  channel "holoshell:process:approval" {
+    type: "request_response"
+    priority: "critical"
+    description: "Break-glass approval lane for stopping or killing local processes"
+  }
+
+  template "ProcessRun" {
+    type: "machine"
+    machineType: "local_process"
+    pid: 0
+    parentPid: 0
+    category: "process"
+    custodyState: "observed"
+    stopPolicy: "break_glass_required"
+    receiptRequired: true
+  }
+
+  template "ShellRun" using "ProcessRun" {
+    machineType: "shell_run"
+    category: "shell"
+    custodyState: "tracked"
+    ownerLane: ""
+    staleThresholdMinutes: 120
+  }
+
+  room "ProcessHealthRoom" {
+    label: "Process Health"
+    userQuestion: "What is running, who owns it, and is the hardware healthy?"
+    visualForm: "run_custody_board"
+    liveFeed: "holoshell:process:health"
+
+    object "HardwarePressure" {
+      type: "ui"
+      uiType: "hardware_pressure"
+      label: "Hardware Pressure"
+      riskState: $riskState
+      highMemoryCount: $highMemoryCount
+      staleRunCount: $staleRunCount
+    }
+
+    object "ShellRunStack" {
+      type: "ui"
+      uiType: "shell_run_stack"
+      label: "Shell Runs"
+      count: $shellRunCount
+      staleCount: $staleRunCount
+      ownerRequired: true
+    }
+
+    object "PidCustodyTable" {
+      type: "ui"
+      uiType: "pid_custody_table"
+      label: "PID Custody"
+      processCount: $processCount
+      orphanLikeCount: $orphanLikeCount
+      rawCommandLinesHiddenByDefault: true
+    }
+  }
+
+  policy "ReadOnlyProcessInventory" {
+    appliesTo: ["process_scan", "shell_run_scan", "memory_pressure_scan"]
+    approvalRequired: false
+    commandLinesIncludedByDefault: false
+    receiptRequired: true
+  }
+
+  policy "GuardedProcessStopPlan" {
+    appliesTo: ["plan_stop_pid", "claim_pid", "mark_pid_expected"]
+    approvalRequired: false
+    exactPidRequired: true
+    receiptRequired: true
+  }
+
+  policy "BreakGlassProcessTermination" {
+    appliesTo: ["stop_process", "kill_process", "kill_process_tree"]
+    approvalRequired: true
+    exactPidRequired: true
+    ownerLaneRequired: true
+    reasonRequired: true
+    receiptRequired: true
+  }
+
+  action consume_process_health(health) {
+    state.processCount = health.summary.processCount
+    state.shellRunCount = health.summary.shellRunCount
+    state.staleRunCount = health.summary.staleRunCount
+    state.highMemoryCount = health.summary.highMemoryCount
+    state.orphanLikeCount = health.summary.orphanLikeCount
+    state.riskState = health.summary.riskState
+    emit("holoshell:process:health", {
+      riskState: state.riskState,
+      processes: state.processCount,
+      shellRuns: state.shellRunCount,
+      staleRuns: state.staleRunCount,
+      highMemory: state.highMemoryCount,
+      orphanLike: state.orphanLikeCount
+    })
+  }
+
+  action select_pid(pid) {
+    state.selectedPid = pid
+    emit("holoshell:process:pid_selected", {
+      pid: pid,
+      stopPolicy: "break_glass_required",
+      receiptRequired: true
+    })
+  }
+
+  action request_stop_plan(pid, reason) {
+    emit("holoshell:process:approval", {
+      pid: pid,
+      reason: reason,
+      operation: "plan_stop_pid",
+      approvalRequired: false,
+      receiptRequired: true
+    })
+    return "plan_requested"
+  }
+
+  action request_process_termination(pid, reason) {
+    emit("holoshell:process:approval", {
+      pid: pid,
+      reason: reason,
+      operation: "stop_process",
+      approvalRequired: true,
+      stopPolicy: "break_glass_required",
+      receiptRequired: true
+    })
+    return "approval_required"
+  }
+
+  action record_process_receipt(receipt) {
+    state.lastProcessReceiptId = receipt.id
+    emit("holoshell:process:receipt", {
+      receipt: receipt,
+      selectedPid: state.selectedPid,
+      riskState: state.riskState
+    })
+  }
+}

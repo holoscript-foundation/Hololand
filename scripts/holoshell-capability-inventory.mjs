@@ -469,6 +469,24 @@ async function createInventory(args) {
       evidence: { nodeVersion, pnpmVersion, gitVersion },
     }),
     capability({
+      id: 'process-run-custody',
+      displayName: 'Process & Run Custody',
+      category: 'hardware_health',
+      sourceKind: 'process_table',
+      trustState: 'partial',
+      permissionEnvelope: 'read_only_then_break_glass',
+      inputs: ['process table', 'shell/dev run hints', 'hardware pressure thresholds'],
+      outputs: ['process health receipt', 'stop plan'],
+      receiptTypes: ['hololand.holoshell.process-health.v0.1.0', 'process stop approval receipt'],
+      visualForm: 'room',
+      adapter: 'holoshell_process_health',
+      replacementPath: 'preserve_as_hardware_guardian',
+      evidence: {
+        adapterScript: 'scripts/holoshell-process-health.mjs',
+        automaticTerminationAllowed: false,
+      },
+    }),
+    capability({
       id: 'legacy-apps',
       displayName: 'Legacy Apps',
       category: 'legacy',
@@ -526,6 +544,11 @@ async function createInventory(args) {
         id: 'holoscript-receipt-linker',
         layer: 'HoloScript',
         need: 'Cross-receipt relation model that links hardware, tool, browser, and legacy app witnesses into one HoloShell timeline.',
+      },
+      {
+        id: 'holoscript-process-custody-schema',
+        layer: 'HoloScript',
+        need: 'Canonical ProcessHealthReceipt, ShellRun, RunCustody, and StopPlan schemas so agents can manage hardware pressure safely.',
       },
     ],
   };

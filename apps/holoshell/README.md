@@ -56,6 +56,7 @@ source/holoshell-home.hsplus
 source/holoshell-phase1-workflows.hsplus
 source/holoshell-holoscript-bridge.hsplus
 source/holoshell-agent-presence-lanes.hsplus
+source/holoshell-process-health-room.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
@@ -63,6 +64,7 @@ docs/ABSORPTION_PILOTS.md
 docs/AGENT_PRESENCE_COLOR_LANES.md
 docs/HOLOSCRIPT_SURFACE_BRIDGE.md
 docs/LEGACY_ABSORPTION_ARCHETYPES.md
+docs/PROCESS_SHELL_RUN_HEALTH.md
 prototype/local-capability-room.html
 ```
 
@@ -90,6 +92,17 @@ Color is for human scanning. Agents consume `laneId`, `agentKind`,
 `scripts/holoshell-agent-lanes.mjs`, which writes
 `.tmp/holoshell/agent-lanes.json`.
 
+## Process Health
+
+Agents have to take care of the hardware they use. HoloShell tracks PID custody,
+shell/dev runs, stale processes, high-memory pressure, and stop plans through
+`source/holoshell-process-health-room.hsplus`.
+
+The first adapter is `scripts/holoshell-process-health.mjs`, which writes
+`.tmp/holoshell/process-health.json`. It is read-only by default. Stopping a
+process is modeled as a break-glass action with an exact PID, reason, and
+receipt.
+
 ## Local Checks
 
 From the HoloScript repo:
@@ -99,6 +112,7 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-phase1-workflows.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-holoscript-bridge.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-agent-presence-lanes.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-process-health-room.hsplus
 ```
 
 From the HoloLand repo:
@@ -108,6 +122,7 @@ node scripts\holoshell-capability-inventory.mjs --no-hardware-audit --redact-pri
 node scripts\holoshell-capability-inventory.mjs --self-test
 node scripts\holoshell-holoscript-surface-map.mjs --self-test
 node scripts\holoshell-agent-lanes.mjs --self-test
+node scripts\holoshell-process-health.mjs --self-test
 ```
 
 The script writes local discovery output to `.tmp/holoshell/`, which is ignored.
