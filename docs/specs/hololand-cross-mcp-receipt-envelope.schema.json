@@ -1,0 +1,363 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hololand.dev/schemas/hololand-cross-mcp-receipt-envelope.schema.json",
+  "title": "HoloLand Cross-MCP Receipt Envelope",
+  "description": "Evidence envelope for mutating HoloLand actions that start from HoloScript source validation, pass through MCP/Orchestrator tracing, and land in HoloLand runtime state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "issuedAt",
+    "actor",
+    "toolTrace",
+    "holoscriptArtifact",
+    "holoscriptValidation",
+    "hololandTarget",
+    "runtimeOutcome",
+    "hardwareBrowserEvidence",
+    "rollback",
+    "security"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "hololand.cross-mcp-receipt-envelope.v1"
+    },
+    "receiptId": {
+      "type": "string",
+      "pattern": "^hcr_[a-z0-9][a-z0-9_-]{8,96}$"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "$ref": "#/$defs/actor"
+    },
+    "toolTrace": {
+      "$ref": "#/$defs/toolTrace"
+    },
+    "holoscriptArtifact": {
+      "$ref": "#/$defs/holoscriptArtifact"
+    },
+    "holoscriptValidation": {
+      "$ref": "#/$defs/holoscriptValidation"
+    },
+    "hololandTarget": {
+      "$ref": "#/$defs/hololandTarget"
+    },
+    "runtimeOutcome": {
+      "$ref": "#/$defs/runtimeOutcome"
+    },
+    "hardwareBrowserEvidence": {
+      "$ref": "#/$defs/hardwareBrowserEvidence"
+    },
+    "rollback": {
+      "$ref": "#/$defs/rollback"
+    },
+    "security": {
+      "$ref": "#/$defs/security"
+    },
+    "links": {
+      "$ref": "#/$defs/links"
+    }
+  },
+  "$defs": {
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actorId", "actorType", "surface", "sessionId", "authorityScope"],
+      "properties": {
+        "actorId": {
+          "type": "string",
+          "minLength": 3
+        },
+        "actorType": {
+          "type": "string",
+          "enum": ["human", "agent", "service", "robot", "ai-actor", "creator"]
+        },
+        "surface": {
+          "type": "string",
+          "enum": ["browser", "desktop", "mobile", "vr", "ar", "holoshell", "mcp", "cli", "server"]
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 3
+        },
+        "authorityScope": {
+          "type": "string",
+          "enum": ["read-only", "preview", "world-write", "twin-earth-write", "robot-ai-operate", "admin"]
+        }
+      }
+    },
+    "toolTrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["traceId", "toolName", "toolFamily", "mcpServer", "argumentsHash", "startedAt", "completedAt"],
+      "properties": {
+        "traceId": {
+          "type": "string",
+          "minLength": 8
+        },
+        "toolName": {
+          "type": "string",
+          "pattern": "^hololand_[a-z0-9_]+$"
+        },
+        "toolFamily": {
+          "type": "string",
+          "enum": ["asset_world_building", "shard_world", "frontier_gameplay", "twin_earth", "twin_earth_robot_ai", "creator_publishing", "agent_stewardship", "runtime_receipt", "hardware_validation", "trust_fork_admission"]
+        },
+        "mcpServer": {
+          "type": "string",
+          "enum": ["@hololand/mcp-server", "@holoscript/mcp-server", "mcp-orchestrator"]
+        },
+        "orchestratorTaskId": {
+          "type": "string"
+        },
+        "argumentsHash": {
+          "type": "string",
+          "pattern": "^(sha256|blake3):[a-f0-9]{32,128}$"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "holoscriptArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactPath", "artifactHash", "hashAlgorithm", "repository", "sourceTrustStatus"],
+      "properties": {
+        "artifactPath": {
+          "type": "string",
+          "pattern": "\\.(holo|hs|hsplus)$"
+        },
+        "artifactHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32,128}$"
+        },
+        "hashAlgorithm": {
+          "type": "string",
+          "enum": ["sha256", "blake3"]
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 3
+        },
+        "commitHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{7,40}$"
+        },
+        "sourceTrustStatus": {
+          "type": "string",
+          "enum": ["official", "third-party-conformance-pass", "sandboxed-experimental", "rejected", "unknown"]
+        }
+      }
+    },
+    "holoscriptValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "validator", "validatedAt", "resultHash", "summary"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "skipped"]
+        },
+        "validator": {
+          "type": "string",
+          "enum": ["validate_holoscript", "hs_diagnostics", "holoscript-cli-parse", "holoscript-cli-validate", "manual-exception"]
+        },
+        "validatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resultHash": {
+          "type": "string",
+          "pattern": "^(sha256|blake3):[a-f0-9]{32,128}$"
+        },
+        "diagnosticsHash": {
+          "type": "string",
+          "pattern": "^(sha256|blake3):[a-f0-9]{32,128}$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 3
+        }
+      }
+    },
+    "hololandTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["worldId", "shardId", "targetType"],
+      "anyOf": [
+        { "required": ["zoneId"] },
+        { "required": ["twinEarthAnchorId"] }
+      ],
+      "properties": {
+        "worldId": {
+          "type": "string",
+          "minLength": 3
+        },
+        "shardId": {
+          "type": "string",
+          "minLength": 3
+        },
+        "zoneId": {
+          "type": "string",
+          "minLength": 3
+        },
+        "twinEarthAnchorId": {
+          "type": "string",
+          "minLength": 3
+        },
+        "targetType": {
+          "type": "string",
+          "enum": ["world", "shard", "zone", "twin-earth-anchor", "robot-ai-operation", "creator-submission", "player-state"]
+        },
+        "entityIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "runtimeOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "actionType", "mutationHash", "startedAt", "completedAt", "affectedRefs", "summary"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["previewed", "applied", "rejected", "rolled-back", "failed"]
+        },
+        "actionType": {
+          "type": "string",
+          "enum": ["asset-build", "zone-publish", "world-update", "shard-event", "twin-earth-anchor-update", "robot-task", "ai-actor-action", "creator-publish", "reward", "moderation"]
+        },
+        "mutationHash": {
+          "type": "string",
+          "pattern": "^(sha256|blake3):[a-f0-9]{32,128}$"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "affectedRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 3
+        }
+      }
+    },
+    "hardwareBrowserEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applicability", "evidenceRefs"],
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": ["required", "not-applicable"]
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "ref", "capturedAt"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["browser-screenshot", "browser-trace", "webgpu-audit", "wasm-simd-audit", "xr-profile", "performance-sample", "manual-hardware-note"]
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 3
+              },
+              "capturedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "notApplicableReason": {
+          "type": "string"
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "strategy", "plan", "rollbackRef"],
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["automatic", "manual", "immutable-receipt-only"]
+        },
+        "plan": {
+          "type": "string",
+          "minLength": 3
+        },
+        "rollbackRef": {
+          "type": "string",
+          "minLength": 3
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "immutableReason": {
+          "type": "string"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permission", "worldWriteAuthorityGate", "sandbox", "signatureVerified"],
+      "properties": {
+        "permission": {
+          "type": "string",
+          "enum": ["read-only", "preview", "world-write", "twin-earth-write", "robot-ai-operate", "admin"]
+        },
+        "worldWriteAuthorityGate": {
+          "type": "string",
+          "enum": ["pass", "fail", "not-applicable"]
+        },
+        "sandbox": {
+          "type": "string",
+          "enum": ["none", "browser", "runtime-adapter", "twin-earth-safety", "robot-ai-safety"]
+        },
+        "signatureVerified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "boardTaskId": { "type": "string" },
+        "commitHash": { "type": "string" },
+        "sourceReceiptRef": { "type": "string" },
+        "runtimeReceiptRef": { "type": "string" },
+        "rollbackReceiptRef": { "type": "string" }
+      }
+    }
+  }
+}

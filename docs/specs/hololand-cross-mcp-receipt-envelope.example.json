@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "hololand.cross-mcp-receipt-envelope.v1",
+  "receiptId": "hcr_frontier_zone_anchor_001",
+  "issuedAt": "2026-05-12T21:18:00.000Z",
+  "actor": {
+    "actorId": "agent_1778102670927_5r0p",
+    "actorType": "agent",
+    "surface": "mcp",
+    "sessionId": "session_codex_hardware_20260512",
+    "authorityScope": "world-write"
+  },
+  "toolTrace": {
+    "traceId": "trace_1778617298562_54ao",
+    "toolName": "hololand_create_shard_from_source",
+    "toolFamily": "shard_world",
+    "mcpServer": "@hololand/mcp-server",
+    "orchestratorTaskId": "task_1778617298562_54ao",
+    "argumentsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "startedAt": "2026-05-12T21:16:30.000Z",
+    "completedAt": "2026-05-12T21:17:50.000Z"
+  },
+  "holoscriptArtifact": {
+    "artifactPath": "examples/native-authoring-pipeline/asset_world_pipeline.holo",
+    "artifactHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "hashAlgorithm": "sha256",
+    "repository": "C:/Users/josep/Documents/GitHub/Hololand",
+    "commitHash": "45ee920",
+    "sourceTrustStatus": "official"
+  },
+  "holoscriptValidation": {
+    "status": "pass",
+    "validator": "holoscript-cli-parse",
+    "validatedAt": "2026-05-12T21:16:40.000Z",
+    "resultHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "diagnosticsHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "summary": "HoloScript source parsed and validated before HoloLand runtime mutation."
+  },
+  "hololandTarget": {
+    "worldId": "frontier-shard-0",
+    "shardId": "frontier-shard-0-alpha",
+    "zoneId": "waymark-glen",
+    "twinEarthAnchorId": "twin-earth-anchor-phx-001",
+    "targetType": "zone",
+    "entityIds": ["npc_mira_wayfinder", "anchor_waymark_001"]
+  },
+  "runtimeOutcome": {
+    "status": "applied",
+    "actionType": "zone-publish",
+    "mutationHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "startedAt": "2026-05-12T21:17:00.000Z",
+    "completedAt": "2026-05-12T21:17:45.000Z",
+    "affectedRefs": ["world:frontier-shard-0", "shard:frontier-shard-0-alpha", "zone:waymark-glen", "anchor:twin-earth-anchor-phx-001"],
+    "summary": "Published the validated source into the alpha shard as a receipted zone update."
+  },
+  "hardwareBrowserEvidence": {
+    "applicability": "required",
+    "evidenceRefs": [
+      {
+        "type": "browser-screenshot",
+        "ref": ".tmp/receipts/frontier-zone-anchor-001.png",
+        "capturedAt": "2026-05-12T21:17:55.000Z"
+      },
+      {
+        "type": "webgpu-audit",
+        "ref": ".tmp/receipts/frontier-zone-anchor-001-webgpu.json",
+        "capturedAt": "2026-05-12T21:17:56.000Z"
+      }
+    ]
+  },
+  "rollback": {
+    "available": true,
+    "strategy": "manual",
+    "plan": "Restore the pre-publish shard snapshot and remove the Twin Earth anchor binding.",
+    "rollbackRef": ".tmp/receipts/frontier-zone-anchor-001-rollback-plan.json",
+    "expiresAt": "2026-05-19T21:18:00.000Z"
+  },
+  "security": {
+    "permission": "world-write",
+    "worldWriteAuthorityGate": "pass",
+    "sandbox": "runtime-adapter",
+    "signatureVerified": true
+  },
+  "links": {
+    "boardTaskId": "task_1778617298562_54ao",
+    "commitHash": "45ee920",
+    "sourceReceiptRef": "holoscript-validation:trace_1778617298562_54ao",
+    "runtimeReceiptRef": "hololand-runtime:hcr_frontier_zone_anchor_001"
+  }
+}

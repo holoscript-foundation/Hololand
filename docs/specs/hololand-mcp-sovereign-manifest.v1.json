@@ -218,6 +218,8 @@
   ],
   "crossMcpReceiptEnvelope": {
     "schemaVersion": "hololand.cross-mcp-receipt.v1",
+    "schemaPath": "docs/specs/hololand-cross-mcp-receipt-envelope.schema.json",
+    "examplePath": "docs/specs/hololand-cross-mcp-receipt-envelope.example.json",
     "mutatingToolRequirement": "Every HoloLand tool that mutates world, shard, player, creator, robot, AI, sensor, actuator, or runtime state must emit this envelope or a stricter successor.",
     "sourceTrustStatusEnum": [
       "official",
@@ -239,6 +241,16 @@
       "runtimeOutcome",
       "hardwareEvidence",
       "rollbackPlan"
+    ],
+    "requiredFieldGroups": [
+      "actor",
+      "toolTrace",
+      "holoscriptArtifact",
+      "holoscriptValidation",
+      "hololandTarget",
+      "runtimeOutcome",
+      "hardwareBrowserEvidence",
+      "rollback"
     ],
     "conditionalFields": [
       "zoneId",

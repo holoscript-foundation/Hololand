@@ -193,6 +193,11 @@ HoloLand's sovereign tools should be named around product actions, not generic r
 
 ## Cross-MCP Receipt Envelope
 
+The full envelope schema lives at
+[hololand-cross-mcp-receipt-envelope.schema.json](hololand-cross-mcp-receipt-envelope.schema.json),
+with a valid example at
+[hololand-cross-mcp-receipt-envelope.example.json](hololand-cross-mcp-receipt-envelope.example.json).
+
 Every mutating HoloLand action should be able to emit a receipt with:
 
 - Actor ID and surface.
