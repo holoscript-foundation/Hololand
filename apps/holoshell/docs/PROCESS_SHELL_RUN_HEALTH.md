@@ -4,6 +4,7 @@
 **Date:** 2026-05-12
 **Source:** `apps/holoshell/source/holoshell-process-health-room.hsplus`
 **Discovery adapter:** `scripts/holoshell-process-health.mjs`
+**Run wrapper:** `scripts/holoshell-run.mjs`
 
 ## Decision
 
@@ -48,6 +49,10 @@ The adapter is read-only. It reports:
 
 - Process count.
 - Shell/dev run candidates.
+- Registered HoloShell runs.
+- Active registered runs with visible PIDs.
+- Registered runs that passed their expected end time.
+- Active registry runs whose PID is no longer visible.
 - Stale shell/dev runs.
 - High-memory processes.
 - Processes whose parent is not visible.
@@ -58,12 +63,43 @@ By default it does not include command lines. Use
 `--include-command-lines` only for local debugging; command previews are
 redacted but should still be treated as private local evidence.
 
+## Run Custody Wrapper
+
+Agents should start heavy local work through the HoloShell wrapper:
+
+```powershell
+node scripts\holoshell-run.mjs --lane-id codex-hardware --run-class build --allow-warn --reason "required local validation" -- pnpm build
+```
+
+The wrapper writes:
+
+```text
+.tmp/holoshell/run-registry.json
+.tmp/holoshell/run-receipts/<run-id>.json
+```
+
+Heavy run classes are `build`, `test`, `browser_audit`, `dev_server`,
+`watcher`, `install`, `package_script`, and `long_running`.
+
+Before a heavy run starts, the wrapper reads process health. If risk is `warn`
+or `critical`, the run is blocked unless the agent passes an explicit
+`--allow-warn` or `--allow-critical` plus `--reason`. Light runs can still
+execute so agents can inspect, repair, and produce cleanup evidence.
+
+Use dry-run mode to ask HoloShell whether a command would pass the gate:
+
+```powershell
+node scripts\holoshell-run.mjs --run-class test --dry-run --allow-warn --reason "checking test gate" -- pnpm test
+```
+
 ## Management Policy
 
 | Operation | Default | Why |
 | --- | --- | --- |
 | Process scan | Silent read with receipt | Agents need hardware awareness. |
 | Shell/dev run classification | Silent read with receipt | HoloShell should know run custody. |
+| Heavy run start | Pre-run health gate | Prevent invisible agent pileups. |
+| Run receipt write | Required | PIDs need owner lanes and expected end times. |
 | Stop-plan creation | Guarded plan | Planning is safe if it does not stop anything. |
 | Stop one PID | Break-glass | May destroy active work or evidence. |
 | Kill process tree | Break-glass plus owner lane | High blast radius. |
@@ -73,6 +109,7 @@ redacted but should still be treated as private local evidence.
 The Process Health Room should show:
 
 - Hardware pressure: memory pressure, high-memory count, stale-run count.
+- Run registry: registered runs, owned processes, overdue runs, unmatched runs.
 - Shell run stack: shells, package scripts, Node runtimes, Python runs,
   browser witnesses, and tooling runs.
 - PID custody table: PID, parent PID, category, age, memory, findings, owner
@@ -92,12 +129,15 @@ stopped without approval.
 Every agent lane should treat process health as part of its job:
 
 1. Before starting a heavy build, test, browser audit, or watcher, read the
-   process health receipt.
+   process health receipt or use `scripts\holoshell-run.mjs`.
 2. If hardware pressure is `warn` or `critical`, avoid starting another heavy
    run unless the task requires it.
-3. If a run is stale, claim it, justify it, or request a stop plan.
-4. After a long-running command ends, record a receipt.
-5. Never kill another lane's process without exact PID, reason, approval, and
+3. Register the lane, run class, expected duration, and reason before starting
+   long work.
+4. If a run is stale or overdue, claim it, justify it, extend it, or request a
+   stop plan.
+5. After a long-running command ends, record a receipt.
+6. Never kill another lane's process without exact PID, reason, approval, and
    receipt.
 
 ## Upstream Candidates
@@ -105,6 +145,7 @@ Every agent lane should treat process health as part of its job:
 If this stabilizes, upstream these to HoloScript and HoloMesh:
 
 - `ProcessHealthReceipt` schema.
+- `RunReceipt` schema.
 - `RunCustody` schema.
 - `ShellRun` capability type.
 - HoloMesh heartbeat fields for active PID, command class, and expected run

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 
 const SCHEMA_VERSION = 'hololand.holoshell.process-health.v0.1.0';
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'process-health.json');
+const DEFAULT_RUN_REGISTRY = path.join('.tmp', 'holoshell', 'run-registry.json');
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_STALE_MINUTES = 120;
 const DEFAULT_HIGH_MEMORY_MB = 1500;
@@ -38,6 +39,7 @@ function parseArgs(argv) {
   const args = {
     json: false,
     output: DEFAULT_OUTPUT,
+    runRegistry: DEFAULT_RUN_REGISTRY,
     selfTest: false,
     includeCommandLines: false,
     staleMinutes: DEFAULT_STALE_MINUTES,
@@ -49,6 +51,7 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === '--json') args.json = true;
     else if (arg === '--output') args.output = argv[++index];
+    else if (arg === '--run-registry') args.runRegistry = argv[++index];
     else if (arg === '--self-test') args.selfTest = true;
     else if (arg === '--include-command-lines') args.includeCommandLines = true;
     else if (arg === '--stale-minutes') args.staleMinutes = Number(argv[++index]);
@@ -84,6 +87,7 @@ Usage:
 Options:
   --json                    Print process health JSON.
   --output <path>           Write output path. Defaults to .tmp/holoshell/process-health.json.
+  --run-registry <path>     Read HoloShell run registry. Defaults to .tmp/holoshell/run-registry.json.
   --self-test               Assert process health receipt invariants.
   --include-command-lines   Include redacted command previews. Off by default for privacy.
   --stale-minutes <n>       Mark shell/dev runs older than n minutes. Default: ${DEFAULT_STALE_MINUTES}.
@@ -149,6 +153,45 @@ function redactCommandLine(commandLine) {
     .slice(0, 240);
 }
 
+function resolveRepoPath(filePath) {
+  return path.isAbsolute(filePath) ? filePath : path.resolve(REPO_ROOT, filePath);
+}
+
+function loadRunRegistry(registryPath) {
+  const resolved = resolveRepoPath(registryPath);
+  if (!existsSync(resolved)) {
+    return {
+      path: resolved,
+      loaded: false,
+      schemaVersion: null,
+      updatedAt: null,
+      runs: [],
+      error: null,
+    };
+  }
+
+  try {
+    const registry = JSON.parse(readFileSync(resolved, 'utf8'));
+    return {
+      path: resolved,
+      loaded: true,
+      schemaVersion: registry.schemaVersion || null,
+      updatedAt: registry.updatedAt || null,
+      runs: Array.isArray(registry.runs) ? registry.runs : [],
+      error: null,
+    };
+  } catch (error) {
+    return {
+      path: resolved,
+      loaded: false,
+      schemaVersion: null,
+      updatedAt: null,
+      runs: [],
+      error: error.message,
+    };
+  }
+}
+
 function normalizeName(name) {
   return String(name || '').toLowerCase().replace(/\.exe$/i, '');
 }
@@ -184,6 +227,42 @@ function ageMinutes(createdAt) {
   const date = parseDate(createdAt);
   if (!date) return null;
   return Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+}
+
+function isActiveRun(run) {
+  return ['planned', 'running'].includes(String(run.status || ''));
+}
+
+function isRunOverdue(run) {
+  const expectedEnd = parseDate(run.expectedEndAt);
+  return Boolean(expectedEnd && expectedEnd.getTime() < Date.now());
+}
+
+function buildRunRegistryEvidence(args, pidSet) {
+  const registry = loadRunRegistry(args.runRegistry);
+  const activeRuns = registry.runs.filter(isActiveRun);
+  const runByPid = new Map();
+
+  for (const run of activeRuns) {
+    const pid = Number(run.pid);
+    if (Number.isInteger(pid) && pid > 0) {
+      runByPid.set(pid, run);
+    }
+  }
+
+  const overdueRuns = activeRuns.filter(isRunOverdue);
+  const unmatchedActiveRuns = activeRuns.filter((run) => {
+    const pid = Number(run.pid);
+    return !Number.isInteger(pid) || pid <= 0 || !pidSet.has(pid);
+  });
+
+  return {
+    registry,
+    activeRuns,
+    runByPid,
+    overdueRuns,
+    unmatchedActiveRuns,
+  };
 }
 
 function memoryMb(bytes) {
@@ -271,22 +350,26 @@ function collectProcesses() {
   return process.platform === 'win32' ? collectWindowsProcesses() : collectPosixProcesses();
 }
 
-function processToReceipt(processInfo, args, pidSet) {
+function processToReceipt(processInfo, args, pidSet, runByPid) {
+  const pid = Number(processInfo.pid);
   const age = ageMinutes(processInfo.createdAt);
   const memory = memoryMb(processInfo.workingSetBytes);
   const shellRunCandidate = isShellRunCandidate(processInfo);
   const category = classifyRun(processInfo);
   const orphanLike = Number(processInfo.ppid) > 0 && !pidSet.has(Number(processInfo.ppid));
-  const stale = shellRunCandidate && age !== null && age >= args.staleMinutes;
+  const ownedRun = runByPid.get(pid) || null;
+  const registeredOverdue = Boolean(ownedRun && isRunOverdue(ownedRun));
+  const stale = shellRunCandidate && age !== null && age >= args.staleMinutes && !ownedRun;
   const highMemory = memory !== null && memory >= args.highMemoryMb;
   const findings = [];
 
   if (stale) findings.push('stale_shell_or_dev_run');
+  if (registeredOverdue) findings.push('registered_run_overdue');
   if (highMemory) findings.push('high_memory_process');
   if (orphanLike) findings.push('parent_not_visible');
 
   return {
-    pid: Number(processInfo.pid),
+    pid,
     ppid: Number(processInfo.ppid),
     name: processInfo.name || 'unknown',
     category,
@@ -298,7 +381,16 @@ function processToReceipt(processInfo, args, pidSet) {
     executableName: processInfo.executablePath ? path.basename(String(processInfo.executablePath)) : undefined,
     findings,
     custody: {
-      state: findings.length > 0 ? 'needs_review' : shellRunCandidate ? 'tracked' : 'observed',
+      state: ownedRun
+        ? registeredOverdue ? 'owned_overdue' : 'owned_active'
+        : findings.length > 0 ? 'needs_review' : shellRunCandidate ? 'tracked' : 'observed',
+      ownerLane: ownedRun?.laneId || null,
+      ownerAgentKind: ownedRun?.agentKind || null,
+      ownerSurfaceKind: ownedRun?.surfaceKind || null,
+      runId: ownedRun?.runId || null,
+      runClass: ownedRun?.runClass || null,
+      expectedEndAt: ownedRun?.expectedEndAt || null,
+      registeredStatus: ownedRun?.status || null,
       stopPolicy: 'break_glass_required',
       receiptRequired: true,
     },
@@ -335,8 +427,9 @@ function createStopPlan(args, processes) {
 function createHealth(args) {
   const collection = collectProcesses();
   const pidSet = new Set(collection.processes.map((item) => Number(item.pid)).filter(Boolean));
+  const runEvidence = buildRunRegistryEvidence(args, pidSet);
   const processes = collection.processes
-    .map((item) => processToReceipt(item, args, pidSet))
+    .map((item) => processToReceipt(item, args, pidSet, runEvidence.runByPid))
     .sort((left, right) => {
       const leftScore = left.findings.length * 100000 + (left.memoryMb || 0);
       const rightScore = right.findings.length * 100000 + (right.memoryMb || 0);
@@ -346,11 +439,13 @@ function createHealth(args) {
   const shellRuns = processes.filter((item) => item.shellRunCandidate);
   const highMemory = processes.filter((item) => item.findings.includes('high_memory_process'));
   const staleRuns = processes.filter((item) => item.findings.includes('stale_shell_or_dev_run'));
+  const ownedProcesses = processes.filter((item) => item.custody.runId);
+  const overdueOwnedProcesses = processes.filter((item) => item.findings.includes('registered_run_overdue'));
   const orphanLike = processes.filter((item) => item.findings.includes('parent_not_visible'));
   const memoryUsedRatio = 1 - (os.freemem() / os.totalmem());
   const riskState = memoryUsedRatio > 0.9 || highMemory.length > 8
     ? 'critical'
-    : staleRuns.length > 0 || orphanLike.length > 0 || highMemory.length > 0
+    : staleRuns.length > 0 || runEvidence.overdueRuns.length > 0 || orphanLike.length > 0 || highMemory.length > 0
       ? 'warn'
       : 'pass';
   const categories = {};
@@ -360,6 +455,7 @@ function createHealth(args) {
 
   const processSample = [
     ...processes.filter((item) => item.findings.length > 0),
+    ...ownedProcesses.filter((item) => item.findings.length === 0),
     ...shellRuns.filter((item) => item.findings.length === 0),
   ].slice(0, 80);
 
@@ -389,10 +485,36 @@ function createHealth(args) {
       riskState,
       processCount: processes.length,
       shellRunCount: shellRuns.length,
+      registeredRunCount: runEvidence.registry.runs.length,
+      activeRegisteredRunCount: runEvidence.activeRuns.length,
+      ownedProcessCount: ownedProcesses.length,
+      overdueRegisteredRunCount: runEvidence.overdueRuns.length,
+      overdueOwnedProcessCount: overdueOwnedProcesses.length,
+      unmatchedActiveRunCount: runEvidence.unmatchedActiveRuns.length,
       highMemoryCount: highMemory.length,
       staleRunCount: staleRuns.length,
       orphanLikeCount: orphanLike.length,
       trackedCategoryCount: categories,
+    },
+    runRegistry: {
+      path: runEvidence.registry.path,
+      loaded: runEvidence.registry.loaded,
+      schemaVersion: runEvidence.registry.schemaVersion,
+      updatedAt: runEvidence.registry.updatedAt,
+      error: runEvidence.registry.error,
+      registeredRunCount: runEvidence.registry.runs.length,
+      activeRunCount: runEvidence.activeRuns.length,
+      overdueRunCount: runEvidence.overdueRuns.length,
+      unmatchedActiveRunCount: runEvidence.unmatchedActiveRuns.length,
+      unmatchedActiveRuns: runEvidence.unmatchedActiveRuns.slice(0, 20).map((run) => ({
+        runId: run.runId,
+        laneId: run.laneId,
+        agentKind: run.agentKind,
+        runClass: run.runClass,
+        status: run.status,
+        pid: run.pid || null,
+        expectedEndAt: run.expectedEndAt || null,
+      })),
     },
     collection: {
       ok: collection.ok,
@@ -407,7 +529,15 @@ function createHealth(args) {
       exactPidRequired: true,
       receiptRequired: true,
     },
-    recommendations: makeRecommendations({ memoryUsedRatio, staleRuns, highMemory, orphanLike, shellRuns }),
+    recommendations: makeRecommendations({
+      memoryUsedRatio,
+      staleRuns,
+      highMemory,
+      orphanLike,
+      shellRuns,
+      overdueRuns: runEvidence.overdueRuns,
+      unmatchedActiveRuns: runEvidence.unmatchedActiveRuns,
+    }),
     processes: processSample,
     stopPlan: createStopPlan(args, processes),
   };
@@ -415,7 +545,15 @@ function createHealth(args) {
   return manifest;
 }
 
-function makeRecommendations({ memoryUsedRatio, staleRuns, highMemory, orphanLike, shellRuns }) {
+function makeRecommendations({
+  memoryUsedRatio,
+  staleRuns,
+  highMemory,
+  orphanLike,
+  shellRuns,
+  overdueRuns,
+  unmatchedActiveRuns,
+}) {
   const recommendations = [];
   if (memoryUsedRatio > 0.85) {
     recommendations.push({
@@ -429,6 +567,20 @@ function makeRecommendations({ memoryUsedRatio, staleRuns, highMemory, orphanLik
       severity: 'medium',
       kind: 'stale_shell_runs',
       text: `${staleRuns.length} shell or dev run candidate(s) are older than the stale threshold. Ask the owning agent to claim, close, or justify them.`,
+    });
+  }
+  if (overdueRuns.length > 0) {
+    recommendations.push({
+      severity: 'medium',
+      kind: 'overdue_registered_runs',
+      text: `${overdueRuns.length} registered run(s) have passed their expected end time. Ask the owning lane to finish, extend, or close them.`,
+    });
+  }
+  if (unmatchedActiveRuns.length > 0) {
+    recommendations.push({
+      severity: 'medium',
+      kind: 'unmatched_active_runs',
+      text: `${unmatchedActiveRuns.length} active registry run(s) do not match a visible PID. Treat them as cleanup candidates before starting heavy work.`,
     });
   }
   if (highMemory.length > 0) {
@@ -495,6 +647,10 @@ try {
     console.log(`Risk: ${health.summary.riskState}`);
     console.log(`Processes: ${health.summary.processCount}`);
     console.log(`Shell/dev runs: ${health.summary.shellRunCount}`);
+    console.log(`Registered runs: ${health.summary.registeredRunCount}`);
+    console.log(`Owned processes: ${health.summary.ownedProcessCount}`);
+    console.log(`Overdue registered runs: ${health.summary.overdueRegisteredRunCount}`);
+    console.log(`Unmatched active runs: ${health.summary.unmatchedActiveRunCount}`);
     console.log(`Stale: ${health.summary.staleRunCount}`);
     console.log(`High memory: ${health.summary.highMemoryCount}`);
     console.log(`Parent not visible: ${health.summary.orphanLikeCount}`);

@@ -103,6 +103,11 @@ The first adapter is `scripts/holoshell-process-health.mjs`, which writes
 process is modeled as a break-glass action with an exact PID, reason, and
 receipt.
 
+Commands that start heavy local work should go through
+`scripts/holoshell-run.mjs`. It writes run receipts and a shared registry so
+HoloShell can show owner lanes, expected end times, overdue runs, and unmatched
+active PIDs before agents pile more work onto the hardware.
+
 ## Local Checks
 
 From the HoloScript repo:
@@ -123,6 +128,7 @@ node scripts\holoshell-capability-inventory.mjs --self-test
 node scripts\holoshell-holoscript-surface-map.mjs --self-test
 node scripts\holoshell-agent-lanes.mjs --self-test
 node scripts\holoshell-process-health.mjs --self-test
+node scripts\holoshell-run.mjs --self-test
 ```
 
 The script writes local discovery output to `.tmp/holoshell/`, which is ignored.

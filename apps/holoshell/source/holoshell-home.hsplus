@@ -25,6 +25,9 @@ composition "HoloShell Home" {
     activeAgentLaneCount: 0
     processHealthStatus: "unknown"
     activeShellRunCount: 0
+    registeredRunCount: 0
+    ownedProcessCount: 0
+    unmatchedActiveRunCount: 0
     processRiskCount: 0
     receiptCount: 0
     trustFilter: "all"
@@ -201,6 +204,9 @@ composition "HoloShell Home" {
         label: "Process Health"
         status: $processHealthStatus
         shell_runs: $activeShellRunCount
+        registered_runs: $registeredRunCount
+        owned_processes: $ownedProcessCount
+        unmatched_runs: $unmatchedActiveRunCount
         risks: $processRiskCount
         stop_policy: "break_glass_required"
       }
@@ -267,13 +273,21 @@ composition "HoloShell Home" {
   action update_process_health(processHealth) {
     state.processHealthStatus = processHealth.summary.riskState
     state.activeShellRunCount = processHealth.summary.shellRunCount
+    state.registeredRunCount = processHealth.summary.registeredRunCount
+    state.ownedProcessCount = processHealth.summary.ownedProcessCount
+    state.unmatchedActiveRunCount = processHealth.summary.unmatchedActiveRunCount
     state.processRiskCount = processHealth.summary.staleRunCount
       + processHealth.summary.highMemoryCount
       + processHealth.summary.orphanLikeCount
+      + processHealth.summary.overdueRegisteredRunCount
+      + processHealth.summary.unmatchedActiveRunCount
     emit("holoshell:process-health", {
       action: "process_health_updated",
       risk_state: state.processHealthStatus,
       shell_runs: state.activeShellRunCount,
+      registered_runs: state.registeredRunCount,
+      owned_processes: state.ownedProcessCount,
+      unmatched_runs: state.unmatchedActiveRunCount,
       risk_count: state.processRiskCount,
       automatic_termination_allowed: false
     })

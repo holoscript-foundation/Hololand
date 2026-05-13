@@ -46,7 +46,7 @@ These are the first-class objects of HoloShell.
 | Capability Room | Shows hardware, HoloScript, HoloMesh, browser, projects, CLI, and legacy app capability families. | Inventory adapter and static projection exist. |
 | HoloScript Surface Bridge | Projects HoloScript REST, MCP/RPC, and CLI tools into HoloShell rooms and machines. | Bridge source and surface-map adapter exist. |
 | Agent Presence Fabric | Shows active shells, desktop agents, IDE agents, browser/vision agents, and HoloMesh presence as color lanes. | Lane source and local adapter exist. |
-| Process Health Room | Shows PID custody, shell/dev runs, stale runs, high-memory pressure, and cleanup approvals. | Source and read-only adapter exist. |
+| Process Health Room | Shows PID custody, shell/dev runs, registered runs, stale runs, high-memory pressure, and cleanup approvals. | Source, read-only adapter, and run wrapper exist. |
 | Legacy Machine Gallery | Groups absorbed apps by capability archetype, not by raw installed app name. | Archetype research exists; live grouping next. |
 | Agent Operator Room | Shows active agents, current task, permission boundary, and receipts. | Static projection exists; HoloMesh live binding next. |
 | Trust Timeline | Shows local action receipts and rollback state. | Receipt model seeded; live receipt linker next. |
@@ -119,8 +119,13 @@ Make hardware health an agent responsibility.
 Deliverables:
 
 - Read `.tmp/holoshell/process-health.json`.
+- Read `.tmp/holoshell/run-registry.json`.
 - Render process count, shell/dev run count, stale run count, high-memory count,
-  and parent-not-visible count in the Process Health Room.
+  registered run count, owned process count, overdue run count,
+  unmatched active run count, and parent-not-visible count in the Process
+  Health Room.
+- Start heavy local commands through `scripts/holoshell-run.mjs` so every run
+  has a lane, expected end time, pre-run health gate, and receipt.
 - Link shell/dev runs to agent lanes when possible.
 - Generate stop plans without stopping anything.
 - Route actual termination through break-glass approval.
@@ -129,6 +134,9 @@ Acceptance:
 
 - Agents check process health before starting heavy builds, tests, browser
   audits, or watchers.
+- Heavy runs are blocked under `warn` or `critical` health unless the owning
+  lane gives an explicit reason.
+- HoloShell distinguishes owned active runs from stale anonymous processes.
 - HoloShell shows stale and high-memory runs without exposing raw command lines
   by default.
 - A process cannot be stopped without exact PID, reason, approval policy, and

@@ -15,12 +15,18 @@ composition "HoloShell Process Health Room" {
   state {
     processCount: 0
     shellRunCount: 0
+    registeredRunCount: 0
+    activeRegisteredRunCount: 0
+    ownedProcessCount: 0
+    overdueRegisteredRunCount: 0
+    unmatchedActiveRunCount: 0
     staleRunCount: 0
     highMemoryCount: 0
     orphanLikeCount: 0
     riskState: "unknown"
     selectedPid: 0
     lastProcessReceiptId: ""
+    lastRunReceiptId: ""
   }
 
   channel "holoshell:process:health" {
@@ -33,6 +39,12 @@ composition "HoloShell Process Health Room" {
     type: "append_only"
     priority: "high"
     description: "Receipts for process inventory, custody decisions, and approved stop plans"
+  }
+
+  channel "holoshell:process:run" {
+    type: "append_only"
+    priority: "critical"
+    description: "Run custody receipts created before, during, and after local commands"
   }
 
   channel "holoshell:process:approval" {
@@ -60,6 +72,19 @@ composition "HoloShell Process Health Room" {
     staleThresholdMinutes: 120
   }
 
+  template "RunReceipt" {
+    type: "machine"
+    machineType: "run_receipt"
+    runId: ""
+    laneId: ""
+    runClass: "light"
+    status: "planned"
+    pid: 0
+    expectedEndAt: ""
+    preRunHealthRequired: true
+    receiptRequired: true
+  }
+
   room "ProcessHealthRoom" {
     label: "Process Health"
     userQuestion: "What is running, who owns it, and is the hardware healthy?"
@@ -82,6 +107,17 @@ composition "HoloShell Process Health Room" {
       count: $shellRunCount
       staleCount: $staleRunCount
       ownerRequired: true
+    }
+
+    object "RunRegistry" {
+      type: "ui"
+      uiType: "run_registry"
+      label: "Run Registry"
+      registeredRuns: $registeredRunCount
+      activeRuns: $activeRegisteredRunCount
+      ownedProcesses: $ownedProcessCount
+      overdueRuns: $overdueRegisteredRunCount
+      unmatchedRuns: $unmatchedActiveRunCount
     }
 
     object "PidCustodyTable" {
@@ -108,6 +144,14 @@ composition "HoloShell Process Health Room" {
     receiptRequired: true
   }
 
+  policy "PreRunHealthGate" {
+    appliesTo: ["build", "test", "browser_audit", "dev_server", "watcher", "install", "package_script", "long_running"]
+    approvalRequired: false
+    warnRequiresReason: true
+    criticalRequiresReason: true
+    receiptRequired: true
+  }
+
   policy "BreakGlassProcessTermination" {
     appliesTo: ["stop_process", "kill_process", "kill_process_tree"]
     approvalRequired: true
@@ -120,6 +164,11 @@ composition "HoloShell Process Health Room" {
   action consume_process_health(health) {
     state.processCount = health.summary.processCount
     state.shellRunCount = health.summary.shellRunCount
+    state.registeredRunCount = health.summary.registeredRunCount
+    state.activeRegisteredRunCount = health.summary.activeRegisteredRunCount
+    state.ownedProcessCount = health.summary.ownedProcessCount
+    state.overdueRegisteredRunCount = health.summary.overdueRegisteredRunCount
+    state.unmatchedActiveRunCount = health.summary.unmatchedActiveRunCount
     state.staleRunCount = health.summary.staleRunCount
     state.highMemoryCount = health.summary.highMemoryCount
     state.orphanLikeCount = health.summary.orphanLikeCount
@@ -128,9 +177,28 @@ composition "HoloShell Process Health Room" {
       riskState: state.riskState,
       processes: state.processCount,
       shellRuns: state.shellRunCount,
+      registeredRuns: state.registeredRunCount,
+      activeRegisteredRuns: state.activeRegisteredRunCount,
+      ownedProcesses: state.ownedProcessCount,
+      overdueRegisteredRuns: state.overdueRegisteredRunCount,
+      unmatchedActiveRuns: state.unmatchedActiveRunCount,
       staleRuns: state.staleRunCount,
       highMemory: state.highMemoryCount,
       orphanLike: state.orphanLikeCount
+    })
+  }
+
+  action register_run(runReceipt) {
+    state.lastRunReceiptId = runReceipt.runId
+    emit("holoshell:process:run", {
+      runId: runReceipt.runId,
+      lane: runReceipt.lane,
+      command: runReceipt.command,
+      status: runReceipt.status,
+      pid: runReceipt.process.pid,
+      expectedEndAt: runReceipt.timing.expectedEndAt,
+      healthGate: runReceipt.healthGate,
+      receiptRequired: true
     })
   }
 
