@@ -15,6 +15,8 @@ import { join, dirname, basename, relative } from 'path';
 import { glob } from 'glob';
 
 // Configuration
+// NOTE: OUTPUT_DIR is gitignored (see .gitignore). These are demonstration
+// placeholders, not golden snapshots. Do not commit generated files.
 const TARGETS = ['unity', 'unreal', 'godot', 'babylon', 'webgpu'];
 const OUTPUT_DIR = 'examples/compiled-outputs';
 const REPO_ROOT = process.cwd();

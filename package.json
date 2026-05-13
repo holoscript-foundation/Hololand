@@ -39,7 +39,7 @@
     "compile:babylon": "echo 'Compile .holo files to Babylon.js TypeScript - requires @holoscript/cli'",
     "compile:webgpu": "echo 'Compile .holo files to WebGPU shaders - requires @holoscript/cli'",
     "compile:all": "echo 'Compile .holo files to all targets - requires @holoscript/cli'",
-    "compile:examples": "echo 'See examples/compiled-outputs/ for demonstration cross-compilation outputs'"
+    "compile:examples": "node scripts/compile-all-zones.js"
   },
   "keywords": [
     "holoscript",

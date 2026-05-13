@@ -33,7 +33,7 @@ empty scaffolds — they are tracked but contain no HoloScript source yet.
 | `examples/oasis/` | [`examples/oasis/`](../examples/oasis/) | Tauri desktop slice; audit flags as TS-only with zero HoloScript source. |
 | `examples/hololand-website/`, `hololand-landing/` | — | Marketing/site shapes; audit flagged as docs-or-TS, not product source. |
 | `examples/holoscript-studio/` | [`examples/holoscript-studio/`](../examples/holoscript-studio/) | Studio-in-browser demo (single `scene.holo` plus harness). |
-| `examples/compiled-outputs/` | — | Generated artefacts. Audit flags 286 tracked files as needing snapshot rationale or removal. |
+| `examples/compiled-outputs/` | — | Generated artefacts. **Untracked 2026-05-12** — not golden snapshots. Regenerate on demand via `node scripts/compile-all-zones.js`. |
 
 For the actual file inventory, run the `find` command at the top of this doc.
 
