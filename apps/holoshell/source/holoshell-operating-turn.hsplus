@@ -1,0 +1,122 @@
+// HoloShell Operating Turn
+//
+// A full local turn refreshes hardware reality, legacy windows, build custody,
+// run custody, readiness evidence, the operator brief, Brittney's custody action,
+// and a visual witness. It is the smallest repeatable unit of computer care.
+
+composition "HoloShell Operating Turn" {
+  config {
+    title: "Operating Turn"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-operating-turn.mjs"
+    defaultMode: "local_hardware_turn"
+  }
+
+  state {
+    status: "unknown"
+    stepCount: 0
+    passedStepCount: 0
+    failedStepCount: 0
+    activeBuildTreeCount: 0
+    buildProcessCount: 0
+    operatorStatus: "unknown"
+    ownerUnknownRunCount: 0
+    readinessStatus: "unknown"
+    visualWitnessStatus: "unknown"
+    lastOperatingTurnReceiptId: ""
+  }
+
+  channel "holoshell:operating:turn" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "One repeatable HoloShell hardware-management turn for Brittney and agents"
+  }
+
+  template "OperatingTurnStep" {
+    type: "machine"
+    machineType: "operating_turn_step"
+    stepId: ""
+    label: ""
+    script: ""
+    status: "pending"
+    durationMs: 0
+    receiptRequired: true
+  }
+
+  room "OperatingTurnRoom" {
+    label: "Operating Turn"
+    userQuestion: "What happened when HoloShell took one local hardware turn?"
+    visualForm: "turn_timeline"
+    liveFeed: "holoshell:operating:turn"
+
+    object "TurnTimeline" {
+      type: "ui"
+      uiType: "timeline"
+      label: "Turn"
+      status: $status
+      steps: $stepCount
+      passed: $passedStepCount
+      failed: $failedStepCount
+    }
+
+    object "TurnHardwareCare" {
+      type: "ui"
+      uiType: "hardware_care_summary"
+      label: "Hardware Care"
+      activeBuildTrees: $activeBuildTreeCount
+      buildProcesses: $buildProcessCount
+      ownerUnknownRuns: $ownerUnknownRunCount
+    }
+
+    object "TurnEvidence" {
+      type: "ui"
+      uiType: "evidence_summary"
+      label: "Evidence"
+      readiness: $readinessStatus
+      visualWitness: $visualWitnessStatus
+    }
+  }
+
+  policy "OperatingTurnIsReadOnlyByDefault" {
+    appliesTo: ["brittney_turn", "agent_shell_action", "legacy_app_operation", "build_custody_action"]
+    destructiveActionsAllowed: false
+    rawCommandsHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "BrittneyConsumesTurnBeforeActing" {
+    appliesTo: ["brittney_local_operator", "holoshell_peer_coordination"]
+    requiredInputs: ["operating_turn", "operator_brief", "build_custody", "readiness_evidence"]
+    firstMove: "observe_and_claim_custody"
+    receiptRequired: true
+  }
+
+  action consume_operating_turn(turn) {
+    state.status = turn.summary.status
+    state.stepCount = turn.summary.stepCount
+    state.passedStepCount = turn.summary.passedStepCount
+    state.failedStepCount = turn.summary.failedStepCount
+    state.activeBuildTreeCount = turn.summary.activeBuildTreeCount
+    state.buildProcessCount = turn.summary.buildProcessCount
+    state.operatorStatus = turn.summary.operatorStatus
+    state.ownerUnknownRunCount = turn.summary.ownerUnknownRunCount
+    state.readinessStatus = turn.summary.readinessStatus
+    state.visualWitnessStatus = turn.summary.visualWitnessStatus
+    state.lastOperatingTurnReceiptId = turn.receipt.operatingTurnHash
+
+    emit("holoshell:operating:turn", {
+      status: state.status,
+      steps: state.stepCount,
+      passed: state.passedStepCount,
+      failed: state.failedStepCount,
+      activeBuildTrees: state.activeBuildTreeCount,
+      buildProcesses: state.buildProcessCount,
+      operatorStatus: state.operatorStatus,
+      ownerUnknownRuns: state.ownerUnknownRunCount,
+      readiness: state.readinessStatus,
+      visualWitness: state.visualWitnessStatus,
+      receipt: state.lastOperatingTurnReceiptId
+    })
+  }
+}

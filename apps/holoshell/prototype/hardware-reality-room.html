@@ -374,9 +374,11 @@
     }
   </style>
   <script src="../../../.tmp/holoshell/hardware-reality.js"></script>
+  <script src="../../../.tmp/holoshell/build-custody.js"></script>
   <script src="../../../.tmp/holoshell/run-custody.js"></script>
   <script src="../../../.tmp/holoshell/legacy-window-inventory.js"></script>
   <script src="../../../.tmp/holoshell/legacy-app-absorption.js"></script>
+  <script src="../../../.tmp/holoshell/readiness-evidence.js"></script>
   <script src="../../../.tmp/holoshell/operator-brief.js"></script>
   <script src="../../../.tmp/holoshell/brittney-custody-action.js"></script>
   <script src="../../../.tmp/holoshell/visual-witness.js"></script>
@@ -423,9 +425,11 @@
 
   <script>
     const reality = window.HOLOSHELL_HARDWARE_REALITY || null;
+    const buildCustody = window.HOLOSHELL_BUILD_CUSTODY || null;
     const custody = window.HOLOSHELL_RUN_CUSTODY || null;
     const legacyWindowInventory = window.HOLOSHELL_LEGACY_WINDOW_INVENTORY || null;
     const legacyAbsorption = window.HOLOSHELL_LEGACY_APP_ABSORPTION || null;
+    const readinessEvidence = window.HOLOSHELL_READINESS_EVIDENCE || null;
     const operatorBrief = window.HOLOSHELL_OPERATOR_BRIEF || null;
     const brittneyCustodyAction = window.HOLOSHELL_BRITTNEY_CUSTODY_ACTION || null;
     const visualWitness = window.HOLOSHELL_VISUAL_WITNESS || null;
@@ -461,11 +465,13 @@
 
     function renderMetrics(summary) {
       const custodySummary = custody?.summary || {};
+      const buildSummary = buildCustody?.summary || operatorBrief?.build || {};
       const windowSummary = legacyWindowInventory?.summary || {};
       const shellCustody = operatorBrief?.shellCustody || {};
       const items = [
         ["Processes", summary.processCount],
         ["Shell Runs", summary.shellRunCount],
+        ["Build Trees", buildSummary.activeBuildTreeCount ?? 0],
         ["Lane Owned", custodySummary.observedOwnerCount ?? summary.laneAttributedShellRunCount ?? 0],
         ["AI Peers", windowSummary.aiPeerWindowCount ?? windowSummary.peerWindowCount ?? 0],
         ["Shell Windows", windowSummary.shellWindowCount ?? 0],
@@ -604,12 +610,14 @@
     function renderGates(model) {
       const safety = model.safety || {};
       const summary = model.summary || {};
+      const operator = operatorBrief || {};
       const custodySummary = custody?.summary || {};
+      const buildSummary = buildCustody?.summary || operator.build || {};
       const legacySummary = legacyAbsorption?.summary || {};
       const windowSummary = legacyWindowInventory?.summary || {};
+      const readinessSummary = readinessEvidence?.summary || operator.readiness || {};
       const brief = custody?.brittneyBrief || {};
       const legacyBrief = legacyAbsorption?.brittneyBrief || {};
-      const operator = operatorBrief || {};
       const shellCustody = operator.shellCustody || {};
       const brittneyAction = brittneyCustodyAction || {};
       const witness = visualWitness || {};
@@ -630,8 +638,10 @@
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
+        ["Build Custody", `${buildSummary.activeBuildTreeCount || 0} trees / ${buildSummary.buildProcessCount || 0} pids / ${buildSummary.riskState || "unknown"}`],
         ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.observedOwnerCount || 0} lane / ${custodySummary.ownerUnknownCount || 0} unknown`],
         ["Shell Custody", `${shellCustody.boundWindowCount || 0}/${shellCustody.windowCount || 0} bound windows / ${shellCustody.ownerUnknownRunCount || 0} unknown runs`],
+        ["Readiness Evidence", `${readinessSummary.status || "missing"} / ${readinessSummary.tokenCount || 0} tokens / ${readinessSummary.warningCount || 0} warnings`],
         ["Brittney Next", brief.requiredNextAction || "Run custody snapshot first"],
         ["Peer Windows", `${windowSummary.aiPeerWindowCount ?? windowSummary.peerWindowCount ?? 0} ai / ${windowSummary.shellWindowCount || 0} shell / ${windowSummary.operatingSurfaceWindowCount || 0} operating`],
         ["Legacy Absorption", `${legacySummary.visibleWindowCount || windowSummary.visibleWindowCount || 0} windows / ${legacySummary.captureCandidateCount || 0} capture candidates`],

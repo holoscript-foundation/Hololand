@@ -1,0 +1,131 @@
+// HoloShell Build Custody
+//
+// Active builds are hardware events, not vague terminal noise. This source
+// contract lets Brittney and peer agents see build trees as guarded custody
+// objects with PID evidence, memory pressure, age, and explicit stop policy.
+
+composition "HoloShell Build Custody" {
+  config {
+    title: "Build Custody"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-build-custody.mjs"
+    defaultMode: "read_only_hardware_custody"
+  }
+
+  state {
+    riskState: "unknown"
+    processCount: 0
+    buildProcessCount: 0
+    activeBuildTreeCount: 0
+    longRunningBuildCount: 0
+    highMemoryBuildCount: 0
+    reviewRequiredCount: 0
+    lastBuildCustodyReceiptId: ""
+  }
+
+  channel "holoshell:build:custody" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Local build process trees and guarded PID custody state"
+  }
+
+  template "BuildProcess" {
+    type: "machine"
+    machineType: "build_process"
+    pid: 0
+    parentPid: 0
+    processName: "process"
+    buildKind: "build_child"
+    ageMinutes: 0
+    memoryMb: 0
+    commandHash: ""
+    rawCommandHidden: true
+    custodyState: "active_build"
+    stopPolicy: "break_glass_required"
+    receiptRequired: true
+  }
+
+  template "BuildTree" {
+    type: "machine"
+    machineType: "build_tree"
+    treeId: ""
+    rootPid: 0
+    status: "active"
+    processCount: 0
+    maxAgeMinutes: 0
+    totalMemoryMb: 0
+    processPids: []
+    receiptRequired: true
+  }
+
+  room "BuildCustodyRoom" {
+    label: "Build Custody"
+    userQuestion: "What is currently building on this computer, and who is watching it?"
+    visualForm: "build_tree_custody_panel"
+    liveFeed: "holoshell:build:custody"
+
+    object "ActiveBuildTrees" {
+      type: "ui"
+      uiType: "build_tree_stack"
+      label: "Active Builds"
+      count: $activeBuildTreeCount
+      risk: $riskState
+    }
+
+    object "BuildProcessTable" {
+      type: "ui"
+      uiType: "pid_custody_table"
+      label: "Build PIDs"
+      processCount: $buildProcessCount
+      longRunning: $longRunningBuildCount
+      highMemory: $highMemoryBuildCount
+    }
+
+    object "BuildStopGate" {
+      type: "ui"
+      uiType: "break_glass_gate"
+      label: "Stop Policy"
+      directStopAllowed: false
+      stopPlanRequired: true
+    }
+  }
+
+  policy "ActiveBuildsAreCustodyObjects" {
+    appliesTo: ["build_process", "build_tree", "agent_shell_action", "brittney_turn"]
+    requiredInput: "holoshell_build_custody"
+    activeBuildDoesNotEqualFailure: true
+    rawCommandHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "BuildTerminationRequiresBreakGlass" {
+    appliesTo: ["kill_build_process", "stop_build_tree", "delete_build_output"]
+    directExecutionAllowed: false
+    preflightRequired: true
+    stopPlanRequired: true
+    receiptRequired: true
+  }
+
+  action consume_build_custody(custody) {
+    state.riskState = custody.summary.riskState
+    state.processCount = custody.summary.processCount
+    state.buildProcessCount = custody.summary.buildProcessCount
+    state.activeBuildTreeCount = custody.summary.activeBuildTreeCount
+    state.longRunningBuildCount = custody.summary.longRunningBuildCount
+    state.highMemoryBuildCount = custody.summary.highMemoryBuildCount
+    state.reviewRequiredCount = custody.summary.reviewRequiredCount
+    state.lastBuildCustodyReceiptId = custody.receipt.buildCustodyHash
+
+    emit("holoshell:build:custody", {
+      riskState: state.riskState,
+      processCount: state.processCount,
+      buildProcesses: state.buildProcessCount,
+      activeBuildTrees: state.activeBuildTreeCount,
+      longRunningBuilds: state.longRunningBuildCount,
+      highMemoryBuilds: state.highMemoryBuildCount,
+      reviewRequired: state.reviewRequiredCount,
+      receipt: state.lastBuildCustodyReceiptId
+    })
+  }
+}

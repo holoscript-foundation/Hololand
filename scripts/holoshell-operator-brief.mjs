@@ -7,8 +7,11 @@ const SCHEMA_VERSION = 'hololand.holoshell.operator-brief.v0.1.0';
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_HARDWARE_REALITY = path.join('.tmp', 'holoshell', 'hardware-reality.json');
 const DEFAULT_RUN_CUSTODY = path.join('.tmp', 'holoshell', 'run-custody.json');
+const DEFAULT_BUILD_CUSTODY = path.join('.tmp', 'holoshell', 'build-custody.json');
 const DEFAULT_LEGACY_ABSORPTION = path.join('.tmp', 'holoshell', 'legacy-app-absorption.json');
 const DEFAULT_LEGACY_WINDOWS = path.join('.tmp', 'holoshell', 'legacy-window-inventory.json');
+const DEFAULT_READINESS_EVIDENCE = path.join('.tmp', 'holoshell', 'readiness-evidence.json');
+const DEFAULT_VISUAL_WITNESS = path.join('.tmp', 'holoshell', 'visual-witness.json');
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'operator-brief.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'operator-brief.js');
 
@@ -16,8 +19,11 @@ function parseArgs(argv) {
   const args = {
     hardwareReality: DEFAULT_HARDWARE_REALITY,
     runCustody: DEFAULT_RUN_CUSTODY,
+    buildCustody: DEFAULT_BUILD_CUSTODY,
     legacyAbsorption: DEFAULT_LEGACY_ABSORPTION,
     legacyWindows: DEFAULT_LEGACY_WINDOWS,
+    readinessEvidence: DEFAULT_READINESS_EVIDENCE,
+    visualWitness: DEFAULT_VISUAL_WITNESS,
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
     json: false,
@@ -29,8 +35,11 @@ function parseArgs(argv) {
     if (arg === '--') continue;
     else if (arg === '--hardware-reality') args.hardwareReality = argv[++index];
     else if (arg === '--run-custody') args.runCustody = argv[++index];
+    else if (arg === '--build-custody') args.buildCustody = argv[++index];
     else if (arg === '--legacy-absorption') args.legacyAbsorption = argv[++index];
     else if (arg === '--legacy-windows') args.legacyWindows = argv[++index];
+    else if (arg === '--readiness-evidence') args.readinessEvidence = argv[++index];
+    else if (arg === '--visual-witness') args.visualWitness = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
     else if (arg === '--json') args.json = true;
@@ -54,8 +63,11 @@ Usage:
 Options:
   --hardware-reality <path>    Hardware reality JSON.
   --run-custody <path>         Run custody JSON.
+  --build-custody <path>       Build custody JSON.
   --legacy-absorption <path>   Legacy absorption JSON.
   --legacy-windows <path>      Legacy window inventory JSON.
+  --readiness-evidence <path>  Readiness evidence JSON.
+  --visual-witness <path>      Visual witness JSON.
   --output <path>              Output JSON. Default: .tmp/holoshell/operator-brief.json.
   --js-output <path>           Browser bootstrap JS. Default: .tmp/holoshell/operator-brief.js.
   --json                       Print JSON.
@@ -135,6 +147,34 @@ function syntheticInputs() {
       },
       receipt: { custodyHash: 'custody-fixture' },
     },
+    buildCustody: {
+      summary: {
+        riskState: 'pass',
+        processCount: 12,
+        buildProcessCount: 4,
+        activeBuildCount: 4,
+        activeBuildTreeCount: 1,
+        buildTreeCount: 1,
+        longRunningBuildCount: 0,
+        highMemoryBuildCount: 0,
+        reviewRequiredCount: 0,
+        rawCommandsIncluded: false,
+      },
+      buildTrees: [
+        { treeId: 'build-tree-100', rootPid: 100, status: 'active', processCount: 4, totalMemoryMb: 460, processPids: [100, 101, 102, 103] },
+      ],
+      buildProcesses: [
+        { pid: 100, ppid: 10, name: 'pwsh.exe', buildKind: 'pnpm_build', commandHash: 'build-fixture-command', rawCommandHidden: true, custodyState: 'active_build' },
+      ],
+      brittneyBrief: {
+        status: 'active_builds_visible',
+        requiredNextAction: '1 active build tree visible; observe custody and do not terminate without break-glass approval.',
+        blockedActions: ['kill_build_process', 'stop_build_tree'],
+        custodySummary: '4 build process(es) across 1 tree(s); 0 long-running; 0 high-memory.',
+      },
+      safety: { destructiveActionsTaken: false, rawCommandsIncluded: false, processTerminationAllowed: false },
+      receipt: { buildCustodyHash: 'build-custody-fixture', rawCommandsIncluded: false },
+    },
     legacyAbsorption: {
       summary: {
         observedAppCount: 3,
@@ -201,6 +241,27 @@ function syntheticInputs() {
       safety: { destructiveActionsTaken: false, rawWindowTitlesIncluded: false },
       receipt: { windowInventoryHash: 'window-fixture', rawWindowTitlesIncluded: false },
     },
+    readinessEvidence: {
+      summary: {
+        status: 'ready',
+        tokenCount: 8,
+        warningCount: 0,
+        buildStatus: 'passed',
+        graphStatus: 'ok',
+        nextWorkflow: 'holoshell_operating_turn',
+      },
+      tokens: [
+        { tokenId: 'readiness.build', status: 'passed', label: 'Build evidence' },
+        { tokenId: 'readiness.webgpu', status: 'available', label: 'WebGPU evidence' },
+      ],
+      receipt: { readinessHash: 'readiness-fixture' },
+    },
+    visualWitness: {
+      status: 'pass',
+      screenshot: { path: '.tmp/holoshell/hardware-reality-room.png' },
+      receipt: { witnessHash: 'witness-fixture' },
+      safety: { destructiveActionsTaken: false },
+    },
   };
 }
 
@@ -209,6 +270,30 @@ function loadInputs(args) {
   return {
     hardwareReality: loadInput(args.hardwareReality, 'hardware reality'),
     runCustody: loadInput(args.runCustody, 'run custody'),
+    buildCustody: loadOptionalInput(args.buildCustody) || {
+      summary: {
+        riskState: 'unknown',
+        processCount: 0,
+        buildProcessCount: 0,
+        activeBuildCount: 0,
+        activeBuildTreeCount: 0,
+        buildTreeCount: 0,
+        longRunningBuildCount: 0,
+        highMemoryBuildCount: 0,
+        reviewRequiredCount: 0,
+        rawCommandsIncluded: false,
+      },
+      buildTrees: [],
+      buildProcesses: [],
+      brittneyBrief: {
+        status: 'build_custody_missing',
+        requiredNextAction: 'Run holoshell:build-custody before trusting active build state.',
+        blockedActions: ['kill_build_process', 'stop_build_tree'],
+        custodySummary: 'build custody missing',
+      },
+      safety: { destructiveActionsTaken: false, rawCommandsIncluded: false, processTerminationAllowed: false },
+      receipt: { buildCustodyHash: null, rawCommandsIncluded: false },
+    },
     legacyAbsorption: loadInput(args.legacyAbsorption, 'legacy absorption'),
     legacyWindows: loadOptionalInput(args.legacyWindows) || {
       summary: {
@@ -235,6 +320,24 @@ function loadInputs(args) {
       },
       safety: { destructiveActionsTaken: false, rawWindowTitlesIncluded: false },
       receipt: { windowInventoryHash: null, rawWindowTitlesIncluded: false },
+    },
+    readinessEvidence: loadOptionalInput(args.readinessEvidence) || {
+      summary: {
+        status: 'missing',
+        tokenCount: 0,
+        warningCount: 0,
+        buildStatus: 'unknown',
+        graphStatus: 'unknown',
+        nextWorkflow: 'run holoshell:readiness-evidence',
+      },
+      tokens: [],
+      receipt: { readinessHash: null },
+    },
+    visualWitness: loadOptionalInput(args.visualWitness) || {
+      status: 'missing',
+      screenshot: null,
+      receipt: { witnessHash: null },
+      safety: { destructiveActionsTaken: false },
     },
   };
 }
@@ -398,16 +501,26 @@ function buildShellWindowCustody(inputs) {
   };
 }
 
-function statusFor({ hardwareReality, runCustody, legacyAbsorption }) {
+function statusFor({ hardwareReality, runCustody, buildCustody, legacyAbsorption, readinessEvidence }) {
   if (hardwareReality.summary?.riskState === 'critical') return 'critical_triage';
+  if (buildCustody.summary?.riskState === 'critical') return 'build_custody_review';
   if ((runCustody.summary?.ownerUnknownCount || 0) > 0) return 'needs_run_custody';
+  if ((buildCustody.summary?.reviewRequiredCount || 0) > 0) return 'build_custody_review';
   if ((legacyAbsorption.summary?.captureCandidateCount || 0) > 0) return 'legacy_absorption_ready';
+  if (readinessEvidence.summary?.status === 'missing') return 'readiness_missing';
   if (hardwareReality.summary?.riskState === 'warn') return 'hardware_warn';
   return 'ready';
 }
 
-function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legacyWindows, shellWindowCustody }) {
+function buildNextActions({ hardwareReality, runCustody, buildCustody, legacyAbsorption, legacyWindows, shellWindowCustody, readinessEvidence, visualWitness }) {
   const actions = [];
+  if ((buildCustody.summary?.activeBuildTreeCount || 0) > 0 || buildCustody.brittneyBrief?.status === 'build_custody_missing') {
+    actions.push({
+      source: 'build_custody',
+      priority: (buildCustody.summary?.reviewRequiredCount || 0) > 0 ? 'high' : 'medium',
+      action: buildCustody.brittneyBrief?.requiredNextAction || 'Refresh active build custody.',
+    });
+  }
   if (runCustody.brittneyBrief?.requiredNextAction) {
     actions.push({
       source: 'run_custody',
@@ -437,6 +550,22 @@ function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legac
       action: legacyAbsorption.brittneyBrief.requiredNextAction,
     });
   }
+  if (readinessEvidence.summary?.status === 'missing' || (readinessEvidence.summary?.warningCount || 0) > 0) {
+    actions.push({
+      source: 'readiness_evidence',
+      priority: readinessEvidence.summary?.status === 'missing' ? 'medium' : 'high',
+      action: readinessEvidence.summary?.status === 'missing'
+        ? 'Run readiness evidence ingestion before claiming full hardware readiness.'
+        : `${readinessEvidence.summary.warningCount} readiness warning(s) need review.`,
+    });
+  }
+  if (visualWitness.status && !['pass', 'ready'].includes(visualWitness.status)) {
+    actions.push({
+      source: 'visual_witness',
+      priority: visualWitness.status === 'missing' ? 'medium' : 'high',
+      action: 'Refresh the HoloShell visual witness so the room state is grounded in a screenshot.',
+    });
+  }
   for (const recommendation of safeArray(hardwareReality.recommendations).slice(0, 3)) {
     actions.push({
       source: 'hardware_reality',
@@ -448,7 +577,7 @@ function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legac
 }
 
 function createBrief(inputs) {
-  const { hardwareReality, runCustody, legacyAbsorption, legacyWindows } = inputs;
+  const { hardwareReality, runCustody, buildCustody, legacyAbsorption, legacyWindows, readinessEvidence, visualWitness } = inputs;
   const shellWindowCustody = buildShellWindowCustody(inputs);
   const aiPeerWindowCount = legacyWindows.summary?.aiPeerWindowCount ?? legacyWindows.summary?.peerWindowCount ?? 0;
   const aiPeerSurfaceCount = legacyWindows.summary?.aiPeerSurfaceCount ?? legacyWindows.summary?.peerSurfaceCount ?? 0;
@@ -458,9 +587,11 @@ function createBrief(inputs) {
   const operatingSurfaceCount = legacyWindows.summary?.operatingSurfaceCount ?? aiPeerSurfaceCount + shellSurfaceCount;
   const blockedActions = unique([
     ...safeArray(runCustody.brittneyBrief?.blockedActions),
+    ...safeArray(buildCustody.brittneyBrief?.blockedActions),
     ...safeArray(legacyAbsorption.brittneyBrief?.blockedActions),
     ...safeArray(legacyWindows.brittneyBrief?.blockedActions),
     'kill_process',
+    'kill_build_process',
     'delete_file',
     'legacy_app_mutation',
     'registry_change',
@@ -472,22 +603,29 @@ function createBrief(inputs) {
     'extend_run',
     'close_run_receipt',
     'mark_run_stale',
+    'observe_build',
+    'refresh_build_custody',
     'capture_window',
     'map_visible_controls',
     'summarize_visible_state',
+    'ingest_readiness_evidence',
+    'capture_visual_witness',
   ]);
   const nextActions = buildNextActions({ ...inputs, shellWindowCustody });
   const safety = {
     destructiveActionsTaken: Boolean(
       hardwareReality.safety?.destructiveActionsTaken
         || runCustody.safety?.destructiveActionsTaken
+        || buildCustody.safety?.destructiveActionsTaken
         || legacyAbsorption.safety?.destructiveActionsTaken
         || legacyWindows.safety?.destructiveActionsTaken
+        || visualWitness.safety?.destructiveActionsTaken
     ),
     rawCommandsIncluded: Boolean(
       hardwareReality.receipt?.rawCommandsIncluded
-        || runCustody.safety?.rawCommandsIncluded
-        || legacyAbsorption.safety?.rawCommandsIncluded
+      || runCustody.safety?.rawCommandsIncluded
+      || buildCustody.safety?.rawCommandsIncluded
+      || legacyAbsorption.safety?.rawCommandsIncluded
     ),
     preflightRequiredForTermination: Boolean(hardwareReality.safety?.preflightRequiredForTermination),
     preflightRequiredForLegacyMutation: Boolean(legacyAbsorption.safety?.preflightRequiredForMutation),
@@ -501,8 +639,11 @@ function createBrief(inputs) {
       adapter: 'scripts/holoshell-operator-brief.mjs',
       hardwareReality: 'scripts/holoshell-hardware-reality-bridge.mjs',
       runCustody: 'scripts/holoshell-run-custody-actions.mjs',
+      buildCustody: 'scripts/holoshell-build-custody.mjs',
       legacyAbsorption: 'scripts/holoshell-legacy-app-absorption.mjs',
       legacyWindows: 'scripts/holoshell-legacy-window-inventory.mjs',
+      readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
+      visualWitness: 'scripts/holoshell-visual-witness.mjs',
     },
     status: statusFor(inputs),
     hardware: {
@@ -523,6 +664,20 @@ function createBrief(inputs) {
       staleRunCount: runCustody.summary?.staleRunCount || 0,
       closedRunCount: runCustody.summary?.closedRunCount || 0,
       custodyHash: runCustody.receipt?.custodyHash || null,
+    },
+    build: {
+      riskState: buildCustody.summary?.riskState || 'unknown',
+      processCount: buildCustody.summary?.processCount || 0,
+      buildProcessCount: buildCustody.summary?.buildProcessCount || 0,
+      activeBuildCount: buildCustody.summary?.activeBuildCount || 0,
+      activeBuildTreeCount: buildCustody.summary?.activeBuildTreeCount || 0,
+      buildTreeCount: buildCustody.summary?.buildTreeCount || 0,
+      longRunningBuildCount: buildCustody.summary?.longRunningBuildCount || 0,
+      highMemoryBuildCount: buildCustody.summary?.highMemoryBuildCount || 0,
+      reviewRequiredCount: buildCustody.summary?.reviewRequiredCount || 0,
+      topBuildTreeId: safeArray(buildCustody.buildTrees)[0]?.treeId || null,
+      topBuildTreeStatus: safeArray(buildCustody.buildTrees)[0]?.status || null,
+      buildCustodyHash: buildCustody.receipt?.buildCustodyHash || null,
     },
     legacy: {
       observedAppCount: legacyAbsorption.summary?.observedAppCount || 0,
@@ -575,6 +730,20 @@ function createBrief(inputs) {
       })),
     },
     shellCustody: shellWindowCustody,
+    readiness: {
+      status: readinessEvidence.summary?.status || readinessEvidence.status || 'unknown',
+      tokenCount: readinessEvidence.summary?.tokenCount || 0,
+      warningCount: readinessEvidence.summary?.warningCount || 0,
+      buildStatus: readinessEvidence.summary?.buildStatus || 'unknown',
+      graphStatus: readinessEvidence.summary?.graphStatus || 'unknown',
+      nextWorkflow: readinessEvidence.summary?.nextWorkflow || null,
+      readinessHash: readinessEvidence.receipt?.readinessHash || readinessEvidence.readinessId || null,
+    },
+    visualWitness: {
+      status: visualWitness.status || 'unknown',
+      screenshotPath: visualWitness.screenshot?.path || null,
+      witnessHash: visualWitness.receipt?.witnessHash || visualWitness.receipt?.visualWitnessHash || null,
+    },
     allowedActions,
     blockedActions,
     nextActions,
@@ -586,15 +755,20 @@ function createBrief(inputs) {
       peerWindowSummary: legacyWindows.brittneyBrief?.peerWindowSummary || safeArray(legacyWindows.peerSurfaces).map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
       shellWindowSummary: legacyWindows.brittneyBrief?.shellWindowSummary || safeArray(legacyWindows.shellSurfaces).map((surface) => `${surface.label}:${surface.windowInstanceCount}`).join(', ') || 'no shell windows',
       shellCustodySummary: `${shellWindowCustody.boundWindowCount}/${shellWindowCustody.windowCount} shell window(s) bound to ${shellWindowCustody.boundRunCount} run(s); ${shellWindowCustody.ownerUnknownRunCount} bound run(s) need custody.`,
+      buildCustodySummary: buildCustody.brittneyBrief?.custodySummary || `${buildCustody.summary?.buildProcessCount || 0} build process(es).`,
+      readinessSummary: `${readinessEvidence.summary?.status || 'unknown'} / ${readinessEvidence.summary?.tokenCount || 0} token(s) / ${readinessEvidence.summary?.warningCount || 0} warning(s).`,
+      visualWitnessSummary: `${visualWitness.status || 'unknown'}${visualWitness.screenshot?.path ? ' / screenshot ready' : ''}.`,
     },
     agentConsumption: {
       rest: '.tmp/holoshell/operator-brief.json',
       browserBootstrap: '.tmp/holoshell/operator-brief.js',
       requiredRefreshOrder: [
         'pnpm run holoshell:hardware-reality',
+        'pnpm run holoshell:build-custody',
         'pnpm run holoshell:run-custody',
         'pnpm run holoshell:legacy-windows',
         'pnpm run holoshell:legacy-apps',
+        'pnpm run holoshell:readiness-evidence',
         'pnpm run holoshell:operator-brief',
       ],
     },
@@ -607,9 +781,12 @@ function createBrief(inputs) {
         status: brief.status,
         hardware: brief.hardware,
         runs: brief.runs,
+        build: brief.build,
         legacy: brief.legacy,
         peers: brief.peers,
         shellCustody: brief.shellCustody,
+        readiness: brief.readiness,
+        visualWitness: brief.visualWitness,
         blockedActions,
         safety,
       })),
@@ -646,6 +823,10 @@ function assertSelfTest(brief) {
   if (brief.peers.operatingSurfaceWindowCount < 3) failures.push('expected synthetic operating surface windows');
   if (brief.shellCustody.boundWindowCount < 1) failures.push('expected shell window custody binding');
   if (brief.shellCustody.ownerUnknownRunCount < 1) failures.push('expected unknown run under shell window');
+  if (brief.build.activeBuildTreeCount < 1) failures.push('expected synthetic active build tree');
+  if (!brief.blockedActions.includes('kill_build_process')) failures.push('kill_build_process must be blocked');
+  if (brief.readiness.tokenCount < 1) failures.push('expected readiness evidence tokens');
+  if (brief.visualWitness.status !== 'pass') failures.push('expected visual witness pass');
   if (!brief.nextActions.length) failures.push('expected next action');
   if (brief.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (brief.safety.rawCommandsIncluded !== false) failures.push('raw commands must be hidden');
@@ -660,6 +841,12 @@ function assertSelfTest(brief) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.selfTest && args.output === DEFAULT_OUTPUT) {
+    args.output = path.join('.tmp', 'holoshell', 'self-test', 'operator-brief.json');
+  }
+  if (args.selfTest && args.jsOutput === DEFAULT_JS_OUTPUT) {
+    args.jsOutput = path.join('.tmp', 'holoshell', 'self-test', 'operator-brief.js');
+  }
   const inputs = loadInputs(args);
   const brief = createBrief(inputs);
   if (args.selfTest) assertSelfTest(brief);
@@ -674,10 +861,13 @@ function main() {
     console.log(`Status: ${brief.status}`);
     console.log(`Hardware risk: ${brief.hardware.riskState}`);
     console.log(`Owner unknown runs: ${brief.runs.ownerUnknownCount}`);
+    console.log(`Active build trees: ${brief.build.activeBuildTreeCount}`);
     console.log(`AI peer windows: ${brief.peers.windowInstanceCount}`);
     console.log(`Shell windows: ${brief.peers.shellWindowInstanceCount}`);
     console.log(`Shell window bindings: ${brief.shellCustody.boundWindowCount}/${brief.shellCustody.windowCount}`);
     console.log(`Shell-window unknown runs: ${brief.shellCustody.ownerUnknownRunCount}`);
+    console.log(`Readiness: ${brief.readiness.status}`);
+    console.log(`Visual witness: ${brief.visualWitness.status}`);
     console.log(`Legacy capture candidates: ${brief.legacy.captureCandidateCount}`);
     console.log(`Blocked actions: ${brief.blockedActions.length}`);
     console.log(`Destructive actions: ${brief.safety.destructiveActionsTaken}`);

@@ -19,6 +19,10 @@ composition "HoloShell Operator Brief" {
     activeLaneCount: 0
     observedOwnerRunCount: 0
     ownerUnknownRunCount: 0
+    activeBuildTreeCount: 0
+    buildProcessCount: 0
+    longRunningBuildCount: 0
+    highMemoryBuildCount: 0
     visibleWindowCount: 0
     peerWindowCount: 0
     peerSurfaceCount: 0
@@ -29,6 +33,10 @@ composition "HoloShell Operator Brief" {
     shellWindowBoundCount: 0
     shellWindowUnboundCount: 0
     shellWindowOwnerUnknownRunCount: 0
+    readinessStatus: "unknown"
+    readinessTokenCount: 0
+    readinessWarningCount: 0
+    visualWitnessStatus: "unknown"
     legacyCaptureCandidateCount: 0
     blockedActionCount: 0
     destructiveActionsTaken: false
@@ -89,6 +97,16 @@ composition "HoloShell Operator Brief" {
       ownerUnknown: $ownerUnknownRunCount
     }
 
+    object "BuildState" {
+      type: "ui"
+      uiType: "operator_state"
+      label: "Build Custody"
+      activeTrees: $activeBuildTreeCount
+      processes: $buildProcessCount
+      longRunning: $longRunningBuildCount
+      highMemory: $highMemoryBuildCount
+    }
+
     object "LegacyState" {
       type: "ui"
       uiType: "operator_state"
@@ -130,6 +148,22 @@ composition "HoloShell Operator Brief" {
       unknownRuns: $shellWindowOwnerUnknownRunCount
     }
 
+    object "ReadinessState" {
+      type: "ui"
+      uiType: "readiness_state"
+      label: "Readiness Evidence"
+      status: $readinessStatus
+      tokens: $readinessTokenCount
+      warnings: $readinessWarningCount
+    }
+
+    object "VisualWitnessState" {
+      type: "ui"
+      uiType: "visual_witness_state"
+      label: "Visual Witness"
+      status: $visualWitnessStatus
+    }
+
     object "BlockedActions" {
       type: "ui"
       uiType: "blocked_action_stack"
@@ -142,7 +176,16 @@ composition "HoloShell Operator Brief" {
   policy "AgentsConsumeBriefBeforeAction" {
     appliesTo: ["brittney_turn", "agent_shell_action", "legacy_app_operation", "run_custody_action"]
     requiredInput: "holoshell_operator_brief"
-    sourceFiles: ["hardware-reality.json", "run-custody.json", "legacy-window-inventory.json", "legacy-app-absorption.json"]
+    sourceFiles: ["hardware-reality.json", "build-custody.json", "run-custody.json", "legacy-window-inventory.json", "legacy-app-absorption.json", "readiness-evidence.json", "visual-witness.json"]
+    receiptRequired: true
+  }
+
+  policy "BrittneyConsumesBuildCustodyBeforeJudgingBuilds" {
+    appliesTo: ["brittney_turn", "agent_shell_action", "build_status_claim"]
+    requiredInput: "build_custody"
+    activeBuildDoesNotEqualFailure: true
+    buildTerminationRequiresBreakGlass: true
+    rawCommandHiddenByDefault: true
     receiptRequired: true
   }
 
@@ -168,7 +211,7 @@ composition "HoloShell Operator Brief" {
   }
 
   policy "BlockedMeansBlocked" {
-    appliesTo: ["kill_process", "delete_file", "legacy_app_mutation", "registry_change", "destructive_ui_click"]
+    appliesTo: ["kill_process", "kill_build_process", "delete_file", "legacy_app_mutation", "registry_change", "destructive_ui_click"]
     preflightRequired: true
     directExecutionAllowed: false
     receiptRequired: true
@@ -180,6 +223,10 @@ composition "HoloShell Operator Brief" {
     state.activeLaneCount = brief.hardware.activeLaneCount
     state.observedOwnerRunCount = brief.runs.observedOwnerCount
     state.ownerUnknownRunCount = brief.runs.ownerUnknownCount
+    state.activeBuildTreeCount = brief.build.activeBuildTreeCount
+    state.buildProcessCount = brief.build.buildProcessCount
+    state.longRunningBuildCount = brief.build.longRunningBuildCount
+    state.highMemoryBuildCount = brief.build.highMemoryBuildCount
     state.visibleWindowCount = brief.legacy.visibleWindowCount
     state.peerWindowCount = brief.peers.windowInstanceCount
     state.peerSurfaceCount = brief.peers.surfaceCount
@@ -190,6 +237,10 @@ composition "HoloShell Operator Brief" {
     state.shellWindowBoundCount = brief.shellCustody.boundWindowCount
     state.shellWindowUnboundCount = brief.shellCustody.unboundWindowCount
     state.shellWindowOwnerUnknownRunCount = brief.shellCustody.ownerUnknownRunCount
+    state.readinessStatus = brief.readiness.status
+    state.readinessTokenCount = brief.readiness.tokenCount
+    state.readinessWarningCount = brief.readiness.warningCount
+    state.visualWitnessStatus = brief.visualWitness.status
     state.legacyCaptureCandidateCount = brief.legacy.captureCandidateCount
     state.blockedActionCount = brief.blockedActions.length
     state.destructiveActionsTaken = brief.safety.destructiveActionsTaken
@@ -201,6 +252,10 @@ composition "HoloShell Operator Brief" {
       activeLanes: state.activeLaneCount,
       observedOwnerRuns: state.observedOwnerRunCount,
       ownerUnknownRuns: state.ownerUnknownRunCount,
+      activeBuildTrees: state.activeBuildTreeCount,
+      buildProcesses: state.buildProcessCount,
+      longRunningBuilds: state.longRunningBuildCount,
+      highMemoryBuilds: state.highMemoryBuildCount,
       visibleWindows: state.visibleWindowCount,
       peerWindows: state.peerWindowCount,
       peerSurfaces: state.peerSurfaceCount,
@@ -211,6 +266,10 @@ composition "HoloShell Operator Brief" {
       shellWindowBoundCount: state.shellWindowBoundCount,
       shellWindowUnboundCount: state.shellWindowUnboundCount,
       shellWindowOwnerUnknownRunCount: state.shellWindowOwnerUnknownRunCount,
+      readiness: state.readinessStatus,
+      readinessTokens: state.readinessTokenCount,
+      readinessWarnings: state.readinessWarningCount,
+      visualWitness: state.visualWitnessStatus,
       legacyCaptureCandidates: state.legacyCaptureCandidateCount,
       blockedActions: state.blockedActionCount,
       destructiveActionsTaken: state.destructiveActionsTaken,
