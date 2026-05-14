@@ -1,0 +1,123 @@
+// HoloShell Visual Witness
+//
+// Local visual proof is hardware-native. If an MCP browser surface is missing
+// its bundled Playwright executable, HoloShell still renders rooms through the
+// host Chrome/Edge/Chromium executable and records screenshot plus DOM receipts.
+
+composition "HoloShell Visual Witness" {
+  config {
+    title: "Visual Witness"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-visual-witness.mjs"
+    defaultRoom: "apps/holoshell/prototype/hardware-reality-room.html"
+    defaultOutput: ".tmp/holoshell/visual-witness.json"
+  }
+
+  state {
+    status: "unknown"
+    roomPath: ""
+    browserPath: ""
+    screenshotPath: ""
+    screenshotHash: ""
+    domWitnessPath: ""
+    domWitnessHash: ""
+    missingText: []
+    destructiveActionsTaken: false
+    rawCommandsIncluded: false
+  }
+
+  channel "holoshell:visual:witness" {
+    type: "append_only"
+    priority: "high"
+    description: "Local screenshot and DOM receipts for HoloShell room verification"
+  }
+
+  template "VisualWitnessReceipt" {
+    type: "receipt"
+    receiptType: "visual_witness"
+    source: "local_chromium_headless"
+    roomPath: ""
+    browserPath: ""
+    screenshotPath: ""
+    screenshotHash: ""
+    domWitnessPath: ""
+    domWitnessHash: ""
+    expectedText: []
+    missingText: []
+    destructiveActionsTaken: false
+    terminationPerformed: false
+    mutationPerformed: false
+    rawCommandsIncluded: false
+  }
+
+  policy "LocalBrowserFallbackIsRequired" {
+    appliesTo: ["room_visual_verification", "hardware_native_witness"]
+    preferredWitness: "codex_in_app_browser"
+    fallbackWitness: "local_chromium_headless"
+    reason: "Agent browser MCPs may lack a bundled Playwright executable; the hardware layer must still prove rendering."
+    screenshotRequired: true
+    domWitnessRequired: true
+    receiptRequired: true
+  }
+
+  policy "WitnessesAreReadOnly" {
+    appliesTo: ["screenshot", "dom_dump", "visual_receipt"]
+    processTerminationAllowed: false
+    fileDeletionAllowed: false
+    legacyAppMutationAllowed: false
+    directShellCommandAllowed: false
+    rawCommandsIncluded: false
+  }
+
+  room "VisualWitnessRoom" {
+    label: "Visual Witness"
+    userQuestion: "Did the local hardware render this HoloShell room?"
+    visualForm: "screenshot_dom_receipt"
+    liveFeed: "holoshell:visual:witness"
+
+    object "Screenshot" {
+      type: "ui"
+      uiType: "screenshot_receipt"
+      label: "Screenshot"
+      path: $screenshotPath
+      hash: $screenshotHash
+    }
+
+    object "DomWitness" {
+      type: "ui"
+      uiType: "dom_receipt"
+      label: "DOM"
+      path: $domWitnessPath
+      hash: $domWitnessHash
+      missingText: $missingText
+    }
+  }
+
+  action record_visual_witness(result) {
+    state.status = result.status
+    state.roomPath = result.room.path
+    state.browserPath = result.browser.path
+    state.screenshotPath = result.screenshot.path
+    state.screenshotHash = result.screenshot.sha256
+    state.domWitnessPath = result.domWitness.path
+    state.domWitnessHash = result.domWitness.sha256
+    state.missingText = result.domWitness.missingText
+    state.destructiveActionsTaken = result.safety.destructiveActionsTaken
+    state.rawCommandsIncluded = result.safety.rawCommandsIncluded
+
+    emit("holoshell:visual:witness", {
+      status: state.status,
+      roomPath: state.roomPath,
+      browserPath: state.browserPath,
+      screenshotPath: state.screenshotPath,
+      screenshotHash: state.screenshotHash,
+      domWitnessPath: state.domWitnessPath,
+      domWitnessHash: state.domWitnessHash,
+      missingText: state.missingText,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      rawCommandsIncluded: state.rawCommandsIncluded,
+      receiptRequired: true
+    })
+  }
+}

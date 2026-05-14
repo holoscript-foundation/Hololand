@@ -379,6 +379,7 @@
   <script src="../../../.tmp/holoshell/legacy-app-absorption.js"></script>
   <script src="../../../.tmp/holoshell/operator-brief.js"></script>
   <script src="../../../.tmp/holoshell/brittney-custody-action.js"></script>
+  <script src="../../../.tmp/holoshell/visual-witness.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -427,6 +428,7 @@
     const legacyAbsorption = window.HOLOSHELL_LEGACY_APP_ABSORPTION || null;
     const operatorBrief = window.HOLOSHELL_OPERATOR_BRIEF || null;
     const brittneyCustodyAction = window.HOLOSHELL_BRITTNEY_CUSTODY_ACTION || null;
+    const visualWitness = window.HOLOSHELL_VISUAL_WITNESS || null;
     const colors = {
       cyan: "#5ee2c5",
       blue: "#5ba8ff",
@@ -610,6 +612,7 @@
       const operator = operatorBrief || {};
       const shellCustody = operator.shellCustody || {};
       const brittneyAction = brittneyCustodyAction || {};
+      const witness = visualWitness || {};
       const selectedAction = brittneyAction.selectedAction || {};
       const brittneyActionLabel = brittneyAction.status
         ? selectedAction.windowGroupId
@@ -623,6 +626,7 @@
         ["Operator Brief", operator.status || "refresh required"],
         ["Brittney Action", brittneyActionLabel],
         ["Brittney Queue", `${currentShellQueueCount} shell window groups / ${brittneyAction.execution?.receiptIds?.length || 0} receipts`],
+        ["Visual Witness", witness.status ? `${witness.status} / ${witness.screenshot?.path ? "screenshot" : "no screenshot"}` : "not captured"],
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],

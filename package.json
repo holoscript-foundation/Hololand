@@ -38,6 +38,7 @@
     "holoshell:shell-objects": "node scripts/holoshell-shell-objects.mjs",
     "holoshell:operator-brief": "node scripts/holoshell-operator-brief.mjs",
     "holoshell:brittney-custody": "node scripts/holoshell-brittney-custody-operator.mjs",
+    "holoshell:visual-witness": "node scripts/holoshell-visual-witness.mjs",
     "brittney": "npx tsx scripts/start-brittney.ts",
     "playground": "pnpm --filter @hololand/playground dev",
     "dev": "npm-run-all --parallel brittney playground",
