@@ -117,6 +117,19 @@ composition "HoloShell Home" {
     brittneyScreenReaderReachable: true
     desktopReplacementActive: true
     trustFilter: "all"
+    capabilityInventoryGeneratedAt: ""
+    capabilityInventoryUpstreamGapCount: 0
+    capabilityInventoryTrustVerified: 0
+    capabilityInventoryTrustPartial: 0
+    capabilityInventoryTrustUnknown: 0
+    capabilityInventoryReceiptStatus: "pending"
+    capabilityTrustHardwareProof: "unknown"
+    capabilityTrustHoloScriptMcp: "unknown"
+    capabilityTrustHoloMeshTeam: "unknown"
+    capabilityTrustBrowserOperator: "unknown"
+    capabilityTrustLocalProjects: "unknown"
+    capabilityTrustLegacyApps: "unknown"
+    capabilityTrustProcessHealth: "unknown"
   }
 
   channel "holoshell:intent" {
@@ -626,49 +639,49 @@ composition "HoloShell Home" {
       object "HardwareProof" using "CapabilityGlyph" {
         label: "Hardware Proof"
         source_kind: "hardware"
-        trust_state: "partial"
+        trust_state: $capabilityTrustHardwareProof
         permission: "read_only"
       }
 
       object "HoloScriptRuntime" using "CapabilityGlyph" {
         label: "HoloScript Runtime"
         source_kind: "holoscript"
-        trust_state: "unknown"
+        trust_state: $capabilityTrustHoloScriptMcp
         permission: "read_execute"
       }
 
       object "HoloMeshTeam" using "CapabilityGlyph" {
         label: "Agent Team"
         source_kind: "holomesh"
-        trust_state: "unknown"
+        trust_state: $capabilityTrustHoloMeshTeam
         permission: "coordinate"
       }
 
       object "BrowserOperator" using "CapabilityGlyph" {
         label: "Browser"
         source_kind: "browser"
-        trust_state: "unknown"
+        trust_state: $capabilityTrustBrowserOperator
         permission: "guarded_write"
       }
 
       object "LocalFiles" using "CapabilityGlyph" {
         label: "Files"
         source_kind: "filesystem"
-        trust_state: "unknown"
+        trust_state: $capabilityTrustLocalProjects
         permission: "guarded_write"
       }
 
       object "LegacyApps" using "CapabilityGlyph" {
         label: "Legacy Apps"
         source_kind: "app"
-        trust_state: "unknown"
+        trust_state: $capabilityTrustLegacyApps
         permission: "classified_per_app"
       }
 
       object "ProcessHealth" using "CapabilityGlyph" {
         label: "Process Health"
         source_kind: "process_table"
-        trust_state: "partial"
+        trust_state: $capabilityTrustProcessHealth
         permission: "read_only_then_break_glass"
       }
     }
@@ -914,6 +927,20 @@ composition "HoloShell Home" {
 
   action apply_live_feed(feedBundle) {
     state.capabilityCount = feedBundle.summary.capabilityCount
+    state.capabilityInventoryGeneratedAt = feedBundle.feeds.inventory?.generatedAt || ""
+    state.capabilityInventoryUpstreamGapCount = (feedBundle.feeds.inventory?.upstreamGaps || []).length
+    state.capabilityInventoryTrustVerified = feedBundle.feeds.inventory?.summary?.verified || 0
+    state.capabilityInventoryTrustPartial = feedBundle.feeds.inventory?.summary?.partial || 0
+    state.capabilityInventoryTrustUnknown = feedBundle.feeds.inventory?.summary?.unknown || 0
+    state.capabilityInventoryReceiptStatus = feedBundle.feeds.inventory ? "linked" : "pending"
+    const inventoryCapabilities = feedBundle.feeds.inventory?.capabilities || []
+    state.capabilityTrustHardwareProof = inventoryCapabilities.find((c) => c.id === 'hardware-proof')?.trustState || 'unknown'
+    state.capabilityTrustHoloScriptMcp = inventoryCapabilities.find((c) => c.id === 'holoscript-mcp')?.trustState || 'unknown'
+    state.capabilityTrustHoloMeshTeam = inventoryCapabilities.find((c) => c.id === 'holomesh-team')?.trustState || 'unknown'
+    state.capabilityTrustBrowserOperator = inventoryCapabilities.find((c) => c.id === 'browser-operator')?.trustState || 'unknown'
+    state.capabilityTrustLocalProjects = inventoryCapabilities.find((c) => c.id === 'local-projects')?.trustState || 'unknown'
+    state.capabilityTrustLegacyApps = inventoryCapabilities.find((c) => c.id === 'legacy-apps')?.trustState || 'unknown'
+    state.capabilityTrustProcessHealth = inventoryCapabilities.find((c) => c.id === 'process-run-custody')?.trustState || 'unknown'
     state.legacyMachineCount = feedBundle.summary.legacyProgramCount
     state.activeAgentLaneCount = feedBundle.summary.activeLaneCount
     state.processHealthStatus = feedBundle.summary.processRisk
@@ -1029,6 +1056,33 @@ composition "HoloShell Home" {
       active_workflow_intent_gate_failed_checks: state.activeWorkflowIntentGateFailedCheckCount,
       stop_plans: state.stopPlanCount,
       timeline_nodes: state.timelineNodeCount,
+      receipt_required: true
+    })
+  }
+
+  action apply_capability_inventory(inventory) {
+    state.capabilityCount = inventory.summary.capabilityCount
+    state.capabilityInventoryGeneratedAt = inventory.generatedAt
+    state.capabilityInventoryUpstreamGapCount = (inventory.upstreamGaps || []).length
+    state.capabilityInventoryTrustVerified = inventory.summary.verified || 0
+    state.capabilityInventoryTrustPartial = inventory.summary.partial || 0
+    state.capabilityInventoryTrustUnknown = inventory.summary.unknown || 0
+    state.capabilityInventoryReceiptStatus = "recorded"
+    const capabilities = inventory.capabilities || []
+    state.capabilityTrustHardwareProof = capabilities.find((c) => c.id === 'hardware-proof')?.trustState || 'unknown'
+    state.capabilityTrustHoloScriptMcp = capabilities.find((c) => c.id === 'holoscript-mcp')?.trustState || 'unknown'
+    state.capabilityTrustHoloMeshTeam = capabilities.find((c) => c.id === 'holomesh-team')?.trustState || 'unknown'
+    state.capabilityTrustBrowserOperator = capabilities.find((c) => c.id === 'browser-operator')?.trustState || 'unknown'
+    state.capabilityTrustLocalProjects = capabilities.find((c) => c.id === 'local-projects')?.trustState || 'unknown'
+    state.capabilityTrustLegacyApps = capabilities.find((c) => c.id === 'legacy-apps')?.trustState || 'unknown'
+    state.capabilityTrustProcessHealth = capabilities.find((c) => c.id === 'process-run-custody')?.trustState || 'unknown'
+    emit("holoshell:capabilities", {
+      action: "capability_inventory_applied",
+      capability_count: state.capabilityCount,
+      trust_verified: state.capabilityInventoryTrustVerified,
+      trust_partial: state.capabilityInventoryTrustPartial,
+      trust_unknown: state.capabilityInventoryTrustUnknown,
+      upstream_gaps: state.capabilityInventoryUpstreamGapCount,
       receipt_required: true
     })
   }

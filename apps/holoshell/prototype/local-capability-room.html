@@ -875,6 +875,7 @@
           <h2>Selected</h2>
           <strong id="selectedTitle">HoloLand Shell</strong>
           <p id="selectedDetail">Programs, files, agents, browser surfaces, and local machine powers are objects in the same world.</p>
+          <div id="selectedCapabilityDetail" class="mini" hidden></div>
         </div>
         <div>
           <h2>Skins</h2>
@@ -1424,7 +1425,8 @@
     }
 
     function shellObjects() {
-      const capabilities = feed.feeds?.inventory?.capabilities || [];
+      const inventoryCapabilities = feed.feeds?.inventory?.capabilities || [];
+      const upstreamGaps = feed.feeds?.inventory?.upstreamGaps || [];
       const osCapture = feed.feeds?.osUiCapture;
       const avatarSummary = brittneyAvatarSummary();
       const hardwareSummary = hardwareActionSummary();
@@ -1435,7 +1437,17 @@
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const runtimeStatus = avatarSummary.runtimeStatus || "unknown";
       const avatarStatus = avatarSummary.avatarStatus || "unknown";
+      const capabilityMap = {
+        browser: "browser-operator",
+        files: "local-projects",
+        agents: "holomesh-team",
+        programs: "legacy-apps",
+        terminal: "cli-dev-stack",
+        "hardware-control": "process-run-custody",
+      };
       const objects = baseObjects.map((object) => {
+        const capId = capabilityMap[object.id];
+        const cap = capId ? inventoryCapabilities.find((c) => c.id === capId) : null;
         if (object.id === "brittney") {
           return {
             ...object,
@@ -1445,7 +1457,12 @@
         if (object.id === "hardware-control") {
           return {
             ...object,
-            detail: `Hardware executor ${hardwareSummary.status || "unknown"}; approval ${approvalSummary.status || "unknown"}; ${registrySummary.launchableProgramCount || 0} launchable programs.`,
+            detail: cap
+              ? `${cap.displayName}: ${cap.trustState || "unknown"} trust; ${cap.permissionEnvelope || "unknown"} envelope; ${cap.adapter || "unclassified"} adapter.`
+              : `Hardware executor ${hardwareSummary.status || "unknown"}; approval ${approvalSummary.status || "unknown"}; ${registrySummary.launchableProgramCount || 0} launchable programs.`,
+            trustState: cap?.trustState,
+            permissionEnvelope: cap?.permissionEnvelope,
+            evidence: cap?.evidence,
           };
         }
         if (object.id === "room-marathon") {
@@ -1457,7 +1474,21 @@
         if (object.id === "programs") {
           return {
             ...object,
-            detail: `${registrySummary.launchableProgramCount || 0} launchable programs and ${feed.summary?.capturedWindowCount || 0} running windows can be wrapped and controlled by receipts.`,
+            detail: cap
+              ? `${cap.displayName}: ${cap.trustState || "unknown"} trust; ${cap.evidence?.count || registrySummary.launchableProgramCount || 0} launchable; ${cap.adapter || "unclassified"} adapter.`
+              : `${registrySummary.launchableProgramCount || 0} launchable programs and ${feed.summary?.capturedWindowCount || 0} running windows can be wrapped and controlled by receipts.`,
+            trustState: cap?.trustState,
+            permissionEnvelope: cap?.permissionEnvelope,
+            evidence: cap?.evidence,
+          };
+        }
+        if (cap) {
+          return {
+            ...object,
+            detail: `${cap.displayName}: ${cap.trustState || "unknown"} trust; ${cap.permissionEnvelope || "unknown"} envelope; ${cap.adapter || "unclassified"} adapter.`,
+            trustState: cap.trustState,
+            permissionEnvelope: cap.permissionEnvelope,
+            evidence: cap.evidence,
           };
         }
         return object;
@@ -1472,16 +1503,33 @@
         y: 54,
         size: 118
       }] : [];
-      const extras = capabilities.slice(0, 4).map((capability, index) => ({
-        id: capability.id,
-        label: capability.displayName || capability.id,
-        glyph: capability.category?.slice(0, 2).toUpperCase() || "O",
-        type: capability.category || "capability",
-        detail: `${capability.trustState || "unknown"} trust; ${capability.visualForm || "object"} form.`,
-        x: [68, 8, 79, 25][index],
-        y: [68, 46, 27, 18][index],
-        size: [94, 96, 100, 90][index]
-      }));
+      const mappedCapIds = new Set(Object.values(capabilityMap));
+      const extraCapabilities = inventoryCapabilities.filter((c) => !mappedCapIds.has(c.id));
+      const extraPositions = [
+        { x: 68, y: 68, size: 94 },
+        { x: 8, y: 46, size: 96 },
+        { x: 79, y: 27, size: 100 },
+        { x: 25, y: 18, size: 90 },
+        { x: 5, y: 8, size: 88 },
+        { x: 85, y: 8, size: 92 },
+        { x: 45, y: 82, size: 98 },
+      ];
+      const extras = extraCapabilities.map((capability, index) => {
+        const pos = extraPositions[index] || { x: 10 + (index * 7) % 80, y: 10 + (index * 11) % 80, size: 90 };
+        return {
+          id: capability.id,
+          label: capability.displayName || capability.id,
+          glyph: capability.visualForm?.slice(0, 2).toUpperCase() || capability.category?.slice(0, 2).toUpperCase() || "C",
+          type: capability.category || "capability",
+          detail: `${capability.displayName || capability.id}: ${capability.trustState || "unknown"} trust; ${capability.permissionEnvelope || "unknown"} envelope; ${capability.adapter || "unclassified"} adapter.`,
+          x: pos.x,
+          y: pos.y,
+          size: pos.size,
+          trustState: capability.trustState,
+          permissionEnvelope: capability.permissionEnvelope,
+          evidence: capability.evidence,
+        };
+      });
       return [...objects, ...capturedUi, ...extras];
     }
 
@@ -1489,6 +1537,25 @@
       document.querySelectorAll(".bubble").forEach((item) => item.classList.toggle("selected", item.dataset.id === object.id));
       document.getElementById("selectedTitle").textContent = object.label;
       document.getElementById("selectedDetail").textContent = object.detail;
+      const capDetail = document.getElementById("selectedCapabilityDetail");
+      if (capDetail) {
+        if (object.trustState || object.permissionEnvelope) {
+          const rows = [];
+          if (object.trustState) rows.push(`Trust: ${object.trustState}`);
+          if (object.permissionEnvelope) rows.push(`Permission: ${object.permissionEnvelope}`);
+          if (object.evidence) {
+            for (const [key, value] of Object.entries(object.evidence)) {
+              if (value === undefined || value === null) continue;
+              const text = typeof value === 'object' ? JSON.stringify(value).slice(0, 200) : String(value).slice(0, 200);
+              rows.push(`${key}: ${text}`);
+            }
+          }
+          capDetail.innerHTML = rows.map((r) => `<div class="mini">${r}</div>`).join('');
+          capDetail.hidden = false;
+        } else {
+          capDetail.hidden = true;
+        }
+      }
       const conversation = document.getElementById("conversation");
       if (!options.silent) {
         const message = document.createElement("div");
@@ -1578,10 +1645,11 @@
         `Brittney avatar: ${avatarSummary.avatarStatus || summary.brittneyAvatarStatus || "unknown"}; runtime ${avatarSummary.runtimeStatus || summary.brittneyRuntimeStatus || "unknown"}`,
         `Brittney turn: ${turnSummary.status || summary.brittneyLastTurnStatus || "unknown"}; ${turnSummary.eventCount || summary.brittneyRuntimeEventCount || 0} events; ${turnSummary.actionProposalCount || summary.brittneyActionProposalCount || 0} proposal(s)`,
         `Shell skin: ${document.body.dataset.skin}`,
-        `${summary.capabilityCount || 0} local capabilities absorbed`,
+        `${summary.capabilityCount || 0} capabilities: ${feed.feeds?.inventory?.summary?.verified || 0} verified, ${feed.feeds?.inventory?.summary?.partial || 0} partial, ${feed.feeds?.inventory?.summary?.unknown || 0} unknown`,
         `${summary.activeLaneCount || 0}/${summary.laneCount || 0} agent lanes can enter`,
         `${process.riskState || "unknown"} hardware custody; ${summary.stopPlanCount || 0} approval item(s)`,
-        `${summary.timelineCount || 0} receipt nodes linked`
+        `${summary.timelineCount || 0} receipt nodes linked`,
+        ...(feed.feeds?.inventory?.upstreamGaps || []).slice(0, 3).map((gap) => `Upstream gap: ${gap.layer} — ${gap.need}`),
       ];
       document.getElementById("evidence").replaceChildren(...rows.map((text) => {
         const row = document.createElement("div");

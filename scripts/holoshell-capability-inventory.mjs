@@ -562,6 +562,25 @@ function writeInventory(inventory, outputPath) {
   return resolved;
 }
 
+function writeReceipt(inventory, outputPath, error) {
+  const receipt = {
+    schemaVersion: 'hololand.holoshell.capability-inventory-receipt.v0.1.0',
+    generatedAt: new Date().toISOString(),
+    inventoryPath: outputPath,
+    status: error ? 'failed' : 'succeeded',
+    capabilityCount: inventory?.summary?.capabilityCount || 0,
+    verifiedCount: inventory?.summary?.verified || 0,
+    partialCount: inventory?.summary?.partial || 0,
+    unknownCount: inventory?.summary?.unknown || 0,
+    upstreamGapCount: (inventory?.upstreamGaps || []).length,
+    error: error || undefined,
+  };
+  const receiptPath = path.resolve(REPO_ROOT, '.tmp', 'holoshell', 'capability-inventory-receipt.json');
+  mkdirSync(path.dirname(receiptPath), { recursive: true });
+  writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
+  return receiptPath;
+}
+
 function assertSelfTest(inventory) {
   const failures = [];
   if (inventory.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
@@ -586,17 +605,20 @@ try {
   const args = parseArgs(process.argv.slice(2));
   const inventory = await createInventory(args);
   const outputPath = writeInventory(inventory, args.output);
+  const receiptPath = writeReceipt(inventory, outputPath);
   if (args.selfTest) assertSelfTest(inventory);
 
   if (args.json) {
     console.log(JSON.stringify(inventory, null, 2));
   } else {
     console.log(`HoloShell capability inventory: ${outputPath}`);
+    console.log(`HoloShell capability inventory receipt: ${receiptPath}`);
     console.log(`Capabilities: ${inventory.summary.capabilityCount}`);
     console.log(`Trust: ${inventory.summary.verified} verified, ${inventory.summary.partial} partial, ${inventory.summary.unknown} unknown`);
     console.log(`Legacy programs classified: ${inventory.summary.legacyProgramCount}`);
   }
 } catch (error) {
+  writeReceipt(null, args.output, error.message);
   console.error(`holoshell-capability-inventory failed: ${error.message}`);
   process.exit(1);
 }
