@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -128,6 +128,19 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory
       generatedAt: surfaceMap.generatedAt || now,
       receiptType: 'hololand.holoshell.holoscript-surface-map.v0.1.0',
       source: 'scripts/holoshell-holoscript-surface-map.mjs',
+    });
+  }
+
+  if (goldCodebaseBridge?.summary) {
+    timeline.push({
+      id: goldCodebaseBridge.bridgeId || 'holoscript-gold-codebase-bridge',
+      kind: 'holoscript_gold_codebase_bridge',
+      title: `GOLD plus codebase bridge ${goldCodebaseBridge.summary.status || 'unknown'}`,
+      detail: `${goldCodebaseBridge.summary.goldEntryCount || 0} GOLD entries; ${goldCodebaseBridge.summary.codebaseToolCount || 0} HoloScript codebase tools; graph ${goldCodebaseBridge.summary.graphCacheProtocol || 'unknown'}.`,
+      trustState: goldCodebaseBridge.summary.status === 'ready' ? 'verified' : 'partial',
+      generatedAt: goldCodebaseBridge.generatedAt || now,
+      receiptType: goldCodebaseBridge.schemaVersion,
+      source: goldCodebaseBridge.sourceAnchors?.adapter || 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs',
     });
   }
 
@@ -497,6 +510,7 @@ function createFeed(args) {
   const tmpDir = resolveRepoPath(args.tmpDir);
   const inventory = readJson(path.join(tmpDir, 'capability-inventory.json'), {});
   const surfaceMap = readJson(path.join(tmpDir, 'holoscript-surface-map.json'), {});
+  const goldCodebaseBridge = readJson(path.join(tmpDir, 'holoscript-gold-codebase-bridge.json'), {});
   const wildHoloScript = readJson(path.join(tmpDir, 'wild-holoscript-intake.json'), {});
   const formatInventory = readJson(path.join(tmpDir, 'format-inventory.json'), {});
   const founderBootPreview = readJson(path.join(tmpDir, 'founder-boot-preview.json'), {});
@@ -535,6 +549,7 @@ function createFeed(args) {
   const timeline = createTimeline({
     inventory,
     surfaceMap,
+    goldCodebaseBridge,
     wildHoloScript,
     formatInventory,
     founderBootPreview,
@@ -582,6 +597,7 @@ function createFeed(args) {
       operatorBrief: 'scripts/holoshell-operator-brief.mjs',
       operatingTurn: 'scripts/holoshell-operating-turn.mjs',
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
+      goldCodebaseBridge: 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs',
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
@@ -602,6 +618,19 @@ function createFeed(args) {
       holoscriptRoomCount: surfaceMap?.summary?.holoshellRoomCount || surfaceMap?.holoshellRooms?.length || 0,
       mcpToolCount: surfaceMap?.summary?.mcpToolCount || 0,
       cliCommandCount: surfaceMap?.summary?.cliCommandCount || 0,
+      goldCodebaseBridgeStatus: goldCodebaseBridge?.summary?.status || 'unknown',
+      goldDriveStatus: goldCodebaseBridge?.summary?.goldStatus || 'unknown',
+      goldRootPresent: Boolean(goldCodebaseBridge?.summary?.goldRootPresent),
+      goldEntryCount: goldCodebaseBridge?.summary?.goldEntryCount || 0,
+      goldTierCount: goldCodebaseBridge?.summary?.goldTierCount || 0,
+      goldHotEntryCount: goldCodebaseBridge?.summary?.goldHotEntryCount || 0,
+      goldConflictPolicy: goldCodebaseBridge?.summary?.goldConflictPolicy || '',
+      codebaseBridgeStatus: goldCodebaseBridge?.summary?.codebaseStatus || 'unknown',
+      codebaseToolCount: goldCodebaseBridge?.summary?.codebaseToolCount || 0,
+      codebaseCliCommandCount: goldCodebaseBridge?.summary?.codebaseCliCommandCount || 0,
+      codebaseGraphCacheProtocol: goldCodebaseBridge?.summary?.graphCacheProtocol || 'unknown',
+      codebaseForceAbsorbDefault: Boolean(goldCodebaseBridge?.summary?.forceAbsorbDefault),
+      codebaseBridgeCapabilityCount: goldCodebaseBridge?.summary?.capabilityMapCount || 0,
       wildHoloScriptStatus: wildHoloScript?.summary?.status || 'unknown',
       wildHoloScriptFileCount: wildHoloScript?.summary?.fileCount || 0,
       wildHoloScriptHoloCount: wildHoloScript?.summary?.holoCount || 0,
@@ -808,6 +837,7 @@ function createFeed(args) {
     feeds: {
       inventory,
       surfaceMap,
+      goldCodebaseBridge,
       wildHoloScript,
       formatInventory,
       founderBootPreview,
@@ -899,6 +929,7 @@ try {
     console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
     console.log(`User shell: ${feed.summary.userShellProjectionStatus}`);
     console.log(`Brittney context: ${feed.summary.brittneyContextStatus}`);
+    console.log(`GOLD/codebase bridge: ${feed.summary.goldCodebaseBridgeStatus}`);
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);

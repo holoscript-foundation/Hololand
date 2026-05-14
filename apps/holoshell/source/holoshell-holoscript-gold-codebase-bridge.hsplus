@@ -1,0 +1,174 @@
+// HoloShell HoloScript GOLD Codebase Bridge
+//
+// Read-only substrate bridge for the material HoloShell already owns:
+// GOLD memory, HoloScript codebase intelligence, surface maps, and format
+// inventories. Brittney must ask this substrate before inventing new shell
+// machinery.
+
+composition "HoloShell HoloScript GOLD Codebase Bridge" {
+  config {
+    title: "HoloScript GOLD Codebase Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-holoscript-gold-codebase-bridge.mjs"
+    sourceBridge: "apps/holoshell/source/holoshell-holoscript-bridge.hsplus"
+    latestReceipt: ".tmp/holoshell/holoscript-gold-codebase-bridge.json"
+    browserBootstrap: ".tmp/holoshell/holoscript-gold-codebase-bridge.js"
+    defaultGoldRoot: "GOLD_ROOT or D:\\GOLD"
+    projection: "brittney_context_and_source_orbit"
+  }
+
+  state {
+    bridgeStatus: "unknown"
+    goldStatus: "unknown"
+    goldEntryCount: 0
+    goldTierCount: 0
+    goldHotEntryCount: 0
+    codebaseStatus: "unknown"
+    codebaseToolCount: 0
+    graphCacheProtocol: "unknown"
+    surfaceMapStatus: "unknown"
+    formatInventoryStatus: "unknown"
+    wildHoloScriptStatus: "unknown"
+    lastReceiptHash: ""
+  }
+
+  channel "holoshell:substrate:gold" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Read-only GOLD memory summaries and override policy for Brittney planning"
+  }
+
+  channel "holoshell:substrate:codebase" {
+    type: "request_response"
+    priority: "high"
+    description: "HoloScript graph-status, absorb, query, ask, semantic search, and impact analysis requests"
+  }
+
+  channel "holoshell:substrate:receipt" {
+    type: "append_only"
+    priority: "high"
+    description: "Local bridge receipt proving which GOLD and codebase surfaces were visible"
+  }
+
+  channel "holoshell:substrate:brittney-context" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Compressed substrate context Brittney receives before proposing new work"
+  }
+
+  template "SubstrateReceipt" {
+    type: "holoshell_substrate_receipt"
+    receiptType: "hololand.holoshell.holoscript-gold-codebase-bridge.v0.1.0"
+    status: "partial"
+    goldRootPresent: false
+    codebaseToolCount: 0
+    graphCacheProtocol: "cache_first_graph_status_then_absorb"
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "SubstrateQuestion" {
+    type: "substrate_question"
+    actor: "brittney"
+    question: ""
+    readOnly: true
+    askGoldFirst: true
+    askCodebaseGraph: true
+    receiptRequired: true
+  }
+
+  template "CodebaseToolRequest" {
+    type: "codebase_tool_request"
+    tool: "holo_query_codebase"
+    repository: "HoloScript"
+    graphStatusRequired: true
+    forceAbsorb: false
+    permissionEnvelope: "read_only"
+    receiptRequired: true
+  }
+
+  policy "GoldIsReadOnlySubstrate" {
+    appliesTo: ["gold_drive", "gold_entry", "gotcha", "pattern", "wisdom"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mutationAllowed: false
+    conflictPolicy: "diamond_over_platinum_over_gold_over_knowledge_store"
+    receiptRequired: true
+  }
+
+  policy "CodebaseCacheFirst" {
+    appliesTo: ["holo_graph_status", "holo_absorb_repo", "holo_query_codebase", "holo_ask_codebase", "holo_impact_analysis", "holo_semantic_search"]
+    permissionEnvelope: "read_or_guarded_execute"
+    graphStatusBeforeAbsorb: true
+    forceAbsorbDefault: false
+    approvalRequiredForForceAbsorb: true
+    receiptRequired: true
+  }
+
+  policy "BrittneyAsksSubstrateBeforeBuild" {
+    appliesTo: ["new_feature", "new_adapter", "trusted_autonomy_upgrade", "approval_policy_change"]
+    askGoldFirst: true
+    askCodebaseFirst: true
+    askFormatInventory: true
+    duplicateBuildsBlocked: true
+    receiptRequired: true
+  }
+
+  action consume_substrate_receipt(receipt) {
+    state.bridgeStatus = receipt.summary.status
+    state.goldStatus = receipt.summary.goldStatus
+    state.goldEntryCount = receipt.summary.goldEntryCount
+    state.goldTierCount = receipt.summary.goldTierCount
+    state.goldHotEntryCount = receipt.summary.goldHotEntryCount
+    state.codebaseStatus = receipt.summary.codebaseStatus
+    state.codebaseToolCount = receipt.summary.codebaseToolCount
+    state.graphCacheProtocol = receipt.summary.graphCacheProtocol
+    state.surfaceMapStatus = receipt.summary.surfaceMapStatus
+    state.formatInventoryStatus = receipt.summary.formatInventoryStatus
+    state.wildHoloScriptStatus = receipt.summary.wildHoloScriptStatus
+    state.lastReceiptHash = receipt.receipt.receiptHash
+    emit("holoshell:substrate:receipt", {
+      action: "substrate_receipt_consumed",
+      bridge_status: state.bridgeStatus,
+      gold_status: state.goldStatus,
+      gold_entries: state.goldEntryCount,
+      codebase_tools: state.codebaseToolCount,
+      graph_cache_protocol: state.graphCacheProtocol,
+      receipt_hash: state.lastReceiptHash
+    })
+  }
+
+  action ask_substrate(question) {
+    emit("holoshell:substrate:brittney-context", {
+      action: "substrate_question_staged",
+      actor: question.actor || "brittney",
+      question: question.question,
+      ask_gold_first: true,
+      ask_codebase_graph: true,
+      permission_envelope: "read_only",
+      receipt_required: true
+    })
+  }
+
+  action request_codebase_tool(toolRequest) {
+    if (toolRequest.forceAbsorb == true) {
+      emit("holoshell:approval", {
+        operation: toolRequest,
+        reason: "Force-refreshing a HoloScript codebase graph can be expensive and must be intentional",
+        receipt_required: true
+      })
+      return "approval_required"
+    }
+
+    emit("holoshell:substrate:codebase", {
+      tool: toolRequest.tool || "holo_query_codebase",
+      repository: toolRequest.repository || "HoloScript",
+      graph_status_required: true,
+      force_absorb: false,
+      permission_envelope: toolRequest.permissionEnvelope || "read_only",
+      receipt_required: true
+    })
+    return "queued"
+  }
+}

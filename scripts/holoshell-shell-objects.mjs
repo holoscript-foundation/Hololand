@@ -269,9 +269,10 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, agentDispatch, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, agentDispatch, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
+  const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
   const dispatchSummary = agentDispatch?.summary || {};
   const workflowSummary = workflow?.summary || {};
   const shardSummary = shardWorkflow?.summary || {};
@@ -415,6 +416,47 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, agentDispatch, workf
       detail: `${wildSummary.fileCount || 0} wild HoloScript files; .holo ${wildSummary.holoFeatureCount || 0} features, .hs ${wildSummary.hsFeatureCount || 0}, .hsplus ${wildSummary.hsplusFeatureCount || 0}; ${wildSummary.adapterNeededCount || 0} need adapters.`,
       firstScreen: wildSummary.status === 'scanned',
       layout: { x: 19, y: 28, size: 108 },
+    },
+    {
+      id: 'source.holoscript-gold-codebase',
+      objectKind: 'source_corpus',
+      displayName: 'GOLD + Codebase',
+      sourceKind: 'holoscript_substrate',
+      sourceRef: goldCodebaseBridge?.sourceAnchors?.adapter || 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs',
+      capabilityFamily: 'source_substrate',
+      trustState: goldCodebaseSummary.status === 'ready' ? 'verified' : goldCodebaseSummary.status === 'blocked' ? 'unknown' : 'partial',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'gold_codebase_substrate_bridge',
+      visualForm: 'source_orbit',
+      status: goldCodebaseSummary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['holoscript_gold_codebase_bridge', 'gold_drive_receipt', 'codebase_graph_receipt'],
+      relationships: {
+        goldStatus: goldCodebaseSummary.goldStatus || 'unknown',
+        goldRootPresent: Boolean(goldCodebaseSummary.goldRootPresent),
+        goldEntryCount: goldCodebaseSummary.goldEntryCount || 0,
+        goldTierCount: goldCodebaseSummary.goldTierCount || 0,
+        goldHotEntryCount: goldCodebaseSummary.goldHotEntryCount || 0,
+        conflictPolicy: goldCodebaseSummary.goldConflictPolicy || 'diamond_over_platinum_over_gold_over_knowledge_store',
+        codebaseStatus: goldCodebaseSummary.codebaseStatus || 'unknown',
+        codebaseToolCount: goldCodebaseSummary.codebaseToolCount || 0,
+        graphCacheProtocol: goldCodebaseSummary.graphCacheProtocol || 'unknown',
+        surfaceMapStatus: goldCodebaseSummary.surfaceMapStatus || 'unknown',
+        formatInventoryStatus: goldCodebaseSummary.formatInventoryStatus || 'unknown',
+        queryTemplates: (goldCodebaseBridge?.queryTemplates || []).slice(0, 6),
+        hotGoldEntries: (goldCodebaseBridge?.goldDrive?.hotEntries || []).slice(0, 6).map((entry) => ({
+          path: entry.path,
+          tier: entry.tier,
+          title: entry.title,
+          ids: entry.ids || [],
+        })),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'ask_existing_substrate_before_new_build',
+      glyph: 'GC',
+      detail: `GOLD ${goldCodebaseSummary.goldStatus || 'unknown'} with ${goldCodebaseSummary.goldEntryCount || 0} indexed entries; HoloScript codebase ${goldCodebaseSummary.codebaseStatus || 'unknown'} with ${goldCodebaseSummary.codebaseToolCount || 0} tools; graph ${goldCodebaseSummary.graphCacheProtocol || 'unknown'}.`,
+      firstScreen: Boolean(goldCodebaseSummary.goldRootPresent || goldCodebaseSummary.codebaseToolCount),
+      layout: { x: 9, y: 18, size: 116 },
     },
     {
       id: 'workflow.room-marathon',
@@ -1389,6 +1431,14 @@ function summarize(objects, feeds) {
     userCapabilityPackObjectCount: objects.filter((object) => object.capabilityFamily === 'user_capability_pack').length,
     formatViewerObjectCount: objects.filter((object) => object.id === 'source.format-viewer').length,
     wildHoloScriptObjectCount: objects.filter((object) => object.capabilityFamily === 'source_corpus').length,
+    sourceSubstrateObjectCount: objects.filter((object) => object.capabilityFamily === 'source_substrate').length,
+    goldCodebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.status || 'unknown',
+    goldDriveStatus: feeds.goldCodebaseBridge?.summary?.goldStatus || 'unknown',
+    goldEntryCount: feeds.goldCodebaseBridge?.summary?.goldEntryCount || 0,
+    goldHotEntryCount: feeds.goldCodebaseBridge?.summary?.goldHotEntryCount || 0,
+    codebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.codebaseStatus || 'unknown',
+    codebaseToolCount: feeds.goldCodebaseBridge?.summary?.codebaseToolCount || 0,
+    codebaseGraphCacheProtocol: feeds.goldCodebaseBridge?.summary?.graphCacheProtocol || 'unknown',
     founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
     userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
     agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
@@ -1414,6 +1464,7 @@ function summarize(objects, feeds) {
       programRegistryStatus: feeds.programRegistry?.summary?.status || 'unknown',
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
+      goldCodebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.status || 'unknown',
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
       founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
@@ -1433,6 +1484,7 @@ function loadFeeds(tmpDir) {
   return {
     programRegistry: readJson(path.join(dir, 'program-registry.json'), {}),
     readinessEvidence: readJson(path.join(dir, 'readiness-evidence.json'), {}),
+    goldCodebaseBridge: readJson(path.join(dir, 'holoscript-gold-codebase-bridge.json'), {}),
     wildHoloScript: readJson(path.join(dir, 'wild-holoscript-intake.json'), {}),
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
@@ -1487,6 +1539,7 @@ function buildGraph(args, fixtures = null) {
       schema: 'apps/holoshell/docs/SHELL_OBJECT_SCHEMA.md',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
+      goldCodebaseBridge: 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs',
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
@@ -1578,6 +1631,32 @@ function fixtureFeeds() {
         { id: 'readiness.headset-report', title: 'Headset report missing', status: 'skipped', kind: 'manual_witness_gap', detail: 'No headset report supplied.', nextAction: 'Attach headset report.', receiptType: 'device_lab_receipt' },
         { id: 'readiness.graph-status', title: 'Graph status reported import failure', status: 'reported_fail', kind: 'tool_failure_receipt', detail: 'graph-status failed.', receiptType: 'tool_failure_receipt' },
       ],
+    },
+    goldCodebaseBridge: {
+      schemaVersion: 'hololand.holoshell.holoscript-gold-codebase-bridge.v0.1.0',
+      bridgeId: 'gold-codebase-fixture',
+      generatedAt: new Date().toISOString(),
+      sourceAnchors: { adapter: 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs' },
+      summary: {
+        status: 'ready',
+        goldStatus: 'indexed',
+        goldRootPresent: true,
+        goldEntryCount: 120,
+        goldTierCount: 7,
+        goldHotEntryCount: 12,
+        goldConflictPolicy: 'diamond_over_platinum_over_gold_over_knowledge_store',
+        codebaseStatus: 'ready',
+        codebaseToolCount: 9,
+        graphCacheProtocol: 'cache_first_graph_status_then_absorb',
+        surfaceMapStatus: 'mapped',
+        formatInventoryStatus: 'scanned',
+      },
+      goldDrive: {
+        hotEntries: [
+          { path: 'gotchas/G.HW.001.md', tier: 'gotchas', title: 'Hardware gotcha', ids: ['G.HW.001'] },
+        ],
+      },
+      queryTemplates: ['What already exists?', 'Which GOLD entry changes the plan?'],
     },
     wildHoloScript: {
       schemaVersion: 'hololand.holoshell.wild-holoscript-intake.v0.1.0',
@@ -1791,12 +1870,14 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
   if (!graph.objects.some((object) => object.id === 'source.wild-holoscript.uaa2')) failures.push('expected wild HoloScript source corpus object');
+  if (!graph.objects.some((object) => object.id === 'source.holoscript-gold-codebase')) failures.push('expected GOLD/codebase substrate object');
   if (!graph.objects.some((object) => object.id === 'surface.founder-boot-preview')) failures.push('expected founder boot surface object');
   if (!graph.objects.some((object) => object.id === 'surface.user-shell-projection')) failures.push('expected user shell projection object');
   if (!graph.objects.some((object) => object.id === 'assistant.brittney.user-translator')) failures.push('expected Brittney user translator object');
   if (graph.summary.wildHoloScriptStatus !== 'scanned') failures.push('expected wild HoloScript scanned status');
   if (graph.summary.userShellProjectionStatus !== 'ready') failures.push('expected user shell projection ready status');
   if (graph.summary.agentDispatchStatus !== 'ready_to_stage') failures.push('expected agent dispatch ready status');
+  if (graph.summary.goldCodebaseBridgeStatus !== 'ready') failures.push('expected GOLD/codebase bridge ready status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');
   if (graph.summary.processObjectCount !== 1) failures.push('expected one process object from build custody');

@@ -891,6 +891,7 @@
   <script src="../../../.tmp/holoshell/shell-objects.js"></script>
   <script src="../../../.tmp/holoshell/wild-holoscript-intake.js"></script>
   <script src="../../../.tmp/holoshell/format-inventory.js"></script>
+  <script src="../../../.tmp/holoshell/holoscript-gold-codebase-bridge.js"></script>
   <script src="../../../.tmp/holoshell/founder-boot-preview.js"></script>
   <script src="../../../.tmp/holoshell/user-shell-projection.js"></script>
   <script src="../../../.tmp/holoshell/brittney-context.js"></script>
@@ -1020,6 +1021,7 @@
     const standaloneShellObjectsFeed = window.HOLOSHELL_SHELL_OBJECTS || {};
     const standaloneWildHoloScriptFeed = window.HOLOSHELL_WILD_HOLOSCRIPT_INTAKE || {};
     const standaloneFormatInventoryFeed = window.HOLOSHELL_FORMAT_INVENTORY || {};
+    const standaloneGoldCodebaseBridgeFeed = window.HOLOSHELL_HOLOSCRIPT_GOLD_CODEBASE_BRIDGE || {};
     const standaloneFounderBootFeed = window.HOLOSHELL_FOUNDER_BOOT_PREVIEW || {};
     const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
     const standaloneBrittneyContextFeed = window.HOLOSHELL_BRITTNEY_CONTEXT || {};
@@ -1047,6 +1049,7 @@
       { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
       { id: "user-shell", label: "User Shell", glyph: "US", type: "user shell", detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.", x: 47, y: 24, size: 136 },
       { id: "format-viewer", label: "Formats", glyph: "FV", type: "source corpus", detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.", x: 24, y: 18, size: 112 },
+      { id: "gold-codebase", label: "GOLD+Codebase", glyph: "GC", type: "source substrate", detail: "GOLD memory and HoloScript codebase intelligence become Brittney's first stop before building anything new.", x: 9, y: 18, size: 116 },
       { id: "asset-shard", label: "Asset Shard", glyph: "AS", type: "workflow", detail: "Brittney can stage a local folder of models, images, audio, and HoloScript into a playable HoloLand shard preview.", x: 25, y: 66, size: 112 },
       { id: "wild-holoscript", label: "Wild HoloScript", glyph: "WH", type: "source corpus", detail: "uaa2-service frontier HoloScript becomes a read-only corpus Brittney can promote into shell modules.", x: 19, y: 28, size: 108 },
       { id: "programs", label: "Programs", glyph: "P", type: "program", detail: "Legacy apps are preserved as capability engines, not window chores.", x: 33, y: 53, size: 138 },
@@ -1427,6 +1430,15 @@
       return inventory.summary || {};
     }
 
+    function goldCodebaseBridgeFeed() {
+      return feed.feeds?.goldCodebaseBridge?.summary ? feed.feeds.goldCodebaseBridge : standaloneGoldCodebaseBridgeFeed;
+    }
+
+    function goldCodebaseBridgeSummary() {
+      const bridge = goldCodebaseBridgeFeed();
+      return bridge.summary || {};
+    }
+
     function founderBootFeed() {
       return feed.feeds?.founderBootPreview?.summary ? feed.feeds.founderBootPreview : standaloneFounderBootFeed;
     }
@@ -1482,6 +1494,7 @@
         "Asset Shard": "Shard",
         "Shard Workflow Receipt": "Shard Receipt",
         "Wild HoloScript": "Wild HS",
+        "GOLD + Codebase": "GOLD+Code",
         "User Shell": "User Shell",
         "Daily Shell": "Daily",
         "Creator Shell": "Creator",
@@ -1533,7 +1546,7 @@
     function canonicalShellBubbles() {
       const graph = shellObjectGraphFeed();
       const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
-      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent"]);
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "source.holoscript-gold-codebase"]);
       const surfaceKinds = new Set([
         "browser_surface",
         "terminal_surface",
@@ -1782,6 +1795,7 @@
       if (/\b(agent|codex|claude|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
       if (/\b(room marathon|marathon|kimi|ollama|lofi|youtube music|music on youtube|start room)\b/.test(text)) add("room-marathon", "Room Marathon", "stage_room_marathon_workflow", "compound agent workflow", { permissionEnvelope: "guarded_execute" });
       if (/\b(asset shard|shard|assets?|folder to shard|playable shard|import assets?|preview assets?|local folder)\b/.test(text)) add("asset-shard", "Asset Shard", "stage_asset_shard_workflow", "local folder to playable shard", { permissionEnvelope: "guarded_execute" });
+      if (/\b(gold|codebase|already have|existing|substrate|knowledge|graph status|absorb|query codebase|holoscript codebase)\b/.test(text)) add("gold-codebase", "GOLD+Codebase", "focus_shell_object", "read-only substrate bridge");
       if (/\b(readiness|ready|build evidence|evidence pack|webgpu|wasm|headset|replay|graph status|world build)\b/.test(text)) add("room.world-build-readiness", "World Build Readiness", "focus_shell_object", "readiness evidence room");
       if (/\b(program|app|application|legacy|window|ui|control)\b/.test(text)) add("programs", "Programs", "focus_shell_object", "legacy program");
       if (/\b(hardware|focus|hotkey|click|type|launch|open app|control program|program control)\b/.test(text)) add("hardware-control", "Program Control", "stage_hardware_action", "guarded program control", { permissionEnvelope: "guarded_execute" });
@@ -1848,6 +1862,7 @@
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const dispatchSummary = agentDispatchSummary();
+      const goldBridgeSummary = goldCodebaseBridgeSummary();
       const workflowKind = activeWorkflow.workflowKind || summary.activeWorkflowKind || "";
       const workflowEvidenceDetail = workflowKind === "claude_chat"
         ? `${activeWorkflow.targetSurface || summary.activeWorkflowTargetSurface || "Claude"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
@@ -1887,6 +1902,21 @@
               : "Brittney routes requests like open Excel, launch Codex, Claude chat, room marathon, and lofi into approval-backed HoloShell actions.",
             trustState: dispatchSummary.status === "ready_to_stage" ? "partial" : object.trustState,
             permissionEnvelope: "intent_scoped",
+          };
+        }
+        if (object.id === "gold-codebase") {
+          return {
+            ...object,
+            detail: `Bridge ${goldBridgeSummary.status || "unknown"}; GOLD ${goldBridgeSummary.goldStatus || "unknown"} with ${goldBridgeSummary.goldEntryCount || 0} entries; HoloScript codebase ${goldBridgeSummary.codebaseStatus || "unknown"} with ${goldBridgeSummary.codebaseToolCount || 0} tools; graph ${goldBridgeSummary.graphCacheProtocol || "unknown"}.`,
+            trustState: goldBridgeSummary.status === "ready" ? "verified" : "partial",
+            permissionEnvelope: "read_only",
+            evidence: {
+              status: goldBridgeSummary.status || "unknown",
+              gold: `${goldBridgeSummary.goldEntryCount || 0} entries, ${goldBridgeSummary.goldHotEntryCount || 0} hot`,
+              codebase: `${goldBridgeSummary.codebaseToolCount || 0} tools`,
+              cache: goldBridgeSummary.graphCacheProtocol || "unknown",
+              forceAbsorbDefault: goldBridgeSummary.forceAbsorbDefault === false ? "false" : "unknown",
+            },
           };
         }
         if (object.id === "hardware-control") {
@@ -2275,6 +2305,28 @@
           askBrittney();
         }));
       }
+      if (object.id === "gold-codebase" || shellObject.id === "source.holoscript-gold-codebase") {
+        actions.push(actionButton("Review substrate", () => {
+          const bridge = goldCodebaseBridgeFeed();
+          const summary = bridge.summary || {};
+          const hot = (bridge.goldDrive?.hotEntries || []).slice(0, 3).map((entry) => `${entry.tier}/${entry.title}`).join(" | ");
+          result.hidden = false;
+          result.textContent = `GOLD/codebase bridge ${summary.status || "unknown"}: GOLD ${summary.goldStatus || "unknown"} with ${summary.goldEntryCount || 0} indexed entries, HoloScript codebase ${summary.codebaseStatus || "unknown"} with ${summary.codebaseToolCount || 0} tools, graph ${summary.graphCacheProtocol || "unknown"}. ${hot || "Hot entries pending."}`;
+          appendConversation("GOLD and HoloScript codebase intelligence are now a source substrate. I should check them before suggesting new shell machinery.");
+        }, actions.length === 0));
+        actions.push(actionButton("Ask what exists", () => {
+          document.getElementById("askInput").value = "Before building, check GOLD and the HoloScript codebase for what already exists";
+          askBrittney();
+        }));
+        actions.push(actionButton("Codebase room", () => {
+          const bridge = goldCodebaseBridgeFeed();
+          const tools = bridge.codebaseIntelligence?.toolNames || [];
+          result.hidden = false;
+          result.textContent = tools.length
+            ? `Codebase tools: ${tools.slice(0, 10).join(", ")}. Policy: graph-status before absorb; force=false by default.`
+            : "Codebase tools are not present yet; rerun the GOLD/codebase bridge.";
+        }));
+      }
       if (object.id === "wild-holoscript" || shellObject.id === "source.wild-holoscript.uaa2") {
         actions.push(actionButton("Review wild modules", () => {
           const intake = wildHoloScriptFeed();
@@ -2579,6 +2631,7 @@
       const shellGraphSummary = shellObjectGraphSummary();
       const wildSummary = wildHoloScriptSummary();
       const formatSummary = formatInventorySummary();
+      const goldBridgeSummary = goldCodebaseBridgeSummary();
       const bootSummary = founderBootSummary();
       const userSummary = userShellSummary();
       const readinessSummary = readinessEvidenceSummary();
@@ -2601,8 +2654,11 @@
         "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
         "Hardware source: source/holoshell-hardware-control.hsplus",
         "Wild source: source/holoshell-wild-holoscript-intake.hsplus",
+        "Substrate bridge: source/holoshell-holoscript-gold-codebase-bridge.hsplus",
         `Wild HoloScript: ${wildSummary.status || summary.wildHoloScriptStatus || "unknown"}; files ${wildSummary.fileCount || summary.wildHoloScriptFileCount || 0}; .holo ${wildSummary.holoCount || summary.wildHoloScriptHoloCount || 0} / ${wildSummary.holoFeatureCount || summary.wildHoloScriptHoloFeatureCount || 0} features; .hs ${wildSummary.hsCount || summary.wildHoloScriptHsCount || 0} / ${wildSummary.hsFeatureCount || summary.wildHoloScriptHsFeatureCount || 0}; .hsplus ${wildSummary.hsplusCount || summary.wildHoloScriptHsplusCount || 0} / ${wildSummary.hsplusFeatureCount || summary.wildHoloScriptHsplusFeatureCount || 0}`,
         `Format inventory: ${formatSummary.status || summary.formatInventoryStatus || "unknown"}; files ${formatSummary.totalFileCount || summary.formatInventoryTotalFileCount || 0}; features ${formatSummary.totalFeatureFamilies || summary.formatInventoryFeatureFamilyCount || 0}`,
+        `GOLD/codebase: ${goldBridgeSummary.status || summary.goldCodebaseBridgeStatus || "unknown"}; GOLD ${goldBridgeSummary.goldStatus || summary.goldDriveStatus || "unknown"} ${goldBridgeSummary.goldEntryCount || summary.goldEntryCount || 0} entries; codebase ${goldBridgeSummary.codebaseStatus || summary.codebaseBridgeStatus || "unknown"} ${goldBridgeSummary.codebaseToolCount || summary.codebaseToolCount || 0} tools`,
+        `Codebase policy: ${goldBridgeSummary.graphCacheProtocol || summary.codebaseGraphCacheProtocol || "unknown"}; force absorb default ${goldBridgeSummary.forceAbsorbDefault === false || summary.codebaseForceAbsorbDefault === false ? "false" : "unknown"}; GOLD conflict ${goldBridgeSummary.goldConflictPolicy || summary.goldConflictPolicy || "unknown"}`,
         `Founder boot: ${bootSummary.status || summary.founderBootStatus || "unknown"}; world ${bootSummary.worldObjectCount || summary.founderBootWorldObjectCount || 0}; render ${bootSummary.renderObjectCount || summary.founderBootRenderObjectCount || 0}; user packs ${bootSummary.userCapabilityPackCount || summary.founderBootUserPackCount || 0}; Brittney proposals ${bootSummary.brittneyProposalCount || summary.founderBootBrittneyProposalCount || 0}`,
         `User shell: ${userSummary.status || summary.userShellProjectionStatus || "unknown"}; modes ${userSummary.modeCount || summary.userShellModeCount || 0}; packs ${userSummary.capabilityPackCount || summary.userShellCapabilityPackCount || 0}; translations ${userSummary.brittneyTranslationCount || summary.userShellBrittneyTranslationCount || 0}; founder-only ${userSummary.founderOnlyPowerCount || summary.userShellFounderOnlyPowerCount || 0}`,
         `Wild promotion: frontier ${wildSummary.frontierSyntaxCount || summary.wildHoloScriptFrontierSyntaxCount || 0}; adapters ${wildSummary.adapterNeededCount || summary.wildHoloScriptAdapterNeededCount || 0}; candidates ${wildSummary.canonicalCandidateCount || summary.wildHoloScriptCanonicalCandidateCount || 0}; next ${wildSummary.nextMove || summary.wildHoloScriptNextMove || "none"}`,
