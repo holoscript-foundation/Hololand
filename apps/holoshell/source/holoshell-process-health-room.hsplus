@@ -18,6 +18,8 @@ composition "HoloShell Process Health Room" {
     registeredRunCount: 0
     activeRegisteredRunCount: 0
     ownedProcessCount: 0
+    laneAttributedProcessCount: 0
+    ownerUnknownReviewCount: 0
     overdueRegisteredRunCount: 0
     unmatchedActiveRunCount: 0
     staleRunCount: 0
@@ -62,6 +64,12 @@ composition "HoloShell Process Health Room" {
     parentPid: 0
     category: "process"
     custodyState: "observed"
+    ownerLane: ""
+    ownerLaneLabel: ""
+    ownerColorHint: "white"
+    ownerEvidence: ""
+    ownerParentPid: 0
+    ownerTrustState: "unknown"
     stopPolicy: "break_glass_required"
     receiptRequired: true
   }
@@ -131,6 +139,8 @@ composition "HoloShell Process Health Room" {
       registeredRuns: $registeredRunCount
       activeRuns: $activeRegisteredRunCount
       ownedProcesses: $ownedProcessCount
+      laneAttributedProcesses: $laneAttributedProcessCount
+      ownerUnknownReview: $ownerUnknownReviewCount
       overdueRuns: $overdueRegisteredRunCount
       unmatchedRuns: $unmatchedActiveRunCount
     }
@@ -141,6 +151,7 @@ composition "HoloShell Process Health Room" {
       label: "PID Custody"
       processCount: $processCount
       orphanLikeCount: $orphanLikeCount
+      ownerUnknownReview: $ownerUnknownReviewCount
       rawCommandLinesHiddenByDefault: true
     }
   }
@@ -182,6 +193,15 @@ composition "HoloShell Process Health Room" {
     receiptRequired: true
   }
 
+  policy "LaneOwnershipInference" {
+    appliesTo: ["process_scan", "shell_run_scan", "stale_run_review", "brittney_turn"]
+    ownerLaneSources: ["run_registry", "holoshell_reality_lane", "top_level_window", "agent_process_name", "ancestor_pid"]
+    legacyAppEvidenceFeedsBrittney: true
+    colorHintIsVisualOnly: true
+    ownerUnknownRequiresClaimBeforeCleanup: true
+    receiptRequired: true
+  }
+
   policy "BreakGlassProcessTermination" {
     appliesTo: ["stop_process", "kill_process", "kill_process_tree"]
     approvalRequired: true
@@ -197,6 +217,8 @@ composition "HoloShell Process Health Room" {
     state.registeredRunCount = health.summary.registeredRunCount
     state.activeRegisteredRunCount = health.summary.activeRegisteredRunCount
     state.ownedProcessCount = health.summary.ownedProcessCount
+    state.laneAttributedProcessCount = health.summary.laneAttributedProcessCount || 0
+    state.ownerUnknownReviewCount = health.summary.ownerUnknownReviewCount || 0
     state.overdueRegisteredRunCount = health.summary.overdueRegisteredRunCount
     state.unmatchedActiveRunCount = health.summary.unmatchedActiveRunCount
     state.staleRunCount = health.summary.staleRunCount
@@ -211,6 +233,8 @@ composition "HoloShell Process Health Room" {
       registeredRuns: state.registeredRunCount,
       activeRegisteredRuns: state.activeRegisteredRunCount,
       ownedProcesses: state.ownedProcessCount,
+      laneAttributedProcesses: state.laneAttributedProcessCount,
+      ownerUnknownReview: state.ownerUnknownReviewCount,
       overdueRegisteredRuns: state.overdueRegisteredRunCount,
       unmatchedActiveRuns: state.unmatchedActiveRunCount,
       staleRuns: state.staleRunCount,

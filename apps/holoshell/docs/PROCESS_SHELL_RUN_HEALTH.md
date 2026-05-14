@@ -51,6 +51,9 @@ The adapter is read-only. It reports:
 - Shell/dev run candidates.
 - Registered HoloShell runs.
 - Active registered runs with visible PIDs.
+- Lane-attributed processes inherited from run receipts, HoloShell hardware
+  reality, legacy app/window inventory, or agent process ancestors.
+- Review-worthy processes whose owner lane is still unknown.
 - Registered runs that passed their expected end time.
 - Active registry runs whose PID is no longer visible.
 - Stale shell/dev runs.
@@ -115,6 +118,27 @@ the expected end time has passed and the PID is missing or not visible. If the
 PID is visible, the active registry record stays active so the owning lane can
 extend, close, or justify it with a receipt.
 
+## Lane Ownership Inference
+
+HoloShell now treats visible agent surfaces as owner evidence. The adapter
+reads `.tmp/holoshell/hardware-reality.json` and
+`.tmp/holoshell/legacy-window-inventory.json`, then combines those lane/window
+PIDs with recognizable local agent ancestors such as Codex, Claude, Gemini,
+Copilot, Cursor, and Ollama.
+
+Receipts expose:
+
+- `laneAttributedProcessCount`: processes that inherited a lane without a run
+  registry receipt.
+- `ownerUnknownReviewCount`: processes with findings that still need a human or
+  agent claim before cleanup.
+- `ownerLane`, `ownerLaneLabel`, `ownerColorHint`, `ownerEvidence`,
+  `ownerParentPid`, and `ownerTrustState` for each sampled process.
+
+This is evidence, not authority to mutate. A color lane helps Brittney and
+agents see responsibility, but stop plans still require exact PID, reason,
+approval, and receipt.
+
 ## Management Policy
 
 | Operation | Default | Why |
@@ -124,6 +148,7 @@ extend, close, or justify it with a receipt.
 | Heavy run start | Pre-run health gate | Prevent invisible agent pileups. |
 | Run receipt write | Required | PIDs need owner lanes and expected end times. |
 | Registry reconcile | Non-destructive receipt | Clears phantom active runs without stopping visible work. |
+| Lane ownership inference | Read-only evidence | Legacy apps and process ancestors feed Brittney without mutation. |
 | Stop-plan creation | Guarded plan | Planning is safe if it does not stop anything. |
 | Stop one PID | Break-glass | May destroy active work or evidence. |
 | Kill process tree | Break-glass plus owner lane | High blast radius. |
@@ -134,6 +159,8 @@ The Process Health Room should show:
 
 - Hardware pressure: memory pressure, high-memory count, stale-run count.
 - Run registry: registered runs, owned processes, overdue runs, unmatched runs.
+- Lane ownership: process owners, color hints, owner evidence, and
+  owner-unknown review count.
 - Shell run stack: shells, package scripts, Node runtimes, Python runs,
   browser witnesses, and tooling runs.
 - PID custody table: PID, parent PID, category, age, memory, findings, owner

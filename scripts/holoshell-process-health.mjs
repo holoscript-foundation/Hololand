@@ -8,9 +8,27 @@ import { spawnSync } from 'node:child_process';
 const SCHEMA_VERSION = 'hololand.holoshell.process-health.v0.1.0';
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'process-health.json');
 const DEFAULT_RUN_REGISTRY = path.join('.tmp', 'holoshell', 'run-registry.json');
+const DEFAULT_HARDWARE_REALITY = path.join('.tmp', 'holoshell', 'hardware-reality.json');
+const DEFAULT_LEGACY_WINDOWS = path.join('.tmp', 'holoshell', 'legacy-window-inventory.json');
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_STALE_MINUTES = 120;
 const DEFAULT_HIGH_MEMORY_MB = 1500;
+const LANE_LABELS = {
+  claude: 'Claude',
+  codex: 'Codex',
+  gemini: 'Gemini',
+  copilot: 'Copilot',
+  cursor: 'Cursor',
+  ollama: 'Ollama',
+};
+const LANE_COLORS = {
+  claude: 'violet',
+  codex: 'cyan',
+  gemini: 'amber',
+  copilot: 'blue',
+  cursor: 'indigo',
+  ollama: 'gray',
+};
 
 const SHELL_RUN_NAMES = [
   'powershell',
@@ -40,6 +58,8 @@ function parseArgs(argv) {
     json: false,
     output: DEFAULT_OUTPUT,
     runRegistry: DEFAULT_RUN_REGISTRY,
+    hardwareReality: DEFAULT_HARDWARE_REALITY,
+    legacyWindows: DEFAULT_LEGACY_WINDOWS,
     selfTest: false,
     includeCommandLines: false,
     staleMinutes: DEFAULT_STALE_MINUTES,
@@ -52,6 +72,8 @@ function parseArgs(argv) {
     if (arg === '--json') args.json = true;
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--run-registry') args.runRegistry = argv[++index];
+    else if (arg === '--hardware-reality') args.hardwareReality = argv[++index];
+    else if (arg === '--legacy-windows') args.legacyWindows = argv[++index];
     else if (arg === '--self-test') args.selfTest = true;
     else if (arg === '--include-command-lines') args.includeCommandLines = true;
     else if (arg === '--stale-minutes') args.staleMinutes = Number(argv[++index]);
@@ -88,6 +110,8 @@ Options:
   --json                    Print process health JSON.
   --output <path>           Write output path. Defaults to .tmp/holoshell/process-health.json.
   --run-registry <path>     Read HoloShell run registry. Defaults to .tmp/holoshell/run-registry.json.
+  --hardware-reality <path> Read lane PID evidence. Defaults to .tmp/holoshell/hardware-reality.json.
+  --legacy-windows <path>   Read top-level app/window owner evidence. Defaults to .tmp/holoshell/legacy-window-inventory.json.
   --self-test               Assert process health receipt invariants.
   --include-command-lines   Include redacted command previews. Off by default for privacy.
   --stale-minutes <n>       Mark shell/dev runs older than n minutes. Default: ${DEFAULT_STALE_MINUTES}.
@@ -207,6 +231,146 @@ function tokenStem(token) {
   const normalized = String(token || '').replace(/\\/g, '/').split('/').pop() || '';
   return normalizeName(normalized)
     .replace(/\.(cmd|bat|ps1|js|cjs|mjs|ts)$/i, '');
+}
+
+function normalizeLaneId(value) {
+  const raw = String(value || '').toLowerCase();
+  if (!raw) return '';
+  if (raw.includes('codex')) return 'codex';
+  if (raw.includes('claude')) return 'claude';
+  if (raw.includes('gemini') || raw.includes('antigravity')) return 'gemini';
+  if (raw.includes('copilot')) return 'copilot';
+  if (raw.includes('cursor')) return 'cursor';
+  if (raw.includes('ollama')) return 'ollama';
+  return raw.replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function makeLaneOwner(laneId, overrides = {}) {
+  const normalized = normalizeLaneId(laneId);
+  if (!normalized || normalized === 'terminal' || normalized === 'shell') return null;
+  return {
+    laneId: normalized,
+    laneLabel: overrides.label || LANE_LABELS[normalized] || normalized,
+    agentKind: overrides.agentKind || normalized,
+    surfaceKind: overrides.surfaceKind || 'agent_process',
+    colorHint: overrides.colorHint || LANE_COLORS[normalized] || 'white',
+    evidence: overrides.evidence || 'agent_process_name',
+    parentPid: Number.isInteger(Number(overrides.parentPid)) ? Number(overrides.parentPid) : null,
+    ownerPid: Number.isInteger(Number(overrides.ownerPid)) ? Number(overrides.ownerPid) : null,
+    trustState: overrides.trustState || 'inferred_from_local_process_table',
+  };
+}
+
+function ownerFromProcessInfo(processInfo, evidence = 'agent_process_name') {
+  const stems = [
+    tokenStem(processInfo.name),
+    ...commandTokens(processInfo.commandLine).map(tokenStem),
+  ].filter(Boolean);
+  const has = (patterns) => stems.some((stem) => patterns.some((pattern) => {
+    if (pattern instanceof RegExp) return pattern.test(stem);
+    return stem === pattern || stem.startsWith(`${pattern}-`);
+  }));
+
+  if (has(['codex', /openai\.codex/])) return makeLaneOwner('codex', { evidence, ownerPid: processInfo.pid });
+  if (has(['claude'])) return makeLaneOwner('claude', { evidence, ownerPid: processInfo.pid });
+  if (has(['gemini', 'antigravity'])) return makeLaneOwner('gemini', { evidence, ownerPid: processInfo.pid });
+  if (has(['copilot'])) return makeLaneOwner('copilot', { evidence, ownerPid: processInfo.pid });
+  if (has(['cursor'])) return makeLaneOwner('cursor', { evidence, ownerPid: processInfo.pid });
+  if (has(['ollama'])) return makeLaneOwner('ollama', { evidence, ownerPid: processInfo.pid });
+  return null;
+}
+
+function readJsonIfPresent(filePath) {
+  if (!filePath) return null;
+  const resolved = resolveRepoPath(filePath);
+  if (!existsSync(resolved)) return null;
+  try {
+    return JSON.parse(readFileSync(resolved, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function numericPids(values) {
+  return Array.isArray(values)
+    ? values.map(Number).filter((pid) => Number.isInteger(pid) && pid > 0)
+    : [];
+}
+
+function addOwner(ownerByPid, priorityByPid, pid, owner, priority) {
+  const normalizedPid = Number(pid);
+  if (!Number.isInteger(normalizedPid) || normalizedPid <= 0 || !owner?.laneId) return;
+  const existingPriority = priorityByPid.get(normalizedPid) ?? -1;
+  if (priority < existingPriority) return;
+  ownerByPid.set(normalizedPid, { ...owner, ownerPid: owner.ownerPid || normalizedPid });
+  priorityByPid.set(normalizedPid, priority);
+}
+
+function inheritedOwner(owner, parentPid, evidence = 'ancestor_pid') {
+  if (!owner) return null;
+  return {
+    ...owner,
+    evidence,
+    parentPid: Number.isInteger(Number(parentPid)) ? Number(parentPid) : owner.parentPid,
+  };
+}
+
+function buildOwnerEvidence(args, processes) {
+  const byPid = new Map(processes.map((item) => [Number(item.pid), item]));
+  const ownerByPid = new Map();
+  const priorityByPid = new Map();
+  const hardwareReality = readJsonIfPresent(args.hardwareReality);
+  const legacyWindows = readJsonIfPresent(args.legacyWindows);
+
+  for (const lane of Array.isArray(hardwareReality?.lanes) ? hardwareReality.lanes : []) {
+    const owner = makeLaneOwner(lane.laneId || lane.agent_id, {
+      label: lane.label || lane.laneLabel || lane.lane_label,
+      surfaceKind: lane.surfaceKind || lane.surface || 'agent_lane',
+      colorHint: lane.colorHint || lane.color || lane.lane_color,
+      evidence: 'holoshell_reality_lane',
+      trustState: lane.trustState || 'observed_by_holoshell_mcp',
+    });
+    for (const pid of numericPids(lane.pidLinks || lane.pid_links)) {
+      addOwner(ownerByPid, priorityByPid, pid, owner, 80);
+    }
+  }
+
+  for (const surface of Array.isArray(legacyWindows?.peerSurfaces) ? legacyWindows.peerSurfaces : []) {
+    const owner = makeLaneOwner(surface.laneId || surface.agentId, {
+      label: surface.label,
+      agentKind: surface.peerKind,
+      surfaceKind: surface.surfaceClass || 'ai_peer_surface',
+      colorHint: surface.colorHint,
+      evidence: surface.evidence || 'top_level_window',
+      trustState: 'observed_top_level_window',
+    });
+    for (const pid of numericPids(surface.pids)) {
+      addOwner(ownerByPid, priorityByPid, pid, owner, 70);
+    }
+  }
+
+  for (const processInfo of processes) {
+    const owner = ownerFromProcessInfo(processInfo);
+    if (owner) addOwner(ownerByPid, priorityByPid, processInfo.pid, owner, 90);
+  }
+
+  let changed = true;
+  let guard = 0;
+  while (changed && guard < 24) {
+    changed = false;
+    guard += 1;
+    for (const processInfo of processes) {
+      const pid = Number(processInfo.pid);
+      if (ownerByPid.has(pid)) continue;
+      const parentPid = Number(processInfo.ppid);
+      const parentOwner = ownerByPid.get(parentPid);
+      if (!parentOwner || !byPid.has(parentPid)) continue;
+      addOwner(ownerByPid, priorityByPid, pid, inheritedOwner(parentOwner, parentPid), 40);
+      changed = true;
+    }
+  }
+
+  return ownerByPid;
 }
 
 function classifyRun(processInfo) {
@@ -388,7 +552,7 @@ function collectProcesses() {
   return process.platform === 'win32' ? collectWindowsProcesses() : collectPosixProcesses();
 }
 
-function processToReceipt(processInfo, args, pidSet, runByPid) {
+function processToReceipt(processInfo, args, pidSet, runByPid, ownerByPid = new Map()) {
   const pid = Number(processInfo.pid);
   const age = ageMinutes(processInfo.createdAt);
   const memory = memoryMb(processInfo.workingSetBytes);
@@ -396,6 +560,25 @@ function processToReceipt(processInfo, args, pidSet, runByPid) {
   const shellRunCandidate = isShellRunCandidate(processInfo, category);
   const orphanLike = Number(processInfo.ppid) > 0 && !pidSet.has(Number(processInfo.ppid));
   const ownedRun = runByPid.get(pid) || null;
+  const registeredOwnerBase = ownedRun
+    ? makeLaneOwner(ownedRun.laneId, {
+      label: ownedRun.laneLabel,
+      agentKind: ownedRun.agentKind,
+      surfaceKind: ownedRun.surfaceKind,
+      evidence: 'run_registry',
+      trustState: 'registered_run_receipt',
+      ownerPid: pid,
+    })
+    : null;
+  const registeredOwner = registeredOwnerBase
+    ? {
+      ...registeredOwnerBase,
+      laneId: ownedRun.laneId || registeredOwnerBase.laneId,
+      laneLabel: ownedRun.laneLabel || registeredOwnerBase.laneLabel,
+    }
+    : null;
+  const inferredOwner = ownerByPid.get(pid) || null;
+  const owner = registeredOwner || inferredOwner;
   const registeredOverdue = Boolean(ownedRun && isRunOverdue(ownedRun));
   const stale = shellRunCandidate && age !== null && age >= args.staleMinutes && !ownedRun;
   const highMemory = memory !== null && memory >= args.highMemoryMb;
@@ -422,10 +605,18 @@ function processToReceipt(processInfo, args, pidSet, runByPid) {
     custody: {
       state: ownedRun
         ? registeredOverdue ? 'owned_overdue' : 'owned_active'
-        : findings.length > 0 ? 'needs_review' : shellRunCandidate ? 'tracked' : 'observed',
-      ownerLane: ownedRun?.laneId || null,
-      ownerAgentKind: ownedRun?.agentKind || null,
-      ownerSurfaceKind: ownedRun?.surfaceKind || null,
+        : owner
+          ? findings.length > 0 ? 'lane_owned_needs_review' : 'lane_observed'
+          : findings.length > 0 ? 'needs_review' : shellRunCandidate ? 'tracked' : 'observed',
+      ownerLane: owner?.laneId || null,
+      ownerLaneLabel: owner?.laneLabel || null,
+      ownerAgentKind: owner?.agentKind || null,
+      ownerSurfaceKind: owner?.surfaceKind || null,
+      ownerColorHint: owner?.colorHint || null,
+      ownerEvidence: owner?.evidence || null,
+      ownerParentPid: owner?.parentPid || null,
+      ownerPid: owner?.ownerPid || null,
+      ownerTrustState: owner?.trustState || null,
       runId: ownedRun?.runId || null,
       runClass: ownedRun?.runClass || null,
       expectedEndAt: ownedRun?.expectedEndAt || null,
@@ -453,6 +644,7 @@ function createStopPlan(args, processes) {
     pid: target.pid,
     name: target.name,
     category: target.category,
+    custody: target.custody,
     reason: 'Stopping a process can destroy user work, agent state, local servers, or build/test evidence.',
     approvalRequired: true,
     safeToExecuteAutomatically: false,
@@ -523,8 +715,9 @@ function createHealth(args) {
   const collection = collectProcesses();
   const pidSet = new Set(collection.processes.map((item) => Number(item.pid)).filter(Boolean));
   const runEvidence = buildRunRegistryEvidence(args, pidSet);
+  const ownerByPid = buildOwnerEvidence(args, collection.processes);
   const processes = collection.processes
-    .map((item) => processToReceipt(item, args, pidSet, runEvidence.runByPid))
+    .map((item) => processToReceipt(item, args, pidSet, runEvidence.runByPid, ownerByPid))
     .sort((left, right) => {
       const leftScore = left.findings.length * 100000 + (left.memoryMb || 0);
       const rightScore = right.findings.length * 100000 + (right.memoryMb || 0);
@@ -535,6 +728,8 @@ function createHealth(args) {
   const highMemory = processes.filter((item) => item.findings.includes('high_memory_process'));
   const staleRuns = processes.filter((item) => item.findings.includes('stale_shell_or_dev_run'));
   const ownedProcesses = processes.filter((item) => item.custody.runId);
+  const laneAttributedProcesses = processes.filter((item) => item.custody.ownerLane && !item.custody.runId);
+  const ownerUnknownReview = processes.filter((item) => item.findings.length > 0 && !item.custody.ownerLane);
   const overdueOwnedProcesses = processes.filter((item) => item.findings.includes('registered_run_overdue'));
   const orphanLike = processes.filter((item) => item.findings.includes('parent_not_visible'));
   const memoryUsedRatio = 1 - (os.freemem() / os.totalmem());
@@ -551,6 +746,7 @@ function createHealth(args) {
   const processSample = [
     ...processes.filter((item) => item.findings.length > 0),
     ...ownedProcesses.filter((item) => item.findings.length === 0),
+    ...laneAttributedProcesses.filter((item) => item.findings.length === 0 && item.shellRunCandidate),
     ...shellRuns.filter((item) => item.findings.length === 0),
   ].slice(0, 80);
 
@@ -585,6 +781,8 @@ function createHealth(args) {
       registeredRunCount: runEvidence.registry.runs.length,
       activeRegisteredRunCount: runEvidence.activeRuns.length,
       ownedProcessCount: ownedProcesses.length,
+      laneAttributedProcessCount: laneAttributedProcesses.length,
+      ownerUnknownReviewCount: ownerUnknownReview.length,
       overdueRegisteredRunCount: runEvidence.overdueRuns.length,
       overdueOwnedProcessCount: overdueOwnedProcesses.length,
       unmatchedActiveRunCount: runEvidence.unmatchedActiveRuns.length,
@@ -633,6 +831,8 @@ function createHealth(args) {
       highMemory,
       orphanLike,
       shellRuns,
+      laneAttributedProcesses,
+      ownerUnknownReview,
       overdueRuns: runEvidence.overdueRuns,
       unmatchedActiveRuns: runEvidence.unmatchedActiveRuns,
     }),
@@ -650,6 +850,8 @@ function makeRecommendations({
   highMemory,
   orphanLike,
   shellRuns,
+  laneAttributedProcesses = [],
+  ownerUnknownReview = [],
   overdueRuns,
   unmatchedActiveRuns,
 }) {
@@ -696,6 +898,20 @@ function makeRecommendations({
       text: `${orphanLike.length} process(es) have parents that are not visible in the current process table. Treat as custody gaps.`,
     });
   }
+  if (ownerUnknownReview.length > 0) {
+    recommendations.push({
+      severity: 'medium',
+      kind: 'owner_unknown_review',
+      text: `${ownerUnknownReview.length} review-worthy process(es) still have no agent lane owner. Claim before cleanup.`,
+    });
+  }
+  if (laneAttributedProcesses.length > 0) {
+    recommendations.push({
+      severity: 'low',
+      kind: 'lane_attribution_visible',
+      text: `${laneAttributedProcesses.length} process(es) inherited an owner lane from visible agent surfaces or process ancestors.`,
+    });
+  }
   if (shellRuns.length === 0) {
     recommendations.push({
       severity: 'low',
@@ -731,7 +947,13 @@ function assertSelfTest(health) {
   if (!Array.isArray(health.stopPlans)) failures.push('expected stopPlans array');
   const fixturePidSet = new Set([100, 101, 102, 103, 104]);
   const fixtureRuns = new Map();
-  const fixtureArgs = { staleMinutes: 120, highMemoryMb: 1500, includeCommandLines: false };
+  const fixtureArgs = {
+    staleMinutes: 120,
+    highMemoryMb: 1500,
+    includeCommandLines: false,
+    hardwareReality: '__missing_hardware_reality_fixture__.json',
+    legacyWindows: '__missing_legacy_window_fixture__.json',
+  };
   const fixtures = [
     {
       name: 'Codex.exe',
@@ -792,6 +1014,49 @@ function assertSelfTest(health) {
       if (!fixture.expectedFindings.includes(finding)) failures.push(`${fixture.name} unexpected ${finding}`);
     }
   }
+  const ownerFixtures = [
+    {
+      pid: 100,
+      ppid: 1,
+      name: 'Codex.exe',
+      commandLine: '"C:\\Program Files\\WindowsApps\\OpenAI.Codex\\app\\Codex.exe" --secure-schemes=app',
+      executablePath: 'Codex.exe',
+      createdAt: new Date().toISOString(),
+      workingSetBytes: 50 * 1024 * 1024,
+    },
+    {
+      pid: 101,
+      ppid: 100,
+      name: 'pwsh.exe',
+      commandLine: 'pwsh -NoLogo',
+      executablePath: 'pwsh.exe',
+      createdAt: new Date().toISOString(),
+      workingSetBytes: 15 * 1024 * 1024,
+    },
+    {
+      pid: 102,
+      ppid: 101,
+      name: 'node.exe',
+      commandLine: 'node scripts\\local-worker.mjs',
+      executablePath: 'node.exe',
+      createdAt: new Date().toISOString(),
+      workingSetBytes: 20 * 1024 * 1024,
+    },
+  ];
+  const ownerEvidence = buildOwnerEvidence(fixtureArgs, ownerFixtures);
+  if (ownerEvidence.get(102)?.laneId !== 'codex') {
+    failures.push('expected descendant process to inherit codex lane owner');
+  }
+  const ownedReceipt = processToReceipt(
+    ownerFixtures[2],
+    fixtureArgs,
+    new Set(ownerFixtures.map((item) => item.pid)),
+    fixtureRuns,
+    ownerEvidence,
+  );
+  if (ownedReceipt.custody.ownerLane !== 'codex') {
+    failures.push('expected process receipt to include inferred owner lane');
+  }
   if (failures.length) {
     throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   }
@@ -812,6 +1077,8 @@ try {
     console.log(`Shell/dev runs: ${health.summary.shellRunCount}`);
     console.log(`Registered runs: ${health.summary.registeredRunCount}`);
     console.log(`Owned processes: ${health.summary.ownedProcessCount}`);
+    console.log(`Lane-attributed processes: ${health.summary.laneAttributedProcessCount}`);
+    console.log(`Owner-unknown review: ${health.summary.ownerUnknownReviewCount}`);
     console.log(`Overdue registered runs: ${health.summary.overdueRegisteredRunCount}`);
     console.log(`Unmatched active runs: ${health.summary.unmatchedActiveRunCount}`);
     console.log(`Stale: ${health.summary.staleRunCount}`);

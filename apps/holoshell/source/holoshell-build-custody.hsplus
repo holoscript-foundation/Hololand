@@ -19,6 +19,9 @@ composition "HoloShell Build Custody" {
     processCount: 0
     buildProcessCount: 0
     activeBuildTreeCount: 0
+    ownedBuildProcessCount: 0
+    ownedBuildTreeCount: 0
+    ownerUnknownBuildTreeCount: 0
     longRunningBuildCount: 0
     highMemoryBuildCount: 0
     reviewRequiredCount: 0
@@ -43,6 +46,12 @@ composition "HoloShell Build Custody" {
     commandHash: ""
     rawCommandHidden: true
     custodyState: "active_build"
+    ownerLaneId: ""
+    ownerLaneLabel: ""
+    ownerColorHint: "white"
+    ownerEvidence: ""
+    ownerParentPid: 0
+    ownerTrustState: "unknown"
     stopPolicy: "break_glass_required"
     receiptRequired: true
   }
@@ -56,6 +65,13 @@ composition "HoloShell Build Custody" {
     processCount: 0
     maxAgeMinutes: 0
     totalMemoryMb: 0
+    ownerLaneId: ""
+    ownerLaneLabel: ""
+    ownerColorHint: "white"
+    ownerEvidence: ""
+    ownerParentPid: 0
+    ownerTrustState: "unknown"
+    ownedProcessCount: 0
     processPids: []
     receiptRequired: true
   }
@@ -71,6 +87,8 @@ composition "HoloShell Build Custody" {
       uiType: "build_tree_stack"
       label: "Active Builds"
       count: $activeBuildTreeCount
+      ownedTrees: $ownedBuildTreeCount
+      ownerUnknownTrees: $ownerUnknownBuildTreeCount
       risk: $riskState
       scanner: $scannerStatus
     }
@@ -80,6 +98,7 @@ composition "HoloShell Build Custody" {
       uiType: "pid_custody_table"
       label: "Build PIDs"
       processCount: $buildProcessCount
+      ownedProcesses: $ownedBuildProcessCount
       longRunning: $longRunningBuildCount
       highMemory: $highMemoryBuildCount
     }
@@ -127,12 +146,23 @@ composition "HoloShell Build Custody" {
     receiptRequired: true
   }
 
+  policy "BuildOwnershipInferenceIsEvidence" {
+    appliesTo: ["build_process_classification", "build_tree_claim", "brittney_turn"]
+    ownerLaneSources: ["holoshell_reality_lane", "top_level_window", "agent_process_name", "parent_pid", "ancestor_pid"]
+    colorHintIsVisualOnly: true
+    ownerUnknownBlocksAutomaticCleanup: true
+    receiptRequired: true
+  }
+
   action consume_build_custody(custody) {
     state.riskState = custody.summary.riskState
     state.scannerStatus = custody.summary.scannerStatus || "available"
     state.processCount = custody.summary.processCount
     state.buildProcessCount = custody.summary.buildProcessCount
     state.activeBuildTreeCount = custody.summary.activeBuildTreeCount
+    state.ownedBuildProcessCount = custody.summary.ownedBuildProcessCount || 0
+    state.ownedBuildTreeCount = custody.summary.ownedBuildTreeCount || 0
+    state.ownerUnknownBuildTreeCount = custody.summary.ownerUnknownBuildTreeCount || 0
     state.longRunningBuildCount = custody.summary.longRunningBuildCount
     state.highMemoryBuildCount = custody.summary.highMemoryBuildCount
     state.reviewRequiredCount = custody.summary.reviewRequiredCount
@@ -144,6 +174,9 @@ composition "HoloShell Build Custody" {
       processCount: state.processCount,
       buildProcesses: state.buildProcessCount,
       activeBuildTrees: state.activeBuildTreeCount,
+      ownedBuildProcesses: state.ownedBuildProcessCount,
+      ownedBuildTrees: state.ownedBuildTreeCount,
+      ownerUnknownBuildTrees: state.ownerUnknownBuildTreeCount,
       longRunningBuilds: state.longRunningBuildCount,
       highMemoryBuilds: state.highMemoryBuildCount,
       reviewRequired: state.reviewRequiredCount,

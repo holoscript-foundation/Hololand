@@ -1,21 +1,41 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const SCHEMA_VERSION = 'hololand.holoshell.build-custody.v0.1.0';
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'build-custody.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'build-custody.js');
+const DEFAULT_HARDWARE_REALITY = path.join('.tmp', 'holoshell', 'hardware-reality.json');
+const DEFAULT_LEGACY_WINDOWS = path.join('.tmp', 'holoshell', 'legacy-window-inventory.json');
 const DEFAULT_LONG_MINUTES = 45;
 const DEFAULT_HIGH_MEMORY_MB = 1500;
 const MAX_TAIL = 12;
+const LANE_LABELS = {
+  claude: 'Claude',
+  codex: 'Codex',
+  gemini: 'Gemini',
+  copilot: 'Copilot',
+  cursor: 'Cursor',
+  ollama: 'Ollama',
+};
+const LANE_COLORS = {
+  claude: 'violet',
+  codex: 'cyan',
+  gemini: 'amber',
+  copilot: 'blue',
+  cursor: 'indigo',
+  ollama: 'gray',
+};
 
 function parseArgs(argv) {
   const args = {
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
+    hardwareReality: DEFAULT_HARDWARE_REALITY,
+    legacyWindows: DEFAULT_LEGACY_WINDOWS,
     includeCommandLines: false,
     longMinutes: DEFAULT_LONG_MINUTES,
     highMemoryMb: DEFAULT_HIGH_MEMORY_MB,
@@ -28,6 +48,8 @@ function parseArgs(argv) {
     if (arg === '--') continue;
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
+    else if (arg === '--hardware-reality') args.hardwareReality = argv[++index];
+    else if (arg === '--legacy-windows') args.legacyWindows = argv[++index];
     else if (arg === '--include-command-lines') args.includeCommandLines = true;
     else if (arg === '--long-minutes') args.longMinutes = Number(argv[++index]) || DEFAULT_LONG_MINUTES;
     else if (arg === '--high-memory-mb') args.highMemoryMb = Number(argv[++index]) || DEFAULT_HIGH_MEMORY_MB;
@@ -59,6 +81,8 @@ Usage:
 Options:
   --output <path>              Output JSON. Default: .tmp/holoshell/build-custody.json.
   --js-output <path>           Browser bootstrap JS. Default: .tmp/holoshell/build-custody.js.
+  --hardware-reality <path>    Read lane PID evidence. Default: .tmp/holoshell/hardware-reality.json.
+  --legacy-windows <path>      Read top-level app/window owner evidence. Default: .tmp/holoshell/legacy-window-inventory.json.
   --include-command-lines      Include short command previews. Hidden by default.
   --long-minutes <n>           Long-running build threshold. Default: ${DEFAULT_LONG_MINUTES}.
   --high-memory-mb <n>         High memory threshold. Default: ${DEFAULT_HIGH_MEMORY_MB}.
@@ -115,6 +139,155 @@ function processCommand(processInfo) {
 
 function processLower(processInfo) {
   return `${processInfo.name || ''} ${processCommand(processInfo)}`.toLowerCase();
+}
+
+function normalizeLaneId(value) {
+  const raw = String(value || '').toLowerCase();
+  if (!raw) return '';
+  if (raw.includes('codex')) return 'codex';
+  if (raw.includes('claude')) return 'claude';
+  if (raw.includes('gemini') || raw.includes('antigravity')) return 'gemini';
+  if (raw.includes('copilot')) return 'copilot';
+  if (raw.includes('cursor')) return 'cursor';
+  if (raw.includes('ollama')) return 'ollama';
+  return raw.replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function laneLabel(laneId, fallback) {
+  return fallback || LANE_LABELS[laneId] || laneId || null;
+}
+
+function laneColor(laneId, fallback) {
+  return fallback || LANE_COLORS[laneId] || 'white';
+}
+
+function laneOwner(laneId, overrides = {}) {
+  const normalized = normalizeLaneId(laneId);
+  if (!normalized || normalized === 'terminal' || normalized === 'shell') return null;
+  return {
+    laneId: normalized,
+    laneLabel: laneLabel(normalized, overrides.label),
+    agentKind: overrides.agentKind || normalized,
+    surfaceKind: overrides.surfaceKind || 'agent_process',
+    colorHint: laneColor(normalized, overrides.colorHint),
+    evidence: overrides.evidence || 'agent_process_name',
+    parentPid: Number.isInteger(Number(overrides.parentPid)) ? Number(overrides.parentPid) : null,
+    ownerPid: Number.isInteger(Number(overrides.ownerPid)) ? Number(overrides.ownerPid) : null,
+    trustState: overrides.trustState || 'inferred_from_local_process_table',
+  };
+}
+
+function ownerFromProcessInfo(processInfo, evidence = 'agent_process_name') {
+  const name = tokenStem(processInfo.name);
+  const stems = [
+    name,
+    ...commandTokens(processCommand(processInfo)).map(tokenStem),
+  ].filter(Boolean);
+  const has = (patterns) => stems.some((stem) => patterns.some((pattern) => {
+    if (pattern instanceof RegExp) return pattern.test(stem);
+    return stem === pattern || stem.startsWith(`${pattern}-`);
+  }));
+
+  if (has(['codex', /openai\.codex/])) return laneOwner('codex', { evidence, ownerPid: processInfo.pid });
+  if (has(['claude'])) return laneOwner('claude', { evidence, ownerPid: processInfo.pid });
+  if (has(['gemini', 'antigravity'])) return laneOwner('gemini', { evidence, ownerPid: processInfo.pid });
+  if (has(['copilot'])) return laneOwner('copilot', { evidence, ownerPid: processInfo.pid });
+  if (has(['cursor'])) return laneOwner('cursor', { evidence, ownerPid: processInfo.pid });
+  if (has(['ollama'])) return laneOwner('ollama', { evidence, ownerPid: processInfo.pid });
+  return null;
+}
+
+function readJsonIfPresent(filePath) {
+  const resolved = resolveRepoPath(filePath);
+  if (!existsSync(resolved)) return null;
+  try {
+    return JSON.parse(readFileSync(resolved, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function numericPids(values) {
+  return safeArray(values).map(Number).filter((pid) => Number.isInteger(pid) && pid > 0);
+}
+
+function addOwner(ownerByPid, priorityByPid, pid, owner, priority) {
+  if (!Number.isInteger(pid) || pid <= 0 || !owner?.laneId) return;
+  const existingPriority = priorityByPid.get(pid) ?? -1;
+  if (priority < existingPriority) return;
+  ownerByPid.set(pid, { ...owner, ownerPid: owner.ownerPid || pid });
+  priorityByPid.set(pid, priority);
+}
+
+function buildOwnerIndex(args, processes) {
+  const ownerByPid = new Map();
+  const priorityByPid = new Map();
+  const hardwareReality = readJsonIfPresent(args.hardwareReality);
+  const legacyWindows = readJsonIfPresent(args.legacyWindows);
+
+  for (const lane of safeArray(hardwareReality?.lanes)) {
+    const owner = laneOwner(lane.laneId || lane.agent_id, {
+      label: lane.label || lane.laneLabel || lane.lane_label,
+      surfaceKind: lane.surfaceKind || lane.surface || 'agent_lane',
+      colorHint: lane.colorHint || lane.color || lane.lane_color,
+      evidence: 'holoshell_reality_lane',
+      trustState: lane.trustState || 'observed_by_holoshell_mcp',
+    });
+    for (const pid of numericPids(lane.pidLinks || lane.pid_links)) {
+      addOwner(ownerByPid, priorityByPid, pid, owner, 80);
+    }
+  }
+
+  for (const surface of safeArray(legacyWindows?.peerSurfaces)) {
+    const owner = laneOwner(surface.laneId || surface.agentId, {
+      label: surface.label,
+      agentKind: surface.peerKind,
+      surfaceKind: surface.surfaceClass || 'ai_peer_surface',
+      colorHint: surface.colorHint,
+      evidence: surface.evidence || 'top_level_window',
+      trustState: 'observed_top_level_window',
+    });
+    for (const pid of numericPids(surface.pids)) {
+      addOwner(ownerByPid, priorityByPid, pid, owner, 70);
+    }
+  }
+
+  for (const processInfo of processes) {
+    const owner = ownerFromProcessInfo(processInfo);
+    if (owner) addOwner(ownerByPid, priorityByPid, processInfo.pid, owner, 90);
+  }
+
+  return ownerByPid;
+}
+
+function ownedFromAncestor(owner, evidence, parentPid) {
+  if (!owner) return null;
+  return {
+    ...owner,
+    evidence,
+    parentPid: Number.isInteger(Number(parentPid)) ? Number(parentPid) : owner.parentPid,
+  };
+}
+
+function ownerForProcess(processInfo, byPid, ownerByPid) {
+  let current = processInfo;
+  const seen = new Set();
+  let depth = 0;
+  while (current && Number.isInteger(current.pid) && !seen.has(current.pid) && depth < 24) {
+    seen.add(current.pid);
+    const directOwner = ownerByPid.get(current.pid) || ownerFromProcessInfo(current);
+    if (directOwner) {
+      return ownedFromAncestor(directOwner, depth === 0 ? directOwner.evidence || 'direct_pid' : 'ancestor_pid', current.pid);
+    }
+    const parentPid = Number(current.ppid);
+    const parentOwner = ownerByPid.get(parentPid);
+    if (parentOwner) {
+      return ownedFromAncestor(parentOwner, depth === 0 ? 'parent_pid' : 'ancestor_pid', parentPid);
+    }
+    current = byPid.get(parentPid);
+    depth += 1;
+  }
+  return null;
 }
 
 function commandTokens(command) {
@@ -282,7 +455,16 @@ $names = @(
   'next.exe',
   'webpack.exe',
   'rollup.exe',
-  'tsc.exe'
+  'tsc.exe',
+  'Codex.exe',
+  'codex.exe',
+  'Claude.exe',
+  'claude.exe',
+  'Code.exe',
+  'Cursor.exe',
+  'WindowsTerminal.exe',
+  'Ollama.exe',
+  'ollama.exe'
 )
 $filter = ($names | ForEach-Object { "Name='$($_)'" }) -join ' OR '
 Get-CimInstance Win32_Process -Filter $filter | ForEach-Object {
@@ -346,8 +528,16 @@ function syntheticProcesses() {
   const minutesAgo = (minutes) => new Date(now - minutes * 60_000).toISOString();
   return [
     {
+      pid: 90,
+      ppid: 1,
+      name: 'Codex.exe',
+      commandLine: '"C:\\Program Files\\WindowsApps\\OpenAI.Codex\\app\\Codex.exe" --secure-schemes=app',
+      createdAt: minutesAgo(90),
+      workingSetBytes: 380 * 1024 * 1024,
+    },
+    {
       pid: 100,
-      ppid: 10,
+      ppid: 90,
       name: 'pwsh.exe',
       commandLine: 'pwsh -NoLogo -Command pnpm build',
       createdAt: minutesAgo(12),
@@ -448,7 +638,7 @@ function rootPidFor(processInfo, buildKinds, byPid) {
   return root.pid;
 }
 
-function buildProcessEntry(processInfo, kind, args, now) {
+function buildProcessEntry(processInfo, kind, args, now, owner) {
   const command = processCommand(processInfo);
   const ageMinutes = processAgeMinutes(processInfo, now);
   const memory = memoryMb(processInfo);
@@ -469,6 +659,15 @@ function buildProcessEntry(processInfo, kind, args, now) {
     custodyState: findings.includes('long_running_build') || findings.includes('high_memory_build_process')
       ? 'needs_review'
       : 'active_build',
+    ownerLaneId: owner?.laneId || null,
+    ownerLaneLabel: owner?.laneLabel || null,
+    ownerAgentKind: owner?.agentKind || null,
+    ownerSurfaceKind: owner?.surfaceKind || null,
+    ownerColorHint: owner?.colorHint || null,
+    ownerEvidence: owner?.evidence || null,
+    ownerParentPid: owner?.parentPid || null,
+    ownerPid: owner?.ownerPid || null,
+    ownerTrustState: owner?.trustState || null,
     findings,
     stopPolicy: 'break_glass_required',
   };
@@ -476,6 +675,15 @@ function buildProcessEntry(processInfo, kind, args, now) {
 
 function createBuildTree(rootPid, entries) {
   const root = entries.find((entry) => entry.pid === rootPid) || entries[0];
+  const ownedEntries = entries.filter((entry) => entry.ownerLaneId);
+  const ownerCounts = new Map();
+  for (const entry of ownedEntries) {
+    ownerCounts.set(entry.ownerLaneId, (ownerCounts.get(entry.ownerLaneId) || 0) + 1);
+  }
+  const dominantOwnerId = root?.ownerLaneId || [...ownerCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] || null;
+  const ownerSource = dominantOwnerId
+    ? entries.find((entry) => entry.ownerLaneId === dominantOwnerId) || null
+    : null;
   const maxAge = entries.reduce((max, entry) => Math.max(max, entry.ageMinutes || 0), 0);
   const memory = entries.reduce((sum, entry) => sum + (entry.memoryMb || 0), 0);
   const findings = [...new Set(entries.flatMap((entry) => entry.findings || []))];
@@ -494,6 +702,16 @@ function createBuildTree(rootPid, entries) {
     totalMemoryMb: Number(memory.toFixed(1)),
     buildKinds: [...new Set(entries.map((entry) => entry.buildKind))],
     findings,
+    ownerLaneId: ownerSource?.ownerLaneId || null,
+    ownerLaneLabel: ownerSource?.ownerLaneLabel || null,
+    ownerAgentKind: ownerSource?.ownerAgentKind || null,
+    ownerSurfaceKind: ownerSource?.ownerSurfaceKind || null,
+    ownerColorHint: ownerSource?.ownerColorHint || null,
+    ownerEvidence: ownerSource?.ownerEvidence || null,
+    ownerParentPid: ownerSource?.ownerParentPid || null,
+    ownerPid: ownerSource?.ownerPid || null,
+    ownerTrustState: ownerSource?.ownerTrustState || null,
+    ownedProcessCount: ownedEntries.length,
     processPids: entries.map((entry) => entry.pid),
     receiptRequired: true,
     rawCommandsIncluded: entries.some((entry) => entry.rawCommandHidden === false),
@@ -529,6 +747,20 @@ function makeRecommendations(summary, trees) {
       text: `${summary.highMemoryBuildCount} build process(es) crossed the high-memory threshold.`,
     });
   }
+  if (summary.ownerUnknownBuildTreeCount > 0) {
+    recommendations.push({
+      kind: 'build_owner_unknown',
+      priority: 'medium',
+      text: `${summary.ownerUnknownBuildTreeCount} active build tree(s) have no visible agent lane owner. Ask HoloShell to claim before cleanup or judgment.`,
+    });
+  }
+  if (summary.ownedBuildTreeCount > 0) {
+    recommendations.push({
+      kind: 'build_owner_visible',
+      priority: 'low',
+      text: `${summary.ownedBuildTreeCount} active build tree(s) are attributed to visible agent lanes.`,
+    });
+  }
   for (const tree of trees.slice(0, 2)) {
     recommendations.push({
       kind: 'build_tree_receipt',
@@ -542,10 +774,11 @@ function makeRecommendations(summary, trees) {
 function createCustody(processes, args) {
   const now = Date.now();
   const byPid = new Map(processes.map((item) => [item.pid, item]));
+  const ownerByPid = buildOwnerIndex(args, processes);
   const buildKinds = classifyBuildProcesses(processes);
   const entries = processes
     .filter((item) => buildKinds.has(item.pid))
-    .map((item) => buildProcessEntry(item, buildKinds.get(item.pid), args, now))
+    .map((item) => buildProcessEntry(item, buildKinds.get(item.pid), args, now, ownerForProcess(item, byPid, ownerByPid)))
     .sort((left, right) => (right.ageMinutes || 0) - (left.ageMinutes || 0));
 
   const entriesByRoot = new Map();
@@ -561,6 +794,9 @@ function createCustody(processes, args) {
 
   const longRunningBuildCount = entries.filter((entry) => entry.findings.includes('long_running_build')).length;
   const highMemoryBuildCount = entries.filter((entry) => entry.findings.includes('high_memory_build_process')).length;
+  const ownedBuildProcessCount = entries.filter((entry) => entry.ownerLaneId).length;
+  const ownedBuildTreeCount = trees.filter((tree) => tree.ownerLaneId).length;
+  const ownerUnknownBuildTreeCount = trees.filter((tree) => !tree.ownerLaneId).length;
   const riskState = highMemoryBuildCount > 0 ? 'critical' : longRunningBuildCount > 0 ? 'warn' : 'pass';
   const summary = {
     riskState,
@@ -571,6 +807,9 @@ function createCustody(processes, args) {
     buildTreeCount: trees.length,
     longRunningBuildCount,
     highMemoryBuildCount,
+    ownedBuildProcessCount,
+    ownedBuildTreeCount,
+    ownerUnknownBuildTreeCount,
     reviewRequiredCount: longRunningBuildCount + highMemoryBuildCount,
     rawCommandsIncluded: args.includeCommandLines,
     longMinutesThreshold: args.longMinutes,
@@ -606,6 +845,7 @@ function createCustody(processes, args) {
       buildStopRequiresBreakGlass: true,
       pidCountsAreHealthSignalsOnly: true,
       activeBuildDoesNotEqualFailure: true,
+      ownerLaneInferenceIsEvidenceOnly: true,
     },
     buildTrees: trees,
     buildProcesses: entries.slice(0, 80),
@@ -613,10 +853,10 @@ function createCustody(processes, args) {
     brittneyBrief: {
       status: entries.length ? 'active_builds_visible' : 'no_active_builds_visible',
       requiredNextAction: entries.length
-        ? `${trees.length} active build tree(s) visible; observe custody and do not terminate without break-glass approval.`
+        ? `${trees.length} active build tree(s) visible; ${ownedBuildTreeCount} attributed to agent lane(s); observe custody and do not terminate without break-glass approval.`
         : 'No active build tree visible; refresh build custody before starting or judging a build.',
       blockedActions: ['kill_build_process', 'stop_build_tree', 'delete_build_output'],
-      custodySummary: `${entries.length} build process(es) across ${trees.length} tree(s); ${longRunningBuildCount} long-running; ${highMemoryBuildCount} high-memory.`,
+      custodySummary: `${entries.length} build process(es) across ${trees.length} tree(s); ${ownedBuildProcessCount} lane-owned; ${ownerUnknownBuildTreeCount} owner-unknown tree(s); ${longRunningBuildCount} long-running; ${highMemoryBuildCount} high-memory.`,
     },
     safety,
     receipt: {
@@ -638,6 +878,9 @@ function createUnavailableCustody(args, errorMessage) {
     buildTreeCount: 0,
     longRunningBuildCount: 0,
     highMemoryBuildCount: 0,
+    ownedBuildProcessCount: 0,
+    ownedBuildTreeCount: 0,
+    ownerUnknownBuildTreeCount: 0,
     reviewRequiredCount: 1,
     rawCommandsIncluded: args.includeCommandLines,
     longMinutesThreshold: args.longMinutes,
@@ -719,6 +962,11 @@ function assertSelfTest(custody) {
   if (custody.summary.buildProcessCount < 4) failures.push('expected synthetic build processes');
   if (custody.summary.activeBuildTreeCount !== 1) failures.push('expected one build tree');
   if (!custody.buildTrees[0]?.processPids.includes(103)) failures.push('expected descendant bundler process in build tree');
+  if (custody.buildTrees[0]?.ownerLaneId !== 'codex') failures.push('expected synthetic build tree to inherit codex owner');
+  if (custody.buildProcesses.find((processInfo) => processInfo.pid === 103)?.ownerLaneId !== 'codex') {
+    failures.push('expected descendant bundler process to inherit codex owner');
+  }
+  if (custody.summary.ownedBuildTreeCount !== 1) failures.push('expected one owned build tree');
   if (custody.buildProcesses.some((processInfo) => [300, 301].includes(processInfo.pid))) {
     failures.push('holoscript query text mentioning build must not become build custody');
   }
@@ -767,8 +1015,10 @@ function main() {
     console.log(`Build trees: ${custody.summary.activeBuildTreeCount}`);
     console.log(`Long-running builds: ${custody.summary.longRunningBuildCount}`);
     console.log(`High-memory builds: ${custody.summary.highMemoryBuildCount}`);
+    console.log(`Lane-owned build trees: ${custody.summary.ownedBuildTreeCount}`);
     for (const tree of custody.buildTrees.slice(0, MAX_TAIL)) {
-      console.log(`${tree.treeId}: ${tree.status}, ${tree.processCount} process(es), ${tree.totalMemoryMb} MB`);
+      const owner = tree.ownerLaneLabel ? `, owner ${tree.ownerLaneLabel}` : ', owner unknown';
+      console.log(`${tree.treeId}: ${tree.status}, ${tree.processCount} process(es), ${tree.totalMemoryMb} MB${owner}`);
     }
   }
 }
