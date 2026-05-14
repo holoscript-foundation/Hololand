@@ -80,7 +80,7 @@ hololand-website/
 - Gradient animated background
 - "Build the Open Metaverse" headline
 - 3 CTA buttons: Infinity Builder, Hololand Central, Docs
-- Quick stats: 100% Open Source, FREE, 8+ Packages
+- Quick stats: HoloScript-native, FREE, 8+ Packages
 
 ### 2. Creator Journey (THE KEY SECTION)
 Shows the 4-step path from problem to solution:
@@ -135,7 +135,7 @@ Shows three distinct paths:
 - Natural Language
 - Visual Builder
 - Own Your Creations
-- 100% Open Source
+- HoloScript Native
 
 ### 5. Email Signup
 - Waitlist for Infinity Builder early access
@@ -145,7 +145,7 @@ Shows three distinct paths:
 ### 6. Footer
 - Quick links
 - Social media
-- MIT License
+- HoloLand licensing is separate from HoloScript
 - $BRIAN token info
 
 ## 🎨 Design System
@@ -275,7 +275,8 @@ Want to improve the landing page?
 
 ## 📝 License
 
-MIT License - see [LICENSE](../../LICENSE) for details
+HoloLand platform licensing is separate from HoloScript. HoloScript is MIT-licensed;
+do not describe HoloLand as MIT unless a HoloLand-specific license file says so.
 
 ## 🔗 Links
 

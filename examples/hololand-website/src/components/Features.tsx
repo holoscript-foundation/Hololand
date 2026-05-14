@@ -28,9 +28,9 @@ export function Features() {
       description: 'Sell worlds, earn $BRIAN tokens, build your business. True creator economy.',
     },
     {
-      icon: '🔓',
-      title: '100% Open Source',
-      description: 'MIT licensed. No vendor lock-in. Fork it, extend it, make it yours.',
+      icon: '🧬',
+      title: 'HoloScript Native',
+      description: 'Consumes the MIT-licensed HoloScript source layer without claiming HoloLand itself is MIT.',
     },
   ];
 

@@ -14,7 +14,7 @@ export function Hero() {
         {/* Badge */}
         <div className="inline-flex items-center glass rounded-full px-6 py-2 mb-8 animate-float">
           <span className="text-sm font-semibold">
-            ✨ Open Source • MIT License • $BRIAN Token
+            ✨ HoloScript-Native • Creator Platform • $BRIAN Token
           </span>
         </div>
 
@@ -55,9 +55,9 @@ export function Hero() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto glass rounded-2xl p-8">
           <div>
             <div className="text-3xl md:text-4xl font-bold gradient-text mb-2">
-              100%
+              Native
             </div>
-            <div className="text-sm text-gray-400">Open Source</div>
+            <div className="text-sm text-gray-400">HoloScript Runtime</div>
           </div>
           <div>
             <div className="text-3xl md:text-4xl font-bold gradient-text mb-2">

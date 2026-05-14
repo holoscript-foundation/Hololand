@@ -17,7 +17,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-gray-400 mb-4 max-w-md">
-              Building the open metaverse. Create immersive AR/VR experiences using React and natural language. MIT licensed, forever free.
+              Building the open metaverse. Create immersive AR/VR experiences using React, natural language, and the MIT-licensed HoloScript source layer.
             </p>
             <div className="flex items-center space-x-4">
               <a
@@ -124,16 +124,16 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-gray-400">
-            © {currentYear} Hololand Community. Open source under MIT License.
+            © {currentYear} Hololand Community. HoloLand licensing is separate from HoloScript.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a
-              href="https://github.com/brianonbased-dev/Hololand/blob/main/LICENSE"
+              href="https://github.com/brianonbased-dev/HoloScript/blob/main/LICENSE"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-gray-400 hover:text-primary transition"
             >
-              License
+              HoloScript MIT
             </a>
             <a href="#" className="text-sm text-gray-400 hover:text-primary transition">
               Privacy

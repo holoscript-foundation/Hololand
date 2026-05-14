@@ -33,16 +33,16 @@ export function Stats() {
 
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold gradient-text mb-2">
-                100%
+                AI
               </div>
-              <div className="text-gray-400">Open Source</div>
+              <div className="text-gray-400">First Creation</div>
             </div>
 
             <div className="text-center">
               <div className="text-4xl md:text-5xl font-bold gradient-text mb-2">
                 MIT
               </div>
-              <div className="text-gray-400">License</div>
+              <div className="text-gray-400">HoloScript Source</div>
             </div>
           </div>
 
