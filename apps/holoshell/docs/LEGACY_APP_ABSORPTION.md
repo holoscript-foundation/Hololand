@@ -36,6 +36,7 @@ Brittney to operate.
 pnpm run holoshell:hardware-reality
 pnpm run holoshell:legacy-windows
 pnpm run holoshell:legacy-apps
+pnpm run holoshell:os-ui-capture
 ```
 
 Output:
@@ -43,7 +44,13 @@ Output:
 ```text
 .tmp/holoshell/legacy-app-absorption.json
 .tmp/holoshell/legacy-app-absorption.js
+.tmp/holoshell/os-ui-capture.json
+.tmp/holoshell/os-ui-capture.holo
 ```
+
+`holoshell:os-ui-capture` consumes the absorption recommendations and targets
+the first high-value legacy candidate by default, so the OS reconstruction
+follows Brittney's next move instead of whichever peer window is focused.
 
 ## Archetypes
 

@@ -143,6 +143,25 @@ function sourceBasename(sourceRef) {
 
 function sanitizeShellObject(object) {
   if (!object?.id) return null;
+  const relationships = safeObject(object.relationships);
+  const operationContext = object.objectKind === 'captured_window'
+    ? {
+        appName: relationships.appName || '',
+        appLabel: relationships.appLabel || '',
+        archetype: relationships.archetype || '',
+        surfaceRole: relationships.surfaceRole || '',
+        mutationPolicy: relationships.mutationPolicy || '',
+        captureCandidate: Boolean(relationships.captureCandidate),
+        selectedForReconstruction: Boolean(relationships.selectedForReconstruction),
+        controlCount: relationships.controlCount || 0,
+        geometryNodeCount: relationships.geometryNodeCount || 0,
+        actionBridgeStatus: relationships.actionBridgeStatus || '',
+        preflightRequired: relationships.preflightRequired !== false,
+        preflightTool: relationships.preflightTool || '',
+        safeActions: Array.isArray(relationships.safeActions) ? relationships.safeActions.slice(0, 8) : [],
+        blockedActions: Array.isArray(relationships.blockedActions) ? relationships.blockedActions.slice(0, 8) : [],
+      }
+    : undefined;
   return {
     id: object.id,
     objectKind: object.objectKind || 'unknown',
@@ -161,6 +180,7 @@ function sanitizeShellObject(object) {
     sourceRefLabel: sourceBasename(object.sourceRef),
     detail: String(object.detail || '').slice(0, 220),
     firstScreen: Boolean(object.firstScreen),
+    operationContext,
   };
 }
 
@@ -168,8 +188,10 @@ function shellObjectRank(object, selectedId) {
   if (object.id === selectedId) return -10;
   if (object.id === DEFAULT_SELECTED_OBJECT) return -9;
   if (object.objectKind === 'assistant_avatar') return -8;
-  if (object.firstScreen) return -7;
-  if (object.objectKind === 'approval') return -6;
+  if (object.objectKind === 'captured_window' && ['selected', 'foreground'].includes(object.status)) return -7.5;
+  if (object.objectKind === 'captured_window') return -6.5;
+  if (object.firstScreen) return -6;
+  if (object.objectKind === 'approval') return -5.5;
   if (object.permissionEnvelope === 'guarded_execute') return -5;
   if (object.status === 'running') return -4;
   return 0;
@@ -321,7 +343,52 @@ function summarizeOperatorBrief(operatorBrief) {
   };
 }
 
-function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operatorBrief }, maxTimelineItems) {
+function summarizeOsUiCapture(osUiCapture) {
+  const summary = osUiCapture.summary || {};
+  const selectedWindow = osUiCapture.selectedWindow || {};
+  const legacySurface = selectedWindow.legacySurface || {};
+  const controls = safeArray(selectedWindow.controls)
+    .filter((control) => control?.name || control?.controlType)
+    .slice(0, 8)
+    .map((control) => ({
+      name: String(control.name || control.controlType || '').slice(0, 80),
+      controlType: control.controlType || '',
+      enabled: Boolean(control.enabled),
+      offscreen: Boolean(control.offscreen),
+      actionBridge: control.shellSemantics?.actionBridge || '',
+    }));
+  return {
+    status: summary.status || 'unknown',
+    targetApp: summary.targetApp || '',
+    targetSource: summary.targetSource || '',
+    targetMatched: Boolean(summary.targetMatched),
+    targetResolved: Boolean(summary.targetResolved || summary.targetMatched),
+    targetResolution: summary.targetResolution || '',
+    selectedWindowId: summary.selectedWindowId || summary.foregroundWindowId || '',
+    selectedAppName: summary.selectedAppName || legacySurface.appName || selectedWindow.processName || '',
+    selectedSurfaceRole: summary.selectedSurfaceRole || legacySurface.surfaceRole || '',
+    selectedMutationPolicy: summary.selectedMutationPolicy || legacySurface.mutationPolicy || '',
+    selectedTitle: selectedWindow.title || '',
+    selectedProcessName: selectedWindow.processName || '',
+    windowCount: summary.windowCount || 0,
+    controlCount: summary.controlCount || 0,
+    selectedControlCount: safeArray(selectedWindow.controls).length,
+    geometryNodeCount: summary.geometryNodeCount || 0,
+    uiAutomationStatus: summary.uiAutomationStatus || 'unknown',
+    actionBridgeStatus: summary.actionBridgeStatus || osUiCapture.actionDryRun?.status || '',
+    permissionEnvelope: osUiCapture.receipt?.permissionEnvelope || 'read_only',
+    mutatingActionsExecuted: Boolean(osUiCapture.receipt?.mutatingActionsExecuted),
+    preflightRequired: osUiCapture.actionDryRun?.preflightRequired !== false,
+    preflightTool: osUiCapture.actionDryRun?.preflightTool || legacySurface.preflightTool || 'holoshell_preflight_legacy_app_mutation',
+    safeActions: safeArray(osUiCapture.actionDryRun?.safeActions || legacySurface.safeActions).slice(0, 8),
+    blockedActions: safeArray(osUiCapture.actionDryRun?.blockedActions || legacySurface.blockedActions).slice(0, 8),
+    sampleControls: controls,
+    localUiLabelsIncluded: Boolean(selectedWindow.title || controls.some((control) => control.name)),
+    receiptId: osUiCapture.receipt?.id || '',
+  };
+}
+
+function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operatorBrief, osUiCapture }, maxTimelineItems) {
   const items = [];
   for (const item of safeArray(liveFeed.timeline)) {
     items.push({
@@ -367,19 +434,33 @@ function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operator
       source: 'scripts/holoshell-operator-brief.mjs',
     });
   }
+  if (osUiCapture?.receipt?.id) {
+    items.push({
+      id: osUiCapture.receipt.id,
+      kind: 'os_ui_capture',
+      title: `OS UI capture ${osUiCapture.summary?.status || 'unknown'}`,
+      trustState: osUiCapture.summary?.status === 'captured' ? 'partial' : 'unknown',
+      generatedAt: osUiCapture.generatedAt || '',
+      receiptType: osUiCapture.schemaVersion || '',
+      source: 'scripts/holoshell-os-ui-capture.mjs',
+    });
+  }
   return items
     .filter((item) => item.id)
     .sort((left, right) => String(right.generatedAt).localeCompare(String(left.generatedAt)))
     .slice(0, maxTimelineItems);
 }
 
-function privacyBoundary({ processHealth, operatorBrief }) {
+function privacyBoundary({ processHealth, operatorBrief, osUiCapture }) {
   const rawCommandsIncluded = Boolean(processHealth.collection?.commandLinesIncluded || operatorBrief.safety?.rawCommandsIncluded || operatorBrief.receipt?.rawCommandsIncluded);
   const rawWindowTitlesIncluded = Boolean(operatorBrief.safety?.rawWindowTitlesIncluded || operatorBrief.receipt?.rawWindowTitlesIncluded || operatorBrief.peers?.rawWindowTitlesIncluded);
+  const selectedWindow = osUiCapture?.selectedWindow || {};
+  const localUiLabelsIncluded = Boolean(selectedWindow.title || safeArray(selectedWindow.controls).some((control) => control?.name));
   return {
     locality: 'local_hardware',
     rawCommandsIncluded,
     rawWindowTitlesIncluded,
+    localUiLabelsIncluded,
     secretsIncluded: false,
     privatePathsIncluded: false,
     browserContentIncluded: false,
@@ -390,6 +471,7 @@ function privacyBoundary({ processHealth, operatorBrief }) {
       'Peer counts come from top-level legacy window inventory, not PID approximations.',
       'Shell windows are tracked separately from AI peer windows.',
       'Colors are visual hints; semantic lane ids remain authoritative.',
+      'OS UI capture can include local-only window and control labels for Brittney; remote models need a boundary review before receiving those labels.',
     ],
   };
 }
@@ -402,6 +484,7 @@ function loadInputs(args) {
     programRegistry: readJson(path.join(tmpDir, 'program-registry.json'), {}),
     processHealth: readJson(path.join(tmpDir, 'process-health.json'), {}),
     lanes: readJson(path.join(tmpDir, 'agent-lanes.json'), {}),
+    osUiCapture: readJson(path.join(tmpDir, 'os-ui-capture.json'), {}),
     operatorBrief: readJson(path.join(tmpDir, 'operator-brief.json'), {}),
     workflow: readJson(path.join(tmpDir, 'workflow-latest.json'), {}),
     workflowApproval: readJson(path.join(tmpDir, 'workflow-approval-latest.json'), {}),
@@ -429,6 +512,53 @@ function fixtureInputs() {
     },
     programRegistry: {
       summary: { status: 'captured', programCount: 12, launchableProgramCount: 12, runningWindowCount: 3, classCounts: { browser: 1, developer_tool: 2 }, permissionEnvelope: 'guarded_execute_for_launch', actionBridgeStatus: 'guarded_execute_available' },
+    },
+    osUiCapture: {
+      schemaVersion: 'hololand.holoshell.os-ui-capture.v0.1.0',
+      generatedAt: '2026-05-14T00:00:00.500Z',
+      summary: {
+        status: 'captured',
+        targetApp: 'chrome',
+        targetSource: 'legacy_absorption_recommendation',
+        targetMatched: true,
+        targetResolved: true,
+        targetResolution: 'rich_capture',
+        selectedWindowId: 'window-chrome',
+        selectedAppName: 'chrome',
+        selectedSurfaceRole: 'legacy_app_surface',
+        selectedMutationPolicy: 'preflight_required',
+        windowCount: 2,
+        controlCount: 7,
+        geometryNodeCount: 1200,
+        uiAutomationStatus: 'available',
+        actionBridgeStatus: 'route_planned',
+      },
+      selectedWindow: {
+        id: 'window-chrome',
+        title: 'Fixture Browser',
+        processName: 'chrome',
+        controls: [
+          { name: 'Address and search bar', controlType: 'Edit', enabled: true, offscreen: false, shellSemantics: { actionBridge: 'guarded_execute_pending' } },
+          { name: 'Back', controlType: 'Button', enabled: true, offscreen: false, shellSemantics: { actionBridge: 'guarded_execute_pending' } },
+        ],
+        legacySurface: {
+          appName: 'chrome',
+          label: 'Chrome',
+          surfaceRole: 'legacy_app_surface',
+          mutationPolicy: 'preflight_required',
+          safeActions: ['capture_window', 'map_visible_controls', 'summarize_tabs'],
+          blockedActions: ['submit_form', 'change_browser_profile'],
+          preflightTool: 'holoshell_preflight_legacy_app_mutation',
+        },
+      },
+      actionDryRun: {
+        status: 'route_planned',
+        preflightRequired: true,
+        preflightTool: 'holoshell_preflight_legacy_app_mutation',
+        safeActions: ['capture_window', 'map_visible_controls', 'summarize_tabs'],
+        blockedActions: ['submit_form', 'change_browser_profile'],
+      },
+      receipt: { id: 'os-ui-capture-fixture', permissionEnvelope: 'read_only', mutatingActionsExecuted: false },
     },
     processHealth: {
       summary: { riskState: 'warn', processCount: 42, shellRunCount: 7, registeredRunCount: 3, activeRegisteredRunCount: 1, staleRunCount: 1, highMemoryCount: 0, stopPlanCount: 1 },
@@ -478,6 +608,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const agentLaneSummary = summarizeLanes(inputs.lanes);
   const processHealthSummary = summarizeProcessHealth(inputs.processHealth, inputs.operatorBrief);
   const operatorBriefSummary = summarizeOperatorBrief(inputs.operatorBrief);
+  const legacyUiCaptureSummary = summarizeOsUiCapture(inputs.osUiCapture);
   const timeline = recentReceiptTimeline(inputs, args.maxTimelineItems);
   const privacy = privacyBoundary(inputs);
   const contextHashInput = {
@@ -490,6 +621,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     agentLaneSummary,
     processHealthSummary,
     operatorBriefSummary,
+    legacyUiCaptureSummary,
     timelineIds: timeline.map((item) => item.id),
     privacy,
   };
@@ -509,6 +641,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       processHealth: 'scripts/holoshell-process-health.mjs',
       agentLanes: 'scripts/holoshell-agent-lanes.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
+      osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
     },
     prompt: args.prompt,
     selectedShellObject: selectedObject,
@@ -519,6 +652,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     agentLaneSummary,
     processHealthSummary,
     operatorBriefSummary,
+    legacyUiCaptureSummary,
     recentReceiptTimeline: timeline,
     privacyBoundary: privacy,
     operatorPromptCard: inputs.operatorBrief.brittneyPromptCard || {},
@@ -526,7 +660,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     actionProposalDefaults: {
       actor: 'brittney',
       approvalRequiredForNonReadOnly: true,
-      expectedReceipts: ['brittney_context', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
+      expectedReceipts: ['brittney_context', 'os_ui_capture_receipt', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
       rollbackOrWitnessPlan: 'read-only preview first; guarded execution needs receipt-backed witness or approval.',
     },
     summary: {
@@ -540,6 +674,16 @@ function createPacket(args, inputs = loadInputs(args)) {
       staleRunCount: processHealthSummary.staleRunCount,
       highMemoryCount: processHealthSummary.highMemoryCount,
       stopPlanCount: processHealthSummary.stopPlanCount,
+      osUiCaptureStatus: legacyUiCaptureSummary.status,
+      osUiTargetApp: legacyUiCaptureSummary.targetApp,
+      osUiTargetMatched: legacyUiCaptureSummary.targetMatched,
+      osUiTargetResolved: legacyUiCaptureSummary.targetResolved,
+      osUiTargetResolution: legacyUiCaptureSummary.targetResolution,
+      osUiSelectedAppName: legacyUiCaptureSummary.selectedAppName,
+      osUiSelectedMutationPolicy: legacyUiCaptureSummary.selectedMutationPolicy,
+      osUiControlCount: legacyUiCaptureSummary.controlCount,
+      osUiGeometryNodeCount: legacyUiCaptureSummary.geometryNodeCount,
+      localUiLabelsIncluded: privacy.localUiLabelsIncluded,
       peerWindowCount: operatorBriefSummary.peerWindowCount,
       shellWindowCount: operatorBriefSummary.shellWindowCount,
       operatingSurfaceWindowCount: operatorBriefSummary.operatingSurfaceWindowCount,
@@ -558,6 +702,7 @@ function createPacket(args, inputs = loadInputs(args)) {
         'pnpm run holoshell:legacy-windows',
         'pnpm run holoshell:run-custody',
         'pnpm run holoshell:legacy-apps',
+        'pnpm run holoshell:os-ui-capture',
         'pnpm run holoshell:operator-brief',
         'pnpm run holoshell:shell-objects',
         'pnpm run holoshell:brittney-context',
@@ -582,6 +727,10 @@ function assertSelfTest(packet) {
   if (packet.operatorBriefSummary.peerWindowCount < 2) failures.push('expected peer windows from operator brief');
   if (packet.operatorBriefSummary.shellWindowCount < 1) failures.push('expected shell windows tracked separately');
   if (packet.agentLaneSummary.colorLaneCount < 3) failures.push('expected color lane evidence');
+  if (packet.legacyUiCaptureSummary.status !== 'captured') failures.push('expected OS UI capture summary');
+  if (packet.legacyUiCaptureSummary.targetApp !== 'chrome') failures.push('expected Chrome OS UI target');
+  if (!packet.legacyUiCaptureSummary.targetResolved) failures.push('expected resolved OS UI target');
+  if (packet.legacyUiCaptureSummary.mutatingActionsExecuted !== false) failures.push('OS UI capture must remain read-only');
   if (packet.approvalSummary.pendingApprovalCount < 1) failures.push('expected pending approval summary');
   if (packet.processHealthSummary.commandLinesIncluded !== false) failures.push('raw command lines must be excluded');
   if (packet.privacyBoundary.rawCommandsIncluded !== false) failures.push('privacy boundary leaked raw commands');

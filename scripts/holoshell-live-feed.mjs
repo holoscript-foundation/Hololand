@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -223,11 +223,12 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
   }
 
   if (osUiCapture?.summary) {
+    const targetLabel = osUiCapture.summary.targetApp || osUiCapture.summary.selectedAppName || 'legacy surface';
     timeline.push({
       id: 'os-ui-capture',
       kind: 'os_ui_capture',
       title: 'Legacy UI captured as HoloShell geometry',
-      detail: `${osUiCapture.summary.windowCount || 0} windows, ${osUiCapture.summary.controlCount || 0} controls, ${osUiCapture.summary.geometryNodeCount || 0} geometric shards.`,
+      detail: `${targetLabel} target ${osUiCapture.summary.targetResolution || (osUiCapture.summary.targetMatched ? 'rich_capture' : 'fallback')}; ${osUiCapture.summary.windowCount || 0} windows, ${osUiCapture.summary.controlCount || 0} controls, ${osUiCapture.summary.geometryNodeCount || 0} geometric shards; action bridge ${osUiCapture.summary.actionBridgeStatus || 'unknown'}.`,
       trustState: osUiCapture.summary.status === 'captured' ? 'verified' : 'partial',
       generatedAt: osUiCapture.generatedAt || now,
       receiptType: 'hololand.holoshell.os-ui-capture.v0.1.0',
@@ -377,6 +378,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (grokBuild?.summary) {
+    timeline.push({
+      id: grokBuild.setupId || 'holoshell-grok-build-setup',
+      kind: 'grok_build_setup',
+      title: `Grok Build setup ${grokBuild.summary.status || 'unknown'}`,
+      detail: `CLI ${grokBuild.summary.cliVersion || 'unknown'}; auth ${grokBuild.summary.authStatus || 'unknown'}; model ${grokBuild.summary.modelStatus || 'unknown'}; project ${grokBuild.summary.projectTrustStatus || 'unknown'}; Heavy recheck ${grokBuild.heavyUpgrade?.plannedCheckDate || 'pending'}.`,
+      trustState: grokBuild.summary.status === 'ready' ? 'verified' : grokBuild.summary.status === 'blocked' ? 'unknown' : 'partial',
+      generatedAt: grokBuild.generatedAt || now,
+      receiptType: grokBuild.schemaVersion,
+      source: grokBuild.sourceAnchors?.adapter || 'scripts/holoshell-grok-build-workflow.mjs',
+    });
+  }
+
   if (hardwareApproval?.summary) {
     timeline.push({
       id: hardwareApproval.approvalId || 'hardware-approval',
@@ -396,6 +410,8 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), target ${workflow.summary.targetSurface || 'Claude'}, prompt ${workflow.summary.promptPresent ? 'staged' : 'empty'}.`
       : workflowKind === 'ollama_cloud_agent'
         ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), agent ${workflow.summary.agentLabel || workflow.summary.agentSlug || 'unknown'}, command ${workflow.summary.command || 'ollama launch'}.`
+        : workflowKind === 'grok_build'
+          ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), mode ${workflow.summary.mode || 'interactive'}, model ${workflow.summary.model || 'grok-build'}, project ${workflow.summary.projectTrustStatus || 'unknown'}.`
       : `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), model ${workflow.summary.modelRoute || 'unknown'}/${workflow.summary.model || 'unknown'}.`;
     timeline.push({
       id: workflow.workflowId || 'holoshell-workflow',
@@ -527,6 +543,7 @@ function createFeed(args) {
   const operatorBrief = readJson(path.join(tmpDir, 'operator-brief.json'), {});
   const operatingTurn = readJson(path.join(tmpDir, 'operating-turn.json'), {});
   const agentDispatch = readJson(path.join(tmpDir, 'agent-dispatch-latest.json'), {});
+  const grokBuild = readJson(path.join(tmpDir, 'grok-build-setup.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
   const hardwareApproval = readJson(path.join(tmpDir, 'approval-latest.json'), {});
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
@@ -566,6 +583,7 @@ function createFeed(args) {
     operatorBrief,
     operatingTurn,
     agentDispatch,
+    grokBuild,
     hardwareAction,
     hardwareApproval,
     workflow,
@@ -602,6 +620,7 @@ function createFeed(args) {
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
+      grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -676,6 +695,13 @@ function createFeed(args) {
       capturedWindowCount: osUiCapture?.summary?.windowCount || 0,
       capturedControlCount: osUiCapture?.summary?.controlCount || 0,
       capturedGeometryNodeCount: osUiCapture?.summary?.geometryNodeCount || 0,
+      osUiCaptureStatus: osUiCapture?.summary?.status || 'unknown',
+      osUiTargetApp: osUiCapture?.summary?.targetApp || '',
+      osUiTargetMatched: Boolean(osUiCapture?.summary?.targetMatched),
+      osUiTargetResolved: Boolean(osUiCapture?.summary?.targetResolved || osUiCapture?.summary?.targetMatched),
+      osUiTargetResolution: osUiCapture?.summary?.targetResolution || '',
+      osUiSelectedAppName: osUiCapture?.summary?.selectedAppName || '',
+      osUiSelectedMutationPolicy: osUiCapture?.summary?.selectedMutationPolicy || '',
       osUiActionBridgeStatus: osUiCapture?.summary?.actionBridgeStatus || 'unknown',
       programRegistryStatus: programRegistry?.summary?.status || 'unknown',
       installedProgramCount: programRegistry?.summary?.programCount || 0,
@@ -733,6 +759,7 @@ function createFeed(args) {
       brittneyContextProcessRisk: brittneyContext?.summary?.processRisk || 'unknown',
       brittneyContextRawCommandsIncluded: Boolean(brittneyContext?.summary?.rawCommandsIncluded),
       brittneyContextRawWindowTitlesIncluded: Boolean(brittneyContext?.summary?.rawWindowTitlesIncluded),
+      brittneyContextLocalUiLabelsIncluded: Boolean(brittneyContext?.summary?.localUiLabelsIncluded),
       operatorBriefStatus: operatorBrief?.status || 'unknown',
       operatorBriefPeerWindowCount: operatorBrief?.peers?.windowInstanceCount || 0,
       operatorBriefShellWindowCount: operatorBrief?.peers?.shellWindowInstanceCount || 0,
@@ -754,6 +781,18 @@ function createFeed(args) {
       agentDispatchActionKind: agentDispatch?.summary?.actionKind || '',
       agentDispatchTargetApp: agentDispatch?.summary?.targetApp || '',
       agentDispatchTargetUrlHost: agentDispatch?.summary?.targetUrlHost || '',
+      grokBuildSetupStatus: grokBuild?.summary?.status || 'unknown',
+      grokBuildCliStatus: grokBuild?.summary?.cliStatus || 'unknown',
+      grokBuildCliVersion: grokBuild?.summary?.cliVersion || 'unknown',
+      grokBuildAuthStatus: grokBuild?.summary?.authStatus || 'unknown',
+      grokBuildModelStatus: grokBuild?.summary?.modelStatus || 'unknown',
+      grokBuildRequestedModel: grokBuild?.summary?.requestedModel || '',
+      grokBuildDefaultModel: grokBuild?.summary?.defaultModel || '',
+      grokBuildProjectTrusted: Boolean(grokBuild?.summary?.projectTrusted),
+      grokBuildProjectTrustStatus: grokBuild?.summary?.projectTrustStatus || 'unknown',
+      grokBuildWarningCount: grokBuild?.summary?.warningCount || 0,
+      grokBuildReadyForHeavyRecheck: Boolean(grokBuild?.summary?.readyForHeavyRecheck),
+      grokBuildHeavyRecheckDate: grokBuild?.heavyUpgrade?.plannedCheckDate || '',
       hardwareControlStatus: hardwareAction?.schemaVersion === 'hololand.holoshell.hardware-action.v0.1.0' ? 'available' : 'unknown',
       hardwareActionStatus: hardwareAction?.summary?.status || 'unknown',
       hardwareActionKind: hardwareAction?.summary?.actionKind || '',
@@ -854,6 +893,7 @@ function createFeed(args) {
       operatorBrief,
       operatingTurn,
       agentDispatch,
+      grokBuild,
       hardwareAction,
       hardwareApproval,
       workflow,

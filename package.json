@@ -39,6 +39,7 @@
     "holoshell:build-custody": "node scripts/holoshell-build-custody.mjs",
     "holoshell:legacy-windows": "node scripts/holoshell-legacy-window-inventory.mjs",
     "holoshell:legacy-apps": "node scripts/holoshell-legacy-app-absorption.mjs",
+    "holoshell:os-ui-capture": "node scripts/holoshell-os-ui-capture.mjs",
     "holoshell:shell-objects": "node scripts/holoshell-shell-objects.mjs",
     "holoshell:readiness-evidence": "node scripts/holoshell-readiness-evidence.mjs",
     "holoshell:operator-brief": "node scripts/holoshell-operator-brief.mjs",

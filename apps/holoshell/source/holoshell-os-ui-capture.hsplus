@@ -1,0 +1,191 @@
+// HoloShell OS UI Capture
+//
+// Source contract for wrapping legacy windows as HoloScript shell objects.
+// Host adapters can use Win32, macOS accessibility, Android accessibility,
+// screenshots, OCR, and browser DOM bridges, but the product surface consumes
+// this source shape.
+
+composition "HoloShell OS UI Capture" {
+  config {
+    title: "HoloShell OS UI Capture"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-os-ui-capture.mjs"
+    defaultPlatform: "windows"
+    defaultMode: "read_only"
+    visualProjection: "geometric_legacy_surface"
+    generatedCapture: ".tmp/holoshell/os-ui-capture.json"
+    generatedGraph: ".tmp/holoshell/os-ui-capture.holo"
+    defaultTarget: "first_legacy_absorption_capture_candidate"
+  }
+
+  state {
+    captureStatus: "unknown"
+    platform: "unknown"
+    targetApp: ""
+    targetSource: "foreground"
+    targetMatched: false
+    targetResolved: false
+    targetResolution: "foreground_fallback"
+    windowCount: 0
+    controlCount: 0
+    geometryNodeCount: 0
+    selectedWindowId: ""
+    selectedAppName: ""
+    selectedMutationPolicy: ""
+    selectedControlId: ""
+    actionBridgeStatus: "dry_run_only"
+    lastReceiptId: ""
+  }
+
+  channel "holoshell:os-ui:capture" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Read-only capture of visible OS windows and control metadata"
+  }
+
+  channel "holoshell:os-ui:geometry" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Geometric reconstruction graph for captured legacy surfaces"
+  }
+
+  channel "holoshell:os-ui:action" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded action requests that map HoloShell gestures back to legacy UI"
+  }
+
+  channel "holoshell:os-ui:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Capture, reconstruction, dry-run action, and future legacy action receipts"
+  }
+
+  template "CapturedWindowSurface" {
+    type: "shell_object"
+    shellKind: "legacy_window"
+    captureSource: "os_window"
+    trustState: "partial"
+    permissionEnvelope: "read_only"
+    launchable: false
+    receiptRequired: true
+  }
+
+  template "CapturedControlShard" {
+    type: "control_shard"
+    shellKind: "legacy_control"
+    captureSource: "accessibility_tree_or_ocr"
+    geometry: "cube"
+    intentAddressable: true
+    actionBridge: "guarded"
+    receiptRequired: true
+  }
+
+  template "LegacyGeometryNode" {
+    type: "visual_shard"
+    geometry: "cube"
+    material: "hologram_glass"
+    role: "content"
+    sourceWindowId: ""
+    sourceControlId: ""
+    receiptRequired: false
+  }
+
+  template "LegacyActionReceipt" {
+    type: "receipt"
+    operation: "legacy_ui_action"
+    mode: "dry_run"
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    rollback: "manual_or_app_specific"
+  }
+
+  policy "ReadOnlyCapture" {
+    appliesTo: ["window_enum", "window_title", "window_bounds", "process_name", "accessibility_tree", "screenshot_hash", "ocr_text"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  policy "GuardedLegacyAction" {
+    appliesTo: ["click", "type_text", "hotkey", "scroll", "focus_window", "invoke_control"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  policy "BreakGlassLegacyAction" {
+    appliesTo: ["credential_entry", "payment", "delete", "publish", "send_message", "install", "uninstall", "system_settings"]
+    permissionEnvelope: "break_glass"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  action consume_capture(capture) {
+    state.captureStatus = capture.summary.status
+    state.platform = capture.host.platform
+    state.targetApp = capture.summary.targetApp
+    state.targetSource = capture.summary.targetSource
+    state.targetMatched = capture.summary.targetMatched
+    state.targetResolved = capture.summary.targetResolved
+    state.targetResolution = capture.summary.targetResolution
+    state.windowCount = capture.summary.windowCount
+    state.controlCount = capture.summary.controlCount
+    state.geometryNodeCount = capture.summary.geometryNodeCount
+    state.selectedWindowId = capture.summary.selectedWindowId
+    state.selectedAppName = capture.summary.selectedAppName
+    state.selectedMutationPolicy = capture.summary.selectedMutationPolicy
+    state.lastReceiptId = capture.receipt.id
+    emit("holoshell:os-ui:capture", {
+      status: state.captureStatus,
+      targetApp: state.targetApp,
+      targetMatched: state.targetMatched,
+      targetResolved: state.targetResolved,
+      targetResolution: state.targetResolution,
+      selectedWindowId: state.selectedWindowId,
+      selectedAppName: state.selectedAppName,
+      selectedMutationPolicy: state.selectedMutationPolicy,
+      windows: state.windowCount,
+      controls: state.controlCount,
+      geometryNodes: state.geometryNodeCount,
+      receipt: state.lastReceiptId
+    })
+  }
+
+  action select_window(windowId) {
+    state.selectedWindowId = windowId
+    emit("holoshell:os-ui:window_selected", {
+      windowId: windowId,
+      actionBridgeStatus: state.actionBridgeStatus
+    })
+  }
+
+  action request_legacy_action(actionRequest) {
+    if (actionRequest.kind in BreakGlassLegacyAction.appliesTo) {
+      emit("holoshell:approval", {
+        operation: actionRequest,
+        reason: "Legacy UI action can mutate credentials, value, system settings, or external state",
+        receipt_required: true
+      })
+      return "approval_required"
+    }
+
+    if (actionRequest.kind in GuardedLegacyAction.appliesTo) {
+      emit("holoshell:approval", {
+        operation: actionRequest,
+        reason: "Legacy UI actions require explicit user consent until app-specific adapters prove rollback",
+        receipt_required: true
+      })
+      return "approval_required"
+    }
+
+    emit("holoshell:os-ui:receipt", {
+      operation: actionRequest,
+      mode: "dry_run",
+      result: "unsupported_action_kind",
+      receiptRequired: true
+    })
+    return "unsupported_action_kind"
+  }
+}

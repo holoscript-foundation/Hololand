@@ -269,10 +269,11 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, agentDispatch, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, grokBuild, agentDispatch, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
+  const grokBuildSummary = grokBuild?.summary || {};
   const dispatchSummary = agentDispatch?.summary || {};
   const workflowSummary = workflow?.summary || {};
   const shardSummary = shardWorkflow?.summary || {};
@@ -285,6 +286,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
   const roomWorkflowSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowSummary : {};
   const claudeWorkflowSummary = activeWorkflowKind === 'claude_chat' ? workflowSummary : {};
   const ollamaWorkflowSummary = activeWorkflowKind === 'ollama_cloud_agent' ? workflowSummary : {};
+  const grokWorkflowSummary = activeWorkflowKind === 'grok_build' ? workflowSummary : {};
   const roomWorkflowApprovalSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowApprovalSummary : {};
   const roomGateSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? gateSummary : {};
   return [
@@ -545,6 +547,47 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       detail: `${ollamaCloudAgents.length} Ollama Cloud launch targets; active ${ollamaWorkflowSummary.agentLabel || 'none'}; approval ${activeWorkflowKind === 'ollama_cloud_agent' ? workflowApprovalSummary.status || 'unknown' : 'not_staged'}.`,
       firstScreen: true,
       layout: { x: 83, y: 28, size: 106 },
+    },
+    {
+      id: 'workflow.grok-build',
+      objectKind: 'workflow',
+      displayName: 'Grok Build',
+      sourceKind: 'workflow',
+      sourceRef: 'scripts/holoshell-grok-build-workflow.mjs',
+      capabilityFamily: 'agent_workflow',
+      trustState: grokWorkflowSummary.status === 'pending_user_approval' || grokBuildSummary.status === 'partial' ? 'partial' : grokBuildSummary.status === 'blocked' ? 'unknown' : 'verified',
+      permissionEnvelope: 'guarded_execute',
+      adapterPath: 'grok_build_agent_lane',
+      visualForm: 'workflow_bubble',
+      status: grokWorkflowSummary.status || grokBuildSummary.status || 'available',
+      actorLaneId: 'brittney',
+      receiptTypes: ['grok_build_setup_receipt', 'workflow_receipt', 'workflow_approval_bundle', 'local_approval_gate_receipt'],
+      relationships: {
+        cliStatus: grokBuildSummary.cliStatus || 'unknown',
+        cliVersion: grokBuildSummary.cliVersion || 'unknown',
+        authStatus: grokBuildSummary.authStatus || 'unknown',
+        modelStatus: grokBuildSummary.modelStatus || 'unknown',
+        requestedModel: grokBuildSummary.requestedModel || grokWorkflowSummary.model || 'grok-build',
+        defaultModel: grokBuildSummary.defaultModel || grokWorkflowSummary.defaultModel || 'unknown',
+        projectTrusted: Boolean(grokBuildSummary.projectTrusted || grokWorkflowSummary.projectTrusted),
+        projectTrustStatus: grokBuildSummary.projectTrustStatus || grokWorkflowSummary.projectTrustStatus || 'unknown',
+        pathSeenOnCurrentProcess: Boolean(grokBuildSummary.pathSeenOnCurrentProcess),
+        activeMode: grokWorkflowSummary.mode || 'interactive',
+        promptPresent: Boolean(grokWorkflowSummary.promptPresent),
+        approvalStatus: activeWorkflowKind === 'grok_build' ? workflowApprovalSummary.status || 'unknown' : 'unknown',
+        localGateStatus: activeWorkflowKind === 'grok_build' ? gateSummary.status || 'unknown' : 'unknown',
+        heavyRecheckDate: grokBuild?.heavyUpgrade?.plannedCheckDate || '2026-05-15',
+        warningCount: grokBuildSummary.warningCount || 0,
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'coding_agent_runtime_launcher',
+      launch: { action: 'stage_grok_build_workflow', route: '/workflow/grok-build' },
+      glyph: 'GB',
+      detail: activeWorkflowKind === 'grok_build'
+        ? `${grokWorkflowSummary.status || 'unknown'}; ${grokWorkflowSummary.mode || 'interactive'}; ${grokWorkflowSummary.model || 'grok-build'}; approval ${workflowApprovalSummary.status || 'unknown'}; project ${grokWorkflowSummary.projectTrustStatus || 'unknown'}.`
+        : `Grok ${grokBuildSummary.cliVersion || 'unknown'}; auth ${grokBuildSummary.authStatus || 'unknown'}; model ${grokBuildSummary.modelStatus || 'unknown'}; project ${grokBuildSummary.projectTrustStatus || 'unknown'}; Heavy recheck ${grokBuild?.heavyUpgrade?.plannedCheckDate || '2026-05-15'}.`,
+      firstScreen: true,
+      layout: { x: 72, y: 17, size: 104 },
     },
     {
       id: 'workflow.asset-shard',
@@ -1018,11 +1061,16 @@ function capturedWindowObjects({ osUiCapture, programRegistry }, maxWindows) {
     : Array.isArray(programRegistry?.runningWindows)
       ? programRegistry.runningWindows
       : [];
+  const selectedWindowId = osUiCapture?.summary?.selectedWindowId || osUiCapture?.summary?.foregroundWindowId || '';
   return windows
     .filter((window) => window?.id && (window.title || window.processName))
     .slice(0, Math.max(0, maxWindows))
     .map((window, index) => {
       const slot = layout(index + 10, 84);
+      const legacySurface = window.legacySurface || {};
+      const safeActions = Array.isArray(legacySurface.safeActions) ? legacySurface.safeActions.slice(0, 10) : [];
+      const blockedActions = Array.isArray(legacySurface.blockedActions) ? legacySurface.blockedActions.slice(0, 12) : [];
+      const selectedForReconstruction = window.id === selectedWindowId;
       return {
         id: `window.${slug(window.processName || 'app')}.${shortHash(window.id)}`,
         objectKind: 'captured_window',
@@ -1031,25 +1079,45 @@ function capturedWindowObjects({ osUiCapture, programRegistry }, maxWindows) {
         sourceRef: window.id,
         capabilityFamily: 'legacy_ui',
         trustState: 'partial',
-        permissionEnvelope: 'guarded_execute',
+        permissionEnvelope: 'read_only',
         adapterPath: 'os_ui_capture_bridge',
         visualForm: 'geometry_shard_cluster',
-        status: window.foreground ? 'foreground' : 'running',
+        status: selectedForReconstruction ? 'selected' : window.foreground ? 'foreground' : 'running',
         actorLaneId: 'brittney',
-        receiptTypes: ['os_ui_capture_receipt', 'hardware_action_receipt'],
+        receiptTypes: ['os_ui_capture_receipt', 'legacy_app_absorption_receipt', 'hardware_action_receipt'],
         relationships: {
           processName: window.processName || '',
           processId: window.processId || '',
           controlCount: Array.isArray(window.controls) ? window.controls.length : window.controlCount || 0,
           foreground: Boolean(window.foreground),
           minimized: Boolean(window.minimized),
+          captureEvidence: window.captureEvidence || 'win32_uiautomation',
+          selectedForReconstruction,
+          targetResolution: selectedForReconstruction ? osUiCapture?.summary?.targetResolution || '' : '',
+          geometryNodeCount: selectedForReconstruction ? osUiCapture?.summary?.geometryNodeCount || 0 : 0,
+          actionBridgeStatus: selectedForReconstruction ? osUiCapture?.summary?.actionBridgeStatus || '' : '',
+          appName: legacySurface.appName || '',
+          appLabel: legacySurface.label || '',
+          archetype: legacySurface.archetype || '',
+          surfaceRole: legacySurface.surfaceRole || 'legacy_app_surface',
+          mutationPolicy: legacySurface.mutationPolicy || 'preflight_required',
+          captureCandidate: Boolean(legacySurface.captureCandidate),
+          preflightRequired: legacySurface.preflightRequired !== false,
+          preflightTool: legacySurface.preflightTool || 'holoshell_preflight_legacy_app_mutation',
+          safeActions,
+          blockedActions,
         },
         privacyClass: 'local_private',
         replacementPath: 'reconstruct_legacy_ui_as_geometry',
-        launch: { action: 'focus_window', windowId: window.id },
+        launch: {
+          action: 'focus_window',
+          windowId: window.id,
+          permissionEnvelope: 'guarded_execute',
+          preflightRequired: true,
+        },
         glyph: glyphFor(window.processName || window.title, 'UI'),
-        detail: `${window.title || window.processName} is a running legacy window wrapped as geometric shards.`,
-        firstScreen: index < 4,
+        detail: `${legacySurface.label || window.title || window.processName} is a ${legacySurface.archetype || 'legacy'} surface; read-only capture is available; legacy actions require guarded receipts.`,
+        firstScreen: selectedForReconstruction || index < 4,
         layout: slot,
       };
     });
@@ -1447,14 +1515,35 @@ function summarize(objects, feeds) {
     agentDispatchKind: feeds.agentDispatch?.summary?.dispatchKind || '',
     agentDispatchRoute: feeds.agentDispatch?.summary?.route || '',
     agentDispatchConfidence: feeds.agentDispatch?.summary?.confidence || 0,
+    grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
+    grokBuildCliStatus: feeds.grokBuild?.summary?.cliStatus || 'unknown',
+    grokBuildCliVersion: feeds.grokBuild?.summary?.cliVersion || 'unknown',
+    grokBuildAuthStatus: feeds.grokBuild?.summary?.authStatus || 'unknown',
+    grokBuildModelStatus: feeds.grokBuild?.summary?.modelStatus || 'unknown',
+    grokBuildRequestedModel: feeds.grokBuild?.summary?.requestedModel || '',
+    grokBuildDefaultModel: feeds.grokBuild?.summary?.defaultModel || '',
+    grokBuildProjectTrusted: Boolean(feeds.grokBuild?.summary?.projectTrusted),
+    grokBuildProjectTrustStatus: feeds.grokBuild?.summary?.projectTrustStatus || 'unknown',
+    grokBuildWarningCount: feeds.grokBuild?.summary?.warningCount || 0,
+    grokBuildReadyForHeavyRecheck: Boolean(feeds.grokBuild?.summary?.readyForHeavyRecheck),
     formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
     wildHoloScriptAdapterNeededCount: feeds.wildHoloScript?.summary?.adapterNeededCount || 0,
     assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
     assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
+    osUiTargetApp: feeds.osUiCapture?.summary?.targetApp || '',
+    osUiTargetMatched: Boolean(feeds.osUiCapture?.summary?.targetMatched),
+    osUiTargetResolved: Boolean(feeds.osUiCapture?.summary?.targetResolved || feeds.osUiCapture?.summary?.targetMatched),
+    osUiTargetResolution: feeds.osUiCapture?.summary?.targetResolution || '',
+    osUiSelectedWindowId: feeds.osUiCapture?.summary?.selectedWindowId || feeds.osUiCapture?.summary?.foregroundWindowId || '',
+    osUiSelectedAppName: feeds.osUiCapture?.summary?.selectedAppName || '',
+    osUiSelectedMutationPolicy: feeds.osUiCapture?.summary?.selectedMutationPolicy || '',
+    osUiControlCount: feeds.osUiCapture?.summary?.controlCount || 0,
+    osUiGeometryNodeCount: feeds.osUiCapture?.summary?.geometryNodeCount || 0,
+    osUiActionBridgeStatus: feeds.osUiCapture?.summary?.actionBridgeStatus || '',
     capturedWindowObjectCount: objects.filter((object) => object.objectKind === 'captured_window').length,
-    runningObjectCount: objects.filter((object) => ['running', 'foreground'].includes(object.status)).length,
+    runningObjectCount: objects.filter((object) => ['running', 'foreground', 'selected'].includes(object.status)).length,
     guardedExecuteCount: objects.filter((object) => object.permissionEnvelope === 'guarded_execute').length,
     breakGlassCount: objects.filter((object) => object.permissionEnvelope === 'break_glass').length,
     firstProgramObject: firstProgram?.displayName || '',
@@ -1470,6 +1559,7 @@ function summarize(objects, feeds) {
       founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
       userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
       agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
+      grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -1490,6 +1580,7 @@ function loadFeeds(tmpDir) {
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
     userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
     agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
+    grokBuild: readJson(path.join(dir, 'grok-build-setup.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
@@ -1546,6 +1637,7 @@ function buildGraph(args, fixtures = null) {
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
       ollamaCloudAgentWorkflow: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
+      grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -1771,6 +1863,26 @@ function fixtureFeeds() {
         approvalSurface: 'workflow-approval-latest.json',
       },
     },
+    grokBuild: {
+      schemaVersion: 'hololand.holoshell.grok-build-setup.v0.1.0',
+      setupId: 'grok-build-setup-fixture',
+      sourceAnchors: { adapter: 'scripts/holoshell-grok-build-workflow.mjs' },
+      heavyUpgrade: { plannedCheckDate: '2026-05-15' },
+      summary: {
+        status: 'partial',
+        cliStatus: 'installed',
+        cliVersion: '0.1.210',
+        authStatus: 'present',
+        modelStatus: 'available',
+        requestedModel: 'grok-build',
+        defaultModel: 'grok-build',
+        projectTrusted: false,
+        projectTrustStatus: 'untrusted',
+        pathSeenOnCurrentProcess: false,
+        warningCount: 3,
+        readyForHeavyRecheck: true,
+      },
+    },
     hardwareAction: { actionId: 'action-1', generatedAt: new Date().toISOString(), summary: { status: 'approval_required', actionKind: 'launch_app', permissionEnvelope: 'guarded_execute', targetWindowTitle: '', mutatingActionExecuted: false } },
     hardwareApproval: { approvalId: 'approval-1', summary: { status: 'pending_user_approval', actionKind: 'launch_app', target: 'Excel', executionAllowed: true, expiresAt: new Date().toISOString() } },
     workflow: { workflowId: 'workflow-1', title: 'Room Marathon', summary: { status: 'pending_user_approval', stepCount: 4, pendingApprovalCount: 1, model: 'kimi', modelRoute: 'ollama_cloud' } },
@@ -1866,6 +1978,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
+  if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
@@ -1877,6 +1990,7 @@ function assertSelfTest() {
   if (graph.summary.wildHoloScriptStatus !== 'scanned') failures.push('expected wild HoloScript scanned status');
   if (graph.summary.userShellProjectionStatus !== 'ready') failures.push('expected user shell projection ready status');
   if (graph.summary.agentDispatchStatus !== 'ready_to_stage') failures.push('expected agent dispatch ready status');
+  if (graph.summary.grokBuildSetupStatus !== 'partial') failures.push('expected Grok Build setup status');
   if (graph.summary.goldCodebaseBridgeStatus !== 'ready') failures.push('expected GOLD/codebase bridge ready status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');
