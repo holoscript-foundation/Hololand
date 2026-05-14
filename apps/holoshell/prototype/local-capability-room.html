@@ -895,6 +895,7 @@
   <script src="../../../.tmp/holoshell/workflow-latest.js"></script>
   <script src="../../../.tmp/holoshell/workflow-approval-latest.js"></script>
   <script src="../../../.tmp/holoshell/brain-intent-gate-latest.js"></script>
+  <script src="../../../.tmp/holoshell/shard-workflow-latest.js"></script>
 </head>
 <body data-skin="liquid">
   <canvas id="world"></canvas>
@@ -1012,6 +1013,7 @@
     const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
     const standaloneWorkflowIntentGateFeed = window.HOLOSHELL_BRAIN_INTENT_GATE || {};
+    const standaloneShardWorkflowFeed = window.HOLOSHELL_SHARD_WORKFLOW || {};
     let controlDaemonHealth = { status: "offline", executeEnabled: false };
     let avatarSpeechTimer = 0;
     let speechRecognition = null;
@@ -1021,6 +1023,7 @@
       { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
+      { id: "asset-shard", label: "Asset Shard", glyph: "AS", type: "workflow", detail: "Brittney can stage a local folder of models, images, audio, and HoloScript into a playable HoloLand shard preview.", x: 25, y: 66, size: 112 },
       { id: "programs", label: "Programs", glyph: "P", type: "program", detail: "Legacy apps are preserved as capability engines, not window chores.", x: 33, y: 53, size: 138 },
       { id: "hardware-control", label: "Program Control", glyph: "PC", type: "hardware_power", detail: "Focus, open, hotkey, click, and type through guarded hardware receipts.", x: 14, y: 76, size: 116 },
       { id: "studio", label: "Studio", glyph: "S", type: "world", detail: "Creator direction stays reachable without becoming the shell.", x: 49, y: 34, size: 112 },
@@ -1406,6 +1409,8 @@
         "WASM SIMD": "WASM",
         "Captured UI": "UI",
         "Room Marathon": "Marathon",
+        "Asset Shard": "Shard",
+        "Shard Workflow Receipt": "Shard Receipt",
       };
       if (aliases[label]) return aliases[label];
       const words = label.split(/\s+/).filter(Boolean);
@@ -1525,6 +1530,15 @@
       return gate.summary || {};
     }
 
+    function shardWorkflowFeed() {
+      return feed.feeds?.shardWorkflow?.summary ? feed.feeds.shardWorkflow : standaloneShardWorkflowFeed;
+    }
+
+    function shardWorkflowSummary() {
+      const workflow = shardWorkflowFeed();
+      return workflow.summary || {};
+    }
+
     async function refreshControlDaemonHealth() {
       try {
         const response = await fetch("http://127.0.0.1:4747/health", { cache: "no-store" });
@@ -1561,6 +1575,16 @@
         title.textContent = workflowReady ? "Workflow Ready" : approvalReady ? "Workflow Gated" : "Workflow Pending";
         detail.textContent = `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; ${workflow.modelRoute || feed.summary?.activeWorkflowModelRoute || "model route"}/${workflow.model || feed.summary?.activeWorkflowModel || "model"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}; gate ${workflowIntentGate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown"}`;
         chip.setAttribute("aria-label", `${workflowReady ? "Workflow ready" : approvalReady ? "Workflow blocked by brain intent gate" : "Workflow pending"}. Select Room Marathon.`);
+        return;
+      }
+      const shard = shardWorkflowSummary();
+      if ((shard.approvalRequired || feed.summary?.activeShardApprovalRequired) && (shard.status || feed.summary?.activeShardWorkflowStatus) === "staged") {
+        chip.hidden = false;
+        chip.dataset.status = "pending_user_approval";
+        chip.dataset.object = "asset-shard";
+        title.textContent = "Shard Ready";
+        detail.textContent = `${shard.assetCount || feed.summary?.activeShardAssetCount || 0} assets; preview ${shard.previewObjectCount || feed.summary?.activeShardPreviewObjectCount || 0}; import guarded`;
+        chip.setAttribute("aria-label", "Asset shard is staged and waiting for guarded import review. Select Asset Shard.");
         return;
       }
       const summary = hardwareApprovalSummary();
@@ -1611,6 +1635,7 @@
       if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
       if (/\b(agent|codex|claude|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
       if (/\b(room marathon|marathon|kimi|ollama|lofi|youtube music|music on youtube|start room)\b/.test(text)) add("room-marathon", "Room Marathon", "stage_room_marathon_workflow", "compound agent workflow", { permissionEnvelope: "guarded_execute" });
+      if (/\b(asset shard|shard|assets?|folder to shard|playable shard|import assets?|preview assets?|local folder)\b/.test(text)) add("asset-shard", "Asset Shard", "stage_asset_shard_workflow", "local folder to playable shard", { permissionEnvelope: "guarded_execute" });
       if (/\b(readiness|ready|build evidence|evidence pack|webgpu|wasm|headset|replay|graph status|world build)\b/.test(text)) add("room.world-build-readiness", "World Build Readiness", "focus_shell_object", "readiness evidence room");
       if (/\b(program|app|application|legacy|window|ui|control)\b/.test(text)) add("programs", "Programs", "focus_shell_object", "legacy program");
       if (/\b(hardware|focus|hotkey|click|type|launch|open app|control program|program control)\b/.test(text)) add("hardware-control", "Program Control", "stage_hardware_action", "guarded program control", { permissionEnvelope: "guarded_execute" });
@@ -1671,6 +1696,7 @@
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
+      const activeShardWorkflow = shardWorkflowSummary();
       const runtimeBubbles = canonicalShellBubbles();
       const readinessRuntimeBubbles = readinessBubbles();
       const runtimeReplaces = runtimeBubbles.length ? new Set(["browser", "programs", "terminal"]) : new Set();
@@ -1708,6 +1734,21 @@
           return {
             ...object,
             detail: `${activeWorkflow.status || "unknown"}; ${activeWorkflow.stepCount || 0} steps; ${activeWorkflow.pendingApprovalCount || 0} approval(s); ${activeWorkflow.modelRoute || "route"}/${activeWorkflow.model || "model"}; approval ${activeWorkflowApproval.status || "unknown"}; brain gate ${activeWorkflowIntentGate.status || "unknown"}; execute ${activeWorkflowApproval.executionAllowed && activeWorkflowIntentGate.executionAllowed ? "ready" : "blocked"}.`,
+          };
+        }
+        if (object.id === "asset-shard") {
+          return {
+            ...object,
+            detail: `${activeShardWorkflow.status || "unknown"}; ${activeShardWorkflow.assetCount || 0} assets; ${activeShardWorkflow.modelCount || 0} models, ${activeShardWorkflow.imageCount || 0} images, ${activeShardWorkflow.audioCount || 0} audio; preview ${(activeShardWorkflow.previewObjectCount || 0)} objects; import ${activeShardWorkflow.approvalRequired ? "guarded" : "not ready"}.`,
+            trustState: activeShardWorkflow.status === "staged" ? "verified" : "partial",
+            permissionEnvelope: "guarded_execute",
+            evidence: {
+              status: activeShardWorkflow.status || "unknown",
+              preview: shardWorkflowFeed().output?.previewSourcePath || "",
+              receipt: shardWorkflowFeed().output?.latestPath || "",
+              privateReceipt: shardWorkflowFeed().output?.privateReceiptPath || "",
+              next: activeShardWorkflow.nextWorkflow || "",
+            },
           };
         }
         if (object.id === "programs") {
@@ -1864,7 +1905,7 @@
       const hardware = hardwareApprovalFeed();
       const workflow = workflowApprovalFeed();
       const gate = workflowIntentGateSummary();
-      const wantsWorkflow = object?.id === "room-marathon" || object?.shellObject?.objectKind === "workflow";
+      const wantsWorkflow = object?.id === "room-marathon" || object?.shellObject?.id === "workflow.room-marathon";
       const hardwareKinds = new Set(["program", "browser_surface", "terminal_surface", "developer_surface", "document_app", "captured_window", "approval"]);
       const wantsHardware = object?.id === "hardware-control"
         || object?.id === "programs"
@@ -1963,6 +2004,19 @@
           modelRoute: "ollama_cloud",
           lofiUrl: "https://www.youtube.com/results?search_query=lofi+beats",
         }), actions.length === 0));
+      }
+      if (object.id === "asset-shard" || shellObject.id === "workflow.asset-shard") {
+        actions.push(actionButton("Review shard plan", () => {
+          const shard = shardWorkflowFeed();
+          const summary = shard.summary || {};
+          result.hidden = false;
+          result.textContent = `Asset shard ${summary.status || "unknown"}: ${summary.assetCount || 0} assets, ${summary.previewObjectCount || 0} preview objects, preview source ${shard.output?.previewSourcePath || "not generated"}. Import remains guarded.`;
+          appendConversation(`Asset Shard is staged from local assets. I can review the preview and prepare a guarded import approval when the importer bridge is online.`);
+        }, actions.length === 0));
+        actions.push(actionButton("Ask Brittney to import", () => {
+          document.getElementById("askInput").value = "Review the asset shard preview and prepare the guarded HoloLand import";
+          askBrittney();
+        }));
       }
       if (shellObject.objectKind === "captured_window" && shellObject.sourceRef) {
         actions.push(actionButton("Stage focus window", () => stageDaemonAction(`focus ${selectedName}`, "/action", {
@@ -2139,6 +2193,8 @@
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
+      const activeShardWorkflow = shardWorkflowSummary();
+      const activeShardFeed = shardWorkflowFeed();
       const rows = [
         "Visual source: source/holoshell-shell-world.holo",
         "Render slice: source/holoshell-shell-render.hs",
@@ -2158,6 +2214,8 @@
         `Workflow: ${activeWorkflow.status || summary.activeWorkflowStatus || "unknown"}; ${activeWorkflow.stepCount || summary.activeWorkflowStepCount || 0} steps; ${activeWorkflow.pendingApprovalCount || summary.activeWorkflowPendingApprovalCount || 0} approval(s); ${activeWorkflow.modelRoute || summary.activeWorkflowModelRoute || "route"}/${activeWorkflow.model || summary.activeWorkflowModel || "model"}`,
         `Workflow approval: ${activeWorkflowApproval.status || summary.activeWorkflowApprovalStatus || "unknown"}; execute ${activeWorkflowApproval.executionAllowed || summary.activeWorkflowApprovalExecutionAllowed ? "yes" : "no"}; expires ${activeWorkflowApproval.expiresAt || summary.activeWorkflowApprovalExpiresAt || "none"}`,
         `Brain intent gate: ${activeWorkflowIntentGate.status || summary.activeWorkflowIntentGateStatus || "unknown"}; execute ${activeWorkflowIntentGate.executionAllowed || summary.activeWorkflowIntentGateExecutionAllowed ? "yes" : "no"}; failed checks ${activeWorkflowIntentGate.failedCheckCount || summary.activeWorkflowIntentGateFailedCheckCount || 0}`,
+        `Asset shard: ${activeShardWorkflow.status || summary.activeShardWorkflowStatus || "unknown"}; ${activeShardWorkflow.assetCount || summary.activeShardAssetCount || 0} assets; ${activeShardWorkflow.modelCount || summary.activeShardModelCount || 0} models; ${activeShardWorkflow.imageCount || summary.activeShardImageCount || 0} images; ${activeShardWorkflow.audioCount || summary.activeShardAudioCount || 0} audio; blocked ${activeShardWorkflow.blockedAssetCount || summary.activeShardBlockedAssetCount || 0}`,
+        `Shard preview: ${activeShardFeed.output?.previewSourcePath || summary.activeShardPreviewSourcePath || "none"}; approval ${activeShardWorkflow.approvalRequired || summary.activeShardApprovalRequired ? "required" : "not ready"}; mutation ${activeShardWorkflow.mutationExecuted || summary.activeShardMutationExecuted ? "recorded" : "none"}`,
         `Brittney avatar: ${avatarSummary.avatarStatus || summary.brittneyAvatarStatus || "unknown"}; runtime ${avatarSummary.runtimeStatus || summary.brittneyRuntimeStatus || "unknown"}`,
         `Brittney turn: ${turnSummary.status || summary.brittneyLastTurnStatus || "unknown"}; ${turnSummary.eventCount || summary.brittneyRuntimeEventCount || 0} events; ${turnSummary.actionProposalCount || summary.brittneyActionProposalCount || 0} proposal(s)`,
         `Shell skin: ${document.body.dataset.skin}`,

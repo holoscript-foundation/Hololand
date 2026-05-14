@@ -65,7 +65,7 @@ ShellObject
 | `terminal_surface` | Shell, command, REPL, build, or room marathon lane. | PowerShell, Claude CLI, pnpm build. |
 | `agent` | Active or available AI actor. | Brittney, Codex, Claude, Gemini. |
 | `room` | Capability grouping or work context. | HoloScript Room, Project Room. |
-| `workflow` | Ordered multi-step action plan. | Room Marathon with Lofi. |
+| `workflow` | Ordered multi-step action plan. | Room Marathon with Lofi, Asset Folder to Playable Shard. |
 | `approval` | User decision object for guarded or break-glass work. | Hardware approval, workflow approval. |
 | `receipt` | Evidence object attached to action or observation. | Action receipt, DOM witness, screenshot. |
 | `readiness_room` | Evidence room proving whether the local machine can build a HoloLand world. | World Build Readiness. |
@@ -178,6 +178,7 @@ Inputs:
 - `.tmp/holoshell/readiness-evidence.json`
 - `.tmp/holoshell/os-ui-capture.json`
 - `.tmp/holoshell/agent-lanes.json`
+- `.tmp/holoshell/shard-workflow-latest.json`
 - Brittney avatar, workflow, approval, intent-gate, and action receipts
 
 The graph intentionally does not expose raw executable paths to the browser
@@ -198,6 +199,14 @@ current HoloLand bridge reads the HoloScript flagship run from
 WebGPU, WASM, headset, replay, graph-status, and HoloMesh task tokens. Missing
 headset/replay evidence uses `manual_witness`; command and validation passes
 remain `read_only`.
+
+Local asset shard workflows become a `workflow.asset-shard` bubble plus a
+receipt token. The public graph only exposes folder basename, relative asset
+paths, preview source, counts, and hashes. Absolute paths stay in the private
+`.tmp/holoshell/shard-receipts/` receipt so the browser projection can show the
+plan without leaking the user's filesystem. Importing or publishing the shard
+is always `guarded_execute`; scanning and preview generation are read-only plus
+temporary-file writes.
 
 ## Source Boundary
 

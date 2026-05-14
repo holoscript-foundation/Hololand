@@ -258,9 +258,10 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflowApproval, workflowIntentGate }) {
+function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const workflowSummary = workflow?.summary || {};
+  const shardSummary = shardWorkflow?.summary || {};
   const hardwareApprovalSummary = hardwareApproval?.summary || {};
   const workflowApprovalSummary = workflowApproval?.summary || {};
   const gateSummary = workflowIntentGate?.summary || {};
@@ -340,6 +341,38 @@ function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflow
       detail: `${workflowSummary.stepCount || 0} staged steps; approval ${workflowApprovalSummary.status || 'unknown'}; brain gate ${gateSummary.status || 'unknown'}.`,
       firstScreen: true,
       layout: { x: 77, y: 63, size: 118 },
+    },
+    {
+      id: 'workflow.asset-shard',
+      objectKind: 'workflow',
+      displayName: 'Asset Shard',
+      sourceKind: 'workflow',
+      sourceRef: 'scripts/holoshell-asset-shard-workflow.mjs',
+      capabilityFamily: 'creator_workflow',
+      trustState: shardSummary.status === 'staged' ? 'verified' : 'partial',
+      permissionEnvelope: 'guarded_execute',
+      adapterPath: 'asset_shard_workflow_bridge',
+      visualForm: 'workflow_bubble',
+      status: shardSummary.status || 'available',
+      actorLaneId: 'brittney',
+      receiptTypes: ['asset_shard_workflow_receipt', 'asset_shard_private_receipt', 'shard_preview_source'],
+      relationships: {
+        shardId: shardWorkflow?.shardPlan?.shardId || '',
+        assetCount: shardSummary.assetCount || 0,
+        modelCount: shardSummary.modelCount || 0,
+        imageCount: shardSummary.imageCount || 0,
+        audioCount: shardSummary.audioCount || 0,
+        blockedAssetCount: shardSummary.blockedAssetCount || 0,
+        previewSourcePath: shardWorkflow?.output?.previewSourcePath || '',
+        nextWorkflow: shardSummary.nextWorkflow || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'local_folder_to_playable_shard',
+      launch: { action: 'stage_asset_shard_workflow', route: '/workflow/asset-shard' },
+      glyph: 'AS',
+      detail: `${shardSummary.assetCount || 0} staged assets; ${shardSummary.modelCount || 0} models, ${shardSummary.imageCount || 0} images, ${shardSummary.audioCount || 0} audio; import stays guarded.`,
+      firstScreen: true,
+      layout: { x: 25, y: 66, size: 112 },
     },
     {
       id: 'approval.hardware',
@@ -612,6 +645,39 @@ function readinessObjects(readinessEvidence) {
   return objects;
 }
 
+function assetShardObjects(shardWorkflow) {
+  if (!shardWorkflow?.summary) return [];
+  const summary = shardWorkflow.summary;
+  return [{
+    id: `receipt.asset-shard.${shortHash(shardWorkflow.workflowId || shardWorkflow.generatedAt || 'asset-shard')}`,
+    objectKind: 'receipt',
+    displayName: 'Shard Workflow Receipt',
+    sourceKind: 'receipt',
+    sourceRef: shardWorkflow.output?.latestPath || '',
+    capabilityFamily: 'creator_workflow',
+    trustState: summary.status === 'staged' ? 'verified' : 'partial',
+    permissionEnvelope: 'read_only',
+    adapterPath: 'asset_shard_workflow_bridge',
+    visualForm: summary.status === 'blocked' ? 'warning_token' : 'receipt_node',
+    status: summary.status || 'unknown',
+    actorLaneId: 'codex-hardware',
+    receiptTypes: ['asset_shard_workflow_receipt', 'shard_preview_source'],
+    relationships: {
+      shardId: shardWorkflow.shardPlan?.shardId || '',
+      assetCount: summary.assetCount || 0,
+      previewSourcePath: shardWorkflow.output?.previewSourcePath || '',
+      privateReceiptPath: shardWorkflow.output?.privateReceiptPath || '',
+      sourceAssetsMutated: Boolean(shardWorkflow.rollback?.sourceAssetsMutated),
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'receipt_memory',
+    glyph: 'SR',
+    detail: `${summary.assetCount || 0} asset(s) staged into ${summary.previewObjectCount || 0} preview object(s); source mutation ${summary.mutationExecuted ? 'recorded' : 'none'}.`,
+    firstScreen: summary.status === 'blocked',
+    layout: layout(18, 82),
+  }];
+}
+
 function receiptObjects({ hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate }) {
   const receipts = [];
   if (hardwareAction?.summary) {
@@ -696,6 +762,7 @@ function summarize(objects, feeds) {
     receiptObjectCount: objects.filter((object) => object.objectKind === 'receipt').length,
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
+    assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
     capturedWindowObjectCount: objects.filter((object) => object.objectKind === 'captured_window').length,
     runningObjectCount: objects.filter((object) => ['running', 'foreground'].includes(object.status)).length,
     guardedExecuteCount: objects.filter((object) => object.permissionEnvelope === 'guarded_execute').length,
@@ -707,6 +774,7 @@ function summarize(objects, feeds) {
       programRegistryStatus: feeds.programRegistry?.summary?.status || 'unknown',
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
+      assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       agentLaneCount: feeds.lanes?.summary?.laneCount || 0,
     },
   };
@@ -725,6 +793,7 @@ function loadFeeds(tmpDir) {
     workflow: readJson(path.join(dir, 'workflow-latest.json'), {}),
     workflowApproval: readJson(path.join(dir, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(path.join(dir, 'brain-intent-gate-latest.json'), {}),
+    shardWorkflow: readJson(path.join(dir, 'shard-workflow-latest.json'), {}),
   };
 }
 
@@ -734,6 +803,7 @@ function buildGraph(args, fixtures = null) {
   const objects = [
     ...baseShellObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
+    ...assetShardObjects(feeds.shardWorkflow),
     ...programObjects(feeds.programRegistry, args.maxPrograms),
     ...capturedWindowObjects(feeds, args.maxWindows),
     ...agentObjects(feeds.lanes, args.maxAgents),
@@ -758,6 +828,7 @@ function buildGraph(args, fixtures = null) {
       schema: 'apps/holoshell/docs/SHELL_OBJECT_SCHEMA.md',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
+      assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
     },
     summary: summarize(uniqueObjects, feeds),
@@ -855,6 +926,27 @@ function fixtureFeeds() {
     workflow: { workflowId: 'workflow-1', title: 'Room Marathon', summary: { status: 'pending_user_approval', stepCount: 4, pendingApprovalCount: 1, model: 'kimi', modelRoute: 'ollama_cloud' } },
     workflowApproval: { approvalId: 'workflow-approval-1', summary: { status: 'pending_user_approval', pendingApprovalCount: 1, executionAllowed: true } },
     workflowIntentGate: { gateId: 'gate-1', summary: { status: 'passed', executionAllowed: true, failedCheckCount: 0 } },
+    shardWorkflow: {
+      workflowId: 'shard-workflow-1',
+      title: 'Asset Folder to Playable Shard',
+      shardPlan: { shardId: 'shard.fixture.demo' },
+      output: {
+        latestPath: '.tmp/holoshell/shard-workflow-latest.json',
+        previewSourcePath: '.tmp/holoshell/shard-preview.holo',
+        privateReceiptPath: '.tmp/holoshell/shard-receipts/demo-private.json',
+      },
+      summary: {
+        status: 'staged',
+        assetCount: 5,
+        modelCount: 1,
+        imageCount: 1,
+        audioCount: 1,
+        blockedAssetCount: 0,
+        previewObjectCount: 5,
+        nextWorkflow: 'review_preview_then_approve_import_into_hololand_world',
+        mutationExecuted: false,
+      },
+    },
   };
 }
 
@@ -869,6 +961,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.objectKind === 'captured_window')) failures.push('expected captured window object');
   if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
+  if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.summary.guardedExecuteCount) failures.push('expected guarded execute objects');
   if (JSON.stringify(graph).includes('targetPath')) failures.push('graph must not expose raw targetPath fields');
   if (failures.length) {

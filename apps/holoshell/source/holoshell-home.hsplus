@@ -29,6 +29,9 @@ composition "HoloShell Home" {
     workflowApprovalBundle: ".tmp/holoshell/workflow-approval-latest.json"
     workflowIntentGateReceipt: ".tmp/holoshell/brain-intent-gate-latest.json"
     readinessEvidencePack: ".tmp/holoshell/readiness-evidence.json"
+    assetShardWorkflowReceipt: ".tmp/holoshell/shard-workflow-latest.json"
+    assetShardPreviewSource: ".tmp/holoshell/shard-preview.holo"
+    assetShardPrivateReceiptDir: ".tmp/holoshell/shard-receipts"
     previewProjection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
@@ -121,6 +124,23 @@ composition "HoloShell Home" {
     readinessGraphStatus: "unknown"
     readinessTaskCount: 0
     readinessNextWorkflow: ""
+    activeShardWorkflowStatus: "unknown"
+    activeShardWorkflowId: ""
+    activeShardId: ""
+    activeShardAssetCount: 0
+    activeShardModelCount: 0
+    activeShardImageCount: 0
+    activeShardAudioCount: 0
+    activeShardSourceCount: 0
+    activeShardUnknownCount: 0
+    activeShardBlockedAssetCount: 0
+    activeShardPreviewObjectCount: 0
+    activeShardApprovalRequired: false
+    activeShardPendingApprovalCount: 0
+    activeShardMutationExecuted: false
+    activeShardPreviewSourcePath: ""
+    activeShardPrivateReceiptPath: ""
+    activeShardNextWorkflow: ""
     activePilot: ""
     lastFeedGeneratedAt: ""
     operatingStage: "ask"
@@ -219,6 +239,12 @@ composition "HoloShell Home" {
     type: "append_only"
     priority: "high"
     description: "World build readiness evidence packs from HoloScript automation rendered as shell-room receipt tokens"
+  }
+
+  channel "holoshell:shard-workflow" {
+    type: "request_response"
+    priority: "high"
+    description: "Local asset folders staged as playable HoloLand shard previews with receipts and guarded import"
   }
 
   channel "holoshell:pilot" {
@@ -1084,12 +1110,29 @@ composition "HoloShell Home" {
     state.activeWorkflowIntentGateRuntimeBlocking = feedBundle.summary.activeWorkflowIntentGateRuntimeBlocking
     state.activeWorkflowIntentGateFailedCheckCount = feedBundle.summary.activeWorkflowIntentGateFailedCheckCount
     state.activeWorkflowIntentGateReceiptStatus = feedBundle.summary.activeWorkflowIntentGateReceiptStatus
+    state.activeShardWorkflowStatus = feedBundle.summary.activeShardWorkflowStatus
+    state.activeShardWorkflowId = feedBundle.summary.activeShardWorkflowId
+    state.activeShardId = feedBundle.summary.activeShardId
+    state.activeShardAssetCount = feedBundle.summary.activeShardAssetCount
+    state.activeShardModelCount = feedBundle.summary.activeShardModelCount
+    state.activeShardImageCount = feedBundle.summary.activeShardImageCount
+    state.activeShardAudioCount = feedBundle.summary.activeShardAudioCount
+    state.activeShardSourceCount = feedBundle.summary.activeShardSourceCount
+    state.activeShardUnknownCount = feedBundle.summary.activeShardUnknownCount
+    state.activeShardBlockedAssetCount = feedBundle.summary.activeShardBlockedAssetCount
+    state.activeShardPreviewObjectCount = feedBundle.summary.activeShardPreviewObjectCount
+    state.activeShardApprovalRequired = feedBundle.summary.activeShardApprovalRequired
+    state.activeShardPendingApprovalCount = state.activeShardApprovalRequired && state.activeShardWorkflowStatus == "staged" ? 1 : 0
+    state.activeShardMutationExecuted = feedBundle.summary.activeShardMutationExecuted
+    state.activeShardPreviewSourcePath = feedBundle.summary.activeShardPreviewSourcePath
+    state.activeShardPrivateReceiptPath = feedBundle.summary.activeShardPrivateReceiptPath
+    state.activeShardNextWorkflow = feedBundle.summary.activeShardNextWorkflow
     state.pilotReceiptCount = feedBundle.summary.pilotReceiptCount
     state.lastFeedGeneratedAt = feedBundle.generatedAt
     state.compositeHealth = feedBundle.summary.overallRisk
-    state.pendingApprovals = state.stopPlanCount + state.pendingHardwareApprovalCount + (state.activeWorkflowApprovalExecutionAllowed ? state.activeWorkflowApprovalPendingCount : 0)
+    state.pendingApprovals = state.stopPlanCount + state.pendingHardwareApprovalCount + (state.activeWorkflowApprovalExecutionAllowed ? state.activeWorkflowApprovalPendingCount : 0) + state.activeShardPendingApprovalCount
     state.operatingStage = state.pendingApprovals > 0 ? "approve" : "receive"
-    state.nextMove = state.stopPlanCount > 0 ? "review_cleanup_plan" : state.activeWorkflowApprovalExecutionAllowed ? "review_workflow_approval" : "run_project_check"
+    state.nextMove = state.stopPlanCount > 0 ? "review_cleanup_plan" : state.activeWorkflowApprovalExecutionAllowed ? "review_workflow_approval" : state.activeShardPendingApprovalCount > 0 ? "review_asset_shard_import" : "run_project_check"
     emit("holoshell:live-feed", {
       action: "live_feed_applied",
       generated_at: state.lastFeedGeneratedAt,
@@ -1169,6 +1212,23 @@ composition "HoloShell Home" {
       active_workflow_intent_gate_execution_allowed: state.activeWorkflowIntentGateExecutionAllowed,
       active_workflow_intent_gate_runtime_blocking: state.activeWorkflowIntentGateRuntimeBlocking,
       active_workflow_intent_gate_failed_checks: state.activeWorkflowIntentGateFailedCheckCount,
+      active_shard_workflow: state.activeShardWorkflowStatus,
+      active_shard_workflow_id: state.activeShardWorkflowId,
+      active_shard_id: state.activeShardId,
+      active_shard_assets: state.activeShardAssetCount,
+      active_shard_models: state.activeShardModelCount,
+      active_shard_images: state.activeShardImageCount,
+      active_shard_audio: state.activeShardAudioCount,
+      active_shard_sources: state.activeShardSourceCount,
+      active_shard_unknown: state.activeShardUnknownCount,
+      active_shard_blocked_assets: state.activeShardBlockedAssetCount,
+      active_shard_preview_objects: state.activeShardPreviewObjectCount,
+      active_shard_approval_required: state.activeShardApprovalRequired,
+      active_shard_pending_approval: state.activeShardPendingApprovalCount,
+      active_shard_mutation_executed: state.activeShardMutationExecuted,
+      active_shard_preview_source: state.activeShardPreviewSourcePath,
+      active_shard_private_receipt: state.activeShardPrivateReceiptPath,
+      active_shard_next_workflow: state.activeShardNextWorkflow,
       stop_plans: state.stopPlanCount,
       timeline_nodes: state.timelineNodeCount,
       receipt_required: true
@@ -1436,6 +1496,51 @@ composition "HoloShell Home" {
       model_route: state.activeWorkflowModelRoute,
       music_target: state.activeWorkflowMusicTarget,
       mutation_executed: state.activeWorkflowMutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_asset_shard_workflow(workflow) {
+    state.activeShardWorkflowStatus = workflow.summary.status
+    state.activeShardWorkflowId = workflow.workflowId
+    state.activeShardId = workflow.shardPlan.shardId
+    state.activeShardAssetCount = workflow.summary.assetCount
+    state.activeShardModelCount = workflow.summary.modelCount
+    state.activeShardImageCount = workflow.summary.imageCount
+    state.activeShardAudioCount = workflow.summary.audioCount
+    state.activeShardSourceCount = workflow.summary.sourceCount
+    state.activeShardUnknownCount = workflow.summary.unknownCount
+    state.activeShardBlockedAssetCount = workflow.summary.blockedAssetCount
+    state.activeShardPreviewObjectCount = workflow.summary.previewObjectCount
+    state.activeShardApprovalRequired = workflow.summary.approvalRequired
+    state.activeShardPendingApprovalCount = state.activeShardApprovalRequired && state.activeShardWorkflowStatus == "staged" ? 1 : 0
+    state.activeShardMutationExecuted = workflow.summary.mutationExecuted
+    state.activeShardPreviewSourcePath = workflow.output.previewSourcePath
+    state.activeShardPrivateReceiptPath = workflow.output.privateReceiptPath
+    state.activeShardNextWorkflow = workflow.summary.nextWorkflow
+    state.pendingApprovals = state.pendingApprovals + state.activeShardPendingApprovalCount
+    state.operatingStage = state.activeShardPendingApprovalCount > 0 ? "approve" : state.operatingStage
+    state.nextMove = state.activeShardPendingApprovalCount > 0 ? "review_asset_shard_import" : state.nextMove
+    state.activeShellObject = "asset-shard"
+    emit("holoshell:shard-workflow", {
+      action: "asset_shard_workflow_applied",
+      status: state.activeShardWorkflowStatus,
+      workflow_id: state.activeShardWorkflowId,
+      shard_id: state.activeShardId,
+      assets: state.activeShardAssetCount,
+      models: state.activeShardModelCount,
+      images: state.activeShardImageCount,
+      audio: state.activeShardAudioCount,
+      sources: state.activeShardSourceCount,
+      unknown_assets: state.activeShardUnknownCount,
+      blocked_assets: state.activeShardBlockedAssetCount,
+      preview_objects: state.activeShardPreviewObjectCount,
+      preview_source: state.activeShardPreviewSourcePath,
+      private_receipt: state.activeShardPrivateReceiptPath,
+      approval_required: state.activeShardApprovalRequired,
+      pending_approval: state.activeShardPendingApprovalCount,
+      mutation_executed: state.activeShardMutationExecuted,
+      next_move: state.activeShardNextWorkflow,
       receipt_required: true
     })
   }

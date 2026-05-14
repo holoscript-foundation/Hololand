@@ -1,0 +1,119 @@
+// HoloShell Asset Shard Workflow
+//
+// Canonical product behavior for turning a local folder of assets into a
+// staged HoloLand shard. Host scripts may scan files and write receipts, but
+// the shell contract starts here.
+
+composition "HoloShell Asset Shard Workflow" {
+  config {
+    title: "Asset Folder to Playable Shard"
+    owner: "HoloLand"
+    audience: "creator"
+    sourceLayer: "HoloScript"
+    operationModel: "local_folder_to_playable_shard"
+    bridgeScript: "scripts/holoshell-asset-shard-workflow.mjs"
+    defaultAssetFolder: ".tmp/holoshell/sample-shard-assets"
+    workflowReceipt: ".tmp/holoshell/shard-workflow-latest.json"
+    browserBootstrap: ".tmp/holoshell/shard-workflow-latest.js"
+    previewSource: ".tmp/holoshell/shard-preview.holo"
+    privateReceiptDir: ".tmp/holoshell/shard-receipts"
+    shellProjection: "apps/holoshell/prototype/local-capability-room.html"
+  }
+
+  state {
+    status: "unknown"
+    activeShardId: ""
+    sourceFolderName: ""
+    assetCount: 0
+    modelCount: 0
+    imageCount: 0
+    audioCount: 0
+    sourceCount: 0
+    mediaCount: 0
+    unknownCount: 0
+    blockedAssetCount: 0
+    previewObjectCount: 0
+    previewSourcePath: ""
+    workflowReceiptPath: ""
+    privateReceiptPath: ""
+    rollbackPath: ""
+    approvalRequired: true
+    mutationExecuted: false
+    nextMove: "choose_asset_folder"
+  }
+
+  channel "holoshell:shard-workflow" {
+    type: "request_response"
+    priority: "high"
+    description: "Brittney stages a local asset folder as a HoloLand shard without mutating source assets"
+  }
+
+  channel "holoshell:shard-preview" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Generated .holo preview source for the playable shard candidate"
+  }
+
+  channel "holoshell:shard-approval" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded approval lane for importing, publishing, overwriting, or deleting shard data"
+  }
+
+  policy "FolderScanPolicy" {
+    read_asset_files: "silent_read"
+    classify_asset_files: "silent_read"
+    hash_asset_files: "silent_read"
+    expose_absolute_paths_to_browser: false
+    source_asset_mutation: false
+  }
+
+  policy "ShardImportPolicy" {
+    write_tmp_preview: "allowed"
+    write_tmp_receipts: "allowed"
+    import_into_hololand_world: "guarded_execute"
+    publish_to_network: "guarded_execute"
+    overwrite_existing_shard: "break_glass"
+    delete_source_assets: "break_glass"
+  }
+
+  action apply_asset_shard_workflow(workflow) {
+    state.status = workflow.summary.status
+    state.activeShardId = workflow.shardPlan.shardId
+    state.sourceFolderName = workflow.source.assetFolderName
+    state.assetCount = workflow.summary.assetCount
+    state.modelCount = workflow.summary.modelCount
+    state.imageCount = workflow.summary.imageCount
+    state.audioCount = workflow.summary.audioCount
+    state.sourceCount = workflow.summary.sourceCount
+    state.mediaCount = workflow.summary.mediaCount
+    state.unknownCount = workflow.summary.unknownCount
+    state.blockedAssetCount = workflow.summary.blockedAssetCount
+    state.previewObjectCount = workflow.summary.previewObjectCount
+    state.previewSourcePath = workflow.output.previewSourcePath
+    state.workflowReceiptPath = workflow.output.latestPath
+    state.privateReceiptPath = workflow.output.privateReceiptPath
+    state.rollbackPath = workflow.rollback.rollbackReceiptPath
+    state.approvalRequired = workflow.summary.approvalRequired
+    state.mutationExecuted = workflow.summary.mutationExecuted
+    state.nextMove = workflow.summary.nextWorkflow
+    emit("holoshell:shard-workflow", {
+      action: "asset_shard_workflow_applied",
+      status: state.status,
+      shard_id: state.activeShardId,
+      folder_name: state.sourceFolderName,
+      assets: state.assetCount,
+      models: state.modelCount,
+      images: state.imageCount,
+      audio: state.audioCount,
+      sources: state.sourceCount,
+      blocked_assets: state.blockedAssetCount,
+      preview_objects: state.previewObjectCount,
+      preview_source: state.previewSourcePath,
+      approval_required: state.approvalRequired,
+      mutation_executed: state.mutationExecuted,
+      next_move: state.nextMove,
+      receipt_required: true
+    })
+  }
+}

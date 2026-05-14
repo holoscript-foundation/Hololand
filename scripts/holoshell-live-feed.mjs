@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -312,6 +312,19 @@ function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCaptu
     });
   }
 
+  if (shardWorkflow?.summary) {
+    timeline.push({
+      id: shardWorkflow.workflowId || 'holoshell-asset-shard-workflow',
+      kind: 'asset_shard_workflow',
+      title: `Asset shard workflow ${shardWorkflow.summary.status || 'unknown'}`,
+      detail: `${shardWorkflow.summary.assetCount || 0} assets, ${shardWorkflow.summary.modelCount || 0} model(s), ${shardWorkflow.summary.imageCount || 0} image(s), ${shardWorkflow.summary.audioCount || 0} audio file(s); import approval ${shardWorkflow.summary.approvalRequired ? 'required' : 'not required'}.`,
+      trustState: shardWorkflow.summary.status === 'staged' ? 'verified' : 'partial',
+      generatedAt: shardWorkflow.generatedAt || now,
+      receiptType: shardWorkflow.schemaVersion,
+      source: shardWorkflow.output?.latestPath || 'scripts/holoshell-asset-shard-workflow.mjs',
+    });
+  }
+
   for (const receipt of runReceipts.slice(0, 12)) {
     timeline.push({
       id: receipt.runId,
@@ -361,6 +374,7 @@ function createFeed(args) {
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
   const workflowApproval = readJson(path.join(tmpDir, 'workflow-approval-latest.json'), {});
   const workflowIntentGate = readJson(path.join(tmpDir, 'brain-intent-gate-latest.json'), {});
+  const shardWorkflow = readJson(path.join(tmpDir, 'shard-workflow-latest.json'), {});
   const runRegistry = readJson(path.join(tmpDir, 'run-registry.json'), { runs: [] });
   const runReceipts = readReceiptFiles(path.join(tmpDir, 'run-receipts'));
   const actionReceipts = readReceiptFiles(path.join(tmpDir, 'action-receipts'));
@@ -387,13 +401,15 @@ function createFeed(args) {
     workflow,
     workflowApproval,
     workflowIntentGate,
+    shardWorkflow,
     runReceipts,
     pilotReceipts,
   });
   const trust = trustCounts(inventory?.capabilities || []);
   const processRisk = processHealth?.summary?.riskState || 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
-  const overallRisk = [processRisk, stopPlans.length ? 'warn' : 'pass', readinessRisk]
+  const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
+  const overallRisk = [processRisk, stopPlans.length ? 'warn' : 'pass', readinessRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -406,6 +422,7 @@ function createFeed(args) {
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
+      assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
       roadmap: 'apps/holoshell/docs/PHASE_1_ROADMAP.md',
     },
@@ -513,6 +530,22 @@ function createFeed(args) {
       activeWorkflowIntentGateRuntimeBlocking: Boolean(workflowIntentGate?.summary?.runtimeBlocking),
       activeWorkflowIntentGateFailedCheckCount: workflowIntentGate?.summary?.failedCheckCount || 0,
       activeWorkflowIntentGateReceiptStatus: workflowIntentGate?.summary?.receiptStatus || 'unknown',
+      activeShardWorkflowStatus: shardWorkflow?.summary?.status || 'unknown',
+      activeShardWorkflowId: shardWorkflow?.workflowId || '',
+      activeShardId: shardWorkflow?.shardPlan?.shardId || '',
+      activeShardAssetCount: shardWorkflow?.summary?.assetCount || 0,
+      activeShardModelCount: shardWorkflow?.summary?.modelCount || 0,
+      activeShardImageCount: shardWorkflow?.summary?.imageCount || 0,
+      activeShardAudioCount: shardWorkflow?.summary?.audioCount || 0,
+      activeShardSourceCount: shardWorkflow?.summary?.sourceCount || 0,
+      activeShardUnknownCount: shardWorkflow?.summary?.unknownCount || 0,
+      activeShardBlockedAssetCount: shardWorkflow?.summary?.blockedAssetCount || 0,
+      activeShardPreviewObjectCount: shardWorkflow?.summary?.previewObjectCount || 0,
+      activeShardApprovalRequired: Boolean(shardWorkflow?.summary?.approvalRequired),
+      activeShardMutationExecuted: Boolean(shardWorkflow?.summary?.mutationExecuted),
+      activeShardPreviewSourcePath: shardWorkflow?.output?.previewSourcePath || '',
+      activeShardPrivateReceiptPath: shardWorkflow?.output?.privateReceiptPath || '',
+      activeShardNextWorkflow: shardWorkflow?.summary?.nextWorkflow || '',
       stopPlanCount: stopPlans.length,
       activeRegisteredRunCount: processHealth?.summary?.activeRegisteredRunCount || 0,
       timelineCount: timeline.length,
@@ -534,6 +567,7 @@ function createFeed(args) {
       workflow,
       workflowApproval,
       workflowIntentGate,
+      shardWorkflow,
       runRegistry,
     },
     stopPlans,
