@@ -157,6 +157,8 @@ composition "HoloShell Run Custody Actions" {
   policy "ParentPidBindsShellWindow" {
     appliesTo: ["shell_window_custody", "terminal_child_run", "visible_shell_surface"]
     bindingEvidence: "parent_pid"
+    recursiveParentChainMayBindDescendantRun: true
+    inferredParentChainIsObservedNotClaimed: true
     rawCommandHiddenByDefault: true
     rawWindowTitleHiddenByDefault: true
     claimReceiptRequiredForMutation: true

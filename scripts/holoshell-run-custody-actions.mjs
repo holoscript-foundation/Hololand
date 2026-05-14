@@ -166,6 +166,26 @@ function syntheticHardwareReality() {
         ownerTrustState: 'observed_by_holoshell_mcp',
         rawCommandHidden: true,
       },
+      {
+        runId: 'pid-405',
+        pid: 405,
+        parentPid: 404,
+        processName: 'cmd.exe',
+        healthState: 'observed',
+        listeningPorts: [],
+        commandHash: 'fixture-child-command',
+        rawCommandHidden: true,
+      },
+      {
+        runId: 'pid-406',
+        pid: 406,
+        parentPid: 405,
+        processName: 'node.exe',
+        healthState: 'observed',
+        listeningPorts: [],
+        commandHash: 'fixture-grandchild-command',
+        rawCommandHidden: true,
+      },
     ],
     receipt: {
       snapshotHash: 'fixture-snapshot-hash',
@@ -238,6 +258,59 @@ function visibleRuns(hardwareReality) {
     ownerTrustState: run.ownerTrustState || null,
     rawCommandHidden: true,
   })).filter((run) => Number.isInteger(run.pid));
+}
+
+function ownerInfoFromRun(run, evidence = run.ownerEvidence || 'direct_pid') {
+  if (!run?.ownerLaneId) return null;
+  return {
+    ownerLaneId: run.ownerLaneId,
+    ownerLaneLabel: run.ownerLaneLabel,
+    ownerSurfaceKind: run.ownerSurfaceKind,
+    ownerColorHint: run.ownerColorHint,
+    ownerEvidence: evidence,
+    ownerParentPid: run.ownerParentPid || run.pid,
+    ownerTrustState: evidence === 'parent_chain'
+      ? 'inferred_parent_chain'
+      : run.ownerTrustState || 'observed_by_holoshell_mcp',
+  };
+}
+
+function inferParentChainOwnership(runs) {
+  const byPid = new Map(runs.map((run) => [run.pid, run]));
+  const ownerByPid = new Map();
+  for (const run of runs) {
+    const owner = ownerInfoFromRun(run);
+    if (owner) ownerByPid.set(run.pid, owner);
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const run of runs) {
+      if (ownerByPid.has(run.pid)) continue;
+      const parent = byPid.get(run.parentPid);
+      const parentOwner = parent ? ownerByPid.get(parent.pid) : null;
+      if (!parentOwner) continue;
+      ownerByPid.set(run.pid, {
+        ...parentOwner,
+        ownerEvidence: 'parent_chain',
+        ownerParentPid: parent.pid,
+        ownerTrustState: 'inferred_parent_chain',
+      });
+      changed = true;
+    }
+  }
+
+  return ownerByPid;
+}
+
+function applyParentChainOwnership(runs) {
+  const ownerByPid = inferParentChainOwnership(runs);
+  return runs.map((run) => {
+    if (run.ownerLaneId) return run;
+    const owner = ownerByPid.get(run.pid);
+    return owner ? { ...run, ...owner } : run;
+  });
 }
 
 function latestReceipts(store) {
@@ -424,7 +497,7 @@ function createBrittneyBrief(snapshot) {
 }
 
 function createSnapshot(hardwareReality, store, actionReceipt = null) {
-  const runs = visibleRuns(hardwareReality);
+  const runs = applyParentChainOwnership(visibleRuns(hardwareReality));
   const latest = latestReceipts(store);
   const runStatuses = runs.map((run) => statusForRun(run, latest));
   const claimed = runStatuses.filter((run) => run.status === 'claimed');
@@ -490,6 +563,10 @@ function assertSelfTest(snapshot, actionReceipt) {
   if (snapshot.summary.observedRunCount < 2) failures.push('expected synthetic runs');
   if (snapshot.summary.actionReceiptCount < 1) failures.push('expected custody receipt');
   if (snapshot.summary.observedOwnerCount < 1) failures.push('expected lane observed synthetic run');
+  const inheritedGrandchild = snapshot.runs.find((run) => run.pid === 406);
+  if (inheritedGrandchild?.status !== 'lane_observed') failures.push('expected inherited grandchild lane observation');
+  if (inheritedGrandchild?.laneId !== 'ollama') failures.push('expected inherited grandchild owner lane');
+  if (inheritedGrandchild?.ownerEvidence !== 'parent_chain') failures.push('expected parent-chain owner evidence');
   if (!snapshot.runs.some((run) => run.parentPid === 900)) failures.push('expected parent pid for shell-window binding');
   if (!actionReceipt || actionReceipt.destructiveActionsTaken !== false) failures.push('action receipt must be non-destructive');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('snapshot must be non-destructive');
@@ -508,6 +585,9 @@ function main() {
     args.action = args.action === 'snapshot' ? 'claim' : args.action;
     args.pid = args.pid || 202;
     args.reason = args.reason || 'Self-test claim receipt proves non-destructive custody.';
+    if (args.output === DEFAULT_OUTPUT) args.output = path.join('.tmp', 'holoshell', 'self-test', 'run-custody.json');
+    if (args.jsOutput === DEFAULT_JS_OUTPUT) args.jsOutput = path.join('.tmp', 'holoshell', 'self-test', 'run-custody.js');
+    if (args.store === DEFAULT_STORE) args.store = path.join('.tmp', 'holoshell', 'self-test', 'run-custody-store.json');
   }
 
   const hardwareReality = loadHardwareReality(args);
