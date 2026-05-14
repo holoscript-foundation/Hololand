@@ -578,6 +578,8 @@ function processToReceipt(processInfo, args, pidSet, runByPid, ownerByPid = new 
     : null;
   const inferredOwner = ownerByPid.get(pid) || null;
   const owner = registeredOwner || inferredOwner;
+  const ownerLane = owner?.laneId || null;
+  const runId = ownedRun?.runId || null;
   const registeredOverdue = Boolean(ownedRun && isRunOverdue(ownedRun));
   const stale = shellRunCandidate && age !== null && age >= args.staleMinutes && !ownedRun;
   const highMemory = memory !== null && memory >= args.highMemoryMb;
@@ -588,6 +590,12 @@ function processToReceipt(processInfo, args, pidSet, runByPid, ownerByPid = new 
   if (registeredOverdue) findings.push('registered_run_overdue');
   if (highMemory) findings.push('high_memory_process');
   if (custodyRelevantParentGap) findings.push('parent_not_visible');
+
+  const custodyActionClass = findings.length === 0
+    ? runId ? 'registered_owned' : ownerLane ? 'lane_observed' : shellRunCandidate ? 'tracked' : 'observed'
+    : runId ? 'registered_owner_handoff' : ownerLane ? 'lane_owner_handoff' : 'cleanup_candidate';
+  const cleanupEligible = custodyActionClass === 'cleanup_candidate';
+  const ownerHandoffRequired = custodyActionClass === 'registered_owner_handoff' || custodyActionClass === 'lane_owner_handoff';
 
   return {
     pid,
@@ -607,7 +615,10 @@ function processToReceipt(processInfo, args, pidSet, runByPid, ownerByPid = new 
         : owner
           ? findings.length > 0 ? 'lane_owned_needs_review' : 'lane_observed'
           : findings.length > 0 ? 'needs_review' : shellRunCandidate ? 'tracked' : 'observed',
-      ownerLane: owner?.laneId || null,
+      actionClass: custodyActionClass,
+      cleanupEligible,
+      ownerHandoffRequired,
+      ownerLane,
       ownerLaneLabel: owner?.laneLabel || null,
       ownerAgentKind: owner?.agentKind || null,
       ownerSurfaceKind: owner?.surfaceKind || null,
@@ -616,7 +627,7 @@ function processToReceipt(processInfo, args, pidSet, runByPid, ownerByPid = new 
       ownerParentPid: owner?.parentPid || null,
       ownerPid: owner?.ownerPid || null,
       ownerTrustState: owner?.trustState || null,
-      runId: ownedRun?.runId || null,
+      runId,
       runClass: ownedRun?.runClass || null,
       expectedEndAt: ownedRun?.expectedEndAt || null,
       registeredStatus: ownedRun?.status || null,
@@ -624,6 +635,36 @@ function processToReceipt(processInfo, args, pidSet, runByPid, ownerByPid = new 
       receiptRequired: true,
     },
   };
+}
+
+function hasRegisteredCustody(processInfo) {
+  return Boolean(processInfo?.custody?.runId);
+}
+
+function hasLaneCustody(processInfo) {
+  return Boolean(processInfo?.custody?.ownerLane);
+}
+
+function hasAnyCustody(processInfo) {
+  return hasRegisteredCustody(processInfo) || hasLaneCustody(processInfo);
+}
+
+function isOwnerUnknownProcess(processInfo) {
+  return !hasAnyCustody(processInfo);
+}
+
+function hasFinding(processInfo, finding) {
+  return Array.isArray(processInfo?.findings) && processInfo.findings.includes(finding);
+}
+
+function isActionableCleanupCandidate(processInfo) {
+  return Boolean(processInfo?.custody?.cleanupEligible)
+    || (Array.isArray(processInfo?.findings) && processInfo.findings.length > 0 && isOwnerUnknownProcess(processInfo));
+}
+
+function isOwnerHandoffCandidate(processInfo) {
+  return Boolean(processInfo?.custody?.ownerHandoffRequired)
+    || (Array.isArray(processInfo?.findings) && processInfo.findings.length > 0 && hasAnyCustody(processInfo));
 }
 
 function createStopPlan(args, processes) {
@@ -670,6 +711,22 @@ function stopPlanReason(processInfo) {
   return 'Process needs custody review before HoloShell recommends cleanup.';
 }
 
+function ownerHandoffReason(processInfo) {
+  if (processInfo.findings.includes('registered_run_overdue')) {
+    return 'Registered HoloShell run passed its expected end time; the owning lane must extend, close, or justify it.';
+  }
+  if (processInfo.findings.includes('high_memory_process')) {
+    return 'High-memory process already has a visible owner lane; route review to that owner before cleanup.';
+  }
+  if (processInfo.findings.includes('stale_shell_or_dev_run')) {
+    return 'Stale shell/dev process already has a visible owner lane; ask the owner to claim, close, or justify it.';
+  }
+  if (processInfo.findings.includes('parent_not_visible')) {
+    return 'Parent process is not visible, but owner evidence exists; route as custody handoff first.';
+  }
+  return 'Process has owner evidence and needs lane handoff before cleanup.';
+}
+
 function createStopPlanForProcess(processInfo, rank) {
   return {
     planId: `stop-plan-${processInfo.pid}-${stableHash(`${processInfo.pid}:${processInfo.commandHash}:${rank}`)}`,
@@ -693,21 +750,48 @@ function createStopPlanForProcess(processInfo, rank) {
 
 function createStopPlans(processes) {
   const candidates = processes
-    .filter((item) => item.findings.some((finding) => [
-      'registered_run_overdue',
-      'high_memory_process',
-      'stale_shell_or_dev_run',
-      'parent_not_visible',
-    ].includes(finding)))
+    .filter(isActionableCleanupCandidate)
     .sort((left, right) => {
-      const leftOwned = left.custody.runId ? 1 : 0;
-      const rightOwned = right.custody.runId ? 1 : 0;
-      const leftScore = leftOwned * 1000000 + left.findings.length * 100000 + (left.memoryMb || 0);
-      const rightScore = rightOwned * 1000000 + right.findings.length * 100000 + (right.memoryMb || 0);
+      const leftScore = left.findings.length * 100000 + (left.memoryMb || 0);
+      const rightScore = right.findings.length * 100000 + (right.memoryMb || 0);
       return rightScore - leftScore;
     });
 
   return candidates.slice(0, 12).map(createStopPlanForProcess);
+}
+
+function createOwnerHandoffPlanForProcess(processInfo, rank) {
+  return {
+    planId: `handoff-plan-${processInfo.pid}-${stableHash(`${processInfo.pid}:${processInfo.commandHash}:${rank}`)}`,
+    status: 'owner_review_required',
+    pid: processInfo.pid,
+    name: processInfo.name,
+    category: processInfo.category,
+    ageMinutes: processInfo.ageMinutes,
+    memoryMb: processInfo.memoryMb,
+    findings: processInfo.findings,
+    custody: processInfo.custody,
+    reason: ownerHandoffReason(processInfo),
+    recommendedAction: 'ask_owner_lane_to_extend_close_or_justify',
+    approvalRequired: false,
+    safeToExecuteAutomatically: false,
+    recommendedCommand: null,
+    receiptRequired: true,
+  };
+}
+
+function createOwnerHandoffPlans(processes) {
+  const candidates = processes
+    .filter(isOwnerHandoffCandidate)
+    .sort((left, right) => {
+      const leftRegistered = left.custody.runId ? 1 : 0;
+      const rightRegistered = right.custody.runId ? 1 : 0;
+      const leftScore = leftRegistered * 1000000 + left.findings.length * 100000 + (left.memoryMb || 0);
+      const rightScore = rightRegistered * 1000000 + right.findings.length * 100000 + (right.memoryMb || 0);
+      return rightScore - leftScore;
+    });
+
+  return candidates.slice(0, 24).map(createOwnerHandoffPlanForProcess);
 }
 
 function createHealth(args) {
@@ -728,13 +812,24 @@ function createHealth(args) {
   const staleRuns = processes.filter((item) => item.findings.includes('stale_shell_or_dev_run'));
   const ownedProcesses = processes.filter((item) => item.custody.runId);
   const laneAttributedProcesses = processes.filter((item) => item.custody.ownerLane && !item.custody.runId);
-  const ownerUnknownReview = processes.filter((item) => item.findings.length > 0 && !item.custody.ownerLane);
+  const ownerUnknownReview = processes.filter((item) => item.findings.length > 0 && isOwnerUnknownProcess(item));
+  const ownerHandoff = processes.filter(isOwnerHandoffCandidate);
+  const cleanupCandidates = processes.filter(isActionableCleanupCandidate);
   const overdueOwnedProcesses = processes.filter((item) => item.findings.includes('registered_run_overdue'));
   const orphanLike = processes.filter((item) => item.findings.includes('parent_not_visible'));
+  const ownerUnknownStaleRuns = staleRuns.filter(isOwnerUnknownProcess);
+  const laneOwnedStaleRuns = staleRuns.filter((item) => hasLaneCustody(item) && !hasRegisteredCustody(item));
+  const registeredOwnedStaleRuns = staleRuns.filter(hasRegisteredCustody);
+  const ownerUnknownHighMemory = highMemory.filter(isOwnerUnknownProcess);
+  const laneOwnedHighMemory = highMemory.filter((item) => hasLaneCustody(item) && !hasRegisteredCustody(item));
+  const registeredOwnedHighMemory = highMemory.filter(hasRegisteredCustody);
+  const ownerUnknownOrphanLike = orphanLike.filter(isOwnerUnknownProcess);
+  const laneOwnedOrphanLike = orphanLike.filter((item) => hasLaneCustody(item) && !hasRegisteredCustody(item));
+  const registeredOwnedOrphanLike = orphanLike.filter(hasRegisteredCustody);
   const memoryUsedRatio = 1 - (os.freemem() / os.totalmem());
   const riskState = memoryUsedRatio > 0.9 || highMemory.length > 8
     ? 'critical'
-    : staleRuns.length > 0 || runEvidence.overdueRuns.length > 0 || orphanLike.length > 0 || highMemory.length > 0
+    : cleanupCandidates.length > 0 || ownerHandoff.length > 0 || runEvidence.overdueRuns.length > 0 || runEvidence.unmatchedActiveRuns.length > 0 || memoryUsedRatio > 0.85
       ? 'warn'
       : 'pass';
   const categories = {};
@@ -750,6 +845,7 @@ function createHealth(args) {
   ].slice(0, 80);
 
   const stopPlans = createStopPlans(processes);
+  const ownerHandoffPlans = createOwnerHandoffPlans(processes);
   const explicitStopPlan = createStopPlan(args, processes);
   const manifest = {
     schemaVersion: SCHEMA_VERSION,
@@ -782,12 +878,26 @@ function createHealth(args) {
       ownedProcessCount: ownedProcesses.length,
       laneAttributedProcessCount: laneAttributedProcesses.length,
       ownerUnknownReviewCount: ownerUnknownReview.length,
+      ownerKnownReviewCount: ownerHandoff.length,
+      ownerHandoffPlanCount: ownerHandoffPlans.length,
+      actionableCleanupCandidateCount: cleanupCandidates.length,
+      cleanupCandidateCount: cleanupCandidates.length,
       overdueRegisteredRunCount: runEvidence.overdueRuns.length,
       overdueOwnedProcessCount: overdueOwnedProcesses.length,
       unmatchedActiveRunCount: runEvidence.unmatchedActiveRuns.length,
       highMemoryCount: highMemory.length,
+      ownerUnknownHighMemoryCount: ownerUnknownHighMemory.length,
+      laneOwnedHighMemoryCount: laneOwnedHighMemory.length,
+      registeredOwnedHighMemoryCount: registeredOwnedHighMemory.length,
       staleRunCount: staleRuns.length,
+      ownerUnknownStaleRunCount: ownerUnknownStaleRuns.length,
+      laneOwnedStaleRunCount: laneOwnedStaleRuns.length,
+      registeredOwnedStaleRunCount: registeredOwnedStaleRuns.length,
       orphanLikeCount: orphanLike.length,
+      ownerUnknownOrphanLikeCount: ownerUnknownOrphanLike.length,
+      laneOwnedOrphanLikeCount: laneOwnedOrphanLike.length,
+      registeredOwnedOrphanLikeCount: registeredOwnedOrphanLike.length,
+      cleanupStopPlanCount: stopPlans.length + (explicitStopPlan ? 1 : 0),
       stopPlanCount: stopPlans.length + (explicitStopPlan ? 1 : 0),
       trackedCategoryCount: categories,
     },
@@ -832,17 +942,29 @@ function createHealth(args) {
     recommendations: makeRecommendations({
       memoryUsedRatio,
       staleRuns,
+      ownerUnknownStaleRuns,
+      laneOwnedStaleRuns,
+      registeredOwnedStaleRuns,
       highMemory,
+      ownerUnknownHighMemory,
+      laneOwnedHighMemory,
+      registeredOwnedHighMemory,
       orphanLike,
+      ownerUnknownOrphanLike,
+      laneOwnedOrphanLike,
+      registeredOwnedOrphanLike,
       shellRuns,
       laneAttributedProcesses,
       ownerUnknownReview,
+      ownerHandoff,
+      cleanupCandidates,
       overdueRuns: runEvidence.overdueRuns,
       unmatchedActiveRuns: runEvidence.unmatchedActiveRuns,
     }),
     shellRuns: shellRuns.slice(0, 160),
     processes: processSample,
     stopPlans,
+    ownerHandoffPlans,
     stopPlan: explicitStopPlan,
   };
 
@@ -852,11 +974,22 @@ function createHealth(args) {
 function makeRecommendations({
   memoryUsedRatio,
   staleRuns,
+  ownerUnknownStaleRuns = [],
+  laneOwnedStaleRuns = [],
+  registeredOwnedStaleRuns = [],
   highMemory,
+  ownerUnknownHighMemory = [],
+  laneOwnedHighMemory = [],
+  registeredOwnedHighMemory = [],
   orphanLike,
+  ownerUnknownOrphanLike = [],
+  laneOwnedOrphanLike = [],
+  registeredOwnedOrphanLike = [],
   shellRuns,
   laneAttributedProcesses = [],
   ownerUnknownReview = [],
+  ownerHandoff = [],
+  cleanupCandidates = [],
   overdueRuns,
   unmatchedActiveRuns,
 }) {
@@ -868,11 +1001,25 @@ function makeRecommendations({
       text: 'Memory pressure is high. Review high-memory shell/dev runs before starting another build or browser audit.',
     });
   }
+  if (cleanupCandidates.length > 0) {
+    recommendations.push({
+      severity: 'medium',
+      kind: 'actionable_cleanup_candidates',
+      text: `${cleanupCandidates.length} review-worthy process(es) have no owner lane. These are the only automatic cleanup stop-plan candidates.`,
+    });
+  }
+  if (ownerHandoff.length > 0) {
+    recommendations.push({
+      severity: 'low',
+      kind: 'owner_handoff_required',
+      text: `${ownerHandoff.length} review-worthy process(es) already have owner lanes. Route them to the owning agent before any cleanup plan.`,
+    });
+  }
   if (staleRuns.length > 0) {
     recommendations.push({
       severity: 'medium',
       kind: 'stale_shell_runs',
-      text: `${staleRuns.length} shell or dev run candidate(s) are older than the stale threshold. Ask the owning agent to claim, close, or justify them.`,
+      text: `${staleRuns.length} shell or dev run candidate(s) are older than the stale threshold: ${ownerUnknownStaleRuns.length} owner-unknown, ${laneOwnedStaleRuns.length} lane-owned, ${registeredOwnedStaleRuns.length} registered-owned.`,
     });
   }
   if (overdueRuns.length > 0) {
@@ -893,14 +1040,14 @@ function makeRecommendations({
     recommendations.push({
       severity: 'medium',
       kind: 'high_memory_processes',
-      text: `${highMemory.length} process(es) exceed the high-memory threshold. Do not start memory-heavy jobs until reviewed.`,
+      text: `${highMemory.length} process(es) exceed the high-memory threshold: ${ownerUnknownHighMemory.length} owner-unknown, ${laneOwnedHighMemory.length} lane-owned, ${registeredOwnedHighMemory.length} registered-owned. Do not start memory-heavy jobs until reviewed.`,
     });
   }
   if (orphanLike.length > 0) {
     recommendations.push({
       severity: 'medium',
       kind: 'parent_not_visible',
-      text: `${orphanLike.length} process(es) have parents that are not visible in the current process table. Treat as custody gaps.`,
+      text: `${orphanLike.length} process(es) have parents that are not visible in the current process table: ${ownerUnknownOrphanLike.length} owner-unknown, ${laneOwnedOrphanLike.length} lane-owned, ${registeredOwnedOrphanLike.length} registered-owned.`,
     });
   }
   if (ownerUnknownReview.length > 0) {
@@ -1018,6 +1165,12 @@ function assertSelfTest(health) {
     for (const finding of receipt.findings) {
       if (!fixture.expectedFindings.includes(finding)) failures.push(`${fixture.name} unexpected ${finding}`);
     }
+    if (fixture.expectedFindings.length > 0 && receipt.custody.actionClass !== 'cleanup_candidate') {
+      failures.push(`${fixture.name} expected cleanup_candidate action class`);
+    }
+    if (fixture.expectedFindings.length > 0 && receipt.custody.cleanupEligible !== true) {
+      failures.push(`${fixture.name} expected cleanupEligible true`);
+    }
   }
   const ownerFixtures = [
     {
@@ -1062,6 +1215,57 @@ function assertSelfTest(health) {
   if (ownedReceipt.custody.ownerLane !== 'codex') {
     failures.push('expected process receipt to include inferred owner lane');
   }
+  if (ownedReceipt.custody.actionClass !== 'lane_observed') {
+    failures.push('expected healthy lane-owned process to be lane_observed');
+  }
+  const staleOwnedProcess = {
+    pid: 103,
+    ppid: 101,
+    name: 'node.exe',
+    commandLine: 'node scripts\\local-worker.mjs',
+    executablePath: 'node.exe',
+    createdAt: new Date(Date.now() - 180 * 60_000).toISOString(),
+    workingSetBytes: 20 * 1024 * 1024,
+  };
+  const staleOwnerFixtures = [...ownerFixtures, staleOwnedProcess];
+  const staleOwnerEvidence = buildOwnerEvidence(fixtureArgs, staleOwnerFixtures);
+  const staleOwnedReceipt = processToReceipt(
+    staleOwnedProcess,
+    fixtureArgs,
+    new Set(staleOwnerFixtures.map((item) => item.pid)),
+    fixtureRuns,
+    staleOwnerEvidence,
+  );
+  if (!staleOwnedReceipt.findings.includes('stale_shell_or_dev_run')) {
+    failures.push('expected lane-owned stale process finding');
+  }
+  if (staleOwnedReceipt.custody.actionClass !== 'lane_owner_handoff') {
+    failures.push('expected lane-owned stale process to route to owner handoff');
+  }
+  if (staleOwnedReceipt.custody.cleanupEligible !== false) {
+    failures.push('lane-owned stale process must not be cleanup eligible');
+  }
+  const unownedStaleReceipt = processToReceipt({
+    pid: 109,
+    ppid: 9999,
+    name: 'node.exe',
+    commandLine: 'node scripts\\unowned-old-worker.mjs',
+    executablePath: 'node.exe',
+    createdAt: new Date(Date.now() - 180 * 60_000).toISOString(),
+    workingSetBytes: 20 * 1024 * 1024,
+  }, fixtureArgs, new Set(staleOwnerFixtures.map((item) => item.pid)), fixtureRuns, staleOwnerEvidence);
+  const stopPlans = createStopPlans([unownedStaleReceipt, staleOwnedReceipt]);
+  if (!stopPlans.some((plan) => plan.pid === 109)) failures.push('expected unowned stale process stop plan');
+  if (stopPlans.some((plan) => plan.pid === 103)) failures.push('lane-owned stale process must not create cleanup stop plan');
+  const handoffPlans = createOwnerHandoffPlans([unownedStaleReceipt, staleOwnedReceipt]);
+  if (!handoffPlans.some((plan) => plan.pid === 103)) failures.push('expected lane-owned stale handoff plan');
+  if (handoffPlans.some((plan) => plan.pid === 109)) failures.push('unowned stale process must not create owner handoff plan');
+  if (typeof health.summary.actionableCleanupCandidateCount !== 'number') {
+    failures.push('expected actionableCleanupCandidateCount summary');
+  }
+  if (typeof health.summary.ownerHandoffPlanCount !== 'number') {
+    failures.push('expected ownerHandoffPlanCount summary');
+  }
   if (failures.length) {
     throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   }
@@ -1084,11 +1288,18 @@ try {
     console.log(`Owned processes: ${health.summary.ownedProcessCount}`);
     console.log(`Lane-attributed processes: ${health.summary.laneAttributedProcessCount}`);
     console.log(`Owner-unknown review: ${health.summary.ownerUnknownReviewCount}`);
+    console.log(`Owner handoff plans: ${health.summary.ownerHandoffPlanCount}`);
+    console.log(`Actionable cleanup candidates: ${health.summary.actionableCleanupCandidateCount}`);
     console.log(`Overdue registered runs: ${health.summary.overdueRegisteredRunCount}`);
     console.log(`Unmatched active runs: ${health.summary.unmatchedActiveRunCount}`);
     console.log(`Stale: ${health.summary.staleRunCount}`);
+    console.log(`Stale owner-unknown: ${health.summary.ownerUnknownStaleRunCount}`);
+    console.log(`Stale lane-owned: ${health.summary.laneOwnedStaleRunCount}`);
     console.log(`High memory: ${health.summary.highMemoryCount}`);
+    console.log(`High memory owner-unknown: ${health.summary.ownerUnknownHighMemoryCount}`);
+    console.log(`High memory lane-owned: ${health.summary.laneOwnedHighMemoryCount}`);
     console.log(`Parent not visible: ${health.summary.orphanLikeCount}`);
+    console.log(`Cleanup stop plans: ${health.summary.cleanupStopPlanCount}`);
   }
 } catch (error) {
   console.error(`holoshell-process-health failed: ${error.message}`);

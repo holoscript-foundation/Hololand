@@ -53,6 +53,9 @@ composition "HoloShell Home" {
     registeredRunCount: 0
     ownedProcessCount: 0
     unmatchedActiveRunCount: 0
+    actionableCleanupCandidateCount: 0
+    ownerHandoffPlanCount: 0
+    cleanupStopPlanCount: 0
     processRiskCount: 0
     stopPlanCount: 0
     receiptCount: 0
@@ -1018,10 +1021,12 @@ composition "HoloShell Home" {
     state.registeredRunCount = processHealth.summary.registeredRunCount
     state.ownedProcessCount = processHealth.summary.ownedProcessCount
     state.unmatchedActiveRunCount = processHealth.summary.unmatchedActiveRunCount
-    state.stopPlanCount = processHealth.summary.stopPlanCount || 0
-    state.processRiskCount = processHealth.summary.staleRunCount
-      + processHealth.summary.highMemoryCount
-      + processHealth.summary.orphanLikeCount
+    state.actionableCleanupCandidateCount = processHealth.summary.actionableCleanupCandidateCount || 0
+    state.ownerHandoffPlanCount = processHealth.summary.ownerHandoffPlanCount || 0
+    state.cleanupStopPlanCount = processHealth.summary.cleanupStopPlanCount || processHealth.summary.stopPlanCount || 0
+    state.stopPlanCount = state.cleanupStopPlanCount
+    state.processRiskCount = state.actionableCleanupCandidateCount
+      + state.ownerHandoffPlanCount
       + processHealth.summary.overdueRegisteredRunCount
       + processHealth.summary.unmatchedActiveRunCount
     emit("holoshell:process-health", {
@@ -1031,7 +1036,10 @@ composition "HoloShell Home" {
       registered_runs: state.registeredRunCount,
       owned_processes: state.ownedProcessCount,
       unmatched_runs: state.unmatchedActiveRunCount,
+      actionable_cleanup_candidates: state.actionableCleanupCandidateCount,
+      owner_handoff_plans: state.ownerHandoffPlanCount,
       risk_count: state.processRiskCount,
+      cleanup_stop_plans: state.cleanupStopPlanCount,
       stop_plans: state.stopPlanCount,
       automatic_termination_allowed: false
     })
@@ -1060,7 +1068,13 @@ composition "HoloShell Home" {
     state.registeredRunCount = feedBundle.feeds.processHealth.summary.registeredRunCount
     state.ownedProcessCount = feedBundle.feeds.processHealth.summary.ownedProcessCount
     state.unmatchedActiveRunCount = feedBundle.feeds.processHealth.summary.unmatchedActiveRunCount
-    state.stopPlanCount = feedBundle.summary.stopPlanCount
+    state.actionableCleanupCandidateCount = feedBundle.feeds.processHealth.summary.actionableCleanupCandidateCount || 0
+    state.ownerHandoffPlanCount = feedBundle.feeds.processHealth.summary.ownerHandoffPlanCount || 0
+    state.cleanupStopPlanCount = feedBundle.feeds.processHealth.summary.cleanupStopPlanCount || feedBundle.summary.stopPlanCount
+    state.stopPlanCount = state.cleanupStopPlanCount
+    state.processRiskCount = state.actionableCleanupCandidateCount
+      + state.ownerHandoffPlanCount
+      + state.unmatchedActiveRunCount
     state.timelineNodeCount = feedBundle.summary.timelineCount
     state.capturedWindowCount = feedBundle.summary.capturedWindowCount
     state.capturedControlCount = feedBundle.summary.capturedControlCount

@@ -304,12 +304,24 @@ function summarizeProcessHealth(processHealth, operatorBrief) {
     registeredRunCount: summary.registeredRunCount || 0,
     activeRegisteredRunCount: summary.activeRegisteredRunCount || 0,
     ownedProcessCount: summary.ownedProcessCount || 0,
+    laneAttributedProcessCount: summary.laneAttributedProcessCount || 0,
+    ownerUnknownReviewCount: summary.ownerUnknownReviewCount || 0,
+    ownerKnownReviewCount: summary.ownerKnownReviewCount || 0,
+    ownerHandoffPlanCount: summary.ownerHandoffPlanCount || 0,
+    actionableCleanupCandidateCount: summary.actionableCleanupCandidateCount || summary.cleanupCandidateCount || 0,
     staleRunCount: summary.staleRunCount || operatorBrief.runs?.staleRunCount || 0,
+    ownerUnknownStaleRunCount: summary.ownerUnknownStaleRunCount || 0,
+    laneOwnedStaleRunCount: summary.laneOwnedStaleRunCount || 0,
     highMemoryCount: summary.highMemoryCount || 0,
+    ownerUnknownHighMemoryCount: summary.ownerUnknownHighMemoryCount || 0,
+    laneOwnedHighMemoryCount: summary.laneOwnedHighMemoryCount || 0,
     orphanLikeCount: summary.orphanLikeCount || 0,
+    ownerUnknownOrphanLikeCount: summary.ownerUnknownOrphanLikeCount || 0,
+    laneOwnedOrphanLikeCount: summary.laneOwnedOrphanLikeCount || 0,
     overdueRegisteredRunCount: summary.overdueRegisteredRunCount || 0,
     unmatchedActiveRunCount: summary.unmatchedActiveRunCount || 0,
-    stopPlanCount: summary.stopPlanCount || safeArray(processHealth.stopPlans).length,
+    cleanupStopPlanCount: summary.cleanupStopPlanCount || summary.stopPlanCount || safeArray(processHealth.stopPlans).length,
+    stopPlanCount: summary.stopPlanCount || summary.cleanupStopPlanCount || safeArray(processHealth.stopPlans).length,
     memoryUsedRatio: processHealth.host?.memoryUsedRatio || 0,
     commandLinesIncluded: Boolean(processHealth.collection?.commandLinesIncluded),
     automaticTerminationAllowed: processHealth.policies?.automaticTerminationAllowed === true,
@@ -561,7 +573,24 @@ function fixtureInputs() {
       receipt: { id: 'os-ui-capture-fixture', permissionEnvelope: 'read_only', mutatingActionsExecuted: false },
     },
     processHealth: {
-      summary: { riskState: 'warn', processCount: 42, shellRunCount: 7, registeredRunCount: 3, activeRegisteredRunCount: 1, staleRunCount: 1, highMemoryCount: 0, stopPlanCount: 1 },
+      summary: {
+        riskState: 'warn',
+        processCount: 42,
+        shellRunCount: 7,
+        registeredRunCount: 3,
+        activeRegisteredRunCount: 1,
+        staleRunCount: 3,
+        ownerUnknownStaleRunCount: 1,
+        laneOwnedStaleRunCount: 2,
+        highMemoryCount: 1,
+        ownerUnknownHighMemoryCount: 0,
+        laneOwnedHighMemoryCount: 1,
+        actionableCleanupCandidateCount: 1,
+        cleanupStopPlanCount: 1,
+        ownerKnownReviewCount: 3,
+        ownerHandoffPlanCount: 3,
+        stopPlanCount: 1,
+      },
       collection: { commandLinesIncluded: false },
       policies: { automaticTerminationAllowed: false, exactPidRequired: true },
     },
@@ -672,7 +701,14 @@ function createPacket(args, inputs = loadInputs(args)) {
       processRisk: processHealthSummary.riskState,
       processCount: processHealthSummary.processCount,
       staleRunCount: processHealthSummary.staleRunCount,
+      ownerUnknownStaleRunCount: processHealthSummary.ownerUnknownStaleRunCount,
+      laneOwnedStaleRunCount: processHealthSummary.laneOwnedStaleRunCount,
       highMemoryCount: processHealthSummary.highMemoryCount,
+      ownerUnknownHighMemoryCount: processHealthSummary.ownerUnknownHighMemoryCount,
+      laneOwnedHighMemoryCount: processHealthSummary.laneOwnedHighMemoryCount,
+      actionableCleanupCandidateCount: processHealthSummary.actionableCleanupCandidateCount,
+      ownerHandoffPlanCount: processHealthSummary.ownerHandoffPlanCount,
+      cleanupStopPlanCount: processHealthSummary.cleanupStopPlanCount,
       stopPlanCount: processHealthSummary.stopPlanCount,
       osUiCaptureStatus: legacyUiCaptureSummary.status,
       osUiTargetApp: legacyUiCaptureSummary.targetApp,
@@ -732,6 +768,9 @@ function assertSelfTest(packet) {
   if (!packet.legacyUiCaptureSummary.targetResolved) failures.push('expected resolved OS UI target');
   if (packet.legacyUiCaptureSummary.mutatingActionsExecuted !== false) failures.push('OS UI capture must remain read-only');
   if (packet.approvalSummary.pendingApprovalCount < 1) failures.push('expected pending approval summary');
+  if (packet.processHealthSummary.actionableCleanupCandidateCount !== 1) failures.push('expected actionable cleanup candidate count');
+  if (packet.processHealthSummary.ownerHandoffPlanCount !== 3) failures.push('expected owner handoff plan count');
+  if (packet.summary.stopPlanCount !== 1) failures.push('expected cleanup stop plan count to stay one');
   if (packet.processHealthSummary.commandLinesIncluded !== false) failures.push('raw command lines must be excluded');
   if (packet.privacyBoundary.rawCommandsIncluded !== false) failures.push('privacy boundary leaked raw commands');
   if (packet.privacyBoundary.rawWindowTitlesIncluded !== false) failures.push('privacy boundary leaked raw window titles');

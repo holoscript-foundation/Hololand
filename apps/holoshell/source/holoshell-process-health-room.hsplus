@@ -20,11 +20,21 @@ composition "HoloShell Process Health Room" {
     ownedProcessCount: 0
     laneAttributedProcessCount: 0
     ownerUnknownReviewCount: 0
+    ownerKnownReviewCount: 0
+    ownerHandoffPlanCount: 0
+    actionableCleanupCandidateCount: 0
     overdueRegisteredRunCount: 0
     unmatchedActiveRunCount: 0
     staleRunCount: 0
+    ownerUnknownStaleRunCount: 0
+    laneOwnedStaleRunCount: 0
     highMemoryCount: 0
+    ownerUnknownHighMemoryCount: 0
+    laneOwnedHighMemoryCount: 0
     orphanLikeCount: 0
+    ownerUnknownOrphanLikeCount: 0
+    laneOwnedOrphanLikeCount: 0
+    cleanupStopPlanCount: 0
     stopPlanCount: 0
     riskState: "unknown"
     selectedPid: 0
@@ -70,6 +80,9 @@ composition "HoloShell Process Health Room" {
     ownerEvidence: ""
     ownerParentPid: 0
     ownerTrustState: "unknown"
+    actionClass: "observed"
+    cleanupEligible: false
+    ownerHandoffRequired: false
     stopPolicy: "break_glass_required"
     receiptRequired: true
   }
@@ -120,6 +133,8 @@ composition "HoloShell Process Health Room" {
       riskState: $riskState
       highMemoryCount: $highMemoryCount
       staleRunCount: $staleRunCount
+      actionableCleanupCandidateCount: $actionableCleanupCandidateCount
+      ownerHandoffPlanCount: $ownerHandoffPlanCount
       stopPlanCount: $stopPlanCount
     }
 
@@ -129,6 +144,8 @@ composition "HoloShell Process Health Room" {
       label: "Shell Runs"
       count: $shellRunCount
       staleCount: $staleRunCount
+      ownerUnknownStaleCount: $ownerUnknownStaleRunCount
+      laneOwnedStaleCount: $laneOwnedStaleRunCount
       ownerRequired: true
     }
 
@@ -141,8 +158,19 @@ composition "HoloShell Process Health Room" {
       ownedProcesses: $ownedProcessCount
       laneAttributedProcesses: $laneAttributedProcessCount
       ownerUnknownReview: $ownerUnknownReviewCount
+      ownerKnownReview: $ownerKnownReviewCount
+      ownerHandoffPlans: $ownerHandoffPlanCount
       overdueRuns: $overdueRegisteredRunCount
       unmatchedRuns: $unmatchedActiveRunCount
+    }
+
+    object "OwnerHandoffLane" {
+      type: "ui"
+      uiType: "owner_handoff_lane"
+      label: "Owner Handoff"
+      count: $ownerHandoffPlanCount
+      action: "ask_owner_lane_to_extend_close_or_justify"
+      cleanupEligible: false
     }
 
     object "PidCustodyTable" {
@@ -152,6 +180,7 @@ composition "HoloShell Process Health Room" {
       processCount: $processCount
       orphanLikeCount: $orphanLikeCount
       ownerUnknownReview: $ownerUnknownReviewCount
+      actionableCleanupCandidates: $actionableCleanupCandidateCount
       rawCommandLinesHiddenByDefault: true
     }
   }
@@ -164,6 +193,8 @@ composition "HoloShell Process Health Room" {
     protectedSurfacesAreNotStaleShellRuns: true
     toolingProcessesAreContextUnlessWrapped: true
     parentMissingIsOnlyActionableForCustodyRelevantRuns: true
+    ownerKnownFindingsRouteToHandoff: true
+    ownerUnknownFindingsRouteToCleanupCandidates: true
     receiptRequired: true
   }
 
@@ -200,6 +231,7 @@ composition "HoloShell Process Health Room" {
     legacyAppEvidenceFeedsBrittney: true
     colorHintIsVisualOnly: true
     ownerUnknownRequiresClaimBeforeCleanup: true
+    laneOwnedFindingsRequireOwnerHandoffBeforeStopPlan: true
     receiptRequired: true
   }
 
@@ -220,12 +252,22 @@ composition "HoloShell Process Health Room" {
     state.ownedProcessCount = health.summary.ownedProcessCount
     state.laneAttributedProcessCount = health.summary.laneAttributedProcessCount || 0
     state.ownerUnknownReviewCount = health.summary.ownerUnknownReviewCount || 0
+    state.ownerKnownReviewCount = health.summary.ownerKnownReviewCount || 0
+    state.ownerHandoffPlanCount = health.summary.ownerHandoffPlanCount || 0
+    state.actionableCleanupCandidateCount = health.summary.actionableCleanupCandidateCount || 0
     state.overdueRegisteredRunCount = health.summary.overdueRegisteredRunCount
     state.unmatchedActiveRunCount = health.summary.unmatchedActiveRunCount
     state.staleRunCount = health.summary.staleRunCount
+    state.ownerUnknownStaleRunCount = health.summary.ownerUnknownStaleRunCount || 0
+    state.laneOwnedStaleRunCount = health.summary.laneOwnedStaleRunCount || 0
     state.highMemoryCount = health.summary.highMemoryCount
+    state.ownerUnknownHighMemoryCount = health.summary.ownerUnknownHighMemoryCount || 0
+    state.laneOwnedHighMemoryCount = health.summary.laneOwnedHighMemoryCount || 0
     state.orphanLikeCount = health.summary.orphanLikeCount
-    state.stopPlanCount = health.summary.stopPlanCount || 0
+    state.ownerUnknownOrphanLikeCount = health.summary.ownerUnknownOrphanLikeCount || 0
+    state.laneOwnedOrphanLikeCount = health.summary.laneOwnedOrphanLikeCount || 0
+    state.cleanupStopPlanCount = health.summary.cleanupStopPlanCount || health.summary.stopPlanCount || 0
+    state.stopPlanCount = state.cleanupStopPlanCount
     state.riskState = health.summary.riskState
     emit("holoshell:process:health", {
       riskState: state.riskState,
@@ -236,11 +278,21 @@ composition "HoloShell Process Health Room" {
       ownedProcesses: state.ownedProcessCount,
       laneAttributedProcesses: state.laneAttributedProcessCount,
       ownerUnknownReview: state.ownerUnknownReviewCount,
+      ownerKnownReview: state.ownerKnownReviewCount,
+      ownerHandoffPlans: state.ownerHandoffPlanCount,
+      actionableCleanupCandidates: state.actionableCleanupCandidateCount,
       overdueRegisteredRuns: state.overdueRegisteredRunCount,
       unmatchedActiveRuns: state.unmatchedActiveRunCount,
       staleRuns: state.staleRunCount,
+      staleOwnerUnknown: state.ownerUnknownStaleRunCount,
+      staleLaneOwned: state.laneOwnedStaleRunCount,
       highMemory: state.highMemoryCount,
+      highMemoryOwnerUnknown: state.ownerUnknownHighMemoryCount,
+      highMemoryLaneOwned: state.laneOwnedHighMemoryCount,
       orphanLike: state.orphanLikeCount,
+      orphanLikeOwnerUnknown: state.ownerUnknownOrphanLikeCount,
+      orphanLikeLaneOwned: state.laneOwnedOrphanLikeCount,
+      cleanupStopPlans: state.cleanupStopPlanCount,
       stopPlans: state.stopPlanCount
     })
   }

@@ -57,6 +57,9 @@ The adapter is read-only. It reports:
 - Lane-attributed processes inherited from run receipts, HoloShell hardware
   reality, legacy app/window inventory, or agent process ancestors.
 - Review-worthy processes whose owner lane is still unknown.
+- Review-worthy processes that already have an owner lane and should become
+  owner handoffs, not cleanup stop plans.
+- Actionable cleanup candidates, which are only owner-unknown process findings.
 - Registered runs that passed their expected end time.
 - Active registry runs whose PID is no longer visible.
 - Stale shell/dev runs.
@@ -137,12 +140,41 @@ Receipts expose:
   agent claim before cleanup.
 - `ownerLane`, `ownerLaneLabel`, `ownerColorHint`, `ownerEvidence`,
   `ownerParentPid`, and `ownerTrustState` for each sampled process.
+- `actionClass`, `cleanupEligible`, and `ownerHandoffRequired`, which separate
+  unowned cleanup candidates from lane-owned custody debt.
 - `processIndex.visiblePids`: the visible host PID set used by downstream
   custody adapters to reject stale hardware-reality PID ghosts.
 
 This is evidence, not authority to mutate. A color lane helps Brittney and
 agents see responsibility, but stop plans still require exact PID, reason,
 approval, and receipt.
+
+## Cleanup vs Owner Handoff
+
+HoloShell now separates three states that used to look identical:
+
+```text
+owner-unknown finding -> cleanup candidate -> approval-only stop plan
+lane-owned finding    -> owner handoff     -> ask owner to extend, close, or justify
+registered run        -> registry custody  -> reconcile or owner handoff first
+```
+
+This matters for non-developer operation. Brittney should not tell the user
+"there are twelve things to stop" when most of those processes are active
+Claude, Codex, Gemini, or shell-lane work. The hardware view should say which
+processes are true cleanup risk and which are owner debt.
+
+New summary fields include:
+
+- `actionableCleanupCandidateCount`: owner-unknown process findings that can
+  appear in `stopPlans`.
+- `cleanupStopPlanCount`: approval-only stop plans for cleanup candidates.
+- `ownerKnownReviewCount`: review-worthy findings that already have custody.
+- `ownerHandoffPlanCount`: lane-owned findings that need the owner to extend,
+  close, or justify the work.
+- `ownerUnknownStaleRunCount` and `laneOwnedStaleRunCount`.
+- `ownerUnknownHighMemoryCount` and `laneOwnedHighMemoryCount`.
+- `ownerUnknownOrphanLikeCount` and `laneOwnedOrphanLikeCount`.
 
 ## Management Policy
 
@@ -154,6 +186,7 @@ approval, and receipt.
 | Run receipt write | Required | PIDs need owner lanes and expected end times. |
 | Registry reconcile | Non-destructive receipt | Clears phantom active runs without stopping visible work. |
 | Lane ownership inference | Read-only evidence | Legacy apps and process ancestors feed Brittney without mutation. |
+| Owner handoff plan | Non-destructive receipt | Lane-owned findings go to the owner before cleanup. |
 | Stop-plan creation | Guarded plan | Planning is safe if it does not stop anything. |
 | Stop one PID | Break-glass | May destroy active work or evidence. |
 | Kill process tree | Break-glass plus owner lane | High blast radius. |
@@ -166,18 +199,21 @@ The Process Health Room should show:
 - Run registry: registered runs, owned processes, overdue runs, unmatched runs.
 - Lane ownership: process owners, color hints, owner evidence, and
   owner-unknown review count.
+- Owner handoff: lane-owned stale/high-memory/orphan-like findings that should
+  be routed to the responsible agent lane.
 - Shell run stack: shells, package scripts, Node runtimes, Python runs, and
   browser witnesses. Tooling helpers stay in the process table unless wrapped.
 - PID custody table: PID, parent PID, category, age, memory, findings, owner
   lane, and receipt state.
-- Cleanup lane: recommended stop plans waiting for approval.
+- Cleanup lane: only owner-unknown stop plans waiting for approval.
 
 The user should not have to read Task Manager, terminal logs, or raw process
 lists. HoloShell should say:
 
 ```text
-Three old dev runs are still alive. One is using 2.1 GB. No process will be
-stopped without approval.
+Three old dev runs are still alive. Two belong to Claude and one has no owner.
+Only the owner-unknown process is in cleanup review. No process will be stopped
+without approval.
 ```
 
 ## Agent Duty
