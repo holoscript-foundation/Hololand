@@ -900,6 +900,7 @@
   <script src="../../../.tmp/holoshell/workflow-latest.js"></script>
   <script src="../../../.tmp/holoshell/workflow-approval-latest.js"></script>
   <script src="../../../.tmp/holoshell/brain-intent-gate-latest.js"></script>
+  <script src="../../../.tmp/holoshell/ollama-cloud-agent-catalog.js"></script>
   <script src="../../../.tmp/holoshell/shard-workflow-latest.js"></script>
   <script src="../../../.tmp/holoshell/shard-import-approval-latest.js"></script>
   <script src="../../../.tmp/holoshell/shard-import-latest.js"></script>
@@ -1025,6 +1026,7 @@
     const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
     const standaloneWorkflowIntentGateFeed = window.HOLOSHELL_BRAIN_INTENT_GATE || {};
+    const standaloneOllamaCloudAgentCatalog = window.HOLOSHELL_OLLAMA_CLOUD_AGENT_CATALOG || {};
     const standaloneShardWorkflowFeed = window.HOLOSHELL_SHARD_WORKFLOW || {};
     const standaloneShardImportApprovalFeed = window.HOLOSHELL_SHARD_IMPORT_APPROVAL || {};
     const standaloneShardImportFeed = window.HOLOSHELL_SHARD_IMPORT || {};
@@ -1038,6 +1040,7 @@
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
       { id: "claude-chat", label: "Claude Chat", glyph: "CC", type: "workflow", detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.", x: 64, y: 23, size: 108 },
+      { id: "ollama-agents", label: "Ollama Agents", glyph: "OA", type: "workflow", detail: "Launch Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, or Pi through Ollama Cloud.", x: 83, y: 28, size: 106 },
       { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
       { id: "user-shell", label: "User Shell", glyph: "US", type: "user shell", detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.", x: 47, y: 24, size: 136 },
       { id: "format-viewer", label: "Formats", glyph: "FV", type: "source corpus", detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.", x: 24, y: 18, size: 112 },
@@ -1527,7 +1530,7 @@
     function canonicalShellBubbles() {
       const graph = shellObjectGraphFeed();
       const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
-      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.room-marathon", "workflow.claude-chat"]);
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent"]);
       const surfaceKinds = new Set([
         "browser_surface",
         "terminal_surface",
@@ -1606,6 +1609,31 @@
       return gate.summary || {};
     }
 
+    function ollamaCloudAgentCatalog() {
+      const fromWorkflow = workflowFeed().catalog;
+      if (Array.isArray(fromWorkflow) && fromWorkflow.length) return fromWorkflow;
+      return Array.isArray(standaloneOllamaCloudAgentCatalog.agents) ? standaloneOllamaCloudAgentCatalog.agents : [];
+    }
+
+    function detectOllamaAgent(text = "") {
+      const normalized = normalizePrompt(text);
+      const agents = ollamaCloudAgentCatalog();
+      const aliases = [
+        ["claude", /\b(ollama launch claude|claude code)\b/],
+        ["openclaw", /\b(openclaw|open claw)\b/],
+        ["hermes", /\bhermes\b/],
+        ["opencode", /\b(opencode|open code)\b/],
+        ["codex", /\b(ollama launch codex|launch codex|codex)\b/],
+        ["copilot", /\b(copilot cli|ollama launch copilot)\b/],
+        ["droid", /\bdroid\b/],
+        ["pi", /\b(pi agent|ollama launch pi)\b/],
+      ];
+      const matched = aliases.find(([, pattern]) => pattern.test(normalized));
+      if (matched) return matched[0];
+      const first = agents.find((agent) => normalized.includes(agent.slug) || normalized.includes(String(agent.label || "").toLowerCase()));
+      return first?.slug || "claude";
+    }
+
     function shardWorkflowFeed() {
       return feed.feeds?.shardWorkflow?.summary ? feed.feeds.shardWorkflow : standaloneShardWorkflowFeed;
     }
@@ -1661,10 +1689,12 @@
         || 0;
       if (workflowPending > 0) {
         const workflowKind = workflow.workflowKind || feed.summary?.activeWorkflowKind || "";
-        const workflowTargetObject = workflowKind === "claude_chat" ? "claude-chat" : "room-marathon";
-        const workflowTargetLabel = workflowKind === "claude_chat" ? "Claude Chat" : "Room Marathon";
+        const workflowTargetObject = workflowKind === "ollama_cloud_agent" ? "ollama-agents" : workflowKind === "claude_chat" ? "claude-chat" : "room-marathon";
+        const workflowTargetLabel = workflowKind === "ollama_cloud_agent" ? "Ollama Agents" : workflowKind === "claude_chat" ? "Claude Chat" : "Room Marathon";
         const workflowDetail = workflowKind === "claude_chat"
           ? `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; target ${workflow.targetSurface || feed.summary?.activeWorkflowTargetSurface || "Claude"}; prompt ${workflow.promptPresent || feed.summary?.activeWorkflowPromptPresent ? "staged" : "empty"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}; gate ${workflowIntentGate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown"}`
+          : workflowKind === "ollama_cloud_agent"
+            ? `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; agent ${workflow.agentLabel || feed.summary?.activeWorkflowAgentLabel || workflow.agentSlug || feed.summary?.activeWorkflowAgentSlug || "agent"}; command ${workflow.command || feed.summary?.activeWorkflowCommand || "ollama launch"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}`
           : `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; ${workflow.modelRoute || feed.summary?.activeWorkflowModelRoute || "model route"}/${workflow.model || feed.summary?.activeWorkflowModel || "model"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}; gate ${workflowIntentGate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown"}`;
         chip.hidden = false;
         chip.dataset.status = workflow.status || feed.summary?.activeWorkflowStatus || "pending_user_approval";
@@ -1734,6 +1764,7 @@
       graphPrograms.forEach((object) => add(object.id, object.displayName, "stage_launch_app", "local program object", { permissionEnvelope: object.permissionEnvelope || "guarded_execute" }));
       if (/\b(browser|web|url|site|page|internet|chrome|edge)\b/.test(text)) add("browser", "Browser", "focus_shell_object", "web surface");
       if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
+      if (/\b(ollama cloud|ollama launch|openclaw|open claw|hermes|opencode|open code|copilot cli|droid|pi agent|launch codex|launch claude code)\b/.test(text)) add("ollama-agents", "Ollama Agents", "stage_ollama_cloud_agent_workflow", "guarded Ollama Cloud agent launch", { permissionEnvelope: "guarded_execute" });
       if (/\b(open claude|claude chat|start a chat|new claude chat|ask claude|chat with claude)\b/.test(text)) add("claude-chat", "Claude Chat", "stage_claude_chat_workflow", "guarded Claude peer chat", { permissionEnvelope: "guarded_execute" });
       if (/\b(agent|codex|claude|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
       if (/\b(room marathon|marathon|kimi|ollama|lofi|youtube music|music on youtube|start room)\b/.test(text)) add("room-marathon", "Room Marathon", "stage_room_marathon_workflow", "compound agent workflow", { permissionEnvelope: "guarded_execute" });
@@ -1801,6 +1832,8 @@
       const workflowKind = activeWorkflow.workflowKind || summary.activeWorkflowKind || "";
       const workflowEvidenceDetail = workflowKind === "claude_chat"
         ? `${activeWorkflow.targetSurface || summary.activeWorkflowTargetSurface || "Claude"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
+        : workflowKind === "ollama_cloud_agent"
+          ? `${activeWorkflow.agentLabel || summary.activeWorkflowAgentLabel || activeWorkflow.agentSlug || summary.activeWorkflowAgentSlug || "agent"}; ${activeWorkflow.command || summary.activeWorkflowCommand || "ollama launch"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
         : `${activeWorkflow.modelRoute || summary.activeWorkflowModelRoute || "route"}/${activeWorkflow.model || summary.activeWorkflowModel || "model"}`;
       const activeShardWorkflow = shardWorkflowSummary();
       const activeShardImportApproval = shardImportApprovalSummary();
@@ -1852,6 +1885,18 @@
               ? `${activeWorkflow.status || "unknown"}; ${activeWorkflow.stepCount || 0} steps; prompt ${activeWorkflow.promptPresent ? "staged" : "empty"}; approval ${activeWorkflowApproval.status || "unknown"}; shell context ${activeWorkflow.shellContextAttachedByDefault ? "attached" : "off"}.`
               : "Open Claude, create a fresh chat, and place a prompt only after a guarded local approval.",
             trustState: isClaudeWorkflow && activeWorkflow.status === "pending_user_approval" ? "partial" : object.trustState,
+            permissionEnvelope: "guarded_execute",
+          };
+        }
+        if (object.id === "ollama-agents") {
+          const isOllamaWorkflow = activeWorkflow.workflowKind === "ollama_cloud_agent";
+          const agents = ollamaCloudAgentCatalog();
+          return {
+            ...object,
+            detail: isOllamaWorkflow
+              ? `${activeWorkflow.status || "unknown"}; ${activeWorkflow.agentLabel || activeWorkflow.agentSlug || "agent"}; ${activeWorkflow.command || "ollama launch"}; approval ${activeWorkflowApproval.status || "unknown"}.`
+              : `${agents.length || 8} Ollama Cloud launch targets: Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, and Pi.`,
+            trustState: isOllamaWorkflow && activeWorkflow.status === "pending_user_approval" ? "partial" : object.trustState,
             permissionEnvelope: "guarded_execute",
           };
         }
@@ -2029,8 +2074,10 @@
       const gate = workflowIntentGateSummary();
       const wantsWorkflow = object?.id === "room-marathon"
         || object?.id === "claude-chat"
+        || object?.id === "ollama-agents"
         || object?.shellObject?.id === "workflow.room-marathon"
         || object?.shellObject?.id === "workflow.claude-chat"
+        || object?.shellObject?.id === "workflow.ollama-cloud-agent"
         || object?.shellObject?.id === "user-shell.pack.user-pack-open-claude-chat";
       const wantsShardImport = object?.id === "asset-shard" || object?.shellObject?.id === "workflow.asset-shard" || object?.shellObject?.id === "approval.asset-shard-import";
       const hardwareKinds = new Set(["program", "browser_surface", "terminal_surface", "developer_surface", "document_app", "captured_window", "approval"]);
@@ -2157,6 +2204,16 @@
             startNewChat: true,
           });
         }, actions.length === 0));
+      }
+      if (object.id === "ollama-agents" || shellObject.id === "workflow.ollama-cloud-agent") {
+        const stageOllamaAgent = (agent) => stageDaemonAction(`Ollama ${agent}`, "/workflow/ollama-cloud-agent", { agent });
+        actions.push(actionButton("Stage requested agent", () => {
+          const prompt = document.getElementById("askInput")?.value || "";
+          stageOllamaAgent(detectOllamaAgent(prompt));
+        }, actions.length === 0));
+        actions.push(actionButton("Claude Code", () => stageOllamaAgent("claude")));
+        actions.push(actionButton("Codex", () => stageOllamaAgent("codex")));
+        actions.push(actionButton("OpenCode", () => stageOllamaAgent("opencode")));
       }
       if (object.id === "asset-shard" || shellObject.id === "workflow.asset-shard") {
         actions.push(actionButton("Review shard plan", () => {

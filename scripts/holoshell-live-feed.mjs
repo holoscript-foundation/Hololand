@@ -368,6 +368,8 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory
     const workflowKind = workflow.summary.workflowKind || workflow.profile || 'workflow';
     const workflowDetail = workflowKind === 'claude_chat'
       ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), target ${workflow.summary.targetSurface || 'Claude'}, prompt ${workflow.summary.promptPresent ? 'staged' : 'empty'}.`
+      : workflowKind === 'ollama_cloud_agent'
+        ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), agent ${workflow.summary.agentLabel || workflow.summary.agentSlug || 'unknown'}, command ${workflow.summary.command || 'ollama launch'}.`
       : `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), model ${workflow.summary.modelRoute || 'unknown'}/${workflow.summary.model || 'unknown'}.`;
     timeline.push({
       id: workflow.workflowId || 'holoshell-workflow',
@@ -717,6 +719,9 @@ function createFeed(args) {
       activeWorkflowStatus: workflow?.summary?.status || 'unknown',
       activeWorkflowTitle: workflow?.title || '',
       activeWorkflowTargetSurface: workflow?.summary?.targetSurface || '',
+      activeWorkflowAgentSlug: workflow?.summary?.agentSlug || '',
+      activeWorkflowAgentLabel: workflow?.summary?.agentLabel || '',
+      activeWorkflowCommand: workflow?.summary?.command || '',
       activeWorkflowStepCount: workflow?.summary?.stepCount || 0,
       activeWorkflowPendingApprovalCount: workflow?.summary?.pendingApprovalCount || 0,
       activeWorkflowModel: workflow?.summary?.model || '',

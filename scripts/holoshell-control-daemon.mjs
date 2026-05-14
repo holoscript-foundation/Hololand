@@ -93,6 +93,7 @@ Routes:
   POST /approval/execute
   POST /workflow/room-marathon
   POST /workflow/claude-chat
+  POST /workflow/ollama-cloud-agent
   POST /workflow/approval
   POST /workflow/intent-gate
   POST /workflow/execute
@@ -213,6 +214,14 @@ function claudeChatWorkflow(body = {}) {
   return runChecked(cli);
 }
 
+function ollamaCloudAgentWorkflow(body = {}) {
+  const cli = ['scripts/holoshell-ollama-cloud-agent-workflow.mjs'];
+  const agent = body.agent || body.targetAgent || body.slug;
+  if (agent !== undefined && agent !== null && agent !== '') cli.push('--agent', String(agent));
+  if (body.actor !== undefined && body.actor !== null && body.actor !== '') cli.push('--actor', String(body.actor));
+  return runChecked(cli);
+}
+
 function tmpPath(args, fileName) {
   return path.join(args.tmpDir, fileName);
 }
@@ -310,6 +319,7 @@ function commandFromWorkflowApprovalBundle(bundle) {
   const allowedWorkflowScripts = [
     `scripts${path.sep}holoshell-room-marathon-workflow.mjs`,
     `scripts${path.sep}holoshell-claude-chat-workflow.mjs`,
+    `scripts${path.sep}holoshell-ollama-cloud-agent-workflow.mjs`,
   ];
   if (first !== 'node' || !allowedWorkflowScripts.some((allowed) => script.endsWith(allowed))) {
     throw new Error('Workflow approval command is not a HoloShell workflow command.');
@@ -336,16 +346,23 @@ function executeWorkflow(args, body = {}) {
   if (!body.approvalId || body.approvalId !== bundle.approvalId) throw new Error('Workflow approval id mismatch.');
   if (!body.nonce || body.nonce !== (bundle.nonce || bundle.execution?.nonce)) throw new Error('Workflow approval nonce mismatch.');
   const adapter = String(bundle.sourceAnchors?.adapter || '').replaceAll('/', path.sep);
-  const usesLocalApprovalGate = adapter.endsWith(`scripts${path.sep}holoshell-claude-chat-workflow.mjs`);
-  let intentGateResult = { ok: true, stdout: 'Claude chat uses its local approval gate.', stderr: '' };
+  const localApprovalGateCases = new Map([
+    [`scripts${path.sep}holoshell-claude-chat-workflow.mjs`, 'holoshell-claude-chat-local-approval.v0'],
+    [`scripts${path.sep}holoshell-ollama-cloud-agent-workflow.mjs`, 'holoshell-ollama-cloud-agent-local-approval.v0'],
+  ]);
+  const localApprovalGateCase = [...localApprovalGateCases.entries()]
+    .find(([script]) => adapter.endsWith(script))?.[1] || '';
+  const usesLocalApprovalGate = Boolean(localApprovalGateCase);
+  let intentGateResult = { ok: true, stdout: 'Workflow uses its local approval gate.', stderr: '' };
   let intentGate = readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
   if (usesLocalApprovalGate) {
     if (
-      intentGate.summary?.caseId !== 'holoshell-claude-chat-local-approval.v0'
+      intentGate.summary?.caseId !== localApprovalGateCase
       || intentGate.summary?.runtimeBlocking !== false
       || !intentGate.summary?.executionAllowed
+      || (intentGate.summary?.workflowId && intentGate.summary.workflowId !== bundle.workflowId)
     ) {
-      const blocked = new Error(intentGate.summary?.blockedReason || 'Claude chat local approval gate is missing or blocked. Restage the workflow.');
+      const blocked = new Error(intentGate.summary?.blockedReason || 'Local approval gate is missing or blocked. Restage the workflow.');
       blocked.statusCode = 403;
       throw blocked;
     }
@@ -415,6 +432,24 @@ function stageClaudeChat(args, body = {}) {
   };
 }
 
+function stageOllamaCloudAgent(args, body = {}) {
+  refreshRegistry(args);
+  const workflowResult = ollamaCloudAgentWorkflow(body);
+  refreshLiveFeed();
+  return {
+    ok: true,
+    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
+    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      workflow: workflowResult.stdout.trim(),
+      workflowApproval: 'Ollama Cloud agent workflow wrote its nonce-bound approval bundle.',
+      workflowIntentGate: 'Ollama Cloud agent workflow wrote a local approval gate.',
+    },
+  };
+}
+
 function routeGet(args, pathname) {
   if (pathname === '/health') {
     return {
@@ -448,8 +483,14 @@ function routePost(args, pathname, body) {
   if (pathname === '/approval/execute') return executeApproval(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
   if (pathname === '/workflow/claude-chat') return stageClaudeChat(args, body);
+  if (pathname === '/workflow/ollama-cloud-agent') return stageOllamaCloudAgent(args, body);
   if (pathname === '/workflow/approval') {
-    workflowApprovalBundle();
+    const activeWorkflow = readJson(tmpPath(args, 'workflow-latest.json'), {});
+    const activeAdapter = String(activeWorkflow.sourceAnchors?.adapter || '').replaceAll('/', path.sep);
+    const workflowOwnsApproval =
+      activeAdapter.endsWith(`scripts${path.sep}holoshell-claude-chat-workflow.mjs`)
+      || activeAdapter.endsWith(`scripts${path.sep}holoshell-ollama-cloud-agent-workflow.mjs`);
+    if (!workflowOwnsApproval) workflowApprovalBundle();
     refreshLiveFeed();
     return {
       ok: true,

@@ -248,6 +248,17 @@ const layoutSlots = [
   { x: 22, y: 9, size: 86 },
 ];
 
+const ollamaCloudAgents = [
+  { slug: 'claude', label: 'Claude Code', command: 'ollama launch claude' },
+  { slug: 'openclaw', label: 'OpenClaw', command: 'ollama launch openclaw' },
+  { slug: 'hermes', label: 'Hermes Agent', command: 'ollama launch hermes' },
+  { slug: 'opencode', label: 'OpenCode', command: 'ollama launch opencode' },
+  { slug: 'codex', label: 'Codex', command: 'ollama launch codex' },
+  { slug: 'copilot', label: 'Copilot CLI', command: 'ollama launch copilot' },
+  { slug: 'droid', label: 'Droid', command: 'ollama launch droid' },
+  { slug: 'pi', label: 'Pi', command: 'ollama launch pi' },
+];
+
 function layout(index, fallbackSize = 92) {
   const slot = layoutSlots[index % layoutSlots.length] || {};
   const cycle = Math.floor(index / layoutSlots.length);
@@ -271,6 +282,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareAp
   const activeWorkflowKind = workflowSummary.workflowKind || workflow?.profile || '';
   const roomWorkflowSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowSummary : {};
   const claudeWorkflowSummary = activeWorkflowKind === 'claude_chat' ? workflowSummary : {};
+  const ollamaWorkflowSummary = activeWorkflowKind === 'ollama_cloud_agent' ? workflowSummary : {};
   const roomWorkflowApprovalSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowApprovalSummary : {};
   const roomGateSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? gateSummary : {};
   return [
@@ -424,6 +436,37 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareAp
       detail: `${claudeWorkflowSummary.stepCount || 0} staged steps; prompt ${claudeWorkflowSummary.promptPresent ? 'ready' : 'empty'}; approval ${activeWorkflowKind === 'claude_chat' ? workflowApprovalSummary.status || 'unknown' : 'not_staged'}.`,
       firstScreen: true,
       layout: { x: 64, y: 23, size: 108 },
+    },
+    {
+      id: 'workflow.ollama-cloud-agent',
+      objectKind: 'workflow',
+      displayName: 'Ollama Agents',
+      sourceKind: 'workflow',
+      sourceRef: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
+      capabilityFamily: 'agent_workflow',
+      trustState: ollamaWorkflowSummary.status === 'pending_user_approval' ? 'partial' : 'verified',
+      permissionEnvelope: 'guarded_execute',
+      adapterPath: 'ollama_cloud_agent_launcher',
+      visualForm: 'workflow_bubble',
+      status: ollamaWorkflowSummary.status || 'available',
+      actorLaneId: 'brittney',
+      receiptTypes: ['workflow_receipt', 'workflow_approval_bundle', 'local_approval_gate_receipt'],
+      relationships: {
+        commandPrefix: 'ollama launch',
+        activeAgent: ollamaWorkflowSummary.agentSlug || '',
+        activeCommand: ollamaWorkflowSummary.command || '',
+        agentCount: ollamaCloudAgents.length,
+        agents: ollamaCloudAgents,
+        approvalStatus: activeWorkflowKind === 'ollama_cloud_agent' ? workflowApprovalSummary.status || 'unknown' : 'unknown',
+        localGateStatus: activeWorkflowKind === 'ollama_cloud_agent' ? gateSummary.status || 'unknown' : 'unknown',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'cloud_agent_runtime_launcher',
+      launch: { action: 'stage_ollama_cloud_agent_workflow', route: '/workflow/ollama-cloud-agent' },
+      glyph: 'OA',
+      detail: `${ollamaCloudAgents.length} Ollama Cloud launch targets; active ${ollamaWorkflowSummary.agentLabel || 'none'}; approval ${activeWorkflowKind === 'ollama_cloud_agent' ? workflowApprovalSummary.status || 'unknown' : 'not_staged'}.`,
+      firstScreen: true,
+      layout: { x: 83, y: 28, size: 106 },
     },
     {
       id: 'workflow.asset-shard',
@@ -1405,6 +1448,7 @@ function buildGraph(args, fixtures = null) {
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
+      ollamaCloudAgentWorkflow: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -1678,6 +1722,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
+  if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');

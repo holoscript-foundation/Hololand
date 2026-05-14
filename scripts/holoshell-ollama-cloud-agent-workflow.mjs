@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 /**
- * HoloShell Claude chat workflow bridge.
+ * HoloShell Ollama Cloud agent launch workflow.
  *
- * Stages a guarded local workflow for opening Claude, starting a chat, and
- * optionally placing a user prompt into the chat box. Execution is approval
- * gated and writes local receipts before and after any mutation.
+ * Stages a guarded terminal launch for `ollama launch <agent>` targets and
+ * writes local workflow, approval, and gate receipts before any mutation.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -22,64 +21,111 @@ const defaultApprovalOutput = join(tmpRoot, 'workflow-approval-latest.json');
 const defaultApprovalJsOutput = join(tmpRoot, 'workflow-approval-latest.js');
 const defaultGateOutput = join(tmpRoot, 'brain-intent-gate-latest.json');
 const defaultGateJsOutput = join(tmpRoot, 'brain-intent-gate-latest.js');
+const defaultCatalogOutput = join(tmpRoot, 'ollama-cloud-agent-catalog.json');
+const defaultCatalogJsOutput = join(tmpRoot, 'ollama-cloud-agent-catalog.js');
 const defaultWorkflowDir = join(tmpRoot, 'workflows');
 const defaultApprovalDir = join(tmpRoot, 'workflow-approval-bundles');
 
 const WORKFLOW_SCHEMA = 'hololand.holoshell.workflow.v0.1.0';
 const APPROVAL_SCHEMA = 'hololand.holoshell.workflow-approval.v0.1.0';
 const GATE_SCHEMA = 'hololand.holoshell.brain-intent-gate.v0.1.0';
-const SCRIPT_REF = 'scripts/holoshell-claude-chat-workflow.mjs';
+const CATALOG_SCHEMA = 'hololand.holoshell.ollama-cloud-agent-catalog.v0.1.0';
+const SCRIPT_REF = 'scripts/holoshell-ollama-cloud-agent-workflow.mjs';
 const SOURCE_REF = 'apps/holoshell/source/holoshell-hardware-control.hsplus';
-const USER_PACK_REF = 'user-pack.open-claude-chat';
+const GATE_CASE_ID = 'holoshell-ollama-cloud-agent-local-approval.v0';
+
+const AGENTS = [
+  {
+    slug: 'claude',
+    label: 'Claude Code',
+    command: 'ollama launch claude',
+    description: "Anthropic's coding tool with subagents",
+    family: 'coding_agent',
+  },
+  {
+    slug: 'openclaw',
+    label: 'OpenClaw',
+    command: 'ollama launch openclaw',
+    description: 'Personal AI with 100+ skills',
+    family: 'personal_ai',
+  },
+  {
+    slug: 'hermes',
+    label: 'Hermes Agent',
+    command: 'ollama launch hermes',
+    description: 'Self-improving AI agent built by Nous Research',
+    family: 'self_improving_agent',
+  },
+  {
+    slug: 'opencode',
+    label: 'OpenCode',
+    command: 'ollama launch opencode',
+    description: "Anomaly's open-source coding agent",
+    family: 'coding_agent',
+  },
+  {
+    slug: 'codex',
+    label: 'Codex',
+    command: 'ollama launch codex',
+    description: "OpenAI's coding agent",
+    family: 'coding_agent',
+  },
+  {
+    slug: 'copilot',
+    label: 'Copilot CLI',
+    command: 'ollama launch copilot',
+    description: "GitHub's AI coding agent for the terminal",
+    family: 'coding_agent',
+  },
+  {
+    slug: 'droid',
+    label: 'Droid',
+    command: 'ollama launch droid',
+    description: "Factory's coding agent across terminal and IDEs",
+    family: 'coding_agent',
+  },
+  {
+    slug: 'pi',
+    label: 'Pi',
+    command: 'ollama launch pi',
+    description: 'Minimal AI agent toolkit with plugin support',
+    family: 'agent_toolkit',
+  },
+];
 
 function parseArgs(argv) {
   const args = {
     actor: 'brittney',
-    claudeApp: 'Claude',
-    prompt: '',
-    newChatHotkey: 'Ctrl+N',
-    startNewChat: true,
-    submit: false,
+    agent: 'claude',
     executeWorkflow: false,
     workflowApprovalBundle: '',
     workflowApprovalId: '',
     workflowApprovalNonce: '',
-    stepDelayMs: 900,
     output: defaultWorkflowOutput,
     jsOutput: defaultWorkflowJsOutput,
     approvalOutput: defaultApprovalOutput,
     approvalJsOutput: defaultApprovalJsOutput,
     gateOutput: defaultGateOutput,
     gateJsOutput: defaultGateJsOutput,
+    catalogOutput: defaultCatalogOutput,
+    catalogJsOutput: defaultCatalogJsOutput,
     workflowDir: defaultWorkflowDir,
     approvalDir: defaultApprovalDir,
     json: false,
+    listAgents: false,
     selfTest: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
     const next = () => argv[++i] ?? '';
-
     switch (token) {
       case '--actor':
         args.actor = next() || args.actor;
         break;
-      case '--claude-app':
-        args.claudeApp = next() || args.claudeApp;
-        break;
-      case '--prompt':
-      case '--chat-prompt':
-        args.prompt = next();
-        break;
-      case '--new-chat-hotkey':
-        args.newChatHotkey = next() || args.newChatHotkey;
-        break;
-      case '--no-new-chat':
-        args.startNewChat = false;
-        break;
-      case '--submit':
-        args.submit = true;
+      case '--agent':
+      case '--target-agent':
+        args.agent = next() || args.agent;
         break;
       case '--execute-workflow':
         args.executeWorkflow = true;
@@ -92,9 +138,6 @@ function parseArgs(argv) {
         break;
       case '--workflow-approval-nonce':
         args.workflowApprovalNonce = next();
-        break;
-      case '--step-delay-ms':
-        args.stepDelayMs = Number(next()) || args.stepDelayMs;
         break;
       case '--output':
         args.output = resolve(repoRoot, next());
@@ -114,6 +157,12 @@ function parseArgs(argv) {
       case '--gate-js-output':
         args.gateJsOutput = resolve(repoRoot, next());
         break;
+      case '--catalog-output':
+        args.catalogOutput = resolve(repoRoot, next());
+        break;
+      case '--catalog-js-output':
+        args.catalogJsOutput = resolve(repoRoot, next());
+        break;
       case '--workflow-dir':
         args.workflowDir = resolve(repoRoot, next());
         break;
@@ -123,13 +172,14 @@ function parseArgs(argv) {
       case '--json':
         args.json = true;
         break;
+      case '--list-agents':
+        args.listAgents = true;
+        break;
       case '--self-test':
         args.selfTest = true;
         break;
       default:
-        if (token.startsWith('--')) {
-          throw new Error(`Unknown argument: ${token}`);
-        }
+        if (token.startsWith('--')) throw new Error(`Unknown argument: ${token}`);
     }
   }
 
@@ -147,11 +197,7 @@ function writeJson(path, value) {
 
 function writeJs(path, globalName, value) {
   ensureDir(dirname(path));
-  writeFileSync(
-    path,
-    `window.${globalName} = ${JSON.stringify(value, null, 2)};\n`,
-    'utf8',
-  );
+  writeFileSync(path, `window.${globalName} = ${JSON.stringify(value, null, 2)};\n`, 'utf8');
 }
 
 function nowIso() {
@@ -166,6 +212,31 @@ function id(prefix, seed = '') {
   return `${prefix}-${Date.now()}-${shortHash(`${seed}:${randomBytes(4).toString('hex')}`)}`;
 }
 
+function normalizeAgent(value) {
+  const text = String(value || '').trim().toLowerCase();
+  const aliases = {
+    'claude code': 'claude',
+    anthropic: 'claude',
+    openclaw: 'openclaw',
+    'open claw': 'openclaw',
+    hermes: 'hermes',
+    'hermes agent': 'hermes',
+    opencode: 'opencode',
+    'open code': 'opencode',
+    codex: 'codex',
+    copilot: 'copilot',
+    'copilot cli': 'copilot',
+    droid: 'droid',
+    pi: 'pi',
+  };
+  return aliases[text] || text.replace(/^ollama\s+launch\s+/, '');
+}
+
+function agentFor(value) {
+  const slug = normalizeAgent(value);
+  return AGENTS.find((agent) => agent.slug === slug) || null;
+}
+
 function whereCommand(command) {
   const result = spawnSync('where.exe', [command], {
     cwd: repoRoot,
@@ -176,122 +247,82 @@ function whereCommand(command) {
   return (result.stdout || '').split(/\r?\n/).find(Boolean) || null;
 }
 
-function promptDigest(prompt) {
-  const clean = String(prompt || '');
+function buildCatalog(args) {
   return {
-    present: clean.trim().length > 0,
-    length: clean.length,
-    sha256: clean ? createHash('sha256').update(clean).digest('hex') : null,
+    schemaVersion: CATALOG_SCHEMA,
+    generatedAt: nowIso(),
+    sourceAnchors: {
+      source: SOURCE_REF,
+      adapter: SCRIPT_REF,
+      userProvidedCatalog: true,
+    },
+    summary: {
+      status: 'ready',
+      agentCount: AGENTS.length,
+      commandPrefix: 'ollama launch',
+      ollamaCliPath: whereCommand('ollama'),
+    },
+    agents: AGENTS.map((agent) => ({
+      ...agent,
+      selected: agent.slug === normalizeAgent(args.agent),
+      permissionEnvelope: 'guarded_execute',
+      executionDefault: 'staged_until_user_approval',
+    })),
   };
 }
 
 function buildSteps(args, executionResult = null) {
-  const cliPath = whereCommand('claude');
-  const promptInfo = promptDigest(args.prompt);
-  const stepResults = new Map(
-    (executionResult?.steps || []).map((step) => [step.id, step]),
-  );
-
+  const agent = agentFor(args.agent);
+  const ollamaPath = whereCommand('ollama');
+  const stepResults = new Map((executionResult?.steps || []).map((step) => [step.id, step]));
   const steps = [
     {
-      id: 'resolve-claude-surface',
-      title: 'Resolve Claude surface',
+      id: 'resolve-ollama-cloud-cli',
+      title: 'Resolve Ollama Cloud launch command',
       kind: 'read_only',
       status: 'resolved',
       approvalRequired: false,
       mutation: false,
-      targetResolved: Boolean(args.claudeApp || cliPath),
+      targetResolved: Boolean(ollamaPath),
       evidence: {
-        claudeApp: args.claudeApp,
-        claudeCliPath: cliPath,
-        hardwareSurface: 'windows_desktop',
+        ollamaCliPath: ollamaPath,
+        commandPrefix: 'ollama launch',
       },
     },
     {
-      id: 'open-claude',
-      title: 'Open or focus Claude',
+      id: 'resolve-agent-target',
+      title: 'Resolve agent target',
+      kind: 'read_only',
+      status: agent ? 'resolved' : 'failed',
+      approvalRequired: false,
+      mutation: false,
+      targetResolved: Boolean(agent),
+      evidence: {
+        requestedAgent: args.agent,
+        resolvedAgent: agent?.slug || '',
+        supportedAgents: AGENTS.map((item) => item.slug),
+      },
+    },
+    {
+      id: 'launch-ollama-cloud-agent',
+      title: `Launch ${agent?.label || args.agent} through Ollama Cloud`,
       kind: 'guarded_local_action',
       status: 'approval_required',
       approvalRequired: true,
       mutation: true,
-      targetResolved: Boolean(args.claudeApp),
+      targetResolved: Boolean(agent && ollamaPath),
       action: {
-        type: 'launch_app',
-        app: args.claudeApp,
-        visibility: 'foreground',
+        type: 'terminal_command',
+        command: agent?.command || `ollama launch ${normalizeAgent(args.agent)}`,
+        visibility: 'foreground_terminal',
       },
       safety: {
         requiresUserVisibleSurface: true,
         shellContextAttached: false,
+        terminalRemainsOpen: true,
       },
     },
   ];
-
-  if (args.startNewChat) {
-    steps.push({
-      id: 'start-new-chat',
-      title: 'Start a new Claude chat',
-      kind: 'guarded_local_action',
-      status: 'approval_required',
-      approvalRequired: true,
-      mutation: true,
-      targetResolved: Boolean(args.claudeApp && args.newChatHotkey),
-      action: {
-        type: 'hotkey',
-        processName: args.claudeApp,
-        hotkey: args.newChatHotkey,
-      },
-      safety: {
-        shellContextAttached: false,
-        submitsMessage: false,
-      },
-    });
-  }
-
-  if (promptInfo.present) {
-    steps.push({
-      id: 'stage-chat-prompt',
-      title: 'Place prompt in Claude chat box',
-      kind: 'guarded_local_action',
-      status: 'approval_required',
-      approvalRequired: true,
-      mutation: true,
-      targetResolved: Boolean(args.claudeApp),
-      action: {
-        type: 'paste_text',
-        processName: args.claudeApp,
-        text: args.prompt,
-        promptHash: promptInfo.sha256,
-        promptLength: promptInfo.length,
-      },
-      safety: {
-        shellContextAttached: false,
-        submitsMessage: false,
-        clipboardTemporarilyTouched: true,
-      },
-    });
-  }
-
-  if (args.submit && promptInfo.present) {
-    steps.push({
-      id: 'submit-chat-prompt',
-      title: 'Submit prompt to Claude',
-      kind: 'guarded_local_action',
-      status: 'approval_required',
-      approvalRequired: true,
-      mutation: true,
-      targetResolved: Boolean(args.claudeApp),
-      action: {
-        type: 'hotkey',
-        processName: args.claudeApp,
-        hotkey: 'Enter',
-      },
-      safety: {
-        shellContextAttached: false,
-        submitsMessage: true,
-      },
-    });
-  }
 
   return steps.map((step) => {
     const result = stepResults.get(step.id);
@@ -311,13 +342,11 @@ function buildSteps(args, executionResult = null) {
 }
 
 function workflowSummary(args, steps, executionResult = null) {
-  const guarded = steps.filter((step) => step.approvalRequired);
+  const agent = agentFor(args.agent);
   const pending = steps.filter((step) => step.status === 'approval_required');
   const failed = steps.filter((step) => step.status === 'failed');
   const targetResolved = steps.filter((step) => step.targetResolved).length;
   const mutationExecuted = Boolean(executionResult?.mutationExecuted);
-  const promptInfo = promptDigest(args.prompt);
-
   return {
     status: mutationExecuted
       ? failed.length
@@ -326,18 +355,17 @@ function workflowSummary(args, steps, executionResult = null) {
       : pending.length
         ? 'pending_user_approval'
         : 'staged',
-    workflowKind: 'claude_chat',
+    workflowKind: 'ollama_cloud_agent',
     stepCount: steps.length,
-    guardedStepCount: guarded.length,
+    guardedStepCount: steps.filter((step) => step.approvalRequired).length,
     pendingApprovalCount: pending.length,
     stageErrorCount: failed.length,
     targetResolvedCount: targetResolved,
-    targetSurface: args.claudeApp,
     actor: args.actor,
-    promptPresent: promptInfo.present,
-    promptHash: promptInfo.sha256,
-    promptLength: promptInfo.length,
-    promptSubmissionRequested: Boolean(args.submit),
+    agentSlug: agent?.slug || normalizeAgent(args.agent),
+    agentLabel: agent?.label || args.agent,
+    agentDescription: agent?.description || '',
+    command: agent?.command || `ollama launch ${normalizeAgent(args.agent)}`,
     shellContextAttachedByDefault: false,
     mutationExecuted,
     executionStartedAt: executionResult?.startedAt || null,
@@ -346,41 +374,36 @@ function workflowSummary(args, steps, executionResult = null) {
 }
 
 function buildWorkflow(args, executionResult = null) {
-  const workflowId = id('hswf-claude-chat', args.prompt || args.claudeApp);
+  const agent = agentFor(args.agent);
+  const workflowId = id('hswf-ollama-cloud-agent', agent?.slug || args.agent);
   const steps = buildSteps(args, executionResult);
   const summary = workflowSummary(args, steps, executionResult);
   const generatedAt = nowIso();
-
   return {
     schema: WORKFLOW_SCHEMA,
     workflowId,
-    profile: 'claude_chat',
-    title: 'Claude Chat',
+    profile: 'ollama_cloud_agent',
+    title: `Ollama ${agent?.label || summary.agentLabel}`,
     createdAt: generatedAt,
     generatedAt,
     actor: args.actor,
     status: summary.status,
     description:
-      'Guarded HoloShell workflow for opening Claude, starting a chat, and staging an optional prompt without attaching shell context by default.',
+      'Guarded HoloShell workflow for launching an Ollama Cloud agent in a foreground terminal.',
     sourceAnchors: {
       source: SOURCE_REF,
       adapter: SCRIPT_REF,
-      userPack: USER_PACK_REF,
     },
     policy: {
       executionDefault: 'staged_until_user_approval',
       shellContextAttachedByDefault: false,
-      promptSubmitRequiresApproval: true,
-      promptBodyStoredLocallyOnly: true,
-      clipboardMayBeTemporarilyTouchedOnExecute: summary.promptPresent,
+      terminalLaunchRequiresApproval: true,
+      commandBodyStoredLocallyOnly: true,
     },
     request: {
-      claudeApp: args.claudeApp,
-      startNewChat: args.startNewChat,
-      newChatHotkey: args.newChatHotkey,
-      submit: args.submit,
-      prompt: args.prompt,
+      agent: summary.agentSlug,
     },
+    catalog: buildCatalog(args).agents,
     steps,
     summary,
   };
@@ -401,13 +424,13 @@ function approvalCommand(bundlePath, approvalId, nonce) {
 }
 
 function buildApprovalBundle(args, workflow) {
-  const approvalId = id('hswap-claude-chat', workflow.workflowId);
+  const approvalId = id('hswap-ollama-cloud-agent', workflow.workflowId);
   const nonce = randomBytes(16).toString('hex');
   const generatedAt = nowIso();
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const bundlePath = join(args.approvalDir, `${approvalId}.json`);
   const command = approvalCommand(bundlePath, approvalId, nonce);
-  const steps = workflow.steps.filter((step) => step.approvalRequired);
+  const guardedSteps = workflow.steps.filter((step) => step.approvalRequired);
   const allowed =
     workflow.summary.pendingApprovalCount > 0 &&
     workflow.summary.stageErrorCount === 0 &&
@@ -426,15 +449,14 @@ function buildApprovalBundle(args, workflow) {
     nonce,
     sourceAnchors: workflow.sourceAnchors,
     approvalRequest: {
-      title: 'Open Claude chat',
-      intent: 'Open Claude and stage a new chat prompt for the user to review.',
-      riskLevel: args.submit ? 'high' : 'medium',
+      title: `Launch ${workflow.summary.agentLabel}`,
+      intent: `Open a terminal and run ${workflow.summary.command}.`,
+      riskLevel: 'medium',
       localMutation: true,
       shellContextAttached: false,
-      pendingStepIds: steps.map((step) => step.id),
-      promptHash: workflow.summary.promptHash,
-      promptLength: workflow.summary.promptLength,
-      submitRequested: args.submit,
+      pendingStepIds: guardedSteps.map((step) => step.id),
+      agentSlug: workflow.summary.agentSlug,
+      command: workflow.summary.command,
     },
     workflowRequest: workflow.request,
     execution: {
@@ -446,9 +468,7 @@ function buildApprovalBundle(args, workflow) {
       nonce,
       blockedReasons: allowed
         ? []
-        : [
-            'Workflow is not fully resolved or has already executed. Restage the Claude chat workflow.',
-          ],
+        : ['Ollama CLI or agent target was not resolved. Restage after installing Ollama or choosing a supported agent.'],
     },
     summary: {
       status: allowed ? 'pending_user_approval' : 'blocked',
@@ -462,31 +482,30 @@ function buildApprovalBundle(args, workflow) {
       mutationExecuted: workflow.summary.mutationExecuted,
       shellContextAttachedByDefault: false,
       workflowKind: workflow.summary.workflowKind,
+      agentSlug: workflow.summary.agentSlug,
+      agentLabel: workflow.summary.agentLabel,
     },
   };
 }
 
-function buildLocalIntentGate(args, workflow) {
-  const generatedAt = nowIso();
+function buildLocalGate(args, workflow) {
   const allowed =
     workflow.summary.stageErrorCount === 0 &&
     workflow.summary.targetResolvedCount === workflow.summary.stepCount &&
     !workflow.summary.mutationExecuted;
   const blockedReason = allowed
     ? ''
-    : 'Claude chat workflow is not fully staged. Restage the workflow before execution.';
-
+    : 'Ollama Cloud agent workflow is not fully staged. Restage with a supported agent and local Ollama CLI.';
   return {
     schemaVersion: GATE_SCHEMA,
-    generatedAt,
-    gateId: id('hsbig-claude-chat', workflow.workflowId),
+    generatedAt: nowIso(),
+    gateId: id('hsbig-ollama-cloud-agent', workflow.workflowId),
     sourceAnchors: {
       source: SOURCE_REF,
       adapter: SCRIPT_REF,
-      userPack: USER_PACK_REF,
     },
     gate: {
-      label: 'holoshell_claude_chat_local_approval',
+      label: 'holoshell_ollama_cloud_agent_local_approval',
       allowed,
       status: allowed ? 'allow' : 'block',
       runtimeBlocking: false,
@@ -497,7 +516,7 @@ function buildLocalIntentGate(args, workflow) {
       status: allowed ? 'not_required' : 'blocked',
       executionAllowed: allowed,
       runtimeBlocking: false,
-      caseId: 'holoshell-claude-chat-local-approval.v0',
+      caseId: GATE_CASE_ID,
       receiptStatus: 'local_approval_gate',
       score: 1,
       passed: allowed ? 1 : 0,
@@ -506,6 +525,7 @@ function buildLocalIntentGate(args, workflow) {
       blockedReason,
       workflowKind: workflow.summary.workflowKind,
       workflowId: workflow.workflowId,
+      agentSlug: workflow.summary.agentSlug,
     },
     output: {
       latestPath: args.gateOutput,
@@ -520,37 +540,21 @@ function hydrateArgsFromBundle(args) {
     throw new Error('--execute-workflow requires --workflow-approval-bundle');
   }
   const bundlePath = resolve(repoRoot, args.workflowApprovalBundle);
-  if (!existsSync(bundlePath)) {
-    throw new Error(`Workflow approval bundle not found: ${bundlePath}`);
-  }
+  if (!existsSync(bundlePath)) throw new Error(`Workflow approval bundle not found: ${bundlePath}`);
   const bundle = JSON.parse(readFileSync(bundlePath, 'utf8'));
-  if (bundle.schema !== APPROVAL_SCHEMA) {
-    throw new Error(`Unsupported approval schema: ${bundle.schema}`);
-  }
-  if (bundle.approvalId !== args.workflowApprovalId) {
-    throw new Error('Workflow approval id mismatch.');
-  }
-  if (bundle.execution?.nonce !== args.workflowApprovalNonce) {
-    throw new Error('Workflow approval nonce mismatch.');
-  }
+  if (bundle.schema !== APPROVAL_SCHEMA) throw new Error(`Unsupported approval schema: ${bundle.schema}`);
+  if (bundle.approvalId !== args.workflowApprovalId) throw new Error('Workflow approval id mismatch.');
+  if (bundle.execution?.nonce !== args.workflowApprovalNonce) throw new Error('Workflow approval nonce mismatch.');
   if (bundle.execution?.allowed !== true) {
-    throw new Error(
-      `Workflow approval is not executable: ${(bundle.execution?.blockedReasons || []).join('; ')}`,
-    );
+    throw new Error(`Workflow approval is not executable: ${(bundle.execution?.blockedReasons || []).join('; ')}`);
   }
   if (Date.parse(bundle.expiresAt) < Date.now()) {
     throw new Error('Workflow approval bundle expired. Restage the workflow.');
   }
-
-  const request = bundle.workflowRequest || {};
   return {
     ...args,
     actor: bundle.actor || args.actor,
-    claudeApp: request.claudeApp || args.claudeApp,
-    prompt: request.prompt || '',
-    startNewChat: request.startNewChat !== false,
-    newChatHotkey: request.newChatHotkey || args.newChatHotkey,
-    submit: Boolean(request.submit),
+    agent: bundle.workflowRequest?.agent || args.agent,
     hydratedApproval: {
       approvalId: bundle.approvalId,
       workflowId: bundle.workflowId,
@@ -559,10 +563,14 @@ function hydrateArgsFromBundle(args) {
   };
 }
 
+function psString(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
 function runPowerShell(command, options = {}) {
   const result = spawnSync(
     'powershell.exe',
-    ['-NoProfile', '-Sta', '-ExecutionPolicy', 'Bypass', '-Command', command],
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
     {
       cwd: repoRoot,
       encoding: 'utf8',
@@ -578,50 +586,14 @@ function runPowerShell(command, options = {}) {
   };
 }
 
-function psString(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
-
-function hotkeyToSendKeys(hotkey) {
-  const normalized = String(hotkey || '').trim().toLowerCase();
-  if (normalized === 'ctrl+n' || normalized === 'control+n') return '^n';
-  if (normalized === 'enter' || normalized === 'return') return '{ENTER}';
-  if (/^[a-z0-9]$/i.test(normalized)) return normalized;
-  throw new Error(`Unsupported hotkey for local execution: ${hotkey}`);
-}
-
-function executeLaunchApp(app) {
-  return runPowerShell(`Start-Process -FilePath ${psString(app)}`, {
-    timeoutMs: 10000,
-  });
-}
-
-function executeHotkey(hotkey) {
-  const sendKeys = hotkeyToSendKeys(hotkey);
-  return runPowerShell(
-    `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(${psString(sendKeys)})`,
-    { timeoutMs: 10000 },
-  );
-}
-
-function executePasteText(text) {
-  const encoded = Buffer.from(String(text), 'utf8').toString('base64');
-  const command = [
-    'Add-Type -AssemblyName System.Windows.Forms',
-    `$old = Get-Clipboard -Raw -ErrorAction SilentlyContinue`,
+function executeTerminalCommand(command) {
+  const encoded = Buffer.from(command, 'utf8').toString('base64');
+  const ps = [
     `$bytes = [Convert]::FromBase64String(${psString(encoded)})`,
-    `$text = [System.Text.Encoding]::UTF8.GetString($bytes)`,
-    'Set-Clipboard -Value $text',
-    'Start-Sleep -Milliseconds 150',
-    "[System.Windows.Forms.SendKeys]::SendWait('^v')",
-    'Start-Sleep -Milliseconds 150',
-    'if ($null -ne $old) { Set-Clipboard -Value $old }',
+    '$cmd = [System.Text.Encoding]::UTF8.GetString($bytes)',
+    "Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoExit','-NoProfile','-Command',$cmd)",
   ].join('; ');
-  return runPowerShell(command, { timeoutMs: 15000 });
-}
-
-function sleep(ms) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  return runPowerShell(ps, { timeoutMs: 12000 });
 }
 
 function executeWorkflow(args) {
@@ -634,37 +606,19 @@ function executeWorkflow(args) {
     if (!step.approvalRequired) {
       executedSteps.push({
         id: step.id,
-        ok: true,
-        status: step.status,
+        ok: step.targetResolved,
+        status: step.targetResolved ? step.status : 'failed',
         startedAt: nowIso(),
         finishedAt: nowIso(),
-        exitCode: 0,
-        stderr: '',
+        exitCode: step.targetResolved ? 0 : 1,
+        stderr: step.targetResolved ? '' : `${step.title} did not resolve.`,
       });
+      if (!step.targetResolved) break;
       continue;
     }
 
     const stepStarted = nowIso();
-    let result;
-    try {
-      if (step.action?.type === 'launch_app') {
-        result = executeLaunchApp(step.action.app);
-      } else if (step.action?.type === 'hotkey') {
-        result = executeHotkey(step.action.hotkey);
-      } else if (step.action?.type === 'paste_text') {
-        result = executePasteText(step.action.text);
-      } else {
-        throw new Error(`Unsupported workflow action: ${step.action?.type}`);
-      }
-    } catch (error) {
-      result = {
-        ok: false,
-        exitCode: 1,
-        stdout: '',
-        stderr: error.message,
-      };
-    }
-
+    const result = executeTerminalCommand(step.action.command);
     mutationExecuted = mutationExecuted || result.ok;
     executedSteps.push({
       id: step.id,
@@ -675,9 +629,7 @@ function executeWorkflow(args) {
       exitCode: result.exitCode,
       stderr: String(result.stderr || '').trim().slice(0, 1200),
     });
-
     if (!result.ok) break;
-    sleep(args.stepDelayMs);
   }
 
   return {
@@ -689,12 +641,16 @@ function executeWorkflow(args) {
   };
 }
 
-function persist(args, workflow, approvalBundle = null, gate = null) {
+function persist(args, workflow, approvalBundle = null, gate = null, catalog = null) {
   writeJson(args.output, workflow);
   writeJs(args.jsOutput, 'HOLOSHELL_WORKFLOW', workflow);
-
   ensureDir(args.workflowDir);
   writeJson(join(args.workflowDir, `${workflow.workflowId}.json`), workflow);
+
+  if (catalog) {
+    writeJson(args.catalogOutput, catalog);
+    writeJs(args.catalogJsOutput, 'HOLOSHELL_OLLAMA_CLOUD_AGENT_CATALOG', catalog);
+  }
 
   if (gate) {
     writeJson(args.gateOutput, gate);
@@ -712,33 +668,26 @@ function persist(args, workflow, approvalBundle = null, gate = null) {
 }
 
 function selfTest() {
-  const args = parseArgs([
-    '--actor',
-    'self-test',
-    '--claude-app',
-    'Claude',
-    '--prompt',
-    'Open a calm planning chat for HoloShell.',
-    '--json',
-  ]);
+  const args = parseArgs(['--agent', 'codex', '--json']);
   const workflow = buildWorkflow(args);
   const approval = buildApprovalBundle(args, workflow);
-  const gate = buildLocalIntentGate(args, workflow);
-
+  const gate = buildLocalGate(args, workflow);
+  const catalog = buildCatalog(args);
   const failures = [];
+
   if (workflow.schema !== WORKFLOW_SCHEMA) failures.push('workflow schema mismatch');
-  if (workflow.profile !== 'claude_chat') failures.push('workflow profile mismatch');
-  if (workflow.summary.promptSubmissionRequested) failures.push('submit should be false by default');
-  if (workflow.summary.shellContextAttachedByDefault) failures.push('shell context should be off');
-  if (!workflow.steps.some((step) => step.id === 'open-claude')) failures.push('missing open step');
-  if (!workflow.steps.some((step) => step.id === 'stage-chat-prompt')) failures.push('missing prompt step');
+  if (workflow.summary.workflowKind !== 'ollama_cloud_agent') failures.push('workflow kind mismatch');
+  if (workflow.summary.agentSlug !== 'codex') failures.push('agent slug mismatch');
+  if (workflow.summary.command !== 'ollama launch codex') failures.push('command mismatch');
+  if (!workflow.steps.some((step) => step.id === 'launch-ollama-cloud-agent')) failures.push('missing launch step');
   if (approval.schema !== APPROVAL_SCHEMA) failures.push('approval schema mismatch');
-  if (!approval.execution.allowed) failures.push('approval should be executable');
+  if (!approval.execution.allowed) failures.push('approval should be executable on this host');
   if (approval.execution.command.some((part) => String(part).includes('room-marathon'))) {
     failures.push('approval command leaked room-marathon workflow');
   }
-  if (gate.summary.runtimeBlocking) failures.push('Claude chat should not reuse a runtime-blocking room-marathon gate');
-  if (gate.summary.caseId !== 'holoshell-claude-chat-local-approval.v0') failures.push('Claude chat gate case mismatch');
+  if (gate.summary.caseId !== GATE_CASE_ID) failures.push('gate case mismatch');
+  if (gate.summary.runtimeBlocking) failures.push('Ollama Cloud agent should use local approval gate');
+  if (catalog.summary.agentCount !== AGENTS.length) failures.push('catalog count mismatch');
 
   return {
     ok: failures.length === 0,
@@ -746,19 +695,23 @@ function selfTest() {
     workflow,
     approval,
     gate,
+    catalog,
   };
 }
 
 function main() {
   let args = parseArgs(process.argv.slice(2));
+  if (args.listAgents) {
+    const catalog = buildCatalog(args);
+    if (args.json) console.log(JSON.stringify(catalog, null, 2));
+    else for (const agent of catalog.agents) console.log(`${agent.label}: ${agent.command}`);
+    return;
+  }
 
   if (args.selfTest) {
     const result = selfTest();
-    if (args.json) {
-      console.log(JSON.stringify(result, null, 2));
-    } else {
-      console.log(result.ok ? 'Claude chat workflow self-test passed.' : result.failures.join('\n'));
-    }
+    if (args.json) console.log(JSON.stringify(result, null, 2));
+    else console.log(result.ok ? 'Ollama Cloud agent workflow self-test passed.' : result.failures.join('\n'));
     process.exit(result.ok ? 0 : 1);
   }
 
@@ -770,14 +723,16 @@ function main() {
 
   const workflow = buildWorkflow(args, executionResult);
   const approval = executionResult ? null : buildApprovalBundle(args, workflow);
-  const gate = buildLocalIntentGate(args, workflow);
-  persist(args, workflow, approval, gate);
+  const gate = buildLocalGate(args, workflow);
+  const catalog = buildCatalog(args);
+  persist(args, workflow, approval, gate, catalog);
 
   const result = {
     ok: workflow.summary.stageErrorCount === 0,
     workflow,
     approval,
     gate,
+    catalog,
     outputs: {
       workflow: args.output,
       workflowJs: args.jsOutput,
@@ -785,6 +740,8 @@ function main() {
       approvalJs: approval ? args.approvalJsOutput : null,
       gate: args.gateOutput,
       gateJs: args.gateJsOutput,
+      catalog: args.catalogOutput,
+      catalogJs: args.catalogJsOutput,
     },
   };
 
@@ -792,7 +749,7 @@ function main() {
     console.log(JSON.stringify(result, null, 2));
   } else {
     console.log(
-      `${workflow.title} ${workflow.status}: ${workflow.summary.pendingApprovalCount} approval(s) pending`,
+      `${workflow.title} ${workflow.status}: ${workflow.summary.command}; ${workflow.summary.pendingApprovalCount} approval(s) pending`,
     );
   }
 

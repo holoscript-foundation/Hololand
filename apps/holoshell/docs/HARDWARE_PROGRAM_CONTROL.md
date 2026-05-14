@@ -173,6 +173,7 @@ POST /action
 POST /approval/execute
 POST /workflow/room-marathon
 POST /workflow/claude-chat
+POST /workflow/ollama-cloud-agent
 POST /workflow/approval
 POST /workflow/execute
 ```
@@ -257,6 +258,36 @@ Claude chat writes a local approval-gate receipt with
 `caseId: holoshell-claude-chat-local-approval.v0`; it does not reuse the
 room-marathon brain-intent eval case.
 
+Stage an Ollama Cloud agent launch:
+
+```powershell
+node scripts\holoshell-ollama-cloud-agent-workflow.mjs --agent codex
+```
+
+Supported launch targets:
+
+| Agent | Command |
+| --- | --- |
+| Claude Code | `ollama launch claude` |
+| OpenClaw | `ollama launch openclaw` |
+| Hermes Agent | `ollama launch hermes` |
+| OpenCode | `ollama launch opencode` |
+| Codex | `ollama launch codex` |
+| Copilot CLI | `ollama launch copilot` |
+| Droid | `ollama launch droid` |
+| Pi | `ollama launch pi` |
+
+The same launcher is available through the daemon:
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/ollama-cloud-agent" -Method Post -ContentType "application/json" -Body '{"agent":"codex"}'
+```
+
+Ollama Cloud agent launches write `workflow-latest.json`,
+`workflow-approval-latest.json`, `brain-intent-gate-latest.json`, and an
+`ollama-cloud-agent-catalog.json` receipt. The local gate case is
+`holoshell-ollama-cloud-agent-local-approval.v0`.
+
 Create a nonce-bound approval packet for the staged workflow:
 
 ```powershell
@@ -281,6 +312,7 @@ node scripts\holoshell-approval-bundle.mjs --self-test
 node scripts\holoshell-control-daemon.mjs --self-test
 node scripts\holoshell-room-marathon-workflow.mjs --self-test
 node scripts\holoshell-claude-chat-workflow.mjs --self-test
+node scripts\holoshell-ollama-cloud-agent-workflow.mjs --self-test
 node scripts\holoshell-workflow-approval-bundle.mjs --self-test
 ```
 
