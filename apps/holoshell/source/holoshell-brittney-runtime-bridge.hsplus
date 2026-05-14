@@ -1,0 +1,262 @@
+// HoloShell Brittney Runtime Bridge
+//
+// Source contract for routing HoloShell chat turns into HoloScript's
+// @holoscript/aibrittney runtime and turning agent events into avatar states,
+// shell-object proposals, and receipts.
+
+composition "HoloShell Brittney Runtime Bridge" {
+  config {
+    title: "HoloShell Brittney Runtime Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimePackage: "@holoscript/aibrittney"
+    runtimeEntrypoint: "runAgentTurn"
+    runtimePackagePath: "C:/Users/josep/Documents/GitHub/HoloScript/packages/aibrittney"
+    avatarSource: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    presenceSource: "apps/holoshell/source/holoshell-brittney-presence.hsplus"
+    hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    contextPacketSource: "apps/holoshell/source/holoshell-brittney-context-packet.hsplus"
+    turnBridgeScript: "scripts/holoshell-brittney-turn.mjs"
+    hardwareActionExecutor: "scripts/holoshell-action-executor.mjs"
+    latestTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
+    latestContextReceipt: ".tmp/holoshell/brittney-context.json"
+    latestHardwareActionReceipt: ".tmp/holoshell/action-latest.json"
+  }
+
+  state {
+    bridgeStatus: "unknown"
+    currentTurnId: ""
+    currentPrompt: ""
+    runtimeStatus: "unknown"
+    lastFinalText: ""
+    lastError: ""
+    runtimeEventCount: 0
+    toolCallCount: 0
+    actionProposalCount: 0
+    contextStatus: "unknown"
+    contextPeerWindowCount: 0
+    contextShellWindowCount: 0
+    contextVisibleShellObjectCount: 0
+    latestShellObject: ""
+    voiceInputState: "idle"
+    avatarPipelineStage: "idle"
+    avatarEmotion: "attentive"
+    avatarVoiceState: "ready"
+    receiptCount: 0
+  }
+
+  channel "holoshell:brittney:turn" {
+    type: "request_response"
+    priority: "critical"
+    description: "User prompt routed to the HoloScript AIBrittney runtime"
+  }
+
+  channel "holoshell:brittney:runtime-events" {
+    type: "append_only"
+    priority: "high"
+    description: "AIBrittney AgentEvent stream mapped to avatar stages"
+  }
+
+  channel "holoshell:brittney:action-proposal" {
+    type: "append_only"
+    priority: "critical"
+    description: "Read-only and guarded shell-object proposals created from Brittney turns"
+  }
+
+  channel "holoshell:hardware:action-request" {
+    type: "request_response"
+    priority: "critical"
+    description: "Brittney-proposed program control routed through the HoloShell hardware executor"
+  }
+
+  channel "holoshell:brittney:voice-input" {
+    type: "request_response"
+    priority: "high"
+    description: "User-initiated speech recognition feeding the same turn bridge"
+  }
+
+  channel "holoshell:brittney:turn-receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Proof of runtime route, events, proposals, result, and shell effect boundary"
+  }
+
+  template "RuntimeTurnRequest" {
+    type: "runtime_turn_request"
+    actor: "user"
+    targetRuntime: "@holoscript/aibrittney"
+    prompt: ""
+    shellContextIncluded: true
+    contextPacketIncluded: true
+    contextPacketReceipt: ".tmp/holoshell/brittney-context.json"
+    secretsIncluded: false
+    requiresReceipt: true
+  }
+
+  template "RuntimeEventAvatarMap" {
+    type: "avatar_event_map"
+    thinking: { pipelineStage: "processing", emotion: "focused", voiceState: "quiet" }
+    tool_call: { pipelineStage: "acting", emotion: "focused", voiceState: "ready" }
+    tool_result: { pipelineStage: "receipt", emotion: "calm", voiceState: "ready" }
+    final: { pipelineStage: "speaking", emotion: "attentive", voiceState: "speaking" }
+    error: { pipelineStage: "error", emotion: "concerned", voiceState: "quiet" }
+  }
+
+  template "ShellActionProposal" {
+    type: "shell_action_proposal"
+    actor: "brittney"
+    objectId: ""
+    operation: "focus_shell_object"
+    permissionEnvelope: "read_only"
+    mutating: false
+    approvalRequired: false
+    hardwareExecutor: "scripts/holoshell-action-executor.mjs"
+    receiptRequired: true
+  }
+
+  template "TurnReceipt" {
+    type: "receipt"
+    receiptType: "hololand.holoshell.brittney-turn.v0.1.0"
+    actor: "brittney"
+    runtimePackage: "@holoscript/aibrittney"
+    routeClass: "local"
+    secretsExposedToShell: false
+    resultStatus: "unknown"
+    rollback: "not_applicable_for_read_only"
+  }
+
+  policy "RuntimeReadOnlyTurn" {
+    appliesTo: ["summarize_shell_state", "focus_shell_object", "explain_receipts", "rank_shell_objects"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  policy "RuntimeTurnConsumesContextPacket" {
+    appliesTo: ["summarize_shell_state", "focus_shell_object", "open_app", "start_agent", "terminal_workflow", "legacy_app_operation"]
+    requiredInput: "brittney_context_packet"
+    contextSource: ".tmp/holoshell/brittney-context.json"
+    rawCommandsHiddenByDefault: true
+    rawWindowTitlesHiddenByDefault: true
+    secretsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "RuntimeGuardedTurn" {
+    appliesTo: ["open_app", "open_file", "open_browser", "start_agent", "focus_captured_window", "focus_window", "hotkey", "click_control", "type_text"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  policy "VoiceTurn" {
+    appliesTo: ["start_voice_input", "stop_voice_input", "submit_voice_turn"]
+    permissionEnvelope: "user_initiated_microphone"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  action submit_runtime_turn(turnRequest) {
+    state.currentPrompt = turnRequest.prompt
+    state.avatarPipelineStage = "processing"
+    emit("holoshell:brittney:turn", {
+      action: "runtime_turn_submitted",
+      prompt: state.currentPrompt,
+      target_runtime: "@holoscript/aibrittney",
+      shell_context_included: true,
+      context_packet_included: true,
+      secrets_included: false,
+      receipt_required: true
+    })
+  }
+
+  action record_runtime_event(event) {
+    state.runtimeEventCount = state.runtimeEventCount + 1
+    state.toolCallCount = event.kind == "tool-call" ? state.toolCallCount + 1 : state.toolCallCount
+    state.avatarPipelineStage = event.avatar.pipelineStage
+    state.avatarEmotion = event.avatar.emotion
+    state.avatarVoiceState = event.avatar.voiceState
+    emit("holoshell:brittney:runtime-events", {
+      action: "runtime_event_recorded",
+      kind: event.kind,
+      message: event.message,
+      avatar: event.avatar,
+      event_count: state.runtimeEventCount
+    })
+  }
+
+  action propose_shell_action(proposal) {
+    state.actionProposalCount = state.actionProposalCount + 1
+    state.latestShellObject = proposal.objectId
+    emit("holoshell:brittney:action-proposal", {
+      action: "shell_action_proposed",
+      proposal: proposal,
+      proposal_count: state.actionProposalCount,
+      approval_required: proposal.approvalRequired,
+      receipt_required: true
+    })
+    if (proposal.permissionEnvelope != "read_only") {
+      emit("holoshell:hardware:action-request", {
+        action: "brittney_hardware_action_proposed",
+        proposal: proposal,
+        executor: "scripts/holoshell-action-executor.mjs",
+        approval_required: true,
+        receipt_required: true
+      })
+    }
+  }
+
+  action apply_turn_receipt(receipt) {
+    state.currentTurnId = receipt.turnId
+    state.bridgeStatus = receipt.summary.status
+    state.runtimeStatus = receipt.runtime.status
+    state.lastFinalText = receipt.result.finalText
+    state.lastError = receipt.result.error
+    state.runtimeEventCount = receipt.summary.eventCount
+    state.toolCallCount = receipt.summary.toolCallCount
+    state.actionProposalCount = receipt.summary.actionProposalCount
+    state.contextStatus = receipt.summary.contextStatus
+    state.contextPeerWindowCount = receipt.summary.contextPeerWindowCount
+    state.contextShellWindowCount = receipt.summary.contextShellWindowCount
+    state.contextVisibleShellObjectCount = receipt.summary.contextVisibleShellObjectCount
+    state.receiptCount = state.receiptCount + 1
+    emit("holoshell:brittney:turn-receipt", {
+      action: "turn_receipt_applied",
+      turn_id: state.currentTurnId,
+      status: state.bridgeStatus,
+      runtime_status: state.runtimeStatus,
+      event_count: state.runtimeEventCount,
+      tool_calls: state.toolCallCount,
+      proposals: state.actionProposalCount,
+      context_status: state.contextStatus,
+      peer_windows: state.contextPeerWindowCount,
+      shell_windows: state.contextShellWindowCount,
+      visible_shell_objects: state.contextVisibleShellObjectCount,
+      final_text: state.lastFinalText,
+      error: state.lastError,
+      receipt_required: true
+    })
+  }
+
+  action start_voice_input(source) {
+    state.voiceInputState = "listening"
+    state.avatarVoiceState = "listening"
+    emit("holoshell:brittney:voice-input", {
+      action: "voice_input_started",
+      source: source,
+      user_gesture_required: true,
+      receipt_required: true
+    })
+  }
+
+  action stop_voice_input(transcript) {
+    state.voiceInputState = "ready"
+    state.currentPrompt = transcript
+    emit("holoshell:brittney:voice-input", {
+      action: "voice_input_stopped",
+      transcript_ready: transcript != "",
+      routes_to: "holoshell:brittney:turn",
+      receipt_required: true
+    })
+  }
+}

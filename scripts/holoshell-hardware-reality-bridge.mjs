@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -82,6 +82,16 @@ function sha256(value) {
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function readOptionalJson(filePath, fallback = {}) {
+  const resolved = resolveRepoPath(filePath);
+  if (!existsSync(resolved)) return fallback;
+  try {
+    return JSON.parse(readFileSync(resolved, 'utf8'));
+  } catch {
+    return fallback;
+  }
 }
 
 function parseMcpContent(result) {
@@ -218,7 +228,11 @@ async function readMcpReality(args) {
 }
 
 function semanticPrefixForLane(lane) {
-  return `[lane:${lane.agent_id} surface:${lane.surface} source:holoshell-mcp]`;
+  return lane.semantic_prefix || `[lane:${lane.agent_id} surface:${lane.surface} source:${lane.source || 'holoshell-mcp'}]`;
+}
+
+function semanticPrefixForFallbackLane(lane) {
+  return lane.semanticPrefix || `[lane:${lane.laneId || lane.agent_id} surface:${lane.surfaceKind || lane.surface || 'unknown'} source:holoshell-receipts]`;
 }
 
 function numericPids(values) {
@@ -330,8 +344,189 @@ function riskState(snapshot) {
   return 'pass';
 }
 
+function normalizeKey(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function fallbackSurfacePids(lane, surfaces) {
+  const laneKeys = [
+    lane.laneId,
+    lane.agentKind,
+    lane.displayName,
+    lane.surfaceKind,
+  ].map(normalizeKey).filter(Boolean);
+  const pids = new Set();
+  for (const surface of surfaces) {
+    const surfaceKeys = [
+      surface.laneId,
+      surface.peerKind,
+      surface.label,
+      surface.surfaceClass,
+    ].map(normalizeKey).filter(Boolean);
+    if (!laneKeys.some((key) => surfaceKeys.some((surfaceKey) => key.includes(surfaceKey) || surfaceKey.includes(key)))) continue;
+    for (const pid of numericPids(surface.pids)) pids.add(pid);
+  }
+  return [...pids];
+}
+
+function fallbackAgentLanes(lanes, legacyWindows, runCustody) {
+  const surfaces = [
+    ...safeArray(legacyWindows.peerSurfaces),
+    ...safeArray(legacyWindows.shellSurfaces),
+  ];
+  return safeArray(lanes.lanes).map((lane) => {
+    const pidLinks = fallbackSurfacePids(lane, surfaces);
+    const runIds = safeArray(runCustody.runs)
+      .filter((run) => {
+        const laneId = normalizeKey(run.laneId);
+        const agentKind = normalizeKey(run.agentKind);
+        return (laneId && normalizeKey(lane.laneId).includes(laneId))
+          || (agentKind && normalizeKey(lane.agentKind).includes(agentKind));
+      })
+      .map((run) => run.runId)
+      .filter(Boolean);
+    return {
+      agent_id: lane.laneId,
+      lane_label: lane.displayName || lane.laneId,
+      surface: lane.surfaceKind || lane.agentKind || 'unknown',
+      lane_color: lane.color?.name || 'white',
+      pid_links: pidLinks,
+      current_run_ids: runIds,
+      health_state: lane.status || 'observed_from_receipts',
+      semantic_prefix: semanticPrefixForFallbackLane(lane),
+      source: 'holoshell-receipts',
+    };
+  });
+}
+
+function fallbackShellRuns(processHealth, runCustody) {
+  const processRuns = safeArray(processHealth.processes)
+    .filter((processInfo) => processInfo.shellRunCandidate)
+    .map((processInfo) => ({
+      run_id: processInfo.custody?.runId || `pid-${processInfo.pid}`,
+      pid: processInfo.pid,
+      parentPid: processInfo.ppid,
+      process: processInfo.name,
+      health_state: processInfo.findings?.length ? 'needs_review' : 'observed',
+      listeningPorts: [],
+      command_hash: processInfo.commandHash || null,
+    }));
+  const custodyRuns = safeArray(runCustody.runs).map((run) => ({
+    run_id: run.runId || `pid-${run.pid}`,
+    pid: run.pid,
+    parentPid: run.parentPid,
+    process: run.processName,
+    health_state: run.healthState || run.status || 'observed',
+    listeningPorts: safeArray(run.listeningPorts),
+    command_hash: run.commandHash || null,
+  }));
+  const seen = new Set();
+  return [...custodyRuns, ...processRuns].filter((run) => {
+    const key = run.run_id || `pid-${run.pid}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function fallbackLegacyProcesses(legacyWindows) {
+  return safeArray(legacyWindows.appGroups)
+    .filter((group) => !['ai_peer_surface', 'shell_surface', 'ai_model_runtime'].includes(group.archetype))
+    .flatMap((group) => numericPids(group.pids).slice(0, 8).map((pid) => ({
+      pid,
+      name: group.label || group.appName || 'legacy_app',
+      kind: 'legacy_app',
+    })));
+}
+
+function fallbackFindings(processHealth, mcpError) {
+  const findings = safeArray(processHealth.stopPlans).slice(0, 24).map((plan) => ({
+    severity: 'warn',
+    class: safeArray(plan.findings)[0] || 'process_health_stop_plan',
+    pid: plan.pid,
+    process: plan.name,
+    ports: [],
+    receipt: plan.planId || 'process_health_stop_plan',
+  }));
+  findings.unshift({
+    severity: 'warn',
+    class: 'mcp_snapshot_timeout',
+    process: 'holoshell-hardware-reality-bridge',
+    receipt: 'local_receipt_fallback',
+    detail: String(mcpError?.message || mcpError || '').slice(0, 160),
+  });
+  return findings;
+}
+
+function createFallbackMcpReality(args, mcpError) {
+  const tmpDir = path.join('.tmp', 'holoshell');
+  const processHealth = readOptionalJson(path.join(tmpDir, 'process-health.json'), {});
+  const lanes = readOptionalJson(path.join(tmpDir, 'agent-lanes.json'), {});
+  const legacyWindows = readOptionalJson(path.join(tmpDir, 'legacy-window-inventory.json'), {});
+  const runCustody = readOptionalJson(path.join(tmpDir, 'run-custody.json'), {});
+  const shellRuns = fallbackShellRuns(processHealth, runCustody);
+  const listeners = shellRuns
+    .flatMap((run) => safeArray(run.listeningPorts).map((port) => ({
+      pid: run.pid,
+      localAddress: '127.0.0.1',
+      localPort: port,
+      state: 'LISTEN',
+    })));
+  const legacyProcesses = fallbackLegacyProcesses(legacyWindows);
+  const snapshot = {
+    counts: {
+      processes: processHealth.summary?.processCount || 0,
+      listeners: listeners.length,
+      shellRuns: processHealth.summary?.shellRunCount || shellRuns.length,
+    },
+    agentLanes: fallbackAgentLanes(lanes, legacyWindows, runCustody),
+    shellRuns,
+    listeners,
+    processes: legacyProcesses,
+    terminationPreflights: safeArray(processHealth.stopPlans).map((plan) => ({
+      pid: plan.pid,
+      reason: plan.reason,
+      approvalRequired: true,
+      receiptRequired: true,
+    })),
+    healthFindings: fallbackFindings(processHealth, mcpError),
+    receipt: {
+      snapshot_hash: sha256(JSON.stringify({
+        processSummary: processHealth.summary || {},
+        laneSummary: lanes.summary || {},
+        legacyWindowSummary: legacyWindows.summary || {},
+        runCustodySummary: runCustody.summary || {},
+        mcpError: String(mcpError?.message || mcpError || ''),
+      })),
+      fallback_active: true,
+      fallback_reason: String(mcpError?.message || mcpError || 'MCP snapshot unavailable').slice(0, 240),
+      destructive_actions_taken: false,
+      preflight_required_for_termination: true,
+    },
+  };
+  return {
+    initialize: {
+      serverInfo: {
+        name: 'holoshell-local-receipt-fallback',
+        version: '0.1.0',
+      },
+      fallbackActive: true,
+    },
+    tools: [],
+    snapshot,
+    args,
+  };
+}
+
 function buildRecommendations(snapshot, summary) {
   const recommendations = [];
+  if (snapshot.receipt?.fallback_active) {
+    recommendations.push({
+      severity: 'medium',
+      kind: 'mcp_snapshot_fallback_active',
+      text: 'The live MCP snapshot timed out, so HoloShell used local read-only receipts. Retry the MCP bridge before any process, file, or legacy-app mutation.',
+    });
+  }
   if (summary.riskState !== 'pass') {
     recommendations.push({
       severity: summary.riskState === 'critical' ? 'high' : 'medium',
@@ -378,6 +573,7 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
   const toolNames = tools.map((tool) => tool.name).filter(Boolean);
   const summary = {
     riskState: riskState(snapshot),
+    fallbackActive: Boolean(snapshot.receipt?.fallback_active),
     processCount: snapshot.counts?.processes || safeArray(snapshot.processes).length,
     listenerCount: snapshot.counts?.listeners || safeArray(snapshot.listeners).length,
     shellRunCount: snapshot.counts?.shellRuns || safeArray(snapshot.shellRuns).length,
@@ -419,6 +615,8 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
       initialized: Boolean(initialize?.serverInfo),
       serverInfo: initialize?.serverInfo || null,
       tools: toolNames,
+      fallbackActive: Boolean(snapshot.receipt?.fallback_active),
+      fallbackReason: snapshot.receipt?.fallback_reason || null,
     },
     summary,
     safety,
@@ -465,6 +663,7 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
       snapshotHash: snapshot.receipt?.snapshot_hash || null,
       bridgeHash: sha256(JSON.stringify({
         snapshotHash: snapshot.receipt?.snapshot_hash || null,
+        fallbackActive: Boolean(snapshot.receipt?.fallback_active),
         summary,
         safety,
         lanes: lanes.map((lane) => [lane.laneId, lane.pidCount, lane.healthState]),
@@ -518,11 +717,17 @@ function assertSelfTest(model) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const mcpReality = await readMcpReality({
-    scriptPath: args.mcpScript,
-    fixture: args.fixture,
-    timeoutMs: args.timeoutMs,
-  });
+  let mcpReality;
+  try {
+    mcpReality = await readMcpReality({
+      scriptPath: args.mcpScript,
+      fixture: args.fixture,
+      timeoutMs: args.timeoutMs,
+    });
+  } catch (error) {
+    if (args.selfTest || args.fixture) throw error;
+    mcpReality = createFallbackMcpReality(args, error);
+  }
   const model = createHardwareRealityModel({ ...mcpReality, args });
   const output = writeModel(model, args.output);
   const jsOutput = writeBrowserBootstrap(model, args.jsOutput);
@@ -540,6 +745,7 @@ async function main() {
     console.log(`Agent lanes: ${model.summary.activeLaneCount}/${model.summary.laneCount}`);
     console.log(`Legacy apps: ${model.summary.legacyAppCount}`);
     console.log(`Preflights: ${model.summary.terminationPreflightCount}`);
+    console.log(`Fallback active: ${model.summary.fallbackActive}`);
     console.log(`Destructive actions: ${model.safety.destructiveActionsTaken}`);
   }
 }

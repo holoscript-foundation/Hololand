@@ -26,6 +26,7 @@ composition "HoloShell Hardware Reality Bridge" {
     legacyAppCount: 0
     terminationPreflightCount: 0
     riskState: "unknown"
+    fallbackActive: false
     destructiveActionsTaken: false
     lastSnapshotHash: ""
   }
@@ -126,6 +127,7 @@ composition "HoloShell Hardware Reality Bridge" {
       unattributedShellRuns: $unattributedShellRunCount
       listeners: $listenerCount
       riskState: $riskState
+      fallbackActive: $fallbackActive
     }
 
     object "LegacyAppDock" {
@@ -150,6 +152,16 @@ composition "HoloShell Hardware Reality Bridge" {
     appliesTo: ["agent_lane", "shell_run", "listener", "legacy_app", "preflight_gate"]
     requiredSource: "holoshell_run_registry_snapshot"
     acceptLocalGuesswork: false
+    receiptRequired: true
+  }
+
+  policy "ReceiptFallbackWhenMcpTimesOut" {
+    appliesTo: ["agent_lane", "shell_run", "listener", "legacy_app", "preflight_gate"]
+    allowedWhen: "holoshell_run_registry_snapshot_timeout"
+    requiredSources: ["process-health.json", "agent-lanes.json", "legacy-window-inventory.json", "run-custody.json"]
+    fallbackIsReadOnly: true
+    destructiveActionsAllowed: false
+    retryMcpBeforeMutation: true
     receiptRequired: true
   }
 
@@ -180,6 +192,7 @@ composition "HoloShell Hardware Reality Bridge" {
     state.legacyAppCount = model.summary.legacyAppCount
     state.terminationPreflightCount = model.summary.terminationPreflightCount
     state.riskState = model.summary.riskState
+    state.fallbackActive = model.summary.fallbackActive
     state.destructiveActionsTaken = model.safety.destructiveActionsTaken
     state.lastSnapshotHash = model.receipt.snapshotHash
 
@@ -193,6 +206,7 @@ composition "HoloShell Hardware Reality Bridge" {
       listeners: state.listenerCount,
       legacyApps: state.legacyAppCount,
       riskState: state.riskState,
+      fallbackActive: state.fallbackActive,
       destructiveActionsTaken: state.destructiveActionsTaken,
       snapshotHash: state.lastSnapshotHash,
       receiptRequired: true

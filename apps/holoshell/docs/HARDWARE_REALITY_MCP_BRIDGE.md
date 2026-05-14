@@ -25,6 +25,12 @@ current hardware snapshot, then projects it into HoloLand objects:
 This is bridge-only infrastructure. The product semantics live in
 `holoshell-hardware-reality-bridge.hsplus`.
 
+If the MCP snapshot times out, the bridge now falls back to local read-only
+HoloShell receipts: `process-health.json`, `agent-lanes.json`,
+`legacy-window-inventory.json`, and `run-custody.json`. The fallback keeps the
+operating turn alive, marks `fallbackActive: true`, and forbids mutation until
+the MCP preflight path is available again.
+
 ## Why This Matters
 
 The user should not need to read command output, inspect process lists, or know
@@ -61,12 +67,13 @@ showing sensitive terminal contents to the user.
 ## Trust Rules
 
 1. The MCP snapshot is the source of truth for the current machine view.
-2. Color lanes are visual hints; `laneId`, `surfaceKind`, and receipts are the
+2. Receipt fallback is read-only and only valid when the MCP snapshot times out.
+3. Color lanes are visual hints; `laneId`, `surfaceKind`, and receipts are the
    agent-readable truth.
-3. Terminating a PID requires `holoshell_preflight_terminate`.
-4. Deleting files requires `holoshell_preflight_delete`.
-5. Mutating legacy apps requires `holoshell_preflight_legacy_app_mutation`.
-6. The bridge never performs destructive actions.
+4. Terminating a PID requires `holoshell_preflight_terminate`.
+5. Deleting files requires `holoshell_preflight_delete`.
+6. Mutating legacy apps requires `holoshell_preflight_legacy_app_mutation`.
+7. The bridge never performs destructive actions.
 
 ## HoloShell UX Shape
 

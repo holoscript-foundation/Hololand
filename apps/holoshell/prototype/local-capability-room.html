@@ -892,6 +892,8 @@
   <script src="../../../.tmp/holoshell/wild-holoscript-intake.js"></script>
   <script src="../../../.tmp/holoshell/format-inventory.js"></script>
   <script src="../../../.tmp/holoshell/founder-boot-preview.js"></script>
+  <script src="../../../.tmp/holoshell/user-shell-projection.js"></script>
+  <script src="../../../.tmp/holoshell/brittney-context.js"></script>
   <script src="../../../.tmp/holoshell/brittney-turn-latest.js"></script>
   <script src="../../../.tmp/holoshell/action-latest.js"></script>
   <script src="../../../.tmp/holoshell/approval-latest.js"></script>
@@ -1017,6 +1019,8 @@
     const standaloneWildHoloScriptFeed = window.HOLOSHELL_WILD_HOLOSCRIPT_INTAKE || {};
     const standaloneFormatInventoryFeed = window.HOLOSHELL_FORMAT_INVENTORY || {};
     const standaloneFounderBootFeed = window.HOLOSHELL_FOUNDER_BOOT_PREVIEW || {};
+    const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
+    const standaloneBrittneyContextFeed = window.HOLOSHELL_BRITTNEY_CONTEXT || {};
     const standaloneHardwareApprovalFeed = window.HOLOSHELL_HARDWARE_APPROVAL || {};
     const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
@@ -1034,6 +1038,7 @@
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
       { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
+      { id: "user-shell", label: "User Shell", glyph: "US", type: "user shell", detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.", x: 47, y: 24, size: 136 },
       { id: "format-viewer", label: "Formats", glyph: "FV", type: "source corpus", detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.", x: 24, y: 18, size: 112 },
       { id: "asset-shard", label: "Asset Shard", glyph: "AS", type: "workflow", detail: "Brittney can stage a local folder of models, images, audio, and HoloScript into a playable HoloLand shard preview.", x: 25, y: 66, size: 112 },
       { id: "wild-holoscript", label: "Wild HoloScript", glyph: "WH", type: "source corpus", detail: "uaa2-service frontier HoloScript becomes a read-only corpus Brittney can promote into shell modules.", x: 19, y: 28, size: 108 },
@@ -1361,6 +1366,15 @@
       return feed.feeds?.brittneyTurn?.summary ? feed.feeds.brittneyTurn : standaloneTurnFeed;
     }
 
+    function brittneyContextFeed() {
+      return feed.feeds?.brittneyContext?.summary ? feed.feeds.brittneyContext : standaloneBrittneyContextFeed;
+    }
+
+    function brittneyContextSummary() {
+      const context = brittneyContextFeed();
+      return context.summary || {};
+    }
+
     function hardwareLatestAction() {
       return feed.feeds?.hardwareAction?.summary ? feed.feeds.hardwareAction : standaloneHardwareActionFeed;
     }
@@ -1415,6 +1429,15 @@
       return boot.summary || {};
     }
 
+    function userShellFeed() {
+      return feed.feeds?.userShellProjection?.summary ? feed.feeds.userShellProjection : standaloneUserShellFeed;
+    }
+
+    function userShellSummary() {
+      const projection = userShellFeed();
+      return projection.summary || {};
+    }
+
     function readinessEvidenceFeed() {
       return feed.feeds?.readinessEvidence?.summary ? feed.feeds.readinessEvidence : standaloneReadinessEvidence;
     }
@@ -1452,6 +1475,11 @@
         "Asset Shard": "Shard",
         "Shard Workflow Receipt": "Shard Receipt",
         "Wild HoloScript": "Wild HS",
+        "User Shell": "User Shell",
+        "Daily Shell": "Daily",
+        "Creator Shell": "Creator",
+        "Operator Shell": "Operator",
+        "Brittney Translator": "Brittney",
       };
       if (aliases[label]) return aliases[label];
       const words = label.split(/\s+/).filter(Boolean);
@@ -1509,6 +1537,8 @@
         "workflow",
         "assistant_avatar",
         "operating_world",
+        "user_shell",
+        "user_shell_mode",
       ]);
       const appSlots = [
         { x: 58, y: 28, size: 92 },
@@ -2157,6 +2187,55 @@
             : "The lofi user pack is not present yet; rerun the founder boot preview.";
         }));
       }
+      if (object.id === "user-shell" || shellObject.id === "surface.user-shell-projection") {
+        actions.push(actionButton("User modes", () => {
+          const projection = userShellFeed();
+          const summary = projection.summary || {};
+          const modes = (projection.modes || [])
+            .map((mode) => `${mode.label}: ${mode.visibleBubbleIds?.length || 0} bubbles`)
+            .join(" | ");
+          result.hidden = false;
+          result.textContent = `User shell ${summary.status || "unknown"}: ${summary.userModeCount || 0} user modes, ${summary.capabilityPackCount || 0} packs, ${summary.brittneyTranslationCount || 0} Brittney translations. ${modes || "Mode receipt pending."}`;
+          appendConversation("The user shell is a projection of the founder shell: fewer raw powers, more plain-language packs, same receipt backbone.");
+        }, actions.length === 0));
+        actions.push(actionButton("Founder-only", () => {
+          const powers = userShellFeed().founderOnlyPowers || [];
+          result.hidden = false;
+          result.textContent = powers.length
+            ? powers.map((power) => `${power.label}: ${power.userTreatment}`).join(" | ")
+            : "Founder-only boundary is not present yet; rerun the user shell projection.";
+        }));
+      }
+      if (shellObject.objectKind === "user_shell_mode") {
+        actions.push(actionButton("Mode detail", () => {
+          const modeId = shellObject.relationships?.audience ? shellObject.id.replace(/^mode\./, "") : "";
+          const mode = (userShellFeed().modes || []).find((item) => item.id === modeId);
+          result.hidden = false;
+          result.textContent = mode
+            ? `${mode.label}: ${mode.audience}; skin ${mode.defaultSkin || "default"}; safety ${mode.safetyPosture}; hidden founder powers ${(mode.hiddenFounderPowers || []).join(", ") || "none"}.`
+            : `${selectedName}: mode details are not present yet.`;
+        }, actions.length === 0));
+      }
+      if (shellObject.id === "assistant.brittney.user-translator") {
+        actions.push(actionButton("Translate intent", () => {
+          const translations = userShellFeed().brittneyTranslationLayer?.translations || [];
+          const first = translations[0];
+          result.hidden = false;
+          result.textContent = first
+            ? `${first.userPhrase} -> ${first.targetPackId}; permission ${first.permissionEnvelope}; ${first.explanation || "staged before action"}.`
+            : "Brittney user translations are not present yet; rerun the user shell projection.";
+        }, actions.length === 0));
+      }
+      if (String(shellObject.id || "").startsWith("user-shell.pack.")) {
+        actions.push(actionButton("Stage pack", () => {
+          const packId = shellObject.launch?.packId || shellObject.relationships?.targetObjectId || "";
+          const pack = (userShellFeed().capabilityPacks || []).find((item) => item.id === packId) || {};
+          result.hidden = false;
+          result.textContent = pack.id
+            ? `${pack.label}: ${pack.steps.join(" -> ")}; default ${pack.executionDefault}; permission ${pack.permissionEnvelope}.`
+            : `${selectedName}: staged through its receipt-backed capability pack.`;
+        }, actions.length === 0));
+      }
       if (object.id === "format-viewer" || shellObject.id === "source.format-viewer") {
         actions.push(actionButton("Inspect formats", () => {
           const inventory = formatInventoryFeed();
@@ -2180,6 +2259,18 @@
           result.textContent = proposal
             ? `Brittney proposal: ${proposal.label}; target ${proposal.target}; permission ${proposal.permissionEnvelope}.`
             : "Brittney operator proposals are not present yet; rerun founder boot preview.";
+        }, actions.length === 0));
+      }
+      if (shellObject.id === "assistant.brittney" || shellObject.id === "assistant.brittney.operator-bridge" || object.id === "brittney") {
+        actions.push(actionButton("Context packet", () => {
+          const context = brittneyContextFeed();
+          const summary = context.summary || {};
+          const operator = context.operatorBriefSummary || {};
+          result.hidden = false;
+          result.textContent = context.schemaVersion
+            ? `Brittney sees ${summary.visibleShellObjectCount || 0} shell objects, ${summary.peerWindowCount || operator.peerWindowCount || 0} AI peer window(s), ${summary.shellWindowCount || operator.shellWindowCount || 0} shell window(s), process risk ${summary.processRisk || "unknown"}, and ${summary.pendingApprovalCount || 0} pending approval(s).`
+            : "Brittney context is not present yet; run the context packet adapter.";
+          appendConversation("Brittney context is now receipt-backed: peer windows come from legacy window inventory, shell windows are separate, and raw commands/titles stay redacted.");
         }, actions.length === 0));
       }
       if (shellObject.objectKind === "captured_window" && shellObject.sourceRef) {
@@ -2349,12 +2440,14 @@
       const avatarSummary = brittneyAvatarSummary();
       const turn = brittneyLatestTurn();
       const turnSummary = turn.summary || {};
+      const contextSummary = brittneyContextSummary();
       const hardwareSummary = hardwareActionSummary();
       const registrySummary = programRegistrySummary();
       const shellGraphSummary = shellObjectGraphSummary();
       const wildSummary = wildHoloScriptSummary();
       const formatSummary = formatInventorySummary();
       const bootSummary = founderBootSummary();
+      const userSummary = userShellSummary();
       const readinessSummary = readinessEvidenceSummary();
       const approvalSummary = hardwareApprovalSummary();
       const activeWorkflow = workflowSummary();
@@ -2377,6 +2470,7 @@
         `Wild HoloScript: ${wildSummary.status || summary.wildHoloScriptStatus || "unknown"}; files ${wildSummary.fileCount || summary.wildHoloScriptFileCount || 0}; .holo ${wildSummary.holoCount || summary.wildHoloScriptHoloCount || 0} / ${wildSummary.holoFeatureCount || summary.wildHoloScriptHoloFeatureCount || 0} features; .hs ${wildSummary.hsCount || summary.wildHoloScriptHsCount || 0} / ${wildSummary.hsFeatureCount || summary.wildHoloScriptHsFeatureCount || 0}; .hsplus ${wildSummary.hsplusCount || summary.wildHoloScriptHsplusCount || 0} / ${wildSummary.hsplusFeatureCount || summary.wildHoloScriptHsplusFeatureCount || 0}`,
         `Format inventory: ${formatSummary.status || summary.formatInventoryStatus || "unknown"}; files ${formatSummary.totalFileCount || summary.formatInventoryTotalFileCount || 0}; features ${formatSummary.totalFeatureFamilies || summary.formatInventoryFeatureFamilyCount || 0}`,
         `Founder boot: ${bootSummary.status || summary.founderBootStatus || "unknown"}; world ${bootSummary.worldObjectCount || summary.founderBootWorldObjectCount || 0}; render ${bootSummary.renderObjectCount || summary.founderBootRenderObjectCount || 0}; user packs ${bootSummary.userCapabilityPackCount || summary.founderBootUserPackCount || 0}; Brittney proposals ${bootSummary.brittneyProposalCount || summary.founderBootBrittneyProposalCount || 0}`,
+        `User shell: ${userSummary.status || summary.userShellProjectionStatus || "unknown"}; modes ${userSummary.modeCount || summary.userShellModeCount || 0}; packs ${userSummary.capabilityPackCount || summary.userShellCapabilityPackCount || 0}; translations ${userSummary.brittneyTranslationCount || summary.userShellBrittneyTranslationCount || 0}; founder-only ${userSummary.founderOnlyPowerCount || summary.userShellFounderOnlyPowerCount || 0}`,
         `Wild promotion: frontier ${wildSummary.frontierSyntaxCount || summary.wildHoloScriptFrontierSyntaxCount || 0}; adapters ${wildSummary.adapterNeededCount || summary.wildHoloScriptAdapterNeededCount || 0}; candidates ${wildSummary.canonicalCandidateCount || summary.wildHoloScriptCanonicalCandidateCount || 0}; next ${wildSummary.nextMove || summary.wildHoloScriptNextMove || "none"}`,
         `Readiness evidence: ${readinessSummary.status || summary.readinessEvidenceStatus || "unknown"}; build ${readinessSummary.buildStatus || summary.readinessBuildStatus || "unknown"}; device ${readinessSummary.deviceLabStatus || summary.readinessDeviceLabStatus || "unknown"}; graph ${readinessSummary.graphStatus || summary.readinessGraphStatus || "unknown"}`,
         `Readiness tokens: ${readinessSummary.tokenCount || summary.readinessTokenCount || 0}; warnings ${readinessSummary.warningCount || summary.readinessWarningCount || 0}; next ${readinessSummary.nextWorkflow || summary.readinessNextWorkflow || "none"}`,
@@ -2396,6 +2490,7 @@
         `Shard import receipt: ${activeShardImport.status || summary.activeShardImportStatus || "unknown"}; manifest ${activeShardImportFeed.output?.manifestPath || summary.activeShardImportManifestPath || "none"}; source assets mutated ${activeShardImport.sourceAssetsMutated || summary.activeShardImportSourceAssetsMutated ? "yes" : "no"}; bundle ${activeShardImportApprovalFeed.output?.bundlePath || "none"}`,
         `Brittney avatar: ${avatarSummary.avatarStatus || summary.brittneyAvatarStatus || "unknown"}; runtime ${avatarSummary.runtimeStatus || summary.brittneyRuntimeStatus || "unknown"}`,
         `Brittney turn: ${turnSummary.status || summary.brittneyLastTurnStatus || "unknown"}; ${turnSummary.eventCount || summary.brittneyRuntimeEventCount || 0} events; ${turnSummary.actionProposalCount || summary.brittneyActionProposalCount || 0} proposal(s)`,
+        `Brittney context: ${contextSummary.status || summary.brittneyContextStatus || "unknown"}; selected ${contextSummary.selectedShellObjectId || summary.brittneyContextSelectedShellObjectId || "none"}; peers ${contextSummary.peerWindowCount || summary.brittneyContextPeerWindowCount || 0}; shell windows ${contextSummary.shellWindowCount || summary.brittneyContextShellWindowCount || 0}; process ${contextSummary.processRisk || summary.brittneyContextProcessRisk || "unknown"}`,
         `Shell skin: ${document.body.dataset.skin}`,
         `${summary.capabilityCount || 0} capabilities: ${feed.feeds?.inventory?.summary?.verified || 0} verified, ${feed.feeds?.inventory?.summary?.partial || 0} partial, ${feed.feeds?.inventory?.summary?.unknown || 0} unknown`,
         `${summary.activeLaneCount || 0}/${summary.laneCount || 0} agent lanes can enter`,

@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory, founderBootPreview, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -167,6 +167,19 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory
       generatedAt: founderBootPreview.generatedAt || now,
       receiptType: founderBootPreview.schemaVersion,
       source: founderBootPreview.source?.script || 'scripts/holoshell-founder-boot-preview.mjs',
+    });
+  }
+
+  if (userShellProjection?.summary) {
+    timeline.push({
+      id: userShellProjection.projectionId || 'holoshell-user-shell-projection',
+      kind: 'user_shell_projection',
+      title: `User shell projection ${userShellProjection.summary.status || 'unknown'}`,
+      detail: `${userShellProjection.summary.userModeCount || 0} user mode(s), ${userShellProjection.summary.capabilityPackCount || 0} pack(s), ${userShellProjection.summary.brittneyTranslationCount || 0} Brittney translation(s), ${userShellProjection.summary.founderOnlyPowerCount || 0} founder-only power(s).`,
+      trustState: userShellProjection.summary.status === 'ready' ? 'verified' : 'partial',
+      generatedAt: userShellProjection.generatedAt || now,
+      receiptType: userShellProjection.schemaVersion,
+      source: userShellProjection.source?.script || 'scripts/holoshell-user-shell-projection.mjs',
     });
   }
 
@@ -283,6 +296,45 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory
       generatedAt: brittneyTurn.generatedAt || now,
       receiptType: 'hololand.holoshell.brittney-turn.v0.1.0',
       source: 'scripts/holoshell-brittney-turn.mjs',
+    });
+  }
+
+  if (brittneyContext?.summary) {
+    timeline.push({
+      id: `brittney-context-${brittneyContext.summary.contextHash || 'latest'}`,
+      kind: 'brittney_context',
+      title: `Brittney context ${brittneyContext.summary.status || 'unknown'}`,
+      detail: `${brittneyContext.summary.visibleShellObjectCount || 0} visible shell object(s), ${brittneyContext.summary.peerWindowCount || 0} peer window(s), ${brittneyContext.summary.shellWindowCount || 0} shell window(s), process risk ${brittneyContext.summary.processRisk || 'unknown'}.`,
+      trustState: brittneyContext.summary.status === 'ready' ? 'verified' : 'partial',
+      generatedAt: brittneyContext.generatedAt || now,
+      receiptType: brittneyContext.schemaVersion,
+      source: 'scripts/holoshell-brittney-context.mjs',
+    });
+  }
+
+  if (operatorBrief?.status) {
+    timeline.push({
+      id: operatorBrief.receipt?.briefHash ? `operator-brief-${operatorBrief.receipt.briefHash}` : 'operator-brief',
+      kind: 'operator_brief',
+      title: `Operator brief ${operatorBrief.status}`,
+      detail: `${operatorBrief.peers?.windowInstanceCount || 0} AI peer window(s), ${operatorBrief.peers?.shellWindowInstanceCount || 0} shell window(s), ${operatorBrief.legacy?.captureCandidateCount || 0} legacy capture candidate(s).`,
+      trustState: operatorBrief.status === 'legacy_absorption_ready' ? 'verified' : 'partial',
+      generatedAt: operatorBrief.generatedAt || now,
+      receiptType: operatorBrief.schemaVersion,
+      source: 'scripts/holoshell-operator-brief.mjs',
+    });
+  }
+
+  if (operatingTurn?.summary) {
+    timeline.push({
+      id: operatingTurn.receipt?.operatingTurnHash ? `operating-turn-${operatingTurn.receipt.operatingTurnHash}` : 'operating-turn',
+      kind: 'operating_turn',
+      title: `Operating turn ${operatingTurn.summary.status || 'unknown'}`,
+      detail: `${operatingTurn.summary.passedStepCount || 0}/${operatingTurn.summary.stepCount || 0} step(s) passed; Brittney context ${operatingTurn.summary.brittneyContextStatus || 'unknown'}.`,
+      trustState: operatingTurn.summary.status === 'pass' ? 'verified' : 'partial',
+      generatedAt: operatingTurn.generatedAt || now,
+      receiptType: operatingTurn.schemaVersion,
+      source: 'scripts/holoshell-operating-turn.mjs',
     });
   }
 
@@ -429,6 +481,7 @@ function createFeed(args) {
   const wildHoloScript = readJson(path.join(tmpDir, 'wild-holoscript-intake.json'), {});
   const formatInventory = readJson(path.join(tmpDir, 'format-inventory.json'), {});
   const founderBootPreview = readJson(path.join(tmpDir, 'founder-boot-preview.json'), {});
+  const userShellProjection = readJson(path.join(tmpDir, 'user-shell-projection.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
@@ -437,6 +490,9 @@ function createFeed(args) {
   const shellObjects = readJson(path.join(tmpDir, 'shell-objects.json'), {});
   const brittneyAvatar = readJson(path.join(tmpDir, 'brittney-avatar.json'), {});
   const brittneyTurn = readJson(path.join(tmpDir, 'brittney-turn-latest.json'), {});
+  const brittneyContext = readJson(path.join(tmpDir, 'brittney-context.json'), {});
+  const operatorBrief = readJson(path.join(tmpDir, 'operator-brief.json'), {});
+  const operatingTurn = readJson(path.join(tmpDir, 'operating-turn.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
   const hardwareApproval = readJson(path.join(tmpDir, 'approval-latest.json'), {});
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
@@ -462,6 +518,7 @@ function createFeed(args) {
     wildHoloScript,
     formatInventory,
     founderBootPreview,
+    userShellProjection,
     lanes,
     processHealth,
     osUiCapture,
@@ -470,6 +527,9 @@ function createFeed(args) {
     shellObjects,
     brittneyAvatar,
     brittneyTurn,
+    brittneyContext,
+    operatorBrief,
+    operatingTurn,
     hardwareAction,
     hardwareApproval,
     workflow,
@@ -497,9 +557,13 @@ function createFeed(args) {
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
+      brittneyContext: 'scripts/holoshell-brittney-context.mjs',
+      operatorBrief: 'scripts/holoshell-operator-brief.mjs',
+      operatingTurn: 'scripts/holoshell-operating-turn.mjs',
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
+      userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -543,6 +607,15 @@ function createFeed(args) {
       founderBootFormatCardCount: founderBootPreview?.summary?.formatViewerCardCount || 0,
       founderBootUserPackCount: founderBootPreview?.summary?.userCapabilityPackCount || 0,
       founderBootBrittneyProposalCount: founderBootPreview?.summary?.brittneyProposalCount || 0,
+      userShellProjectionStatus: userShellProjection?.summary?.status || 'unknown',
+      userShellModeCount: userShellProjection?.summary?.modeCount || 0,
+      userShellUserModeCount: userShellProjection?.summary?.userModeCount || 0,
+      userShellCapabilityPackCount: userShellProjection?.summary?.capabilityPackCount || 0,
+      userShellGuardedCapabilityPackCount: userShellProjection?.summary?.guardedCapabilityPackCount || 0,
+      userShellFormatLessonCount: userShellProjection?.summary?.formatLessonCount || 0,
+      userShellFounderOnlyPowerCount: userShellProjection?.summary?.founderOnlyPowerCount || 0,
+      userShellBrittneyTranslationCount: userShellProjection?.summary?.brittneyTranslationCount || 0,
+      userShellVisibleBubbleCount: userShellProjection?.summary?.visibleBubbleCount || 0,
       activeLaneCount: lanes?.summary?.activeLaneCount || 0,
       laneCount: lanes?.summary?.laneCount || lanes?.lanes?.length || 0,
       processRisk,
@@ -599,6 +672,25 @@ function createFeed(args) {
       brittneyActionProposalCount: brittneyTurn?.summary?.actionProposalCount || 0,
       brittneyFirstProposalObject: brittneyTurn?.summary?.firstProposalObject || '',
       brittneyFinalAvatarStage: brittneyTurn?.summary?.finalAvatarStage || '',
+      brittneyContextStatus: brittneyContext?.summary?.status || 'unknown',
+      brittneyContextVisibleShellObjectCount: brittneyContext?.summary?.visibleShellObjectCount || 0,
+      brittneyContextSelectedShellObjectId: brittneyContext?.summary?.selectedShellObjectId || '',
+      brittneyContextPeerWindowCount: brittneyContext?.summary?.peerWindowCount || 0,
+      brittneyContextShellWindowCount: brittneyContext?.summary?.shellWindowCount || 0,
+      brittneyContextOperatingSurfaceWindowCount: brittneyContext?.summary?.operatingSurfaceWindowCount || 0,
+      brittneyContextPendingApprovalCount: brittneyContext?.summary?.pendingApprovalCount || 0,
+      brittneyContextProcessRisk: brittneyContext?.summary?.processRisk || 'unknown',
+      brittneyContextRawCommandsIncluded: Boolean(brittneyContext?.summary?.rawCommandsIncluded),
+      brittneyContextRawWindowTitlesIncluded: Boolean(brittneyContext?.summary?.rawWindowTitlesIncluded),
+      operatorBriefStatus: operatorBrief?.status || 'unknown',
+      operatorBriefPeerWindowCount: operatorBrief?.peers?.windowInstanceCount || 0,
+      operatorBriefShellWindowCount: operatorBrief?.peers?.shellWindowInstanceCount || 0,
+      operatorBriefOperatingSurfaceWindowCount: operatorBrief?.peers?.operatingSurfaceWindowCount || 0,
+      operatorBriefLegacyCaptureCandidateCount: operatorBrief?.legacy?.captureCandidateCount || 0,
+      operatorBriefFirstMove: operatorBrief?.brittneyPromptCard?.firstMove || '',
+      operatingTurnStatus: operatingTurn?.summary?.status || 'unknown',
+      operatingTurnStepCount: operatingTurn?.summary?.stepCount || 0,
+      operatingTurnPassedStepCount: operatingTurn?.summary?.passedStepCount || 0,
       hardwareControlStatus: hardwareAction?.schemaVersion === 'hololand.holoshell.hardware-action.v0.1.0' ? 'available' : 'unknown',
       hardwareActionStatus: hardwareAction?.summary?.status || 'unknown',
       hardwareActionKind: hardwareAction?.summary?.actionKind || '',
@@ -678,6 +770,7 @@ function createFeed(args) {
       wildHoloScript,
       formatInventory,
       founderBootPreview,
+      userShellProjection,
       lanes,
       processHealth,
       osUiCapture,
@@ -686,6 +779,9 @@ function createFeed(args) {
       shellObjects,
       brittneyAvatar,
       brittneyTurn,
+      brittneyContext,
+      operatorBrief,
+      operatingTurn,
       hardwareAction,
       hardwareApproval,
       workflow,
@@ -730,6 +826,7 @@ function assertSelfTest(feed) {
   if (!feed.summary.processCount) failures.push('expected process health feed');
   if (feed.summary.brittneyAvatarStatus === 'unknown') failures.push('expected Brittney avatar feed');
   if (feed.summary.brittneyLastTurnStatus === 'unknown') failures.push('expected Brittney turn feed');
+  if (feed.summary.brittneyContextStatus === 'unknown') failures.push('expected Brittney context feed');
   if (feed.summary.hardwareActionStatus === 'unknown') failures.push('expected hardware action feed');
   if (feed.summary.programRegistryStatus === 'unknown') failures.push('expected program registry feed');
   if (feed.summary.hardwareApprovalStatus === 'unknown') failures.push('expected hardware approval feed');
@@ -758,6 +855,8 @@ try {
     console.log(`Launchable programs: ${feed.summary.launchableProgramCount}`);
     console.log(`Shell objects: ${feed.summary.shellObjectCount}`);
     console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
+    console.log(`User shell: ${feed.summary.userShellProjectionStatus}`);
+    console.log(`Brittney context: ${feed.summary.brittneyContextStatus}`);
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);

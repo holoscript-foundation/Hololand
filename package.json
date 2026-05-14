@@ -40,6 +40,7 @@
     "holoshell:readiness-evidence": "node scripts/holoshell-readiness-evidence.mjs",
     "holoshell:operator-brief": "node scripts/holoshell-operator-brief.mjs",
     "holoshell:brittney-context": "node scripts/holoshell-brittney-context.mjs",
+    "holoshell:brittney-turn": "node scripts/holoshell-brittney-turn.mjs",
     "holoshell:brittney-custody": "node scripts/holoshell-brittney-custody-operator.mjs",
     "holoshell:visual-witness": "node scripts/holoshell-visual-witness.mjs",
     "holoshell:operating-turn": "node scripts/holoshell-operating-turn.mjs",
