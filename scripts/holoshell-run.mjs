@@ -7,10 +7,13 @@ import { spawn, spawnSync } from 'node:child_process';
 
 const SCHEMA_VERSION = 'hololand.holoshell.run-receipt.v0.1.0';
 const REGISTRY_SCHEMA_VERSION = 'hololand.holoshell.run-registry.v0.1.0';
+const RECONCILE_SCHEMA_VERSION = 'hololand.holoshell.run-registry-reconcile.v0.1.0';
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_REGISTRY = path.join('.tmp', 'holoshell', 'run-registry.json');
 const DEFAULT_RECEIPTS_DIR = path.join('.tmp', 'holoshell', 'run-receipts');
 const DEFAULT_HEALTH_OUTPUT = path.join('.tmp', 'holoshell', 'process-health.json');
+const DEFAULT_RECONCILE_OUTPUT = path.join('.tmp', 'holoshell', 'run-registry-reconcile.json');
+const DEFAULT_RECONCILE_JS_OUTPUT = path.join('.tmp', 'holoshell', 'run-registry-reconcile.js');
 const HEAVY_RUN_CLASSES = new Set([
   'build',
   'test',
@@ -38,6 +41,9 @@ function parseArgs(argv) {
     json: false,
     dryRun: false,
     selfTest: false,
+    reconcileRegistry: false,
+    reconcileOutput: DEFAULT_RECONCILE_OUTPUT,
+    reconcileJsOutput: DEFAULT_RECONCILE_JS_OUTPUT,
     noHealthGate: false,
     allowWarn: false,
     allowCritical: false,
@@ -63,6 +69,9 @@ function parseArgs(argv) {
     else if (arg === '--json') args.json = true;
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--self-test') args.selfTest = true;
+    else if (arg === '--reconcile-registry') args.reconcileRegistry = true;
+    else if (arg === '--reconcile-output') args.reconcileOutput = argv[++index];
+    else if (arg === '--reconcile-js-output') args.reconcileJsOutput = argv[++index];
     else if (arg === '--no-health-gate') args.noHealthGate = true;
     else if (arg === '--allow-warn') args.allowWarn = true;
     else if (arg === '--allow-critical') args.allowCritical = true;
@@ -74,7 +83,7 @@ function parseArgs(argv) {
     }
   }
 
-  if (!args.selfTest && args.command.length === 0) {
+  if (!args.selfTest && !args.reconcileRegistry && args.command.length === 0) {
     throw new Error('Missing command. Pass command after --.');
   }
   if (!args.laneId || !args.agentKind || !args.surfaceKind) {
@@ -94,6 +103,7 @@ function printHelp() {
 
 Usage:
   node scripts/holoshell-run.mjs [options] -- <command> [args...]
+  node scripts/holoshell-run.mjs --reconcile-registry [options]
 
 Options:
   --lane-id <id>             Agent lane id. Default: codex-hardware.
@@ -108,6 +118,9 @@ Options:
   --allow-critical           Allow heavy run when health risk is critical, with --reason.
   --no-health-gate           Skip pre-run process health gate.
   --dry-run                  Write planned receipt without executing.
+  --reconcile-registry       Mark overdue active registry runs stale when no visible PID exists. Non-destructive.
+  --reconcile-output <path>  Reconcile receipt path. Default: .tmp/holoshell/run-registry-reconcile.json.
+  --reconcile-js-output <p>  Browser bootstrap path. Default: .tmp/holoshell/run-registry-reconcile.js.
   --json                     Print final run receipt JSON.
   --self-test                Run an internal harmless command and assert receipts.
   -h, --help                 Show this help.
@@ -179,6 +192,14 @@ function writeJson(filePath, data) {
   return resolved;
 }
 
+function writeBrowserBootstrap(filePath, globalName, data) {
+  const resolved = resolveRepoPath(filePath);
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  const payload = JSON.stringify(data, null, 2).replace(/<\/script/gi, '<\\/script');
+  writeFileSync(resolved, `window.${globalName} = ${payload};\n`, 'utf8');
+  return resolved;
+}
+
 function loadRegistry(registryPath) {
   const registry = readJson(registryPath, {
     schemaVersion: REGISTRY_SCHEMA_VERSION,
@@ -207,6 +228,56 @@ function completeRun(registryPath, runId, patch) {
   if (index !== -1) registry.runs[index] = { ...registry.runs[index], ...patch };
   registry.updatedAt = nowIso();
   writeJson(registryPath, registry);
+}
+
+function isActiveRegistryRun(run) {
+  return ['planned', 'running'].includes(String(run.status || ''));
+}
+
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function visiblePidState(run, pidSet) {
+  const pid = Number(run.pid);
+  const hasPid = Number.isInteger(pid) && pid > 0;
+  return {
+    pid: hasPid ? pid : null,
+    hasPid,
+    visible: hasPid && pidSet.has(pid),
+  };
+}
+
+function staleRegistryReason(run, pidSet, nowMs) {
+  if (!isActiveRegistryRun(run)) return null;
+  const expectedEnd = parseDate(run.expectedEndAt);
+  if (!expectedEnd || expectedEnd.getTime() >= nowMs) return null;
+  const pidState = visiblePidState(run, pidSet);
+  if (pidState.visible) return null;
+  return pidState.hasPid
+    ? 'expected_end_passed_without_visible_pid'
+    : 'expected_end_passed_without_pid';
+}
+
+function registryRunSummary(run, staleReason = null) {
+  return {
+    runId: run.runId,
+    laneId: run.laneId || null,
+    agentKind: run.agentKind || null,
+    surfaceKind: run.surfaceKind || null,
+    runClass: run.runClass || null,
+    statusBefore: run.status || null,
+    statusAfter: staleReason ? 'stale' : run.status || null,
+    pid: Number.isInteger(Number(run.pid)) && Number(run.pid) > 0 ? Number(run.pid) : null,
+    expectedEndAt: run.expectedEndAt || null,
+    startedAt: run.startedAt || null,
+    endedAt: run.endedAt || null,
+    commandHash: run.commandHash || null,
+    commandPreview: run.commandPreview || null,
+    staleReason,
+  };
 }
 
 function collectHealth(args) {
@@ -257,6 +328,152 @@ function extractJson(text) {
     } catch {}
   }
   return null;
+}
+
+function collectVisiblePids() {
+  if (process.platform === 'win32') {
+    const result = spawnSync('powershell.exe', [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      'Get-CimInstance Win32_Process | Select-Object -ExpandProperty ProcessId | ConvertTo-Json',
+    ], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: 30000,
+      windowsHide: true,
+    });
+    const parsed = extractJson(result.stdout);
+    const items = Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
+    const pidSet = new Set(items.map(Number).filter((pid) => Number.isInteger(pid) && pid > 0));
+    return {
+      ok: result.status === 0 || pidSet.size > 0,
+      status: result.status,
+      stderr: (result.stderr || '').slice(-1200),
+      pidSet,
+    };
+  }
+
+  const result = spawnSync('ps', ['-axo', 'pid='], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    timeout: 20000,
+    windowsHide: true,
+  });
+  const pidSet = new Set(
+    String(result.stdout || '')
+      .split(/\r?\n/)
+      .map((line) => Number(line.trim()))
+      .filter((pid) => Number.isInteger(pid) && pid > 0),
+  );
+  return {
+    ok: result.status === 0 || pidSet.size > 0,
+    status: result.status,
+    stderr: (result.stderr || '').slice(-1200),
+    pidSet,
+  };
+}
+
+function reconcileRunRegistry(args, options = {}) {
+  const registry = loadRegistry(args.registry);
+  const now = options.now || nowIso();
+  const nowMs = Date.parse(now);
+  const processCollection = options.pidSet
+    ? { ok: true, status: 0, stderr: '', pidSet: options.pidSet }
+    : collectVisiblePids();
+  const pidSet = processCollection.pidSet || new Set();
+  const outputPath = resolveRepoPath(args.reconcileOutput);
+  const jsOutputPath = resolveRepoPath(args.reconcileJsOutput);
+  const activeBefore = registry.runs.filter(isActiveRegistryRun);
+  const staleBefore = registry.runs.filter((run) => String(run.status || '') === 'stale');
+  const reconciledRuns = [];
+  const visibleActiveRuns = [];
+  const leftActiveRuns = [];
+
+  registry.runs = registry.runs.map((run) => {
+    const active = isActiveRegistryRun(run);
+    const reason = staleRegistryReason(run, pidSet, nowMs);
+    if (!active) return run;
+
+    const pidState = visiblePidState(run, pidSet);
+    if (pidState.visible) visibleActiveRuns.push(registryRunSummary(run));
+    if (!reason) {
+      leftActiveRuns.push(registryRunSummary(run));
+      return run;
+    }
+
+    const updatedRun = {
+      ...run,
+      status: 'stale',
+      endedAt: run.endedAt || now,
+      exitCode: run.exitCode ?? null,
+      signal: run.signal ?? null,
+      staleReason: reason,
+      statusBeforeReconcile: run.status || null,
+      registryReconciledAt: now,
+      reconciliationReceiptPath: outputPath,
+    };
+    reconciledRuns.push(registryRunSummary(run, reason));
+    return updatedRun;
+  });
+
+  registry.updatedAt = now;
+  registry.lastReconciledAt = now;
+  registry.reconciliationReceiptPath = outputPath;
+  writeJson(args.registry, registry);
+
+  const receipt = {
+    schemaVersion: RECONCILE_SCHEMA_VERSION,
+    generatedAt: now,
+    sourceAnchors: {
+      source: 'apps/holoshell/source/holoshell-process-health-room.hsplus',
+      doc: 'apps/holoshell/docs/PROCESS_SHELL_RUN_HEALTH.md',
+      adapter: 'scripts/holoshell-run.mjs',
+    },
+    registry: {
+      path: resolveRepoPath(args.registry),
+      schemaVersion: registry.schemaVersion || REGISTRY_SCHEMA_VERSION,
+      registeredRunCount: registry.runs.length,
+      activeRunCountBefore: activeBefore.length,
+      activeRunCountAfter: registry.runs.filter(isActiveRegistryRun).length,
+      staleRunCountBefore: staleBefore.length,
+      staleRunCountAfter: registry.runs.filter((run) => String(run.status || '') === 'stale').length,
+    },
+    processTable: {
+      ok: processCollection.ok,
+      status: processCollection.status,
+      stderr: processCollection.stderr,
+      visiblePidCount: pidSet.size,
+    },
+    summary: {
+      reconciledRunCount: reconciledRuns.length,
+      visibleActiveRunCount: visibleActiveRuns.length,
+      activeRunCountRemaining: registry.runs.filter(isActiveRegistryRun).length,
+      destructiveActionsTaken: false,
+      terminationPerformed: false,
+      rawCommandsIncluded: false,
+    },
+    safety: {
+      nonDestructive: true,
+      registryOnly: true,
+      processTerminationAllowed: false,
+      processTerminationPerformed: false,
+      fileDeletionPerformed: false,
+      rawCommandLinesIncluded: false,
+      receiptRequired: true,
+    },
+    reconciledRuns,
+    visibleActiveRuns,
+    remainingActiveRuns: leftActiveRuns,
+    output: {
+      receiptPath: outputPath,
+      browserBootstrap: jsOutputPath,
+    },
+  };
+  writeJson(args.reconcileOutput, receipt);
+  writeBrowserBootstrap(args.reconcileJsOutput, 'HOLOSHELL_RUN_REGISTRY_RECONCILE', receipt);
+  return receipt;
 }
 
 function evaluateGate(args, health) {
@@ -509,6 +726,84 @@ async function runSelfTest() {
   if (!reg.runs.some((item) => item.runId === receipt.runId && item.status === 'completed')) {
     failures.push('registry completion missing');
   }
+  const fixtureNow = '2026-05-14T12:00:00.000Z';
+  const reconcileRegistryPath = path.join('.tmp', 'holoshell', 'self-test', 'run-registry-reconcile-registry.json');
+  const reconcileOutput = path.join('.tmp', 'holoshell', 'self-test', 'run-registry-reconcile.json');
+  const reconcileJsOutput = path.join('.tmp', 'holoshell', 'self-test', 'run-registry-reconcile.js');
+  writeJson(reconcileRegistryPath, {
+    schemaVersion: REGISTRY_SCHEMA_VERSION,
+    generatedAt: fixtureNow,
+    updatedAt: fixtureNow,
+    runs: [
+      {
+        runId: 'fixture-stale-null-pid',
+        laneId: 'codex-hardware',
+        agentKind: 'codex',
+        surfaceKind: 'hardware_shell',
+        runClass: 'build',
+        status: 'running',
+        pid: null,
+        expectedEndAt: '2026-05-14T11:00:00.000Z',
+        startedAt: '2026-05-14T10:55:00.000Z',
+        endedAt: null,
+        commandHash: 'fixture-a',
+        commandPreview: 'pnpm build',
+      },
+      {
+        runId: 'fixture-visible-overdue',
+        laneId: 'codex-hardware',
+        agentKind: 'codex',
+        surfaceKind: 'hardware_shell',
+        runClass: 'dev_server',
+        status: 'running',
+        pid: 4242,
+        expectedEndAt: '2026-05-14T11:00:00.000Z',
+        startedAt: '2026-05-14T10:55:00.000Z',
+        endedAt: null,
+        commandHash: 'fixture-b',
+        commandPreview: 'node server.js',
+      },
+      {
+        runId: 'fixture-future',
+        laneId: 'codex-hardware',
+        agentKind: 'codex',
+        surfaceKind: 'hardware_shell',
+        runClass: 'test',
+        status: 'planned',
+        pid: null,
+        expectedEndAt: '2026-05-14T13:00:00.000Z',
+        startedAt: null,
+        endedAt: null,
+        commandHash: 'fixture-c',
+        commandPreview: 'pnpm test',
+      },
+    ],
+  });
+  const reconcileReceipt = reconcileRunRegistry({
+    registry: reconcileRegistryPath,
+    reconcileOutput,
+    reconcileJsOutput,
+  }, {
+    now: fixtureNow,
+    pidSet: new Set([4242]),
+  });
+  const reconciledRegistry = loadRegistry(reconcileRegistryPath);
+  const staleFixture = reconciledRegistry.runs.find((run) => run.runId === 'fixture-stale-null-pid');
+  const visibleFixture = reconciledRegistry.runs.find((run) => run.runId === 'fixture-visible-overdue');
+  const futureFixture = reconciledRegistry.runs.find((run) => run.runId === 'fixture-future');
+  if (reconcileReceipt.summary.reconciledRunCount !== 1) {
+    failures.push(`reconciledRunCount=${reconcileReceipt.summary.reconciledRunCount}`);
+  }
+  if (staleFixture?.status !== 'stale') failures.push('stale fixture was not marked stale');
+  if (staleFixture?.staleReason !== 'expected_end_passed_without_pid') failures.push('stale fixture reason mismatch');
+  if (visibleFixture?.status !== 'running') failures.push('visible overdue fixture should stay running');
+  if (futureFixture?.status !== 'planned') failures.push('future fixture should stay planned');
+  if (!existsSync(resolveRepoPath(reconcileOutput)) || !existsSync(resolveRepoPath(reconcileJsOutput))) {
+    failures.push('reconcile outputs missing');
+  }
+  if (reconcileReceipt.safety.processTerminationPerformed !== false) {
+    failures.push('reconcile must not terminate processes');
+  }
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   return receipt;
 }
@@ -550,6 +845,22 @@ async function runWithCustody(args) {
 try {
   const rawArgs = process.argv.slice(2);
   const args = rawArgs.includes('--self-test') ? { selfTest: true } : parseArgs(rawArgs);
+  if (args.reconcileRegistry) {
+    const receipt = reconcileRunRegistry(args);
+    if (args.json) {
+      console.log(JSON.stringify(receipt, null, 2));
+    } else {
+      console.log(`HoloShell run registry reconcile: ${receipt.output.receiptPath}`);
+      console.log(`HoloShell run registry reconcile browser bootstrap: ${receipt.output.browserBootstrap}`);
+      console.log(`Registered runs: ${receipt.registry.registeredRunCount}`);
+      console.log(`Active before: ${receipt.registry.activeRunCountBefore}`);
+      console.log(`Active after: ${receipt.registry.activeRunCountAfter}`);
+      console.log(`Reconciled stale: ${receipt.summary.reconciledRunCount}`);
+      console.log(`Destructive actions: ${receipt.summary.destructiveActionsTaken}`);
+    }
+    process.exit(0);
+  }
+
   const receipt = args.selfTest ? await runSelfTest() : await runWithCustody(args);
   if (receipt.status === 'blocked') {
     console.error(`holoshell-run blocked: ${receipt.healthGate.reason}`);

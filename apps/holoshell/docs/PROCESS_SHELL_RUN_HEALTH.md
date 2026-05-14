@@ -92,6 +92,29 @@ Use dry-run mode to ask HoloShell whether a command would pass the gate:
 node scripts\holoshell-run.mjs --run-class test --dry-run --allow-warn --reason "checking test gate" -- pnpm test
 ```
 
+## Run Registry Reconciliation
+
+If a registered run is still marked `planned` or `running` after its expected
+end time, but HoloShell cannot see its PID, the registry should be reconciled
+before Brittney treats it as live work:
+
+```powershell
+pnpm run holoshell:run-registry-reconcile
+```
+
+This writes:
+
+```text
+.tmp/holoshell/run-registry-reconcile.json
+.tmp/holoshell/run-registry-reconcile.js
+```
+
+Reconciliation is non-destructive. It never kills a process, closes an app,
+or deletes evidence. It only marks overdue registry-only runs as `stale` when
+the expected end time has passed and the PID is missing or not visible. If the
+PID is visible, the active registry record stays active so the owning lane can
+extend, close, or justify it with a receipt.
+
 ## Management Policy
 
 | Operation | Default | Why |
@@ -100,6 +123,7 @@ node scripts\holoshell-run.mjs --run-class test --dry-run --allow-warn --reason 
 | Shell/dev run classification | Silent read with receipt | HoloShell should know run custody. |
 | Heavy run start | Pre-run health gate | Prevent invisible agent pileups. |
 | Run receipt write | Required | PIDs need owner lanes and expected end times. |
+| Registry reconcile | Non-destructive receipt | Clears phantom active runs without stopping visible work. |
 | Stop-plan creation | Guarded plan | Planning is safe if it does not stop anything. |
 | Stop one PID | Break-glass | May destroy active work or evidence. |
 | Kill process tree | Break-glass plus owner lane | High blast radius. |

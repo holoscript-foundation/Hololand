@@ -32,6 +32,8 @@
     "format": "pnpm -r format",
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
     "holoshell:intent-gate": "node scripts/holoshell-brain-intent-gate.mjs --strict",
+    "holoshell:run": "node scripts/holoshell-run.mjs",
+    "holoshell:run-registry-reconcile": "node scripts/holoshell-run.mjs --reconcile-registry",
     "holoshell:run-custody": "node scripts/holoshell-run-custody-actions.mjs",
     "holoshell:build-custody": "node scripts/holoshell-build-custody.mjs",
     "holoshell:legacy-windows": "node scripts/holoshell-legacy-window-inventory.mjs",

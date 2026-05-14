@@ -28,6 +28,7 @@ composition "HoloShell Process Health Room" {
     selectedPid: 0
     lastProcessReceiptId: ""
     lastRunReceiptId: ""
+    lastRegistryReconcileReceiptId: ""
   }
 
   channel "holoshell:process:health" {
@@ -83,6 +84,18 @@ composition "HoloShell Process Health Room" {
     pid: 0
     expectedEndAt: ""
     preRunHealthRequired: true
+    receiptRequired: true
+  }
+
+  template "RegistryReconcileReceipt" {
+    type: "receipt"
+    receiptType: "run_registry_reconcile"
+    reconciledRunCount: 0
+    activeRunCountBefore: 0
+    activeRunCountAfter: 0
+    registryOnly: true
+    processTerminationPerformed: false
+    rawCommandLinesIncluded: false
     receiptRequired: true
   }
 
@@ -157,6 +170,18 @@ composition "HoloShell Process Health Room" {
     receiptRequired: true
   }
 
+  policy "NonDestructiveRegistryReconciliation" {
+    appliesTo: ["reconcile_run_registry", "mark_missing_pid_run_stale"]
+    approvalRequired: false
+    registryOnly: true
+    processTerminationAllowed: false
+    fileDeletionAllowed: false
+    expectedEndMustBePast: true
+    visiblePidMustRemainActive: true
+    rawCommandLinesIncludedByDefault: false
+    receiptRequired: true
+  }
+
   policy "BreakGlassProcessTermination" {
     appliesTo: ["stop_process", "kill_process", "kill_process_tree"]
     approvalRequired: true
@@ -205,6 +230,21 @@ composition "HoloShell Process Health Room" {
       pid: runReceipt.process.pid,
       expectedEndAt: runReceipt.timing.expectedEndAt,
       healthGate: runReceipt.healthGate,
+      receiptRequired: true
+    })
+  }
+
+  action consume_registry_reconciliation(receipt) {
+    state.lastRegistryReconcileReceiptId = receipt.output.receiptPath
+    state.activeRegisteredRunCount = receipt.registry.activeRunCountAfter
+    emit("holoshell:process:run", {
+      receiptPath: receipt.output.receiptPath,
+      operation: "reconcile_run_registry",
+      reconciledRuns: receipt.summary.reconciledRunCount,
+      activeRunsBefore: receipt.registry.activeRunCountBefore,
+      activeRunsAfter: receipt.registry.activeRunCountAfter,
+      registryOnly: true,
+      processTerminationPerformed: false,
       receiptRequired: true
     })
   }
