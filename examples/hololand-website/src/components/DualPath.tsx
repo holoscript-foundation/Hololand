@@ -51,7 +51,7 @@ export function DualPath() {
               <div>
                 <h4 className="font-semibold text-lg mb-1">AI Assistant</h4>
                 <p className="text-sm text-gray-300">
-                  "Create a coffee shop with 5 tables" → Done
+                  &quot;Create a coffee shop with 5 tables&quot; → Done
                 </p>
               </div>
             </div>
@@ -130,7 +130,7 @@ export function DualPath() {
               <div>
                 <h4 className="font-semibold text-lg mb-1">Voice Commands</h4>
                 <p className="text-sm text-gray-300">
-                  Speak to create: "Add a table here"
+                  Speak to create: &quot;Add a table here&quot;
                 </p>
               </div>
             </div>

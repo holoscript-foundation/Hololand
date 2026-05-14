@@ -72,7 +72,7 @@ export function Features() {
               Powered by $BRIAN Token on Based Chain
             </h3>
             <p className="text-gray-300 mb-6">
-              Hololand's native ecosystem currency. Pay for AI agents, claim property rights, buy/sell content, and participate in platform governance.
+              Hololand&apos;s native ecosystem currency. Pay for AI agents, claim property rights, buy/sell content, and participate in platform governance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <div className="glass rounded-lg px-6 py-3">

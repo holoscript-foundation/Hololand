@@ -1,12 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
 import { Hero } from '@/components/Hero';
 import { CreatorJourney } from '@/components/CreatorJourney';
 import { Features } from '@/components/Features';
-import { DualPath} from '@/components/DualPath';
+import { DualPath } from '@/components/DualPath';
 import { EmailSignup } from '@/components/EmailSignup';
 import { Stats } from '@/components/Stats';
 import { Footer } from '@/components/Footer';

@@ -30,9 +30,9 @@ export function EmailSignup() {
       {status === 'success' ? (
         <div className="bg-white/20 backdrop-blur-sm rounded-lg p-6 max-w-md mx-auto">
           <div className="text-4xl mb-3">✅</div>
-          <h3 className="text-xl font-semibold mb-2 text-white">You're on the list!</h3>
+          <h3 className="text-xl font-semibold mb-2 text-white">You&apos;re on the list!</h3>
           <p className="text-white/80">
-            We'll notify you when Infinity Builder launches.
+            We&apos;ll notify you when Infinity Builder launches.
           </p>
         </div>
       ) : (

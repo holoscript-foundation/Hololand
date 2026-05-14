@@ -60,7 +60,7 @@ export function CreatorJourney() {
           The <span className="gradient-text">Creator Journey</span>
         </h2>
         <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-          From "I want to build in VR" to "I have a thriving virtual business" in 4 simple steps
+          From &quot;I want to build in VR&quot; to &quot;I have a thriving virtual business&quot; in 4 simple steps
         </p>
       </div>
 
