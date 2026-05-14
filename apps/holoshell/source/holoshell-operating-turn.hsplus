@@ -22,6 +22,10 @@ composition "HoloShell Operating Turn" {
     buildProcessCount: 0
     operatorStatus: "unknown"
     ownerUnknownRunCount: 0
+    brittneyContextStatus: "unknown"
+    brittneyContextPeerWindowCount: 0
+    brittneyContextShellWindowCount: 0
+    brittneyContextVisibleShellObjectCount: 0
     readinessStatus: "unknown"
     visualWitnessStatus: "unknown"
     lastOperatingTurnReceiptId: ""
@@ -69,6 +73,16 @@ composition "HoloShell Operating Turn" {
       ownerUnknownRuns: $ownerUnknownRunCount
     }
 
+    object "TurnBrittneyContext" {
+      type: "ui"
+      uiType: "brittney_context_summary"
+      label: "Brittney Context"
+      status: $brittneyContextStatus
+      peerWindows: $brittneyContextPeerWindowCount
+      shellWindows: $brittneyContextShellWindowCount
+      visibleShellObjects: $brittneyContextVisibleShellObjectCount
+    }
+
     object "TurnEvidence" {
       type: "ui"
       uiType: "evidence_summary"
@@ -87,7 +101,7 @@ composition "HoloShell Operating Turn" {
 
   policy "BrittneyConsumesTurnBeforeActing" {
     appliesTo: ["brittney_local_operator", "holoshell_peer_coordination"]
-    requiredInputs: ["operating_turn", "operator_brief", "build_custody", "readiness_evidence"]
+    requiredInputs: ["operating_turn", "operator_brief", "brittney_context_packet", "build_custody", "readiness_evidence"]
     firstMove: "observe_and_claim_custody"
     receiptRequired: true
   }
@@ -101,6 +115,10 @@ composition "HoloShell Operating Turn" {
     state.buildProcessCount = turn.summary.buildProcessCount
     state.operatorStatus = turn.summary.operatorStatus
     state.ownerUnknownRunCount = turn.summary.ownerUnknownRunCount
+    state.brittneyContextStatus = turn.summary.brittneyContextStatus
+    state.brittneyContextPeerWindowCount = turn.summary.brittneyContextPeerWindowCount
+    state.brittneyContextShellWindowCount = turn.summary.brittneyContextShellWindowCount
+    state.brittneyContextVisibleShellObjectCount = turn.summary.brittneyContextVisibleShellObjectCount
     state.readinessStatus = turn.summary.readinessStatus
     state.visualWitnessStatus = turn.summary.visualWitnessStatus
     state.lastOperatingTurnReceiptId = turn.receipt.operatingTurnHash
@@ -114,6 +132,10 @@ composition "HoloShell Operating Turn" {
       buildProcesses: state.buildProcessCount,
       operatorStatus: state.operatorStatus,
       ownerUnknownRuns: state.ownerUnknownRunCount,
+      brittneyContextStatus: state.brittneyContextStatus,
+      brittneyContextPeerWindows: state.brittneyContextPeerWindowCount,
+      brittneyContextShellWindows: state.brittneyContextShellWindowCount,
+      brittneyContextVisibleShellObjects: state.brittneyContextVisibleShellObjectCount,
       readiness: state.readinessStatus,
       visualWitness: state.visualWitnessStatus,
       receipt: state.lastOperatingTurnReceiptId

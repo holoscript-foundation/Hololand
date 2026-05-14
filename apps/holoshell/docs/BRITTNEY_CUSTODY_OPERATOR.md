@@ -10,6 +10,12 @@
 Brittney can consume the HoloShell operator brief and execute safe run-custody
 receipts without asking the user to read files or run commands.
 
+`scripts/holoshell-brittney-context.mjs` now materializes the operator brief,
+shell object graph, process health, program registry, approvals, workflows, and
+agent color lanes as `.tmp/holoshell/brittney-context.json`. Brittney turns use
+this packet before proposing action, so peer counts come from real top-level
+windows and shell windows remain separate from AI peer windows.
+
 Visible shell windows are now first-class custody queues. The operator groups
 Terminal/PowerShell windows by parent window PID, dedupes repeated top-level
 Windows Terminal surfaces, and claims owner-unknown child runs through custody
@@ -50,6 +56,8 @@ pnpm run holoshell:legacy-windows
 pnpm run holoshell:run-custody
 pnpm run holoshell:legacy-apps
 pnpm run holoshell:operator-brief
+pnpm run holoshell:shell-objects
+pnpm run holoshell:brittney-context
 pnpm run holoshell:brittney-custody
 pnpm run holoshell:run-custody
 pnpm run holoshell:operator-brief
@@ -60,6 +68,8 @@ Output:
 ```text
 .tmp/holoshell/brittney-custody-action.json
 .tmp/holoshell/brittney-custody-action.js
+.tmp/holoshell/brittney-context.json
+.tmp/holoshell/brittney-context.js
 ```
 
 ## Why This Matters

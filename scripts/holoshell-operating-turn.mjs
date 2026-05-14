@@ -18,6 +18,8 @@ const TURN_STEPS = [
   { stepId: 'legacy_apps', label: 'Legacy Apps', script: 'holoshell:legacy-apps' },
   { stepId: 'readiness_evidence', label: 'Readiness Evidence', script: 'holoshell:readiness-evidence' },
   { stepId: 'operator_brief_pre_action', label: 'Operator Brief Before Brittney', script: 'holoshell:operator-brief' },
+  { stepId: 'shell_objects', label: 'Shell Objects', script: 'holoshell:shell-objects' },
+  { stepId: 'brittney_context', label: 'Brittney Context Packet', script: 'holoshell:brittney-context' },
   { stepId: 'brittney_custody', label: 'Brittney Custody Turn', script: 'holoshell:brittney-custody' },
   { stepId: 'run_custody_after', label: 'Run Custody After Brittney', script: 'holoshell:run-custody' },
   { stepId: 'build_custody_after', label: 'Build Custody After Brittney', script: 'holoshell:build-custody' },
@@ -155,6 +157,7 @@ function loadEvidence() {
   return {
     buildCustody: readOptionalJson(path.join('.tmp', 'holoshell', 'build-custody.json')),
     operatorBrief: readOptionalJson(path.join('.tmp', 'holoshell', 'operator-brief.json')),
+    brittneyContext: readOptionalJson(path.join('.tmp', 'holoshell', 'brittney-context.json')),
     readinessEvidence: readOptionalJson(path.join('.tmp', 'holoshell', 'readiness-evidence.json')),
     visualWitness: readOptionalJson(path.join('.tmp', 'holoshell', 'visual-witness.json')),
   };
@@ -163,6 +166,7 @@ function loadEvidence() {
 function summarizeEvidence(evidence) {
   const build = evidence.buildCustody || {};
   const operator = evidence.operatorBrief || {};
+  const brittneyContext = evidence.brittneyContext || {};
   const readiness = evidence.readinessEvidence || {};
   const witness = evidence.visualWitness || {};
   return {
@@ -172,6 +176,10 @@ function summarizeEvidence(evidence) {
     operatorStatus: operator.status || 'unknown',
     ownerUnknownRunCount: operator.runs?.ownerUnknownCount || 0,
     shellWindowOwnerUnknownRunCount: operator.shellCustody?.ownerUnknownRunCount || 0,
+    brittneyContextStatus: brittneyContext.summary?.status || 'unknown',
+    brittneyContextPeerWindowCount: brittneyContext.summary?.peerWindowCount || operator.peers?.windowInstanceCount || 0,
+    brittneyContextShellWindowCount: brittneyContext.summary?.shellWindowCount || operator.peers?.shellWindowInstanceCount || 0,
+    brittneyContextVisibleShellObjectCount: brittneyContext.summary?.visibleShellObjectCount || 0,
     readinessStatus: readiness.summary?.status || readiness.status || 'unknown',
     readinessTokenCount: readiness.summary?.tokenCount || 0,
     readinessWarningCount: readiness.summary?.warningCount || 0,
@@ -214,6 +222,7 @@ function createTurn(stepResults, args, evidence = loadEvidence()) {
       source: 'apps/holoshell/source/holoshell-operating-turn.hsplus',
       adapter: 'scripts/holoshell-operating-turn.mjs',
       operatorBrief: 'scripts/holoshell-operator-brief.mjs',
+      brittneyContext: 'scripts/holoshell-brittney-context.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
     },
@@ -221,11 +230,14 @@ function createTurn(stepResults, args, evidence = loadEvidence()) {
     steps: stepResults,
     nextAction: summary.operatorStatus === 'needs_run_custody'
       ? 'Let Brittney continue custody triage from operator brief.'
-      : summary.activeBuildTreeCount > 0
-        ? 'Keep active build tree under read-only observation until it exits or crosses review thresholds.'
-        : 'Use the refreshed operator brief as the next local hardware truth source.',
+      : summary.brittneyContextStatus === 'unknown'
+        ? 'Refresh Brittney context before trusting local operator proposals.'
+        : summary.activeBuildTreeCount > 0
+          ? 'Keep active build tree under read-only observation until it exits or crosses review thresholds.'
+          : 'Use the refreshed operator brief as the next local hardware truth source.',
     brittneyBrief: {
       status: summary.operatorStatus,
+      context: `${summary.brittneyContextStatus}; ${summary.brittneyContextVisibleShellObjectCount} visible shell object(s); ${summary.brittneyContextPeerWindowCount} peer window(s), ${summary.brittneyContextShellWindowCount} shell window(s).`,
       buildCustody: `${summary.activeBuildTreeCount} active build tree(s), ${summary.buildProcessCount} process(es), risk ${summary.buildRisk}.`,
       readiness: `${summary.readinessStatus}, ${summary.readinessTokenCount} evidence token(s), ${summary.readinessWarningCount} warning(s).`,
       visualWitness: `${summary.visualWitnessStatus}${summary.visualWitnessScreenshot ? ' with screenshot' : ''}.`,
@@ -266,6 +278,7 @@ function assertSelfTest(turn) {
   if (turn.summary.stepCount < 10) failures.push('expected full operating step list');
   if (turn.summary.failedStepCount !== 0) failures.push('self-test should not fail steps');
   if (!turn.agentConsumption.requiredRefreshOrder.includes('holoshell:build-custody')) failures.push('missing build custody step');
+  if (!turn.agentConsumption.requiredRefreshOrder.includes('holoshell:brittney-context')) failures.push('missing Brittney context step');
   if (!turn.agentConsumption.requiredRefreshOrder.includes('holoshell:readiness-evidence')) failures.push('missing readiness evidence step');
   if (!turn.brittneyBrief.blockedActions.includes('kill_build_process')) failures.push('build kill must be blocked');
   if (turn.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');

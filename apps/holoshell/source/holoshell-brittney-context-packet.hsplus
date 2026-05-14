@@ -1,0 +1,116 @@
+// HoloShell Brittney Context Packet
+//
+// Brittney should never guess what the computer is doing. This contract defines
+// the redacted local context packet she consumes before proposing shell,
+// process, file, browser, or legacy-app actions.
+
+composition "HoloShell Brittney Context Packet" {
+  config {
+    title: "Brittney Context Packet"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-brittney-context.mjs"
+    operatorBriefSource: "apps/holoshell/source/holoshell-operator-brief.hsplus"
+    shellObjectSource: "apps/holoshell/source/holoshell-home.hsplus"
+    latestContextReceipt: ".tmp/holoshell/brittney-context.json"
+  }
+
+  state {
+    status: "unknown"
+    selectedShellObjectId: ""
+    visibleShellObjectCount: 0
+    activeLaneCount: 0
+    processRisk: "unknown"
+    peerWindowCount: 0
+    shellWindowCount: 0
+    operatingSurfaceWindowCount: 0
+    pendingApprovalCount: 0
+    recentReceiptCount: 0
+    rawCommandsIncluded: false
+    rawWindowTitlesIncluded: false
+    secretsIncluded: false
+    lastContextReceiptId: ""
+  }
+
+  channel "holoshell:brittney:context" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Structured local shell context consumed by Brittney before a runtime turn"
+  }
+
+  template "BrittneyContextPacket" {
+    type: "runtime_context"
+    actor: "brittney"
+    prompt: ""
+    selectedShellObject: {}
+    visibleShellObjects: []
+    programRegistrySummary: {}
+    activeWorkflowSummary: {}
+    approvalSummary: {}
+    agentLaneSummary: {}
+    processHealthSummary: {}
+    operatorBriefSummary: {}
+    recentReceiptTimeline: []
+    privacyBoundary: {}
+    receiptRequired: true
+  }
+
+  policy "ContextUsesVisibleWindowsForPeerCounts" {
+    appliesTo: ["brittney_turn", "agent_lane_display", "peer_instance_count"]
+    requiredInput: "operator_brief.peers"
+    peerWindowDefinition: "AI peers, model runtimes, and AI workbenches only"
+    shellWindowsTrackedSeparately: true
+    pidCountsAreHealthSignalOnly: true
+    rawWindowTitlesHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "ContextIsRedactedByDefault" {
+    appliesTo: ["brittney_turn", "local_model_prompt", "remote_model_prompt"]
+    rawCommandsIncluded: false
+    rawWindowTitlesIncluded: false
+    secretsIncluded: false
+    privatePathsIncluded: false
+    browserContentIncluded: false
+    receiptRequired: true
+  }
+
+  policy "ContextBeforeActionProposal" {
+    appliesTo: ["open_app", "start_agent", "terminal_workflow", "legacy_app_operation", "process_custody_action"]
+    requiredInputs: ["operator_brief", "shell_objects", "process_health", "agent_lanes", "program_registry"]
+    actionProposalRequiresContextHash: true
+    receiptRequired: true
+  }
+
+  action consume_brittney_context(packet) {
+    state.status = packet.summary.status
+    state.selectedShellObjectId = packet.summary.selectedShellObjectId
+    state.visibleShellObjectCount = packet.summary.visibleShellObjectCount
+    state.activeLaneCount = packet.agentLaneSummary.activeLaneCount
+    state.processRisk = packet.processHealthSummary.riskState
+    state.peerWindowCount = packet.operatorBriefSummary.peerWindowCount
+    state.shellWindowCount = packet.operatorBriefSummary.shellWindowCount
+    state.operatingSurfaceWindowCount = packet.operatorBriefSummary.operatingSurfaceWindowCount
+    state.pendingApprovalCount = packet.approvalSummary.pendingApprovalCount
+    state.recentReceiptCount = packet.summary.recentReceiptCount
+    state.rawCommandsIncluded = packet.privacyBoundary.rawCommandsIncluded
+    state.rawWindowTitlesIncluded = packet.privacyBoundary.rawWindowTitlesIncluded
+    state.secretsIncluded = packet.privacyBoundary.secretsIncluded
+    state.lastContextReceiptId = packet.receipt.contextHash
+
+    emit("holoshell:brittney:context", {
+      status: state.status,
+      selected_shell_object: state.selectedShellObjectId,
+      visible_shell_objects: state.visibleShellObjectCount,
+      active_lanes: state.activeLaneCount,
+      process_risk: state.processRisk,
+      peer_windows: state.peerWindowCount,
+      shell_windows: state.shellWindowCount,
+      operating_surface_windows: state.operatingSurfaceWindowCount,
+      pending_approvals: state.pendingApprovalCount,
+      recent_receipts: state.recentReceiptCount,
+      redacted: !state.rawCommandsIncluded && !state.rawWindowTitlesIncluded && !state.secretsIncluded,
+      receipt: state.lastContextReceiptId
+    })
+  }
+}
