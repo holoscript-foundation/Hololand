@@ -1,0 +1,122 @@
+// HoloShell Readiness Evidence
+//
+// Readiness is not a static report. HoloShell can ingest historical HoloScript
+// automation packs, but current local probes must be allowed to clear stale
+// failures when the hardware now proves the dependency graph is healthy.
+
+composition "HoloShell Readiness Evidence" {
+  config {
+    title: "Readiness Evidence"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-readiness-evidence.mjs"
+    defaultMode: "live_hardware_evidence_ingest"
+  }
+
+  state {
+    status: "unknown"
+    tokenCount: 0
+    warningCount: 0
+    reportGraphStatus: "unknown"
+    liveCoreImportStatus: "unknown"
+    effectiveGraphStatus: "unknown"
+    buildStatus: "unknown"
+    hardwareRealityStatus: "unknown"
+    processHealthStatus: "unknown"
+    lastReadinessReceiptId: ""
+  }
+
+  channel "holoshell:readiness:evidence" {
+    type: "pub_sub"
+    priority: "high"
+    description: "HoloShell readiness tokens grounded by historical evidence and live local probes"
+  }
+
+  template "ReadinessToken" {
+    type: "machine"
+    machineType: "readiness_token"
+    tokenId: ""
+    kind: "evidence"
+    status: "unknown"
+    trustState: "unknown"
+    receiptType: ""
+    nextAction: ""
+    receiptRequired: true
+  }
+
+  room "ReadinessEvidenceRoom" {
+    label: "Readiness Evidence"
+    userQuestion: "Can this computer safely continue the HoloShell build and operation loop?"
+    visualForm: "evidence_token_stack"
+    liveFeed: "holoshell:readiness:evidence"
+
+    object "ReadinessSummary" {
+      type: "ui"
+      uiType: "readiness_summary"
+      label: "Readiness"
+      status: $status
+      tokens: $tokenCount
+      warnings: $warningCount
+    }
+
+    object "GraphReality" {
+      type: "ui"
+      uiType: "graph_import_receipt"
+      label: "HoloScript Graph"
+      reportStatus: $reportGraphStatus
+      liveImport: $liveCoreImportStatus
+      effectiveStatus: $effectiveGraphStatus
+    }
+
+    object "HardwareEvidence" {
+      type: "ui"
+      uiType: "hardware_evidence"
+      label: "Hardware"
+      build: $buildStatus
+      hardwareReality: $hardwareRealityStatus
+      processHealth: $processHealthStatus
+    }
+  }
+
+  policy "LiveProbeClearsOnlyMatchingStaleFailure" {
+    appliesTo: ["readiness_projection", "brittney_turn", "operator_brief"]
+    staleReportFailureMayBeClearedBy: "live_core_import_pass"
+    retryAndPackageManagerFallbackAllowed: true
+    historicalFailureStillRecorded: true
+    directGraphAssumptionAllowed: false
+    receiptRequired: true
+  }
+
+  policy "LiveProbeFailureBlocksReadyClaim" {
+    appliesTo: ["readiness_projection", "start_new_build", "brittney_turn"]
+    failedLiveCoreImportMeans: "current_graph_risk"
+    staleSuccessMayNotOverrideLiveFailure: true
+    receiptRequired: true
+  }
+
+  action consume_readiness_evidence(feed) {
+    state.status = feed.summary.status
+    state.tokenCount = feed.summary.tokenCount
+    state.warningCount = feed.summary.warningCount
+    state.reportGraphStatus = feed.summary.reportGraphStatus
+    state.liveCoreImportStatus = feed.summary.liveCoreImportStatus
+    state.effectiveGraphStatus = feed.summary.graphStatus
+    state.buildStatus = feed.summary.buildStatus
+    state.hardwareRealityStatus = feed.summary.hardwareRealityStatus
+    state.processHealthStatus = feed.summary.processHealthStatus
+    state.lastReadinessReceiptId = feed.readinessId
+
+    emit("holoshell:readiness:evidence", {
+      status: state.status,
+      tokens: state.tokenCount,
+      warnings: state.warningCount,
+      reportGraphStatus: state.reportGraphStatus,
+      liveCoreImport: state.liveCoreImportStatus,
+      effectiveGraphStatus: state.effectiveGraphStatus,
+      buildStatus: state.buildStatus,
+      hardwareReality: state.hardwareRealityStatus,
+      processHealth: state.processHealthStatus,
+      receipt: state.lastReadinessReceiptId
+    })
+  }
+}

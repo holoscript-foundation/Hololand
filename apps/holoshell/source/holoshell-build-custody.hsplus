@@ -15,6 +15,7 @@ composition "HoloShell Build Custody" {
 
   state {
     riskState: "unknown"
+    scannerStatus: "unknown"
     processCount: 0
     buildProcessCount: 0
     activeBuildTreeCount: 0
@@ -71,6 +72,7 @@ composition "HoloShell Build Custody" {
       label: "Active Builds"
       count: $activeBuildTreeCount
       risk: $riskState
+      scanner: $scannerStatus
     }
 
     object "BuildProcessTable" {
@@ -96,6 +98,22 @@ composition "HoloShell Build Custody" {
     requiredInput: "holoshell_build_custody"
     activeBuildDoesNotEqualFailure: true
     rawCommandHiddenByDefault: true
+    staleBuildStateForbidden: true
+    receiptRequired: true
+  }
+
+  policy "ScannerUnavailableBlocksBuildAssumptions" {
+    appliesTo: ["build_status_claim", "start_new_build", "brittney_turn"]
+    requiredInput: "holoshell_build_custody"
+    staleStateMayBeReused: false
+    buildStateWhenScannerUnavailable: "unknown"
+    receiptRequired: true
+  }
+
+  policy "ScannerWrapperIsNotABuild" {
+    appliesTo: ["build_process_classification", "brittney_turn"]
+    wrapperShellRequiresStandaloneBuildTask: true
+    scannerCommandTextIsNotBuildEvidence: true
     receiptRequired: true
   }
 
@@ -109,6 +127,7 @@ composition "HoloShell Build Custody" {
 
   action consume_build_custody(custody) {
     state.riskState = custody.summary.riskState
+    state.scannerStatus = custody.summary.scannerStatus || "available"
     state.processCount = custody.summary.processCount
     state.buildProcessCount = custody.summary.buildProcessCount
     state.activeBuildTreeCount = custody.summary.activeBuildTreeCount
@@ -119,6 +138,7 @@ composition "HoloShell Build Custody" {
 
     emit("holoshell:build:custody", {
       riskState: state.riskState,
+      scannerStatus: state.scannerStatus,
       processCount: state.processCount,
       buildProcesses: state.buildProcessCount,
       activeBuildTrees: state.activeBuildTreeCount,

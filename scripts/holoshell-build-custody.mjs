@@ -123,6 +123,10 @@ function hasStandaloneBuildTask(lower) {
 
 function buildKindFor(processInfo) {
   const lower = processLower(processInfo);
+  const processName = String(processInfo.name || '').toLowerCase();
+  if (/\b(claude|codex|gemini|cursor|code|copilot)(\.exe)?$/.test(processName)) return '';
+  const isWrapperShell = /\b(cmd|cmd\.exe|pwsh|pwsh\.exe|powershell|powershell\.exe)\b/.test(processName);
+  if (isWrapperShell && !hasStandaloneBuildTask(lower)) return '';
   if (/\bpnpm(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) {
     return lower.includes(' -r ') || lower.includes(' --recursive ') ? 'pnpm_workspace_build' : 'pnpm_build';
   }
@@ -157,7 +161,24 @@ function commandPreview(command) {
 function readWindowsProcesses() {
   const script = `
 $ErrorActionPreference = 'SilentlyContinue'
-Get-CimInstance Win32_Process | ForEach-Object {
+$names = @(
+  'node.exe',
+  'cmd.exe',
+  'pwsh.exe',
+  'powershell.exe',
+  'esbuild.exe',
+  'pnpm.exe',
+  'npm.exe',
+  'yarn.exe',
+  'tsup.exe',
+  'vite.exe',
+  'next.exe',
+  'webpack.exe',
+  'rollup.exe',
+  'tsc.exe'
+)
+$filter = ($names | ForEach-Object { "Name='$($_)'" }) -join ' OR '
+Get-CimInstance Win32_Process -Filter $filter | ForEach-Object {
   [PSCustomObject]@{
     pid = [int]$_.ProcessId
     ppid = [int]$_.ParentProcessId
@@ -172,10 +193,11 @@ Get-CimInstance Win32_Process | ForEach-Object {
   const result = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script], {
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
+    timeout: 45_000,
   });
   if (result.error || result.status !== 0) {
     const message = result.error?.message || result.stderr || 'unknown PowerShell process snapshot error';
-    throw new Error(`Unable to read Windows process table: ${message}`);
+    throw new Error(`Unable to read Windows build-candidate process table: ${message}`);
   }
   const parsed = JSON.parse(result.stdout || '[]');
   return safeArray(parsed).map((item) => ({
@@ -474,6 +496,77 @@ function createCustody(processes, args) {
   };
 }
 
+function createUnavailableCustody(args, errorMessage) {
+  const summary = {
+    riskState: 'unknown',
+    scannerStatus: 'unavailable',
+    processCount: 0,
+    buildProcessCount: 0,
+    activeBuildCount: 0,
+    activeBuildTreeCount: 0,
+    buildTreeCount: 0,
+    longRunningBuildCount: 0,
+    highMemoryBuildCount: 0,
+    reviewRequiredCount: 1,
+    rawCommandsIncluded: args.includeCommandLines,
+    longMinutesThreshold: args.longMinutes,
+    highMemoryMbThreshold: args.highMemoryMb,
+  };
+  const safety = {
+    destructiveActionsTaken: false,
+    rawCommandsIncluded: args.includeCommandLines,
+    processTerminationAllowed: false,
+    stopPolicy: 'break_glass_required',
+    stopPlanRequiredForTermination: true,
+  };
+  const receiptInput = {
+    summary,
+    errorHash: sha256(errorMessage),
+    safety,
+  };
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    sourceAnchors: {
+      source: 'apps/holoshell/source/holoshell-build-custody.hsplus',
+      adapter: 'scripts/holoshell-build-custody.mjs',
+      upstreamReality: 'host_process_table',
+    },
+    summary,
+    policies: {
+      activeBuildsAreHardwareCustody: true,
+      rawCommandsHiddenByDefault: !args.includeCommandLines,
+      buildStopRequiresBreakGlass: true,
+      pidCountsAreHealthSignalsOnly: true,
+      activeBuildDoesNotEqualFailure: true,
+      staleBuildStateForbidden: true,
+    },
+    buildTrees: [],
+    buildProcesses: [],
+    recommendations: [
+      {
+        kind: 'build_scanner_unavailable',
+        priority: 'high',
+        text: 'Build custody could not read the Windows process table in time. Treat build state as unknown and avoid starting new builds until telemetry recovers.',
+      },
+    ],
+    brittneyBrief: {
+      status: 'build_scanner_unavailable',
+      requiredNextAction: 'Treat active build state as unknown; refresh build custody after memory or process pressure settles.',
+      blockedActions: ['kill_build_process', 'stop_build_tree', 'delete_build_output', 'start_new_build'],
+      custodySummary: 'build custody scanner unavailable; stale build state was not reused.',
+    },
+    safety,
+    receipt: {
+      buildCustodyHash: sha256(JSON.stringify(receiptInput)),
+      destructiveActionsTaken: false,
+      rawCommandsIncluded: args.includeCommandLines,
+      staleStateReused: false,
+    },
+  };
+}
+
 function writeJson(filePath, data) {
   const resolved = resolveRepoPath(filePath);
   mkdirSync(path.dirname(resolved), { recursive: true });
@@ -514,8 +607,16 @@ function main() {
   if (args.selfTest && args.jsOutput === DEFAULT_JS_OUTPUT) {
     args.jsOutput = path.join('.tmp', 'holoshell', 'self-test', 'build-custody.js');
   }
-  const processes = args.selfTest ? syntheticProcesses() : readProcesses();
-  const custody = createCustody(processes, args);
+  let readError = null;
+  let processes = [];
+  try {
+    processes = args.selfTest ? syntheticProcesses() : readProcesses();
+  } catch (error) {
+    readError = error;
+  }
+  const custody = readError
+    ? createUnavailableCustody(args, readError.message || String(readError))
+    : createCustody(processes, args);
   if (args.selfTest) assertSelfTest(custody);
   const output = writeJson(args.output, custody);
   const jsOutput = writeBrowserBootstrap(args.jsOutput, custody);
