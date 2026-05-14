@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -351,6 +351,19 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory
     });
   }
 
+  if (agentDispatch?.summary) {
+    timeline.push({
+      id: agentDispatch.dispatchId || 'holoshell-agent-dispatch',
+      kind: 'agent_dispatch',
+      title: `Agent dispatch ${agentDispatch.summary.status || 'unknown'}`,
+      detail: `${agentDispatch.summary.capabilityLabel || 'No capability'}; route ${agentDispatch.summary.route || 'none'}; confidence ${agentDispatch.summary.confidence || 0}; approval ${agentDispatch.summary.approvalRequired ? 'required downstream' : 'not required'}.`,
+      trustState: agentDispatch.summary.status === 'ready_to_stage' ? 'partial' : 'unknown',
+      generatedAt: agentDispatch.generatedAt || now,
+      receiptType: agentDispatch.schemaVersion,
+      source: agentDispatch.sourceAnchors?.adapter || 'scripts/holoshell-agent-dispatch.mjs',
+    });
+  }
+
   if (hardwareApproval?.summary) {
     timeline.push({
       id: hardwareApproval.approvalId || 'hardware-approval',
@@ -499,6 +512,7 @@ function createFeed(args) {
   const brittneyContext = readJson(path.join(tmpDir, 'brittney-context.json'), {});
   const operatorBrief = readJson(path.join(tmpDir, 'operator-brief.json'), {});
   const operatingTurn = readJson(path.join(tmpDir, 'operating-turn.json'), {});
+  const agentDispatch = readJson(path.join(tmpDir, 'agent-dispatch-latest.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
   const hardwareApproval = readJson(path.join(tmpDir, 'approval-latest.json'), {});
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
@@ -536,6 +550,7 @@ function createFeed(args) {
     brittneyContext,
     operatorBrief,
     operatingTurn,
+    agentDispatch,
     hardwareAction,
     hardwareApproval,
     workflow,
@@ -570,6 +585,7 @@ function createFeed(args) {
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
+      agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -697,6 +713,18 @@ function createFeed(args) {
       operatingTurnStatus: operatingTurn?.summary?.status || 'unknown',
       operatingTurnStepCount: operatingTurn?.summary?.stepCount || 0,
       operatingTurnPassedStepCount: operatingTurn?.summary?.passedStepCount || 0,
+      agentDispatchStatus: agentDispatch?.summary?.status || 'unknown',
+      agentDispatchCapabilityId: agentDispatch?.summary?.capabilityId || '',
+      agentDispatchCapabilityLabel: agentDispatch?.summary?.capabilityLabel || '',
+      agentDispatchKind: agentDispatch?.summary?.dispatchKind || '',
+      agentDispatchRoute: agentDispatch?.summary?.route || '',
+      agentDispatchConfidence: agentDispatch?.summary?.confidence || 0,
+      agentDispatchPermissionEnvelope: agentDispatch?.summary?.permissionEnvelope || 'unknown',
+      agentDispatchApprovalRequired: Boolean(agentDispatch?.summary?.approvalRequired),
+      agentDispatchSelectedAgentSlug: agentDispatch?.summary?.selectedAgentSlug || '',
+      agentDispatchActionKind: agentDispatch?.summary?.actionKind || '',
+      agentDispatchTargetApp: agentDispatch?.summary?.targetApp || '',
+      agentDispatchTargetUrlHost: agentDispatch?.summary?.targetUrlHost || '',
       hardwareControlStatus: hardwareAction?.schemaVersion === 'hololand.holoshell.hardware-action.v0.1.0' ? 'available' : 'unknown',
       hardwareActionStatus: hardwareAction?.summary?.status || 'unknown',
       hardwareActionKind: hardwareAction?.summary?.actionKind || '',
@@ -795,6 +823,7 @@ function createFeed(args) {
       brittneyContext,
       operatorBrief,
       operatingTurn,
+      agentDispatch,
       hardwareAction,
       hardwareApproval,
       workflow,

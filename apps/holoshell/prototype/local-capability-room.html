@@ -900,6 +900,7 @@
   <script src="../../../.tmp/holoshell/workflow-latest.js"></script>
   <script src="../../../.tmp/holoshell/workflow-approval-latest.js"></script>
   <script src="../../../.tmp/holoshell/brain-intent-gate-latest.js"></script>
+  <script src="../../../.tmp/holoshell/agent-dispatch-latest.js"></script>
   <script src="../../../.tmp/holoshell/ollama-cloud-agent-catalog.js"></script>
   <script src="../../../.tmp/holoshell/shard-workflow-latest.js"></script>
   <script src="../../../.tmp/holoshell/shard-import-approval-latest.js"></script>
@@ -1026,6 +1027,7 @@
     const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
     const standaloneWorkflowIntentGateFeed = window.HOLOSHELL_BRAIN_INTENT_GATE || {};
+    const standaloneAgentDispatchFeed = window.HOLOSHELL_AGENT_DISPATCH || {};
     const standaloneOllamaCloudAgentCatalog = window.HOLOSHELL_OLLAMA_CLOUD_AGENT_CATALOG || {};
     const standaloneShardWorkflowFeed = window.HOLOSHELL_SHARD_WORKFLOW || {};
     const standaloneShardImportApprovalFeed = window.HOLOSHELL_SHARD_IMPORT_APPROVAL || {};
@@ -1038,6 +1040,7 @@
       { id: "browser", label: "Browser", glyph: "B", type: "program", detail: "Web surfaces open as witnessed HoloLand objects.", x: 62, y: 16, size: 132 },
       { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
+      { id: "agent-dispatch", label: "Dispatch", glyph: "AD", type: "workflow", detail: "Brittney turns plain-language intent into the right guarded workflow or hardware action.", x: 26, y: 66, size: 108 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
       { id: "claude-chat", label: "Claude Chat", glyph: "CC", type: "workflow", detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.", x: 64, y: 23, size: 108 },
       { id: "ollama-agents", label: "Ollama Agents", glyph: "OA", type: "workflow", detail: "Launch Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, or Pi through Ollama Cloud.", x: 83, y: 28, size: 106 },
@@ -1530,7 +1533,7 @@
     function canonicalShellBubbles() {
       const graph = shellObjectGraphFeed();
       const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
-      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent"]);
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent"]);
       const surfaceKinds = new Set([
         "browser_surface",
         "terminal_surface",
@@ -1607,6 +1610,15 @@
     function workflowIntentGateSummary() {
       const gate = workflowIntentGateFeed();
       return gate.summary || {};
+    }
+
+    function agentDispatchFeed() {
+      return feed.feeds?.agentDispatch?.summary ? feed.feeds.agentDispatch : standaloneAgentDispatchFeed;
+    }
+
+    function agentDispatchSummary() {
+      const dispatch = agentDispatchFeed();
+      return dispatch.summary || {};
     }
 
     function ollamaCloudAgentCatalog() {
@@ -1761,6 +1773,7 @@
         .filter((object) => object.sourceKind === "app" && object.displayName)
         .filter((object) => text.includes(object.displayName.toLowerCase()) || (object.displayName.toLowerCase() === "google chrome" && /\bchrome\b/.test(text)))
         .slice(0, 3);
+      if (shouldStageDispatch(text)) add("agent-dispatch", "Dispatch", "stage_agent_dispatch", "plain-language route to guarded adapter", { permissionEnvelope: "intent_scoped" });
       graphPrograms.forEach((object) => add(object.id, object.displayName, "stage_launch_app", "local program object", { permissionEnvelope: object.permissionEnvelope || "guarded_execute" }));
       if (/\b(browser|web|url|site|page|internet|chrome|edge)\b/.test(text)) add("browser", "Browser", "focus_shell_object", "web surface");
       if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
@@ -1777,6 +1790,11 @@
       if (/\b(hololand|computer|desktop|shell|prepare|start)\b/.test(text)) add("hololand", "HoloLand", "focus_shell_object", "operating world");
       if (proposals.length === 0) add("brittney", "Brittney", "summarize_shell_state", "assistant context");
       return proposals.slice(0, 5);
+    }
+
+    function shouldStageDispatch(prompt) {
+      const text = normalizePrompt(prompt);
+      return /\b(open|launch|start|play|run|ask|chat|music|excel|claude|codex|ollama|terminal|browser|room marathon|lofi|youtube|copilot|opencode|hermes|droid|openclaw)\b/.test(text);
     }
 
     function matchingTurnFor(prompt) {
@@ -1829,6 +1847,7 @@
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
+      const dispatchSummary = agentDispatchSummary();
       const workflowKind = activeWorkflow.workflowKind || summary.activeWorkflowKind || "";
       const workflowEvidenceDetail = workflowKind === "claude_chat"
         ? `${activeWorkflow.targetSurface || summary.activeWorkflowTargetSurface || "Claude"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
@@ -1858,6 +1877,16 @@
           return {
             ...object,
             detail: `Brittney is ${avatarStatus}; @holoscript/aibrittney runtime ${runtimeStatus}; ${avatarSummary.emotion || "attentive"} avatar state.`,
+          };
+        }
+        if (object.id === "agent-dispatch") {
+          return {
+            ...object,
+            detail: dispatchSummary.capabilityLabel
+              ? `${dispatchSummary.status || "unknown"}; ${dispatchSummary.capabilityLabel}; ${dispatchSummary.dispatchKind || "dispatch"}; route ${dispatchSummary.route || "none"}; confidence ${dispatchSummary.confidence || 0}.`
+              : "Brittney routes requests like open Excel, launch Codex, Claude chat, room marathon, and lofi into approval-backed HoloShell actions.",
+            trustState: dispatchSummary.status === "ready_to_stage" ? "partial" : object.trustState,
+            permissionEnvelope: "intent_scoped",
           };
         }
         if (object.id === "hardware-control") {
@@ -2177,6 +2206,15 @@
       const launch = shellObject.launch || {};
       const selectedName = object.fullLabel || object.label;
       const actions = [];
+      if (object.id === "agent-dispatch" || shellObject.id === "workflow.agent-dispatch") {
+        actions.push(actionButton("Stage current ask", () => {
+          const intent = document.getElementById("askInput")?.value || "";
+          stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent });
+        }, true));
+        actions.push(actionButton("Open Excel", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open Excel" })));
+        actions.push(actionButton("Launch Codex", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "launch Codex through Ollama" })));
+        actions.push(actionButton("Play lofi", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open browser and play lofi music on YouTube" })));
+      }
       if (launch.action === "launch_app") {
         const app = launch.app || object.label;
         actions.push(actionButton(`Stage open ${app}`, () => stageDaemonAction(`open ${app}`, "/action", { action: "launch_app", app }), true));
@@ -2545,6 +2583,7 @@
       const userSummary = userShellSummary();
       const readinessSummary = readinessEvidenceSummary();
       const approvalSummary = hardwareApprovalSummary();
+      const dispatchSummary = agentDispatchSummary();
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
@@ -2574,6 +2613,7 @@
         `Program registry: ${registrySummary.launchableProgramCount || summary.launchableProgramCount || 0} launchable, ${registrySummary.programCount || summary.installedProgramCount || 0} installed entries`,
         `Shell objects: ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} total, ${shellGraphSummary.programObjectCount || summary.appShellObjectCount || 0} app bubbles, ${shellGraphSummary.capturedWindowObjectCount || summary.capturedShellObjectCount || 0} captured windows, ${shellGraphSummary.guardedExecuteCount || summary.guardedShellObjectCount || 0} guarded powers`,
         `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
+        `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
         `Hardware action: ${hardwareSummary.status || summary.hardwareActionStatus || "unknown"}; ${hardwareSummary.actionKind || summary.hardwareActionKind || "none"}; ${hardwareSummary.permissionEnvelope || summary.hardwareActionPermissionEnvelope || "unknown"}; mutation executed ${hardwareSummary.mutatingActionExecuted || summary.hardwareMutatingActionExecuted ? "yes" : "no"}`,
         `Hardware approval: ${approvalSummary.status || summary.hardwareApprovalStatus || "unknown"}; ${approvalSummary.actionKind || summary.hardwareApprovalActionKind || "none"}; target ${approvalSummary.target || summary.hardwareApprovalTarget || "none"}`,
         `Workflow: ${activeWorkflow.status || summary.activeWorkflowStatus || "unknown"}; ${activeWorkflow.stepCount || summary.activeWorkflowStepCount || 0} steps; ${activeWorkflow.pendingApprovalCount || summary.activeWorkflowPendingApprovalCount || 0} approval(s); ${workflowEvidenceDetail}`,
@@ -2642,6 +2682,9 @@
       conversation.scrollTop = conversation.scrollHeight;
       pulseBrittneyAvatar(matchedTurn?.summary?.finalVoiceState || "speaking", matchedTurn?.summary?.finalEmotion || "attentive", 2200);
       applyActionProposals(proposals);
+      if (shouldStageDispatch(text)) {
+        stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: text });
+      }
     }
 
     function setupVoiceInput() {

@@ -89,8 +89,10 @@ Routes:
   GET  /workflow/latest
   GET  /workflow/approval/latest
   GET  /workflow/intent-gate/latest
+  GET  /dispatch/latest
   POST /action
   POST /approval/execute
+  POST /workflow/agent-dispatch
   POST /workflow/room-marathon
   POST /workflow/claude-chat
   POST /workflow/ollama-cloud-agent
@@ -222,6 +224,18 @@ function ollamaCloudAgentWorkflow(body = {}) {
   return runChecked(cli);
 }
 
+function agentDispatch(body = {}) {
+  const cli = ['scripts/holoshell-agent-dispatch.mjs'];
+  const intent = body.intent || body.text || body.ask || body.request || '';
+  const add = (flag, value) => {
+    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
+  };
+  add('--actor', body.actor);
+  add('--intent', intent);
+  add('--prompt', body.prompt || body.chatPrompt);
+  return runChecked(cli);
+}
+
 function tmpPath(args, fileName) {
   return path.join(args.tmpDir, fileName);
 }
@@ -263,6 +277,7 @@ function latestSnapshot(args) {
     workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
     workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+    agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
   };
 }
 
@@ -450,6 +465,52 @@ function stageOllamaCloudAgent(args, body = {}) {
   };
 }
 
+function stageAgentDispatch(args, body = {}) {
+  refreshRegistry(args);
+  const dispatchResult = agentDispatch(body);
+  const dispatch = readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
+  if (dispatch.summary?.status !== 'ready_to_stage') {
+    refreshLiveFeed();
+    return {
+      ok: false,
+      dispatch,
+      feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+      logs: {
+        dispatch: dispatchResult.stdout.trim(),
+      },
+    };
+  }
+
+  const route = dispatch.dispatch?.route || '';
+  const routedBody = dispatch.dispatch?.body || {};
+  let downstream;
+  if (route === '/workflow/claude-chat') downstream = stageClaudeChat(args, routedBody);
+  else if (route === '/workflow/ollama-cloud-agent') downstream = stageOllamaCloudAgent(args, routedBody);
+  else if (route === '/workflow/room-marathon') downstream = stageRoomMarathon(args, routedBody);
+  else if (route === '/action') downstream = stageAction(args, routedBody);
+  else {
+    const error = new Error(`Agent dispatch selected unsupported route: ${route || 'none'}`);
+    error.statusCode = 422;
+    throw error;
+  }
+
+  return {
+    ok: true,
+    dispatch,
+    routedTo: dispatch.dispatch,
+    action: downstream.action,
+    approval: downstream.approval,
+    workflow: downstream.workflow,
+    workflowApproval: downstream.workflowApproval,
+    workflowIntentGate: downstream.workflowIntentGate,
+    feed: downstream.feed || readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      dispatch: dispatchResult.stdout.trim(),
+      downstream: downstream.logs || {},
+    },
+  };
+}
+
 function routeGet(args, pathname) {
   if (pathname === '/health') {
     return {
@@ -473,6 +534,7 @@ function routeGet(args, pathname) {
   if (pathname === '/workflow/latest') return readJson(tmpPath(args, 'workflow-latest.json'), {});
   if (pathname === '/workflow/approval/latest') return readJson(tmpPath(args, 'workflow-approval-latest.json'), {});
   if (pathname === '/workflow/intent-gate/latest') return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
+  if (pathname === '/dispatch/latest') return readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
   const error = new Error(`Unknown route: ${pathname}`);
   error.statusCode = 404;
   throw error;
@@ -481,6 +543,7 @@ function routeGet(args, pathname) {
 function routePost(args, pathname, body) {
   if (pathname === '/action') return stageAction(args, body);
   if (pathname === '/approval/execute') return executeApproval(args, body);
+  if (pathname === '/workflow/agent-dispatch') return stageAgentDispatch(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
   if (pathname === '/workflow/claude-chat') return stageClaudeChat(args, body);
   if (pathname === '/workflow/ollama-cloud-agent') return stageOllamaCloudAgent(args, body);

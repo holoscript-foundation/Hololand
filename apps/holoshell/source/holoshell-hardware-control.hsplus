@@ -20,6 +20,7 @@ composition "HoloShell Hardware Program Control" {
     roomMarathonWorkflowScript: "scripts/holoshell-room-marathon-workflow.mjs"
     claudeChatWorkflowScript: "scripts/holoshell-claude-chat-workflow.mjs"
     ollamaCloudAgentWorkflowScript: "scripts/holoshell-ollama-cloud-agent-workflow.mjs"
+    agentDispatchScript: "scripts/holoshell-agent-dispatch.mjs"
     controlDaemonUrl: "http://127.0.0.1:4747"
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
     homeSource: "apps/holoshell/source/holoshell-home.hsplus"
@@ -30,13 +31,16 @@ composition "HoloShell Hardware Program Control" {
     latestWorkflowReceipt: ".tmp/holoshell/workflow-latest.json"
     latestWorkflowApprovalBundle: ".tmp/holoshell/workflow-approval-latest.json"
     latestWorkflowIntentGate: ".tmp/holoshell/brain-intent-gate-latest.json"
+    latestAgentDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
     actionReceiptDir: ".tmp/holoshell/action-receipts"
     approvalBundleDir: ".tmp/holoshell/approval-bundles"
     workflowApprovalBundleDir: ".tmp/holoshell/workflow-approval-bundles"
+    agentDispatchReceiptDir: ".tmp/holoshell/agent-dispatches"
     browserBootstrap: ".tmp/holoshell/action-latest.js"
     programRegistryBootstrap: ".tmp/holoshell/program-registry.js"
     approvalBundleBootstrap: ".tmp/holoshell/approval-latest.js"
     workflowApprovalBundleBootstrap: ".tmp/holoshell/workflow-approval-latest.js"
+    agentDispatchBootstrap: ".tmp/holoshell/agent-dispatch-latest.js"
   }
 
   state {
@@ -68,6 +72,14 @@ composition "HoloShell Hardware Program Control" {
     latestApprovalExpiresAt: ""
     controlDaemonStatus: "offline"
     controlDaemonExecuteEnabled: false
+    latestAgentDispatchId: ""
+    latestAgentDispatchStatus: "unknown"
+    latestAgentDispatchCapabilityId: ""
+    latestAgentDispatchCapabilityLabel: ""
+    latestAgentDispatchKind: ""
+    latestAgentDispatchRoute: ""
+    latestAgentDispatchConfidence: 0
+    latestAgentDispatchApprovalRequired: false
     activeWorkflowId: ""
     activeWorkflowKind: ""
     activeWorkflowStatus: "unknown"
@@ -138,6 +150,12 @@ composition "HoloShell Hardware Program Control" {
     type: "request_response"
     priority: "critical"
     description: "Guarded Brittney workflow for launching Ollama Cloud agent runtimes from HoloShell"
+  }
+
+  channel "holoshell:workflow:agent-dispatch" {
+    type: "request_response"
+    priority: "critical"
+    description: "Brittney intent router from natural language to guarded HoloShell workflows and hardware actions"
   }
 
   channel "holoshell:workflow:approval" {
@@ -257,7 +275,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "POST /action", "POST /approval/execute", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -300,6 +318,21 @@ composition "HoloShell Hardware Program Control" {
     shellContextAttachedByDefault: false
     terminalLaunchRequiresApproval: true
     approvalRequired: true
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "AgentDispatchWorkflow" {
+    type: "agent_dispatch_workflow"
+    receiptType: "hololand.holoshell.agent-dispatch.v0.1.0"
+    title: "Agent Dispatch"
+    route: "POST /workflow/agent-dispatch"
+    supportedCapabilities: ["claude_chat", "ollama_cloud_agent", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
+    steps: ["parse_intent", "rank_capabilities", "select_guarded_route", "handoff_to_existing_adapter"]
+    defaultExecutionPolicy: "dispatch_only"
+    directExecutionAllowed: false
+    downstreamAdapterOwnsApproval: true
+    approvalRequired: false
     mutationExecuted: false
     receiptRequired: true
   }
@@ -475,6 +508,31 @@ composition "HoloShell Hardware Program Control" {
       loopback_only: true,
       execute_enabled: state.controlDaemonExecuteEnabled,
       default_execution_policy: state.controlDaemonExecuteEnabled ? "approved_execute" : "stage_only",
+      receipt_required: true
+    })
+  }
+
+  action apply_agent_dispatch_receipt(receipt) {
+    state.latestAgentDispatchId = receipt.dispatchId
+    state.latestAgentDispatchStatus = receipt.summary.status
+    state.latestAgentDispatchCapabilityId = receipt.summary.capabilityId
+    state.latestAgentDispatchCapabilityLabel = receipt.summary.capabilityLabel
+    state.latestAgentDispatchKind = receipt.summary.dispatchKind
+    state.latestAgentDispatchRoute = receipt.summary.route
+    state.latestAgentDispatchConfidence = receipt.summary.confidence
+    state.latestAgentDispatchApprovalRequired = receipt.summary.approvalRequired
+    emit("holoshell:workflow:agent-dispatch", {
+      action: "agent_dispatch_receipt_applied",
+      dispatch_id: state.latestAgentDispatchId,
+      status: state.latestAgentDispatchStatus,
+      capability_id: state.latestAgentDispatchCapabilityId,
+      capability_label: state.latestAgentDispatchCapabilityLabel,
+      dispatch_kind: state.latestAgentDispatchKind,
+      route: state.latestAgentDispatchRoute,
+      confidence: state.latestAgentDispatchConfidence,
+      approval_required: state.latestAgentDispatchApprovalRequired,
+      downstream_receipt: receipt.dispatch.downstreamReceipt,
+      approval_surface: receipt.dispatch.approvalSurface,
       receipt_required: true
     })
   }

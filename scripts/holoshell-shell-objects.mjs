@@ -269,9 +269,10 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, agentDispatch, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
+  const dispatchSummary = agentDispatch?.summary || {};
   const workflowSummary = workflow?.summary || {};
   const shardSummary = shardWorkflow?.summary || {};
   const shardApprovalSummary = shardImportApproval?.summary || {};
@@ -333,6 +334,41 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareAp
       detail: `Brittney avatar ${avatarSummary.avatarStatus || 'unknown'}; runtime ${avatarSummary.runtimeStatus || 'unknown'}.`,
       firstScreen: true,
       layout: { x: 54, y: 68, size: 126 },
+    },
+    {
+      id: 'workflow.agent-dispatch',
+      objectKind: 'workflow',
+      displayName: 'Agent Dispatch',
+      sourceKind: 'workflow',
+      sourceRef: 'scripts/holoshell-agent-dispatch.mjs',
+      capabilityFamily: 'agent_dispatch',
+      trustState: dispatchSummary.status === 'ready_to_stage' ? 'partial' : dispatchSummary.status === 'blocked' ? 'unknown' : 'verified',
+      permissionEnvelope: 'intent_scoped',
+      adapterPath: 'brittney_intent_to_guarded_route',
+      visualForm: 'dispatch_bubble',
+      status: dispatchSummary.status || 'available',
+      actorLaneId: 'brittney',
+      receiptTypes: ['agent_dispatch_receipt', 'workflow_receipt', 'hardware_action_receipt'],
+      relationships: {
+        capabilityId: dispatchSummary.capabilityId || '',
+        capabilityLabel: dispatchSummary.capabilityLabel || '',
+        dispatchKind: dispatchSummary.dispatchKind || '',
+        route: dispatchSummary.route || '',
+        confidence: dispatchSummary.confidence || 0,
+        selectedAgent: dispatchSummary.selectedAgentSlug || '',
+        actionKind: dispatchSummary.actionKind || '',
+        targetApp: dispatchSummary.targetApp || '',
+        approvalRequired: Boolean(dispatchSummary.approvalRequired),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'plain_language_to_operator_route',
+      launch: { action: 'stage_agent_dispatch', route: '/workflow/agent-dispatch' },
+      glyph: 'AD',
+      detail: dispatchSummary.capabilityLabel
+        ? `${dispatchSummary.capabilityLabel}; ${dispatchSummary.dispatchKind || 'dispatch'}; route ${dispatchSummary.route || 'none'}; confidence ${dispatchSummary.confidence || 0}.`
+        : 'Brittney routes plain-language requests into guarded HoloShell workflows and hardware actions.',
+      firstScreen: true,
+      layout: { x: 26, y: 66, size: 108 },
     },
     {
       id: 'source.wild-holoscript.uaa2',
@@ -1355,6 +1391,12 @@ function summarize(objects, feeds) {
     wildHoloScriptObjectCount: objects.filter((object) => object.capabilityFamily === 'source_corpus').length,
     founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
     userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
+    agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
+    agentDispatchCapabilityId: feeds.agentDispatch?.summary?.capabilityId || '',
+    agentDispatchCapabilityLabel: feeds.agentDispatch?.summary?.capabilityLabel || '',
+    agentDispatchKind: feeds.agentDispatch?.summary?.dispatchKind || '',
+    agentDispatchRoute: feeds.agentDispatch?.summary?.route || '',
+    agentDispatchConfidence: feeds.agentDispatch?.summary?.confidence || 0,
     formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
@@ -1376,6 +1418,7 @@ function summarize(objects, feeds) {
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
       founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
       userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
+      agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -1394,6 +1437,7 @@ function loadFeeds(tmpDir) {
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
     userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
+    agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
@@ -1629,6 +1673,25 @@ function fixtureFeeds() {
       lanes: [{ laneId: 'codex-hardware', displayName: 'Codex Hardware', agentKind: 'codex', surfaceKind: 'hardware_shell', role: 'local_oracle', status: 'active_or_available', processEvidence: { detected: true } }],
     },
     brittneyAvatar: { summary: { avatarStatus: 'available', runtimeStatus: 'available', emotion: 'focused', voiceState: 'ready' } },
+    agentDispatch: {
+      schemaVersion: 'hololand.holoshell.agent-dispatch.v0.1.0',
+      dispatchId: 'agent-dispatch-fixture',
+      summary: {
+        status: 'ready_to_stage',
+        capabilityId: 'ollama_cloud_agent',
+        capabilityLabel: 'Ollama Cloud Agent',
+        dispatchKind: 'workflow',
+        route: '/workflow/ollama-cloud-agent',
+        confidence: 95,
+        permissionEnvelope: 'guarded_execute',
+        approvalRequired: true,
+        selectedAgentSlug: 'codex',
+      },
+      dispatch: {
+        downstreamReceipt: 'workflow-latest.json',
+        approvalSurface: 'workflow-approval-latest.json',
+      },
+    },
     hardwareAction: { actionId: 'action-1', generatedAt: new Date().toISOString(), summary: { status: 'approval_required', actionKind: 'launch_app', permissionEnvelope: 'guarded_execute', targetWindowTitle: '', mutatingActionExecuted: false } },
     hardwareApproval: { approvalId: 'approval-1', summary: { status: 'pending_user_approval', actionKind: 'launch_app', target: 'Excel', executionAllowed: true, expiresAt: new Date().toISOString() } },
     workflow: { workflowId: 'workflow-1', title: 'Room Marathon', summary: { status: 'pending_user_approval', stepCount: 4, pendingApprovalCount: 1, model: 'kimi', modelRoute: 'ollama_cloud' } },
@@ -1719,6 +1782,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.objectKind === 'terminal_surface')) failures.push('expected terminal surface object');
   if (!graph.objects.some((object) => object.objectKind === 'assistant_avatar')) failures.push('expected Brittney assistant avatar object');
   if (!graph.objects.some((object) => object.objectKind === 'captured_window')) failures.push('expected captured window object');
+  if (!graph.objects.some((object) => object.id === 'workflow.agent-dispatch')) failures.push('expected agent dispatch workflow object');
   if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
@@ -1732,6 +1796,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'assistant.brittney.user-translator')) failures.push('expected Brittney user translator object');
   if (graph.summary.wildHoloScriptStatus !== 'scanned') failures.push('expected wild HoloScript scanned status');
   if (graph.summary.userShellProjectionStatus !== 'ready') failures.push('expected user shell projection ready status');
+  if (graph.summary.agentDispatchStatus !== 'ready_to_stage') failures.push('expected agent dispatch ready status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');
   if (graph.summary.processObjectCount !== 1) failures.push('expected one process object from build custody');

@@ -17,6 +17,7 @@ scripts/holoshell-shell-objects.mjs
 scripts/holoshell-action-executor.mjs
 scripts/holoshell-approval-bundle.mjs
 scripts/holoshell-control-daemon.mjs
+scripts/holoshell-agent-dispatch.mjs
 scripts/holoshell-room-marathon-workflow.mjs
 scripts/holoshell-workflow-approval-bundle.mjs
 ```
@@ -54,6 +55,9 @@ proves what HoloShell saw before it offered to act.
 .tmp/holoshell/workflow-approval-latest.json
 .tmp/holoshell/workflow-approval-latest.js
 .tmp/holoshell/workflow-approval-bundles/
+.tmp/holoshell/agent-dispatch-latest.json
+.tmp/holoshell/agent-dispatch-latest.js
+.tmp/holoshell/agent-dispatches/
 ```
 
 The live-feed bridge consumes the latest action and exposes it to the prototype
@@ -169,8 +173,10 @@ GET  /action/latest
 GET  /approval/latest
 GET  /workflow/latest
 GET  /workflow/approval/latest
+GET  /dispatch/latest
 POST /action
 POST /approval/execute
+POST /workflow/agent-dispatch
 POST /workflow/room-marathon
 POST /workflow/claude-chat
 POST /workflow/ollama-cloud-agent
@@ -217,6 +223,23 @@ Stage the first compound Brittney operator workflow:
 ```powershell
 node scripts\holoshell-room-marathon-workflow.mjs
 ```
+
+Stage a plain-language Brittney dispatch:
+
+```powershell
+node scripts\holoshell-agent-dispatch.mjs --intent "launch Codex through Ollama"
+```
+
+Or ask the daemon to translate and stage the matching guarded adapter:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4747/workflow/agent-dispatch -ContentType application/json -Body (@{ intent = "open Excel" } | ConvertTo-Json)
+```
+
+Dispatch does not execute anything directly. It writes
+`.tmp/holoshell/agent-dispatch-latest.json`, chooses a route such as
+`/workflow/claude-chat`, `/workflow/ollama-cloud-agent`, `/workflow/room-marathon`,
+or `/action`, and then the selected adapter writes the normal approval bundle.
 
 That stages:
 

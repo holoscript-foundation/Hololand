@@ -1,0 +1,188 @@
+// HoloShell Agent Dispatch
+//
+// Source contract for Brittney turning plain-language user intent into a
+// concrete HoloShell route. Dispatch never executes directly; it selects an
+// existing guarded workflow/action adapter and lets that adapter mint the
+// nonce-bound approval receipt.
+
+composition "HoloShell Agent Dispatch" {
+  config {
+    title: "HoloShell Agent Dispatch"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeScript: "scripts/holoshell-agent-dispatch.mjs"
+    hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    latestDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
+    dispatchReceiptDir: ".tmp/holoshell/agent-dispatches"
+    browserBootstrap: ".tmp/holoshell/agent-dispatch-latest.js"
+    controlDaemonRoute: "POST /workflow/agent-dispatch"
+  }
+
+  state {
+    dispatchStatus: "unknown"
+    dispatchId: ""
+    actor: "brittney"
+    intentHash: ""
+    capabilityId: ""
+    capabilityLabel: ""
+    dispatchKind: "unsupported"
+    route: ""
+    confidence: 0
+    permissionEnvelope: "unknown"
+    approvalRequired: false
+    downstreamReceipt: ""
+    approvalSurface: ""
+    selectedAgentSlug: ""
+    actionKind: ""
+    targetApp: ""
+    targetUrlHost: ""
+    promptPresent: false
+    rawIntentStoredLocallyOnly: true
+  }
+
+  channel "holoshell:agent-dispatch:intent" {
+    type: "request_response"
+    priority: "critical"
+    description: "Plain-language Brittney/user intent entering the HoloShell operator layer"
+  }
+
+  channel "holoshell:agent-dispatch:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Local receipt describing the selected HoloShell route and approval surface"
+  }
+
+  channel "holoshell:agent-dispatch:handoff" {
+    type: "request_response"
+    priority: "critical"
+    description: "Daemon handoff from dispatch receipt to the selected guarded workflow or hardware action"
+  }
+
+  template "AgentDispatchRequest" {
+    type: "agent_dispatch_request"
+    actor: "brittney"
+    intentPreview: ""
+    intentHash: ""
+    promptPresent: false
+    rawIntentStoredLocallyOnly: true
+    receiptRequired: true
+  }
+
+  template "AgentDispatchCapability" {
+    type: "agent_dispatch_capability"
+    id: ""
+    label: ""
+    route: ""
+    dispatchKind: "workflow"
+    permissionEnvelope: "guarded_execute"
+    examples: []
+  }
+
+  template "AgentDispatchReceipt" {
+    type: "agent_dispatch_receipt"
+    receiptType: "hololand.holoshell.agent-dispatch.v0.1.0"
+    dispatchId: ""
+    status: "ready_to_stage"
+    capabilityId: ""
+    capabilityLabel: ""
+    confidence: 0
+    route: ""
+    dispatchKind: "workflow"
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    downstreamReceipt: "workflow-latest.json"
+    approvalSurface: "workflow-approval-latest.json"
+    receiptRequired: true
+  }
+
+  policy "DispatchDoesNotExecute" {
+    appliesTo: ["agent_dispatch"]
+    permissionEnvelope: "intent_scoped"
+    approvalRequired: false
+    mutating: false
+    executionAllowed: false
+    handoffRequired: true
+    receiptRequired: true
+  }
+
+  policy "DispatchToGuardedAdapter" {
+    appliesTo: ["claude_chat", "ollama_cloud_agent", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    mutating: true
+    downstreamAdapterOwnsApproval: true
+    receiptRequired: true
+  }
+
+  action request_agent_dispatch(request) {
+    emit("holoshell:agent-dispatch:intent", {
+      action: "agent_dispatch_requested",
+      actor: request.actor,
+      intent_hash: request.intentHash,
+      prompt_present: request.promptPresent,
+      raw_intent_stored_locally_only: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_agent_dispatch_receipt(receipt) {
+    state.dispatchStatus = receipt.summary.status
+    state.dispatchId = receipt.dispatchId
+    state.actor = receipt.actor
+    state.intentHash = receipt.request.intentHash
+    state.capabilityId = receipt.summary.capabilityId
+    state.capabilityLabel = receipt.summary.capabilityLabel
+    state.dispatchKind = receipt.summary.dispatchKind
+    state.route = receipt.summary.route
+    state.confidence = receipt.summary.confidence
+    state.permissionEnvelope = receipt.summary.permissionEnvelope
+    state.approvalRequired = receipt.summary.approvalRequired
+    state.downstreamReceipt = receipt.dispatch.downstreamReceipt
+    state.approvalSurface = receipt.dispatch.approvalSurface
+    state.selectedAgentSlug = receipt.summary.selectedAgentSlug
+    state.actionKind = receipt.summary.actionKind
+    state.targetApp = receipt.summary.targetApp
+    state.targetUrlHost = receipt.summary.targetUrlHost
+    state.promptPresent = receipt.summary.promptPresent
+    state.rawIntentStoredLocallyOnly = receipt.summary.rawIntentStoredLocallyOnly
+    emit("holoshell:agent-dispatch:receipt", {
+      action: "agent_dispatch_receipt_applied",
+      dispatch_id: state.dispatchId,
+      status: state.dispatchStatus,
+      capability_id: state.capabilityId,
+      capability_label: state.capabilityLabel,
+      dispatch_kind: state.dispatchKind,
+      route: state.route,
+      permission_envelope: state.permissionEnvelope,
+      approval_required: state.approvalRequired,
+      downstream_receipt: state.downstreamReceipt,
+      approval_surface: state.approvalSurface,
+      selected_agent: state.selectedAgentSlug,
+      action_kind: state.actionKind,
+      target_app: state.targetApp,
+      target_url_host: state.targetUrlHost,
+      receipt_required: true
+    })
+  }
+
+  action handoff_agent_dispatch(receipt) {
+    if (receipt.summary.status != "ready_to_stage") {
+      emit("holoshell:agent-dispatch:handoff", {
+        action: "agent_dispatch_handoff_blocked",
+        dispatch_id: receipt.dispatchId,
+        reason: "unsupported_or_low_confidence_intent",
+        receipt_required: true
+      })
+    } else {
+      emit("holoshell:agent-dispatch:handoff", {
+        action: "agent_dispatch_handoff_ready",
+        dispatch_id: receipt.dispatchId,
+        route: receipt.dispatch.route,
+        dispatch_kind: receipt.dispatch.dispatchKind,
+        downstream_receipt: receipt.dispatch.downstreamReceipt,
+        approval_surface: receipt.dispatch.approvalSurface,
+        receipt_required: true
+      })
+    }
+  }
+}
