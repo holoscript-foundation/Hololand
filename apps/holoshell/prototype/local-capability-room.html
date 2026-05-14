@@ -886,6 +886,7 @@
     }
   </style>
   <script src="../../../.tmp/holoshell/live-feed.js"></script>
+  <script src="../../../.tmp/holoshell/readiness-evidence.js"></script>
   <script src="../../../.tmp/holoshell/program-registry.js"></script>
   <script src="../../../.tmp/holoshell/shell-objects.js"></script>
   <script src="../../../.tmp/holoshell/brittney-turn-latest.js"></script>
@@ -1001,6 +1002,7 @@
     const canvas = document.getElementById("world");
     const ctx = canvas.getContext("2d");
     const feed = window.HOLOSHELL_LIVE_FEED || {};
+    const standaloneReadinessEvidence = window.HOLOSHELL_READINESS_EVIDENCE || {};
     const standaloneAvatarFeed = window.HOLOSHELL_BRITTNEY_AVATAR || {};
     const standaloneTurnFeed = window.HOLOSHELL_BRITTNEY_TURN || {};
     const standaloneHardwareActionFeed = window.HOLOSHELL_HARDWARE_ACTION || {};
@@ -1370,6 +1372,15 @@
       return graph.summary || {};
     }
 
+    function readinessEvidenceFeed() {
+      return feed.feeds?.readinessEvidence?.summary ? feed.feeds.readinessEvidence : standaloneReadinessEvidence;
+    }
+
+    function readinessEvidenceSummary() {
+      const evidence = readinessEvidenceFeed();
+      return evidence.summary || {};
+    }
+
     function shellBubbleType(object) {
       return String(object.objectKind || "shell_object").replaceAll("_", " ");
     }
@@ -1386,6 +1397,13 @@
         "HoloScript MCP": "Holo MCP",
         "Program Control": "Control",
         "Hardware Proof": "Proof",
+        "World Build Readiness": "Readiness",
+        "pnpm build passed": "Build Pass",
+        "Graph status reported import failure": "Graph Status",
+        "Headset report missing": "Headset Gap",
+        "Replay receipt missing": "Replay Gap",
+        "WebGPU browser smoke": "WebGPU",
+        "WASM SIMD": "WASM",
         "Captured UI": "UI",
         "Room Marathon": "Marathon",
       };
@@ -1459,6 +1477,16 @@
         .filter((object) => !/developer powershell|powershell ise/i.test(object.displayName || ""))
         .slice(0, 8)
         .map((object, index) => shellObjectBubble({ ...object, layout: appSlots[index] || object.layout }, index));
+    }
+
+    function readinessBubbles() {
+      const graph = shellObjectGraphFeed();
+      const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
+      return graphObjects
+        .filter((object) => object.capabilityFamily === "readiness_evidence")
+        .filter((object) => object.firstScreen || object.objectKind === "readiness_room")
+        .slice(0, 8)
+        .map((object, index) => shellObjectBubble(object, index + 20));
     }
 
     function hardwareApprovalFeed() {
@@ -1583,6 +1611,7 @@
       if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
       if (/\b(agent|codex|claude|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
       if (/\b(room marathon|marathon|kimi|ollama|lofi|youtube music|music on youtube|start room)\b/.test(text)) add("room-marathon", "Room Marathon", "stage_room_marathon_workflow", "compound agent workflow", { permissionEnvelope: "guarded_execute" });
+      if (/\b(readiness|ready|build evidence|evidence pack|webgpu|wasm|headset|replay|graph status|world build)\b/.test(text)) add("room.world-build-readiness", "World Build Readiness", "focus_shell_object", "readiness evidence room");
       if (/\b(program|app|application|legacy|window|ui|control)\b/.test(text)) add("programs", "Programs", "focus_shell_object", "legacy program");
       if (/\b(hardware|focus|hotkey|click|type|launch|open app|control program|program control)\b/.test(text)) add("hardware-control", "Program Control", "stage_hardware_action", "guarded program control", { permissionEnvelope: "guarded_execute" });
       if (/\b(captured|window|click|legacy ui|old ui)\b/.test(text)) add("captured-ui", "Captured UI", "focus_shell_object", "captured window");
@@ -1643,6 +1672,7 @@
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const runtimeBubbles = canonicalShellBubbles();
+      const readinessRuntimeBubbles = readinessBubbles();
       const runtimeReplaces = runtimeBubbles.length ? new Set(["browser", "programs", "terminal"]) : new Set();
       const runtimeStatus = avatarSummary.runtimeStatus || "unknown";
       const avatarStatus = avatarSummary.avatarStatus || "unknown";
@@ -1741,7 +1771,7 @@
           evidence: capability.evidence,
         };
       });
-      return [...objects, ...runtimeBubbles, ...capturedUi, ...extras];
+      return [...objects, ...readinessRuntimeBubbles, ...runtimeBubbles, ...capturedUi, ...extras];
     }
 
     function currentSelectedObject() {
@@ -1835,6 +1865,11 @@
       const workflow = workflowApprovalFeed();
       const gate = workflowIntentGateSummary();
       const wantsWorkflow = object?.id === "room-marathon" || object?.shellObject?.objectKind === "workflow";
+      const hardwareKinds = new Set(["program", "browser_surface", "terminal_surface", "developer_surface", "document_app", "captured_window", "approval"]);
+      const wantsHardware = object?.id === "hardware-control"
+        || object?.id === "programs"
+        || object?.shellObject?.capabilityFamily === "hardware_power"
+        || hardwareKinds.has(object?.shellObject?.objectKind);
       const workflowPending = workflow?.summary?.status === "pending_user_approval";
       const hardwarePending = hardware?.summary?.status === "pending_user_approval";
       if (wantsWorkflow && workflowPending) {
@@ -1851,7 +1886,7 @@
           executionAllowed: Boolean(workflow.summary?.executionAllowed && (gate.executionAllowed || feed.summary?.activeWorkflowIntentGateExecutionAllowed)),
         };
       }
-      if (hardwarePending) {
+      if (wantsHardware && hardwarePending) {
         return {
           kind: "hardware",
           bundle: hardware,
@@ -2099,6 +2134,7 @@
       const hardwareSummary = hardwareActionSummary();
       const registrySummary = programRegistrySummary();
       const shellGraphSummary = shellObjectGraphSummary();
+      const readinessSummary = readinessEvidenceSummary();
       const approvalSummary = hardwareApprovalSummary();
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
@@ -2110,6 +2146,8 @@
         "Avatar source: source/holoshell-brittney-avatar.hsplus",
         "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
         "Hardware source: source/holoshell-hardware-control.hsplus",
+        `Readiness evidence: ${readinessSummary.status || summary.readinessEvidenceStatus || "unknown"}; build ${readinessSummary.buildStatus || summary.readinessBuildStatus || "unknown"}; device ${readinessSummary.deviceLabStatus || summary.readinessDeviceLabStatus || "unknown"}; graph ${readinessSummary.graphStatus || summary.readinessGraphStatus || "unknown"}`,
+        `Readiness tokens: ${readinessSummary.tokenCount || summary.readinessTokenCount || 0}; warnings ${readinessSummary.warningCount || summary.readinessWarningCount || 0}; next ${readinessSummary.nextWorkflow || summary.readinessNextWorkflow || "none"}`,
         `Control daemon: ${controlDaemonHealth.status || "offline"}; execute ${controlDaemonHealth.executeEnabled ? "enabled" : "disabled"}`,
         `Captured UI: ${summary.capturedWindowCount || 0} windows, ${summary.capturedGeometryNodeCount || 0} geometric shards`,
         `Program registry: ${registrySummary.launchableProgramCount || summary.launchableProgramCount || 0} launchable, ${registrySummary.programCount || summary.installedProgramCount || 0} installed entries`,

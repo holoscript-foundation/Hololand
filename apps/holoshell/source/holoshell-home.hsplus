@@ -28,6 +28,7 @@ composition "HoloShell Home" {
     workflowReceipt: ".tmp/holoshell/workflow-latest.json"
     workflowApprovalBundle: ".tmp/holoshell/workflow-approval-latest.json"
     workflowIntentGateReceipt: ".tmp/holoshell/brain-intent-gate-latest.json"
+    readinessEvidencePack: ".tmp/holoshell/readiness-evidence.json"
     previewProjection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
@@ -106,6 +107,20 @@ composition "HoloShell Home" {
     activeWorkflowIntentGateFailedCheckCount: 0
     activeWorkflowIntentGateReceiptStatus: "unknown"
     pilotReceiptCount: 0
+    readinessEvidenceStatus: "unknown"
+    readinessScenario: ""
+    readinessTokenCount: 0
+    readinessWarningCount: 0
+    readinessBuildStatus: "unknown"
+    readinessValidationStatus: "unknown"
+    readinessDeviceLabStatus: "unknown"
+    readinessWasmSimdStatus: "unknown"
+    readinessWebgpuStatus: "unknown"
+    readinessHeadsetStatus: "unknown"
+    readinessReplayStatus: "unknown"
+    readinessGraphStatus: "unknown"
+    readinessTaskCount: 0
+    readinessNextWorkflow: ""
     activePilot: ""
     lastFeedGeneratedAt: ""
     operatingStage: "ask"
@@ -198,6 +213,12 @@ composition "HoloShell Home" {
     type: "pub_sub"
     priority: "critical"
     description: "Bundled HoloShell runtime feeds from local adapters, receipts, and pilot witnesses"
+  }
+
+  channel "holoshell:readiness" {
+    type: "append_only"
+    priority: "high"
+    description: "World build readiness evidence packs from HoloScript automation rendered as shell-room receipt tokens"
   }
 
   channel "holoshell:pilot" {
@@ -985,6 +1006,20 @@ composition "HoloShell Home" {
     state.launchableProgramCount = feedBundle.summary.launchableProgramCount
     state.startMenuProgramCount = feedBundle.summary.startMenuProgramCount
     state.appPathProgramCount = feedBundle.summary.appPathProgramCount
+    state.readinessEvidenceStatus = feedBundle.summary.readinessEvidenceStatus
+    state.readinessScenario = feedBundle.summary.readinessScenario
+    state.readinessTokenCount = feedBundle.summary.readinessTokenCount
+    state.readinessWarningCount = feedBundle.summary.readinessWarningCount
+    state.readinessBuildStatus = feedBundle.summary.readinessBuildStatus
+    state.readinessValidationStatus = feedBundle.summary.readinessValidationStatus
+    state.readinessDeviceLabStatus = feedBundle.summary.readinessDeviceLabStatus
+    state.readinessWasmSimdStatus = feedBundle.summary.readinessWasmSimdStatus
+    state.readinessWebgpuStatus = feedBundle.summary.readinessWebgpuStatus
+    state.readinessHeadsetStatus = feedBundle.summary.readinessHeadsetStatus
+    state.readinessReplayStatus = feedBundle.summary.readinessReplayStatus
+    state.readinessGraphStatus = feedBundle.summary.readinessGraphStatus
+    state.readinessTaskCount = feedBundle.summary.readinessTaskCount
+    state.readinessNextWorkflow = feedBundle.summary.readinessNextWorkflow
     state.shellObjectGraphStatus = feedBundle.summary.shellObjectGraphStatus
     state.shellObjectCount = feedBundle.summary.shellObjectCount
     state.firstScreenObjectCount = feedBundle.summary.firstScreenObjectCount
@@ -1068,6 +1103,20 @@ composition "HoloShell Home" {
       program_registry: state.programRegistryStatus,
       installed_programs: state.installedProgramCount,
       launchable_programs: state.launchableProgramCount,
+      readiness_evidence: state.readinessEvidenceStatus,
+      readiness_scenario: state.readinessScenario,
+      readiness_tokens: state.readinessTokenCount,
+      readiness_warnings: state.readinessWarningCount,
+      readiness_build: state.readinessBuildStatus,
+      readiness_validation: state.readinessValidationStatus,
+      readiness_device_lab: state.readinessDeviceLabStatus,
+      readiness_webgpu: state.readinessWebgpuStatus,
+      readiness_wasm_simd: state.readinessWasmSimdStatus,
+      readiness_headset: state.readinessHeadsetStatus,
+      readiness_replay: state.readinessReplayStatus,
+      readiness_graph_status: state.readinessGraphStatus,
+      readiness_tasks: state.readinessTaskCount,
+      readiness_next_workflow: state.readinessNextWorkflow,
       shell_object_graph: state.shellObjectGraphStatus,
       shell_objects: state.shellObjectCount,
       first_screen_objects: state.firstScreenObjectCount,
@@ -1162,6 +1211,45 @@ composition "HoloShell Home" {
       count: state.timelineNodeCount,
       rollback: "per_receipt",
       trust_state: feedBundle.summary.overallRisk == "pass" ? "verified" : "partial"
+    })
+  }
+
+  action apply_readiness_evidence(evidencePack) {
+    state.readinessEvidenceStatus = evidencePack.summary.status
+    state.readinessScenario = evidencePack.summary.scenario
+    state.readinessTokenCount = evidencePack.summary.tokenCount
+    state.readinessWarningCount = evidencePack.summary.warningCount
+    state.readinessBuildStatus = evidencePack.summary.buildStatus
+    state.readinessValidationStatus = evidencePack.summary.validationStatus
+    state.readinessDeviceLabStatus = evidencePack.summary.deviceLabStatus
+    state.readinessWasmSimdStatus = evidencePack.summary.wasmSimdStatus
+    state.readinessWebgpuStatus = evidencePack.summary.webgpuStatus
+    state.readinessHeadsetStatus = evidencePack.summary.headsetStatus
+    state.readinessReplayStatus = evidencePack.summary.replayStatus
+    state.readinessGraphStatus = evidencePack.summary.graphStatus
+    state.readinessTaskCount = evidencePack.summary.taskCount
+    state.readinessNextWorkflow = evidencePack.summary.nextWorkflow
+    state.receiptCount = state.receiptCount + state.readinessTokenCount
+    state.operatingStage = state.readinessWarningCount > 0 ? "receive" : state.operatingStage
+    state.nextMove = state.readinessNextWorkflow || state.nextMove
+    emit("holoshell:readiness", {
+      action: "readiness_evidence_applied",
+      readiness_id: evidencePack.readinessId,
+      status: state.readinessEvidenceStatus,
+      scenario: state.readinessScenario,
+      tokens: state.readinessTokenCount,
+      warnings: state.readinessWarningCount,
+      build: state.readinessBuildStatus,
+      validation: state.readinessValidationStatus,
+      device_lab: state.readinessDeviceLabStatus,
+      webgpu: state.readinessWebgpuStatus,
+      wasm_simd: state.readinessWasmSimdStatus,
+      headset: state.readinessHeadsetStatus,
+      replay: state.readinessReplayStatus,
+      graph_status: state.readinessGraphStatus,
+      tasks: state.readinessTaskCount,
+      next_workflow: state.readinessNextWorkflow,
+      receipt_required: true
     })
   }
 

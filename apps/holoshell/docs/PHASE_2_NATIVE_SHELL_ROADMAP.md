@@ -76,6 +76,9 @@ Current landing:
   with id, nonce-bound command preview, expiry, daemon status, and execute gate.
 - Default daemon mode keeps execution disabled; real mutation still requires
   `--enable-execute`, current id, current nonce, and explicit confirmation.
+- HoloScript flagship readiness evidence can now be ingested as a HoloShell
+  World Build Readiness room with build, WebGPU, WASM, validation, headset,
+  replay, graph-status, and HoloMesh task tokens.
 
 Deliverables:
 

@@ -68,6 +68,7 @@ ShellObject
 | `workflow` | Ordered multi-step action plan. | Room Marathon with Lofi. |
 | `approval` | User decision object for guarded or break-glass work. | Hardware approval, workflow approval. |
 | `receipt` | Evidence object attached to action or observation. | Action receipt, DOM witness, screenshot. |
+| `readiness_room` | Evidence room proving whether the local machine can build a HoloLand world. | World Build Readiness. |
 | `captured_window` | Legacy app window reconstructed into shell geometry. | Active app surface. |
 | `captured_control` | Legacy UI control reconstructed as an interactable object. | Button, input, menu item. |
 | `process` | Running PID or service under custody. | Dev server, build, daemon. |
@@ -174,6 +175,7 @@ window.HOLOSHELL_SHELL_OBJECTS
 Inputs:
 
 - `.tmp/holoshell/program-registry.json`
+- `.tmp/holoshell/readiness-evidence.json`
 - `.tmp/holoshell/os-ui-capture.json`
 - `.tmp/holoshell/agent-lanes.json`
 - Brittney avatar, workflow, approval, intent-gate, and action receipts
@@ -188,6 +190,14 @@ app bubbles, browser surfaces, terminal surfaces, captured windows, approvals,
 receipts, and guarded powers. This makes the shell object graph the runtime
 join between the HoloScript source, local app registry, legacy UI capture, and
 Brittney's action surface.
+
+Readiness evidence packs become a `readiness_room` plus receipt tokens. The
+current HoloLand bridge reads the HoloScript flagship run from
+`../HoloScript/.bench-logs/holoshell-human-os-frontier/<date>/` through
+`scripts/holoshell-readiness-evidence.mjs`, then emits build, validation,
+WebGPU, WASM, headset, replay, graph-status, and HoloMesh task tokens. Missing
+headset/replay evidence uses `manual_witness`; command and validation passes
+remain `read_only`.
 
 ## Source Boundary
 

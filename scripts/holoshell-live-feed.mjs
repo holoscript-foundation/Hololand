@@ -95,7 +95,13 @@ function riskRank(risk) {
   return 0;
 }
 
-function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, runReceipts, pilotReceipts }) {
+function riskFromEvidenceStatus(status) {
+  if (status === 'fail' || status === 'reported_fail' || status === 'warn' || status === 'skipped') return 'warn';
+  if (status === 'pass') return 'pass';
+  return 'unknown';
+}
+
+function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -175,6 +181,31 @@ function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCaptu
       receiptType: 'hololand.holoshell.program-registry.v0.1.0',
       source: 'scripts/holoshell-program-registry.mjs',
     });
+  }
+
+  if (readinessEvidence?.summary) {
+    timeline.push({
+      id: readinessEvidence.readinessId || 'holoshell-readiness-evidence',
+      kind: 'readiness_evidence',
+      title: `World build readiness ${readinessEvidence.summary.status || 'unknown'}`,
+      detail: `${readinessEvidence.summary.scenario || 'HoloShell readiness'}; build ${readinessEvidence.summary.buildStatus || 'unknown'}; device ${readinessEvidence.summary.deviceLabStatus || 'unknown'}; graph ${readinessEvidence.summary.graphStatus || 'unknown'}.`,
+      trustState: readinessEvidence.summary.status === 'pass' ? 'verified' : 'partial',
+      generatedAt: readinessEvidence.generatedAt || now,
+      receiptType: readinessEvidence.schemaVersion,
+      source: readinessEvidence.source?.reportPath || 'scripts/holoshell-readiness-evidence.mjs',
+    });
+    for (const token of (readinessEvidence.tokens || []).slice(0, 8)) {
+      timeline.push({
+        id: token.id,
+        kind: `readiness_${token.kind || 'token'}`,
+        title: token.title || 'Readiness token',
+        detail: token.detail || token.nextAction || 'Readiness evidence recorded.',
+        trustState: token.trustState || (token.status === 'pass' ? 'verified' : 'partial'),
+        generatedAt: readinessEvidence.generatedAt || now,
+        receiptType: token.receiptType || readinessEvidence.schemaVersion,
+        source: token.source || readinessEvidence.source?.evidenceDir || 'scripts/holoshell-readiness-evidence.mjs',
+      });
+    }
   }
 
   if (shellObjects?.summary) {
@@ -321,6 +352,7 @@ function createFeed(args) {
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
   const programRegistry = readJson(path.join(tmpDir, 'program-registry.json'), {});
+  const readinessEvidence = readJson(path.join(tmpDir, 'readiness-evidence.json'), {});
   const shellObjects = readJson(path.join(tmpDir, 'shell-objects.json'), {});
   const brittneyAvatar = readJson(path.join(tmpDir, 'brittney-avatar.json'), {});
   const brittneyTurn = readJson(path.join(tmpDir, 'brittney-turn-latest.json'), {});
@@ -346,6 +378,7 @@ function createFeed(args) {
     processHealth,
     osUiCapture,
     programRegistry,
+    readinessEvidence,
     shellObjects,
     brittneyAvatar,
     brittneyTurn,
@@ -359,7 +392,8 @@ function createFeed(args) {
   });
   const trust = trustCounts(inventory?.capabilities || []);
   const processRisk = processHealth?.summary?.riskState || 'unknown';
-  const overallRisk = [processRisk, stopPlans.length ? 'warn' : 'pass']
+  const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
+  const overallRisk = [processRisk, stopPlans.length ? 'warn' : 'pass', readinessRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -369,6 +403,7 @@ function createFeed(args) {
       source: 'apps/holoshell/source/holoshell-home.hsplus',
       hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
+      readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
@@ -400,6 +435,20 @@ function createFeed(args) {
       startMenuProgramCount: programRegistry?.summary?.startMenuProgramCount || 0,
       appPathProgramCount: programRegistry?.summary?.appPathProgramCount || 0,
       programRegistryRunningWindowCount: programRegistry?.summary?.runningWindowCount || 0,
+      readinessEvidenceStatus: readinessEvidence?.summary?.status || 'unknown',
+      readinessScenario: readinessEvidence?.summary?.scenario || '',
+      readinessTokenCount: readinessEvidence?.summary?.tokenCount || 0,
+      readinessWarningCount: readinessEvidence?.summary?.warningCount || 0,
+      readinessBuildStatus: readinessEvidence?.summary?.buildStatus || 'unknown',
+      readinessValidationStatus: readinessEvidence?.summary?.validationStatus || 'unknown',
+      readinessDeviceLabStatus: readinessEvidence?.summary?.deviceLabStatus || 'unknown',
+      readinessWasmSimdStatus: readinessEvidence?.summary?.wasmSimdStatus || 'unknown',
+      readinessWebgpuStatus: readinessEvidence?.summary?.webgpuStatus || 'unknown',
+      readinessHeadsetStatus: readinessEvidence?.summary?.headsetStatus || 'unknown',
+      readinessReplayStatus: readinessEvidence?.summary?.replayStatus || 'unknown',
+      readinessGraphStatus: readinessEvidence?.summary?.graphStatus || 'unknown',
+      readinessTaskCount: readinessEvidence?.summary?.taskCount || 0,
+      readinessNextWorkflow: readinessEvidence?.summary?.nextWorkflow || '',
       shellObjectGraphStatus: shellObjects?.summary?.status || 'unknown',
       shellObjectCount: shellObjects?.summary?.shellObjectCount || 0,
       firstScreenObjectCount: shellObjects?.summary?.firstScreenObjectCount || 0,
@@ -476,6 +525,7 @@ function createFeed(args) {
       processHealth,
       osUiCapture,
       programRegistry,
+      readinessEvidence,
       shellObjects,
       brittneyAvatar,
       brittneyTurn,

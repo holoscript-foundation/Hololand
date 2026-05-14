@@ -515,6 +515,103 @@ function agentObjects(lanes, maxAgents) {
   });
 }
 
+function readinessStatusTrust(status) {
+  if (status === 'pass') return 'verified';
+  if (status === 'warn' || status === 'skipped' || status === 'reported_fail' || status === 'fail') return 'partial';
+  return 'unknown';
+}
+
+function readinessTokenGlyph(token) {
+  const id = String(token?.id || token?.kind || '').toLowerCase();
+  if (id.includes('build')) return 'PB';
+  if (id.includes('source')) return 'SV';
+  if (id.includes('webgpu')) return 'WG';
+  if (id.includes('wasm')) return 'WA';
+  if (id.includes('headset')) return 'VR';
+  if (id.includes('replay')) return 'RP';
+  if (id.includes('graph')) return 'GR';
+  if (id.includes('task')) return 'HM';
+  return 'EV';
+}
+
+function readinessObjects(readinessEvidence) {
+  if (!readinessEvidence?.summary) return [];
+  const summary = readinessEvidence.summary;
+  const objects = [{
+    id: 'room.world-build-readiness',
+    objectKind: 'readiness_room',
+    displayName: 'World Build Readiness',
+    sourceKind: 'receipt',
+    sourceRef: readinessEvidence.source?.reportPath || readinessEvidence.source?.evidenceDir || '',
+    capabilityFamily: 'readiness_evidence',
+    trustState: readinessStatusTrust(summary.status),
+    permissionEnvelope: 'read_only',
+    adapterPath: 'readiness_evidence_ingestion',
+    visualForm: 'room',
+    status: summary.status || 'unknown',
+    actorLaneId: 'brittney',
+    receiptTypes: ['readiness_evidence_pack', 'device_lab_receipt', 'build_log', 'source_validations'],
+    relationships: {
+      scenario: summary.scenario || '',
+      nextWorkflow: summary.nextWorkflow || '',
+      buildStatus: summary.buildStatus || '',
+      deviceLabStatus: summary.deviceLabStatus || '',
+      graphStatus: summary.graphStatus || '',
+      tokenCount: summary.tokenCount || 0,
+      warningCount: summary.warningCount || 0,
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'world_build_readiness_room',
+    glyph: 'WR',
+    detail: `${summary.scenario || 'World build readiness'}; build ${summary.buildStatus || 'unknown'}; device ${summary.deviceLabStatus || 'unknown'}; ${summary.warningCount || 0} warning token(s).`,
+    firstScreen: true,
+    layout: { x: 22, y: 15, size: 116 },
+  }];
+
+  const tokenSlots = [
+    { x: 17, y: 42, size: 80 },
+    { x: 29, y: 31, size: 78 },
+    { x: 38, y: 62, size: 78 },
+    { x: 50, y: 17, size: 76 },
+    { x: 72, y: 17, size: 78 },
+    { x: 83, y: 31, size: 76 },
+    { x: 87, y: 66, size: 78 },
+    { x: 35, y: 83, size: 76 },
+  ];
+
+  for (const [index, token] of (readinessEvidence.tokens || []).slice(0, 8).entries()) {
+    const slot = tokenSlots[index] || layout(index + 18, 76);
+    objects.push({
+      id: `receipt.${token.id || `readiness-${index}`}`,
+      objectKind: 'receipt',
+      displayName: token.title || 'Readiness Token',
+      sourceKind: 'receipt',
+      sourceRef: token.source || readinessEvidence.source?.evidenceDir || '',
+      capabilityFamily: 'readiness_evidence',
+      trustState: token.trustState || readinessStatusTrust(token.status),
+      permissionEnvelope: token.status === 'skipped' || token.status === 'warn' ? 'manual_witness' : 'read_only',
+      adapterPath: 'readiness_evidence_ingestion',
+      visualForm: token.status === 'pass' ? 'timeline_node' : 'warning_token',
+      status: token.status || 'unknown',
+      actorLaneId: 'codex-hardware',
+      receiptTypes: [token.receiptType || 'readiness_evidence_pack'],
+      relationships: {
+        tokenKind: token.kind || '',
+        nextAction: token.nextAction || '',
+        readinessId: readinessEvidence.readinessId || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: token.nextAction ? 'attach_missing_evidence' : 'receipt_memory',
+      glyph: readinessTokenGlyph(token),
+      detail: `${token.detail || token.title || 'Readiness evidence token.'}${token.nextAction ? ` Next: ${token.nextAction}` : ''}`,
+      firstScreen: index < 5 || token.status !== 'pass',
+      layout: slot,
+    });
+  }
+
+  return objects;
+}
+
 function receiptObjects({ hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate }) {
   const receipts = [];
   if (hardwareAction?.summary) {
@@ -597,6 +694,8 @@ function summarize(objects, feeds) {
     workflowObjectCount: objects.filter((object) => object.objectKind === 'workflow').length,
     approvalObjectCount: objects.filter((object) => object.objectKind === 'approval').length,
     receiptObjectCount: objects.filter((object) => object.objectKind === 'receipt').length,
+    readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
+    readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     capturedWindowObjectCount: objects.filter((object) => object.objectKind === 'captured_window').length,
     runningObjectCount: objects.filter((object) => ['running', 'foreground'].includes(object.status)).length,
     guardedExecuteCount: objects.filter((object) => object.permissionEnvelope === 'guarded_execute').length,
@@ -607,6 +706,7 @@ function summarize(objects, feeds) {
     sourceFeeds: {
       programRegistryStatus: feeds.programRegistry?.summary?.status || 'unknown',
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
+      readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
       agentLaneCount: feeds.lanes?.summary?.laneCount || 0,
     },
   };
@@ -616,6 +716,7 @@ function loadFeeds(tmpDir) {
   const dir = resolveRepoPath(tmpDir);
   return {
     programRegistry: readJson(path.join(dir, 'program-registry.json'), {}),
+    readinessEvidence: readJson(path.join(dir, 'readiness-evidence.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
@@ -632,6 +733,7 @@ function buildGraph(args, fixtures = null) {
   const generatedAt = new Date().toISOString();
   const objects = [
     ...baseShellObjects(feeds),
+    ...readinessObjects(feeds.readinessEvidence),
     ...programObjects(feeds.programRegistry, args.maxPrograms),
     ...capturedWindowObjects(feeds, args.maxWindows),
     ...agentObjects(feeds.lanes, args.maxAgents),
@@ -719,6 +821,26 @@ function fixtureFeeds() {
       ],
       runningWindows: [{ id: 'window-chrome', title: 'HoloLand', processName: 'chrome', processId: 100 }],
     },
+    readinessEvidence: {
+      schemaVersion: 'hololand.holoshell.readiness-evidence.v0.1.0',
+      readinessId: 'fixture-readiness',
+      summary: {
+        status: 'warn',
+        scenario: 'Make this computer ready to build a HoloLand world',
+        buildStatus: 'pass',
+        deviceLabStatus: 'warn',
+        graphStatus: 'reported_fail',
+        tokenCount: 3,
+        warningCount: 2,
+        nextWorkflow: 'Turn a folder of local assets into a playable HoloLand shard',
+      },
+      source: { reportPath: 'fixture/flagship-readiness-report.md' },
+      tokens: [
+        { id: 'readiness.build', title: 'pnpm build passed', status: 'pass', kind: 'command_receipt', detail: 'Build passed.', receiptType: 'build_log' },
+        { id: 'readiness.headset-report', title: 'Headset report missing', status: 'skipped', kind: 'manual_witness_gap', detail: 'No headset report supplied.', nextAction: 'Attach headset report.', receiptType: 'device_lab_receipt' },
+        { id: 'readiness.graph-status', title: 'Graph status reported import failure', status: 'reported_fail', kind: 'tool_failure_receipt', detail: 'graph-status failed.', receiptType: 'tool_failure_receipt' },
+      ],
+    },
     osUiCapture: {
       summary: { status: 'captured', windowCount: 1, controlCount: 4, geometryNodeCount: 42 },
       windows: [{ id: 'window-chrome', title: 'HoloLand', processName: 'chrome', processId: 100, foreground: true, controls: [{}, {}, {}] }],
@@ -745,6 +867,8 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.objectKind === 'terminal_surface')) failures.push('expected terminal surface object');
   if (!graph.objects.some((object) => object.objectKind === 'assistant_avatar')) failures.push('expected Brittney assistant avatar object');
   if (!graph.objects.some((object) => object.objectKind === 'captured_window')) failures.push('expected captured window object');
+  if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
+  if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.summary.guardedExecuteCount) failures.push('expected guarded execute objects');
   if (JSON.stringify(graph).includes('targetPath')) failures.push('graph must not expose raw targetPath fields');
   if (failures.length) {
