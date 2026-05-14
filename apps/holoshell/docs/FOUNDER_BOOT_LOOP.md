@@ -45,6 +45,7 @@ node scripts\holoshell-live-feed.mjs
 | --- | --- | --- |
 | `user-pack.browser-lofi` | Browser/media control | Guarded media portal bubble |
 | `user-pack.open-excel` | Program launch/control | Guarded document app bubble |
+| `user-pack.open-claude-chat` | Agent peer surface | Guarded Claude chat bubble |
 
 These packs do not execute by default. They stage approval and receipt paths so
 the user version is derived from founder power without becoming sneaky.

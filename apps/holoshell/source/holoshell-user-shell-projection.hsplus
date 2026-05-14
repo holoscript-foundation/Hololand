@@ -21,6 +21,8 @@ composition "HoloShell User Shell Projection" {
     selectedMode: "user.daily"
     selectedCapabilityPack: "user-pack.browser-lofi"
     selectedUserIntent: "Play lofi music"
+    claudeChatPackId: "user-pack.open-claude-chat"
+    claudeChatExecutionDefault: "staged_not_run"
     modeCount: 0
     capabilityPackCount: 0
     founderOnlyPowerCount: 0
@@ -127,6 +129,22 @@ composition "HoloShell User Shell Projection" {
       pack_id: state.selectedCapabilityPack,
       execution_default: "staged_not_run",
       approval_required: true,
+      receipt_required: true
+    })
+  }
+
+  action stage_claude_chat(chatPrompt) {
+    state.selectedCapabilityPack = state.claudeChatPackId
+    state.selectedUserIntent = "Open Claude and start a chat"
+    emit("holoshell:brittney-translation", {
+      action: "claude_chat_intent_staged",
+      intent: state.selectedUserIntent,
+      pack_id: state.selectedCapabilityPack,
+      target_surface: "claude_peer_surface",
+      prompt_present: chatPrompt != "",
+      execution_default: state.claudeChatExecutionDefault,
+      approval_required_before_prompt_submit: true,
+      shell_context_attached_by_default: false,
       receipt_required: true
     })
   }

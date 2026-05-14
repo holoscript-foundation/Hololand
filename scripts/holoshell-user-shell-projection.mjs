@@ -141,6 +141,21 @@ function capabilityPacks(founderBoot, workflow, shardWorkflow) {
     currentReceiptStatus: workflow.summary?.status || 'unknown',
   });
   packs.push({
+    id: 'user-pack.open-claude-chat',
+    label: 'Open Claude Chat',
+    derivedFrom: 'founder.agent_peer_surface',
+    userSurface: 'agent_chat_bubble',
+    targetObjectId: 'agents',
+    permissionEnvelope: 'guarded_execute',
+    executionDefault: 'staged_not_run',
+    steps: ['resolve_claude_desktop_or_cli', 'open_or_focus_claude', 'start_new_chat', 'insert_prompt_after_user_approval'],
+    receiptTypes: ['hardware_action_receipt', 'approval_bundle', 'peer_surface_context_receipt'],
+    modeIds: ['user.daily', 'user.operator'],
+    userPhrase: 'Open Claude and start a chat',
+    brittneyInterpretation: 'Stage Claude as an AI peer surface, ask for the first message, and require approval before sending any prompt or shell context.',
+    currentReceiptStatus: workflow.summary?.claudeCliAvailable ? 'claude_cli_available' : 'needs_claude_surface_resolution',
+  });
+  packs.push({
     id: 'user-pack.asset-shard-preview',
     label: 'Make Playable Shard',
     derivedFrom: 'founder.creator_pipeline',
@@ -349,6 +364,7 @@ function assertSelfTest(projection) {
   if (!projection.invariants.founderShellIsSuperset) failures.push('expected founder superset invariant');
   if (!projection.invariants.userShellHasNoRawCommands) failures.push('expected raw command guard');
   if (!projection.brittneyTranslationLayer.translations.some((item) => item.userPhrase.includes('Excel'))) failures.push('expected Excel translation');
+  if (!projection.brittneyTranslationLayer.translations.some((item) => item.targetPackId === 'user-pack.open-claude-chat')) failures.push('expected Claude chat translation');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
 
