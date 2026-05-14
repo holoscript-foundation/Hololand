@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, wildHoloScript, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory, founderBootPreview, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -141,6 +141,32 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, lanes, processH
       generatedAt: wildHoloScript.generatedAt || now,
       receiptType: wildHoloScript.schemaVersion,
       source: wildHoloScript.source?.script || 'scripts/holoshell-wild-holoscript-intake.mjs',
+    });
+  }
+
+  if (formatInventory?.summary) {
+    timeline.push({
+      id: formatInventory.inventoryId || 'holoshell-format-inventory',
+      kind: 'format_inventory',
+      title: `Format inventory ${formatInventory.summary.status || 'unknown'}`,
+      detail: `${formatInventory.summary.totalFileCount || 0} .holo/.hs/.hsplus files; ${formatInventory.summary.totalFeatureFamilies || 0} feature families across canonical HoloScript and wild uAA2.`,
+      trustState: formatInventory.summary.status === 'scanned' ? 'verified' : 'partial',
+      generatedAt: formatInventory.generatedAt || now,
+      receiptType: formatInventory.schemaVersion,
+      source: formatInventory.source?.script || 'scripts/holoshell-format-inventory.mjs',
+    });
+  }
+
+  if (founderBootPreview?.summary) {
+    timeline.push({
+      id: founderBootPreview.bootId || 'holoshell-founder-boot-preview',
+      kind: 'founder_boot_preview',
+      title: `Founder boot preview ${founderBootPreview.summary.status || 'unknown'}`,
+      detail: `${founderBootPreview.summary.worldObjectCount || 0} .holo world objects, ${founderBootPreview.summary.renderObjectCount || 0} .hs render objects, ${founderBootPreview.summary.userCapabilityPackCount || 0} user pack(s), ${founderBootPreview.summary.brittneyProposalCount || 0} Brittney proposal(s).`,
+      trustState: founderBootPreview.summary.status === 'ready' ? 'verified' : 'partial',
+      generatedAt: founderBootPreview.generatedAt || now,
+      receiptType: founderBootPreview.schemaVersion,
+      source: founderBootPreview.source?.script || 'scripts/holoshell-founder-boot-preview.mjs',
     });
   }
 
@@ -401,6 +427,8 @@ function createFeed(args) {
   const inventory = readJson(path.join(tmpDir, 'capability-inventory.json'), {});
   const surfaceMap = readJson(path.join(tmpDir, 'holoscript-surface-map.json'), {});
   const wildHoloScript = readJson(path.join(tmpDir, 'wild-holoscript-intake.json'), {});
+  const formatInventory = readJson(path.join(tmpDir, 'format-inventory.json'), {});
+  const founderBootPreview = readJson(path.join(tmpDir, 'founder-boot-preview.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
@@ -432,6 +460,8 @@ function createFeed(args) {
     inventory,
     surfaceMap,
     wildHoloScript,
+    formatInventory,
+    founderBootPreview,
     lanes,
     processHealth,
     osUiCapture,
@@ -468,6 +498,8 @@ function createFeed(args) {
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
+      formatInventory: 'scripts/holoshell-format-inventory.mjs',
+      founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -501,6 +533,16 @@ function createFeed(args) {
       wildHoloScriptFlagshipCount: wildHoloScript?.summary?.flagshipCount || 0,
       wildHoloScriptTopPattern: wildHoloScript?.summary?.topPattern || '',
       wildHoloScriptNextMove: wildHoloScript?.summary?.nextMove || '',
+      formatInventoryStatus: formatInventory?.summary?.status || 'unknown',
+      formatInventoryTotalFileCount: formatInventory?.summary?.totalFileCount || 0,
+      formatInventoryFeatureFamilyCount: formatInventory?.summary?.totalFeatureFamilies || 0,
+      formatInventoryCardCount: formatInventory?.summary?.formatViewerCardCount || 0,
+      founderBootStatus: founderBootPreview?.summary?.status || 'unknown',
+      founderBootWorldObjectCount: founderBootPreview?.summary?.worldObjectCount || 0,
+      founderBootRenderObjectCount: founderBootPreview?.summary?.renderObjectCount || 0,
+      founderBootFormatCardCount: founderBootPreview?.summary?.formatViewerCardCount || 0,
+      founderBootUserPackCount: founderBootPreview?.summary?.userCapabilityPackCount || 0,
+      founderBootBrittneyProposalCount: founderBootPreview?.summary?.brittneyProposalCount || 0,
       activeLaneCount: lanes?.summary?.activeLaneCount || 0,
       laneCount: lanes?.summary?.laneCount || lanes?.lanes?.length || 0,
       processRisk,
@@ -634,6 +676,8 @@ function createFeed(args) {
       inventory,
       surfaceMap,
       wildHoloScript,
+      formatInventory,
+      founderBootPreview,
       lanes,
       processHealth,
       osUiCapture,
@@ -713,6 +757,8 @@ try {
     console.log(`Timeline: ${feed.summary.timelineCount}`);
     console.log(`Launchable programs: ${feed.summary.launchableProgramCount}`);
     console.log(`Shell objects: ${feed.summary.shellObjectCount}`);
+    console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
+    console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);
     console.log(`Workflow: ${feed.summary.activeWorkflowStatus}`);

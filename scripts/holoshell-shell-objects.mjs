@@ -504,6 +504,149 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareAp
   ];
 }
 
+function founderBootObjects(feeds) {
+  const preview = feeds.founderBootPreview || {};
+  const formatInventory = feeds.formatInventory || {};
+  const summary = preview.summary || {};
+  const formatSummary = formatInventory.summary || {};
+  const objects = [];
+
+  if (preview.summary) {
+    objects.push({
+      id: 'surface.founder-boot-preview',
+      objectKind: 'operating_world',
+      displayName: 'Founder Boot',
+      sourceKind: 'holoscript',
+      sourceRef: preview.source?.world || 'apps/holoshell/source/holoshell-shell-world.holo',
+      capabilityFamily: 'founder_shell',
+      trustState: summary.status === 'ready' ? 'verified' : 'partial',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'holo_world_with_hs_render_slice',
+      visualForm: 'world_anchor',
+      status: summary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['founder_boot_preview', 'format_inventory'],
+      relationships: {
+        renderSlice: preview.source?.renderSlice || 'apps/holoshell/source/holoshell-shell-render.hs',
+        worldObjectCount: summary.worldObjectCount || 0,
+        renderObjectCount: summary.renderObjectCount || 0,
+        formatViewerCardCount: summary.formatViewerCardCount || 0,
+        userCapabilityPackCount: summary.userCapabilityPackCount || 0,
+        brittneyProposalCount: summary.brittneyProposalCount || 0,
+        bootSequence: (preview.founderBootSequence || []).map((step) => `${step.step}:${step.status}`),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'founder_shell_boot_surface',
+      launch: { action: 'preview_founder_boot', route: '/founder-boot' },
+      glyph: 'FB',
+      detail: `.holo world plus .hs render slice: ${summary.worldObjectCount || 0}/${summary.renderObjectCount || 0} objects; ${summary.userCapabilityPackCount || 0} user packs staged.`,
+      firstScreen: true,
+      layout: { x: 41, y: 8, size: 148 },
+    });
+  }
+
+  if (formatInventory.summary || preview.formatViewer) {
+    const cards = preview.formatViewer?.cards || formatInventory.formatViewerCards || [];
+    objects.push({
+      id: 'source.format-viewer',
+      objectKind: 'source_corpus',
+      displayName: 'Format Viewer',
+      sourceKind: 'holoscript_corpus',
+      sourceRef: formatInventory.source?.script || 'scripts/holoshell-format-inventory.mjs',
+      capabilityFamily: 'source_corpus',
+      trustState: formatSummary.status === 'scanned' ? 'verified' : 'partial',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'format_inventory_viewer',
+      visualForm: 'source_orbit',
+      status: formatSummary.status || summary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['format_inventory', 'wild_holoscript_intake_receipt'],
+      relationships: {
+        totalFileCount: formatSummary.totalFileCount || 0,
+        featureFamilyCount: formatSummary.totalFeatureFamilies || 0,
+        cardCount: cards.length,
+        cards: cards.map((card) => ({
+          id: card.id,
+          label: card.label,
+          files: card.files,
+          features: card.features,
+          topFeature: card.topFeature,
+        })),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'format_capability_browser',
+      launch: { action: 'inspect_format_lanes', route: '/formats' },
+      glyph: 'FV',
+      detail: `${cards.length || 0} format lane cards; ${formatSummary.totalFileCount || 0} source files across canonical and wild HoloScript.`,
+      firstScreen: true,
+      layout: { x: 24, y: 18, size: 112 },
+    });
+  }
+
+  for (const [index, pack] of (preview.userCapabilityPacks || []).entries()) {
+    objects.push({
+      id: pack.id,
+      objectKind: 'workflow',
+      displayName: pack.label || 'User Pack',
+      sourceKind: 'workflow',
+      sourceRef: preview.source?.script || 'scripts/holoshell-founder-boot-preview.mjs',
+      capabilityFamily: 'user_capability_pack',
+      trustState: 'partial',
+      permissionEnvelope: pack.permissionEnvelope || 'guarded_execute',
+      adapterPath: 'founder_to_user_capability_pack',
+      visualForm: index === 0 ? 'portal_bubble' : 'document_machine',
+      status: pack.executionDefault || 'staged_not_run',
+      actorLaneId: 'brittney',
+      receiptTypes: pack.receiptTypes || ['approval_bundle'],
+      relationships: {
+        derivedFrom: pack.derivedFrom || 'founder_surface',
+        targetObjectId: pack.targetObjectId || '',
+        steps: pack.steps || [],
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'curated_user_shell_action',
+      launch: { action: 'stage_user_capability_pack', packId: pack.id },
+      glyph: pack.id.includes('excel') ? 'XL' : 'LO',
+      detail: `${pack.label || 'User pack'} is derived from ${pack.derivedFrom || 'founder power'} and stays staged until approval.`,
+      firstScreen: true,
+      layout: layout(18 + index, 96),
+    });
+  }
+
+  if (preview.brittneyOperatorBridge) {
+    const bridge = preview.brittneyOperatorBridge;
+    objects.push({
+      id: 'assistant.brittney.operator-bridge',
+      objectKind: 'assistant_avatar',
+      displayName: 'Brittney Operator',
+      sourceKind: 'holoscript',
+      sourceRef: 'apps/holoshell/source/holoshell-founder-boot-loop.hsplus',
+      capabilityFamily: 'assistant',
+      trustState: bridge.status === 'ready' ? 'verified' : 'partial',
+      permissionEnvelope: 'intent_scoped',
+      adapterPath: 'brittney_selected_object_operator',
+      visualForm: 'avatar_anchor',
+      status: bridge.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['founder_boot_preview', 'brittney_turn_receipt', 'approval_bundle'],
+      relationships: {
+        selectedObjectDefault: bridge.selectedObjectDefault || 'shell.hololand',
+        proposalCount: (bridge.proposals || []).length,
+        readableFormatCards: bridge.readableFormatCards || [],
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'assistant_operates_selected_shell_object',
+      launch: { action: 'ask_brittney_to_operate_selected_object' },
+      glyph: 'BO',
+      detail: `${(bridge.proposals || []).length} operator proposal(s): inspect, explain, and stage guarded user packs.`,
+      firstScreen: true,
+      layout: { x: 60, y: 73, size: 108 },
+    });
+  }
+
+  return objects;
+}
+
 function programObjects(programRegistry, maxPrograms) {
   const programs = Array.isArray(programRegistry?.programs) ? programRegistry.programs : [];
   return dedupePrograms(programs)
@@ -962,7 +1105,12 @@ function summarize(objects, feeds) {
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
+    founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
+    userCapabilityPackObjectCount: objects.filter((object) => object.capabilityFamily === 'user_capability_pack').length,
+    formatViewerObjectCount: objects.filter((object) => object.id === 'source.format-viewer').length,
     wildHoloScriptObjectCount: objects.filter((object) => object.capabilityFamily === 'source_corpus').length,
+    founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
+    formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
     wildHoloScriptAdapterNeededCount: feeds.wildHoloScript?.summary?.adapterNeededCount || 0,
@@ -980,6 +1128,8 @@ function summarize(objects, feeds) {
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
+      formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
+      founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -995,6 +1145,8 @@ function loadFeeds(tmpDir) {
     programRegistry: readJson(path.join(dir, 'program-registry.json'), {}),
     readinessEvidence: readJson(path.join(dir, 'readiness-evidence.json'), {}),
     wildHoloScript: readJson(path.join(dir, 'wild-holoscript-intake.json'), {}),
+    formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
+    founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
@@ -1015,6 +1167,7 @@ function buildGraph(args, fixtures = null) {
   const generatedAt = new Date().toISOString();
   const objects = [
     ...baseShellObjects(feeds),
+    ...founderBootObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
     ...assetShardObjects(feeds),
     ...buildCustodyObjects(feeds),
@@ -1043,6 +1196,8 @@ function buildGraph(args, fixtures = null) {
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
+      formatInventory: 'scripts/holoshell-format-inventory.mjs',
+      founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',

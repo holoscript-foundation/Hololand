@@ -1,0 +1,133 @@
+// HoloShell Founder Boot Loop
+//
+// First bootable founder preview: .holo owns the shell world, .hs proves the
+// render/action slice, and .hsplus binds format viewer, user packs, and
+// Brittney operator proposals.
+
+composition "HoloShell Founder Boot Loop" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    strategySource: "apps/holoshell/source/holoshell-founder-to-user-strategy.hsplus"
+    worldSource: "apps/holoshell/source/holoshell-shell-world.holo"
+    renderSlice: "apps/holoshell/source/holoshell-shell-render.hs"
+    formatInventoryScript: "scripts/holoshell-format-inventory.mjs"
+    bootPreviewScript: "scripts/holoshell-founder-boot-preview.mjs"
+    formatInventoryReceipt: ".tmp/holoshell/format-inventory.json"
+    bootPreviewReceipt: ".tmp/holoshell/founder-boot-preview.json"
+    bootPolicy: "founder_source_first_user_packs_derived"
+  }
+
+  state {
+    bootStatus: "unknown"
+    worldObjectCount: 0
+    renderObjectCount: 0
+    formatViewerCardCount: 0
+    userCapabilityPackCount: 0
+    brittneyProposalCount: 0
+    selectedFormatLane: ".holo"
+    selectedUserPack: "user-pack.browser-lofi"
+    selectedShellObject: "shell.hololand"
+    guardedActionsStayStaged: true
+    htmlIsPreviewOnly: true
+    nextMove: "run_founder_boot_preview"
+  }
+
+  channel "holoshell:founder-boot" {
+    type: "append_only"
+    priority: "high"
+    description: "Founder boot loop receipts from .holo world, .hs render slice, format viewer, user packs, and Brittney operator"
+  }
+
+  channel "holoshell:format-viewer" {
+    type: "append_only"
+    priority: "high"
+    description: "Format lane cards for .holo, .hs, and .hsplus"
+  }
+
+  template "FormatViewerBubble" {
+    type: "ui"
+    uiType: "format_viewer"
+    permission: "read_only"
+    visualForm: "source_orbit"
+    formatLanes: [".holo", ".hs", ".hsplus"]
+    receiptRequired: true
+  }
+
+  template "UserCapabilityPack" {
+    type: "workflow"
+    shellScope: "user"
+    derivedFrom: "founder"
+    permission: "guarded_execute"
+    executionDefault: "staged_not_run"
+    receiptRequired: true
+  }
+
+  template "BrittneyOperatorProposal" {
+    type: "assistant_action"
+    actor: "brittney"
+    permission: "intent_scoped"
+    canExplainRisk: true
+    canStageApproval: true
+    receiptRequired: true
+  }
+
+  action apply_founder_boot_preview(preview) {
+    state.bootStatus = preview.summary.status
+    state.worldObjectCount = preview.summary.worldObjectCount
+    state.renderObjectCount = preview.summary.renderObjectCount
+    state.formatViewerCardCount = preview.summary.formatViewerCardCount
+    state.userCapabilityPackCount = preview.summary.userCapabilityPackCount
+    state.brittneyProposalCount = preview.summary.brittneyProposalCount
+    state.guardedActionsStayStaged = preview.invariants.guardedActionsStayStaged
+    state.htmlIsPreviewOnly = preview.invariants.htmlIsPreviewOnly
+    state.nextMove = preview.summary.nextMove
+    emit("holoshell:founder-boot", {
+      action: "founder_boot_preview_applied",
+      status: state.bootStatus,
+      world_objects: state.worldObjectCount,
+      render_objects: state.renderObjectCount,
+      format_cards: state.formatViewerCardCount,
+      user_packs: state.userCapabilityPackCount,
+      brittney_proposals: state.brittneyProposalCount,
+      guarded_actions_staged: state.guardedActionsStayStaged,
+      html_preview_only: state.htmlIsPreviewOnly,
+      next_move: state.nextMove
+    })
+  }
+
+  action select_format_lane(formatLane) {
+    state.selectedFormatLane = formatLane
+    emit("holoshell:format-viewer", {
+      action: "format_lane_selected",
+      format_lane: state.selectedFormatLane,
+      shell_meaning: "inspect source role, features, top files, compatibility, and promotion route",
+      execution_allowed: false
+    })
+  }
+
+  action derive_user_pack(pack) {
+    state.selectedUserPack = pack.id
+    emit("holoshell:founder-boot", {
+      action: "user_pack_derived",
+      pack_id: pack.id,
+      derived_from: pack.derivedFrom,
+      target_object: pack.targetObjectId,
+      permission: "guarded_execute",
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action ask_brittney_to_operate_selected_object(objectId) {
+    state.selectedShellObject = objectId
+    emit("holoshell:founder-boot", {
+      action: "brittney_operator_proposal_requested",
+      selected_object: state.selectedShellObject,
+      inspect_allowed: true,
+      explain_allowed: true,
+      execution_allowed_without_approval: false,
+      approval_required_for_guarded_actions: true
+    })
+  }
+}
