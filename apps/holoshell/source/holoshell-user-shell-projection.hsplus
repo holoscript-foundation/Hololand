@@ -1,0 +1,133 @@
+// HoloShell User Shell Projection
+//
+// Founder HoloShell remains the complete operating surface. The user shell is
+// a derived, plain-language projection with staged capability packs and
+// Brittney translation before action.
+
+composition "HoloShell User Shell Projection" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    founderBootSource: "apps/holoshell/source/holoshell-founder-boot-loop.hsplus"
+    userProjectionScript: "scripts/holoshell-user-shell-projection.mjs"
+    userProjectionReceipt: ".tmp/holoshell/user-shell-projection.json"
+    founderBootReceipt: ".tmp/holoshell/founder-boot-preview.json"
+    formatInventoryReceipt: ".tmp/holoshell/format-inventory.json"
+    policy: "founder_shell_superset_user_shell_projection"
+  }
+
+  state {
+    projectionStatus: "unknown"
+    selectedMode: "user.daily"
+    selectedCapabilityPack: "user-pack.browser-lofi"
+    selectedUserIntent: "Play lofi music"
+    modeCount: 0
+    capabilityPackCount: 0
+    founderOnlyPowerCount: 0
+    brittneyTranslationCount: 0
+    userPacksStayStagedByDefault: true
+    rawCommandsHiddenFromUserShell: true
+    nextMove: "mount_user_shell_mode_switcher"
+  }
+
+  channel "holoshell:user-shell" {
+    type: "append_only"
+    priority: "high"
+    description: "Derived user HoloShell modes, capability packs, and founder-only boundaries"
+  }
+
+  channel "holoshell:brittney-translation" {
+    type: "append_only"
+    priority: "high"
+    description: "Brittney translations from plain language user intent to staged shell packs"
+  }
+
+  template "UserShellMode" {
+    type: "ui"
+    uiType: "shell_mode"
+    shellScope: "user"
+    permission: "read_only"
+    visualForm: "mode_orbit"
+    receiptRequired: true
+  }
+
+  template "UserCapabilityPack" {
+    type: "workflow"
+    shellScope: "user"
+    derivedFrom: "founder"
+    permission: "guarded_execute"
+    executionDefault: "staged_not_run"
+    receiptRequired: true
+  }
+
+  template "FounderOnlyPower" {
+    type: "policy"
+    shellScope: "founder"
+    permission: "founder_only"
+    exposedToUserAs: "safe_bubble_or_lesson"
+    receiptRequired: true
+  }
+
+  template "BrittneyIntentTranslator" {
+    type: "assistant_action"
+    actor: "brittney"
+    permission: "intent_scoped"
+    canTranslateIntent: true
+    canStageApproval: true
+    canExecuteWithoutApproval: false
+    receiptRequired: true
+  }
+
+  action apply_user_shell_projection(projection) {
+    state.projectionStatus = projection.summary.status
+    state.modeCount = projection.summary.modeCount
+    state.capabilityPackCount = projection.summary.capabilityPackCount
+    state.founderOnlyPowerCount = projection.summary.founderOnlyPowerCount
+    state.brittneyTranslationCount = projection.summary.brittneyTranslationCount
+    state.userPacksStayStagedByDefault = projection.invariants.userPacksStayStagedByDefault
+    state.rawCommandsHiddenFromUserShell = projection.invariants.userShellHasNoRawCommands
+    state.nextMove = projection.summary.nextMove
+    emit("holoshell:user-shell", {
+      action: "user_shell_projection_applied",
+      status: state.projectionStatus,
+      modes: state.modeCount,
+      packs: state.capabilityPackCount,
+      founder_only_powers: state.founderOnlyPowerCount,
+      brittney_translations: state.brittneyTranslationCount,
+      raw_commands_hidden: state.rawCommandsHiddenFromUserShell,
+      packs_staged_by_default: state.userPacksStayStagedByDefault,
+      next_move: state.nextMove
+    })
+  }
+
+  action select_user_shell_mode(modeId) {
+    state.selectedMode = modeId
+    emit("holoshell:user-shell", {
+      action: "user_shell_mode_selected",
+      mode: state.selectedMode,
+      founder_surface_still_available: true,
+      execution_allowed: false
+    })
+  }
+
+  action ask_brittney_user_intent(intentText) {
+    state.selectedUserIntent = intentText
+    emit("holoshell:brittney-translation", {
+      action: "user_intent_received",
+      intent: state.selectedUserIntent,
+      translate_before_action: true,
+      approval_required_for_guarded_execute: true
+    })
+  }
+
+  action stage_user_capability_pack(packId) {
+    state.selectedCapabilityPack = packId
+    emit("holoshell:user-shell", {
+      action: "user_capability_pack_staged",
+      pack_id: state.selectedCapabilityPack,
+      execution_default: "staged_not_run",
+      approval_required: true,
+      receipt_required: true
+    })
+  }
+}

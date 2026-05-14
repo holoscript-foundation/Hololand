@@ -647,6 +647,171 @@ function founderBootObjects(feeds) {
   return objects;
 }
 
+function userShellProjectionObjects(feeds) {
+  const projection = feeds.userShellProjection || {};
+  const summary = projection.summary || {};
+  const objects = [];
+  if (!projection.summary) return objects;
+
+  objects.push({
+    id: 'surface.user-shell-projection',
+    objectKind: 'user_shell',
+    displayName: 'User Shell',
+    sourceKind: 'holoscript',
+    sourceRef: projection.source?.sourceContract || 'apps/holoshell/source/holoshell-user-shell-projection.hsplus',
+    capabilityFamily: 'user_shell',
+    trustState: summary.status === 'ready' ? 'verified' : 'partial',
+    permissionEnvelope: 'read_only',
+    adapterPath: projection.source?.script || 'scripts/holoshell-user-shell-projection.mjs',
+    visualForm: 'mode_orbit',
+    status: summary.status || 'unknown',
+    actorLaneId: 'brittney',
+    receiptTypes: ['user_shell_projection', 'founder_boot_preview', 'format_inventory'],
+    relationships: {
+      modeCount: summary.modeCount || 0,
+      userModeCount: summary.userModeCount || 0,
+      capabilityPackCount: summary.capabilityPackCount || 0,
+      founderOnlyPowerCount: summary.founderOnlyPowerCount || 0,
+      brittneyTranslationCount: summary.brittneyTranslationCount || 0,
+      founderSurface: projection.shellDerivation?.founderSurface || 'surface.founder-boot-preview',
+      rule: projection.shellDerivation?.rule || 'user_shell_is_derived_from_founder_shell',
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'founder_shell_to_user_shell_projection',
+    launch: { action: 'inspect_user_shell_projection', route: '/user-shell' },
+    glyph: 'US',
+    detail: `${summary.userModeCount || 0} user mode(s), ${summary.capabilityPackCount || 0} pack(s), ${summary.brittneyTranslationCount || 0} Brittney translation(s).`,
+    firstScreen: true,
+    layout: { x: 46, y: 24, size: 136 },
+  });
+
+  for (const [index, mode] of (projection.modes || []).entries()) {
+    objects.push({
+      id: `mode.${mode.id}`,
+      objectKind: 'user_shell_mode',
+      displayName: mode.label || mode.id,
+      sourceKind: 'holoscript',
+      sourceRef: projection.source?.sourceContract || 'apps/holoshell/source/holoshell-user-shell-projection.hsplus',
+      capabilityFamily: mode.id?.startsWith('founder.') ? 'founder_shell' : 'user_shell',
+      trustState: 'partial',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'user_shell_mode_projection',
+      visualForm: mode.id === 'user.daily' ? 'home_bubble' : 'mode_bubble',
+      status: 'available',
+      actorLaneId: 'brittney',
+      receiptTypes: ['user_shell_projection'],
+      relationships: {
+        audience: mode.audience || '',
+        defaultSkin: mode.defaultSkin || '',
+        visibleBubbleIds: mode.visibleBubbleIds || [],
+        hiddenFounderPowers: mode.hiddenFounderPowers || [],
+        safetyPosture: mode.safetyPosture || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'mode_switcher',
+      launch: { action: 'select_user_shell_mode', modeId: mode.id },
+      glyph: mode.id === 'founder.full' ? 'FO' : mode.id === 'user.creator' ? 'CR' : mode.id === 'user.operator' ? 'OP' : 'DY',
+      detail: `${mode.audience || 'user'} mode; ${mode.visibleBubbleIds?.length || 0} visible bubbles; ${mode.safetyPosture || 'receipt visible'}.`,
+      firstScreen: mode.id === 'user.daily',
+      layout: layout(72 + index, 90),
+    });
+  }
+
+  for (const [index, pack] of (projection.capabilityPacks || []).entries()) {
+    objects.push({
+      id: `user-shell.pack.${slug(pack.id)}`,
+      objectKind: 'workflow',
+      displayName: pack.label || pack.id,
+      sourceKind: 'workflow',
+      sourceRef: projection.source?.script || 'scripts/holoshell-user-shell-projection.mjs',
+      capabilityFamily: 'user_capability_pack',
+      trustState: pack.permissionEnvelope === 'read_only' ? 'verified' : 'partial',
+      permissionEnvelope: pack.permissionEnvelope || 'guarded_execute',
+      adapterPath: 'brittney_user_intent_translator',
+      visualForm: pack.permissionEnvelope === 'read_only' ? 'source_orbit' : 'portal_bubble',
+      status: pack.executionDefault || 'staged_not_run',
+      actorLaneId: 'brittney',
+      receiptTypes: pack.receiptTypes || ['approval_bundle'],
+      relationships: {
+        userPhrase: pack.userPhrase || '',
+        derivedFrom: pack.derivedFrom || '',
+        targetObjectId: pack.targetObjectId || '',
+        modeIds: pack.modeIds || [],
+        steps: pack.steps || [],
+        currentReceiptStatus: pack.currentReceiptStatus || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'plain_language_capability_pack',
+      launch: { action: 'stage_user_capability_pack', packId: pack.id },
+      glyph: glyphFor(pack.label || pack.id, 'UP'),
+      detail: `${pack.userPhrase || pack.label || pack.id}; ${pack.permissionEnvelope || 'guarded_execute'}; ${pack.executionDefault || 'staged_not_run'}.`,
+      firstScreen: (pack.modeIds || []).includes('user.daily'),
+      layout: layout(78 + index, 88),
+    });
+  }
+
+  objects.push({
+    id: 'assistant.brittney.user-translator',
+    objectKind: 'assistant_avatar',
+    displayName: 'Brittney Translator',
+    sourceKind: 'holoscript',
+    sourceRef: projection.source?.sourceContract || 'apps/holoshell/source/holoshell-user-shell-projection.hsplus',
+    capabilityFamily: 'assistant',
+    trustState: projection.brittneyTranslationLayer?.status === 'ready' ? 'verified' : 'partial',
+    permissionEnvelope: 'intent_scoped',
+    adapterPath: 'user_intent_to_shell_pack',
+    visualForm: 'avatar_anchor',
+    status: projection.brittneyTranslationLayer?.status || 'unknown',
+    actorLaneId: 'brittney',
+    receiptTypes: ['user_shell_projection', 'brittney_turn_receipt', 'approval_bundle'],
+    relationships: {
+      defaultMode: projection.brittneyTranslationLayer?.defaultMode || 'user.daily',
+      translationCount: summary.brittneyTranslationCount || 0,
+      translations: (projection.brittneyTranslationLayer?.translations || []).slice(0, 8).map((translation) => ({
+        userPhrase: translation.userPhrase,
+        targetPackId: translation.targetPackId,
+        permissionEnvelope: translation.permissionEnvelope,
+      })),
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'assistant_translates_plain_language_to_receipt_bound_actions',
+    launch: { action: 'ask_brittney_user_intent' },
+    glyph: 'BT',
+    detail: `${summary.brittneyTranslationCount || 0} plain-language translation(s) from user intent to staged shell packs.`,
+    firstScreen: true,
+    layout: { x: 64, y: 58, size: 116 },
+  });
+
+  objects.push({
+    id: 'policy.founder-only-boundary',
+    objectKind: 'policy',
+    displayName: 'Founder Boundary',
+    sourceKind: 'holoscript',
+    sourceRef: projection.source?.sourceContract || 'apps/holoshell/source/holoshell-user-shell-projection.hsplus',
+    capabilityFamily: 'user_shell_policy',
+    trustState: 'verified',
+    permissionEnvelope: 'founder_only',
+    adapterPath: 'founder_power_boundary',
+    visualForm: 'warning_token',
+    status: 'available',
+    actorLaneId: 'brittney',
+    receiptTypes: ['user_shell_projection'],
+    relationships: {
+      founderOnlyPowers: (projection.founderOnlyPowers || []).map((power) => power.id),
+      hiddenMeansRequiresFounderModeOrApproval: Boolean(projection.shellDerivation?.hiddenMeansRequiresFounderModeOrApproval),
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'founder_power_visible_as_safe_user_surface',
+    launch: { action: 'inspect_founder_only_boundary' },
+    glyph: 'FO',
+    detail: `${summary.founderOnlyPowerCount || 0} founder-only power(s) hidden or translated in the user shell.`,
+    firstScreen: false,
+    layout: layout(90, 84),
+  });
+
+  return objects;
+}
+
 function programObjects(programRegistry, maxPrograms) {
   const programs = Array.isArray(programRegistry?.programs) ? programRegistry.programs : [];
   return dedupePrograms(programs)
@@ -1106,10 +1271,13 @@ function summarize(objects, feeds) {
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
     founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
+    userShellObjectCount: objects.filter((object) => object.capabilityFamily === 'user_shell').length,
+    userShellModeObjectCount: objects.filter((object) => object.objectKind === 'user_shell_mode').length,
     userCapabilityPackObjectCount: objects.filter((object) => object.capabilityFamily === 'user_capability_pack').length,
     formatViewerObjectCount: objects.filter((object) => object.id === 'source.format-viewer').length,
     wildHoloScriptObjectCount: objects.filter((object) => object.capabilityFamily === 'source_corpus').length,
     founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
+    userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
     formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
@@ -1130,6 +1298,7 @@ function summarize(objects, feeds) {
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
       founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
+      userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -1147,6 +1316,7 @@ function loadFeeds(tmpDir) {
     wildHoloScript: readJson(path.join(dir, 'wild-holoscript-intake.json'), {}),
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
+    userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
@@ -1168,6 +1338,7 @@ function buildGraph(args, fixtures = null) {
   const objects = [
     ...baseShellObjects(feeds),
     ...founderBootObjects(feeds),
+    ...userShellProjectionObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
     ...assetShardObjects(feeds),
     ...buildCustodyObjects(feeds),
@@ -1198,6 +1369,7 @@ function buildGraph(args, fixtures = null) {
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
+      userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -1306,6 +1478,67 @@ function fixtureFeeds() {
         { path: 'src/holoscript/agents/brittney.hsplus' },
       ],
     },
+    formatInventory: {
+      schemaVersion: 'hololand.holoshell.format-inventory.v0.1.0',
+      inventoryId: 'format-inventory-fixture',
+      summary: { status: 'scanned', totalFileCount: 12, totalFeatureFamilies: 9, formatViewerCardCount: 3 },
+      formatViewerCards: [
+        { id: 'format.holo', label: '.holo', files: 2, features: 3, topFeature: 'object_graph' },
+        { id: 'format.hs', label: '.hs', files: 4, features: 2, topFeature: 'pipeline_root' },
+        { id: 'format.hsplus', label: '.hsplus', files: 6, features: 4, topFeature: 'agent_runtime' },
+      ],
+    },
+    founderBootPreview: {
+      schemaVersion: 'hololand.holoshell.founder-boot-preview.v0.1.0',
+      bootId: 'founder-boot-fixture',
+      source: { world: 'apps/holoshell/source/holoshell-shell-world.holo', renderSlice: 'apps/holoshell/source/holoshell-shell-render.hs', script: 'scripts/holoshell-founder-boot-preview.mjs' },
+      summary: { status: 'ready', worldObjectCount: 8, renderObjectCount: 6, formatViewerCardCount: 3, userCapabilityPackCount: 2, brittneyProposalCount: 3 },
+      formatViewer: { cards: [{ id: 'format.holo', label: '.holo' }, { id: 'format.hs', label: '.hs' }, { id: 'format.hsplus', label: '.hsplus' }] },
+      userCapabilityPacks: [
+        { id: 'user-pack.browser-lofi', label: 'Play Lofi', derivedFrom: 'founder.browser_control', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', steps: ['open_browser'] },
+        { id: 'user-pack.open-excel', label: 'Open Excel', derivedFrom: 'founder.program_control', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', steps: ['locate_program'] },
+      ],
+      brittneyOperatorBridge: { status: 'ready', proposals: [{ id: 'inspect-selected-object', label: 'Inspect selected shell object' }] },
+    },
+    userShellProjection: {
+      schemaVersion: 'hololand.holoshell.user-shell-projection.v0.1.0',
+      projectionId: 'user-shell-fixture',
+      source: { sourceContract: 'apps/holoshell/source/holoshell-user-shell-projection.hsplus', script: 'scripts/holoshell-user-shell-projection.mjs' },
+      summary: {
+        status: 'ready',
+        modeCount: 4,
+        userModeCount: 3,
+        capabilityPackCount: 5,
+        guardedCapabilityPackCount: 4,
+        formatLessonCount: 3,
+        founderOnlyPowerCount: 5,
+        brittneyTranslationCount: 8,
+        visibleBubbleCount: 12,
+      },
+      modes: [
+        { id: 'user.daily', label: 'Daily Shell', audience: 'regular_user', visibleBubbleIds: ['user-pack.browser-lofi'], hiddenFounderPowers: ['raw_shell_commands'], safetyPosture: 'plain_intent_then_approval' },
+        { id: 'user.creator', label: 'Creator Shell', audience: 'hololand_creator', visibleBubbleIds: ['user-pack.asset-shard-preview'], hiddenFounderPowers: [], safetyPosture: 'preview_first_import_after_approval' },
+        { id: 'user.operator', label: 'Operator Shell', audience: 'trusted_power_user', visibleBubbleIds: ['user-pack.room-marathon'], hiddenFounderPowers: [], safetyPosture: 'receipt_visible_guarded_execute' },
+        { id: 'founder.full', label: 'Founder Shell', audience: 'founder', visibleBubbleIds: ['surface.founder-boot-preview'], hiddenFounderPowers: [], safetyPosture: 'full_surface_with_receipts' },
+      ],
+      capabilityPacks: [
+        { id: 'user-pack.browser-lofi', label: 'Play Lofi', userPhrase: 'Play lofi music', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.daily'], steps: ['open_browser'] },
+        { id: 'user-pack.open-excel', label: 'Open Excel', userPhrase: 'Open Excel', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.daily'], steps: ['locate_program'] },
+        { id: 'user-pack.room-marathon', label: 'Start Room Marathon', userPhrase: 'Start room marathon', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.operator'], steps: ['open_terminal'] },
+        { id: 'user-pack.asset-shard-preview', label: 'Make Playable Shard', userPhrase: 'Turn this folder into a playable shard', permissionEnvelope: 'guarded_execute', executionDefault: 'staged_not_run', modeIds: ['user.creator'], steps: ['choose_folder'] },
+        { id: 'user-pack.format-learning', label: 'Learn Source Formats', userPhrase: 'Explain the formats', permissionEnvelope: 'read_only', executionDefault: 'inspect_only', modeIds: ['user.creator'], steps: ['show_formats'] },
+      ],
+      founderOnlyPowers: [{ id: 'raw_shell_commands' }, { id: 'wild_source_promotion' }],
+      brittneyTranslationLayer: {
+        status: 'ready',
+        defaultMode: 'user.daily',
+        translations: [
+          { userPhrase: 'Open Excel', targetPackId: 'user-pack.open-excel', permissionEnvelope: 'guarded_execute' },
+          { userPhrase: 'Play lofi music', targetPackId: 'user-pack.browser-lofi', permissionEnvelope: 'guarded_execute' },
+        ],
+      },
+      shellDerivation: { founderSurface: 'surface.founder-boot-preview', rule: 'user_shell_is_subset_plus_plain_language_translation', hiddenMeansRequiresFounderModeOrApproval: true },
+    },
     osUiCapture: {
       summary: { status: 'captured', windowCount: 1, controlCount: 4, geometryNodeCount: 42 },
       windows: [{ id: 'window-chrome', title: 'HoloLand', processName: 'chrome', processId: 100, foreground: true, controls: [{}, {}, {}] }],
@@ -1411,7 +1644,11 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
   if (!graph.objects.some((object) => object.id === 'source.wild-holoscript.uaa2')) failures.push('expected wild HoloScript source corpus object');
+  if (!graph.objects.some((object) => object.id === 'surface.founder-boot-preview')) failures.push('expected founder boot surface object');
+  if (!graph.objects.some((object) => object.id === 'surface.user-shell-projection')) failures.push('expected user shell projection object');
+  if (!graph.objects.some((object) => object.id === 'assistant.brittney.user-translator')) failures.push('expected Brittney user translator object');
   if (graph.summary.wildHoloScriptStatus !== 'scanned') failures.push('expected wild HoloScript scanned status');
+  if (graph.summary.userShellProjectionStatus !== 'ready') failures.push('expected user shell projection ready status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');
   if (graph.summary.processObjectCount !== 1) failures.push('expected one process object from build custody');

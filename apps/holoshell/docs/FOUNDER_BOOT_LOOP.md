@@ -17,12 +17,14 @@ The loop is:
 5. Derive the first user capability packs from founder powers.
 6. Let Brittney inspect selected shell objects, explain risk, and stage
    approval without executing guarded actions by default.
+7. Project daily, creator, and operator user modes from the founder surface.
 
 ## Run
 
 ```powershell
 node scripts\holoshell-format-inventory.mjs --self-test
 node scripts\holoshell-founder-boot-preview.mjs --self-test
+node scripts\holoshell-user-shell-projection.mjs --self-test
 node scripts\holoshell-shell-objects.mjs
 node scripts\holoshell-live-feed.mjs
 ```
@@ -33,6 +35,7 @@ node scripts\holoshell-live-feed.mjs
 | --- | --- |
 | `format-inventory.json` | Merges canonical HoloScript and wild uAA2 feature lanes. |
 | `founder-boot-preview.json` | Proves `.holo` world + `.hs` render slice + format viewer + user packs + Brittney operator bridge are wired. |
+| `user-shell-projection.json` | Derives daily, creator, and operator user modes from founder HoloShell. |
 | `shell-objects.json` | Turns the boot preview into shell objects. |
 | `live-feed.json` | Carries the boot loop into the prototype. |
 
