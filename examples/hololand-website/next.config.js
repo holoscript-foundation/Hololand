@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
+const path = require('node:path');
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  experimental: {
+    outputFileTracingRoot: path.resolve(process.cwd(), '../..'),
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
