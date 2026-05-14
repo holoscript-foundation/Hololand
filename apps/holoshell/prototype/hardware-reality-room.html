@@ -376,6 +376,7 @@
   <script src="../../../.tmp/holoshell/hardware-reality.js"></script>
   <script src="../../../.tmp/holoshell/run-custody.js"></script>
   <script src="../../../.tmp/holoshell/legacy-app-absorption.js"></script>
+  <script src="../../../.tmp/holoshell/operator-brief.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -421,6 +422,7 @@
     const reality = window.HOLOSHELL_HARDWARE_REALITY || null;
     const custody = window.HOLOSHELL_RUN_CUSTODY || null;
     const legacyAbsorption = window.HOLOSHELL_LEGACY_APP_ABSORPTION || null;
+    const operatorBrief = window.HOLOSHELL_OPERATOR_BRIEF || null;
     const colors = {
       cyan: "#5ee2c5",
       blue: "#5ba8ff",
@@ -547,7 +549,9 @@
       const legacySummary = legacyAbsorption?.summary || {};
       const brief = custody?.brittneyBrief || {};
       const legacyBrief = legacyAbsorption?.brittneyBrief || {};
+      const operator = operatorBrief || {};
       const items = [
+        ["Operator Brief", operator.status || "refresh required"],
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],

@@ -1,0 +1,116 @@
+// HoloShell Operator Brief
+//
+// One compact contract for Brittney and every active agent lane. It merges
+// hardware reality, run custody, and legacy app absorption into an AI-readable
+// brief that says what is safe, what is blocked, and what should happen next.
+
+composition "HoloShell Operator Brief" {
+  config {
+    title: "Operator Brief"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-operator-brief.mjs"
+    defaultMode: "agent_consumption_contract"
+  }
+
+  state {
+    status: "unknown"
+    hardwareRisk: "unknown"
+    activeLaneCount: 0
+    ownerUnknownRunCount: 0
+    legacyCaptureCandidateCount: 0
+    blockedActionCount: 0
+    destructiveActionsTaken: false
+    lastBriefReceiptId: ""
+  }
+
+  channel "holoshell:operator:brief" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Merged HoloShell hardware/run/legacy brief for Brittney and agents"
+  }
+
+  template "OperatorBrief" {
+    type: "machine"
+    machineType: "operator_brief"
+    status: "needs_triage"
+    allowedActions: []
+    blockedActions: []
+    nextActions: []
+    destructiveActionsTaken: false
+    receiptRequired: true
+  }
+
+  room "OperatorBriefRoom" {
+    label: "Operator Brief"
+    userQuestion: "What should Brittney and the agents know before touching this computer?"
+    visualForm: "operator_brief_panel"
+    liveFeed: "holoshell:operator:brief"
+
+    object "HardwareState" {
+      type: "ui"
+      uiType: "operator_state"
+      label: "Hardware"
+      risk: $hardwareRisk
+      activeLanes: $activeLaneCount
+    }
+
+    object "RunState" {
+      type: "ui"
+      uiType: "operator_state"
+      label: "Runs"
+      ownerUnknown: $ownerUnknownRunCount
+    }
+
+    object "LegacyState" {
+      type: "ui"
+      uiType: "operator_state"
+      label: "Legacy Apps"
+      captureCandidates: $legacyCaptureCandidateCount
+    }
+
+    object "BlockedActions" {
+      type: "ui"
+      uiType: "blocked_action_stack"
+      label: "Blocked"
+      count: $blockedActionCount
+      destructiveActionsTaken: $destructiveActionsTaken
+    }
+  }
+
+  policy "AgentsConsumeBriefBeforeAction" {
+    appliesTo: ["brittney_turn", "agent_shell_action", "legacy_app_operation", "run_custody_action"]
+    requiredInput: "holoshell_operator_brief"
+    sourceFiles: ["hardware-reality.json", "run-custody.json", "legacy-app-absorption.json"]
+    receiptRequired: true
+  }
+
+  policy "BlockedMeansBlocked" {
+    appliesTo: ["kill_process", "delete_file", "legacy_app_mutation", "registry_change", "destructive_ui_click"]
+    preflightRequired: true
+    directExecutionAllowed: false
+    receiptRequired: true
+  }
+
+  action consume_operator_brief(brief) {
+    state.status = brief.status
+    state.hardwareRisk = brief.hardware.riskState
+    state.activeLaneCount = brief.hardware.activeLaneCount
+    state.ownerUnknownRunCount = brief.runs.ownerUnknownCount
+    state.legacyCaptureCandidateCount = brief.legacy.captureCandidateCount
+    state.blockedActionCount = brief.blockedActions.length
+    state.destructiveActionsTaken = brief.safety.destructiveActionsTaken
+    state.lastBriefReceiptId = brief.receipt.briefHash
+
+    emit("holoshell:operator:brief", {
+      status: state.status,
+      hardwareRisk: state.hardwareRisk,
+      activeLanes: state.activeLaneCount,
+      ownerUnknownRuns: state.ownerUnknownRunCount,
+      legacyCaptureCandidates: state.legacyCaptureCandidateCount,
+      blockedActions: state.blockedActionCount,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      receipt: state.lastBriefReceiptId
+    })
+  }
+}
