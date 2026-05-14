@@ -3,51 +3,439 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HoloShell Local Capability Room</title>
+  <title>HoloShell</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0b0e12;
-      --panel: #121821;
-      --panel-strong: #17212c;
-      --ink: #eef4f8;
-      --muted: #9aa9b5;
-      --line: #273544;
-      --green: #56c271;
-      --blue: #5aa7d8;
-      --gold: #d7ad55;
-      --red: #e06f69;
-      --violet: #a98adf;
+      --ink: #f6f4ec;
+      --soft: rgba(246, 244, 236, 0.72);
+      --muted: rgba(246, 244, 236, 0.46);
+      --line: rgba(255, 255, 255, 0.16);
+      --glass: rgba(11, 14, 18, 0.36);
+      --glass-strong: rgba(14, 18, 25, 0.58);
+      --shadow: rgba(0, 0, 0, 0.34);
+      --accent: #72f0d3;
+      --accent-2: #f0c66e;
+      --danger: #ff806f;
+      --bubble: rgba(255, 255, 255, 0.12);
+      --bubble-line: rgba(255, 255, 255, 0.28);
+      --font: Inter, "Segoe UI", Arial, sans-serif;
     }
 
     * {
       box-sizing: border-box;
     }
 
+    html,
+    body {
+      min-height: 100%;
+    }
+
     body {
       margin: 0;
-      min-height: 100vh;
-      font-family: Inter, "Segoe UI", Arial, sans-serif;
-      background: var(--bg);
+      overflow: hidden;
+      font-family: var(--font);
       color: var(--ink);
+      background: #07090d;
       letter-spacing: 0;
     }
 
-    main {
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 16px;
-      min-height: 100vh;
-      padding: 18px;
+    body[data-skin="fire"] {
+      --accent: #ffb25f;
+      --accent-2: #ff6c4a;
+      --bubble: rgba(255, 137, 67, 0.14);
+      --bubble-line: rgba(255, 220, 162, 0.34);
     }
 
-    header {
+    body[data-skin="developer"] {
+      --accent: #80f58b;
+      --accent-2: #65a7ff;
+      --bubble: rgba(96, 244, 145, 0.11);
+      --bubble-line: rgba(145, 244, 181, 0.30);
+    }
+
+    body[data-skin="aura"] {
+      --accent: #a8a0ff;
+      --accent-2: #62e9ff;
+      --bubble: rgba(156, 145, 255, 0.13);
+      --bubble-line: rgba(175, 230, 255, 0.34);
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 16px;
+      grid-template-rows: auto 1fr auto;
+      padding: 18px;
+      gap: 14px;
+    }
+
+    .topbar,
+    .dock,
+    .brittney,
+    .context-panel {
+      border: 1px solid var(--line);
+      background: var(--glass);
+      backdrop-filter: blur(22px) saturate(1.25);
+      box-shadow: 0 20px 60px var(--shadow);
+    }
+
+    .topbar {
+      height: 58px;
+      border-radius: 999px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
       align-items: center;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 14px;
+      gap: 14px;
+      padding: 0 14px;
+    }
+
+    .sigil {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #07110f;
+      font-weight: 900;
+      background:
+        radial-gradient(circle at 34% 28%, #ffffff 0 9%, transparent 10%),
+        linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+
+    .identity {
+      min-width: 0;
+    }
+
+    .identity strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.1;
+    }
+
+    .identity span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--soft);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 18px var(--accent-2);
+    }
+
+    .approval-chip {
+      min-width: 0;
+      max-width: min(42vw, 360px);
+      border: 1px solid color-mix(in srgb, var(--accent-2) 54%, transparent);
+      border-radius: 999px;
+      padding: 8px 12px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      color: var(--ink);
+      background: color-mix(in srgb, var(--accent-2) 14%, rgba(8, 12, 16, 0.54));
+      box-shadow: 0 0 22px color-mix(in srgb, var(--accent-2) 18%, transparent);
+      cursor: pointer;
+    }
+
+    .approval-chip[hidden] {
+      display: none;
+    }
+
+    .approval-chip-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 18px var(--accent-2);
+    }
+
+    .approval-chip strong,
+    .approval-chip span {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .approval-chip strong {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .approval-chip span {
+      color: var(--soft);
+      font-size: 12px;
+      margin-top: 1px;
+    }
+
+    .approval-chip[data-status="pending_user_approval"] {
+      border-color: color-mix(in srgb, var(--accent-2) 74%, transparent);
+    }
+
+    .stage {
+      min-height: 0;
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) 1fr minmax(260px, 360px);
+      gap: 18px;
+      align-items: stretch;
+      min-width: 0;
+    }
+
+    .brittney {
+      align-self: center;
+      border-radius: 28px;
+      padding: 18px;
+      min-height: 440px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .assistant-presence {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .assistant-presence > div:last-child {
+      min-width: 0;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .avatar-stage {
+      width: 112px;
+      height: 126px;
+      position: relative;
+      flex: 0 0 112px;
+      display: grid;
+      place-items: center;
+    }
+
+    .brittney-avatar {
+      width: 104px;
+      height: 118px;
+      min-height: 118px;
+      position: relative;
+      padding: 0;
+      border-radius: 42px 42px 46px 46px;
+      border-color: color-mix(in srgb, var(--accent) 52%, white 12%);
+      background:
+        radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.2), transparent 0 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+      box-shadow: inset 0 0 28px rgba(255, 255, 255, 0.14), 0 0 34px color-mix(in srgb, var(--accent) 30%, transparent);
+      overflow: visible;
+      isolation: isolate;
+    }
+
+    .brittney-avatar:focus-visible {
+      outline: 3px solid #ffd66e;
+      outline-offset: 7px;
+      box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.18), 0 0 46px color-mix(in srgb, #ffd66e 48%, transparent);
+    }
+
+    .avatar-aura,
+    .avatar-voice-ring,
+    .avatar-runtime,
+    .avatar-head,
+    .avatar-shoulders,
+    .avatar-hair,
+    .avatar-eye,
+    .avatar-mouth {
+      position: absolute;
+      pointer-events: none;
+    }
+
+    .avatar-aura {
+      inset: -13px -17px -10px;
+      border-radius: 50%;
+      border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      background:
+        radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 0 56%),
+        radial-gradient(circle at 50% 68%, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 0 62%);
+      filter: blur(0.2px);
+      animation: avatarAura 4.8s ease-in-out infinite;
+      z-index: -1;
+    }
+
+    .avatar-voice-ring {
+      left: 13px;
+      top: 17px;
+      width: 78px;
+      height: 78px;
+      border-radius: 50%;
+      border: 1px solid color-mix(in srgb, var(--accent-2) 62%, transparent);
+      opacity: 0.55;
+      transform: rotateX(62deg);
+    }
+
+    .avatar-voice-ring.ring-two {
+      top: 22px;
+      transform: rotateX(64deg) rotateZ(32deg);
+      border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    }
+
+    .avatar-runtime {
+      right: 13px;
+      top: 11px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #f3c756;
+      box-shadow: 0 0 16px #f3c756;
+    }
+
+    .brittney-avatar[data-runtime="available"] .avatar-runtime {
+      background: #7affb0;
+      box-shadow: 0 0 18px #7affb0;
+    }
+
+    .avatar-head {
+      left: 29px;
+      top: 18px;
+      width: 48px;
+      height: 55px;
+      border-radius: 46% 46% 44% 44%;
+      background:
+        radial-gradient(circle at 34% 42%, rgba(5, 10, 13, 0.95) 0 4px, transparent 5px),
+        radial-gradient(circle at 66% 42%, rgba(5, 10, 13, 0.95) 0 4px, transparent 5px),
+        linear-gradient(145deg, rgba(244, 255, 249, 0.96), color-mix(in srgb, var(--accent) 58%, #ffffff 26%));
+      box-shadow: inset 0 -10px 18px color-mix(in srgb, var(--accent) 26%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 34%, transparent);
+    }
+
+    .avatar-hair {
+      left: 22px;
+      top: 10px;
+      width: 62px;
+      height: 39px;
+      border-radius: 50% 50% 30% 30%;
+      background:
+        radial-gradient(circle at 20% 66%, color-mix(in srgb, var(--accent-2) 72%, #11172d 15%) 0 12px, transparent 13px),
+        radial-gradient(circle at 80% 62%, color-mix(in srgb, var(--accent) 68%, #11172d 16%) 0 13px, transparent 14px),
+        linear-gradient(150deg, color-mix(in srgb, var(--accent-2) 62%, #151125 20%), color-mix(in srgb, var(--accent) 58%, #05090e 24%));
+      opacity: 0.92;
+      filter: saturate(1.18);
+    }
+
+    .avatar-eye {
+      top: 40px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #05110f;
+      box-shadow: 0 0 8px color-mix(in srgb, var(--accent-2) 80%, transparent);
+    }
+
+    .avatar-eye.left {
+      left: 43px;
+    }
+
+    .avatar-eye.right {
+      left: 60px;
+    }
+
+    .avatar-mouth {
+      left: 49px;
+      top: 58px;
+      width: 12px;
+      height: 4px;
+      border-radius: 0 0 10px 10px;
+      background: rgba(5, 16, 17, 0.74);
+      transform-origin: 50% 0;
+    }
+
+    .avatar-shoulders {
+      left: 19px;
+      bottom: 15px;
+      width: 68px;
+      height: 38px;
+      border-radius: 44px 44px 18px 18px;
+      background:
+        radial-gradient(circle at 50% 0, color-mix(in srgb, var(--accent) 42%, transparent), transparent 0 42%),
+        linear-gradient(160deg, color-mix(in srgb, var(--accent) 35%, transparent), color-mix(in srgb, var(--accent-2) 24%, transparent));
+      border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+      box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.10);
+    }
+
+    .brittney-avatar[data-emotion="focused"] .avatar-eye {
+      transform: translateY(-1px) scaleX(1.22);
+    }
+
+    .brittney-avatar[data-emotion="concerned"] .avatar-head {
+      background:
+        radial-gradient(circle at 34% 42%, rgba(5, 10, 13, 0.95) 0 4px, transparent 5px),
+        radial-gradient(circle at 66% 42%, rgba(5, 10, 13, 0.95) 0 4px, transparent 5px),
+        linear-gradient(145deg, rgba(255, 248, 226, 0.97), color-mix(in srgb, #ff9b6f 46%, #ffffff 30%));
+    }
+
+    .brittney-avatar[data-voice="speaking"] .avatar-mouth {
+      animation: avatarTalk 0.34s ease-in-out infinite;
+    }
+
+    .brittney-avatar[data-voice="speaking"] .avatar-voice-ring,
+    .brittney-avatar[data-voice="listening"] .avatar-voice-ring {
+      animation: avatarVoice 1.2s ease-out infinite;
+    }
+
+    @keyframes avatarAura {
+      from { transform: scale(0.96) rotate(-2deg); opacity: 0.7; }
+      50% { transform: scale(1.04) rotate(2deg); opacity: 1; }
+      to { transform: scale(0.96) rotate(-2deg); opacity: 0.7; }
+    }
+
+    @keyframes avatarVoice {
+      from { transform: rotateX(62deg) scale(0.88); opacity: 0.62; }
+      to { transform: rotateX(62deg) scale(1.28); opacity: 0; }
+    }
+
+    @keyframes avatarTalk {
+      from { height: 3px; transform: translateY(0) scaleX(0.78); }
+      50% { height: 9px; transform: translateY(-2px) scaleX(1); }
+      to { height: 4px; transform: translateY(0) scaleX(0.9); }
     }
 
     h1,
@@ -58,78 +446,106 @@
     }
 
     h1 {
-      font-size: 24px;
-      line-height: 1.1;
-      font-weight: 700;
+      font-size: 28px;
+      line-height: 1.05;
     }
 
     h2 {
-      font-size: 14px;
+      color: var(--soft);
+      font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
-      color: var(--muted);
     }
 
     h3 {
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 15px;
+      line-height: 1.2;
     }
 
-    .pulse {
-      display: flex;
-      align-items: center;
+    .conversation {
+      display: grid;
+      align-content: end;
       gap: 10px;
-      color: var(--muted);
-      font-size: 13px;
+      min-height: 0;
     }
 
-    .status-dot {
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      background: var(--gold);
-      box-shadow: 0 0 0 4px rgba(215, 173, 85, 0.12);
+    .message {
+      max-width: 100%;
+      border-radius: 18px;
+      padding: 12px 13px;
+      background: rgba(255, 255, 255, 0.10);
+      color: var(--soft);
+      font-size: 14px;
+      line-height: 1.42;
+      overflow-wrap: anywhere;
     }
 
-    .intent {
+    .message.user {
+      justify-self: end;
+      background: color-mix(in srgb, var(--accent) 28%, transparent);
+      color: var(--ink);
+    }
+
+    .ask {
       display: grid;
       grid-template-columns: 1fr auto auto;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 10px;
     }
 
-    .intent-text {
+    input,
+    button {
+      font: inherit;
+    }
+
+    input {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.24);
       color: var(--ink);
-      font-size: 16px;
-      padding: 10px 12px;
-      background: #0e131a;
-      border: 1px solid #22303d;
-      border-radius: 6px;
-      min-height: 44px;
-      display: flex;
-      align-items: center;
+      padding: 0 15px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: color-mix(in srgb, var(--accent) 70%, white 10%);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
     }
 
     button {
-      border: 1px solid #375066;
-      background: #182434;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
       color: var(--ink);
-      border-radius: 6px;
-      min-height: 44px;
-      padding: 0 14px;
-      font: inherit;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
+      padding: 0 13px;
+      cursor: pointer;
     }
 
     button.primary {
-      border-color: #2f6e8f;
-      background: #163249;
+      color: #05110f;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color: transparent;
+      font-weight: 800;
+    }
+
+    button.icon-button {
+      width: 46px;
+      padding: 0;
+      border-radius: 50%;
+    }
+
+    button.icon-button[data-state="listening"] {
+      color: #06110f;
+      background: linear-gradient(135deg, var(--accent-2), var(--accent));
+      border-color: transparent;
+      box-shadow: 0 0 22px color-mix(in srgb, var(--accent-2) 36%, transparent);
     }
 
     svg {
@@ -138,276 +554,1166 @@
       flex: 0 0 auto;
     }
 
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(300px, 1.15fr) minmax(300px, 0.85fr);
-      gap: 16px;
-      min-height: 0;
-    }
-
-    .section {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 14px;
+    .bubble-field {
+      position: relative;
+      min-height: 540px;
+      border-radius: 38px;
+      overflow: hidden;
       min-width: 0;
     }
 
-    .stack {
-      display: grid;
-      gap: 16px;
-      align-content: start;
-    }
-
-    .cap-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .cap {
-      min-height: 112px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      background: #0f151d;
-      display: grid;
-      gap: 8px;
-      align-content: space-between;
-    }
-
-    .cap-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .mark {
-      width: 26px;
-      height: 26px;
-      border-radius: 6px;
+    .bubble {
+      position: absolute;
+      width: var(--size);
+      height: var(--size);
+      left: var(--x);
+      top: var(--y);
+      border-radius: 50%;
+      border: 1px solid var(--bubble-line);
+      background:
+        radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.42), transparent 0 16%, transparent 18%),
+        radial-gradient(circle at 50% 70%, rgba(255, 255, 255, 0.10), transparent 0 38%, transparent 40%),
+        var(--bubble);
+      backdrop-filter: blur(18px) saturate(1.45);
+      color: var(--ink);
       display: grid;
       place-items: center;
-      font-weight: 800;
-      font-size: 13px;
-      color: #071016;
+      text-align: center;
+      padding: 12px;
+      box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.12), 0 18px 44px rgba(0, 0, 0, 0.20);
+      animation: drift var(--duration) ease-in-out infinite alternate;
+      cursor: pointer;
     }
 
-    .green { background: var(--green); }
-    .blue { background: var(--blue); }
-    .gold { background: var(--gold); }
-    .red { background: var(--red); }
-    .violet { background: var(--violet); }
+    .bubble:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 5px;
+    }
 
-    .tag {
-      width: max-content;
-      max-width: 100%;
-      border: 1px solid #334657;
-      border-radius: 999px;
-      padding: 3px 8px;
+    .bubble.selected {
+      border-color: color-mix(in srgb, var(--accent) 80%, white 20%);
+      box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.16), 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+
+    .bubble small {
+      display: block;
       color: var(--muted);
       font-size: 11px;
-      white-space: nowrap;
+      margin-top: 5px;
     }
 
-    .machine-list,
-    .timeline,
-    .agent-list {
-      display: grid;
-      gap: 10px;
-      margin-top: 12px;
+    .glyph {
+      display: block;
+      font-size: clamp(20px, calc(var(--size) * 0.20), 34px);
+      margin-bottom: 6px;
+      color: var(--accent);
     }
 
-    .row {
+    @keyframes drift {
+      from { transform: translate3d(-8px, 6px, 0) scale(0.985); }
+      to { transform: translate3d(10px, -10px, 0) scale(1.015); }
+    }
+
+    .context-panel {
+      align-self: end;
+      border-radius: 26px;
+      padding: 16px;
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 10px;
-      align-items: center;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #0f151d;
-      padding: 10px;
+      gap: 14px;
+      max-height: 560px;
+      overflow: auto;
       min-width: 0;
     }
 
-    .row p,
-    .cap p {
-      color: var(--muted);
+    .selected-object {
+      display: grid;
+      gap: 8px;
+    }
+
+    .selected-object strong {
+      font-size: 24px;
+      line-height: 1.06;
+    }
+
+    .selected-object p,
+    .mini {
+      color: var(--soft);
+      font-size: 13px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .skin-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .skin {
+      min-height: 44px;
+      border-radius: 16px;
+      padding: 0;
+      font-size: 12px;
+      color: var(--soft);
+    }
+
+    .skin.active {
+      color: var(--ink);
+      border-color: color-mix(in srgb, var(--accent) 70%, white 10%);
+      background: color-mix(in srgb, var(--accent) 24%, transparent);
+    }
+
+    .evidence {
+      display: grid;
+      gap: 8px;
+    }
+
+    .evidence-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 9px;
+      align-items: start;
+      border-top: 1px solid rgba(255, 255, 255, 0.10);
+      padding-top: 8px;
+      color: var(--soft);
       font-size: 12px;
       line-height: 1.35;
     }
 
-    .row strong {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 2px;
+    .pin {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: 4px;
     }
 
-    .receipt {
-      border-left: 4px solid var(--blue);
+    .dock {
+      min-height: 72px;
+      border-radius: 28px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
     }
 
-    .approval {
-      border-color: rgba(224, 111, 105, 0.7);
-      background: #1b1517;
+    .dock-items {
+      display: flex;
+      gap: 10px;
+      overflow: auto;
+      min-width: 0;
+      padding: 2px;
     }
 
-    .approval strong {
-      color: #ffd1cf;
+    .dock-item {
+      min-width: 58px;
+      height: 48px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.10);
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-weight: 900;
+      flex: 0 0 auto;
     }
 
-    @media (max-width: 920px) {
-      main {
-        padding: 12px;
+    .receipt-pill {
+      color: var(--soft);
+      font-size: 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 12px;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1120px) {
+      body {
+        overflow: auto;
       }
 
-      header,
-      .intent,
-      .layout {
+      .stage {
         grid-template-columns: 1fr;
       }
 
-      .cap-grid {
+      .bubble-field {
+        min-height: 520px;
+      }
+
+      .context-panel,
+      .brittney {
+        min-height: auto;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .shell {
+        padding: 10px;
+      }
+
+      .topbar,
+      .dock {
+        border-radius: 22px;
+      }
+
+      .topbar,
+      .dock,
+      .ask {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      .status {
+        white-space: normal;
+      }
+
+      .approval-chip {
+        width: 100%;
+        max-width: none;
+      }
+
+      .bubble-field {
+        min-height: 620px;
+      }
+
+      .bubble {
+        width: calc(var(--size) * 0.86);
+        height: calc(var(--size) * 0.86);
+      }
+
+      .skin-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 560px) {
-      .cap-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .row {
-        grid-template-columns: auto 1fr;
-      }
-
-      .row .tag {
-        grid-column: 2;
+    @media (prefers-reduced-motion: reduce) {
+      .avatar-aura,
+      .brittney-avatar[data-voice="speaking"] .avatar-mouth,
+      .brittney-avatar[data-voice="speaking"] .avatar-voice-ring,
+      .brittney-avatar[data-voice="listening"] .avatar-voice-ring {
+        animation: none;
       }
     }
   </style>
+  <script src="../../../.tmp/holoshell/live-feed.js"></script>
+  <script src="../../../.tmp/holoshell/program-registry.js"></script>
+  <script src="../../../.tmp/holoshell/brittney-turn-latest.js"></script>
+  <script src="../../../.tmp/holoshell/action-latest.js"></script>
+  <script src="../../../.tmp/holoshell/approval-latest.js"></script>
+  <script src="../../../.tmp/holoshell/workflow-latest.js"></script>
+  <script src="../../../.tmp/holoshell/workflow-approval-latest.js"></script>
+  <script src="../../../.tmp/holoshell/brain-intent-gate-latest.js"></script>
 </head>
-<body>
-  <main>
-    <header>
-      <div>
-        <h1>HoloShell</h1>
-        <div class="pulse"><span class="status-dot"></span><span>Local machine reading active</span></div>
+<body data-skin="liquid">
+  <canvas id="world"></canvas>
+  <main class="shell">
+    <header class="topbar">
+      <div class="sigil">H</div>
+      <div class="identity">
+        <strong>HoloShell</strong>
+        <span id="subline">Projection of the .holo shell world.</span>
       </div>
-      <button>
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3l7 4v5c0 4.5-2.8 7.7-7 9-4.2-1.3-7-4.5-7-9V7l7-4z" stroke="currentColor" stroke-width="1.7"/>
-        </svg>
-        Trust
+      <button class="approval-chip" id="approvalChip" type="button" hidden>
+        <span class="approval-chip-dot" aria-hidden="true"></span>
+        <span>
+          <strong id="approvalChipTitle">Hardware</strong>
+          <span id="approvalChipDetail">No pending approval</span>
+        </span>
       </button>
+      <div class="status"><span class="status-dot"></span><span id="statusText">Booting shell</span></div>
     </header>
 
-    <section class="intent" aria-label="Intent lane">
-      <div class="intent-text">Prepare my computer for HoloLand work and show what agents can safely operate.</div>
-      <button>
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-        Plan
-      </button>
-      <button class="primary">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Approve
-      </button>
+    <section class="stage">
+      <aside class="brittney" aria-label="Brittney assistant">
+        <div class="assistant-presence">
+          <div class="avatar-stage">
+            <button class="brittney-avatar" id="brittneyAvatar" type="button" data-runtime="unknown" data-emotion="attentive" data-voice="ready" aria-label="Open Brittney avatar" aria-describedby="brittneyAvatarStatus">
+              <span class="avatar-aura" aria-hidden="true"></span>
+              <span class="avatar-voice-ring ring-one" aria-hidden="true"></span>
+              <span class="avatar-voice-ring ring-two" aria-hidden="true"></span>
+              <span class="avatar-runtime" aria-hidden="true"></span>
+              <span class="avatar-shoulders" aria-hidden="true"></span>
+              <span class="avatar-hair" aria-hidden="true"></span>
+              <span class="avatar-head" aria-hidden="true"></span>
+              <span class="avatar-eye left" aria-hidden="true"></span>
+              <span class="avatar-eye right" aria-hidden="true"></span>
+              <span class="avatar-mouth" aria-hidden="true"></span>
+            </button>
+            <span class="sr-only" id="brittneyAvatarStatus" aria-live="polite">Brittney avatar loading.</span>
+          </div>
+          <div>
+            <h1>Brittney</h1>
+            <p class="mini" id="brittneyRuntimeLine">Runtime avatar inside the shell.</p>
+          </div>
+        </div>
+        <div class="conversation" id="conversation">
+          <div class="message">The desktop is HoloLand now. I can open programs, gather files, call agents, and reshape the shell around the work.</div>
+          <div class="message user">Prepare this computer for HoloLand work.</div>
+        </div>
+        <div class="ask">
+          <input id="askInput" value="Prepare this computer for HoloLand work" aria-label="Ask Brittney">
+          <button class="icon-button" id="voiceButton" type="button" aria-label="Start Brittney voice input" title="Voice" data-state="idle">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Z" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button class="primary" id="askButton">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            Ask
+          </button>
+        </div>
+      </aside>
+
+      <section class="bubble-field" id="bubbleField" aria-label="Shell objects"></section>
+
+      <aside class="context-panel" aria-label="Selected object">
+        <div class="selected-object">
+          <h2>Selected</h2>
+          <strong id="selectedTitle">HoloLand Shell</strong>
+          <p id="selectedDetail">Programs, files, agents, browser surfaces, and local machine powers are objects in the same world.</p>
+        </div>
+        <div>
+          <h2>Skins</h2>
+          <div class="skin-row" id="skinRow">
+            <button class="skin active" data-skin="liquid">Water</button>
+            <button class="skin" data-skin="fire">Fire</button>
+            <button class="skin" data-skin="developer">Developer</button>
+            <button class="skin" data-skin="aura">Aura</button>
+          </div>
+        </div>
+        <div>
+          <h2>Shell Memory</h2>
+          <div class="evidence" id="evidence"></div>
+        </div>
+      </aside>
     </section>
 
-    <div class="layout">
-      <section class="section">
-        <h2>Capability Map</h2>
-        <div class="cap-grid">
-          <article class="cap">
-            <div class="cap-top"><span class="mark green">HW</span><span class="tag">partial</span></div>
-            <h3>Hardware Proof</h3>
-            <p>WebGPU, WASM, browser, and runtime receipts.</p>
-          </article>
-          <article class="cap">
-            <div class="cap-top"><span class="mark blue">HS</span><span class="tag">verified</span></div>
-            <h3>HoloScript</h3>
-            <p>Validate, compile, inspect, and explain source.</p>
-          </article>
-          <article class="cap">
-            <div class="cap-top"><span class="mark violet">HM</span><span class="tag">verified</span></div>
-            <h3>HoloMesh</h3>
-            <p>Agent team, tasks, room state, and knowledge.</p>
-          </article>
-          <article class="cap">
-            <div class="cap-top"><span class="mark gold">BR</span><span class="tag">guarded</span></div>
-            <h3>Browser</h3>
-            <p>Web operations with screenshots and DOM witnesses.</p>
-          </article>
-          <article class="cap">
-            <div class="cap-top"><span class="mark blue">FS</span><span class="tag">guarded</span></div>
-            <h3>Projects</h3>
-            <p>Files, builds, diffs, tests, and local receipts.</p>
-          </article>
-          <article class="cap">
-            <div class="cap-top"><span class="mark red">LG</span><span class="tag">classified</span></div>
-            <h3>Legacy Apps</h3>
-            <p>Old programs wrapped as capability machines.</p>
-          </article>
-        </div>
-      </section>
-
-      <div class="stack">
-        <section class="section">
-          <h2>Legacy Machines</h2>
-          <div class="machine-list">
-            <div class="row">
-              <span class="mark gold">CLI</span>
-              <div><strong>Command Workflows</strong><p>Guarded execution with exit-code receipts.</p></div>
-              <span class="tag">machine</span>
-            </div>
-            <div class="row">
-              <span class="mark blue">WEB</span>
-              <div><strong>Web Apps</strong><p>Browser automation with visual witnesses.</p></div>
-              <span class="tag">partial</span>
-            </div>
-            <div class="row">
-              <span class="mark red">SYS</span>
-              <div><strong>System Settings</strong><p>Break-glass only with rollback path.</p></div>
-              <span class="tag">high risk</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="section">
-          <h2>Agent Operator Room</h2>
-          <div class="agent-list">
-            <div class="row">
-              <span class="mark violet">CX</span>
-              <div><strong>codex-hardware</strong><p>Local oracle. Validates hardware and receipts.</p></div>
-              <span class="tag">active</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="section">
-          <h2>Trust Timeline</h2>
-          <div class="timeline">
-            <div class="row receipt">
-              <span class="mark blue">01</span>
-              <div><strong>Capability inventory created</strong><p>Seven capability families mapped into HoloShell.</p></div>
-              <span class="tag">receipt</span>
-            </div>
-            <div class="row approval">
-              <span class="mark red">!</span>
-              <div><strong>No system mutation queued</strong><p>Risk lane remains quiet until a local change is requested.</p></div>
-              <span class="tag">0 pending</span>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
+    <footer class="dock">
+      <div class="dock-items" id="dockItems"></div>
+      <div class="receipt-pill" id="receiptPill">Receipts attached</div>
+    </footer>
   </main>
+
+  <script>
+    const canvas = document.getElementById("world");
+    const ctx = canvas.getContext("2d");
+    const feed = window.HOLOSHELL_LIVE_FEED || {};
+    const standaloneAvatarFeed = window.HOLOSHELL_BRITTNEY_AVATAR || {};
+    const standaloneTurnFeed = window.HOLOSHELL_BRITTNEY_TURN || {};
+    const standaloneHardwareActionFeed = window.HOLOSHELL_HARDWARE_ACTION || {};
+    const standaloneProgramRegistryFeed = window.HOLOSHELL_PROGRAM_REGISTRY || {};
+    const standaloneHardwareApprovalFeed = window.HOLOSHELL_HARDWARE_APPROVAL || {};
+    const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
+    const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
+    const standaloneWorkflowIntentGateFeed = window.HOLOSHELL_BRAIN_INTENT_GATE || {};
+    let controlDaemonHealth = { status: "offline", executeEnabled: false };
+    let avatarSpeechTimer = 0;
+    let speechRecognition = null;
+    const baseObjects = [
+      { id: "browser", label: "Browser", glyph: "B", type: "program", detail: "Web surfaces open as witnessed HoloLand objects.", x: 62, y: 16, size: 132 },
+      { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
+      { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
+      { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
+      { id: "programs", label: "Programs", glyph: "P", type: "program", detail: "Legacy apps are preserved as capability engines, not window chores.", x: 33, y: 53, size: 138 },
+      { id: "hardware-control", label: "Program Control", glyph: "PC", type: "hardware_power", detail: "Focus, open, hotkey, click, and type through guarded hardware receipts.", x: 14, y: 76, size: 116 },
+      { id: "studio", label: "Studio", glyph: "S", type: "world", detail: "Creator direction stays reachable without becoming the shell.", x: 49, y: 34, size: 112 },
+      { id: "terminal", label: "Command", glyph: "C", type: "power", detail: "Commands run behind intent, custody, and receipts.", x: 19, y: 68, size: 104 },
+      { id: "brittney", label: "Brittney", glyph: "AI", type: "assistant_avatar", detail: "Embodied assistant presence connected to the HoloScript agent runtime.", x: 54, y: 68, size: 126 },
+      { id: "hololand", label: "HoloLand", glyph: "HL", type: "world", detail: "The operating world that replaces the old desktop metaphor.", x: 39, y: 12, size: 160 }
+    ];
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const sim = {
+      particles: [],
+      ripples: [],
+      streams: []
+    };
+
+    function resize() {
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * ratio);
+      canvas.height = Math.floor(window.innerHeight * ratio);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      seedSimulation(document.body.dataset.skin || "liquid");
+    }
+
+    let t = 0;
+    const skinPalettes = {
+      liquid: ["#03070b", "#062a31", "#72f0d3", "#b7fff1", "#0d3f48"],
+      fire: ["#090303", "#270a04", "#ff6c32", "#ffd06b", "#4d120d"],
+      developer: ["#020605", "#06140d", "#68f07b", "#64a6ff", "#0d2b1d"],
+      aura: ["#060616", "#12124a", "#a8a0ff", "#62e9ff", "#25165a"]
+    };
+
+    function palette() {
+      return skinPalettes[document.body.dataset.skin] || skinPalettes.liquid;
+    }
+
+    function seedSimulation(skin) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const motionScale = reducedMotion ? 0.38 : 1;
+      const counts = {
+        liquid: Math.floor(90 * motionScale),
+        fire: Math.floor(150 * motionScale),
+        developer: Math.floor(120 * motionScale),
+        aura: Math.floor(140 * motionScale)
+      };
+      sim.particles = Array.from({ length: counts[skin] || counts.liquid }, (_, index) => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * (skin === "fire" ? 0.35 : 0.8),
+        vy: skin === "fire" ? -(0.7 + Math.random() * 2.8) : (Math.random() - 0.5) * 0.7,
+        r: skin === "fire" ? 1.5 + Math.random() * 6 : 1 + Math.random() * 4.5,
+        life: Math.random(),
+        phase: Math.random() * Math.PI * 2,
+        lane: index % 12
+      }));
+      sim.ripples = Array.from({ length: skin === "liquid" ? 9 : skin === "aura" ? 6 : 0 }, () => ({
+        x: Math.random() * w,
+        y: h * (0.16 + Math.random() * 0.66),
+        radius: Math.random() * 180,
+        speed: 0.9 + Math.random() * 1.8,
+        alpha: 0.2 + Math.random() * 0.35
+      }));
+      sim.streams = Array.from({ length: 18 }, (_, index) => ({
+        offset: Math.random() * h,
+        speed: 0.5 + Math.random() * 1.8,
+        phase: Math.random() * Math.PI * 2,
+        lane: index
+      }));
+    }
+
+    function drawBaseGradient() {
+      const [base, deep, a, b, c] = palette();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const grad = ctx.createLinearGradient(0, 0, w, h);
+      grad.addColorStop(0, base);
+      grad.addColorStop(0.42, deep);
+      grad.addColorStop(1, c);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      const glow = ctx.createRadialGradient(w * 0.5, h * 0.5, 80, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
+      glow.addColorStop(0, `${a}1f`);
+      glow.addColorStop(0.45, `${b}12`);
+      glow.addColorStop(1, "transparent");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    function drawLiquid() {
+      const [, , a, b] = palette();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.globalCompositeOperation = "screen";
+
+      for (let i = 0; i < 13; i += 1) {
+        const y = h * (0.08 + i * 0.078);
+        const band = ctx.createLinearGradient(0, y - 120, w, y + 120);
+        band.addColorStop(0, "transparent");
+        band.addColorStop(0.5, i % 2 ? `${a}35` : `${b}28`);
+        band.addColorStop(1, "transparent");
+        ctx.fillStyle = band;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        for (let x = 0; x <= w; x += 36) {
+          const yy = y
+            + Math.sin((x * 0.009) + t * 0.018 + i) * (28 + i * 1.7)
+            + Math.sin((x * 0.024) - t * 0.011) * 13;
+          ctx.lineTo(x, yy);
+        }
+        ctx.lineTo(w, y + 110);
+        ctx.lineTo(0, y + 110);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      for (const ripple of sim.ripples) {
+        ripple.radius += ripple.speed;
+        ripple.alpha *= 0.992;
+        if (ripple.radius > Math.max(w, h) * 0.34 || ripple.alpha < 0.05) {
+          ripple.x = Math.random() * w;
+          ripple.y = h * (0.18 + Math.random() * 0.62);
+          ripple.radius = 8;
+          ripple.alpha = 0.22 + Math.random() * 0.34;
+        }
+        ctx.strokeStyle = `rgba(144, 255, 236, ${ripple.alpha})`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.ellipse(ripple.x, ripple.y, ripple.radius * 1.55, ripple.radius * 0.38, -0.12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (const particle of sim.particles) {
+        particle.x += Math.sin(t * 0.011 + particle.phase) * 0.85 + particle.vx;
+        particle.y += Math.cos(t * 0.009 + particle.phase) * 0.26 + particle.vy;
+        if (particle.x < -20) particle.x = w + 20;
+        if (particle.x > w + 20) particle.x = -20;
+        if (particle.y < -20) particle.y = h + 20;
+        if (particle.y > h + 20) particle.y = -20;
+        const caustic = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.r * 8);
+        caustic.addColorStop(0, "rgba(186, 255, 245, 0.22)");
+        caustic.addColorStop(1, "transparent");
+        ctx.fillStyle = caustic;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.r * 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    function drawFire() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.globalCompositeOperation = "screen";
+
+      for (let i = 0; i < 24; i += 1) {
+        const x = (i / 23) * w;
+        const height = h * (0.34 + Math.sin(t * 0.025 + i) * 0.09 + (i % 5) * 0.015);
+        const flame = ctx.createRadialGradient(x, h, 20, x + Math.sin(t * 0.03 + i) * 80, h - height * 0.58, height);
+        flame.addColorStop(0, "rgba(255, 220, 120, 0.55)");
+        flame.addColorStop(0.34, "rgba(255, 103, 48, 0.38)");
+        flame.addColorStop(0.72, "rgba(105, 25, 10, 0.14)");
+        flame.addColorStop(1, "transparent");
+        ctx.fillStyle = flame;
+        ctx.fillRect(Math.max(0, x - height * 0.55), Math.max(0, h - height * 1.18), height * 1.1, height * 1.18);
+      }
+
+      for (const ember of sim.particles) {
+        ember.x += Math.sin(t * 0.025 + ember.phase) * 0.7 + ember.vx;
+        ember.y += ember.vy;
+        ember.life += 0.011;
+        if (ember.y < -30 || ember.life > 1) {
+          ember.x = Math.random() * w;
+          ember.y = h + Math.random() * 80;
+          ember.vy = -(0.7 + Math.random() * 3.2);
+          ember.life = 0;
+          ember.r = 1.5 + Math.random() * 7;
+        }
+        const alpha = Math.max(0, 1 - ember.life);
+        const spark = ctx.createRadialGradient(ember.x, ember.y, 0, ember.x, ember.y, ember.r * 6);
+        spark.addColorStop(0, `rgba(255, 236, 162, ${0.8 * alpha})`);
+        spark.addColorStop(0.34, `rgba(255, 111, 56, ${0.44 * alpha})`);
+        spark.addColorStop(1, "transparent");
+        ctx.fillStyle = spark;
+        ctx.beginPath();
+        ctx.arc(ember.x, ember.y, ember.r * 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "#1c0804";
+      for (let i = 0; i < 11; i += 1) {
+        const y = h * (0.12 + i * 0.085);
+        ctx.fillRect(0, y + Math.sin(t * 0.02 + i) * 18, w, 1);
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    function drawDeveloper() {
+      const [, , a, b] = palette();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const spacing = 56;
+      ctx.globalCompositeOperation = "screen";
+      ctx.strokeStyle = "rgba(99, 255, 152, 0.12)";
+      ctx.lineWidth = 1;
+      for (let x = (t * 0.25) % spacing; x < w; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + Math.sin(x * 0.02 + t * 0.01) * 28, h);
+        ctx.stroke();
+      }
+      for (let y = (t * 0.18) % spacing; y < h; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y + Math.sin(y * 0.02 + t * 0.012) * 22);
+        ctx.stroke();
+      }
+
+      for (const pulse of sim.particles) {
+        const laneY = ((pulse.lane + 1) / 13) * h;
+        pulse.x += 1.6 + (pulse.lane % 4) * 0.55;
+        if (pulse.x > w + 80) pulse.x = -80;
+        const x2 = pulse.x + 80 + Math.sin(t * 0.02 + pulse.phase) * 40;
+        const grad = ctx.createLinearGradient(pulse.x, laneY, x2, laneY);
+        grad.addColorStop(0, "transparent");
+        grad.addColorStop(0.5, pulse.lane % 2 ? `${a}aa` : `${b}99`);
+        grad.addColorStop(1, "transparent");
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pulse.x, laneY);
+        ctx.lineTo(x2, laneY + Math.sin(t * 0.03 + pulse.phase) * 22);
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    function drawAura() {
+      const [, , a, b] = palette();
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const cx = w * 0.5;
+      const cy = h * 0.49;
+      ctx.globalCompositeOperation = "screen";
+
+      for (let i = 0; i < 8; i += 1) {
+        const radius = 110 + i * 72 + Math.sin(t * 0.018 + i) * 24;
+        ctx.strokeStyle = i % 2 ? `${a}42` : `${b}38`;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, radius * 1.45, radius * 0.58, Math.sin(t * 0.006 + i) * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < 9; i += 1) {
+        const y = h * (0.1 + i * 0.085);
+        const band = ctx.createLinearGradient(0, y - 70, w, y + 70);
+        band.addColorStop(0, "transparent");
+        band.addColorStop(0.38, i % 2 ? `${a}30` : `${b}2b`);
+        band.addColorStop(0.62, i % 2 ? `${b}2a` : `${a}25`);
+        band.addColorStop(1, "transparent");
+        ctx.fillStyle = band;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 48) {
+          const yy = y + Math.sin(x * 0.008 + t * 0.02 + i) * (44 + i * 2);
+          if (x === 0) ctx.moveTo(x, yy);
+          else ctx.lineTo(x, yy);
+        }
+        ctx.lineTo(w, y + 100);
+        ctx.lineTo(0, y + 100);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      for (const mote of sim.particles) {
+        const angle = mote.phase + t * (0.004 + (mote.lane % 5) * 0.0008);
+        const orbit = 90 + (mote.lane % 12) * 42 + Math.sin(t * 0.015 + mote.life * 7) * 18;
+        mote.x = cx + Math.cos(angle) * orbit * (1.25 + (mote.lane % 3) * 0.12);
+        mote.y = cy + Math.sin(angle * 1.4) * orbit * 0.46;
+        const aura = ctx.createRadialGradient(mote.x, mote.y, 0, mote.x, mote.y, mote.r * 6);
+        aura.addColorStop(0, "rgba(220, 255, 255, 0.62)");
+        aura.addColorStop(0.3, `${a}66`);
+        aura.addColorStop(1, "transparent");
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(mote.x, mote.y, mote.r * 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    function drawWorld() {
+      drawBaseGradient();
+      const skin = document.body.dataset.skin || "liquid";
+      if (skin === "fire") drawFire();
+      else if (skin === "developer") drawDeveloper();
+      else if (skin === "aura") drawAura();
+      else drawLiquid();
+      t += reducedMotion ? 0.35 : 1;
+      requestAnimationFrame(drawWorld);
+    }
+
+    function brittneyAvatarFeed() {
+      return feed.feeds?.brittneyAvatar?.summary ? feed.feeds.brittneyAvatar : standaloneAvatarFeed;
+    }
+
+    function brittneyAvatarSummary() {
+      const avatar = brittneyAvatarFeed();
+      return avatar.summary || {};
+    }
+
+    function brittneyAvatarRuntime() {
+      const avatar = brittneyAvatarFeed();
+      return avatar.runtime || {};
+    }
+
+    function brittneyLatestTurn() {
+      return feed.feeds?.brittneyTurn?.summary ? feed.feeds.brittneyTurn : standaloneTurnFeed;
+    }
+
+    function hardwareLatestAction() {
+      return feed.feeds?.hardwareAction?.summary ? feed.feeds.hardwareAction : standaloneHardwareActionFeed;
+    }
+
+    function hardwareActionSummary() {
+      const action = hardwareLatestAction();
+      return action.summary || {};
+    }
+
+    function programRegistryFeed() {
+      return feed.feeds?.programRegistry?.summary ? feed.feeds.programRegistry : standaloneProgramRegistryFeed;
+    }
+
+    function programRegistrySummary() {
+      const registry = programRegistryFeed();
+      return registry.summary || {};
+    }
+
+    function hardwareApprovalFeed() {
+      return feed.feeds?.hardwareApproval?.summary ? feed.feeds.hardwareApproval : standaloneHardwareApprovalFeed;
+    }
+
+    function hardwareApprovalSummary() {
+      const approval = hardwareApprovalFeed();
+      return approval.summary || {};
+    }
+
+    function workflowFeed() {
+      return feed.feeds?.workflow?.summary ? feed.feeds.workflow : standaloneWorkflowFeed;
+    }
+
+    function workflowSummary() {
+      const workflow = workflowFeed();
+      return workflow.summary || {};
+    }
+
+    function workflowApprovalFeed() {
+      return feed.feeds?.workflowApproval?.summary ? feed.feeds.workflowApproval : standaloneWorkflowApprovalFeed;
+    }
+
+    function workflowApprovalSummary() {
+      const approval = workflowApprovalFeed();
+      return approval.summary || {};
+    }
+
+    function workflowIntentGateFeed() {
+      return feed.feeds?.workflowIntentGate?.summary ? feed.feeds.workflowIntentGate : standaloneWorkflowIntentGateFeed;
+    }
+
+    function workflowIntentGateSummary() {
+      const gate = workflowIntentGateFeed();
+      return gate.summary || {};
+    }
+
+    async function refreshControlDaemonHealth() {
+      try {
+        const response = await fetch("http://127.0.0.1:4747/health", { cache: "no-store" });
+        if (response.ok) {
+          controlDaemonHealth = await response.json();
+          renderEvidence();
+        }
+      } catch {
+        controlDaemonHealth = { status: "offline", executeEnabled: false };
+      }
+    }
+
+    function renderHardwareApprovalCue() {
+      const chip = document.getElementById("approvalChip");
+      const title = document.getElementById("approvalChipTitle");
+      const detail = document.getElementById("approvalChipDetail");
+      const workflow = workflowSummary();
+      const workflowApproval = workflowApprovalSummary();
+      const workflowIntentGate = workflowIntentGateSummary();
+      const workflowPending = workflow.pendingApprovalCount
+        || feed.summary?.activeWorkflowPendingApprovalCount
+        || workflowApproval.pendingApprovalCount
+        || feed.summary?.activeWorkflowApprovalPendingCount
+        || 0;
+      if (workflowPending > 0) {
+        chip.hidden = false;
+        chip.dataset.status = workflow.status || feed.summary?.activeWorkflowStatus || "pending_user_approval";
+        chip.dataset.object = "room-marathon";
+        const approvalReady = workflowApproval.executionAllowed || feed.summary?.activeWorkflowApprovalExecutionAllowed;
+        const gateReady = workflowIntentGate.executionAllowed || feed.summary?.activeWorkflowIntentGateExecutionAllowed;
+        const workflowReady = approvalReady && gateReady;
+        title.textContent = workflowReady ? "Workflow Ready" : approvalReady ? "Workflow Gated" : "Workflow Pending";
+        detail.textContent = `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; ${workflow.modelRoute || feed.summary?.activeWorkflowModelRoute || "model route"}/${workflow.model || feed.summary?.activeWorkflowModel || "model"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}; gate ${workflowIntentGate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown"}`;
+        chip.setAttribute("aria-label", `${workflowReady ? "Workflow ready" : approvalReady ? "Workflow blocked by brain intent gate" : "Workflow pending"}. Select Room Marathon.`);
+        return;
+      }
+      const summary = hardwareApprovalSummary();
+      const status = summary.status || feed.summary?.hardwareApprovalStatus || "unknown";
+      const actionKind = summary.actionKind || feed.summary?.hardwareApprovalActionKind || "hardware_action";
+      const target = summary.target || feed.summary?.hardwareApprovalTarget || "local computer";
+      const visible = status !== "unknown" && status !== "not_required";
+      chip.hidden = !visible;
+      if (!visible) return;
+      chip.dataset.status = status;
+      chip.dataset.object = "hardware-control";
+      title.textContent = status === "pending_user_approval" ? "Approval Pending" : "Hardware Approval";
+      detail.textContent = `${actionKind} for ${target}`;
+      chip.setAttribute("aria-label", `Hardware approval ${status}. ${actionKind} for ${target}. Select Program Control.`);
+    }
+
+    function normalizePrompt(text) {
+      return text.trim().toLowerCase().replace(/\s+/g, " ");
+    }
+
+    function proposalFor(objectId, label, operation, reason, options = {}) {
+      const permissionEnvelope = options.permissionEnvelope || "read_only";
+      return {
+        objectId,
+        label,
+        operation,
+        reason,
+        permissionEnvelope,
+        approvalRequired: permissionEnvelope !== "read_only",
+        receiptRequired: true
+      };
+    }
+
+    function localActionProposals(prompt) {
+      const text = normalizePrompt(prompt);
+      const proposals = [];
+      const add = (objectId, label, operation, reason, options = {}) => {
+        if (!proposals.some((proposal) => proposal.objectId === objectId && proposal.operation === operation)) {
+          proposals.push(proposalFor(objectId, label, operation, reason, options));
+        }
+      };
+      if (/\b(browser|web|url|site|page|internet|chrome|edge)\b/.test(text)) add("browser", "Browser", "focus_shell_object", "web surface");
+      if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
+      if (/\b(agent|codex|claude|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
+      if (/\b(room marathon|marathon|kimi|ollama|lofi|youtube music|music on youtube|start room)\b/.test(text)) add("room-marathon", "Room Marathon", "stage_room_marathon_workflow", "compound agent workflow", { permissionEnvelope: "guarded_execute" });
+      if (/\b(program|app|application|legacy|window|ui|control)\b/.test(text)) add("programs", "Programs", "focus_shell_object", "legacy program");
+      if (/\b(hardware|focus|hotkey|click|type|launch|open app|control program|program control)\b/.test(text)) add("hardware-control", "Program Control", "stage_hardware_action", "guarded program control", { permissionEnvelope: "guarded_execute" });
+      if (/\b(captured|window|click|legacy ui|old ui)\b/.test(text)) add("captured-ui", "Captured UI", "focus_shell_object", "captured window");
+      if (/\b(command|terminal|shell|run|build|test|script)\b/.test(text)) add("terminal", "Command", "focus_shell_object", "command lane");
+      if (/\b(hololand|computer|desktop|shell|prepare|start)\b/.test(text)) add("hololand", "HoloLand", "focus_shell_object", "operating world");
+      if (proposals.length === 0) add("brittney", "Brittney", "summarize_shell_state", "assistant context");
+      return proposals.slice(0, 5);
+    }
+
+    function matchingTurnFor(prompt) {
+      const turn = brittneyLatestTurn();
+      return normalizePrompt(turn.prompt || "") === normalizePrompt(prompt) ? turn : null;
+    }
+
+    function renderBrittneyAvatar(overrides = {}) {
+      const avatarButton = document.getElementById("brittneyAvatar");
+      if (!avatarButton) return;
+      const summary = brittneyAvatarSummary();
+      const runtime = brittneyAvatarRuntime();
+      const visual = brittneyAvatarFeed().avatar?.visualState || {};
+      const latestTurn = brittneyLatestTurn();
+      const runtimeStatus = overrides.runtimeStatus || summary.runtimeStatus || runtime.status || "unknown";
+      const avatarStatus = overrides.avatarStatus || summary.avatarStatus || "unknown";
+      const emotion = overrides.emotion || latestTurn.summary?.finalEmotion || visual.emotion || summary.emotion || "attentive";
+      const voiceState = overrides.voiceState || latestTurn.summary?.finalVoiceState || visual.voiceState || summary.voiceState || "ready";
+      const route = summary.ollamaHostKind || runtime.ollamaHostKind || "unknown";
+      const model = runtime.model || "qwen2.5-coder:7b";
+      avatarButton.dataset.runtime = runtimeStatus;
+      avatarButton.dataset.emotion = emotion;
+      avatarButton.dataset.voice = voiceState;
+      avatarButton.setAttribute("aria-label", `Open Brittney avatar. Runtime ${runtimeStatus}. Emotion ${emotion}. Voice ${voiceState}.`);
+      document.getElementById("brittneyAvatarStatus").textContent = `Brittney avatar ${avatarStatus}; runtime ${runtimeStatus}; emotion ${emotion}; voice ${voiceState}.`;
+      document.getElementById("brittneyRuntimeLine").textContent = `AIBrittney ${runtimeStatus}; ${route} route; ${model}.`;
+    }
+
+    function pulseBrittneyAvatar(voiceState, emotion = "focused", duration = 1600) {
+      window.clearTimeout(avatarSpeechTimer);
+      renderBrittneyAvatar({ voiceState, emotion });
+      avatarSpeechTimer = window.setTimeout(() => renderBrittneyAvatar(), duration);
+    }
+
+    function activateBrittneyAvatar(source = "avatar") {
+      const object = shellObjects().find((item) => item.id === "brittney") || baseObjects.find((item) => item.id === "brittney");
+      selectObject(object, { fromAvatar: source === "avatar" });
+      pulseBrittneyAvatar("listening", "attentive", 1400);
+      document.getElementById("askInput").focus();
+    }
+
+    function shellObjects() {
+      const capabilities = feed.feeds?.inventory?.capabilities || [];
+      const osCapture = feed.feeds?.osUiCapture;
+      const avatarSummary = brittneyAvatarSummary();
+      const hardwareSummary = hardwareActionSummary();
+      const registrySummary = programRegistrySummary();
+      const approvalSummary = hardwareApprovalSummary();
+      const activeWorkflow = workflowSummary();
+      const activeWorkflowApproval = workflowApprovalSummary();
+      const activeWorkflowIntentGate = workflowIntentGateSummary();
+      const runtimeStatus = avatarSummary.runtimeStatus || "unknown";
+      const avatarStatus = avatarSummary.avatarStatus || "unknown";
+      const objects = baseObjects.map((object) => {
+        if (object.id === "brittney") {
+          return {
+            ...object,
+            detail: `Brittney is ${avatarStatus}; @holoscript/aibrittney runtime ${runtimeStatus}; ${avatarSummary.emotion || "attentive"} avatar state.`,
+          };
+        }
+        if (object.id === "hardware-control") {
+          return {
+            ...object,
+            detail: `Hardware executor ${hardwareSummary.status || "unknown"}; approval ${approvalSummary.status || "unknown"}; ${registrySummary.launchableProgramCount || 0} launchable programs.`,
+          };
+        }
+        if (object.id === "room-marathon") {
+          return {
+            ...object,
+            detail: `${activeWorkflow.status || "unknown"}; ${activeWorkflow.stepCount || 0} steps; ${activeWorkflow.pendingApprovalCount || 0} approval(s); ${activeWorkflow.modelRoute || "route"}/${activeWorkflow.model || "model"}; approval ${activeWorkflowApproval.status || "unknown"}; brain gate ${activeWorkflowIntentGate.status || "unknown"}; execute ${activeWorkflowApproval.executionAllowed && activeWorkflowIntentGate.executionAllowed ? "ready" : "blocked"}.`,
+          };
+        }
+        if (object.id === "programs") {
+          return {
+            ...object,
+            detail: `${registrySummary.launchableProgramCount || 0} launchable programs and ${feed.summary?.capturedWindowCount || 0} running windows can be wrapped and controlled by receipts.`,
+          };
+        }
+        return object;
+      });
+      const capturedUi = osCapture?.summary?.windowCount ? [{
+        id: "captured-ui",
+        label: "Captured UI",
+        glyph: "UI",
+        type: "legacy_surface",
+        detail: `${osCapture.summary.windowCount} windows wrapped into ${osCapture.summary.geometryNodeCount || 0} geometric shards.`,
+        x: 62,
+        y: 54,
+        size: 118
+      }] : [];
+      const extras = capabilities.slice(0, 4).map((capability, index) => ({
+        id: capability.id,
+        label: capability.displayName || capability.id,
+        glyph: capability.category?.slice(0, 2).toUpperCase() || "O",
+        type: capability.category || "capability",
+        detail: `${capability.trustState || "unknown"} trust; ${capability.visualForm || "object"} form.`,
+        x: [68, 8, 79, 25][index],
+        y: [68, 46, 27, 18][index],
+        size: [94, 96, 100, 90][index]
+      }));
+      return [...objects, ...capturedUi, ...extras];
+    }
+
+    function selectObject(object, options = {}) {
+      document.querySelectorAll(".bubble").forEach((item) => item.classList.toggle("selected", item.dataset.id === object.id));
+      document.getElementById("selectedTitle").textContent = object.label;
+      document.getElementById("selectedDetail").textContent = object.detail;
+      const conversation = document.getElementById("conversation");
+      if (!options.silent) {
+        const message = document.createElement("div");
+        message.className = "message";
+        message.textContent = `${object.label} is ready. I can shape it as ${object.type} inside HoloLand.`;
+        conversation.append(message);
+        conversation.scrollTop = conversation.scrollHeight;
+      }
+      if (object.id === "brittney" && !options.fromAvatar) {
+        pulseBrittneyAvatar("ready", "focused", 1200);
+      }
+    }
+
+    function applyActionProposals(proposals) {
+      const objects = shellObjects();
+      const conversation = document.getElementById("conversation");
+      proposals.forEach((proposal) => {
+        const object = objects.find((item) => item.id === proposal.objectId);
+        if (!object) return;
+        selectObject(object, { silent: true });
+        const message = document.createElement("div");
+        message.className = "message";
+        message.textContent = `${proposal.label}: ${proposal.operation}; ${proposal.permissionEnvelope || "read_only"}; receipt required.`;
+        conversation.append(message);
+      });
+      conversation.scrollTop = conversation.scrollHeight;
+      renderEvidence();
+    }
+
+    function renderBubbles() {
+      const field = document.getElementById("bubbleField");
+      field.replaceChildren(...shellObjects().map((object, index) => {
+        const bubble = document.createElement("button");
+        bubble.className = "bubble";
+        bubble.dataset.id = object.id;
+        bubble.style.setProperty("--x", `${object.x}%`);
+        bubble.style.setProperty("--y", `${object.y}%`);
+        bubble.style.setProperty("--size", `${object.size}px`);
+        bubble.style.setProperty("--duration", `${5.5 + (index % 5) * 0.8}s`);
+        bubble.innerHTML = `<span><span class="glyph">${object.glyph}</span>${object.label}<small>${object.type}</small></span>`;
+        bubble.addEventListener("click", () => selectObject(object));
+        return bubble;
+      }));
+    }
+
+    function renderDock() {
+      const dock = document.getElementById("dockItems");
+      const objects = shellObjects().slice(0, 9);
+      dock.replaceChildren(...objects.map((object) => {
+        const item = document.createElement("button");
+        item.className = "dock-item";
+        item.title = object.label;
+        item.textContent = object.glyph;
+        item.addEventListener("click", () => selectObject(object));
+        return item;
+      }));
+    }
+
+    function renderEvidence() {
+      const summary = feed.summary || {};
+      const process = feed.feeds?.processHealth?.summary || {};
+      const avatarSummary = brittneyAvatarSummary();
+      const turn = brittneyLatestTurn();
+      const turnSummary = turn.summary || {};
+      const hardwareSummary = hardwareActionSummary();
+      const registrySummary = programRegistrySummary();
+      const approvalSummary = hardwareApprovalSummary();
+      const activeWorkflow = workflowSummary();
+      const activeWorkflowApproval = workflowApprovalSummary();
+      const activeWorkflowIntentGate = workflowIntentGateSummary();
+      const rows = [
+        "Visual source: source/holoshell-shell-world.holo",
+        "Render slice: source/holoshell-shell-render.hs",
+        "Behavior source: source/holoshell-home.hsplus",
+        "Avatar source: source/holoshell-brittney-avatar.hsplus",
+        "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
+        "Hardware source: source/holoshell-hardware-control.hsplus",
+        `Control daemon: ${controlDaemonHealth.status || "offline"}; execute ${controlDaemonHealth.executeEnabled ? "enabled" : "disabled"}`,
+        `Captured UI: ${summary.capturedWindowCount || 0} windows, ${summary.capturedGeometryNodeCount || 0} geometric shards`,
+        `Program registry: ${registrySummary.launchableProgramCount || summary.launchableProgramCount || 0} launchable, ${registrySummary.programCount || summary.installedProgramCount || 0} installed entries`,
+        `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
+        `Hardware action: ${hardwareSummary.status || summary.hardwareActionStatus || "unknown"}; ${hardwareSummary.actionKind || summary.hardwareActionKind || "none"}; ${hardwareSummary.permissionEnvelope || summary.hardwareActionPermissionEnvelope || "unknown"}; mutation executed ${hardwareSummary.mutatingActionExecuted || summary.hardwareMutatingActionExecuted ? "yes" : "no"}`,
+        `Hardware approval: ${approvalSummary.status || summary.hardwareApprovalStatus || "unknown"}; ${approvalSummary.actionKind || summary.hardwareApprovalActionKind || "none"}; target ${approvalSummary.target || summary.hardwareApprovalTarget || "none"}`,
+        `Workflow: ${activeWorkflow.status || summary.activeWorkflowStatus || "unknown"}; ${activeWorkflow.stepCount || summary.activeWorkflowStepCount || 0} steps; ${activeWorkflow.pendingApprovalCount || summary.activeWorkflowPendingApprovalCount || 0} approval(s); ${activeWorkflow.modelRoute || summary.activeWorkflowModelRoute || "route"}/${activeWorkflow.model || summary.activeWorkflowModel || "model"}`,
+        `Workflow approval: ${activeWorkflowApproval.status || summary.activeWorkflowApprovalStatus || "unknown"}; execute ${activeWorkflowApproval.executionAllowed || summary.activeWorkflowApprovalExecutionAllowed ? "yes" : "no"}; expires ${activeWorkflowApproval.expiresAt || summary.activeWorkflowApprovalExpiresAt || "none"}`,
+        `Brain intent gate: ${activeWorkflowIntentGate.status || summary.activeWorkflowIntentGateStatus || "unknown"}; execute ${activeWorkflowIntentGate.executionAllowed || summary.activeWorkflowIntentGateExecutionAllowed ? "yes" : "no"}; failed checks ${activeWorkflowIntentGate.failedCheckCount || summary.activeWorkflowIntentGateFailedCheckCount || 0}`,
+        `Brittney avatar: ${avatarSummary.avatarStatus || summary.brittneyAvatarStatus || "unknown"}; runtime ${avatarSummary.runtimeStatus || summary.brittneyRuntimeStatus || "unknown"}`,
+        `Brittney turn: ${turnSummary.status || summary.brittneyLastTurnStatus || "unknown"}; ${turnSummary.eventCount || summary.brittneyRuntimeEventCount || 0} events; ${turnSummary.actionProposalCount || summary.brittneyActionProposalCount || 0} proposal(s)`,
+        `Shell skin: ${document.body.dataset.skin}`,
+        `${summary.capabilityCount || 0} local capabilities absorbed`,
+        `${summary.activeLaneCount || 0}/${summary.laneCount || 0} agent lanes can enter`,
+        `${process.riskState || "unknown"} hardware custody; ${summary.stopPlanCount || 0} approval item(s)`,
+        `${summary.timelineCount || 0} receipt nodes linked`
+      ];
+      document.getElementById("evidence").replaceChildren(...rows.map((text) => {
+        const row = document.createElement("div");
+        row.className = "evidence-row";
+        const pin = document.createElement("span");
+        pin.className = "pin";
+        const label = document.createElement("span");
+        label.textContent = text;
+        row.append(pin, label);
+        return row;
+      }));
+      document.getElementById("receiptPill").textContent = `${summary.timelineCount || 0} receipts attached`;
+      document.getElementById("statusText").textContent = `${process.riskState || "unknown"} custody`;
+      renderHardwareApprovalCue();
+    }
+
+    function setSkin(skin) {
+      document.body.dataset.skin = skin;
+      seedSimulation(skin);
+      document.querySelectorAll(".skin").forEach((button) => button.classList.toggle("active", button.dataset.skin === skin));
+      renderEvidence();
+    }
+
+    function askBrittney() {
+      const input = document.getElementById("askInput");
+      const text = input.value.trim();
+      if (!text) return;
+      pulseBrittneyAvatar("quiet", "focused", 800);
+      const conversation = document.getElementById("conversation");
+      const user = document.createElement("div");
+      user.className = "message user";
+      user.textContent = text;
+      const reply = document.createElement("div");
+      reply.className = "message";
+      const matchedTurn = matchingTurnFor(text);
+      const proposals = matchedTurn?.proposals?.length ? matchedTurn.proposals : localActionProposals(text);
+      const stopPlans = feed.summary?.stopPlanCount || 0;
+      if (matchedTurn?.result?.ok && matchedTurn.result.finalText) {
+        reply.textContent = matchedTurn.result.finalText;
+      } else if (matchedTurn?.result?.error) {
+        reply.textContent = `Runtime bridge is blocked: ${matchedTurn.result.error}`;
+      } else {
+        reply.textContent = stopPlans
+          ? `I can do that. First I need approval for ${stopPlans} local custody item(s), then I will stage ${proposals.length} shell proposal(s).`
+          : `I can do that. I staged ${proposals.length} shell proposal(s) and kept receipts attached.`;
+      }
+      conversation.append(user, reply);
+      conversation.scrollTop = conversation.scrollHeight;
+      pulseBrittneyAvatar(matchedTurn?.summary?.finalVoiceState || "speaking", matchedTurn?.summary?.finalEmotion || "attentive", 2200);
+      applyActionProposals(proposals);
+    }
+
+    function setupVoiceInput() {
+      const voiceButton = document.getElementById("voiceButton");
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Recognition) {
+        voiceButton.disabled = true;
+        voiceButton.setAttribute("aria-label", "Brittney voice input unavailable in this browser");
+        return;
+      }
+      voiceButton.addEventListener("click", () => {
+        if (speechRecognition) {
+          speechRecognition.stop();
+          speechRecognition = null;
+          voiceButton.dataset.state = "idle";
+          voiceButton.setAttribute("aria-label", "Start Brittney voice input");
+          pulseBrittneyAvatar("ready", "attentive", 1000);
+          return;
+        }
+        const recognition = new Recognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+        speechRecognition = recognition;
+        voiceButton.dataset.state = "listening";
+        voiceButton.setAttribute("aria-label", "Stop Brittney voice input");
+        pulseBrittneyAvatar("listening", "attentive", 4000);
+        recognition.onresult = (event) => {
+          let finalText = "";
+          let interim = "";
+          for (let index = event.resultIndex; index < event.results.length; index += 1) {
+            const result = event.results[index];
+            if (result.isFinal) finalText += result[0].transcript;
+            else interim += result[0].transcript;
+          }
+          const input = document.getElementById("askInput");
+          input.value = finalText || interim || input.value;
+        };
+        recognition.onerror = () => {
+          speechRecognition = null;
+          voiceButton.dataset.state = "idle";
+          voiceButton.setAttribute("aria-label", "Start Brittney voice input");
+          pulseBrittneyAvatar("quiet", "concerned", 1400);
+        };
+        recognition.onend = () => {
+          speechRecognition = null;
+          voiceButton.dataset.state = "idle";
+          voiceButton.setAttribute("aria-label", "Start Brittney voice input");
+          pulseBrittneyAvatar("ready", "focused", 1200);
+        };
+        recognition.start();
+      });
+    }
+
+    window.addEventListener("resize", resize);
+    document.getElementById("brittneyAvatar").addEventListener("click", () => activateBrittneyAvatar("avatar"));
+    document.getElementById("approvalChip").addEventListener("click", () => {
+      const targetObject = document.getElementById("approvalChip").dataset.object || "hardware-control";
+      const object = shellObjects().find((item) => item.id === targetObject);
+      if (object) selectObject(object);
+    });
+    document.getElementById("askButton").addEventListener("click", askBrittney);
+    document.getElementById("askInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") askBrittney();
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.altKey && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        activateBrittneyAvatar("keyboard");
+      }
+    });
+    document.querySelectorAll(".skin").forEach((button) => button.addEventListener("click", () => setSkin(button.dataset.skin)));
+
+    resize();
+    drawWorld();
+    setupVoiceInput();
+    refreshControlDaemonHealth();
+    renderBrittneyAvatar();
+    renderBubbles();
+    renderDock();
+    renderEvidence();
+    selectObject(baseObjects.find((object) => object.id === "hololand"));
+  </script>
 </body>
 </html>
-

@@ -1,0 +1,504 @@
+// HoloShell Hardware Program Control
+//
+// Canonical HoloScript contract for turning the local computer into an
+// intent-addressable HoloShell surface. Host scripts may enumerate windows,
+// focus programs, launch paths, send hotkeys, or click controls only through
+// the permission envelopes and receipts defined here.
+
+composition "HoloShell Hardware Program Control" {
+  config {
+    title: "HoloShell Hardware Program Control"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    operatingModel: "hardware_native_shell"
+    programRegistryScript: "scripts/holoshell-program-registry.mjs"
+    executorScript: "scripts/holoshell-action-executor.mjs"
+    approvalBundleScript: "scripts/holoshell-approval-bundle.mjs"
+    workflowApprovalBundleScript: "scripts/holoshell-workflow-approval-bundle.mjs"
+    brainIntentGateScript: "scripts/holoshell-brain-intent-gate.mjs"
+    controlDaemonScript: "scripts/holoshell-control-daemon.mjs"
+    roomMarathonWorkflowScript: "scripts/holoshell-room-marathon-workflow.mjs"
+    controlDaemonUrl: "http://127.0.0.1:4747"
+    osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
+    homeSource: "apps/holoshell/source/holoshell-home.hsplus"
+    brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    latestActionReceipt: ".tmp/holoshell/action-latest.json"
+    latestProgramRegistry: ".tmp/holoshell/program-registry.json"
+    latestApprovalBundle: ".tmp/holoshell/approval-latest.json"
+    latestWorkflowReceipt: ".tmp/holoshell/workflow-latest.json"
+    latestWorkflowApprovalBundle: ".tmp/holoshell/workflow-approval-latest.json"
+    latestWorkflowIntentGate: ".tmp/holoshell/brain-intent-gate-latest.json"
+    actionReceiptDir: ".tmp/holoshell/action-receipts"
+    approvalBundleDir: ".tmp/holoshell/approval-bundles"
+    workflowApprovalBundleDir: ".tmp/holoshell/workflow-approval-bundles"
+    browserBootstrap: ".tmp/holoshell/action-latest.js"
+    programRegistryBootstrap: ".tmp/holoshell/program-registry.js"
+    approvalBundleBootstrap: ".tmp/holoshell/approval-latest.js"
+    workflowApprovalBundleBootstrap: ".tmp/holoshell/workflow-approval-latest.js"
+  }
+
+  state {
+    hardwareControlStatus: "unknown"
+    platform: "unknown"
+    installedProgramCount: 0
+    launchableProgramCount: 0
+    startMenuProgramCount: 0
+    appPathProgramCount: 0
+    programWindowCount: 0
+    programControlCount: 0
+    programRegistryHash: ""
+    lastActionId: ""
+    lastActionKind: ""
+    lastActionStatus: "unknown"
+    lastPermissionEnvelope: "unknown"
+    lastTargetProgramName: ""
+    lastTargetWindowId: ""
+    lastTargetWindowTitle: ""
+    lastTargetProcessName: ""
+    actionReceiptCount: 0
+    readOnlyActionCount: 0
+    guardedActionCount: 0
+    breakGlassBlockedCount: 0
+    pendingHardwareApprovalCount: 0
+    latestApprovalId: ""
+    latestApprovalStatus: "unknown"
+    latestApprovalTarget: ""
+    latestApprovalExpiresAt: ""
+    controlDaemonStatus: "offline"
+    controlDaemonExecuteEnabled: false
+    activeWorkflowId: ""
+    activeWorkflowStatus: "unknown"
+    activeWorkflowTitle: ""
+    activeWorkflowPendingApprovalCount: 0
+    activeWorkflowStepCount: 0
+    activeWorkflowModelRoute: ""
+    activeWorkflowMutationExecuted: false
+    activeWorkflowApprovalId: ""
+    activeWorkflowApprovalStatus: "unknown"
+    activeWorkflowApprovalExpiresAt: ""
+    activeWorkflowApprovalExecutionAllowed: false
+    activeWorkflowIntentGateStatus: "unknown"
+    activeWorkflowIntentGateExecutionAllowed: false
+    activeWorkflowIntentGateRuntimeBlocking: false
+    activeWorkflowIntentGateCaseId: ""
+    activeWorkflowIntentGateFailedCheckCount: 0
+    mutatingActionExecuted: false
+    approvalRequired: false
+    approvedByUser: false
+  }
+
+  channel "holoshell:hardware:registry" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Installed and running programs represented as HoloShell program objects"
+  }
+
+  channel "holoshell:hardware:program-registry" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Launchable installed programs, Start Menu shortcuts, App Paths, and running-window correlation"
+  }
+
+  channel "holoshell:hardware:action-request" {
+    type: "request_response"
+    priority: "critical"
+    description: "Program and hardware action requests from Brittney, shell objects, or user gestures"
+  }
+
+  channel "holoshell:hardware:approval" {
+    type: "request_response"
+    priority: "critical"
+    description: "Human approval lane for mutating local hardware actions"
+  }
+
+  channel "holoshell:hardware:control-daemon" {
+    type: "request_response"
+    priority: "critical"
+    description: "Loopback-only bridge between browser shell and local hardware executor"
+  }
+
+  channel "holoshell:workflow:room-marathon" {
+    type: "request_response"
+    priority: "critical"
+    description: "Compound Brittney workflow for Claude, terminal, room marathon, Kimi route, browser, and YouTube lofi"
+  }
+
+  channel "holoshell:workflow:approval" {
+    type: "request_response"
+    priority: "critical"
+    description: "Human approval lane for nonce-bound compound Brittney workflows"
+  }
+
+  channel "holoshell:workflow:intent-gate" {
+    type: "request_response"
+    priority: "critical"
+    description: "Runtime-blocking HoloScript brain intent gate for compound Brittney workflows"
+  }
+
+  channel "holoshell:hardware:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Before/after receipts for every read or mutating hardware action"
+  }
+
+  template "ProgramWindowObject" {
+    type: "program_window_object"
+    objectKind: "program"
+    title: ""
+    processName: ""
+    processId: 0
+    handle: ""
+    bounds: { left: 0, top: 0, width: 0, height: 0 }
+    controlCount: 0
+    shellObjectId: ""
+    intentAddressable: true
+    receiptRequired: true
+  }
+
+  template "InstalledProgramObject" {
+    type: "installed_program_object"
+    objectKind: "program"
+    displayName: ""
+    capabilityClass: "application"
+    source: "start_menu_or_app_paths"
+    launchable: true
+    runningWindowId: ""
+    permissionEnvelope: "guarded_execute"
+    approvalRequiredForLaunch: true
+    receiptRequired: true
+  }
+
+  template "HardwareActionRequest" {
+    type: "hardware_action_request"
+    actor: "user_or_brittney"
+    actionKind: "list_windows"
+    targetWindowId: ""
+    targetWindowTitle: ""
+    targetProcessName: ""
+    targetProgramName: ""
+    targetControlId: ""
+    permissionEnvelope: "read_only"
+    approved: false
+    executeRequested: false
+    secretsIncluded: false
+    receiptRequired: true
+  }
+
+  template "PermissionEnvelope" {
+    type: "permission_envelope"
+    envelope: "read_only"
+    approvalRequired: false
+    breakGlass: false
+    mutating: false
+    receiptRequired: true
+  }
+
+  template "BeforeAfterWitness" {
+    type: "hardware_witness"
+    beforeCaptureHash: ""
+    afterCaptureHash: ""
+    targetWindowId: ""
+    targetControlId: ""
+    screenshotHash: ""
+    secretsCaptured: false
+  }
+
+  template "HardwareActionReceipt" {
+    type: "receipt"
+    receiptType: "hololand.holoshell.hardware-action.v0.1.0"
+    actionId: ""
+    actionKind: ""
+    actor: "holoshell"
+    permissionEnvelope: "read_only"
+    status: "unknown"
+    approvalRequired: false
+    approved: false
+    executed: false
+    mutatingActionExecuted: false
+    rollback: "not_applicable_for_read_only"
+  }
+
+  template "HardwareApprovalBundle" {
+    type: "hardware_approval_bundle"
+    receiptType: "hololand.holoshell.hardware-approval.v0.1.0"
+    approvalId: ""
+    sourceActionId: ""
+    status: "pending_user_approval"
+    actionKind: ""
+    target: ""
+    permissionEnvelope: "guarded_execute"
+    expiresAt: ""
+    requiresFreshUserGesture: true
+    nonceBound: true
+    executionAllowed: false
+    receiptRequired: true
+  }
+
+  template "HardwareControlDaemon" {
+    type: "hardware_control_daemon"
+    receiptType: "hololand.holoshell.control-daemon.v0.1.0"
+    url: "http://127.0.0.1:4747"
+    loopbackOnly: true
+    executeEnabled: false
+    routes: ["GET /health", "GET /feed", "POST /action", "POST /approval/execute", "POST /workflow/room-marathon", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    defaultExecutionPolicy: "stage_only"
+    receiptRequired: true
+  }
+
+  template "RoomMarathonWorkflow" {
+    type: "room_marathon_workflow"
+    receiptType: "hololand.holoshell.workflow.v0.1.0"
+    title: "Room Marathon with Lofi"
+    modelRoute: "ollama_cloud"
+    model: "kimi-cloud"
+    steps: ["resolve_claude_cli", "open_terminal", "stage_room_command", "submit_room_command", "open_browser", "play_lofi_youtube"]
+    defaultExecutionPolicy: "stage_only"
+    approvalRequired: true
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "WorkflowApprovalBundle" {
+    type: "workflow_approval_bundle"
+    receiptType: "hololand.holoshell.workflow-approval.v0.1.0"
+    approvalId: ""
+    sourceWorkflowId: ""
+    status: "pending_user_approval"
+    workflowTitle: "Room Marathon with Lofi"
+    pendingApprovalCount: 0
+    expiresAt: ""
+    requiresFreshUserGesture: true
+    nonceBound: true
+    executionAllowed: false
+    receiptRequired: true
+  }
+
+  template "WorkflowBrainIntentGate" {
+    type: "workflow_brain_intent_gate"
+    receiptType: "hololand.holoshell.brain-intent-gate.v0.1.0"
+    status: "unknown"
+    caseId: "holoshell-room-marathon-lofi.v0"
+    runtimeBlocking: true
+    executionAllowed: false
+    failedCheckCount: 0
+    sourceReceiptType: "holoscript.brain-intent-loop.eval.v0.1.0"
+    receiptRequired: true
+  }
+
+  policy "ReadOnlyHardwareControl" {
+    appliesTo: ["list_windows", "list_programs", "read_window", "read_controls", "resolve_target", "dry_run_action"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mutating: false
+    receiptRequired: true
+  }
+
+  policy "GuardedHardwareControl" {
+    appliesTo: ["focus_window", "launch_app", "open_url", "open_path", "hotkey", "click_control", "type_text", "invoke_control"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    mutating: true
+    receiptRequired: true
+  }
+
+  policy "BreakGlassHardwareControl" {
+    appliesTo: ["enter_secret", "send_message", "delete_file", "publish", "pay", "install", "uninstall", "system_settings"]
+    permissionEnvelope: "break_glass"
+    approvalRequired: true
+    mutating: true
+    defaultStatus: "blocked"
+    receiptRequired: true
+  }
+
+  action record_program_registry(registry) {
+    state.hardwareControlStatus = registry.summary.status
+    state.platform = registry.host.platform
+    state.installedProgramCount = registry.summary.programCount || state.installedProgramCount
+    state.launchableProgramCount = registry.summary.launchableProgramCount || state.launchableProgramCount
+    state.startMenuProgramCount = registry.summary.startMenuProgramCount || state.startMenuProgramCount
+    state.appPathProgramCount = registry.summary.appPathProgramCount || state.appPathProgramCount
+    state.programWindowCount = registry.summary.runningWindowCount || registry.summary.windowCount || state.programWindowCount
+    state.programControlCount = registry.summary.controlCount || state.programControlCount
+    state.programRegistryHash = registry.receipt.registryHash
+    emit("holoshell:hardware:registry", {
+      action: "program_registry_recorded",
+      status: state.hardwareControlStatus,
+      platform: state.platform,
+      installed_programs: state.installedProgramCount,
+      launchable_programs: state.launchableProgramCount,
+      start_menu_programs: state.startMenuProgramCount,
+      app_path_programs: state.appPathProgramCount,
+      windows: state.programWindowCount,
+      controls: state.programControlCount,
+      registry_hash: state.programRegistryHash,
+      source: "scripts/holoshell-program-registry.mjs",
+      receipt_required: true
+    })
+    emit("holoshell:hardware:program-registry", {
+      action: "launchable_programs_recorded",
+      programs: state.installedProgramCount,
+      launchable: state.launchableProgramCount,
+      permission_envelope: "guarded_execute_for_launch",
+      source: "scripts/holoshell-program-registry.mjs",
+      receipt_required: true
+    })
+  }
+
+  action request_hardware_action(request) {
+    state.lastActionKind = request.actionKind
+    state.lastTargetWindowId = request.targetWindowId
+    state.lastPermissionEnvelope = request.permissionEnvelope
+    state.approvalRequired = request.permissionEnvelope != "read_only"
+    state.approvedByUser = request.approved
+    emit("holoshell:hardware:action-request", {
+      action: "hardware_action_requested",
+      request: request,
+      permission_envelope: state.lastPermissionEnvelope,
+      approval_required: state.approvalRequired,
+      execute_requested: request.executeRequested,
+      receipt_required: true
+    })
+    if (state.approvalRequired && !state.approvedByUser) {
+      emit("holoshell:hardware:approval", {
+        action: "hardware_action_approval_required",
+        request: request,
+        reason: "mutates local machine state",
+        receipt_required: true
+      })
+    }
+  }
+
+  action apply_hardware_action_receipt(receipt) {
+    state.lastActionId = receipt.actionId
+    state.lastActionKind = receipt.request.actionKind
+    state.lastActionStatus = receipt.summary.status
+    state.lastPermissionEnvelope = receipt.permission.envelope
+    state.lastTargetProgramName = receipt.summary.targetAppName
+    state.lastTargetWindowId = receipt.target.windowId
+    state.lastTargetWindowTitle = receipt.target.title
+    state.lastTargetProcessName = receipt.target.processName
+    state.programWindowCount = receipt.summary.windowCount
+    state.programControlCount = receipt.summary.controlCount
+    state.actionReceiptCount = state.actionReceiptCount + 1
+    state.readOnlyActionCount = receipt.permission.envelope == "read_only" ? state.readOnlyActionCount + 1 : state.readOnlyActionCount
+    state.guardedActionCount = receipt.permission.envelope == "guarded_execute" ? state.guardedActionCount + 1 : state.guardedActionCount
+    state.breakGlassBlockedCount = receipt.permission.envelope == "break_glass" ? state.breakGlassBlockedCount + 1 : state.breakGlassBlockedCount
+    state.mutatingActionExecuted = receipt.summary.mutatingActionExecuted
+    emit("holoshell:hardware:receipt", {
+      action: "hardware_action_receipt_applied",
+      action_id: state.lastActionId,
+      action_kind: state.lastActionKind,
+      status: state.lastActionStatus,
+      permission_envelope: state.lastPermissionEnvelope,
+      target_program: state.lastTargetProgramName,
+      target_window: state.lastTargetWindowTitle,
+      target_process: state.lastTargetProcessName,
+      windows: state.programWindowCount,
+      controls: state.programControlCount,
+      mutating_action_executed: state.mutatingActionExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_hardware_approval_bundle(bundle) {
+    state.latestApprovalId = bundle.approvalId
+    state.latestApprovalStatus = bundle.summary.status
+    state.latestApprovalTarget = bundle.summary.target
+    state.latestApprovalExpiresAt = bundle.summary.expiresAt
+    state.pendingHardwareApprovalCount = bundle.summary.approvalRequired && bundle.summary.executionAllowed ? 1 : 0
+    emit("holoshell:hardware:approval", {
+      action: "hardware_approval_bundle_applied",
+      approval_id: state.latestApprovalId,
+      status: state.latestApprovalStatus,
+      target: state.latestApprovalTarget,
+      expires_at: state.latestApprovalExpiresAt,
+      pending_approvals: state.pendingHardwareApprovalCount,
+      nonce_bound: true,
+      execution_allowed: bundle.summary.executionAllowed,
+      receipt_required: true
+    })
+  }
+
+  action apply_control_daemon_health(health) {
+    state.controlDaemonStatus = health.status
+    state.controlDaemonExecuteEnabled = health.executeEnabled
+    emit("holoshell:hardware:control-daemon", {
+      action: "control_daemon_health_applied",
+      status: state.controlDaemonStatus,
+      url: config.controlDaemonUrl,
+      loopback_only: true,
+      execute_enabled: state.controlDaemonExecuteEnabled,
+      default_execution_policy: state.controlDaemonExecuteEnabled ? "approved_execute" : "stage_only",
+      receipt_required: true
+    })
+  }
+
+  action apply_room_marathon_workflow(workflow) {
+    state.activeWorkflowId = workflow.workflowId
+    state.activeWorkflowStatus = workflow.summary.status
+    state.activeWorkflowTitle = workflow.title
+    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
+    state.activeWorkflowStepCount = workflow.summary.stepCount
+    state.activeWorkflowModelRoute = workflow.summary.modelRoute
+    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
+    emit("holoshell:workflow:room-marathon", {
+      action: "room_marathon_workflow_applied",
+      workflow_id: state.activeWorkflowId,
+      status: state.activeWorkflowStatus,
+      title: state.activeWorkflowTitle,
+      steps: state.activeWorkflowStepCount,
+      pending_approvals: state.activeWorkflowPendingApprovalCount,
+      model_route: state.activeWorkflowModelRoute,
+      mutation_executed: state.activeWorkflowMutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_workflow_approval_bundle(bundle) {
+    state.activeWorkflowApprovalId = bundle.approvalId
+    state.activeWorkflowApprovalStatus = bundle.summary.status
+    state.activeWorkflowApprovalExpiresAt = bundle.summary.expiresAt
+    state.activeWorkflowApprovalExecutionAllowed = bundle.summary.executionAllowed
+    emit("holoshell:workflow:approval", {
+      action: "workflow_approval_bundle_applied",
+      approval_id: state.activeWorkflowApprovalId,
+      workflow_id: bundle.summary.workflowId,
+      title: bundle.summary.title,
+      status: state.activeWorkflowApprovalStatus,
+      expires_at: state.activeWorkflowApprovalExpiresAt,
+      pending_approvals: bundle.summary.pendingApprovalCount,
+      nonce_bound: true,
+      execution_allowed: state.activeWorkflowApprovalExecutionAllowed,
+      receipt_required: true
+    })
+  }
+
+  action apply_workflow_intent_gate_receipt(gateReceipt) {
+    state.activeWorkflowIntentGateStatus = gateReceipt.summary.status
+    state.activeWorkflowIntentGateExecutionAllowed = gateReceipt.summary.executionAllowed
+    state.activeWorkflowIntentGateRuntimeBlocking = gateReceipt.summary.runtimeBlocking
+    state.activeWorkflowIntentGateCaseId = gateReceipt.summary.caseId
+    state.activeWorkflowIntentGateFailedCheckCount = gateReceipt.summary.failedCheckCount
+    emit("holoshell:workflow:intent-gate", {
+      action: "workflow_intent_gate_receipt_applied",
+      status: state.activeWorkflowIntentGateStatus,
+      case_id: state.activeWorkflowIntentGateCaseId,
+      runtime_blocking: state.activeWorkflowIntentGateRuntimeBlocking,
+      execution_allowed: state.activeWorkflowIntentGateExecutionAllowed,
+      failed_checks: state.activeWorkflowIntentGateFailedCheckCount,
+      source_receipt: gateReceipt.output.sourceReceiptPath,
+      receipt_required: true
+    })
+  }
+
+  action route_brittney_program_control(proposal) {
+    emit("holoshell:hardware:action-request", {
+      action: "brittney_program_control_routed",
+      proposal: proposal,
+      routes_to: "scripts/holoshell-action-executor.mjs",
+      permission_envelope: proposal.permissionEnvelope || "read_only",
+      approval_required: proposal.permissionEnvelope != "read_only",
+      receipt_required: true
+    })
+  }
+}

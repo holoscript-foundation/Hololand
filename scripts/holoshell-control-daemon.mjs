@@ -1,0 +1,528 @@
+#!/usr/bin/env node
+import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const REPO_ROOT = path.resolve(path.dirname(__filename), '..');
+const DEFAULT_TMP = path.join('.tmp', 'holoshell');
+const DEFAULT_HOST = '127.0.0.1';
+const DEFAULT_PORT = 4747;
+const MAX_BODY_BYTES = 64 * 1024;
+
+const REQUEST_FLAG_MAP = {
+  actor: '--actor',
+  capture: '--capture',
+  programRegistry: '--program-registry',
+  targetWindowId: '--target-window-id',
+  windowTitle: '--window-title',
+  processName: '--process-name',
+  handle: '--handle',
+  targetControlId: '--target-control-id',
+  controlName: '--control-name',
+  text: '--text',
+  url: '--url',
+  filePath: '--path',
+  app: '--app',
+  hotkey: '--hotkey',
+  x: '--x',
+  y: '--y',
+};
+
+function parseArgs(argv) {
+  const args = {
+    host: process.env.HOLOSHELL_CONTROL_HOST || DEFAULT_HOST,
+    port: Number(process.env.HOLOSHELL_CONTROL_PORT || DEFAULT_PORT),
+    tmpDir: DEFAULT_TMP,
+    maxApps: 250,
+    enableExecute: false,
+    json: false,
+    selfTest: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--host') args.host = argv[++index] || DEFAULT_HOST;
+    else if (arg === '--port') args.port = Number(argv[++index] || DEFAULT_PORT);
+    else if (arg === '--tmp-dir') args.tmpDir = argv[++index] || DEFAULT_TMP;
+    else if (arg === '--max-apps') args.maxApps = Number(argv[++index] || 250);
+    else if (arg === '--enable-execute') args.enableExecute = true;
+    else if (arg === '--json') args.json = true;
+    else if (arg === '--self-test') args.selfTest = true;
+    else if (arg === '--help' || arg === '-h') {
+      printHelp();
+      process.exit(0);
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+
+  if (!Number.isFinite(args.port) || args.port <= 0) throw new Error('Invalid --port value.');
+  if (!Number.isFinite(args.maxApps) || args.maxApps <= 0) throw new Error('Invalid --max-apps value.');
+  return args;
+}
+
+function printHelp() {
+  console.log(`HoloShell local control daemon
+
+Usage:
+  node scripts/holoshell-control-daemon.mjs [options]
+
+Options:
+  --host <host>        Bind host. Defaults to 127.0.0.1.
+  --port <port>        Bind port. Defaults to 4747.
+  --enable-execute     Allow approved mutation execution. Disabled by default.
+  --max-apps <count>   Program registry scan cap. Defaults to 250.
+  --self-test          Run route and receipt checks without starting a server.
+  --json               Print JSON in self-test mode.
+  -h, --help           Show this help.
+
+Routes:
+  GET  /health
+  GET  /feed
+  GET  /registry
+  GET  /action/latest
+  GET  /approval/latest
+  GET  /workflow/latest
+  GET  /workflow/approval/latest
+  GET  /workflow/intent-gate/latest
+  POST /action
+  POST /approval/execute
+  POST /workflow/room-marathon
+  POST /workflow/approval
+  POST /workflow/intent-gate
+  POST /workflow/execute
+`);
+}
+
+function resolveRepoPath(filePath) {
+  return path.isAbsolute(filePath) ? filePath : path.resolve(REPO_ROOT, filePath);
+}
+
+function readJson(filePath, fallback = {}) {
+  const resolved = resolveRepoPath(filePath);
+  if (!existsSync(resolved)) return fallback;
+  return JSON.parse(readFileSync(resolved, 'utf8'));
+}
+
+function jsonResponse(response, statusCode, payload) {
+  response.writeHead(statusCode, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Cache-Control': 'no-store',
+  });
+  response.end(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function isLoopbackAddress(address = '') {
+  return address === '127.0.0.1'
+    || address === '::1'
+    || address === '::ffff:127.0.0.1'
+    || address === 'localhost';
+}
+
+function runNode(args, options = {}) {
+  const result = spawnSync(process.execPath, args, {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+    windowsHide: true,
+    maxBuffer: 10 * 1024 * 1024,
+    ...options,
+  });
+  return {
+    ok: result.status === 0,
+    status: result.status,
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    error: result.error ? result.error.message : '',
+  };
+}
+
+function runChecked(args) {
+  const result = runNode(args);
+  if (!result.ok) {
+    const detail = result.stderr.trim() || result.stdout.trim() || result.error || `exit ${result.status}`;
+    throw new Error(detail);
+  }
+  return result;
+}
+
+function refreshRegistry(args) {
+  return runChecked([
+    'scripts/holoshell-program-registry.mjs',
+    '--max-apps',
+    String(args.maxApps),
+  ]);
+}
+
+function refreshLiveFeed() {
+  return runChecked(['scripts/holoshell-live-feed.mjs']);
+}
+
+function approvalBundle() {
+  return runChecked(['scripts/holoshell-approval-bundle.mjs']);
+}
+
+function workflowApprovalBundle() {
+  return runChecked(['scripts/holoshell-workflow-approval-bundle.mjs']);
+}
+
+function workflowIntentGate(strict = false) {
+  const cli = ['scripts/holoshell-brain-intent-gate.mjs'];
+  if (strict) cli.push('--strict');
+  return runNode(cli);
+}
+
+function roomMarathonWorkflow(body = {}) {
+  const cli = ['scripts/holoshell-room-marathon-workflow.mjs'];
+  const add = (flag, value) => {
+    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
+  };
+  add('--model', body.model);
+  add('--model-route', body.modelRoute);
+  add('--claude-app', body.claudeApp);
+  add('--terminal-app', body.terminalApp);
+  add('--browser-app', body.browserApp);
+  add('--lofi-url', body.lofiUrl);
+  add('--room-command', body.roomCommand);
+  return runChecked(cli);
+}
+
+function tmpPath(args, fileName) {
+  return path.join(args.tmpDir, fileName);
+}
+
+function safeActionArgs(body = {}) {
+  const action = String(body.action || '').trim();
+  if (!action) throw new Error('POST /action requires an action.');
+  const cliArgs = ['scripts/holoshell-action-executor.mjs', '--action', action];
+  for (const [key, flag] of Object.entries(REQUEST_FLAG_MAP)) {
+    if (body[key] === undefined || body[key] === null || body[key] === '') continue;
+    cliArgs.push(flag, String(body[key]));
+  }
+  return cliArgs;
+}
+
+function stageAction(args, body = {}) {
+  refreshRegistry(args);
+  const actionResult = runChecked(safeActionArgs(body));
+  approvalBundle();
+  refreshLiveFeed();
+  return {
+    ok: true,
+    action: readJson(tmpPath(args, 'action-latest.json'), {}),
+    approval: readJson(tmpPath(args, 'approval-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      action: actionResult.stdout.trim(),
+    },
+  };
+}
+
+function latestSnapshot(args) {
+  return {
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    registry: readJson(tmpPath(args, 'program-registry.json'), {}),
+    action: readJson(tmpPath(args, 'action-latest.json'), {}),
+    approval: readJson(tmpPath(args, 'approval-latest.json'), {}),
+    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
+    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+  };
+}
+
+function commandFromApprovalBundle(bundle) {
+  const command = Array.isArray(bundle.execution?.command) ? bundle.execution.command : [];
+  if (!bundle.execution?.allowed || command.length < 2) {
+    throw new Error(bundle.execution?.blockedReason || 'Approval bundle does not contain an executable command.');
+  }
+  const first = String(command[0] || '').toLowerCase();
+  const script = String(command[1] || '').replaceAll('/', path.sep);
+  if (first !== 'node' || !script.endsWith(`scripts${path.sep}holoshell-action-executor.mjs`)) {
+    throw new Error('Approval command is not a HoloShell action executor command.');
+  }
+  return command.slice(1);
+}
+
+function executeApproval(args, body = {}) {
+  if (!args.enableExecute) {
+    const disabled = new Error('Execution is disabled. Restart the daemon with --enable-execute to allow approved mutations.');
+    disabled.statusCode = 403;
+    throw disabled;
+  }
+  if (body.confirm !== 'execute') {
+    const confirmation = new Error('POST /approval/execute requires confirm: "execute".');
+    confirmation.statusCode = 400;
+    throw confirmation;
+  }
+  const bundle = readJson(body.approvalBundle || tmpPath(args, 'approval-latest.json'), null);
+  if (!bundle) throw new Error('Approval bundle was not found.');
+  if (!body.approvalId || body.approvalId !== bundle.approvalId) throw new Error('Approval id mismatch.');
+  if (!body.nonce || body.nonce !== bundle.nonce) throw new Error('Approval nonce mismatch.');
+  const command = commandFromApprovalBundle(bundle);
+  const executeResult = runChecked(command);
+  approvalBundle();
+  refreshLiveFeed();
+  return {
+    ok: true,
+    action: readJson(tmpPath(args, 'action-latest.json'), {}),
+    approval: readJson(tmpPath(args, 'approval-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      execute: executeResult.stdout.trim(),
+    },
+  };
+}
+
+function commandFromWorkflowApprovalBundle(bundle) {
+  const command = Array.isArray(bundle.execution?.command) ? bundle.execution.command : [];
+  if (!bundle.execution?.allowed || command.length < 2) {
+    throw new Error(bundle.execution?.blockedReason || 'Workflow approval bundle does not contain an executable command.');
+  }
+  const first = String(command[0] || '').toLowerCase();
+  const script = String(command[1] || '').replaceAll('/', path.sep);
+  if (first !== 'node' || !script.endsWith(`scripts${path.sep}holoshell-room-marathon-workflow.mjs`)) {
+    throw new Error('Workflow approval command is not a HoloShell workflow command.');
+  }
+  if (!command.includes('--execute-workflow')) {
+    throw new Error('Workflow approval command is not marked for execution.');
+  }
+  return command.slice(1);
+}
+
+function executeWorkflow(args, body = {}) {
+  if (!args.enableExecute) {
+    const disabled = new Error('Execution is disabled. Restart the daemon with --enable-execute to allow approved workflow mutations.');
+    disabled.statusCode = 403;
+    throw disabled;
+  }
+  if (body.confirm !== 'execute') {
+    const confirmation = new Error('POST /workflow/execute requires confirm: "execute".');
+    confirmation.statusCode = 400;
+    throw confirmation;
+  }
+  const bundle = readJson(body.workflowApprovalBundle || tmpPath(args, 'workflow-approval-latest.json'), null);
+  if (!bundle) throw new Error('Workflow approval bundle was not found.');
+  if (!body.approvalId || body.approvalId !== bundle.approvalId) throw new Error('Workflow approval id mismatch.');
+  if (!body.nonce || body.nonce !== bundle.nonce) throw new Error('Workflow approval nonce mismatch.');
+  const intentGateResult = workflowIntentGate(true);
+  const intentGate = readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
+  if (!intentGateResult.ok || !intentGate.summary?.executionAllowed) {
+    const blocked = new Error(intentGate.summary?.blockedReason || intentGateResult.stderr.trim() || 'Brain intent runtime gate blocked workflow execution.');
+    blocked.statusCode = 403;
+    throw blocked;
+  }
+  const command = commandFromWorkflowApprovalBundle(bundle);
+  const executeResult = runChecked(command);
+  workflowApprovalBundle();
+  refreshLiveFeed();
+  return {
+    ok: true,
+    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
+    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+    workflowIntentGate: intentGate,
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      intentGate: intentGateResult.stdout.trim(),
+      execute: executeResult.stdout.trim(),
+    },
+  };
+}
+
+function stageRoomMarathon(args, body = {}) {
+  refreshRegistry(args);
+  const workflowResult = roomMarathonWorkflow(body);
+  const workflowApprovalResult = workflowApprovalBundle();
+  const workflowIntentGateResult = workflowIntentGate(false);
+  refreshLiveFeed();
+  return {
+    ok: true,
+    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
+    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      workflow: workflowResult.stdout.trim(),
+      workflowApproval: workflowApprovalResult.stdout.trim(),
+      workflowIntentGate: workflowIntentGateResult.stdout.trim(),
+    },
+  };
+}
+
+function routeGet(args, pathname) {
+  if (pathname === '/health') {
+    return {
+      ok: true,
+      schemaVersion: 'hololand.holoshell.control-daemon.v0.1.0',
+      status: 'online',
+      executeEnabled: args.enableExecute,
+      workflowIntentGateRequired: true,
+      host: args.host,
+      port: args.port,
+      pid: process.pid,
+      platform: process.platform,
+      arch: process.arch,
+      release: os.release(),
+    };
+  }
+  if (pathname === '/feed') return readJson(tmpPath(args, 'live-feed.json'), {});
+  if (pathname === '/registry') return readJson(tmpPath(args, 'program-registry.json'), {});
+  if (pathname === '/action/latest') return readJson(tmpPath(args, 'action-latest.json'), {});
+  if (pathname === '/approval/latest') return readJson(tmpPath(args, 'approval-latest.json'), {});
+  if (pathname === '/workflow/latest') return readJson(tmpPath(args, 'workflow-latest.json'), {});
+  if (pathname === '/workflow/approval/latest') return readJson(tmpPath(args, 'workflow-approval-latest.json'), {});
+  if (pathname === '/workflow/intent-gate/latest') return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
+  const error = new Error(`Unknown route: ${pathname}`);
+  error.statusCode = 404;
+  throw error;
+}
+
+function routePost(args, pathname, body) {
+  if (pathname === '/action') return stageAction(args, body);
+  if (pathname === '/approval/execute') return executeApproval(args, body);
+  if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
+  if (pathname === '/workflow/approval') {
+    workflowApprovalBundle();
+    refreshLiveFeed();
+    return {
+      ok: true,
+      workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+      feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    };
+  }
+  if (pathname === '/workflow/intent-gate') {
+    const intentGateResult = workflowIntentGate(false);
+    refreshLiveFeed();
+    return {
+      ok: true,
+      workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+      feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+      logs: {
+        workflowIntentGate: intentGateResult.stdout.trim(),
+      },
+    };
+  }
+  if (pathname === '/workflow/execute') return executeWorkflow(args, body);
+  const error = new Error(`Unknown route: ${pathname}`);
+  error.statusCode = 404;
+  throw error;
+}
+
+async function readBody(request) {
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of request) {
+    total += chunk.length;
+    if (total > MAX_BODY_BYTES) throw new Error('Request body is too large.');
+    chunks.push(chunk);
+  }
+  if (!chunks.length) return {};
+  const text = Buffer.concat(chunks).toString('utf8').trim();
+  return text ? JSON.parse(text) : {};
+}
+
+function createServer(args) {
+  return http.createServer(async (request, response) => {
+    try {
+      if (!isLoopbackAddress(request.socket.remoteAddress)) {
+        jsonResponse(response, 403, { ok: false, error: 'Loopback access only.' });
+        return;
+      }
+      if (request.method === 'OPTIONS') {
+        jsonResponse(response, 204, {});
+        return;
+      }
+      const url = new URL(request.url || '/', `http://${args.host}:${args.port}`);
+      if (request.method === 'GET') {
+        jsonResponse(response, 200, routeGet(args, url.pathname));
+        return;
+      }
+      if (request.method === 'POST') {
+        const body = await readBody(request);
+        jsonResponse(response, 200, routePost(args, url.pathname, body));
+        return;
+      }
+      jsonResponse(response, 405, { ok: false, error: 'Method not allowed.' });
+    } catch (error) {
+      jsonResponse(response, error.statusCode || 500, { ok: false, error: error.message });
+    }
+  });
+}
+
+function runSelfTest(args) {
+  const health = routeGet(args, '/health');
+  const snapshot = latestSnapshot(args);
+  const staged = stageAction(args, { action: 'list_programs' });
+  const executeBlocked = (() => {
+    try {
+      executeApproval(args, { approvalId: 'missing', nonce: 'missing', confirm: 'execute' });
+      return false;
+    } catch (error) {
+      return error.statusCode === 403;
+    }
+  })();
+  const workflowExecuteBlocked = (() => {
+    try {
+      executeWorkflow(args, { approvalId: 'missing', nonce: 'missing', confirm: 'execute' });
+      return false;
+    } catch (error) {
+      return error.statusCode === 403;
+    }
+  })();
+  const intentGate = (() => {
+    const result = workflowIntentGate(false);
+    if (!result.ok) return null;
+    return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), null);
+  })();
+  const failures = [];
+  if (health.status !== 'online') failures.push('health route did not report online');
+  if (!staged.action?.summary) failures.push('stage action did not write an action receipt');
+  if (!staged.feed?.summary) failures.push('stage action did not refresh the live feed');
+  if (!executeBlocked) failures.push('execution should be blocked without --enable-execute');
+  if (!workflowExecuteBlocked) failures.push('workflow execution should be blocked without --enable-execute');
+  if (!intentGate?.summary?.runtimeBlocking) failures.push('brain intent gate should produce a runtime-blocking receipt');
+  if (!intentGate?.summary?.executionAllowed) failures.push('brain intent gate should allow the fixture HoloShell workflow');
+  if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
+  return {
+    ok: true,
+    health,
+    before: {
+      actionStatus: snapshot.action?.summary?.status || 'unknown',
+      approvalStatus: snapshot.approval?.summary?.status || 'unknown',
+    },
+    after: {
+      actionStatus: staged.action?.summary?.status || 'unknown',
+      approvalStatus: staged.approval?.summary?.status || 'unknown',
+      workflowIntentGateStatus: intentGate?.summary?.status || 'unknown',
+    },
+  };
+}
+
+try {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.selfTest) {
+    const result = runSelfTest(args);
+    if (args.json) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log('HoloShell control daemon self-test: pass');
+      console.log(`Health: ${result.health.status}`);
+      console.log(`Execute enabled: ${result.health.executeEnabled ? 'yes' : 'no'}`);
+      console.log(`Latest action after self-test: ${result.after.actionStatus}`);
+      console.log(`Latest approval after self-test: ${result.after.approvalStatus}`);
+    }
+  } else {
+    const server = createServer(args);
+    server.listen(args.port, args.host, () => {
+      console.log(`HoloShell control daemon: http://${args.host}:${args.port}`);
+      console.log(`Execute enabled: ${args.enableExecute ? 'yes' : 'no'}`);
+    });
+  }
+} catch (error) {
+  console.error(`holoshell-control-daemon failed: ${error.message}`);
+  process.exit(1);
+}

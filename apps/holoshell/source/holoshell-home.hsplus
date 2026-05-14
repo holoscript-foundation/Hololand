@@ -12,6 +12,22 @@ composition "HoloShell Home" {
     renderMode: "desktop_spatial"
     sourceLayer: "HoloScript"
     operationModel: "intent_capability_receipt"
+    shellModel: "holo_os_replacement"
+    visualWorldSource: "apps/holoshell/source/holoshell-shell-world.holo"
+    renderSliceSource: "apps/holoshell/source/holoshell-shell-render.hs"
+    brittneyAvatarSource: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    hardwareControlDaemon: "http://127.0.0.1:4747"
+    brittneyAvatarManifest: ".tmp/holoshell/brittney-avatar.json"
+    brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
+    programRegistry: ".tmp/holoshell/program-registry.json"
+    hardwareActionReceipt: ".tmp/holoshell/action-latest.json"
+    hardwareApprovalBundle: ".tmp/holoshell/approval-latest.json"
+    workflowReceipt: ".tmp/holoshell/workflow-latest.json"
+    workflowApprovalBundle: ".tmp/holoshell/workflow-approval-latest.json"
+    workflowIntentGateReceipt: ".tmp/holoshell/brain-intent-gate-latest.json"
+    previewProjection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
   state {
@@ -29,7 +45,77 @@ composition "HoloShell Home" {
     ownedProcessCount: 0
     unmatchedActiveRunCount: 0
     processRiskCount: 0
+    stopPlanCount: 0
     receiptCount: 0
+    timelineNodeCount: 0
+    capturedWindowCount: 0
+    capturedControlCount: 0
+    capturedGeometryNodeCount: 0
+    osUiActionBridgeStatus: "unknown"
+    hardwareControlStatus: "unknown"
+    programRegistryStatus: "unknown"
+    installedProgramCount: 0
+    launchableProgramCount: 0
+    startMenuProgramCount: 0
+    appPathProgramCount: 0
+    hardwareActionStatus: "unknown"
+    hardwareActionKind: ""
+    hardwareActionPermissionEnvelope: "unknown"
+    hardwareActionReceiptCount: 0
+    hardwareMutatingActionExecuted: false
+    hardwareApprovalRequired: false
+    hardwareTargetWindowTitle: ""
+    hardwareTargetProcessName: ""
+    pendingHardwareApprovalCount: 0
+    hardwareApprovalStatus: "unknown"
+    hardwareApprovalActionKind: ""
+    hardwareApprovalTarget: ""
+    hardwareApprovalExpiresAt: ""
+    hardwareApprovalExecutionAllowed: false
+    hardwareControlDaemonStatus: "offline"
+    hardwareControlDaemonExecuteEnabled: false
+    activeWorkflowStatus: "unknown"
+    activeWorkflowTitle: ""
+    activeWorkflowStepCount: 0
+    activeWorkflowPendingApprovalCount: 0
+    activeWorkflowModel: ""
+    activeWorkflowModelRoute: ""
+    activeWorkflowMusicTarget: ""
+    activeWorkflowMutationExecuted: false
+    activeWorkflowApprovalStatus: "unknown"
+    activeWorkflowApprovalId: ""
+    activeWorkflowApprovalExpiresAt: ""
+    activeWorkflowApprovalExecutionAllowed: false
+    activeWorkflowApprovalPendingCount: 0
+    activeWorkflowIntentGateStatus: "unknown"
+    activeWorkflowIntentGateCaseId: ""
+    activeWorkflowIntentGateExecutionAllowed: false
+    activeWorkflowIntentGateRuntimeBlocking: false
+    activeWorkflowIntentGateFailedCheckCount: 0
+    activeWorkflowIntentGateReceiptStatus: "unknown"
+    pilotReceiptCount: 0
+    activePilot: ""
+    lastFeedGeneratedAt: ""
+    operatingStage: "ask"
+    nextMove: "read_machine"
+    evidenceDrawerOpen: false
+    skinMode: "liquid"
+    shellObjectCount: 0
+    activeShellObject: "hololand"
+    brittneyMode: "assistant_presence"
+    brittneyAvatarStatus: "unknown"
+    brittneyRuntimeStatus: "unknown"
+    brittneyAvatarEmotion: "attentive"
+    brittneyVoiceState: "ready"
+    brittneyRuntimeRoute: "unknown"
+    brittneyLastTurnStatus: "unknown"
+    brittneyRuntimeEventCount: 0
+    brittneyActionProposalCount: 0
+    brittneyFirstProposalObject: ""
+    brittneyFinalAvatarStage: "idle"
+    brittneyKeyboardReachable: true
+    brittneyScreenReaderReachable: true
+    desktopReplacementActive: true
     trustFilter: "all"
   }
 
@@ -69,10 +155,94 @@ composition "HoloShell Home" {
     description: "PID custody, shell-run health, and local hardware pressure"
   }
 
+  channel "holoshell:live-feed" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Bundled HoloShell runtime feeds from local adapters, receipts, and pilot witnesses"
+  }
+
+  channel "holoshell:pilot" {
+    type: "append_only"
+    priority: "high"
+    description: "Browser, project, and legacy absorption pilot receipts"
+  }
+
   channel "holoshell:approval" {
     type: "request_response"
     priority: "critical"
     description: "Break-glass approval lane for risky local actions"
+  }
+
+  channel "holoshell:workflow:approval" {
+    type: "request_response"
+    priority: "critical"
+    description: "Nonce-bound approval lane for compound Brittney workflows"
+  }
+
+  channel "holoshell:workflow:intent-gate" {
+    type: "request_response"
+    priority: "critical"
+    description: "Runtime-blocking HoloScript brain intent gate for Brittney workflow execution"
+  }
+
+  channel "holoshell:skin" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "Visual and behavioral skins for the HoloShell operating surface"
+  }
+
+  channel "holoshell:shell-object" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Programs, files, browser surfaces, agents, worlds, and powers as launchable shell objects"
+  }
+
+  channel "holoshell:os-ui-capture" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Read-only legacy OS windows captured as shell objects and geometric wrappers"
+  }
+
+  channel "holoshell:hardware:action-request" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded local program control requests routed to the hardware-native executor"
+  }
+
+  channel "holoshell:hardware:program-registry" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Launchable installed programs available to HoloShell through guarded action receipts"
+  }
+
+  channel "holoshell:hardware:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipts proving every read-only or mutating hardware program action"
+  }
+
+  channel "holoshell:brittney" {
+    type: "request_response"
+    priority: "critical"
+    description: "Brittney assistant and AGI-facing presence inside the HoloShell world"
+  }
+
+  channel "holoshell:brittney:avatar" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Accessible embodied Brittney avatar connected to HoloScript AIBrittney runtime state"
+  }
+
+  channel "holoshell:brittney:turn" {
+    type: "request_response"
+    priority: "critical"
+    description: "HoloShell chat turn routed through @holoscript/aibrittney and recorded as a receipt"
+  }
+
+  channel "holoshell:brittney:action-proposal" {
+    type: "append_only"
+    priority: "critical"
+    description: "Brittney-proposed shell object actions with permission envelopes and receipts"
   }
 
   template "CapabilityGlyph" {
@@ -114,13 +284,342 @@ composition "HoloShell Home" {
     receipt_required: true
   }
 
+  template "StopPlanNode" {
+    type: "ui"
+    uiType: "stop_plan_node"
+    width: 320
+    height: 112
+    approvalRequired: true
+    automaticTerminationAllowed: false
+    receipt_required: true
+  }
+
+  template "PilotOutcomeNode" {
+    type: "ui"
+    uiType: "pilot_outcome_node"
+    width: 320
+    height: 112
+    requiresWitness: true
+    receipt_required: true
+  }
+
+  template "OutcomeStage" {
+    type: "ui"
+    uiType: "outcome_stage"
+    width: 220
+    height: 112
+    stage: "ask"
+    status: "pending"
+    receipt_required: true
+  }
+
+  template "OperatingAction" {
+    type: "ui"
+    uiType: "operating_action"
+    width: 360
+    height: 104
+    userFacing: true
+    hidesBackendTelemetry: true
+    receipt_required: true
+  }
+
+  template "ShellObjectBubble" {
+    type: "ui"
+    uiType: "shell_object_bubble"
+    width: 132
+    height: 132
+    objectKind: "program"
+    launchable: true
+    receipt_required: true
+  }
+
+  template "HardwareControlBubble" {
+    type: "ui"
+    uiType: "hardware_control_bubble"
+    width: 148
+    height: 148
+    objectKind: "hardware_power"
+    launchable: true
+    permissionEnvelope: "guarded_execute"
+    approvalRequiredForMutation: true
+    receipt_required: true
+  }
+
+  template "ProgramRegistryBubble" {
+    type: "ui"
+    uiType: "program_registry_bubble"
+    width: 148
+    height: 112
+    objectKind: "program_registry"
+    launchablePrograms: 0
+    approvalRequiredForLaunch: true
+    receipt_required: true
+  }
+
+  template "HardwareApprovalBubble" {
+    type: "ui"
+    uiType: "hardware_approval_bubble"
+    width: 260
+    height: 116
+    objectKind: "approval"
+    status: "unknown"
+    target: ""
+    expiresAt: ""
+    nonceBound: true
+    receipt_required: true
+  }
+
+  template "WorkflowBubble" {
+    type: "ui"
+    uiType: "workflow_bubble"
+    width: 260
+    height: 132
+    objectKind: "workflow"
+    status: "unknown"
+    stepCount: 0
+    pendingApprovals: 0
+    modelRoute: ""
+    mutationExecuted: false
+    receipt_required: true
+  }
+
+  template "WorkflowIntentGateBubble" {
+    type: "ui"
+    uiType: "workflow_intent_gate_bubble"
+    width: 260
+    height: 116
+    objectKind: "intent_gate"
+    status: "unknown"
+    caseId: ""
+    runtimeBlocking: true
+    executionAllowed: false
+    failedCheckCount: 0
+    receipt_required: true
+  }
+
+  template "ShellSkin" {
+    type: "ui"
+    uiType: "shell_skin"
+    name: "liquid"
+    visualEffect: "liquid_world"
+    customizable: true
+  }
+
+  template "BrittneyPresence" {
+    type: "ui"
+    uiType: "assistant_avatar_presence"
+    role: "assistant"
+    agiVisionCompatible: true
+    canOperateShellObjects: true
+    embodiedAvatar: true
+    avatarSource: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    runtimePackage: "@holoscript/aibrittney"
+    accessibilityRole: "button"
+    keyboardShortcut: "Alt+B"
+    liveRegion: "polite"
+    receipt_required: true
+  }
+
   page "Home" {
     object "SystemPulse" {
       type: "ui"
       uiType: "status_banner"
-      text: "HoloShell is reading the local machine"
+      text: "HoloLand has taken over the computer"
       health: $compositeHealth
       position: [0, 0]
+    }
+
+    object "LiquidWorld" {
+      type: "ui"
+      uiType: "full_screen_liquid_world"
+      skin: $skinMode
+      desktop_replacement_active: $desktopReplacementActive
+      position: [0, 0]
+    }
+
+    object "Brittney" using "BrittneyPresence" {
+      label: "Brittney"
+      mode: $brittneyMode
+      active_object: $activeShellObject
+      avatar_status: $brittneyAvatarStatus
+      runtime_status: $brittneyRuntimeStatus
+      emotion: $brittneyAvatarEmotion
+      voice_state: $brittneyVoiceState
+      runtime_route: $brittneyRuntimeRoute
+      last_turn_status: $brittneyLastTurnStatus
+      runtime_events: $brittneyRuntimeEventCount
+      action_proposals: $brittneyActionProposalCount
+      keyboard_reachable: $brittneyKeyboardReachable
+      screen_reader_reachable: $brittneyScreenReaderReachable
+      position: [-3, 1]
+    }
+
+    spatial_group "ShellObjects" at [0, 1, -2] {
+      object "BrowserBubble" using "ShellObjectBubble" {
+        label: "Browser"
+        objectKind: "program"
+        capability: "browser-operator"
+      }
+
+      object "FilesBubble" using "ShellObjectBubble" {
+        label: "Files"
+        objectKind: "file_space"
+        capability: "local-projects"
+      }
+
+      object "AgentsBubble" using "ShellObjectBubble" {
+        label: "Agents"
+        objectKind: "agent_space"
+        capability: "holomesh-team"
+      }
+
+      object "BrittneyAvatarBubble" using "ShellObjectBubble" {
+        label: "Brittney"
+        objectKind: "assistant_avatar"
+        capability: "@holoscript/aibrittney"
+        avatar_status: $brittneyAvatarStatus
+        runtime_status: $brittneyRuntimeStatus
+      }
+
+      object "ProgramsBubble" using "ShellObjectBubble" {
+        label: "Programs"
+        objectKind: "legacy_program_space"
+        capability: "legacy-apps"
+        installed_programs: $installedProgramCount
+        launchable_programs: $launchableProgramCount
+      }
+
+      object "ProgramRegistryBubble" using "ProgramRegistryBubble" {
+        label: "App Registry"
+        objectKind: "program_registry"
+        launchablePrograms: $launchableProgramCount
+      }
+
+      object "CapturedUiBubble" using "ShellObjectBubble" {
+        label: "Captured UI"
+        objectKind: "legacy_surface"
+        capability: "os-ui-capture"
+        geometry_node_count: $capturedGeometryNodeCount
+      }
+
+      object "HoloLandBubble" using "ShellObjectBubble" {
+        label: "HoloLand"
+        objectKind: "world"
+        capability: "hololand"
+      }
+    }
+
+    spatial_group "SkinDock" at [0, -2, -1] {
+      object "LiquidSkin" using "ShellSkin" {
+        label: "Water"
+        name: "liquid"
+        visualEffect: "water_ripple_caustics_sim"
+      }
+
+      object "FireSkin" using "ShellSkin" {
+        label: "Fire"
+        name: "fire"
+        visualEffect: "fire_embers_heat_haze_sim"
+      }
+
+      object "DeveloperSkin" using "ShellSkin" {
+        label: "Developer"
+        name: "developer"
+        visualEffect: "circuit_trace_data_pulse_sim"
+      }
+
+      object "AuraSkin" using "ShellSkin" {
+        label: "Aura"
+        name: "aura"
+        visualEffect: "aura_field_orbital_particle_sim"
+      }
+    }
+
+    object "OutcomeRequest" {
+      type: "ui"
+      uiType: "outcome_request"
+      label: $activeIntent == "" ? "Prepare this computer for HoloLand work" : $activeIntent
+      stage: $operatingStage
+      position: [0, 0.5]
+    }
+
+    spatial_group "OutcomePath" at [0, 1, -2] {
+      object "AskStage" using "OutcomeStage" {
+        label: "Ask"
+        stage: "ask"
+        status: $operatingStage == "ask" ? "active" : "complete"
+      }
+
+      object "PathStage" using "OutcomeStage" {
+        label: "Choose Path"
+        stage: "choose_path"
+        status: $capabilityCount > 0 ? "ready" : "pending"
+      }
+
+      object "ApprovalStage" using "OutcomeStage" {
+        label: "Approve"
+        stage: "approve"
+        status: $stopPlanCount > 0 ? "needs_user" : "quiet"
+      }
+
+      object "ReceiptStage" using "OutcomeStage" {
+        label: "Receive"
+        stage: "receive"
+        status: $timelineNodeCount > 0 ? "linked" : "pending"
+      }
+    }
+
+    spatial_group "OperatingRoom" at [0, 2, -2] {
+      object "NextMove" using "OperatingAction" {
+        label: $nextMove
+        status: $processHealthStatus == "pass" ? "can_run" : "clear_custody_first"
+        detail: "Show the next user-facing move before backend telemetry"
+      }
+
+      object "HardwareProgramControl" using "HardwareControlBubble" {
+        label: "Program Control"
+        status: $hardwareActionStatus
+        permission: $hardwareActionPermissionEnvelope
+        target: $hardwareTargetWindowTitle
+        launchable_programs: $launchableProgramCount
+      }
+
+      object "ApprovalQueue" using "StopPlanNode" {
+        label: "Approval Lane"
+        count: $stopPlanCount + $pendingHardwareApprovalCount
+        status: ($stopPlanCount + $pendingHardwareApprovalCount) > 0 ? "approval_required" : "quiet"
+      }
+
+      object "HardwareApproval" using "HardwareApprovalBubble" {
+        label: "Hardware Approval"
+        status: $hardwareApprovalStatus
+        target: $hardwareApprovalTarget
+        expiresAt: $hardwareApprovalExpiresAt
+      }
+
+      object "RoomMarathon" using "WorkflowBubble" {
+        label: "Room Marathon"
+        status: $activeWorkflowStatus
+        stepCount: $activeWorkflowStepCount
+        pendingApprovals: $activeWorkflowPendingApprovalCount
+        modelRoute: $activeWorkflowModelRoute
+        mutationExecuted: $activeWorkflowMutationExecuted
+      }
+
+      object "BrainIntentGate" using "WorkflowIntentGateBubble" {
+        label: "Brain Intent Gate"
+        status: $activeWorkflowIntentGateStatus
+        caseId: $activeWorkflowIntentGateCaseId
+        runtimeBlocking: $activeWorkflowIntentGateRuntimeBlocking
+        executionAllowed: $activeWorkflowIntentGateExecutionAllowed
+        failedCheckCount: $activeWorkflowIntentGateFailedCheckCount
+      }
+
+      object "ReceiptRail" using "ReceiptNode" {
+        label: "Receipts"
+        state: $timelineNodeCount > 0 ? "linked" : "pending"
+        rollback: "per_receipt"
+      }
     }
 
     spatial_group "CapabilityMap" at [0, 1, -3] {
@@ -210,6 +709,12 @@ composition "HoloShell Home" {
         risks: $processRiskCount
         stop_policy: "break_glass_required"
       }
+
+      object "StopPlanQueue" using "StopPlanNode" {
+        label: "Cleanup Plans"
+        count: $stopPlanCount
+        status: $stopPlanCount > 0 ? "approval_required" : "quiet"
+      }
     }
 
     spatial_group "TrustTimeline" at [0, -1, -2] {
@@ -217,6 +722,18 @@ composition "HoloShell Home" {
         label: "Waiting for first receipt"
         state: "pending"
         rollback: "not_applicable"
+      }
+
+      object "TimelineBundle" using "ReceiptNode" {
+        label: "Runtime feed timeline"
+        state: $timelineNodeCount > 0 ? "linked" : "pending"
+        rollback: "per_receipt"
+      }
+
+      object "PilotReceipts" using "PilotOutcomeNode" {
+        label: $activePilot == "" ? "Pilot receipts" : $activePilot
+        count: $pilotReceiptCount
+        state: $pilotReceiptCount > 0 ? "recorded" : "pending"
       }
     }
 
@@ -232,12 +749,112 @@ composition "HoloShell Home" {
 
   action submit_intent(intentText) {
     state.activeIntent = intentText
+    state.operatingStage = "choose_path"
     emit("holoshell:intent", {
       intent: intentText,
       surface: "holoshell",
       user_model: "non_developer",
       requires_plan: true,
       requires_receipt: true
+    })
+  }
+
+  action select_shell_object(shellObject) {
+    state.activeShellObject = shellObject.id
+    emit("holoshell:shell-object", {
+      action: "shell_object_selected",
+      object: shellObject,
+      brittney_mode: state.brittneyMode,
+      receipt_required: true
+    })
+  }
+
+  action change_skin(name) {
+    state.skinMode = name
+    emit("holoshell:skin", {
+      action: "skin_changed",
+      skin: name,
+      shell: "holoshell",
+      desktop_replacement_active: state.desktopReplacementActive
+    })
+  }
+
+  action brittney_reply(message) {
+    state.brittneyVoiceState = "speaking"
+    emit("holoshell:brittney", {
+      action: "assistant_reply",
+      message: message,
+      active_object: state.activeShellObject,
+      mode: state.brittneyMode,
+      avatar_status: state.brittneyAvatarStatus,
+      voice_state: state.brittneyVoiceState,
+      receipt_required: true
+    })
+  }
+
+  action submit_brittney_turn(message) {
+    state.activeIntent = message
+    state.brittneyVoiceState = "quiet"
+    state.brittneyAvatarEmotion = "focused"
+    emit("holoshell:brittney:turn", {
+      action: "brittney_turn_submitted",
+      message: message,
+      runtime: "@holoscript/aibrittney",
+      source_contract: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus",
+      receipt_required: true
+    })
+  }
+
+  action apply_brittney_turn_receipt(turnReceipt) {
+    state.brittneyLastTurnStatus = turnReceipt.summary.status
+    state.brittneyRuntimeEventCount = turnReceipt.summary.eventCount
+    state.brittneyActionProposalCount = turnReceipt.summary.actionProposalCount
+    state.brittneyFirstProposalObject = turnReceipt.summary.firstProposalObject
+    state.brittneyFinalAvatarStage = turnReceipt.summary.finalAvatarStage
+    state.brittneyAvatarEmotion = turnReceipt.summary.finalEmotion
+    state.brittneyVoiceState = turnReceipt.summary.finalVoiceState
+    emit("holoshell:brittney:turn", {
+      action: "brittney_turn_receipt_applied",
+      turn_id: turnReceipt.turnId,
+      status: state.brittneyLastTurnStatus,
+      runtime_events: state.brittneyRuntimeEventCount,
+      proposals: state.brittneyActionProposalCount,
+      first_proposal_object: state.brittneyFirstProposalObject,
+      avatar_stage: state.brittneyFinalAvatarStage,
+      receipt: turnReceipt.receipt
+    })
+  }
+
+  action apply_brittney_action_proposal(proposal) {
+    state.activeShellObject = proposal.objectId
+    emit("holoshell:brittney:action-proposal", {
+      action: "brittney_action_proposal_applied",
+      proposal: proposal,
+      active_shell_object: state.activeShellObject,
+      approval_required: proposal.approvalRequired,
+      receipt_required: true
+    })
+  }
+
+  action apply_brittney_avatar_manifest(manifest) {
+    state.brittneyAvatarStatus = manifest.summary.avatarStatus
+    state.brittneyRuntimeStatus = manifest.summary.runtimeStatus
+    state.brittneyAvatarEmotion = manifest.summary.emotion
+    state.brittneyVoiceState = manifest.summary.voiceState
+    state.brittneyRuntimeRoute = manifest.summary.ollamaHostKind
+    state.brittneyKeyboardReachable = manifest.accessibility.keyboardReachable
+    state.brittneyScreenReaderReachable = manifest.accessibility.screenReaderReachable
+    emit("holoshell:brittney:avatar", {
+      action: "brittney_avatar_manifest_applied",
+      avatar_status: state.brittneyAvatarStatus,
+      runtime_status: state.brittneyRuntimeStatus,
+      emotion: state.brittneyAvatarEmotion,
+      voice_state: state.brittneyVoiceState,
+      route: state.brittneyRuntimeRoute,
+      keyboard_reachable: state.brittneyKeyboardReachable,
+      screen_reader_reachable: state.brittneyScreenReaderReachable,
+      source_contract: "apps/holoshell/source/holoshell-brittney-avatar.hsplus",
+      receipt_required: true
     })
   }
 
@@ -276,6 +893,7 @@ composition "HoloShell Home" {
     state.registeredRunCount = processHealth.summary.registeredRunCount
     state.ownedProcessCount = processHealth.summary.ownedProcessCount
     state.unmatchedActiveRunCount = processHealth.summary.unmatchedActiveRunCount
+    state.stopPlanCount = processHealth.summary.stopPlanCount || 0
     state.processRiskCount = processHealth.summary.staleRunCount
       + processHealth.summary.highMemoryCount
       + processHealth.summary.orphanLikeCount
@@ -289,7 +907,321 @@ composition "HoloShell Home" {
       owned_processes: state.ownedProcessCount,
       unmatched_runs: state.unmatchedActiveRunCount,
       risk_count: state.processRiskCount,
+      stop_plans: state.stopPlanCount,
       automatic_termination_allowed: false
+    })
+  }
+
+  action apply_live_feed(feedBundle) {
+    state.capabilityCount = feedBundle.summary.capabilityCount
+    state.legacyMachineCount = feedBundle.summary.legacyProgramCount
+    state.activeAgentLaneCount = feedBundle.summary.activeLaneCount
+    state.processHealthStatus = feedBundle.summary.processRisk
+    state.activeShellRunCount = feedBundle.feeds.processHealth.summary.shellRunCount
+    state.registeredRunCount = feedBundle.feeds.processHealth.summary.registeredRunCount
+    state.ownedProcessCount = feedBundle.feeds.processHealth.summary.ownedProcessCount
+    state.unmatchedActiveRunCount = feedBundle.feeds.processHealth.summary.unmatchedActiveRunCount
+    state.stopPlanCount = feedBundle.summary.stopPlanCount
+    state.timelineNodeCount = feedBundle.summary.timelineCount
+    state.capturedWindowCount = feedBundle.summary.capturedWindowCount
+    state.capturedControlCount = feedBundle.summary.capturedControlCount
+    state.capturedGeometryNodeCount = feedBundle.summary.capturedGeometryNodeCount
+    state.osUiActionBridgeStatus = feedBundle.summary.osUiActionBridgeStatus
+    state.programRegistryStatus = feedBundle.summary.programRegistryStatus
+    state.installedProgramCount = feedBundle.summary.installedProgramCount
+    state.launchableProgramCount = feedBundle.summary.launchableProgramCount
+    state.startMenuProgramCount = feedBundle.summary.startMenuProgramCount
+    state.appPathProgramCount = feedBundle.summary.appPathProgramCount
+    state.brittneyAvatarStatus = feedBundle.summary.brittneyAvatarStatus
+    state.brittneyRuntimeStatus = feedBundle.summary.brittneyRuntimeStatus
+    state.brittneyAvatarEmotion = feedBundle.summary.brittneyEmotion
+    state.brittneyVoiceState = feedBundle.summary.brittneyVoiceState
+    state.brittneyRuntimeRoute = feedBundle.summary.brittneyRuntimeRoute
+    state.brittneyLastTurnStatus = feedBundle.summary.brittneyLastTurnStatus
+    state.brittneyRuntimeEventCount = feedBundle.summary.brittneyRuntimeEventCount
+    state.brittneyActionProposalCount = feedBundle.summary.brittneyActionProposalCount
+    state.brittneyFirstProposalObject = feedBundle.summary.brittneyFirstProposalObject
+    state.brittneyFinalAvatarStage = feedBundle.summary.brittneyFinalAvatarStage
+    state.hardwareControlStatus = feedBundle.summary.hardwareControlStatus
+    state.hardwareActionStatus = feedBundle.summary.hardwareActionStatus
+    state.hardwareActionKind = feedBundle.summary.hardwareActionKind
+    state.hardwareActionPermissionEnvelope = feedBundle.summary.hardwareActionPermissionEnvelope
+    state.hardwareActionReceiptCount = feedBundle.summary.hardwareActionReceiptCount
+    state.hardwareMutatingActionExecuted = feedBundle.summary.hardwareMutatingActionExecuted
+    state.hardwareApprovalRequired = feedBundle.summary.hardwareApprovalRequired
+    state.hardwareTargetWindowTitle = feedBundle.summary.hardwareTargetWindowTitle
+    state.hardwareTargetProcessName = feedBundle.summary.hardwareTargetProcessName
+    state.pendingHardwareApprovalCount = feedBundle.summary.pendingHardwareApprovalCount
+    state.hardwareApprovalStatus = feedBundle.summary.hardwareApprovalStatus
+    state.hardwareApprovalActionKind = feedBundle.summary.hardwareApprovalActionKind
+    state.hardwareApprovalTarget = feedBundle.summary.hardwareApprovalTarget
+    state.hardwareApprovalExpiresAt = feedBundle.summary.hardwareApprovalExpiresAt
+    state.hardwareApprovalExecutionAllowed = feedBundle.summary.hardwareApprovalExecutionAllowed
+    state.activeWorkflowStatus = feedBundle.summary.activeWorkflowStatus
+    state.activeWorkflowTitle = feedBundle.summary.activeWorkflowTitle
+    state.activeWorkflowStepCount = feedBundle.summary.activeWorkflowStepCount
+    state.activeWorkflowPendingApprovalCount = feedBundle.summary.activeWorkflowPendingApprovalCount
+    state.activeWorkflowModel = feedBundle.summary.activeWorkflowModel
+    state.activeWorkflowModelRoute = feedBundle.summary.activeWorkflowModelRoute
+    state.activeWorkflowMusicTarget = feedBundle.summary.activeWorkflowMusicTarget
+    state.activeWorkflowMutationExecuted = feedBundle.summary.activeWorkflowMutationExecuted
+    state.activeWorkflowApprovalStatus = feedBundle.summary.activeWorkflowApprovalStatus
+    state.activeWorkflowApprovalId = feedBundle.summary.activeWorkflowApprovalId
+    state.activeWorkflowApprovalExpiresAt = feedBundle.summary.activeWorkflowApprovalExpiresAt
+    state.activeWorkflowApprovalExecutionAllowed = feedBundle.summary.activeWorkflowApprovalExecutionAllowed
+    state.activeWorkflowApprovalPendingCount = feedBundle.summary.activeWorkflowApprovalPendingCount
+    state.activeWorkflowIntentGateStatus = feedBundle.summary.activeWorkflowIntentGateStatus
+    state.activeWorkflowIntentGateCaseId = feedBundle.summary.activeWorkflowIntentGateCaseId
+    state.activeWorkflowIntentGateExecutionAllowed = feedBundle.summary.activeWorkflowIntentGateExecutionAllowed
+    state.activeWorkflowIntentGateRuntimeBlocking = feedBundle.summary.activeWorkflowIntentGateRuntimeBlocking
+    state.activeWorkflowIntentGateFailedCheckCount = feedBundle.summary.activeWorkflowIntentGateFailedCheckCount
+    state.activeWorkflowIntentGateReceiptStatus = feedBundle.summary.activeWorkflowIntentGateReceiptStatus
+    state.pilotReceiptCount = feedBundle.summary.pilotReceiptCount
+    state.lastFeedGeneratedAt = feedBundle.generatedAt
+    state.compositeHealth = feedBundle.summary.overallRisk
+    state.pendingApprovals = state.stopPlanCount + state.pendingHardwareApprovalCount + (state.activeWorkflowApprovalExecutionAllowed ? state.activeWorkflowApprovalPendingCount : 0)
+    state.operatingStage = state.pendingApprovals > 0 ? "approve" : "receive"
+    state.nextMove = state.stopPlanCount > 0 ? "review_cleanup_plan" : state.activeWorkflowApprovalExecutionAllowed ? "review_workflow_approval" : "run_project_check"
+    emit("holoshell:live-feed", {
+      action: "live_feed_applied",
+      generated_at: state.lastFeedGeneratedAt,
+      overall_risk: state.compositeHealth,
+      capabilities: state.capabilityCount,
+      lanes: state.activeAgentLaneCount,
+      captured_windows: state.capturedWindowCount,
+      captured_controls: state.capturedControlCount,
+      captured_geometry_nodes: state.capturedGeometryNodeCount,
+      os_ui_action_bridge: state.osUiActionBridgeStatus,
+      program_registry: state.programRegistryStatus,
+      installed_programs: state.installedProgramCount,
+      launchable_programs: state.launchableProgramCount,
+      brittney_avatar: state.brittneyAvatarStatus,
+      brittney_runtime: state.brittneyRuntimeStatus,
+      brittney_emotion: state.brittneyAvatarEmotion,
+      brittney_voice_state: state.brittneyVoiceState,
+      brittney_last_turn: state.brittneyLastTurnStatus,
+      brittney_runtime_events: state.brittneyRuntimeEventCount,
+      brittney_action_proposals: state.brittneyActionProposalCount,
+      brittney_first_proposal_object: state.brittneyFirstProposalObject,
+      hardware_control: state.hardwareControlStatus,
+      hardware_action: state.hardwareActionStatus,
+      hardware_action_kind: state.hardwareActionKind,
+      hardware_permission_envelope: state.hardwareActionPermissionEnvelope,
+      hardware_receipts: state.hardwareActionReceiptCount,
+      hardware_mutating_action_executed: state.hardwareMutatingActionExecuted,
+      hardware_approval: state.hardwareApprovalStatus,
+      pending_hardware_approvals: state.pendingHardwareApprovalCount,
+      hardware_approval_target: state.hardwareApprovalTarget,
+      active_workflow: state.activeWorkflowStatus,
+      active_workflow_title: state.activeWorkflowTitle,
+      active_workflow_steps: state.activeWorkflowStepCount,
+      active_workflow_pending_approvals: state.activeWorkflowPendingApprovalCount,
+      active_workflow_model_route: state.activeWorkflowModelRoute,
+      active_workflow_mutation_executed: state.activeWorkflowMutationExecuted,
+      active_workflow_approval: state.activeWorkflowApprovalStatus,
+      active_workflow_approval_id: state.activeWorkflowApprovalId,
+      active_workflow_approval_expires_at: state.activeWorkflowApprovalExpiresAt,
+      active_workflow_approval_execution_allowed: state.activeWorkflowApprovalExecutionAllowed,
+      active_workflow_approval_pending: state.activeWorkflowApprovalPendingCount,
+      active_workflow_intent_gate: state.activeWorkflowIntentGateStatus,
+      active_workflow_intent_gate_execution_allowed: state.activeWorkflowIntentGateExecutionAllowed,
+      active_workflow_intent_gate_runtime_blocking: state.activeWorkflowIntentGateRuntimeBlocking,
+      active_workflow_intent_gate_failed_checks: state.activeWorkflowIntentGateFailedCheckCount,
+      stop_plans: state.stopPlanCount,
+      timeline_nodes: state.timelineNodeCount,
+      receipt_required: true
+    })
+  }
+
+  action link_receipt_timeline(feedBundle) {
+    state.timelineNodeCount = feedBundle.summary.timelineCount
+    state.receiptCount = state.receiptCount + feedBundle.summary.timelineCount
+    emit("holoshell:receipts", {
+      action: "timeline_linked",
+      timeline: feedBundle.timeline,
+      count: state.timelineNodeCount,
+      rollback: "per_receipt",
+      trust_state: feedBundle.summary.overallRisk == "pass" ? "verified" : "partial"
+    })
+  }
+
+  action queue_stop_plan(stopPlan) {
+    state.stopPlanCount = state.stopPlanCount + 1
+    state.pendingApprovals = state.pendingApprovals + 1
+    state.operatingStage = "approve"
+    state.nextMove = "review_cleanup_plan"
+    emit("holoshell:approval", {
+      action: "stop_plan_queued",
+      stop_plan: stopPlan,
+      approval_required: true,
+      automatic_termination_allowed: false,
+      receipt_required: true
+    })
+  }
+
+  action record_pilot_receipt(receipt) {
+    state.activePilot = receipt.pilot
+    state.pilotReceiptCount = state.pilotReceiptCount + 1
+    state.receiptCount = state.receiptCount + 1
+    state.operatingStage = "receive"
+    emit("holoshell:pilot", {
+      action: "pilot_receipt_recorded",
+      pilot: receipt.pilot,
+      receipt: receipt,
+      witness_state: receipt.status,
+      trust_state: receipt.trustState || "partial"
+    })
+  }
+
+  action apply_os_ui_capture(capture) {
+    state.capturedWindowCount = capture.summary.windowCount
+    state.capturedControlCount = capture.summary.controlCount
+    state.capturedGeometryNodeCount = capture.summary.geometryNodeCount
+    state.osUiActionBridgeStatus = capture.summary.actionBridgeStatus
+    state.activeShellObject = "captured-ui"
+    emit("holoshell:os-ui-capture", {
+      action: "legacy_ui_capture_applied",
+      windows: state.capturedWindowCount,
+      controls: state.capturedControlCount,
+      geometry_nodes: state.capturedGeometryNodeCount,
+      action_bridge: state.osUiActionBridgeStatus,
+      mutating_actions_executed: false,
+      receipt: capture.receipt
+    })
+  }
+
+  action apply_program_registry(registry) {
+    state.programRegistryStatus = registry.summary.status
+    state.installedProgramCount = registry.summary.programCount
+    state.launchableProgramCount = registry.summary.launchableProgramCount
+    state.startMenuProgramCount = registry.summary.startMenuProgramCount
+    state.appPathProgramCount = registry.summary.appPathProgramCount
+    state.activeShellObject = "programs"
+    emit("holoshell:hardware:program-registry", {
+      action: "program_registry_applied",
+      status: state.programRegistryStatus,
+      installed_programs: state.installedProgramCount,
+      launchable_programs: state.launchableProgramCount,
+      start_menu_programs: state.startMenuProgramCount,
+      app_path_programs: state.appPathProgramCount,
+      source_contract: "apps/holoshell/source/holoshell-hardware-control.hsplus",
+      receipt_required: true
+    })
+  }
+
+  action apply_hardware_action_receipt(receipt) {
+    state.hardwareControlStatus = "available"
+    state.hardwareActionStatus = receipt.summary.status
+    state.hardwareActionKind = receipt.summary.actionKind
+    state.hardwareActionPermissionEnvelope = receipt.summary.permissionEnvelope
+    state.hardwareMutatingActionExecuted = receipt.summary.mutatingActionExecuted
+    state.hardwareApprovalRequired = receipt.summary.approvalRequired
+    state.hardwareTargetWindowTitle = receipt.summary.targetWindowTitle
+    state.hardwareTargetProcessName = receipt.summary.targetProcessName
+    state.hardwareActionReceiptCount = state.hardwareActionReceiptCount + 1
+    state.activeShellObject = "hardware-control"
+    emit("holoshell:hardware:receipt", {
+      action: "hardware_action_receipt_applied",
+      action_kind: state.hardwareActionKind,
+      status: state.hardwareActionStatus,
+      permission_envelope: state.hardwareActionPermissionEnvelope,
+      target_window: state.hardwareTargetWindowTitle,
+      target_process: state.hardwareTargetProcessName,
+      mutating_action_executed: state.hardwareMutatingActionExecuted,
+      approval_required: state.hardwareApprovalRequired,
+      receipt_required: true
+    })
+  }
+
+  action apply_hardware_approval_bundle(bundle) {
+    state.pendingHardwareApprovalCount = bundle.summary.executionAllowed ? 1 : 0
+    state.hardwareApprovalStatus = bundle.summary.status
+    state.hardwareApprovalActionKind = bundle.summary.actionKind
+    state.hardwareApprovalTarget = bundle.summary.target
+    state.hardwareApprovalExpiresAt = bundle.summary.expiresAt
+    state.hardwareApprovalExecutionAllowed = bundle.summary.executionAllowed
+    state.pendingApprovals = state.pendingApprovals + state.pendingHardwareApprovalCount
+    state.operatingStage = state.pendingHardwareApprovalCount > 0 ? "approve" : state.operatingStage
+    emit("holoshell:hardware:approval", {
+      action: "hardware_approval_bundle_applied",
+      status: state.hardwareApprovalStatus,
+      action_kind: state.hardwareApprovalActionKind,
+      target: state.hardwareApprovalTarget,
+      expires_at: state.hardwareApprovalExpiresAt,
+      execution_allowed: state.hardwareApprovalExecutionAllowed,
+      pending_hardware_approvals: state.pendingHardwareApprovalCount,
+      nonce_bound: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_room_marathon_workflow(workflow) {
+    state.activeWorkflowStatus = workflow.summary.status
+    state.activeWorkflowTitle = workflow.title
+    state.activeWorkflowStepCount = workflow.summary.stepCount
+    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
+    state.activeWorkflowModel = workflow.summary.model
+    state.activeWorkflowModelRoute = workflow.summary.modelRoute
+    state.activeWorkflowMusicTarget = workflow.summary.musicTarget
+    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
+    state.pendingApprovals = state.pendingApprovals + state.activeWorkflowPendingApprovalCount
+    state.operatingStage = state.activeWorkflowPendingApprovalCount > 0 ? "approve" : state.operatingStage
+    state.activeShellObject = "room-marathon"
+    emit("holoshell:workflow:room-marathon", {
+      action: "room_marathon_workflow_applied",
+      status: state.activeWorkflowStatus,
+      title: state.activeWorkflowTitle,
+      steps: state.activeWorkflowStepCount,
+      pending_approvals: state.activeWorkflowPendingApprovalCount,
+      model: state.activeWorkflowModel,
+      model_route: state.activeWorkflowModelRoute,
+      music_target: state.activeWorkflowMusicTarget,
+      mutation_executed: state.activeWorkflowMutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_workflow_approval_bundle(bundle) {
+    state.activeWorkflowApprovalStatus = bundle.summary.status
+    state.activeWorkflowApprovalId = bundle.approvalId
+    state.activeWorkflowApprovalExpiresAt = bundle.summary.expiresAt
+    state.activeWorkflowApprovalExecutionAllowed = bundle.summary.executionAllowed
+    state.activeWorkflowApprovalPendingCount = bundle.summary.pendingApprovalCount
+    state.pendingApprovals = state.pendingApprovals + (state.activeWorkflowApprovalExecutionAllowed ? state.activeWorkflowApprovalPendingCount : 0)
+    state.operatingStage = state.activeWorkflowApprovalExecutionAllowed ? "approve" : state.operatingStage
+    state.nextMove = state.activeWorkflowApprovalExecutionAllowed ? "review_workflow_approval" : state.nextMove
+    state.activeShellObject = "room-marathon"
+    emit("holoshell:workflow:approval", {
+      action: "workflow_approval_bundle_applied",
+      approval_id: state.activeWorkflowApprovalId,
+      workflow_id: bundle.summary.workflowId,
+      status: state.activeWorkflowApprovalStatus,
+      title: bundle.summary.title,
+      expires_at: state.activeWorkflowApprovalExpiresAt,
+      execution_allowed: state.activeWorkflowApprovalExecutionAllowed,
+      pending_approvals: state.activeWorkflowApprovalPendingCount,
+      nonce_bound: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_workflow_intent_gate_receipt(gateReceipt) {
+    state.activeWorkflowIntentGateStatus = gateReceipt.summary.status
+    state.activeWorkflowIntentGateCaseId = gateReceipt.summary.caseId
+    state.activeWorkflowIntentGateExecutionAllowed = gateReceipt.summary.executionAllowed
+    state.activeWorkflowIntentGateRuntimeBlocking = gateReceipt.summary.runtimeBlocking
+    state.activeWorkflowIntentGateFailedCheckCount = gateReceipt.summary.failedCheckCount
+    state.activeWorkflowIntentGateReceiptStatus = gateReceipt.summary.receiptStatus
+    state.nextMove = state.activeWorkflowIntentGateExecutionAllowed ? state.nextMove : "repair_brain_intent_gate"
+    emit("holoshell:workflow:intent-gate", {
+      action: "workflow_intent_gate_receipt_applied",
+      status: state.activeWorkflowIntentGateStatus,
+      case_id: state.activeWorkflowIntentGateCaseId,
+      execution_allowed: state.activeWorkflowIntentGateExecutionAllowed,
+      runtime_blocking: state.activeWorkflowIntentGateRuntimeBlocking,
+      failed_checks: state.activeWorkflowIntentGateFailedCheckCount,
+      receipt_status: state.activeWorkflowIntentGateReceiptStatus,
+      receipt_required: true
     })
   }
 
@@ -305,6 +1237,7 @@ composition "HoloShell Home" {
 
   action record_receipt(receipt) {
     state.receiptCount = state.receiptCount + 1
+    state.operatingStage = "receive"
     emit("holoshell:receipts", {
       action: "receipt_recorded",
       receipt: receipt,
