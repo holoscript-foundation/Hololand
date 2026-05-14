@@ -1,0 +1,147 @@
+// HoloShell Legacy App Absorption
+//
+// Legacy Windows apps become observed, classed, and preflight-guarded
+// HoloShell objects. This is not UI automation yet. It is the visual and
+// operational boundary that prevents agents from mutating legacy programs
+// without app identity, window identity, rollback plan, and receipt.
+
+composition "HoloShell Legacy App Absorption" {
+  config {
+    title: "Legacy App Absorption"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-legacy-app-absorption.mjs"
+    defaultMode: "observe_and_wrap"
+  }
+
+  state {
+    observedAppCount: 0
+    appGroupCount: 0
+    captureCandidateCount: 0
+    preflightRequiredCount: 0
+    mutationAllowedCount: 0
+    destructiveActionsTaken: false
+    lastAbsorptionReceiptId: ""
+  }
+
+  channel "holoshell:legacy:absorption" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Legacy app groups ready for visual wrapping and guarded operation"
+  }
+
+  channel "holoshell:legacy:preflight" {
+    type: "request_response"
+    priority: "critical"
+    description: "Preflight gate required before legacy app mutation"
+  }
+
+  template "LegacyAppGroup" {
+    type: "machine"
+    machineType: "legacy_app_group"
+    appName: ""
+    archetype: "unknown_legacy_app"
+    observedProcessCount: 0
+    captureCandidate: true
+    mutationPolicy: "preflight_required"
+    receiptRequired: true
+  }
+
+  template "LegacyAbsorptionReceipt" {
+    type: "receipt"
+    receiptType: "legacy_absorption"
+    appName: ""
+    archetype: ""
+    observedProcessCount: 0
+    safeActions: []
+    blockedActions: []
+    destructiveActionsTaken: false
+  }
+
+  room "LegacyAbsorptionRoom" {
+    label: "Legacy Apps"
+    userQuestion: "Which old programs can HoloShell see, wrap, and safely operate?"
+    visualForm: "legacy_app_dock"
+    liveFeed: "holoshell:legacy:absorption"
+
+    object "ObservedLegacyApps" {
+      type: "ui"
+      uiType: "legacy_app_counter"
+      label: "Observed Apps"
+      count: $observedAppCount
+    }
+
+    object "CaptureCandidates" {
+      type: "ui"
+      uiType: "capture_queue"
+      label: "Capture Candidates"
+      count: $captureCandidateCount
+    }
+
+    object "LegacyPreflightGate" {
+      type: "ui"
+      uiType: "legacy_preflight_gate"
+      label: "Mutation Gate"
+      preflightRequired: $preflightRequiredCount
+      mutationAllowed: $mutationAllowedCount
+      destructiveActionsTaken: $destructiveActionsTaken
+    }
+  }
+
+  policy "LegacyObserveBeforeOperate" {
+    appliesTo: ["legacy_app", "window", "settings_panel", "browser", "file_manager"]
+    observationRequired: true
+    captureBeforeMutation: true
+    receiptRequired: true
+  }
+
+  policy "LegacyMutationPreflight" {
+    appliesTo: ["click_destructive_ui", "change_app_setting", "alter_registry", "uninstall_app", "close_window", "submit_form"]
+    mcpToolRequired: "holoshell_preflight_legacy_app_mutation"
+    appIdentityRequired: true
+    windowIdentityRequired: true
+    rollbackPlanRequired: true
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  policy "LegacySafeActions" {
+    appliesTo: ["focus_window", "capture_window", "read_title", "map_controls", "summarize_visible_state"]
+    destructiveActionsAllowed: false
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  action consume_legacy_absorption(snapshot) {
+    state.observedAppCount = snapshot.summary.observedAppCount
+    state.appGroupCount = snapshot.summary.appGroupCount
+    state.captureCandidateCount = snapshot.summary.captureCandidateCount
+    state.preflightRequiredCount = snapshot.summary.preflightRequiredCount
+    state.mutationAllowedCount = snapshot.summary.mutationAllowedCount
+    state.destructiveActionsTaken = snapshot.safety.destructiveActionsTaken
+    state.lastAbsorptionReceiptId = snapshot.receipt.absorptionHash
+
+    emit("holoshell:legacy:absorption", {
+      observedApps: state.observedAppCount,
+      groups: state.appGroupCount,
+      captureCandidates: state.captureCandidateCount,
+      preflightRequired: state.preflightRequiredCount,
+      mutationAllowed: state.mutationAllowedCount,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      receipt: state.lastAbsorptionReceiptId
+    })
+  }
+
+  action request_legacy_mutation_preflight(app, operation) {
+    emit("holoshell:legacy:preflight", {
+      appName: app.appName,
+      archetype: app.archetype,
+      operation: operation,
+      mcpToolRequired: "holoshell_preflight_legacy_app_mutation",
+      approvalRequired: true,
+      rollbackPlanRequired: true,
+      receiptRequired: true
+    })
+    return "legacy_preflight_required"
+  }
+}

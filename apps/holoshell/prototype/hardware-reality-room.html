@@ -375,6 +375,7 @@
   </style>
   <script src="../../../.tmp/holoshell/hardware-reality.js"></script>
   <script src="../../../.tmp/holoshell/run-custody.js"></script>
+  <script src="../../../.tmp/holoshell/legacy-app-absorption.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -419,6 +420,7 @@
   <script>
     const reality = window.HOLOSHELL_HARDWARE_REALITY || null;
     const custody = window.HOLOSHELL_RUN_CUSTODY || null;
+    const legacyAbsorption = window.HOLOSHELL_LEGACY_APP_ABSORPTION || null;
     const colors = {
       cyan: "#5ee2c5",
       blue: "#5ba8ff",
@@ -522,13 +524,15 @@
 
     function renderApps(apps) {
       if (!apps.length) return replaceChildrenById("apps", [empty("No legacy apps in snapshot")]);
+      const absorptionByName = new Map((legacyAbsorption?.appGroups || []).map((app) => [String(app.appName).toLowerCase(), app]));
       replaceChildrenById("apps", apps.map((app) => {
+        const absorbed = absorptionByName.get(String(app.appName).toLowerCase()) || {};
         const element = document.createElement("article");
         element.className = "app";
         element.innerHTML = `
           <div>
             <h3>${text(app.appName, "legacy app")}</h3>
-            <p class="sub">${text(app.mutationPolicy)} / PID ${text((app.samplePids || [])[0], "n/a")}</p>
+            <p class="sub">${text(absorbed.archetype, "legacy_app")} / ${text(app.mutationPolicy)} / PID ${text((app.samplePids || [])[0], "n/a")}</p>
           </div>
           <span class="count">${app.observedProcessCount}</span>
         `;
@@ -540,13 +544,17 @@
       const safety = model.safety || {};
       const summary = model.summary || {};
       const custodySummary = custody?.summary || {};
+      const legacySummary = legacyAbsorption?.summary || {};
       const brief = custody?.brittneyBrief || {};
+      const legacyBrief = legacyAbsorption?.brittneyBrief || {};
       const items = [
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
         ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.ownerUnknownCount || 0} unknown`],
         ["Brittney Next", brief.requiredNextAction || "Run custody snapshot first"],
+        ["Legacy Absorption", `${legacySummary.captureCandidateCount || 0} capture candidates / ${legacySummary.preflightRequiredCount || 0} gated`],
+        ["Legacy Next", legacyBrief.requiredNextAction || "Legacy app absorption snapshot first"],
         ["Raw Commands", model.receipt?.rawCommandsIncluded ? "visible" : "hidden"]
       ];
       replaceChildrenById("gates", items.map(([label, value]) => {
