@@ -1,0 +1,279 @@
+// HoloShell Shell World
+//
+// Canonical visual graph for the HoloLand operating shell.
+// HTML projections may render this, but they do not own the product reality.
+
+composition "HoloShell Shell World" {
+  metadata {
+    title: "HoloShell Shell World"
+    description: "Liquid HoloLand operating surface with Brittney avatar, launch bubbles, skins, and receipts"
+    behavior_source: "apps/holoshell/source/holoshell-home.hsplus"
+    avatar_source: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    runtime_bridge_source: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    render_slice: "apps/holoshell/source/holoshell-shell-render.hs"
+    preview_projection: "apps/holoshell/prototype/local-capability-room.html"
+  }
+
+  environment {
+    theme: "holo_os_liquid"
+    render_mode: "desktop_spatial"
+    skybox: "deep_machine_ocean"
+    ambient_light: 0.42
+    receipt_underlay: true
+  }
+
+  state {
+    desktopReplacementActive: true
+    activeSkin: "liquid"
+    activeShellObject: "HoloLand"
+    brittneyPresence: "assistant_avatar_agi"
+    brittneyAvatarStatus: "embodied-contract-ready"
+    brittneyRuntimeStatus: "available"
+    receiptVisibility: "behind_world"
+    userOutcome: "Prepare this computer for HoloLand work"
+  }
+
+  template "LiquidLayer" {
+    type: "surface"
+    mesh: "full_screen_fluid_plane"
+    material: "liquid_glass"
+    color: "#06131f"
+    emissive: "#0abed9"
+    opacity: 0.74
+    interaction: "background_world"
+  }
+
+  template "ShellBubble" {
+    type: "shell_object"
+    mesh: "sphere"
+    material: "hologram"
+    radius: 0.46
+    launchable: true
+    receipt_required: true
+    brittney_can_operate: true
+  }
+
+  template "SkinPortal" {
+    type: "skin"
+    mesh: "torus"
+    material: "emissive"
+    radius: 0.24
+    customizable: true
+    applies_to: "HoloShell Shell World"
+  }
+
+  template "ReceiptCrystal" {
+    type: "receipt"
+    mesh: "crystal"
+    material: "glass"
+    opacity: 0.48
+    visible_layer: "behind_world"
+    rollback: "per_receipt"
+  }
+
+  template "BrittneyAvatar" {
+    type: "assistant_avatar"
+    mesh: "procedural_upper_body"
+    material: "liquid_hologram"
+    color: "#8fffe9"
+    runtime: "@holoscript/aibrittney"
+    source_contract: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    traits: ["avatar_embodiment", "ai_companion", "avatar_intent", "voice_proximity"]
+    accessibility_role: "button"
+    keyboard_shortcut: "Alt+B"
+    live_region: "polite"
+    focusable: true
+    lip_sync: true
+    emotion_directives: true
+    receipt_required: true
+  }
+
+  object "LiquidDesktop" using "LiquidLayer" {
+    label: "HoloLand has taken over the computer"
+    position: [0, 1.3, -3.6]
+    scale: [10.8, 6.4, 1]
+    skin_binding: "activeSkin"
+  }
+
+  spatial_group "BrittneyAvatarRig" {
+    object "BrittneyPresence" using "BrittneyAvatar" {
+      label: "Brittney"
+      position: [-3.4, 1.8, -2.2]
+      scale: [0.72, 1.2, 0.72]
+      mode: "assistant_avatar_agi"
+      focus_object: "activeShellObject"
+      avatar_status: "brittneyAvatarStatus"
+      runtime_status: "brittneyRuntimeStatus"
+      can_launch_shell_objects: true
+      can_explain_receipts: true
+    }
+
+    object "BrittneyFace" {
+      type: "avatar_part"
+      mesh: "sphere"
+      material: "liquid_hologram"
+      color: "#e9fff8"
+      position: [-3.4, 2.36, -2.08]
+      scale: [0.38, 0.44, 0.28]
+      emotion_binding: "brittneyAvatarEmotion"
+    }
+
+    object "BrittneyVoiceRing" {
+      type: "avatar_voice_ring"
+      mesh: "torus"
+      material: "neon"
+      color: "#64f7ff"
+      position: [-3.4, 2.36, -2.08]
+      scale: [0.72, 0.72, 0.72]
+      voice_state_binding: "brittneyVoiceState"
+      animate: "lip_sync_pulse"
+    }
+
+    object "BrittneyAccessibilityHalo" {
+      type: "accessibility_focus_halo"
+      mesh: "torus"
+      material: "glass"
+      color: "#ffd66e"
+      position: [-3.4, 1.86, -2.12]
+      scale: [0.96, 0.96, 0.96]
+      appears_on_focus: true
+      keyboard_shortcut: "Alt+B"
+    }
+  }
+
+  spatial_group "ShellBubbleOrbit" {
+    object "BrowserBubble" using "ShellBubble" {
+      label: "Browser"
+      shell_kind: "program"
+      capability: "browser-operator"
+      position: [-2.8, 2.5, -2.7]
+      color: "#36e5ff"
+    }
+
+    object "FilesBubble" using "ShellBubble" {
+      label: "Files"
+      shell_kind: "file_space"
+      capability: "local-projects"
+      position: [-1.55, 3.05, -2.55]
+      color: "#79ffa8"
+    }
+
+    object "AgentsBubble" using "ShellBubble" {
+      label: "Agents"
+      shell_kind: "agent_space"
+      capability: "holomesh-team"
+      position: [0, 3.18, -2.45]
+      color: "#e7c66d"
+    }
+
+    object "ProgramsBubble" using "ShellBubble" {
+      label: "Programs"
+      shell_kind: "legacy_program_space"
+      capability: "legacy-apps"
+      position: [1.55, 3.05, -2.55]
+      color: "#ff8870"
+    }
+
+    object "CommandBubble" using "ShellBubble" {
+      label: "Command"
+      shell_kind: "power"
+      capability: "holoshell-intent"
+      position: [2.8, 2.5, -2.7]
+      color: "#f4f7ff"
+    }
+
+    object "HoloLandBubble" using "ShellBubble" {
+      label: "HoloLand"
+      shell_kind: "world"
+      capability: "hololand"
+      position: [0, 1.55, -1.95]
+      color: "#58ffc7"
+      primary_shell_object: true
+    }
+  }
+
+  spatial_group "SkinDock" {
+    object "LiquidSkin" using "SkinPortal" {
+      label: "Water"
+      skin: "liquid"
+      effect: "water_ripple_caustics_sim"
+      position: [-1.8, -1.7, -2.1]
+      color: "#20def0"
+    }
+
+    object "FireSkin" using "SkinPortal" {
+      label: "Fire"
+      skin: "fire"
+      effect: "fire_embers_heat_haze_sim"
+      position: [-0.6, -1.7, -2.1]
+      color: "#ff6f38"
+    }
+
+    object "DeveloperSkin" using "SkinPortal" {
+      label: "Developer"
+      skin: "developer"
+      effect: "circuit_trace_data_pulse_sim"
+      position: [0.6, -1.7, -2.1]
+      color: "#c9ff7c"
+    }
+
+    object "AuraSkin" using "SkinPortal" {
+      label: "Aura"
+      skin: "aura"
+      effect: "aura_field_orbital_particle_sim"
+      position: [1.8, -1.7, -2.1]
+      color: "#b893ff"
+    }
+  }
+
+  spatial_group "EvidenceUnderlay" {
+    object "CapabilityReceipt" using "ReceiptCrystal" {
+      label: "Capabilities"
+      source_channel: "holoshell:capabilities"
+      position: [-3.4, -0.9, -3.2]
+      color: "#48d7ff"
+    }
+
+    object "ProcessReceipt" using "ReceiptCrystal" {
+      label: "Process Health"
+      source_channel: "holoshell:process-health"
+      position: [-1.15, -1.05, -3.3]
+      color: "#ffe17a"
+    }
+
+    object "PilotReceipt" using "ReceiptCrystal" {
+      label: "Pilot Receipts"
+      source_channel: "holoshell:pilot"
+      position: [1.15, -1.05, -3.3]
+      color: "#ff8f79"
+    }
+
+    object "AgentReceipt" using "ReceiptCrystal" {
+      label: "Agent Lanes"
+      source_channel: "holoshell:agent-presence"
+      position: [3.4, -0.9, -3.2]
+      color: "#9affc8"
+    }
+  }
+
+  logic {
+    on_enter {
+      emit "holoshell_world_loaded"
+    }
+
+    action focus_shell_object(objectId) {
+      state.activeShellObject = objectId
+      emit "shell_object_focused"
+    }
+
+    action change_shell_skin(skinName) {
+      state.activeSkin = skinName
+      emit "shell_skin_changed"
+    }
+
+    action ask_brittney(message) {
+      state.userOutcome = message
+      emit "brittney_shell_request"
+    }
+  }
+}

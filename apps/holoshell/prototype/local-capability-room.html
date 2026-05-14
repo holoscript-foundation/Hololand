@@ -2091,8 +2091,11 @@
           const intake = wildHoloScriptFeed();
           const summary = intake.summary || {};
           const flagship = (intake.topFlagships || [])[0];
+          const formatProfiles = (intake.formatProfiles || [])
+            .map((profile) => `.${profile.extension} ${profile.uniqueFeatureCount || 0} features`)
+            .join(", ");
           result.hidden = false;
-          result.textContent = `Wild HoloScript ${summary.status || "unknown"}: ${summary.fileCount || 0} files, ${summary.hsplusCount || 0} hsplus, ${summary.frontierSyntaxCount || 0} frontier syntax, ${summary.adapterNeededCount || 0} adapter needed. Top source: ${flagship?.path || "none"}.`;
+          result.textContent = `Wild HoloScript ${summary.status || "unknown"}: ${summary.fileCount || 0} files; .holo ${summary.holoCount || 0}, .hs ${summary.hsCount || 0}, .hsplus ${summary.hsplusCount || 0}; ${formatProfiles || "format features pending"}; ${summary.adapterNeededCount || 0} adapter needed. Top source: ${flagship?.path || "none"}.`;
           appendConversation("Wild HoloScript is now a source corpus. I can review modules, then promote them through adapters before any execution.");
         }, actions.length === 0));
         actions.push(actionButton("Promote terminal module", () => {
@@ -2300,7 +2303,7 @@
         "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
         "Hardware source: source/holoshell-hardware-control.hsplus",
         "Wild source: source/holoshell-wild-holoscript-intake.hsplus",
-        `Wild HoloScript: ${wildSummary.status || summary.wildHoloScriptStatus || "unknown"}; files ${wildSummary.fileCount || summary.wildHoloScriptFileCount || 0}; .holo ${wildSummary.holoCount || summary.wildHoloScriptHoloCount || 0}; .hs ${wildSummary.hsCount || summary.wildHoloScriptHsCount || 0}; .hsplus ${wildSummary.hsplusCount || summary.wildHoloScriptHsplusCount || 0}`,
+        `Wild HoloScript: ${wildSummary.status || summary.wildHoloScriptStatus || "unknown"}; files ${wildSummary.fileCount || summary.wildHoloScriptFileCount || 0}; .holo ${wildSummary.holoCount || summary.wildHoloScriptHoloCount || 0} / ${wildSummary.holoFeatureCount || summary.wildHoloScriptHoloFeatureCount || 0} features; .hs ${wildSummary.hsCount || summary.wildHoloScriptHsCount || 0} / ${wildSummary.hsFeatureCount || summary.wildHoloScriptHsFeatureCount || 0}; .hsplus ${wildSummary.hsplusCount || summary.wildHoloScriptHsplusCount || 0} / ${wildSummary.hsplusFeatureCount || summary.wildHoloScriptHsplusFeatureCount || 0}`,
         `Wild promotion: frontier ${wildSummary.frontierSyntaxCount || summary.wildHoloScriptFrontierSyntaxCount || 0}; adapters ${wildSummary.adapterNeededCount || summary.wildHoloScriptAdapterNeededCount || 0}; candidates ${wildSummary.canonicalCandidateCount || summary.wildHoloScriptCanonicalCandidateCount || 0}; next ${wildSummary.nextMove || summary.wildHoloScriptNextMove || "none"}`,
         `Readiness evidence: ${readinessSummary.status || summary.readinessEvidenceStatus || "unknown"}; build ${readinessSummary.buildStatus || summary.readinessBuildStatus || "unknown"}; device ${readinessSummary.deviceLabStatus || summary.readinessDeviceLabStatus || "unknown"}; graph ${readinessSummary.graphStatus || summary.readinessGraphStatus || "unknown"}`,
         `Readiness tokens: ${readinessSummary.tokenCount || summary.readinessTokenCount || 0}; warnings ${readinessSummary.warningCount || summary.readinessWarningCount || 0}; next ${readinessSummary.nextWorkflow || summary.readinessNextWorkflow || "none"}`,

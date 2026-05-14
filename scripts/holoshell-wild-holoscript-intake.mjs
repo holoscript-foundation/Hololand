@@ -52,6 +52,67 @@ const SIGNALS = [
   { id: 'if_directive', label: '@if directive', pattern: /(^|\n)\s*@if\b/ },
 ];
 
+const FORMAT_ROLES = {
+  holo: {
+    role: 'world_graph',
+    founderShellUse: 'Founder shell composition: the whole desktop as spatial world, skin, object graph, and embedded module host.',
+    userShellUse: 'Curated home surface: programs, files, browser, agent rooms, approvals, and safe skin presets.',
+  },
+  hs: {
+    role: 'core_script',
+    founderShellUse: 'Founder control and render slice: compact pipelines, launch plans, geometry proofs, and local-machine receipts.',
+    userShellUse: 'Safe automation slice: readable workflows, health checks, import/export jobs, and reversible app actions.',
+  },
+  hsplus: {
+    role: 'behavior_runtime',
+    founderShellUse: 'Founder AGI/agent runtime: Brittney state, orchestration, policies, state machines, data binding, and host adapters.',
+    userShellUse: 'Product behavior layer: assistant actions, guarded workflows, multiplayer state, avatar behavior, and app wrappers.',
+  },
+};
+
+const FORMAT_FEATURES = [
+  { id: 'composition_root', label: 'composition root', formats: ['holo', 'hsplus'], pattern: /\bcomposition\s+["']?[^"'{\n]+/ },
+  { id: 'world_root', label: 'world root', formats: ['holo', 'hsplus'], pattern: /\bworld(?:\s+["'][^"']+["'])?\s*\{/ },
+  { id: 'metadata_block', label: 'metadata block', formats: ['holo'], pattern: /\bmetadata\s*\{/ },
+  { id: 'environment_block', label: 'environment block', formats: ['holo', 'hs'], pattern: /\benvironment\s*\{/ },
+  { id: 'spatial_group', label: 'spatial group', formats: ['holo'], pattern: /\bspatial_group\s+["']?[^"'{\n]+/ },
+  { id: 'template_system', label: 'template system', formats: ['holo', 'hsplus', 'hs'], pattern: /\btemplate\s+["']?[^"'{\n]+/ },
+  { id: 'object_graph', label: 'object graph', formats: ['holo', 'hsplus', 'hs'], pattern: /\bobject\s+["']?[^"'{\n]+/ },
+  { id: 'trait_decorators', label: 'trait decorators', formats: ['holo', 'hsplus'], pattern: /(^|\n)\s*@[A-Za-z][A-Za-z0-9_-]*/ },
+  { id: 'state_blocks', label: 'state blocks', formats: ['holo', 'hsplus'], pattern: /\bstate\s*\{/ },
+  { id: 'state_machine', label: 'state machine', formats: ['holo', 'hsplus'], pattern: /(^|\n)\s*@state_machine\b|\bstate_machine\s*\{/ },
+  { id: 'action_blocks', label: 'action blocks', formats: ['holo', 'hsplus'], pattern: /\baction\s+[A-Za-z_][A-Za-z0-9_]*\s*\(/ },
+  { id: 'event_handlers', label: 'event handlers', formats: ['holo', 'hsplus'], pattern: /(^|\n)\s*@on_|(^|\n)\s*on_(click|grab|collision|event|throw|hover)\b/ },
+  { id: 'panel_ui', label: 'panel and UI nodes', formats: ['holo', 'hsplus'], pattern: /\b(panel|uiType|ui_type|textinput|slider|toggle|dropdown|modal)\b/ },
+  { id: 'inline_pipeline', label: 'inline pipeline', formats: ['holo'], pattern: /\bpipeline\s+["']?[^"'{\n]+/ },
+  { id: 'pipeline_root', label: 'pipeline root', formats: ['hs', 'holo'], pattern: /\bpipeline\s+["']?[^"'{\n]+/ },
+  { id: 'pipeline_source', label: 'pipeline source', formats: ['hs', 'holo'], pattern: /\bsource\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/ },
+  { id: 'pipeline_transform', label: 'pipeline transform', formats: ['hs', 'holo'], pattern: /\btransform\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/ },
+  { id: 'pipeline_filter', label: 'pipeline filter', formats: ['hs', 'holo'], pattern: /\bfilter\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/ },
+  { id: 'pipeline_validate', label: 'pipeline validate', formats: ['hs', 'holo'], pattern: /\bvalidate\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/ },
+  { id: 'pipeline_merge', label: 'pipeline merge', formats: ['hs', 'holo'], pattern: /\bmerge\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/ },
+  { id: 'pipeline_branch', label: 'pipeline branch', formats: ['hs', 'holo'], pattern: /\bbranch\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/ },
+  { id: 'pipeline_sink', label: 'pipeline sink', formats: ['hs', 'holo'], pattern: /\bsink\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/ },
+  { id: 'schedule', label: 'schedule', formats: ['hs', 'holo'], pattern: /\bschedule\s*:/ },
+  { id: 'module_system', label: 'module system', formats: ['hs', 'hsplus'], pattern: /\bmodule\s+[A-Za-z_][A-Za-z0-9_]*/ },
+  { id: 'light_nodes', label: 'light nodes', formats: ['hs', 'holo'], pattern: /\blight\s+["']?[^"'{\n]+\s*\{/ },
+  { id: 'geometry_nodes', label: 'geometry or mesh nodes', formats: ['hs', 'holo', 'hsplus'], pattern: /\b(geometry|mesh)\s*:/ },
+  { id: 'material_nodes', label: 'material nodes', formats: ['hs', 'holo', 'hsplus'], pattern: /\bmaterial\s*:/ },
+  { id: 'animation_nodes', label: 'animation nodes', formats: ['hs', 'holo', 'hsplus'], pattern: /\b(animate|animation|animSpeed)\s*:/ },
+  { id: 'post_processing', label: 'post processing', formats: ['hs', 'holo'], pattern: /\bpost_processing\s*\{/ },
+  { id: 'agent_runtime', label: 'agent runtime', formats: ['hsplus'], pattern: /(^|\n)\s*@agent\b|\bagent\s+["']?[^"'{\n]+|brittney/i },
+  { id: 'data_binding', label: 'data binding', formats: ['hsplus', 'holo'], pattern: /\bdata_binding\b/ },
+  { id: 'control_flow', label: 'control flow directives', formats: ['hsplus', 'holo'], pattern: /(^|\n)\s*@(for|if|while|forEach)\b/ },
+  { id: 'networked_object', label: 'networked object', formats: ['hsplus'], pattern: /\bnetworked_object\b/ },
+  { id: 'audio_config', label: 'audio config', formats: ['holo', 'hsplus'], pattern: /\baudio_config\b/ },
+  { id: 'host_api_bridge', label: 'host API bridge', formats: ['hsplus', 'hs'], pattern: /\bapi\.(get|post|put|patch|delete)\s*\(|\bfetch\s*\(/ },
+  { id: 'holoscript_imports', label: 'HoloScript imports', formats: ['*'], pattern: /(@import|from)\s+["'][^"']+\.(holo|hs|hsplus)["']/ },
+  { id: 'host_runtime_imports', label: 'host runtime imports', formats: ['*'], pattern: /(@import|from)\s+["'][^"']+\.(ts|tsx|js|mjs)["']/ },
+  { id: 'permission_receipts', label: 'permission or receipts', formats: ['hsplus', 'holo', 'hs'], pattern: /\b(permission|receipt|approval|custody|rollback)\b/i },
+  { id: 'skin_effects', label: 'skin and effects', formats: ['holo', 'hs', 'hsplus'], pattern: /\b(water|liquid|fire|aura|hologram|particle|ripple|caustic|ember|smoke|portal|bloom|glow)\b/i },
+  { id: 'hardware_shell_control', label: 'hardware shell control', formats: ['hsplus', 'hs'], pattern: /\b(terminal|window|program|browser|file|clipboard|keyboard|mouse|excel|youtube|ollama|command)\b/i },
+];
+
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
     uaa2Root: process.env.UAA2_SERVICE_ROOT || DEFAULT_UAA2_ROOT,
@@ -174,6 +235,17 @@ function detectedSignals(text) {
   return SIGNALS.filter((signal) => signal.pattern.test(text)).map((signal) => signal.id);
 }
 
+function featureAllowedForExtension(feature, extension) {
+  const ext = extension.startsWith('.') ? extension.slice(1) : extension;
+  return feature.formats.includes('*') || feature.formats.includes(ext);
+}
+
+function detectedFormatFeatures(text, extension) {
+  return FORMAT_FEATURES
+    .filter((feature) => featureAllowedForExtension(feature, extension) && feature.pattern.test(text))
+    .map((feature) => feature.id);
+}
+
 function classifyPatterns(relativePath, text, extension) {
   const normalized = relativePath.replace(/\\/g, '/').toLowerCase();
   const patterns = [];
@@ -240,10 +312,12 @@ function analyzeFile(filePath, rootPath) {
   const relativePath = publicPath(filePath, rootPath);
   const text = readFileSync(filePath, 'utf8');
   const signals = detectedSignals(text);
+  const formatFeatures = detectedFormatFeatures(text, extension);
   const patterns = classifyPatterns(relativePath, text, extension);
   const compatibility = compatibilityBand(extension, signals, patterns);
   const score =
     signals.length * 2 +
+    formatFeatures.length +
     patterns.length * 3 +
     (patterns.includes('agent_orchestration') ? 12 : 0) +
     (patterns.includes('brittney_agent') ? 10 : 0) +
@@ -262,6 +336,7 @@ function analyzeFile(filePath, rootPath) {
     compatibilityReasons: compatibility.reasons,
     patterns,
     signals,
+    formatFeatures,
     promotionPath: promotionFor(patterns, compatibility),
   };
 }
@@ -290,9 +365,53 @@ function countPatterns(files) {
   return counts;
 }
 
+function countList(values) {
+  const counts = {};
+  for (const value of values) counts[value] = (counts[value] || 0) + 1;
+  return counts;
+}
+
 function topEntry(counts) {
   const entries = Object.entries(counts).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
   return entries[0] ? { name: entries[0][0], count: entries[0][1] } : { name: '', count: 0 };
+}
+
+function featureLabel(id) {
+  return FORMAT_FEATURES.find((feature) => feature.id === id)?.label || id;
+}
+
+function formatProfilesFrom(files) {
+  return ['holo', 'hs', 'hsplus'].map((extension) => {
+    const role = FORMAT_ROLES[extension];
+    const formatFiles = files.filter((file) => file.extension === extension);
+    const featureCounts = countList(formatFiles.flatMap((file) => file.formatFeatures || []));
+    const topFeature = topEntry(featureCounts);
+
+    return {
+      extension,
+      role: role.role,
+      founderShellUse: role.founderShellUse,
+      userShellUse: role.userShellUse,
+      fileCount: formatFiles.length,
+      uniqueFeatureCount: Object.keys(featureCounts).length,
+      featureHitCount: Object.values(featureCounts).reduce((sum, count) => sum + count, 0),
+      topFeature: topFeature.name,
+      featureInventory: Object.entries(featureCounts)
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+        .map(([id, count]) => ({ id, label: featureLabel(id), count })),
+      topFiles: formatFiles
+        .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
+        .slice(0, 5)
+        .map((file) => ({
+          path: file.path,
+          title: file.title,
+          score: file.score,
+          compatibilityBand: file.compatibilityBand,
+          formatFeatures: (file.formatFeatures || []).slice(0, 10),
+          promotionPath: file.promotionPath,
+        })),
+    };
+  });
 }
 
 function intakeMapFrom(files) {
@@ -373,9 +492,16 @@ function buildMissingReceipt(rootPath) {
       canonicalCandidateCount: 0,
       flagshipCount: 0,
       topPattern: '',
+      holoFeatureCount: 0,
+      hsFeatureCount: 0,
+      hsplusFeatureCount: 0,
+      holoTopFeature: '',
+      hsTopFeature: '',
+      hsplusTopFeature: '',
       nextMove: 'attach_or_clone_uaa2_service_then_rerun_intake',
     },
     extensionCounts: { holo: 0, hs: 0, hsplus: 0 },
+    formatProfiles: formatProfilesFrom([]),
     syntaxInventory: [],
     patternInventory: [],
     topFlagships: [],
@@ -405,6 +531,8 @@ function buildIntake(args) {
   const adapterNeededCount = files.filter((file) => file.compatibilityBand === 'adapter_needed').length;
   const frontierSyntaxCount = files.filter((file) => file.compatibilityBand === 'frontier_syntax').length;
   const canonicalCandidateCount = files.filter((file) => file.compatibilityBand === 'canonical_candidate').length;
+  const formatProfiles = formatProfilesFrom(files);
+  const profileFor = (extension) => formatProfiles.find((profile) => profile.extension === extension) || {};
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -432,6 +560,12 @@ function buildIntake(args) {
       canonicalCandidateCount,
       flagshipCount: topFlagships.length,
       topPattern: topPattern.name,
+      holoFeatureCount: profileFor('holo').uniqueFeatureCount || 0,
+      hsFeatureCount: profileFor('hs').uniqueFeatureCount || 0,
+      hsplusFeatureCount: profileFor('hsplus').uniqueFeatureCount || 0,
+      holoTopFeature: profileFor('holo').topFeature || '',
+      hsTopFeature: profileFor('hs').topFeature || '',
+      hsplusTopFeature: profileFor('hsplus').topFeature || '',
       nextMove: adapterNeededCount
         ? 'promote_terminal_and_brittney_modules_with_adapter_receipts'
         : 'promote_canonical_holo_worlds',
@@ -441,6 +575,7 @@ function buildIntake(args) {
       hs: extensionCounts.hs || 0,
       hsplus: extensionCounts.hsplus || 0,
     },
+    formatProfiles,
     syntaxInventory: Object.entries(signalCounts)
       .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
       .map(([id, count]) => ({ id, label: SIGNALS.find((signal) => signal.id === id)?.label || id, count })),
@@ -502,13 +637,24 @@ world {
 }
 `);
   writeFixtureFile(rootPath, 'src/worlds/healthcare/therapy_session.holo', `
-world "Therapy Session" {
-  object "calm_room" { kind: "safe_space" }
+composition "Therapy Session" {
+  metadata { title: "Therapy Session" }
+  environment { skybox: "calm" }
+  spatial_group "calm wing" {
+    object "calm_room" { kind: "safe_space" }
+  }
 }
 `);
   writeFixtureFile(rootPath, 'src/services/master-portal/orchestration/_lib/lotus-layers.hs', `
 module LotusLayers {
   template "Layer" { object "petal" { kind: "geometry" } }
+}
+
+pipeline "LotusTelemetry" {
+  schedule: "*/5 * * * *"
+  source RoomState { type: "mcp" }
+  transform MapFields { room -> shellRoom }
+  sink Shell { type: "mcp" }
 }
 `);
   return rootPath;
@@ -532,6 +678,13 @@ function assertSelfTest() {
   if (!receipt.files.some((file) => file.patterns.includes('brittney_agent'))) failures.push('expected Brittney classification');
   if (!receipt.syntaxInventory.some((item) => item.id === 'data_binding')) failures.push('expected data_binding signal');
   if (!receipt.syntaxInventory.some((item) => item.id === 'typescript_runtime_import')) failures.push('expected TypeScript import signal');
+  const holoProfile = receipt.formatProfiles.find((profile) => profile.extension === 'holo');
+  const hsProfile = receipt.formatProfiles.find((profile) => profile.extension === 'hs');
+  const hsplusProfile = receipt.formatProfiles.find((profile) => profile.extension === 'hsplus');
+  if (!holoProfile?.featureInventory.some((item) => item.id === 'spatial_group')) failures.push('expected .holo spatial group feature');
+  if (!hsProfile?.featureInventory.some((item) => item.id === 'pipeline_root')) failures.push('expected .hs pipeline feature');
+  if (!hsProfile?.featureInventory.some((item) => item.id === 'module_system')) failures.push('expected .hs module feature');
+  if (!hsplusProfile?.featureInventory.some((item) => item.id === 'agent_runtime')) failures.push('expected .hsplus agent runtime feature');
   if (!receipt.summary.adapterNeededCount) failures.push('expected adapter-needed files');
   if (!receipt.summary.frontierSyntaxCount) failures.push('expected frontier syntax files');
   if (!receipt.summary.canonicalCandidateCount) failures.push('expected canonical candidates');

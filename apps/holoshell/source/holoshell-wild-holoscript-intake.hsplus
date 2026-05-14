@@ -24,6 +24,12 @@ composition "HoloShell Wild HoloScript Intake" {
     holoCount: 0
     hsCount: 0
     hsplusCount: 0
+    holoFeatureCount: 0
+    hsFeatureCount: 0
+    hsplusFeatureCount: 0
+    holoTopFeature: ""
+    hsTopFeature: ""
+    hsplusTopFeature: ""
     flagshipCount: 0
     frontierSyntaxCount: 0
     adapterNeededCount: 0
@@ -68,6 +74,12 @@ composition "HoloShell Wild HoloScript Intake" {
     state.holoCount = receipt.summary.holoCount
     state.hsCount = receipt.summary.hsCount
     state.hsplusCount = receipt.summary.hsplusCount
+    state.holoFeatureCount = receipt.summary.holoFeatureCount
+    state.hsFeatureCount = receipt.summary.hsFeatureCount
+    state.hsplusFeatureCount = receipt.summary.hsplusFeatureCount
+    state.holoTopFeature = receipt.summary.holoTopFeature
+    state.hsTopFeature = receipt.summary.hsTopFeature
+    state.hsplusTopFeature = receipt.summary.hsplusTopFeature
     state.flagshipCount = receipt.summary.flagshipCount
     state.frontierSyntaxCount = receipt.summary.frontierSyntaxCount
     state.adapterNeededCount = receipt.summary.adapterNeededCount
@@ -88,6 +100,12 @@ composition "HoloShell Wild HoloScript Intake" {
       holo: state.holoCount,
       hs: state.hsCount,
       hsplus: state.hsplusCount,
+      holo_features: state.holoFeatureCount,
+      hs_features: state.hsFeatureCount,
+      hsplus_features: state.hsplusFeatureCount,
+      holo_top_feature: state.holoTopFeature,
+      hs_top_feature: state.hsTopFeature,
+      hsplus_top_feature: state.hsplusTopFeature,
       flagships: state.flagshipCount,
       frontier_syntax: state.frontierSyntaxCount,
       adapter_needed: state.adapterNeededCount,

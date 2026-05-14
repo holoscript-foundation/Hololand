@@ -35,9 +35,37 @@ node scripts/holoshell-wild-holoscript-intake.mjs --uaa2-root C:\Users\josep\Doc
 
 | Format | HoloShell use |
 | --- | --- |
-| `.holo` | Displayable world/source fixture. Use it to prove that `.hs` modules can be embedded and rendered by `.holo` scenes. |
-| `.hs` | Visible component or module slice. Promote into shell widgets, geometry modules, and render helpers. |
-| `.hsplus` | Behavior, agent, state-machine, orchestration, policy, and host integration source. Promote only through explicit adapters. |
+| `.holo` | World graph, shell composition, skin surface, spatial group, inline pipeline, object-template, and embedded-module host. In Founder HoloShell, this owns the whole computer-as-world view. In user HoloShell, it becomes the curated home surface and safe world fixture layer. |
+| `.hs` | Compact core script: data pipelines, render slices, modules, geometry proofs, launch plans, and receipt-friendly local jobs. In Founder HoloShell, this can expose raw machine workflows. In user HoloShell, it becomes the readable, reversible automation lane. |
+| `.hsplus` | Behavior/runtime source: Brittney, agents, state machines, data binding, events, policies, orchestration, and host integration. In Founder HoloShell, this is the AGI/operator layer. In user HoloShell, it is filtered through adapters, approval packets, and product-safe capability packs. |
+
+The intake receipt now records `formatProfiles` so `.holo`, `.hs`, and
+`.hsplus` each keep their own feature inventory. This prevents the scanner from
+treating `.holo` worlds and `.hs` scripts as just weaker `.hsplus` files.
+
+## Format Feature Inventory
+
+The scanner records these HoloShell-relevant feature families:
+
+| Format | Feature families |
+| --- | --- |
+| `.holo` | `composition_root`, `world_root`, `metadata_block`, `environment_block`, `spatial_group`, `template_system`, `object_graph`, `trait_decorators`, `state_blocks`, `state_machine`, `action_blocks`, `event_handlers`, `panel_ui`, `inline_pipeline`, `pipeline_*`, `geometry_nodes`, `material_nodes`, `post_processing`, `data_binding`, `control_flow`, `audio_config`, `permission_receipts`, `skin_effects` |
+| `.hs` | `pipeline_root`, `pipeline_source`, `pipeline_transform`, `pipeline_filter`, `pipeline_validate`, `pipeline_merge`, `pipeline_branch`, `pipeline_sink`, `schedule`, `module_system`, `template_system`, `object_graph`, `environment_block`, `light_nodes`, `geometry_nodes`, `material_nodes`, `animation_nodes`, `post_processing`, `host_api_bridge`, `permission_receipts`, `skin_effects`, `hardware_shell_control` |
+| `.hsplus` | `composition_root`, `world_root`, `module_system`, `template_system`, `object_graph`, `trait_decorators`, `state_blocks`, `state_machine`, `action_blocks`, `event_handlers`, `panel_ui`, `agent_runtime`, `data_binding`, `control_flow`, `networked_object`, `audio_config`, `host_api_bridge`, `holoscript_imports`, `host_runtime_imports`, `permission_receipts`, `skin_effects`, `hardware_shell_control` |
+
+This is deliberately broader than parser-success. Wild source is useful because
+it shows product grammar before the adapters are all mature.
+
+## Founder Version Then User Version
+
+HoloShell should be built founder-first, then carved down into a user version.
+The founder version is the unrestricted vision surface: liquid OS, raw source
+corpus, hardware wrappers, Brittney as operator, skins, agent rooms, and deep
+receipts. The user version is not a smaller dream; it is a packaged subset with
+safer defaults, clearer actions, accessibility guarantees, and fewer raw knobs.
+
+Source contract: `apps/holoshell/source/holoshell-founder-to-user-strategy.hsplus`
+and `apps/holoshell/docs/FOUNDER_TO_USER_SHELL_STRATEGY.md`.
 
 ## First Promotions
 

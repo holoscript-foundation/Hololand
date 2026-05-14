@@ -1,0 +1,92 @@
+// HoloShell Founder To User Strategy
+//
+// The founder shell is the full OS-replacement vision surface. The user shell
+// is derived from it as a safer product lane, not designed separately.
+
+composition "HoloShell Founder To User Strategy" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    strategyDoc: "apps/holoshell/docs/FOUNDER_TO_USER_SHELL_STRATEGY.md"
+    wildIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
+    wildIntakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
+    shellWorld: "apps/holoshell/source/holoshell-shell-world.holo"
+    shellRenderSlice: "apps/holoshell/source/holoshell-shell-render.hs"
+    derivationPolicy: "founder_surface_first_then_user_capability_packs"
+  }
+
+  state {
+    founderVersionStatus: "source-of-truth"
+    userVersionStatus: "derived"
+    activeBuildLane: "founder"
+    founderCapabilityCount: 0
+    userCapabilityPackCount: 0
+    rawWildSourceVisible: true
+    userRawWildSourceVisible: false
+    hardwareExecutionRequiresReceipts: true
+    dangerousActionsHiddenInUserMode: true
+    holoLaneRole: "world_graph_shell_surface"
+    hsLaneRole: "core_script_pipeline_render_slice"
+    hsplusLaneRole: "behavior_agent_policy_runtime"
+    nextMove: "inventory_formats_then_derive_user_capability_packs"
+  }
+
+  channel "holoshell:founder-version" {
+    type: "append_only"
+    priority: "high"
+    description: "Founder HoloShell capabilities before user-product reduction"
+  }
+
+  channel "holoshell:user-version" {
+    type: "append_only"
+    priority: "high"
+    description: "Derived user HoloShell capability packs"
+  }
+
+  template "FounderCapability" {
+    type: "strategy"
+    shell_scope: "founder"
+    exposes_raw_detail: true
+    requires_receipt_for_execution: true
+    format_lanes: [".holo", ".hs", ".hsplus"]
+  }
+
+  template "UserCapabilityPack" {
+    type: "strategy"
+    shell_scope: "user"
+    exposes_raw_detail: false
+    requires_receipt_for_execution: true
+    hides_break_glass_actions: true
+    format_lanes: [".holo", ".hs", ".hsplus"]
+  }
+
+  action record_founder_capability(capability) {
+    state.founderCapabilityCount = state.founderCapabilityCount + 1
+    state.activeBuildLane = "founder"
+    state.nextMove = "derive_user_pack_when_adapter_receipt_exists"
+    emit("holoshell:founder-version", {
+      action: "founder_capability_recorded",
+      id: capability.id,
+      name: capability.name,
+      format: capability.format,
+      raw_power_visible: true,
+      execution_requires_receipt: state.hardwareExecutionRequiresReceipts,
+      derive_user_version_next: true
+    })
+  }
+
+  action derive_user_version(founderCapability) {
+    state.userCapabilityPackCount = state.userCapabilityPackCount + 1
+    state.activeBuildLane = "user"
+    state.nextMove = "validate_user_pack_with_receipts_and_accessibility"
+    emit("holoshell:user-version", {
+      action: "user_capability_pack_derived",
+      founder_capability: founderCapability.id,
+      user_surface: founderCapability.userSurface || "curated_shell_object",
+      raw_wild_source_visible: state.userRawWildSourceVisible,
+      dangerous_actions_hidden: state.dangerousActionsHiddenInUserMode,
+      execution_requires_receipt: state.hardwareExecutionRequiresReceipts,
+      accessibility_required: true
+    })
+  }
+}
