@@ -375,6 +375,7 @@
   </style>
   <script src="../../../.tmp/holoshell/hardware-reality.js"></script>
   <script src="../../../.tmp/holoshell/run-custody.js"></script>
+  <script src="../../../.tmp/holoshell/legacy-window-inventory.js"></script>
   <script src="../../../.tmp/holoshell/legacy-app-absorption.js"></script>
   <script src="../../../.tmp/holoshell/operator-brief.js"></script>
   <script src="../../../.tmp/holoshell/brittney-custody-action.js"></script>
@@ -422,6 +423,7 @@
   <script>
     const reality = window.HOLOSHELL_HARDWARE_REALITY || null;
     const custody = window.HOLOSHELL_RUN_CUSTODY || null;
+    const legacyWindowInventory = window.HOLOSHELL_LEGACY_WINDOW_INVENTORY || null;
     const legacyAbsorption = window.HOLOSHELL_LEGACY_APP_ABSORPTION || null;
     const operatorBrief = window.HOLOSHELL_OPERATOR_BRIEF || null;
     const brittneyCustodyAction = window.HOLOSHELL_BRITTNEY_CUSTODY_ACTION || null;
@@ -457,10 +459,12 @@
 
     function renderMetrics(summary) {
       const custodySummary = custody?.summary || {};
+      const windowSummary = legacyWindowInventory?.summary || {};
       const items = [
         ["Processes", summary.processCount],
         ["Shell Runs", summary.shellRunCount],
         ["Lane Owned", custodySummary.observedOwnerCount ?? summary.laneAttributedShellRunCount ?? 0],
+        ["Peer Windows", windowSummary.peerWindowCount ?? 0],
         ["Listeners", summary.listenerCount],
         ["Agent Lanes", `${summary.activeLaneCount}/${summary.laneCount}`],
         ["Unknown Owners", custodySummary.ownerUnknownCount ?? summary.shellRunCount],
@@ -475,19 +479,38 @@
     }
 
     function renderLanes(lanes) {
-      if (!lanes.length) return replaceChildrenById("lanes", [empty("No agent lanes in snapshot")]);
-      replaceChildrenById("lanes", lanes.map((lane) => {
+      const peerWindowsByLane = new Map((legacyWindowInventory?.peerSurfaces || []).map((peer) => [peer.laneId, peer]));
+      const laneIds = new Set(lanes.map((lane) => lane.laneId));
+      const peerOnlyLanes = (legacyWindowInventory?.peerSurfaces || [])
+        .filter((peer) => !laneIds.has(peer.laneId))
+        .map((peer) => ({
+          laneId: peer.laneId,
+          label: peer.label,
+          surfaceKind: peer.peerKind || "peer_window",
+          healthState: "window_visible",
+          colorHint: peer.colorHint || "white",
+          pidCount: peer.processCount || 0,
+          windowInstanceCount: peer.windowInstanceCount || 0,
+          semanticPrefix: "[source:legacy-window-inventory evidence:top-level-window]",
+        }));
+      const laneModels = [...lanes, ...peerOnlyLanes];
+      if (!laneModels.length) return replaceChildrenById("lanes", [empty("No agent lanes in snapshot")]);
+      replaceChildrenById("lanes", laneModels.map((lane) => {
         const element = document.createElement("article");
         element.className = "lane";
         const color = colors[lane.colorHint] || colors.white;
+        const peerWindows = peerWindowsByLane.get(lane.laneId) || {};
+        const windowCount = peerWindows.windowInstanceCount ?? lane.windowInstanceCount ?? null;
+        const count = windowCount ?? lane.pidCount;
         element.innerHTML = `
           <span class="lane-strip" style="background:${color}"></span>
           <div>
             <h3>${text(lane.label, lane.laneId)}</h3>
             <p class="sub">${text(lane.surfaceKind)} / ${text(lane.healthState)}</p>
+            <p class="sub">${windowCount === null ? "window inventory pending" : `${windowCount} windows / ${lane.pidCount} pids`}</p>
             <p class="sub">${text(lane.semanticPrefix)}</p>
           </div>
-          <span class="count">${lane.pidCount}</span>
+          <span class="count">${count}</span>
         `;
         return element;
       }));
@@ -531,16 +554,21 @@
     function renderApps(apps) {
       if (!apps.length) return replaceChildrenById("apps", [empty("No legacy apps in snapshot")]);
       const absorptionByName = new Map((legacyAbsorption?.appGroups || []).map((app) => [String(app.appName).toLowerCase(), app]));
+      const windowsByName = new Map((legacyWindowInventory?.appGroups || []).map((app) => [String(app.appName).toLowerCase(), app]));
+      const hasWindowInventory = Boolean(legacyWindowInventory?.schemaVersion);
       replaceChildrenById("apps", apps.map((app) => {
         const absorbed = absorptionByName.get(String(app.appName).toLowerCase()) || {};
+        const windowGroup = windowsByName.get(String(app.appName).toLowerCase()) || absorbed;
+        const windowCount = windowGroup.windowInstanceCount ?? 0;
+        const count = hasWindowInventory ? windowCount : app.observedProcessCount;
         const element = document.createElement("article");
         element.className = "app";
         element.innerHTML = `
           <div>
             <h3>${text(app.appName, "legacy app")}</h3>
-            <p class="sub">${text(absorbed.archetype, "legacy_app")} / ${text(app.mutationPolicy)} / PID ${text((app.samplePids || [])[0], "n/a")}</p>
+            <p class="sub">${text(absorbed.archetype, windowGroup.archetype || "legacy_app")} / ${windowCount} windows / PID ${text((app.samplePids || [])[0], "n/a")}</p>
           </div>
-          <span class="count">${app.observedProcessCount}</span>
+          <span class="count">${count}</span>
         `;
         return element;
       }));
@@ -551,6 +579,7 @@
       const summary = model.summary || {};
       const custodySummary = custody?.summary || {};
       const legacySummary = legacyAbsorption?.summary || {};
+      const windowSummary = legacyWindowInventory?.summary || {};
       const brief = custody?.brittneyBrief || {};
       const legacyBrief = legacyAbsorption?.brittneyBrief || {};
       const operator = operatorBrief || {};
@@ -564,7 +593,8 @@
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
         ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.observedOwnerCount || 0} lane / ${custodySummary.ownerUnknownCount || 0} unknown`],
         ["Brittney Next", brief.requiredNextAction || "Run custody snapshot first"],
-        ["Legacy Absorption", `${legacySummary.captureCandidateCount || 0} capture candidates / ${legacySummary.preflightRequiredCount || 0} gated`],
+        ["Peer Windows", `${windowSummary.peerWindowCount || 0} windows / ${windowSummary.peerSurfaceCount || 0} peers`],
+        ["Legacy Absorption", `${legacySummary.visibleWindowCount || windowSummary.visibleWindowCount || 0} windows / ${legacySummary.captureCandidateCount || 0} capture candidates`],
         ["Legacy Next", legacyBrief.requiredNextAction || "Legacy app absorption snapshot first"],
         ["Raw Commands", model.receipt?.rawCommandsIncluded ? "visible" : "hidden"]
       ];

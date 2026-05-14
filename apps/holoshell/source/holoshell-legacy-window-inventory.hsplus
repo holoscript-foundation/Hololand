@@ -1,0 +1,141 @@
+// HoloShell Legacy Window Inventory
+//
+// Top-level Windows windows are the real peer-instance surface. Process counts
+// are useful for health, but they are not the number of windows the user and
+// Brittney can actually see.
+
+composition "HoloShell Legacy Window Inventory" {
+  config {
+    title: "Legacy Window Inventory"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-legacy-window-inventory.mjs"
+    defaultMode: "read_only_window_truth"
+  }
+
+  state {
+    visibleWindowCount: 0
+    appGroupCount: 0
+    peerSurfaceCount: 0
+    peerWindowCount: 0
+    captureCandidateCount: 0
+    rawWindowTitlesIncluded: false
+    destructiveActionsTaken: false
+    lastWindowInventoryReceiptId: ""
+  }
+
+  channel "holoshell:legacy:windows" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Read-only top-level window inventory for peer instance counts and legacy surfaces"
+  }
+
+  template "LegacyWindowObject" {
+    type: "machine"
+    machineType: "legacy_window"
+    windowId: ""
+    windowHandle: ""
+    pid: 0
+    appName: ""
+    appLabel: ""
+    archetype: "legacy_window"
+    titleHash: ""
+    titleLabel: ""
+    rawTitleHidden: true
+    receiptRequired: true
+  }
+
+  template "PeerWindowSurface" {
+    type: "machine"
+    machineType: "peer_window_surface"
+    laneId: ""
+    label: ""
+    peerKind: "agent"
+    windowInstanceCount: 0
+    processCount: 0
+    evidence: "top_level_windows"
+    rawTitleHidden: true
+    receiptRequired: true
+  }
+
+  room "LegacyWindowInventoryRoom" {
+    label: "Legacy Windows"
+    userQuestion: "How many real peer windows and legacy app windows are visible?"
+    visualForm: "window_instance_map"
+    liveFeed: "holoshell:legacy:windows"
+
+    object "VisibleWindows" {
+      type: "ui"
+      uiType: "window_counter"
+      label: "Visible Windows"
+      count: $visibleWindowCount
+    }
+
+    object "PeerWindows" {
+      type: "ui"
+      uiType: "peer_window_counter"
+      label: "Peer Windows"
+      count: $peerWindowCount
+      groups: $peerSurfaceCount
+    }
+
+    object "CaptureCandidates" {
+      type: "ui"
+      uiType: "capture_queue"
+      label: "Window Capture Candidates"
+      count: $captureCandidateCount
+    }
+  }
+
+  policy "WindowCountsBeatPidCounts" {
+    appliesTo: ["peer_instance_count", "agent_lane_display", "brittney_peer_context"]
+    preferredSource: "top_level_windows"
+    pidCountsAreHealthSignalOnly: true
+    rawTitleHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "WindowInventoryIsReadOnly" {
+    appliesTo: ["legacy_window", "peer_window_surface"]
+    destructiveActionsAllowed: false
+    closeWindowAllowed: false
+    clickAllowed: false
+    mutationRequiresPreflight: true
+    receiptRequired: true
+  }
+
+  action consume_window_inventory(snapshot) {
+    state.visibleWindowCount = snapshot.summary.visibleWindowCount
+    state.appGroupCount = snapshot.summary.appGroupCount
+    state.peerSurfaceCount = snapshot.summary.peerSurfaceCount
+    state.peerWindowCount = snapshot.summary.peerWindowCount
+    state.captureCandidateCount = snapshot.summary.captureCandidateCount
+    state.rawWindowTitlesIncluded = snapshot.summary.rawWindowTitlesIncluded
+    state.destructiveActionsTaken = snapshot.summary.destructiveActionsTaken
+    state.lastWindowInventoryReceiptId = snapshot.receipt.windowInventoryHash
+
+    emit("holoshell:legacy:windows", {
+      visibleWindows: state.visibleWindowCount,
+      appGroups: state.appGroupCount,
+      peerSurfaces: state.peerSurfaceCount,
+      peerWindows: state.peerWindowCount,
+      captureCandidates: state.captureCandidateCount,
+      rawWindowTitlesIncluded: state.rawWindowTitlesIncluded,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      receipt: state.lastWindowInventoryReceiptId
+    })
+  }
+
+  action publish_peer_surface(peer) {
+    emit("holoshell:legacy:windows", {
+      laneId: peer.laneId,
+      label: peer.label,
+      peerKind: peer.peerKind,
+      windowInstanceCount: peer.windowInstanceCount,
+      processCount: peer.processCount,
+      evidence: "top_level_windows",
+      rawTitleHidden: true,
+      receiptRequired: true
+    })
+  }
+}

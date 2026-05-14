@@ -14,6 +14,7 @@ The operator brief merges:
 
 - hardware reality
 - run custody
+- legacy window inventory
 - legacy app absorption
 
 It says what is safe, what is blocked, what needs preflight, and what the next
@@ -24,6 +25,7 @@ non-destructive action should be.
 ```powershell
 pnpm run holoshell:hardware-reality
 pnpm run holoshell:run-custody
+pnpm run holoshell:legacy-windows
 pnpm run holoshell:legacy-apps
 pnpm run holoshell:operator-brief
 ```
@@ -59,6 +61,10 @@ Allowed by default:
 - capture window
 - map visible controls
 - summarize visible state
+
+Peer counts come from `legacy-window-inventory.json`. PID counts remain useful
+for custody and health, but Brittney should use top-level window counts when
+describing how many peer instances are actually visible.
 
 ## Brittney Rule
 

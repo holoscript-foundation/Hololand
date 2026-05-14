@@ -19,6 +19,9 @@ composition "HoloShell Operator Brief" {
     activeLaneCount: 0
     observedOwnerRunCount: 0
     ownerUnknownRunCount: 0
+    visibleWindowCount: 0
+    peerWindowCount: 0
+    peerSurfaceCount: 0
     legacyCaptureCandidateCount: 0
     blockedActionCount: 0
     destructiveActionsTaken: false
@@ -68,7 +71,16 @@ composition "HoloShell Operator Brief" {
       type: "ui"
       uiType: "operator_state"
       label: "Legacy Apps"
+      visibleWindows: $visibleWindowCount
       captureCandidates: $legacyCaptureCandidateCount
+    }
+
+    object "PeerWindowState" {
+      type: "ui"
+      uiType: "peer_window_state"
+      label: "Peer Windows"
+      windows: $peerWindowCount
+      surfaces: $peerSurfaceCount
     }
 
     object "BlockedActions" {
@@ -83,7 +95,16 @@ composition "HoloShell Operator Brief" {
   policy "AgentsConsumeBriefBeforeAction" {
     appliesTo: ["brittney_turn", "agent_shell_action", "legacy_app_operation", "run_custody_action"]
     requiredInput: "holoshell_operator_brief"
-    sourceFiles: ["hardware-reality.json", "run-custody.json", "legacy-app-absorption.json"]
+    sourceFiles: ["hardware-reality.json", "run-custody.json", "legacy-window-inventory.json", "legacy-app-absorption.json"]
+    receiptRequired: true
+  }
+
+  policy "BrittneyUsesWindowCountsForPeers" {
+    appliesTo: ["peer_instance_count", "agent_lane_display", "brittney_peer_context"]
+    requiredInput: "legacy_window_inventory"
+    pidCountsAreHealthSignalOnly: true
+    topLevelWindowCountsArePresenceSignal: true
+    rawTitleHiddenByDefault: true
     receiptRequired: true
   }
 
@@ -100,6 +121,9 @@ composition "HoloShell Operator Brief" {
     state.activeLaneCount = brief.hardware.activeLaneCount
     state.observedOwnerRunCount = brief.runs.observedOwnerCount
     state.ownerUnknownRunCount = brief.runs.ownerUnknownCount
+    state.visibleWindowCount = brief.legacy.visibleWindowCount
+    state.peerWindowCount = brief.peers.windowInstanceCount
+    state.peerSurfaceCount = brief.peers.surfaceCount
     state.legacyCaptureCandidateCount = brief.legacy.captureCandidateCount
     state.blockedActionCount = brief.blockedActions.length
     state.destructiveActionsTaken = brief.safety.destructiveActionsTaken
@@ -111,6 +135,9 @@ composition "HoloShell Operator Brief" {
       activeLanes: state.activeLaneCount,
       observedOwnerRuns: state.observedOwnerRunCount,
       ownerUnknownRuns: state.ownerUnknownRunCount,
+      visibleWindows: state.visibleWindowCount,
+      peerWindows: state.peerWindowCount,
+      peerSurfaces: state.peerSurfaceCount,
       legacyCaptureCandidates: state.legacyCaptureCandidateCount,
       blockedActions: state.blockedActionCount,
       destructiveActionsTaken: state.destructiveActionsTaken,

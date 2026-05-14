@@ -16,6 +16,9 @@ composition "HoloShell Legacy App Absorption" {
 
   state {
     observedAppCount: 0
+    visibleWindowCount: 0
+    peerWindowCount: 0
+    peerSurfaceCount: 0
     appGroupCount: 0
     captureCandidateCount: 0
     preflightRequiredCount: 0
@@ -42,6 +45,9 @@ composition "HoloShell Legacy App Absorption" {
     appName: ""
     archetype: "unknown_legacy_app"
     observedProcessCount: 0
+    windowInstanceCount: 0
+    sampleWindowIds: []
+    rawTitleHidden: true
     captureCandidate: true
     mutationPolicy: "preflight_required"
     receiptRequired: true
@@ -53,6 +59,7 @@ composition "HoloShell Legacy App Absorption" {
     appName: ""
     archetype: ""
     observedProcessCount: 0
+    windowInstanceCount: 0
     safeActions: []
     blockedActions: []
     destructiveActionsTaken: false
@@ -69,6 +76,21 @@ composition "HoloShell Legacy App Absorption" {
       uiType: "legacy_app_counter"
       label: "Observed Apps"
       count: $observedAppCount
+    }
+
+    object "VisibleLegacyWindows" {
+      type: "ui"
+      uiType: "legacy_window_counter"
+      label: "Visible Windows"
+      count: $visibleWindowCount
+    }
+
+    object "PeerWindows" {
+      type: "ui"
+      uiType: "peer_window_counter"
+      label: "Peer Windows"
+      count: $peerWindowCount
+      groups: $peerSurfaceCount
     }
 
     object "CaptureCandidates" {
@@ -95,6 +117,14 @@ composition "HoloShell Legacy App Absorption" {
     receiptRequired: true
   }
 
+  policy "WindowCountsBeatPidCounts" {
+    appliesTo: ["peer_instance_count", "legacy_window_count", "brittney_peer_context"]
+    preferredSource: "holoshell_legacy_window_inventory"
+    pidCountsAreHealthSignalOnly: true
+    rawTitleHiddenByDefault: true
+    receiptRequired: true
+  }
+
   policy "LegacyMutationPreflight" {
     appliesTo: ["click_destructive_ui", "change_app_setting", "alter_registry", "uninstall_app", "close_window", "submit_form"]
     mcpToolRequired: "holoshell_preflight_legacy_app_mutation"
@@ -114,6 +144,9 @@ composition "HoloShell Legacy App Absorption" {
 
   action consume_legacy_absorption(snapshot) {
     state.observedAppCount = snapshot.summary.observedAppCount
+    state.visibleWindowCount = snapshot.summary.visibleWindowCount
+    state.peerWindowCount = snapshot.summary.peerWindowCount
+    state.peerSurfaceCount = snapshot.summary.peerSurfaceCount
     state.appGroupCount = snapshot.summary.appGroupCount
     state.captureCandidateCount = snapshot.summary.captureCandidateCount
     state.preflightRequiredCount = snapshot.summary.preflightRequiredCount
@@ -123,6 +156,9 @@ composition "HoloShell Legacy App Absorption" {
 
     emit("holoshell:legacy:absorption", {
       observedApps: state.observedAppCount,
+      visibleWindows: state.visibleWindowCount,
+      peerWindows: state.peerWindowCount,
+      peerSurfaces: state.peerSurfaceCount,
       groups: state.appGroupCount,
       captureCandidates: state.captureCandidateCount,
       preflightRequired: state.preflightRequiredCount,

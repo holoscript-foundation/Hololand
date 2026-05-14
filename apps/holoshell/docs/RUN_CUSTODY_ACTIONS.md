@@ -66,6 +66,10 @@ parent PID, run custody marks it `lane_observed`. That reduces false
 `owner_unknown` noise without pretending a custody receipt has already been
 written.
 
+Run custody is still a process-health surface. Peer instance counts should come
+from `legacy-window-inventory.json`, because visible windows are what Brittney
+and the user experience can actually operate.
+
 ## Rules
 
 1. Stale does not mean kill.

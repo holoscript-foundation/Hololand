@@ -8,6 +8,7 @@ const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/
 const DEFAULT_HARDWARE_REALITY = path.join('.tmp', 'holoshell', 'hardware-reality.json');
 const DEFAULT_RUN_CUSTODY = path.join('.tmp', 'holoshell', 'run-custody.json');
 const DEFAULT_LEGACY_ABSORPTION = path.join('.tmp', 'holoshell', 'legacy-app-absorption.json');
+const DEFAULT_LEGACY_WINDOWS = path.join('.tmp', 'holoshell', 'legacy-window-inventory.json');
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'operator-brief.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'operator-brief.js');
 
@@ -16,6 +17,7 @@ function parseArgs(argv) {
     hardwareReality: DEFAULT_HARDWARE_REALITY,
     runCustody: DEFAULT_RUN_CUSTODY,
     legacyAbsorption: DEFAULT_LEGACY_ABSORPTION,
+    legacyWindows: DEFAULT_LEGACY_WINDOWS,
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
     json: false,
@@ -28,6 +30,7 @@ function parseArgs(argv) {
     else if (arg === '--hardware-reality') args.hardwareReality = argv[++index];
     else if (arg === '--run-custody') args.runCustody = argv[++index];
     else if (arg === '--legacy-absorption') args.legacyAbsorption = argv[++index];
+    else if (arg === '--legacy-windows') args.legacyWindows = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
     else if (arg === '--json') args.json = true;
@@ -52,6 +55,7 @@ Options:
   --hardware-reality <path>    Hardware reality JSON.
   --run-custody <path>         Run custody JSON.
   --legacy-absorption <path>   Legacy absorption JSON.
+  --legacy-windows <path>      Legacy window inventory JSON.
   --output <path>              Output JSON. Default: .tmp/holoshell/operator-brief.json.
   --js-output <path>           Browser bootstrap JS. Default: .tmp/holoshell/operator-brief.js.
   --json                       Print JSON.
@@ -81,6 +85,11 @@ function loadInput(filePath, label) {
     throw new Error(`${label} not found: ${resolved}. Run holoshell:hardware-reality, holoshell:run-custody, and holoshell:legacy-apps first.`);
   }
   return readJson(resolved);
+}
+
+function loadOptionalInput(filePath) {
+  const resolved = resolveRepoPath(filePath);
+  return existsSync(resolved) ? readJson(resolved) : null;
 }
 
 function syntheticInputs() {
@@ -121,6 +130,9 @@ function syntheticInputs() {
     legacyAbsorption: {
       summary: {
         observedAppCount: 3,
+        visibleWindowCount: 4,
+        peerSurfaceCount: 2,
+        peerWindowCount: 2,
         appGroupCount: 2,
         captureCandidateCount: 2,
         preflightRequiredCount: 2,
@@ -135,6 +147,26 @@ function syntheticInputs() {
       },
       receipt: { absorptionHash: 'legacy-fixture' },
     },
+    legacyWindows: {
+      summary: {
+        visibleWindowCount: 4,
+        peerSurfaceCount: 2,
+        peerWindowCount: 2,
+        rawWindowTitlesIncluded: false,
+      },
+      peerSurfaces: [
+        { laneId: 'codex', label: 'Codex', windowInstanceCount: 1, processCount: 1 },
+        { laneId: 'claude', label: 'Claude', windowInstanceCount: 1, processCount: 1 },
+      ],
+      brittneyBrief: {
+        status: 'legacy_windows_visible',
+        requiredNextAction: 'Use legacy window inventory for peer instance counts before trusting PID lane counts.',
+        peerWindowSummary: 'Codex:1, Claude:1',
+        blockedActions: ['close_window', 'click_destructive_ui'],
+      },
+      safety: { destructiveActionsTaken: false, rawWindowTitlesIncluded: false },
+      receipt: { windowInventoryHash: 'window-fixture', rawWindowTitlesIncluded: false },
+    },
   };
 }
 
@@ -144,6 +176,18 @@ function loadInputs(args) {
     hardwareReality: loadInput(args.hardwareReality, 'hardware reality'),
     runCustody: loadInput(args.runCustody, 'run custody'),
     legacyAbsorption: loadInput(args.legacyAbsorption, 'legacy absorption'),
+    legacyWindows: loadOptionalInput(args.legacyWindows) || {
+      summary: { visibleWindowCount: 0, peerSurfaceCount: 0, peerWindowCount: 0, rawWindowTitlesIncluded: false },
+      peerSurfaces: [],
+      brittneyBrief: {
+        status: 'window_inventory_missing',
+        requiredNextAction: 'Run holoshell:legacy-windows before trusting peer instance counts.',
+        peerWindowSummary: 'window inventory missing',
+        blockedActions: ['close_window', 'click_destructive_ui'],
+      },
+      safety: { destructiveActionsTaken: false, rawWindowTitlesIncluded: false },
+      receipt: { windowInventoryHash: null, rawWindowTitlesIncluded: false },
+    },
   };
 }
 
@@ -159,13 +203,20 @@ function statusFor({ hardwareReality, runCustody, legacyAbsorption }) {
   return 'ready';
 }
 
-function buildNextActions({ hardwareReality, runCustody, legacyAbsorption }) {
+function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legacyWindows }) {
   const actions = [];
   if (runCustody.brittneyBrief?.requiredNextAction) {
     actions.push({
       source: 'run_custody',
       priority: (runCustody.summary?.ownerUnknownCount || 0) > 0 ? 'high' : 'medium',
       action: runCustody.brittneyBrief.requiredNextAction,
+    });
+  }
+  if (legacyWindows.brittneyBrief?.requiredNextAction && (legacyWindows.summary?.peerWindowCount || 0) > 0) {
+    actions.push({
+      source: 'legacy_windows',
+      priority: 'high',
+      action: legacyWindows.brittneyBrief.requiredNextAction,
     });
   }
   if (legacyAbsorption.brittneyBrief?.requiredNextAction) {
@@ -186,10 +237,11 @@ function buildNextActions({ hardwareReality, runCustody, legacyAbsorption }) {
 }
 
 function createBrief(inputs) {
-  const { hardwareReality, runCustody, legacyAbsorption } = inputs;
+  const { hardwareReality, runCustody, legacyAbsorption, legacyWindows } = inputs;
   const blockedActions = unique([
     ...safeArray(runCustody.brittneyBrief?.blockedActions),
     ...safeArray(legacyAbsorption.brittneyBrief?.blockedActions),
+    ...safeArray(legacyWindows.brittneyBrief?.blockedActions),
     'kill_process',
     'delete_file',
     'legacy_app_mutation',
@@ -212,6 +264,7 @@ function createBrief(inputs) {
       hardwareReality.safety?.destructiveActionsTaken
         || runCustody.safety?.destructiveActionsTaken
         || legacyAbsorption.safety?.destructiveActionsTaken
+        || legacyWindows.safety?.destructiveActionsTaken
     ),
     rawCommandsIncluded: Boolean(
       hardwareReality.receipt?.rawCommandsIncluded
@@ -220,6 +273,7 @@ function createBrief(inputs) {
     ),
     preflightRequiredForTermination: Boolean(hardwareReality.safety?.preflightRequiredForTermination),
     preflightRequiredForLegacyMutation: Boolean(legacyAbsorption.safety?.preflightRequiredForMutation),
+    rawWindowTitlesIncluded: Boolean(legacyWindows.safety?.rawWindowTitlesIncluded || legacyWindows.receipt?.rawWindowTitlesIncluded),
   };
   const brief = {
     schemaVersion: SCHEMA_VERSION,
@@ -230,6 +284,7 @@ function createBrief(inputs) {
       hardwareReality: 'scripts/holoshell-hardware-reality-bridge.mjs',
       runCustody: 'scripts/holoshell-run-custody-actions.mjs',
       legacyAbsorption: 'scripts/holoshell-legacy-app-absorption.mjs',
+      legacyWindows: 'scripts/holoshell-legacy-window-inventory.mjs',
     },
     status: statusFor(inputs),
     hardware: {
@@ -253,11 +308,29 @@ function createBrief(inputs) {
     },
     legacy: {
       observedAppCount: legacyAbsorption.summary?.observedAppCount || 0,
+      visibleWindowCount: legacyAbsorption.summary?.visibleWindowCount || legacyWindows.summary?.visibleWindowCount || 0,
+      peerSurfaceCount: legacyAbsorption.summary?.peerSurfaceCount || legacyWindows.summary?.peerSurfaceCount || 0,
+      peerWindowCount: legacyAbsorption.summary?.peerWindowCount || legacyWindows.summary?.peerWindowCount || 0,
       appGroupCount: legacyAbsorption.summary?.appGroupCount || 0,
       captureCandidateCount: legacyAbsorption.summary?.captureCandidateCount || 0,
       preflightRequiredCount: legacyAbsorption.summary?.preflightRequiredCount || 0,
       mutationAllowedCount: legacyAbsorption.summary?.mutationAllowedCount || 0,
       absorptionHash: legacyAbsorption.receipt?.absorptionHash || null,
+      windowInventoryHash: legacyWindows.receipt?.windowInventoryHash || null,
+    },
+    peers: {
+      source: 'legacy_window_inventory',
+      windowInstanceCount: legacyWindows.summary?.peerWindowCount || 0,
+      surfaceCount: legacyWindows.summary?.peerSurfaceCount || 0,
+      rawWindowTitlesIncluded: Boolean(legacyWindows.summary?.rawWindowTitlesIncluded),
+      surfaces: safeArray(legacyWindows.peerSurfaces).map((peer) => ({
+        laneId: peer.laneId,
+        label: peer.label,
+        peerKind: peer.peerKind,
+        windowInstanceCount: peer.windowInstanceCount || 0,
+        processCount: peer.processCount || 0,
+        evidence: peer.evidence || 'top_level_windows',
+      })),
     },
     allowedActions,
     blockedActions,
@@ -267,6 +340,7 @@ function createBrief(inputs) {
       instruction: 'Use this brief before proposing shell, process, file, or legacy-app actions. Prefer read-only observation and custody receipts. Route destructive work through HoloShell MCP preflights.',
       mustNot: blockedActions,
       firstMove: nextActions[0]?.action || 'Continue read-only observation.',
+      peerWindowSummary: legacyWindows.brittneyBrief?.peerWindowSummary || safeArray(legacyWindows.peerSurfaces).map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
     },
     agentConsumption: {
       rest: '.tmp/holoshell/operator-brief.json',
@@ -274,6 +348,7 @@ function createBrief(inputs) {
       requiredRefreshOrder: [
         'pnpm run holoshell:hardware-reality',
         'pnpm run holoshell:run-custody',
+        'pnpm run holoshell:legacy-windows',
         'pnpm run holoshell:legacy-apps',
         'pnpm run holoshell:operator-brief',
       ],
@@ -288,11 +363,13 @@ function createBrief(inputs) {
         hardware: brief.hardware,
         runs: brief.runs,
         legacy: brief.legacy,
+        peers: brief.peers,
         blockedActions,
         safety,
       })),
       destructiveActionsTaken: safety.destructiveActionsTaken,
       rawCommandsIncluded: safety.rawCommandsIncluded,
+      rawWindowTitlesIncluded: safety.rawWindowTitlesIncluded,
     },
   };
 }
@@ -318,9 +395,11 @@ function assertSelfTest(brief) {
   if (!brief.blockedActions.includes('kill_process')) failures.push('kill_process must be blocked');
   if (!brief.blockedActions.includes('legacy_app_mutation')) failures.push('legacy_app_mutation must be blocked');
   if (!brief.allowedActions.includes('claim_run')) failures.push('claim_run should be allowed');
+  if (brief.peers.windowInstanceCount < 2) failures.push('expected synthetic peer window instances');
   if (!brief.nextActions.length) failures.push('expected next action');
   if (brief.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (brief.safety.rawCommandsIncluded !== false) failures.push('raw commands must be hidden');
+  if (brief.safety.rawWindowTitlesIncluded !== false) failures.push('raw window titles must be hidden');
   if (!brief.receipt.briefHash) failures.push('missing brief hash');
   const serialized = JSON.stringify(brief);
   if (/commandLine|CommandLine|command_summary/.test(serialized)) failures.push('raw command text leaked');
@@ -345,6 +424,7 @@ function main() {
     console.log(`Status: ${brief.status}`);
     console.log(`Hardware risk: ${brief.hardware.riskState}`);
     console.log(`Owner unknown runs: ${brief.runs.ownerUnknownCount}`);
+    console.log(`Peer windows: ${brief.peers.windowInstanceCount}`);
     console.log(`Legacy capture candidates: ${brief.legacy.captureCandidateCount}`);
     console.log(`Blocked actions: ${brief.blockedActions.length}`);
     console.log(`Destructive actions: ${brief.safety.destructiveActionsTaken}`);

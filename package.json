@@ -33,6 +33,7 @@
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
     "holoshell:intent-gate": "node scripts/holoshell-brain-intent-gate.mjs --strict",
     "holoshell:run-custody": "node scripts/holoshell-run-custody-actions.mjs",
+    "holoshell:legacy-windows": "node scripts/holoshell-legacy-window-inventory.mjs",
     "holoshell:legacy-apps": "node scripts/holoshell-legacy-app-absorption.mjs",
     "holoshell:operator-brief": "node scripts/holoshell-operator-brief.mjs",
     "brittney": "npx tsx scripts/start-brittney.ts",

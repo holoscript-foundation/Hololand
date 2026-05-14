@@ -6,12 +6,14 @@ import path from 'node:path';
 const SCHEMA_VERSION = 'hololand.holoshell.legacy-app-absorption.v0.1.0';
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_HARDWARE_REALITY = path.join('.tmp', 'holoshell', 'hardware-reality.json');
+const DEFAULT_WINDOW_INVENTORY = path.join('.tmp', 'holoshell', 'legacy-window-inventory.json');
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'legacy-app-absorption.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'legacy-app-absorption.js');
 
 function parseArgs(argv) {
   const args = {
     hardwareReality: DEFAULT_HARDWARE_REALITY,
+    windowInventory: DEFAULT_WINDOW_INVENTORY,
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
     json: false,
@@ -22,6 +24,7 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === '--') continue;
     else if (arg === '--hardware-reality') args.hardwareReality = argv[++index];
+    else if (arg === '--window-inventory') args.windowInventory = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
     else if (arg === '--json') args.json = true;
@@ -45,6 +48,7 @@ Usage:
 
 Options:
   --hardware-reality <path>   Hardware reality JSON. Default: .tmp/holoshell/hardware-reality.json.
+  --window-inventory <path>   Legacy window inventory JSON. Default: .tmp/holoshell/legacy-window-inventory.json.
   --output <path>             Snapshot output. Default: .tmp/holoshell/legacy-app-absorption.json.
   --js-output <path>          Browser bootstrap JS. Default: .tmp/holoshell/legacy-app-absorption.js.
   --json                      Print snapshot JSON.
@@ -62,6 +66,10 @@ function readJson(filePath) {
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function unique(values) {
+  return [...new Set(values.filter((value) => value !== undefined && value !== null && value !== ''))];
 }
 
 function sha256(value) {
@@ -90,11 +98,75 @@ function syntheticHardwareReality() {
   };
 }
 
+function syntheticWindowInventory() {
+  return {
+    schemaVersion: 'hololand.holoshell.legacy-window-inventory.v0.1.0',
+    generatedAt: '2026-05-14T00:00:00.000Z',
+    summary: {
+      visibleWindowCount: 4,
+      peerSurfaceCount: 2,
+      peerWindowCount: 2,
+      captureCandidateCount: 4,
+      rawWindowTitlesIncluded: false,
+    },
+    appGroups: [
+      { appName: 'codex', label: 'Codex', archetype: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1, pids: [101], sampleWindowIds: ['window-codex'], titleLabels: ['codex_home'] },
+      { appName: 'claude', label: 'Claude', archetype: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1, pids: [202], sampleWindowIds: ['window-claude'], titleLabels: ['claude_home'] },
+      { appName: 'msedge', label: 'Microsoft Edge', archetype: 'browser', windowInstanceCount: 1, processCount: 1, pids: [303], sampleWindowIds: ['window-edge'], titleLabels: ['browser_window'] },
+      { appName: 'explorer', label: 'File Explorer', archetype: 'file_manager', windowInstanceCount: 1, processCount: 1, pids: [505], sampleWindowIds: ['window-explorer'], titleLabels: ['file_explorer_window'] },
+    ],
+    peerSurfaces: [
+      { laneId: 'codex', label: 'Codex', windowInstanceCount: 1, processCount: 1, pids: [101], sampleWindowIds: ['window-codex'] },
+      { laneId: 'claude', label: 'Claude', windowInstanceCount: 1, processCount: 1, pids: [202], sampleWindowIds: ['window-claude'] },
+    ],
+    brittneyBrief: {
+      status: 'legacy_windows_visible',
+      requiredNextAction: 'Use legacy window inventory for peer instance counts before trusting PID lane counts.',
+      blockedActions: ['close_window', 'click_destructive_ui', 'alter_registry'],
+    },
+    receipt: {
+      windowInventoryHash: 'window-fixture',
+      destructiveActionsTaken: false,
+      rawWindowTitlesIncluded: false,
+    },
+  };
+}
+
 function loadHardwareReality(args) {
   if (args.selfTest) return syntheticHardwareReality();
   const resolved = resolveRepoPath(args.hardwareReality);
   if (!existsSync(resolved)) {
     throw new Error(`Hardware reality not found: ${resolved}. Run pnpm run holoshell:hardware-reality first.`);
+  }
+  return readJson(resolved);
+}
+
+function loadWindowInventory(args) {
+  if (args.selfTest) return syntheticWindowInventory();
+  const resolved = resolveRepoPath(args.windowInventory);
+  if (!existsSync(resolved)) {
+    return {
+      schemaVersion: 'hololand.holoshell.legacy-window-inventory.missing.v0.1.0',
+      summary: {
+        visibleWindowCount: 0,
+        peerSurfaceCount: 0,
+        peerWindowCount: 0,
+        captureCandidateCount: 0,
+        rawWindowTitlesIncluded: false,
+      },
+      appGroups: [],
+      peerSurfaces: [],
+      brittneyBrief: {
+        status: 'window_inventory_missing',
+        requiredNextAction: 'Run holoshell:legacy-windows before trusting peer instance counts.',
+        blockedActions: ['close_window', 'click_destructive_ui', 'alter_registry'],
+      },
+      receipt: {
+        windowInventoryHash: null,
+        destructiveActionsTaken: false,
+        rawWindowTitlesIncluded: false,
+      },
+    };
   }
   return readJson(resolved);
 }
@@ -134,22 +206,60 @@ function blockedActionsFor(archetype) {
   return blocked;
 }
 
-function appGroups(hardwareReality) {
-  return safeArray(hardwareReality.legacyApps).map((app) => {
-    const archetype = archetypeFor(app.appName);
-    return {
-      appName: app.appName || 'legacy_app',
-      archetype,
-      observedProcessCount: Number(app.observedProcessCount || 0),
-      samplePids: safeArray(app.samplePids).slice(0, 8),
-      captureCandidate: archetype !== 'automation_bridge' || Number(app.observedProcessCount || 0) > 0,
-      mutationPolicy: 'preflight_required',
-      safeActions: safeActionsFor(archetype),
-      blockedActions: blockedActionsFor(archetype),
-      preflightTool: 'holoshell_preflight_legacy_app_mutation',
-      receiptRequired: true,
-    };
-  }).sort((left, right) => right.observedProcessCount - left.observedProcessCount);
+function appGroups(hardwareReality, windowInventory) {
+  const groups = new Map();
+  const ensureGroup = (appName, archetypeHint = '') => {
+    const normalized = String(appName || 'legacy_app').toLowerCase();
+    if (!groups.has(normalized)) {
+      const archetype = archetypeHint || archetypeFor(normalized);
+      groups.set(normalized, {
+        appName: normalized,
+        label: normalized,
+        archetype,
+        observedProcessCount: 0,
+        windowInstanceCount: 0,
+        windowProcessCount: 0,
+        samplePids: [],
+        sampleWindowIds: [],
+        titleLabels: [],
+        captureCandidate: false,
+        mutationPolicy: 'preflight_required',
+        safeActions: safeActionsFor(archetype),
+        blockedActions: blockedActionsFor(archetype),
+        preflightTool: 'holoshell_preflight_legacy_app_mutation',
+        receiptRequired: true,
+      });
+    }
+    return groups.get(normalized);
+  };
+
+  for (const app of safeArray(hardwareReality.legacyApps)) {
+    const group = ensureGroup(app.appName, archetypeFor(app.appName));
+    group.label = group.label || app.appName || group.appName;
+    group.observedProcessCount += Number(app.observedProcessCount || 0);
+    group.samplePids = unique([...group.samplePids, ...safeArray(app.samplePids)]).slice(0, 16);
+  }
+
+  for (const windowGroup of safeArray(windowInventory.appGroups)) {
+    const group = ensureGroup(windowGroup.appName, windowGroup.archetype || archetypeFor(windowGroup.appName));
+    group.label = windowGroup.label || group.label;
+    group.archetype = windowGroup.archetype || group.archetype;
+    group.windowInstanceCount += Number(windowGroup.windowInstanceCount || 0);
+    group.windowProcessCount = Math.max(group.windowProcessCount, Number(windowGroup.processCount || 0));
+    group.samplePids = unique([...group.samplePids, ...safeArray(windowGroup.pids)]).slice(0, 16);
+    group.sampleWindowIds = unique([...group.sampleWindowIds, ...safeArray(windowGroup.sampleWindowIds)]).slice(0, 12);
+    group.titleLabels = unique([...group.titleLabels, ...safeArray(windowGroup.titleLabels)]).slice(0, 12);
+  }
+
+  return [...groups.values()].map((group) => ({
+    ...group,
+    captureCandidate: group.windowInstanceCount > 0 || group.archetype !== 'automation_bridge' || group.observedProcessCount > 0,
+    safeActions: safeActionsFor(group.archetype),
+    blockedActions: blockedActionsFor(group.archetype),
+  })).sort((left, right) => {
+    const byWindows = right.windowInstanceCount - left.windowInstanceCount;
+    return byWindows || right.observedProcessCount - left.observedProcessCount;
+  });
 }
 
 function buildRecommendations(groups) {
@@ -192,10 +302,12 @@ function buildRecommendations(groups) {
   return recommendations.slice(0, 16);
 }
 
-function createSnapshot(hardwareReality) {
-  const groups = appGroups(hardwareReality);
+function createSnapshot(hardwareReality, windowInventory) {
+  const groups = appGroups(hardwareReality, windowInventory);
   const recommendations = buildRecommendations(groups);
   const observedAppCount = groups.reduce((sum, app) => sum + app.observedProcessCount, 0);
+  const visibleWindowCount = windowInventory.summary?.visibleWindowCount || 0;
+  const peerWindowCount = windowInventory.summary?.peerWindowCount || 0;
   const snapshot = {
     schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
@@ -203,9 +315,14 @@ function createSnapshot(hardwareReality) {
       source: 'apps/holoshell/source/holoshell-legacy-app-absorption.hsplus',
       adapter: 'scripts/holoshell-legacy-app-absorption.mjs',
       hardwareReality: 'scripts/holoshell-hardware-reality-bridge.mjs',
+      windowInventory: 'scripts/holoshell-legacy-window-inventory.mjs',
     },
     summary: {
       observedAppCount,
+      visibleWindowCount,
+      windowAppGroupCount: safeArray(windowInventory.appGroups).length,
+      peerSurfaceCount: windowInventory.summary?.peerSurfaceCount || 0,
+      peerWindowCount,
       appGroupCount: groups.length,
       captureCandidateCount: groups.filter((group) => group.captureCandidate).length,
       preflightRequiredCount: groups.length,
@@ -226,10 +343,12 @@ function createSnapshot(hardwareReality) {
       snapshotHash: hardwareReality.receipt?.snapshotHash || null,
     },
     appGroups: groups,
+    peerSurfaces: safeArray(windowInventory.peerSurfaces),
     recommendations,
     brittneyBrief: {
       status: groups.length ? 'legacy_surfaces_visible' : 'no_legacy_surfaces',
-      summary: `${observedAppCount} legacy app process(es) across ${groups.length} group(s). ${groups.length} mutation preflight gate(s) required.`,
+      summary: `${observedAppCount} legacy app process(es), ${visibleWindowCount} visible window(s), ${peerWindowCount} peer window(s), across ${groups.length} group(s). ${groups.length} mutation preflight gate(s) required.`,
+      peerWindowSummary: safeArray(windowInventory.peerSurfaces).map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
       requiredNextAction: recommendations[0]
         ? `${recommendations[0].action} for ${recommendations[0].appName}: ${recommendations[0].reason}`
         : 'No legacy app absorption action is required.',
@@ -240,10 +359,13 @@ function createSnapshot(hardwareReality) {
     receipt: {
       absorptionHash: sha256(JSON.stringify({
         groups: groups.map((group) => [group.appName, group.archetype, group.observedProcessCount]),
+        windows: groups.map((group) => [group.appName, group.windowInstanceCount]),
+        windowInventoryHash: windowInventory.receipt?.windowInventoryHash || null,
         hardwareSnapshotHash: hardwareReality.receipt?.snapshotHash || null,
       })),
       destructiveActionsTaken: false,
       rawCommandsIncluded: false,
+      rawWindowTitlesIncluded: false,
     },
   };
   return snapshot;
@@ -268,10 +390,13 @@ function assertSelfTest(snapshot) {
   const failures = [];
   if (snapshot.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (snapshot.summary.observedAppCount < 3) failures.push('expected synthetic legacy app observations');
+  if (snapshot.summary.visibleWindowCount < 4) failures.push('expected synthetic visible windows');
+  if (snapshot.summary.peerWindowCount < 2) failures.push('expected synthetic peer windows');
   if (snapshot.summary.mutationAllowedCount !== 0) failures.push('mutation must not be allowed');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (!snapshot.safety.preflightRequiredForMutation) failures.push('legacy mutation preflight is required');
   if (!snapshot.brittneyBrief.blockedActions.includes('alter_registry')) failures.push('Brittney brief must block registry mutation');
+  if (snapshot.receipt.rawWindowTitlesIncluded === true) failures.push('raw window titles must be hidden');
   const serialized = JSON.stringify(snapshot);
   if (/commandLine|CommandLine|command_summary/.test(serialized)) failures.push('raw command text leaked');
   if (failures.length) {
@@ -282,7 +407,8 @@ function assertSelfTest(snapshot) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const hardwareReality = loadHardwareReality(args);
-  const snapshot = createSnapshot(hardwareReality);
+  const windowInventory = loadWindowInventory(args);
+  const snapshot = createSnapshot(hardwareReality, windowInventory);
   if (args.selfTest) assertSelfTest(snapshot);
   const output = writeJson(args.output, snapshot);
   const jsOutput = writeBrowserBootstrap(args.jsOutput, snapshot);
@@ -293,6 +419,8 @@ function main() {
     console.log(`HoloShell legacy app absorption: ${output}`);
     console.log(`HoloShell legacy app absorption browser bootstrap: ${jsOutput}`);
     console.log(`Observed apps: ${snapshot.summary.observedAppCount}`);
+    console.log(`Visible windows: ${snapshot.summary.visibleWindowCount}`);
+    console.log(`Peer windows: ${snapshot.summary.peerWindowCount}`);
     console.log(`Groups: ${snapshot.summary.appGroupCount}`);
     console.log(`Capture candidates: ${snapshot.summary.captureCandidateCount}`);
     console.log(`Preflight required: ${snapshot.summary.preflightRequiredCount}`);

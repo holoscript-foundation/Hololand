@@ -15,6 +15,8 @@ A visible Windows app becomes a HoloShell object with:
 - app name
 - archetype
 - sample PIDs
+- visible window count
+- peer window count
 - safe read-only actions
 - blocked mutation actions
 - required MCP preflight tool
@@ -27,6 +29,7 @@ visible, Settings is dangerous to change” without reading a process list.
 
 ```powershell
 pnpm run holoshell:hardware-reality
+pnpm run holoshell:legacy-windows
 pnpm run holoshell:legacy-apps
 ```
 
@@ -67,3 +70,7 @@ Changing an app requires:
 Brittney may recommend read-only capture or classification. Brittney must not
 change app settings, click destructive UI, alter registry values, uninstall
 apps, close windows, or submit forms without the legacy-app MCP preflight.
+
+For peer counts, Brittney should prefer `legacy-window-inventory.json` and the
+`peerSurfaces[].windowInstanceCount` values. Process counts are still shown as a
+health signal, not as the number of peer windows the user can see.
