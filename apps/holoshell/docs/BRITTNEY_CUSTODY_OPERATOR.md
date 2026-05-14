@@ -10,6 +10,11 @@
 Brittney can consume the HoloShell operator brief and execute safe run-custody
 receipts without asking the user to read files or run commands.
 
+Visible shell windows are now first-class custody queues. The operator groups
+Terminal/PowerShell windows by parent window PID, dedupes repeated top-level
+Windows Terminal surfaces, and claims owner-unknown child runs through custody
+receipts.
+
 This adapter is intentionally narrow. It can write receipts for:
 
 - `claim`
@@ -33,14 +38,19 @@ The operator never executes:
 Ambiguous recommendations such as `extend-or-close` and `close-or-reclaim` are
 blocked until a lane chooses a concrete receipt action.
 
+Shell window group execution is even narrower: clusters only support `claim`
+receipts. They never terminate processes, click legacy windows, mutate files, or
+emit raw shell commands.
+
 ## Refresh Order
 
 ```powershell
 pnpm run holoshell:hardware-reality
+pnpm run holoshell:legacy-windows
 pnpm run holoshell:run-custody
 pnpm run holoshell:legacy-apps
 pnpm run holoshell:operator-brief
-node scripts\holoshell-brittney-custody-operator.mjs
+pnpm run holoshell:brittney-custody
 pnpm run holoshell:run-custody
 pnpm run holoshell:operator-brief
 ```
@@ -59,5 +69,6 @@ lifetimes, or hidden command text. Brittney reads the shared operator brief,
 turns the first safe custody move into a receipt, and leaves destructive work
 behind separate HoloShell preflights.
 
-This is the first step from "agents can observe the hardware" to "agents care
-for the hardware."
+With shell window queues, Brittney can care for visible shell work the way a
+non-developer user thinks about it: "that Terminal window needs an owner," not
+"pid-7424 has descendants."

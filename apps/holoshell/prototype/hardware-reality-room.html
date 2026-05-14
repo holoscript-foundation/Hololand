@@ -611,9 +611,18 @@
       const shellCustody = operator.shellCustody || {};
       const brittneyAction = brittneyCustodyAction || {};
       const selectedAction = brittneyAction.selectedAction || {};
+      const brittneyActionLabel = brittneyAction.status
+        ? selectedAction.windowGroupId
+          ? `${brittneyAction.status} / ${selectedAction.action || "none"} ${selectedAction.windowGroupId} (${selectedAction.runCount || 0} runs)`
+          : `${brittneyAction.status} / ${selectedAction.action || "none"}`
+        : "not executed";
+      const currentShellQueueCount = (shellCustody.ownerUnknownRunCount || 0) > 0
+        ? brittneyAction.shellWindowQueue?.count || 0
+        : 0;
       const items = [
         ["Operator Brief", operator.status || "refresh required"],
-        ["Brittney Action", brittneyAction.status ? `${brittneyAction.status} / ${selectedAction.action || "none"}` : "not executed"],
+        ["Brittney Action", brittneyActionLabel],
+        ["Brittney Queue", `${currentShellQueueCount} shell window groups / ${brittneyAction.execution?.receiptIds?.length || 0} receipts`],
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],

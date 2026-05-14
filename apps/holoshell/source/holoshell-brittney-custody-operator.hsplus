@@ -1,8 +1,9 @@
 // HoloShell Brittney Custody Operator
 //
 // Brittney consumes the operator brief and executes only safe run-custody
-// receipts. This is not a process-control layer. Closing a run here means
-// closing the custody receipt, not terminating the process.
+// receipts. Visible shell window groups are first-class custody queues.
+// This is not a process-control layer. Closing a run here means closing
+// the custody receipt, not terminating the process.
 
 composition "HoloShell Brittney Custody Operator" {
   config {
@@ -18,7 +19,12 @@ composition "HoloShell Brittney Custody Operator" {
     selectedAction: ""
     selectedRunId: ""
     selectedPid: 0
+    selectedWindowGroupId: ""
+    selectedWindowIds: []
+    selectedWindowRunCount: 0
+    shellWindowQueueCount: 0
     executedReceiptId: ""
+    executedReceiptIds: []
     blockedReason: ""
     destructiveActionsTaken: false
     terminationPerformed: false
@@ -45,11 +51,43 @@ composition "HoloShell Brittney Custody Operator" {
     receiptRequired: true
   }
 
+  template "ShellWindowCustodyQueueItem" {
+    type: "receipt_queue"
+    receiptType: "shell_window_custody_queue"
+    source: "operator_brief.shellCustody"
+    action: "claim"
+    windowGroupId: ""
+    windowIds: []
+    windowPid: 0
+    runIds: []
+    pids: []
+    runCount: 0
+    ownerUnknownRunCount: 0
+    bindingEvidence: ["window_pid_to_run_parent_pid"]
+    laneIds: []
+    destructiveActionsTaken: false
+    terminationPerformed: false
+    rawCommandsIncluded: false
+    receiptRequired: true
+  }
+
   policy "BriefFirstExecution" {
     appliesTo: ["brittney_turn", "safe_custody_action"]
     requiredInput: "holoshell_operator_brief"
     allowedActions: ["claim", "extend", "close", "mark-stale", "owner-unknown"]
     ambiguousActionsBlocked: ["extend-or-close", "close-or-reclaim", "verify-closed"]
+    directShellCommandAllowed: false
+    receiptRequired: true
+  }
+
+  policy "ShellWindowClustersAreClaimQueues" {
+    appliesTo: ["shell_window_custody", "visible_shell_window_group"]
+    requiredInput: "holoshell_operator_brief.shellCustody"
+    allowedActions: ["claim"]
+    clusterIdentity: "window_pid"
+    childIdentity: "runId"
+    duplicateWindowsDedupedBy: "windowPid"
+    processTerminationAllowed: false
     directShellCommandAllowed: false
     receiptRequired: true
   }
@@ -85,6 +123,16 @@ composition "HoloShell Brittney Custody Operator" {
       pid: $selectedPid
     }
 
+    object "ShellWindowQueue" {
+      type: "ui"
+      uiType: "shell_window_custody_queue"
+      label: "Window Group"
+      windowGroupId: $selectedWindowGroupId
+      windowIds: $selectedWindowIds
+      runCount: $selectedWindowRunCount
+      queueCount: $shellWindowQueueCount
+    }
+
     object "ExecutionGate" {
       type: "ui"
       uiType: "safety_gate"
@@ -109,6 +157,7 @@ composition "HoloShell Brittney Custody Operator" {
       source: "operator_brief",
       status: brief.status,
       firstMove: brief.brittneyPromptCard.firstMove,
+      shellWindowQueueCount: brief.shellCustody.ownerUnknownRunCount,
       blockedActions: brief.blockedActions,
       destructiveActionsTaken: brief.safety.destructiveActionsTaken,
       rawCommandsIncluded: brief.safety.rawCommandsIncluded,
@@ -121,7 +170,12 @@ composition "HoloShell Brittney Custody Operator" {
     state.selectedAction = result.selectedAction.action
     state.selectedRunId = result.selectedAction.runId
     state.selectedPid = result.selectedAction.pid
+    state.selectedWindowGroupId = result.selectedAction.windowGroupId
+    state.selectedWindowIds = result.selectedAction.windowIds
+    state.selectedWindowRunCount = result.selectedAction.runCount
+    state.shellWindowQueueCount = result.shellWindowQueue.count
     state.executedReceiptId = result.execution.receiptId
+    state.executedReceiptIds = result.execution.receiptIds
     state.blockedReason = result.gate.blockReason
     state.destructiveActionsTaken = result.execution.destructiveActionsTaken
     state.terminationPerformed = result.execution.terminationPerformed
@@ -132,7 +186,12 @@ composition "HoloShell Brittney Custody Operator" {
       action: state.selectedAction,
       runId: state.selectedRunId,
       pid: state.selectedPid,
+      windowGroupId: state.selectedWindowGroupId,
+      windowIds: state.selectedWindowIds,
+      windowRunCount: state.selectedWindowRunCount,
+      shellWindowQueueCount: state.shellWindowQueueCount,
       receiptId: state.executedReceiptId,
+      receiptIds: state.executedReceiptIds,
       blockedReason: state.blockedReason,
       destructiveActionsTaken: state.destructiveActionsTaken,
       terminationPerformed: state.terminationPerformed,

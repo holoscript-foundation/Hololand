@@ -16,6 +16,7 @@ const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'brittney-custody-actio
 const DEFAULT_LANE_ID = 'brittney-holoshell';
 const DEFAULT_AGENT_KIND = 'brittney';
 const DEFAULT_MINUTES = 120;
+const DEFAULT_MAX_RUNS = 6;
 const SAFE_CUSTODY_ACTIONS = new Set(['claim', 'extend', 'close', 'mark-stale', 'owner-unknown']);
 const AMBIGUOUS_ACTIONS = new Set(['extend-or-close', 'close-or-reclaim', 'verify-closed']);
 const ALWAYS_BLOCKED = [
@@ -35,6 +36,9 @@ function parseArgs(argv) {
     laneId: DEFAULT_LANE_ID,
     agentKind: DEFAULT_AGENT_KIND,
     minutes: DEFAULT_MINUTES,
+    windowId: '',
+    windowGroupId: '',
+    maxRuns: DEFAULT_MAX_RUNS,
     operatorBrief: DEFAULT_OPERATOR_BRIEF,
     hardwareReality: DEFAULT_HARDWARE_REALITY,
     store: DEFAULT_STORE,
@@ -57,6 +61,9 @@ function parseArgs(argv) {
     else if (arg === '--lane-id') args.laneId = argv[++index];
     else if (arg === '--agent-kind') args.agentKind = argv[++index];
     else if (arg === '--minutes') args.minutes = Number(argv[++index]) || DEFAULT_MINUTES;
+    else if (arg === '--window-id') args.windowId = argv[++index] || '';
+    else if (arg === '--window-group-id') args.windowGroupId = argv[++index] || '';
+    else if (arg === '--max-runs') args.maxRuns = Number(argv[++index]) || DEFAULT_MAX_RUNS;
     else if (arg === '--operator-brief') args.operatorBrief = argv[++index];
     else if (arg === '--hardware-reality') args.hardwareReality = argv[++index];
     else if (arg === '--store') args.store = argv[++index];
@@ -86,6 +93,10 @@ function parseArgs(argv) {
   if (!Number.isFinite(args.minutes) || args.minutes <= 0) {
     throw new Error('--minutes must be a positive number');
   }
+  if (!Number.isFinite(args.maxRuns) || args.maxRuns <= 0) {
+    throw new Error('--max-runs must be a positive number');
+  }
+  args.maxRuns = Math.floor(args.maxRuns);
   return args;
 }
 
@@ -103,6 +114,9 @@ Options:
   --lane-id <id>               Owning lane id. Default: ${DEFAULT_LANE_ID}.
   --agent-kind <kind>          Agent kind. Default: ${DEFAULT_AGENT_KIND}.
   --minutes <n>                Claim/extend duration. Default: ${DEFAULT_MINUTES}.
+  --window-id <id>             Select a shell window from operator brief shellCustody.
+  --window-group-id <id>       Select a shell window group from operator brief shellCustody.
+  --max-runs <n>               Maximum child runs to claim from a shell window group. Default: ${DEFAULT_MAX_RUNS}.
   --operator-brief <path>      Operator brief JSON. Default: .tmp/holoshell/operator-brief.json.
   --hardware-reality <path>    Hardware reality JSON. Default: .tmp/holoshell/hardware-reality.json.
   --store <path>               Custody receipt store. Default: .tmp/holoshell/run-custody-store.json.
@@ -155,6 +169,10 @@ function safeArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function normalizeString(value) {
+  return String(value ?? '').trim();
+}
+
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -202,7 +220,153 @@ function runIdFromText(raw, pid) {
   return pid ? `pid-${pid}` : '';
 }
 
+function shellWindowQueueFromBrief(brief, options = {}) {
+  const maxRuns = Math.max(1, Math.floor(Number(options.maxRuns ?? DEFAULT_MAX_RUNS)));
+  const groups = new Map();
+
+  for (const shellWindow of safeArray(brief.shellCustody?.windows)) {
+    const windowId = normalizeString(shellWindow.windowId) || `window-pid-${shellWindow.pid ?? 'unknown'}`;
+    const windowPid = Number(shellWindow.pid);
+    const windowGroupId = Number.isInteger(windowPid)
+      ? `shell-window-pid-${windowPid}`
+      : `shell-window-${windowId}`;
+    const group = groups.get(windowGroupId) ?? {
+      queueId: windowGroupId,
+      windowGroupId,
+      windowIds: [],
+      windowPid: Number.isInteger(windowPid) ? windowPid : null,
+      windowCount: 0,
+      candidateRuns: new Map(),
+      laneIds: new Set(),
+      bindingEvidence: new Set(),
+      boundRunCount: 0,
+    };
+
+    if (!group.windowIds.includes(windowId)) {
+      group.windowIds.push(windowId);
+      group.windowCount += 1;
+    }
+    if (shellWindow.bindingEvidence) group.bindingEvidence.add(String(shellWindow.bindingEvidence));
+    for (const laneId of safeArray(shellWindow.laneIds)) group.laneIds.add(String(laneId));
+    group.boundRunCount += Number(shellWindow.boundRunCount ?? 0);
+
+    for (const run of safeArray(shellWindow.runs)) {
+      if (run.status !== 'owner_unknown') continue;
+      const runId = normalizeString(run.runId);
+      const pid = Number(run.pid);
+      if (!runId && !Number.isInteger(pid)) continue;
+      const key = runId || `pid-${pid}`;
+      if (group.candidateRuns.has(key)) continue;
+      group.candidateRuns.set(key, {
+        runId: runId || `pid-${pid}`,
+        pid: Number.isInteger(pid) ? pid : null,
+        parentPid: Number.isInteger(Number(run.parentPid)) ? Number(run.parentPid) : null,
+        processName: run.processName ?? null,
+        laneId: run.laneId ?? null,
+        laneLabel: run.laneLabel ?? null,
+        status: run.status ?? null,
+        listeningPorts: safeArray(run.listeningPorts),
+      });
+    }
+
+    groups.set(windowGroupId, group);
+  }
+
+  return Array.from(groups.values())
+    .map((group) => {
+      const candidateRuns = Array.from(group.candidateRuns.values()).slice(0, maxRuns);
+      const runIds = candidateRuns.map((run) => run.runId).filter(Boolean);
+      const pids = candidateRuns.map((run) => run.pid).filter((pid) => Number.isInteger(pid));
+      const listeningRunCount = candidateRuns.filter((run) => run.listeningPorts.length > 0).length;
+      return {
+        queueId: group.queueId,
+        action: 'claim',
+        windowGroupId: group.windowGroupId,
+        windowIds: group.windowIds,
+        windowPid: group.windowPid,
+        windowCount: group.windowCount,
+        runIds,
+        pids,
+        runCount: runIds.length,
+        ownerUnknownRunCount: runIds.length,
+        boundRunCount: group.boundRunCount,
+        listeningRunCount,
+        laneIds: Array.from(group.laneIds).sort(),
+        bindingEvidence: Array.from(group.bindingEvidence).sort(),
+        reason: `Visible shell window group ${group.windowGroupId} has ${runIds.length} child run(s) needing custody.`,
+      };
+    })
+    .filter((entry) => entry.runCount > 0)
+    .sort((a, b) => {
+      if (b.listeningRunCount !== a.listeningRunCount) return b.listeningRunCount - a.listeningRunCount;
+      if (b.ownerUnknownRunCount !== a.ownerUnknownRunCount) return b.ownerUnknownRunCount - a.ownerUnknownRunCount;
+      if (b.boundRunCount !== a.boundRunCount) return b.boundRunCount - a.boundRunCount;
+      return String(a.windowGroupId).localeCompare(String(b.windowGroupId));
+    });
+}
+
+function selectShellWindowAction(args, queue) {
+  const selected = args.windowGroupId
+    ? queue.find((entry) => entry.windowGroupId === args.windowGroupId || entry.queueId === args.windowGroupId)
+    : args.windowId
+      ? queue.find((entry) => entry.windowIds.includes(args.windowId))
+      : queue[0];
+
+  if (!selected) {
+    return {
+      mode: 'shell_window_auto',
+      source: args.windowGroupId || args.windowId ? 'shell_window_custody_requested' : 'shell_window_custody',
+      priority: 'high',
+      raw: '',
+      action: 'claim',
+      runId: '',
+      pid: null,
+      reason: args.reason || 'No eligible shell window custody candidate was found.',
+      ambiguous: false,
+      shellWindowCluster: true,
+      queueId: null,
+      windowGroupId: args.windowGroupId || null,
+      windowIds: args.windowId ? [args.windowId] : [],
+      windowPid: null,
+      windowCount: 0,
+      runIds: [],
+      pids: [],
+      runCount: 0,
+    };
+  }
+
+  return {
+    mode: args.windowGroupId || args.windowId ? 'explicit_shell_window' : 'shell_window_auto',
+    source: 'shell_window_custody',
+    priority: selected.listeningRunCount > 0 ? 'critical' : 'high',
+    raw: '',
+    action: 'claim',
+    runId: selected.runIds[0] || '',
+    pid: selected.pids[0] ?? null,
+    reason: args.reason || selected.reason,
+    ambiguous: false,
+    shellWindowCluster: true,
+    queueId: selected.queueId,
+    windowGroupId: selected.windowGroupId,
+    windowIds: selected.windowIds,
+    windowPid: selected.windowPid,
+    windowCount: selected.windowCount,
+    runIds: selected.runIds,
+    pids: selected.pids,
+    runCount: selected.runCount,
+    ownerUnknownRunCount: selected.ownerUnknownRunCount,
+    listeningRunCount: selected.listeningRunCount,
+    laneIds: selected.laneIds,
+    bindingEvidence: selected.bindingEvidence,
+  };
+}
+
 function selectAction(args, brief) {
+  const shellWindowQueue = shellWindowQueueFromBrief(brief, { maxRuns: args.maxRuns });
+  if (args.windowGroupId || args.windowId) {
+    return selectShellWindowAction(args, shellWindowQueue);
+  }
+
   if (args.action !== 'auto') {
     return {
       mode: 'explicit',
@@ -215,6 +379,10 @@ function selectAction(args, brief) {
       reason: args.reason || `Brittney explicit ${args.action} custody receipt.`,
       ambiguous: false,
     };
+  }
+
+  if (shellWindowQueue.length > 0) {
+    return selectShellWindowAction(args, shellWindowQueue);
   }
 
   const firstMove = firstMoveFromBrief(brief);
@@ -238,6 +406,7 @@ function briefHash(brief) {
   return brief.receipt?.briefHash || sha256(JSON.stringify({
     status: brief.status,
     runs: brief.runs,
+    shellCustody: brief.shellCustody,
     legacy: brief.legacy,
     blockedActions: brief.blockedActions,
     safety: brief.safety,
@@ -266,7 +435,13 @@ function buildGate(selection, brief) {
   } else if (directBlock) {
     status = 'blocked';
     blockReason = `${selection.action} appears in blockedActions.`;
-  } else if (!selection.runId && !selection.pid) {
+  } else if (selection.shellWindowCluster && selection.action !== 'claim') {
+    status = 'blocked';
+    blockReason = 'Shell window custody clusters only support claim receipts.';
+  } else if (selection.shellWindowCluster && safeArray(selection.runIds).length === 0 && safeArray(selection.pids).length === 0) {
+    status = 'blocked';
+    blockReason = 'Shell window custody cluster has no eligible child runs.';
+  } else if (!selection.shellWindowCluster && !selection.runId && !selection.pid) {
     status = 'blocked';
     blockReason = 'Safe custody execution requires a run id or pid.';
   }
@@ -286,13 +461,13 @@ function buildGate(selection, brief) {
   };
 }
 
-function executeCustodyAction(args, selection) {
+function executeSingleCustodyAction(args, selection, reasonOverride = '') {
   const childArgs = [
     path.join('scripts', 'holoshell-run-custody-actions.mjs'),
     '--action', selection.action,
     '--lane-id', args.laneId,
     '--agent-kind', args.agentKind,
-    '--reason', selection.reason,
+    '--reason', reasonOverride || selection.reason,
     '--minutes', String(args.minutes),
     '--hardware-reality', args.hardwareReality,
     '--store', args.store,
@@ -330,7 +505,62 @@ function executeCustodyAction(args, selection) {
   };
 }
 
+function executeCustodyAction(args, selection) {
+  if (!selection.shellWindowCluster) {
+    const executed = executeSingleCustodyAction(args, selection);
+    executed.execution.receiptIds = executed.execution.receiptId ? [executed.execution.receiptId] : [];
+    return executed;
+  }
+
+  const runIds = safeArray(selection.runIds);
+  const pids = safeArray(selection.pids);
+  const executions = [];
+  const childCount = Math.max(runIds.length, pids.length);
+
+  for (let index = 0; index < childCount; index += 1) {
+    const runId = runIds[index] || '';
+    const pid = Number.isInteger(pids[index]) ? pids[index] : null;
+    if (!runId && !pid) continue;
+    const childSelection = {
+      ...selection,
+      runId,
+      pid,
+      shellWindowCluster: false,
+    };
+    const childReason = `${selection.reason} Child run ${runId || `pid-${pid}`}.`;
+    executions.push(executeSingleCustodyAction(args, childSelection, childReason).execution);
+  }
+
+  const updatedCustody = loadRequiredJson(args.custodyOutput, 'updated run custody');
+  const latest = executions.at(-1) || null;
+  return {
+    updatedCustody,
+    execution: {
+      attempted: true,
+      status: executions.length > 0 ? 'executed' : 'blocked',
+      adapter: 'scripts/holoshell-run-custody-actions.mjs',
+      receiptId: latest?.receiptId || null,
+      receiptIds: executions.map((execution) => execution.receiptId).filter(Boolean),
+      custodyHash: updatedCustody.receipt?.custodyHash || null,
+      childExecutionCount: executions.length,
+      windowGroupId: selection.windowGroupId || null,
+      windowIds: selection.windowIds || [],
+      runCount: executions.length,
+      childExecutions: executions.map((execution) => ({
+        status: execution.status,
+        receiptId: execution.receiptId,
+        custodyHash: execution.custodyHash,
+      })),
+      destructiveActionsTaken: false,
+      terminationPerformed: false,
+      mutationPerformed: false,
+      rawCommandsIncluded: false,
+    },
+  };
+}
+
 function createResult({ args, brief, selection, gate, execution, updatedCustody }) {
+  const shellWindowQueue = shellWindowQueueFromBrief(brief, { maxRuns: args.maxRuns });
   const status = execution.status === 'executed'
     ? 'executed'
     : execution.status === 'dry_run'
@@ -348,6 +578,19 @@ function createResult({ args, brief, selection, gate, execution, updatedCustody 
     pid: selection.pid || null,
     reason: selection.reason || null,
     ambiguous: selection.ambiguous,
+    shellWindowCluster: Boolean(selection.shellWindowCluster),
+    queueId: selection.queueId || null,
+    windowGroupId: selection.windowGroupId || null,
+    windowIds: selection.windowIds || [],
+    windowPid: selection.windowPid || null,
+    windowCount: selection.windowCount || 0,
+    runIds: selection.runIds || [],
+    pids: selection.pids || [],
+    runCount: selection.runCount || 0,
+    ownerUnknownRunCount: selection.ownerUnknownRunCount || 0,
+    listeningRunCount: selection.listeningRunCount || 0,
+    laneIds: selection.laneIds || [],
+    bindingEvidence: selection.bindingEvidence || [],
   };
   const custodySummary = updatedCustody?.summary || null;
   const latestAction = updatedCustody?.latestAction || null;
@@ -368,6 +611,11 @@ function createResult({ args, brief, selection, gate, execution, updatedCustody 
       briefHash: briefHash(brief),
     },
     selectedAction: actionSummary,
+    shellWindowQueue: {
+      count: shellWindowQueue.length,
+      maxRuns: args.maxRuns,
+      entries: shellWindowQueue.slice(0, 12),
+    },
     gate,
     execution,
     updatedCustody: custodySummary ? {
@@ -391,10 +639,11 @@ function createResult({ args, brief, selection, gate, execution, updatedCustody 
       browserBootstrap: args.jsOutput,
       requiredRefreshOrder: [
         'pnpm run holoshell:hardware-reality',
+        'pnpm run holoshell:legacy-windows',
         'pnpm run holoshell:run-custody',
         'pnpm run holoshell:legacy-apps',
         'pnpm run holoshell:operator-brief',
-        'node scripts/holoshell-brittney-custody-operator.mjs',
+        'pnpm run holoshell:brittney-custody',
         'pnpm run holoshell:run-custody',
         'pnpm run holoshell:operator-brief',
       ],
@@ -439,6 +688,7 @@ function syntheticHardwareReality() {
       {
         runId: 'pid-202',
         pid: 202,
+        parentPid: 909,
         processName: 'node.exe',
         healthState: 'listening',
         listeningPorts: [4747],
@@ -448,6 +698,7 @@ function syntheticHardwareReality() {
       {
         runId: 'pid-404',
         pid: 404,
+        parentPid: 909,
         processName: 'ollama.exe',
         healthState: 'observed',
         listeningPorts: [],
@@ -479,6 +730,48 @@ function syntheticOperatorBrief() {
     legacy: {
       captureCandidateCount: 0,
       preflightRequiredCount: 0,
+    },
+    shellCustody: {
+      status: 'needs_custody',
+      shellWindowCount: 1,
+      boundShellWindowCount: 1,
+      ownerUnknownRunCount: 1,
+      windows: [
+        {
+          windowId: 'fixture-terminal-window',
+          title: 'Terminal',
+          pid: 909,
+          status: 'needs_custody',
+          bindingEvidence: 'window_pid_to_run_parent_pid',
+          boundRunCount: 2,
+          ownerUnknownRunCount: 1,
+          laneIds: ['service-node', 'service-ollama'],
+          runs: [
+            {
+              runId: 'pid-202',
+              pid: 202,
+              parentPid: 909,
+              processName: 'node.exe',
+              status: 'owner_unknown',
+              laneId: 'service-node',
+              laneLabel: 'Node service',
+              listeningPorts: [4747],
+              rawCommandHidden: true,
+            },
+            {
+              runId: 'pid-404',
+              pid: 404,
+              parentPid: 909,
+              processName: 'ollama.exe',
+              status: 'lane_observed',
+              laneId: 'service-ollama',
+              laneLabel: 'Ollama service',
+              listeningPorts: [],
+              rawCommandHidden: true,
+            },
+          ],
+        },
+      ],
     },
     allowedActions: ['observe_hardware', 'claim_run', 'extend_run', 'close_run_receipt'],
     blockedActions: [...ALWAYS_BLOCKED],
@@ -545,6 +838,9 @@ function assertSelfTest(result) {
   if (result.status !== 'executed') failures.push('expected executed status');
   if (result.selectedAction?.action !== 'claim') failures.push('expected claim action');
   if (result.selectedAction?.pid !== 202) failures.push('expected pid 202');
+  if (result.selectedAction?.windowGroupId !== 'shell-window-pid-909') failures.push('expected shell window group selection');
+  if (result.selectedAction?.runCount !== 1) failures.push('expected one shell-window child run claim');
+  if (!result.execution?.receiptIds?.length) failures.push('expected child custody receipt id');
   if (!result.gate?.blockedActions?.includes('kill_process')) failures.push('kill_process must stay blocked');
   if (result.execution?.destructiveActionsTaken !== false) failures.push('execution must be non-destructive');
   if (result.execution?.terminationPerformed !== false) failures.push('execution must not terminate');
@@ -574,6 +870,7 @@ function main() {
     status: gate.status,
     adapter: 'scripts/holoshell-run-custody-actions.mjs',
     receiptId: null,
+    receiptIds: [],
     custodyHash: updatedCustody?.receipt?.custodyHash || null,
     blockReason: gate.blockReason,
     destructiveActionsTaken: false,
@@ -606,7 +903,8 @@ function main() {
     console.log(`HoloShell Brittney custody browser bootstrap: ${jsOutput}`);
     console.log(`Status: ${result.status}`);
     console.log(`Action: ${result.selectedAction.action || 'none'}`);
-    console.log(`Run: ${result.selectedAction.runId || result.selectedAction.pid || 'none'}`);
+    console.log(`Run: ${result.selectedAction.windowGroupId || result.selectedAction.runId || result.selectedAction.pid || 'none'}`);
+    console.log(`Child receipts: ${result.execution.receiptIds?.length || 0}`);
     console.log(`Receipt: ${result.execution.receiptId || 'none'}`);
     console.log(`Blocked reason: ${result.gate.blockReason || 'none'}`);
     console.log(`Destructive actions: ${result.execution.destructiveActionsTaken}`);
