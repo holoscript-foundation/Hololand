@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -396,11 +396,24 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       id: hardwareApproval.approvalId || 'hardware-approval',
       kind: 'hardware_approval',
       title: `Hardware approval ${hardwareApproval.summary.status || 'unknown'}`,
-      detail: `${hardwareApproval.summary.actionKind || 'unknown action'} for ${hardwareApproval.summary.target || 'local computer'}; execution ${hardwareApproval.summary.executionAllowed ? 'allowed after approval' : 'blocked'}.`,
+      detail: `${hardwareApproval.summary.actionKind || 'unknown action'} for ${hardwareApproval.summary.target || 'local computer'}; execution ${hardwareApproval.summary.executionAllowed ? 'allowed after approval' : 'blocked'}; trust ${hardwareApproval.summary.trustLevel || 'unknown'}.`,
       trustState: hardwareApproval.summary.executionAllowed ? 'partial' : hardwareApproval.summary.status === 'not_required' ? 'verified' : 'unknown',
       generatedAt: hardwareApproval.generatedAt || now,
       receiptType: 'hololand.holoshell.hardware-approval.v0.1.0',
       source: 'scripts/holoshell-approval-bundle.mjs',
+    });
+  }
+
+  if (trustLedger?.summary) {
+    timeline.push({
+      id: trustLedger.latestAction?.fingerprint || 'holoshell-trust-ledger',
+      kind: 'trusted_autonomy',
+      title: `Trust ladder ${trustLedger.summary.latestTrustLevel || 'unknown'}`,
+      detail: `${trustLedger.summary.latestActionKind || 'no action'} for ${trustLedger.summary.latestTarget || 'local computer'}; trusted records ${trustLedger.summary.trustedRecordCount || 0}/${trustLedger.summary.recordCount || 0}; ${trustLedger.summary.successesUntilTrusted || 0} success(es) until trusted.`,
+      trustState: trustLedger.summary.trustedAutonomyEligible ? 'verified' : trustLedger.summary.status === 'ready' ? 'partial' : 'unknown',
+      generatedAt: trustLedger.generatedAt || now,
+      receiptType: trustLedger.schemaVersion,
+      source: trustLedger.sourceAnchors?.adapter || 'scripts/holoshell-trust-ledger.mjs',
     });
   }
 
@@ -546,6 +559,7 @@ function createFeed(args) {
   const grokBuild = readJson(path.join(tmpDir, 'grok-build-setup.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
   const hardwareApproval = readJson(path.join(tmpDir, 'approval-latest.json'), {});
+  const trustLedger = readJson(path.join(tmpDir, 'trust-ledger.json'), {});
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
   const workflowApproval = readJson(path.join(tmpDir, 'workflow-approval-latest.json'), {});
   const workflowIntentGate = readJson(path.join(tmpDir, 'brain-intent-gate-latest.json'), {});
@@ -586,6 +600,7 @@ function createFeed(args) {
     grokBuild,
     hardwareAction,
     hardwareApproval,
+    trustLedger,
     workflow,
     workflowApproval,
     workflowIntentGate,
@@ -621,6 +636,7 @@ function createFeed(args) {
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
+      trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -811,6 +827,18 @@ function createFeed(args) {
       hardwareApprovalExecutionAllowed: Boolean(hardwareApproval?.summary?.executionAllowed),
       hardwareApprovalBundleCount: approvalBundles.length,
       pendingHardwareApprovalCount: hardwareApproval?.summary?.executionAllowed ? 1 : 0,
+      trustLedgerStatus: trustLedger?.summary?.status || 'unknown',
+      trustLedgerRecordCount: trustLedger?.summary?.recordCount || 0,
+      trustedAutonomyTrustedRecordCount: trustLedger?.summary?.trustedRecordCount || 0,
+      trustedAutonomyGuardedRecordCount: trustLedger?.summary?.guardedRecordCount || 0,
+      trustedAutonomyReadOnlyRecordCount: trustLedger?.summary?.readOnlyRecordCount || 0,
+      trustedAutonomyBreakGlassRecordCount: trustLedger?.summary?.breakGlassRecordCount || 0,
+      trustedAutonomyLatestLevel: trustLedger?.summary?.latestTrustLevel || 'unknown',
+      trustedAutonomyLatestActionKind: trustLedger?.summary?.latestActionKind || '',
+      trustedAutonomyLatestTarget: trustLedger?.summary?.latestTarget || '',
+      trustedAutonomyEligible: Boolean(trustLedger?.summary?.trustedAutonomyEligible),
+      trustedAutonomySuccessesUntilTrusted: trustLedger?.summary?.successesUntilTrusted || 0,
+      trustedAutonomyPromotionThreshold: trustLedger?.summary?.promotionThreshold || trustLedger?.policy?.promotionThreshold || 3,
       activeWorkflowKind: workflow?.summary?.workflowKind || workflow?.profile || '',
       activeWorkflowStatus: workflow?.summary?.status || 'unknown',
       activeWorkflowTitle: workflow?.title || '',
@@ -899,6 +927,7 @@ function createFeed(args) {
       grokBuild,
       hardwareAction,
       hardwareApproval,
+      trustLedger,
       workflow,
       workflowApproval,
       workflowIntentGate,

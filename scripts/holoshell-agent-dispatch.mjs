@@ -100,6 +100,14 @@ const CAPABILITIES = [
     permissionEnvelope: 'guarded_execute',
     examples: ['open browser', 'open Google'],
   },
+  {
+    id: 'launch_program',
+    label: 'Launch Program',
+    route: '/action',
+    dispatchKind: 'hardware_action',
+    permissionEnvelope: 'guarded_execute',
+    examples: ['open Spotify', 'launch Calculator'],
+  },
 ];
 
 function parseArgs(argv) {
@@ -220,6 +228,15 @@ function promptFromIntent(args) {
   return match ? match[1].trim() : '';
 }
 
+function programNameFromIntent(intent) {
+  const raw = String(intent || '').trim();
+  const match = raw.match(/\b(?:open|launch|start)\s+(?:the\s+)?(.+?)(?:\s+(?:app|program|application))?\s*$/i);
+  if (!match) return '';
+  return match[1]
+    .replace(/\b(on youtube|in browser|through ollama|using ollama|with grok|with claude)\b.*$/i, '')
+    .trim();
+}
+
 function scoreIntent(intent) {
   const text = normalize(intent);
   const scores = new Map(CAPABILITIES.map((capability) => [capability.id, 0]));
@@ -249,6 +266,9 @@ function scoreIntent(intent) {
   }
   if ((text.includes('browser') || text.includes('chrome') || text.includes('google')) && !text.includes('lofi')) {
     scores.set('open_browser', 76);
+  }
+  if (/\b(open|launch|start)\b/.test(text) && programNameFromIntent(intent)) {
+    scores.set('launch_program', Math.max(scores.get('launch_program'), 62));
   }
 
   return scores;
@@ -324,6 +344,13 @@ function buildRouteBody(capability, args, agent) {
       actor: args.actor,
       action: 'open_url',
       url: 'https://www.google.com',
+    };
+  }
+  if (capability.id === 'launch_program') {
+    return {
+      actor: args.actor,
+      action: 'launch_app',
+      app: programNameFromIntent(args.intent),
     };
   }
   return {};
@@ -442,6 +469,7 @@ function assertSelfTest() {
     ['open terminal start room marathon using ollama kimi cloud', 'room_marathon', 'workflow'],
     ['open browser and play lofi music on youtube', 'browser_lofi', 'hardware_action'],
     ['open Excel', 'open_excel', 'hardware_action'],
+    ['launch Calculator', 'launch_program', 'hardware_action'],
   ];
   const failures = [];
   for (const [intent, expectedCapability, expectedKind] of cases) {

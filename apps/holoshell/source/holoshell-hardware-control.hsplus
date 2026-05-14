@@ -25,6 +25,8 @@ composition "HoloShell Hardware Program Control" {
     controlDaemonUrl: "http://127.0.0.1:4747"
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
     grokBuildWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
+    trustedAutonomySource: "apps/holoshell/source/holoshell-trusted-autonomy.hsplus"
+    trustedAutonomyLedgerScript: "scripts/holoshell-trust-ledger.mjs"
     homeSource: "apps/holoshell/source/holoshell-home.hsplus"
     brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     latestActionReceipt: ".tmp/holoshell/action-latest.json"
@@ -35,6 +37,7 @@ composition "HoloShell Hardware Program Control" {
     latestWorkflowIntentGate: ".tmp/holoshell/brain-intent-gate-latest.json"
     latestAgentDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
     latestGrokBuildSetup: ".tmp/holoshell/grok-build-setup.json"
+    latestTrustLedger: ".tmp/holoshell/trust-ledger.json"
     actionReceiptDir: ".tmp/holoshell/action-receipts"
     approvalBundleDir: ".tmp/holoshell/approval-bundles"
     workflowApprovalBundleDir: ".tmp/holoshell/workflow-approval-bundles"
@@ -45,6 +48,7 @@ composition "HoloShell Hardware Program Control" {
     workflowApprovalBundleBootstrap: ".tmp/holoshell/workflow-approval-latest.js"
     agentDispatchBootstrap: ".tmp/holoshell/agent-dispatch-latest.js"
     grokBuildSetupBootstrap: ".tmp/holoshell/grok-build-setup.js"
+    trustLedgerBootstrap: ".tmp/holoshell/trust-ledger.js"
   }
 
   state {
@@ -93,6 +97,17 @@ composition "HoloShell Hardware Program Control" {
     grokBuildProjectTrustStatus: "unknown"
     grokBuildWarningCount: 0
     grokBuildReadyForHeavyRecheck: false
+    trustLedgerStatus: "unknown"
+    trustLedgerRecordCount: 0
+    trustLedgerReadOnlyCount: 0
+    trustLedgerGuardedCount: 0
+    trustLedgerTrustedCount: 0
+    trustLedgerBreakGlassCount: 0
+    trustedAutonomyLatestLevel: "unknown"
+    trustedAutonomyLatestActionKind: ""
+    trustedAutonomyLatestTarget: ""
+    trustedAutonomyEligible: false
+    trustedAutonomySuccessesUntilTrusted: 3
     activeWorkflowId: ""
     activeWorkflowKind: ""
     activeWorkflowStatus: "unknown"
@@ -169,6 +184,12 @@ composition "HoloShell Hardware Program Control" {
     type: "request_response"
     priority: "critical"
     description: "Guarded Brittney workflow for launching Grok Build as a local coding-agent lane"
+  }
+
+  channel "holoshell:trust:ledger" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Receipt-derived autonomy ladder for local hardware and program control"
   }
 
   channel "holoshell:workflow:agent-dispatch" {
@@ -294,7 +315,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /workflow/grok-build/setup", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -358,12 +379,22 @@ composition "HoloShell Hardware Program Control" {
     receiptRequired: true
   }
 
+  template "TrustedAutonomyLedger" {
+    type: "trust_ledger_receipt"
+    receiptType: "hololand.holoshell.trust-ledger.v0.1.0"
+    levels: ["read_only", "guarded", "trusted", "break_glass"]
+    promotionThreshold: 3
+    trustedAutonomyRequiresDaemonFlag: true
+    breakGlassPromotesNever: true
+    receiptRequired: true
+  }
+
   template "AgentDispatchWorkflow" {
     type: "agent_dispatch_workflow"
     receiptType: "hololand.holoshell.agent-dispatch.v0.1.0"
     title: "Agent Dispatch"
     route: "POST /workflow/agent-dispatch"
-    supportedCapabilities: ["claude_chat", "ollama_cloud_agent", "grok_build", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
+    supportedCapabilities: ["claude_chat", "ollama_cloud_agent", "grok_build", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser", "launch_program"]
     steps: ["parse_intent", "rank_capabilities", "select_guarded_route", "handoff_to_existing_adapter"]
     defaultExecutionPolicy: "dispatch_only"
     directExecutionAllowed: false
@@ -595,6 +626,36 @@ composition "HoloShell Hardware Program Control" {
       warning_count: state.grokBuildWarningCount,
       ready_for_heavy_recheck: state.grokBuildReadyForHeavyRecheck,
       source: "scripts/holoshell-grok-build-workflow.mjs",
+      receipt_required: true
+    })
+  }
+
+  action apply_trust_ledger(ledger) {
+    state.trustLedgerStatus = ledger.summary.status
+    state.trustLedgerRecordCount = ledger.summary.recordCount
+    state.trustLedgerReadOnlyCount = ledger.summary.readOnlyRecordCount
+    state.trustLedgerGuardedCount = ledger.summary.guardedRecordCount
+    state.trustLedgerTrustedCount = ledger.summary.trustedRecordCount
+    state.trustLedgerBreakGlassCount = ledger.summary.breakGlassRecordCount
+    state.trustedAutonomyLatestLevel = ledger.summary.latestTrustLevel
+    state.trustedAutonomyLatestActionKind = ledger.summary.latestActionKind
+    state.trustedAutonomyLatestTarget = ledger.summary.latestTarget
+    state.trustedAutonomyEligible = ledger.summary.trustedAutonomyEligible
+    state.trustedAutonomySuccessesUntilTrusted = ledger.summary.successesUntilTrusted
+    emit("holoshell:trust:ledger", {
+      action: "trust_ledger_applied",
+      status: state.trustLedgerStatus,
+      records: state.trustLedgerRecordCount,
+      read_only: state.trustLedgerReadOnlyCount,
+      guarded: state.trustLedgerGuardedCount,
+      trusted: state.trustLedgerTrustedCount,
+      break_glass: state.trustLedgerBreakGlassCount,
+      latest_trust_level: state.trustedAutonomyLatestLevel,
+      latest_action: state.trustedAutonomyLatestActionKind,
+      latest_target: state.trustedAutonomyLatestTarget,
+      trusted_autonomy_eligible: state.trustedAutonomyEligible,
+      successes_until_trusted: state.trustedAutonomySuccessesUntilTrusted,
+      source: "scripts/holoshell-trust-ledger.mjs",
       receipt_required: true
     })
   }

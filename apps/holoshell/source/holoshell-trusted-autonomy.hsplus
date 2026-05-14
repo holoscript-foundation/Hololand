@@ -1,0 +1,99 @@
+//
+// Trusted autonomy policy contract for HoloShell.
+//
+// The goal is not blind auto-clicking. HoloShell earns trust through local
+// receipts: read-only is quiet, guarded actions can become trusted-eligible
+// after repeated approved successes, and break-glass never promotes.
+
+composition "HoloShell Trusted Autonomy" {
+  config {
+    title: "HoloShell Trusted Autonomy"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapter: "scripts/holoshell-trust-ledger.mjs"
+    hardwareExecutor: "scripts/holoshell-action-executor.mjs"
+    approvalBundle: "scripts/holoshell-approval-bundle.mjs"
+    ledgerReceipt: ".tmp/holoshell/trust-ledger.json"
+    ledgerBootstrap: ".tmp/holoshell/trust-ledger.js"
+    promotionThreshold: 3
+  }
+
+  state {
+    ledgerStatus: "unknown"
+    recordCount: 0
+    readOnlyRecordCount: 0
+    guardedRecordCount: 0
+    trustedRecordCount: 0
+    breakGlassRecordCount: 0
+    latestActionKind: ""
+    latestTarget: ""
+    latestTrustLevel: "unknown"
+    trustedAutonomyEligible: false
+    successesUntilTrusted: 3
+  }
+
+  channel "holoshell:trust:ledger" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Receipt-derived autonomy level for local hardware actions"
+  }
+
+  template "TrustLedgerReceipt" {
+    type: "trust_ledger_receipt"
+    receiptType: "hololand.holoshell.trust-ledger.v0.1.0"
+    levels: ["read_only", "guarded", "trusted", "break_glass"]
+    promotionThreshold: 3
+    trustedAutonomyRequiresDaemonFlag: true
+    breakGlassPromotesNever: true
+    receiptRequired: true
+  }
+
+  policy "ReadOnlyQuiet" {
+    appliesTo: ["list_windows", "list_programs", "read_window", "read_controls", "resolve_target", "dry_run_action"]
+    trustLevel: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  policy "GuardedUntilProven" {
+    appliesTo: ["focus_window", "launch_app", "open_url", "open_path", "hotkey", "click_control", "type_text", "invoke_control"]
+    initialTrustLevel: "guarded"
+    promotionRule: "three approved successful receipts with zero failures"
+    approvalRequiredBeforeTrusted: true
+    trustedAutonomyRequiresDaemonFlag: true
+    receiptRequired: true
+  }
+
+  policy "BreakGlassNeverPromotes" {
+    appliesTo: ["enter_secret", "send_message", "delete_file", "publish", "pay", "install", "uninstall", "system_settings"]
+    trustLevel: "break_glass"
+    autoExecuteAllowed: false
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  action apply_trust_ledger(ledger) {
+    state.ledgerStatus = ledger.summary.status
+    state.recordCount = ledger.summary.recordCount
+    state.readOnlyRecordCount = ledger.summary.readOnlyRecordCount
+    state.guardedRecordCount = ledger.summary.guardedRecordCount
+    state.trustedRecordCount = ledger.summary.trustedRecordCount
+    state.breakGlassRecordCount = ledger.summary.breakGlassRecordCount
+    state.latestActionKind = ledger.summary.latestActionKind
+    state.latestTarget = ledger.summary.latestTarget
+    state.latestTrustLevel = ledger.summary.latestTrustLevel
+    state.trustedAutonomyEligible = ledger.summary.trustedAutonomyEligible
+    state.successesUntilTrusted = ledger.summary.successesUntilTrusted
+    emit("holoshell:trust:ledger", {
+      action: "trust_ledger_applied",
+      status: state.ledgerStatus,
+      records: state.recordCount,
+      latest_action: state.latestActionKind,
+      latest_target: state.latestTarget,
+      latest_trust_level: state.latestTrustLevel,
+      trusted_autonomy_eligible: state.trustedAutonomyEligible,
+      successes_until_trusted: state.successesUntilTrusted,
+      receipt_required: true
+    })
+  }
+}

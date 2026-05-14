@@ -39,6 +39,7 @@ function parseArgs(argv) {
     tmpDir: DEFAULT_TMP,
     maxApps: 250,
     enableExecute: false,
+    enableTrustedExecute: false,
     json: false,
     selfTest: false,
   };
@@ -50,6 +51,7 @@ function parseArgs(argv) {
     else if (arg === '--tmp-dir') args.tmpDir = argv[++index] || DEFAULT_TMP;
     else if (arg === '--max-apps') args.maxApps = Number(argv[++index] || 250);
     else if (arg === '--enable-execute') args.enableExecute = true;
+    else if (arg === '--enable-trusted-execute') args.enableTrustedExecute = true;
     else if (arg === '--json') args.json = true;
     else if (arg === '--self-test') args.selfTest = true;
     else if (arg === '--help' || arg === '-h') {
@@ -75,6 +77,8 @@ Options:
   --host <host>        Bind host. Defaults to 127.0.0.1.
   --port <port>        Bind port. Defaults to 4747.
   --enable-execute     Allow approved mutation execution. Disabled by default.
+  --enable-trusted-execute
+                       Mark trusted autonomy execution support as enabled after --enable-execute.
   --max-apps <count>   Program registry scan cap. Defaults to 250.
   --self-test          Run route and receipt checks without starting a server.
   --json               Print JSON in self-test mode.
@@ -86,6 +90,7 @@ Routes:
   GET  /registry
   GET  /action/latest
   GET  /approval/latest
+  GET  /trust/ledger
   GET  /workflow/latest
   GET  /workflow/approval/latest
   GET  /workflow/intent-gate/latest
@@ -173,6 +178,10 @@ function refreshLiveFeed() {
 
 function approvalBundle() {
   return runChecked(['scripts/holoshell-approval-bundle.mjs']);
+}
+
+function trustLedger() {
+  return runChecked(['scripts/holoshell-trust-ledger.mjs']);
 }
 
 function refreshShellObjects() {
@@ -279,15 +288,18 @@ function safeActionArgs(body = {}) {
 function stageAction(args, body = {}) {
   refreshRegistry(args);
   const actionResult = runChecked(safeActionArgs(body));
+  const trustResult = trustLedger();
   approvalBundle();
   refreshLiveFeed();
   return {
     ok: true,
     action: readJson(tmpPath(args, 'action-latest.json'), {}),
     approval: readJson(tmpPath(args, 'approval-latest.json'), {}),
+    trustLedger: readJson(tmpPath(args, 'trust-ledger.json'), {}),
     feed: readJson(tmpPath(args, 'live-feed.json'), {}),
     logs: {
       action: actionResult.stdout.trim(),
+      trust: trustResult.stdout.trim(),
     },
   };
 }
@@ -299,6 +311,7 @@ function latestSnapshot(args) {
     shellObjects: readJson(tmpPath(args, 'shell-objects.json'), {}),
     action: readJson(tmpPath(args, 'action-latest.json'), {}),
     approval: readJson(tmpPath(args, 'approval-latest.json'), {}),
+    trustLedger: readJson(tmpPath(args, 'trust-ledger.json'), {}),
     workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
     workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
@@ -337,15 +350,18 @@ function executeApproval(args, body = {}) {
   if (!body.nonce || body.nonce !== bundle.nonce) throw new Error('Approval nonce mismatch.');
   const command = commandFromApprovalBundle(bundle);
   const executeResult = runChecked(command);
+  const trustResult = trustLedger();
   approvalBundle();
   refreshLiveFeed();
   return {
     ok: true,
     action: readJson(tmpPath(args, 'action-latest.json'), {}),
     approval: readJson(tmpPath(args, 'approval-latest.json'), {}),
+    trustLedger: readJson(tmpPath(args, 'trust-ledger.json'), {}),
     feed: readJson(tmpPath(args, 'live-feed.json'), {}),
     logs: {
       execute: executeResult.stdout.trim(),
+      trust: trustResult.stdout.trim(),
     },
   };
 }
@@ -567,6 +583,7 @@ function routeGet(args, pathname) {
       schemaVersion: 'hololand.holoshell.control-daemon.v0.1.0',
       status: 'online',
       executeEnabled: args.enableExecute,
+      trustedExecuteEnabled: Boolean(args.enableExecute && args.enableTrustedExecute),
       workflowIntentGateRequired: true,
       host: args.host,
       port: args.port,
@@ -580,6 +597,7 @@ function routeGet(args, pathname) {
   if (pathname === '/registry') return readJson(tmpPath(args, 'program-registry.json'), {});
   if (pathname === '/action/latest') return readJson(tmpPath(args, 'action-latest.json'), {});
   if (pathname === '/approval/latest') return readJson(tmpPath(args, 'approval-latest.json'), {});
+  if (pathname === '/trust/ledger') return readJson(tmpPath(args, 'trust-ledger.json'), {});
   if (pathname === '/workflow/latest') return readJson(tmpPath(args, 'workflow-latest.json'), {});
   if (pathname === '/workflow/approval/latest') return readJson(tmpPath(args, 'workflow-approval-latest.json'), {});
   if (pathname === '/workflow/intent-gate/latest') return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
@@ -676,6 +694,7 @@ function runSelfTest(args) {
   const health = routeGet(args, '/health');
   const snapshot = latestSnapshot(args);
   const staged = stageAction(args, { action: 'list_programs' });
+  const trust = routeGet(args, '/trust/ledger');
   const executeBlocked = (() => {
     try {
       executeApproval(args, { approvalId: 'missing', nonce: 'missing', confirm: 'execute' });
@@ -700,6 +719,7 @@ function runSelfTest(args) {
   const failures = [];
   if (health.status !== 'online') failures.push('health route did not report online');
   if (!staged.action?.summary) failures.push('stage action did not write an action receipt');
+  if (!trust?.summary) failures.push('trust ledger route did not return a summary');
   if (!staged.feed?.summary) failures.push('stage action did not refresh the live feed');
   if (!executeBlocked) failures.push('execution should be blocked without --enable-execute');
   if (!workflowExecuteBlocked) failures.push('workflow execution should be blocked without --enable-execute');
@@ -716,6 +736,7 @@ function runSelfTest(args) {
     after: {
       actionStatus: staged.action?.summary?.status || 'unknown',
       approvalStatus: staged.approval?.summary?.status || 'unknown',
+      trustStatus: trust?.summary?.status || 'unknown',
       workflowIntentGateStatus: intentGate?.summary?.status || 'unknown',
     },
   };

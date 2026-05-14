@@ -269,7 +269,7 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, grokBuild, agentDispatch, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, grokBuild, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
@@ -280,6 +280,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
   const shardApprovalSummary = shardImportApproval?.summary || {};
   const shardImportSummary = shardImport?.summary || {};
   const hardwareApprovalSummary = hardwareApproval?.summary || {};
+  const trustSummary = trustLedger?.summary || {};
   const workflowApprovalSummary = workflowApproval?.summary || {};
   const gateSummary = workflowIntentGate?.summary || {};
   const activeWorkflowKind = workflowSummary.workflowKind || workflow?.profile || '';
@@ -668,13 +669,47 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
         actionKind: hardwareApprovalSummary.actionKind || '',
         target: hardwareApprovalSummary.target || '',
         expiresAt: hardwareApprovalSummary.expiresAt || '',
+        trustLevel: hardwareApprovalSummary.trustLevel || 'unknown',
+        trustedAutonomyEligible: Boolean(hardwareApprovalSummary.trustedAutonomyEligible),
       },
       privacyClass: 'local_private',
       replacementPath: 'consent_gate',
       glyph: 'OK',
-      detail: `Hardware approval ${hardwareApprovalSummary.status || 'not_required'} for ${hardwareApprovalSummary.target || 'local computer'}.`,
+      detail: `Hardware approval ${hardwareApprovalSummary.status || 'not_required'} for ${hardwareApprovalSummary.target || 'local computer'}; trust ${hardwareApprovalSummary.trustLevel || 'unknown'}.`,
       firstScreen: Boolean(hardwareApprovalSummary.executionAllowed),
       layout: { x: 13, y: 76, size: 104 },
+    },
+    {
+      id: 'policy.trusted-autonomy',
+      objectKind: 'policy',
+      displayName: 'Trust Ladder',
+      sourceKind: 'policy',
+      sourceRef: 'apps/holoshell/source/holoshell-trusted-autonomy.hsplus',
+      capabilityFamily: 'trusted_autonomy',
+      trustState: trustSummary.trustedAutonomyEligible ? 'verified' : trustSummary.status === 'ready' ? 'partial' : 'unknown',
+      permissionEnvelope: 'receipt_policy',
+      adapterPath: 'trusted_autonomy_ledger',
+      visualForm: 'approval_gate',
+      status: trustSummary.status || 'empty',
+      actorLaneId: 'brittney',
+      receiptTypes: ['trust_ledger_receipt', 'hardware_action_receipt', 'hardware_approval_bundle'],
+      relationships: {
+        latestTrustLevel: trustSummary.latestTrustLevel || 'unknown',
+        latestActionKind: trustSummary.latestActionKind || '',
+        latestTarget: trustSummary.latestTarget || '',
+        trustedAutonomyEligible: Boolean(trustSummary.trustedAutonomyEligible),
+        successesUntilTrusted: trustSummary.successesUntilTrusted || 0,
+        promotionThreshold: trustSummary.promotionThreshold || trustLedger?.policy?.promotionThreshold || 3,
+        trustedRecordCount: trustSummary.trustedRecordCount || 0,
+        guardedRecordCount: trustSummary.guardedRecordCount || 0,
+        breakGlassRecordCount: trustSummary.breakGlassRecordCount || 0,
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'approval_to_trusted_autonomy',
+      glyph: 'TL',
+      detail: `Trust ladder ${trustSummary.latestTrustLevel || 'unknown'}; ${trustSummary.trustedRecordCount || 0} trusted, ${trustSummary.guardedRecordCount || 0} guarded, ${trustSummary.breakGlassRecordCount || 0} break-glass record(s).`,
+      firstScreen: true,
+      layout: { x: 18, y: 64, size: 104 },
     },
     {
       id: 'surface.browser.lofi',
@@ -1526,6 +1561,16 @@ function summarize(objects, feeds) {
     grokBuildProjectTrustStatus: feeds.grokBuild?.summary?.projectTrustStatus || 'unknown',
     grokBuildWarningCount: feeds.grokBuild?.summary?.warningCount || 0,
     grokBuildReadyForHeavyRecheck: Boolean(feeds.grokBuild?.summary?.readyForHeavyRecheck),
+    trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
+    trustLedgerRecordCount: feeds.trustLedger?.summary?.recordCount || 0,
+    trustedAutonomyLatestLevel: feeds.trustLedger?.summary?.latestTrustLevel || 'unknown',
+    trustedAutonomyLatestActionKind: feeds.trustLedger?.summary?.latestActionKind || '',
+    trustedAutonomyLatestTarget: feeds.trustLedger?.summary?.latestTarget || '',
+    trustedAutonomyEligible: Boolean(feeds.trustLedger?.summary?.trustedAutonomyEligible),
+    trustedAutonomyTrustedRecordCount: feeds.trustLedger?.summary?.trustedRecordCount || 0,
+    trustedAutonomyGuardedRecordCount: feeds.trustLedger?.summary?.guardedRecordCount || 0,
+    trustedAutonomyBreakGlassRecordCount: feeds.trustLedger?.summary?.breakGlassRecordCount || 0,
+    trustedAutonomySuccessesUntilTrusted: feeds.trustLedger?.summary?.successesUntilTrusted || 0,
     formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
@@ -1560,6 +1605,7 @@ function summarize(objects, feeds) {
       userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
       agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
       grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
+      trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -1581,6 +1627,7 @@ function loadFeeds(tmpDir) {
     userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
     agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
     grokBuild: readJson(path.join(dir, 'grok-build-setup.json'), {}),
+    trustLedger: readJson(path.join(dir, 'trust-ledger.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
@@ -1638,6 +1685,7 @@ function buildGraph(args, fixtures = null) {
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
       ollamaCloudAgentWorkflow: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
+      trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -1884,7 +1932,26 @@ function fixtureFeeds() {
       },
     },
     hardwareAction: { actionId: 'action-1', generatedAt: new Date().toISOString(), summary: { status: 'approval_required', actionKind: 'launch_app', permissionEnvelope: 'guarded_execute', targetWindowTitle: '', mutatingActionExecuted: false } },
-    hardwareApproval: { approvalId: 'approval-1', summary: { status: 'pending_user_approval', actionKind: 'launch_app', target: 'Excel', executionAllowed: true, expiresAt: new Date().toISOString() } },
+    hardwareApproval: { approvalId: 'approval-1', summary: { status: 'pending_user_approval', actionKind: 'launch_app', target: 'Excel', executionAllowed: true, expiresAt: new Date().toISOString(), trustLevel: 'guarded', trustedAutonomyEligible: false } },
+    trustLedger: {
+      schemaVersion: 'hololand.holoshell.trust-ledger.v0.1.0',
+      latestAction: { fingerprint: 'trust-fixture', actionKind: 'launch_app', targetLabel: 'Excel' },
+      policy: { promotionThreshold: 3 },
+      summary: {
+        status: 'ready',
+        recordCount: 1,
+        trustedRecordCount: 0,
+        guardedRecordCount: 1,
+        readOnlyRecordCount: 0,
+        breakGlassRecordCount: 0,
+        latestTrustLevel: 'guarded',
+        latestActionKind: 'launch_app',
+        latestTarget: 'Excel',
+        trustedAutonomyEligible: false,
+        successesUntilTrusted: 2,
+        promotionThreshold: 3,
+      },
+    },
     workflow: { workflowId: 'workflow-1', title: 'Room Marathon', summary: { status: 'pending_user_approval', stepCount: 4, pendingApprovalCount: 1, model: 'kimi', modelRoute: 'ollama_cloud' } },
     workflowApproval: { approvalId: 'workflow-approval-1', summary: { status: 'pending_user_approval', pendingApprovalCount: 1, executionAllowed: true } },
     workflowIntentGate: { gateId: 'gate-1', summary: { status: 'passed', executionAllowed: true, failedCheckCount: 0 } },
@@ -1979,6 +2046,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
+  if (!graph.objects.some((object) => object.id === 'policy.trusted-autonomy')) failures.push('expected trusted autonomy policy object');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
@@ -1991,6 +2059,7 @@ function assertSelfTest() {
   if (graph.summary.userShellProjectionStatus !== 'ready') failures.push('expected user shell projection ready status');
   if (graph.summary.agentDispatchStatus !== 'ready_to_stage') failures.push('expected agent dispatch ready status');
   if (graph.summary.grokBuildSetupStatus !== 'partial') failures.push('expected Grok Build setup status');
+  if (graph.summary.trustedAutonomyLatestLevel !== 'guarded') failures.push('expected trust ledger guarded status');
   if (graph.summary.goldCodebaseBridgeStatus !== 'ready') failures.push('expected GOLD/codebase bridge ready status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');

@@ -898,6 +898,7 @@
   <script src="../../../.tmp/holoshell/brittney-turn-latest.js"></script>
   <script src="../../../.tmp/holoshell/action-latest.js"></script>
   <script src="../../../.tmp/holoshell/approval-latest.js"></script>
+  <script src="../../../.tmp/holoshell/trust-ledger.js"></script>
   <script src="../../../.tmp/holoshell/workflow-latest.js"></script>
   <script src="../../../.tmp/holoshell/workflow-approval-latest.js"></script>
   <script src="../../../.tmp/holoshell/brain-intent-gate-latest.js"></script>
@@ -1027,6 +1028,7 @@
     const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
     const standaloneBrittneyContextFeed = window.HOLOSHELL_BRITTNEY_CONTEXT || {};
     const standaloneHardwareApprovalFeed = window.HOLOSHELL_HARDWARE_APPROVAL || {};
+    const standaloneTrustLedgerFeed = window.HOLOSHELL_TRUST_LEDGER || {};
     const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
     const standaloneWorkflowIntentGateFeed = window.HOLOSHELL_BRAIN_INTENT_GATE || {};
@@ -1049,6 +1051,7 @@
       { id: "claude-chat", label: "Claude Chat", glyph: "CC", type: "workflow", detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.", x: 64, y: 23, size: 108 },
       { id: "ollama-agents", label: "Ollama Agents", glyph: "OA", type: "workflow", detail: "Launch Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, or Pi through Ollama Cloud.", x: 83, y: 28, size: 106 },
       { id: "grok-build", label: "Grok Build", glyph: "GB", type: "workflow", detail: "Launch Grok Build as a guarded local coding-agent lane, with setup receipts ready for the Heavy recheck.", x: 72, y: 17, size: 104 },
+      { id: "trust-ladder", label: "Trust Ladder", glyph: "TL", type: "policy", detail: "Repeated safe receipts promote actions from guarded to trusted autonomy eligibility while break-glass stays blocked.", x: 18, y: 64, size: 104 },
       { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
       { id: "user-shell", label: "User Shell", glyph: "US", type: "user shell", detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.", x: 47, y: 24, size: 136 },
       { id: "format-viewer", label: "Formats", glyph: "FV", type: "source corpus", detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.", x: 24, y: 18, size: 112 },
@@ -1497,6 +1500,7 @@
         "Asset Shard": "Shard",
         "Shard Workflow Receipt": "Shard Receipt",
         "Grok Build": "Grok",
+        "Trust Ladder": "Trust",
         "Wild HoloScript": "Wild HS",
         "GOLD + Codebase": "GOLD+Code",
         "User Shell": "User Shell",
@@ -1550,7 +1554,7 @@
     function canonicalShellBubbles() {
       const graph = shellObjectGraphFeed();
       const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
-      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "workflow.grok-build", "source.holoscript-gold-codebase"]);
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "workflow.grok-build", "policy.trusted-autonomy", "source.holoscript-gold-codebase"]);
       const surfaceKinds = new Set([
         "browser_surface",
         "terminal_surface",
@@ -1600,6 +1604,15 @@
     function hardwareApprovalSummary() {
       const approval = hardwareApprovalFeed();
       return approval.summary || {};
+    }
+
+    function trustLedgerFeed() {
+      return feed.feeds?.trustLedger?.summary ? feed.feeds.trustLedger : standaloneTrustLedgerFeed;
+    }
+
+    function trustLedgerSummary() {
+      const ledger = trustLedgerFeed();
+      return ledger.summary || {};
     }
 
     function workflowFeed() {
@@ -1879,6 +1892,7 @@
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const dispatchSummary = agentDispatchSummary();
       const grokSummary = grokBuildSummary();
+      const trustSummary = trustLedgerSummary();
       const goldBridgeSummary = goldCodebaseBridgeSummary();
       const workflowKind = activeWorkflow.workflowKind || summary.activeWorkflowKind || "";
       const workflowEvidenceDetail = workflowKind === "claude_chat"
@@ -1994,6 +2008,22 @@
               model: grokSummary.defaultModel || "unknown",
               project: grokSummary.projectTrustStatus || "unknown",
               warnings: grokSummary.warningCount || 0,
+            },
+          };
+        }
+        if (object.id === "trust-ladder") {
+          const level = trustSummary.latestTrustLevel || summary.trustedAutonomyLatestLevel || "unknown";
+          return {
+            ...object,
+            detail: `Latest ${level}; ${trustSummary.latestActionKind || summary.trustedAutonomyLatestActionKind || "no action"} for ${trustSummary.latestTarget || summary.trustedAutonomyLatestTarget || "local computer"}; ${trustSummary.successesUntilTrusted ?? summary.trustedAutonomySuccessesUntilTrusted ?? 0} success(es) until trusted; ${trustSummary.trustedRecordCount || summary.trustedAutonomyTrustedRecordCount || 0} trusted record(s).`,
+            trustState: trustSummary.trustedAutonomyEligible || summary.trustedAutonomyEligible ? "verified" : trustSummary.status === "ready" || summary.trustLedgerStatus === "ready" ? "partial" : "unknown",
+            permissionEnvelope: "receipt_policy",
+            evidence: {
+              status: trustSummary.status || summary.trustLedgerStatus || "unknown",
+              latest: level,
+              trusted: trustSummary.trustedRecordCount || summary.trustedAutonomyTrustedRecordCount || 0,
+              guarded: trustSummary.guardedRecordCount || summary.trustedAutonomyGuardedRecordCount || 0,
+              breakGlass: trustSummary.breakGlassRecordCount || summary.trustedAutonomyBreakGlassRecordCount || 0,
             },
           };
         }
@@ -2345,6 +2375,16 @@
           result.textContent = `Grok Build setup ${s.status || "unknown"}: CLI ${s.cliVersion || "unknown"}, auth ${s.authStatus || "unknown"}, model ${s.modelStatus || "unknown"}, project ${s.projectTrustStatus || "unknown"}, Heavy recheck ${setup.heavyUpgrade?.plannedCheckDate || "2026-05-15"}.`;
           appendConversation("Grok Build is wired as a guarded coding-agent lane. After the Heavy upgrade, I should refresh its setup receipt and run a read-only inspection first.");
         }));
+      }
+      if (object.id === "trust-ladder" || shellObject.id === "policy.trusted-autonomy") {
+        actions.push(actionButton("Review trust", () => {
+          const ledger = trustLedgerFeed();
+          const s = ledger.summary || {};
+          result.hidden = false;
+          result.textContent = `Trust ladder ${s.status || "unknown"}: latest ${s.latestTrustLevel || "unknown"} for ${s.latestActionKind || "no action"} / ${s.latestTarget || "local computer"}; ${s.trustedRecordCount || 0} trusted, ${s.guardedRecordCount || 0} guarded, ${s.breakGlassRecordCount || 0} break-glass.`;
+          appendConversation("Trusted autonomy is receipt-earned: read-only is quiet, guarded actions need successful approved receipts, and break-glass never auto-promotes.");
+        }, actions.length === 0));
+        actions.push(actionButton("List programs", () => stageDaemonAction("Program inventory", "/action", { action: "list_programs" })));
       }
       if (object.id === "asset-shard" || shellObject.id === "workflow.asset-shard") {
         actions.push(actionButton("Review shard plan", () => {
@@ -2701,6 +2741,7 @@
       const approvalSummary = hardwareApprovalSummary();
       const dispatchSummary = agentDispatchSummary();
       const grokSummary = grokBuildSummary();
+      const trustSummary = trustLedgerSummary();
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
@@ -2743,6 +2784,7 @@
         `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
         `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
         `Grok Build: ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; auth ${grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy recheck ${grokBuildFeed().heavyUpgrade?.plannedCheckDate || summary.grokBuildHeavyRecheckDate || "2026-05-15"}`,
+        `Trust ladder: ${trustSummary.status || summary.trustLedgerStatus || "unknown"}; latest ${trustSummary.latestTrustLevel || summary.trustedAutonomyLatestLevel || "unknown"}; trusted ${trustSummary.trustedRecordCount || summary.trustedAutonomyTrustedRecordCount || 0}; guarded ${trustSummary.guardedRecordCount || summary.trustedAutonomyGuardedRecordCount || 0}; eligible ${trustSummary.trustedAutonomyEligible || summary.trustedAutonomyEligible ? "yes" : "no"}`,
         `Hardware action: ${hardwareSummary.status || summary.hardwareActionStatus || "unknown"}; ${hardwareSummary.actionKind || summary.hardwareActionKind || "none"}; ${hardwareSummary.permissionEnvelope || summary.hardwareActionPermissionEnvelope || "unknown"}; mutation executed ${hardwareSummary.mutatingActionExecuted || summary.hardwareMutatingActionExecuted ? "yes" : "no"}`,
         `Hardware approval: ${approvalSummary.status || summary.hardwareApprovalStatus || "unknown"}; ${approvalSummary.actionKind || summary.hardwareApprovalActionKind || "none"}; target ${approvalSummary.target || summary.hardwareApprovalTarget || "none"}`,
         `Workflow: ${activeWorkflow.status || summary.activeWorkflowStatus || "unknown"}; ${activeWorkflow.stepCount || summary.activeWorkflowStepCount || 0} steps; ${activeWorkflow.pendingApprovalCount || summary.activeWorkflowPendingApprovalCount || 0} approval(s); ${workflowEvidenceDetail}`,
