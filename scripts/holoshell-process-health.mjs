@@ -196,25 +196,63 @@ function normalizeName(name) {
   return String(name || '').toLowerCase().replace(/\.exe$/i, '');
 }
 
+function commandTokens(commandLine) {
+  return String(commandLine || '')
+    .match(/"[^"]*"|'[^']*'|\S+/g)
+    ?.map((token) => token.replace(/^["']|["']$/g, ''))
+    .filter(Boolean) || [];
+}
+
+function tokenStem(token) {
+  const normalized = String(token || '').replace(/\\/g, '/').split('/').pop() || '';
+  return normalizeName(normalized)
+    .replace(/\.(cmd|bat|ps1|js|cjs|mjs|ts)$/i, '');
+}
+
 function classifyRun(processInfo) {
   const name = normalizeName(processInfo.name);
   const command = String(processInfo.commandLine || '').toLowerCase();
   if (/codex/.test(command)) return 'agent_codex';
   if (/claude|cursor/.test(command) || ['cursor', 'code'].includes(name)) return 'agent_or_ide';
   if (/gemini|antigravity/.test(command)) return 'agent_browser_vision';
+  if (name === 'windowsterminal') return 'terminal_surface';
+  if (name.includes('docker') || command.includes('\\docker\\') || command.includes('/docker/')) return 'container_service';
   if (['powershell', 'pwsh', 'cmd', 'bash', 'zsh', 'sh'].includes(name)) return 'shell';
   if (['pnpm', 'npm', 'yarn'].includes(name)) return 'package_script';
   if (['node', 'tsx', 'ts-node', 'vitest', 'vite', 'next'].includes(name)) return 'node_runtime';
   if (['python', 'python3'].includes(name)) return 'python_runtime';
-  if (['chrome', 'msedge', 'firefox'].includes(name)) return 'browser';
+  if (['chrome', 'msedge', 'firefox', 'brave', 'msedgewebview2'].includes(name)) return 'browser';
   if (['git', 'docker'].includes(name)) return 'tooling';
   return 'process';
 }
 
-function isShellRunCandidate(processInfo) {
-  const name = normalizeName(processInfo.name);
+function isProtectedSurfaceCategory(category) {
+  return [
+    'agent_codex',
+    'agent_or_ide',
+    'agent_browser_vision',
+    'browser',
+    'container_service',
+    'terminal_surface',
+  ].includes(category);
+}
+
+function isExpectedLongRunningDaemon(processInfo, category) {
   const command = String(processInfo.commandLine || '').toLowerCase();
-  return SHELL_RUN_NAMES.includes(name) || SHELL_RUN_NAMES.some((hint) => command.includes(hint));
+  const name = normalizeName(processInfo.name);
+  return category === 'container_service'
+    || command.includes('holoshell-control-daemon.mjs')
+    || command.includes('codex-team-daemon.mjs')
+    || (name === 'node' && /\bdaemon\b/.test(command));
+}
+
+function isShellRunCandidate(processInfo, category = classifyRun(processInfo)) {
+  if (isProtectedSurfaceCategory(category)) return false;
+  if (isExpectedLongRunningDaemon(processInfo, category)) return false;
+  const name = normalizeName(processInfo.name);
+  if (SHELL_RUN_NAMES.includes(name)) return true;
+  const tokenNames = commandTokens(processInfo.commandLine).map(tokenStem);
+  return tokenNames.some((token) => SHELL_RUN_NAMES.includes(token));
 }
 
 function parseDate(value) {
@@ -354,19 +392,20 @@ function processToReceipt(processInfo, args, pidSet, runByPid) {
   const pid = Number(processInfo.pid);
   const age = ageMinutes(processInfo.createdAt);
   const memory = memoryMb(processInfo.workingSetBytes);
-  const shellRunCandidate = isShellRunCandidate(processInfo);
   const category = classifyRun(processInfo);
+  const shellRunCandidate = isShellRunCandidate(processInfo, category);
   const orphanLike = Number(processInfo.ppid) > 0 && !pidSet.has(Number(processInfo.ppid));
   const ownedRun = runByPid.get(pid) || null;
   const registeredOverdue = Boolean(ownedRun && isRunOverdue(ownedRun));
   const stale = shellRunCandidate && age !== null && age >= args.staleMinutes && !ownedRun;
   const highMemory = memory !== null && memory >= args.highMemoryMb;
+  const custodyRelevantParentGap = orphanLike && (shellRunCandidate || ownedRun || highMemory);
   const findings = [];
 
   if (stale) findings.push('stale_shell_or_dev_run');
   if (registeredOverdue) findings.push('registered_run_overdue');
   if (highMemory) findings.push('high_memory_process');
-  if (orphanLike) findings.push('parent_not_visible');
+  if (custodyRelevantParentGap) findings.push('parent_not_visible');
 
   return {
     pid,
@@ -424,6 +463,62 @@ function createStopPlan(args, processes) {
   };
 }
 
+function stopPlanReason(processInfo) {
+  if (processInfo.findings.includes('registered_run_overdue')) {
+    return 'Registered HoloShell run passed its expected end time.';
+  }
+  if (processInfo.findings.includes('high_memory_process')) {
+    return 'Process exceeds the high-memory threshold.';
+  }
+  if (processInfo.findings.includes('stale_shell_or_dev_run')) {
+    return 'Shell or development run is older than the stale threshold.';
+  }
+  if (processInfo.findings.includes('parent_not_visible')) {
+    return 'Parent process is not visible in the current process table.';
+  }
+  return 'Process needs custody review before HoloShell recommends cleanup.';
+}
+
+function createStopPlanForProcess(processInfo, rank) {
+  return {
+    planId: `stop-plan-${processInfo.pid}-${stableHash(`${processInfo.pid}:${processInfo.commandHash}:${rank}`)}`,
+    status: 'approval_required',
+    pid: processInfo.pid,
+    name: processInfo.name,
+    category: processInfo.category,
+    ageMinutes: processInfo.ageMinutes,
+    memoryMb: processInfo.memoryMb,
+    findings: processInfo.findings,
+    custody: processInfo.custody,
+    reason: stopPlanReason(processInfo),
+    approvalRequired: true,
+    safeToExecuteAutomatically: false,
+    recommendedCommand: process.platform === 'win32'
+      ? `Stop-Process -Id ${processInfo.pid} -Confirm`
+      : `kill -TERM ${processInfo.pid}`,
+    receiptRequired: true,
+  };
+}
+
+function createStopPlans(processes) {
+  const candidates = processes
+    .filter((item) => item.findings.some((finding) => [
+      'registered_run_overdue',
+      'high_memory_process',
+      'stale_shell_or_dev_run',
+      'parent_not_visible',
+    ].includes(finding)))
+    .sort((left, right) => {
+      const leftOwned = left.custody.runId ? 1 : 0;
+      const rightOwned = right.custody.runId ? 1 : 0;
+      const leftScore = leftOwned * 1000000 + left.findings.length * 100000 + (left.memoryMb || 0);
+      const rightScore = rightOwned * 1000000 + right.findings.length * 100000 + (right.memoryMb || 0);
+      return rightScore - leftScore;
+    });
+
+  return candidates.slice(0, 12).map(createStopPlanForProcess);
+}
+
 function createHealth(args) {
   const collection = collectProcesses();
   const pidSet = new Set(collection.processes.map((item) => Number(item.pid)).filter(Boolean));
@@ -459,6 +554,8 @@ function createHealth(args) {
     ...shellRuns.filter((item) => item.findings.length === 0),
   ].slice(0, 80);
 
+  const stopPlans = createStopPlans(processes);
+  const explicitStopPlan = createStopPlan(args, processes);
   const manifest = {
     schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
@@ -494,6 +591,7 @@ function createHealth(args) {
       highMemoryCount: highMemory.length,
       staleRunCount: staleRuns.length,
       orphanLikeCount: orphanLike.length,
+      stopPlanCount: stopPlans.length + (explicitStopPlan ? 1 : 0),
       trackedCategoryCount: categories,
     },
     runRegistry: {
@@ -539,7 +637,8 @@ function createHealth(args) {
       unmatchedActiveRuns: runEvidence.unmatchedActiveRuns,
     }),
     processes: processSample,
-    stopPlan: createStopPlan(args, processes),
+    stopPlans,
+    stopPlan: explicitStopPlan,
   };
 
   return manifest;
@@ -629,6 +728,70 @@ function assertSelfTest(health) {
   if (!['pass', 'warn', 'critical'].includes(health.summary.riskState)) failures.push('invalid riskState');
   if (health.policies.automaticTerminationAllowed !== false) failures.push('automatic termination must be disabled');
   if (!Array.isArray(health.recommendations) || health.recommendations.length < 1) failures.push('expected recommendations');
+  if (!Array.isArray(health.stopPlans)) failures.push('expected stopPlans array');
+  const fixturePidSet = new Set([100, 101, 102, 103, 104]);
+  const fixtureRuns = new Map();
+  const fixtureArgs = { staleMinutes: 120, highMemoryMb: 1500, includeCommandLines: false };
+  const fixtures = [
+    {
+      name: 'Codex.exe',
+      commandLine: '"C:\\Program Files\\WindowsApps\\OpenAI.Codex\\app\\Codex.exe" --secure-schemes=app',
+      expectedCategory: 'agent_codex',
+      expectedShellRunCandidate: false,
+      expectedFindings: [],
+    },
+    {
+      name: 'chrome.exe',
+      commandLine: '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --origin-trial-disabled-features=WebAssemblyCustomDescriptors',
+      expectedCategory: 'browser',
+      expectedShellRunCandidate: false,
+      expectedFindings: [],
+    },
+    {
+      name: 'com.docker.backend.exe',
+      commandLine: '"C:\\Program Files\\Docker\\Docker\\resources\\com.docker.backend.exe" services',
+      expectedCategory: 'container_service',
+      expectedShellRunCandidate: false,
+      expectedFindings: [],
+    },
+    {
+      name: 'node.exe',
+      commandLine: '"C:\\Program Files\\nodejs\\node.exe" scripts\\holoshell-control-daemon.mjs',
+      expectedCategory: 'node_runtime',
+      expectedShellRunCandidate: false,
+      expectedFindings: [],
+    },
+    {
+      name: 'node.exe',
+      commandLine: '"C:\\Program Files\\nodejs\\node.exe" scripts\\some-old-dev-server.mjs',
+      expectedCategory: 'node_runtime',
+      expectedShellRunCandidate: true,
+      expectedFindings: ['stale_shell_or_dev_run', 'parent_not_visible'],
+    },
+  ];
+  for (const [index, fixture] of fixtures.entries()) {
+    const receipt = processToReceipt({
+      pid: 1000 + index,
+      ppid: 9999,
+      name: fixture.name,
+      commandLine: fixture.commandLine,
+      executablePath: fixture.name,
+      createdAt: new Date(Date.now() - 180 * 60_000).toISOString(),
+      workingSetBytes: 10 * 1024 * 1024,
+    }, fixtureArgs, fixturePidSet, fixtureRuns);
+    if (receipt.category !== fixture.expectedCategory) {
+      failures.push(`${fixture.name} expected category ${fixture.expectedCategory}, got ${receipt.category}`);
+    }
+    if (receipt.shellRunCandidate !== fixture.expectedShellRunCandidate) {
+      failures.push(`${fixture.name} shellRunCandidate expected ${fixture.expectedShellRunCandidate}`);
+    }
+    for (const finding of fixture.expectedFindings) {
+      if (!receipt.findings.includes(finding)) failures.push(`${fixture.name} missing ${finding}`);
+    }
+    for (const finding of receipt.findings) {
+      if (!fixture.expectedFindings.includes(finding)) failures.push(`${fixture.name} unexpected ${finding}`);
+    }
+  }
   if (failures.length) {
     throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   }

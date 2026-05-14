@@ -23,6 +23,7 @@ composition "HoloShell Process Health Room" {
     staleRunCount: 0
     highMemoryCount: 0
     orphanLikeCount: 0
+    stopPlanCount: 0
     riskState: "unknown"
     selectedPid: 0
     lastProcessReceiptId: ""
@@ -98,6 +99,7 @@ composition "HoloShell Process Health Room" {
       riskState: $riskState
       highMemoryCount: $highMemoryCount
       staleRunCount: $staleRunCount
+      stopPlanCount: $stopPlanCount
     }
 
     object "ShellRunStack" {
@@ -134,6 +136,9 @@ composition "HoloShell Process Health Room" {
     appliesTo: ["process_scan", "shell_run_scan", "memory_pressure_scan"]
     approvalRequired: false
     commandLinesIncludedByDefault: false
+    shellRunMatching: "token_exact"
+    protectedSurfacesAreNotStaleShellRuns: true
+    parentMissingIsOnlyActionableForCustodyRelevantRuns: true
     receiptRequired: true
   }
 
@@ -172,6 +177,7 @@ composition "HoloShell Process Health Room" {
     state.staleRunCount = health.summary.staleRunCount
     state.highMemoryCount = health.summary.highMemoryCount
     state.orphanLikeCount = health.summary.orphanLikeCount
+    state.stopPlanCount = health.summary.stopPlanCount || 0
     state.riskState = health.summary.riskState
     emit("holoshell:process:health", {
       riskState: state.riskState,
@@ -184,7 +190,8 @@ composition "HoloShell Process Health Room" {
       unmatchedActiveRuns: state.unmatchedActiveRunCount,
       staleRuns: state.staleRunCount,
       highMemory: state.highMemoryCount,
-      orphanLike: state.orphanLikeCount
+      orphanLike: state.orphanLikeCount,
+      stopPlans: state.stopPlanCount
     })
   }
 
