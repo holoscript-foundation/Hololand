@@ -269,6 +269,22 @@
       border-left-color: var(--green);
     }
 
+    .run[data-status="claimed"] {
+      border-left-color: var(--teal);
+    }
+
+    .run[data-status="owner_unknown"] {
+      border-left-color: var(--amber);
+    }
+
+    .run[data-status="stale"] {
+      border-left-color: var(--red);
+    }
+
+    .run[data-status="closed"] {
+      opacity: 0.68;
+    }
+
     .hash {
       color: var(--soft);
       font: 12px ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -358,6 +374,7 @@
     }
   </style>
   <script src="../../../.tmp/holoshell/hardware-reality.js"></script>
+  <script src="../../../.tmp/holoshell/run-custody.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -401,6 +418,7 @@
 
   <script>
     const reality = window.HOLOSHELL_HARDWARE_REALITY || null;
+    const custody = window.HOLOSHELL_RUN_CUSTODY || null;
     const colors = {
       cyan: "#5ee2c5",
       blue: "#5ba8ff",
@@ -432,12 +450,13 @@
     }
 
     function renderMetrics(summary) {
+      const custodySummary = custody?.summary || {};
       const items = [
         ["Processes", summary.processCount],
         ["Shell Runs", summary.shellRunCount],
         ["Listeners", summary.listenerCount],
         ["Agent Lanes", `${summary.activeLaneCount}/${summary.laneCount}`],
-        ["Legacy Apps", summary.legacyAppCount],
+        ["Unknown Owners", custodySummary.ownerUnknownCount ?? summary.shellRunCount],
         ["Preflights", summary.terminationPreflightCount]
       ];
       replaceChildrenById("metrics", items.map(([label, value]) => {
@@ -469,13 +488,18 @@
 
     function renderRuns(runs) {
       if (!runs.length) return replaceChildrenById("runs", [empty("No shell runs in snapshot")]);
+      const custodyByRun = new Map((custody?.runs || []).map((run) => [run.runId, run]));
       replaceChildrenById("runs", runs.map((run) => {
+        const runCustody = custodyByRun.get(run.runId) || {};
+        const status = runCustody.status || "owner_unknown";
         const element = document.createElement("article");
         element.className = "run";
         element.dataset.listening = String((run.listeningPorts || []).length > 0);
+        element.dataset.status = status;
         element.innerHTML = `
           <h3>${text(run.processName, "process")}</h3>
           <p class="sub">PID ${text(run.pid)} / ${text(run.healthState)}</p>
+          <p class="sub">${status.replace("_", " ")}${runCustody.laneId ? ` / ${runCustody.laneId}` : ""}</p>
           <p class="sub">Ports ${(run.listeningPorts || []).join(", ") || "none"}</p>
           <p class="hash">${shortHash(run.commandHash)}</p>
         `;
@@ -515,10 +539,14 @@
     function renderGates(model) {
       const safety = model.safety || {};
       const summary = model.summary || {};
+      const custodySummary = custody?.summary || {};
+      const brief = custody?.brittneyBrief || {};
       const items = [
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
+        ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.ownerUnknownCount || 0} unknown`],
+        ["Brittney Next", brief.requiredNextAction || "Run custody snapshot first"],
         ["Raw Commands", model.receipt?.rawCommandsIncluded ? "visible" : "hidden"]
       ];
       replaceChildrenById("gates", items.map(([label, value]) => {

@@ -1,0 +1,185 @@
+// HoloShell Run Custody Actions
+//
+// Non-destructive ownership and lifecycle receipts for shell runs, dev
+// servers, model jobs, and agent-owned processes. This is the first operating
+// layer above hardware reality: agents care for runs before asking to mutate
+// or terminate anything.
+
+composition "HoloShell Run Custody Actions" {
+  config {
+    title: "Run Custody Actions"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-run-custody-actions.mjs"
+    defaultMode: "non_destructive_custody"
+  }
+
+  state {
+    observedRunCount: 0
+    claimedRunCount: 0
+    staleRunCount: 0
+    ownerUnknownCount: 0
+    closedRunCount: 0
+    actionReceiptCount: 0
+    destructiveActionsTaken: false
+    lastCustodyReceiptId: ""
+  }
+
+  channel "holoshell:run:custody" {
+    type: "append_only"
+    priority: "critical"
+    description: "Run custody receipts for claim, extend, close, stale, and owner-unknown decisions"
+  }
+
+  channel "holoshell:run:recommendation" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Recommended non-destructive actions for visible shell runs"
+  }
+
+  channel "holoshell:run:brief" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Brittney-readable hardware and run custody brief"
+  }
+
+  template "RunCustodyReceipt" {
+    type: "receipt"
+    receiptType: "run_custody"
+    action: "claim"
+    runId: ""
+    pid: 0
+    laneId: ""
+    reason: ""
+    destructiveActionsTaken: false
+    rawCommandHidden: true
+  }
+
+  template "CustodyRecommendation" {
+    type: "machine"
+    machineType: "custody_recommendation"
+    action: "claim"
+    runId: ""
+    pid: 0
+    priority: "medium"
+    reason: ""
+    requiresUserConfirmation: false
+    receiptRequired: true
+  }
+
+  room "RunCustodyRoom" {
+    label: "Run Custody"
+    userQuestion: "Which runs are owned, stale, safe, or waiting for an agent?"
+    visualForm: "run_custody_queue"
+    liveFeed: "holoshell:run:custody"
+
+    object "ObservedRuns" {
+      type: "ui"
+      uiType: "run_counter"
+      label: "Observed Runs"
+      count: $observedRunCount
+    }
+
+    object "ClaimedRuns" {
+      type: "ui"
+      uiType: "run_counter"
+      label: "Claimed"
+      count: $claimedRunCount
+    }
+
+    object "AttentionQueue" {
+      type: "ui"
+      uiType: "run_attention_queue"
+      label: "Needs Attention"
+      staleRuns: $staleRunCount
+      ownerUnknown: $ownerUnknownCount
+    }
+
+    object "CustodyReceipts" {
+      type: "ui"
+      uiType: "receipt_stack"
+      label: "Receipts"
+      count: $actionReceiptCount
+      destructiveActionsTaken: $destructiveActionsTaken
+    }
+  }
+
+  policy "NonDestructiveCustodyOnly" {
+    appliesTo: ["claim_run", "extend_run", "close_run", "mark_stale", "owner_unknown"]
+    destructiveActionsAllowed: false
+    processTerminationAllowed: false
+    fileDeletionAllowed: false
+    legacyAppMutationAllowed: false
+    receiptRequired: true
+  }
+
+  policy "RunClaimRequiresReason" {
+    appliesTo: ["claim_run", "extend_run", "close_run", "mark_stale", "owner_unknown"]
+    requiredFields: ["runId", "pid", "laneId", "reason"]
+    rawCommandHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "StaleDoesNotMeanKill" {
+    appliesTo: ["stale_run", "owner_unknown", "overdue_run"]
+    defaultAction: "ask_owner_or_close_with_receipt"
+    terminationRequiresSeparatePreflight: true
+    receiptRequired: true
+  }
+
+  action consume_custody_snapshot(snapshot) {
+    state.observedRunCount = snapshot.summary.observedRunCount
+    state.claimedRunCount = snapshot.summary.claimedRunCount
+    state.staleRunCount = snapshot.summary.staleRunCount
+    state.ownerUnknownCount = snapshot.summary.ownerUnknownCount
+    state.closedRunCount = snapshot.summary.closedRunCount
+    state.actionReceiptCount = snapshot.summary.actionReceiptCount
+    state.destructiveActionsTaken = snapshot.safety.destructiveActionsTaken
+
+    emit("holoshell:run:custody", {
+      observedRuns: state.observedRunCount,
+      claimedRuns: state.claimedRunCount,
+      staleRuns: state.staleRunCount,
+      ownerUnknown: state.ownerUnknownCount,
+      closedRuns: state.closedRunCount,
+      receipts: state.actionReceiptCount,
+      destructiveActionsTaken: state.destructiveActionsTaken
+    })
+  }
+
+  action recommend_custody_action(recommendation) {
+    emit("holoshell:run:recommendation", {
+      action: recommendation.action,
+      runId: recommendation.runId,
+      pid: recommendation.pid,
+      priority: recommendation.priority,
+      reason: recommendation.reason,
+      receiptRequired: true
+    })
+  }
+
+  action record_custody_receipt(receipt) {
+    state.lastCustodyReceiptId = receipt.receiptId
+    emit("holoshell:run:custody", {
+      receiptId: receipt.receiptId,
+      action: receipt.action,
+      runId: receipt.runId,
+      pid: receipt.pid,
+      laneId: receipt.laneId,
+      reason: receipt.reason,
+      destructiveActionsTaken: false,
+      rawCommandHidden: true
+    })
+  }
+
+  action publish_brittney_brief(brief) {
+    emit("holoshell:run:brief", {
+      status: brief.status,
+      summary: brief.summary,
+      requiredNextAction: brief.requiredNextAction,
+      allowedActions: brief.allowedActions,
+      blockedActions: brief.blockedActions,
+      receiptRequired: true
+    })
+  }
+}

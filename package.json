@@ -29,6 +29,7 @@
     "check:cross-mcp-receipt-envelope": "node scripts/check-cross-mcp-receipt-envelope.mjs",
     "format": "pnpm -r format",
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
+    "holoshell:run-custody": "node scripts/holoshell-run-custody-actions.mjs",
     "brittney": "npx tsx scripts/start-brittney.ts",
     "playground": "pnpm --filter @hololand/playground dev",
     "dev": "npm-run-all --parallel brittney playground",
