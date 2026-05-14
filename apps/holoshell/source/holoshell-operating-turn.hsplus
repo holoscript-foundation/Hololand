@@ -18,6 +18,8 @@ composition "HoloShell Operating Turn" {
     stepCount: 0
     passedStepCount: 0
     failedStepCount: 0
+    runRegistryReconciledRunCount: 0
+    runRegistryActiveRunCount: 0
     activeBuildTreeCount: 0
     buildProcessCount: 0
     operatorStatus: "unknown"
@@ -68,6 +70,8 @@ composition "HoloShell Operating Turn" {
       type: "ui"
       uiType: "hardware_care_summary"
       label: "Hardware Care"
+      registryReconciledRuns: $runRegistryReconciledRunCount
+      registryActiveRuns: $runRegistryActiveRunCount
       activeBuildTrees: $activeBuildTreeCount
       buildProcesses: $buildProcessCount
       ownerUnknownRuns: $ownerUnknownRunCount
@@ -93,7 +97,7 @@ composition "HoloShell Operating Turn" {
   }
 
   policy "OperatingTurnIsReadOnlyByDefault" {
-    appliesTo: ["brittney_turn", "agent_shell_action", "legacy_app_operation", "build_custody_action"]
+    appliesTo: ["brittney_turn", "agent_shell_action", "legacy_app_operation", "build_custody_action", "run_registry_reconcile"]
     destructiveActionsAllowed: false
     rawCommandsHiddenByDefault: true
     receiptRequired: true
@@ -101,8 +105,16 @@ composition "HoloShell Operating Turn" {
 
   policy "BrittneyConsumesTurnBeforeActing" {
     appliesTo: ["brittney_local_operator", "holoshell_peer_coordination"]
-    requiredInputs: ["operating_turn", "operator_brief", "brittney_context_packet", "build_custody", "readiness_evidence"]
+    requiredInputs: ["operating_turn", "run_registry_reconcile", "operator_brief", "brittney_context_packet", "build_custody", "readiness_evidence"]
     firstMove: "observe_and_claim_custody"
+    receiptRequired: true
+  }
+
+  policy "RegistryReconcileBeforeObservation" {
+    appliesTo: ["operating_turn_start", "hardware_reality_refresh", "process_health_refresh"]
+    firstStep: "run_registry_reconcile"
+    processTerminationAllowed: false
+    registryOnly: true
     receiptRequired: true
   }
 
@@ -111,6 +123,8 @@ composition "HoloShell Operating Turn" {
     state.stepCount = turn.summary.stepCount
     state.passedStepCount = turn.summary.passedStepCount
     state.failedStepCount = turn.summary.failedStepCount
+    state.runRegistryReconciledRunCount = turn.summary.runRegistryReconciledRunCount
+    state.runRegistryActiveRunCount = turn.summary.runRegistryActiveRunCount
     state.activeBuildTreeCount = turn.summary.activeBuildTreeCount
     state.buildProcessCount = turn.summary.buildProcessCount
     state.operatorStatus = turn.summary.operatorStatus
@@ -128,6 +142,8 @@ composition "HoloShell Operating Turn" {
       steps: state.stepCount,
       passed: state.passedStepCount,
       failed: state.failedStepCount,
+      runRegistryReconciledRuns: state.runRegistryReconciledRunCount,
+      runRegistryActiveRuns: state.runRegistryActiveRunCount,
       activeBuildTrees: state.activeBuildTreeCount,
       buildProcesses: state.buildProcessCount,
       operatorStatus: state.operatorStatus,

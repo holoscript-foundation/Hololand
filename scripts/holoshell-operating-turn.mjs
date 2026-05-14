@@ -11,6 +11,7 @@ const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'operating-turn.js');
 const PACKAGE_RUNNER = 'pnpm';
 
 const TURN_STEPS = [
+  { stepId: 'run_registry_reconcile', label: 'Run Registry Reconcile', script: 'holoshell:run-registry-reconcile' },
   { stepId: 'hardware_reality', label: 'Hardware Reality', script: 'holoshell:hardware-reality' },
   { stepId: 'legacy_windows', label: 'Legacy Windows', script: 'holoshell:legacy-windows' },
   { stepId: 'build_custody', label: 'Build Custody', script: 'holoshell:build-custody' },
@@ -155,6 +156,7 @@ function syntheticStepResults(args) {
 
 function loadEvidence() {
   return {
+    runRegistryReconcile: readOptionalJson(path.join('.tmp', 'holoshell', 'run-registry-reconcile.json')),
     buildCustody: readOptionalJson(path.join('.tmp', 'holoshell', 'build-custody.json')),
     operatorBrief: readOptionalJson(path.join('.tmp', 'holoshell', 'operator-brief.json')),
     brittneyContext: readOptionalJson(path.join('.tmp', 'holoshell', 'brittney-context.json')),
@@ -164,6 +166,7 @@ function loadEvidence() {
 }
 
 function summarizeEvidence(evidence) {
+  const reconcile = evidence.runRegistryReconcile || {};
   const build = evidence.buildCustody || {};
   const operator = evidence.operatorBrief || {};
   const brittneyContext = evidence.brittneyContext || {};
@@ -171,6 +174,8 @@ function summarizeEvidence(evidence) {
   const witness = evidence.visualWitness || {};
   return {
     buildRisk: build.summary?.riskState || 'unknown',
+    runRegistryReconciledRunCount: reconcile.summary?.reconciledRunCount || 0,
+    runRegistryActiveRunCount: reconcile.registry?.activeRunCountAfter || 0,
     activeBuildTreeCount: build.summary?.activeBuildTreeCount || 0,
     buildProcessCount: build.summary?.buildProcessCount || 0,
     operatorStatus: operator.status || 'unknown',
@@ -224,6 +229,7 @@ function createTurn(stepResults, args, evidence = loadEvidence()) {
       operatorBrief: 'scripts/holoshell-operator-brief.mjs',
       brittneyContext: 'scripts/holoshell-brittney-context.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
+      runRegistryReconcile: 'scripts/holoshell-run.mjs --reconcile-registry',
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
     },
     summary,
@@ -238,6 +244,7 @@ function createTurn(stepResults, args, evidence = loadEvidence()) {
     brittneyBrief: {
       status: summary.operatorStatus,
       context: `${summary.brittneyContextStatus}; ${summary.brittneyContextVisibleShellObjectCount} visible shell object(s); ${summary.brittneyContextPeerWindowCount} peer window(s), ${summary.brittneyContextShellWindowCount} shell window(s).`,
+      runRegistry: `${summary.runRegistryReconciledRunCount} reconciled stale registry run(s), ${summary.runRegistryActiveRunCount} active registry run(s) after reconcile.`,
       buildCustody: `${summary.activeBuildTreeCount} active build tree(s), ${summary.buildProcessCount} process(es), risk ${summary.buildRisk}.`,
       readiness: `${summary.readinessStatus}, ${summary.readinessTokenCount} evidence token(s), ${summary.readinessWarningCount} warning(s).`,
       visualWitness: `${summary.visualWitnessStatus}${summary.visualWitnessScreenshot ? ' with screenshot' : ''}.`,
@@ -278,6 +285,7 @@ function assertSelfTest(turn) {
   if (turn.summary.stepCount < 10) failures.push('expected full operating step list');
   if (turn.summary.failedStepCount !== 0) failures.push('self-test should not fail steps');
   if (!turn.agentConsumption.requiredRefreshOrder.includes('holoshell:build-custody')) failures.push('missing build custody step');
+  if (!turn.agentConsumption.requiredRefreshOrder.includes('holoshell:run-registry-reconcile')) failures.push('missing run registry reconcile step');
   if (!turn.agentConsumption.requiredRefreshOrder.includes('holoshell:brittney-context')) failures.push('missing Brittney context step');
   if (!turn.agentConsumption.requiredRefreshOrder.includes('holoshell:readiness-evidence')) failures.push('missing readiness evidence step');
   if (!turn.brittneyBrief.blockedActions.includes('kill_build_process')) failures.push('build kill must be blocked');
@@ -322,6 +330,8 @@ function main() {
     console.log(`HoloShell operating turn browser bootstrap: ${jsOutput}`);
     console.log(`Status: ${turn.summary.status}`);
     console.log(`Steps: ${turn.summary.passedStepCount}/${turn.summary.stepCount} passed`);
+    console.log(`Registry reconciled: ${turn.summary.runRegistryReconciledRunCount}`);
+    console.log(`Registry active after reconcile: ${turn.summary.runRegistryActiveRunCount}`);
     console.log(`Active build trees: ${turn.summary.activeBuildTreeCount}`);
     console.log(`Operator status: ${turn.summary.operatorStatus}`);
     console.log(`Readiness: ${turn.summary.readinessStatus}`);
