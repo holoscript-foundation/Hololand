@@ -35,6 +35,7 @@
     "holoshell:run-custody": "node scripts/holoshell-run-custody-actions.mjs",
     "holoshell:legacy-windows": "node scripts/holoshell-legacy-window-inventory.mjs",
     "holoshell:legacy-apps": "node scripts/holoshell-legacy-app-absorption.mjs",
+    "holoshell:shell-objects": "node scripts/holoshell-shell-objects.mjs",
     "holoshell:operator-brief": "node scripts/holoshell-operator-brief.mjs",
     "brittney": "npx tsx scripts/start-brittney.ts",
     "playground": "pnpm --filter @hololand/playground dev",

@@ -22,6 +22,7 @@ composition "HoloShell Home" {
     brittneyAvatarManifest: ".tmp/holoshell/brittney-avatar.json"
     brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
     programRegistry: ".tmp/holoshell/program-registry.json"
+    shellObjectGraph: ".tmp/holoshell/shell-objects.json"
     hardwareActionReceipt: ".tmp/holoshell/action-latest.json"
     hardwareApprovalBundle: ".tmp/holoshell/approval-latest.json"
     workflowReceipt: ".tmp/holoshell/workflow-latest.json"
@@ -101,6 +102,20 @@ composition "HoloShell Home" {
     evidenceDrawerOpen: false
     skinMode: "liquid"
     shellObjectCount: 0
+    shellObjectGraphStatus: "unknown"
+    firstScreenObjectCount: 0
+    appShellObjectCount: 0
+    browserShellObjectCount: 0
+    terminalShellObjectCount: 0
+    documentAppShellObjectCount: 0
+    agentShellObjectCount: 0
+    workflowShellObjectCount: 0
+    approvalShellObjectCount: 0
+    receiptShellObjectCount: 0
+    capturedShellObjectCount: 0
+    runningShellObjectCount: 0
+    guardedShellObjectCount: 0
+    firstProgramShellObject: ""
     activeShellObject: "hololand"
     brittneyMode: "assistant_presence"
     brittneyAvatarStatus: "unknown"
@@ -959,6 +974,21 @@ composition "HoloShell Home" {
     state.launchableProgramCount = feedBundle.summary.launchableProgramCount
     state.startMenuProgramCount = feedBundle.summary.startMenuProgramCount
     state.appPathProgramCount = feedBundle.summary.appPathProgramCount
+    state.shellObjectGraphStatus = feedBundle.summary.shellObjectGraphStatus
+    state.shellObjectCount = feedBundle.summary.shellObjectCount
+    state.firstScreenObjectCount = feedBundle.summary.firstScreenObjectCount
+    state.appShellObjectCount = feedBundle.summary.appShellObjectCount
+    state.browserShellObjectCount = feedBundle.summary.browserShellObjectCount
+    state.terminalShellObjectCount = feedBundle.summary.terminalShellObjectCount
+    state.documentAppShellObjectCount = feedBundle.summary.documentAppShellObjectCount
+    state.agentShellObjectCount = feedBundle.summary.agentShellObjectCount
+    state.workflowShellObjectCount = feedBundle.summary.workflowShellObjectCount
+    state.approvalShellObjectCount = feedBundle.summary.approvalShellObjectCount
+    state.receiptShellObjectCount = feedBundle.summary.receiptShellObjectCount
+    state.capturedShellObjectCount = feedBundle.summary.capturedShellObjectCount
+    state.runningShellObjectCount = feedBundle.summary.runningShellObjectCount
+    state.guardedShellObjectCount = feedBundle.summary.guardedShellObjectCount
+    state.firstProgramShellObject = feedBundle.summary.firstProgramShellObject
     state.brittneyAvatarStatus = feedBundle.summary.brittneyAvatarStatus
     state.brittneyRuntimeStatus = feedBundle.summary.brittneyRuntimeStatus
     state.brittneyAvatarEmotion = feedBundle.summary.brittneyEmotion
@@ -1022,6 +1052,21 @@ composition "HoloShell Home" {
       program_registry: state.programRegistryStatus,
       installed_programs: state.installedProgramCount,
       launchable_programs: state.launchableProgramCount,
+      shell_object_graph: state.shellObjectGraphStatus,
+      shell_objects: state.shellObjectCount,
+      first_screen_objects: state.firstScreenObjectCount,
+      app_shell_objects: state.appShellObjectCount,
+      browser_shell_objects: state.browserShellObjectCount,
+      terminal_shell_objects: state.terminalShellObjectCount,
+      document_app_shell_objects: state.documentAppShellObjectCount,
+      agent_shell_objects: state.agentShellObjectCount,
+      workflow_shell_objects: state.workflowShellObjectCount,
+      approval_shell_objects: state.approvalShellObjectCount,
+      receipt_shell_objects: state.receiptShellObjectCount,
+      captured_shell_objects: state.capturedShellObjectCount,
+      running_shell_objects: state.runningShellObjectCount,
+      guarded_shell_objects: state.guardedShellObjectCount,
+      first_program_shell_object: state.firstProgramShellObject,
       brittney_avatar: state.brittneyAvatarStatus,
       brittney_runtime: state.brittneyRuntimeStatus,
       brittney_emotion: state.brittneyAvatarEmotion,
@@ -1159,6 +1204,45 @@ composition "HoloShell Home" {
       start_menu_programs: state.startMenuProgramCount,
       app_path_programs: state.appPathProgramCount,
       source_contract: "apps/holoshell/source/holoshell-hardware-control.hsplus",
+      receipt_required: true
+    })
+  }
+
+  action apply_shell_object_graph(graph) {
+    state.shellObjectGraphStatus = graph.summary.status
+    state.shellObjectCount = graph.summary.shellObjectCount
+    state.firstScreenObjectCount = graph.summary.firstScreenObjectCount
+    state.appShellObjectCount = graph.summary.programObjectCount
+    state.browserShellObjectCount = graph.summary.browserSurfaceCount
+    state.terminalShellObjectCount = graph.summary.terminalSurfaceCount
+    state.documentAppShellObjectCount = graph.summary.documentAppCount
+    state.agentShellObjectCount = graph.summary.agentObjectCount
+    state.workflowShellObjectCount = graph.summary.workflowObjectCount
+    state.approvalShellObjectCount = graph.summary.approvalObjectCount
+    state.receiptShellObjectCount = graph.summary.receiptObjectCount
+    state.capturedShellObjectCount = graph.summary.capturedWindowObjectCount
+    state.runningShellObjectCount = graph.summary.runningObjectCount
+    state.guardedShellObjectCount = graph.summary.guardedExecuteCount
+    state.firstProgramShellObject = graph.summary.firstProgramObject
+    state.activeShellObject = "shell-object-graph"
+    emit("holoshell:shell-object", {
+      action: "shell_object_graph_applied",
+      status: state.shellObjectGraphStatus,
+      shell_objects: state.shellObjectCount,
+      first_screen_objects: state.firstScreenObjectCount,
+      app_shell_objects: state.appShellObjectCount,
+      browser_shell_objects: state.browserShellObjectCount,
+      terminal_shell_objects: state.terminalShellObjectCount,
+      document_app_shell_objects: state.documentAppShellObjectCount,
+      agent_shell_objects: state.agentShellObjectCount,
+      workflow_shell_objects: state.workflowShellObjectCount,
+      approval_shell_objects: state.approvalShellObjectCount,
+      receipt_shell_objects: state.receiptShellObjectCount,
+      captured_shell_objects: state.capturedShellObjectCount,
+      running_shell_objects: state.runningShellObjectCount,
+      guarded_shell_objects: state.guardedShellObjectCount,
+      first_program_shell_object: state.firstProgramShellObject,
+      mutating_actions_executed: false,
       receipt_required: true
     })
   }

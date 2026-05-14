@@ -95,7 +95,7 @@ function riskRank(risk) {
   return 0;
 }
 
-function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -174,6 +174,19 @@ function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCaptu
       generatedAt: programRegistry.generatedAt || now,
       receiptType: 'hololand.holoshell.program-registry.v0.1.0',
       source: 'scripts/holoshell-program-registry.mjs',
+    });
+  }
+
+  if (shellObjects?.summary) {
+    timeline.push({
+      id: 'shell-objects',
+      kind: 'shell_object_graph',
+      title: 'Shell objects materialized',
+      detail: `${shellObjects.summary.shellObjectCount || 0} addressable objects; ${shellObjects.summary.programObjectCount || 0} app bubbles; ${shellObjects.summary.capturedWindowObjectCount || 0} captured windows; ${shellObjects.summary.guardedExecuteCount || 0} guarded powers.`,
+      trustState: shellObjects.summary.status === 'ready' ? 'verified' : 'partial',
+      generatedAt: shellObjects.generatedAt || now,
+      receiptType: shellObjects.schemaVersion,
+      source: 'scripts/holoshell-shell-objects.mjs',
     });
   }
 
@@ -308,6 +321,7 @@ function createFeed(args) {
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
   const programRegistry = readJson(path.join(tmpDir, 'program-registry.json'), {});
+  const shellObjects = readJson(path.join(tmpDir, 'shell-objects.json'), {});
   const brittneyAvatar = readJson(path.join(tmpDir, 'brittney-avatar.json'), {});
   const brittneyTurn = readJson(path.join(tmpDir, 'brittney-turn-latest.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
@@ -332,6 +346,7 @@ function createFeed(args) {
     processHealth,
     osUiCapture,
     programRegistry,
+    shellObjects,
     brittneyAvatar,
     brittneyTurn,
     hardwareAction,
@@ -354,6 +369,7 @@ function createFeed(args) {
       source: 'apps/holoshell/source/holoshell-home.hsplus',
       hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
+      shellObjects: 'scripts/holoshell-shell-objects.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
       roadmap: 'apps/holoshell/docs/PHASE_1_ROADMAP.md',
@@ -384,6 +400,21 @@ function createFeed(args) {
       startMenuProgramCount: programRegistry?.summary?.startMenuProgramCount || 0,
       appPathProgramCount: programRegistry?.summary?.appPathProgramCount || 0,
       programRegistryRunningWindowCount: programRegistry?.summary?.runningWindowCount || 0,
+      shellObjectGraphStatus: shellObjects?.summary?.status || 'unknown',
+      shellObjectCount: shellObjects?.summary?.shellObjectCount || 0,
+      firstScreenObjectCount: shellObjects?.summary?.firstScreenObjectCount || 0,
+      appShellObjectCount: shellObjects?.summary?.programObjectCount || 0,
+      browserShellObjectCount: shellObjects?.summary?.browserSurfaceCount || 0,
+      terminalShellObjectCount: shellObjects?.summary?.terminalSurfaceCount || 0,
+      documentAppShellObjectCount: shellObjects?.summary?.documentAppCount || 0,
+      agentShellObjectCount: shellObjects?.summary?.agentObjectCount || 0,
+      workflowShellObjectCount: shellObjects?.summary?.workflowObjectCount || 0,
+      approvalShellObjectCount: shellObjects?.summary?.approvalObjectCount || 0,
+      receiptShellObjectCount: shellObjects?.summary?.receiptObjectCount || 0,
+      capturedShellObjectCount: shellObjects?.summary?.capturedWindowObjectCount || 0,
+      runningShellObjectCount: shellObjects?.summary?.runningObjectCount || 0,
+      guardedShellObjectCount: shellObjects?.summary?.guardedExecuteCount || 0,
+      firstProgramShellObject: shellObjects?.summary?.firstProgramObject || '',
       brittneyAvatarStatus: brittneyAvatar?.summary?.avatarStatus || 'unknown',
       brittneyRuntimeStatus: brittneyAvatar?.summary?.runtimeStatus || 'unknown',
       brittneyEmotion: brittneyAvatar?.summary?.emotion || 'attentive',
@@ -445,6 +476,7 @@ function createFeed(args) {
       processHealth,
       osUiCapture,
       programRegistry,
+      shellObjects,
       brittneyAvatar,
       brittneyTurn,
       hardwareAction,
@@ -514,6 +546,7 @@ try {
     console.log(`Capabilities: ${feed.summary.capabilityCount}`);
     console.log(`Timeline: ${feed.summary.timelineCount}`);
     console.log(`Launchable programs: ${feed.summary.launchableProgramCount}`);
+    console.log(`Shell objects: ${feed.summary.shellObjectCount}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);
     console.log(`Workflow: ${feed.summary.activeWorkflowStatus}`);

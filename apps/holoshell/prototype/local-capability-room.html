@@ -576,6 +576,7 @@
         var(--bubble);
       backdrop-filter: blur(18px) saturate(1.45);
       color: var(--ink);
+      font-size: clamp(12px, calc(var(--size) * 0.14), 16px);
       display: grid;
       place-items: center;
       text-align: center;
@@ -595,10 +596,16 @@
       box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.16), 0 0 34px color-mix(in srgb, var(--accent) 40%, transparent);
     }
 
+    .bubble > span {
+      max-width: 100%;
+      line-height: 1.12;
+      overflow-wrap: anywhere;
+    }
+
     .bubble small {
       display: block;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 10px;
       margin-top: 5px;
     }
 
@@ -641,6 +648,30 @@
       font-size: 13px;
       line-height: 1.4;
       overflow-wrap: anywhere;
+    }
+
+    .action-deck {
+      display: grid;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .action-deck button {
+      justify-content: flex-start;
+      min-height: 40px;
+      border-radius: 14px;
+      padding: 0 11px;
+      color: var(--soft);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .action-deck button.primary {
+      color: #04110f;
+    }
+
+    .action-result {
+      border-top: 1px solid rgba(255, 255, 255, 0.10);
+      padding-top: 8px;
     }
 
     .skin-row {
@@ -789,6 +820,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .avatar-aura,
+      .bubble,
       .brittney-avatar[data-voice="speaking"] .avatar-mouth,
       .brittney-avatar[data-voice="speaking"] .avatar-voice-ring,
       .brittney-avatar[data-voice="listening"] .avatar-voice-ring {
@@ -798,6 +830,7 @@
   </style>
   <script src="../../../.tmp/holoshell/live-feed.js"></script>
   <script src="../../../.tmp/holoshell/program-registry.js"></script>
+  <script src="../../../.tmp/holoshell/shell-objects.js"></script>
   <script src="../../../.tmp/holoshell/brittney-turn-latest.js"></script>
   <script src="../../../.tmp/holoshell/action-latest.js"></script>
   <script src="../../../.tmp/holoshell/approval-latest.js"></script>
@@ -876,6 +909,8 @@
           <strong id="selectedTitle">HoloLand Shell</strong>
           <p id="selectedDetail">Programs, files, agents, browser surfaces, and local machine powers are objects in the same world.</p>
           <div id="selectedCapabilityDetail" class="mini" hidden></div>
+          <div class="action-deck" id="selectedActions" aria-label="Selected object actions"></div>
+          <div class="mini action-result" id="actionResult" hidden></div>
         </div>
         <div>
           <h2>Skins</h2>
@@ -907,6 +942,7 @@
     const standaloneTurnFeed = window.HOLOSHELL_BRITTNEY_TURN || {};
     const standaloneHardwareActionFeed = window.HOLOSHELL_HARDWARE_ACTION || {};
     const standaloneProgramRegistryFeed = window.HOLOSHELL_PROGRAM_REGISTRY || {};
+    const standaloneShellObjectsFeed = window.HOLOSHELL_SHELL_OBJECTS || {};
     const standaloneHardwareApprovalFeed = window.HOLOSHELL_HARDWARE_APPROVAL || {};
     const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
@@ -1261,6 +1297,106 @@
       return registry.summary || {};
     }
 
+    function shellObjectGraphFeed() {
+      return feed.feeds?.shellObjects?.summary ? feed.feeds.shellObjects : standaloneShellObjectsFeed;
+    }
+
+    function shellObjectGraphSummary() {
+      const graph = shellObjectGraphFeed();
+      return graph.summary || {};
+    }
+
+    function shellBubbleType(object) {
+      return String(object.objectKind || "shell_object").replaceAll("_", " ");
+    }
+
+    function compactBubbleLabel(value) {
+      const label = String(value || "");
+      const aliases = {
+        "Google Chrome": "Chrome",
+        "Microsoft Edge": "Edge",
+        "Visual Studio Code": "VS Code",
+        "Windows PowerShell": "PS",
+        "PowerShell": "PS",
+        "Developer PowerShell for VS 2019": "Dev PowerShell",
+        "HoloScript MCP": "Holo MCP",
+        "Program Control": "Control",
+        "Hardware Proof": "Proof",
+        "Captured UI": "UI",
+        "Room Marathon": "Marathon",
+      };
+      if (aliases[label]) return aliases[label];
+      const words = label.split(/\s+/).filter(Boolean);
+      if (label.length > 18 && words.length > 2) return words.slice(0, 2).join(" ");
+      return label;
+    }
+
+    function shellObjectBubble(object, index) {
+      const layout = object.layout || {};
+      const displayName = object.displayName || object.id;
+      const fallback = [
+        { x: 58, y: 19, size: 96 },
+        { x: 75, y: 31, size: 92 },
+        { x: 24, y: 44, size: 94 },
+        { x: 65, y: 58, size: 90 },
+        { x: 13, y: 57, size: 88 },
+        { x: 46, y: 77, size: 90 },
+        { x: 84, y: 49, size: 86 },
+        { x: 30, y: 16, size: 86 },
+      ][index % 8];
+      return {
+        id: object.id,
+        label: compactBubbleLabel(displayName),
+        fullLabel: displayName,
+        glyph: object.glyph || displayName.slice(0, 2).toUpperCase(),
+        type: shellBubbleType(object),
+        detail: object.detail || `${displayName} is a shell object from ${object.sourceKind || "local feed"}.`,
+        x: Number.isFinite(layout.x) ? layout.x : fallback.x,
+        y: Number.isFinite(layout.y) ? layout.y : fallback.y,
+        size: Number.isFinite(layout.size) ? layout.size : fallback.size,
+        trustState: object.trustState,
+        permissionEnvelope: object.permissionEnvelope,
+        evidence: {
+          status: object.status,
+          source: object.sourceKind,
+          adapter: object.adapterPath,
+          receipts: (object.receiptTypes || []).join(", "),
+          replacement: object.replacementPath,
+        },
+        shellObject: object,
+      };
+    }
+
+    function canonicalShellBubbles() {
+      const graph = shellObjectGraphFeed();
+      const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.room-marathon"]);
+      const surfaceKinds = new Set([
+        "browser_surface",
+        "terminal_surface",
+        "developer_surface",
+        "document_app",
+        "program",
+      ]);
+      const appSlots = [
+        { x: 58, y: 28, size: 92 },
+        { x: 69, y: 38, size: 86 },
+        { x: 39, y: 42, size: 88 },
+        { x: 58, y: 54, size: 84 },
+        { x: 43, y: 73, size: 82 },
+        { x: 28, y: 72, size: 80 },
+        { x: 66, y: 75, size: 80 },
+        { x: 26, y: 38, size: 78 },
+      ];
+      return graphObjects
+        .filter((object) => object.firstScreen || object.status === "running" || object.status === "foreground")
+        .filter((object) => !duplicateBase.has(object.id))
+        .filter((object) => surfaceKinds.has(object.objectKind))
+        .filter((object) => !/developer powershell|powershell ise/i.test(object.displayName || ""))
+        .slice(0, 8)
+        .map((object, index) => shellObjectBubble({ ...object, layout: appSlots[index] || object.layout }, index));
+    }
+
     function hardwareApprovalFeed() {
       return feed.feeds?.hardwareApproval?.summary ? feed.feeds.hardwareApproval : standaloneHardwareApprovalFeed;
     }
@@ -1372,6 +1508,11 @@
           proposals.push(proposalFor(objectId, label, operation, reason, options));
         }
       };
+      const graphPrograms = (shellObjectGraphFeed().objects || [])
+        .filter((object) => object.sourceKind === "app" && object.displayName)
+        .filter((object) => text.includes(object.displayName.toLowerCase()) || (object.displayName.toLowerCase() === "google chrome" && /\bchrome\b/.test(text)))
+        .slice(0, 3);
+      graphPrograms.forEach((object) => add(object.id, object.displayName, "stage_launch_app", "local program object", { permissionEnvelope: object.permissionEnvelope || "guarded_execute" }));
       if (/\b(browser|web|url|site|page|internet|chrome|edge)\b/.test(text)) add("browser", "Browser", "focus_shell_object", "web surface");
       if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
       if (/\b(agent|codex|claude|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
@@ -1435,6 +1576,8 @@
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
+      const runtimeBubbles = canonicalShellBubbles();
+      const runtimeReplaces = runtimeBubbles.length ? new Set(["browser", "programs", "terminal"]) : new Set();
       const runtimeStatus = avatarSummary.runtimeStatus || "unknown";
       const avatarStatus = avatarSummary.avatarStatus || "unknown";
       const capabilityMap = {
@@ -1445,7 +1588,7 @@
         terminal: "cli-dev-stack",
         "hardware-control": "process-run-custody",
       };
-      const objects = baseObjects.map((object) => {
+      const objects = baseObjects.filter((object) => !runtimeReplaces.has(object.id)).map((object) => {
         const capId = capabilityMap[object.id];
         const cap = capId ? inventoryCapabilities.find((c) => c.id === capId) : null;
         if (object.id === "brittney") {
@@ -1495,13 +1638,14 @@
       });
       const capturedUi = osCapture?.summary?.windowCount ? [{
         id: "captured-ui",
-        label: "Captured UI",
+        label: "UI",
+        fullLabel: "Captured UI",
         glyph: "UI",
         type: "legacy_surface",
         detail: `${osCapture.summary.windowCount} windows wrapped into ${osCapture.summary.geometryNodeCount || 0} geometric shards.`,
-        x: 62,
-        y: 54,
-        size: 118
+        x: 82,
+        y: 74,
+        size: 82
       }] : [];
       const mappedCapIds = new Set(Object.values(capabilityMap));
       const extraCapabilities = inventoryCapabilities.filter((c) => !mappedCapIds.has(c.id));
@@ -1518,7 +1662,8 @@
         const pos = extraPositions[index] || { x: 10 + (index * 7) % 80, y: 10 + (index * 11) % 80, size: 90 };
         return {
           id: capability.id,
-          label: capability.displayName || capability.id,
+          label: compactBubbleLabel(capability.displayName || capability.id),
+          fullLabel: capability.displayName || capability.id,
           glyph: capability.visualForm?.slice(0, 2).toUpperCase() || capability.category?.slice(0, 2).toUpperCase() || "C",
           type: capability.category || "capability",
           detail: `${capability.displayName || capability.id}: ${capability.trustState || "unknown"} trust; ${capability.permissionEnvelope || "unknown"} envelope; ${capability.adapter || "unclassified"} adapter.`,
@@ -1530,12 +1675,13 @@
           evidence: capability.evidence,
         };
       });
-      return [...objects, ...capturedUi, ...extras];
+      return [...objects, ...runtimeBubbles, ...capturedUi, ...extras];
     }
 
     function selectObject(object, options = {}) {
       document.querySelectorAll(".bubble").forEach((item) => item.classList.toggle("selected", item.dataset.id === object.id));
-      document.getElementById("selectedTitle").textContent = object.label;
+      const selectedName = object.fullLabel || object.label;
+      document.getElementById("selectedTitle").textContent = selectedName;
       document.getElementById("selectedDetail").textContent = object.detail;
       const capDetail = document.getElementById("selectedCapabilityDetail");
       if (capDetail) {
@@ -1560,13 +1706,111 @@
       if (!options.silent) {
         const message = document.createElement("div");
         message.className = "message";
-        message.textContent = `${object.label} is ready. I can shape it as ${object.type} inside HoloLand.`;
+        message.textContent = `${selectedName} is ready. I can shape it as ${object.type} inside HoloLand.`;
         conversation.append(message);
         conversation.scrollTop = conversation.scrollHeight;
       }
       if (object.id === "brittney" && !options.fromAvatar) {
         pulseBrittneyAvatar("ready", "focused", 1200);
       }
+      renderSelectedActions(object);
+    }
+
+    function appendConversation(text, className = "message") {
+      const conversation = document.getElementById("conversation");
+      const message = document.createElement("div");
+      message.className = className;
+      message.textContent = text;
+      conversation.append(message);
+      conversation.scrollTop = conversation.scrollHeight;
+    }
+
+    async function postControlDaemon(route, body) {
+      const response = await fetch(`http://127.0.0.1:4747${route}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || `Control daemon returned ${response.status}`);
+      }
+      return payload;
+    }
+
+    function actionButton(label, handler, primary = false) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      if (primary) button.classList.add("primary");
+      button.addEventListener("click", handler);
+      return button;
+    }
+
+    async function stageDaemonAction(label, route, body) {
+      const result = document.getElementById("actionResult");
+      result.hidden = false;
+      result.textContent = `Staging ${label} through the guarded local daemon.`;
+      pulseBrittneyAvatar("speaking", "focused", 1600);
+      try {
+        const payload = await postControlDaemon(route, body);
+        if (payload.feed?.summary) Object.assign(feed, payload.feed);
+        result.textContent = `${label} staged. Approval ${payload.approval?.summary?.status || payload.workflowApproval?.summary?.status || "recorded"}; execution stayed off.`;
+        appendConversation(`${label} is staged as a guarded shell action. I kept it behind approval and refreshed the object memory.`);
+        renderBubbles();
+        renderDock();
+        renderEvidence();
+        refreshControlDaemonHealth();
+      } catch (error) {
+        result.textContent = `${label} could not be staged: ${error.message}. Start the local control daemon to let Brittney operate hardware.`;
+        appendConversation(`${label} is ready conceptually, but the local control daemon is offline or blocked: ${error.message}`);
+        pulseBrittneyAvatar("ready", "attentive", 1400);
+      }
+    }
+
+    function renderSelectedActions(object) {
+      const deck = document.getElementById("selectedActions");
+      const result = document.getElementById("actionResult");
+      if (!deck) return;
+      const shellObject = object.shellObject || {};
+      const launch = shellObject.launch || {};
+      const selectedName = object.fullLabel || object.label;
+      const actions = [];
+      if (launch.action === "launch_app") {
+        const app = launch.app || object.label;
+        actions.push(actionButton(`Stage open ${app}`, () => stageDaemonAction(`open ${app}`, "/action", { action: "launch_app", app }), true));
+      }
+      if (launch.action === "open_url" || object.id === "browser" || shellObject.objectKind === "browser_surface") {
+        const url = launch.url || "https://www.youtube.com/results?search_query=lofi+beats";
+        actions.push(actionButton("Stage browser music", () => stageDaemonAction("browser music", "/action", { action: "open_url", url }), actions.length === 0));
+      }
+      if (object.id === "terminal") {
+        actions.push(actionButton("Stage terminal", () => stageDaemonAction("terminal", "/action", { action: "launch_app", app: "Windows PowerShell" }), actions.length === 0));
+      }
+      if (object.id === "room-marathon" || shellObject.id === "workflow.room-marathon") {
+        actions.push(actionButton("Stage room marathon", () => stageDaemonAction("room marathon", "/workflow/room-marathon", {
+          model: "kimi",
+          modelRoute: "ollama_cloud",
+          lofiUrl: "https://www.youtube.com/results?search_query=lofi+beats",
+        }), actions.length === 0));
+      }
+      if (shellObject.objectKind === "captured_window" && shellObject.sourceRef) {
+        actions.push(actionButton("Stage focus window", () => stageDaemonAction(`focus ${selectedName}`, "/action", {
+          action: "focus_window",
+          targetWindowId: shellObject.sourceRef,
+        }), actions.length === 0));
+      }
+      if (object.id === "hardware-control" || object.id === "programs" || shellObject.sourceKind === "app") {
+        actions.push(actionButton("Refresh program objects", () => stageDaemonAction("program object refresh", "/action", { action: "list_programs" })));
+      }
+      if (!actions.length) {
+        actions.push(actionButton("Ask Brittney about this", () => {
+          document.getElementById("askInput").value = `What can you do with ${selectedName}?`;
+          askBrittney();
+        }));
+      }
+      deck.replaceChildren(...actions.slice(0, 4));
+      if (result && result.textContent.trim() === "") result.hidden = true;
     }
 
     function applyActionProposals(proposals) {
@@ -1607,7 +1851,7 @@
       dock.replaceChildren(...objects.map((object) => {
         const item = document.createElement("button");
         item.className = "dock-item";
-        item.title = object.label;
+        item.title = object.fullLabel || object.label;
         item.textContent = object.glyph;
         item.addEventListener("click", () => selectObject(object));
         return item;
@@ -1622,6 +1866,7 @@
       const turnSummary = turn.summary || {};
       const hardwareSummary = hardwareActionSummary();
       const registrySummary = programRegistrySummary();
+      const shellGraphSummary = shellObjectGraphSummary();
       const approvalSummary = hardwareApprovalSummary();
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
@@ -1636,6 +1881,7 @@
         `Control daemon: ${controlDaemonHealth.status || "offline"}; execute ${controlDaemonHealth.executeEnabled ? "enabled" : "disabled"}`,
         `Captured UI: ${summary.capturedWindowCount || 0} windows, ${summary.capturedGeometryNodeCount || 0} geometric shards`,
         `Program registry: ${registrySummary.launchableProgramCount || summary.launchableProgramCount || 0} launchable, ${registrySummary.programCount || summary.installedProgramCount || 0} installed entries`,
+        `Shell objects: ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} total, ${shellGraphSummary.programObjectCount || summary.appShellObjectCount || 0} app bubbles, ${shellGraphSummary.capturedWindowObjectCount || summary.capturedShellObjectCount || 0} captured windows, ${shellGraphSummary.guardedExecuteCount || summary.guardedShellObjectCount || 0} guarded powers`,
         `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
         `Hardware action: ${hardwareSummary.status || summary.hardwareActionStatus || "unknown"}; ${hardwareSummary.actionKind || summary.hardwareActionKind || "none"}; ${hardwareSummary.permissionEnvelope || summary.hardwareActionPermissionEnvelope || "unknown"}; mutation executed ${hardwareSummary.mutatingActionExecuted || summary.hardwareMutatingActionExecuted ? "yes" : "no"}`,
         `Hardware approval: ${approvalSummary.status || summary.hardwareApprovalStatus || "unknown"}; ${approvalSummary.actionKind || summary.hardwareApprovalActionKind || "none"}; target ${approvalSummary.target || summary.hardwareApprovalTarget || "none"}`,
@@ -1661,7 +1907,7 @@
         row.append(pin, label);
         return row;
       }));
-      document.getElementById("receiptPill").textContent = `${summary.timelineCount || 0} receipts attached`;
+      document.getElementById("receiptPill").textContent = `${summary.timelineCount || 0} receipts; ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} objects`;
       document.getElementById("statusText").textContent = `${process.riskState || "unknown"} custody`;
       renderHardwareApprovalCue();
     }

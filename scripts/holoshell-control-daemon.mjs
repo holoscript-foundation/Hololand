@@ -161,11 +161,16 @@ function refreshRegistry(args) {
 }
 
 function refreshLiveFeed() {
+  refreshShellObjects();
   return runChecked(['scripts/holoshell-live-feed.mjs']);
 }
 
 function approvalBundle() {
   return runChecked(['scripts/holoshell-approval-bundle.mjs']);
+}
+
+function refreshShellObjects() {
+  return runChecked(['scripts/holoshell-shell-objects.mjs']);
 }
 
 function workflowApprovalBundle() {
@@ -228,6 +233,7 @@ function latestSnapshot(args) {
   return {
     feed: readJson(tmpPath(args, 'live-feed.json'), {}),
     registry: readJson(tmpPath(args, 'program-registry.json'), {}),
+    shellObjects: readJson(tmpPath(args, 'shell-objects.json'), {}),
     action: readJson(tmpPath(args, 'action-latest.json'), {}),
     approval: readJson(tmpPath(args, 'approval-latest.json'), {}),
     workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
