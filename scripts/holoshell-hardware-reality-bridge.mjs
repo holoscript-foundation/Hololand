@@ -8,6 +8,7 @@ import path from 'node:path';
 const SCHEMA_VERSION = 'hololand.holoshell.hardware-reality-bridge.v0.1.0';
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'hardware-reality.json');
+const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'hardware-reality.js');
 const DEFAULT_FIXTURE = path.join('apps', 'holoshell', 'samples', 'hardware-reality-fixture.json');
 const REQUIRED_TOOLS = [
   'holoshell_run_registry_snapshot',
@@ -24,6 +25,7 @@ function parseArgs(argv) {
   const args = {
     json: false,
     output: DEFAULT_OUTPUT,
+    jsOutput: DEFAULT_JS_OUTPUT,
     fixture: '',
     mcpScript: defaultMcpScript(),
     timeoutMs: 20000,
@@ -35,6 +37,7 @@ function parseArgs(argv) {
     if (arg === '--') continue;
     else if (arg === '--json') args.json = true;
     else if (arg === '--output') args.output = argv[++index];
+    else if (arg === '--js-output') args.jsOutput = argv[++index];
     else if (arg === '--fixture') args.fixture = argv[++index];
     else if (arg === '--mcp-script') args.mcpScript = argv[++index];
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++index]) || args.timeoutMs;
@@ -60,6 +63,7 @@ Usage:
 Options:
   --json                 Print the visual hardware model.
   --output <path>        Write output path. Defaults to .tmp/holoshell/hardware-reality.json.
+  --js-output <path>     Write browser bootstrap JS. Defaults to .tmp/holoshell/hardware-reality.js.
   --fixture <path>       Ask the upstream MCP server to serve a fixture instead of probing live PIDs.
   --mcp-script <path>    HoloShell stdio MCP script. Defaults to ~/.ai-ecosystem/scripts/holoshell-mcp-stdio.mjs.
   --timeout-ms <n>       Upstream live snapshot timeout. Defaults to 20000.
@@ -439,6 +443,14 @@ function writeModel(model, outputPath) {
   return resolved;
 }
 
+function writeBrowserBootstrap(model, outputPath) {
+  const resolved = resolveRepoPath(outputPath);
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  const payload = JSON.stringify(model, null, 2).replace(/<\/script/gi, '<\\/script');
+  writeFileSync(resolved, `window.HOLOSHELL_HARDWARE_REALITY = ${payload};\n`, 'utf8');
+  return resolved;
+}
+
 function assertSelfTest(model) {
   const failures = [];
   if (model.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
@@ -468,12 +480,14 @@ async function main() {
   });
   const model = createHardwareRealityModel({ ...mcpReality, args });
   const output = writeModel(model, args.output);
+  const jsOutput = writeBrowserBootstrap(model, args.jsOutput);
   if (args.selfTest) assertSelfTest(model);
 
   if (args.json) {
     console.log(JSON.stringify(model, null, 2));
   } else {
     console.log(`HoloShell hardware reality: ${output}`);
+    console.log(`HoloShell browser bootstrap: ${jsOutput}`);
     console.log(`Risk: ${model.summary.riskState}`);
     console.log(`Processes: ${model.summary.processCount}`);
     console.log(`Shell runs: ${model.summary.shellRunCount}`);

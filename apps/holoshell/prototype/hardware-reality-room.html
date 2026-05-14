@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HoloShell Hardware Reality</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a0d;
+      --ink: #f5f7f2;
+      --soft: rgba(245, 247, 242, 0.72);
+      --muted: rgba(245, 247, 242, 0.48);
+      --line: rgba(255, 255, 255, 0.14);
+      --panel: rgba(18, 22, 28, 0.82);
+      --panel-2: rgba(11, 15, 20, 0.72);
+      --teal: #5ee2c5;
+      --amber: #efbd5b;
+      --blue: #5ba8ff;
+      --magenta: #e26ac2;
+      --green: #8bd65f;
+      --red: #ff7c68;
+      --font: Inter, "Segoe UI", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(135deg, #080a0d 0%, #10141a 46%, #090b10 100%);
+      background-size: 44px 44px, 44px 44px, auto;
+      color: var(--ink);
+      font-family: var(--font);
+      letter-spacing: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .topbar,
+    .metric,
+    .panel,
+    .lane,
+    .run,
+    .app,
+    .port {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
+    }
+
+    .topbar {
+      min-height: 64px;
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #07100d;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--teal), var(--amber));
+    }
+
+    .identity {
+      min-width: 0;
+    }
+
+    .identity h1 {
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .identity p,
+    .stamp {
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .state {
+      display: grid;
+      justify-items: end;
+      gap: 5px;
+      min-width: 130px;
+    }
+
+    .state strong {
+      color: var(--teal);
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
+    .state[data-risk="warn"] strong {
+      color: var(--amber);
+    }
+
+    .state[data-risk="critical"] strong {
+      color: var(--red);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(110px, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 76px;
+      border-radius: 8px;
+      padding: 11px;
+      display: grid;
+      align-content: center;
+      gap: 4px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(260px, 360px) minmax(360px, 1fr) minmax(260px, 360px);
+      gap: 14px;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+    }
+
+    .panel h2 {
+      color: var(--soft);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .stack {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+    }
+
+    .lane,
+    .run,
+    .app,
+    .port {
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .lane {
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .lane-strip {
+      width: 10px;
+      min-height: 52px;
+      border-radius: 8px;
+      background: var(--teal);
+    }
+
+    .lane h3,
+    .run h3,
+    .app h3 {
+      font-size: 15px;
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .count {
+      min-width: 54px;
+      height: 32px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #07100d;
+      background: var(--amber);
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .machine-map {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(230px, 1fr) minmax(160px, 0.72fr);
+      gap: 10px;
+    }
+
+    .run-grid,
+    .port-grid {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      align-content: start;
+      gap: 8px;
+    }
+
+    .run {
+      min-height: 92px;
+      display: grid;
+      gap: 6px;
+      border-left: 4px solid var(--blue);
+    }
+
+    .run[data-listening="true"] {
+      border-left-color: var(--green);
+    }
+
+    .hash {
+      color: var(--soft);
+      font: 12px ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .port {
+      min-height: 58px;
+      display: grid;
+      gap: 3px;
+      border-left: 4px solid var(--magenta);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      border-left: 4px solid var(--amber);
+    }
+
+    .gate {
+      display: grid;
+      gap: 8px;
+    }
+
+    .gate-line {
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 10px;
+      background: var(--panel-2);
+    }
+
+    .gate-line strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      min-height: 120px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      text-align: center;
+      padding: 20px;
+    }
+
+    @media (max-width: 1120px) {
+      .metrics {
+        grid-template-columns: repeat(3, minmax(110px, 1fr));
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        min-height: 260px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .shell {
+        padding: 10px;
+      }
+
+      .topbar {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .state {
+        grid-column: 1 / -1;
+        justify-items: start;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .metric strong {
+        font-size: 20px;
+      }
+    }
+  </style>
+  <script src="../../../.tmp/holoshell/hardware-reality.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="mark">HS</div>
+      <div class="identity">
+        <h1>HoloShell Hardware Reality</h1>
+        <p id="subtitle">Waiting for local MCP snapshot</p>
+      </div>
+      <div class="state" id="riskState" data-risk="unknown">
+        <strong>unknown</strong>
+        <span class="stamp" id="receiptHash">no receipt</span>
+      </div>
+    </header>
+
+    <section class="metrics" id="metrics"></section>
+
+    <section class="workspace">
+      <section class="panel">
+        <h2>Agent Lanes</h2>
+        <div class="stack" id="lanes"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Shell Runs And Ports</h2>
+        <div class="machine-map">
+          <div class="run-grid" id="runs"></div>
+          <div class="port-grid" id="ports"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Legacy Apps And Gates</h2>
+        <div class="stack">
+          <div class="stack" id="apps"></div>
+          <div class="gate" id="gates"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const reality = window.HOLOSHELL_HARDWARE_REALITY || null;
+    const colors = {
+      cyan: "#5ee2c5",
+      blue: "#5ba8ff",
+      violet: "#b48cff",
+      green: "#8bd65f",
+      amber: "#efbd5b",
+      gray: "#aeb4bd",
+      white: "#f5f7f2"
+    };
+
+    function text(value, fallback = "") {
+      return value === undefined || value === null || value === "" ? fallback : String(value);
+    }
+
+    function shortHash(value) {
+      return text(value, "no receipt").slice(0, 12);
+    }
+
+    function replaceChildrenById(id, children) {
+      const element = document.getElementById(id);
+      element.replaceChildren(...children);
+    }
+
+    function empty(label) {
+      const element = document.createElement("div");
+      element.className = "empty";
+      element.textContent = label;
+      return element;
+    }
+
+    function renderMetrics(summary) {
+      const items = [
+        ["Processes", summary.processCount],
+        ["Shell Runs", summary.shellRunCount],
+        ["Listeners", summary.listenerCount],
+        ["Agent Lanes", `${summary.activeLaneCount}/${summary.laneCount}`],
+        ["Legacy Apps", summary.legacyAppCount],
+        ["Preflights", summary.terminationPreflightCount]
+      ];
+      replaceChildrenById("metrics", items.map(([label, value]) => {
+        const element = document.createElement("article");
+        element.className = "metric";
+        element.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+        return element;
+      }));
+    }
+
+    function renderLanes(lanes) {
+      if (!lanes.length) return replaceChildrenById("lanes", [empty("No agent lanes in snapshot")]);
+      replaceChildrenById("lanes", lanes.map((lane) => {
+        const element = document.createElement("article");
+        element.className = "lane";
+        const color = colors[lane.colorHint] || colors.white;
+        element.innerHTML = `
+          <span class="lane-strip" style="background:${color}"></span>
+          <div>
+            <h3>${text(lane.label, lane.laneId)}</h3>
+            <p class="sub">${text(lane.surfaceKind)} / ${text(lane.healthState)}</p>
+            <p class="sub">${text(lane.semanticPrefix)}</p>
+          </div>
+          <span class="count">${lane.pidCount}</span>
+        `;
+        return element;
+      }));
+    }
+
+    function renderRuns(runs) {
+      if (!runs.length) return replaceChildrenById("runs", [empty("No shell runs in snapshot")]);
+      replaceChildrenById("runs", runs.map((run) => {
+        const element = document.createElement("article");
+        element.className = "run";
+        element.dataset.listening = String((run.listeningPorts || []).length > 0);
+        element.innerHTML = `
+          <h3>${text(run.processName, "process")}</h3>
+          <p class="sub">PID ${text(run.pid)} / ${text(run.healthState)}</p>
+          <p class="sub">Ports ${(run.listeningPorts || []).join(", ") || "none"}</p>
+          <p class="hash">${shortHash(run.commandHash)}</p>
+        `;
+        return element;
+      }));
+    }
+
+    function renderPorts(listeners) {
+      if (!listeners.length) return replaceChildrenById("ports", [empty("No listening ports in snapshot")]);
+      replaceChildrenById("ports", listeners.map((listener) => {
+        const element = document.createElement("article");
+        element.className = "port";
+        element.innerHTML = `
+          <strong>${text(listener.localPort)}</strong>
+          <span class="sub">PID ${text(listener.pid)} / ${text(listener.localAddress)}</span>
+        `;
+        return element;
+      }));
+    }
+
+    function renderApps(apps) {
+      if (!apps.length) return replaceChildrenById("apps", [empty("No legacy apps in snapshot")]);
+      replaceChildrenById("apps", apps.map((app) => {
+        const element = document.createElement("article");
+        element.className = "app";
+        element.innerHTML = `
+          <div>
+            <h3>${text(app.appName, "legacy app")}</h3>
+            <p class="sub">${text(app.mutationPolicy)} / PID ${text((app.samplePids || [])[0], "n/a")}</p>
+          </div>
+          <span class="count">${app.observedProcessCount}</span>
+        `;
+        return element;
+      }));
+    }
+
+    function renderGates(model) {
+      const safety = model.safety || {};
+      const summary = model.summary || {};
+      const items = [
+        ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
+        ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
+        ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
+        ["Raw Commands", model.receipt?.rawCommandsIncluded ? "visible" : "hidden"]
+      ];
+      replaceChildrenById("gates", items.map(([label, value]) => {
+        const element = document.createElement("div");
+        element.className = "gate-line";
+        element.innerHTML = `<strong>${label}</strong><span class="sub">${value}</span>`;
+        return element;
+      }));
+    }
+
+    function render(model) {
+      if (!model) {
+        document.getElementById("subtitle").textContent = "Run pnpm holoshell:hardware-reality first";
+        renderMetrics({});
+        replaceChildrenById("lanes", [empty("No snapshot loaded")]);
+        replaceChildrenById("runs", [empty("No snapshot loaded")]);
+        replaceChildrenById("ports", [empty("No snapshot loaded")]);
+        replaceChildrenById("apps", [empty("No snapshot loaded")]);
+        replaceChildrenById("gates", [empty("No snapshot loaded")]);
+        return;
+      }
+
+      const summary = model.summary || {};
+      document.getElementById("subtitle").textContent = `${text(model.generatedAt)} / ${text(model.mcp?.serverInfo?.name, "holoshell-local")}`;
+      const risk = document.getElementById("riskState");
+      risk.dataset.risk = text(summary.riskState, "unknown");
+      risk.querySelector("strong").textContent = text(summary.riskState, "unknown");
+      document.getElementById("receiptHash").textContent = shortHash(model.receipt?.snapshotHash);
+      renderMetrics(summary);
+      renderLanes(model.lanes || []);
+      renderRuns(model.shellRuns || []);
+      renderPorts(model.listeners || []);
+      renderApps(model.legacyApps || []);
+      renderGates(model);
+    }
+
+    render(reality);
+  </script>
+</body>
+</html>
