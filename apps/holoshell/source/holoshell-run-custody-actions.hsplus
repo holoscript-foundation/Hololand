@@ -18,6 +18,8 @@ composition "HoloShell Run Custody Actions" {
     observedRunCount: 0
     claimedRunCount: 0
     observedOwnerCount: 0
+    processHealthOwnerCount: 0
+    processHealthVisiblePidCount: 0
     staleRunCount: 0
     ownerUnknownCount: 0
     closedRunCount: 0
@@ -55,6 +57,7 @@ composition "HoloShell Run Custody Actions" {
     laneLabel: ""
     ownerEvidence: ""
     ownerParentPid: 0
+    ownerTrustState: "unknown"
     reason: ""
     destructiveActionsTaken: false
     rawCommandHidden: true
@@ -68,7 +71,10 @@ composition "HoloShell Run Custody Actions" {
     parentPid: 0
     processName: ""
     status: "owner_unknown"
+    laneId: ""
+    laneLabel: ""
     ownerEvidence: ""
+    ownerTrustState: "unknown"
     rawCommandHidden: true
     receiptRequired: true
   }
@@ -110,6 +116,8 @@ composition "HoloShell Run Custody Actions" {
       uiType: "run_counter"
       label: "Lane Observed"
       count: $observedOwnerCount
+      processHealthOwners: $processHealthOwnerCount
+      visiblePids: $processHealthVisiblePidCount
     }
 
     object "AttentionQueue" {
@@ -154,6 +162,17 @@ composition "HoloShell Run Custody Actions" {
     receiptRequired: true
   }
 
+  policy "ProcessHealthFeedsRunCustody" {
+    appliesTo: ["lane_observed_run", "process_health_owner_evidence", "brittney_operator_brief"]
+    processHealthSources: ["shellRuns", "processes"]
+    acceptedEvidence: ["process_health_direct_pid", "process_health_parent_pid", "ancestor_pid"]
+    visiblePidFilter: "process_health.processIndex.visiblePids"
+    observedOwnershipDoesNotMutateProcesses: true
+    claimReceiptRequiredForMutation: true
+    rawCommandHiddenByDefault: true
+    receiptRequired: true
+  }
+
   policy "ParentPidBindsShellWindow" {
     appliesTo: ["shell_window_custody", "terminal_child_run", "visible_shell_surface"]
     bindingEvidence: "parent_pid"
@@ -176,6 +195,8 @@ composition "HoloShell Run Custody Actions" {
     state.observedRunCount = snapshot.summary.observedRunCount
     state.claimedRunCount = snapshot.summary.claimedRunCount
     state.observedOwnerCount = snapshot.summary.observedOwnerCount
+    state.processHealthOwnerCount = snapshot.summary.processHealthOwnerCount || 0
+    state.processHealthVisiblePidCount = snapshot.summary.processHealthVisiblePidCount || 0
     state.staleRunCount = snapshot.summary.staleRunCount
     state.ownerUnknownCount = snapshot.summary.ownerUnknownCount
     state.closedRunCount = snapshot.summary.closedRunCount
@@ -186,6 +207,8 @@ composition "HoloShell Run Custody Actions" {
       observedRuns: state.observedRunCount,
       claimedRuns: state.claimedRunCount,
       observedOwners: state.observedOwnerCount,
+      processHealthOwners: state.processHealthOwnerCount,
+      processHealthVisiblePids: state.processHealthVisiblePidCount,
       staleRuns: state.staleRunCount,
       ownerUnknown: state.ownerUnknownCount,
       closedRuns: state.closedRunCount,

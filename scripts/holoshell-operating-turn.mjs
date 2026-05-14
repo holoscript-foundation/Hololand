@@ -12,6 +12,7 @@ const PACKAGE_RUNNER = 'pnpm';
 
 const TURN_STEPS = [
   { stepId: 'run_registry_reconcile', label: 'Run Registry Reconcile', script: 'holoshell:run-registry-reconcile' },
+  { stepId: 'process_health', label: 'Process Health', script: 'holoshell:process-health' },
   { stepId: 'hardware_reality', label: 'Hardware Reality', script: 'holoshell:hardware-reality' },
   { stepId: 'legacy_windows', label: 'Legacy Windows', script: 'holoshell:legacy-windows' },
   { stepId: 'build_custody', label: 'Build Custody', script: 'holoshell:build-custody' },

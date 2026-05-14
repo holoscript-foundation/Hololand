@@ -134,6 +134,8 @@ Receipts expose:
   agent claim before cleanup.
 - `ownerLane`, `ownerLaneLabel`, `ownerColorHint`, `ownerEvidence`,
   `ownerParentPid`, and `ownerTrustState` for each sampled process.
+- `processIndex.visiblePids`: the visible host PID set used by downstream
+  custody adapters to reject stale hardware-reality PID ghosts.
 
 This is evidence, not authority to mutate. A color lane helps Brittney and
 agents see responsibility, but stop plans still require exact PID, reason,

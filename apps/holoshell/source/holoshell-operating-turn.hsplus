@@ -1,8 +1,9 @@
 // HoloShell Operating Turn
 //
-// A full local turn refreshes hardware reality, legacy windows, build custody,
-// run custody, readiness evidence, the operator brief, Brittney's custody action,
-// and a visual witness. It is the smallest repeatable unit of computer care.
+// A full local turn refreshes process health, hardware reality, legacy windows,
+// build custody, run custody, readiness evidence, the operator brief, Brittney's
+// custody action, and a visual witness. It is the smallest repeatable unit of
+// computer care.
 
 composition "HoloShell Operating Turn" {
   config {
@@ -105,7 +106,7 @@ composition "HoloShell Operating Turn" {
 
   policy "BrittneyConsumesTurnBeforeActing" {
     appliesTo: ["brittney_local_operator", "holoshell_peer_coordination"]
-    requiredInputs: ["operating_turn", "run_registry_reconcile", "operator_brief", "brittney_context_packet", "build_custody", "readiness_evidence"]
+    requiredInputs: ["operating_turn", "run_registry_reconcile", "process_health", "operator_brief", "brittney_context_packet", "build_custody", "readiness_evidence"]
     firstMove: "observe_and_claim_custody"
     receiptRequired: true
   }
@@ -113,6 +114,7 @@ composition "HoloShell Operating Turn" {
   policy "RegistryReconcileBeforeObservation" {
     appliesTo: ["operating_turn_start", "hardware_reality_refresh", "process_health_refresh"]
     firstStep: "run_registry_reconcile"
+    secondStep: "process_health"
     processTerminationAllowed: false
     registryOnly: true
     receiptRequired: true

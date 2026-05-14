@@ -66,6 +66,17 @@ parent PID, run custody marks it `lane_observed`. That reduces false
 `owner_unknown` noise without pretending a custody receipt has already been
 written.
 
+Run custody also reads `.tmp/holoshell/process-health.json`. If process health
+has stronger lane evidence for a PID, run custody can mark the run
+`lane_observed` with `process_health_direct_pid` or
+`process_health_parent_pid` evidence. This bridges the richer local process
+ancestor/window inference into Brittney's operator brief without terminating,
+claiming, or mutating the process.
+
+When process health is present, run custody filters hardware-reality shell runs
+through `processIndex.visiblePids`. That prevents stale MCP or hardware-reality
+PID ghosts from inflating Brittney's owner-unknown queue.
+
 Run custody is still a process-health surface. Peer instance counts should come
 from `legacy-window-inventory.json`, because visible windows are what Brittney
 and the user experience can actually operate.

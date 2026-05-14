@@ -7,6 +7,7 @@ const SCHEMA_VERSION = 'hololand.holoshell.run-custody.v0.1.0';
 const STORE_SCHEMA = 'hololand.holoshell.run-custody-store.v0.1.0';
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_HARDWARE_REALITY = path.join('.tmp', 'holoshell', 'hardware-reality.json');
+const DEFAULT_PROCESS_HEALTH = path.join('.tmp', 'holoshell', 'process-health.json');
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'run-custody.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'run-custody.js');
 const DEFAULT_STORE = path.join('.tmp', 'holoshell', 'run-custody-store.json');
@@ -25,6 +26,7 @@ function parseArgs(argv) {
     reason: '',
     minutes: DEFAULT_EXTEND_MINUTES,
     hardwareReality: DEFAULT_HARDWARE_REALITY,
+    processHealth: DEFAULT_PROCESS_HEALTH,
     store: DEFAULT_STORE,
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
@@ -43,6 +45,7 @@ function parseArgs(argv) {
     else if (arg === '--reason') args.reason = argv[++index];
     else if (arg === '--minutes') args.minutes = Number(argv[++index]) || DEFAULT_EXTEND_MINUTES;
     else if (arg === '--hardware-reality') args.hardwareReality = argv[++index];
+    else if (arg === '--process-health') args.processHealth = argv[++index];
     else if (arg === '--store') args.store = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
@@ -83,6 +86,7 @@ Options:
   --reason <text>             Required for custody actions.
   --minutes <n>               Extend/claim duration. Default: ${DEFAULT_EXTEND_MINUTES}.
   --hardware-reality <path>   Hardware reality JSON. Default: .tmp/holoshell/hardware-reality.json.
+  --process-health <path>     Process health JSON. Default: .tmp/holoshell/process-health.json.
   --store <path>              Custody receipt store. Default: .tmp/holoshell/run-custody-store.json.
   --output <path>             Snapshot output. Default: .tmp/holoshell/run-custody.json.
   --js-output <path>          Browser bootstrap JS. Default: .tmp/holoshell/run-custody.js.
@@ -177,6 +181,16 @@ function syntheticHardwareReality() {
         rawCommandHidden: true,
       },
       {
+        runId: 'pid-407',
+        pid: 407,
+        parentPid: 777,
+        processName: 'node.exe',
+        healthState: 'observed',
+        listeningPorts: [],
+        commandHash: 'fixture-process-health-owner-command',
+        rawCommandHidden: true,
+      },
+      {
         runId: 'pid-406',
         pid: 406,
         parentPid: 405,
@@ -195,6 +209,39 @@ function syntheticHardwareReality() {
   };
 }
 
+function syntheticProcessHealth() {
+  return {
+    schemaVersion: 'hololand.holoshell.process-health.v0.1.0',
+    summary: {
+      laneAttributedProcessCount: 1,
+      ownerUnknownReviewCount: 0,
+    },
+    processIndex: {
+      visiblePids: [202, 404, 405, 406, 407],
+    },
+    shellRuns: [
+      {
+        pid: 407,
+        ppid: 777,
+        name: 'node.exe',
+        shellRunCandidate: true,
+        commandHash: 'fixture-process-health-owner-command',
+        custody: {
+          state: 'lane_observed',
+          ownerLane: 'codex',
+          ownerLaneLabel: 'Codex',
+          ownerAgentKind: 'codex',
+          ownerSurfaceKind: 'agent_process',
+          ownerColorHint: 'cyan',
+          ownerEvidence: 'ancestor_pid',
+          ownerParentPid: 700,
+          ownerTrustState: 'inferred_from_local_process_table',
+        },
+      },
+    ],
+  };
+}
+
 function loadHardwareReality(args) {
   if (args.selfTest) return syntheticHardwareReality();
   const resolved = resolveRepoPath(args.hardwareReality);
@@ -202,6 +249,12 @@ function loadHardwareReality(args) {
     throw new Error(`Hardware reality not found: ${resolved}. Run pnpm run holoshell:hardware-reality first.`);
   }
   return readJson(resolved);
+}
+
+function loadProcessHealth(args) {
+  if (args.selfTest) return syntheticProcessHealth();
+  const resolved = resolveRepoPath(args.processHealth);
+  return existsSync(resolved) ? readJson(resolved) : {};
 }
 
 function emptyStore() {
@@ -240,8 +293,65 @@ function writeBrowserBootstrap(filePath, data) {
   return resolved;
 }
 
-function visibleRuns(hardwareReality) {
-  return safeArray(hardwareReality.shellRuns).map((run) => ({
+function processHealthOwnerIndex(processHealth) {
+  const ownerByPid = new Map();
+  const rows = [
+    ...safeArray(processHealth.shellRuns),
+    ...safeArray(processHealth.processes),
+  ];
+  for (const row of rows) {
+    const pid = Number(row.pid);
+    const custody = row.custody || {};
+    if (!Number.isInteger(pid) || pid <= 0 || !custody.ownerLane) continue;
+    ownerByPid.set(pid, {
+      ownerLaneId: custody.ownerLane,
+      ownerLaneLabel: custody.ownerLaneLabel || custody.ownerLane,
+      ownerSurfaceKind: custody.ownerSurfaceKind || custody.ownerAgentKind || null,
+      ownerColorHint: custody.ownerColorHint || null,
+      ownerEvidence: custody.ownerEvidence || 'process_health',
+      ownerParentPid: custody.ownerParentPid || null,
+      ownerTrustState: custody.ownerTrustState || 'observed_by_process_health',
+    });
+  }
+  return ownerByPid;
+}
+
+function processHealthVisiblePidSet(processHealth) {
+  const pids = safeArray(processHealth.processIndex?.visiblePids)
+    .map(Number)
+    .filter((pid) => Number.isInteger(pid) && pid > 0);
+  return new Set(pids);
+}
+
+function applyProcessHealthOwnership(run, ownerByPid) {
+  if (run.ownerLaneId) return run;
+  const directOwner = ownerByPid.get(run.pid);
+  if (directOwner) {
+    return {
+      ...run,
+      ...directOwner,
+      ownerEvidence: 'process_health_direct_pid',
+      ownerParentPid: directOwner.ownerParentPid || run.pid,
+      ownerTrustState: directOwner.ownerTrustState || 'observed_by_process_health',
+    };
+  }
+  const parentOwner = ownerByPid.get(run.parentPid);
+  if (parentOwner) {
+    return {
+      ...run,
+      ...parentOwner,
+      ownerEvidence: 'process_health_parent_pid',
+      ownerParentPid: run.parentPid,
+      ownerTrustState: parentOwner.ownerTrustState || 'observed_by_process_health',
+    };
+  }
+  return run;
+}
+
+function visibleRuns(hardwareReality, processHealth = {}) {
+  const ownerByPid = processHealthOwnerIndex(processHealth);
+  const visiblePids = processHealthVisiblePidSet(processHealth);
+  return safeArray(hardwareReality.shellRuns).map((run) => applyProcessHealthOwnership({
     runId: run.runId || `pid-${run.pid}`,
     pid: Number(run.pid),
     parentPid: Number.isInteger(Number(run.parentPid)) ? Number(run.parentPid) : null,
@@ -257,7 +367,7 @@ function visibleRuns(hardwareReality) {
     ownerParentPid: run.ownerParentPid || null,
     ownerTrustState: run.ownerTrustState || null,
     rawCommandHidden: true,
-  })).filter((run) => Number.isInteger(run.pid));
+  }, ownerByPid)).filter((run) => Number.isInteger(run.pid) && (!visiblePids.size || visiblePids.has(run.pid)));
 }
 
 function ownerInfoFromRun(run, evidence = run.ownerEvidence || 'direct_pid') {
@@ -326,16 +436,16 @@ function latestReceipts(store) {
   return latest;
 }
 
-function findRun(hardwareReality, args) {
-  const runs = visibleRuns(hardwareReality);
+function findRun(hardwareReality, processHealth, args) {
+  const runs = visibleRuns(hardwareReality, processHealth);
   if (args.runId) return runs.find((run) => run.runId === args.runId);
   if (args.pid) return runs.find((run) => run.pid === args.pid);
   return null;
 }
 
-function requireActionInput(args, hardwareReality) {
+function requireActionInput(args, hardwareReality, processHealth) {
   if (args.action === 'snapshot') return null;
-  const run = findRun(hardwareReality, args);
+  const run = findRun(hardwareReality, processHealth, args);
   if (!run) throw new Error('Custody action requires --run-id or --pid matching a visible shell run');
   if (!args.reason.trim()) throw new Error('Custody action requires --reason');
   return run;
@@ -386,8 +496,8 @@ function createReceipt(args, run, previousReceipt) {
   };
 }
 
-function applyAction(args, hardwareReality, store) {
-  const run = requireActionInput(args, hardwareReality);
+function applyAction(args, hardwareReality, processHealth, store) {
+  const run = requireActionInput(args, hardwareReality, processHealth);
   if (!run) return null;
   const latest = latestReceipts(store);
   const receipt = createReceipt(args, run, latest.get(run.runId));
@@ -496,8 +606,8 @@ function createBrittneyBrief(snapshot) {
   };
 }
 
-function createSnapshot(hardwareReality, store, actionReceipt = null) {
-  const runs = applyParentChainOwnership(visibleRuns(hardwareReality));
+function createSnapshot(hardwareReality, processHealth, store, actionReceipt = null) {
+  const runs = applyParentChainOwnership(visibleRuns(hardwareReality, processHealth));
   const latest = latestReceipts(store);
   const runStatuses = runs.map((run) => statusForRun(run, latest));
   const claimed = runStatuses.filter((run) => run.status === 'claimed');
@@ -513,6 +623,7 @@ function createSnapshot(hardwareReality, store, actionReceipt = null) {
       source: 'apps/holoshell/source/holoshell-run-custody-actions.hsplus',
       adapter: 'scripts/holoshell-run-custody-actions.mjs',
       hardwareReality: 'scripts/holoshell-hardware-reality-bridge.mjs',
+      processHealth: 'scripts/holoshell-process-health.mjs',
     },
     summary: {
       observedRunCount: runs.length,
@@ -523,6 +634,8 @@ function createSnapshot(hardwareReality, store, actionReceipt = null) {
       closedRunCount: closed.length,
       actionReceiptCount: safeArray(store.receipts).length,
       recommendationCount: recommendations.length,
+      processHealthOwnerCount: processHealthOwnerIndex(processHealth).size,
+      processHealthVisiblePidCount: processHealthVisiblePidSet(processHealth).size,
     },
     safety: {
       readOnlySnapshot: true,
@@ -536,6 +649,13 @@ function createSnapshot(hardwareReality, store, actionReceipt = null) {
       generatedAt: hardwareReality.generatedAt || null,
       riskState: hardwareReality.summary?.riskState || 'unknown',
       snapshotHash: hardwareReality.receipt?.snapshotHash || null,
+    },
+    processHealth: {
+      generatedAt: processHealth.generatedAt || null,
+      riskState: processHealth.summary?.riskState || 'unknown',
+      laneAttributedProcessCount: processHealth.summary?.laneAttributedProcessCount || 0,
+      ownerUnknownReviewCount: processHealth.summary?.ownerUnknownReviewCount || 0,
+      visiblePidCount: processHealthVisiblePidSet(processHealth).size,
     },
     runs: runStatuses.slice(0, 80),
     recommendations,
@@ -567,6 +687,10 @@ function assertSelfTest(snapshot, actionReceipt) {
   if (inheritedGrandchild?.status !== 'lane_observed') failures.push('expected inherited grandchild lane observation');
   if (inheritedGrandchild?.laneId !== 'ollama') failures.push('expected inherited grandchild owner lane');
   if (inheritedGrandchild?.ownerEvidence !== 'parent_chain') failures.push('expected parent-chain owner evidence');
+  const processHealthOwnedRun = snapshot.runs.find((run) => run.pid === 407);
+  if (processHealthOwnedRun?.status !== 'lane_observed') failures.push('expected process-health owned run to be lane observed');
+  if (processHealthOwnedRun?.laneId !== 'codex') failures.push('expected process-health owned run to inherit codex lane');
+  if (processHealthOwnedRun?.ownerEvidence !== 'process_health_direct_pid') failures.push('expected process-health owner evidence');
   if (!snapshot.runs.some((run) => run.parentPid === 900)) failures.push('expected parent pid for shell-window binding');
   if (!actionReceipt || actionReceipt.destructiveActionsTaken !== false) failures.push('action receipt must be non-destructive');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('snapshot must be non-destructive');
@@ -591,9 +715,10 @@ function main() {
   }
 
   const hardwareReality = loadHardwareReality(args);
+  const processHealth = loadProcessHealth(args);
   const store = loadStore(args);
-  const actionReceipt = applyAction(args, hardwareReality, store);
-  const snapshot = createSnapshot(hardwareReality, store, actionReceipt);
+  const actionReceipt = applyAction(args, hardwareReality, processHealth, store);
+  const snapshot = createSnapshot(hardwareReality, processHealth, store, actionReceipt);
   if (args.selfTest) assertSelfTest(snapshot, actionReceipt);
 
   if (!args.selfTest) writeJson(args.store, store);
@@ -609,6 +734,7 @@ function main() {
     console.log(`Claimed: ${snapshot.summary.claimedRunCount}`);
     console.log(`Lane observed: ${snapshot.summary.observedOwnerCount}`);
     console.log(`Owner unknown: ${snapshot.summary.ownerUnknownCount}`);
+    console.log(`Process-health owners: ${snapshot.summary.processHealthOwnerCount}`);
     console.log(`Stale: ${snapshot.summary.staleRunCount}`);
     console.log(`Closed: ${snapshot.summary.closedRunCount}`);
     console.log(`Receipts: ${snapshot.summary.actionReceiptCount}`);

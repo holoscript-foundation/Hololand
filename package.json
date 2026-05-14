@@ -31,6 +31,7 @@
     "test:cael-exporter": "node scripts/__tests__/cael-trace-corpus-exporter.test.mjs",
     "format": "pnpm -r format",
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
+    "holoshell:process-health": "node scripts/holoshell-process-health.mjs",
     "holoshell:intent-gate": "node scripts/holoshell-brain-intent-gate.mjs --strict",
     "holoshell:run": "node scripts/holoshell-run.mjs",
     "holoshell:run-registry-reconcile": "node scripts/holoshell-run.mjs --reconcile-registry",

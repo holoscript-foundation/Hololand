@@ -818,6 +818,11 @@ function createHealth(args) {
       stderr: collection.stderr,
       commandLinesIncluded: args.includeCommandLines,
     },
+    processIndex: {
+      visiblePids: collection.processes
+        .map((item) => Number(item.pid))
+        .filter((pid) => Number.isInteger(pid) && pid > 0),
+    },
     policies: {
       readOnlyByDefault: true,
       automaticTerminationAllowed: false,
@@ -836,6 +841,7 @@ function createHealth(args) {
       overdueRuns: runEvidence.overdueRuns,
       unmatchedActiveRuns: runEvidence.unmatchedActiveRuns,
     }),
+    shellRuns: shellRuns.slice(0, 160),
     processes: processSample,
     stopPlans,
     stopPlan: explicitStopPlan,
