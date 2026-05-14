@@ -114,6 +114,8 @@ composition "HoloShell Build Custody" {
     appliesTo: ["build_process_classification", "brittney_turn"]
     wrapperShellRequiresStandaloneBuildTask: true
     scannerCommandTextIsNotBuildEvidence: true
+    packageManagerExecIsNotBuildEvidence: true
+    orphanEsbuildServiceIsNotBuildEvidence: true
     receiptRequired: true
   }
 

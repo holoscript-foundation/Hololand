@@ -117,27 +117,134 @@ function processLower(processInfo) {
   return `${processInfo.name || ''} ${processCommand(processInfo)}`.toLowerCase();
 }
 
-function hasStandaloneBuildTask(lower) {
-  return /(?:^|\s)build(?:\s|$)/.test(lower) || /(?:^|\s)run\s+build(?:\s|$)/.test(lower);
+function commandTokens(command) {
+  return normalizeCommand(command)
+    .match(/"[^"]*"|'[^']*'|\S+/g)
+    ?.map((token) => token.replace(/^["']|["']$/g, ''))
+    .filter(Boolean) || [];
+}
+
+function tokenBase(token) {
+  const normalized = String(token || '').replace(/\\/g, '/').split('/').pop() || '';
+  return normalized.toLowerCase();
+}
+
+function tokenStem(token) {
+  return tokenBase(token).replace(/\.(cmd|exe|js|cjs|mjs)$/i, '');
+}
+
+function isToken(tokens, index, names) {
+  return names.includes(tokenStem(tokens[index]));
+}
+
+const BUILD_OPTION_VALUES = new Set([
+  '-c',
+  '-f',
+  '-w',
+  '-workspace',
+  '--config',
+  '--dir',
+  '--filter',
+  '--prefix',
+  '--workspace',
+]);
+
+function optionConsumesNext(token) {
+  const lower = String(token || '').toLowerCase();
+  if (!lower.startsWith('-')) return false;
+  if (lower.includes('=')) return false;
+  return BUILD_OPTION_VALUES.has(lower);
+}
+
+function significantTokensAfter(tokens, startIndex) {
+  const out = [];
+  for (let index = startIndex; index < tokens.length; index += 1) {
+    const token = String(tokens[index] || '').toLowerCase();
+    if (!token) continue;
+    if (optionConsumesNext(token)) {
+      index += 1;
+      continue;
+    }
+    if (token.startsWith('-')) continue;
+    out.push(tokenStem(token));
+  }
+  return out;
+}
+
+function packageManagerBuildKind(command, managerName, kind) {
+  const tokens = commandTokens(command);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (!isToken(tokens, index, [managerName])) continue;
+    const significant = significantTokensAfter(tokens, index + 1);
+    const first = significant[0] || '';
+    if (['exec', 'x', 'dlx', 'create', 'add', 'install', 'i', 'test', 'lint', 'dev', 'start'].includes(first)) {
+      return '';
+    }
+    if (first === 'run' || first === 'run-script') {
+      return significant[1] === 'build' ? kind : '';
+    }
+    if (first === 'build') return kind;
+  }
+  return '';
+}
+
+function toolSubcommandBuildKind(command, toolName, kind) {
+  const tokens = commandTokens(command);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (!isToken(tokens, index, [toolName])) continue;
+    const significant = significantTokensAfter(tokens, index + 1);
+    if (significant[0] === 'build') return kind;
+  }
+  return '';
+}
+
+function hasStandaloneBuildTask(command) {
+  return Boolean(
+    packageManagerBuildKind(command, 'pnpm', 'pnpm_build')
+      || packageManagerBuildKind(command, 'npm', 'npm_build')
+      || packageManagerBuildKind(command, 'yarn', 'yarn_build')
+      || toolSubcommandBuildKind(command, 'turbo', 'turbo_build')
+      || toolSubcommandBuildKind(command, 'nx', 'nx_build')
+      || toolSubcommandBuildKind(command, 'next', 'next_build')
+      || toolSubcommandBuildKind(command, 'vite', 'vite_build')
+  );
+}
+
+function esbuildKindFor(command) {
+  const lower = command.toLowerCase();
+  if (!commandTokens(command).some((token) => tokenStem(token) === 'esbuild')) return '';
+  if (/\s--service(?:=|\s|$)/.test(lower) && /\s--ping(?:\s|$)/.test(lower)) return '';
+  return /\s--(bundle|outfile|outdir|platform|format|loader:|entry-names)(?:=|\s|$)/.test(lower)
+    ? 'esbuild_bundle'
+    : '';
 }
 
 function buildKindFor(processInfo) {
-  const lower = processLower(processInfo);
+  const command = processCommand(processInfo);
+  const lower = `${processInfo.name || ''} ${command}`.toLowerCase();
   const processName = String(processInfo.name || '').toLowerCase();
   if (/\b(claude|codex|gemini|cursor|code|copilot)(\.exe)?$/.test(processName)) return '';
   const isWrapperShell = /\b(cmd|cmd\.exe|pwsh|pwsh\.exe|powershell|powershell\.exe)\b/.test(processName);
-  if (isWrapperShell && !hasStandaloneBuildTask(lower)) return '';
-  if (/\bpnpm(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) {
+  if (isWrapperShell && !hasStandaloneBuildTask(command)) return '';
+  const pnpmKind = packageManagerBuildKind(command, 'pnpm', lower.includes(' -r ') || lower.includes(' --recursive ') ? 'pnpm_workspace_build' : 'pnpm_build');
+  if (pnpmKind) {
     return lower.includes(' -r ') || lower.includes(' --recursive ') ? 'pnpm_workspace_build' : 'pnpm_build';
   }
-  if (/\bnpm(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) return 'npm_build';
-  if (/\byarn(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) return 'yarn_build';
-  if (/\bturbo(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) return 'turbo_build';
-  if (/\bnx(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) return 'nx_build';
-  if (/\bnext(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) return 'next_build';
-  if (/\bvite(\.cmd)?\b/.test(lower) && hasStandaloneBuildTask(lower)) return 'vite_build';
+  const npmKind = packageManagerBuildKind(command, 'npm', 'npm_build');
+  if (npmKind) return npmKind;
+  const yarnKind = packageManagerBuildKind(command, 'yarn', 'yarn_build');
+  if (yarnKind) return yarnKind;
+  const turboKind = toolSubcommandBuildKind(command, 'turbo', 'turbo_build');
+  if (turboKind) return turboKind;
+  const nxKind = toolSubcommandBuildKind(command, 'nx', 'nx_build');
+  if (nxKind) return nxKind;
+  const nextKind = toolSubcommandBuildKind(command, 'next', 'next_build');
+  if (nextKind) return nextKind;
+  const viteKind = toolSubcommandBuildKind(command, 'vite', 'vite_build');
+  if (viteKind) return viteKind;
   if (/\btsup(\.cmd)?\b/.test(lower)) return 'tsup_bundle';
-  if (/\besbuild(\.cmd)?\b/.test(lower)) return 'esbuild_bundle';
+  const esbuildKind = esbuildKindFor(command);
+  if (esbuildKind) return esbuildKind;
   if (/\brollup(\.cmd)?\b/.test(lower)) return 'rollup_bundle';
   if (/\bwebpack(\.cmd)?\b/.test(lower)) return 'webpack_bundle';
   if (/\btsc(\.cmd)?\b/.test(lower) && !/\bserver\b/.test(lower)) return 'typescript_compile';
@@ -277,6 +384,30 @@ function syntheticProcesses() {
       commandLine: 'Code.exe',
       createdAt: minutesAgo(240),
       workingSetBytes: 400 * 1024 * 1024,
+    },
+    {
+      pid: 300,
+      ppid: 10,
+      name: 'cmd.exe',
+      commandLine: 'cmd /c pnpm exec holoscript query "HoloShell readiness receipts local hardware build custody visual witness"',
+      createdAt: minutesAgo(70),
+      workingSetBytes: 12 * 1024 * 1024,
+    },
+    {
+      pid: 301,
+      ppid: 300,
+      name: 'node.exe',
+      commandLine: 'node @holoscript/cli/bin/holoscript.cjs query "HoloShell build custody"',
+      createdAt: minutesAgo(70),
+      workingSetBytes: 40 * 1024 * 1024,
+    },
+    {
+      pid: 302,
+      ppid: 1,
+      name: 'esbuild.exe',
+      commandLine: 'esbuild.exe --service=0.27.3 --ping',
+      createdAt: minutesAgo(3),
+      workingSetBytes: 25 * 1024 * 1024,
     },
   ];
 }
@@ -588,6 +719,12 @@ function assertSelfTest(custody) {
   if (custody.summary.buildProcessCount < 4) failures.push('expected synthetic build processes');
   if (custody.summary.activeBuildTreeCount !== 1) failures.push('expected one build tree');
   if (!custody.buildTrees[0]?.processPids.includes(103)) failures.push('expected descendant bundler process in build tree');
+  if (custody.buildProcesses.some((processInfo) => [300, 301].includes(processInfo.pid))) {
+    failures.push('holoscript query text mentioning build must not become build custody');
+  }
+  if (custody.buildProcesses.some((processInfo) => processInfo.pid === 302)) {
+    failures.push('orphan esbuild service ping must not become an active build');
+  }
   if (custody.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (custody.safety.rawCommandsIncluded !== false) failures.push('raw commands should be hidden by default');
   if (!custody.brittneyBrief.blockedActions.includes('kill_build_process')) failures.push('kill_build_process must be blocked');
