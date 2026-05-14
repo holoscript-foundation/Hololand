@@ -377,6 +377,7 @@
   <script src="../../../.tmp/holoshell/run-custody.js"></script>
   <script src="../../../.tmp/holoshell/legacy-app-absorption.js"></script>
   <script src="../../../.tmp/holoshell/operator-brief.js"></script>
+  <script src="../../../.tmp/holoshell/brittney-custody-action.js"></script>
 </head>
 <body>
   <main class="shell">
@@ -423,6 +424,7 @@
     const custody = window.HOLOSHELL_RUN_CUSTODY || null;
     const legacyAbsorption = window.HOLOSHELL_LEGACY_APP_ABSORPTION || null;
     const operatorBrief = window.HOLOSHELL_OPERATOR_BRIEF || null;
+    const brittneyCustodyAction = window.HOLOSHELL_BRITTNEY_CUSTODY_ACTION || null;
     const colors = {
       cyan: "#5ee2c5",
       blue: "#5ba8ff",
@@ -550,8 +552,11 @@
       const brief = custody?.brittneyBrief || {};
       const legacyBrief = legacyAbsorption?.brittneyBrief || {};
       const operator = operatorBrief || {};
+      const brittneyAction = brittneyCustodyAction || {};
+      const selectedAction = brittneyAction.selectedAction || {};
       const items = [
         ["Operator Brief", operator.status || "refresh required"],
+        ["Brittney Action", brittneyAction.status ? `${brittneyAction.status} / ${selectedAction.action || "none"}` : "not executed"],
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],

@@ -1,0 +1,143 @@
+// HoloShell Brittney Custody Operator
+//
+// Brittney consumes the operator brief and executes only safe run-custody
+// receipts. This is not a process-control layer. Closing a run here means
+// closing the custody receipt, not terminating the process.
+
+composition "HoloShell Brittney Custody Operator" {
+  config {
+    title: "Brittney Custody Operator"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-brittney-custody-operator.mjs"
+    defaultMode: "brief_consuming_safe_custody"
+  }
+
+  state {
+    status: "unknown"
+    selectedAction: ""
+    selectedRunId: ""
+    selectedPid: 0
+    executedReceiptId: ""
+    blockedReason: ""
+    destructiveActionsTaken: false
+    terminationPerformed: false
+    rawCommandsIncluded: false
+  }
+
+  channel "holoshell:brittney:custody" {
+    type: "append_only"
+    priority: "critical"
+    description: "Brittney custody decisions derived from the HoloShell operator brief"
+  }
+
+  template "BrittneyCustodyAction" {
+    type: "receipt"
+    receiptType: "brittney_custody_operator"
+    source: "operator_brief"
+    action: "claim"
+    runId: ""
+    pid: 0
+    laneId: "brittney-holoshell"
+    destructiveActionsTaken: false
+    terminationPerformed: false
+    rawCommandsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "BriefFirstExecution" {
+    appliesTo: ["brittney_turn", "safe_custody_action"]
+    requiredInput: "holoshell_operator_brief"
+    allowedActions: ["claim", "extend", "close", "mark-stale", "owner-unknown"]
+    ambiguousActionsBlocked: ["extend-or-close", "close-or-reclaim", "verify-closed"]
+    directShellCommandAllowed: false
+    receiptRequired: true
+  }
+
+  policy "ReceiptsAreNotTermination" {
+    appliesTo: ["close_run_receipt", "mark_run_stale", "owner_unknown"]
+    processTerminationAllowed: false
+    fileDeletionAllowed: false
+    legacyAppMutationAllowed: false
+    terminationRequiresSeparatePreflight: true
+    receiptRequired: true
+  }
+
+  policy "BlockedBriefActionsStayBlocked" {
+    appliesTo: ["kill_process", "delete_file", "legacy_app_mutation", "registry_change", "destructive_ui_click"]
+    directExecutionAllowed: false
+    preflightRequired: true
+    receiptRequired: true
+  }
+
+  room "BrittneyCustodyRoom" {
+    label: "Brittney Custody"
+    userQuestion: "What safe receipt did Brittney produce from the operator brief?"
+    visualForm: "custody_operator_gate"
+    liveFeed: "holoshell:brittney:custody"
+
+    object "SelectedAction" {
+      type: "ui"
+      uiType: "operator_action"
+      label: "Action"
+      action: $selectedAction
+      runId: $selectedRunId
+      pid: $selectedPid
+    }
+
+    object "ExecutionGate" {
+      type: "ui"
+      uiType: "safety_gate"
+      label: "Gate"
+      status: $status
+      blockedReason: $blockedReason
+      destructiveActionsTaken: $destructiveActionsTaken
+      terminationPerformed: $terminationPerformed
+    }
+
+    object "Receipt" {
+      type: "ui"
+      uiType: "receipt_badge"
+      label: "Receipt"
+      receiptId: $executedReceiptId
+      rawCommandsIncluded: $rawCommandsIncluded
+    }
+  }
+
+  action consume_operator_brief(brief) {
+    emit("holoshell:brittney:custody", {
+      source: "operator_brief",
+      status: brief.status,
+      firstMove: brief.brittneyPromptCard.firstMove,
+      blockedActions: brief.blockedActions,
+      destructiveActionsTaken: brief.safety.destructiveActionsTaken,
+      rawCommandsIncluded: brief.safety.rawCommandsIncluded,
+      receiptRequired: true
+    })
+  }
+
+  action record_custody_operator_result(result) {
+    state.status = result.status
+    state.selectedAction = result.selectedAction.action
+    state.selectedRunId = result.selectedAction.runId
+    state.selectedPid = result.selectedAction.pid
+    state.executedReceiptId = result.execution.receiptId
+    state.blockedReason = result.gate.blockReason
+    state.destructiveActionsTaken = result.execution.destructiveActionsTaken
+    state.terminationPerformed = result.execution.terminationPerformed
+    state.rawCommandsIncluded = result.execution.rawCommandsIncluded
+
+    emit("holoshell:brittney:custody", {
+      status: state.status,
+      action: state.selectedAction,
+      runId: state.selectedRunId,
+      pid: state.selectedPid,
+      receiptId: state.executedReceiptId,
+      blockedReason: state.blockedReason,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      terminationPerformed: state.terminationPerformed,
+      rawCommandsIncluded: state.rawCommandsIncluded,
+      receiptRequired: true
+    })
+  }
+}
