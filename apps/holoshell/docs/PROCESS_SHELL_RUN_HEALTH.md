@@ -49,6 +49,9 @@ The adapter is read-only. It reports:
 
 - Process count.
 - Shell/dev run candidates.
+- Tooling helper processes such as transient `git.exe` are visible as process
+  context, but they are not promoted into the shell-run custody queue unless
+  they are explicitly wrapped or cross a separate risk threshold.
 - Registered HoloShell runs.
 - Active registered runs with visible PIDs.
 - Lane-attributed processes inherited from run receipts, HoloShell hardware
@@ -163,8 +166,8 @@ The Process Health Room should show:
 - Run registry: registered runs, owned processes, overdue runs, unmatched runs.
 - Lane ownership: process owners, color hints, owner evidence, and
   owner-unknown review count.
-- Shell run stack: shells, package scripts, Node runtimes, Python runs,
-  browser witnesses, and tooling runs.
+- Shell run stack: shells, package scripts, Node runtimes, Python runs, and
+  browser witnesses. Tooling helpers stay in the process table unless wrapped.
 - PID custody table: PID, parent PID, category, age, memory, findings, owner
   lane, and receipt state.
 - Cleanup lane: recommended stop plans waiting for approval.

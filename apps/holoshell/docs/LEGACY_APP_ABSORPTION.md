@@ -17,6 +17,8 @@ A visible Windows app becomes a HoloShell object with:
 - sample PIDs
 - visible window count
 - peer window count
+- surface role
+- legacy operation candidate flag
 - safe read-only actions
 - blocked mutation actions
 - required MCP preflight tool
@@ -24,6 +26,9 @@ A visible Windows app becomes a HoloShell object with:
 
 This lets a non-developer user understand “Edge is visible, Explorer is
 visible, Settings is dangerous to change” without reading a process list.
+AI peer windows, local model runtimes, workbenches, and terminal windows stay
+visible as context surfaces, but they are not queued as legacy apps for
+Brittney to operate.
 
 ## Run It
 
@@ -50,6 +55,23 @@ Output:
 | `automation_bridge` | WebView/native host helpers | observe and classify |
 | `developer_ide` | Code, Cursor | observe, capture, summarize workspace |
 | `unknown_legacy_app` | everything else | observe, capture, classify |
+
+## Context Surfaces
+
+The absorption adapter consumes `legacy-window-inventory.json` before deciding
+what belongs in the operation queue.
+
+Context surfaces are still shown to Brittney:
+
+- `ai_peer_surface`
+- `ai_model_runtime`
+- `ai_workbench`
+- `shell_surface`
+
+They do not increment `captureCandidateCount`,
+`legacyOperationCandidateCount`, or `preflightRequiredCount`. Peer actions must
+route through agent lanes and shell custody instead of the legacy-app mutation
+gate.
 
 ## Mutation Rule
 

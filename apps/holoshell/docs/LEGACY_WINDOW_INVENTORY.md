@@ -18,6 +18,7 @@ The inventory stores:
 - AI peer surface window counts
 - shell surface window counts
 - combined operating surface counts
+- legacy capture candidate counts that exclude peer, model-runtime, workbench, and shell context surfaces
 - opaque window ids
 - title hashes and semantic title labels
 
@@ -49,6 +50,8 @@ Current summary fields:
 - `peerWindowCount` / `aiPeerWindowCount`: AI peers, model runtimes, and AI workbenches.
 - `shellWindowCount`: terminal and shell-control surfaces.
 - `operatingSurfaceWindowCount`: AI peers plus shell surfaces.
+- `captureCandidateCount`: visible legacy app groups only. Agent windows,
+  model runtimes, workbenches, and terminals remain context surfaces.
 
 ## Shell Custody Binding
 

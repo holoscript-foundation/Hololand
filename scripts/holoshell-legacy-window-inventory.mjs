@@ -147,6 +147,11 @@ function isShellSurface(surface) {
   return surface?.peerKind === 'shell';
 }
 
+function isContextSurfaceGroup(group, operatingSurfaceNames = new Set()) {
+  return operatingSurfaceNames.has(group.appName)
+    || ['ai_peer_surface', 'ai_model_runtime', 'ai_workbench', 'shell_surface'].includes(group.archetype);
+}
+
 function titleLabel(title, appName) {
   const value = String(title || '').trim();
   const text = value.toLowerCase();
@@ -333,11 +338,13 @@ function createSnapshot(rawWindows) {
   const operatingSurfaces = groupPeerSurfaces(windows);
   const peerSurfaces = operatingSurfaces.filter(isAiPeerSurface);
   const shellSurfaces = operatingSurfaces.filter(isShellSurface);
+  const operatingSurfaceNames = new Set(operatingSurfaces.map((surface) => surface.laneId));
   const aiPeerWindowCount = peerSurfaces.reduce((sum, peer) => sum + peer.windowInstanceCount, 0);
   const shellWindowCount = shellSurfaces.reduce((sum, shell) => sum + shell.windowInstanceCount, 0);
   const operatingSurfaceWindowCount = aiPeerWindowCount + shellWindowCount;
   const legacyWindowCount = windows.filter((window) => !peerLaneFor(window.appName, window)).length;
-  const captureCandidates = appGroups.filter((group) => !['system_window'].includes(group.archetype));
+  const captureCandidates = appGroups.filter((group) => !isContextSurfaceGroup(group, operatingSurfaceNames)
+    && !['system_window'].includes(group.archetype));
   const snapshot = {
     schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
@@ -358,6 +365,8 @@ function createSnapshot(rawWindows) {
       operatingSurfaceCount: operatingSurfaces.length,
       operatingSurfaceWindowCount,
       legacyWindowCount,
+      contextSurfaceGroupCount: operatingSurfaces.length,
+      legacyAppGroupCount: appGroups.length - operatingSurfaces.length,
       captureCandidateCount: captureCandidates.length,
       rawWindowTitlesIncluded: false,
       destructiveActionsTaken: false,
@@ -424,6 +433,7 @@ function assertSelfTest(snapshot) {
   if (snapshot.summary.peerWindowCount !== 2) failures.push('expected AI peer windows to exclude shell surfaces');
   if (snapshot.summary.shellWindowCount !== 1) failures.push('expected one shell window');
   if (snapshot.summary.operatingSurfaceWindowCount !== 3) failures.push('expected three operating surface windows');
+  if (snapshot.summary.captureCandidateCount !== 2) failures.push('expected capture candidates to exclude peer and shell surfaces');
   if (!snapshot.peerSurfaces.some((peer) => peer.laneId === 'codex' && peer.windowInstanceCount === 1)) failures.push('expected codex peer window');
   if (!snapshot.peerSurfaces.some((peer) => peer.laneId === 'claude' && peer.windowInstanceCount === 1)) failures.push('expected claude peer window');
   if (snapshot.peerSurfaces.some((peer) => peer.laneId === 'terminal')) failures.push('terminal must not be an AI peer surface');

@@ -23,6 +23,7 @@ composition "HoloShell Legacy Window Inventory" {
     operatingSurfaceCount: 0
     operatingSurfaceWindowCount: 0
     captureCandidateCount: 0
+    contextSurfaceGroupCount: 0
     rawWindowTitlesIncluded: false
     destructiveActionsTaken: false
     lastWindowInventoryReceiptId: ""
@@ -117,7 +118,7 @@ composition "HoloShell Legacy Window Inventory" {
     object "CaptureCandidates" {
       type: "ui"
       uiType: "capture_queue"
-      label: "Window Capture Candidates"
+      label: "Legacy Capture Candidates"
       count: $captureCandidateCount
     }
   }
@@ -127,6 +128,7 @@ composition "HoloShell Legacy Window Inventory" {
     preferredSource: "top_level_windows"
     peerWindowDefinition: "AI peers, model runtimes, and AI workbenches only"
     shellWindowDefinition: "Terminal and shell-control surfaces that enhance HoloShell but are not peer agents"
+    legacyCaptureDefinition: "Visible legacy app groups only; AI peer, model runtime, workbench, and shell surfaces are context surfaces"
     pidCountsAreHealthSignalOnly: true
     rawTitleHiddenByDefault: true
     receiptRequired: true
@@ -151,6 +153,7 @@ composition "HoloShell Legacy Window Inventory" {
     state.operatingSurfaceCount = snapshot.summary.operatingSurfaceCount
     state.operatingSurfaceWindowCount = snapshot.summary.operatingSurfaceWindowCount
     state.captureCandidateCount = snapshot.summary.captureCandidateCount
+    state.contextSurfaceGroupCount = snapshot.summary.contextSurfaceGroupCount
     state.rawWindowTitlesIncluded = snapshot.summary.rawWindowTitlesIncluded
     state.destructiveActionsTaken = snapshot.summary.destructiveActionsTaken
     state.lastWindowInventoryReceiptId = snapshot.receipt.windowInventoryHash

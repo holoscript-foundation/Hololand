@@ -162,6 +162,7 @@ composition "HoloShell Process Health Room" {
     commandLinesIncludedByDefault: false
     shellRunMatching: "token_exact"
     protectedSurfacesAreNotStaleShellRuns: true
+    toolingProcessesAreContextUnlessWrapped: true
     parentMissingIsOnlyActionableForCustodyRelevantRuns: true
     receiptRequired: true
   }

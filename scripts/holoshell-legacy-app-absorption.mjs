@@ -9,6 +9,12 @@ const DEFAULT_HARDWARE_REALITY = path.join('.tmp', 'holoshell', 'hardware-realit
 const DEFAULT_WINDOW_INVENTORY = path.join('.tmp', 'holoshell', 'legacy-window-inventory.json');
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'legacy-app-absorption.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'legacy-app-absorption.js');
+const CONTEXT_SURFACE_ARCHETYPES = new Set([
+  'ai_peer_surface',
+  'ai_model_runtime',
+  'ai_workbench',
+  'shell_surface',
+]);
 
 function parseArgs(argv) {
   const args = {
@@ -113,7 +119,7 @@ function syntheticWindowInventory() {
       operatingSurfaceCount: 3,
       operatingSurfaceWindowCount: 3,
       legacyWindowCount: 2,
-      captureCandidateCount: 5,
+      captureCandidateCount: 2,
       rawWindowTitlesIncluded: false,
     },
     appGroups: [
@@ -210,8 +216,33 @@ function archetypeFor(appName) {
   return 'unknown_legacy_app';
 }
 
+function isContextSurfaceArchetype(archetype) {
+  return CONTEXT_SURFACE_ARCHETYPES.has(String(archetype || ''));
+}
+
+function surfaceRoleFor(group, contextSurfaceNames = new Set()) {
+  if (group.archetype === 'shell_surface' || group.appName === 'terminal') return 'shell_context_surface';
+  if (group.archetype === 'ai_model_runtime' || (contextSurfaceNames.has(group.appName) && group.appName === 'ollama')) return 'model_runtime_context_surface';
+  if (group.archetype === 'ai_workbench' || group.archetype === 'developer_ide') return 'workbench_context_surface';
+  if (group.archetype === 'ai_peer_surface' || contextSurfaceNames.has(group.appName)) return 'ai_context_surface';
+  if (group.archetype === 'automation_bridge') return 'automation_bridge';
+  return 'legacy_app_surface';
+}
+
+function isContextSurface(group, contextSurfaceNames = new Set()) {
+  return isContextSurfaceArchetype(group.archetype)
+    || group.archetype === 'developer_ide'
+    || contextSurfaceNames.has(group.appName);
+}
+
+function captureCandidateFor(group, contextSurfaceNames = new Set()) {
+  if (isContextSurface(group, contextSurfaceNames)) return false;
+  return group.windowInstanceCount > 0;
+}
+
 function safeActionsFor(archetype) {
   const common = ['observe_process', 'capture_window', 'read_title', 'map_visible_controls'];
+  if (isContextSurfaceArchetype(archetype)) return ['observe_surface', 'count_windows', 'capture_window', 'summarize_visible_state'];
   if (archetype === 'browser') return [...common, 'capture_url_bar', 'summarize_tabs'];
   if (archetype === 'file_manager') return [...common, 'summarize_visible_folder'];
   if (archetype === 'settings_panel') return [...common, 'summarize_visible_settings'];
@@ -229,6 +260,7 @@ function blockedActionsFor(archetype) {
     'submit_form',
     'close_window',
   ];
+  if (isContextSurfaceArchetype(archetype)) return [...blocked, 'drive_peer_surface', 'send_prompt', 'execute_shell_command'];
   if (archetype === 'file_manager') return [...blocked, 'delete_file', 'move_file'];
   if (archetype === 'browser') return [...blocked, 'submit_purchase', 'change_browser_profile'];
   if (archetype === 'settings_panel') return [...blocked, 'change_system_setting'];
@@ -237,6 +269,11 @@ function blockedActionsFor(archetype) {
 
 function appGroups(hardwareReality, windowInventory) {
   const groups = new Map();
+  const contextSurfaceNames = new Set([
+    ...safeArray(windowInventory.peerSurfaces).map((surface) => surface.laneId),
+    ...safeArray(windowInventory.shellSurfaces).map((surface) => surface.laneId),
+    ...safeArray(windowInventory.operatingSurfaces).map((surface) => surface.laneId),
+  ].filter(Boolean).map((value) => String(value).toLowerCase()));
   const ensureGroup = (appName, archetypeHint = '') => {
     const normalized = String(appName || 'legacy_app').toLowerCase();
     if (!groups.has(normalized)) {
@@ -252,6 +289,8 @@ function appGroups(hardwareReality, windowInventory) {
         sampleWindowIds: [],
         titleLabels: [],
         captureCandidate: false,
+        preflightRequired: false,
+        surfaceRole: surfaceRoleFor({ appName: normalized, archetype }, contextSurfaceNames),
         mutationPolicy: 'preflight_required',
         safeActions: safeActionsFor(archetype),
         blockedActions: blockedActionsFor(archetype),
@@ -280,12 +319,19 @@ function appGroups(hardwareReality, windowInventory) {
     group.titleLabels = unique([...group.titleLabels, ...safeArray(windowGroup.titleLabels)]).slice(0, 12);
   }
 
-  return [...groups.values()].map((group) => ({
-    ...group,
-    captureCandidate: group.windowInstanceCount > 0 || group.archetype !== 'automation_bridge' || group.observedProcessCount > 0,
-    safeActions: safeActionsFor(group.archetype),
-    blockedActions: blockedActionsFor(group.archetype),
-  })).sort((left, right) => {
+  return [...groups.values()].map((group) => {
+    const surfaceRole = surfaceRoleFor(group, contextSurfaceNames);
+    const captureCandidate = captureCandidateFor(group, contextSurfaceNames);
+    return {
+      ...group,
+      surfaceRole,
+      captureCandidate,
+      preflightRequired: captureCandidate,
+      mutationPolicy: captureCandidate ? 'preflight_required' : 'context_only',
+      safeActions: safeActionsFor(group.archetype),
+      blockedActions: blockedActionsFor(group.archetype),
+    };
+  }).sort((left, right) => {
     const byWindows = right.windowInstanceCount - left.windowInstanceCount;
     return byWindows || right.observedProcessCount - left.observedProcessCount;
   });
@@ -293,7 +339,7 @@ function appGroups(hardwareReality, windowInventory) {
 
 function buildRecommendations(groups) {
   const recommendations = [];
-  for (const group of groups) {
+  for (const group of groups.filter((candidate) => candidate.captureCandidate)) {
     if (group.archetype === 'browser') {
       recommendations.push({
         appName: group.appName,
@@ -334,6 +380,9 @@ function buildRecommendations(groups) {
 function createSnapshot(hardwareReality, windowInventory) {
   const groups = appGroups(hardwareReality, windowInventory);
   const recommendations = buildRecommendations(groups);
+  const captureCandidates = groups.filter((group) => group.captureCandidate);
+  const preflightRequired = groups.filter((group) => group.preflightRequired);
+  const contextSurfaceGroups = groups.filter((group) => group.surfaceRole !== 'legacy_app_surface' && group.surfaceRole !== 'automation_bridge');
   const observedAppCount = groups.reduce((sum, app) => sum + app.observedProcessCount, 0);
   const visibleWindowCount = windowInventory.summary?.visibleWindowCount || 0;
   const peerWindowCount = windowInventory.summary?.aiPeerWindowCount ?? windowInventory.summary?.peerWindowCount ?? 0;
@@ -365,8 +414,11 @@ function createSnapshot(hardwareReality, windowInventory) {
       operatingSurfaceWindowCount,
       legacyWindowCount: windowInventory.summary?.legacyWindowCount || 0,
       appGroupCount: groups.length,
-      captureCandidateCount: groups.filter((group) => group.captureCandidate).length,
-      preflightRequiredCount: groups.length,
+      contextSurfaceGroupCount: contextSurfaceGroups.length,
+      legacyAppGroupCount: groups.length - contextSurfaceGroups.length,
+      captureCandidateCount: captureCandidates.length,
+      legacyOperationCandidateCount: captureCandidates.length,
+      preflightRequiredCount: preflightRequired.length,
       mutationAllowedCount: 0,
       recommendationCount: recommendations.length,
     },
@@ -391,8 +443,8 @@ function createSnapshot(hardwareReality, windowInventory) {
       : [...safeArray(windowInventory.peerSurfaces), ...safeArray(windowInventory.shellSurfaces)],
     recommendations,
     brittneyBrief: {
-      status: groups.length ? 'legacy_surfaces_visible' : 'no_legacy_surfaces',
-      summary: `${observedAppCount} legacy app process(es), ${visibleWindowCount} visible window(s), ${peerWindowCount} AI peer window(s), ${shellWindowCount} shell window(s), across ${groups.length} group(s). ${groups.length} mutation preflight gate(s) required.`,
+      status: captureCandidates.length ? 'legacy_surfaces_visible' : contextSurfaceGroups.length ? 'context_surfaces_visible' : 'no_legacy_surfaces',
+      summary: `${observedAppCount} observed app process(es), ${visibleWindowCount} visible window(s), ${peerWindowCount} AI peer window(s), ${shellWindowCount} shell window(s), across ${groups.length} group(s). ${contextSurfaceGroups.length} context surface group(s); ${captureCandidates.length} legacy operation candidate(s); ${preflightRequired.length} mutation preflight gate(s) required.`,
       peerWindowSummary: safeArray(windowInventory.peerSurfaces).map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
       shellWindowSummary: safeArray(windowInventory.shellSurfaces).map((shell) => `${shell.label}:${shell.windowInstanceCount}`).join(', ') || 'no shell windows',
       requiredNextAction: recommendations[0]
@@ -406,6 +458,7 @@ function createSnapshot(hardwareReality, windowInventory) {
       absorptionHash: sha256(JSON.stringify({
         groups: groups.map((group) => [group.appName, group.archetype, group.observedProcessCount]),
         windows: groups.map((group) => [group.appName, group.windowInstanceCount]),
+        roles: groups.map((group) => [group.appName, group.surfaceRole, group.captureCandidate, group.preflightRequired]),
         shellSurfaces: safeArray(windowInventory.shellSurfaces).map((shell) => [shell.laneId, shell.windowInstanceCount]),
         windowInventoryHash: windowInventory.receipt?.windowInventoryHash || null,
         hardwareSnapshotHash: hardwareReality.receipt?.snapshotHash || null,
@@ -441,6 +494,9 @@ function assertSelfTest(snapshot) {
   if (snapshot.summary.peerWindowCount < 2) failures.push('expected synthetic peer windows');
   if (snapshot.summary.shellWindowCount < 1) failures.push('expected synthetic shell windows');
   if (snapshot.summary.operatingSurfaceWindowCount < 3) failures.push('expected synthetic operating surfaces');
+  if (snapshot.summary.contextSurfaceGroupCount < 3) failures.push('expected peer and shell context surface groups');
+  if (snapshot.summary.captureCandidateCount !== 2) failures.push('expected capture candidates to exclude peer and shell context');
+  if (snapshot.summary.preflightRequiredCount !== 2) failures.push('expected preflight gates only for operation candidates');
   if (snapshot.summary.mutationAllowedCount !== 0) failures.push('mutation must not be allowed');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (!snapshot.safety.preflightRequiredForMutation) failures.push('legacy mutation preflight is required');

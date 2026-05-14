@@ -20,6 +20,8 @@ composition "HoloShell Legacy App Absorption" {
     peerWindowCount: 0
     peerSurfaceCount: 0
     appGroupCount: 0
+    contextSurfaceGroupCount: 0
+    legacyOperationCandidateCount: 0
     captureCandidateCount: 0
     preflightRequiredCount: 0
     mutationAllowedCount: 0
@@ -48,8 +50,23 @@ composition "HoloShell Legacy App Absorption" {
     windowInstanceCount: 0
     sampleWindowIds: []
     rawTitleHidden: true
+    surfaceRole: "legacy_app_surface"
     captureCandidate: true
+    preflightRequired: true
     mutationPolicy: "preflight_required"
+    receiptRequired: true
+  }
+
+  template "ContextSurfaceGroup" {
+    type: "machine"
+    machineType: "context_surface_group"
+    appName: ""
+    surfaceRole: "ai_context_surface"
+    observedProcessCount: 0
+    windowInstanceCount: 0
+    captureCandidate: false
+    preflightRequired: false
+    mutationPolicy: "context_only"
     receiptRequired: true
   }
 
@@ -97,7 +114,7 @@ composition "HoloShell Legacy App Absorption" {
       type: "ui"
       uiType: "capture_queue"
       label: "Capture Candidates"
-      count: $captureCandidateCount
+      count: $legacyOperationCandidateCount
     }
 
     object "LegacyPreflightGate" {
@@ -125,6 +142,15 @@ composition "HoloShell Legacy App Absorption" {
     receiptRequired: true
   }
 
+  policy "ContextSurfacesAreNotLegacyOperationCandidates" {
+    appliesTo: ["ai_peer_surface", "ai_model_runtime", "ai_workbench", "shell_surface", "brittney_peer_context"]
+    contextVisibleToBrittney: true
+    captureCandidate: false
+    mutationPreflightGateCreated: false
+    routePeerActionsThroughAgentLane: true
+    receiptRequired: true
+  }
+
   policy "LegacyMutationPreflight" {
     appliesTo: ["click_destructive_ui", "change_app_setting", "alter_registry", "uninstall_app", "close_window", "submit_form"]
     mcpToolRequired: "holoshell_preflight_legacy_app_mutation"
@@ -148,6 +174,8 @@ composition "HoloShell Legacy App Absorption" {
     state.peerWindowCount = snapshot.summary.peerWindowCount
     state.peerSurfaceCount = snapshot.summary.peerSurfaceCount
     state.appGroupCount = snapshot.summary.appGroupCount
+    state.contextSurfaceGroupCount = snapshot.summary.contextSurfaceGroupCount
+    state.legacyOperationCandidateCount = snapshot.summary.legacyOperationCandidateCount
     state.captureCandidateCount = snapshot.summary.captureCandidateCount
     state.preflightRequiredCount = snapshot.summary.preflightRequiredCount
     state.mutationAllowedCount = snapshot.summary.mutationAllowedCount
@@ -160,6 +188,8 @@ composition "HoloShell Legacy App Absorption" {
       peerWindows: state.peerWindowCount,
       peerSurfaces: state.peerSurfaceCount,
       groups: state.appGroupCount,
+      contextSurfaceGroups: state.contextSurfaceGroupCount,
+      legacyOperationCandidates: state.legacyOperationCandidateCount,
       captureCandidates: state.captureCandidateCount,
       preflightRequired: state.preflightRequiredCount,
       mutationAllowed: state.mutationAllowedCount,

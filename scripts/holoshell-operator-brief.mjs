@@ -521,14 +521,16 @@ function buildNextActions({ hardwareReality, runCustody, buildCustody, legacyAbs
       action: buildCustody.brittneyBrief?.requiredNextAction || 'Refresh active build custody.',
     });
   }
-  if (runCustody.brittneyBrief?.requiredNextAction) {
+  if (runCustody.brittneyBrief?.requiredNextAction && runCustody.brittneyBrief?.status !== 'ready') {
     actions.push({
       source: 'run_custody',
       priority: (runCustody.summary?.ownerUnknownCount || 0) > 0 ? 'high' : 'medium',
       action: runCustody.brittneyBrief.requiredNextAction,
     });
   }
-  if (legacyWindows.brittneyBrief?.requiredNextAction && (legacyWindows.summary?.peerWindowCount || 0) > 0) {
+  if (legacyWindows.brittneyBrief?.requiredNextAction
+    && legacyWindows.brittneyBrief?.status !== 'legacy_windows_visible'
+    && (legacyWindows.summary?.peerWindowCount || 0) > 0) {
     actions.push({
       source: 'legacy_windows',
       priority: 'high',

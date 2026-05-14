@@ -23,6 +23,7 @@ composition "HoloShell Readiness Evidence" {
     buildStatus: "unknown"
     hardwareRealityStatus: "unknown"
     processHealthStatus: "unknown"
+    liveFeedConsumerStatus: "unknown"
     lastReadinessReceiptId: ""
   }
 
@@ -94,6 +95,14 @@ composition "HoloShell Readiness Evidence" {
     receiptRequired: true
   }
 
+  policy "LiveFeedIsDownstreamProjection" {
+    appliesTo: ["readiness_projection", "live_feed", "operator_brief"]
+    liveFeedMayBeDisplayed: true
+    liveFeedMayGateReadiness: false
+    staleLiveFeedStatusIsProvenanceOnly: true
+    receiptRequired: true
+  }
+
   action consume_readiness_evidence(feed) {
     state.status = feed.summary.status
     state.tokenCount = feed.summary.tokenCount
@@ -104,6 +113,7 @@ composition "HoloShell Readiness Evidence" {
     state.buildStatus = feed.summary.buildStatus
     state.hardwareRealityStatus = feed.summary.hardwareRealityStatus
     state.processHealthStatus = feed.summary.processHealthStatus
+    state.liveFeedConsumerStatus = feed.summary.liveFeedStatus
     state.lastReadinessReceiptId = feed.readinessId
 
     emit("holoshell:readiness:evidence", {
@@ -116,6 +126,7 @@ composition "HoloShell Readiness Evidence" {
       buildStatus: state.buildStatus,
       hardwareReality: state.hardwareRealityStatus,
       processHealth: state.processHealthStatus,
+      liveFeedConsumer: state.liveFeedConsumerStatus,
       receipt: state.lastReadinessReceiptId
     })
   }

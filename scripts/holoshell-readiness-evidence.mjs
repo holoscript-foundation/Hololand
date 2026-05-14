@@ -241,6 +241,7 @@ function localArtifactSummary(localArtifacts) {
     },
     liveFeed: {
       status: statusFromRisk(liveSummary.overallRisk),
+      gatesReadiness: false,
       overallRisk: liveSummary.overallRisk || 'unknown',
       timelineCount: liveSummary.timelineCount || 0,
       readinessEvidenceStatus: liveSummary.readinessEvidenceStatus || 'unknown',
@@ -571,7 +572,6 @@ function createFeed({
     graphStatus,
     localSummary.hardwareReality.status,
     localSummary.processHealth.status,
-    localSummary.liveFeed.status,
     localSummary.buildRun.status,
   ].filter((status) => ['warn', 'skipped', 'reported_fail', 'fail'].includes(status)).length;
   const worstStatus =
@@ -587,7 +587,6 @@ function createFeed({
       graphStatus,
       localSummary.hardwareReality.status,
       localSummary.processHealth.status,
-      localSummary.liveFeed.status,
       localSummary.buildRun.status,
     ].sort((left, right) => statusRank(right) - statusRank(left))[0] || 'unknown';
   const overallStatus =
@@ -707,7 +706,7 @@ function createFeed({
       kind: 'live_feed_receipt',
       title: `Live feed ${localSummary.liveFeed.overallRisk}`,
       status: localSummary.liveFeed.status,
-      detail: `${localSummary.liveFeed.timelineCount} timeline item(s); readiness feed ${localSummary.liveFeed.readinessEvidenceStatus}; ${localSummary.liveFeed.warningCount} readiness warning(s).`,
+      detail: `${localSummary.liveFeed.timelineCount} timeline item(s); readiness feed ${localSummary.liveFeed.readinessEvidenceStatus}; ${localSummary.liveFeed.warningCount} readiness warning(s). Live feed is a downstream projection and does not gate this readiness calculation.`,
       source: localSummary.liveFeed.source,
       receiptType: 'hololand.holoshell.live-feed.v0.1.0',
     }),

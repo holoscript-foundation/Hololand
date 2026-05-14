@@ -399,8 +399,11 @@ function fallbackAgentLanes(lanes, legacyWindows, runCustody) {
   });
 }
 
-function fallbackShellRuns(processHealth, runCustody) {
-  const processRuns = safeArray(processHealth.processes)
+function fallbackShellRuns(processHealth) {
+  const processRows = safeArray(processHealth.shellRuns).length
+    ? safeArray(processHealth.shellRuns)
+    : safeArray(processHealth.processes);
+  return processRows
     .filter((processInfo) => processInfo.shellRunCandidate)
     .map((processInfo) => ({
       run_id: processInfo.custody?.runId || `pid-${processInfo.pid}`,
@@ -411,22 +414,6 @@ function fallbackShellRuns(processHealth, runCustody) {
       listeningPorts: [],
       command_hash: processInfo.commandHash || null,
     }));
-  const custodyRuns = safeArray(runCustody.runs).map((run) => ({
-    run_id: run.runId || `pid-${run.pid}`,
-    pid: run.pid,
-    parentPid: run.parentPid,
-    process: run.processName,
-    health_state: run.healthState || run.status || 'observed',
-    listeningPorts: safeArray(run.listeningPorts),
-    command_hash: run.commandHash || null,
-  }));
-  const seen = new Set();
-  return [...custodyRuns, ...processRuns].filter((run) => {
-    const key = run.run_id || `pid-${run.pid}`;
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
 
 function fallbackLegacyProcesses(legacyWindows) {
@@ -464,7 +451,7 @@ function createFallbackMcpReality(args, mcpError) {
   const lanes = readOptionalJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const legacyWindows = readOptionalJson(path.join(tmpDir, 'legacy-window-inventory.json'), {});
   const runCustody = readOptionalJson(path.join(tmpDir, 'run-custody.json'), {});
-  const shellRuns = fallbackShellRuns(processHealth, runCustody);
+  const shellRuns = fallbackShellRuns(processHealth);
   const listeners = shellRuns
     .flatMap((run) => safeArray(run.listeningPorts).map((port) => ({
       pid: run.pid,

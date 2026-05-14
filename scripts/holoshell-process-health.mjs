@@ -49,8 +49,6 @@ const SHELL_RUN_NAMES = [
   'vite',
   'next',
   'playwright',
-  'git',
-  'docker',
 ];
 
 function parseArgs(argv) {
@@ -412,6 +410,7 @@ function isExpectedLongRunningDaemon(processInfo, category) {
 
 function isShellRunCandidate(processInfo, category = classifyRun(processInfo)) {
   if (isProtectedSurfaceCategory(category)) return false;
+  if (category === 'tooling') return false;
   if (isExpectedLongRunningDaemon(processInfo, category)) return false;
   const name = normalizeName(processInfo.name);
   if (SHELL_RUN_NAMES.includes(name)) return true;
