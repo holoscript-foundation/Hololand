@@ -23,6 +23,8 @@ composition "HoloShell Home" {
     brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
     programRegistry: ".tmp/holoshell/program-registry.json"
     shellObjectGraph: ".tmp/holoshell/shell-objects.json"
+    wildHoloScriptIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
+    wildHoloScriptIntakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
     hardwareActionReceipt: ".tmp/holoshell/action-latest.json"
     hardwareApprovalBundle: ".tmp/holoshell/approval-latest.json"
     workflowReceipt: ".tmp/holoshell/workflow-latest.json"
@@ -154,6 +156,18 @@ composition "HoloShell Home" {
     activeShardImportReceiptPath: ""
     activeShardImportRuntimeMutationExecuted: false
     activeShardImportSourceAssetsMutated: false
+    wildHoloScriptStatus: "unknown"
+    wildHoloScriptFileCount: 0
+    wildHoloScriptHoloCount: 0
+    wildHoloScriptHsCount: 0
+    wildHoloScriptHsplusCount: 0
+    wildHoloScriptFrontierSyntaxCount: 0
+    wildHoloScriptAdapterNeededCount: 0
+    wildHoloScriptCanonicalCandidateCount: 0
+    wildHoloScriptFlagshipCount: 0
+    wildHoloScriptTopPattern: ""
+    wildHoloScriptNextMove: ""
+    wildHoloScriptTopFlagship: ""
     activePilot: ""
     lastFeedGeneratedAt: ""
     operatingStage: "ask"
@@ -246,6 +260,12 @@ composition "HoloShell Home" {
     type: "pub_sub"
     priority: "critical"
     description: "Bundled HoloShell runtime feeds from local adapters, receipts, and pilot witnesses"
+  }
+
+  channel "holoshell:wild-holoscript" {
+    type: "append_only"
+    priority: "high"
+    description: "Wild HoloScript source corpus scanned read-only for HoloShell module promotion"
   }
 
   channel "holoshell:readiness" {
@@ -1157,6 +1177,18 @@ composition "HoloShell Home" {
     state.activeShardImportReceiptPath = feedBundle.summary.activeShardImportReceiptPath
     state.activeShardImportRuntimeMutationExecuted = feedBundle.summary.activeShardImportRuntimeMutationExecuted
     state.activeShardImportSourceAssetsMutated = feedBundle.summary.activeShardImportSourceAssetsMutated
+    state.wildHoloScriptStatus = feedBundle.summary.wildHoloScriptStatus
+    state.wildHoloScriptFileCount = feedBundle.summary.wildHoloScriptFileCount
+    state.wildHoloScriptHoloCount = feedBundle.summary.wildHoloScriptHoloCount
+    state.wildHoloScriptHsCount = feedBundle.summary.wildHoloScriptHsCount
+    state.wildHoloScriptHsplusCount = feedBundle.summary.wildHoloScriptHsplusCount
+    state.wildHoloScriptFrontierSyntaxCount = feedBundle.summary.wildHoloScriptFrontierSyntaxCount
+    state.wildHoloScriptAdapterNeededCount = feedBundle.summary.wildHoloScriptAdapterNeededCount
+    state.wildHoloScriptCanonicalCandidateCount = feedBundle.summary.wildHoloScriptCanonicalCandidateCount
+    state.wildHoloScriptFlagshipCount = feedBundle.summary.wildHoloScriptFlagshipCount
+    state.wildHoloScriptTopPattern = feedBundle.summary.wildHoloScriptTopPattern
+    state.wildHoloScriptNextMove = feedBundle.summary.wildHoloScriptNextMove
+    state.wildHoloScriptTopFlagship = feedBundle.feeds.wildHoloScript?.topFlagships[0]?.path || state.wildHoloScriptTopFlagship
     state.pilotReceiptCount = feedBundle.summary.pilotReceiptCount
     state.lastFeedGeneratedAt = feedBundle.generatedAt
     state.compositeHealth = feedBundle.summary.overallRisk
@@ -1270,6 +1302,18 @@ composition "HoloShell Home" {
       active_shard_import_receipt: state.activeShardImportReceiptPath,
       active_shard_import_runtime_mutation_executed: state.activeShardImportRuntimeMutationExecuted,
       active_shard_import_source_assets_mutated: state.activeShardImportSourceAssetsMutated,
+      wild_holoscript_status: state.wildHoloScriptStatus,
+      wild_holoscript_files: state.wildHoloScriptFileCount,
+      wild_holoscript_holo: state.wildHoloScriptHoloCount,
+      wild_holoscript_hs: state.wildHoloScriptHsCount,
+      wild_holoscript_hsplus: state.wildHoloScriptHsplusCount,
+      wild_holoscript_frontier_syntax: state.wildHoloScriptFrontierSyntaxCount,
+      wild_holoscript_adapter_needed: state.wildHoloScriptAdapterNeededCount,
+      wild_holoscript_canonical_candidates: state.wildHoloScriptCanonicalCandidateCount,
+      wild_holoscript_flagships: state.wildHoloScriptFlagshipCount,
+      wild_holoscript_top_pattern: state.wildHoloScriptTopPattern,
+      wild_holoscript_top_flagship: state.wildHoloScriptTopFlagship,
+      wild_holoscript_next_move: state.wildHoloScriptNextMove,
       stop_plans: state.stopPlanCount,
       timeline_nodes: state.timelineNodeCount,
       receipt_required: true
@@ -1350,6 +1394,42 @@ composition "HoloShell Home" {
       graph_status: state.readinessGraphStatus,
       tasks: state.readinessTaskCount,
       next_workflow: state.readinessNextWorkflow,
+      receipt_required: true
+    })
+  }
+
+  action apply_wild_holoscript_intake(receipt) {
+    state.wildHoloScriptStatus = receipt.summary.status
+    state.wildHoloScriptFileCount = receipt.summary.fileCount
+    state.wildHoloScriptHoloCount = receipt.summary.holoCount
+    state.wildHoloScriptHsCount = receipt.summary.hsCount
+    state.wildHoloScriptHsplusCount = receipt.summary.hsplusCount
+    state.wildHoloScriptFrontierSyntaxCount = receipt.summary.frontierSyntaxCount
+    state.wildHoloScriptAdapterNeededCount = receipt.summary.adapterNeededCount
+    state.wildHoloScriptCanonicalCandidateCount = receipt.summary.canonicalCandidateCount
+    state.wildHoloScriptFlagshipCount = receipt.summary.flagshipCount
+    state.wildHoloScriptTopPattern = receipt.summary.topPattern
+    state.wildHoloScriptNextMove = receipt.summary.nextMove
+    state.wildHoloScriptTopFlagship = receipt.topFlagships[0]?.path || ""
+    state.activeShellObject = "source.wild-holoscript.uaa2"
+    state.nextMove = state.wildHoloScriptNextMove || state.nextMove
+    emit("holoshell:wild-holoscript", {
+      action: "wild_holoscript_intake_applied",
+      status: state.wildHoloScriptStatus,
+      files: state.wildHoloScriptFileCount,
+      holo: state.wildHoloScriptHoloCount,
+      hs: state.wildHoloScriptHsCount,
+      hsplus: state.wildHoloScriptHsplusCount,
+      frontier_syntax: state.wildHoloScriptFrontierSyntaxCount,
+      adapter_needed: state.wildHoloScriptAdapterNeededCount,
+      canonical_candidates: state.wildHoloScriptCanonicalCandidateCount,
+      flagships: state.wildHoloScriptFlagshipCount,
+      top_pattern: state.wildHoloScriptTopPattern,
+      top_flagship: state.wildHoloScriptTopFlagship,
+      next_move: state.wildHoloScriptNextMove,
+      read_only_scan: receipt.invariants.readOnlyScan,
+      source_files_mutated: receipt.invariants.sourceFilesMutated,
+      adapter_required_for_execution: receipt.invariants.adapterRequiredForExecution,
       receipt_required: true
     })
   }

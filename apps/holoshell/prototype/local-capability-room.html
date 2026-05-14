@@ -889,6 +889,7 @@
   <script src="../../../.tmp/holoshell/readiness-evidence.js"></script>
   <script src="../../../.tmp/holoshell/program-registry.js"></script>
   <script src="../../../.tmp/holoshell/shell-objects.js"></script>
+  <script src="../../../.tmp/holoshell/wild-holoscript-intake.js"></script>
   <script src="../../../.tmp/holoshell/brittney-turn-latest.js"></script>
   <script src="../../../.tmp/holoshell/action-latest.js"></script>
   <script src="../../../.tmp/holoshell/approval-latest.js"></script>
@@ -1011,6 +1012,7 @@
     const standaloneHardwareActionFeed = window.HOLOSHELL_HARDWARE_ACTION || {};
     const standaloneProgramRegistryFeed = window.HOLOSHELL_PROGRAM_REGISTRY || {};
     const standaloneShellObjectsFeed = window.HOLOSHELL_SHELL_OBJECTS || {};
+    const standaloneWildHoloScriptFeed = window.HOLOSHELL_WILD_HOLOSCRIPT_INTAKE || {};
     const standaloneHardwareApprovalFeed = window.HOLOSHELL_HARDWARE_APPROVAL || {};
     const standaloneWorkflowFeed = window.HOLOSHELL_WORKFLOW || {};
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
@@ -1028,6 +1030,7 @@
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
       { id: "asset-shard", label: "Asset Shard", glyph: "AS", type: "workflow", detail: "Brittney can stage a local folder of models, images, audio, and HoloScript into a playable HoloLand shard preview.", x: 25, y: 66, size: 112 },
+      { id: "wild-holoscript", label: "Wild HoloScript", glyph: "WH", type: "source corpus", detail: "uaa2-service frontier HoloScript becomes a read-only corpus Brittney can promote into shell modules.", x: 19, y: 28, size: 108 },
       { id: "programs", label: "Programs", glyph: "P", type: "program", detail: "Legacy apps are preserved as capability engines, not window chores.", x: 33, y: 53, size: 138 },
       { id: "hardware-control", label: "Program Control", glyph: "PC", type: "hardware_power", detail: "Focus, open, hotkey, click, and type through guarded hardware receipts.", x: 14, y: 76, size: 116 },
       { id: "studio", label: "Studio", glyph: "S", type: "world", detail: "Creator direction stays reachable without becoming the shell.", x: 49, y: 34, size: 112 },
@@ -1379,6 +1382,15 @@
       return graph.summary || {};
     }
 
+    function wildHoloScriptFeed() {
+      return feed.feeds?.wildHoloScript?.summary ? feed.feeds.wildHoloScript : standaloneWildHoloScriptFeed;
+    }
+
+    function wildHoloScriptSummary() {
+      const intake = wildHoloScriptFeed();
+      return intake.summary || {};
+    }
+
     function readinessEvidenceFeed() {
       return feed.feeds?.readinessEvidence?.summary ? feed.feeds.readinessEvidence : standaloneReadinessEvidence;
     }
@@ -1415,6 +1427,7 @@
         "Room Marathon": "Marathon",
         "Asset Shard": "Shard",
         "Shard Workflow Receipt": "Shard Receipt",
+        "Wild HoloScript": "Wild HS",
       };
       if (aliases[label]) return aliases[label];
       const words = label.split(/\s+/).filter(Boolean);
@@ -1468,6 +1481,7 @@
         "developer_surface",
         "document_app",
         "program",
+        "source_corpus",
       ]);
       const appSlots = [
         { x: 58, y: 28, size: 92 },
@@ -2072,6 +2086,30 @@
           askBrittney();
         }));
       }
+      if (object.id === "wild-holoscript" || shellObject.id === "source.wild-holoscript.uaa2") {
+        actions.push(actionButton("Review wild modules", () => {
+          const intake = wildHoloScriptFeed();
+          const summary = intake.summary || {};
+          const flagship = (intake.topFlagships || [])[0];
+          result.hidden = false;
+          result.textContent = `Wild HoloScript ${summary.status || "unknown"}: ${summary.fileCount || 0} files, ${summary.hsplusCount || 0} hsplus, ${summary.frontierSyntaxCount || 0} frontier syntax, ${summary.adapterNeededCount || 0} adapter needed. Top source: ${flagship?.path || "none"}.`;
+          appendConversation("Wild HoloScript is now a source corpus. I can review modules, then promote them through adapters before any execution.");
+        }, actions.length === 0));
+        actions.push(actionButton("Promote terminal module", () => {
+          const plan = (wildHoloScriptFeed().holoshellIntakeMap || []).find((item) => item.id === "terminal-command-bubble");
+          result.hidden = false;
+          result.textContent = plan
+            ? `Terminal promotion: ${plan.sourcePath} -> ${plan.targetObject}; adapter ${plan.adapter}.`
+            : "Terminal promotion plan is not present yet; rerun the wild HoloScript intake.";
+        }));
+        actions.push(actionButton("Promote Brittney state", () => {
+          const plan = (wildHoloScriptFeed().holoshellIntakeMap || []).find((item) => item.id === "brittney-runtime-state-machine");
+          result.hidden = false;
+          result.textContent = plan
+            ? `Brittney promotion: ${plan.sourcePath} -> ${plan.targetObject}; ${plan.nextAction}`
+            : "Brittney promotion plan is not present yet; rerun the wild HoloScript intake.";
+        }));
+      }
       if (shellObject.objectKind === "captured_window" && shellObject.sourceRef) {
         actions.push(actionButton("Stage focus window", () => stageDaemonAction(`focus ${selectedName}`, "/action", {
           action: "focus_window",
@@ -2242,6 +2280,7 @@
       const hardwareSummary = hardwareActionSummary();
       const registrySummary = programRegistrySummary();
       const shellGraphSummary = shellObjectGraphSummary();
+      const wildSummary = wildHoloScriptSummary();
       const readinessSummary = readinessEvidenceSummary();
       const approvalSummary = hardwareApprovalSummary();
       const activeWorkflow = workflowSummary();
@@ -2260,6 +2299,9 @@
         "Avatar source: source/holoshell-brittney-avatar.hsplus",
         "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
         "Hardware source: source/holoshell-hardware-control.hsplus",
+        "Wild source: source/holoshell-wild-holoscript-intake.hsplus",
+        `Wild HoloScript: ${wildSummary.status || summary.wildHoloScriptStatus || "unknown"}; files ${wildSummary.fileCount || summary.wildHoloScriptFileCount || 0}; .holo ${wildSummary.holoCount || summary.wildHoloScriptHoloCount || 0}; .hs ${wildSummary.hsCount || summary.wildHoloScriptHsCount || 0}; .hsplus ${wildSummary.hsplusCount || summary.wildHoloScriptHsplusCount || 0}`,
+        `Wild promotion: frontier ${wildSummary.frontierSyntaxCount || summary.wildHoloScriptFrontierSyntaxCount || 0}; adapters ${wildSummary.adapterNeededCount || summary.wildHoloScriptAdapterNeededCount || 0}; candidates ${wildSummary.canonicalCandidateCount || summary.wildHoloScriptCanonicalCandidateCount || 0}; next ${wildSummary.nextMove || summary.wildHoloScriptNextMove || "none"}`,
         `Readiness evidence: ${readinessSummary.status || summary.readinessEvidenceStatus || "unknown"}; build ${readinessSummary.buildStatus || summary.readinessBuildStatus || "unknown"}; device ${readinessSummary.deviceLabStatus || summary.readinessDeviceLabStatus || "unknown"}; graph ${readinessSummary.graphStatus || summary.readinessGraphStatus || "unknown"}`,
         `Readiness tokens: ${readinessSummary.tokenCount || summary.readinessTokenCount || 0}; warnings ${readinessSummary.warningCount || summary.readinessWarningCount || 0}; next ${readinessSummary.nextWorkflow || summary.readinessNextWorkflow || "none"}`,
         `Control daemon: ${controlDaemonHealth.status || "offline"}; execute ${controlDaemonHealth.executeEnabled ? "enabled" : "disabled"}`,

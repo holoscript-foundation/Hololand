@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, wildHoloScript, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -128,6 +128,19 @@ function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCaptu
       generatedAt: surfaceMap.generatedAt || now,
       receiptType: 'hololand.holoshell.holoscript-surface-map.v0.1.0',
       source: 'scripts/holoshell-holoscript-surface-map.mjs',
+    });
+  }
+
+  if (wildHoloScript?.summary) {
+    timeline.push({
+      id: wildHoloScript.intakeId || 'wild-holoscript-intake',
+      kind: 'wild_holoscript_intake',
+      title: `Wild HoloScript intake ${wildHoloScript.summary.status || 'unknown'}`,
+      detail: `${wildHoloScript.summary.fileCount || 0} files from ${wildHoloScript.source?.rootName || 'uaa2-service'}; ${wildHoloScript.summary.frontierSyntaxCount || 0} frontier syntax; ${wildHoloScript.summary.adapterNeededCount || 0} adapter needed.`,
+      trustState: (wildHoloScript.summary.adapterNeededCount || 0) > 0 ? 'partial' : wildHoloScript.summary.status === 'scanned' ? 'verified' : 'unknown',
+      generatedAt: wildHoloScript.generatedAt || now,
+      receiptType: wildHoloScript.schemaVersion,
+      source: wildHoloScript.source?.script || 'scripts/holoshell-wild-holoscript-intake.mjs',
     });
   }
 
@@ -387,6 +400,7 @@ function createFeed(args) {
   const tmpDir = resolveRepoPath(args.tmpDir);
   const inventory = readJson(path.join(tmpDir, 'capability-inventory.json'), {});
   const surfaceMap = readJson(path.join(tmpDir, 'holoscript-surface-map.json'), {});
+  const wildHoloScript = readJson(path.join(tmpDir, 'wild-holoscript-intake.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
@@ -417,6 +431,7 @@ function createFeed(args) {
   const timeline = createTimeline({
     inventory,
     surfaceMap,
+    wildHoloScript,
     lanes,
     processHealth,
     osUiCapture,
@@ -452,6 +467,7 @@ function createFeed(args) {
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
+      wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -468,6 +484,17 @@ function createFeed(args) {
       holoscriptRoomCount: surfaceMap?.summary?.holoshellRoomCount || surfaceMap?.holoshellRooms?.length || 0,
       mcpToolCount: surfaceMap?.summary?.mcpToolCount || 0,
       cliCommandCount: surfaceMap?.summary?.cliCommandCount || 0,
+      wildHoloScriptStatus: wildHoloScript?.summary?.status || 'unknown',
+      wildHoloScriptFileCount: wildHoloScript?.summary?.fileCount || 0,
+      wildHoloScriptHoloCount: wildHoloScript?.summary?.holoCount || 0,
+      wildHoloScriptHsCount: wildHoloScript?.summary?.hsCount || 0,
+      wildHoloScriptHsplusCount: wildHoloScript?.summary?.hsplusCount || 0,
+      wildHoloScriptFrontierSyntaxCount: wildHoloScript?.summary?.frontierSyntaxCount || 0,
+      wildHoloScriptAdapterNeededCount: wildHoloScript?.summary?.adapterNeededCount || 0,
+      wildHoloScriptCanonicalCandidateCount: wildHoloScript?.summary?.canonicalCandidateCount || 0,
+      wildHoloScriptFlagshipCount: wildHoloScript?.summary?.flagshipCount || 0,
+      wildHoloScriptTopPattern: wildHoloScript?.summary?.topPattern || '',
+      wildHoloScriptNextMove: wildHoloScript?.summary?.nextMove || '',
       activeLaneCount: lanes?.summary?.activeLaneCount || 0,
       laneCount: lanes?.summary?.laneCount || lanes?.lanes?.length || 0,
       processRisk,
@@ -600,6 +627,7 @@ function createFeed(args) {
     feeds: {
       inventory,
       surfaceMap,
+      wildHoloScript,
       lanes,
       processHealth,
       osUiCapture,

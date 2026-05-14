@@ -258,8 +258,9 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
+  const wildSummary = wildHoloScript?.summary || {};
   const workflowSummary = workflow?.summary || {};
   const shardSummary = shardWorkflow?.summary || {};
   const shardApprovalSummary = shardImportApproval?.summary || {};
@@ -315,6 +316,40 @@ function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflow
       detail: `Brittney avatar ${avatarSummary.avatarStatus || 'unknown'}; runtime ${avatarSummary.runtimeStatus || 'unknown'}.`,
       firstScreen: true,
       layout: { x: 54, y: 68, size: 126 },
+    },
+    {
+      id: 'source.wild-holoscript.uaa2',
+      objectKind: 'source_corpus',
+      displayName: 'Wild HoloScript',
+      sourceKind: 'holoscript_corpus',
+      sourceRef: wildHoloScript?.source?.script || 'scripts/holoshell-wild-holoscript-intake.mjs',
+      capabilityFamily: 'source_corpus',
+      trustState: (wildSummary.adapterNeededCount || 0) > 0 ? 'partial' : wildSummary.status === 'scanned' ? 'verified' : 'unknown',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'wild_holoscript_intake_adapter',
+      visualForm: 'source_orbit',
+      status: wildSummary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['wild_holoscript_intake_receipt', 'wild_module_promotion_receipt'],
+      relationships: {
+        rootName: wildHoloScript?.source?.rootName || 'uaa2-service',
+        fileCount: wildSummary.fileCount || 0,
+        holoCount: wildSummary.holoCount || 0,
+        hsCount: wildSummary.hsCount || 0,
+        hsplusCount: wildSummary.hsplusCount || 0,
+        frontierSyntaxCount: wildSummary.frontierSyntaxCount || 0,
+        adapterNeededCount: wildSummary.adapterNeededCount || 0,
+        canonicalCandidateCount: wildSummary.canonicalCandidateCount || 0,
+        topPattern: wildSummary.topPattern || '',
+        nextMove: wildSummary.nextMove || '',
+        flagshipPaths: (wildHoloScript?.topFlagships || []).slice(0, 5).map((item) => item.path),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'promote_wild_holoscript_to_shell_modules',
+      glyph: 'WH',
+      detail: `${wildSummary.fileCount || 0} wild HoloScript files; ${wildSummary.adapterNeededCount || 0} need adapters; ${wildSummary.frontierSyntaxCount || 0} frontier syntax fixtures.`,
+      firstScreen: wildSummary.status === 'scanned',
+      layout: { x: 19, y: 28, size: 108 },
     },
     {
       id: 'workflow.room-marathon',
@@ -829,6 +864,10 @@ function summarize(objects, feeds) {
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
+    wildHoloScriptObjectCount: objects.filter((object) => object.capabilityFamily === 'source_corpus').length,
+    wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
+    wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
+    wildHoloScriptAdapterNeededCount: feeds.wildHoloScript?.summary?.adapterNeededCount || 0,
     assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
     assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
     capturedWindowObjectCount: objects.filter((object) => object.objectKind === 'captured_window').length,
@@ -842,6 +881,7 @@ function summarize(objects, feeds) {
       programRegistryStatus: feeds.programRegistry?.summary?.status || 'unknown',
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
+      wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -855,6 +895,7 @@ function loadFeeds(tmpDir) {
   return {
     programRegistry: readJson(path.join(dir, 'program-registry.json'), {}),
     readinessEvidence: readJson(path.join(dir, 'readiness-evidence.json'), {}),
+    wildHoloScript: readJson(path.join(dir, 'wild-holoscript-intake.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
@@ -900,6 +941,7 @@ function buildGraph(args, fixtures = null) {
       schema: 'apps/holoshell/docs/SHELL_OBJECT_SCHEMA.md',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
+      wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
@@ -985,6 +1027,28 @@ function fixtureFeeds() {
         { id: 'readiness.graph-status', title: 'Graph status reported import failure', status: 'reported_fail', kind: 'tool_failure_receipt', detail: 'graph-status failed.', receiptType: 'tool_failure_receipt' },
       ],
     },
+    wildHoloScript: {
+      schemaVersion: 'hololand.holoshell.wild-holoscript-intake.v0.1.0',
+      intakeId: 'wild-holoscript-fixture',
+      source: { rootName: 'uaa2-service', script: 'scripts/holoshell-wild-holoscript-intake.mjs' },
+      summary: {
+        status: 'scanned',
+        fileCount: 45,
+        holoCount: 2,
+        hsCount: 4,
+        hsplusCount: 39,
+        frontierSyntaxCount: 18,
+        adapterNeededCount: 9,
+        canonicalCandidateCount: 6,
+        flagshipCount: 5,
+        topPattern: 'xr_world',
+        nextMove: 'promote_terminal_and_brittney_modules_with_adapter_receipts',
+      },
+      topFlagships: [
+        { path: 'src/worlds/innovation/agent-orchestration.hsplus' },
+        { path: 'src/holoscript/agents/brittney.hsplus' },
+      ],
+    },
     osUiCapture: {
       summary: { status: 'captured', windowCount: 1, controlCount: 4, geometryNodeCount: 42 },
       windows: [{ id: 'window-chrome', title: 'HoloLand', processName: 'chrome', processId: 100, foreground: true, controls: [{}, {}, {}] }],
@@ -1049,6 +1113,8 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
+  if (!graph.objects.some((object) => object.id === 'source.wild-holoscript.uaa2')) failures.push('expected wild HoloScript source corpus object');
+  if (graph.summary.wildHoloScriptStatus !== 'scanned') failures.push('expected wild HoloScript scanned status');
   if (!graph.summary.guardedExecuteCount) failures.push('expected guarded execute objects');
   if (JSON.stringify(graph).includes('targetPath')) failures.push('graph must not expose raw targetPath fields');
   if (failures.length) {

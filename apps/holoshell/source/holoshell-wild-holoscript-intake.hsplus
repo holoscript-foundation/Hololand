@@ -1,0 +1,118 @@
+// HoloShell Wild HoloScript Intake
+//
+// uaa2-service contains frontier HoloScript syntax that is valuable precisely
+// because it is not yet normalized. HoloShell treats it as a read-only source
+// corpus, then promotes modules through adapters and receipts.
+
+composition "HoloShell Wild HoloScript Intake" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    corpusName: "uaa2-service"
+    corpusRootHint: "../uaa2-service"
+    intakeScript: "scripts/holoshell-wild-holoscript-intake.mjs"
+    intakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
+    browserBootstrap: ".tmp/holoshell/wild-holoscript-intake.js"
+    shellObjectGraph: ".tmp/holoshell/shell-objects.json"
+    promotionPolicy: "read_only_scan_then_adapter_receipt"
+  }
+
+  state {
+    status: "unknown"
+    rootName: "uaa2-service"
+    fileCount: 0
+    holoCount: 0
+    hsCount: 0
+    hsplusCount: 0
+    flagshipCount: 0
+    frontierSyntaxCount: 0
+    adapterNeededCount: 0
+    canonicalCandidateCount: 0
+    topPattern: ""
+    nextMove: "scan_wild_holoscript_corpus"
+    topFlagshipPath: ""
+    terminalModulePath: ""
+    brittneyModulePath: ""
+    agentOrchestrationPath: ""
+    sourceFilesMutated: false
+    executionAllowedWithoutAdapter: false
+  }
+
+  channel "holoshell:wild-holoscript" {
+    type: "append_only"
+    priority: "high"
+    description: "Read-only intake of frontier HoloScript from uaa2-service for shell promotion"
+  }
+
+  channel "holoshell:wild-holoscript:promotion" {
+    type: "request_response"
+    priority: "high"
+    description: "Promotion requests that turn wild .holo/.hs/.hsplus modules into HoloShell adapters"
+  }
+
+  template "WildHoloScriptCorpusBubble" {
+    type: "ui"
+    uiType: "source_corpus"
+    width: 260
+    height: 160
+    trust_state: "partial"
+    permission: "read_only"
+    visual_form: "source_orbit"
+    receipt_required: true
+  }
+
+  action apply_wild_holoscript_intake(receipt) {
+    state.status = receipt.summary.status
+    state.rootName = receipt.source.rootName
+    state.fileCount = receipt.summary.fileCount
+    state.holoCount = receipt.summary.holoCount
+    state.hsCount = receipt.summary.hsCount
+    state.hsplusCount = receipt.summary.hsplusCount
+    state.flagshipCount = receipt.summary.flagshipCount
+    state.frontierSyntaxCount = receipt.summary.frontierSyntaxCount
+    state.adapterNeededCount = receipt.summary.adapterNeededCount
+    state.canonicalCandidateCount = receipt.summary.canonicalCandidateCount
+    state.topPattern = receipt.summary.topPattern
+    state.nextMove = receipt.summary.nextMove
+    state.topFlagshipPath = receipt.topFlagships[0]?.path || ""
+    state.terminalModulePath = receipt.holoshellIntakeMap.find((item) => item.id == "terminal-command-bubble")?.sourcePath || ""
+    state.brittneyModulePath = receipt.holoshellIntakeMap.find((item) => item.id == "brittney-runtime-state-machine")?.sourcePath || ""
+    state.agentOrchestrationPath = receipt.holoshellIntakeMap.find((item) => item.id == "agent-lab-surface")?.sourcePath || ""
+    state.sourceFilesMutated = receipt.invariants.sourceFilesMutated
+    state.executionAllowedWithoutAdapter = !receipt.invariants.adapterRequiredForExecution
+    emit("holoshell:wild-holoscript", {
+      action: "wild_holoscript_intake_applied",
+      status: state.status,
+      root_name: state.rootName,
+      files: state.fileCount,
+      holo: state.holoCount,
+      hs: state.hsCount,
+      hsplus: state.hsplusCount,
+      flagships: state.flagshipCount,
+      frontier_syntax: state.frontierSyntaxCount,
+      adapter_needed: state.adapterNeededCount,
+      canonical_candidates: state.canonicalCandidateCount,
+      top_pattern: state.topPattern,
+      top_flagship: state.topFlagshipPath,
+      next_move: state.nextMove,
+      source_files_mutated: state.sourceFilesMutated,
+      execution_allowed_without_adapter: state.executionAllowedWithoutAdapter,
+      receipt_required: true
+    })
+  }
+
+  action promote_wild_module(modulePlan) {
+    state.nextMove = modulePlan.nextAction || "write_adapter_receipt"
+    emit("holoshell:wild-holoscript:promotion", {
+      action: "wild_module_promotion_requested",
+      source_path: modulePlan.sourcePath,
+      target_object: modulePlan.targetObject,
+      target_source: modulePlan.targetSource,
+      adapter: modulePlan.adapter,
+      next_action: state.nextMove,
+      read_only_scan_complete: state.status == "scanned",
+      execution_requires_adapter: true,
+      receipt_required: true
+    })
+  }
+}

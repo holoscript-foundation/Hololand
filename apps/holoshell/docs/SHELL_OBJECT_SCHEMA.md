@@ -66,6 +66,7 @@ ShellObject
 | `agent` | Active or available AI actor. | Brittney, Codex, Claude, Gemini. |
 | `room` | Capability grouping or work context. | HoloScript Room, Project Room. |
 | `workflow` | Ordered multi-step action plan. | Room Marathon with Lofi, Asset Folder to Playable Shard. |
+| `source_corpus` | Read-only source repository or module set that can be promoted into HoloShell objects. | Wild HoloScript from `uaa2-service`. |
 | `approval` | User decision object for guarded or break-glass work. | Hardware approval, workflow approval. |
 | `receipt` | Evidence object attached to action or observation. | Action receipt, DOM witness, screenshot. |
 | `readiness_room` | Evidence room proving whether the local machine can build a HoloLand world. | World Build Readiness. |
@@ -90,6 +91,7 @@ hardware
 window
 control
 workflow
+holoscript_corpus
 approval
 receipt
 ```
@@ -107,6 +109,7 @@ receipt
 | `timeline_node` | Completed or running action with evidence. |
 | `approval_object` | Consent gate for guarded work. |
 | `avatar_anchor` | Embodied actor presence. |
+| `source_orbit` | Read-only source corpus with promotion routes into shell objects. |
 
 ## Permission Envelopes
 
@@ -179,6 +182,7 @@ Inputs:
 - `.tmp/holoshell/os-ui-capture.json`
 - `.tmp/holoshell/agent-lanes.json`
 - `.tmp/holoshell/shard-workflow-latest.json`
+- `.tmp/holoshell/wild-holoscript-intake.json`
 - Brittney avatar, workflow, approval, intent-gate, and action receipts
 
 The graph intentionally does not expose raw executable paths to the browser
@@ -214,6 +218,14 @@ is nonce-bound and names the exact local import command. Import execution writes
 runtime-local `.tmp/holoshell/imported-shards/<shard>/` manifest, `.holo`
 source, import receipt, and rollback paths. It is a runtime mutation, not a
 source asset mutation.
+
+Wild HoloScript intake adds `source.wild-holoscript.uaa2` from
+`.tmp/holoshell/wild-holoscript-intake.json`. It represents the local
+`uaa2-service` `.holo`, `.hs`, and `.hsplus` corpus as a read-only source
+object. The object exposes counts, compatibility bands, top flagship modules,
+and promotion paths; it does not execute wild source. Terminal, Brittney,
+agent-orchestration, component, and `.holo` world promotions must go through
+explicit adapters and receipts before they gain shell authority.
 
 ## Source Boundary
 
