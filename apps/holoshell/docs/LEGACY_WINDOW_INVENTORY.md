@@ -15,7 +15,9 @@ The inventory stores:
 
 - visible window count
 - app window groups
-- peer surface window counts
+- AI peer surface window counts
+- shell surface window counts
+- combined operating surface counts
 - opaque window ids
 - title hashes and semantic title labels
 
@@ -36,9 +38,17 @@ Output:
 
 ## Brittney Rule
 
-Brittney should use `peerSurfaces[].windowInstanceCount` for peer presence
-claims. PID counts remain useful for health and custody, but they are not the
-number of visible agent windows.
+Brittney should use `peerSurfaces[].windowInstanceCount` for AI peer presence
+claims. Terminal and PowerShell windows live under `shellSurfaces[]`; they
+enhance HoloShell, but they are not counted as agent peers. PID counts remain
+useful for health and custody, but they are not the number of visible agent
+windows.
+
+Current summary fields:
+
+- `peerWindowCount` / `aiPeerWindowCount`: AI peers, model runtimes, and AI workbenches.
+- `shellWindowCount`: terminal and shell-control surfaces.
+- `operatingSurfaceWindowCount`: AI peers plus shell surfaces.
 
 ## Safety
 

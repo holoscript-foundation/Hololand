@@ -103,15 +103,23 @@ function syntheticWindowInventory() {
     schemaVersion: 'hololand.holoshell.legacy-window-inventory.v0.1.0',
     generatedAt: '2026-05-14T00:00:00.000Z',
     summary: {
-      visibleWindowCount: 4,
+      visibleWindowCount: 5,
       peerSurfaceCount: 2,
       peerWindowCount: 2,
-      captureCandidateCount: 4,
+      aiPeerSurfaceCount: 2,
+      aiPeerWindowCount: 2,
+      shellSurfaceCount: 1,
+      shellWindowCount: 1,
+      operatingSurfaceCount: 3,
+      operatingSurfaceWindowCount: 3,
+      legacyWindowCount: 2,
+      captureCandidateCount: 5,
       rawWindowTitlesIncluded: false,
     },
     appGroups: [
       { appName: 'codex', label: 'Codex', archetype: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1, pids: [101], sampleWindowIds: ['window-codex'], titleLabels: ['codex_home'] },
       { appName: 'claude', label: 'Claude', archetype: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1, pids: [202], sampleWindowIds: ['window-claude'], titleLabels: ['claude_home'] },
+      { appName: 'terminal', label: 'Terminal', archetype: 'shell_surface', windowInstanceCount: 1, processCount: 1, pids: [909], sampleWindowIds: ['window-terminal'], titleLabels: ['shell_window'] },
       { appName: 'msedge', label: 'Microsoft Edge', archetype: 'browser', windowInstanceCount: 1, processCount: 1, pids: [303], sampleWindowIds: ['window-edge'], titleLabels: ['browser_window'] },
       { appName: 'explorer', label: 'File Explorer', archetype: 'file_manager', windowInstanceCount: 1, processCount: 1, pids: [505], sampleWindowIds: ['window-explorer'], titleLabels: ['file_explorer_window'] },
     ],
@@ -119,9 +127,19 @@ function syntheticWindowInventory() {
       { laneId: 'codex', label: 'Codex', windowInstanceCount: 1, processCount: 1, pids: [101], sampleWindowIds: ['window-codex'] },
       { laneId: 'claude', label: 'Claude', windowInstanceCount: 1, processCount: 1, pids: [202], sampleWindowIds: ['window-claude'] },
     ],
+    shellSurfaces: [
+      { laneId: 'terminal', label: 'Terminal', peerKind: 'shell', surfaceClass: 'shell_surface', windowInstanceCount: 1, processCount: 1, pids: [909], sampleWindowIds: ['window-terminal'] },
+    ],
+    operatingSurfaces: [
+      { laneId: 'codex', label: 'Codex', peerKind: 'agent', surfaceClass: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1, pids: [101], sampleWindowIds: ['window-codex'] },
+      { laneId: 'claude', label: 'Claude', peerKind: 'agent', surfaceClass: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1, pids: [202], sampleWindowIds: ['window-claude'] },
+      { laneId: 'terminal', label: 'Terminal', peerKind: 'shell', surfaceClass: 'shell_surface', windowInstanceCount: 1, processCount: 1, pids: [909], sampleWindowIds: ['window-terminal'] },
+    ],
     brittneyBrief: {
       status: 'legacy_windows_visible',
-      requiredNextAction: 'Use legacy window inventory for peer instance counts before trusting PID lane counts.',
+      requiredNextAction: 'Use AI peer window counts separately from shell surface counts before trusting PID lane counts.',
+      peerWindowSummary: 'Codex:1, Claude:1',
+      shellWindowSummary: 'Terminal:1',
       blockedActions: ['close_window', 'click_destructive_ui', 'alter_registry'],
     },
     receipt: {
@@ -151,14 +169,25 @@ function loadWindowInventory(args) {
         visibleWindowCount: 0,
         peerSurfaceCount: 0,
         peerWindowCount: 0,
+        aiPeerSurfaceCount: 0,
+        aiPeerWindowCount: 0,
+        shellSurfaceCount: 0,
+        shellWindowCount: 0,
+        operatingSurfaceCount: 0,
+        operatingSurfaceWindowCount: 0,
+        legacyWindowCount: 0,
         captureCandidateCount: 0,
         rawWindowTitlesIncluded: false,
       },
       appGroups: [],
       peerSurfaces: [],
+      shellSurfaces: [],
+      operatingSurfaces: [],
       brittneyBrief: {
         status: 'window_inventory_missing',
         requiredNextAction: 'Run holoshell:legacy-windows before trusting peer instance counts.',
+        peerWindowSummary: 'window inventory missing',
+        shellWindowSummary: 'window inventory missing',
         blockedActions: ['close_window', 'click_destructive_ui', 'alter_registry'],
       },
       receipt: {
@@ -307,7 +336,12 @@ function createSnapshot(hardwareReality, windowInventory) {
   const recommendations = buildRecommendations(groups);
   const observedAppCount = groups.reduce((sum, app) => sum + app.observedProcessCount, 0);
   const visibleWindowCount = windowInventory.summary?.visibleWindowCount || 0;
-  const peerWindowCount = windowInventory.summary?.peerWindowCount || 0;
+  const peerWindowCount = windowInventory.summary?.aiPeerWindowCount ?? windowInventory.summary?.peerWindowCount ?? 0;
+  const peerSurfaceCount = windowInventory.summary?.aiPeerSurfaceCount ?? windowInventory.summary?.peerSurfaceCount ?? 0;
+  const shellWindowCount = windowInventory.summary?.shellWindowCount || 0;
+  const shellSurfaceCount = windowInventory.summary?.shellSurfaceCount || 0;
+  const operatingSurfaceWindowCount = windowInventory.summary?.operatingSurfaceWindowCount ?? peerWindowCount + shellWindowCount;
+  const operatingSurfaceCount = windowInventory.summary?.operatingSurfaceCount ?? peerSurfaceCount + shellSurfaceCount;
   const snapshot = {
     schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
@@ -321,8 +355,15 @@ function createSnapshot(hardwareReality, windowInventory) {
       observedAppCount,
       visibleWindowCount,
       windowAppGroupCount: safeArray(windowInventory.appGroups).length,
-      peerSurfaceCount: windowInventory.summary?.peerSurfaceCount || 0,
+      peerSurfaceCount,
       peerWindowCount,
+      aiPeerSurfaceCount: peerSurfaceCount,
+      aiPeerWindowCount: peerWindowCount,
+      shellSurfaceCount,
+      shellWindowCount,
+      operatingSurfaceCount,
+      operatingSurfaceWindowCount,
+      legacyWindowCount: windowInventory.summary?.legacyWindowCount || 0,
       appGroupCount: groups.length,
       captureCandidateCount: groups.filter((group) => group.captureCandidate).length,
       preflightRequiredCount: groups.length,
@@ -344,11 +385,16 @@ function createSnapshot(hardwareReality, windowInventory) {
     },
     appGroups: groups,
     peerSurfaces: safeArray(windowInventory.peerSurfaces),
+    shellSurfaces: safeArray(windowInventory.shellSurfaces),
+    operatingSurfaces: safeArray(windowInventory.operatingSurfaces).length
+      ? safeArray(windowInventory.operatingSurfaces)
+      : [...safeArray(windowInventory.peerSurfaces), ...safeArray(windowInventory.shellSurfaces)],
     recommendations,
     brittneyBrief: {
       status: groups.length ? 'legacy_surfaces_visible' : 'no_legacy_surfaces',
-      summary: `${observedAppCount} legacy app process(es), ${visibleWindowCount} visible window(s), ${peerWindowCount} peer window(s), across ${groups.length} group(s). ${groups.length} mutation preflight gate(s) required.`,
+      summary: `${observedAppCount} legacy app process(es), ${visibleWindowCount} visible window(s), ${peerWindowCount} AI peer window(s), ${shellWindowCount} shell window(s), across ${groups.length} group(s). ${groups.length} mutation preflight gate(s) required.`,
       peerWindowSummary: safeArray(windowInventory.peerSurfaces).map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
+      shellWindowSummary: safeArray(windowInventory.shellSurfaces).map((shell) => `${shell.label}:${shell.windowInstanceCount}`).join(', ') || 'no shell windows',
       requiredNextAction: recommendations[0]
         ? `${recommendations[0].action} for ${recommendations[0].appName}: ${recommendations[0].reason}`
         : 'No legacy app absorption action is required.',
@@ -360,6 +406,7 @@ function createSnapshot(hardwareReality, windowInventory) {
       absorptionHash: sha256(JSON.stringify({
         groups: groups.map((group) => [group.appName, group.archetype, group.observedProcessCount]),
         windows: groups.map((group) => [group.appName, group.windowInstanceCount]),
+        shellSurfaces: safeArray(windowInventory.shellSurfaces).map((shell) => [shell.laneId, shell.windowInstanceCount]),
         windowInventoryHash: windowInventory.receipt?.windowInventoryHash || null,
         hardwareSnapshotHash: hardwareReality.receipt?.snapshotHash || null,
       })),
@@ -392,6 +439,8 @@ function assertSelfTest(snapshot) {
   if (snapshot.summary.observedAppCount < 3) failures.push('expected synthetic legacy app observations');
   if (snapshot.summary.visibleWindowCount < 4) failures.push('expected synthetic visible windows');
   if (snapshot.summary.peerWindowCount < 2) failures.push('expected synthetic peer windows');
+  if (snapshot.summary.shellWindowCount < 1) failures.push('expected synthetic shell windows');
+  if (snapshot.summary.operatingSurfaceWindowCount < 3) failures.push('expected synthetic operating surfaces');
   if (snapshot.summary.mutationAllowedCount !== 0) failures.push('mutation must not be allowed');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (!snapshot.safety.preflightRequiredForMutation) failures.push('legacy mutation preflight is required');
@@ -420,7 +469,8 @@ function main() {
     console.log(`HoloShell legacy app absorption browser bootstrap: ${jsOutput}`);
     console.log(`Observed apps: ${snapshot.summary.observedAppCount}`);
     console.log(`Visible windows: ${snapshot.summary.visibleWindowCount}`);
-    console.log(`Peer windows: ${snapshot.summary.peerWindowCount}`);
+    console.log(`AI peer windows: ${snapshot.summary.peerWindowCount}`);
+    console.log(`Shell windows: ${snapshot.summary.shellWindowCount}`);
     console.log(`Groups: ${snapshot.summary.appGroupCount}`);
     console.log(`Capture candidates: ${snapshot.summary.captureCandidateCount}`);
     console.log(`Preflight required: ${snapshot.summary.preflightRequiredCount}`);

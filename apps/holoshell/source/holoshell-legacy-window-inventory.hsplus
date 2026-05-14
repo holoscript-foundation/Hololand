@@ -18,6 +18,10 @@ composition "HoloShell Legacy Window Inventory" {
     appGroupCount: 0
     peerSurfaceCount: 0
     peerWindowCount: 0
+    shellSurfaceCount: 0
+    shellWindowCount: 0
+    operatingSurfaceCount: 0
+    operatingSurfaceWindowCount: 0
     captureCandidateCount: 0
     rawWindowTitlesIncluded: false
     destructiveActionsTaken: false
@@ -51,6 +55,21 @@ composition "HoloShell Legacy Window Inventory" {
     laneId: ""
     label: ""
     peerKind: "agent"
+    surfaceClass: "ai_peer_surface"
+    windowInstanceCount: 0
+    processCount: 0
+    evidence: "top_level_windows"
+    rawTitleHidden: true
+    receiptRequired: true
+  }
+
+  template "ShellWindowSurface" {
+    type: "machine"
+    machineType: "shell_window_surface"
+    laneId: "terminal"
+    label: "Terminal"
+    peerKind: "shell"
+    surfaceClass: "shell_surface"
     windowInstanceCount: 0
     processCount: 0
     evidence: "top_level_windows"
@@ -60,7 +79,7 @@ composition "HoloShell Legacy Window Inventory" {
 
   room "LegacyWindowInventoryRoom" {
     label: "Legacy Windows"
-    userQuestion: "How many real peer windows and legacy app windows are visible?"
+    userQuestion: "How many real AI peer windows, shell windows, and legacy app windows are visible?"
     visualForm: "window_instance_map"
     liveFeed: "holoshell:legacy:windows"
 
@@ -79,6 +98,22 @@ composition "HoloShell Legacy Window Inventory" {
       groups: $peerSurfaceCount
     }
 
+    object "ShellWindows" {
+      type: "ui"
+      uiType: "shell_window_counter"
+      label: "Shell Windows"
+      count: $shellWindowCount
+      groups: $shellSurfaceCount
+    }
+
+    object "OperatingSurfaces" {
+      type: "ui"
+      uiType: "operating_surface_counter"
+      label: "Operating Surfaces"
+      count: $operatingSurfaceWindowCount
+      groups: $operatingSurfaceCount
+    }
+
     object "CaptureCandidates" {
       type: "ui"
       uiType: "capture_queue"
@@ -90,6 +125,8 @@ composition "HoloShell Legacy Window Inventory" {
   policy "WindowCountsBeatPidCounts" {
     appliesTo: ["peer_instance_count", "agent_lane_display", "brittney_peer_context"]
     preferredSource: "top_level_windows"
+    peerWindowDefinition: "AI peers, model runtimes, and AI workbenches only"
+    shellWindowDefinition: "Terminal and shell-control surfaces that enhance HoloShell but are not peer agents"
     pidCountsAreHealthSignalOnly: true
     rawTitleHiddenByDefault: true
     receiptRequired: true
@@ -109,6 +146,10 @@ composition "HoloShell Legacy Window Inventory" {
     state.appGroupCount = snapshot.summary.appGroupCount
     state.peerSurfaceCount = snapshot.summary.peerSurfaceCount
     state.peerWindowCount = snapshot.summary.peerWindowCount
+    state.shellSurfaceCount = snapshot.summary.shellSurfaceCount
+    state.shellWindowCount = snapshot.summary.shellWindowCount
+    state.operatingSurfaceCount = snapshot.summary.operatingSurfaceCount
+    state.operatingSurfaceWindowCount = snapshot.summary.operatingSurfaceWindowCount
     state.captureCandidateCount = snapshot.summary.captureCandidateCount
     state.rawWindowTitlesIncluded = snapshot.summary.rawWindowTitlesIncluded
     state.destructiveActionsTaken = snapshot.summary.destructiveActionsTaken
@@ -119,6 +160,10 @@ composition "HoloShell Legacy Window Inventory" {
       appGroups: state.appGroupCount,
       peerSurfaces: state.peerSurfaceCount,
       peerWindows: state.peerWindowCount,
+      shellSurfaces: state.shellSurfaceCount,
+      shellWindows: state.shellWindowCount,
+      operatingSurfaces: state.operatingSurfaceCount,
+      operatingSurfaceWindows: state.operatingSurfaceWindowCount,
       captureCandidates: state.captureCandidateCount,
       rawWindowTitlesIncluded: state.rawWindowTitlesIncluded,
       destructiveActionsTaken: state.destructiveActionsTaken,
@@ -131,8 +176,23 @@ composition "HoloShell Legacy Window Inventory" {
       laneId: peer.laneId,
       label: peer.label,
       peerKind: peer.peerKind,
+      surfaceClass: peer.surfaceClass,
       windowInstanceCount: peer.windowInstanceCount,
       processCount: peer.processCount,
+      evidence: "top_level_windows",
+      rawTitleHidden: true,
+      receiptRequired: true
+    })
+  }
+
+  action publish_shell_surface(surface) {
+    emit("holoshell:legacy:windows", {
+      laneId: surface.laneId,
+      label: surface.label,
+      peerKind: "shell",
+      surfaceClass: "shell_surface",
+      windowInstanceCount: surface.windowInstanceCount,
+      processCount: surface.processCount,
       evidence: "top_level_windows",
       rawTitleHidden: true,
       receiptRequired: true

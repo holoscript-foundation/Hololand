@@ -131,6 +131,22 @@ function peerLaneFor(appName, window) {
   return null;
 }
 
+function surfaceClassFor(peer) {
+  if (!peer) return 'legacy_window';
+  if (peer.peerKind === 'shell') return 'shell_surface';
+  if (peer.peerKind === 'model_runtime') return 'ai_model_runtime';
+  if (peer.peerKind === 'ide') return 'ai_workbench';
+  return 'ai_peer_surface';
+}
+
+function isAiPeerSurface(surface) {
+  return ['agent', 'model_runtime', 'ide'].includes(surface?.peerKind);
+}
+
+function isShellSurface(surface) {
+  return surface?.peerKind === 'shell';
+}
+
 function titleLabel(title, appName) {
   const value = String(title || '').trim();
   const text = value.toLowerCase();
@@ -287,6 +303,7 @@ function groupPeerSurfaces(windows) {
         label: peer.label,
         colorHint: peer.colorHint,
         peerKind: peer.peerKind,
+        surfaceClass: surfaceClassFor(peer),
         windowInstanceCount: 0,
         processCount: 0,
         pids: new Set(),
@@ -313,7 +330,13 @@ function createSnapshot(rawWindows) {
     .map(normalizeWindow)
     .filter((window) => Number.isInteger(window.pid) && window.windowHandle);
   const appGroups = groupWindows(windows);
-  const peerSurfaces = groupPeerSurfaces(windows);
+  const operatingSurfaces = groupPeerSurfaces(windows);
+  const peerSurfaces = operatingSurfaces.filter(isAiPeerSurface);
+  const shellSurfaces = operatingSurfaces.filter(isShellSurface);
+  const aiPeerWindowCount = peerSurfaces.reduce((sum, peer) => sum + peer.windowInstanceCount, 0);
+  const shellWindowCount = shellSurfaces.reduce((sum, shell) => sum + shell.windowInstanceCount, 0);
+  const operatingSurfaceWindowCount = aiPeerWindowCount + shellWindowCount;
+  const legacyWindowCount = windows.filter((window) => !peerLaneFor(window.appName, window)).length;
   const captureCandidates = appGroups.filter((group) => !['system_window'].includes(group.archetype));
   const snapshot = {
     schemaVersion: SCHEMA_VERSION,
@@ -327,7 +350,14 @@ function createSnapshot(rawWindows) {
       visibleWindowCount: windows.length,
       appGroupCount: appGroups.length,
       peerSurfaceCount: peerSurfaces.length,
-      peerWindowCount: peerSurfaces.reduce((sum, peer) => sum + peer.windowInstanceCount, 0),
+      peerWindowCount: aiPeerWindowCount,
+      aiPeerSurfaceCount: peerSurfaces.length,
+      aiPeerWindowCount,
+      shellSurfaceCount: shellSurfaces.length,
+      shellWindowCount,
+      operatingSurfaceCount: operatingSurfaces.length,
+      operatingSurfaceWindowCount,
+      legacyWindowCount,
       captureCandidateCount: captureCandidates.length,
       rawWindowTitlesIncluded: false,
       destructiveActionsTaken: false,
@@ -335,12 +365,15 @@ function createSnapshot(rawWindows) {
     windows: windows.slice(0, 160),
     appGroups,
     peerSurfaces,
+    shellSurfaces,
+    operatingSurfaces,
     brittneyBrief: {
       status: windows.length ? 'legacy_windows_visible' : 'no_legacy_windows',
-      summary: `${windows.length} visible top-level window(s), ${peerSurfaces.length} peer surface group(s), ${peerSurfaces.reduce((sum, peer) => sum + peer.windowInstanceCount, 0)} peer window(s).`,
+      summary: `${windows.length} visible top-level window(s), ${peerSurfaces.length} AI peer surface group(s), ${aiPeerWindowCount} AI peer window(s), ${shellWindowCount} shell window(s).`,
       peerWindowSummary: peerSurfaces.map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
-      requiredNextAction: peerSurfaces.length
-        ? 'Use legacy window inventory for peer instance counts before trusting PID lane counts.'
+      shellWindowSummary: shellSurfaces.map((shell) => `${shell.label}:${shell.windowInstanceCount}`).join(', ') || 'no shell windows',
+      requiredNextAction: operatingSurfaces.length
+        ? 'Use AI peer window counts separately from shell surface counts before trusting PID lane counts.'
         : 'No peer window correction available.',
       allowedActions: ['observe_window', 'count_peer_windows', 'capture_window', 'map_visible_controls', 'summarize_visible_state'],
       blockedActions: ['close_window', 'click_destructive_ui', 'submit_form', 'change_app_setting', 'alter_registry'],
@@ -360,6 +393,7 @@ function createSnapshot(rawWindows) {
       windowInventoryHash: sha256(JSON.stringify({
         windows: windows.map((window) => [window.windowId, window.pid, window.appName, window.titleHash]),
         peerSurfaces: peerSurfaces.map((peer) => [peer.laneId, peer.windowInstanceCount]),
+        shellSurfaces: shellSurfaces.map((shell) => [shell.laneId, shell.windowInstanceCount]),
       })),
       destructiveActionsTaken: false,
       rawCommandsIncluded: false,
@@ -387,9 +421,13 @@ function assertSelfTest(snapshot) {
   const failures = [];
   if (snapshot.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (snapshot.summary.visibleWindowCount < 5) failures.push('expected synthetic windows');
-  if (snapshot.summary.peerWindowCount < 3) failures.push('expected peer windows');
+  if (snapshot.summary.peerWindowCount !== 2) failures.push('expected AI peer windows to exclude shell surfaces');
+  if (snapshot.summary.shellWindowCount !== 1) failures.push('expected one shell window');
+  if (snapshot.summary.operatingSurfaceWindowCount !== 3) failures.push('expected three operating surface windows');
   if (!snapshot.peerSurfaces.some((peer) => peer.laneId === 'codex' && peer.windowInstanceCount === 1)) failures.push('expected codex peer window');
   if (!snapshot.peerSurfaces.some((peer) => peer.laneId === 'claude' && peer.windowInstanceCount === 1)) failures.push('expected claude peer window');
+  if (snapshot.peerSurfaces.some((peer) => peer.laneId === 'terminal')) failures.push('terminal must not be an AI peer surface');
+  if (!snapshot.shellSurfaces.some((surface) => surface.laneId === 'terminal' && surface.windowInstanceCount === 1)) failures.push('expected terminal shell surface');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (snapshot.safety.rawWindowTitlesIncluded !== false) failures.push('raw titles must be hidden');
   const serialized = JSON.stringify(snapshot);
@@ -412,8 +450,10 @@ function main() {
     console.log(`HoloShell legacy window inventory: ${output}`);
     console.log(`HoloShell legacy window browser bootstrap: ${jsOutput}`);
     console.log(`Visible windows: ${snapshot.summary.visibleWindowCount}`);
-    console.log(`Peer windows: ${snapshot.summary.peerWindowCount}`);
-    console.log(`Peer groups: ${snapshot.summary.peerSurfaceCount}`);
+    console.log(`AI peer windows: ${snapshot.summary.peerWindowCount}`);
+    console.log(`AI peer groups: ${snapshot.summary.peerSurfaceCount}`);
+    console.log(`Shell windows: ${snapshot.summary.shellWindowCount}`);
+    console.log(`Operating surface windows: ${snapshot.summary.operatingSurfaceWindowCount}`);
     console.log(`Raw titles included: ${snapshot.summary.rawWindowTitlesIncluded}`);
     console.log(`Destructive actions: ${snapshot.summary.destructiveActionsTaken}`);
   }

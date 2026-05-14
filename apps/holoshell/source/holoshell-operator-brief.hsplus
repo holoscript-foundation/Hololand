@@ -22,6 +22,10 @@ composition "HoloShell Operator Brief" {
     visibleWindowCount: 0
     peerWindowCount: 0
     peerSurfaceCount: 0
+    shellWindowCount: 0
+    shellSurfaceCount: 0
+    operatingSurfaceWindowCount: 0
+    operatingSurfaceCount: 0
     legacyCaptureCandidateCount: 0
     blockedActionCount: 0
     destructiveActionsTaken: false
@@ -78,9 +82,25 @@ composition "HoloShell Operator Brief" {
     object "PeerWindowState" {
       type: "ui"
       uiType: "peer_window_state"
-      label: "Peer Windows"
+      label: "AI Peer Windows"
       windows: $peerWindowCount
       surfaces: $peerSurfaceCount
+    }
+
+    object "ShellWindowState" {
+      type: "ui"
+      uiType: "shell_window_state"
+      label: "Shell Windows"
+      windows: $shellWindowCount
+      surfaces: $shellSurfaceCount
+    }
+
+    object "OperatingSurfaceState" {
+      type: "ui"
+      uiType: "operating_surface_state"
+      label: "Operating Surfaces"
+      windows: $operatingSurfaceWindowCount
+      surfaces: $operatingSurfaceCount
     }
 
     object "BlockedActions" {
@@ -102,6 +122,8 @@ composition "HoloShell Operator Brief" {
   policy "BrittneyUsesWindowCountsForPeers" {
     appliesTo: ["peer_instance_count", "agent_lane_display", "brittney_peer_context"]
     requiredInput: "legacy_window_inventory"
+    peerWindowDefinition: "AI peers, model runtimes, and AI workbenches only"
+    shellWindowsTrackedSeparately: true
     pidCountsAreHealthSignalOnly: true
     topLevelWindowCountsArePresenceSignal: true
     rawTitleHiddenByDefault: true
@@ -124,6 +146,10 @@ composition "HoloShell Operator Brief" {
     state.visibleWindowCount = brief.legacy.visibleWindowCount
     state.peerWindowCount = brief.peers.windowInstanceCount
     state.peerSurfaceCount = brief.peers.surfaceCount
+    state.shellWindowCount = brief.peers.shellWindowInstanceCount
+    state.shellSurfaceCount = brief.peers.shellSurfaceCount
+    state.operatingSurfaceWindowCount = brief.peers.operatingSurfaceWindowCount
+    state.operatingSurfaceCount = brief.peers.operatingSurfaceCount
     state.legacyCaptureCandidateCount = brief.legacy.captureCandidateCount
     state.blockedActionCount = brief.blockedActions.length
     state.destructiveActionsTaken = brief.safety.destructiveActionsTaken
@@ -138,6 +164,10 @@ composition "HoloShell Operator Brief" {
       visibleWindows: state.visibleWindowCount,
       peerWindows: state.peerWindowCount,
       peerSurfaces: state.peerSurfaceCount,
+      shellWindows: state.shellWindowCount,
+      shellSurfaces: state.shellSurfaceCount,
+      operatingSurfaceWindows: state.operatingSurfaceWindowCount,
+      operatingSurfaces: state.operatingSurfaceCount,
       legacyCaptureCandidates: state.legacyCaptureCandidateCount,
       blockedActions: state.blockedActionCount,
       destructiveActionsTaken: state.destructiveActionsTaken,

@@ -130,9 +130,15 @@ function syntheticInputs() {
     legacyAbsorption: {
       summary: {
         observedAppCount: 3,
-        visibleWindowCount: 4,
+        visibleWindowCount: 5,
         peerSurfaceCount: 2,
         peerWindowCount: 2,
+        aiPeerSurfaceCount: 2,
+        aiPeerWindowCount: 2,
+        shellSurfaceCount: 1,
+        shellWindowCount: 1,
+        operatingSurfaceCount: 3,
+        operatingSurfaceWindowCount: 3,
         appGroupCount: 2,
         captureCandidateCount: 2,
         preflightRequiredCount: 2,
@@ -149,19 +155,35 @@ function syntheticInputs() {
     },
     legacyWindows: {
       summary: {
-        visibleWindowCount: 4,
+        visibleWindowCount: 5,
         peerSurfaceCount: 2,
         peerWindowCount: 2,
+        aiPeerSurfaceCount: 2,
+        aiPeerWindowCount: 2,
+        shellSurfaceCount: 1,
+        shellWindowCount: 1,
+        operatingSurfaceCount: 3,
+        operatingSurfaceWindowCount: 3,
+        legacyWindowCount: 2,
         rawWindowTitlesIncluded: false,
       },
       peerSurfaces: [
         { laneId: 'codex', label: 'Codex', windowInstanceCount: 1, processCount: 1 },
         { laneId: 'claude', label: 'Claude', windowInstanceCount: 1, processCount: 1 },
       ],
+      shellSurfaces: [
+        { laneId: 'terminal', label: 'Terminal', peerKind: 'shell', surfaceClass: 'shell_surface', windowInstanceCount: 1, processCount: 1 },
+      ],
+      operatingSurfaces: [
+        { laneId: 'codex', label: 'Codex', peerKind: 'agent', surfaceClass: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1 },
+        { laneId: 'claude', label: 'Claude', peerKind: 'agent', surfaceClass: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1 },
+        { laneId: 'terminal', label: 'Terminal', peerKind: 'shell', surfaceClass: 'shell_surface', windowInstanceCount: 1, processCount: 1 },
+      ],
       brittneyBrief: {
         status: 'legacy_windows_visible',
-        requiredNextAction: 'Use legacy window inventory for peer instance counts before trusting PID lane counts.',
+        requiredNextAction: 'Use AI peer window counts separately from shell surface counts before trusting PID lane counts.',
         peerWindowSummary: 'Codex:1, Claude:1',
+        shellWindowSummary: 'Terminal:1',
         blockedActions: ['close_window', 'click_destructive_ui'],
       },
       safety: { destructiveActionsTaken: false, rawWindowTitlesIncluded: false },
@@ -177,12 +199,26 @@ function loadInputs(args) {
     runCustody: loadInput(args.runCustody, 'run custody'),
     legacyAbsorption: loadInput(args.legacyAbsorption, 'legacy absorption'),
     legacyWindows: loadOptionalInput(args.legacyWindows) || {
-      summary: { visibleWindowCount: 0, peerSurfaceCount: 0, peerWindowCount: 0, rawWindowTitlesIncluded: false },
+      summary: {
+        visibleWindowCount: 0,
+        peerSurfaceCount: 0,
+        peerWindowCount: 0,
+        aiPeerSurfaceCount: 0,
+        aiPeerWindowCount: 0,
+        shellSurfaceCount: 0,
+        shellWindowCount: 0,
+        operatingSurfaceCount: 0,
+        operatingSurfaceWindowCount: 0,
+        rawWindowTitlesIncluded: false,
+      },
       peerSurfaces: [],
+      shellSurfaces: [],
+      operatingSurfaces: [],
       brittneyBrief: {
         status: 'window_inventory_missing',
         requiredNextAction: 'Run holoshell:legacy-windows before trusting peer instance counts.',
         peerWindowSummary: 'window inventory missing',
+        shellWindowSummary: 'window inventory missing',
         blockedActions: ['close_window', 'click_destructive_ui'],
       },
       safety: { destructiveActionsTaken: false, rawWindowTitlesIncluded: false },
@@ -238,6 +274,12 @@ function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legac
 
 function createBrief(inputs) {
   const { hardwareReality, runCustody, legacyAbsorption, legacyWindows } = inputs;
+  const aiPeerWindowCount = legacyWindows.summary?.aiPeerWindowCount ?? legacyWindows.summary?.peerWindowCount ?? 0;
+  const aiPeerSurfaceCount = legacyWindows.summary?.aiPeerSurfaceCount ?? legacyWindows.summary?.peerSurfaceCount ?? 0;
+  const shellWindowCount = legacyWindows.summary?.shellWindowCount || 0;
+  const shellSurfaceCount = legacyWindows.summary?.shellSurfaceCount || 0;
+  const operatingSurfaceWindowCount = legacyWindows.summary?.operatingSurfaceWindowCount ?? aiPeerWindowCount + shellWindowCount;
+  const operatingSurfaceCount = legacyWindows.summary?.operatingSurfaceCount ?? aiPeerSurfaceCount + shellSurfaceCount;
   const blockedActions = unique([
     ...safeArray(runCustody.brittneyBrief?.blockedActions),
     ...safeArray(legacyAbsorption.brittneyBrief?.blockedActions),
@@ -309,8 +351,14 @@ function createBrief(inputs) {
     legacy: {
       observedAppCount: legacyAbsorption.summary?.observedAppCount || 0,
       visibleWindowCount: legacyAbsorption.summary?.visibleWindowCount || legacyWindows.summary?.visibleWindowCount || 0,
-      peerSurfaceCount: legacyAbsorption.summary?.peerSurfaceCount || legacyWindows.summary?.peerSurfaceCount || 0,
-      peerWindowCount: legacyAbsorption.summary?.peerWindowCount || legacyWindows.summary?.peerWindowCount || 0,
+      peerSurfaceCount: legacyAbsorption.summary?.aiPeerSurfaceCount ?? legacyAbsorption.summary?.peerSurfaceCount ?? aiPeerSurfaceCount,
+      peerWindowCount: legacyAbsorption.summary?.aiPeerWindowCount ?? legacyAbsorption.summary?.peerWindowCount ?? aiPeerWindowCount,
+      aiPeerSurfaceCount,
+      aiPeerWindowCount,
+      shellSurfaceCount: legacyAbsorption.summary?.shellSurfaceCount ?? shellSurfaceCount,
+      shellWindowCount: legacyAbsorption.summary?.shellWindowCount ?? shellWindowCount,
+      operatingSurfaceCount: legacyAbsorption.summary?.operatingSurfaceCount ?? operatingSurfaceCount,
+      operatingSurfaceWindowCount: legacyAbsorption.summary?.operatingSurfaceWindowCount ?? operatingSurfaceWindowCount,
       appGroupCount: legacyAbsorption.summary?.appGroupCount || 0,
       captureCandidateCount: legacyAbsorption.summary?.captureCandidateCount || 0,
       preflightRequiredCount: legacyAbsorption.summary?.preflightRequiredCount || 0,
@@ -320,8 +368,14 @@ function createBrief(inputs) {
     },
     peers: {
       source: 'legacy_window_inventory',
-      windowInstanceCount: legacyWindows.summary?.peerWindowCount || 0,
-      surfaceCount: legacyWindows.summary?.peerSurfaceCount || 0,
+      windowInstanceCount: aiPeerWindowCount,
+      surfaceCount: aiPeerSurfaceCount,
+      aiWindowInstanceCount: aiPeerWindowCount,
+      aiSurfaceCount: aiPeerSurfaceCount,
+      shellWindowInstanceCount: shellWindowCount,
+      shellSurfaceCount,
+      operatingSurfaceWindowCount,
+      operatingSurfaceCount,
       rawWindowTitlesIncluded: Boolean(legacyWindows.summary?.rawWindowTitlesIncluded),
       surfaces: safeArray(legacyWindows.peerSurfaces).map((peer) => ({
         laneId: peer.laneId,
@@ -330,6 +384,15 @@ function createBrief(inputs) {
         windowInstanceCount: peer.windowInstanceCount || 0,
         processCount: peer.processCount || 0,
         evidence: peer.evidence || 'top_level_windows',
+      })),
+      shellSurfaces: safeArray(legacyWindows.shellSurfaces).map((surface) => ({
+        laneId: surface.laneId,
+        label: surface.label,
+        peerKind: surface.peerKind,
+        surfaceClass: surface.surfaceClass || 'shell_surface',
+        windowInstanceCount: surface.windowInstanceCount || 0,
+        processCount: surface.processCount || 0,
+        evidence: surface.evidence || 'top_level_windows',
       })),
     },
     allowedActions,
@@ -341,6 +404,7 @@ function createBrief(inputs) {
       mustNot: blockedActions,
       firstMove: nextActions[0]?.action || 'Continue read-only observation.',
       peerWindowSummary: legacyWindows.brittneyBrief?.peerWindowSummary || safeArray(legacyWindows.peerSurfaces).map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
+      shellWindowSummary: legacyWindows.brittneyBrief?.shellWindowSummary || safeArray(legacyWindows.shellSurfaces).map((surface) => `${surface.label}:${surface.windowInstanceCount}`).join(', ') || 'no shell windows',
     },
     agentConsumption: {
       rest: '.tmp/holoshell/operator-brief.json',
@@ -396,6 +460,8 @@ function assertSelfTest(brief) {
   if (!brief.blockedActions.includes('legacy_app_mutation')) failures.push('legacy_app_mutation must be blocked');
   if (!brief.allowedActions.includes('claim_run')) failures.push('claim_run should be allowed');
   if (brief.peers.windowInstanceCount < 2) failures.push('expected synthetic peer window instances');
+  if (brief.peers.shellWindowInstanceCount < 1) failures.push('expected synthetic shell window instances');
+  if (brief.peers.operatingSurfaceWindowCount < 3) failures.push('expected synthetic operating surface windows');
   if (!brief.nextActions.length) failures.push('expected next action');
   if (brief.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (brief.safety.rawCommandsIncluded !== false) failures.push('raw commands must be hidden');
@@ -424,7 +490,8 @@ function main() {
     console.log(`Status: ${brief.status}`);
     console.log(`Hardware risk: ${brief.hardware.riskState}`);
     console.log(`Owner unknown runs: ${brief.runs.ownerUnknownCount}`);
-    console.log(`Peer windows: ${brief.peers.windowInstanceCount}`);
+    console.log(`AI peer windows: ${brief.peers.windowInstanceCount}`);
+    console.log(`Shell windows: ${brief.peers.shellWindowInstanceCount}`);
     console.log(`Legacy capture candidates: ${brief.legacy.captureCandidateCount}`);
     console.log(`Blocked actions: ${brief.blockedActions.length}`);
     console.log(`Destructive actions: ${brief.safety.destructiveActionsTaken}`);

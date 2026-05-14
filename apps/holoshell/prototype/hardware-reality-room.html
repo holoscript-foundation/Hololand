@@ -464,7 +464,8 @@
         ["Processes", summary.processCount],
         ["Shell Runs", summary.shellRunCount],
         ["Lane Owned", custodySummary.observedOwnerCount ?? summary.laneAttributedShellRunCount ?? 0],
-        ["Peer Windows", windowSummary.peerWindowCount ?? 0],
+        ["AI Peers", windowSummary.aiPeerWindowCount ?? windowSummary.peerWindowCount ?? 0],
+        ["Shell Windows", windowSummary.shellWindowCount ?? 0],
         ["Listeners", summary.listenerCount],
         ["Agent Lanes", `${summary.activeLaneCount}/${summary.laneCount}`],
         ["Unknown Owners", custodySummary.ownerUnknownCount ?? summary.shellRunCount],
@@ -479,9 +480,11 @@
     }
 
     function renderLanes(lanes) {
-      const peerWindowsByLane = new Map((legacyWindowInventory?.peerSurfaces || []).map((peer) => [peer.laneId, peer]));
+      const peerSurfaces = legacyWindowInventory?.peerSurfaces || [];
+      const shellSurfaces = legacyWindowInventory?.shellSurfaces || [];
+      const peerWindowsByLane = new Map(peerSurfaces.map((peer) => [peer.laneId, peer]));
       const laneIds = new Set(lanes.map((lane) => lane.laneId));
-      const peerOnlyLanes = (legacyWindowInventory?.peerSurfaces || [])
+      const peerOnlyLanes = peerSurfaces
         .filter((peer) => !laneIds.has(peer.laneId))
         .map((peer) => ({
           laneId: peer.laneId,
@@ -493,7 +496,17 @@
           windowInstanceCount: peer.windowInstanceCount || 0,
           semanticPrefix: "[source:legacy-window-inventory evidence:top-level-window]",
         }));
-      const laneModels = [...lanes, ...peerOnlyLanes];
+      const shellOnlyLanes = shellSurfaces.map((surface) => ({
+        laneId: surface.laneId,
+        label: surface.label,
+        surfaceKind: surface.surfaceClass || "shell_surface",
+        healthState: "window_visible",
+        colorHint: surface.colorHint || "white",
+        pidCount: surface.processCount || 0,
+        windowInstanceCount: surface.windowInstanceCount || 0,
+        semanticPrefix: "[source:legacy-window-inventory evidence:shell-surface]",
+      }));
+      const laneModels = [...lanes, ...peerOnlyLanes, ...shellOnlyLanes];
       if (!laneModels.length) return replaceChildrenById("lanes", [empty("No agent lanes in snapshot")]);
       replaceChildrenById("lanes", laneModels.map((lane) => {
         const element = document.createElement("article");
@@ -593,7 +606,7 @@
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
         ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.observedOwnerCount || 0} lane / ${custodySummary.ownerUnknownCount || 0} unknown`],
         ["Brittney Next", brief.requiredNextAction || "Run custody snapshot first"],
-        ["Peer Windows", `${windowSummary.peerWindowCount || 0} windows / ${windowSummary.peerSurfaceCount || 0} peers`],
+        ["Peer Windows", `${windowSummary.aiPeerWindowCount ?? windowSummary.peerWindowCount ?? 0} ai / ${windowSummary.shellWindowCount || 0} shell / ${windowSummary.operatingSurfaceWindowCount || 0} operating`],
         ["Legacy Absorption", `${legacySummary.visibleWindowCount || windowSummary.visibleWindowCount || 0} windows / ${legacySummary.captureCandidateCount || 0} capture candidates`],
         ["Legacy Next", legacyBrief.requiredNextAction || "Legacy app absorption snapshot first"],
         ["Raw Commands", model.receipt?.rawCommandsIncluded ? "visible" : "hidden"]
