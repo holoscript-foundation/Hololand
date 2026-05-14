@@ -187,6 +187,29 @@ node scripts\holoshell-control-daemon.mjs --enable-execute
 `confirm: "execute"` body. The browser surface should treat this as the native
 gesture gate, not as an ambient permission.
 
+## Prototype Approval Review
+
+`apps/holoshell/prototype/local-capability-room.html` now renders the latest
+hardware or workflow approval as an explicit approval object. The review shows:
+
+- approval text, target, risk, id, and expiry;
+- daemon status and whether `--enable-execute` is active;
+- the exact command preview from the nonce-bound bundle;
+- an execute button that stays disabled unless the daemon is online, execute
+  mode is enabled, the approval is unexpired, and the relevant gate allows it.
+
+The prototype can call:
+
+```text
+POST /approval/execute
+POST /workflow/execute
+```
+
+but only with the approval id, nonce, and `confirm: "execute"`. With the daemon
+in default mode, the UI shows the approval packet and blocks execution. This is
+the intended safe behavior for a HoloShell surface that can operate real
+programs.
+
 Stage the first compound Brittney operator workflow:
 
 ```powershell

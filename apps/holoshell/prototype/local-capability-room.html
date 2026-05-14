@@ -674,6 +674,63 @@
       padding-top: 8px;
     }
 
+    .approval-review {
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+      border-radius: 16px;
+      padding: 11px;
+      display: grid;
+      gap: 9px;
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .approval-review[hidden] {
+      display: none;
+    }
+
+    .approval-review strong {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      color: var(--accent);
+    }
+
+    .approval-meta {
+      display: grid;
+      gap: 5px;
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .approval-command {
+      border-top: 1px solid rgba(255, 255, 255, 0.10);
+      padding-top: 7px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      max-height: 74px;
+      overflow: auto;
+      overflow-wrap: anywhere;
+    }
+
+    .approval-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .approval-actions button {
+      min-height: 38px;
+      border-radius: 14px;
+      padding: 0 11px;
+    }
+
+    .approval-actions button[disabled] {
+      cursor: not-allowed;
+      opacity: 0.56;
+    }
+
     .skin-row {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -911,6 +968,12 @@
           <div id="selectedCapabilityDetail" class="mini" hidden></div>
           <div class="action-deck" id="selectedActions" aria-label="Selected object actions"></div>
           <div class="mini action-result" id="actionResult" hidden></div>
+          <div class="approval-review" id="approvalReview" hidden>
+            <strong id="approvalReviewTitle">Approval</strong>
+            <div class="approval-actions" id="approvalReviewActions"></div>
+            <div class="approval-meta" id="approvalReviewMeta"></div>
+            <div class="approval-command" id="approvalReviewCommand" hidden></div>
+          </div>
         </div>
         <div>
           <h2>Skins</h2>
@@ -950,6 +1013,7 @@
     let controlDaemonHealth = { status: "offline", executeEnabled: false };
     let avatarSpeechTimer = 0;
     let speechRecognition = null;
+    let selectedShellObjectId = "hololand";
     const baseObjects = [
       { id: "browser", label: "Browser", glyph: "B", type: "program", detail: "Web surfaces open as witnessed HoloLand objects.", x: 62, y: 16, size: 132 },
       { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
@@ -1439,9 +1503,11 @@
         if (response.ok) {
           controlDaemonHealth = await response.json();
           renderEvidence();
+          renderApprovalReview(currentSelectedObject());
         }
       } catch {
         controlDaemonHealth = { status: "offline", executeEnabled: false };
+        renderApprovalReview(currentSelectedObject());
       }
     }
 
@@ -1678,7 +1744,12 @@
       return [...objects, ...runtimeBubbles, ...capturedUi, ...extras];
     }
 
+    function currentSelectedObject() {
+      return shellObjects().find((item) => item.id === selectedShellObjectId) || shellObjects().find((item) => item.id === "hololand") || baseObjects[0];
+    }
+
     function selectObject(object, options = {}) {
+      selectedShellObjectId = object.id;
       document.querySelectorAll(".bubble").forEach((item) => item.classList.toggle("selected", item.dataset.id === object.id));
       const selectedName = object.fullLabel || object.label;
       document.getElementById("selectedTitle").textContent = selectedName;
@@ -1714,6 +1785,7 @@
         pulseBrittneyAvatar("ready", "focused", 1200);
       }
       renderSelectedActions(object);
+      renderApprovalReview(object);
     }
 
     function appendConversation(text, className = "message") {
@@ -1738,6 +1810,68 @@
       return payload;
     }
 
+    async function getControlDaemon(route) {
+      const response = await fetch(`http://127.0.0.1:4747${route}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || `Control daemon returned ${response.status}`);
+      }
+      return payload;
+    }
+
+    function approvalShortId(value) {
+      const text = String(value || "");
+      if (text.length <= 14) return text || "none";
+      return `${text.slice(0, 8)}...${text.slice(-5)}`;
+    }
+
+    function approvalExpired(expiresAt) {
+      const time = Date.parse(expiresAt || "");
+      return Number.isFinite(time) && Date.now() > time;
+    }
+
+    function activeApprovalBundle(object = null) {
+      const hardware = hardwareApprovalFeed();
+      const workflow = workflowApprovalFeed();
+      const gate = workflowIntentGateSummary();
+      const wantsWorkflow = object?.id === "room-marathon" || object?.shellObject?.objectKind === "workflow";
+      const workflowPending = workflow?.summary?.status === "pending_user_approval";
+      const hardwarePending = hardware?.summary?.status === "pending_user_approval";
+      if (wantsWorkflow && workflowPending) {
+        return {
+          kind: "workflow",
+          bundle: workflow,
+          summary: workflow.summary || {},
+          route: "/workflow/execute",
+          title: "Workflow Approval",
+          target: workflow.summary?.title || workflow.sourceWorkflow?.title || "HoloShell workflow",
+          risk: workflow.approval?.risk || "opens programs and operates the local computer",
+          commandPreview: workflow.execution?.commandPreview || "",
+          gateStatus: gate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown",
+          executionAllowed: Boolean(workflow.summary?.executionAllowed && (gate.executionAllowed || feed.summary?.activeWorkflowIntentGateExecutionAllowed)),
+        };
+      }
+      if (hardwarePending) {
+        return {
+          kind: "hardware",
+          bundle: hardware,
+          summary: hardware.summary || {},
+          route: "/approval/execute",
+          title: "Hardware Approval",
+          target: hardware.summary?.target || hardware.sourceAction?.target || "local computer",
+          risk: hardware.approval?.risk || "operates the local computer",
+          commandPreview: hardware.execution?.commandPreview || "",
+          gateStatus: "not_required",
+          executionAllowed: Boolean(hardware.summary?.executionAllowed),
+        };
+      }
+      return null;
+    }
+
+    function mergeLiveFeed(nextFeed) {
+      if (nextFeed?.summary) Object.assign(feed, nextFeed);
+    }
+
     function actionButton(label, handler, primary = false) {
       const button = document.createElement("button");
       button.type = "button";
@@ -1754,12 +1888,13 @@
       pulseBrittneyAvatar("speaking", "focused", 1600);
       try {
         const payload = await postControlDaemon(route, body);
-        if (payload.feed?.summary) Object.assign(feed, payload.feed);
+        mergeLiveFeed(payload.feed);
         result.textContent = `${label} staged. Approval ${payload.approval?.summary?.status || payload.workflowApproval?.summary?.status || "recorded"}; execution stayed off.`;
         appendConversation(`${label} is staged as a guarded shell action. I kept it behind approval and refreshed the object memory.`);
         renderBubbles();
         renderDock();
         renderEvidence();
+        renderApprovalReview(currentSelectedObject());
         refreshControlDaemonHealth();
       } catch (error) {
         result.textContent = `${label} could not be staged: ${error.message}. Start the local control daemon to let Brittney operate hardware.`;
@@ -1813,6 +1948,102 @@
       if (result && result.textContent.trim() === "") result.hidden = true;
     }
 
+    async function refreshApprovalFromDaemon() {
+      const result = document.getElementById("actionResult");
+      try {
+        const nextFeed = await getControlDaemon("/feed");
+        mergeLiveFeed(nextFeed);
+        renderEvidence();
+        renderApprovalReview(currentSelectedObject());
+        result.hidden = false;
+        result.textContent = "Approval feed refreshed from the local daemon.";
+      } catch (error) {
+        result.hidden = false;
+        result.textContent = `Approval refresh failed: ${error.message}`;
+      }
+    }
+
+    async function executeApprovalBundle(approvalData) {
+      const result = document.getElementById("actionResult");
+      const bundle = approvalData?.bundle || {};
+      if (!bundle.approvalId || !bundle.nonce) {
+        result.hidden = false;
+        result.textContent = "Approval bundle is missing its id or nonce.";
+        return;
+      }
+      result.hidden = false;
+      result.textContent = `Executing ${approvalData.target} through the nonce-bound local daemon.`;
+      pulseBrittneyAvatar("speaking", "focused", 1800);
+      try {
+        const payload = await postControlDaemon(approvalData.route, {
+          approvalId: bundle.approvalId,
+          nonce: bundle.nonce,
+          confirm: "execute",
+        });
+        mergeLiveFeed(payload.feed);
+        result.textContent = `${approvalData.target} execution returned. Mutation ${payload.action?.summary?.mutatingActionExecuted || payload.workflow?.summary?.mutationExecuted ? "recorded" : "not recorded"}.`;
+        appendConversation(`${approvalData.target} execution returned through the approval gate. I attached the latest receipt.`);
+        renderBubbles();
+        renderDock();
+        renderEvidence();
+        renderApprovalReview(currentSelectedObject());
+        refreshControlDaemonHealth();
+      } catch (error) {
+        result.textContent = `${approvalData.target} execution blocked: ${error.message}`;
+        appendConversation(`${approvalData.target} did not execute: ${error.message}`);
+        pulseBrittneyAvatar("ready", "attentive", 1400);
+      }
+    }
+
+    function renderApprovalReview(object = currentSelectedObject()) {
+      const panel = document.getElementById("approvalReview");
+      const title = document.getElementById("approvalReviewTitle");
+      const meta = document.getElementById("approvalReviewMeta");
+      const actions = document.getElementById("approvalReviewActions");
+      const command = document.getElementById("approvalReviewCommand");
+      if (!panel || !title || !meta || !actions || !command) return;
+      const approvalData = activeApprovalBundle(object);
+      if (!approvalData) {
+        panel.hidden = true;
+        return;
+      }
+      const { bundle, summary } = approvalData;
+      const expired = approvalExpired(summary.expiresAt);
+      const daemonOnline = controlDaemonHealth.status === "online";
+      const executeMode = Boolean(controlDaemonHealth.executeEnabled);
+      const canExecute = daemonOnline && executeMode && approvalData.executionAllowed && !expired;
+      title.textContent = approvalData.title;
+      const rows = [
+        `${bundle.approval?.approvalText || summary.actionKind || summary.title || "Approval required"}`,
+        `Target: ${approvalData.target}`,
+        `Risk: ${approvalData.risk}`,
+        `Approval id: ${approvalShortId(bundle.approvalId)}`,
+        `Expires: ${summary.expiresAt || "none"}${expired ? " (expired)" : ""}`,
+        `Daemon: ${daemonOnline ? "online" : "offline"}; execute ${executeMode ? "enabled" : "disabled"}`,
+      ];
+      if (approvalData.kind === "workflow") rows.push(`Brain gate: ${approvalData.gateStatus}`);
+      meta.replaceChildren(...rows.map((text) => {
+        const row = document.createElement("div");
+        row.textContent = text;
+        return row;
+      }));
+      command.hidden = !approvalData.commandPreview;
+      command.textContent = approvalData.commandPreview || "";
+
+      const executeButton = actionButton(canExecute ? "Execute" : expired ? "Expired" : executeMode ? "Blocked" : "Execute disabled", () => executeApprovalBundle(approvalData), true);
+      executeButton.disabled = !canExecute;
+      executeButton.title = canExecute
+        ? "Execute this exact approval packet"
+        : expired
+          ? "Approval expired; stage the action again"
+          : executeMode
+            ? "Approval or brain intent gate is blocking execution"
+            : "Restart the local control daemon with --enable-execute to allow execution";
+      const refreshButton = actionButton("Refresh approval", refreshApprovalFromDaemon);
+      actions.replaceChildren(executeButton, refreshButton);
+      panel.hidden = false;
+    }
+
     function applyActionProposals(proposals) {
       const objects = shellObjects();
       const conversation = document.getElementById("conversation");
@@ -1834,6 +2065,7 @@
       field.replaceChildren(...shellObjects().map((object, index) => {
         const bubble = document.createElement("button");
         bubble.className = "bubble";
+        if (object.id === selectedShellObjectId) bubble.classList.add("selected");
         bubble.dataset.id = object.id;
         bubble.style.setProperty("--x", `${object.x}%`);
         bubble.style.setProperty("--y", `${object.y}%`);

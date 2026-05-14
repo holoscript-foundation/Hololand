@@ -75,6 +75,17 @@ composition "HoloShell Home" {
     hardwareApprovalExecutionAllowed: false
     hardwareControlDaemonStatus: "offline"
     hardwareControlDaemonExecuteEnabled: false
+    activeApprovalReviewKind: ""
+    activeApprovalReviewId: ""
+    activeApprovalReviewTarget: ""
+    activeApprovalReviewRisk: ""
+    activeApprovalReviewExpiresAt: ""
+    activeApprovalReviewExecutionAllowed: false
+    activeApprovalReviewCommandPreview: ""
+    activeApprovalReviewDaemonReady: false
+    lastApprovalExecutionStatus: "none"
+    lastApprovalExecutionRoute: ""
+    lastApprovalExecutionMutationRecorded: false
     activeWorkflowStatus: "unknown"
     activeWorkflowTitle: ""
     activeWorkflowStepCount: 0
@@ -1014,6 +1025,11 @@ composition "HoloShell Home" {
     state.hardwareApprovalTarget = feedBundle.summary.hardwareApprovalTarget
     state.hardwareApprovalExpiresAt = feedBundle.summary.hardwareApprovalExpiresAt
     state.hardwareApprovalExecutionAllowed = feedBundle.summary.hardwareApprovalExecutionAllowed
+    state.activeApprovalReviewKind = feedBundle.summary.hardwareApprovalStatus == "pending_user_approval" ? "hardware" : state.activeApprovalReviewKind
+    state.activeApprovalReviewTarget = feedBundle.summary.hardwareApprovalTarget || state.activeApprovalReviewTarget
+    state.activeApprovalReviewExpiresAt = feedBundle.summary.hardwareApprovalExpiresAt || state.activeApprovalReviewExpiresAt
+    state.activeApprovalReviewExecutionAllowed = feedBundle.summary.hardwareApprovalExecutionAllowed || state.activeApprovalReviewExecutionAllowed
+    state.activeApprovalReviewDaemonReady = state.hardwareControlDaemonStatus == "online" && state.hardwareControlDaemonExecuteEnabled
     state.activeWorkflowStatus = feedBundle.summary.activeWorkflowStatus
     state.activeWorkflowTitle = feedBundle.summary.activeWorkflowTitle
     state.activeWorkflowStepCount = feedBundle.summary.activeWorkflowStepCount
@@ -1084,6 +1100,11 @@ composition "HoloShell Home" {
       hardware_approval: state.hardwareApprovalStatus,
       pending_hardware_approvals: state.pendingHardwareApprovalCount,
       hardware_approval_target: state.hardwareApprovalTarget,
+      active_approval_review_kind: state.activeApprovalReviewKind,
+      active_approval_review_target: state.activeApprovalReviewTarget,
+      active_approval_review_expires_at: state.activeApprovalReviewExpiresAt,
+      active_approval_review_execution_allowed: state.activeApprovalReviewExecutionAllowed,
+      active_approval_review_daemon_ready: state.activeApprovalReviewDaemonReady,
       active_workflow: state.activeWorkflowStatus,
       active_workflow_title: state.activeWorkflowTitle,
       active_workflow_steps: state.activeWorkflowStepCount,
@@ -1278,15 +1299,27 @@ composition "HoloShell Home" {
     state.hardwareApprovalTarget = bundle.summary.target
     state.hardwareApprovalExpiresAt = bundle.summary.expiresAt
     state.hardwareApprovalExecutionAllowed = bundle.summary.executionAllowed
+    state.activeApprovalReviewKind = "hardware"
+    state.activeApprovalReviewId = bundle.approvalId
+    state.activeApprovalReviewTarget = bundle.summary.target
+    state.activeApprovalReviewRisk = bundle.approval?.risk || ""
+    state.activeApprovalReviewExpiresAt = bundle.summary.expiresAt
+    state.activeApprovalReviewExecutionAllowed = bundle.summary.executionAllowed
+    state.activeApprovalReviewCommandPreview = bundle.execution?.commandPreview || ""
+    state.activeApprovalReviewDaemonReady = state.hardwareControlDaemonStatus == "online" && state.hardwareControlDaemonExecuteEnabled
     state.pendingApprovals = state.pendingApprovals + state.pendingHardwareApprovalCount
     state.operatingStage = state.pendingHardwareApprovalCount > 0 ? "approve" : state.operatingStage
     emit("holoshell:hardware:approval", {
       action: "hardware_approval_bundle_applied",
+      review_kind: state.activeApprovalReviewKind,
+      approval_id: state.activeApprovalReviewId,
       status: state.hardwareApprovalStatus,
       action_kind: state.hardwareApprovalActionKind,
       target: state.hardwareApprovalTarget,
+      risk: state.activeApprovalReviewRisk,
       expires_at: state.hardwareApprovalExpiresAt,
       execution_allowed: state.hardwareApprovalExecutionAllowed,
+      daemon_ready: state.activeApprovalReviewDaemonReady,
       pending_hardware_approvals: state.pendingHardwareApprovalCount,
       nonce_bound: true,
       receipt_required: true
@@ -1325,6 +1358,14 @@ composition "HoloShell Home" {
     state.activeWorkflowApprovalExpiresAt = bundle.summary.expiresAt
     state.activeWorkflowApprovalExecutionAllowed = bundle.summary.executionAllowed
     state.activeWorkflowApprovalPendingCount = bundle.summary.pendingApprovalCount
+    state.activeApprovalReviewKind = "workflow"
+    state.activeApprovalReviewId = bundle.approvalId
+    state.activeApprovalReviewTarget = bundle.summary.title
+    state.activeApprovalReviewRisk = bundle.approval?.risk || ""
+    state.activeApprovalReviewExpiresAt = bundle.summary.expiresAt
+    state.activeApprovalReviewExecutionAllowed = bundle.summary.executionAllowed
+    state.activeApprovalReviewCommandPreview = bundle.execution?.commandPreview || ""
+    state.activeApprovalReviewDaemonReady = state.hardwareControlDaemonStatus == "online" && state.hardwareControlDaemonExecuteEnabled
     state.pendingApprovals = state.pendingApprovals + (state.activeWorkflowApprovalExecutionAllowed ? state.activeWorkflowApprovalPendingCount : 0)
     state.operatingStage = state.activeWorkflowApprovalExecutionAllowed ? "approve" : state.operatingStage
     state.nextMove = state.activeWorkflowApprovalExecutionAllowed ? "review_workflow_approval" : state.nextMove
@@ -1332,11 +1373,15 @@ composition "HoloShell Home" {
     emit("holoshell:workflow:approval", {
       action: "workflow_approval_bundle_applied",
       approval_id: state.activeWorkflowApprovalId,
+      review_kind: state.activeApprovalReviewKind,
       workflow_id: bundle.summary.workflowId,
       status: state.activeWorkflowApprovalStatus,
       title: bundle.summary.title,
+      target: state.activeApprovalReviewTarget,
+      risk: state.activeApprovalReviewRisk,
       expires_at: state.activeWorkflowApprovalExpiresAt,
       execution_allowed: state.activeWorkflowApprovalExecutionAllowed,
+      daemon_ready: state.activeApprovalReviewDaemonReady,
       pending_approvals: state.activeWorkflowApprovalPendingCount,
       nonce_bound: true,
       receipt_required: true
@@ -1359,6 +1404,24 @@ composition "HoloShell Home" {
       runtime_blocking: state.activeWorkflowIntentGateRuntimeBlocking,
       failed_checks: state.activeWorkflowIntentGateFailedCheckCount,
       receipt_status: state.activeWorkflowIntentGateReceiptStatus,
+      receipt_required: true
+    })
+  }
+
+  action record_approval_execution_result(result) {
+    state.lastApprovalExecutionStatus = result.status || "unknown"
+    state.lastApprovalExecutionRoute = result.route || ""
+    state.lastApprovalExecutionMutationRecorded = result.mutationRecorded || false
+    state.receiptCount = state.receiptCount + 1
+    state.operatingStage = "receive"
+    emit("holoshell:approval:execute", {
+      action: "approval_execution_result_recorded",
+      review_kind: state.activeApprovalReviewKind,
+      approval_id: state.activeApprovalReviewId,
+      target: state.activeApprovalReviewTarget,
+      status: state.lastApprovalExecutionStatus,
+      route: state.lastApprovalExecutionRoute,
+      mutation_recorded: state.lastApprovalExecutionMutationRecorded,
       receipt_required: true
     })
   }

@@ -69,6 +69,14 @@ Acceptance:
 
 ### Slice 2C: Approval And Execute UX
 
+Current landing:
+
+- Prototype approval review is live in `local-capability-room.html`.
+- The review renders hardware and workflow approval packets as shell objects
+  with id, nonce-bound command preview, expiry, daemon status, and execute gate.
+- Default daemon mode keeps execution disabled; real mutation still requires
+  `--enable-execute`, current id, current nonce, and explicit confirmation.
+
 Deliverables:
 
 - Native approval object in the shell.
