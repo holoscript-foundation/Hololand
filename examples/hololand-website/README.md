@@ -134,7 +134,7 @@ Shows three distinct paths:
 - React + Three.js
 - Natural Language
 - Visual Builder
-- Own Your Creations
+- Geolocated Ownership
 - HoloScript Native
 
 ### 5. Email Signup

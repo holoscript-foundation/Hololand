@@ -23,9 +23,9 @@ export function Features() {
       description: 'Drag-and-drop 2D interface (Infinity Builder) or build in VR. Choose your creative flow.',
     },
     {
-      icon: '💰',
-      title: 'Own Your Creations',
-      description: 'Sell worlds, earn $BRIAN tokens, build your business. True creator economy.',
+      icon: '📍',
+      title: 'Geolocated Ownership',
+      description: 'Tie creations to real places so worlds can unlock local utility, access, events, and ownership.',
     },
     {
       icon: '🧬',
