@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-05-14T00:00:00.000Z",
+  "processes": [
+    {
+      "ProcessId": 101,
+      "ParentProcessId": 1,
+      "Name": "codex.exe",
+      "CommandLine": "codex hardware --surface holoshell",
+      "ExecutablePath": "C:\\Users\\josep\\AppData\\Local\\OpenAI\\Codex\\codex.exe",
+      "CreationDate": "2026-05-14T00:00:00.000Z",
+      "WorkingSetSize": 128000000
+    },
+    {
+      "ProcessId": 202,
+      "ParentProcessId": 101,
+      "Name": "node.exe",
+      "CommandLine": "node scripts/holoshell-control-daemon.mjs",
+      "ExecutablePath": "C:\\Program Files\\nodejs\\node.exe",
+      "CreationDate": "2026-05-14T00:01:00.000Z",
+      "WorkingSetSize": 96000000
+    },
+    {
+      "ProcessId": 303,
+      "ParentProcessId": 1,
+      "Name": "msedge.exe",
+      "CommandLine": "msedge.exe --profile-directory=Default",
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+      "CreationDate": "2026-05-14T00:02:00.000Z",
+      "WorkingSetSize": 256000000
+    },
+    {
+      "ProcessId": 404,
+      "ParentProcessId": 1,
+      "Name": "ollama.exe",
+      "CommandLine": "ollama serve",
+      "ExecutablePath": "C:\\Users\\josep\\AppData\\Local\\Programs\\Ollama\\ollama.exe",
+      "CreationDate": "2026-05-14T00:03:00.000Z",
+      "WorkingSetSize": 512000000
+    }
+  ],
+  "listeners": [
+    {
+      "OwningProcess": 202,
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 4747,
+      "State": "Listen"
+    },
+    {
+      "OwningProcess": 404,
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 11434,
+      "State": "Listen"
+    }
+  ]
+}

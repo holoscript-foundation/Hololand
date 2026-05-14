@@ -1,0 +1,217 @@
+// HoloShell Hardware Reality Bridge
+//
+// HoloLand consumes the local HoloShell MCP server as the hardware truth:
+// agent lanes, shell runs, listeners, legacy apps, and safety preflights.
+// The adapter is bridge-only; this composition defines the visual operating
+// room and the trust rules HoloShell must expose to non-developer users.
+
+composition "HoloShell Hardware Reality Bridge" {
+  config {
+    title: "Hardware Reality Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-hardware-reality-bridge.mjs"
+    upstreamMcp: "C:/Users/josep/.ai-ecosystem/scripts/holoshell-mcp-stdio.mjs"
+    defaultMode: "read_only_projection"
+  }
+
+  state {
+    laneCount: 0
+    activeLaneCount: 0
+    processCount: 0
+    shellRunCount: 0
+    listenerCount: 0
+    legacyAppCount: 0
+    terminationPreflightCount: 0
+    riskState: "unknown"
+    destructiveActionsTaken: false
+    lastSnapshotHash: ""
+  }
+
+  channel "holoshell:hardware:reality" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "MCP-backed hardware snapshot projected into HoloLand"
+  }
+
+  channel "holoshell:hardware:lane" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Agent lane objects created from the HoloShell run registry"
+  }
+
+  channel "holoshell:hardware:legacy_app" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Legacy app custody objects before any UI or setting mutation"
+  }
+
+  channel "holoshell:hardware:preflight" {
+    type: "request_response"
+    priority: "critical"
+    description: "Required safety gates before process, file, or legacy-app mutation"
+  }
+
+  template "HardwareLane" {
+    type: "ui"
+    uiType: "hardware_lane"
+    laneId: ""
+    label: ""
+    surfaceKind: ""
+    pidCount: 0
+    runCount: 0
+    colorIsVisualHintOnly: true
+    semanticTruthRequired: true
+    receiptRequired: true
+  }
+
+  template "ShellRunObject" {
+    type: "machine"
+    machineType: "shell_run"
+    pid: 0
+    processName: ""
+    healthState: "observed"
+    listeningPorts: []
+    commandHashOnly: true
+    rawCommandHidden: true
+    receiptRequired: true
+  }
+
+  template "LegacyAppObject" {
+    type: "machine"
+    machineType: "legacy_app"
+    appName: ""
+    observedProcessCount: 0
+    mutationPolicy: "preflight_required"
+    rollbackPlanRequired: true
+    receiptRequired: true
+  }
+
+  room "HardwareRealityRoom" {
+    label: "Hardware Reality"
+    userQuestion: "What is the computer doing, which agents are active, and what is safe to change?"
+    visualForm: "mcp_backed_operating_map"
+    liveFeed: "holoshell:hardware:reality"
+
+    object "AgentLaneStack" {
+      type: "ui"
+      uiType: "lane_stack"
+      label: "Agent Lanes"
+      lanes: $laneCount
+      activeLanes: $activeLaneCount
+      colorIsVisualHintOnly: true
+    }
+
+    object "ShellRunMap" {
+      type: "ui"
+      uiType: "shell_run_map"
+      label: "Shell Runs"
+      processes: $processCount
+      shellRuns: $shellRunCount
+      listeners: $listenerCount
+      riskState: $riskState
+    }
+
+    object "LegacyAppDock" {
+      type: "ui"
+      uiType: "legacy_app_dock"
+      label: "Legacy Apps"
+      legacyApps: $legacyAppCount
+      mutationPolicy: "mcp_preflight_required"
+    }
+
+    object "PreflightGate" {
+      type: "ui"
+      uiType: "safety_gate"
+      label: "Mutation Gate"
+      terminationPreflights: $terminationPreflightCount
+      destructiveActionsTaken: $destructiveActionsTaken
+      receiptRequired: true
+    }
+  }
+
+  policy "McpSnapshotIsTruth" {
+    appliesTo: ["agent_lane", "shell_run", "listener", "legacy_app", "preflight_gate"]
+    requiredSource: "holoshell_run_registry_snapshot"
+    acceptLocalGuesswork: false
+    receiptRequired: true
+  }
+
+  policy "NonDeveloperUserProjection" {
+    appliesTo: ["hardware_reality_room", "legacy_app_dock", "shell_run_map"]
+    hideRawCommandsByDefault: true
+    exposePlainIntentLabels: true
+    exposeExactPidOnSelection: true
+    neverRequireTerminalKnowledge: true
+  }
+
+  policy "MutationRequiresPreflight" {
+    appliesTo: ["terminate_process", "delete_file", "legacy_app_mutation", "registry_change", "window_destructive_click"]
+    approvalRequired: true
+    mcpPreflightRequired: true
+    rollbackPlanRequired: true
+    receiptRequired: true
+  }
+
+  action consume_hardware_reality(model) {
+    state.laneCount = model.summary.laneCount
+    state.activeLaneCount = model.summary.activeLaneCount
+    state.processCount = model.summary.processCount
+    state.shellRunCount = model.summary.shellRunCount
+    state.listenerCount = model.summary.listenerCount
+    state.legacyAppCount = model.summary.legacyAppCount
+    state.terminationPreflightCount = model.summary.terminationPreflightCount
+    state.riskState = model.summary.riskState
+    state.destructiveActionsTaken = model.safety.destructiveActionsTaken
+    state.lastSnapshotHash = model.receipt.snapshotHash
+
+    emit("holoshell:hardware:reality", {
+      lanes: state.laneCount,
+      activeLanes: state.activeLaneCount,
+      processes: state.processCount,
+      shellRuns: state.shellRunCount,
+      listeners: state.listenerCount,
+      legacyApps: state.legacyAppCount,
+      riskState: state.riskState,
+      destructiveActionsTaken: state.destructiveActionsTaken,
+      snapshotHash: state.lastSnapshotHash,
+      receiptRequired: true
+    })
+  }
+
+  action render_lane(lane) {
+    emit("holoshell:hardware:lane", {
+      laneId: lane.laneId,
+      label: lane.label,
+      surfaceKind: lane.surfaceKind,
+      colorHint: lane.colorHint,
+      pidCount: lane.pidCount,
+      runCount: lane.runCount,
+      semanticPrefix: lane.semanticPrefix,
+      colorIsVisualHintOnly: true,
+      receiptRequired: true
+    })
+  }
+
+  action render_legacy_app(app) {
+    emit("holoshell:hardware:legacy_app", {
+      appName: app.appName,
+      observedProcessCount: app.observedProcessCount,
+      samplePids: app.samplePids,
+      mutationPolicy: "preflight_required",
+      receiptRequired: true
+    })
+  }
+
+  action request_mutation_preflight(kind, target) {
+    emit("holoshell:hardware:preflight", {
+      kind: kind,
+      target: target,
+      mcpPreflightRequired: true,
+      approvalRequired: true,
+      rollbackPlanRequired: true,
+      receiptRequired: true
+    })
+    return "preflight_required"
+  }
+}

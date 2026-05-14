@@ -28,6 +28,7 @@
     "check:product-authority-boundary": "node scripts/check-product-authority-boundary.mjs",
     "check:cross-mcp-receipt-envelope": "node scripts/check-cross-mcp-receipt-envelope.mjs",
     "format": "pnpm -r format",
+    "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
     "brittney": "npx tsx scripts/start-brittney.ts",
     "playground": "pnpm --filter @hololand/playground dev",
     "dev": "npm-run-all --parallel brittney playground",
