@@ -121,6 +121,16 @@ function addMinutes(dateIso, minutes) {
   return new Date(baseMs + minutes * 60_000).toISOString();
 }
 
+function extensionBaseIso(previousReceipt, generatedAt) {
+  const previous = previousReceipt?.expectedEndAt ? new Date(previousReceipt.expectedEndAt) : null;
+  const generated = new Date(generatedAt);
+  const generatedMs = Number.isNaN(generated.getTime()) ? Date.now() : generated.getTime();
+  if (previous && !Number.isNaN(previous.getTime()) && previous.getTime() > generatedMs) {
+    return previous.toISOString();
+  }
+  return new Date(generatedMs).toISOString();
+}
+
 function syntheticHardwareReality() {
   return {
     schemaVersion: 'hololand.holoshell.hardware-reality-bridge.v0.1.0',
@@ -461,7 +471,7 @@ function createReceipt(args, run, previousReceipt) {
     'owner-unknown': 'owner_unknown',
   };
   const expectedEndAt = ['claim', 'extend'].includes(args.action)
-    ? addMinutes(args.action === 'extend' ? previousReceipt?.expectedEndAt : generatedAt, args.minutes)
+    ? addMinutes(args.action === 'extend' ? extensionBaseIso(previousReceipt, generatedAt) : generatedAt, args.minutes)
     : previousReceipt?.expectedEndAt || null;
   const basis = JSON.stringify({
     action: args.action,
@@ -553,12 +563,15 @@ function buildRecommendations(runStatuses) {
       continue;
     }
     if (isOverdue(run)) {
+      const claimedOrObserved = ['claimed', 'lane_observed'].includes(run.status);
       recommendations.push({
-        action: 'extend-or-close',
+        action: claimedOrObserved ? 'extend' : 'extend-or-close',
         runId: run.runId,
         pid: run.pid,
         priority: 'high',
-        reason: 'Claim has passed its expected end time. Extend the receipt or close the run without terminating it.',
+        reason: claimedOrObserved
+          ? 'Claim has passed its expected end time while the PID is still visible. Extend the non-destructive custody receipt.'
+          : 'Claim has passed its expected end time. Extend the receipt or close the run without terminating it.',
         requiresUserConfirmation: false,
         receiptRequired: true,
       });
@@ -696,6 +709,15 @@ function assertSelfTest(snapshot, actionReceipt) {
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('snapshot must be non-destructive');
   if (snapshot.safety.rawCommandsIncluded !== false) failures.push('raw commands must stay hidden');
   if (!snapshot.brittneyBrief?.blockedActions?.includes('kill_process')) failures.push('Brittney brief must block termination');
+  const generatedAt = new Date().toISOString();
+  const staleExpectedEnd = new Date(Date.now() - 60_000).toISOString();
+  if (extensionBaseIso({ expectedEndAt: staleExpectedEnd }, generatedAt) !== generatedAt) {
+    failures.push('overdue extension should restart from generatedAt');
+  }
+  const futureExpectedEnd = new Date(Date.now() + 60_000).toISOString();
+  if (extensionBaseIso({ expectedEndAt: futureExpectedEnd }, generatedAt) !== futureExpectedEnd) {
+    failures.push('future extension should stack from previous expectedEndAt');
+  }
   const serialized = JSON.stringify(snapshot);
   if (/commandLine|CommandLine|command_summary/.test(serialized)) failures.push('raw command text leaked');
   if (failures.length) {

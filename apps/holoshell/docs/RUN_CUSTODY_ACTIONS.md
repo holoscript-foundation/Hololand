@@ -77,6 +77,15 @@ When process health is present, run custody filters hardware-reality shell runs
 through `processIndex.visiblePids`. That prevents stale MCP or hardware-reality
 PID ghosts from inflating Brittney's owner-unknown queue.
 
+If a claimed run is still visible after its expected end time, run custody emits
+a concrete `extend` recommendation instead of the ambiguous `extend-or-close`.
+That lets Brittney keep ownership current with a receipt while still avoiding
+termination or mutation.
+
+When extending an overdue claim, the new expected end starts from the current
+receipt time, not the expired timestamp. Extending a not-yet-expired claim still
+stacks from the future expected end.
+
 Run custody is still a process-health surface. Peer instance counts should come
 from `legacy-window-inventory.json`, because visible windows are what Brittney
 and the user experience can actually operate.

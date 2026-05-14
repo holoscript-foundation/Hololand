@@ -186,7 +186,8 @@ composition "HoloShell Run Custody Actions" {
 
   policy "StaleDoesNotMeanKill" {
     appliesTo: ["stale_run", "owner_unknown", "overdue_run"]
-    defaultAction: "ask_owner_or_close_with_receipt"
+    defaultAction: "extend_visible_claim_or_ask_owner"
+    visibleClaimAction: "extend"
     terminationRequiresSeparatePreflight: true
     receiptRequired: true
   }
