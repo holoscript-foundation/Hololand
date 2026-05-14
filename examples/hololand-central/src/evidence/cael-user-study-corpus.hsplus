@@ -1,0 +1,153 @@
+// CAEL User Study Trace Corpus
+//
+// HoloLand evidence source for paper/user-study exports. The adapter script is
+// bridge-only: this file names the product semantics, privacy posture, and
+// replay lanes the runtime should preserve.
+
+composition "CAEL User Study Trace Corpus" {
+  config {
+    title: "CAEL User Study Trace Corpus"
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/cael-trace-corpus-exporter.mjs"
+    schemaVersion: "hololand.cael_trace_corpus.v1"
+    defaultPrivacyMode: "pseudonymous_participant_ids"
+    studyFamilies: ["paper_20", "paper_24", "uist"]
+  }
+
+  state {
+    sessionCount: 0
+    participantCount: 0
+    interactionEventCount: 0
+    taskCompletionCount: 0
+    preferenceEventCount: 0
+    compositionTraceCount: 0
+    replayHash: ""
+    lastCorpusId: ""
+  }
+
+  channel "hololand:cael:user_study_event" {
+    type: "append_only"
+    priority: "critical"
+    description: "Raw CAEL interaction, task, preference, A/B, and composition trace events"
+  }
+
+  channel "hololand:cael:corpus_export" {
+    type: "append_only"
+    priority: "critical"
+    description: "Replayable user-study corpus manifests and summary receipts"
+  }
+
+  template "CAELInteractionEvent" {
+    type: "evidence_event"
+    eventType: "interaction"
+    requiredFields: ["eventId", "sessionId", "participantId", "worldId", "timestamp"]
+    replayFields: ["timestamp", "eventId", "cael.goalId", "cael.action", "target"]
+  }
+
+  template "TaskCompletionEvent" {
+    type: "evidence_event"
+    eventType: "task_completion"
+    requiredFields: ["eventId", "sessionId", "task.taskId", "task.status", "timestamp"]
+    replayFields: ["task.taskId", "task.status", "task.durationMs", "task.success"]
+  }
+
+  template "PreferenceABEvent" {
+    type: "evidence_event"
+    eventType: "preference"
+    requiredFields: ["eventId", "sessionId", "preference.experimentId", "timestamp"]
+    replayFields: ["preference.variant", "preference.choice", "preference.score"]
+  }
+
+  template "CompositionTraceEvent" {
+    type: "evidence_event"
+    eventType: "composition_trace"
+    requiredFields: ["eventId", "sessionId", "composition.compositionId", "timestamp"]
+    replayFields: ["composition.sourcePath", "composition.sourceHash", "composition.command"]
+  }
+
+  template "TraceCorpusManifest" {
+    type: "receipt"
+    receiptType: "cael_trace_corpus"
+    requiredFields: ["corpusId", "studyId", "generatedAt", "eventHash", "sourceFiles"]
+    artifacts: ["corpus.json", "manifest.json"]
+    replayMode: "ordered_event_replay"
+  }
+
+  room "CAELEvidenceExportRoom" {
+    label: "CAEL Evidence Export"
+    userQuestion: "Which live-world interactions can be replayed as study evidence?"
+    visualForm: "evidence_lane_dashboard"
+    liveFeed: "hololand:cael:corpus_export"
+
+    object "Interactions" {
+      type: "ui"
+      uiType: "evidence_counter"
+      label: "Interactions"
+      count: $interactionEventCount
+    }
+
+    object "TaskCompletions" {
+      type: "ui"
+      uiType: "evidence_counter"
+      label: "Tasks"
+      count: $taskCompletionCount
+    }
+
+    object "Preferences" {
+      type: "ui"
+      uiType: "evidence_counter"
+      label: "A/B Preferences"
+      count: $preferenceEventCount
+    }
+
+    object "CompositionTraces" {
+      type: "ui"
+      uiType: "evidence_counter"
+      label: "Compositions"
+      count: $compositionTraceCount
+    }
+  }
+
+  policy "ReplayableCorpusRequiresFourLanes" {
+    appliesTo: ["cael_trace_corpus_export"]
+    requiredLanes: ["interaction", "task_completion", "preference", "composition_trace"]
+    requiredOrdering: ["timestamp", "eventId"]
+    participantIdsMustBePseudonymousByDefault: true
+    sourceFilesMustBeRecorded: true
+    eventHashRequired: true
+  }
+
+  action ingest_study_event(event) {
+    emit("hololand:cael:user_study_event", {
+      eventId: event.eventId,
+      sessionId: event.sessionId,
+      worldId: event.worldId,
+      eventType: event.eventType,
+      timestamp: event.timestamp,
+      replayable: true
+    })
+  }
+
+  action record_corpus_export(corpus) {
+    state.sessionCount = corpus.summary.sessions
+    state.participantCount = corpus.summary.participants
+    state.interactionEventCount = corpus.summary.interactionEvents
+    state.taskCompletionCount = corpus.summary.taskCompletions
+    state.preferenceEventCount = corpus.summary.preferenceEvents
+    state.compositionTraceCount = corpus.summary.compositionTraces
+    state.replayHash = corpus.replay.eventHash
+    state.lastCorpusId = corpus.corpusId
+
+    emit("hololand:cael:corpus_export", {
+      corpusId: state.lastCorpusId,
+      sessions: state.sessionCount,
+      participants: state.participantCount,
+      interactions: state.interactionEventCount,
+      tasks: state.taskCompletionCount,
+      preferences: state.preferenceEventCount,
+      compositions: state.compositionTraceCount,
+      eventHash: state.replayHash
+    })
+  }
+}

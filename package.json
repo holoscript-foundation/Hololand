@@ -27,6 +27,8 @@
     "check:npc-manifest-spec": "node scripts/check-npc-manifest-spec.mjs",
     "check:product-authority-boundary": "node scripts/check-product-authority-boundary.mjs",
     "check:cross-mcp-receipt-envelope": "node scripts/check-cross-mcp-receipt-envelope.mjs",
+    "cael:export": "node scripts/cael-trace-corpus-exporter.mjs",
+    "test:cael-exporter": "node scripts/__tests__/cael-trace-corpus-exporter.test.mjs",
     "format": "pnpm -r format",
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
     "holoshell:intent-gate": "node scripts/holoshell-brain-intent-gate.mjs --strict",
