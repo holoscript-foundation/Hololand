@@ -143,6 +143,7 @@ function syntheticHardwareReality() {
       {
         runId: 'pid-202',
         pid: 202,
+        parentPid: 900,
         processName: 'node.exe',
         healthState: 'listening',
         listeningPorts: [4747],
@@ -152,6 +153,7 @@ function syntheticHardwareReality() {
       {
         runId: 'pid-404',
         pid: 404,
+        parentPid: 901,
         processName: 'ollama.exe',
         healthState: 'listening',
         listeningPorts: [11434],
@@ -222,6 +224,7 @@ function visibleRuns(hardwareReality) {
   return safeArray(hardwareReality.shellRuns).map((run) => ({
     runId: run.runId || `pid-${run.pid}`,
     pid: Number(run.pid),
+    parentPid: Number.isInteger(Number(run.parentPid)) ? Number(run.parentPid) : null,
     processName: run.processName || 'process',
     healthState: run.healthState || 'observed',
     listeningPorts: safeArray(run.listeningPorts),
@@ -294,6 +297,7 @@ function createReceipt(args, run, previousReceipt) {
     status: statusByAction[args.action],
     runId: run.runId,
     pid: run.pid,
+    parentPid: run.parentPid,
     processName: run.processName,
     laneId: args.laneId,
     agentKind: args.agentKind,
@@ -325,6 +329,7 @@ function statusForRun(run, latest) {
   return {
     runId: run.runId,
     pid: run.pid,
+    parentPid: run.parentPid,
     processName: run.processName,
     healthState: run.healthState,
     listeningPorts: run.listeningPorts,
@@ -485,6 +490,7 @@ function assertSelfTest(snapshot, actionReceipt) {
   if (snapshot.summary.observedRunCount < 2) failures.push('expected synthetic runs');
   if (snapshot.summary.actionReceiptCount < 1) failures.push('expected custody receipt');
   if (snapshot.summary.observedOwnerCount < 1) failures.push('expected lane observed synthetic run');
+  if (!snapshot.runs.some((run) => run.parentPid === 900)) failures.push('expected parent pid for shell-window binding');
   if (!actionReceipt || actionReceipt.destructiveActionsTaken !== false) failures.push('action receipt must be non-destructive');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('snapshot must be non-destructive');
   if (snapshot.safety.rawCommandsIncluded !== false) failures.push('raw commands must stay hidden');

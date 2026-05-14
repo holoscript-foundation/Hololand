@@ -108,6 +108,10 @@ function syntheticInputs() {
       safety: { destructiveActionsTaken: false, preflightRequiredForTermination: true },
       receipt: { snapshotHash: 'hardware-fixture', destructiveActionsTaken: false },
       recommendations: [{ kind: 'preflight_before_mutation', text: 'Use preflight tools.' }],
+      shellRuns: [
+        { runId: 'pid-202', pid: 202, parentPid: 909, processName: 'node.exe', healthState: 'listening', listeningPorts: [4747], commandHash: 'node-fixture-command', rawCommandHidden: true },
+        { runId: 'pid-404', pid: 404, parentPid: 909, processName: 'pwsh.exe', healthState: 'observed', listeningPorts: [], commandHash: 'pwsh-fixture-command', ownerLaneId: 'codex', ownerLaneLabel: 'Codex', ownerSurfaceKind: 'codex', ownerEvidence: 'parent_pid', rawCommandHidden: true },
+      ],
     },
     runCustody: {
       summary: {
@@ -119,6 +123,10 @@ function syntheticInputs() {
         closedRunCount: 0,
       },
       safety: { destructiveActionsTaken: false, rawCommandsIncluded: false },
+      runs: [
+        { runId: 'pid-202', pid: 202, parentPid: 909, processName: 'node.exe', status: 'owner_unknown', listeningPorts: [4747], commandHash: 'node-fixture-command', rawCommandHidden: true },
+        { runId: 'pid-404', pid: 404, parentPid: 909, processName: 'pwsh.exe', status: 'lane_observed', laneId: 'codex', laneLabel: 'Codex', agentKind: 'codex', ownerEvidence: 'parent_pid', listeningPorts: [], commandHash: 'pwsh-fixture-command', rawCommandHidden: true },
+      ],
       recommendations: [{ action: 'claim', runId: 'pid-404', reason: 'Owner unknown.' }],
       brittneyBrief: {
         status: 'needs_triage',
@@ -172,12 +180,16 @@ function syntheticInputs() {
         { laneId: 'claude', label: 'Claude', windowInstanceCount: 1, processCount: 1 },
       ],
       shellSurfaces: [
-        { laneId: 'terminal', label: 'Terminal', peerKind: 'shell', surfaceClass: 'shell_surface', windowInstanceCount: 1, processCount: 1 },
+        { laneId: 'terminal', label: 'Terminal', peerKind: 'shell', surfaceClass: 'shell_surface', windowInstanceCount: 1, processCount: 1, pids: [909], sampleWindowIds: ['window-terminal'] },
       ],
       operatingSurfaces: [
         { laneId: 'codex', label: 'Codex', peerKind: 'agent', surfaceClass: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1 },
         { laneId: 'claude', label: 'Claude', peerKind: 'agent', surfaceClass: 'ai_peer_surface', windowInstanceCount: 1, processCount: 1 },
         { laneId: 'terminal', label: 'Terminal', peerKind: 'shell', surfaceClass: 'shell_surface', windowInstanceCount: 1, processCount: 1 },
+      ],
+      windows: [
+        { windowId: 'window-terminal', pid: 909, appName: 'terminal', appLabel: 'Terminal', archetype: 'shell_surface', titleLabel: 'shell_window', rawTitleHidden: true },
+        { windowId: 'window-codex', pid: 101, appName: 'codex', appLabel: 'Codex', archetype: 'ai_peer_surface', titleLabel: 'codex_home', rawTitleHidden: true },
       ],
       brittneyBrief: {
         status: 'legacy_windows_visible',
@@ -231,6 +243,161 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function numericOrNull(value) {
+  const number = Number(value);
+  return Number.isInteger(number) ? number : null;
+}
+
+function runCustodyById(runCustody) {
+  return new Map(safeArray(runCustody.runs).map((run) => [run.runId || `pid-${run.pid}`, run]));
+}
+
+function normalizeShellRun(hardwareRun, custodyRun = {}) {
+  const runId = hardwareRun.runId || custodyRun.runId || `pid-${hardwareRun.pid || custodyRun.pid}`;
+  return {
+    runId,
+    pid: numericOrNull(hardwareRun.pid ?? custodyRun.pid),
+    parentPid: numericOrNull(hardwareRun.parentPid ?? custodyRun.parentPid),
+    processName: hardwareRun.processName || custodyRun.processName || 'process',
+    healthState: hardwareRun.healthState || custodyRun.healthState || 'observed',
+    listeningPorts: safeArray(hardwareRun.listeningPorts?.length ? hardwareRun.listeningPorts : custodyRun.listeningPorts),
+    status: custodyRun.status || (hardwareRun.ownerLaneId ? 'lane_observed' : 'owner_unknown'),
+    laneId: custodyRun.laneId || hardwareRun.ownerLaneId || null,
+    laneLabel: custodyRun.laneLabel || hardwareRun.ownerLaneLabel || null,
+    agentKind: custodyRun.agentKind || hardwareRun.ownerSurfaceKind || null,
+    ownerEvidence: custodyRun.ownerEvidence || hardwareRun.ownerEvidence || null,
+    ownerTrustState: custodyRun.ownerTrustState || hardwareRun.ownerTrustState || null,
+    commandHash: custodyRun.commandHash || hardwareRun.commandHash || null,
+    rawCommandHidden: true,
+  };
+}
+
+function shellRunsForCustody(inputs) {
+  const custody = runCustodyById(inputs.runCustody);
+  const byId = new Map();
+  for (const hardwareRun of safeArray(inputs.hardwareReality.shellRuns)) {
+    const runId = hardwareRun.runId || `pid-${hardwareRun.pid}`;
+    byId.set(runId, normalizeShellRun(hardwareRun, custody.get(runId) || {}));
+  }
+  for (const custodyRun of safeArray(inputs.runCustody.runs)) {
+    const runId = custodyRun.runId || `pid-${custodyRun.pid}`;
+    if (!byId.has(runId)) byId.set(runId, normalizeShellRun({}, custodyRun));
+  }
+  return [...byId.values()].filter((run) => Number.isInteger(run.pid));
+}
+
+function shellWindowsForCustody(legacyWindows) {
+  return safeArray(legacyWindows.windows)
+    .filter((window) => window.archetype === 'shell_surface' || window.appName === 'terminal')
+    .map((window) => ({
+      windowId: window.windowId,
+      pid: numericOrNull(window.pid),
+      appName: window.appName,
+      label: window.appLabel || 'Terminal',
+      titleLabel: window.titleLabel || 'shell_window',
+      rawTitleHidden: true,
+    }))
+    .filter((window) => window.windowId && Number.isInteger(window.pid));
+}
+
+function statusForShellWindow(runs) {
+  if (!runs.length) return 'window_unbound';
+  if (runs.some((run) => run.status === 'owner_unknown')) return 'needs_run_custody';
+  if (runs.some((run) => run.status === 'stale')) return 'stale_run_visible';
+  if (runs.some((run) => run.status === 'claimed')) return 'claimed';
+  if (runs.some((run) => run.status === 'lane_observed')) return 'lane_observed';
+  return runs[0].status || 'observed';
+}
+
+function buildShellWindowCustody(inputs) {
+  const windows = shellWindowsForCustody(inputs.legacyWindows);
+  const runs = shellRunsForCustody(inputs);
+  const runsByParentPid = new Map();
+  const runsByPid = new Map();
+  for (const run of runs) {
+    if (Number.isInteger(run.parentPid)) {
+      if (!runsByParentPid.has(run.parentPid)) runsByParentPid.set(run.parentPid, []);
+      runsByParentPid.get(run.parentPid).push(run);
+    }
+    if (Number.isInteger(run.pid)) {
+      if (!runsByPid.has(run.pid)) runsByPid.set(run.pid, []);
+      runsByPid.get(run.pid).push(run);
+    }
+  }
+
+  const windowBindings = windows.map((window) => {
+    const directRuns = runsByPid.get(window.pid) || [];
+    const childRuns = runsByParentPid.get(window.pid) || [];
+    const boundRuns = [...new Map([...directRuns, ...childRuns].map((run) => [run.runId, run])).values()];
+    const ownerUnknownRunCount = boundRuns.filter((run) => run.status === 'owner_unknown').length;
+    const laneObservedRunCount = boundRuns.filter((run) => run.status === 'lane_observed').length;
+    const claimedRunCount = boundRuns.filter((run) => run.status === 'claimed').length;
+    return {
+      windowId: window.windowId,
+      pid: window.pid,
+      label: window.label,
+      titleLabel: window.titleLabel,
+      status: statusForShellWindow(boundRuns),
+      bindingEvidence: boundRuns.length
+        ? childRuns.length ? 'parent_pid' : 'direct_pid'
+        : 'no_matching_shell_run',
+      boundRunCount: boundRuns.length,
+      ownerUnknownRunCount,
+      laneObservedRunCount,
+      claimedRunCount,
+      laneIds: unique(boundRuns.map((run) => run.laneId)),
+      runs: boundRuns.slice(0, 12).map((run) => ({
+        runId: run.runId,
+        pid: run.pid,
+        parentPid: run.parentPid,
+        processName: run.processName,
+        status: run.status,
+        laneId: run.laneId,
+        laneLabel: run.laneLabel,
+        agentKind: run.agentKind,
+        ownerEvidence: run.ownerEvidence,
+        listeningPorts: run.listeningPorts,
+        rawCommandHidden: true,
+      })),
+      rawTitleHidden: true,
+      receiptRequired: true,
+    };
+  });
+
+  const boundRunIds = new Set(windowBindings.flatMap((window) => window.runs.map((run) => run.runId)));
+  const unboundRuns = runs.filter((run) => !boundRunIds.has(run.runId));
+  const boundRuns = runs.filter((run) => boundRunIds.has(run.runId));
+  const ownerUnknownRunCount = boundRuns.filter((run) => run.status === 'owner_unknown').length;
+  const laneObservedRunCount = boundRuns.filter((run) => run.status === 'lane_observed').length;
+  const claimedRunCount = boundRuns.filter((run) => run.status === 'claimed').length;
+
+  return {
+    source: 'legacy_window_inventory + hardware_reality + run_custody',
+    windowCount: windowBindings.length,
+    boundWindowCount: windowBindings.filter((window) => window.boundRunCount > 0).length,
+    unboundWindowCount: windowBindings.filter((window) => window.boundRunCount === 0).length,
+    boundRunCount: boundRunIds.size,
+    windowRunAttachmentCount: windowBindings.reduce((sum, window) => sum + window.boundRunCount, 0),
+    unboundRunCount: unboundRuns.length,
+    ownerUnknownRunCount,
+    laneObservedRunCount,
+    claimedRunCount,
+    windows: windowBindings,
+    unboundRuns: unboundRuns.slice(0, 12).map((run) => ({
+      runId: run.runId,
+      pid: run.pid,
+      parentPid: run.parentPid,
+      processName: run.processName,
+      status: run.status,
+      laneId: run.laneId,
+      ownerEvidence: run.ownerEvidence,
+      rawCommandHidden: true,
+    })),
+    rawWindowTitlesIncluded: false,
+    rawCommandsIncluded: false,
+  };
+}
+
 function statusFor({ hardwareReality, runCustody, legacyAbsorption }) {
   if (hardwareReality.summary?.riskState === 'critical') return 'critical_triage';
   if ((runCustody.summary?.ownerUnknownCount || 0) > 0) return 'needs_run_custody';
@@ -239,7 +406,7 @@ function statusFor({ hardwareReality, runCustody, legacyAbsorption }) {
   return 'ready';
 }
 
-function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legacyWindows }) {
+function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legacyWindows, shellWindowCustody }) {
   const actions = [];
   if (runCustody.brittneyBrief?.requiredNextAction) {
     actions.push({
@@ -253,6 +420,14 @@ function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legac
       source: 'legacy_windows',
       priority: 'high',
       action: legacyWindows.brittneyBrief.requiredNextAction,
+    });
+  }
+  if ((shellWindowCustody?.ownerUnknownRunCount || 0) > 0) {
+    const firstWindow = shellWindowCustody.windows.find((window) => window.ownerUnknownRunCount > 0);
+    actions.push({
+      source: 'shell_window_custody',
+      priority: 'high',
+      action: `${shellWindowCustody.ownerUnknownRunCount} visible shell-window run(s) need custody${firstWindow ? ` under ${firstWindow.windowId}` : ''}.`,
     });
   }
   if (legacyAbsorption.brittneyBrief?.requiredNextAction) {
@@ -274,6 +449,7 @@ function buildNextActions({ hardwareReality, runCustody, legacyAbsorption, legac
 
 function createBrief(inputs) {
   const { hardwareReality, runCustody, legacyAbsorption, legacyWindows } = inputs;
+  const shellWindowCustody = buildShellWindowCustody(inputs);
   const aiPeerWindowCount = legacyWindows.summary?.aiPeerWindowCount ?? legacyWindows.summary?.peerWindowCount ?? 0;
   const aiPeerSurfaceCount = legacyWindows.summary?.aiPeerSurfaceCount ?? legacyWindows.summary?.peerSurfaceCount ?? 0;
   const shellWindowCount = legacyWindows.summary?.shellWindowCount || 0;
@@ -300,7 +476,7 @@ function createBrief(inputs) {
     'map_visible_controls',
     'summarize_visible_state',
   ]);
-  const nextActions = buildNextActions(inputs);
+  const nextActions = buildNextActions({ ...inputs, shellWindowCustody });
   const safety = {
     destructiveActionsTaken: Boolean(
       hardwareReality.safety?.destructiveActionsTaken
@@ -365,6 +541,9 @@ function createBrief(inputs) {
       mutationAllowedCount: legacyAbsorption.summary?.mutationAllowedCount || 0,
       absorptionHash: legacyAbsorption.receipt?.absorptionHash || null,
       windowInventoryHash: legacyWindows.receipt?.windowInventoryHash || null,
+      shellWindowBoundCount: shellWindowCustody.boundWindowCount,
+      shellWindowUnboundCount: shellWindowCustody.unboundWindowCount,
+      shellWindowOwnerUnknownRunCount: shellWindowCustody.ownerUnknownRunCount,
     },
     peers: {
       source: 'legacy_window_inventory',
@@ -395,6 +574,7 @@ function createBrief(inputs) {
         evidence: surface.evidence || 'top_level_windows',
       })),
     },
+    shellCustody: shellWindowCustody,
     allowedActions,
     blockedActions,
     nextActions,
@@ -405,6 +585,7 @@ function createBrief(inputs) {
       firstMove: nextActions[0]?.action || 'Continue read-only observation.',
       peerWindowSummary: legacyWindows.brittneyBrief?.peerWindowSummary || safeArray(legacyWindows.peerSurfaces).map((peer) => `${peer.label}:${peer.windowInstanceCount}`).join(', ') || 'no peer windows',
       shellWindowSummary: legacyWindows.brittneyBrief?.shellWindowSummary || safeArray(legacyWindows.shellSurfaces).map((surface) => `${surface.label}:${surface.windowInstanceCount}`).join(', ') || 'no shell windows',
+      shellCustodySummary: `${shellWindowCustody.boundWindowCount}/${shellWindowCustody.windowCount} shell window(s) bound to ${shellWindowCustody.boundRunCount} run(s); ${shellWindowCustody.ownerUnknownRunCount} bound run(s) need custody.`,
     },
     agentConsumption: {
       rest: '.tmp/holoshell/operator-brief.json',
@@ -428,6 +609,7 @@ function createBrief(inputs) {
         runs: brief.runs,
         legacy: brief.legacy,
         peers: brief.peers,
+        shellCustody: brief.shellCustody,
         blockedActions,
         safety,
       })),
@@ -462,6 +644,8 @@ function assertSelfTest(brief) {
   if (brief.peers.windowInstanceCount < 2) failures.push('expected synthetic peer window instances');
   if (brief.peers.shellWindowInstanceCount < 1) failures.push('expected synthetic shell window instances');
   if (brief.peers.operatingSurfaceWindowCount < 3) failures.push('expected synthetic operating surface windows');
+  if (brief.shellCustody.boundWindowCount < 1) failures.push('expected shell window custody binding');
+  if (brief.shellCustody.ownerUnknownRunCount < 1) failures.push('expected unknown run under shell window');
   if (!brief.nextActions.length) failures.push('expected next action');
   if (brief.safety.destructiveActionsTaken !== false) failures.push('destructive actions must be false');
   if (brief.safety.rawCommandsIncluded !== false) failures.push('raw commands must be hidden');
@@ -492,6 +676,8 @@ function main() {
     console.log(`Owner unknown runs: ${brief.runs.ownerUnknownCount}`);
     console.log(`AI peer windows: ${brief.peers.windowInstanceCount}`);
     console.log(`Shell windows: ${brief.peers.shellWindowInstanceCount}`);
+    console.log(`Shell window bindings: ${brief.shellCustody.boundWindowCount}/${brief.shellCustody.windowCount}`);
+    console.log(`Shell-window unknown runs: ${brief.shellCustody.ownerUnknownRunCount}`);
     console.log(`Legacy capture candidates: ${brief.legacy.captureCandidateCount}`);
     console.log(`Blocked actions: ${brief.blockedActions.length}`);
     console.log(`Destructive actions: ${brief.safety.destructiveActionsTaken}`);

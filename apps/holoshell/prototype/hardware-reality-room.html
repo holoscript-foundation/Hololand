@@ -460,12 +460,14 @@
     function renderMetrics(summary) {
       const custodySummary = custody?.summary || {};
       const windowSummary = legacyWindowInventory?.summary || {};
+      const shellCustody = operatorBrief?.shellCustody || {};
       const items = [
         ["Processes", summary.processCount],
         ["Shell Runs", summary.shellRunCount],
         ["Lane Owned", custodySummary.observedOwnerCount ?? summary.laneAttributedShellRunCount ?? 0],
         ["AI Peers", windowSummary.aiPeerWindowCount ?? windowSummary.peerWindowCount ?? 0],
         ["Shell Windows", windowSummary.shellWindowCount ?? 0],
+        ["Shell Bound", `${shellCustody.boundWindowCount ?? 0}/${shellCustody.windowCount ?? windowSummary.shellWindowCount ?? 0}`],
         ["Listeners", summary.listenerCount],
         ["Agent Lanes", `${summary.activeLaneCount}/${summary.laneCount}`],
         ["Unknown Owners", custodySummary.ownerUnknownCount ?? summary.shellRunCount],
@@ -482,6 +484,7 @@
     function renderLanes(lanes) {
       const peerSurfaces = legacyWindowInventory?.peerSurfaces || [];
       const shellSurfaces = legacyWindowInventory?.shellSurfaces || [];
+      const shellCustody = operatorBrief?.shellCustody || null;
       const peerWindowsByLane = new Map(peerSurfaces.map((peer) => [peer.laneId, peer]));
       const laneIds = new Set(lanes.map((lane) => lane.laneId));
       const peerOnlyLanes = peerSurfaces
@@ -504,6 +507,9 @@
         colorHint: surface.colorHint || "white",
         pidCount: surface.processCount || 0,
         windowInstanceCount: surface.windowInstanceCount || 0,
+        custodySummary: shellCustody
+          ? `${shellCustody.boundWindowCount}/${shellCustody.windowCount} bound / ${shellCustody.ownerUnknownRunCount} unknown runs`
+          : "",
         semanticPrefix: "[source:legacy-window-inventory evidence:shell-surface]",
       }));
       const laneModels = [...lanes, ...peerOnlyLanes, ...shellOnlyLanes];
@@ -521,6 +527,7 @@
             <h3>${text(lane.label, lane.laneId)}</h3>
             <p class="sub">${text(lane.surfaceKind)} / ${text(lane.healthState)}</p>
             <p class="sub">${windowCount === null ? "window inventory pending" : `${windowCount} windows / ${lane.pidCount} pids`}</p>
+            ${lane.custodySummary ? `<p class="sub">${lane.custodySummary}</p>` : ""}
             <p class="sub">${text(lane.semanticPrefix)}</p>
           </div>
           <span class="count">${count}</span>
@@ -532,8 +539,12 @@
     function renderRuns(runs) {
       if (!runs.length) return replaceChildrenById("runs", [empty("No shell runs in snapshot")]);
       const custodyByRun = new Map((custody?.runs || []).map((run) => [run.runId, run]));
+      const shellWindowByRun = new Map((operatorBrief?.shellCustody?.windows || []).flatMap((window) => (
+        (window.runs || []).map((run) => [run.runId, window])
+      )));
       replaceChildrenById("runs", runs.map((run) => {
         const runCustody = custodyByRun.get(run.runId) || {};
+        const shellWindow = shellWindowByRun.get(run.runId) || null;
         const status = runCustody.status || "owner_unknown";
         const element = document.createElement("article");
         element.className = "run";
@@ -544,6 +555,7 @@
           <p class="sub">PID ${text(run.pid)} / ${text(run.healthState)}</p>
           <p class="sub">${status.replace("_", " ")}${runCustody.laneId ? ` / ${runCustody.laneId}` : ""}</p>
           <p class="sub">${runCustody.ownerEvidence || run.ownerEvidence || "receipt pending"}</p>
+          <p class="sub">${shellWindow ? `window ${shellWindow.windowId} / parent ${text(runCustody.parentPid ?? run.parentPid, "n/a")}` : "window binding pending"}</p>
           <p class="sub">Ports ${(run.listeningPorts || []).join(", ") || "none"}</p>
           <p class="hash">${shortHash(run.commandHash)}</p>
         `;
@@ -596,6 +608,7 @@
       const brief = custody?.brittneyBrief || {};
       const legacyBrief = legacyAbsorption?.brittneyBrief || {};
       const operator = operatorBrief || {};
+      const shellCustody = operator.shellCustody || {};
       const brittneyAction = brittneyCustodyAction || {};
       const selectedAction = brittneyAction.selectedAction || {};
       const items = [
@@ -605,6 +618,7 @@
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
         ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.observedOwnerCount || 0} lane / ${custodySummary.ownerUnknownCount || 0} unknown`],
+        ["Shell Custody", `${shellCustody.boundWindowCount || 0}/${shellCustody.windowCount || 0} bound windows / ${shellCustody.ownerUnknownRunCount || 0} unknown runs`],
         ["Brittney Next", brief.requiredNextAction || "Run custody snapshot first"],
         ["Peer Windows", `${windowSummary.aiPeerWindowCount ?? windowSummary.peerWindowCount ?? 0} ai / ${windowSummary.shellWindowCount || 0} shell / ${windowSummary.operatingSurfaceWindowCount || 0} operating`],
         ["Legacy Absorption", `${legacySummary.visibleWindowCount || windowSummary.visibleWindowCount || 0} windows / ${legacySummary.captureCandidateCount || 0} capture candidates`],

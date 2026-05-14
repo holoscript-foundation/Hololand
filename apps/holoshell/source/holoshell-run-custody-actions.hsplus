@@ -50,6 +50,7 @@ composition "HoloShell Run Custody Actions" {
     action: "claim"
     runId: ""
     pid: 0
+    parentPid: 0
     laneId: ""
     laneLabel: ""
     ownerEvidence: ""
@@ -57,6 +58,19 @@ composition "HoloShell Run Custody Actions" {
     reason: ""
     destructiveActionsTaken: false
     rawCommandHidden: true
+  }
+
+  template "ShellRunObservation" {
+    type: "machine"
+    machineType: "shell_run_observation"
+    runId: ""
+    pid: 0
+    parentPid: 0
+    processName: ""
+    status: "owner_unknown"
+    ownerEvidence: ""
+    rawCommandHidden: true
+    receiptRequired: true
   }
 
   template "CustodyRecommendation" {
@@ -140,6 +154,15 @@ composition "HoloShell Run Custody Actions" {
     receiptRequired: true
   }
 
+  policy "ParentPidBindsShellWindow" {
+    appliesTo: ["shell_window_custody", "terminal_child_run", "visible_shell_surface"]
+    bindingEvidence: "parent_pid"
+    rawCommandHiddenByDefault: true
+    rawWindowTitleHiddenByDefault: true
+    claimReceiptRequiredForMutation: true
+    receiptRequired: true
+  }
+
   policy "StaleDoesNotMeanKill" {
     appliesTo: ["stale_run", "owner_unknown", "overdue_run"]
     defaultAction: "ask_owner_or_close_with_receipt"
@@ -187,6 +210,7 @@ composition "HoloShell Run Custody Actions" {
       action: receipt.action,
       runId: receipt.runId,
       pid: receipt.pid,
+      parentPid: receipt.parentPid,
       laneId: receipt.laneId,
       reason: receipt.reason,
       destructiveActionsTaken: false,

@@ -26,6 +26,9 @@ composition "HoloShell Operator Brief" {
     shellSurfaceCount: 0
     operatingSurfaceWindowCount: 0
     operatingSurfaceCount: 0
+    shellWindowBoundCount: 0
+    shellWindowUnboundCount: 0
+    shellWindowOwnerUnknownRunCount: 0
     legacyCaptureCandidateCount: 0
     blockedActionCount: 0
     destructiveActionsTaken: false
@@ -46,6 +49,21 @@ composition "HoloShell Operator Brief" {
     blockedActions: []
     nextActions: []
     destructiveActionsTaken: false
+    receiptRequired: true
+  }
+
+  template "ShellWindowCustodyBinding" {
+    type: "machine"
+    machineType: "shell_window_custody_binding"
+    windowId: ""
+    pid: 0
+    status: "needs_run_custody"
+    bindingEvidence: "parent_pid"
+    boundRunCount: 0
+    ownerUnknownRunCount: 0
+    laneIds: []
+    rawTitleHidden: true
+    rawCommandHidden: true
     receiptRequired: true
   }
 
@@ -103,6 +121,15 @@ composition "HoloShell Operator Brief" {
       surfaces: $operatingSurfaceCount
     }
 
+    object "ShellCustodyState" {
+      type: "ui"
+      uiType: "shell_window_custody_state"
+      label: "Shell Custody"
+      boundWindows: $shellWindowBoundCount
+      unboundWindows: $shellWindowUnboundCount
+      unknownRuns: $shellWindowOwnerUnknownRunCount
+    }
+
     object "BlockedActions" {
       type: "ui"
       uiType: "blocked_action_stack"
@@ -130,6 +157,16 @@ composition "HoloShell Operator Brief" {
     receiptRequired: true
   }
 
+  policy "ShellWindowsBindRunCustody" {
+    appliesTo: ["brittney_peer_context", "run_custody_action", "shell_window_operation"]
+    requiredInputs: ["legacy_window_inventory", "hardware_reality", "run_custody"]
+    bindingEvidence: "window_pid_to_run_parent_pid"
+    shellWindowIsNotAgentPeer: true
+    rawTitleHiddenByDefault: true
+    rawCommandHiddenByDefault: true
+    receiptRequired: true
+  }
+
   policy "BlockedMeansBlocked" {
     appliesTo: ["kill_process", "delete_file", "legacy_app_mutation", "registry_change", "destructive_ui_click"]
     preflightRequired: true
@@ -150,6 +187,9 @@ composition "HoloShell Operator Brief" {
     state.shellSurfaceCount = brief.peers.shellSurfaceCount
     state.operatingSurfaceWindowCount = brief.peers.operatingSurfaceWindowCount
     state.operatingSurfaceCount = brief.peers.operatingSurfaceCount
+    state.shellWindowBoundCount = brief.shellCustody.boundWindowCount
+    state.shellWindowUnboundCount = brief.shellCustody.unboundWindowCount
+    state.shellWindowOwnerUnknownRunCount = brief.shellCustody.ownerUnknownRunCount
     state.legacyCaptureCandidateCount = brief.legacy.captureCandidateCount
     state.blockedActionCount = brief.blockedActions.length
     state.destructiveActionsTaken = brief.safety.destructiveActionsTaken
@@ -168,6 +208,9 @@ composition "HoloShell Operator Brief" {
       shellSurfaces: state.shellSurfaceCount,
       operatingSurfaceWindows: state.operatingSurfaceWindowCount,
       operatingSurfaces: state.operatingSurfaceCount,
+      shellWindowBoundCount: state.shellWindowBoundCount,
+      shellWindowUnboundCount: state.shellWindowUnboundCount,
+      shellWindowOwnerUnknownRunCount: state.shellWindowOwnerUnknownRunCount,
       legacyCaptureCandidates: state.legacyCaptureCandidateCount,
       blockedActions: state.blockedActionCount,
       destructiveActionsTaken: state.destructiveActionsTaken,

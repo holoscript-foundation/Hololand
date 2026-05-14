@@ -50,6 +50,18 @@ Current summary fields:
 - `shellWindowCount`: terminal and shell-control surfaces.
 - `operatingSurfaceWindowCount`: AI peers plus shell surfaces.
 
+## Shell Custody Binding
+
+The operator brief binds visible shell windows to shell runs by matching the
+window PID from `legacy-window-inventory.json` to child-run `parentPid` from
+`hardware-reality.json` and custody status from `run-custody.json`.
+
+Brittney consumes this as `operator-brief.json.shellCustody`:
+
+- `boundWindowCount`: visible shell windows with at least one matching run.
+- `ownerUnknownRunCount`: unique matched child runs still needing custody.
+- `windows[].runs[]`: opaque run bindings with raw commands hidden.
+
 ## Safety
 
 This adapter is observe-only. It never clicks, closes, focuses, or mutates a
