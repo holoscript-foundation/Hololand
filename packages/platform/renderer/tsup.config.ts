@@ -21,6 +21,7 @@ export default defineConfig({
     '@hololand/logger',
     '@hololand/quality-profiles',
     '@holoscript/core',
+    '@holoscript/agent-protocol',
     '@coinbase/agentkit',
     'jsonwebtoken',
   ],

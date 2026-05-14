@@ -20,7 +20,15 @@
  * @module CrossRealityAgent
  */
 
-import { BaseAgent, type AgentIdentity, type PhaseResult, type CycleResult, ProtocolPhase, GoalSynthesizer } from '@holoscript/agent-protocol';
+import {
+  BaseAgent,
+  type AgentIdentity,
+  type PhaseResult,
+  type CycleResult,
+  type Goal,
+  ProtocolPhase,
+  GoalSynthesizer,
+} from '@holoscript/agent-protocol';
 import { logger } from './logger';
 import type {
   FormFactor,
@@ -427,7 +435,7 @@ export class CrossRealityAgent extends BaseAgent {
   }
 
   /** uAA2++ AUTONOMIZE: synthesize a goal when idle */
-  synthesizeGoal() {
+  synthesizeGoal(): Goal {
     return this.goalSynthesizer.synthesize(this.identity.domain, 'autonomous-boredom');
   }
 

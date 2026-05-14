@@ -161,10 +161,7 @@ export class AvatarStudioSDK {
    * Open the avatar studio in a popup window.
    * This is the closest equivalent to RPM's popup integration.
    */
-  openPopup(options?: {
-    width?: number;
-    height?: number;
-  }): void {
+  openPopup(options?: { width?: number; height?: number }): void {
     const width = options?.width ?? 1024;
     const height = options?.height ?? 768;
     const left = (window.screen.width - width) / 2;
@@ -204,10 +201,13 @@ export class AvatarStudioSDK {
    * Embed the avatar studio as an iframe in a container element.
    * Drop-in replacement for RPM's iframe integration.
    */
-  embedIframe(container: HTMLElement, options?: {
-    width?: string;
-    height?: string;
-  }): HTMLIFrameElement {
+  embedIframe(
+    container: HTMLElement,
+    options?: {
+      width?: string;
+      height?: string;
+    }
+  ): HTMLIFrameElement {
     // Clean up any existing iframe
     this.removeIframe();
 
@@ -218,6 +218,8 @@ export class AvatarStudioSDK {
     iframe.style.width = options?.width ?? '100%';
     iframe.style.height = options?.height ?? '100%';
     iframe.style.border = 'none';
+    iframe.style.borderWidth = '0';
+    iframe.style.borderStyle = 'none';
     iframe.style.borderRadius = '8px';
     iframe.allow = 'camera; microphone; xr-spatial-tracking';
     iframe.title = 'HoloLand Avatar Studio';
@@ -287,7 +289,6 @@ export class AvatarStudioSDK {
       });
       resizeObserver.observe(container);
       (container as any).__hololandResizeObserver = resizeObserver;
-
     } catch (error) {
       this.config.onError?.({
         code: 'MOUNT_FAILED',
@@ -340,7 +341,7 @@ export class AvatarStudioSDK {
       headers: {
         'Content-Type': 'application/json',
         'X-App-ID': this.config.appId,
-        ...(this.config.apiKey ? { 'Authorization': `Bearer ${this.config.apiKey}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
         ...(this.config.userToken ? { 'X-User-Token': this.config.userToken } : {}),
       },
       body: JSON.stringify({
@@ -355,7 +356,7 @@ export class AvatarStudioSDK {
       throw new Error(error.message ?? `API error: ${response.status}`);
     }
 
-    return await response.json() as AvatarCreationResult;
+    return (await response.json()) as AvatarCreationResult;
   }
 
   /**
@@ -369,7 +370,7 @@ export class AvatarStudioSDK {
       headers: {
         'Content-Type': 'application/json',
         'X-App-ID': this.config.appId,
-        ...(this.config.apiKey ? { 'Authorization': `Bearer ${this.config.apiKey}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
       },
       body: JSON.stringify({
         blueprint,
@@ -383,7 +384,7 @@ export class AvatarStudioSDK {
       throw new Error(error.message ?? `API error: ${response.status}`);
     }
 
-    return await response.json() as AvatarCreationResult;
+    return (await response.json()) as AvatarCreationResult;
   }
 
   /**
@@ -400,7 +401,7 @@ export class AvatarStudioSDK {
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        ...(this.config.apiKey ? { 'Authorization': `Bearer ${this.config.apiKey}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
       },
       body: formData,
     });
@@ -410,7 +411,7 @@ export class AvatarStudioSDK {
       throw new Error(error.message ?? `API error: ${response.status}`);
     }
 
-    return await response.json() as AvatarCreationResult;
+    return (await response.json()) as AvatarCreationResult;
   }
 
   // ===========================================================================
@@ -426,7 +427,7 @@ export class AvatarStudioSDK {
     const response = await fetch(apiUrl, {
       headers: {
         'X-App-ID': this.config.appId,
-        ...(this.config.apiKey ? { 'Authorization': `Bearer ${this.config.apiKey}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
       },
     });
 
@@ -434,16 +435,13 @@ export class AvatarStudioSDK {
       throw new Error(`Failed to load avatar: ${response.status}`);
     }
 
-    return await response.json() as AvatarCreationResult;
+    return (await response.json()) as AvatarCreationResult;
   }
 
   /**
    * List all avatars for the current user/app.
    */
-  async listAvatars(options?: {
-    limit?: number;
-    offset?: number;
-  }): Promise<{
+  async listAvatars(options?: { limit?: number; offset?: number }): Promise<{
     avatars: AvatarCreationResult[];
     total: number;
     hasMore: boolean;
@@ -457,7 +455,7 @@ export class AvatarStudioSDK {
     const response = await fetch(apiUrl, {
       headers: {
         'X-App-ID': this.config.appId,
-        ...(this.config.apiKey ? { 'Authorization': `Bearer ${this.config.apiKey}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
         ...(this.config.userToken ? { 'X-User-Token': this.config.userToken } : {}),
       },
     });
@@ -479,7 +477,7 @@ export class AvatarStudioSDK {
       method: 'DELETE',
       headers: {
         'X-App-ID': this.config.appId,
-        ...(this.config.apiKey ? { 'Authorization': `Bearer ${this.config.apiKey}` } : {}),
+        ...(this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {}),
       },
     });
 

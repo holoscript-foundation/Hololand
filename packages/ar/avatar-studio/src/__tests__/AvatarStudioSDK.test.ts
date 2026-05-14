@@ -83,10 +83,7 @@ describe('AvatarStudioSDK', () => {
     });
 
     it('sets up message listener on construction', () => {
-      expect(mockAddEventListener).toHaveBeenCalledWith(
-        'message',
-        expect.any(Function)
-      );
+      expect(mockAddEventListener).toHaveBeenCalledWith('message', expect.any(Function));
     });
   });
 
@@ -184,21 +181,25 @@ describe('AvatarStudioSDK', () => {
     it('sets correct iframe attributes', () => {
       let appendedChild: any;
       const container = {
-        appendChild: vi.fn((child) => { appendedChild = child; }),
+        appendChild: vi.fn((child) => {
+          appendedChild = child;
+        }),
       } as unknown as HTMLElement;
 
       sdk.embedIframe(container);
 
       expect(appendedChild.src).toContain('studio.hololand.io/embed');
       expect(appendedChild.src).toContain('mode=iframe');
-      expect(appendedChild.style.borderStyle).toBe('none');
+      expect(appendedChild.style.borderWidth).toBe('0px');
       expect(appendedChild.title).toBe('HoloLand Avatar Studio');
     });
 
     it('applies custom dimensions', () => {
       let appendedChild: any;
       const container = {
-        appendChild: vi.fn((child) => { appendedChild = child; }),
+        appendChild: vi.fn((child) => {
+          appendedChild = child;
+        }),
       } as unknown as HTMLElement;
 
       sdk.embedIframe(container, { width: '800px', height: '600px' });
@@ -241,9 +242,7 @@ describe('AvatarStudioSDK', () => {
         json: () => Promise.resolve(mockResult),
       });
 
-      const result = await sdk.createFromDescription(
-        'athletic build, dark curly hair, blue eyes'
-      );
+      const result = await sdk.createFromDescription('athletic build, dark curly hair, blue eyes');
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/avatars/from-description'),
@@ -251,7 +250,7 @@ describe('AvatarStudioSDK', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'X-App-ID': 'test-app',
-            'Authorization': 'Bearer test-key',
+            Authorization: 'Bearer test-key',
           }),
         })
       );
@@ -277,9 +276,16 @@ describe('AvatarStudioSDK', () => {
           genderPresentation: 'masculine',
           height: 1.85,
           proportions: {
-            headScale: 0.5, shoulderWidth: 0.7, chestSize: 0.6,
-            waistSize: 0.4, hipWidth: 0.45, armLength: 0.5,
-            legLength: 0.5, handSize: 0.5, footSize: 0.5, muscleTone: 0.8,
+            headScale: 0.5,
+            shoulderWidth: 0.7,
+            chestSize: 0.6,
+            waistSize: 0.4,
+            hipWidth: 0.45,
+            armLength: 0.5,
+            legLength: 0.5,
+            handSize: 0.5,
+            footSize: 0.5,
+            muscleTone: 0.8,
           },
           skinColor: { hex: '#e0b896' },
         },
@@ -295,9 +301,7 @@ describe('AvatarStudioSDK', () => {
         json: () => Promise.resolve({ message: 'Invalid description' }),
       });
 
-      await expect(
-        sdk.createFromDescription('invalid')
-      ).rejects.toThrow('Invalid description');
+      await expect(sdk.createFromDescription('invalid')).rejects.toThrow('Invalid description');
     });
   });
 
@@ -324,11 +328,12 @@ describe('AvatarStudioSDK', () => {
     it('lists avatars with pagination', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({
-          avatars: [{ avatarId: 'avt_1' }, { avatarId: 'avt_2' }],
-          total: 10,
-          hasMore: true,
-        }),
+        json: () =>
+          Promise.resolve({
+            avatars: [{ avatarId: 'avt_1' }, { avatarId: 'avt_2' }],
+            total: 10,
+            hasMore: true,
+          }),
       });
 
       const result = await sdk.listAvatars({ limit: 2, offset: 0 });
@@ -361,10 +366,7 @@ describe('AvatarStudioSDK', () => {
     it('removes message listener on dispose', () => {
       sdk.dispose();
 
-      expect(mockRemoveEventListener).toHaveBeenCalledWith(
-        'message',
-        expect.any(Function)
-      );
+      expect(mockRemoveEventListener).toHaveBeenCalledWith('message', expect.any(Function));
     });
 
     it('can be disposed multiple times safely', () => {

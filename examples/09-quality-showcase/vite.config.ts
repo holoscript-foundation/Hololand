@@ -13,6 +13,10 @@ export default defineConfig({
         __dirname,
         '../hololand-central/src/compat/holoscript-core-browser'
       ),
+      '@holoscript/agent-protocol': path.resolve(
+        __dirname,
+        '../hololand-central/src/compat/holoscript-agent-protocol-browser.ts'
+      ),
     },
     dedupe: ['three'],
   },
