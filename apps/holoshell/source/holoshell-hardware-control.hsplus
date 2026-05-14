@@ -18,6 +18,7 @@ composition "HoloShell Hardware Program Control" {
     brainIntentGateScript: "scripts/holoshell-brain-intent-gate.mjs"
     controlDaemonScript: "scripts/holoshell-control-daemon.mjs"
     roomMarathonWorkflowScript: "scripts/holoshell-room-marathon-workflow.mjs"
+    claudeChatWorkflowScript: "scripts/holoshell-claude-chat-workflow.mjs"
     controlDaemonUrl: "http://127.0.0.1:4747"
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
     homeSource: "apps/holoshell/source/holoshell-home.hsplus"
@@ -67,8 +68,10 @@ composition "HoloShell Hardware Program Control" {
     controlDaemonStatus: "offline"
     controlDaemonExecuteEnabled: false
     activeWorkflowId: ""
+    activeWorkflowKind: ""
     activeWorkflowStatus: "unknown"
     activeWorkflowTitle: ""
+    activeWorkflowTargetSurface: ""
     activeWorkflowPendingApprovalCount: 0
     activeWorkflowStepCount: 0
     activeWorkflowModelRoute: ""
@@ -121,6 +124,12 @@ composition "HoloShell Hardware Program Control" {
     type: "request_response"
     priority: "critical"
     description: "Compound Brittney workflow for Claude, terminal, room marathon, Kimi route, browser, and YouTube lofi"
+  }
+
+  channel "holoshell:workflow:claude-chat" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded Brittney workflow for opening Claude, starting a chat, and staging a prompt without shell context by default"
   }
 
   channel "holoshell:workflow:approval" {
@@ -240,7 +249,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "POST /action", "POST /approval/execute", "POST /workflow/room-marathon", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "POST /action", "POST /approval/execute", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -253,6 +262,20 @@ composition "HoloShell Hardware Program Control" {
     model: "kimi-cloud"
     steps: ["resolve_claude_cli", "open_terminal", "stage_room_command", "submit_room_command", "open_browser", "play_lofi_youtube"]
     defaultExecutionPolicy: "stage_only"
+    approvalRequired: true
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "ClaudeChatWorkflow" {
+    type: "claude_chat_workflow"
+    receiptType: "hololand.holoshell.workflow.v0.1.0"
+    title: "Claude Chat"
+    targetSurface: "Claude"
+    steps: ["resolve_claude_surface", "open_claude", "start_new_chat", "stage_chat_prompt"]
+    defaultExecutionPolicy: "staged_until_user_approval"
+    shellContextAttachedByDefault: false
+    submitRequiresApproval: true
     approvalRequired: true
     mutationExecuted: false
     receiptRequired: true
@@ -435,8 +458,10 @@ composition "HoloShell Hardware Program Control" {
 
   action apply_room_marathon_workflow(workflow) {
     state.activeWorkflowId = workflow.workflowId
+    state.activeWorkflowKind = workflow.summary.workflowKind || "room_marathon"
     state.activeWorkflowStatus = workflow.summary.status
     state.activeWorkflowTitle = workflow.title
+    state.activeWorkflowTargetSurface = workflow.summary.targetSurface || "Claude + Terminal + Browser"
     state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
     state.activeWorkflowStepCount = workflow.summary.stepCount
     state.activeWorkflowModelRoute = workflow.summary.modelRoute
@@ -449,6 +474,29 @@ composition "HoloShell Hardware Program Control" {
       steps: state.activeWorkflowStepCount,
       pending_approvals: state.activeWorkflowPendingApprovalCount,
       model_route: state.activeWorkflowModelRoute,
+      mutation_executed: state.activeWorkflowMutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_claude_chat_workflow(workflow) {
+    state.activeWorkflowId = workflow.workflowId
+    state.activeWorkflowKind = workflow.summary.workflowKind || "claude_chat"
+    state.activeWorkflowStatus = workflow.summary.status
+    state.activeWorkflowTitle = workflow.title
+    state.activeWorkflowTargetSurface = workflow.summary.targetSurface
+    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
+    state.activeWorkflowStepCount = workflow.summary.stepCount
+    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
+    emit("holoshell:workflow:claude-chat", {
+      action: "claude_chat_workflow_applied",
+      workflow_id: state.activeWorkflowId,
+      status: state.activeWorkflowStatus,
+      title: state.activeWorkflowTitle,
+      target_surface: state.activeWorkflowTargetSurface,
+      steps: state.activeWorkflowStepCount,
+      pending_approvals: state.activeWorkflowPendingApprovalCount,
+      shell_context_attached_by_default: workflow.summary.shellContextAttachedByDefault,
       mutation_executed: state.activeWorkflowMutationExecuted,
       receipt_required: true
     })

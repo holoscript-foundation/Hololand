@@ -365,15 +365,19 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory
   }
 
   if (workflow?.summary) {
+    const workflowKind = workflow.summary.workflowKind || workflow.profile || 'workflow';
+    const workflowDetail = workflowKind === 'claude_chat'
+      ? `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), target ${workflow.summary.targetSurface || 'Claude'}, prompt ${workflow.summary.promptPresent ? 'staged' : 'empty'}.`
+      : `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), model ${workflow.summary.modelRoute || 'unknown'}/${workflow.summary.model || 'unknown'}.`;
     timeline.push({
       id: workflow.workflowId || 'holoshell-workflow',
       kind: 'workflow',
       title: `${workflow.title || 'HoloShell workflow'} ${workflow.summary.status || 'unknown'}`,
-      detail: `${workflow.summary.stepCount || 0} steps, ${workflow.summary.pendingApprovalCount || 0} pending approval(s), model ${workflow.summary.modelRoute || 'unknown'}/${workflow.summary.model || 'unknown'}.`,
+      detail: workflowDetail,
       trustState: workflow.summary.mutationExecuted ? 'partial' : workflow.summary.status === 'pending_user_approval' ? 'partial' : 'verified',
-      generatedAt: workflow.generatedAt || now,
+      generatedAt: workflow.generatedAt || workflow.createdAt || now,
       receiptType: 'hololand.holoshell.workflow.v0.1.0',
-      source: 'scripts/holoshell-room-marathon-workflow.mjs',
+      source: workflow.sourceAnchors?.adapter || workflow.source?.script || 'scripts/holoshell-room-marathon-workflow.mjs',
     });
   }
 
@@ -384,9 +388,9 @@ function createTimeline({ inventory, surfaceMap, wildHoloScript, formatInventory
       title: `Workflow approval ${workflowApproval.summary.status || 'unknown'}`,
       detail: `${workflowApproval.summary.title || 'HoloShell workflow'}; ${workflowApproval.summary.pendingApprovalCount || 0} guarded approval(s); execution ${workflowApproval.summary.executionAllowed ? 'allowed after gesture' : 'blocked'}.`,
       trustState: workflowApproval.summary.executionAllowed ? 'partial' : 'verified',
-      generatedAt: workflowApproval.generatedAt || now,
+      generatedAt: workflowApproval.generatedAt || workflowApproval.createdAt || now,
       receiptType: 'hololand.holoshell.workflow-approval.v0.1.0',
-      source: 'scripts/holoshell-workflow-approval-bundle.mjs',
+      source: workflowApproval.sourceAnchors?.adapter || workflowApproval.source?.script || 'scripts/holoshell-workflow-approval-bundle.mjs',
     });
   }
 
@@ -709,13 +713,17 @@ function createFeed(args) {
       hardwareApprovalExecutionAllowed: Boolean(hardwareApproval?.summary?.executionAllowed),
       hardwareApprovalBundleCount: approvalBundles.length,
       pendingHardwareApprovalCount: hardwareApproval?.summary?.executionAllowed ? 1 : 0,
+      activeWorkflowKind: workflow?.summary?.workflowKind || workflow?.profile || '',
       activeWorkflowStatus: workflow?.summary?.status || 'unknown',
       activeWorkflowTitle: workflow?.title || '',
+      activeWorkflowTargetSurface: workflow?.summary?.targetSurface || '',
       activeWorkflowStepCount: workflow?.summary?.stepCount || 0,
       activeWorkflowPendingApprovalCount: workflow?.summary?.pendingApprovalCount || 0,
       activeWorkflowModel: workflow?.summary?.model || '',
       activeWorkflowModelRoute: workflow?.summary?.modelRoute || '',
       activeWorkflowMusicTarget: workflow?.summary?.musicTarget || '',
+      activeWorkflowPromptPresent: Boolean(workflow?.summary?.promptPresent),
+      activeWorkflowShellContextAttachedByDefault: Boolean(workflow?.summary?.shellContextAttachedByDefault),
       activeWorkflowMutationExecuted: Boolean(workflow?.summary?.mutationExecuted),
       activeWorkflowApprovalStatus: workflowApproval?.summary?.status || 'unknown',
       activeWorkflowApprovalId: workflowApproval?.approvalId || '',

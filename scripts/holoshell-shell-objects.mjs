@@ -268,6 +268,11 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareAp
   const hardwareApprovalSummary = hardwareApproval?.summary || {};
   const workflowApprovalSummary = workflowApproval?.summary || {};
   const gateSummary = workflowIntentGate?.summary || {};
+  const activeWorkflowKind = workflowSummary.workflowKind || workflow?.profile || '';
+  const roomWorkflowSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowSummary : {};
+  const claudeWorkflowSummary = activeWorkflowKind === 'claude_chat' ? workflowSummary : {};
+  const roomWorkflowApprovalSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowApprovalSummary : {};
+  const roomGateSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? gateSummary : {};
   return [
     {
       id: 'shell.hololand',
@@ -370,26 +375,55 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, workflow, hardwareAp
       sourceKind: 'workflow',
       sourceRef: 'scripts/holoshell-room-marathon-workflow.mjs',
       capabilityFamily: 'agent_workflow',
-      trustState: workflowSummary.status === 'pending_user_approval' ? 'partial' : 'verified',
+      trustState: roomWorkflowSummary.status === 'pending_user_approval' ? 'partial' : 'verified',
       permissionEnvelope: 'guarded_execute',
       adapterPath: 'workflow_approval_and_brain_intent_gate',
       visualForm: 'workflow_bubble',
-      status: workflowSummary.status || 'available',
+      status: roomWorkflowSummary.status || 'available',
       actorLaneId: 'brittney',
       receiptTypes: ['workflow_receipt', 'workflow_approval_bundle', 'brain_intent_gate_receipt'],
       relationships: {
-        model: workflowSummary.model || 'kimi',
-        modelRoute: workflowSummary.modelRoute || 'ollama_cloud',
-        approvalStatus: workflowApprovalSummary.status || 'unknown',
-        brainGateStatus: gateSummary.status || 'unknown',
+        model: roomWorkflowSummary.model || 'kimi',
+        modelRoute: roomWorkflowSummary.modelRoute || 'ollama_cloud',
+        approvalStatus: roomWorkflowApprovalSummary.status || 'unknown',
+        brainGateStatus: roomGateSummary.status || 'unknown',
       },
       privacyClass: 'local_private',
       replacementPath: 'compound_workflow_object',
       launch: { action: 'stage_room_marathon_workflow', route: '/workflow/room-marathon' },
       glyph: 'RM',
-      detail: `${workflowSummary.stepCount || 0} staged steps; approval ${workflowApprovalSummary.status || 'unknown'}; brain gate ${gateSummary.status || 'unknown'}.`,
+      detail: `${roomWorkflowSummary.stepCount || 0} staged steps; approval ${roomWorkflowApprovalSummary.status || 'unknown'}; brain gate ${roomGateSummary.status || 'unknown'}.`,
       firstScreen: true,
       layout: { x: 77, y: 63, size: 118 },
+    },
+    {
+      id: 'workflow.claude-chat',
+      objectKind: 'workflow',
+      displayName: 'Claude Chat',
+      sourceKind: 'workflow',
+      sourceRef: 'scripts/holoshell-claude-chat-workflow.mjs',
+      capabilityFamily: 'agent_workflow',
+      trustState: claudeWorkflowSummary.status === 'pending_user_approval' ? 'partial' : 'verified',
+      permissionEnvelope: 'guarded_execute',
+      adapterPath: 'claude_chat_workflow_bridge',
+      visualForm: 'workflow_bubble',
+      status: claudeWorkflowSummary.status || 'available',
+      actorLaneId: 'brittney',
+      receiptTypes: ['workflow_receipt', 'workflow_approval_bundle', 'brain_intent_gate_receipt'],
+      relationships: {
+        targetSurface: claudeWorkflowSummary.targetSurface || 'Claude',
+        promptPresent: Boolean(claudeWorkflowSummary.promptPresent),
+        shellContextAttachedByDefault: Boolean(claudeWorkflowSummary.shellContextAttachedByDefault),
+        approvalStatus: activeWorkflowKind === 'claude_chat' ? workflowApprovalSummary.status || 'unknown' : 'unknown',
+        brainGateStatus: activeWorkflowKind === 'claude_chat' ? gateSummary.status || 'unknown' : 'unknown',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'assistant_peer_chat_object',
+      launch: { action: 'stage_claude_chat_workflow', route: '/workflow/claude-chat' },
+      glyph: 'CC',
+      detail: `${claudeWorkflowSummary.stepCount || 0} staged steps; prompt ${claudeWorkflowSummary.promptPresent ? 'ready' : 'empty'}; approval ${activeWorkflowKind === 'claude_chat' ? workflowApprovalSummary.status || 'unknown' : 'not_staged'}.`,
+      firstScreen: true,
+      layout: { x: 64, y: 23, size: 108 },
     },
     {
       id: 'workflow.asset-shard',
@@ -1370,6 +1404,7 @@ function buildGraph(args, fixtures = null) {
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
+      claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -1642,6 +1677,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.objectKind === 'captured_window')) failures.push('expected captured window object');
   if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
+  if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');

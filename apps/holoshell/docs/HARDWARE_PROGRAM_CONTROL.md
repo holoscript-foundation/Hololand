@@ -172,6 +172,7 @@ GET  /workflow/approval/latest
 POST /action
 POST /approval/execute
 POST /workflow/room-marathon
+POST /workflow/claude-chat
 POST /workflow/approval
 POST /workflow/execute
 ```
@@ -231,6 +232,31 @@ The same workflow is available through the daemon:
 Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/room-marathon" -Method Post -ContentType "application/json" -Body '{"model":"kimi-cloud","modelRoute":"ollama_cloud"}'
 ```
 
+Stage a Claude peer-chat workflow:
+
+```powershell
+node scripts\holoshell-claude-chat-workflow.mjs --prompt "Plan the next HoloShell pass"
+```
+
+That stages:
+
+- Resolve the local Claude surface.
+- Open or focus Claude.
+- Start a new chat.
+- Place the prompt in the chat box.
+
+It does not attach HoloShell context by default and does not submit the prompt
+unless the caller explicitly asks for `--submit`. The same workflow is available
+through the daemon:
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:4747/workflow/claude-chat" -Method Post -ContentType "application/json" -Body '{"prompt":"Plan the next HoloShell pass"}'
+```
+
+Claude chat writes a local approval-gate receipt with
+`caseId: holoshell-claude-chat-local-approval.v0`; it does not reuse the
+room-marathon brain-intent eval case.
+
 Create a nonce-bound approval packet for the staged workflow:
 
 ```powershell
@@ -254,6 +280,7 @@ node scripts\holoshell-shell-objects.mjs --self-test
 node scripts\holoshell-approval-bundle.mjs --self-test
 node scripts\holoshell-control-daemon.mjs --self-test
 node scripts\holoshell-room-marathon-workflow.mjs --self-test
+node scripts\holoshell-claude-chat-workflow.mjs --self-test
 node scripts\holoshell-workflow-approval-bundle.mjs --self-test
 ```
 
@@ -263,6 +290,7 @@ node scripts\holoshell-workflow-approval-bundle.mjs --self-test
 - Stable per-app adapters for common programs.
 - UI Automation invoke patterns instead of coordinate fallback where available.
 - Screenshot and OCR witness capture for before/after state.
-- Native execution button wiring from the prototype to the loopback daemon.
+- More robust app-specific UI Automation adapters for Claude, browsers, and
+  office apps after the approval gate fires.
 - HoloScript compiler target that emits the Tauri or native bridge from this
   contract.

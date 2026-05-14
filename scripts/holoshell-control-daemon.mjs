@@ -92,6 +92,7 @@ Routes:
   POST /action
   POST /approval/execute
   POST /workflow/room-marathon
+  POST /workflow/claude-chat
   POST /workflow/approval
   POST /workflow/intent-gate
   POST /workflow/execute
@@ -198,6 +199,20 @@ function roomMarathonWorkflow(body = {}) {
   return runChecked(cli);
 }
 
+function claudeChatWorkflow(body = {}) {
+  const cli = ['scripts/holoshell-claude-chat-workflow.mjs'];
+  const add = (flag, value) => {
+    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
+  };
+  add('--actor', body.actor);
+  add('--claude-app', body.claudeApp);
+  add('--prompt', body.prompt || body.chatPrompt || body.text);
+  add('--new-chat-hotkey', body.newChatHotkey);
+  if (body.startNewChat === false) cli.push('--no-new-chat');
+  if (body.submit === true) cli.push('--submit');
+  return runChecked(cli);
+}
+
 function tmpPath(args, fileName) {
   return path.join(args.tmpDir, fileName);
 }
@@ -292,7 +307,11 @@ function commandFromWorkflowApprovalBundle(bundle) {
   }
   const first = String(command[0] || '').toLowerCase();
   const script = String(command[1] || '').replaceAll('/', path.sep);
-  if (first !== 'node' || !script.endsWith(`scripts${path.sep}holoshell-room-marathon-workflow.mjs`)) {
+  const allowedWorkflowScripts = [
+    `scripts${path.sep}holoshell-room-marathon-workflow.mjs`,
+    `scripts${path.sep}holoshell-claude-chat-workflow.mjs`,
+  ];
+  if (first !== 'node' || !allowedWorkflowScripts.some((allowed) => script.endsWith(allowed))) {
     throw new Error('Workflow approval command is not a HoloShell workflow command.');
   }
   if (!command.includes('--execute-workflow')) {
@@ -315,17 +334,35 @@ function executeWorkflow(args, body = {}) {
   const bundle = readJson(body.workflowApprovalBundle || tmpPath(args, 'workflow-approval-latest.json'), null);
   if (!bundle) throw new Error('Workflow approval bundle was not found.');
   if (!body.approvalId || body.approvalId !== bundle.approvalId) throw new Error('Workflow approval id mismatch.');
-  if (!body.nonce || body.nonce !== bundle.nonce) throw new Error('Workflow approval nonce mismatch.');
-  const intentGateResult = workflowIntentGate(true);
-  const intentGate = readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
-  if (!intentGateResult.ok || !intentGate.summary?.executionAllowed) {
-    const blocked = new Error(intentGate.summary?.blockedReason || intentGateResult.stderr.trim() || 'Brain intent runtime gate blocked workflow execution.');
-    blocked.statusCode = 403;
-    throw blocked;
+  if (!body.nonce || body.nonce !== (bundle.nonce || bundle.execution?.nonce)) throw new Error('Workflow approval nonce mismatch.');
+  const adapter = String(bundle.sourceAnchors?.adapter || '').replaceAll('/', path.sep);
+  const usesLocalApprovalGate = adapter.endsWith(`scripts${path.sep}holoshell-claude-chat-workflow.mjs`);
+  let intentGateResult = { ok: true, stdout: 'Claude chat uses its local approval gate.', stderr: '' };
+  let intentGate = readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
+  if (usesLocalApprovalGate) {
+    if (
+      intentGate.summary?.caseId !== 'holoshell-claude-chat-local-approval.v0'
+      || intentGate.summary?.runtimeBlocking !== false
+      || !intentGate.summary?.executionAllowed
+    ) {
+      const blocked = new Error(intentGate.summary?.blockedReason || 'Claude chat local approval gate is missing or blocked. Restage the workflow.');
+      blocked.statusCode = 403;
+      throw blocked;
+    }
+  } else {
+    intentGateResult = workflowIntentGate(true);
+    intentGate = readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
+    if (!intentGateResult.ok || !intentGate.summary?.executionAllowed) {
+      const blocked = new Error(intentGate.summary?.blockedReason || intentGateResult.stderr.trim() || 'Brain intent runtime gate blocked workflow execution.');
+      blocked.statusCode = 403;
+      throw blocked;
+    }
   }
   const command = commandFromWorkflowApprovalBundle(bundle);
   const executeResult = runChecked(command);
-  workflowApprovalBundle();
+  if (String(command[0] || '').replaceAll('/', path.sep).endsWith(`scripts${path.sep}holoshell-room-marathon-workflow.mjs`)) {
+    workflowApprovalBundle();
+  }
   refreshLiveFeed();
   return {
     ok: true,
@@ -356,6 +393,24 @@ function stageRoomMarathon(args, body = {}) {
       workflow: workflowResult.stdout.trim(),
       workflowApproval: workflowApprovalResult.stdout.trim(),
       workflowIntentGate: workflowIntentGateResult.stdout.trim(),
+    },
+  };
+}
+
+function stageClaudeChat(args, body = {}) {
+  refreshRegistry(args);
+  const workflowResult = claudeChatWorkflow(body);
+  refreshLiveFeed();
+  return {
+    ok: true,
+    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
+    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      workflow: workflowResult.stdout.trim(),
+      workflowApproval: 'Claude chat workflow wrote its nonce-bound approval bundle.',
+      workflowIntentGate: 'Claude chat workflow wrote a local approval gate; no room-marathon brain case was reused.',
     },
   };
 }
@@ -392,6 +447,7 @@ function routePost(args, pathname, body) {
   if (pathname === '/action') return stageAction(args, body);
   if (pathname === '/approval/execute') return executeApproval(args, body);
   if (pathname === '/workflow/room-marathon') return stageRoomMarathon(args, body);
+  if (pathname === '/workflow/claude-chat') return stageClaudeChat(args, body);
   if (pathname === '/workflow/approval') {
     workflowApprovalBundle();
     refreshLiveFeed();
