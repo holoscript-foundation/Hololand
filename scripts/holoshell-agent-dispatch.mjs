@@ -53,6 +53,14 @@ const CAPABILITIES = [
     examples: ['launch Codex through Ollama', 'ollama launch hermes'],
   },
   {
+    id: 'grok_build',
+    label: 'Grok Build',
+    route: '/workflow/grok-build',
+    dispatchKind: 'workflow',
+    permissionEnvelope: 'guarded_execute',
+    examples: ['open Grok Build', 'ask Grok to inspect this repo'],
+  },
+  {
     id: 'room_marathon',
     label: 'Room Marathon',
     route: '/workflow/room-marathon',
@@ -208,7 +216,7 @@ function detectOllamaAgent(text) {
 function promptFromIntent(args) {
   if (args.prompt) return args.prompt;
   const raw = String(args.intent || '');
-  const match = raw.match(/\b(?:with prompt|prompt|say|ask claude to)\b\s*[:,-]?\s*(.+)$/i);
+  const match = raw.match(/\b(?:with prompt|prompt|say|ask claude to|ask grok to|tell grok to)\b\s*[:,-]?\s*(.+)$/i);
   return match ? match[1].trim() : '';
 }
 
@@ -225,6 +233,9 @@ function scoreIntent(intent) {
   const agent = detectOllamaAgent(text);
   if (text.includes('ollama') || text.includes('ollama launch') || (agent && text.includes('launch'))) {
     scores.set('ollama_cloud_agent', 95);
+  }
+  if (text.includes('grok') || text.includes('grok build') || text.includes('supergrok') || text.includes('xai')) {
+    scores.set('grok_build', 96);
   }
   if (text.includes('claude') && (text.includes('chat') || text.includes('start') || text.includes('open'))) {
     scores.set('claude_chat', Math.max(scores.get('claude_chat'), 92));
@@ -266,6 +277,16 @@ function buildRouteBody(capability, args, agent) {
     return {
       actor: args.actor,
       agent: agent?.slug || 'claude',
+    };
+  }
+  if (capability.id === 'grok_build') {
+    const prompt = promptFromIntent(args);
+    return {
+      actor: args.actor,
+      mode: prompt ? 'headless' : 'interactive',
+      prompt,
+      model: 'grok-build',
+      permissionMode: prompt ? 'plan' : '',
     };
   }
   if (capability.id === 'room_marathon') {
@@ -416,6 +437,8 @@ function assertSelfTest() {
     ['open Claude and start a chat', 'claude_chat', 'workflow'],
     ['launch Codex through Ollama', 'ollama_cloud_agent', 'workflow'],
     ['ollama launch hermes', 'ollama_cloud_agent', 'workflow'],
+    ['open Grok Build', 'grok_build', 'workflow'],
+    ['ask Grok to inspect this repo', 'grok_build', 'workflow'],
     ['open terminal start room marathon using ollama kimi cloud', 'room_marathon', 'workflow'],
     ['open browser and play lofi music on youtube', 'browser_lofi', 'hardware_action'],
     ['open Excel', 'open_excel', 'hardware_action'],

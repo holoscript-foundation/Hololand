@@ -1,0 +1,175 @@
+//
+// Canonical HoloScript contract for exposing Grok Build as a guarded HoloShell
+// coding-agent lane. The TypeScript adapter may inspect install/auth/model
+// readiness and launch Grok only through nonce-bound workflow approval.
+
+composition "HoloShell Grok Build Workflow" {
+  config {
+    title: "HoloShell Grok Build Workflow"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    operatingModel: "guarded_local_coding_agent"
+    workflowScript: "scripts/holoshell-grok-build-workflow.mjs"
+    hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    setupReceipt: ".tmp/holoshell/grok-build-setup.json"
+    setupBootstrap: ".tmp/holoshell/grok-build-setup.js"
+    workflowReceipt: ".tmp/holoshell/workflow-latest.json"
+    workflowBootstrap: ".tmp/holoshell/workflow-latest.js"
+    approvalBundle: ".tmp/holoshell/workflow-approval-latest.json"
+    approvalBootstrap: ".tmp/holoshell/workflow-approval-latest.js"
+    localApprovalGate: ".tmp/holoshell/brain-intent-gate-latest.json"
+    localApprovalGateBootstrap: ".tmp/holoshell/brain-intent-gate-latest.js"
+    plannedHeavyRecheckDate: "2026-05-15"
+  }
+
+  state {
+    setupStatus: "unknown"
+    cliStatus: "unknown"
+    cliVersion: "unknown"
+    authStatus: "unknown"
+    modelStatus: "unknown"
+    requestedModel: "grok-build"
+    defaultModel: "unknown"
+    projectTrustStatus: "unknown"
+    projectTrusted: false
+    pathSeenOnCurrentProcess: false
+    skippedPermissionCount: 0
+    warningCount: 0
+    activeWorkflowId: ""
+    activeWorkflowStatus: "unknown"
+    activeWorkflowMode: "interactive"
+    activeWorkflowPromptPresent: false
+    activeWorkflowPermissionMode: "default"
+    activeWorkflowPendingApprovalCount: 0
+    activeWorkflowMutationExecuted: false
+  }
+
+  channel "holoshell:workflow:grok-build:setup" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Local Grok Build install/auth/model/project-trust readiness"
+  }
+
+  channel "holoshell:workflow:grok-build" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded launch lane for Grok Build TUI or single-turn repo inspection"
+  }
+
+  template "GrokBuildSetupReceipt" {
+    type: "grok_build_setup_receipt"
+    receiptType: "hololand.holoshell.grok-build-setup.v0.1.0"
+    status: "unknown"
+    cliStatus: "unknown"
+    cliVersion: "unknown"
+    authStatus: "unknown"
+    modelStatus: "unknown"
+    requestedModel: "grok-build"
+    defaultModel: "unknown"
+    projectTrusted: false
+    projectTrustStatus: "unknown"
+    pathSeenOnCurrentProcess: false
+    readyForHeavyRecheck: false
+    receiptRequired: true
+  }
+
+  template "GrokBuildWorkflow" {
+    type: "grok_build_workflow"
+    receiptType: "hololand.holoshell.workflow.v0.1.0"
+    title: "Grok Build"
+    mode: "interactive"
+    model: "grok-build"
+    steps: ["resolve_grok_build_cli", "verify_grok_auth", "verify_grok_build_model", "inspect_project_trust", "launch_grok_build"]
+    defaultExecutionPolicy: "staged_until_user_approval"
+    shellContextAttachedByDefault: false
+    terminalLaunchRequiresApproval: true
+    promptBodyStoredLocallyOnly: true
+    projectHooksTrustedRequiredForHookReliance: true
+    autoApproveDisabledByDefault: true
+    approvalRequired: true
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
+  policy "GrokBuildReadiness" {
+    appliesTo: ["resolve_grok_build_cli", "verify_grok_auth", "verify_grok_build_model", "inspect_project_trust"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mutating: false
+    receiptRequired: true
+  }
+
+  policy "GrokBuildLaunch" {
+    appliesTo: ["launch_grok_build"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    mutating: true
+    requiresFreshUserGesture: true
+    nonceBound: true
+    receiptRequired: true
+  }
+
+  action apply_grok_build_setup(setup) {
+    state.setupStatus = setup.summary.status
+    state.cliStatus = setup.summary.cliStatus
+    state.cliVersion = setup.summary.cliVersion
+    state.authStatus = setup.summary.authStatus
+    state.modelStatus = setup.summary.modelStatus
+    state.requestedModel = setup.summary.requestedModel
+    state.defaultModel = setup.summary.defaultModel
+    state.projectTrusted = setup.summary.projectTrusted
+    state.projectTrustStatus = setup.summary.projectTrustStatus
+    state.pathSeenOnCurrentProcess = setup.summary.pathSeenOnCurrentProcess
+    state.skippedPermissionCount = setup.summary.skippedPermissionCount
+    state.warningCount = setup.summary.warningCount
+    emit("holoshell:workflow:grok-build:setup", {
+      action: "grok_build_setup_applied",
+      status: state.setupStatus,
+      cli_status: state.cliStatus,
+      cli_version: state.cliVersion,
+      auth_status: state.authStatus,
+      model_status: state.modelStatus,
+      requested_model: state.requestedModel,
+      default_model: state.defaultModel,
+      project_trusted: state.projectTrusted,
+      project_trust_status: state.projectTrustStatus,
+      path_seen_on_current_process: state.pathSeenOnCurrentProcess,
+      warning_count: state.warningCount,
+      heavy_recheck_date: config.plannedHeavyRecheckDate,
+      receipt_required: true
+    })
+  }
+
+  action apply_grok_build_workflow(workflow) {
+    state.activeWorkflowId = workflow.workflowId
+    state.activeWorkflowStatus = workflow.summary.status
+    state.activeWorkflowMode = workflow.summary.mode
+    state.requestedModel = workflow.summary.model
+    state.defaultModel = workflow.summary.defaultModel
+    state.cliVersion = workflow.summary.cliVersion
+    state.authStatus = workflow.summary.authStatus
+    state.projectTrusted = workflow.summary.projectTrusted
+    state.projectTrustStatus = workflow.summary.projectTrustStatus
+    state.activeWorkflowPromptPresent = workflow.summary.promptPresent
+    state.activeWorkflowPermissionMode = workflow.summary.permissionMode
+    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
+    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
+    emit("holoshell:workflow:grok-build", {
+      action: "grok_build_workflow_applied",
+      workflow_id: state.activeWorkflowId,
+      status: state.activeWorkflowStatus,
+      mode: state.activeWorkflowMode,
+      model: state.requestedModel,
+      cli_version: state.cliVersion,
+      auth_status: state.authStatus,
+      project_trusted: state.projectTrusted,
+      project_trust_status: state.projectTrustStatus,
+      prompt_present: state.activeWorkflowPromptPresent,
+      permission_mode: state.activeWorkflowPermissionMode,
+      pending_approvals: state.activeWorkflowPendingApprovalCount,
+      shell_context_attached_by_default: false,
+      mutation_executed: state.activeWorkflowMutationExecuted,
+      receipt_required: true
+    })
+  }
+}

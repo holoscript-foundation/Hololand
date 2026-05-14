@@ -20,9 +20,11 @@ composition "HoloShell Hardware Program Control" {
     roomMarathonWorkflowScript: "scripts/holoshell-room-marathon-workflow.mjs"
     claudeChatWorkflowScript: "scripts/holoshell-claude-chat-workflow.mjs"
     ollamaCloudAgentWorkflowScript: "scripts/holoshell-ollama-cloud-agent-workflow.mjs"
+    grokBuildWorkflowScript: "scripts/holoshell-grok-build-workflow.mjs"
     agentDispatchScript: "scripts/holoshell-agent-dispatch.mjs"
     controlDaemonUrl: "http://127.0.0.1:4747"
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
+    grokBuildWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
     homeSource: "apps/holoshell/source/holoshell-home.hsplus"
     brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     latestActionReceipt: ".tmp/holoshell/action-latest.json"
@@ -32,6 +34,7 @@ composition "HoloShell Hardware Program Control" {
     latestWorkflowApprovalBundle: ".tmp/holoshell/workflow-approval-latest.json"
     latestWorkflowIntentGate: ".tmp/holoshell/brain-intent-gate-latest.json"
     latestAgentDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
+    latestGrokBuildSetup: ".tmp/holoshell/grok-build-setup.json"
     actionReceiptDir: ".tmp/holoshell/action-receipts"
     approvalBundleDir: ".tmp/holoshell/approval-bundles"
     workflowApprovalBundleDir: ".tmp/holoshell/workflow-approval-bundles"
@@ -41,6 +44,7 @@ composition "HoloShell Hardware Program Control" {
     approvalBundleBootstrap: ".tmp/holoshell/approval-latest.js"
     workflowApprovalBundleBootstrap: ".tmp/holoshell/workflow-approval-latest.js"
     agentDispatchBootstrap: ".tmp/holoshell/agent-dispatch-latest.js"
+    grokBuildSetupBootstrap: ".tmp/holoshell/grok-build-setup.js"
   }
 
   state {
@@ -80,6 +84,15 @@ composition "HoloShell Hardware Program Control" {
     latestAgentDispatchRoute: ""
     latestAgentDispatchConfidence: 0
     latestAgentDispatchApprovalRequired: false
+    grokBuildSetupStatus: "unknown"
+    grokBuildCliStatus: "unknown"
+    grokBuildCliVersion: "unknown"
+    grokBuildAuthStatus: "unknown"
+    grokBuildModelStatus: "unknown"
+    grokBuildProjectTrusted: false
+    grokBuildProjectTrustStatus: "unknown"
+    grokBuildWarningCount: 0
+    grokBuildReadyForHeavyRecheck: false
     activeWorkflowId: ""
     activeWorkflowKind: ""
     activeWorkflowStatus: "unknown"
@@ -150,6 +163,12 @@ composition "HoloShell Hardware Program Control" {
     type: "request_response"
     priority: "critical"
     description: "Guarded Brittney workflow for launching Ollama Cloud agent runtimes from HoloShell"
+  }
+
+  channel "holoshell:workflow:grok-build" {
+    type: "request_response"
+    priority: "critical"
+    description: "Guarded Brittney workflow for launching Grok Build as a local coding-agent lane"
   }
 
   channel "holoshell:workflow:agent-dispatch" {
@@ -275,7 +294,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /workflow/grok-build/setup", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -322,12 +341,29 @@ composition "HoloShell Hardware Program Control" {
     receiptRequired: true
   }
 
+  template "GrokBuildWorkflow" {
+    type: "grok_build_workflow"
+    receiptType: "hololand.holoshell.workflow.v0.1.0"
+    title: "Grok Build"
+    model: "grok-build"
+    mode: "interactive"
+    steps: ["resolve_grok_build_cli", "verify_grok_auth", "verify_grok_build_model", "inspect_project_trust", "launch_grok_build"]
+    defaultExecutionPolicy: "staged_until_user_approval"
+    shellContextAttachedByDefault: false
+    terminalLaunchRequiresApproval: true
+    promptBodyStoredLocallyOnly: true
+    projectHooksTrustedRequiredForHookReliance: true
+    approvalRequired: true
+    mutationExecuted: false
+    receiptRequired: true
+  }
+
   template "AgentDispatchWorkflow" {
     type: "agent_dispatch_workflow"
     receiptType: "hololand.holoshell.agent-dispatch.v0.1.0"
     title: "Agent Dispatch"
     route: "POST /workflow/agent-dispatch"
-    supportedCapabilities: ["claude_chat", "ollama_cloud_agent", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
+    supportedCapabilities: ["claude_chat", "ollama_cloud_agent", "grok_build", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
     steps: ["parse_intent", "rank_capabilities", "select_guarded_route", "handoff_to_existing_adapter"]
     defaultExecutionPolicy: "dispatch_only"
     directExecutionAllowed: false
@@ -537,6 +573,32 @@ composition "HoloShell Hardware Program Control" {
     })
   }
 
+  action apply_grok_build_setup(setup) {
+    state.grokBuildSetupStatus = setup.summary.status
+    state.grokBuildCliStatus = setup.summary.cliStatus
+    state.grokBuildCliVersion = setup.summary.cliVersion
+    state.grokBuildAuthStatus = setup.summary.authStatus
+    state.grokBuildModelStatus = setup.summary.modelStatus
+    state.grokBuildProjectTrusted = setup.summary.projectTrusted
+    state.grokBuildProjectTrustStatus = setup.summary.projectTrustStatus
+    state.grokBuildWarningCount = setup.summary.warningCount
+    state.grokBuildReadyForHeavyRecheck = setup.summary.readyForHeavyRecheck
+    emit("holoshell:workflow:grok-build", {
+      action: "grok_build_setup_applied",
+      status: state.grokBuildSetupStatus,
+      cli_status: state.grokBuildCliStatus,
+      cli_version: state.grokBuildCliVersion,
+      auth_status: state.grokBuildAuthStatus,
+      model_status: state.grokBuildModelStatus,
+      project_trusted: state.grokBuildProjectTrusted,
+      project_trust_status: state.grokBuildProjectTrustStatus,
+      warning_count: state.grokBuildWarningCount,
+      ready_for_heavy_recheck: state.grokBuildReadyForHeavyRecheck,
+      source: "scripts/holoshell-grok-build-workflow.mjs",
+      receipt_required: true
+    })
+  }
+
   action apply_room_marathon_workflow(workflow) {
     state.activeWorkflowId = workflow.workflowId
     state.activeWorkflowKind = workflow.summary.workflowKind || "room_marathon"
@@ -601,6 +663,42 @@ composition "HoloShell Hardware Program Control" {
       target_surface: state.activeWorkflowTargetSurface,
       agent: state.activeWorkflowAgent,
       command: workflow.summary.command,
+      steps: state.activeWorkflowStepCount,
+      pending_approvals: state.activeWorkflowPendingApprovalCount,
+      shell_context_attached_by_default: workflow.summary.shellContextAttachedByDefault,
+      mutation_executed: state.activeWorkflowMutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_grok_build_workflow(workflow) {
+    state.activeWorkflowId = workflow.workflowId
+    state.activeWorkflowKind = workflow.summary.workflowKind || "grok_build"
+    state.activeWorkflowStatus = workflow.summary.status
+    state.activeWorkflowTitle = workflow.title
+    state.activeWorkflowTargetSurface = "Grok Build"
+    state.activeWorkflowAgent = "grok-build"
+    state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
+    state.activeWorkflowStepCount = workflow.summary.stepCount
+    state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
+    state.grokBuildCliVersion = workflow.summary.cliVersion
+    state.grokBuildAuthStatus = workflow.summary.authStatus
+    state.grokBuildProjectTrusted = workflow.summary.projectTrusted
+    state.grokBuildProjectTrustStatus = workflow.summary.projectTrustStatus
+    emit("holoshell:workflow:grok-build", {
+      action: "grok_build_workflow_applied",
+      workflow_id: state.activeWorkflowId,
+      status: state.activeWorkflowStatus,
+      title: state.activeWorkflowTitle,
+      target_surface: state.activeWorkflowTargetSurface,
+      mode: workflow.summary.mode,
+      model: workflow.summary.model,
+      cli_version: state.grokBuildCliVersion,
+      auth_status: state.grokBuildAuthStatus,
+      project_trusted: state.grokBuildProjectTrusted,
+      project_trust_status: state.grokBuildProjectTrustStatus,
+      prompt_present: workflow.summary.promptPresent,
+      permission_mode: workflow.summary.permissionMode,
       steps: state.activeWorkflowStepCount,
       pending_approvals: state.activeWorkflowPendingApprovalCount,
       shell_context_attached_by_default: workflow.summary.shellContextAttachedByDefault,

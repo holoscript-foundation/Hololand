@@ -902,6 +902,7 @@
   <script src="../../../.tmp/holoshell/workflow-approval-latest.js"></script>
   <script src="../../../.tmp/holoshell/brain-intent-gate-latest.js"></script>
   <script src="../../../.tmp/holoshell/agent-dispatch-latest.js"></script>
+  <script src="../../../.tmp/holoshell/grok-build-setup.js"></script>
   <script src="../../../.tmp/holoshell/ollama-cloud-agent-catalog.js"></script>
   <script src="../../../.tmp/holoshell/shard-workflow-latest.js"></script>
   <script src="../../../.tmp/holoshell/shard-import-approval-latest.js"></script>
@@ -1030,6 +1031,7 @@
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
     const standaloneWorkflowIntentGateFeed = window.HOLOSHELL_BRAIN_INTENT_GATE || {};
     const standaloneAgentDispatchFeed = window.HOLOSHELL_AGENT_DISPATCH || {};
+    const standaloneGrokBuildFeed = window.HOLOSHELL_GROK_BUILD_SETUP || {};
     const standaloneOllamaCloudAgentCatalog = window.HOLOSHELL_OLLAMA_CLOUD_AGENT_CATALOG || {};
     const standaloneShardWorkflowFeed = window.HOLOSHELL_SHARD_WORKFLOW || {};
     const standaloneShardImportApprovalFeed = window.HOLOSHELL_SHARD_IMPORT_APPROVAL || {};
@@ -1046,6 +1048,7 @@
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
       { id: "claude-chat", label: "Claude Chat", glyph: "CC", type: "workflow", detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.", x: 64, y: 23, size: 108 },
       { id: "ollama-agents", label: "Ollama Agents", glyph: "OA", type: "workflow", detail: "Launch Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, or Pi through Ollama Cloud.", x: 83, y: 28, size: 106 },
+      { id: "grok-build", label: "Grok Build", glyph: "GB", type: "workflow", detail: "Launch Grok Build as a guarded local coding-agent lane, with setup receipts ready for the Heavy recheck.", x: 72, y: 17, size: 104 },
       { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
       { id: "user-shell", label: "User Shell", glyph: "US", type: "user shell", detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.", x: 47, y: 24, size: 136 },
       { id: "format-viewer", label: "Formats", glyph: "FV", type: "source corpus", detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.", x: 24, y: 18, size: 112 },
@@ -1493,6 +1496,7 @@
         "Room Marathon": "Marathon",
         "Asset Shard": "Shard",
         "Shard Workflow Receipt": "Shard Receipt",
+        "Grok Build": "Grok",
         "Wild HoloScript": "Wild HS",
         "GOLD + Codebase": "GOLD+Code",
         "User Shell": "User Shell",
@@ -1546,7 +1550,7 @@
     function canonicalShellBubbles() {
       const graph = shellObjectGraphFeed();
       const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
-      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "source.holoscript-gold-codebase"]);
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "workflow.grok-build", "source.holoscript-gold-codebase"]);
       const surfaceKinds = new Set([
         "browser_surface",
         "terminal_surface",
@@ -1634,6 +1638,15 @@
       return dispatch.summary || {};
     }
 
+    function grokBuildFeed() {
+      return feed.feeds?.grokBuild?.summary ? feed.feeds.grokBuild : standaloneGrokBuildFeed;
+    }
+
+    function grokBuildSummary() {
+      const setup = grokBuildFeed();
+      return setup.summary || {};
+    }
+
     function ollamaCloudAgentCatalog() {
       const fromWorkflow = workflowFeed().catalog;
       if (Array.isArray(fromWorkflow) && fromWorkflow.length) return fromWorkflow;
@@ -1714,12 +1727,14 @@
         || 0;
       if (workflowPending > 0) {
         const workflowKind = workflow.workflowKind || feed.summary?.activeWorkflowKind || "";
-        const workflowTargetObject = workflowKind === "ollama_cloud_agent" ? "ollama-agents" : workflowKind === "claude_chat" ? "claude-chat" : "room-marathon";
-        const workflowTargetLabel = workflowKind === "ollama_cloud_agent" ? "Ollama Agents" : workflowKind === "claude_chat" ? "Claude Chat" : "Room Marathon";
+        const workflowTargetObject = workflowKind === "ollama_cloud_agent" ? "ollama-agents" : workflowKind === "grok_build" ? "grok-build" : workflowKind === "claude_chat" ? "claude-chat" : "room-marathon";
+        const workflowTargetLabel = workflowKind === "ollama_cloud_agent" ? "Ollama Agents" : workflowKind === "grok_build" ? "Grok Build" : workflowKind === "claude_chat" ? "Claude Chat" : "Room Marathon";
         const workflowDetail = workflowKind === "claude_chat"
           ? `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; target ${workflow.targetSurface || feed.summary?.activeWorkflowTargetSurface || "Claude"}; prompt ${workflow.promptPresent || feed.summary?.activeWorkflowPromptPresent ? "staged" : "empty"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}; gate ${workflowIntentGate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown"}`
           : workflowKind === "ollama_cloud_agent"
             ? `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; agent ${workflow.agentLabel || feed.summary?.activeWorkflowAgentLabel || workflow.agentSlug || feed.summary?.activeWorkflowAgentSlug || "agent"}; command ${workflow.command || feed.summary?.activeWorkflowCommand || "ollama launch"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}`
+          : workflowKind === "grok_build"
+            ? `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; mode ${workflow.mode || feed.summary?.activeWorkflowMode || "interactive"}; model ${workflow.model || feed.summary?.activeWorkflowModel || "grok-build"}; project ${workflow.projectTrustStatus || feed.summary?.grokBuildProjectTrustStatus || "unknown"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}`
           : `${workflow.stepCount || feed.summary?.activeWorkflowStepCount || workflowApproval.stepCount || 0} steps; ${workflow.modelRoute || feed.summary?.activeWorkflowModelRoute || "model route"}/${workflow.model || feed.summary?.activeWorkflowModel || "model"}; approval ${workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || "pending"}; gate ${workflowIntentGate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown"}`;
         chip.hidden = false;
         chip.dataset.status = workflow.status || feed.summary?.activeWorkflowStatus || "pending_user_approval";
@@ -1791,8 +1806,9 @@
       if (/\b(browser|web|url|site|page|internet|chrome|edge)\b/.test(text)) add("browser", "Browser", "focus_shell_object", "web surface");
       if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
       if (/\b(ollama cloud|ollama launch|openclaw|open claw|hermes|opencode|open code|copilot cli|droid|pi agent|launch codex|launch claude code)\b/.test(text)) add("ollama-agents", "Ollama Agents", "stage_ollama_cloud_agent_workflow", "guarded Ollama Cloud agent launch", { permissionEnvelope: "guarded_execute" });
+      if (/\b(grok|grok build|supergrok|xai)\b/.test(text)) add("grok-build", "Grok Build", "stage_grok_build_workflow", "guarded Grok Build coding-agent lane", { permissionEnvelope: "guarded_execute" });
       if (/\b(open claude|claude chat|start a chat|new claude chat|ask claude|chat with claude)\b/.test(text)) add("claude-chat", "Claude Chat", "stage_claude_chat_workflow", "guarded Claude peer chat", { permissionEnvelope: "guarded_execute" });
-      if (/\b(agent|codex|claude|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
+      if (/\b(agent|codex|claude|grok|gemini|copilot|team|mesh)\b/.test(text)) add("agents", "Agents", "focus_shell_object", "agent lane");
       if (/\b(room marathon|marathon|kimi|ollama|lofi|youtube music|music on youtube|start room)\b/.test(text)) add("room-marathon", "Room Marathon", "stage_room_marathon_workflow", "compound agent workflow", { permissionEnvelope: "guarded_execute" });
       if (/\b(asset shard|shard|assets?|folder to shard|playable shard|import assets?|preview assets?|local folder)\b/.test(text)) add("asset-shard", "Asset Shard", "stage_asset_shard_workflow", "local folder to playable shard", { permissionEnvelope: "guarded_execute" });
       if (/\b(gold|codebase|already have|existing|substrate|knowledge|graph status|absorb|query codebase|holoscript codebase)\b/.test(text)) add("gold-codebase", "GOLD+Codebase", "focus_shell_object", "read-only substrate bridge");
@@ -1808,7 +1824,7 @@
 
     function shouldStageDispatch(prompt) {
       const text = normalizePrompt(prompt);
-      return /\b(open|launch|start|play|run|ask|chat|music|excel|claude|codex|ollama|terminal|browser|room marathon|lofi|youtube|copilot|opencode|hermes|droid|openclaw)\b/.test(text);
+      return /\b(open|launch|start|play|run|ask|chat|music|excel|claude|codex|ollama|grok|supergrok|xai|terminal|browser|room marathon|lofi|youtube|copilot|opencode|hermes|droid|openclaw)\b/.test(text);
     }
 
     function matchingTurnFor(prompt) {
@@ -1862,12 +1878,15 @@
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const dispatchSummary = agentDispatchSummary();
+      const grokSummary = grokBuildSummary();
       const goldBridgeSummary = goldCodebaseBridgeSummary();
       const workflowKind = activeWorkflow.workflowKind || summary.activeWorkflowKind || "";
       const workflowEvidenceDetail = workflowKind === "claude_chat"
         ? `${activeWorkflow.targetSurface || summary.activeWorkflowTargetSurface || "Claude"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
         : workflowKind === "ollama_cloud_agent"
           ? `${activeWorkflow.agentLabel || summary.activeWorkflowAgentLabel || activeWorkflow.agentSlug || summary.activeWorkflowAgentSlug || "agent"}; ${activeWorkflow.command || summary.activeWorkflowCommand || "ollama launch"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
+        : workflowKind === "grok_build"
+          ? `${activeWorkflow.mode || summary.activeWorkflowMode || "interactive"}; ${activeWorkflow.model || summary.activeWorkflowModel || "grok-build"}; project ${activeWorkflow.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}`
         : `${activeWorkflow.modelRoute || summary.activeWorkflowModelRoute || "route"}/${activeWorkflow.model || summary.activeWorkflowModel || "model"}`;
       const activeShardWorkflow = shardWorkflowSummary();
       const activeShardImportApproval = shardImportApprovalSummary();
@@ -1957,6 +1976,25 @@
               : `${agents.length || 8} Ollama Cloud launch targets: Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, and Pi.`,
             trustState: isOllamaWorkflow && activeWorkflow.status === "pending_user_approval" ? "partial" : object.trustState,
             permissionEnvelope: "guarded_execute",
+          };
+        }
+        if (object.id === "grok-build") {
+          const isGrokWorkflow = activeWorkflow.workflowKind === "grok_build";
+          return {
+            ...object,
+            detail: isGrokWorkflow
+              ? `${activeWorkflow.status || "unknown"}; ${activeWorkflow.mode || "interactive"}; ${activeWorkflow.model || "grok-build"}; approval ${activeWorkflowApproval.status || "unknown"}; project ${activeWorkflow.projectTrustStatus || "unknown"}.`
+              : `Setup ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; auth ${grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy recheck ${grokBuildFeed().heavyUpgrade?.plannedCheckDate || summary.grokBuildHeavyRecheckDate || "2026-05-15"}.`,
+            trustState: isGrokWorkflow && activeWorkflow.status === "pending_user_approval" ? "partial" : grokSummary.status === "ready" ? "verified" : "partial",
+            permissionEnvelope: "guarded_execute",
+            evidence: {
+              setup: grokSummary.status || "unknown",
+              cli: `${grokSummary.cliStatus || "unknown"} ${grokSummary.cliVersion || ""}`.trim(),
+              auth: grokSummary.authStatus || "unknown",
+              model: grokSummary.defaultModel || "unknown",
+              project: grokSummary.projectTrustStatus || "unknown",
+              warnings: grokSummary.warningCount || 0,
+            },
           };
         }
         if (object.id === "asset-shard") {
@@ -2134,9 +2172,11 @@
       const wantsWorkflow = object?.id === "room-marathon"
         || object?.id === "claude-chat"
         || object?.id === "ollama-agents"
+        || object?.id === "grok-build"
         || object?.shellObject?.id === "workflow.room-marathon"
         || object?.shellObject?.id === "workflow.claude-chat"
         || object?.shellObject?.id === "workflow.ollama-cloud-agent"
+        || object?.shellObject?.id === "workflow.grok-build"
         || object?.shellObject?.id === "user-shell.pack.user-pack-open-claude-chat";
       const wantsShardImport = object?.id === "asset-shard" || object?.shellObject?.id === "workflow.asset-shard" || object?.shellObject?.id === "approval.asset-shard-import";
       const hardwareKinds = new Set(["program", "browser_surface", "terminal_surface", "developer_surface", "document_app", "captured_window", "approval"]);
@@ -2243,6 +2283,7 @@
         }, true));
         actions.push(actionButton("Open Excel", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open Excel" })));
         actions.push(actionButton("Launch Codex", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "launch Codex through Ollama" })));
+        actions.push(actionButton("Grok Build", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open Grok Build" })));
         actions.push(actionButton("Play lofi", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open browser and play lofi music on YouTube" })));
       }
       if (launch.action === "launch_app") {
@@ -2282,6 +2323,28 @@
         actions.push(actionButton("Claude Code", () => stageOllamaAgent("claude")));
         actions.push(actionButton("Codex", () => stageOllamaAgent("codex")));
         actions.push(actionButton("OpenCode", () => stageOllamaAgent("opencode")));
+      }
+      if (object.id === "grok-build" || shellObject.id === "workflow.grok-build") {
+        actions.push(actionButton("Stage Grok Build", () => stageDaemonAction("Grok Build", "/workflow/grok-build", {
+          mode: "interactive",
+          model: "grok-build",
+        }), actions.length === 0));
+        actions.push(actionButton("Inspect repo", () => {
+          const prompt = document.getElementById("askInput")?.value || "Inspect HoloShell Grok Build readiness and summarize only";
+          stageDaemonAction("Grok Build inspection", "/workflow/grok-build", {
+            mode: "headless",
+            prompt,
+            model: "grok-build",
+            permissionMode: "plan",
+          });
+        }));
+        actions.push(actionButton("Review setup", () => {
+          const setup = grokBuildFeed();
+          const s = setup.summary || {};
+          result.hidden = false;
+          result.textContent = `Grok Build setup ${s.status || "unknown"}: CLI ${s.cliVersion || "unknown"}, auth ${s.authStatus || "unknown"}, model ${s.modelStatus || "unknown"}, project ${s.projectTrustStatus || "unknown"}, Heavy recheck ${setup.heavyUpgrade?.plannedCheckDate || "2026-05-15"}.`;
+          appendConversation("Grok Build is wired as a guarded coding-agent lane. After the Heavy upgrade, I should refresh its setup receipt and run a read-only inspection first.");
+        }));
       }
       if (object.id === "asset-shard" || shellObject.id === "workflow.asset-shard") {
         actions.push(actionButton("Review shard plan", () => {
@@ -2637,6 +2700,7 @@
       const readinessSummary = readinessEvidenceSummary();
       const approvalSummary = hardwareApprovalSummary();
       const dispatchSummary = agentDispatchSummary();
+      const grokSummary = grokBuildSummary();
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
@@ -2646,6 +2710,14 @@
       const activeShardImportApprovalFeed = shardImportApprovalFeed();
       const activeShardImport = shardImportSummary();
       const activeShardImportFeed = shardImportFeed();
+      const workflowKind = activeWorkflow.workflowKind || summary.activeWorkflowKind || "";
+      const workflowEvidenceDetail = workflowKind === "claude_chat"
+        ? `${activeWorkflow.targetSurface || summary.activeWorkflowTargetSurface || "Claude"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
+        : workflowKind === "ollama_cloud_agent"
+          ? `${activeWorkflow.agentLabel || summary.activeWorkflowAgentLabel || activeWorkflow.agentSlug || summary.activeWorkflowAgentSlug || "agent"}; ${activeWorkflow.command || summary.activeWorkflowCommand || "ollama launch"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
+        : workflowKind === "grok_build"
+          ? `${activeWorkflow.mode || summary.activeWorkflowMode || "interactive"}; ${activeWorkflow.model || summary.activeWorkflowModel || "grok-build"}; project ${activeWorkflow.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}`
+        : `${activeWorkflow.modelRoute || summary.activeWorkflowModelRoute || "route"}/${activeWorkflow.model || summary.activeWorkflowModel || "model"}`;
       const rows = [
         "Visual source: source/holoshell-shell-world.holo",
         "Render slice: source/holoshell-shell-render.hs",
@@ -2670,6 +2742,7 @@
         `Shell objects: ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} total, ${shellGraphSummary.programObjectCount || summary.appShellObjectCount || 0} app bubbles, ${shellGraphSummary.capturedWindowObjectCount || summary.capturedShellObjectCount || 0} captured windows, ${shellGraphSummary.guardedExecuteCount || summary.guardedShellObjectCount || 0} guarded powers`,
         `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
         `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
+        `Grok Build: ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; auth ${grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy recheck ${grokBuildFeed().heavyUpgrade?.plannedCheckDate || summary.grokBuildHeavyRecheckDate || "2026-05-15"}`,
         `Hardware action: ${hardwareSummary.status || summary.hardwareActionStatus || "unknown"}; ${hardwareSummary.actionKind || summary.hardwareActionKind || "none"}; ${hardwareSummary.permissionEnvelope || summary.hardwareActionPermissionEnvelope || "unknown"}; mutation executed ${hardwareSummary.mutatingActionExecuted || summary.hardwareMutatingActionExecuted ? "yes" : "no"}`,
         `Hardware approval: ${approvalSummary.status || summary.hardwareApprovalStatus || "unknown"}; ${approvalSummary.actionKind || summary.hardwareApprovalActionKind || "none"}; target ${approvalSummary.target || summary.hardwareApprovalTarget || "none"}`,
         `Workflow: ${activeWorkflow.status || summary.activeWorkflowStatus || "unknown"}; ${activeWorkflow.stepCount || summary.activeWorkflowStepCount || 0} steps; ${activeWorkflow.pendingApprovalCount || summary.activeWorkflowPendingApprovalCount || 0} approval(s); ${workflowEvidenceDetail}`,
