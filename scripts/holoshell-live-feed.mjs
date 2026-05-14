@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -325,6 +325,32 @@ function createTimeline({ inventory, surfaceMap, lanes, processHealth, osUiCaptu
     });
   }
 
+  if (shardImportApproval?.summary) {
+    timeline.push({
+      id: shardImportApproval.approvalId || 'holoshell-shard-import-approval',
+      kind: 'asset_shard_import_approval',
+      title: `Shard import approval ${shardImportApproval.summary.status || 'unknown'}`,
+      detail: `${shardImportApproval.summary.assetCount || 0} assets for ${shardImportApproval.summary.shardId || 'asset shard'}; execution ${shardImportApproval.summary.executionAllowed ? 'allowed after approval' : 'blocked'}.`,
+      trustState: shardImportApproval.summary.executionAllowed ? 'partial' : 'verified',
+      generatedAt: shardImportApproval.generatedAt || now,
+      receiptType: shardImportApproval.schemaVersion,
+      source: shardImportApproval.output?.latestPath || 'scripts/holoshell-shard-import-approval.mjs',
+    });
+  }
+
+  if (shardImport?.summary && shardImport.summary.status !== 'not_run') {
+    timeline.push({
+      id: shardImport.importId || 'holoshell-shard-import',
+      kind: 'asset_shard_import_receipt',
+      title: `Shard import ${shardImport.summary.status || 'unknown'}`,
+      detail: `${shardImport.summary.assetCount || 0} assets imported into runtime-local shard ${shardImport.summary.shardId || 'unknown'}; source assets mutated ${shardImport.summary.sourceAssetsMutated ? 'yes' : 'no'}.`,
+      trustState: shardImport.summary.status === 'completed' && !shardImport.summary.sourceAssetsMutated ? 'verified' : 'partial',
+      generatedAt: shardImport.generatedAt || now,
+      receiptType: shardImport.schemaVersion,
+      source: shardImport.output?.receiptPath || 'scripts/holoshell-shard-import-approval.mjs',
+    });
+  }
+
   for (const receipt of runReceipts.slice(0, 12)) {
     timeline.push({
       id: receipt.runId,
@@ -375,11 +401,14 @@ function createFeed(args) {
   const workflowApproval = readJson(path.join(tmpDir, 'workflow-approval-latest.json'), {});
   const workflowIntentGate = readJson(path.join(tmpDir, 'brain-intent-gate-latest.json'), {});
   const shardWorkflow = readJson(path.join(tmpDir, 'shard-workflow-latest.json'), {});
+  const shardImportApproval = readJson(path.join(tmpDir, 'shard-import-approval-latest.json'), {});
+  const shardImport = readJson(path.join(tmpDir, 'shard-import-latest.json'), {});
   const runRegistry = readJson(path.join(tmpDir, 'run-registry.json'), { runs: [] });
   const runReceipts = readReceiptFiles(path.join(tmpDir, 'run-receipts'));
   const actionReceipts = readReceiptFiles(path.join(tmpDir, 'action-receipts'));
   const approvalBundles = readReceiptFiles(path.join(tmpDir, 'approval-bundles'));
   const workflowApprovalBundles = readReceiptFiles(path.join(tmpDir, 'workflow-approval-bundles'));
+  const shardImportApprovalBundles = readReceiptFiles(path.join(tmpDir, 'shard-import-approval-bundles'));
   const pilotReceipts = readReceiptFiles(path.join(tmpDir, 'pilot-receipts'));
   const stopPlans = [
     ...(Array.isArray(processHealth?.stopPlans) ? processHealth.stopPlans : []),
@@ -402,6 +431,8 @@ function createFeed(args) {
     workflowApproval,
     workflowIntentGate,
     shardWorkflow,
+    shardImportApproval,
+    shardImport,
     runReceipts,
     pilotReceipts,
   });
@@ -423,6 +454,7 @@ function createFeed(args) {
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
+      assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
       roadmap: 'apps/holoshell/docs/PHASE_1_ROADMAP.md',
     },
@@ -546,6 +578,20 @@ function createFeed(args) {
       activeShardPreviewSourcePath: shardWorkflow?.output?.previewSourcePath || '',
       activeShardPrivateReceiptPath: shardWorkflow?.output?.privateReceiptPath || '',
       activeShardNextWorkflow: shardWorkflow?.summary?.nextWorkflow || '',
+      activeShardImportApprovalStatus: shardImportApproval?.summary?.status || 'unknown',
+      activeShardImportApprovalId: shardImportApproval?.approvalId || '',
+      activeShardImportApprovalExpiresAt: shardImportApproval?.summary?.expiresAt || '',
+      activeShardImportExecutionAllowed: Boolean(shardImportApproval?.summary?.executionAllowed),
+      activeShardImportApprovalPendingCount: shardImportApproval?.summary?.executionAllowed ? 1 : 0,
+      activeShardImportApprovalBundleCount: shardImportApprovalBundles.length,
+      activeShardImportCommandPreview: shardImportApproval?.execution?.commandPreview || '',
+      activeShardImportStatus: shardImport?.summary?.status || 'unknown',
+      activeShardImportId: shardImport?.importId || '',
+      activeShardImportManifestPath: shardImport?.output?.manifestPath || '',
+      activeShardImportSourcePath: shardImport?.output?.shardSourcePath || '',
+      activeShardImportReceiptPath: shardImport?.output?.receiptPath || '',
+      activeShardImportRuntimeMutationExecuted: Boolean(shardImport?.summary?.runtimeMutationExecuted),
+      activeShardImportSourceAssetsMutated: Boolean(shardImport?.summary?.sourceAssetsMutated),
       stopPlanCount: stopPlans.length,
       activeRegisteredRunCount: processHealth?.summary?.activeRegisteredRunCount || 0,
       timelineCount: timeline.length,
@@ -568,6 +614,8 @@ function createFeed(args) {
       workflowApproval,
       workflowIntentGate,
       shardWorkflow,
+      shardImportApproval,
+      shardImport,
       runRegistry,
     },
     stopPlans,

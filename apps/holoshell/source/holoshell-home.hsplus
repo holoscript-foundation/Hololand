@@ -32,6 +32,8 @@ composition "HoloShell Home" {
     assetShardWorkflowReceipt: ".tmp/holoshell/shard-workflow-latest.json"
     assetShardPreviewSource: ".tmp/holoshell/shard-preview.holo"
     assetShardPrivateReceiptDir: ".tmp/holoshell/shard-receipts"
+    assetShardImportApprovalBundle: ".tmp/holoshell/shard-import-approval-latest.json"
+    assetShardImportReceipt: ".tmp/holoshell/shard-import-latest.json"
     previewProjection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
@@ -141,6 +143,17 @@ composition "HoloShell Home" {
     activeShardPreviewSourcePath: ""
     activeShardPrivateReceiptPath: ""
     activeShardNextWorkflow: ""
+    activeShardImportApprovalStatus: "unknown"
+    activeShardImportApprovalId: ""
+    activeShardImportApprovalExpiresAt: ""
+    activeShardImportExecutionAllowed: false
+    activeShardImportCommandPreview: ""
+    activeShardImportStatus: "unknown"
+    activeShardImportManifestPath: ""
+    activeShardImportSourcePath: ""
+    activeShardImportReceiptPath: ""
+    activeShardImportRuntimeMutationExecuted: false
+    activeShardImportSourceAssetsMutated: false
     activePilot: ""
     lastFeedGeneratedAt: ""
     operatingStage: "ask"
@@ -245,6 +258,12 @@ composition "HoloShell Home" {
     type: "request_response"
     priority: "high"
     description: "Local asset folders staged as playable HoloLand shard previews with receipts and guarded import"
+  }
+
+  channel "holoshell:shard-import" {
+    type: "append_only"
+    priority: "high"
+    description: "Nonce-bound asset shard import approvals and local runtime import receipts"
   }
 
   channel "holoshell:pilot" {
@@ -1127,12 +1146,23 @@ composition "HoloShell Home" {
     state.activeShardPreviewSourcePath = feedBundle.summary.activeShardPreviewSourcePath
     state.activeShardPrivateReceiptPath = feedBundle.summary.activeShardPrivateReceiptPath
     state.activeShardNextWorkflow = feedBundle.summary.activeShardNextWorkflow
+    state.activeShardImportApprovalStatus = feedBundle.summary.activeShardImportApprovalStatus
+    state.activeShardImportApprovalId = feedBundle.summary.activeShardImportApprovalId
+    state.activeShardImportApprovalExpiresAt = feedBundle.summary.activeShardImportApprovalExpiresAt
+    state.activeShardImportExecutionAllowed = feedBundle.summary.activeShardImportExecutionAllowed
+    state.activeShardImportCommandPreview = feedBundle.summary.activeShardImportCommandPreview
+    state.activeShardImportStatus = feedBundle.summary.activeShardImportStatus
+    state.activeShardImportManifestPath = feedBundle.summary.activeShardImportManifestPath
+    state.activeShardImportSourcePath = feedBundle.summary.activeShardImportSourcePath
+    state.activeShardImportReceiptPath = feedBundle.summary.activeShardImportReceiptPath
+    state.activeShardImportRuntimeMutationExecuted = feedBundle.summary.activeShardImportRuntimeMutationExecuted
+    state.activeShardImportSourceAssetsMutated = feedBundle.summary.activeShardImportSourceAssetsMutated
     state.pilotReceiptCount = feedBundle.summary.pilotReceiptCount
     state.lastFeedGeneratedAt = feedBundle.generatedAt
     state.compositeHealth = feedBundle.summary.overallRisk
-    state.pendingApprovals = state.stopPlanCount + state.pendingHardwareApprovalCount + (state.activeWorkflowApprovalExecutionAllowed ? state.activeWorkflowApprovalPendingCount : 0) + state.activeShardPendingApprovalCount
+    state.pendingApprovals = state.stopPlanCount + state.pendingHardwareApprovalCount + (state.activeWorkflowApprovalExecutionAllowed ? state.activeWorkflowApprovalPendingCount : 0) + state.activeShardPendingApprovalCount + (state.activeShardImportExecutionAllowed ? 1 : 0)
     state.operatingStage = state.pendingApprovals > 0 ? "approve" : "receive"
-    state.nextMove = state.stopPlanCount > 0 ? "review_cleanup_plan" : state.activeWorkflowApprovalExecutionAllowed ? "review_workflow_approval" : state.activeShardPendingApprovalCount > 0 ? "review_asset_shard_import" : "run_project_check"
+    state.nextMove = state.stopPlanCount > 0 ? "review_cleanup_plan" : state.activeWorkflowApprovalExecutionAllowed ? "review_workflow_approval" : state.activeShardImportExecutionAllowed ? "review_asset_shard_import_approval" : state.activeShardPendingApprovalCount > 0 ? "stage_asset_shard_import_approval" : "run_project_check"
     emit("holoshell:live-feed", {
       action: "live_feed_applied",
       generated_at: state.lastFeedGeneratedAt,
@@ -1229,6 +1259,17 @@ composition "HoloShell Home" {
       active_shard_preview_source: state.activeShardPreviewSourcePath,
       active_shard_private_receipt: state.activeShardPrivateReceiptPath,
       active_shard_next_workflow: state.activeShardNextWorkflow,
+      active_shard_import_approval: state.activeShardImportApprovalStatus,
+      active_shard_import_approval_id: state.activeShardImportApprovalId,
+      active_shard_import_approval_expires_at: state.activeShardImportApprovalExpiresAt,
+      active_shard_import_execution_allowed: state.activeShardImportExecutionAllowed,
+      active_shard_import_command_preview: state.activeShardImportCommandPreview,
+      active_shard_import_status: state.activeShardImportStatus,
+      active_shard_import_manifest: state.activeShardImportManifestPath,
+      active_shard_import_source: state.activeShardImportSourcePath,
+      active_shard_import_receipt: state.activeShardImportReceiptPath,
+      active_shard_import_runtime_mutation_executed: state.activeShardImportRuntimeMutationExecuted,
+      active_shard_import_source_assets_mutated: state.activeShardImportSourceAssetsMutated,
       stop_plans: state.stopPlanCount,
       timeline_nodes: state.timelineNodeCount,
       receipt_required: true
@@ -1541,6 +1582,53 @@ composition "HoloShell Home" {
       pending_approval: state.activeShardPendingApprovalCount,
       mutation_executed: state.activeShardMutationExecuted,
       next_move: state.activeShardNextWorkflow,
+      receipt_required: true
+    })
+  }
+
+  action apply_asset_shard_import_approval(bundle) {
+    state.activeShardImportApprovalStatus = bundle.summary.status
+    state.activeShardImportApprovalId = bundle.approvalId
+    state.activeShardImportApprovalExpiresAt = bundle.summary.expiresAt
+    state.activeShardImportExecutionAllowed = bundle.summary.executionAllowed
+    state.activeShardImportCommandPreview = bundle.execution.commandPreview
+    state.activeShardId = bundle.summary.shardId
+    state.pendingApprovals = state.pendingApprovals + (state.activeShardImportExecutionAllowed ? 1 : 0)
+    state.operatingStage = state.activeShardImportExecutionAllowed ? "approve" : state.operatingStage
+    state.nextMove = state.activeShardImportExecutionAllowed ? "review_asset_shard_import_approval" : state.nextMove
+    state.activeShellObject = "asset-shard"
+    emit("holoshell:shard-import", {
+      action: "asset_shard_import_approval_applied",
+      status: state.activeShardImportApprovalStatus,
+      approval_id: state.activeShardImportApprovalId,
+      shard_id: state.activeShardId,
+      expires_at: state.activeShardImportApprovalExpiresAt,
+      execution_allowed: state.activeShardImportExecutionAllowed,
+      command_preview: state.activeShardImportCommandPreview,
+      nonce_bound: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_asset_shard_import_receipt(receipt) {
+    state.activeShardImportStatus = receipt.summary.status
+    state.activeShardImportManifestPath = receipt.output.manifestPath
+    state.activeShardImportSourcePath = receipt.output.shardSourcePath
+    state.activeShardImportReceiptPath = receipt.output.receiptPath
+    state.activeShardImportRuntimeMutationExecuted = receipt.summary.runtimeMutationExecuted
+    state.activeShardImportSourceAssetsMutated = receipt.summary.sourceAssetsMutated
+    state.activeShardId = receipt.summary.shardId
+    state.nextMove = "open_imported_shard_preview"
+    state.activeShellObject = "asset-shard"
+    emit("holoshell:shard-import", {
+      action: "asset_shard_import_receipt_applied",
+      status: state.activeShardImportStatus,
+      shard_id: state.activeShardId,
+      manifest: state.activeShardImportManifestPath,
+      shard_source: state.activeShardImportSourcePath,
+      receipt: state.activeShardImportReceiptPath,
+      runtime_mutation_executed: state.activeShardImportRuntimeMutationExecuted,
+      source_assets_mutated: state.activeShardImportSourceAssetsMutated,
       receipt_required: true
     })
   }

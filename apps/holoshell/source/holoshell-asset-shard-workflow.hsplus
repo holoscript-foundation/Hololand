@@ -17,6 +17,9 @@ composition "HoloShell Asset Shard Workflow" {
     browserBootstrap: ".tmp/holoshell/shard-workflow-latest.js"
     previewSource: ".tmp/holoshell/shard-preview.holo"
     privateReceiptDir: ".tmp/holoshell/shard-receipts"
+    importApprovalBundle: ".tmp/holoshell/shard-import-approval-latest.json"
+    importReceipt: ".tmp/holoshell/shard-import-latest.json"
+    importRuntimeDir: ".tmp/holoshell/imported-shards"
     shellProjection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
@@ -37,6 +40,17 @@ composition "HoloShell Asset Shard Workflow" {
     workflowReceiptPath: ""
     privateReceiptPath: ""
     rollbackPath: ""
+    importApprovalStatus: "unknown"
+    importApprovalId: ""
+    importApprovalExpiresAt: ""
+    importExecutionAllowed: false
+    importCommandPreview: ""
+    importReceiptStatus: "unknown"
+    importManifestPath: ""
+    importSourcePath: ""
+    importReceiptPath: ""
+    importRuntimeMutationExecuted: false
+    importSourceAssetsMutated: false
     approvalRequired: true
     mutationExecuted: false
     nextMove: "choose_asset_folder"
@@ -58,6 +72,12 @@ composition "HoloShell Asset Shard Workflow" {
     type: "request_response"
     priority: "critical"
     description: "Guarded approval lane for importing, publishing, overwriting, or deleting shard data"
+  }
+
+  channel "holoshell:shard-import" {
+    type: "append_only"
+    priority: "high"
+    description: "Runtime-local imported shard manifests and rollback receipts"
   }
 
   policy "FolderScanPolicy" {
@@ -113,6 +133,49 @@ composition "HoloShell Asset Shard Workflow" {
       approval_required: state.approvalRequired,
       mutation_executed: state.mutationExecuted,
       next_move: state.nextMove,
+      receipt_required: true
+    })
+  }
+
+  action apply_asset_shard_import_approval(bundle) {
+    state.importApprovalStatus = bundle.summary.status
+    state.importApprovalId = bundle.approvalId
+    state.importApprovalExpiresAt = bundle.summary.expiresAt
+    state.importExecutionAllowed = bundle.summary.executionAllowed
+    state.importCommandPreview = bundle.execution.commandPreview
+    state.activeShardId = bundle.summary.shardId
+    state.nextMove = state.importExecutionAllowed ? "review_asset_shard_import" : state.nextMove
+    emit("holoshell:shard-approval", {
+      action: "asset_shard_import_approval_applied",
+      status: state.importApprovalStatus,
+      approval_id: state.importApprovalId,
+      shard_id: state.activeShardId,
+      expires_at: state.importApprovalExpiresAt,
+      execution_allowed: state.importExecutionAllowed,
+      command_preview: state.importCommandPreview,
+      nonce_bound: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_asset_shard_import_receipt(receipt) {
+    state.importReceiptStatus = receipt.summary.status
+    state.importManifestPath = receipt.output.manifestPath
+    state.importSourcePath = receipt.output.shardSourcePath
+    state.importReceiptPath = receipt.output.receiptPath
+    state.importRuntimeMutationExecuted = receipt.summary.runtimeMutationExecuted
+    state.importSourceAssetsMutated = receipt.summary.sourceAssetsMutated
+    state.activeShardId = receipt.summary.shardId
+    state.nextMove = "open_imported_shard_preview"
+    emit("holoshell:shard-import", {
+      action: "asset_shard_import_receipt_applied",
+      status: state.importReceiptStatus,
+      shard_id: state.activeShardId,
+      manifest: state.importManifestPath,
+      shard_source: state.importSourcePath,
+      receipt: state.importReceiptPath,
+      runtime_mutation_executed: state.importRuntimeMutationExecuted,
+      source_assets_mutated: state.importSourceAssetsMutated,
       receipt_required: true
     })
   }

@@ -208,6 +208,13 @@ plan without leaking the user's filesystem. Importing or publishing the shard
 is always `guarded_execute`; scanning and preview generation are read-only plus
 temporary-file writes.
 
+Shard imports add an `approval.asset-shard-import` object when
+`.tmp/holoshell/shard-import-approval-latest.json` exists. The approval bundle
+is nonce-bound and names the exact local import command. Import execution writes
+runtime-local `.tmp/holoshell/imported-shards/<shard>/` manifest, `.holo`
+source, import receipt, and rollback paths. It is a runtime mutation, not a
+source asset mutation.
+
 ## Source Boundary
 
 HoloLand owns which objects appear and how they feel. HoloScript should

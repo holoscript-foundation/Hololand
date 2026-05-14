@@ -896,6 +896,8 @@
   <script src="../../../.tmp/holoshell/workflow-approval-latest.js"></script>
   <script src="../../../.tmp/holoshell/brain-intent-gate-latest.js"></script>
   <script src="../../../.tmp/holoshell/shard-workflow-latest.js"></script>
+  <script src="../../../.tmp/holoshell/shard-import-approval-latest.js"></script>
+  <script src="../../../.tmp/holoshell/shard-import-latest.js"></script>
 </head>
 <body data-skin="liquid">
   <canvas id="world"></canvas>
@@ -1014,6 +1016,8 @@
     const standaloneWorkflowApprovalFeed = window.HOLOSHELL_WORKFLOW_APPROVAL || {};
     const standaloneWorkflowIntentGateFeed = window.HOLOSHELL_BRAIN_INTENT_GATE || {};
     const standaloneShardWorkflowFeed = window.HOLOSHELL_SHARD_WORKFLOW || {};
+    const standaloneShardImportApprovalFeed = window.HOLOSHELL_SHARD_IMPORT_APPROVAL || {};
+    const standaloneShardImportFeed = window.HOLOSHELL_SHARD_IMPORT || {};
     let controlDaemonHealth = { status: "offline", executeEnabled: false };
     let avatarSpeechTimer = 0;
     let speechRecognition = null;
@@ -1539,6 +1543,24 @@
       return workflow.summary || {};
     }
 
+    function shardImportApprovalFeed() {
+      return feed.feeds?.shardImportApproval?.summary ? feed.feeds.shardImportApproval : standaloneShardImportApprovalFeed;
+    }
+
+    function shardImportApprovalSummary() {
+      const approval = shardImportApprovalFeed();
+      return approval.summary || {};
+    }
+
+    function shardImportFeed() {
+      return feed.feeds?.shardImport?.summary ? feed.feeds.shardImport : standaloneShardImportFeed;
+    }
+
+    function shardImportSummary() {
+      const receipt = shardImportFeed();
+      return receipt.summary || {};
+    }
+
     async function refreshControlDaemonHealth() {
       try {
         const response = await fetch("http://127.0.0.1:4747/health", { cache: "no-store" });
@@ -1579,11 +1601,12 @@
       }
       const shard = shardWorkflowSummary();
       if ((shard.approvalRequired || feed.summary?.activeShardApprovalRequired) && (shard.status || feed.summary?.activeShardWorkflowStatus) === "staged") {
+        const shardApproval = shardImportApprovalSummary();
         chip.hidden = false;
-        chip.dataset.status = "pending_user_approval";
+        chip.dataset.status = shardApproval.status || "pending_user_approval";
         chip.dataset.object = "asset-shard";
-        title.textContent = "Shard Ready";
-        detail.textContent = `${shard.assetCount || feed.summary?.activeShardAssetCount || 0} assets; preview ${shard.previewObjectCount || feed.summary?.activeShardPreviewObjectCount || 0}; import guarded`;
+        title.textContent = shardApproval.executionAllowed || feed.summary?.activeShardImportExecutionAllowed ? "Shard Import Ready" : "Shard Ready";
+        detail.textContent = `${shard.assetCount || feed.summary?.activeShardAssetCount || 0} assets; preview ${shard.previewObjectCount || feed.summary?.activeShardPreviewObjectCount || 0}; import ${shardApproval.status || feed.summary?.activeShardImportApprovalStatus || "guarded"}`;
         chip.setAttribute("aria-label", "Asset shard is staged and waiting for guarded import review. Select Asset Shard.");
         return;
       }
@@ -1697,6 +1720,8 @@
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const activeShardWorkflow = shardWorkflowSummary();
+      const activeShardImportApproval = shardImportApprovalSummary();
+      const activeShardImport = shardImportSummary();
       const runtimeBubbles = canonicalShellBubbles();
       const readinessRuntimeBubbles = readinessBubbles();
       const runtimeReplaces = runtimeBubbles.length ? new Set(["browser", "programs", "terminal"]) : new Set();
@@ -1739,7 +1764,7 @@
         if (object.id === "asset-shard") {
           return {
             ...object,
-            detail: `${activeShardWorkflow.status || "unknown"}; ${activeShardWorkflow.assetCount || 0} assets; ${activeShardWorkflow.modelCount || 0} models, ${activeShardWorkflow.imageCount || 0} images, ${activeShardWorkflow.audioCount || 0} audio; preview ${(activeShardWorkflow.previewObjectCount || 0)} objects; import ${activeShardWorkflow.approvalRequired ? "guarded" : "not ready"}.`,
+            detail: `${activeShardWorkflow.status || "unknown"}; ${activeShardWorkflow.assetCount || 0} assets; ${activeShardWorkflow.modelCount || 0} models, ${activeShardWorkflow.imageCount || 0} images, ${activeShardWorkflow.audioCount || 0} audio; import approval ${activeShardImportApproval.status || "unknown"}; import ${activeShardImport.status || "not run"}.`,
             trustState: activeShardWorkflow.status === "staged" ? "verified" : "partial",
             permissionEnvelope: "guarded_execute",
             evidence: {
@@ -1747,6 +1772,8 @@
               preview: shardWorkflowFeed().output?.previewSourcePath || "",
               receipt: shardWorkflowFeed().output?.latestPath || "",
               privateReceipt: shardWorkflowFeed().output?.privateReceiptPath || "",
+              importApproval: activeShardImportApproval.status || "unknown",
+              importReceipt: shardImportFeed().output?.receiptPath || "",
               next: activeShardWorkflow.nextWorkflow || "",
             },
           };
@@ -1904,14 +1931,17 @@
     function activeApprovalBundle(object = null) {
       const hardware = hardwareApprovalFeed();
       const workflow = workflowApprovalFeed();
+      const shardImportApproval = shardImportApprovalFeed();
       const gate = workflowIntentGateSummary();
       const wantsWorkflow = object?.id === "room-marathon" || object?.shellObject?.id === "workflow.room-marathon";
+      const wantsShardImport = object?.id === "asset-shard" || object?.shellObject?.id === "workflow.asset-shard" || object?.shellObject?.id === "approval.asset-shard-import";
       const hardwareKinds = new Set(["program", "browser_surface", "terminal_surface", "developer_surface", "document_app", "captured_window", "approval"]);
       const wantsHardware = object?.id === "hardware-control"
         || object?.id === "programs"
         || object?.shellObject?.capabilityFamily === "hardware_power"
         || hardwareKinds.has(object?.shellObject?.objectKind);
       const workflowPending = workflow?.summary?.status === "pending_user_approval";
+      const shardImportPending = shardImportApproval?.summary?.status === "pending_user_approval";
       const hardwarePending = hardware?.summary?.status === "pending_user_approval";
       if (wantsWorkflow && workflowPending) {
         return {
@@ -1925,6 +1955,21 @@
           commandPreview: workflow.execution?.commandPreview || "",
           gateStatus: gate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown",
           executionAllowed: Boolean(workflow.summary?.executionAllowed && (gate.executionAllowed || feed.summary?.activeWorkflowIntentGateExecutionAllowed)),
+        };
+      }
+      if (wantsShardImport && shardImportPending) {
+        return {
+          kind: "shard_import",
+          bundle: shardImportApproval,
+          summary: shardImportApproval.summary || {},
+          route: "",
+          title: "Shard Import Approval",
+          target: shardImportApproval.summary?.shardId || "asset shard",
+          risk: shardImportApproval.approval?.risk || "creates a runtime-local shard manifest",
+          commandPreview: shardImportApproval.execution?.commandPreview || "",
+          gateStatus: "not_required",
+          executionAllowed: false,
+          localCommandOnly: true,
         };
       }
       if (wantsHardware && hardwarePending) {
@@ -2009,10 +2054,19 @@
         actions.push(actionButton("Review shard plan", () => {
           const shard = shardWorkflowFeed();
           const summary = shard.summary || {};
+          const approval = shardImportApprovalSummary();
           result.hidden = false;
-          result.textContent = `Asset shard ${summary.status || "unknown"}: ${summary.assetCount || 0} assets, ${summary.previewObjectCount || 0} preview objects, preview source ${shard.output?.previewSourcePath || "not generated"}. Import remains guarded.`;
+          result.textContent = `Asset shard ${summary.status || "unknown"}: ${summary.assetCount || 0} assets, ${summary.previewObjectCount || 0} preview objects, preview source ${shard.output?.previewSourcePath || "not generated"}. Import approval ${approval.status || "not staged"}.`;
           appendConversation(`Asset Shard is staged from local assets. I can review the preview and prepare a guarded import approval when the importer bridge is online.`);
         }, actions.length === 0));
+        actions.push(actionButton("Review import approval", () => {
+          const approval = shardImportApprovalFeed();
+          result.hidden = false;
+          result.textContent = approval.summary
+            ? `Shard import approval ${approval.summary.status}; expires ${approval.summary.expiresAt || "none"}. Command: ${approval.execution?.commandPreview || "not executable"}`
+            : "No shard import approval bundle has been staged yet.";
+          renderApprovalReview(currentSelectedObject());
+        }));
         actions.push(actionButton("Ask Brittney to import", () => {
           document.getElementById("askInput").value = "Review the asset shard preview and prepare the guarded HoloLand import";
           askBrittney();
@@ -2195,6 +2249,10 @@
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const activeShardWorkflow = shardWorkflowSummary();
       const activeShardFeed = shardWorkflowFeed();
+      const activeShardImportApproval = shardImportApprovalSummary();
+      const activeShardImportApprovalFeed = shardImportApprovalFeed();
+      const activeShardImport = shardImportSummary();
+      const activeShardImportFeed = shardImportFeed();
       const rows = [
         "Visual source: source/holoshell-shell-world.holo",
         "Render slice: source/holoshell-shell-render.hs",
@@ -2216,6 +2274,8 @@
         `Brain intent gate: ${activeWorkflowIntentGate.status || summary.activeWorkflowIntentGateStatus || "unknown"}; execute ${activeWorkflowIntentGate.executionAllowed || summary.activeWorkflowIntentGateExecutionAllowed ? "yes" : "no"}; failed checks ${activeWorkflowIntentGate.failedCheckCount || summary.activeWorkflowIntentGateFailedCheckCount || 0}`,
         `Asset shard: ${activeShardWorkflow.status || summary.activeShardWorkflowStatus || "unknown"}; ${activeShardWorkflow.assetCount || summary.activeShardAssetCount || 0} assets; ${activeShardWorkflow.modelCount || summary.activeShardModelCount || 0} models; ${activeShardWorkflow.imageCount || summary.activeShardImageCount || 0} images; ${activeShardWorkflow.audioCount || summary.activeShardAudioCount || 0} audio; blocked ${activeShardWorkflow.blockedAssetCount || summary.activeShardBlockedAssetCount || 0}`,
         `Shard preview: ${activeShardFeed.output?.previewSourcePath || summary.activeShardPreviewSourcePath || "none"}; approval ${activeShardWorkflow.approvalRequired || summary.activeShardApprovalRequired ? "required" : "not ready"}; mutation ${activeShardWorkflow.mutationExecuted || summary.activeShardMutationExecuted ? "recorded" : "none"}`,
+        `Shard import approval: ${activeShardImportApproval.status || summary.activeShardImportApprovalStatus || "unknown"}; execute ${activeShardImportApproval.executionAllowed || summary.activeShardImportExecutionAllowed ? "yes" : "no"}; expires ${activeShardImportApproval.expiresAt || summary.activeShardImportApprovalExpiresAt || "none"}`,
+        `Shard import receipt: ${activeShardImport.status || summary.activeShardImportStatus || "unknown"}; manifest ${activeShardImportFeed.output?.manifestPath || summary.activeShardImportManifestPath || "none"}; source assets mutated ${activeShardImport.sourceAssetsMutated || summary.activeShardImportSourceAssetsMutated ? "yes" : "no"}; bundle ${activeShardImportApprovalFeed.output?.bundlePath || "none"}`,
         `Brittney avatar: ${avatarSummary.avatarStatus || summary.brittneyAvatarStatus || "unknown"}; runtime ${avatarSummary.runtimeStatus || summary.brittneyRuntimeStatus || "unknown"}`,
         `Brittney turn: ${turnSummary.status || summary.brittneyLastTurnStatus || "unknown"}; ${turnSummary.eventCount || summary.brittneyRuntimeEventCount || 0} events; ${turnSummary.actionProposalCount || summary.brittneyActionProposalCount || 0} proposal(s)`,
         `Shell skin: ${document.body.dataset.skin}`,

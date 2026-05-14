@@ -258,10 +258,12 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow }) {
+function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const workflowSummary = workflow?.summary || {};
   const shardSummary = shardWorkflow?.summary || {};
+  const shardApprovalSummary = shardImportApproval?.summary || {};
+  const shardImportSummary = shardImport?.summary || {};
   const hardwareApprovalSummary = hardwareApproval?.summary || {};
   const workflowApprovalSummary = workflowApproval?.summary || {};
   const gateSummary = workflowIntentGate?.summary || {};
@@ -364,15 +366,44 @@ function baseShellObjects({ brittneyAvatar, workflow, hardwareApproval, workflow
         audioCount: shardSummary.audioCount || 0,
         blockedAssetCount: shardSummary.blockedAssetCount || 0,
         previewSourcePath: shardWorkflow?.output?.previewSourcePath || '',
+        importApprovalStatus: shardApprovalSummary.status || 'unknown',
+        importStatus: shardImportSummary.status || 'unknown',
         nextWorkflow: shardSummary.nextWorkflow || '',
       },
       privacyClass: 'local_private',
       replacementPath: 'local_folder_to_playable_shard',
       launch: { action: 'stage_asset_shard_workflow', route: '/workflow/asset-shard' },
       glyph: 'AS',
-      detail: `${shardSummary.assetCount || 0} staged assets; ${shardSummary.modelCount || 0} models, ${shardSummary.imageCount || 0} images, ${shardSummary.audioCount || 0} audio; import stays guarded.`,
+      detail: `${shardSummary.assetCount || 0} staged assets; ${shardSummary.modelCount || 0} models, ${shardSummary.imageCount || 0} images, ${shardSummary.audioCount || 0} audio; import approval ${shardApprovalSummary.status || 'unknown'}; import ${shardImportSummary.status || 'not_run'}.`,
       firstScreen: true,
       layout: { x: 25, y: 66, size: 112 },
+    },
+    {
+      id: 'approval.asset-shard-import',
+      objectKind: 'approval',
+      displayName: 'Shard Import Approval',
+      sourceKind: 'approval',
+      sourceRef: shardImportApproval?.output?.latestPath || '',
+      capabilityFamily: 'creator_workflow',
+      trustState: shardApprovalSummary.executionAllowed ? 'partial' : 'verified',
+      permissionEnvelope: 'guarded_execute',
+      adapterPath: 'asset_shard_import_approval_bundle',
+      visualForm: 'approval_gate',
+      status: shardApprovalSummary.status || 'not_required',
+      actorLaneId: 'brittney',
+      receiptTypes: ['asset_shard_import_approval_bundle', 'asset_shard_import_receipt'],
+      relationships: {
+        approvalId: shardImportApproval?.approvalId || '',
+        shardId: shardApprovalSummary.shardId || '',
+        expiresAt: shardApprovalSummary.expiresAt || '',
+        executionAllowed: Boolean(shardApprovalSummary.executionAllowed),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'consent_gate',
+      glyph: 'SI',
+      detail: `Shard import approval ${shardApprovalSummary.status || 'not_required'} for ${shardApprovalSummary.shardId || 'asset shard'}.`,
+      firstScreen: Boolean(shardApprovalSummary.executionAllowed),
+      layout: { x: 15, y: 54, size: 96 },
     },
     {
       id: 'approval.hardware',
@@ -645,10 +676,12 @@ function readinessObjects(readinessEvidence) {
   return objects;
 }
 
-function assetShardObjects(shardWorkflow) {
-  if (!shardWorkflow?.summary) return [];
+function assetShardObjects({ shardWorkflow, shardImport }) {
+  if (!shardWorkflow?.summary && !shardImport?.summary) return [];
+  const objects = [];
+  if (!shardWorkflow?.summary) return objects;
   const summary = shardWorkflow.summary;
-  return [{
+  objects.push({
     id: `receipt.asset-shard.${shortHash(shardWorkflow.workflowId || shardWorkflow.generatedAt || 'asset-shard')}`,
     objectKind: 'receipt',
     displayName: 'Shard Workflow Receipt',
@@ -675,7 +708,40 @@ function assetShardObjects(shardWorkflow) {
     detail: `${summary.assetCount || 0} asset(s) staged into ${summary.previewObjectCount || 0} preview object(s); source mutation ${summary.mutationExecuted ? 'recorded' : 'none'}.`,
     firstScreen: summary.status === 'blocked',
     layout: layout(18, 82),
-  }];
+  });
+
+  if (shardImport?.summary && shardImport.summary.status !== 'not_run') {
+    objects.push({
+      id: `receipt.asset-shard-import.${shortHash(shardImport.importId || shardImport.generatedAt || 'asset-shard-import')}`,
+      objectKind: 'receipt',
+      displayName: 'Shard Import Receipt',
+      sourceKind: 'receipt',
+      sourceRef: shardImport.output?.receiptPath || '',
+      capabilityFamily: 'creator_workflow',
+      trustState: shardImport.summary.status === 'completed' && !shardImport.summary.sourceAssetsMutated ? 'verified' : 'partial',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'asset_shard_import_receipt',
+      visualForm: shardImport.summary.status === 'completed' ? 'receipt_node' : 'warning_token',
+      status: shardImport.summary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['asset_shard_import_receipt', 'imported_shard_manifest'],
+      relationships: {
+        shardId: shardImport.summary.shardId || '',
+        manifestPath: shardImport.output?.manifestPath || '',
+        shardSourcePath: shardImport.output?.shardSourcePath || '',
+        runtimeMutationExecuted: Boolean(shardImport.summary.runtimeMutationExecuted),
+        sourceAssetsMutated: Boolean(shardImport.summary.sourceAssetsMutated),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'receipt_memory',
+      glyph: 'IR',
+      detail: `Imported ${shardImport.summary.assetCount || 0} asset(s) into runtime-local shard; source assets mutated ${shardImport.summary.sourceAssetsMutated ? 'yes' : 'no'}.`,
+      firstScreen: true,
+      layout: layout(19, 82),
+    });
+  }
+
+  return objects;
 }
 
 function receiptObjects({ hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate }) {
@@ -763,6 +829,8 @@ function summarize(objects, feeds) {
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
+    assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
+    assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
     capturedWindowObjectCount: objects.filter((object) => object.objectKind === 'captured_window').length,
     runningObjectCount: objects.filter((object) => ['running', 'foreground'].includes(object.status)).length,
     guardedExecuteCount: objects.filter((object) => object.permissionEnvelope === 'guarded_execute').length,
@@ -775,6 +843,8 @@ function summarize(objects, feeds) {
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
+      assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
+      assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
       agentLaneCount: feeds.lanes?.summary?.laneCount || 0,
     },
   };
@@ -794,6 +864,8 @@ function loadFeeds(tmpDir) {
     workflowApproval: readJson(path.join(dir, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(path.join(dir, 'brain-intent-gate-latest.json'), {}),
     shardWorkflow: readJson(path.join(dir, 'shard-workflow-latest.json'), {}),
+    shardImportApproval: readJson(path.join(dir, 'shard-import-approval-latest.json'), {}),
+    shardImport: readJson(path.join(dir, 'shard-import-latest.json'), {}),
   };
 }
 
@@ -803,7 +875,7 @@ function buildGraph(args, fixtures = null) {
   const objects = [
     ...baseShellObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
-    ...assetShardObjects(feeds.shardWorkflow),
+    ...assetShardObjects(feeds),
     ...programObjects(feeds.programRegistry, args.maxPrograms),
     ...capturedWindowObjects(feeds, args.maxWindows),
     ...agentObjects(feeds.lanes, args.maxAgents),
@@ -829,6 +901,7 @@ function buildGraph(args, fixtures = null) {
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
+      assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
     },
     summary: summarize(uniqueObjects, feeds),
@@ -947,6 +1020,18 @@ function fixtureFeeds() {
         mutationExecuted: false,
       },
     },
+    shardImportApproval: {
+      schemaVersion: 'hololand.holoshell.asset-shard-import-approval.v0.1.0',
+      approvalId: 'shard-import-approval-1',
+      output: { latestPath: '.tmp/holoshell/shard-import-approval-latest.json' },
+      summary: { status: 'pending_user_approval', shardId: 'shard.fixture.demo', executionAllowed: true, expiresAt: new Date().toISOString(), assetCount: 5 },
+    },
+    shardImport: {
+      schemaVersion: 'hololand.holoshell.asset-shard-import-receipt.v0.1.0',
+      importId: 'shard-import-1',
+      output: { receiptPath: '.tmp/holoshell/imported-shards/shard-fixture-demo/import-receipt.json', manifestPath: '.tmp/holoshell/imported-shards/shard-fixture-demo/manifest.json', shardSourcePath: '.tmp/holoshell/imported-shards/shard-fixture-demo/shard.holo' },
+      summary: { status: 'completed', shardId: 'shard.fixture.demo', assetCount: 5, runtimeMutationExecuted: true, sourceAssetsMutated: false },
+    },
   };
 }
 
@@ -962,6 +1047,8 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
+  if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
+  if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
   if (!graph.summary.guardedExecuteCount) failures.push('expected guarded execute objects');
   if (JSON.stringify(graph).includes('targetPath')) failures.push('graph must not expose raw targetPath fields');
   if (failures.length) {
