@@ -853,6 +853,91 @@ function receiptObjects({ hardwareAction, hardwareApproval, workflow, workflowAp
   return receipts;
 }
 
+function buildCustodyObjects({ buildCustody }) {
+  if (!buildCustody?.summary) return [];
+  const summary = buildCustody.summary;
+  const trees = Array.isArray(buildCustody.buildTrees) ? buildCustody.buildTrees : [];
+  const objects = [];
+
+  objects.push({
+    id: 'receipt.build-custody',
+    objectKind: 'receipt',
+    displayName: 'Build Custody',
+    sourceKind: 'receipt',
+    sourceRef: buildCustody.sourceAnchors?.adapter || 'scripts/holoshell-build-custody.mjs',
+    capabilityFamily: 'evidence',
+    trustState: summary.riskState === 'pass' ? 'verified' : summary.riskState === 'warn' ? 'partial' : 'unknown',
+    permissionEnvelope: 'read_only',
+    adapterPath: 'holoshell_build_custody_bridge',
+    visualForm: summary.riskState === 'critical' ? 'warning_token' : 'receipt_node',
+    status: summary.scannerStatus === 'available' ? 'running' : summary.scannerStatus || 'unknown',
+    actorLaneId: 'brittney',
+    receiptTypes: ['build_custody_receipt', 'process_health_receipt'],
+    relationships: {
+      buildProcessCount: summary.buildProcessCount || 0,
+      activeBuildTreeCount: summary.activeBuildTreeCount || 0,
+      longRunningBuildCount: summary.longRunningBuildCount || 0,
+      highMemoryBuildCount: summary.highMemoryBuildCount || 0,
+      riskState: summary.riskState || 'unknown',
+      scannerStatus: summary.scannerStatus || 'unknown',
+      rawCommandsIncluded: Boolean(summary.rawCommandsIncluded),
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'receipt_memory',
+    glyph: 'BC',
+    detail: `${summary.buildProcessCount || 0} build process(es) across ${summary.activeBuildTreeCount || 0} tree(s); ${summary.longRunningBuildCount || 0} long-running; ${summary.highMemoryBuildCount || 0} high-memory; risk ${summary.riskState || 'unknown'}.`,
+    firstScreen: summary.riskState !== 'pass' && summary.riskState !== 'unknown',
+    layout: { x: 5, y: 88, size: 96 },
+  });
+
+  const treeSlots = [
+    { x: 10, y: 12, size: 86 },
+    { x: 22, y: 8, size: 84 },
+    { x: 34, y: 14, size: 82 },
+    { x: 46, y: 10, size: 80 },
+  ];
+
+  for (const [index, tree] of trees.slice(0, 6).entries()) {
+    const slot = treeSlots[index] || layout(index + 22, 78);
+    const treeStatus = tree.status || 'unknown';
+    const isReview = treeStatus === 'memory_review' || treeStatus === 'long_running';
+    objects.push({
+      id: `process.build-tree.${tree.treeId || `tree-${index}`}`,
+      objectKind: 'process',
+      displayName: tree.rootName || 'Build Tree',
+      sourceKind: 'process',
+      sourceRef: tree.treeId || '',
+      capabilityFamily: 'system',
+      trustState: isReview ? 'partial' : 'verified',
+      permissionEnvelope: 'break_glass',
+      adapterPath: 'build_custody_tree_bridge',
+      visualForm: isReview ? 'warning_token' : 'machine',
+      status: treeStatus === 'active' ? 'running' : treeStatus,
+      actorLaneId: 'brittney',
+      receiptTypes: ['build_custody_receipt', 'process_health_receipt'],
+      relationships: {
+        treeId: tree.treeId || '',
+        rootPid: tree.rootPid || 0,
+        processCount: tree.processCount || 0,
+        maxAgeMinutes: tree.maxAgeMinutes || 0,
+        totalMemoryMb: tree.totalMemoryMb || 0,
+        buildKinds: tree.buildKinds || [],
+        findings: tree.findings || [],
+        processPids: tree.processPids || [],
+        receiptRequired: Boolean(tree.receiptRequired),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'observe_then_break_glass',
+      glyph: 'BT',
+      detail: `${tree.rootName || 'Build tree'} with ${tree.processCount || 0} process(es), ${tree.totalMemoryMb || 0} MB, status ${treeStatus}.`,
+      firstScreen: isReview || index < 2,
+      layout: slot,
+    });
+  }
+
+  return objects;
+}
+
 function summarize(objects, feeds) {
   const countByKind = {};
   const countByStatus = {};
@@ -873,6 +958,7 @@ function summarize(objects, feeds) {
     workflowObjectCount: objects.filter((object) => object.objectKind === 'workflow').length,
     approvalObjectCount: objects.filter((object) => object.objectKind === 'approval').length,
     receiptObjectCount: objects.filter((object) => object.objectKind === 'receipt').length,
+    processObjectCount: objects.filter((object) => object.objectKind === 'process').length,
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
@@ -897,6 +983,7 @@ function summarize(objects, feeds) {
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
+      buildCustodyStatus: feeds.buildCustody?.summary?.scannerStatus || feeds.buildCustody?.summary?.riskState || 'unknown',
       agentLaneCount: feeds.lanes?.summary?.laneCount || 0,
     },
   };
@@ -919,6 +1006,7 @@ function loadFeeds(tmpDir) {
     shardWorkflow: readJson(path.join(dir, 'shard-workflow-latest.json'), {}),
     shardImportApproval: readJson(path.join(dir, 'shard-import-approval-latest.json'), {}),
     shardImport: readJson(path.join(dir, 'shard-import-latest.json'), {}),
+    buildCustody: readJson(path.join(dir, 'build-custody.json'), {}),
   };
 }
 
@@ -929,6 +1017,7 @@ function buildGraph(args, fixtures = null) {
     ...baseShellObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
     ...assetShardObjects(feeds),
+    ...buildCustodyObjects(feeds),
     ...programObjects(feeds.programRegistry, args.maxPrograms),
     ...capturedWindowObjects(feeds, args.maxWindows),
     ...agentObjects(feeds.lanes, args.maxAgents),
@@ -956,6 +1045,7 @@ function buildGraph(args, fixtures = null) {
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
+      buildCustody: 'scripts/holoshell-build-custody.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
     },
     summary: summarize(uniqueObjects, feeds),
@@ -1108,6 +1198,46 @@ function fixtureFeeds() {
       output: { receiptPath: '.tmp/holoshell/imported-shards/shard-fixture-demo/import-receipt.json', manifestPath: '.tmp/holoshell/imported-shards/shard-fixture-demo/manifest.json', shardSourcePath: '.tmp/holoshell/imported-shards/shard-fixture-demo/shard.holo' },
       summary: { status: 'completed', shardId: 'shard.fixture.demo', assetCount: 5, runtimeMutationExecuted: true, sourceAssetsMutated: false },
     },
+    buildCustody: {
+      schemaVersion: 'hololand.holoshell.build-custody.v0.1.0',
+      summary: {
+        riskState: 'warn',
+        scannerStatus: 'available',
+        processCount: 5,
+        buildProcessCount: 4,
+        activeBuildTreeCount: 1,
+        buildTreeCount: 1,
+        longRunningBuildCount: 1,
+        highMemoryBuildCount: 0,
+        reviewRequiredCount: 1,
+        rawCommandsIncluded: false,
+        longMinutesThreshold: 45,
+        highMemoryMbThreshold: 1500,
+      },
+      buildTrees: [
+        {
+          treeId: 'build-tree-100',
+          rootPid: 100,
+          rootName: 'pwsh.exe',
+          status: 'long_running',
+          processCount: 4,
+          maxAgeMinutes: 12.0,
+          totalMemoryMb: 460.0,
+          buildKinds: ['pnpm_workspace_build', 'build_child'],
+          findings: ['long_running_build'],
+          processPids: [100, 101, 102, 103],
+          receiptRequired: true,
+          rawCommandsIncluded: false,
+        },
+      ],
+      buildProcesses: [
+        { pid: 100, ppid: 10, name: 'pwsh.exe', buildKind: 'pnpm_workspace_build', ageMinutes: 12.0, memoryMb: 86.0, custodyState: 'active_build', findings: ['long_running_build'] },
+        { pid: 101, ppid: 100, name: 'cmd.exe', buildKind: 'build_child', ageMinutes: 12.0, memoryMb: 14.0, custodyState: 'active_build', findings: [] },
+        { pid: 102, ppid: 101, name: 'node.exe', buildKind: 'build_child', ageMinutes: 11.0, memoryMb: 240.0, custodyState: 'active_build', findings: [] },
+        { pid: 103, ppid: 102, name: 'node.exe', buildKind: 'build_child', ageMinutes: 3.0, memoryMb: 120.0, custodyState: 'active_build', findings: [] },
+      ],
+      receipt: { buildCustodyHash: 'fixture-hash-abc123', destructiveActionsTaken: false, rawCommandsIncluded: false },
+    },
   };
 }
 
@@ -1127,6 +1257,10 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
   if (!graph.objects.some((object) => object.id === 'source.wild-holoscript.uaa2')) failures.push('expected wild HoloScript source corpus object');
   if (graph.summary.wildHoloScriptStatus !== 'scanned') failures.push('expected wild HoloScript scanned status');
+  if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
+  if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');
+  if (graph.summary.processObjectCount !== 1) failures.push('expected one process object from build custody');
+  if (graph.summary.sourceFeeds.buildCustodyStatus !== 'available') failures.push('expected build custody available status');
   if (!graph.summary.guardedExecuteCount) failures.push('expected guarded execute objects');
   if (JSON.stringify(graph).includes('targetPath')) failures.push('graph must not expose raw targetPath fields');
   if (failures.length) {

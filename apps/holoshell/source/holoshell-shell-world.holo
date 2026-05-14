@@ -254,6 +254,13 @@ composition "HoloShell Shell World" {
       position: [3.4, -0.9, -3.2]
       color: "#9affc8"
     }
+
+    object "BuildReceipt" using "ReceiptCrystal" {
+      label: "Build Custody"
+      source_channel: "holoshell:build:custody"
+      position: [0, -1.35, -3.5]
+      color: "#ff9f43"
+    }
   }
 
   logic {
