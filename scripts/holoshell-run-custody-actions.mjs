@@ -156,6 +156,12 @@ function syntheticHardwareReality() {
         healthState: 'listening',
         listeningPorts: [11434],
         commandHash: 'fixture-ollama-command',
+        ownerLaneId: 'ollama',
+        ownerLaneLabel: 'Ollama',
+        ownerSurfaceKind: 'ollama',
+        ownerColorHint: 'gray',
+        ownerEvidence: 'direct_pid',
+        ownerTrustState: 'observed_by_holoshell_mcp',
         rawCommandHidden: true,
       },
     ],
@@ -220,6 +226,13 @@ function visibleRuns(hardwareReality) {
     healthState: run.healthState || 'observed',
     listeningPorts: safeArray(run.listeningPorts),
     commandHash: run.commandHash || null,
+    ownerLaneId: run.ownerLaneId || null,
+    ownerLaneLabel: run.ownerLaneLabel || null,
+    ownerSurfaceKind: run.ownerSurfaceKind || null,
+    ownerColorHint: run.ownerColorHint || null,
+    ownerEvidence: run.ownerEvidence || null,
+    ownerParentPid: run.ownerParentPid || null,
+    ownerTrustState: run.ownerTrustState || null,
     rawCommandHidden: true,
   })).filter((run) => Number.isInteger(run.pid));
 }
@@ -308,6 +321,7 @@ function applyAction(args, hardwareReality, store) {
 
 function statusForRun(run, latest) {
   const receipt = latest.get(run.runId);
+  const observedLaneStatus = run.ownerLaneId ? 'lane_observed' : 'owner_unknown';
   return {
     runId: run.runId,
     pid: run.pid,
@@ -315,9 +329,13 @@ function statusForRun(run, latest) {
     healthState: run.healthState,
     listeningPorts: run.listeningPorts,
     commandHash: run.commandHash,
-    status: receipt?.status || 'owner_unknown',
-    laneId: receipt?.laneId || null,
-    agentKind: receipt?.agentKind || null,
+    status: receipt?.status || observedLaneStatus,
+    laneId: receipt?.laneId || run.ownerLaneId || null,
+    laneLabel: receipt?.laneId ? null : run.ownerLaneLabel || null,
+    agentKind: receipt?.agentKind || run.ownerSurfaceKind || null,
+    ownerEvidence: receipt ? 'receipt' : run.ownerEvidence || null,
+    ownerParentPid: receipt ? null : run.ownerParentPid || null,
+    ownerTrustState: receipt ? 'receipt' : run.ownerTrustState || null,
     expectedEndAt: receipt?.expectedEndAt || null,
     lastReceiptId: receipt?.receiptId || null,
     rawCommandHidden: true,
@@ -392,7 +410,7 @@ function createBrittneyBrief(snapshot) {
   const first = snapshot.recommendations[0] || null;
   return {
     status: summary.ownerUnknownCount || summary.staleRunCount ? 'needs_triage' : 'ready',
-    summary: `${summary.observedRunCount} shell run(s), ${summary.claimedRunCount} claimed, ${summary.ownerUnknownCount} owner unknown, ${summary.staleRunCount} stale, ${summary.closedRunCount} closed.`,
+    summary: `${summary.observedRunCount} shell run(s), ${summary.claimedRunCount} claimed, ${summary.observedOwnerCount} lane observed, ${summary.ownerUnknownCount} owner unknown, ${summary.staleRunCount} stale, ${summary.closedRunCount} closed.`,
     requiredNextAction: first ? `${first.action} ${first.runId}: ${first.reason}` : 'No custody action required before low-risk read-only work.',
     allowedActions: ['claim', 'extend', 'close', 'mark-stale', 'owner-unknown', 'snapshot'],
     blockedActions: ['kill_process', 'delete_file', 'legacy_app_mutation', 'registry_change'],
@@ -405,6 +423,7 @@ function createSnapshot(hardwareReality, store, actionReceipt = null) {
   const latest = latestReceipts(store);
   const runStatuses = runs.map((run) => statusForRun(run, latest));
   const claimed = runStatuses.filter((run) => run.status === 'claimed');
+  const observedOwner = runStatuses.filter((run) => run.status === 'lane_observed');
   const stale = runStatuses.filter((run) => run.status === 'stale' || isOverdue(run));
   const closed = runStatuses.filter((run) => run.status === 'closed');
   const ownerUnknown = runStatuses.filter((run) => run.status === 'owner_unknown');
@@ -420,6 +439,7 @@ function createSnapshot(hardwareReality, store, actionReceipt = null) {
     summary: {
       observedRunCount: runs.length,
       claimedRunCount: claimed.length,
+      observedOwnerCount: observedOwner.length,
       staleRunCount: stale.length,
       ownerUnknownCount: ownerUnknown.length,
       closedRunCount: closed.length,
@@ -464,6 +484,7 @@ function assertSelfTest(snapshot, actionReceipt) {
   if (snapshot.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (snapshot.summary.observedRunCount < 2) failures.push('expected synthetic runs');
   if (snapshot.summary.actionReceiptCount < 1) failures.push('expected custody receipt');
+  if (snapshot.summary.observedOwnerCount < 1) failures.push('expected lane observed synthetic run');
   if (!actionReceipt || actionReceipt.destructiveActionsTaken !== false) failures.push('action receipt must be non-destructive');
   if (snapshot.safety.destructiveActionsTaken !== false) failures.push('snapshot must be non-destructive');
   if (snapshot.safety.rawCommandsIncluded !== false) failures.push('raw commands must stay hidden');
@@ -500,6 +521,7 @@ function main() {
     console.log(`HoloShell run custody browser bootstrap: ${jsOutput}`);
     console.log(`Runs: ${snapshot.summary.observedRunCount}`);
     console.log(`Claimed: ${snapshot.summary.claimedRunCount}`);
+    console.log(`Lane observed: ${snapshot.summary.observedOwnerCount}`);
     console.log(`Owner unknown: ${snapshot.summary.ownerUnknownCount}`);
     console.log(`Stale: ${snapshot.summary.staleRunCount}`);
     console.log(`Closed: ${snapshot.summary.closedRunCount}`);

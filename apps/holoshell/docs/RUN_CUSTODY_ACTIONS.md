@@ -61,6 +61,11 @@ The JSON output includes a `brittneyBrief` with allowed actions, blocked
 actions, and the required next custody action. Brittney should read this brief
 before proposing any shell or legacy-app operation.
 
+When hardware reality can tie a shell run to an agent lane by direct PID or
+parent PID, run custody marks it `lane_observed`. That reduces false
+`owner_unknown` noise without pretending a custody receipt has already been
+written.
+
 ## Rules
 
 1. Stale does not mean kill.
@@ -76,6 +81,7 @@ before proposing any shell or legacy-app operation.
 The non-developer user should see:
 
 - which runs are claimed
+- which runs have observed agent-lane ownership
 - which runs have unknown owners
 - which runs need attention
 - which actions are safe

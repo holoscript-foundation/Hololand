@@ -221,12 +221,35 @@ function semanticPrefixForLane(lane) {
   return `[lane:${lane.agent_id} surface:${lane.surface} source:holoshell-mcp]`;
 }
 
+function numericPids(values) {
+  return safeArray(values).map(Number).filter((pid) => Number.isInteger(pid) && pid > 0);
+}
+
+function lanePidIndex(snapshot) {
+  const index = new Map();
+  for (const lane of safeArray(snapshot.agentLanes)) {
+    const evidence = {
+      laneId: lane.agent_id,
+      label: lane.lane_label || lane.agent_id,
+      surfaceKind: lane.surface,
+      colorHint: lane.lane_color || 'white',
+      trustState: 'observed_by_holoshell_mcp',
+    };
+    for (const pid of numericPids(lane.pid_links)) {
+      index.set(pid, evidence);
+    }
+  }
+  return index;
+}
+
 function buildLaneModels(snapshot) {
   return safeArray(snapshot.agentLanes).map((lane) => ({
     laneId: lane.agent_id,
     label: lane.lane_label || lane.agent_id,
     surfaceKind: lane.surface,
     colorHint: lane.lane_color || 'white',
+    pidLinks: numericPids(lane.pid_links),
+    runIds: safeArray(lane.current_run_ids).map(String),
     pidCount: safeArray(lane.pid_links).length,
     runCount: safeArray(lane.current_run_ids).length,
     healthState: lane.health_state || 'observed',
@@ -237,19 +260,34 @@ function buildLaneModels(snapshot) {
 }
 
 function buildShellRunModels(snapshot) {
+  const laneByPid = lanePidIndex(snapshot);
   return safeArray(snapshot.shellRuns)
     .slice(0, 48)
-    .map((run) => ({
-      runId: run.run_id,
-      pid: run.pid,
-      processName: run.process,
-      parentPid: run.parentPid || null,
-      healthState: run.health_state || 'observed',
-      listeningPorts: safeArray(run.listeningPorts),
-      commandHash: run.command_hash || null,
-      rawCommandHidden: true,
-      receiptRequired: true,
-    }));
+    .map((run) => {
+      const pid = Number(run.pid);
+      const parentPid = Number(run.parentPid);
+      const directLane = laneByPid.get(pid);
+      const parentLane = laneByPid.get(parentPid);
+      const owner = directLane || parentLane || null;
+      return {
+        runId: run.run_id,
+        pid,
+        processName: run.process,
+        parentPid: Number.isInteger(parentPid) ? parentPid : null,
+        healthState: run.health_state || 'observed',
+        listeningPorts: safeArray(run.listeningPorts),
+        commandHash: run.command_hash || null,
+        ownerLaneId: owner?.laneId || null,
+        ownerLaneLabel: owner?.label || null,
+        ownerSurfaceKind: owner?.surfaceKind || null,
+        ownerColorHint: owner?.colorHint || null,
+        ownerEvidence: directLane ? 'direct_pid' : parentLane ? 'parent_pid' : null,
+        ownerParentPid: parentLane ? parentPid : null,
+        ownerTrustState: owner?.trustState || null,
+        rawCommandHidden: true,
+        receiptRequired: true,
+      };
+    });
 }
 
 function groupLegacyApps(snapshot) {
@@ -343,6 +381,8 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
     processCount: snapshot.counts?.processes || safeArray(snapshot.processes).length,
     listenerCount: snapshot.counts?.listeners || safeArray(snapshot.listeners).length,
     shellRunCount: snapshot.counts?.shellRuns || safeArray(snapshot.shellRuns).length,
+    laneAttributedShellRunCount: shellRuns.filter((run) => run.ownerLaneId).length,
+    unattributedShellRunCount: shellRuns.filter((run) => !run.ownerLaneId).length,
     laneCount: lanes.length,
     activeLaneCount: lanes.filter((lane) => lane.pidCount > 0).length,
     legacyAppCount: legacyApps.reduce((sum, app) => sum + app.observedProcessCount, 0),
@@ -428,6 +468,7 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
         summary,
         safety,
         lanes: lanes.map((lane) => [lane.laneId, lane.pidCount, lane.healthState]),
+        shellRunOwners: shellRuns.map((run) => [run.runId, run.ownerLaneId, run.ownerEvidence]),
       })),
       destructiveActionsTaken: safety.destructiveActionsTaken,
       rawCommandsIncluded: false,
@@ -458,6 +499,10 @@ function assertSelfTest(model) {
   if (!model.summary.requiredToolsAvailable) failures.push('not all required MCP tools are available');
   if (model.summary.processCount < 4) failures.push('expected fixture processes');
   if (model.summary.shellRunCount < 1) failures.push('expected fixture shell run');
+  if (model.summary.laneAttributedShellRunCount < 1) failures.push('expected fixture shell run lane attribution');
+  if (model.shellRuns.find((run) => run.pid === 202)?.ownerLaneId !== 'codex') {
+    failures.push('expected fixture shell run 202 to inherit codex lane from parent pid');
+  }
   if (model.summary.listenerCount < 1) failures.push('expected fixture listener');
   if (model.summary.activeLaneCount < 1) failures.push('expected active agent lane');
   if (model.summary.legacyAppCount < 1) failures.push('expected legacy app custody');

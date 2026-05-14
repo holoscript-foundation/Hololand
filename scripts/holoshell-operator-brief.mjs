@@ -104,6 +104,7 @@ function syntheticInputs() {
       summary: {
         observedRunCount: 2,
         claimedRunCount: 1,
+        observedOwnerCount: 0,
         ownerUnknownCount: 1,
         staleRunCount: 0,
         closedRunCount: 0,
@@ -244,6 +245,7 @@ function createBrief(inputs) {
     runs: {
       observedRunCount: runCustody.summary?.observedRunCount || 0,
       claimedRunCount: runCustody.summary?.claimedRunCount || 0,
+      observedOwnerCount: runCustody.summary?.observedOwnerCount || 0,
       ownerUnknownCount: runCustody.summary?.ownerUnknownCount || 0,
       staleRunCount: runCustody.summary?.staleRunCount || 0,
       closedRunCount: runCustody.summary?.closedRunCount || 0,

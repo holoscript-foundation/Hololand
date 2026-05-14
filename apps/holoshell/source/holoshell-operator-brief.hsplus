@@ -17,6 +17,7 @@ composition "HoloShell Operator Brief" {
     status: "unknown"
     hardwareRisk: "unknown"
     activeLaneCount: 0
+    observedOwnerRunCount: 0
     ownerUnknownRunCount: 0
     legacyCaptureCandidateCount: 0
     blockedActionCount: 0
@@ -59,6 +60,7 @@ composition "HoloShell Operator Brief" {
       type: "ui"
       uiType: "operator_state"
       label: "Runs"
+      observedOwners: $observedOwnerRunCount
       ownerUnknown: $ownerUnknownRunCount
     }
 
@@ -96,6 +98,7 @@ composition "HoloShell Operator Brief" {
     state.status = brief.status
     state.hardwareRisk = brief.hardware.riskState
     state.activeLaneCount = brief.hardware.activeLaneCount
+    state.observedOwnerRunCount = brief.runs.observedOwnerCount
     state.ownerUnknownRunCount = brief.runs.ownerUnknownCount
     state.legacyCaptureCandidateCount = brief.legacy.captureCandidateCount
     state.blockedActionCount = brief.blockedActions.length
@@ -106,6 +109,7 @@ composition "HoloShell Operator Brief" {
       status: state.status,
       hardwareRisk: state.hardwareRisk,
       activeLanes: state.activeLaneCount,
+      observedOwnerRuns: state.observedOwnerRunCount,
       ownerUnknownRuns: state.ownerUnknownRunCount,
       legacyCaptureCandidates: state.legacyCaptureCandidateCount,
       blockedActions: state.blockedActionCount,

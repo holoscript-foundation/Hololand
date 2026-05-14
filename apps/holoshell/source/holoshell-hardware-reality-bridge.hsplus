@@ -20,6 +20,8 @@ composition "HoloShell Hardware Reality Bridge" {
     activeLaneCount: 0
     processCount: 0
     shellRunCount: 0
+    laneAttributedShellRunCount: 0
+    unattributedShellRunCount: 0
     listenerCount: 0
     legacyAppCount: 0
     terminationPreflightCount: 0
@@ -40,6 +42,12 @@ composition "HoloShell Hardware Reality Bridge" {
     description: "Agent lane objects created from the HoloShell run registry"
   }
 
+  channel "holoshell:hardware:run" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Shell run objects with observed agent-lane ownership evidence"
+  }
+
   channel "holoshell:hardware:legacy_app" {
     type: "pub_sub"
     priority: "high"
@@ -58,6 +66,9 @@ composition "HoloShell Hardware Reality Bridge" {
     laneId: ""
     label: ""
     surfaceKind: ""
+    colorHint: ""
+    pidLinks: []
+    runIds: []
     pidCount: 0
     runCount: 0
     colorIsVisualHintOnly: true
@@ -69,6 +80,9 @@ composition "HoloShell Hardware Reality Bridge" {
     type: "machine"
     machineType: "shell_run"
     pid: 0
+    parentPid: 0
+    ownerLaneId: ""
+    ownerEvidence: ""
     processName: ""
     healthState: "observed"
     listeningPorts: []
@@ -108,6 +122,8 @@ composition "HoloShell Hardware Reality Bridge" {
       label: "Shell Runs"
       processes: $processCount
       shellRuns: $shellRunCount
+      laneAttributedShellRuns: $laneAttributedShellRunCount
+      unattributedShellRuns: $unattributedShellRunCount
       listeners: $listenerCount
       riskState: $riskState
     }
@@ -158,6 +174,8 @@ composition "HoloShell Hardware Reality Bridge" {
     state.activeLaneCount = model.summary.activeLaneCount
     state.processCount = model.summary.processCount
     state.shellRunCount = model.summary.shellRunCount
+    state.laneAttributedShellRunCount = model.summary.laneAttributedShellRunCount
+    state.unattributedShellRunCount = model.summary.unattributedShellRunCount
     state.listenerCount = model.summary.listenerCount
     state.legacyAppCount = model.summary.legacyAppCount
     state.terminationPreflightCount = model.summary.terminationPreflightCount
@@ -170,6 +188,8 @@ composition "HoloShell Hardware Reality Bridge" {
       activeLanes: state.activeLaneCount,
       processes: state.processCount,
       shellRuns: state.shellRunCount,
+      laneAttributedShellRuns: state.laneAttributedShellRunCount,
+      unattributedShellRuns: state.unattributedShellRunCount,
       listeners: state.listenerCount,
       legacyApps: state.legacyAppCount,
       riskState: state.riskState,
@@ -185,10 +205,26 @@ composition "HoloShell Hardware Reality Bridge" {
       label: lane.label,
       surfaceKind: lane.surfaceKind,
       colorHint: lane.colorHint,
+      pidLinks: lane.pidLinks,
+      runIds: lane.runIds,
       pidCount: lane.pidCount,
       runCount: lane.runCount,
       semanticPrefix: lane.semanticPrefix,
       colorIsVisualHintOnly: true,
+      receiptRequired: true
+    })
+  }
+
+  action render_shell_run(run) {
+    emit("holoshell:hardware:run", {
+      runId: run.runId,
+      pid: run.pid,
+      parentPid: run.parentPid,
+      processName: run.processName,
+      ownerLaneId: run.ownerLaneId,
+      ownerEvidence: run.ownerEvidence,
+      healthState: run.healthState,
+      rawCommandHidden: true,
       receiptRequired: true
     })
   }

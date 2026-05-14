@@ -133,7 +133,7 @@
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(6, minmax(110px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
       gap: 10px;
     }
 
@@ -460,6 +460,7 @@
       const items = [
         ["Processes", summary.processCount],
         ["Shell Runs", summary.shellRunCount],
+        ["Lane Owned", custodySummary.observedOwnerCount ?? summary.laneAttributedShellRunCount ?? 0],
         ["Listeners", summary.listenerCount],
         ["Agent Lanes", `${summary.activeLaneCount}/${summary.laneCount}`],
         ["Unknown Owners", custodySummary.ownerUnknownCount ?? summary.shellRunCount],
@@ -506,6 +507,7 @@
           <h3>${text(run.processName, "process")}</h3>
           <p class="sub">PID ${text(run.pid)} / ${text(run.healthState)}</p>
           <p class="sub">${status.replace("_", " ")}${runCustody.laneId ? ` / ${runCustody.laneId}` : ""}</p>
+          <p class="sub">${runCustody.ownerEvidence || run.ownerEvidence || "receipt pending"}</p>
           <p class="sub">Ports ${(run.listeningPorts || []).join(", ") || "none"}</p>
           <p class="hash">${shortHash(run.commandHash)}</p>
         `;
@@ -560,7 +562,7 @@
         ["Destructive Actions", safety.destructiveActionsTaken ? "blocked" : "false"],
         ["Termination Policy", safety.preflightRequiredForTermination ? "preflight required" : "missing"],
         ["MCP Tools", `${summary.mcpToolCount || 0}/${summary.requiredToolCount || 0}`],
-        ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.ownerUnknownCount || 0} unknown`],
+        ["Run Custody", `${custodySummary.claimedRunCount || 0} claimed / ${custodySummary.observedOwnerCount || 0} lane / ${custodySummary.ownerUnknownCount || 0} unknown`],
         ["Brittney Next", brief.requiredNextAction || "Run custody snapshot first"],
         ["Legacy Absorption", `${legacySummary.captureCandidateCount || 0} capture candidates / ${legacySummary.preflightRequiredCount || 0} gated`],
         ["Legacy Next", legacyBrief.requiredNextAction || "Legacy app absorption snapshot first"],

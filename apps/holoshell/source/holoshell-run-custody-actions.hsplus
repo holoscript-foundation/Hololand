@@ -17,6 +17,7 @@ composition "HoloShell Run Custody Actions" {
   state {
     observedRunCount: 0
     claimedRunCount: 0
+    observedOwnerCount: 0
     staleRunCount: 0
     ownerUnknownCount: 0
     closedRunCount: 0
@@ -50,6 +51,9 @@ composition "HoloShell Run Custody Actions" {
     runId: ""
     pid: 0
     laneId: ""
+    laneLabel: ""
+    ownerEvidence: ""
+    ownerParentPid: 0
     reason: ""
     destructiveActionsTaken: false
     rawCommandHidden: true
@@ -87,6 +91,13 @@ composition "HoloShell Run Custody Actions" {
       count: $claimedRunCount
     }
 
+    object "ObservedOwners" {
+      type: "ui"
+      uiType: "run_counter"
+      label: "Lane Observed"
+      count: $observedOwnerCount
+    }
+
     object "AttentionQueue" {
       type: "ui"
       uiType: "run_attention_queue"
@@ -120,6 +131,15 @@ composition "HoloShell Run Custody Actions" {
     receiptRequired: true
   }
 
+  policy "LaneEvidenceIsObservedOwnership" {
+    appliesTo: ["lane_observed_run", "parent_pid_lane_match", "direct_pid_lane_match"]
+    claimReceiptRequiredForMutation: true
+    processTerminationAllowed: false
+    colorIsVisualHintOnly: true
+    semanticEvidenceRequired: true
+    receiptRequired: true
+  }
+
   policy "StaleDoesNotMeanKill" {
     appliesTo: ["stale_run", "owner_unknown", "overdue_run"]
     defaultAction: "ask_owner_or_close_with_receipt"
@@ -130,6 +150,7 @@ composition "HoloShell Run Custody Actions" {
   action consume_custody_snapshot(snapshot) {
     state.observedRunCount = snapshot.summary.observedRunCount
     state.claimedRunCount = snapshot.summary.claimedRunCount
+    state.observedOwnerCount = snapshot.summary.observedOwnerCount
     state.staleRunCount = snapshot.summary.staleRunCount
     state.ownerUnknownCount = snapshot.summary.ownerUnknownCount
     state.closedRunCount = snapshot.summary.closedRunCount
@@ -139,6 +160,7 @@ composition "HoloShell Run Custody Actions" {
     emit("holoshell:run:custody", {
       observedRuns: state.observedRunCount,
       claimedRuns: state.claimedRunCount,
+      observedOwners: state.observedOwnerCount,
       staleRuns: state.staleRunCount,
       ownerUnknown: state.ownerUnknownCount,
       closedRuns: state.closedRunCount,
