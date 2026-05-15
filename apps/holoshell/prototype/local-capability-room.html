@@ -633,6 +633,76 @@
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
     }
 
+    .network-guard {
+      position: absolute;
+      left: clamp(12px, 4vw, 34px);
+      right: clamp(12px, 4vw, 34px);
+      top: 82px;
+      z-index: 2;
+      min-height: 54px;
+      border-radius: 22px;
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      text-align: left;
+      background: rgba(4, 8, 12, 0.30);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+      backdrop-filter: blur(18px) saturate(1.25);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+    }
+
+    .network-guard[data-risk="warn"],
+    .network-guard[data-risk="critical"] {
+      border-color: color-mix(in srgb, var(--accent-2) 68%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 12%, rgba(4, 8, 12, 0.36));
+    }
+
+    .network-guard .guard-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 18px var(--accent);
+    }
+
+    .network-guard[data-risk="warn"] .guard-dot,
+    .network-guard[data-risk="critical"] .guard-dot {
+      background: var(--accent-2);
+      box-shadow: 0 0 18px var(--accent-2);
+    }
+
+    .network-guard strong,
+    .network-guard span,
+    .network-guard em {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .network-guard strong {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .network-guard span {
+      display: block;
+      color: var(--soft);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    .network-guard em {
+      justify-self: end;
+      font-style: normal;
+      color: var(--accent);
+      font-size: 12px;
+    }
+
     .control-step {
       min-height: 78px;
       border: 1px solid rgba(255, 255, 255, 0.13);
@@ -1005,6 +1075,17 @@
         white-space: normal;
       }
 
+      .network-guard {
+        grid-template-columns: auto minmax(0, 1fr);
+        top: 118px;
+      }
+
+      .network-guard em {
+        grid-column: 2;
+        justify-self: start;
+        white-space: normal;
+      }
+
       .control-lane {
         grid-template-columns: 1fr;
       }
@@ -1124,6 +1205,14 @@
           <span>Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube.</span>
           <em>Guarded</em>
         </div>
+        <button class="network-guard" id="networkGuard" type="button" data-risk="unknown" aria-label="Network reality">
+          <span class="guard-dot" aria-hidden="true"></span>
+          <span>
+            <strong id="networkGuardTitle">Network Reality</strong>
+            <span id="networkGuardDetail">Loading connection policy</span>
+          </span>
+          <em id="networkGuardAction">Receipts</em>
+        </button>
         <div class="bubble-field" id="bubbleField" aria-label="Shell objects"></div>
         <div class="control-lane" id="controlLane" aria-label="Hardware control pipeline"></div>
       </section>
@@ -1194,6 +1283,7 @@
     const standaloneShardWorkflowFeed = window.HOLOSHELL_SHARD_WORKFLOW || {};
     const standaloneShardImportApprovalFeed = window.HOLOSHELL_SHARD_IMPORT_APPROVAL || {};
     const standaloneShardImportFeed = window.HOLOSHELL_SHARD_IMPORT || {};
+    const standaloneNetworkRealityFeed = window.HOLOSHELL_NETWORK_REALITY || {};
     let controlDaemonHealth = { status: "offline", executeEnabled: false };
     let avatarSpeechTimer = 0;
     let speechRecognition = null;
@@ -1204,6 +1294,7 @@
       { id: "excel", label: "Excel", glyph: "XL", type: "program", detail: "Excel is a guarded launch target Brittney can stage through the local hardware lane.", x: 6, y: 47, size: 92 },
       { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
+      { id: "network-reality", label: "Network", glyph: "NW", type: "holoweb", detail: "HoloWeb Local Reality Node protects bandwidth before agents spend it.", x: 63, y: 55, size: 102 },
       { id: "agent-dispatch", label: "Dispatch", glyph: "AD", type: "workflow", detail: "Brittney turns plain-language intent into the right guarded workflow or hardware action.", x: 26, y: 66, size: 108 },
       { id: "founder-command", label: "Founder Command", glyph: "FC", type: "os command", detail: "One receipt for intent, plan, approval, trust gate, launcher, and shell memory.", x: 31, y: 79, size: 104 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
@@ -1551,6 +1642,22 @@
     function brittneyContextSummary() {
       const context = brittneyContextFeed();
       return context.summary || {};
+    }
+
+    function networkRealityFeed() {
+      return feed.feeds?.networkReality?.underlay ? feed.feeds.networkReality : standaloneNetworkRealityFeed;
+    }
+
+    function networkRealitySummary() {
+      const network = networkRealityFeed();
+      return {
+        underlay: network.underlay || {},
+        health: network.health || {},
+        policy: network.policy || {},
+        brittney: network.brittney || {},
+        lanes: network.lanes || {},
+        receipt: network.receipt || {},
+      };
     }
 
     function hardwareLatestAction() {
@@ -2002,6 +2109,7 @@
       if (shouldStageDispatch(text)) add("agent-dispatch", "Dispatch", "stage_agent_dispatch", "plain-language route to guarded adapter", { permissionEnvelope: "intent_scoped" });
       graphPrograms.forEach((object) => add(object.id, object.displayName, "stage_launch_app", "local program object", { permissionEnvelope: object.permissionEnvelope || "guarded_execute" }));
       if (/\b(browser|web|url|site|page|internet|chrome|edge)\b/.test(text)) add("browser", "Browser", "focus_shell_object", "web surface");
+      if (/\b(network|internet|hotspot|metered|bandwidth|wifi|vpn|download|upload|sync)\b/.test(text)) add("network-reality", "Network", "focus_shell_object", "bandwidth policy");
       if (/\b(file|folder|project|repo|document|directory|workspace)\b/.test(text)) add("files", "Files", "focus_shell_object", "local file context");
       if (/\b(ollama cloud|ollama launch|openclaw|open claw|hermes|opencode|open code|copilot cli|droid|pi agent|launch codex|launch claude code)\b/.test(text)) add("ollama-agents", "Ollama Agents", "stage_ollama_cloud_agent_workflow", "guarded Ollama Cloud agent launch", { permissionEnvelope: "guarded_execute" });
       if (/\b(grok|grok build|supergrok|xai)\b/.test(text)) add("grok-build", "Grok Build", "stage_grok_build_workflow", "guarded Grok Build coding-agent lane", { permissionEnvelope: "guarded_execute" });
@@ -2072,6 +2180,7 @@
       const osCapture = feed.feeds?.osUiCapture;
       const avatarSummary = brittneyAvatarSummary();
       const hardwareSummary = hardwareActionSummary();
+      const network = networkRealitySummary();
       const registrySummary = programRegistrySummary();
       const approvalSummary = hardwareApprovalSummary();
       const activeWorkflow = workflowSummary();
@@ -2124,6 +2233,21 @@
               : "Brittney routes requests like open Excel, launch Codex, Claude chat, room marathon, and lofi into approval-backed HoloShell actions.",
             trustState: dispatchSummary.status === "ready_to_stage" ? "partial" : object.trustState,
             permissionEnvelope: "intent_scoped",
+          };
+        }
+        if (object.id === "network-reality") {
+          return {
+            ...object,
+            detail: `${network.underlay.classification || summary.networkRealityStatus || "unknown"}; OS cost ${network.underlay.osCost || summary.networkRealityOsCost || "Unknown"}; ${network.lanes.networkConsumerCount || summary.networkRealityConsumerCount || 0} network consumer(s); Brittney ${network.brittney.stance || summary.networkRealityBrittneyStance || "unknown"}.`,
+            trustState: network.underlay.confidence === "owner_declared" || network.underlay.confidence === "os_reported" ? "verified" : "partial",
+            permissionEnvelope: "read_only",
+            evidence: {
+              classification: network.underlay.classification || summary.networkRealityStatus || "unknown",
+              owner: network.underlay.ownerDeclaredKind || summary.networkRealityOwnerDeclaredKind || "none",
+              cost: network.underlay.osCost || summary.networkRealityOsCost || "Unknown",
+              policy: network.policy.heavyWorkPolicy || summary.networkRealityHeavyWorkPolicy || "unknown",
+              consumers: network.lanes.networkConsumerCount || summary.networkRealityConsumerCount || 0,
+            },
           };
         }
         if (object.id === "gold-codebase") {
@@ -2615,6 +2739,18 @@
         }, actions.length === 0));
         actions.push(actionButton("List programs", () => stageDaemonAction("Program inventory", "/action", { action: "list_programs" })));
       }
+      if (object.id === "network-reality") {
+        actions.push(actionButton("Review bandwidth", () => {
+          const network = networkRealitySummary();
+          result.hidden = false;
+          result.textContent = `Network ${network.underlay.classification || "unknown"}: owner ${network.underlay.ownerDeclaredKind || "none"}, OS cost ${network.underlay.osCost || "Unknown"}, policy ${network.policy.heavyWorkPolicy || "unknown"}, consumers ${network.lanes.networkConsumerCount || 0}, legacy ${network.lanes.legacyNetworkConsumerCount || 0}.`;
+          appendConversation(network.brittney.firstMessage || "I will use network reality before spending bandwidth.");
+        }, actions.length === 0));
+        actions.push(actionButton("Ask Brittney", () => {
+          document.getElementById("askInput").value = "Explain the current network reality and what work should wait";
+          askBrittney();
+        }));
+      }
       if (object.id === "asset-shard" || shellObject.id === "workflow.asset-shard") {
         actions.push(actionButton("Review shard plan", () => {
           const shard = shardWorkflowFeed();
@@ -3036,9 +3172,28 @@
       }));
     }
 
+    function renderNetworkGuard() {
+      const guard = document.getElementById("networkGuard");
+      if (!guard) return;
+      const summary = feed.summary || {};
+      const network = networkRealitySummary();
+      const classification = network.underlay.classification || summary.networkRealityStatus || "unknown";
+      const policy = network.policy.heavyWorkPolicy || summary.networkRealityHeavyWorkPolicy || "unknown";
+      const protect = Boolean(network.brittney.protectBandwidth || summary.networkRealityProtectBandwidth);
+      const consumers = network.lanes.networkConsumerCount || summary.networkRealityConsumerCount || 0;
+      const legacyConsumers = network.lanes.legacyNetworkConsumerCount || summary.networkRealityLegacyConsumerCount || 0;
+      const health = network.health.state || summary.networkRealityHealthState || "unknown";
+      guard.dataset.risk = health === "critical" ? "critical" : protect ? "warn" : "pass";
+      document.getElementById("networkGuardTitle").textContent = protect ? "Bandwidth Protected" : "Network Ready";
+      document.getElementById("networkGuardDetail").textContent = `${classification}; ${consumers} consumer(s), ${legacyConsumers} legacy; ${policy}.`;
+      document.getElementById("networkGuardAction").textContent = network.receipt.snapshotHash ? "Receipt" : "No receipt";
+      guard.setAttribute("aria-label", `Network reality ${classification}. ${policy}.`);
+    }
+
     function renderEvidence() {
       const summary = feed.summary || {};
       const process = feed.feeds?.processHealth?.summary || {};
+      const network = networkRealitySummary();
       const avatarSummary = brittneyAvatarSummary();
       const turn = brittneyLatestTurn();
       const turnSummary = turn.summary || {};
@@ -3082,6 +3237,7 @@
         "Avatar source: source/holoshell-brittney-avatar.hsplus",
         "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
         "Hardware source: source/holoshell-hardware-control.hsplus",
+        "Network source: source/holoshell-network-reality.hsplus",
         "Wild source: source/holoshell-wild-holoscript-intake.hsplus",
         "Substrate bridge: source/holoshell-holoscript-gold-codebase-bridge.hsplus",
         "Development source: source/holoshell-developmental-environment.hsplus",
@@ -3095,6 +3251,8 @@
         `Wild promotion: frontier ${wildSummary.frontierSyntaxCount || summary.wildHoloScriptFrontierSyntaxCount || 0}; adapters ${wildSummary.adapterNeededCount || summary.wildHoloScriptAdapterNeededCount || 0}; candidates ${wildSummary.canonicalCandidateCount || summary.wildHoloScriptCanonicalCandidateCount || 0}; next ${wildSummary.nextMove || summary.wildHoloScriptNextMove || "none"}`,
         `Readiness evidence: ${readinessSummary.status || summary.readinessEvidenceStatus || "unknown"}; build ${readinessSummary.buildStatus || summary.readinessBuildStatus || "unknown"}; device ${readinessSummary.deviceLabStatus || summary.readinessDeviceLabStatus || "unknown"}; graph ${readinessSummary.graphStatus || summary.readinessGraphStatus || "unknown"}`,
         `Readiness tokens: ${readinessSummary.tokenCount || summary.readinessTokenCount || 0}; warnings ${readinessSummary.warningCount || summary.readinessWarningCount || 0}; next ${readinessSummary.nextWorkflow || summary.readinessNextWorkflow || "none"}`,
+        `Network reality: ${network.underlay.classification || summary.networkRealityStatus || "unknown"}; owner ${network.underlay.ownerDeclaredKind || summary.networkRealityOwnerDeclaredKind || "none"}; OS cost ${network.underlay.osCost || summary.networkRealityOsCost || "Unknown"}; VPN ${network.underlay.vpnState || summary.networkRealityVpnState || "unknown"}`,
+        `Bandwidth policy: ${network.policy.heavyWorkPolicy || summary.networkRealityHeavyWorkPolicy || "unknown"}; Brittney ${network.brittney.stance || summary.networkRealityBrittneyStance || "unknown"}; protect ${network.brittney.protectBandwidth || summary.networkRealityProtectBandwidth ? "yes" : "no"}; consumers ${network.lanes.networkConsumerCount || summary.networkRealityConsumerCount || 0}`,
         `Control daemon: ${controlDaemonHealth.status || "offline"}; execute ${controlDaemonHealth.executeEnabled ? "enabled" : "disabled"}`,
         `Captured UI: ${summary.capturedWindowCount || 0} windows, ${summary.capturedGeometryNodeCount || 0} geometric shards`,
         `Program registry: ${registrySummary.launchableProgramCount || summary.launchableProgramCount || 0} launchable, ${registrySummary.programCount || summary.installedProgramCount || 0} installed entries`,
@@ -3135,6 +3293,7 @@
       }));
       document.getElementById("receiptPill").textContent = `${summary.timelineCount || 0} receipts; ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} objects`;
       document.getElementById("statusText").textContent = `${process.riskState || "unknown"} custody`;
+      renderNetworkGuard();
       renderHardwareApprovalCue();
       renderControlLane();
     }
@@ -3232,6 +3391,10 @@
 
     window.addEventListener("resize", resize);
     document.getElementById("brittneyAvatar").addEventListener("click", () => activateBrittneyAvatar("avatar"));
+    document.getElementById("networkGuard").addEventListener("click", () => {
+      const object = shellObjects().find((item) => item.id === "network-reality");
+      if (object) selectObject(object);
+    });
     document.getElementById("approvalChip").addEventListener("click", () => {
       const targetObject = document.getElementById("approvalChip").dataset.object || "hardware-control";
       const object = shellObjects().find((item) => item.id === targetObject);
