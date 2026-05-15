@@ -1407,6 +1407,41 @@ function mcpCustodyContractObjects(mcpCustodyContract) {
   }];
 }
 
+function mcpUpstreamHandoffObjects(mcpUpstreamHandoff) {
+  if (!mcpUpstreamHandoff?.summary) return [];
+  const summary = mcpUpstreamHandoff.summary;
+  const nativeReady = summary.status === 'native_ready_no_handoff_needed';
+  return [{
+    id: 'receipt.mcp-custody-upstream-handoff',
+    objectKind: 'receipt',
+    displayName: 'MCP Upstream Handoff',
+    sourceKind: 'receipt',
+    sourceRef: mcpUpstreamHandoff.sourceAnchors?.adapter || 'scripts/holoshell-mcp-upstream-handoff.mjs',
+    capabilityFamily: 'mcp_custody_upstream_handoff',
+    trustState: nativeReady ? 'verified' : 'partial',
+    permissionEnvelope: 'read_only',
+    adapterPath: 'holoshell_mcp_upstream_handoff',
+    visualForm: nativeReady ? 'receipt_node' : 'handoff_card',
+    status: summary.status || 'unknown',
+    actorLaneId: 'codex-hardware',
+    receiptTypes: [mcpUpstreamHandoff.schemaVersion || 'hololand.holoshell.mcp-custody-upstream-handoff.v0.1.0'],
+    relationships: {
+      targetTool: summary.targetTool || 'holoshell_run_registry_snapshot',
+      currentCompatibilityMode: summary.currentCompatibilityMode || 'unknown',
+      nativeMcpCustodySplit: Boolean(summary.nativeMcpCustodySplit),
+      upstreamRepoRequired: Boolean(summary.upstreamRepoRequired),
+      taskCount: summary.taskCount || 0,
+      acceptanceGateCount: summary.acceptanceGateCount || 0,
+    },
+    privacyClass: 'local_private',
+    replacementPath: nativeReady ? 'native_mcp_contract_memory' : 'route_to_mcp_host_agent',
+    glyph: 'UH',
+    detail: `${summary.targetTool || 'holoshell_run_registry_snapshot'} handoff ${summary.status || 'unknown'}; ${summary.taskCount || 0} task(s), ${summary.acceptanceGateCount || 0} gate(s).`,
+    firstScreen: !nativeReady,
+    layout: { x: 74, y: 79, size: 76 },
+  }];
+}
+
 function assetShardObjects({ shardWorkflow, shardImport }) {
   if (!shardWorkflow?.summary && !shardImport?.summary) return [];
   const objects = [];
@@ -1649,6 +1684,10 @@ function summarize(objects, feeds) {
     mcpCustodyContractStatus: feeds.mcpCustodyContract?.summary?.status || 'unknown',
     mcpCustodyCompatibilityMode: feeds.mcpCustodyContract?.summary?.compatibilityMode || 'unknown',
     nativeMcpCustodySplit: Boolean(feeds.mcpCustodyContract?.summary?.nativeMcpCustodySplit),
+    mcpUpstreamHandoffObjectCount: objects.filter((object) => object.capabilityFamily === 'mcp_custody_upstream_handoff').length,
+    mcpUpstreamHandoffStatus: feeds.mcpUpstreamHandoff?.summary?.status || 'unknown',
+    mcpUpstreamHandoffTargetTool: feeds.mcpUpstreamHandoff?.summary?.targetTool || '',
+    mcpUpstreamHandoffTaskCount: feeds.mcpUpstreamHandoff?.summary?.taskCount || 0,
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
     founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
     userShellObjectCount: objects.filter((object) => object.capabilityFamily === 'user_shell').length,
@@ -1730,6 +1769,7 @@ function summarize(objects, feeds) {
       osUiCaptureStatus: feeds.osUiCapture?.summary?.status || 'unknown',
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
       mcpCustodyContractStatus: feeds.mcpCustodyContract?.summary?.status || 'unknown',
+      mcpUpstreamHandoffStatus: feeds.mcpUpstreamHandoff?.summary?.status || 'unknown',
       goldCodebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.status || 'unknown',
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
@@ -1754,6 +1794,7 @@ function loadFeeds(tmpDir) {
     programRegistry: readJson(path.join(dir, 'program-registry.json'), {}),
     readinessEvidence: readJson(path.join(dir, 'readiness-evidence.json'), {}),
     mcpCustodyContract: readJson(path.join(dir, 'mcp-custody-contract.json'), {}),
+    mcpUpstreamHandoff: readJson(path.join(dir, 'mcp-custody-upstream-handoff.json'), {}),
     goldCodebaseBridge: readJson(path.join(dir, 'holoscript-gold-codebase-bridge.json'), {}),
     wildHoloScript: readJson(path.join(dir, 'wild-holoscript-intake.json'), {}),
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
@@ -1788,6 +1829,7 @@ function buildGraph(args, fixtures = null) {
     ...developmentalEnvironmentObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
     ...mcpCustodyContractObjects(feeds.mcpCustodyContract),
+    ...mcpUpstreamHandoffObjects(feeds.mcpUpstreamHandoff),
     ...assetShardObjects(feeds),
     ...buildCustodyObjects(feeds),
     ...programObjects(feeds.programRegistry, args.maxPrograms),
@@ -1828,6 +1870,7 @@ function buildGraph(args, fixtures = null) {
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
+      mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
     },
     summary: summarize(uniqueObjects, feeds),
@@ -1926,6 +1969,20 @@ function fixtureFeeds() {
       },
       compliance: {
         nextAction: 'Upgrade upstream MCP snapshot so HoloLand no longer needs fallback or overlay custody splitting.',
+      },
+    },
+    mcpUpstreamHandoff: {
+      schemaVersion: 'hololand.holoshell.mcp-custody-upstream-handoff.v0.1.0',
+      handoffId: 'mcp-custody-upstream-fixture',
+      sourceAnchors: { adapter: 'scripts/holoshell-mcp-upstream-handoff.mjs' },
+      summary: {
+        status: 'ready_for_upstream_agent',
+        targetTool: 'holoshell_run_registry_snapshot',
+        currentCompatibilityMode: 'hololand_overlay',
+        nativeMcpCustodySplit: false,
+        upstreamRepoRequired: true,
+        taskCount: 5,
+        acceptanceGateCount: 4,
       },
     },
     goldCodebaseBridge: {
@@ -2246,6 +2303,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-contract')) failures.push('expected MCP custody contract object');
+  if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-upstream-handoff')) failures.push('expected MCP custody upstream handoff object');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
@@ -2269,6 +2327,7 @@ function assertSelfTest() {
   if (graph.summary.goldCodebaseBridgeStatus !== 'ready') failures.push('expected GOLD/codebase bridge ready status');
   if (graph.summary.mcpCustodyContractStatus !== 'warn') failures.push('expected MCP custody contract warning status');
   if (graph.summary.mcpCustodyCompatibilityMode !== 'hololand_overlay') failures.push('expected MCP custody overlay mode');
+  if (graph.summary.mcpUpstreamHandoffStatus !== 'ready_for_upstream_agent') failures.push('expected MCP upstream handoff ready status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');
   if (graph.summary.processObjectCount !== 1) failures.push('expected one process object from build custody');
