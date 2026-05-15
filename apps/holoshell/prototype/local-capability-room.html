@@ -554,12 +554,134 @@
       flex: 0 0 auto;
     }
 
-    .bubble-field {
+    .os-world {
       position: relative;
       min-height: 540px;
       border-radius: 38px;
       overflow: hidden;
       min-width: 0;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background:
+        radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 0 34%, transparent 56%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+    }
+
+    .demo-command {
+      position: absolute;
+      left: clamp(12px, 4vw, 34px);
+      right: clamp(12px, 4vw, 34px);
+      top: 16px;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+      border-radius: 22px;
+      padding: 12px 14px;
+      color: var(--soft);
+      background: rgba(4, 8, 12, 0.32);
+      backdrop-filter: blur(18px) saturate(1.25);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+      pointer-events: none;
+    }
+
+    .demo-command strong {
+      color: var(--ink);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .demo-command span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .demo-command em {
+      font-style: normal;
+      color: var(--accent);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .bubble-field {
+      position: absolute;
+      inset: 0;
+      min-height: inherit;
+      min-width: 0;
+    }
+
+    .control-lane {
+      position: absolute;
+      left: clamp(12px, 4vw, 34px);
+      right: clamp(12px, 4vw, 34px);
+      bottom: 18px;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 22px;
+      padding: 10px;
+      background: rgba(5, 8, 12, 0.42);
+      backdrop-filter: blur(18px) saturate(1.25);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+    }
+
+    .control-step {
+      min-height: 78px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 16px;
+      padding: 10px;
+      display: grid;
+      align-content: space-between;
+      gap: 7px;
+      color: var(--soft);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .control-step[data-state="guarded"],
+    .control-step[data-state="pending_user_approval"] {
+      border-color: color-mix(in srgb, var(--accent-2) 48%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 12%, rgba(255, 255, 255, 0.05));
+    }
+
+    .control-step[data-state="ready"],
+    .control-step[data-state="matched"] {
+      border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+    }
+
+    .control-step strong {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .control-step small {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.24;
+      min-height: 24px;
+    }
+
+    .meter {
+      height: 4px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: var(--value);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
     }
 
     .bubble {
@@ -829,6 +951,10 @@
         min-height: 520px;
       }
 
+      .os-world {
+        min-height: 600px;
+      }
+
       .context-panel,
       .brittney {
         min-height: auto;
@@ -863,6 +989,24 @@
 
       .bubble-field {
         min-height: 620px;
+      }
+
+      .os-world {
+        min-height: 760px;
+      }
+
+      .demo-command {
+        grid-template-columns: 1fr;
+      }
+
+      .demo-command strong,
+      .demo-command span,
+      .demo-command em {
+        white-space: normal;
+      }
+
+      .control-lane {
+        grid-template-columns: 1fr;
       }
 
       .bubble {
@@ -916,8 +1060,8 @@
     <header class="topbar">
       <div class="sigil">H</div>
       <div class="identity">
-        <strong>HoloShell</strong>
-        <span id="subline">Projection of the .holo shell world.</span>
+        <strong>Founder HoloShell</strong>
+        <span id="subline">HoloLand shell takeover active.</span>
       </div>
       <button class="approval-chip" id="approvalChip" type="button" hidden>
         <span class="approval-chip-dot" aria-hidden="true"></span>
@@ -954,10 +1098,10 @@
         </div>
         <div class="conversation" id="conversation">
           <div class="message">The desktop is HoloLand now. I can open programs, gather files, call agents, and reshape the shell around the work.</div>
-          <div class="message user">Prepare this computer for HoloLand work.</div>
+          <div class="message user">Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube.</div>
         </div>
         <div class="ask">
-          <input id="askInput" value="Prepare this computer for HoloLand work" aria-label="Ask Brittney">
+          <input id="askInput" value="Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube" aria-label="Ask Brittney">
           <button class="icon-button" id="voiceButton" type="button" aria-label="Start Brittney voice input" title="Voice" data-state="idle">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Z" stroke="currentColor" stroke-width="1.8"/>
@@ -973,7 +1117,15 @@
         </div>
       </aside>
 
-      <section class="bubble-field" id="bubbleField" aria-label="Shell objects"></section>
+      <section class="os-world" aria-label="Founder HoloShell operating world">
+        <div class="demo-command" aria-hidden="true">
+          <strong>Founder Command</strong>
+          <span>Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube.</span>
+          <em>Guarded</em>
+        </div>
+        <div class="bubble-field" id="bubbleField" aria-label="Shell objects"></div>
+        <div class="control-lane" id="controlLane" aria-label="Hardware control pipeline"></div>
+      </section>
 
       <aside class="context-panel" aria-label="Selected object">
         <div class="selected-object">
@@ -1044,14 +1196,18 @@
     let avatarSpeechTimer = 0;
     let speechRecognition = null;
     let selectedShellObjectId = "hololand";
+    const FLAGSHIP_COMMAND = "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube";
     const baseObjects = [
       { id: "browser", label: "Browser", glyph: "B", type: "program", detail: "Web surfaces open as witnessed HoloLand objects.", x: 62, y: 16, size: 132 },
+      { id: "excel", label: "Excel", glyph: "XL", type: "program", detail: "Excel is a guarded launch target Brittney can stage through the local hardware lane.", x: 6, y: 47, size: 92 },
       { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
       { id: "agent-dispatch", label: "Dispatch", glyph: "AD", type: "workflow", detail: "Brittney turns plain-language intent into the right guarded workflow or hardware action.", x: 26, y: 66, size: 108 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
       { id: "claude-chat", label: "Claude Chat", glyph: "CC", type: "workflow", detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.", x: 64, y: 23, size: 108 },
+      { id: "claude-app", label: "Claude", glyph: "CL", type: "agent app", detail: "Claude can be opened as a peer surface after Brittney resolves the target and approval bundle.", x: 87, y: 47, size: 94 },
       { id: "ollama-agents", label: "Ollama Agents", glyph: "OA", type: "workflow", detail: "Launch Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, or Pi through Ollama Cloud.", x: 83, y: 28, size: 106 },
+      { id: "lofi", label: "Lofi", glyph: "LF", type: "media", detail: "YouTube lofi is a browser media target in the room marathon workflow.", x: 69, y: 76, size: 86 },
       { id: "grok-build", label: "Grok Build", glyph: "GB", type: "workflow", detail: "Launch Grok Build as a guarded local coding-agent lane, with setup receipts ready for the Heavy recheck.", x: 72, y: 17, size: 104 },
       { id: "trust-ladder", label: "Trust Ladder", glyph: "TL", type: "policy", detail: "Repeated safe receipts promote actions from guarded to trusted autonomy eligibility while break-glass stays blocked.", x: 18, y: 64, size: 104 },
       { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
@@ -1895,6 +2051,7 @@
     }
 
     function shellObjects() {
+      const summary = feed.summary || {};
       const inventoryCapabilities = feed.feeds?.inventory?.capabilities || [];
       const upstreamGaps = feed.feeds?.inventory?.upstreamGaps || [];
       const osCapture = feed.feeds?.osUiCapture;
@@ -2323,6 +2480,7 @@
         renderBubbles();
         renderDock();
         renderEvidence();
+        renderControlLane();
         renderApprovalReview(currentSelectedObject());
         refreshControlDaemonHealth();
       } catch (error) {
@@ -2345,10 +2503,24 @@
           const intent = document.getElementById("askInput")?.value || "";
           stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent });
         }, true));
+        actions.push(actionButton("Stage flagship", () => stageDaemonAction("Founder command", "/workflow/agent-dispatch", { intent: FLAGSHIP_COMMAND })));
         actions.push(actionButton("Open Excel", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open Excel" })));
         actions.push(actionButton("Launch Codex", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "launch Codex through Ollama" })));
         actions.push(actionButton("Grok Build", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open Grok Build" })));
         actions.push(actionButton("Play lofi", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open browser and play lofi music on YouTube" })));
+      }
+      if (object.id === "excel") {
+        actions.push(actionButton("Stage open Excel", () => stageDaemonAction("Excel", "/workflow/agent-dispatch", { intent: "open Excel" }), true));
+      }
+      if (object.id === "claude-app") {
+        actions.push(actionButton("Stage Claude chat", () => stageDaemonAction("Claude chat", "/workflow/claude-chat", {
+          claudeApp: "Claude",
+          prompt: document.getElementById("askInput")?.value || "",
+          startNewChat: true,
+        }), true));
+      }
+      if (object.id === "lofi") {
+        actions.push(actionButton("Stage lofi", () => stageDaemonAction("YouTube lofi", "/workflow/agent-dispatch", { intent: "open browser and play lofi music on YouTube" }), true));
       }
       if (launch.action === "launch_app") {
         const app = launch.app || object.label;
@@ -2741,6 +2913,63 @@
       renderEvidence();
     }
 
+    function normalizeConfidence(value, fallback = 0.86) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return fallback;
+      if (numeric > 1) return Math.max(0, Math.min(1, numeric / 100));
+      return Math.max(0, Math.min(1, numeric));
+    }
+
+    function renderControlLane() {
+      const lane = document.getElementById("controlLane");
+      if (!lane) return;
+      const dispatch = agentDispatchSummary();
+      const workflow = workflowSummary();
+      const approval = workflowApprovalSummary();
+      const gate = workflowIntentGateSummary();
+      const steps = [
+        {
+          label: "Intent",
+          state: dispatch.status || "ready",
+          detail: dispatch.capabilityLabel || "Founder command",
+          confidence: normalizeConfidence(dispatch.confidence, 0.92),
+        },
+        {
+          label: "Plan",
+          state: workflow.status || "ready",
+          detail: `${workflow.stepCount || 6} steps`,
+          confidence: 0.88,
+        },
+        {
+          label: "Approval",
+          state: approval.status || "guarded",
+          detail: approval.executionAllowed ? "nonce ready" : "user gate",
+          confidence: 0.86,
+        },
+        {
+          label: "Launcher",
+          state: controlDaemonHealth.executeEnabled ? "ready" : "guarded",
+          detail: controlDaemonHealth.executeEnabled ? "execute enabled" : "stage only",
+          confidence: gate.executionAllowed ? 0.84 : 0.72,
+        },
+        {
+          label: "Receipt",
+          state: gate.status || "ready",
+          detail: gate.failedCheckCount ? `${gate.failedCheckCount} checks` : "attached",
+          confidence: gate.executionAllowed ? 0.9 : 0.82,
+        },
+      ];
+      lane.replaceChildren(...steps.map((step) => {
+        const item = document.createElement("div");
+        item.className = "control-step";
+        item.dataset.state = step.state;
+        const confidence = Math.round(normalizeConfidence(step.confidence) * 100);
+        item.innerHTML = `<strong>${step.label}</strong><small>${step.detail}</small><div class="meter" aria-hidden="true"><span style="--value:${confidence}%"></span></div>`;
+        item.title = `${step.label}: ${step.state}; confidence ${confidence}%`;
+        return item;
+      }));
+    }
+
     function renderBubbles() {
       const field = document.getElementById("bubbleField");
       field.replaceChildren(...shellObjects().map((object, index) => {
@@ -2869,6 +3098,7 @@
       document.getElementById("receiptPill").textContent = `${summary.timelineCount || 0} receipts; ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} objects`;
       document.getElementById("statusText").textContent = `${process.riskState || "unknown"} custody`;
       renderHardwareApprovalCue();
+      renderControlLane();
     }
 
     function setSkin(skin) {
@@ -2987,6 +3217,7 @@
     refreshControlDaemonHealth();
     renderBrittneyAvatar();
     renderBubbles();
+    renderControlLane();
     renderDock();
     renderEvidence();
     selectObject(baseObjects.find((object) => object.id === "hololand"));

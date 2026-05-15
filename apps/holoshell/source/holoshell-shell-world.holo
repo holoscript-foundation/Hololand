@@ -11,6 +11,8 @@ composition "HoloShell Shell World" {
     avatar_source: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
     runtime_bridge_source: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     render_slice: "apps/holoshell/source/holoshell-shell-render.hs"
+    founder_command_pipeline: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
+    founder_intent_policy: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
     preview_projection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
@@ -29,8 +31,12 @@ composition "HoloShell Shell World" {
     brittneyPresence: "assistant_avatar_agi"
     brittneyAvatarStatus: "embodied-contract-ready"
     brittneyRuntimeStatus: "available"
+    founderDemoIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    founderDemoPipeline: "intent_plan_policy_launcher_receipt"
+    founderAutonomyLevel: "guarded"
+    founderAutonomyConfidence: 0.86
     receiptVisibility: "behind_world"
-    userOutcome: "Prepare this computer for HoloLand work"
+    userOutcome: "Operate this computer as HoloShell"
   }
 
   template "LiquidLayer" {
@@ -69,6 +75,17 @@ composition "HoloShell Shell World" {
     opacity: 0.48
     visible_layer: "behind_world"
     rollback: "per_receipt"
+  }
+
+  template "ControlLaneNode" {
+    type: "hardware_control_lane_node"
+    mesh: "rounded_panel"
+    material: "liquid_glass"
+    color: "#10212d"
+    active_color: "#72f0d3"
+    guarded_color: "#f0c66e"
+    receipt_required: true
+    confidence_visible: true
   }
 
   template "BrittneyAvatar" {
@@ -150,6 +167,15 @@ composition "HoloShell Shell World" {
       color: "#36e5ff"
     }
 
+    object "ExcelBubble" using "ShellBubble" {
+      label: "Excel"
+      shell_kind: "legacy_program"
+      capability: "open_excel"
+      position: [-3.25, 1.35, -2.7]
+      color: "#5dff91"
+      demo_target: true
+    }
+
     object "FilesBubble" using "ShellBubble" {
       label: "Files"
       shell_kind: "file_space"
@@ -182,6 +208,24 @@ composition "HoloShell Shell World" {
       color: "#f4f7ff"
     }
 
+    object "ClaudeBubble" using "ShellBubble" {
+      label: "Claude"
+      shell_kind: "agent_program"
+      capability: "claude_chat"
+      position: [3.25, 1.35, -2.7]
+      color: "#d4a6ff"
+      demo_target: true
+    }
+
+    object "LofiBubble" using "ShellBubble" {
+      label: "Lofi"
+      shell_kind: "browser_media"
+      capability: "browser_lofi"
+      position: [2.45, 0.55, -2.35]
+      color: "#ffe58a"
+      demo_target: true
+    }
+
     object "HoloLandBubble" using "ShellBubble" {
       label: "HoloLand"
       shell_kind: "world"
@@ -189,6 +233,53 @@ composition "HoloShell Shell World" {
       position: [0, 1.55, -1.95]
       color: "#58ffc7"
       primary_shell_object: true
+    }
+  }
+
+  spatial_group "FounderHardwareControlLane" {
+    object "IntentNode" using "ControlLaneNode" {
+      label: "Intent"
+      phase: "intent"
+      detail: "Natural command enters Brittney"
+      position: [-2.8, -0.25, -2.45]
+      confidence: 0.92
+      status: "ready"
+    }
+
+    object "PlanNode" using "ControlLaneNode" {
+      label: "Plan"
+      phase: "plan"
+      detail: "Brittney expands into ordered workflow steps"
+      position: [-1.4, -0.25, -2.45]
+      confidence: 0.88
+      status: "ready"
+    }
+
+    object "ApprovalNode" using "ControlLaneNode" {
+      label: "Approval"
+      phase: "approval_trust_policy"
+      detail: "Guarded actions wait for a nonce-bound approval"
+      position: [0, -0.25, -2.45]
+      confidence: 0.86
+      status: "guarded"
+    }
+
+    object "LauncherNode" using "ControlLaneNode" {
+      label: "Launcher"
+      phase: "app_launcher_controller"
+      detail: "Local daemon operates apps only after policy passes"
+      position: [1.4, -0.25, -2.45]
+      confidence: 0.82
+      status: "blocked_until_approval"
+    }
+
+    object "ReceiptNode" using "ControlLaneNode" {
+      label: "Receipt"
+      phase: "receipt"
+      detail: "Every action writes a local receipt and rollback trace"
+      position: [2.8, -0.25, -2.45]
+      confidence: 0.9
+      status: "ready"
     }
   }
 

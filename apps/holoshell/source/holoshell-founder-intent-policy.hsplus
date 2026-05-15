@@ -1,0 +1,108 @@
+// HoloShell Founder Intent Policy
+//
+// Brittney policy for the Founder HoloShell path. It keeps the ambitious OS
+// surface honest: Brittney can operate apps, agents, files, and browsers only
+// through intent-scoped plans, approvals, trust levels, and receipts.
+
+composition "HoloShell Founder Intent Policy" {
+  config {
+    title: "HoloShell Founder Intent Policy"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    commandPipelineSource: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
+    visualWorldSource: "apps/holoshell/source/holoshell-shell-world.holo"
+    hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    trustedAutonomySource: "apps/holoshell/source/holoshell-trusted-autonomy.hsplus"
+    brittneyRuntimeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    approvalBundle: ".tmp/holoshell/workflow-approval-latest.json"
+    intentGateReceipt: ".tmp/holoshell/brain-intent-gate-latest.json"
+    liveFeedReceipt: ".tmp/holoshell/live-feed.json"
+  }
+
+  state {
+    founderMode: true
+    activeIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    pipelineShape: "intent_plan_approval_trust_launcher_receipt"
+    autonomyLevel: "guarded"
+    confidence: 0.86
+    executionDefault: "staged_not_run"
+    rawIntentStoredLocallyOnly: true
+    visibleApprovalRequired: true
+    receiptRequired: true
+  }
+
+  channel "holoshell:founder:intent" {
+    type: "request_response"
+    priority: "critical"
+    description: "Founder-mode natural language command entering Brittney"
+  }
+
+  channel "holoshell:founder:plan" {
+    type: "append_only"
+    priority: "critical"
+    description: "Ordered app/agent/browser plan generated before execution"
+  }
+
+  channel "holoshell:founder:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Merged visible receipt for command, approval, trust gate, launcher, and outcome"
+  }
+
+  template "FounderIntentContract" {
+    type: "founder_intent_contract"
+    actor: "brittney"
+    intentHash: ""
+    planHash: ""
+    trustLevel: "guarded"
+    confidence: 0
+    approvalRequired: true
+    executionAllowed: false
+    rawIntentStoredLocallyOnly: true
+    receiptRequired: true
+  }
+
+  policy "FounderCommandNeverRunsFromChatAlone" {
+    appliesTo: ["open_claude", "room_marathon", "ollama_kimi_cloud", "open_browser", "youtube_lofi", "open_excel"]
+    chatIntentPermission: "intent_scoped"
+    planRequired: true
+    approvalRequired: true
+    trustGateRequired: true
+    executeFlagRequired: true
+    receiptRequired: true
+  }
+
+  policy "TrustedAutonomyPromotion" {
+    appliesTo: ["launch_app", "open_url", "focus_window", "type_text", "hotkey"]
+    initialLevel: "guarded"
+    promoteAfterApprovedSuccesses: 3
+    maxLevelWithoutFounderReview: "trusted"
+    breakGlassActions: ["enter_secret", "delete_file", "publish", "pay", "install", "uninstall", "system_settings"]
+    breakGlassAutoExecuteAllowed: false
+    receiptRequired: true
+  }
+
+  policy "SourceSubstrateRequired" {
+    appliesTo: ["founder_shell_feature"]
+    sceneSourceRequired: ".holo"
+    behaviorSourceRequired: ".hs"
+    brittneyPolicySourceRequired: ".hsplus"
+    typescriptBridgeOnly: true
+    receiptRequired: true
+  }
+
+  action apply_founder_intent(intentContract) {
+    state.activeIntent = intentContract.intentPreview
+    state.autonomyLevel = intentContract.trustLevel
+    state.confidence = intentContract.confidence
+    state.visibleApprovalRequired = intentContract.approvalRequired
+    emit("holoshell:founder:intent", {
+      action: "founder_intent_applied",
+      trust_level: state.autonomyLevel,
+      confidence: state.confidence,
+      approval_required: state.visibleApprovalRequired,
+      execution_default: state.executionDefault,
+      receipt_required: true
+    })
+  }
+}

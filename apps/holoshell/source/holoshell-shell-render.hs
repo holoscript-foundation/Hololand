@@ -182,6 +182,76 @@ object "HoloLandBubble" {
   animSpeed: 0.4
 }
 
+object "FounderIntentPanel" {
+  geometry: "cube"
+  width: 5.8
+  height: 0.42
+  depth: 0.06
+  color: "#0b1721"
+  material: "glass"
+  opacity: 0.78
+  emissive: "#0baaba"
+  emissiveIntensity: 0.7
+  position: { x: 0, y: 0.22, z: -2.32 }
+  commandSource: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
+  policySource: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
+}
+
+object "IntentControlNode" {
+  geometry: "cube"
+  width: 0.82
+  height: 0.28
+  depth: 0.05
+  color: "#72f0d3"
+  material: "neon"
+  position: { x: -2.25, y: -0.15, z: -2.12 }
+  controlPhase: "intent"
+}
+
+object "PlanControlNode" {
+  geometry: "cube"
+  width: 0.82
+  height: 0.28
+  depth: 0.05
+  color: "#72f0d3"
+  material: "neon"
+  position: { x: -1.12, y: -0.15, z: -2.12 }
+  controlPhase: "plan"
+}
+
+object "ApprovalControlNode" {
+  geometry: "cube"
+  width: 0.82
+  height: 0.28
+  depth: 0.05
+  color: "#f0c66e"
+  material: "neon"
+  position: { x: 0, y: -0.15, z: -2.12 }
+  controlPhase: "approval_trust_policy"
+}
+
+object "LauncherControlNode" {
+  geometry: "cube"
+  width: 0.82
+  height: 0.28
+  depth: 0.05
+  color: "#ff8870"
+  material: "neon"
+  position: { x: 1.12, y: -0.15, z: -2.12 }
+  controlPhase: "app_launcher_controller"
+}
+
+object "ReceiptControlNode" {
+  geometry: "cube"
+  width: 0.82
+  height: 0.28
+  depth: 0.05
+  color: "#dffcff"
+  material: "neon"
+  position: { x: 2.25, y: -0.15, z: -2.12 }
+  controlPhase: "receipt"
+}
+
 object "LiquidSkinPortal" {
   geometry: "torus"
   color: "#20def0"

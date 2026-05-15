@@ -26,6 +26,8 @@ composition "HoloShell Hardware Program Control" {
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
     grokBuildWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
     trustedAutonomySource: "apps/holoshell/source/holoshell-trusted-autonomy.hsplus"
+    founderCommandPipelineSource: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
+    founderIntentPolicySource: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
     trustedAutonomyLedgerScript: "scripts/holoshell-trust-ledger.mjs"
     homeSource: "apps/holoshell/source/holoshell-home.hsplus"
     brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
@@ -38,6 +40,7 @@ composition "HoloShell Hardware Program Control" {
     latestAgentDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
     latestGrokBuildSetup: ".tmp/holoshell/grok-build-setup.json"
     latestTrustLedger: ".tmp/holoshell/trust-ledger.json"
+    latestFounderCommandReceipt: ".tmp/holoshell/founder-command-latest.json"
     actionReceiptDir: ".tmp/holoshell/action-receipts"
     approvalBundleDir: ".tmp/holoshell/approval-bundles"
     workflowApprovalBundleDir: ".tmp/holoshell/workflow-approval-bundles"
@@ -127,6 +130,12 @@ composition "HoloShell Hardware Program Control" {
     activeWorkflowIntentGateRuntimeBlocking: false
     activeWorkflowIntentGateCaseId: ""
     activeWorkflowIntentGateFailedCheckCount: 0
+    founderCommandIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    founderCommandPipelineShape: "intent_plan_approval_trust_launcher_receipt"
+    founderCommandConfidence: 0
+    founderCommandTrustLevel: "guarded"
+    founderCommandExecutionDefault: "staged_not_run"
+    founderCommandReceiptStatus: "unknown"
     mutatingActionExecuted: false
     approvalRequired: false
     approvedByUser: false
@@ -208,6 +217,12 @@ composition "HoloShell Hardware Program Control" {
     type: "request_response"
     priority: "critical"
     description: "Runtime-blocking HoloScript brain intent gate for compound Brittney workflows"
+  }
+
+  channel "holoshell:founder:command-pipeline" {
+    type: "append_only"
+    priority: "critical"
+    description: "Founder demo pipeline from natural command to launcher and receipt"
   }
 
   channel "holoshell:hardware:receipt" {
@@ -428,6 +443,19 @@ composition "HoloShell Hardware Program Control" {
     executionAllowed: false
     failedCheckCount: 0
     sourceReceiptType: "holoscript.brain-intent-loop.eval.v0.1.0"
+    receiptRequired: true
+  }
+
+  template "FounderCommandReceipt" {
+    type: "founder_command_receipt"
+    receiptType: "hololand.holoshell.founder-command.v0.1.0"
+    intent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
+    pipeline: ["intent", "plan", "approval", "trust_gate", "launcher", "receipt"]
+    targetSurfaces: ["Claude", "Windows Terminal", "Ollama Kimi Cloud", "browser", "YouTube lofi"]
+    confidence: 0.86
+    trustLevel: "guarded"
+    executionDefault: "staged_not_run"
+    approvalRequired: true
     receiptRequired: true
   }
 
@@ -801,6 +829,21 @@ composition "HoloShell Hardware Program Control" {
       execution_allowed: state.activeWorkflowIntentGateExecutionAllowed,
       failed_checks: state.activeWorkflowIntentGateFailedCheckCount,
       source_receipt: gateReceipt.output.sourceReceiptPath,
+      receipt_required: true
+    })
+  }
+
+  action apply_founder_command_receipt(receipt) {
+    state.founderCommandConfidence = receipt.summary.confidence
+    state.founderCommandTrustLevel = receipt.summary.trustLevel
+    state.founderCommandReceiptStatus = receipt.summary.status
+    emit("holoshell:founder:command-pipeline", {
+      action: "founder_command_receipt_applied",
+      status: state.founderCommandReceiptStatus,
+      trust_level: state.founderCommandTrustLevel,
+      confidence: state.founderCommandConfidence,
+      pipeline_shape: state.founderCommandPipelineShape,
+      execution_default: state.founderCommandExecutionDefault,
       receipt_required: true
     })
   }
