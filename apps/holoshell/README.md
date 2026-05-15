@@ -37,6 +37,7 @@ source/holoshell-brittney-presence.hsplus
 source/holoshell-brittney-avatar.hsplus
 source/holoshell-brittney-runtime-bridge.hsplus
 source/holoshell-hardware-control.hsplus
+source/holoshell-network-reality.hsplus
 ```
 
 `holoshell-home.hsplus` owns behavior, channels, permissions, receipts, and
@@ -51,6 +52,9 @@ Brittney-as-presence, Brittney's accessible embodied avatar, and runtime turns.
 `holoshell-hardware-control.hsplus` defines the program-control contract:
 read-only awareness by default, guarded execution for mutations, and receipts
 for every action.
+`holoshell-network-reality.hsplus` defines the HoloWeb Local Reality Node:
+connection truth, owner-declared hotspot/metered context, bandwidth protection,
+and redacted network-consumer evidence for Brittney.
 
 HTML is only a projection or host preview. Do not add hand-authored TypeScript
 behavior before the HoloScript source contract is named. Future desktop bridge
@@ -89,6 +93,7 @@ source/holoshell-brittney-presence.hsplus
 source/holoshell-brittney-avatar.hsplus
 source/holoshell-brittney-runtime-bridge.hsplus
 source/holoshell-hardware-control.hsplus
+source/holoshell-network-reality.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
@@ -142,8 +147,8 @@ scripts/holoshell-live-feed.mjs
 ```
 
 It bundles capability inventory, HoloScript surface map, agent lanes, process
-health, Brittney avatar state, hardware action receipts, run receipts, pilot
-receipts, and stop plans into:
+health, network reality, Brittney avatar state, hardware action receipts, run
+receipts, pilot receipts, and stop plans into:
 
 ```text
 .tmp/holoshell/live-feed.json
@@ -316,6 +321,34 @@ Commands that start heavy local work should go through
 HoloShell can show owner lanes, expected end times, overdue runs, and unmatched
 active PIDs before agents pile more work onto the hardware.
 
+## HoloWeb Local Reality Node
+
+HoloWeb starts inside HoloShell as a local reality node:
+
+```text
+scripts/holoshell-network-reality.mjs
+```
+
+It reads Windows connection cost, Wi-Fi state, VPN-like adapter state, redacted
+network consumers, agent lanes, process health, and the run registry. It writes:
+
+```text
+.tmp/holoshell/network-reality.json
+```
+
+The output does not include SSID, BSSID, IP addresses, gateways, remote
+endpoints, or raw command lines. Owner-declared context can override OS cost
+when the operating system says `Unrestricted` but the user knows the connection
+is a phone hotspot:
+
+```powershell
+node scripts\holoshell-network-reality.mjs --owner-declared-kind phone_hotspot
+```
+
+Brittney consumes the resulting policy before agents run package installs,
+model downloads, large uploads, fleet syncs, or parallel network-heavy work.
+Peer count comes from semantic agent lanes, not process count.
+
 ## Local Checks
 
 From the HoloScript repo:
@@ -334,6 +367,7 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-holoscript-bridge.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-agent-presence-lanes.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-process-health-room.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-network-reality.hsplus
 ```
 
 From the HoloLand repo:
@@ -357,6 +391,7 @@ node scripts\holoshell-workflow-approval-bundle.mjs --self-test
 node scripts\holoshell-workflow-approval-bundle.mjs
 node scripts\holoshell-agent-lanes.mjs --self-test
 node scripts\holoshell-process-health.mjs --self-test
+node scripts\holoshell-network-reality.mjs --self-test
 node scripts\holoshell-run.mjs --self-test
 node scripts\holoshell-pilot.mjs --self-test
 node scripts\holoshell-live-feed.mjs --self-test

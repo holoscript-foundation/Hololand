@@ -1,0 +1,208 @@
+// HoloShell Network Reality
+//
+// HoloWeb begins as connection truth on the local computer. This source
+// contract defines the HoloShell room Brittney consumes before agents spend
+// bandwidth, run heavy downloads, or treat process counts as peer counts.
+
+composition "HoloShell Network Reality" {
+  config {
+    title: "Network Reality"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-network-reality.mjs"
+    defaultMode: "read_only_bandwidth_protection"
+    holowebRole: "local_reality_node"
+  }
+
+  state {
+    underlayClassification: "unknown_protective"
+    classificationConfidence: "low"
+    ownerDeclaredKind: "none"
+    osInterfaceKind: "unknown"
+    osCost: "Unknown"
+    connectivity: "Unknown"
+    vpnState: "unknown"
+    activeLaneCount: 0
+    laneCount: 0
+    registeredRunCount: 0
+    activeRegisteredRunCount: 0
+    networkConsumerCount: 0
+    agentOrShellNetworkConsumerCount: 0
+    legacyNetworkConsumerCount: 0
+    processCountIsNotPeerCount: true
+    bandwidthPosture: "protective_unknown"
+    heavyWorkPolicy: "ask_before_heavy_transfer"
+    brittneyStance: "ask_before_spending_bandwidth"
+    protectBandwidth: true
+    lastSnapshotHash: ""
+  }
+
+  channel "holoshell:network:reality" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Redacted local underlay state, OS cost state, VPN state, and network consumers"
+  }
+
+  channel "holoshell:network:policy" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Bandwidth and route policy consumed by Brittney and agent-run gates"
+  }
+
+  channel "holoshell:network:receipt" {
+    type: "append_only"
+    priority: "high"
+    description: "Receipts proving network reality scans were read-only and redacted"
+  }
+
+  template "NetworkRealityNode" {
+    type: "machine"
+    machineType: "holoweb_local_reality_node"
+    privacyScope: "local_only"
+    underlayClassification: "unknown_protective"
+    ownerDeclaredKind: "none"
+    osCost: "Unknown"
+    vpnState: "unknown"
+    receiptRequired: true
+  }
+
+  template "NetworkConsumer" {
+    type: "machine"
+    machineType: "network_consumer"
+    pid: 0
+    pidHash: ""
+    processName: ""
+    processKind: "unknown"
+    establishedConnectionCount: 0
+    remoteEndpointIncluded: false
+    receiptRequired: true
+  }
+
+  template "BandwidthPolicy" {
+    type: "policy"
+    policyType: "bandwidth_protection"
+    classification: "unknown_protective"
+    bandwidthPosture: "protective_unknown"
+    heavyWorkPolicy: "ask_before_heavy_transfer"
+    agentAction: "default_to_bandwidth_protection"
+    brittneyStance: "ask_before_spending_bandwidth"
+    receiptRequired: true
+  }
+
+  room "NetworkRealityRoom" {
+    label: "Network Reality"
+    userQuestion: "What kind of internet is this computer using, and should agents spend bandwidth?"
+    visualForm: "bandwidth_guardian"
+    liveFeed: "holoshell:network:reality"
+
+    object "UnderlayState" using "NetworkRealityNode" {
+      label: "Connection"
+      underlayClassification: $underlayClassification
+      confidence: $classificationConfidence
+      ownerDeclaredKind: $ownerDeclaredKind
+      osInterfaceKind: $osInterfaceKind
+      osCost: $osCost
+      connectivity: $connectivity
+      vpnState: $vpnState
+    }
+
+    object "BandwidthGuard" using "BandwidthPolicy" {
+      label: "Bandwidth Guard"
+      classification: $underlayClassification
+      bandwidthPosture: $bandwidthPosture
+      heavyWorkPolicy: $heavyWorkPolicy
+      brittneyStance: $brittneyStance
+      protectBandwidth: $protectBandwidth
+    }
+
+    object "AgentNetworkLanes" {
+      type: "ui"
+      uiType: "network_lane_stack"
+      label: "Agent Network Use"
+      lanes: $laneCount
+      activeLanes: $activeLaneCount
+      registeredRuns: $registeredRunCount
+      activeRuns: $activeRegisteredRunCount
+      processCountIsNotPeerCount: $processCountIsNotPeerCount
+    }
+
+    object "LegacyNetworkConsumers" {
+      type: "ui"
+      uiType: "network_consumer_list"
+      label: "Apps Using Internet"
+      consumers: $networkConsumerCount
+      agentOrShellConsumers: $agentOrShellNetworkConsumerCount
+      legacyConsumers: $legacyNetworkConsumerCount
+      remoteEndpointsHidden: true
+    }
+  }
+
+  policy "OwnerDeclaredCostOverridesOsGuess" {
+    appliesTo: ["classification", "heavy_work_policy", "brittney_stance"]
+    ownerDeclaredKinds: ["phone_hotspot", "metered"]
+    forceClassification: "metered_or_hotspot"
+    reason: "Windows can report phone hotspots as unrestricted Wi-Fi."
+    receiptRequired: true
+  }
+
+  policy "ProcessCountIsNotPeerCount" {
+    appliesTo: ["agent_count", "lane_count", "network_consumer_count"]
+    peerTruthSource: "agent-lanes.json"
+    processTruthSource: "process-health.json"
+    networkTruthSource: "network-reality.json"
+    requireSemanticLaneId: true
+  }
+
+  policy "RedactedLocalOnlyNetworkEvidence" {
+    appliesTo: ["wifi", "adapter", "tcp_connection", "receipt"]
+    rawSsidIncluded: false
+    rawBssidIncluded: false
+    ipAddressIncluded: false
+    gatewayIncluded: false
+    remoteEndpointIncluded: false
+    rawCommandLineIncluded: false
+    localOnly: true
+    receiptRequired: true
+  }
+
+  policy "BrittneyBandwidthProtection" {
+    appliesTo: ["package_install", "model_download", "large_upload", "parallel_agent_network_work", "fleet_sync"]
+    hotspotOrMeteredAction: "queue_or_ask_before_heavy_transfer"
+    degradedAction: "prefer_local_and_retry_remote_later"
+    offlineAction: "queue_network_work_until_online"
+    normalAction: "allowed_with_receipts"
+    receiptRequired: true
+  }
+
+  action consume_network_reality(model) {
+    state.underlayClassification = model.underlay.classification
+    state.classificationConfidence = model.underlay.confidence
+    state.ownerDeclaredKind = model.underlay.ownerDeclaredKind
+    state.osInterfaceKind = model.underlay.osInterfaceKind
+    state.osCost = model.underlay.osCost
+    state.connectivity = model.underlay.connectivity
+    state.vpnState = model.underlay.vpnState
+    state.activeLaneCount = model.lanes.activeLaneCount
+    state.laneCount = model.lanes.laneCount
+    state.registeredRunCount = model.lanes.registeredRunCount
+    state.activeRegisteredRunCount = model.lanes.activeRegisteredRunCount
+    state.networkConsumerCount = model.lanes.networkConsumerCount
+    state.agentOrShellNetworkConsumerCount = model.lanes.agentOrShellNetworkConsumerCount
+    state.legacyNetworkConsumerCount = model.lanes.legacyNetworkConsumerCount
+    state.processCountIsNotPeerCount = model.lanes.processCountIsNotPeerCount
+    state.bandwidthPosture = model.policy.bandwidthPosture
+    state.heavyWorkPolicy = model.policy.heavyWorkPolicy
+    state.brittneyStance = model.policy.brittneyStance
+    state.protectBandwidth = model.brittney.protectBandwidth
+    state.lastSnapshotHash = model.receipt.snapshotHash
+
+    emit("holoshell:network:policy", {
+      classification: state.underlayClassification,
+      confidence: state.classificationConfidence,
+      heavyWorkPolicy: state.heavyWorkPolicy,
+      brittneyStance: state.brittneyStance,
+      protectBandwidth: state.protectBandwidth,
+      receiptHash: state.lastSnapshotHash
+    })
+  }
+}

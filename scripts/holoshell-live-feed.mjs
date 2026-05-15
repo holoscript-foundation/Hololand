@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -232,6 +232,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: processHealth.generatedAt || now,
       receiptType: 'hololand.holoshell.process-health.v0.1.0',
       source: 'scripts/holoshell-process-health.mjs',
+    });
+  }
+
+  if (networkReality?.underlay) {
+    timeline.push({
+      id: 'network-reality',
+      kind: 'network_reality',
+      title: `Network reality is ${networkReality.underlay.classification || 'unknown'}`,
+      detail: `${networkReality.underlay.osInterfaceKind || 'unknown'} underlay, OS cost ${networkReality.underlay.osCost || 'Unknown'}, VPN ${networkReality.underlay.vpnState || 'unknown'}, ${networkReality.lanes?.networkConsumerCount || 0} network consumer(s); policy ${networkReality.policy?.heavyWorkPolicy || 'unknown'}.`,
+      trustState: networkReality.underlay.confidence === 'owner_declared' || networkReality.underlay.confidence === 'os_reported' ? 'verified' : 'partial',
+      generatedAt: networkReality.generatedAt || now,
+      receiptType: networkReality.schemaVersion,
+      source: networkReality.sourceAnchors?.adapter || 'scripts/holoshell-network-reality.mjs',
     });
   }
 
@@ -603,6 +616,7 @@ function createFeed(args) {
   const developmentalEnvironment = readJson(path.join(tmpDir, 'developmental-environment.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
+  const networkReality = readJson(path.join(tmpDir, 'network-reality.json'), {});
   const mcpCustodyContract = readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {});
   const mcpUpstreamHandoff = readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
@@ -648,6 +662,7 @@ function createFeed(args) {
     developmentalEnvironment,
     lanes,
     processHealth,
+    networkReality,
     mcpCustodyContract,
     mcpUpstreamHandoff,
     osUiCapture,
@@ -676,6 +691,7 @@ function createFeed(args) {
   });
   const trust = trustCounts(inventory?.capabilities || []);
   const processRisk = processHealth?.summary?.riskState || 'unknown';
+  const networkRisk = networkReality?.health?.state || 'pass';
   const mcpCustodyRisk = riskFromEvidenceStatus(mcpCustodyContract?.summary?.status || 'unknown');
   const mcpHandoffRisk = mcpUpstreamHandoff?.summary?.status === 'ready_for_upstream_agent'
     ? 'warn'
@@ -684,7 +700,7 @@ function createFeed(args) {
       : 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -693,6 +709,8 @@ function createFeed(args) {
     sourceAnchors: {
       source: 'apps/holoshell/source/holoshell-home.hsplus',
       hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
+      networkReality: 'apps/holoshell/source/holoshell-network-reality.hsplus',
+      networkRealityAdapter: 'scripts/holoshell-network-reality.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
@@ -791,6 +809,22 @@ function createFeed(args) {
       processCount: processHealth?.summary?.processCount || 0,
       staleRunCount: processHealth?.summary?.staleRunCount || 0,
       highMemoryCount: processHealth?.summary?.highMemoryCount || 0,
+      networkRealityStatus: networkReality?.underlay?.classification || 'unknown',
+      networkRealityConfidence: networkReality?.underlay?.confidence || 'unknown',
+      networkRealityOwnerDeclaredKind: networkReality?.underlay?.ownerDeclaredKind || 'none',
+      networkRealityInterfaceKind: networkReality?.underlay?.osInterfaceKind || 'unknown',
+      networkRealityOsCost: networkReality?.underlay?.osCost || 'Unknown',
+      networkRealityConnectivity: networkReality?.underlay?.connectivity || 'Unknown',
+      networkRealityVpnState: networkReality?.underlay?.vpnState || 'unknown',
+      networkRealityHealthState: networkReality?.health?.state || 'unknown',
+      networkRealityBandwidthPosture: networkReality?.policy?.bandwidthPosture || 'unknown',
+      networkRealityHeavyWorkPolicy: networkReality?.policy?.heavyWorkPolicy || 'unknown',
+      networkRealityBrittneyStance: networkReality?.brittney?.stance || 'unknown',
+      networkRealityProtectBandwidth: Boolean(networkReality?.brittney?.protectBandwidth),
+      networkRealityConsumerCount: networkReality?.lanes?.networkConsumerCount || 0,
+      networkRealityAgentOrShellConsumerCount: networkReality?.lanes?.agentOrShellNetworkConsumerCount || 0,
+      networkRealityLegacyConsumerCount: networkReality?.lanes?.legacyNetworkConsumerCount || 0,
+      networkRealityProcessCountIsNotPeerCount: Boolean(networkReality?.lanes?.processCountIsNotPeerCount),
       mcpCustodyContractStatus: mcpCustodyContract?.summary?.status || 'unknown',
       mcpCustodyCompatibilityMode: mcpCustodyContract?.summary?.compatibilityMode || 'unknown',
       nativeMcpCustodySplit: Boolean(mcpCustodyContract?.summary?.nativeMcpCustodySplit),
@@ -1019,6 +1053,7 @@ function createFeed(args) {
       developmentalEnvironment,
       lanes,
       processHealth,
+      networkReality,
       mcpCustodyContract,
       mcpUpstreamHandoff,
       osUiCapture,
@@ -1115,6 +1150,7 @@ try {
     console.log(`Brittney context: ${feed.summary.brittneyContextStatus}`);
     console.log(`GOLD/codebase bridge: ${feed.summary.goldCodebaseBridgeStatus}`);
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
+    console.log(`Network reality: ${feed.summary.networkRealityStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);
     console.log(`Workflow: ${feed.summary.activeWorkflowStatus}`);

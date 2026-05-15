@@ -34,6 +34,7 @@
     "holoshell:mcp-custody-contract": "node scripts/holoshell-mcp-custody-contract.mjs",
     "holoshell:mcp-upstream-handoff": "node scripts/holoshell-mcp-upstream-handoff.mjs",
     "holoshell:process-health": "node scripts/holoshell-process-health.mjs",
+    "holoshell:network-reality": "node scripts/holoshell-network-reality.mjs",
     "holoshell:intent-gate": "node scripts/holoshell-brain-intent-gate.mjs --strict",
     "holoshell:run": "node scripts/holoshell-run.mjs",
     "holoshell:run-registry-reconcile": "node scripts/holoshell-run.mjs --reconcile-registry",
