@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, mcpCustodyContract, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -232,6 +232,22 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: processHealth.generatedAt || now,
       receiptType: 'hololand.holoshell.process-health.v0.1.0',
       source: 'scripts/holoshell-process-health.mjs',
+    });
+  }
+
+  if (mcpCustodyContract?.summary) {
+    const summary = mcpCustodyContract.summary;
+    timeline.push({
+      id: 'mcp-custody-contract',
+      kind: 'mcp_custody_contract',
+      title: summary.nativeMcpCustodySplit
+        ? 'MCP custody split native'
+        : `MCP custody split ${summary.compatibilityMode || 'unknown'}`,
+      detail: `${summary.cleanupCandidateCount || 0} cleanup candidate(s), ${summary.ownerHandoffPlanCount || 0} owner handoff(s), ${summary.checkFailCount || 0} failing check(s).`,
+      trustState: summary.nativeMcpCustodySplit ? 'verified' : 'partial',
+      generatedAt: mcpCustodyContract.generatedAt || now,
+      receiptType: mcpCustodyContract.schemaVersion,
+      source: mcpCustodyContract.sourceAnchors?.adapter || 'scripts/holoshell-mcp-custody-contract.mjs',
     });
   }
 
@@ -560,6 +576,7 @@ function createFeed(args) {
   const developmentalEnvironment = readJson(path.join(tmpDir, 'developmental-environment.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
+  const mcpCustodyContract = readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
   const programRegistry = readJson(path.join(tmpDir, 'program-registry.json'), {});
   const readinessEvidence = readJson(path.join(tmpDir, 'readiness-evidence.json'), {});
@@ -602,6 +619,7 @@ function createFeed(args) {
     developmentalEnvironment,
     lanes,
     processHealth,
+    mcpCustodyContract,
     osUiCapture,
     programRegistry,
     readinessEvidence,
@@ -627,9 +645,10 @@ function createFeed(args) {
   });
   const trust = trustCounts(inventory?.capabilities || []);
   const processRisk = processHealth?.summary?.riskState || 'unknown';
+  const mcpCustodyRisk = riskFromEvidenceStatus(mcpCustodyContract?.summary?.status || 'unknown');
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, stopPlans.length ? 'warn' : 'pass', readinessRisk, shardRisk]
+  const overallRisk = [processRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, readinessRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -639,6 +658,7 @@ function createFeed(args) {
       source: 'apps/holoshell/source/holoshell-home.hsplus',
       hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
+      mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       readinessEvidence: 'scripts/holoshell-readiness-evidence.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       brittneyContext: 'scripts/holoshell-brittney-context.mjs',
@@ -733,6 +753,12 @@ function createFeed(args) {
       processCount: processHealth?.summary?.processCount || 0,
       staleRunCount: processHealth?.summary?.staleRunCount || 0,
       highMemoryCount: processHealth?.summary?.highMemoryCount || 0,
+      mcpCustodyContractStatus: mcpCustodyContract?.summary?.status || 'unknown',
+      mcpCustodyCompatibilityMode: mcpCustodyContract?.summary?.compatibilityMode || 'unknown',
+      nativeMcpCustodySplit: Boolean(mcpCustodyContract?.summary?.nativeMcpCustodySplit),
+      mcpCustodyCleanupCandidateCount: mcpCustodyContract?.summary?.cleanupCandidateCount || 0,
+      mcpCustodyOwnerHandoffPlanCount: mcpCustodyContract?.summary?.ownerHandoffPlanCount || 0,
+      mcpCustodyCheckFailCount: mcpCustodyContract?.summary?.checkFailCount || 0,
       capturedWindowCount: osUiCapture?.summary?.windowCount || 0,
       capturedControlCount: osUiCapture?.summary?.controlCount || 0,
       capturedGeometryNodeCount: osUiCapture?.summary?.geometryNodeCount || 0,
@@ -940,6 +966,7 @@ function createFeed(args) {
       developmentalEnvironment,
       lanes,
       processHealth,
+      mcpCustodyContract,
       osUiCapture,
       programRegistry,
       readinessEvidence,
@@ -1028,6 +1055,7 @@ try {
     console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
     console.log(`User shell: ${feed.summary.userShellProjectionStatus}`);
     console.log(`Developmental environment: ${feed.summary.developmentalEnvironmentStatus}`);
+    console.log(`MCP custody: ${feed.summary.mcpCustodyContractStatus}`);
     console.log(`Brittney context: ${feed.summary.brittneyContextStatus}`);
     console.log(`GOLD/codebase bridge: ${feed.summary.goldCodebaseBridgeStatus}`);
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
