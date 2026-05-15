@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "title": "[holoshell][build] Fix HoloLand website build blocker",
+      "description": "Evidence: HoloShell run receipt .tmp/holoshell/run-receipts/run-mp5t7hm8-63ef7cc5177e8999.json. Command `node scripts/holoshell-run.mjs --run-class build --expected-minutes 10 --allow-warn --reason \"holoshell human os frontier asset shard smoke\" -- pnpm build` failed in examples/hololand-website with Next PageNotFoundError: Cannot find module for page: /_document. After deleting generated examples/hololand-website/.next, focused `pnpm --filter hololand-website build` timed out after 3 minutes and left child next-build processes that required exact-PID cleanup. Expected: local HoloLand build should pass or fail with a deterministic receipted error and no orphaned build children. Affected path: examples/hololand-website. Owner surface: HoloLand platform/build. Gap class: HoloShell hardware-wrapper gap plus HoloLand product build gap.",
+      "priority": 2,
+      "role": "build"
+    },
+    {
+      "title": "[holoshell][custody] Render active build trees as shell objects",
+      "description": "Evidence: `node scripts/holoshell-build-custody.mjs --json` reported 31 active build processes across 11 active build trees at 2026-05-14T18:23Z, but `node scripts/holoshell-shell-objects.mjs --json` still summarized processObjectCount: 0 while buildCustodyStatus was pass. Expected: active build trees from .tmp/holoshell/build-custody.json should materialize as process/timeline shell objects so humans can see hardware custody in HoloShell. Affected paths: scripts/holoshell-build-custody.mjs, scripts/holoshell-shell-objects.mjs, apps/holoshell/source/holoshell-build-custody.hsplus, apps/holoshell/docs/SHELL_OBJECT_SCHEMA.md. Owner surface: HoloShell/HoloLand product. Gap class: deterministic UX/receipt gap and multi-agent coordination gap.",
+      "priority": 3,
+      "role": "build"
+    }
+  ]
+}

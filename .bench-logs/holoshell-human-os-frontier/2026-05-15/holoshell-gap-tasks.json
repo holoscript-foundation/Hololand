@@ -1,0 +1,30 @@
+{
+  "tasksFiled": [
+    {
+      "id": "task_1778868345029_fko1",
+      "title": "[holoshell][source] Fix holoshell-home validation errors",
+      "gapClass": "HoloLand product gap plus deterministic UX/receipt gap",
+      "affectedPaths": [
+        "apps/holoshell/source/holoshell-home.hsplus"
+      ]
+    },
+    {
+      "id": "task_1778868345029_p50u",
+      "title": "[holoshell][approval] Separate workflow-ready from approval-pending",
+      "gapClass": "deterministic UX/receipt gap and AI containment gap",
+      "affectedPaths": [
+        "apps/holoshell/prototype/local-capability-room.html",
+        "scripts/holoshell-workflow-approval-bundle.mjs",
+        "apps/holoshell/source/holoshell-hardware-control.hsplus",
+        "apps/holoshell/source/holoshell-home.hsplus"
+      ]
+    }
+  ],
+  "duplicatesAvoided": [
+    "task_1778782823138_vvx4",
+    "task_1778782823138_msgb",
+    "task_1778783102322_ggj3",
+    "task_1778783102323_vks9",
+    "task_1778787124890_v819"
+  ]
+}
