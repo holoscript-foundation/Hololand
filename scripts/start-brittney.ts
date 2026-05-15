@@ -12,6 +12,7 @@
 
 import { existsSync } from 'fs';
 import { spawn, exec } from 'child_process';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -29,6 +30,30 @@ const GGUF_PATHS = [
 
 const BRITTNEY_PORT = 11435;
 const BRITTNEY_HOST = 'localhost';
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434';
+const OLLAMA_MODEL_PREFERENCE = [
+  'brittney-v4-expert:latest',
+  'brittney-qwen-v23:latest',
+  'brittney-qwen:latest',
+];
+
+interface BrittneyStartupMode {
+  inferenceMode: 'ollama' | 'gguf';
+  modelPath?: string | null;
+  ollamaModel?: string | null;
+}
+
+interface BrittneyChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+interface BrittneyChatRequest {
+  messages?: BrittneyChatMessage[];
+  context?: unknown;
+  maxTokens?: number;
+  temperature?: number;
+}
 
 async function checkPortInUse(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -37,7 +62,15 @@ async function checkPortInUse(port: number): Promise<boolean> {
       : `lsof -i :${port}`;
     
     exec(cmd, (error, stdout) => {
-      resolve(stdout.toString().trim().length > 0);
+      const output = stdout.toString();
+      if (process.platform === 'win32') {
+        resolve(output
+          .split(/\r?\n/)
+          .some((line) => line.includes(`:${port}`) && /\sLISTENING\s/i.test(line)));
+        return;
+      }
+
+      resolve(output.trim().length > 0);
     });
   });
 }
@@ -60,9 +93,252 @@ function findGGUFModel(): string | null {
   return null;
 }
 
-async function startBrittneyService(modelPath: string): Promise<void> {
+async function findOllamaBrittneyModel(): Promise<string | null> {
+  try {
+    const response = await fetch(`${OLLAMA_HOST}/api/tags`);
+    if (!response.ok) return null;
+
+    const data = await response.json() as { models?: Array<{ name?: string }> };
+    const modelNames = (data.models || [])
+      .map((model) => model.name)
+      .filter((name): name is string => Boolean(name));
+
+    for (const preferred of OLLAMA_MODEL_PREFERENCE) {
+      if (modelNames.includes(preferred)) return preferred;
+    }
+
+    return modelNames.find((name) => name.toLowerCase().includes('brittney')) || null;
+  } catch {
+    return null;
+  }
+}
+
+function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
+  const payload = JSON.stringify(body);
+  res.writeHead(statusCode, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(payload),
+  });
+  res.end(payload);
+}
+
+function sendText(res: ServerResponse, statusCode: number, body: string, contentType = 'text/plain'): void {
+  res.writeHead(statusCode, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Content-Type': contentType,
+    'Content-Length': Buffer.byteLength(body),
+  });
+  res.end(body);
+}
+
+async function readJson(req: IncomingMessage): Promise<any> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  const raw = Buffer.concat(chunks).toString('utf8').trim();
+  return raw ? JSON.parse(raw) : {};
+}
+
+async function runOllamaChat(model: string, request: BrittneyChatRequest): Promise<{
+  content: string;
+  promptTokens: number;
+  completionTokens: number;
+}> {
+  const messages = Array.isArray(request.messages) && request.messages.length
+    ? request.messages
+    : [{ role: 'user' as const, content: 'Hello Brittney.' }];
+
+  const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      options: {
+        temperature: request.temperature ?? 0.2,
+        num_predict: request.maxTokens ?? 512,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ollama chat failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json() as {
+    message?: { content?: string };
+    response?: string;
+    prompt_eval_count?: number;
+    eval_count?: number;
+  };
+
+  const content = data.message?.content || data.response || '';
+  return {
+    content,
+    promptTokens: data.prompt_eval_count || Math.ceil(JSON.stringify(messages).length / 4),
+    completionTokens: data.eval_count || Math.ceil(content.length / 4),
+  };
+}
+
+async function startOllamaCompatibilityGateway(model: string): Promise<void> {
+  console.log('🚀 Starting Brittney Ollama compatibility gateway...');
+  console.log(`🧠 Primary inference: Ollama (${model})`);
+  console.log('🛡️  Deprecated GGUF service bypassed to protect local GPU memory.');
+  console.log(`🌐 URL: http://${BRITTNEY_HOST}:${BRITTNEY_PORT}`);
+
+  const server = createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url || '/', `http://${BRITTNEY_HOST}:${BRITTNEY_PORT}`);
+
+      if (req.method === 'OPTIONS') {
+        sendText(res, 204, '');
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/health') {
+        sendJson(res, 200, {
+          status: 'ok',
+          version: '1.0.0',
+          model,
+          modelLoaded: false,
+          cloudConfigured: false,
+          ollama: { available: true, model },
+          primaryInference: 'ollama',
+          gateway: 'start-brittney-ollama-compat',
+        });
+        return;
+      }
+
+      if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/chat.html')) {
+        sendText(
+          res,
+          200,
+          `<!doctype html><title>Brittney</title><body><h1>Brittney Ollama Gateway</h1><p>Ready on ${model}.</p></body>`,
+          'text/html',
+        );
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/model/status') {
+        sendJson(res, 200, {
+          loaded: false,
+          name: model,
+          path: null,
+          memoryUsage: null,
+          primaryInference: 'ollama',
+        });
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/assets/manifest') {
+        sendJson(res, 200, {
+          base_url: `http://${BRITTNEY_HOST}:${BRITTNEY_PORT}`,
+          assets: [],
+        });
+        return;
+      }
+
+      if (url.pathname === '/config') {
+        if (req.method === 'PUT' || req.method === 'POST') {
+          await readJson(req);
+        }
+        sendJson(res, 200, {
+          modelName: model,
+          cloudProvider: null,
+          preferCloud: false,
+          apiKeysConfigured: {},
+          primaryInference: 'ollama',
+          saved: req.method !== 'GET',
+        });
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/chat') {
+        const request = await readJson(req) as BrittneyChatRequest;
+        const result = await runOllamaChat(model, request);
+        sendJson(res, 200, {
+          id: `ollama_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          content: result.content,
+          model,
+          provider: 'local',
+          usage: {
+            promptTokens: result.promptTokens,
+            completionTokens: result.completionTokens,
+            totalTokens: result.promptTokens + result.completionTokens,
+          },
+          routing: { reason: 'Local Ollama compatibility gateway' },
+        });
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
+        const request = await readJson(req) as BrittneyChatRequest;
+        const result = await runOllamaChat(model, request);
+        sendJson(res, 200, {
+          id: `ollama_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          object: 'chat.completion',
+          created: Date.now(),
+          model,
+          choices: [
+            {
+              index: 0,
+              message: { role: 'assistant', content: result.content },
+              finish_reason: 'stop',
+            },
+          ],
+          usage: {
+            promptTokens: result.promptTokens,
+            completionTokens: result.completionTokens,
+            totalTokens: result.promptTokens + result.completionTokens,
+          },
+        });
+        return;
+      }
+
+      sendJson(res, 404, { error: `Unknown Brittney gateway route: ${url.pathname}` });
+    } catch (error: any) {
+      sendJson(res, 500, { error: error.message || 'Brittney gateway error' });
+    }
+  });
+
+  server.on('error', (error: any) => {
+    console.error('❌ Failed to start Brittney Ollama gateway:', error.message);
+    process.exit(1);
+  });
+
+  process.on('SIGINT', () => server.close(() => process.exit(0)));
+  process.on('SIGTERM', () => server.close(() => process.exit(0)));
+
+  await new Promise<void>((resolve) => {
+    server.listen(BRITTNEY_PORT, BRITTNEY_HOST, () => {
+      console.log(`✅ Brittney Ollama gateway is ready at http://${BRITTNEY_HOST}:${BRITTNEY_PORT}`);
+      console.log('');
+      console.log('🔧 Compatibility routes are now available:');
+      console.log('   - GET  /health');
+      console.log('   - POST /chat');
+      console.log('   - POST /v1/chat/completions');
+      console.log('');
+      resolve();
+    });
+  });
+}
+
+async function startBrittneyService(startup: BrittneyStartupMode): Promise<void> {
   console.log('🚀 Starting Brittney AI Service...');
-  console.log(`📦 Model: ${modelPath}`);
+  if (startup.inferenceMode === 'ollama') {
+    console.log(`🧠 Primary inference: Ollama (${startup.ollamaModel})`);
+    console.log('🛡️  GGUF auto-load disabled to protect local GPU memory.');
+  } else {
+    console.log(`📦 Model: ${startup.modelPath}`);
+  }
   console.log(`🌐 URL: http://${BRITTNEY_HOST}:${BRITTNEY_PORT}`);
   
   const serviceDir = path.join(ROOT, 'packages', 'brittney', 'service');
@@ -88,7 +364,11 @@ async function startBrittneyService(modelPath: string): Promise<void> {
   const env = {
     ...process.env,
     BRITTNEY_PORT: String(BRITTNEY_PORT),
-    BRITTNEY_MODEL_PATH: modelPath,
+    BRITTNEY_AUTO_LOAD: startup.inferenceMode === 'ollama'
+      ? 'false'
+      : process.env.BRITTNEY_AUTO_LOAD || 'true',
+    ...(startup.modelPath ? { BRITTNEY_MODEL_PATH: startup.modelPath } : {}),
+    ...(startup.ollamaModel ? { OLLAMA_MODEL: startup.ollamaModel } : {}),
     NODE_ENV: 'production',
   };
   
@@ -163,6 +443,14 @@ async function main() {
   }
   
   // Find GGUF model
+  const ollamaModel = await findOllamaBrittneyModel();
+  if (ollamaModel) {
+    console.log(`✅ Found Ollama Brittney model: ${ollamaModel}`);
+    console.log('');
+    await startOllamaCompatibilityGateway(ollamaModel);
+    return;
+  }
+
   const modelPath = findGGUFModel();
   
   if (!modelPath) {
@@ -180,7 +468,10 @@ async function main() {
   console.log(`✅ Found GGUF model: ${path.basename(modelPath)}`);
   console.log('');
   
-  await startBrittneyService(modelPath);
+  await startBrittneyService({
+    inferenceMode: 'gguf',
+    modelPath,
+  });
 }
 
 main().catch(console.error);
