@@ -12,8 +12,10 @@ composition "HoloShell Founder Intent Policy" {
     commandPipelineSource: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
     visualWorldSource: "apps/holoshell/source/holoshell-shell-world.holo"
     hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    founderCommandBridgeScript: "scripts/holoshell-founder-command.mjs"
     trustedAutonomySource: "apps/holoshell/source/holoshell-trusted-autonomy.hsplus"
     brittneyRuntimeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    founderCommandReceipt: ".tmp/holoshell/founder-command-latest.json"
     approvalBundle: ".tmp/holoshell/workflow-approval-latest.json"
     intentGateReceipt: ".tmp/holoshell/brain-intent-gate-latest.json"
     liveFeedReceipt: ".tmp/holoshell/live-feed.json"
@@ -25,6 +27,9 @@ composition "HoloShell Founder Intent Policy" {
     pipelineShape: "intent_plan_approval_trust_launcher_receipt"
     autonomyLevel: "guarded"
     confidence: 0.86
+    founderCommandReceiptStatus: "unknown"
+    founderCommandApprovalCount: 0
+    founderCommandExecutionAllowed: false
     executionDefault: "staged_not_run"
     rawIntentStoredLocallyOnly: true
     visibleApprovalRequired: true
@@ -58,6 +63,19 @@ composition "HoloShell Founder Intent Policy" {
     confidence: 0
     approvalRequired: true
     executionAllowed: false
+    rawIntentStoredLocallyOnly: true
+    receiptRequired: true
+  }
+
+  template "FounderCommandReceipt" {
+    type: "founder_command_receipt"
+    receiptType: "hololand.holoshell.founder-command.v0.1.0"
+    commandId: ""
+    intentPreview: ""
+    pipeline: ["intent", "plan", "approval", "trust_gate", "launcher", "receipt"]
+    approvalCount: 0
+    executionAllowed: false
+    mutationExecuted: false
     rawIntentStoredLocallyOnly: true
     receiptRequired: true
   }
@@ -102,6 +120,23 @@ composition "HoloShell Founder Intent Policy" {
       confidence: state.confidence,
       approval_required: state.visibleApprovalRequired,
       execution_default: state.executionDefault,
+      receipt_required: true
+    })
+  }
+
+  action apply_founder_command_receipt(receipt) {
+    state.founderCommandReceiptStatus = receipt.summary.status
+    state.confidence = receipt.summary.confidence
+    state.founderCommandApprovalCount = receipt.summary.approvalCount
+    state.founderCommandExecutionAllowed = receipt.summary.executionAllowed
+    emit("holoshell:founder:receipt", {
+      action: "founder_command_receipt_applied",
+      command_id: receipt.commandId,
+      status: state.founderCommandReceiptStatus,
+      pipeline_steps: receipt.summary.pipelineStepCount,
+      approvals: state.founderCommandApprovalCount,
+      execution_allowed: state.founderCommandExecutionAllowed,
+      mutation_executed: receipt.summary.mutationExecuted,
       receipt_required: true
     })
   }

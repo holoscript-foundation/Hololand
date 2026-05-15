@@ -95,6 +95,7 @@ Routes:
   GET  /workflow/approval/latest
   GET  /workflow/intent-gate/latest
   GET  /workflow/grok-build/setup
+  GET  /workflow/founder-command/latest
   GET  /dispatch/latest
   POST /action
   POST /approval/execute
@@ -103,6 +104,7 @@ Routes:
   POST /workflow/claude-chat
   POST /workflow/ollama-cloud-agent
   POST /workflow/grok-build
+  POST /workflow/founder-command
   POST /workflow/approval
   POST /workflow/intent-gate
   POST /workflow/execute
@@ -270,6 +272,21 @@ function agentDispatch(body = {}) {
   return runChecked(cli);
 }
 
+function founderCommand(body = {}) {
+  const cli = ['scripts/holoshell-founder-command.mjs'];
+  const add = (flag, value) => {
+    if (value !== undefined && value !== null && value !== '') cli.push(flag, String(value));
+  };
+  add('--actor', body.actor);
+  add('--intent', body.intent || body.text || body.ask || body.request);
+  add('--model', body.model);
+  add('--model-route', body.modelRoute);
+  add('--claude-app', body.claudeApp);
+  add('--lofi-url', body.lofiUrl);
+  if (body.stageClaudeSurface === false) cli.push('--no-claude-surface');
+  return runChecked(cli);
+}
+
 function tmpPath(args, fileName) {
   return path.join(args.tmpDir, fileName);
 }
@@ -316,6 +333,7 @@ function latestSnapshot(args) {
     workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
     grokBuildSetup: readJson(tmpPath(args, 'grok-build-setup.json'), {}),
+    founderCommand: readJson(tmpPath(args, 'founder-command-latest.json'), {}),
     agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
   };
 }
@@ -528,6 +546,24 @@ function stageGrokBuild(args, body = {}) {
   };
 }
 
+function stageFounderCommand(args, body = {}) {
+  refreshRegistry(args);
+  const commandResult = founderCommand(body);
+  refreshLiveFeed();
+  return {
+    ok: true,
+    founderCommand: readJson(tmpPath(args, 'founder-command-latest.json'), {}),
+    dispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
+    workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
+    workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
+    workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
+    feed: readJson(tmpPath(args, 'live-feed.json'), {}),
+    logs: {
+      founderCommand: commandResult.stdout.trim(),
+    },
+  };
+}
+
 function stageAgentDispatch(args, body = {}) {
   refreshRegistry(args);
   const dispatchResult = agentDispatch(body);
@@ -602,6 +638,7 @@ function routeGet(args, pathname) {
   if (pathname === '/workflow/approval/latest') return readJson(tmpPath(args, 'workflow-approval-latest.json'), {});
   if (pathname === '/workflow/intent-gate/latest') return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
   if (pathname === '/workflow/grok-build/setup') return readJson(tmpPath(args, 'grok-build-setup.json'), {});
+  if (pathname === '/workflow/founder-command/latest') return readJson(tmpPath(args, 'founder-command-latest.json'), {});
   if (pathname === '/dispatch/latest') return readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
   const error = new Error(`Unknown route: ${pathname}`);
   error.statusCode = 404;
@@ -616,6 +653,7 @@ function routePost(args, pathname, body) {
   if (pathname === '/workflow/claude-chat') return stageClaudeChat(args, body);
   if (pathname === '/workflow/ollama-cloud-agent') return stageOllamaCloudAgent(args, body);
   if (pathname === '/workflow/grok-build') return stageGrokBuild(args, body);
+  if (pathname === '/workflow/founder-command') return stageFounderCommand(args, body);
   if (pathname === '/workflow/approval') {
     const activeWorkflow = readJson(tmpPath(args, 'workflow-latest.json'), {});
     const activeAdapter = String(activeWorkflow.sourceAnchors?.adapter || '').replaceAll('/', path.sep);

@@ -22,6 +22,7 @@ composition "HoloShell Hardware Program Control" {
     ollamaCloudAgentWorkflowScript: "scripts/holoshell-ollama-cloud-agent-workflow.mjs"
     grokBuildWorkflowScript: "scripts/holoshell-grok-build-workflow.mjs"
     agentDispatchScript: "scripts/holoshell-agent-dispatch.mjs"
+    founderCommandScript: "scripts/holoshell-founder-command.mjs"
     controlDaemonUrl: "http://127.0.0.1:4747"
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
     grokBuildWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
@@ -136,6 +137,9 @@ composition "HoloShell Hardware Program Control" {
     founderCommandTrustLevel: "guarded"
     founderCommandExecutionDefault: "staged_not_run"
     founderCommandReceiptStatus: "unknown"
+    founderCommandApprovalCount: 0
+    founderCommandExecutionAllowed: false
+    founderCommandMutationExecuted: false
     mutatingActionExecuted: false
     approvalRequired: false
     approvedByUser: false
@@ -330,7 +334,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /workflow/founder-command/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }
@@ -449,12 +453,15 @@ composition "HoloShell Hardware Program Control" {
   template "FounderCommandReceipt" {
     type: "founder_command_receipt"
     receiptType: "hololand.holoshell.founder-command.v0.1.0"
+    commandId: ""
     intent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
     pipeline: ["intent", "plan", "approval", "trust_gate", "launcher", "receipt"]
     targetSurfaces: ["Claude", "Windows Terminal", "Ollama Kimi Cloud", "browser", "YouTube lofi"]
     confidence: 0.86
     trustLevel: "guarded"
     executionDefault: "staged_not_run"
+    executionAllowed: false
+    mutationExecuted: false
     approvalRequired: true
     receiptRequired: true
   }
@@ -835,14 +842,21 @@ composition "HoloShell Hardware Program Control" {
 
   action apply_founder_command_receipt(receipt) {
     state.founderCommandConfidence = receipt.summary.confidence
-    state.founderCommandTrustLevel = receipt.summary.trustLevel
+    state.founderCommandTrustLevel = receipt.summary.trustLevel || state.founderCommandTrustLevel
     state.founderCommandReceiptStatus = receipt.summary.status
+    state.founderCommandApprovalCount = receipt.summary.approvalCount
+    state.founderCommandExecutionAllowed = receipt.summary.executionAllowed
+    state.founderCommandMutationExecuted = receipt.summary.mutationExecuted
     emit("holoshell:founder:command-pipeline", {
       action: "founder_command_receipt_applied",
+      command_id: receipt.commandId,
       status: state.founderCommandReceiptStatus,
       trust_level: state.founderCommandTrustLevel,
       confidence: state.founderCommandConfidence,
       pipeline_shape: state.founderCommandPipelineShape,
+      approvals: state.founderCommandApprovalCount,
+      execution_allowed: state.founderCommandExecutionAllowed,
+      mutation_executed: state.founderCommandMutationExecuted,
       execution_default: state.founderCommandExecutionDefault,
       receipt_required: true
     })

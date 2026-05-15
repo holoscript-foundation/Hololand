@@ -13,6 +13,7 @@ composition "HoloShell Shell World" {
     render_slice: "apps/holoshell/source/holoshell-shell-render.hs"
     founder_command_pipeline: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
     founder_intent_policy: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
+    founder_command_bridge: "scripts/holoshell-founder-command.mjs"
     preview_projection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
@@ -35,6 +36,7 @@ composition "HoloShell Shell World" {
     founderDemoPipeline: "intent_plan_policy_launcher_receipt"
     founderAutonomyLevel: "guarded"
     founderAutonomyConfidence: 0.86
+    founderCommandReceipt: ".tmp/holoshell/founder-command-latest.json"
     receiptVisibility: "behind_world"
     userOutcome: "Operate this computer as HoloShell"
   }

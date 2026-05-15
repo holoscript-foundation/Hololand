@@ -26,6 +26,7 @@ command flagship_room_marathon {
     behavior: "apps/holoshell/source/holoshell-hardware-control.hsplus"
     policy: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
     trust: "apps/holoshell/source/holoshell-trusted-autonomy.hsplus"
+    receipt_bridge: "scripts/holoshell-founder-command.mjs"
   }
 
   pipeline {
@@ -70,9 +71,10 @@ command flagship_room_marathon {
     }
 
     step receipt {
-      adapter: "scripts/holoshell-live-feed.mjs"
-      action: "merge_receipts_into_shell_memory"
+      adapter: "scripts/holoshell-founder-command.mjs"
+      action: "merge_pipeline_receipts_into_founder_command"
       outputs: [
+        ".tmp/holoshell/founder-command-latest.json",
         ".tmp/holoshell/workflow-latest.json",
         ".tmp/holoshell/workflow-approval-latest.json",
         ".tmp/holoshell/brain-intent-gate-latest.json",

@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -395,6 +395,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (founderCommand?.summary) {
+    timeline.push({
+      id: founderCommand.commandId || 'holoshell-founder-command',
+      kind: 'founder_command',
+      title: `Founder command ${founderCommand.summary.status || 'unknown'}`,
+      detail: `${founderCommand.summary.pipelineStepCount || 0} pipeline step(s), ${founderCommand.summary.workflowStepCount || 0} workflow step(s), ${founderCommand.summary.approvalCount || 0} approval(s); execution ${founderCommand.summary.executionAllowed ? 'allowed after gesture' : 'blocked or staged'}.`,
+      trustState: founderCommand.summary.executionAllowed ? 'partial' : founderCommand.summary.status === 'completed' ? 'verified' : 'unknown',
+      generatedAt: founderCommand.generatedAt || now,
+      receiptType: founderCommand.schemaVersion,
+      source: founderCommand.sourceAnchors?.adapter || 'scripts/holoshell-founder-command.mjs',
+    });
+  }
+
   if (hardwareAction?.summary) {
     timeline.push({
       id: hardwareAction.actionId || 'hardware-action',
@@ -601,6 +614,7 @@ function createFeed(args) {
   const brittneyContext = readJson(path.join(tmpDir, 'brittney-context.json'), {});
   const operatorBrief = readJson(path.join(tmpDir, 'operator-brief.json'), {});
   const operatingTurn = readJson(path.join(tmpDir, 'operating-turn.json'), {});
+  const founderCommand = readJson(path.join(tmpDir, 'founder-command-latest.json'), {});
   const agentDispatch = readJson(path.join(tmpDir, 'agent-dispatch-latest.json'), {});
   const grokBuild = readJson(path.join(tmpDir, 'grok-build-setup.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
@@ -645,6 +659,7 @@ function createFeed(args) {
     brittneyContext,
     operatorBrief,
     operatingTurn,
+    founderCommand,
     agentDispatch,
     grokBuild,
     hardwareAction,
@@ -692,6 +707,7 @@ function createFeed(args) {
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
+      founderCommand: 'scripts/holoshell-founder-command.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
@@ -862,6 +878,17 @@ function createFeed(args) {
       operatingTurnStatus: operatingTurn?.summary?.status || 'unknown',
       operatingTurnStepCount: operatingTurn?.summary?.stepCount || 0,
       operatingTurnPassedStepCount: operatingTurn?.summary?.passedStepCount || 0,
+      founderCommandStatus: founderCommand?.summary?.status || 'unknown',
+      founderCommandId: founderCommand?.commandId || '',
+      founderCommandConfidence: founderCommand?.summary?.confidence || 0,
+      founderCommandPipelineStepCount: founderCommand?.summary?.pipelineStepCount || 0,
+      founderCommandWorkflowStepCount: founderCommand?.summary?.workflowStepCount || 0,
+      founderCommandApprovalCount: founderCommand?.summary?.approvalCount || 0,
+      founderCommandExecutionAllowed: Boolean(founderCommand?.summary?.executionAllowed),
+      founderCommandMutationExecuted: Boolean(founderCommand?.summary?.mutationExecuted),
+      founderCommandDispatchStatus: founderCommand?.summary?.dispatchStatus || 'unknown',
+      founderCommandWorkflowStatus: founderCommand?.summary?.workflowStatus || 'unknown',
+      founderCommandIntentGateStatus: founderCommand?.summary?.intentGateStatus || 'unknown',
       agentDispatchStatus: agentDispatch?.summary?.status || 'unknown',
       agentDispatchCapabilityId: agentDispatch?.summary?.capabilityId || '',
       agentDispatchCapabilityLabel: agentDispatch?.summary?.capabilityLabel || '',
@@ -1003,6 +1030,7 @@ function createFeed(args) {
       brittneyContext,
       operatorBrief,
       operatingTurn,
+      founderCommand,
       agentDispatch,
       grokBuild,
       hardwareAction,

@@ -1037,6 +1037,7 @@
   <script src="../../../.tmp/holoshell/format-inventory.js"></script>
   <script src="../../../.tmp/holoshell/holoscript-gold-codebase-bridge.js"></script>
   <script src="../../../.tmp/holoshell/founder-boot-preview.js"></script>
+  <script src="../../../.tmp/holoshell/founder-command-latest.js"></script>
   <script src="../../../.tmp/holoshell/user-shell-projection.js"></script>
   <script src="../../../.tmp/holoshell/developmental-environment.js"></script>
   <script src="../../../.tmp/holoshell/brittney-context.js"></script>
@@ -1178,6 +1179,7 @@
     const standaloneFormatInventoryFeed = window.HOLOSHELL_FORMAT_INVENTORY || {};
     const standaloneGoldCodebaseBridgeFeed = window.HOLOSHELL_HOLOSCRIPT_GOLD_CODEBASE_BRIDGE || {};
     const standaloneFounderBootFeed = window.HOLOSHELL_FOUNDER_BOOT_PREVIEW || {};
+    const standaloneFounderCommandFeed = window.HOLOSHELL_FOUNDER_COMMAND || {};
     const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
     const standaloneDevelopmentalEnvironmentFeed = window.HOLOSHELL_DEVELOPMENTAL_ENVIRONMENT || {};
     const standaloneBrittneyContextFeed = window.HOLOSHELL_BRITTNEY_CONTEXT || {};
@@ -1203,6 +1205,7 @@
       { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
       { id: "agent-dispatch", label: "Dispatch", glyph: "AD", type: "workflow", detail: "Brittney turns plain-language intent into the right guarded workflow or hardware action.", x: 26, y: 66, size: 108 },
+      { id: "founder-command", label: "Founder Command", glyph: "FC", type: "os command", detail: "One receipt for intent, plan, approval, trust gate, launcher, and shell memory.", x: 31, y: 79, size: 104 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
       { id: "claude-chat", label: "Claude Chat", glyph: "CC", type: "workflow", detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.", x: 64, y: 23, size: 108 },
       { id: "claude-app", label: "Claude", glyph: "CL", type: "agent app", detail: "Claude can be opened as a peer surface after Brittney resolves the target and approval bundle.", x: 87, y: 47, size: 94 },
@@ -1611,6 +1614,15 @@
     function founderBootSummary() {
       const boot = founderBootFeed();
       return boot.summary || {};
+    }
+
+    function founderCommandFeed() {
+      return feed.feeds?.founderCommand?.summary ? feed.feeds.founderCommand : standaloneFounderCommandFeed;
+    }
+
+    function founderCommandSummary() {
+      const command = founderCommandFeed();
+      return command.summary || {};
     }
 
     function userShellFeed() {
@@ -2393,7 +2405,8 @@
       const workflow = workflowApprovalFeed();
       const shardImportApproval = shardImportApprovalFeed();
       const gate = workflowIntentGateSummary();
-      const wantsWorkflow = object?.id === "room-marathon"
+      const wantsWorkflow = object?.id === "founder-command"
+        || object?.id === "room-marathon"
         || object?.id === "claude-chat"
         || object?.id === "ollama-agents"
         || object?.id === "grok-build"
@@ -2478,7 +2491,7 @@
       try {
         const payload = await postControlDaemon(route, body);
         mergeLiveFeed(payload.feed);
-        result.textContent = `${label} staged. Approval ${payload.approval?.summary?.status || payload.workflowApproval?.summary?.status || "recorded"}; execution stayed off.`;
+        result.textContent = `${label} staged. Approval ${payload.approval?.summary?.status || payload.workflowApproval?.summary?.status || payload.founderCommand?.summary?.status || "recorded"}; execution stayed off.`;
         appendConversation(`${label} is staged as a guarded shell action. I kept it behind approval and refreshed the object memory.`);
         renderBubbles();
         renderDock();
@@ -2511,6 +2524,13 @@
         actions.push(actionButton("Launch Codex", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "launch Codex through Ollama" })));
         actions.push(actionButton("Grok Build", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open Grok Build" })));
         actions.push(actionButton("Play lofi", () => stageDaemonAction("Brittney dispatch", "/workflow/agent-dispatch", { intent: "open browser and play lofi music on YouTube" })));
+      }
+      if (object.id === "founder-command") {
+        actions.push(actionButton("Stage founder command", () => stageDaemonAction("Founder command", "/workflow/founder-command", { intent: FLAGSHIP_COMMAND }), true));
+        actions.push(actionButton("Stage current ask", () => {
+          const intent = document.getElementById("askInput")?.value || FLAGSHIP_COMMAND;
+          stageDaemonAction("Founder command", "/workflow/founder-command", { intent });
+        }));
       }
       if (object.id === "excel") {
         actions.push(actionButton("Stage open Excel", () => stageDaemonAction("Excel", "/workflow/agent-dispatch", { intent: "open Excel" }), true));
@@ -2926,6 +2946,19 @@
     function renderControlLane() {
       const lane = document.getElementById("controlLane");
       if (!lane) return;
+      const founderCommand = founderCommandFeed();
+      if (Array.isArray(founderCommand.pipeline) && founderCommand.pipeline.length) {
+        lane.replaceChildren(...founderCommand.pipeline.map((step) => {
+          const item = document.createElement("div");
+          item.className = "control-step";
+          item.dataset.state = step.state || "unknown";
+          const confidence = Math.round(normalizeConfidence(step.confidence, 0.84) * 100);
+          item.innerHTML = `<strong>${step.label}</strong><small>${step.detail || step.state || "receipt"}</small><div class="meter" aria-hidden="true"><span style="--value:${confidence}%"></span></div>`;
+          item.title = `${step.label}: ${step.state || "unknown"}; confidence ${confidence}%`;
+          return item;
+        }));
+        return;
+      }
       const dispatch = agentDispatchSummary();
       const workflow = workflowSummary();
       const approval = workflowApprovalSummary();
@@ -3022,6 +3055,7 @@
       const readinessSummary = readinessEvidenceSummary();
       const approvalSummary = hardwareApprovalSummary();
       const dispatchSummary = agentDispatchSummary();
+      const founderCommandSummaryData = founderCommandSummary();
       const grokSummary = grokBuildSummary();
       const trustSummary = trustLedgerSummary();
       const activeWorkflow = workflowSummary();
@@ -3066,6 +3100,7 @@
         `Program registry: ${registrySummary.launchableProgramCount || summary.launchableProgramCount || 0} launchable, ${registrySummary.programCount || summary.installedProgramCount || 0} installed entries`,
         `Shell objects: ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} total, ${shellGraphSummary.programObjectCount || summary.appShellObjectCount || 0} app bubbles, ${shellGraphSummary.capturedWindowObjectCount || summary.capturedShellObjectCount || 0} captured windows, ${shellGraphSummary.guardedExecuteCount || summary.guardedShellObjectCount || 0} guarded powers`,
         `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
+        `Founder command: ${founderCommandSummaryData.status || summary.founderCommandStatus || "unknown"}; ${founderCommandSummaryData.pipelineStepCount || summary.founderCommandPipelineStepCount || 0} pipeline; ${founderCommandSummaryData.workflowStepCount || summary.founderCommandWorkflowStepCount || 0} workflow steps; approvals ${founderCommandSummaryData.approvalCount || summary.founderCommandApprovalCount || 0}; execute ${founderCommandSummaryData.executionAllowed || summary.founderCommandExecutionAllowed ? "yes" : "no"}`,
         `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
         `Grok Build: ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; auth ${grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy recheck ${grokBuildFeed().heavyUpgrade?.plannedCheckDate || summary.grokBuildHeavyRecheckDate || "2026-05-15"}`,
         `Trust ladder: ${trustSummary.status || summary.trustLedgerStatus || "unknown"}; latest ${trustSummary.latestTrustLevel || summary.trustedAutonomyLatestLevel || "unknown"}; trusted ${trustSummary.trustedRecordCount || summary.trustedAutonomyTrustedRecordCount || 0}; guarded ${trustSummary.guardedRecordCount || summary.trustedAutonomyGuardedRecordCount || 0}; eligible ${trustSummary.trustedAutonomyEligible || summary.trustedAutonomyEligible ? "yes" : "no"}`,

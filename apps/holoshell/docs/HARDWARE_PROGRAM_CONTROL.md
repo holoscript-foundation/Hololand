@@ -18,6 +18,7 @@ scripts/holoshell-action-executor.mjs
 scripts/holoshell-approval-bundle.mjs
 scripts/holoshell-control-daemon.mjs
 scripts/holoshell-agent-dispatch.mjs
+scripts/holoshell-founder-command.mjs
 scripts/holoshell-room-marathon-workflow.mjs
 scripts/holoshell-workflow-approval-bundle.mjs
 ```
@@ -58,6 +59,9 @@ proves what HoloShell saw before it offered to act.
 .tmp/holoshell/agent-dispatch-latest.json
 .tmp/holoshell/agent-dispatch-latest.js
 .tmp/holoshell/agent-dispatches/
+.tmp/holoshell/founder-command-latest.json
+.tmp/holoshell/founder-command-latest.js
+.tmp/holoshell/founder-commands/
 ```
 
 The live-feed bridge consumes the latest action and exposes it to the prototype
@@ -173,6 +177,7 @@ GET  /action/latest
 GET  /approval/latest
 GET  /workflow/latest
 GET  /workflow/approval/latest
+GET  /workflow/founder-command/latest
 GET  /dispatch/latest
 POST /action
 POST /approval/execute
@@ -180,6 +185,7 @@ POST /workflow/agent-dispatch
 POST /workflow/room-marathon
 POST /workflow/claude-chat
 POST /workflow/ollama-cloud-agent
+POST /workflow/founder-command
 POST /workflow/approval
 POST /workflow/execute
 ```
@@ -240,6 +246,23 @@ Dispatch does not execute anything directly. It writes
 `.tmp/holoshell/agent-dispatch-latest.json`, chooses a route such as
 `/workflow/claude-chat`, `/workflow/ollama-cloud-agent`, `/workflow/room-marathon`,
 or `/action`, and then the selected adapter writes the normal approval bundle.
+
+Stage the full Founder command receipt:
+
+```powershell
+node scripts\holoshell-founder-command.mjs
+```
+
+Or stage it through the daemon:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4747/workflow/founder-command -ContentType application/json -Body (@{ intent = "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube" } | ConvertTo-Json)
+```
+
+The Founder command bridge is the demo-level receipt: it joins
+`intent -> plan -> approval -> trust_gate -> launcher -> receipt` across agent
+dispatch, Claude staging, the room marathon workflow, approval bundle, brain
+intent gate, and live feed.
 
 That stages:
 
@@ -333,6 +356,7 @@ node scripts\holoshell-program-registry.mjs --self-test
 node scripts\holoshell-shell-objects.mjs --self-test
 node scripts\holoshell-approval-bundle.mjs --self-test
 node scripts\holoshell-control-daemon.mjs --self-test
+node scripts\holoshell-founder-command.mjs --self-test
 node scripts\holoshell-room-marathon-workflow.mjs --self-test
 node scripts\holoshell-claude-chat-workflow.mjs --self-test
 node scripts\holoshell-ollama-cloud-agent-workflow.mjs --self-test
