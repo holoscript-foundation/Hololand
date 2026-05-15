@@ -589,7 +589,9 @@ composition "HoloShell Home" {
       position: [-3, 1]
     }
 
-    spatial_group "ShellObjects" at [0, 1, -2] {
+    spatial_group "ShellObjects" {
+      position: [0, 1, -2]
+
       object "BrowserBubble" using "ShellObjectBubble" {
         label: "Browser"
         objectKind: "program"
@@ -644,7 +646,9 @@ composition "HoloShell Home" {
       }
     }
 
-    spatial_group "SkinDock" at [0, -2, -1] {
+    spatial_group "SkinDock" {
+      position: [0, -2, -1]
+
       object "LiquidSkin" using "ShellSkin" {
         label: "Water"
         name: "liquid"
@@ -678,7 +682,9 @@ composition "HoloShell Home" {
       position: [0, 0.5]
     }
 
-    spatial_group "OutcomePath" at [0, 1, -2] {
+    spatial_group "OutcomePath" {
+      position: [0, 1, -2]
+
       object "AskStage" using "OutcomeStage" {
         label: "Ask"
         stage: "ask"
@@ -704,7 +710,9 @@ composition "HoloShell Home" {
       }
     }
 
-    spatial_group "OperatingRoom" at [0, 2, -2] {
+    spatial_group "OperatingRoom" {
+      position: [0, 2, -2]
+
       object "NextMove" using "OperatingAction" {
         label: $nextMove
         status: $processHealthStatus == "pass" ? "can_run" : "clear_custody_first"
@@ -757,7 +765,9 @@ composition "HoloShell Home" {
       }
     }
 
-    spatial_group "CapabilityMap" at [0, 1, -3] {
+    spatial_group "CapabilityMap" {
+      position: [0, 1, -3]
+
       object "HardwareProof" using "CapabilityGlyph" {
         label: "Hardware Proof"
         source_kind: "hardware"
@@ -808,7 +818,9 @@ composition "HoloShell Home" {
       }
     }
 
-    spatial_group "LegacyMachineGallery" at [-3, 1, -2] {
+    spatial_group "LegacyMachineGallery" {
+      position: [-3, 1, -2]
+
       object "UnclassifiedProgram" using "LegacyMachine" {
         label: "Unclassified Program"
         adapter: "pending_discovery"
@@ -816,7 +828,9 @@ composition "HoloShell Home" {
       }
     }
 
-    spatial_group "AgentOperatorRoom" at [3, 1, -2] {
+    spatial_group "AgentOperatorRoom" {
+      position: [3, 1, -2]
+
       object "ActiveAgent" {
         type: "ui"
         uiType: "agent_operator"
@@ -852,7 +866,9 @@ composition "HoloShell Home" {
       }
     }
 
-    spatial_group "TrustTimeline" at [0, -1, -2] {
+    spatial_group "TrustTimeline" {
+      position: [0, -1, -2]
+
       object "LatestReceipt" using "ReceiptNode" {
         label: "Waiting for first receipt"
         state: "pending"
@@ -1828,4 +1844,3 @@ composition "HoloShell Home" {
       rollback: receipt.rollback || "unknown"
     })
   }
-}

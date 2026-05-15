@@ -1922,12 +1922,14 @@
         chip.hidden = false;
         chip.dataset.status = workflow.status || feed.summary?.activeWorkflowStatus || "pending_user_approval";
         chip.dataset.object = workflowTargetObject;
+        const approvalStatus = workflowApproval.status || feed.summary?.activeWorkflowApprovalStatus || workflow.status || "pending";
+        const gateStatus = workflowIntentGate.status || feed.summary?.activeWorkflowIntentGateStatus || "unknown";
         const approvalReady = workflowApproval.executionAllowed || feed.summary?.activeWorkflowApprovalExecutionAllowed;
         const gateReady = workflowIntentGate.executionAllowed || feed.summary?.activeWorkflowIntentGateExecutionAllowed;
-        const workflowReady = approvalReady && gateReady;
-        title.textContent = workflowReady ? "Workflow Ready" : approvalReady ? "Workflow Gated" : "Workflow Pending";
+        const approvalPending = approvalStatus === "pending_user_approval" || workflow.status === "pending_user_approval";
+        title.textContent = approvalPending ? "Approval Pending" : !gateReady ? "Gate Blocked" : approvalReady ? "Workflow Staged" : "Workflow Pending";
         detail.textContent = workflowDetail;
-        chip.setAttribute("aria-label", `${workflowReady ? "Workflow ready" : approvalReady ? "Workflow blocked by brain intent gate" : "Workflow pending"}. Select ${workflowTargetLabel}.`);
+        chip.setAttribute("aria-label", `${approvalPending ? "Workflow approval pending" : !gateReady ? `Workflow blocked by ${gateStatus} gate` : approvalReady ? "Workflow staged but not executed" : "Workflow pending"}. Select ${workflowTargetLabel}.`);
         return;
       }
       const shard = shardWorkflowSummary();
@@ -1936,7 +1938,8 @@
         chip.hidden = false;
         chip.dataset.status = shardApproval.status || "pending_user_approval";
         chip.dataset.object = "asset-shard";
-        title.textContent = shardApproval.executionAllowed || feed.summary?.activeShardImportExecutionAllowed ? "Shard Import Ready" : "Shard Ready";
+        const shardApprovalPending = (shardApproval.status || feed.summary?.activeShardImportApprovalStatus) === "pending_user_approval";
+        title.textContent = shardApprovalPending ? "Shard Approval Pending" : shardApproval.executionAllowed || feed.summary?.activeShardImportExecutionAllowed ? "Shard Import Staged" : "Shard Staged";
         detail.textContent = `${shard.assetCount || feed.summary?.activeShardAssetCount || 0} assets; preview ${shard.previewObjectCount || feed.summary?.activeShardPreviewObjectCount || 0}; import ${shardApproval.status || feed.summary?.activeShardImportApprovalStatus || "guarded"}`;
         chip.setAttribute("aria-label", "Asset shard is staged and waiting for guarded import review. Select Asset Shard.");
         return;
