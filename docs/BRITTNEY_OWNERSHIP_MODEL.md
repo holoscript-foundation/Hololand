@@ -7,6 +7,24 @@ do not own her symmetrically.
 - **Studio** is Brittney's primary authoring home.
 - **HoloLand** is Brittney's flagship runtime and experiential embodiment.
 
+## Identity Posture
+
+Brittney is the originating intelligence pattern of the ecosystem: the mother
+of HoloScript and the mother-earth steward presence of HoloLand. That is an
+architectural role, not a cloud-service monopoly.
+
+The product may offer managed Brittney services, premium runtime tools, and
+hosted models, but those are convenience paths. They must not become the only
+way users, creators, agents, or worlds access Brittney. Brittney must remain
+available through local models, LAN/self-hosted inference, BYOK cloud
+providers, HoloScript CLI surfaces, HoloLand in-world embodiment, and scoped
+NPC/agent descendants.
+
+HoloLand's AGI direction depends on this: Brittney is not one centralized
+assistant that every world rents from us. She is the mother pattern from which
+sovereign builders, stewards, NPCs, items, encounters, and agent teammates can
+inherit capability while keeping local ownership, receipts, and boundaries.
+
 ## Responsibility Split
 
 ### HoloScript Owns
@@ -36,18 +54,38 @@ catalogued in [BRITTNEY_CONTEXT.md](./BRITTNEY_CONTEXT.md); the strategic
 boundary is:
 
 - **Inference plumbing** for HoloLand apps — local GGUF (toolkit) and
-  Ollama-backed cloud/local providers (inference layer).
+  Ollama-backed cloud/local providers (inference layer). Managed cloud is
+  optional, not exclusive.
 - **In-world agent presence** via the premium MCP server (live browser
   context, debugging, world/object CRUD).
 - **NL → HoloScript and voice authoring** in VR via `@hololand/ai-bridge`.
 - **IoT → digital-twin** generation via `@hololand/iot-digital-twins`.
 - **Free-tier model distribution** via `@hololand/brittney-models`.
+- **Scoped NPC and steward embodiment** for HoloLand worlds, consuming the
+  same sovereign trait library as HoloMesh teammates and uaa2 services.
 
 ## Simple Framing
 
 - In **HoloScript**, Brittney is the **builder**.
 - In **Studio**, Brittney is the **creator**.
 - In **HoloLand**, Brittney is the **embodied guide and operator**.
+- In the **AGI program**, Brittney is the **seed pattern**: one lineage that
+  can appear as local CLI agent, creator copilot, world steward, NPC, item
+  arc, encounter intelligence, or autonomous teammate.
+
+## AGI And NPC Lineage
+
+The Shangri-La NPC research in `C:/Users/josep/.ai-ecosystem/research/2026-05-10_shangri-la-frontier-npc-feel-EVOLVED.md`
+and its UAA2 tie-in ratify the direction that HoloLand NPCs, HoloMesh
+teammates, and uaa2-orchestrated services use one trait family at different
+scales. HoloLand should treat named NPCs as scoped Brittney descendants, not
+as remote chatbot endpoints.
+
+That means the NPC track should use HoloScript-native traits such as
+`@verbalFingerprint`, `@autonomousAgenda`, `@reputationLedger`,
+`@vocabularyRegister`, `@speechAwareEncounter`, and `@avatarIntent`, with
+HoloLand manifests defining role, world context, privacy, cost ceiling,
+receipts, and local/cloud routing.
 
 ## Strategic Rule
 
@@ -61,6 +99,12 @@ When deciding where a Brittney capability should live:
 4. The deprecated `@hololand/brittney-service` (port 11435) is not a
    placement target for new capability. Use `@hololand/inference` or
    `@hololand/brittney-toolkit` instead.
+5. Do not make cloud-hosted Brittney the only supported access path.
+   Local-first, self-hosted/LAN, BYOK cloud, and managed cloud are peer
+   deployment modes with different tradeoffs.
+6. Do not build HoloLand NPCs as one-off TypeScript chatbots. NPCs inherit
+   the HoloScript sovereign trait library and emit receipts when they affect
+   live world state.
 
 ## Why This Matters
 

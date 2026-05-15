@@ -15,6 +15,19 @@ HoloLand has two live deployment paths and one deprecated one.
 | **Unified inference layer** | [`@hololand/inference`](../packages/shared/inference) | Server-side and downstream-package inference. Local (Ollama) + BYOK cloud providers under one client. |
 | **(deprecated)** Standalone Express server | [`@hololand/brittney-service`](../packages/brittney/service) | Old port-11435 server. Marked `deprecated` in its `package.json`; do not use for new integrations. |
 
+## Sovereignty Rule
+
+Brittney is allowed to have managed cloud surfaces, but the architecture must
+not make managed cloud the only viable access path. Local GGUF, local/LAN
+Ollama, BYOK cloud providers, HoloScript CLI access, and HoloLand in-world
+access are first-class deployment modes.
+
+Use managed cloud for convenience, scale, or premium uptime. Use local and
+self-hosted paths for privacy, offline use, user ownership, modding, world
+stewards, NPCs, and AGI experiments that need receipts without platform lock-in.
+Any new Brittney feature should state which of these modes it supports and why
+the unsupported modes are not required yet.
+
 The model-file lifecycle (registry, checksums, downloader CLI) is owned by
 [`@hololand/brittney-models`](../packages/brittney/models) — see
 [`packages/brittney/models/src/registry.ts`](../packages/brittney/models/src/registry.ts)

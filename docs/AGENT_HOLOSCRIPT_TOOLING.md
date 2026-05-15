@@ -4,7 +4,10 @@
 **Last reviewed:** 2026-05-07
 **Status:** Authoritative agent workflow for the HoloLand platform/product repo
 
-HoloLand is the platform/product layer. HoloScript is the source layer. Agents should use HoloScript tools to understand, validate, generate, and implement HoloLand gaps upstream before HoloLand consumes them.
+HoloLand is the gamer-facing product/world layer. HoloScript is the developer
+substrate. Agents should use HoloScript tools to understand, validate, generate,
+and prove HoloLand worlds, assets, and product tools, while only pushing generic
+substrate gaps upstream to HoloScript.
 
 ## First Principles
 
@@ -12,7 +15,9 @@ HoloLand is the platform/product layer. HoloScript is the source layer. Agents s
 2. HoloScript owns language, traits, compilers, validation, agent tools, and semantic world definitions.
 3. TypeScript in HoloLand is allowed as bootstrap, bridge, runtime infrastructure, hardware integration, and tests.
 4. Gameplay, world rules, simulation, IoT twin behavior, creator templates, quests, NPC behavior, and live-world semantics must have `.holo`, `.hs`, or `.hsplus` source.
-5. If HoloLand and HoloScript disagree, HoloScript wins.
+5. HoloLand owns game assets, worlds, product tools, player UX, art direction, and gamer-facing proof loops that HoloScript does not need as developer substrate.
+6. HoloLand owns Twin Earth robot/AI operational substrate: actor identity, geospatial world state, sensor feeds, actuator permissions, task plans, safety envelopes, and real-world action receipts.
+7. If HoloLand and HoloScript disagree about reusable language/runtime semantics, HoloScript wins. If the question is HoloLand's look, feel, content, player fantasy, or product direction, the founder team decides.
 
 ## Repository Map
 
@@ -30,7 +35,10 @@ Before editing, classify the request:
 |---|---|
 | Documentation, migration guide, agent guide | Edit HoloLand docs directly. |
 | Critical bug in existing HoloLand deployment | Fix narrowly, validate locally, preserve deployments. |
-| New world/gameplay/VR feature | Design or implement in HoloScript first; HoloLand consumes it as the platform experience. |
+| New world/gameplay/VR feature | Implement in HoloLand using `.holo`, `.hs`, or `.hsplus`; upstream only missing reusable HoloScript primitives, validators, receipts, or runtime capabilities. |
+| HoloLand-specific asset/world/tool | Keep in HoloLand when it serves gamers, creators, shards, NPCs, encounters, visual direction, or live runtime operations rather than general HoloScript developers. |
+| Twin Earth robot/AI feature | Keep HoloLand product semantics in HoloLand: robot/AI actor registration, sensor/actuator binding, task planning, safety envelopes, geospatial operations, and action receipts. Upstream only reusable primitives and validators. |
+| External or forked HoloScript artifact | Treat as untrusted input until conformance, provenance, sandbox, permissions, and receipt gates pass. Do not give world-write, robot/AI, payment, or player-impact authority based on syntax alone. |
 | TypeScript runtime bridge | Keep TS minimal and justify why it is bridge-only. |
 | Brittney agent orchestration | May live here when it is part of HoloLand's product experience; document the HoloScript boundary. |
 | Architecture decision | Read `NORTH_STAR.md`, this guide, and `docs/HOLOSCRIPT_SOURCE_CONTRACT.md` before changing code. |
@@ -162,9 +170,12 @@ Minimum generation workflow:
 |---|---|
 | `NORTH_STAR.md` | Project status and HoloScript-first platform rule. |
 | `CLAUDE.md` | Current detailed HoloScript file-type primer. |
+| `docs/HOLOLAND_PURPOSE.md` | Product authority, gamer/developer split, and native HoloScript proof policy. |
+| `docs/BRITTNEY_OWNERSHIP_MODEL.md` | Brittney lineage, sovereignty, local/BYOK/managed deployment boundary, and NPC/AGI posture. |
 | `docs/HOLOSCRIPT_SOURCE_CONTRACT.md` | Enforcement boundary for HoloScript-first work. |
 | `docs/specs/HOLOSCRIPT_FIRST_MIGRATION.md` | Existing migration direction for HoloLand Central. |
 | `docs/specs/HOLOLAND_FRONTIER_NORTH_STAR.md` | Current product north star: programmable living frontier MMO. |
+| `docs/specs/HOLOLAND_SOVEREIGN_TOOLS.md` | Boundary for HoloLand MCP tools, MCP Orchestrator support, and cross-MCP receipts. |
 | `examples/hololand-central/**` | Reference central hub and existing runtime surface. |
 | `examples/hololand-legends/**` | Game loop reference and HoloScript/TypeScript hybrid sample. |
 | `packages/platform/**` | Legacy platform runtime and bridge code. |
@@ -187,6 +198,10 @@ Do not:
 
 - Add new gameplay, world, NPC, quest, item, economy, or simulation behavior only in TypeScript.
 - Treat `.holo` as a decorative export after the real logic is already in TS.
+- Treat HoloLand as a compiler-parity demo for competitor runtimes. HoloLand proves native HoloScript worlds work for gamers.
+- Push HoloLand-only assets, art direction, shard tools, or gamer UX into HoloScript unless they reveal a reusable substrate gap.
+- Push Twin Earth robot/AI product operations into HoloScript unless the need is a reusable language, trait, validator, runtime, or receipt primitive.
+- Treat a HoloScript-looking fork, package, runtime adapter, or MCP tool as trusted because it parses.
 - Claim MCP or Absorb results without showing the tool/check used.
 - Invent HoloScript syntax without validation.
 - Move canonical language or trait definitions into HoloLand.

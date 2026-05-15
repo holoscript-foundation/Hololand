@@ -229,6 +229,20 @@ Acceptance:
 7. How should process health and HoloMesh heartbeats agree on which agent owns
    a long-running PID?
 
+## Research Spine
+
+The Phase 1 questions now route into these follow-on docs:
+
+| Doc | Purpose |
+| --- | --- |
+| `HOLOSHELL_OS_REPLACEMENT_DOCTRINE.md` | Defines HoloShell as the operating-system replacement surface, not a dashboard. |
+| `SHELL_OBJECT_SCHEMA.md` | Defines the object grammar for programs, files, agents, workflows, approvals, receipts, windows, and controls. |
+| `LEGACY_APP_ADAPTER_MATRIX.md` | Prioritizes browser, terminal, Claude, Excel/documents, files, projects, settings, and unknown apps by adapter and risk. |
+| `BRITTNEY_OPERATOR_SPEC.md` | Defines Brittney's operator loop, context packet, action proposal shape, avatar states, and refusal rules. |
+| `GEOMETRIC_UI_RECONSTRUCTION.md` | Defines how captured legacy UI becomes HoloScript geometry and interaction fields. |
+| `SKIN_SIMULATION_RESEARCH.md` | Defines skins as simulation systems with materials, particles, risk language, accessibility, and performance budgets. |
+| `PHASE_2_NATIVE_SHELL_ROADMAP.md` | Turns the research into native shell slices: approval UX, browser/media, terminal/marathon, Excel/documents, reconstruction, skins, host wrapper. |
+
 ## Upstream Candidates
 
 These should move to HoloScript after one more implementation pass proves the

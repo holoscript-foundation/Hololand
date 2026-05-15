@@ -23,7 +23,7 @@ Live layout: `packages/brittney/` — verify with
 
 | Sub-package | Status | Role | Source-of-truth file |
 |---|---|---|---|
-| `mcp-server` | alive | Premium MCP server for HoloLand: live browser context, AI debugging, one-shot inject, world/object management, agent batch ops. | [`packages/brittney/mcp-server/README.md`](../packages/brittney/mcp-server/README.md), [`packages/brittney/mcp-server/src/index.ts`](../packages/brittney/mcp-server/src/index.ts) |
+| `mcp-server` | alive | Sovereign MCP server for HoloLand runtime operations: live browser context, AI debugging, one-shot inject, world/object management, agent batch ops, and future shard/NPC stewardship tools. Managed/premium access may exist, but this must not become the only Brittney path. | [`packages/brittney/mcp-server/README.md`](../packages/brittney/mcp-server/README.md), [`packages/brittney/mcp-server/src/index.ts`](../packages/brittney/mcp-server/src/index.ts) |
 | `toolkit` | alive | `@hololand/brittney-toolkit` — bundled local GGUF model, chat surface, inference layer for downstream apps. | [`packages/brittney/toolkit/README.md`](../packages/brittney/toolkit/README.md), [`packages/brittney/toolkit/src/index.ts`](../packages/brittney/toolkit/src/index.ts) |
 | `ai-bridge` | alive | `@hololand/ai-bridge` — natural language → HoloScript translator, voice MCP pipeline, scene perception, code explainer/optimizer. | [`packages/brittney/ai-bridge/README.md`](../packages/brittney/ai-bridge/README.md), [`packages/brittney/ai-bridge/src/HololandAIBridge.ts`](../packages/brittney/ai-bridge/src/HololandAIBridge.ts) |
 | `iot-digital-twins` | alive | `@hololand/iot-digital-twins` — IoT device discovery → HoloScript digital-twin generation (Clawdbot, MQTT, Home Assistant). | [`packages/brittney/iot-digital-twins/README.md`](../packages/brittney/iot-digital-twins/README.md), [`packages/brittney/iot-digital-twins/src/index.ts`](../packages/brittney/iot-digital-twins/src/index.ts) |
@@ -44,6 +44,9 @@ ownership model. Broadly:
   model and a chat widget for embedding Brittney in HoloLand apps without an
   API key. Cloud providers are opt-in via BYOK through `@hololand/inference`.
   See [`packages/brittney/toolkit/src/`](../packages/brittney/toolkit/src/).
+- **Sovereign access** — Brittney must remain reachable through local GGUF,
+  local/LAN Ollama, BYOK cloud providers, HoloScript CLI, and managed services.
+  Managed HoloLand cloud is a convenience tier, not a monopoly gate.
 - **Natural language → HoloScript** — `@hololand/ai-bridge` turns prompts
   ("create a coffee shop") into HoloScript code, including a voice pipeline
   (`VoiceMCPPipeline.ts`) for in-VR authoring. See
@@ -61,6 +64,12 @@ ownership model. Broadly:
 - **Local model lifecycle** — `@hololand/brittney-models` owns the model
   registry, checksums, and download CLI for the free-tier GGUF artifacts that
   the toolkit and bundled apps load.
+- **NPC and steward lineage** — HoloLand NPCs and world stewards should be
+  scoped Brittney descendants: they consume HoloScript sovereign traits, carry
+  local/world-specific memory and privacy boundaries, and leave receipts when
+  they affect the world. The Shangri-La NPC research in
+  `C:/Users/josep/.ai-ecosystem/research/2026-05-10_shangri-la-frontier-npc-feel-EVOLVED.md`
+  is the current design source for that feel.
 
 ## Source-of-truth rules
 
@@ -76,6 +85,12 @@ ownership model. Broadly:
 - The deprecated `@hololand/brittney-service` should not be the integration
   target for new work. Use `@hololand/inference` (cloud + local providers) or
   `@hololand/brittney-toolkit` (bundled local model) instead.
+- Do not frame Brittney as a single remote API that users must rent from
+  HoloLand. HoloLand can sell managed convenience, but sovereignty requires
+  local, self-hosted, BYOK, and exportable/receipted paths.
+- NPC behavior, world stewardship, and AGI loops must not be TypeScript-only
+  chatbot glue. They inherit HoloScript source and trait contracts, then become
+  HoloLand runtime embodiments.
 
 ## See also
 

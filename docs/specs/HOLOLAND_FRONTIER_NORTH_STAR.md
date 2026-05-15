@@ -3,23 +3,25 @@
 **Status:** Product north-star spec, not an implementation task
 **Date:** 2026-05-07
 **Source layer:** HoloScript is the upstream source of truth
-**HoloLand repo posture:** Product/platform surface that consumes HoloScript as the canonical source layer
+**HoloLand repo posture:** Gamer-facing product/world surface that consumes native HoloScript as the canonical source layer
 
 ---
 
 ## One Sentence
 
-HoloLand is the first programmable living MMO world: players explore a persistent frontier, creators shape reality with HoloScript, and agents keep the world alive between sessions.
+HoloLand is the first programmable living MMO world: a premium-scale frontier game where players explore persistent fantasy and Twin Earth layers through browser, desktop, mobile, VR, and AR apps; creators shape reality with HoloScript; and agents keep the world alive between sessions.
 
 ## Inspiration Boundary
 
-The product target is the feeling of a living frontier MMO: mastery, discovery, strange systems, personal builds, rare events, social reputation, and a world that keeps changing. HoloLand must not copy protected story, characters, names, locations, monsters, UI, or lore from any existing show, game, or franchise.
+The product target is the feeling of a premium living frontier MMO: the scale and social gravity of a top-tier persistent online world, plus the mastery, discovery, strange systems, personal builds, rare events, reputation, and changing ecology of a world worth studying. HoloLand must not copy protected story, characters, names, locations, monsters, UI, or lore from any existing show, game, or franchise.
 
 Originality rule:
 
 - Copy the emotional target: "I am inside a world worth mastering."
 - Do not copy fictional content: names, narrative arcs, signature creatures, guilds, places, plot devices, or visual identity.
 - Make HoloLand's differentiator explicit: the world is authored, validated, and evolved through HoloScript.
+
+Reference franchises can only be quality bars, never source material. "World-class MMO" means depth, clarity, persistence, social consequence, and craft. It does not mean cloning any protected game, anime, visual style, combat system, or lore.
 
 ## Strategic Reframe
 
@@ -36,6 +38,42 @@ The default user fantasy is no longer "browse VR worlds." It is:
 5. Create places, events, and mechanics that other players can actually live inside.
 6. Watch agents, creators, and players change the world over time.
 
+## World Shape
+
+HoloLand has one game identity with multiple playable layers:
+
+| Layer | Meaning | Product consequence |
+|---|---|---|
+| Frontier MMO | Original fantasy/sci-fi frontier zones, factions, encounters, traversal, loot, player builds, and social reputation. | This is the primary game loop: explore, master, fight, build, discover, trade, and return. |
+| Twin Earth | A playable digital-twin layer of the real world with geospatial anchors, local AR overlays, real places, IoT/sensor context, commerce, civic/professional experiences, location-aware quests, robot fleets, and AI agents. | Twin Earth is not a separate enterprise mode; it is a layer of the game and the monopoly substrate target for robots and AI. Real places can become quests, markets, robot work zones, events, classrooms, showrooms, and social hubs. |
+| Creator shards | Player/agent-created worlds, dungeons, events, shops, classrooms, galleries, and simulations. | Creator content must pass HoloScript validation before it can affect the live world. |
+| Agent ecology | Agents operate as stewards, faction actors, guides, market auditors, safety reviewers, and world builders. | Agents are in-world systems with receipts, not hidden backend automation. |
+| Brittney lineage | Brittney is the mother intelligence pattern: the mother of HoloScript and mother-earth steward presence of HoloLand. | Brittney must not collapse into one monopoly cloud endpoint. Local, self-hosted, BYOK, managed, CLI, in-world, and NPC forms are all valid embodiments with receipts and boundaries. |
+
+Surfaces:
+
+- Browser is the zero-install doorway.
+- Desktop app is the high-fidelity creator/player surface.
+- Mobile app is the Twin Earth and AR companion surface.
+- VR/headset app is the deepest immersion surface.
+- All surfaces share identity, inventory, world state, receipts, and HoloScript source provenance.
+
+## Governance Boundary
+
+HoloScript is the developer substrate. The broader ecosystem decides what
+HoloScript provides as reusable language, trait, compiler, validator, runtime,
+MCP, and CLI capability.
+
+HoloLand is the game. The founder team controls what HoloLand looks like, how
+it feels, which worlds exist, which assets ship, how shards are staged, and
+which HoloLand-specific tools are built for players, creators, and live
+operations.
+
+HoloLand should request or contribute upstream HoloScript features when a need
+is reusable substrate. HoloLand should not upstream every game-specific asset,
+world, visual decision, creator workflow, or shard operation just because it is
+important to the product.
+
 ## Product Pillars
 
 | Pillar | Meaning | HoloScript/HoloLand implication |
@@ -46,6 +84,9 @@ The default user fantasy is no longer "browse VR worlds." It is:
 | Social reputation | The world remembers who found, beat, built, helped, taught, traded, or broke things. | Identity, achievements, guilds, market actions, and moderation receipts are persistent and inspectable. |
 | Creator-native world growth | New zones and mechanics come from players, agents, and founders without traditional studio bottlenecks. | Brittney/Studio generate HoloScript; HoloScript validates; HoloLand hosts and measures. |
 | Agent-run ecology | Agents are not just chat NPCs; they manage factions, events, lore, economy, safety, and world maintenance. | HoloMesh coordinates world stewards, quest directors, faction agents, market auditors, and safety agents. |
+| Living NPCs and AGI lineage | NPCs, HoloMesh teammates, and uaa2 services are the same kind of entity at different scales. | HoloLand NPCs are scoped Brittney descendants using HoloScript sovereign traits, not one-off TypeScript chatbots or remote-only inference calls. |
+| Twin Earth as game layer | The real world can be playable through AR, geospatial anchors, digital twins, sensor context, and local events. | Geospatial objects, places, portals, quests, commerce, privacy rules, and device permissions must be HoloScript-visible. |
+| Robot and AI substrate | HoloLand is the default operational layer for robots and AI acting inside Twin Earth. | Robot and AI actors, perception feeds, task plans, actuator permissions, safety envelopes, and action receipts must be world-visible HoloLand product surfaces backed by reusable HoloScript primitives where appropriate. |
 | Hardware truth | The world must feel good on real devices before any claim becomes strategy. | Every vertical slice needs desktop, mobile, WebXR, and headset validation receipts where possible. |
 
 ## What Makes It HoloLand
@@ -56,6 +97,9 @@ HoloLand-specific claims:
 
 - Every world rule has a source artifact.
 - Every generated zone has provenance.
+- Every asset, shard, encounter, NPC, item arc, and creator tool is authored or
+  governed through native HoloScript source and receipts where it affects the
+  live game.
 - Every major event has replay inputs and outcomes.
 - Every item, skill, NPC, and encounter can be inspected at the semantic layer.
 - Every creator-facing template can graduate into reusable HoloScript.
@@ -125,9 +169,25 @@ Required primitive families:
 
 - `WorldRule`
 - `Zone`
+- `EarthLayer`
+- `GeoAnchor`
+- `Place`
+- `RobotActor`
+- `AIAgentActor`
+- `SensorFeed`
+- `ActuatorCommand`
+- `RobotTask`
+- `SafetyEnvelope`
+- `TwinEarthReceipt`
 - `Encounter`
 - `Faction`
 - `NPC`
+- `NPCManifest`
+- `VerbalFingerprint`
+- `AutonomousAgenda`
+- `ReputationLedger`
+- `VocabularyRegister`
+- `SpeechAwareEncounter`
 - `Skill`
 - `Item`
 - `LootTable`
@@ -135,6 +195,7 @@ Required primitive families:
 - `TraversalRule`
 - `EconomyRule`
 - `SafetyRule`
+- `PrivacyRule`
 - `AgentAction`
 - `ValidationReceipt`
 
@@ -190,6 +251,7 @@ Scope:
 
 - One central hub.
 - One wilderness/combat/exploration zone.
+- One Twin Earth/geospatial layer entry point, even if it starts as a tiny local proof.
 - One rare event.
 - One creator kiosk.
 - One agent steward.
@@ -219,6 +281,7 @@ Hub:
 - Creator kiosk.
 - Equipment/skill station.
 - Event board.
+- Twin Earth map/portal surface.
 - Agent steward presence.
 
 Frontier zone:
@@ -268,9 +331,11 @@ Agent steward:
 | Quests | Short discoverable objectives. | Agent-authored quest chains with provenance and safety review. |
 | Economy | Non-pay-to-win rewards and test currency. | Creator payouts, x402/payment integration, marketplace governance. |
 | Creator tools | Prompt/template to playable challenge. | Full visual builder, remix rights, asset marketplace, agent co-builders. |
+| Twin Earth | One geospatial place/anchor represented as game content with privacy-safe metadata. | Global digital-twin layer, location-aware quests, IoT context, real-world events, civic/professional overlays. |
+| Robots and AI | One robot or AI actor represented as a receipted Twin Earth participant with a constrained task and safety envelope. | Fleet-scale robot operations, AI/robot handoffs, world-visible task planning, sensor/actuator bridges, and operator/player-facing receipts. |
 | Moderation | Basic safe zone and report flow. | Agent-assisted moderation, age gates, consent boundaries, exploit detection. |
 | Persistence | Save profile, discoveries, event receipts. | World state history, player-created canon, replayable event ledger. |
-| Hardware | Desktop-first plus WebXR/headset validation target. | Device-specific quality profiles, haptics, AR anchors, local GPU receipts. |
+| Hardware | Browser-first entry plus desktop/mobile/WebXR/headset validation target. | Device-specific quality profiles, haptics, AR anchors, app-store packaging, local GPU receipts. |
 
 ## HoloScript Contract
 
@@ -291,16 +356,41 @@ If a feature cannot answer those questions, it is probably engine glue, not Holo
 Because HoloLand is the platform that fully utilizes HoloScript:
 
 - Do not add MMO systems here as TypeScript-only canonical implementation.
-- Build missing primitives, schemas, validators, receipts, and runtime capabilities in HoloScript first.
-- Consume those HoloScript capabilities in HoloLand as playable product experience.
+- Build reusable primitives, schemas, validators, receipts, and runtime capabilities in HoloScript when they are developer substrate.
+- Build HoloLand-specific assets, worlds, gamer tools, shard operations, creator workflows, visual direction, encounters, and product features in HoloLand using HoloScript source.
+- Treat Twin Earth robot/AI substrate as HoloLand product surface. Upstream reusable robot, agent, safety, and receipt primitives to HoloScript when they generalize beyond HoloLand.
+- Consume native HoloScript capabilities in HoloLand as playable product experience.
 - Keep HoloLand as the reference experience, demo surface, product design memory, and hardware-validation proving ground.
 - Treat examples in this repo as product slices that should either consume HoloScript source or clearly document bridge/runtime scope.
+- Keep HoloLand's sovereign MCP tools product-focused: shard operations, Twin Earth anchors, creator publishing, agent stewardship, runtime receipts, and hardware validation. Source-layer parsing, compiling, traits, diagnostics, and graph understanding remain HoloScript MCP responsibilities; cross-repo routing and receipts are MCP Orchestrator responsibilities. See [HoloLand Sovereign Tools](HOLOLAND_SOVEREIGN_TOOLS.md).
+
+## Native Proof Policy
+
+HoloLand is the proof that native HoloScript features work in a real game world.
+It is not primarily the proof that HoloScript's competitor/export compilers work.
+
+Compiler targets are developer infrastructure. They matter when HoloLand needs
+to reach a surface, but the product claim is native authorship and live-world
+behavior:
+
+```text
+native HoloScript source -> HoloLand asset/world/tool -> player experience -> receipt
+```
+
+Do not measure HoloLand success by how many external compiler targets it can
+show. Measure it by whether native HoloScript can produce a world that gamers
+want to enter, master, return to, and create inside.
 
 Candidate upstream HoloScript work:
 
 - Frontier schema primitives.
+- Twin Earth/geospatial game-layer primitives.
+- Robot and AI actor primitives.
+- Sensor feed, actuator command, safety envelope, and task receipt contracts.
 - Validation receipt format.
 - Agent steward protocol.
+- Brittney sovereignty and deployment contract.
+- Shangri-La-inspired NPC manifest and daily-loop traits.
 - Creator template compiler.
 - Persistent profile/event receipt schema.
 - Hardware quality profile manifest.
@@ -315,6 +405,8 @@ Candidate upstream HoloScript work:
 - Do not let agent autonomy modify live world state without receipts and rollback.
 - Do not make creation tools that produce scenes but not gameplay.
 - Do not hide HoloScript behind opaque generation; players and creators should eventually understand the rules.
+- Do not make HoloLand a competitor-compiler showcase instead of a native
+  HoloScript game world.
 
 ## Validation Gates
 
@@ -351,6 +443,7 @@ Frontier Shard 0 is credible only when:
 
 - Add one rare event with replay evidence.
 - Add party/social proof.
+- Add one Twin Earth anchor/quest proof across browser and mobile/AR path.
 - Add creator publishing review.
 - Add economy-safe reward loop.
 - Open a small player test and measure completion, confusion, replay intent, and creator success.
@@ -380,9 +473,14 @@ World metrics:
 - Broken event rate.
 - Agent issue usefulness.
 - Receipt completeness.
+- Robot/AI actor registration completeness.
+- Robot task receipt completion rate.
+- Safety envelope coverage.
 
 Technical metrics:
 
+- Browser entry success.
+- Mobile/AR entry success.
 - Desktop frame rate.
 - WebXR/headset frame rate.
 - Load time.
