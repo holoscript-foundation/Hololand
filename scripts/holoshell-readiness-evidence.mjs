@@ -232,8 +232,13 @@ function localArtifactSummary(localArtifacts) {
       riskState: processSummary.riskState || 'unknown',
       processCount: processSummary.processCount || 0,
       staleRunCount: processSummary.staleRunCount || 0,
+      ownerUnknownStaleRunCount: processSummary.ownerUnknownStaleRunCount || 0,
+      laneOwnedStaleRunCount: processSummary.laneOwnedStaleRunCount || 0,
       highMemoryCount: processSummary.highMemoryCount || 0,
-      stopPlanCount: processSummary.stopPlanCount || 0,
+      actionableCleanupCandidateCount: processSummary.actionableCleanupCandidateCount || processSummary.cleanupCandidateCount || 0,
+      ownerHandoffPlanCount: processSummary.ownerHandoffPlanCount || 0,
+      cleanupStopPlanCount: processSummary.cleanupStopPlanCount || processSummary.stopPlanCount || 0,
+      stopPlanCount: processSummary.stopPlanCount || processSummary.cleanupStopPlanCount || 0,
       recommendationCount: Array.isArray(processHealth.recommendations)
         ? processHealth.recommendations.length
         : 0,
@@ -694,11 +699,11 @@ function createFeed({
       kind: 'process_health_receipt',
       title: `Process health ${localSummary.processHealth.riskState}`,
       status: localSummary.processHealth.status,
-      detail: `${localSummary.processHealth.processCount} process(es), ${localSummary.processHealth.staleRunCount} stale run(s), ${localSummary.processHealth.stopPlanCount} stop plan(s), ${localSummary.processHealth.recommendationCount} recommendation(s).`,
+      detail: `${localSummary.processHealth.processCount} process(es), ${localSummary.processHealth.staleRunCount} stale run(s): ${localSummary.processHealth.actionableCleanupCandidateCount} cleanup candidate(s), ${localSummary.processHealth.ownerHandoffPlanCount} owner handoff(s), ${localSummary.processHealth.cleanupStopPlanCount} cleanup stop plan(s).`,
       source: localSummary.processHealth.source,
       receiptType: 'hololand.holoshell.process-health.v0.1.0',
-      nextAction: localSummary.processHealth.stopPlanCount
-        ? 'Review stop plans before launching more heavy HoloShell runs.'
+      nextAction: localSummary.processHealth.cleanupStopPlanCount
+        ? 'Review cleanup stop plans and owner handoffs before launching more heavy HoloShell runs.'
         : '',
     }),
     makeToken({

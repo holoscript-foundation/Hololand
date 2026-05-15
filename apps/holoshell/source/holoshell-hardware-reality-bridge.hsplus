@@ -22,6 +22,8 @@ composition "HoloShell Hardware Reality Bridge" {
     shellRunCount: 0
     laneAttributedShellRunCount: 0
     unattributedShellRunCount: 0
+    cleanupCandidateCount: 0
+    ownerHandoffPlanCount: 0
     listenerCount: 0
     legacyAppCount: 0
     terminationPreflightCount: 0
@@ -86,6 +88,9 @@ composition "HoloShell Hardware Reality Bridge" {
     ownerEvidence: ""
     processName: ""
     healthState: "observed"
+    actionClass: "observed"
+    cleanupEligible: false
+    ownerHandoffRequired: false
     listeningPorts: []
     commandHashOnly: true
     rawCommandHidden: true
@@ -125,6 +130,8 @@ composition "HoloShell Hardware Reality Bridge" {
       shellRuns: $shellRunCount
       laneAttributedShellRuns: $laneAttributedShellRunCount
       unattributedShellRuns: $unattributedShellRunCount
+      cleanupCandidates: $cleanupCandidateCount
+      ownerHandoffs: $ownerHandoffPlanCount
       listeners: $listenerCount
       riskState: $riskState
       fallbackActive: $fallbackActive
@@ -143,6 +150,7 @@ composition "HoloShell Hardware Reality Bridge" {
       uiType: "safety_gate"
       label: "Mutation Gate"
       terminationPreflights: $terminationPreflightCount
+      ownerHandoffs: $ownerHandoffPlanCount
       destructiveActionsTaken: $destructiveActionsTaken
       receiptRequired: true
     }
@@ -170,7 +178,16 @@ composition "HoloShell Hardware Reality Bridge" {
     hideRawCommandsByDefault: true
     exposePlainIntentLabels: true
     exposeExactPidOnSelection: true
+    separateOwnerHandoffFromCleanup: true
     neverRequireTerminalKnowledge: true
+  }
+
+  policy "OwnerHandoffBeforeCleanup" {
+    appliesTo: ["shell_run_map", "preflight_gate", "terminate_process"]
+    ownerKnownFindingRequiresHandoff: true
+    ownerUnknownFindingCanBecomeCleanupCandidate: true
+    cleanupCandidateRequiresPreflight: true
+    receiptRequired: true
   }
 
   policy "MutationRequiresPreflight" {
@@ -188,6 +205,8 @@ composition "HoloShell Hardware Reality Bridge" {
     state.shellRunCount = model.summary.shellRunCount
     state.laneAttributedShellRunCount = model.summary.laneAttributedShellRunCount
     state.unattributedShellRunCount = model.summary.unattributedShellRunCount
+    state.cleanupCandidateCount = model.summary.cleanupCandidateCount || 0
+    state.ownerHandoffPlanCount = model.summary.ownerHandoffPlanCount || model.summary.ownerHandoffCount || 0
     state.listenerCount = model.summary.listenerCount
     state.legacyAppCount = model.summary.legacyAppCount
     state.terminationPreflightCount = model.summary.terminationPreflightCount
@@ -203,6 +222,8 @@ composition "HoloShell Hardware Reality Bridge" {
       shellRuns: state.shellRunCount,
       laneAttributedShellRuns: state.laneAttributedShellRunCount,
       unattributedShellRuns: state.unattributedShellRunCount,
+      cleanupCandidates: state.cleanupCandidateCount,
+      ownerHandoffs: state.ownerHandoffPlanCount,
       listeners: state.listenerCount,
       legacyApps: state.legacyAppCount,
       riskState: state.riskState,
@@ -238,6 +259,9 @@ composition "HoloShell Hardware Reality Bridge" {
       ownerLaneId: run.ownerLaneId,
       ownerEvidence: run.ownerEvidence,
       healthState: run.healthState,
+      actionClass: run.actionClass || "observed",
+      cleanupEligible: run.cleanupEligible || false,
+      ownerHandoffRequired: run.ownerHandoffRequired || false,
       rawCommandHidden: true,
       receiptRequired: true
     })

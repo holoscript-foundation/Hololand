@@ -31,6 +31,18 @@ HoloShell receipts: `process-health.json`, `agent-lanes.json`,
 operating turn alive, marks `fallbackActive: true`, and forbids mutation until
 the MCP preflight path is available again.
 
+The bridge preserves the process-health custody split even when the live MCP
+snapshot returns broader PID preflight data. The adapter overlays
+`process-health.json` so the visual model distinguishes:
+
+- owner-unknown findings become cleanup candidates and termination preflights
+- lane-owned findings become owner handoffs
+- raw commands stay hidden; agents get PIDs, owner lanes, action class, and
+  receipt ids
+
+If the overlay replaces an upstream unsplit preflight list, the receipt records
+`upstreamTerminationPreflightCount` so agents can audit the collapse.
+
 ## Why This Matters
 
 The user should not need to read command output, inspect process lists, or know
@@ -73,7 +85,8 @@ showing sensitive terminal contents to the user.
 4. Terminating a PID requires `holoshell_preflight_terminate`.
 5. Deleting files requires `holoshell_preflight_delete`.
 6. Mutating legacy apps requires `holoshell_preflight_legacy_app_mutation`.
-7. The bridge never performs destructive actions.
+7. Owner-known process findings must route through owner handoff before cleanup.
+8. The bridge never performs destructive actions.
 
 ## HoloShell UX Shape
 
@@ -81,6 +94,7 @@ HoloShell should render this as a calm hardware map:
 
 - lane stack: which agents and local models are active
 - shell run map: commands and dev servers as custody objects
+- owner handoff lane: work an agent already owns and must extend, close, or justify
 - legacy app dock: Windows programs ready for wrapping or visual absorption
 - mutation gate: exact safety requirements before changing anything
 

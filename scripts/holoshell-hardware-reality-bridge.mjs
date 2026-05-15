@@ -282,7 +282,16 @@ function buildShellRunModels(snapshot) {
       const parentPid = Number(run.parentPid);
       const directLane = laneByPid.get(pid);
       const parentLane = laneByPid.get(parentPid);
-      const owner = directLane || parentLane || null;
+      const fallbackLane = run.owner_lane
+        ? {
+          laneId: run.owner_lane,
+          label: run.owner_label || run.owner_lane,
+          surfaceKind: 'process_health_custody',
+          colorHint: 'white',
+          trustState: 'observed_by_process_health',
+        }
+        : null;
+      const owner = directLane || parentLane || fallbackLane;
       return {
         runId: run.run_id,
         pid,
@@ -295,9 +304,12 @@ function buildShellRunModels(snapshot) {
         ownerLaneLabel: owner?.label || null,
         ownerSurfaceKind: owner?.surfaceKind || null,
         ownerColorHint: owner?.colorHint || null,
-        ownerEvidence: directLane ? 'direct_pid' : parentLane ? 'parent_pid' : null,
+        ownerEvidence: directLane ? 'direct_pid' : parentLane ? 'parent_pid' : run.owner_evidence || (fallbackLane ? 'process_health_custody' : null),
         ownerParentPid: parentLane ? parentPid : null,
         ownerTrustState: owner?.trustState || null,
+        actionClass: run.action_class || 'observed',
+        cleanupEligible: Boolean(run.cleanup_eligible),
+        ownerHandoffRequired: Boolean(run.owner_handoff_required),
         rawCommandHidden: true,
         receiptRequired: true,
       };
@@ -413,6 +425,12 @@ function fallbackShellRuns(processHealth) {
       health_state: processInfo.findings?.length ? 'needs_review' : 'observed',
       listeningPorts: [],
       command_hash: processInfo.commandHash || null,
+      owner_lane: processInfo.custody?.ownerLane || null,
+      owner_label: processInfo.custody?.ownerLaneLabel || null,
+      owner_evidence: processInfo.custody?.ownerEvidence || null,
+      action_class: processInfo.custody?.actionClass || 'observed',
+      cleanup_eligible: Boolean(processInfo.custody?.cleanupEligible),
+      owner_handoff_required: Boolean(processInfo.custody?.ownerHandoffRequired),
     }));
 }
 
@@ -426,15 +444,59 @@ function fallbackLegacyProcesses(legacyWindows) {
     })));
 }
 
-function fallbackFindings(processHealth, mcpError) {
-  const findings = safeArray(processHealth.stopPlans).slice(0, 24).map((plan) => ({
+function stopPlanToTerminationPreflight(plan) {
+  return {
+    pid: plan.pid,
+    reason: plan.reason,
+    actionClass: plan.custody?.actionClass || 'cleanup_candidate',
+    cleanupEligible: true,
+    ownerLane: null,
+    approvalRequired: true,
+    receiptRequired: true,
+  };
+}
+
+function ownerHandoffFromPlan(plan) {
+  return {
+    pid: plan.pid,
+    ownerLane: plan.custody?.ownerLane || null,
+    ownerLaneLabel: plan.custody?.ownerLaneLabel || null,
+    reason: plan.reason,
+    recommendedAction: plan.recommendedAction || 'ask_owner_lane_to_extend_close_or_justify',
+    cleanupEligible: false,
+    receiptRequired: true,
+  };
+}
+
+function processHealthFindings(processHealth) {
+  const stopFindings = safeArray(processHealth.stopPlans).slice(0, 24).map((plan) => ({
     severity: 'warn',
     class: safeArray(plan.findings)[0] || 'process_health_stop_plan',
+    actionClass: plan.custody?.actionClass || 'cleanup_candidate',
+    cleanupEligible: true,
+    ownerLane: null,
     pid: plan.pid,
     process: plan.name,
     ports: [],
     receipt: plan.planId || 'process_health_stop_plan',
   }));
+  const handoffFindings = safeArray(processHealth.ownerHandoffPlans).slice(0, 24).map((plan) => ({
+    severity: 'warn',
+    class: safeArray(plan.findings)[0] || 'process_health_owner_handoff',
+    actionClass: plan.custody?.actionClass || 'owner_handoff',
+    cleanupEligible: false,
+    ownerLane: plan.custody?.ownerLane || null,
+    ownerLaneLabel: plan.custody?.ownerLaneLabel || null,
+    pid: plan.pid,
+    process: plan.name,
+    ports: [],
+    receipt: plan.planId || 'process_health_owner_handoff',
+  }));
+  return [...stopFindings, ...handoffFindings];
+}
+
+function fallbackFindings(processHealth, mcpError) {
+  const findings = processHealthFindings(processHealth);
   findings.unshift({
     severity: 'warn',
     class: 'mcp_snapshot_timeout',
@@ -445,6 +507,37 @@ function fallbackFindings(processHealth, mcpError) {
   return findings;
 }
 
+function overlayProcessHealthCustody(snapshot, processHealth) {
+  if (!processHealth?.summary) return snapshot;
+  const stopPlans = safeArray(processHealth.stopPlans);
+  const ownerHandoffPlans = safeArray(processHealth.ownerHandoffPlans);
+  if (!stopPlans.length && !ownerHandoffPlans.length) return snapshot;
+
+  const upstreamTerminationPreflights = safeArray(snapshot.terminationPreflights);
+  return {
+    ...snapshot,
+    counts: {
+      ...(snapshot.counts || {}),
+      processes: processHealth.summary.processCount || snapshot.counts?.processes || 0,
+      shellRuns: processHealth.summary.shellRunCount || snapshot.counts?.shellRuns || 0,
+      cleanupCandidates: processHealth.summary.actionableCleanupCandidateCount || processHealth.summary.cleanupCandidateCount || stopPlans.length,
+      ownerHandoffs: processHealth.summary.ownerHandoffPlanCount || ownerHandoffPlans.length,
+    },
+    terminationPreflights: stopPlans.map(stopPlanToTerminationPreflight),
+    ownerHandoffs: ownerHandoffPlans.map(ownerHandoffFromPlan),
+    healthFindings: [
+      ...safeArray(snapshot.healthFindings),
+      ...processHealthFindings(processHealth),
+    ].slice(0, 64),
+    receipt: {
+      ...(snapshot.receipt || {}),
+      process_health_overlay_active: true,
+      process_health_overlay_source: '.tmp/holoshell/process-health.json',
+      upstream_termination_preflight_count: upstreamTerminationPreflights.length,
+    },
+  };
+}
+
 function createFallbackMcpReality(args, mcpError) {
   const tmpDir = path.join('.tmp', 'holoshell');
   const processHealth = readOptionalJson(path.join(tmpDir, 'process-health.json'), {});
@@ -452,6 +545,8 @@ function createFallbackMcpReality(args, mcpError) {
   const legacyWindows = readOptionalJson(path.join(tmpDir, 'legacy-window-inventory.json'), {});
   const runCustody = readOptionalJson(path.join(tmpDir, 'run-custody.json'), {});
   const shellRuns = fallbackShellRuns(processHealth);
+  const stopPlans = safeArray(processHealth.stopPlans);
+  const ownerHandoffPlans = safeArray(processHealth.ownerHandoffPlans);
   const listeners = shellRuns
     .flatMap((run) => safeArray(run.listeningPorts).map((port) => ({
       pid: run.pid,
@@ -465,17 +560,15 @@ function createFallbackMcpReality(args, mcpError) {
       processes: processHealth.summary?.processCount || 0,
       listeners: listeners.length,
       shellRuns: processHealth.summary?.shellRunCount || shellRuns.length,
+      cleanupCandidates: processHealth.summary?.actionableCleanupCandidateCount || processHealth.summary?.cleanupCandidateCount || stopPlans.length,
+      ownerHandoffs: processHealth.summary?.ownerHandoffPlanCount || ownerHandoffPlans.length,
     },
     agentLanes: fallbackAgentLanes(lanes, legacyWindows, runCustody),
     shellRuns,
     listeners,
     processes: legacyProcesses,
-    terminationPreflights: safeArray(processHealth.stopPlans).map((plan) => ({
-      pid: plan.pid,
-      reason: plan.reason,
-      approvalRequired: true,
-      receiptRequired: true,
-    })),
+    terminationPreflights: stopPlans.map(stopPlanToTerminationPreflight),
+    ownerHandoffs: ownerHandoffPlans.map(ownerHandoffFromPlan),
     healthFindings: fallbackFindings(processHealth, mcpError),
     receipt: {
       snapshot_hash: sha256(JSON.stringify({
@@ -525,7 +618,14 @@ function buildRecommendations(snapshot, summary) {
     recommendations.push({
       severity: 'medium',
       kind: 'preflight_before_mutation',
-      text: 'Use the HoloShell MCP preflight tools before terminating PIDs, deleting files, or changing legacy apps.',
+      text: `${summary.terminationPreflightCount} owner-unknown cleanup candidate(s) need HoloShell MCP preflight before PID termination.`,
+    });
+  }
+  if (summary.ownerHandoffPlanCount > 0) {
+    recommendations.push({
+      severity: 'low',
+      kind: 'owner_handoff_before_cleanup',
+      text: `${summary.ownerHandoffPlanCount} process finding(s) already have owner lanes. Ask those lanes to extend, close, or justify before cleanup.`,
     });
   }
   if (summary.legacyAppCount > 0) {
@@ -564,6 +664,8 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
     processCount: snapshot.counts?.processes || safeArray(snapshot.processes).length,
     listenerCount: snapshot.counts?.listeners || safeArray(snapshot.listeners).length,
     shellRunCount: snapshot.counts?.shellRuns || safeArray(snapshot.shellRuns).length,
+    cleanupCandidateCount: snapshot.counts?.cleanupCandidates || safeArray(snapshot.terminationPreflights).length,
+    ownerHandoffPlanCount: snapshot.counts?.ownerHandoffs || safeArray(snapshot.ownerHandoffs).length,
     laneAttributedShellRunCount: shellRuns.filter((run) => run.ownerLaneId).length,
     unattributedShellRunCount: shellRuns.filter((run) => !run.ownerLaneId).length,
     laneCount: lanes.length,
@@ -571,6 +673,7 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
     legacyAppCount: legacyApps.reduce((sum, app) => sum + app.observedProcessCount, 0),
     legacyAppGroupCount: legacyApps.length,
     terminationPreflightCount: safeArray(snapshot.terminationPreflights).length,
+    ownerHandoffCount: safeArray(snapshot.ownerHandoffs).length,
     mcpToolCount: toolNames.length,
     requiredToolCount: REQUIRED_TOOLS.length,
     requiredToolsAvailable: REQUIRED_TOOLS.every((name) => toolNames.includes(name)),
@@ -603,6 +706,8 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
       serverInfo: initialize?.serverInfo || null,
       tools: toolNames,
       fallbackActive: Boolean(snapshot.receipt?.fallback_active),
+      processHealthOverlayActive: Boolean(snapshot.receipt?.process_health_overlay_active),
+      upstreamTerminationPreflightCount: snapshot.receipt?.upstream_termination_preflight_count || null,
       fallbackReason: snapshot.receipt?.fallback_reason || null,
     },
     summary,
@@ -614,6 +719,10 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
     findings: safeArray(snapshot.healthFindings).map((finding) => ({
       severity: finding.severity,
       class: finding.class,
+      actionClass: finding.actionClass || null,
+      cleanupEligible: Boolean(finding.cleanupEligible),
+      ownerLane: finding.ownerLane || null,
+      ownerLaneLabel: finding.ownerLaneLabel || null,
       pid: finding.pid || null,
       process: finding.process || null,
       ports: safeArray(finding.ports),
@@ -639,9 +748,15 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
         intent: 'Show absorbable Windows programs before any visual or settings mutation.',
       },
       {
+        cardId: 'owner-handoff',
+        title: 'Owner Handoff',
+        value: String(summary.ownerHandoffPlanCount),
+        intent: 'Route lane-owned findings to the responsible agent before cleanup.',
+      },
+      {
         cardId: 'preflight-gate',
         title: 'Mutation Gate',
-        value: safety.destructiveActionsTaken ? 'blocked' : 'armed',
+        value: `${summary.terminationPreflightCount} cleanup`,
         intent: 'Keep every destructive operation behind MCP preflight and receipt checks.',
       },
     ],
@@ -695,6 +810,39 @@ function assertSelfTest(model) {
   if (model.safety.destructiveActionsTaken !== false) failures.push('bridge must not take destructive actions');
   if (!model.safety.preflightRequiredForTermination) failures.push('termination preflight must be required');
   if (!model.receipt.snapshotHash) failures.push('missing upstream snapshot hash');
+  const overlayFixture = overlayProcessHealthCustody({
+    counts: { processes: 99, shellRuns: 99 },
+    terminationPreflights: [{ pid: 1, reason: 'upstream unsplit preflight' }],
+    ownerHandoffs: [],
+    healthFindings: [],
+    receipt: { snapshot_hash: 'fixture-overlay' },
+  }, {
+    summary: {
+      processCount: 4,
+      shellRunCount: 2,
+      actionableCleanupCandidateCount: 1,
+      ownerHandoffPlanCount: 1,
+    },
+    stopPlans: [{
+      pid: 202,
+      reason: 'owner unknown stale run',
+      findings: ['stale_shell_or_dev_run'],
+      custody: { actionClass: 'cleanup_candidate' },
+      planId: 'fixture-stop',
+    }],
+    ownerHandoffPlans: [{
+      pid: 303,
+      reason: 'lane owned stale run',
+      findings: ['stale_shell_or_dev_run'],
+      custody: { actionClass: 'lane_owner_handoff', ownerLane: 'codex', ownerLaneLabel: 'Codex' },
+      planId: 'fixture-handoff',
+    }],
+  });
+  if (overlayFixture.terminationPreflights.length !== 1) failures.push('overlay should replace unsplit termination preflights');
+  if (overlayFixture.ownerHandoffs.length !== 1) failures.push('overlay should add owner handoffs');
+  if (overlayFixture.counts.cleanupCandidates !== 1) failures.push('overlay cleanup count mismatch');
+  if (overlayFixture.counts.ownerHandoffs !== 1) failures.push('overlay handoff count mismatch');
+  if (overlayFixture.receipt.upstream_termination_preflight_count !== 1) failures.push('overlay should record upstream preflight count');
   const serialized = JSON.stringify(model);
   if (/command_summary|commandLine|CommandLine/.test(serialized)) failures.push('raw command text leaked into visual model');
   if (failures.length) {
@@ -715,6 +863,13 @@ async function main() {
     if (args.selfTest || args.fixture) throw error;
     mcpReality = createFallbackMcpReality(args, error);
   }
+  if (!args.selfTest && !args.fixture && !mcpReality.snapshot?.receipt?.fallback_active) {
+    const processHealth = readOptionalJson(path.join('.tmp', 'holoshell', 'process-health.json'), {});
+    mcpReality = {
+      ...mcpReality,
+      snapshot: overlayProcessHealthCustody(mcpReality.snapshot, processHealth),
+    };
+  }
   const model = createHardwareRealityModel({ ...mcpReality, args });
   const output = writeModel(model, args.output);
   const jsOutput = writeBrowserBootstrap(model, args.jsOutput);
@@ -732,6 +887,7 @@ async function main() {
     console.log(`Agent lanes: ${model.summary.activeLaneCount}/${model.summary.laneCount}`);
     console.log(`Legacy apps: ${model.summary.legacyAppCount}`);
     console.log(`Preflights: ${model.summary.terminationPreflightCount}`);
+    console.log(`Owner handoffs: ${model.summary.ownerHandoffPlanCount}`);
     console.log(`Fallback active: ${model.summary.fallbackActive}`);
     console.log(`Destructive actions: ${model.safety.destructiveActionsTaken}`);
   }

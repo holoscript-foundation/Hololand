@@ -375,6 +375,32 @@ function collectVisiblePids() {
   };
 }
 
+function healthGateCustodySummary(health) {
+  const summary = health?.summary || {};
+  return {
+    actionableCleanupCandidateCount: summary.actionableCleanupCandidateCount || summary.cleanupCandidateCount || 0,
+    cleanupStopPlanCount: summary.cleanupStopPlanCount || summary.stopPlanCount || 0,
+    ownerHandoffPlanCount: summary.ownerHandoffPlanCount || 0,
+    ownerKnownReviewCount: summary.ownerKnownReviewCount || 0,
+    ownerUnknownReviewCount: summary.ownerUnknownReviewCount || 0,
+    ownerUnknownStaleRunCount: summary.ownerUnknownStaleRunCount || 0,
+    laneOwnedStaleRunCount: summary.laneOwnedStaleRunCount || 0,
+    ownerUnknownHighMemoryCount: summary.ownerUnknownHighMemoryCount || 0,
+    laneOwnedHighMemoryCount: summary.laneOwnedHighMemoryCount || 0,
+    ownerUnknownOrphanLikeCount: summary.ownerUnknownOrphanLikeCount || 0,
+    laneOwnedOrphanLikeCount: summary.laneOwnedOrphanLikeCount || 0,
+  };
+}
+
+function gateReason(baseReason, custody) {
+  if (!custody) return baseReason;
+  const parts = [
+    `${custody.actionableCleanupCandidateCount} cleanup candidate(s)`,
+    `${custody.ownerHandoffPlanCount} owner handoff(s)`,
+  ];
+  return `${baseReason} Custody split: ${parts.join(', ')}.`;
+}
+
 function reconcileRunRegistry(args, options = {}) {
   const registry = loadRegistry(args.registry);
   const now = options.now || nowIso();
@@ -487,10 +513,12 @@ function evaluateGate(args, health) {
   }
 
   const risk = health.summary.riskState;
+  const custody = healthGateCustodySummary(health);
   if (!isHeavyRun(args)) {
     return {
       allowed: true,
       risk,
+      custody,
       reason: 'Run class is light.',
     };
   }
@@ -499,6 +527,7 @@ function evaluateGate(args, health) {
     return {
       allowed: true,
       risk,
+      custody,
       reason: 'Process health is pass.',
     };
   }
@@ -507,7 +536,8 @@ function evaluateGate(args, health) {
     return {
       allowed: true,
       risk,
-      reason: 'Warn accepted with explicit reason.',
+      custody,
+      reason: gateReason('Warn accepted with explicit reason.', custody),
     };
   }
 
@@ -515,16 +545,21 @@ function evaluateGate(args, health) {
     return {
       allowed: true,
       risk,
-      reason: 'Critical accepted with explicit reason.',
+      custody,
+      reason: gateReason('Critical accepted with explicit reason.', custody),
     };
   }
 
   return {
     allowed: false,
     risk,
-    reason: risk === 'critical'
-      ? 'Heavy run blocked under critical process health. Use --allow-critical with --reason only when necessary.'
-      : 'Heavy run blocked under warn process health. Use --allow-warn with --reason when necessary.',
+    custody,
+    reason: gateReason(
+      risk === 'critical'
+        ? 'Heavy run blocked under critical process health. Use --allow-critical with --reason only when necessary.'
+        : 'Heavy run blocked under warn process health. Use --allow-warn with --reason when necessary.',
+      custody,
+    ),
   };
 }
 
@@ -561,6 +596,7 @@ function baseReceipt(args, runId, healthCheck) {
       allowed: healthCheck.gate.allowed,
       reason: healthCheck.gate.reason,
       risk: healthCheck.gate.risk || healthCheck.health?.summary?.riskState || null,
+      custody: healthCheck.gate.custody || healthGateCustodySummary(healthCheck.health),
       summary: healthCheck.health?.summary || null,
     },
     policy: {
@@ -804,6 +840,31 @@ async function runSelfTest() {
   if (reconcileReceipt.safety.processTerminationPerformed !== false) {
     failures.push('reconcile must not terminate processes');
   }
+  const gateFixtureArgs = parseArgs([
+    '--run-class', 'build',
+    '--allow-warn',
+    '--reason', 'fixture gate custody split',
+    '--',
+    process.execPath,
+    '-e',
+    'process.exit(0)',
+  ]);
+  const gateFixture = evaluateGate(gateFixtureArgs, {
+    summary: {
+      riskState: 'warn',
+      actionableCleanupCandidateCount: 2,
+      cleanupStopPlanCount: 2,
+      ownerHandoffPlanCount: 3,
+      ownerUnknownStaleRunCount: 1,
+      laneOwnedStaleRunCount: 3,
+    },
+  });
+  if (!gateFixture.allowed) failures.push('warn gate fixture should be allowed with reason');
+  if (gateFixture.custody.actionableCleanupCandidateCount !== 2) failures.push('gate cleanup candidate summary missing');
+  if (gateFixture.custody.ownerHandoffPlanCount !== 3) failures.push('gate owner handoff summary missing');
+  if (!/2 cleanup candidate/.test(gateFixture.reason) || !/3 owner handoff/.test(gateFixture.reason)) {
+    failures.push('gate reason must include custody split');
+  }
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   return receipt;
 }
@@ -873,6 +934,8 @@ try {
     console.log(`Status: ${receipt.status}`);
     console.log(`Class: ${receipt.command.runClass}`);
     console.log(`Health: ${receipt.healthGate.risk || 'skipped'}`);
+    console.log(`Cleanup candidates: ${receipt.healthGate.custody?.actionableCleanupCandidateCount || 0}`);
+    console.log(`Owner handoffs: ${receipt.healthGate.custody?.ownerHandoffPlanCount || 0}`);
     console.log(`Exit: ${receipt.process.exitCode}`);
   }
   if (receipt.status === 'blocked' || receipt.status === 'failed') {
