@@ -95,6 +95,18 @@ or `critical`, the run is blocked unless the agent passes an explicit
 `--allow-warn` or `--allow-critical` plus `--reason`. Light runs can still
 execute so agents can inspect, repair, and produce cleanup evidence.
 
+The wrapper also reads `.tmp/holoshell/network-reality.json` before commands
+that spend protected bandwidth. `install`, `pnpm add`, `ollama pull`,
+Hugging Face downloads, `curl`/`wget`, `git clone`, fleet syncs, and similar
+intents are blocked when HoloWeb reports `metered_or_hotspot`,
+`unknown_protective`, `degraded_link`, or `offline`. To proceed on a hotspot,
+the run must include `--owner-network-gesture` and `--reason`, which records the
+owner-approved bandwidth spend in the run receipt:
+
+```powershell
+node scripts\holoshell-run.mjs --run-class install --owner-network-gesture --reason "owner approved package install on hotspot" -- pnpm install
+```
+
 Use dry-run mode to ask HoloShell whether a command would pass the gate:
 
 ```powershell

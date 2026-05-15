@@ -321,6 +321,11 @@ Commands that start heavy local work should go through
 HoloShell can show owner lanes, expected end times, overdue runs, and unmatched
 active PIDs before agents pile more work onto the hardware.
 
+The run wrapper also consumes `.tmp/holoshell/network-reality.json`. Package
+installs, model downloads, fleet syncs, and other bandwidth-spending intents are
+blocked on hotspot/metered/protective network states unless the command carries
+`--owner-network-gesture` and a `--reason`.
+
 ## HoloWeb Local Reality Node
 
 HoloWeb starts inside HoloShell as a local reality node:

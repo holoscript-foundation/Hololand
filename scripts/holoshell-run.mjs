@@ -12,6 +12,7 @@ const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/
 const DEFAULT_REGISTRY = path.join('.tmp', 'holoshell', 'run-registry.json');
 const DEFAULT_RECEIPTS_DIR = path.join('.tmp', 'holoshell', 'run-receipts');
 const DEFAULT_HEALTH_OUTPUT = path.join('.tmp', 'holoshell', 'process-health.json');
+const DEFAULT_NETWORK_REALITY = path.join('.tmp', 'holoshell', 'network-reality.json');
 const DEFAULT_RECONCILE_OUTPUT = path.join('.tmp', 'holoshell', 'run-registry-reconcile.json');
 const DEFAULT_RECONCILE_JS_OUTPUT = path.join('.tmp', 'holoshell', 'run-registry-reconcile.js');
 const HEAVY_RUN_CLASSES = new Set([
@@ -23,6 +24,16 @@ const HEAVY_RUN_CLASSES = new Set([
   'install',
   'package_script',
   'long_running',
+]);
+const BANDWIDTH_SPENDING_INTENTS = new Set([
+  'package_install',
+  'model_download',
+  'large_download',
+  'large_upload',
+  'remote_sync',
+  'fleet_sync',
+  'parallel_agent_network_work',
+  'video_stream',
 ]);
 
 function parseArgs(argv) {
@@ -38,6 +49,7 @@ function parseArgs(argv) {
     registry: DEFAULT_REGISTRY,
     receiptsDir: DEFAULT_RECEIPTS_DIR,
     healthOutput: DEFAULT_HEALTH_OUTPUT,
+    networkReality: DEFAULT_NETWORK_REALITY,
     json: false,
     dryRun: false,
     selfTest: false,
@@ -45,8 +57,10 @@ function parseArgs(argv) {
     reconcileOutput: DEFAULT_RECONCILE_OUTPUT,
     reconcileJsOutput: DEFAULT_RECONCILE_JS_OUTPUT,
     noHealthGate: false,
+    noNetworkGate: false,
     allowWarn: false,
     allowCritical: false,
+    ownerNetworkGesture: false,
     command: [],
   };
 
@@ -66,6 +80,7 @@ function parseArgs(argv) {
     else if (arg === '--registry') args.registry = argv[++index];
     else if (arg === '--receipts-dir') args.receiptsDir = argv[++index];
     else if (arg === '--health-output') args.healthOutput = argv[++index];
+    else if (arg === '--network-reality') args.networkReality = argv[++index];
     else if (arg === '--json') args.json = true;
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--self-test') args.selfTest = true;
@@ -73,8 +88,10 @@ function parseArgs(argv) {
     else if (arg === '--reconcile-output') args.reconcileOutput = argv[++index];
     else if (arg === '--reconcile-js-output') args.reconcileJsOutput = argv[++index];
     else if (arg === '--no-health-gate') args.noHealthGate = true;
+    else if (arg === '--no-network-gate') args.noNetworkGate = true;
     else if (arg === '--allow-warn') args.allowWarn = true;
     else if (arg === '--allow-critical') args.allowCritical = true;
+    else if (arg === '--owner-network-gesture' || arg === '--allow-network-spend') args.ownerNetworkGesture = true;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -116,7 +133,11 @@ Options:
   --name <text>              Optional human run name.
   --allow-warn               Allow heavy run when health risk is warn, with --reason.
   --allow-critical           Allow heavy run when health risk is critical, with --reason.
+  --network-reality <path>   Network reality manifest. Default: .tmp/holoshell/network-reality.json.
+  --owner-network-gesture    Owner approved spending protected bandwidth; requires --reason.
+  --allow-network-spend      Alias for --owner-network-gesture.
   --no-health-gate           Skip pre-run process health gate.
+  --no-network-gate          Skip pre-run network policy gate.
   --dry-run                  Write planned receipt without executing.
   --reconcile-registry       Mark overdue active registry runs stale when no visible PID exists. Non-destructive.
   --reconcile-output <path>  Reconcile receipt path. Default: .tmp/holoshell/run-registry-reconcile.json.
@@ -157,6 +178,34 @@ function inferRunClass(command) {
 
 function isHeavyRun(args) {
   return HEAVY_RUN_CLASSES.has(args.runClass);
+}
+
+function commandText(command) {
+  return command.map((part) => String(part || '')).join(' ').toLowerCase();
+}
+
+function inferNetworkIntent(command, runClass) {
+  const text = commandText(command);
+  if (!text) return 'none';
+  if (runClass === 'install') return 'package_install';
+  if (/\b(pnpm|npm|yarn)\b.*\b(install|i|add|update|upgrade|remove)\b/.test(text)) return 'package_install';
+  if (/\b(ollama)\b.*\bpull\b/.test(text)) return 'model_download';
+  if (/\b(huggingface-cli|hf|modelscope)\b.*\b(download|snapshot-download)\b/.test(text)) return 'model_download';
+  if (/\b(git)\b.*\b(clone|fetch|pull|lfs\s+pull|submodule\s+update)\b/.test(text)) return 'remote_sync';
+  if (/\b(gh)\b.*\b(repo\s+clone|release\s+download)\b/.test(text)) return 'remote_sync';
+  if (/\b(docker|podman)\b.*\b(pull|build)\b/.test(text)) return 'large_download';
+  if (/\b(curl|wget|aria2c|invoke-webrequest|iwr)\b/.test(text)) return 'large_download';
+  if (/\b(rsync|rclone|scp|sftp)\b/.test(text)) return 'large_upload';
+  if (/\b(vast|fleet)\b.*\b(sync|pull|push|download|upload)\b/.test(text)) return 'fleet_sync';
+  if (runClass === 'browser_audit') return 'normal_network_work';
+  if (runClass === 'package_script' && /\b(download|upload|sync|publish|deploy)\b/.test(text)) {
+    return 'parallel_agent_network_work';
+  }
+  return 'none';
+}
+
+function isBandwidthSpendingIntent(intent) {
+  return BANDWIDTH_SPENDING_INTENTS.has(intent);
 }
 
 function redactCommand(command) {
@@ -312,6 +361,134 @@ function collectHealth(args) {
     stderr: (result.stderr || '').slice(-1200),
     health,
     gate: evaluateGate(args, health),
+  };
+}
+
+function networkRealitySummary(manifest) {
+  if (!manifest) return null;
+  return {
+    schemaVersion: manifest.schemaVersion || null,
+    generatedAt: manifest.generatedAt || null,
+    classification: manifest.underlay?.classification || 'unknown',
+    confidence: manifest.underlay?.confidence || 'unknown',
+    ownerDeclaredKind: manifest.underlay?.ownerDeclaredKind || 'none',
+    bandwidthPosture: manifest.policy?.bandwidthPosture || 'unknown',
+    heavyWorkPolicy: manifest.policy?.heavyWorkPolicy || 'unknown',
+    brittneyStance: manifest.brittney?.stance || 'unknown',
+    protectBandwidth: Boolean(manifest.brittney?.protectBandwidth),
+    schemaContractStatus: manifest.schemaContract?.validationStatus || 'missing',
+    snapshotHash: manifest.receipt?.snapshotHash || null,
+  };
+}
+
+function collectNetworkReality(args) {
+  const intent = inferNetworkIntent(args.command, args.runClass);
+  const bandwidthSpending = isBandwidthSpendingIntent(intent);
+
+  if (args.noNetworkGate) {
+    return {
+      skipped: true,
+      intent,
+      bandwidthSpending,
+      manifest: null,
+      summary: null,
+      gate: {
+        allowed: true,
+        reason: 'Skipped by --no-network-gate',
+      },
+    };
+  }
+
+  const manifest = readJson(args.networkReality, null);
+  return {
+    skipped: false,
+    intent,
+    bandwidthSpending,
+    manifest,
+    summary: networkRealitySummary(manifest),
+    gate: evaluateNetworkGate(args, manifest, intent),
+  };
+}
+
+function evaluateNetworkGate(args, manifest, intent) {
+  const bandwidthSpending = isBandwidthSpendingIntent(intent);
+  if (!bandwidthSpending) {
+    return {
+      allowed: true,
+      intent,
+      bandwidthSpending,
+      reason: 'Run intent does not spend protected bandwidth.',
+    };
+  }
+
+  if (!manifest?.policy || !manifest?.underlay) {
+    return {
+      allowed: false,
+      intent,
+      bandwidthSpending,
+      reason: `Bandwidth-spending intent "${intent}" requires a network reality receipt. Run scripts/holoshell-network-reality.mjs first.`,
+    };
+  }
+
+  const contractStatus = manifest.schemaContract?.validationStatus || 'missing';
+  if (contractStatus !== 'pass') {
+    return {
+      allowed: false,
+      intent,
+      bandwidthSpending,
+      classification: manifest.underlay.classification || 'unknown',
+      reason: `Bandwidth-spending intent "${intent}" requires schemaContract.validationStatus=pass; got ${contractStatus}.`,
+    };
+  }
+
+  const classification = manifest.underlay.classification || 'unknown_protective';
+  const requiredGestures = new Set(manifest.policy.requiresOwnerGesture || []);
+  const protectedByPolicy = Boolean(manifest.brittney?.protectBandwidth)
+    || ['metered_or_hotspot', 'degraded_link', 'unknown_protective'].includes(classification);
+  const listedGestureIntent = requiredGestures.has(intent);
+
+  if (classification === 'offline') {
+    return {
+      allowed: false,
+      intent,
+      bandwidthSpending,
+      classification,
+      reason: `Network is offline; queue "${intent}" until the network returns.`,
+    };
+  }
+
+  if ((protectedByPolicy || listedGestureIntent) && !(args.ownerNetworkGesture && args.reason)) {
+    return {
+      allowed: false,
+      intent,
+      bandwidthSpending,
+      classification,
+      bandwidthPosture: manifest.policy.bandwidthPosture || 'unknown',
+      heavyWorkPolicy: manifest.policy.heavyWorkPolicy || 'unknown',
+      reason: `Bandwidth-spending intent "${intent}" is blocked under ${classification}. Use --owner-network-gesture with --reason after owner approval.`,
+    };
+  }
+
+  if (protectedByPolicy || listedGestureIntent) {
+    return {
+      allowed: true,
+      intent,
+      bandwidthSpending,
+      classification,
+      bandwidthPosture: manifest.policy.bandwidthPosture || 'unknown',
+      heavyWorkPolicy: manifest.policy.heavyWorkPolicy || 'unknown',
+      reason: `Owner network gesture accepted for "${intent}" under ${classification}.`,
+    };
+  }
+
+  return {
+    allowed: true,
+    intent,
+    bandwidthSpending,
+    classification,
+    bandwidthPosture: manifest.policy.bandwidthPosture || 'unknown',
+    heavyWorkPolicy: manifest.policy.heavyWorkPolicy || 'unknown',
+    reason: `Network policy allows "${intent}" with receipts.`,
   };
 }
 
@@ -563,7 +740,7 @@ function evaluateGate(args, health) {
   };
 }
 
-function baseReceipt(args, runId, healthCheck) {
+function baseReceipt(args, runId, healthCheck, networkCheck) {
   const startedAt = nowIso();
   const expectedEndAt = new Date(Date.parse(startedAt) + args.expectedMinutes * 60000).toISOString();
   return {
@@ -582,6 +759,8 @@ function baseReceipt(args, runId, healthCheck) {
       preview: redactCommand(args.command),
       runClass: args.runClass,
       heavy: isHeavyRun(args),
+      networkIntent: networkCheck.intent,
+      bandwidthSpending: networkCheck.bandwidthSpending,
     },
     timing: {
       plannedAt: startedAt,
@@ -599,10 +778,25 @@ function baseReceipt(args, runId, healthCheck) {
       custody: healthCheck.gate.custody || healthGateCustodySummary(healthCheck.health),
       summary: healthCheck.health?.summary || null,
     },
+    networkGate: {
+      skipped: networkCheck.skipped,
+      allowed: networkCheck.gate.allowed,
+      reason: networkCheck.gate.reason,
+      intent: networkCheck.intent,
+      bandwidthSpending: networkCheck.bandwidthSpending,
+      classification: networkCheck.gate.classification || networkCheck.summary?.classification || null,
+      bandwidthPosture: networkCheck.gate.bandwidthPosture || networkCheck.summary?.bandwidthPosture || null,
+      heavyWorkPolicy: networkCheck.gate.heavyWorkPolicy || networkCheck.summary?.heavyWorkPolicy || null,
+      ownerGesture: args.ownerNetworkGesture,
+      networkRealityPath: resolveRepoPath(args.networkReality),
+      summary: networkCheck.summary,
+    },
     policy: {
       preRunHealthRequiredForHeavy: true,
       allowWarnRequiresReason: true,
       allowCriticalRequiresReason: true,
+      networkRealityRequiredForBandwidthSpending: true,
+      ownerNetworkGestureRequiresReason: true,
       receiptRequired: true,
       automaticTerminationAllowed: false,
     },
@@ -634,6 +828,9 @@ function registryEntryFromReceipt(receipt, patch = {}) {
     exitCode: receipt.process.exitCode,
     signal: receipt.process.signal,
     healthRiskAtStart: receipt.healthGate.risk,
+    networkClassificationAtStart: receipt.networkGate.classification,
+    networkIntent: receipt.networkGate.intent,
+    networkGateAllowed: receipt.networkGate.allowed,
     receiptPath: patch.receiptPath || null,
     ...patch,
   };
@@ -733,6 +930,13 @@ function writeReceipt(args, receipt) {
   mkdirSync(path.dirname(receiptPath), { recursive: true });
   writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
   return receiptPath;
+}
+
+function blockedRunReason(receipt) {
+  const reasons = [];
+  if (!receipt.healthGate.allowed) reasons.push(receipt.healthGate.reason);
+  if (!receipt.networkGate.allowed) reasons.push(receipt.networkGate.reason);
+  return reasons.filter(Boolean).join(' ');
 }
 
 async function runSelfTest() {
@@ -865,16 +1069,74 @@ async function runSelfTest() {
   if (!/2 cleanup candidate/.test(gateFixture.reason) || !/3 owner handoff/.test(gateFixture.reason)) {
     failures.push('gate reason must include custody split');
   }
+  const hotspotNetworkReality = path.join('.tmp', 'holoshell', 'self-test', 'network-reality-hotspot.json');
+  writeJson(hotspotNetworkReality, {
+    schemaVersion: 'hololand.holoshell.network-reality.v0.1.0',
+    generatedAt: fixtureNow,
+    underlay: {
+      classification: 'metered_or_hotspot',
+      confidence: 'owner_declared',
+      ownerDeclaredKind: 'phone_hotspot',
+    },
+    policy: {
+      bandwidthPosture: 'protect_mobile_data',
+      heavyWorkPolicy: 'queue_or_ask_before_heavy_transfer',
+      requiresOwnerGesture: ['package_install', 'model_download', 'large_upload', 'video_stream', 'fleet_sync'],
+    },
+    brittney: {
+      stance: 'protect_bandwidth',
+      protectBandwidth: true,
+    },
+    schemaContract: {
+      validationStatus: 'pass',
+    },
+    receipt: {
+      snapshotHash: 'fixture-network-reality',
+    },
+  });
+  const blockedNetworkArgs = parseArgs([
+    '--run-class', 'install',
+    '--registry', registry,
+    '--receipts-dir', receiptsDir,
+    '--network-reality', hotspotNetworkReality,
+    '--no-health-gate',
+    '--dry-run',
+    '--',
+    'pnpm',
+    'install',
+  ]);
+  const blockedNetworkReceipt = await runWithCustody(blockedNetworkArgs);
+  if (blockedNetworkReceipt.status !== 'blocked') failures.push('hotspot install should block without owner gesture');
+  if (blockedNetworkReceipt.networkGate.allowed) failures.push('hotspot network gate should be denied');
+  if (blockedNetworkReceipt.networkGate.intent !== 'package_install') failures.push('expected package_install network intent');
+  const approvedNetworkArgs = parseArgs([
+    '--run-class', 'install',
+    '--registry', registry,
+    '--receipts-dir', receiptsDir,
+    '--network-reality', hotspotNetworkReality,
+    '--no-health-gate',
+    '--dry-run',
+    '--owner-network-gesture',
+    '--reason', 'fixture owner approved hotspot package install',
+    '--',
+    'pnpm',
+    'install',
+  ]);
+  const approvedNetworkReceipt = await runWithCustody(approvedNetworkArgs);
+  if (approvedNetworkReceipt.status !== 'dry_run') failures.push('owner-approved hotspot install dry run should pass');
+  if (!approvedNetworkReceipt.networkGate.allowed) failures.push('owner-approved hotspot network gate should be allowed');
+  if (!approvedNetworkReceipt.networkGate.ownerGesture) failures.push('owner network gesture should be recorded');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   return receipt;
 }
 
 async function runWithCustody(args) {
   const healthCheck = collectHealth(args);
+  const networkCheck = collectNetworkReality(args);
   const runId = runIdFor(args);
-  const receipt = baseReceipt(args, runId, healthCheck);
+  const receipt = baseReceipt(args, runId, healthCheck, networkCheck);
 
-  if (!healthCheck.gate.allowed) {
+  if (!healthCheck.gate.allowed || !networkCheck.gate.allowed) {
     receipt.status = 'blocked';
     receipt.timing.endedAt = nowIso();
     receipt.output = { receiptPath: writeReceipt(args, receipt) };
@@ -924,7 +1186,7 @@ try {
 
   const receipt = args.selfTest ? await runSelfTest() : await runWithCustody(args);
   if (receipt.status === 'blocked') {
-    console.error(`holoshell-run blocked: ${receipt.healthGate.reason}`);
+    console.error(`holoshell-run blocked: ${blockedRunReason(receipt)}`);
   }
   if (args.json || receipt.status === 'blocked') {
     console.log(JSON.stringify(receipt, null, 2));
@@ -934,6 +1196,7 @@ try {
     console.log(`Status: ${receipt.status}`);
     console.log(`Class: ${receipt.command.runClass}`);
     console.log(`Health: ${receipt.healthGate.risk || 'skipped'}`);
+    console.log(`Network: ${receipt.networkGate.classification || 'skipped'} (${receipt.networkGate.intent})`);
     console.log(`Cleanup candidates: ${receipt.healthGate.custody?.actionableCleanupCandidateCount || 0}`);
     console.log(`Owner handoffs: ${receipt.healthGate.custody?.ownerHandoffPlanCount || 0}`);
     console.log(`Exit: ${receipt.process.exitCode}`);

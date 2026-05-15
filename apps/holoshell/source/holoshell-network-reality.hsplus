@@ -171,6 +171,20 @@ composition "HoloShell Network Reality" {
     degradedAction: "prefer_local_and_retry_remote_later"
     offlineAction: "queue_network_work_until_online"
     normalAction: "allowed_with_receipts"
+    consumedBy: ["scripts/holoshell-run.mjs", "Brittney"]
+    ownerNetworkGestureRequired: true
+    ownerReasonRequired: true
+    receiptRequired: true
+  }
+
+  policy "RunBandwidthGate" {
+    appliesTo: ["package_install", "model_download", "large_download", "large_upload", "remote_sync", "fleet_sync", "parallel_agent_network_work"]
+    networkTruthSource: "network-reality.json"
+    schemaContractRequired: true
+    hotspotOrMeteredRule: "block_until_owner_network_gesture_with_reason"
+    unknownProtectiveRule: "block_until_owner_network_gesture_with_reason"
+    offlineRule: "queue_until_online"
+    normalRule: "allow_with_receipt"
     receiptRequired: true
   }
 
@@ -204,5 +218,21 @@ composition "HoloShell Network Reality" {
       protectBandwidth: state.protectBandwidth,
       receiptHash: state.lastSnapshotHash
     })
+  }
+
+  action evaluate_run_bandwidth_gate(runIntent, ownerNetworkGesture, reason) {
+    if (runIntent in RunBandwidthGate.appliesTo) {
+      if (state.underlayClassification == "offline") {
+        return "blocked_queue_until_online"
+      }
+
+      if (state.protectBandwidth == true && (ownerNetworkGesture == false || reason == "")) {
+        return "blocked_owner_network_gesture_required"
+      }
+
+      return "allowed_with_network_receipt"
+    }
+
+    return "not_bandwidth_spending"
   }
 }
