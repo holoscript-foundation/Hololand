@@ -894,6 +894,7 @@
   <script src="../../../.tmp/holoshell/holoscript-gold-codebase-bridge.js"></script>
   <script src="../../../.tmp/holoshell/founder-boot-preview.js"></script>
   <script src="../../../.tmp/holoshell/user-shell-projection.js"></script>
+  <script src="../../../.tmp/holoshell/developmental-environment.js"></script>
   <script src="../../../.tmp/holoshell/brittney-context.js"></script>
   <script src="../../../.tmp/holoshell/brittney-turn-latest.js"></script>
   <script src="../../../.tmp/holoshell/action-latest.js"></script>
@@ -1026,6 +1027,7 @@
     const standaloneGoldCodebaseBridgeFeed = window.HOLOSHELL_HOLOSCRIPT_GOLD_CODEBASE_BRIDGE || {};
     const standaloneFounderBootFeed = window.HOLOSHELL_FOUNDER_BOOT_PREVIEW || {};
     const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
+    const standaloneDevelopmentalEnvironmentFeed = window.HOLOSHELL_DEVELOPMENTAL_ENVIRONMENT || {};
     const standaloneBrittneyContextFeed = window.HOLOSHELL_BRITTNEY_CONTEXT || {};
     const standaloneHardwareApprovalFeed = window.HOLOSHELL_HARDWARE_APPROVAL || {};
     const standaloneTrustLedgerFeed = window.HOLOSHELL_TRUST_LEDGER || {};
@@ -1054,6 +1056,7 @@
       { id: "trust-ladder", label: "Trust Ladder", glyph: "TL", type: "policy", detail: "Repeated safe receipts promote actions from guarded to trusted autonomy eligibility while break-glass stays blocked.", x: 18, y: 64, size: 104 },
       { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
       { id: "user-shell", label: "User Shell", glyph: "US", type: "user shell", detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.", x: 47, y: 24, size: 136 },
+      { id: "developmental-environment", label: "Development", glyph: "DE", type: "ui substrate", detail: "HoloShell UI starts as simulation, geometry, honesty, and Brittney presence instead of dashboard layout.", x: 36, y: 32, size: 124 },
       { id: "format-viewer", label: "Formats", glyph: "FV", type: "source corpus", detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.", x: 24, y: 18, size: 112 },
       { id: "gold-codebase", label: "GOLD+Codebase", glyph: "GC", type: "source substrate", detail: "GOLD memory and HoloScript codebase intelligence become Brittney's first stop before building anything new.", x: 9, y: 18, size: 116 },
       { id: "asset-shard", label: "Asset Shard", glyph: "AS", type: "workflow", detail: "Brittney can stage a local folder of models, images, audio, and HoloScript into a playable HoloLand shard preview.", x: 25, y: 66, size: 112 },
@@ -1463,6 +1466,15 @@
       return projection.summary || {};
     }
 
+    function developmentalEnvironmentFeed() {
+      return feed.feeds?.developmentalEnvironment?.summary ? feed.feeds.developmentalEnvironment : standaloneDevelopmentalEnvironmentFeed;
+    }
+
+    function developmentalEnvironmentSummary() {
+      const environment = developmentalEnvironmentFeed();
+      return environment.summary || {};
+    }
+
     function readinessEvidenceFeed() {
       return feed.feeds?.readinessEvidence?.summary ? feed.feeds.readinessEvidence : standaloneReadinessEvidence;
     }
@@ -1504,6 +1516,8 @@
         "Wild HoloScript": "Wild HS",
         "GOLD + Codebase": "GOLD+Code",
         "User Shell": "User Shell",
+        "Developmental Environment": "Development",
+        "Physics Honesty": "Honesty",
         "Daily Shell": "Daily",
         "Creator Shell": "Creator",
         "Operator Shell": "Operator",
@@ -1554,7 +1568,7 @@
     function canonicalShellBubbles() {
       const graph = shellObjectGraphFeed();
       const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
-      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "workflow.grok-build", "policy.trusted-autonomy", "source.holoscript-gold-codebase"]);
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "workflow.grok-build", "policy.trusted-autonomy", "source.holoscript-gold-codebase", "source.developmental-environment", "policy.physics-honesty"]);
       const surfaceKinds = new Set([
         "browser_surface",
         "terminal_surface",
@@ -1825,6 +1839,7 @@
       if (/\b(room marathon|marathon|kimi|ollama|lofi|youtube music|music on youtube|start room)\b/.test(text)) add("room-marathon", "Room Marathon", "stage_room_marathon_workflow", "compound agent workflow", { permissionEnvelope: "guarded_execute" });
       if (/\b(asset shard|shard|assets?|folder to shard|playable shard|import assets?|preview assets?|local folder)\b/.test(text)) add("asset-shard", "Asset Shard", "stage_asset_shard_workflow", "local folder to playable shard", { permissionEnvelope: "guarded_execute" });
       if (/\b(gold|codebase|already have|existing|substrate|knowledge|graph status|absorb|query codebase|holoscript codebase)\b/.test(text)) add("gold-codebase", "GOLD+Codebase", "focus_shell_object", "read-only substrate bridge");
+      if (/\b(developmental|ui substrate|wireframe|simulation|geometrics|honesty|mass function|mapping function|brittney parent|agency graduation)\b/.test(text)) add("developmental-environment", "Development", "focus_shell_object", "simulation-first HoloShell substrate");
       if (/\b(readiness|ready|build evidence|evidence pack|webgpu|wasm|headset|replay|graph status|world build)\b/.test(text)) add("room.world-build-readiness", "World Build Readiness", "focus_shell_object", "readiness evidence room");
       if (/\b(program|app|application|legacy|window|ui|control)\b/.test(text)) add("programs", "Programs", "focus_shell_object", "legacy program");
       if (/\b(hardware|focus|hotkey|click|type|launch|open app|control program|program control)\b/.test(text)) add("hardware-control", "Program Control", "stage_hardware_action", "guarded program control", { permissionEnvelope: "guarded_execute" });
@@ -1894,6 +1909,8 @@
       const grokSummary = grokBuildSummary();
       const trustSummary = trustLedgerSummary();
       const goldBridgeSummary = goldCodebaseBridgeSummary();
+      const developmentalSummary = developmentalEnvironmentSummary();
+      const developmentalFeed = developmentalEnvironmentFeed();
       const workflowKind = activeWorkflow.workflowKind || summary.activeWorkflowKind || "";
       const workflowEvidenceDetail = workflowKind === "claude_chat"
         ? `${activeWorkflow.targetSurface || summary.activeWorkflowTargetSurface || "Claude"}; prompt ${activeWorkflow.promptPresent || summary.activeWorkflowPromptPresent ? "staged" : "empty"}; shell context ${activeWorkflow.shellContextAttachedByDefault || summary.activeWorkflowShellContextAttachedByDefault ? "attached" : "off"}`
@@ -1949,6 +1966,23 @@
               codebase: `${goldBridgeSummary.codebaseToolCount || 0} tools`,
               cache: goldBridgeSummary.graphCacheProtocol || "unknown",
               forceAbsorbDefault: goldBridgeSummary.forceAbsorbDefault === false ? "false" : "unknown",
+            },
+          };
+        }
+        if (object.id === "developmental-environment") {
+          const thesis = developmentalFeed.thesis || {};
+          return {
+            ...object,
+            detail: `${developmentalSummary.status || summary.developmentalEnvironmentStatus || "unknown"}; ${developmentalSummary.spineLayerCount || summary.developmentalEnvironmentSpineLayerCount || 0} spine layers; mass ${thesis.massFunctionRuling || "derived_not_authored"}; mapping ${thesis.mappingFunctionRuling || "pure_function_of_physics_state"}; next ${developmentalSummary.nextMove || summary.developmentalEnvironmentNextMove || "engineer_mass_function"}.`,
+            trustState: developmentalSummary.massFunctionSettled && developmentalSummary.mappingFunctionSettled ? "verified" : "partial",
+            permissionEnvelope: "read_only",
+            evidence: {
+              status: developmentalSummary.status || "unknown",
+              research: developmentalSummary.researchPresent || summary.developmentalEnvironmentResearchPresent ? "present" : "missing",
+              spine: developmentalSummary.spineLayerCount || summary.developmentalEnvironmentSpineLayerCount || 0,
+              tasks: developmentalSummary.boardTaskCount || summary.developmentalEnvironmentBoardTaskCount || 0,
+              openEngineering: developmentalSummary.openEngineeringTaskCount || summary.developmentalEnvironmentOpenEngineeringTaskCount || 0,
+              honesty: developmentalSummary.honestyPrinciple || summary.developmentalEnvironmentHonestyPrinciple || "unknown",
             },
           };
         }
@@ -2430,6 +2464,21 @@
             : "Codebase tools are not present yet; rerun the GOLD/codebase bridge.";
         }));
       }
+      if (object.id === "developmental-environment" || shellObject.id === "source.developmental-environment") {
+        actions.push(actionButton("Review thesis", () => {
+          const environment = developmentalEnvironmentFeed();
+          const summary = environment.summary || {};
+          const thesis = environment.thesis || {};
+          const tasks = (environment.boardTasks || []).map((task) => task.id).join(", ");
+          result.hidden = false;
+          result.textContent = `Developmental environment ${summary.status || "unknown"}: ${summary.spineLayerCount || 0} layers; reframe ${thesis.reframe || "wireframe_to_simulation_to_geometrics"}; mass ${thesis.massFunctionRuling || "derived_not_authored"}; mapping ${thesis.mappingFunctionRuling || "pure_function_of_physics_state"}; tasks ${tasks || "none"}.`;
+          appendConversation("HoloShell is not a dashboard. The shell has to become a simulated developmental environment: physics state first, animation second, Brittney present enough to help agency grow.");
+        }, actions.length === 0));
+        actions.push(actionButton("Ask next move", () => {
+          document.getElementById("askInput").value = "Use the developmental environment thesis to tell me the next HoloShell engineering move";
+          askBrittney();
+        }));
+      }
       if (object.id === "wild-holoscript" || shellObject.id === "source.wild-holoscript.uaa2") {
         actions.push(actionButton("Review wild modules", () => {
           const intake = wildHoloScriptFeed();
@@ -2737,6 +2786,7 @@
       const goldBridgeSummary = goldCodebaseBridgeSummary();
       const bootSummary = founderBootSummary();
       const userSummary = userShellSummary();
+      const developmentalSummary = developmentalEnvironmentSummary();
       const readinessSummary = readinessEvidenceSummary();
       const approvalSummary = hardwareApprovalSummary();
       const dispatchSummary = agentDispatchSummary();
@@ -2768,12 +2818,14 @@
         "Hardware source: source/holoshell-hardware-control.hsplus",
         "Wild source: source/holoshell-wild-holoscript-intake.hsplus",
         "Substrate bridge: source/holoshell-holoscript-gold-codebase-bridge.hsplus",
+        "Development source: source/holoshell-developmental-environment.hsplus",
         `Wild HoloScript: ${wildSummary.status || summary.wildHoloScriptStatus || "unknown"}; files ${wildSummary.fileCount || summary.wildHoloScriptFileCount || 0}; .holo ${wildSummary.holoCount || summary.wildHoloScriptHoloCount || 0} / ${wildSummary.holoFeatureCount || summary.wildHoloScriptHoloFeatureCount || 0} features; .hs ${wildSummary.hsCount || summary.wildHoloScriptHsCount || 0} / ${wildSummary.hsFeatureCount || summary.wildHoloScriptHsFeatureCount || 0}; .hsplus ${wildSummary.hsplusCount || summary.wildHoloScriptHsplusCount || 0} / ${wildSummary.hsplusFeatureCount || summary.wildHoloScriptHsplusFeatureCount || 0}`,
         `Format inventory: ${formatSummary.status || summary.formatInventoryStatus || "unknown"}; files ${formatSummary.totalFileCount || summary.formatInventoryTotalFileCount || 0}; features ${formatSummary.totalFeatureFamilies || summary.formatInventoryFeatureFamilyCount || 0}`,
         `GOLD/codebase: ${goldBridgeSummary.status || summary.goldCodebaseBridgeStatus || "unknown"}; GOLD ${goldBridgeSummary.goldStatus || summary.goldDriveStatus || "unknown"} ${goldBridgeSummary.goldEntryCount || summary.goldEntryCount || 0} entries; codebase ${goldBridgeSummary.codebaseStatus || summary.codebaseBridgeStatus || "unknown"} ${goldBridgeSummary.codebaseToolCount || summary.codebaseToolCount || 0} tools`,
         `Codebase policy: ${goldBridgeSummary.graphCacheProtocol || summary.codebaseGraphCacheProtocol || "unknown"}; force absorb default ${goldBridgeSummary.forceAbsorbDefault === false || summary.codebaseForceAbsorbDefault === false ? "false" : "unknown"}; GOLD conflict ${goldBridgeSummary.goldConflictPolicy || summary.goldConflictPolicy || "unknown"}`,
         `Founder boot: ${bootSummary.status || summary.founderBootStatus || "unknown"}; world ${bootSummary.worldObjectCount || summary.founderBootWorldObjectCount || 0}; render ${bootSummary.renderObjectCount || summary.founderBootRenderObjectCount || 0}; user packs ${bootSummary.userCapabilityPackCount || summary.founderBootUserPackCount || 0}; Brittney proposals ${bootSummary.brittneyProposalCount || summary.founderBootBrittneyProposalCount || 0}`,
         `User shell: ${userSummary.status || summary.userShellProjectionStatus || "unknown"}; modes ${userSummary.modeCount || summary.userShellModeCount || 0}; packs ${userSummary.capabilityPackCount || summary.userShellCapabilityPackCount || 0}; translations ${userSummary.brittneyTranslationCount || summary.userShellBrittneyTranslationCount || 0}; founder-only ${userSummary.founderOnlyPowerCount || summary.userShellFounderOnlyPowerCount || 0}`,
+        `Developmental environment: ${developmentalSummary.status || summary.developmentalEnvironmentStatus || "unknown"}; spine ${developmentalSummary.spineLayerCount || summary.developmentalEnvironmentSpineLayerCount || 0}; mass settled ${developmentalSummary.massFunctionSettled || summary.developmentalEnvironmentMassFunctionSettled ? "yes" : "no"}; mapping settled ${developmentalSummary.mappingFunctionSettled || summary.developmentalEnvironmentMappingFunctionSettled ? "yes" : "no"}; next ${developmentalSummary.nextMove || summary.developmentalEnvironmentNextMove || "none"}`,
         `Wild promotion: frontier ${wildSummary.frontierSyntaxCount || summary.wildHoloScriptFrontierSyntaxCount || 0}; adapters ${wildSummary.adapterNeededCount || summary.wildHoloScriptAdapterNeededCount || 0}; candidates ${wildSummary.canonicalCandidateCount || summary.wildHoloScriptCanonicalCandidateCount || 0}; next ${wildSummary.nextMove || summary.wildHoloScriptNextMove || "none"}`,
         `Readiness evidence: ${readinessSummary.status || summary.readinessEvidenceStatus || "unknown"}; build ${readinessSummary.buildStatus || summary.readinessBuildStatus || "unknown"}; device ${readinessSummary.deviceLabStatus || summary.readinessDeviceLabStatus || "unknown"}; graph ${readinessSummary.graphStatus || summary.readinessGraphStatus || "unknown"}`,
         `Readiness tokens: ${readinessSummary.tokenCount || summary.readinessTokenCount || 0}; warnings ${readinessSummary.warningCount || summary.readinessWarningCount || 0}; next ${readinessSummary.nextWorkflow || summary.readinessNextWorkflow || "none"}`,

@@ -101,7 +101,7 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -193,6 +193,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: userShellProjection.generatedAt || now,
       receiptType: userShellProjection.schemaVersion,
       source: userShellProjection.source?.script || 'scripts/holoshell-user-shell-projection.mjs',
+    });
+  }
+
+  if (developmentalEnvironment?.summary) {
+    timeline.push({
+      id: developmentalEnvironment.receiptId || 'holoshell-developmental-environment',
+      kind: 'developmental_environment',
+      title: `Developmental environment ${developmentalEnvironment.summary.status || 'unknown'}`,
+      detail: `${developmentalEnvironment.summary.spineLayerCount || 0} spine layers; mass ${developmentalEnvironment.thesis?.massFunctionRuling || 'unknown'}; mapping ${developmentalEnvironment.thesis?.mappingFunctionRuling || 'unknown'}; next ${developmentalEnvironment.summary.nextMove || 'unknown'}.`,
+      trustState: developmentalEnvironment.summary.massFunctionSettled && developmentalEnvironment.summary.mappingFunctionSettled ? 'verified' : 'partial',
+      generatedAt: developmentalEnvironment.generatedAt || now,
+      receiptType: developmentalEnvironment.schemaVersion,
+      source: developmentalEnvironment.sourceAnchors?.adapter || 'scripts/holoshell-developmental-environment.mjs',
     });
   }
 
@@ -544,6 +557,7 @@ function createFeed(args) {
   const formatInventory = readJson(path.join(tmpDir, 'format-inventory.json'), {});
   const founderBootPreview = readJson(path.join(tmpDir, 'founder-boot-preview.json'), {});
   const userShellProjection = readJson(path.join(tmpDir, 'user-shell-projection.json'), {});
+  const developmentalEnvironment = readJson(path.join(tmpDir, 'developmental-environment.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
@@ -585,6 +599,7 @@ function createFeed(args) {
     formatInventory,
     founderBootPreview,
     userShellProjection,
+    developmentalEnvironment,
     lanes,
     processHealth,
     osUiCapture,
@@ -634,6 +649,7 @@ function createFeed(args) {
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
+      developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
@@ -702,6 +718,15 @@ function createFeed(args) {
       userShellFounderOnlyPowerCount: userShellProjection?.summary?.founderOnlyPowerCount || 0,
       userShellBrittneyTranslationCount: userShellProjection?.summary?.brittneyTranslationCount || 0,
       userShellVisibleBubbleCount: userShellProjection?.summary?.visibleBubbleCount || 0,
+      developmentalEnvironmentStatus: developmentalEnvironment?.summary?.status || 'unknown',
+      developmentalEnvironmentSpineLayerCount: developmentalEnvironment?.summary?.spineLayerCount || 0,
+      developmentalEnvironmentBoardTaskCount: developmentalEnvironment?.summary?.boardTaskCount || 0,
+      developmentalEnvironmentOpenEngineeringTaskCount: developmentalEnvironment?.summary?.openEngineeringTaskCount || 0,
+      developmentalEnvironmentResearchPresent: Boolean(developmentalEnvironment?.summary?.researchPresent),
+      developmentalEnvironmentMassFunctionSettled: Boolean(developmentalEnvironment?.summary?.massFunctionSettled),
+      developmentalEnvironmentMappingFunctionSettled: Boolean(developmentalEnvironment?.summary?.mappingFunctionSettled),
+      developmentalEnvironmentHonestyPrinciple: developmentalEnvironment?.summary?.honestyPrinciple || '',
+      developmentalEnvironmentNextMove: developmentalEnvironment?.summary?.nextMove || '',
       activeLaneCount: lanes?.summary?.activeLaneCount || 0,
       laneCount: lanes?.summary?.laneCount || lanes?.lanes?.length || 0,
       processRisk,
@@ -912,6 +937,7 @@ function createFeed(args) {
       formatInventory,
       founderBootPreview,
       userShellProjection,
+      developmentalEnvironment,
       lanes,
       processHealth,
       osUiCapture,
@@ -974,6 +1000,7 @@ function assertSelfTest(feed) {
   if (feed.summary.hardwareActionStatus === 'unknown') failures.push('expected hardware action feed');
   if (feed.summary.programRegistryStatus === 'unknown') failures.push('expected program registry feed');
   if (feed.summary.hardwareApprovalStatus === 'unknown') failures.push('expected hardware approval feed');
+  if (feed.summary.developmentalEnvironmentStatus === 'unknown') failures.push('expected developmental environment feed');
   if (!Array.isArray(feed.timeline) || feed.timeline.length < 3) failures.push('expected linked timeline');
   if (!Array.isArray(feed.stopPlans)) failures.push('expected stop plan array');
   if (failures.length) {
@@ -1000,6 +1027,7 @@ try {
     console.log(`Shell objects: ${feed.summary.shellObjectCount}`);
     console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
     console.log(`User shell: ${feed.summary.userShellProjectionStatus}`);
+    console.log(`Developmental environment: ${feed.summary.developmentalEnvironmentStatus}`);
     console.log(`Brittney context: ${feed.summary.brittneyContextStatus}`);
     console.log(`GOLD/codebase bridge: ${feed.summary.goldCodebaseBridgeStatus}`);
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);

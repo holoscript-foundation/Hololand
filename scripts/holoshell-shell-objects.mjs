@@ -1045,6 +1045,86 @@ function userShellProjectionObjects(feeds) {
   return objects;
 }
 
+function developmentalEnvironmentObjects(feeds) {
+  const receipt = feeds.developmentalEnvironment || {};
+  const summary = receipt.summary || {};
+  const objects = [];
+  if (!receipt.summary) return objects;
+
+  const sourceRef = receipt.sourceAnchors?.source || 'apps/holoshell/source/holoshell-developmental-environment.hsplus';
+  const trustState = summary.massFunctionSettled && summary.mappingFunctionSettled ? 'verified' : 'partial';
+  const spine = Array.isArray(receipt.spine) ? receipt.spine : [];
+  const boardTasks = Array.isArray(receipt.boardTasks) ? receipt.boardTasks : [];
+
+  objects.push({
+    id: 'source.developmental-environment',
+    objectKind: 'operating_world',
+    displayName: 'Developmental Environment',
+    sourceKind: 'holoscript',
+    sourceRef,
+    capabilityFamily: 'developmental_environment',
+    trustState,
+    permissionEnvelope: 'read_only',
+    adapterPath: receipt.sourceAnchors?.adapter || 'scripts/holoshell-developmental-environment.mjs',
+    visualForm: 'source_orbit',
+    status: summary.status || 'unknown',
+    actorLaneId: 'brittney',
+    receiptTypes: ['developmental_environment_receipt', 'diamond_ruling_receipt'],
+    relationships: {
+      research: receipt.sourceAnchors?.research || 'ai-ecosystem/research/2026-05-14_ui-ux-developmental-environment.md',
+      researchPresent: Boolean(summary.researchPresent),
+      reframe: receipt.thesis?.reframe || 'wireframe_to_simulation_to_geometrics',
+      telos: receipt.thesis?.telos || 'developmental_environment',
+      brittneyRole: receipt.thesis?.brittneyRole || 'assistant_parent_presence',
+      spine: spine.map((layer) => layer.id),
+      boardTasks: boardTasks.map((task) => task.id),
+      threads: (receipt.threads || []).map((thread) => thread.thread || thread),
+      massFunction: receipt.thesis?.massFunctionRuling || 'derived_not_authored',
+      mappingFunction: receipt.thesis?.mappingFunctionRuling || 'pure_function_of_physics_state',
+      honestyPrinciple: summary.honestyPrinciple || receipt.thesis?.mappingHonestyPrinciple || '',
+      nextMove: summary.nextMove || '',
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'simulation_first_shell_substrate',
+    launch: { action: 'inspect_developmental_environment', route: '/developmental-environment' },
+    glyph: 'DE',
+    detail: `wireframe -> simulation -> geometrics; ${summary.spineLayerCount || spine.length || 0} spine layers; mass ${receipt.thesis?.massFunctionRuling || 'unknown'}; mapping ${receipt.thesis?.mappingFunctionRuling || 'unknown'}.`,
+    firstScreen: true,
+    layout: { x: 36, y: 32, size: 124 },
+  });
+
+  objects.push({
+    id: 'policy.physics-honesty',
+    objectKind: 'policy',
+    displayName: 'Physics Honesty',
+    sourceKind: 'holoscript',
+    sourceRef,
+    capabilityFamily: 'developmental_environment_policy',
+    trustState,
+    permissionEnvelope: 'read_only',
+    adapterPath: 'physics_state_to_animation_mapping',
+    visualForm: 'warning_token',
+    status: summary.mappingFunctionSettled ? 'settled' : 'engineering_next',
+    actorLaneId: 'brittney',
+    receiptTypes: ['developmental_environment_receipt'],
+    relationships: {
+      massFunction: receipt.functions?.massFunction?.boardTaskId || '',
+      mappingFunction: receipt.functions?.physicsAnimationMapping?.boardTaskId || '',
+      cosmeticAnimationAllowed: false,
+      rule: receipt.thesis?.mappingHonestyPrinciple || 'animation must be explainable from physics state',
+    },
+    privacyClass: 'local_private',
+    replacementPath: 'honest_visual_signal_policy',
+    launch: { action: 'inspect_physics_honesty_policy' },
+    glyph: 'PH',
+    detail: `Animation is a pure view of physics state; ${summary.openEngineeringTaskCount || 0} engineering task(s) still open.`,
+    firstScreen: false,
+    layout: layout(94, 84),
+  });
+
+  return objects;
+}
+
 function programObjects(programRegistry, maxPrograms) {
   const programs = Array.isArray(programRegistry?.programs) ? programRegistry.programs : [];
   return dedupePrograms(programs)
@@ -1544,6 +1624,15 @@ function summarize(objects, feeds) {
     codebaseGraphCacheProtocol: feeds.goldCodebaseBridge?.summary?.graphCacheProtocol || 'unknown',
     founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
     userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
+    developmentalEnvironmentStatus: feeds.developmentalEnvironment?.summary?.status || 'unknown',
+    developmentalEnvironmentObjectCount: objects.filter((object) => object.capabilityFamily === 'developmental_environment' || object.capabilityFamily === 'developmental_environment_policy').length,
+    developmentalEnvironmentSpineLayerCount: feeds.developmentalEnvironment?.summary?.spineLayerCount || 0,
+    developmentalEnvironmentBoardTaskCount: feeds.developmentalEnvironment?.summary?.boardTaskCount || 0,
+    developmentalEnvironmentOpenEngineeringTaskCount: feeds.developmentalEnvironment?.summary?.openEngineeringTaskCount || 0,
+    developmentalEnvironmentResearchPresent: Boolean(feeds.developmentalEnvironment?.summary?.researchPresent),
+    developmentalEnvironmentMassFunctionSettled: Boolean(feeds.developmentalEnvironment?.summary?.massFunctionSettled),
+    developmentalEnvironmentMappingFunctionSettled: Boolean(feeds.developmentalEnvironment?.summary?.mappingFunctionSettled),
+    developmentalEnvironmentNextMove: feeds.developmentalEnvironment?.summary?.nextMove || '',
     agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
     agentDispatchCapabilityId: feeds.agentDispatch?.summary?.capabilityId || '',
     agentDispatchCapabilityLabel: feeds.agentDispatch?.summary?.capabilityLabel || '',
@@ -1603,6 +1692,7 @@ function summarize(objects, feeds) {
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
       founderBootStatus: feeds.founderBootPreview?.summary?.status || 'unknown',
       userShellProjectionStatus: feeds.userShellProjection?.summary?.status || 'unknown',
+      developmentalEnvironmentStatus: feeds.developmentalEnvironment?.summary?.status || 'unknown',
       agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
       grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
       trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
@@ -1625,6 +1715,7 @@ function loadFeeds(tmpDir) {
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
     userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
+    developmentalEnvironment: readJson(path.join(dir, 'developmental-environment.json'), {}),
     agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
     grokBuild: readJson(path.join(dir, 'grok-build-setup.json'), {}),
     trustLedger: readJson(path.join(dir, 'trust-ledger.json'), {}),
@@ -1650,6 +1741,7 @@ function buildGraph(args, fixtures = null) {
     ...baseShellObjects(feeds),
     ...founderBootObjects(feeds),
     ...userShellProjectionObjects(feeds),
+    ...developmentalEnvironmentObjects(feeds),
     ...readinessObjects(feeds.readinessEvidence),
     ...assetShardObjects(feeds),
     ...buildCustodyObjects(feeds),
@@ -1682,6 +1774,7 @@ function buildGraph(args, fixtures = null) {
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
+      developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
       ollamaCloudAgentWorkflow: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
@@ -1883,6 +1976,52 @@ function fixtureFeeds() {
       },
       shellDerivation: { founderSurface: 'surface.founder-boot-preview', rule: 'user_shell_is_subset_plus_plain_language_translation', hiddenMeansRequiresFounderModeOrApproval: true },
     },
+    developmentalEnvironment: {
+      schemaVersion: 'hololand.holoshell.developmental-environment.v0.1.0',
+      receiptId: 'dev-env-fixture',
+      sourceAnchors: {
+        research: 'ai-ecosystem/research/2026-05-14_ui-ux-developmental-environment.md',
+        source: 'apps/holoshell/source/holoshell-developmental-environment.hsplus',
+        adapter: 'scripts/holoshell-developmental-environment.mjs',
+      },
+      thesis: {
+        reframe: 'wireframe_to_simulation_to_geometrics',
+        telos: 'developmental_environment',
+        brittneyRole: 'assistant_parent_presence',
+        massFunctionRuling: 'derived_not_authored',
+        mappingFunctionRuling: 'pure_function_of_physics_state',
+        mappingHonestyPrinciple: 'animation must be explainable from physics state rather than cosmetic preference',
+      },
+      spine: [
+        { id: 'substrate' },
+        { id: 'vocabulary' },
+        { id: 'composition' },
+        { id: 'two_observer_rendering' },
+        { id: 'honesty' },
+        { id: 'signal_presence' },
+      ],
+      functions: {
+        massFunction: { boardTaskId: 'task_1778802617893_o5mp' },
+        physicsAnimationMapping: { boardTaskId: 'task_1778802617893_zppq' },
+      },
+      threads: [{ thread: 'HoloShell Option C/D UI substrate' }, { thread: 'Studio rethink Phase 6' }],
+      boardTasks: [
+        { id: 'task_1778802617893_o5mp' },
+        { id: 'task_1778802617893_zppq' },
+        { id: 'task_1778802907913_5ph8' },
+      ],
+      summary: {
+        status: 'ready',
+        spineLayerCount: 6,
+        boardTaskCount: 3,
+        openEngineeringTaskCount: 3,
+        researchPresent: true,
+        massFunctionSettled: true,
+        mappingFunctionSettled: true,
+        honestyPrinciple: 'physics_state_drives_animation',
+        nextMove: 'engineer_mass_function_then_physics_animation_mapping',
+      },
+    },
     osUiCapture: {
       summary: { status: 'captured', windowCount: 1, controlCount: 4, geometryNodeCount: 42 },
       windows: [{ id: 'window-chrome', title: 'HoloLand', processName: 'chrome', processId: 100, foreground: true, controls: [{}, {}, {}] }],
@@ -2054,9 +2193,12 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'source.holoscript-gold-codebase')) failures.push('expected GOLD/codebase substrate object');
   if (!graph.objects.some((object) => object.id === 'surface.founder-boot-preview')) failures.push('expected founder boot surface object');
   if (!graph.objects.some((object) => object.id === 'surface.user-shell-projection')) failures.push('expected user shell projection object');
+  if (!graph.objects.some((object) => object.id === 'source.developmental-environment')) failures.push('expected developmental environment object');
+  if (!graph.objects.some((object) => object.id === 'policy.physics-honesty')) failures.push('expected physics honesty policy object');
   if (!graph.objects.some((object) => object.id === 'assistant.brittney.user-translator')) failures.push('expected Brittney user translator object');
   if (graph.summary.wildHoloScriptStatus !== 'scanned') failures.push('expected wild HoloScript scanned status');
   if (graph.summary.userShellProjectionStatus !== 'ready') failures.push('expected user shell projection ready status');
+  if (graph.summary.developmentalEnvironmentStatus !== 'ready') failures.push('expected developmental environment ready status');
   if (graph.summary.agentDispatchStatus !== 'ready_to_stage') failures.push('expected agent dispatch ready status');
   if (graph.summary.grokBuildSetupStatus !== 'partial') failures.push('expected Grok Build setup status');
   if (graph.summary.trustedAutonomyLatestLevel !== 'guarded') failures.push('expected trust ledger guarded status');

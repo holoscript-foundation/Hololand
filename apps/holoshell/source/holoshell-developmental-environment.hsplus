@@ -1,0 +1,84 @@
+//
+// HoloShell developmental environment source contract.
+//
+// This is the UI/UX substrate that reframes shell design from wireframes into
+// simulation, geometry, honesty, and presence.
+
+composition "HoloShell Developmental Environment" {
+  config {
+    title: "HoloShell Developmental Environment"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapter: "scripts/holoshell-developmental-environment.mjs"
+    receipt: ".tmp/holoshell/developmental-environment.json"
+    bootstrap: ".tmp/holoshell/developmental-environment.js"
+    researchAnchor: "ai-ecosystem/research/2026-05-14_ui-ux-developmental-environment.md"
+    doc: "apps/holoshell/docs/DEVELOPMENTAL_ENVIRONMENT.md"
+  }
+
+  state {
+    status: "unknown"
+    spineLayerCount: 0
+    boardTaskCount: 0
+    openEngineeringTaskCount: 0
+    massFunctionSettled: false
+    mappingFunctionSettled: false
+    honestyPrinciple: "unknown"
+    nextMove: ""
+  }
+
+  channel "holoshell:developmental-environment" {
+    type: "pub_sub"
+    priority: "high"
+    description: "UI/UX developmental substrate for simulation-derived HoloShell"
+  }
+
+  template "DevelopmentalEnvironmentReceipt" {
+    type: "developmental_environment_receipt"
+    receiptType: "hololand.holoshell.developmental-environment.v0.1.0"
+    reframe: "wireframe_to_simulation_to_geometrics"
+    telos: "developmental_environment"
+    brittneyRole: "assistant_parent_presence"
+    spine: ["substrate", "vocabulary", "composition", "two_observer_rendering", "honesty", "signal_presence"]
+    massFunction: "derived_not_authored"
+    mappingFunction: "pure_function_of_physics_state"
+    receiptRequired: true
+  }
+
+  policy "PhysicsHonesty" {
+    appliesTo: ["mass_function", "physics_animation_mapping", "two_observer_rendering"]
+    rule: "visual motion must be explainable from physics state"
+    cosmeticAnimationAllowed: false
+    receiptRequired: true
+  }
+
+  policy "BrittneyAsDevelopmentalPresence" {
+    appliesTo: ["assistant_presence", "user_guidance", "agency_graduation"]
+    role: "parent_like_assistant_not_dashboard_widget"
+    riskiestAssumption: "graduation_to_real_agency_must_actually_happen"
+    receiptRequired: true
+  }
+
+  action apply_developmental_environment(receipt) {
+    state.status = receipt.summary.status
+    state.spineLayerCount = receipt.summary.spineLayerCount
+    state.boardTaskCount = receipt.summary.boardTaskCount
+    state.openEngineeringTaskCount = receipt.summary.openEngineeringTaskCount
+    state.massFunctionSettled = receipt.summary.massFunctionSettled
+    state.mappingFunctionSettled = receipt.summary.mappingFunctionSettled
+    state.honestyPrinciple = receipt.summary.honestyPrinciple
+    state.nextMove = receipt.summary.nextMove
+    emit("holoshell:developmental-environment", {
+      action: "developmental_environment_applied",
+      status: state.status,
+      spine_layers: state.spineLayerCount,
+      board_tasks: state.boardTaskCount,
+      open_engineering_tasks: state.openEngineeringTaskCount,
+      mass_function_settled: state.massFunctionSettled,
+      mapping_function_settled: state.mappingFunctionSettled,
+      honesty_principle: state.honestyPrinciple,
+      next_move: state.nextMove,
+      receipt_required: true
+    })
+  }
+}
