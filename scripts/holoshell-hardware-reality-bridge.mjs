@@ -716,6 +716,24 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
     shellRuns,
     listeners,
     legacyApps,
+    terminationPreflights: safeArray(snapshot.terminationPreflights).map((preflight) => ({
+      pid: preflight.pid || null,
+      reason: String(preflight.reason || '').slice(0, 220),
+      actionClass: preflight.actionClass || 'cleanup_candidate',
+      cleanupEligible: preflight.cleanupEligible !== false,
+      ownerLane: preflight.ownerLane || null,
+      approvalRequired: preflight.approvalRequired !== false,
+      receiptRequired: preflight.receiptRequired !== false,
+    })),
+    ownerHandoffs: safeArray(snapshot.ownerHandoffs).map((handoff) => ({
+      pid: handoff.pid || null,
+      ownerLane: handoff.ownerLane || null,
+      ownerLaneLabel: handoff.ownerLaneLabel || null,
+      reason: String(handoff.reason || '').slice(0, 220),
+      recommendedAction: handoff.recommendedAction || 'ask_owner_lane_to_extend_close_or_justify',
+      cleanupEligible: false,
+      receiptRequired: handoff.receiptRequired !== false,
+    })),
     findings: safeArray(snapshot.healthFindings).map((finding) => ({
       severity: finding.severity,
       class: finding.class,
@@ -807,6 +825,8 @@ function assertSelfTest(model) {
   if (model.summary.listenerCount < 1) failures.push('expected fixture listener');
   if (model.summary.activeLaneCount < 1) failures.push('expected active agent lane');
   if (model.summary.legacyAppCount < 1) failures.push('expected legacy app custody');
+  if (!Array.isArray(model.terminationPreflights)) failures.push('expected termination preflight array');
+  if (!Array.isArray(model.ownerHandoffs)) failures.push('expected owner handoff array');
   if (model.safety.destructiveActionsTaken !== false) failures.push('bridge must not take destructive actions');
   if (!model.safety.preflightRequiredForTermination) failures.push('termination preflight must be required');
   if (!model.receipt.snapshotHash) failures.push('missing upstream snapshot hash');

@@ -1,0 +1,143 @@
+// HoloShell MCP Custody Snapshot Contract
+//
+// Executable contract for the global HoloShell MCP snapshot shape. HoloLand can
+// consume overlay/fallback receipts, but the native upstream tool should emit
+// cleanup candidates and owner handoffs directly.
+
+composition "HoloShell MCP Custody Snapshot Contract" {
+  config {
+    title: "MCP Custody Snapshot Contract"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-mcp-custody-contract.mjs"
+    upstreamTool: "holoshell_run_registry_snapshot"
+    defaultMode: "read_only_contract"
+  }
+
+  state {
+    status: "unknown"
+    compatibilityMode: "unknown"
+    nativeMcpCustodySplit: false
+    cleanupCandidateCount: 0
+    ownerHandoffPlanCount: 0
+    terminationPreflightCount: 0
+    checkPassCount: 0
+    checkWarnCount: 0
+    checkFailCount: 0
+    lastContractHash: ""
+  }
+
+  channel "holoshell:mcp-custody:contract" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Global MCP snapshot contract for cleanup candidates vs owner handoffs"
+  }
+
+  template "CleanupCandidatePreflight" {
+    type: "contract"
+    pid: 0
+    reason: ""
+    actionClass: "cleanup_candidate"
+    cleanupEligible: true
+    ownerLane: ""
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  template "OwnerHandoffPlan" {
+    type: "contract"
+    pid: 0
+    ownerLane: ""
+    ownerLaneLabel: ""
+    reason: ""
+    recommendedAction: "ask_owner_lane_to_extend_close_or_justify"
+    cleanupEligible: false
+    receiptRequired: true
+  }
+
+  template "ShellRunCustodyFields" {
+    type: "contract"
+    actionClass: "observed"
+    cleanupEligible: false
+    ownerHandoffRequired: false
+  }
+
+  room "McpCustodyContractRoom" {
+    label: "MCP Custody Contract"
+    userQuestion: "Is upstream HoloShell MCP emitting the custody split natively?"
+    visualForm: "contract_compliance_board"
+    liveFeed: "holoshell:mcp-custody:contract"
+
+    object "NativeReadiness" {
+      type: "ui"
+      uiType: "contract_status"
+      label: "Native MCP Split"
+      status: $status
+      compatibilityMode: $compatibilityMode
+      nativeMcpCustodySplit: $nativeMcpCustodySplit
+    }
+
+    object "CustodyCounts" {
+      type: "ui"
+      uiType: "custody_counts"
+      label: "Custody Counts"
+      cleanupCandidates: $cleanupCandidateCount
+      ownerHandoffs: $ownerHandoffPlanCount
+      terminationPreflights: $terminationPreflightCount
+    }
+
+    object "ComplianceChecks" {
+      type: "ui"
+      uiType: "contract_checks"
+      label: "Checks"
+      pass: $checkPassCount
+      warn: $checkWarnCount
+      fail: $checkFailCount
+    }
+  }
+
+  policy "NativeMcpCustodySplit" {
+    appliesTo: ["holoshell_run_registry_snapshot"]
+    summaryFields: ["cleanupCandidateCount", "ownerHandoffPlanCount", "terminationPreflightCount"]
+    cleanupCandidatePreflightShape: "owner_unknown_only"
+    ownerHandoffShape: "owner_known_non_destructive"
+    shellRunCustodyFieldsRequired: true
+    rawCommandsHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "FallbackIsCompatibilityOnly" {
+    appliesTo: ["hardware_reality_bridge", "receipt_fallback", "process_health_overlay"]
+    fallbackAllowedForReadOnlyProjection: true
+    fallbackIsNotNativeMcpReadiness: true
+    upstreamUpgradeRequired: true
+    receiptRequired: true
+  }
+
+  action consume_contract(packet) {
+    state.status = packet.summary.status
+    state.compatibilityMode = packet.summary.compatibilityMode
+    state.nativeMcpCustodySplit = packet.summary.nativeMcpCustodySplit
+    state.cleanupCandidateCount = packet.summary.cleanupCandidateCount
+    state.ownerHandoffPlanCount = packet.summary.ownerHandoffPlanCount
+    state.terminationPreflightCount = packet.summary.terminationPreflightCount
+    state.checkPassCount = packet.summary.checkPassCount
+    state.checkWarnCount = packet.summary.checkWarnCount
+    state.checkFailCount = packet.summary.checkFailCount
+    state.lastContractHash = packet.receipt.contractHash
+
+    emit("holoshell:mcp-custody:contract", {
+      status: state.status,
+      compatibilityMode: state.compatibilityMode,
+      nativeMcpCustodySplit: state.nativeMcpCustodySplit,
+      cleanupCandidates: state.cleanupCandidateCount,
+      ownerHandoffs: state.ownerHandoffPlanCount,
+      terminationPreflights: state.terminationPreflightCount,
+      pass: state.checkPassCount,
+      warn: state.checkWarnCount,
+      fail: state.checkFailCount,
+      contractHash: state.lastContractHash,
+      receiptRequired: true
+    })
+  }
+}

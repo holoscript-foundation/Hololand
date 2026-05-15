@@ -39,6 +39,8 @@ snapshot returns broader PID preflight data. The adapter overlays
 - lane-owned findings become owner handoffs
 - raw commands stay hidden; agents get PIDs, owner lanes, action class, and
   receipt ids
+- sanitized `terminationPreflights[]` and `ownerHandoffs[]` are exported so
+  contract checks can inspect object shape, not only summary counts
 
 If the overlay replaces an upstream unsplit preflight list, the receipt records
 `upstreamTerminationPreflightCount` so agents can audit the collapse.
