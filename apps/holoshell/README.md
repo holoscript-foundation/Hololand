@@ -349,6 +349,14 @@ Brittney consumes the resulting policy before agents run package installs,
 model downloads, large uploads, fleet syncs, or parallel network-heavy work.
 Peer count comes from semantic agent lanes, not process count.
 
+The adapter imports the canonical HoloWeb network reality validator from
+`@holoscript/framework` and writes a `schemaContract` receipt into the manifest.
+`schemaContract.validationStatus: pass` means the local JSON shape was validated
+against the HoloScript source contract before Brittney or another agent consumes
+it. If the package cannot be loaded, the manifest still writes a local protective
+snapshot, but `schemaContract.validationStatus` becomes `unavailable` and
+`--self-test` fails.
+
 ## Local Checks
 
 From the HoloScript repo:
@@ -392,6 +400,7 @@ node scripts\holoshell-workflow-approval-bundle.mjs
 node scripts\holoshell-agent-lanes.mjs --self-test
 node scripts\holoshell-process-health.mjs --self-test
 node scripts\holoshell-network-reality.mjs --self-test
+node scripts\__tests__\holoshell-network-reality.test.mjs
 node scripts\holoshell-run.mjs --self-test
 node scripts\holoshell-pilot.mjs --self-test
 node scripts\holoshell-live-feed.mjs --self-test

@@ -5,6 +5,11 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const SCHEMA_VERSION = 'hololand.holoshell.network-reality.v0.1.0';
+const HOLOSCRIPT_CONTRACT_PACKAGE = '@holoscript/framework';
+const HOLOSCRIPT_CONTRACT_EXPORTS = [
+  'HOLOWEB_NETWORK_REALITY_SCHEMA_VERSION',
+  'validateHoloWebNetworkRealitySnapshot',
+];
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'network-reality.json');
 const DEFAULT_AGENT_LANES = path.join('.tmp', 'holoshell', 'agent-lanes.json');
 const DEFAULT_PROCESS_HEALTH = path.join('.tmp', 'holoshell', 'process-health.json');
@@ -110,9 +115,81 @@ Options:
   --run-registry <path>           Read run registry. Defaults to .tmp/holoshell/run-registry.json.
   --owner-declared-kind <kind>    auto, phone_hotspot, metered, unmetered, or unknown.
   --include-identifiers           Include adapter/interface names. SSID, BSSID, IP, gateway, and remote endpoints stay redacted.
-  --self-test                     Assert schema, classification, redaction, and policy invariants.
+  --self-test                     Assert schema, HoloScript contract validation, classification, redaction, and policy invariants.
   -h, --help                      Show this help.
 `);
+}
+
+async function loadHoloScriptContract() {
+  try {
+    const contract = await import(HOLOSCRIPT_CONTRACT_PACKAGE);
+    const missingExports = HOLOSCRIPT_CONTRACT_EXPORTS.filter((name) => !(name in contract));
+    if (missingExports.length) {
+      return {
+        available: false,
+        sourcePackage: HOLOSCRIPT_CONTRACT_PACKAGE,
+        errors: [`Missing exports: ${missingExports.join(', ')}`],
+      };
+    }
+
+    if (typeof contract.validateHoloWebNetworkRealitySnapshot !== 'function') {
+      return {
+        available: false,
+        sourcePackage: HOLOSCRIPT_CONTRACT_PACKAGE,
+        errors: ['validateHoloWebNetworkRealitySnapshot is not callable.'],
+      };
+    }
+
+    return {
+      available: true,
+      sourcePackage: HOLOSCRIPT_CONTRACT_PACKAGE,
+      schemaVersion: contract.HOLOWEB_NETWORK_REALITY_SCHEMA_VERSION,
+      validateSnapshot: contract.validateHoloWebNetworkRealitySnapshot,
+    };
+  } catch (error) {
+    return {
+      available: false,
+      sourcePackage: HOLOSCRIPT_CONTRACT_PACKAGE,
+      errors: [error?.message || String(error)],
+    };
+  }
+}
+
+function createContractReceipt(contract, manifest) {
+  if (!contract.available) {
+    return {
+      sourcePackage: contract.sourcePackage,
+      validationStatus: 'unavailable',
+      checkedAt: new Date().toISOString(),
+      expectedSchemaVersion: SCHEMA_VERSION,
+      schemaVersion: null,
+      errorCount: contract.errors.length,
+      errors: contract.errors,
+    };
+  }
+
+  const schemaVersionMismatch = contract.schemaVersion !== SCHEMA_VERSION
+    ? [`Upstream schema version ${contract.schemaVersion} does not match adapter schema version ${SCHEMA_VERSION}.`]
+    : [];
+  const validationErrors = contract.validateSnapshot(manifest);
+  const errors = [...schemaVersionMismatch, ...validationErrors];
+
+  return {
+    sourcePackage: contract.sourcePackage,
+    validationStatus: errors.length ? 'fail' : 'pass',
+    checkedAt: new Date().toISOString(),
+    expectedSchemaVersion: SCHEMA_VERSION,
+    schemaVersion: contract.schemaVersion,
+    errorCount: errors.length,
+    errors: errors.slice(0, 16),
+  };
+}
+
+async function attachHoloScriptContractReceipt(manifest) {
+  const contract = await loadHoloScriptContract();
+  const receipt = createContractReceipt(contract, manifest);
+  manifest.schemaContract = receipt;
+  return receipt;
 }
 
 function run(command, args, options = {}) {
@@ -798,7 +875,7 @@ function buildFixture(overrides = {}) {
   };
 }
 
-function assertSelfTest(args) {
+async function assertSelfTest(args) {
   const failures = [];
   const normal = createManifest(args, buildFixture({ ownerDeclaredKind: 'auto' }));
   const hotspot = createManifest(args, buildFixture({ ownerDeclaredKind: 'phone_hotspot' }));
@@ -846,6 +923,14 @@ function assertSelfTest(args) {
   if (!hotspot.redaction.localOnly) failures.push('redaction scope should be local only');
   assertRedaction(hotspot, failures);
 
+  const fixtures = { normal, hotspot, metered, vpn, degraded, offline };
+  for (const [name, manifest] of Object.entries(fixtures)) {
+    const receipt = await attachHoloScriptContractReceipt(manifest);
+    if (receipt.validationStatus !== 'pass') {
+      failures.push(`${name} fixture failed HoloScript contract validation: ${receipt.errors.join('; ')}`);
+    }
+  }
+
   if (failures.length) {
     throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   }
@@ -854,14 +939,16 @@ function assertSelfTest(args) {
 try {
   const args = parseArgs(process.argv.slice(2));
   const manifest = createManifest(args);
+  const contractReceipt = await attachHoloScriptContractReceipt(manifest);
   const output = writeManifest(manifest, args.output);
-  if (args.selfTest) assertSelfTest(args);
+  if (args.selfTest) await assertSelfTest(args);
 
   if (args.json) {
     console.log(JSON.stringify(manifest, null, 2));
   } else {
     console.log(`HoloShell network reality: ${output}`);
     console.log(`Underlay: ${manifest.underlay.classification} (${manifest.underlay.confidence})`);
+    console.log(`HoloScript contract: ${contractReceipt.validationStatus}`);
     console.log(`Policy: ${manifest.policy.heavyWorkPolicy}`);
     console.log(`Network consumers: ${manifest.health.networkConsumerCount}`);
   }
