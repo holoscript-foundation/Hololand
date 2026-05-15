@@ -189,6 +189,7 @@ function readLocalArtifacts(tmpDir) {
     tmpDir: resolvedTmp,
     hardwareReality: readJson(path.join(resolvedTmp, 'hardware-reality.json'), {}),
     processHealth: readJson(path.join(resolvedTmp, 'process-health.json'), {}),
+    mcpCustodyContract: readJson(path.join(resolvedTmp, 'mcp-custody-contract.json'), {}),
     liveFeed: readJson(path.join(resolvedTmp, 'live-feed.json'), {}),
     buildRunReceipt: readLatestRunReceipt(resolvedTmp, 'build'),
   });
@@ -212,9 +213,11 @@ function statusFromRunReceipt(receipt) {
 function localArtifactSummary(localArtifacts) {
   const hardware = localArtifacts?.hardwareReality || {};
   const processHealth = localArtifacts?.processHealth || {};
+  const mcpCustodyContract = localArtifacts?.mcpCustodyContract || {};
   const liveFeed = localArtifacts?.liveFeed || {};
   const buildRun = localArtifacts?.buildRunReceipt || {};
   const processSummary = processHealth.summary || {};
+  const contractSummary = mcpCustodyContract.summary || {};
   const liveSummary = liveFeed.summary || {};
   const hardwareSummary = hardware.summary || {};
 
@@ -243,6 +246,18 @@ function localArtifactSummary(localArtifacts) {
         ? processHealth.recommendations.length
         : 0,
       source: path.join(localArtifacts?.tmpDir || DEFAULT_TMP_DIR, 'process-health.json'),
+    },
+    mcpCustodyContract: {
+      status: mcpCustodyContract.schemaVersion ? statusFromRisk(contractSummary.status) : 'unknown',
+      compatibilityMode: contractSummary.compatibilityMode || 'unknown',
+      nativeMcpCustodySplit: Boolean(contractSummary.nativeMcpCustodySplit),
+      cleanupCandidateCount: contractSummary.cleanupCandidateCount || 0,
+      ownerHandoffPlanCount: contractSummary.ownerHandoffPlanCount || 0,
+      checkPassCount: contractSummary.checkPassCount || 0,
+      checkWarnCount: contractSummary.checkWarnCount || 0,
+      checkFailCount: contractSummary.checkFailCount || 0,
+      nextAction: mcpCustodyContract.compliance?.nextAction || '',
+      source: path.join(localArtifacts?.tmpDir || DEFAULT_TMP_DIR, 'mcp-custody-contract.json'),
     },
     liveFeed: {
       status: statusFromRisk(liveSummary.overallRisk),
@@ -577,6 +592,7 @@ function createFeed({
     graphStatus,
     localSummary.hardwareReality.status,
     localSummary.processHealth.status,
+    localSummary.mcpCustodyContract.status,
     localSummary.buildRun.status,
   ].filter((status) => ['warn', 'skipped', 'reported_fail', 'fail'].includes(status)).length;
   const worstStatus =
@@ -592,6 +608,7 @@ function createFeed({
       graphStatus,
       localSummary.hardwareReality.status,
       localSummary.processHealth.status,
+      localSummary.mcpCustodyContract.status,
       localSummary.buildRun.status,
     ].sort((left, right) => statusRank(right) - statusRank(left))[0] || 'unknown';
   const overallStatus =
@@ -707,6 +724,20 @@ function createFeed({
         : '',
     }),
     makeToken({
+      id: 'readiness.mcp-custody-contract',
+      kind: 'mcp_contract_receipt',
+      title: localSummary.mcpCustodyContract.nativeMcpCustodySplit
+        ? 'MCP custody split native'
+        : `MCP custody split ${localSummary.mcpCustodyContract.compatibilityMode}`,
+      status: localSummary.mcpCustodyContract.status,
+      detail: `Compatibility ${localSummary.mcpCustodyContract.compatibilityMode}; ${localSummary.mcpCustodyContract.cleanupCandidateCount} cleanup candidate(s), ${localSummary.mcpCustodyContract.ownerHandoffPlanCount} owner handoff(s), ${localSummary.mcpCustodyContract.checkFailCount} failing contract check(s).`,
+      source: localSummary.mcpCustodyContract.source,
+      receiptType: 'hololand.holoshell.mcp-custody-contract.v0.1.0',
+      nextAction: localSummary.mcpCustodyContract.status === 'pass'
+        ? ''
+        : localSummary.mcpCustodyContract.nextAction || 'Upgrade holoshell_run_registry_snapshot to emit the custody split natively.',
+    }),
+    makeToken({
       id: 'readiness.live-feed',
       kind: 'live_feed_receipt',
       title: `Live feed ${localSummary.liveFeed.overallRisk}`,
@@ -797,6 +828,9 @@ function createFeed({
       changedFiles: changedFiles.slice(0, 24),
       hardwareRealityStatus: localSummary.hardwareReality.status,
       processHealthStatus: localSummary.processHealth.status,
+      mcpCustodyContractStatus: localSummary.mcpCustodyContract.status,
+      mcpCustodyCompatibilityMode: localSummary.mcpCustodyContract.compatibilityMode,
+      nativeMcpCustodySplit: localSummary.mcpCustodyContract.nativeMcpCustodySplit,
       liveFeedStatus: localSummary.liveFeed.status,
       buildRunStatus: localSummary.buildRun.status,
       buildRunExitCode: localSummary.buildRun.exitCode,
@@ -852,6 +886,23 @@ function fixtureLocalArtifacts() {
         stopPlanCount: 1,
       },
       recommendations: ['Review the stale build runner before starting another heavy workflow.'],
+    },
+    mcpCustodyContract: {
+      schemaVersion: 'hololand.holoshell.mcp-custody-contract.v0.1.0',
+      summary: {
+        status: 'warn',
+        compatibilityMode: 'hololand_overlay',
+        nativeMcpCustodySplit: false,
+        cleanupCandidateCount: 1,
+        ownerHandoffPlanCount: 3,
+        checkPassCount: 5,
+        checkWarnCount: 1,
+        checkFailCount: 0,
+      },
+      compliance: {
+        nextAction: 'Upgrade upstream MCP snapshot so HoloLand no longer needs fallback or overlay custody splitting.',
+      },
+      receipt: { contractHash: 'fixture-contract-hash' },
     },
     liveFeed: {
       summary: {
@@ -955,17 +1006,23 @@ function assertSelfTest(feed) {
     failures.push('expected hardware reality token');
   if (!feed.tokens.find((token) => token.id === 'readiness.process-health'))
     failures.push('expected process health token');
+  if (!feed.tokens.find((token) => token.id === 'readiness.mcp-custody-contract'))
+    failures.push('expected MCP custody contract token');
   if (!feed.tokens.find((token) => token.id === 'readiness.live-feed'))
     failures.push('expected live feed token');
   if (!feed.tokens.find((token) => token.id === 'readiness.holoshell-run'))
     failures.push('expected HoloShell run token');
   if (!feed.tokens.find((token) => token.id === 'readiness.repo-dirtiness'))
     failures.push('expected repo dirtiness token');
-  if (feed.summary.tokenCount !== 13)
-    failures.push(`expected 13 tokens, got ${feed.summary.tokenCount}`);
+  if (feed.summary.tokenCount !== 14)
+    failures.push(`expected 14 tokens, got ${feed.summary.tokenCount}`);
   if (feed.summary.hardwareRealityStatus !== 'pass')
     failures.push('expected hardware reality pass');
   if (feed.summary.processHealthStatus !== 'warn') failures.push('expected process health warn');
+  if (feed.summary.mcpCustodyContractStatus !== 'warn')
+    failures.push('expected MCP custody contract warn');
+  if (feed.summary.mcpCustodyCompatibilityMode !== 'hololand_overlay')
+    failures.push('expected MCP custody overlay mode');
   if (feed.summary.liveFeedStatus !== 'warn') failures.push('expected live feed warn');
   if (feed.summary.buildRunStatus !== 'pass') failures.push('expected build run pass');
   if (feed.summary.liveCoreImportKeyCount !== 42)
