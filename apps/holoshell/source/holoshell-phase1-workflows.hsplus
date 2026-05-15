@@ -19,6 +19,9 @@ composition "HoloShell Phase 1 Workflows" {
     approvalCount: 0
     receiptCount: 0
     blockedReason: ""
+    activePilot: ""
+    stopPlanCount: 0
+    witnessUnavailableCount: 0
   }
 
   template "OutcomeFlow" {
@@ -81,12 +84,32 @@ composition "HoloShell Phase 1 Workflows" {
     userView: "show capability group, adapter path, trust default, and replacement path"
   }
 
+  workflow "ReviewProcessCustody" using "OutcomeFlow" {
+    intent: "Show me what local runs need cleanup before more heavy work starts"
+    capabilityPath: ["process-run-custody", "agent-presence", "local-projects"]
+    risk: "break_glass_for_termination"
+    receiptPath: [
+      "process_health_receipt",
+      "run_registry_receipt",
+      "stop_plan_receipt",
+      "approval_receipt"
+    ]
+    userView: "show stale runs, high-memory processes, owner lane, and stop plans without killing anything"
+  }
+
   policy "SilentRead" using "PermissionEnvelope" {
     readOnly: true
     guardedWrite: false
     breakGlass: false
     receiptRequired: true
-    appliesTo: ["health_check", "inventory_summary", "project_status", "mcp_discovery"]
+    appliesTo: [
+      "health_check",
+      "inventory_summary",
+      "project_status",
+      "mcp_discovery",
+      "browser_read_witness",
+      "legacy_classification"
+    ]
   }
 
   policy "GuardedWrite" using "PermissionEnvelope" {
@@ -111,8 +134,33 @@ composition "HoloShell Phase 1 Workflows" {
       "payment",
       "deploy",
       "system_setting_change",
-      "robot_or_actuator_command"
+      "robot_or_actuator_command",
+      "process_termination"
     ]
+  }
+
+  workflow "BrowserOperationPilot" using "OutcomeFlow" {
+    intent: "Check whether this service is healthy"
+    capabilityPath: ["browser-operator"]
+    risk: "browser_session_boundary"
+    receiptPath: ["browser_action_receipt", "screenshot_witness", "dom_witness"]
+    userView: "show target, session boundary, visible result, and witness unavailable state when no browser session is opened"
+  }
+
+  workflow "LocalProjectOperationPilot" using "OutcomeFlow" {
+    intent: "Check this project and tell me if it is safe"
+    capabilityPath: ["local-projects", "cli-dev-stack", "process-run-custody"]
+    risk: "guarded_execute"
+    receiptPath: ["command_receipt", "git_diff_receipt", "run_custody_receipt"]
+    userView: "show pass/fail, changed files, and raw command output behind receipt"
+  }
+
+  workflow "LegacyClassificationPilot" using "OutcomeFlow" {
+    intent: "What can my installed apps help agents do?"
+    capabilityPath: ["legacy-apps"]
+    risk: "local_inventory_privacy"
+    receiptPath: ["legacy_inventory_receipt", "classification_receipt"]
+    userView: "show archetypes, adapter path, trust default, and redaction state"
   }
 
   action select_workflow(name) {
@@ -143,5 +191,37 @@ composition "HoloShell Phase 1 Workflows" {
       count: state.receiptCount
     })
   }
-}
 
+  action start_pilot(name) {
+    state.activePilot = name
+    emit("holoshell:pilot:selected", {
+      pilot: name,
+      surface: "holoshell",
+      receipt_required: true
+    })
+  }
+
+  action record_pilot_receipt(receipt) {
+    state.receiptCount = state.receiptCount + 1
+    if (receipt.status == "witness_unavailable") {
+      state.witnessUnavailableCount = state.witnessUnavailableCount + 1
+    }
+    emit("holoshell:pilot:receipt", {
+      pilot: receipt.pilot,
+      receipt: receipt,
+      witness_state: receipt.status,
+      count: state.receiptCount
+    })
+  }
+
+  action record_stop_plan(stopPlan) {
+    state.stopPlanCount = state.stopPlanCount + 1
+    state.approvalCount = state.approvalCount + 1
+    emit("holoshell:process:stop_plan", {
+      stop_plan: stopPlan,
+      approval_required: true,
+      automatic_termination_allowed: false,
+      receipt_required: true
+    })
+  }
+}

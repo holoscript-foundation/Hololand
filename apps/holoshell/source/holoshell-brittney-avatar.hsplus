@@ -1,0 +1,247 @@
+// HoloShell Brittney Avatar
+//
+// Source contract for Brittney as an accessible embodied avatar in HoloShell.
+// The runtime brain is HoloScript's @holoscript/aibrittney. HoloLand owns the
+// lived shell embodiment, visual state, local access policy, and receipts.
+
+composition "HoloShell Brittney Avatar" {
+  config {
+    title: "HoloShell Brittney Avatar"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimePackage: "@holoscript/aibrittney"
+    runtimePackagePath: "C:/Users/josep/Documents/GitHub/HoloScript/packages/aibrittney"
+    agentRuntimeSource: "packages/aibrittney/src/agent.ts"
+    sessionRuntimeSource: "packages/aibrittney/src/session.ts"
+    embodimentTraitSource: "packages/core/src/traits/AvatarEmbodimentTrait.ts"
+    companionTraitSource: "packages/core/src/traits/AICompanionTrait.ts"
+    intentTraitSource: "packages/core/src/traits/AvatarIntentTrait.ts"
+    voiceHookSource: "packages/studio/src/hooks/useBrittneyVoice.ts"
+    hololandAvatarBridge: "packages/ar/avatar-studio/src/HoloScriptAvatarBridge.ts"
+    manifestSource: ".tmp/holoshell/brittney-avatar.json"
+    runtimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    latestTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
+  }
+
+  state {
+    avatarStatus: "unknown"
+    runtimeStatus: "unknown"
+    runtimeModel: "qwen2.5-coder:7b"
+    routeClass: "local"
+    visualForm: "holographic_face_and_bust"
+    pipelineStage: "idle"
+    currentEmotion: "attentive"
+    voiceState: "idle"
+    mouthState: "rest"
+    eyeFocus: "shell_objects"
+    keyboardReachable: true
+    screenReaderReachable: true
+    keyboardShortcut: "Alt+B"
+    lastAgentEventKind: ""
+    lastAgentEventMessage: ""
+    lastReceiptId: ""
+    conversationOpen: true
+  }
+
+  channel "holoshell:brittney:avatar" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Embodied Brittney avatar state, visual mood, accessibility handle, and runtime readiness"
+  }
+
+  channel "holoshell:brittney:voice" {
+    type: "request_response"
+    priority: "high"
+    description: "User-initiated voice input and avatar speech/lip-sync pipeline state"
+  }
+
+  channel "holoshell:brittney:emotion" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "Emotion directives consumed by face, aura, eyes, posture, and motion skins"
+  }
+
+  channel "holoshell:brittney:accessibility" {
+    type: "append_only"
+    priority: "critical"
+    description: "Keyboard focus, ARIA labels, live-region updates, and reduced-motion state"
+  }
+
+  channel "holoshell:brittney:runtime-events" {
+    type: "append_only"
+    priority: "high"
+    description: "Mapped AIBrittney AgentEvent states: thinking, tool-call, tool-result, final, and error"
+  }
+
+  template "AvatarRuntimeBinding" {
+    type: "runtime_binding"
+    package: "@holoscript/aibrittney"
+    agentLoop: "runAgentTurn"
+    eventKinds: ["thinking", "tool-call", "tool-result", "final", "error"]
+    maxIterations: 6
+    modelSource: "AIBRITTNEY_MODEL or qwen2.5-coder:7b"
+    routeSource: "OLLAMA_HOST"
+    secretsExposedToShell: false
+    receipt_required: true
+  }
+
+  template "AvatarAccessibilityHandle" {
+    type: "accessibility_handle"
+    role: "button"
+    label: "Open Brittney avatar"
+    keyboardShortcut: "Alt+B"
+    focusable: true
+    liveRegion: "polite"
+    reducedMotionAware: true
+    pointerTarget: "avatar_body"
+    screenReaderSummary: "Brittney assistant avatar, connected to the HoloScript agent runtime"
+  }
+
+  template "BrittneyAvatar" {
+    type: "avatar"
+    avatarId: "brittney-holoshell"
+    displayName: "Brittney"
+    lineage: "brittney_seed_pattern"
+    visualForm: "holographic_face_and_bust"
+    bodyPlan: "upper_body"
+    material: "liquid_hologram"
+    meshBudget: "procedural_preview_then_vrm"
+    traits: ["avatar_embodiment", "ai_companion", "avatar_intent", "voice_proximity"]
+    tracking_source: "ai"
+    ik_mode: "upper_body"
+    lip_sync: true
+    emotion_directives: true
+    voice_output: "browser_or_runtime_route"
+    conversation_fillers: true
+    auto_pipeline: true
+    personality_warmth: 0.86
+    personality_curiosity: 0.82
+    receipt_required: true
+  }
+
+  template "AvatarVoiceState" {
+    type: "voice_state"
+    source: "useBrittneyVoice"
+    supported: "browser_capability"
+    listeningRequiresUserGesture: true
+    speakingDrivesLipSync: true
+    interimTranscriptPrivateUntilSubmitted: true
+  }
+
+  policy "AvatarReadContext" {
+    appliesTo: ["focus_avatar", "open_conversation", "explain_receipts", "summarize_shell_state"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  policy "AvatarVoiceInput" {
+    appliesTo: ["start_listening", "stop_listening", "transcribe_user_voice"]
+    permissionEnvelope: "user_initiated_microphone"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  policy "AvatarRuntimeAction" {
+    appliesTo: ["run_agent_turn", "call_mcp_tool", "operate_shell_object", "click_legacy_control"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  object "BrittneyHoloShellAvatar" using "BrittneyAvatar" {
+    runtime: "AvatarRuntimeBinding"
+    accessibility: "AvatarAccessibilityHandle"
+    visual_state: $currentEmotion
+    voice_state: $voiceState
+    pipeline_stage: $pipelineStage
+    route_class: $routeClass
+    keyboard_reachable: $keyboardReachable
+    screen_reader_reachable: $screenReaderReachable
+  }
+
+  action consume_avatar_manifest(manifest) {
+    state.avatarStatus = manifest.summary.avatarStatus
+    state.runtimeStatus = manifest.summary.runtimeStatus
+    state.runtimeModel = manifest.runtime.model
+    state.routeClass = manifest.runtime.ollamaHostKind
+    state.currentEmotion = manifest.avatar.visualState.emotion
+    state.voiceState = manifest.avatar.visualState.voiceState
+    state.keyboardReachable = manifest.accessibility.keyboardReachable
+    state.screenReaderReachable = manifest.accessibility.screenReaderReachable
+    emit("holoshell:brittney:avatar", {
+      action: "avatar_manifest_consumed",
+      avatar_status: state.avatarStatus,
+      runtime_status: state.runtimeStatus,
+      runtime_model: state.runtimeModel,
+      route_class: state.routeClass,
+      emotion: state.currentEmotion,
+      voice_state: state.voiceState,
+      keyboard_reachable: state.keyboardReachable,
+      screen_reader_reachable: state.screenReaderReachable,
+      receipt_required: true
+    })
+  }
+
+  action focus_avatar(source) {
+    state.eyeFocus = "user"
+    state.conversationOpen = true
+    emit("holoshell:brittney:accessibility", {
+      action: "avatar_focused",
+      source: source,
+      keyboard_shortcut: state.keyboardShortcut,
+      live_region: "polite",
+      receipt_required: true
+    })
+  }
+
+  action set_avatar_stage(stage) {
+    state.pipelineStage = stage.pipelineStage
+    state.currentEmotion = stage.emotion
+    state.voiceState = stage.voiceState
+    state.mouthState = stage.mouthState
+    emit("holoshell:brittney:emotion", {
+      action: "avatar_stage_changed",
+      pipeline_stage: state.pipelineStage,
+      emotion: state.currentEmotion,
+      voice_state: state.voiceState,
+      mouth_state: state.mouthState
+    })
+  }
+
+  action record_agent_event(event) {
+    state.lastAgentEventKind = event.kind
+    state.lastAgentEventMessage = event.message
+    state.pipelineStage = event.kind == "thinking" ? "processing" : state.pipelineStage
+    state.voiceState = event.kind == "final" ? "speaking" : state.voiceState
+    state.currentEmotion = event.kind == "error" ? "concerned" : state.currentEmotion
+    emit("holoshell:brittney:runtime-events", {
+      action: "agent_event_recorded",
+      kind: event.kind,
+      message: event.message,
+      pipeline_stage: state.pipelineStage,
+      emotion: state.currentEmotion,
+      receipt_required: true
+    })
+  }
+
+  action open_conversation(reason) {
+    state.conversationOpen = true
+    emit("holoshell:brittney:avatar", {
+      action: "conversation_opened",
+      reason: reason,
+      avatar_status: state.avatarStatus,
+      runtime_status: state.runtimeStatus
+    })
+  }
+
+  action record_avatar_receipt(receipt) {
+    state.lastReceiptId = receipt.id
+    emit("holoshell:brittney:avatar", {
+      action: "avatar_receipt_recorded",
+      receipt: receipt,
+      avatar_status: state.avatarStatus,
+      runtime_status: state.runtimeStatus
+    })
+  }
+}

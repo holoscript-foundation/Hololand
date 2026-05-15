@@ -1,0 +1,129 @@
+// HoloShell Skin Presets
+//
+// Source-owned visual/behavior presets for the operating shell. CSS and canvas
+// previews may project these, but skins belong to HoloScript source.
+
+composition "HoloShell Skin Presets" {
+  config {
+    title: "HoloShell Skin Presets"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    appliesTo: "apps/holoshell/source/holoshell-shell-world.holo"
+    projectionModes: ["desktop_2d", "web3d", "xr", "hologram"]
+  }
+
+  state {
+    activeSkin: "liquid"
+    reducedMotion: false
+    highContrast: false
+    gpuBudget: "adaptive"
+    lastReceiptId: ""
+  }
+
+  channel "holoshell:skin" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "Selected shell skin, material budget, accessibility preferences, and visual receipt metadata"
+  }
+
+  template "ShellSkinPreset" {
+    type: "skin_preset"
+    materialSystem: "holographic"
+    simulationKind: "field"
+    solver: "adaptive_canvas_then_webgpu"
+    particleBudget: "adaptive"
+    geometryDensity: "adaptive"
+    interactionResponse: "shell_object_coupled"
+    accessibilityRequired: true
+    receiptRequired: true
+  }
+
+  skin "liquid" using "ShellSkinPreset" {
+    displayName: "Water"
+    worldMaterial: "liquid_glass"
+    simulationKind: "water"
+    solver: "ripple_field_caustics"
+    fieldEffect: "fluid_refraction_caustics"
+    backgroundMotion: "ripples_and_surface_currents"
+    particleField: "water_motes"
+    primaryColor: "#72f0d3"
+    secondaryColor: "#f0c66e"
+    geometryStyle: "soft_bubbles"
+    brittneyAura: "calm_hologram"
+  }
+
+  skin "fire" using "ShellSkinPreset" {
+    displayName: "Fire"
+    worldMaterial: "plasma_glass"
+    simulationKind: "fire"
+    solver: "flame_columns_embers_heat_haze"
+    fieldEffect: "vfx_fire_sparks"
+    backgroundMotion: "thermal_ripple_and_smoke"
+    particleField: "embers"
+    primaryColor: "#ffb25f"
+    secondaryColor: "#ff6c4a"
+    geometryStyle: "ember_shards"
+    brittneyAura: "warm_plasma"
+  }
+
+  skin "developer" using "ShellSkinPreset" {
+    displayName: "Developer"
+    worldMaterial: "code_glass"
+    simulationKind: "circuit"
+    solver: "circuit_trace_pulses"
+    fieldEffect: "code_stream"
+    backgroundMotion: "semantic_scanline_and_trace_grid"
+    particleField: "data_pulses"
+    primaryColor: "#80f58b"
+    secondaryColor: "#65a7ff"
+    geometryStyle: "wireframe_panels"
+    brittneyAura: "debug_companion"
+  }
+
+  skin "aura" using "ShellSkinPreset" {
+    displayName: "Aura"
+    worldMaterial: "bioelectric_veil"
+    simulationKind: "aura"
+    solver: "orbital_particles_field_rings"
+    fieldEffect: "charged_particle_curtain"
+    backgroundMotion: "breathing_aura_field"
+    particleField: "orbiting_motes"
+    primaryColor: "#a8a0ff"
+    secondaryColor: "#62e9ff"
+    geometryStyle: "floating_crystals"
+    brittneyAura: "soft_presence"
+  }
+
+  skin "hologram" using "ShellSkinPreset" {
+    displayName: "Hologram"
+    worldMaterial: "volumetric_scan"
+    fieldEffect: "quilt_parallax"
+    backgroundMotion: "depth_pulse"
+    primaryColor: "#8fffe9"
+    secondaryColor: "#9bb7ff"
+    geometryStyle: "depth_sprites"
+    brittneyAura: "volumetric_avatar"
+  }
+
+  action select_skin(skinName) {
+    state.activeSkin = skinName
+    emit("holoshell:skin", {
+      activeSkin: state.activeSkin,
+      reducedMotion: state.reducedMotion,
+      highContrast: state.highContrast,
+      gpuBudget: state.gpuBudget,
+      receiptRequired: true
+    })
+  }
+
+  action set_accessibility_preferences(preferences) {
+    state.reducedMotion = preferences.reducedMotion
+    state.highContrast = preferences.highContrast
+    emit("holoshell:skin", {
+      activeSkin: state.activeSkin,
+      reducedMotion: state.reducedMotion,
+      highContrast: state.highContrast,
+      reason: "accessibility_preferences_changed"
+    })
+  }
+}

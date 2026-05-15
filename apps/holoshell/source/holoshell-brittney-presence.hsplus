@@ -1,0 +1,198 @@
+// HoloShell Brittney Presence
+//
+// Brittney is the assistant/AGI-facing presence inside HoloShell. She should
+// operate shell objects through permission envelopes and receipts, not as a
+// backend dashboard widget.
+
+composition "HoloShell Brittney Presence" {
+  config {
+    title: "HoloShell Brittney Presence"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    assistantPackage: "@holoscript/aibrittney"
+    worldSource: "apps/holoshell/source/holoshell-shell-world.holo"
+    osCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
+    avatarSource: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    avatarManifest: ".tmp/holoshell/brittney-avatar.json"
+  }
+
+  state {
+    mode: "assistant_presence"
+    focusObjectId: ""
+    conversationOpen: true
+    visibleForm: "chat_and_aura"
+    canSeeShellState: true
+    canActWithoutReceipt: false
+    avatarStatus: "unknown"
+    avatarRuntimeStatus: "unknown"
+    avatarEmotion: "attentive"
+    avatarVoiceState: "ready"
+    avatarKeyboardReachable: true
+    avatarScreenReaderReachable: true
+    lastProposalId: ""
+    lastReceiptId: ""
+  }
+
+  channel "holoshell:brittney:intent" {
+    type: "request_response"
+    priority: "critical"
+    description: "Natural-language outcomes and shell operation requests"
+  }
+
+  channel "holoshell:brittney:context" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Current shell objects, captured UI, active agents, hardware custody, and receipts"
+  }
+
+  channel "holoshell:brittney:proposal" {
+    type: "append_only"
+    priority: "high"
+    description: "Assistant action proposals with risk, required permissions, and expected receipts"
+  }
+
+  channel "holoshell:brittney:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Proof that Brittney acted, abstained, explained risk, or requested approval"
+  }
+
+  channel "holoshell:brittney:avatar" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Accessible avatar state backed by the HoloScript AIBrittney runtime and embodiment traits"
+  }
+
+  channel "holoshell:brittney:runtime-events" {
+    type: "append_only"
+    priority: "high"
+    description: "Runtime events mapped from @holoscript/aibrittney into avatar state"
+  }
+
+  template "AssistantProposal" {
+    type: "proposal"
+    actor: "brittney"
+    requiresPermissionEnvelope: true
+    requiresReceipt: true
+    reversible: "unknown"
+    userVisible: true
+  }
+
+  template "ShellContextFrame" {
+    type: "context_frame"
+    includesShellObjects: true
+    includesCapturedWindows: true
+    includesAgentLanes: true
+    includesProcessCustody: true
+    includesReceipts: true
+    privateDataPolicy: "summarize_unless_user_approved"
+  }
+
+  template "BrittneyAvatarHandle" {
+    type: "avatar_handle"
+    source: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    runtime: "@holoscript/aibrittney"
+    visualForm: "holographic_face_and_bust"
+    traits: ["avatar_embodiment", "ai_companion", "avatar_intent", "voice_proximity"]
+    keyboardShortcut: "Alt+B"
+    ariaRole: "button"
+    liveRegion: "polite"
+    receipt_required: true
+  }
+
+  policy "AssistantReadContext" {
+    appliesTo: ["summarize_shell_state", "explain_receipt", "inspect_captured_window", "rank_shell_objects"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+  }
+
+  policy "AssistantGuardedAction" {
+    appliesTo: ["launch_app", "open_file", "focus_window", "start_agent", "run_command", "click_legacy_control"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  policy "AssistantBreakGlassAction" {
+    appliesTo: ["enter_secret", "send_message", "delete_file", "publish", "deploy", "pay", "change_system_setting"]
+    permissionEnvelope: "break_glass"
+    approvalRequired: true
+    receiptRequired: true
+  }
+
+  action ingest_shell_context(contextFrame) {
+    state.focusObjectId = contextFrame.focusObjectId
+    emit("holoshell:brittney:context", {
+      focusObjectId: state.focusObjectId,
+      shellObjects: contextFrame.shellObjectCount,
+      capturedWindows: contextFrame.capturedWindowCount,
+      activeAgents: contextFrame.activeAgentCount,
+      receiptCount: contextFrame.receiptCount
+    })
+  }
+
+  action apply_avatar_manifest(manifest) {
+    state.avatarStatus = manifest.summary.avatarStatus
+    state.avatarRuntimeStatus = manifest.summary.runtimeStatus
+    state.avatarEmotion = manifest.summary.emotion
+    state.avatarVoiceState = manifest.summary.voiceState
+    state.avatarKeyboardReachable = manifest.accessibility.keyboardReachable
+    state.avatarScreenReaderReachable = manifest.accessibility.screenReaderReachable
+    emit("holoshell:brittney:avatar", {
+      action: "avatar_manifest_applied",
+      avatar_status: state.avatarStatus,
+      runtime_status: state.avatarRuntimeStatus,
+      emotion: state.avatarEmotion,
+      voice_state: state.avatarVoiceState,
+      keyboard_reachable: state.avatarKeyboardReachable,
+      screen_reader_reachable: state.avatarScreenReaderReachable,
+      source_contract: "apps/holoshell/source/holoshell-brittney-avatar.hsplus",
+      receipt_required: true
+    })
+  }
+
+  action focus_avatar(source) {
+    state.conversationOpen = true
+    emit("holoshell:brittney:avatar", {
+      action: "avatar_focused",
+      source: source,
+      runtime_status: state.avatarRuntimeStatus,
+      keyboard_reachable: state.avatarKeyboardReachable,
+      screen_reader_reachable: state.avatarScreenReaderReachable,
+      receipt_required: true
+    })
+  }
+
+  action record_runtime_event(event) {
+    state.avatarEmotion = event.kind == "error" ? "concerned" : state.avatarEmotion
+    state.avatarVoiceState = event.kind == "final" ? "speaking" : state.avatarVoiceState
+    emit("holoshell:brittney:runtime-events", {
+      action: "runtime_event_recorded",
+      kind: event.kind,
+      message: event.message,
+      emotion: state.avatarEmotion,
+      voice_state: state.avatarVoiceState,
+      receipt_required: true
+    })
+  }
+
+  action propose_action(actionRequest) {
+    state.lastProposalId = actionRequest.id
+    emit("holoshell:brittney:proposal", {
+      proposal: actionRequest,
+      requiresPermissionEnvelope: true,
+      requiresReceipt: true,
+      approvalRequired: actionRequest.permissionEnvelope != "read_only"
+    })
+  }
+
+  action record_receipt(receipt) {
+    state.lastReceiptId = receipt.id
+    emit("holoshell:brittney:receipt", {
+      receipt: receipt,
+      focusObjectId: state.focusObjectId,
+      mode: state.mode
+    })
+  }
+}
