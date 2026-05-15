@@ -32,6 +32,7 @@
     "format": "pnpm -r format",
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",
     "holoshell:mcp-custody-contract": "node scripts/holoshell-mcp-custody-contract.mjs",
+    "holoshell:mcp-upstream-handoff": "node scripts/holoshell-mcp-upstream-handoff.mjs",
     "holoshell:process-health": "node scripts/holoshell-process-health.mjs",
     "holoshell:intent-gate": "node scripts/holoshell-brain-intent-gate.mjs --strict",
     "holoshell:run": "node scripts/holoshell-run.mjs",

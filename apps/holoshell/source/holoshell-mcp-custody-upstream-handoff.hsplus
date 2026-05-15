@@ -1,0 +1,116 @@
+// HoloShell MCP Custody Upstream Handoff
+//
+// Machine-consumable handoff for the MCP host that owns
+// holoshell_run_registry_snapshot. HoloLand keeps a compatibility bridge, but
+// global agent consumption should be native at the MCP layer.
+
+composition "HoloShell MCP Custody Upstream Handoff" {
+  config {
+    title: "MCP Custody Upstream Handoff"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-mcp-upstream-handoff.mjs"
+    contractAdapter: "scripts/holoshell-mcp-custody-contract.mjs"
+    upstreamTool: "holoshell_run_registry_snapshot"
+    defaultMode: "read_only_handoff"
+  }
+
+  state {
+    status: "unknown"
+    targetTool: "holoshell_run_registry_snapshot"
+    currentCompatibilityMode: "unknown"
+    nativeMcpCustodySplit: false
+    cleanupCandidateCount: 0
+    ownerHandoffPlanCount: 0
+    taskCount: 0
+    acceptanceGateCount: 0
+    lastHandoffHash: ""
+  }
+
+  channel "holoshell:mcp-custody:upstream-handoff" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Portable upgrade packet for the MCP host that owns HoloShell run registry snapshots"
+  }
+
+  template "UpstreamTask" {
+    type: "handoff_task"
+    id: ""
+    title: ""
+    expectedChange: ""
+    doneWhen: ""
+  }
+
+  template "AcceptanceGate" {
+    type: "handoff_gate"
+    id: ""
+    command: ""
+    expected: ""
+  }
+
+  room "McpCustodyUpstreamHandoffRoom" {
+    label: "MCP Custody Upstream Handoff"
+    userQuestion: "What should the MCP host change so HoloLand stops repairing custody locally?"
+    visualForm: "agent_handoff_board"
+    liveFeed: "holoshell:mcp-custody:upstream-handoff"
+
+    object "TargetTool" {
+      type: "ui"
+      uiType: "target_tool"
+      label: "Target Tool"
+      targetTool: $targetTool
+      status: $status
+      nativeMcpCustodySplit: $nativeMcpCustodySplit
+    }
+
+    object "CurrentMode" {
+      type: "ui"
+      uiType: "compatibility_warning"
+      label: "Current Mode"
+      compatibilityMode: $currentCompatibilityMode
+      cleanupCandidates: $cleanupCandidateCount
+      ownerHandoffs: $ownerHandoffPlanCount
+    }
+
+    object "UpgradeWork" {
+      type: "ui"
+      uiType: "task_gate_summary"
+      label: "Upgrade Work"
+      taskCount: $taskCount
+      acceptanceGateCount: $acceptanceGateCount
+    }
+  }
+
+  policy "HandoffIsReadOnly" {
+    appliesTo: ["holoshell:mcp-custody:upstream-handoff"]
+    rule: "Generating the handoff never mutates the MCP host and never stops a process."
+    destructiveActionsAllowed: false
+  }
+
+  policy "McpNativeTruth" {
+    appliesTo: ["holoshell_run_registry_snapshot"]
+    rule: "Native readiness means upstream emits cleanup candidates and owner handoffs before HoloLand overlays process-health receipts."
+  }
+
+  action consume_handoff(handoff) {
+    state.status = handoff.summary.status
+    state.targetTool = handoff.summary.targetTool
+    state.currentCompatibilityMode = handoff.summary.currentCompatibilityMode
+    state.nativeMcpCustodySplit = handoff.summary.nativeMcpCustodySplit
+    state.cleanupCandidateCount = handoff.summary.cleanupCandidateCount
+    state.ownerHandoffPlanCount = handoff.summary.ownerHandoffPlanCount
+    state.taskCount = handoff.summary.taskCount
+    state.acceptanceGateCount = handoff.summary.acceptanceGateCount
+    state.lastHandoffHash = handoff.receipt.handoffHash
+
+    emit("holoshell:mcp-custody:upstream-handoff", {
+      status: state.status,
+      targetTool: state.targetTool,
+      compatibilityMode: state.currentCompatibilityMode,
+      nativeMcpCustodySplit: state.nativeMcpCustodySplit,
+      taskCount: state.taskCount,
+      acceptanceGateCount: state.acceptanceGateCount,
+      handoffHash: state.lastHandoffHash
+    })
+  }
+}

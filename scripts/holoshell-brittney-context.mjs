@@ -348,6 +348,20 @@ function summarizeMcpCustodyContract(mcpCustodyContract) {
   };
 }
 
+function summarizeMcpUpstreamHandoff(mcpUpstreamHandoff) {
+  const summary = mcpUpstreamHandoff?.summary || {};
+  return {
+    status: summary.status || 'unknown',
+    targetTool: summary.targetTool || '',
+    currentCompatibilityMode: summary.currentCompatibilityMode || 'unknown',
+    nativeMcpCustodySplit: Boolean(summary.nativeMcpCustodySplit),
+    upstreamRepoRequired: Boolean(summary.upstreamRepoRequired),
+    taskCount: summary.taskCount || 0,
+    acceptanceGateCount: summary.acceptanceGateCount || 0,
+    handoffHash: mcpUpstreamHandoff?.receipt?.handoffHash || '',
+  };
+}
+
 function summarizeOperatorBrief(operatorBrief) {
   const peers = operatorBrief.peers || {};
   const promptCard = operatorBrief.brittneyPromptCard || {};
@@ -419,7 +433,7 @@ function summarizeOsUiCapture(osUiCapture) {
   };
 }
 
-function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operatorBrief, osUiCapture, mcpCustodyContract }, maxTimelineItems) {
+function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operatorBrief, osUiCapture, mcpCustodyContract, mcpUpstreamHandoff }, maxTimelineItems) {
   const items = [];
   for (const item of safeArray(liveFeed.timeline)) {
     items.push({
@@ -487,6 +501,17 @@ function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operator
       source: 'scripts/holoshell-mcp-custody-contract.mjs',
     });
   }
+  if (mcpUpstreamHandoff?.receipt?.handoffHash) {
+    items.push({
+      id: stableId('mcp_upstream_handoff', mcpUpstreamHandoff.receipt.handoffHash),
+      kind: 'mcp_upstream_handoff',
+      title: `MCP upstream handoff ${mcpUpstreamHandoff.summary?.status || 'unknown'}`,
+      trustState: mcpUpstreamHandoff.summary?.status === 'native_ready_no_handoff_needed' ? 'verified' : 'partial',
+      generatedAt: mcpUpstreamHandoff.generatedAt || '',
+      receiptType: mcpUpstreamHandoff.schemaVersion || '',
+      source: 'scripts/holoshell-mcp-upstream-handoff.mjs',
+    });
+  }
   return items
     .filter((item) => item.id)
     .sort((left, right) => String(right.generatedAt).localeCompare(String(left.generatedAt)))
@@ -526,6 +551,7 @@ function loadInputs(args) {
     programRegistry: readJson(path.join(tmpDir, 'program-registry.json'), {}),
     processHealth: readJson(path.join(tmpDir, 'process-health.json'), {}),
     mcpCustodyContract: readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {}),
+    mcpUpstreamHandoff: readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {}),
     lanes: readJson(path.join(tmpDir, 'agent-lanes.json'), {}),
     osUiCapture: readJson(path.join(tmpDir, 'os-ui-capture.json'), {}),
     operatorBrief: readJson(path.join(tmpDir, 'operator-brief.json'), {}),
@@ -646,6 +672,21 @@ function fixtureInputs() {
       },
       receipt: { contractHash: 'fixture-contract-hash' },
     },
+    mcpUpstreamHandoff: {
+      schemaVersion: 'hololand.holoshell.mcp-custody-upstream-handoff.v0.1.0',
+      generatedAt: '2026-05-14T00:00:00.800Z',
+      handoffId: 'mcp-custody-upstream-fixture',
+      summary: {
+        status: 'ready_for_upstream_agent',
+        targetTool: 'holoshell_run_registry_snapshot',
+        currentCompatibilityMode: 'hololand_overlay',
+        nativeMcpCustodySplit: false,
+        taskCount: 5,
+        acceptanceGateCount: 4,
+        upstreamRepoRequired: true,
+      },
+      receipt: { handoffHash: 'fixture-handoff-hash' },
+    },
     lanes: {
       summary: { laneCount: 3, activeLaneCount: 3, colorLaneCount: 3, semanticLaneCount: 3 },
       lanes: [
@@ -689,6 +730,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const agentLaneSummary = summarizeLanes(inputs.lanes);
   const processHealthSummary = summarizeProcessHealth(inputs.processHealth, inputs.operatorBrief);
   const mcpCustodyContractSummary = summarizeMcpCustodyContract(inputs.mcpCustodyContract);
+  const mcpUpstreamHandoffSummary = summarizeMcpUpstreamHandoff(inputs.mcpUpstreamHandoff);
   const operatorBriefSummary = summarizeOperatorBrief(inputs.operatorBrief);
   const legacyUiCaptureSummary = summarizeOsUiCapture(inputs.osUiCapture);
   const timeline = recentReceiptTimeline(inputs, args.maxTimelineItems);
@@ -703,6 +745,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     agentLaneSummary,
     processHealthSummary,
     mcpCustodyContractSummary,
+    mcpUpstreamHandoffSummary,
     operatorBriefSummary,
     legacyUiCaptureSummary,
     timelineIds: timeline.map((item) => item.id),
@@ -723,6 +766,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       processHealth: 'scripts/holoshell-process-health.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
+      mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
       agentLanes: 'scripts/holoshell-agent-lanes.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
@@ -736,6 +780,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     agentLaneSummary,
     processHealthSummary,
     mcpCustodyContractSummary,
+    mcpUpstreamHandoffSummary,
     operatorBriefSummary,
     legacyUiCaptureSummary,
     recentReceiptTimeline: timeline,
@@ -745,7 +790,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     actionProposalDefaults: {
       actor: 'brittney',
       approvalRequiredForNonReadOnly: true,
-      expectedReceipts: ['brittney_context', 'mcp_custody_contract', 'os_ui_capture_receipt', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
+      expectedReceipts: ['brittney_context', 'mcp_custody_contract', 'mcp_upstream_handoff', 'os_ui_capture_receipt', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
       rollbackOrWitnessPlan: 'read-only preview first; guarded execution needs receipt-backed witness or approval.',
     },
     summary: {
@@ -770,6 +815,9 @@ function createPacket(args, inputs = loadInputs(args)) {
       mcpCustodyCompatibilityMode: mcpCustodyContractSummary.compatibilityMode,
       nativeMcpCustodySplit: mcpCustodyContractSummary.nativeMcpCustodySplit,
       mcpCustodyCheckFailCount: mcpCustodyContractSummary.checkFailCount,
+      mcpUpstreamHandoffStatus: mcpUpstreamHandoffSummary.status,
+      mcpUpstreamHandoffTargetTool: mcpUpstreamHandoffSummary.targetTool,
+      mcpUpstreamHandoffTaskCount: mcpUpstreamHandoffSummary.taskCount,
       osUiCaptureStatus: legacyUiCaptureSummary.status,
       osUiTargetApp: legacyUiCaptureSummary.targetApp,
       osUiTargetMatched: legacyUiCaptureSummary.targetMatched,
@@ -796,6 +844,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       requiredRefreshOrder: [
         'pnpm run holoshell:hardware-reality',
         'pnpm run holoshell:mcp-custody-contract',
+        'pnpm run holoshell:mcp-upstream-handoff',
         'pnpm run holoshell:legacy-windows',
         'pnpm run holoshell:run-custody',
         'pnpm run holoshell:legacy-apps',
@@ -835,6 +884,8 @@ function assertSelfTest(packet) {
   if (packet.mcpCustodyContractSummary.status !== 'warn') failures.push('expected MCP custody contract warn');
   if (packet.mcpCustodyContractSummary.compatibilityMode !== 'hololand_overlay') failures.push('expected MCP custody overlay mode');
   if (packet.mcpCustodyContractSummary.nativeMcpCustodySplit !== false) failures.push('expected MCP custody split to remain non-native in fixture');
+  if (packet.mcpUpstreamHandoffSummary.status !== 'ready_for_upstream_agent') failures.push('expected MCP upstream handoff ready');
+  if (packet.mcpUpstreamHandoffSummary.taskCount !== 5) failures.push('expected MCP upstream handoff tasks');
   if (packet.processHealthSummary.commandLinesIncluded !== false) failures.push('raw command lines must be excluded');
   if (packet.privacyBoundary.rawCommandsIncluded !== false) failures.push('privacy boundary leaked raw commands');
   if (packet.privacyBoundary.rawWindowTitlesIncluded !== false) failures.push('privacy boundary leaked raw window titles');
