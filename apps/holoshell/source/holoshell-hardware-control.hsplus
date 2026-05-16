@@ -33,8 +33,10 @@ composition "HoloShell Hardware Program Control" {
     homeSource: "apps/holoshell/source/holoshell-home.hsplus"
     brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     latestActionReceipt: ".tmp/holoshell/action-latest.json"
+    latestActionWriteMode: "locked_atomic_same_directory_rename"
     latestProgramRegistry: ".tmp/holoshell/program-registry.json"
     latestApprovalBundle: ".tmp/holoshell/approval-latest.json"
+    latestApprovalWriteMode: "locked_atomic_same_directory_rename"
     latestWorkflowReceipt: ".tmp/holoshell/workflow-latest.json"
     latestWorkflowApprovalBundle: ".tmp/holoshell/workflow-approval-latest.json"
     latestWorkflowIntentGate: ".tmp/holoshell/brain-intent-gate-latest.json"
@@ -311,6 +313,7 @@ composition "HoloShell Hardware Program Control" {
     approved: false
     executed: false
     mutatingActionExecuted: false
+    latestWriteMode: "locked_atomic_same_directory_rename"
     rollback: "not_applicable_for_read_only"
   }
 
@@ -327,6 +330,7 @@ composition "HoloShell Hardware Program Control" {
     requiresFreshUserGesture: true
     nonceBound: true
     executionAllowed: false
+    latestWriteMode: "locked_atomic_same_directory_rename"
     receiptRequired: true
   }
 

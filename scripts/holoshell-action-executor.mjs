@@ -1,5 +1,13 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmdirSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import os from 'node:os';
@@ -215,7 +223,7 @@ function validateApprovalBundle(args) {
 function writeJson(filePath, value) {
   const resolved = resolveRepoPath(filePath);
   mkdirSync(path.dirname(resolved), { recursive: true });
-  writeFileSync(resolved, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  atomicWriteFile(resolved, `${JSON.stringify(value, null, 2)}\n`);
   return resolved;
 }
 
@@ -223,8 +231,56 @@ function writeBrowserBootstrap(filePath, receipt) {
   const resolved = resolveRepoPath(filePath);
   mkdirSync(path.dirname(resolved), { recursive: true });
   const payload = JSON.stringify(receipt, null, 2).replace(/<\/script/gi, '<\\/script');
-  writeFileSync(resolved, `window.HOLOSHELL_HARDWARE_ACTION = ${payload};\n`, 'utf8');
+  atomicWriteFile(resolved, `window.HOLOSHELL_HARDWARE_ACTION = ${payload};\n`);
   return resolved;
+}
+
+function atomicWriteFile(resolvedPath, text) {
+  const tempPath = `${resolvedPath}.${process.pid}.${Date.now().toString(36)}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+  writeFileSync(tempPath, text, 'utf8');
+  renameSync(tempPath, resolvedPath);
+}
+
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function withFileWriteLock(targetPath, write) {
+  const lockDir = `${targetPath}.write.lock`;
+  const ownerPath = path.join(lockDir, 'owner.json');
+  const started = Date.now();
+  while (true) {
+    try {
+      mkdirSync(lockDir);
+      writeFileSync(ownerPath, JSON.stringify({
+        pid: process.pid,
+        createdAt: new Date().toISOString(),
+        targetPath,
+      }), 'utf8');
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      if (Date.now() - started > 5000) {
+        throw new Error(`Timed out waiting for HoloShell latest-write lock: ${lockDir}`);
+      }
+      sleepMs(20);
+    }
+  }
+
+  try {
+    return write();
+  } finally {
+    try {
+      unlinkSync(ownerPath);
+    } catch {
+      // Best effort cleanup; another process may already have observed release.
+    }
+    try {
+      rmdirSync(lockDir);
+    } catch {
+      // Best effort cleanup; timeout path keeps stale locks visible for diagnosis.
+    }
+  }
 }
 
 function hashValue(value) {
@@ -953,11 +1009,12 @@ function writeReceiptOutputs(args, receipt) {
       latestPath: outputPath,
       receiptPath,
       browserBootstrap: jsOutputPath,
+      latestWriteMode: 'locked_atomic_same_directory_rename',
     },
   };
   writeJson(receiptPath, withOutput);
-  writeJson(args.output, withOutput);
-  writeBrowserBootstrap(args.jsOutput, withOutput);
+  withFileWriteLock(outputPath, () => writeJson(args.output, withOutput));
+  withFileWriteLock(jsOutputPath, () => writeBrowserBootstrap(args.jsOutput, withOutput));
   return withOutput;
 }
 
