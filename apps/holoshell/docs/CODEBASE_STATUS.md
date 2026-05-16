@@ -108,7 +108,7 @@ the work" and "the full evidence pack is complete."
 | Startup integration | `source/holoshell-startup-integration.hsplus`, `apps/holoshell/native/windows/Register-HoloShellStartup.ps1` | Approval-gated per-user login shortcut bridge exists. It is plan-only by default; `-Register -Approve` performs registration and `-Unregister -Approve` removes it. |
 | Hardware control | `source/holoshell-hardware-control.hsplus`, `scripts/holoshell-control-daemon*.mjs` | Staged and guarded. Execution is disabled by default and requires approval packets plus daemon execute mode. |
 | Brittney operator | `docs/BRITTNEY_OPERATOR_SPEC.md`, `source/holoshell-brittney-*.hsplus` | Product contract exists: intent, plan, approval, adapter, receipt, narration. Current maturity is staged operator loop, not trusted autonomy. |
-| Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs`, `scripts/holoshell-founder-evidence-demo.mjs` | Full flagship path remains staged. The narrow Founder evidence demo now produces a visible approval-bound receipt for one real app operation; execution is still gated behind explicit confirmation. |
+| Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs`, `scripts/holoshell-founder-evidence-demo.mjs` | Full flagship path remains staged. The narrow Founder evidence demo now performs one explicit approved browser operation and records `browser_navigation_dispatched` as the visible shell witness when the OS window list does not change. |
 | Grok heavy lane | `source/holoshell-grok-*.hsplus`, `scripts/holoshell-grok-*.mjs` | Installed/authenticated/ready according to the current shell object receipt, with workflow approval still required for autonomy. |
 | Trusted autonomy | `source/holoshell-trusted-autonomy.hsplus`, `scripts/holoshell-trust-ledger.mjs` | Ladder exists. Latest state remains low-risk/read-only until repeated receipts justify promotion. |
 | Legacy absorption | `docs/GEOMETRIC_UI_RECONSTRUCTION.md`, `scripts/holoshell-os-ui-capture.mjs` | Capture is real, including controls and geometry nodes. Dense geometric wrapping with before/after witnesses is the next major build gap. |
@@ -170,10 +170,11 @@ flagship demo fully proven.
 
 ## Next Build Moves
 
-1. Execute the undeniable Founder evidence demo.
-   The source, staged plan, nonce approval, receipt, live feed, and shell object
-   now exist. The remaining proof is to run the approved operation once, capture
-   the before/after witness, and make the shell surface visibly change.
+1. Promote the Founder evidence demo into a visible card.
+   The source, staged plan, nonce approval, approved execution, receipt, live
+   feed, and shell object now exist. Next, render the approved execution receipt
+   as a first-screen card that shows the target, approval, witness kind,
+   rollback hint, and replay command without reading JSON.
 
 2. Turn the Startup Gate into visible UX.
    The approved startup source, receipt, and Windows registration bridge now

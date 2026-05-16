@@ -345,8 +345,16 @@ function buildReceipt(args) {
   const executed = Boolean(staged.execute?.summary?.executionPerformed);
   const beforeCount = staged.before?.summary?.windowCount || 0;
   const afterCount = staged.after?.summary?.windowCount || 0;
+  const browserNavigation =
+    staged.execute?.witness?.browserNavigation || staged.execute?.result?.browserNavigation || null;
   const visibleChange = executed
-    ? beforeCount !== afterCount || Boolean(staged.execute?.witness?.changed || staged.execute?.summary?.targetWindowTitle)
+    ? Boolean(staged.execute?.summary?.shellVisibleChange) ||
+      beforeCount !== afterCount ||
+      Boolean(
+        staged.execute?.witness?.changed ||
+          staged.execute?.summary?.targetWindowTitle ||
+          browserNavigation?.dispatchAccepted
+      )
     : false;
   const approvalAllowed = Boolean(staged.approval?.execution?.allowed || staged.approval?.summary?.executionAllowed);
   const status = executed
@@ -359,6 +367,9 @@ function buildReceipt(args) {
     windowCount: afterCount,
     targetWindowTitle: staged.execute?.summary?.targetWindowTitle || '',
     targetProcessName: staged.execute?.summary?.targetProcessName || '',
+    targetUrlHost: staged.execute?.summary?.targetUrlHost || browserNavigation?.targetHost || '',
+    visibleWitnessKind: staged.execute?.summary?.visibleWitnessKind || '',
+    browserNavigation,
     witnessHash: staged.after?.witness?.afterCaptureHash || staged.after?.witness?.beforeCaptureHash || '',
   };
 
@@ -426,7 +437,11 @@ function buildReceipt(args) {
       shellObjectsRefreshRequired: true,
       receiptPath: toRepoPath(args.output),
       browserBootstrap: toRepoPath(args.jsOutput),
-      visibleChangeClaim: executed ? (visibleChange ? 'observed_or_target_visible' : 'execution_receipted_no_window_delta') : 'pending_approval',
+      visibleChangeClaim: executed
+        ? visibleChange
+          ? staged.execute?.summary?.visibleWitnessKind || 'observed_or_target_visible'
+          : 'execution_receipted_no_window_delta'
+        : 'pending_approval',
     },
     trust: {
       latestLevel: 'read_only',
@@ -450,6 +465,7 @@ function buildReceipt(args) {
       executionAllowed: approvalAllowed,
       executionPerformed: executed,
       visibleShellChange: visibleChange,
+      visibleWitnessKind: staged.execute?.summary?.visibleWitnessKind || '',
       beforeWindowCount: beforeCount,
       afterWindowCount: afterCount,
       evidenceRung: executed ? 'approved_execution' : 'visible_shell_ux',

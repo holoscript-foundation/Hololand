@@ -423,6 +423,56 @@ function browserBoundaryFor(args, targetProgram) {
   };
 }
 
+function urlWitness(url) {
+  if (!url) {
+    return {
+      targetUrl: '',
+      targetHost: '',
+      targetOrigin: '',
+      targetPath: '',
+      dispatchAccepted: false,
+      witnessKind: 'not_url_action',
+    };
+  }
+  try {
+    const parsed = new URL(url);
+    return {
+      targetUrl: parsed.href,
+      targetHost: parsed.host,
+      targetOrigin: parsed.origin,
+      targetPath: `${parsed.pathname}${parsed.search}${parsed.hash}`,
+      dispatchAccepted: false,
+      witnessKind: 'browser_navigation_target',
+    };
+  } catch {
+    return {
+      targetUrl: String(url),
+      targetHost: '',
+      targetOrigin: '',
+      targetPath: '',
+      dispatchAccepted: false,
+      witnessKind: 'invalid_url_target',
+    };
+  }
+}
+
+function registryWitnessPayload(registry) {
+  return {
+    summary: {
+      status: registry.summary?.status || '',
+      windowCount: registry.summary?.windowCount || registry.windows?.length || 0,
+      controlCount: registry.summary?.controlCount || 0,
+    },
+    windows: registry.windows?.map((window) => ({
+      id: window.id,
+      title: window.title,
+      processName: window.processName,
+      handle: window.handle,
+      controls: Array.isArray(window.controls) ? window.controls.length : 0,
+    })),
+  };
+}
+
 function permissionFor(args) {
   const envelope = classifyAction(args);
   return {
@@ -858,12 +908,24 @@ $ok = [HoloShellWin32Focus]::SetForegroundWindow($handle)
 }
 
 function startProcessLiteral(value) {
+  const navigationWitness = urlWitness(value);
   const script = `
 $target = ${psSingle(value)}
 Start-Process -FilePath $target
 @{ ok = $true; target = $target } | ConvertTo-Json -Depth 3
 `;
-  return extractJson(runPowerShell(script));
+  const result = extractJson(runPowerShell(script));
+  if (/^https?:\/\//i.test(String(value || ''))) {
+    return {
+      ...result,
+      browserNavigation: {
+        ...navigationWitness,
+        dispatchAccepted: Boolean(result?.ok),
+        witnessKind: 'browser_navigation_dispatched',
+      },
+    };
+  }
+  return result;
 }
 
 function startProcessTarget(target) {
@@ -940,6 +1002,17 @@ public class HoloShellMouse {
 }
 
 function executeApprovedAction(args, window, control) {
+  if (args.selfTest && args.action === 'open_url') {
+    return {
+      ok: true,
+      target: args.url,
+      browserNavigation: {
+        ...urlWitness(args.url),
+        dispatchAccepted: true,
+        witnessKind: 'browser_navigation_dispatched',
+      },
+    };
+  }
   if (args.action === 'focus_window') return focusWindow(window);
   if (args.action === 'open_url') {
     if (!/^https?:\/\//i.test(args.url || ''))
@@ -1013,17 +1086,8 @@ function listResult(args, registry, targetWindow, targetControl) {
 function buildReceipt(args) {
   const startedAt = new Date().toISOString();
   const registry = readProgramRegistry(args);
-  const beforeHash = hashValue({
-    generatedAt: registry.generatedAt,
-    summary: registry.summary,
-    windows: registry.windows?.map((window) => ({
-      id: window.id,
-      title: window.title,
-      processName: window.processName,
-      handle: window.handle,
-      controls: Array.isArray(window.controls) ? window.controls.length : 0,
-    })),
-  });
+  const beforeWitnessPayload = registryWitnessPayload(registry);
+  const beforeHash = hashValue(beforeWitnessPayload);
   const permission = permissionFor(args);
   const approvalContext = args.approvalContext || null;
   const targetWindow = requiresWindowTarget(args.action) ? findTargetWindow(registry, args) : null;
@@ -1089,6 +1153,21 @@ function buildReceipt(args) {
   }
 
   const afterRegistry = mutatingActionExecuted ? readProgramRegistry(args) : registry;
+  const afterWitnessPayload = registryWitnessPayload(afterRegistry);
+  const afterHash = hashValue(afterWitnessPayload);
+  const windowStateChanged = beforeHash !== afterHash;
+  const browserNavigation = result?.browserNavigation || null;
+  const browserNavigationDispatched = Boolean(browserNavigation?.dispatchAccepted);
+  const shellVisibleChange = Boolean(
+    mutatingActionExecuted && (windowStateChanged || browserNavigationDispatched)
+  );
+  const visibleChangeSource = windowStateChanged
+    ? 'window_registry_delta'
+    : browserNavigationDispatched
+      ? 'browser_navigation_dispatched'
+      : mutatingActionExecuted
+        ? 'execution_receipted_no_visible_delta'
+        : 'not_applicable';
   const endedAt = new Date().toISOString();
 
   return {
@@ -1122,17 +1201,11 @@ function buildReceipt(args) {
     },
     witness: {
       beforeCaptureHash: beforeHash,
-      afterCaptureHash: hashValue({
-        generatedAt: afterRegistry.generatedAt,
-        summary: afterRegistry.summary,
-        windows: afterRegistry.windows?.map((window) => ({
-          id: window.id,
-          title: window.title,
-          processName: window.processName,
-          handle: window.handle,
-          controls: Array.isArray(window.controls) ? window.controls.length : 0,
-        })),
-      }),
+      afterCaptureHash: afterHash,
+      windowStateChanged,
+      shellVisibleChange,
+      visibleChangeSource,
+      browserNavigation,
       secretsCaptured: false,
     },
     summary: {
@@ -1151,6 +1224,9 @@ function buildReceipt(args) {
       targetWindowTitle: targetWindow?.title || '',
       targetProcessName: targetWindow?.processName || '',
       targetAppName: targetProgram?.displayName || '',
+      targetUrlHost: browserNavigation?.targetHost || browserBoundary?.host || '',
+      shellVisibleChange,
+      visibleWitnessKind: visibleChangeSource,
       browserBoundaryStatus: browserBoundary?.urlClassification || '',
       browserProfileBoundary: browserBoundary?.profileBoundary || '',
       error,
@@ -1225,6 +1301,14 @@ function assertSelfTest(args) {
     approved: false,
     execute: false,
   });
+  const publicBrowserExecution = buildReceipt({
+    ...args,
+    selfTest: true,
+    action: 'open_url',
+    url: 'https://example.com/status',
+    approved: true,
+    execute: true,
+  });
   const accountBrowser = buildReceipt({
     ...args,
     selfTest: true,
@@ -1258,6 +1342,12 @@ function assertSelfTest(args) {
     failures.push('public open_url should include public browser boundary');
   if (!publicBrowser.summary.browserProfileBoundary)
     failures.push('browser summary should expose profile boundary');
+  if (!publicBrowserExecution.summary.shellVisibleChange)
+    failures.push('executed public open_url should expose shell-visible browser navigation');
+  if (publicBrowserExecution.summary.visibleWitnessKind !== 'browser_navigation_dispatched')
+    failures.push('executed public open_url should name browser navigation witness');
+  if (publicBrowserExecution.witness.browserNavigation?.targetHost !== 'example.com')
+    failures.push('executed public open_url should preserve target host witness');
   if (accountBrowser.browserBoundary?.urlClassification !== 'credential_adjacent')
     failures.push('account open_url should be credential_adjacent');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);

@@ -23,10 +23,11 @@ The Founder version exposes the whole OS surface: Brittney avatar, app/file/agen
 
 ## Current Maturity
 
-The flagship is staged, not fully autonomous. The current code can produce a
-plan, dispatch record, workflow, approval bundle, brain intent gate, and
-receipt flow. Local mutation execution remains disabled unless the guarded
-daemon and nonce-bound approval path are explicitly enabled.
+The full flagship is staged, not fully autonomous. The current code can produce
+a plan, dispatch record, workflow, approval bundle, brain intent gate, and
+receipt flow. The narrow Founder evidence demo has now performed one
+nonce-approved browser operation and recorded a shell-visible browser navigation
+witness.
 
 Current evidence from the local HoloShell receipts:
 
@@ -36,7 +37,7 @@ Current evidence from the local HoloShell receipts:
 | Shell visibility | 87 shell objects are generated, including Founder host, Native Wrapper, Startup Gate, approvals, workflows, receipts, Account Task Receipt, and Founder Evidence Demo. |
 | Native startup path | Wrapper and startup adapter exist; startup registration is not enabled by default. |
 | Brittney command | Founder command is `pending_user_approval` with staged workflow and intent gate. |
-| Hardware/app control | Guarded infrastructure exists; polished end-user operation is not complete. |
+| Hardware/app control | One approved browser operation is receipted with `browser_navigation_dispatched`; polished end-user operation is still narrow. |
 | Trust | Latest trust level is `read_only`, so trusted self-operation is not claimed. |
 
 ## Evidence Ladder
@@ -47,9 +48,9 @@ The flagship only advances when a capability crosses a rung:
 source/spec -> receipt -> visible shell UX -> approved execution -> trusted execution
 ```
 
-The current narrow evidence demo has crossed source/spec, receipt, and visible
-shell UX. The remaining proof is one approved execution of a real app operation,
-not a bigger scripted story.
+The current narrow evidence demo has crossed source/spec, receipt, visible shell
+UX, and approved execution. It remains below trusted execution until repeated
+success receipts justify promotion.
 
 ## Anchor Demo
 
@@ -86,6 +87,10 @@ Execute the narrow demo only after approving the real app operation:
 ```powershell
 pnpm run holoshell:founder-evidence-demo -- --execute-approved --confirm execute-founder-demo
 ```
+
+For browser targets, a successful action can now count as visibly witnessed
+through `browser_navigation_dispatched` even when Windows reuses an existing
+browser window and the OS window count does not change.
 
 Stage the full flagship receipt:
 
