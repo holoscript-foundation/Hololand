@@ -208,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -317,6 +317,23 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: nativeWrapper.generatedAt || now,
       receiptType: nativeWrapper.schemaVersion,
       source: nativeWrapper.sourceAnchors?.adapter || 'scripts/holoshell-native-wrapper.mjs',
+    });
+  }
+
+  if (startupIntegration?.summary) {
+    timeline.push({
+      id: 'holoshell-startup-integration',
+      kind: 'startup_integration',
+      title: `Startup integration ${startupIntegration.summary.status || 'unknown'}`,
+      detail: `${startupIntegration.summary.startupMode || 'startup'}; registered ${startupIntegration.summary.startupRegistered ? 'yes' : 'no'}; approval ${startupIntegration.summary.approvalRequired ? 'required' : 'not-required'}; next ${startupIntegration.summary.nextMove || 'unknown'}.`,
+      trustState: startupIntegration.summary.startupRegistered
+        ? 'verified'
+        : startupIntegration.summary.startupIntegrationPresent
+          ? 'partial'
+          : 'unknown',
+      generatedAt: startupIntegration.generatedAt || now,
+      receiptType: startupIntegration.schemaVersion,
+      source: startupIntegration.sourceAnchors?.adapter || 'scripts/holoshell-startup-integration.mjs',
     });
   }
 
@@ -876,6 +893,7 @@ function createFeed(args) {
   const founderBootPreview = readJson(path.join(tmpDir, 'founder-boot-preview.json'), {});
   const founderHost = readJson(path.join(tmpDir, 'founder-host.json'), {});
   const nativeWrapper = readJson(path.join(tmpDir, 'native-wrapper.json'), {});
+  const startupIntegration = readJson(path.join(tmpDir, 'startup-integration.json'), {});
   const userShellProjection = readJson(path.join(tmpDir, 'user-shell-projection.json'), {});
   const developmentalEnvironment = readJson(path.join(tmpDir, 'developmental-environment.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
@@ -932,6 +950,7 @@ function createFeed(args) {
     founderBootPreview,
     founderHost,
     nativeWrapper,
+    startupIntegration,
     userShellProjection,
     developmentalEnvironment,
     lanes,
@@ -1006,8 +1025,15 @@ function createFeed(args) {
       : nativeWrapper?.summary?.status === 'wrapper_present_browser_missing'
         ? 'warn'
         : 'unknown';
+  const startupIntegrationRisk = ['registration_adapter_present', 'registered_at_user_login'].includes(startupIntegration?.summary?.status)
+    ? 'pass'
+    : startupIntegration?.summary?.status === 'blocked_missing_source'
+      ? 'fail'
+      : startupIntegration?.summary?.status === 'startup_folder_unavailable'
+        ? 'warn'
+        : 'unknown';
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, founderHostRisk, nativeWrapperRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, founderHostRisk, nativeWrapperRisk, startupIntegrationRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -1043,6 +1069,8 @@ function createFeed(args) {
       founderHostAdapter: 'scripts/holoshell-founder-host.mjs',
       nativeWrapper: 'apps/holoshell/source/holoshell-native-wrapper.hsplus',
       nativeWrapperAdapter: 'scripts/holoshell-native-wrapper.mjs',
+      startupIntegration: 'apps/holoshell/source/holoshell-startup-integration.hsplus',
+      startupIntegrationAdapter: 'scripts/holoshell-startup-integration.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       founderCommand: 'scripts/holoshell-founder-command.mjs',
@@ -1124,8 +1152,15 @@ function createFeed(args) {
       nativeWrapperBrowserCandidateCount: nativeWrapper?.summary?.browserCandidateCount || 0,
       nativeWrapperPrimaryBrowserFamily: nativeWrapper?.summary?.primaryBrowserFamily || 'none',
       nativeWrapperStartupIntegrationPresent: Boolean(nativeWrapper?.summary?.startupIntegrationPresent),
+      nativeWrapperStartupRegistered: Boolean(nativeWrapper?.summary?.startupRegistered),
       nativeWrapperStartsWithoutManualHtml: Boolean(nativeWrapper?.summary?.startsWithoutManualHtml),
       nativeWrapperNextMove: nativeWrapper?.summary?.nextMove || '',
+      startupIntegrationStatus: startupIntegration?.summary?.status || 'unknown',
+      startupIntegrationPresent: Boolean(startupIntegration?.summary?.startupIntegrationPresent),
+      startupIntegrationRegistered: Boolean(startupIntegration?.summary?.startupRegistered),
+      startupIntegrationApprovalRequired: Boolean(startupIntegration?.summary?.approvalRequired),
+      startupIntegrationMode: startupIntegration?.summary?.startupMode || '',
+      startupIntegrationNextMove: startupIntegration?.summary?.nextMove || '',
       userShellProjectionStatus: userShellProjection?.summary?.status || 'unknown',
       userShellModeCount: userShellProjection?.summary?.modeCount || 0,
       userShellUserModeCount: userShellProjection?.summary?.userModeCount || 0,
@@ -1485,6 +1520,7 @@ function createFeed(args) {
       founderBootPreview,
       founderHost,
       nativeWrapper,
+      startupIntegration,
       userShellProjection,
       developmentalEnvironment,
       lanes,
@@ -1589,6 +1625,7 @@ try {
     console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
     console.log(`Founder host: ${feed.summary.founderHostStatus}`);
     console.log(`Native wrapper: ${feed.summary.nativeWrapperStatus}`);
+    console.log(`Startup integration: ${feed.summary.startupIntegrationStatus}`);
     console.log(`User shell: ${feed.summary.userShellProjectionStatus}`);
     console.log(`Developmental environment: ${feed.summary.developmentalEnvironmentStatus}`);
     console.log(`MCP custody: ${feed.summary.mcpCustodyContractStatus}`);

@@ -25,6 +25,9 @@ What exists today is enough to prove the OS-layer direction:
   live-feed summary, and shell object.
 - The first native wrapper target now exists as a Windows app-mode launcher with
   a `.hsplus` source contract and readiness receipt.
+- Startup integration now has a `.hsplus` source contract, approval-gated
+  Windows per-user login shortcut bridge, receipt, live-feed row, and shell
+  object.
 - Brittney has avatar, context, operator, trust, and workflow contracts.
 - Hardware actions are staged through approval and daemon boundaries.
 - Grok Build, Claude chat, Ollama Cloud launch, room marathon, browser/media,
@@ -32,10 +35,10 @@ What exists today is enough to prove the OS-layer direction:
 - GOLD, HoloScript codebase context, and wild HoloScript from `uaa2-service`
   are visible as shell substrate, not isolated docs.
 
-The major unfinished piece is startup shell ownership. HoloShell can describe,
-stage, validate, preview, receipt, and launch a wrapper around the replacement
-OS layer, but it does not yet register at startup as the primary desktop shell
-or reconstruct live legacy apps into dense, realistic geometry with full
+The major unfinished piece is still primary desktop ownership. HoloShell can
+describe, stage, validate, preview, receipt, launch a wrapper, and present an
+approved per-user startup path. It does not yet replace Explorer as the desktop
+shell or reconstruct live legacy apps into dense, realistic geometry with full
 before/after witnesses.
 
 ## Evidence From This Pass
@@ -46,10 +49,11 @@ Commands run locally on 2026-05-16:
 | --- | --- |
 | `node scripts/hardware-audit.mjs --json --self-test` | Pass. Node v24.15.0, pnpm 10.28.2, WASM SIMD pass, Chrome WebGPU/WebXR API pass. Browser version warned, but no critical failures. |
 | `pnpm run holoshell:source-validation` | Pass. HoloShell `.holo`, `.hs`, and `.hsplus` source files validate through the HoloScript CLI. |
-| `pnpm run holoshell:shell-objects` | Ready. Shell objects include local apps, workflows, receipts, the Founder host, and the Native Wrapper object. |
-| `node scripts/holoshell-native-wrapper.mjs` | Launchable wrapper present. Windows launcher, command shim, preview host, and Chrome/Edge app-mode path are accounted for. |
-| `pnpm run holoshell:founder-host:refresh` | Native host present. Source, preview host, native wrapper, service supervisor, shell object graph, live feed, and source validation are accounted for; startup integration is still missing. |
-| `node scripts/holoshell-live-feed.mjs` | Warn. Live feed is generated with founder boot, Founder host, Native Wrapper, user shell, developmental environment, Brittney context, GOLD/codebase bridge, format inventory, network reality, services, workflows, approvals, and receipts. |
+| `pnpm run holoshell:shell-objects` | Ready. Shell objects include local apps, workflows, receipts, the Founder host, Native Wrapper, and Startup Gate objects. |
+| `node scripts/holoshell-native-wrapper.mjs` | Launchable wrapper present. Windows launcher, command shim, preview host, startup adapter, and Chrome/Edge app-mode path are accounted for. |
+| `node scripts/holoshell-startup-integration.mjs` | Registration adapter present. Per-user startup registration is available behind explicit approval; current receipt does not register the shortcut by default. |
+| `pnpm run holoshell:founder-host:refresh` | Native host present. Source, preview host, startup adapter, native wrapper, service supervisor, shell object graph, live feed, and source validation are accounted for. |
+| `node scripts/holoshell-live-feed.mjs` | Warn. Live feed is generated with founder boot, Founder host, Native Wrapper, Startup Gate, user shell, developmental environment, Brittney context, GOLD/codebase bridge, format inventory, network reality, services, workflows, approvals, and receipts. |
 | `pnpm run holoshell:service-supervisor` | Ready with degraded optional state. Required service online; no required action. |
 | `pnpm run holoshell:control-daemon-service` | Starting. PID is alive and verified; loopback health is not reachable; execute remains disabled. |
 | `pnpm run holoshell:readiness-evidence` | Fail. Build, validation, WebGPU, WASM SIMD, and runtime inventory pass, but graph-status/live-core import and skipped headset/replay evidence keep the pack failing. |
@@ -68,7 +72,8 @@ the work" and "the full evidence pack is complete."
 | Shell object graph | `scripts/holoshell-shell-objects.mjs` | Working bridge from local programs, agents, workflows, approvals, receipts, source, and services into one object graph. |
 | Live feed | `scripts/holoshell-live-feed.mjs` | Working browser bootstrap for the prototype and status projection. Risk is currently `warn`, which is honest. |
 | Founder host bootstrap | `source/holoshell-founder-host.hsplus`, `scripts/holoshell-founder-host.mjs` | Native-host readiness receipt exists. It reports source/preview/native-wrapper/shell-object/live-feed readiness and names the next move: startup integration. |
-| Native wrapper | `source/holoshell-native-wrapper.hsplus`, `apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1` | First Windows app-mode launcher exists. It starts HoloShell without manually opening HTML, but does not register startup or replace Explorer. |
+| Native wrapper | `source/holoshell-native-wrapper.hsplus`, `apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1` | First Windows app-mode launcher exists. It starts HoloShell without manually opening HTML and sees the startup adapter. |
+| Startup integration | `source/holoshell-startup-integration.hsplus`, `apps/holoshell/native/windows/Register-HoloShellStartup.ps1` | Approval-gated per-user login shortcut bridge exists. It is plan-only by default; `-Register -Approve` performs registration and `-Unregister -Approve` removes it. |
 | Hardware control | `source/holoshell-hardware-control.hsplus`, `scripts/holoshell-control-daemon*.mjs` | Staged and guarded. Execution is disabled by default and requires approval packets plus daemon execute mode. |
 | Brittney operator | `docs/BRITTNEY_OPERATOR_SPEC.md`, `source/holoshell-brittney-*.hsplus` | Product contract exists: intent, plan, approval, adapter, receipt, narration. |
 | Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs` | Demo-level receipt exists for the "open Claude, room marathon, Ollama Kimi Cloud, browser, YouTube lofi" command path. |
@@ -111,8 +116,9 @@ receipts that the shell projection consumes.
 ## What Is Not Real Yet
 
 HoloShell is not yet a boot-time OS replacement. The user can now start the
-wrapper from a native Windows launcher, but startup registration and primary
-desktop ownership are still future build work.
+wrapper from a native Windows launcher and the codebase can present an
+approval-gated per-user login registration path, but primary desktop ownership
+and Explorer replacement are still future native work.
 
 The liquid/fire/aura experience is not yet a realistic simulation layer. The
 research is right, but the renderer needs WebGPU/Three/R3F style simulation
@@ -132,10 +138,10 @@ flagship demo fully proven.
 
 ## Next Build Moves
 
-1. Wire approved startup integration.
-   The native wrapper source, receipt, and Windows app-mode launcher now exist.
-   Next, create the approval path for startup registration while keeping a safe
-   escape path to the old desktop.
+1. Turn the Startup Gate into visible UX.
+   The approved startup source, receipt, and Windows registration bridge now
+   exist. Next, render the Startup Gate approval card in the shell and keep an
+   obvious unregister path.
 
 2. Turn skins into simulation systems.
    Implement a real liquid skin first, then fire and aura. Tie material motion
@@ -170,6 +176,7 @@ Use these commands to regenerate this status from the codebase:
 node scripts\hardware-audit.mjs --json --self-test
 pnpm run holoshell:source-validation
 pnpm run holoshell:shell-objects
+node scripts\holoshell-startup-integration.mjs
 node scripts\holoshell-native-wrapper.mjs
 pnpm run holoshell:founder-host:refresh
 node scripts\holoshell-live-feed.mjs
@@ -184,6 +191,7 @@ The important status files are local and ignored:
 ```text
 .tmp/holoshell/source-validation.json
 .tmp/holoshell/shell-objects.json
+.tmp/holoshell/startup-integration.json
 .tmp/holoshell/native-wrapper.json
 .tmp/holoshell/founder-host.json
 .tmp/holoshell/live-feed.json

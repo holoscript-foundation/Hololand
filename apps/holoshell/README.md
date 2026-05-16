@@ -40,6 +40,7 @@ source/holoshell-hardware-control.hsplus
 source/holoshell-network-reality.hsplus
 source/holoshell-founder-host.hsplus
 source/holoshell-native-wrapper.hsplus
+source/holoshell-startup-integration.hsplus
 ```
 
 `holoshell-home.hsplus` owns behavior, channels, permissions, receipts, and
@@ -63,6 +64,9 @@ objects, the live feed, and the future native wrapper.
 `holoshell-native-wrapper.hsplus` defines the first OS-local launcher boundary:
 start HoloShell from Windows app mode, do not claim boot takeover, and keep
 startup registration behind approval.
+`holoshell-startup-integration.hsplus` defines the approved per-user startup
+gate: registration is plan-only by default, `-Approve` is required for mutation,
+and Explorer replacement remains blocked.
 
 HTML is only a projection or host preview. Do not add hand-authored TypeScript
 behavior before the HoloScript source contract is named. Future desktop bridge
@@ -104,6 +108,7 @@ source/holoshell-hardware-control.hsplus
 source/holoshell-network-reality.hsplus
 source/holoshell-founder-host.hsplus
 source/holoshell-native-wrapper.hsplus
+source/holoshell-startup-integration.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
@@ -127,6 +132,7 @@ docs/PHASE_2_NATIVE_SHELL_ROADMAP.md
 docs/FOUNDER_NATIVE_HOST.md
 native/windows/Start-HoloShellFounderHost.ps1
 native/windows/Start-HoloShellFounderHost.cmd
+native/windows/Register-HoloShellStartup.ps1
 prototype/local-capability-room.html
 ```
 
@@ -195,6 +201,7 @@ The native wrapper receipt is:
 
 ```text
 scripts/holoshell-native-wrapper.mjs
+scripts/holoshell-startup-integration.mjs
 ```
 
 It writes:
@@ -202,19 +209,29 @@ It writes:
 ```text
 .tmp/holoshell/native-wrapper.json
 .tmp/holoshell/native-wrapper.js
+.tmp/holoshell/startup-integration.json
+.tmp/holoshell/startup-integration.js
 ```
 
-`pnpm run holoshell:founder-host:refresh` regenerates the native wrapper
-receipt, service supervisor, shell object graph, live feed, and Founder host
-receipt in one pass. The first launcher is:
+`pnpm run holoshell:founder-host:refresh` regenerates the startup integration,
+native wrapper receipt, service supervisor, shell object graph, live feed, and
+Founder host receipt in one pass. The first launcher is:
 
 ```powershell
 apps\holoshell\native\windows\Start-HoloShellFounderHost.ps1 -RefreshReceipts
 ```
 
+The startup bridge is plan-only unless approval is supplied:
+
+```powershell
+apps\holoshell\native\windows\Register-HoloShellStartup.ps1
+apps\holoshell\native\windows\Register-HoloShellStartup.ps1 -Register -Approve
+apps\holoshell\native\windows\Register-HoloShellStartup.ps1 -Unregister -Approve
+```
+
 This is a bootstrap wrapper, not OS takeover: execution stays disabled by
-default, the HTML projection may not claim primary shell ownership, and startup
-integration requires an explicit approval path.
+default, the HTML projection may not claim primary shell ownership, startup
+registration is per-user only, and Explorer replacement remains blocked.
 
 ## OS UI Capture Bridge
 
@@ -473,6 +490,7 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-network-reality.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-founder-host.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-native-wrapper.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-startup-integration.hsplus
 ```
 
 From the HoloLand repo:
@@ -507,6 +525,8 @@ node scripts\holoshell-pilot.mjs --self-test
 node scripts\holoshell-live-feed.mjs --self-test
 node scripts\holoshell-founder-host.mjs --self-test
 node scripts\__tests__\holoshell-founder-host.test.mjs
+node scripts\holoshell-startup-integration.mjs --self-test
+node scripts\__tests__\holoshell-startup-integration.test.mjs
 node scripts\holoshell-native-wrapper.mjs --self-test
 node scripts\__tests__\holoshell-native-wrapper.test.mjs
 ```

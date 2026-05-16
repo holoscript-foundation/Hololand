@@ -53,6 +53,8 @@ if (-not $ProfileDir) {
 New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
 
 if ($RefreshReceipts) {
+  & node (Join-Path $root 'scripts\holoshell-startup-integration.mjs') | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw 'Startup integration receipt refresh failed.' }
   & node (Join-Path $root 'scripts\holoshell-native-wrapper.mjs') | Out-Host
   if ($LASTEXITCODE -ne 0) { throw 'Native wrapper receipt refresh failed.' }
   & node (Join-Path $root 'scripts\holoshell-founder-host.mjs') --refresh | Out-Host

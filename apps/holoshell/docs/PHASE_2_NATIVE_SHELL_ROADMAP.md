@@ -64,9 +64,16 @@ Current landing:
   `.tmp/holoshell/native-wrapper.json` and `.tmp/holoshell/native-wrapper.js`.
 - The first Windows launcher is
   `apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1`.
+- Startup integration source exists at
+  `source/holoshell-startup-integration.hsplus`.
+- `scripts/holoshell-startup-integration.mjs` writes
+  `.tmp/holoshell/startup-integration.json` and
+  `.tmp/holoshell/startup-integration.js`.
+- The first approval-gated per-user startup bridge is
+  `apps/holoshell/native/windows/Register-HoloShellStartup.ps1`.
 - Current honest status is `native_host_present` when receipts are refreshed:
-  preview/source/feed/wrapper readiness is accounted for, but startup
-  integration is not present yet.
+  preview/source/feed/wrapper/startup-adapter readiness is accounted for, but
+  the startup shortcut is not registered by default.
 
 Deliverables:
 
@@ -79,6 +86,7 @@ Deliverables:
 Acceptance:
 
 - User can start HoloShell without opening the prototype HTML manually.
+- User can review a startup registration path without mutating the machine.
 - Daemon status is visible.
 - Execution is disabled by default.
 - Native host can restart stage-only services safely.
@@ -200,7 +208,7 @@ Acceptance:
 5. Excel or document machine.
 6. Geometric reconstruction for one legacy app.
 7. Skin simulation schema and realistic water/fire/aura.
-8. Startup integration for the native host wrapper.
+8. Startup Gate approval UX for the native host wrapper.
 
 The shell object graph comes first because HoloShell cannot operate the
 computer until the computer is represented as objects. The approval UX follows

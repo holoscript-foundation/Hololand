@@ -41,11 +41,11 @@ ShellObject
 | --- | --- |
 | `id` | Stable local object id. Does not need to expose private names. |
 | `displayName` | User-facing label. Can be redacted or generalized. |
-| `objectKind` | Product role: program, file, browser, agent, workflow, receipt. |
+| `objectKind` | Product role: program, file, browser, agent, workflow, receipt, host, startup gate. |
 | `sourceKind` | Where it comes from: app, cli, mcp, browser, filesystem, process. |
 | `capabilityFamily` | What it can help do: documents, web, local project, media, system. |
 | `trustState` | verified, partial, stale, disputed, unsafe, unknown. |
-| `permissionEnvelope` | read_only, guarded_execute, break_glass, classified_per_app. |
+| `permissionEnvelope` | read_only, guarded_execute, approval_required, break_glass, classified_per_app. |
 | `adapterPath` | Preferred route: API, MCP, CLI, browser automation, UI Automation, OCR. |
 | `visualForm` | glyph, bubble, room, machine, approval, timeline_node, captured_surface. |
 | `status` | idle, available, staged, running, pending_approval, blocked, complete. |
@@ -66,6 +66,9 @@ ShellObject
 | `agent` | Active or available AI actor. | Brittney, Codex, Claude, Gemini. |
 | `room` | Capability grouping or work context. | HoloScript Room, Project Room. |
 | `workflow` | Ordered multi-step action plan. | Room Marathon with Lofi, Asset Folder to Playable Shard. |
+| `native_host` | Native HoloShell host readiness object. | Founder Host. |
+| `native_wrapper` | OS-local wrapper that opens HoloShell as an app-mode shell surface. | Native Wrapper. |
+| `startup_integration` | Approval-gated login-start bridge. | Startup Gate. |
 | `source_corpus` | Read-only source repository or module set that can be promoted into HoloShell objects. | Wild HoloScript from `uaa2-service`. |
 | `approval` | User decision object for guarded or break-glass work. | Hardware approval, workflow approval. |
 | `receipt` | Evidence object attached to action or observation. | Action receipt, DOM witness, screenshot. |

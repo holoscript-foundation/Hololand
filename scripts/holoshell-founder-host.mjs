@@ -19,7 +19,9 @@ const SOURCE_ANCHORS = {
   hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
   serviceSupervisorSource: 'apps/holoshell/source/holoshell-service-supervisor.hsplus',
   nativeWrapperSource: 'apps/holoshell/source/holoshell-native-wrapper.hsplus',
+  startupIntegrationSource: 'apps/holoshell/source/holoshell-startup-integration.hsplus',
   nativeWrapperReceipt: '.tmp/holoshell/native-wrapper.json',
+  startupIntegrationReceipt: '.tmp/holoshell/startup-integration.json',
   adapter: 'scripts/holoshell-founder-host.mjs',
   previewHost: 'apps/holoshell/prototype/local-capability-room.html',
   nativeWrapperTarget: 'apps/holoshell/native',
@@ -152,6 +154,7 @@ function sourceManifest() {
     ['hardwareControl', SOURCE_ANCHORS.hardwareControl, true],
     ['serviceSupervisorSource', SOURCE_ANCHORS.serviceSupervisorSource, true],
     ['nativeWrapperSource', SOURCE_ANCHORS.nativeWrapperSource, true],
+    ['startupIntegrationSource', SOURCE_ANCHORS.startupIntegrationSource, true],
     ['previewHost', SOURCE_ANCHORS.previewHost, true],
     ['nativeWrapperTarget', SOURCE_ANCHORS.nativeWrapperTarget, false],
   ];
@@ -167,6 +170,7 @@ function sourceManifest() {
 function refreshInputs(args) {
   if (!args.refresh) return [];
   return [
+    runNode(['scripts/holoshell-startup-integration.mjs', '--tmp-dir', args.tmpDir], 90000),
     runNode(['scripts/holoshell-native-wrapper.mjs', '--tmp-dir', args.tmpDir], 90000),
     runNode(['scripts/holoshell-service-supervisor.mjs', '--status', '--tmp-dir', args.tmpDir], 90000),
     runNode(['scripts/holoshell-shell-objects.mjs', '--tmp-dir', args.tmpDir], 90000),
@@ -254,13 +258,15 @@ function createReceipt(args, fixtures = null) {
   const liveFeed = fixtures?.liveFeed || readJson(path.join(tmpDir, 'live-feed.json'), {});
   const sourceValidation = fixtures?.sourceValidation || readJson(path.join(tmpDir, 'source-validation.json'), {});
   const nativeWrapper = fixtures?.nativeWrapper || readJson(path.join(tmpDir, 'native-wrapper.json'), {});
+  const startupIntegration = fixtures?.startupIntegration || readJson(path.join(tmpDir, 'startup-integration.json'), {});
 
   const requiredSources = sources.filter((source) => source.required);
   const sourceReady = requiredSources.every((source) => source.present);
   const previewHostReady = sources.some((source) => source.id === 'previewHost' && source.present);
   const nativeWrapperPresent = sources.some((source) => source.id === 'nativeWrapperTarget' && source.present);
   const nativeWrapperLaunchable = Boolean(nativeWrapper?.summary?.launchable);
-  const startupIntegrationPresent = Boolean(nativeWrapper?.summary?.startupIntegrationPresent);
+  const startupIntegrationPresent = Boolean(startupIntegration?.summary?.startupIntegrationPresent || nativeWrapper?.summary?.startupIntegrationPresent);
+  const startupRegistered = Boolean(startupIntegration?.summary?.startupRegistered || nativeWrapper?.summary?.startupRegistered);
   const shellObjectGraphReady = shellObjects?.summary?.status === 'ready';
   const liveFeedReady = Boolean(liveFeed?.schemaVersion && liveFeed?.summary);
   const serviceSupervisorReady = ['ready', 'ready_with_optional_offline', 'ready_with_degraded_optional'].includes(serviceSupervisor?.summary?.status);
@@ -277,8 +283,12 @@ function createReceipt(args, fixtures = null) {
   });
   const blockedPhaseCount = bootPhases.filter((phase) => ['blocked', 'warn'].includes(phase.status)).length;
   const missingFuturePhaseCount = bootPhases.filter((phase) => phase.status === 'missing').length;
-  const nextMove = nativeWrapperPresent
-    ? 'wire_startup_integration_with_approval'
+  const nextMove = nativeWrapperPresent && startupIntegrationPresent
+    ? startupRegistered
+      ? 'observe_login_startup_receipt'
+      : 'render_startup_approval_card'
+    : nativeWrapperPresent
+      ? 'wire_startup_integration_with_approval'
     : status === 'needs_receipt_refresh'
       ? 'refresh_shell_objects_and_live_feed'
       : 'build_native_wrapper';
@@ -293,6 +303,7 @@ function createReceipt(args, fixtures = null) {
     serviceSupervisorReady,
     nativeWrapperPresent,
     startupIntegrationPresent,
+    startupRegistered,
     bootPhases: bootPhases.map((phase) => [phase.phaseId, phase.status]),
   };
 
@@ -313,6 +324,8 @@ function createReceipt(args, fixtures = null) {
       nativeWrapperLauncherPresent: Boolean(nativeWrapper?.summary?.launcherPresent),
       nativeWrapperBrowserCandidateCount: nativeWrapper?.summary?.browserCandidateCount || 0,
       startupIntegrationPresent,
+      startupIntegrationStatus: startupIntegration?.summary?.status || 'unknown',
+      startupRegistered,
       shellObjectGraphReady,
       shellObjectCount: shellObjects?.summary?.shellObjectCount || 0,
       firstScreenObjectCount: shellObjects?.summary?.firstScreenObjectCount || 0,
@@ -341,10 +354,14 @@ function createReceipt(args, fixtures = null) {
       currentSurfaceKind: 'html_preview_host',
       nativeWrapperTarget: SOURCE_ANCHORS.nativeWrapperTarget,
       nativeWrapperReceipt: SOURCE_ANCHORS.nativeWrapperReceipt,
+      startupIntegrationSource: SOURCE_ANCHORS.startupIntegrationSource,
+      startupIntegrationReceipt: SOURCE_ANCHORS.startupIntegrationReceipt,
       startupIntegrationTarget: 'user_login_startup_task_or_native_shell_wrapper',
       nextCommands: [
+        'node scripts/holoshell-startup-integration.mjs',
         'node scripts/holoshell-native-wrapper.mjs',
         'pnpm run holoshell:founder-host:refresh',
+        'apps/holoshell/native/windows/Register-HoloShellStartup.ps1 -Register -Approve',
         'apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1 -RefreshReceipts',
         'pnpm run holoshell:shell-objects',
         'node scripts/holoshell-live-feed.mjs',
@@ -360,12 +377,14 @@ function createReceipt(args, fixtures = null) {
       appMutationsRequireApprovalBundle: true,
       destructiveActionsAllowed: false,
       localOnly: true,
+      startupRegistrationIsPerUser: true,
+      explorerShellReplacementBlocked: true,
     },
     receipt: {
       hostSnapshotHash: sha256(JSON.stringify(hashInput)),
       localOnly: true,
       hostLaunched: false,
-      startupRegistered: false,
+      startupRegistered,
       serviceMutationTaken: false,
       destructiveActionsTaken: false,
       rawCommandLineIncluded: false,
@@ -382,6 +401,7 @@ function fixtureSources() {
     ['hardwareControl', SOURCE_ANCHORS.hardwareControl, true, true],
     ['serviceSupervisorSource', SOURCE_ANCHORS.serviceSupervisorSource, true, true],
     ['nativeWrapperSource', SOURCE_ANCHORS.nativeWrapperSource, true, true],
+    ['startupIntegrationSource', SOURCE_ANCHORS.startupIntegrationSource, true, true],
     ['previewHost', SOURCE_ANCHORS.previewHost, true, true],
     ['nativeWrapperTarget', SOURCE_ANCHORS.nativeWrapperTarget, false, false],
   ].map(([id, filePath, required, present]) => ({ id, path: filePath, required, present }));
@@ -396,6 +416,13 @@ function selfTestFixtures() {
     shellObjects: { schemaVersion: 'hololand.holoshell.shell-objects.v0.1.0', summary: { status: 'ready', shellObjectCount: 24, firstScreenObjectCount: 12 } },
     liveFeed: { schemaVersion: 'hololand.holoshell.live-feed.v0.1.0', summary: { overallRisk: 'warn' } },
     sourceValidation: { summary: { status: 'pass', fileCount: 48 } },
+    startupIntegration: {
+      summary: {
+        status: 'registration_adapter_present',
+        startupIntegrationPresent: true,
+        startupRegistered: false,
+      },
+    },
   };
 }
 

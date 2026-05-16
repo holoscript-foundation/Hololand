@@ -8,6 +8,8 @@
 
 **Native wrapper bridge:** `scripts/holoshell-native-wrapper.mjs`
 
+**Startup integration bridge:** `scripts/holoshell-startup-integration.mjs`
+
 The Founder native host is the bridge between the current HoloShell preview and
 the future machine-startup shell.
 
@@ -31,10 +33,12 @@ Outputs:
 ```
 
 The wrapper receipt records whether the Windows app-mode launcher, command shim,
-preview host, and local browser surface are present:
+preview host, startup registration adapter, and local browser surface are
+present:
 
 ```powershell
 node scripts\holoshell-native-wrapper.mjs
+node scripts\holoshell-startup-integration.mjs
 ```
 
 The first launcher is:
@@ -43,15 +47,24 @@ The first launcher is:
 apps\holoshell\native\windows\Start-HoloShellFounderHost.ps1 -RefreshReceipts
 ```
 
+Startup registration is a separate approval-gated bridge:
+
+```powershell
+apps\holoshell\native\windows\Register-HoloShellStartup.ps1
+apps\holoshell\native\windows\Register-HoloShellStartup.ps1 -Register -Approve
+apps\holoshell\native\windows\Register-HoloShellStartup.ps1 -Unregister -Approve
+```
+
 The refresh form regenerates supporting local receipts first:
 
 ```powershell
 pnpm run holoshell:founder-host:refresh
 ```
 
-That runs the native wrapper receipt, service supervisor, shell object graph,
-and live-feed bridge before writing the host receipt. It still does not take
-over the operating system or execute app mutations.
+That runs the startup integration receipt, native wrapper receipt, service
+supervisor, shell object graph, and live-feed bridge before writing the host
+receipt. It still does not take over the operating system or execute app
+mutations.
 
 ## Status Meaning
 
@@ -70,6 +83,15 @@ Native wrapper statuses:
 | `wrapper_present_browser_missing` | Wrapper files exist, but Chrome/Edge was not found for app-mode launch. |
 | `launchable_wrapper_present` | Wrapper files exist and a local Chromium-family browser can launch HoloShell in app mode. |
 
+Startup integration statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `blocked_missing_source` | Startup source, adapter, registration script, or launcher is missing. |
+| `startup_folder_unavailable` | Windows Startup folder could not be resolved for the current user. |
+| `registration_adapter_present` | The approval-gated per-user startup registration path exists, but is not registered. |
+| `registered_at_user_login` | A per-user Startup shortcut is present and HoloShell should launch at login. |
+
 ## Boundary
 
 The host receipt is read-only by default. Startup registration, service starts,
@@ -77,4 +99,5 @@ workflow execution, app mutation, and daemon execute mode remain guarded or
 break-glass actions handled by their own approval receipts.
 
 The current primary surface is still a `native_wrapper_candidate`, not a boot
-replacement. The next real build is approved startup integration.
+replacement. The current startup build is an approval-gated per-user login
+shortcut path; Explorer shell replacement remains a separate native plan.

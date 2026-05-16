@@ -12,12 +12,16 @@ const DEFAULT_TMP = path.join('.tmp', 'holoshell');
 
 const SOURCE_ANCHORS = {
   source: 'apps/holoshell/source/holoshell-native-wrapper.hsplus',
+  startupIntegrationSource: 'apps/holoshell/source/holoshell-startup-integration.hsplus',
   founderHostSource: 'apps/holoshell/source/holoshell-founder-host.hsplus',
   wrapperRoot: 'apps/holoshell/native',
   windowsLauncher: 'apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1',
   windowsCommandShim: 'apps/holoshell/native/windows/Start-HoloShellFounderHost.cmd',
+  windowsStartupRegistration: 'apps/holoshell/native/windows/Register-HoloShellStartup.ps1',
   previewHost: 'apps/holoshell/prototype/local-capability-room.html',
+  startupIntegrationReceipt: '.tmp/holoshell/startup-integration.json',
   founderHostReceipt: '.tmp/holoshell/founder-host.json',
+  startupIntegrationAdapter: 'scripts/holoshell-startup-integration.mjs',
   adapter: 'scripts/holoshell-native-wrapper.mjs',
 };
 
@@ -115,10 +119,13 @@ function sourceManifest(fixtures = null) {
   if (fixtures?.sources) return fixtures.sources;
   const entries = [
     ['wrapperSource', SOURCE_ANCHORS.source, true],
+    ['startupIntegrationSource', SOURCE_ANCHORS.startupIntegrationSource, true],
     ['founderHostSource', SOURCE_ANCHORS.founderHostSource, true],
     ['wrapperRoot', SOURCE_ANCHORS.wrapperRoot, true],
     ['windowsLauncher', SOURCE_ANCHORS.windowsLauncher, true],
     ['windowsCommandShim', SOURCE_ANCHORS.windowsCommandShim, true],
+    ['windowsStartupRegistration', SOURCE_ANCHORS.windowsStartupRegistration, true],
+    ['startupIntegrationAdapter', SOURCE_ANCHORS.startupIntegrationAdapter, true],
     ['previewHost', SOURCE_ANCHORS.previewHost, true],
   ];
 
@@ -161,6 +168,8 @@ function createReceipt(args, fixtures = null) {
   const sourceReady = requiredSources.every((source) => source.present);
   const launcherPresent = sources.some((source) => source.id === 'windowsLauncher' && source.present);
   const commandShimPresent = sources.some((source) => source.id === 'windowsCommandShim' && source.present);
+  const startupRegistrationScriptPresent = sources.some((source) => source.id === 'windowsStartupRegistration' && source.present);
+  const startupIntegrationAdapterPresent = sources.some((source) => source.id === 'startupIntegrationAdapter' && source.present);
   const previewHostPresent = sources.some((source) => source.id === 'previewHost' && source.present);
   const browsers = browserCandidates(fixtures);
   const availableBrowsers = browsers.filter((candidate) => candidate.present);
@@ -172,10 +181,21 @@ function createReceipt(args, fixtures = null) {
     browserCandidateCount: availableBrowsers.length,
   });
   const founderHost = fixtures?.founderHost || readJson(path.join(args.tmpDir, 'founder-host.json'), {});
-  const startupIntegrationPresent = false;
+  const startupIntegration = fixtures?.startupIntegration || readJson(path.join(args.tmpDir, 'startup-integration.json'), {});
+  const startupIntegrationPresent = Boolean(
+    startupIntegration?.summary?.startupIntegrationPresent
+    || (sourceReady && startupRegistrationScriptPresent && startupIntegrationAdapterPresent)
+  );
+  const startupRegistered = Boolean(startupIntegration?.summary?.startupRegistered);
   const localMutationExecutionEnabled = false;
   const launchable = status === 'launchable_wrapper_present';
-  const nextMove = launchable ? 'wire_startup_integration_with_approval' : 'install_chromium_or_repair_launcher';
+  const nextMove = launchable && startupIntegrationPresent
+    ? startupRegistered
+      ? 'observe_login_startup_receipt'
+      : 'render_startup_approval_card'
+    : launchable
+      ? 'wire_startup_integration_with_approval'
+      : 'install_chromium_or_repair_launcher';
   const hashInput = {
     schemaVersion: SCHEMA_VERSION,
     generatedAt,
@@ -186,6 +206,7 @@ function createReceipt(args, fixtures = null) {
     previewHostPresent,
     browserCandidateCount: availableBrowsers.length,
     startupIntegrationPresent,
+    startupRegistered,
   };
 
   return {
@@ -200,6 +221,8 @@ function createReceipt(args, fixtures = null) {
       requiredSourcePresentCount: requiredSources.filter((source) => source.present).length,
       launcherPresent,
       commandShimPresent,
+      startupRegistrationScriptPresent,
+      startupIntegrationAdapterPresent,
       previewHostPresent,
       browserCandidateCount: availableBrowsers.length,
       primaryBrowserFamily: availableBrowsers[0]?.family || 'none',
@@ -207,6 +230,8 @@ function createReceipt(args, fixtures = null) {
       launchable,
       startsWithoutManualHtml: launchable,
       startupIntegrationPresent,
+      startupIntegrationStatus: startupIntegration?.summary?.status || 'unknown',
+      startupRegistered,
       localMutationExecutionEnabled,
       primarySurfaceOwnership: 'native_wrapper_candidate',
       founderHostStatus: founderHost?.summary?.status || 'unknown',
@@ -223,6 +248,11 @@ function createReceipt(args, fixtures = null) {
         'apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1',
         '-RefreshReceipts',
       ],
+      startupRegistrationPreview: [
+        'apps/holoshell/native/windows/Register-HoloShellStartup.ps1',
+        '-Register',
+        '-Approve',
+      ],
       rawBrowserPathIncluded: false,
       rawCommandLineIncluded: false,
     },
@@ -232,6 +262,8 @@ function createReceipt(args, fixtures = null) {
       launcherMayOpenHoloShell: true,
       launcherMayClaimOsReplacement: false,
       startupRegistrationRequiresApproval: true,
+      startupRegistrationAdapterPresent: startupIntegrationPresent,
+      startupRegisteredRequiresReceipt: true,
       explorerShellReplacementRequiresSeparateNativePlan: true,
       daemonExecuteDisabledByDefault: true,
       appMutationsRequireApprovalBundle: true,
@@ -240,7 +272,7 @@ function createReceipt(args, fixtures = null) {
     receipt: {
       wrapperSnapshotHash: sha256(JSON.stringify(hashInput)),
       launchPerformed: false,
-      startupRegistered: false,
+      startupRegistered,
       serviceMutationTaken: false,
       destructiveActionsTaken: false,
       rawBrowserPathIncluded: false,
@@ -253,14 +285,18 @@ function selfTestFixtures() {
   return {
     sources: [
       ['wrapperSource', SOURCE_ANCHORS.source, true, true],
+      ['startupIntegrationSource', SOURCE_ANCHORS.startupIntegrationSource, true, true],
       ['founderHostSource', SOURCE_ANCHORS.founderHostSource, true, true],
       ['wrapperRoot', SOURCE_ANCHORS.wrapperRoot, true, true],
       ['windowsLauncher', SOURCE_ANCHORS.windowsLauncher, true, true],
       ['windowsCommandShim', SOURCE_ANCHORS.windowsCommandShim, true, true],
+      ['windowsStartupRegistration', SOURCE_ANCHORS.windowsStartupRegistration, true, true],
+      ['startupIntegrationAdapter', SOURCE_ANCHORS.startupIntegrationAdapter, true, true],
       ['previewHost', SOURCE_ANCHORS.previewHost, true, true],
     ].map(([id, filePath, required, present]) => ({ id, path: filePath, required, present })),
     browserCandidates: [{ family: 'chrome', source: 'fixture', present: true }],
     founderHost: { summary: { status: 'native_host_present' } },
+    startupIntegration: { summary: { status: 'registration_adapter_present', startupIntegrationPresent: true, startupRegistered: false } },
   };
 }
 
@@ -270,10 +306,12 @@ function assertSelfTest(receipt) {
   if (receipt.summary.status !== 'launchable_wrapper_present') failures.push(`unexpected status ${receipt.summary.status}`);
   if (receipt.summary.launchable !== true) failures.push('wrapper should be launchable');
   if (receipt.summary.startsWithoutManualHtml !== true) failures.push('wrapper should start without manual HTML open');
-  if (receipt.summary.startupIntegrationPresent !== false) failures.push('startup integration should be absent in fixture');
+  if (receipt.summary.startupIntegrationPresent !== true) failures.push('startup integration should be present in fixture');
+  if (receipt.summary.startupRegistered !== false) failures.push('startup should be unregistered in fixture');
   if (receipt.summary.localMutationExecutionEnabled !== false) failures.push('execute must default disabled');
   if (receipt.policy.launcherMayClaimOsReplacement !== false) failures.push('wrapper must not claim OS replacement');
   if (receipt.policy.startupRegistrationRequiresApproval !== true) failures.push('startup registration must require approval');
+  if (receipt.policy.startupRegistrationAdapterPresent !== true) failures.push('startup registration adapter should be present');
   if (receipt.receipt.launchPerformed !== false) failures.push('receipt check must not launch');
   if (receipt.receipt.destructiveActionsTaken !== false) failures.push('self-test must be non-destructive');
   if (receipt.receipt.rawCommandLineIncluded !== false) failures.push('raw command must stay hidden');

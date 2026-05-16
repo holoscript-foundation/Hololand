@@ -1,0 +1,113 @@
+// HoloShell Startup Integration
+//
+// Source contract for starting the Founder HoloShell native wrapper at user
+// login. This is an approved per-user startup bridge, not Explorer replacement
+// and not machine-wide shell takeover.
+
+composition "HoloShell Startup Integration" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-startup-integration.mjs"
+    startupReceipt: ".tmp/holoshell/startup-integration.json"
+    startupBootstrap: ".tmp/holoshell/startup-integration.js"
+    windowsRegistrationScript: "apps/holoshell/native/windows/Register-HoloShellStartup.ps1"
+    nativeLauncher: "apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1"
+    nativeWrapperReceipt: ".tmp/holoshell/native-wrapper.json"
+    founderHostReceipt: ".tmp/holoshell/founder-host.json"
+    startupMode: "windows_user_startup_shortcut"
+  }
+
+  state {
+    integrationStatus: "unknown"
+    startupIntegrationPresent: false
+    registrationScriptPresent: false
+    nativeLauncherPresent: false
+    startupFolderReachable: false
+    startupRegistered: false
+    approvalRequired: true
+    approvalSupplied: false
+    localMutationExecutionEnabled: false
+    primarySurfaceOwnership: "login_start_candidate"
+    nextMove: "render_startup_approval_card"
+  }
+
+  channel "holoshell:startup-integration" {
+    type: "append_only"
+    priority: "critical"
+    description: "Approved startup registration state for Founder HoloShell"
+  }
+
+  room "StartupIntegrationRoom" {
+    label: "Startup Integration"
+    userQuestion: "Can HoloShell start when the computer starts?"
+    visualForm: "startup_gate"
+    liveFeed: "holoshell:startup-integration"
+
+    object "StartupIntegration" {
+      type: "ui"
+      uiType: "startup_integration"
+      label: "HoloShell Startup"
+      status: $integrationStatus
+      integration_present: $startupIntegrationPresent
+      registration_script_present: $registrationScriptPresent
+      native_launcher_present: $nativeLauncherPresent
+      startup_folder_reachable: $startupFolderReachable
+      startup_registered: $startupRegistered
+      approval_required: $approvalRequired
+      approval_supplied: $approvalSupplied
+      execute_enabled: $localMutationExecutionEnabled
+      primary_surface_ownership: $primarySurfaceOwnership
+      next_move: $nextMove
+    }
+  }
+
+  policy "ApprovedStartupOnly" {
+    appliesTo: ["startup_register", "startup_unregister", "login_start"]
+    registrationRequiresExplicitApproval: true
+    perUserStartupOnly: true
+    machineWideStartupBlocked: true
+    explorerShellReplacementBlocked: true
+    receiptRequired: true
+    rawLocalPathDisclosureBlocked: true
+  }
+
+  policy "StartupMutationBoundary" {
+    appliesTo: ["shortcut_create", "shortcut_remove", "service_mutation"]
+    startupMutationRequiresApproval: true
+    defaultMode: "plan_only"
+    destructiveActionsAllowed: false
+    daemonExecuteDisabledByDefault: true
+    unregisterIsAvailable: true
+    receiptRequired: true
+  }
+
+  action consume_startup_integration(snapshot) {
+    state.integrationStatus = snapshot.summary.status
+    state.startupIntegrationPresent = snapshot.summary.startupIntegrationPresent
+    state.registrationScriptPresent = snapshot.summary.registrationScriptPresent
+    state.nativeLauncherPresent = snapshot.summary.nativeLauncherPresent
+    state.startupFolderReachable = snapshot.summary.startupFolderReachable
+    state.startupRegistered = snapshot.summary.startupRegistered
+    state.approvalRequired = snapshot.summary.approvalRequired
+    state.approvalSupplied = snapshot.summary.approvalSupplied
+    state.localMutationExecutionEnabled = snapshot.summary.localMutationExecutionEnabled
+    state.primarySurfaceOwnership = snapshot.summary.primarySurfaceOwnership
+    state.nextMove = snapshot.summary.nextMove
+
+    emit("holoshell:startup-integration", {
+      status: state.integrationStatus,
+      integration_present: state.startupIntegrationPresent,
+      registration_script_present: state.registrationScriptPresent,
+      native_launcher_present: state.nativeLauncherPresent,
+      startup_folder_reachable: state.startupFolderReachable,
+      startup_registered: state.startupRegistered,
+      approval_required: state.approvalRequired,
+      approval_supplied: state.approvalSupplied,
+      execute_enabled: state.localMutationExecutionEnabled,
+      primary_surface_ownership: state.primarySurfaceOwnership,
+      next_move: state.nextMove,
+      receiptHash: snapshot.receipt.startupIntegrationHash
+    })
+  }
+}

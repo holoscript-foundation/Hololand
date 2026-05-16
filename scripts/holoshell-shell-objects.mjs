@@ -288,12 +288,13 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, nativeWrapper, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, nativeWrapper, startupIntegration, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
   const founderHostSummary = founderHost?.summary || {};
   const nativeWrapperSummary = nativeWrapper?.summary || {};
+  const startupIntegrationSummary = startupIntegration?.summary || {};
   const serviceSupervisorSummary = serviceSupervisor?.summary || {};
   const serviceSupervisorReceipt = serviceSupervisor?.receipt || {};
   const grokBuildSummary = grokBuild?.summary || {};
@@ -408,6 +409,43 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       detail: `Native wrapper ${nativeWrapperSummary.status || 'unknown'}; launchable ${nativeWrapperSummary.launchable ? 'yes' : 'no'}; startup ${nativeWrapperSummary.startupIntegrationPresent ? 'present' : 'missing'}.`,
       firstScreen: true,
       layout: { x: 68, y: 10, size: 104 },
+    },
+    {
+      id: 'host.startup-integration',
+      objectKind: 'startup_integration',
+      displayName: 'Startup Gate',
+      sourceKind: 'holoscript',
+      sourceRef: startupIntegration?.sourceAnchors?.source || 'apps/holoshell/source/holoshell-startup-integration.hsplus',
+      capabilityFamily: 'startup_integration',
+      trustState: startupIntegrationSummary.startupRegistered
+        ? 'verified'
+        : startupIntegrationSummary.startupIntegrationPresent
+          ? 'partial'
+          : 'unknown',
+      permissionEnvelope: 'approval_required',
+      adapterPath: startupIntegration?.sourceAnchors?.adapter || 'scripts/holoshell-startup-integration.mjs',
+      visualForm: 'startup_gate',
+      status: startupIntegrationSummary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['startup_integration_receipt', 'startup_registration_receipt', 'native_wrapper_receipt'],
+      relationships: {
+        startupIntegrationPresent: Boolean(startupIntegrationSummary.startupIntegrationPresent),
+        registrationScriptPresent: Boolean(startupIntegrationSummary.registrationScriptPresent),
+        nativeLauncherPresent: Boolean(startupIntegrationSummary.nativeLauncherPresent),
+        startupMode: startupIntegrationSummary.startupMode || '',
+        startupFolderReachable: Boolean(startupIntegrationSummary.startupFolderReachable),
+        startupRegistered: Boolean(startupIntegrationSummary.startupRegistered),
+        approvalRequired: Boolean(startupIntegrationSummary.approvalRequired),
+        localMutationExecutionEnabled: Boolean(startupIntegrationSummary.localMutationExecutionEnabled),
+        nextMove: startupIntegrationSummary.nextMove || 'render_startup_approval_card',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'login_start_gate',
+      launch: { action: 'approve_startup_registration', route: 'apps/holoshell/native/windows/Register-HoloShellStartup.ps1 -Register -Approve' },
+      glyph: 'SG',
+      detail: `Startup integration ${startupIntegrationSummary.status || 'unknown'}; registered ${startupIntegrationSummary.startupRegistered ? 'yes' : 'no'}; approval ${startupIntegrationSummary.approvalRequired ? 'required' : 'unknown'}.`,
+      firstScreen: true,
+      layout: { x: 78, y: 22, size: 96 },
     },
     {
       id: 'assistant.brittney',
@@ -1953,8 +1991,15 @@ function summarize(objects, feeds) {
     nativeWrapperLaunchable: Boolean(feeds.nativeWrapper?.summary?.launchable),
     nativeWrapperBrowserCandidateCount: feeds.nativeWrapper?.summary?.browserCandidateCount || 0,
     nativeWrapperStartupIntegrationPresent: Boolean(feeds.nativeWrapper?.summary?.startupIntegrationPresent),
+    nativeWrapperStartupRegistered: Boolean(feeds.nativeWrapper?.summary?.startupRegistered),
     nativeWrapperStartsWithoutManualHtml: Boolean(feeds.nativeWrapper?.summary?.startsWithoutManualHtml),
     nativeWrapperNextMove: feeds.nativeWrapper?.summary?.nextMove || '',
+    startupIntegrationObjectCount: objects.filter((object) => object.capabilityFamily === 'startup_integration').length,
+    startupIntegrationStatus: feeds.startupIntegration?.summary?.status || 'unknown',
+    startupIntegrationPresent: Boolean(feeds.startupIntegration?.summary?.startupIntegrationPresent),
+    startupIntegrationRegistered: Boolean(feeds.startupIntegration?.summary?.startupRegistered),
+    startupIntegrationApprovalRequired: Boolean(feeds.startupIntegration?.summary?.approvalRequired),
+    startupIntegrationNextMove: feeds.startupIntegration?.summary?.nextMove || '',
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
     founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
     userShellObjectCount: objects.filter((object) => object.capabilityFamily === 'user_shell').length,
@@ -2058,6 +2103,7 @@ function summarize(objects, feeds) {
       serviceSupervisorStatus: feeds.serviceSupervisor?.summary?.status || 'unknown',
       founderHostStatus: feeds.founderHost?.summary?.status || 'unknown',
       nativeWrapperStatus: feeds.nativeWrapper?.summary?.status || 'unknown',
+      startupIntegrationStatus: feeds.startupIntegration?.summary?.status || 'unknown',
       goldCodebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.status || 'unknown',
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
@@ -2092,6 +2138,7 @@ function loadFeeds(tmpDir) {
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
     founderHost: readJson(path.join(dir, 'founder-host.json'), {}),
     nativeWrapper: readJson(path.join(dir, 'native-wrapper.json'), {}),
+    startupIntegration: readJson(path.join(dir, 'startup-integration.json'), {}),
     userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
     developmentalEnvironment: readJson(path.join(dir, 'developmental-environment.json'), {}),
     agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
@@ -2157,6 +2204,7 @@ function buildGraph(args, fixtures = null) {
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       founderHost: 'scripts/holoshell-founder-host.mjs',
       nativeWrapper: 'scripts/holoshell-native-wrapper.mjs',
+      startupIntegration: 'scripts/holoshell-startup-integration.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
@@ -2328,7 +2376,8 @@ function fixtureFeeds() {
         sourceReady: true,
         previewHostReady: true,
         nativeWrapperPresent: false,
-        startupIntegrationPresent: false,
+        startupIntegrationPresent: true,
+        startupRegistered: false,
         shellObjectGraphReady: true,
         liveFeedReady: true,
         serviceSupervisorReady: true,
@@ -2354,10 +2403,32 @@ function fixtureFeeds() {
         launchMode: 'chromium_app_mode',
         launchable: true,
         startsWithoutManualHtml: true,
-        startupIntegrationPresent: false,
+        startupIntegrationPresent: true,
+        startupRegistered: false,
         localMutationExecutionEnabled: false,
         primarySurfaceOwnership: 'native_wrapper_candidate',
-        nextMove: 'wire_startup_integration_with_approval',
+        nextMove: 'render_startup_approval_card',
+      },
+    },
+    startupIntegration: {
+      schemaVersion: 'hololand.holoshell.startup-integration.v0.1.0',
+      generatedAt: new Date().toISOString(),
+      sourceAnchors: {
+        source: 'apps/holoshell/source/holoshell-startup-integration.hsplus',
+        adapter: 'scripts/holoshell-startup-integration.mjs',
+      },
+      summary: {
+        status: 'registration_adapter_present',
+        startupIntegrationPresent: true,
+        registrationScriptPresent: true,
+        nativeLauncherPresent: true,
+        startupMode: 'windows_user_startup_shortcut',
+        startupFolderReachable: true,
+        startupRegistered: false,
+        approvalRequired: true,
+        localMutationExecutionEnabled: false,
+        primarySurfaceOwnership: 'login_start_candidate',
+        nextMove: 'render_startup_approval_card',
       },
     },
     goldCodebaseBridge: {
@@ -2794,6 +2865,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'service.supervisor' && object.relationships?.requiredOnlineServiceCount === 1)) failures.push('expected service supervisor shell object');
   if (!graph.objects.some((object) => object.id === 'host.founder-holoshell')) failures.push('expected founder host shell object');
   if (!graph.objects.some((object) => object.id === 'host.native-wrapper')) failures.push('expected native wrapper shell object');
+  if (!graph.objects.some((object) => object.id === 'host.startup-integration')) failures.push('expected startup integration shell object');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
@@ -2830,6 +2902,7 @@ function assertSelfTest() {
   if (graph.summary.serviceSupervisorRequiredOnlineServiceCount !== 1) failures.push('expected service supervisor required service online count');
   if (graph.summary.founderHostStatus !== 'ready_for_native_wrapper') failures.push('expected founder host ready-for-wrapper status');
   if (graph.summary.nativeWrapperStatus !== 'launchable_wrapper_present') failures.push('expected native wrapper launchable status');
+  if (graph.summary.startupIntegrationStatus !== 'registration_adapter_present') failures.push('expected startup integration adapter status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   const buildTreeObject = graph.objects.find((object) => object.id === 'process.build-tree.build-tree-100');
   if (!buildTreeObject) failures.push('expected build tree process object');

@@ -18,6 +18,8 @@ composition "HoloShell Founder Host" {
     serviceSupervisorSource: "apps/holoshell/source/holoshell-service-supervisor.hsplus"
     nativeWrapperSource: "apps/holoshell/source/holoshell-native-wrapper.hsplus"
     nativeWrapperReceipt: ".tmp/holoshell/native-wrapper.json"
+    startupIntegrationSource: "apps/holoshell/source/holoshell-startup-integration.hsplus"
+    startupIntegrationReceipt: ".tmp/holoshell/startup-integration.json"
     serviceSupervisorReceipt: ".tmp/holoshell/service-supervisor.json"
     shellObjectsReceipt: ".tmp/holoshell/shell-objects.json"
     liveFeedReceipt: ".tmp/holoshell/live-feed.json"
@@ -34,6 +36,7 @@ composition "HoloShell Founder Host" {
     nativeWrapperLaunchable: false
     nativeWrapperStatus: "unknown"
     startupIntegrationPresent: false
+    startupRegistered: false
     shellObjectGraphReady: false
     liveFeedReady: false
     serviceSupervisorReady: false
@@ -74,6 +77,7 @@ composition "HoloShell Founder Host" {
       native_wrapper_launchable: $nativeWrapperLaunchable
       native_wrapper_status: $nativeWrapperStatus
       startup_integration_present: $startupIntegrationPresent
+      startup_registered: $startupRegistered
       shell_objects_ready: $shellObjectGraphReady
       live_feed_ready: $liveFeedReady
       services_ready: $serviceSupervisorReady
@@ -88,6 +92,8 @@ composition "HoloShell Founder Host" {
     htmlPreviewMayClaimOsReplacement: false
     nativeWrapperRequiredForPrimarySurface: true
     startupIntegrationRequiredForBootTakeover: true
+    startupRegistrationIsPerUser: true
+    explorerShellReplacementBlocked: true
     receiptRequired: true
   }
 
@@ -110,6 +116,7 @@ composition "HoloShell Founder Host" {
     state.nativeWrapperLaunchable = snapshot.summary.nativeWrapperLaunchable
     state.nativeWrapperStatus = snapshot.summary.nativeWrapperStatus
     state.startupIntegrationPresent = snapshot.summary.startupIntegrationPresent
+    state.startupRegistered = snapshot.summary.startupRegistered
     state.shellObjectGraphReady = snapshot.summary.shellObjectGraphReady
     state.liveFeedReady = snapshot.summary.liveFeedReady
     state.serviceSupervisorReady = snapshot.summary.serviceSupervisorReady
@@ -125,6 +132,7 @@ composition "HoloShell Founder Host" {
       native_wrapper_launchable: state.nativeWrapperLaunchable,
       native_wrapper_status: state.nativeWrapperStatus,
       startup_integration_present: state.startupIntegrationPresent,
+      startup_registered: state.startupRegistered,
       shell_objects_ready: state.shellObjectGraphReady,
       live_feed_ready: state.liveFeedReady,
       service_supervisor_ready: state.serviceSupervisorReady,

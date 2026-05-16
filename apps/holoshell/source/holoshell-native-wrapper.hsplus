@@ -9,11 +9,15 @@ composition "HoloShell Native Wrapper" {
     owner: "HoloLand"
     sourceLayer: "HoloScript"
     adapterScript: "scripts/holoshell-native-wrapper.mjs"
+    startupIntegrationSource: "apps/holoshell/source/holoshell-startup-integration.hsplus"
+    startupIntegrationAdapter: "scripts/holoshell-startup-integration.mjs"
+    startupIntegrationReceipt: ".tmp/holoshell/startup-integration.json"
     wrapperReceipt: ".tmp/holoshell/native-wrapper.json"
     wrapperBootstrap: ".tmp/holoshell/native-wrapper.js"
     launcherRoot: "apps/holoshell/native"
     windowsLauncher: "apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1"
     windowsCommandShim: "apps/holoshell/native/windows/Start-HoloShellFounderHost.cmd"
+    windowsStartupRegistration: "apps/holoshell/native/windows/Register-HoloShellStartup.ps1"
     previewHost: "apps/holoshell/prototype/local-capability-room.html"
     founderHostReceipt: ".tmp/holoshell/founder-host.json"
     profileDir: ".tmp/holoshell/native-profile"
@@ -28,6 +32,7 @@ composition "HoloShell Native Wrapper" {
     browserCandidateCount: 0
     launchable: false
     startupIntegrationPresent: false
+    startupRegistered: false
     localMutationExecutionEnabled: false
     primarySurfaceOwnership: "native_wrapper_candidate"
     nextMove: "wire_startup_integration_with_approval"
@@ -56,6 +61,7 @@ composition "HoloShell Native Wrapper" {
       browser_candidate_count: $browserCandidateCount
       launchable: $launchable
       startup_integration_present: $startupIntegrationPresent
+      startup_registered: $startupRegistered
       execute_enabled: $localMutationExecutionEnabled
       primary_surface_ownership: $primarySurfaceOwnership
       next_move: $nextMove
@@ -67,6 +73,8 @@ composition "HoloShell Native Wrapper" {
     launcherMayOpenHoloShell: true
     launcherMayClaimOsReplacement: false
     startupRegistrationRequiresApproval: true
+    startupRegistrationAdapterRequired: true
+    startupRegisteredRequiresReceipt: true
     explorerShellReplacementRequiresSeparateNativePlan: true
     receiptRequired: true
   }
@@ -88,6 +96,7 @@ composition "HoloShell Native Wrapper" {
     state.browserCandidateCount = snapshot.summary.browserCandidateCount
     state.launchable = snapshot.summary.launchable
     state.startupIntegrationPresent = snapshot.summary.startupIntegrationPresent
+    state.startupRegistered = snapshot.summary.startupRegistered
     state.localMutationExecutionEnabled = snapshot.summary.localMutationExecutionEnabled
     state.primarySurfaceOwnership = snapshot.summary.primarySurfaceOwnership
     state.nextMove = snapshot.summary.nextMove
@@ -100,6 +109,7 @@ composition "HoloShell Native Wrapper" {
       browser_candidate_count: state.browserCandidateCount,
       launchable: state.launchable,
       startup_integration_present: state.startupIntegrationPresent,
+      startup_registered: state.startupRegistered,
       execute_enabled: state.localMutationExecutionEnabled,
       primary_surface_ownership: state.primarySurfaceOwnership,
       next_move: state.nextMove,
