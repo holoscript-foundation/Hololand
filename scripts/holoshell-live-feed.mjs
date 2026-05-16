@@ -101,6 +101,44 @@ function riskFromEvidenceStatus(status) {
   return 'unknown';
 }
 
+function networkContractStatus(networkReality) {
+  return networkReality?.schemaContract?.validationStatus || 'missing';
+}
+
+function networkRealityTrustState(networkReality) {
+  if (networkContractStatus(networkReality) === 'pass') return 'verified';
+  if (networkReality?.underlay?.confidence === 'owner_declared' || networkReality?.underlay?.confidence === 'os_reported') return 'partial';
+  return 'unknown';
+}
+
+function runReceiptDetail(receipt) {
+  const base = `${receipt.command?.preview || 'local command'} as ${receipt.command?.runClass || 'run'} on ${receipt.lane?.laneId || 'unknown lane'}.`;
+  const networkGate = receipt.networkGate;
+  if (!networkGate) return base;
+
+  const intent = networkGate.intent || receipt.command?.networkIntent || 'network';
+  if (networkGate.bandwidthSpending && !networkGate.allowed) {
+    return `${base} Network gate blocked ${intent} under ${networkGate.classification || 'unknown'}: ${networkGate.reason || 'owner network gesture required'}`;
+  }
+
+  if (networkGate.bandwidthSpending && networkGate.ownerGesture) {
+    return `${base} Network gate allowed ${intent} under ${networkGate.classification || 'unknown'} with owner network gesture.`;
+  }
+
+  if (networkGate.bandwidthSpending) {
+    return `${base} Network gate allowed ${intent} under ${networkGate.classification || 'unknown'} with receipt.`;
+  }
+
+  return `${base} Network intent ${intent}; protected bandwidth not spent.`;
+}
+
+function runReceiptTrustState(receipt) {
+  if (receipt.status === 'completed') return 'verified';
+  if (receipt.status === 'dry_run' && receipt.networkGate?.allowed !== false) return 'verified';
+  if (receipt.status === 'blocked') return 'partial';
+  return 'unknown';
+}
+
 function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
@@ -236,12 +274,13 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
   }
 
   if (networkReality?.underlay) {
+    const contractStatus = networkContractStatus(networkReality);
     timeline.push({
       id: 'network-reality',
       kind: 'network_reality',
       title: `Network reality is ${networkReality.underlay.classification || 'unknown'}`,
-      detail: `${networkReality.underlay.osInterfaceKind || 'unknown'} underlay, OS cost ${networkReality.underlay.osCost || 'Unknown'}, VPN ${networkReality.underlay.vpnState || 'unknown'}, ${networkReality.lanes?.networkConsumerCount || 0} network consumer(s); policy ${networkReality.policy?.heavyWorkPolicy || 'unknown'}.`,
-      trustState: networkReality.underlay.confidence === 'owner_declared' || networkReality.underlay.confidence === 'os_reported' ? 'verified' : 'partial',
+      detail: `${networkReality.underlay.osInterfaceKind || 'unknown'} underlay, OS cost ${networkReality.underlay.osCost || 'Unknown'}, VPN ${networkReality.underlay.vpnState || 'unknown'}, ${networkReality.lanes?.networkConsumerCount || 0} network consumer(s); policy ${networkReality.policy?.heavyWorkPolicy || 'unknown'}; HoloScript contract ${contractStatus}.`,
+      trustState: networkRealityTrustState(networkReality),
       generatedAt: networkReality.generatedAt || now,
       receiptType: networkReality.schemaVersion,
       source: networkReality.sourceAnchors?.adapter || 'scripts/holoshell-network-reality.mjs',
@@ -577,11 +616,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       id: receipt.runId,
       kind: 'run_receipt',
       title: `${receipt.name || 'Run'} ${receipt.status || 'recorded'}`,
-      detail: `${receipt.command?.preview || 'local command'} as ${receipt.command?.runClass || 'run'} on ${receipt.lane?.laneId || 'unknown lane'}.`,
-      trustState: receipt.status === 'completed' ? 'verified' : receipt.status === 'blocked' ? 'partial' : 'unknown',
+      detail: runReceiptDetail(receipt),
+      trustState: runReceiptTrustState(receipt),
       generatedAt: receipt.timing?.endedAt || receipt.timing?.plannedAt || now,
       receiptType: receipt.schemaVersion,
       source: receipt.output?.receiptPath || '.tmp/holoshell/run-receipts',
+      networkGate: receipt.networkGate
+        ? {
+            allowed: Boolean(receipt.networkGate.allowed),
+            intent: receipt.networkGate.intent || receipt.command?.networkIntent || 'unknown',
+            bandwidthSpending: Boolean(receipt.networkGate.bandwidthSpending),
+            classification: receipt.networkGate.classification || null,
+            ownerGesture: Boolean(receipt.networkGate.ownerGesture),
+          }
+        : null,
     });
   }
 
@@ -692,6 +740,9 @@ function createFeed(args) {
   const trust = trustCounts(inventory?.capabilities || []);
   const processRisk = processHealth?.summary?.riskState || 'unknown';
   const networkRisk = networkReality?.health?.state || 'pass';
+  const runNetworkBlockedCount = runReceipts.filter((receipt) => receipt.networkGate && !receipt.networkGate.allowed).length;
+  const runBandwidthSpendingCount = runReceipts.filter((receipt) => receipt.networkGate?.bandwidthSpending || receipt.command?.bandwidthSpending).length;
+  const runOwnerNetworkGestureCount = runReceipts.filter((receipt) => receipt.networkGate?.ownerGesture).length;
   const mcpCustodyRisk = riskFromEvidenceStatus(mcpCustodyContract?.summary?.status || 'unknown');
   const mcpHandoffRisk = mcpUpstreamHandoff?.summary?.status === 'ready_for_upstream_agent'
     ? 'warn'
@@ -817,6 +868,7 @@ function createFeed(args) {
       networkRealityConnectivity: networkReality?.underlay?.connectivity || 'Unknown',
       networkRealityVpnState: networkReality?.underlay?.vpnState || 'unknown',
       networkRealityHealthState: networkReality?.health?.state || 'unknown',
+      networkRealityContractStatus: networkContractStatus(networkReality),
       networkRealityBandwidthPosture: networkReality?.policy?.bandwidthPosture || 'unknown',
       networkRealityHeavyWorkPolicy: networkReality?.policy?.heavyWorkPolicy || 'unknown',
       networkRealityBrittneyStance: networkReality?.brittney?.stance || 'unknown',
@@ -825,6 +877,9 @@ function createFeed(args) {
       networkRealityAgentOrShellConsumerCount: networkReality?.lanes?.agentOrShellNetworkConsumerCount || 0,
       networkRealityLegacyConsumerCount: networkReality?.lanes?.legacyNetworkConsumerCount || 0,
       networkRealityProcessCountIsNotPeerCount: Boolean(networkReality?.lanes?.processCountIsNotPeerCount),
+      runNetworkBlockedCount,
+      runBandwidthSpendingCount,
+      runOwnerNetworkGestureCount,
       mcpCustodyContractStatus: mcpCustodyContract?.summary?.status || 'unknown',
       mcpCustodyCompatibilityMode: mcpCustodyContract?.summary?.compatibilityMode || 'unknown',
       nativeMcpCustodySplit: Boolean(mcpCustodyContract?.summary?.nativeMcpCustodySplit),

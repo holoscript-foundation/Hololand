@@ -56,6 +56,13 @@ composition "HoloShell Home" {
     legacyMachineCount: 0
     activeAgentLaneCount: 0
     processHealthStatus: "unknown"
+    networkRealityStatus: "unknown"
+    networkRealityContractStatus: "unknown"
+    networkBandwidthPosture: "unknown"
+    networkHeavyWorkPolicy: "unknown"
+    networkBlockedRunCount: 0
+    networkBandwidthSpendRunCount: 0
+    networkOwnerGestureCount: 0
     activeShellRunCount: 0
     registeredRunCount: 0
     ownedProcessCount: 0
@@ -859,6 +866,19 @@ composition "HoloShell Home" {
         stop_policy: "break_glass_required"
       }
 
+      object "NetworkBandwidthGuard" {
+        type: "ui"
+        uiType: "network_bandwidth_guard"
+        label: "Network Guard"
+        status: $networkRealityStatus
+        contract: $networkRealityContractStatus
+        bandwidth_posture: $networkBandwidthPosture
+        heavy_work_policy: $networkHeavyWorkPolicy
+        blocked_runs: $networkBlockedRunCount
+        bandwidth_spending_runs: $networkBandwidthSpendRunCount
+        owner_gestures: $networkOwnerGestureCount
+      }
+
       object "StopPlanQueue" using "StopPlanNode" {
         label: "Cleanup Plans"
         count: $stopPlanCount
@@ -1087,6 +1107,13 @@ composition "HoloShell Home" {
     state.legacyMachineCount = feedBundle.summary.legacyProgramCount
     state.activeAgentLaneCount = feedBundle.summary.activeLaneCount
     state.processHealthStatus = feedBundle.summary.processRisk
+    state.networkRealityStatus = feedBundle.summary.networkRealityStatus
+    state.networkRealityContractStatus = feedBundle.summary.networkRealityContractStatus
+    state.networkBandwidthPosture = feedBundle.summary.networkRealityBandwidthPosture
+    state.networkHeavyWorkPolicy = feedBundle.summary.networkRealityHeavyWorkPolicy
+    state.networkBlockedRunCount = feedBundle.summary.runNetworkBlockedCount || 0
+    state.networkBandwidthSpendRunCount = feedBundle.summary.runBandwidthSpendingCount || 0
+    state.networkOwnerGestureCount = feedBundle.summary.runOwnerNetworkGestureCount || 0
     state.activeShellRunCount = feedBundle.feeds.processHealth.summary.shellRunCount
     state.registeredRunCount = feedBundle.feeds.processHealth.summary.registeredRunCount
     state.ownedProcessCount = feedBundle.feeds.processHealth.summary.ownedProcessCount
@@ -1844,3 +1871,4 @@ composition "HoloShell Home" {
       rollback: receipt.rollback || "unknown"
     })
   }
+}

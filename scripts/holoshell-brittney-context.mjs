@@ -440,10 +440,12 @@ function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operator
       id: item.id,
       kind: item.kind || 'receipt',
       title: item.title || item.id,
+      detail: item.detail || '',
       trustState: item.trustState || 'unknown',
       generatedAt: item.generatedAt || liveFeed.generatedAt || '',
       receiptType: item.receiptType || '',
       source: item.source || '',
+      networkGate: item.networkGate || null,
     });
   }
   if (brittneyTurn?.turnId) {
