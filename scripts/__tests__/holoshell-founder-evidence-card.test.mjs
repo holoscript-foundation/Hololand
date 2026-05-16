@@ -17,6 +17,8 @@ const shellObjects = JSON.parse(readFileSync(SHELL_OBJECTS_PATH, 'utf8'));
 
 assert.match(html, /founder-evidence-demo-latest\.js/, 'prototype must load Founder evidence bootstrap');
 assert.match(html, /id="founderEvidenceCard"/, 'prototype must expose Founder evidence card');
+assert.match(html, /\.os-world\s*\{\s*order:\s*-2;/, 'single-column layout must show operating world before Brittney');
+assert.match(html, /\.brittney\s*\{\s*order:\s*-1;/, 'single-column layout must keep Brittney after operating evidence');
 assert.match(html, /function founderEvidenceDemoFeed\(\)/, 'prototype must read Founder evidence feed');
 assert.match(html, /function renderFounderEvidenceCard\(\)/, 'prototype must render Founder evidence card');
 assert.match(html, /renderFounderEvidenceCard\(\)/, 'prototype must invoke Founder evidence renderer');
