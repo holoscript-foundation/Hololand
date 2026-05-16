@@ -6,6 +6,7 @@ requests into existing guarded HoloShell adapters.
 Examples:
 
 ```text
+Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube
 open Claude and start a chat
 launch Codex through Ollama
 start room marathon using Ollama Kimi Cloud
@@ -40,6 +41,7 @@ hands off to the selected existing adapter:
 ```text
 /workflow/claude-chat
 /workflow/ollama-cloud-agent
+/workflow/founder-command
 /workflow/room-marathon
 /action
 ```

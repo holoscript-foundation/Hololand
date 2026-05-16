@@ -586,6 +586,7 @@ function stageAgentDispatch(args, body = {}) {
   if (route === '/workflow/claude-chat') downstream = stageClaudeChat(args, routedBody);
   else if (route === '/workflow/ollama-cloud-agent') downstream = stageOllamaCloudAgent(args, routedBody);
   else if (route === '/workflow/grok-build') downstream = stageGrokBuild(args, routedBody);
+  else if (route === '/workflow/founder-command') downstream = stageFounderCommand(args, routedBody);
   else if (route === '/workflow/room-marathon') downstream = stageRoomMarathon(args, routedBody);
   else if (route === '/action') downstream = stageAction(args, routedBody);
   else {
@@ -604,6 +605,7 @@ function stageAgentDispatch(args, body = {}) {
     workflowApproval: downstream.workflowApproval,
     workflowIntentGate: downstream.workflowIntentGate,
     grokBuildSetup: downstream.grokBuildSetup,
+    founderCommand: downstream.founderCommand,
     feed: downstream.feed || readJson(tmpPath(args, 'live-feed.json'), {}),
     logs: {
       dispatch: dispatchResult.stdout.trim(),

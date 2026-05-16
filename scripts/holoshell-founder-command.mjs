@@ -169,9 +169,9 @@ function fixtureReceipt(args) {
     dispatch: {
       summary: {
         status: 'ready_to_stage',
-        capabilityId: 'room_marathon',
-        capabilityLabel: 'Room Marathon',
-        confidence: 98,
+        capabilityId: 'founder_command',
+        capabilityLabel: 'Founder Command',
+        confidence: 99,
       },
     },
     claudeWorkflow: {

@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SCHEMA_VERSION = 'hololand.holoshell.agent-dispatch.v0.1.0';
 const __filename = fileURLToPath(import.meta.url);
@@ -36,6 +36,14 @@ const OLLAMA_AGENTS = [
 ];
 
 const CAPABILITIES = [
+  {
+    id: 'founder_command',
+    label: 'Founder Command',
+    route: '/workflow/founder-command',
+    dispatchKind: 'workflow',
+    permissionEnvelope: 'guarded_execute',
+    examples: ['Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube'],
+  },
   {
     id: 'claude_chat',
     label: 'Claude Chat',
@@ -237,12 +245,28 @@ function programNameFromIntent(intent) {
     .trim();
 }
 
+function isFounderFlagshipIntent(intent) {
+  const text = normalize(intent);
+  const mentionsClaude = text.includes('claude');
+  const mentionsRoomMarathon = text.includes('room marathon') || (text.includes('room') && text.includes('marathon'));
+  const mentionsOllamaKimi = text.includes('kimi') && (text.includes('ollama') || text.includes('cloud'));
+  const mentionsBrowserMedia = text.includes('lofi') || (text.includes('youtube') && text.includes('music'));
+  const mentionsOpenBrowser = text.includes('browser') || text.includes('youtube');
+  const namesBrittney = text.startsWith('brittney') || text.includes(' brittney ');
+  return mentionsClaude
+    && (mentionsRoomMarathon || mentionsOllamaKimi)
+    && mentionsBrowserMedia
+    && mentionsOpenBrowser
+    && (namesBrittney || /\b(open|start|launch|play)\b/.test(text));
+}
+
 function scoreIntent(intent) {
   const text = normalize(intent);
   const scores = new Map(CAPABILITIES.map((capability) => [capability.id, 0]));
 
   if (!text) return scores;
 
+  if (isFounderFlagshipIntent(intent)) scores.set('founder_command', 99);
   if (text.includes('room marathon') || (text.includes('marathon') && text.includes('room'))) scores.set('room_marathon', 98);
   if (text.includes('kimi') && (text.includes('ollama') || text.includes('cloud'))) {
     scores.set('room_marathon', Math.max(scores.get('room_marathon'), 86));
@@ -285,6 +309,16 @@ function bestCapability(intent) {
 function buildRouteBody(capability, args, agent) {
   const text = normalize(args.intent);
   if (!capability) return {};
+  if (capability.id === 'founder_command') {
+    return {
+      actor: args.actor,
+      intent: args.intent,
+      model: text.includes('kimi') ? 'kimi-cloud' : 'kimi-cloud',
+      modelRoute: 'ollama_cloud',
+      claudeApp: 'Claude',
+      lofiUrl: DEFAULT_LOFI_URL,
+    };
+  }
   if (capability.id === 'claude_chat') {
     return {
       actor: args.actor,
@@ -466,6 +500,7 @@ function assertSelfTest() {
     ['ollama launch hermes', 'ollama_cloud_agent', 'workflow'],
     ['open Grok Build', 'grok_build', 'workflow'],
     ['ask Grok to inspect this repo', 'grok_build', 'workflow'],
+    ['Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube', 'founder_command', 'workflow'],
     ['open terminal start room marathon using ollama kimi cloud', 'room_marathon', 'workflow'],
     ['open browser and play lofi music on youtube', 'browser_lofi', 'hardware_action'],
     ['open Excel', 'open_excel', 'hardware_action'],
@@ -509,11 +544,13 @@ function main() {
   }
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(`holoshell-agent-dispatch failed: ${error.message}`);
-  process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    main();
+  } catch (error) {
+    console.error(`holoshell-agent-dispatch failed: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 export { buildReceipt, CAPABILITIES };

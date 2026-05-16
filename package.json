@@ -29,6 +29,7 @@
     "check:cross-mcp-receipt-envelope": "node scripts/check-cross-mcp-receipt-envelope.mjs",
     "cael:export": "node scripts/cael-trace-corpus-exporter.mjs",
     "test:cael-exporter": "node scripts/__tests__/cael-trace-corpus-exporter.test.mjs",
+    "test:holoshell-agent-dispatch": "node scripts/__tests__/holoshell-agent-dispatch.test.mjs",
     "test:holoshell-network-reality": "node scripts/__tests__/holoshell-network-reality.test.mjs",
     "format": "pnpm -r format",
     "holoshell:hardware-reality": "node scripts/holoshell-hardware-reality-bridge.mjs",

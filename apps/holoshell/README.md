@@ -398,6 +398,8 @@ node scripts\holoshell-program-registry.mjs
 node scripts\holoshell-action-executor.mjs --self-test
 node scripts\holoshell-action-executor.mjs --action list_windows
 node scripts\holoshell-action-executor.mjs --action list_programs
+node scripts\holoshell-agent-dispatch.mjs --self-test
+node scripts\__tests__\holoshell-agent-dispatch.test.mjs
 node scripts\holoshell-approval-bundle.mjs --self-test
 node scripts\holoshell-approval-bundle.mjs
 node scripts\holoshell-workflow-approval-bundle.mjs --self-test

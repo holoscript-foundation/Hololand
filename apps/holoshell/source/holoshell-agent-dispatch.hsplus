@@ -106,7 +106,7 @@ composition "HoloShell Agent Dispatch" {
   }
 
   policy "DispatchToGuardedAdapter" {
-    appliesTo: ["claude_chat", "ollama_cloud_agent", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
+    appliesTo: ["founder_command", "claude_chat", "ollama_cloud_agent", "room_marathon", "browser_lofi", "open_excel", "open_terminal", "open_browser"]
     permissionEnvelope: "guarded_execute"
     approvalRequired: true
     mutating: true
