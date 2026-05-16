@@ -27,6 +27,8 @@ composition "HoloShell Home" {
     shellObjectGraph: ".tmp/holoshell/shell-objects.json"
     networkFreshnessSource: "apps/holoshell/source/holoshell-network-freshness-watch.hsplus"
     networkFreshnessReceipt: ".tmp/holoshell/network-freshness.json"
+    networkChangeSentinelSource: "apps/holoshell/source/holoshell-network-change-sentinel.hsplus"
+    networkChangeSentinelReceipt: ".tmp/holoshell/network-change-events.json"
     legacyAppRealityReceipt: ".tmp/holoshell/legacy-app-reality.json"
     wildHoloScriptIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
     wildHoloScriptIntakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
@@ -75,6 +77,14 @@ composition "HoloShell Home" {
     networkFreshnessStaleBeforeRefresh: false
     networkFreshnessReceiptAgeMs: 0
     networkFreshnessDependentRefreshStatus: "unknown"
+    networkChangeSentinelStatus: "unknown"
+    networkChangeSentinelLastObservationKind: "unknown"
+    networkChangeSentinelLatestEventKind: "unknown"
+    networkChangeSentinelEventCount: 0
+    networkChangeSentinelChangeEventCount: 0
+    networkChangeSentinelCurrentClassification: "unknown"
+    networkChangeSentinelLastObservedAt: ""
+    networkChangeSentinelLastChangeAt: ""
     legacyRealityStatus: "unknown"
     legacyRealityContractStatus: "unknown"
     legacyRealityProcessCount: 0
@@ -915,6 +925,20 @@ composition "HoloShell Home" {
         dependent_refresh: $networkFreshnessDependentRefreshStatus
       }
 
+      object "NetworkChangeSentinel" {
+        type: "ui"
+        uiType: "network_event_lane"
+        label: "Network Events"
+        status: $networkChangeSentinelStatus
+        last_observation: $networkChangeSentinelLastObservationKind
+        latest_event: $networkChangeSentinelLatestEventKind
+        events: $networkChangeSentinelEventCount
+        change_events: $networkChangeSentinelChangeEventCount
+        current_classification: $networkChangeSentinelCurrentClassification
+        last_observed_at: $networkChangeSentinelLastObservedAt
+        last_change_at: $networkChangeSentinelLastChangeAt
+      }
+
       object "LegacyRealityIngest" {
         type: "ui"
         uiType: "legacy_reality_ingest"
@@ -1174,6 +1198,14 @@ composition "HoloShell Home" {
     state.networkFreshnessStaleBeforeRefresh = feedBundle.summary.networkFreshnessStaleBeforeRefresh || false
     state.networkFreshnessReceiptAgeMs = feedBundle.summary.networkFreshnessPreviousReceiptAgeMs || 0
     state.networkFreshnessDependentRefreshStatus = feedBundle.summary.networkFreshnessDependentRefreshStatus
+    state.networkChangeSentinelStatus = feedBundle.summary.networkChangeSentinelStatus
+    state.networkChangeSentinelLastObservationKind = feedBundle.summary.networkChangeSentinelLastObservationKind
+    state.networkChangeSentinelLatestEventKind = feedBundle.summary.networkChangeSentinelLatestEventKind
+    state.networkChangeSentinelEventCount = feedBundle.summary.networkChangeSentinelEventCount || 0
+    state.networkChangeSentinelChangeEventCount = feedBundle.summary.networkChangeSentinelChangeEventCount || 0
+    state.networkChangeSentinelCurrentClassification = feedBundle.summary.networkChangeSentinelCurrentClassification
+    state.networkChangeSentinelLastObservedAt = feedBundle.summary.networkChangeSentinelLastObservedAt
+    state.networkChangeSentinelLastChangeAt = feedBundle.summary.networkChangeSentinelLastChangeAt
     state.legacyRealityStatus = feedBundle.summary.legacyAppRealityStatus
     state.legacyRealityContractStatus = feedBundle.summary.legacyAppRealityContractStatus
     state.legacyRealityProcessCount = feedBundle.summary.legacyAppRealityProcessCount || 0

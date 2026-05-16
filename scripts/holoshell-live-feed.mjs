@@ -126,6 +126,20 @@ function networkFreshnessTrustState(networkFreshness) {
   return 'unknown';
 }
 
+function networkChangeSentinelRisk(networkChangeEvents) {
+  const status = networkChangeEvents?.summary?.status;
+  if (status === 'warn' || networkChangeEvents?.summary?.lastObservationKind === 'refresh_failed') return 'warn';
+  if (status === 'observed' || status === 'watching') return 'pass';
+  return 'unknown';
+}
+
+function networkChangeSentinelTrustState(networkChangeEvents) {
+  const status = networkChangeEvents?.summary?.status;
+  if (status === 'observed' || status === 'watching') return 'verified';
+  if (status === 'warn') return 'partial';
+  return 'unknown';
+}
+
 function legacyRealityContractStatus(legacyAppReality) {
   return legacyAppReality?.schemaContract?.validationStatus || 'missing';
 }
@@ -164,7 +178,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -323,6 +337,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: networkFreshness.generatedAt || now,
       receiptType: networkFreshness.schemaVersion,
       source: networkFreshness.sourceAnchors?.adapter || 'scripts/holoshell-network-freshness-watch.mjs',
+    });
+  }
+
+  if (networkChangeEvents?.summary) {
+    const summary = networkChangeEvents.summary;
+    timeline.push({
+      id: 'network-change-sentinel',
+      kind: 'network_change_sentinel',
+      title: `Network sentinel ${summary.lastObservationKind || 'unknown'}`,
+      detail: `${summary.eventCount || 0} stored event(s), ${summary.changeEventCount || 0} change event(s); current ${summary.currentClassification || 'unknown'}; latest ${summary.latestEventKind || 'none'}.`,
+      trustState: networkChangeSentinelTrustState(networkChangeEvents),
+      generatedAt: networkChangeEvents.generatedAt || now,
+      receiptType: networkChangeEvents.schemaVersion,
+      source: networkChangeEvents.sourceAnchors?.adapter || 'scripts/holoshell-network-change-sentinel.mjs',
     });
   }
 
@@ -733,6 +761,7 @@ function createFeed(args) {
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const networkReality = readJson(path.join(tmpDir, 'network-reality.json'), {});
   const networkFreshness = readJson(path.join(tmpDir, 'network-freshness.json'), {});
+  const networkChangeEvents = readJson(path.join(tmpDir, 'network-change-events.json'), {});
   const legacyAppReality = readJson(path.join(tmpDir, 'legacy-app-reality.json'), {});
   const mcpCustodyContract = readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {});
   const mcpUpstreamHandoff = readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {});
@@ -781,6 +810,7 @@ function createFeed(args) {
     processHealth,
     networkReality,
     networkFreshness,
+    networkChangeEvents,
     legacyAppReality,
     mcpCustodyContract,
     mcpUpstreamHandoff,
@@ -812,6 +842,7 @@ function createFeed(args) {
   const processRisk = processHealth?.summary?.riskState || 'unknown';
   const networkRisk = networkReality?.health?.state || 'pass';
   const freshnessRisk = networkFreshnessRisk(networkFreshness);
+  const networkChangeRisk = networkChangeSentinelRisk(networkChangeEvents);
   const legacyRealityRisk = legacyRealityContractStatus(legacyAppReality) === 'fail'
     ? 'warn'
     : legacyRealityContractStatus(legacyAppReality) === 'missing'
@@ -828,7 +859,7 @@ function createFeed(args) {
       : 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, freshnessRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -841,6 +872,8 @@ function createFeed(args) {
       networkRealityAdapter: 'scripts/holoshell-network-reality.mjs',
       networkFreshness: 'apps/holoshell/source/holoshell-network-freshness-watch.hsplus',
       networkFreshnessAdapter: 'scripts/holoshell-network-freshness-watch.mjs',
+      networkChangeSentinel: 'apps/holoshell/source/holoshell-network-change-sentinel.hsplus',
+      networkChangeSentinelAdapter: 'scripts/holoshell-network-change-sentinel.mjs',
       legacyAppRealityAdapter: 'scripts/holoshell-legacy-app-reality.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
@@ -969,6 +1002,18 @@ function createFeed(args) {
       networkFreshnessDependentRefreshStatus: networkFreshness?.summary?.dependentRefreshStatus || 'unknown',
       networkFreshnessLiveFeedRefreshed: Boolean(networkFreshness?.summary?.liveFeedRefreshed),
       networkFreshnessBrittneyContextRefreshed: Boolean(networkFreshness?.summary?.brittneyContextRefreshed),
+      networkChangeSentinelStatus: networkChangeEvents?.summary?.status || 'unknown',
+      networkChangeSentinelWatchMode: networkChangeEvents?.summary?.watchMode || 'unknown',
+      networkChangeSentinelLastObservationKind: networkChangeEvents?.summary?.lastObservationKind || 'unknown',
+      networkChangeSentinelLatestEventKind: networkChangeEvents?.summary?.latestEventKind || 'unknown',
+      networkChangeSentinelEventCount: networkChangeEvents?.summary?.eventCount || 0,
+      networkChangeSentinelChangeEventCount: networkChangeEvents?.summary?.changeEventCount || 0,
+      networkChangeSentinelClassificationChangedCount: networkChangeEvents?.summary?.classificationChangedCount || 0,
+      networkChangeSentinelSignatureChangedCount: networkChangeEvents?.summary?.signatureChangedCount || 0,
+      networkChangeSentinelRefreshFailedCount: networkChangeEvents?.summary?.refreshFailedCount || 0,
+      networkChangeSentinelLastObservedAt: networkChangeEvents?.summary?.lastObservedAt || '',
+      networkChangeSentinelLastChangeAt: networkChangeEvents?.summary?.lastChangeAt || '',
+      networkChangeSentinelCurrentClassification: networkChangeEvents?.summary?.currentClassification || 'unknown',
       legacyAppRealityStatus: legacyAppReality?.summary?.confidence || 'unknown',
       legacyAppRealityContractStatus: legacyRealityContractStatus(legacyAppReality),
       legacyAppRealityProcessCount: legacyAppReality?.summary?.processCount || 0,
@@ -1219,6 +1264,7 @@ function createFeed(args) {
       processHealth,
       networkReality,
       networkFreshness,
+      networkChangeEvents,
       legacyAppReality,
       mcpCustodyContract,
       mcpUpstreamHandoff,
@@ -1318,6 +1364,7 @@ try {
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
     console.log(`Network reality: ${feed.summary.networkRealityStatus}`);
     console.log(`Network freshness: ${feed.summary.networkFreshnessStatus}`);
+    console.log(`Network sentinel: ${feed.summary.networkChangeSentinelLastObservationKind}`);
     console.log(`Legacy app reality: ${feed.summary.legacyAppRealityStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);

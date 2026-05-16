@@ -1,0 +1,134 @@
+// HoloShell Network Change Sentinel
+//
+// Product source for the always-on local network observer. It consumes the
+// freshness guard, writes a redacted event ledger, and exposes changes as a
+// HoloShell-visible lane for Brittney and non-developer operators.
+
+composition "HoloShell Network Change Sentinel" {
+  config {
+    title: "Network Change Sentinel"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-network-change-sentinel.mjs"
+    freshnessSource: "apps/holoshell/source/holoshell-network-freshness-watch.hsplus"
+    freshnessReceipt: ".tmp/holoshell/network-freshness.json"
+    eventLedgerReceipt: ".tmp/holoshell/network-change-events.json"
+    latestEventReceipt: ".tmp/holoshell/network-change-latest.json"
+    defaultIntervalMs: 30000
+    defaultMaxEvents: 200
+    mode: "local_redacted_change_ledger"
+  }
+
+  state {
+    sentinelStatus: "unknown"
+    watchMode: "once"
+    lastObservationKind: "unknown"
+    latestEventKind: "unknown"
+    lastObservedAt: ""
+    lastChangeAt: ""
+    currentClassification: "unknown"
+    previousClassification: "unknown"
+    eventCount: 0
+    changeEventCount: 0
+    classificationChangedCount: 0
+    signatureChangedCount: 0
+    staleRefreshCount: 0
+    refreshFailedCount: 0
+    endpointDetailsRedacted: true
+    staleNetworkReceiptMayDriveActions: false
+  }
+
+  channel "holoshell:network:change-events" {
+    type: "append_only"
+    priority: "critical"
+    description: "Redacted local network change events derived from freshness receipts"
+  }
+
+  channel "holoshell:network:sentinel" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Latest network sentinel observation for HoloShell, Brittney, and run gates"
+  }
+
+  template "NetworkChangeEvent" {
+    type: "event"
+    eventType: "network_change"
+    privacyScope: "local_only"
+    eventKind: "unknown"
+    previousClassification: "unknown"
+    currentClassification: "unknown"
+    endpointDetailsRedacted: true
+    receiptRequired: true
+  }
+
+  room "NetworkChangeSentinelRoom" {
+    label: "Network Sentinel"
+    userQuestion: "Did the computer network change while agents were operating?"
+    visualForm: "network_event_lane"
+    liveFeed: "holoshell:network:sentinel"
+
+    object "NetworkSentinelLane" {
+      type: "ui"
+      uiType: "network_event_lane"
+      label: "Network Events"
+      status: $sentinelStatus
+      watch_mode: $watchMode
+      last_observation: $lastObservationKind
+      latest_event: $latestEventKind
+      previous_classification: $previousClassification
+      current_classification: $currentClassification
+      event_count: $eventCount
+      change_events: $changeEventCount
+      last_change_at: $lastChangeAt
+      endpoint_details_redacted: $endpointDetailsRedacted
+    }
+  }
+
+  policy "RedactedEventLedgerOnly" {
+    appliesTo: ["network_change_event", "brittney_context", "live_feed"]
+    rawSsidIncluded: false
+    rawBssidIncluded: false
+    ipAddressIncluded: false
+    gatewayIncluded: false
+    remoteEndpointIncluded: false
+    endpointDetailsRedacted: true
+    localOnly: true
+  }
+
+  policy "SentinelPrecedesAgentVisibleFeed" {
+    appliesTo: ["holoshell_control_daemon", "live_feed", "brittney_context"]
+    requiredOrder: ["network_freshness", "network_change_sentinel", "live_feed", "brittney_context"]
+    staleNetworkReceiptMayDriveActions: false
+    receiptRequired: true
+  }
+
+  action consume_network_change_ledger(ledger) {
+    state.sentinelStatus = ledger.summary.status
+    state.watchMode = ledger.summary.watchMode
+    state.lastObservationKind = ledger.summary.lastObservationKind
+    state.latestEventKind = ledger.summary.latestEventKind
+    state.lastObservedAt = ledger.summary.lastObservedAt
+    state.lastChangeAt = ledger.summary.lastChangeAt
+    state.currentClassification = ledger.summary.currentClassification
+    state.previousClassification = ledger.summary.previousClassification
+    state.eventCount = ledger.summary.eventCount
+    state.changeEventCount = ledger.summary.changeEventCount
+    state.classificationChangedCount = ledger.summary.classificationChangedCount
+    state.signatureChangedCount = ledger.summary.signatureChangedCount
+    state.staleRefreshCount = ledger.summary.staleRefreshCount
+    state.refreshFailedCount = ledger.summary.refreshFailedCount
+    state.endpointDetailsRedacted = ledger.policy.endpointDetailsRedacted
+    state.staleNetworkReceiptMayDriveActions = ledger.policy.staleNetworkReceiptMayDriveActions
+
+    emit("holoshell:network:sentinel", {
+      status: state.sentinelStatus,
+      lastObservationKind: state.lastObservationKind,
+      latestEventKind: state.latestEventKind,
+      currentClassification: state.currentClassification,
+      eventCount: state.eventCount,
+      changeEventCount: state.changeEventCount,
+      lastChangeAt: state.lastChangeAt,
+      receiptHash: ledger.receipt.snapshotHash
+    })
+  }
+}

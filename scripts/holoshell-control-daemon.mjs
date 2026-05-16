@@ -174,7 +174,7 @@ function refreshRegistry(args) {
 }
 
 function refreshNetworkFreshness() {
-  return runChecked(['scripts/holoshell-network-freshness-watch.mjs', '--skip-dependents']);
+  return runChecked(['scripts/holoshell-network-change-sentinel.mjs', '--once']);
 }
 
 function refreshLiveFeed() {

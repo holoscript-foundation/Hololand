@@ -389,6 +389,39 @@ function summarizeNetworkFreshness(networkFreshness) {
   };
 }
 
+function summarizeNetworkChangeEvents(networkChangeEvents) {
+  const summary = networkChangeEvents.summary || {};
+  return {
+    status: summary.status || 'unknown',
+    watchMode: summary.watchMode || 'unknown',
+    lastObservationKind: summary.lastObservationKind || 'unknown',
+    latestEventKind: summary.latestEventKind || 'unknown',
+    lastObservedAt: summary.lastObservedAt || '',
+    lastChangeAt: summary.lastChangeAt || '',
+    previousClassification: summary.previousClassification || 'unknown',
+    currentClassification: summary.currentClassification || 'unknown',
+    eventCount: summary.eventCount || 0,
+    changeEventCount: summary.changeEventCount || 0,
+    classificationChangedCount: summary.classificationChangedCount || 0,
+    signatureChangedCount: summary.signatureChangedCount || 0,
+    staleRefreshCount: summary.staleRefreshCount || 0,
+    refreshFailedCount: summary.refreshFailedCount || 0,
+    endpointDetailsRedacted: Boolean(networkChangeEvents.policy?.endpointDetailsRedacted),
+    staleNetworkReceiptMayDriveActions: Boolean(networkChangeEvents.policy?.staleNetworkReceiptMayDriveActions),
+    latestEvents: safeArray(networkChangeEvents.events).slice(-5).map((event) => ({
+      eventId: event.eventId,
+      observedAt: event.observedAt,
+      eventKind: event.eventKind,
+      previousClassification: event.previousClassification,
+      currentClassification: event.currentClassification,
+      classificationChanged: Boolean(event.classificationChanged),
+      signatureChanged: Boolean(event.signatureChanged),
+      staleBeforeRefresh: Boolean(event.staleBeforeRefresh),
+    })),
+    receiptHash: networkChangeEvents.receipt?.snapshotHash || '',
+  };
+}
+
 function summarizeMcpCustodyContract(mcpCustodyContract) {
   const summary = mcpCustodyContract?.summary || {};
   return {
@@ -613,6 +646,7 @@ function loadInputs(args) {
     programRegistry: readJson(path.join(tmpDir, 'program-registry.json'), {}),
     processHealth: readJson(path.join(tmpDir, 'process-health.json'), {}),
     networkFreshness: readJson(path.join(tmpDir, 'network-freshness.json'), {}),
+    networkChangeEvents: readJson(path.join(tmpDir, 'network-change-events.json'), {}),
     legacyAppReality: readJson(path.join(tmpDir, 'legacy-app-reality.json'), {}),
     mcpCustodyContract: readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {}),
     mcpUpstreamHandoff: readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {}),
@@ -740,6 +774,44 @@ function fixtureInputs() {
       },
       receipt: { snapshotHash: 'fixture-network-freshness' },
     },
+    networkChangeEvents: {
+      schemaVersion: 'hololand.holoshell.network-change-events.v0.1.0',
+      generatedAt: '2026-05-14T00:00:00.645Z',
+      summary: {
+        status: 'observed',
+        watchMode: 'once',
+        lastObservationKind: 'routine_check',
+        latestEventKind: 'classification_changed',
+        lastObservedAt: '2026-05-14T00:00:00.645Z',
+        lastChangeAt: '2026-05-14T00:00:00.640Z',
+        previousClassification: 'normal_unmetered',
+        currentClassification: 'normal_unmetered',
+        eventCount: 1,
+        changeEventCount: 1,
+        classificationChangedCount: 1,
+        signatureChangedCount: 0,
+        staleRefreshCount: 0,
+        refreshFailedCount: 0,
+      },
+      events: [
+        {
+          eventId: 'netevt_fixture',
+          observedAt: '2026-05-14T00:00:00.640Z',
+          eventKind: 'classification_changed',
+          previousClassification: 'metered_or_hotspot',
+          currentClassification: 'normal_unmetered',
+          classificationChanged: true,
+          signatureChanged: true,
+          staleBeforeRefresh: true,
+          rawIdentifiersIncluded: false,
+        },
+      ],
+      policy: {
+        staleNetworkReceiptMayDriveActions: false,
+        endpointDetailsRedacted: true,
+      },
+      receipt: { snapshotHash: 'fixture-network-events' },
+    },
     legacyAppReality: {
       schemaVersion: 'hololand.holoshell.legacy-app-reality.v0.1.0',
       generatedAt: '2026-05-14T00:00:00.650Z',
@@ -848,6 +920,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const agentLaneSummary = summarizeLanes(inputs.lanes);
   const processHealthSummary = summarizeProcessHealth(inputs.processHealth, inputs.operatorBrief);
   const networkFreshnessSummary = summarizeNetworkFreshness(inputs.networkFreshness);
+  const networkChangeSummary = summarizeNetworkChangeEvents(inputs.networkChangeEvents);
   const legacyAppRealitySummary = summarizeLegacyAppReality(inputs.legacyAppReality);
   const mcpCustodyContractSummary = summarizeMcpCustodyContract(inputs.mcpCustodyContract);
   const mcpUpstreamHandoffSummary = summarizeMcpUpstreamHandoff(inputs.mcpUpstreamHandoff);
@@ -865,6 +938,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     agentLaneSummary,
     processHealthSummary,
     networkFreshnessSummary,
+    networkChangeSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -888,6 +962,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       processHealth: 'scripts/holoshell-process-health.mjs',
       networkFreshness: 'scripts/holoshell-network-freshness-watch.mjs',
+      networkChangeSentinel: 'scripts/holoshell-network-change-sentinel.mjs',
       legacyAppReality: 'scripts/holoshell-legacy-app-reality.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
@@ -904,6 +979,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     agentLaneSummary,
     processHealthSummary,
     networkFreshnessSummary,
+    networkChangeSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -937,6 +1013,15 @@ function createPacket(args, inputs = loadInputs(args)) {
       networkFreshnessDependentRefreshStatus: networkFreshnessSummary.dependentRefreshStatus,
       networkFreshnessRefreshBeforeLiveFeed: networkFreshnessSummary.refreshBeforeLiveFeed,
       staleNetworkReceiptMayDriveActions: networkFreshnessSummary.staleNetworkReceiptMayDriveActions,
+      networkChangeSentinelStatus: networkChangeSummary.status,
+      networkChangeSentinelWatchMode: networkChangeSummary.watchMode,
+      networkChangeSentinelLastObservationKind: networkChangeSummary.lastObservationKind,
+      networkChangeSentinelLatestEventKind: networkChangeSummary.latestEventKind,
+      networkChangeSentinelEventCount: networkChangeSummary.eventCount,
+      networkChangeSentinelChangeEventCount: networkChangeSummary.changeEventCount,
+      networkChangeSentinelCurrentClassification: networkChangeSummary.currentClassification,
+      networkChangeSentinelRefreshFailedCount: networkChangeSummary.refreshFailedCount,
+      networkChangeSentinelEndpointDetailsRedacted: networkChangeSummary.endpointDetailsRedacted,
       legacyRealityStatus: legacyAppRealitySummary.status,
       legacyRealityContractStatus: legacyAppRealitySummary.contractStatus,
       legacyRealityAgentInstanceCount: legacyAppRealitySummary.agentInstanceCount,
@@ -988,6 +1073,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       requiredRefreshOrder: [
         'pnpm run holoshell:hardware-reality',
         'pnpm run holoshell:network-watch',
+        'node scripts/holoshell-network-change-sentinel.mjs --once',
         'pnpm run holoshell:mcp-custody-contract',
         'pnpm run holoshell:mcp-upstream-handoff',
         'pnpm run holoshell:legacy-windows',
@@ -1023,6 +1109,9 @@ function assertSelfTest(packet) {
   if (packet.networkFreshnessSummary.classificationChanged !== true) failures.push('expected network classification change evidence');
   if (packet.networkFreshnessSummary.staleNetworkReceiptMayDriveActions !== false) failures.push('stale network receipts must not drive Brittney');
   if (packet.summary.networkFreshnessRefreshBeforeLiveFeed !== true) failures.push('expected network freshness before live feed policy');
+  if (packet.networkChangeSummary.changeEventCount < 1) failures.push('expected network change sentinel event');
+  if (packet.networkChangeSummary.endpointDetailsRedacted !== true) failures.push('expected redacted network event ledger');
+  if (packet.networkChangeSummary.staleNetworkReceiptMayDriveActions !== false) failures.push('network event ledger must not permit stale receipts');
   if (packet.legacyAppRealitySummary.agentInstanceCount < 2) failures.push('expected legacy app reality agent instances');
   if (packet.legacyAppRealitySummary.processCountIsPeerCount !== false) failures.push('legacy app reality must reject process-count peer counts');
   if (packet.summary.legacyRealityContractStatus !== 'pass') failures.push('expected legacy app reality contract pass');
