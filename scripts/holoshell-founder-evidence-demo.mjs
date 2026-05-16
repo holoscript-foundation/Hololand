@@ -35,6 +35,7 @@ function parseArgs(argv = process.argv.slice(2)) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === '--') continue;
     if (arg === '--intent') args.intent = argv[++index] || DEFAULT_INTENT;
     else if (arg === '--actor') args.actor = argv[++index] || args.actor;
     else if (arg === '--action') args.action = argv[++index] || args.action;

@@ -9,7 +9,7 @@ const REPO_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const OUTPUT = path.join(REPO_ROOT, '.tmp', 'holoshell', 'self-test', 'founder-evidence-demo-latest.json');
 const JS_OUTPUT = path.join(REPO_ROOT, '.tmp', 'holoshell', 'self-test', 'founder-evidence-demo-latest.js');
 
-const result = spawnSync(process.execPath, ['scripts/holoshell-founder-evidence-demo.mjs', '--self-test'], {
+const result = spawnSync(process.execPath, ['scripts/holoshell-founder-evidence-demo.mjs', '--', '--self-test'], {
   cwd: REPO_ROOT,
   encoding: 'utf8',
   windowsHide: true,
