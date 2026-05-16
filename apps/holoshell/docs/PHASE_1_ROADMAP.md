@@ -1,7 +1,7 @@
 # HoloShell Phase 1 Roadmap
 
-**Status:** Phase 1 planning artifact
-**Date:** 2026-05-12
+**Status:** Phase 1 maturity tracker
+**Date:** 2026-05-16
 **Product owner:** HoloLand
 **Source artifact:** `apps/holoshell/source/holoshell-phase1-workflows.hsplus`
 **Pairs with:** `docs/specs/HOLOSHELL_HARDWARE_NATIVE_SURFACE.md`
@@ -20,6 +20,32 @@ Intent -> capability path -> risk/approval -> agent action -> receipt -> visible
 The user should not manage files, commands, settings, package managers, or
 hidden agent logs. HoloShell should render the machine as an embodied HoloLand
 surface where capabilities, agents, receipts, and risks are the primary objects.
+
+## Maturity Rule
+
+Phase 1 should no longer be tracked as a list of intended features. Track each
+slice by the highest evidence rung it has crossed:
+
+```text
+source/spec -> receipt -> visible shell UX -> approved execution -> trusted execution
+```
+
+The current Phase 1 substrate is mostly real: source validation passes, local
+receipts exist, shell objects are visible, agent lanes are present, and hardware
+custody can describe process/service state. The remaining Phase 1 work is not
+"define the shell"; it is moving selected workflows from visible staged objects
+into approved execution with receipts a non-developer can understand.
+
+## Current Phase 1 Evidence
+
+| Evidence | Current state |
+| --- | --- |
+| Source substrate | 50/50 HoloShell source files validate through the HoloScript CLI. |
+| Shell object model | 86 shell objects: apps, captured windows, agents, workflows, approvals, receipts, source, startup, and native host objects. |
+| Agent lanes | 8 lanes, with 7 active or available in the latest live feed. |
+| Receipts | Hardware, service, process, source validation, account custody, startup, native wrapper, workflow, approval, and readiness receipts exist. |
+| Hardware/app custody | Infrastructure exists and is guarded; polished end-user operation is still a Phase 2/flagship target. |
+| Trust | Trust ledger exists, but the latest level remains `read_only`. |
 
 ## Product Grammar
 
@@ -71,6 +97,7 @@ Acceptance:
 - The room can refresh without opening a terminal.
 - The user sees capability families and trust state.
 - Unknown or unsafe capabilities are explicit, not hidden.
+- Maturity target: visible shell UX with receipts, not silent backend inventory.
 
 ### Slice 1B: HoloScript Surface Bridge
 
@@ -92,6 +119,8 @@ Acceptance:
 - Read-only discovery works without exposing secrets.
 - Authenticated, mutating, publish, payment, deploy, install, credential, and
   delete operations are routed through guarded or break-glass policy.
+- Maturity target: source/spec and receipt are real; move selected tools to
+  approved execution only after visible permission envelopes are stable.
 
 ### Slice 1C: Agent Presence Color Lanes
 
@@ -111,6 +140,8 @@ Acceptance:
   `semanticPrefix`.
 - Receipts show which lane acted and which permission envelope was used.
 - The user can scan active lanes without opening terminals or IDEs.
+- Maturity target: visible shell UX. Trusted handoff is not claimed until lane
+  actions have repeated receipts.
 
 ### Slice 1D: PID And Shell Run Custody
 
@@ -142,6 +173,8 @@ Acceptance:
 - A process cannot be stopped without exact PID, reason, approval policy, and
   receipt.
 - The user sees hardware pressure as plain language, not Task Manager noise.
+- Maturity target: receipt and visible UX are real; stop execution remains
+  break-glass.
 
 ### Slice 2: Browser Pilot
 
@@ -161,6 +194,8 @@ Acceptance:
 - The agent cannot silently reuse private browser state without a named boundary.
 - The result includes a witness artifact or a visible "witness unavailable"
   state.
+- Maturity target: first approved execution candidate for the Founder evidence
+  demo.
 
 ### Slice 3: Local Project/CLI Pilot
 
@@ -178,6 +213,8 @@ Acceptance:
 - The user never sees raw terminal output first.
 - HoloShell summarizes pass/fail, changed files, and next action.
 - Raw command output remains inspectable behind the receipt.
+- Maturity target: approved execution for one safe command, then receipt-driven
+  replay.
 
 ### Slice 4: Legacy App Classification Pilot
 
@@ -213,6 +250,28 @@ Acceptance:
 - HoloShell is calm by default.
 - Risky local changes interrupt the user with plain-language consequences.
 - Every approval creates an approval receipt.
+- Maturity target: keep trusted execution behind the trust ledger. Do not
+  promote app control while latest trust remains `read_only`.
+
+### Slice 6: Founder Evidence Demo
+
+Prove the whole Phase 1 grammar with one narrow, undeniable workflow.
+
+Deliverables:
+
+- Brittney receives a natural command.
+- The shell shows a plan with target app, agent lane, permission envelope, and
+  expected receipt.
+- A nonce-bound approval card is visible before mutation.
+- One real app is operated through a guarded adapter.
+- A receipt is written and the shell surface visibly changes.
+
+Acceptance:
+
+- The demo does not require the user to read terminal output first.
+- The shell shows both before state and after state where possible.
+- Failure is replayable as a lesson, not a silent log.
+- This demo is allowed to be narrow; it must be real.
 
 ## Research Questions
 
@@ -246,7 +305,7 @@ The Phase 1 questions now route into these follow-on docs:
 ## Upstream Candidates
 
 These should move to HoloScript after one more implementation pass proves the
-shape:
+shape with source, receipt, visible UX, and at least one approved execution:
 
 - `Capability` schema and validator.
 - Adapter contract for MCP, API, CLI, browser, UI Automation, and vision.

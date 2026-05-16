@@ -1,7 +1,7 @@
 # HoloShell Phase 2 Native Shell Roadmap
 
-**Status:** Phase 2 planning artifact
-**Date:** 2026-05-13
+**Status:** Phase 2 evidence ladder
+**Date:** 2026-05-16
 **Scope:** Native shell, app control, Brittney operator, and geometric reconstruction
 **Builds on:** `PHASE_1_ROADMAP.md`
 
@@ -16,6 +16,9 @@ The goal is:
 Start HoloLand -> HoloShell owns the surface -> Brittney operates apps -> receipts prove outcomes
 ```
 
+This roadmap is no longer a vision inventory. It tracks the jump from visible
+source-backed shell objects into approved local operation.
+
 ## Phase 2 Outcomes
 
 1. HoloShell can run as a native desktop shell host.
@@ -26,6 +29,18 @@ Start HoloLand -> HoloShell owns the surface -> Brittney operates apps -> receip
 5. Skins are source-level simulation systems, not HTML color variants.
 6. HoloShell can show agent lanes, process custody, workflows, and receipts as
    one operating picture.
+
+## Current Maturity Snapshot
+
+| Area | Evidence rung | Current state |
+| --- | --- | --- |
+| Native host | Visible shell UX | Founder host, Native Wrapper, and Startup Gate objects exist with receipts. |
+| Startup bridge | Receipt | Registration adapter exists, but the startup shortcut is not registered by default. |
+| Brittney command pipeline | Visible shell UX / approval staged | Founder command can produce plan, workflow, approval, intent gate, and receipt flow. |
+| Real app operation | Early approved execution infrastructure | Browser, terminal, Excel/document, Claude, Ollama, and Grok surfaces are represented; polished user operation is still narrow. |
+| Legacy reconstruction | Receipt / visible shell UX | Capture has windows, controls, and geometry nodes; dense reconstructed app operation is not done. |
+| Skins | Source/spec | Simulation language exists; realistic water/fire/aura systems are not implemented. |
+| Trusted autonomy | Receipt | Trust ledger exists; latest trust remains `read_only`. |
 
 ## Slices
 
@@ -201,18 +216,20 @@ Acceptance:
 
 ## Priority Build Order
 
-1. Shell object graph.
-2. Native approval/execute UX.
-3. Browser/media operator.
-4. Terminal/agent marathon operator.
-5. Excel or document machine.
-6. Geometric reconstruction for one legacy app.
-7. Skin simulation schema and realistic water/fire/aura.
-8. Startup Gate approval UX for the native host wrapper.
+1. Founder evidence demo.
+   One natural Brittney command must show plan, ask approval, operate one real
+   app, write a receipt, and visibly update the shell. This is the new anchor.
+2. Startup Gate approval UX for the native host wrapper.
+3. Native approval/execute UX.
+4. Browser/media operator.
+5. Terminal/agent marathon operator.
+6. Excel or document machine.
+7. Geometric reconstruction for one legacy app.
+8. Skin simulation schema and realistic water/fire/aura.
 
-The shell object graph comes first because HoloShell cannot operate the
-computer until the computer is represented as objects. The approval UX follows
-because it unlocks safe mutation of those objects.
+The shell object graph has crossed into visible UX. The next bottleneck is a
+single approved execution path that proves the graph can operate the computer
+without falling back to raw terminal thinking.
 
 ## Research Questions
 
@@ -238,7 +255,8 @@ And HoloShell can:
 - Show the plan.
 - Request approval.
 - Execute through native bridge.
-- Open the right apps.
+- Open and control at least one real app through a guarded adapter.
 - Start the right agent workflow.
 - Show receipts and visible status.
+- Update the shell surface after the action.
 - Keep the old desktop out of the primary mental model.

@@ -1,13 +1,15 @@
 # HoloShell Codebase Status
 
-**Status:** Codebase-backed catch-up
+**Status:** Evidence-backed recalibration
 **Date:** 2026-05-16
 **Scope:** HoloShell docs, source, scripts, receipts, and current gaps
 
 ## Bottom Line
 
 HoloShell is now a source-backed operating shell prototype, not an agent backend
-dashboard.
+dashboard. The important question has changed from "what should HoloShell be?"
+to "which capabilities have crossed from source/spec into receipt, visible UX,
+approved execution, and trusted execution?"
 
 The codebase has the right product spine in place: `.holo` owns the shell world,
 `.hs` owns executable/render/pipeline behavior, `.hsplus` owns Brittney,
@@ -41,6 +43,36 @@ approved per-user startup path. It does not yet replace Explorer as the desktop
 shell or reconstruct live legacy apps into dense, realistic geometry with full
 before/after witnesses.
 
+## Founder HoloShell Evidence Ladder
+
+Each capability should be tracked by the highest rung it has actually reached:
+
+| Rung | Meaning | Current examples |
+| --- | --- | --- |
+| 1. Source/spec | `.holo`, `.hs`, or `.hsplus` declares the behavior, policy, or room. | Startup integration, skins, Brittney operator, hardware control. |
+| 2. Receipt | A local adapter emits machine-readable evidence. | Source validation, native wrapper, startup integration, account custody, process/service custody. |
+| 3. Visible shell UX | The receipt appears as a room, shell object, live-feed row, approval token, or timeline item. | 86 shell objects, Native Wrapper, Startup Gate, Account Task Receipt, readiness tokens. |
+| 4. Approved execution | A user can approve a nonce-bound action and get an execution receipt. | Hardware/workflow approval infrastructure; mutating execution remains intentionally narrow. |
+| 5. Trusted execution | Repeated receipts promote a low-risk action through the trust ledger. | Not reached for real app control; latest trust level is still `read_only`. |
+
+The next anchor is one undeniable end-to-end demo: Brittney receives a natural
+command, shows the plan, asks approval, operates one real app, produces a
+receipt, and the HoloShell surface visibly changes.
+
+## Recalibrated Progress
+
+| Area | Progress | Evidence state |
+| --- | ---: | --- |
+| HoloShell doctrine / OS replacement direction | 85% | Clear doctrine, source ownership, native host path, and OS-layer object model. |
+| Source contracts / `.holo`, `.hs`, `.hsplus` substrate | 75% | 50/50 HoloShell source files validate through the HoloScript CLI. |
+| Receipts, capability inventory, shell object model | 70% | 86 shell objects, live feed, receipts, approvals, lanes, custody, and source bridges are visible. |
+| Native wrapper / startup bridge | 60% | Wrapper and startup adapter exist; startup registration is not enabled by default. |
+| Brittney operator loop | 40% | Context, plan, approval, and receipt flow exist; full autonomous app operation is staged. |
+| Real app control: browser, terminal, Excel, Claude, Ollama | 30% | Machines and workflows are represented; polished end-user operation is not complete. |
+| Legacy app geometric reconstruction | 30% | Capture is real, with controls and geometry nodes; dense inspected app replacement is still early. |
+| Realistic simulation skins | 20% | Design/spec/substrate exists; water/fire/aura simulation systems are not yet real. |
+| Trusted autonomous system | 20% | Trust ledger exists; latest level remains `read_only`. |
+
 ## Evidence From This Pass
 
 Commands run locally on 2026-05-16:
@@ -48,8 +80,8 @@ Commands run locally on 2026-05-16:
 | Check | Result |
 | --- | --- |
 | `node scripts/hardware-audit.mjs --json --self-test` | Pass. Node v24.15.0, pnpm 10.28.2, WASM SIMD pass, Chrome WebGPU/WebXR API pass. Browser version warned, but no critical failures. |
-| `pnpm run holoshell:source-validation` | Pass. HoloShell `.holo`, `.hs`, and `.hsplus` source files validate through the HoloScript CLI. |
-| `pnpm run holoshell:shell-objects` | Ready. Shell objects include local apps, workflows, receipts, the Founder host, Native Wrapper, and Startup Gate objects. |
+| `pnpm run holoshell:source-validation` | Pass. 50/50 HoloShell source files validate through the HoloScript CLI: 1 `.holo`, 2 `.hs`, 47 `.hsplus`. |
+| `pnpm run holoshell:shell-objects` | Ready. 86 shell objects include local apps, workflows, receipts, the Founder host, Native Wrapper, Startup Gate, Account Task Receipt, and readiness tokens. |
 | `node scripts/holoshell-native-wrapper.mjs` | Launchable wrapper present. Windows launcher, command shim, preview host, startup adapter, and Chrome/Edge app-mode path are accounted for. |
 | `node scripts/holoshell-startup-integration.mjs` | Registration adapter present. Per-user startup registration is available behind explicit approval; current receipt does not register the shortcut by default. |
 | `pnpm run holoshell:founder-host:refresh` | Native host present. Source, preview host, startup adapter, native wrapper, service supervisor, shell object graph, live feed, and source validation are accounted for. |
@@ -75,11 +107,11 @@ the work" and "the full evidence pack is complete."
 | Native wrapper | `source/holoshell-native-wrapper.hsplus`, `apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1` | First Windows app-mode launcher exists. It starts HoloShell without manually opening HTML and sees the startup adapter. |
 | Startup integration | `source/holoshell-startup-integration.hsplus`, `apps/holoshell/native/windows/Register-HoloShellStartup.ps1` | Approval-gated per-user login shortcut bridge exists. It is plan-only by default; `-Register -Approve` performs registration and `-Unregister -Approve` removes it. |
 | Hardware control | `source/holoshell-hardware-control.hsplus`, `scripts/holoshell-control-daemon*.mjs` | Staged and guarded. Execution is disabled by default and requires approval packets plus daemon execute mode. |
-| Brittney operator | `docs/BRITTNEY_OPERATOR_SPEC.md`, `source/holoshell-brittney-*.hsplus` | Product contract exists: intent, plan, approval, adapter, receipt, narration. |
-| Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs` | Demo-level receipt exists for the "open Claude, room marathon, Ollama Kimi Cloud, browser, YouTube lofi" command path. |
+| Brittney operator | `docs/BRITTNEY_OPERATOR_SPEC.md`, `source/holoshell-brittney-*.hsplus` | Product contract exists: intent, plan, approval, adapter, receipt, narration. Current maturity is staged operator loop, not trusted autonomy. |
+| Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs` | Demo-level plan/approval/receipt exists for the "open Claude, room marathon, Ollama Kimi Cloud, browser, YouTube lofi" path. Real app mutation is still gated. |
 | Grok heavy lane | `source/holoshell-grok-*.hsplus`, `scripts/holoshell-grok-*.mjs` | Installed/authenticated/ready according to the current shell object receipt, with workflow approval still required for autonomy. |
 | Trusted autonomy | `source/holoshell-trusted-autonomy.hsplus`, `scripts/holoshell-trust-ledger.mjs` | Ladder exists. Latest state remains low-risk/read-only until repeated receipts justify promotion. |
-| Legacy absorption | `docs/GEOMETRIC_UI_RECONSTRUCTION.md`, `scripts/holoshell-os-ui-capture.mjs` | Capture and reconstruction strategy exists. Dense geometric wrapping is the next major build gap. |
+| Legacy absorption | `docs/GEOMETRIC_UI_RECONSTRUCTION.md`, `scripts/holoshell-os-ui-capture.mjs` | Capture is real, including controls and geometry nodes. Dense geometric wrapping with before/after witnesses is the next major build gap. |
 | Skins | `docs/SKIN_SIMULATION_RESEARCH.md`, `source/holoshell-skin-presets.hsplus` | Research/spec exists. Need real water, fire, aura, and developer simulation systems beyond color variants. |
 | GOLD/codebase bridge | `source/holoshell-holoscript-gold-codebase-bridge.hsplus` | Ready in live feed. HoloShell can treat GOLD and codebase intelligence as operating context. |
 | Wild HoloScript intake | `docs/WILD_HOLOSCRIPT_INTAKE.md`, `source/holoshell-wild-holoscript-intake.hsplus` | Scanned and visible. Promotion still needs adapters and receipts before authority. |
@@ -138,33 +170,39 @@ flagship demo fully proven.
 
 ## Next Build Moves
 
-1. Turn the Startup Gate into visible UX.
+1. Ship the undeniable Founder evidence demo.
+   Brittney receives a natural command, shows a plan, asks approval, operates
+   one real app, produces a receipt, and visibly changes the shell surface.
+   This is the anchor for graduating from impressive substrate to operating
+   product.
+
+2. Turn the Startup Gate into visible UX.
    The approved startup source, receipt, and Windows registration bridge now
    exist. Next, render the Startup Gate approval card in the shell and keep an
    obvious unregister path.
 
-2. Turn skins into simulation systems.
+3. Turn skins into simulation systems.
    Implement a real liquid skin first, then fire and aura. Tie material motion
    to shell state: intent, attention, risk, approval, execution, and receipt.
 
-3. Graduate legacy UI reconstruction.
+4. Graduate legacy UI reconstruction.
    Extend capture with screenshot/OCR witness placeholders, generate one `.holo`
    graph per captured window, and render one app as 1000+ grouped geometry nodes.
 
-4. Harden Brittney's operator loop.
+5. Harden Brittney's operator loop.
    Wire context -> plan -> approval -> execute -> observe -> receipt across
    browser/media, terminal/agent marathon, Claude chat, Ollama Cloud launch, and
    one document or spreadsheet app.
 
-5. Promote trusted autonomy by evidence.
+6. Promote trusted autonomy by evidence.
    Use the trust ledger to graduate repeated low-risk actions from read-only to
    guarded autonomy. Do not jump straight to open-ended computer control.
 
-6. Close readiness evidence gaps.
+7. Close readiness evidence gaps.
    Fix graph/live-core import evidence, add headset/replay witness options, and
    keep warning tokens visible in the shell until resolved.
 
-7. Convert Founder HoloShell into User HoloShell packs.
+8. Convert Founder HoloShell into User HoloShell packs.
    Keep Founder mode powerful and weird. Derive calm user packs from it instead
    of designing a smaller launcher first.
 
