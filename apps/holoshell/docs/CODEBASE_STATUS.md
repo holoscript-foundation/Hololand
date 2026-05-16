@@ -81,7 +81,7 @@ Commands run locally on 2026-05-16:
 | --- | --- |
 | `node scripts/hardware-audit.mjs --json --self-test` | Pass. Node v24.15.0, pnpm 10.28.2, WASM SIMD pass, Chrome WebGPU/WebXR API pass. Browser version warned, but no critical failures. |
 | `pnpm run holoshell:source-validation` | Pass. 50/50 HoloShell source files validate through the HoloScript CLI: 1 `.holo`, 2 `.hs`, 47 `.hsplus`. |
-| `pnpm run holoshell:shell-objects` | Ready. 86 shell objects include local apps, workflows, receipts, the Founder host, Native Wrapper, Startup Gate, Account Task Receipt, and readiness tokens. |
+| `pnpm run holoshell:shell-objects` | Ready. 87 shell objects include local apps, workflows, receipts, the Founder host, Native Wrapper, Startup Gate, Account Task Receipt, Founder Evidence Demo, and readiness tokens. |
 | `node scripts/holoshell-native-wrapper.mjs` | Launchable wrapper present. Windows launcher, command shim, preview host, startup adapter, and Chrome/Edge app-mode path are accounted for. |
 | `node scripts/holoshell-startup-integration.mjs` | Registration adapter present. Per-user startup registration is available behind explicit approval; current receipt does not register the shortcut by default. |
 | `pnpm run holoshell:founder-host:refresh` | Native host present. Source, preview host, startup adapter, native wrapper, service supervisor, shell object graph, live feed, and source validation are accounted for. |
@@ -108,7 +108,7 @@ the work" and "the full evidence pack is complete."
 | Startup integration | `source/holoshell-startup-integration.hsplus`, `apps/holoshell/native/windows/Register-HoloShellStartup.ps1` | Approval-gated per-user login shortcut bridge exists. It is plan-only by default; `-Register -Approve` performs registration and `-Unregister -Approve` removes it. |
 | Hardware control | `source/holoshell-hardware-control.hsplus`, `scripts/holoshell-control-daemon*.mjs` | Staged and guarded. Execution is disabled by default and requires approval packets plus daemon execute mode. |
 | Brittney operator | `docs/BRITTNEY_OPERATOR_SPEC.md`, `source/holoshell-brittney-*.hsplus` | Product contract exists: intent, plan, approval, adapter, receipt, narration. Current maturity is staged operator loop, not trusted autonomy. |
-| Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs` | Demo-level plan/approval/receipt exists for the "open Claude, room marathon, Ollama Kimi Cloud, browser, YouTube lofi" path. Real app mutation is still gated. |
+| Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs`, `scripts/holoshell-founder-evidence-demo.mjs` | Full flagship path remains staged. The narrow Founder evidence demo now produces a visible approval-bound receipt for one real app operation; execution is still gated behind explicit confirmation. |
 | Grok heavy lane | `source/holoshell-grok-*.hsplus`, `scripts/holoshell-grok-*.mjs` | Installed/authenticated/ready according to the current shell object receipt, with workflow approval still required for autonomy. |
 | Trusted autonomy | `source/holoshell-trusted-autonomy.hsplus`, `scripts/holoshell-trust-ledger.mjs` | Ladder exists. Latest state remains low-risk/read-only until repeated receipts justify promotion. |
 | Legacy absorption | `docs/GEOMETRIC_UI_RECONSTRUCTION.md`, `scripts/holoshell-os-ui-capture.mjs` | Capture is real, including controls and geometry nodes. Dense geometric wrapping with before/after witnesses is the next major build gap. |
@@ -170,11 +170,10 @@ flagship demo fully proven.
 
 ## Next Build Moves
 
-1. Ship the undeniable Founder evidence demo.
-   Brittney receives a natural command, shows a plan, asks approval, operates
-   one real app, produces a receipt, and visibly changes the shell surface.
-   This is the anchor for graduating from impressive substrate to operating
-   product.
+1. Execute the undeniable Founder evidence demo.
+   The source, staged plan, nonce approval, receipt, live feed, and shell object
+   now exist. The remaining proof is to run the approved operation once, capture
+   the before/after witness, and make the shell surface visibly change.
 
 2. Turn the Startup Gate into visible UX.
    The approved startup source, receipt, and Windows registration bridge now

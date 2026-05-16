@@ -1727,7 +1727,7 @@ function assetShardObjects({ shardWorkflow, shardImport }) {
   return objects;
 }
 
-function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, workflow, workflowApproval, workflowIntentGate }) {
+function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, founderEvidenceDemo, workflow, workflowApproval, workflowIntentGate }) {
   const receipts = [];
   if (hardwareAction?.summary) {
     receipts.push({
@@ -1793,6 +1793,41 @@ function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, 
       detail: `Account task ${summary.status || 'unknown'} on ${summary.provider || 'unknown provider'}; draft ${summary.draftHash ? 'hash-bound' : 'missing'}; execution ${summary.executionAllowed ? 'allowed after approval' : 'blocked'}.`,
       firstScreen: Boolean(summary.approvalRequired),
       layout: layout(16, 84),
+    });
+  }
+  if (founderEvidenceDemo?.summary) {
+    const summary = founderEvidenceDemo.summary;
+    receipts.push({
+      id: `receipt.founder-evidence-demo.${shortHash(founderEvidenceDemo.demoId || founderEvidenceDemo.generatedAt || 'founder-evidence-demo')}`,
+      objectKind: 'receipt',
+      displayName: 'Founder Evidence Demo',
+      sourceKind: 'receipt',
+      sourceRef: founderEvidenceDemo.demoId || '',
+      capabilityFamily: 'founder_evidence_demo',
+      trustState: summary.executionPerformed ? 'verified' : 'partial',
+      permissionEnvelope: 'guarded_execute',
+      adapterPath: 'founder_evidence_demo',
+      visualForm: summary.executionPerformed ? 'receipt_node' : 'approval_token',
+      status: summary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['founder_evidence_demo_receipt', 'hardware_action_receipt', 'hardware_approval_bundle'],
+      relationships: {
+        targetAction: summary.targetAction || '',
+        targetLabel: summary.targetLabel || '',
+        evidenceRung: summary.evidenceRung || '',
+        approvalId: summary.approvalId || '',
+        executionAllowed: Boolean(summary.executionAllowed),
+        executionPerformed: Boolean(summary.executionPerformed),
+        visibleShellChange: Boolean(summary.visibleShellChange),
+        beforeWindowCount: summary.beforeWindowCount || 0,
+        afterWindowCount: summary.afterWindowCount || 0,
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'approve_one_real_app_then_receipt',
+      glyph: 'FD',
+      detail: `Founder demo ${summary.status || 'unknown'}; ${summary.targetAction || 'action'} ${summary.targetLabel || 'target'}; rung ${summary.evidenceRung || 'unknown'}.`,
+      firstScreen: true,
+      layout: layout(20, 84),
     });
   }
   if (workflow?.summary || workflowApproval?.summary || workflowIntentGate?.summary) {
@@ -2071,6 +2106,14 @@ function summarize(objects, feeds) {
     accountTaskCustodyExecutionAllowed: Boolean(feeds.accountTaskCustody?.summary?.executionAllowed),
     accountTaskCustodyMutationPerformed: Boolean(feeds.accountTaskCustody?.summary?.accountMutationPerformed),
     accountTaskCustodySourceMutationPerformed: Boolean(feeds.accountTaskCustody?.summary?.sourceFileMutationPerformed),
+    founderEvidenceDemoObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_evidence_demo').length,
+    founderEvidenceDemoStatus: feeds.founderEvidenceDemo?.summary?.status || 'unknown',
+    founderEvidenceDemoEvidenceRung: feeds.founderEvidenceDemo?.summary?.evidenceRung || '',
+    founderEvidenceDemoTargetAction: feeds.founderEvidenceDemo?.summary?.targetAction || '',
+    founderEvidenceDemoTargetLabel: feeds.founderEvidenceDemo?.summary?.targetLabel || '',
+    founderEvidenceDemoExecutionAllowed: Boolean(feeds.founderEvidenceDemo?.summary?.executionAllowed),
+    founderEvidenceDemoExecutionPerformed: Boolean(feeds.founderEvidenceDemo?.summary?.executionPerformed),
+    founderEvidenceDemoVisibleShellChange: Boolean(feeds.founderEvidenceDemo?.summary?.visibleShellChange),
     formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
@@ -2115,6 +2158,7 @@ function summarize(objects, feeds) {
       grokHeartbeatStatus: feeds.grokHeartbeat?.summary?.status || 'unknown',
       trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
       accountTaskCustodyStatus: feeds.accountTaskCustody?.summary?.status || 'unknown',
+      founderEvidenceDemoStatus: feeds.founderEvidenceDemo?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -2151,6 +2195,7 @@ function loadFeeds(tmpDir) {
     hardwareAction: readJson(path.join(dir, 'action-latest.json'), {}),
     hardwareApproval: readJson(path.join(dir, 'approval-latest.json'), {}),
     accountTaskCustody: readJson(path.join(dir, 'account-task-custody-latest.json'), {}),
+    founderEvidenceDemo: readJson(path.join(dir, 'founder-evidence-demo-latest.json'), {}),
     workflow: readJson(path.join(dir, 'workflow-latest.json'), {}),
     workflowApproval: readJson(path.join(dir, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(path.join(dir, 'brain-intent-gate-latest.json'), {}),
@@ -2214,6 +2259,7 @@ function buildGraph(args, fixtures = null) {
       serviceSupervisor: 'scripts/holoshell-service-supervisor.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       accountTaskCustody: 'scripts/holoshell-account-task-custody.mjs',
+      founderEvidenceDemo: 'scripts/holoshell-founder-evidence-demo.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -2744,6 +2790,24 @@ function fixtureFeeds() {
         fileCount: 1,
       },
     },
+    founderEvidenceDemo: {
+      schemaVersion: 'hololand.holoshell.founder-evidence-demo.v0.1.0',
+      demoId: 'founder-demo-fixture',
+      generatedAt: new Date().toISOString(),
+      summary: {
+        status: 'pending_user_approval',
+        targetAction: 'open_url',
+        targetLabel: 'example.com',
+        evidenceRung: 'visible_shell_ux',
+        approvalRequired: true,
+        approvalId: 'hwap-founder-fixture',
+        executionAllowed: true,
+        executionPerformed: false,
+        visibleShellChange: false,
+        beforeWindowCount: 1,
+        afterWindowCount: 1,
+      },
+    },
     trustLedger: {
       schemaVersion: 'hololand.holoshell.trust-ledger.v0.1.0',
       latestAction: { fingerprint: 'trust-fixture', actionKind: 'launch_app', targetLabel: 'Excel' },
@@ -2877,6 +2941,11 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.displayName === 'Account Task Receipt' && object.relationships?.draftHash === 'draft-fixture')) failures.push('expected account task receipt draft binding');
   if (graph.summary.accountTaskCustodyStatus !== 'draft_ready_approval_required') failures.push('expected account task custody status');
   if (graph.summary.accountTaskCustodyExecutionAllowed) failures.push('expected account task custody to block execution');
+  if (!graph.objects.some((object) => object.displayName === 'Founder Evidence Demo' && object.relationships?.approvalId === 'hwap-founder-fixture')) failures.push('expected founder evidence demo receipt binding');
+  if (graph.summary.founderEvidenceDemoStatus !== 'pending_user_approval') failures.push('expected founder evidence demo pending approval status');
+  if (graph.summary.founderEvidenceDemoEvidenceRung !== 'visible_shell_ux') failures.push('expected founder evidence demo evidence rung');
+  if (!graph.summary.founderEvidenceDemoExecutionAllowed) failures.push('expected founder evidence demo execution allowance');
+  if (graph.summary.founderEvidenceDemoExecutionPerformed) failures.push('expected founder evidence demo execution to remain unperformed');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');

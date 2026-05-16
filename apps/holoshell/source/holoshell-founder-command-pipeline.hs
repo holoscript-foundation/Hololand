@@ -145,3 +145,76 @@ object "OpenExcelReceiptStep" {
   action: "attach_hardware_receipt"
   output: ".tmp/holoshell/approval-latest.json"
 }
+
+object "FounderEvidenceDemoCommand" {
+  type: "command_pipeline"
+  commandId: "founder_evidence_demo"
+  naturalIntent: "Brittney, open one real app, show me what changed, and save the receipt."
+  actor: "brittney"
+  autonomyLevel: "guarded"
+  defaultExecution: "stage_not_run"
+  receiptRequired: true
+  target: "one_real_app"
+  evidenceLadder: ["source_spec", "receipt", "visible_shell_ux", "approved_execution", "trusted_execution"]
+  currentTargetRung: "approved_execution"
+  adapter: "scripts/holoshell-founder-evidence-demo.mjs"
+  output: ".tmp/holoshell/founder-evidence-demo-latest.json"
+  pipeline: ["intent", "before_witness", "plan", "approval", "execute_if_approved", "after_witness", "receipt", "shell_update"]
+}
+
+object "FounderEvidenceBeforeWitnessStep" {
+  type: "pipeline_step"
+  commandId: "founder_evidence_demo"
+  phase: "before_witness"
+  order: 1
+  adapter: "scripts/holoshell-action-executor.mjs"
+  action: "list_windows"
+  permissionEnvelope: "read_only"
+  output: ".tmp/holoshell/founder-evidence-before-action.json"
+}
+
+object "FounderEvidencePlanStep" {
+  type: "pipeline_step"
+  commandId: "founder_evidence_demo"
+  phase: "plan"
+  order: 2
+  adapter: "scripts/holoshell-action-executor.mjs"
+  action: "open_url"
+  targetUrl: "https://example.com/"
+  permissionEnvelope: "guarded_execute"
+  output: ".tmp/holoshell/action-latest.json"
+}
+
+object "FounderEvidenceApprovalStep" {
+  type: "pipeline_step"
+  commandId: "founder_evidence_demo"
+  phase: "approval"
+  order: 3
+  adapter: "scripts/holoshell-approval-bundle.mjs"
+  action: "mint_nonce_bound_hardware_approval"
+  permissionEnvelope: "guarded_execute"
+  output: ".tmp/holoshell/approval-latest.json"
+}
+
+object "FounderEvidenceExecutionStep" {
+  type: "pipeline_step"
+  commandId: "founder_evidence_demo"
+  phase: "execute_if_approved"
+  order: 4
+  adapter: "scripts/holoshell-action-executor.mjs"
+  action: "execute_nonce_bound_hardware_action"
+  defaultExecution: "not_requested"
+  requiresConfirm: "execute-founder-demo"
+  output: ".tmp/holoshell/action-latest.json"
+}
+
+object "FounderEvidenceAfterWitnessStep" {
+  type: "pipeline_step"
+  commandId: "founder_evidence_demo"
+  phase: "after_witness"
+  order: 5
+  adapter: "scripts/holoshell-action-executor.mjs"
+  action: "list_windows"
+  permissionEnvelope: "read_only"
+  output: ".tmp/holoshell/founder-evidence-after-action.json"
+}

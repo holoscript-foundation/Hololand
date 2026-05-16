@@ -208,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -646,6 +646,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (founderEvidenceDemo?.summary) {
+    timeline.push({
+      id: founderEvidenceDemo.demoId || 'holoshell-founder-evidence-demo',
+      kind: 'founder_evidence_demo',
+      title: `Founder evidence demo ${founderEvidenceDemo.summary.status || 'unknown'}`,
+      detail: `${founderEvidenceDemo.summary.targetAction || 'action'} ${founderEvidenceDemo.summary.targetLabel || 'target'}; rung ${founderEvidenceDemo.summary.evidenceRung || 'unknown'}; execution ${founderEvidenceDemo.summary.executionPerformed ? 'performed' : 'pending approval'}; visible change ${founderEvidenceDemo.summary.visibleShellChange ? 'observed' : 'not yet'}.`,
+      trustState: founderEvidenceDemo.summary.executionPerformed ? 'verified' : 'partial',
+      generatedAt: founderEvidenceDemo.generatedAt || now,
+      receiptType: founderEvidenceDemo.schemaVersion,
+      source: founderEvidenceDemo.sourceAnchors?.adapter || 'scripts/holoshell-founder-evidence-demo.mjs',
+    });
+  }
+
   if (hardwareAction?.summary) {
     timeline.push({
       id: hardwareAction.actionId || 'hardware-action',
@@ -916,6 +929,7 @@ function createFeed(args) {
   const operatorBrief = readJson(path.join(tmpDir, 'operator-brief.json'), {});
   const operatingTurn = readJson(path.join(tmpDir, 'operating-turn.json'), {});
   const founderCommand = readJson(path.join(tmpDir, 'founder-command-latest.json'), {});
+  const founderEvidenceDemo = readJson(path.join(tmpDir, 'founder-evidence-demo-latest.json'), {});
   const agentDispatch = readJson(path.join(tmpDir, 'agent-dispatch-latest.json'), {});
   const grokBuild = readJson(path.join(tmpDir, 'grok-build-setup.json'), {});
   const grokHeartbeat = readJson(path.join(tmpDir, 'grok-heartbeat.json'), {});
@@ -973,6 +987,7 @@ function createFeed(args) {
     operatorBrief,
     operatingTurn,
     founderCommand,
+    founderEvidenceDemo,
     agentDispatch,
     grokBuild,
     grokHeartbeat,
@@ -1074,6 +1089,7 @@ function createFeed(args) {
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       founderCommand: 'scripts/holoshell-founder-command.mjs',
+      founderEvidenceDemo: 'scripts/holoshell-founder-evidence-demo.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
@@ -1366,6 +1382,14 @@ function createFeed(args) {
       founderCommandDispatchStatus: founderCommand?.summary?.dispatchStatus || 'unknown',
       founderCommandWorkflowStatus: founderCommand?.summary?.workflowStatus || 'unknown',
       founderCommandIntentGateStatus: founderCommand?.summary?.intentGateStatus || 'unknown',
+      founderEvidenceDemoStatus: founderEvidenceDemo?.summary?.status || 'unknown',
+      founderEvidenceDemoTargetAction: founderEvidenceDemo?.summary?.targetAction || '',
+      founderEvidenceDemoTargetLabel: founderEvidenceDemo?.summary?.targetLabel || '',
+      founderEvidenceDemoEvidenceRung: founderEvidenceDemo?.summary?.evidenceRung || '',
+      founderEvidenceDemoApprovalRequired: Boolean(founderEvidenceDemo?.summary?.approvalRequired),
+      founderEvidenceDemoExecutionAllowed: Boolean(founderEvidenceDemo?.summary?.executionAllowed),
+      founderEvidenceDemoExecutionPerformed: Boolean(founderEvidenceDemo?.summary?.executionPerformed),
+      founderEvidenceDemoVisibleShellChange: Boolean(founderEvidenceDemo?.summary?.visibleShellChange),
       agentDispatchStatus: agentDispatch?.summary?.status || 'unknown',
       agentDispatchCapabilityId: agentDispatch?.summary?.capabilityId || '',
       agentDispatchCapabilityLabel: agentDispatch?.summary?.capabilityLabel || '',
@@ -1543,6 +1567,7 @@ function createFeed(args) {
       operatorBrief,
       operatingTurn,
       founderCommand,
+      founderEvidenceDemo,
       agentDispatch,
       grokBuild,
       grokHeartbeat,
@@ -1639,6 +1664,7 @@ try {
     console.log(`Network sentinel service: ${feed.summary.networkSentinelServiceStatus}`);
     console.log(`Service supervisor: ${feed.summary.serviceSupervisorStatus}`);
     console.log(`Legacy app reality: ${feed.summary.legacyAppRealityStatus}`);
+    console.log(`Founder evidence demo: ${feed.summary.founderEvidenceDemoStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);
     console.log(`Workflow: ${feed.summary.activeWorkflowStatus}`);

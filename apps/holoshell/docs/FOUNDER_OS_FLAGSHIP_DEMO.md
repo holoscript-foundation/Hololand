@@ -4,6 +4,7 @@
 **Executable behavior:** `apps/holoshell/source/holoshell-founder-command-pipeline.hs`
 **Brittney policy:** `apps/holoshell/source/holoshell-founder-intent-policy.hsplus`
 **Receipt bridge:** `scripts/holoshell-founder-command.mjs`
+**Founder evidence bridge:** `scripts/holoshell-founder-evidence-demo.mjs`
 **Preview:** `apps/holoshell/prototype/local-capability-room.html`
 
 ## Command
@@ -32,7 +33,7 @@ Current evidence from the local HoloShell receipts:
 | Capability | State |
 | --- | --- |
 | Source substrate | 50/50 HoloShell source files validate. |
-| Shell visibility | 86 shell objects are generated, including Founder host, Native Wrapper, Startup Gate, approvals, workflows, receipts, and Account Task Receipt. |
+| Shell visibility | 87 shell objects are generated, including Founder host, Native Wrapper, Startup Gate, approvals, workflows, receipts, Account Task Receipt, and Founder Evidence Demo. |
 | Native startup path | Wrapper and startup adapter exist; startup registration is not enabled by default. |
 | Brittney command | Founder command is `pending_user_approval` with staged workflow and intent gate. |
 | Hardware/app control | Guarded infrastructure exists; polished end-user operation is not complete. |
@@ -46,8 +47,9 @@ The flagship only advances when a capability crosses a rung:
 source/spec -> receipt -> visible shell UX -> approved execution -> trusted execution
 ```
 
-The next milestone is one narrow approved execution, not a bigger scripted
-story.
+The current narrow evidence demo has crossed source/spec, receipt, and visible
+shell UX. The remaining proof is one approved execution of a real app operation,
+not a bigger scripted story.
 
 ## Anchor Demo
 
@@ -66,6 +68,24 @@ Acceptance:
 - A receipt records before/after evidence or an honest witness-unavailable
   state.
 - The HoloShell surface visibly changes after the operation.
+
+Stage the narrow evidence demo without mutating the machine:
+
+```powershell
+pnpm run holoshell:founder-evidence-demo
+```
+
+The bridge writes `.tmp/holoshell/founder-evidence-demo-latest.json`, a browser
+bootstrap at `.tmp/holoshell/founder-evidence-demo-latest.js`, and a shell
+object named `Founder Evidence Demo`. It plans the action, mints a nonce-bound
+approval bundle, captures before/after local window witnesses, and leaves
+execution unperformed by default.
+
+Execute the narrow demo only after approving the real app operation:
+
+```powershell
+pnpm run holoshell:founder-evidence-demo -- --execute-approved --confirm execute-founder-demo
+```
 
 Stage the full flagship receipt:
 
