@@ -16,6 +16,8 @@ composition "HoloShell Founder Host" {
     shellRender: "apps/holoshell/source/holoshell-shell-render.hs"
     shellHome: "apps/holoshell/source/holoshell-home.hsplus"
     serviceSupervisorSource: "apps/holoshell/source/holoshell-service-supervisor.hsplus"
+    nativeWrapperSource: "apps/holoshell/source/holoshell-native-wrapper.hsplus"
+    nativeWrapperReceipt: ".tmp/holoshell/native-wrapper.json"
     serviceSupervisorReceipt: ".tmp/holoshell/service-supervisor.json"
     shellObjectsReceipt: ".tmp/holoshell/shell-objects.json"
     liveFeedReceipt: ".tmp/holoshell/live-feed.json"
@@ -29,6 +31,8 @@ composition "HoloShell Founder Host" {
     sourceReady: false
     previewHostReady: false
     nativeWrapperPresent: false
+    nativeWrapperLaunchable: false
+    nativeWrapperStatus: "unknown"
     startupIntegrationPresent: false
     shellObjectGraphReady: false
     liveFeedReady: false
@@ -67,6 +71,8 @@ composition "HoloShell Founder Host" {
       source_ready: $sourceReady
       preview_ready: $previewHostReady
       native_wrapper_present: $nativeWrapperPresent
+      native_wrapper_launchable: $nativeWrapperLaunchable
+      native_wrapper_status: $nativeWrapperStatus
       startup_integration_present: $startupIntegrationPresent
       shell_objects_ready: $shellObjectGraphReady
       live_feed_ready: $liveFeedReady
@@ -101,6 +107,8 @@ composition "HoloShell Founder Host" {
     state.sourceReady = snapshot.summary.sourceReady
     state.previewHostReady = snapshot.summary.previewHostReady
     state.nativeWrapperPresent = snapshot.summary.nativeWrapperPresent
+    state.nativeWrapperLaunchable = snapshot.summary.nativeWrapperLaunchable
+    state.nativeWrapperStatus = snapshot.summary.nativeWrapperStatus
     state.startupIntegrationPresent = snapshot.summary.startupIntegrationPresent
     state.shellObjectGraphReady = snapshot.summary.shellObjectGraphReady
     state.liveFeedReady = snapshot.summary.liveFeedReady
@@ -114,6 +122,8 @@ composition "HoloShell Founder Host" {
       source_ready: state.sourceReady,
       preview_ready: state.previewHostReady,
       native_wrapper_present: state.nativeWrapperPresent,
+      native_wrapper_launchable: state.nativeWrapperLaunchable,
+      native_wrapper_status: state.nativeWrapperStatus,
       startup_integration_present: state.startupIntegrationPresent,
       shell_objects_ready: state.shellObjectGraphReady,
       live_feed_ready: state.liveFeedReady,

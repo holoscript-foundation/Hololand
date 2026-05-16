@@ -6,6 +6,8 @@
 
 **Bridge:** `scripts/holoshell-founder-host.mjs`
 
+**Native wrapper bridge:** `scripts/holoshell-native-wrapper.mjs`
+
 The Founder native host is the bridge between the current HoloShell preview and
 the future machine-startup shell.
 
@@ -28,15 +30,28 @@ Outputs:
 .tmp/holoshell/founder-host.js
 ```
 
+The wrapper receipt records whether the Windows app-mode launcher, command shim,
+preview host, and local browser surface are present:
+
+```powershell
+node scripts\holoshell-native-wrapper.mjs
+```
+
+The first launcher is:
+
+```powershell
+apps\holoshell\native\windows\Start-HoloShellFounderHost.ps1 -RefreshReceipts
+```
+
 The refresh form regenerates supporting local receipts first:
 
 ```powershell
 pnpm run holoshell:founder-host:refresh
 ```
 
-That runs the service supervisor, shell object graph, and live-feed bridge
-before writing the host receipt. It still does not take over the operating
-system or execute app mutations.
+That runs the native wrapper receipt, service supervisor, shell object graph,
+and live-feed bridge before writing the host receipt. It still does not take
+over the operating system or execute app mutations.
 
 ## Status Meaning
 
@@ -47,11 +62,19 @@ system or execute app mutations.
 | `ready_for_native_wrapper` | The preview host, source, receipts, and service state are coherent enough to build the native wrapper. |
 | `native_host_present` | A future native wrapper target exists and is visible to the receipt. |
 
+Native wrapper statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `blocked_missing_source` | Wrapper source, launcher, command shim, or preview host is missing. |
+| `wrapper_present_browser_missing` | Wrapper files exist, but Chrome/Edge was not found for app-mode launch. |
+| `launchable_wrapper_present` | Wrapper files exist and a local Chromium-family browser can launch HoloShell in app mode. |
+
 ## Boundary
 
 The host receipt is read-only by default. Startup registration, service starts,
 workflow execution, app mutation, and daemon execute mode remain guarded or
 break-glass actions handled by their own approval receipts.
 
-The current primary surface is still `preview_only`. The next real build is the
-native wrapper that can start HoloShell without manually opening HTML.
+The current primary surface is still a `native_wrapper_candidate`, not a boot
+replacement. The next real build is approved startup integration.

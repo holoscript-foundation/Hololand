@@ -288,11 +288,12 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, nativeWrapper, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
   const founderHostSummary = founderHost?.summary || {};
+  const nativeWrapperSummary = nativeWrapper?.summary || {};
   const serviceSupervisorSummary = serviceSupervisor?.summary || {};
   const serviceSupervisorReceipt = serviceSupervisor?.receipt || {};
   const grokBuildSummary = grokBuild?.summary || {};
@@ -372,6 +373,41 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       detail: `Founder host ${founderHostSummary.status || 'unknown'}; primary surface ${founderHostSummary.primarySurfaceOwnership || 'unknown'}; native wrapper ${founderHostSummary.nativeWrapperPresent ? 'present' : 'missing'}.`,
       firstScreen: true,
       layout: { x: 44, y: 4, size: 110 },
+    },
+    {
+      id: 'host.native-wrapper',
+      objectKind: 'native_wrapper',
+      displayName: 'Native Wrapper',
+      sourceKind: 'holoscript',
+      sourceRef: nativeWrapper?.sourceAnchors?.source || 'apps/holoshell/source/holoshell-native-wrapper.hsplus',
+      capabilityFamily: 'native_wrapper',
+      trustState: nativeWrapperSummary.launchable ? 'partial' : 'unknown',
+      permissionEnvelope: 'user_launch',
+      adapterPath: nativeWrapper?.sourceAnchors?.adapter || 'scripts/holoshell-native-wrapper.mjs',
+      visualForm: 'native_window_frame',
+      status: nativeWrapperSummary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['native_wrapper_receipt', 'founder_host_receipt', 'native_wrapper_launch_receipt'],
+      relationships: {
+        launcherPresent: Boolean(nativeWrapperSummary.launcherPresent),
+        commandShimPresent: Boolean(nativeWrapperSummary.commandShimPresent),
+        previewHostPresent: Boolean(nativeWrapperSummary.previewHostPresent),
+        browserCandidateCount: nativeWrapperSummary.browserCandidateCount || 0,
+        primaryBrowserFamily: nativeWrapperSummary.primaryBrowserFamily || 'none',
+        launchMode: nativeWrapperSummary.launchMode || '',
+        launchable: Boolean(nativeWrapperSummary.launchable),
+        startsWithoutManualHtml: Boolean(nativeWrapperSummary.startsWithoutManualHtml),
+        startupIntegrationPresent: Boolean(nativeWrapperSummary.startupIntegrationPresent),
+        localMutationExecutionEnabled: Boolean(nativeWrapperSummary.localMutationExecutionEnabled),
+        nextMove: nativeWrapperSummary.nextMove || 'wire_startup_integration_with_approval',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'native_shell_wrapper',
+      launch: { action: 'launch_native_wrapper', route: 'apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1' },
+      glyph: 'NW',
+      detail: `Native wrapper ${nativeWrapperSummary.status || 'unknown'}; launchable ${nativeWrapperSummary.launchable ? 'yes' : 'no'}; startup ${nativeWrapperSummary.startupIntegrationPresent ? 'present' : 'missing'}.`,
+      firstScreen: true,
+      layout: { x: 68, y: 10, size: 104 },
     },
     {
       id: 'assistant.brittney',
@@ -1653,7 +1689,7 @@ function assetShardObjects({ shardWorkflow, shardImport }) {
   return objects;
 }
 
-function receiptObjects({ hardwareAction, hardwareApproval, workflow, workflowApproval, workflowIntentGate }) {
+function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, workflow, workflowApproval, workflowIntentGate }) {
   const receipts = [];
   if (hardwareAction?.summary) {
     receipts.push({
@@ -1684,6 +1720,41 @@ function receiptObjects({ hardwareAction, hardwareApproval, workflow, workflowAp
       detail: `Last hardware action ${hardwareAction.summary.status || 'unknown'}; ${hardwareAction.summary.actionKind || 'none'}${hardwareAction.browserBoundary ? `; browser ${hardwareAction.browserBoundary.urlClassification} / ${hardwareAction.browserBoundary.profileBoundary}` : ''}.`,
       firstScreen: false,
       layout: layout(16, 82),
+    });
+  }
+  if (accountTaskCustody?.summary) {
+    const summary = accountTaskCustody.summary;
+    receipts.push({
+      id: `receipt.account-task-custody.${shortHash(accountTaskCustody.custodyId || accountTaskCustody.generatedAt || 'account-task-custody')}`,
+      objectKind: 'receipt',
+      displayName: 'Account Task Receipt',
+      sourceKind: 'receipt',
+      sourceRef: accountTaskCustody.custodyId || '',
+      capabilityFamily: 'account_custody',
+      trustState: summary.accountMutationPerformed || summary.sourceFileMutationPerformed ? 'partial' : 'verified',
+      permissionEnvelope: summary.approvalRequired ? 'break_glass_account_mutation' : 'read_only',
+      adapterPath: 'account_task_custody',
+      visualForm: summary.approvalRequired ? 'approval_token' : 'receipt_node',
+      status: summary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['account_boundary_receipt', 'draft_proposal_receipt', 'immutable_draft_approval_receipt'],
+      relationships: {
+        provider: summary.provider || '',
+        accountBoundaryStatus: summary.accountBoundaryStatus || '',
+        credentialAdjacent: Boolean(summary.credentialAdjacent),
+        draftHash: summary.draftHash || '',
+        approvalId: summary.approvalId || '',
+        executionAllowed: Boolean(summary.executionAllowed),
+        accountMutationPerformed: Boolean(summary.accountMutationPerformed),
+        sourceFileMutationPerformed: Boolean(summary.sourceFileMutationPerformed),
+        rollbackLimitCount: Array.isArray(accountTaskCustody.approval?.rollbackLimits) ? accountTaskCustody.approval.rollbackLimits.length : 0,
+      },
+      privacyClass: 'credential_adjacent_local_private',
+      replacementPath: 'draft_then_fresh_human_gesture',
+      glyph: 'AT',
+      detail: `Account task ${summary.status || 'unknown'} on ${summary.provider || 'unknown provider'}; draft ${summary.draftHash ? 'hash-bound' : 'missing'}; execution ${summary.executionAllowed ? 'allowed after approval' : 'blocked'}.`,
+      firstScreen: Boolean(summary.approvalRequired),
+      layout: layout(16, 84),
     });
   }
   if (workflow?.summary || workflowApproval?.summary || workflowIntentGate?.summary) {
@@ -1877,6 +1948,13 @@ function summarize(objects, feeds) {
     founderHostLiveFeedReady: Boolean(feeds.founderHost?.summary?.liveFeedReady),
     founderHostServiceSupervisorReady: Boolean(feeds.founderHost?.summary?.serviceSupervisorReady),
     founderHostNextMove: feeds.founderHost?.summary?.nextMove || '',
+    nativeWrapperObjectCount: objects.filter((object) => object.capabilityFamily === 'native_wrapper').length,
+    nativeWrapperStatus: feeds.nativeWrapper?.summary?.status || 'unknown',
+    nativeWrapperLaunchable: Boolean(feeds.nativeWrapper?.summary?.launchable),
+    nativeWrapperBrowserCandidateCount: feeds.nativeWrapper?.summary?.browserCandidateCount || 0,
+    nativeWrapperStartupIntegrationPresent: Boolean(feeds.nativeWrapper?.summary?.startupIntegrationPresent),
+    nativeWrapperStartsWithoutManualHtml: Boolean(feeds.nativeWrapper?.summary?.startsWithoutManualHtml),
+    nativeWrapperNextMove: feeds.nativeWrapper?.summary?.nextMove || '',
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
     founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
     userShellObjectCount: objects.filter((object) => object.capabilityFamily === 'user_shell').length,
@@ -1940,6 +2018,14 @@ function summarize(objects, feeds) {
     trustedAutonomyGuardedRecordCount: feeds.trustLedger?.summary?.guardedRecordCount || 0,
     trustedAutonomyBreakGlassRecordCount: feeds.trustLedger?.summary?.breakGlassRecordCount || 0,
     trustedAutonomySuccessesUntilTrusted: feeds.trustLedger?.summary?.successesUntilTrusted || 0,
+    accountTaskCustodyObjectCount: objects.filter((object) => object.capabilityFamily === 'account_custody').length,
+    accountTaskCustodyStatus: feeds.accountTaskCustody?.summary?.status || 'unknown',
+    accountTaskCustodyProvider: feeds.accountTaskCustody?.summary?.provider || '',
+    accountTaskCustodyBoundaryStatus: feeds.accountTaskCustody?.summary?.accountBoundaryStatus || 'unknown',
+    accountTaskCustodyApprovalRequired: Boolean(feeds.accountTaskCustody?.summary?.approvalRequired),
+    accountTaskCustodyExecutionAllowed: Boolean(feeds.accountTaskCustody?.summary?.executionAllowed),
+    accountTaskCustodyMutationPerformed: Boolean(feeds.accountTaskCustody?.summary?.accountMutationPerformed),
+    accountTaskCustodySourceMutationPerformed: Boolean(feeds.accountTaskCustody?.summary?.sourceFileMutationPerformed),
     formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
@@ -1971,6 +2057,7 @@ function summarize(objects, feeds) {
       mcpUpstreamHandoffStatus: feeds.mcpUpstreamHandoff?.summary?.status || 'unknown',
       serviceSupervisorStatus: feeds.serviceSupervisor?.summary?.status || 'unknown',
       founderHostStatus: feeds.founderHost?.summary?.status || 'unknown',
+      nativeWrapperStatus: feeds.nativeWrapper?.summary?.status || 'unknown',
       goldCodebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.status || 'unknown',
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
@@ -1981,6 +2068,7 @@ function summarize(objects, feeds) {
       grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
       grokHeartbeatStatus: feeds.grokHeartbeat?.summary?.status || 'unknown',
       trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
+      accountTaskCustodyStatus: feeds.accountTaskCustody?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -2003,6 +2091,7 @@ function loadFeeds(tmpDir) {
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
     founderHost: readJson(path.join(dir, 'founder-host.json'), {}),
+    nativeWrapper: readJson(path.join(dir, 'native-wrapper.json'), {}),
     userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
     developmentalEnvironment: readJson(path.join(dir, 'developmental-environment.json'), {}),
     agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
@@ -2014,6 +2103,7 @@ function loadFeeds(tmpDir) {
     brittneyAvatar: readJson(path.join(dir, 'brittney-avatar.json'), {}),
     hardwareAction: readJson(path.join(dir, 'action-latest.json'), {}),
     hardwareApproval: readJson(path.join(dir, 'approval-latest.json'), {}),
+    accountTaskCustody: readJson(path.join(dir, 'account-task-custody-latest.json'), {}),
     workflow: readJson(path.join(dir, 'workflow-latest.json'), {}),
     workflowApproval: readJson(path.join(dir, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(path.join(dir, 'brain-intent-gate-latest.json'), {}),
@@ -2066,6 +2156,7 @@ function buildGraph(args, fixtures = null) {
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       founderHost: 'scripts/holoshell-founder-host.mjs',
+      nativeWrapper: 'scripts/holoshell-native-wrapper.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
@@ -2074,6 +2165,7 @@ function buildGraph(args, fixtures = null) {
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       serviceSupervisor: 'scripts/holoshell-service-supervisor.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
+      accountTaskCustody: 'scripts/holoshell-account-task-custody.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -2243,6 +2335,29 @@ function fixtureFeeds() {
         localMutationExecutionEnabled: false,
         primarySurfaceOwnership: 'preview_only',
         nextMove: 'build_native_wrapper',
+      },
+    },
+    nativeWrapper: {
+      schemaVersion: 'hololand.holoshell.native-wrapper.v0.1.0',
+      generatedAt: new Date().toISOString(),
+      sourceAnchors: {
+        source: 'apps/holoshell/source/holoshell-native-wrapper.hsplus',
+        adapter: 'scripts/holoshell-native-wrapper.mjs',
+      },
+      summary: {
+        status: 'launchable_wrapper_present',
+        launcherPresent: true,
+        commandShimPresent: true,
+        previewHostPresent: true,
+        browserCandidateCount: 1,
+        primaryBrowserFamily: 'chrome',
+        launchMode: 'chromium_app_mode',
+        launchable: true,
+        startsWithoutManualHtml: true,
+        startupIntegrationPresent: false,
+        localMutationExecutionEnabled: false,
+        primarySurfaceOwnership: 'native_wrapper_candidate',
+        nextMove: 'wire_startup_integration_with_approval',
       },
     },
     goldCodebaseBridge: {
@@ -2535,6 +2650,29 @@ function fixtureFeeds() {
         screenshotPolicy: 'local_receipts_allowed',
       },
     },
+    accountTaskCustody: {
+      schemaVersion: 'hololand.holoshell.account-task-custody.v0.1.0',
+      custodyId: 'acct-fixture',
+      generatedAt: new Date().toISOString(),
+      approval: {
+        rollbackLimits: [
+          { mutation: 'send_email', rollback: 'follow_up_only_after_send' },
+        ],
+      },
+      summary: {
+        status: 'draft_ready_approval_required',
+        provider: 'gmail',
+        accountBoundaryStatus: 'read_or_draft_scope',
+        credentialAdjacent: true,
+        draftHash: 'draft-fixture',
+        approvalRequired: true,
+        approvalId: 'acct-approval-fixture',
+        executionAllowed: false,
+        accountMutationPerformed: false,
+        sourceFileMutationPerformed: false,
+        fileCount: 1,
+      },
+    },
     trustLedger: {
       schemaVersion: 'hololand.holoshell.trust-ledger.v0.1.0',
       latestAction: { fingerprint: 'trust-fixture', actionKind: 'launch_app', targetLabel: 'Excel' },
@@ -2655,6 +2793,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-upstream-handoff')) failures.push('expected MCP custody upstream handoff object');
   if (!graph.objects.some((object) => object.id === 'service.supervisor' && object.relationships?.requiredOnlineServiceCount === 1)) failures.push('expected service supervisor shell object');
   if (!graph.objects.some((object) => object.id === 'host.founder-holoshell')) failures.push('expected founder host shell object');
+  if (!graph.objects.some((object) => object.id === 'host.native-wrapper')) failures.push('expected native wrapper shell object');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
@@ -2663,6 +2802,9 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.objectKind === 'browser_surface' && object.relationships?.browserBoundary)) failures.push('expected browser surface boundary object');
   if (!graph.objects.some((object) => object.id === 'approval.hardware' && object.relationships?.browserBoundaryStatus === 'public_web')) failures.push('expected hardware approval browser boundary');
   if (!graph.objects.some((object) => object.displayName === 'Hardware Receipt' && object.relationships?.browserProfileBoundary === 'system_default_public_ok')) failures.push('expected hardware receipt browser profile boundary');
+  if (!graph.objects.some((object) => object.displayName === 'Account Task Receipt' && object.relationships?.draftHash === 'draft-fixture')) failures.push('expected account task receipt draft binding');
+  if (graph.summary.accountTaskCustodyStatus !== 'draft_ready_approval_required') failures.push('expected account task custody status');
+  if (graph.summary.accountTaskCustodyExecutionAllowed) failures.push('expected account task custody to block execution');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
@@ -2687,6 +2829,7 @@ function assertSelfTest() {
   if (graph.summary.serviceSupervisorStatus !== 'ready_with_optional_offline') failures.push('expected service supervisor ready-with-optional-offline status');
   if (graph.summary.serviceSupervisorRequiredOnlineServiceCount !== 1) failures.push('expected service supervisor required service online count');
   if (graph.summary.founderHostStatus !== 'ready_for_native_wrapper') failures.push('expected founder host ready-for-wrapper status');
+  if (graph.summary.nativeWrapperStatus !== 'launchable_wrapper_present') failures.push('expected native wrapper launchable status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   const buildTreeObject = graph.objects.find((object) => object.id === 'process.build-tree.build-tree-100');
   if (!buildTreeObject) failures.push('expected build tree process object');

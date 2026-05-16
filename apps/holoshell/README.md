@@ -39,6 +39,7 @@ source/holoshell-brittney-runtime-bridge.hsplus
 source/holoshell-hardware-control.hsplus
 source/holoshell-network-reality.hsplus
 source/holoshell-founder-host.hsplus
+source/holoshell-native-wrapper.hsplus
 ```
 
 `holoshell-home.hsplus` owns behavior, channels, permissions, receipts, and
@@ -59,6 +60,9 @@ and redacted network-consumer evidence for Brittney.
 `holoshell-founder-host.hsplus` defines the native Founder host bootstrap:
 the safe bridge between the current preview surface, local services, shell
 objects, the live feed, and the future native wrapper.
+`holoshell-native-wrapper.hsplus` defines the first OS-local launcher boundary:
+start HoloShell from Windows app mode, do not claim boot takeover, and keep
+startup registration behind approval.
 
 HTML is only a projection or host preview. Do not add hand-authored TypeScript
 behavior before the HoloScript source contract is named. Future desktop bridge
@@ -99,6 +103,7 @@ source/holoshell-brittney-runtime-bridge.hsplus
 source/holoshell-hardware-control.hsplus
 source/holoshell-network-reality.hsplus
 source/holoshell-founder-host.hsplus
+source/holoshell-native-wrapper.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
@@ -120,6 +125,8 @@ docs/PROCESS_SHELL_RUN_HEALTH.md
 docs/SKIN_SIMULATION_RESEARCH.md
 docs/PHASE_2_NATIVE_SHELL_ROADMAP.md
 docs/FOUNDER_NATIVE_HOST.md
+native/windows/Start-HoloShellFounderHost.ps1
+native/windows/Start-HoloShellFounderHost.cmd
 prototype/local-capability-room.html
 ```
 
@@ -184,11 +191,30 @@ It writes:
 .tmp/holoshell/founder-host.js
 ```
 
-`pnpm run holoshell:founder-host:refresh` regenerates the service supervisor,
-shell object graph, live feed, and Founder host receipt in one pass. This is a
-bootstrap receipt, not OS takeover: execution stays disabled by default, the
-HTML projection may not claim primary shell ownership, and startup integration
-requires an explicit approval path.
+The native wrapper receipt is:
+
+```text
+scripts/holoshell-native-wrapper.mjs
+```
+
+It writes:
+
+```text
+.tmp/holoshell/native-wrapper.json
+.tmp/holoshell/native-wrapper.js
+```
+
+`pnpm run holoshell:founder-host:refresh` regenerates the native wrapper
+receipt, service supervisor, shell object graph, live feed, and Founder host
+receipt in one pass. The first launcher is:
+
+```powershell
+apps\holoshell\native\windows\Start-HoloShellFounderHost.ps1 -RefreshReceipts
+```
+
+This is a bootstrap wrapper, not OS takeover: execution stays disabled by
+default, the HTML projection may not claim primary shell ownership, and startup
+integration requires an explicit approval path.
 
 ## OS UI Capture Bridge
 
@@ -446,6 +472,7 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-process-health-room.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-network-reality.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-founder-host.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-native-wrapper.hsplus
 ```
 
 From the HoloLand repo:
@@ -480,6 +507,8 @@ node scripts\holoshell-pilot.mjs --self-test
 node scripts\holoshell-live-feed.mjs --self-test
 node scripts\holoshell-founder-host.mjs --self-test
 node scripts\__tests__\holoshell-founder-host.test.mjs
+node scripts\holoshell-native-wrapper.mjs --self-test
+node scripts\__tests__\holoshell-native-wrapper.test.mjs
 ```
 
 The script writes local discovery output to `.tmp/holoshell/`, which is ignored.

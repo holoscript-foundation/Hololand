@@ -23,6 +23,8 @@ What exists today is enough to prove the OS-layer direction:
   materialize as shell objects.
 - The Founder host bootstrap now has a `.hsplus` source contract, local receipt,
   live-feed summary, and shell object.
+- The first native wrapper target now exists as a Windows app-mode launcher with
+  a `.hsplus` source contract and readiness receipt.
 - Brittney has avatar, context, operator, trust, and workflow contracts.
 - Hardware actions are staged through approval and daemon boundaries.
 - Grok Build, Claude chat, Ollama Cloud launch, room marathon, browser/media,
@@ -30,10 +32,11 @@ What exists today is enough to prove the OS-layer direction:
 - GOLD, HoloScript codebase context, and wild HoloScript from `uaa2-service`
   are visible as shell substrate, not isolated docs.
 
-The major unfinished piece is native shell ownership. HoloShell can describe,
-stage, validate, preview, and receipt the replacement OS layer, but it does not
-yet boot as the primary desktop shell or reconstruct live legacy apps into
-dense, realistic geometry with full before/after witnesses.
+The major unfinished piece is startup shell ownership. HoloShell can describe,
+stage, validate, preview, receipt, and launch a wrapper around the replacement
+OS layer, but it does not yet register at startup as the primary desktop shell
+or reconstruct live legacy apps into dense, realistic geometry with full
+before/after witnesses.
 
 ## Evidence From This Pass
 
@@ -42,10 +45,11 @@ Commands run locally on 2026-05-16:
 | Check | Result |
 | --- | --- |
 | `node scripts/hardware-audit.mjs --json --self-test` | Pass. Node v24.15.0, pnpm 10.28.2, WASM SIMD pass, Chrome WebGPU/WebXR API pass. Browser version warned, but no critical failures. |
-| `pnpm run holoshell:source-validation` | Pass. 47/47 source files validated: 1 `.holo`, 2 `.hs`, 44 `.hsplus`. |
-| `pnpm run holoshell:shell-objects` | Ready. 83 shell objects, 18 program objects, 21 running objects, 34 guarded-execute objects, including the Founder host object. |
-| `pnpm run holoshell:founder-host:refresh` | Ready for native wrapper. Source, preview host, service supervisor, shell object graph, live feed, and source validation are accounted for; native wrapper and startup integration are still missing. |
-| `node scripts/holoshell-live-feed.mjs` | Warn. Live feed is generated with founder boot, Founder host, user shell, developmental environment, Brittney context, GOLD/codebase bridge, format inventory, network reality, services, workflows, approvals, and receipts. |
+| `pnpm run holoshell:source-validation` | Pass. HoloShell `.holo`, `.hs`, and `.hsplus` source files validate through the HoloScript CLI. |
+| `pnpm run holoshell:shell-objects` | Ready. Shell objects include local apps, workflows, receipts, the Founder host, and the Native Wrapper object. |
+| `node scripts/holoshell-native-wrapper.mjs` | Launchable wrapper present. Windows launcher, command shim, preview host, and Chrome/Edge app-mode path are accounted for. |
+| `pnpm run holoshell:founder-host:refresh` | Native host present. Source, preview host, native wrapper, service supervisor, shell object graph, live feed, and source validation are accounted for; startup integration is still missing. |
+| `node scripts/holoshell-live-feed.mjs` | Warn. Live feed is generated with founder boot, Founder host, Native Wrapper, user shell, developmental environment, Brittney context, GOLD/codebase bridge, format inventory, network reality, services, workflows, approvals, and receipts. |
 | `pnpm run holoshell:service-supervisor` | Ready with degraded optional state. Required service online; no required action. |
 | `pnpm run holoshell:control-daemon-service` | Starting. PID is alive and verified; loopback health is not reachable; execute remains disabled. |
 | `pnpm run holoshell:readiness-evidence` | Fail. Build, validation, WebGPU, WASM SIMD, and runtime inventory pass, but graph-status/live-core import and skipped headset/replay evidence keep the pack failing. |
@@ -63,7 +67,8 @@ the work" and "the full evidence pack is complete."
 | Source substrate | `source/*.holo`, `source/*.hs`, `source/*.hsplus` | Validated. `.holo`, `.hs`, and `.hsplus` are all first-class shell inputs. |
 | Shell object graph | `scripts/holoshell-shell-objects.mjs` | Working bridge from local programs, agents, workflows, approvals, receipts, source, and services into one object graph. |
 | Live feed | `scripts/holoshell-live-feed.mjs` | Working browser bootstrap for the prototype and status projection. Risk is currently `warn`, which is honest. |
-| Founder host bootstrap | `source/holoshell-founder-host.hsplus`, `scripts/holoshell-founder-host.mjs` | First native-host readiness receipt exists. It reports source/preview/shell-object/live-feed readiness and names the next move: native wrapper. |
+| Founder host bootstrap | `source/holoshell-founder-host.hsplus`, `scripts/holoshell-founder-host.mjs` | Native-host readiness receipt exists. It reports source/preview/native-wrapper/shell-object/live-feed readiness and names the next move: startup integration. |
+| Native wrapper | `source/holoshell-native-wrapper.hsplus`, `apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1` | First Windows app-mode launcher exists. It starts HoloShell without manually opening HTML, but does not register startup or replace Explorer. |
 | Hardware control | `source/holoshell-hardware-control.hsplus`, `scripts/holoshell-control-daemon*.mjs` | Staged and guarded. Execution is disabled by default and requires approval packets plus daemon execute mode. |
 | Brittney operator | `docs/BRITTNEY_OPERATOR_SPEC.md`, `source/holoshell-brittney-*.hsplus` | Product contract exists: intent, plan, approval, adapter, receipt, narration. |
 | Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs` | Demo-level receipt exists for the "open Claude, room marathon, Ollama Kimi Cloud, browser, YouTube lofi" command path. |
@@ -105,10 +110,9 @@ receipts that the shell projection consumes.
 
 ## What Is Not Real Yet
 
-HoloShell is not yet a boot-time OS replacement. The user still opens a local
-HTML projection or runs scripts manually. The Founder host receipt closes the
-readiness accounting gap, but the native wrapper and startup integration are
-still future build work.
+HoloShell is not yet a boot-time OS replacement. The user can now start the
+wrapper from a native Windows launcher, but startup registration and primary
+desktop ownership are still future build work.
 
 The liquid/fire/aura experience is not yet a realistic simulation layer. The
 research is right, but the renderer needs WebGPU/Three/R3F style simulation
@@ -128,11 +132,10 @@ flagship demo fully proven.
 
 ## Next Build Moves
 
-1. Build the native Founder HoloShell wrapper.
-   The source contract and readiness receipt now exist. Next, ship a native
-   wrapper that loads the `.holo` world, observes the daemon/service supervisor,
-   and can become the primary surface while keeping a safe escape path to the
-   old desktop.
+1. Wire approved startup integration.
+   The native wrapper source, receipt, and Windows app-mode launcher now exist.
+   Next, create the approval path for startup registration while keeping a safe
+   escape path to the old desktop.
 
 2. Turn skins into simulation systems.
    Implement a real liquid skin first, then fire and aura. Tie material motion
@@ -167,6 +170,7 @@ Use these commands to regenerate this status from the codebase:
 node scripts\hardware-audit.mjs --json --self-test
 pnpm run holoshell:source-validation
 pnpm run holoshell:shell-objects
+node scripts\holoshell-native-wrapper.mjs
 pnpm run holoshell:founder-host:refresh
 node scripts\holoshell-live-feed.mjs
 pnpm run holoshell:service-supervisor
@@ -180,6 +184,7 @@ The important status files are local and ignored:
 ```text
 .tmp/holoshell/source-validation.json
 .tmp/holoshell/shell-objects.json
+.tmp/holoshell/native-wrapper.json
 .tmp/holoshell/founder-host.json
 .tmp/holoshell/live-feed.json
 .tmp/holoshell/service-supervisor.json

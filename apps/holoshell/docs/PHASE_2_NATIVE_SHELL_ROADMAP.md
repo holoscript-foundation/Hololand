@@ -59,9 +59,14 @@ Current landing:
   and `.tmp/holoshell/founder-host.js`.
 - The receipt is now visible in the live feed and shell object graph as
   `host.founder-holoshell`.
-- Current honest status is `ready_for_native_wrapper`: preview/source/feed
-  readiness is accounted for, but the native wrapper and startup integration
-  are not present yet.
+- Native wrapper source exists at `source/holoshell-native-wrapper.hsplus`.
+- `scripts/holoshell-native-wrapper.mjs` writes
+  `.tmp/holoshell/native-wrapper.json` and `.tmp/holoshell/native-wrapper.js`.
+- The first Windows launcher is
+  `apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1`.
+- Current honest status is `native_host_present` when receipts are refreshed:
+  preview/source/feed/wrapper readiness is accounted for, but startup
+  integration is not present yet.
 
 Deliverables:
 
@@ -195,7 +200,7 @@ Acceptance:
 5. Excel or document machine.
 6. Geometric reconstruction for one legacy app.
 7. Skin simulation schema and realistic water/fire/aura.
-8. Native host wrapper and startup integration.
+8. Startup integration for the native host wrapper.
 
 The shell object graph comes first because HoloShell cannot operate the
 computer until the computer is represented as objects. The approval UX follows

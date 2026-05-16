@@ -208,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -304,6 +304,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: founderHost.generatedAt || now,
       receiptType: founderHost.schemaVersion,
       source: founderHost.sourceAnchors?.adapter || 'scripts/holoshell-founder-host.mjs',
+    });
+  }
+
+  if (nativeWrapper?.summary) {
+    timeline.push({
+      id: 'holoshell-native-wrapper',
+      kind: 'native_wrapper',
+      title: `Native wrapper ${nativeWrapper.summary.status || 'unknown'}`,
+      detail: `${nativeWrapper.summary.launchMode || 'app_mode'}; launchable ${nativeWrapper.summary.launchable ? 'yes' : 'no'}; browser candidates ${nativeWrapper.summary.browserCandidateCount || 0}; startup ${nativeWrapper.summary.startupIntegrationPresent ? 'present' : 'missing'}; next ${nativeWrapper.summary.nextMove || 'unknown'}.`,
+      trustState: nativeWrapper.summary.launchable ? 'partial' : 'unknown',
+      generatedAt: nativeWrapper.generatedAt || now,
+      receiptType: nativeWrapper.schemaVersion,
+      source: nativeWrapper.sourceAnchors?.adapter || 'scripts/holoshell-native-wrapper.mjs',
     });
   }
 
@@ -685,6 +698,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (accountTaskCustody?.summary) {
+    const summary = accountTaskCustody.summary;
+    timeline.push({
+      id: accountTaskCustody.custodyId || 'account-task-custody',
+      kind: 'account_task_custody',
+      title: `Account task custody ${summary.status || 'unknown'}`,
+      detail: `${summary.provider || 'unknown provider'} account boundary ${summary.accountBoundaryStatus || 'unknown'}; draft ${summary.draftHash ? 'hash-bound' : 'missing'}; execution ${summary.executionAllowed ? 'allowed after approval' : 'blocked until fresh approval'}.`,
+      trustState: summary.accountMutationPerformed || summary.sourceFileMutationPerformed ? 'partial' : 'verified',
+      generatedAt: accountTaskCustody.generatedAt || now,
+      receiptType: accountTaskCustody.schemaVersion,
+      source: accountTaskCustody.sourceAnchors?.adapter || 'scripts/holoshell-account-task-custody.mjs',
+    });
+  }
+
   if (trustLedger?.summary) {
     timeline.push({
       id: trustLedger.latestAction?.fingerprint || 'holoshell-trust-ledger',
@@ -848,6 +875,7 @@ function createFeed(args) {
   const formatInventory = readJson(path.join(tmpDir, 'format-inventory.json'), {});
   const founderBootPreview = readJson(path.join(tmpDir, 'founder-boot-preview.json'), {});
   const founderHost = readJson(path.join(tmpDir, 'founder-host.json'), {});
+  const nativeWrapper = readJson(path.join(tmpDir, 'native-wrapper.json'), {});
   const userShellProjection = readJson(path.join(tmpDir, 'user-shell-projection.json'), {});
   const developmentalEnvironment = readJson(path.join(tmpDir, 'developmental-environment.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
@@ -875,6 +903,7 @@ function createFeed(args) {
   const grokHeartbeat = readJson(path.join(tmpDir, 'grok-heartbeat.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
   const hardwareApproval = readJson(path.join(tmpDir, 'approval-latest.json'), {});
+  const accountTaskCustody = readJson(path.join(tmpDir, 'account-task-custody-latest.json'), {});
   const trustLedger = readJson(path.join(tmpDir, 'trust-ledger.json'), {});
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
   const workflowApproval = readJson(path.join(tmpDir, 'workflow-approval-latest.json'), {});
@@ -886,6 +915,7 @@ function createFeed(args) {
   const runReceipts = readReceiptFiles(path.join(tmpDir, 'run-receipts'));
   const actionReceipts = readReceiptFiles(path.join(tmpDir, 'action-receipts'));
   const approvalBundles = readReceiptFiles(path.join(tmpDir, 'approval-bundles'));
+  const accountTaskCustodyReceipts = readReceiptFiles(path.join(tmpDir, 'account-task-custody-receipts'));
   const workflowApprovalBundles = readReceiptFiles(path.join(tmpDir, 'workflow-approval-bundles'));
   const shardImportApprovalBundles = readReceiptFiles(path.join(tmpDir, 'shard-import-approval-bundles'));
   const pilotReceipts = readReceiptFiles(path.join(tmpDir, 'pilot-receipts'));
@@ -901,6 +931,7 @@ function createFeed(args) {
     formatInventory,
     founderBootPreview,
     founderHost,
+    nativeWrapper,
     userShellProjection,
     developmentalEnvironment,
     lanes,
@@ -928,6 +959,7 @@ function createFeed(args) {
     grokHeartbeat,
     hardwareAction,
     hardwareApproval,
+    accountTaskCustody,
     trustLedger,
     workflow,
     workflowApproval,
@@ -967,8 +999,15 @@ function createFeed(args) {
       : founderHost?.summary?.status === 'ready_for_native_wrapper' || founderHost?.summary?.status === 'needs_receipt_refresh'
         ? 'warn'
         : 'unknown';
+  const nativeWrapperRisk = nativeWrapper?.summary?.status === 'launchable_wrapper_present'
+    ? 'pass'
+    : nativeWrapper?.summary?.status === 'blocked_missing_source'
+      ? 'fail'
+      : nativeWrapper?.summary?.status === 'wrapper_present_browser_missing'
+        ? 'warn'
+        : 'unknown';
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, founderHostRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, founderHostRisk, nativeWrapperRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -1002,6 +1041,8 @@ function createFeed(args) {
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
       founderHost: 'apps/holoshell/source/holoshell-founder-host.hsplus',
       founderHostAdapter: 'scripts/holoshell-founder-host.mjs',
+      nativeWrapper: 'apps/holoshell/source/holoshell-native-wrapper.hsplus',
+      nativeWrapperAdapter: 'scripts/holoshell-native-wrapper.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       founderCommand: 'scripts/holoshell-founder-command.mjs',
@@ -1010,6 +1051,7 @@ function createFeed(args) {
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
+      accountTaskCustody: 'scripts/holoshell-account-task-custody.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       prototype: 'apps/holoshell/prototype/local-capability-room.html',
@@ -1076,6 +1118,14 @@ function createFeed(args) {
       founderHostServiceSupervisorReady: Boolean(founderHost?.summary?.serviceSupervisorReady),
       founderHostLocalMutationExecutionEnabled: Boolean(founderHost?.summary?.localMutationExecutionEnabled),
       founderHostNextMove: founderHost?.summary?.nextMove || '',
+      nativeWrapperStatus: nativeWrapper?.summary?.status || 'unknown',
+      nativeWrapperLaunchable: Boolean(nativeWrapper?.summary?.launchable),
+      nativeWrapperLaunchMode: nativeWrapper?.summary?.launchMode || '',
+      nativeWrapperBrowserCandidateCount: nativeWrapper?.summary?.browserCandidateCount || 0,
+      nativeWrapperPrimaryBrowserFamily: nativeWrapper?.summary?.primaryBrowserFamily || 'none',
+      nativeWrapperStartupIntegrationPresent: Boolean(nativeWrapper?.summary?.startupIntegrationPresent),
+      nativeWrapperStartsWithoutManualHtml: Boolean(nativeWrapper?.summary?.startsWithoutManualHtml),
+      nativeWrapperNextMove: nativeWrapper?.summary?.nextMove || '',
       userShellProjectionStatus: userShellProjection?.summary?.status || 'unknown',
       userShellModeCount: userShellProjection?.summary?.modeCount || 0,
       userShellUserModeCount: userShellProjection?.summary?.userModeCount || 0,
@@ -1341,6 +1391,14 @@ function createFeed(args) {
       hardwareApprovalExecutionAllowed: Boolean(hardwareApproval?.summary?.executionAllowed),
       hardwareApprovalBundleCount: approvalBundles.length,
       pendingHardwareApprovalCount: hardwareApproval?.summary?.executionAllowed ? 1 : 0,
+      accountTaskCustodyStatus: accountTaskCustody?.summary?.status || 'unknown',
+      accountTaskCustodyProvider: accountTaskCustody?.summary?.provider || '',
+      accountTaskCustodyBoundaryStatus: accountTaskCustody?.summary?.accountBoundaryStatus || 'unknown',
+      accountTaskCustodyApprovalRequired: Boolean(accountTaskCustody?.summary?.approvalRequired),
+      accountTaskCustodyExecutionAllowed: Boolean(accountTaskCustody?.summary?.executionAllowed),
+      accountTaskCustodyMutationPerformed: Boolean(accountTaskCustody?.summary?.accountMutationPerformed),
+      accountTaskCustodySourceMutationPerformed: Boolean(accountTaskCustody?.summary?.sourceFileMutationPerformed),
+      accountTaskCustodyReceiptCount: accountTaskCustodyReceipts.length,
       trustLedgerStatus: trustLedger?.summary?.status || 'unknown',
       trustLedgerRecordCount: trustLedger?.summary?.recordCount || 0,
       trustedAutonomyTrustedRecordCount: trustLedger?.summary?.trustedRecordCount || 0,
@@ -1426,6 +1484,7 @@ function createFeed(args) {
       formatInventory,
       founderBootPreview,
       founderHost,
+      nativeWrapper,
       userShellProjection,
       developmentalEnvironment,
       lanes,
@@ -1453,6 +1512,7 @@ function createFeed(args) {
       grokHeartbeat,
       hardwareAction,
       hardwareApproval,
+      accountTaskCustody,
       trustLedger,
       workflow,
       workflowApproval,
@@ -1466,6 +1526,7 @@ function createFeed(args) {
     runReceipts,
     actionReceipts,
     approvalBundles,
+    accountTaskCustodyReceipts,
     workflowApprovalBundles,
     pilotReceipts,
     timeline,
@@ -1527,6 +1588,7 @@ try {
     console.log(`Shell objects: ${feed.summary.shellObjectCount}`);
     console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
     console.log(`Founder host: ${feed.summary.founderHostStatus}`);
+    console.log(`Native wrapper: ${feed.summary.nativeWrapperStatus}`);
     console.log(`User shell: ${feed.summary.userShellProjectionStatus}`);
     console.log(`Developmental environment: ${feed.summary.developmentalEnvironmentStatus}`);
     console.log(`MCP custody: ${feed.summary.mcpCustodyContractStatus}`);

@@ -1,0 +1,109 @@
+// HoloShell Native Wrapper
+//
+// Source contract for the first OS-local wrapper that starts the Founder
+// HoloShell surface without manually opening the prototype HTML. This is a
+// wrapper contract, not boot-time shell replacement.
+
+composition "HoloShell Native Wrapper" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-native-wrapper.mjs"
+    wrapperReceipt: ".tmp/holoshell/native-wrapper.json"
+    wrapperBootstrap: ".tmp/holoshell/native-wrapper.js"
+    launcherRoot: "apps/holoshell/native"
+    windowsLauncher: "apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1"
+    windowsCommandShim: "apps/holoshell/native/windows/Start-HoloShellFounderHost.cmd"
+    previewHost: "apps/holoshell/prototype/local-capability-room.html"
+    founderHostReceipt: ".tmp/holoshell/founder-host.json"
+    profileDir: ".tmp/holoshell/native-profile"
+    launchMode: "chromium_app_mode"
+  }
+
+  state {
+    wrapperStatus: "unknown"
+    launcherPresent: false
+    commandShimPresent: false
+    previewHostPresent: false
+    browserCandidateCount: 0
+    launchable: false
+    startupIntegrationPresent: false
+    localMutationExecutionEnabled: false
+    primarySurfaceOwnership: "native_wrapper_candidate"
+    nextMove: "wire_startup_integration_with_approval"
+  }
+
+  channel "holoshell:native-wrapper" {
+    type: "append_only"
+    priority: "critical"
+    description: "Native wrapper readiness, launch boundary, and startup evidence"
+  }
+
+  room "NativeWrapperRoom" {
+    label: "Native Wrapper"
+    userQuestion: "Can HoloShell start from the operating system as a wrapper?"
+    visualForm: "native_window_frame"
+    liveFeed: "holoshell:native-wrapper"
+
+    object "NativeWrapper" {
+      type: "ui"
+      uiType: "native_wrapper"
+      label: "HoloShell Native Wrapper"
+      status: $wrapperStatus
+      launcher_present: $launcherPresent
+      command_shim_present: $commandShimPresent
+      preview_host_present: $previewHostPresent
+      browser_candidate_count: $browserCandidateCount
+      launchable: $launchable
+      startup_integration_present: $startupIntegrationPresent
+      execute_enabled: $localMutationExecutionEnabled
+      primary_surface_ownership: $primarySurfaceOwnership
+      next_move: $nextMove
+    }
+  }
+
+  policy "WrapperIsNotStartupTakeover" {
+    appliesTo: ["wrapper_launch", "startup_registration", "os_shell_replacement"]
+    launcherMayOpenHoloShell: true
+    launcherMayClaimOsReplacement: false
+    startupRegistrationRequiresApproval: true
+    explorerShellReplacementRequiresSeparateNativePlan: true
+    receiptRequired: true
+  }
+
+  policy "WrapperMutationBoundary" {
+    appliesTo: ["daemon_execute", "workflow_execute", "app_mutation"]
+    wrapperLaunchIsUserGesture: true
+    daemonExecuteDisabledByDefault: true
+    appMutationRequiresApprovalBundle: true
+    destructiveActionsAllowed: false
+    receiptRequired: true
+  }
+
+  action consume_native_wrapper(snapshot) {
+    state.wrapperStatus = snapshot.summary.status
+    state.launcherPresent = snapshot.summary.launcherPresent
+    state.commandShimPresent = snapshot.summary.commandShimPresent
+    state.previewHostPresent = snapshot.summary.previewHostPresent
+    state.browserCandidateCount = snapshot.summary.browserCandidateCount
+    state.launchable = snapshot.summary.launchable
+    state.startupIntegrationPresent = snapshot.summary.startupIntegrationPresent
+    state.localMutationExecutionEnabled = snapshot.summary.localMutationExecutionEnabled
+    state.primarySurfaceOwnership = snapshot.summary.primarySurfaceOwnership
+    state.nextMove = snapshot.summary.nextMove
+
+    emit("holoshell:native-wrapper", {
+      status: state.wrapperStatus,
+      launcher_present: state.launcherPresent,
+      command_shim_present: state.commandShimPresent,
+      preview_host_present: state.previewHostPresent,
+      browser_candidate_count: state.browserCandidateCount,
+      launchable: state.launchable,
+      startup_integration_present: state.startupIntegrationPresent,
+      execute_enabled: state.localMutationExecutionEnabled,
+      primary_surface_ownership: state.primarySurfaceOwnership,
+      next_move: state.nextMove,
+      receiptHash: snapshot.receipt.wrapperSnapshotHash
+    })
+  }
+}
