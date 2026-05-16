@@ -23,3 +23,9 @@ processes. A build tree now reports `ownerLaneId`, `ownerLaneLabel`,
 `ownerColorHint`, `ownerEvidence`, and `ownerParentPid` when the local evidence
 is visible. Color is only a visual lane hint; cleanup still requires an exact
 PID, reason, approval, and receipt.
+
+`scripts/holoshell-shell-objects.mjs` consumes this receipt and renders each
+active tree as a `process.build-tree.*` shell object with the `build_custody`
+capability family. These objects carry the owner lane into `actorLaneId`, expose
+only sanitized process evidence, and keep all stop affordances in the
+`break_glass` permission envelope.

@@ -1685,35 +1685,50 @@ function buildCustodyObjects({ buildCustody }) {
     const slot = treeSlots[index] || layout(index + 22, 78);
     const treeStatus = tree.status || 'unknown';
     const isReview = treeStatus === 'memory_review' || treeStatus === 'long_running';
+    const ownerLaneId = tree.ownerLaneId || '';
+    const ownerLaneLabel = tree.ownerLaneLabel || ownerLaneId || '';
+    const displayName = ownerLaneLabel ? `${ownerLaneLabel} Build Tree` : tree.rootName ? `${tree.rootName} Build Tree` : 'Build Tree';
+    const buildKinds = Array.isArray(tree.buildKinds) ? tree.buildKinds : [];
+    const findings = Array.isArray(tree.findings) ? tree.findings : [];
+    const processPids = Array.isArray(tree.processPids) ? tree.processPids : [];
     objects.push({
       id: `process.build-tree.${tree.treeId || `tree-${index}`}`,
       objectKind: 'process',
-      displayName: tree.rootName || 'Build Tree',
+      displayName,
       sourceKind: 'process',
       sourceRef: tree.treeId || '',
-      capabilityFamily: 'system',
+      capabilityFamily: 'build_custody',
       trustState: isReview ? 'partial' : 'verified',
       permissionEnvelope: 'break_glass',
       adapterPath: 'build_custody_tree_bridge',
       visualForm: isReview ? 'warning_token' : 'machine',
       status: treeStatus === 'active' ? 'running' : treeStatus,
-      actorLaneId: 'brittney',
+      actorLaneId: ownerLaneId,
       receiptTypes: ['build_custody_receipt', 'process_health_receipt'],
       relationships: {
         treeId: tree.treeId || '',
         rootPid: tree.rootPid || 0,
+        rootName: tree.rootName || '',
         processCount: tree.processCount || 0,
         maxAgeMinutes: tree.maxAgeMinutes || 0,
         totalMemoryMb: tree.totalMemoryMb || 0,
-        buildKinds: tree.buildKinds || [],
-        findings: tree.findings || [],
-        processPids: tree.processPids || [],
+        buildKinds,
+        findings,
+        processPids,
+        ownerLaneId,
+        ownerLaneLabel,
+        ownerAgentKind: tree.ownerAgentKind || '',
+        ownerColorHint: tree.ownerColorHint || '',
+        ownerEvidence: Array.isArray(tree.ownerEvidence) ? tree.ownerEvidence : [],
+        ownerParentPid: tree.ownerParentPid || 0,
         receiptRequired: Boolean(tree.receiptRequired),
+        rawCommandsIncluded: Boolean(tree.rawCommandsIncluded),
+        stopPolicy: 'break_glass_required',
       },
       privacyClass: 'local_private',
       replacementPath: 'observe_then_break_glass',
       glyph: 'BT',
-      detail: `${tree.rootName || 'Build tree'} with ${tree.processCount || 0} process(es), ${tree.totalMemoryMb || 0} MB, status ${treeStatus}.`,
+      detail: `${displayName}: ${tree.processCount || 0} process(es), ${tree.totalMemoryMb || 0} MB, ${ownerLaneLabel ? `owner ${ownerLaneLabel}` : 'owner unknown'}, status ${treeStatus}; break-glass stop only.`,
       firstScreen: isReview || index < 2,
       layout: slot,
     });
@@ -1743,6 +1758,8 @@ function summarize(objects, feeds) {
     approvalObjectCount: objects.filter((object) => object.objectKind === 'approval').length,
     receiptObjectCount: objects.filter((object) => object.objectKind === 'receipt').length,
     processObjectCount: objects.filter((object) => object.objectKind === 'process').length,
+    buildCustodyObjectCount: objects.filter((object) => object.capabilityFamily === 'build_custody').length,
+    buildCustodyProcessObjectCount: objects.filter((object) => object.objectKind === 'process' && object.capabilityFamily === 'build_custody').length,
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
     mcpCustodyContractObjectCount: objects.filter((object) => object.capabilityFamily === 'mcp_custody_contract').length,
@@ -2436,6 +2453,12 @@ function fixtureFeeds() {
           buildKinds: ['pnpm_workspace_build', 'build_child'],
           findings: ['long_running_build'],
           processPids: [100, 101, 102, 103],
+          ownerLaneId: 'codex',
+          ownerLaneLabel: 'Codex',
+          ownerAgentKind: 'hardware',
+          ownerColorHint: '#48b7ff',
+          ownerEvidence: ['synthetic_process_ancestor'],
+          ownerParentPid: 77,
           receiptRequired: true,
           rawCommandsIncluded: false,
         },
@@ -2495,8 +2518,17 @@ function assertSelfTest() {
   if (graph.summary.mcpCustodyCompatibilityMode !== 'hololand_overlay') failures.push('expected MCP custody overlay mode');
   if (graph.summary.mcpUpstreamHandoffStatus !== 'ready_for_upstream_agent') failures.push('expected MCP upstream handoff ready status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
-  if (!graph.objects.some((object) => object.objectKind === 'process')) failures.push('expected build tree process object');
+  const buildTreeObject = graph.objects.find((object) => object.id === 'process.build-tree.build-tree-100');
+  if (!buildTreeObject) failures.push('expected build tree process object');
+  if (buildTreeObject?.displayName !== 'Codex Build Tree') failures.push('expected build tree display name to include owner lane');
+  if (buildTreeObject?.capabilityFamily !== 'build_custody') failures.push('expected build tree custody capability family');
+  if (buildTreeObject?.actorLaneId !== 'codex') failures.push('expected build tree actor lane to inherit owner');
+  if (buildTreeObject?.permissionEnvelope !== 'break_glass') failures.push('expected build tree break-glass envelope');
+  if (buildTreeObject?.relationships?.ownerLaneId !== 'codex') failures.push('expected build tree owner relationship');
+  if (buildTreeObject?.relationships?.rawCommandsIncluded) failures.push('expected build tree to keep raw command redaction');
+  if (buildTreeObject?.relationships?.stopPolicy !== 'break_glass_required') failures.push('expected build tree stop policy');
   if (graph.summary.processObjectCount !== 1) failures.push('expected one process object from build custody');
+  if (graph.summary.buildCustodyProcessObjectCount !== 1) failures.push('expected one build custody process object');
   if (graph.summary.sourceFeeds.buildCustodyStatus !== 'available') failures.push('expected build custody available status');
   if (!graph.summary.guardedExecuteCount) failures.push('expected guarded execute objects');
   if (JSON.stringify(graph).includes('targetPath')) failures.push('graph must not expose raw targetPath fields');

@@ -181,6 +181,7 @@ Inputs:
 - `.tmp/holoshell/readiness-evidence.json`
 - `.tmp/holoshell/os-ui-capture.json`
 - `.tmp/holoshell/agent-lanes.json`
+- `.tmp/holoshell/build-custody.json`
 - `.tmp/holoshell/shard-workflow-latest.json`
 - `.tmp/holoshell/wild-holoscript-intake.json`
 - Brittney avatar, workflow, approval, intent-gate, and action receipts
@@ -195,6 +196,12 @@ app bubbles, browser surfaces, terminal surfaces, captured windows, approvals,
 receipts, and guarded powers. This makes the shell object graph the runtime
 join between the HoloScript source, local app registry, legacy UI capture, and
 Brittney's action surface.
+
+Build custody adds `receipt.build-custody` plus `process.build-tree.*` objects
+for active local build trees. A build tree object uses the `build_custody`
+capability family, inherits the visible agent owner lane when available, and
+keeps termination behind `break_glass`. The graph exposes PIDs, age, memory,
+findings, and owner evidence, but does not expose raw command lines.
 
 Readiness evidence packs become a `readiness_room` plus receipt tokens. The
 current HoloLand bridge reads the HoloScript flagship run from
