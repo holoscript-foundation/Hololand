@@ -1473,7 +1473,7 @@
           <em id="networkGuardAction">Receipts</em>
         </button>
         <div class="operating-turn" id="operatingTurn" role="button" tabindex="0" data-state="unknown" aria-label="Current HoloShell operating turn"></div>
-        <button class="founder-evidence-card" id="founderEvidenceCard" type="button" data-state="unknown" aria-label="Founder evidence receipt"></button>
+        <div class="founder-evidence-card" id="founderEvidenceCard" role="button" tabindex="0" data-state="unknown" aria-label="Founder evidence receipt"></div>
         <div class="bubble-field" id="bubbleField" aria-label="Shell objects"></div>
         <div class="control-lane" id="controlLane" aria-label="Hardware control pipeline"></div>
       </section>
@@ -2017,7 +2017,7 @@
       return demo.summary || {};
     }
 
-    function founderEvidenceObject() {
+    function founderEvidenceReceiptData() {
       const demo = founderEvidenceDemoFeed();
       const summary = founderEvidenceDemoSummary();
       const execution = demo.execution || {};
@@ -2026,13 +2026,18 @@
       const witness = summary.visibleWitnessKind || afterState.visibleWitnessKind || "receipt";
       const rollback = execution.rollback || "manual rollback";
       const replay = demo.approval?.commandPreview || "pnpm run holoshell:founder-evidence-demo -- --execute-approved --confirm execute-founder-demo";
+      return { demo, summary, execution, afterState, target, witness, rollback, replay };
+    }
+
+    function founderEvidenceObject() {
+      const { demo, summary, execution, target, witness, rollback, replay } = founderEvidenceReceiptData();
       return {
         id: "founder-evidence-card",
         label: "Founder Evidence",
         fullLabel: "Founder Evidence Demo",
         glyph: "FE",
         type: "receipt",
-        detail: `${summary.status || "unknown"} for ${target}; witness ${witness}; rollback ${rollback}.`,
+        detail: `${summary.status || "unknown"} for ${target}; witness ${witness}; rollback ${rollback}. Select this receipt to replay, inspect, roll back, or file a task.`,
         trustState: summary.executionPerformed ? "verified" : "partial",
         permissionEnvelope: "guarded_execute",
         evidence: {
@@ -2042,6 +2047,7 @@
           visible: summary.visibleShellChange ? "yes" : "no",
           windows: `${execution.beforeWindowCount || summary.beforeWindowCount || 0}->${execution.afterWindowCount || summary.afterWindowCount || 0}`,
           rollback,
+          receiptPath: demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json",
           replay,
         },
       };
@@ -2992,6 +2998,60 @@
       return button;
     }
 
+    function founderEvidenceResult(text) {
+      const result = document.getElementById("actionResult");
+      if (!result) return;
+      result.hidden = false;
+      result.textContent = text;
+    }
+
+    function inspectFounderEvidenceReceipt() {
+      const { demo, summary, execution, afterState, target, witness, rollback } = founderEvidenceReceiptData();
+      const path = demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json";
+      founderEvidenceResult([
+        `Receipt ${demo.demoId || "unknown"}: ${summary.status || "unknown"}.`,
+        `Target ${target}; action ${summary.targetAction || demo.command?.targetAction || "unknown"}.`,
+        `Witness ${witness}; visible ${summary.visibleShellChange ? "yes" : "no"}; windows ${execution.beforeWindowCount || 0}->${execution.afterWindowCount || afterState.windowCount || 0}.`,
+        `Receipt path ${path}; rollback ${rollback}.`,
+      ].join(" "));
+      appendConversation(`Founder evidence receipt inspected: ${target}, ${witness}, visible ${summary.visibleShellChange ? "yes" : "no"}.`);
+    }
+
+    function replayFounderEvidenceReceipt() {
+      const { afterState, target } = founderEvidenceReceiptData();
+      const targetUrl = afterState.browserNavigation?.targetUrl || (/^https?:\/\//.test(target) ? target : `https://${target}/`);
+      stageDaemonAction("Founder evidence replay", "/action", {
+        action: "open_url",
+        url: targetUrl,
+        replayOf: "founder-evidence-demo-latest",
+        requiresFreshApproval: true,
+      });
+    }
+
+    function showFounderEvidenceRollback() {
+      const { demo, summary, rollback, target, witness } = founderEvidenceReceiptData();
+      const path = demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json";
+      founderEvidenceResult(`Rollback for ${target}: ${rollback.replaceAll("_", " ")}. Because witness is ${witness}, HoloShell should not auto-close anything until it can prove the exact tab/window identity. Receipt: ${path}.`);
+      appendConversation(`Rollback is manual for ${target} until the shell can prove the exact browser tab identity.`);
+      if (!summary.visibleShellChange) {
+        appendConversation("This receipt is not visibly witnessed yet, so rollback stays advisory.");
+      }
+    }
+
+    function prepareFounderEvidenceTask() {
+      const { demo, summary, target, witness, rollback } = founderEvidenceReceiptData();
+      const gap = summary.visibleShellChange
+        ? "rollback is advisory because exact browser tab identity is not captured"
+        : "visible shell witness is missing";
+      founderEvidenceResult([
+        "Task packet ready:",
+        `[holoshell][receipt-control] Make Founder evidence replay/rollback deterministic for ${target}.`,
+        `Evidence: ${demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json"}; status ${summary.status || "unknown"}; witness ${witness}; gap ${gap}.`,
+        `Expected: replay creates a fresh approval receipt; rollback is executable only after exact target identity is proved. Likely owner: HoloShell hardware-wrapper. Category: deterministic UX/receipt gap. Current rollback: ${rollback}.`,
+      ].join(" "));
+      appendConversation("I prepared a HoloMesh task packet from the receipt gap instead of pretending rollback is already safely executable.");
+    }
+
     async function stageDaemonAction(label, route, body) {
       const result = document.getElementById("actionResult");
       result.hidden = false;
@@ -3023,6 +3083,12 @@
       const launch = shellObject.launch || {};
       const selectedName = object.fullLabel || object.label;
       const actions = [];
+      if (object.id === "founder-evidence-card") {
+        actions.push(actionButton("Replay with approval", replayFounderEvidenceReceipt, true));
+        actions.push(actionButton("Inspect receipt", inspectFounderEvidenceReceipt));
+        actions.push(actionButton("Rollback steps", showFounderEvidenceRollback));
+        actions.push(actionButton("File task packet", prepareFounderEvidenceTask));
+      }
       if (object.id === "agent-dispatch" || shellObject.id === "workflow.agent-dispatch") {
         actions.push(actionButton("Stage current ask", () => {
           const intent = document.getElementById("askInput")?.value || "";
@@ -3728,7 +3794,7 @@
         founderEvidenceCell("Target", target, summary.targetAction || "operation"),
         founderEvidenceCell("Approval", approval, summary.executionAllowed ? "nonce allowed" : "not executable"),
         founderEvidenceCell("Witness", witness, windows),
-        founderEvidenceCell("Rollback", rollback.replaceAll("_", " "), replay)
+        founderEvidenceCell("Controls", "Replay / inspect", `rollback / task; ${replay}`)
       );
       card.onclick = () => selectObject(founderEvidenceObject());
       card.onkeydown = (event) => {

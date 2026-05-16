@@ -22,9 +22,15 @@ assert.match(html, /\.brittney\s*\{\s*order:\s*-1;/, 'single-column layout must 
 assert.match(html, /\.founder-evidence-card\s*\{[^}]*top:\s*150px;/s, 'Founder evidence card must sit above the operating turn');
 assert.match(html, /\.operating-turn\s*\{[^}]*top:\s*252px;/s, 'operating turn must sit below the approved receipt card');
 assert.match(html, /function founderEvidenceDemoFeed\(\)/, 'prototype must read Founder evidence feed');
+assert.match(html, /function replayFounderEvidenceReceipt\(\)/, 'prototype must expose replay action for Founder evidence');
+assert.match(html, /function inspectFounderEvidenceReceipt\(\)/, 'prototype must expose inspect action for Founder evidence');
+assert.match(html, /function showFounderEvidenceRollback\(\)/, 'prototype must expose rollback guidance for Founder evidence');
+assert.match(html, /function prepareFounderEvidenceTask\(\)/, 'prototype must prepare task packets from Founder evidence gaps');
 assert.match(html, /function renderFounderEvidenceCard\(\)/, 'prototype must render Founder evidence card');
 assert.match(html, /renderFounderEvidenceCard\(\)/, 'prototype must invoke Founder evidence renderer');
 assert.match(html, /Approved Receipt/, 'approved execution should be labeled as a receipt, not just a plan');
+assert.match(html, /Replay with approval/, 'selected receipt actions must include replay with fresh approval');
+assert.match(html, /File task packet/, 'selected receipt actions must include task packet generation');
 assert.match(html, /Founder evidence:/, 'shell memory must include Founder evidence row');
 
 assert.equal(receipt.schemaVersion, 'hololand.holoshell.founder-evidence-demo.v0.1.0');
