@@ -288,10 +288,12 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
+  const serviceSupervisorSummary = serviceSupervisor?.summary || {};
+  const serviceSupervisorReceipt = serviceSupervisor?.receipt || {};
   const grokBuildSummary = grokBuild?.summary || {};
   const dispatchSummary = agentDispatch?.summary || {};
   const workflowSummary = workflow?.summary || {};
@@ -393,6 +395,47 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
         : 'Brittney routes plain-language requests into guarded HoloShell workflows and hardware actions.',
       firstScreen: true,
       layout: { x: 26, y: 66, size: 108 },
+    },
+    {
+      id: 'service.supervisor',
+      objectKind: 'service_supervisor',
+      displayName: 'Services',
+      sourceKind: 'holoscript_service',
+      sourceRef: 'apps/holoshell/source/holoshell-service-supervisor.hsplus',
+      capabilityFamily: 'service_supervisor',
+      trustState: (serviceSupervisorSummary.requiredAttentionCount || serviceSupervisorSummary.actionRequiredCount)
+        ? 'partial'
+        : serviceSupervisorSummary.status === 'unknown'
+          ? 'unknown'
+          : 'verified',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'holoshell_service_supervisor',
+      visualForm: 'service_supervisor_bubble',
+      status: serviceSupervisorSummary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['service_supervisor_receipt', 'network_sentinel_service_receipt', 'grok_heartbeat_receipt'],
+      relationships: {
+        requestedAction: serviceSupervisorSummary.requestedAction || 'status',
+        serviceCount: serviceSupervisorSummary.serviceCount || 0,
+        requiredServiceCount: serviceSupervisorSummary.requiredServiceCount || 0,
+        requiredOnlineServiceCount: serviceSupervisorSummary.requiredOnlineServiceCount || 0,
+        requiredAttentionCount: serviceSupervisorSummary.requiredAttentionCount || 0,
+        optionalOfflineServiceCount: serviceSupervisorSummary.optionalOfflineServiceCount || 0,
+        actionRequiredCount: serviceSupervisorSummary.actionRequiredCount || 0,
+        managedPidServiceCount: serviceSupervisorSummary.managedPidServiceCount || 0,
+        verifiedPidServiceCount: serviceSupervisorSummary.verifiedPidServiceCount || 0,
+        heartbeatOnlyServiceCount: serviceSupervisorSummary.heartbeatOnlyServiceCount || 0,
+        localDaemonServiceCount: serviceSupervisorSummary.localDaemonServiceCount || 0,
+        serviceMutationTaken: Boolean(serviceSupervisorSummary.serviceMutationTaken),
+        destructiveActionsTaken: Boolean(serviceSupervisorReceipt.destructiveActionsTaken),
+        nextRequiredAction: serviceSupervisorSummary.nextRequiredAction || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'local_service_registry',
+      glyph: 'SV',
+      detail: `Services ${serviceSupervisorSummary.status || 'unknown'}; required ${serviceSupervisorSummary.requiredOnlineServiceCount || 0}/${serviceSupervisorSummary.requiredServiceCount || 0}; optional offline ${serviceSupervisorSummary.optionalOfflineServiceCount || 0}; actions ${serviceSupervisorSummary.actionRequiredCount || 0}.`,
+      firstScreen: true,
+      layout: { x: 58, y: 84, size: 104 },
     },
     {
       id: 'source.wild-holoscript.uaa2',
@@ -1770,6 +1813,21 @@ function summarize(objects, feeds) {
     mcpUpstreamHandoffStatus: feeds.mcpUpstreamHandoff?.summary?.status || 'unknown',
     mcpUpstreamHandoffTargetTool: feeds.mcpUpstreamHandoff?.summary?.targetTool || '',
     mcpUpstreamHandoffTaskCount: feeds.mcpUpstreamHandoff?.summary?.taskCount || 0,
+    serviceSupervisorObjectCount: objects.filter((object) => object.capabilityFamily === 'service_supervisor').length,
+    serviceSupervisorStatus: feeds.serviceSupervisor?.summary?.status || 'unknown',
+    serviceSupervisorRequestedAction: feeds.serviceSupervisor?.summary?.requestedAction || 'unknown',
+    serviceSupervisorServiceCount: feeds.serviceSupervisor?.summary?.serviceCount || 0,
+    serviceSupervisorRequiredServiceCount: feeds.serviceSupervisor?.summary?.requiredServiceCount || 0,
+    serviceSupervisorRequiredOnlineServiceCount: feeds.serviceSupervisor?.summary?.requiredOnlineServiceCount || 0,
+    serviceSupervisorRequiredAttentionCount: feeds.serviceSupervisor?.summary?.requiredAttentionCount || 0,
+    serviceSupervisorOptionalOfflineServiceCount: feeds.serviceSupervisor?.summary?.optionalOfflineServiceCount || 0,
+    serviceSupervisorActionRequiredCount: feeds.serviceSupervisor?.summary?.actionRequiredCount || 0,
+    serviceSupervisorManagedPidServiceCount: feeds.serviceSupervisor?.summary?.managedPidServiceCount || 0,
+    serviceSupervisorVerifiedPidServiceCount: feeds.serviceSupervisor?.summary?.verifiedPidServiceCount || 0,
+    serviceSupervisorHeartbeatOnlyServiceCount: feeds.serviceSupervisor?.summary?.heartbeatOnlyServiceCount || 0,
+    serviceSupervisorLocalDaemonServiceCount: feeds.serviceSupervisor?.summary?.localDaemonServiceCount || 0,
+    serviceSupervisorServiceMutationTaken: Boolean(feeds.serviceSupervisor?.summary?.serviceMutationTaken),
+    serviceSupervisorDestructiveActionsTaken: Boolean(feeds.serviceSupervisor?.receipt?.destructiveActionsTaken),
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
     founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
     userShellObjectCount: objects.filter((object) => object.capabilityFamily === 'user_shell').length,
@@ -1862,6 +1920,7 @@ function summarize(objects, feeds) {
       readinessEvidenceStatus: feeds.readinessEvidence?.summary?.status || 'unknown',
       mcpCustodyContractStatus: feeds.mcpCustodyContract?.summary?.status || 'unknown',
       mcpUpstreamHandoffStatus: feeds.mcpUpstreamHandoff?.summary?.status || 'unknown',
+      serviceSupervisorStatus: feeds.serviceSupervisor?.summary?.status || 'unknown',
       goldCodebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.status || 'unknown',
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
@@ -1888,6 +1947,7 @@ function loadFeeds(tmpDir) {
     readinessEvidence: readJson(path.join(dir, 'readiness-evidence.json'), {}),
     mcpCustodyContract: readJson(path.join(dir, 'mcp-custody-contract.json'), {}),
     mcpUpstreamHandoff: readJson(path.join(dir, 'mcp-custody-upstream-handoff.json'), {}),
+    serviceSupervisor: readJson(path.join(dir, 'service-supervisor.json'), {}),
     goldCodebaseBridge: readJson(path.join(dir, 'holoscript-gold-codebase-bridge.json'), {}),
     wildHoloScript: readJson(path.join(dir, 'wild-holoscript-intake.json'), {}),
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
@@ -1960,6 +2020,7 @@ function buildGraph(args, fixtures = null) {
       ollamaCloudAgentWorkflow: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
+      serviceSupervisor: 'scripts/holoshell-service-supervisor.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -2078,6 +2139,37 @@ function fixtureFeeds() {
         upstreamRepoRequired: true,
         taskCount: 5,
         acceptanceGateCount: 4,
+      },
+    },
+    serviceSupervisor: {
+      schemaVersion: 'hololand.holoshell.service-supervisor.v0.1.0',
+      generatedAt: new Date().toISOString(),
+      sourceAnchors: {
+        source: 'apps/holoshell/source/holoshell-service-supervisor.hsplus',
+        adapter: 'scripts/holoshell-service-supervisor.mjs',
+      },
+      summary: {
+        status: 'ready_with_optional_offline',
+        requestedAction: 'status',
+        serviceCount: 3,
+        requiredServiceCount: 1,
+        requiredOnlineServiceCount: 1,
+        requiredAttentionCount: 0,
+        optionalOfflineServiceCount: 1,
+        actionRequiredCount: 0,
+        managedPidServiceCount: 1,
+        verifiedPidServiceCount: 1,
+        heartbeatOnlyServiceCount: 1,
+        localDaemonServiceCount: 1,
+        serviceMutationTaken: false,
+        nextRequiredAction: 'holoshell-control-daemon: optional service is offline for mutations',
+      },
+      receipt: {
+        snapshotHash: 'fixture-service-supervisor',
+        localOnly: true,
+        destructiveActionsTaken: false,
+        rawCommandLineIncluded: false,
+        serviceMutationTaken: false,
       },
     },
     goldCodebaseBridge: {
@@ -2488,6 +2580,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-contract')) failures.push('expected MCP custody contract object');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-upstream-handoff')) failures.push('expected MCP custody upstream handoff object');
+  if (!graph.objects.some((object) => object.id === 'service.supervisor' && object.relationships?.requiredOnlineServiceCount === 1)) failures.push('expected service supervisor shell object');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
@@ -2517,6 +2610,8 @@ function assertSelfTest() {
   if (graph.summary.mcpCustodyContractStatus !== 'warn') failures.push('expected MCP custody contract warning status');
   if (graph.summary.mcpCustodyCompatibilityMode !== 'hololand_overlay') failures.push('expected MCP custody overlay mode');
   if (graph.summary.mcpUpstreamHandoffStatus !== 'ready_for_upstream_agent') failures.push('expected MCP upstream handoff ready status');
+  if (graph.summary.serviceSupervisorStatus !== 'ready_with_optional_offline') failures.push('expected service supervisor ready-with-optional-offline status');
+  if (graph.summary.serviceSupervisorRequiredOnlineServiceCount !== 1) failures.push('expected service supervisor required service online count');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   const buildTreeObject = graph.objects.find((object) => object.id === 'process.build-tree.build-tree-100');
   if (!buildTreeObject) failures.push('expected build tree process object');

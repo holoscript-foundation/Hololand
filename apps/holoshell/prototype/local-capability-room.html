@@ -1428,6 +1428,7 @@
     const standaloneShardImportApprovalFeed = window.HOLOSHELL_SHARD_IMPORT_APPROVAL || {};
     const standaloneShardImportFeed = window.HOLOSHELL_SHARD_IMPORT || {};
     const standaloneNetworkRealityFeed = window.HOLOSHELL_NETWORK_REALITY || {};
+    const standaloneServiceSupervisorFeed = window.HOLOSHELL_SERVICE_SUPERVISOR || {};
     let controlDaemonHealth = { status: "offline", executeEnabled: false };
     let avatarSpeechTimer = 0;
     let speechRecognition = null;
@@ -1440,6 +1441,7 @@
       { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
       { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
       { id: "network-reality", label: "Network", glyph: "NW", type: "holoweb", detail: "HoloWeb Local Reality Node protects bandwidth before agents spend it.", x: 63, y: 55, size: 102 },
+      { id: "service-supervisor", label: "Services", glyph: "SV", type: "service", detail: "Registered service watchers show which background agents and loopback daemons HoloShell can trust.", x: 58, y: 84, size: 104 },
       { id: "agent-dispatch", label: "Dispatch", glyph: "AD", type: "workflow", detail: "Brittney turns plain-language intent into the right guarded workflow or hardware action.", x: 26, y: 66, size: 108 },
       { id: "founder-command", label: "Founder Command", glyph: "FC", type: "os command", detail: "One receipt for intent, plan, approval, trust gate, launcher, and shell memory.", x: 31, y: 79, size: 104 },
       { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
@@ -1805,6 +1807,15 @@
       };
     }
 
+    function serviceSupervisorFeed() {
+      return feed.feeds?.serviceSupervisor?.summary ? feed.feeds.serviceSupervisor : standaloneServiceSupervisorFeed;
+    }
+
+    function serviceSupervisorSummary() {
+      const supervisor = serviceSupervisorFeed();
+      return supervisor.summary || {};
+    }
+
     function hardwareLatestAction() {
       return feed.feeds?.hardwareAction?.summary ? feed.feeds.hardwareAction : standaloneHardwareActionFeed;
     }
@@ -1950,6 +1961,7 @@
         "Asset Shard": "Shard",
         "Shard Workflow Receipt": "Shard Receipt",
         "Grok Build": "Grok",
+        "Services": "Services",
         "Trust Ladder": "Trust",
         "Wild HoloScript": "Wild HS",
         "GOLD + Codebase": "GOLD+Code",
@@ -2006,7 +2018,7 @@
     function canonicalShellBubbles() {
       const graph = shellObjectGraphFeed();
       const graphObjects = Array.isArray(graph.objects) ? graph.objects : [];
-      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "workflow.grok-build", "policy.trusted-autonomy", "source.holoscript-gold-codebase", "source.developmental-environment", "policy.physics-honesty"]);
+      const duplicateBase = new Set(["shell.hololand", "assistant.brittney", "workflow.agent-dispatch", "workflow.room-marathon", "workflow.claude-chat", "workflow.ollama-cloud-agent", "workflow.grok-build", "policy.trusted-autonomy", "service.supervisor", "source.holoscript-gold-codebase", "source.developmental-environment", "policy.physics-honesty"]);
       const surfaceKinds = new Set([
         "browser_surface",
         "terminal_surface",
@@ -2017,6 +2029,7 @@
         "workflow",
         "assistant_avatar",
         "operating_world",
+        "service_supervisor",
         "user_shell",
         "user_shell_mode",
       ]);
@@ -2354,6 +2367,7 @@
       const avatarSummary = brittneyAvatarSummary();
       const hardwareSummary = hardwareActionSummary();
       const network = networkRealitySummary();
+      const serviceSupervisor = serviceSupervisorSummary();
       const registrySummary = programRegistrySummary();
       const approvalSummary = hardwareApprovalSummary();
       const activeWorkflow = workflowSummary();
@@ -2421,6 +2435,33 @@
               cost: network.underlay.osCost || summary.networkRealityOsCost || "Unknown",
               policy: network.policy.heavyWorkPolicy || summary.networkRealityHeavyWorkPolicy || "unknown",
               consumers: network.lanes.networkConsumerCount || summary.networkRealityConsumerCount || 0,
+            },
+          };
+        }
+        if (object.id === "service-supervisor") {
+          const status = serviceSupervisor.status || summary.serviceSupervisorStatus || "unknown";
+          const requiredOnline = serviceSupervisor.requiredOnlineServiceCount || summary.serviceSupervisorRequiredOnlineServiceCount || 0;
+          const required = serviceSupervisor.requiredServiceCount || summary.serviceSupervisorRequiredServiceCount || 0;
+          const optionalOffline = serviceSupervisor.optionalOfflineServiceCount || summary.serviceSupervisorOptionalOfflineServiceCount || 0;
+          const actions = serviceSupervisor.actionRequiredCount || summary.serviceSupervisorActionRequiredCount || 0;
+          const requiredAttention = serviceSupervisor.requiredAttentionCount || summary.serviceSupervisorRequiredAttentionCount || 0;
+          return {
+            ...object,
+            detail: `Services ${status}; required ${requiredOnline}/${required}; optional offline ${optionalOffline}; actions ${actions}; verified PID services ${serviceSupervisor.verifiedPidServiceCount || summary.serviceSupervisorVerifiedPidServiceCount || 0}.`,
+            trustState: requiredAttention || actions ? "partial" : status === "unknown" ? "unknown" : "verified",
+            permissionEnvelope: "read_only",
+            evidence: {
+              status,
+              services: serviceSupervisor.serviceCount || summary.serviceSupervisorServiceCount || 0,
+              required,
+              requiredOnline,
+              requiredAttention,
+              optionalOffline,
+              actions,
+              verifiedPid: serviceSupervisor.verifiedPidServiceCount || summary.serviceSupervisorVerifiedPidServiceCount || 0,
+              heartbeatOnly: serviceSupervisor.heartbeatOnlyServiceCount || summary.serviceSupervisorHeartbeatOnlyServiceCount || 0,
+              localDaemon: serviceSupervisor.localDaemonServiceCount || summary.serviceSupervisorLocalDaemonServiceCount || 0,
+              mutationTaken: serviceSupervisor.serviceMutationTaken || summary.serviceSupervisorServiceMutationTaken ? "yes" : "no",
             },
           };
         }
@@ -2934,6 +2975,34 @@
         actions.push(actionButton("Ask Brittney", () => {
           document.getElementById("askInput").value = "Explain the current network reality and what work should wait";
           askBrittney();
+        }));
+      }
+      if (object.id === "service-supervisor" || shellObject.id === "service.supervisor") {
+        actions.push(actionButton("Review services", () => {
+          const supervisor = serviceSupervisorFeed();
+          const s = supervisor.summary || {};
+          result.hidden = false;
+          result.textContent = `Services ${s.status || "unknown"}: required ${s.requiredOnlineServiceCount || 0}/${s.requiredServiceCount || 0}, optional offline ${s.optionalOfflineServiceCount || 0}, actions ${s.actionRequiredCount || 0}, verified PID services ${s.verifiedPidServiceCount || 0}.`;
+          appendConversation(s.nextRequiredAction || "Service supervisor is read-only here: it watches required services before HoloShell trusts autonomous lanes.");
+        }, actions.length === 0));
+        actions.push(actionButton("Ask Brittney", () => {
+          document.getElementById("askInput").value = "Explain which HoloShell services are online and what autonomy is allowed";
+          askBrittney();
+        }));
+        actions.push(actionButton("Refresh daemon view", async () => {
+          result.hidden = false;
+          result.textContent = "Checking the local service supervisor through the control daemon.";
+          try {
+            const payload = await getControlDaemon("/services/supervisor");
+            if (!feed.feeds) feed.feeds = {};
+            feed.feeds.serviceSupervisor = payload;
+            const s = payload.summary || {};
+            result.textContent = `Services ${s.status || "unknown"}: required ${s.requiredOnlineServiceCount || 0}/${s.requiredServiceCount || 0}, optional offline ${s.optionalOfflineServiceCount || 0}, actions ${s.actionRequiredCount || 0}.`;
+            renderBubbles();
+            renderEvidence();
+          } catch (error) {
+            result.textContent = `Service supervisor could not refresh through the daemon: ${error.message}.`;
+          }
         }));
       }
       if (object.id === "asset-shard" || shellObject.id === "workflow.asset-shard") {
@@ -3499,6 +3568,7 @@
       const summary = feed.summary || {};
       const process = feed.feeds?.processHealth?.summary || {};
       const network = networkRealitySummary();
+      const serviceSupervisor = serviceSupervisorSummary();
       const avatarSummary = brittneyAvatarSummary();
       const turn = brittneyLatestTurn();
       const turnSummary = turn.summary || {};
@@ -3545,6 +3615,7 @@
         "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
         "Hardware source: source/holoshell-hardware-control.hsplus",
         "Network source: source/holoshell-network-reality.hsplus",
+        "Service source: source/holoshell-service-supervisor.hsplus",
         "Wild source: source/holoshell-wild-holoscript-intake.hsplus",
         "Substrate bridge: source/holoshell-holoscript-gold-codebase-bridge.hsplus",
         "Development source: source/holoshell-developmental-environment.hsplus",
@@ -3560,6 +3631,7 @@
         `Readiness tokens: ${readinessSummary.tokenCount || summary.readinessTokenCount || 0}; warnings ${readinessSummary.warningCount || summary.readinessWarningCount || 0}; next ${readinessSummary.nextWorkflow || summary.readinessNextWorkflow || "none"}`,
         `Network reality: ${network.underlay.classification || summary.networkRealityStatus || "unknown"}; owner ${network.underlay.ownerDeclaredKind || summary.networkRealityOwnerDeclaredKind || "none"}; OS cost ${network.underlay.osCost || summary.networkRealityOsCost || "Unknown"}; VPN ${network.underlay.vpnState || summary.networkRealityVpnState || "unknown"}`,
         `Bandwidth policy: ${network.policy.heavyWorkPolicy || summary.networkRealityHeavyWorkPolicy || "unknown"}; Brittney ${network.brittney.stance || summary.networkRealityBrittneyStance || "unknown"}; protect ${network.brittney.protectBandwidth || summary.networkRealityProtectBandwidth ? "yes" : "no"}; consumers ${network.lanes.networkConsumerCount || summary.networkRealityConsumerCount || 0}`,
+        `Service supervisor: ${serviceSupervisor.status || summary.serviceSupervisorStatus || "unknown"}; required ${serviceSupervisor.requiredOnlineServiceCount || summary.serviceSupervisorRequiredOnlineServiceCount || 0}/${serviceSupervisor.requiredServiceCount || summary.serviceSupervisorRequiredServiceCount || 0}; optional offline ${serviceSupervisor.optionalOfflineServiceCount || summary.serviceSupervisorOptionalOfflineServiceCount || 0}; actions ${serviceSupervisor.actionRequiredCount || summary.serviceSupervisorActionRequiredCount || 0}; mutation taken ${serviceSupervisor.serviceMutationTaken || summary.serviceSupervisorServiceMutationTaken ? "yes" : "no"}`,
         `Control daemon: ${controlDaemonHealth.status || "offline"}; execute ${controlDaemonHealth.executeEnabled ? "enabled" : "disabled"}`,
         `Captured UI: ${summary.capturedWindowCount || 0} windows, ${summary.capturedGeometryNodeCount || 0} geometric shards`,
         `Program registry: ${registrySummary.launchableProgramCount || summary.launchableProgramCount || 0} launchable, ${registrySummary.programCount || summary.installedProgramCount || 0} installed entries`,
