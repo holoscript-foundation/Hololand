@@ -7,6 +7,8 @@
 import { beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 
+const shouldUseTestDatabase = process.env.HOLOLAND_CENTRAL_TEST_DB === '1';
+
 // Initialize Prisma client for tests
 export const testPrisma = new PrismaClient({
   log: ['error'],
@@ -18,6 +20,11 @@ export const testPrisma = new PrismaClient({
 });
 
 beforeAll(async () => {
+  if (!shouldUseTestDatabase) {
+    console.log('[Test Setup] Skipping test database connection. Set HOLOLAND_CENTRAL_TEST_DB=1 to enable DB-backed tests.');
+    return;
+  }
+
   console.log('[Test Setup] Connecting to test database...');
 
   try {
@@ -30,6 +37,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (!shouldUseTestDatabase) return;
+
   console.log('[Test Setup] Disconnecting from test database...');
   await testPrisma.$disconnect();
 });
