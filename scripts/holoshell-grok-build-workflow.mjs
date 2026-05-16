@@ -80,6 +80,8 @@ function parseArgs(argv) {
     const token = argv[i];
     const next = () => argv[++i] ?? '';
     switch (token) {
+      case '--':
+        break;
       case '--actor':
         args.actor = next() || args.actor;
         break;
@@ -241,6 +243,15 @@ function shortHash(value) {
   return createHash('sha256').update(String(value)).digest('hex').slice(0, 12);
 }
 
+function grokChildEnv(extra = {}) {
+  const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
+  return {
+    ...process.env,
+    ...(home ? { HOME: home } : {}),
+    ...extra,
+  };
+}
+
 function id(prefix, seed = '') {
   return `${prefix}-${Date.now()}-${shortHash(`${seed}:${randomBytes(4).toString('hex')}`)}`;
 }
@@ -252,6 +263,7 @@ function runCommand(command, args = [], options = {}) {
     windowsHide: true,
     timeout: options.timeoutMs || 15000,
     maxBuffer: 10 * 1024 * 1024,
+    env: options.env || grokChildEnv(),
   });
   return {
     ok: result.status === 0,
@@ -364,6 +376,7 @@ function buildSetup(args) {
   const inspect = parseInspect(`${inspectResult?.stdout || ''}\n${inspectResult?.stderr || ''}`);
   const cliStatus = cli.exists ? 'installed' : 'missing';
   const modelStatus = models.requestedModelAvailable ? 'available' : models.status === 'available' ? 'partial' : 'unknown';
+  const heavyAccessStatus = auth.status === 'present' && models.requestedModelAvailable ? 'active' : 'unverified';
   const status = cliStatus === 'missing' || auth.status === 'missing'
     ? 'blocked'
     : modelStatus === 'available' && inspect.projectTrusted
@@ -419,13 +432,20 @@ function buildSetup(args) {
       inspectStderr: String(inspectResult?.stderr || '').trim().slice(0, 600),
     },
     heavyUpgrade: {
-      plannedCheckDate: '2026-05-15',
-      plannedWindow: 'tomorrow night',
-      founderNote: 'Rerun setup after the Grok Heavy upgrade to refresh available models and launch policy.',
+      status: heavyAccessStatus,
+      activatedAfter: '2026-05-15',
+      verifiedAt: generatedAt,
+      evidence: heavyAccessStatus === 'active'
+        ? 'grok models returned the grok-build model while authenticated with grok.com.'
+        : 'Grok Build access has not been verified by the local model probe.',
+      founderNote: heavyAccessStatus === 'active'
+        ? 'SuperGrok Heavy access is active for the local Grok Build lane.'
+        : 'Rerun setup after activating SuperGrok Heavy to refresh available models and launch policy.',
       nextCommand: 'node scripts/holoshell-grok-build-workflow.mjs --setup-only --json',
     },
     summary: {
       status,
+      heavyAccessStatus,
       cliStatus,
       cliVersion: version.version || 'unknown',
       authStatus: auth.status,
@@ -443,6 +463,7 @@ function buildSetup(args) {
         !whereCommand('grok') && cli.exists,
       ].filter(Boolean).length,
       readyForHeavyRecheck: cliStatus === 'installed' && auth.status === 'present',
+      readyForGrokBuild: cliStatus === 'installed' && auth.status === 'present' && modelStatus === 'available',
     },
     recommendations: [
       inspect.projectTrusted
@@ -451,7 +472,9 @@ function buildSetup(args) {
       whereCommand('grok')
         ? 'Current process PATH resolves grok.'
         : `Current process PATH does not resolve grok; HoloShell will use ${cli.path || defaultGrokPath()} directly.`,
-      'After Grok Heavy is active on 2026-05-15, rerun the setup receipt and stage a read-only headless inspection first.',
+      heavyAccessStatus === 'active'
+        ? 'Heavy access is active; stage a read-only headless inspection before any mutating Grok Build run.'
+        : 'After Grok Heavy is active, rerun the setup receipt and stage a read-only headless inspection first.',
     ],
     output: {
       latestPath: args.setupOutput,
@@ -495,7 +518,8 @@ function psString(value) {
 
 function psCommand(parts) {
   const [exe, ...args] = parts;
-  return `& ${psString(exe)} ${args.map(psString).join(' ')}`.trim();
+  const homePrefix = '$env:HOME = if ($env:HOME) { $env:HOME } else { $env:USERPROFILE }';
+  return `${homePrefix}; & ${psString(exe)} ${args.map(psString).join(' ')}`.trim();
 }
 
 function buildSteps(args, setup, executionResult = null) {
@@ -907,6 +931,7 @@ function runPowerShell(command, options = {}) {
       encoding: 'utf8',
       windowsHide: true,
       timeout: options.timeoutMs || 15000,
+      env: grokChildEnv(),
     },
   );
   return {

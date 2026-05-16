@@ -19,7 +19,8 @@ composition "HoloShell Grok Build Workflow" {
     approvalBootstrap: ".tmp/holoshell/workflow-approval-latest.js"
     localApprovalGate: ".tmp/holoshell/brain-intent-gate-latest.json"
     localApprovalGateBootstrap: ".tmp/holoshell/brain-intent-gate-latest.js"
-    plannedHeavyRecheckDate: "2026-05-15"
+    heavyAccessActivatedAfter: "2026-05-15"
+    heavyAccessVerifiedDate: "2026-05-16"
   }
 
   state {
@@ -35,6 +36,8 @@ composition "HoloShell Grok Build Workflow" {
     pathSeenOnCurrentProcess: false
     skippedPermissionCount: 0
     warningCount: 0
+    heavyAccessStatus: "unknown"
+    readyForGrokBuild: false
     activeWorkflowId: ""
     activeWorkflowStatus: "unknown"
     activeWorkflowMode: "interactive"
@@ -69,7 +72,9 @@ composition "HoloShell Grok Build Workflow" {
     projectTrusted: false
     projectTrustStatus: "unknown"
     pathSeenOnCurrentProcess: false
+    heavyAccessStatus: "unknown"
     readyForHeavyRecheck: false
+    readyForGrokBuild: false
     receiptRequired: true
   }
 
@@ -122,6 +127,8 @@ composition "HoloShell Grok Build Workflow" {
     state.pathSeenOnCurrentProcess = setup.summary.pathSeenOnCurrentProcess
     state.skippedPermissionCount = setup.summary.skippedPermissionCount
     state.warningCount = setup.summary.warningCount
+    state.heavyAccessStatus = setup.summary.heavyAccessStatus
+    state.readyForGrokBuild = setup.summary.readyForGrokBuild
     emit("holoshell:workflow:grok-build:setup", {
       action: "grok_build_setup_applied",
       status: state.setupStatus,
@@ -135,7 +142,9 @@ composition "HoloShell Grok Build Workflow" {
       project_trust_status: state.projectTrustStatus,
       path_seen_on_current_process: state.pathSeenOnCurrentProcess,
       warning_count: state.warningCount,
-      heavy_recheck_date: config.plannedHeavyRecheckDate,
+      heavy_access_status: state.heavyAccessStatus,
+      ready_for_grok_build: state.readyForGrokBuild,
+      heavy_access_verified_date: config.heavyAccessVerifiedDate,
       receipt_required: true
     })
   }

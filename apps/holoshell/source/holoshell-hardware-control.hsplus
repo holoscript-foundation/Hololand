@@ -100,7 +100,9 @@ composition "HoloShell Hardware Program Control" {
     grokBuildProjectTrusted: false
     grokBuildProjectTrustStatus: "unknown"
     grokBuildWarningCount: 0
+    grokBuildHeavyAccessStatus: "unknown"
     grokBuildReadyForHeavyRecheck: false
+    grokBuildReadyForGrokBuild: false
     trustLedgerStatus: "unknown"
     trustLedgerRecordCount: 0
     trustLedgerReadOnlyCount: 0
@@ -648,7 +650,9 @@ composition "HoloShell Hardware Program Control" {
     state.grokBuildProjectTrusted = setup.summary.projectTrusted
     state.grokBuildProjectTrustStatus = setup.summary.projectTrustStatus
     state.grokBuildWarningCount = setup.summary.warningCount
+    state.grokBuildHeavyAccessStatus = setup.summary.heavyAccessStatus
     state.grokBuildReadyForHeavyRecheck = setup.summary.readyForHeavyRecheck
+    state.grokBuildReadyForGrokBuild = setup.summary.readyForGrokBuild
     emit("holoshell:workflow:grok-build", {
       action: "grok_build_setup_applied",
       status: state.grokBuildSetupStatus,
@@ -659,7 +663,9 @@ composition "HoloShell Hardware Program Control" {
       project_trusted: state.grokBuildProjectTrusted,
       project_trust_status: state.grokBuildProjectTrustStatus,
       warning_count: state.grokBuildWarningCount,
+      heavy_access_status: state.grokBuildHeavyAccessStatus,
       ready_for_heavy_recheck: state.grokBuildReadyForHeavyRecheck,
+      ready_for_grok_build: state.grokBuildReadyForGrokBuild,
       source: "scripts/holoshell-grok-build-workflow.mjs",
       receipt_required: true
     })

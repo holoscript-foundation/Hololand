@@ -577,7 +577,9 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
         promptPresent: Boolean(grokWorkflowSummary.promptPresent),
         approvalStatus: activeWorkflowKind === 'grok_build' ? workflowApprovalSummary.status || 'unknown' : 'unknown',
         localGateStatus: activeWorkflowKind === 'grok_build' ? gateSummary.status || 'unknown' : 'unknown',
-        heavyRecheckDate: grokBuild?.heavyUpgrade?.plannedCheckDate || '2026-05-15',
+        heavyAccessStatus: grokBuildSummary.heavyAccessStatus || grokBuild?.heavyUpgrade?.status || 'unknown',
+        heavyVerifiedAt: grokBuild?.heavyUpgrade?.verifiedAt || '',
+        readyForGrokBuild: Boolean(grokBuildSummary.readyForGrokBuild),
         warningCount: grokBuildSummary.warningCount || 0,
       },
       privacyClass: 'local_private',
@@ -586,7 +588,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       glyph: 'GB',
       detail: activeWorkflowKind === 'grok_build'
         ? `${grokWorkflowSummary.status || 'unknown'}; ${grokWorkflowSummary.mode || 'interactive'}; ${grokWorkflowSummary.model || 'grok-build'}; approval ${workflowApprovalSummary.status || 'unknown'}; project ${grokWorkflowSummary.projectTrustStatus || 'unknown'}.`
-        : `Grok ${grokBuildSummary.cliVersion || 'unknown'}; auth ${grokBuildSummary.authStatus || 'unknown'}; model ${grokBuildSummary.modelStatus || 'unknown'}; project ${grokBuildSummary.projectTrustStatus || 'unknown'}; Heavy recheck ${grokBuild?.heavyUpgrade?.plannedCheckDate || '2026-05-15'}.`,
+        : `Grok ${grokBuildSummary.cliVersion || 'unknown'}; auth ${grokBuildSummary.authStatus || 'unknown'}; model ${grokBuildSummary.modelStatus || 'unknown'}; project ${grokBuildSummary.projectTrustStatus || 'unknown'}; Heavy ${grokBuildSummary.heavyAccessStatus || grokBuild?.heavyUpgrade?.status || 'unknown'}.`,
       firstScreen: true,
       layout: { x: 72, y: 17, size: 104 },
     },
@@ -1731,6 +1733,8 @@ function summarize(objects, feeds) {
     grokBuildProjectTrustStatus: feeds.grokBuild?.summary?.projectTrustStatus || 'unknown',
     grokBuildWarningCount: feeds.grokBuild?.summary?.warningCount || 0,
     grokBuildReadyForHeavyRecheck: Boolean(feeds.grokBuild?.summary?.readyForHeavyRecheck),
+    grokBuildReadyForGrokBuild: Boolean(feeds.grokBuild?.summary?.readyForGrokBuild),
+    grokBuildHeavyAccessStatus: feeds.grokBuild?.summary?.heavyAccessStatus || feeds.grokBuild?.heavyUpgrade?.status || 'unknown',
     trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
     trustLedgerRecordCount: feeds.trustLedger?.summary?.recordCount || 0,
     trustedAutonomyLatestLevel: feeds.trustLedger?.summary?.latestTrustLevel || 'unknown',
@@ -2174,20 +2178,22 @@ function fixtureFeeds() {
       schemaVersion: 'hololand.holoshell.grok-build-setup.v0.1.0',
       setupId: 'grok-build-setup-fixture',
       sourceAnchors: { adapter: 'scripts/holoshell-grok-build-workflow.mjs' },
-      heavyUpgrade: { plannedCheckDate: '2026-05-15' },
+      heavyUpgrade: { status: 'active', verifiedAt: '2026-05-16T00:00:00.000Z' },
       summary: {
-        status: 'partial',
+        status: 'ready',
+        heavyAccessStatus: 'active',
         cliStatus: 'installed',
-        cliVersion: '0.1.210',
+        cliVersion: '0.1.211',
         authStatus: 'present',
         modelStatus: 'available',
         requestedModel: 'grok-build',
         defaultModel: 'grok-build',
-        projectTrusted: false,
-        projectTrustStatus: 'untrusted',
-        pathSeenOnCurrentProcess: false,
-        warningCount: 3,
+        projectTrusted: true,
+        projectTrustStatus: 'trusted',
+        pathSeenOnCurrentProcess: true,
+        warningCount: 1,
         readyForHeavyRecheck: true,
+        readyForGrokBuild: true,
       },
     },
     hardwareAction: { actionId: 'action-1', generatedAt: new Date().toISOString(), summary: { status: 'approval_required', actionKind: 'launch_app', permissionEnvelope: 'guarded_execute', targetWindowTitle: '', mutatingActionExecuted: false } },
@@ -2322,7 +2328,7 @@ function assertSelfTest() {
   if (graph.summary.userShellProjectionStatus !== 'ready') failures.push('expected user shell projection ready status');
   if (graph.summary.developmentalEnvironmentStatus !== 'ready') failures.push('expected developmental environment ready status');
   if (graph.summary.agentDispatchStatus !== 'ready_to_stage') failures.push('expected agent dispatch ready status');
-  if (graph.summary.grokBuildSetupStatus !== 'partial') failures.push('expected Grok Build setup status');
+  if (graph.summary.grokBuildSetupStatus !== 'ready') failures.push('expected Grok Build setup status');
   if (graph.summary.trustedAutonomyLatestLevel !== 'guarded') failures.push('expected trust ledger guarded status');
   if (graph.summary.goldCodebaseBridgeStatus !== 'ready') failures.push('expected GOLD/codebase bridge ready status');
   if (graph.summary.mcpCustodyContractStatus !== 'warn') failures.push('expected MCP custody contract warning status');
