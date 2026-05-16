@@ -152,9 +152,50 @@ function runNode(args) {
 }
 
 function refreshNetworkSentinelService(args) {
-  const command = ['scripts/holoshell-network-sentinel-service.mjs', args.action === 'ensure' ? '--ensure' : '--status'];
+  const command = [
+    'scripts/holoshell-network-sentinel-service.mjs',
+    args.action === 'ensure' ? '--ensure' : '--status',
+    '--tmp-dir',
+    args.tmpDir,
+  ];
   const result = runNode(command);
   const receipt = readJson(path.join(args.tmpDir, 'network-sentinel-service.json'), {});
+  return {
+    result,
+    receipt,
+    serviceMutationTaken: Boolean(receipt?.receipt?.serviceMutationTaken),
+  };
+}
+
+function parseControlEndpoint(endpoint) {
+  try {
+    const url = new URL(endpoint);
+    return {
+      host: url.hostname || '127.0.0.1',
+      port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)),
+    };
+  } catch {
+    return { host: '127.0.0.1', port: 4747 };
+  }
+}
+
+function refreshControlDaemonService(args) {
+  const endpoint = parseControlEndpoint(args.controlEndpoint);
+  const command = [
+    'scripts/holoshell-control-daemon-service.mjs',
+    args.action === 'ensure' ? '--ensure' : '--status',
+    '--tmp-dir',
+    args.tmpDir,
+    '--host',
+    endpoint.host,
+    '--port',
+    String(endpoint.port),
+    '--timeout-ms',
+    String(args.timeoutMs),
+  ];
+  if (args.skipControlProbe) command.push('--skip-health-probe');
+  const result = runNode(command);
+  const receipt = readJson(path.join(args.tmpDir, 'control-daemon-service.json'), {});
   return {
     result,
     receipt,
@@ -194,9 +235,9 @@ function httpGetJson(url, timeoutMs) {
 }
 
 function normalizeStatus(status, requiredForAutonomy = false) {
-  if (['online', 'starting', 'observing', 'available', 'active_or_available'].includes(status)) return 'online';
-  if (['stale', 'unverified_pid', 'start_failed', 'blocked', 'partial', 'warn'].includes(status)) return 'degraded';
-  if (['offline', 'missing', 'not_probed'].includes(status)) return requiredForAutonomy ? 'offline' : 'offline';
+  if (['online', 'starting', 'observing', 'available', 'active_or_available', 'not_probed_verified_pid'].includes(status)) return 'online';
+  if (['stale', 'unverified_pid', 'start_failed', 'blocked', 'partial', 'warn', 'online_unmanaged', 'not_probed'].includes(status)) return 'degraded';
+  if (['offline', 'missing'].includes(status)) return requiredForAutonomy ? 'offline' : 'offline';
   return 'unknown';
 }
 
@@ -263,28 +304,42 @@ function serviceFromGrokHeartbeat(receipt, nowMs, staleMs) {
   };
 }
 
-function serviceFromControlDaemon(probe, skipped, endpoint) {
-  const body = probe?.body || {};
-  const status = skipped ? 'not_probed' : probe?.ok ? 'online' : 'offline';
+function serviceFromControlDaemon(manager, skipped, endpoint) {
+  const receipt = manager?.receipt || {};
+  const summary = receipt?.summary || {};
+  const policy = receipt?.policy || {};
+  const commandResult = manager?.result || {};
+  const status = summary.serviceStatus || (commandResult?.ok ? 'unknown' : 'missing');
   return {
     serviceId: 'holoshell-control-daemon',
     label: 'HoloShell Control Daemon',
-    serviceKind: 'http_loopback_daemon',
+    serviceKind: 'managed_loopback_daemon',
     requiredForAutonomy: false,
     requiredForMutation: true,
     status,
     normalizedStatus: normalizeStatus(status, false),
-    source: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
-    adapter: 'scripts/holoshell-control-daemon.mjs',
-    endpoint: skipped ? 'loopback_probe_skipped' : endpoint,
-    pid: body.pid || 0,
-    executeEnabled: Boolean(body.executeEnabled),
-    trustedExecuteEnabled: Boolean(body.trustedExecuteEnabled),
+    source: 'apps/holoshell/source/holoshell-control-daemon-service.hsplus',
+    daemonSource: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
+    adapter: 'scripts/holoshell-control-daemon-service.mjs',
+    daemonAdapter: 'scripts/holoshell-control-daemon.mjs',
+    receiptPath: '.tmp/holoshell/control-daemon-service.json',
+    endpoint: summary.endpoint || (skipped ? 'loopback_probe_skipped' : endpoint),
+    pid: summary.pid || 0,
+    pidAlive: Boolean(summary.pidAlive),
+    pidCommandVerified: Boolean(summary.pidCommandVerified),
+    loopbackReachable: Boolean(summary.loopbackReachable),
+    executeEnabled: Boolean(summary.executeEnabled),
+    trustedExecuteEnabled: Boolean(summary.trustedExecuteEnabled),
+    mutationExecutionStatus: summary.mutationExecutionStatus || 'disabled_by_default',
+    stopPolicy: policy.stopOnlyVerifiedControlDaemonPid ? 'verified_pid_only' : 'unknown',
+    forceKillAllowed: Boolean(policy.forceKillAllowed),
     actionRequired: false,
-    probeOk: Boolean(probe?.ok),
-    probeStatusCode: probe?.statusCode || 0,
-    probeError: skipped ? 'skipped_by_parent_daemon' : probe?.error || '',
-    rawCommandLineIncluded: false,
+    managerExitStatus: commandResult?.status ?? null,
+    managerOk: Boolean(commandResult?.ok),
+    probeOk: Boolean(summary.loopbackReachable),
+    probeStatusCode: summary.healthStatusCode || 0,
+    probeError: summary.healthError || (skipped ? 'skipped_by_parent_daemon' : ''),
+    rawCommandLineIncluded: Boolean(receipt?.receipt?.rawCommandLineIncluded),
   };
 }
 
@@ -296,8 +351,9 @@ function summarizeServices(services, action, serviceMutationTaken) {
   const optionalOffline = offline.filter((service) => !service.requiredForAutonomy);
   const requiredAttention = required.filter((service) => service.normalizedStatus !== 'online');
   const actionRequired = services.filter((service) => service.actionRequired);
-  const managedPid = services.filter((service) => service.serviceKind === 'managed_pid_watch');
+  const managedPid = services.filter((service) => ['managed_pid_watch', 'managed_loopback_daemon'].includes(service.serviceKind));
   const verifiedPid = managedPid.filter((service) => service.pidCommandVerified);
+  const controlDaemon = services.find((service) => service.serviceId === 'holoshell-control-daemon');
   const status = requiredAttention.length
     ? 'attention_required'
     : optionalOffline.length
@@ -320,7 +376,11 @@ function summarizeServices(services, action, serviceMutationTaken) {
     managedPidServiceCount: managedPid.length,
     verifiedPidServiceCount: verifiedPid.length,
     heartbeatOnlyServiceCount: services.filter((service) => service.serviceKind === 'receipt_heartbeat').length,
-    localDaemonServiceCount: services.filter((service) => service.serviceKind === 'http_loopback_daemon').length,
+    localDaemonServiceCount: services.filter((service) => ['http_loopback_daemon', 'managed_loopback_daemon'].includes(service.serviceKind)).length,
+    controlDaemonServiceStatus: controlDaemon?.status || 'unknown',
+    controlDaemonPidCommandVerified: Boolean(controlDaemon?.pidCommandVerified),
+    controlDaemonLoopbackReachable: Boolean(controlDaemon?.loopbackReachable),
+    controlDaemonExecuteEnabled: Boolean(controlDaemon?.executeEnabled),
     actionRequiredCount: actionRequired.length,
     serviceMutationTaken,
     nextRequiredAction: actionRequired[0]
@@ -336,15 +396,14 @@ async function createSupervisor(args, fixtures = null) {
   const nowMs = Date.parse(generatedAt);
   const network = fixtures?.network || refreshNetworkSentinelService(args);
   const grokHeartbeat = fixtures?.grokHeartbeat || readJson(path.join(args.tmpDir, 'grok-heartbeat.json'), {});
-  const controlProbe = fixtures?.controlProbe || (args.skipControlProbe
-    ? { skipped: true }
-    : await httpGetJson(args.controlEndpoint, args.timeoutMs));
+  const controlDaemon = fixtures?.controlDaemon || refreshControlDaemonService(args);
   const services = [
     serviceFromNetworkSentinel(network.receipt, network.result),
     serviceFromGrokHeartbeat(grokHeartbeat, nowMs, args.heartbeatStaleMs),
-    serviceFromControlDaemon(controlProbe, Boolean(controlProbe?.skipped), args.controlEndpoint),
+    serviceFromControlDaemon(controlDaemon, args.skipControlProbe, args.controlEndpoint),
   ];
-  const summary = summarizeServices(services, args.action, Boolean(network.serviceMutationTaken));
+  const summary = summarizeServices(services, args.action, Boolean(network.serviceMutationTaken || controlDaemon.serviceMutationTaken));
+  const controlService = services.find((service) => service.serviceId === 'holoshell-control-daemon');
   const hashInput = {
     schemaVersion: SCHEMA_VERSION,
     generatedAt,
@@ -360,6 +419,7 @@ async function createSupervisor(args, fixtures = null) {
       adapter: 'scripts/holoshell-service-supervisor.mjs',
       networkSentinelService: 'scripts/holoshell-network-sentinel-service.mjs',
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
+      controlDaemonService: 'scripts/holoshell-control-daemon-service.mjs',
       controlDaemon: 'scripts/holoshell-control-daemon.mjs',
     },
     summary,
@@ -375,7 +435,9 @@ async function createSupervisor(args, fixtures = null) {
     },
     brittneyGuidance: {
       trustRequiredServicesOnlyWhenSupervisorReady: true,
-      controlDaemonOfflineMeansNoLocalMutations: services.find((service) => service.serviceId === 'holoshell-control-daemon')?.status === 'offline',
+      controlDaemonOfflineMeansNoLocalMutations: !controlService || controlService.normalizedStatus === 'offline',
+      localMutationExecutionEnabled: Boolean(controlService?.executeEnabled),
+      controlDaemonRequiresIntentGateForMutations: !controlService?.executeEnabled,
       nextRequiredAction: summary.nextRequiredAction,
     },
     receipt: {
@@ -384,6 +446,39 @@ async function createSupervisor(args, fixtures = null) {
       destructiveActionsTaken: false,
       rawCommandLineIncluded: false,
       serviceMutationTaken: summary.serviceMutationTaken,
+    },
+  };
+}
+
+function fixtureControlDaemonService() {
+  return {
+    result: { ok: true, status: 0 },
+    serviceMutationTaken: false,
+    receipt: {
+      schemaVersion: 'hololand.holoshell.control-daemon-service.v0.1.0',
+      generatedAt: new Date().toISOString(),
+      summary: {
+        serviceStatus: 'online',
+        serviceMode: 'managed_loopback_daemon',
+        pid: 4747,
+        pidAlive: true,
+        pidCommandVerified: true,
+        endpoint: 'http://127.0.0.1:4747/health',
+        loopbackReachable: true,
+        healthStatusCode: 200,
+        healthError: '',
+        executeEnabled: false,
+        trustedExecuteEnabled: false,
+        mutationExecutionStatus: 'disabled_by_default',
+      },
+      policy: {
+        stopOnlyVerifiedControlDaemonPid: true,
+        forceKillAllowed: false,
+      },
+      receipt: {
+        serviceMutationTaken: false,
+        rawCommandLineIncluded: false,
+      },
     },
   };
 }
@@ -429,8 +524,8 @@ function assertSelfTest(snapshot) {
   if (snapshot.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (snapshot.summary.requiredServiceCount !== 1) failures.push('expected one required service');
   if (snapshot.summary.requiredAttentionCount !== 0) failures.push('required service should be healthy');
-  if (snapshot.summary.managedPidServiceCount !== 1) failures.push('expected managed PID service');
-  if (snapshot.summary.verifiedPidServiceCount !== 1) failures.push('expected verified PID service');
+  if (snapshot.summary.managedPidServiceCount !== 2) failures.push('expected two managed PID services');
+  if (snapshot.summary.verifiedPidServiceCount !== 2) failures.push('expected two verified PID services');
   if (snapshot.summary.heartbeatOnlyServiceCount !== 1) failures.push('expected heartbeat-only service');
   if (snapshot.summary.localDaemonServiceCount !== 1) failures.push('expected local daemon service');
   if (!['ready', 'ready_with_optional_offline'].includes(snapshot.summary.status)) failures.push(`unexpected status ${snapshot.summary.status}`);
@@ -439,6 +534,7 @@ function assertSelfTest(snapshot) {
   if (snapshot.receipt.destructiveActionsTaken !== false) failures.push('self-test must be non-destructive');
   if (snapshot.receipt.rawCommandLineIncluded !== false) failures.push('raw commands must stay hidden');
   if (!snapshot.services.some((service) => service.serviceId === 'network-sentinel-service' && service.pidCommandVerified)) failures.push('network service must be verified');
+  if (!snapshot.services.some((service) => service.serviceId === 'holoshell-control-daemon' && service.pidCommandVerified)) failures.push('control daemon service must be verified');
   if (failures.length) {
     throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   }
@@ -450,7 +546,7 @@ try {
     ? {
         network: fixtureNetworkReceipt(),
         grokHeartbeat: fixtureGrokHeartbeat(),
-        controlProbe: { ok: false, statusCode: 0, body: {}, error: 'fixture offline' },
+        controlDaemon: fixtureControlDaemonService(),
       }
     : null;
   const snapshot = await createSupervisor(args, fixtures);

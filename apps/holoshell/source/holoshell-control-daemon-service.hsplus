@@ -1,0 +1,115 @@
+// HoloShell Control Daemon Service
+//
+// Product source for registered custody of the local loopback control daemon.
+// HoloShell may start and stop only this verified daemon PID; local hardware
+// mutations remain disabled unless the daemon is explicitly launched with an
+// execution flag and approval receipts.
+
+composition "HoloShell Control Daemon Service" {
+  config {
+    title: "Control Daemon Service"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    daemonSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    daemonScript: "scripts/holoshell-control-daemon.mjs"
+    managerScript: "scripts/holoshell-control-daemon-service.mjs"
+    serviceReceipt: ".tmp/holoshell/control-daemon-service.json"
+    serviceBootstrap: ".tmp/holoshell/control-daemon-service.js"
+    pidFile: ".tmp/holoshell/control-daemon-service.pid"
+    logFile: ".tmp/holoshell/control-daemon-service.log"
+    defaultHost: "127.0.0.1"
+    defaultPort: 4747
+    defaultExecuteEnabled: false
+    mode: "registered_loopback_daemon"
+  }
+
+  state {
+    serviceStatus: "unknown"
+    pid: 0
+    pidAlive: false
+    pidCommandVerified: false
+    loopbackReachable: false
+    executeEnabled: false
+    trustedExecuteEnabled: false
+    startedAt: ""
+    statusCheckedAt: ""
+    actionStatus: "unknown"
+    serviceMutationTaken: false
+    destructiveActionsTaken: false
+  }
+
+  channel "holoshell:services:control-daemon" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Verified local loopback daemon custody for HoloShell hardware control"
+  }
+
+  room "ControlDaemonServiceRoom" {
+    label: "Control Daemon Service"
+    userQuestion: "Is HoloShell's local bridge running under verified custody?"
+    visualForm: "loopback_daemon_health"
+    liveFeed: "holoshell:services:control-daemon"
+
+    object "ControlDaemonService" {
+      type: "ui"
+      uiType: "service_health_lane"
+      label: "Control Daemon"
+      status: $serviceStatus
+      pid_alive: $pidAlive
+      pid_verified: $pidCommandVerified
+      loopback_reachable: $loopbackReachable
+      execute_enabled: $executeEnabled
+      trusted_execute_enabled: $trustedExecuteEnabled
+      action_status: $actionStatus
+      service_mutation_taken: $serviceMutationTaken
+      stop_policy: "verified_pid_only"
+    }
+  }
+
+  policy "LoopbackReadStageByDefault" {
+    appliesTo: ["daemon_start", "daemon_status", "service_supervisor", "brittney_context"]
+    bindHost: "127.0.0.1"
+    defaultExecuteEnabled: false
+    approvalRequiredForMutation: true
+    workflowIntentGateRequired: true
+    browserCanReadReceipts: true
+    remoteAccessAllowed: false
+  }
+
+  policy "VerifiedPidCustody" {
+    appliesTo: ["daemon_stop", "daemon_restart", "daemon_ensure"]
+    exactPidRequired: true
+    stopOnlyVerifiedControlDaemonPid: true
+    unverifiedPidStopRefused: true
+    arbitraryProcessStartAllowed: false
+    arbitraryProcessStopAllowed: false
+    forceKillAllowed: false
+    rawCommandLineIncluded: false
+  }
+
+  action consume_control_daemon_service(snapshot) {
+    state.serviceStatus = snapshot.summary.serviceStatus
+    state.pid = snapshot.summary.pid
+    state.pidAlive = snapshot.summary.pidAlive
+    state.pidCommandVerified = snapshot.summary.pidCommandVerified
+    state.loopbackReachable = snapshot.summary.loopbackReachable
+    state.executeEnabled = snapshot.summary.executeEnabled
+    state.trustedExecuteEnabled = snapshot.summary.trustedExecuteEnabled
+    state.startedAt = snapshot.summary.lastStartedAt
+    state.statusCheckedAt = snapshot.generatedAt
+    state.actionStatus = snapshot.action.status
+    state.serviceMutationTaken = snapshot.receipt.serviceMutationTaken
+    state.destructiveActionsTaken = snapshot.receipt.destructiveActionsTaken
+
+    emit("holoshell:services:control-daemon", {
+      status: state.serviceStatus,
+      pid_alive: state.pidAlive,
+      pid_verified: state.pidCommandVerified,
+      loopback_reachable: state.loopbackReachable,
+      execute_enabled: state.executeEnabled,
+      trusted_execute_enabled: state.trustedExecuteEnabled,
+      service_mutation_taken: state.serviceMutationTaken,
+      receiptHash: snapshot.receipt.snapshotHash
+    })
+  }
+}

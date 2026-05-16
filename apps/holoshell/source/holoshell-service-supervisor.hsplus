@@ -16,6 +16,8 @@ composition "HoloShell Service Supervisor" {
     networkSentinelServiceReceipt: ".tmp/holoshell/network-sentinel-service.json"
     grokHeartbeatSource: "apps/holoshell/source/holoshell-grok-heartbeat.hsplus"
     grokHeartbeatReceipt: ".tmp/holoshell/grok-heartbeat.json"
+    controlDaemonServiceSource: "apps/holoshell/source/holoshell-control-daemon-service.hsplus"
+    controlDaemonServiceReceipt: ".tmp/holoshell/control-daemon-service.json"
     controlDaemonSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
     controlDaemonEndpoint: "http://127.0.0.1:4747/health"
     defaultHeartbeatStaleMs: 120000
@@ -36,6 +38,10 @@ composition "HoloShell Service Supervisor" {
     verifiedPidServiceCount: 0
     heartbeatOnlyServiceCount: 0
     localDaemonServiceCount: 0
+    controlDaemonServiceStatus: "unknown"
+    controlDaemonPidCommandVerified: false
+    controlDaemonLoopbackReachable: false
+    controlDaemonExecuteEnabled: false
     actionRequiredCount: 0
     serviceMutationTaken: false
     destructiveActionsTaken: false
@@ -114,6 +120,10 @@ composition "HoloShell Service Supervisor" {
     state.verifiedPidServiceCount = snapshot.summary.verifiedPidServiceCount
     state.heartbeatOnlyServiceCount = snapshot.summary.heartbeatOnlyServiceCount
     state.localDaemonServiceCount = snapshot.summary.localDaemonServiceCount
+    state.controlDaemonServiceStatus = snapshot.summary.controlDaemonServiceStatus
+    state.controlDaemonPidCommandVerified = snapshot.summary.controlDaemonPidCommandVerified
+    state.controlDaemonLoopbackReachable = snapshot.summary.controlDaemonLoopbackReachable
+    state.controlDaemonExecuteEnabled = snapshot.summary.controlDaemonExecuteEnabled
     state.actionRequiredCount = snapshot.summary.actionRequiredCount
     state.serviceMutationTaken = snapshot.receipt.serviceMutationTaken
     state.destructiveActionsTaken = snapshot.receipt.destructiveActionsTaken
