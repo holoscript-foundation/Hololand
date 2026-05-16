@@ -329,6 +329,43 @@ function summarizeProcessHealth(processHealth, operatorBrief) {
   };
 }
 
+function summarizeLegacyAppReality(legacyAppReality) {
+  const summary = legacyAppReality.summary || {};
+  return {
+    status: summary.confidence || 'unknown',
+    contractStatus: legacyAppReality.schemaContract?.validationStatus || 'missing',
+    processCount: summary.processCount || 0,
+    visibleWindowCount: summary.visibleWindowCount || 0,
+    agentInstanceCount: summary.agentInstanceCount || 0,
+    shellInstanceCount: summary.shellInstanceCount || 0,
+    legacyAppCount: summary.legacyAppCount || 0,
+    browserCount: summary.browserCount || 0,
+    networkConsumerCount: summary.networkConsumerCount || 0,
+    heavyNetworkConsumerCount: summary.heavyNetworkConsumerCount || 0,
+    colorLaneCount: summary.colorLaneCount || 0,
+    processCountIsPeerCount: Boolean(summary.processCountIsPeerCount),
+    lanes: safeArray(legacyAppReality.lanes).slice(0, 12).map((lane) => ({
+      laneId: lane.laneId || '',
+      label: lane.label || lane.laneId || '',
+      color: lane.color || '',
+      agentKind: lane.agentKind || '',
+      processCount: lane.processCount || 0,
+      visibleWindowCount: lane.visibleWindowCount || 0,
+      networkConsumerCount: lane.networkConsumerCount || 0,
+      primaryPid: lane.primaryPid || null,
+    })),
+    networkConsumers: safeArray(legacyAppReality.networkConsumers).slice(0, 12).map((consumer) => ({
+      pid: consumer.pid || 0,
+      processName: consumer.processName || '',
+      role: consumer.role || 'unknown',
+      laneId: consumer.laneId || '',
+      networkPosture: consumer.networkPosture || 'unknown',
+      connectionCount: consumer.connectionCount || 0,
+    })),
+    receiptHash: legacyAppReality.receipt?.snapshotHash || '',
+  };
+}
+
 function summarizeMcpCustodyContract(mcpCustodyContract) {
   const summary = mcpCustodyContract?.summary || {};
   return {
@@ -520,11 +557,11 @@ function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operator
     .slice(0, maxTimelineItems);
 }
 
-function privacyBoundary({ processHealth, operatorBrief, osUiCapture }) {
+function privacyBoundary({ processHealth, operatorBrief, osUiCapture, legacyAppReality }) {
   const rawCommandsIncluded = Boolean(processHealth.collection?.commandLinesIncluded || operatorBrief.safety?.rawCommandsIncluded || operatorBrief.receipt?.rawCommandsIncluded);
-  const rawWindowTitlesIncluded = Boolean(operatorBrief.safety?.rawWindowTitlesIncluded || operatorBrief.receipt?.rawWindowTitlesIncluded || operatorBrief.peers?.rawWindowTitlesIncluded);
+  const rawWindowTitlesIncluded = Boolean(operatorBrief.safety?.rawWindowTitlesIncluded || operatorBrief.receipt?.rawWindowTitlesIncluded || operatorBrief.peers?.rawWindowTitlesIncluded || legacyAppReality.redaction?.rawWindowTitlesIncluded);
   const selectedWindow = osUiCapture?.selectedWindow || {};
-  const localUiLabelsIncluded = Boolean(selectedWindow.title || safeArray(selectedWindow.controls).some((control) => control?.name));
+  const localUiLabelsIncluded = Boolean(selectedWindow.title || safeArray(selectedWindow.controls).some((control) => control?.name) || legacyAppReality.summary?.visibleWindowCount);
   return {
     locality: 'local_hardware',
     rawCommandsIncluded,
@@ -552,6 +589,7 @@ function loadInputs(args) {
     shellObjects: readJson(path.join(tmpDir, 'shell-objects.json'), {}),
     programRegistry: readJson(path.join(tmpDir, 'program-registry.json'), {}),
     processHealth: readJson(path.join(tmpDir, 'process-health.json'), {}),
+    legacyAppReality: readJson(path.join(tmpDir, 'legacy-app-reality.json'), {}),
     mcpCustodyContract: readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {}),
     mcpUpstreamHandoff: readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {}),
     lanes: readJson(path.join(tmpDir, 'agent-lanes.json'), {}),
@@ -653,6 +691,35 @@ function fixtureInputs() {
       collection: { commandLinesIncluded: false },
       policies: { automaticTerminationAllowed: false, exactPidRequired: true },
     },
+    legacyAppReality: {
+      schemaVersion: 'hololand.holoshell.legacy-app-reality.v0.1.0',
+      generatedAt: '2026-05-14T00:00:00.650Z',
+      summary: {
+        processCount: 42,
+        visibleWindowCount: 8,
+        agentInstanceCount: 2,
+        shellInstanceCount: 1,
+        legacyAppCount: 4,
+        browserCount: 1,
+        networkConsumerCount: 3,
+        heavyNetworkConsumerCount: 0,
+        colorLaneCount: 3,
+        processCountIsPeerCount: false,
+        confidence: 'fixture',
+      },
+      lanes: [
+        { laneId: 'codex', label: 'Codex', color: 'cyan', agentKind: 'codex', processCount: 1, visibleWindowCount: 1, networkConsumerCount: 0, primaryPid: 101 },
+        { laneId: 'claude', label: 'Claude', color: 'violet', agentKind: 'claude', processCount: 1, visibleWindowCount: 1, networkConsumerCount: 1, primaryPid: 202 },
+        { laneId: 'terminal', label: 'Terminal', color: 'white', agentKind: 'shell', processCount: 1, visibleWindowCount: 1, networkConsumerCount: 0, primaryPid: 303 },
+      ],
+      networkConsumers: [
+        { pid: 202, processName: 'Claude', role: 'ai_peer_surface', laneId: 'claude', networkPosture: 'active', connectionCount: 2 },
+        { pid: 404, processName: 'chrome', role: 'browser', laneId: 'browser', networkPosture: 'active', connectionCount: 8 },
+      ],
+      redaction: { rawWindowTitlesIncluded: false },
+      schemaContract: { validationStatus: 'pass' },
+      receipt: { snapshotHash: 'fixture-legacy-reality' },
+    },
     mcpCustodyContract: {
       schemaVersion: 'hololand.holoshell.mcp-custody-contract.v0.1.0',
       generatedAt: '2026-05-14T00:00:00.750Z',
@@ -731,6 +798,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const approvalSummary = summarizeApprovals(inputs);
   const agentLaneSummary = summarizeLanes(inputs.lanes);
   const processHealthSummary = summarizeProcessHealth(inputs.processHealth, inputs.operatorBrief);
+  const legacyAppRealitySummary = summarizeLegacyAppReality(inputs.legacyAppReality);
   const mcpCustodyContractSummary = summarizeMcpCustodyContract(inputs.mcpCustodyContract);
   const mcpUpstreamHandoffSummary = summarizeMcpUpstreamHandoff(inputs.mcpUpstreamHandoff);
   const operatorBriefSummary = summarizeOperatorBrief(inputs.operatorBrief);
@@ -746,6 +814,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     approvalSummary,
     agentLaneSummary,
     processHealthSummary,
+    legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
     operatorBriefSummary,
@@ -767,6 +836,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       operatorBrief: 'scripts/holoshell-operator-brief.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       processHealth: 'scripts/holoshell-process-health.mjs',
+      legacyAppReality: 'scripts/holoshell-legacy-app-reality.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
       agentLanes: 'scripts/holoshell-agent-lanes.mjs',
@@ -781,6 +851,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     approvalSummary,
     agentLaneSummary,
     processHealthSummary,
+    legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
     operatorBriefSummary,
@@ -803,6 +874,14 @@ function createPacket(args, inputs = loadInputs(args)) {
       activeLaneCount: agentLaneSummary.activeLaneCount,
       processRisk: processHealthSummary.riskState,
       processCount: processHealthSummary.processCount,
+      legacyRealityStatus: legacyAppRealitySummary.status,
+      legacyRealityContractStatus: legacyAppRealitySummary.contractStatus,
+      legacyRealityAgentInstanceCount: legacyAppRealitySummary.agentInstanceCount,
+      legacyRealityShellInstanceCount: legacyAppRealitySummary.shellInstanceCount,
+      legacyRealityVisibleWindowCount: legacyAppRealitySummary.visibleWindowCount,
+      legacyRealityNetworkConsumerCount: legacyAppRealitySummary.networkConsumerCount,
+      legacyRealityColorLaneCount: legacyAppRealitySummary.colorLaneCount,
+      legacyRealityProcessCountIsPeerCount: legacyAppRealitySummary.processCountIsPeerCount,
       staleRunCount: processHealthSummary.staleRunCount,
       ownerUnknownStaleRunCount: processHealthSummary.ownerUnknownStaleRunCount,
       laneOwnedStaleRunCount: processHealthSummary.laneOwnedStaleRunCount,
@@ -848,6 +927,7 @@ function createPacket(args, inputs = loadInputs(args)) {
         'pnpm run holoshell:mcp-custody-contract',
         'pnpm run holoshell:mcp-upstream-handoff',
         'pnpm run holoshell:legacy-windows',
+        'pnpm run holoshell:legacy-reality',
         'pnpm run holoshell:run-custody',
         'pnpm run holoshell:legacy-apps',
         'pnpm run holoshell:os-ui-capture',
@@ -875,6 +955,9 @@ function assertSelfTest(packet) {
   if (packet.operatorBriefSummary.peerWindowCount < 2) failures.push('expected peer windows from operator brief');
   if (packet.operatorBriefSummary.shellWindowCount < 1) failures.push('expected shell windows tracked separately');
   if (packet.agentLaneSummary.colorLaneCount < 3) failures.push('expected color lane evidence');
+  if (packet.legacyAppRealitySummary.agentInstanceCount < 2) failures.push('expected legacy app reality agent instances');
+  if (packet.legacyAppRealitySummary.processCountIsPeerCount !== false) failures.push('legacy app reality must reject process-count peer counts');
+  if (packet.summary.legacyRealityContractStatus !== 'pass') failures.push('expected legacy app reality contract pass');
   if (packet.legacyUiCaptureSummary.status !== 'captured') failures.push('expected OS UI capture summary');
   if (packet.legacyUiCaptureSummary.targetApp !== 'chrome') failures.push('expected Chrome OS UI target');
   if (!packet.legacyUiCaptureSummary.targetResolved) failures.push('expected resolved OS UI target');

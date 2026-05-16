@@ -111,6 +111,16 @@ function networkRealityTrustState(networkReality) {
   return 'unknown';
 }
 
+function legacyRealityContractStatus(legacyAppReality) {
+  return legacyAppReality?.schemaContract?.validationStatus || 'missing';
+}
+
+function legacyRealityTrustState(legacyAppReality) {
+  if (legacyRealityContractStatus(legacyAppReality) === 'pass') return 'verified';
+  if (legacyAppReality?.summary?.confidence === 'os_reported' || legacyAppReality?.summary?.confidence === 'fixture') return 'partial';
+  return 'unknown';
+}
+
 function runReceiptDetail(receipt) {
   const base = `${receipt.command?.preview || 'local command'} as ${receipt.command?.runClass || 'run'} on ${receipt.lane?.laneId || 'unknown lane'}.`;
   const networkGate = receipt.networkGate;
@@ -139,7 +149,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -284,6 +294,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: networkReality.generatedAt || now,
       receiptType: networkReality.schemaVersion,
       source: networkReality.sourceAnchors?.adapter || 'scripts/holoshell-network-reality.mjs',
+    });
+  }
+
+  if (legacyAppReality?.summary) {
+    const contractStatus = legacyRealityContractStatus(legacyAppReality);
+    timeline.push({
+      id: 'legacy-app-reality',
+      kind: 'legacy_app_reality',
+      title: `Legacy app reality has ${legacyAppReality.summary.agentInstanceCount || 0} agent instance(s)`,
+      detail: `${legacyAppReality.summary.processCount || 0} process(es), ${legacyAppReality.summary.visibleWindowCount || 0} visible window(s), ${legacyAppReality.summary.shellInstanceCount || 0} shell instance(s), ${legacyAppReality.summary.networkConsumerCount || 0} network consumer(s), ${legacyAppReality.summary.colorLaneCount || 0} color lane(s); HoloScript contract ${contractStatus}.`,
+      trustState: legacyRealityTrustState(legacyAppReality),
+      generatedAt: legacyAppReality.generatedAt || now,
+      receiptType: legacyAppReality.schemaVersion,
+      source: legacyAppReality.sourceAnchors?.adapter || 'scripts/holoshell-legacy-app-reality.mjs',
     });
   }
 
@@ -665,6 +689,7 @@ function createFeed(args) {
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const networkReality = readJson(path.join(tmpDir, 'network-reality.json'), {});
+  const legacyAppReality = readJson(path.join(tmpDir, 'legacy-app-reality.json'), {});
   const mcpCustodyContract = readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {});
   const mcpUpstreamHandoff = readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {});
   const osUiCapture = readJson(path.join(tmpDir, 'os-ui-capture.json'), {});
@@ -711,6 +736,7 @@ function createFeed(args) {
     lanes,
     processHealth,
     networkReality,
+    legacyAppReality,
     mcpCustodyContract,
     mcpUpstreamHandoff,
     osUiCapture,
@@ -740,6 +766,11 @@ function createFeed(args) {
   const trust = trustCounts(inventory?.capabilities || []);
   const processRisk = processHealth?.summary?.riskState || 'unknown';
   const networkRisk = networkReality?.health?.state || 'pass';
+  const legacyRealityRisk = legacyRealityContractStatus(legacyAppReality) === 'fail'
+    ? 'warn'
+    : legacyRealityContractStatus(legacyAppReality) === 'missing'
+      ? 'unknown'
+      : 'pass';
   const runNetworkBlockedCount = runReceipts.filter((receipt) => receipt.networkGate && !receipt.networkGate.allowed).length;
   const runBandwidthSpendingCount = runReceipts.filter((receipt) => receipt.networkGate?.bandwidthSpending || receipt.command?.bandwidthSpending).length;
   const runOwnerNetworkGestureCount = runReceipts.filter((receipt) => receipt.networkGate?.ownerGesture).length;
@@ -751,7 +782,7 @@ function createFeed(args) {
       : 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -762,6 +793,7 @@ function createFeed(args) {
       hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       networkReality: 'apps/holoshell/source/holoshell-network-reality.hsplus',
       networkRealityAdapter: 'scripts/holoshell-network-reality.mjs',
+      legacyAppRealityAdapter: 'scripts/holoshell-legacy-app-reality.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
@@ -877,6 +909,18 @@ function createFeed(args) {
       networkRealityAgentOrShellConsumerCount: networkReality?.lanes?.agentOrShellNetworkConsumerCount || 0,
       networkRealityLegacyConsumerCount: networkReality?.lanes?.legacyNetworkConsumerCount || 0,
       networkRealityProcessCountIsNotPeerCount: Boolean(networkReality?.lanes?.processCountIsNotPeerCount),
+      legacyAppRealityStatus: legacyAppReality?.summary?.confidence || 'unknown',
+      legacyAppRealityContractStatus: legacyRealityContractStatus(legacyAppReality),
+      legacyAppRealityProcessCount: legacyAppReality?.summary?.processCount || 0,
+      legacyAppRealityVisibleWindowCount: legacyAppReality?.summary?.visibleWindowCount || 0,
+      legacyAppRealityAgentInstanceCount: legacyAppReality?.summary?.agentInstanceCount || 0,
+      legacyAppRealityShellInstanceCount: legacyAppReality?.summary?.shellInstanceCount || 0,
+      legacyAppRealityLegacyAppCount: legacyAppReality?.summary?.legacyAppCount || 0,
+      legacyAppRealityBrowserCount: legacyAppReality?.summary?.browserCount || 0,
+      legacyAppRealityNetworkConsumerCount: legacyAppReality?.summary?.networkConsumerCount || 0,
+      legacyAppRealityHeavyNetworkConsumerCount: legacyAppReality?.summary?.heavyNetworkConsumerCount || 0,
+      legacyAppRealityColorLaneCount: legacyAppReality?.summary?.colorLaneCount || 0,
+      legacyAppRealityProcessCountIsPeerCount: Boolean(legacyAppReality?.summary?.processCountIsPeerCount),
       runNetworkBlockedCount,
       runBandwidthSpendingCount,
       runOwnerNetworkGestureCount,
@@ -1109,6 +1153,7 @@ function createFeed(args) {
       lanes,
       processHealth,
       networkReality,
+      legacyAppReality,
       mcpCustodyContract,
       mcpUpstreamHandoff,
       osUiCapture,
@@ -1206,6 +1251,7 @@ try {
     console.log(`GOLD/codebase bridge: ${feed.summary.goldCodebaseBridgeStatus}`);
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
     console.log(`Network reality: ${feed.summary.networkRealityStatus}`);
+    console.log(`Legacy app reality: ${feed.summary.legacyAppRealityStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);
     console.log(`Workflow: ${feed.summary.activeWorkflowStatus}`);

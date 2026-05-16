@@ -326,6 +326,32 @@ installs, model downloads, fleet syncs, and other bandwidth-spending intents are
 blocked on hotspot/metered/protective network states unless the command carries
 `--owner-network-gesture` and a `--reason`.
 
+## Legacy App Reality
+
+Peer counts cannot come from raw PID totals. HoloShell now has a local read-only
+adapter for real app/process/window truth:
+
+```text
+scripts/holoshell-legacy-app-reality.mjs
+```
+
+It writes:
+
+```text
+.tmp/holoshell/legacy-app-reality.json
+```
+
+The receipt merges the Windows process table, visible legacy window inventory,
+network-connection ownership, and semantic color lanes. Brittney consumes
+`agentInstanceCount`, `shellInstanceCount`, `networkConsumerCount`, `lanes`, and
+`processCountIsPeerCount: false` before explaining what is actually running.
+Colors are visual hints only; agents consume `laneId`, labels, role, PID, and
+receipt evidence. Raw command lines and remote endpoints are excluded by default.
+
+The adapter imports `validateHoloShellLegacyAppRealitySnapshot` from
+`@holoscript/framework`. `schemaContract.validationStatus: pass` means HoloLand
+is consuming the HoloScript source contract, not an invented local shape.
+
 ## HoloWeb Local Reality Node
 
 HoloWeb starts inside HoloShell as a local reality node:
@@ -412,6 +438,8 @@ node scripts\holoshell-workflow-approval-bundle.mjs --self-test
 node scripts\holoshell-workflow-approval-bundle.mjs
 node scripts\holoshell-agent-lanes.mjs --self-test
 node scripts\holoshell-process-health.mjs --self-test
+node scripts\holoshell-legacy-app-reality.mjs --self-test
+node scripts\__tests__\holoshell-legacy-app-reality.test.mjs
 node scripts\holoshell-network-reality.mjs --self-test
 node scripts\__tests__\holoshell-network-reality.test.mjs
 node scripts\holoshell-run.mjs --self-test

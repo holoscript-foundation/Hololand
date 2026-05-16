@@ -25,6 +25,7 @@ composition "HoloShell Home" {
     brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
     programRegistry: ".tmp/holoshell/program-registry.json"
     shellObjectGraph: ".tmp/holoshell/shell-objects.json"
+    legacyAppRealityReceipt: ".tmp/holoshell/legacy-app-reality.json"
     wildHoloScriptIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
     wildHoloScriptIntakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
     hardwareActionReceipt: ".tmp/holoshell/action-latest.json"
@@ -63,6 +64,15 @@ composition "HoloShell Home" {
     networkBlockedRunCount: 0
     networkBandwidthSpendRunCount: 0
     networkOwnerGestureCount: 0
+    legacyRealityStatus: "unknown"
+    legacyRealityContractStatus: "unknown"
+    legacyRealityProcessCount: 0
+    legacyRealityVisibleWindowCount: 0
+    legacyRealityAgentInstanceCount: 0
+    legacyRealityShellInstanceCount: 0
+    legacyRealityNetworkConsumerCount: 0
+    legacyRealityColorLaneCount: 0
+    legacyRealityProcessCountIsPeerCount: false
     activeShellRunCount: 0
     registeredRunCount: 0
     ownedProcessCount: 0
@@ -879,6 +889,21 @@ composition "HoloShell Home" {
         owner_gestures: $networkOwnerGestureCount
       }
 
+      object "LegacyRealityIngest" {
+        type: "ui"
+        uiType: "legacy_reality_ingest"
+        label: "Legacy Reality"
+        status: $legacyRealityStatus
+        contract: $legacyRealityContractStatus
+        processes: $legacyRealityProcessCount
+        visible_windows: $legacyRealityVisibleWindowCount
+        agent_instances: $legacyRealityAgentInstanceCount
+        shell_instances: $legacyRealityShellInstanceCount
+        network_consumers: $legacyRealityNetworkConsumerCount
+        color_lanes: $legacyRealityColorLaneCount
+        peer_count_guard: $legacyRealityProcessCountIsPeerCount ? "invalid" : "processes_are_not_peers"
+      }
+
       object "StopPlanQueue" using "StopPlanNode" {
         label: "Cleanup Plans"
         count: $stopPlanCount
@@ -1114,6 +1139,15 @@ composition "HoloShell Home" {
     state.networkBlockedRunCount = feedBundle.summary.runNetworkBlockedCount || 0
     state.networkBandwidthSpendRunCount = feedBundle.summary.runBandwidthSpendingCount || 0
     state.networkOwnerGestureCount = feedBundle.summary.runOwnerNetworkGestureCount || 0
+    state.legacyRealityStatus = feedBundle.summary.legacyAppRealityStatus
+    state.legacyRealityContractStatus = feedBundle.summary.legacyAppRealityContractStatus
+    state.legacyRealityProcessCount = feedBundle.summary.legacyAppRealityProcessCount || 0
+    state.legacyRealityVisibleWindowCount = feedBundle.summary.legacyAppRealityVisibleWindowCount || 0
+    state.legacyRealityAgentInstanceCount = feedBundle.summary.legacyAppRealityAgentInstanceCount || 0
+    state.legacyRealityShellInstanceCount = feedBundle.summary.legacyAppRealityShellInstanceCount || 0
+    state.legacyRealityNetworkConsumerCount = feedBundle.summary.legacyAppRealityNetworkConsumerCount || 0
+    state.legacyRealityColorLaneCount = feedBundle.summary.legacyAppRealityColorLaneCount || 0
+    state.legacyRealityProcessCountIsPeerCount = feedBundle.summary.legacyAppRealityProcessCountIsPeerCount || false
     state.activeShellRunCount = feedBundle.feeds.processHealth.summary.shellRunCount
     state.registeredRunCount = feedBundle.feeds.processHealth.summary.registeredRunCount
     state.ownedProcessCount = feedBundle.feeds.processHealth.summary.ownedProcessCount
