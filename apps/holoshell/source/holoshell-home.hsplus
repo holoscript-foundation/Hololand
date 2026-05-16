@@ -29,6 +29,8 @@ composition "HoloShell Home" {
     networkFreshnessReceipt: ".tmp/holoshell/network-freshness.json"
     networkChangeSentinelSource: "apps/holoshell/source/holoshell-network-change-sentinel.hsplus"
     networkChangeSentinelReceipt: ".tmp/holoshell/network-change-events.json"
+    networkSentinelServiceSource: "apps/holoshell/source/holoshell-network-sentinel-service.hsplus"
+    networkSentinelServiceReceipt: ".tmp/holoshell/network-sentinel-service.json"
     legacyAppRealityReceipt: ".tmp/holoshell/legacy-app-reality.json"
     wildHoloScriptIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
     wildHoloScriptIntakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
@@ -85,6 +87,14 @@ composition "HoloShell Home" {
     networkChangeSentinelCurrentClassification: "unknown"
     networkChangeSentinelLastObservedAt: ""
     networkChangeSentinelLastChangeAt: ""
+    networkSentinelServiceStatus: "unknown"
+    networkSentinelServicePidAlive: false
+    networkSentinelServicePidCommandVerified: false
+    networkSentinelServiceRestartCount: 0
+    networkSentinelServiceHeartbeatAgeMs: 0
+    networkSentinelServiceStaleHeartbeat: false
+    networkSentinelServiceLastHeartbeatAt: ""
+    networkSentinelServiceActionStatus: "unknown"
     legacyRealityStatus: "unknown"
     legacyRealityContractStatus: "unknown"
     legacyRealityProcessCount: 0
@@ -939,6 +949,21 @@ composition "HoloShell Home" {
         last_change_at: $networkChangeSentinelLastChangeAt
       }
 
+      object "NetworkSentinelService" {
+        type: "ui"
+        uiType: "service_health_lane"
+        label: "Network Watcher"
+        status: $networkSentinelServiceStatus
+        pid_alive: $networkSentinelServicePidAlive
+        pid_verified: $networkSentinelServicePidCommandVerified
+        restarts: $networkSentinelServiceRestartCount
+        heartbeat_age_ms: $networkSentinelServiceHeartbeatAgeMs
+        stale_heartbeat: $networkSentinelServiceStaleHeartbeat
+        last_heartbeat_at: $networkSentinelServiceLastHeartbeatAt
+        last_action: $networkSentinelServiceActionStatus
+        stop_policy: "verified_pid_only"
+      }
+
       object "LegacyRealityIngest" {
         type: "ui"
         uiType: "legacy_reality_ingest"
@@ -1206,6 +1231,14 @@ composition "HoloShell Home" {
     state.networkChangeSentinelCurrentClassification = feedBundle.summary.networkChangeSentinelCurrentClassification
     state.networkChangeSentinelLastObservedAt = feedBundle.summary.networkChangeSentinelLastObservedAt
     state.networkChangeSentinelLastChangeAt = feedBundle.summary.networkChangeSentinelLastChangeAt
+    state.networkSentinelServiceStatus = feedBundle.summary.networkSentinelServiceStatus
+    state.networkSentinelServicePidAlive = feedBundle.summary.networkSentinelServicePidAlive || false
+    state.networkSentinelServicePidCommandVerified = feedBundle.summary.networkSentinelServicePidCommandVerified || false
+    state.networkSentinelServiceRestartCount = feedBundle.summary.networkSentinelServiceRestartCount || 0
+    state.networkSentinelServiceHeartbeatAgeMs = feedBundle.summary.networkSentinelServiceHeartbeatAgeMs || 0
+    state.networkSentinelServiceStaleHeartbeat = feedBundle.summary.networkSentinelServiceStaleHeartbeat || false
+    state.networkSentinelServiceLastHeartbeatAt = feedBundle.summary.networkSentinelServiceLastHeartbeatAt
+    state.networkSentinelServiceActionStatus = feedBundle.summary.networkSentinelServiceActionStatus
     state.legacyRealityStatus = feedBundle.summary.legacyAppRealityStatus
     state.legacyRealityContractStatus = feedBundle.summary.legacyAppRealityContractStatus
     state.legacyRealityProcessCount = feedBundle.summary.legacyAppRealityProcessCount || 0

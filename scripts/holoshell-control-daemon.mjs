@@ -174,7 +174,9 @@ function refreshRegistry(args) {
 }
 
 function refreshNetworkFreshness() {
-  return runChecked(['scripts/holoshell-network-change-sentinel.mjs', '--once']);
+  const sentinel = runChecked(['scripts/holoshell-network-change-sentinel.mjs', '--once']);
+  runChecked(['scripts/holoshell-network-sentinel-service.mjs', '--status']);
+  return sentinel;
 }
 
 function refreshLiveFeed() {

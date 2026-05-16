@@ -404,6 +404,8 @@ function isExpectedLongRunningDaemon(processInfo, category) {
   const name = normalizeName(processInfo.name);
   return category === 'container_service'
     || command.includes('holoshell-control-daemon.mjs')
+    || command.includes('holoshell-network-sentinel-service.mjs')
+    || (command.includes('holoshell-network-change-sentinel.mjs') && command.includes('--watch'))
     || command.includes('codex-team-daemon.mjs')
     || (name === 'node' && /\bdaemon\b/.test(command));
 }
@@ -1131,6 +1133,13 @@ function assertSelfTest(health) {
     {
       name: 'node.exe',
       commandLine: '"C:\\Program Files\\nodejs\\node.exe" scripts\\holoshell-control-daemon.mjs',
+      expectedCategory: 'node_runtime',
+      expectedShellRunCandidate: false,
+      expectedFindings: [],
+    },
+    {
+      name: 'node.exe',
+      commandLine: '"C:\\Program Files\\nodejs\\node.exe" scripts\\holoshell-network-change-sentinel.mjs --watch --record-routine',
       expectedCategory: 'node_runtime',
       expectedShellRunCandidate: false,
       expectedFindings: [],

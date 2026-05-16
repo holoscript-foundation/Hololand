@@ -246,6 +246,7 @@ Brittney and other agents.
 - `apps/holoshell/source/holoshell-network-reality.hsplus` defines local network truth.
 - `apps/holoshell/source/holoshell-network-freshness-watch.hsplus` prevents stale network receipts from driving live feed or Brittney after Wi-Fi, hotspot, VPN, or metered-state changes.
 - `apps/holoshell/source/holoshell-network-change-sentinel.hsplus` records redacted network-change events as a HoloShell-visible lane.
+- `apps/holoshell/source/holoshell-network-sentinel-service.hsplus` promotes the event sentinel into a managed local watcher with verified PID custody and guarded restart receipts.
 - `apps/holoshell/source/holoshell-home.hsplus` surfaces the freshness guard as a visible HoloShell object.
 
 Useful local commands:
@@ -253,8 +254,11 @@ Useful local commands:
 ```powershell
 pnpm run holoshell:network-watch
 node scripts\holoshell-network-change-sentinel.mjs --once
+pnpm run holoshell:network-service
+pnpm run holoshell:network-service:ensure
 pnpm run holoshell:network-reality
 pnpm run test:holoshell-network-freshness
+pnpm run test:holoshell-network-service
 ```
 
 **[📖 HoloScript Framework Docs →](https://github.com/brianonbased-dev/HoloScript)**

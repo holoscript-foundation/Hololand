@@ -422,6 +422,33 @@ function summarizeNetworkChangeEvents(networkChangeEvents) {
   };
 }
 
+function summarizeNetworkSentinelService(networkSentinelService) {
+  const summary = networkSentinelService.summary || {};
+  return {
+    status: summary.serviceStatus || 'unknown',
+    serviceMode: summary.serviceMode || 'unknown',
+    pidAlive: Boolean(summary.pidAlive),
+    pidCommandVerified: Boolean(summary.pidCommandVerified),
+    restartPolicy: summary.restartPolicy || 'unknown',
+    restartCount: summary.restartCount || 0,
+    lastStartedAt: summary.lastStartedAt || '',
+    lastHeartbeatAt: summary.lastHeartbeatAt || '',
+    heartbeatAgeMs: summary.heartbeatAgeMs ?? null,
+    staleHeartbeat: Boolean(summary.staleHeartbeat),
+    lastObservationKind: summary.lastObservationKind || 'unknown',
+    currentClassification: summary.currentClassification || 'unknown',
+    eventCount: summary.eventCount || 0,
+    changeEventCount: summary.changeEventCount || 0,
+    actionStatus: networkSentinelService.action?.status || 'unknown',
+    stopOnlyVerifiedSentinelPid: Boolean(networkSentinelService.policy?.stopOnlyVerifiedSentinelPid),
+    forceKillAllowed: Boolean(networkSentinelService.policy?.forceKillAllowed),
+    rawCommandLineIncluded: Boolean(networkSentinelService.receipt?.rawCommandLineIncluded),
+    endpointDetailsRedacted: Boolean(networkSentinelService.policy?.endpointDetailsRedacted),
+    staleNetworkReceiptMayDriveActions: Boolean(networkSentinelService.policy?.staleNetworkReceiptMayDriveActions),
+    receiptHash: networkSentinelService.receipt?.snapshotHash || '',
+  };
+}
+
 function summarizeMcpCustodyContract(mcpCustodyContract) {
   const summary = mcpCustodyContract?.summary || {};
   return {
@@ -647,6 +674,7 @@ function loadInputs(args) {
     processHealth: readJson(path.join(tmpDir, 'process-health.json'), {}),
     networkFreshness: readJson(path.join(tmpDir, 'network-freshness.json'), {}),
     networkChangeEvents: readJson(path.join(tmpDir, 'network-change-events.json'), {}),
+    networkSentinelService: readJson(path.join(tmpDir, 'network-sentinel-service.json'), {}),
     legacyAppReality: readJson(path.join(tmpDir, 'legacy-app-reality.json'), {}),
     mcpCustodyContract: readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {}),
     mcpUpstreamHandoff: readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {}),
@@ -812,6 +840,41 @@ function fixtureInputs() {
       },
       receipt: { snapshotHash: 'fixture-network-events' },
     },
+    networkSentinelService: {
+      schemaVersion: 'hololand.holoshell.network-sentinel-service.v0.1.0',
+      generatedAt: '2026-05-14T00:00:00.646Z',
+      summary: {
+        serviceStatus: 'online',
+        serviceMode: 'managed_watch',
+        pidAlive: true,
+        pidCommandVerified: true,
+        restartPolicy: 'ensure_restarts_offline_or_stale_verified_watchers',
+        restartCount: 1,
+        lastStartedAt: '2026-05-14T00:00:00.100Z',
+        lastHeartbeatAt: '2026-05-14T00:00:00.645Z',
+        heartbeatAgeMs: 1000,
+        staleHeartbeat: false,
+        lastObservationKind: 'routine_check',
+        currentClassification: 'normal_unmetered',
+        eventCount: 1,
+        changeEventCount: 1,
+      },
+      action: {
+        status: 'observed',
+        performed: false,
+      },
+      policy: {
+        stopOnlyVerifiedSentinelPid: true,
+        forceKillAllowed: false,
+        staleNetworkReceiptMayDriveActions: false,
+        endpointDetailsRedacted: true,
+      },
+      receipt: {
+        snapshotHash: 'fixture-network-service',
+        rawCommandLineIncluded: false,
+        destructiveActionsTaken: false,
+      },
+    },
     legacyAppReality: {
       schemaVersion: 'hololand.holoshell.legacy-app-reality.v0.1.0',
       generatedAt: '2026-05-14T00:00:00.650Z',
@@ -921,6 +984,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const processHealthSummary = summarizeProcessHealth(inputs.processHealth, inputs.operatorBrief);
   const networkFreshnessSummary = summarizeNetworkFreshness(inputs.networkFreshness);
   const networkChangeSummary = summarizeNetworkChangeEvents(inputs.networkChangeEvents);
+  const networkSentinelServiceSummary = summarizeNetworkSentinelService(inputs.networkSentinelService);
   const legacyAppRealitySummary = summarizeLegacyAppReality(inputs.legacyAppReality);
   const mcpCustodyContractSummary = summarizeMcpCustodyContract(inputs.mcpCustodyContract);
   const mcpUpstreamHandoffSummary = summarizeMcpUpstreamHandoff(inputs.mcpUpstreamHandoff);
@@ -939,6 +1003,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     processHealthSummary,
     networkFreshnessSummary,
     networkChangeSummary,
+    networkSentinelServiceSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -963,6 +1028,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       processHealth: 'scripts/holoshell-process-health.mjs',
       networkFreshness: 'scripts/holoshell-network-freshness-watch.mjs',
       networkChangeSentinel: 'scripts/holoshell-network-change-sentinel.mjs',
+      networkSentinelService: 'scripts/holoshell-network-sentinel-service.mjs',
       legacyAppReality: 'scripts/holoshell-legacy-app-reality.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
@@ -980,6 +1046,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     processHealthSummary,
     networkFreshnessSummary,
     networkChangeSummary,
+    networkSentinelServiceSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -992,7 +1059,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     actionProposalDefaults: {
       actor: 'brittney',
       approvalRequiredForNonReadOnly: true,
-      expectedReceipts: ['brittney_context', 'mcp_custody_contract', 'mcp_upstream_handoff', 'os_ui_capture_receipt', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
+      expectedReceipts: ['brittney_context', 'network_sentinel_service', 'mcp_custody_contract', 'mcp_upstream_handoff', 'os_ui_capture_receipt', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
       rollbackOrWitnessPlan: 'read-only preview first; guarded execution needs receipt-backed witness or approval.',
     },
     summary: {
@@ -1022,6 +1089,16 @@ function createPacket(args, inputs = loadInputs(args)) {
       networkChangeSentinelCurrentClassification: networkChangeSummary.currentClassification,
       networkChangeSentinelRefreshFailedCount: networkChangeSummary.refreshFailedCount,
       networkChangeSentinelEndpointDetailsRedacted: networkChangeSummary.endpointDetailsRedacted,
+      networkSentinelServiceStatus: networkSentinelServiceSummary.status,
+      networkSentinelServicePidAlive: networkSentinelServiceSummary.pidAlive,
+      networkSentinelServicePidCommandVerified: networkSentinelServiceSummary.pidCommandVerified,
+      networkSentinelServiceRestartCount: networkSentinelServiceSummary.restartCount,
+      networkSentinelServiceHeartbeatAgeMs: networkSentinelServiceSummary.heartbeatAgeMs,
+      networkSentinelServiceStaleHeartbeat: networkSentinelServiceSummary.staleHeartbeat,
+      networkSentinelServiceLastHeartbeatAt: networkSentinelServiceSummary.lastHeartbeatAt,
+      networkSentinelServiceActionStatus: networkSentinelServiceSummary.actionStatus,
+      networkSentinelServiceStopOnlyVerifiedPid: networkSentinelServiceSummary.stopOnlyVerifiedSentinelPid,
+      networkSentinelServiceRawCommandLineIncluded: networkSentinelServiceSummary.rawCommandLineIncluded,
       legacyRealityStatus: legacyAppRealitySummary.status,
       legacyRealityContractStatus: legacyAppRealitySummary.contractStatus,
       legacyRealityAgentInstanceCount: legacyAppRealitySummary.agentInstanceCount,
@@ -1074,6 +1151,7 @@ function createPacket(args, inputs = loadInputs(args)) {
         'pnpm run holoshell:hardware-reality',
         'pnpm run holoshell:network-watch',
         'node scripts/holoshell-network-change-sentinel.mjs --once',
+        'pnpm run holoshell:network-service',
         'pnpm run holoshell:mcp-custody-contract',
         'pnpm run holoshell:mcp-upstream-handoff',
         'pnpm run holoshell:legacy-windows',
@@ -1112,6 +1190,10 @@ function assertSelfTest(packet) {
   if (packet.networkChangeSummary.changeEventCount < 1) failures.push('expected network change sentinel event');
   if (packet.networkChangeSummary.endpointDetailsRedacted !== true) failures.push('expected redacted network event ledger');
   if (packet.networkChangeSummary.staleNetworkReceiptMayDriveActions !== false) failures.push('network event ledger must not permit stale receipts');
+  if (packet.networkSentinelServiceSummary.status !== 'online') failures.push('expected managed network sentinel service');
+  if (packet.networkSentinelServiceSummary.pidCommandVerified !== true) failures.push('expected verified sentinel service PID');
+  if (packet.networkSentinelServiceSummary.stopOnlyVerifiedSentinelPid !== true) failures.push('sentinel service must only stop verified PIDs');
+  if (packet.networkSentinelServiceSummary.rawCommandLineIncluded !== false) failures.push('sentinel service must not expose raw command lines');
   if (packet.legacyAppRealitySummary.agentInstanceCount < 2) failures.push('expected legacy app reality agent instances');
   if (packet.legacyAppRealitySummary.processCountIsPeerCount !== false) failures.push('legacy app reality must reject process-count peer counts');
   if (packet.summary.legacyRealityContractStatus !== 'pass') failures.push('expected legacy app reality contract pass');

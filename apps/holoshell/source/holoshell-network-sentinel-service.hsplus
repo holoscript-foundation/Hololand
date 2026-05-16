@@ -1,0 +1,151 @@
+// HoloShell Network Sentinel Service
+//
+// Product source for turning the network change sentinel into a managed local
+// service. The Node adapter owns PID custody, guarded restarts, and service
+// receipts; HoloShell and Brittney consume only redacted service health.
+
+composition "HoloShell Network Sentinel Service" {
+  config {
+    title: "Network Sentinel Service"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-network-sentinel-service.mjs"
+    sentinelSource: "apps/holoshell/source/holoshell-network-change-sentinel.hsplus"
+    sentinelAdapter: "scripts/holoshell-network-change-sentinel.mjs"
+    serviceReceipt: ".tmp/holoshell/network-sentinel-service.json"
+    serviceBrowserBootstrap: ".tmp/holoshell/network-sentinel-service.js"
+    pidFile: ".tmp/holoshell/network-sentinel-service.pid"
+    logFile: ".tmp/holoshell/network-sentinel-service.log"
+    eventLedgerReceipt: ".tmp/holoshell/network-change-events.json"
+    defaultIntervalMs: 30000
+    restartPolicy: "ensure_restarts_offline_or_stale_verified_watchers"
+    mode: "managed_local_watch_service"
+  }
+
+  state {
+    serviceStatus: "unknown"
+    serviceMode: "managed_watch"
+    pid: 0
+    pidAlive: false
+    pidCommandVerified: false
+    restartPolicy: "ensure_restarts_offline_or_stale_verified_watchers"
+    restartCount: 0
+    lastStartedAt: ""
+    lastHeartbeatAt: ""
+    heartbeatAgeMs: 0
+    staleHeartbeat: false
+    lastActionStatus: "none"
+    lastActionReason: ""
+    lastObservationKind: "unknown"
+    currentClassification: "unknown"
+    eventCount: 0
+    changeEventCount: 0
+    endpointDetailsRedacted: true
+    rawCommandLineIncluded: false
+    staleNetworkReceiptMayDriveActions: false
+  }
+
+  channel "holoshell:network:sentinel-service" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Managed local watcher health for network changes"
+  }
+
+  template "NetworkSentinelServiceHealth" {
+    type: "service_health"
+    serviceMode: "managed_watch"
+    serviceStatus: "unknown"
+    pidAlive: false
+    pidCommandVerified: false
+    restartPolicy: "ensure_restarts_offline_or_stale_verified_watchers"
+    receiptRequired: true
+    privacyScope: "local_only"
+  }
+
+  room "NetworkSentinelServiceRoom" {
+    label: "Network Sentinel Service"
+    userQuestion: "Is the network watcher actually running and owned by HoloShell?"
+    visualForm: "service_health_lane"
+    liveFeed: "holoshell:network:sentinel-service"
+
+    object "ManagedNetworkSentinel" using "NetworkSentinelServiceHealth" {
+      label: "Network Watcher"
+      serviceStatus: $serviceStatus
+      pidAlive: $pidAlive
+      pidCommandVerified: $pidCommandVerified
+      restartPolicy: $restartPolicy
+      restartCount: $restartCount
+      lastStartedAt: $lastStartedAt
+      lastHeartbeatAt: $lastHeartbeatAt
+      heartbeatAgeMs: $heartbeatAgeMs
+      staleHeartbeat: $staleHeartbeat
+      lastActionStatus: $lastActionStatus
+      lastActionReason: $lastActionReason
+      lastObservationKind: $lastObservationKind
+      currentClassification: $currentClassification
+      eventCount: $eventCount
+      changeEventCount: $changeEventCount
+    }
+  }
+
+  policy "VerifiedPidCustodyOnly" {
+    appliesTo: ["start", "stop", "restart", "ensure", "status"]
+    exactPidRequired: true
+    stopOnlyVerifiedSentinelPid: true
+    forceKillAllowed: false
+    unverifiedPidStopRefused: true
+    receiptRequired: true
+  }
+
+  policy "RedactedServiceHealthOnly" {
+    appliesTo: ["service_receipt", "live_feed", "brittney_context"]
+    rawCommandLineIncluded: false
+    rawSsidIncluded: false
+    rawBssidIncluded: false
+    ipAddressIncluded: false
+    endpointDetailsRedacted: true
+    localOnly: true
+  }
+
+  policy "ManagedNetworkSentinelFeedsBrittney" {
+    appliesTo: ["brittney_context", "holoshell_live_feed", "holoshell_control_daemon"]
+    requiredOrder: ["network_change_sentinel", "network_sentinel_service", "live_feed", "brittney_context"]
+    staleNetworkReceiptMayDriveActions: false
+    serviceHealthRequiredForAutonomousHeavyNetworkWork: true
+  }
+
+  action consume_service_health(health) {
+    state.serviceStatus = health.summary.serviceStatus
+    state.serviceMode = health.summary.serviceMode
+    state.pid = health.summary.pid
+    state.pidAlive = health.summary.pidAlive
+    state.pidCommandVerified = health.summary.pidCommandVerified
+    state.restartPolicy = health.summary.restartPolicy
+    state.restartCount = health.summary.restartCount
+    state.lastStartedAt = health.summary.lastStartedAt
+    state.lastHeartbeatAt = health.summary.lastHeartbeatAt
+    state.heartbeatAgeMs = health.summary.heartbeatAgeMs
+    state.staleHeartbeat = health.summary.staleHeartbeat
+    state.lastActionStatus = health.action.status
+    state.lastActionReason = health.action.reason
+    state.lastObservationKind = health.summary.lastObservationKind
+    state.currentClassification = health.summary.currentClassification
+    state.eventCount = health.summary.eventCount
+    state.changeEventCount = health.summary.changeEventCount
+    state.endpointDetailsRedacted = health.policy.endpointDetailsRedacted
+    state.rawCommandLineIncluded = health.receipt.rawCommandLineIncluded
+    state.staleNetworkReceiptMayDriveActions = health.policy.staleNetworkReceiptMayDriveActions
+
+    emit("holoshell:network:sentinel-service", {
+      status: state.serviceStatus,
+      pidAlive: state.pidAlive,
+      pidCommandVerified: state.pidCommandVerified,
+      restartCount: state.restartCount,
+      lastHeartbeatAt: state.lastHeartbeatAt,
+      staleHeartbeat: state.staleHeartbeat,
+      lastObservationKind: state.lastObservationKind,
+      currentClassification: state.currentClassification,
+      receiptHash: health.receipt.snapshotHash
+    })
+  }
+}
