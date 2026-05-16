@@ -20,6 +20,8 @@ composition "HoloShell Home" {
     brittneyAvatarSource: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
     brittneyRuntimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
     hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    grokHeartbeatSource: "apps/holoshell/source/holoshell-grok-heartbeat.hsplus"
+    grokHeartbeatReceipt: ".tmp/holoshell/grok-heartbeat.json"
     hardwareControlDaemon: "http://127.0.0.1:4747"
     brittneyAvatarManifest: ".tmp/holoshell/brittney-avatar.json"
     brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
@@ -62,6 +64,9 @@ composition "HoloShell Home" {
     capabilityCount: 0
     legacyMachineCount: 0
     activeAgentLaneCount: 0
+    grokHeartbeatStatus: "unknown"
+    grokHeartbeatPresenceStatus: "unknown"
+    grokHeartbeatObservationStatus: "none"
     processHealthStatus: "unknown"
     networkRealityStatus: "unknown"
     networkRealityContractStatus: "unknown"
@@ -1150,10 +1155,16 @@ composition "HoloShell Home" {
 
   action update_agent_presence(laneManifest) {
     state.activeAgentLaneCount = laneManifest.summary.activeLaneCount
+    state.grokHeartbeatStatus = laneManifest.summary.grokHeartbeatStatus || "none"
+    state.grokHeartbeatPresenceStatus = state.grokHeartbeatStatus == "none" ? "reserved" : "active_or_available"
+    state.grokHeartbeatObservationStatus = laneManifest.summary.grokHeartbeatObservationStatus || "none"
     emit("holoshell:agent-presence", {
       action: "agent_lanes_updated",
       lanes: laneManifest.summary.laneCount,
       active_lanes: state.activeAgentLaneCount,
+      grok_heartbeat: state.grokHeartbeatStatus,
+      grok_presence: state.grokHeartbeatPresenceStatus,
+      grok_observation: state.grokHeartbeatObservationStatus,
       color_is_visual_hint_only: true
     })
   }

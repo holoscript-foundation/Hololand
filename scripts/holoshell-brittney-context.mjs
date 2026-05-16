@@ -284,13 +284,21 @@ function summarizeLanes(lanes) {
     semanticPrefix: lane.semanticPrefix || '',
     processDetected: Boolean(lane.processEvidence?.detected),
     processMatchCount: safeArray(lane.processEvidence?.matches).length,
+    heartbeatStatus: lane.heartbeat?.status || '',
+    heartbeatObservationStatus: lane.heartbeat?.latestObservationStatus || '',
+    heartbeatPrimaryFinding: lane.heartbeat?.primaryFinding || '',
     colorIsVisualHintOnly: lane.receiptPolicy?.colorIsVisualHintOnly !== false,
   }));
+  const grokLane = laneSummaries.find((lane) => lane.laneId === 'grok-build');
   return {
     laneCount: lanes.summary?.laneCount || laneSummaries.length,
     activeLaneCount: lanes.summary?.activeLaneCount || laneSummaries.filter((lane) => lane.status !== 'offline').length,
     colorLaneCount: lanes.summary?.colorLaneCount || laneSummaries.filter((lane) => lane.color).length,
     semanticLaneCount: lanes.summary?.semanticLaneCount || laneSummaries.filter((lane) => lane.semanticPrefix).length,
+    heartbeatLaneCount: lanes.summary?.heartbeatLaneCount || laneSummaries.filter((lane) => lane.heartbeatStatus).length,
+    grokHeartbeatStatus: lanes.summary?.grokHeartbeatStatus || grokLane?.heartbeatStatus || 'none',
+    grokHeartbeatObservationStatus: lanes.summary?.grokHeartbeatObservationStatus || grokLane?.heartbeatObservationStatus || 'none',
+    grokHeartbeatPrimaryFinding: grokLane?.heartbeatPrimaryFinding || '',
     lanes: laneSummaries,
   };
 }
@@ -1033,6 +1041,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
       agentLanes: 'scripts/holoshell-agent-lanes.mjs',
+      grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
     },
@@ -1068,6 +1077,9 @@ function createPacket(args, inputs = loadInputs(args)) {
       visibleShellObjectCount: visibleObjects.length,
       totalShellObjectCount: inputs.shellObjects.summary?.shellObjectCount || safeArray(inputs.shellObjects.objects).length,
       activeLaneCount: agentLaneSummary.activeLaneCount,
+      grokHeartbeatStatus: agentLaneSummary.grokHeartbeatStatus,
+      grokHeartbeatObservationStatus: agentLaneSummary.grokHeartbeatObservationStatus,
+      grokHeartbeatPrimaryFinding: agentLaneSummary.grokHeartbeatPrimaryFinding,
       processRisk: processHealthSummary.riskState,
       processCount: processHealthSummary.processCount,
       networkFreshnessStatus: networkFreshnessSummary.status,

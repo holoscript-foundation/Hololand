@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const SCHEMA_VERSION = 'hololand.holoshell.agent-lanes.v0.1.0';
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'agent-lanes.json');
+const DEFAULT_GROK_HEARTBEAT = path.join('.tmp', 'holoshell', 'grok-heartbeat.json');
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 
 const RESERVED_LANES = [
@@ -88,6 +89,8 @@ function parseArgs(argv) {
     output: DEFAULT_OUTPUT,
     selfTest: false,
     processScan: true,
+    grokHeartbeat: DEFAULT_GROK_HEARTBEAT,
+    includeGrokHeartbeat: true,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -96,6 +99,8 @@ function parseArgs(argv) {
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--self-test') args.selfTest = true;
     else if (arg === '--no-process-scan') args.processScan = false;
+    else if (arg === '--grok-heartbeat') args.grokHeartbeat = argv[++index];
+    else if (arg === '--no-grok-heartbeat') args.includeGrokHeartbeat = false;
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -118,8 +123,25 @@ Options:
   --output <path>     Write output path. Defaults to .tmp/holoshell/agent-lanes.json.
   --self-test         Assert lane and color invariants.
   --no-process-scan   Emit reserved lanes without local process evidence.
+  --grok-heartbeat <path>
+                      Read Grok live heartbeat. Defaults to .tmp/holoshell/grok-heartbeat.json.
+  --no-grok-heartbeat Skip Grok heartbeat merge.
   -h, --help          Show this help.
 `);
+}
+
+function resolveRepoPath(filePath) {
+  return path.isAbsolute(filePath) ? filePath : path.resolve(REPO_ROOT, filePath);
+}
+
+function readJson(filePath, fallback = null) {
+  const resolved = resolveRepoPath(filePath);
+  if (!existsSync(resolved)) return fallback;
+  try {
+    return JSON.parse(readFileSync(resolved, 'utf8'));
+  } catch {
+    return fallback;
+  }
 }
 
 function run(command, args) {
@@ -166,19 +188,34 @@ function processEvidenceForLane(lane, processNames) {
   };
 }
 
-function buildLane(lane, processNames) {
+function buildLane(lane, processNames, grokHeartbeat) {
   const processEvidence = processEvidenceForLane(lane, processNames);
+  const heartbeatSummary = lane.laneId === 'grok-build' ? grokHeartbeat?.summary || null : null;
+  const heartbeatStatus = heartbeatSummary?.agentPresenceStatus || '';
+  const status = heartbeatStatus || (processEvidence.detected ? 'active_or_available' : 'reserved');
   return {
     laneId: lane.laneId,
     displayName: lane.displayName,
     agentKind: lane.agentKind,
     surfaceKind: lane.surfaceKind,
     role: lane.role,
-    status: processEvidence.detected ? 'active_or_available' : 'reserved',
+    status,
     color: lane.color,
     semanticPrefix: `[lane:${lane.laneId} agent:${lane.agentKind} surface:${lane.surfaceKind}]`,
     terminalPrefix: `\u001b[${lane.color.ansiSgr}m[${lane.displayName}]\u001b[0m`,
     processEvidence,
+    ...(heartbeatSummary ? {
+      heartbeat: {
+        heartbeatId: grokHeartbeat.heartbeatId || '',
+        status: heartbeatSummary.status || 'unknown',
+        generatedAt: grokHeartbeat.generatedAt || '',
+        heavyAccessStatus: heartbeatSummary.heavyAccessStatus || 'unknown',
+        readyForGrokBuild: Boolean(heartbeatSummary.readyForGrokBuild),
+        latestObservationStatus: heartbeatSummary.latestObservationStatus || 'none',
+        latestObservationAgeMs: heartbeatSummary.latestObservationAgeMs ?? null,
+        primaryFinding: heartbeatSummary.primaryFinding || '',
+      },
+    } : {}),
     receiptPolicy: {
       colorIsVisualHintOnly: true,
       requireSemanticLaneId: true,
@@ -190,7 +227,10 @@ function buildLane(lane, processNames) {
 
 function createManifest(args) {
   const processNames = readProcessNames(args.processScan);
-  const lanes = RESERVED_LANES.map((lane) => buildLane(lane, processNames));
+  const grokHeartbeat = args.includeGrokHeartbeat ? readJson(args.grokHeartbeat, null) : null;
+  const lanes = RESERVED_LANES.map((lane) => buildLane(lane, processNames, grokHeartbeat));
+  const heartbeatLaneCount = lanes.filter((lane) => lane.heartbeat).length;
+  const grokLane = lanes.find((lane) => lane.laneId === 'grok-build');
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -205,6 +245,9 @@ function createManifest(args) {
       activeLaneCount: lanes.filter((lane) => lane.status === 'active_or_available').length,
       colorLaneCount: new Set(lanes.map((lane) => lane.color.hex)).size,
       semanticLaneCount: lanes.filter((lane) => lane.semanticPrefix.includes(`lane:${lane.laneId}`)).length,
+      heartbeatLaneCount,
+      grokHeartbeatStatus: grokLane?.heartbeat?.status || 'none',
+      grokHeartbeatObservationStatus: grokLane?.heartbeat?.latestObservationStatus || 'none',
     },
     rules: [
       'Color is a human-visible lane cue, not the machine-readable truth.',
@@ -233,6 +276,8 @@ function assertSelfTest(manifest) {
   if (!manifest.lanes.some((lane) => lane.laneId === 'codex-hardware')) failures.push('missing Codex hardware lane');
   if (!manifest.lanes.some((lane) => lane.laneId === 'local-shell')) failures.push('missing local shell lane');
   if (!manifest.lanes.some((lane) => lane.laneId === 'grok-build')) failures.push('missing Grok Build lane');
+  const grokLane = manifest.lanes.find((lane) => lane.laneId === 'grok-build');
+  if (grokLane?.heartbeat && grokLane.heartbeat.status === 'unknown') failures.push('Grok heartbeat status cannot be unknown when attached');
   if (manifest.lanes.some((lane) => !lane.receiptPolicy.colorIsVisualHintOnly)) {
     failures.push('color must be marked as visual hint only');
   }

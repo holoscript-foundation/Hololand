@@ -2112,6 +2112,15 @@
       return setup.summary || {};
     }
 
+    function grokHeartbeatFeed() {
+      return feed.feeds?.grokHeartbeat?.summary ? feed.feeds.grokHeartbeat : {};
+    }
+
+    function grokHeartbeatSummary() {
+      const heartbeat = grokHeartbeatFeed();
+      return heartbeat.summary || {};
+    }
+
     function ollamaCloudAgentCatalog() {
       const fromWorkflow = workflowFeed().catalog;
       if (Array.isArray(fromWorkflow) && fromWorkflow.length) return fromWorkflow;
@@ -2352,6 +2361,7 @@
       const activeWorkflowIntentGate = workflowIntentGateSummary();
       const dispatchSummary = agentDispatchSummary();
       const grokSummary = grokBuildSummary();
+      const grokHeartbeat = grokHeartbeatSummary();
       const trustSummary = trustLedgerSummary();
       const goldBridgeSummary = goldCodebaseBridgeSummary();
       const developmentalSummary = developmentalEnvironmentSummary();
@@ -2492,7 +2502,7 @@
             ...object,
             detail: isGrokWorkflow
               ? `${activeWorkflow.status || "unknown"}; ${activeWorkflow.mode || "interactive"}; ${activeWorkflow.model || "grok-build"}; approval ${activeWorkflowApproval.status || "unknown"}; project ${activeWorkflow.projectTrustStatus || "unknown"}.`
-              : `Setup ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; auth ${grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy ${grokSummary.heavyAccessStatus || grokBuildFeed().heavyUpgrade?.status || summary.grokBuildHeavyAccessStatus || "unknown"}.`,
+              : `Setup ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; heartbeat ${grokHeartbeat.status || summary.grokHeartbeatStatus || "unknown"}; presence ${grokHeartbeat.agentPresenceStatus || summary.grokHeartbeatPresenceStatus || "unknown"}; Heavy ${grokSummary.heavyAccessStatus || grokBuildFeed().heavyUpgrade?.status || summary.grokBuildHeavyAccessStatus || "unknown"}.`,
             trustState: isGrokWorkflow && activeWorkflow.status === "pending_user_approval" ? "partial" : grokSummary.status === "ready" ? "verified" : "partial",
             permissionEnvelope: "guarded_execute",
             evidence: {
@@ -2501,6 +2511,8 @@
               auth: grokSummary.authStatus || "unknown",
               model: grokSummary.defaultModel || "unknown",
               project: grokSummary.projectTrustStatus || "unknown",
+              heartbeat: grokHeartbeat.status || summary.grokHeartbeatStatus || "unknown",
+              observation: grokHeartbeat.latestObservationStatus || summary.grokHeartbeatObservationStatus || "none",
               warnings: grokSummary.warningCount || 0,
             },
           };
@@ -3501,6 +3513,7 @@
       const dispatchSummary = agentDispatchSummary();
       const founderCommandSummaryData = founderCommandSummary();
       const grokSummary = grokBuildSummary();
+      const grokHeartbeat = grokHeartbeatSummary();
       const trustSummary = trustLedgerSummary();
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
@@ -3551,6 +3564,7 @@
         `Founder command: ${founderCommandSummaryData.status || summary.founderCommandStatus || "unknown"}; ${founderCommandSummaryData.pipelineStepCount || summary.founderCommandPipelineStepCount || 0} pipeline; ${founderCommandSummaryData.workflowStepCount || summary.founderCommandWorkflowStepCount || 0} workflow steps; approvals ${founderCommandSummaryData.approvalCount || summary.founderCommandApprovalCount || 0}; execute ${founderCommandSummaryData.executionAllowed || summary.founderCommandExecutionAllowed ? "yes" : "no"}`,
         `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
         `Grok Build: ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; auth ${grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy ${grokSummary.heavyAccessStatus || grokBuildFeed().heavyUpgrade?.status || summary.grokBuildHeavyAccessStatus || "unknown"}`,
+        `Grok heartbeat: ${grokHeartbeat.status || summary.grokHeartbeatStatus || "unknown"}; presence ${grokHeartbeat.agentPresenceStatus || summary.grokHeartbeatPresenceStatus || "unknown"}; observation ${grokHeartbeat.latestObservationStatus || summary.grokHeartbeatObservationStatus || "none"}`,
         `Grok observation: ${grokObservation.summary?.status || summary.grokObservationStatus || "none"}; ${grokObservation.summary?.primaryFinding || summary.grokObservationPrimaryFinding || "no peer finding yet"}`,
         `Trust ladder: ${trustSummary.status || summary.trustLedgerStatus || "unknown"}; latest ${trustSummary.latestTrustLevel || summary.trustedAutonomyLatestLevel || "unknown"}; trusted ${trustSummary.trustedRecordCount || summary.trustedAutonomyTrustedRecordCount || 0}; guarded ${trustSummary.guardedRecordCount || summary.trustedAutonomyGuardedRecordCount || 0}; eligible ${trustSummary.trustedAutonomyEligible || summary.trustedAutonomyEligible ? "yes" : "no"}`,
         `Hardware action: ${hardwareSummary.status || summary.hardwareActionStatus || "unknown"}; ${hardwareSummary.actionKind || summary.hardwareActionKind || "none"}; ${hardwareSummary.permissionEnvelope || summary.hardwareActionPermissionEnvelope || "unknown"}; mutation executed ${hardwareSummary.mutatingActionExecuted || summary.hardwareMutatingActionExecuted ? "yes" : "no"}`,

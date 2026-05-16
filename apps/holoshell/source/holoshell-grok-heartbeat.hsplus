@@ -1,0 +1,86 @@
+// HoloShell Grok Heartbeat
+//
+// Product source for the live Grok Build presence receipt. The workflow receipt
+// says what Grok did. This heartbeat says whether the Grok lane is alive,
+// available, observing, blocked, or stale enough to stop trusting as presence.
+
+composition "HoloShell Grok Heartbeat" {
+  config {
+    title: "Grok Heartbeat"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-grok-heartbeat.mjs"
+    agentPresenceSource: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
+    grokWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
+    heartbeatReceipt: ".tmp/holoshell/grok-heartbeat.json"
+    heartbeatBootstrap: ".tmp/holoshell/grok-heartbeat.js"
+    defaultIntervalMs: 30000
+    observationTtlMs: 1800000
+  }
+
+  state {
+    heartbeatStatus: "unknown"
+    agentPresenceStatus: "reserved"
+    laneId: "grok-build"
+    heavyAccessStatus: "unknown"
+    readyForGrokBuild: false
+    processDetected: false
+    projectTrustStatus: "unknown"
+    latestWorkflowStatus: "unknown"
+    latestObservationStatus: "none"
+    latestObservationAgeMs: 0
+    latestObservationRecent: false
+    primaryFinding: ""
+  }
+
+  channel "holoshell:agents:grok-heartbeat" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Live Grok Build presence and latest observation state"
+  }
+
+  template "GrokHeartbeat" {
+    type: "agent_heartbeat"
+    receiptType: "hololand.holoshell.grok-heartbeat.v0.1.0"
+    laneId: "grok-build"
+    agentKind: "grok"
+    surfaceKind: "local_coding_agent"
+    colorIsVisualHintOnly: true
+    receiptRequiredForMutatingActions: true
+    latestObservationOptional: true
+  }
+
+  policy "HeartbeatIsPresenceNotApproval" {
+    appliesTo: ["agent_heartbeat", "agent_presence", "grok_build_workflow"]
+    heartbeatGrantsExecution: false
+    mutatingActionsRequireWorkflowApproval: true
+    colorIsPrimaryTruth: false
+    semanticLaneIdRequired: true
+  }
+
+  action apply_grok_heartbeat(heartbeat) {
+    state.heartbeatStatus = heartbeat.summary.status
+    state.agentPresenceStatus = heartbeat.summary.agentPresenceStatus
+    state.heavyAccessStatus = heartbeat.summary.heavyAccessStatus
+    state.readyForGrokBuild = heartbeat.summary.readyForGrokBuild
+    state.processDetected = heartbeat.summary.processDetected
+    state.projectTrustStatus = heartbeat.summary.projectTrustStatus
+    state.latestWorkflowStatus = heartbeat.summary.latestWorkflowStatus
+    state.latestObservationStatus = heartbeat.summary.latestObservationStatus
+    state.latestObservationAgeMs = heartbeat.summary.latestObservationAgeMs || 0
+    state.latestObservationRecent = heartbeat.summary.latestObservationRecent
+    state.primaryFinding = heartbeat.summary.primaryFinding || ""
+
+    emit("holoshell:agents:grok-heartbeat", {
+      lane_id: state.laneId,
+      status: state.heartbeatStatus,
+      presence: state.agentPresenceStatus,
+      heavy_access: state.heavyAccessStatus,
+      ready_for_grok_build: state.readyForGrokBuild,
+      latest_observation_status: state.latestObservationStatus,
+      latest_observation_recent: state.latestObservationRecent,
+      primary_finding: state.primaryFinding,
+      receipt_required_for_mutating_actions: true
+    })
+  }
+}

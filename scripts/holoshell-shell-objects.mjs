@@ -288,7 +288,7 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, grokBuild, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
@@ -601,6 +601,10 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
         heavyAccessStatus: grokBuildSummary.heavyAccessStatus || grokBuild?.heavyUpgrade?.status || 'unknown',
         heavyVerifiedAt: grokBuild?.heavyUpgrade?.verifiedAt || '',
         readyForGrokBuild: Boolean(grokBuildSummary.readyForGrokBuild),
+        heartbeatStatus: grokHeartbeat?.summary?.status || 'unknown',
+        heartbeatPresenceStatus: grokHeartbeat?.summary?.agentPresenceStatus || 'unknown',
+        heartbeatObservationStatus: grokHeartbeat?.summary?.latestObservationStatus || 'none',
+        heartbeatObservationRecent: Boolean(grokHeartbeat?.summary?.latestObservationRecent),
         latestObservationStatus: grokObservation?.summary?.status || '',
         latestObservation: grokObservation?.summary?.primaryFinding || '',
         latestObservationFindingCount: grokObservation?.summary?.findingCount || 0,
@@ -1280,6 +1284,7 @@ function agentObjects(lanes, maxAgents) {
   const laneList = Array.isArray(lanes?.lanes) ? lanes.lanes : [];
   return laneList.slice(0, Math.max(0, maxAgents)).map((lane, index) => {
     const slot = layout(index + 4, 88);
+    const heartbeat = lane.heartbeat || null;
     return {
       id: `agent.${slug(lane.laneId || lane.displayName)}`,
       objectKind: 'agent_lane',
@@ -1293,17 +1298,28 @@ function agentObjects(lanes, maxAgents) {
       visualForm: 'agent_bubble',
       status: lane.status || 'unknown',
       actorLaneId: lane.laneId || '',
-      receiptTypes: ['agent_lane_manifest', 'run_custody_receipt'],
+      receiptTypes: heartbeat
+        ? ['agent_lane_manifest', 'grok_heartbeat_receipt', 'run_custody_receipt']
+        : ['agent_lane_manifest', 'run_custody_receipt'],
       relationships: {
         agentKind: lane.agentKind || '',
         surfaceKind: lane.surfaceKind || '',
         role: lane.role || '',
         processDetected: Boolean(lane.processEvidence?.detected),
+        heartbeatStatus: heartbeat?.status || '',
+        heartbeatGeneratedAt: heartbeat?.generatedAt || '',
+        heavyAccessStatus: heartbeat?.heavyAccessStatus || '',
+        readyForGrokBuild: Boolean(heartbeat?.readyForGrokBuild),
+        latestObservationStatus: heartbeat?.latestObservationStatus || '',
+        latestObservationAgeMs: heartbeat?.latestObservationAgeMs ?? null,
+        primaryFinding: heartbeat?.primaryFinding || '',
       },
       privacyClass: 'local_private',
       replacementPath: 'invite_agent_into_shell',
       glyph: glyphFor(lane.displayName || lane.agentKind, 'A'),
-      detail: `${lane.displayName || lane.laneId} lane is ${lane.status || 'unknown'} for ${lane.role || 'agent work'}.`,
+      detail: heartbeat?.status
+        ? `${lane.displayName || lane.laneId} lane is ${lane.status || 'unknown'}; heartbeat ${heartbeat.status}; observation ${heartbeat.latestObservationStatus || 'none'}.`
+        : `${lane.displayName || lane.laneId} lane is ${lane.status || 'unknown'} for ${lane.role || 'agent work'}.`,
       firstScreen: index < 3,
       layout: slot,
     };
@@ -1774,6 +1790,10 @@ function summarize(objects, feeds) {
     grokBuildReadyForHeavyRecheck: Boolean(feeds.grokBuild?.summary?.readyForHeavyRecheck),
     grokBuildReadyForGrokBuild: Boolean(feeds.grokBuild?.summary?.readyForGrokBuild),
     grokBuildHeavyAccessStatus: feeds.grokBuild?.summary?.heavyAccessStatus || feeds.grokBuild?.heavyUpgrade?.status || 'unknown',
+    grokHeartbeatStatus: feeds.grokHeartbeat?.summary?.status || 'unknown',
+    grokHeartbeatPresenceStatus: feeds.grokHeartbeat?.summary?.agentPresenceStatus || 'unknown',
+    grokHeartbeatObservationStatus: feeds.grokHeartbeat?.summary?.latestObservationStatus || 'none',
+    grokHeartbeatObservationRecent: Boolean(feeds.grokHeartbeat?.summary?.latestObservationRecent),
     trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
     trustLedgerRecordCount: feeds.trustLedger?.summary?.recordCount || 0,
     trustedAutonomyLatestLevel: feeds.trustLedger?.summary?.latestTrustLevel || 'unknown',
@@ -1821,6 +1841,7 @@ function summarize(objects, feeds) {
       developmentalEnvironmentStatus: feeds.developmentalEnvironment?.summary?.status || 'unknown',
       agentDispatchStatus: feeds.agentDispatch?.summary?.status || 'unknown',
       grokBuildSetupStatus: feeds.grokBuild?.summary?.status || 'unknown',
+      grokHeartbeatStatus: feeds.grokHeartbeat?.summary?.status || 'unknown',
       trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
@@ -1846,6 +1867,7 @@ function loadFeeds(tmpDir) {
     developmentalEnvironment: readJson(path.join(dir, 'developmental-environment.json'), {}),
     agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
     grokBuild: readJson(path.join(dir, 'grok-build-setup.json'), {}),
+    grokHeartbeat: readJson(path.join(dir, 'grok-heartbeat.json'), {}),
     trustLedger: readJson(path.join(dir, 'trust-ledger.json'), {}),
     osUiCapture: readJson(path.join(dir, 'os-ui-capture.json'), {}),
     lanes: readJson(path.join(dir, 'agent-lanes.json'), {}),
@@ -1908,6 +1930,7 @@ function buildGraph(args, fixtures = null) {
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
       ollamaCloudAgentWorkflow: 'scripts/holoshell-ollama-cloud-agent-workflow.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
+      grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
@@ -2190,8 +2213,29 @@ function fixtureFeeds() {
       windows: [{ id: 'window-chrome', title: 'HoloLand', processName: 'chrome', processId: 100, foreground: true, controls: [{}, {}, {}] }],
     },
     lanes: {
-      summary: { laneCount: 1, activeLaneCount: 1 },
-      lanes: [{ laneId: 'codex-hardware', displayName: 'Codex Hardware', agentKind: 'codex', surfaceKind: 'hardware_shell', role: 'local_oracle', status: 'active_or_available', processEvidence: { detected: true } }],
+      summary: { laneCount: 2, activeLaneCount: 2, heartbeatLaneCount: 1, grokHeartbeatStatus: 'observing' },
+      lanes: [
+        { laneId: 'codex-hardware', displayName: 'Codex Hardware', agentKind: 'codex', surfaceKind: 'hardware_shell', role: 'local_oracle', status: 'active_or_available', processEvidence: { detected: true } },
+        {
+          laneId: 'grok-build',
+          displayName: 'Grok Build',
+          agentKind: 'grok',
+          surfaceKind: 'local_coding_agent',
+          role: 'peer_codebuilder',
+          status: 'active_or_available',
+          processEvidence: { detected: true },
+          heartbeat: {
+            heartbeatId: 'grokhb-fixture',
+            status: 'observing',
+            generatedAt: new Date().toISOString(),
+            heavyAccessStatus: 'active',
+            readyForGrokBuild: true,
+            latestObservationStatus: 'completed',
+            latestObservationAgeMs: 100,
+            primaryFinding: 'Fixture Grok heartbeat is live.',
+          },
+        },
+      ],
     },
     brittneyAvatar: { summary: { avatarStatus: 'available', runtimeStatus: 'available', emotion: 'focused', voiceState: 'ready' } },
     agentDispatch: {
@@ -2233,6 +2277,19 @@ function fixtureFeeds() {
         warningCount: 1,
         readyForHeavyRecheck: true,
         readyForGrokBuild: true,
+      },
+    },
+    grokHeartbeat: {
+      schemaVersion: 'hololand.holoshell.grok-heartbeat.v0.1.0',
+      heartbeatId: 'grokhb-fixture',
+      generatedAt: new Date().toISOString(),
+      summary: {
+        status: 'observing',
+        agentPresenceStatus: 'active_or_available',
+        heavyAccessStatus: 'active',
+        latestObservationStatus: 'completed',
+        latestObservationRecent: true,
+        primaryFinding: 'Fixture Grok heartbeat is live.',
       },
     },
     hardwareAction: {
@@ -2391,6 +2448,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
+  if (!graph.objects.some((object) => object.id === 'agent.grok-build' && object.relationships?.heartbeatStatus === 'observing')) failures.push('expected Grok heartbeat agent object');
   if (!graph.objects.some((object) => object.id === 'policy.trusted-autonomy')) failures.push('expected trusted autonomy policy object');
   if (!graph.objects.some((object) => object.objectKind === 'browser_surface' && object.relationships?.browserBoundary)) failures.push('expected browser surface boundary object');
   if (!graph.objects.some((object) => object.id === 'approval.hardware' && object.relationships?.browserBoundaryStatus === 'public_web')) failures.push('expected hardware approval browser boundary');
@@ -2410,6 +2468,7 @@ function assertSelfTest() {
   if (graph.summary.developmentalEnvironmentStatus !== 'ready') failures.push('expected developmental environment ready status');
   if (graph.summary.agentDispatchStatus !== 'ready_to_stage') failures.push('expected agent dispatch ready status');
   if (graph.summary.grokBuildSetupStatus !== 'ready') failures.push('expected Grok Build setup status');
+  if (graph.summary.grokHeartbeatStatus !== 'observing') failures.push('expected Grok heartbeat status');
   if (graph.summary.trustedAutonomyLatestLevel !== 'guarded') failures.push('expected trust ledger guarded status');
   if (graph.summary.goldCodebaseBridgeStatus !== 'ready') failures.push('expected GOLD/codebase bridge ready status');
   if (graph.summary.mcpCustodyContractStatus !== 'warn') failures.push('expected MCP custody contract warning status');

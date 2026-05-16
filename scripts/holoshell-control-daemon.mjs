@@ -95,6 +95,7 @@ Routes:
   GET  /workflow/approval/latest
   GET  /workflow/intent-gate/latest
   GET  /workflow/grok-build/setup
+  GET  /agents/grok-heartbeat
   GET  /workflow/founder-command/latest
   GET  /dispatch/latest
   POST /action
@@ -179,8 +180,13 @@ function refreshNetworkFreshness() {
   return sentinel;
 }
 
+function refreshGrokHeartbeat() {
+  return runChecked(['scripts/holoshell-grok-heartbeat.mjs', '--refresh-agent-lanes']);
+}
+
 function refreshLiveFeed() {
   refreshNetworkFreshness();
+  refreshGrokHeartbeat();
   refreshShellObjects();
   return runChecked(['scripts/holoshell-live-feed.mjs']);
 }
@@ -340,6 +346,7 @@ function latestSnapshot(args) {
     workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
     grokBuildSetup: readJson(tmpPath(args, 'grok-build-setup.json'), {}),
+    grokHeartbeat: readJson(tmpPath(args, 'grok-heartbeat.json'), {}),
     founderCommand: readJson(tmpPath(args, 'founder-command-latest.json'), {}),
     agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
   };
@@ -541,6 +548,7 @@ function stageGrokBuild(args, body = {}) {
   return {
     ok: true,
     grokBuildSetup: readJson(tmpPath(args, 'grok-build-setup.json'), {}),
+    grokHeartbeat: readJson(tmpPath(args, 'grok-heartbeat.json'), {}),
     workflow: readJson(tmpPath(args, 'workflow-latest.json'), {}),
     workflowApproval: readJson(tmpPath(args, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
@@ -647,6 +655,7 @@ function routeGet(args, pathname) {
   if (pathname === '/workflow/approval/latest') return readJson(tmpPath(args, 'workflow-approval-latest.json'), {});
   if (pathname === '/workflow/intent-gate/latest') return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
   if (pathname === '/workflow/grok-build/setup') return readJson(tmpPath(args, 'grok-build-setup.json'), {});
+  if (pathname === '/agents/grok-heartbeat') return readJson(tmpPath(args, 'grok-heartbeat.json'), {});
   if (pathname === '/workflow/founder-command/latest') return readJson(tmpPath(args, 'founder-command-latest.json'), {});
   if (pathname === '/dispatch/latest') return readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
   const error = new Error(`Unknown route: ${pathname}`);

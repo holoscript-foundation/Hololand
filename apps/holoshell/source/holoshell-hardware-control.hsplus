@@ -21,11 +21,13 @@ composition "HoloShell Hardware Program Control" {
     claudeChatWorkflowScript: "scripts/holoshell-claude-chat-workflow.mjs"
     ollamaCloudAgentWorkflowScript: "scripts/holoshell-ollama-cloud-agent-workflow.mjs"
     grokBuildWorkflowScript: "scripts/holoshell-grok-build-workflow.mjs"
+    grokHeartbeatScript: "scripts/holoshell-grok-heartbeat.mjs"
     agentDispatchScript: "scripts/holoshell-agent-dispatch.mjs"
     founderCommandScript: "scripts/holoshell-founder-command.mjs"
     controlDaemonUrl: "http://127.0.0.1:4747"
     osUiCaptureSource: "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
     grokBuildWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
+    grokHeartbeatSource: "apps/holoshell/source/holoshell-grok-heartbeat.hsplus"
     trustedAutonomySource: "apps/holoshell/source/holoshell-trusted-autonomy.hsplus"
     founderCommandPipelineSource: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
     founderIntentPolicySource: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
@@ -42,6 +44,7 @@ composition "HoloShell Hardware Program Control" {
     latestWorkflowIntentGate: ".tmp/holoshell/brain-intent-gate-latest.json"
     latestAgentDispatchReceipt: ".tmp/holoshell/agent-dispatch-latest.json"
     latestGrokBuildSetup: ".tmp/holoshell/grok-build-setup.json"
+    latestGrokHeartbeat: ".tmp/holoshell/grok-heartbeat.json"
     latestTrustLedger: ".tmp/holoshell/trust-ledger.json"
     latestFounderCommandReceipt: ".tmp/holoshell/founder-command-latest.json"
     actionReceiptDir: ".tmp/holoshell/action-receipts"
@@ -363,7 +366,7 @@ composition "HoloShell Hardware Program Control" {
     url: "http://127.0.0.1:4747"
     loopbackOnly: true
     executeEnabled: false
-    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /workflow/founder-command/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
+    routes: ["GET /health", "GET /feed", "GET /dispatch/latest", "GET /trust/ledger", "GET /workflow/grok-build/setup", "GET /agents/grok-heartbeat", "GET /workflow/founder-command/latest", "POST /action", "POST /approval/execute", "POST /workflow/agent-dispatch", "POST /workflow/room-marathon", "POST /workflow/claude-chat", "POST /workflow/ollama-cloud-agent", "POST /workflow/grok-build", "POST /workflow/founder-command", "POST /workflow/approval", "POST /workflow/intent-gate", "POST /workflow/execute"]
     defaultExecutionPolicy: "stage_only"
     receiptRequired: true
   }

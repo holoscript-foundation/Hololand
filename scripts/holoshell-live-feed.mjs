@@ -192,7 +192,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -608,6 +608,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (grokHeartbeat?.summary) {
+    timeline.push({
+      id: grokHeartbeat.heartbeatId || 'holoshell-grok-heartbeat',
+      kind: 'grok_heartbeat',
+      title: `Grok heartbeat ${grokHeartbeat.summary.status || 'unknown'}`,
+      detail: `Presence ${grokHeartbeat.summary.agentPresenceStatus || 'unknown'}; Heavy ${grokHeartbeat.summary.heavyAccessStatus || 'unknown'}; observation ${grokHeartbeat.summary.latestObservationStatus || 'none'}${grokHeartbeat.summary.primaryFinding ? `; saw ${grokHeartbeat.summary.primaryFinding}` : ''}.`,
+      trustState: grokHeartbeat.summary.agentPresenceStatus === 'active_or_available' ? 'verified' : 'partial',
+      generatedAt: grokHeartbeat.generatedAt || now,
+      receiptType: grokHeartbeat.schemaVersion || 'hololand.holoshell.grok-heartbeat.v0.1.0',
+      source: grokHeartbeat.sourceAnchors?.adapter || 'scripts/holoshell-grok-heartbeat.mjs',
+    });
+  }
+
   if (hardwareApproval?.summary) {
     timeline.push({
       id: hardwareApproval.approvalId || 'hardware-approval',
@@ -806,6 +819,7 @@ function createFeed(args) {
   const founderCommand = readJson(path.join(tmpDir, 'founder-command-latest.json'), {});
   const agentDispatch = readJson(path.join(tmpDir, 'agent-dispatch-latest.json'), {});
   const grokBuild = readJson(path.join(tmpDir, 'grok-build-setup.json'), {});
+  const grokHeartbeat = readJson(path.join(tmpDir, 'grok-heartbeat.json'), {});
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
   const hardwareApproval = readJson(path.join(tmpDir, 'approval-latest.json'), {});
   const trustLedger = readJson(path.join(tmpDir, 'trust-ledger.json'), {});
@@ -856,6 +870,7 @@ function createFeed(args) {
     founderCommand,
     agentDispatch,
     grokBuild,
+    grokHeartbeat,
     hardwareAction,
     hardwareApproval,
     trustLedger,
@@ -925,6 +940,7 @@ function createFeed(args) {
       founderCommand: 'scripts/holoshell-founder-command.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
+      grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       brainIntentGate: 'scripts/holoshell-brain-intent-gate.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
@@ -1196,6 +1212,11 @@ function createFeed(args) {
       grokBuildReadyForGrokBuild: Boolean(grokBuild?.summary?.readyForGrokBuild),
       grokBuildHeavyAccessStatus: grokBuild?.summary?.heavyAccessStatus || grokBuild?.heavyUpgrade?.status || 'unknown',
       grokBuildHeavyVerifiedAt: grokBuild?.heavyUpgrade?.verifiedAt || '',
+      grokHeartbeatStatus: grokHeartbeat?.summary?.status || 'unknown',
+      grokHeartbeatPresenceStatus: grokHeartbeat?.summary?.agentPresenceStatus || 'unknown',
+      grokHeartbeatObservationStatus: grokHeartbeat?.summary?.latestObservationStatus || 'none',
+      grokHeartbeatObservationRecent: Boolean(grokHeartbeat?.summary?.latestObservationRecent),
+      grokHeartbeatPrimaryFinding: grokHeartbeat?.summary?.primaryFinding || '',
       grokObservationStatus: workflow?.grokObservation?.summary?.status || '',
       grokObservationPrimaryFinding: workflow?.grokObservation?.summary?.primaryFinding || '',
       grokObservationFindingCount: workflow?.grokObservation?.summary?.findingCount || 0,
@@ -1308,6 +1329,7 @@ function createFeed(args) {
       networkReality,
       networkFreshness,
       networkChangeEvents,
+      networkSentinelService,
       legacyAppReality,
       mcpCustodyContract,
       mcpUpstreamHandoff,
@@ -1323,6 +1345,7 @@ function createFeed(args) {
       founderCommand,
       agentDispatch,
       grokBuild,
+      grokHeartbeat,
       hardwareAction,
       hardwareApproval,
       trustLedger,

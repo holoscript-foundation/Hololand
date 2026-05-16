@@ -10,6 +10,9 @@ composition "HoloShell Agent Presence Lanes" {
     product: "HoloShell"
     sourceLayer: "HoloScript"
     adapterScript: "scripts/holoshell-agent-lanes.mjs"
+    grokHeartbeatAdapter: "scripts/holoshell-grok-heartbeat.mjs"
+    grokHeartbeatSource: "apps/holoshell/source/holoshell-grok-heartbeat.hsplus"
+    grokHeartbeatReceipt: ".tmp/holoshell/grok-heartbeat.json"
     visualModel: "color_lanes_with_semantic_truth"
   }
 
@@ -19,6 +22,8 @@ composition "HoloShell Agent Presence Lanes" {
     selectedLane: ""
     selectedAgentInstance: ""
     lastLaneReceiptId: ""
+    grokHeartbeatStatus: "none"
+    grokObservationStatus: "none"
   }
 
   channel "holoshell:agents:presence" {
@@ -45,6 +50,12 @@ composition "HoloShell Agent Presence Lanes" {
     description: "Receipts proving which lane acted, on which surface, under which permission"
   }
 
+  channel "holoshell:agents:grok-heartbeat" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Grok Build live heartbeat merged into semantic lane presence"
+  }
+
   template "AgentLane" {
     type: "ui"
     uiType: "agent_lane"
@@ -63,6 +74,14 @@ composition "HoloShell Agent Presence Lanes" {
     surfaceKind: ""
     colorHex: ""
     semanticPrefix: ""
+  }
+
+  template "GrokHeartbeatLaneReceipt" using "LaneReceipt" {
+    receiptType: "hololand.holoshell.grok-heartbeat.v0.1.0"
+    laneId: "grok-build"
+    agentInstanceId: "grok-build:local"
+    surfaceKind: "local_coding_agent"
+    semanticPrefix: "[lane:grok-build agent:grok surface:local_coding_agent]"
   }
 
   room "AgentPresenceRoom" {
@@ -167,10 +186,14 @@ composition "HoloShell Agent Presence Lanes" {
   action consume_agent_lane_manifest(manifest) {
     state.laneCount = manifest.summary.laneCount
     state.activeLaneCount = manifest.summary.activeLaneCount
+    state.grokHeartbeatStatus = manifest.summary.grokHeartbeatStatus || "none"
+    state.grokObservationStatus = manifest.summary.grokHeartbeatObservationStatus || "none"
     emit("holoshell:agents:lane_manifest_consumed", {
       lanes: state.laneCount,
       active: state.activeLaneCount,
-      semantic: manifest.summary.semanticLaneCount
+      semantic: manifest.summary.semanticLaneCount,
+      grok_heartbeat: state.grokHeartbeatStatus,
+      grok_observation: state.grokObservationStatus
     })
   }
 

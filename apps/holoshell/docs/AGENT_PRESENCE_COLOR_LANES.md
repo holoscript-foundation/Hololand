@@ -4,6 +4,7 @@
 **Date:** 2026-05-12
 **Source:** `apps/holoshell/source/holoshell-agent-presence-lanes.hsplus`
 **Discovery adapter:** `scripts/holoshell-agent-lanes.mjs`
+**Grok heartbeat adapter:** `scripts/holoshell-grok-heartbeat.mjs`
 
 ## Decision
 
@@ -111,6 +112,15 @@ This writes:
 ```text
 .tmp/holoshell/agent-lanes.json
 ```
+
+For Grok Heavy, also run:
+
+```powershell
+node scripts\holoshell-grok-heartbeat.mjs --refresh-agent-lanes
+```
+
+This writes `.tmp/holoshell/grok-heartbeat.json` and merges the live Grok
+status, Heavy availability, and latest observation into the `grok-build` lane.
 
 The output is local runtime evidence and should not be committed unless it is
 redacted and converted into a sample.
