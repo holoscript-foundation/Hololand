@@ -1,0 +1,220 @@
+{
+  "schemaVersion": "hololand.hardware-receipt.v1",
+  "generatedAt": "2026-05-16T08:41:22.995Z",
+  "taskSource": "hololand-audit-2026-05-07",
+  "command": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\Users\\josep\\Documents\\GitHub\\Hololand\\scripts\\hardware-audit.mjs",
+      "--output",
+      ".bench-logs\\holoshell-human-os-frontier\\2026-05-16\\slow-computer-hardware-audit.json"
+    ],
+    "cwd": "C:\\Users\\josep\\Documents\\GitHub\\Hololand"
+  },
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26200",
+    "nodeVersion": "v24.15.0",
+    "pnpmVersion": "10.28.2",
+    "cpuModel": "11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz",
+    "logicalCpus": 16,
+    "totalMemoryGb": 31.73
+  },
+  "checks": [
+    {
+      "critical": true,
+      "evidence": {
+        "version": "v24.15.0",
+        "requiredMajor": 22
+      },
+      "notes": [
+        "Meets the hardware-native Codex baseline."
+      ],
+      "id": "node-version",
+      "target": "Node.js runtime",
+      "status": "pass"
+    },
+    {
+      "critical": true,
+      "evidence": {
+        "ok": true,
+        "status": 0,
+        "stdout": "10.28.2",
+        "stderr": "",
+        "command": "cmd.exe /c pnpm --version"
+      },
+      "notes": [
+        "pnpm is available for local validation commands."
+      ],
+      "id": "pnpm-version",
+      "target": "pnpm package manager",
+      "status": "pass"
+    },
+    {
+      "critical": true,
+      "evidence": {
+        "supported": true,
+        "opcode": "v128.const"
+      },
+      "notes": [
+        "Node validates a minimal v128.const module."
+      ],
+      "id": "wasm-simd-node",
+      "target": "WASM SIMD in Node.js",
+      "status": "pass"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "navigatorPresent": true,
+        "navigatorGpu": false
+      },
+      "notes": [
+        "Node normally lacks navigator.gpu; browser audit is the hardware-relevant check."
+      ],
+      "id": "node-webgpu-surface",
+      "target": "Node.js navigator.gpu surface",
+      "status": "skip"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "browserPath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "explicitBrowser": null
+      },
+      "notes": [
+        "A browser executable was found for headless DOM API inspection."
+      ],
+      "id": "browser-detected",
+      "target": "Chromium-family browser executable",
+      "status": "pass"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "ok": false,
+        "status": null,
+        "stdout": "",
+        "stderr": "",
+        "error": "spawnSync C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe ETIMEDOUT"
+      },
+      "notes": [
+        "Browser version was not clearly reported; continuing with DOM audit."
+      ],
+      "id": "browser-version",
+      "target": "Browser version command",
+      "status": "warn"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "status": 0,
+        "stderr": "[27640:39180:0516/014130.977:ERROR:gpu\\ipc\\client\\command_buffer_proxy_impl.cc:488] GPU state invalid after WaitForGetOffsetInRange.\r\n[27640:39180:0516/014130.978:ERROR:gpu\\ipc\\client\\command_buffer_proxy_impl.cc:488] GPU state invalid after WaitForGetOffsetInRange."
+      },
+      "notes": [
+        "Browser DOM probe returned a structured hardware surface receipt."
+      ],
+      "id": "browser-dom-audit",
+      "target": "Headless browser DOM hardware API probe",
+      "status": "pass"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "webgpuApi": true,
+        "secureContext": true,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36"
+      },
+      "notes": [
+        "navigator.gpu is present in the audited browser surface."
+      ],
+      "id": "browser-webgpu-api",
+      "target": "Browser navigator.gpu API surface",
+      "status": "pass"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "ok": true,
+        "features": [
+          "depth32float-stencil8",
+          "rg11b10ufloat-renderable",
+          "texture-formats-tier1",
+          "bgra8unorm-storage",
+          "chromium-experimental-multi-draw-indirect",
+          "texture-compression-bc",
+          "dual-source-blending",
+          "core-features-and-limits",
+          "chromium-experimental-timestamp-query-inside-passes",
+          "float32-filterable",
+          "indirect-first-instance",
+          "float32-blendable",
+          "depth-clip-control",
+          "texture-compression-bc-sliced-3d",
+          "timestamp-query",
+          "shader-f16",
+          "texture-formats-tier2",
+          "clip-distances",
+          "primitive-index",
+          "texture-component-swizzle",
+          "subgroups"
+        ],
+        "limits": {}
+      },
+      "notes": [
+        "navigator.gpu.requestAdapter resolved successfully."
+      ],
+      "id": "browser-webgpu-adapter",
+      "target": "Browser WebGPU adapter request",
+      "status": "pass"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "webxrApi": true,
+        "secureContext": true,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36"
+      },
+      "notes": [
+        "navigator.xr is present in the audited browser surface."
+      ],
+      "id": "browser-webxr-api",
+      "target": "Browser navigator.xr API surface",
+      "status": "pass"
+    },
+    {
+      "critical": false,
+      "evidence": {
+        "xrHandApi": true,
+        "gamepadHapticsApi": true,
+        "maxTouchPoints": 10,
+        "mobileSurface": false,
+        "hardwareConcurrency": 16,
+        "deviceMemory": 32,
+        "platform": "Win32"
+      },
+      "notes": [
+        "At least one headset/mobile input capability was visible."
+      ],
+      "id": "browser-device-input-apis",
+      "target": "Headset/mobile input, haptics, and hand-tracking API surfaces",
+      "status": "pass"
+    }
+  ],
+  "notes": [
+    "Browser hardware APIs can be gated by browser flags, secure context, attached devices, and headless mode."
+  ],
+  "summary": {
+    "status": "pass",
+    "counts": {
+      "pass": 9,
+      "skip": 1,
+      "warn": 1
+    },
+    "failedCritical": []
+  },
+  "output": {
+    "path": "C:\\Users\\josep\\Documents\\GitHub\\Hololand\\.bench-logs\\holoshell-human-os-frontier\\2026-05-16\\slow-computer-hardware-audit.json"
+  }
+}

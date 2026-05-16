@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-05-16T08:42:00.000Z",
+  "filingStatus": "blocked_holomesh_502",
+  "tasks": [
+    {
+      "title": "[holoshell][clinic] Build Slow Computer Clinic room",
+      "description": "Evidence: slow-computer clinic run produced risk=warn with 503 processes, 47 shell/dev runs, 25 stale runs, 21 owner handoff plans, and 4 actionable cleanup candidates. Affected repo/path: HoloLand apps/holoshell/source/holoshell-process-health-room.hsplus, apps/holoshell/prototype/local-capability-room.html, and new experiment source under experiments/holoshell-human-os-frontier. Expected: non-developer room separates hardware vitals, owner handoff, cleanup candidates, guarded stop plans, and replay receipts. Category: HoloLand product gap / HoloShell hardware-wrapper gap / deterministic UX receipt gap.",
+      "priority": 3,
+      "role": "coder",
+      "source": "holoshell-human-os-frontier"
+    },
+    {
+      "title": "[holoshell][process] Add after-action remediation receipt",
+      "description": "Evidence: process-health currently stages guarded stop plans, but the slow-computer clinic needs a reusable after-action receipt for approved remediation: exact PID, owner lane, reason, pre/post process visibility, memory delta, command redaction, and rollback/compensating note. Affected repo/path: HoloScript process/receipt primitives and HoloLand scripts/holoshell-process-health.mjs. Expected: approved stop/cleanup actions emit deterministic after-action verification receipts before marking the clinic step verified. Category: HoloScript substrate gap / deterministic UX receipt gap.",
+      "priority": 3,
+      "role": "coder",
+      "source": "holoshell-human-os-frontier"
+    },
+    {
+      "title": "[holomesh][board] Recover task closure path from 502s",
+      "description": "Evidence: while closing HoloShell tasks task_1778911460647_u5df and task_1778911460648_zqwf, GET /board and PATCH /board/:taskId returned 502 Application failed to respond; MCP board transport was also closed. Expected: HoloShell can close tasks with verification evidence or gets a durable queued close receipt. Category: multi-agent coordination gap / deterministic UX receipt gap.",
+      "priority": 2,
+      "role": "coder",
+      "source": "holoshell-human-os-frontier"
+    }
+  ]
+}
