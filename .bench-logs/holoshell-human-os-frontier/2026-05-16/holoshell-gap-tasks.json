@@ -1,0 +1,33 @@
+{
+  "tasksFiled": [
+    {
+      "id": "task_1778911460647_u5df",
+      "title": "[holoshell][receipts] Serialize hardware action latest writes",
+      "gapClass": "HoloShell hardware-wrapper gap plus deterministic UX/receipt gap",
+      "affectedPaths": [
+        "scripts/holoshell-action-executor.mjs",
+        "scripts/holoshell-approval-bundle.mjs",
+        "apps/holoshell/source/holoshell-hardware-control.hsplus"
+      ]
+    },
+    {
+      "id": "task_1778911460648_zqwf",
+      "title": "[holoshell][browser] Add browser profile boundary receipts",
+      "gapClass": "HoloShell hardware-wrapper gap plus AI containment and deterministic UX/receipt gap",
+      "affectedPaths": [
+        "scripts/holoshell-action-executor.mjs",
+        "scripts/holoshell-approval-bundle.mjs",
+        "scripts/holoshell-shell-objects.mjs",
+        "apps/holoshell/source/holoshell-hardware-control.hsplus"
+      ]
+    }
+  ],
+  "duplicatesAvoided": [
+    "task_1778739121159_vl2u",
+    "task_1778739121159_pdyk",
+    "task_1778868345029_fko1",
+    "task_1778868345029_p50u",
+    "task_1778783102323_vks9",
+    "task_1778787124890_v819"
+  ]
+}

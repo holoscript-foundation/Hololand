@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "title": "[holoshell][receipts] Serialize hardware action latest writes",
+      "priority": 2,
+      "role": "builder",
+      "description": "Repro: during the HoloShell Human OS Frontier run, `node scripts/holoshell-action-executor.mjs --action list_programs --json` and `node scripts/holoshell-action-executor.mjs --action open_url --url https://mcp.holoscript.net/health --json` were started in parallel. Both write `.tmp/holoshell/action-latest.json`; the next `node scripts/holoshell-approval-bundle.mjs --json` failed with `Unexpected non-whitespace character after JSON at position 3403`. A sequential rerun of `open_url` fixed the latest file and approval bundle creation passed. Affected paths: `scripts/holoshell-action-executor.mjs`, `scripts/holoshell-approval-bundle.mjs`, `apps/holoshell/source/holoshell-hardware-control.hsplus`. Expected: action receipts are archived atomically, the latest pointer is lock/rename safe, and approval bundle creation can target an explicit receipt path instead of racing on global latest. Gap class: HoloShell hardware-wrapper gap plus deterministic UX/receipt gap."
+    },
+    {
+      "title": "[holoshell][browser] Add browser profile boundary receipts",
+      "priority": 2,
+      "role": "builder",
+      "description": "Evidence: `node scripts/holoshell-action-executor.mjs --action open_url --url https://mcp.holoscript.net/health --json` correctly produced `approval_required`, `permissionEnvelope: guarded_execute`, `secretsCaptured: false`, and no execution. `node scripts/holoshell-approval-bundle.mjs --json` then minted `hwap-mp7xvx6p-cf3b7c5aa39f`, but the approval target was only `local computer`; it did not name browser, profile/session boundary, cookie allowance, screenshot locality, or public-vs-credential-bearing classification. Docs already require a named browser profile boundary in `apps/holoshell/docs/LEGACY_APP_ADAPTER_MATRIX.md` and `apps/holoshell/docs/ABSORPTION_PILOTS.md`. Affected paths: `scripts/holoshell-action-executor.mjs`, `scripts/holoshell-approval-bundle.mjs`, `scripts/holoshell-shell-objects.mjs`, `apps/holoshell/source/holoshell-hardware-control.hsplus`. Expected: browser approvals and shell objects expose public browsing, credential-adjacent browsing, and break-glass account mutation as distinct visible states with receipts. Gap class: HoloShell hardware-wrapper gap plus AI containment and deterministic UX/receipt gap."
+    }
+  ]
+}
