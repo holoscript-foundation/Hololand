@@ -1,0 +1,184 @@
+// HoloShell account-task custody policy and state machine.
+
+composition "HoloShellAccountTaskCustodyPolicy" {
+  state AccountTaskState {
+    selectedWorkflow: "account-task-custody"
+    intentClass: "unknown"
+    accountBoundary: "unknown"
+    draftCount: 0
+    approvalCount: 0
+    receiptsCaptured: 0
+    accountMutationPerformed: false
+    sourceFileMutationPerformed: false
+    blockers: []
+    taskSeeds: []
+    currentLane: "codex-hardware"
+  }
+
+  template "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  template "AccountBoundaryReceipt" {
+    receiptType: "account_boundary_receipt"
+    providerRequired: true
+    accountRequired: true
+    scopeRequired: true
+    screenshotPolicyRequired: true
+    cookiePolicyRequired: true
+    credentialExtrusionAllowed: false
+  }
+
+  policy "SilentReadAndDraft" using "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    appliesTo: [
+      "classify_intent",
+      "classify_url",
+      "read_local_file_metadata",
+      "snapshot_selected_file",
+      "parse_selected_document",
+      "read_public_status",
+      "draft_email_locally",
+      "draft_calendar_proposal_locally",
+      "draft_document_patch_locally",
+      "summarize_account_boundary"
+    ]
+  }
+
+  policy "GuardedLocalExecute" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: false
+    appliesTo: [
+      "open_public_url",
+      "open_local_output",
+      "write_local_preview",
+      "export_local_attachment_manifest",
+      "file_holomesh_task"
+    ]
+  }
+
+  policy "BreakGlassAccountMutation" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: true
+    appliesTo: [
+      "send_email",
+      "reply_email",
+      "create_calendar_event",
+      "update_calendar_event",
+      "save_shared_document",
+      "upload_cloud_file",
+      "share_link",
+      "download_private_attachment",
+      "use_credential_bearing_browser_profile",
+      "overwrite_source_file",
+      "delete_source_file"
+    ]
+  }
+
+  state_machine "AccountTaskWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "classified",
+      "boundary_checked",
+      "sources_snapshotted",
+      "drafted",
+      "reviewed",
+      "approved",
+      "executed",
+      "witnessed",
+      "filed",
+      "blocked"
+    ]
+    transition "classify" { from: "idle", to: "classified" }
+    transition "check_boundary" { from: "classified", to: "boundary_checked" }
+    transition "snapshot_sources" { from: "boundary_checked", to: "sources_snapshotted" }
+    transition "draft" { from: "sources_snapshotted", to: "drafted" }
+    transition "review" { from: "drafted", to: "reviewed" }
+    transition "approve" { from: "reviewed", to: "approved" }
+    transition "execute" { from: "approved", to: "executed" }
+    transition "witness" { from: "executed", to: "witnessed" }
+    transition "file_task" { from: "witnessed", to: "filed" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "CodexHardware" {
+    laneId: "codex-hardware"
+    owns: ["local_file_snapshot", "program_registry", "window_inventory", "receipt_pack", "hardware_witness"]
+  }
+
+  role "BrowserAccountAgent" {
+    laneId: "browser-account"
+    owns: ["profile_boundary", "cookie_policy", "credential_screenshot_policy", "public_url_witness"]
+  }
+
+  role "ConnectorAgent" {
+    laneId: "connector-account"
+    owns: ["gmail_outlook_calendar_drive_scope", "draft_only_adapter", "provider_error_receipts"]
+  }
+
+  role "DocumentCustodyAgent" {
+    laneId: "document-custody"
+    owns: ["doc_patch", "attachment_manifest", "local_preview", "source_hash_diff"]
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["account_task_room", "brittney_explanation", "quest_or_tool_surface"]
+  }
+
+  action classifyOperation(operation) {
+    if (operation.kind in BreakGlassAccountMutation.appliesTo) {
+      AccountTaskState.approvalCount = AccountTaskState.approvalCount + 1
+      return "break_glass_account_mutation"
+    }
+    if (operation.kind in GuardedLocalExecute.appliesTo) {
+      return "guarded_local_execute"
+    }
+    return "silent_read_and_draft"
+  }
+
+  action recordDraft(draftReceipt) {
+    AccountTaskState.draftCount = AccountTaskState.draftCount + 1
+    emit("holoshell:account_task:draft", {
+      workflow: AccountTaskState.selectedWorkflow,
+      lane: AccountTaskState.currentLane,
+      draftHash: draftReceipt.draftHash,
+      accountMutationPerformed: false,
+      sourceFileMutationPerformed: false
+    })
+  }
+
+  action recordReceipt(receipt) {
+    AccountTaskState.receiptsCaptured = AccountTaskState.receiptsCaptured + 1
+    emit("holoshell:account_task:receipt", {
+      workflow: AccountTaskState.selectedWorkflow,
+      lane: AccountTaskState.currentLane,
+      receipt: receipt,
+      count: AccountTaskState.receiptsCaptured,
+      accountMutationPerformed: AccountTaskState.accountMutationPerformed
+    })
+  }
+
+  action blockOn(reason, evidencePath, ownerSurface) {
+    AccountTaskWorkflow.transition("block")
+    AccountTaskState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+    emit("holoshell:account_task:blocker", {
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+  }
+}

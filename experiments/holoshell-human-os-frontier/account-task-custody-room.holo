@@ -1,0 +1,145 @@
+/**
+ * HoloShell Account Task Custody Room
+ *
+ * Visible room concept for:
+ * "Use email, calendar, documents, and local files to prepare a follow-up,
+ * but only draft proposed changes until the human approves send/save/share."
+ */
+
+composition "HoloShell Account Task Custody Room" {
+  environment {
+    backgroundColor: "#10161b"
+    ambient_light: 0.56
+    shadows: true
+  }
+
+  template "CustodyPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.42, 0.54, 0.08]
+    material: {
+      color: "#16222b"
+      emissive: "#253443"
+      emissiveIntensity: 0.2
+      transparent: true
+      opacity: 0.95
+    }
+  }
+
+  template "GateToken" {
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    scale: [0.15, 0.15, 0.15]
+    material: { color: "#7dcfff" }
+  }
+
+  object "HumanJob" using "CustodyPanel" {
+    position: [0, 2.35, -2.85]
+    label: "Prepare the follow-up without sending anything"
+    properties: {
+      humanJob: "find relevant local notes, draft an email, propose a calendar hold, update a document, and show every proposed mutation before send or save"
+      defaultPromise: "read and draft first; send, save, upload, share, and calendar changes require approval"
+      sourceBoundary: "HoloScript owns account boundary, receipt, policy, replay, and connector contracts; HoloLand renders the human room"
+    }
+  }
+
+  object "AccountBoundaryGate" using "CustodyPanel" {
+    position: [-4.25, 1.5, -1.22]
+    label: "Account boundary"
+    properties: {
+      reads: "provider profile oauth scopes browser session policy mail calendar file authority"
+      visibleStates: ["public", "credential_adjacent", "read_only_account", "draft_only", "send_save_share_break_glass"]
+      failureState: "wrong profile, unknown account, missing scope, credential-bearing screenshot"
+    }
+  }
+
+  object "LocalFileShelf" using "CustodyPanel" {
+    position: [-2.12, 1.5, -1.22]
+    label: "Local file shelf"
+    properties: {
+      reads: "selected files, hashes, privacy class, source mutation state"
+      blockedByDefault: ["delete_source", "overwrite_source", "upload_without_boundary"]
+      receipt: "file_snapshot_receipt"
+    }
+  }
+
+  object "DraftBench" using "CustodyPanel" {
+    position: [0, 1.5, -1.22]
+    label: "Draft bench"
+    properties: {
+      outputs: ["email_draft", "calendar_proposal", "document_patch", "attachment_manifest"]
+      rule: "drafts are local proposals until the approval token names the exact target account and mutation"
+      failureState: "AI drafted ambiguous recipient, time zone mismatch, attachment not snapshotted"
+    }
+  }
+
+  object "ApprovalLockRow" using "CustodyPanel" {
+    position: [2.12, 1.5, -1.22]
+    label: "Approval locks"
+    properties: {
+      guarded: ["open_url", "open_document", "write_export"]
+      breakGlass: ["send_email", "create_event", "update_shared_doc", "share_link", "upload_file"]
+      rule: "approval binds to immutable draft receipt, provider account, target recipients, and rollback note"
+    }
+  }
+
+  object "ReceiptTimeline" using "CustodyPanel" {
+    position: [4.25, 1.5, -1.22]
+    label: "Receipt timeline"
+    properties: {
+      states: ["classified", "snapshotted", "drafted", "reviewed", "approved", "executed", "witnessed", "rolled_back"]
+      replayKey: "intent hash + account boundary + source hashes + draft hash + approval id"
+      failureState: "provider API conflict, expired approval, post-send rollback unavailable"
+    }
+  }
+
+  object "ReadOnlyToken" using "GateToken" {
+    position: [-3.2, 0.78, 0.1]
+    label: "read-only classification"
+    properties: {
+      receiptKind: "account_intent_classification_receipt"
+      allowed: ["list_local_files", "read_selected_file_metadata", "classify_public_url", "draft_local_response"]
+    }
+  }
+
+  object "DraftOnlyToken" using "GateToken" {
+    position: [-1.05, 0.78, 0.1]
+    material: { color: "#9ece6a" }
+    label: "draft-only proposals"
+    properties: {
+      receiptKind: "draft_proposal_receipt"
+      accountMutationPerformed: false
+    }
+  }
+
+  object "SendSaveLockToken" using "GateToken" {
+    position: [1.05, 0.78, 0.1]
+    material: { color: "#e0af68" }
+    label: "send/save/share locked"
+    properties: {
+      receiptKind: "account_mutation_approval_receipt"
+      requires: ["provider", "account", "scope", "target", "draftHash", "humanGesture"]
+    }
+  }
+
+  object "RollbackLimitToken" using "GateToken" {
+    position: [3.2, 0.78, 0.1]
+    material: { color: "#f7768e" }
+    label: "rollback limits visible"
+    properties: {
+      receiptKind: "rollback_limit_receipt"
+      warning: "sent email may only be followed up, not truly undone"
+    }
+  }
+
+  object "AccountTaskTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.4, 0.08, 0.14]
+    color: "#5f6878"
+    label: "timeline: classify -> snapshot -> draft -> review -> approve -> mutate -> witness -> replay"
+  }
+}

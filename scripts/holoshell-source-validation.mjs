@@ -121,9 +121,9 @@ function packageRunner() {
   return 'pnpm';
 }
 
-function validateFile(filePath, args) {
+function runValidation(filePath, command, commandArgs, args) {
   const startedAt = Date.now();
-  const result = spawnSync(packageRunner(), ['exec', 'holoscript', 'validate', filePath], {
+  const result = spawnSync(command, commandArgs, {
     cwd: resolveRepoPath(args.holoscriptRoot),
     encoding: 'utf8',
     shell: process.platform === 'win32',
@@ -140,6 +140,55 @@ function validateFile(filePath, args) {
     durationMs: Date.now() - startedAt,
     stdoutTail: tailLines(result.stdout),
     stderrTail: tailLines(result.stderr || result.error?.message || ''),
+  };
+}
+
+function importResolutionFailure(validation) {
+  const text = [...(validation.stdoutTail || []), ...(validation.stderrTail || [])].join('\n');
+  return /Cannot find module/i.test(text) && /@holoscript[\\/]+[a-z0-9_-]+|@holoscript\\[a-z0-9_-]+|@holoscript\/[a-z0-9_-]+/i.test(text);
+}
+
+function validateFile(filePath, args) {
+  const first = runValidation(filePath, packageRunner(), ['exec', 'holoscript', 'validate', filePath], args);
+  if (first.status === 'pass' || !importResolutionFailure(first)) return first;
+
+  const cliPath = path.join(resolveRepoPath(args.holoscriptRoot), 'packages', 'cli', 'dist', 'cli.js');
+  const coreIndex = path.join(
+    resolveRepoPath(args.holoscriptRoot),
+    'packages',
+    'cli',
+    'node_modules',
+    '@holoscript',
+    'core',
+    'dist',
+    'index.js'
+  );
+  if (!existsSync(cliPath) || !existsSync(coreIndex)) {
+    return {
+      ...first,
+      diagnosticKind: 'holoscript_cli_import_resolution',
+      retry: {
+        attempted: false,
+        reason: 'direct_cli_or_core_dist_missing',
+        directCliPresent: existsSync(cliPath),
+        cliWorkspaceCoreDistPresent: existsSync(coreIndex),
+      },
+    };
+  }
+
+  const retry = runValidation(filePath, 'node', [cliPath, 'validate', filePath], args);
+  return {
+    ...retry,
+    diagnosticKind: retry.status === 'pass' ? 'holoscript_cli_import_retry_passed' : 'holoscript_cli_import_retry_failed',
+    retry: {
+      attempted: true,
+      reason: 'pnpm_exec_import_resolution_failure',
+      primaryExitCode: first.exitCode,
+      primaryStderrTail: first.stderrTail,
+      directCliPresent: true,
+      cliWorkspaceCoreDistPresent: true,
+      retryStatus: retry.status,
+    },
   };
 }
 
@@ -161,6 +210,8 @@ function summarize(validations, args, durationMs) {
     durationMs,
     sourceDir: relativeRepoPath(resolveRepoPath(args.sourceDir)),
     holoscriptRootPresent: existsSync(resolveRepoPath(args.holoscriptRoot)),
+    importRetryCount: validations.filter((item) => item.retry?.attempted).length,
+    importRetryPassCount: validations.filter((item) => item.retry?.attempted && item.status === 'pass').length,
   };
 }
 
@@ -188,6 +239,7 @@ function createReceipt(validations, args, durationMs) {
       parserSourceOfTruth: 'HoloScript CLI',
       failOnAnyInvalidSource: true,
       rawCommandsIncluded: false,
+      importResolutionRetry: 'pnpm_exec_to_direct_cli_when_core_dist_is_present',
     },
     summary,
     validations,

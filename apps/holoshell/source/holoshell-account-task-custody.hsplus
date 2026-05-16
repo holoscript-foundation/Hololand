@@ -1,0 +1,148 @@
+// HoloShell Account Task Custody
+//
+// Source contract for using account-adjacent surfaces without hidden mutation.
+// The bridge may classify, snapshot, and draft locally. Sending, saving,
+// uploading, sharing, and calendar/document mutation require immutable
+// draft-bound approval receipts.
+
+composition "HoloShell Account Task Custody" {
+  config {
+    title: "HoloShell Account Task Custody"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-account-task-custody.mjs"
+    latestReceipt: ".tmp/holoshell/account-task-custody-latest.json"
+    latestBootstrap: ".tmp/holoshell/account-task-custody-latest.js"
+    receiptDir: ".tmp/holoshell/account-task-custody-receipts"
+    experimentRoom: "experiments/holoshell-human-os-frontier/account-task-custody-room.holo"
+    experimentPolicy: "experiments/holoshell-human-os-frontier/account-task-custody-policy.hsplus"
+    experimentPipeline: "experiments/holoshell-human-os-frontier/account-task-custody-pipeline.hs"
+  }
+
+  state {
+    workflowStatus: "unknown"
+    provider: "unknown"
+    accountBoundaryStatus: "unknown"
+    credentialAdjacent: false
+    draftHash: ""
+    proposedMutationCount: 0
+    approvalRequired: false
+    approvalId: ""
+    executionAllowed: false
+    accountMutationPerformed: false
+    sourceFileMutationPerformed: false
+    fileCount: 0
+    rollbackLimitCount: 0
+  }
+
+  template "AccountBoundaryReceipt" {
+    type: "account_boundary_receipt"
+    receiptType: "hololand.holoshell.account-boundary.v0.1.0"
+    provider: "unknown"
+    redactedAccountLabel: "not_declared"
+    scopes: []
+    scopeClass: "scope_not_declared"
+    browserProfile: "not_declared"
+    browserSession: "not_declared"
+    cookiePolicy: "not_declared"
+    screenshotPolicy: "local_only_redacted_or_manual_witness"
+    credentialAdjacent: false
+    credentialExtrusionAllowed: false
+    accountMutationAllowedWithoutApproval: false
+    receiptRequired: true
+  }
+
+  template "DraftProposalReceipt" {
+    type: "draft_proposal_receipt"
+    draftHash: ""
+    sourceHashes: []
+    targetRecipients: []
+    targetCalendar: ""
+    targetDocument: ""
+    accountMutationPerformed: false
+    sourceFileMutationPerformed: false
+    receiptRequired: true
+  }
+
+  template "ImmutableDraftApprovalReceipt" {
+    type: "immutable_draft_approval_receipt"
+    approvalId: ""
+    nonce: ""
+    status: "pending_user_approval"
+    draftHash: ""
+    provider: "unknown"
+    redactedAccountLabel: "not_declared"
+    proposedMutations: []
+    rollbackLimits: []
+    requiresFreshUserGesture: true
+    executionAllowed: false
+    executionDefault: "draft_only_no_connector_mutation"
+    receiptRequired: true
+  }
+
+  policy "ReadOnlyAndDraft" {
+    appliesTo: [
+      "classify_intent",
+      "classify_url",
+      "read_local_file_metadata",
+      "snapshot_selected_file",
+      "parse_selected_document",
+      "draft_email_locally",
+      "draft_calendar_proposal_locally",
+      "draft_document_patch_locally"
+    ]
+    permissionEnvelope: "read_only"
+    accountMutationAllowed: false
+    receiptRequired: true
+  }
+
+  policy "AccountMutationBreakGlass" {
+    appliesTo: [
+      "send_email",
+      "reply_email",
+      "create_calendar_event",
+      "update_calendar_event",
+      "save_shared_document",
+      "upload_cloud_file",
+      "share_link",
+      "download_private_attachment",
+      "use_credential_bearing_browser_profile"
+    ]
+    permissionEnvelope: "break_glass_account_mutation"
+    requiresImmutableDraftApproval: true
+    latestMutableActionBindingAllowed: false
+    receiptRequired: true
+  }
+
+  action apply_account_task_custody_receipt(receipt) {
+    state.workflowStatus = receipt.summary.status
+    state.provider = receipt.summary.provider
+    state.accountBoundaryStatus = receipt.summary.accountBoundaryStatus
+    state.credentialAdjacent = receipt.summary.credentialAdjacent
+    state.draftHash = receipt.summary.draftHash
+    state.proposedMutationCount = receipt.summary.proposedMutationCount
+    state.approvalRequired = receipt.summary.approvalRequired
+    state.approvalId = receipt.summary.approvalId
+    state.executionAllowed = receipt.summary.executionAllowed
+    state.accountMutationPerformed = receipt.summary.accountMutationPerformed
+    state.sourceFileMutationPerformed = receipt.summary.sourceFileMutationPerformed
+    state.fileCount = receipt.summary.fileCount
+    state.rollbackLimitCount = receipt.approval.rollbackLimits.length
+
+    emit("holoshell:account-task:receipt", {
+      action: "account_task_custody_receipt_applied",
+      status: state.workflowStatus,
+      provider: state.provider,
+      boundary_status: state.accountBoundaryStatus,
+      credential_adjacent: state.credentialAdjacent,
+      draft_hash: state.draftHash,
+      approval_required: state.approvalRequired,
+      approval_id: state.approvalId,
+      execution_allowed: state.executionAllowed,
+      account_mutation_performed: state.accountMutationPerformed,
+      source_file_mutation_performed: state.sourceFileMutationPerformed,
+      rollback_limits: state.rollbackLimitCount,
+      receipt_required: true
+    })
+  }
+}

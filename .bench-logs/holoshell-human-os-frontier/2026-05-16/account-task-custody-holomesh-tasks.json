@@ -1,0 +1,25 @@
+{
+  "tasks": [
+    {
+      "title": "[holoshell][accounts] Add account boundary receipts",
+      "description": "Evidence: .bench-logs/holoshell-human-os-frontier/2026-05-16/account-task-custody-evidence-pack.md and experiments/holoshell-human-os-frontier/account-task-custody-*. Current HoloShell browser boundary work covers browser/profile, but email/calendar/document workflows need a reusable account boundary receipt naming provider, redacted account label, OAuth scopes, cookie/session policy, screenshot locality, draft-only status, and break-glass mutation class. Expected: HoloShell can classify read-only, draft-only, send/save/share, and rollback-limited account actions before any connector or browser profile is used. Owner surface: HoloScript substrate + HoloShell hardware wrapper. Category: HoloScript substrate gap / HoloShell hardware-wrapper gap / deterministic UX receipt gap.",
+      "priority": "high",
+      "role": "coder",
+      "source": "holoshell-human-os-frontier-2026-05-16"
+    },
+    {
+      "title": "[holoshell][drafts] Bind approvals to immutable drafts",
+      "description": "Evidence: account-task-custody evidence pack and the new account-task-custody-policy.hsplus/pipeline.hs prototypes. Account mutations such as send_email, create_calendar_event, update_shared_doc, upload_file, and share_link should not bind approval to a mutable latest action. Expected: approval packet references immutable draftHash, provider, account boundary receipt, target recipients/calendar/document, source file hashes, rollback limits, approval id/nonce, and human gesture. A sent email should show rollback limitation instead of pretending full undo exists. Owner surface: HoloShell approval bridge and HoloScript receipt validator. Category: AI containment gap / deterministic UX receipt gap / reversibility-replay gap.",
+      "priority": "high",
+      "role": "coder",
+      "source": "holoshell-human-os-frontier-2026-05-16"
+    },
+    {
+      "title": "[holoshell][validate] Fix source-validation CLI import",
+      "description": "Evidence: pnpm run holoshell:source-validation on 2026-05-16 wrote .tmp/holoshell/source-validation.json with status fail: 19/47 passed, 28 failed. First failure: apps/holoshell/source/holoshell-agent-dispatch.hsplus could not import [holoscript-root]/packages/cli/node_modules/@holoscript/core/dist/index.js from packages/cli/dist/cli.js. Individual validation of the new account-task-custody .holo/.hsplus/.hs files passed from the HoloScript repo, so this appears to be a HoloShell source-validation bridge/runtime resolution issue. Expected: holoshell:source-validation should resolve local HoloScript CLI/core consistently or emit a precise graph-unavailable/import-unavailable receipt. Owner surface: HoloLand HoloShell bridge + HoloScript CLI packaging. Category: HoloShell hardware-wrapper gap / HoloScript substrate gap.",
+      "priority": "high",
+      "role": "coder",
+      "source": "holoshell-human-os-frontier-2026-05-16"
+    }
+  ]
+}
