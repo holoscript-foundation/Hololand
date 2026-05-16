@@ -38,6 +38,7 @@ source/holoshell-brittney-avatar.hsplus
 source/holoshell-brittney-runtime-bridge.hsplus
 source/holoshell-hardware-control.hsplus
 source/holoshell-network-reality.hsplus
+source/holoshell-founder-host.hsplus
 ```
 
 `holoshell-home.hsplus` owns behavior, channels, permissions, receipts, and
@@ -55,6 +56,9 @@ for every action.
 `holoshell-network-reality.hsplus` defines the HoloWeb Local Reality Node:
 connection truth, owner-declared hotspot/metered context, bandwidth protection,
 and redacted network-consumer evidence for Brittney.
+`holoshell-founder-host.hsplus` defines the native Founder host bootstrap:
+the safe bridge between the current preview surface, local services, shell
+objects, the live feed, and the future native wrapper.
 
 HTML is only a projection or host preview. Do not add hand-authored TypeScript
 behavior before the HoloScript source contract is named. Future desktop bridge
@@ -94,6 +98,7 @@ source/holoshell-brittney-avatar.hsplus
 source/holoshell-brittney-runtime-bridge.hsplus
 source/holoshell-hardware-control.hsplus
 source/holoshell-network-reality.hsplus
+source/holoshell-founder-host.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
@@ -114,6 +119,7 @@ docs/LEGACY_ABSORPTION_ARCHETYPES.md
 docs/PROCESS_SHELL_RUN_HEALTH.md
 docs/SKIN_SIMULATION_RESEARCH.md
 docs/PHASE_2_NATIVE_SHELL_ROADMAP.md
+docs/FOUNDER_NATIVE_HOST.md
 prototype/local-capability-room.html
 ```
 
@@ -151,8 +157,8 @@ scripts/holoshell-live-feed.mjs
 ```
 
 It bundles capability inventory, HoloScript surface map, agent lanes, process
-health, network reality, Brittney avatar state, hardware action receipts, run
-receipts, pilot receipts, and stop plans into:
+health, network reality, Founder host readiness, Brittney avatar state,
+hardware action receipts, run receipts, pilot receipts, and stop plans into:
 
 ```text
 .tmp/holoshell/live-feed.json
@@ -161,6 +167,28 @@ receipts, pilot receipts, and stop plans into:
 
 The prototype loads `live-feed.js` for file-based review and falls back to
 fetching `live-feed.json` when served over localhost.
+
+## Founder Native Host
+
+The first native-host bootstrap is source-backed by:
+
+```text
+source/holoshell-founder-host.hsplus
+scripts/holoshell-founder-host.mjs
+```
+
+It writes:
+
+```text
+.tmp/holoshell/founder-host.json
+.tmp/holoshell/founder-host.js
+```
+
+`pnpm run holoshell:founder-host:refresh` regenerates the service supervisor,
+shell object graph, live feed, and Founder host receipt in one pass. This is a
+bootstrap receipt, not OS takeover: execution stays disabled by default, the
+HTML projection may not claim primary shell ownership, and startup integration
+requires an explicit approval path.
 
 ## OS UI Capture Bridge
 
@@ -417,6 +445,7 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-agent-presence-lanes.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-process-health-room.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-network-reality.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-founder-host.hsplus
 ```
 
 From the HoloLand repo:
@@ -449,6 +478,8 @@ node scripts\__tests__\holoshell-network-reality.test.mjs
 node scripts\holoshell-run.mjs --self-test
 node scripts\holoshell-pilot.mjs --self-test
 node scripts\holoshell-live-feed.mjs --self-test
+node scripts\holoshell-founder-host.mjs --self-test
+node scripts\__tests__\holoshell-founder-host.test.mjs
 ```
 
 The script writes local discovery output to `.tmp/holoshell/`, which is ignored.

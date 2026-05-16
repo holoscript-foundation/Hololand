@@ -1,0 +1,127 @@
+// HoloShell Founder Host
+//
+// Source contract for the first native-host bootstrap. This does not claim the
+// machine as a real OS shell yet. It defines the safe bridge between the
+// Founder HoloShell vision, the current preview surface, local services,
+// shell objects, and the future native wrapper.
+
+composition "HoloShell Founder Host" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-founder-host.mjs"
+    hostReceipt: ".tmp/holoshell/founder-host.json"
+    hostBootstrap: ".tmp/holoshell/founder-host.js"
+    shellWorld: "apps/holoshell/source/holoshell-shell-world.holo"
+    shellRender: "apps/holoshell/source/holoshell-shell-render.hs"
+    shellHome: "apps/holoshell/source/holoshell-home.hsplus"
+    serviceSupervisorSource: "apps/holoshell/source/holoshell-service-supervisor.hsplus"
+    serviceSupervisorReceipt: ".tmp/holoshell/service-supervisor.json"
+    shellObjectsReceipt: ".tmp/holoshell/shell-objects.json"
+    liveFeedReceipt: ".tmp/holoshell/live-feed.json"
+    previewHost: "apps/holoshell/prototype/local-capability-room.html"
+    nativeWrapperTarget: "apps/holoshell/native"
+    defaultMode: "founder_preview_host"
+  }
+
+  state {
+    hostStatus: "unknown"
+    sourceReady: false
+    previewHostReady: false
+    nativeWrapperPresent: false
+    startupIntegrationPresent: false
+    shellObjectGraphReady: false
+    liveFeedReady: false
+    serviceSupervisorReady: false
+    localMutationExecutionEnabled: false
+    primarySurfaceOwnership: "preview_only"
+    nextMove: "build_native_wrapper"
+  }
+
+  channel "holoshell:founder-host" {
+    type: "append_only"
+    priority: "critical"
+    description: "Founder HoloShell host bootstrap state and startup readiness"
+  }
+
+  template "FounderHostBootPhase" {
+    type: "boot_phase"
+    phaseId: "unknown"
+    status: "unknown"
+    requiredForNativeWrapper: true
+    receiptRequired: true
+    mutationAllowed: false
+  }
+
+  room "FounderHostRoom" {
+    label: "Founder Host"
+    userQuestion: "Can HoloShell start as the primary Founder operating surface?"
+    visualForm: "host_boot_ring"
+    liveFeed: "holoshell:founder-host"
+
+    object "FounderHost" {
+      type: "ui"
+      uiType: "native_host_bootstrap"
+      label: "Founder HoloShell Host"
+      status: $hostStatus
+      source_ready: $sourceReady
+      preview_ready: $previewHostReady
+      native_wrapper_present: $nativeWrapperPresent
+      startup_integration_present: $startupIntegrationPresent
+      shell_objects_ready: $shellObjectGraphReady
+      live_feed_ready: $liveFeedReady
+      services_ready: $serviceSupervisorReady
+      primary_surface_ownership: $primarySurfaceOwnership
+      next_move: $nextMove
+    }
+  }
+
+  policy "PreviewHostIsNotNativeTakeover" {
+    appliesTo: ["host_status", "live_feed", "shell_objects", "brittney_context"]
+    htmlPreviewMayRenderShell: true
+    htmlPreviewMayClaimOsReplacement: false
+    nativeWrapperRequiredForPrimarySurface: true
+    startupIntegrationRequiredForBootTakeover: true
+    receiptRequired: true
+  }
+
+  policy "FounderHostMutationBoundary" {
+    appliesTo: ["service_start", "daemon_execute", "workflow_execute", "startup_registration"]
+    statusDefaultIsReadOnly: true
+    startingServicesRequiresRegisteredManager: true
+    appMutationRequiresApprovalBundle: true
+    daemonExecuteDisabledByDefault: true
+    osStartupRegistrationRequiresApproval: true
+    destructiveActionsAllowed: false
+    receiptRequired: true
+  }
+
+  action consume_founder_host(snapshot) {
+    state.hostStatus = snapshot.summary.status
+    state.sourceReady = snapshot.summary.sourceReady
+    state.previewHostReady = snapshot.summary.previewHostReady
+    state.nativeWrapperPresent = snapshot.summary.nativeWrapperPresent
+    state.startupIntegrationPresent = snapshot.summary.startupIntegrationPresent
+    state.shellObjectGraphReady = snapshot.summary.shellObjectGraphReady
+    state.liveFeedReady = snapshot.summary.liveFeedReady
+    state.serviceSupervisorReady = snapshot.summary.serviceSupervisorReady
+    state.localMutationExecutionEnabled = snapshot.summary.localMutationExecutionEnabled
+    state.primarySurfaceOwnership = snapshot.summary.primarySurfaceOwnership
+    state.nextMove = snapshot.summary.nextMove
+
+    emit("holoshell:founder-host", {
+      status: state.hostStatus,
+      source_ready: state.sourceReady,
+      preview_ready: state.previewHostReady,
+      native_wrapper_present: state.nativeWrapperPresent,
+      startup_integration_present: state.startupIntegrationPresent,
+      shell_objects_ready: state.shellObjectGraphReady,
+      live_feed_ready: state.liveFeedReady,
+      service_supervisor_ready: state.serviceSupervisorReady,
+      execute_enabled: state.localMutationExecutionEnabled,
+      primary_surface_ownership: state.primarySurfaceOwnership,
+      next_move: state.nextMove,
+      receiptHash: snapshot.receipt.hostSnapshotHash
+    })
+  }
+}

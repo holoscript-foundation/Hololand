@@ -288,10 +288,11 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
+  const founderHostSummary = founderHost?.summary || {};
   const serviceSupervisorSummary = serviceSupervisor?.summary || {};
   const serviceSupervisorReceipt = serviceSupervisor?.receipt || {};
   const grokBuildSummary = grokBuild?.summary || {};
@@ -334,6 +335,43 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       detail: 'The computer surface becomes the HoloLand operating world.',
       firstScreen: true,
       layout: { x: 39, y: 12, size: 160 },
+    },
+    {
+      id: 'host.founder-holoshell',
+      objectKind: 'native_host',
+      displayName: 'Founder Host',
+      sourceKind: 'holoscript',
+      sourceRef: founderHost?.sourceAnchors?.source || 'apps/holoshell/source/holoshell-founder-host.hsplus',
+      capabilityFamily: 'founder_host',
+      trustState: founderHostSummary.nativeWrapperPresent
+        ? 'verified'
+        : founderHostSummary.status === 'ready_for_native_wrapper'
+          ? 'partial'
+          : 'unknown',
+      permissionEnvelope: 'read_only',
+      adapterPath: founderHost?.sourceAnchors?.adapter || 'scripts/holoshell-founder-host.mjs',
+      visualForm: 'host_boot_ring',
+      status: founderHostSummary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['founder_host_receipt', 'service_supervisor_receipt', 'shell_object_graph', 'live_feed'],
+      relationships: {
+        primarySurfaceOwnership: founderHostSummary.primarySurfaceOwnership || 'unknown',
+        sourceReady: Boolean(founderHostSummary.sourceReady),
+        previewHostReady: Boolean(founderHostSummary.previewHostReady),
+        nativeWrapperPresent: Boolean(founderHostSummary.nativeWrapperPresent),
+        startupIntegrationPresent: Boolean(founderHostSummary.startupIntegrationPresent),
+        shellObjectGraphReady: Boolean(founderHostSummary.shellObjectGraphReady),
+        liveFeedReady: Boolean(founderHostSummary.liveFeedReady),
+        serviceSupervisorReady: Boolean(founderHostSummary.serviceSupervisorReady),
+        localMutationExecutionEnabled: Boolean(founderHostSummary.localMutationExecutionEnabled),
+        nextMove: founderHostSummary.nextMove || 'build_native_wrapper',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'native_shell_host',
+      glyph: 'FH',
+      detail: `Founder host ${founderHostSummary.status || 'unknown'}; primary surface ${founderHostSummary.primarySurfaceOwnership || 'unknown'}; native wrapper ${founderHostSummary.nativeWrapperPresent ? 'present' : 'missing'}.`,
+      firstScreen: true,
+      layout: { x: 44, y: 4, size: 110 },
     },
     {
       id: 'assistant.brittney',
@@ -1828,6 +1866,17 @@ function summarize(objects, feeds) {
     serviceSupervisorLocalDaemonServiceCount: feeds.serviceSupervisor?.summary?.localDaemonServiceCount || 0,
     serviceSupervisorServiceMutationTaken: Boolean(feeds.serviceSupervisor?.summary?.serviceMutationTaken),
     serviceSupervisorDestructiveActionsTaken: Boolean(feeds.serviceSupervisor?.receipt?.destructiveActionsTaken),
+    founderHostObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_host').length,
+    founderHostStatus: feeds.founderHost?.summary?.status || 'unknown',
+    founderHostPrimarySurfaceOwnership: feeds.founderHost?.summary?.primarySurfaceOwnership || 'unknown',
+    founderHostSourceReady: Boolean(feeds.founderHost?.summary?.sourceReady),
+    founderHostPreviewReady: Boolean(feeds.founderHost?.summary?.previewHostReady),
+    founderHostNativeWrapperPresent: Boolean(feeds.founderHost?.summary?.nativeWrapperPresent),
+    founderHostStartupIntegrationPresent: Boolean(feeds.founderHost?.summary?.startupIntegrationPresent),
+    founderHostShellObjectGraphReady: Boolean(feeds.founderHost?.summary?.shellObjectGraphReady),
+    founderHostLiveFeedReady: Boolean(feeds.founderHost?.summary?.liveFeedReady),
+    founderHostServiceSupervisorReady: Boolean(feeds.founderHost?.summary?.serviceSupervisorReady),
+    founderHostNextMove: feeds.founderHost?.summary?.nextMove || '',
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
     founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
     userShellObjectCount: objects.filter((object) => object.capabilityFamily === 'user_shell').length,
@@ -1921,6 +1970,7 @@ function summarize(objects, feeds) {
       mcpCustodyContractStatus: feeds.mcpCustodyContract?.summary?.status || 'unknown',
       mcpUpstreamHandoffStatus: feeds.mcpUpstreamHandoff?.summary?.status || 'unknown',
       serviceSupervisorStatus: feeds.serviceSupervisor?.summary?.status || 'unknown',
+      founderHostStatus: feeds.founderHost?.summary?.status || 'unknown',
       goldCodebaseBridgeStatus: feeds.goldCodebaseBridge?.summary?.status || 'unknown',
       wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
       formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
@@ -1952,6 +2002,7 @@ function loadFeeds(tmpDir) {
     wildHoloScript: readJson(path.join(dir, 'wild-holoscript-intake.json'), {}),
     formatInventory: readJson(path.join(dir, 'format-inventory.json'), {}),
     founderBootPreview: readJson(path.join(dir, 'founder-boot-preview.json'), {}),
+    founderHost: readJson(path.join(dir, 'founder-host.json'), {}),
     userShellProjection: readJson(path.join(dir, 'user-shell-projection.json'), {}),
     developmentalEnvironment: readJson(path.join(dir, 'developmental-environment.json'), {}),
     agentDispatch: readJson(path.join(dir, 'agent-dispatch-latest.json'), {}),
@@ -2014,6 +2065,7 @@ function buildGraph(args, fixtures = null) {
       wildHoloScriptIntake: 'scripts/holoshell-wild-holoscript-intake.mjs',
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
+      founderHost: 'scripts/holoshell-founder-host.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       claudeChatWorkflow: 'scripts/holoshell-claude-chat-workflow.mjs',
@@ -2170,6 +2222,27 @@ function fixtureFeeds() {
         destructiveActionsTaken: false,
         rawCommandLineIncluded: false,
         serviceMutationTaken: false,
+      },
+    },
+    founderHost: {
+      schemaVersion: 'hololand.holoshell.founder-host.v0.1.0',
+      generatedAt: new Date().toISOString(),
+      sourceAnchors: {
+        source: 'apps/holoshell/source/holoshell-founder-host.hsplus',
+        adapter: 'scripts/holoshell-founder-host.mjs',
+      },
+      summary: {
+        status: 'ready_for_native_wrapper',
+        sourceReady: true,
+        previewHostReady: true,
+        nativeWrapperPresent: false,
+        startupIntegrationPresent: false,
+        shellObjectGraphReady: true,
+        liveFeedReady: true,
+        serviceSupervisorReady: true,
+        localMutationExecutionEnabled: false,
+        primarySurfaceOwnership: 'preview_only',
+        nextMove: 'build_native_wrapper',
       },
     },
     goldCodebaseBridge: {
@@ -2581,6 +2654,7 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-contract')) failures.push('expected MCP custody contract object');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-upstream-handoff')) failures.push('expected MCP custody upstream handoff object');
   if (!graph.objects.some((object) => object.id === 'service.supervisor' && object.relationships?.requiredOnlineServiceCount === 1)) failures.push('expected service supervisor shell object');
+  if (!graph.objects.some((object) => object.id === 'host.founder-holoshell')) failures.push('expected founder host shell object');
   if (!graph.objects.some((object) => object.id === 'workflow.claude-chat')) failures.push('expected Claude chat workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
@@ -2612,6 +2686,7 @@ function assertSelfTest() {
   if (graph.summary.mcpUpstreamHandoffStatus !== 'ready_for_upstream_agent') failures.push('expected MCP upstream handoff ready status');
   if (graph.summary.serviceSupervisorStatus !== 'ready_with_optional_offline') failures.push('expected service supervisor ready-with-optional-offline status');
   if (graph.summary.serviceSupervisorRequiredOnlineServiceCount !== 1) failures.push('expected service supervisor required service online count');
+  if (graph.summary.founderHostStatus !== 'ready_for_native_wrapper') failures.push('expected founder host ready-for-wrapper status');
   if (!graph.objects.some((object) => object.id === 'receipt.build-custody')) failures.push('expected build custody receipt object');
   const buildTreeObject = graph.objects.find((object) => object.id === 'process.build-tree.build-tree-100');
   if (!buildTreeObject) failures.push('expected build tree process object');

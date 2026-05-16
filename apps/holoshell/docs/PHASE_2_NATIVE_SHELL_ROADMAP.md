@@ -52,6 +52,17 @@ Acceptance:
 
 ### Slice 2B: Native Host Bridge
 
+Current landing:
+
+- Founder host source contract exists at `source/holoshell-founder-host.hsplus`.
+- `scripts/holoshell-founder-host.mjs` writes `.tmp/holoshell/founder-host.json`
+  and `.tmp/holoshell/founder-host.js`.
+- The receipt is now visible in the live feed and shell object graph as
+  `host.founder-holoshell`.
+- Current honest status is `ready_for_native_wrapper`: preview/source/feed
+  readiness is accounted for, but the native wrapper and startup integration
+  are not present yet.
+
 Deliverables:
 
 - Native app wrapper around the HoloShell surface.

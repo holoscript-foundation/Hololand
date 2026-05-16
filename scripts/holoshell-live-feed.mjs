@@ -208,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -287,6 +287,23 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: founderBootPreview.generatedAt || now,
       receiptType: founderBootPreview.schemaVersion,
       source: founderBootPreview.source?.script || 'scripts/holoshell-founder-boot-preview.mjs',
+    });
+  }
+
+  if (founderHost?.summary) {
+    timeline.push({
+      id: 'holoshell-founder-host',
+      kind: 'founder_host',
+      title: `Founder host ${founderHost.summary.status || 'unknown'}`,
+      detail: `${founderHost.summary.primarySurfaceOwnership || 'unknown'}; shell objects ${founderHost.summary.shellObjectGraphReady ? 'ready' : 'missing'}; live feed ${founderHost.summary.liveFeedReady ? 'ready' : 'missing'}; native wrapper ${founderHost.summary.nativeWrapperPresent ? 'present' : 'missing'}; next ${founderHost.summary.nextMove || 'unknown'}.`,
+      trustState: founderHost.summary.nativeWrapperPresent
+        ? 'verified'
+        : founderHost.summary.status === 'ready_for_native_wrapper'
+          ? 'partial'
+          : 'unknown',
+      generatedAt: founderHost.generatedAt || now,
+      receiptType: founderHost.schemaVersion,
+      source: founderHost.sourceAnchors?.adapter || 'scripts/holoshell-founder-host.mjs',
     });
   }
 
@@ -830,6 +847,7 @@ function createFeed(args) {
   const wildHoloScript = readJson(path.join(tmpDir, 'wild-holoscript-intake.json'), {});
   const formatInventory = readJson(path.join(tmpDir, 'format-inventory.json'), {});
   const founderBootPreview = readJson(path.join(tmpDir, 'founder-boot-preview.json'), {});
+  const founderHost = readJson(path.join(tmpDir, 'founder-host.json'), {});
   const userShellProjection = readJson(path.join(tmpDir, 'user-shell-projection.json'), {});
   const developmentalEnvironment = readJson(path.join(tmpDir, 'developmental-environment.json'), {});
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
@@ -882,6 +900,7 @@ function createFeed(args) {
     wildHoloScript,
     formatInventory,
     founderBootPreview,
+    founderHost,
     userShellProjection,
     developmentalEnvironment,
     lanes,
@@ -941,8 +960,15 @@ function createFeed(args) {
       ? 'pass'
       : 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
+  const founderHostRisk = founderHost?.summary?.status === 'native_host_present'
+    ? 'pass'
+    : founderHost?.summary?.status === 'blocked_missing_source'
+      ? 'fail'
+      : founderHost?.summary?.status === 'ready_for_native_wrapper' || founderHost?.summary?.status === 'needs_receipt_refresh'
+        ? 'warn'
+        : 'unknown';
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, founderHostRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -974,6 +1000,8 @@ function createFeed(args) {
       goldCodebaseBridge: 'scripts/holoshell-holoscript-gold-codebase-bridge.mjs',
       formatInventory: 'scripts/holoshell-format-inventory.mjs',
       founderBootPreview: 'scripts/holoshell-founder-boot-preview.mjs',
+      founderHost: 'apps/holoshell/source/holoshell-founder-host.hsplus',
+      founderHostAdapter: 'scripts/holoshell-founder-host.mjs',
       userShellProjection: 'scripts/holoshell-user-shell-projection.mjs',
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       founderCommand: 'scripts/holoshell-founder-command.mjs',
@@ -1037,6 +1065,17 @@ function createFeed(args) {
       founderBootFormatCardCount: founderBootPreview?.summary?.formatViewerCardCount || 0,
       founderBootUserPackCount: founderBootPreview?.summary?.userCapabilityPackCount || 0,
       founderBootBrittneyProposalCount: founderBootPreview?.summary?.brittneyProposalCount || 0,
+      founderHostStatus: founderHost?.summary?.status || 'unknown',
+      founderHostPrimarySurfaceOwnership: founderHost?.summary?.primarySurfaceOwnership || 'unknown',
+      founderHostSourceReady: Boolean(founderHost?.summary?.sourceReady),
+      founderHostPreviewReady: Boolean(founderHost?.summary?.previewHostReady),
+      founderHostNativeWrapperPresent: Boolean(founderHost?.summary?.nativeWrapperPresent),
+      founderHostStartupIntegrationPresent: Boolean(founderHost?.summary?.startupIntegrationPresent),
+      founderHostShellObjectGraphReady: Boolean(founderHost?.summary?.shellObjectGraphReady),
+      founderHostLiveFeedReady: Boolean(founderHost?.summary?.liveFeedReady),
+      founderHostServiceSupervisorReady: Boolean(founderHost?.summary?.serviceSupervisorReady),
+      founderHostLocalMutationExecutionEnabled: Boolean(founderHost?.summary?.localMutationExecutionEnabled),
+      founderHostNextMove: founderHost?.summary?.nextMove || '',
       userShellProjectionStatus: userShellProjection?.summary?.status || 'unknown',
       userShellModeCount: userShellProjection?.summary?.modeCount || 0,
       userShellUserModeCount: userShellProjection?.summary?.userModeCount || 0,
@@ -1386,6 +1425,7 @@ function createFeed(args) {
       wildHoloScript,
       formatInventory,
       founderBootPreview,
+      founderHost,
       userShellProjection,
       developmentalEnvironment,
       lanes,
@@ -1486,6 +1526,7 @@ try {
     console.log(`Launchable programs: ${feed.summary.launchableProgramCount}`);
     console.log(`Shell objects: ${feed.summary.shellObjectCount}`);
     console.log(`Founder boot: ${feed.summary.founderBootStatus}`);
+    console.log(`Founder host: ${feed.summary.founderHostStatus}`);
     console.log(`User shell: ${feed.summary.userShellProjectionStatus}`);
     console.log(`Developmental environment: ${feed.summary.developmentalEnvironmentStatus}`);
     console.log(`MCP custody: ${feed.summary.mcpCustodyContractStatus}`);
