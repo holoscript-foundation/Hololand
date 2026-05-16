@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "hololand.holoshell.holomesh-board-close-queue.v0.1.0",
+  "generatedAt": "2026-05-16T09:16:00.000Z",
+  "teamId": "team_1777834718247_unr35n",
+  "status": "blocked_holomesh_502",
+  "attempts": [
+    {
+      "operation": "complete",
+      "taskId": "task_1778911460647_u5df",
+      "commit": "8807034",
+      "summary": "Serialized HoloShell hardware latest writes.",
+      "verificationEvidence": "HoloLand main contains verified HoloShell work: 8807034 atomic latest writes; 07cd3fe browser-boundary receipts/regression; 6316992 slow-computer clinic source/evidence; 57c1b6b guarded remediation fixture. Verification: HoloScript parse, process-health self-test, remediation fixture self-test, commit hook lint/typecheck/tests/security audit.",
+      "result": {
+        "success": false,
+        "httpStatus": 502,
+        "message": "Application failed to respond",
+        "requestId": "QtQjXnNCQBOjrraL9I3ezw"
+      }
+    },
+    {
+      "operation": "complete",
+      "taskId": "task_1778911460648_zqwf",
+      "commit": "07cd3fe",
+      "summary": "Added browser profile/session boundary receipts and regression coverage.",
+      "verificationEvidence": "HoloLand main contains verified HoloShell work: 8807034 atomic latest writes; 07cd3fe browser-boundary receipts/regression; 6316992 slow-computer clinic source/evidence; 57c1b6b guarded remediation fixture. Verification: HoloScript parse, process-health self-test, remediation fixture self-test, commit hook lint/typecheck/tests/security audit.",
+      "result": {
+        "success": false,
+        "httpStatus": 502,
+        "message": "Application failed to respond",
+        "requestId": "VXQ96AnmSyqbAoKp9I3ezw"
+      }
+    },
+    {
+      "operation": "add_tasks",
+      "source": ".bench-logs/holoshell-human-os-frontier/2026-05-16/slow-computer-clinic-holomesh-tasks.json",
+      "dedupMode": "title",
+      "result": {
+        "success": false,
+        "httpStatus": 502,
+        "message": "Application failed to respond",
+        "requestId": "cnagQvCHT-6PvlrB9I3ezw"
+      }
+    }
+  ],
+  "replayCommandHint": "Retry with the local HoloMesh HTTP helper or holomesh_board_complete/holomesh_board_add when the board stops returning 502."
+}
