@@ -63,6 +63,15 @@ const RESERVED_LANES = [
     color: { name: 'amber', hex: '#EAB308', ansiSgr: '38;5;220' },
   },
   {
+    laneId: 'grok-build',
+    displayName: 'Grok Build',
+    agentKind: 'grok',
+    surfaceKind: 'local_coding_agent',
+    role: 'peer_codebuilder',
+    processHints: ['grok', 'xai'],
+    color: { name: 'rose', hex: '#F43F5E', ansiSgr: '38;5;203' },
+  },
+  {
     laneId: 'holomesh-team',
     displayName: 'HoloMesh Team',
     agentKind: 'holomesh',
@@ -223,6 +232,7 @@ function assertSelfTest(manifest) {
   if (manifest.summary.semanticLaneCount !== manifest.summary.laneCount) failures.push('every lane needs semantic prefix');
   if (!manifest.lanes.some((lane) => lane.laneId === 'codex-hardware')) failures.push('missing Codex hardware lane');
   if (!manifest.lanes.some((lane) => lane.laneId === 'local-shell')) failures.push('missing local shell lane');
+  if (!manifest.lanes.some((lane) => lane.laneId === 'grok-build')) failures.push('missing Grok Build lane');
   if (manifest.lanes.some((lane) => !lane.receiptPolicy.colorIsVisualHintOnly)) {
     failures.push('color must be marked as visual hint only');
   }

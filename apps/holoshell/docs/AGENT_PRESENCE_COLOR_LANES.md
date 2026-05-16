@@ -10,8 +10,8 @@
 The more agents are active on the hardware, the more HoloShell should know.
 
 Codex in the hardware shell, Claude Desktop, Claude Code or Cursor, Gemini in
-Antigravity, Copilot in VS Code, plain local shells, and HoloMesh team presence
-should all appear as agent lanes. A lane is not just decoration. It is an
+Antigravity, Copilot in VS Code, Grok Build, plain local shells, and HoloMesh
+team presence should all appear as agent lanes. A lane is not just decoration. It is an
 operational object with identity, surface, scope, color, current action, and
 receipt trail.
 
@@ -52,6 +52,7 @@ metadata are what agents trust.
 | `gemini-antigravity` | Browser/vision | `#10B981` | `38;5;35` | Multimodal browser and visual verification. |
 | `copilot-vscode` | IDE completion | `#84CC16` | `38;5;112` | Inline acceleration and local edit suggestions. |
 | `local-shell` | Terminal | `#EAB308` | `38;5;220` | Plain command execution and script adapters. |
+| `grok-build` | Local coding agent | `#F43F5E` | `38;5;203` | Peer coding-agent critique, build inspection, and HoloShell workflow observations. |
 | `holomesh-team` | Network presence | `#EC4899` | `38;5;205` | Team board, messages, knowledge, and task state. |
 
 ## Instance Rule
@@ -78,6 +79,7 @@ means more available operating modes:
 - Codex lane active: local build, hardware, filesystem, WASM, and GPU proof.
 - Claude lane active: deep reasoning and long-context planning.
 - Gemini/Antigravity lane active: visual and browser witness paths.
+- Grok Build lane active: xAI coding-agent critique and peer observations.
 - Shell lane active: direct command adapter available.
 - HoloMesh lane active: team state and receipts available.
 

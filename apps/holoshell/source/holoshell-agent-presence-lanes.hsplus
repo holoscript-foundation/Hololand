@@ -125,6 +125,15 @@ composition "HoloShell Agent Presence Lanes" {
       semanticPrefix: "[lane:local-shell agent:shell surface:terminal]"
     }
 
+    object "GrokBuildLane" using "AgentLane" {
+      laneId: "grok-build"
+      label: "Grok Build"
+      agentKind: "grok"
+      surfaceKind: "local_coding_agent"
+      colorHex: "#F43F5E"
+      semanticPrefix: "[lane:grok-build agent:grok surface:local_coding_agent]"
+    }
+
     object "HoloMeshTeamLane" using "AgentLane" {
       laneId: "holomesh-team"
       label: "HoloMesh Team"

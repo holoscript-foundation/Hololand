@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -82,7 +82,7 @@ function readJson(filePath, fallback = null) {
 function writeJson(filePath, value) {
   const resolved = resolveRepoPath(filePath);
   mkdirSync(path.dirname(resolved), { recursive: true });
-  writeFileSync(resolved, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  atomicWriteFile(resolved, `${JSON.stringify(value, null, 2)}\n`);
   return resolved;
 }
 
@@ -90,8 +90,14 @@ function writeBrowserBootstrap(filePath, bundle) {
   const resolved = resolveRepoPath(filePath);
   mkdirSync(path.dirname(resolved), { recursive: true });
   const payload = JSON.stringify(bundle, null, 2).replace(/<\/script/gi, '<\\/script');
-  writeFileSync(resolved, `window.HOLOSHELL_HARDWARE_APPROVAL = ${payload};\n`, 'utf8');
+  atomicWriteFile(resolved, `window.HOLOSHELL_HARDWARE_APPROVAL = ${payload};\n`);
   return resolved;
+}
+
+function atomicWriteFile(resolvedPath, text) {
+  const tempPath = `${resolvedPath}.${process.pid}.${Date.now().toString(36)}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+  writeFileSync(tempPath, text, 'utf8');
+  renameSync(tempPath, resolvedPath);
 }
 
 function stableStringify(value) {
@@ -257,6 +263,22 @@ function fixtureActionReceipt() {
       afterCaptureHash: 'fixture-before',
       secretsCaptured: false,
     },
+    browserBoundary: {
+      boundaryVersion: 'hololand.holoshell.browser-boundary.v0.1.0',
+      applies: true,
+      browser: 'Fixture Browser',
+      browserDeclared: true,
+      profileBoundary: 'system_default_public_ok',
+      sessionBoundary: 'default_or_temporary_public',
+      urlClassification: 'public_web',
+      publicBrowsing: true,
+      credentialAdjacent: false,
+      accountMutation: false,
+      cookiePolicy: 'may_use_default_browser_cookies_if_user_approves_open',
+      screenshotPolicy: 'local_receipts_allowed',
+      screenshotLocality: 'local_receipt_only',
+      receiptsRequired: ['browser_boundary_receipt', 'hardware_action_receipt', 'approval_bundle'],
+    },
     output: {
       latestPath: resolveRepoPath(DEFAULT_ACTION_RECEIPT),
       receiptPath: resolveRepoPath(path.join(DEFAULT_TMP, 'action-receipts', 'hwa-fixture-launch.json')),
@@ -278,6 +300,8 @@ function buildExecuteArgs(receipt, approvalId, nonce, bundlePath) {
   addFlag(actionArgs, '--path', request.path);
   addFlag(actionArgs, '--app', request.app || request.targetProgramName);
   addFlag(actionArgs, '--hotkey', request.hotkey);
+  addFlag(actionArgs, '--browser-profile', request.browserProfile);
+  addFlag(actionArgs, '--browser-session', request.browserSession);
   addFlag(actionArgs, '--approval-bundle', bundlePath);
   addFlag(actionArgs, '--approval-id', approvalId);
   addFlag(actionArgs, '--approval-nonce', nonce);
@@ -364,6 +388,7 @@ function buildBundle(args) {
       targetWindowTitle: actionReceipt.summary?.targetWindowTitle || actionReceipt.target?.title || '',
       mutatingActionExecuted: Boolean(actionReceipt.summary?.mutatingActionExecuted),
     },
+    browserBoundary: actionReceipt.browserBoundary || null,
     approval: {
       approvalRequired,
       requiresFreshUserGesture: true,
@@ -372,6 +397,10 @@ function buildBundle(args) {
       approvalText: `Approve ${actionReceipt.request?.actionKind || 'hardware action'} for ${target}`,
       risk: riskFor(actionReceipt),
       rollback: actionReceipt.rollback || 'manual_or_app_specific',
+      browserBoundaryRequired: Boolean(actionReceipt.browserBoundary),
+      browserBoundarySummary: actionReceipt.browserBoundary
+        ? `${actionReceipt.browserBoundary.urlClassification}; ${actionReceipt.browserBoundary.profileBoundary}`
+        : '',
     },
     trust,
     execution: {
@@ -400,6 +429,8 @@ function buildBundle(args) {
       actionKind: actionReceipt.summary?.actionKind || actionReceipt.request?.actionKind || '',
       target,
       permissionEnvelope: actionReceipt.summary?.permissionEnvelope || actionReceipt.permission?.envelope || 'unknown',
+      browserBoundaryStatus: actionReceipt.browserBoundary?.urlClassification || '',
+      browserProfileBoundary: actionReceipt.browserBoundary?.profileBoundary || '',
       expiresAt,
       executionAllowed,
       trustLevel: trust.level,
@@ -416,6 +447,8 @@ function assertSelfTest(bundle) {
   if (!bundle.execution.allowed) failures.push('expected executable fixture bundle');
   if (!bundle.execution.commandPreview.includes('--approval-nonce')) failures.push('expected nonce-bound command');
   if (!bundle.sourceAction.targetAppName) failures.push('expected target app');
+  if (bundle.browserBoundary?.urlClassification !== 'public_web') failures.push('expected browser boundary to carry into approval bundle');
+  if (!bundle.approval.browserBoundarySummary) failures.push('expected browser boundary approval summary');
   if (bundle.witness.secretsCaptured) failures.push('approval bundle must not capture secrets');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }

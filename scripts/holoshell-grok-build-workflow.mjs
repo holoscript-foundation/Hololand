@@ -522,6 +522,96 @@ function psCommand(parts) {
   return `${homePrefix}; & ${psString(exe)} ${args.map(psString).join(' ')}`.trim();
 }
 
+function cleanGrokOutput(value) {
+  return String(value || '')
+    .replace(/\u001b\[[0-9;]*m/g, '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !/^\d{4}-\d{2}-\d{2}T.*\b(WARN|ERROR)\b/.test(line))
+    .filter((line) => !/^A new version of Grok Build is available:/i.test(line))
+    .filter((line) => !/unknown tool prefix|Failed to parse agent definition/.test(line))
+    .filter((line) => !/skill name does not match expected name from path/.test(line))
+    .filter((line) => !/could not determine home directory|project hooks discovered but not trusted/.test(line))
+    .join('\n')
+    .trim();
+}
+
+function extractFindings(text) {
+  const lines = cleanGrokOutput(text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const bulletLines = lines
+    .filter((line) => /^([-*]|\d+[.)])\s+/.test(line))
+    .map((line) => line.replace(/^([-*]|\d+[.)])\s+/, '').replace(/\*\*/g, '').trim());
+  const fallbackLines = lines
+    .filter((line) => !/^```/.test(line))
+    .filter((line) => !/^#{1,6}\s+/.test(line))
+    .map((line) => line.replace(/\*\*/g, '').trim());
+  return (bulletLines.length ? bulletLines : fallbackLines).slice(0, 6);
+}
+
+function extractFilesReferenced(text) {
+  const matches = cleanGrokOutput(text).match(/(?:apps|scripts|packages|docs|examples|\.tmp)[/\\][A-Za-z0-9._/\\:-]+/g) || [];
+  return Array.from(new Set(matches.map((item) => item.replace(/\\/g, '/')))).slice(0, 12);
+}
+
+function buildGrokObservation(args, setup, executionResult) {
+  const launchStep = executionResult?.steps?.find((step) => step.id === 'launch-grok-build');
+  if (!launchStep) return null;
+  const output = [launchStep.stdout, launchStep.stderr]
+    .map(cleanGrokOutput)
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+  if (!output) return null;
+  const findings = extractFindings(output);
+  const filesReferenced = extractFilesReferenced(output);
+  const lower = output.toLowerCase();
+  const trustSignals = ['ready', 'pass', 'trusted', 'approval', 'receipt', 'source', 'blocked']
+    .filter((signal) => lower.includes(signal));
+
+  return {
+    observationId: id('hsgo-grok-build', args.prompt || 'headless'),
+    schemaVersion: 'hololand.holoshell.grok-observation.v0.1.0',
+    generatedAt: nowIso(),
+    agentLane: 'grok-build',
+    actor: args.actor,
+    peerInvocation: true,
+    sourceAnchors: {
+      source: SOURCE_REF,
+      adapter: SCRIPT_REF,
+    },
+    request: {
+      mode: normalizeMode(args.mode),
+      model: args.model,
+      promptHash: promptDigest(args.prompt || DEFAULT_HEADLESS_PROMPT).sha256,
+      permissionMode: args.permissionMode || 'plan',
+      shellContextAttached: false,
+    },
+    execution: {
+      ok: Boolean(launchStep.ok),
+      exitCode: launchStep.exitCode,
+      startedAt: launchStep.startedAt,
+      finishedAt: launchStep.finishedAt,
+      outputHash: createHash('sha256').update(output).digest('hex'),
+      outputPreview: output.slice(0, 1600),
+      stderrPreview: String(launchStep.stderr || '').slice(0, 600),
+    },
+    findings,
+    filesReferenced,
+    trustSignals,
+    summary: {
+      status: launchStep.ok ? 'completed' : 'failed',
+      agentLane: 'grok-build',
+      findingCount: findings.length,
+      fileReferenceCount: filesReferenced.length,
+      primaryFinding: findings[0] || output.slice(0, 220),
+      model: args.model,
+      cliVersion: setup.summary.cliVersion,
+      heavyAccessStatus: setup.summary.heavyAccessStatus || 'unknown',
+      projectTrustStatus: setup.summary.projectTrustStatus || 'unknown',
+    },
+  };
+}
+
 function buildSteps(args, setup, executionResult = null) {
   const commandParts = grokCommandParts(args, setup);
   const commandPreview = commandParts
@@ -679,6 +769,10 @@ function workflowSummary(args, setup, steps, executionResult = null) {
     mutationExecuted,
     executionStartedAt: executionResult?.startedAt || null,
     executionFinishedAt: executionResult?.finishedAt || null,
+    peerInvocation: Boolean(executionResult?.grokObservation),
+    grokObservationStatus: executionResult?.grokObservation?.summary?.status || '',
+    grokObservationPrimaryFinding: executionResult?.grokObservation?.summary?.primaryFinding || '',
+    grokObservationFindingCount: executionResult?.grokObservation?.summary?.findingCount || 0,
   };
 }
 
@@ -736,6 +830,7 @@ function buildWorkflow(args, setup, executionResult = null) {
       projectTrusted: setup.summary.projectTrusted,
       warningCount: setup.summary.warningCount,
     },
+    ...(executionResult?.grokObservation ? { grokObservation: executionResult.grokObservation } : {}),
     steps,
     summary,
   };
@@ -952,6 +1047,14 @@ function executeTerminalCommand(command) {
   return runPowerShell(ps, { timeoutMs: 12000 });
 }
 
+function executeHeadlessCommand(commandParts, args) {
+  const [command, ...commandArgs] = commandParts;
+  return runCommand(command, commandArgs, {
+    cwd: args.cwd || repoRoot,
+    timeoutMs: 180000,
+  });
+}
+
 function executeWorkflow(args, setup) {
   const startedAt = nowIso();
   const steps = buildSteps(args, setup);
@@ -974,7 +1077,9 @@ function executeWorkflow(args, setup) {
     }
 
     const stepStarted = nowIso();
-    const result = executeTerminalCommand(psCommand(step.action.command));
+    const result = step.action?.mode === 'headless'
+      ? executeHeadlessCommand(step.action.command, args)
+      : executeTerminalCommand(psCommand(step.action.command));
     mutationExecuted = mutationExecuted || result.ok;
     executedSteps.push({
       id: step.id,
@@ -983,18 +1088,21 @@ function executeWorkflow(args, setup) {
       startedAt: stepStarted,
       finishedAt: nowIso(),
       exitCode: result.exitCode,
+      stdout: String(result.stdout || '').trim().slice(0, 8000),
       stderr: String(result.stderr || '').trim().slice(0, 1200),
     });
     if (!result.ok) break;
   }
 
-  return {
+  const executionResult = {
     startedAt,
     finishedAt: nowIso(),
     mutationExecuted,
     steps: executedSteps,
     approval: args.hydratedApproval || null,
   };
+  executionResult.grokObservation = buildGrokObservation(args, setup, executionResult);
+  return executionResult;
 }
 
 function persistSetup(args, setup) {
@@ -1030,6 +1138,26 @@ function selfTest() {
   const workflow = buildWorkflow(args, setup);
   const approval = buildApprovalBundle(args, workflow);
   const gate = buildLocalGate(args, workflow);
+  const fixtureExecution = {
+    startedAt: nowIso(),
+    finishedAt: nowIso(),
+    mutationExecuted: true,
+    steps: [
+      {
+        id: 'launch-grok-build',
+        ok: true,
+        status: 'completed',
+        startedAt: nowIso(),
+        finishedAt: nowIso(),
+        exitCode: 0,
+        stdout: '- HoloShell Grok lane is ready.\n- scripts/holoshell-grok-build-workflow.mjs captures a peer observation receipt.',
+        stderr: '',
+      },
+    ],
+    approval: null,
+  };
+  fixtureExecution.grokObservation = buildGrokObservation(args, setup, fixtureExecution);
+  const completedWorkflow = buildWorkflow(args, setup, fixtureExecution);
   const failures = [];
 
   if (setup.schemaVersion !== SETUP_SCHEMA) failures.push('setup schema mismatch');
@@ -1047,12 +1175,15 @@ function selfTest() {
   }
   if (gate.summary.caseId !== GATE_CASE_ID) failures.push('gate case mismatch');
   if (gate.summary.runtimeBlocking) failures.push('Grok Build should use local approval gate');
+  if (!completedWorkflow.grokObservation) failures.push('expected completed workflow to carry Grok observation');
+  if (completedWorkflow.summary.grokObservationFindingCount < 1) failures.push('expected Grok observation findings');
 
   return {
     ok: failures.length === 0,
     failures,
     setup,
     workflow,
+    completedWorkflow,
     approval,
     gate,
   };

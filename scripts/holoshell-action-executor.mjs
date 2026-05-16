@@ -55,7 +55,8 @@ const BREAK_GLASS_ACTIONS = new Set([
   'system_settings',
 ]);
 
-const SECRET_TEXT_PATTERN = /(password|passphrase|token|secret|api[_-]?key|private key|credential|recovery phrase|ssn|credit card)/i;
+const SECRET_TEXT_PATTERN =
+  /(password|passphrase|token|secret|api[_-]?key|private key|credential|recovery phrase|ssn|credit card)/i;
 
 function parseArgs(argv) {
   const args = {
@@ -86,6 +87,8 @@ function parseArgs(argv) {
     hotkey: '',
     x: '',
     y: '',
+    browserProfile: '',
+    browserSession: '',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -117,6 +120,8 @@ function parseArgs(argv) {
     else if (arg === '--hotkey') args.hotkey = argv[++index] || '';
     else if (arg === '--x') args.x = argv[++index] || '';
     else if (arg === '--y') args.y = argv[++index] || '';
+    else if (arg === '--browser-profile') args.browserProfile = argv[++index] || '';
+    else if (arg === '--browser-session') args.browserSession = argv[++index] || '';
     else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -158,6 +163,8 @@ Options:
   --app <path-or-name>         App for launch_app.
   --hotkey <keys>              Example: Ctrl+L or Alt+Tab.
   --text <text>                Text for type_text. Secret-like text is treated as break-glass.
+  --browser-profile <name>     Browser profile boundary label for browser actions. Defaults to system_default.
+  --browser-session <kind>     default, temporary, private, or credential_bearing. Defaults by URL risk.
   --approved                   Marks a guarded action as user-approved.
   --approval-bundle <path>     Nonce-bound HoloShell approval bundle.
   --approval-id <id>           Approval id from the bundle.
@@ -209,7 +216,11 @@ function validateApprovalBundle(args) {
   if (args.app && request.targetAppName && !sameText(args.app, request.targetAppName)) {
     throw new Error('Approval bundle target app does not match the requested app.');
   }
-  if (args.windowTitle && request.targetWindowTitle && !sameText(args.windowTitle, request.targetWindowTitle)) {
+  if (
+    args.windowTitle &&
+    request.targetWindowTitle &&
+    !sameText(args.windowTitle, request.targetWindowTitle)
+  ) {
     throw new Error('Approval bundle target window does not match the requested window.');
   }
   args.approved = true;
@@ -252,11 +263,15 @@ function withFileWriteLock(targetPath, write) {
   while (true) {
     try {
       mkdirSync(lockDir);
-      writeFileSync(ownerPath, JSON.stringify({
-        pid: process.pid,
-        createdAt: new Date().toISOString(),
-        targetPath,
-      }), 'utf8');
+      writeFileSync(
+        ownerPath,
+        JSON.stringify({
+          pid: process.pid,
+          createdAt: new Date().toISOString(),
+          targetPath,
+        }),
+        'utf8'
+      );
       break;
     } catch (error) {
       if (error?.code !== 'EEXIST') throw error;
@@ -294,7 +309,10 @@ function shortHash(value, length = 14) {
 function stableStringify(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(',')}]`;
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  return `{${Object.keys(value)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+    .join(',')}}`;
 }
 
 function safeLower(value) {
@@ -313,10 +331,96 @@ function sanitizeTextPreview(text) {
 
 function classifyAction(args) {
   if (BREAK_GLASS_ACTIONS.has(args.action)) return 'break_glass';
-  if (args.action === 'type_text' && SECRET_TEXT_PATTERN.test(args.text || '')) return 'break_glass';
+  if (args.action === 'type_text' && SECRET_TEXT_PATTERN.test(args.text || ''))
+    return 'break_glass';
   if (READ_ONLY_ACTIONS.has(args.action)) return 'read_only';
   if (GUARDED_ACTIONS.has(args.action)) return 'guarded_execute';
   return 'unknown';
+}
+
+function classifyUrl(url) {
+  if (!url) return 'none';
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return 'unknown_web';
+  }
+  const combined = `${parsed.hostname} ${parsed.pathname} ${parsed.search}`.toLowerCase();
+  if (!/^https?:$/i.test(parsed.protocol)) return 'blocked_scheme';
+  if (/(checkout|payment|billing|purchase|subscribe|transfer|wallet|bank)/i.test(combined))
+    return 'break_glass_payment';
+  if (
+    /(login|signin|sign-in|account|settings|profile|admin|oauth|auth|password|security|2fa|mfa|upload|download|export|import|delete|remove|submit|compose|send)/i.test(
+      combined
+    )
+  ) {
+    return 'credential_adjacent';
+  }
+  return 'public_web';
+}
+
+function isBrowserAction(args, targetProgram) {
+  return (
+    args.action === 'open_url' ||
+    targetProgram?.capabilityClass === 'browser' ||
+    /browser|chrome|edge|brave|firefox/i.test(
+      `${targetProgram?.displayName || ''} ${targetProgram?.targetPath || ''}`
+    )
+  );
+}
+
+function browserBoundaryFor(args, targetProgram) {
+  if (!isBrowserAction(args, targetProgram)) return null;
+  const urlClassification = args.action === 'open_url' ? classifyUrl(args.url) : 'not_url_action';
+  const publicBrowsing = urlClassification === 'public_web';
+  const credentialAdjacent = urlClassification === 'credential_adjacent';
+  const accountMutation = urlClassification.startsWith('break_glass');
+  let host = '';
+  try {
+    host = args.url ? new URL(args.url).host : '';
+  } catch {
+    host = '';
+  }
+
+  return {
+    boundaryVersion: 'hololand.holoshell.browser-boundary.v0.1.0',
+    applies: true,
+    browser: targetProgram?.displayName || 'system_default_browser',
+    browserDeclared: Boolean(targetProgram?.displayName),
+    profileBoundary:
+      args.browserProfile ||
+      (publicBrowsing
+        ? 'system_default_public_ok'
+        : credentialAdjacent
+          ? 'system_default_account_adjacent'
+          : 'break_glass_profile_required'),
+    sessionBoundary:
+      args.browserSession ||
+      (publicBrowsing
+        ? 'default_or_temporary_public'
+        : credentialAdjacent
+          ? 'credential_bearing_existing_profile'
+          : 'credential_bearing_requires_explicit_profile'),
+    urlClassification,
+    publicBrowsing,
+    credentialAdjacent,
+    accountMutation,
+    host,
+    cookiePolicy: publicBrowsing
+      ? 'may_use_default_browser_cookies_if_user_approves_open'
+      : credentialAdjacent
+        ? 'profile_cookies_visible_to_browser_only'
+        : 'requires_explicit_cookie_policy',
+    screenshotPolicy: publicBrowsing
+      ? 'local_receipts_allowed'
+      : 'local_only_redacted_or_manual_witness',
+    downloadUploadPolicy: publicBrowsing ? 'blocked_until_specific_approval' : 'break_glass',
+    formSubmitPolicy: publicBrowsing ? 'break_glass' : 'break_glass_requires_app_specific_policy',
+    screenshotLocality: 'local_receipt_only',
+    receiptsRequired: ['browser_boundary_receipt', 'hardware_action_receipt', 'approval_bundle'],
+    note: 'Opening a browser mutates local browser state; account-affecting actions stay behind break-glass gates.',
+  };
 }
 
 function permissionFor(args) {
@@ -333,19 +437,16 @@ function permissionFor(args) {
 }
 
 function runPowerShell(script, timeoutMs = 12000) {
-  const result = spawnSync('powershell.exe', [
-    '-NoProfile',
-    '-NonInteractive',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-Command',
-    script,
-  ], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-    timeout: timeoutMs,
-    windowsHide: true,
-  });
+  const result = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+    {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      timeout: timeoutMs,
+      windowsHide: true,
+    }
+  );
 
   if (result.error) throw result.error;
   const stdout = (result.stdout || '').trim();
@@ -383,7 +484,11 @@ function lightweightWindowCapture() {
       generatedAt: new Date().toISOString(),
       source: 'node-process',
       host: { platform: process.platform, arch: process.arch, release: os.release() },
-      summary: { status: 'platform_unsupported_for_window_capture', windowCount: 0, controlCount: 0 },
+      summary: {
+        status: 'platform_unsupported_for_window_capture',
+        windowCount: 0,
+        controlCount: 0,
+      },
       windows: [],
     };
   }
@@ -483,11 +588,17 @@ function readProgramRegistry(args) {
     return {
       ...capture,
       source: capture.source || 'scripts/holoshell-os-ui-capture.mjs',
-      host: capture.host || { platform: process.platform, arch: process.arch, release: os.release() },
+      host: capture.host || {
+        platform: process.platform,
+        arch: process.arch,
+        release: os.release(),
+      },
       summary: {
         status: capture.summary?.status || 'captured',
         windowCount: capture.summary?.windowCount || capture.windows.length,
-        controlCount: capture.summary?.controlCount || capture.windows.reduce((count, window) => count + (window.controls?.length || 0), 0),
+        controlCount:
+          capture.summary?.controlCount ||
+          capture.windows.reduce((count, window) => count + (window.controls?.length || 0), 0),
         geometryNodeCount: capture.summary?.geometryNodeCount || 0,
         actionBridgeStatus: capture.summary?.actionBridgeStatus || 'guarded_execute_available',
       },
@@ -539,18 +650,22 @@ function findLaunchProgram(args) {
   const programs = Array.isArray(registry?.programs) ? registry.programs : [];
   const app = safeLower(args.app);
   if (!app) return null;
-  return programs.find((program) => safeLower(program.id) === app)
-    || programs.find((program) => safeLower(program.displayName) === app)
-    || programs.find((program) => safeLower(program.displayName).includes(app))
-    || programs.find((program) => safeLower(program.launchTarget?.targetPath).includes(app))
-    || null;
+  return (
+    programs.find((program) => safeLower(program.id) === app) ||
+    programs.find((program) => safeLower(program.displayName) === app) ||
+    programs.find((program) => safeLower(program.displayName).includes(app)) ||
+    programs.find((program) => safeLower(program.launchTarget?.targetPath).includes(app)) ||
+    null
+  );
 }
 
 function findTargetWindow(registry, args) {
   const windows = Array.isArray(registry.windows) ? registry.windows : [];
   if (!windows.length) return null;
-  if (args.targetWindowId) return windows.find((window) => window.id === args.targetWindowId) || null;
-  if (args.handle) return windows.find((window) => String(window.handle) === String(args.handle)) || null;
+  if (args.targetWindowId)
+    return windows.find((window) => window.id === args.targetWindowId) || null;
+  if (args.handle)
+    return windows.find((window) => String(window.handle) === String(args.handle)) || null;
   if (args.windowTitle) {
     const needle = safeLower(args.windowTitle);
     return windows.find((window) => safeLower(window.title).includes(needle)) || null;
@@ -569,10 +684,17 @@ function findTargetControl(window, args) {
   if (!window) return null;
   const controls = Array.isArray(window.controls) ? window.controls : [];
   if (!controls.length) return null;
-  if (args.targetControlId) return controls.find((control) => control.id === args.targetControlId) || null;
+  if (args.targetControlId)
+    return controls.find((control) => control.id === args.targetControlId) || null;
   if (args.controlName) {
     const needle = safeLower(args.controlName);
-    return controls.find((control) => safeLower(control.name).includes(needle) || safeLower(control.automationId).includes(needle)) || null;
+    return (
+      controls.find(
+        (control) =>
+          safeLower(control.name).includes(needle) ||
+          safeLower(control.automationId).includes(needle)
+      ) || null
+    );
   }
   return controls.find((control) => control.enabled && !control.offscreen) || controls[0] || null;
 }
@@ -641,7 +763,17 @@ function compactProgram(program) {
 }
 
 function requiresWindowTarget(action) {
-  return ['read_window', 'read_controls', 'resolve_target', 'dry_run_action', 'focus_window', 'hotkey', 'click_control', 'type_text', 'invoke_control'].includes(action);
+  return [
+    'read_window',
+    'read_controls',
+    'resolve_target',
+    'dry_run_action',
+    'focus_window',
+    'hotkey',
+    'click_control',
+    'type_text',
+    'invoke_control',
+  ].includes(action);
 }
 
 function requestFor(args) {
@@ -659,6 +791,8 @@ function requestFor(args) {
     path: args.filePath || '',
     app: args.app || '',
     hotkey: args.hotkey || '',
+    browserProfile: args.browserProfile || '',
+    browserSession: args.browserSession || '',
     text: sanitizeTextPreview(args.text),
     approved: Boolean(args.approved),
     executeRequested: Boolean(args.execute),
@@ -687,14 +821,17 @@ function sendKeyChord(input) {
     ['left', '{LEFT}'],
     ['right', '{RIGHT}'],
   ]);
-  return input.split('+').map((part) => {
-    const token = part.trim();
-    const alias = aliases.get(safeLower(token));
-    if (alias) return alias;
-    if (token.length === 1) return token.toLowerCase();
-    if (/^f\d{1,2}$/i.test(token)) return `{${token.toUpperCase()}}`;
-    return `{${token.toUpperCase()}}`;
-  }).join('');
+  return input
+    .split('+')
+    .map((part) => {
+      const token = part.trim();
+      const alias = aliases.get(safeLower(token));
+      if (alias) return alias;
+      if (token.length === 1) return token.toLowerCase();
+      if (/^f\d{1,2}$/i.test(token)) return `{${token.toUpperCase()}}`;
+      return `{${token.toUpperCase()}}`;
+    })
+    .join('');
 }
 
 function sendKeysText(text) {
@@ -774,7 +911,13 @@ function centerOf(bounds) {
   const top = Number(bounds.top);
   const width = Number(bounds.width || Number(bounds.right) - left);
   const height = Number(bounds.height || Number(bounds.bottom) - top);
-  if (!Number.isFinite(left) || !Number.isFinite(top) || !Number.isFinite(width) || !Number.isFinite(height)) return null;
+  if (
+    !Number.isFinite(left) ||
+    !Number.isFinite(top) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height)
+  )
+    return null;
   return { x: Math.round(left + width / 2), y: Math.round(top + height / 2) };
 }
 
@@ -799,7 +942,8 @@ public class HoloShellMouse {
 function executeApprovedAction(args, window, control) {
   if (args.action === 'focus_window') return focusWindow(window);
   if (args.action === 'open_url') {
-    if (!/^https?:\/\//i.test(args.url || '')) throw new Error('open_url only accepts http or https URLs');
+    if (!/^https?:\/\//i.test(args.url || ''))
+      throw new Error('open_url only accepts http or https URLs');
     return startProcessLiteral(args.url);
   }
   if (args.action === 'open_path') {
@@ -815,9 +959,11 @@ function executeApprovedAction(args, window, control) {
   if (args.action === 'type_text') return sendText(window, args.text);
   if (args.action === 'click_control' || args.action === 'invoke_control') {
     if (window?.handle) focusWindow(window);
-    const explicitPoint = args.x !== '' && args.y !== '' ? { x: Number(args.x), y: Number(args.y) } : null;
+    const explicitPoint =
+      args.x !== '' && args.y !== '' ? { x: Number(args.x), y: Number(args.y) } : null;
     const point = explicitPoint || centerOf(control?.bounds) || centerOf(window?.bounds);
-    if (!point) throw new Error(`${args.action} requires control bounds, window bounds, or --x/--y`);
+    if (!point)
+      throw new Error(`${args.action} requires control bounds, window bounds, or --x/--y`);
     return clickPoint(point);
   }
   throw new Error(`No executor is implemented for ${args.action}`);
@@ -882,7 +1028,11 @@ function buildReceipt(args) {
   const approvalContext = args.approvalContext || null;
   const targetWindow = requiresWindowTarget(args.action) ? findTargetWindow(registry, args) : null;
   const targetControl = findTargetControl(targetWindow, args);
-  const targetProgram = args.action === 'launch_app' || args.action === 'list_programs' ? findLaunchProgram(args) : null;
+  const targetProgram =
+    args.action === 'launch_app' || args.action === 'list_programs'
+      ? findLaunchProgram(args)
+      : null;
+  const browserBoundary = browserBoundaryFor(args, targetProgram);
   const actionId = `hwa-${Date.now().toString(36)}-${shortHash({ args: requestFor(args), beforeHash }, 10)}`;
 
   let status = 'unknown';
@@ -910,11 +1060,21 @@ function buildReceipt(args) {
       executionPerformed = true;
     } else if (!args.approved) {
       status = 'approval_required';
-      result = listResult({ ...args, action: 'dry_run_action' }, registry, targetWindow, targetControl);
+      result = listResult(
+        { ...args, action: 'dry_run_action' },
+        registry,
+        targetWindow,
+        targetControl
+      );
       rollback = 'not_attempted';
     } else if (!args.execute) {
       status = 'planned';
-      result = listResult({ ...args, action: 'dry_run_action' }, registry, targetWindow, targetControl);
+      result = listResult(
+        { ...args, action: 'dry_run_action' },
+        registry,
+        targetWindow,
+        targetControl
+      );
       rollback = 'not_attempted';
     } else {
       result = executeApprovedAction(args, targetWindow, targetControl);
@@ -954,6 +1114,7 @@ function buildReceipt(args) {
     request: requestFor(args),
     permission,
     approvalContext,
+    browserBoundary,
     target: {
       ...compactWindow(targetWindow),
       program: compactProgram(targetProgram),
@@ -990,6 +1151,8 @@ function buildReceipt(args) {
       targetWindowTitle: targetWindow?.title || '',
       targetProcessName: targetWindow?.processName || '',
       targetAppName: targetProgram?.displayName || '',
+      browserBoundaryStatus: browserBoundary?.urlClassification || '',
+      browserProfileBoundary: browserBoundary?.profileBoundary || '',
       error,
     },
     result,
@@ -1021,21 +1184,82 @@ function writeReceiptOutputs(args, receipt) {
 function assertSelfTest(args) {
   const readOnly = buildReceipt({ ...args, selfTest: true, action: 'list_windows' });
   const programList = buildReceipt({ ...args, selfTest: true, action: 'list_programs' });
-  const guarded = buildReceipt({ ...args, selfTest: true, action: 'focus_window', windowTitle: 'Fixture Editor', approved: false, execute: false });
-  const launchPlan = buildReceipt({ ...args, selfTest: true, action: 'launch_app', app: 'Fixture Editor', approved: true, execute: false });
-  const blocked = buildReceipt({ ...args, selfTest: true, action: 'delete_file', filePath: 'C:/tmp/nope.txt', approved: true, execute: true });
-  const secretText = buildReceipt({ ...args, selfTest: true, action: 'type_text', windowTitle: 'Fixture Editor', text: 'api_key=example', approved: true, execute: true });
+  const guarded = buildReceipt({
+    ...args,
+    selfTest: true,
+    action: 'focus_window',
+    windowTitle: 'Fixture Editor',
+    approved: false,
+    execute: false,
+  });
+  const launchPlan = buildReceipt({
+    ...args,
+    selfTest: true,
+    action: 'launch_app',
+    app: 'Fixture Editor',
+    approved: true,
+    execute: false,
+  });
+  const blocked = buildReceipt({
+    ...args,
+    selfTest: true,
+    action: 'delete_file',
+    filePath: 'C:/tmp/nope.txt',
+    approved: true,
+    execute: true,
+  });
+  const secretText = buildReceipt({
+    ...args,
+    selfTest: true,
+    action: 'type_text',
+    windowTitle: 'Fixture Editor',
+    text: 'api_key=example',
+    approved: true,
+    execute: true,
+  });
+  const publicBrowser = buildReceipt({
+    ...args,
+    selfTest: true,
+    action: 'open_url',
+    url: 'https://example.com/status',
+    approved: false,
+    execute: false,
+  });
+  const accountBrowser = buildReceipt({
+    ...args,
+    selfTest: true,
+    action: 'open_url',
+    url: 'https://example.com/account/settings',
+    approved: false,
+    execute: false,
+  });
   const failures = [];
-  if (readOnly.summary.status !== 'completed') failures.push('read-only list_windows should complete');
-  if (readOnly.permission.envelope !== 'read_only') failures.push('list_windows should be read_only');
-  if (programList.summary.status !== 'completed') failures.push('read-only list_programs should complete');
-  if (!programList.result.programs?.length) failures.push('list_programs should include fixture apps');
-  if (guarded.summary.status !== 'approval_required') failures.push('unapproved focus_window should require approval');
-  if (guarded.permission.envelope !== 'guarded_execute') failures.push('focus_window should be guarded_execute');
-  if (launchPlan.summary.status !== 'planned') failures.push('approved launch_app without execute should be planned');
-  if (launchPlan.target.program.displayName !== 'Fixture Editor') failures.push('launch_app should resolve fixture app');
-  if (blocked.summary.status !== 'blocked') failures.push('break-glass delete_file should be blocked');
-  if (secretText.permission.envelope !== 'break_glass') failures.push('secret-looking type_text should become break_glass');
+  if (readOnly.summary.status !== 'completed')
+    failures.push('read-only list_windows should complete');
+  if (readOnly.permission.envelope !== 'read_only')
+    failures.push('list_windows should be read_only');
+  if (programList.summary.status !== 'completed')
+    failures.push('read-only list_programs should complete');
+  if (!programList.result.programs?.length)
+    failures.push('list_programs should include fixture apps');
+  if (guarded.summary.status !== 'approval_required')
+    failures.push('unapproved focus_window should require approval');
+  if (guarded.permission.envelope !== 'guarded_execute')
+    failures.push('focus_window should be guarded_execute');
+  if (launchPlan.summary.status !== 'planned')
+    failures.push('approved launch_app without execute should be planned');
+  if (launchPlan.target.program.displayName !== 'Fixture Editor')
+    failures.push('launch_app should resolve fixture app');
+  if (blocked.summary.status !== 'blocked')
+    failures.push('break-glass delete_file should be blocked');
+  if (secretText.permission.envelope !== 'break_glass')
+    failures.push('secret-looking type_text should become break_glass');
+  if (publicBrowser.browserBoundary?.urlClassification !== 'public_web')
+    failures.push('public open_url should include public browser boundary');
+  if (!publicBrowser.summary.browserProfileBoundary)
+    failures.push('browser summary should expose profile boundary');
+  if (accountBrowser.browserBoundary?.urlClassification !== 'credential_adjacent')
+    failures.push('account open_url should be credential_adjacent');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
   return readOnly;
 }

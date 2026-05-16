@@ -165,6 +165,25 @@ function visualFormForProgram(program) {
   return 'app_bubble';
 }
 
+function browserBoundaryForProgram(program, fallbackUrl = '') {
+  if ((program?.capabilityClass || '') !== 'browser' && !fallbackUrl) return null;
+  return {
+    boundaryVersion: 'hololand.holoshell.browser-boundary.v0.1.0',
+    browser: program?.displayName || 'system_default_browser',
+    profileBoundary: 'not_selected_until_approval',
+    sessionBoundary: 'default_private_or_temporary_required_by_intent',
+    urlClassification: fallbackUrl ? 'public_web' : 'browser_surface_unclassified',
+    publicBrowsing: Boolean(fallbackUrl),
+    credentialAdjacent: false,
+    accountMutation: false,
+    cookiePolicy: 'explicit_profile_boundary_required_before_account_use',
+    screenshotPolicy: 'local_receipts_allowed_for_public_pages_redact_credentials',
+    formSubmitPolicy: 'break_glass',
+    downloadUploadPolicy: 'blocked_until_specific_approval',
+    screenshotLocality: 'local_receipt_only',
+  };
+}
+
 function scoreProgram(program) {
   const name = String(program.displayName || '').toLowerCase();
   let score = 0;
@@ -288,6 +307,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
   const claudeWorkflowSummary = activeWorkflowKind === 'claude_chat' ? workflowSummary : {};
   const ollamaWorkflowSummary = activeWorkflowKind === 'ollama_cloud_agent' ? workflowSummary : {};
   const grokWorkflowSummary = activeWorkflowKind === 'grok_build' ? workflowSummary : {};
+  const grokObservation = activeWorkflowKind === 'grok_build' ? workflow?.grokObservation || null : null;
   const roomWorkflowApprovalSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? workflowApprovalSummary : {};
   const roomGateSummary = !activeWorkflowKind || activeWorkflowKind === 'room_marathon' ? gateSummary : {};
   return [
@@ -551,7 +571,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
     },
     {
       id: 'workflow.grok-build',
-      objectKind: 'workflow',
+      objectKind: 'agent_lane',
       displayName: 'Grok Build',
       sourceKind: 'workflow',
       sourceRef: 'scripts/holoshell-grok-build-workflow.mjs',
@@ -562,6 +582,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       visualForm: 'workflow_bubble',
       status: grokWorkflowSummary.status || grokBuildSummary.status || 'available',
       actorLaneId: 'brittney',
+      agentLane: true,
       receiptTypes: ['grok_build_setup_receipt', 'workflow_receipt', 'workflow_approval_bundle', 'local_approval_gate_receipt'],
       relationships: {
         cliStatus: grokBuildSummary.cliStatus || 'unknown',
@@ -580,6 +601,9 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
         heavyAccessStatus: grokBuildSummary.heavyAccessStatus || grokBuild?.heavyUpgrade?.status || 'unknown',
         heavyVerifiedAt: grokBuild?.heavyUpgrade?.verifiedAt || '',
         readyForGrokBuild: Boolean(grokBuildSummary.readyForGrokBuild),
+        latestObservationStatus: grokObservation?.summary?.status || '',
+        latestObservation: grokObservation?.summary?.primaryFinding || '',
+        latestObservationFindingCount: grokObservation?.summary?.findingCount || 0,
         warningCount: grokBuildSummary.warningCount || 0,
       },
       privacyClass: 'local_private',
@@ -587,7 +611,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       launch: { action: 'stage_grok_build_workflow', route: '/workflow/grok-build' },
       glyph: 'GB',
       detail: activeWorkflowKind === 'grok_build'
-        ? `${grokWorkflowSummary.status || 'unknown'}; ${grokWorkflowSummary.mode || 'interactive'}; ${grokWorkflowSummary.model || 'grok-build'}; approval ${workflowApprovalSummary.status || 'unknown'}; project ${grokWorkflowSummary.projectTrustStatus || 'unknown'}.`
+        ? `${grokWorkflowSummary.status || 'unknown'}; ${grokWorkflowSummary.mode || 'interactive'}; ${grokWorkflowSummary.model || 'grok-build'}; approval ${workflowApprovalSummary.status || 'unknown'}; project ${grokWorkflowSummary.projectTrustStatus || 'unknown'}${grokObservation?.summary?.primaryFinding ? `; saw ${grokObservation.summary.primaryFinding}` : ''}.`
         : `Grok ${grokBuildSummary.cliVersion || 'unknown'}; auth ${grokBuildSummary.authStatus || 'unknown'}; model ${grokBuildSummary.modelStatus || 'unknown'}; project ${grokBuildSummary.projectTrustStatus || 'unknown'}; Heavy ${grokBuildSummary.heavyAccessStatus || grokBuild?.heavyUpgrade?.status || 'unknown'}.`,
       firstScreen: true,
       layout: { x: 72, y: 17, size: 104 },
@@ -666,18 +690,22 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       visualForm: 'approval_gate',
       status: hardwareApprovalSummary.status || 'not_required',
       actorLaneId: 'brittney',
-      receiptTypes: ['hardware_approval_bundle'],
+      receiptTypes: hardwareApproval?.browserBoundary ? ['hardware_approval_bundle', 'browser_boundary_receipt'] : ['hardware_approval_bundle'],
       relationships: {
         actionKind: hardwareApprovalSummary.actionKind || '',
         target: hardwareApprovalSummary.target || '',
         expiresAt: hardwareApprovalSummary.expiresAt || '',
         trustLevel: hardwareApprovalSummary.trustLevel || 'unknown',
         trustedAutonomyEligible: Boolean(hardwareApprovalSummary.trustedAutonomyEligible),
+        browserBoundaryStatus: hardwareApprovalSummary.browserBoundaryStatus || hardwareApproval?.browserBoundary?.urlClassification || '',
+        browserProfileBoundary: hardwareApprovalSummary.browserProfileBoundary || hardwareApproval?.browserBoundary?.profileBoundary || '',
+        browserCookiePolicy: hardwareApproval?.browserBoundary?.cookiePolicy || '',
+        browserScreenshotPolicy: hardwareApproval?.browserBoundary?.screenshotPolicy || '',
       },
       privacyClass: 'local_private',
       replacementPath: 'consent_gate',
       glyph: 'OK',
-      detail: `Hardware approval ${hardwareApprovalSummary.status || 'not_required'} for ${hardwareApprovalSummary.target || 'local computer'}; trust ${hardwareApprovalSummary.trustLevel || 'unknown'}.`,
+      detail: `Hardware approval ${hardwareApprovalSummary.status || 'not_required'} for ${hardwareApprovalSummary.target || 'local computer'}; trust ${hardwareApprovalSummary.trustLevel || 'unknown'}${hardwareApproval?.browserBoundary ? `; browser ${hardwareApproval.browserBoundary.urlClassification} / ${hardwareApproval.browserBoundary.profileBoundary}` : ''}.`,
       firstScreen: Boolean(hardwareApprovalSummary.executionAllowed),
       layout: { x: 13, y: 76, size: 104 },
     },
@@ -726,8 +754,12 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       visualForm: 'portal_bubble',
       status: 'available',
       actorLaneId: 'brittney',
-      receiptTypes: ['hardware_action_receipt', 'approval_bundle'],
-      relationships: { target: 'youtube_lofi_search', mode: 'browser_media' },
+      receiptTypes: ['browser_boundary_receipt', 'hardware_action_receipt', 'approval_bundle'],
+      relationships: {
+        target: 'youtube_lofi_search',
+        mode: 'browser_media',
+        browserBoundary: browserBoundaryForProgram(null, 'https://www.youtube.com/results?search_query=lofi+beats'),
+      },
       privacyClass: 'local_private',
       replacementPath: 'media_surface',
       launch: { action: 'open_url', url: 'https://www.youtube.com/results?search_query=lofi+beats' },
@@ -1138,6 +1170,7 @@ function programObjects(programRegistry, maxPrograms) {
       const displayName = displayNameForProgram(program);
       const slot = layout(index, 96);
       const status = hasMeaningfulRunningWindow(program) ? 'running' : 'available';
+      const browserBoundary = objectKind === 'browser_surface' ? browserBoundaryForProgram(program) : null;
       return {
         id: `program.${slug(displayName)}.${shortHash(program.id || displayName)}`,
         objectKind,
@@ -1151,7 +1184,9 @@ function programObjects(programRegistry, maxPrograms) {
         visualForm: visualFormForProgram(program),
         status,
         actorLaneId: 'brittney',
-        receiptTypes: ['program_registry_receipt', 'hardware_action_receipt', 'approval_bundle'],
+        receiptTypes: browserBoundary
+          ? ['program_registry_receipt', 'browser_boundary_receipt', 'hardware_action_receipt', 'approval_bundle']
+          : ['program_registry_receipt', 'hardware_action_receipt', 'approval_bundle'],
         relationships: {
           programRegistryId: program.id,
           capabilityClass: program.capabilityClass || 'application',
@@ -1160,6 +1195,7 @@ function programObjects(programRegistry, maxPrograms) {
           runningWindowId: program.runningWindowId || '',
           runningWindowTitle: program.runningWindowTitle || '',
           runningProcessName: program.runningProcessName || '',
+          browserBoundary,
         },
         privacyClass: 'local_private',
         replacementPath: objectKind === 'browser_surface' ? 'render_as_portal' : 'wrap_then_reimagine',
@@ -1528,16 +1564,19 @@ function receiptObjects({ hardwareAction, hardwareApproval, workflow, workflowAp
       visualForm: 'receipt_node',
       status: hardwareAction.summary.status || 'unknown',
       actorLaneId: 'brittney',
-      receiptTypes: ['hardware_action_receipt'],
+      receiptTypes: hardwareAction.browserBoundary ? ['hardware_action_receipt', 'browser_boundary_receipt'] : ['hardware_action_receipt'],
       relationships: {
         actionKind: hardwareAction.summary.actionKind || '',
         targetWindowTitle: hardwareAction.summary.targetWindowTitle || '',
         mutatingActionExecuted: Boolean(hardwareAction.summary.mutatingActionExecuted),
+        browserBoundaryStatus: hardwareAction.summary.browserBoundaryStatus || hardwareAction.browserBoundary?.urlClassification || '',
+        browserProfileBoundary: hardwareAction.summary.browserProfileBoundary || hardwareAction.browserBoundary?.profileBoundary || '',
+        browserCookiePolicy: hardwareAction.browserBoundary?.cookiePolicy || '',
       },
       privacyClass: 'local_private',
       replacementPath: 'receipt_memory',
       glyph: 'RC',
-      detail: `Last hardware action ${hardwareAction.summary.status || 'unknown'}; ${hardwareAction.summary.actionKind || 'none'}.`,
+      detail: `Last hardware action ${hardwareAction.summary.status || 'unknown'}; ${hardwareAction.summary.actionKind || 'none'}${hardwareAction.browserBoundary ? `; browser ${hardwareAction.browserBoundary.urlClassification} / ${hardwareAction.browserBoundary.profileBoundary}` : ''}.`,
       firstScreen: false,
       layout: layout(16, 82),
     });
@@ -2196,8 +2235,47 @@ function fixtureFeeds() {
         readyForGrokBuild: true,
       },
     },
-    hardwareAction: { actionId: 'action-1', generatedAt: new Date().toISOString(), summary: { status: 'approval_required', actionKind: 'launch_app', permissionEnvelope: 'guarded_execute', targetWindowTitle: '', mutatingActionExecuted: false } },
-    hardwareApproval: { approvalId: 'approval-1', summary: { status: 'pending_user_approval', actionKind: 'launch_app', target: 'Excel', executionAllowed: true, expiresAt: new Date().toISOString(), trustLevel: 'guarded', trustedAutonomyEligible: false } },
+    hardwareAction: {
+      actionId: 'action-1',
+      generatedAt: new Date().toISOString(),
+      summary: {
+        status: 'approval_required',
+        actionKind: 'open_url',
+        permissionEnvelope: 'guarded_execute',
+        targetWindowTitle: '',
+        mutatingActionExecuted: false,
+        browserBoundaryStatus: 'public_web',
+        browserProfileBoundary: 'system_default_public_ok',
+      },
+      browserBoundary: {
+        boundaryVersion: 'hololand.holoshell.browser-boundary.v0.1.0',
+        urlClassification: 'public_web',
+        profileBoundary: 'system_default_public_ok',
+        cookiePolicy: 'may_use_default_browser_cookies_if_user_approves_open',
+        screenshotPolicy: 'local_receipts_allowed',
+      },
+    },
+    hardwareApproval: {
+      approvalId: 'approval-1',
+      summary: {
+        status: 'pending_user_approval',
+        actionKind: 'open_url',
+        target: 'example.com',
+        executionAllowed: true,
+        expiresAt: new Date().toISOString(),
+        trustLevel: 'guarded',
+        trustedAutonomyEligible: false,
+        browserBoundaryStatus: 'public_web',
+        browserProfileBoundary: 'system_default_public_ok',
+      },
+      browserBoundary: {
+        boundaryVersion: 'hololand.holoshell.browser-boundary.v0.1.0',
+        urlClassification: 'public_web',
+        profileBoundary: 'system_default_public_ok',
+        cookiePolicy: 'may_use_default_browser_cookies_if_user_approves_open',
+        screenshotPolicy: 'local_receipts_allowed',
+      },
+    },
     trustLedger: {
       schemaVersion: 'hololand.holoshell.trust-ledger.v0.1.0',
       latestAction: { fingerprint: 'trust-fixture', actionKind: 'launch_app', targetLabel: 'Excel' },
@@ -2314,6 +2392,9 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'workflow.ollama-cloud-agent')) failures.push('expected Ollama Cloud agent workflow object');
   if (!graph.objects.some((object) => object.id === 'workflow.grok-build')) failures.push('expected Grok Build workflow object');
   if (!graph.objects.some((object) => object.id === 'policy.trusted-autonomy')) failures.push('expected trusted autonomy policy object');
+  if (!graph.objects.some((object) => object.objectKind === 'browser_surface' && object.relationships?.browserBoundary)) failures.push('expected browser surface boundary object');
+  if (!graph.objects.some((object) => object.id === 'approval.hardware' && object.relationships?.browserBoundaryStatus === 'public_web')) failures.push('expected hardware approval browser boundary');
+  if (!graph.objects.some((object) => object.displayName === 'Hardware Receipt' && object.relationships?.browserProfileBoundary === 'system_default_public_ok')) failures.push('expected hardware receipt browser profile boundary');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');

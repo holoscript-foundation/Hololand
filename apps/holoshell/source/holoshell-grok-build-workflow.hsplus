@@ -45,6 +45,8 @@ composition "HoloShell Grok Build Workflow" {
     activeWorkflowPermissionMode: "default"
     activeWorkflowPendingApprovalCount: 0
     activeWorkflowMutationExecuted: false
+    activeWorkflowObservationStatus: "none"
+    activeWorkflowPrimaryFinding: ""
   }
 
   channel "holoshell:workflow:grok-build:setup" {
@@ -91,8 +93,20 @@ composition "HoloShell Grok Build Workflow" {
     promptBodyStoredLocallyOnly: true
     projectHooksTrustedRequiredForHookReliance: true
     autoApproveDisabledByDefault: true
+    grokObservationReturnedToShell: false
     approvalRequired: true
     mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "GrokObservation" {
+    type: "grok_observation"
+    receiptType: "hololand.holoshell.grok-observation.v0.1.0"
+    agentLane: "grok-build"
+    peerInvocation: true
+    shellContextAttached: false
+    findingsRequired: true
+    returnedToBrittney: true
     receiptRequired: true
   }
 
@@ -163,6 +177,8 @@ composition "HoloShell Grok Build Workflow" {
     state.activeWorkflowPermissionMode = workflow.summary.permissionMode
     state.activeWorkflowPendingApprovalCount = workflow.summary.pendingApprovalCount
     state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
+    state.activeWorkflowObservationStatus = workflow.summary.grokObservationStatus || "none"
+    state.activeWorkflowPrimaryFinding = workflow.summary.grokObservationPrimaryFinding || ""
     emit("holoshell:workflow:grok-build", {
       action: "grok_build_workflow_applied",
       workflow_id: state.activeWorkflowId,
@@ -178,6 +194,8 @@ composition "HoloShell Grok Build Workflow" {
       pending_approvals: state.activeWorkflowPendingApprovalCount,
       shell_context_attached_by_default: false,
       mutation_executed: state.activeWorkflowMutationExecuted,
+      grok_observation_status: state.activeWorkflowObservationStatus,
+      grok_primary_finding: state.activeWorkflowPrimaryFinding,
       receipt_required: true
     })
   }

@@ -428,6 +428,27 @@ function createNormalReceipt(args) {
     }
   }
 
+  if (args.refreshDependents && dependentRefreshStatus === 'completed') {
+    const finalBeforeRepublish = createFreshnessReceipt({
+      args,
+      previous,
+      current,
+      refreshes,
+      dependentRefreshStatus,
+      now: new Date(),
+    });
+    writeJson(args.output, finalBeforeRepublish);
+    writeBrowserBootstrap(args.jsOutput, finalBeforeRepublish);
+
+    try {
+      refreshes.push(runNamed('live_feed_final', ['scripts/holoshell-live-feed.mjs']));
+      refreshes.push(runNamed('brittney_context_final', ['scripts/holoshell-brittney-context.mjs']));
+    } catch (error) {
+      if (error.record) refreshes.push(error.record);
+      dependentRefreshStatus = 'failed';
+    }
+  }
+
   return createFreshnessReceipt({
     args,
     previous,

@@ -84,6 +84,10 @@ composition "HoloShell Hardware Program Control" {
     latestApprovalStatus: "unknown"
     latestApprovalTarget: ""
     latestApprovalExpiresAt: ""
+    latestBrowserBoundaryStatus: "none"
+    latestBrowserProfileBoundary: ""
+    latestBrowserCookiePolicy: ""
+    latestBrowserScreenshotPolicy: ""
     controlDaemonStatus: "offline"
     controlDaemonExecuteEnabled: false
     latestAgentDispatchId: ""
@@ -105,6 +109,8 @@ composition "HoloShell Hardware Program Control" {
     grokBuildHeavyAccessStatus: "unknown"
     grokBuildReadyForHeavyRecheck: false
     grokBuildReadyForGrokBuild: false
+    grokBuildObservationStatus: "none"
+    grokBuildPrimaryFinding: ""
     trustLedgerStatus: "unknown"
     trustLedgerRecordCount: 0
     trustLedgerReadOnlyCount: 0
@@ -301,6 +307,21 @@ composition "HoloShell Hardware Program Control" {
     secretsCaptured: false
   }
 
+  template "BrowserBoundaryReceipt" {
+    type: "browser_boundary"
+    receiptType: "hololand.holoshell.browser-boundary.v0.1.0"
+    browser: "system_default_browser"
+    profileBoundary: "not_declared"
+    sessionBoundary: "credential_bearing_requires_explicit_profile"
+    urlClassification: "unknown_web"
+    cookiePolicy: "requires_explicit_cookie_policy"
+    screenshotPolicy: "local_only_redacted_or_manual_witness"
+    formSubmitPolicy: "break_glass"
+    downloadUploadPolicy: "break_glass"
+    screenshotLocality: "local_receipt_only"
+    receiptRequired: true
+  }
+
   template "HardwareActionReceipt" {
     type: "receipt"
     receiptType: "hololand.holoshell.hardware-action.v0.1.0"
@@ -314,6 +335,7 @@ composition "HoloShell Hardware Program Control" {
     executed: false
     mutatingActionExecuted: false
     latestWriteMode: "locked_atomic_same_directory_rename"
+    browserBoundaryReceipt: "optional_for_browser_actions"
     rollback: "not_applicable_for_read_only"
   }
 
@@ -331,6 +353,7 @@ composition "HoloShell Hardware Program Control" {
     nonceBound: true
     executionAllowed: false
     latestWriteMode: "locked_atomic_same_directory_rename"
+    browserBoundaryRequired: false
     receiptRequired: true
   }
 
@@ -399,8 +422,19 @@ composition "HoloShell Hardware Program Control" {
     terminalLaunchRequiresApproval: true
     promptBodyStoredLocallyOnly: true
     projectHooksTrustedRequiredForHookReliance: true
+    grokObservationReturnedToShell: false
     approvalRequired: true
     mutationExecuted: false
+    receiptRequired: true
+  }
+
+  template "GrokObservation" {
+    type: "grok_observation"
+    receiptType: "hololand.holoshell.grok-observation.v0.1.0"
+    agentLane: "grok-build"
+    peerInvocation: true
+    shellContextAttached: false
+    returnedToBrittney: true
     receiptRequired: true
   }
 
@@ -571,6 +605,10 @@ composition "HoloShell Hardware Program Control" {
     state.guardedActionCount = receipt.permission.envelope == "guarded_execute" ? state.guardedActionCount + 1 : state.guardedActionCount
     state.breakGlassBlockedCount = receipt.permission.envelope == "break_glass" ? state.breakGlassBlockedCount + 1 : state.breakGlassBlockedCount
     state.mutatingActionExecuted = receipt.summary.mutatingActionExecuted
+    state.latestBrowserBoundaryStatus = receipt.summary.browserBoundaryStatus || "none"
+    state.latestBrowserProfileBoundary = receipt.summary.browserProfileBoundary || ""
+    state.latestBrowserCookiePolicy = receipt.browserBoundary.cookiePolicy || ""
+    state.latestBrowserScreenshotPolicy = receipt.browserBoundary.screenshotPolicy || ""
     emit("holoshell:hardware:receipt", {
       action: "hardware_action_receipt_applied",
       action_id: state.lastActionId,
@@ -580,6 +618,10 @@ composition "HoloShell Hardware Program Control" {
       target_program: state.lastTargetProgramName,
       target_window: state.lastTargetWindowTitle,
       target_process: state.lastTargetProcessName,
+      browser_boundary_status: state.latestBrowserBoundaryStatus,
+      browser_profile_boundary: state.latestBrowserProfileBoundary,
+      browser_cookie_policy: state.latestBrowserCookiePolicy,
+      browser_screenshot_policy: state.latestBrowserScreenshotPolicy,
       windows: state.programWindowCount,
       controls: state.programControlCount,
       mutating_action_executed: state.mutatingActionExecuted,
@@ -592,6 +634,10 @@ composition "HoloShell Hardware Program Control" {
     state.latestApprovalStatus = bundle.summary.status
     state.latestApprovalTarget = bundle.summary.target
     state.latestApprovalExpiresAt = bundle.summary.expiresAt
+    state.latestBrowserBoundaryStatus = bundle.summary.browserBoundaryStatus || "none"
+    state.latestBrowserProfileBoundary = bundle.summary.browserProfileBoundary || ""
+    state.latestBrowserCookiePolicy = bundle.browserBoundary.cookiePolicy || ""
+    state.latestBrowserScreenshotPolicy = bundle.browserBoundary.screenshotPolicy || ""
     state.pendingHardwareApprovalCount = bundle.summary.approvalRequired && bundle.summary.executionAllowed ? 1 : 0
     emit("holoshell:hardware:approval", {
       action: "hardware_approval_bundle_applied",
@@ -599,6 +645,10 @@ composition "HoloShell Hardware Program Control" {
       status: state.latestApprovalStatus,
       target: state.latestApprovalTarget,
       expires_at: state.latestApprovalExpiresAt,
+      browser_boundary_status: state.latestBrowserBoundaryStatus,
+      browser_profile_boundary: state.latestBrowserProfileBoundary,
+      browser_cookie_policy: state.latestBrowserCookiePolicy,
+      browser_screenshot_policy: state.latestBrowserScreenshotPolicy,
       pending_approvals: state.pendingHardwareApprovalCount,
       nonce_bound: true,
       execution_allowed: bundle.summary.executionAllowed,
@@ -791,6 +841,8 @@ composition "HoloShell Hardware Program Control" {
     state.grokBuildAuthStatus = workflow.summary.authStatus
     state.grokBuildProjectTrusted = workflow.summary.projectTrusted
     state.grokBuildProjectTrustStatus = workflow.summary.projectTrustStatus
+    state.grokBuildObservationStatus = workflow.summary.grokObservationStatus || "none"
+    state.grokBuildPrimaryFinding = workflow.summary.grokObservationPrimaryFinding || ""
     emit("holoshell:workflow:grok-build", {
       action: "grok_build_workflow_applied",
       workflow_id: state.activeWorkflowId,
@@ -809,6 +861,8 @@ composition "HoloShell Hardware Program Control" {
       pending_approvals: state.activeWorkflowPendingApprovalCount,
       shell_context_attached_by_default: workflow.summary.shellContextAttachedByDefault,
       mutation_executed: state.activeWorkflowMutationExecuted,
+      grok_observation_status: state.grokBuildObservationStatus,
+      grok_primary_finding: state.grokBuildPrimaryFinding,
       receipt_required: true
     })
   }

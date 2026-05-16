@@ -1432,6 +1432,7 @@
     let avatarSpeechTimer = 0;
     let speechRecognition = null;
     let selectedShellObjectId = "hololand";
+    let lastGrokObservationId = "";
     const FLAGSHIP_COMMAND = "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube";
     const baseObjects = [
       { id: "browser", label: "Browser", glyph: "B", type: "program", detail: "Web surfaces open as witnessed HoloLand objects.", x: 62, y: 16, size: 132 },
@@ -2759,6 +2760,11 @@
 
     function mergeLiveFeed(nextFeed) {
       if (nextFeed?.summary) Object.assign(feed, nextFeed);
+      const grokObservation = [...(nextFeed?.timeline || [])].reverse().find((item) => item.kind === "grok_observation");
+      if (grokObservation && grokObservation.id !== lastGrokObservationId) {
+        lastGrokObservationId = grokObservation.id;
+        appendConversation(`Grok saw: ${grokObservation.detail || "peer observation returned to HoloShell."}`, "message ai");
+      }
     }
 
     function actionButton(label, handler, primary = false) {
@@ -3499,6 +3505,7 @@
       const activeWorkflow = workflowSummary();
       const activeWorkflowApproval = workflowApprovalSummary();
       const activeWorkflowIntentGate = workflowIntentGateSummary();
+      const grokObservation = feed.feeds?.workflow?.grokObservation || {};
       const activeShardWorkflow = shardWorkflowSummary();
       const activeShardFeed = shardWorkflowFeed();
       const activeShardImportApproval = shardImportApprovalSummary();
@@ -3544,6 +3551,7 @@
         `Founder command: ${founderCommandSummaryData.status || summary.founderCommandStatus || "unknown"}; ${founderCommandSummaryData.pipelineStepCount || summary.founderCommandPipelineStepCount || 0} pipeline; ${founderCommandSummaryData.workflowStepCount || summary.founderCommandWorkflowStepCount || 0} workflow steps; approvals ${founderCommandSummaryData.approvalCount || summary.founderCommandApprovalCount || 0}; execute ${founderCommandSummaryData.executionAllowed || summary.founderCommandExecutionAllowed ? "yes" : "no"}`,
         `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
         `Grok Build: ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; auth ${grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy ${grokSummary.heavyAccessStatus || grokBuildFeed().heavyUpgrade?.status || summary.grokBuildHeavyAccessStatus || "unknown"}`,
+        `Grok observation: ${grokObservation.summary?.status || summary.grokObservationStatus || "none"}; ${grokObservation.summary?.primaryFinding || summary.grokObservationPrimaryFinding || "no peer finding yet"}`,
         `Trust ladder: ${trustSummary.status || summary.trustLedgerStatus || "unknown"}; latest ${trustSummary.latestTrustLevel || summary.trustedAutonomyLatestLevel || "unknown"}; trusted ${trustSummary.trustedRecordCount || summary.trustedAutonomyTrustedRecordCount || 0}; guarded ${trustSummary.guardedRecordCount || summary.trustedAutonomyGuardedRecordCount || 0}; eligible ${trustSummary.trustedAutonomyEligible || summary.trustedAutonomyEligible ? "yes" : "no"}`,
         `Hardware action: ${hardwareSummary.status || summary.hardwareActionStatus || "unknown"}; ${hardwareSummary.actionKind || summary.hardwareActionKind || "none"}; ${hardwareSummary.permissionEnvelope || summary.hardwareActionPermissionEnvelope || "unknown"}; mutation executed ${hardwareSummary.mutatingActionExecuted || summary.hardwareMutatingActionExecuted ? "yes" : "no"}`,
         `Hardware approval: ${approvalSummary.status || summary.hardwareApprovalStatus || "unknown"}; ${approvalSummary.actionKind || summary.hardwareApprovalActionKind || "none"}; target ${approvalSummary.target || summary.hardwareApprovalTarget || "none"}`,
