@@ -97,6 +97,7 @@ source/holoshell-network-reality.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
+docs/CODEBASE_STATUS.md
 docs/ABSORPTION_PILOTS.md
 docs/AGENT_PRESENCE_COLOR_LANES.md
 docs/BRITTNEY_OPERATOR_SPEC.md
@@ -118,9 +119,11 @@ prototype/local-capability-room.html
 
 ## Research Spine
 
-HoloShell research now routes through one doctrine and six supporting specs:
+HoloShell research now routes through one status snapshot, one doctrine, and
+six supporting specs:
 
 ```text
+docs/CODEBASE_STATUS.md
 docs/HOLOSHELL_OS_REPLACEMENT_DOCTRINE.md
 docs/SHELL_OBJECT_SCHEMA.md
 docs/LEGACY_APP_ADAPTER_MATRIX.md
@@ -131,11 +134,12 @@ docs/PHASE_2_NATIVE_SHELL_ROADMAP.md
 ```
 
 Read them in that order when deciding what HoloShell should become next. The
-doctrine defines the operating-system replacement posture. The schema defines
-the object grammar. The adapter matrix defines how legacy software is wrapped.
-The Brittney spec defines the embodied operator. The reconstruction and skin
-docs define the visual/simulation direction. The Phase 2 roadmap turns those
-ideas into native shell build slices.
+status snapshot records what the codebase currently proves. The doctrine
+defines the operating-system replacement posture. The schema defines the object
+grammar. The adapter matrix defines how legacy software is wrapped. The
+Brittney spec defines the embodied operator. The reconstruction and skin docs
+define the visual/simulation direction. The Phase 2 roadmap turns those ideas
+into native shell build slices.
 
 ## Live Feed Bridge
 
@@ -468,6 +472,7 @@ See:
 
 ```text
 docs/specs/HOLOSHELL_HARDWARE_NATIVE_SURFACE.md
+apps/holoshell/docs/CODEBASE_STATUS.md
 apps/holoshell/docs/HOLOSHELL_OS_REPLACEMENT_DOCTRINE.md
 apps/holoshell/docs/PHASE_2_NATIVE_SHELL_ROADMAP.md
 ```

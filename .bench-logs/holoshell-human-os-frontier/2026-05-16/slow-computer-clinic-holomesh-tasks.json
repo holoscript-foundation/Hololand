@@ -29,6 +29,13 @@
       "priority": 3,
       "role": "coder",
       "source": "holoshell-human-os-frontier"
+    },
+    {
+      "title": "[holoshell][clinic] Connect dry-run stop readiness to UI approval",
+      "description": "Evidence: production-safe dry-run adapter experiments/holoshell-human-os-frontier/slow-computer-clinic-guarded-stop-dry-run.mjs records exact PID re-check, approval token, owner acknowledgement state, and terminationPerformed=false. Expected: HoloShell UI can turn this receipt into a real human gesture approval and then require a second immediate PID re-check before any stop. Category: HoloLand product gap / deterministic UX receipt gap.",
+      "priority": 3,
+      "role": "coder",
+      "source": "holoshell-human-os-frontier"
     }
   ]
 }

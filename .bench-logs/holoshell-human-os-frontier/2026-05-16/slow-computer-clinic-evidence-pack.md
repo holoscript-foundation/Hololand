@@ -120,6 +120,32 @@ HoloShell makes work legible by turning each backstage process into either a vis
 
 Follow-up update: gap 2 now has a fixture-level prototype. The remaining production gap is wiring the same before/after receipt contract to non-fixture, user-approved stop plans.
 
+Second follow-up update: added a production-safe dry-run readiness adapter that re-checks an exact PID from the latest process-health receipt, requires an approval id and owner acknowledgement when applicable, and records `terminationPerformed=false`. This closes the gap between fixture remediation and real remediation without stopping a user process.
+
+## Production Stop Dry-Run
+
+Follow-up run added a production-safe readiness adapter:
+
+- Adapter source: `experiments/holoshell-human-os-frontier/slow-computer-clinic-guarded-stop-dry-run.mjs`
+- Refreshed process health: `.bench-logs/holoshell-human-os-frontier/2026-05-16/slow-computer-process-health-latest.json`
+- Readiness receipt: `.bench-logs/holoshell-human-os-frontier/2026-05-16/slow-computer-guarded-stop-dry-run-receipt.json`
+- Receipt schema: `hololand.holoshell.slow-computer-guarded-stop-dry-run.v0.1.0`
+- Current risk: `warn`
+- Current processes: `657`
+- Current shell/dev runs: `128`
+- Current cleanup stop plans: `8`
+- Current high-memory processes: `1`
+- Target PID rechecked: `13736`
+- Target finding: `high_memory_process`
+- Status: `ready_for_runtime_approval`
+- Approval captured: `true`
+- Owner acknowledgement captured: `true`
+- Dry run only: `true`
+- Termination performed: `false`
+- Receipt hash: `0787b8c613adc7f434085601be46ae7b32627b60c77561985abd7ab70b1d6fe0`
+
+This is the production bridge: the system can now prove it has a current exact PID, a stop plan, an approval token, and an owner-ack state before any real stop path exists. The adapter deliberately refuses to terminate processes.
+
 ## Task Seeds
 
 Local seed file: `.bench-logs/holoshell-human-os-frontier/2026-05-16/slow-computer-clinic-holomesh-tasks.json`
@@ -140,4 +166,4 @@ Live HoloMesh task filing was attempted but blocked by 502 board responses.
 
 ## Next Workflow
 
-Push the clinic from fixture-only remediation into production guarded remediation: require a real human approval gesture, owner-lane acknowledgement when applicable, exact PID re-check immediately before stop, and before/after receipts before marking a remediation complete.
+Push the clinic from production dry-run readiness into a real approved stop path only after HoloShell has a UI-level human gesture, owner-lane acknowledgement routing, and an immediate pre-stop PID re-check bound to the same receipt.

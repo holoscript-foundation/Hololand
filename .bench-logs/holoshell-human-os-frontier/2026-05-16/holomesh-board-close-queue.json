@@ -1,6 +1,7 @@
 {
   "schemaVersion": "hololand.holoshell.holomesh-board-close-queue.v0.1.0",
   "generatedAt": "2026-05-16T09:16:00.000Z",
+  "lastAttemptAt": "2026-05-16T10:33:00.000Z",
   "teamId": "team_1777834718247_unr35n",
   "status": "blocked_holomesh_502",
   "attempts": [
@@ -39,6 +40,43 @@
         "httpStatus": 502,
         "message": "Application failed to respond",
         "requestId": "cnagQvCHT-6PvlrB9I3ezw"
+      }
+    },
+    {
+      "operation": "complete",
+      "taskId": "task_1778911460647_u5df",
+      "commit": "8807034",
+      "summary": "Serialized HoloShell hardware latest writes.",
+      "verificationEvidence": "HoloLand main contains verified HoloShell work through guarded stop dry-run: 8807034 atomic latest writes; 07cd3fe browser-boundary receipts/regression; 6316992 slow-computer clinic source/evidence; 57c1b6b fixture remediation; pending dry-run adapter commit validates exact PID recheck and terminationPerformed=false. Verification: HoloScript parse, process-health refresh, guarded stop dry-run self-test.",
+      "result": {
+        "success": false,
+        "httpStatus": 502,
+        "message": "Application failed to respond",
+        "requestId": "--YpxALmS1iy428Flt7tkg"
+      }
+    },
+    {
+      "operation": "complete",
+      "taskId": "task_1778911460648_zqwf",
+      "commit": "07cd3fe",
+      "summary": "Added browser profile/session boundary receipts and regression coverage.",
+      "verificationEvidence": "HoloLand main contains verified HoloShell work through guarded stop dry-run: 8807034 atomic latest writes; 07cd3fe browser-boundary receipts/regression; 6316992 slow-computer clinic source/evidence; 57c1b6b fixture remediation; pending dry-run adapter commit validates exact PID recheck and terminationPerformed=false. Verification: HoloScript parse, process-health refresh, guarded stop dry-run self-test.",
+      "result": {
+        "success": false,
+        "httpStatus": 502,
+        "message": "Application failed to respond",
+        "requestId": "CIMj8cb_ROSSuYLslt7tkg"
+      }
+    },
+    {
+      "operation": "add_tasks",
+      "source": ".bench-logs/holoshell-human-os-frontier/2026-05-16/slow-computer-clinic-holomesh-tasks.json",
+      "dedupMode": "title",
+      "result": {
+        "success": false,
+        "httpStatus": 502,
+        "message": "Application failed to respond",
+        "requestId": "g21JCYjpTyGvUBrllt7tkg"
       }
     }
   ],

@@ -14,6 +14,7 @@ composition "HoloShellSlowComputerClinicPolicy" {
     stopPlanCount: 4
     processTerminationPerformed: false
     afterActionVerificationCount: 0
+    productionStopReadinessCount: 0
     receiptsCaptured: 2
     blockers: []
     currentLane: "codex-hardware"
@@ -44,6 +45,16 @@ composition "HoloShellSlowComputerClinicPolicy" {
     afterPidVisible: false
     fixtureOnly: true
     externalProcessTerminationAllowed: false
+  }
+
+  template "ProductionStopReadinessReceipt" using "SlowComputerReceipt" {
+    receiptType: "slow_computer_production_stop_readiness_receipt"
+    exactPidRechecked: true
+    approvalCaptured: true
+    dryRunOnly: true
+    terminationPerformed: false
+    externalProcessTerminationAllowed: false
+    requiresFreshHumanGestureBeforeExecution: true
   }
 
   policy "ReadOnlyDiagnosis" using "PermissionEnvelope" {
@@ -163,6 +174,22 @@ composition "HoloShellSlowComputerClinicPolicy" {
       approvalCaptured: receipt.summary.approvalCaptured,
       terminationPerformed: receipt.summary.terminationPerformed,
       afterVisible: receipt.summary.afterVisible,
+      receiptHash: receipt.witness.receiptHash
+    })
+  }
+
+  action recordProductionStopReadiness(receipt) {
+    ClinicState.productionStopReadinessCount = ClinicState.productionStopReadinessCount + 1
+    emit("holoshell:slow_computer:production_stop_ready", {
+      workflow: ClinicState.selectedWorkflow,
+      lane: ClinicState.currentLane,
+      targetPid: receipt.summary.targetPid,
+      status: receipt.summary.status,
+      exactPidRechecked: receipt.summary.exactPidRechecked,
+      approvalCaptured: receipt.summary.approvalCaptured,
+      ownerAckCaptured: receipt.summary.ownerAckCaptured,
+      dryRunOnly: receipt.summary.dryRunOnly,
+      terminationPerformed: false,
       receiptHash: receipt.witness.receiptHash
     })
   }

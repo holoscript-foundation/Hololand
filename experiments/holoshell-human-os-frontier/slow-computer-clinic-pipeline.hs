@@ -37,6 +37,14 @@ pipeline "HoloShellSlowComputerClinicPipeline" {
     optional: true
   }
 
+  source ProductionStopReadinessReceipt {
+    type: "filesystem"
+    path: "${input.production_stop_readiness_receipt}"
+    format: "json"
+    mode: "read_only"
+    optional: true
+  }
+
   transform HardwareVitals {
     riskState -> riskState
     processCount -> processCount
@@ -75,12 +83,21 @@ pipeline "HoloShellSlowComputerClinicPipeline" {
     externalProcessTerminationAllowed : required, false
   }
 
+  validate ProductionStopReadinessContract {
+    exactPidRechecked : required, true
+    approvalCaptured : required, true
+    dryRunOnly : required, true
+    terminationPerformed : required, false
+    externalProcessTerminationAllowed : required, false
+  }
+
   transform HumanExplanation {
     riskState -> headline
     recommendations -> visibleFindings
     ownerHandoffPlans -> ownerHandoffCards
     stopPlans -> guardedStopCards
     remediationReceipt -> afterActionReceipt
+    productionStopReadinessReceipt -> productionStopReadinessCard
   }
 
   filter NeedsOwnerHandoff {

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "hololand.holoshell.slow-computer-guarded-stop-dry-run.v0.1.0",
+  "generatedAt": "2026-05-16T10:45:23.151Z",
+  "sourceAnchors": {
+    "room": "experiments/holoshell-human-os-frontier/slow-computer-clinic-room.holo",
+    "policy": "experiments/holoshell-human-os-frontier/slow-computer-clinic-policy.hsplus",
+    "pipeline": "experiments/holoshell-human-os-frontier/slow-computer-clinic-pipeline.hs",
+    "adapter": "experiments/holoshell-human-os-frontier/slow-computer-clinic-guarded-stop-dry-run.mjs",
+    "processHealth": ".bench-logs\\holoshell-human-os-frontier\\2026-05-16\\slow-computer-process-health-latest.json"
+  },
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26200"
+  },
+  "stopReadiness": {
+    "targetPid": 13736,
+    "planId": "stop-plan-13736-9e8713651ea7cc51",
+    "planHash": "3b32b9e81e432bbeaf0bb2404e3d9907026cb0da2df83a272fc478359369ee6d",
+    "exactPidRechecked": true,
+    "approvalId": "",
+    "ownerAck": "",
+    "ownerHandoffRequired": false,
+    "reason": "slow-computer-clinic production dry-run stop readiness",
+    "stopPolicy": "break_glass_required",
+    "dryRunOnly": true
+  },
+  "target": {
+    "pid": 13736,
+    "name": "node.exe",
+    "category": "node_runtime",
+    "ageMinutes": 13,
+    "memoryMb": 1736.9,
+    "findings": [
+      "high_memory_process"
+    ],
+    "ownerLane": null,
+    "ownerHandoffRequired": false,
+    "cleanupEligible": true
+  },
+  "execution": {
+    "attempted": false,
+    "performed": false,
+    "dryRunOnly": true,
+    "refusedReason": "production_guarded_stop_adapter_never_terminates_processes"
+  },
+  "safety": {
+    "externalProcessTerminationAllowed": false,
+    "sourceFilesMutated": false,
+    "rawCommandLinesCaptured": false,
+    "requiresFreshHumanGestureBeforeExecution": true,
+    "requiresExactPidRecheckImmediatelyBeforeExecution": true,
+    "requiresOwnerAckWhenOwnerLanePresent": true
+  },
+  "blockedReasons": [
+    "approval_id_required"
+  ],
+  "summary": {
+    "status": "blocked",
+    "targetPid": 13736,
+    "exactPidRechecked": true,
+    "approvalCaptured": false,
+    "ownerAckCaptured": false,
+    "terminationPerformed": false,
+    "dryRunOnly": true
+  },
+  "witness": {
+    "processHealthHash": "66846208dd5b422cacfde9ca667a6433b9531c65b4964c5318b4bb7a8822e589",
+    "stopReadinessHash": "bce4cb54fbe4fc9a0f432c092cefda33dd2e9ff7bea27b6cb147da692098c85e",
+    "receiptHash": "b997f718c88a62085c6ab6a16a762790863e67b1846256ad2b23e780e5478a33"
+  }
+}
