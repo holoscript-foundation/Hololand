@@ -105,6 +105,10 @@ composition "HoloShell Hardware Program Control" {
     grokBuildCliStatus: "unknown"
     grokBuildCliVersion: "unknown"
     grokBuildAuthStatus: "unknown"
+    grokBuildAuthRuntimeStatus: "unknown"
+    grokBuildAuthProvider: ""
+    grokBuildOperatorStatus: "unknown"
+    grokBuildAutonomyStatus: "unknown"
     grokBuildModelStatus: "unknown"
     grokBuildProjectTrusted: false
     grokBuildProjectTrustStatus: "unknown"
@@ -703,6 +707,10 @@ composition "HoloShell Hardware Program Control" {
     state.grokBuildCliStatus = setup.summary.cliStatus
     state.grokBuildCliVersion = setup.summary.cliVersion
     state.grokBuildAuthStatus = setup.summary.authStatus
+    state.grokBuildAuthRuntimeStatus = setup.summary.authRuntimeStatus || "unknown"
+    state.grokBuildAuthProvider = setup.summary.authProvider || ""
+    state.grokBuildOperatorStatus = setup.summary.operatorStatus || "unknown"
+    state.grokBuildAutonomyStatus = setup.summary.autonomyStatus || "unknown"
     state.grokBuildModelStatus = setup.summary.modelStatus
     state.grokBuildProjectTrusted = setup.summary.projectTrusted
     state.grokBuildProjectTrustStatus = setup.summary.projectTrustStatus
@@ -716,6 +724,10 @@ composition "HoloShell Hardware Program Control" {
       cli_status: state.grokBuildCliStatus,
       cli_version: state.grokBuildCliVersion,
       auth_status: state.grokBuildAuthStatus,
+      auth_runtime_status: state.grokBuildAuthRuntimeStatus,
+      auth_provider: state.grokBuildAuthProvider,
+      operator_status: state.grokBuildOperatorStatus,
+      autonomy_status: state.grokBuildAutonomyStatus,
       model_status: state.grokBuildModelStatus,
       project_trusted: state.grokBuildProjectTrusted,
       project_trust_status: state.grokBuildProjectTrustStatus,
@@ -842,6 +854,10 @@ composition "HoloShell Hardware Program Control" {
     state.activeWorkflowMutationExecuted = workflow.summary.mutationExecuted
     state.grokBuildCliVersion = workflow.summary.cliVersion
     state.grokBuildAuthStatus = workflow.summary.authStatus
+    state.grokBuildAuthRuntimeStatus = workflow.summary.authRuntimeStatus || "unknown"
+    state.grokBuildAuthProvider = workflow.summary.authProvider || ""
+    state.grokBuildOperatorStatus = workflow.summary.operatorStatus || "unknown"
+    state.grokBuildAutonomyStatus = workflow.summary.autonomyStatus || "unknown"
     state.grokBuildProjectTrusted = workflow.summary.projectTrusted
     state.grokBuildProjectTrustStatus = workflow.summary.projectTrustStatus
     state.grokBuildObservationStatus = workflow.summary.grokObservationStatus || "none"
@@ -856,6 +872,10 @@ composition "HoloShell Hardware Program Control" {
       model: workflow.summary.model,
       cli_version: state.grokBuildCliVersion,
       auth_status: state.grokBuildAuthStatus,
+      auth_runtime_status: state.grokBuildAuthRuntimeStatus,
+      auth_provider: state.grokBuildAuthProvider,
+      operator_status: state.grokBuildOperatorStatus,
+      autonomy_status: state.grokBuildAutonomyStatus,
       project_trusted: state.grokBuildProjectTrusted,
       project_trust_status: state.grokBuildProjectTrustStatus,
       prompt_present: workflow.summary.promptPresent,

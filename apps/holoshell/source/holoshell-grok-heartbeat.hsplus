@@ -12,6 +12,8 @@ composition "HoloShell Grok Heartbeat" {
     adapterScript: "scripts/holoshell-grok-heartbeat.mjs"
     agentPresenceSource: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
     grokWorkflowSource: "apps/holoshell/source/holoshell-grok-build-workflow.hsplus"
+    grokSetupReceipt: ".tmp/holoshell/grok-build-setup.json"
+    grokSetupBootstrap: ".tmp/holoshell/grok-build-setup.js"
     heartbeatReceipt: ".tmp/holoshell/grok-heartbeat.json"
     heartbeatBootstrap: ".tmp/holoshell/grok-heartbeat.js"
     defaultIntervalMs: 30000
@@ -23,6 +25,11 @@ composition "HoloShell Grok Heartbeat" {
     agentPresenceStatus: "reserved"
     laneId: "grok-build"
     heavyAccessStatus: "unknown"
+    cliOperatorStatus: "unknown"
+    authRuntimeStatus: "unknown"
+    authProvider: ""
+    defaultModel: "unknown"
+    autonomyStatus: "unknown"
     readyForGrokBuild: false
     processDetected: false
     projectTrustStatus: "unknown"
@@ -50,10 +57,23 @@ composition "HoloShell Grok Heartbeat" {
     latestObservationOptional: true
   }
 
+  template "GrokCliOperatorPresence" {
+    type: "grok_cli_operator_presence"
+    receiptType: "hololand.holoshell.grok-heartbeat.v0.1.0"
+    cliOperatorStatus: "unknown"
+    authRuntimeStatus: "unknown"
+    authProvider: ""
+    defaultModel: "unknown"
+    autonomyStatus: "blocked_until_project_trust"
+    projectTrustRequiredForAutonomy: true
+    approvalRequiredForMutatingActions: true
+  }
+
   policy "HeartbeatIsPresenceNotApproval" {
     appliesTo: ["agent_heartbeat", "agent_presence", "grok_build_workflow"]
     heartbeatGrantsExecution: false
     mutatingActionsRequireWorkflowApproval: true
+    projectTrustRequiredForAutonomousCoding: true
     colorIsPrimaryTruth: false
     semanticLaneIdRequired: true
   }
@@ -62,6 +82,11 @@ composition "HoloShell Grok Heartbeat" {
     state.heartbeatStatus = heartbeat.summary.status
     state.agentPresenceStatus = heartbeat.summary.agentPresenceStatus
     state.heavyAccessStatus = heartbeat.summary.heavyAccessStatus
+    state.cliOperatorStatus = heartbeat.summary.cliOperatorStatus
+    state.authRuntimeStatus = heartbeat.summary.authRuntimeStatus
+    state.authProvider = heartbeat.summary.authProvider || ""
+    state.defaultModel = heartbeat.summary.defaultModel || "unknown"
+    state.autonomyStatus = heartbeat.summary.autonomyStatus || "unknown"
     state.readyForGrokBuild = heartbeat.summary.readyForGrokBuild
     state.processDetected = heartbeat.summary.processDetected
     state.projectTrustStatus = heartbeat.summary.projectTrustStatus
@@ -75,6 +100,11 @@ composition "HoloShell Grok Heartbeat" {
       lane_id: state.laneId,
       status: state.heartbeatStatus,
       presence: state.agentPresenceStatus,
+      cli_operator_status: state.cliOperatorStatus,
+      auth_runtime_status: state.authRuntimeStatus,
+      auth_provider: state.authProvider,
+      default_model: state.defaultModel,
+      autonomy_status: state.autonomyStatus,
       heavy_access: state.heavyAccessStatus,
       ready_for_grok_build: state.readyForGrokBuild,
       latest_observation_status: state.latestObservationStatus,

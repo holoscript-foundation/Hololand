@@ -285,6 +285,10 @@ function summarizeLanes(lanes) {
     processDetected: Boolean(lane.processEvidence?.detected),
     processMatchCount: safeArray(lane.processEvidence?.matches).length,
     heartbeatStatus: lane.heartbeat?.status || '',
+    heartbeatOperatorStatus: lane.heartbeat?.cliOperatorStatus || '',
+    heartbeatAuthRuntimeStatus: lane.heartbeat?.authRuntimeStatus || '',
+    heartbeatAuthProvider: lane.heartbeat?.authProvider || '',
+    heartbeatAutonomyStatus: lane.heartbeat?.autonomyStatus || '',
     heartbeatObservationStatus: lane.heartbeat?.latestObservationStatus || '',
     heartbeatPrimaryFinding: lane.heartbeat?.primaryFinding || '',
     colorIsVisualHintOnly: lane.receiptPolicy?.colorIsVisualHintOnly !== false,
@@ -297,6 +301,10 @@ function summarizeLanes(lanes) {
     semanticLaneCount: lanes.summary?.semanticLaneCount || laneSummaries.filter((lane) => lane.semanticPrefix).length,
     heartbeatLaneCount: lanes.summary?.heartbeatLaneCount || laneSummaries.filter((lane) => lane.heartbeatStatus).length,
     grokHeartbeatStatus: lanes.summary?.grokHeartbeatStatus || grokLane?.heartbeatStatus || 'none',
+    grokCliOperatorStatus: lanes.summary?.grokCliOperatorStatus || grokLane?.heartbeatOperatorStatus || 'none',
+    grokCliAuthRuntimeStatus: lanes.summary?.grokCliAuthRuntimeStatus || grokLane?.heartbeatAuthRuntimeStatus || 'none',
+    grokCliAuthProvider: lanes.summary?.grokCliAuthProvider || grokLane?.heartbeatAuthProvider || '',
+    grokAutonomyStatus: lanes.summary?.grokAutonomyStatus || grokLane?.heartbeatAutonomyStatus || 'none',
     grokHeartbeatObservationStatus: lanes.summary?.grokHeartbeatObservationStatus || grokLane?.heartbeatObservationStatus || 'none',
     grokHeartbeatPrimaryFinding: grokLane?.heartbeatPrimaryFinding || '',
     lanes: laneSummaries,
@@ -454,6 +462,32 @@ function summarizeNetworkSentinelService(networkSentinelService) {
     endpointDetailsRedacted: Boolean(networkSentinelService.policy?.endpointDetailsRedacted),
     staleNetworkReceiptMayDriveActions: Boolean(networkSentinelService.policy?.staleNetworkReceiptMayDriveActions),
     receiptHash: networkSentinelService.receipt?.snapshotHash || '',
+  };
+}
+
+function summarizeServiceSupervisor(serviceSupervisor) {
+  const summary = serviceSupervisor?.summary || {};
+  return {
+    status: summary.status || 'unknown',
+    requestedAction: summary.requestedAction || 'unknown',
+    serviceCount: summary.serviceCount || 0,
+    requiredServiceCount: summary.requiredServiceCount || 0,
+    onlineServiceCount: summary.onlineServiceCount || 0,
+    degradedServiceCount: summary.degradedServiceCount || 0,
+    offlineServiceCount: summary.offlineServiceCount || 0,
+    optionalOfflineServiceCount: summary.optionalOfflineServiceCount || 0,
+    requiredOnlineServiceCount: summary.requiredOnlineServiceCount || 0,
+    requiredAttentionCount: summary.requiredAttentionCount || 0,
+    actionRequiredCount: summary.actionRequiredCount || 0,
+    managedPidServiceCount: summary.managedPidServiceCount || 0,
+    verifiedPidServiceCount: summary.verifiedPidServiceCount || 0,
+    heartbeatOnlyServiceCount: summary.heartbeatOnlyServiceCount || 0,
+    localDaemonServiceCount: summary.localDaemonServiceCount || 0,
+    serviceMutationTaken: Boolean(summary.serviceMutationTaken),
+    destructiveActionsTaken: Boolean(serviceSupervisor?.receipt?.destructiveActionsTaken),
+    rawCommandLineIncluded: Boolean(serviceSupervisor?.receipt?.rawCommandLineIncluded),
+    nextRequiredAction: summary.nextRequiredAction || '',
+    receiptHash: serviceSupervisor?.receipt?.snapshotHash || '',
   };
 }
 
@@ -648,7 +682,7 @@ function recentReceiptTimeline({ liveFeed, brittneyTurn, operatingTurn, operator
     .slice(0, maxTimelineItems);
 }
 
-function privacyBoundary({ processHealth, operatorBrief, osUiCapture, legacyAppReality }) {
+function privacyBoundary({ processHealth, operatorBrief, osUiCapture, legacyAppReality, serviceSupervisor }) {
   const rawCommandsIncluded = Boolean(processHealth.collection?.commandLinesIncluded || operatorBrief.safety?.rawCommandsIncluded || operatorBrief.receipt?.rawCommandsIncluded);
   const rawWindowTitlesIncluded = Boolean(operatorBrief.safety?.rawWindowTitlesIncluded || operatorBrief.receipt?.rawWindowTitlesIncluded || operatorBrief.peers?.rawWindowTitlesIncluded || legacyAppReality.redaction?.rawWindowTitlesIncluded);
   const selectedWindow = osUiCapture?.selectedWindow || {};
@@ -661,7 +695,7 @@ function privacyBoundary({ processHealth, operatorBrief, osUiCapture, legacyAppR
     secretsIncluded: false,
     privatePathsIncluded: false,
     browserContentIncluded: false,
-    destructiveActionsTaken: Boolean(operatorBrief.safety?.destructiveActionsTaken),
+    destructiveActionsTaken: Boolean(operatorBrief.safety?.destructiveActionsTaken || serviceSupervisor?.receipt?.destructiveActionsTaken),
     modelContextDefault: 'redacted_receipts_only',
     remoteModelRequiresUserBoundary: true,
     notes: [
@@ -683,6 +717,7 @@ function loadInputs(args) {
     networkFreshness: readJson(path.join(tmpDir, 'network-freshness.json'), {}),
     networkChangeEvents: readJson(path.join(tmpDir, 'network-change-events.json'), {}),
     networkSentinelService: readJson(path.join(tmpDir, 'network-sentinel-service.json'), {}),
+    serviceSupervisor: readJson(path.join(tmpDir, 'service-supervisor.json'), {}),
     legacyAppReality: readJson(path.join(tmpDir, 'legacy-app-reality.json'), {}),
     mcpCustodyContract: readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {}),
     mcpUpstreamHandoff: readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {}),
@@ -883,6 +918,45 @@ function fixtureInputs() {
         destructiveActionsTaken: false,
       },
     },
+    serviceSupervisor: {
+      schemaVersion: 'hololand.holoshell.service-supervisor.v0.1.0',
+      generatedAt: '2026-05-14T00:00:00.648Z',
+      summary: {
+        status: 'ready_with_optional_offline',
+        requestedAction: 'status',
+        serviceCount: 3,
+        requiredServiceCount: 1,
+        onlineServiceCount: 2,
+        degradedServiceCount: 0,
+        offlineServiceCount: 1,
+        optionalOfflineServiceCount: 1,
+        requiredOnlineServiceCount: 1,
+        requiredAttentionCount: 0,
+        actionRequiredCount: 0,
+        managedPidServiceCount: 1,
+        verifiedPidServiceCount: 1,
+        heartbeatOnlyServiceCount: 1,
+        localDaemonServiceCount: 1,
+        serviceMutationTaken: false,
+        nextRequiredAction: 'holoshell-control-daemon: optional service is offline for mutations',
+      },
+      services: [
+        { serviceId: 'network-sentinel-service', requiredForAutonomy: true, status: 'online', normalizedStatus: 'online', pidCommandVerified: true },
+        { serviceId: 'grok-heartbeat', requiredForAutonomy: false, status: 'observing', normalizedStatus: 'online' },
+        { serviceId: 'holoshell-control-daemon', requiredForAutonomy: false, status: 'offline', normalizedStatus: 'offline' },
+      ],
+      policy: {
+        arbitraryProcessStopAllowed: false,
+        forceKillAllowed: false,
+        rawCommandLineIncluded: false,
+      },
+      receipt: {
+        snapshotHash: 'fixture-service-supervisor',
+        destructiveActionsTaken: false,
+        rawCommandLineIncluded: false,
+        serviceMutationTaken: false,
+      },
+    },
     legacyAppReality: {
       schemaVersion: 'hololand.holoshell.legacy-app-reality.v0.1.0',
       generatedAt: '2026-05-14T00:00:00.650Z',
@@ -993,6 +1067,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const networkFreshnessSummary = summarizeNetworkFreshness(inputs.networkFreshness);
   const networkChangeSummary = summarizeNetworkChangeEvents(inputs.networkChangeEvents);
   const networkSentinelServiceSummary = summarizeNetworkSentinelService(inputs.networkSentinelService);
+  const serviceSupervisorSummary = summarizeServiceSupervisor(inputs.serviceSupervisor);
   const legacyAppRealitySummary = summarizeLegacyAppReality(inputs.legacyAppReality);
   const mcpCustodyContractSummary = summarizeMcpCustodyContract(inputs.mcpCustodyContract);
   const mcpUpstreamHandoffSummary = summarizeMcpUpstreamHandoff(inputs.mcpUpstreamHandoff);
@@ -1012,6 +1087,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     networkFreshnessSummary,
     networkChangeSummary,
     networkSentinelServiceSummary,
+    serviceSupervisorSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -1037,6 +1113,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       networkFreshness: 'scripts/holoshell-network-freshness-watch.mjs',
       networkChangeSentinel: 'scripts/holoshell-network-change-sentinel.mjs',
       networkSentinelService: 'scripts/holoshell-network-sentinel-service.mjs',
+      serviceSupervisor: 'scripts/holoshell-service-supervisor.mjs',
       legacyAppReality: 'scripts/holoshell-legacy-app-reality.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
@@ -1056,6 +1133,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     networkFreshnessSummary,
     networkChangeSummary,
     networkSentinelServiceSummary,
+    serviceSupervisorSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -1068,7 +1146,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     actionProposalDefaults: {
       actor: 'brittney',
       approvalRequiredForNonReadOnly: true,
-      expectedReceipts: ['brittney_context', 'network_sentinel_service', 'mcp_custody_contract', 'mcp_upstream_handoff', 'os_ui_capture_receipt', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
+      expectedReceipts: ['brittney_context', 'service_supervisor', 'network_sentinel_service', 'mcp_custody_contract', 'mcp_upstream_handoff', 'os_ui_capture_receipt', 'brittney_turn_receipt', 'approval_bundle_when_guarded', 'adapter_receipt'],
       rollbackOrWitnessPlan: 'read-only preview first; guarded execution needs receipt-backed witness or approval.',
     },
     summary: {
@@ -1078,6 +1156,10 @@ function createPacket(args, inputs = loadInputs(args)) {
       totalShellObjectCount: inputs.shellObjects.summary?.shellObjectCount || safeArray(inputs.shellObjects.objects).length,
       activeLaneCount: agentLaneSummary.activeLaneCount,
       grokHeartbeatStatus: agentLaneSummary.grokHeartbeatStatus,
+      grokCliOperatorStatus: agentLaneSummary.grokCliOperatorStatus,
+      grokCliAuthRuntimeStatus: agentLaneSummary.grokCliAuthRuntimeStatus,
+      grokCliAuthProvider: agentLaneSummary.grokCliAuthProvider,
+      grokAutonomyStatus: agentLaneSummary.grokAutonomyStatus,
       grokHeartbeatObservationStatus: agentLaneSummary.grokHeartbeatObservationStatus,
       grokHeartbeatPrimaryFinding: agentLaneSummary.grokHeartbeatPrimaryFinding,
       processRisk: processHealthSummary.riskState,
@@ -1111,6 +1193,20 @@ function createPacket(args, inputs = loadInputs(args)) {
       networkSentinelServiceActionStatus: networkSentinelServiceSummary.actionStatus,
       networkSentinelServiceStopOnlyVerifiedPid: networkSentinelServiceSummary.stopOnlyVerifiedSentinelPid,
       networkSentinelServiceRawCommandLineIncluded: networkSentinelServiceSummary.rawCommandLineIncluded,
+      serviceSupervisorStatus: serviceSupervisorSummary.status,
+      serviceSupervisorServiceCount: serviceSupervisorSummary.serviceCount,
+      serviceSupervisorRequiredServiceCount: serviceSupervisorSummary.requiredServiceCount,
+      serviceSupervisorRequiredOnlineServiceCount: serviceSupervisorSummary.requiredOnlineServiceCount,
+      serviceSupervisorRequiredAttentionCount: serviceSupervisorSummary.requiredAttentionCount,
+      serviceSupervisorOptionalOfflineServiceCount: serviceSupervisorSummary.optionalOfflineServiceCount,
+      serviceSupervisorActionRequiredCount: serviceSupervisorSummary.actionRequiredCount,
+      serviceSupervisorManagedPidServiceCount: serviceSupervisorSummary.managedPidServiceCount,
+      serviceSupervisorVerifiedPidServiceCount: serviceSupervisorSummary.verifiedPidServiceCount,
+      serviceSupervisorHeartbeatOnlyServiceCount: serviceSupervisorSummary.heartbeatOnlyServiceCount,
+      serviceSupervisorLocalDaemonServiceCount: serviceSupervisorSummary.localDaemonServiceCount,
+      serviceSupervisorServiceMutationTaken: serviceSupervisorSummary.serviceMutationTaken,
+      serviceSupervisorDestructiveActionsTaken: serviceSupervisorSummary.destructiveActionsTaken,
+      serviceSupervisorRawCommandLineIncluded: serviceSupervisorSummary.rawCommandLineIncluded,
       legacyRealityStatus: legacyAppRealitySummary.status,
       legacyRealityContractStatus: legacyAppRealitySummary.contractStatus,
       legacyRealityAgentInstanceCount: legacyAppRealitySummary.agentInstanceCount,
@@ -1164,6 +1260,7 @@ function createPacket(args, inputs = loadInputs(args)) {
         'pnpm run holoshell:network-watch',
         'node scripts/holoshell-network-change-sentinel.mjs --once',
         'pnpm run holoshell:network-service',
+        'pnpm run holoshell:service-supervisor',
         'pnpm run holoshell:mcp-custody-contract',
         'pnpm run holoshell:mcp-upstream-handoff',
         'pnpm run holoshell:legacy-windows',
@@ -1206,6 +1303,11 @@ function assertSelfTest(packet) {
   if (packet.networkSentinelServiceSummary.pidCommandVerified !== true) failures.push('expected verified sentinel service PID');
   if (packet.networkSentinelServiceSummary.stopOnlyVerifiedSentinelPid !== true) failures.push('sentinel service must only stop verified PIDs');
   if (packet.networkSentinelServiceSummary.rawCommandLineIncluded !== false) failures.push('sentinel service must not expose raw command lines');
+  if (packet.serviceSupervisorSummary.status !== 'ready_with_optional_offline') failures.push('expected service supervisor fixture status');
+  if (packet.serviceSupervisorSummary.requiredAttentionCount !== 0) failures.push('service supervisor must have no required attention in fixture');
+  if (packet.serviceSupervisorSummary.verifiedPidServiceCount !== 1) failures.push('expected verified service PID count');
+  if (packet.serviceSupervisorSummary.rawCommandLineIncluded !== false) failures.push('service supervisor must not expose raw command lines');
+  if (packet.serviceSupervisorSummary.destructiveActionsTaken !== false) failures.push('service supervisor must stay non-destructive');
   if (packet.legacyAppRealitySummary.agentInstanceCount < 2) failures.push('expected legacy app reality agent instances');
   if (packet.legacyAppRealitySummary.processCountIsPeerCount !== false) failures.push('legacy app reality must reject process-count peer counts');
   if (packet.summary.legacyRealityContractStatus !== 'pass') failures.push('expected legacy app reality contract pass');

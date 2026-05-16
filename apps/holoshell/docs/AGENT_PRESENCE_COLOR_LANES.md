@@ -122,6 +122,18 @@ node scripts\holoshell-grok-heartbeat.mjs --refresh-agent-lanes
 This writes `.tmp/holoshell/grok-heartbeat.json` and merges the live Grok
 status, Heavy availability, and latest observation into the `grok-build` lane.
 
+To refresh the actual Grok CLI auth/model/project-trust probe first, use:
+
+```powershell
+node scripts\holoshell-grok-heartbeat.mjs --refresh-setup --refresh-agent-lanes
+```
+
+That path calls the Grok Build setup adapter, records whether the local CLI is
+authenticated with `grok.com`, whether `grok-build` is available, and whether
+the repository is trusted for autonomous hook reliance. A live Grok login is
+operator presence. It is not permission to mutate the repo; Grok launch and
+headless prompts still require the workflow approval bundle.
+
 The output is local runtime evidence and should not be committed unless it is
 redacted and converted into a sample.
 

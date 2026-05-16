@@ -23,6 +23,9 @@ composition "HoloShell Agent Presence Lanes" {
     selectedAgentInstance: ""
     lastLaneReceiptId: ""
     grokHeartbeatStatus: "none"
+    grokCliOperatorStatus: "none"
+    grokCliAuthRuntimeStatus: "none"
+    grokAutonomyStatus: "none"
     grokObservationStatus: "none"
   }
 
@@ -82,6 +85,9 @@ composition "HoloShell Agent Presence Lanes" {
     agentInstanceId: "grok-build:local"
     surfaceKind: "local_coding_agent"
     semanticPrefix: "[lane:grok-build agent:grok surface:local_coding_agent]"
+    cliOperatorStatus: "unknown"
+    authRuntimeStatus: "unknown"
+    autonomyStatus: "blocked_until_project_trust"
   }
 
   room "AgentPresenceRoom" {
@@ -187,12 +193,18 @@ composition "HoloShell Agent Presence Lanes" {
     state.laneCount = manifest.summary.laneCount
     state.activeLaneCount = manifest.summary.activeLaneCount
     state.grokHeartbeatStatus = manifest.summary.grokHeartbeatStatus || "none"
+    state.grokCliOperatorStatus = manifest.summary.grokCliOperatorStatus || "none"
+    state.grokCliAuthRuntimeStatus = manifest.summary.grokCliAuthRuntimeStatus || "none"
+    state.grokAutonomyStatus = manifest.summary.grokAutonomyStatus || "none"
     state.grokObservationStatus = manifest.summary.grokHeartbeatObservationStatus || "none"
     emit("holoshell:agents:lane_manifest_consumed", {
       lanes: state.laneCount,
       active: state.activeLaneCount,
       semantic: manifest.summary.semanticLaneCount,
       grok_heartbeat: state.grokHeartbeatStatus,
+      grok_cli_operator: state.grokCliOperatorStatus,
+      grok_auth_runtime: state.grokCliAuthRuntimeStatus,
+      grok_autonomy: state.grokAutonomyStatus,
       grok_observation: state.grokObservationStatus
     })
   }

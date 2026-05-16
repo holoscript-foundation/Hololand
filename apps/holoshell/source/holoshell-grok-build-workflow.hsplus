@@ -28,9 +28,13 @@ composition "HoloShell Grok Build Workflow" {
     cliStatus: "unknown"
     cliVersion: "unknown"
     authStatus: "unknown"
+    authRuntimeStatus: "unknown"
+    authProvider: ""
     modelStatus: "unknown"
     requestedModel: "grok-build"
     defaultModel: "unknown"
+    operatorStatus: "unknown"
+    autonomyStatus: "unknown"
     projectTrustStatus: "unknown"
     projectTrusted: false
     pathSeenOnCurrentProcess: false
@@ -68,9 +72,13 @@ composition "HoloShell Grok Build Workflow" {
     cliStatus: "unknown"
     cliVersion: "unknown"
     authStatus: "unknown"
+    authRuntimeStatus: "unknown"
+    authProvider: ""
     modelStatus: "unknown"
     requestedModel: "grok-build"
     defaultModel: "unknown"
+    operatorStatus: "unknown"
+    autonomyStatus: "blocked_until_project_trust"
     projectTrusted: false
     projectTrustStatus: "unknown"
     pathSeenOnCurrentProcess: false
@@ -128,14 +136,26 @@ composition "HoloShell Grok Build Workflow" {
     receiptRequired: true
   }
 
+  policy "GrokAutonomyTrustBoundary" {
+    appliesTo: ["grok_build_setup_receipt", "grok_build_workflow", "grok_observation"]
+    authenticatedCliIsNotAutonomyTrust: true
+    projectTrustRequiredForHookReliance: true
+    workflowApprovalRequiredForLaunch: true
+    autonomousCodingRequiresTrustedProjectAndReceiptHistory: true
+  }
+
   action apply_grok_build_setup(setup) {
     state.setupStatus = setup.summary.status
     state.cliStatus = setup.summary.cliStatus
     state.cliVersion = setup.summary.cliVersion
     state.authStatus = setup.summary.authStatus
+    state.authRuntimeStatus = setup.summary.authRuntimeStatus || "unknown"
+    state.authProvider = setup.summary.authProvider || ""
     state.modelStatus = setup.summary.modelStatus
     state.requestedModel = setup.summary.requestedModel
     state.defaultModel = setup.summary.defaultModel
+    state.operatorStatus = setup.summary.operatorStatus || "unknown"
+    state.autonomyStatus = setup.summary.autonomyStatus || "unknown"
     state.projectTrusted = setup.summary.projectTrusted
     state.projectTrustStatus = setup.summary.projectTrustStatus
     state.pathSeenOnCurrentProcess = setup.summary.pathSeenOnCurrentProcess
@@ -149,9 +169,13 @@ composition "HoloShell Grok Build Workflow" {
       cli_status: state.cliStatus,
       cli_version: state.cliVersion,
       auth_status: state.authStatus,
+      auth_runtime_status: state.authRuntimeStatus,
+      auth_provider: state.authProvider,
       model_status: state.modelStatus,
       requested_model: state.requestedModel,
       default_model: state.defaultModel,
+      operator_status: state.operatorStatus,
+      autonomy_status: state.autonomyStatus,
       project_trusted: state.projectTrusted,
       project_trust_status: state.projectTrustStatus,
       path_seen_on_current_process: state.pathSeenOnCurrentProcess,
@@ -171,6 +195,10 @@ composition "HoloShell Grok Build Workflow" {
     state.defaultModel = workflow.summary.defaultModel
     state.cliVersion = workflow.summary.cliVersion
     state.authStatus = workflow.summary.authStatus
+    state.authRuntimeStatus = workflow.summary.authRuntimeStatus || "unknown"
+    state.authProvider = workflow.summary.authProvider || ""
+    state.operatorStatus = workflow.summary.operatorStatus || "unknown"
+    state.autonomyStatus = workflow.summary.autonomyStatus || "unknown"
     state.projectTrusted = workflow.summary.projectTrusted
     state.projectTrustStatus = workflow.summary.projectTrustStatus
     state.activeWorkflowPromptPresent = workflow.summary.promptPresent
@@ -187,6 +215,10 @@ composition "HoloShell Grok Build Workflow" {
       model: state.requestedModel,
       cli_version: state.cliVersion,
       auth_status: state.authStatus,
+      auth_runtime_status: state.authRuntimeStatus,
+      auth_provider: state.authProvider,
+      operator_status: state.operatorStatus,
+      autonomy_status: state.autonomyStatus,
       project_trusted: state.projectTrusted,
       project_trust_status: state.projectTrustStatus,
       prompt_present: state.activeWorkflowPromptPresent,

@@ -96,6 +96,7 @@ Routes:
   GET  /workflow/intent-gate/latest
   GET  /workflow/grok-build/setup
   GET  /agents/grok-heartbeat
+  GET  /services/supervisor
   GET  /workflow/founder-command/latest
   GET  /dispatch/latest
   POST /action
@@ -181,12 +182,17 @@ function refreshNetworkFreshness() {
 }
 
 function refreshGrokHeartbeat() {
-  return runChecked(['scripts/holoshell-grok-heartbeat.mjs', '--refresh-agent-lanes']);
+  return runChecked(['scripts/holoshell-grok-heartbeat.mjs', '--refresh-setup', '--refresh-agent-lanes']);
+}
+
+function refreshServiceSupervisor() {
+  return runChecked(['scripts/holoshell-service-supervisor.mjs', '--status', '--skip-control-probe']);
 }
 
 function refreshLiveFeed() {
   refreshNetworkFreshness();
   refreshGrokHeartbeat();
+  refreshServiceSupervisor();
   refreshShellObjects();
   return runChecked(['scripts/holoshell-live-feed.mjs']);
 }
@@ -347,6 +353,7 @@ function latestSnapshot(args) {
     workflowIntentGate: readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {}),
     grokBuildSetup: readJson(tmpPath(args, 'grok-build-setup.json'), {}),
     grokHeartbeat: readJson(tmpPath(args, 'grok-heartbeat.json'), {}),
+    serviceSupervisor: readJson(tmpPath(args, 'service-supervisor.json'), {}),
     founderCommand: readJson(tmpPath(args, 'founder-command-latest.json'), {}),
     agentDispatch: readJson(tmpPath(args, 'agent-dispatch-latest.json'), {}),
   };
@@ -656,6 +663,7 @@ function routeGet(args, pathname) {
   if (pathname === '/workflow/intent-gate/latest') return readJson(tmpPath(args, 'brain-intent-gate-latest.json'), {});
   if (pathname === '/workflow/grok-build/setup') return readJson(tmpPath(args, 'grok-build-setup.json'), {});
   if (pathname === '/agents/grok-heartbeat') return readJson(tmpPath(args, 'grok-heartbeat.json'), {});
+  if (pathname === '/services/supervisor') return readJson(tmpPath(args, 'service-supervisor.json'), {});
   if (pathname === '/workflow/founder-command/latest') return readJson(tmpPath(args, 'founder-command-latest.json'), {});
   if (pathname === '/dispatch/latest') return readJson(tmpPath(args, 'agent-dispatch-latest.json'), {});
   const error = new Error(`Unknown route: ${pathname}`);

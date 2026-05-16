@@ -21,11 +21,13 @@ function parseArgs(argv) {
     json: false,
     selfTest: false,
     watch: false,
+    refreshSetup: false,
     refreshAgentLanes: false,
     tmpDir: DEFAULT_TMP,
     output: null,
     jsOutput: null,
     setup: null,
+    setupJsOutput: null,
     workflow: null,
     agentLanes: null,
     intervalMs: 30000,
@@ -37,11 +39,13 @@ function parseArgs(argv) {
     else if (arg === '--self-test') args.selfTest = true;
     else if (arg === '--watch') args.watch = true;
     else if (arg === '--once') args.watch = false;
+    else if (arg === '--refresh-setup') args.refreshSetup = true;
     else if (arg === '--refresh-agent-lanes') args.refreshAgentLanes = true;
     else if (arg === '--tmp-dir') args.tmpDir = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
     else if (arg === '--setup') args.setup = argv[++index];
+    else if (arg === '--setup-js-output') args.setupJsOutput = argv[++index];
     else if (arg === '--workflow') args.workflow = argv[++index];
     else if (arg === '--agent-lanes') args.agentLanes = argv[++index];
     else if (arg === '--interval-ms') args.intervalMs = Number(argv[++index]);
@@ -62,6 +66,7 @@ function parseArgs(argv) {
   args.output ||= path.join(tmpDir, 'grok-heartbeat.json');
   args.jsOutput ||= path.join(tmpDir, 'grok-heartbeat.js');
   args.setup ||= path.join(tmpDir, 'grok-build-setup.json');
+  args.setupJsOutput ||= path.join(tmpDir, 'grok-build-setup.js');
   args.workflow ||= path.join(tmpDir, 'workflow-latest.json');
   args.agentLanes ||= path.join(tmpDir, 'agent-lanes.json');
   return args;
@@ -77,12 +82,15 @@ Usage:
 Options:
   --once                 Emit one heartbeat. Default.
   --watch                Keep emitting until stopped.
+  --refresh-setup        Refresh Grok CLI setup/auth/model receipt before heartbeat.
   --json                 Print the latest heartbeat JSON.
   --refresh-agent-lanes  Rebuild agent-lanes after writing the heartbeat.
   --tmp-dir <path>       Receipt directory. Defaults to .tmp/holoshell.
   --output <path>        Heartbeat JSON output. Defaults to <tmp-dir>/grok-heartbeat.json.
   --js-output <path>     Browser bootstrap JS. Defaults to <tmp-dir>/grok-heartbeat.js.
   --setup <path>         Grok setup receipt. Defaults to <tmp-dir>/grok-build-setup.json.
+  --setup-js-output <path>
+                         Grok setup browser bootstrap. Defaults to <tmp-dir>/grok-build-setup.js.
   --workflow <path>      Workflow receipt. Defaults to <tmp-dir>/workflow-latest.json.
   --agent-lanes <path>   Agent lane manifest. Defaults to <tmp-dir>/agent-lanes.json.
   --interval-ms <number> Watch interval. Defaults to 30000.
@@ -192,6 +200,29 @@ function heartbeatStatus({ setup, workflow, observation, observationAgeMs }) {
   return 'unknown';
 }
 
+function setupAuthRuntimeStatus(setup) {
+  if (setup?.summary?.authRuntimeStatus) return setup.summary.authRuntimeStatus;
+  if (setup?.summary?.authStatus === 'present' && setup?.summary?.modelStatus === 'available') return 'authenticated';
+  return setup?.summary?.authStatus || 'unknown';
+}
+
+function grokOperatorStatus(setup) {
+  const summary = setup?.summary || {};
+  const cliReady = summary.cliStatus === 'installed';
+  const authReady = summary.authStatus === 'present' || setupAuthRuntimeStatus(setup) === 'authenticated';
+  const modelReady = summary.modelStatus === 'available';
+  if (!cliReady || !authReady || !modelReady) return 'blocked';
+  if (summary.projectTrustStatus === 'trusted' || summary.projectTrusted === true) return 'trusted_ready';
+  if (summary.projectTrustStatus === 'untrusted') return 'authenticated_needs_project_trust';
+  return 'authenticated_available';
+}
+
+function autonomyStatus(setup) {
+  return grokOperatorStatus(setup) === 'trusted_ready'
+    ? 'eligible_after_workflow_approval'
+    : 'blocked_until_project_trust';
+}
+
 function presenceStatus(status) {
   if (status === 'observing' || status === 'available') return 'active_or_available';
   if (status === 'blocked') return 'blocked';
@@ -207,6 +238,8 @@ function createHeartbeat(args) {
   const observation = latestObservationFromWorkflow(workflow);
   const observationAgeMs = isoAgeMs(observation?.generatedAt || workflow?.generatedAt || workflow?.createdAt, nowMs);
   const status = heartbeatStatus({ setup, workflow, observation, observationAgeMs });
+  const operatorStatus = setup?.summary?.operatorStatus || grokOperatorStatus(setup);
+  const authRuntimeStatus = setupAuthRuntimeStatus(setup);
   const grokLane = Array.isArray(lanes?.lanes)
     ? lanes.lanes.find((lane) => lane.laneId === 'grok-build') || null
     : null;
@@ -239,12 +272,30 @@ function createHeartbeat(args) {
       cliStatus: setup?.summary?.cliStatus || 'unknown',
       cliVersion: setup?.summary?.cliVersion || 'unknown',
       authStatus: setup?.summary?.authStatus || 'unknown',
+      authRuntimeStatus,
+      authProvider: setup?.summary?.authProvider || setup?.operator?.authProvider || '',
       modelStatus: setup?.summary?.modelStatus || 'unknown',
       requestedModel: setup?.summary?.requestedModel || 'grok-build',
+      defaultModel: setup?.summary?.defaultModel || 'unknown',
       heavyAccessStatus: setup?.summary?.heavyAccessStatus || setup?.heavyUpgrade?.status || 'unknown',
       projectTrustStatus: setup?.summary?.projectTrustStatus || 'unknown',
+      operatorStatus,
+      autonomyStatus: setup?.summary?.autonomyStatus || autonomyStatus(setup),
       readyForGrokBuild: Boolean(setup?.summary?.readyForGrokBuild),
       warningCount: setup?.summary?.warningCount || 0,
+    },
+    operator: {
+      status: operatorStatus,
+      cliStatus: setup?.summary?.cliStatus || 'unknown',
+      cliVersion: setup?.summary?.cliVersion || 'unknown',
+      authStatus: setup?.summary?.authStatus || 'unknown',
+      authRuntimeStatus,
+      authProvider: setup?.summary?.authProvider || setup?.operator?.authProvider || '',
+      modelStatus: setup?.summary?.modelStatus || 'unknown',
+      defaultModel: setup?.summary?.defaultModel || 'unknown',
+      projectTrustStatus: setup?.summary?.projectTrustStatus || 'unknown',
+      autonomyStatus: setup?.summary?.autonomyStatus || autonomyStatus(setup),
+      approvalRequiredForMutatingActions: true,
     },
     processEvidence,
     latestWorkflow: {
@@ -267,6 +318,11 @@ function createHeartbeat(args) {
       agentPresenceStatus: presenceStatus(status),
       laneId: 'grok-build',
       heavyAccessStatus: setup?.summary?.heavyAccessStatus || setup?.heavyUpgrade?.status || 'unknown',
+      cliOperatorStatus: operatorStatus,
+      authRuntimeStatus,
+      authProvider: setup?.summary?.authProvider || setup?.operator?.authProvider || '',
+      defaultModel: setup?.summary?.defaultModel || 'unknown',
+      autonomyStatus: setup?.summary?.autonomyStatus || autonomyStatus(setup),
       readyForGrokBuild: Boolean(setup?.summary?.readyForGrokBuild),
       processDetected: processEvidence.detected,
       projectTrustStatus: setup?.summary?.projectTrustStatus || 'unknown',
@@ -300,15 +356,36 @@ function refreshAgentLanes(args) {
   };
 }
 
+function refreshSetup(args) {
+  const result = run(process.execPath, [
+    'scripts/holoshell-grok-build-workflow.mjs',
+    '--setup-only',
+    '--setup-output',
+    args.setup,
+    '--setup-js-output',
+    args.setupJsOutput,
+  ]);
+  return {
+    status: result.ok ? 'completed' : 'failed',
+    stdout: result.stdout.trim().split(/\r?\n/).filter(Boolean).slice(-6),
+    stderr: result.stderr.trim().split(/\r?\n/).filter(Boolean).slice(-6),
+  };
+}
+
 function emitOnce(args) {
   if (args.selfTest) seedSelfTest(args);
+  const dependentRefresh = {};
+  if (args.refreshSetup && !args.selfTest) {
+    dependentRefresh.grokBuildSetup = refreshSetup(args);
+  }
   const heartbeat = createHeartbeat(args);
   writeJson(args.output, heartbeat);
   writeBrowserBootstrap(args.jsOutput, heartbeat);
   if (args.refreshAgentLanes) {
-    heartbeat.dependentRefresh = {
-      agentLanes: refreshAgentLanes(args),
-    };
+    dependentRefresh.agentLanes = refreshAgentLanes(args);
+  }
+  if (Object.keys(dependentRefresh).length) {
+    heartbeat.dependentRefresh = dependentRefresh;
     writeJson(args.output, heartbeat);
     writeBrowserBootstrap(args.jsOutput, heartbeat);
   }

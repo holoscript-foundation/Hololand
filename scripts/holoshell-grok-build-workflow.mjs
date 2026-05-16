@@ -324,6 +324,9 @@ function parseVersion(output) {
 
 function parseModels(output) {
   const text = String(output || '');
+  const loginProvider = (text.match(/logged in with\s+([^\r\n]+)/i)?.[1] || '')
+    .replace(/[.。]\s*$/, '')
+    .trim();
   const defaultModel = text.match(/Default model:\s*([^\r\n]+)/i)?.[1]?.trim() || '';
   const availableModels = text
     .split(/\r?\n/)
@@ -331,6 +334,12 @@ function parseModels(output) {
     .filter(Boolean);
   return {
     status: defaultModel || availableModels.length ? 'available' : 'unknown',
+    authRuntimeStatus: loginProvider
+      ? 'authenticated'
+      : /not logged in|login required|unauthorized|forbidden/i.test(text)
+        ? 'missing'
+        : 'unknown',
+    authProvider: loginProvider,
     defaultModel,
     availableModels,
     requestedModelAvailable: availableModels.includes('grok-build') || defaultModel === 'grok-build',
@@ -376,7 +385,19 @@ function buildSetup(args) {
   const inspect = parseInspect(`${inspectResult?.stdout || ''}\n${inspectResult?.stderr || ''}`);
   const cliStatus = cli.exists ? 'installed' : 'missing';
   const modelStatus = models.requestedModelAvailable ? 'available' : models.status === 'available' ? 'partial' : 'unknown';
-  const heavyAccessStatus = auth.status === 'present' && models.requestedModelAvailable ? 'active' : 'unverified';
+  const authRuntimeStatus = models.authRuntimeStatus === 'authenticated'
+    ? 'authenticated'
+    : auth.status === 'present' && Boolean(modelsResult?.ok) && models.status === 'available'
+      ? 'authenticated'
+      : models.authRuntimeStatus;
+  const authProvider = models.authProvider || (authRuntimeStatus === 'authenticated' ? 'grok.com' : '');
+  const authReady = auth.status === 'present' || authRuntimeStatus === 'authenticated';
+  const operatorStatus = cliStatus === 'missing' || !authReady || modelStatus !== 'available'
+    ? 'blocked'
+    : inspect.projectTrusted
+      ? 'trusted_ready'
+      : 'authenticated_needs_project_trust';
+  const heavyAccessStatus = authReady && models.requestedModelAvailable ? 'active' : 'unverified';
   const status = cliStatus === 'missing' || auth.status === 'missing'
     ? 'blocked'
     : modelStatus === 'available' && inspect.projectTrusted
@@ -408,6 +429,19 @@ function buildSetup(args) {
       pathSeenOnCurrentProcess: Boolean(whereCommand('grok')),
     },
     auth,
+    operator: {
+      status: operatorStatus,
+      cliReady: cliStatus === 'installed',
+      authReady,
+      authRuntimeStatus,
+      authProvider,
+      modelReady: modelStatus === 'available',
+      projectTrusted: inspect.projectTrusted,
+      autonomyStatus: inspect.projectTrusted && operatorStatus === 'trusted_ready'
+        ? 'eligible_after_workflow_approval'
+        : 'blocked_until_project_trust',
+      approvalRequiredForMutatingActions: true,
+    },
     models: {
       status: modelStatus,
       requestedModel: args.model,
@@ -436,7 +470,7 @@ function buildSetup(args) {
       activatedAfter: '2026-05-15',
       verifiedAt: generatedAt,
       evidence: heavyAccessStatus === 'active'
-        ? 'grok models returned the grok-build model while authenticated with grok.com.'
+        ? `grok models returned the grok-build model while authenticated${authProvider ? ` with ${authProvider}` : ''}.`
         : 'Grok Build access has not been verified by the local model probe.',
       founderNote: heavyAccessStatus === 'active'
         ? 'SuperGrok Heavy access is active for the local Grok Build lane.'
@@ -449,9 +483,15 @@ function buildSetup(args) {
       cliStatus,
       cliVersion: version.version || 'unknown',
       authStatus: auth.status,
+      authRuntimeStatus,
+      authProvider,
       modelStatus,
       requestedModel: args.model,
       defaultModel: models.defaultModel || 'unknown',
+      operatorStatus,
+      autonomyStatus: inspect.projectTrusted && operatorStatus === 'trusted_ready'
+        ? 'eligible_after_workflow_approval'
+        : 'blocked_until_project_trust',
       projectTrusted: inspect.projectTrusted,
       projectTrustStatus: inspect.projectTrustStatus,
       projectHookCount: inspect.hookCount,
@@ -469,6 +509,9 @@ function buildSetup(args) {
       inspect.projectTrusted
         ? 'Project hooks are trusted for Grok.'
         : 'Open Grok in this repo and run /hooks-trust before relying on project hooks.',
+      authRuntimeStatus === 'authenticated'
+        ? `Grok CLI confirms login${authProvider ? ` with ${authProvider}` : ''}.`
+        : 'Run grok login before staging Grok Build.',
       whereCommand('grok')
         ? 'Current process PATH resolves grok.'
         : `Current process PATH does not resolve grok; HoloShell will use ${cli.path || defaultGrokPath()} directly.`,
@@ -620,7 +663,7 @@ function buildSteps(args, setup, executionResult = null) {
   const promptInfo = promptDigest(args.prompt || (normalizeMode(args.mode) === 'headless' ? DEFAULT_HEADLESS_PROMPT : ''));
   const stepResults = new Map((executionResult?.steps || []).map((step) => [step.id, step]));
   const cliReady = setup.summary.cliStatus === 'installed';
-  const authReady = setup.summary.authStatus === 'present';
+  const authReady = setup.summary.authStatus === 'present' || setup.summary.authRuntimeStatus === 'authenticated';
   const modelReady = setup.models.requestedModelAvailable || setup.models.defaultModel === args.model;
 
   const steps = [
@@ -649,6 +692,8 @@ function buildSteps(args, setup, executionResult = null) {
       targetResolved: authReady,
       evidence: {
         authStatus: setup.summary.authStatus,
+        authRuntimeStatus: setup.summary.authRuntimeStatus || 'unknown',
+        authProvider: setup.summary.authProvider || '',
         authFilePresent: setup.auth.authFilePresent,
         contentsRead: false,
       },
@@ -754,8 +799,12 @@ function workflowSummary(args, setup, steps, executionResult = null) {
     cliVersion: setup.summary.cliVersion,
     cliPath: setup.cli.path,
     authStatus: setup.summary.authStatus,
+    authRuntimeStatus: setup.summary.authRuntimeStatus || 'unknown',
+    authProvider: setup.summary.authProvider || '',
     projectTrusted: setup.summary.projectTrusted,
     projectTrustStatus: setup.summary.projectTrustStatus,
+    operatorStatus: setup.summary.operatorStatus || 'unknown',
+    autonomyStatus: setup.summary.autonomyStatus || 'unknown',
     promptPresent: promptInfo.present,
     promptHash: promptInfo.sha256,
     promptLength: promptInfo.length,

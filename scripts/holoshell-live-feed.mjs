@@ -154,6 +154,22 @@ function networkSentinelServiceTrustState(networkSentinelService) {
   return 'unknown';
 }
 
+function serviceSupervisorRisk(serviceSupervisor) {
+  const summary = serviceSupervisor?.summary || {};
+  const status = summary.status;
+  if (status === 'attention_required' || (summary.requiredAttentionCount || 0) > 0) return 'warn';
+  if (['ready', 'ready_with_optional_offline', 'ready_with_degraded_optional'].includes(status)) return 'pass';
+  return 'unknown';
+}
+
+function serviceSupervisorTrustState(serviceSupervisor) {
+  const summary = serviceSupervisor?.summary || {};
+  if (summary.status === 'ready') return 'verified';
+  if (['ready_with_optional_offline', 'ready_with_degraded_optional'].includes(summary.status)) return 'partial';
+  if (summary.status === 'attention_required') return 'partial';
+  return 'unknown';
+}
+
 function legacyRealityContractStatus(legacyAppReality) {
   return legacyAppReality?.schemaContract?.validationStatus || 'missing';
 }
@@ -192,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -379,6 +395,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: networkSentinelService.generatedAt || now,
       receiptType: networkSentinelService.schemaVersion,
       source: networkSentinelService.sourceAnchors?.adapter || 'scripts/holoshell-network-sentinel-service.mjs',
+    });
+  }
+
+  if (serviceSupervisor?.summary) {
+    const summary = serviceSupervisor.summary;
+    timeline.push({
+      id: 'service-supervisor',
+      kind: 'service_supervisor',
+      title: `Service supervisor ${summary.status || 'unknown'}`,
+      detail: `${summary.requiredOnlineServiceCount || 0}/${summary.requiredServiceCount || 0} required online; ${summary.serviceCount || 0} service(s), ${summary.optionalOfflineServiceCount || 0} optional offline, ${summary.actionRequiredCount || 0} action(s) required.`,
+      trustState: serviceSupervisorTrustState(serviceSupervisor),
+      generatedAt: serviceSupervisor.generatedAt || now,
+      receiptType: serviceSupervisor.schemaVersion,
+      source: serviceSupervisor.sourceAnchors?.adapter || 'scripts/holoshell-service-supervisor.mjs',
     });
   }
 
@@ -596,12 +626,15 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
   }
 
   if (grokBuild?.summary) {
+    const authLabel = grokBuild.summary.authRuntimeStatus === 'authenticated'
+      ? `authenticated${grokBuild.summary.authProvider ? `/${grokBuild.summary.authProvider}` : ''}`
+      : grokBuild.summary.authStatus || 'unknown';
     timeline.push({
       id: grokBuild.setupId || 'holoshell-grok-build-setup',
       kind: 'grok_build_setup',
       title: `Grok Build setup ${grokBuild.summary.status || 'unknown'}`,
-      detail: `CLI ${grokBuild.summary.cliVersion || 'unknown'}; auth ${grokBuild.summary.authStatus || 'unknown'}; model ${grokBuild.summary.modelStatus || 'unknown'}; project ${grokBuild.summary.projectTrustStatus || 'unknown'}; Heavy ${grokBuild.summary.heavyAccessStatus || grokBuild.heavyUpgrade?.status || 'unknown'}.`,
-      trustState: grokBuild.summary.status === 'ready' ? 'verified' : grokBuild.summary.status === 'blocked' ? 'unknown' : 'partial',
+      detail: `CLI ${grokBuild.summary.cliVersion || 'unknown'}; auth ${authLabel}; operator ${grokBuild.summary.operatorStatus || 'unknown'}; model ${grokBuild.summary.modelStatus || 'unknown'}; project ${grokBuild.summary.projectTrustStatus || 'unknown'}; Heavy ${grokBuild.summary.heavyAccessStatus || grokBuild.heavyUpgrade?.status || 'unknown'}.`,
+      trustState: grokBuild.summary.operatorStatus === 'trusted_ready' ? 'verified' : grokBuild.summary.status === 'blocked' ? 'unknown' : 'partial',
       generatedAt: grokBuild.generatedAt || now,
       receiptType: grokBuild.schemaVersion,
       source: grokBuild.sourceAnchors?.adapter || 'scripts/holoshell-grok-build-workflow.mjs',
@@ -609,12 +642,13 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
   }
 
   if (grokHeartbeat?.summary) {
+    const operatorLabel = grokHeartbeat.summary.cliOperatorStatus || grokHeartbeat.operator?.status || 'unknown';
     timeline.push({
       id: grokHeartbeat.heartbeatId || 'holoshell-grok-heartbeat',
       kind: 'grok_heartbeat',
       title: `Grok heartbeat ${grokHeartbeat.summary.status || 'unknown'}`,
-      detail: `Presence ${grokHeartbeat.summary.agentPresenceStatus || 'unknown'}; Heavy ${grokHeartbeat.summary.heavyAccessStatus || 'unknown'}; observation ${grokHeartbeat.summary.latestObservationStatus || 'none'}${grokHeartbeat.summary.primaryFinding ? `; saw ${grokHeartbeat.summary.primaryFinding}` : ''}.`,
-      trustState: grokHeartbeat.summary.agentPresenceStatus === 'active_or_available' ? 'verified' : 'partial',
+      detail: `Presence ${grokHeartbeat.summary.agentPresenceStatus || 'unknown'}; operator ${operatorLabel}; auth ${grokHeartbeat.summary.authRuntimeStatus || 'unknown'}; Heavy ${grokHeartbeat.summary.heavyAccessStatus || 'unknown'}; observation ${grokHeartbeat.summary.latestObservationStatus || 'none'}${grokHeartbeat.summary.primaryFinding ? `; saw ${grokHeartbeat.summary.primaryFinding}` : ''}.`,
+      trustState: operatorLabel === 'trusted_ready' ? 'verified' : grokHeartbeat.summary.agentPresenceStatus === 'active_or_available' ? 'partial' : 'unknown',
       generatedAt: grokHeartbeat.generatedAt || now,
       receiptType: grokHeartbeat.schemaVersion || 'hololand.holoshell.grok-heartbeat.v0.1.0',
       source: grokHeartbeat.sourceAnchors?.adapter || 'scripts/holoshell-grok-heartbeat.mjs',
@@ -804,6 +838,7 @@ function createFeed(args) {
   const networkFreshness = readJson(path.join(tmpDir, 'network-freshness.json'), {});
   const networkChangeEvents = readJson(path.join(tmpDir, 'network-change-events.json'), {});
   const networkSentinelService = readJson(path.join(tmpDir, 'network-sentinel-service.json'), {});
+  const serviceSupervisor = readJson(path.join(tmpDir, 'service-supervisor.json'), {});
   const legacyAppReality = readJson(path.join(tmpDir, 'legacy-app-reality.json'), {});
   const mcpCustodyContract = readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {});
   const mcpUpstreamHandoff = readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {});
@@ -855,6 +890,7 @@ function createFeed(args) {
     networkFreshness,
     networkChangeEvents,
     networkSentinelService,
+    serviceSupervisor,
     legacyAppReality,
     mcpCustodyContract,
     mcpUpstreamHandoff,
@@ -889,6 +925,7 @@ function createFeed(args) {
   const freshnessRisk = networkFreshnessRisk(networkFreshness);
   const networkChangeRisk = networkChangeSentinelRisk(networkChangeEvents);
   const sentinelServiceRisk = networkSentinelServiceRisk(networkSentinelService);
+  const supervisorRisk = serviceSupervisorRisk(serviceSupervisor);
   const legacyRealityRisk = legacyRealityContractStatus(legacyAppReality) === 'fail'
     ? 'warn'
     : legacyRealityContractStatus(legacyAppReality) === 'missing'
@@ -905,7 +942,7 @@ function createFeed(args) {
       : 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, networkChangeRisk, sentinelServiceRisk, supervisorRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -922,6 +959,8 @@ function createFeed(args) {
       networkChangeSentinelAdapter: 'scripts/holoshell-network-change-sentinel.mjs',
       networkSentinelService: 'apps/holoshell/source/holoshell-network-sentinel-service.hsplus',
       networkSentinelServiceAdapter: 'scripts/holoshell-network-sentinel-service.mjs',
+      serviceSupervisor: 'apps/holoshell/source/holoshell-service-supervisor.hsplus',
+      serviceSupervisorAdapter: 'scripts/holoshell-service-supervisor.mjs',
       legacyAppRealityAdapter: 'scripts/holoshell-legacy-app-reality.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
@@ -1073,6 +1112,23 @@ function createFeed(args) {
       networkSentinelServiceLastStartedAt: networkSentinelService?.summary?.lastStartedAt || '',
       networkSentinelServiceLastHeartbeatAt: networkSentinelService?.summary?.lastHeartbeatAt || '',
       networkSentinelServiceActionStatus: networkSentinelService?.action?.status || 'unknown',
+      serviceSupervisorStatus: serviceSupervisor?.summary?.status || 'unknown',
+      serviceSupervisorRequestedAction: serviceSupervisor?.summary?.requestedAction || 'unknown',
+      serviceSupervisorServiceCount: serviceSupervisor?.summary?.serviceCount || 0,
+      serviceSupervisorRequiredServiceCount: serviceSupervisor?.summary?.requiredServiceCount || 0,
+      serviceSupervisorOnlineServiceCount: serviceSupervisor?.summary?.onlineServiceCount || 0,
+      serviceSupervisorDegradedServiceCount: serviceSupervisor?.summary?.degradedServiceCount || 0,
+      serviceSupervisorOfflineServiceCount: serviceSupervisor?.summary?.offlineServiceCount || 0,
+      serviceSupervisorOptionalOfflineServiceCount: serviceSupervisor?.summary?.optionalOfflineServiceCount || 0,
+      serviceSupervisorRequiredOnlineServiceCount: serviceSupervisor?.summary?.requiredOnlineServiceCount || 0,
+      serviceSupervisorRequiredAttentionCount: serviceSupervisor?.summary?.requiredAttentionCount || 0,
+      serviceSupervisorActionRequiredCount: serviceSupervisor?.summary?.actionRequiredCount || 0,
+      serviceSupervisorManagedPidServiceCount: serviceSupervisor?.summary?.managedPidServiceCount || 0,
+      serviceSupervisorVerifiedPidServiceCount: serviceSupervisor?.summary?.verifiedPidServiceCount || 0,
+      serviceSupervisorHeartbeatOnlyServiceCount: serviceSupervisor?.summary?.heartbeatOnlyServiceCount || 0,
+      serviceSupervisorLocalDaemonServiceCount: serviceSupervisor?.summary?.localDaemonServiceCount || 0,
+      serviceSupervisorServiceMutationTaken: Boolean(serviceSupervisor?.summary?.serviceMutationTaken),
+      serviceSupervisorDestructiveActionsTaken: Boolean(serviceSupervisor?.receipt?.destructiveActionsTaken),
       legacyAppRealityStatus: legacyAppReality?.summary?.confidence || 'unknown',
       legacyAppRealityContractStatus: legacyRealityContractStatus(legacyAppReality),
       legacyAppRealityProcessCount: legacyAppReality?.summary?.processCount || 0,
@@ -1202,6 +1258,10 @@ function createFeed(args) {
       grokBuildCliStatus: grokBuild?.summary?.cliStatus || 'unknown',
       grokBuildCliVersion: grokBuild?.summary?.cliVersion || 'unknown',
       grokBuildAuthStatus: grokBuild?.summary?.authStatus || 'unknown',
+      grokBuildAuthRuntimeStatus: grokBuild?.summary?.authRuntimeStatus || 'unknown',
+      grokBuildAuthProvider: grokBuild?.summary?.authProvider || '',
+      grokBuildOperatorStatus: grokBuild?.summary?.operatorStatus || 'unknown',
+      grokBuildAutonomyStatus: grokBuild?.summary?.autonomyStatus || 'unknown',
       grokBuildModelStatus: grokBuild?.summary?.modelStatus || 'unknown',
       grokBuildRequestedModel: grokBuild?.summary?.requestedModel || '',
       grokBuildDefaultModel: grokBuild?.summary?.defaultModel || '',
@@ -1214,6 +1274,10 @@ function createFeed(args) {
       grokBuildHeavyVerifiedAt: grokBuild?.heavyUpgrade?.verifiedAt || '',
       grokHeartbeatStatus: grokHeartbeat?.summary?.status || 'unknown',
       grokHeartbeatPresenceStatus: grokHeartbeat?.summary?.agentPresenceStatus || 'unknown',
+      grokHeartbeatCliOperatorStatus: grokHeartbeat?.summary?.cliOperatorStatus || grokHeartbeat?.operator?.status || 'unknown',
+      grokHeartbeatAuthRuntimeStatus: grokHeartbeat?.summary?.authRuntimeStatus || grokHeartbeat?.operator?.authRuntimeStatus || 'unknown',
+      grokHeartbeatAuthProvider: grokHeartbeat?.summary?.authProvider || grokHeartbeat?.operator?.authProvider || '',
+      grokHeartbeatAutonomyStatus: grokHeartbeat?.summary?.autonomyStatus || grokHeartbeat?.operator?.autonomyStatus || 'unknown',
       grokHeartbeatObservationStatus: grokHeartbeat?.summary?.latestObservationStatus || 'none',
       grokHeartbeatObservationRecent: Boolean(grokHeartbeat?.summary?.latestObservationRecent),
       grokHeartbeatPrimaryFinding: grokHeartbeat?.summary?.primaryFinding || '',
@@ -1330,6 +1394,7 @@ function createFeed(args) {
       networkFreshness,
       networkChangeEvents,
       networkSentinelService,
+      serviceSupervisor,
       legacyAppReality,
       mcpCustodyContract,
       mcpUpstreamHandoff,
@@ -1432,6 +1497,7 @@ try {
     console.log(`Network freshness: ${feed.summary.networkFreshnessStatus}`);
     console.log(`Network sentinel: ${feed.summary.networkChangeSentinelLastObservationKind}`);
     console.log(`Network sentinel service: ${feed.summary.networkSentinelServiceStatus}`);
+    console.log(`Service supervisor: ${feed.summary.serviceSupervisorStatus}`);
     console.log(`Legacy app reality: ${feed.summary.legacyAppRealityStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);

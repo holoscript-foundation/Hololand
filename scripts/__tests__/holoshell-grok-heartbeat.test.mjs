@@ -33,6 +33,9 @@ assert.equal(heartbeat.schemaVersion, 'hololand.holoshell.grok-heartbeat.v0.1.0'
 assert.equal(heartbeat.summary.status, 'observing');
 assert.equal(heartbeat.summary.agentPresenceStatus, 'active_or_available');
 assert.equal(heartbeat.summary.heavyAccessStatus, 'active');
+assert.equal(heartbeat.summary.cliOperatorStatus, 'trusted_ready');
+assert.equal(heartbeat.summary.authRuntimeStatus, 'authenticated');
+assert.equal(heartbeat.summary.autonomyStatus, 'eligible_after_workflow_approval');
 assert.equal(heartbeat.summary.latestObservationStatus, 'completed');
 assert.ok(existsSync(heartbeatPath), 'expected heartbeat JSON output');
 assert.ok(existsSync(heartbeatJsPath), 'expected heartbeat browser bootstrap');
@@ -52,8 +55,11 @@ const grokLane = lanes.lanes.find((lane) => lane.laneId === 'grok-build');
 assert.ok(grokLane, 'expected Grok Build lane');
 assert.equal(grokLane.status, 'active_or_available');
 assert.equal(grokLane.heartbeat.status, 'observing');
+assert.equal(grokLane.heartbeat.cliOperatorStatus, 'trusted_ready');
+assert.equal(grokLane.heartbeat.authRuntimeStatus, 'authenticated');
 assert.equal(grokLane.heartbeat.latestObservationStatus, 'completed');
 assert.equal(lanes.summary.grokHeartbeatStatus, 'observing');
+assert.equal(lanes.summary.grokCliOperatorStatus, 'trusted_ready');
 assert.equal(lanes.summary.heartbeatLaneCount, 1);
 
 console.log('HoloShell Grok heartbeat test passed.');
