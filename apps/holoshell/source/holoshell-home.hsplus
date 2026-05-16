@@ -25,6 +25,8 @@ composition "HoloShell Home" {
     brittneyTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
     programRegistry: ".tmp/holoshell/program-registry.json"
     shellObjectGraph: ".tmp/holoshell/shell-objects.json"
+    networkFreshnessSource: "apps/holoshell/source/holoshell-network-freshness-watch.hsplus"
+    networkFreshnessReceipt: ".tmp/holoshell/network-freshness.json"
     legacyAppRealityReceipt: ".tmp/holoshell/legacy-app-reality.json"
     wildHoloScriptIntakeSource: "apps/holoshell/source/holoshell-wild-holoscript-intake.hsplus"
     wildHoloScriptIntakeReceipt: ".tmp/holoshell/wild-holoscript-intake.json"
@@ -64,6 +66,15 @@ composition "HoloShell Home" {
     networkBlockedRunCount: 0
     networkBandwidthSpendRunCount: 0
     networkOwnerGestureCount: 0
+    networkFreshnessStatus: "unknown"
+    networkFreshnessRefreshReason: "unknown"
+    networkFreshnessPreviousClassification: "unknown"
+    networkFreshnessCurrentClassification: "unknown"
+    networkFreshnessSignatureChanged: false
+    networkFreshnessClassificationChanged: false
+    networkFreshnessStaleBeforeRefresh: false
+    networkFreshnessReceiptAgeMs: 0
+    networkFreshnessDependentRefreshStatus: "unknown"
     legacyRealityStatus: "unknown"
     legacyRealityContractStatus: "unknown"
     legacyRealityProcessCount: 0
@@ -889,6 +900,21 @@ composition "HoloShell Home" {
         owner_gestures: $networkOwnerGestureCount
       }
 
+      object "NetworkFreshnessWatch" {
+        type: "ui"
+        uiType: "network_freshness_watch"
+        label: "Network Freshness"
+        status: $networkFreshnessStatus
+        reason: $networkFreshnessRefreshReason
+        previous_classification: $networkFreshnessPreviousClassification
+        current_classification: $networkFreshnessCurrentClassification
+        signature_changed: $networkFreshnessSignatureChanged
+        classification_changed: $networkFreshnessClassificationChanged
+        stale_before_refresh: $networkFreshnessStaleBeforeRefresh
+        previous_receipt_age_ms: $networkFreshnessReceiptAgeMs
+        dependent_refresh: $networkFreshnessDependentRefreshStatus
+      }
+
       object "LegacyRealityIngest" {
         type: "ui"
         uiType: "legacy_reality_ingest"
@@ -1139,6 +1165,15 @@ composition "HoloShell Home" {
     state.networkBlockedRunCount = feedBundle.summary.runNetworkBlockedCount || 0
     state.networkBandwidthSpendRunCount = feedBundle.summary.runBandwidthSpendingCount || 0
     state.networkOwnerGestureCount = feedBundle.summary.runOwnerNetworkGestureCount || 0
+    state.networkFreshnessStatus = feedBundle.summary.networkFreshnessStatus
+    state.networkFreshnessRefreshReason = feedBundle.summary.networkFreshnessRefreshReason
+    state.networkFreshnessPreviousClassification = feedBundle.summary.networkFreshnessPreviousClassification
+    state.networkFreshnessCurrentClassification = feedBundle.summary.networkFreshnessCurrentClassification
+    state.networkFreshnessSignatureChanged = feedBundle.summary.networkFreshnessSignatureChanged || false
+    state.networkFreshnessClassificationChanged = feedBundle.summary.networkFreshnessClassificationChanged || false
+    state.networkFreshnessStaleBeforeRefresh = feedBundle.summary.networkFreshnessStaleBeforeRefresh || false
+    state.networkFreshnessReceiptAgeMs = feedBundle.summary.networkFreshnessPreviousReceiptAgeMs || 0
+    state.networkFreshnessDependentRefreshStatus = feedBundle.summary.networkFreshnessDependentRefreshStatus
     state.legacyRealityStatus = feedBundle.summary.legacyAppRealityStatus
     state.legacyRealityContractStatus = feedBundle.summary.legacyAppRealityContractStatus
     state.legacyRealityProcessCount = feedBundle.summary.legacyAppRealityProcessCount || 0

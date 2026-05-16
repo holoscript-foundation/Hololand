@@ -237,6 +237,24 @@ For Brittney's role across the ecosystem:
 
 See [docs/BRITTNEY_OWNERSHIP_MODEL.md](./docs/BRITTNEY_OWNERSHIP_MODEL.md).
 
+### HoloShell Hardware Reality Receipts
+
+HoloShell is the non-developer hardware surface. Its host adapters are not the
+product truth; they consume `.hsplus` product source and emit local receipts for
+Brittney and other agents.
+
+- `apps/holoshell/source/holoshell-network-reality.hsplus` defines local network truth.
+- `apps/holoshell/source/holoshell-network-freshness-watch.hsplus` prevents stale network receipts from driving live feed or Brittney after Wi-Fi, hotspot, VPN, or metered-state changes.
+- `apps/holoshell/source/holoshell-home.hsplus` surfaces the freshness guard as a visible HoloShell object.
+
+Useful local commands:
+
+```powershell
+pnpm run holoshell:network-watch
+pnpm run holoshell:network-reality
+pnpm run test:holoshell-network-freshness
+```
+
 **[📖 HoloScript Framework Docs →](https://github.com/brianonbased-dev/HoloScript)**
 
 ---

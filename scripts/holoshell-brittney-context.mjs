@@ -366,6 +366,29 @@ function summarizeLegacyAppReality(legacyAppReality) {
   };
 }
 
+function summarizeNetworkFreshness(networkFreshness) {
+  const summary = networkFreshness.summary || {};
+  return {
+    status: summary.status || 'unknown',
+    refreshReason: summary.refreshReason || 'unknown',
+    previousClassification: summary.previousClassification || 'unknown',
+    currentClassification: summary.currentClassification || 'unknown',
+    signatureChanged: Boolean(summary.signatureChanged),
+    classificationChanged: Boolean(summary.classificationChanged),
+    staleBeforeRefresh: Boolean(summary.staleBeforeRefresh),
+    previousReceiptAgeMs: summary.previousReceiptAgeMs ?? null,
+    maxFreshnessMs: summary.maxFreshnessMs || 0,
+    networkRealityContractStatus: summary.networkRealityContractStatus || 'missing',
+    dependentRefreshStatus: summary.dependentRefreshStatus || 'unknown',
+    liveFeedRefreshed: Boolean(summary.liveFeedRefreshed),
+    brittneyContextRefreshed: Boolean(summary.brittneyContextRefreshed),
+    staleNetworkReceiptMayDriveActions: Boolean(networkFreshness.policy?.staleNetworkReceiptMayDriveActions),
+    refreshBeforeLiveFeed: Boolean(networkFreshness.policy?.refreshBeforeLiveFeed),
+    endpointDetailsRedacted: Boolean(networkFreshness.policy?.endpointDetailsRedacted),
+    receiptHash: networkFreshness.receipt?.snapshotHash || '',
+  };
+}
+
 function summarizeMcpCustodyContract(mcpCustodyContract) {
   const summary = mcpCustodyContract?.summary || {};
   return {
@@ -589,6 +612,7 @@ function loadInputs(args) {
     shellObjects: readJson(path.join(tmpDir, 'shell-objects.json'), {}),
     programRegistry: readJson(path.join(tmpDir, 'program-registry.json'), {}),
     processHealth: readJson(path.join(tmpDir, 'process-health.json'), {}),
+    networkFreshness: readJson(path.join(tmpDir, 'network-freshness.json'), {}),
     legacyAppReality: readJson(path.join(tmpDir, 'legacy-app-reality.json'), {}),
     mcpCustodyContract: readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {}),
     mcpUpstreamHandoff: readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {}),
@@ -690,6 +714,31 @@ function fixtureInputs() {
       },
       collection: { commandLinesIncluded: false },
       policies: { automaticTerminationAllowed: false, exactPidRequired: true },
+    },
+    networkFreshness: {
+      schemaVersion: 'hololand.holoshell.network-freshness.v0.1.0',
+      generatedAt: '2026-05-14T00:00:00.640Z',
+      summary: {
+        status: 'refreshed',
+        refreshReason: 'classification_changed',
+        previousClassification: 'metered_or_hotspot',
+        currentClassification: 'normal_unmetered',
+        signatureChanged: true,
+        classificationChanged: true,
+        staleBeforeRefresh: true,
+        previousReceiptAgeMs: 240000,
+        maxFreshnessMs: 120000,
+        networkRealityContractStatus: 'pass',
+        dependentRefreshStatus: 'skipped',
+        liveFeedRefreshed: false,
+        brittneyContextRefreshed: false,
+      },
+      policy: {
+        staleNetworkReceiptMayDriveActions: false,
+        refreshBeforeLiveFeed: true,
+        endpointDetailsRedacted: true,
+      },
+      receipt: { snapshotHash: 'fixture-network-freshness' },
     },
     legacyAppReality: {
       schemaVersion: 'hololand.holoshell.legacy-app-reality.v0.1.0',
@@ -798,6 +847,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const approvalSummary = summarizeApprovals(inputs);
   const agentLaneSummary = summarizeLanes(inputs.lanes);
   const processHealthSummary = summarizeProcessHealth(inputs.processHealth, inputs.operatorBrief);
+  const networkFreshnessSummary = summarizeNetworkFreshness(inputs.networkFreshness);
   const legacyAppRealitySummary = summarizeLegacyAppReality(inputs.legacyAppReality);
   const mcpCustodyContractSummary = summarizeMcpCustodyContract(inputs.mcpCustodyContract);
   const mcpUpstreamHandoffSummary = summarizeMcpUpstreamHandoff(inputs.mcpUpstreamHandoff);
@@ -814,6 +864,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     approvalSummary,
     agentLaneSummary,
     processHealthSummary,
+    networkFreshnessSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -836,6 +887,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       operatorBrief: 'scripts/holoshell-operator-brief.mjs',
       shellObjects: 'scripts/holoshell-shell-objects.mjs',
       processHealth: 'scripts/holoshell-process-health.mjs',
+      networkFreshness: 'scripts/holoshell-network-freshness-watch.mjs',
       legacyAppReality: 'scripts/holoshell-legacy-app-reality.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
@@ -851,6 +903,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     approvalSummary,
     agentLaneSummary,
     processHealthSummary,
+    networkFreshnessSummary,
     legacyAppRealitySummary,
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
@@ -874,6 +927,16 @@ function createPacket(args, inputs = loadInputs(args)) {
       activeLaneCount: agentLaneSummary.activeLaneCount,
       processRisk: processHealthSummary.riskState,
       processCount: processHealthSummary.processCount,
+      networkFreshnessStatus: networkFreshnessSummary.status,
+      networkFreshnessRefreshReason: networkFreshnessSummary.refreshReason,
+      networkFreshnessPreviousClassification: networkFreshnessSummary.previousClassification,
+      networkFreshnessCurrentClassification: networkFreshnessSummary.currentClassification,
+      networkFreshnessSignatureChanged: networkFreshnessSummary.signatureChanged,
+      networkFreshnessClassificationChanged: networkFreshnessSummary.classificationChanged,
+      networkFreshnessStaleBeforeRefresh: networkFreshnessSummary.staleBeforeRefresh,
+      networkFreshnessDependentRefreshStatus: networkFreshnessSummary.dependentRefreshStatus,
+      networkFreshnessRefreshBeforeLiveFeed: networkFreshnessSummary.refreshBeforeLiveFeed,
+      staleNetworkReceiptMayDriveActions: networkFreshnessSummary.staleNetworkReceiptMayDriveActions,
       legacyRealityStatus: legacyAppRealitySummary.status,
       legacyRealityContractStatus: legacyAppRealitySummary.contractStatus,
       legacyRealityAgentInstanceCount: legacyAppRealitySummary.agentInstanceCount,
@@ -924,6 +987,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       browserBootstrap: '.tmp/holoshell/brittney-context.js',
       requiredRefreshOrder: [
         'pnpm run holoshell:hardware-reality',
+        'pnpm run holoshell:network-watch',
         'pnpm run holoshell:mcp-custody-contract',
         'pnpm run holoshell:mcp-upstream-handoff',
         'pnpm run holoshell:legacy-windows',
@@ -955,6 +1019,10 @@ function assertSelfTest(packet) {
   if (packet.operatorBriefSummary.peerWindowCount < 2) failures.push('expected peer windows from operator brief');
   if (packet.operatorBriefSummary.shellWindowCount < 1) failures.push('expected shell windows tracked separately');
   if (packet.agentLaneSummary.colorLaneCount < 3) failures.push('expected color lane evidence');
+  if (packet.networkFreshnessSummary.status !== 'refreshed') failures.push('expected network freshness summary');
+  if (packet.networkFreshnessSummary.classificationChanged !== true) failures.push('expected network classification change evidence');
+  if (packet.networkFreshnessSummary.staleNetworkReceiptMayDriveActions !== false) failures.push('stale network receipts must not drive Brittney');
+  if (packet.summary.networkFreshnessRefreshBeforeLiveFeed !== true) failures.push('expected network freshness before live feed policy');
   if (packet.legacyAppRealitySummary.agentInstanceCount < 2) failures.push('expected legacy app reality agent instances');
   if (packet.legacyAppRealitySummary.processCountIsPeerCount !== false) failures.push('legacy app reality must reject process-count peer counts');
   if (packet.summary.legacyRealityContractStatus !== 'pass') failures.push('expected legacy app reality contract pass');

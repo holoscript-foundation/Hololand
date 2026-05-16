@@ -1,0 +1,159 @@
+// HoloShell Network Freshness Watch
+//
+// Product source for the local hardware guard that prevents Brittney,
+// HoloShell live feed, and agent-run gates from reasoning from stale network
+// receipts after the machine changes underlay, cost state, VPN, or owner
+// declaration.
+
+composition "HoloShell Network Freshness Watch" {
+  config {
+    title: "Network Freshness Watch"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-network-freshness-watch.mjs"
+    networkRealitySource: "apps/holoshell/source/holoshell-network-reality.hsplus"
+    networkRealityReceipt: ".tmp/holoshell/network-reality.json"
+    freshnessReceipt: ".tmp/holoshell/network-freshness.json"
+    liveFeedReceipt: ".tmp/holoshell/live-feed.json"
+    brittneyContextReceipt: ".tmp/holoshell/brittney-context.json"
+    defaultMaxFreshnessMs: 120000
+    mode: "read_only_freshness_guard"
+  }
+
+  state {
+    watcherStatus: "unknown"
+    previousClassification: "unknown"
+    currentClassification: "unknown"
+    signatureChanged: false
+    classificationChanged: false
+    staleBeforeRefresh: true
+    previousReceiptAgeMs: 0
+    maxFreshnessMs: 120000
+    refreshReason: "startup"
+    networkRealityContractStatus: "missing"
+    dependentRefreshStatus: "skipped"
+    liveFeedRefreshed: false
+    brittneyContextRefreshed: false
+    endpointDetailsRedacted: true
+    staleNetworkReceiptMayDriveActions: false
+  }
+
+  channel "holoshell:network:freshness" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Receipt freshness, classification drift, and dependent refresh status for local network truth"
+  }
+
+  channel "holoshell:network:freshness-receipt" {
+    type: "append_only"
+    priority: "high"
+    description: "Receipts proving stale network state was refreshed before agent-visible shell state"
+  }
+
+  template "NetworkFreshnessNode" {
+    type: "machine"
+    machineType: "holoshell_network_freshness_guard"
+    privacyScope: "local_only"
+    watcherStatus: "unknown"
+    previousClassification: "unknown"
+    currentClassification: "unknown"
+    signatureChanged: false
+    classificationChanged: false
+    receiptRequired: true
+  }
+
+  room "NetworkFreshnessRoom" {
+    label: "Network Freshness"
+    userQuestion: "Did the computer's internet change, and has HoloShell refreshed before agents act?"
+    visualForm: "network_change_sentinel"
+    liveFeed: "holoshell:network:freshness"
+
+    object "FreshnessGuard" using "NetworkFreshnessNode" {
+      label: "Freshness Guard"
+      watcherStatus: $watcherStatus
+      previousClassification: $previousClassification
+      currentClassification: $currentClassification
+      signatureChanged: $signatureChanged
+      classificationChanged: $classificationChanged
+      staleBeforeRefresh: $staleBeforeRefresh
+      previousReceiptAgeMs: $previousReceiptAgeMs
+      maxFreshnessMs: $maxFreshnessMs
+      refreshReason: $refreshReason
+      networkRealityContractStatus: $networkRealityContractStatus
+    }
+
+    object "DependentRefresh" {
+      type: "ui"
+      uiType: "receipt_refresh_chain"
+      label: "Dependent Refresh"
+      status: $dependentRefreshStatus
+      liveFeedRefreshed: $liveFeedRefreshed
+      brittneyContextRefreshed: $brittneyContextRefreshed
+      staleNetworkReceiptMayDriveActions: $staleNetworkReceiptMayDriveActions
+    }
+  }
+
+  policy "StaleNetworkReceiptCannotDriveBrittney" {
+    appliesTo: ["brittney_context", "live_feed", "run_gate", "bandwidth_policy"]
+    staleNetworkReceiptMayDriveActions: false
+    missingFreshnessReceiptAction: "refresh_network_reality_first"
+    staleFreshnessReceiptAction: "block_heavy_network_actions_until_refresh"
+    receiptRequired: true
+  }
+
+  policy "NetworkRealityRefreshBeforeLiveFeed" {
+    appliesTo: ["holoshell_live_feed", "holoshell_control_daemon", "brittney_context"]
+    requiredOrder: ["network_reality", "network_freshness", "live_feed", "brittney_context"]
+    reason: "Live feed and Brittney must see the current underlay after hotspot, Wi-Fi, VPN, or metered-state changes."
+    receiptRequired: true
+  }
+
+  policy "ClassificationSwitchForcesDependentRefresh" {
+    appliesTo: ["classification", "bandwidth_posture", "heavy_work_policy"]
+    whenClassificationChanged: "refresh_dependent_receipts"
+    whenSignatureChanged: "refresh_dependent_receipts"
+    whenReceiptStale: "refresh_network_reality"
+    receiptRequired: true
+  }
+
+  policy "RedactedLocalNetworkSignature" {
+    appliesTo: ["wifi", "adapter", "tcp_connection", "vpn", "receipt"]
+    rawSsidIncluded: false
+    rawBssidIncluded: false
+    ipAddressIncluded: false
+    gatewayIncluded: false
+    remoteEndpointIncluded: false
+    endpointDetailsRedacted: true
+    localOnly: true
+  }
+
+  action consume_network_freshness(snapshot) {
+    state.watcherStatus = snapshot.summary.status
+    state.previousClassification = snapshot.summary.previousClassification
+    state.currentClassification = snapshot.summary.currentClassification
+    state.signatureChanged = snapshot.summary.signatureChanged
+    state.classificationChanged = snapshot.summary.classificationChanged
+    state.staleBeforeRefresh = snapshot.summary.staleBeforeRefresh
+    state.previousReceiptAgeMs = snapshot.summary.previousReceiptAgeMs
+    state.maxFreshnessMs = snapshot.summary.maxFreshnessMs
+    state.refreshReason = snapshot.summary.refreshReason
+    state.networkRealityContractStatus = snapshot.summary.networkRealityContractStatus
+    state.dependentRefreshStatus = snapshot.summary.dependentRefreshStatus
+    state.liveFeedRefreshed = snapshot.summary.liveFeedRefreshed
+    state.brittneyContextRefreshed = snapshot.summary.brittneyContextRefreshed
+    state.endpointDetailsRedacted = snapshot.policy.endpointDetailsRedacted
+    state.staleNetworkReceiptMayDriveActions = snapshot.policy.staleNetworkReceiptMayDriveActions
+
+    emit("holoshell:network:freshness", {
+      status: state.watcherStatus,
+      previousClassification: state.previousClassification,
+      currentClassification: state.currentClassification,
+      signatureChanged: state.signatureChanged,
+      classificationChanged: state.classificationChanged,
+      staleBeforeRefresh: state.staleBeforeRefresh,
+      refreshReason: state.refreshReason,
+      dependentRefreshStatus: state.dependentRefreshStatus,
+      receiptHash: snapshot.receipt.snapshotHash
+    })
+  }
+}

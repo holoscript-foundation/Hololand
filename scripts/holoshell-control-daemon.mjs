@@ -173,7 +173,12 @@ function refreshRegistry(args) {
   ]);
 }
 
+function refreshNetworkFreshness() {
+  return runChecked(['scripts/holoshell-network-freshness-watch.mjs', '--skip-dependents']);
+}
+
 function refreshLiveFeed() {
+  refreshNetworkFreshness();
   refreshShellObjects();
   return runChecked(['scripts/holoshell-live-feed.mjs']);
 }

@@ -111,6 +111,21 @@ function networkRealityTrustState(networkReality) {
   return 'unknown';
 }
 
+function networkFreshnessRisk(networkFreshness) {
+  const status = networkFreshness?.summary?.status;
+  if (status === 'refresh_failed') return 'warn';
+  if (status === 'fresh' || status === 'refreshed') return 'pass';
+  if (networkFreshness?.policy?.staleNetworkReceiptMayDriveActions === true) return 'warn';
+  return 'unknown';
+}
+
+function networkFreshnessTrustState(networkFreshness) {
+  const status = networkFreshness?.summary?.status;
+  if (status === 'fresh' || status === 'refreshed') return 'verified';
+  if (status === 'refresh_failed') return 'partial';
+  return 'unknown';
+}
+
 function legacyRealityContractStatus(legacyAppReality) {
   return legacyAppReality?.schemaContract?.validationStatus || 'missing';
 }
@@ -149,7 +164,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, agentDispatch, grokBuild, hardwareAction, hardwareApproval, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -294,6 +309,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       generatedAt: networkReality.generatedAt || now,
       receiptType: networkReality.schemaVersion,
       source: networkReality.sourceAnchors?.adapter || 'scripts/holoshell-network-reality.mjs',
+    });
+  }
+
+  if (networkFreshness?.summary) {
+    const summary = networkFreshness.summary;
+    timeline.push({
+      id: 'network-freshness',
+      kind: 'network_freshness',
+      title: `Network freshness ${summary.status || 'unknown'}`,
+      detail: `${summary.previousClassification || 'unknown'} -> ${summary.currentClassification || 'unknown'}; reason ${summary.refreshReason || 'unknown'}; dependents ${summary.dependentRefreshStatus || 'unknown'}.`,
+      trustState: networkFreshnessTrustState(networkFreshness),
+      generatedAt: networkFreshness.generatedAt || now,
+      receiptType: networkFreshness.schemaVersion,
+      source: networkFreshness.sourceAnchors?.adapter || 'scripts/holoshell-network-freshness-watch.mjs',
     });
   }
 
@@ -568,6 +597,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
       receiptType: 'hololand.holoshell.workflow.v0.1.0',
       source: workflow.sourceAnchors?.adapter || workflow.source?.script || 'scripts/holoshell-room-marathon-workflow.mjs',
     });
+
+    if (workflowKind === 'grok_build' && workflow.grokObservation?.summary) {
+      const observation = workflow.grokObservation;
+      timeline.push({
+        id: observation.observationId || `${workflow.workflowId || 'grok-build'}-observation`,
+        kind: 'grok_observation',
+        title: `Grok observed ${observation.summary.status || 'unknown'}`,
+        detail: observation.summary.primaryFinding || 'Grok returned a peer observation for Brittney.',
+        trustState: observation.summary.status === 'completed' ? 'verified' : 'partial',
+        generatedAt: observation.generatedAt || workflow.generatedAt || now,
+        receiptType: observation.schemaVersion || 'hololand.holoshell.grok-observation.v0.1.0',
+        source: observation.sourceAnchors?.adapter || workflow.sourceAnchors?.adapter || 'scripts/holoshell-grok-build-workflow.mjs',
+      });
+    }
   }
 
   if (workflowApproval?.summary) {
@@ -689,6 +732,7 @@ function createFeed(args) {
   const lanes = readJson(path.join(tmpDir, 'agent-lanes.json'), {});
   const processHealth = readJson(path.join(tmpDir, 'process-health.json'), {});
   const networkReality = readJson(path.join(tmpDir, 'network-reality.json'), {});
+  const networkFreshness = readJson(path.join(tmpDir, 'network-freshness.json'), {});
   const legacyAppReality = readJson(path.join(tmpDir, 'legacy-app-reality.json'), {});
   const mcpCustodyContract = readJson(path.join(tmpDir, 'mcp-custody-contract.json'), {});
   const mcpUpstreamHandoff = readJson(path.join(tmpDir, 'mcp-custody-upstream-handoff.json'), {});
@@ -736,6 +780,7 @@ function createFeed(args) {
     lanes,
     processHealth,
     networkReality,
+    networkFreshness,
     legacyAppReality,
     mcpCustodyContract,
     mcpUpstreamHandoff,
@@ -766,6 +811,7 @@ function createFeed(args) {
   const trust = trustCounts(inventory?.capabilities || []);
   const processRisk = processHealth?.summary?.riskState || 'unknown';
   const networkRisk = networkReality?.health?.state || 'pass';
+  const freshnessRisk = networkFreshnessRisk(networkFreshness);
   const legacyRealityRisk = legacyRealityContractStatus(legacyAppReality) === 'fail'
     ? 'warn'
     : legacyRealityContractStatus(legacyAppReality) === 'missing'
@@ -782,7 +828,7 @@ function createFeed(args) {
       : 'unknown';
   const readinessRisk = riskFromEvidenceStatus(readinessEvidence?.summary?.status || 'unknown');
   const shardRisk = shardWorkflow?.summary?.status === 'blocked' ? 'warn' : shardWorkflow?.summary?.status === 'staged' ? 'pass' : 'unknown';
-  const overallRisk = [processRisk, networkRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
+  const overallRisk = [processRisk, networkRisk, freshnessRisk, legacyRealityRisk, stopPlans.length ? 'warn' : 'pass', mcpCustodyRisk, mcpHandoffRisk, readinessRisk, shardRisk]
     .sort((left, right) => riskRank(right) - riskRank(left))[0];
 
   return {
@@ -793,6 +839,8 @@ function createFeed(args) {
       hardwareControl: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       networkReality: 'apps/holoshell/source/holoshell-network-reality.hsplus',
       networkRealityAdapter: 'scripts/holoshell-network-reality.mjs',
+      networkFreshness: 'apps/holoshell/source/holoshell-network-freshness-watch.hsplus',
+      networkFreshnessAdapter: 'scripts/holoshell-network-freshness-watch.mjs',
       legacyAppRealityAdapter: 'scripts/holoshell-legacy-app-reality.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
@@ -909,6 +957,18 @@ function createFeed(args) {
       networkRealityAgentOrShellConsumerCount: networkReality?.lanes?.agentOrShellNetworkConsumerCount || 0,
       networkRealityLegacyConsumerCount: networkReality?.lanes?.legacyNetworkConsumerCount || 0,
       networkRealityProcessCountIsNotPeerCount: Boolean(networkReality?.lanes?.processCountIsNotPeerCount),
+      networkFreshnessStatus: networkFreshness?.summary?.status || 'unknown',
+      networkFreshnessRefreshReason: networkFreshness?.summary?.refreshReason || 'unknown',
+      networkFreshnessPreviousClassification: networkFreshness?.summary?.previousClassification || 'unknown',
+      networkFreshnessCurrentClassification: networkFreshness?.summary?.currentClassification || 'unknown',
+      networkFreshnessSignatureChanged: Boolean(networkFreshness?.summary?.signatureChanged),
+      networkFreshnessClassificationChanged: Boolean(networkFreshness?.summary?.classificationChanged),
+      networkFreshnessStaleBeforeRefresh: Boolean(networkFreshness?.summary?.staleBeforeRefresh),
+      networkFreshnessPreviousReceiptAgeMs: networkFreshness?.summary?.previousReceiptAgeMs ?? null,
+      networkFreshnessMaxAgeMs: networkFreshness?.summary?.maxFreshnessMs ?? 0,
+      networkFreshnessDependentRefreshStatus: networkFreshness?.summary?.dependentRefreshStatus || 'unknown',
+      networkFreshnessLiveFeedRefreshed: Boolean(networkFreshness?.summary?.liveFeedRefreshed),
+      networkFreshnessBrittneyContextRefreshed: Boolean(networkFreshness?.summary?.brittneyContextRefreshed),
       legacyAppRealityStatus: legacyAppReality?.summary?.confidence || 'unknown',
       legacyAppRealityContractStatus: legacyRealityContractStatus(legacyAppReality),
       legacyAppRealityProcessCount: legacyAppReality?.summary?.processCount || 0,
@@ -1048,6 +1108,9 @@ function createFeed(args) {
       grokBuildReadyForGrokBuild: Boolean(grokBuild?.summary?.readyForGrokBuild),
       grokBuildHeavyAccessStatus: grokBuild?.summary?.heavyAccessStatus || grokBuild?.heavyUpgrade?.status || 'unknown',
       grokBuildHeavyVerifiedAt: grokBuild?.heavyUpgrade?.verifiedAt || '',
+      grokObservationStatus: workflow?.grokObservation?.summary?.status || '',
+      grokObservationPrimaryFinding: workflow?.grokObservation?.summary?.primaryFinding || '',
+      grokObservationFindingCount: workflow?.grokObservation?.summary?.findingCount || 0,
       hardwareControlStatus: hardwareAction?.schemaVersion === 'hololand.holoshell.hardware-action.v0.1.0' ? 'available' : 'unknown',
       hardwareActionStatus: hardwareAction?.summary?.status || 'unknown',
       hardwareActionKind: hardwareAction?.summary?.actionKind || '',
@@ -1155,6 +1218,7 @@ function createFeed(args) {
       lanes,
       processHealth,
       networkReality,
+      networkFreshness,
       legacyAppReality,
       mcpCustodyContract,
       mcpUpstreamHandoff,
@@ -1253,6 +1317,7 @@ try {
     console.log(`GOLD/codebase bridge: ${feed.summary.goldCodebaseBridgeStatus}`);
     console.log(`Format inventory: ${feed.summary.formatInventoryStatus}`);
     console.log(`Network reality: ${feed.summary.networkRealityStatus}`);
+    console.log(`Network freshness: ${feed.summary.networkFreshnessStatus}`);
     console.log(`Legacy app reality: ${feed.summary.legacyAppRealityStatus}`);
     console.log(`Hardware action: ${feed.summary.hardwareActionStatus}`);
     console.log(`Hardware approval: ${feed.summary.hardwareApprovalStatus}`);
