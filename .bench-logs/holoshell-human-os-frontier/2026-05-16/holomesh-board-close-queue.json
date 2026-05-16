@@ -1,7 +1,7 @@
 {
   "schemaVersion": "hololand.holoshell.holomesh-board-close-queue.v0.1.0",
   "generatedAt": "2026-05-16T09:16:00.000Z",
-  "lastAttemptAt": "2026-05-16T10:33:00.000Z",
+  "lastAttemptAt": "2026-05-16T11:07:52.878Z",
   "teamId": "team_1777834718247_unr35n",
   "status": "blocked_holomesh_502",
   "attempts": [
@@ -77,6 +77,18 @@
         "httpStatus": 502,
         "message": "Application failed to respond",
         "requestId": "g21JCYjpTyGvUBrllt7tkg"
+      }
+    },
+    {
+      "operation": "complete",
+      "taskId": "task_1778783102322_ggj3",
+      "commit": "4a6a376",
+      "summary": "HoloLand website build verified green on current main.",
+      "verificationEvidence": "Ran full `pnpm build` from `C:\\Users\\josep\\Documents\\GitHub\\Hololand` on 2026-05-16. `examples/hololand-website` completed `next build`, `examples/hololand-landing` completed, `apps/avatar-studio` completed, and the workspace build exited 0. Prior website build blocker appears stale/resolved on current main.",
+      "result": {
+        "success": false,
+        "message": "room-patch-task returned null while HoloMesh board was unavailable",
+        "requestId": "local-null-2026-05-16T11:07:52.878Z"
       }
     }
   ],
