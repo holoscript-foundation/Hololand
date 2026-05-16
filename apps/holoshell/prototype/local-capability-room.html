@@ -728,6 +728,98 @@
       border-color: color-mix(in srgb, var(--accent-2) 48%, transparent);
     }
 
+    .founder-evidence-card {
+      position: absolute;
+      left: clamp(12px, 4vw, 34px);
+      right: clamp(12px, 4vw, 34px);
+      top: 322px;
+      z-index: 2;
+      min-height: 86px;
+      border-radius: 22px;
+      border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+      padding: 11px;
+      display: grid;
+      grid-template-columns: minmax(170px, 1.2fr) repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      text-align: left;
+      background: rgba(4, 8, 12, 0.36);
+      color: var(--soft);
+      backdrop-filter: blur(18px) saturate(1.25);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+      cursor: pointer;
+    }
+
+    .founder-evidence-card:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 4px;
+    }
+
+    .founder-evidence-card[data-state="approved_execution_receipted"],
+    .founder-evidence-card[data-state="visible"] {
+      border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+    }
+
+    .founder-evidence-card[data-state="pending_user_approval"],
+    .founder-evidence-card[data-state="blocked"] {
+      border-color: color-mix(in srgb, var(--accent-2) 54%, transparent);
+    }
+
+    .founder-evidence-primary,
+    .founder-evidence-cell {
+      min-width: 0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.065);
+      padding: 9px;
+      display: grid;
+      align-content: space-between;
+      gap: 5px;
+    }
+
+    .founder-evidence-kicker,
+    .founder-evidence-cell em {
+      color: var(--muted);
+      font-size: 10px;
+      font-style: normal;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .founder-evidence-title,
+    .founder-evidence-cell strong,
+    .founder-evidence-cell small {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .founder-evidence-title {
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .founder-evidence-detail {
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.32;
+      overflow-wrap: anywhere;
+    }
+
+    .founder-evidence-cell strong {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .founder-evidence-cell small {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
     .turn-primary,
     .turn-cell {
       min-width: 0;
@@ -1213,6 +1305,22 @@
         min-height: 0;
       }
 
+      .founder-evidence-card {
+        top: 382px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        min-height: 0;
+      }
+
+      .founder-evidence-primary {
+        grid-column: 1 / -1;
+      }
+
+      .founder-evidence-title,
+      .founder-evidence-cell strong,
+      .founder-evidence-cell small {
+        white-space: normal;
+      }
+
       .turn-primary {
         grid-row: auto;
         grid-column: 1 / -1;
@@ -1260,6 +1368,7 @@
   <script src="../../../.tmp/holoshell/holoscript-gold-codebase-bridge.js"></script>
   <script src="../../../.tmp/holoshell/founder-boot-preview.js"></script>
   <script src="../../../.tmp/holoshell/founder-command-latest.js"></script>
+  <script src="../../../.tmp/holoshell/founder-evidence-demo-latest.js"></script>
   <script src="../../../.tmp/holoshell/user-shell-projection.js"></script>
   <script src="../../../.tmp/holoshell/developmental-environment.js"></script>
   <script src="../../../.tmp/holoshell/brittney-context.js"></script>
@@ -1355,6 +1464,7 @@
           <em id="networkGuardAction">Receipts</em>
         </button>
         <div class="operating-turn" id="operatingTurn" role="button" tabindex="0" data-state="unknown" aria-label="Current HoloShell operating turn"></div>
+        <button class="founder-evidence-card" id="founderEvidenceCard" type="button" data-state="unknown" aria-label="Founder evidence receipt"></button>
         <div class="bubble-field" id="bubbleField" aria-label="Shell objects"></div>
         <div class="control-lane" id="controlLane" aria-label="Hardware control pipeline"></div>
       </section>
@@ -1411,6 +1521,7 @@
     const standaloneGoldCodebaseBridgeFeed = window.HOLOSHELL_HOLOSCRIPT_GOLD_CODEBASE_BRIDGE || {};
     const standaloneFounderBootFeed = window.HOLOSHELL_FOUNDER_BOOT_PREVIEW || {};
     const standaloneFounderCommandFeed = window.HOLOSHELL_FOUNDER_COMMAND || {};
+    const standaloneFounderEvidenceDemoFeed = window.HOLOSHELL_FOUNDER_EVIDENCE_DEMO || {};
     const standaloneOperatingTurnFeed = window.HOLOSHELL_OPERATING_TURN || {};
     const standaloneSourceValidationFeed = window.HOLOSHELL_SOURCE_VALIDATION || {};
     const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
@@ -1886,6 +1997,45 @@
     function founderCommandSummary() {
       const command = founderCommandFeed();
       return command.summary || {};
+    }
+
+    function founderEvidenceDemoFeed() {
+      return feed.feeds?.founderEvidenceDemo?.summary ? feed.feeds.founderEvidenceDemo : standaloneFounderEvidenceDemoFeed;
+    }
+
+    function founderEvidenceDemoSummary() {
+      const demo = founderEvidenceDemoFeed();
+      return demo.summary || {};
+    }
+
+    function founderEvidenceObject() {
+      const demo = founderEvidenceDemoFeed();
+      const summary = founderEvidenceDemoSummary();
+      const execution = demo.execution || {};
+      const afterState = execution.afterState || {};
+      const target = summary.targetLabel || afterState.targetUrlHost || "local computer";
+      const witness = summary.visibleWitnessKind || afterState.visibleWitnessKind || "receipt";
+      const rollback = execution.rollback || "manual rollback";
+      const replay = demo.approval?.commandPreview || "pnpm run holoshell:founder-evidence-demo -- --execute-approved --confirm execute-founder-demo";
+      return {
+        id: "founder-evidence-card",
+        label: "Founder Evidence",
+        fullLabel: "Founder Evidence Demo",
+        glyph: "FE",
+        type: "receipt",
+        detail: `${summary.status || "unknown"} for ${target}; witness ${witness}; rollback ${rollback}.`,
+        trustState: summary.executionPerformed ? "verified" : "partial",
+        permissionEnvelope: "guarded_execute",
+        evidence: {
+          target,
+          approval: approvalShortId(summary.approvalId || demo.approval?.approvalId),
+          witness,
+          visible: summary.visibleShellChange ? "yes" : "no",
+          windows: `${execution.beforeWindowCount || summary.beforeWindowCount || 0}->${execution.afterWindowCount || summary.afterWindowCount || 0}`,
+          rollback,
+          replay,
+        },
+      };
     }
 
     function operatingTurnFeed() {
@@ -3516,6 +3666,67 @@
       panel.title = "Founder command: intent, approval, trust, launcher, context, and source guard.";
     }
 
+    function founderEvidenceCell(label, value, detail) {
+      const cell = document.createElement("div");
+      cell.className = "founder-evidence-cell";
+      const kicker = document.createElement("em");
+      kicker.textContent = label;
+      const strong = document.createElement("strong");
+      strong.textContent = value || "unknown";
+      const small = document.createElement("small");
+      small.textContent = detail || "receipt";
+      cell.append(kicker, strong, small);
+      cell.title = `${label}: ${strong.textContent}; ${small.textContent}`;
+      return cell;
+    }
+
+    function renderFounderEvidenceCard() {
+      const card = document.getElementById("founderEvidenceCard");
+      if (!card) return;
+      const demo = founderEvidenceDemoFeed();
+      const summary = founderEvidenceDemoSummary();
+      const execution = demo.execution || {};
+      const afterState = execution.afterState || {};
+      const target = summary.targetLabel || afterState.targetUrlHost || "local computer";
+      const status = summary.status || "unknown";
+      const witness = summary.visibleWitnessKind || afterState.visibleWitnessKind || "not yet";
+      const approval = approvalShortId(summary.approvalId || demo.approval?.approvalId);
+      const rollback = execution.rollback || "manual rollback";
+      const replay = summary.executionPerformed ? "approved run saved" : summary.executionAllowed ? "approval ready" : "stage first";
+      const windows = `${execution.beforeWindowCount || summary.beforeWindowCount || 0}->${execution.afterWindowCount || summary.afterWindowCount || 0}`;
+
+      card.dataset.state = status;
+      card.setAttribute("aria-label", `Founder evidence ${status}. Target ${target}. Witness ${witness}.`);
+
+      const primary = document.createElement("div");
+      primary.className = "founder-evidence-primary";
+      const kicker = document.createElement("div");
+      kicker.className = "founder-evidence-kicker";
+      kicker.textContent = "Founder Evidence";
+      const title = document.createElement("div");
+      title.className = "founder-evidence-title";
+      title.textContent = status.replaceAll("_", " ");
+      const detail = document.createElement("div");
+      detail.className = "founder-evidence-detail";
+      detail.textContent = `${target}; rung ${summary.evidenceRung || "unknown"}; visible ${summary.visibleShellChange ? "yes" : "no"}.`;
+      primary.append(kicker, title, detail);
+
+      card.replaceChildren(
+        primary,
+        founderEvidenceCell("Target", target, summary.targetAction || "operation"),
+        founderEvidenceCell("Approval", approval, summary.executionAllowed ? "nonce allowed" : "not executable"),
+        founderEvidenceCell("Witness", witness, windows),
+        founderEvidenceCell("Rollback", rollback.replaceAll("_", " "), replay)
+      );
+      card.onclick = () => selectObject(founderEvidenceObject());
+      card.onkeydown = (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectObject(founderEvidenceObject());
+        }
+      };
+    }
+
     function renderBubbles() {
       const field = document.getElementById("bubbleField");
       field.replaceChildren(...shellObjects().map((object, index) => {
@@ -3586,6 +3797,10 @@
       const approvalSummary = hardwareApprovalSummary();
       const dispatchSummary = agentDispatchSummary();
       const founderCommandSummaryData = founderCommandSummary();
+      const founderEvidenceSummaryData = founderEvidenceDemoSummary();
+      const founderEvidence = founderEvidenceDemoFeed();
+      const founderEvidenceExecution = founderEvidence.execution || {};
+      const founderEvidenceAfter = founderEvidenceExecution.afterState || {};
       const grokSummary = grokBuildSummary();
       const grokHeartbeat = grokHeartbeatSummary();
       const trustSummary = trustLedgerSummary();
@@ -3638,6 +3853,7 @@
         `Shell objects: ${shellGraphSummary.shellObjectCount || summary.shellObjectCount || 0} total, ${shellGraphSummary.programObjectCount || summary.appShellObjectCount || 0} app bubbles, ${shellGraphSummary.capturedWindowObjectCount || summary.capturedShellObjectCount || 0} captured windows, ${shellGraphSummary.guardedExecuteCount || summary.guardedShellObjectCount || 0} guarded powers`,
         `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
         `Founder command: ${founderCommandSummaryData.status || summary.founderCommandStatus || "unknown"}; ${founderCommandSummaryData.pipelineStepCount || summary.founderCommandPipelineStepCount || 0} pipeline; ${founderCommandSummaryData.workflowStepCount || summary.founderCommandWorkflowStepCount || 0} workflow steps; approvals ${founderCommandSummaryData.approvalCount || summary.founderCommandApprovalCount || 0}; execute ${founderCommandSummaryData.executionAllowed || summary.founderCommandExecutionAllowed ? "yes" : "no"}`,
+        `Founder evidence: ${founderEvidenceSummaryData.status || summary.founderEvidenceDemoStatus || "unknown"}; target ${founderEvidenceSummaryData.targetLabel || summary.founderEvidenceDemoTargetLabel || "none"}; witness ${founderEvidenceSummaryData.visibleWitnessKind || founderEvidenceAfter.visibleWitnessKind || summary.founderEvidenceDemoVisibleWitnessKind || "none"}; visible ${founderEvidenceSummaryData.visibleShellChange || summary.founderEvidenceDemoVisibleShellChange ? "yes" : "no"}; rollback ${founderEvidenceExecution.rollback || "none"}`,
         `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
         `Grok Build: ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; operator ${grokSummary.operatorStatus || summary.grokBuildOperatorStatus || "unknown"}; auth ${grokSummary.authRuntimeStatus || summary.grokBuildAuthRuntimeStatus || grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy ${grokSummary.heavyAccessStatus || grokBuildFeed().heavyUpgrade?.status || summary.grokBuildHeavyAccessStatus || "unknown"}`,
         `Grok heartbeat: ${grokHeartbeat.status || summary.grokHeartbeatStatus || "unknown"}; presence ${grokHeartbeat.agentPresenceStatus || summary.grokHeartbeatPresenceStatus || "unknown"}; operator ${grokHeartbeat.cliOperatorStatus || summary.grokHeartbeatCliOperatorStatus || "unknown"}; autonomy ${grokHeartbeat.autonomyStatus || summary.grokHeartbeatAutonomyStatus || "unknown"}; observation ${grokHeartbeat.latestObservationStatus || summary.grokHeartbeatObservationStatus || "none"}`,
@@ -3678,6 +3894,7 @@
       renderHardwareApprovalCue();
       renderControlLane();
       renderOperatingTurn();
+      renderFounderEvidenceCard();
     }
 
     function setSkin(skin) {
