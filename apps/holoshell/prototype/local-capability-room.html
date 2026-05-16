@@ -1378,6 +1378,7 @@
   <script src="../../../.tmp/holoshell/founder-boot-preview.js"></script>
   <script src="../../../.tmp/holoshell/founder-command-latest.js"></script>
   <script src="../../../.tmp/holoshell/founder-evidence-demo-latest.js"></script>
+  <script src="../../../.tmp/holoshell/receipt-control-latest.js"></script>
   <script src="../../../.tmp/holoshell/user-shell-projection.js"></script>
   <script src="../../../.tmp/holoshell/developmental-environment.js"></script>
   <script src="../../../.tmp/holoshell/brittney-context.js"></script>
@@ -1531,6 +1532,7 @@
     const standaloneFounderBootFeed = window.HOLOSHELL_FOUNDER_BOOT_PREVIEW || {};
     const standaloneFounderCommandFeed = window.HOLOSHELL_FOUNDER_COMMAND || {};
     const standaloneFounderEvidenceDemoFeed = window.HOLOSHELL_FOUNDER_EVIDENCE_DEMO || {};
+    const standaloneReceiptControlFeed = window.HOLOSHELL_RECEIPT_CONTROL || {};
     const standaloneOperatingTurnFeed = window.HOLOSHELL_OPERATING_TURN || {};
     const standaloneSourceValidationFeed = window.HOLOSHELL_SOURCE_VALIDATION || {};
     const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
@@ -2017,8 +2019,18 @@
       return demo.summary || {};
     }
 
+    function receiptControlFeed() {
+      return feed.feeds?.receiptControl?.summary ? feed.feeds.receiptControl : standaloneReceiptControlFeed;
+    }
+
+    function receiptControlSummary() {
+      const receiptControl = receiptControlFeed();
+      return receiptControl.summary || {};
+    }
+
     function founderEvidenceReceiptData() {
       const demo = founderEvidenceDemoFeed();
+      const receiptControl = receiptControlFeed();
       const summary = founderEvidenceDemoSummary();
       const execution = demo.execution || {};
       const afterState = execution.afterState || {};
@@ -2026,7 +2038,7 @@
       const witness = summary.visibleWitnessKind || afterState.visibleWitnessKind || "receipt";
       const rollback = execution.rollback || "manual rollback";
       const replay = demo.approval?.commandPreview || "pnpm run holoshell:founder-evidence-demo -- --execute-approved --confirm execute-founder-demo";
-      return { demo, summary, execution, afterState, target, witness, rollback, replay };
+      return { demo, receiptControl, summary, execution, afterState, target, witness, rollback, replay };
     }
 
     function founderEvidenceObject() {
@@ -3006,10 +3018,10 @@
     }
 
     function inspectFounderEvidenceReceipt() {
-      const { demo, summary, execution, afterState, target, witness, rollback } = founderEvidenceReceiptData();
-      const path = demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json";
+      const { demo, receiptControl, summary, execution, afterState, target, witness, rollback } = founderEvidenceReceiptData();
+      const path = receiptControl.source?.receiptPath || demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json";
       founderEvidenceResult([
-        `Receipt ${demo.demoId || "unknown"}: ${summary.status || "unknown"}.`,
+        `Control receipt ${receiptControl.receiptControlId || "not generated"}; source ${demo.demoId || "unknown"}: ${summary.status || "unknown"}.`,
         `Target ${target}; action ${summary.targetAction || demo.command?.targetAction || "unknown"}.`,
         `Witness ${witness}; visible ${summary.visibleShellChange ? "yes" : "no"}; windows ${execution.beforeWindowCount || 0}->${execution.afterWindowCount || afterState.windowCount || 0}.`,
         `Receipt path ${path}; rollback ${rollback}.`,
@@ -3018,20 +3030,23 @@
     }
 
     function replayFounderEvidenceReceipt() {
-      const { afterState, target } = founderEvidenceReceiptData();
-      const targetUrl = afterState.browserNavigation?.targetUrl || (/^https?:\/\//.test(target) ? target : `https://${target}/`);
+      const { receiptControl, afterState, target } = founderEvidenceReceiptData();
+      const targetUrl = receiptControl.replayIntent?.body?.url || afterState.browserNavigation?.targetUrl || (/^https?:\/\//.test(target) ? target : `https://${target}/`);
       stageDaemonAction("Founder evidence replay", "/action", {
-        action: "open_url",
+        action: receiptControl.replayIntent?.body?.action || "open_url",
         url: targetUrl,
-        replayOf: "founder-evidence-demo-latest",
+        replayOf: receiptControl.source?.receiptId || "founder-evidence-demo-latest",
+        sourceReceiptPath: receiptControl.source?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json",
         requiresFreshApproval: true,
       });
     }
 
     function showFounderEvidenceRollback() {
-      const { demo, summary, rollback, target, witness } = founderEvidenceReceiptData();
-      const path = demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json";
-      founderEvidenceResult(`Rollback for ${target}: ${rollback.replaceAll("_", " ")}. Because witness is ${witness}, HoloShell should not auto-close anything until it can prove the exact tab/window identity. Receipt: ${path}.`);
+      const { demo, receiptControl, summary, rollback, target, witness } = founderEvidenceReceiptData();
+      const path = receiptControl.source?.receiptPath || demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json";
+      const rollbackIntent = receiptControl.rollbackIntent || {};
+      const blockReason = rollbackIntent.blockReason || "exact_browser_tab_identity_not_proved";
+      founderEvidenceResult(`Rollback for ${target}: ${rollback.replaceAll("_", " ")}. Status ${rollbackIntent.status || "advisory_only"}; block ${blockReason}. Because witness is ${witness}, HoloShell should not auto-close anything until it can prove the exact tab/window identity. Receipt: ${path}.`);
       appendConversation(`Rollback is manual for ${target} until the shell can prove the exact browser tab identity.`);
       if (!summary.visibleShellChange) {
         appendConversation("This receipt is not visibly witnessed yet, so rollback stays advisory.");
@@ -3039,15 +3054,16 @@
     }
 
     function prepareFounderEvidenceTask() {
-      const { demo, summary, target, witness, rollback } = founderEvidenceReceiptData();
+      const { demo, receiptControl, summary, target, witness, rollback } = founderEvidenceReceiptData();
+      const packet = receiptControl.taskPacket || {};
       const gap = summary.visibleShellChange
         ? "rollback is advisory because exact browser tab identity is not captured"
         : "visible shell witness is missing";
       founderEvidenceResult([
         "Task packet ready:",
-        `[holoshell][receipt-control] Make Founder evidence replay/rollback deterministic for ${target}.`,
-        `Evidence: ${demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json"}; status ${summary.status || "unknown"}; witness ${witness}; gap ${gap}.`,
-        `Expected: replay creates a fresh approval receipt; rollback is executable only after exact target identity is proved. Likely owner: HoloShell hardware-wrapper. Category: deterministic UX/receipt gap. Current rollback: ${rollback}.`,
+        packet.title || `[holoshell][receipt-control] Make Founder evidence replay/rollback deterministic for ${target}.`,
+        `Evidence: ${packet.evidence?.sourceReceipt || demo.shellUpdate?.receiptPath || ".tmp/holoshell/founder-evidence-demo-latest.json"}; status ${summary.status || "unknown"}; witness ${witness}; gap ${gap}.`,
+        `Expected: ${packet.expectedBehavior || "replay creates a fresh approval receipt; rollback is executable only after exact target identity is proved"}. Likely owner: ${packet.likelyOwnerSurface || "HoloShell hardware-wrapper"}. Category: ${packet.category || "deterministic UX/receipt gap"}. Current rollback: ${rollback}.`,
       ].join(" "));
       appendConversation("I prepared a HoloMesh task packet from the receipt gap instead of pretending rollback is already safely executable.");
     }
@@ -3876,6 +3892,7 @@
       const dispatchSummary = agentDispatchSummary();
       const founderCommandSummaryData = founderCommandSummary();
       const founderEvidenceSummaryData = founderEvidenceDemoSummary();
+      const receiptControlSummaryData = receiptControlSummary();
       const founderEvidence = founderEvidenceDemoFeed();
       const founderEvidenceExecution = founderEvidence.execution || {};
       const founderEvidenceAfter = founderEvidenceExecution.afterState || {};
@@ -3932,6 +3949,7 @@
         `Legacy action bridge: ${summary.osUiActionBridgeStatus || "unknown"}`,
         `Founder command: ${founderCommandSummaryData.status || summary.founderCommandStatus || "unknown"}; ${founderCommandSummaryData.pipelineStepCount || summary.founderCommandPipelineStepCount || 0} pipeline; ${founderCommandSummaryData.workflowStepCount || summary.founderCommandWorkflowStepCount || 0} workflow steps; approvals ${founderCommandSummaryData.approvalCount || summary.founderCommandApprovalCount || 0}; execute ${founderCommandSummaryData.executionAllowed || summary.founderCommandExecutionAllowed ? "yes" : "no"}`,
         `Founder evidence: ${founderEvidenceSummaryData.status || summary.founderEvidenceDemoStatus || "unknown"}; target ${founderEvidenceSummaryData.targetLabel || summary.founderEvidenceDemoTargetLabel || "none"}; witness ${founderEvidenceSummaryData.visibleWitnessKind || founderEvidenceAfter.visibleWitnessKind || summary.founderEvidenceDemoVisibleWitnessKind || "none"}; visible ${founderEvidenceSummaryData.visibleShellChange || summary.founderEvidenceDemoVisibleShellChange ? "yes" : "no"}; rollback ${founderEvidenceExecution.rollback || "none"}`,
+        `Receipt controls: ${receiptControlSummaryData.status || summary.receiptControlStatus || "unknown"}; replay ${receiptControlSummaryData.replayAvailable || summary.receiptControlReplayAvailable ? "fresh approval" : "blocked"}; rollback ${receiptControlSummaryData.rollbackExecutable || summary.receiptControlRollbackExecutable ? "executable" : receiptControlSummaryData.rollbackBlockReason || summary.receiptControlRollbackBlockReason || "advisory"}; identity ${receiptControlSummaryData.exactTargetIdentityStatus || summary.receiptControlExactTargetIdentityStatus || "unknown"}`,
         `Dispatch: ${dispatchSummary.status || summary.agentDispatchStatus || "unknown"}; ${dispatchSummary.capabilityLabel || summary.agentDispatchCapabilityLabel || "none"}; route ${dispatchSummary.route || summary.agentDispatchRoute || "none"}; confidence ${dispatchSummary.confidence || summary.agentDispatchConfidence || 0}`,
         `Grok Build: ${grokSummary.status || summary.grokBuildSetupStatus || "unknown"}; CLI ${grokSummary.cliVersion || summary.grokBuildCliVersion || "unknown"}; operator ${grokSummary.operatorStatus || summary.grokBuildOperatorStatus || "unknown"}; auth ${grokSummary.authRuntimeStatus || summary.grokBuildAuthRuntimeStatus || grokSummary.authStatus || summary.grokBuildAuthStatus || "unknown"}; model ${grokSummary.modelStatus || summary.grokBuildModelStatus || "unknown"}; project ${grokSummary.projectTrustStatus || summary.grokBuildProjectTrustStatus || "unknown"}; Heavy ${grokSummary.heavyAccessStatus || grokBuildFeed().heavyUpgrade?.status || summary.grokBuildHeavyAccessStatus || "unknown"}`,
         `Grok heartbeat: ${grokHeartbeat.status || summary.grokHeartbeatStatus || "unknown"}; presence ${grokHeartbeat.agentPresenceStatus || summary.grokHeartbeatPresenceStatus || "unknown"}; operator ${grokHeartbeat.cliOperatorStatus || summary.grokHeartbeatCliOperatorStatus || "unknown"}; autonomy ${grokHeartbeat.autonomyStatus || summary.grokHeartbeatAutonomyStatus || "unknown"}; observation ${grokHeartbeat.latestObservationStatus || summary.grokHeartbeatObservationStatus || "none"}`,

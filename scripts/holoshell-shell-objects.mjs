@@ -1727,7 +1727,7 @@ function assetShardObjects({ shardWorkflow, shardImport }) {
   return objects;
 }
 
-function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, founderEvidenceDemo, workflow, workflowApproval, workflowIntentGate }) {
+function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, founderEvidenceDemo, receiptControl, workflow, workflowApproval, workflowIntentGate }) {
   const receipts = [];
   if (hardwareAction?.summary) {
     receipts.push({
@@ -1832,6 +1832,42 @@ function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, 
       detail: `Founder demo ${summary.status || 'unknown'}; ${summary.targetAction || 'action'} ${summary.targetLabel || 'target'}; rung ${summary.evidenceRung || 'unknown'}.`,
       firstScreen: true,
       layout: layout(20, 84),
+    });
+  }
+  if (receiptControl?.summary) {
+    const summary = receiptControl.summary;
+    receipts.push({
+      id: `receipt.control.${shortHash(receiptControl.receiptControlId || receiptControl.generatedAt || 'receipt-control')}`,
+      objectKind: 'receipt_control',
+      displayName: 'Receipt Controls',
+      sourceKind: 'receipt',
+      sourceRef: receiptControl.receiptControlId || '',
+      capabilityFamily: 'receipt_control',
+      trustState: summary.status === 'ready' ? 'verified' : 'partial',
+      permissionEnvelope: summary.rollbackExecutable ? 'guarded_execute' : 'read_only',
+      adapterPath: 'receipt_control',
+      visualForm: 'control_panel',
+      status: summary.status || 'unknown',
+      actorLaneId: 'brittney',
+      receiptTypes: ['receipt_control_receipt', 'founder_evidence_demo_receipt'],
+      relationships: {
+        sourceReceiptId: summary.sourceReceiptId || '',
+        targetLabel: summary.targetLabel || '',
+        targetUrl: summary.targetUrl || '',
+        replayAvailable: Boolean(summary.replayAvailable),
+        replayRequiresFreshApproval: Boolean(summary.replayRequiresFreshApproval),
+        rollbackExecutable: Boolean(summary.rollbackExecutable),
+        rollbackBlockReason: summary.rollbackBlockReason || '',
+        taskPacketReady: Boolean(summary.taskPacketReady),
+        exactTargetIdentityStatus: summary.exactTargetIdentityStatus || '',
+        visibleWitnessKind: summary.visibleWitnessKind || '',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'receipt_control_surface',
+      glyph: 'RC',
+      detail: `Receipt controls ${summary.status || 'unknown'} for ${summary.targetLabel || 'target'}; replay ${summary.replayAvailable ? 'available' : 'blocked'}; rollback ${summary.rollbackExecutable ? 'executable' : 'advisory'}.`,
+      firstScreen: true,
+      layout: layout(22, 86),
     });
   }
   if (workflow?.summary || workflowApproval?.summary || workflowIntentGate?.summary) {
@@ -2119,6 +2155,13 @@ function summarize(objects, feeds) {
     founderEvidenceDemoExecutionPerformed: Boolean(feeds.founderEvidenceDemo?.summary?.executionPerformed),
     founderEvidenceDemoVisibleShellChange: Boolean(feeds.founderEvidenceDemo?.summary?.visibleShellChange),
     founderEvidenceDemoVisibleWitnessKind: feeds.founderEvidenceDemo?.summary?.visibleWitnessKind || '',
+    receiptControlObjectCount: objects.filter((object) => object.capabilityFamily === 'receipt_control').length,
+    receiptControlStatus: feeds.receiptControl?.summary?.status || 'unknown',
+    receiptControlTargetLabel: feeds.receiptControl?.summary?.targetLabel || '',
+    receiptControlReplayAvailable: Boolean(feeds.receiptControl?.summary?.replayAvailable),
+    receiptControlRollbackExecutable: Boolean(feeds.receiptControl?.summary?.rollbackExecutable),
+    receiptControlTaskPacketReady: Boolean(feeds.receiptControl?.summary?.taskPacketReady),
+    receiptControlExactTargetIdentityStatus: feeds.receiptControl?.summary?.exactTargetIdentityStatus || '',
     formatInventoryStatus: feeds.formatInventory?.summary?.status || 'unknown',
     wildHoloScriptStatus: feeds.wildHoloScript?.summary?.status || 'unknown',
     wildHoloScriptFileCount: feeds.wildHoloScript?.summary?.fileCount || 0,
@@ -2164,6 +2207,7 @@ function summarize(objects, feeds) {
       trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
       accountTaskCustodyStatus: feeds.accountTaskCustody?.summary?.status || 'unknown',
       founderEvidenceDemoStatus: feeds.founderEvidenceDemo?.summary?.status || 'unknown',
+      receiptControlStatus: feeds.receiptControl?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
@@ -2201,6 +2245,7 @@ function loadFeeds(tmpDir) {
     hardwareApproval: readJson(path.join(dir, 'approval-latest.json'), {}),
     accountTaskCustody: readJson(path.join(dir, 'account-task-custody-latest.json'), {}),
     founderEvidenceDemo: readJson(path.join(dir, 'founder-evidence-demo-latest.json'), {}),
+    receiptControl: readJson(path.join(dir, 'receipt-control-latest.json'), {}),
     workflow: readJson(path.join(dir, 'workflow-latest.json'), {}),
     workflowApproval: readJson(path.join(dir, 'workflow-approval-latest.json'), {}),
     workflowIntentGate: readJson(path.join(dir, 'brain-intent-gate-latest.json'), {}),
@@ -2265,6 +2310,7 @@ function buildGraph(args, fixtures = null) {
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       accountTaskCustody: 'scripts/holoshell-account-task-custody.mjs',
       founderEvidenceDemo: 'scripts/holoshell-founder-evidence-demo.mjs',
+      receiptControl: 'scripts/holoshell-receipt-control.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
@@ -2814,6 +2860,26 @@ function fixtureFeeds() {
         afterWindowCount: 1,
       },
     },
+    receiptControl: {
+      schemaVersion: 'hololand.holoshell.receipt-control.v0.1.0',
+      receiptControlId: 'receipt-control-fixture',
+      generatedAt: new Date().toISOString(),
+      summary: {
+        status: 'ready',
+        sourceStatus: 'pending_user_approval',
+        sourceReceiptId: 'founder-demo-fixture',
+        targetLabel: 'example.com',
+        targetUrl: 'https://example.com/',
+        replayAvailable: true,
+        replayRequiresFreshApproval: true,
+        rollbackExecutable: false,
+        rollbackBlockReason: 'exact_browser_tab_identity_not_proved',
+        taskPacketReady: true,
+        controlCount: 4,
+        exactTargetIdentityStatus: 'not_proved',
+        visibleWitnessKind: 'browser_navigation_dispatched',
+      },
+    },
     trustLedger: {
       schemaVersion: 'hololand.holoshell.trust-ledger.v0.1.0',
       latestAction: { fingerprint: 'trust-fixture', actionKind: 'launch_app', targetLabel: 'Excel' },
@@ -2952,6 +3018,10 @@ function assertSelfTest() {
   if (graph.summary.founderEvidenceDemoEvidenceRung !== 'visible_shell_ux') failures.push('expected founder evidence demo evidence rung');
   if (!graph.summary.founderEvidenceDemoExecutionAllowed) failures.push('expected founder evidence demo execution allowance');
   if (graph.summary.founderEvidenceDemoExecutionPerformed) failures.push('expected founder evidence demo execution to remain unperformed');
+  if (!graph.objects.some((object) => object.displayName === 'Receipt Controls' && object.relationships?.replayRequiresFreshApproval)) failures.push('expected receipt control object with fresh replay approval');
+  if (graph.summary.receiptControlStatus !== 'ready') failures.push('expected receipt control ready status');
+  if (!graph.summary.receiptControlReplayAvailable) failures.push('expected receipt control replay available');
+  if (graph.summary.receiptControlRollbackExecutable) failures.push('expected receipt control rollback to remain advisory');
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');

@@ -208,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -659,6 +659,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (receiptControl?.summary) {
+    timeline.push({
+      id: receiptControl.receiptControlId || 'holoshell-receipt-control',
+      kind: 'receipt_control',
+      title: `Receipt control ${receiptControl.summary.status || 'unknown'}`,
+      detail: `${receiptControl.summary.controlCount || 0} control(s) for ${receiptControl.summary.targetLabel || 'receipt'}; replay ${receiptControl.summary.replayRequiresFreshApproval ? 'fresh approval' : 'not guarded'}; rollback ${receiptControl.summary.rollbackExecutable ? 'executable' : receiptControl.summary.rollbackBlockReason || 'advisory'}.`,
+      trustState: receiptControl.summary.status === 'ready' ? 'verified' : 'partial',
+      generatedAt: receiptControl.generatedAt || now,
+      receiptType: receiptControl.schemaVersion,
+      source: receiptControl.sourceAnchors?.adapter || 'scripts/holoshell-receipt-control.mjs',
+    });
+  }
+
   if (hardwareAction?.summary) {
     timeline.push({
       id: hardwareAction.actionId || 'hardware-action',
@@ -930,6 +943,7 @@ function createFeed(args) {
   const operatingTurn = readJson(path.join(tmpDir, 'operating-turn.json'), {});
   const founderCommand = readJson(path.join(tmpDir, 'founder-command-latest.json'), {});
   const founderEvidenceDemo = readJson(path.join(tmpDir, 'founder-evidence-demo-latest.json'), {});
+  const receiptControl = readJson(path.join(tmpDir, 'receipt-control-latest.json'), {});
   const agentDispatch = readJson(path.join(tmpDir, 'agent-dispatch-latest.json'), {});
   const grokBuild = readJson(path.join(tmpDir, 'grok-build-setup.json'), {});
   const grokHeartbeat = readJson(path.join(tmpDir, 'grok-heartbeat.json'), {});
@@ -988,6 +1002,7 @@ function createFeed(args) {
     operatingTurn,
     founderCommand,
     founderEvidenceDemo,
+    receiptControl,
     agentDispatch,
     grokBuild,
     grokHeartbeat,
@@ -1090,6 +1105,7 @@ function createFeed(args) {
       developmentalEnvironment: 'scripts/holoshell-developmental-environment.mjs',
       founderCommand: 'scripts/holoshell-founder-command.mjs',
       founderEvidenceDemo: 'scripts/holoshell-founder-evidence-demo.mjs',
+      receiptControl: 'scripts/holoshell-receipt-control.mjs',
       agentDispatch: 'scripts/holoshell-agent-dispatch.mjs',
       grokBuildWorkflow: 'scripts/holoshell-grok-build-workflow.mjs',
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
@@ -1391,6 +1407,13 @@ function createFeed(args) {
       founderEvidenceDemoExecutionPerformed: Boolean(founderEvidenceDemo?.summary?.executionPerformed),
       founderEvidenceDemoVisibleShellChange: Boolean(founderEvidenceDemo?.summary?.visibleShellChange),
       founderEvidenceDemoVisibleWitnessKind: founderEvidenceDemo?.summary?.visibleWitnessKind || '',
+      receiptControlStatus: receiptControl?.summary?.status || 'unknown',
+      receiptControlTargetLabel: receiptControl?.summary?.targetLabel || '',
+      receiptControlReplayAvailable: Boolean(receiptControl?.summary?.replayAvailable),
+      receiptControlRollbackExecutable: Boolean(receiptControl?.summary?.rollbackExecutable),
+      receiptControlRollbackBlockReason: receiptControl?.summary?.rollbackBlockReason || '',
+      receiptControlTaskPacketReady: Boolean(receiptControl?.summary?.taskPacketReady),
+      receiptControlExactTargetIdentityStatus: receiptControl?.summary?.exactTargetIdentityStatus || '',
       agentDispatchStatus: agentDispatch?.summary?.status || 'unknown',
       agentDispatchCapabilityId: agentDispatch?.summary?.capabilityId || '',
       agentDispatchCapabilityLabel: agentDispatch?.summary?.capabilityLabel || '',
@@ -1572,6 +1595,7 @@ function createFeed(args) {
       operatingTurn,
       founderCommand,
       founderEvidenceDemo,
+      receiptControl,
       agentDispatch,
       grokBuild,
       grokHeartbeat,
@@ -1627,6 +1651,8 @@ function assertSelfTest(feed) {
   if (feed.summary.programRegistryStatus === 'unknown') failures.push('expected program registry feed');
   if (feed.summary.hardwareApprovalStatus === 'unknown') failures.push('expected hardware approval feed');
   if (feed.summary.developmentalEnvironmentStatus === 'unknown') failures.push('expected developmental environment feed');
+  if (feed.summary.receiptControlStatus === 'unknown') failures.push('expected receipt control feed');
+  if (!feed.summary.receiptControlReplayAvailable) failures.push('expected receipt control replay availability');
   if (!Array.isArray(feed.timeline) || feed.timeline.length < 3) failures.push('expected linked timeline');
   if (!Array.isArray(feed.stopPlans)) failures.push('expected stop plan array');
   if (failures.length) {

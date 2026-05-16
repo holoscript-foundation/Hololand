@@ -1,0 +1,111 @@
+// HoloShell Receipt Control
+//
+// Source contract for turning a visible receipt into deterministic controls.
+// The UI may present replay, inspect, rollback, and task-packet buttons, but
+// this source owns the policy: replay mints a fresh approval, rollback stays
+// advisory until exact target identity is proved, and every control has a
+// local receipt.
+
+composition "HoloShell Receipt Control" {
+  config {
+    title: "HoloShell Receipt Control"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeScript: "scripts/holoshell-receipt-control.mjs"
+    sourceReceipt: ".tmp/holoshell/founder-evidence-demo-latest.json"
+    latestReceiptControl: ".tmp/holoshell/receipt-control-latest.json"
+    receiptControlDir: ".tmp/holoshell/receipt-control-receipts"
+    browserBootstrap: ".tmp/holoshell/receipt-control-latest.js"
+    controlDaemonReplayRoute: "POST /action"
+  }
+
+  state {
+    status: "unknown"
+    receiptControlId: ""
+    sourceReceiptId: ""
+    sourceStatus: "unknown"
+    targetLabel: ""
+    targetUrl: ""
+    visibleWitnessKind: ""
+    exactTargetIdentityStatus: "not_proved"
+    replayAvailable: false
+    rollbackExecutable: false
+    rollbackBlockReason: "exact_target_identity_not_proved"
+    taskPacketReady: false
+    controlCount: 0
+  }
+
+  channel "holoshell:receipt-control:source" {
+    type: "request_response"
+    priority: "critical"
+    description: "Receipt selected as an operating surface"
+  }
+
+  channel "holoshell:receipt-control:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipt-control summary for replay, inspect, rollback, and task filing"
+  }
+
+  template "ReceiptControlReceipt" {
+    type: "receipt_control_receipt"
+    receiptType: "hololand.holoshell.receipt-control.v0.1.0"
+    receiptControlId: ""
+    sourceReceiptId: ""
+    status: "ready"
+    targetLabel: ""
+    replayRequiresFreshApproval: true
+    rollbackExecutable: false
+    rollbackBlockReason: "exact_target_identity_not_proved"
+    taskPacketReady: true
+    receiptRequired: true
+  }
+
+  policy "ReplayRequiresFreshApproval" {
+    appliesTo: ["receipt_replay"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    reusePriorApproval: false
+    receiptRequired: true
+  }
+
+  policy "RollbackRequiresExactIdentity" {
+    appliesTo: ["receipt_rollback"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    executableOnlyWhen: "exact_target_identity_proved"
+    fallback: "manual_guidance"
+    receiptRequired: true
+  }
+
+  action apply_receipt_control(receipt) {
+    state.status = receipt.summary.status
+    state.receiptControlId = receipt.receiptControlId
+    state.sourceReceiptId = receipt.source.receiptId
+    state.sourceStatus = receipt.source.status
+    state.targetLabel = receipt.target.label
+    state.targetUrl = receipt.target.url
+    state.visibleWitnessKind = receipt.target.visibleWitnessKind
+    state.exactTargetIdentityStatus = receipt.target.exactIdentity.status
+    state.replayAvailable = receipt.summary.replayAvailable
+    state.rollbackExecutable = receipt.summary.rollbackExecutable
+    state.rollbackBlockReason = receipt.rollbackIntent.blockReason
+    state.taskPacketReady = receipt.summary.taskPacketReady
+    state.controlCount = receipt.summary.controlCount
+
+    emit("holoshell:receipt-control:receipt", {
+      action: "receipt_control_applied",
+      receipt_control_id: state.receiptControlId,
+      source_receipt_id: state.sourceReceiptId,
+      status: state.status,
+      target_label: state.targetLabel,
+      visible_witness_kind: state.visibleWitnessKind,
+      exact_identity_status: state.exactTargetIdentityStatus,
+      replay_available: state.replayAvailable,
+      rollback_executable: state.rollbackExecutable,
+      rollback_block_reason: state.rollbackBlockReason,
+      task_packet_ready: state.taskPacketReady,
+      receipt_required: true
+    })
+  }
+}
