@@ -13,6 +13,7 @@ composition "HoloShellSlowComputerClinicPolicy" {
     cleanupCandidateCount: 4
     stopPlanCount: 4
     processTerminationPerformed: false
+    afterActionVerificationCount: 0
     receiptsCaptured: 2
     blockers: []
     currentLane: "codex-hardware"
@@ -33,6 +34,16 @@ composition "HoloShellSlowComputerClinicPolicy" {
     replayable: true
     rawCommandLinesHiddenByDefault: true
     processTerminationPerformed: false
+  }
+
+  template "RemediationVerificationReceipt" using "SlowComputerReceipt" {
+    receiptType: "slow_computer_remediation_verification_receipt"
+    exactPidRequired: true
+    approvalCaptured: true
+    beforePidVisible: true
+    afterPidVisible: false
+    fixtureOnly: true
+    externalProcessTerminationAllowed: false
   }
 
   policy "ReadOnlyDiagnosis" using "PermissionEnvelope" {
@@ -138,6 +149,21 @@ composition "HoloShellSlowComputerClinicPolicy" {
       receipt: receipt,
       count: ClinicState.receiptsCaptured,
       processTerminationPerformed: ClinicState.processTerminationPerformed
+    })
+  }
+
+  action recordRemediationVerification(receipt) {
+    ClinicState.afterActionVerificationCount = ClinicState.afterActionVerificationCount + 1
+    ClinicState.processTerminationPerformed = receipt.summary.terminationPerformed
+    emit("holoshell:slow_computer:remediation_verified", {
+      workflow: ClinicState.selectedWorkflow,
+      lane: ClinicState.currentLane,
+      targetPid: receipt.summary.targetPid,
+      status: receipt.summary.status,
+      approvalCaptured: receipt.summary.approvalCaptured,
+      terminationPerformed: receipt.summary.terminationPerformed,
+      afterVisible: receipt.summary.afterVisible,
+      receiptHash: receipt.witness.receiptHash
     })
   }
 

@@ -32,6 +32,24 @@ Human job: "My computer feels slow. Show what is using hardware, what is safe to
 
 No process was stopped. No file was deleted. The clinic remains read-only plus guarded plans.
 
+## Guarded Remediation Fixture
+
+Follow-up run added a safe exact-PID remediation fixture:
+
+- Fixture source: `experiments/holoshell-human-os-frontier/slow-computer-clinic-remediation-fixture.mjs`
+- Receipt: `.bench-logs/holoshell-human-os-frontier/2026-05-16/slow-computer-remediation-fixture-receipt.json`
+- Receipt schema: `hololand.holoshell.slow-computer-remediation-fixture.v0.1.0`
+- Target PID: `44900`
+- Status: `verified`
+- Approval captured: `true`
+- Termination performed: `true`
+- After visible: `false`
+- External process termination allowed: `false`
+- Source files mutated by fixture: `false`
+- Receipt hash: `ab0638dfe3f667bb4f6d9a6d40e5235ec2758d0358f995b4a304695c8735b7dd`
+
+Only the fixture-spawned disposable process was terminated. This upgrades the clinic from read-only diagnosis to guarded remediation without touching user or peer-agent processes.
+
 ## .holo Concept
 
 Prototype: `experiments/holoshell-human-os-frontier/slow-computer-clinic-room.holo`
@@ -54,6 +72,7 @@ Policy and state machine:
 - `ReadOnlyDiagnosis`: process scan, hardware audit, run registry read, classification, owner attribution.
 - `GuardedClinicPlan`: stage stop plans, ask owner lanes, mark stale runs, write report, file tasks.
 - `BreakGlassTermination`: stop/kill/close/delete actions require explicit approval, exact PID, reason, and receipt.
+- `RemediationVerificationReceipt`: captures exact PID, approval, before/after visibility, fixture-only safety, and no external termination allowance.
 - `ClinicWorkflow`: scan -> classify -> explain -> handoff or stop plan -> approve -> remediate -> verify.
 
 ## .hs Concept
@@ -65,6 +84,7 @@ Data flow:
 - Reads process health, hardware audit, and optional run registry receipts.
 - Normalizes hardware vitals and ownership plans.
 - Validates read-only receipt and termination safety contracts.
+- Validates remediation verification receipts for exact PID, approval, termination, and post-action invisibility.
 - Emits human explanation cards, owner handoff cards, guarded stop cards, evidence pack, and task seeds.
 
 ## Multi-Agent Hardware Orchestration
@@ -98,6 +118,8 @@ HoloShell makes work legible by turning each backstage process into either a vis
 3. HoloMesh board operations returned `502 Application failed to respond`, blocking task closure and new task filing from this run.
 4. Browser hardware audit produced a browser-version warning even though DOM/WebGPU/WebXR probes passed; HoloShell should surface that as "probe warning, capability still available."
 
+Follow-up update: gap 2 now has a fixture-level prototype. The remaining production gap is wiring the same before/after receipt contract to non-fixture, user-approved stop plans.
+
 ## Task Seeds
 
 Local seed file: `.bench-logs/holoshell-human-os-frontier/2026-05-16/slow-computer-clinic-holomesh-tasks.json`
@@ -118,4 +140,4 @@ Live HoloMesh task filing was attempted but blocked by 502 board responses.
 
 ## Next Workflow
 
-Push the clinic from read-only diagnosis into guarded remediation: stage one exact PID stop plan, require human approval, execute only in a safe fixture or deliberately selected stale process, then verify before/after receipts.
+Push the clinic from fixture-only remediation into production guarded remediation: require a real human approval gesture, owner-lane acknowledgement when applicable, exact PID re-check immediately before stop, and before/after receipts before marking a remediation complete.

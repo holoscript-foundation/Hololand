@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "hololand.holoshell.slow-computer-remediation-fixture.v0.1.0",
+  "generatedAt": "2026-05-16T10:11:00.330Z",
+  "sourceAnchors": {
+    "room": "experiments/holoshell-human-os-frontier/slow-computer-clinic-room.holo",
+    "policy": "experiments/holoshell-human-os-frontier/slow-computer-clinic-policy.hsplus",
+    "pipeline": "experiments/holoshell-human-os-frontier/slow-computer-clinic-pipeline.hs",
+    "fixture": "experiments/holoshell-human-os-frontier/slow-computer-clinic-remediation-fixture.mjs"
+  },
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26200"
+  },
+  "before": {
+    "pid": 44900,
+    "visible": true,
+    "ownerLane": "codex-hardware",
+    "fixtureOnly": true,
+    "commandLineIncluded": false,
+    "commandClass": "node_fixture_sleep_loop"
+  },
+  "stopPlan": {
+    "planId": "clinic-stop-mp86rjb2-68abc4d4",
+    "operation": "stop_process",
+    "targetPid": 44900,
+    "exactPidRequired": true,
+    "ownerLaneRequired": true,
+    "ownerLane": "codex-hardware",
+    "reason": "slow-computer-clinic guarded remediation fixture",
+    "automaticTerminationAllowed": false,
+    "approvalRequired": true,
+    "breakGlass": true,
+    "allowedBecause": "process was spawned by this fixture run and is recorded as disposable",
+    "refusedTargetPolicy": "refuse_any_pid_not_spawned_by_this_process"
+  },
+  "approval": {
+    "approvalId": "clinic-approval-mp86rjb3-0211c367",
+    "approved": true,
+    "approvedAt": "2026-05-16T10:11:00.351Z",
+    "approvedBy": "fixture_user_gesture",
+    "approvalSurface": "slow_computer_clinic_fixture",
+    "approvalText": "Approve stopping disposable fixture PID 44900"
+  },
+  "execution": {
+    "attempted": true,
+    "performed": true,
+    "method": "SIGTERM",
+    "exitCode": null,
+    "signal": "SIGTERM",
+    "error": ""
+  },
+  "after": {
+    "pid": 44900,
+    "visible": false,
+    "verifiedAt": "2026-05-16T10:11:00.360Z",
+    "processTerminated": true
+  },
+  "safety": {
+    "fixtureOnly": true,
+    "targetSpawnedByThisProcess": true,
+    "externalProcessTerminationAllowed": false,
+    "rawCommandLinesCaptured": false,
+    "sourceFilesMutated": false,
+    "rollback": "fixture process exits; no user process or file state is modified"
+  },
+  "summary": {
+    "status": "verified",
+    "targetPid": 44900,
+    "approvalRequired": true,
+    "approvalCaptured": true,
+    "terminationPerformed": true,
+    "afterVisible": false
+  },
+  "witness": {
+    "beforeHash": "4263aa7bc4b999802ffa74121c2106633ae84370d1bbe0822536354211ac761a",
+    "stopPlanHash": "0211c3670cdcb9e7e8f583e80fb3224704ef44a2faa2bd899150fe5c6c0c7686",
+    "approvalHash": "d3758f67ca28109525255e943ad355a02f66aa35cf1eac920f009054b4d6871c",
+    "afterHash": "469749ea5ac2c489bc34b358792e03134c090fb29a9e89e84dcd4f448b49cb8b",
+    "receiptHash": "ab0638dfe3f667bb4f6d9a6d40e5235ec2758d0358f995b4a304695c8735b7dd"
+  }
+}

@@ -29,6 +29,14 @@ pipeline "HoloShellSlowComputerClinicPipeline" {
     optional: true
   }
 
+  source RemediationVerificationReceipt {
+    type: "filesystem"
+    path: "${input.remediation_verification_receipt}"
+    format: "json"
+    mode: "read_only"
+    optional: true
+  }
+
   transform HardwareVitals {
     riskState -> riskState
     processCount -> processCount
@@ -59,11 +67,20 @@ pipeline "HoloShellSlowComputerClinicPipeline" {
     receiptRequired : required, true
   }
 
+  validate RemediationVerificationContract {
+    exactPidRequired : required, true
+    approvalCaptured : required, true
+    terminationPerformed : required, true
+    afterVisible : required, false
+    externalProcessTerminationAllowed : required, false
+  }
+
   transform HumanExplanation {
     riskState -> headline
     recommendations -> visibleFindings
     ownerHandoffPlans -> ownerHandoffCards
     stopPlans -> guardedStopCards
+    remediationReceipt -> afterActionReceipt
   }
 
   filter NeedsOwnerHandoff {
