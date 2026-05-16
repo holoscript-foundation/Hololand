@@ -1871,4 +1871,3 @@ composition "HoloShell Home" {
       rollback: receipt.rollback || "unknown"
     })
   }
-}
