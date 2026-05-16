@@ -364,6 +364,12 @@ snapshot, but `schemaContract.validationStatus` becomes `unavailable` and
 
 ## Local Checks
 
+Single HoloShell source guard from the HoloLand repo:
+
+```powershell
+pnpm run holoshell:source-validation
+```
+
 From the HoloScript repo:
 
 ```powershell

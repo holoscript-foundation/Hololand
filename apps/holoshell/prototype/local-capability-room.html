@@ -703,6 +703,127 @@
       font-size: 12px;
     }
 
+    .operating-turn {
+      position: absolute;
+      left: clamp(12px, 4vw, 34px);
+      right: clamp(12px, 4vw, 34px);
+      top: 150px;
+      z-index: 2;
+      min-height: 156px;
+      display: grid;
+      grid-template-columns: minmax(160px, 1.15fr) repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+      border-radius: 22px;
+      padding: 10px;
+      background: rgba(4, 8, 12, 0.34);
+      backdrop-filter: blur(18px) saturate(1.25);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+      cursor: pointer;
+    }
+
+    .operating-turn[data-state="warn"],
+    .operating-turn[data-state="guarded"],
+    .operating-turn[data-state="pending_user_approval"] {
+      border-color: color-mix(in srgb, var(--accent-2) 48%, transparent);
+    }
+
+    .turn-primary,
+    .turn-cell {
+      min-width: 0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.065);
+      color: var(--soft);
+    }
+
+    .turn-primary {
+      grid-row: span 2;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+      padding: 11px;
+    }
+
+    .turn-cell {
+      min-height: 64px;
+      display: grid;
+      gap: 4px;
+      align-content: space-between;
+      padding: 8px;
+    }
+
+    .turn-cell[data-state="pass"],
+    .turn-cell[data-state="ready"],
+    .turn-cell[data-state="trusted"] {
+      border-color: color-mix(in srgb, var(--accent) 48%, transparent);
+    }
+
+    .turn-cell[data-state="fail"],
+    .turn-cell[data-state="blocked"],
+    .turn-cell[data-state="critical"] {
+      border-color: color-mix(in srgb, var(--accent-2) 72%, transparent);
+      background: color-mix(in srgb, var(--accent-2) 12%, rgba(255, 255, 255, 0.05));
+    }
+
+    .turn-kicker,
+    .turn-cell em {
+      color: var(--muted);
+      font-size: 10px;
+      font-style: normal;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .turn-title,
+    .turn-cell strong,
+    .turn-cell small {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .turn-title {
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .turn-detail {
+      color: var(--soft);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .turn-cell strong {
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.1;
+    }
+
+    .turn-cell small {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .turn-progress {
+      height: 4px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .turn-progress span {
+      display: block;
+      height: 100%;
+      width: var(--value);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+
     .control-step {
       min-height: 78px;
       border: 1px solid rgba(255, 255, 255, 0.13);
@@ -1022,7 +1143,7 @@
       }
 
       .os-world {
-        min-height: 600px;
+        min-height: 640px;
       }
 
       .context-panel,
@@ -1062,7 +1183,7 @@
       }
 
       .os-world {
-        min-height: 760px;
+        min-height: 840px;
       }
 
       .demo-command {
@@ -1086,8 +1207,26 @@
         white-space: normal;
       }
 
+      .operating-turn {
+        top: 202px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        min-height: 0;
+      }
+
+      .turn-primary {
+        grid-row: auto;
+        grid-column: 1 / -1;
+      }
+
+      .turn-title,
+      .turn-cell strong,
+      .turn-cell small {
+        white-space: normal;
+      }
+
       .control-lane {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(5, minmax(88px, 1fr));
+        overflow-x: auto;
       }
 
       .bubble {
@@ -1111,7 +1250,9 @@
     }
   </style>
   <script src="../../../.tmp/holoshell/live-feed.js"></script>
+  <script src="../../../.tmp/holoshell/operating-turn.js"></script>
   <script src="../../../.tmp/holoshell/readiness-evidence.js"></script>
+  <script src="../../../.tmp/holoshell/source-validation.js"></script>
   <script src="../../../.tmp/holoshell/program-registry.js"></script>
   <script src="../../../.tmp/holoshell/shell-objects.js"></script>
   <script src="../../../.tmp/holoshell/wild-holoscript-intake.js"></script>
@@ -1213,6 +1354,7 @@
           </span>
           <em id="networkGuardAction">Receipts</em>
         </button>
+        <div class="operating-turn" id="operatingTurn" role="button" tabindex="0" data-state="unknown" aria-label="Current HoloShell operating turn"></div>
         <div class="bubble-field" id="bubbleField" aria-label="Shell objects"></div>
         <div class="control-lane" id="controlLane" aria-label="Hardware control pipeline"></div>
       </section>
@@ -1269,6 +1411,8 @@
     const standaloneGoldCodebaseBridgeFeed = window.HOLOSHELL_HOLOSCRIPT_GOLD_CODEBASE_BRIDGE || {};
     const standaloneFounderBootFeed = window.HOLOSHELL_FOUNDER_BOOT_PREVIEW || {};
     const standaloneFounderCommandFeed = window.HOLOSHELL_FOUNDER_COMMAND || {};
+    const standaloneOperatingTurnFeed = window.HOLOSHELL_OPERATING_TURN || {};
+    const standaloneSourceValidationFeed = window.HOLOSHELL_SOURCE_VALIDATION || {};
     const standaloneUserShellFeed = window.HOLOSHELL_USER_SHELL_PROJECTION || {};
     const standaloneDevelopmentalEnvironmentFeed = window.HOLOSHELL_DEVELOPMENTAL_ENVIRONMENT || {};
     const standaloneBrittneyContextFeed = window.HOLOSHELL_BRITTNEY_CONTEXT || {};
@@ -1732,6 +1876,24 @@
       return command.summary || {};
     }
 
+    function operatingTurnFeed() {
+      return feed.feeds?.operatingTurn?.summary ? feed.feeds.operatingTurn : standaloneOperatingTurnFeed;
+    }
+
+    function operatingTurnSummary() {
+      const turn = operatingTurnFeed();
+      return turn.summary || {};
+    }
+
+    function sourceValidationFeed() {
+      return feed.feeds?.sourceValidation?.summary ? feed.feeds.sourceValidation : standaloneSourceValidationFeed;
+    }
+
+    function sourceValidationSummary() {
+      const validation = sourceValidationFeed();
+      return validation.summary || {};
+    }
+
     function userShellFeed() {
       return feed.feeds?.userShellProjection?.summary ? feed.feeds.userShellProjection : standaloneUserShellFeed;
     }
@@ -2012,6 +2174,7 @@
       } catch {
         controlDaemonHealth = { status: "offline", executeEnabled: false };
         renderApprovalReview(currentSelectedObject());
+        renderOperatingTurn();
       }
     }
 
@@ -3142,6 +3305,126 @@
       }));
     }
 
+    function turnState(value) {
+      const state = String(value || "unknown");
+      if (["pass", "ready", "matched", "trusted", "completed", "executed"].includes(state)) return "pass";
+      if (["fail", "blocked", "critical", "error"].includes(state)) return "fail";
+      if (["warn", "guarded", "pending_user_approval", "partial"].includes(state)) return "warn";
+      return state;
+    }
+
+    function turnPercent(numerator, denominator, fallback = 0.78) {
+      const top = Number(numerator);
+      const bottom = Number(denominator);
+      if (Number.isFinite(top) && Number.isFinite(bottom) && bottom > 0) {
+        return Math.max(0, Math.min(100, Math.round((top / bottom) * 100)));
+      }
+      return Math.round(fallback * 100);
+    }
+
+    function turnCell(label, value, detail, state) {
+      const cell = document.createElement("div");
+      cell.className = "turn-cell";
+      cell.dataset.state = turnState(state);
+      const kicker = document.createElement("em");
+      kicker.textContent = label;
+      const strong = document.createElement("strong");
+      strong.textContent = value || "unknown";
+      const small = document.createElement("small");
+      small.textContent = detail || "receipt";
+      cell.append(kicker, strong, small);
+      cell.title = `${label}: ${strong.textContent}; ${small.textContent}`;
+      return cell;
+    }
+
+    function renderOperatingTurn() {
+      const panel = document.getElementById("operatingTurn");
+      if (!panel) return;
+      const summary = feed.summary || {};
+      const turn = operatingTurnSummary();
+      const founder = founderCommandSummary();
+      const dispatch = agentDispatchSummary();
+      const approval = workflowApprovalSummary();
+      const gate = workflowIntentGateSummary();
+      const trust = trustLedgerSummary();
+      const context = brittneyContextSummary();
+      const source = sourceValidationSummary();
+      const workflow = workflowSummary();
+
+      const stepCount = turn.stepCount || summary.operatingTurnStepCount || 0;
+      const passedStepCount = turn.passedStepCount || summary.operatingTurnPassedStepCount || 0;
+      const sourceCount = source.fileCount || source.validationCount || 0;
+      const sourcePass = source.passCount || source.passedCount || 0;
+      const sourceStatus = source.status || summary.sourceValidationStatus || "unknown";
+      const approvalPending = approval.pendingApprovalCount || summary.activeWorkflowApprovalPendingCount || workflow.pendingApprovalCount || summary.activeWorkflowPendingApprovalCount || 0;
+      const approvalReady = Boolean((founder.executionAllowed || summary.founderCommandExecutionAllowed || approval.executionAllowed || summary.activeWorkflowApprovalExecutionAllowed) && (gate.executionAllowed || summary.activeWorkflowIntentGateExecutionAllowed));
+      const executeReady = Boolean(approvalReady && controlDaemonHealth.status === "online" && controlDaemonHealth.executeEnabled);
+      const trustLevel = trust.latestTrustLevel || summary.trustedAutonomyLatestLevel || "guarded";
+      const confidence = normalizeConfidence(founder.confidence || summary.founderCommandConfidence || dispatch.confidence || summary.agentDispatchConfidence || 0.84);
+      const turnStatus = founder.status || summary.founderCommandStatus || turn.status || summary.operatingTurnStatus || "guarded";
+
+      const primary = document.createElement("div");
+      primary.className = "turn-primary";
+      const kicker = document.createElement("div");
+      kicker.className = "turn-kicker";
+      kicker.textContent = "Operating Turn";
+      const title = document.createElement("div");
+      title.className = "turn-title";
+      title.textContent = executeReady ? "Ready to execute" : approvalReady ? "Approval ready" : `${turnStatus}`.replaceAll("_", " ");
+      const detail = document.createElement("div");
+      detail.className = "turn-detail";
+      detail.textContent = `${passedStepCount}/${stepCount || "?"} local checks; source ${sourceStatus}; daemon ${controlDaemonHealth.status || "offline"}.`;
+      const progress = document.createElement("div");
+      progress.className = "turn-progress";
+      const progressFill = document.createElement("span");
+      progressFill.style.setProperty("--value", `${stepCount ? turnPercent(passedStepCount, stepCount) : Math.round(confidence * 100)}%`);
+      progress.append(progressFill);
+      primary.append(kicker, title, detail, progress);
+
+      const cells = [
+        turnCell(
+          "Intent",
+          dispatch.capabilityLabel || summary.agentDispatchCapabilityLabel || "Founder command",
+          `${Math.round(confidence * 100)}% confidence`,
+          dispatch.status || founder.dispatchStatus || summary.agentDispatchStatus || "ready"
+        ),
+        turnCell(
+          "Approval",
+          approvalPending ? `${approvalPending} pending` : approval.status || summary.activeWorkflowApprovalStatus || "guarded",
+          approvalReady ? "approval + gate ready" : `gate ${gate.status || summary.activeWorkflowIntentGateStatus || "unknown"}`,
+          approval.status || summary.activeWorkflowApprovalStatus || "guarded"
+        ),
+        turnCell(
+          "Trust",
+          trustLevel,
+          trust.trustedAutonomyEligible || summary.trustedAutonomyEligible ? "eligible" : `${trust.successesUntilTrusted ?? summary.trustedAutonomySuccessesUntilTrusted ?? 0} to trusted`,
+          trustLevel
+        ),
+        turnCell(
+          "Launcher",
+          controlDaemonHealth.executeEnabled ? "Execute enabled" : "Stage only",
+          `${workflow.stepCount || summary.activeWorkflowStepCount || founder.workflowStepCount || 0} workflow steps`,
+          controlDaemonHealth.executeEnabled ? "ready" : "guarded"
+        ),
+        turnCell(
+          "Context",
+          `${context.peerWindowCount || summary.brittneyContextPeerWindowCount || 0} peers`,
+          `${context.shellWindowCount || summary.brittneyContextShellWindowCount || 0} shell; process ${context.processRisk || summary.brittneyContextProcessRisk || "unknown"}`,
+          context.status || summary.brittneyContextStatus || "unknown"
+        ),
+        turnCell(
+          "Source",
+          sourceCount ? `${sourcePass}/${sourceCount} pass` : ".holo/.hs/.hsplus",
+          sourceStatus === "pass" ? "HoloScript guard green" : "validate source set",
+          sourceStatus
+        ),
+      ];
+
+      panel.dataset.state = executeReady ? "ready" : approvalReady ? "guarded" : turnState(turnStatus);
+      panel.replaceChildren(primary, ...cells);
+      panel.title = "Founder command: intent, approval, trust, launcher, context, and source guard.";
+    }
+
     function renderBubbles() {
       const field = document.getElementById("bubbleField");
       field.replaceChildren(...shellObjects().map((object, index) => {
@@ -3296,6 +3579,7 @@
       renderNetworkGuard();
       renderHardwareApprovalCue();
       renderControlLane();
+      renderOperatingTurn();
     }
 
     function setSkin(skin) {
@@ -3394,6 +3678,17 @@
     document.getElementById("networkGuard").addEventListener("click", () => {
       const object = shellObjects().find((item) => item.id === "network-reality");
       if (object) selectObject(object);
+    });
+    document.getElementById("operatingTurn").addEventListener("click", () => {
+      const object = shellObjects().find((item) => item.id === "founder-command");
+      if (object) selectObject(object);
+    });
+    document.getElementById("operatingTurn").addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        const object = shellObjects().find((item) => item.id === "founder-command");
+        if (object) selectObject(object);
+      }
     });
     document.getElementById("approvalChip").addEventListener("click", () => {
       const targetObject = document.getElementById("approvalChip").dataset.object || "hardware-control";

@@ -1,0 +1,81 @@
+// HoloShell Source Validation Guard
+//
+// HoloShell is not allowed to drift back into HTML-only prototype behavior. This
+// contract keeps the Founder shell source set parseable as .holo, .hs, and
+// .hsplus before the browser projection claims an OS turn is ready.
+
+composition "HoloShell Source Validation Guard" {
+  config {
+    title: "HoloShell Source Validation Guard"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-source-validation.mjs"
+    sourceRoot: "apps/holoshell/source"
+    latestReceipt: ".tmp/holoshell/source-validation.json"
+    latestBootstrap: ".tmp/holoshell/source-validation.js"
+  }
+
+  state {
+    status: "unknown"
+    fileCount: 0
+    passCount: 0
+    failCount: 0
+    holoCount: 0
+    hsCount: 0
+    hsplusCount: 0
+    lastValidationHash: ""
+  }
+
+  channel "holoshell:source:validation" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Whole-source HoloScript parser guard for HoloShell"
+  }
+
+  template "SourceValidationReceipt" {
+    type: "source_validation_receipt"
+    receiptType: "hololand.holoshell.source-validation.v0.1.0"
+    validatesExtensions: [".holo", ".hs", ".hsplus"]
+    failOnAnyInvalidSource: true
+    rawCommandsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "WholeSourceSetMustParse" {
+    appliesTo: ["founder_shell_boot", "operating_turn", "browser_projection", "source_guard"]
+    requiredFormats: [".holo", ".hs", ".hsplus"]
+    parserSourceOfTruth: "HoloScript CLI"
+    failureBlocksReadinessClaim: true
+    receiptRequired: true
+  }
+
+  policy "BrowserProjectionIsNotSource" {
+    appliesTo: ["local_capability_room_html", "prototype_visual_surface"]
+    sourceRequiredBeforeProjection: true
+    htmlIsProjectionOnly: true
+    typescriptBridgeOnly: true
+    receiptRequired: true
+  }
+
+  action consume_source_validation(receipt) {
+    state.status = receipt.summary.status
+    state.fileCount = receipt.summary.fileCount
+    state.passCount = receipt.summary.passCount
+    state.failCount = receipt.summary.failCount
+    state.holoCount = receipt.summary.holoCount
+    state.hsCount = receipt.summary.hsCount
+    state.hsplusCount = receipt.summary.hsplusCount
+    state.lastValidationHash = receipt.receipt.validationHash
+
+    emit("holoshell:source:validation", {
+      status: state.status,
+      files: state.fileCount,
+      passed: state.passCount,
+      failed: state.failCount,
+      holo: state.holoCount,
+      hs: state.hsCount,
+      hsplus: state.hsplusCount,
+      receipt: state.lastValidationHash
+    })
+  }
+}
