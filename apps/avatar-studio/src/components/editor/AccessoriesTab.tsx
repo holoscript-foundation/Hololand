@@ -72,14 +72,14 @@ export function AccessoriesTab({ store }: AccessoriesTabProps) {
   const isEquipped = useCallback(
     (slotName: AccessorySlotName, assetId: string) =>
       blueprint.accessories.some(
-        (a) => a.slot === slotName && a.assetId === assetId,
+        (a: AccessorySlot) => a.slot === slotName && a.assetId === assetId,
       ),
     [blueprint.accessories],
   );
 
   const getEquipped = useCallback(
     (slotName: AccessorySlotName) =>
-      blueprint.accessories.find((a) => a.slot === slotName),
+      blueprint.accessories.find((a: AccessorySlot) => a.slot === slotName),
     [blueprint.accessories],
   );
 

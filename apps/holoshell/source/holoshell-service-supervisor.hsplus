@@ -1,0 +1,132 @@
+// HoloShell Service Supervisor
+//
+// Product source for the machine-level service registry. HoloShell uses this
+// to present managed PID services, heartbeat-only services, and local daemons
+// as one supervised health surface for Brittney and non-developer operators.
+
+composition "HoloShell Service Supervisor" {
+  config {
+    title: "Service Supervisor"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-service-supervisor.mjs"
+    supervisorReceipt: ".tmp/holoshell/service-supervisor.json"
+    supervisorBootstrap: ".tmp/holoshell/service-supervisor.js"
+    networkSentinelServiceSource: "apps/holoshell/source/holoshell-network-sentinel-service.hsplus"
+    networkSentinelServiceReceipt: ".tmp/holoshell/network-sentinel-service.json"
+    grokHeartbeatSource: "apps/holoshell/source/holoshell-grok-heartbeat.hsplus"
+    grokHeartbeatReceipt: ".tmp/holoshell/grok-heartbeat.json"
+    controlDaemonSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
+    controlDaemonEndpoint: "http://127.0.0.1:4747/health"
+    defaultHeartbeatStaleMs: 120000
+    mode: "non_destructive_service_registry"
+  }
+
+  state {
+    supervisorStatus: "unknown"
+    serviceCount: 0
+    requiredServiceCount: 0
+    onlineServiceCount: 0
+    degradedServiceCount: 0
+    offlineServiceCount: 0
+    optionalOfflineServiceCount: 0
+    requiredOnlineServiceCount: 0
+    requiredAttentionCount: 0
+    managedPidServiceCount: 0
+    verifiedPidServiceCount: 0
+    heartbeatOnlyServiceCount: 0
+    localDaemonServiceCount: 0
+    actionRequiredCount: 0
+    serviceMutationTaken: false
+    destructiveActionsTaken: false
+  }
+
+  channel "holoshell:services:supervisor" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Unified local service health for HoloShell and Brittney"
+  }
+
+  template "SupervisedService" {
+    type: "service_health"
+    serviceId: "unknown"
+    serviceKind: "unknown"
+    requiredForAutonomy: false
+    status: "unknown"
+    normalizedStatus: "unknown"
+    receiptRequired: true
+    localOnly: true
+  }
+
+  room "ServiceSupervisorRoom" {
+    label: "Service Supervisor"
+    userQuestion: "Which background services are healthy enough for agents to trust?"
+    visualForm: "service_supervisor_grid"
+    liveFeed: "holoshell:services:supervisor"
+
+    object "ServiceSupervisor" {
+      type: "ui"
+      uiType: "service_supervisor"
+      label: "Service Health"
+      status: $supervisorStatus
+      services: $serviceCount
+      required_services: $requiredServiceCount
+      required_online: $requiredOnlineServiceCount
+      online: $onlineServiceCount
+      degraded: $degradedServiceCount
+      offline: $offlineServiceCount
+      optional_offline: $optionalOfflineServiceCount
+      actions_required: $actionRequiredCount
+      verified_pid_services: $verifiedPidServiceCount
+      destructive_actions_taken: $destructiveActionsTaken
+    }
+  }
+
+  policy "RegisteredManagersOnly" {
+    appliesTo: ["service_status", "service_ensure", "brittney_context", "live_feed"]
+    arbitraryProcessStartAllowed: false
+    arbitraryProcessStopAllowed: false
+    stopOnlyThroughVerifiedManager: true
+    forceKillAllowed: false
+    statusDefaultIsNonDestructive: true
+    receiptRequired: true
+  }
+
+  policy "ServiceReceiptsAreRedacted" {
+    appliesTo: ["service_supervisor_receipt", "brittney_context", "live_feed"]
+    rawCommandLineIncluded: false
+    rawNetworkIdentifiersIncluded: false
+    endpointDetailsRedacted: true
+    localOnly: true
+  }
+
+  action consume_service_supervisor(snapshot) {
+    state.supervisorStatus = snapshot.summary.status
+    state.serviceCount = snapshot.summary.serviceCount
+    state.requiredServiceCount = snapshot.summary.requiredServiceCount
+    state.onlineServiceCount = snapshot.summary.onlineServiceCount
+    state.degradedServiceCount = snapshot.summary.degradedServiceCount
+    state.offlineServiceCount = snapshot.summary.offlineServiceCount
+    state.optionalOfflineServiceCount = snapshot.summary.optionalOfflineServiceCount
+    state.requiredOnlineServiceCount = snapshot.summary.requiredOnlineServiceCount
+    state.requiredAttentionCount = snapshot.summary.requiredAttentionCount
+    state.managedPidServiceCount = snapshot.summary.managedPidServiceCount
+    state.verifiedPidServiceCount = snapshot.summary.verifiedPidServiceCount
+    state.heartbeatOnlyServiceCount = snapshot.summary.heartbeatOnlyServiceCount
+    state.localDaemonServiceCount = snapshot.summary.localDaemonServiceCount
+    state.actionRequiredCount = snapshot.summary.actionRequiredCount
+    state.serviceMutationTaken = snapshot.receipt.serviceMutationTaken
+    state.destructiveActionsTaken = snapshot.receipt.destructiveActionsTaken
+
+    emit("holoshell:services:supervisor", {
+      status: state.supervisorStatus,
+      services: state.serviceCount,
+      required_services: state.requiredServiceCount,
+      required_online: state.requiredOnlineServiceCount,
+      attention: state.requiredAttentionCount,
+      optional_offline: state.optionalOfflineServiceCount,
+      service_mutation_taken: state.serviceMutationTaken,
+      receiptHash: snapshot.receipt.snapshotHash
+    })
+  }
+}
