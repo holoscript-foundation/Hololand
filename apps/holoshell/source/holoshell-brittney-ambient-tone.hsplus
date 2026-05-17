@@ -1,0 +1,158 @@
+// HoloShell Brittney Ambient Tone Propagation
+//
+// World state (calm/cluttered/urgent) influences Brittney's voice character
+// and response style. The shell's process health, pending approvals, and
+// service status are scored into a discrete tone tier that is injected into
+// Brittney's system prompt before each runtime turn.
+//
+// Tone semantics:
+//   calm      → Brittney is quiet and minimal. She speaks only when asked.
+//               Clean desktop, no pending approvals, healthy processes.
+//   cluttered → Brittney is attentive and proactive. Short sentences, offers
+//               help before being asked. Several signals need attention but
+//               no single blocker is critical.
+//   urgent    → Brittney is direct and focused. She names the most critical
+//               blocker first, skips pleasantries, and offers one focused step.
+//               Reserved for score ≥ 6 (e.g. critical process risk + blocked
+//               services + multiple pending approvals).
+//
+// Data flow:
+//   holoshell-brittney-context.mjs (classifyAmbientTone) →
+//   BrittneyContextPacket.ambientTone →
+//   holoshell-brittney-turn.mjs (system prompt injection)
+//
+// Source contract referenced by:
+//   scripts/holoshell-brittney-context.mjs  sourceAnchors.ambientTone
+//   scripts/holoshell-brittney-turn.mjs     systemPrompt tone block
+
+composition "HoloShell Brittney Ambient Tone" {
+  config {
+    title: "HoloShell Brittney Ambient Tone Propagation"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    contextPacketSource: "apps/holoshell/source/holoshell-brittney-context-packet.hsplus"
+    contextAdapterScript: "scripts/holoshell-brittney-context.mjs"
+    runtimeBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    turnScript: "scripts/holoshell-brittney-turn.mjs"
+    receiptRequired: true
+  }
+
+  state {
+    tone: "calm"
+    toneScore: 0
+    toneSignals: []
+    lastClassifiedAt: ""
+    classificationCount: 0
+  }
+
+  channel "holoshell:brittney:ambient-tone" {
+    type: "pub_sub"
+    priority: "medium"
+    description: "World state tone (calm/cluttered/urgent) for Brittney voice character; emitted after each context packet classification"
+  }
+
+  // --- Scoring table ---
+  //
+  // signal                              condition                score
+  // process_risk_critical               riskState == critical    +4
+  // process_risk_warn                   riskState == warn        +2
+  // stale_runs:N                        staleRunCount >= 3       +2 / >=1 +1
+  // cleanup_candidates:N                actionableCleanup >= 3   +2 / >=1 +1
+  // high_memory_procs:N                 highMemoryCount >= 2     +2 / >=1 +1
+  // pending_approvals:N                 pendingApprovals >= 3    +3 / >=1 +1
+  // required_services_attention:N       requiredAttention >= 2   +3 / >=1 +2
+  // services_action_required:N          actionRequired >= 1      +2
+  // active_lanes:N                      activeLanes >= 4         +1
+  //
+  // score 0-1 → calm
+  // score 2-5 → cluttered
+  // score ≥ 6 → urgent
+
+  template "AmbientToneReading" {
+    type: "ambient_tone_reading"
+    actor: "brittney_context_adapter"
+    tone: "calm"
+    score: 0
+    signals: []
+    classifiedAt: ""
+    receiptRequired: true
+  }
+
+  template "ToneProbe" {
+    type: "receipt"
+    receiptType: "hololand.holoshell.brittney-ambient-tone.v0.1.0"
+    actor: "brittney_context_adapter"
+    tone: "calm"
+    score: 0
+    signals: []
+    toneInjectedIntoSystemPrompt: true
+    rollback: "not_applicable_read_only"
+    receiptRequired: true
+  }
+
+  policy "ToneIsObserveOnly" {
+    appliesTo: ["classify_tone", "emit_tone_reading"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+    description: "Tone classification reads existing context summaries only; it never writes to shell state or triggers actions"
+  }
+
+  policy "ToneInSystemPromptIsConditional" {
+    appliesTo: ["inject_tone_into_system_prompt"]
+    condition: "context_packet_present == true"
+    fallback: "default_to_calm"
+    receiptRequired: true
+    description: "If no context packet is available, Brittney defaults to calm tone; never blocks a turn waiting for tone data"
+  }
+
+  action classify_tone(contextSummaries) {
+    // contextSummaries = { processHealthSummary, approvalSummary, serviceSupervisorSummary, agentLaneSummary }
+    // Implemented in scripts/holoshell-brittney-context.mjs → classifyAmbientTone()
+    let result = classifyAmbientTone(contextSummaries)
+    state.tone = result.tone
+    state.toneScore = result.score
+    state.toneSignals = result.signals
+    state.lastClassifiedAt = now()
+    state.classificationCount = state.classificationCount + 1
+
+    emit("holoshell:brittney:ambient-tone", {
+      action: "ambient_tone_classified",
+      tone: state.tone,
+      score: state.toneScore,
+      signals: state.toneSignals,
+      classifiedAt: state.lastClassifiedAt,
+      classificationCount: state.classificationCount,
+      receipt_required: true
+    })
+
+    return result
+  }
+
+  action inject_tone_into_system_prompt(systemPromptBase, toneReading) {
+    // Called in scripts/holoshell-brittney-turn.mjs before runAgentTurn.
+    // Appends a tone instruction block to the base system prompt.
+    let toneInstruction = ""
+    if (toneReading.tone == "urgent") {
+      toneInstruction = "The world is under pressure right now (urgent tone). Name the most critical blocker first. Be direct and concise — skip pleasantries. Offer one focused next step."
+    } else if (toneReading.tone == "cluttered") {
+      toneInstruction = "The world is active and cluttered right now (cluttered tone). Be attentive and proactive. Keep sentences short. Offer to help before being asked."
+    } else {
+      toneInstruction = "The world is calm right now (calm tone). Be quiet and minimal. Speak only when directly helpful. No unsolicited suggestions."
+    }
+    return systemPromptBase + "\n\nAmbient world state: " + toneReading.tone + ".\n" + toneInstruction
+  }
+
+  action record_tone_receipt(toneReading, turnId) {
+    emit("holoshell:brittney:ambient-tone", {
+      action: "tone_receipt_recorded",
+      receiptType: "hololand.holoshell.brittney-ambient-tone.v0.1.0",
+      tone: toneReading.tone,
+      score: toneReading.score,
+      signals: toneReading.signals,
+      turnId: turnId,
+      toneInjectedIntoSystemPrompt: true,
+      receipt_required: true
+    })
+  }
+}

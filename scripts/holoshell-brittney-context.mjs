@@ -708,6 +708,70 @@ function privacyBoundary({ processHealth, operatorBrief, osUiCapture, legacyAppR
 }
 
 /**
+ * Classify ambient world tone from process health, approvals, and shell state.
+ *
+ * Tone drives Brittney's voice character:
+ *   calm    → quiet, minimal; only speaks when asked
+ *   cluttered → attentive, proactive; offers help, shorter sentences
+ *   urgent  → direct, focused; names the blocker first, skips pleasantries
+ *
+ * Source contract: apps/holoshell/source/holoshell-brittney-ambient-tone.hsplus
+ *
+ * @param {{ processHealthSummary: object, approvalSummary: object, serviceSupervisorSummary: object, agentLaneSummary: object }} summaries
+ * @returns {{ tone: 'calm'|'cluttered'|'urgent', score: number, signals: string[] }}
+ */
+function classifyAmbientTone({ processHealthSummary, approvalSummary, serviceSupervisorSummary, agentLaneSummary }) {
+  let score = 0;
+  const signals = [];
+
+  // --- process health signals ---
+  const risk = processHealthSummary.riskState || 'unknown';
+  if (risk === 'critical') { score += 4; signals.push('process_risk_critical'); }
+  else if (risk === 'warn') { score += 2; signals.push('process_risk_warn'); }
+
+  const stale = processHealthSummary.staleRunCount || 0;
+  if (stale >= 3) { score += 2; signals.push(`stale_runs:${stale}`); }
+  else if (stale >= 1) { score += 1; signals.push(`stale_runs:${stale}`); }
+
+  const cleanup = processHealthSummary.actionableCleanupCandidateCount || 0;
+  if (cleanup >= 3) { score += 2; signals.push(`cleanup_candidates:${cleanup}`); }
+  else if (cleanup >= 1) { score += 1; signals.push(`cleanup_candidates:${cleanup}`); }
+
+  const highMem = processHealthSummary.highMemoryCount || 0;
+  if (highMem >= 2) { score += 2; signals.push(`high_memory_procs:${highMem}`); }
+  else if (highMem >= 1) { score += 1; signals.push(`high_memory_procs:${highMem}`); }
+
+  // --- approval / workflow signals ---
+  const pendingApprovals = approvalSummary.pendingApprovalCount || 0;
+  if (pendingApprovals >= 3) { score += 3; signals.push(`pending_approvals:${pendingApprovals}`); }
+  else if (pendingApprovals >= 1) { score += 1; signals.push(`pending_approvals:${pendingApprovals}`); }
+
+  // --- service health signals ---
+  const offlineRequired = serviceSupervisorSummary.requiredAttentionCount || 0;
+  if (offlineRequired >= 2) { score += 3; signals.push(`required_services_attention:${offlineRequired}`); }
+  else if (offlineRequired >= 1) { score += 2; signals.push(`required_services_attention:${offlineRequired}`); }
+
+  const actionRequired = serviceSupervisorSummary.actionRequiredCount || 0;
+  if (actionRequired >= 1) { score += 2; signals.push(`services_action_required:${actionRequired}`); }
+
+  // --- lane activity signals ---
+  const activeLanes = agentLaneSummary.activeLaneCount || 0;
+  if (activeLanes >= 4) { score += 1; signals.push(`active_lanes:${activeLanes}`); }
+
+  // Map score to tone
+  let tone;
+  if (score >= 6) {
+    tone = 'urgent';
+  } else if (score >= 2) {
+    tone = 'cluttered';
+  } else {
+    tone = 'calm';
+  }
+
+  return { tone, score, signals };
+}
+
+/**
  * Summarize scene perception output for Brittney's context packet.
  *
  * Consumes the `ScenePerception` JSON written by the MCP server's
@@ -1113,6 +1177,12 @@ function createPacket(args, inputs = loadInputs(args)) {
   const scenePerceptionSummary = summarizeScenePerception(inputs.scenePerception);
   const timeline = recentReceiptTimeline(inputs, args.maxTimelineItems);
   const privacy = privacyBoundary(inputs);
+  const ambientTone = classifyAmbientTone({
+    processHealthSummary,
+    approvalSummary,
+    serviceSupervisorSummary,
+    agentLaneSummary,
+  });
   const contextHashInput = {
     prompt: args.prompt,
     selected: selectedObject?.id || '',
@@ -1134,6 +1204,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     timelineIds: timeline.map((item) => item.id),
     scenePerceptionStatus: scenePerceptionSummary.status,
     scenePerceptionObjectCount: scenePerceptionSummary.objectCount,
+    ambientTone: ambientTone.tone,
     privacy,
   };
   const contextHash = sha256(JSON.stringify(contextHashInput));
@@ -1162,6 +1233,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
       scenePerception: 'packages/brittney/mcp-server/src/scene-perception.ts',
+      ambientTone: 'apps/holoshell/source/holoshell-brittney-ambient-tone.hsplus',
     },
     prompt: args.prompt,
     selectedShellObject: selectedObject,
@@ -1181,6 +1253,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     operatorBriefSummary,
     scenePerceptionSummary,
     legacyUiCaptureSummary,
+    ambientTone,
     recentReceiptTimeline: timeline,
     privacyBoundary: privacy,
     operatorPromptCard: inputs.operatorBrief.brittneyPromptCard || {},
@@ -1287,6 +1360,9 @@ function createPacket(args, inputs = loadInputs(args)) {
       scenePerceptionStatus: scenePerceptionSummary.status,
       scenePerceptionObjectCount: scenePerceptionSummary.objectCount,
       scenePerceptionTokenEstimate: scenePerceptionSummary.tokenEstimate,
+      ambientTone: ambientTone.tone,
+      ambientToneScore: ambientTone.score,
+      ambientToneSignals: ambientTone.signals,
       peerWindowCount: operatorBriefSummary.peerWindowCount,
       shellWindowCount: operatorBriefSummary.shellWindowCount,
       operatingSurfaceWindowCount: operatorBriefSummary.operatingSurfaceWindowCount,
@@ -1364,6 +1440,12 @@ function assertSelfTest(packet) {
   if (!packet.scenePerceptionSummary.text) failures.push('expected scene perception text');
   if (packet.scenePerceptionSummary.objectCount < 1) failures.push('expected scene perception object count');
   if (packet.summary.scenePerceptionStatus !== 'available') failures.push('expected scene perception status in summary');
+  // Ambient tone — fixture has warn-risk + 3 stale runs + 1 cleanup + 1 high-mem + 1 pending approval → score ≥6 → urgent
+  if (!['calm', 'cluttered', 'urgent'].includes(packet.ambientTone.tone)) failures.push(`ambientTone.tone must be calm/cluttered/urgent, got ${packet.ambientTone.tone}`);
+  if (typeof packet.ambientTone.score !== 'number') failures.push('ambientTone.score must be a number');
+  if (!Array.isArray(packet.ambientTone.signals)) failures.push('ambientTone.signals must be an array');
+  if (packet.ambientTone.tone !== 'urgent') failures.push(`fixture should produce urgent tone (score ≥6), got ${packet.ambientTone.tone} (score ${packet.ambientTone.score})`);
+  if (!packet.summary.ambientTone) failures.push('ambientTone missing from summary');
   if (packet.approvalSummary.pendingApprovalCount < 1) failures.push('expected pending approval summary');
   if (packet.processHealthSummary.actionableCleanupCandidateCount !== 1) failures.push('expected actionable cleanup candidate count');
   if (packet.processHealthSummary.ownerHandoffPlanCount !== 3) failures.push('expected owner handoff plan count');

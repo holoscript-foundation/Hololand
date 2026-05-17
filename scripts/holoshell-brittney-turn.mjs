@@ -355,13 +355,25 @@ async function runTurn(args) {
   try {
     const { runAgentTurn, Session, DEFAULT_SYSTEM_PROMPT, McpClient, defaultMcpConfig } = await importAIBrittney(holoscriptRoot);
     runtime.status = args.selfTest ? 'self-test' : 'available';
+    // Derive ambient tone from context packet so voice character matches world state.
+    // calm → quiet, minimal; cluttered → attentive, proactive; urgent → direct, blocker-first.
+    const tone = shellContext.ambientTone?.tone || 'calm';
+    const toneInstruction =
+      tone === 'urgent'
+        ? 'The world is under pressure right now (urgent tone). Name the most critical blocker first. Be direct and concise — skip pleasantries. Offer one focused next step.'
+        : tone === 'cluttered'
+        ? 'The world is active and cluttered right now (cluttered tone). Be attentive and proactive. Keep sentences short. Offer to help before being asked.'
+        : 'The world is calm right now (calm tone). Be quiet and minimal. Speak only when directly helpful. No unsolicited suggestions.';
     const systemPrompt = `${DEFAULT_SYSTEM_PROMPT}
 
 You are currently embodied as Brittney inside HoloShell, the HoloLand operating shell.
 Return concise operator responses. When the user asks to operate the computer, describe the next shell object and permission boundary.
 Do not invent commands, CLIs, file paths, APIs, or tools. If execution is not already available in the supplied shell context, propose the shell object to focus and the receipt that would be required.
 Do not ask a follow-up for broad shell-prep requests. Choose a conservative default shell object, name the staged proposal, and say what receipt or approval boundary comes next.
-Do not print JSON tool-call payloads as your final answer. If you need a tool, use the native tool-call channel; otherwise answer in plain user-facing language.`;
+Do not print JSON tool-call payloads as your final answer. If you need a tool, use the native tool-call channel; otherwise answer in plain user-facing language.
+
+Ambient world state: ${tone}.
+${toneInstruction}`;
     const session = new Session({ model: runtime.model, ollamaHost, systemPrompt });
     session.push('user', JSON.stringify({
       userPrompt: args.prompt,
@@ -463,6 +475,8 @@ Do not print JSON tool-call payloads as your final answer. If you need a tool, u
       contextPeerWindowCount: shellContext.operatorBriefSummary?.peerWindowCount || 0,
       contextShellWindowCount: shellContext.operatorBriefSummary?.shellWindowCount || 0,
       contextVisibleShellObjectCount: shellContext.visibleShellObjects?.length || 0,
+      ambientTone: shellContext.ambientTone?.tone || 'unknown',
+      ambientToneScore: shellContext.ambientTone?.score ?? null,
     },
   };
 }
