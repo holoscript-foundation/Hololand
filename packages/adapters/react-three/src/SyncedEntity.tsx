@@ -49,7 +49,13 @@ export const SyncedEntity: React.FC<SyncedEntityProps> = ({ id, children, syncRa
   useFrame(() => {
     if (!sync || !groupRef.current) return;
 
-    const networkedState = sync.getInterpolatedState(id);
+    const snapshot = sync.getSnapshot();
+    const networkedState = snapshot[id] as
+      | {
+          position?: { x: number; y: number; z: number };
+          rotation?: { x: number; y: number; z: number };
+        }
+      | undefined;
     if (networkedState && networkedState.position) {
       groupRef.current.position.set(
         networkedState.position.x,

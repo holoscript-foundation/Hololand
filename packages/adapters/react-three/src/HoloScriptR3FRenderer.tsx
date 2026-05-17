@@ -37,6 +37,10 @@ import { getAudioManager } from './audio/AudioManager';
 import React, { useMemo, Suspense, useEffect, useCallback, useState, useContext } from 'react';
 import { HoloRuntimeContext } from './RuntimeContext';
 
+const EffectComposerCompat = EffectComposer as any;
+const GltfCompat = Gltf as any;
+const MeshColliderCompat = MeshCollider as any;
+
 /**
  * Portal Component
  * Handles cross-world navigation from HoloScript @portal trait
@@ -272,6 +276,7 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
       return (
         <SpatialAgent
           key={key}
+          config={ai_driven ?? {}}
           aiDriven={ai_driven}
           avatarEmbodiment={avatarEmbodiment}
           lipSync={lipSync}
@@ -329,9 +334,9 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
   // 1. Post-Processing Effects
   if (type === 'EffectComposer') {
     return (
-      <EffectComposer key={key} {...props}>
+      <EffectComposerCompat key={key} {...props}>
         {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
-      </EffectComposer>
+      </EffectComposerCompat>
     );
   }
   if (type === 'Bloom') return <Bloom key={key} {...props} />;
@@ -340,7 +345,17 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
 
   // 1.1 Fog support
   if (type === 'fog') {
-    return <fog key={key} {...props} />;
+    return (
+      <fog
+        key={key}
+        args={[
+          String(props.color ?? props.args?.[0] ?? '#000000'),
+          Number(props.near ?? props.args?.[1] ?? 1),
+          Number(props.far ?? props.args?.[2] ?? 1000),
+        ]}
+        {...props}
+      />
+    );
   }
 
   // 2. Environment & Atmosphere (drei)
@@ -365,7 +380,7 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
 
   // 2.2 Portal & Sparkles
   if (type === 'Portal') {
-    return <Portal key={key} {...props} />;
+    return <Portal key={key} destination={String(props.destination ?? '#')} {...props} />;
   }
   if (type === 'Sparkles') {
     return <Sparkles key={key} {...props} />;
@@ -374,19 +389,20 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
   // 3. Asset Loading (drei Gltf)
   if ((type === 'primitive' || type === 'gltfModel') && props.src) {
     const { collider, ...restProps } = props;
+    const gltfProps = { ...restProps, src: String(props.src) };
     if (collider) {
       return (
-        <MeshCollider key={key} type="hull">
-          <Gltf {...restProps}>
+        <MeshColliderCompat key={key} type="hull">
+          <GltfCompat {...gltfProps}>
             {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
-          </Gltf>
-        </MeshCollider>
+          </GltfCompat>
+        </MeshColliderCompat>
       );
     }
     return (
-      <Gltf key={key} {...restProps}>
+      <GltfCompat key={key} {...gltfProps}>
         {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
-      </Gltf>
+      </GltfCompat>
     );
   }
 
@@ -465,13 +481,13 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
   }
 
   // Fallback/Generic Components
-  const Component = type as any;
+  const Component = type as React.ElementType;
   if (typeof Component !== 'string' || !Component) return null;
 
-  return (
-    <Component key={key} {...props}>
-      {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
-    </Component>
+  return React.createElement(
+    Component,
+    { key, ...props },
+    children?.map((child: R3FNode) => renderR3FNode(child, onAction))
   );
 }
 

@@ -97,7 +97,7 @@ function DragonModel({
   }, [activeAnimation, isPlaying, gltf.animations]);
 
   // Update animation mixer
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (mixer.current && isPlaying) {
       mixer.current.update(delta);
     }
@@ -163,6 +163,10 @@ function DragonModel({
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
+              args={[
+                new Float32Array(Array.from({ length: 150 }, () => (Math.random() - 0.5) * 2)),
+                3,
+              ]}
               count={50}
               array={new Float32Array(Array.from({ length: 150 }, () => (Math.random() - 0.5) * 2))}
               itemSize={3}

@@ -316,7 +316,7 @@ export class VoiceChat {
 
   constructor(private readonly client?: NetworkClient) {}
 
-  async joinVoice(roomId: string): Promise<void> {
+  async joinVoice(_roomId: string): Promise<void> {
     if (!this.client?.isConnected()) {
       throw new Error('@hololand/network voice requires an active NetworkClient connection.');
     }

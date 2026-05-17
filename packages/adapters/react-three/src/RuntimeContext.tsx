@@ -31,6 +31,16 @@ import {
   type Renderer,
 } from '@holoscript/core';
 
+type RuntimeBridge = HoloScriptPlusRuntimeImpl & {
+  execute?: (ast: HSPlusAST, context?: Record<string, unknown>) => Promise<unknown>;
+  getState?: () => Record<string, unknown>;
+  setState?: (updates: Record<string, unknown>) => void;
+  update?: (delta: number) => void;
+  dispose?: () => void;
+  emit?: (event: string, payload?: unknown) => void;
+  on?: (event: string, handler: (payload: unknown) => void) => (() => void) | void;
+};
+
 // ---------------------------------------------------------------------------
 // Context value
 // ---------------------------------------------------------------------------
@@ -112,13 +122,13 @@ export const HoloRuntimeProvider: React.FC<HoloRuntimeProviderProps> = ({
   const parsedAst = useMemo<HSPlusAST | null>(() => {
     if (astProp) return astProp;
     if (!source) return null;
-    const parser = new HoloScriptPlusParser({ enableVRTraits: true });
-    const result = parser.parse(source);
-    if (!result.success) {
-      console.error('[HoloRuntimeProvider] Parse errors:', result.errors);
+    const parser = new HoloScriptPlusParser();
+    const ast = parser.parse(source) as unknown as HSPlusAST;
+    if (!ast) {
+      console.error('[HoloRuntimeProvider] Parse produced no AST.');
       return null;
     }
-    return result.ast;
+    return ast;
   }, [astProp, source]);
 
   // --- Create runtime ---------------------------------------------------
@@ -138,24 +148,22 @@ export const HoloRuntimeProvider: React.FC<HoloRuntimeProviderProps> = ({
       companions,
     };
 
-    const rt = new HoloScriptPlusRuntimeImpl(parsedAst, opts);
+    const rt = new HoloScriptPlusRuntimeImpl(opts) as RuntimeBridge;
 
     // Inject initial variables
     if (initialVariables) {
-      for (const [k, v] of Object.entries(initialVariables)) {
-        rt.setVariable(k, v);
-      }
+      rt.setState?.(initialVariables);
     }
 
-    rt.mount(null);
+    void rt.execute?.(parsedAst, initialVariables);
     runtimeRef.current = rt;
     setTick((t) => t + 1);
 
     return () => {
-      rt.unmount();
+      rt.dispose?.();
       runtimeRef.current = null;
     };
-  }, [parsedAst, vrEnabled]); // companions intentionally omitted to avoid remount
+  }, [parsedAst, vrEnabled, initialVariables]); // companions intentionally omitted to avoid remount
 
   // --- Per-frame update -------------------------------------------------
   useFrame((_frameState, delta) => {
@@ -163,16 +171,16 @@ export const HoloRuntimeProvider: React.FC<HoloRuntimeProviderProps> = ({
     if (!rt) return;
 
     // Drive the runtime update loop (trait updates, lifecycle ticks, etc.)
-    (rt as any).update?.(delta);
+    (rt as RuntimeBridge).update?.(delta);
 
     // Pull the latest state and push it into React on low-frequency cadence
     // to avoid overwhelming the reconciler.  We read the context which
     // includes variable state managed by the runtime.
-    const ctx = (rt as any).getContext?.();
+    const ctx = (rt as RuntimeBridge).getState?.();
     if (ctx) {
       setStateSnapshot((prev) => {
         // Cheap shallow equality — only re-render if something actually changed
-        const next = ctx.state ?? ctx;
+        const next = ctx;
         if (prev === next) return prev;
         return { ...next };
       });
@@ -186,10 +194,13 @@ export const HoloRuntimeProvider: React.FC<HoloRuntimeProviderProps> = ({
   }, [parsedAst, compiler]);
 
   // --- Context API ------------------------------------------------------
-  const getVariable = useCallback((name: string) => runtimeRef.current?.getVariable(name), [tick]);
+  const getVariable = useCallback(
+    (name: string) => (runtimeRef.current as RuntimeBridge | null)?.getState?.()?.[name],
+    [tick]
+  );
 
   const setVariable = useCallback((name: string, value: unknown) => {
-    runtimeRef.current?.setVariable(name, value);
+    (runtimeRef.current as RuntimeBridge | null)?.setState?.({ [name]: value });
     setTick((t) => t + 1);
   }, []);
 

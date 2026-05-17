@@ -4,6 +4,8 @@ import { Gltf } from '@react-three/drei';
 import { AvatarEmbodimentPipeline } from '@hololand/audio';
 import { AIDriverTrait } from '@holoscript/core';
 
+const GltfCompat = Gltf as any;
+
 export interface SpatialAgentProps {
   children?: React.ReactNode;
   config: any;
@@ -57,7 +59,7 @@ export const SpatialAgent: React.FC<SpatialAgentProps> = ({
     };
   }, [aiDriver, pipeline]);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (!groupRef.current) return;
 
     // Update AI context with world position
@@ -82,11 +84,11 @@ export const SpatialAgent: React.FC<SpatialAgentProps> = ({
     <group ref={groupRef}>
       <Suspense fallback={null}>
         {config?.modelUrl ? (
-          <Gltf
+          <GltfCompat
             src={config.modelUrl}
             castShadow
             receiveShadow
-            onLoad={(gltf) => {
+            onLoad={(gltf: { scene: { traverse: (visitor: (node: any) => void) => void } }) => {
               // Find the main mesh for morph targets
               gltf.scene.traverse((node: any) => {
                 if (node.isMesh && node.morphTargetDictionary) {
