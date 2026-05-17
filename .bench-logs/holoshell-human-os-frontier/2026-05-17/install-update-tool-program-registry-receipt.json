@@ -1,0 +1,865 @@
+{
+  "schemaVersion": "hololand.holoshell.hardware-action.v0.1.0",
+  "generatedAt": "2026-05-17T08:08:48.513Z",
+  "actionId": "hwa-mp9hu8ou-451e65c214",
+  "sourceAnchors": {
+    "source": "apps/holoshell/source/holoshell-hardware-control.hsplus",
+    "executor": "scripts/holoshell-action-executor.mjs",
+    "programRegistry": "scripts/holoshell-program-registry.mjs",
+    "osUiCapture": "apps/holoshell/source/holoshell-os-ui-capture.hsplus"
+  },
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "release": "10.0.26200",
+    "hostname": "Work"
+  },
+  "timing": {
+    "startedAt": "2026-05-17T08:08:48.491Z",
+    "endedAt": "2026-05-17T08:08:48.513Z"
+  },
+  "request": {
+    "actor": "holoshell",
+    "actionKind": "list_programs",
+    "targetWindowId": "",
+    "targetWindowTitle": "",
+    "targetProcessName": "",
+    "targetHandle": "",
+    "targetControlId": "",
+    "targetControlName": "",
+    "targetProgramName": "",
+    "url": "",
+    "path": "",
+    "app": "",
+    "hotkey": "",
+    "browserProfile": "",
+    "browserSession": "",
+    "text": {
+      "provided": false,
+      "length": 0,
+      "sha256": ""
+    },
+    "approved": false,
+    "executeRequested": false,
+    "approvalBundleId": "",
+    "secretsIncluded": false,
+    "receiptRequired": true
+  },
+  "permission": {
+    "envelope": "read_only",
+    "approvalRequired": false,
+    "approved": false,
+    "executeRequested": false,
+    "mutating": false,
+    "breakGlass": false,
+    "receiptRequired": true
+  },
+  "approvalContext": null,
+  "browserBoundary": null,
+  "target": {
+    "windowId": "",
+    "title": "",
+    "processName": "",
+    "processId": 0,
+    "handle": "",
+    "controlCount": 0,
+    "program": {
+      "programId": "",
+      "displayName": "",
+      "capabilityClass": "",
+      "launchable": false,
+      "targetPath": ""
+    },
+    "control": {
+      "controlId": "",
+      "name": "",
+      "automationId": "",
+      "controlType": "",
+      "enabled": false
+    }
+  },
+  "witness": {
+    "beforeCaptureHash": "0b59f7acf66704d8517c78fbb659fb8920150280c99bfb0b8c4898696ad91019",
+    "afterCaptureHash": "0b59f7acf66704d8517c78fbb659fb8920150280c99bfb0b8c4898696ad91019",
+    "windowStateChanged": false,
+    "shellVisibleChange": false,
+    "visibleChangeSource": "not_applicable",
+    "browserNavigation": null,
+    "secretsCaptured": false
+  },
+  "summary": {
+    "status": "completed",
+    "actionKind": "list_programs",
+    "permissionEnvelope": "read_only",
+    "approvalRequired": false,
+    "approved": false,
+    "approvalBundleId": "",
+    "executeRequested": false,
+    "executionPerformed": true,
+    "mutatingActionExecuted": false,
+    "windowCount": 12,
+    "controlCount": 182,
+    "targetResolved": true,
+    "targetWindowTitle": "",
+    "targetProcessName": "",
+    "targetAppName": "",
+    "targetUrlHost": "",
+    "shellVisibleChange": false,
+    "visibleWitnessKind": "not_applicable",
+    "browserBoundaryStatus": "",
+    "browserProfileBoundary": "",
+    "error": ""
+  },
+  "result": {
+    "summary": {
+      "status": "captured",
+      "programCount": 187,
+      "launchableProgramCount": 187,
+      "runningWindowCount": 12,
+      "startMenuProgramCount": 127,
+      "appPathProgramCount": 60,
+      "classCounts": {
+        "productivity": 18,
+        "application": 114,
+        "creative_tool": 2,
+        "browser": 8,
+        "developer_tool": 10,
+        "command_tool": 32,
+        "system": 3
+      },
+      "errorCount": 0,
+      "permissionEnvelope": "guarded_execute_for_launch",
+      "actionBridgeStatus": "guarded_execute_available"
+    },
+    "programs": [
+      {
+        "programId": "program-b1ce1cf4d7ecb1",
+        "displayName": "Access",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\MSACCESS.EXE",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-aa554ca0072d92",
+        "displayName": "Administrative Tools",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\control.exe",
+        "arguments": "/name Microsoft.AdministrativeTools",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-de0239ba37484f",
+        "displayName": "Antigravity",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Programs\\Antigravity\\Antigravity.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\Programs\\Antigravity"
+      },
+      {
+        "programId": "program-110fe7e79aa87f",
+        "displayName": "Application Stack Builder",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\PostgreSQL\\17\\bin\\stackbuilder.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\PostgreSQL\\17\\bin"
+      },
+      {
+        "programId": "program-0fc2fe809683d4",
+        "displayName": "Application Verifier (WOW)",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\SysWOW64\\appverif.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\WINDOWS\\SysWOW64\\"
+      },
+      {
+        "programId": "program-71047e6c5682d0",
+        "displayName": "Application Verifier (X64)",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\System32\\appverif.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\WINDOWS\\system32\\"
+      },
+      {
+        "programId": "program-28ed8feb7d2e04",
+        "displayName": "Application Verifier Help",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\System32\\appverif.chm",
+        "arguments": "",
+        "workingDirectory": "C:\\WINDOWS\\system32\\"
+      },
+      {
+        "programId": "program-d52ef43cdccec6",
+        "displayName": "Blender 5.0",
+        "capabilityClass": "creative_tool",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Blender Foundation\\Blender 5.0\\blender-launcher.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Blender Foundation\\Blender 5.0\\"
+      },
+      {
+        "programId": "program-b9dd997189e65c",
+        "displayName": "Brave",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application"
+      },
+      {
+        "programId": "program-578f911d5d6dcf",
+        "displayName": "CapCut",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\CapCut\\Apps\\CapCut.exe",
+        "arguments": "--src3",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-8f0d2fe485643a",
+        "displayName": "Character Map",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\charmap.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-3798f5b3e1f923",
+        "displayName": "chrome",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Google\\Chrome\\Application"
+      },
+      {
+        "programId": "program-b1ab036379ea4e",
+        "displayName": "CMake (cmake-gui)",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\CMake\\bin\\cmake-gui.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\CMake\\bin\\"
+      },
+      {
+        "programId": "program-051acd5fdc7324",
+        "displayName": "CMake Documentation",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\CMake\\doc\\cmake\\html\\index.html",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\CMake\\doc\\cmake\\html\\"
+      },
+      {
+        "programId": "program-2a902e9cfaf08e",
+        "displayName": "code",
+        "capabilityClass": "developer_tool",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\Programs\\Microsoft VS Code"
+      },
+      {
+        "programId": "program-e0b34921dd08bb",
+        "displayName": "Command Prompt",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\cmd.exe",
+        "arguments": "",
+        "workingDirectory": "%HOMEDRIVE%%HOMEPATH%"
+      },
+      {
+        "programId": "program-e6e444becae1eb",
+        "displayName": "Component Services",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\comexp.msc",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-f6084784ca7317",
+        "displayName": "Computer Management",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\compmgmt.msc",
+        "arguments": "/s",
+        "workingDirectory": "%HOMEDRIVE%%HOMEPATH%"
+      },
+      {
+        "programId": "program-c02b0ccc839a08",
+        "displayName": "Control Panel",
+        "capabilityClass": "system",
+        "launchable": true,
+        "targetPath": "",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-64d9c3f7b58469",
+        "displayName": "Create USB Recovery",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\System32\\RecoveryDrive.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\windows\\system32"
+      },
+      {
+        "programId": "program-67918eb1c65e28",
+        "displayName": "Cursor",
+        "capabilityClass": "developer_tool",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Programs\\cursor\\Cursor.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\Programs\\cursor"
+      },
+      {
+        "programId": "program-d01192447086c6",
+        "displayName": "Debuggable Package Manager",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "arguments": "-NoExit -Command \"& { Import-Module Appx; Import-Module .\\AppxDebug.dll; Show-AppxDebug}\"",
+        "workingDirectory": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\Common7\\IDE\\Remote Debugger\\Appx\\"
+      },
+      {
+        "programId": "program-bbc90171c0a1ef",
+        "displayName": "Developer Command Prompt for VS 2019",
+        "capabilityClass": "developer_tool",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\System32\\cmd.exe",
+        "arguments": "/k \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\Common7\\Tools\\VsDevCmd.bat\"",
+        "workingDirectory": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\"
+      },
+      {
+        "programId": "program-4799c04c8fd063",
+        "displayName": "Developer PowerShell for VS 2019",
+        "capabilityClass": "developer_tool",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "arguments": "-noe -c \"&{Import-Module \"\"\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\Common7\\Tools\\Microsoft.VisualStudio.DevShell.dll\"\"\"; Enter-VsDevShell 0df4b659}\"",
+        "workingDirectory": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\"
+      },
+      {
+        "programId": "program-cb66933c14c801",
+        "displayName": "DEX Screener",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\chrome_proxy.exe",
+        "arguments": "--profile-directory=Default --app-id=lcifkkhockgpncelkhpapdcmbcpdkgbh",
+        "workingDirectory": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application"
+      },
+      {
+        "programId": "program-362b91d0a0916d",
+        "displayName": "dfrgui",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\dfrgui.exe",
+        "arguments": "",
+        "workingDirectory": "%systemroot%\\system32"
+      },
+      {
+        "programId": "program-03dd6b2fd3ba58",
+        "displayName": "Disk Cleanup",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\cleanmgr.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-69982f88c5ae55",
+        "displayName": "Documentation for Desktop Apps",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files (x86)\\Windows Kits\\10\\Shortcuts\\DesktopDevCenterLearn.url",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files (x86)\\Windows Kits\\10\\"
+      },
+      {
+        "programId": "program-0849c0454dfca3",
+        "displayName": "Documentation for Windows Store Apps",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files (x86)\\Windows Kits\\10\\Shortcuts\\WindowsStoreAppDevCenterLearn.url",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files (x86)\\Windows Kits\\10\\"
+      },
+      {
+        "programId": "program-82d8f52dfdb515",
+        "displayName": "Documents",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\Documents",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-b8bda7be9b2d21",
+        "displayName": "Event Viewer",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\eventvwr.msc",
+        "arguments": "/s",
+        "workingDirectory": "%windir%\\system32"
+      },
+      {
+        "programId": "program-5e56e070fe13b3",
+        "displayName": "Excel",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-83b7b8130fd437",
+        "displayName": "Figma",
+        "capabilityClass": "creative_tool",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Figma\\app-125.9.10\\Figma.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-f2b5e657bded50",
+        "displayName": "File Explorer",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-4a5f473a7581d8",
+        "displayName": "firefox",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\Mozilla.Firefox_150.0.3.0_x64__n80bbvh6b1yt2\\VFS\\ProgramFiles\\Firefox Package Root\\firefox.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\Mozilla.Firefox_150.0.3.0_x64__n80bbvh6b1yt2\\VFS\\ProgramFiles\\Firefox Package Root"
+      },
+      {
+        "programId": "program-74419139376564",
+        "displayName": "GetHelp",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\Microsoft.GetHelp_10.2409.41132.0_x64__8wekyb3d8bbwe\\GetHelp.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\Microsoft.GetHelp_10.2409.41132.0_x64__8wekyb3d8bbwe"
+      },
+      {
+        "programId": "program-409aa0a09b79b8",
+        "displayName": "Git Bash",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Git\\git-bash.exe",
+        "arguments": "--cd-to-home",
+        "workingDirectory": "%HOMEDRIVE%%HOMEPATH%"
+      },
+      {
+        "programId": "program-d1aa399ad6ffaa",
+        "displayName": "Git CMD",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Git\\git-cmd.exe",
+        "arguments": "--cd-to-home",
+        "workingDirectory": "%HOMEDRIVE%%HOMEPATH%"
+      },
+      {
+        "programId": "program-0ffb9cae1b12d1",
+        "displayName": "Git GUI",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Git\\cmd\\git-gui.exe",
+        "arguments": "",
+        "workingDirectory": "%HOMEDRIVE%%HOMEPATH%"
+      },
+      {
+        "programId": "program-fba0f500d6846b",
+        "displayName": "Git Release Notes",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Git\\ReleaseNotes.html",
+        "arguments": "",
+        "workingDirectory": "%HOMEDRIVE%%HOMEPATH%"
+      },
+      {
+        "programId": "program-0f95b62ca4523f",
+        "displayName": "GitHub Desktop",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\ProgramData\\josep\\GitHubDesktop\\GitHubDesktop.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\ProgramData\\josep\\GitHubDesktop\\app-3.5.4"
+      },
+      {
+        "programId": "program-1a5450a408f13f",
+        "displayName": "Google Chrome",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Google\\Chrome\\Application"
+      },
+      {
+        "programId": "program-272b7250cb4ef3",
+        "displayName": "IDLE (Python 3.11 64-bit)",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Programs\\Python\\Python311\\pythonw.exe",
+        "arguments": "\"C:\\Users\\josep\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\idlelib\\idle.pyw\"",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\Programs\\Python\\Python311\\"
+      },
+      {
+        "programId": "program-6b81c7d459adcf",
+        "displayName": "IDLE (Python 3.13 64-bit)",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Programs\\Python\\Python313\\pythonw.exe",
+        "arguments": "\"C:\\Users\\josep\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\idlelib\\idle.pyw\"",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\Programs\\Python\\Python313\\"
+      },
+      {
+        "programId": "program-c4f1f3fa566bb2",
+        "displayName": "IDLE (Python 3.14 64-bit)",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Python314\\pythonw.exe",
+        "arguments": "\"C:\\Python314\\Lib\\idlelib\\idle.pyw\"",
+        "workingDirectory": "C:\\Python314\\"
+      },
+      {
+        "programId": "program-8ef2d6ab902f75",
+        "displayName": "idle3.13",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3568.0_x64__qbz5n2kfra8p0\\idle3.13.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.3568.0_x64__qbz5n2kfra8p0"
+      },
+      {
+        "programId": "program-a2483b49491615",
+        "displayName": "IEDIAG",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Internet Explorer\\IEDIAGCMD.EXE",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Internet Explorer;"
+      },
+      {
+        "programId": "program-0658ce7582b625",
+        "displayName": "IEDIAGCMD",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Internet Explorer\\IEDIAGCMD.EXE",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Internet Explorer;"
+      },
+      {
+        "programId": "program-c3169a5fbce6be",
+        "displayName": "IEXPLORE",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Internet Explorer\\IEXPLORE.EXE",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Internet Explorer;"
+      },
+      {
+        "programId": "program-44464f2e4d8332",
+        "displayName": "Infinity Assistant",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Infinity Assistant\\app.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\Infinity Assistant"
+      },
+      {
+        "programId": "program-9aad6cebaa13ad",
+        "displayName": "Infinity Assistant V2",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Infinity Assistant V2\\app.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\Infinity Assistant V2\\"
+      },
+      {
+        "programId": "program-80b4be5c9e3a73",
+        "displayName": "Install Additional Tools for Node.js",
+        "capabilityClass": "command_tool",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\System32\\cmd.exe",
+        "arguments": "/d /c \"C:\\Program Files\\nodejs\\install_tools.bat\"",
+        "workingDirectory": "C:\\Program Files\\nodejs\\"
+      },
+      {
+        "programId": "program-31ea5ee92d6bcb",
+        "displayName": "iSCSI Initiator",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\iscsicpl.exe",
+        "arguments": "",
+        "workingDirectory": "%windir%\\system32"
+      },
+      {
+        "programId": "program-b6116667f89986",
+        "displayName": "licensemanagershellext",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\System32\\licensemanagershellext.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-51355aa7d0128f",
+        "displayName": "LiveCaptions",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\LiveCaptions.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-2fa499bcaace23",
+        "displayName": "Magnify",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\magnify.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-115abf0bfaf121",
+        "displayName": "MaxxAudio Pro by Waves - Speaker and Microphone Audio Control and Nx 3D Sound",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Windows\\System32\\DriverStore\\FileRepository\\wavesapo10de.inf_amd64_988646dff8caa323\\WavesSvc64.exe",
+        "arguments": "/toast",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-e018e0608af2a9",
+        "displayName": "McAfee",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\McAfee\\wps\\mc-launch.exe",
+        "arguments": "/source:start_menu",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-c2701ce42e2b82",
+        "displayName": "Memory Diagnostics Tool",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\MdSched.exe",
+        "arguments": "",
+        "workingDirectory": "%windir%\\system32"
+      },
+      {
+        "programId": "program-aefb1ef314f645",
+        "displayName": "Microsoft Edge",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application"
+      },
+      {
+        "programId": "program-921c0ddf69221b",
+        "displayName": "MiKTeX Console",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\Programs\\MiKTeX\\miktex\\bin\\x64\\miktex-console.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-a08e9655a85d5a",
+        "displayName": "MixedRealityLink",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\Microsoft.MixedRealityLink_26.4160.4090.0_x64__8wekyb3d8bbwe\\DeviceDiscovery\\MixedRealityLink.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\Microsoft.MixedRealityLink_26.4160.4090.0_x64__8wekyb3d8bbwe\\DeviceDiscovery"
+      },
+      {
+        "programId": "program-414ab51eafce5d",
+        "displayName": "MixedRealityPairingHelper",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\Microsoft.MixedRealityLink_26.4160.4090.0_x64__8wekyb3d8bbwe\\Platform\\MixedRealityPairingHelper.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\Microsoft.MixedRealityLink_26.4160.4090.0_x64__8wekyb3d8bbwe\\Platform"
+      },
+      {
+        "programId": "program-24770a11585849",
+        "displayName": "mplayer2",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files (x86)\\Windows Media Player\\wmplayer.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files (x86)\\Windows Media Player"
+      },
+      {
+        "programId": "program-c4c12d7dd3084f",
+        "displayName": "MrBackgroundHost",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\Microsoft.MixedRealityLink_26.4160.4090.0_x64__8wekyb3d8bbwe\\Platform\\MrBackgroundHost.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\Microsoft.MixedRealityLink_26.4160.4090.0_x64__8wekyb3d8bbwe\\Platform"
+      },
+      {
+        "programId": "program-132fd9bacbcd25",
+        "displayName": "ms-teams",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\MSTeams_25094.310.3616.953_x64__8wekyb3d8bbwe\\ms-teams.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\MSTeams_25094.310.3616.953_x64__8wekyb3d8bbwe"
+      },
+      {
+        "programId": "program-434196cbd6eaab",
+        "displayName": "ms-teamsupdate",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\MSTeams_25094.310.3616.953_x64__8wekyb3d8bbwe\\ms-teamsupdate.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\MSTeams_25094.310.3616.953_x64__8wekyb3d8bbwe"
+      },
+      {
+        "programId": "program-80f52c7ff639ca",
+        "displayName": "MSACCESS",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Microsoft Office\\Root\\Office16\\MSACCESS.EXE",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Microsoft Office\\Root\\Office16\\"
+      },
+      {
+        "programId": "program-99121259539e83",
+        "displayName": "msedge",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application"
+      },
+      {
+        "programId": "program-1953f9d8752ab1",
+        "displayName": "msoadfsb",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Microsoft Office\\Root\\Office16\\msoadfsb.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-e2f951b2f50597",
+        "displayName": "msoasb",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Microsoft Office\\Root\\Office16\\msoasb.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-9b64739fb18ace",
+        "displayName": "msoxmled",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Microsoft Office\\Root\\VFS\\ProgramFilesCommonX64\\Microsoft Shared\\OFFICE16\\MSOXMLED.EXE",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-a64718daec2f6b",
+        "displayName": "mspaint",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\Microsoft.Paint_11.2601.441.0_x64__8wekyb3d8bbwe\\PaintApp\\mspaint.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\Microsoft.Paint_11.2601.441.0_x64__8wekyb3d8bbwe\\PaintApp"
+      },
+      {
+        "programId": "program-bf7d4c0a35461e",
+        "displayName": "MSPUB",
+        "capabilityClass": "productivity",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\Microsoft Office\\Root\\Office16\\MSPUB.EXE",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\Microsoft Office\\Root\\Office16\\"
+      },
+      {
+        "programId": "program-9daa37fa1a87fa",
+        "displayName": "msteams",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\microsoftteams_24193.1904.3031.6050_x64__8wekyb3d8bbwe\\msteams.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\microsoftteams_24193.1904.3031.6050_x64__8wekyb3d8bbwe"
+      },
+      {
+        "programId": "program-cdabcf4bb14200",
+        "displayName": "msteams_autostarter",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\microsoftteams_24193.1904.3031.6050_x64__8wekyb3d8bbwe\\msteams_autostarter.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\microsoftteams_24193.1904.3031.6050_x64__8wekyb3d8bbwe"
+      },
+      {
+        "programId": "program-a54d71c41418a9",
+        "displayName": "msteamsupdate",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\microsoftteams_24193.1904.3031.6050_x64__8wekyb3d8bbwe\\msteamsupdate.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\microsoftteams_24193.1904.3031.6050_x64__8wekyb3d8bbwe"
+      },
+      {
+        "programId": "program-31dbf48782e8b0",
+        "displayName": "Narrator",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\WINDOWS\\system32\\narrator.exe",
+        "arguments": "",
+        "workingDirectory": ""
+      },
+      {
+        "programId": "program-f8f68c3ac81969",
+        "displayName": "ngrok",
+        "capabilityClass": "application",
+        "launchable": true,
+        "targetPath": "C:\\Program Files\\WindowsApps\\ngrok.ngrok_3.39.1.0_x64__1g87z0zv29zzc\\ngrok.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Program Files\\WindowsApps\\ngrok.ngrok_3.39.1.0_x64__1g87z0zv29zzc"
+      },
+      {
+        "programId": "program-be9b310a2c7cf1",
+        "displayName": "Nightly Private Browsing",
+        "capabilityClass": "browser",
+        "launchable": true,
+        "targetPath": "C:\\Users\\josep\\AppData\\Local\\ms-playwright\\firefox-1495\\firefox\\private_browsing.exe",
+        "arguments": "",
+        "workingDirectory": "C:\\Users\\josep\\AppData\\Local\\ms-playwright\\firefox-1495\\firefox"
+      }
+    ]
+  },
+  "error": "",
+  "rollback": "not_applicable_for_read_only",
+  "output": {
+    "latestPath": "C:\\Users\\josep\\Documents\\GitHub\\Hololand\\.tmp\\holoshell\\action-latest.json",
+    "receiptPath": "C:\\Users\\josep\\Documents\\GitHub\\Hololand\\.tmp\\holoshell\\action-receipts\\hwa-mp9hu8ou-451e65c214.json",
+    "browserBootstrap": "C:\\Users\\josep\\Documents\\GitHub\\Hololand\\.tmp\\holoshell\\action-latest.js",
+    "latestWriteMode": "locked_atomic_same_directory_rename"
+  }
+}

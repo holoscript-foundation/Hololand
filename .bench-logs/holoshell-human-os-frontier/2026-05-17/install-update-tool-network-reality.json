@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "hololand.holoshell.network-reality.v0.1.0",
+  "generatedAt": "2026-05-17T08:17:53.446Z",
+  "sourceAnchors": {
+    "source": "apps/holoshell/source/holoshell-network-reality.hsplus",
+    "adapter": "scripts/holoshell-network-reality.mjs",
+    "liveFeed": "scripts/holoshell-live-feed.mjs",
+    "planning": "C:/Users/josep/.ai-ecosystem/research/2026-05-15_holoweb-local-reality-node-contract.md"
+  },
+  "node": {
+    "nodeId": "local-hardware",
+    "role": "holoweb-local-reality-node",
+    "privacyScope": "local_only"
+  },
+  "underlay": {
+    "classification": "normal_unmetered",
+    "confidence": "os_reported",
+    "ownerDeclaredKind": "none",
+    "ownerDeclaredSource": "none",
+    "osInterfaceKind": "wifi",
+    "osCost": "Unrestricted",
+    "connectivity": "InternetAccess",
+    "vpnState": "unknown",
+    "evidence": [
+      "os_cost_unrestricted"
+    ],
+    "wifi": {
+      "available": true,
+      "connected": true,
+      "signalPercent": 89,
+      "radioType": "802.11ax",
+      "channel": 157,
+      "authentication": "WPA2-Personal",
+      "ssidRedacted": true,
+      "bssidRedacted": true
+    },
+    "cost": {
+      "available": true,
+      "roaming": false,
+      "overDataLimit": false,
+      "approachingDataLimit": false
+    },
+    "adapters": {
+      "available": false,
+      "adapterCount": 0,
+      "configuredVpnCount": 0,
+      "activeVpnCount": 0,
+      "endpointDetailsRedacted": true
+    }
+  },
+  "health": {
+    "state": "pass",
+    "networkConsumerCount": 0,
+    "establishedConnectionCount": 0,
+    "processHealthRisk": "warn"
+  },
+  "lanes": {
+    "activeLaneCount": 7,
+    "laneCount": 8,
+    "semanticIdentityRequired": true,
+    "processCountIsNotPeerCount": true,
+    "processHealthRisk": "warn",
+    "registeredRunCount": 36,
+    "activeRegisteredRunCount": 4,
+    "networkConsumerCount": 0,
+    "agentOrShellNetworkConsumerCount": 0,
+    "legacyNetworkConsumerCount": 0,
+    "topConsumers": []
+  },
+  "policy": {
+    "bandwidthPosture": "normal",
+    "heavyWorkPolicy": "allowed_with_receipts",
+    "agentAction": "run_normal_network_work",
+    "brittneyStance": "normal_operator",
+    "allowedWithoutOwnerGesture": [
+      "normal_network_work",
+      "package_install",
+      "build_cache_fetch",
+      "small_receipt_sync"
+    ],
+    "requiresOwnerGesture": [
+      "destructive_network_change",
+      "vpn_route_change"
+    ]
+  },
+  "brittney": {
+    "stance": "normal_operator",
+    "firstMessage": "Network conditions are normal; I will still leave receipts for heavy work.",
+    "protectBandwidth": false,
+    "canExplainToNonDeveloper": true
+  },
+  "redaction": {
+    "rawSsidIncluded": false,
+    "rawBssidIncluded": false,
+    "ipAddressIncluded": false,
+    "gatewayIncluded": false,
+    "remoteEndpointIncluded": false,
+    "rawCommandLineIncluded": false,
+    "pidIncluded": true,
+    "pidHashIncluded": true,
+    "localOnly": true
+  },
+  "receipt": {
+    "receiptType": "network_reality_snapshot",
+    "snapshotHash": "152aced3b3b1dcb4",
+    "actionTaken": "read_only_scan",
+    "mutationPerformed": false
+  },
+  "schemaContract": {
+    "sourcePackage": "@holoscript/framework",
+    "validationStatus": "pass",
+    "checkedAt": "2026-05-17T08:17:59.541Z",
+    "expectedSchemaVersion": "hololand.holoshell.network-reality.v0.1.0",
+    "schemaVersion": "hololand.holoshell.network-reality.v0.1.0",
+    "errorCount": 0,
+    "errors": []
+  }
+}

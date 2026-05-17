@@ -208,7 +208,7 @@ function runReceiptTrustState(receipt) {
   return 'unknown';
 }
 
-function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
+function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScript, formatInventory, founderBootPreview, founderHost, nativeWrapper, startupIntegration, userShellProjection, developmentalEnvironment, lanes, processHealth, networkReality, networkFreshness, networkChangeEvents, networkSentinelService, serviceSupervisor, legacyAppReality, mcpCustodyContract, mcpUpstreamHandoff, osUiCapture, programRegistry, readinessEvidence, shellObjects, brittneyAvatar, brittneyTurn, brittneyContext, operatorBrief, operatingTurn, founderCommand, founderEvidenceDemo, receiptControl, agentDispatch, grokBuild, grokHeartbeat, hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, trustLedger, workflow, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, runReceipts, pilotReceipts }) {
   const timeline = [];
   const now = new Date().toISOString();
 
@@ -755,6 +755,20 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
     });
   }
 
+  if (packageCustody?.summary) {
+    const summary = packageCustody.summary;
+    timeline.push({
+      id: packageCustody.id || 'package-custody',
+      kind: 'package_custody',
+      title: `Package custody ${summary.status || 'unknown'}`,
+      detail: `${summary.packageName || summary.packageId || 'unknown package'} ${summary.fromVersion || 'unknown'} -> ${summary.toVersion || 'unknown'} via ${summary.manager || 'unknown manager'}; execution ${summary.executionAllowed ? 'allowed after approval' : 'blocked until native gate'}.`,
+      trustState: summary.mutationPerformed ? 'partial' : packageCustody.schemaContract?.status === 'valid' ? 'verified' : 'unknown',
+      generatedAt: packageCustody.generatedAt || now,
+      receiptType: packageCustody.schemaVersion,
+      source: packageCustody.sourceAnchors?.adapter || 'scripts/holoshell-package-custody.mjs',
+    });
+  }
+
   if (trustLedger?.summary) {
     timeline.push({
       id: trustLedger.latestAction?.fingerprint || 'holoshell-trust-ledger',
@@ -950,6 +964,7 @@ function createFeed(args) {
   const hardwareAction = readJson(path.join(tmpDir, 'action-latest.json'), {});
   const hardwareApproval = readJson(path.join(tmpDir, 'approval-latest.json'), {});
   const accountTaskCustody = readJson(path.join(tmpDir, 'account-task-custody-latest.json'), {});
+  const packageCustody = readJson(path.join(tmpDir, 'package-custody-latest.json'), {});
   const trustLedger = readJson(path.join(tmpDir, 'trust-ledger.json'), {});
   const workflow = readJson(path.join(tmpDir, 'workflow-latest.json'), {});
   const workflowApproval = readJson(path.join(tmpDir, 'workflow-approval-latest.json'), {});
@@ -962,6 +977,7 @@ function createFeed(args) {
   const actionReceipts = readReceiptFiles(path.join(tmpDir, 'action-receipts'));
   const approvalBundles = readReceiptFiles(path.join(tmpDir, 'approval-bundles'));
   const accountTaskCustodyReceipts = readReceiptFiles(path.join(tmpDir, 'account-task-custody-receipts'));
+  const packageCustodyReceipts = readReceiptFiles(path.join(tmpDir, 'package-custody-receipts'));
   const workflowApprovalBundles = readReceiptFiles(path.join(tmpDir, 'workflow-approval-bundles'));
   const shardImportApprovalBundles = readReceiptFiles(path.join(tmpDir, 'shard-import-approval-bundles'));
   const pilotReceipts = readReceiptFiles(path.join(tmpDir, 'pilot-receipts'));
@@ -1009,6 +1025,7 @@ function createFeed(args) {
     hardwareAction,
     hardwareApproval,
     accountTaskCustody,
+    packageCustody,
     trustLedger,
     workflow,
     workflowApproval,
@@ -1485,6 +1502,18 @@ function createFeed(args) {
       accountTaskCustodyMutationPerformed: Boolean(accountTaskCustody?.summary?.accountMutationPerformed),
       accountTaskCustodySourceMutationPerformed: Boolean(accountTaskCustody?.summary?.sourceFileMutationPerformed),
       accountTaskCustodyReceiptCount: accountTaskCustodyReceipts.length,
+      packageCustodyStatus: packageCustody?.summary?.status || 'unknown',
+      packageCustodyPackageId: packageCustody?.summary?.packageId || '',
+      packageCustodyPackageName: packageCustody?.summary?.packageName || '',
+      packageCustodyManager: packageCustody?.summary?.manager || '',
+      packageCustodyFromVersion: packageCustody?.summary?.fromVersion || '',
+      packageCustodyToVersion: packageCustody?.summary?.toVersion || '',
+      packageCustodyApprovalRequired: Boolean(packageCustody?.summary?.approvalRequired),
+      packageCustodyExecutionAllowed: Boolean(packageCustody?.summary?.executionAllowed),
+      packageCustodyMutationPerformed: Boolean(packageCustody?.summary?.mutationPerformed),
+      packageCustodyAdminRequired: Boolean(packageCustody?.summary?.adminRequired),
+      packageCustodySchemaStatus: packageCustody?.schemaContract?.status || 'unknown',
+      packageCustodyReceiptCount: packageCustodyReceipts.length,
       trustLedgerStatus: trustLedger?.summary?.status || 'unknown',
       trustLedgerRecordCount: trustLedger?.summary?.recordCount || 0,
       trustedAutonomyTrustedRecordCount: trustLedger?.summary?.trustedRecordCount || 0,
@@ -1602,6 +1631,7 @@ function createFeed(args) {
       hardwareAction,
       hardwareApproval,
       accountTaskCustody,
+      packageCustody,
       trustLedger,
       workflow,
       workflowApproval,
@@ -1616,6 +1646,7 @@ function createFeed(args) {
     actionReceipts,
     approvalBundles,
     accountTaskCustodyReceipts,
+    packageCustodyReceipts,
     workflowApprovalBundles,
     pilotReceipts,
     timeline,

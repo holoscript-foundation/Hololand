@@ -1,0 +1,146 @@
+/**
+ * HoloShell Install/Update Tool Custody Room
+ *
+ * Visible room concept for:
+ * "Install or update the creative/dev tool I need for HoloLand world work,
+ * verify it launches, and show what changed before and after."
+ */
+
+composition "HoloShell Install Update Tool Custody Room" {
+  environment {
+    backgroundColor: "#11161a"
+    ambient_light: 0.57
+    shadows: true
+  }
+
+  template "InstallPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.44, 0.56, 0.08]
+    material: {
+      color: "#17212a"
+      emissive: "#283745"
+      emissiveIntensity: 0.2
+      transparent: true
+      opacity: 0.95
+    }
+  }
+
+  template "GateToken" {
+    @glowing
+    @collidable
+    geometry: "sphere"
+    scale: [0.15, 0.15, 0.15]
+    material: { color: "#7dcfff" }
+  }
+
+  object "HumanJob" using "InstallPanel" {
+    position: [0, 2.35, -2.85]
+    label: "Make this tool ready without breaking the computer"
+    properties: {
+      humanJob: "install or update a world-building tool, prove it launches, and show the exact machine changes"
+      defaultPromise: "inventory and plan first; install, uninstall, PATH, registry, and admin prompts require explicit approval"
+      sourceBoundary: "HoloScript owns package custody primitives and receipt validators; HoloLand renders the install/update room"
+    }
+  }
+
+  object "ToolIdentityGate" using "InstallPanel" {
+    position: [-4.3, 1.5, -1.22]
+    label: "Tool identity"
+    properties: {
+      reads: "package id, publisher, source, current version, available version, installer type"
+      currentExample: "BlenderFoundation.Blender 5.0.1 -> 5.1.1 from winget"
+      failureState: "ambiguous package, untrusted source, version mismatch, fake publisher"
+    }
+  }
+
+  object "MachinePreflight" using "InstallPanel" {
+    position: [-2.15, 1.5, -1.22]
+    label: "Machine preflight"
+    properties: {
+      reads: "disk space, network metering, admin status, running app/process conflicts, build custody"
+      currentEvidence: "normal unmetered network; non-admin shell; C drive about 109 GB free; process health warn"
+      failureState: "metered network, low disk, app currently running, build in progress, reboot pending"
+    }
+  }
+
+  object "ChangePlan" using "InstallPanel" {
+    position: [0, 1.5, -1.22]
+    label: "Change plan"
+    properties: {
+      plannedMutations: ["download_installer", "uninstall_old_version", "install_new_version", "update_start_menu", "change_app_path"]
+      blockedByDefault: ["admin_prompt", "silent_uninstall", "system_path_change", "registry_change", "driver_install"]
+      rule: "package-manager upgrade is not a read-only plan; HoloShell must use source-native dry-run adapters"
+    }
+  }
+
+  object "ApprovalAndRollback" using "InstallPanel" {
+    position: [2.15, 1.5, -1.22]
+    label: "Approval and rollback"
+    properties: {
+      requires: ["package_id", "from_version", "to_version", "download_url", "installer_hash", "scope", "admin_prompt_expected", "rollback_limit"]
+      rollbackOptions: ["installer_cache", "previous_version_reinstall", "portable_restore", "manual vendor download"]
+      rollbackLimits: "uninstall/install may not preserve plugins, preferences, or file associations"
+    }
+  }
+
+  object "LaunchVerification" using "InstallPanel" {
+    position: [4.3, 1.5, -1.22]
+    label: "Launch verification"
+    properties: {
+      proves: ["binary_exists", "version_command_passes", "start_menu_entry_present", "program_registry_updated", "world_build_tool_ready"]
+      currentExample: "Blender 5.1.1 binary exists and --version passes"
+      failureState: "installed but not launchable, PATH missing, app crashes, GPU feature unavailable"
+    }
+  }
+
+  object "ReadOnlyPlanToken" using "GateToken" {
+    position: [-3.2, 0.78, 0.1]
+    label: "read-only inventory"
+    properties: {
+      receiptKind: "package_inventory_receipt"
+      allowed: ["list_installed", "check_versions", "check_disk", "check_network", "check_admin"]
+    }
+  }
+
+  object "BreakGlassInstallToken" using "GateToken" {
+    position: [-1.05, 0.78, 0.1]
+    material: { color: "#e0af68" }
+    label: "install/update locked"
+    properties: {
+      receiptKind: "package_mutation_approval_receipt"
+      breakGlass: true
+      requiresHumanGesture: true
+    }
+  }
+
+  object "AdminPromptToken" using "GateToken" {
+    position: [1.05, 0.78, 0.1]
+    material: { color: "#f7768e" }
+    label: "admin prompt"
+    properties: {
+      receiptKind: "elevation_boundary_receipt"
+      rule: "HoloShell must stop at prompt unless the human approves the exact mutation"
+    }
+  }
+
+  object "ReadyToolToken" using "GateToken" {
+    position: [3.2, 0.78, 0.1]
+    material: { color: "#9ece6a" }
+    label: "tool ready"
+    properties: {
+      receiptKind: "launch_verification_receipt"
+      replayInputs: ["packageId", "version", "binaryPath", "versionOutputHash", "programRegistryHash"]
+    }
+  }
+
+  object "InstallTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.4, 0.08, 0.14]
+    color: "#64717d"
+    label: "timeline: inventory -> preflight -> plan -> approve -> download -> uninstall -> install -> verify -> file receipts -> replay"
+  }
+}

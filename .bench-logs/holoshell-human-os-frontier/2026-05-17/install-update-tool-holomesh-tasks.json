@@ -1,0 +1,20 @@
+[
+  {
+    "title": "[holoshell][installer] Add package custody preflight wrapper",
+    "description": "Evidence: 2026-05-17 HoloShell install/update run used winget for Blender. `winget list --name Blender` was read-only, but `winget upgrade --name Blender` immediately downloaded the installer, uninstalled Blender 5.0.1, required elevation, then installed Blender 5.1.1. A non-technical HoloShell surface must never treat package-manager upgrade as a planning command. Affected repo/path: Hololand apps/holoshell/source, scripts/holoshell-action-executor.mjs or new package custody bridge; upstream HoloScript receipt primitive likely needed. Expected behavior: package install/update requests produce a read-only plan receipt first: package id, source, publisher, current/available version, installer URL/hash, disk/network/admin status, planned mutations, rollback limit, and exact approval packet. Category: HoloShell hardware-wrapper gap; deterministic UX/receipt gap; HoloScript substrate gap.",
+    "priority": 2,
+    "tags": ["holoshell", "installer", "receipt", "hardware-wrapper", "deterministic-ux"]
+  },
+  {
+    "title": "[holoshell][installer] Render admin prompts and rollback limits",
+    "description": "Evidence: Blender upgrade crossed uninstall/install and printed that the installer would request administrator elevation. The current HoloShell hardware control docs classify install/uninstall/system settings as break-glass, but there is no dedicated install/update room that shows elevation, uninstall-before-install, plugin/preference risk, and rollback options as visible objects. Affected repo/path: Hololand experiments/holoshell-human-os-frontier/install-update-tool-*.holo|hsplus|hs and future apps/holoshell source. Expected behavior: HoloLand renders Tool Identity, Machine Preflight, Change Plan, Approval/Rollback, and Launch Verification panels before any mutation. Category: HoloLand product gap; HoloShell hardware-wrapper gap; deterministic UX/receipt gap.",
+    "priority": 2,
+    "tags": ["holoshell", "hololand", "installer", "rollback", "approval"]
+  },
+  {
+    "title": "[holoscript][stdlib] Add package mutation receipt validator",
+    "description": "Evidence: HoloShell needs reusable semantics for package-manager actions across winget, choco, npm, pnpm, pip, installers, app stores, and OS-level elevation. HoloScript currently owns StdlibPolicy and receipt semantics; install/update is broader than HoloLand's Blender case. Affected repo/path: HoloScript packages/framework or core stdlib/receipt policy surfaces; exact owner to be decided by substrate design. Expected behavior: validator rejects package mutation receipts missing package id, source, from/to version, installer hash or package-manager transaction id, disk/network/admin preflight, approval id/nonce, rollback limit, and launch verification. Category: HoloScript substrate gap; reusable primitive/validator gap.",
+    "priority": 3,
+    "tags": ["holoscript", "stdlib", "receipts", "installer", "validation"]
+  }
+]

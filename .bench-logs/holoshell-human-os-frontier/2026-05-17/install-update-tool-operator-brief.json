@@ -1,0 +1,394 @@
+{
+  "schemaVersion": "hololand.holoshell.operator-brief.v0.1.0",
+  "generatedAt": "2026-05-17T08:08:50.125Z",
+  "sourceAnchors": {
+    "source": "apps/holoshell/source/holoshell-operator-brief.hsplus",
+    "adapter": "scripts/holoshell-operator-brief.mjs",
+    "hardwareReality": "scripts/holoshell-hardware-reality-bridge.mjs",
+    "runCustody": "scripts/holoshell-run-custody-actions.mjs",
+    "buildCustody": "scripts/holoshell-build-custody.mjs",
+    "legacyAbsorption": "scripts/holoshell-legacy-app-absorption.mjs",
+    "legacyWindows": "scripts/holoshell-legacy-window-inventory.mjs",
+    "readinessEvidence": "scripts/holoshell-readiness-evidence.mjs",
+    "visualWitness": "scripts/holoshell-visual-witness.mjs"
+  },
+  "status": "legacy_absorption_ready",
+  "hardware": {
+    "riskState": "warn",
+    "processCount": 527,
+    "shellRunCount": 53,
+    "activeLaneCount": 3,
+    "laneCount": 3,
+    "legacyAppCount": 27,
+    "terminationPreflightCount": 6,
+    "snapshotHash": "68cf721b683c2b76d0785c186914c17ff75add7661a7b985f730a6e5435710c3"
+  },
+  "runs": {
+    "observedRunCount": 25,
+    "claimedRunCount": 12,
+    "observedOwnerCount": 13,
+    "ownerUnknownCount": 0,
+    "staleRunCount": 1,
+    "closedRunCount": 0,
+    "custodyHash": "f0dff312f8c0d7a78e0fb86aeca571e5c0b261b1eadbc29e4a5d8bbffabf7792"
+  },
+  "build": {
+    "riskState": "pass",
+    "processCount": 137,
+    "buildProcessCount": 0,
+    "activeBuildCount": 0,
+    "activeBuildTreeCount": 0,
+    "buildTreeCount": 0,
+    "longRunningBuildCount": 0,
+    "highMemoryBuildCount": 0,
+    "reviewRequiredCount": 0,
+    "topBuildTreeId": null,
+    "topBuildTreeStatus": null,
+    "buildCustodyHash": "c84f4c0918a731a16b8dafca97cb803b623130b6d785ac9dd835cae063e54ec7"
+  },
+  "legacy": {
+    "observedAppCount": 4,
+    "visibleWindowCount": 5,
+    "peerSurfaceCount": 2,
+    "peerWindowCount": 2,
+    "aiPeerSurfaceCount": 2,
+    "aiPeerWindowCount": 2,
+    "shellSurfaceCount": 1,
+    "shellWindowCount": 1,
+    "operatingSurfaceCount": 3,
+    "operatingSurfaceWindowCount": 3,
+    "appGroupCount": 6,
+    "captureCandidateCount": 2,
+    "preflightRequiredCount": 2,
+    "mutationAllowedCount": 0,
+    "absorptionHash": "7a91a4b9ba3aee548bac208f0582eb3c9a7bd23f4d00e5f8ba0d8b6299e9df7e",
+    "windowInventoryHash": "177cb1b01f8a344cb182e37ec0e04625051c139014b3b0f31314b705e8344feb",
+    "shellWindowBoundCount": 0,
+    "shellWindowUnboundCount": 1,
+    "shellWindowOwnerUnknownRunCount": 0
+  },
+  "peers": {
+    "source": "legacy_window_inventory",
+    "windowInstanceCount": 2,
+    "surfaceCount": 2,
+    "aiWindowInstanceCount": 2,
+    "aiSurfaceCount": 2,
+    "shellWindowInstanceCount": 1,
+    "shellSurfaceCount": 1,
+    "operatingSurfaceWindowCount": 3,
+    "operatingSurfaceCount": 3,
+    "rawWindowTitlesIncluded": false,
+    "surfaces": [
+      {
+        "laneId": "codex",
+        "label": "Codex",
+        "peerKind": "agent",
+        "windowInstanceCount": 1,
+        "processCount": 1,
+        "evidence": "top_level_windows"
+      },
+      {
+        "laneId": "claude",
+        "label": "Claude",
+        "peerKind": "agent",
+        "windowInstanceCount": 1,
+        "processCount": 1,
+        "evidence": "top_level_windows"
+      }
+    ],
+    "shellSurfaces": [
+      {
+        "laneId": "terminal",
+        "label": "Terminal",
+        "peerKind": "shell",
+        "surfaceClass": "shell_surface",
+        "windowInstanceCount": 1,
+        "processCount": 1,
+        "evidence": "top_level_windows"
+      }
+    ]
+  },
+  "shellCustody": {
+    "source": "legacy_window_inventory + hardware_reality + run_custody",
+    "windowCount": 1,
+    "boundWindowCount": 0,
+    "unboundWindowCount": 1,
+    "boundRunCount": 0,
+    "windowRunAttachmentCount": 0,
+    "unboundRunCount": 73,
+    "ownerUnknownRunCount": 0,
+    "laneObservedRunCount": 0,
+    "claimedRunCount": 0,
+    "windows": [
+      {
+        "windowId": "window-357051257a9c",
+        "pid": 303,
+        "label": "Terminal",
+        "titleLabel": "terminal_task",
+        "status": "window_unbound",
+        "bindingEvidence": "no_matching_shell_run",
+        "boundRunCount": 0,
+        "ownerUnknownRunCount": 0,
+        "laneObservedRunCount": 0,
+        "claimedRunCount": 0,
+        "laneIds": [],
+        "runs": [],
+        "rawTitleHidden": true,
+        "receiptRequired": true
+      }
+    ],
+    "unboundRuns": [
+      {
+        "runId": "pid-2452",
+        "pid": 2452,
+        "parentPid": 42732,
+        "processName": "node.exe",
+        "status": "lane_observed",
+        "laneId": "codex",
+        "ownerEvidence": "parent_pid",
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-3184",
+        "pid": 3184,
+        "parentPid": 38840,
+        "processName": "node.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-5948",
+        "pid": 5948,
+        "parentPid": 34076,
+        "processName": "cmd.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-7436",
+        "pid": 7436,
+        "parentPid": 8300,
+        "processName": "node.exe",
+        "status": "lane_observed",
+        "laneId": "codex",
+        "ownerEvidence": "parent_pid",
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-8488",
+        "pid": 8488,
+        "parentPid": 28000,
+        "processName": "node.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-9300",
+        "pid": 9300,
+        "parentPid": 32312,
+        "processName": "node.exe",
+        "status": "lane_observed",
+        "laneId": "codex",
+        "ownerEvidence": "parent_pid",
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-9800",
+        "pid": 9800,
+        "parentPid": 35400,
+        "processName": "node.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-13732",
+        "pid": 13732,
+        "parentPid": 7436,
+        "processName": "cmd.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-15776",
+        "pid": 15776,
+        "parentPid": 37344,
+        "processName": "node.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-16956",
+        "pid": 16956,
+        "parentPid": 9800,
+        "processName": "esbuild.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-18908",
+        "pid": 18908,
+        "parentPid": 12080,
+        "processName": "powershell.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      },
+      {
+        "runId": "pid-19368",
+        "pid": 19368,
+        "parentPid": 8488,
+        "processName": "powershell.exe",
+        "status": "owner_unknown",
+        "laneId": null,
+        "ownerEvidence": null,
+        "rawCommandHidden": true
+      }
+    ],
+    "rawWindowTitlesIncluded": false,
+    "rawCommandsIncluded": false
+  },
+  "readiness": {
+    "status": "warn",
+    "tokenCount": 14,
+    "warningCount": 6,
+    "buildStatus": "pass",
+    "graphStatus": "pass",
+    "nextWorkflow": "Turn a folder of local assets into a playable HoloLand shard with validation, preview, source receipts, and rollback.",
+    "readinessHash": "holoshell-human-os-frontier-83c1a093d247"
+  },
+  "visualWitness": {
+    "status": "pass",
+    "screenshotPath": ".tmp/holoshell/visual-witness/hardware-reality-room-20260516T180511Z.png",
+    "witnessHash": null
+  },
+  "allowedActions": [
+    "observe_hardware",
+    "claim_run",
+    "extend_run",
+    "close_run_receipt",
+    "mark_run_stale",
+    "observe_build",
+    "refresh_build_custody",
+    "capture_window",
+    "map_visible_controls",
+    "summarize_visible_state",
+    "ingest_readiness_evidence",
+    "capture_visual_witness"
+  ],
+  "blockedActions": [
+    "kill_process",
+    "delete_file",
+    "legacy_app_mutation",
+    "registry_change",
+    "kill_build_process",
+    "stop_build_tree",
+    "delete_build_output",
+    "click_destructive_ui",
+    "change_app_setting",
+    "alter_registry",
+    "uninstall_app",
+    "submit_form",
+    "close_window",
+    "destructive_ui_click"
+  ],
+  "nextActions": [
+    {
+      "source": "run_custody",
+      "priority": "medium",
+      "action": "extend pid-28544: Claim has passed its expected end time while the PID is still visible. Extend the non-destructive custody receipt."
+    },
+    {
+      "source": "legacy_absorption",
+      "priority": "medium",
+      "action": "capture_browser_surface for msedge: Browser is a high-value legacy surface for user tasks and web automation."
+    },
+    {
+      "source": "readiness_evidence",
+      "priority": "high",
+      "action": "6 readiness warning(s) need review."
+    },
+    {
+      "source": "hardware_reality",
+      "priority": "medium",
+      "action": "Review MCP health findings before starting a memory-heavy build, browser run, or model job."
+    },
+    {
+      "source": "hardware_reality",
+      "priority": "medium",
+      "action": "6 owner-unknown cleanup candidate(s) need HoloShell MCP preflight before PID termination."
+    },
+    {
+      "source": "hardware_reality",
+      "priority": "low",
+      "action": "2 process finding(s) already have owner lanes. Ask those lanes to extend, close, or justify before cleanup."
+    }
+  ],
+  "brittneyPromptCard": {
+    "role": "local_hardware_operator",
+    "instruction": "Use this brief before proposing shell, process, file, or legacy-app actions. Prefer read-only observation and custody receipts. Route destructive work through HoloShell MCP preflights.",
+    "mustNot": [
+      "kill_process",
+      "delete_file",
+      "legacy_app_mutation",
+      "registry_change",
+      "kill_build_process",
+      "stop_build_tree",
+      "delete_build_output",
+      "click_destructive_ui",
+      "change_app_setting",
+      "alter_registry",
+      "uninstall_app",
+      "submit_form",
+      "close_window",
+      "destructive_ui_click"
+    ],
+    "firstMove": "extend pid-28544: Claim has passed its expected end time while the PID is still visible. Extend the non-destructive custody receipt.",
+    "peerWindowSummary": "Codex:1, Claude:1",
+    "shellWindowSummary": "Terminal:1",
+    "shellCustodySummary": "0/1 shell window(s) bound to 0 run(s); 0 bound run(s) need custody.",
+    "buildCustodySummary": "0 build process(es) across 0 tree(s); 0 lane-owned; 0 owner-unknown tree(s); 0 long-running; 0 high-memory.",
+    "readinessSummary": "warn / 14 token(s) / 6 warning(s).",
+    "visualWitnessSummary": "pass / screenshot ready."
+  },
+  "agentConsumption": {
+    "rest": ".tmp/holoshell/operator-brief.json",
+    "browserBootstrap": ".tmp/holoshell/operator-brief.js",
+    "requiredRefreshOrder": [
+      "pnpm run holoshell:hardware-reality",
+      "pnpm run holoshell:build-custody",
+      "pnpm run holoshell:run-custody",
+      "pnpm run holoshell:legacy-windows",
+      "pnpm run holoshell:legacy-apps",
+      "pnpm run holoshell:readiness-evidence",
+      "pnpm run holoshell:operator-brief"
+    ]
+  },
+  "safety": {
+    "destructiveActionsTaken": false,
+    "rawCommandsIncluded": false,
+    "preflightRequiredForTermination": true,
+    "preflightRequiredForLegacyMutation": true,
+    "rawWindowTitlesIncluded": false
+  },
+  "receipt": {
+    "briefHash": "c0b88b546c5f2d8ef4322d8789d6e4743be56598c430826db6130a133a62360f",
+    "destructiveActionsTaken": false,
+    "rawCommandsIncluded": false,
+    "rawWindowTitlesIncluded": false
+  }
+}

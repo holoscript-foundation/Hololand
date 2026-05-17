@@ -1727,7 +1727,7 @@ function assetShardObjects({ shardWorkflow, shardImport }) {
   return objects;
 }
 
-function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, founderEvidenceDemo, receiptControl, workflow, workflowApproval, workflowIntentGate }) {
+function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, founderEvidenceDemo, receiptControl, workflow, workflowApproval, workflowIntentGate }) {
   const receipts = [];
   if (hardwareAction?.summary) {
     receipts.push({
@@ -1796,6 +1796,45 @@ function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, 
       detail: `Account task ${summary.status || 'unknown'} on ${summary.provider || 'unknown provider'}; draft ${summary.draftHash ? 'hash-bound' : 'missing'}; execution ${summary.executionAllowed ? 'allowed after approval' : 'blocked'}.`,
       firstScreen: Boolean(summary.approvalRequired),
       layout: layout(16, 84),
+    });
+  }
+  if (packageCustody?.summary) {
+    const summary = packageCustody.summary;
+    receipts.push({
+      id: `receipt.package-custody.${shortHash(packageCustody.id || packageCustody.generatedAt || 'package-custody')}`,
+      objectKind: 'receipt',
+      displayName: 'Tool Install Gate',
+      sourceKind: 'receipt',
+      sourceRef: packageCustody.id || '',
+      capabilityFamily: 'package_custody',
+      trustState: summary.mutationPerformed ? 'partial' : packageCustody.schemaContract?.status === 'valid' ? 'verified' : 'unknown',
+      permissionEnvelope: summary.permissionEnvelope || 'break_glass',
+      adapterPath: 'package_custody',
+      visualForm: summary.approvalRequired ? 'approval_token' : 'receipt_node',
+      status: summary.status || 'unknown',
+      actorLaneId: 'codex-hardware',
+      receiptTypes: ['package_mutation_receipt', 'approval_packet_receipt', 'rollback_limit_receipt'],
+      relationships: {
+        packageId: summary.packageId || '',
+        manager: summary.manager || '',
+        source: summary.source || '',
+        fromVersion: summary.fromVersion || '',
+        toVersion: summary.toVersion || '',
+        approvalId: summary.approvalId || '',
+        executionAllowed: Boolean(summary.executionAllowed),
+        mutationPerformed: Boolean(summary.mutationPerformed),
+        adminRequired: Boolean(summary.adminRequired),
+        adminSession: Boolean(summary.adminSession),
+        packageManagerAvailable: Boolean(summary.packageManagerAvailable),
+        rollbackLimitCount: summary.rollbackLimitCount || 0,
+        schemaContractStatus: packageCustody.schemaContract?.status || 'unknown',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'fresh_human_gesture_then_native_package_gate',
+      glyph: 'PK',
+      detail: `Package custody ${summary.packageName || summary.packageId || 'unknown package'} ${summary.fromVersion || 'unknown'} -> ${summary.toVersion || 'unknown'}; execution ${summary.executionAllowed ? 'allowed after approval' : 'blocked'}.`,
+      firstScreen: Boolean(summary.approvalRequired),
+      layout: layout(17, 84),
     });
   }
   if (founderEvidenceDemo?.summary) {
@@ -2146,6 +2185,17 @@ function summarize(objects, feeds) {
     accountTaskCustodyExecutionAllowed: Boolean(feeds.accountTaskCustody?.summary?.executionAllowed),
     accountTaskCustodyMutationPerformed: Boolean(feeds.accountTaskCustody?.summary?.accountMutationPerformed),
     accountTaskCustodySourceMutationPerformed: Boolean(feeds.accountTaskCustody?.summary?.sourceFileMutationPerformed),
+    packageCustodyObjectCount: objects.filter((object) => object.capabilityFamily === 'package_custody').length,
+    packageCustodyStatus: feeds.packageCustody?.summary?.status || 'unknown',
+    packageCustodyPackageId: feeds.packageCustody?.summary?.packageId || '',
+    packageCustodyPackageName: feeds.packageCustody?.summary?.packageName || '',
+    packageCustodyManager: feeds.packageCustody?.summary?.manager || '',
+    packageCustodyFromVersion: feeds.packageCustody?.summary?.fromVersion || '',
+    packageCustodyToVersion: feeds.packageCustody?.summary?.toVersion || '',
+    packageCustodyApprovalRequired: Boolean(feeds.packageCustody?.summary?.approvalRequired),
+    packageCustodyExecutionAllowed: Boolean(feeds.packageCustody?.summary?.executionAllowed),
+    packageCustodyMutationPerformed: Boolean(feeds.packageCustody?.summary?.mutationPerformed),
+    packageCustodySchemaStatus: feeds.packageCustody?.schemaContract?.status || 'unknown',
     founderEvidenceDemoObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_evidence_demo').length,
     founderEvidenceDemoStatus: feeds.founderEvidenceDemo?.summary?.status || 'unknown',
     founderEvidenceDemoEvidenceRung: feeds.founderEvidenceDemo?.summary?.evidenceRung || '',
@@ -2206,6 +2256,7 @@ function summarize(objects, feeds) {
       grokHeartbeatStatus: feeds.grokHeartbeat?.summary?.status || 'unknown',
       trustLedgerStatus: feeds.trustLedger?.summary?.status || 'unknown',
       accountTaskCustodyStatus: feeds.accountTaskCustody?.summary?.status || 'unknown',
+      packageCustodyStatus: feeds.packageCustody?.summary?.status || 'unknown',
       founderEvidenceDemoStatus: feeds.founderEvidenceDemo?.summary?.status || 'unknown',
       receiptControlStatus: feeds.receiptControl?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
@@ -2244,6 +2295,7 @@ function loadFeeds(tmpDir) {
     hardwareAction: readJson(path.join(dir, 'action-latest.json'), {}),
     hardwareApproval: readJson(path.join(dir, 'approval-latest.json'), {}),
     accountTaskCustody: readJson(path.join(dir, 'account-task-custody-latest.json'), {}),
+    packageCustody: readJson(path.join(dir, 'package-custody-latest.json'), {}),
     founderEvidenceDemo: readJson(path.join(dir, 'founder-evidence-demo-latest.json'), {}),
     receiptControl: readJson(path.join(dir, 'receipt-control-latest.json'), {}),
     workflow: readJson(path.join(dir, 'workflow-latest.json'), {}),
@@ -2309,6 +2361,7 @@ function buildGraph(args, fixtures = null) {
       serviceSupervisor: 'scripts/holoshell-service-supervisor.mjs',
       trustedAutonomy: 'scripts/holoshell-trust-ledger.mjs',
       accountTaskCustody: 'scripts/holoshell-account-task-custody.mjs',
+      packageCustody: 'scripts/holoshell-package-custody.mjs',
       founderEvidenceDemo: 'scripts/holoshell-founder-evidence-demo.mjs',
       receiptControl: 'scripts/holoshell-receipt-control.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
@@ -2841,6 +2894,39 @@ function fixtureFeeds() {
         fileCount: 1,
       },
     },
+    packageCustody: {
+      schemaVersion: 'hololand.holoshell.package-custody.v0.1.0',
+      id: 'package-custody-fixture',
+      generatedAt: new Date().toISOString(),
+      schemaContract: { status: 'valid', validator: '@holoscript/framework.validateHoloShellPackageMutationReceipt', errors: [] },
+      approval: {
+        approvalId: 'pkg-approval-fixture',
+        rollbackLimits: [
+          'Package managers may not provide automatic downgrade.',
+          'Admin/UAC prompts cannot be replayed silently.',
+          'Launch/version verification is required after mutation.',
+        ],
+      },
+      summary: {
+        status: 'approval_required',
+        packageId: 'BlenderFoundation.Blender',
+        packageName: 'Blender',
+        manager: 'winget',
+        source: 'winget',
+        fromVersion: '5.0.1',
+        toVersion: '5.1.1',
+        permissionEnvelope: 'break_glass',
+        approvalRequired: true,
+        approvalId: 'pkg-approval-fixture',
+        executionAllowed: false,
+        mutationPerformed: false,
+        adminRequired: true,
+        adminSession: false,
+        packageManagerAvailable: true,
+        rollbackLimitCount: 3,
+        launchVerified: false,
+      },
+    },
     founderEvidenceDemo: {
       schemaVersion: 'hololand.holoshell.founder-evidence-demo.v0.1.0',
       demoId: 'founder-demo-fixture',
@@ -3013,6 +3099,10 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.displayName === 'Account Task Receipt' && object.relationships?.draftHash === 'draft-fixture')) failures.push('expected account task receipt draft binding');
   if (graph.summary.accountTaskCustodyStatus !== 'draft_ready_approval_required') failures.push('expected account task custody status');
   if (graph.summary.accountTaskCustodyExecutionAllowed) failures.push('expected account task custody to block execution');
+  if (!graph.objects.some((object) => object.displayName === 'Tool Install Gate' && object.relationships?.packageId === 'BlenderFoundation.Blender')) failures.push('expected package custody install gate');
+  if (graph.summary.packageCustodyStatus !== 'approval_required') failures.push('expected package custody approval status');
+  if (graph.summary.packageCustodyExecutionAllowed) failures.push('expected package custody to block execution');
+  if (graph.summary.packageCustodySchemaStatus !== 'valid') failures.push('expected package custody schema contract');
   if (!graph.objects.some((object) => object.displayName === 'Founder Evidence Demo' && object.relationships?.approvalId === 'hwap-founder-fixture')) failures.push('expected founder evidence demo receipt binding');
   if (graph.summary.founderEvidenceDemoStatus !== 'pending_user_approval') failures.push('expected founder evidence demo pending approval status');
   if (graph.summary.founderEvidenceDemoEvidenceRung !== 'visible_shell_ux') failures.push('expected founder evidence demo evidence rung');

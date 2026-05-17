@@ -21,6 +21,7 @@ scripts/holoshell-agent-dispatch.mjs
 scripts/holoshell-founder-command.mjs
 scripts/holoshell-room-marathon-workflow.mjs
 scripts/holoshell-workflow-approval-bundle.mjs
+scripts/holoshell-package-custody.mjs
 ```
 
 ## Contract
@@ -36,6 +37,11 @@ HoloShell treats hardware control as three permission envelopes:
 
 Every action writes a receipt. A read-only receipt is still a receipt because it
 proves what HoloShell saw before it offered to act.
+
+Package-manager install/update is a dedicated break-glass custody lane. The
+visible product source is `apps/holoshell/source/holoshell-package-custody.hsplus`;
+the reusable validator is upstream in
+`packages/framework/src/board/holoshell-package-mutation-receipt.ts`.
 
 ## Receipt Outputs
 
@@ -62,6 +68,9 @@ proves what HoloShell saw before it offered to act.
 .tmp/holoshell/founder-command-latest.json
 .tmp/holoshell/founder-command-latest.js
 .tmp/holoshell/founder-commands/
+.tmp/holoshell/package-custody-latest.json
+.tmp/holoshell/package-custody-latest.js
+.tmp/holoshell/package-custody-receipts/
 ```
 
 The live-feed bridge consumes the latest action and exposes it to the prototype
@@ -71,6 +80,9 @@ as `feed.feeds.hardwareAction`. It also consumes the launchable app registry as
 `feed.feeds.hardwareApproval`. Compound workflows are exposed as
 `feed.feeds.workflow` and their nonce-bound approval packet as
 `feed.feeds.workflowApproval`.
+Package custody is exposed as `feed.feeds.packageCustody`; it shows package id,
+version change, admin requirement, rollback limits, validator status, and that
+execution remains blocked until a future native approval gate supports it.
 
 ## Current Action Surface
 
@@ -150,6 +162,17 @@ Plan an app launch without touching the machine:
 ```powershell
 node scripts\holoshell-action-executor.mjs --action launch_app --app Chrome
 ```
+
+Stage a package update approval packet without touching the machine:
+
+```powershell
+node scripts\holoshell-package-custody.mjs --from-winget-blender-fixture
+```
+
+The package custody bridge intentionally does not execute `winget install`,
+`winget upgrade`, or uninstall commands. It records the exact package/source and
+rollback limits so HoloShell can render a stable approval object instead of
+letting an agent mutate the machine from an ambient shell command.
 
 Create a nonce-bound approval packet for the latest guarded action:
 

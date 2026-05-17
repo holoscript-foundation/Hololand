@@ -1,0 +1,162 @@
+// HoloShell Package Custody
+//
+// Source contract for turning package-manager installs, upgrades, and
+// uninstalls into deterministic HoloShell approval experiences. HoloLand owns
+// the visible room; HoloScript owns the reusable package mutation receipt
+// validator consumed by the bridge.
+
+composition "HoloShell Package Custody" {
+  config {
+    owner: "HoloLand"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-package-custody.mjs"
+    upstreamValidator: "packages/framework/src/board/holoshell-package-mutation-receipt.ts"
+    latestReceipt: ".tmp/holoshell/package-custody-latest.json"
+    browserBootstrap: ".tmp/holoshell/package-custody-latest.js"
+    receiptArchive: ".tmp/holoshell/package-custody-receipts/"
+    defaultMode: "approval_packet_only"
+  }
+
+  state {
+    custodyStatus: "unknown"
+    packageId: "unknown"
+    packageName: "unknown"
+    manager: "unknown"
+    fromVersion: "unknown"
+    toVersion: "unknown"
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    executionAllowed: false
+    mutationPerformed: false
+    adminRequired: false
+    adminSession: false
+    packageManagerAvailable: false
+    rollbackLimitCount: 0
+    launchVerified: false
+    schemaContractStatus: "unknown"
+    nextMove: "render_package_approval_gate"
+  }
+
+  channel "holoshell:package-custody" {
+    type: "append_only"
+    priority: "critical"
+    description: "Package manager custody receipts for local tool install/update"
+  }
+
+  room "PackageCustodyRoom" {
+    label: "Tool Install Gate"
+    userQuestion: "Can this computer install or update the tool safely?"
+    visualForm: "package_approval_gate"
+    liveFeed: "holoshell:package-custody"
+
+    object "PackageMutationGate" {
+      type: "ui"
+      uiType: "package_mutation_gate"
+      label: $packageName
+      status: $custodyStatus
+      package_id: $packageId
+      manager: $manager
+      from_version: $fromVersion
+      to_version: $toVersion
+      permission_envelope: $permissionEnvelope
+      approval_required: $approvalRequired
+      execution_allowed: $executionAllowed
+      mutation_performed: $mutationPerformed
+      admin_required: $adminRequired
+      admin_session: $adminSession
+      package_manager_available: $packageManagerAvailable
+      rollback_limit_count: $rollbackLimitCount
+      launch_verified: $launchVerified
+      schema_contract_status: $schemaContractStatus
+      next_move: $nextMove
+    }
+  }
+
+  policy "PackageInventoryIsReadOnly" {
+    appliesTo: [
+      "list_installed_packages",
+      "check_available_versions",
+      "check_package_source",
+      "check_disk_space",
+      "check_network_cost",
+      "check_admin_status",
+      "check_running_process_conflicts"
+    ]
+    permissionEnvelope: "read_only"
+    mutationAllowed: false
+    receiptRequired: true
+  }
+
+  policy "PackageMutationIsBreakGlass" {
+    appliesTo: [
+      "download_installer",
+      "install_package",
+      "upgrade_package",
+      "uninstall_package",
+      "modify_path",
+      "modify_registry",
+      "install_driver",
+      "approve_admin_prompt",
+      "reboot_machine"
+    ]
+    permissionEnvelope: "break_glass"
+    mutationAllowed: false
+    approvalPacketRequired: true
+    freshHumanGestureRequired: true
+    rollbackLimitsMustBeVisible: true
+    postMutationVerificationRequired: true
+    receiptRequired: true
+  }
+
+  policy "NoAmbientPackageExecution" {
+    appliesTo: ["install_package", "upgrade_package", "uninstall_package"]
+    defaultBridgeMode: "approval_packet_only"
+    daemonExecuteDisabledByDefault: true
+    exactPackageIdRequired: true
+    exactSourceRequired: true
+    fromVersionRequired: true
+    toVersionRequired: true
+    installerHashRequiredWhenKnown: true
+    liveMutationUnsupportedUntilNativeApprovalGate: true
+  }
+
+  action consume_package_custody(snapshot) {
+    state.custodyStatus = snapshot.summary.status
+    state.packageId = snapshot.summary.packageId
+    state.packageName = snapshot.summary.packageName
+    state.manager = snapshot.summary.manager
+    state.fromVersion = snapshot.summary.fromVersion
+    state.toVersion = snapshot.summary.toVersion
+    state.permissionEnvelope = snapshot.summary.permissionEnvelope
+    state.approvalRequired = snapshot.summary.approvalRequired
+    state.executionAllowed = snapshot.summary.executionAllowed
+    state.mutationPerformed = snapshot.summary.mutationPerformed
+    state.adminRequired = snapshot.summary.adminRequired
+    state.adminSession = snapshot.summary.adminSession
+    state.packageManagerAvailable = snapshot.summary.packageManagerAvailable
+    state.rollbackLimitCount = snapshot.summary.rollbackLimitCount
+    state.launchVerified = snapshot.summary.launchVerified
+    state.schemaContractStatus = snapshot.schemaContract.status
+
+    emit("holoshell:package-custody", {
+      status: state.custodyStatus,
+      package_id: state.packageId,
+      package_name: state.packageName,
+      manager: state.manager,
+      from_version: state.fromVersion,
+      to_version: state.toVersion,
+      permission_envelope: state.permissionEnvelope,
+      approval_required: state.approvalRequired,
+      execution_allowed: state.executionAllowed,
+      mutation_performed: state.mutationPerformed,
+      admin_required: state.adminRequired,
+      admin_session: state.adminSession,
+      package_manager_available: state.packageManagerAvailable,
+      rollback_limit_count: state.rollbackLimitCount,
+      launch_verified: state.launchVerified,
+      schema_contract_status: state.schemaContractStatus,
+      receipt_hash: snapshot.hash,
+      approval_id: snapshot.approval.approvalId
+    })
+  }
+}

@@ -41,6 +41,7 @@ source/holoshell-network-reality.hsplus
 source/holoshell-founder-host.hsplus
 source/holoshell-native-wrapper.hsplus
 source/holoshell-startup-integration.hsplus
+source/holoshell-package-custody.hsplus
 ```
 
 `holoshell-home.hsplus` owns behavior, channels, permissions, receipts, and
@@ -67,6 +68,10 @@ startup registration behind approval.
 `holoshell-startup-integration.hsplus` defines the approved per-user startup
 gate: registration is plan-only by default, `-Approve` is required for mutation,
 and Explorer replacement remains blocked.
+`holoshell-package-custody.hsplus` defines the tool install/update gate:
+package inventory is read-only, install/upgrade/uninstall are break-glass
+approval packets, and the reusable mutation receipt validator lives upstream in
+HoloScript.
 
 HTML is only a projection or host preview. Do not add hand-authored TypeScript
 behavior before the HoloScript source contract is named. Future desktop bridge
@@ -109,6 +114,7 @@ source/holoshell-network-reality.hsplus
 source/holoshell-founder-host.hsplus
 source/holoshell-native-wrapper.hsplus
 source/holoshell-startup-integration.hsplus
+source/holoshell-package-custody.hsplus
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
@@ -171,7 +177,8 @@ scripts/holoshell-live-feed.mjs
 
 It bundles capability inventory, HoloScript surface map, agent lanes, process
 health, network reality, Founder host readiness, Brittney avatar state,
-hardware action receipts, run receipts, pilot receipts, and stop plans into:
+hardware action receipts, package custody receipts, run receipts, pilot
+receipts, and stop plans into:
 
 ```text
 .tmp/holoshell/live-feed.json
