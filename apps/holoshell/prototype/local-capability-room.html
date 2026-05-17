@@ -67,6 +67,10 @@
       width: 100vw;
       height: 100vh;
       z-index: 0;
+      /* Liquid surface recedes into the scene — looking DOWN into water, not AT a flat screen */
+      transform-origin: 50% 100%;
+      transform: perspective(1200px) rotateX(15deg) scaleY(1.06);
+      will-change: transform;
     }
 
     .shell {
@@ -614,6 +618,11 @@
       inset: 0;
       min-height: inherit;
       min-width: 0;
+      /* Stationary viewpoint — user looks INTO the world, never moves through it */
+      perspective: 900px;
+      perspective-origin: 50% 42%;
+      transform-style: preserve-3d;
+      will-change: transform;
     }
 
     .control-lane {
@@ -987,9 +996,13 @@
       place-items: center;
       text-align: center;
       padding: 12px;
+      /* Depth layer: --z controls how close (positive = near, negative = far) */
+      /* Far objects also get slightly dimmed for atmospheric depth */
+      opacity: calc(0.55 + (var(--z, 0px) + 120px) / 360px * 0.45);
       box-shadow: inset 0 0 22px rgba(255, 255, 255, 0.12), 0 18px 44px rgba(0, 0, 0, 0.20);
       animation: drift var(--duration) ease-in-out infinite alternate;
       cursor: pointer;
+      transform-style: preserve-3d;
     }
 
     .bubble:focus-visible {
@@ -1023,8 +1036,9 @@
     }
 
     @keyframes drift {
-      from { transform: translate3d(-8px, 6px, 0) scale(0.985); }
-      to { transform: translate3d(10px, -10px, 0) scale(1.015); }
+      /* translateZ(var(--z)) places each bubble at its depth layer — perspective does the rest */
+      from { transform: translate3d(-8px, 6px, var(--z, 0px)) scale(0.985); }
+      to   { transform: translate3d(10px, -10px, var(--z, 0px)) scale(1.015); }
     }
 
     .context-panel {
@@ -1557,35 +1571,39 @@
     let selectedShellObjectId = "hololand";
     let lastGrokObservationId = "";
     const FLAGSHIP_COMMAND = "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube";
+    // z: depth layer in px for CSS translateZ via CSS perspective(900px).
+    // Near layer  (+80 to +120): primary objects — largest apparent size, bright, close
+    // Mid layer   (+20 to  -20): standard objects — default depth plane
+    // Far layer   (-60 to -120): background/utility — smaller apparent size, slightly dimmed
     const baseObjects = [
-      { id: "browser", label: "Browser", glyph: "B", type: "program", detail: "Web surfaces open as witnessed HoloLand objects.", x: 62, y: 16, size: 132 },
-      { id: "excel", label: "Excel", glyph: "XL", type: "program", detail: "Excel is a guarded launch target Brittney can stage through the local hardware lane.", x: 6, y: 47, size: 92 },
-      { id: "files", label: "Files", glyph: "F", type: "program", detail: "Local files become room objects with receipts.", x: 13, y: 27, size: 118 },
-      { id: "agents", label: "Agents", glyph: "A", type: "agent", detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.", x: 73, y: 45, size: 148 },
-      { id: "network-reality", label: "Network", glyph: "NW", type: "holoweb", detail: "HoloWeb Local Reality Node protects bandwidth before agents spend it.", x: 63, y: 55, size: 102 },
-      { id: "service-supervisor", label: "Services", glyph: "SV", type: "service", detail: "Registered service watchers show which background agents and loopback daemons HoloShell can trust.", x: 58, y: 84, size: 104 },
-      { id: "agent-dispatch", label: "Dispatch", glyph: "AD", type: "workflow", detail: "Brittney turns plain-language intent into the right guarded workflow or hardware action.", x: 26, y: 66, size: 108 },
-      { id: "founder-command", label: "Founder Command", glyph: "FC", type: "os command", detail: "One receipt for intent, plan, approval, trust gate, launcher, and shell memory.", x: 31, y: 79, size: 104 },
-      { id: "room-marathon", label: "Room Marathon", glyph: "RM", type: "workflow", detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.", x: 77, y: 63, size: 118 },
-      { id: "claude-chat", label: "Claude Chat", glyph: "CC", type: "workflow", detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.", x: 64, y: 23, size: 108 },
-      { id: "claude-app", label: "Claude", glyph: "CL", type: "agent app", detail: "Claude can be opened as a peer surface after Brittney resolves the target and approval bundle.", x: 87, y: 47, size: 94 },
-      { id: "ollama-agents", label: "Ollama Agents", glyph: "OA", type: "workflow", detail: "Launch Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, or Pi through Ollama Cloud.", x: 83, y: 28, size: 106 },
-      { id: "lofi", label: "Lofi", glyph: "LF", type: "media", detail: "YouTube lofi is a browser media target in the room marathon workflow.", x: 69, y: 76, size: 86 },
-      { id: "grok-build", label: "Grok Build", glyph: "GB", type: "workflow", detail: "Launch Grok Build as a guarded local coding-agent lane, with Heavy access and setup receipts visible.", x: 72, y: 17, size: 104 },
-      { id: "trust-ladder", label: "Trust Ladder", glyph: "TL", type: "policy", detail: "Repeated safe receipts promote actions from guarded to trusted autonomy eligibility while break-glass stays blocked.", x: 18, y: 64, size: 104 },
-      { id: "founder-boot", label: "Founder Boot", glyph: "FB", type: "world", detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.", x: 41, y: 8, size: 148 },
-      { id: "user-shell", label: "User Shell", glyph: "US", type: "user shell", detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.", x: 47, y: 24, size: 136 },
-      { id: "developmental-environment", label: "Development", glyph: "DE", type: "ui substrate", detail: "HoloShell UI starts as simulation, geometry, honesty, and Brittney presence instead of dashboard layout.", x: 36, y: 32, size: 124 },
-      { id: "format-viewer", label: "Formats", glyph: "FV", type: "source corpus", detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.", x: 24, y: 18, size: 112 },
-      { id: "gold-codebase", label: "GOLD+Codebase", glyph: "GC", type: "source substrate", detail: "GOLD memory and HoloScript codebase intelligence become Brittney's first stop before building anything new.", x: 9, y: 18, size: 116 },
-      { id: "asset-shard", label: "Asset Shard", glyph: "AS", type: "workflow", detail: "Brittney can stage a local folder of models, images, audio, and HoloScript into a playable HoloLand shard preview.", x: 25, y: 66, size: 112 },
-      { id: "wild-holoscript", label: "Wild HoloScript", glyph: "WH", type: "source corpus", detail: "uaa2-service frontier HoloScript becomes a read-only corpus Brittney can promote into shell modules.", x: 19, y: 28, size: 108 },
-      { id: "programs", label: "Programs", glyph: "P", type: "program", detail: "Legacy apps are preserved as capability engines, not window chores.", x: 33, y: 53, size: 138 },
-      { id: "hardware-control", label: "Program Control", glyph: "PC", type: "hardware_power", detail: "Focus, open, hotkey, click, and type through guarded hardware receipts.", x: 14, y: 76, size: 116 },
-      { id: "studio", label: "Studio", glyph: "S", type: "world", detail: "Creator direction stays reachable without becoming the shell.", x: 49, y: 34, size: 112 },
-      { id: "terminal", label: "Command", glyph: "C", type: "power", detail: "Commands run behind intent, custody, and receipts.", x: 19, y: 68, size: 104 },
-      { id: "brittney", label: "Brittney", glyph: "AI", type: "assistant_avatar", detail: "Embodied assistant presence connected to the HoloScript agent runtime.", x: 54, y: 68, size: 126 },
-      { id: "hololand", label: "HoloLand", glyph: "HL", type: "world", detail: "The operating world that replaces the old desktop metaphor.", x: 39, y: 12, size: 160 }
+      { id: "browser",                  label: "Browser",          glyph: "B",  type: "program",        detail: "Web surfaces open as witnessed HoloLand objects.",                                                                                          x: 62, y: 16, size: 132, z:  40 },
+      { id: "excel",                    label: "Excel",            glyph: "XL", type: "program",        detail: "Excel is a guarded launch target Brittney can stage through the local hardware lane.",                                                    x:  6, y: 47, size:  92, z: -80 },
+      { id: "files",                    label: "Files",            glyph: "F",  type: "program",        detail: "Local files become room objects with receipts.",                                                                                           x: 13, y: 27, size: 118, z:   0 },
+      { id: "agents",                   label: "Agents",           glyph: "A",  type: "agent",          detail: "Codex, Claude, Gemini, Copilot, and HoloMesh lanes can enter the shell.",                                                                 x: 73, y: 45, size: 148, z: 100 },
+      { id: "network-reality",          label: "Network",          glyph: "NW", type: "holoweb",        detail: "HoloWeb Local Reality Node protects bandwidth before agents spend it.",                                                                    x: 63, y: 55, size: 102, z: -40 },
+      { id: "service-supervisor",       label: "Services",         glyph: "SV", type: "service",        detail: "Registered service watchers show which background agents and loopback daemons HoloShell can trust.",                                       x: 58, y: 84, size: 104, z: -60 },
+      { id: "agent-dispatch",           label: "Dispatch",         glyph: "AD", type: "workflow",       detail: "Brittney turns plain-language intent into the right guarded workflow or hardware action.",                                                 x: 26, y: 66, size: 108, z:  20 },
+      { id: "founder-command",          label: "Founder Command",  glyph: "FC", type: "os command",     detail: "One receipt for intent, plan, approval, trust gate, launcher, and shell memory.",                                                          x: 31, y: 79, size: 104, z:  60 },
+      { id: "room-marathon",            label: "Room Marathon",    glyph: "RM", type: "workflow",       detail: "Brittney stages Claude, terminal, room, Kimi route, browser, and lofi music as one workflow.",                                             x: 77, y: 63, size: 118, z:  80 },
+      { id: "claude-chat",              label: "Claude Chat",      glyph: "CC", type: "workflow",       detail: "Brittney can open Claude, start a new chat, and stage a prompt without attaching shell context by default.",                               x: 64, y: 23, size: 108, z:  20 },
+      { id: "claude-app",               label: "Claude",           glyph: "CL", type: "agent app",     detail: "Claude can be opened as a peer surface after Brittney resolves the target and approval bundle.",                                           x: 87, y: 47, size:  94, z: -20 },
+      { id: "ollama-agents",            label: "Ollama Agents",    glyph: "OA", type: "workflow",       detail: "Launch Claude Code, OpenClaw, Hermes, OpenCode, Codex, Copilot CLI, Droid, or Pi through Ollama Cloud.",                                  x: 83, y: 28, size: 106, z: -60 },
+      { id: "lofi",                     label: "Lofi",             glyph: "LF", type: "media",          detail: "YouTube lofi is a browser media target in the room marathon workflow.",                                                                    x: 69, y: 76, size:  86, z: -80 },
+      { id: "grok-build",               label: "Grok Build",       glyph: "GB", type: "workflow",       detail: "Launch Grok Build as a guarded local coding-agent lane, with Heavy access and setup receipts visible.",                                    x: 72, y: 17, size: 104, z: -40 },
+      { id: "trust-ladder",             label: "Trust Ladder",     glyph: "TL", type: "policy",         detail: "Repeated safe receipts promote actions from guarded to trusted autonomy eligibility while break-glass stays blocked.",                     x: 18, y: 64, size: 104, z: -20 },
+      { id: "founder-boot",             label: "Founder Boot",     glyph: "FB", type: "world",          detail: "The .holo shell world boots with the .hs render slice, format viewer, user packs, and Brittney proposals.",                               x: 41, y:  8, size: 148, z: 120 },
+      { id: "user-shell",               label: "User Shell",       glyph: "US", type: "user shell",     detail: "Daily, creator, and operator modes are derived from the founder surface with Brittney translating intent first.",                          x: 47, y: 24, size: 136, z:  80 },
+      { id: "developmental-environment",label: "Development",      glyph: "DE", type: "ui substrate",   detail: "HoloShell UI starts as simulation, geometry, honesty, and Brittney presence instead of dashboard layout.",                                x: 36, y: 32, size: 124, z:  40 },
+      { id: "format-viewer",            label: "Formats",          glyph: "FV", type: "source corpus",  detail: ".holo, .hs, and .hsplus are separate powers Brittney can inspect and promote.",                                                           x: 24, y: 18, size: 112, z: -80 },
+      { id: "gold-codebase",            label: "GOLD+Codebase",    glyph: "GC", type: "source substrate",detail: "GOLD memory and HoloScript codebase intelligence become Brittney's first stop before building anything new.",                             x:  9, y: 18, size: 116, z: -100 },
+      { id: "asset-shard",              label: "Asset Shard",      glyph: "AS", type: "workflow",       detail: "Brittney can stage a local folder of models, images, audio, and HoloScript into a playable HoloLand shard preview.",                     x: 25, y: 66, size: 112, z:   0 },
+      { id: "wild-holoscript",          label: "Wild HoloScript",  glyph: "WH", type: "source corpus",  detail: "uaa2-service frontier HoloScript becomes a read-only corpus Brittney can promote into shell modules.",                                    x: 19, y: 28, size: 108, z: -60 },
+      { id: "programs",                 label: "Programs",         glyph: "P",  type: "program",        detail: "Legacy apps are preserved as capability engines, not window chores.",                                                                      x: 33, y: 53, size: 138, z:  60 },
+      { id: "hardware-control",         label: "Program Control",  glyph: "PC", type: "hardware_power", detail: "Focus, open, hotkey, click, and type through guarded hardware receipts.",                                                                  x: 14, y: 76, size: 116, z:  20 },
+      { id: "studio",                   label: "Studio",           glyph: "S",  type: "world",          detail: "Creator direction stays reachable without becoming the shell.",                                                                            x: 49, y: 34, size: 112, z:   0 },
+      { id: "terminal",                 label: "Command",          glyph: "C",  type: "power",          detail: "Commands run behind intent, custody, and receipts.",                                                                                       x: 19, y: 68, size: 104, z:  40 },
+      { id: "brittney",                 label: "Brittney",         glyph: "AI", type: "assistant_avatar",detail: "Embodied assistant presence connected to the HoloScript agent runtime.",                                                                  x: 54, y: 68, size: 126, z: 100 },
+      { id: "hololand",                 label: "HoloLand",         glyph: "HL", type: "world",          detail: "The operating world that replaces the old desktop metaphor.",                                                                              x: 39, y: 12, size: 160, z: 120 }
     ];
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1594,6 +1612,136 @@
       ripples: [],
       streams: []
     };
+
+    // --- Brittney Environment Coupling ---
+    // Source contract: apps/holoshell/source/holoshell-brittney-environment-coupling.hsplus
+    // When Brittney completes an action, the world responds:
+    //   water_clears     → clarity surges, extra ripple burst, particles settle
+    //   launch_ripple    → strong ripple burst, brief particle spike
+    //   leaves_settle    → gentle clarity rise, bubbles calm
+    //   bubble_dissolves → medium clarity, bubbles settle
+    //   calm_pulse       → soft clarity shimmer
+    //   disturbance      → clarity drops, particle density rises
+    //   subtle_shimmer   → minimal shimmer
+    // State decays back to baseline at FEEDBACK_DECAY_RATE per frame.
+    const envFeedback = {
+      waterClarity: 1.0,          // [0,1] — multiplier on caustic opacity
+      rippleIntensity: 0.0,       // [0,1] — extra ripple burst magnitude
+      bubbleSettleLevel: 0.0,     // [0,1] — bubble field calm overlay (CSS filter: saturate)
+      particleDensityScale: 1.0,  // [0.3,1.5] — particle count multiplier
+      effectKind: "none",
+      lastTurnId: "",
+      feedbackEventCount: 0,
+    };
+    const FEEDBACK_DECAY_RATE = 0.0025; // per frame, ~60fps → decays ~0.15/s
+
+    // Effect table — mirrors holoshell-brittney-environment-coupling.hsplus §classify_action_kind
+    const EFFECT_TABLE = {
+      water_clears:    { waterClarityDelta: 0.35, rippleIntensityDelta: 0.80, bubbleSettleDelta: 0.60, particleDensityDelta: -0.25, intensity: 0.85 },
+      launch_ripple:   { waterClarityDelta:-0.05, rippleIntensityDelta: 0.95, bubbleSettleDelta: 0.20, particleDensityDelta:  0.15, intensity: 0.90 },
+      leaves_settle:   { waterClarityDelta: 0.15, rippleIntensityDelta: 0.45, bubbleSettleDelta: 0.90, particleDensityDelta: -0.10, intensity: 0.70 },
+      bubble_dissolves:{ waterClarityDelta: 0.10, rippleIntensityDelta: 0.30, bubbleSettleDelta: 0.75, particleDensityDelta: -0.15, intensity: 0.60 },
+      calm_pulse:      { waterClarityDelta: 0.08, rippleIntensityDelta: 0.20, bubbleSettleDelta: 0.30, particleDensityDelta:  0.05, intensity: 0.38 },
+      disturbance:     { waterClarityDelta:-0.20, rippleIntensityDelta: 0.55, bubbleSettleDelta:-0.20, particleDensityDelta:  0.30, intensity: 0.75 },
+      subtle_shimmer:  { waterClarityDelta: 0.02, rippleIntensityDelta: 0.12, bubbleSettleDelta: 0.05, particleDensityDelta:  0.04, intensity: 0.22 },
+      ambient_settle:  { waterClarityDelta: 0.04, rippleIntensityDelta: 0.08, bubbleSettleDelta: 0.10, particleDensityDelta:  0.00, intensity: 0.12 },
+    };
+
+    function classifyActionKind(turn) {
+      const summary = turn.summary || {};
+      const raw = summary.lastActionKind || summary.lastToolCallName || "";
+      if (!raw && (summary.toolCallCount || 0) === 0 && summary.status !== "error") return "ambient_settle";
+      if (/clear_email|clear_task|archive_email/i.test(raw)) return "water_clears";
+      if (/open_app|launch_shell|open_browser|focus_window/i.test(raw)) return "launch_ripple";
+      if (/open_file|move_file|handle_file|save_file/i.test(raw)) return "leaves_settle";
+      if (/close_window|close_app/i.test(raw)) return "bubble_dissolves";
+      if (summary.status === "error") return "disturbance";
+      if ((summary.toolCallCount || 0) > 0) return "subtle_shimmer";
+      // No specific action kind but turn completed
+      if (summary.status === "complete" || (summary.eventCount || 0) > 0) return "calm_pulse";
+      return "ambient_settle";
+    }
+
+    function triggerEnvironmentalFeedback(turn) {
+      if (!turn || !turn.summary) return;
+      const turnId = turn.turnId || turn.summary?.turnId || "";
+      // Deduplicate: skip if same turn already processed
+      if (turnId && turnId === envFeedback.lastTurnId) return;
+      const effectKind = classifyActionKind(turn);
+      const deltas = EFFECT_TABLE[effectKind] || EFFECT_TABLE.ambient_settle;
+      envFeedback.waterClarity = Math.max(0, Math.min(1, envFeedback.waterClarity + deltas.waterClarityDelta));
+      envFeedback.rippleIntensity = Math.max(0, Math.min(1, envFeedback.rippleIntensity + deltas.rippleIntensityDelta));
+      envFeedback.bubbleSettleLevel = Math.max(0, Math.min(1, envFeedback.bubbleSettleLevel + deltas.bubbleSettleDelta));
+      if (!reducedMotion) {
+        envFeedback.particleDensityScale = Math.max(0.3, Math.min(1.5, envFeedback.particleDensityScale + deltas.particleDensityDelta));
+      }
+      envFeedback.effectKind = effectKind;
+      envFeedback.lastTurnId = turnId;
+      envFeedback.feedbackEventCount += 1;
+      // Inject extra ripples for high-intensity effects
+      if (!reducedMotion && deltas.rippleIntensityDelta > 0.4) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const burst = Math.round(deltas.rippleIntensityDelta * 4);
+        for (let i = 0; i < burst; i++) {
+          sim.ripples.push({
+            x: w * (0.2 + Math.random() * 0.6),
+            y: h * (0.25 + Math.random() * 0.5),
+            radius: 4 + Math.random() * 20,
+            speed: 1.4 + Math.random() * 2.2,
+            alpha: 0.38 + Math.random() * 0.40,
+            burst: true
+          });
+        }
+      }
+      // Apply settle level to bubble field via CSS filter
+      const bf = document.getElementById("bubbleField");
+      if (bf) {
+        const sat = reducedMotion ? 1.0 : 0.65 + envFeedback.bubbleSettleLevel * 0.55;
+        bf.style.filter = `saturate(${sat.toFixed(2)})`;
+      }
+    }
+
+    function decayEnvironmentalFeedback() {
+      // Each frame, decay toward baseline
+      envFeedback.rippleIntensity = Math.max(0, envFeedback.rippleIntensity - FEEDBACK_DECAY_RATE);
+      envFeedback.bubbleSettleLevel = Math.max(0, envFeedback.bubbleSettleLevel - FEEDBACK_DECAY_RATE * 0.6);
+      // Clarity and density decay slowly back to 1.0
+      envFeedback.waterClarity += (1.0 - envFeedback.waterClarity) * 0.0008;
+      envFeedback.particleDensityScale += (1.0 - envFeedback.particleDensityScale) * 0.0006;
+    }
+    // --- End Brittney Environment Coupling ---
+
+    // Device-tilt parallax state — stationary viewpoint, world shifts as device tilts.
+    // Raw tilt values smoothed via lerp each frame to prevent jitter.
+    const tiltState = { rawX: 0, rawY: 0, smoothX: 0, smoothY: 0 };
+    const TILT_LERP = 0.05;   // smoothing factor (0.05 = slow/silky, higher = snappier)
+    const TILT_MAX_X = 1.5;   // max horizontal camera offset in vw units
+    const TILT_MAX_Y = 0.8;   // max vertical camera offset in vw units
+
+    function setupTiltParallax() {
+      // Only register if the device actually fires orientation events.
+      // Non-mobile desktop browsers will never fire, so this is a no-op there.
+      window.addEventListener("deviceorientation", (e) => {
+        if (e.beta === null || e.gamma === null) return;
+        // gamma = left/right tilt (-90..90), beta = forward/back tilt (0..180 clamped to +/-45)
+        tiltState.rawX = Math.max(-1, Math.min(1, e.gamma / 45)) * TILT_MAX_X;
+        tiltState.rawY = Math.max(-1, Math.min(1, (e.beta - 45) / 45)) * TILT_MAX_Y;
+      });
+    }
+
+    function applyTiltParallax() {
+      if (reducedMotion) return;
+      // Smooth the raw values toward target each frame
+      tiltState.smoothX += (tiltState.rawX - tiltState.smoothX) * TILT_LERP;
+      tiltState.smoothY += (tiltState.rawY - tiltState.smoothY) * TILT_LERP;
+      const field = document.getElementById("bubbleField");
+      if (field) {
+        // Translate the whole bubble field — creates parallax against the fixed canvas background.
+        // Near bubbles (large z) will appear to shift more than far bubbles due to perspective math.
+        field.style.transform = `translate(${tiltState.smoothX}vw, ${tiltState.smoothY}vw)`;
+      }
+    }
 
     function resize() {
       const ratio = window.devicePixelRatio || 1;
@@ -1698,8 +1846,10 @@
         ctx.fill();
       }
 
+      // rippleIntensity: Brittney actions temporarily boost ripple expansion speed
+      const rippleSpeedBoost = 1.0 + envFeedback.rippleIntensity * 1.8;
       for (const ripple of sim.ripples) {
-        ripple.radius += ripple.speed;
+        ripple.radius += ripple.speed * rippleSpeedBoost;
         ripple.alpha *= 0.992;
         if (ripple.radius > Math.max(w, h) * 0.34 || ripple.alpha < 0.05) {
           ripple.x = Math.random() * w;
@@ -1714,15 +1864,20 @@
         ctx.stroke();
       }
 
-      for (const particle of sim.particles) {
+      // particleDensityScale: Brittney actions modulate how many motes are visible this frame
+      const visibleParticleCount = Math.round(sim.particles.length * envFeedback.particleDensityScale);
+      for (let pi = 0; pi < visibleParticleCount; pi++) {
+        const particle = sim.particles[pi];
         particle.x += Math.sin(t * 0.011 + particle.phase) * 0.85 + particle.vx;
         particle.y += Math.cos(t * 0.009 + particle.phase) * 0.26 + particle.vy;
         if (particle.x < -20) particle.x = w + 20;
         if (particle.x > w + 20) particle.x = -20;
         if (particle.y < -20) particle.y = h + 20;
         if (particle.y > h + 20) particle.y = -20;
+        // waterClarity multiplies caustic opacity — Brittney clearing work brightens the water
+        const causticAlpha = (0.22 * envFeedback.waterClarity).toFixed(3);
         const caustic = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.r * 8);
-        caustic.addColorStop(0, "rgba(186, 255, 245, 0.22)");
+        caustic.addColorStop(0, `rgba(186, 255, 245, ${causticAlpha})`);
         caustic.addColorStop(1, "transparent");
         ctx.fillStyle = caustic;
         ctx.beginPath();
@@ -1875,6 +2030,36 @@
       ctx.globalCompositeOperation = "source-over";
     }
 
+    function drawAtmosphericFog() {
+      // Depth fog: top of screen (far plane) fades to dark, bottom (near plane) stays clear.
+      // Creates the sensation that the world recedes into depth at the top.
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const skin = document.body.dataset.skin || "liquid";
+      const fogColors = {
+        liquid: "rgba(4, 8, 14, 0.52)",
+        fire: "rgba(8, 3, 2, 0.46)",
+        developer: "rgba(2, 6, 3, 0.48)",
+        aura: "rgba(4, 3, 12, 0.50)"
+      };
+      const fog = ctx.createLinearGradient(0, 0, 0, h);
+      fog.addColorStop(0,    fogColors[skin] || fogColors.liquid);  // far plane — dense fog
+      fog.addColorStop(0.28, "rgba(0, 0, 0, 0.22)");               // mid-far transition
+      fog.addColorStop(0.58, "rgba(0, 0, 0, 0.06)");               // near-mid transition
+      fog.addColorStop(1,    "rgba(0, 0, 0, 0.00)");               // near plane — clear
+      ctx.fillStyle = fog;
+      ctx.fillRect(0, 0, w, h);
+
+      // Vignette: subtle dark ring pulls focus to the center depth plane
+      const cx = w * 0.5;
+      const cy = h * 0.5;
+      const vig = ctx.createRadialGradient(cx, cy, h * 0.28, cx, cy, Math.max(w, h) * 0.72);
+      vig.addColorStop(0, "rgba(0,0,0,0)");
+      vig.addColorStop(1, "rgba(0,0,0,0.28)");
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, w, h);
+    }
+
     function drawWorld() {
       drawBaseGradient();
       const skin = document.body.dataset.skin || "liquid";
@@ -1882,6 +2067,9 @@
       else if (skin === "developer") drawDeveloper();
       else if (skin === "aura") drawAura();
       else drawLiquid();
+      drawAtmosphericFog();  // depth haze — far objects dim, near objects bright
+      applyTiltParallax();   // device-tilt parallax — world shifts as user tilts device
+      decayEnvironmentalFeedback(); // Brittney environment coupling: decay per-frame
       t += reducedMotion ? 0.35 : 1;
       requestAnimationFrame(drawWorld);
     }
@@ -2160,14 +2348,14 @@
       const layout = object.layout || {};
       const displayName = object.displayName || object.id;
       const fallback = [
-        { x: 58, y: 19, size: 96 },
-        { x: 75, y: 31, size: 92 },
-        { x: 24, y: 44, size: 94 },
-        { x: 65, y: 58, size: 90 },
-        { x: 13, y: 57, size: 88 },
-        { x: 46, y: 77, size: 90 },
-        { x: 84, y: 49, size: 86 },
-        { x: 30, y: 16, size: 86 },
+        { x: 58, y: 19, size: 96,  z:  20 },
+        { x: 75, y: 31, size: 92,  z: -40 },
+        { x: 24, y: 44, size: 94,  z:   0 },
+        { x: 65, y: 58, size: 90,  z:  40 },
+        { x: 13, y: 57, size: 88,  z: -60 },
+        { x: 46, y: 77, size: 90,  z:  60 },
+        { x: 84, y: 49, size: 86,  z: -20 },
+        { x: 30, y: 16, size: 86,  z:  80 },
       ][index % 8];
       return {
         id: object.id,
@@ -2179,6 +2367,7 @@
         x: Number.isFinite(layout.x) ? layout.x : fallback.x,
         y: Number.isFinite(layout.y) ? layout.y : fallback.y,
         size: Number.isFinite(layout.size) ? layout.size : fallback.size,
+        z: Number.isFinite(layout.z) ? layout.z : (Number.isFinite(object.z) ? object.z : fallback.z),
         trustState: object.trustState,
         permissionEnvelope: object.permissionEnvelope,
         evidence: {
@@ -3832,6 +4021,10 @@
         bubble.style.setProperty("--y", `${object.y}%`);
         bubble.style.setProperty("--size", `${object.size}px`);
         bubble.style.setProperty("--duration", `${5.5 + (index % 5) * 0.8}s`);
+        // --z places the bubble at its depth layer (near=positive, far=negative).
+        // CSS perspective(900px) on .bubble-field converts this to apparent size + position shift.
+        const zDepth = typeof object.z === "number" ? object.z : 0;
+        bubble.style.setProperty("--z", `${zDepth}px`);
         bubble.innerHTML = `<span><span class="glyph">${object.glyph}</span>${object.label}<small>${object.type}</small></span>`;
         bubble.addEventListener("click", () => selectObject(object));
         return bubble;
@@ -3877,6 +4070,11 @@
       const avatarSummary = brittneyAvatarSummary();
       const turn = brittneyLatestTurn();
       const turnSummary = turn.summary || {};
+      // Environmental feedback — bidirectional coupling per
+      // source/holoshell-brittney-environment-coupling.hsplus
+      if (turnSummary.status === "complete" || (turnSummary.eventCount || 0) > 0) {
+        triggerEnvironmentalFeedback(turn);
+      }
       const contextSummary = brittneyContextSummary();
       const hardwareSummary = hardwareActionSummary();
       const registrySummary = programRegistrySummary();
@@ -3923,6 +4121,7 @@
         "Behavior source: source/holoshell-home.hsplus",
         "Avatar source: source/holoshell-brittney-avatar.hsplus",
         "Runtime bridge: source/holoshell-brittney-runtime-bridge.hsplus",
+        "Environment coupling: source/holoshell-brittney-environment-coupling.hsplus",
         "Hardware source: source/holoshell-hardware-control.hsplus",
         "Network source: source/holoshell-network-reality.hsplus",
         "Service source: source/holoshell-service-supervisor.hsplus",
@@ -3966,6 +4165,7 @@
         `Shard import receipt: ${activeShardImport.status || summary.activeShardImportStatus || "unknown"}; manifest ${activeShardImportFeed.output?.manifestPath || summary.activeShardImportManifestPath || "none"}; source assets mutated ${activeShardImport.sourceAssetsMutated || summary.activeShardImportSourceAssetsMutated ? "yes" : "no"}; bundle ${activeShardImportApprovalFeed.output?.bundlePath || "none"}`,
         `Brittney avatar: ${avatarSummary.avatarStatus || summary.brittneyAvatarStatus || "unknown"}; runtime ${avatarSummary.runtimeStatus || summary.brittneyRuntimeStatus || "unknown"}`,
         `Brittney turn: ${turnSummary.status || summary.brittneyLastTurnStatus || "unknown"}; ${turnSummary.eventCount || summary.brittneyRuntimeEventCount || 0} events; ${turnSummary.actionProposalCount || summary.brittneyActionProposalCount || 0} proposal(s)`,
+        `Environment feedback: ${envFeedback.effectKind}; clarity ${envFeedback.waterClarity.toFixed(2)}; ripple ${envFeedback.rippleIntensity.toFixed(2)}; settle ${envFeedback.bubbleSettleLevel.toFixed(2)}; density ${envFeedback.particleDensityScale.toFixed(2)}x; events ${envFeedback.feedbackEventCount}`,
         `Brittney context: ${contextSummary.status || summary.brittneyContextStatus || "unknown"}; selected ${contextSummary.selectedShellObjectId || summary.brittneyContextSelectedShellObjectId || "none"}; peers ${contextSummary.peerWindowCount || summary.brittneyContextPeerWindowCount || 0}; shell windows ${contextSummary.shellWindowCount || summary.brittneyContextShellWindowCount || 0}; process ${contextSummary.processRisk || summary.brittneyContextProcessRisk || "unknown"}`,
         `Shell skin: ${document.body.dataset.skin}`,
         `${summary.capabilityCount || 0} capabilities: ${feed.feeds?.inventory?.summary?.verified || 0} verified, ${feed.feeds?.inventory?.summary?.partial || 0} partial, ${feed.feeds?.inventory?.summary?.unknown || 0} unknown`,
@@ -4120,6 +4320,7 @@
 
     resize();
     drawWorld();
+    setupTiltParallax();
     setupVoiceInput();
     refreshControlDaemonHealth();
     renderBrittneyAvatar();

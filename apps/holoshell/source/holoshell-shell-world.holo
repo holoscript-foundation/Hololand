@@ -10,6 +10,7 @@ composition "HoloShell Shell World" {
     behavior_source: "apps/holoshell/source/holoshell-home.hsplus"
     avatar_source: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
     runtime_bridge_source: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    environment_coupling_source: "apps/holoshell/source/holoshell-brittney-environment-coupling.hsplus"
     render_slice: "apps/holoshell/source/holoshell-shell-render.hs"
     founder_command_pipeline: "apps/holoshell/source/holoshell-founder-command-pipeline.hs"
     founder_intent_policy: "apps/holoshell/source/holoshell-founder-intent-policy.hsplus"
@@ -23,6 +24,17 @@ composition "HoloShell Shell World" {
     skybox: "deep_machine_ocean"
     ambient_light: 0.42
     receipt_underlay: true
+    // 3D stationary viewpoint — user looks INTO the world, never moves through it.
+    // Camera fixed at (0,2,8) targeting (0,0,0). No OrbitControls in non-VR mode.
+    // Shell objects distributed across Z depth layers:
+    //   near  (+80 to +120px CSS z): HoloLand, Agents, Brittney, Founder Boot, User Shell, Room Marathon
+    //   mid   (+20 to  -20px CSS z): standard shell objects
+    //   far   (-60 to -120px CSS z): background/utility objects (GOLD, Ollama, Lofi, Excel)
+    // Device tilt maps to parallax offset on bubble field (max ±1.5vw horizontal, ±0.8vw vertical).
+    // Liquid surface receded via CSS rotateX(15deg) — looking DOWN into water, not AT flat screen.
+    camera_mode: "stationary_perspective"
+    depth_layers: true
+    tilt_parallax: true
   }
 
   state {
@@ -32,6 +44,14 @@ composition "HoloShell Shell World" {
     brittneyPresence: "assistant_avatar_agi"
     brittneyAvatarStatus: "embodied-contract-ready"
     brittneyRuntimeStatus: "available"
+    // Environmental feedback state — coupled from holoshell:environment:feedback
+    environmentFeedbackStatus: "idle"
+    environmentWaterClarity: 1.0
+    environmentRippleIntensity: 0.0
+    environmentBubbleSettleLevel: 0.0
+    environmentParticleDensityScale: 1.0
+    environmentLastEffectKind: "none"
+    environmentFeedbackEventCount: 0
     founderDemoIntent: "Brittney, open Claude, start a room marathon using Ollama Kimi Cloud, open a browser, and play lofi music on YouTube"
     founderDemoPipeline: "intent_plan_policy_launcher_receipt"
     founderAutonomyLevel: "guarded"
@@ -107,11 +127,27 @@ composition "HoloShell Shell World" {
     receipt_required: true
   }
 
+  // Channel subscription — environmental feedback directives from Brittney action receipts
+  channel "holoshell:environment:feedback" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Environmental effect directives from HoloShell Brittney Environment Coupling; drives LiquidDesktop visual state"
+    subscribeOnly: true
+    couplingSource: "apps/holoshell/source/holoshell-brittney-environment-coupling.hsplus"
+  }
+
   object "LiquidDesktop" using "LiquidLayer" {
     label: "HoloLand has taken over the computer"
     position: [0, 1.3, -3.6]
     scale: [10.8, 6.4, 1]
     skin_binding: "activeSkin"
+    // Tilted -15deg on X so the surface recedes into depth — looking DOWN into water
+    rotation: [-15, 0, 0]
+    depth_layer: "background"
+    // Environmental feedback bindings — driven by holoshell:environment:feedback
+    water_clarity_binding: "environmentWaterClarity"
+    ripple_intensity_binding: "environmentRippleIntensity"
+    particle_density_scale_binding: "environmentParticleDensityScale"
   }
 
   spatial_group "BrittneyAvatarRig" {
@@ -374,6 +410,19 @@ composition "HoloShell Shell World" {
     action ask_brittney(message) {
       state.userOutcome = message
       emit "brittney_shell_request"
+    }
+
+    // Consume environmental feedback from holoshell:environment:feedback.
+    // Called by the coupling composition after each Brittney action receipt.
+    action apply_environment_feedback(effect) {
+      state.environmentWaterClarity = effect.waterClarity
+      state.environmentRippleIntensity = effect.rippleIntensity
+      state.environmentBubbleSettleLevel = effect.bubbleSettleLevel
+      state.environmentParticleDensityScale = effect.particleDensityScale
+      state.environmentLastEffectKind = effect.effectKind
+      state.environmentFeedbackStatus = "active"
+      state.environmentFeedbackEventCount = effect.feedbackEventCount
+      emit "environment_feedback_applied"
     }
   }
 }

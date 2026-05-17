@@ -1,0 +1,216 @@
+// HoloShell Brittney Environment Coupling
+//
+// Bidirectional coupling between Brittney action receipts and LiquidDesktop
+// environmental state. When Brittney completes an action (clears emails,
+// handles a file, opens an app), the shell world responds visually: water
+// clears, ripples surge, bubbles settle, particle intensity shifts.
+//
+// Design: Brittney emits action receipts on holoshell:brittney:turn-receipt.
+// This composition subscribes, classifies the action kind, derives an
+// EnvironmentEffect, and emits it on holoshell:environment:feedback.
+// The render slice and prototype projection both consume that channel.
+
+composition "HoloShell Brittney Environment Coupling" {
+  config {
+    title: "HoloShell Brittney Environment Coupling"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    turnReceiptSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    shellWorldSource: "apps/holoshell/source/holoshell-shell-world.holo"
+    skinPresetsSource: "apps/holoshell/source/holoshell-skin-presets.hsplus"
+    renderSliceSource: "apps/holoshell/source/holoshell-shell-render.hs"
+    receiptRequired: true
+  }
+
+  state {
+    couplingStatus: "idle"
+    lastActionKind: ""
+    lastEffectKind: "none"
+    lastEffectIntensity: 0.0
+    waterClarity: 1.0
+    rippleIntensity: 0.0
+    bubbleSettleLevel: 0.0
+    particleDensityScale: 1.0
+    feedbackEventCount: 0
+    lastReceiptId: ""
+  }
+
+  channel "holoshell:environment:feedback" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Environmental effect directives derived from Brittney action receipts; consumed by LiquidDesktop render and bubble field"
+  }
+
+  channel "holoshell:brittney:turn-receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Subscribed: action receipt stream from HoloShell Brittney Runtime Bridge"
+    subscribeOnly: true
+  }
+
+  // --- Effect classification table ---
+  //
+  // action_kind              → effect_kind         clarity  ripple  settle  density
+  // clear_email / clear_task → water_clears         +0.35    +0.8    +0.6    -0.25
+  // open_app / launch_shell  → launch_ripple        -0.05    +0.95   +0.2    +0.15
+  // file_handle / file_move  → leaves_settle        +0.15    +0.45   +0.9    -0.10
+  // close_window             → bubble_dissolves     +0.10    +0.30   +0.75   -0.15
+  // voice_final              → calm_pulse           +0.08    +0.20   +0.30   +0.05
+  // error / failed           → disturbance          -0.20    +0.55   -0.20   +0.30
+  // tool_call                → subtle_shimmer       +0.02    +0.12   +0.05   +0.04
+  // default                  → ambient_settle       +0.04    +0.08   +0.10   0.00
+
+  template "EnvironmentEffect" {
+    type: "environment_effect"
+    effectKind: "ambient_settle"
+    intensity: 0.0
+    waterClarityDelta: 0.0
+    rippleIntensityDelta: 0.0
+    bubbleSettleDelta: 0.0
+    particleDensityDelta: 0.0
+    durationMs: 2400
+    easing: "ease_out_cubic"
+    accessibilityLabel: ""
+    receiptRequired: true
+  }
+
+  template "EffectReceipt" {
+    type: "receipt"
+    receiptType: "hololand.holoshell.environment-feedback.v0.1.0"
+    actor: "environment_coupling"
+    turnReceiptId: ""
+    actionKind: ""
+    effectKind: ""
+    waterClarityDelta: 0.0
+    rippleIntensityDelta: 0.0
+    bubbleSettleDelta: 0.0
+    particleDensityDelta: 0.0
+    resultStatus: "applied"
+    rollback: "state_delta_reversible"
+  }
+
+  policy "CouplingIsObserveOnly" {
+    appliesTo: ["classify_action", "emit_effect", "record_feedback_receipt"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+    description: "Coupling only observes receipts and emits visual directives; it never executes shell actions"
+  }
+
+  policy "ReducedMotionBypass" {
+    appliesTo: ["emit_effect"]
+    condition: "prefers_reduced_motion == true"
+    override: "skip_particle_and_ripple_deltas"
+    accessibilityRequiresAriaAnnouncement: true
+    receiptRequired: true
+  }
+
+  action classify_action_kind(turnReceipt) {
+    // Map the turn's last tool call or action proposal to an effect class.
+    // Priority: explicit actionKind > proposal objectId > toolCallCount heuristic.
+    let raw = turnReceipt.summary?.lastActionKind
+      || turnReceipt.result?.lastToolCallName
+      || ""
+    state.lastActionKind = raw
+    let kind = "default"
+    if (raw == "clear_email" || raw == "clear_task" || raw == "archive_email") {
+      kind = "water_clears"
+    } else if (raw == "open_app" || raw == "launch_shell_object" || raw == "open_browser" || raw == "focus_window") {
+      kind = "launch_ripple"
+    } else if (raw == "open_file" || raw == "move_file" || raw == "handle_file" || raw == "save_file") {
+      kind = "leaves_settle"
+    } else if (raw == "close_window" || raw == "close_app") {
+      kind = "bubble_dissolves"
+    } else if (turnReceipt.result?.pipelineStage == "speaking") {
+      kind = "calm_pulse"
+    } else if (turnReceipt.result?.status == "error" || turnReceipt.summary?.status == "error") {
+      kind = "disturbance"
+    } else if ((turnReceipt.summary?.toolCallCount || 0) > 0) {
+      kind = "subtle_shimmer"
+    } else {
+      kind = "ambient_settle"
+    }
+    return kind
+  }
+
+  action compute_effect(effectKind) {
+    let deltas = {
+      waterClarityDelta: 0.04, rippleIntensityDelta: 0.08, bubbleSettleDelta: 0.10,
+      particleDensityDelta: 0.0, intensity: 0.12, durationMs: 2400
+    }
+    if (effectKind == "water_clears") {
+      deltas = { waterClarityDelta: 0.35, rippleIntensityDelta: 0.80, bubbleSettleDelta: 0.60,
+                 particleDensityDelta: -0.25, intensity: 0.85, durationMs: 3200 }
+    } else if (effectKind == "launch_ripple") {
+      deltas = { waterClarityDelta: -0.05, rippleIntensityDelta: 0.95, bubbleSettleDelta: 0.20,
+                 particleDensityDelta: 0.15, intensity: 0.90, durationMs: 2800 }
+    } else if (effectKind == "leaves_settle") {
+      deltas = { waterClarityDelta: 0.15, rippleIntensityDelta: 0.45, bubbleSettleDelta: 0.90,
+                 particleDensityDelta: -0.10, intensity: 0.70, durationMs: 3600 }
+    } else if (effectKind == "bubble_dissolves") {
+      deltas = { waterClarityDelta: 0.10, rippleIntensityDelta: 0.30, bubbleSettleDelta: 0.75,
+                 particleDensityDelta: -0.15, intensity: 0.60, durationMs: 2600 }
+    } else if (effectKind == "calm_pulse") {
+      deltas = { waterClarityDelta: 0.08, rippleIntensityDelta: 0.20, bubbleSettleDelta: 0.30,
+                 particleDensityDelta: 0.05, intensity: 0.38, durationMs: 2000 }
+    } else if (effectKind == "disturbance") {
+      deltas = { waterClarityDelta: -0.20, rippleIntensityDelta: 0.55, bubbleSettleDelta: -0.20,
+                 particleDensityDelta: 0.30, intensity: 0.75, durationMs: 1800 }
+    } else if (effectKind == "subtle_shimmer") {
+      deltas = { waterClarityDelta: 0.02, rippleIntensityDelta: 0.12, bubbleSettleDelta: 0.05,
+                 particleDensityDelta: 0.04, intensity: 0.22, durationMs: 1600 }
+    }
+    return deltas
+  }
+
+  action apply_environment_feedback(turnReceipt) {
+    let effectKind = classify_action_kind(turnReceipt)
+    let deltas = compute_effect(effectKind)
+
+    // Clamp state values into [0, 1]
+    state.waterClarity = Math.max(0, Math.min(1, state.waterClarity + deltas.waterClarityDelta))
+    state.rippleIntensity = Math.max(0, Math.min(1, state.rippleIntensity + deltas.rippleIntensityDelta))
+    state.bubbleSettleLevel = Math.max(0, Math.min(1, state.bubbleSettleLevel + deltas.bubbleSettleDelta))
+    state.particleDensityScale = Math.max(0.3, Math.min(1.5, state.particleDensityScale + deltas.particleDensityDelta))
+    state.lastEffectKind = effectKind
+    state.lastEffectIntensity = deltas.intensity
+    state.feedbackEventCount = state.feedbackEventCount + 1
+    state.couplingStatus = "active"
+    state.lastReceiptId = turnReceipt.turnId || ""
+
+    emit("holoshell:environment:feedback", {
+      action: "environment_feedback_applied",
+      effectKind: effectKind,
+      intensity: deltas.intensity,
+      durationMs: deltas.durationMs,
+      easing: "ease_out_cubic",
+      waterClarity: state.waterClarity,
+      rippleIntensity: state.rippleIntensity,
+      bubbleSettleLevel: state.bubbleSettleLevel,
+      particleDensityScale: state.particleDensityScale,
+      actionKind: state.lastActionKind,
+      turnReceiptId: state.lastReceiptId,
+      feedbackEventCount: state.feedbackEventCount,
+      receipt_required: true
+    })
+  }
+
+  action reset_environment(reason) {
+    state.waterClarity = 1.0
+    state.rippleIntensity = 0.0
+    state.bubbleSettleLevel = 0.0
+    state.particleDensityScale = 1.0
+    state.lastEffectKind = "none"
+    state.lastEffectIntensity = 0.0
+    state.couplingStatus = "idle"
+    emit("holoshell:environment:feedback", {
+      action: "environment_reset",
+      reason: reason,
+      waterClarity: state.waterClarity,
+      rippleIntensity: state.rippleIntensity,
+      bubbleSettleLevel: state.bubbleSettleLevel,
+      particleDensityScale: state.particleDensityScale,
+      receipt_required: true
+    })
+  }
+}
