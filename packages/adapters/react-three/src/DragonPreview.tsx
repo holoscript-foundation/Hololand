@@ -57,7 +57,7 @@ function DragonModel({
   onAnimationsLoaded,
   activeAnimation,
   isPlaying,
-}: DragonModelProps): JSX.Element {
+}: DragonModelProps): React.ReactElement {
   const gltf = useGLTF(modelPath) as GLTF;
   const mixer = useRef<THREE.AnimationMixer | null>(null);
   const modelRef = useRef<THREE.Group>(null);
@@ -188,7 +188,7 @@ function DragonScene({
   onAnimationsLoaded,
   activeAnimation,
   isPlaying,
-}: DragonModelProps): JSX.Element {
+}: DragonModelProps): React.ReactElement {
   return (
     <>
       {/* Camera */}
@@ -245,7 +245,7 @@ function DragonScene({
 // PLACEHOLDER COMPONENT
 // =============================================================================
 
-function Placeholder(): JSX.Element {
+function Placeholder(): React.ReactElement {
   return (
     <mesh>
       <boxGeometry args={[1, 1, 1]} />
@@ -272,7 +272,7 @@ function ControlsUI({
   isPlaying,
   onAnimationSelect,
   onPlayPause,
-}: ControlsUIProps): JSX.Element {
+}: ControlsUIProps): React.ReactElement {
   return (
     <div
       style={{

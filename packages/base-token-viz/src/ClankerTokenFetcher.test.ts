@@ -64,7 +64,7 @@ describe('ClankerTokenFetcher', () => {
       it('should return metadata with isClanker flag', async () => {
         // Mock the base metadata fetch
         const mockMetadata = {
-          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const,
           name: 'USD Coin',
           symbol: 'USDC',
           decimals: 6,
@@ -96,7 +96,7 @@ describe('ClankerTokenFetcher', () => {
     describe('isClankerToken', () => {
       it('should return boolean', async () => {
         const mockMetadata = {
-          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const,
           name: 'Test',
           symbol: 'TEST',
           decimals: 18,
@@ -116,7 +116,7 @@ describe('ClankerTokenFetcher', () => {
     describe('getFactoryVersion', () => {
       it('should return factory version string', async () => {
         const mockMetadata = {
-          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const,
           name: 'Test',
           symbol: 'TEST',
           decimals: 18,
