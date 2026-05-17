@@ -15,5 +15,5 @@
     "lib": ["ES2022", "DOM"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "flutter", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "flutter", "**/*.test.ts", "**/*.test.tsx"]
 }
