@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext js,jsx,ts,tsx"
+    "lint": "node ../../node_modules/eslint/bin/eslint.js src"
   },
   "dependencies": {
     "@hololand/react-three": "workspace:*",

@@ -20,7 +20,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run --config vitest.config.ts src/components/grpo-training-dashboard",
-    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "node ../../../node_modules/eslint/bin/eslint.js src",
     "clean": "rm -rf dist"
   },
   "keywords": [

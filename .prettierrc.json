@@ -7,5 +7,5 @@
   "arrowParens": "always",
   "printWidth": 100,
   "proseWrap": "preserve",
-  "endOfLine": "lf"
+  "endOfLine": "auto"
 }

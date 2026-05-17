@@ -17,7 +17,7 @@
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/**/*.ts",
+    "lint": "node ../../../node_modules/eslint/bin/eslint.js src/**/*.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

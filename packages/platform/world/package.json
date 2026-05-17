@@ -21,7 +21,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "echo \"Tests coming soon\" && exit 0",
-    "lint": "tsc --noEmit",
+    "lint": "node ../../../node_modules/eslint/bin/eslint.js src",
     "clean": "rm -rf dist"
   },
   "keywords": [
