@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>HoloShell</title>
+  <!-- Three.js r159 — same version as @hololand/react-three peer dep -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/"
+    }
+  }
+  </script>
   <style>
     :root {
       color-scheme: dark;
@@ -67,10 +76,7 @@
       width: 100vw;
       height: 100vh;
       z-index: 0;
-      /* Liquid surface recedes into the scene — looking DOWN into water, not AT a flat screen */
-      transform-origin: 50% 100%;
-      transform: perspective(1200px) rotateX(15deg) scaleY(1.06);
-      will-change: transform;
+      /* Three.js WebGL canvas — perspective camera handles all depth; no CSS transform needed */
     }
 
     .shell {
@@ -614,15 +620,15 @@
     }
 
     .bubble-field {
+      /* DOM bubbles hidden visually — Three.js renders the 3D scene. */
+      /* Kept in DOM for keyboard/screen-reader accessibility; */
+      /* pointer-events preserved so Tab + Enter still works. */
       position: absolute;
       inset: 0;
       min-height: inherit;
       min-width: 0;
-      /* Stationary viewpoint — user looks INTO the world, never moves through it */
-      perspective: 900px;
-      perspective-origin: 50% 42%;
-      transform-style: preserve-3d;
-      will-change: transform;
+      opacity: 0;
+      /* Depth layer and tilt-parallax handled by Three.js camera, not CSS */
     }
 
     .control-lane {
@@ -1036,9 +1042,9 @@
     }
 
     @keyframes drift {
-      /* translateZ(var(--z)) places each bubble at its depth layer — perspective does the rest */
-      from { transform: translate3d(-8px, 6px, var(--z, 0px)) scale(0.985); }
-      to   { transform: translate3d(10px, -10px, var(--z, 0px)) scale(1.015); }
+      /* DOM bubbles are invisible; Three.js handles real 3D drift and depth. */
+      from { transform: translate3d(-8px, 6px, 0) scale(0.985); }
+      to   { transform: translate3d(10px, -10px, 0) scale(1.015); }
     }
 
     .context-panel {
@@ -1530,9 +1536,10 @@
     </footer>
   </main>
 
-  <script>
+  <script type="module">
+    import * as THREE from "three";
+
     const canvas = document.getElementById("world");
-    const ctx = canvas.getContext("2d");
     const feed = window.HOLOSHELL_LIVE_FEED || {};
     const standaloneReadinessEvidence = window.HOLOSHELL_READINESS_EVIDENCE || {};
     const standaloneAvatarFeed = window.HOLOSHELL_BRITTNEY_AVATAR || {};
@@ -1607,11 +1614,346 @@
     ];
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const sim = {
-      particles: [],
-      ripples: [],
-      streams: []
+
+    // ─── Three.js depth scene ──────────────────────────────────────────────
+    // Camera fixed at (0, 2, 8) looking at (0, 0, 0) — fish-tank/snow-globe view.
+    // No OrbitControls. Device tilt offsets camera position (max ±0.4 units).
+    // Shell bubbles are THREE.Mesh spheres at real Z depths.
+    // Water plane uses vertex-displaced PlaneGeometry (genuine wave depth).
+    // Fire/developer/aura use volumetric THREE.Points systems.
+    // ───────────────────────────────────────────────────────────────────────
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x04080e, 0.038);
+
+    // Fixed perspective camera — stationary viewpoint, world never moves toward user
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 40);
+    const CAM_BASE = new THREE.Vector3(0, 2, 8);
+    camera.position.copy(CAM_BASE);
+    camera.lookAt(0, 0, 0);
+
+    // Tilt parallax state — device orientation offsets camera, not CSS translate
+    const TILT_MAX_CAM = 0.4; // max camera offset in world units
+    const TILT_LERP = 0.06;
+    const tiltState = { rawX: 0, rawY: 0, smoothX: 0, smoothY: 0 };
+
+    // ── Ambient + directional light ──────────────────────────────────────
+    const ambientLight = new THREE.AmbientLight(0xdffcff, 0.45);
+    scene.add(ambientLight);
+    const keyLight = new THREE.DirectionalLight(0xdffcff, 1.0);
+    keyLight.position.set(3, 5, 4);
+    scene.add(keyLight);
+    const backLight = new THREE.PointLight(0x0acfe8, 1.8, 12);
+    backLight.position.set(0, 2.2, -3.4);
+    scene.add(backLight);
+
+    // ── Water surface — PlaneGeometry with per-vertex displacement ───────
+    // Tilted -15 deg on X so it recedes into depth (looking DOWN into water)
+    const WATER_SEG = reducedMotion ? 32 : 80;
+    const waterGeo = new THREE.PlaneGeometry(18, 12, WATER_SEG, WATER_SEG);
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x06131f,
+      emissive: 0x0abed9,
+      emissiveIntensity: 0.28,
+      transparent: true,
+      opacity: 0.72,
+      roughness: 0.18,
+      metalness: 0.12,
+      side: THREE.DoubleSide,
+      wireframe: false,
+    });
+    const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+    waterMesh.rotation.x = -Math.PI / 2 - 0.26; // -90° + -15° = looking down into water
+    waterMesh.position.set(0, -1.2, -3.6);
+    scene.add(waterMesh);
+    // Cache original Y positions for wave displacement
+    const waterPositions = waterGeo.attributes.position;
+    const waterBaseY = new Float32Array(waterPositions.count);
+    for (let i = 0; i < waterPositions.count; i++) {
+      waterBaseY[i] = waterPositions.getY(i);
+    }
+
+    // ── Skin colour palettes ─────────────────────────────────────────────
+    const skinPalettes = {
+      liquid:    { bg: 0x03070b, accent: 0x72f0d3, accent2: 0xb7fff1, deep: 0x062a31 },
+      fire:      { bg: 0x090303, accent: 0xff6c32, accent2: 0xffd06b, deep: 0x270a04 },
+      developer: { bg: 0x020605, accent: 0x68f07b, accent2: 0x64a6ff, deep: 0x06140d },
+      aura:      { bg: 0x060616, accent: 0xa8a0ff, accent2: 0x62e9ff, deep: 0x12124a }
     };
+
+    // ── Volumetric particle system (fire embers / liquid motes / etc.) ───
+    const PARTICLE_COUNT = reducedMotion ? 40 : 120;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(PARTICLE_COUNT * 3);
+    const particleSpeeds = new Float32Array(PARTICLE_COUNT);
+    const particlePhases = new Float32Array(PARTICLE_COUNT);
+    const particleLanes = new Uint8Array(PARTICLE_COUNT);
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particlePositions[i * 3]     = (Math.random() - 0.5) * 14;
+      particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 8;
+      particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 6 - 2;
+      particleSpeeds[i] = 0.3 + Math.random() * 1.8;
+      particlePhases[i] = Math.random() * Math.PI * 2;
+      particleLanes[i] = i % 12;
+    }
+    particleGeo.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: 0x72f0d3,
+      size: 0.06,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      sizeAttenuation: true, // near particles appear larger — real perspective
+    });
+    const particles = new THREE.Points(particleGeo, particleMat);
+    scene.add(particles);
+
+    // ── Bubble sphere pool — shell objects at real Z depths ───────────────
+    // Each shell object maps to a THREE.Mesh sphere.
+    // Position derived from (x%, y%, z px) → world units.
+    // Near (z=120) → world Z ≈ -1.0; far (z=-100) → world Z ≈ -5.0
+    // (Negative Z = away from camera in Three.js right-hand system)
+    const bubbleMeshes = new Map(); // id → mesh
+    const bubbleObjects = new Map(); // id → shell object data
+    const BUBBLE_BASE_Z = -2.2; // world Z of the mid-depth plane (z=0 in CSS)
+    const BUBBLE_Z_SCALE = 0.018; // px → world units
+
+    function cssZtoWorldZ(zPx) {
+      // Positive zPx (near) → less negative world Z (closer to camera)
+      return BUBBLE_BASE_Z - zPx * BUBBLE_Z_SCALE;
+    }
+
+    function cssXYtoWorldXY(xPct, yPct) {
+      // Map x% [0..100] → world X [-5.5..5.5], y% [0..100] → world Y [3.0..-3.0]
+      return {
+        x: (xPct / 100 - 0.5) * 11,
+        y: (0.5 - yPct / 100) * 6,
+      };
+    }
+
+    function cssSizeToBubbleRadius(sizePx) {
+      // CSS size 86–160px → world radius 0.22–0.44
+      return 0.12 + (sizePx / 160) * 0.32;
+    }
+
+    const bubbleBaseMat = new THREE.MeshStandardMaterial({
+      color: 0x72f0d3,
+      emissive: 0x0acfe8,
+      emissiveIntensity: 0.6,
+      transparent: true,
+      opacity: 0.68,
+      roughness: 0.08,
+      metalness: 0.18,
+      envMapIntensity: 1.0,
+    });
+
+    function buildBubbleMeshes(objects) {
+      // Remove old meshes
+      for (const mesh of bubbleMeshes.values()) scene.remove(mesh);
+      bubbleMeshes.clear();
+      bubbleObjects.clear();
+
+      for (const obj of objects) {
+        const { x: wx, y: wy } = cssXYtoWorldXY(obj.x, obj.y);
+        const wz = cssZtoWorldZ(obj.z ?? 0);
+        const radius = cssSizeToBubbleRadius(obj.size ?? 100);
+        const geo = new THREE.SphereGeometry(radius, reducedMotion ? 8 : 16, reducedMotion ? 8 : 12);
+        const mat = bubbleBaseMat.clone();
+        // Colour by type
+        const typeColors = {
+          program: 0x36e5ff, agent: 0xe7c66d, workflow: 0x79ffa8,
+          world: 0x58ffc7, policy: 0xf4f7ff, "os command": 0xff8870,
+          power: 0xdffcff, media: 0xff88cc, service: 0xb8c0ff,
+          holoweb: 0x80ddff, "user shell": 0x72f0d3, "ui substrate": 0xffd66e,
+          "source corpus": 0xb893ff, "source substrate": 0xffb25f,
+          "hardware_power": 0xff8070, "agent app": 0x9ef5ff,
+          "assistant_avatar": 0x8fffe9,
+        };
+        mat.color.setHex(typeColors[obj.type] ?? 0x72f0d3);
+        mat.emissive.setHex(typeColors[obj.type] ?? 0x0acfe8);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(wx, wy, wz);
+        mesh.userData.objectId = obj.id;
+        mesh.userData.driftPhase = Math.random() * Math.PI * 2;
+        mesh.userData.driftSpeed = 0.5 + Math.random() * 0.4;
+        mesh.userData.baseY = wy;
+        mesh.userData.baseX = wx;
+        scene.add(mesh);
+        bubbleMeshes.set(obj.id, mesh);
+        bubbleObjects.set(obj.id, obj);
+      }
+    }
+
+    // ── Raycaster — pointer → depth ray → select shell object ────────────
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    function onPointerDown(event) {
+      // Normalize pointer to NDC [-1, 1]
+      const rect = canvas.getBoundingClientRect();
+      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+      const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+      pointer.set(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(pointer, camera);
+      const meshArray = Array.from(bubbleMeshes.values());
+      const intersects = raycaster.intersectObjects(meshArray);
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        const id = hit.userData.objectId;
+        const obj = bubbleObjects.get(id);
+        if (obj && typeof selectObject === "function") {
+          selectObject(obj);
+        }
+      }
+    }
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("touchstart", onPointerDown, { passive: true });
+
+    // ── Selected bubble highlight ─────────────────────────────────────────
+    function updateBubbleSelection(selectedId) {
+      for (const [id, mesh] of bubbleMeshes.entries()) {
+        mesh.material.emissiveIntensity = id === selectedId ? 1.4 : 0.6;
+        mesh.material.opacity = id === selectedId ? 0.92 : 0.68;
+      }
+    }
+
+    // ── Tilt parallax — device orientation offsets camera (not CSS) ───────
+    function setupTiltParallax() {
+      window.addEventListener("deviceorientation", (e) => {
+        if (e.beta === null || e.gamma === null) return;
+        tiltState.rawX = Math.max(-1, Math.min(1, e.gamma / 45)) * TILT_MAX_CAM;
+        tiltState.rawY = Math.max(-1, Math.min(1, (e.beta - 45) / 45)) * TILT_MAX_CAM * 0.6;
+      });
+    }
+
+    // ── Resize handler ─────────────────────────────────────────────────────
+    function resize() {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    }
+
+    // ── Skin → scene recolour ─────────────────────────────────────────────
+    function applySkinToScene(skin) {
+      const pal = skinPalettes[skin] || skinPalettes.liquid;
+      scene.background = new THREE.Color(pal.bg);
+      // Particle colour
+      particleMat.color.setHex(pal.accent);
+      // Water emissive — liquid and aura use blue-green, fire uses orange, developer uses green
+      waterMat.color.setHex(pal.deep);
+      waterMat.emissive.setHex(pal.accent);
+      waterMat.emissiveIntensity = skin === "fire" ? 0.18 : 0.28;
+      // Particle behaviour flags
+      particleMat.size = skin === "fire" ? 0.10 : 0.06;
+    }
+
+    // ── Main Three.js render loop ─────────────────────────────────────────
+    let t3 = 0;
+
+    function drawWorld() {
+      const skin = document.body.dataset.skin || "liquid";
+      const motionStep = reducedMotion ? 0.35 : 1;
+      t3 += motionStep;
+      const time = t3 * 0.016; // ≈ seconds at 60fps
+
+      // Device tilt: smooth and offset camera from base position
+      if (!reducedMotion) {
+        tiltState.smoothX += (tiltState.rawX - tiltState.smoothX) * TILT_LERP;
+        tiltState.smoothY += (tiltState.rawY - tiltState.smoothY) * TILT_LERP;
+        camera.position.set(
+          CAM_BASE.x + tiltState.smoothX,
+          CAM_BASE.y + tiltState.smoothY,
+          CAM_BASE.z
+        );
+        camera.lookAt(0, 0, 0);
+      }
+
+      // Water wave displacement — vertex animation on the plane geometry
+      if (!reducedMotion) {
+        const pos = waterGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i);
+          const origY = waterBaseY[i];
+          const wave = Math.sin(x * 0.5 + time * 1.2) * 0.12
+                     + Math.sin(x * 1.1 - time * 0.8) * 0.06
+                     + Math.sin(pos.getZ(i) * 0.7 + time * 0.9) * 0.04;
+          pos.setY(i, origY + wave * (1.0 + envFeedback.rippleIntensity * 2.0));
+        }
+        pos.needsUpdate = true;
+        waterGeo.computeVertexNormals();
+      }
+
+      // Bubble drift — float each sphere gently on its drift phase
+      for (const mesh of bubbleMeshes.values()) {
+        const { driftPhase, driftSpeed, baseY, baseX } = mesh.userData;
+        mesh.position.y = baseY + Math.sin(time * driftSpeed + driftPhase) * 0.08;
+        mesh.position.x = baseX + Math.cos(time * driftSpeed * 0.7 + driftPhase) * 0.04;
+        mesh.rotation.y += 0.003 * driftSpeed;
+      }
+
+      // Volumetric particles — behaviour depends on skin
+      const ppos = particleGeo.attributes.position;
+      const envDensity = envFeedback.particleDensityScale;
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const phase = particlePhases[i];
+        const speed = particleSpeeds[i];
+        if (skin === "fire") {
+          // Rise upward like embers
+          ppos.array[i * 3 + 1] += speed * 0.018 * motionStep;
+          ppos.array[i * 3]     += Math.sin(time * 0.8 + phase) * 0.008;
+          if (ppos.array[i * 3 + 1] > 6) {
+            ppos.array[i * 3]     = (Math.random() - 0.5) * 14;
+            ppos.array[i * 3 + 1] = -3.5;
+            ppos.array[i * 3 + 2] = (Math.random() - 0.5) * 6 - 2;
+          }
+        } else if (skin === "developer") {
+          // Horizontal data-pulse lanes
+          ppos.array[i * 3] += speed * 0.06 * motionStep;
+          if (ppos.array[i * 3] > 8) ppos.array[i * 3] = -8;
+        } else if (skin === "aura") {
+          // Orbital around centre
+          const angle = phase + time * (0.008 + (particleLanes[i] % 5) * 0.001);
+          const orbit = 2.2 + (particleLanes[i] % 6) * 0.5;
+          ppos.array[i * 3]     = Math.cos(angle) * orbit;
+          ppos.array[i * 3 + 1] = Math.sin(angle * 1.4) * orbit * 0.42;
+          ppos.array[i * 3 + 2] = Math.sin(angle * 0.9) * 0.8 - 2.5;
+        } else {
+          // Liquid — gentle drift + caustic mote movement
+          ppos.array[i * 3]     += Math.sin(time * 0.22 + phase) * 0.012 * motionStep;
+          ppos.array[i * 3 + 1] += Math.cos(time * 0.18 + phase) * 0.008 * motionStep;
+          if (ppos.array[i * 3] > 8) ppos.array[i * 3] = -8;
+          if (ppos.array[i * 3] < -8) ppos.array[i * 3] = 8;
+          if (ppos.array[i * 3 + 1] > 5) ppos.array[i * 3 + 1] = -4;
+          if (ppos.array[i * 3 + 1] < -4) ppos.array[i * 3 + 1] = 5;
+        }
+      }
+      particles.visible = envDensity > 0.1;
+      particleMat.opacity = Math.min(0.82, 0.38 * envDensity + (skin === "fire" ? 0.44 : 0.34));
+      ppos.needsUpdate = true;
+
+      // Water clarity binding from Brittney environment coupling
+      waterMat.opacity = 0.55 + envFeedback.waterClarity * 0.22;
+      waterMat.emissiveIntensity = (skin === "fire" ? 0.12 : 0.22)
+        + envFeedback.rippleIntensity * 0.18;
+
+      decayEnvironmentalFeedback(); // Brittney environment coupling decay
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(drawWorld);
+    }
+
+    // Wire skin change into Three.js scene (called by setSkin)
+    function seedSimulation(skin) {
+      applySkinToScene(skin);
+    }
 
     // --- Brittney Environment Coupling ---
     // Source contract: apps/holoshell/source/holoshell-brittney-environment-coupling.hsplus
@@ -1712,367 +2054,7 @@
     }
     // --- End Brittney Environment Coupling ---
 
-    // Device-tilt parallax state — stationary viewpoint, world shifts as device tilts.
-    // Raw tilt values smoothed via lerp each frame to prevent jitter.
-    const tiltState = { rawX: 0, rawY: 0, smoothX: 0, smoothY: 0 };
-    const TILT_LERP = 0.05;   // smoothing factor (0.05 = slow/silky, higher = snappier)
-    const TILT_MAX_X = 1.5;   // max horizontal camera offset in vw units
-    const TILT_MAX_Y = 0.8;   // max vertical camera offset in vw units
-
-    function setupTiltParallax() {
-      // Only register if the device actually fires orientation events.
-      // Non-mobile desktop browsers will never fire, so this is a no-op there.
-      window.addEventListener("deviceorientation", (e) => {
-        if (e.beta === null || e.gamma === null) return;
-        // gamma = left/right tilt (-90..90), beta = forward/back tilt (0..180 clamped to +/-45)
-        tiltState.rawX = Math.max(-1, Math.min(1, e.gamma / 45)) * TILT_MAX_X;
-        tiltState.rawY = Math.max(-1, Math.min(1, (e.beta - 45) / 45)) * TILT_MAX_Y;
-      });
-    }
-
-    function applyTiltParallax() {
-      if (reducedMotion) return;
-      // Smooth the raw values toward target each frame
-      tiltState.smoothX += (tiltState.rawX - tiltState.smoothX) * TILT_LERP;
-      tiltState.smoothY += (tiltState.rawY - tiltState.smoothY) * TILT_LERP;
-      const field = document.getElementById("bubbleField");
-      if (field) {
-        // Translate the whole bubble field — creates parallax against the fixed canvas background.
-        // Near bubbles (large z) will appear to shift more than far bubbles due to perspective math.
-        field.style.transform = `translate(${tiltState.smoothX}vw, ${tiltState.smoothY}vw)`;
-      }
-    }
-
-    function resize() {
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(window.innerWidth * ratio);
-      canvas.height = Math.floor(window.innerHeight * ratio);
-      canvas.style.width = `${window.innerWidth}px`;
-      canvas.style.height = `${window.innerHeight}px`;
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      seedSimulation(document.body.dataset.skin || "liquid");
-    }
-
-    let t = 0;
-    const skinPalettes = {
-      liquid: ["#03070b", "#062a31", "#72f0d3", "#b7fff1", "#0d3f48"],
-      fire: ["#090303", "#270a04", "#ff6c32", "#ffd06b", "#4d120d"],
-      developer: ["#020605", "#06140d", "#68f07b", "#64a6ff", "#0d2b1d"],
-      aura: ["#060616", "#12124a", "#a8a0ff", "#62e9ff", "#25165a"]
-    };
-
-    function palette() {
-      return skinPalettes[document.body.dataset.skin] || skinPalettes.liquid;
-    }
-
-    function seedSimulation(skin) {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const motionScale = reducedMotion ? 0.38 : 1;
-      const counts = {
-        liquid: Math.floor(90 * motionScale),
-        fire: Math.floor(150 * motionScale),
-        developer: Math.floor(120 * motionScale),
-        aura: Math.floor(140 * motionScale)
-      };
-      sim.particles = Array.from({ length: counts[skin] || counts.liquid }, (_, index) => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        vx: (Math.random() - 0.5) * (skin === "fire" ? 0.35 : 0.8),
-        vy: skin === "fire" ? -(0.7 + Math.random() * 2.8) : (Math.random() - 0.5) * 0.7,
-        r: skin === "fire" ? 1.5 + Math.random() * 6 : 1 + Math.random() * 4.5,
-        life: Math.random(),
-        phase: Math.random() * Math.PI * 2,
-        lane: index % 12
-      }));
-      sim.ripples = Array.from({ length: skin === "liquid" ? 9 : skin === "aura" ? 6 : 0 }, () => ({
-        x: Math.random() * w,
-        y: h * (0.16 + Math.random() * 0.66),
-        radius: Math.random() * 180,
-        speed: 0.9 + Math.random() * 1.8,
-        alpha: 0.2 + Math.random() * 0.35
-      }));
-      sim.streams = Array.from({ length: 18 }, (_, index) => ({
-        offset: Math.random() * h,
-        speed: 0.5 + Math.random() * 1.8,
-        phase: Math.random() * Math.PI * 2,
-        lane: index
-      }));
-    }
-
-    function drawBaseGradient() {
-      const [base, deep, a, b, c] = palette();
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const grad = ctx.createLinearGradient(0, 0, w, h);
-      grad.addColorStop(0, base);
-      grad.addColorStop(0.42, deep);
-      grad.addColorStop(1, c);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-
-      const glow = ctx.createRadialGradient(w * 0.5, h * 0.5, 80, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
-      glow.addColorStop(0, `${a}1f`);
-      glow.addColorStop(0.45, `${b}12`);
-      glow.addColorStop(1, "transparent");
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, w, h);
-    }
-
-    function drawLiquid() {
-      const [, , a, b] = palette();
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      ctx.globalCompositeOperation = "screen";
-
-      for (let i = 0; i < 13; i += 1) {
-        const y = h * (0.08 + i * 0.078);
-        const band = ctx.createLinearGradient(0, y - 120, w, y + 120);
-        band.addColorStop(0, "transparent");
-        band.addColorStop(0.5, i % 2 ? `${a}35` : `${b}28`);
-        band.addColorStop(1, "transparent");
-        ctx.fillStyle = band;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        for (let x = 0; x <= w; x += 36) {
-          const yy = y
-            + Math.sin((x * 0.009) + t * 0.018 + i) * (28 + i * 1.7)
-            + Math.sin((x * 0.024) - t * 0.011) * 13;
-          ctx.lineTo(x, yy);
-        }
-        ctx.lineTo(w, y + 110);
-        ctx.lineTo(0, y + 110);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      // rippleIntensity: Brittney actions temporarily boost ripple expansion speed
-      const rippleSpeedBoost = 1.0 + envFeedback.rippleIntensity * 1.8;
-      for (const ripple of sim.ripples) {
-        ripple.radius += ripple.speed * rippleSpeedBoost;
-        ripple.alpha *= 0.992;
-        if (ripple.radius > Math.max(w, h) * 0.34 || ripple.alpha < 0.05) {
-          ripple.x = Math.random() * w;
-          ripple.y = h * (0.18 + Math.random() * 0.62);
-          ripple.radius = 8;
-          ripple.alpha = 0.22 + Math.random() * 0.34;
-        }
-        ctx.strokeStyle = `rgba(144, 255, 236, ${ripple.alpha})`;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.ellipse(ripple.x, ripple.y, ripple.radius * 1.55, ripple.radius * 0.38, -0.12, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // particleDensityScale: Brittney actions modulate how many motes are visible this frame
-      const visibleParticleCount = Math.round(sim.particles.length * envFeedback.particleDensityScale);
-      for (let pi = 0; pi < visibleParticleCount; pi++) {
-        const particle = sim.particles[pi];
-        particle.x += Math.sin(t * 0.011 + particle.phase) * 0.85 + particle.vx;
-        particle.y += Math.cos(t * 0.009 + particle.phase) * 0.26 + particle.vy;
-        if (particle.x < -20) particle.x = w + 20;
-        if (particle.x > w + 20) particle.x = -20;
-        if (particle.y < -20) particle.y = h + 20;
-        if (particle.y > h + 20) particle.y = -20;
-        // waterClarity multiplies caustic opacity — Brittney clearing work brightens the water
-        const causticAlpha = (0.22 * envFeedback.waterClarity).toFixed(3);
-        const caustic = ctx.createRadialGradient(particle.x, particle.y, 0, particle.x, particle.y, particle.r * 8);
-        caustic.addColorStop(0, `rgba(186, 255, 245, ${causticAlpha})`);
-        caustic.addColorStop(1, "transparent");
-        ctx.fillStyle = caustic;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.r * 8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalCompositeOperation = "source-over";
-    }
-
-    function drawFire() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      ctx.globalCompositeOperation = "screen";
-
-      for (let i = 0; i < 24; i += 1) {
-        const x = (i / 23) * w;
-        const height = h * (0.34 + Math.sin(t * 0.025 + i) * 0.09 + (i % 5) * 0.015);
-        const flame = ctx.createRadialGradient(x, h, 20, x + Math.sin(t * 0.03 + i) * 80, h - height * 0.58, height);
-        flame.addColorStop(0, "rgba(255, 220, 120, 0.55)");
-        flame.addColorStop(0.34, "rgba(255, 103, 48, 0.38)");
-        flame.addColorStop(0.72, "rgba(105, 25, 10, 0.14)");
-        flame.addColorStop(1, "transparent");
-        ctx.fillStyle = flame;
-        ctx.fillRect(Math.max(0, x - height * 0.55), Math.max(0, h - height * 1.18), height * 1.1, height * 1.18);
-      }
-
-      for (const ember of sim.particles) {
-        ember.x += Math.sin(t * 0.025 + ember.phase) * 0.7 + ember.vx;
-        ember.y += ember.vy;
-        ember.life += 0.011;
-        if (ember.y < -30 || ember.life > 1) {
-          ember.x = Math.random() * w;
-          ember.y = h + Math.random() * 80;
-          ember.vy = -(0.7 + Math.random() * 3.2);
-          ember.life = 0;
-          ember.r = 1.5 + Math.random() * 7;
-        }
-        const alpha = Math.max(0, 1 - ember.life);
-        const spark = ctx.createRadialGradient(ember.x, ember.y, 0, ember.x, ember.y, ember.r * 6);
-        spark.addColorStop(0, `rgba(255, 236, 162, ${0.8 * alpha})`);
-        spark.addColorStop(0.34, `rgba(255, 111, 56, ${0.44 * alpha})`);
-        spark.addColorStop(1, "transparent");
-        ctx.fillStyle = spark;
-        ctx.beginPath();
-        ctx.arc(ember.x, ember.y, ember.r * 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.globalAlpha = 0.18;
-      ctx.fillStyle = "#1c0804";
-      for (let i = 0; i < 11; i += 1) {
-        const y = h * (0.12 + i * 0.085);
-        ctx.fillRect(0, y + Math.sin(t * 0.02 + i) * 18, w, 1);
-      }
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "source-over";
-    }
-
-    function drawDeveloper() {
-      const [, , a, b] = palette();
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const spacing = 56;
-      ctx.globalCompositeOperation = "screen";
-      ctx.strokeStyle = "rgba(99, 255, 152, 0.12)";
-      ctx.lineWidth = 1;
-      for (let x = (t * 0.25) % spacing; x < w; x += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x + Math.sin(x * 0.02 + t * 0.01) * 28, h);
-        ctx.stroke();
-      }
-      for (let y = (t * 0.18) % spacing; y < h; y += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y + Math.sin(y * 0.02 + t * 0.012) * 22);
-        ctx.stroke();
-      }
-
-      for (const pulse of sim.particles) {
-        const laneY = ((pulse.lane + 1) / 13) * h;
-        pulse.x += 1.6 + (pulse.lane % 4) * 0.55;
-        if (pulse.x > w + 80) pulse.x = -80;
-        const x2 = pulse.x + 80 + Math.sin(t * 0.02 + pulse.phase) * 40;
-        const grad = ctx.createLinearGradient(pulse.x, laneY, x2, laneY);
-        grad.addColorStop(0, "transparent");
-        grad.addColorStop(0.5, pulse.lane % 2 ? `${a}aa` : `${b}99`);
-        grad.addColorStop(1, "transparent");
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(pulse.x, laneY);
-        ctx.lineTo(x2, laneY + Math.sin(t * 0.03 + pulse.phase) * 22);
-        ctx.stroke();
-      }
-      ctx.globalCompositeOperation = "source-over";
-    }
-
-    function drawAura() {
-      const [, , a, b] = palette();
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const cx = w * 0.5;
-      const cy = h * 0.49;
-      ctx.globalCompositeOperation = "screen";
-
-      for (let i = 0; i < 8; i += 1) {
-        const radius = 110 + i * 72 + Math.sin(t * 0.018 + i) * 24;
-        ctx.strokeStyle = i % 2 ? `${a}42` : `${b}38`;
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, radius * 1.45, radius * 0.58, Math.sin(t * 0.006 + i) * 0.42, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      for (let i = 0; i < 9; i += 1) {
-        const y = h * (0.1 + i * 0.085);
-        const band = ctx.createLinearGradient(0, y - 70, w, y + 70);
-        band.addColorStop(0, "transparent");
-        band.addColorStop(0.38, i % 2 ? `${a}30` : `${b}2b`);
-        band.addColorStop(0.62, i % 2 ? `${b}2a` : `${a}25`);
-        band.addColorStop(1, "transparent");
-        ctx.fillStyle = band;
-        ctx.beginPath();
-        for (let x = 0; x <= w; x += 48) {
-          const yy = y + Math.sin(x * 0.008 + t * 0.02 + i) * (44 + i * 2);
-          if (x === 0) ctx.moveTo(x, yy);
-          else ctx.lineTo(x, yy);
-        }
-        ctx.lineTo(w, y + 100);
-        ctx.lineTo(0, y + 100);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      for (const mote of sim.particles) {
-        const angle = mote.phase + t * (0.004 + (mote.lane % 5) * 0.0008);
-        const orbit = 90 + (mote.lane % 12) * 42 + Math.sin(t * 0.015 + mote.life * 7) * 18;
-        mote.x = cx + Math.cos(angle) * orbit * (1.25 + (mote.lane % 3) * 0.12);
-        mote.y = cy + Math.sin(angle * 1.4) * orbit * 0.46;
-        const aura = ctx.createRadialGradient(mote.x, mote.y, 0, mote.x, mote.y, mote.r * 6);
-        aura.addColorStop(0, "rgba(220, 255, 255, 0.62)");
-        aura.addColorStop(0.3, `${a}66`);
-        aura.addColorStop(1, "transparent");
-        ctx.fillStyle = aura;
-        ctx.beginPath();
-        ctx.arc(mote.x, mote.y, mote.r * 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalCompositeOperation = "source-over";
-    }
-
-    function drawAtmosphericFog() {
-      // Depth fog: top of screen (far plane) fades to dark, bottom (near plane) stays clear.
-      // Creates the sensation that the world recedes into depth at the top.
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const skin = document.body.dataset.skin || "liquid";
-      const fogColors = {
-        liquid: "rgba(4, 8, 14, 0.52)",
-        fire: "rgba(8, 3, 2, 0.46)",
-        developer: "rgba(2, 6, 3, 0.48)",
-        aura: "rgba(4, 3, 12, 0.50)"
-      };
-      const fog = ctx.createLinearGradient(0, 0, 0, h);
-      fog.addColorStop(0,    fogColors[skin] || fogColors.liquid);  // far plane — dense fog
-      fog.addColorStop(0.28, "rgba(0, 0, 0, 0.22)");               // mid-far transition
-      fog.addColorStop(0.58, "rgba(0, 0, 0, 0.06)");               // near-mid transition
-      fog.addColorStop(1,    "rgba(0, 0, 0, 0.00)");               // near plane — clear
-      ctx.fillStyle = fog;
-      ctx.fillRect(0, 0, w, h);
-
-      // Vignette: subtle dark ring pulls focus to the center depth plane
-      const cx = w * 0.5;
-      const cy = h * 0.5;
-      const vig = ctx.createRadialGradient(cx, cy, h * 0.28, cx, cy, Math.max(w, h) * 0.72);
-      vig.addColorStop(0, "rgba(0,0,0,0)");
-      vig.addColorStop(1, "rgba(0,0,0,0.28)");
-      ctx.fillStyle = vig;
-      ctx.fillRect(0, 0, w, h);
-    }
-
-    function drawWorld() {
-      drawBaseGradient();
-      const skin = document.body.dataset.skin || "liquid";
-      if (skin === "fire") drawFire();
-      else if (skin === "developer") drawDeveloper();
-      else if (skin === "aura") drawAura();
-      else drawLiquid();
-      drawAtmosphericFog();  // depth haze — far objects dim, near objects bright
-      applyTiltParallax();   // device-tilt parallax — world shifts as user tilts device
-      decayEnvironmentalFeedback(); // Brittney environment coupling: decay per-frame
-      t += reducedMotion ? 0.35 : 1;
-      requestAnimationFrame(drawWorld);
-    }
+    // (tiltState, resize, seedSimulation, setupTiltParallax are defined above in Three.js block)
 
     function brittneyAvatarFeed() {
       return feed.feeds?.brittneyAvatar?.summary ? feed.feeds.brittneyAvatar : standaloneAvatarFeed;
@@ -3031,6 +3013,8 @@
 
     function selectObject(object, options = {}) {
       selectedShellObjectId = object.id;
+      // Update Three.js bubble highlight (real 3D glow boost)
+      updateBubbleSelection(object.id);
       document.querySelectorAll(".bubble").forEach((item) => item.classList.toggle("selected", item.dataset.id === object.id));
       const selectedName = object.fullLabel || object.label;
       document.getElementById("selectedTitle").textContent = selectedName;
@@ -4284,7 +4268,6 @@
       });
     }
 
-    window.addEventListener("resize", resize);
     document.getElementById("brittneyAvatar").addEventListener("click", () => activateBrittneyAvatar("avatar"));
     document.getElementById("networkGuard").addEventListener("click", () => {
       const object = shellObjects().find((item) => item.id === "network-reality");
@@ -4318,7 +4301,12 @@
     });
     document.querySelectorAll(".skin").forEach((button) => button.addEventListener("click", () => setSkin(button.dataset.skin)));
 
+    // ── Three.js scene init ──────────────────────────────────────────────
+    applySkinToScene(document.body.dataset.skin || "liquid");
+    buildBubbleMeshes(shellObjects());
     resize();
+    window.addEventListener("resize", resize);
+    // ────────────────────────────────────────────────────────────────────
     drawWorld();
     setupTiltParallax();
     setupVoiceInput();

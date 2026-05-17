@@ -3,10 +3,34 @@
 // A simple renderable .hs scene for the first HoloShell avatar and skin proof.
 // The richer graph lives in holoshell-shell-world.holo and the behavior
 // lives in holoshell-home.hsplus.
+//
+// CAMERA: Stationary viewpoint — user looks INTO the world, never moves through it.
+// This is a fish-tank / snow-globe / window perspective.
+// Camera is fixed at (0, 2, 8) looking at (0, 0, 0) — slight downward angle from above eye level.
+// OrbitControls are DISABLED in non-VR mode. VR mode uses XR camera rig instead.
+// Device tilt creates parallax (see prototype/local-capability-room.html tiltState).
+
+camera "StationaryViewpoint" {
+  type: "perspective"
+  position: { x: 0, y: 2, z: 8 }
+  target: { x: 0, y: 0, z: 0 }
+  fov: 60
+  near: 0.1
+  far: 40
+  controls: "none"
+  vr_override: true
+}
 
 environment {
   skybox: "deep_machine_ocean"
   ambient_light: 0.45
+}
+
+post_processing_3d {
+  fog: { enabled: true, near: 8, far: 20, color: "#04080e" }
+  ssao: { enabled: true, intensity: 0.3, radius: 0.4 }
+  bloom: { enabled: true, threshold: 0.8, intensity: 0.3 }
+  depth_of_field: { enabled: true, focus_distance: 4, blur_amount: 0.002 }
 }
 
 light "WorldKeyLight" {

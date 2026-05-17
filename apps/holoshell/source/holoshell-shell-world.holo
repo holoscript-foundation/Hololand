@@ -26,12 +26,14 @@ composition "HoloShell Shell World" {
     receipt_underlay: true
     // 3D stationary viewpoint — user looks INTO the world, never moves through it.
     // Camera fixed at (0,2,8) targeting (0,0,0). No OrbitControls in non-VR mode.
-    // Shell objects distributed across Z depth layers:
-    //   near  (+80 to +120px CSS z): HoloLand, Agents, Brittney, Founder Boot, User Shell, Room Marathon
-    //   mid   (+20 to  -20px CSS z): standard shell objects
-    //   far   (-60 to -120px CSS z): background/utility objects (GOLD, Ollama, Lofi, Excel)
-    // Device tilt maps to parallax offset on bubble field (max ±1.5vw horizontal, ±0.8vw vertical).
-    // Liquid surface receded via CSS rotateX(15deg) — looking DOWN into water, not AT flat screen.
+    // Shell objects are THREE.Mesh spheres at real 3D Z depths (not CSS translateZ):
+    //   near  (z=120): world Z ≈ -0.04  — genuinely closest to camera, perspective-enlarged
+    //   mid   (z=  0): world Z ≈ -2.20  — default depth plane
+    //   far   (z=-100):world Z ≈ -4.00  — genuinely smallest, fog-dimmed
+    // Device tilt offsets camera position (max ±0.4 world units), not CSS translate.
+    // Liquid surface: THREE.PlaneGeometry with vertex-displaced wave animation (real depth).
+    // Fire/developer/aura: volumetric THREE.Points with perspective size attenuation.
+    // Touch/click → THREE.Raycaster depth ray → selectObject hit detection.
     camera_mode: "stationary_perspective"
     depth_layers: true
     tilt_parallax: true
