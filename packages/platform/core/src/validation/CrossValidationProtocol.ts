@@ -180,9 +180,6 @@ export class CrossValidationProtocol {
   // Proposal queue (ordered by computed priority)
   private readonly queue: AgentProposal[] = [];
 
-  // Processing state
-  private processing: boolean = false;
-
   // Conflict tracking
   private readonly conflicts: ProposalConflict[] = [];
   private readonly maxConflictHistory = 500;

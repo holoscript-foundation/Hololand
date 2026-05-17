@@ -21,7 +21,7 @@
     "dev": "tsup --watch",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest run",
-    "typecheck": "tsc --noEmit && eslint src --ext .ts",
+    "typecheck": "tsc --noEmit && node ../../../node_modules/eslint/bin/eslint.js src",
     "lint": "node ../../../node_modules/eslint/bin/eslint.js src",
     "format": "prettier --write \"src/**/*.ts\" && eslint --fix src",
     "clean": "rm -rf dist"
@@ -45,7 +45,13 @@
     "directory": "packages/core"
   },
   "dependencies": {
+    "@hololand/accessibility": "workspace:*",
+    "@hololand/ar-foundation": "workspace:*",
+    "@hololand/audio": "workspace:*",
     "@hololand/logger": "workspace:*",
+    "@hololand/network": "workspace:*",
+    "@hololand/renderer": "workspace:*",
+    "@hololand/world": "workspace:*",
     "@holoscript/core": "^3.43.0"
   },
   "devDependencies": {

@@ -104,6 +104,12 @@ export interface ClampEvent {
   readonly source?: string;
 }
 
+function isVectorArray(
+  value: readonly number[] | { x: number; y: number; z: number }
+): value is readonly number[] {
+  return Array.isArray(value);
+}
+
 // =============================================================================
 // IMMUTABLE SAFETY ENVELOPE
 // =============================================================================
@@ -175,7 +181,7 @@ export function clampRange(value: number, min: number, max: number): number {
 export function vectorMagnitude(
   v: readonly number[] | { x: number; y: number; z: number }
 ): number {
-  if (Array.isArray(v)) {
+  if (isVectorArray(v)) {
     const x = v[0] ?? 0;
     const y = v[1] ?? 0;
     const z = v[2] ?? 0;
@@ -198,7 +204,7 @@ export function clampVectorMagnitude(
 ): [number, number, number] {
   let x: number, y: number, z: number;
 
-  if (Array.isArray(v)) {
+  if (isVectorArray(v)) {
     x = v[0] ?? 0;
     y = v[1] ?? 0;
     z = v[2] ?? 0;

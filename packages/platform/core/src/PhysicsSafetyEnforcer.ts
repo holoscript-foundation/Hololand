@@ -27,7 +27,7 @@
  * @version 1.0.0
  */
 
-import type { PhysicsProvider } from '@holoscript/core';
+import type { PhysicsProvider, RaycastHit, Vector3 as HoloVector3 } from '@holoscript/core';
 
 import {
   PHYSICS_SAFETY_ENVELOPE,
@@ -173,16 +173,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
   /**
    * Raycast -- pass-through, no clamping needed.
    */
-  raycast(
-    origin: [number, number, number] | { x: number; y: number; z: number },
-    direction: [number, number, number] | { x: number; y: number; z: number },
-    maxDistance: number
-  ): {
-    point: [number, number, number] | { x: number; y: number; z: number };
-    normal: [number, number, number] | { x: number; y: number; z: number };
-    distance: number;
-    nodeId: string;
-  } | null {
+  raycast(origin: HoloVector3, direction: HoloVector3, maxDistance: number): RaycastHit | null {
     return this.inner.raycast(origin, direction, maxDistance);
   }
 

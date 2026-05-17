@@ -21,7 +21,7 @@ import type {
   HoloValue,
   HoloLight,
   HoloEnvironment,
-} from '../../packages/core/src/parser/HoloCompositionTypes';
+} from './HoloCompositionTypes';
 
 // =============================================================================
 // TYPES — URDF Intermediate Representation
@@ -678,7 +678,9 @@ export class HoloToURDFConverter {
   }
 
   private getTrait(obj: HoloObjectDecl, traitName: string): HoloObjectTrait | undefined {
-    return obj.traits?.find((t) => this.getTraitName(t) === traitName);
+    return obj.traits?.find(
+      (t): t is HoloObjectTrait => typeof t !== 'string' && this.getTraitName(t) === traitName
+    );
   }
 
   private getTraitName(trait: HoloObjectTrait | string): string {

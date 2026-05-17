@@ -14,9 +14,9 @@
 import { createTraitContextFactory, TraitContextFactory } from './TraitContextFactory';
 import { createSpatialAudioBridge } from '@hololand/audio';
 import { createPhysicsExpansionBridge } from '@hololand/world';
-import { createAccessibilityBridge, AccessibilityBridgeConfig } from '@hololand/accessibility';
-import { createHololandNetwork, NetworkSystem } from '@hololand/network';
-import { createVolumetricBridge, VolumetricBridgeConfig } from '@hololand/renderer';
+import { createAccessibilityBridge } from '@hololand/accessibility';
+import { createHololandNetwork } from '@hololand/network';
+import { createVolumetricBridge } from '@hololand/renderer';
 
 // Physics Safety Envelope -- immutable platform-level bounds
 import {
@@ -26,11 +26,31 @@ import {
   type SafetyEnforcerStats,
 } from './PhysicsSafetyEnforcer';
 import type { PhysicsSafetyBounds } from './PhysicsSafetyEnvelope';
+import type { NetworkProvider, PhysicsProvider, Vector3 as HoloVector3 } from '@holoscript/core';
 
-// Import Runtime Types from Packages
-import type { HololandRenderer } from '@hololand/renderer';
-import type { PhysicsEngine } from '@hololand/world';
-import type { SpatialAudioEngine } from '@hololand/audio';
+type AccessibilityBridgeConfig = Parameters<typeof createAccessibilityBridge>[0];
+type HololandRenderer = Parameters<typeof createVolumetricBridge>[0]['renderer'];
+type NetworkSystem = ReturnType<typeof createHololandNetwork>;
+type PhysicsEngine = Parameters<typeof createPhysicsExpansionBridge>[0];
+type SpatialAudioEngine = Parameters<typeof createSpatialAudioBridge>[0]['engine'];
+type VolumetricBridgeConfig = Omit<Parameters<typeof createVolumetricBridge>[0], 'renderer'>;
+
+interface WorldVector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface WorldPhysicsBridge {
+  applyVelocity(nodeId: string, velocity: WorldVector3): void;
+  applyAngularVelocity(nodeId: string, angularVelocity: WorldVector3): void;
+  setKinematic(nodeId: string, kinematic: boolean): void;
+  raycast(
+    origin: WorldVector3,
+    direction: WorldVector3,
+    maxDistance: number
+  ): { point: WorldVector3; normal: WorldVector3; distance: number; nodeId: string } | null;
+}
 
 export interface RuntimeConfig {
   renderer: HololandRenderer;
@@ -64,13 +84,14 @@ export class PlatformRuntime {
   constructor(config: RuntimeConfig) {
     // 1. Create Physics Bridge (Phase 13)
     const rawPhysicsBridge = createPhysicsExpansionBridge(config.physicsEngine);
+    const safePhysicsTarget = adaptWorldPhysicsBridge(rawPhysicsBridge);
 
     // 1b. Wrap with Physics Safety Envelope (immutable hard caps)
     // This is the platform-level firewall that prevents any AI-generated
     // value from exceeding safe physics bounds.
-    let physicsBridge = rawPhysicsBridge;
+    let physicsBridge: PhysicsProvider = safePhysicsTarget;
     if (!config.disablePhysicsSafety) {
-      this.physicsSafetyEnforcer = wrapWithSafetyEnvelope(rawPhysicsBridge, config.onPhysicsClamp);
+      this.physicsSafetyEnforcer = wrapWithSafetyEnvelope(safePhysicsTarget, config.onPhysicsClamp);
       physicsBridge = this.physicsSafetyEnforcer;
     }
 
@@ -90,10 +111,10 @@ export class PlatformRuntime {
     });
 
     // 5. Create Network Bridge (Phase 10 & 7)
-    let networkBridge = undefined;
+    let networkBridge: NetworkProvider | undefined = undefined;
     if (config.network) {
       this.network = createHololandNetwork({ url: config.network.url });
-      networkBridge = this.network.bridge;
+      networkBridge = adaptNetworkSystem(this.network);
     }
 
     // 6. Create the Unified Trait Context Factory
@@ -139,4 +160,69 @@ export class PlatformRuntime {
 
 export function createPlatformRuntime(config: RuntimeConfig): PlatformRuntime {
   return new PlatformRuntime(config);
+}
+
+function toWorldVector3(vector: HoloVector3): WorldVector3 {
+  return {
+    x: vector[0],
+    y: vector[1],
+    z: vector[2],
+  };
+}
+
+function toHoloVector3(vector: WorldVector3): HoloVector3 {
+  return [vector.x, vector.y, vector.z];
+}
+
+function adaptWorldPhysicsBridge(provider: WorldPhysicsBridge): PhysicsProvider {
+  return {
+    applyVelocity(nodeId, velocity) {
+      provider.applyVelocity(nodeId, toWorldVector3(velocity));
+    },
+    applyAngularVelocity(nodeId, angularVelocity) {
+      provider.applyAngularVelocity(nodeId, toWorldVector3(angularVelocity));
+    },
+    setKinematic(nodeId, kinematic) {
+      provider.setKinematic(nodeId, kinematic);
+    },
+    raycast(origin, direction, maxDistance) {
+      const hit = provider.raycast(toWorldVector3(origin), toWorldVector3(direction), maxDistance);
+      if (!hit) return null;
+      return {
+        point: toHoloVector3(hit.point),
+        normal: toHoloVector3(hit.normal),
+        distance: hit.distance,
+        bodyId: hit.nodeId,
+      };
+    },
+  };
+}
+
+function adaptNetworkSystem(system: NetworkSystem): NetworkProvider {
+  return {
+    broadcastState(nodeId, state) {
+      system.bridge.send({
+        type: 'state:broadcast',
+        payload: { nodeId, state },
+        timestamp: Date.now(),
+      });
+    },
+    requestAuthority(nodeId) {
+      return system.bridge.send({
+        type: 'authority:request',
+        payload: { nodeId },
+        timestamp: Date.now(),
+      });
+    },
+    onRemoteUpdate(nodeId, callback) {
+      system.bridge.onMessage('state:remote', (message) => {
+        const payload = message.payload as
+          | { nodeId?: string; state?: Record<string, unknown> }
+          | undefined;
+        if (payload?.nodeId === nodeId && payload.state) {
+          callback(payload.state);
+        }
+      });
+    },
+  };
 }

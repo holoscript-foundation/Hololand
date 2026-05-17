@@ -125,7 +125,7 @@ export class PhysicsValidator implements Validator {
   ): void {
     // Linear velocity
     if (payload.velocity) {
-      const mag = vectorMagnitude(payload.velocity as number[]);
+      const mag = vectorMagnitude(payload.velocity as readonly number[]);
       if (mag > this.envelope.maxLinearVelocity) {
         violations.push({
           property: 'velocity',
@@ -141,7 +141,7 @@ export class PhysicsValidator implements Validator {
 
     // Angular velocity
     if (payload.angularVelocity) {
-      const mag = vectorMagnitude(payload.angularVelocity as number[]);
+      const mag = vectorMagnitude(payload.angularVelocity as readonly number[]);
       if (mag > this.envelope.maxAngularVelocity) {
         violations.push({
           property: 'angularVelocity',
@@ -157,7 +157,7 @@ export class PhysicsValidator implements Validator {
 
     // Force
     if (payload.force) {
-      const mag = vectorMagnitude(payload.force as number[]);
+      const mag = vectorMagnitude(payload.force as readonly number[]);
       if (mag > this.envelope.maxForceMagnitude) {
         violations.push({
           property: 'force',
@@ -173,7 +173,7 @@ export class PhysicsValidator implements Validator {
 
     // Impulse
     if (payload.impulse) {
-      const mag = vectorMagnitude(payload.impulse as number[]);
+      const mag = vectorMagnitude(payload.impulse as readonly number[]);
       if (mag > this.envelope.maxImpulseMagnitude) {
         violations.push({
           property: 'impulse',
@@ -251,7 +251,7 @@ export class PhysicsValidator implements Validator {
 
     // Position
     if (payload.position) {
-      const mag = vectorMagnitude(payload.position as number[]);
+      const mag = vectorMagnitude(payload.position as readonly number[]);
       if (mag > this.envelope.maxPositionMagnitude) {
         violations.push({
           property: 'position',
@@ -267,7 +267,7 @@ export class PhysicsValidator implements Validator {
 
     // Acceleration
     if (payload.acceleration) {
-      const mag = vectorMagnitude(payload.acceleration as number[]);
+      const mag = vectorMagnitude(payload.acceleration as readonly number[]);
       if (mag > this.envelope.maxAcceleration) {
         violations.push({
           property: 'acceleration',
@@ -290,7 +290,7 @@ export class PhysicsValidator implements Validator {
   ): void {
     // Validate position is within world bounds
     if (payload.position) {
-      const mag = vectorMagnitude(payload.position as number[]);
+      const mag = vectorMagnitude(payload.position as readonly number[]);
       if (mag > this.envelope.maxPositionMagnitude) {
         violations.push({
           property: 'transform.position',
@@ -351,7 +351,7 @@ export class PhysicsValidator implements Validator {
   ): void {
     // Validate world gravity vector
     if (payload.gravity) {
-      const mag = vectorMagnitude(payload.gravity as number[]);
+      const mag = vectorMagnitude(payload.gravity as readonly number[]);
       // World gravity: allow up to maxAcceleration (in m/s^2)
       if (mag > this.envelope.maxAcceleration) {
         violations.push({
