@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ReactAgentAvatarBridge } from '../ReactAgentAvatarBridge';
-import type { AgentStreamChunk, AvatarToolCall } from '../types';
+import type { AvatarToolCall } from '../types';
 
 // =============================================================================
 // MOCK AVATAR STUDIO
@@ -267,7 +267,8 @@ describe('ReactAgentAvatarBridge', () => {
       bridge.on('emotion:detected', ({ emotion }) => emotions.push(emotion));
 
       // Feed enough text to trigger detection (interval = 80 chars default)
-      const happyText = 'That is absolutely wonderful and amazing! I love this great idea, it is fantastic and awesome!';
+      const happyText =
+        'That is absolutely wonderful and amazing! I love this great idea, it is fantastic and awesome!';
       bridge.onStreamChunk({ textDelta: happyText, isComplete: false });
 
       // Should detect happy emotion

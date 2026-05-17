@@ -73,7 +73,9 @@ export class CodeOptimizer {
    */
   private calculateMetrics(holoScript: string): CodeMetrics {
     const lines = holoScript.split('\n');
-    const linesOfCode = lines.filter((line) => line.trim().length > 0 && !line.trim().startsWith('//')).length;
+    const linesOfCode = lines.filter(
+      (line) => line.trim().length > 0 && !line.trim().startsWith('//')
+    ).length;
 
     const orbCount = (holoScript.match(/orb \w+/g) || []).length;
     const functionCount = (holoScript.match(/function \w+/g) || []).length;
@@ -196,7 +198,8 @@ export class CodeOptimizer {
       suggestions.push({
         type: 'readability',
         severity: 'low',
-        message: 'Mixed naming conventions detected (snake_case and camelCase). Choose one style consistently.',
+        message:
+          'Mixed naming conventions detected (snake_case and camelCase). Choose one style consistently.',
       });
     }
 
@@ -221,7 +224,9 @@ export class CodeOptimizer {
     }
 
     // Check for missing color definitions
-    const orbsWithoutColor = holoScript.match(/orb \w+\s*{[^}]*}/g)?.filter((orb) => !orb.includes('color:'));
+    const orbsWithoutColor = holoScript
+      .match(/orb \w+\s*{[^}]*}/g)
+      ?.filter((orb) => !orb.includes('color:'));
 
     if (orbsWithoutColor && orbsWithoutColor.length > 0) {
       suggestions.push({
@@ -239,7 +244,8 @@ export class CodeOptimizer {
       suggestions.push({
         type: 'best-practice',
         severity: 'low',
-        message: 'Multiple orbs detected without connections. Consider connecting related objects to establish data flow.',
+        message:
+          'Multiple orbs detected without connections. Consider connecting related objects to establish data flow.',
       });
     }
 

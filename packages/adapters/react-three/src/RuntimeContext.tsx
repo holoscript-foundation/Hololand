@@ -186,32 +186,23 @@ export const HoloRuntimeProvider: React.FC<HoloRuntimeProviderProps> = ({
   }, [parsedAst, compiler]);
 
   // --- Context API ------------------------------------------------------
-  const getVariable = useCallback(
-    (name: string) => runtimeRef.current?.getVariable(name),
-    [tick],
-  );
+  const getVariable = useCallback((name: string) => runtimeRef.current?.getVariable(name), [tick]);
 
-  const setVariable = useCallback(
-    (name: string, value: unknown) => {
-      runtimeRef.current?.setVariable(name, value);
-      setTick((t) => t + 1);
-    },
-    [],
-  );
+  const setVariable = useCallback((name: string, value: unknown) => {
+    runtimeRef.current?.setVariable(name, value);
+    setTick((t) => t + 1);
+  }, []);
 
-  const emit = useCallback(
-    (event: string, payload?: unknown) => {
-      (runtimeRef.current as any)?.emit?.(event, payload);
-    },
-    [],
-  );
+  const emit = useCallback((event: string, payload?: unknown) => {
+    (runtimeRef.current as any)?.emit?.(event, payload);
+  }, []);
 
   const on = useCallback(
     (event: string, handler: (payload: unknown) => void) => {
       const unsub = (runtimeRef.current as any)?.on?.(event, handler);
       return typeof unsub === 'function' ? unsub : () => {};
     },
-    [tick],
+    [tick]
   );
 
   const value = useMemo<HoloRuntimeContextValue>(
@@ -224,14 +215,10 @@ export const HoloRuntimeProvider: React.FC<HoloRuntimeProviderProps> = ({
       emit,
       on,
     }),
-    [stateSnapshot, tree, getVariable, setVariable, emit, on, tick],
+    [stateSnapshot, tree, getVariable, setVariable, emit, on, tick]
   );
 
-  return (
-    <HoloRuntimeContext.Provider value={value}>
-      {children}
-    </HoloRuntimeContext.Provider>
-  );
+  return <HoloRuntimeContext.Provider value={value}>{children}</HoloRuntimeContext.Provider>;
 };
 
 // ---------------------------------------------------------------------------

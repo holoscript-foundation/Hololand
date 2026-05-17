@@ -75,68 +75,60 @@ interface IntentMapping {
 const INTENT_MAP: Record<string, (transcript: string, context?: string) => IntentMapping> = {
   create: (transcript, context) => ({
     tools: [
-      { tool: 'brittney_generate_holoscript', args: { prompt: transcript, context: context || '' } },
+      {
+        tool: 'brittney_generate_holoscript',
+        args: { prompt: transcript, context: context || '' },
+      },
     ],
     description: 'Generate HoloScript from natural language',
   }),
 
   modify: (transcript, context) => ({
     tools: [
-      { tool: 'brittney_generate_holoscript', args: { prompt: transcript, context: context || '' } },
+      {
+        tool: 'brittney_generate_holoscript',
+        args: { prompt: transcript, context: context || '' },
+      },
     ],
     requiresContext: true,
     description: 'Modify existing HoloScript code',
   }),
 
   explain: (_transcript, context) => ({
-    tools: [
-      { tool: 'brittney_explain_scene', args: { code: context || '' } },
-    ],
+    tools: [{ tool: 'brittney_explain_scene', args: { code: context || '' } }],
     requiresContext: true,
     description: 'Explain the current scene',
   }),
 
   fix: (transcript, context) => ({
-    tools: [
-      { tool: 'brittney_suggest_fix', args: { code: context || '', error: transcript } },
-    ],
+    tools: [{ tool: 'brittney_suggest_fix', args: { code: context || '', error: transcript } }],
     requiresContext: true,
     description: 'Fix errors in HoloScript code',
   }),
 
   validate: (_transcript, context) => ({
-    tools: [
-      { tool: 'validate_holoscript', args: { code: context || '' } },
-    ],
+    tools: [{ tool: 'validate_holoscript', args: { code: context || '' } }],
     requiresContext: true,
     description: 'Validate the current HoloScript',
   }),
 
   suggest: (transcript) => ({
-    tools: [
-      { tool: 'suggest_traits', args: { description: transcript } },
-    ],
+    tools: [{ tool: 'suggest_traits', args: { description: transcript } }],
     description: 'Suggest VR traits for objects',
   }),
 
   undo: () => ({
-    tools: [
-      { tool: 'git_revert_last', args: {} },
-    ],
+    tools: [{ tool: 'git_revert_last', args: {} }],
     description: 'Undo the last change',
   }),
 
   save: () => ({
-    tools: [
-      { tool: 'save_workspace', args: {} },
-    ],
+    tools: [{ tool: 'save_workspace', args: {} }],
     description: 'Save current workspace',
   }),
 
   help: () => ({
-    tools: [
-      { tool: 'get_syntax_reference', args: { topic: 'overview' } },
-    ],
+    tools: [{ tool: 'get_syntax_reference', args: { topic: 'overview' } }],
     description: 'Show HoloScript help',
   }),
 };
@@ -222,7 +214,10 @@ export class VoiceMCPPipeline {
 
     this.listening = true;
     this.recognition.start();
-    this.config.onConsoleLog(`> Voice listening started (wake word: "${this.config.wakeWord}")`, 'info');
+    this.config.onConsoleLog(
+      `> Voice listening started (wake word: "${this.config.wakeWord}")`,
+      'info'
+    );
     return true;
   }
 
@@ -296,7 +291,10 @@ export class VoiceMCPPipeline {
     if (confidence >= this.config.confidenceThreshold) {
       this.processCommand(transcript, confidence);
     } else {
-      this.config.onConsoleLog(`> Low confidence (${(confidence * 100).toFixed(0)}%): "${transcript}"`, 'warn');
+      this.config.onConsoleLog(
+        `> Low confidence (${(confidence * 100).toFixed(0)}%): "${transcript}"`,
+        'warn'
+      );
     }
 
     this.wakeWordDetected = false;
@@ -304,15 +302,22 @@ export class VoiceMCPPipeline {
 
   // ─── Command Processing ────────────────────────────────────
 
-  private async processCommand(transcript: string, confidence: number): Promise<VoicePipelineResult> {
+  private async processCommand(
+    transcript: string,
+    confidence: number
+  ): Promise<VoicePipelineResult> {
     this.config.onThinkingStart();
     this.config.onConsoleLog(`> "${transcript}" (${(confidence * 100).toFixed(0)}%)`, 'info');
 
     const intent = this.extractIntent(transcript);
-    const mapping = INTENT_MAP[intent]?.(transcript, this.currentContext) ??
+    const mapping =
+      INTENT_MAP[intent]?.(transcript, this.currentContext) ??
       INTENT_MAP.create(transcript, this.currentContext);
 
-    logger.info('[VoiceMCPPipeline] Processing command', { intent, tools: mapping.tools.map(t => t.tool) });
+    logger.info('[VoiceMCPPipeline] Processing command', {
+      intent,
+      tools: mapping.tools.map((t) => t.tool),
+    });
 
     const result: VoicePipelineResult = {
       transcript,
@@ -333,7 +338,8 @@ export class VoiceMCPPipeline {
 
         // Extract results based on tool type
         if (toolCall.tool === 'brittney_generate_holoscript') {
-          result.holoScript = (toolResult.data as any)?.holoScript || (toolResult.data as any)?.code || '';
+          result.holoScript =
+            (toolResult.data as any)?.holoScript || (toolResult.data as any)?.code || '';
           result.explanation = (toolResult.data as any)?.explanation || 'Code generated.';
 
           this.config.onCodeUpdate(result.holoScript!);
@@ -407,7 +413,8 @@ export class VoiceMCPPipeline {
     if (/^(suggest|recommend|what traits)/.test(normalized)) return 'suggest';
 
     // Modification vs creation
-    if (/^(change|modify|update|edit|make .* (bigger|smaller|red|blue|green))/.test(normalized)) return 'modify';
+    if (/^(change|modify|update|edit|make .* (bigger|smaller|red|blue|green))/.test(normalized))
+      return 'modify';
 
     // Default: creation
     if (/^(create|make|build|add|generate|spawn|place|put)/.test(normalized)) return 'create';

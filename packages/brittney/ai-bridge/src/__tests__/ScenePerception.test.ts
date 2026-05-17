@@ -23,10 +23,7 @@ function makeObj(overrides: Partial<SerializedObject> = {}): SerializedObject {
   };
 }
 
-function makeWorld(
-  objects: SerializedObject[],
-  name = 'Test World',
-): WorldLike {
+function makeWorld(objects: SerializedObject[], name = 'Test World'): WorldLike {
   const map = new Map<string, { toJSON(): SerializedObject }>();
   for (const obj of objects) {
     map.set(obj.id, { toJSON: () => obj });
@@ -184,8 +181,16 @@ describe('ScenePerception', () => {
     });
 
     it('sorts objects by distance from viewer', () => {
-      const far = makeObj({ id: 'far', position: { x: 20, y: 0, z: 0 }, metadata: { name: 'Far' } });
-      const close = makeObj({ id: 'close', position: { x: 1, y: 0, z: 0 }, metadata: { name: 'Close' } });
+      const far = makeObj({
+        id: 'far',
+        position: { x: 20, y: 0, z: 0 },
+        metadata: { name: 'Far' },
+      });
+      const close = makeObj({
+        id: 'close',
+        position: { x: 1, y: 0, z: 0 },
+        metadata: { name: 'Close' },
+      });
 
       const result = serializeObjects([far, close]);
       const farIdx = result.text.indexOf('Far');
@@ -194,9 +199,21 @@ describe('ScenePerception', () => {
     });
 
     it('groups objects into NEAR/MID/FAR bands', () => {
-      const near = makeObj({ id: 'n', position: { x: 2, y: 0, z: 0 }, metadata: { name: 'NearObj' } });
-      const mid = makeObj({ id: 'm', position: { x: 10, y: 0, z: 0 }, metadata: { name: 'MidObj' } });
-      const far = makeObj({ id: 'f', position: { x: 30, y: 0, z: 0 }, metadata: { name: 'FarObj' } });
+      const near = makeObj({
+        id: 'n',
+        position: { x: 2, y: 0, z: 0 },
+        metadata: { name: 'NearObj' },
+      });
+      const mid = makeObj({
+        id: 'm',
+        position: { x: 10, y: 0, z: 0 },
+        metadata: { name: 'MidObj' },
+      });
+      const far = makeObj({
+        id: 'f',
+        position: { x: 30, y: 0, z: 0 },
+        metadata: { name: 'FarObj' },
+      });
 
       const result = serializeObjects([near, mid, far]);
       expect(result.text).toContain('NEAR:');
@@ -206,7 +223,11 @@ describe('ScenePerception', () => {
 
     it('respects viewerRadius filter', () => {
       const near = makeObj({ id: 'a', position: { x: 3, y: 0, z: 0 }, metadata: { name: 'Near' } });
-      const far = makeObj({ id: 'b', position: { x: 50, y: 0, z: 0 }, metadata: { name: 'TooFar' } });
+      const far = makeObj({
+        id: 'b',
+        position: { x: 50, y: 0, z: 0 },
+        metadata: { name: 'TooFar' },
+      });
 
       const result = serializeObjects([near, far], { viewerRadius: 10 });
       expect(result.text).toContain('Near');
@@ -226,7 +247,7 @@ describe('ScenePerception', () => {
 
     it('respects maxObjects limit', () => {
       const objects = Array.from({ length: 30 }, (_, i) =>
-        makeObj({ id: `obj_${i}`, position: { x: i, y: 0, z: 0 }, metadata: { name: `Obj${i}` } }),
+        makeObj({ id: `obj_${i}`, position: { x: i, y: 0, z: 0 }, metadata: { name: `Obj${i}` } })
       );
 
       const result = serializeObjects(objects, { maxObjects: 5 });
@@ -290,7 +311,7 @@ describe('ScenePerception', () => {
             name: `Object Number ${i} With A Long Name`,
             traits: ['grabbable', 'glowing', 'hoverable', 'throwable'],
           },
-        }),
+        })
       );
 
       const result = serializeObjects(objects, { maxTokens: 100 });
@@ -303,8 +324,18 @@ describe('ScenePerception', () => {
   describe('serializeScene', () => {
     it('works with WorldLike interface', () => {
       const objects = [
-        makeObj({ id: 'table', type: 'box', position: { x: 1, y: 0, z: -2 }, metadata: { name: 'Table', traits: ['grabbable'] } }),
-        makeObj({ id: 'lamp', type: 'cylinder', position: { x: 1, y: 1.5, z: -2 }, metadata: { name: 'Lamp', traits: ['glowing'] } }),
+        makeObj({
+          id: 'table',
+          type: 'box',
+          position: { x: 1, y: 0, z: -2 },
+          metadata: { name: 'Table', traits: ['grabbable'] },
+        }),
+        makeObj({
+          id: 'lamp',
+          type: 'cylinder',
+          position: { x: 1, y: 1.5, z: -2 },
+          metadata: { name: 'Lamp', traits: ['glowing'] },
+        }),
       ];
 
       const world = makeWorld(objects, 'Coffee Shop');

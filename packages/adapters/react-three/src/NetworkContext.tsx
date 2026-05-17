@@ -43,9 +43,5 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ url, children 
 
   const value = useMemo(() => ({ client, sync, isConnected }), [client, sync, isConnected]);
 
-  return (
-    <NetworkContext.Provider value={value}>
-      {children}
-    </NetworkContext.Provider>
-  );
+  return <NetworkContext.Provider value={value}>{children}</NetworkContext.Provider>;
 };

@@ -11,7 +11,7 @@ export interface SyncedEntityProps {
 
 /**
  * SyncedEntity
- * 
+ *
  * Wraps a component to sync its transform across the network.
  * Uses StateSync for interpolation and prediction.
  */
@@ -25,10 +25,10 @@ export const SyncedEntity: React.FC<SyncedEntityProps> = ({ id, children, syncRa
     if (!isConnected || !client || !groupRef.current) return;
 
     const now = state.clock.elapsedTime * 1000;
-    if (now - lastSyncTime.current > (1000 / syncRate)) {
+    if (now - lastSyncTime.current > 1000 / syncRate) {
       const position = groupRef.current.position;
       const rotation = groupRef.current.rotation;
-      
+
       client.send({
         type: 'state_update',
         category: 'room',
@@ -36,11 +36,11 @@ export const SyncedEntity: React.FC<SyncedEntityProps> = ({ id, children, syncRa
           objectId: id,
           position: { x: position.x, y: position.y, z: position.z },
           rotation: { x: rotation.x, y: rotation.y, z: rotation.z },
-          timestamp: Date.now()
+          timestamp: Date.now(),
         },
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-      
+
       lastSyncTime.current = now;
     }
   });
@@ -66,9 +66,5 @@ export const SyncedEntity: React.FC<SyncedEntityProps> = ({ id, children, syncRa
     }
   });
 
-  return (
-    <group ref={groupRef}>
-      {children}
-    </group>
-  );
+  return <group ref={groupRef}>{children}</group>;
 };

@@ -135,7 +135,7 @@ export class VoiceProcessor {
       'visualize sales data',
     ];
 
-    const randomIndex = Math.floor((audio.byteLength % sampleCommands.length));
+    const randomIndex = Math.floor(audio.byteLength % sampleCommands.length);
     const text = sampleCommands[randomIndex];
     const confidence = 0.85 + Math.random() * 0.1; // 0.85-0.95
 

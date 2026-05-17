@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Gltf } from '@react-three/drei';
 import { AvatarEmbodimentPipeline } from '@hololand/audio';
-import { AIDriverTrait, NPCContext } from '@holoscript/core';
+import { AIDriverTrait } from '@holoscript/core';
 
 export interface SpatialAgentProps {
   children?: React.ReactNode;
@@ -15,28 +15,32 @@ export interface SpatialAgentProps {
 
 /**
  * SpatialAgent
- * 
+ *
  * High-fidelity AI agent component that integrates the full embodiment pipeline:
  * STT -> LLM -> TTS -> Lip Sync -> Emotion -> Animation.
  */
-export const SpatialAgent: React.FC<SpatialAgentProps> = ({ 
-  children, 
-  config, 
-  avatarEmbodiment, 
-  lipSync, 
+export const SpatialAgent: React.FC<SpatialAgentProps> = ({
+  children,
+  config,
+  avatarEmbodiment,
+  lipSync,
   emotionDirective,
-  aiDriven 
+  aiDriven,
 }) => {
   const groupRef = useRef<any>(null);
   const meshRef = useRef<any>(null);
 
-  const pipeline = useMemo(() => new AvatarEmbodimentPipeline({
-    avatar: avatarEmbodiment,
-    lipSync: lipSync,
-    emotion: emotionDirective,
-    // Provide defaults if missing
-    fillerGestures: true,
-  }), [avatarEmbodiment, lipSync, emotionDirective]);
+  const pipeline = useMemo(
+    () =>
+      new AvatarEmbodimentPipeline({
+        avatar: avatarEmbodiment,
+        lipSync: lipSync,
+        emotion: emotionDirective,
+        // Provide defaults if missing
+        fillerGestures: true,
+      }),
+    [avatarEmbodiment, lipSync, emotionDirective]
+  );
 
   const aiDriver = useMemo(() => new AIDriverTrait(aiDriven || {}), [aiDriven]);
 
@@ -46,7 +50,7 @@ export const SpatialAgent: React.FC<SpatialAgentProps> = ({
 
     // Wire AI Driver dialogue to Pipeline input
     // In a real implementation, the AI Driver would emit events that the pipeline listens to
-    
+
     return () => {
       aiDriver.stopAI();
       pipeline.stop();
@@ -78,10 +82,10 @@ export const SpatialAgent: React.FC<SpatialAgentProps> = ({
     <group ref={groupRef}>
       <Suspense fallback={null}>
         {config?.modelUrl ? (
-          <Gltf 
-            src={config.modelUrl} 
-            castShadow 
-            receiveShadow 
+          <Gltf
+            src={config.modelUrl}
+            castShadow
+            receiveShadow
             onLoad={(gltf) => {
               // Find the main mesh for morph targets
               gltf.scene.traverse((node: any) => {

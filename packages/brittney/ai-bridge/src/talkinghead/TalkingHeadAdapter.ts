@@ -65,9 +65,21 @@ import {
  * when the library is not yet installed.
  */
 interface TalkingHeadInstance {
-  showAvatar(avatar: TalkingHeadAvatarSpec, onProgress?: ((p: number) => void) | null): Promise<void>;
-  speakText(text: string, opt?: TalkingHeadSpeakOptions, onSubtitles?: ((text: string) => void) | null, excludes?: number[][]): void;
-  speakAudio(audio: TalkingHeadAudioData, opt?: TalkingHeadSpeakOptions, onSubtitles?: ((text: string) => void) | null): void;
+  showAvatar(
+    avatar: TalkingHeadAvatarSpec,
+    onProgress?: ((p: number) => void) | null
+  ): Promise<void>;
+  speakText(
+    text: string,
+    opt?: TalkingHeadSpeakOptions,
+    onSubtitles?: ((text: string) => void) | null,
+    excludes?: number[][]
+  ): void;
+  speakAudio(
+    audio: TalkingHeadAudioData,
+    opt?: TalkingHeadSpeakOptions,
+    onSubtitles?: ((text: string) => void) | null
+  ): void;
   speakEmoji(emoji: string): void;
   speakBreak(milliseconds: number): void;
   speakMarker(onMarker: () => void): void;
@@ -81,12 +93,30 @@ interface TalkingHeadInstance {
   playBackgroundAudio(url: string): void;
   stopBackgroundAudio(): void;
   setMixerGain(speech: number | null, background?: number | null, fadeSecs?: number): void;
-  playAnimation(url: string, onProgress?: ((p: number) => void) | null, dur?: number, ndx?: number, scale?: number): void;
+  playAnimation(
+    url: string,
+    onProgress?: ((p: number) => void) | null,
+    dur?: number,
+    ndx?: number,
+    scale?: number
+  ): void;
   stopAnimation(): void;
-  playPose(url: string, onProgress?: ((p: number) => void) | null, dur?: number, ndx?: number, scale?: number): void;
+  playPose(
+    url: string,
+    onProgress?: ((p: number) => void) | null,
+    dur?: number,
+    ndx?: number,
+    scale?: number
+  ): void;
   stopPose(): void;
   // Streaming
-  streamStart(opt: Record<string, unknown>, onAudioStart?: () => void, onAudioEnd?: () => void, onSubtitles?: (text: string) => void, onMetrics?: (metrics: StreamingMetrics) => void): void;
+  streamStart(
+    opt: Record<string, unknown>,
+    onAudioStart?: () => void,
+    onAudioEnd?: () => void,
+    onSubtitles?: (text: string) => void,
+    onMetrics?: (metrics: StreamingMetrics) => void
+  ): void;
   streamAudio(audio: Int16Array): void;
   streamNotifyEnd(): void;
   streamInterrupt(): void;
@@ -162,7 +192,7 @@ export class TalkingHeadAdapter {
    */
   async initialize(
     domElement: HTMLElement,
-    options?: Partial<TalkingHeadConstructorOptions>,
+    options?: Partial<TalkingHeadConstructorOptions>
   ): Promise<void> {
     if (this._state.initialized) {
       logger.warn('[TalkingHeadAdapter] Already initialized, skipping');
@@ -178,8 +208,8 @@ export class TalkingHeadAdapter {
 
       if (!TalkingHead) {
         throw new Error(
-          '@met4citizen/talkinghead module loaded but TalkingHead class not found. '
-          + 'Ensure the package is installed: npm install @met4citizen/talkinghead',
+          '@met4citizen/talkinghead module loaded but TalkingHead class not found. ' +
+            'Ensure the package is installed: npm install @met4citizen/talkinghead'
         );
       }
 
@@ -233,7 +263,7 @@ export class TalkingHeadAdapter {
    */
   async loadAvatar(
     avatarSpec: TalkingHeadAvatarSpec,
-    onProgress?: (progress: number) => void,
+    onProgress?: (progress: number) => void
   ): Promise<void> {
     this.assertInitialized();
 
@@ -305,7 +335,7 @@ export class TalkingHeadAdapter {
   speakText(
     text: string,
     options?: TalkingHeadSpeakOptions,
-    onSubtitles?: (text: string) => void,
+    onSubtitles?: (text: string) => void
   ): void {
     this.assertReady();
 
@@ -334,7 +364,7 @@ export class TalkingHeadAdapter {
   speakAudio(
     audioData: TalkingHeadAudioData,
     options?: TalkingHeadSpeakOptions,
-    onSubtitles?: (text: string) => void,
+    onSubtitles?: (text: string) => void
   ): void {
     this.assertReady();
 
@@ -400,7 +430,7 @@ export class TalkingHeadAdapter {
         this.dispatchEvent('ttsend', undefined);
       },
       streamConfig?.onSubtitles,
-      streamConfig?.onMetrics,
+      streamConfig?.onMetrics
     );
 
     this._state.isStreaming = true;
@@ -540,7 +570,7 @@ export class TalkingHeadAdapter {
     onProgress?: (progress: number) => void,
     duration?: number,
     index?: number,
-    scale?: number,
+    scale?: number
   ): void {
     this.assertReady();
     this.instance!.playAnimation(url, onProgress || null, duration, index, scale);
@@ -562,7 +592,7 @@ export class TalkingHeadAdapter {
     onProgress?: (progress: number) => void,
     duration?: number,
     index?: number,
-    scale?: number,
+    scale?: number
   ): void {
     this.assertReady();
     this.instance!.playPose(url, onProgress || null, duration, index, scale);
@@ -641,7 +671,11 @@ export class TalkingHeadAdapter {
   /**
    * Get the raw viseme buffer for advanced consumers.
    */
-  getVisemeBuffer(): ReadonlyArray<{ viseme: OculusVisemeCode; weight: number; timestamp: number }> {
+  getVisemeBuffer(): ReadonlyArray<{
+    viseme: OculusVisemeCode;
+    weight: number;
+    timestamp: number;
+  }> {
     return this.visemeBuffer;
   }
 
@@ -700,18 +734,14 @@ export class TalkingHeadAdapter {
 
   private assertInitialized(): void {
     if (!this._state.initialized || !this.instance) {
-      throw new Error(
-        'TalkingHeadAdapter not initialized. Call initialize() first.',
-      );
+      throw new Error('TalkingHeadAdapter not initialized. Call initialize() first.');
     }
   }
 
   private assertReady(): void {
     this.assertInitialized();
     if (!this._state.avatarLoaded) {
-      throw new Error(
-        'No avatar loaded. Call loadAvatar() after initialize().',
-      );
+      throw new Error('No avatar loaded. Call loadAvatar() after initialize().');
     }
   }
 
@@ -752,8 +782,7 @@ export class TalkingHeadAdapter {
         }
         this._metrics.avgVisemeLatencyMs =
           this.visemeLatencies.reduce((a, b) => a + b, 0) / this.visemeLatencies.length;
-        this._metrics.peakVisemeLatencyMs =
-          Math.max(this._metrics.peakVisemeLatencyMs, latency);
+        this._metrics.peakVisemeLatencyMs = Math.max(this._metrics.peakVisemeLatencyMs, latency);
       }
 
       this._state.lastVisemeUpdateMs = now;
@@ -816,7 +845,7 @@ export class TalkingHeadAdapter {
  * Create a TalkingHeadAdapter with optional configuration overrides.
  */
 export function createTalkingHeadAdapter(
-  config?: Partial<TalkingHeadIntegrationConfig>,
+  config?: Partial<TalkingHeadIntegrationConfig>
 ): TalkingHeadAdapter {
   return new TalkingHeadAdapter(config);
 }

@@ -27,7 +27,7 @@
  * └──────────────────────────────────────────────────────────────────────┘
  */
 
-import type { AvatarBlueprint, ExpressionPreset, StudioViewAngle } from '@hololand/avatar-studio';
+import type { AvatarBlueprint } from '@hololand/avatar-studio';
 
 // =============================================================================
 // AGENT STATE
@@ -35,14 +35,14 @@ import type { AvatarBlueprint, ExpressionPreset, StudioViewAngle } from '@holola
 
 /** The agent's current behavioral state in the VR world */
 export type AgentState =
-  | 'idle'           // Standing, slight idle animation
-  | 'listening'      // Ears perked, leaning forward slightly
-  | 'thinking'       // Hand on chin, looking up
-  | 'speaking'       // Mouth moving (lip sync active)
-  | 'acting'         // Performing a tool-called action
-  | 'error'          // Confused expression, error recovery pose
-  | 'greeting'       // Waving hello
-  | 'farewell';      // Waving goodbye
+  | 'idle' // Standing, slight idle animation
+  | 'listening' // Ears perked, leaning forward slightly
+  | 'thinking' // Hand on chin, looking up
+  | 'speaking' // Mouth moving (lip sync active)
+  | 'acting' // Performing a tool-called action
+  | 'error' // Confused expression, error recovery pose
+  | 'greeting' // Waving hello
+  | 'farewell'; // Waving goodbye
 
 /** Emotion tags that map to VRM expression blend shapes */
 export type AvatarEmotion =
@@ -67,7 +67,7 @@ export type AvatarGesture =
   | 'bow'
   | 'clap'
   | 'think_pose'
-  | 'present';    // Gesturing toward something
+  | 'present'; // Gesturing toward something
 
 // =============================================================================
 // TOOL DEFINITIONS FOR AGENT
@@ -81,8 +81,8 @@ export interface AvatarAgentTools {
   /** Change avatar expression/emotion */
   set_emotion: {
     emotion: AvatarEmotion;
-    intensity?: number;  // 0.0 - 1.0, default 1.0
-    duration?: number;   // ms, 0 = until next emotion
+    intensity?: number; // 0.0 - 1.0, default 1.0
+    duration?: number; // ms, 0 = until next emotion
   };
 
   /** Perform a gesture animation */
@@ -95,7 +95,7 @@ export interface AvatarAgentTools {
   speak: {
     text: string;
     emotion?: AvatarEmotion;
-    speed?: number;  // 0.5 - 2.0
+    speed?: number; // 0.5 - 2.0
   };
 
   /** Move avatar to a position in the world */
@@ -294,14 +294,7 @@ export const DEFAULT_AGENT_CONFIG: AgentAvatarBridgeConfig = {
   agentEndpoint: 'http://localhost:11434/api/chat',
   modelId: 'brittney-v4-expert:latest',
   systemPrompt: `You are Brittney, a friendly and knowledgeable VR assistant avatar in HoloLand. You help users build, explore, and create in virtual reality. You can express emotions, perform gestures, create objects using HoloScript, and guide users through the spatial computing platform. Be warm, encouraging, and creative. When helping users build things, generate valid HoloScript code. When expressing yourself, use the emotion and gesture tools naturally in conversation.`,
-  enabledTools: [
-    'set_emotion',
-    'perform_gesture',
-    'speak',
-    'move_to',
-    'world_action',
-    'look_at',
-  ],
+  enabledTools: ['set_emotion', 'perform_gesture', 'speak', 'move_to', 'world_action', 'look_at'],
   streamConfig: DEFAULT_STREAM_CONFIG,
   autonomousMode: false,
   worldPollingInterval: 5000,

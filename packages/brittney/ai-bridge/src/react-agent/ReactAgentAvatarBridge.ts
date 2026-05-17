@@ -34,17 +34,13 @@ import type {
   AvatarEmotion,
   AvatarGesture,
   AvatarToolCall,
-  AvatarToolName,
   AgentStreamChunk,
   AgentAvatarBridgeConfig,
   StreamToAvatarConfig,
   AgentMessage,
 } from './types';
 
-import {
-  DEFAULT_AGENT_CONFIG,
-  DEFAULT_STREAM_CONFIG,
-} from './types';
+import { DEFAULT_AGENT_CONFIG, DEFAULT_STREAM_CONFIG } from './types';
 
 import { logger } from '../logger';
 
@@ -55,13 +51,34 @@ import { logger } from '../logger';
 /** Simple keyword-based emotion detection for streaming text */
 const EMOTION_KEYWORDS: Record<AvatarEmotion, string[]> = {
   neutral: [],
-  happy: ['great', 'awesome', 'wonderful', 'love', 'excited', 'amazing', 'fantastic', 'glad', 'happy', 'nice', 'perfect', 'excellent'],
+  happy: [
+    'great',
+    'awesome',
+    'wonderful',
+    'love',
+    'excited',
+    'amazing',
+    'fantastic',
+    'glad',
+    'happy',
+    'nice',
+    'perfect',
+    'excellent',
+  ],
   sad: ['sorry', 'unfortunately', 'sad', 'cannot', "can't", 'regret', 'miss', 'disappoint'],
   angry: ['error', 'wrong', 'broken', 'fail', 'crash', 'frustrat'],
   surprised: ['wow', 'whoa', 'incredible', 'unexpected', 'really', 'seriously', 'no way'],
   thinking: ['hmm', 'let me think', 'consider', 'perhaps', 'maybe', 'wondering', 'interesting'],
   confused: ['unclear', 'confusing', "don't understand", 'what do you mean', 'strange', 'odd'],
-  excited: ['amazing', 'incredible', "let's go", 'absolutely', 'brilliant', 'genius', 'breakthrough'],
+  excited: [
+    'amazing',
+    'incredible',
+    "let's go",
+    'absolutely',
+    'brilliant',
+    'genius',
+    'breakthrough',
+  ],
   empathetic: ['understand', 'feel', 'hear you', 'that sounds', 'must be', 'i get it'],
 };
 
@@ -72,10 +89,10 @@ const EMOTION_TO_VRM_EXPRESSION: Record<AvatarEmotion, string> = {
   sad: 'sad',
   angry: 'angry',
   surprised: 'surprised',
-  thinking: 'relaxed',    // VRM doesn't have 'thinking', use relaxed as base
-  confused: 'surprised',  // Mild surprise works for confusion
-  excited: 'happy',       // Amplified happy
-  empathetic: 'relaxed',  // Soft, open expression
+  thinking: 'relaxed', // VRM doesn't have 'thinking', use relaxed as base
+  confused: 'surprised', // Mild surprise works for confusion
+  excited: 'happy', // Amplified happy
+  empathetic: 'relaxed', // Soft, open expression
 };
 
 // =============================================================================
@@ -208,10 +225,13 @@ export class ReactAgentAvatarBridge {
     // Flush remaining lip sync
     if (this.lipSyncQueue.length > 0) {
       // Let lip sync finish naturally
-      setTimeout(() => {
-        this.stopLipSync();
-        this.setState('idle');
-      }, (this.lipSyncQueue.length / this.streamConfig.lipSyncWPS) * 1000);
+      setTimeout(
+        () => {
+          this.stopLipSync();
+          this.setState('idle');
+        },
+        (this.lipSyncQueue.length / this.streamConfig.lipSyncWPS) * 1000
+      );
     } else {
       this.setState('idle');
     }
@@ -610,8 +630,8 @@ export class ReactAgentAvatarBridge {
 
     // Check at configured intervals
     if (
-      this.emotionDetectionBuffer.length - this.lastEmotionCheck
-      < this.streamConfig.emotionDetectionInterval
+      this.emotionDetectionBuffer.length - this.lastEmotionCheck <
+      this.streamConfig.emotionDetectionInterval
     ) {
       return;
     }
@@ -821,7 +841,17 @@ export class ReactAgentAvatarBridge {
           properties: {
             emotion: {
               type: 'string',
-              enum: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking', 'confused', 'excited', 'empathetic'],
+              enum: [
+                'neutral',
+                'happy',
+                'sad',
+                'angry',
+                'surprised',
+                'thinking',
+                'confused',
+                'excited',
+                'empathetic',
+              ],
               description: 'The emotion to express',
             },
             intensity: {
@@ -846,7 +876,18 @@ export class ReactAgentAvatarBridge {
           properties: {
             gesture: {
               type: 'string',
-              enum: ['wave', 'nod', 'shake_head', 'point', 'thumbs_up', 'shrug', 'bow', 'clap', 'think_pose', 'present'],
+              enum: [
+                'wave',
+                'nod',
+                'shake_head',
+                'point',
+                'thumbs_up',
+                'shrug',
+                'bow',
+                'clap',
+                'think_pose',
+                'present',
+              ],
               description: 'The gesture to perform',
             },
             targetPosition: {
@@ -874,7 +915,16 @@ export class ReactAgentAvatarBridge {
             },
             emotion: {
               type: 'string',
-              enum: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'thinking', 'excited', 'empathetic'],
+              enum: [
+                'neutral',
+                'happy',
+                'sad',
+                'angry',
+                'surprised',
+                'thinking',
+                'excited',
+                'empathetic',
+              ],
               description: 'Emotion to convey while speaking',
             },
             speed: {

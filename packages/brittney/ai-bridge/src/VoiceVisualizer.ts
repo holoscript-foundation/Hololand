@@ -17,7 +17,10 @@ export class VoiceVisualizer {
   private animationId: number | null = null;
   private audioContext: AudioContext | null = null;
 
-  constructor(private ctx: CanvasRenderingContext2D, private options: VisualizerOptions = {}) {
+  constructor(
+    private ctx: CanvasRenderingContext2D,
+    private options: VisualizerOptions = {}
+  ) {
     this.options.color = options.color || '#00E676';
     this.options.lineWidth = options.lineWidth || 2;
     this.options.mode = options.mode || 'waveform';
@@ -34,12 +37,12 @@ export class VoiceVisualizer {
       const source = this.audioContext.createMediaStreamSource(stream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
-      
+
       source.connect(this.analyser);
-      
+
       const bufferLength = this.analyser.frequencyBinCount;
       this.dataArray = new Uint8Array(bufferLength) as Uint8Array<ArrayBuffer>;
-      
+
       this.draw();
       logger.debug('[VoiceVisualizer] Started visualization');
     } catch (error) {
@@ -49,9 +52,9 @@ export class VoiceVisualizer {
 
   private draw = (): void => {
     if (!this.analyser || !this.dataArray) return;
-    
+
     this.animationId = requestAnimationFrame(this.draw);
-    
+
     if (this.options.mode === 'waveform') {
       this.analyser.getByteTimeDomainData(this.dataArray);
       this.renderWaveform();
@@ -64,7 +67,7 @@ export class VoiceVisualizer {
   private renderWaveform(): void {
     const { width, height } = this.ctx.canvas;
     const bufferLength = this.dataArray!.length;
-    
+
     this.ctx.clearRect(0, 0, width, height);
     this.ctx.lineWidth = this.options.lineWidth!;
     this.ctx.strokeStyle = this.options.color!;
@@ -93,7 +96,7 @@ export class VoiceVisualizer {
   private renderFrequency(): void {
     const { width, height } = this.ctx.canvas;
     const bufferLength = this.dataArray!.length;
-    
+
     this.ctx.clearRect(0, 0, width, height);
     const barWidth = (width / bufferLength) * 2.5;
     let x = 0;

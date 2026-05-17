@@ -1,6 +1,21 @@
-import { Environment, PositionalAudio, Gltf, OrbitControls, Text, Sparkles } from '@react-three/drei';
+import {
+  Environment,
+  PositionalAudio,
+  Gltf,
+  OrbitControls,
+  Text,
+  Sparkles,
+} from '@react-three/drei';
 import { EffectComposer, Bloom, SSAO, Vignette } from '@react-three/postprocessing';
-import { Physics, RigidBody, CuboidCollider, BallCollider, MeshCollider, CapsuleCollider, CylinderCollider } from '@react-three/rapier';
+import {
+  Physics,
+  RigidBody,
+  CuboidCollider,
+  BallCollider,
+  MeshCollider,
+  CapsuleCollider,
+  CylinderCollider,
+} from '@react-three/rapier';
 import { R3FCompiler, HSPlusAST, R3FNode } from '@holoscript/core';
 import {
   getGeometry,
@@ -29,7 +44,7 @@ import { HoloRuntimeContext } from './RuntimeContext';
 const Portal: React.FC<{ destination: string; text?: string; color?: string }> = ({
   destination,
   text = 'PORTAL',
-  color = '#22c55e'
+  color = '#22c55e',
 }) => {
   const handleClick = () => {
     console.log(`Navigating to ${destination}`);
@@ -44,7 +59,13 @@ const Portal: React.FC<{ destination: string; text?: string; color?: string }> =
     <group onClick={handleClick}>
       <mesh>
         <torusGeometry args={[1.5, 0.2, 16, 32]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} transparent opacity={0.8} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.5}
+          transparent
+          opacity={0.8}
+        />
       </mesh>
       <mesh position={[0, 0, 0.1]}>
         <circleGeometry args={[1.3, 32]} />
@@ -93,7 +114,7 @@ export const HoloScriptR3FRenderer: React.FC<HoloScriptR3FRendererProps> = ({
 
   useEffect(() => {
     if (companions.Hub) {
-       companions.Hub.setThemeUpdater = setGlobalTheme;
+      companions.Hub.setThemeUpdater = setGlobalTheme;
     }
   }, [companions]);
 
@@ -116,75 +137,78 @@ export const HoloScriptR3FRenderer: React.FC<HoloScriptR3FRendererProps> = ({
     };
   }, [camera]);
 
-  const handleAction = useCallback((action: string) => {
-    console.log('HoloScriptR3FRenderer Action:', action);
+  const handleAction = useCallback(
+    (action: string) => {
+      console.log('HoloScriptR3FRenderer Action:', action);
 
-    // 1. Route through runtime if available (event dispatch + variable mutation)
-    if (runtime) {
-      try {
-        // set(variable, value) pattern
-        const setMatch = action.match(/^set\((\w+),\s*(.+)\)$/);
-        if (setMatch) {
-          const [, varName, rawVal] = setMatch;
-          const val = JSON.parse(rawVal);
-          runtime.setVariable(varName, val);
+      // 1. Route through runtime if available (event dispatch + variable mutation)
+      if (runtime) {
+        try {
+          // set(variable, value) pattern
+          const setMatch = action.match(/^set\((\w+),\s*(.+)\)$/);
+          if (setMatch) {
+            const [, varName, rawVal] = setMatch;
+            const val = JSON.parse(rawVal);
+            runtime.setVariable(varName, val);
+            return;
+          }
+          // emit(event, payload?) pattern
+          const emitMatch = action.match(/^emit\((\w+)(?:,\s*(.+))?\)$/);
+          if (emitMatch) {
+            const [, event, payloadStr] = emitMatch;
+            runtime.emit(event, payloadStr ? JSON.parse(payloadStr) : undefined);
+            return;
+          }
+        } catch {
+          // Parsing failed — fall through to other handlers
+        }
+      }
+
+      // 2. Companion module call: Alias.method(args)
+      const match = action.match(/^(\w+)\.(\w+)\((.*)\)$/);
+      if (match) {
+        const [, alias, funcName, argsStr] = match;
+        const companion = companions[alias];
+        if (companion && typeof companion[funcName] === 'function') {
+          console.log(`Executing Companion: ${alias}.${funcName}`);
+          companion[funcName](argsStr);
           return;
         }
-        // emit(event, payload?) pattern
-        const emitMatch = action.match(/^emit\((\w+)(?:,\s*(.+))?\)$/);
-        if (emitMatch) {
-          const [, event, payloadStr] = emitMatch;
-          runtime.emit(event, payloadStr ? JSON.parse(payloadStr) : undefined);
-          return;
-        }
-      } catch {
-        // Parsing failed — fall through to other handlers
       }
-    }
 
-    // 2. Companion module call: Alias.method(args)
-    const match = action.match(/^(\w+)\.(\w+)\((.*)\)$/);
-    if (match) {
-      const [, alias, funcName, argsStr] = match;
-      const companion = companions[alias];
-      if (companion && typeof companion[funcName] === 'function') {
-        console.log(`Executing Companion: ${alias}.${funcName}`);
-        companion[funcName](argsStr);
-        return;
+      // 3. Speak action (local AI handling placeholder)
+      if (action.startsWith('speak(')) {
+        // Local AI handling
       }
-    }
 
-    // 3. Speak action (local AI handling placeholder)
-    if (action.startsWith('speak(')) {
-       // Local AI handling
-    }
+      // 4. Summon action — dynamically spawn physics entity
+      if (action.includes('summon')) {
+        const newAsset: R3FNode = {
+          type: 'mesh',
+          id: `summoned_${Date.now()}`,
+          props: {
+            position: [0, 5, 0],
+            hsType: 'box',
+            color: '#ff8844',
+            rigidBody: { type: 'dynamic' },
+            collider: { type: 'auto' },
+          },
+        };
+        setSummonedAssets((prev) => [...prev, newAsset]);
+      }
 
-    // 4. Summon action — dynamically spawn physics entity
-    if (action.includes('summon')) {
-      const newAsset: R3FNode = {
-        type: 'mesh',
-        id: `summoned_${Date.now()}`,
-        props: {
-          position: [0, 5, 0],
-          hsType: 'box',
-          color: '#ff8844',
-          rigidBody: { type: 'dynamic' },
-          collider: { type: 'auto' }
-        }
-      };
-      setSummonedAssets(prev => [...prev, newAsset]);
-    }
-
-    // 5. Forward unhandled actions to runtime as generic events
-    if (runtime) {
-      runtime.emit('action', action);
-    }
-  }, [companions, runtime]);
+      // 5. Forward unhandled actions to runtime as generic events
+      if (runtime) {
+        runtime.emit('action', action);
+      }
+    },
+    [companions, runtime]
+  );
 
   const content = (
     <group>
       {renderR3FNode(r3fTree, handleAction)}
-      {summonedAssets.map(asset => renderR3FNode(asset, handleAction))}
+      {summonedAssets.map((asset) => renderR3FNode(asset, handleAction))}
       {debug && <OrbitControls />}
     </group>
   );
@@ -195,7 +219,9 @@ export const HoloScriptR3FRenderer: React.FC<HoloScriptR3FRendererProps> = ({
         <Physics debug={debug} gravity={[0, -9.81, 0]}>
           {content}
         </Physics>
-      ) : content}
+      ) : (
+        content
+      )}
     </Suspense>
   );
 };
@@ -216,7 +242,7 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
 
   // 0.1 Networking Wrapper
   if (props.networked) {
-    const { networked, ...restProps } = props;
+    const { networked: _networked, ...restProps } = props;
     return (
       <SyncedEntity key={key} id={id || key}>
         {renderR3FNode({ ...node, props: restProps }, onAction)}
@@ -225,15 +251,28 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
   }
 
   // 0.2 Intelligence / Agent Wrapper
-  if (props.ai_driven || props.dialogue || props.avatarEmbodiment || props.lipSync || props.emotionDirective) {
-    const { ai_driven, dialogue, avatarEmbodiment, lipSync, emotionDirective, ...restProps } = props;
-    
+  if (
+    props.ai_driven ||
+    props.dialogue ||
+    props.avatarEmbodiment ||
+    props.lipSync ||
+    props.emotionDirective
+  ) {
+    const {
+      ai_driven,
+      dialogue: _dialogue,
+      avatarEmbodiment,
+      lipSync,
+      emotionDirective,
+      ...restProps
+    } = props;
+
     // Use high-fidelity SpatialAgent if embodiment features are requested
     if (avatarEmbodiment || lipSync || emotionDirective) {
       return (
-        <SpatialAgent 
-          key={key} 
-          aiDriven={ai_driven} 
+        <SpatialAgent
+          key={key}
+          aiDriven={ai_driven}
           avatarEmbodiment={avatarEmbodiment}
           lipSync={lipSync}
           emotionDirective={emotionDirective}
@@ -363,7 +402,12 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
   }
 
   // 3.7 Animated Mesh — keyframe animation via useFrame
-  if (type === 'mesh' && props.keyframes && Array.isArray(props.keyframes) && props.keyframes.length > 0) {
+  if (
+    type === 'mesh' &&
+    props.keyframes &&
+    Array.isArray(props.keyframes) &&
+    props.keyframes.length > 0
+  ) {
     return <AnimatedMeshNode key={key} node={node} />;
   }
 
@@ -414,9 +458,9 @@ function renderR3FNode(node: R3FNode, onAction?: (action: string) => void): Reac
   // 6. Generic Group / Composition
   if (type === 'group' || type === 'composition') {
     return (
-       <group key={key} {...props}>
-         {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
-       </group>
+      <group key={key} {...props}>
+        {children?.map((child: R3FNode) => renderR3FNode(child, onAction))}
+      </group>
     );
   }
 

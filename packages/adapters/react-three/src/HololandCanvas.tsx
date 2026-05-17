@@ -109,10 +109,7 @@ export const HololandCanvas: React.FC<HololandCanvasProps> = ({
   };
 
   // Context value
-  const contextValue = useMemo(
-    () => ({ world, renderer, isReady }),
-    [world, renderer, isReady]
-  );
+  const contextValue = useMemo(() => ({ world, renderer, isReady }), [world, renderer, isReady]);
 
   return (
     <HololandContext.Provider value={contextValue}>

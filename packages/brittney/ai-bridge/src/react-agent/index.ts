@@ -115,8 +115,4 @@ export type {
 } from './types';
 
 // Default values
-export {
-  DEFAULT_STREAM_CONFIG,
-  DEFAULT_AGENT_CONFIG,
-  BRITTNEY_VR_SYSTEM_PROMPT,
-} from './types';
+export { DEFAULT_STREAM_CONFIG, DEFAULT_AGENT_CONFIG, BRITTNEY_VR_SYSTEM_PROMPT } from './types';

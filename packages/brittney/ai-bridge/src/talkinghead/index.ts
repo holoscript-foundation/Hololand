@@ -71,10 +71,7 @@ export {
 // ADAPTER (Low-Level TalkingHead Wrapper)
 // =============================================================================
 
-export {
-  TalkingHeadAdapter,
-  createTalkingHeadAdapter,
-} from './TalkingHeadAdapter';
+export { TalkingHeadAdapter, createTalkingHeadAdapter } from './TalkingHeadAdapter';
 
 // =============================================================================
 // LIP-SYNC ENGINE (Audio-Driven Viseme Pipeline)
@@ -102,6 +99,4 @@ export {
   DEFAULT_AVATAR_BRIDGE_CONFIG,
 } from './TalkingHeadAvatarBridge';
 
-export type {
-  TalkingHeadAvatarBridgeConfig,
-} from './TalkingHeadAvatarBridge';
+export type { TalkingHeadAvatarBridgeConfig } from './TalkingHeadAvatarBridge';

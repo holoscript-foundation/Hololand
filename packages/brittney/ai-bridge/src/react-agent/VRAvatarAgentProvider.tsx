@@ -94,7 +94,7 @@ export function useAvatarAgentContext(): UseAvatarAgentReturn {
   if (!context) {
     throw new Error(
       'useAvatarAgentContext must be used within a VRAvatarAgentProvider. ' +
-      'Wrap your component tree with <VRAvatarAgentProvider>.',
+        'Wrap your component tree with <VRAvatarAgentProvider>.'
     );
   }
   return context;
@@ -177,17 +177,13 @@ export function VRAvatarAgentProvider({
         onHoloScriptGenerated?.(code);
       },
     }),
-    [config, autoConnect, onAgentStateChange, onAvatarAction, onHoloScriptGenerated],
+    [config, autoConnect, onAgentStateChange, onAvatarAction, onHoloScriptGenerated]
   );
 
   // Use the core hook
   const agent = useAvatarAgent(hookOptions);
 
-  return (
-    <AvatarAgentContext.Provider value={agent}>
-      {children}
-    </AvatarAgentContext.Provider>
-  );
+  return <AvatarAgentContext.Provider value={agent}>{children}</AvatarAgentContext.Provider>;
 }
 
 // =============================================================================

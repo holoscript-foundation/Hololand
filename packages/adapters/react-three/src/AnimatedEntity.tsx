@@ -11,35 +11,55 @@ import { Group, MathUtils } from 'three';
  */
 export interface AnimationConfig {
   /** Gentle floating motion — wraps with drei <Float> */
-  float?: boolean | {
-    speed?: number;
-    floatIntensity?: number;
-    rotationIntensity?: number;
-  };
+  float?:
+    | boolean
+    | {
+        speed?: number;
+        floatIntensity?: number;
+        rotationIntensity?: number;
+      };
   /** Continuous rotation around an axis */
-  rotate?: boolean | {
-    speed?: number;
-    axis?: [number, number, number];
-  };
+  rotate?:
+    | boolean
+    | {
+        speed?: number;
+        axis?: [number, number, number];
+      };
   /** Scale oscillation between min and max */
-  pulse?: boolean | {
-    speed?: number;
-    min?: number;
-    max?: number;
-  };
+  pulse?:
+    | boolean
+    | {
+        speed?: number;
+        min?: number;
+        max?: number;
+      };
   /** Vertical bobbing motion */
-  bob?: boolean | {
-    speed?: number;
-    height?: number;
-  };
+  bob?:
+    | boolean
+    | {
+        speed?: number;
+        height?: number;
+      };
   /** Wobbly rotation jitter */
-  wobble?: boolean | {
-    speed?: number;
-    factor?: number;
-  };
+  wobble?:
+    | boolean
+    | {
+        speed?: number;
+        factor?: number;
+      };
   /** Spring-based transition to target transform values */
   spring?: {
-    to?: { x?: number; y?: number; z?: number; scaleX?: number; scaleY?: number; scaleZ?: number; rotX?: number; rotY?: number; rotZ?: number };
+    to?: {
+      x?: number;
+      y?: number;
+      z?: number;
+      scaleX?: number;
+      scaleY?: number;
+      scaleZ?: number;
+      rotX?: number;
+      rotY?: number;
+      rotZ?: number;
+    };
     config?: { tension?: number; friction?: number; mass?: number };
   };
   /** Keyframe animation sequence */
@@ -72,7 +92,14 @@ export const AnimatedEntity: React.FC<AnimatedEntityProps> = ({ children, config
   }, [config]);
 
   const hasFloat = !!cfg.float;
-  const hasFrameAnimations = !!(cfg.rotate || cfg.pulse || cfg.bob || cfg.wobble || cfg.spring || cfg.keyframes);
+  const hasFrameAnimations = !!(
+    cfg.rotate ||
+    cfg.pulse ||
+    cfg.bob ||
+    cfg.wobble ||
+    cfg.spring ||
+    cfg.keyframes
+  );
 
   // If only float, just use Float wrapper — no useFrame needed
   if (hasFloat && !hasFrameAnimations) {
@@ -97,19 +124,13 @@ export const AnimatedEntity: React.FC<AnimatedEntityProps> = ({ children, config
         floatIntensity={fOpts.floatIntensity ?? 1}
         rotationIntensity={fOpts.rotationIntensity ?? 0.5}
       >
-        <FrameAnimatedGroup config={cfg}>
-          {children}
-        </FrameAnimatedGroup>
+        <FrameAnimatedGroup config={cfg}>{children}</FrameAnimatedGroup>
       </Float>
     );
   }
 
   // Only frame-based animations
-  return (
-    <FrameAnimatedGroup config={cfg}>
-      {children}
-    </FrameAnimatedGroup>
-  );
+  return <FrameAnimatedGroup config={cfg}>{children}</FrameAnimatedGroup>;
 };
 
 /**
@@ -281,16 +302,42 @@ const FrameAnimatedGroup: React.FC<{
 /** Maps property string to Three.js group property */
 function applyScalarProperty(g: Group, property: string, value: number) {
   switch (property) {
-    case 'positionX': case 'x': g.position.x = value; break;
-    case 'positionY': case 'y': g.position.y = value; break;
-    case 'positionZ': case 'z': g.position.z = value; break;
-    case 'rotationX': case 'rotX': g.rotation.x = value; break;
-    case 'rotationY': case 'rotY': g.rotation.y = value; break;
-    case 'rotationZ': case 'rotZ': g.rotation.z = value; break;
-    case 'scaleX': g.scale.x = value; break;
-    case 'scaleY': g.scale.y = value; break;
-    case 'scaleZ': g.scale.z = value; break;
-    case 'scale': g.scale.set(value, value, value); break;
+    case 'positionX':
+    case 'x':
+      g.position.x = value;
+      break;
+    case 'positionY':
+    case 'y':
+      g.position.y = value;
+      break;
+    case 'positionZ':
+    case 'z':
+      g.position.z = value;
+      break;
+    case 'rotationX':
+    case 'rotX':
+      g.rotation.x = value;
+      break;
+    case 'rotationY':
+    case 'rotY':
+      g.rotation.y = value;
+      break;
+    case 'rotationZ':
+    case 'rotZ':
+      g.rotation.z = value;
+      break;
+    case 'scaleX':
+      g.scale.x = value;
+      break;
+    case 'scaleY':
+      g.scale.y = value;
+      break;
+    case 'scaleZ':
+      g.scale.z = value;
+      break;
+    case 'scale':
+      g.scale.set(value, value, value);
+      break;
     case 'opacity':
       // Traverse children to find materials
       g.traverse((child: any) => {

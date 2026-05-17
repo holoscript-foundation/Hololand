@@ -64,11 +64,7 @@ export type {
   WorldConfig,
 } from '@hololand/world';
 
-export type {
-  RendererConfig,
-  LightingConfig,
-  MaterialConfig,
-} from '@hololand/renderer';
+export type { RendererConfig, LightingConfig, MaterialConfig } from '@hololand/renderer';
 
 // Dragon Preview Component (Studio/Inspector Tool)
 export { DragonPreview } from './DragonPreview';

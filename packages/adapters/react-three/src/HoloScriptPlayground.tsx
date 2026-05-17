@@ -11,7 +11,7 @@ export interface HoloScriptPlaygroundProps {
 
 /**
  * HoloScriptPlayground
- * 
+ *
  * A live editing environment for HoloScript.
  * Provides a text editor sidebar and an R3F preview.
  */
@@ -100,9 +100,7 @@ orb #main {
             <HoloScriptR3FRenderer ast={ast} debug />
           </Canvas>
         ) : (
-          <div style={{ color: '#ff5555', padding: '20px' }}>
-            Syntax Error - Check Console
-          </div>
+          <div style={{ color: '#ff5555', padding: '20px' }}>Syntax Error - Check Console</div>
         )}
       </div>
     </div>

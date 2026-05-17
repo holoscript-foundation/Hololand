@@ -14,7 +14,7 @@
  */
 
 import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useGLTF, PerspectiveCamera } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
@@ -164,19 +164,11 @@ function DragonModel({
             <bufferAttribute
               attach="attributes-position"
               count={50}
-              array={new Float32Array(
-                Array.from({ length: 150 }, () => (Math.random() - 0.5) * 2)
-              )}
+              array={new Float32Array(Array.from({ length: 150 }, () => (Math.random() - 0.5) * 2))}
               itemSize={3}
             />
           </bufferGeometry>
-          <pointsMaterial
-            size={0.05}
-            color="#ffaa00"
-            transparent
-            opacity={0.8}
-            sizeAttenuation
-          />
+          <pointsMaterial size={0.05} color="#ffaa00" transparent opacity={0.8} sizeAttenuation />
         </points>
       </group>
     </group>
@@ -239,12 +231,7 @@ function DragonScene({
 
       {/* Post-processing effects */}
       <EffectComposer>
-        <Bloom
-          intensity={0.8}
-          luminanceThreshold={0.5}
-          luminanceSmoothing={0.9}
-          height={300}
-        />
+        <Bloom intensity={0.8} luminanceThreshold={0.5} luminanceSmoothing={0.9} height={300} />
       </EffectComposer>
     </>
   );
@@ -392,7 +379,7 @@ function ControlsUI({
 export const DragonPreview: React.FC<DragonPreviewProps> = ({
   modelPath = '/models/dragon.glb',
   showControls = true,
-  cameraPosition = [0, 2, 5],
+  cameraPosition: _cameraPosition = [0, 2, 5],
   onAnimationChange,
   className,
 }) => {

@@ -22,28 +22,41 @@
  * These map directly to morph targets on compatible GLB avatars.
  */
 export type OculusVisemeId =
-  | 0   // sil (silence)
-  | 1   // PP
-  | 2   // FF
-  | 3   // TH
-  | 4   // DD
-  | 5   // kk
-  | 6   // CH
-  | 7   // SS
-  | 8   // nn
-  | 9   // RR
-  | 10  // aa
-  | 11  // E
-  | 12  // IH
-  | 13  // Oh
+  | 0 // sil (silence)
+  | 1 // PP
+  | 2 // FF
+  | 3 // TH
+  | 4 // DD
+  | 5 // kk
+  | 6 // CH
+  | 7 // SS
+  | 8 // nn
+  | 9 // RR
+  | 10 // aa
+  | 11 // E
+  | 12 // IH
+  | 13 // Oh
   | 14; // OO
 
 /**
  * Oculus viseme code names matching the 15 standard visemes.
  */
 export type OculusVisemeCode =
-  | 'sil' | 'PP' | 'FF' | 'TH' | 'DD' | 'kk' | 'CH'
-  | 'SS' | 'nn' | 'RR' | 'aa' | 'E' | 'IH' | 'Oh' | 'OO';
+  | 'sil'
+  | 'PP'
+  | 'FF'
+  | 'TH'
+  | 'DD'
+  | 'kk'
+  | 'CH'
+  | 'SS'
+  | 'nn'
+  | 'RR'
+  | 'aa'
+  | 'E'
+  | 'IH'
+  | 'Oh'
+  | 'OO';
 
 /**
  * Map from numeric viseme ID to string code.
@@ -358,19 +371,19 @@ export interface TalkingHeadConstructorOptions {
  * Events emitted by TalkingHead during operation.
  */
 export type TalkingHeadEventType =
-  | 'ttsstart'       // TTS audio starts playing
-  | 'ttsend'         // TTS audio ends
-  | 'ttsword'        // New word being spoken
-  | 'ttsviseme'      // Viseme change during speech
-  | 'ttsmarker'      // Custom marker reached
-  | 'animstart'      // Animation started
-  | 'animend'        // Animation ended
-  | 'silencestart'   // Silence detected (listening mode)
-  | 'silenceend'     // Silence ended
-  | 'maxsilence'     // Maximum silence reached
-  | 'activestart'    // Active speech detected
-  | 'activeend'      // Active speech ended
-  | 'maxactive';     // Maximum active duration reached
+  | 'ttsstart' // TTS audio starts playing
+  | 'ttsend' // TTS audio ends
+  | 'ttsword' // New word being spoken
+  | 'ttsviseme' // Viseme change during speech
+  | 'ttsmarker' // Custom marker reached
+  | 'animstart' // Animation started
+  | 'animend' // Animation ended
+  | 'silencestart' // Silence detected (listening mode)
+  | 'silenceend' // Silence ended
+  | 'maxsilence' // Maximum silence reached
+  | 'activestart' // Active speech detected
+  | 'activeend' // Active speech ended
+  | 'maxactive'; // Maximum active duration reached
 
 /**
  * Event data payloads for TalkingHead events.
@@ -434,21 +447,21 @@ export interface VisemeBlendShapeMapping {
  * These target the standard VRM blend shape proxy names.
  */
 export const VISEME_TO_VRM_BLEND_SHAPES: Record<OculusVisemeCode, VisemeBlendShapeMapping> = {
-  sil:  { primary: 'viseme_sil', primaryWeight: 0.0 },
-  PP:   { primary: 'viseme_PP', primaryWeight: 0.9, secondary: 'viseme_sil', secondaryWeight: 0.1 },
-  FF:   { primary: 'viseme_FF', primaryWeight: 0.85 },
-  TH:   { primary: 'viseme_TH', primaryWeight: 0.8 },
-  DD:   { primary: 'viseme_DD', primaryWeight: 0.75, secondary: 'viseme_nn', secondaryWeight: 0.2 },
-  kk:   { primary: 'viseme_kk', primaryWeight: 0.7 },
-  CH:   { primary: 'viseme_CH', primaryWeight: 0.8 },
-  SS:   { primary: 'viseme_SS', primaryWeight: 0.75 },
-  nn:   { primary: 'viseme_nn', primaryWeight: 0.65 },
-  RR:   { primary: 'viseme_RR', primaryWeight: 0.7 },
-  aa:   { primary: 'viseme_aa', primaryWeight: 0.9 },
-  E:    { primary: 'viseme_E', primaryWeight: 0.85 },
-  IH:   { primary: 'viseme_I', primaryWeight: 0.75 },
-  Oh:   { primary: 'viseme_O', primaryWeight: 0.85 },
-  OO:   { primary: 'viseme_U', primaryWeight: 0.9 },
+  sil: { primary: 'viseme_sil', primaryWeight: 0.0 },
+  PP: { primary: 'viseme_PP', primaryWeight: 0.9, secondary: 'viseme_sil', secondaryWeight: 0.1 },
+  FF: { primary: 'viseme_FF', primaryWeight: 0.85 },
+  TH: { primary: 'viseme_TH', primaryWeight: 0.8 },
+  DD: { primary: 'viseme_DD', primaryWeight: 0.75, secondary: 'viseme_nn', secondaryWeight: 0.2 },
+  kk: { primary: 'viseme_kk', primaryWeight: 0.7 },
+  CH: { primary: 'viseme_CH', primaryWeight: 0.8 },
+  SS: { primary: 'viseme_SS', primaryWeight: 0.75 },
+  nn: { primary: 'viseme_nn', primaryWeight: 0.65 },
+  RR: { primary: 'viseme_RR', primaryWeight: 0.7 },
+  aa: { primary: 'viseme_aa', primaryWeight: 0.9 },
+  E: { primary: 'viseme_E', primaryWeight: 0.85 },
+  IH: { primary: 'viseme_I', primaryWeight: 0.75 },
+  Oh: { primary: 'viseme_O', primaryWeight: 0.85 },
+  OO: { primary: 'viseme_U', primaryWeight: 0.9 },
 };
 
 /**
@@ -457,21 +470,21 @@ export const VISEME_TO_VRM_BLEND_SHAPES: Record<OculusVisemeCode, VisemeBlendSha
  * Falls back to nearest vowel approximation.
  */
 export const VISEME_TO_SIMPLE_VRM: Record<OculusVisemeCode, { shape: string; weight: number }> = {
-  sil:  { shape: 'neutral', weight: 0.0 },
-  PP:   { shape: 'neutral', weight: 0.1 },  // Lips together
-  FF:   { shape: 'ih', weight: 0.5 },       // Lower lip on teeth
-  TH:   { shape: 'ee', weight: 0.4 },       // Tongue between teeth
-  DD:   { shape: 'aa', weight: 0.3 },       // Tongue on alveolar ridge
-  kk:   { shape: 'aa', weight: 0.2 },       // Back of tongue raised
-  CH:   { shape: 'ee', weight: 0.5 },       // Tongue near palate
-  SS:   { shape: 'ee', weight: 0.3 },       // Teeth nearly closed
-  nn:   { shape: 'aa', weight: 0.2 },       // Tongue on alveolar ridge
-  RR:   { shape: 'oh', weight: 0.4 },       // Lips slightly rounded
-  aa:   { shape: 'aa', weight: 0.9 },       // Wide open
-  E:    { shape: 'ee', weight: 0.8 },       // Mid front
-  IH:   { shape: 'ih', weight: 0.7 },       // High front
-  Oh:   { shape: 'oh', weight: 0.8 },       // Mid back rounded
-  OO:   { shape: 'ou', weight: 0.9 },       // High back rounded
+  sil: { shape: 'neutral', weight: 0.0 },
+  PP: { shape: 'neutral', weight: 0.1 }, // Lips together
+  FF: { shape: 'ih', weight: 0.5 }, // Lower lip on teeth
+  TH: { shape: 'ee', weight: 0.4 }, // Tongue between teeth
+  DD: { shape: 'aa', weight: 0.3 }, // Tongue on alveolar ridge
+  kk: { shape: 'aa', weight: 0.2 }, // Back of tongue raised
+  CH: { shape: 'ee', weight: 0.5 }, // Tongue near palate
+  SS: { shape: 'ee', weight: 0.3 }, // Teeth nearly closed
+  nn: { shape: 'aa', weight: 0.2 }, // Tongue on alveolar ridge
+  RR: { shape: 'oh', weight: 0.4 }, // Lips slightly rounded
+  aa: { shape: 'aa', weight: 0.9 }, // Wide open
+  E: { shape: 'ee', weight: 0.8 }, // Mid front
+  IH: { shape: 'ih', weight: 0.7 }, // High front
+  Oh: { shape: 'oh', weight: 0.8 }, // Mid back rounded
+  OO: { shape: 'ou', weight: 0.9 }, // High back rounded
 };
 
 // =============================================================================

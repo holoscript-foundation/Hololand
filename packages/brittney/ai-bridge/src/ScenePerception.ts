@@ -92,7 +92,7 @@ const MID_THRESHOLD = 15;
  */
 export function serializeScene(
   world: WorldLike,
-  options: ScenePerceptionOptions = {},
+  options: ScenePerceptionOptions = {}
 ): ScenePerception {
   const state = world.getState();
   const objects: SerializedObject[] = [];
@@ -118,7 +118,7 @@ export function serializeObjects(
     worldName?: string;
     gravity?: Vector3;
     bounds?: { min: Vector3; max: Vector3 };
-  } = {},
+  } = {}
 ): ScenePerception {
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const maxObjects = options.maxObjects ?? DEFAULT_MAX_OBJECTS;
@@ -173,9 +173,7 @@ export function serializeObjects(
 
   // Hierarchy summary (parents with >0 children)
   if (includeHier) {
-    const parents = candidates
-      .filter((e) => e.obj.childCount > 0)
-      .slice(0, 5);
+    const parents = candidates.filter((e) => e.obj.childCount > 0).slice(0, 5);
 
     if (parents.length > 0) {
       lines.push('');
@@ -212,7 +210,7 @@ function emitBand(
   label: string,
   band: { obj: SerializedObject; dist: number }[],
   detail: 'minimal' | 'standard' | 'detailed',
-  remaining: number,
+  remaining: number
 ): number {
   if (band.length === 0 || remaining <= 0) return 0;
 
@@ -234,7 +232,7 @@ function emitBand(
 function describeObject(
   obj: SerializedObject,
   dist: number,
-  detail: 'minimal' | 'standard' | 'detailed',
+  detail: 'minimal' | 'standard' | 'detailed'
 ): string {
   const name = nameOf(obj);
   const geo = obj.type !== 'box' ? ` ${obj.type}` : '';

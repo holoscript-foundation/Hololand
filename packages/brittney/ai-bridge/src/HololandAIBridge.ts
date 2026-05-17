@@ -72,7 +72,7 @@ export class HololandAIBridge {
    *   naturalLanguage: "create a coffee shop with a counter and menu board",
    *   context: { userLevel: 'beginner' }
    * });
-   * 
+   *
    * // Returns HoloScript + compiled R3F code
    */
   async translateToHoloScript(request: BuildRequest): Promise<FullPipelineResult> {
@@ -255,10 +255,14 @@ export class HololandAIBridge {
    */
   private buildTemplateDescription(templateName: string, params: Record<string, any>): string {
     const templates: Record<string, (p: any) => string> = {
-      'coffee-shop': (p) => `create a ${p.size || 'medium'} coffee shop with a counter, menu board, and ${p.seating || '4'} tables`,
-      'retail-store': (p) => `create a retail store with ${p.shelves || '8'} shelves, a checkout counter, and ${p.displayWindows || '2'} display windows`,
-      'art-gallery': (p) => `create an art gallery with ${p.walls || '4'} exhibition walls, ${p.pedestals || '6'} pedestals, and lighting`,
-      'office': (p) => `create an office space with ${p.desks || '4'} desks, a conference room, and ${p.meetingRooms || '2'} meeting rooms`,
+      'coffee-shop': (p) =>
+        `create a ${p.size || 'medium'} coffee shop with a counter, menu board, and ${p.seating || '4'} tables`,
+      'retail-store': (p) =>
+        `create a retail store with ${p.shelves || '8'} shelves, a checkout counter, and ${p.displayWindows || '2'} display windows`,
+      'art-gallery': (p) =>
+        `create an art gallery with ${p.walls || '4'} exhibition walls, ${p.pedestals || '6'} pedestals, and lighting`,
+      office: (p) =>
+        `create an office space with ${p.desks || '4'} desks, a conference room, and ${p.meetingRooms || '2'} meeting rooms`,
     };
 
     const templateFn = templates[templateName];
@@ -286,17 +290,20 @@ export class HololandAIBridge {
 
   /**
    * Enter a Hololand world with AI agent capabilities
-   * 
+   *
    * @example
    * await agent.enterWorld('my-world');
-   * 
+   *
    * @param worldId - The ID of the world to enter
    * @param options - Optional connection options
    */
-  async enterWorld(worldId: string, options: {
-    spawnPosition?: { x: number; y: number; z: number };
-    agentMode?: 'perception' | 'creation' | 'both';
-  } = {}): Promise<{
+  async enterWorld(
+    worldId: string,
+    options: {
+      spawnPosition?: { x: number; y: number; z: number };
+      agentMode?: 'perception' | 'creation' | 'both';
+    } = {}
+  ): Promise<{
     connected: boolean;
     worldId: string;
     capabilities: string[];
@@ -313,16 +320,16 @@ export class HololandAIBridge {
     try {
       // Determine capabilities based on mode
       const capabilities: string[] = [];
-      
+
       if (agentMode === 'perception' || agentMode === 'both') {
         capabilities.push(
           'perceive_objects',
-          'perceive_users', 
+          'perceive_users',
           'perceive_events',
           'query_world_state'
         );
       }
-      
+
       if (agentMode === 'creation' || agentMode === 'both') {
         capabilities.push(
           'create_objects',
@@ -334,7 +341,7 @@ export class HololandAIBridge {
 
       // TODO: Connect to @hololand/network when available
       // const connection = await network.connect(worldId, { spawn: spawnPosition });
-      
+
       logger.info('[HololandAIBridge] Entered world successfully', {
         worldId,
         capabilities,

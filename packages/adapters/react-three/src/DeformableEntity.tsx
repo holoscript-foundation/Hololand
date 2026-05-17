@@ -10,12 +10,16 @@ export interface DeformableEntityProps {
 
 /**
  * DeformableEntity
- * 
+ *
  * Provides interactive deformation for meshes.
  * @moldable: Allows "sculpting" by clicking/grabbing.
  * @stretchable: Allows elastic scaling along interaction axes.
  */
-export const DeformableEntity: React.FC<DeformableEntityProps> = ({ children, moldable, stretchable }) => {
+export const DeformableEntity: React.FC<DeformableEntityProps> = ({
+  children,
+  moldable,
+  stretchable,
+}) => {
   const groupRef = useRef<Group>(null);
   const [deformation, setDeformation] = useState(0);
 
@@ -23,14 +27,14 @@ export const DeformableEntity: React.FC<DeformableEntityProps> = ({ children, mo
     if (!groupRef.current) return;
 
     if (moldable || stretchable) {
-       const breathe = Math.sin(state.clock.elapsedTime * 2) * 0.02;
-       const scale = 1 + breathe + deformation;
-       groupRef.current.scale.set(scale, scale, scale);
+      const breathe = Math.sin(state.clock.elapsedTime * 2) * 0.02;
+      const scale = 1 + breathe + deformation;
+      groupRef.current.scale.set(scale, scale, scale);
     }
   });
 
   return (
-    <group 
+    <group
       ref={groupRef}
       onPointerOver={() => moldable && setDeformation(0.1)}
       onPointerOut={() => setDeformation(0)}

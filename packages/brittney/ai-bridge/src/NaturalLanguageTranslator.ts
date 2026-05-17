@@ -176,7 +176,9 @@ logic {
         generator: (matches, context) => {
           const shape = matches[1];
           const name = matches[2] || shape;
-          const pos = context?.location ? `at ${context.location.x} ${context.location.y} ${context.location.z}` : '';
+          const pos = context?.location
+            ? `at ${context.location.x} ${context.location.y} ${context.location.z}`
+            : '';
 
           return `orb ${name} {\n  shape: "${shape}"\n  color: "#00ffff"\n  interactive: true\n} ${pos}`.trim();
         },
@@ -374,7 +376,8 @@ orb ${structureType.replace(/\s+/g, '_')} {
       return {
         holoScript: `// ${naturalLanguage}\n// (Unable to translate - try starting with an action verb)`,
         confidence: 0.3,
-        explanation: 'Could not identify a clear action. Try starting with "create", "build", or "add".',
+        explanation:
+          'Could not identify a clear action. Try starting with "create", "build", or "add".',
       };
     }
 

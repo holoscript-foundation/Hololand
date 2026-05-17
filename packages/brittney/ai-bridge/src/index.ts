@@ -26,7 +26,12 @@ export type { VisualizerOptions } from './VoiceVisualizer';
 
 // Voice → MCP Pipeline (Phase 3: Spatial Brittney)
 export { VoiceMCPPipeline } from './VoiceMCPPipeline';
-export type { VoiceMCPConfig, VoicePipelineResult, MCPToolCall, MCPToolResult } from './VoiceMCPPipeline';
+export type {
+  VoiceMCPConfig,
+  VoicePipelineResult,
+  MCPToolCall,
+  MCPToolResult,
+} from './VoiceMCPPipeline';
 
 // Code Explainer
 export { CodeExplainer } from './CodeExplainer';
@@ -149,12 +154,12 @@ export const TEMPLATE_CATEGORIES = {
 
 // Utility Functions
 export function createAIBridge(config?: import('./HololandAIBridge').AIBridgeConfig) {
-  const bridge = new (require('./HololandAIBridge').HololandAIBridge)(config);
+  const bridge = new HololandAIBridge(config);
   return bridge;
 }
 
 export function isVoiceSupported(): boolean {
-  return (require('./VoiceProcessor').VoiceProcessor as typeof import('./VoiceProcessor').VoiceProcessor).isWebSpeechSupported();
+  return VoiceProcessor.isWebSpeechSupported();
 }
 
 // Export everything as default for convenience

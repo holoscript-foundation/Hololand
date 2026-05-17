@@ -112,10 +112,7 @@ export const useTrackedObject = (objectId: string): SpatialObject | null => {
  * });
  * ```
  */
-export const useWorldEvent = (
-  event: string,
-  handler: (data: any) => void
-) => {
+export const useWorldEvent = (event: string, handler: (data: any) => void) => {
   const world = useHololandWorld();
 
   useEffect(() => {

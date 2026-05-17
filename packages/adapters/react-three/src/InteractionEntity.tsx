@@ -17,7 +17,9 @@ const gestureListeners = new Map<string, Set<GestureCallback>>();
 function onGesture(name: string, cb: GestureCallback): () => void {
   if (!gestureListeners.has(name)) gestureListeners.set(name, new Set());
   gestureListeners.get(name)!.add(cb);
-  return () => { gestureListeners.get(name)?.delete(cb); };
+  return () => {
+    gestureListeners.get(name)?.delete(cb);
+  };
 }
 
 /**
@@ -32,7 +34,7 @@ export const InteractionEntity: React.FC<InteractionEntityProps> = ({
   haptic,
   grabbable,
   hoverable,
-  onAction
+  onAction,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -55,23 +57,28 @@ export const InteractionEntity: React.FC<InteractionEntityProps> = ({
       }
     }
 
-    return () => { cleanups.forEach(fn => fn()); };
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
   }, [gesture, onAction, isHovered]);
 
   // Handle XR selection event
-  const handleSelect = useCallback((event: any) => {
-    if (haptic && event.inputSource.gamepad?.hapticActuators) {
-      const actuator = event.inputSource.gamepad.hapticActuators[0];
-      if (actuator) {
-        actuator.pulse(haptic.intensity || 0.5, haptic.duration || 100);
+  const handleSelect = useCallback(
+    (event: any) => {
+      if (haptic && event.inputSource.gamepad?.hapticActuators) {
+        const actuator = event.inputSource.gamepad.hapticActuators[0];
+        if (actuator) {
+          actuator.pulse(haptic.intensity || 0.5, haptic.duration || 100);
+        }
       }
-    }
 
-    if (gesture && gesture.on_grab) {
-      console.log('InteractionEntity: Executing on_grab', gesture.on_grab);
-      if (onAction) onAction(gesture.on_grab);
-    }
-  }, [haptic, gesture, onAction]);
+      if (gesture && gesture.on_grab) {
+        console.log('InteractionEntity: Executing on_grab', gesture.on_grab);
+        if (onAction) onAction(gesture.on_grab);
+      }
+    },
+    [haptic, gesture, onAction]
+  );
 
   useInteraction(null as any, 'onSelect', handleSelect);
 

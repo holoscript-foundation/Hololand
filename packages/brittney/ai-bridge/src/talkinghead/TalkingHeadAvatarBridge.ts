@@ -92,10 +92,7 @@ import type {
   TalkingHeadSpeakOptions,
 } from './TalkingHeadTypes';
 
-import {
-  DEFAULT_BRITTNEY_AVATAR_SPEC,
-  DEFAULT_INTEGRATION_CONFIG,
-} from './TalkingHeadTypes';
+import { DEFAULT_BRITTNEY_AVATAR_SPEC, DEFAULT_INTEGRATION_CONFIG } from './TalkingHeadTypes';
 
 import type { AvatarEmotion } from '../react-agent/types';
 
@@ -113,11 +110,11 @@ const EMOTION_TO_MOOD: Record<AvatarEmotion, TalkingHeadMood> = {
   happy: 'happy',
   sad: 'sad',
   angry: 'angry',
-  surprised: 'fear',     // TalkingHead has 'fear' but not 'surprised'
-  thinking: 'neutral',   // No thinking mood; use neutral with head animation
-  confused: 'neutral',   // No confused mood; use neutral
-  excited: 'happy',      // Excited maps to happy with higher intensity
-  empathetic: 'love',    // Empathetic maps to love (warm, caring)
+  surprised: 'fear', // TalkingHead has 'fear' but not 'surprised'
+  thinking: 'neutral', // No thinking mood; use neutral with head animation
+  confused: 'neutral', // No confused mood; use neutral
+  excited: 'happy', // Excited maps to happy with higher intensity
+  empathetic: 'love', // Empathetic maps to love (warm, caring)
 };
 
 // =============================================================================
@@ -190,7 +187,7 @@ export class TalkingHeadAvatarBridge {
 
     // Create adapter and lip-sync engine
     this.adapter = createTalkingHeadAdapter(
-      this.config.integrationConfig as TalkingHeadIntegrationConfig,
+      this.config.integrationConfig as TalkingHeadIntegrationConfig
     );
     this.lipSyncEngine = createTalkingHeadLipSyncEngine(this.adapter, this.config.lipSyncConfig);
 
@@ -209,7 +206,7 @@ export class TalkingHeadAvatarBridge {
    */
   async initialize(
     domElement: HTMLElement,
-    options?: Partial<TalkingHeadConstructorOptions>,
+    options?: Partial<TalkingHeadConstructorOptions>
   ): Promise<void> {
     if (this._initialized) {
       logger.warn('[TalkingHeadAvatarBridge] Already initialized');
@@ -252,7 +249,7 @@ export class TalkingHeadAvatarBridge {
    */
   async loadBrittneyAvatar(
     customSpec?: Partial<TalkingHeadAvatarSpec>,
-    onProgress?: (progress: number) => void,
+    onProgress?: (progress: number) => void
   ): Promise<void> {
     if (!this._initialized) {
       throw new Error('TalkingHeadAvatarBridge not initialized. Call initialize() first.');
@@ -431,7 +428,7 @@ export class TalkingHeadAvatarBridge {
   startStreamingSpeech(): void {
     this.lipSyncEngine.startStreaming(
       () => this.emit('streamAudioStart', undefined),
-      () => this.emit('streamAudioEnd', undefined),
+      () => this.emit('streamAudioEnd', undefined)
     );
   }
 
@@ -562,7 +559,9 @@ export class TalkingHeadAvatarBridge {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(handler);
-    return () => { this.listeners.get(event)?.delete(handler); };
+    return () => {
+      this.listeners.get(event)?.delete(handler);
+    };
   }
 
   off(event: string, handler: (data: unknown) => void): void {
@@ -577,9 +576,7 @@ export class TalkingHeadAvatarBridge {
    * Handle a speech request from the agent bridge.
    */
   private handleAgentSpeech(text: string, speed?: number): void {
-    const options: TalkingHeadSpeakOptions | undefined = speed
-      ? { ttsRate: speed }
-      : undefined;
+    const options: TalkingHeadSpeakOptions | undefined = speed ? { ttsRate: speed } : undefined;
 
     this.speak(text, options);
   }
@@ -594,7 +591,10 @@ export class TalkingHeadAvatarBridge {
   /**
    * Handle gaze target from the agent bridge.
    */
-  private handleGazeTarget(gazeData: { target: string; position?: { x: number; y: number } }): void {
+  private handleGazeTarget(gazeData: {
+    target: string;
+    position?: { x: number; y: number };
+  }): void {
     if (!this._avatarLoaded) return;
 
     switch (gazeData.target) {
@@ -624,16 +624,16 @@ export class TalkingHeadAvatarBridge {
     // Map gestures to emoji expressions as a lightweight approach
     // For full animation support, load Mixamo FBX files
     const gestureEmojiMap: Record<string, string> = {
-      wave: '\u{1F44B}',          // Waving hand
-      nod: '\u{1F60A}',           // Smiling (gentle agreement)
-      shake_head: '\u{1F615}',    // Confused face
-      thumbs_up: '\u{1F44D}',     // Thumbs up
-      shrug: '\u{1F937}',         // Shrug
-      clap: '\u{1F44F}',          // Clapping
-      think_pose: '\u{1F914}',    // Thinking face
-      present: '\u{1F449}',       // Pointing right
-      bow: '\u{1F647}',           // Bowing
-      point: '\u{261D}\u{FE0F}',  // Pointing up
+      wave: '\u{1F44B}', // Waving hand
+      nod: '\u{1F60A}', // Smiling (gentle agreement)
+      shake_head: '\u{1F615}', // Confused face
+      thumbs_up: '\u{1F44D}', // Thumbs up
+      shrug: '\u{1F937}', // Shrug
+      clap: '\u{1F44F}', // Clapping
+      think_pose: '\u{1F914}', // Thinking face
+      present: '\u{1F449}', // Pointing right
+      bow: '\u{1F647}', // Bowing
+      point: '\u{261D}\u{FE0F}', // Pointing up
     };
 
     const emoji = gestureEmojiMap[gesture];
@@ -699,7 +699,7 @@ export class TalkingHeadAvatarBridge {
  * ```
  */
 export function createTalkingHeadAvatarBridge(
-  config?: Partial<TalkingHeadAvatarBridgeConfig>,
+  config?: Partial<TalkingHeadAvatarBridgeConfig>
 ): TalkingHeadAvatarBridge {
   return new TalkingHeadAvatarBridge(config);
 }

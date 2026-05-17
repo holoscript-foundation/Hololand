@@ -62,7 +62,6 @@ import type {
 import {
   VISEME_TO_VRM_BLEND_SHAPES,
   VISEME_TO_SIMPLE_VRM,
-  VISEME_ID_TO_CODE,
   DEFAULT_INTEGRATION_CONFIG,
 } from './TalkingHeadTypes';
 
@@ -165,10 +164,7 @@ export class TalkingHeadLipSyncEngine {
   // Unsubscribe handles
   private adapterUnsubscribes: Array<() => void> = [];
 
-  constructor(
-    adapter: TalkingHeadAdapter,
-    config?: Partial<LipSyncEngineConfig>,
-  ) {
+  constructor(adapter: TalkingHeadAdapter, config?: Partial<LipSyncEngineConfig>) {
     this.adapter = adapter;
     this.config = { ...DEFAULT_LIP_SYNC_CONFIG, ...config };
 
@@ -197,7 +193,7 @@ export class TalkingHeadLipSyncEngine {
   speakText(
     text: string,
     options?: TalkingHeadSpeakOptions,
-    onSubtitles?: (text: string) => void,
+    onSubtitles?: (text: string) => void
   ): void {
     this.adapter.speakText(text, options, onSubtitles);
   }
@@ -212,7 +208,7 @@ export class TalkingHeadLipSyncEngine {
   speakAudio(
     audioData: TalkingHeadAudioData,
     options?: TalkingHeadSpeakOptions,
-    onSubtitles?: (text: string) => void,
+    onSubtitles?: (text: string) => void
   ): void {
     this.adapter.speakAudio(audioData, options, onSubtitles);
   }
@@ -266,10 +262,7 @@ export class TalkingHeadLipSyncEngine {
     const rawViseme = this.adapter.getCurrentViseme();
 
     // Check if viseme changed
-    if (
-      !this.currentFrame ||
-      rawViseme.viseme !== this.currentFrame.viseme
-    ) {
+    if (!this.currentFrame || rawViseme.viseme !== this.currentFrame.viseme) {
       // Shift current to previous for interpolation
       this.previousFrame = this.currentFrame;
       this.currentFrame = this.createVisemeFrame(rawViseme.viseme, rawViseme.weight, now);
@@ -306,15 +299,17 @@ export class TalkingHeadLipSyncEngine {
    * Get current engine metrics.
    */
   getMetrics(): LipSyncEngineMetrics {
-    const avgCompute = this.computeTimes.length > 0
-      ? this.computeTimes.reduce((a, b) => a + b, 0) / this.computeTimes.length
-      : 0;
+    const avgCompute =
+      this.computeTimes.length > 0
+        ? this.computeTimes.reduce((a, b) => a + b, 0) / this.computeTimes.length
+        : 0;
 
     const now = performance.now();
     const elapsed = now - this.interpolationStartMs;
-    const progress = this.config.interpolationDurationMs > 0
-      ? Math.min(1, elapsed / this.config.interpolationDurationMs)
-      : 1;
+    const progress =
+      this.config.interpolationDurationMs > 0
+        ? Math.min(1, elapsed / this.config.interpolationDurationMs)
+        : 1;
 
     return {
       totalFrames: this.frameCount,
@@ -333,7 +328,9 @@ export class TalkingHeadLipSyncEngine {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(handler);
-    return () => { this.listeners.get(event)?.delete(handler); };
+    return () => {
+      this.listeners.get(event)?.delete(handler);
+    };
   }
 
   /**
@@ -366,7 +363,7 @@ export class TalkingHeadLipSyncEngine {
   private createVisemeFrame(
     viseme: OculusVisemeCode,
     weight: number,
-    timestamp: number,
+    timestamp: number
   ): VisemeFrame {
     const blendShapeWeights: Record<string, number> = {};
     const useFullVisemes = this.config.integrationConfig.visemeMode === 'oculus';
@@ -425,11 +422,7 @@ export class TalkingHeadLipSyncEngine {
   /**
    * Interpolate between two viseme frames.
    */
-  private interpolateFrames(
-    from: VisemeFrame,
-    to: VisemeFrame,
-    t: number,
-  ): VisemeFrame {
+  private interpolateFrames(from: VisemeFrame, to: VisemeFrame, t: number): VisemeFrame {
     const blendShapeWeights: Record<string, number> = {};
 
     // Collect all unique blend shape names
@@ -516,22 +509,38 @@ export class TalkingHeadLipSyncEngine {
    */
   private getJawWeight(viseme: OculusVisemeCode): number {
     switch (viseme) {
-      case 'aa': return 0.9;  // Wide open jaw
-      case 'Oh': return 0.75; // Round open
-      case 'OO': return 0.5;  // Rounded, less open
-      case 'E':  return 0.6;  // Mid open
-      case 'IH': return 0.4;  // Slightly open
-      case 'RR': return 0.45; // Slightly open + rounded
-      case 'DD': return 0.35; // Tongue tap, slight open
-      case 'nn': return 0.2;  // Nearly closed
-      case 'CH': return 0.3;  // Affricate
-      case 'SS': return 0.15; // Teeth close
-      case 'FF': return 0.2;  // Lower lip on teeth
-      case 'TH': return 0.25; // Tongue between teeth
-      case 'kk': return 0.3;  // Back tongue, moderate open
-      case 'PP': return 0.05; // Lips together
-      case 'sil': return 0.0; // Closed
-      default: return 0.0;
+      case 'aa':
+        return 0.9; // Wide open jaw
+      case 'Oh':
+        return 0.75; // Round open
+      case 'OO':
+        return 0.5; // Rounded, less open
+      case 'E':
+        return 0.6; // Mid open
+      case 'IH':
+        return 0.4; // Slightly open
+      case 'RR':
+        return 0.45; // Slightly open + rounded
+      case 'DD':
+        return 0.35; // Tongue tap, slight open
+      case 'nn':
+        return 0.2; // Nearly closed
+      case 'CH':
+        return 0.3; // Affricate
+      case 'SS':
+        return 0.15; // Teeth close
+      case 'FF':
+        return 0.2; // Lower lip on teeth
+      case 'TH':
+        return 0.25; // Tongue between teeth
+      case 'kk':
+        return 0.3; // Back tongue, moderate open
+      case 'PP':
+        return 0.05; // Lips together
+      case 'sil':
+        return 0.0; // Closed
+      default:
+        return 0.0;
     }
   }
 
@@ -619,7 +628,7 @@ export class TalkingHeadLipSyncEngine {
  */
 export function createTalkingHeadLipSyncEngine(
   adapter: TalkingHeadAdapter,
-  config?: Partial<LipSyncEngineConfig>,
+  config?: Partial<LipSyncEngineConfig>
 ): TalkingHeadLipSyncEngine {
   return new TalkingHeadLipSyncEngine(adapter, config);
 }
