@@ -707,6 +707,36 @@ function privacyBoundary({ processHealth, operatorBrief, osUiCapture, legacyAppR
   };
 }
 
+/**
+ * Summarize scene perception output for Brittney's context packet.
+ *
+ * Consumes the `ScenePerception` JSON written by the MCP server's
+ * scene-perception tool (packages/brittney/mcp-server/src/scene-perception.ts).
+ * Brittney can reference `scenePerceptionText` to reason about environmental
+ * phenomena (e.g. "your inbox is overflowing" from object counts/labels).
+ *
+ * @param {object} raw - Contents of .tmp/holoshell/scene-perception.json
+ * @returns {{ status: string, text: string, objectCount: number, describedCount: number, tokenEstimate: number }}
+ */
+function summarizeScenePerception(raw) {
+  if (!raw || typeof raw !== 'object' || !raw.text) {
+    return {
+      status: 'unavailable',
+      text: '',
+      objectCount: 0,
+      describedCount: 0,
+      tokenEstimate: 0,
+    };
+  }
+  return {
+    status: 'available',
+    text: String(raw.text).slice(0, 800), // hard-cap ~200 tokens; keep context window impact bounded
+    objectCount: typeof raw.objectCount === 'number' ? raw.objectCount : 0,
+    describedCount: typeof raw.describedCount === 'number' ? raw.describedCount : 0,
+    tokenEstimate: typeof raw.tokenEstimate === 'number' ? raw.tokenEstimate : 0,
+  };
+}
+
 function loadInputs(args) {
   if (args.selfTest) return fixtureInputs();
   const tmpDir = resolveRepoPath(args.tmpDir);
@@ -734,6 +764,7 @@ function loadInputs(args) {
     brittneyTurn: readJson(path.join(tmpDir, 'brittney-turn-latest.json'), {}),
     operatingTurn: readJson(path.join(tmpDir, 'operating-turn.json'), {}),
     liveFeed: readJson(path.join(tmpDir, 'live-feed.json'), {}),
+    scenePerception: readJson(path.join(tmpDir, 'scene-perception.json'), {}),
   };
 }
 
@@ -1053,6 +1084,12 @@ function fixtureInputs() {
     brittneyTurn: { turnId: 'fixture-turn', generatedAt: '2026-05-14T00:00:01.000Z', schemaVersion: 'hololand.holoshell.brittney-turn.v0.1.0', summary: { status: 'completed' } },
     operatingTurn: { generatedAt: '2026-05-14T00:00:02.000Z', schemaVersion: 'hololand.holoshell.operating-turn.v0.1.0', summary: { status: 'pass' }, receipt: { operatingTurnHash: 'fixture-operating-turn' } },
     liveFeed: { timeline: [] },
+    scenePerception: {
+      text: 'Scene: 3 objects in office-world. Desk [0,0,0] (interactive). InboxTray [0.5,0.8,0] (interactive, 47 pending items). Chair [0.3,0,0.5] (non-interactive).',
+      objectCount: 3,
+      describedCount: 3,
+      tokenEstimate: 42,
+    },
   };
 }
 
@@ -1073,6 +1110,7 @@ function createPacket(args, inputs = loadInputs(args)) {
   const mcpUpstreamHandoffSummary = summarizeMcpUpstreamHandoff(inputs.mcpUpstreamHandoff);
   const operatorBriefSummary = summarizeOperatorBrief(inputs.operatorBrief);
   const legacyUiCaptureSummary = summarizeOsUiCapture(inputs.osUiCapture);
+  const scenePerceptionSummary = summarizeScenePerception(inputs.scenePerception);
   const timeline = recentReceiptTimeline(inputs, args.maxTimelineItems);
   const privacy = privacyBoundary(inputs);
   const contextHashInput = {
@@ -1094,6 +1132,8 @@ function createPacket(args, inputs = loadInputs(args)) {
     operatorBriefSummary,
     legacyUiCaptureSummary,
     timelineIds: timeline.map((item) => item.id),
+    scenePerceptionStatus: scenePerceptionSummary.status,
+    scenePerceptionObjectCount: scenePerceptionSummary.objectCount,
     privacy,
   };
   const contextHash = sha256(JSON.stringify(contextHashInput));
@@ -1121,6 +1161,7 @@ function createPacket(args, inputs = loadInputs(args)) {
       grokHeartbeat: 'scripts/holoshell-grok-heartbeat.mjs',
       programRegistry: 'scripts/holoshell-program-registry.mjs',
       osUiCapture: 'scripts/holoshell-os-ui-capture.mjs',
+      scenePerception: 'packages/brittney/mcp-server/src/scene-perception.ts',
     },
     prompt: args.prompt,
     selectedShellObject: selectedObject,
@@ -1138,6 +1179,7 @@ function createPacket(args, inputs = loadInputs(args)) {
     mcpCustodyContractSummary,
     mcpUpstreamHandoffSummary,
     operatorBriefSummary,
+    scenePerceptionSummary,
     legacyUiCaptureSummary,
     recentReceiptTimeline: timeline,
     privacyBoundary: privacy,
@@ -1242,6 +1284,9 @@ function createPacket(args, inputs = loadInputs(args)) {
       osUiControlCount: legacyUiCaptureSummary.controlCount,
       osUiGeometryNodeCount: legacyUiCaptureSummary.geometryNodeCount,
       localUiLabelsIncluded: privacy.localUiLabelsIncluded,
+      scenePerceptionStatus: scenePerceptionSummary.status,
+      scenePerceptionObjectCount: scenePerceptionSummary.objectCount,
+      scenePerceptionTokenEstimate: scenePerceptionSummary.tokenEstimate,
       peerWindowCount: operatorBriefSummary.peerWindowCount,
       shellWindowCount: operatorBriefSummary.shellWindowCount,
       operatingSurfaceWindowCount: operatorBriefSummary.operatingSurfaceWindowCount,
@@ -1315,6 +1360,10 @@ function assertSelfTest(packet) {
   if (packet.legacyUiCaptureSummary.targetApp !== 'chrome') failures.push('expected Chrome OS UI target');
   if (!packet.legacyUiCaptureSummary.targetResolved) failures.push('expected resolved OS UI target');
   if (packet.legacyUiCaptureSummary.mutatingActionsExecuted !== false) failures.push('OS UI capture must remain read-only');
+  if (packet.scenePerceptionSummary.status !== 'available') failures.push('expected scene perception available in fixture');
+  if (!packet.scenePerceptionSummary.text) failures.push('expected scene perception text');
+  if (packet.scenePerceptionSummary.objectCount < 1) failures.push('expected scene perception object count');
+  if (packet.summary.scenePerceptionStatus !== 'available') failures.push('expected scene perception status in summary');
   if (packet.approvalSummary.pendingApprovalCount < 1) failures.push('expected pending approval summary');
   if (packet.processHealthSummary.actionableCleanupCandidateCount !== 1) failures.push('expected actionable cleanup candidate count');
   if (packet.processHealthSummary.ownerHandoffPlanCount !== 3) failures.push('expected owner handoff plan count');
