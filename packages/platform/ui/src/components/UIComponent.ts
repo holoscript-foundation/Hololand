@@ -53,38 +53,87 @@ export abstract class UIComponent {
   }
 
   // Position getters/setters
-  get x(): number { return this._position.x; }
-  set x(value: number) { this._position.x = value; this.markDirty(); }
+  get x(): number {
+    return this._position.x;
+  }
+  set x(value: number) {
+    this._position.x = value;
+    this.markDirty();
+  }
 
-  get y(): number { return this._position.y; }
-  set y(value: number) { this._position.y = value; this.markDirty(); }
+  get y(): number {
+    return this._position.y;
+  }
+  set y(value: number) {
+    this._position.y = value;
+    this.markDirty();
+  }
 
-  get position(): Vector2 { return { ...this._position }; }
-  set position(value: Vector2) { this._position = { ...value }; this.markDirty(); }
+  get position(): Vector2 {
+    return { ...this._position };
+  }
+  set position(value: Vector2) {
+    this._position = { ...value };
+    this.markDirty();
+  }
 
   // Size getters/setters
-  get width(): number { return this._size.width; }
-  set width(value: number) { this._size.width = value; this.markDirty(); }
+  get width(): number {
+    return this._size.width;
+  }
+  set width(value: number) {
+    this._size.width = value;
+    this.markDirty();
+  }
 
-  get height(): number { return this._size.height; }
-  set height(value: number) { this._size.height = value; this.markDirty(); }
+  get height(): number {
+    return this._size.height;
+  }
+  set height(value: number) {
+    this._size.height = value;
+    this.markDirty();
+  }
 
-  get size(): Size { return { ...this._size }; }
-  set size(value: Size) { this._size = { ...value }; this.markDirty(); }
+  get size(): Size {
+    return { ...this._size };
+  }
+  set size(value: Size) {
+    this._size = { ...value };
+    this.markDirty();
+  }
 
   // Visibility
-  get visible(): boolean { return this._visible; }
-  set visible(value: boolean) { this._visible = value; this.markDirty(); }
+  get visible(): boolean {
+    return this._visible;
+  }
+  set visible(value: boolean) {
+    this._visible = value;
+    this.markDirty();
+  }
 
-  get enabled(): boolean { return this._enabled; }
-  set enabled(value: boolean) { this._enabled = value; this.markDirty(); }
+  get enabled(): boolean {
+    return this._enabled;
+  }
+  set enabled(value: boolean) {
+    this._enabled = value;
+    this.markDirty();
+  }
 
-  get zIndex(): number { return this._zIndex; }
-  set zIndex(value: number) { this._zIndex = value; this.markDirty(); }
+  get zIndex(): number {
+    return this._zIndex;
+  }
+  set zIndex(value: number) {
+    this._zIndex = value;
+    this.markDirty();
+  }
 
   // Hierarchy
-  get parent(): UIComponent | null { return this._parent; }
-  get children(): readonly UIComponent[] { return this._children; }
+  get parent(): UIComponent | null {
+    return this._parent;
+  }
+  get children(): readonly UIComponent[] {
+    return this._children;
+  }
 
   /**
    * Get bounding rectangle
@@ -169,7 +218,7 @@ export abstract class UIComponent {
         timestamp: Date.now(),
         ...data,
       };
-      handlers.forEach(handler => handler(event));
+      handlers.forEach((handler) => handler(event));
     }
   }
 
@@ -200,7 +249,7 @@ export abstract class UIComponent {
    */
   update(deltaTime: number): void {
     // Override in subclasses
-    this._children.forEach(child => child.update(deltaTime));
+    this._children.forEach((child) => child.update(deltaTime));
   }
 
   /**
@@ -263,7 +312,7 @@ export abstract class UIComponent {
    * Dispose component and cleanup
    */
   dispose(): void {
-    this._children.forEach(child => child.dispose());
+    this._children.forEach((child) => child.dispose());
     this._children = [];
     this._eventHandlers.clear();
     if (this._parent) {

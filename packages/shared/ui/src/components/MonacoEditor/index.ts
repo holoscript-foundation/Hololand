@@ -1,7 +1,12 @@
 export { MonacoEditor } from './MonacoEditor';
 export type { MonacoEditorProps, MonacoEditorRef } from './MonacoEditor';
 
-export { getEditorConfig, mergeEditorConfig, webStudioConfig, desktopIdeConfig } from './editor-configs';
+export {
+  getEditorConfig,
+  mergeEditorConfig,
+  webStudioConfig,
+  desktopIdeConfig,
+} from './editor-configs';
 export type { EditorContext, HoloEditorConfig } from './editor-configs';
 
 export {

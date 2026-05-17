@@ -4,7 +4,7 @@
  */
 
 import { UIComponent } from './UIComponent';
-import type { UIComponentConfig, Vector2 } from '../types';
+import type { UIComponentConfig } from '../types';
 
 export interface ImageConfig extends UIComponentConfig {
   src?: string | HTMLImageElement;
@@ -59,21 +59,31 @@ export class Image extends UIComponent {
     return this._image?.src || null;
   }
 
-  get fit(): string { return this._fit; }
+  get fit(): string {
+    return this._fit;
+  }
   set fit(value: 'contain' | 'cover' | 'fill' | 'none') {
     this._fit = value;
     this.markDirty();
   }
 
-  get opacity(): number { return this._opacity; }
+  get opacity(): number {
+    return this._opacity;
+  }
   set opacity(value: number) {
     this._opacity = Math.max(0, Math.min(1, value));
     this.markDirty();
   }
 
-  get isLoaded(): boolean { return this._state === 'loaded'; }
-  get isLoading(): boolean { return this._state === 'loading'; }
-  get hasError(): boolean { return this._state === 'error'; }
+  get isLoaded(): boolean {
+    return this._state === 'loaded';
+  }
+  get isLoading(): boolean {
+    return this._state === 'loading';
+  }
+  get hasError(): boolean {
+    return this._state === 'error';
+  }
 
   /**
    * Set image source
@@ -100,7 +110,7 @@ export class Image extends UIComponent {
     } else {
       // Load from URL
       this._state = 'loading';
-      this._image = new (globalThis as any).Image();
+      this._image = new Image();
       this._image!.onload = () => {
         this._state = 'loaded';
         this.markDirty();
@@ -207,7 +217,7 @@ export class Image extends UIComponent {
     ctx.restore();
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

@@ -161,7 +161,7 @@ export class AIWorldBuilder {
     return {
       holoScript,
       ast: parseResult.success ? parseResult.ast : undefined,
-      errors: parseResult.success ? undefined : parseResult.errors?.map(e => e.message),
+      errors: parseResult.success ? undefined : parseResult.errors?.map((e) => e.message),
       loaded: parseResult.success,
       model: response.model,
       generationTimeMs: Date.now() - startTime,
@@ -327,7 +327,7 @@ composition "Dynamic Scene" {
       }
 
       if (sceneContext.existingObjects?.length) {
-        prompt += `\nExisting objects:\n${sceneContext.existingObjects.map(o => `- ${o}`).join('\n')}\n`;
+        prompt += `\nExisting objects:\n${sceneContext.existingObjects.map((o) => `- ${o}`).join('\n')}\n`;
       }
 
       if (sceneContext.currentState) {

@@ -40,7 +40,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     };
 
     return <input ref={ref} style={baseStyle} {...props} />;
-  },
+  }
 );
 
 Input.displayName = 'Input';

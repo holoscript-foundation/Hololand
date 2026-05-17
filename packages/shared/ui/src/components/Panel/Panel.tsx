@@ -44,7 +44,7 @@ export const Panel = forwardRef<HTMLDivElement, PanelProps>(
       style,
       ...props
     },
-    ref,
+    ref
   ) => {
     const { colors } = useTheme();
 
@@ -142,7 +142,7 @@ export const Panel = forwardRef<HTMLDivElement, PanelProps>(
         <div style={contentStyle}>{children}</div>
       </div>
     );
-  },
+  }
 );
 
 Panel.displayName = 'Panel';

@@ -30,9 +30,9 @@ import type {
   CrossValidationStats,
 } from './CrossValidationTypes';
 
-import { PhysicsValidator, createPhysicsValidator } from './PhysicsValidator';
-import { MaterialsValidator, createMaterialsValidator } from './MaterialsValidator';
-import { SchemaValidator, createSchemaValidator } from './SchemaValidator';
+import { createPhysicsValidator } from './PhysicsValidator';
+import { createMaterialsValidator } from './MaterialsValidator';
+import { createSchemaValidator } from './SchemaValidator';
 
 // =============================================================================
 // CROSS-VALIDATION ENGINE
@@ -69,18 +69,18 @@ export class CrossValidationEngine {
   private totalAccepted = 0;
   private totalRejected = 0;
   private totalValidationTimeMs = 0;
-  private perValidatorStats: Record<ValidatorId, {
-    totalValidated: number;
-    totalAccepted: number;
-    totalRejected: number;
-    totalDurationMs: number;
-  }>;
+  private perValidatorStats: Record<
+    ValidatorId,
+    {
+      totalValidated: number;
+      totalAccepted: number;
+      totalRejected: number;
+      totalDurationMs: number;
+    }
+  >;
   private violationCounts: Map<string, number> = new Map();
 
-  constructor(
-    validators?: readonly Validator[],
-    config?: CrossValidationConfig,
-  ) {
+  constructor(validators?: readonly Validator[], config?: CrossValidationConfig) {
     // Default validators: the 3-validator protocol
     this.validators = validators ?? [
       createPhysicsValidator(),
@@ -219,7 +219,7 @@ export class CrossValidationEngine {
    * Returns results in the same order as input.
    */
   validateBatch(deltas: readonly StateDelta[]): ConsensusResult[] {
-    return deltas.map(delta => this.validate(delta));
+    return deltas.map((delta) => this.validate(delta));
   }
 
   // =========================================================================
@@ -237,21 +237,22 @@ export class CrossValidationEngine {
       .map(([property, count]) => ({ property, count }));
 
     // Compute per-validator averages
-    const perValidator: Record<ValidatorId, {
-      totalValidated: number;
-      totalAccepted: number;
-      totalRejected: number;
-      avgDurationMs: number;
-    }> = {} as any;
+    const perValidator: Record<
+      ValidatorId,
+      {
+        totalValidated: number;
+        totalAccepted: number;
+        totalRejected: number;
+        avgDurationMs: number;
+      }
+    > = {} as any;
 
     for (const [id, stats] of Object.entries(this.perValidatorStats)) {
       perValidator[id as ValidatorId] = {
         totalValidated: stats.totalValidated,
         totalAccepted: stats.totalAccepted,
         totalRejected: stats.totalRejected,
-        avgDurationMs: stats.totalValidated > 0
-          ? stats.totalDurationMs / stats.totalValidated
-          : 0,
+        avgDurationMs: stats.totalValidated > 0 ? stats.totalDurationMs / stats.totalValidated : 0,
       };
     }
 
@@ -259,12 +260,8 @@ export class CrossValidationEngine {
       totalDeltas: this.totalDeltas,
       totalAccepted: this.totalAccepted,
       totalRejected: this.totalRejected,
-      acceptanceRate: this.totalDeltas > 0
-        ? this.totalAccepted / this.totalDeltas
-        : 0,
-      avgValidationTimeMs: this.totalDeltas > 0
-        ? this.totalValidationTimeMs / this.totalDeltas
-        : 0,
+      acceptanceRate: this.totalDeltas > 0 ? this.totalAccepted / this.totalDeltas : 0,
+      avgValidationTimeMs: this.totalDeltas > 0 ? this.totalValidationTimeMs / this.totalDeltas : 0,
       perValidator,
       topViolations: sortedViolations,
     };
@@ -321,9 +318,7 @@ export class CrossValidationEngine {
  * Create a CrossValidationEngine with the default 3-validator protocol
  * and 2-of-3 quorum.
  */
-export function createCrossValidationEngine(
-  config?: CrossValidationConfig,
-): CrossValidationEngine {
+export function createCrossValidationEngine(config?: CrossValidationConfig): CrossValidationEngine {
   return new CrossValidationEngine(undefined, config);
 }
 
@@ -332,7 +327,7 @@ export function createCrossValidationEngine(
  */
 export function createCustomCrossValidationEngine(
   validators: readonly Validator[],
-  config?: CrossValidationConfig,
+  config?: CrossValidationConfig
 ): CrossValidationEngine {
   return new CrossValidationEngine(validators, config);
 }
@@ -347,9 +342,7 @@ let deltaCounter = 0;
  * Create a StateDelta with auto-generated ID and timestamp.
  * Convenience function for agents proposing state changes.
  */
-export function createStateDelta(
-  params: Omit<StateDelta, 'id' | 'timestamp'>,
-): StateDelta {
+export function createStateDelta(params: Omit<StateDelta, 'id' | 'timestamp'>): StateDelta {
   return {
     id: `delta_${++deltaCounter}_${Date.now().toString(36)}`,
     timestamp: new Date().toISOString(),

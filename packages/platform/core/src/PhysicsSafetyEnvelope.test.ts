@@ -57,7 +57,9 @@ describe('PHYSICS_SAFETY_ENVELOPE immutability', () => {
     expect(PHYSICS_SAFETY_ENVELOPE.maxForceMagnitude).toBeGreaterThan(0);
     expect(PHYSICS_SAFETY_ENVELOPE.maxImpulseMagnitude).toBeGreaterThan(0);
     expect(PHYSICS_SAFETY_ENVELOPE.minGravityScale).toBeGreaterThanOrEqual(0);
-    expect(PHYSICS_SAFETY_ENVELOPE.maxGravityScale).toBeGreaterThan(PHYSICS_SAFETY_ENVELOPE.minGravityScale);
+    expect(PHYSICS_SAFETY_ENVELOPE.maxGravityScale).toBeGreaterThan(
+      PHYSICS_SAFETY_ENVELOPE.minGravityScale
+    );
     expect(PHYSICS_SAFETY_ENVELOPE.minMass).toBeGreaterThan(0);
     expect(PHYSICS_SAFETY_ENVELOPE.maxMass).toBeGreaterThan(PHYSICS_SAFETY_ENVELOPE.minMass);
     expect(PHYSICS_SAFETY_ENVELOPE.maxPositionMagnitude).toBeGreaterThan(0);

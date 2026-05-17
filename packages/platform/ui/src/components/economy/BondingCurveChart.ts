@@ -21,26 +21,27 @@
  */
 
 import { EconomyComponent } from './EconomyComponent';
-import type {
-  BondingCurveChartConfig,
-  BondingCurveType,
-  TimeSeriesPoint,
-} from './types';
+import type { BondingCurveChartConfig, BondingCurveType, TimeSeriesPoint } from './types';
 import { ECONOMY_COLORS } from './types';
 
 /** Internal curve calculation (mirrors BondingCurveMath from @hololand/commerce) */
-function calculatePrice(supply: number, type: BondingCurveType, reserveRatio: number, steepness: number): number {
+function calculatePrice(
+  supply: number,
+  type: BondingCurveType,
+  reserveRatio: number,
+  steepness: number
+): number {
   const s = Math.max(1, supply);
   const r = reserveRatio;
   const n = Math.max(0.01, steepness);
 
   switch (type) {
     case 'linear':
-      return r * s / n;
+      return (r * s) / n;
     case 'exponential':
       return r * Math.pow(s, 1 / n);
     case 'logarithmic':
-      return r * Math.log(s + 1) / n;
+      return (r * Math.log(s + 1)) / n;
     case 'sigmoid': {
       const midpoint = 1000;
       const maxPrice = r * 100;
@@ -126,7 +127,12 @@ export class BondingCurveChart extends EconomyComponent {
   }
 
   get currentPrice(): number {
-    return calculatePrice(this._currentSupply, this._curveType, this._reserveRatio, this._curveSteepness);
+    return calculatePrice(
+      this._currentSupply,
+      this._curveType,
+      this._reserveRatio,
+      this._curveSteepness
+    );
   }
 
   // =========================================================================
@@ -184,7 +190,16 @@ export class BondingCurveChart extends EconomyComponent {
     this.drawCurrentPosition(ctx, chartLeft, chartTop, chartWidth, chartHeight, maxPrice);
 
     // Draw axes labels
-    this.drawAxes(ctx, chartLeft, chartTop, chartRight, chartBottom, chartWidth, chartHeight, maxPrice);
+    this.drawAxes(
+      ctx,
+      chartLeft,
+      chartTop,
+      chartRight,
+      chartBottom,
+      chartWidth,
+      chartHeight,
+      maxPrice
+    );
 
     // Draw legend
     this.drawLegend(ctx, x + 8, contentY + contentHeight - 18, width - 16);
@@ -262,7 +277,12 @@ export class BondingCurveChart extends EconomyComponent {
     const steps = 200;
     for (let i = 0; i <= steps; i++) {
       const supply = (this._maxSupply * i) / steps;
-      const price = calculatePrice(supply, this._curveType, this._reserveRatio, this._curveSteepness);
+      const price = calculatePrice(
+        supply,
+        this._curveType,
+        this._reserveRatio,
+        this._curveSteepness
+      );
       const px = chartLeft + (supply / this._maxSupply) * chartWidth;
       const py = chartTop + chartHeight - Math.min(1, price / maxPrice) * chartHeight;
 
@@ -276,8 +296,6 @@ export class BondingCurveChart extends EconomyComponent {
 
     // Fill under curve
     const lastPx = chartLeft + chartWidth;
-    const lastPrice = calculatePrice(this._maxSupply, this._curveType, this._reserveRatio, this._curveSteepness);
-    const lastPy = chartTop + chartHeight - Math.min(1, lastPrice / maxPrice) * chartHeight;
     ctx.lineTo(lastPx, chartTop + chartHeight);
     ctx.lineTo(chartLeft, chartTop + chartHeight);
     ctx.closePath();
@@ -297,14 +315,15 @@ export class BondingCurveChart extends EconomyComponent {
   ): void {
     // Draw curves at 3 different distances
     const distances = [100, 500, 1000];
-    const alphas = ['40', '25', '15'];
-
     ctx.save();
     for (let d = 0; d < distances.length; d++) {
       const distance = distances[d];
       const spatialMod = 1 + this._spatialDecayFactor * distance;
 
-      ctx.strokeStyle = ECONOMY_COLORS.spatialOverlay.replace('0.3', d === 0 ? '0.4' : d === 1 ? '0.25' : '0.15');
+      ctx.strokeStyle = ECONOMY_COLORS.spatialOverlay.replace(
+        '0.3',
+        d === 0 ? '0.4' : d === 1 ? '0.25' : '0.15'
+      );
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
@@ -312,7 +331,12 @@ export class BondingCurveChart extends EconomyComponent {
       const steps = 100;
       for (let i = 0; i <= steps; i++) {
         const supply = (this._maxSupply * i) / steps;
-        const basePrice = calculatePrice(supply, this._curveType, this._reserveRatio, this._curveSteepness);
+        const basePrice = calculatePrice(
+          supply,
+          this._curveType,
+          this._reserveRatio,
+          this._curveSteepness
+        );
         const spatialPrice = basePrice * spatialMod;
         const px = chartLeft + (supply / this._maxSupply) * chartWidth;
         const py = chartTop + chartHeight - Math.min(1, spatialPrice / maxPrice) * chartHeight;
@@ -335,7 +359,7 @@ export class BondingCurveChart extends EconomyComponent {
     chartTop: number,
     chartWidth: number,
     chartHeight: number,
-    maxPrice: number
+    _maxPrice: number
   ): void {
     const supplyNorm = this._displaySupply / this._maxSupply;
     const supplyX = chartLeft + supplyNorm * chartWidth;
@@ -406,7 +430,12 @@ export class BondingCurveChart extends EconomyComponent {
     chartHeight: number,
     maxPrice: number
   ): void {
-    const price = calculatePrice(this._displaySupply, this._curveType, this._reserveRatio, this._curveSteepness);
+    const price = calculatePrice(
+      this._displaySupply,
+      this._curveType,
+      this._reserveRatio,
+      this._curveSteepness
+    );
     const px = chartLeft + (this._displaySupply / this._maxSupply) * chartWidth;
     const py = chartTop + chartHeight - Math.min(1, price / maxPrice) * chartHeight;
 
@@ -463,7 +492,7 @@ export class BondingCurveChart extends EconomyComponent {
     chartBottom: number,
     chartWidth: number,
     chartHeight: number,
-    maxPrice: number
+    _maxPrice: number
   ): void {
     ctx.save();
 
@@ -485,12 +514,7 @@ export class BondingCurveChart extends EconomyComponent {
     ctx.restore();
   }
 
-  private drawLegend(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number
-  ): void {
+  private drawLegend(ctx: CanvasRenderingContext2D, x: number, y: number, _width: number): void {
     ctx.save();
     ctx.font = '9px system-ui, sans-serif';
 
@@ -499,7 +523,11 @@ export class BondingCurveChart extends EconomyComponent {
     ];
 
     if (this._showSpatialDecay) {
-      items.push({ label: 'Spatial +100u', color: ECONOMY_COLORS.spatialOverlay.replace('0.3', '0.6'), dash: [4, 3] });
+      items.push({
+        label: 'Spatial +100u',
+        color: ECONOMY_COLORS.spatialOverlay.replace('0.3', '0.6'),
+        dash: [4, 3],
+      });
     }
 
     if (this._showTradeZones) {
@@ -532,11 +560,16 @@ export class BondingCurveChart extends EconomyComponent {
 
   private getCurveTypeColor(type: BondingCurveType): string {
     switch (type) {
-      case 'linear': return ECONOMY_COLORS.curveLinear;
-      case 'exponential': return ECONOMY_COLORS.curveExponential;
-      case 'logarithmic': return ECONOMY_COLORS.curveLogarithmic;
-      case 'sigmoid': return ECONOMY_COLORS.curveSigmoid;
-      default: return ECONOMY_COLORS.curveExponential;
+      case 'linear':
+        return ECONOMY_COLORS.curveLinear;
+      case 'exponential':
+        return ECONOMY_COLORS.curveExponential;
+      case 'logarithmic':
+        return ECONOMY_COLORS.curveLogarithmic;
+      case 'sigmoid':
+        return ECONOMY_COLORS.curveSigmoid;
+      default:
+        return ECONOMY_COLORS.curveExponential;
     }
   }
 

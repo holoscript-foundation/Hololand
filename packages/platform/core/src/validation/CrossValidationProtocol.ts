@@ -39,16 +39,11 @@
 import type {
   StateDelta,
   ConsensusResult,
-  ValidationViolation,
   CrossValidationConfig,
   CrossValidationStats,
 } from './CrossValidationTypes';
 
-import {
-  CrossValidationEngine,
-  createCrossValidationEngine,
-  createStateDelta,
-} from './CrossValidationEngine';
+import { CrossValidationEngine, createCrossValidationEngine } from './CrossValidationEngine';
 
 // =============================================================================
 // PROTOCOL TYPES
@@ -162,13 +157,16 @@ export interface ProtocolStats {
   /** Current queue depth */
   readonly currentQueueDepth: number;
   /** Per-agent stats */
-  readonly perAgent: ReadonlyMap<string, {
-    proposed: number;
-    accepted: number;
-    rejected: number;
-    conflicts: number;
-    avgProcessingMs: number;
-  }>;
+  readonly perAgent: ReadonlyMap<
+    string,
+    {
+      proposed: number;
+      accepted: number;
+      rejected: number;
+      conflicts: number;
+      avgProcessingMs: number;
+    }
+  >;
 }
 
 // =============================================================================
@@ -190,13 +188,16 @@ export class CrossValidationProtocol {
   private readonly maxConflictHistory = 500;
 
   // Per-agent statistics
-  private readonly agentStats: Map<string, {
-    proposed: number;
-    accepted: number;
-    rejected: number;
-    conflicts: number;
-    totalProcessingMs: number;
-  }> = new Map();
+  private readonly agentStats: Map<
+    string,
+    {
+      proposed: number;
+      accepted: number;
+      rejected: number;
+      conflicts: number;
+      totalProcessingMs: number;
+    }
+  > = new Map();
 
   // Global statistics
   private totalProposals = 0;
@@ -239,7 +240,11 @@ export class CrossValidationProtocol {
     // Initialize agent stats
     if (!this.agentStats.has(proposal.delta.agentId)) {
       this.agentStats.set(proposal.delta.agentId, {
-        proposed: 0, accepted: 0, rejected: 0, conflicts: 0, totalProcessingMs: 0,
+        proposed: 0,
+        accepted: 0,
+        rejected: 0,
+        conflicts: 0,
+        totalProcessingMs: 0,
       });
     }
     const agentStat = this.agentStats.get(proposal.delta.agentId)!;
@@ -247,11 +252,7 @@ export class CrossValidationProtocol {
 
     // Check queue capacity
     if (this.queue.length >= this.config.maxQueueSize) {
-      const rejected = this.createRejectedResult(
-        proposal,
-        'Queue capacity exceeded',
-        startTime,
-      );
+      const rejected = this.createRejectedResult(proposal, 'Queue capacity exceeded', startTime);
       agentStat.rejected++;
       this.totalRejected++;
       return rejected;
@@ -375,7 +376,7 @@ export class CrossValidationProtocol {
   private createRejectedResult(
     proposal: AgentProposal,
     reason: string,
-    startTime: number,
+    startTime: number
   ): ProposalResult {
     const processingTime = performance.now() - startTime;
     return {
@@ -387,12 +388,14 @@ export class CrossValidationProtocol {
         rejectCount: 3,
         quorum: this.engine.getQuorum(),
         results: [],
-        allViolations: [{
-          property: 'protocol',
-          proposedValue: proposal.delta.nodeId,
-          constraint: reason,
-          severity: 'error',
-        }],
+        allViolations: [
+          {
+            property: 'protocol',
+            proposedValue: proposal.delta.nodeId,
+            constraint: reason,
+            severity: 'error',
+          },
+        ],
         timestamp: new Date().toISOString(),
         totalDurationMs: processingTime,
       },
@@ -412,13 +415,16 @@ export class CrossValidationProtocol {
    * Get comprehensive protocol statistics.
    */
   getStats(): ProtocolStats {
-    const agentEntries = new Map<string, {
-      proposed: number;
-      accepted: number;
-      rejected: number;
-      conflicts: number;
-      avgProcessingMs: number;
-    }>();
+    const agentEntries = new Map<
+      string,
+      {
+        proposed: number;
+        accepted: number;
+        rejected: number;
+        conflicts: number;
+        avgProcessingMs: number;
+      }
+    >();
 
     for (const [agentId, stats] of this.agentStats) {
       agentEntries.set(agentId, {
@@ -434,9 +440,7 @@ export class CrossValidationProtocol {
       totalRejected: this.totalRejected,
       totalConflicts: this.conflicts.length,
       totalFastTracked: this.totalFastTracked,
-      avgQueueWaitMs: this.totalProposals > 0
-        ? this.totalQueueWaitMs / this.totalProposals
-        : 0,
+      avgQueueWaitMs: this.totalProposals > 0 ? this.totalQueueWaitMs / this.totalProposals : 0,
       currentQueueDepth: this.queue.length,
       perAgent: agentEntries,
     };
@@ -479,7 +483,7 @@ export class CrossValidationProtocol {
  * Create a CrossValidationProtocol with default configuration.
  */
 export function createCrossValidationProtocol(
-  config?: CrossValidationProtocolConfig,
+  config?: CrossValidationProtocolConfig
 ): CrossValidationProtocol {
   return new CrossValidationProtocol(config);
 }
@@ -508,9 +512,7 @@ let proposalCounter = 0;
  * });
  * ```
  */
-export function createProposal(
-  params: Omit<AgentProposal, 'id'> & { id?: string },
-): AgentProposal {
+export function createProposal(params: Omit<AgentProposal, 'id'> & { id?: string }): AgentProposal {
   return {
     id: params.id ?? `proposal_${++proposalCounter}_${Date.now().toString(36)}`,
     delta: params.delta,

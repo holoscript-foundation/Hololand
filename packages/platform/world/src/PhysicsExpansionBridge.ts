@@ -39,7 +39,7 @@ export interface PhysicsProvider {
   raycast(
     origin: Vector3,
     direction: Vector3,
-    maxDistance: number,
+    maxDistance: number
   ): { point: Vector3; normal: Vector3; distance: number; nodeId: string } | null;
 }
 
@@ -148,7 +148,7 @@ export class PhysicsExpansionBridge implements PhysicsProvider {
   raycast(
     origin: Vector3,
     direction: Vector3,
-    maxDistance: number,
+    maxDistance: number
   ): { point: Vector3; normal: Vector3; distance: number; nodeId: string } | null {
     return this.engine.raycast(origin, direction, maxDistance);
   }

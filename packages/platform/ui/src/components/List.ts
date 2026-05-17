@@ -3,7 +3,7 @@
  * Scrollable list for displaying items
  */
 
-import { UIComponent, UIEventHandler } from './UIComponent';
+import { UIComponent } from './UIComponent';
 import type { UIComponentConfig, Vector2 } from '../types';
 
 export interface ListItem {
@@ -11,7 +11,7 @@ export interface ListItem {
   text: string;
   subtext?: string;
   icon?: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface ListConfig extends UIComponentConfig {
@@ -103,7 +103,9 @@ export class List extends UIComponent {
   }
 
   // Getters/setters
-  get items(): ListItem[] { return [...this._items]; }
+  get items(): ListItem[] {
+    return [...this._items];
+  }
   set items(value: ListItem[]) {
     this._items = value;
     this._scrollOffset = 0;
@@ -112,7 +114,7 @@ export class List extends UIComponent {
   }
 
   get selectedItems(): ListItem[] {
-    return Array.from(this._selectedIndices).map(i => this._items[i]);
+    return Array.from(this._selectedIndices).map((i) => this._items[i]);
   }
 
   get selectedIndices(): number[] {
@@ -152,13 +154,13 @@ export class List extends UIComponent {
    * Remove item by id
    */
   removeItem(id: string): void {
-    const index = this._items.findIndex(item => item.id === id);
+    const index = this._items.findIndex((item) => item.id === id);
     if (index >= 0) {
       this._items.splice(index, 1);
       this._selectedIndices.delete(index);
       // Adjust selected indices
       const newSelected = new Set<number>();
-      this._selectedIndices.forEach(i => {
+      this._selectedIndices.forEach((i) => {
         if (i > index) newSelected.add(i - 1);
         else if (i < index) newSelected.add(i);
       });
@@ -236,7 +238,8 @@ export class List extends UIComponent {
     if (!this._visible) return;
 
     const { x, y, width, height } = this.getBounds();
-    const contentWidth = this.needsScroll && this._showScrollbar ? width - this._scrollbarWidth - 4 : width;
+    const contentWidth =
+      this.needsScroll && this._showScrollbar ? width - this._scrollbarWidth - 4 : width;
 
     // Draw background
     ctx.fillStyle = this._backgroundColor;
@@ -259,7 +262,14 @@ export class List extends UIComponent {
 
     // Clip to list area
     ctx.save();
-    this.drawRoundedRect(ctx, x + 1, y + 1, width - 2, height - 2, Math.max(0, this._borderRadius - 1));
+    this.drawRoundedRect(
+      ctx,
+      x + 1,
+      y + 1,
+      width - 2,
+      height - 2,
+      Math.max(0, this._borderRadius - 1)
+    );
     ctx.clip();
 
     // Draw items
@@ -323,23 +333,36 @@ export class List extends UIComponent {
       const scrollbarX = x + width - this._scrollbarWidth - 2;
       const scrollbarHeight = height - 4;
       const thumbHeight = Math.max(30, (height / this.contentHeight) * scrollbarHeight);
-      const thumbY = y + 2 + (this._scrollOffset / this.maxScrollOffset) * (scrollbarHeight - thumbHeight);
+      const thumbY =
+        y + 2 + (this._scrollOffset / this.maxScrollOffset) * (scrollbarHeight - thumbHeight);
 
       // Scrollbar track
       ctx.fillStyle = '#f0f0f0';
       ctx.beginPath();
-      ctx.roundRect(scrollbarX, y + 2, this._scrollbarWidth, scrollbarHeight, this._scrollbarWidth / 2);
+      ctx.roundRect(
+        scrollbarX,
+        y + 2,
+        this._scrollbarWidth,
+        scrollbarHeight,
+        this._scrollbarWidth / 2
+      );
       ctx.fill();
 
       // Scrollbar thumb
       ctx.fillStyle = this._scrollbarColor;
       ctx.beginPath();
-      ctx.roundRect(scrollbarX, thumbY, this._scrollbarWidth, thumbHeight, this._scrollbarWidth / 2);
+      ctx.roundRect(
+        scrollbarX,
+        thumbY,
+        this._scrollbarWidth,
+        thumbHeight,
+        this._scrollbarWidth / 2
+      );
       ctx.fill();
     }
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

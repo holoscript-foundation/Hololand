@@ -2,13 +2,7 @@
  * @hololand/ui - Theme Exports
  */
 
-export {
-  ThemeContext,
-  themeContext,
-  lightTheme,
-  darkTheme,
-  highContrastTheme,
-} from './Theme';
+export { ThemeContext, themeContext, lightTheme, darkTheme, highContrastTheme } from './Theme';
 
 export type {
   Theme,

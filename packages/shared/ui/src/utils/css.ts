@@ -25,7 +25,9 @@ export function hexToRgba(hex: string, alpha: number): string {
 /**
  * Conditionally join style objects (skips falsy values).
  */
-export function mergeStyles(...styles: (React.CSSProperties | undefined | false | null)[]): React.CSSProperties {
+export function mergeStyles(
+  ...styles: (React.CSSProperties | undefined | false | null)[]
+): React.CSSProperties {
   const result: React.CSSProperties = {};
   for (const style of styles) {
     if (style) {

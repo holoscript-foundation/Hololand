@@ -108,7 +108,7 @@ export const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(
         {right}
       </div>
     );
-  },
+  }
 );
 
 Toolbar.displayName = 'Toolbar';

@@ -38,12 +38,7 @@ export type {
 } from './types';
 
 // Presets
-export {
-  INDUSTRIAL_PROFILE,
-  CINEMATIC_PROFILE,
-  MOBILE_PROFILE,
-  QUALITY_PROFILES,
-} from './types';
+export { INDUSTRIAL_PROFILE, CINEMATIC_PROFILE, MOBILE_PROFILE, QUALITY_PROFILES } from './types';
 
 // Manager
 export {

@@ -29,7 +29,6 @@ import type {
   TraitDeltaPayload,
   TransformDeltaPayload,
   WorldDeltaPayload,
-  ConsensusResult,
   ValidationResult,
 } from './CrossValidationTypes';
 
@@ -39,7 +38,7 @@ import type {
 
 function makePhysicsDelta(
   payload: Partial<PhysicsDeltaPayload> = {},
-  overrides: Partial<StateDelta> = {},
+  overrides: Partial<StateDelta> = {}
 ): StateDelta {
   return {
     id: `test-delta-${Math.random().toString(36).slice(2)}`,
@@ -53,9 +52,7 @@ function makePhysicsDelta(
   };
 }
 
-function makeMaterialDelta(
-  payload: Partial<MaterialDeltaPayload> = {},
-): StateDelta {
+function makeMaterialDelta(payload: Partial<MaterialDeltaPayload> = {}): StateDelta {
   return {
     id: `test-delta-${Math.random().toString(36).slice(2)}`,
     timestamp: new Date().toISOString(),
@@ -68,7 +65,7 @@ function makeMaterialDelta(
 }
 
 function makeTraitDelta(
-  payload: Partial<TraitDeltaPayload> & { existingTraits: readonly string[] },
+  payload: Partial<TraitDeltaPayload> & { existingTraits: readonly string[] }
 ): StateDelta {
   return {
     id: `test-delta-${Math.random().toString(36).slice(2)}`,
@@ -81,9 +78,7 @@ function makeTraitDelta(
   };
 }
 
-function makeTransformDelta(
-  payload: Partial<TransformDeltaPayload> = {},
-): StateDelta {
+function makeTransformDelta(payload: Partial<TransformDeltaPayload> = {}): StateDelta {
   return {
     id: `test-delta-${Math.random().toString(36).slice(2)}`,
     timestamp: new Date().toISOString(),
@@ -95,9 +90,7 @@ function makeTransformDelta(
   };
 }
 
-function makeWorldDelta(
-  payload: Partial<WorldDeltaPayload> = {},
-): StateDelta {
+function makeWorldDelta(payload: Partial<WorldDeltaPayload> = {}): StateDelta {
   return {
     id: `test-delta-${Math.random().toString(36).slice(2)}`,
     timestamp: new Date().toISOString(),
@@ -140,7 +133,7 @@ describe('PhysicsValidator', () => {
       const delta = makePhysicsDelta({ velocity: [NaN, 0, 0] });
       const result = validator.validate(delta);
       expect(result.verdict).toBe('reject');
-      expect(result.violations.some(v => v.constraint === 'finite')).toBe(true);
+      expect(result.violations.some((v) => v.constraint === 'finite')).toBe(true);
     });
 
     it('rejects Infinity velocity components', () => {
@@ -301,7 +294,7 @@ describe('PhysicsValidator', () => {
       const result = validator.validate(delta);
       // Warning, not error — still accepted
       expect(result.verdict).toBe('accept');
-      expect(result.violations.some(v => v.severity === 'warning')).toBe(true);
+      expect(result.violations.some((v) => v.severity === 'warning')).toBe(true);
     });
   });
 
@@ -321,18 +314,20 @@ describe('PhysicsValidator', () => {
 
   describe('custom envelope', () => {
     it('uses custom strict envelope', () => {
-      const strictValidator = createPhysicsValidator(Object.freeze({
-        maxLinearVelocity: 10,
-        maxAngularVelocity: Math.PI,
-        maxForceMagnitude: 100,
-        maxImpulseMagnitude: 50,
-        minGravityScale: 0,
-        maxGravityScale: 2,
-        minMass: 0.01,
-        maxMass: 1000,
-        maxPositionMagnitude: 100,
-        maxAcceleration: 50,
-      }));
+      const strictValidator = createPhysicsValidator(
+        Object.freeze({
+          maxLinearVelocity: 10,
+          maxAngularVelocity: Math.PI,
+          maxForceMagnitude: 100,
+          maxImpulseMagnitude: 50,
+          minGravityScale: 0,
+          maxGravityScale: 2,
+          minMass: 0.01,
+          maxMass: 1000,
+          maxPositionMagnitude: 100,
+          maxAcceleration: 50,
+        })
+      );
 
       const delta = makePhysicsDelta({ velocity: [20, 0, 0] });
       const result = strictValidator.validate(delta);
@@ -479,9 +474,7 @@ describe('MaterialsValidator', () => {
 
     it('rejects invalid texture channel', () => {
       const delta = makeMaterialDelta({
-        textures: [
-          { channel: 'invalidChannel', path: '/textures/test.png' },
-        ],
+        textures: [{ channel: 'invalidChannel', path: '/textures/test.png' }],
       });
       const result = validator.validate(delta);
       expect(result.verdict).toBe('reject');
@@ -489,9 +482,7 @@ describe('MaterialsValidator', () => {
 
     it('rejects empty texture path', () => {
       const delta = makeMaterialDelta({
-        textures: [
-          { channel: 'baseColor', path: '' },
-        ],
+        textures: [{ channel: 'baseColor', path: '' }],
       });
       const result = validator.validate(delta);
       expect(result.verdict).toBe('reject');
@@ -621,7 +612,7 @@ describe('SchemaValidator', () => {
       });
       const result = validator.validate(delta);
       expect(result.verdict).toBe('reject');
-      expect(result.violations.some(v => v.constraint === 'requires:collidable')).toBe(true);
+      expect(result.violations.some((v) => v.constraint === 'requires:collidable')).toBe(true);
     });
 
     it('rejects throwable without grabbable', () => {
@@ -631,7 +622,7 @@ describe('SchemaValidator', () => {
       });
       const result = validator.validate(delta);
       expect(result.verdict).toBe('reject');
-      expect(result.violations.some(v => v.constraint === 'requires:grabbable')).toBe(true);
+      expect(result.violations.some((v) => v.constraint === 'requires:grabbable')).toBe(true);
     });
 
     it('accepts full throwable chain (throwable + grabbable + physics + collidable)', () => {
@@ -679,7 +670,7 @@ describe('SchemaValidator', () => {
       });
       const result = validator.validate(delta);
       expect(result.verdict).toBe('reject');
-      expect(result.violations.some(v => v.constraint === 'conflicts:physics')).toBe(true);
+      expect(result.violations.some((v) => v.constraint === 'conflicts:physics')).toBe(true);
     });
 
     it('rejects vr_only + ar_only conflict', () => {
@@ -889,7 +880,7 @@ describe('CrossValidationEngine', () => {
           type: 'composite',
           deltas: [
             { type: 'physics', velocity: [200, 0, 0] }, // Physics reject
-            { type: 'material', metallic: 1.5 },         // Materials reject
+            { type: 'material', metallic: 1.5 }, // Materials reject
           ],
         },
       };
@@ -988,7 +979,7 @@ describe('CrossValidationEngine', () => {
 
     it('lists validators with correct IDs', () => {
       const validators = engine.getValidators();
-      const ids = validators.map(v => v.id);
+      const ids = validators.map((v) => v.id);
       expect(ids).toContain('physics');
       expect(ids).toContain('materials');
       expect(ids).toContain('schema');
@@ -1057,21 +1048,20 @@ describe('Custom CrossValidationEngine', () => {
         validatorId: 'materials',
         verdict: 'reject',
         reason: 'Always rejects',
-        violations: [{
-          property: 'test',
-          proposedValue: 'test',
-          constraint: 'test',
-          severity: 'error' as const,
-        }],
+        violations: [
+          {
+            property: 'test',
+            proposedValue: 'test',
+            constraint: 'test',
+            severity: 'error' as const,
+          },
+        ],
         durationMs: 0,
         deltaId: delta.id,
       }),
     };
 
-    const engine = createCustomCrossValidationEngine(
-      [alwaysAccept, alwaysReject],
-      { quorum: 1 },
-    );
+    const engine = createCustomCrossValidationEngine([alwaysAccept, alwaysReject], { quorum: 1 });
 
     const delta = makePhysicsDelta({});
     const result = engine.validate(delta);
@@ -1080,18 +1070,20 @@ describe('Custom CrossValidationEngine', () => {
 
   it('throws if fewer than 2 validators', () => {
     expect(() => {
-      createCustomCrossValidationEngine([{
-        id: 'physics',
-        name: 'Solo',
-        validate: () => ({
-          validatorId: 'physics',
-          verdict: 'accept',
-          reason: '',
-          violations: [],
-          durationMs: 0,
-          deltaId: '',
-        }),
-      }]);
+      createCustomCrossValidationEngine([
+        {
+          id: 'physics',
+          name: 'Solo',
+          validate: () => ({
+            validatorId: 'physics',
+            verdict: 'accept',
+            reason: '',
+            violations: [],
+            durationMs: 0,
+            deltaId: '',
+          }),
+        },
+      ]);
     }).toThrow('at least 2 validators');
   });
 
@@ -1124,11 +1116,17 @@ describe('createStateDelta', () => {
 
   it('generates unique IDs', () => {
     const d1 = createStateDelta({
-      agentId: 'a', worldId: 'w', nodeId: 'n', category: 'physics',
+      agentId: 'a',
+      worldId: 'w',
+      nodeId: 'n',
+      category: 'physics',
       payload: { type: 'physics' },
     });
     const d2 = createStateDelta({
-      agentId: 'a', worldId: 'w', nodeId: 'n', category: 'physics',
+      agentId: 'a',
+      worldId: 'w',
+      nodeId: 'n',
+      category: 'physics',
       payload: { type: 'physics' },
     });
     expect(d1.id).not.toBe(d2.id);
@@ -1150,7 +1148,7 @@ describe('AI agent attack resistance via cross-validation', () => {
     const delta = makePhysicsDelta({ velocity: [999999, 999999, 999999] });
     const result = engine.validate(delta);
     // Physics rejects, but 2/3 still accept
-    expect(result.results.find(r => r.validatorId === 'physics')!.verdict).toBe('reject');
+    expect(result.results.find((r) => r.validatorId === 'physics')!.verdict).toBe('reject');
   });
 
   it('rejects NaN injection across physics', () => {
@@ -1160,7 +1158,7 @@ describe('AI agent attack resistance via cross-validation', () => {
       gravityScale: NaN,
     });
     const result = engine.validate(delta);
-    const physicsResult = result.results.find(r => r.validatorId === 'physics')!;
+    const physicsResult = result.results.find((r) => r.validatorId === 'physics')!;
     expect(physicsResult.verdict).toBe('reject');
     expect(physicsResult.violations.length).toBeGreaterThan(0);
   });
@@ -1172,7 +1170,7 @@ describe('AI agent attack resistance via cross-validation', () => {
       baseColor: { r: 255, g: 255, b: 255 }, // sRGB values, not linear
     });
     const result = engine.validate(delta);
-    const matResult = result.results.find(r => r.validatorId === 'materials')!;
+    const matResult = result.results.find((r) => r.validatorId === 'materials')!;
     expect(matResult.verdict).toBe('reject');
   });
 
@@ -1183,7 +1181,7 @@ describe('AI agent attack resistance via cross-validation', () => {
       existingTraits: [],
     });
     const result = engine.validate(delta);
-    const schemaResult = result.results.find(r => r.validatorId === 'schema')!;
+    const schemaResult = result.results.find((r) => r.validatorId === 'schema')!;
     expect(schemaResult.verdict).toBe('reject');
   });
 

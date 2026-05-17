@@ -1,8 +1,8 @@
 /**
  * @hololand/ui - Holo Primitives
- * 
+ *
  * 3D data display components for HoloScript integration.
- * 
+ *
  * @packageDocumentation
  */
 

@@ -117,13 +117,14 @@ export class HoloScriptBridge {
   async executeFromNL(input: string, context?: any): Promise<ExecutionResult[]> {
     try {
       // Lazy load AI bridge to avoid circular dependencies
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { createAIBridge } = require('@hololand/ai-bridge');
       const aiBridge = createAIBridge();
-      
+
       logger.info('Translating NL to HoloScript', { input });
-      const result = await aiBridge.translateToHoloScript({ 
+      const result = await aiBridge.translateToHoloScript({
         naturalLanguage: input,
-        context 
+        context,
       });
 
       if (result.holoScript) {
@@ -143,13 +144,15 @@ export class HoloScriptBridge {
     const parseResult = this.parser.parse(code);
 
     if (!parseResult.success) {
-      const errors = parseResult.errors.map(e => `Line ${e.line}: ${e.message}`);
+      const errors = parseResult.errors.map((e) => `Line ${e.line}: ${e.message}`);
       this.state.errors.push(...errors);
       logger.error('Parse errors', { errors });
-      return [{
-        success: false,
-        error: errors.join('\n'),
-      }];
+      return [
+        {
+          success: false,
+          error: errors.join('\n'),
+        },
+      ];
     }
 
     return this.executeAST(parseResult.ast);
@@ -242,7 +245,11 @@ export class HoloScriptBridge {
     const obj = this.world.createObject({
       type: 'orb',
       position: this.toVector3(position),
-      scale: { x: this.config.defaultScale, y: this.config.defaultScale, z: this.config.defaultScale },
+      scale: {
+        x: this.config.defaultScale,
+        y: this.config.defaultScale,
+        z: this.config.defaultScale,
+      },
       metadata: {
         name,
         color: hologram.color,
@@ -300,18 +307,22 @@ export class HoloScriptBridge {
     // Check if running in browser with DevTools hook
     if (typeof window === 'undefined') return;
 
-    const hook = (window as { __HOLOLAND_DEVTOOLS_HOOK__?: {
-      registerApp: (app: {
-        name: string;
-        version?: string;
-        world?: unknown;
-        renderer?: unknown;
-      }) => string;
-      profiler: {
-        getStats: (() => unknown) | null;
-        getHistory: (() => unknown[]) | null;
-      };
-    } }).__HOLOLAND_DEVTOOLS_HOOK__;
+    const hook = (
+      window as {
+        __HOLOLAND_DEVTOOLS_HOOK__?: {
+          registerApp: (app: {
+            name: string;
+            version?: string;
+            world?: unknown;
+            renderer?: unknown;
+          }) => string;
+          profiler: {
+            getStats: (() => unknown) | null;
+            getHistory: (() => unknown[]) | null;
+          };
+        };
+      }
+    ).__HOLOLAND_DEVTOOLS_HOOK__;
 
     if (!hook) {
       logger.debug('DevTools hook not found (extension not installed)');
@@ -328,6 +339,7 @@ export class HoloScriptBridge {
 
       // Connect profiler if @hololand/devtools is available
       try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { getProfiler } = require('@hololand/devtools');
         const profiler = getProfiler();
         hook.profiler.getStats = () => profiler.getStats();
@@ -348,7 +360,9 @@ export class HoloScriptBridge {
   private setupRuntimeEvents(): void {
     // Listen for runtime function calls that should affect the world
     this.runtime.on('spawn', (data) => {
-      this.handleSpawn(data as { type: string; position: SpatialPosition; properties: Record<string, unknown> });
+      this.handleSpawn(
+        data as { type: string; position: SpatialPosition; properties: Record<string, unknown> }
+      );
     });
 
     this.runtime.on('move', (data) => {
@@ -400,7 +414,11 @@ export class HoloScriptBridge {
   /**
    * Handle spawn command from runtime
    */
-  private handleSpawn(data: { type: string; position: SpatialPosition; properties: Record<string, unknown> }): void {
+  private handleSpawn(data: {
+    type: string;
+    position: SpatialPosition;
+    properties: Record<string, unknown>;
+  }): void {
     const obj = this.world.createObject({
       type: data.type || 'orb',
       position: this.toVector3(data.position),
@@ -491,11 +509,7 @@ export class HoloScriptBridge {
    */
   private isPosition(value: unknown): value is Vector3 {
     return (
-      typeof value === 'object' &&
-      value !== null &&
-      'x' in value &&
-      'y' in value &&
-      'z' in value
+      typeof value === 'object' && value !== null && 'x' in value && 'y' in value && 'z' in value
     );
   }
 
@@ -583,6 +597,9 @@ export class HoloScriptBridge {
 /**
  * Create a bridge instance
  */
-export function createBridge(world: WorldInterface, config?: Partial<BridgeConfig>): HoloScriptBridge {
+export function createBridge(
+  world: WorldInterface,
+  config?: Partial<BridgeConfig>
+): HoloScriptBridge {
   return new HoloScriptBridge(world, config);
 }

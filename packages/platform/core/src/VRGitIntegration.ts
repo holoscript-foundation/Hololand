@@ -93,7 +93,10 @@ const DEFAULT_CONFIG: GitConfig = {
 
 export class VRGitIntegration {
   private config: GitConfig;
-  private execCommand: (cmd: string, cwd: string) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
+  private execCommand: (
+    cmd: string,
+    cwd: string
+  ) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
   private commitStack: string[] = []; // Stack of recent commit hashes for undo
 
   constructor(config: Partial<GitConfig> = {}) {
@@ -134,7 +137,7 @@ export class VRGitIntegration {
 
       // Commit
       const result = await this.exec(
-        `git commit -m "${this.escapeShellArg(message)}" --author="${this.config.authorName} <${this.config.authorEmail}>"`,
+        `git commit -m "${this.escapeShellArg(message)}" --author="${this.config.authorName} <${this.config.authorEmail}>"`
       );
 
       // Extract commit hash
@@ -181,7 +184,7 @@ export class VRGitIntegration {
       }
 
       const result = await this.exec(
-        `git commit -m "${this.escapeShellArg(message)}" --author="${this.config.authorName} <${this.config.authorEmail}>"`,
+        `git commit -m "${this.escapeShellArg(message)}" --author="${this.config.authorName} <${this.config.authorEmail}>"`
       );
 
       const hashMatch = result.stdout.match(/\[[\w/]+ ([a-f0-9]+)\]/);
@@ -299,7 +302,7 @@ export class VRGitIntegration {
 
     try {
       const result = await this.exec(
-        `git log -${limit} --pretty=format:"%H|%h|%s|%an|%ai" --name-only`,
+        `git log -${limit} --pretty=format:"%H|%h|%s|%an|%ai" --name-only`
       );
 
       return this.parseGitLog(result.stdout);
@@ -347,9 +350,7 @@ export class VRGitIntegration {
   async isClean(): Promise<boolean> {
     const status = await this.getStatus();
     return (
-      status.modified.length === 0 &&
-      status.staged.length === 0 &&
-      status.untracked.length === 0
+      status.modified.length === 0 && status.staged.length === 0 && status.untracked.length === 0
     );
   }
 
@@ -377,7 +378,7 @@ export class VRGitIntegration {
   async writeAndCommit(
     filePath: string,
     content: string,
-    description: string,
+    description: string
   ): Promise<GitOperationResult> {
     try {
       // Write file to disk
@@ -406,7 +407,7 @@ export class VRGitIntegration {
    */
   async writeMultipleAndCommit(
     files: Array<{ path: string; content: string }>,
-    description: string,
+    description: string
   ): Promise<GitOperationResult> {
     try {
       for (const file of files) {
@@ -416,7 +417,7 @@ export class VRGitIntegration {
       if (this.config.autoCommit) {
         return this.commitMultiple(
           files.map((f) => f.path),
-          description,
+          description
         );
       }
 
@@ -466,7 +467,10 @@ export class VRGitIntegration {
     return result;
   }
 
-  private createExecutor(): (cmd: string, cwd: string) => Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  private createExecutor(): (
+    cmd: string,
+    cwd: string
+  ) => Promise<{ stdout: string; stderr: string; exitCode: number }> {
     // Returns an executor function that uses child_process.exec
     return async (cmd: string, cwd: string) => {
       if (typeof (globalThis as any).process === 'undefined') {
@@ -503,7 +507,7 @@ export class VRGitIntegration {
   private async getCommitInfo(ref: string): Promise<CommitInfo | null> {
     try {
       const result = await this.exec(
-        `git log -1 --pretty=format:"%H|%h|%s|%an|%ai" --name-only ${ref}`,
+        `git log -1 --pretty=format:"%H|%h|%s|%an|%ai" --name-only ${ref}`
       );
 
       const commits = this.parseGitLog(result.stdout);

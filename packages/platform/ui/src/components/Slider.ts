@@ -3,7 +3,7 @@
  * Value slider for numeric input
  */
 
-import { UIComponent, UIEventHandler } from './UIComponent';
+import { UIComponent } from './UIComponent';
 import type { UIComponentConfig, Vector2 } from '../types';
 
 export interface SliderConfig extends UIComponentConfig {
@@ -62,7 +62,9 @@ export class Slider extends UIComponent {
   }
 
   // Getters/setters
-  get value(): number { return this._value; }
+  get value(): number {
+    return this._value;
+  }
   set value(v: number) {
     const newValue = this.clampAndStep(v);
     if (newValue !== this._value) {
@@ -73,21 +75,27 @@ export class Slider extends UIComponent {
     }
   }
 
-  get min(): number { return this._min; }
+  get min(): number {
+    return this._min;
+  }
   set min(v: number) {
     this._min = v;
     this._value = this.clampAndStep(this._value);
     this.markDirty();
   }
 
-  get max(): number { return this._max; }
+  get max(): number {
+    return this._max;
+  }
   set max(v: number) {
     this._max = v;
     this._value = this.clampAndStep(this._value);
     this.markDirty();
   }
 
-  get step(): number { return this._step; }
+  get step(): number {
+    return this._step;
+  }
   set step(v: number) {
     this._step = v;
     this._value = this.clampAndStep(this._value);
@@ -180,7 +188,7 @@ export class Slider extends UIComponent {
     }
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

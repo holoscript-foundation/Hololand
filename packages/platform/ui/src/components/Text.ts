@@ -61,17 +61,37 @@ export class Text extends UIComponent {
   }
 
   // Getters/setters
-  get content(): string { return this._content; }
-  set content(value: string) { this._content = value; this.markDirty(); }
+  get content(): string {
+    return this._content;
+  }
+  set content(value: string) {
+    this._content = value;
+    this.markDirty();
+  }
 
-  get color(): string { return this._color; }
-  set color(value: string) { this._color = value; this.markDirty(); }
+  get color(): string {
+    return this._color;
+  }
+  set color(value: string) {
+    this._color = value;
+    this.markDirty();
+  }
 
-  get fontSize(): number { return this._fontSize; }
-  set fontSize(value: number) { this._fontSize = value; this.markDirty(); }
+  get fontSize(): number {
+    return this._fontSize;
+  }
+  set fontSize(value: number) {
+    this._fontSize = value;
+    this.markDirty();
+  }
 
-  get fontWeight(): string { return this._fontWeight; }
-  set fontWeight(value: string) { this._fontWeight = value; this.markDirty(); }
+  get fontWeight(): string {
+    return this._fontWeight;
+  }
+  set fontWeight(value: string) {
+    this._fontWeight = value;
+    this.markDirty();
+  }
 
   /**
    * Get font string
@@ -199,7 +219,7 @@ export class Text extends UIComponent {
     ctx.restore();
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

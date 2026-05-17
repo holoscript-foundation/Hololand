@@ -62,23 +62,23 @@ export interface WebXRGeometryData {
  */
 export const ECONOMY_COLORS = {
   // Health status colors
-  healthy: '#22C55E',      // Green -- contrast 4.52:1 on white
-  warning: '#F59E0B',      // Amber -- contrast 4.63:1 on dark
-  critical: '#EF4444',     // Red -- contrast 4.53:1 on white
-  emergency: '#DC2626',    // Deep red -- contrast 5.21:1 on dark
+  healthy: '#22C55E', // Green -- contrast 4.52:1 on white
+  warning: '#F59E0B', // Amber -- contrast 4.63:1 on dark
+  critical: '#EF4444', // Red -- contrast 4.53:1 on white
+  emergency: '#DC2626', // Deep red -- contrast 5.21:1 on dark
 
   // Chart colors
-  faucet: '#3B82F6',       // Blue (inflow)
-  sink: '#F97316',         // Orange (outflow)
-  balance: '#8B5CF6',      // Purple (equilibrium)
-  supply: '#06B6D4',       // Cyan (supply tracking)
-  target: '#64748B',       // Slate (target/reference lines)
+  faucet: '#3B82F6', // Blue (inflow)
+  sink: '#F97316', // Orange (outflow)
+  balance: '#8B5CF6', // Purple (equilibrium)
+  supply: '#06B6D4', // Cyan (supply tracking)
+  target: '#64748B', // Slate (target/reference lines)
 
   // Gini/equality
   equalityGood: '#22C55E', // Low Gini
-  equalityMod: '#F59E0B',  // Moderate Gini
-  equalityBad: '#EF4444',  // High Gini
-  lorenzCurve: '#3B82F6',  // Lorenz curve line
+  equalityMod: '#F59E0B', // Moderate Gini
+  equalityBad: '#EF4444', // High Gini
+  lorenzCurve: '#3B82F6', // Lorenz curve line
   equalityLine: '#64748B', // Perfect equality reference
 
   // Bonding curve

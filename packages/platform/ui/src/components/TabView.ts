@@ -91,19 +91,23 @@ export class TabView extends UIComponent {
   }
 
   // Getters/setters
-  get tabs(): Tab[] { return [...this._tabs]; }
+  get tabs(): Tab[] {
+    return [...this._tabs];
+  }
   set tabs(value: Tab[]) {
     this._tabs = value;
-    if (!this._tabs.find(t => t.id === this._activeTabId)) {
+    if (!this._tabs.find((t) => t.id === this._activeTabId)) {
       this._activeTabId = this._tabs.length > 0 ? this._tabs[0].id : null;
     }
     this.markDirty();
   }
 
-  get activeTabId(): string | null { return this._activeTabId; }
+  get activeTabId(): string | null {
+    return this._activeTabId;
+  }
   set activeTabId(id: string | null) {
     if (id !== this._activeTabId) {
-      const tab = this._tabs.find(t => t.id === id);
+      const tab = this._tabs.find((t) => t.id === id);
       if (tab && !tab.disabled) {
         this._activeTabId = id;
         this.markDirty();
@@ -114,7 +118,7 @@ export class TabView extends UIComponent {
   }
 
   get activeTab(): Tab | null {
-    return this._tabs.find(t => t.id === this._activeTabId) || null;
+    return this._tabs.find((t) => t.id === this._activeTabId) || null;
   }
 
   /**
@@ -132,7 +136,7 @@ export class TabView extends UIComponent {
    * Remove tab
    */
   removeTab(id: string): void {
-    const index = this._tabs.findIndex(t => t.id === id);
+    const index = this._tabs.findIndex((t) => t.id === id);
     if (index >= 0) {
       this._tabs.splice(index, 1);
       if (this._activeTabId === id) {
@@ -154,7 +158,7 @@ export class TabView extends UIComponent {
         x,
         y: this._tabPosition === 'top' ? y : y + height - this._tabHeight,
         width,
-        height: this._tabHeight
+        height: this._tabHeight,
       };
     } else {
       const tabBarWidth = this._tabWidth || 100;
@@ -162,7 +166,7 @@ export class TabView extends UIComponent {
         x: this._tabPosition === 'left' ? x : x + width - tabBarWidth,
         y,
         width: tabBarWidth,
-        height
+        height,
       };
     }
   }
@@ -180,7 +184,7 @@ export class TabView extends UIComponent {
         x,
         y: contentY,
         width,
-        height: height - this._tabHeight
+        height: height - this._tabHeight,
       };
     } else {
       const tabBarWidth = this._tabWidth || 100;
@@ -189,7 +193,7 @@ export class TabView extends UIComponent {
         x: contentX,
         y,
         width: width - tabBarWidth,
-        height
+        height,
       };
     }
   }
@@ -203,7 +207,9 @@ export class TabView extends UIComponent {
     const isHorizontal = this._tabPosition === 'top' || this._tabPosition === 'bottom';
 
     if (isHorizontal) {
-      const tabWidth = this._tabWidth || Math.min((tabBar.width - this._tabGap * (this._tabs.length - 1)) / this._tabs.length, 120);
+      const tabWidth =
+        this._tabWidth ||
+        Math.min((tabBar.width - this._tabGap * (this._tabs.length - 1)) / this._tabs.length, 120);
       let currentX = tabBar.x;
 
       for (const tab of this._tabs) {
@@ -211,7 +217,7 @@ export class TabView extends UIComponent {
           x: currentX,
           y: tabBar.y,
           width: tabWidth,
-          height: this._tabHeight
+          height: this._tabHeight,
         });
         currentX += tabWidth + this._tabGap;
       }
@@ -223,7 +229,7 @@ export class TabView extends UIComponent {
           x: tabBar.x,
           y: currentY,
           width: tabBar.width,
-          height: this._tabHeight
+          height: this._tabHeight,
         });
         currentY += this._tabHeight + this._tabGap;
       }
@@ -285,7 +291,7 @@ export class TabView extends UIComponent {
       }
 
       // Tab text
-      ctx.fillStyle = tab.disabled ? '#bdc3c7' : (isActive ? this._activeTextColor : this._textColor);
+      ctx.fillStyle = tab.disabled ? '#bdc3c7' : isActive ? this._activeTextColor : this._textColor;
       ctx.font = `${isActive ? '600' : '400'} ${this._fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -295,14 +301,12 @@ export class TabView extends UIComponent {
       if (isActive) {
         ctx.fillStyle = this._indicatorColor;
         if (isHorizontal) {
-          const indicatorY = this._tabPosition === 'top'
-            ? rect.y + rect.height - this._indicatorHeight
-            : rect.y;
+          const indicatorY =
+            this._tabPosition === 'top' ? rect.y + rect.height - this._indicatorHeight : rect.y;
           ctx.fillRect(rect.x, indicatorY, rect.width, this._indicatorHeight);
         } else {
-          const indicatorX = this._tabPosition === 'left'
-            ? rect.x + rect.width - this._indicatorHeight
-            : rect.x;
+          const indicatorX =
+            this._tabPosition === 'left' ? rect.x + rect.width - this._indicatorHeight : rect.x;
           ctx.fillRect(indicatorX, rect.y, this._indicatorHeight, rect.height);
         }
       }
@@ -342,7 +346,7 @@ export class TabView extends UIComponent {
     }
 
     // Render children (for custom content)
-    this._children.forEach(child => {
+    this._children.forEach((child) => {
       if (child.visible) {
         child.render(ctx);
       }

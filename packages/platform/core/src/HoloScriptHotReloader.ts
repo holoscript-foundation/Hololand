@@ -232,7 +232,7 @@ export class HoloScriptHotReloader {
   constructor(
     bridge: HoloScriptBridge,
     traitRuntime: TraitRuntimeIntegration,
-    config: Partial<HotReloaderConfig> = {},
+    config: Partial<HotReloaderConfig> = {}
   ) {
     this.bridge = bridge;
     this.traitRuntime = traitRuntime;
@@ -260,7 +260,10 @@ export class HoloScriptHotReloader {
 
     if (this.config.wsUrl) {
       await this.startWebSocketWatcher();
-    } else if (typeof globalThis !== 'undefined' && typeof (globalThis as any).process !== 'undefined') {
+    } else if (
+      typeof globalThis !== 'undefined' &&
+      typeof (globalThis as any).process !== 'undefined'
+    ) {
       await this.startFSWatcher();
     } else {
       logger.info('No watcher available — use handleExternalChange() for browser hot-reload');
@@ -446,7 +449,7 @@ export class HoloScriptHotReloader {
   private async processFileChange(change: FileChange): Promise<PatchResult> {
     const start = performance.now();
 
-    this.emit('file:' + change.type as ReloaderEventType, change);
+    this.emit(('file:' + change.type) as ReloaderEventType, change);
     this.emit('reload:start', change);
 
     // Handle file removal
@@ -464,7 +467,8 @@ export class HoloScriptHotReloader {
       // 2. Parse to AST
       const parseResult = await this.parseFile(source, change.filePath);
       if (!parseResult.success || !parseResult.ast) {
-        const errors = parseResult.errors?.map((e: any) => e.message).join('; ') ?? 'Unknown parse error';
+        const errors =
+          parseResult.errors?.map((e: any) => e.message).join('; ') ?? 'Unknown parse error';
         return this.failResult(change.filePath, start, `Parse error: ${errors}`);
       }
 
@@ -517,7 +521,7 @@ export class HoloScriptHotReloader {
     filePath: string,
     oldNodes: HSPlusNode[],
     newNodes: HSPlusNode[],
-    startTime: number,
+    startTime: number
   ): PatchResult {
     const diff = diffAST(oldNodes, newNodes);
 
@@ -591,7 +595,7 @@ export class HoloScriptHotReloader {
     filePath: string,
     source: string,
     newNodes: HSPlusNode[],
-    startTime: number,
+    startTime: number
   ): Promise<PatchResult> {
     // Pause trait runtime during reload to avoid flicker
     this.traitRuntime.pause();
@@ -733,7 +737,7 @@ export class HoloScriptHotReloader {
 export function createHotReloader(
   bridge: HoloScriptBridge,
   traitRuntime: TraitRuntimeIntegration,
-  config?: Partial<HotReloaderConfig>,
+  config?: Partial<HotReloaderConfig>
 ): HoloScriptHotReloader {
   return new HoloScriptHotReloader(bridge, traitRuntime, config);
 }

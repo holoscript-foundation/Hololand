@@ -319,18 +319,12 @@ export class PhysicsEngine {
    *
    * Uses a simplified ray-vs-AABB test against all tracked objects.
    */
-  raycast(
-    origin: Vector3,
-    direction: Vector3,
-    maxDistance: number,
-  ): RaycastHit | null {
+  raycast(origin: Vector3, direction: Vector3, maxDistance: number): RaycastHit | null {
     let closest: RaycastHit | null = null;
 
     // Normalise direction
     const len = Math.sqrt(
-      direction.x * direction.x +
-      direction.y * direction.y +
-      direction.z * direction.z,
+      direction.x * direction.x + direction.y * direction.y + direction.z * direction.z
     );
     if (len === 0) return null;
     const dir = { x: direction.x / len, y: direction.y / len, z: direction.z / len };
@@ -362,12 +356,7 @@ export class PhysicsEngine {
   /**
    * Ray-AABB intersection test. Returns distance to intersection or null.
    */
-  private rayAABB(
-    origin: Vector3,
-    dir: Vector3,
-    min: Vector3,
-    max: Vector3,
-  ): number | null {
+  private rayAABB(origin: Vector3, dir: Vector3, min: Vector3, max: Vector3): number | null {
     let tmin = -Infinity;
     let tmax = Infinity;
 
@@ -375,7 +364,11 @@ export class PhysicsEngine {
       const invD = 1 / dir[axis];
       let t0 = (min[axis] - origin[axis]) * invD;
       let t1 = (max[axis] - origin[axis]) * invD;
-      if (invD < 0) { const tmp = t0; t0 = t1; t1 = tmp; }
+      if (invD < 0) {
+        const tmp = t0;
+        t0 = t1;
+        t1 = tmp;
+      }
       tmin = Math.max(tmin, t0);
       tmax = Math.min(tmax, t1);
       if (tmax < tmin) return null;

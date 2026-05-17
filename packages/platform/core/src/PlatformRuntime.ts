@@ -12,7 +12,7 @@
  */
 
 import { createTraitContextFactory, TraitContextFactory } from './TraitContextFactory';
-import { createSpatialAudioBridge, SpatialAudioBridgeConfig } from '@hololand/audio';
+import { createSpatialAudioBridge } from '@hololand/audio';
 import { createPhysicsExpansionBridge } from '@hololand/world';
 import { createAccessibilityBridge, AccessibilityBridgeConfig } from '@hololand/accessibility';
 import { createHololandNetwork, NetworkSystem } from '@hololand/network';
@@ -70,16 +70,13 @@ export class PlatformRuntime {
     // value from exceeding safe physics bounds.
     let physicsBridge = rawPhysicsBridge;
     if (!config.disablePhysicsSafety) {
-      this.physicsSafetyEnforcer = wrapWithSafetyEnvelope(
-        rawPhysicsBridge,
-        config.onPhysicsClamp,
-      );
+      this.physicsSafetyEnforcer = wrapWithSafetyEnvelope(rawPhysicsBridge, config.onPhysicsClamp);
       physicsBridge = this.physicsSafetyEnforcer;
     }
 
     // 2. Create Audio Bridge (Phase 8)
     const audioBridge = createSpatialAudioBridge({
-       engine: config.audioEngine,
+      engine: config.audioEngine,
     });
 
     // 3. Create Accessibility Bridge (Phase 3)
@@ -89,7 +86,7 @@ export class PlatformRuntime {
     // Note: VolumetricBridge requires Renderer which is passed in config
     const volumetricBridge = createVolumetricBridge({
       renderer: config.renderer,
-      ...config.volumetric
+      ...config.volumetric,
     });
 
     // 5. Create Network Bridge (Phase 10 & 7)
@@ -115,9 +112,9 @@ export class PlatformRuntime {
    * Start the runtime loops (e.g. network update)
    */
   update(delta: number): void {
-     if (this.network) {
-       this.network.update(delta);
-     }
+    if (this.network) {
+      this.network.update(delta);
+    }
   }
 
   getTraitFactory(): TraitContextFactory {

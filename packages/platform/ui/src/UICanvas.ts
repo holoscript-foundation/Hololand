@@ -41,7 +41,8 @@ export class UICanvas {
 
     this._width = config?.width || canvas.width || 800;
     this._height = config?.height || canvas.height || 600;
-    this._pixelRatio = config?.pixelRatio || (typeof window !== 'undefined' ? window.devicePixelRatio : 1);
+    this._pixelRatio =
+      config?.pixelRatio || (typeof window !== 'undefined' ? window.devicePixelRatio : 1);
     this._transparent = config?.transparent ?? false;
     this._breakpoints = {
       mobile: config?.breakpoints?.mobile ?? 480,
@@ -55,12 +56,23 @@ export class UICanvas {
   }
 
   // Getters
-  get width(): number { return this._width; }
-  get height(): number { return this._height; }
-  get breakpoint(): string { return this._currentBreakpoint; }
+  get width(): number {
+    return this._width;
+  }
+  get height(): number {
+    return this._height;
+  }
+  get breakpoint(): string {
+    return this._currentBreakpoint;
+  }
 
-  get backgroundColor(): string { return this._backgroundColor; }
-  set backgroundColor(color: string) { this._backgroundColor = color; this.markDirty(); }
+  get backgroundColor(): string {
+    return this._backgroundColor;
+  }
+  set backgroundColor(color: string) {
+    this._backgroundColor = color;
+    this.markDirty();
+  }
 
   /**
    * Set canvas size
@@ -283,10 +295,10 @@ export class UICanvas {
     this._lastTime = now;
 
     // Update components
-    this._root.forEach(component => component.update(deltaTime));
+    this._root.forEach((component) => component.update(deltaTime));
 
     // Check if any component is dirty
-    const needsRedraw = this._dirty || this._root.some(c => c.isDirty());
+    const needsRedraw = this._dirty || this._root.some((c) => c.isDirty());
 
     if (needsRedraw) {
       this.render();
@@ -312,7 +324,7 @@ export class UICanvas {
     }
 
     // Render all root components
-    this._root.forEach(component => {
+    this._root.forEach((component) => {
       if (component.visible) {
         component.render(this._ctx);
       }
@@ -353,7 +365,7 @@ export class UICanvas {
    */
   dispose(): void {
     this.stop();
-    this._root.forEach(component => component.dispose());
+    this._root.forEach((component) => component.dispose());
     this._root = [];
   }
 }

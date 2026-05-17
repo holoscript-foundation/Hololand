@@ -19,10 +19,7 @@
  */
 
 import { EconomyComponent } from './EconomyComponent';
-import type {
-  FaucetSinkGaugeConfig,
-  FaucetSinkData,
-} from './types';
+import type { FaucetSinkGaugeConfig, FaucetSinkData } from './types';
 import { ECONOMY_COLORS } from './types';
 
 export class FaucetSinkGauge extends EconomyComponent {
@@ -95,7 +92,7 @@ export class FaucetSinkGauge extends EconomyComponent {
       if (zone === 'critical') {
         this.announce(
           `Warning: Faucet-sink ratio is ${this._data.ratio.toFixed(2)}, which is critically imbalanced. ` +
-          `Target is ${this._targetRatio.toFixed(2)}.`,
+            `Target is ${this._targetRatio.toFixed(2)}.`,
           'assertive'
         );
       } else if (zone === 'warning') {
@@ -160,8 +157,8 @@ export class FaucetSinkGauge extends EconomyComponent {
     const radius = Math.min(width * 0.4, height * 0.7);
 
     // Gauge arc parameters
-    const startAngle = Math.PI;      // 180 degrees (left)
-    const endAngle = Math.PI * 2;    // 360 degrees (right)
+    const startAngle = Math.PI; // 180 degrees (left)
+    const endAngle = Math.PI * 2; // 360 degrees (right)
 
     // Draw background arc
     ctx.save();
@@ -179,11 +176,18 @@ export class FaucetSinkGauge extends EconomyComponent {
       const mappedRatio = 0.5 + t * 1.0;
       const zone = this.getHealthZone(mappedRatio);
 
-      ctx.strokeStyle = zone === 'healthy'
-        ? (this._darkMode ? '#22C55E40' : '#22C55E30')
-        : zone === 'warning'
-          ? (this._darkMode ? '#F59E0B40' : '#F59E0B30')
-          : (this._darkMode ? '#EF444440' : '#EF444430');
+      ctx.strokeStyle =
+        zone === 'healthy'
+          ? this._darkMode
+            ? '#22C55E40'
+            : '#22C55E30'
+          : zone === 'warning'
+            ? this._darkMode
+              ? '#F59E0B40'
+              : '#F59E0B30'
+            : this._darkMode
+              ? '#EF444440'
+              : '#EF444430';
 
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, angle, nextAngle + 0.02);
@@ -198,11 +202,12 @@ export class FaucetSinkGauge extends EconomyComponent {
 
     // Draw indicator needle
     const zone = this.getHealthZone(this._displayRatio);
-    const needleColor = zone === 'healthy'
-      ? ECONOMY_COLORS.healthy
-      : zone === 'warning'
-        ? ECONOMY_COLORS.warning
-        : ECONOMY_COLORS.critical;
+    const needleColor =
+      zone === 'healthy'
+        ? ECONOMY_COLORS.healthy
+        : zone === 'warning'
+          ? ECONOMY_COLORS.warning
+          : ECONOMY_COLORS.critical;
 
     ctx.strokeStyle = needleColor;
     ctx.lineWidth = 3;
@@ -265,12 +270,7 @@ export class FaucetSinkGauge extends EconomyComponent {
     ctx.restore();
   }
 
-  private drawLabels(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number
-  ): void {
+  private drawLabels(ctx: CanvasRenderingContext2D, x: number, y: number, width: number): void {
     const labelY = y + 4;
     const colWidth = width / 3;
 
@@ -322,8 +322,8 @@ export class FaucetSinkGauge extends EconomyComponent {
     const barX = x + labelWidth + 8;
     const barWidth = width - labelWidth - 24;
     const maxRate = Math.max(
-      ...this._data.faucetBreakdown.map(f => f.rate),
-      ...this._data.sinkBreakdown.map(s => s.rate),
+      ...this._data.faucetBreakdown.map((f) => f.rate),
+      ...this._data.sinkBreakdown.map((s) => s.rate),
       1
     );
 

@@ -1,38 +1,38 @@
 /**
  * HoloScript Test Utilities
- * 
+ *
  * Provides HoloScript-specific testing helpers built on top of Vitest.
  * Includes fixtures, assertions, and utilities for testing HoloScript Plus systems.
  */
 
-import { EventEmitter } from 'events'
+import { EventEmitter } from 'events';
 
 /**
  * Test fixture for BattleArena system
  */
 export interface BattleArenaFixture {
-  arena: any
-  npcs: any[]
-  projectiles: any[]
-  events: any[]
-  cleanup: () => void
+  arena: any;
+  npcs: any[];
+  projectiles: any[];
+  events: any[];
+  cleanup: () => void;
 }
 
 /**
  * Create a test fixture for BattleArena system
  */
 export function createBattleArenaFixture(): BattleArenaFixture {
-  const events: any[] = []
-  
+  const events: any[] = [];
+
   return {
     arena: null,
     npcs: [],
     projectiles: [],
     events,
     cleanup: () => {
-      events.length = 0
-    }
-  }
+      events.length = 0;
+    },
+  };
 }
 
 /**
@@ -45,17 +45,17 @@ export function expectEventEmitted(
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error(`Event "${eventName}" was not emitted within ${timeout}ms`))
-    }, timeout)
+      reject(new Error(`Event "${eventName}" was not emitted within ${timeout}ms`));
+    }, timeout);
 
     const listener = (data: any) => {
-      clearTimeout(timer)
-      system.removeListener(eventName, listener)
-      resolve(data)
-    }
+      clearTimeout(timer);
+      system.removeListener(eventName, listener);
+      resolve(data);
+    };
 
-    system.once(eventName, listener)
-  })
+    system.once(eventName, listener);
+  });
 }
 
 /**
@@ -76,10 +76,10 @@ export function createMockNPC(overrides?: Partial<any>) {
       attack: 15,
       defense: 5,
       speed: 10,
-      attackRange: 25
+      attackRange: 25,
     },
-    ...overrides
-  }
+    ...overrides,
+  };
 }
 
 /**
@@ -96,33 +96,29 @@ export function createMockProjectile(overrides?: Partial<any>) {
     speed: 20,
     lifespan: 5000,
     type: 'fireball' as const,
-    ...overrides
-  }
+    ...overrides,
+  };
 }
 
 /**
  * Wait for a condition to be true
  */
-export function waitFor(
-  condition: () => boolean,
-  timeout = 1000,
-  interval = 50
-): Promise<void> {
+export function waitFor(condition: () => boolean, timeout = 1000, interval = 50): Promise<void> {
   return new Promise((resolve, reject) => {
-    const startTime = Date.now()
-    
+    const startTime = Date.now();
+
     const check = () => {
       if (condition()) {
-        resolve()
+        resolve();
       } else if (Date.now() - startTime > timeout) {
-        reject(new Error(`Timeout waiting for condition after ${timeout}ms`))
+        reject(new Error(`Timeout waiting for condition after ${timeout}ms`));
       } else {
-        setTimeout(check, interval)
+        setTimeout(check, interval);
       }
-    }
-    
-    check()
-  })
+    };
+
+    check();
+  });
 }
 
 /**
@@ -132,18 +128,18 @@ export function createTestSystem<T extends EventEmitter>(
   SystemClass: new (...args: any[]) => T,
   ...args: any[]
 ): T & { recordedEvents: any[] } {
-  const system = new SystemClass(...args)
-  const recordedEvents: any[] = []
+  const system = new SystemClass(...args);
+  const recordedEvents: any[] = [];
 
   // Intercept all events
-  const originalOn = system.on.bind(system)
-  system.on = function(eventName: string | symbol, listener: (...args: unknown[]) => void) {
-    recordedEvents.push({ eventName, timestamp: Date.now() })
-    return originalOn(eventName, listener)
-  }
+  const originalOn = system.on.bind(system);
+  system.on = function (eventName: string | symbol, listener: (...args: unknown[]) => void) {
+    recordedEvents.push({ eventName, timestamp: Date.now() });
+    return originalOn(eventName, listener);
+  };
 
   // Add recorded events property
-  return Object.assign(system, { recordedEvents })
+  return Object.assign(system, { recordedEvents });
 }
 
 /**
@@ -155,36 +151,31 @@ export async function expectEventAfterAction<T>(
   action: () => T | Promise<T>,
   timeout = 1000
 ): Promise<{ data: any; actionResult: T }> {
-  const eventPromise = expectEventEmitted(system, eventName, timeout)
-  const actionResult = await action()
-  const data = await eventPromise
-  return { data, actionResult }
+  const eventPromise = expectEventEmitted(system, eventName, timeout);
+  const actionResult = await action();
+  const data = await eventPromise;
+  return { data, actionResult };
 }
 
 /**
  * Test that a system initializes correctly
  */
-export function expectSystemInitialization<T extends EventEmitter>(
-  system: T
-): void {
+export function expectSystemInitialization<T extends EventEmitter>(system: T): void {
   if (!system) {
-    throw new Error('System failed to initialize')
+    throw new Error('System failed to initialize');
   }
   if (typeof system.on !== 'function') {
-    throw new Error('System is not an EventEmitter')
+    throw new Error('System is not an EventEmitter');
   }
 }
 
 /**
  * Test that a system has all required methods
  */
-export function expectSystemHasMethods<T extends EventEmitter>(
-  system: T,
-  methods: string[]
-): void {
+export function expectSystemHasMethods<T extends EventEmitter>(system: T, methods: string[]): void {
   for (const method of methods) {
     if (typeof (system as any)[method] !== 'function') {
-      throw new Error(`System missing required method: ${method}`)
+      throw new Error(`System missing required method: ${method}`);
     }
   }
 }
@@ -193,48 +184,50 @@ export function expectSystemHasMethods<T extends EventEmitter>(
  * Compare NPC states
  */
 export function compareNPCStates(npc1: any, npc2: any): string[] {
-  const differences: string[] = []
-  
+  const differences: string[] = [];
+
   if (npc1.health !== npc2.health) {
-    differences.push(`health: ${npc1.health} -> ${npc2.health}`)
+    differences.push(`health: ${npc1.health} -> ${npc2.health}`);
   }
   if (npc1.mana !== npc2.mana) {
-    differences.push(`mana: ${npc1.mana} -> ${npc2.mana}`)
+    differences.push(`mana: ${npc1.mana} -> ${npc2.mana}`);
   }
   if (npc1.isAlive !== npc2.isAlive) {
-    differences.push(`isAlive: ${npc1.isAlive} -> ${npc2.isAlive}`)
+    differences.push(`isAlive: ${npc1.isAlive} -> ${npc2.isAlive}`);
   }
   if (npc1.position.x !== npc2.position.x || npc1.position.y !== npc2.position.y) {
-    differences.push(`position: (${npc1.position.x},${npc1.position.y}) -> (${npc2.position.x},${npc2.position.y})`)
+    differences.push(
+      `position: (${npc1.position.x},${npc1.position.y}) -> (${npc2.position.x},${npc2.position.y})`
+    );
   }
-  
-  return differences
+
+  return differences;
 }
 
 /**
  * Create a simple mock EventEmitter for testing
  */
 export class MockEventEmitter extends EventEmitter {
-  emittedEvents: Array<{ eventName: string | symbol; data: unknown; timestamp: number }> = []
+  emittedEvents: Array<{ eventName: string | symbol; data: unknown; timestamp: number }> = [];
 
   emit(eventName: string | symbol, ...args: unknown[]): boolean {
     this.emittedEvents.push({
       eventName,
       data: args[0],
-      timestamp: Date.now()
-    })
-    return super.emit(eventName, ...args)
+      timestamp: Date.now(),
+    });
+    return super.emit(eventName, ...args);
   }
 
   getEmittedEvents(eventName?: string) {
     if (eventName) {
-      return this.emittedEvents.filter(e => e.eventName === eventName)
+      return this.emittedEvents.filter((e) => e.eventName === eventName);
     }
-    return this.emittedEvents
+    return this.emittedEvents;
   }
 
   clearEmittedEvents() {
-    this.emittedEvents = []
+    this.emittedEvents = [];
   }
 }
 
@@ -249,5 +242,5 @@ export default {
   expectSystemInitialization,
   expectSystemHasMethods,
   compareNPCStates,
-  MockEventEmitter
-}
+  MockEventEmitter,
+};

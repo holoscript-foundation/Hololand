@@ -51,7 +51,7 @@ export function ThemeProvider({ defaultTheme = 'dark', children }: ThemeProvider
       setTheme,
       toggleTheme,
     }),
-    [themeName, setTheme, toggleTheme],
+    [themeName, setTheme, toggleTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

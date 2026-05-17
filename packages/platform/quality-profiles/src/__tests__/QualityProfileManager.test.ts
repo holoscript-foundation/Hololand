@@ -256,8 +256,8 @@ describe('QualityProfileManager', () => {
     it('should compare profiles and return differences', () => {
       const diffs = manager.compareProfiles('industrial', 'cinematic');
       expect(diffs.length).toBeGreaterThan(0);
-      expect(diffs.some(d => d.includes('Priority'))).toBe(true);
-      expect(diffs.some(d => d.includes('Shadow map'))).toBe(true);
+      expect(diffs.some((d) => d.includes('Priority'))).toBe(true);
+      expect(diffs.some((d) => d.includes('Shadow map'))).toBe(true);
     });
 
     it('should validate correct metadata', () => {

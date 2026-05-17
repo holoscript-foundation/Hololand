@@ -51,7 +51,10 @@ export interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChang
  * ```
  */
 export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
-  ({ items, activeId: controlledActiveId, onChange, onClose, size = 'md', style, ...props }, ref) => {
+  (
+    { items, activeId: controlledActiveId, onChange, onClose, size = 'md', style, ...props },
+    ref
+  ) => {
     const { colors } = useTheme();
     const [internalActiveId, setInternalActiveId] = useState(items[0]?.id ?? '');
 
@@ -65,7 +68,7 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
           setInternalActiveId(id);
         }
       },
-      [onChange],
+      [onChange]
     );
 
     const handleKeyDown = useCallback(
@@ -85,7 +88,7 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
         e.preventDefault();
         handleSelect(items[nextIndex].id);
       },
-      [items, handleSelect],
+      [items, handleSelect]
     );
 
     const isSmall = size === 'sm';
@@ -165,7 +168,7 @@ export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
         })}
       </div>
     );
-  },
+  }
 );
 
 Tabs.displayName = 'Tabs';

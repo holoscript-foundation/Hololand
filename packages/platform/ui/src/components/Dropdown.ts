@@ -76,12 +76,14 @@ export class Dropdown extends UIComponent {
   }
 
   // Getters/setters
-  get value(): string | null { return this._value; }
+  get value(): string | null {
+    return this._value;
+  }
   set value(v: string | null) {
     if (v !== this._value) {
       this._value = v;
       this.markDirty();
-      const option = this._options.find(o => o.value === v);
+      const option = this._options.find((o) => o.value === v);
       if (option) {
         this._onChange?.(v!, option);
         this.emit('change', { position: { x: 0, y: 0 } });
@@ -89,17 +91,21 @@ export class Dropdown extends UIComponent {
     }
   }
 
-  get options(): DropdownOption[] { return [...this._options]; }
+  get options(): DropdownOption[] {
+    return [...this._options];
+  }
   set options(opts: DropdownOption[]) {
     this._options = opts;
     this.markDirty();
   }
 
   get selectedOption(): DropdownOption | null {
-    return this._options.find(o => o.value === this._value) || null;
+    return this._options.find((o) => o.value === this._value) || null;
   }
 
-  get isOpen(): boolean { return this._isOpen; }
+  get isOpen(): boolean {
+    return this._isOpen;
+  }
 
   /**
    * Open dropdown
@@ -107,7 +113,7 @@ export class Dropdown extends UIComponent {
   open(): void {
     if (!this._enabled) return;
     this._isOpen = true;
-    this._hoveredIndex = this._options.findIndex(o => o.value === this._value);
+    this._hoveredIndex = this._options.findIndex((o) => o.value === this._value);
     this.markDirty();
     this.emit('open', { position: { x: 0, y: 0 } });
   }
@@ -256,7 +262,7 @@ export class Dropdown extends UIComponent {
     }
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

@@ -6,6 +6,7 @@
  */
 
 // Main world class
+import { HololandWorld, type WorldConfig } from './HololandWorld';
 export { HololandWorld, type WorldConfig, type WorldState } from './HololandWorld';
 
 // Spatial objects
@@ -96,9 +97,8 @@ export const DEFAULT_GRAVITY = { x: 0, y: -9.81, z: 0 };
 export const DEFAULT_TICK_RATE = 60; // 60 FPS
 
 // Utility functions
-export function createWorld(config: Partial<import('./HololandWorld').WorldConfig> & { name: string }) {
-  const world = new (require('./HololandWorld').HololandWorld)(config);
-  return world;
+export function createWorld(config: Partial<WorldConfig> & { name: string }) {
+  return new HololandWorld(config);
 }
 
 export function vectorDistance(a: import('./types').Vector3, b: import('./types').Vector3): number {
@@ -108,7 +108,10 @@ export function vectorDistance(a: import('./types').Vector3, b: import('./types'
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-export function vectorAdd(a: import('./types').Vector3, b: import('./types').Vector3): import('./types').Vector3 {
+export function vectorAdd(
+  a: import('./types').Vector3,
+  b: import('./types').Vector3
+): import('./types').Vector3 {
   return {
     x: a.x + b.x,
     y: a.y + b.y,
@@ -116,7 +119,10 @@ export function vectorAdd(a: import('./types').Vector3, b: import('./types').Vec
   };
 }
 
-export function vectorSubtract(a: import('./types').Vector3, b: import('./types').Vector3): import('./types').Vector3 {
+export function vectorSubtract(
+  a: import('./types').Vector3,
+  b: import('./types').Vector3
+): import('./types').Vector3 {
   return {
     x: a.x - b.x,
     y: a.y - b.y,
@@ -124,7 +130,10 @@ export function vectorSubtract(a: import('./types').Vector3, b: import('./types'
   };
 }
 
-export function vectorScale(v: import('./types').Vector3, scalar: number): import('./types').Vector3 {
+export function vectorScale(
+  v: import('./types').Vector3,
+  scalar: number
+): import('./types').Vector3 {
   return {
     x: v.x * scalar,
     y: v.y * scalar,
@@ -133,7 +142,6 @@ export function vectorScale(v: import('./types').Vector3, scalar: number): impor
 }
 
 // Export everything as default for convenience
-import { HololandWorld } from './HololandWorld';
 import { SpatialObject } from './SpatialObject';
 import { PhysicsEngine } from './PhysicsEngine';
 import { SpatialEngineBridge } from './SpatialEngineBridge';

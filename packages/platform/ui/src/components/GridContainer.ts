@@ -63,35 +63,45 @@ export class GridContainer extends UIComponent {
   }
 
   // Getters/setters
-  get columns() { return this._columns; }
+  get columns() {
+    return this._columns;
+  }
   set columns(value: number) {
     this._columns = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get rows() { return this._rows; }
+  get rows() {
+    return this._rows;
+  }
   set rows(value: number) {
     this._rows = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get columnGap() { return this._columnGap; }
+  get columnGap() {
+    return this._columnGap;
+  }
   set columnGap(value: number) {
     this._columnGap = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get rowGap() { return this._rowGap; }
+  get rowGap() {
+    return this._rowGap;
+  }
   set rowGap(value: number) {
     this._rowGap = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get gap() { return this._columnGap; }
+  get gap() {
+    return this._columnGap;
+  }
   set gap(value: number) {
     this._columnGap = value;
     this._rowGap = value;
@@ -99,7 +109,9 @@ export class GridContainer extends UIComponent {
     this.markDirty();
   }
 
-  get padding() { return this._padding; }
+  get padding() {
+    return this._padding;
+  }
   set padding(value: number) {
     this._padding = value;
     this._layoutDirty = true;
@@ -128,7 +140,9 @@ export class GridContainer extends UIComponent {
   private getEffectiveColumns(): number {
     if (this._autoFit) {
       const availableWidth = this._size.width - this._padding * 2;
-      const cols = Math.floor((availableWidth + this._columnGap) / (this._minCellWidth + this._columnGap));
+      const cols = Math.floor(
+        (availableWidth + this._columnGap) / (this._minCellWidth + this._columnGap)
+      );
       return Math.max(1, cols);
     }
     return this._columns;
@@ -190,7 +204,7 @@ export class GridContainer extends UIComponent {
 
     return {
       width: (availableWidth - this._columnGap * (cols - 1)) / cols,
-      height: (availableHeight - this._rowGap * (rows - 1)) / rows
+      height: (availableHeight - this._rowGap * (rows - 1)) / rows,
     };
   }
 
@@ -201,7 +215,7 @@ export class GridContainer extends UIComponent {
     const cols = this.getEffectiveColumns();
     return {
       column: index % cols,
-      row: Math.floor(index / cols)
+      row: Math.floor(index / cols),
     };
   }
 
@@ -239,7 +253,7 @@ export class GridContainer extends UIComponent {
     }
 
     // Render children
-    this._children.forEach(child => {
+    this._children.forEach((child) => {
       if (child.visible) {
         child.render(ctx);
       }

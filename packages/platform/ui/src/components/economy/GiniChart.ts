@@ -21,10 +21,7 @@
  */
 
 import { EconomyComponent } from './EconomyComponent';
-import type {
-  GiniChartConfig,
-  TimeSeriesPoint,
-} from './types';
+import type { GiniChartConfig, TimeSeriesPoint } from './types';
 import { ECONOMY_COLORS } from './types';
 
 export class GiniChart extends EconomyComponent {
@@ -111,7 +108,7 @@ export class GiniChart extends EconomyComponent {
       if (this._currentGini >= this._criticalThreshold) {
         this.announce(
           `Critical: Gini coefficient has reached ${this._currentGini.toFixed(3)}, ` +
-          `indicating extreme wealth inequality.`,
+            `indicating extreme wealth inequality.`,
           'assertive'
         );
       } else if (this._currentGini >= this._warningThreshold && this._lastZone !== '') {
@@ -174,8 +171,24 @@ export class GiniChart extends EconomyComponent {
     this.drawZoneBands(ctx, chartLeft, chartTop, chartWidth, chartHeight);
 
     // Draw threshold lines
-    this.drawThresholdLine(ctx, chartLeft, chartTop, chartWidth, chartHeight, this._warningThreshold, 'Warning');
-    this.drawThresholdLine(ctx, chartLeft, chartTop, chartWidth, chartHeight, this._criticalThreshold, 'Critical');
+    this.drawThresholdLine(
+      ctx,
+      chartLeft,
+      chartTop,
+      chartWidth,
+      chartHeight,
+      this._warningThreshold,
+      'Warning'
+    );
+    this.drawThresholdLine(
+      ctx,
+      chartLeft,
+      chartTop,
+      chartWidth,
+      chartHeight,
+      this._criticalThreshold,
+      'Critical'
+    );
 
     // Y-axis labels (Gini values)
     ctx.font = '9px system-ui, sans-serif';
@@ -214,7 +227,9 @@ export class GiniChart extends EconomyComponent {
       ctx.stroke();
 
       // Fill area under curve with translucent color
-      const lastPx = chartLeft + ((this._history[this._history.length - 1].timestamp - minT) / timeRange) * chartWidth;
+      const lastPx =
+        chartLeft +
+        ((this._history[this._history.length - 1].timestamp - minT) / timeRange) * chartWidth;
       ctx.lineTo(lastPx, chartBottom);
       ctx.lineTo(chartLeft, chartBottom);
       ctx.closePath();
@@ -250,7 +265,11 @@ export class GiniChart extends EconomyComponent {
     const zones = [
       { min: 0, max: 0.3, color: ECONOMY_COLORS.equalityGood + '10' },
       { min: 0.3, max: this._warningThreshold, color: ECONOMY_COLORS.equalityGood + '08' },
-      { min: this._warningThreshold, max: this._criticalThreshold, color: ECONOMY_COLORS.equalityMod + '10' },
+      {
+        min: this._warningThreshold,
+        max: this._criticalThreshold,
+        color: ECONOMY_COLORS.equalityMod + '10',
+      },
       { min: this._criticalThreshold, max: 1.0, color: ECONOMY_COLORS.equalityBad + '10' },
     ];
 
@@ -274,9 +293,10 @@ export class GiniChart extends EconomyComponent {
     const py = chartTop + chartHeight - (value / 1.0) * chartHeight;
 
     ctx.save();
-    ctx.strokeStyle = value >= this._criticalThreshold
-      ? ECONOMY_COLORS.critical + '60'
-      : ECONOMY_COLORS.warning + '60';
+    ctx.strokeStyle =
+      value >= this._criticalThreshold
+        ? ECONOMY_COLORS.critical + '60'
+        : ECONOMY_COLORS.warning + '60';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
@@ -381,11 +401,13 @@ export class GiniChart extends EconomyComponent {
 
   protected updateA11yDescription(): void {
     const zone = this.getZone(this._currentGini);
-    const trend = this._history.length >= 2
-      ? (this._history[this._history.length - 1].value > this._history[this._history.length - 2].value
-        ? 'rising'
-        : 'falling')
-      : 'stable';
+    const trend =
+      this._history.length >= 2
+        ? this._history[this._history.length - 1].value >
+          this._history[this._history.length - 2].value
+          ? 'rising'
+          : 'falling'
+        : 'stable';
 
     this._a11yDescription = {
       label: `Gini coefficient chart`,

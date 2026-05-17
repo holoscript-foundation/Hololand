@@ -144,7 +144,7 @@ export abstract class EconomyComponent extends UIComponent {
    * Draw the component title at the top.
    * Returns the Y offset consumed by the title area.
    */
-  protected drawTitle(ctx: CanvasRenderingContext2D, x: number, y: number, width: number): number {
+  protected drawTitle(ctx: CanvasRenderingContext2D, x: number, y: number, _width: number): number {
     if (!this._title) return 0;
 
     ctx.save();
@@ -320,18 +320,8 @@ export abstract class EconomyComponent extends UIComponent {
     const h = height * scale * 0.5;
 
     this._webxrGeometry = {
-      vertices: new Float32Array([
-        -w, -h, 0,
-         w, -h, 0,
-         w,  h, 0,
-        -w,  h, 0,
-      ]),
-      colors: new Float32Array([
-        1, 1, 1, 1,
-        1, 1, 1, 1,
-        1, 1, 1, 1,
-        1, 1, 1, 1,
-      ]),
+      vertices: new Float32Array([-w, -h, 0, w, -h, 0, w, h, 0, -w, h, 0]),
+      colors: new Float32Array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
       indices: new Uint16Array([0, 1, 2, 0, 2, 3]),
       componentId: this.id,
       dirty: true,

@@ -28,11 +28,7 @@ export { HoloScriptValidator, type ValidationError } from '@holoscript/core';
 export { HoloScriptCodeParser } from '@holoscript/core';
 
 // Runtime
-export {
-  HoloScriptRuntime,
-  HoloScriptPlusRuntimeImpl,
-  createRuntime,
-} from '@holoscript/core';
+export { HoloScriptRuntime, HoloScriptPlusRuntimeImpl, createRuntime } from '@holoscript/core';
 
 // Debugger
 export {
@@ -140,14 +136,7 @@ export type { MaterialDefinition, HoloMaterialType } from '@holoscript/core';
 export { ShaderTrait, SHADER_PRESETS, createShaderTrait } from '@holoscript/core';
 
 // State Management
-export {
-  ReactiveState,
-  createState,
-  reactive,
-  effect,
-  computed,
-  bind,
-} from '@holoscript/core';
+export { ReactiveState, createState, reactive, effect, computed, bind } from '@holoscript/core';
 
 // =============================================================================
 // Hololand Platform (Elastic License 2.0)
@@ -157,7 +146,12 @@ export {
 export const HOLOLAND_VERSION = '1.0.0-alpha.1';
 
 // HoloScript-to-World Bridge (connects HoloScript runtime to Hololand world)
-export { HoloScriptBridge, createBridge, type BridgeConfig, type BridgeState } from './HoloScriptBridge';
+export {
+  HoloScriptBridge,
+  createBridge,
+  type BridgeConfig,
+  type BridgeState,
+} from './HoloScriptBridge';
 
 // Trait Context Factory — creates real TraitContext backed by Hololand runtime APIs
 export {

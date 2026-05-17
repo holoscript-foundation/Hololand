@@ -69,14 +69,29 @@ export class Button extends UIComponent {
   }
 
   // Getters/setters
-  get text(): string { return this._text; }
-  set text(value: string) { this._text = value; this.markDirty(); }
+  get text(): string {
+    return this._text;
+  }
+  set text(value: string) {
+    this._text = value;
+    this.markDirty();
+  }
 
-  get backgroundColor(): string { return this._backgroundColor; }
-  set backgroundColor(value: string) { this._backgroundColor = value; this.markDirty(); }
+  get backgroundColor(): string {
+    return this._backgroundColor;
+  }
+  set backgroundColor(value: string) {
+    this._backgroundColor = value;
+    this.markDirty();
+  }
 
-  get textColor(): string { return this._textColor; }
-  set textColor(value: string) { this._textColor = value; this.markDirty(); }
+  get textColor(): string {
+    return this._textColor;
+  }
+  set textColor(value: string) {
+    this._textColor = value;
+    this.markDirty();
+  }
 
   /**
    * Render button to canvas
@@ -132,7 +147,7 @@ export class Button extends UIComponent {
     ctx.fillText(this._text, x + width / 2, y + height / 2);
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

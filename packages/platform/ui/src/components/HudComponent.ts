@@ -3,7 +3,6 @@
  * Components designed for head-up displays (HUDs).
  */
 
-import { UIComponent } from './UIComponent';
 import { Panel } from './Panel';
 import { Text } from './Text';
 import { themeContext, Theme } from '../theme';
@@ -16,7 +15,7 @@ export class HudComponent extends Panel {
   constructor(config: UIComponentConfig) {
     super({
       ...config,
-      zIndex: config.zIndex ?? 1000 // Always high z-index
+      zIndex: config.zIndex ?? 1000, // Always high z-index
     });
   }
 }
@@ -30,23 +29,23 @@ export class StatusHud extends HudComponent {
 
   constructor(config: UIComponentConfig) {
     super(config);
-    
+
     const theme = (themeContext as unknown as { theme: Theme }).theme;
-    
+
     this.scaleText = new Text({
       position: { x: theme.spacing?.md || 16, y: theme.spacing?.md || 16 },
       content: 'Scale: 1.0x (Human)',
       fontSize: theme.typography?.fontSize?.md || 14,
-      color: theme.colors?.textPrimary || '#333'
+      color: theme.colors?.textPrimary || '#333',
     });
-    
+
     this.aiStatusText = new Text({
       position: { x: theme.spacing?.md || 16, y: (theme.spacing?.md || 16) + 24 },
       content: 'AI: Ready',
-      fontSize: theme.typography?.fontSize?.[ 'sm' ] || 12,
-      color: theme.colors?.success || '#27ae60'
+      fontSize: theme.typography?.fontSize?.['sm'] || 12,
+      color: theme.colors?.success || '#27ae60',
     });
-    
+
     this.addChild(this.scaleText);
     this.addChild(this.aiStatusText);
   }
@@ -59,7 +58,9 @@ export class StatusHud extends HudComponent {
 
   public setAIStatus(status: string, active: boolean = false): void {
     this.aiStatusText.content = `AI: ${status}`;
-    this.aiStatusText.color = active ? themeContext.theme.colors.primary : themeContext.theme.colors.success;
+    this.aiStatusText.color = active
+      ? themeContext.theme.colors.primary
+      : themeContext.theme.colors.success;
     this.markDirty();
   }
 }

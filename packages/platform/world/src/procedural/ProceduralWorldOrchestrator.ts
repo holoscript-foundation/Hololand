@@ -395,11 +395,7 @@ export class ProceduralWorldOrchestrator {
         // Update costs from refinement
         const refinementTokens = refinementSteps.reduce((sum, step) => sum + step.tokensUsed, 0);
         costs.tokensUsed.builder += refinementTokens;
-        costs.builderCost += this.calculateCost(
-          refinementTokens,
-          refinementTokens * 0.4,
-          'haiku'
-        );
+        costs.builderCost += this.calculateCost(refinementTokens, refinementTokens * 0.4, 'haiku');
 
         executionSteps.push(...refinementSteps);
       }
@@ -745,7 +741,11 @@ Review the implementation and provide feedback.`;
   /**
    * Calculate cost for token usage
    */
-  private calculateCost(inputTokens: number, outputTokens: number, model: 'sonnet' | 'haiku'): number {
+  private calculateCost(
+    inputTokens: number,
+    outputTokens: number,
+    model: 'sonnet' | 'haiku'
+  ): number {
     const inputCost = model === 'sonnet' ? this.SONNET_INPUT_COST : this.HAIKU_INPUT_COST;
     const outputCost = model === 'sonnet' ? this.SONNET_OUTPUT_COST : this.HAIKU_OUTPUT_COST;
 

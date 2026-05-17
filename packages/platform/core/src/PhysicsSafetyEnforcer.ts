@@ -121,7 +121,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
    */
   applyVelocity(
     nodeId: string,
-    velocity: [number, number, number] | { x: number; y: number; z: number },
+    velocity: [number, number, number] | { x: number; y: number; z: number }
   ): void {
     this.totalCalls++;
 
@@ -129,7 +129,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
       velocity as readonly number[],
       this.envelope,
       nodeId,
-      'applyVelocity',
+      'applyVelocity'
     );
 
     if (result.clamped && result.event) {
@@ -145,7 +145,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
    */
   applyAngularVelocity(
     nodeId: string,
-    angularVelocity: [number, number, number] | { x: number; y: number; z: number },
+    angularVelocity: [number, number, number] | { x: number; y: number; z: number }
   ): void {
     this.totalCalls++;
 
@@ -153,7 +153,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
       angularVelocity as readonly number[],
       this.envelope,
       nodeId,
-      'applyAngularVelocity',
+      'applyAngularVelocity'
     );
 
     if (result.clamped && result.event) {
@@ -176,8 +176,13 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
   raycast(
     origin: [number, number, number] | { x: number; y: number; z: number },
     direction: [number, number, number] | { x: number; y: number; z: number },
-    maxDistance: number,
-  ): { point: [number, number, number] | { x: number; y: number; z: number }; normal: [number, number, number] | { x: number; y: number; z: number }; distance: number; nodeId: string } | null {
+    maxDistance: number
+  ): {
+    point: [number, number, number] | { x: number; y: number; z: number };
+    normal: [number, number, number] | { x: number; y: number; z: number };
+    distance: number;
+    nodeId: string;
+  } | null {
     return this.inner.raycast(origin, direction, maxDistance);
   }
 
@@ -190,7 +195,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
    */
   enforceAndApplyForce(
     nodeId: string,
-    force: readonly number[] | { x: number; y: number; z: number },
+    force: readonly number[] | { x: number; y: number; z: number }
   ): [number, number, number] {
     this.totalCalls++;
 
@@ -208,7 +213,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
    */
   enforceAndApplyImpulse(
     nodeId: string,
-    impulse: readonly number[] | { x: number; y: number; z: number },
+    impulse: readonly number[] | { x: number; y: number; z: number }
   ): [number, number, number] {
     this.totalCalls++;
 
@@ -272,10 +277,10 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
     if (this.warnOnClamp) {
       console.warn(
         `[PhysicsSafety] Clamped ${event.parameter}: ` +
-        `requested=${event.requestedValue.toFixed(2)}, ` +
-        `capped=${event.clampedValue.toFixed(2)}, ` +
-        `node=${event.nodeId ?? 'unknown'}, ` +
-        `source=${event.source ?? 'unknown'}`,
+          `requested=${event.requestedValue.toFixed(2)}, ` +
+          `capped=${event.clampedValue.toFixed(2)}, ` +
+          `node=${event.nodeId ?? 'unknown'}, ` +
+          `source=${event.source ?? 'unknown'}`
       );
     }
 
@@ -302,7 +307,7 @@ export class PhysicsSafetyEnforcer implements PhysicsProvider {
  * ```
  */
 export function createPhysicsSafetyEnforcer(
-  config: PhysicsSafetyEnforcerConfig,
+  config: PhysicsSafetyEnforcerConfig
 ): PhysicsSafetyEnforcer {
   return new PhysicsSafetyEnforcer(config);
 }
@@ -313,7 +318,7 @@ export function createPhysicsSafetyEnforcer(
  */
 export function wrapWithSafetyEnvelope(
   provider: PhysicsProvider,
-  onClamp?: ClampEventHandler,
+  onClamp?: ClampEventHandler
 ): PhysicsSafetyEnforcer {
   return new PhysicsSafetyEnforcer({
     provider,

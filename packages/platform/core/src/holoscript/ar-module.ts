@@ -1,6 +1,6 @@
 /**
  * HoloScript AR Module
- * 
+ *
  * Provides AR capabilities to HoloScript scenes.
  */
 
@@ -15,15 +15,15 @@ export interface ARAnchorNode extends ASTNode {
   id: string;
   anchorType: 'qr' | 'apriltag' | 'gps' | 'vps' | 'image' | 'plane';
   properties: {
-    payload?: string;           // QR content
-    tagFamily?: string;         // AprilTag family
-    tagId?: number;             // AprilTag ID
-    latitude?: number;          // GPS
-    longitude?: number;         // GPS
-    altitude?: number;          // GPS
-    markerSize?: number;        // Physical size in meters
-    imageUrl?: string;          // Image anchor reference
-    vpsProvider?: string;       // VPS provider name
+    payload?: string; // QR content
+    tagFamily?: string; // AprilTag family
+    tagId?: number; // AprilTag ID
+    latitude?: number; // GPS
+    longitude?: number; // GPS
+    altitude?: number; // GPS
+    markerSize?: number; // Physical size in meters
+    imageUrl?: string; // Image anchor reference
+    vpsProvider?: string; // VPS provider name
   };
 }
 
@@ -41,7 +41,7 @@ export interface ARAvatarNode extends ASTNode {
     position?: { x: number; y: number; z: number };
     rotation?: { x: number; y: number; z: number; w: number };
     scale?: number;
-    skeleton?: string;        // Reference to skeleton source
+    skeleton?: string; // Reference to skeleton source
     expression?: string;
     lookAt?: { x: number; y: number; z: number };
     visible?: boolean;
@@ -74,16 +74,16 @@ export interface ARModuleAPI {
   addAnchor: (anchor: ARAnchorNode) => void;
   removeAnchor: (id: string) => void;
   getAnchor: (id: string) => any;
-  
+
   // Tracking
   getTrackedPersons: () => any[];
   bindPersonToUser: (personId: string, userId: string) => void;
-  
+
   // Avatars
   loadAvatar: (id: string, url: string) => Promise<void>;
   updateAvatar: (id: string, state: any) => void;
   removeAvatar: (id: string) => void;
-  
+
   // Detection
   startDetection: (config: any) => void;
   stopDetection: () => void;
@@ -148,7 +148,7 @@ export function parseARAvatar(node: any): ARAvatarNode {
 
 /**
  * Example HoloScript AR syntax:
- * 
+ *
  * ```holoscript
  * scene MultiUserAR {
  *   // Define anchor for coordinate alignment
@@ -157,14 +157,14 @@ export function parseARAvatar(node: any): ARAvatarNode {
  *     payload: "hololand://room/lobby"
  *     size: 0.15  // 15cm marker
  *   }
- *   
+ *
  *   // Define GPS anchor
  *   anchor outdoor_reference {
  *     type: "gps"
  *     latitude: 37.7749
  *     longitude: -122.4194
  *   }
- *   
+ *
  *   // Track persons and create avatars
  *   for person in ar_tracking.persons {
  *     avatar {
@@ -172,7 +172,7 @@ export function parseARAvatar(node: any): ARAvatarNode {
  *       position: person.world_position
  *       skeleton: person.pose
  *       expression: person.is_speaking ? "talking" : "neutral"
- *       
+ *
  *       // Name label above head
  *       label {
  *         text: person.display_name
@@ -181,7 +181,7 @@ export function parseARAvatar(node: any): ARAvatarNode {
  *       }
  *     }
  *   }
- *   
+ *
  *   // Detection configuration
  *   detection {
  *     source: camera

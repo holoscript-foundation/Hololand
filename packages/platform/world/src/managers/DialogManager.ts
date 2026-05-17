@@ -1,4 +1,3 @@
-
 import { EventBus, WorldEvent } from '../EventBus';
 
 export interface DialogOption {
@@ -19,12 +18,12 @@ export class DialogManager {
 
   constructor(eventBus: EventBus) {
     this.eventBus = eventBus;
-    
+
     // Default fallback dialog
     this.dialogs.set('default', {
-        id: 'default',
-        text: 'Hello there!',
-        options: [{ text: 'Bye', action: 'close' }]
+      id: 'default',
+      text: 'Hello there!',
+      options: [{ text: 'Bye', action: 'close' }],
     });
 
     this.setupListeners();
@@ -32,30 +31,30 @@ export class DialogManager {
 
   private setupListeners() {
     this.eventBus.on('npc:interact', (event: WorldEvent) => {
-        const data = event.data as { npcId: string, dialogId: string };
-        if (data?.dialogId) {
-          this.startDialog(data.dialogId);
-        }
+      const data = event.data as { npcId: string; dialogId: string };
+      if (data?.dialogId) {
+        this.startDialog(data.dialogId);
+      }
     });
-    
+
     // Listen for UI events (simulated for now)
     this.eventBus.on('dialog:option', (event: WorldEvent) => {
-        const data = event.data as { nextId?: string, action?: string };
-        if (data?.action === 'close') {
-            this.closeDialog();
-        } else if (data?.nextId) {
-            this.startDialog(data.nextId);
-        }
+      const data = event.data as { nextId?: string; action?: string };
+      if (data?.action === 'close') {
+        this.closeDialog();
+      } else if (data?.nextId) {
+        this.startDialog(data.nextId);
+      }
     });
   }
 
   startDialog(id: string) {
     const dialog = this.dialogs.get(id);
     if (!dialog) {
-        console.warn(`[DialogManager] Dialog ${id} not found.`);
-        return;
+      console.warn(`[DialogManager] Dialog ${id} not found.`);
+      return;
     }
-    
+
     this.eventBus.emit({ type: 'dialog:start', timestamp: Date.now(), data: dialog });
     console.log(`[DialogManager] Started dialog: ${dialog.text}`);
   }
@@ -66,7 +65,7 @@ export class DialogManager {
   }
 
   loadDialogs(dialogs: DialogNode[]) {
-    dialogs.forEach(d => this.dialogs.set(d.id, d));
+    dialogs.forEach((d) => this.dialogs.set(d.id, d));
   }
 
   getDialog(id: string): DialogNode | undefined {

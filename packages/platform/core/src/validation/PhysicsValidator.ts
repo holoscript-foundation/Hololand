@@ -103,13 +103,13 @@ export class PhysicsValidator implements Validator {
     }
 
     const durationMs = performance.now() - start;
-    const hasErrors = violations.some(v => v.severity === 'error');
+    const hasErrors = violations.some((v) => v.severity === 'error');
 
     return {
       validatorId: this.id,
       verdict: hasErrors ? 'reject' : 'accept',
       reason: hasErrors
-        ? `Physics safety violation: ${violations.filter(v => v.severity === 'error').length} constraint(s) exceeded`
+        ? `Physics safety violation: ${violations.filter((v) => v.severity === 'error').length} constraint(s) exceeded`
         : 'All physics properties within safety envelope',
       violations,
       durationMs,
@@ -121,7 +121,7 @@ export class PhysicsValidator implements Validator {
 
   private validatePhysicsPayload(
     payload: PhysicsDeltaPayload,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     // Linear velocity
     if (payload.velocity) {
@@ -286,7 +286,7 @@ export class PhysicsValidator implements Validator {
 
   private validateTransformPayload(
     payload: TransformDeltaPayload,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     // Validate position is within world bounds
     if (payload.position) {
@@ -347,7 +347,7 @@ export class PhysicsValidator implements Validator {
 
   private validateWorldPayload(
     payload: WorldDeltaPayload,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     // Validate world gravity vector
     if (payload.gravity) {
@@ -371,7 +371,7 @@ export class PhysicsValidator implements Validator {
 
   private validateCompositePayload(
     payload: CompositeDeltaPayload,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     for (const subPayload of payload.deltas) {
       switch (subPayload.type) {
@@ -400,7 +400,7 @@ export class PhysicsValidator implements Validator {
   private checkFiniteVector(
     property: string,
     vector: readonly [number, number, number] | readonly number[],
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     for (let i = 0; i < vector.length; i++) {
       if (!Number.isFinite(vector[i])) {
@@ -430,8 +430,6 @@ export class PhysicsValidator implements Validator {
 /**
  * Create a PhysicsValidator with the default or custom safety envelope.
  */
-export function createPhysicsValidator(
-  envelope?: Readonly<PhysicsSafetyBounds>,
-): PhysicsValidator {
+export function createPhysicsValidator(envelope?: Readonly<PhysicsSafetyBounds>): PhysicsValidator {
   return new PhysicsValidator(envelope);
 }

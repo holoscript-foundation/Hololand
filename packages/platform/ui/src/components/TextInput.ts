@@ -3,7 +3,7 @@
  * Text input field for 2D UI
  */
 
-import { UIComponent, UIEventHandler } from './UIComponent';
+import { UIComponent } from './UIComponent';
 import type { UIComponentConfig, Vector2 } from '../types';
 
 export interface TextInputConfig extends UIComponentConfig {
@@ -83,17 +83,26 @@ export class TextInput extends UIComponent {
   }
 
   // Getters/setters
-  get value(): string { return this._value; }
+  get value(): string {
+    return this._value;
+  }
   set value(val: string) {
     this._value = val.slice(0, this._maxLength);
     this._cursorPosition = Math.min(this._cursorPosition, this._value.length);
     this.markDirty();
   }
 
-  get placeholder(): string { return this._placeholder; }
-  set placeholder(val: string) { this._placeholder = val; this.markDirty(); }
+  get placeholder(): string {
+    return this._placeholder;
+  }
+  set placeholder(val: string) {
+    this._placeholder = val;
+    this.markDirty();
+  }
 
-  get focused(): boolean { return this._focused; }
+  get focused(): boolean {
+    return this._focused;
+  }
 
   /**
    * Focus the input
@@ -118,13 +127,15 @@ export class TextInput extends UIComponent {
   /**
    * Handle keyboard input
    */
-  handleKeyInput(key: string, ctrl: boolean = false): void {
+  handleKeyInput(key: string, _ctrl: boolean = false): void {
     if (!this._focused || !this._enabled) return;
 
     switch (key) {
       case 'Backspace':
         if (this._cursorPosition > 0) {
-          this._value = this._value.slice(0, this._cursorPosition - 1) + this._value.slice(this._cursorPosition);
+          this._value =
+            this._value.slice(0, this._cursorPosition - 1) +
+            this._value.slice(this._cursorPosition);
           this._cursorPosition--;
           this._onChange?.(this._value);
           this.emit('change');
@@ -133,7 +144,9 @@ export class TextInput extends UIComponent {
 
       case 'Delete':
         if (this._cursorPosition < this._value.length) {
-          this._value = this._value.slice(0, this._cursorPosition) + this._value.slice(this._cursorPosition + 1);
+          this._value =
+            this._value.slice(0, this._cursorPosition) +
+            this._value.slice(this._cursorPosition + 1);
           this._onChange?.(this._value);
           this.emit('change');
         }
@@ -167,7 +180,10 @@ export class TextInput extends UIComponent {
       default:
         // Regular character input
         if (key.length === 1 && this._value.length < this._maxLength) {
-          this._value = this._value.slice(0, this._cursorPosition) + key + this._value.slice(this._cursorPosition);
+          this._value =
+            this._value.slice(0, this._cursorPosition) +
+            key +
+            this._value.slice(this._cursorPosition);
           this._cursorPosition++;
           this._onChange?.(this._value);
           this.emit('change');
@@ -265,7 +281,7 @@ export class TextInput extends UIComponent {
     ctx.restore();
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

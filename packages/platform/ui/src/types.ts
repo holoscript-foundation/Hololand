@@ -58,11 +58,6 @@ export interface Position {
   y: number;
 }
 
-export interface Size {
-  width: number;
-  height: number;
-}
-
 export interface ResponsiveSize {
   mobile?: { width: number; height: number };
   tablet?: { width: number; height: number };

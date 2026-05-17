@@ -96,13 +96,7 @@ export type {
 export const UI_VERSION = '1.0.0-alpha.2';
 
 // Export theme system
-export {
-  ThemeContext,
-  themeContext,
-  lightTheme,
-  darkTheme,
-  highContrastTheme,
-} from './theme';
+export { ThemeContext, themeContext, lightTheme, darkTheme, highContrastTheme } from './theme';
 
 export type {
   Theme,

@@ -147,7 +147,7 @@ export class HololandZoneGenerator {
       portal,
       metadata,
       ast: parseResult.success ? parseResult.ast : undefined,
-      errors: parseResult.success ? undefined : parseResult.errors?.map(e => e.message),
+      errors: parseResult.success ? undefined : parseResult.errors?.map((e) => e.message),
       generationTimeMs: Date.now() - startTime,
     };
   }
@@ -421,7 +421,7 @@ Generate zones that feel ALIVE, SOCIAL, and PART OF A BIGGER WORLD.`;
           description: parsed.description || 'A generated zone',
           features: parsed.features || [],
         };
-      } catch (e) {
+      } catch {
         // Use defaults
       }
     }

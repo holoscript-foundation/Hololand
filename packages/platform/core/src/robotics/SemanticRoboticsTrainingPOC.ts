@@ -165,12 +165,7 @@ export interface SDFLightDef {
 // TYPES — VR Training Session
 // =============================================================================
 
-export type TrainingSessionStatus =
-  | 'idle'
-  | 'recording'
-  | 'paused'
-  | 'completed'
-  | 'failed';
+export type TrainingSessionStatus = 'idle' | 'recording' | 'paused' | 'completed' | 'failed';
 
 export interface RewardSignal {
   timestamp: number;
@@ -182,7 +177,10 @@ export interface RewardSignal {
 export interface EpisodeFrame {
   timestampMs: number;
   jointStates: Record<string, number>;
-  objectPoses: Record<string, { position: [number, number, number]; rotation: [number, number, number, number] }>;
+  objectPoses: Record<
+    string,
+    { position: [number, number, number]; rotation: [number, number, number, number] }
+  >;
   sensorReadings: Record<string, number[]>;
   reward: number;
   info: Record<string, unknown>;
@@ -238,11 +236,7 @@ export class HoloToURDFConverter {
   private defaultMass: number;
   private meshPathPrefix: string;
 
-  constructor(options?: {
-    robotName?: string;
-    defaultMass?: number;
-    meshPathPrefix?: string;
-  }) {
+  constructor(options?: { robotName?: string; defaultMass?: number; meshPathPrefix?: string }) {
     this.robotName = options?.robotName ?? 'holoscript_robot';
     this.defaultMass = options?.defaultMass ?? 1.0;
     this.meshPathPrefix = options?.meshPathPrefix ?? 'package://holoscript_description/meshes/';
@@ -329,7 +323,11 @@ export class HoloToURDFConverter {
 
     // Build collision geometry (if @collision or @physics trait present)
     const collisions: URDFCollision[] = [];
-    if (this.hasTrait(obj, 'collision') || this.hasTrait(obj, 'collidable') || this.hasTrait(obj, 'physics')) {
+    if (
+      this.hasTrait(obj, 'collision') ||
+      this.hasTrait(obj, 'collidable') ||
+      this.hasTrait(obj, 'physics')
+    ) {
       collisions.push({
         name: linkName + '_collision',
         origin: { xyz: [0, 0, 0], rpy: [0, 0, 0] },
@@ -470,16 +468,22 @@ export class HoloToURDFConverter {
 
     if (link.inertial) {
       lines.push('    <inertial>');
-      lines.push(`      <origin xyz="${link.inertial.origin.xyz.join(' ')}" rpy="${link.inertial.origin.rpy.join(' ')}"/>`);
+      lines.push(
+        `      <origin xyz="${link.inertial.origin.xyz.join(' ')}" rpy="${link.inertial.origin.rpy.join(' ')}"/>`
+      );
       lines.push(`      <mass value="${link.inertial.mass}"/>`);
       const i = link.inertial.inertia;
-      lines.push(`      <inertia ixx="${i.ixx}" ixy="${i.ixy}" ixz="${i.ixz}" iyy="${i.iyy}" iyz="${i.iyz}" izz="${i.izz}"/>`);
+      lines.push(
+        `      <inertia ixx="${i.ixx}" ixy="${i.ixy}" ixz="${i.ixz}" iyy="${i.iyy}" iyz="${i.iyz}" izz="${i.izz}"/>`
+      );
       lines.push('    </inertial>');
     }
 
     for (const visual of link.visuals) {
       lines.push(`    <visual name="${this.escapeXml(visual.name)}">`);
-      lines.push(`      <origin xyz="${visual.origin.xyz.join(' ')}" rpy="${visual.origin.rpy.join(' ')}"/>`);
+      lines.push(
+        `      <origin xyz="${visual.origin.xyz.join(' ')}" rpy="${visual.origin.rpy.join(' ')}"/>`
+      );
       this.emitGeometry(visual.geometry, lines, '      ');
       if (visual.material) {
         this.emitMaterial(visual.material, lines);
@@ -489,7 +493,9 @@ export class HoloToURDFConverter {
 
     for (const collision of link.collisions) {
       lines.push(`    <collision name="${this.escapeXml(collision.name)}">`);
-      lines.push(`      <origin xyz="${collision.origin.xyz.join(' ')}" rpy="${collision.origin.rpy.join(' ')}"/>`);
+      lines.push(
+        `      <origin xyz="${collision.origin.xyz.join(' ')}" rpy="${collision.origin.rpy.join(' ')}"/>`
+      );
       this.emitGeometry(collision.geometry, lines, '      ');
       lines.push('    </collision>');
     }
@@ -502,18 +508,24 @@ export class HoloToURDFConverter {
     lines.push(`  <joint name="${this.escapeXml(joint.name)}" type="${joint.type}">`);
     lines.push(`    <parent link="${this.escapeXml(joint.parent)}"/>`);
     lines.push(`    <child link="${this.escapeXml(joint.child)}"/>`);
-    lines.push(`    <origin xyz="${joint.origin.xyz.join(' ')}" rpy="${joint.origin.rpy.join(' ')}"/>`);
+    lines.push(
+      `    <origin xyz="${joint.origin.xyz.join(' ')}" rpy="${joint.origin.rpy.join(' ')}"/>`
+    );
 
     if (joint.axis) {
       lines.push(`    <axis xyz="${joint.axis.join(' ')}"/>`);
     }
 
     if (joint.limit) {
-      lines.push(`    <limit lower="${joint.limit.lower}" upper="${joint.limit.upper}" effort="${joint.limit.effort}" velocity="${joint.limit.velocity}"/>`);
+      lines.push(
+        `    <limit lower="${joint.limit.lower}" upper="${joint.limit.upper}" effort="${joint.limit.effort}" velocity="${joint.limit.velocity}"/>`
+      );
     }
 
     if (joint.dynamics) {
-      lines.push(`    <dynamics damping="${joint.dynamics.damping}" friction="${joint.dynamics.friction}"/>`);
+      lines.push(
+        `    <dynamics damping="${joint.dynamics.damping}" friction="${joint.dynamics.friction}"/>`
+      );
     }
 
     lines.push('  </joint>');
@@ -530,14 +542,20 @@ export class HoloToURDFConverter {
         lines.push(`${indent}  <sphere radius="${geometry.dimensions[0]}"/>`);
         break;
       case 'cylinder':
-        lines.push(`${indent}  <cylinder radius="${geometry.dimensions[0]}" length="${geometry.dimensions[1]}"/>`);
+        lines.push(
+          `${indent}  <cylinder radius="${geometry.dimensions[0]}" length="${geometry.dimensions[1]}"/>`
+        );
         break;
       case 'capsule':
-        lines.push(`${indent}  <capsule radius="${geometry.dimensions[0]}" length="${geometry.dimensions[1]}"/>`);
+        lines.push(
+          `${indent}  <capsule radius="${geometry.dimensions[0]}" length="${geometry.dimensions[1]}"/>`
+        );
         break;
       case 'mesh':
         if (geometry.meshScale) {
-          lines.push(`${indent}  <mesh filename="${geometry.meshUri}" scale="${geometry.meshScale.join(' ')}"/>`);
+          lines.push(
+            `${indent}  <mesh filename="${geometry.meshUri}" scale="${geometry.meshScale.join(' ')}"/>`
+          );
         } else {
           lines.push(`${indent}  <mesh filename="${geometry.meshUri}"/>`);
         }
@@ -821,8 +839,12 @@ export class HoloToSDFConverter {
     emit('<static>true</static>');
     emit('<link name="link">');
     indent++;
-    emit('<collision name="collision"><geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry></collision>');
-    emit('<visual name="visual"><geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry></visual>');
+    emit(
+      '<collision name="collision"><geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry></collision>'
+    );
+    emit(
+      '<visual name="visual"><geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry></visual>'
+    );
     indent--;
     emit('</link>');
     indent--;
@@ -831,13 +853,23 @@ export class HoloToSDFConverter {
 
     // Models
     for (const model of world.models) {
-      this.emitModel(model, emit, () => indent++, () => indent--);
+      this.emitModel(
+        model,
+        emit,
+        () => indent++,
+        () => indent--
+      );
       emit('');
     }
 
     // Lights
     for (const light of world.lights) {
-      this.emitLight(light, emit, () => indent++, () => indent--);
+      this.emitLight(
+        light,
+        emit,
+        () => indent++,
+        () => indent--
+      );
       emit('');
     }
 
@@ -851,10 +883,11 @@ export class HoloToSDFConverter {
 
   private objectToModel(obj: HoloObjectDecl): SDFModel {
     const urdfConverter = new HoloToURDFConverter({ meshPathPrefix: this.meshPathPrefix });
-    const hasPhysics = obj.traits?.some((t) => {
-      const name = typeof t === 'string' ? t : t.name;
-      return name === 'physics' || name === 'rigid';
-    }) ?? false;
+    const hasPhysics =
+      obj.traits?.some((t) => {
+        const name = typeof t === 'string' ? t : t.name;
+        return name === 'physics' || name === 'rigid';
+      }) ?? false;
 
     const position = this.extractPosition(obj);
     const rotation = this.extractRotation(obj);
@@ -923,15 +956,22 @@ export class HoloToSDFConverter {
 
   private holoLightToSDF(light: HoloLight): SDFLightDef {
     const lightType = light.lightType ?? 'point';
-    const mapped: SDFLightDef['type'] = lightType === 'directional' ? 'directional' : lightType === 'spot' ? 'spot' : 'point';
+    const mapped: SDFLightDef['type'] =
+      lightType === 'directional' ? 'directional' : lightType === 'spot' ? 'spot' : 'point';
 
     const posProp = light.properties?.find((p) => p.key === 'position');
-    const pos = posProp && Array.isArray(posProp.value)
-      ? [Number(posProp.value[0]) || 0, Number(posProp.value[1]) || 0, Number(posProp.value[2]) || 5]
-      : [0, 0, 5];
+    const pos =
+      posProp && Array.isArray(posProp.value)
+        ? [
+            Number(posProp.value[0]) || 0,
+            Number(posProp.value[1]) || 0,
+            Number(posProp.value[2]) || 5,
+          ]
+        : [0, 0, 5];
 
     const intensityProp = light.properties?.find((p) => p.key === 'intensity');
-    const intensity = (intensityProp && typeof intensityProp.value === 'number') ? intensityProp.value : 1.0;
+    const intensity =
+      intensityProp && typeof intensityProp.value === 'number' ? intensityProp.value : 1.0;
 
     return {
       name: this.sanitizeName(light.name || 'light'),
@@ -943,7 +983,7 @@ export class HoloToSDFConverter {
     };
   }
 
-  private extractScene(env?: HoloEnvironment): SDFWorld['scene'] {
+  private extractScene(_env?: HoloEnvironment): SDFWorld['scene'] {
     return {
       ambient: [0.4, 0.4, 0.4, 1],
       background: [0.7, 0.7, 0.9, 1],
@@ -954,7 +994,11 @@ export class HoloToSDFConverter {
   private extractPosition(obj: HoloObjectDecl): [number, number, number] {
     const posProp = obj.properties?.find((p) => p.key === 'position');
     if (posProp && Array.isArray(posProp.value)) {
-      return [Number(posProp.value[0]) || 0, Number(posProp.value[1]) || 0, Number(posProp.value[2]) || 0];
+      return [
+        Number(posProp.value[0]) || 0,
+        Number(posProp.value[1]) || 0,
+        Number(posProp.value[2]) || 0,
+      ];
     }
     return [0, 0, 0];
   }
@@ -962,7 +1006,11 @@ export class HoloToSDFConverter {
   private extractRotation(obj: HoloObjectDecl): [number, number, number] {
     const rotProp = obj.properties?.find((p) => p.key === 'rotation');
     if (rotProp && Array.isArray(rotProp.value)) {
-      return [Number(rotProp.value[0]) || 0, Number(rotProp.value[1]) || 0, Number(rotProp.value[2]) || 0];
+      return [
+        Number(rotProp.value[0]) || 0,
+        Number(rotProp.value[1]) || 0,
+        Number(rotProp.value[2]) || 0,
+      ];
     }
     return [0, 0, 0];
   }
@@ -970,7 +1018,11 @@ export class HoloToSDFConverter {
   private extractGroupPosition(group: HoloSpatialGroup): [number, number, number] {
     const posProp = group.properties?.find((p) => p.key === 'position');
     if (posProp && Array.isArray(posProp.value)) {
-      return [Number(posProp.value[0]) || 0, Number(posProp.value[1]) || 0, Number(posProp.value[2]) || 0];
+      return [
+        Number(posProp.value[0]) || 0,
+        Number(posProp.value[1]) || 0,
+        Number(posProp.value[2]) || 0,
+      ];
     }
     return [0, 0, 0];
   }
@@ -993,10 +1045,14 @@ export class HoloToSDFConverter {
         emit(`<inertial><mass>${link.inertial.mass}</mass></inertial>`);
       }
       for (const v of link.visuals) {
-        emit(`<visual name="${this.escapeXml(v.name)}"><geometry><box><size>1 1 1</size></box></geometry></visual>`);
+        emit(
+          `<visual name="${this.escapeXml(v.name)}"><geometry><box><size>1 1 1</size></box></geometry></visual>`
+        );
       }
       for (const c of link.collisions) {
-        emit(`<collision name="${this.escapeXml(c.name)}"><geometry><box><size>1 1 1</size></box></geometry></collision>`);
+        emit(
+          `<collision name="${this.escapeXml(c.name)}"><geometry><box><size>1 1 1</size></box></geometry></collision>`
+        );
       }
       decIndent();
       emit('</link>');
@@ -1020,7 +1076,9 @@ export class HoloToSDFConverter {
     }
 
     for (const plugin of model.plugins) {
-      emit(`<plugin name="${this.escapeXml(plugin.name)}" filename="${this.escapeXml(plugin.filename)}"/>`);
+      emit(
+        `<plugin name="${this.escapeXml(plugin.name)}" filename="${this.escapeXml(plugin.filename)}"/>`
+      );
     }
 
     decIndent();
@@ -1048,7 +1106,11 @@ export class HoloToSDFConverter {
   }
 
   private escapeXml(str: string): string {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 }
 

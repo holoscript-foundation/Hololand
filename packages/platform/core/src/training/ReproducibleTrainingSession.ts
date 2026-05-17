@@ -132,7 +132,13 @@ export interface PhysicsSnapshot {
 // Session Comparison
 // ---------------------------------------------------------------------------
 
-export type DiffType = 'position' | 'rotation' | 'state' | 'timing' | 'event-missing' | 'event-extra';
+export type DiffType =
+  | 'position'
+  | 'rotation'
+  | 'state'
+  | 'timing'
+  | 'event-missing'
+  | 'event-extra';
 
 export interface SessionDiff {
   frameNumber: number;
@@ -142,7 +148,7 @@ export interface SessionDiff {
   description: string;
   sessionAValue?: unknown;
   sessionBValue?: unknown;
-  magnitude: number;  // Quantified difference (0..1 or absolute)
+  magnitude: number; // Quantified difference (0..1 or absolute)
 }
 
 export interface ComparisonResult {
@@ -150,9 +156,9 @@ export interface ComparisonResult {
   sessionBId: string;
   totalDiffs: number;
   diffs: SessionDiff[];
-  overallSimilarity: number;  // 0..1
+  overallSimilarity: number; // 0..1
   perObjectSimilarity: Map<string, number>;
-  timingDeviation: number;  // Average timing difference in ms
+  timingDeviation: number; // Average timing difference in ms
   summary: string;
 }
 
@@ -205,7 +211,7 @@ export interface SessionState {
   isPlaying: boolean;
   checkpointCount: number;
   inputEventCount: number;
-  playbackProgress: number;  // 0..1 during playback
+  playbackProgress: number; // 0..1 during playback
 }
 
 // ---------------------------------------------------------------------------
@@ -442,15 +448,6 @@ function vec3Distance(a: Vec3, b: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-function quatDot(a: Quaternion, b: Quaternion): number {
-  return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
-}
-
-function quatAngleDifference(a: Quaternion, b: Quaternion): number {
-  const dot = Math.abs(quatDot(a, b));
-  return 2 * Math.acos(Math.min(dot, 1));
-}
-
 function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -528,7 +525,7 @@ export class ReproducibleTrainingSession {
     this.rng = new DeterministicRNG(this.config.seed);
     this.timestepAccumulator = new FixedTimestepAccumulator(
       this.config.physicsTimestep,
-      this.config.maxSubsteps,
+      this.config.maxSubsteps
     );
   }
 
@@ -849,7 +846,7 @@ export class ReproducibleTrainingSession {
     // Restore timestep accumulator
     this.timestepAccumulator.restore(
       checkpoint.physicsState.accumulatedTime,
-      checkpoint.physicsState.stepCount,
+      checkpoint.physicsState.stepCount
     );
 
     // Restore scene state
@@ -862,9 +859,7 @@ export class ReproducibleTrainingSession {
 
     // Trim input events to checkpoint frame
     if (this.isRecording) {
-      this.inputEvents = this.inputEvents.filter(
-        (e) => e.frameNumber <= checkpoint.frameNumber,
-      );
+      this.inputEvents = this.inputEvents.filter((e) => e.frameNumber <= checkpoint.frameNumber);
     }
 
     this.emitEvent('checkpoint-restored', {
@@ -906,7 +901,7 @@ export class ReproducibleTrainingSession {
     recordingA: InputRecording,
     recordingB: InputRecording,
     positionThreshold: number = 0.01,
-    rotationThreshold: number = 0.02,
+    _rotationThreshold: number = 0.02
   ): ComparisonResult {
     this.emitEvent('comparison-started', {
       sessionA: recordingA.sessionId,
@@ -935,7 +930,8 @@ export class ReproducibleTrainingSession {
           description: `Event count mismatch: A=${aEvents.length}, B=${bEvents.length}`,
           sessionAValue: aEvents.length,
           sessionBValue: bEvents.length,
-          magnitude: Math.abs(aEvents.length - bEvents.length) / Math.max(aEvents.length, bEvents.length, 1),
+          magnitude:
+            Math.abs(aEvents.length - bEvents.length) / Math.max(aEvents.length, bEvents.length, 1),
         });
       }
 
@@ -959,10 +955,7 @@ export class ReproducibleTrainingSession {
         }
 
         // Position comparison
-        if (
-          a.type === 'controller-position' ||
-          a.type === 'headset-position'
-        ) {
+        if (a.type === 'controller-position' || a.type === 'headset-position') {
           const posA = a.data.position as Vec3;
           const posB = b.data.position as Vec3;
           if (posA && posB) {
@@ -1066,14 +1059,14 @@ export class ReproducibleTrainingSession {
   private generateComparisonSummary(
     diffs: SessionDiff[],
     similarity: number,
-    timingDeviation: number,
+    timingDeviation: number
   ): string {
     const positionDiffs = diffs.filter((d) => d.diffType === 'position').length;
     const rotationDiffs = diffs.filter((d) => d.diffType === 'rotation').length;
     const timingDiffs = diffs.filter((d) => d.diffType === 'timing').length;
     const stateDiffs = diffs.filter((d) => d.diffType === 'state').length;
     const eventDiffs = diffs.filter(
-      (d) => d.diffType === 'event-missing' || d.diffType === 'event-extra',
+      (d) => d.diffType === 'event-missing' || d.diffType === 'event-extra'
     ).length;
 
     const lines: string[] = [

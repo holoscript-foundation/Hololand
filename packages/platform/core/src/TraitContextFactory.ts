@@ -5,10 +5,7 @@
  * See: packages/core/src/runtime/TraitContextFactory.ts
  */
 
-export {
-  TraitContextFactory,
-  createTraitContextFactory,
-} from '@holoscript/core';
+export { TraitContextFactory, createTraitContextFactory } from '@holoscript/core';
 
 export type {
   PhysicsProvider,

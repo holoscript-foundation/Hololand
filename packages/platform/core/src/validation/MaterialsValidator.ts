@@ -36,48 +36,91 @@ import type {
  * Valid material types from @holoscript/core MaterialTrait.MaterialType
  */
 const VALID_MATERIAL_TYPES = new Set([
-  'pbr', 'standard', 'unlit', 'transparent', 'volumetric', 'custom', 'neural',
+  'pbr',
+  'standard',
+  'unlit',
+  'transparent',
+  'volumetric',
+  'custom',
+  'neural',
 ]);
 
 /**
  * Valid HoloMaterialType from @holoscript/core MaterialTypes.ts
  */
 const VALID_HOLO_MATERIAL_TYPES = new Set([
-  'material', 'pbr_material', 'unlit_material', 'shader',
-  'toon_material', 'glass_material', 'subsurface_material',
+  'material',
+  'pbr_material',
+  'unlit_material',
+  'shader',
+  'toon_material',
+  'glass_material',
+  'subsurface_material',
 ]);
 
 /**
  * Valid texture channels from @holoscript/core MaterialTrait.TextureChannel
  */
 const VALID_TEXTURE_CHANNELS = new Set([
-  'baseColor', 'normalMap', 'roughnessMap', 'metallicMap',
-  'ambientOcclusionMap', 'emissionMap', 'heightMap', 'coatNormalMap',
-  'specularColorMap', 'detailNormalMap', 'displacementMap', 'glintMap',
-  'sheenColorMap', 'anisotropyDirectionMap', 'subsurfaceThicknessMap',
+  'baseColor',
+  'normalMap',
+  'roughnessMap',
+  'metallicMap',
+  'ambientOcclusionMap',
+  'emissionMap',
+  'heightMap',
+  'coatNormalMap',
+  'specularColorMap',
+  'detailNormalMap',
+  'displacementMap',
+  'glintMap',
+  'sheenColorMap',
+  'anisotropyDirectionMap',
+  'subsurfaceThicknessMap',
   'weatheringMaskMap',
   // Also accept grammar-level texture channels from MaterialTypes.ts
-  'albedo_map', 'normal_map', 'roughness_map', 'metallic_map',
-  'emission_map', 'ao_map', 'height_map', 'opacity_map',
-  'displacement_map', 'specular_map', 'clearcoat_map',
-  'baseColor_map', 'emissive_map', 'transmission_map',
-  'sheen_map', 'anisotropy_map', 'thickness_map',
-  'subsurface_map', 'iridescence_map',
+  'albedo_map',
+  'normal_map',
+  'roughness_map',
+  'metallic_map',
+  'emission_map',
+  'ao_map',
+  'height_map',
+  'opacity_map',
+  'displacement_map',
+  'specular_map',
+  'clearcoat_map',
+  'baseColor_map',
+  'emissive_map',
+  'transmission_map',
+  'sheen_map',
+  'anisotropy_map',
+  'thickness_map',
+  'subsurface_map',
+  'iridescence_map',
 ]);
 
 /**
  * Valid blend modes from @holoscript/core MaterialTrait.MaterialConfig
  */
-const VALID_BLEND_MODES = new Set([
-  'opaque', 'blend', 'additive', 'multiply',
-]);
+const VALID_BLEND_MODES = new Set(['opaque', 'blend', 'additive', 'multiply']);
 
 /**
  * Valid volumetric volume types from @holoscript/core MaterialTrait.VolumetricMaterial
  */
 const VALID_VOLUME_TYPES = new Set([
-  'fog', 'smoke', 'fire', 'clouds', 'dust', 'mist', 'steam',
-  'aurora', 'nebula', 'underwater', 'god_rays', 'neon_gas',
+  'fog',
+  'smoke',
+  'fire',
+  'clouds',
+  'dust',
+  'mist',
+  'steam',
+  'aurora',
+  'nebula',
+  'underwater',
+  'god_rays',
+  'neon_gas',
 ]);
 
 // =============================================================================
@@ -130,13 +173,13 @@ export class MaterialsValidator implements Validator {
     }
 
     const durationMs = performance.now() - start;
-    const hasErrors = violations.some(v => v.severity === 'error');
+    const hasErrors = violations.some((v) => v.severity === 'error');
 
     return {
       validatorId: this.id,
       verdict: hasErrors ? 'reject' : 'accept',
       reason: hasErrors
-        ? `Material schema violation: ${violations.filter(v => v.severity === 'error').length} constraint(s) violated`
+        ? `Material schema violation: ${violations.filter((v) => v.severity === 'error').length} constraint(s) violated`
         : 'All material properties conform to @holoscript/core schemas',
       violations,
       durationMs,
@@ -148,7 +191,7 @@ export class MaterialsValidator implements Validator {
 
   private validateMaterialPayload(
     payload: MaterialDeltaPayload,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     // Material type
     if (payload.materialType !== undefined) {
@@ -224,7 +267,8 @@ export class MaterialsValidator implements Validator {
           constraint: 'iorRange',
           bound: [1.0, 5.0],
           severity: payload.ior < 1.0 ? 'error' : 'warning',
-          suggestion: 'IOR should be between 1.0 (vacuum) and 5.0 (diamond). Common: glass=1.5, water=1.33',
+          suggestion:
+            'IOR should be between 1.0 (vacuum) and 5.0 (diamond). Common: glass=1.5, water=1.33',
         });
       }
     }
@@ -297,7 +341,10 @@ export class MaterialsValidator implements Validator {
         }
       }
       if (payload.subsurface.attenuationDistance !== undefined) {
-        if (!Number.isFinite(payload.subsurface.attenuationDistance) || payload.subsurface.attenuationDistance <= 0) {
+        if (
+          !Number.isFinite(payload.subsurface.attenuationDistance) ||
+          payload.subsurface.attenuationDistance <= 0
+        ) {
           violations.push({
             property: 'subsurface.attenuationDistance',
             proposedValue: payload.subsurface.attenuationDistance,
@@ -353,7 +400,7 @@ export class MaterialsValidator implements Validator {
 
   private validateVolumetricPayload(
     volumetric: NonNullable<MaterialDeltaPayload['volumetric']>,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     if (volumetric.volumeType !== undefined) {
       if (!VALID_VOLUME_TYPES.has(volumetric.volumeType)) {
@@ -401,7 +448,7 @@ export class MaterialsValidator implements Validator {
 
   private validateCompositePayload(
     payload: CompositeDeltaPayload,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     for (const subPayload of payload.deltas) {
       if (subPayload.type === 'material') {
@@ -420,7 +467,7 @@ export class MaterialsValidator implements Validator {
   private validateUnitRange(
     property: string,
     value: number,
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     if (!Number.isFinite(value)) {
       violations.push({
@@ -448,7 +495,7 @@ export class MaterialsValidator implements Validator {
   private validateColorRange(
     property: string,
     color: { r: number; g: number; b: number; a?: number },
-    violations: ValidationViolation[],
+    violations: ValidationViolation[]
   ): void {
     const channels: Array<[string, number]> = [
       [`${property}.r`, color.r],

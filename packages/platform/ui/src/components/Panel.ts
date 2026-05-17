@@ -52,17 +52,37 @@ export class Panel extends UIComponent {
   }
 
   // Getters/setters
-  get backgroundColor(): string { return this._backgroundColor; }
-  set backgroundColor(value: string) { this._backgroundColor = value; this.markDirty(); }
+  get backgroundColor(): string {
+    return this._backgroundColor;
+  }
+  set backgroundColor(value: string) {
+    this._backgroundColor = value;
+    this.markDirty();
+  }
 
-  get borderRadius(): number { return this._borderRadius; }
-  set borderRadius(value: number) { this._borderRadius = value; this.markDirty(); }
+  get borderRadius(): number {
+    return this._borderRadius;
+  }
+  set borderRadius(value: number) {
+    this._borderRadius = value;
+    this.markDirty();
+  }
 
-  get padding(): number { return this._padding; }
-  set padding(value: number) { this._padding = value; this.markDirty(); }
+  get padding(): number {
+    return this._padding;
+  }
+  set padding(value: number) {
+    this._padding = value;
+    this.markDirty();
+  }
 
-  get shadow(): boolean { return this._shadow; }
-  set shadow(value: boolean) { this._shadow = value; this.markDirty(); }
+  get shadow(): boolean {
+    return this._shadow;
+  }
+  set shadow(value: boolean) {
+    this._shadow = value;
+    this.markDirty();
+  }
 
   /**
    * Get content bounds (with padding)
@@ -124,7 +144,7 @@ export class Panel extends UIComponent {
     ctx.restore();
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

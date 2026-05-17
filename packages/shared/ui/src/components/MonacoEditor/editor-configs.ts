@@ -196,7 +196,7 @@ export function getEditorConfig(context: EditorContext): HoloEditorConfig {
  */
 export function mergeEditorConfig(
   context: EditorContext,
-  overrides: Partial<HoloEditorConfig>,
+  overrides: Partial<HoloEditorConfig>
 ): HoloEditorConfig {
   const base = getEditorConfig(context);
   return {

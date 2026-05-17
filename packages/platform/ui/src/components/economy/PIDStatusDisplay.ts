@@ -24,11 +24,7 @@
  */
 
 import { EconomyComponent } from './EconomyComponent';
-import type {
-  PIDStatusDisplayConfig,
-  PIDLoopData,
-  TimeSeriesPoint,
-} from './types';
+import type { PIDStatusDisplayConfig, PIDLoopData, TimeSeriesPoint } from './types';
 import { ECONOMY_COLORS } from './types';
 
 /** Default PID loop data */
@@ -135,9 +131,7 @@ export class PIDStatusDisplay extends EconomyComponent {
 
     // Dual-panel layout for inner/outer loops
     const panelY = contentY + 48;
-    const panelHeight = this._showTermBreakdown
-      ? contentHeight - 56
-      : contentHeight - 56;
+    const panelHeight = this._showTermBreakdown ? contentHeight - 56 : contentHeight - 56;
     const halfWidth = (width - 24) / 2;
 
     this.drawLoopPanel(
@@ -167,20 +161,16 @@ export class PIDStatusDisplay extends EconomyComponent {
     );
   }
 
-  private drawTopMetrics(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number
-  ): void {
+  private drawTopMetrics(ctx: CanvasRenderingContext2D, x: number, y: number, width: number): void {
     ctx.save();
 
     // Faucet multiplier
-    const multColor = this._displayMultiplier > 1.5 || this._displayMultiplier < 0.5
-      ? ECONOMY_COLORS.critical
-      : this._displayMultiplier > 1.2 || this._displayMultiplier < 0.8
-        ? ECONOMY_COLORS.warning
-        : ECONOMY_COLORS.healthy;
+    const multColor =
+      this._displayMultiplier > 1.5 || this._displayMultiplier < 0.5
+        ? ECONOMY_COLORS.critical
+        : this._displayMultiplier > 1.2 || this._displayMultiplier < 0.8
+          ? ECONOMY_COLORS.warning
+          : ECONOMY_COLORS.healthy;
 
     ctx.font = '600 18px system-ui, sans-serif';
     ctx.fillStyle = multColor;
@@ -222,11 +212,12 @@ export class PIDStatusDisplay extends EconomyComponent {
     ctx.stroke();
 
     // Supply deviation
-    const devColor = Math.abs(this._supplyDeviation) > 20
-      ? ECONOMY_COLORS.critical
-      : Math.abs(this._supplyDeviation) > 10
-        ? ECONOMY_COLORS.warning
-        : ECONOMY_COLORS.healthy;
+    const devColor =
+      Math.abs(this._supplyDeviation) > 20
+        ? ECONOMY_COLORS.critical
+        : Math.abs(this._supplyDeviation) > 10
+          ? ECONOMY_COLORS.warning
+          : ECONOMY_COLORS.healthy;
 
     ctx.font = '600 14px system-ui, sans-serif';
     ctx.fillStyle = devColor;
@@ -282,11 +273,27 @@ export class PIDStatusDisplay extends EconomyComponent {
     let metricsY = y + 36;
 
     // Error
-    this.drawPIDMetric(ctx, x + 8, metricsY, width - 16, 'Error', loop.error, ECONOMY_COLORS.critical);
+    this.drawPIDMetric(
+      ctx,
+      x + 8,
+      metricsY,
+      width - 16,
+      'Error',
+      loop.error,
+      ECONOMY_COLORS.critical
+    );
     metricsY += 18;
 
     // Output
-    this.drawPIDMetric(ctx, x + 8, metricsY, width - 16, 'Output', loop.output, ECONOMY_COLORS.output);
+    this.drawPIDMetric(
+      ctx,
+      x + 8,
+      metricsY,
+      width - 16,
+      'Output',
+      loop.output,
+      ECONOMY_COLORS.output
+    );
     metricsY += 18;
 
     // Setpoint
@@ -299,11 +306,35 @@ export class PIDStatusDisplay extends EconomyComponent {
     // PID term breakdown
     if (this._showTermBreakdown) {
       metricsY += 4;
-      this.drawTermBar(ctx, x + 8, metricsY, width - 16, 'P', loop.error, ECONOMY_COLORS.proportional);
+      this.drawTermBar(
+        ctx,
+        x + 8,
+        metricsY,
+        width - 16,
+        'P',
+        loop.error,
+        ECONOMY_COLORS.proportional
+      );
       metricsY += 14;
-      this.drawTermBar(ctx, x + 8, metricsY, width - 16, 'I', loop.integral, ECONOMY_COLORS.integral);
+      this.drawTermBar(
+        ctx,
+        x + 8,
+        metricsY,
+        width - 16,
+        'I',
+        loop.integral,
+        ECONOMY_COLORS.integral
+      );
       metricsY += 14;
-      this.drawTermBar(ctx, x + 8, metricsY, width - 16, 'D', loop.derivative, ECONOMY_COLORS.derivative);
+      this.drawTermBar(
+        ctx,
+        x + 8,
+        metricsY,
+        width - 16,
+        'D',
+        loop.derivative,
+        ECONOMY_COLORS.derivative
+      );
       metricsY += 18;
     }
 
@@ -474,11 +505,12 @@ export class PIDStatusDisplay extends EconomyComponent {
   // =========================================================================
 
   protected updateA11yDescription(): void {
-    const multStatus = this._faucetMultiplier > 1.5 || this._faucetMultiplier < 0.5
-      ? 'critical'
-      : this._faucetMultiplier > 1.2 || this._faucetMultiplier < 0.8
-        ? 'elevated'
-        : 'normal';
+    const multStatus =
+      this._faucetMultiplier > 1.5 || this._faucetMultiplier < 0.5
+        ? 'critical'
+        : this._faucetMultiplier > 1.2 || this._faucetMultiplier < 0.8
+          ? 'elevated'
+          : 'normal';
 
     this._a11yDescription = {
       label: `PID flow controller status`,

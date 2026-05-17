@@ -1,12 +1,12 @@
 /**
  * HoloPanel3D - Three.js CSS3DObject renderer for HoloPrimitives
- * 
+ *
  * Renders React/HTML content in 3D space using CSS3DRenderer.
  * This is the bridge between data cells and the Three.js scene.
- * 
+ *
  * Architecture:
  *   DataCellDefinition → HoloPanel3D → CSS3DObject → Three.js Scene
- * 
+ *
  * @packageDocumentation
  */
 
@@ -56,13 +56,10 @@ export class HoloPanel3D {
   constructor(config: HoloPanel3DConfig) {
     this.scene = config.scene;
     this.camera = config.camera;
-    
+
     // Create CSS3D renderer
     this.css3DRenderer = new CSS3DRenderer();
-    this.css3DRenderer.setSize(
-      config.domElement.clientWidth,
-      config.domElement.clientHeight
-    );
+    this.css3DRenderer.setSize(config.domElement.clientWidth, config.domElement.clientHeight);
     this.css3DRenderer.domElement.style.position = 'absolute';
     this.css3DRenderer.domElement.style.top = '0';
     this.css3DRenderer.domElement.style.left = '0';
@@ -79,13 +76,13 @@ export class HoloPanel3D {
    */
   createPanel(definition: DataCellDefinition): string {
     const id = definition.id || `panel_${++this.panelIdCounter}`;
-    
+
     // Create HTML element
     const element = this.createPanelElement(definition);
-    
+
     // Create CSS3DObject
     const object = new CSS3DObject(element);
-    
+
     // Set position
     if (definition.position) {
       object.position.set(...definition.position);
@@ -93,7 +90,7 @@ export class HoloPanel3D {
     if (definition.position_offset) {
       object.position.add(new THREE.Vector3(...definition.position_offset));
     }
-    
+
     // Set rotation
     if (definition.rotation) {
       object.rotation.set(
@@ -102,22 +99,22 @@ export class HoloPanel3D {
         THREE.MathUtils.degToRad(definition.rotation[2])
       );
     }
-    
+
     // Set scale
     const scale = (definition.scale || 1) * 0.01; // Convert to world units
     object.scale.set(scale, scale, scale);
-    
+
     // Add to scene
     this.scene.add(object);
-    
+
     // Store panel instance
     const instance: PanelInstance = { id, object, element, definition };
-    
+
     // Set up data fetching if data_source specified
     if (definition.data_source) {
       this.startDataFetching(instance);
     }
-    
+
     this.panels.set(id, instance);
     return id;
   }
@@ -126,7 +123,7 @@ export class HoloPanel3D {
    * Create multiple panels from HoloScript data cells
    */
   createPanels(definitions: DataCellDefinition[]): string[] {
-    return definitions.map(def => this.createPanel(def));
+    return definitions.map((def) => this.createPanel(def));
   }
 
   /**
@@ -135,7 +132,7 @@ export class HoloPanel3D {
   updatePanel(id: string, data: unknown): void {
     const panel = this.panels.get(id);
     if (!panel) return;
-    
+
     // Re-render the element with new data
     this.updatePanelElement(panel.element, panel.definition, data);
   }
@@ -146,15 +143,15 @@ export class HoloPanel3D {
   removePanel(id: string): void {
     const panel = this.panels.get(id);
     if (!panel) return;
-    
+
     // Clear refresh interval
     if (panel.refreshInterval) {
       clearInterval(panel.refreshInterval);
     }
-    
+
     // Remove from scene
     this.scene.remove(panel.object);
-    
+
     // Remove from map
     this.panels.delete(id);
   }
@@ -199,10 +196,10 @@ export class HoloPanel3D {
       backdrop-filter: blur(10px);
       min-width: 150px;
     `;
-    
+
     // Render initial content
     this.updatePanelElement(element, definition, null);
-    
+
     return element;
   }
 
@@ -213,33 +210,31 @@ export class HoloPanel3D {
   ): void {
     const props = definition.props || {};
     const style = (props.style as HoloStyle) || {};
-    const color = style.color || '#00ffff';
-    
     switch (definition.type) {
       case 'text':
         element.innerHTML = this.renderText(String(data || props.text || ''), style);
         break;
-        
+
       case 'metric':
         element.innerHTML = this.renderMetric(data, props, style);
         break;
-        
+
       case 'status':
         element.innerHTML = this.renderStatus(data, props, style);
         break;
-        
+
       case 'progress':
         element.innerHTML = this.renderProgress(data, props, style);
         break;
-        
+
       case 'list':
         element.innerHTML = this.renderList(data, props, style);
         break;
-        
+
       case 'chart':
         element.innerHTML = this.renderChart(data, props, style);
         break;
-        
+
       default:
         element.innerHTML = this.renderText('Loading...', { color: '#888' });
     }
@@ -253,7 +248,7 @@ export class HoloPanel3D {
     const color = style.color || '#00ffff';
     const fontSize = FONT_SIZES_PX[style.fontSize || 'md'];
     const glow = style.glow || 0;
-    
+
     return `
       <div style="
         color: ${color};
@@ -267,12 +262,13 @@ export class HoloPanel3D {
 
   private renderMetric(data: unknown, props: Record<string, unknown>, style: HoloStyle): string {
     const metricData = data as { value?: number; trend?: string } | number;
-    const value = typeof metricData === 'number' ? metricData : metricData?.value ?? 0;
-    const trend = typeof metricData === 'object' ? metricData?.trend as 'up' | 'down' | 'neutral' : undefined;
+    const value = typeof metricData === 'number' ? metricData : (metricData?.value ?? 0);
+    const trend =
+      typeof metricData === 'object' ? (metricData?.trend as 'up' | 'down' | 'neutral') : undefined;
     const color = style.color || '#00ffff';
-    const format = props.format as string || 'number';
+    const format = (props.format as string) || 'number';
     const formatted = formatMetricValue(value, format as any);
-    
+
     return `
       <div style="text-align: center;">
         <div style="
@@ -293,10 +289,12 @@ export class HoloPanel3D {
 
   private renderStatus(data: unknown, props: Record<string, unknown>, style: HoloStyle): string {
     const statusData = data as { status?: string; label?: string } | string;
-    const status = (typeof statusData === 'string' ? statusData : statusData?.status || 'idle') as keyof typeof STATUS_COLORS;
+    const status = (
+      typeof statusData === 'string' ? statusData : statusData?.status || 'idle'
+    ) as keyof typeof STATUS_COLORS;
     const label = typeof statusData === 'object' ? statusData?.label : undefined;
     const statusColor = STATUS_COLORS[status] || '#888';
-    
+
     return `
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="
@@ -322,17 +320,20 @@ export class HoloPanel3D {
 
   private renderProgress(data: unknown, props: Record<string, unknown>, style: HoloStyle): string {
     const progressData = data as { value?: number; max?: number } | number;
-    const value = typeof progressData === 'number' ? progressData : progressData?.value ?? 0;
-    const max = (typeof progressData === 'object' ? progressData?.max : undefined) || (props.max as number) || 100;
+    const value = typeof progressData === 'number' ? progressData : (progressData?.value ?? 0);
+    const max =
+      (typeof progressData === 'object' ? progressData?.max : undefined) ||
+      (props.max as number) ||
+      100;
     const percent = Math.min(100, Math.max(0, (value / max) * 100));
     const color = style.color || '#00ffff';
     const type = props.type || 'bar';
-    
+
     if (type === 'ring') {
       const radius = 40;
       const circumference = 2 * Math.PI * radius;
       const offset = circumference - (percent / 100) * circumference;
-      
+
       return `
         <div style="text-align: center;">
           <svg width="100" height="100" viewBox="0 0 100 100">
@@ -351,7 +352,7 @@ export class HoloPanel3D {
         </div>
       `;
     }
-    
+
     return `
       <div>
         ${props.label ? `<div style="color: #888; font-size: 12px; margin-bottom: 4px;">${props.label}</div>` : ''}
@@ -381,34 +382,47 @@ export class HoloPanel3D {
     const items = Array.isArray(data) ? data : [];
     const maxVisible = (props.maxVisible as number) || 5;
     const color = style.color || '#00ffff';
-    
+
     return `
       <div style="max-height: ${maxVisible * 48}px; overflow: auto;">
-        ${items.slice(0, maxVisible * 2).map(item => {
-          const statusColor = item.status ? LIST_STATUS_COLORS[item.status as keyof typeof LIST_STATUS_COLORS] : null;
-          return `
+        ${items
+          .slice(0, maxVisible * 2)
+          .map((item) => {
+            const statusColor = item.status
+              ? LIST_STATUS_COLORS[item.status as keyof typeof LIST_STATUS_COLORS]
+              : null;
+            return `
             <div style="
               padding: 8px;
               border-bottom: 1px solid ${color}22;
             ">
               <div style="display: flex; align-items: center; gap: 8px;">
-                ${statusColor ? `<span style="
+                ${
+                  statusColor
+                    ? `<span style="
                   width: 8px; height: 8px; border-radius: 50%;
                   background-color: ${statusColor};
                   box-shadow: 0 0 8px ${statusColor};
-                "></span>` : ''}
+                "></span>`
+                    : ''
+                }
                 <span style="color: ${color};">
                   ${item.title || item.name || item.primary || String(item)}
                 </span>
               </div>
-              ${item.secondary || item.description ? `
+              ${
+                item.secondary || item.description
+                  ? `
                 <div style="font-size: 12px; color: #666; margin-left: 16px;">
                   ${item.secondary || item.description}
                 </div>
-              ` : ''}
+              `
+                  : ''
+              }
             </div>
           `;
-        }).join('')}
+          })
+          .join('')}
       </div>
     `;
   }
@@ -416,18 +430,20 @@ export class HoloPanel3D {
   private renderChart(data: unknown, props: Record<string, unknown>, style: HoloStyle): string {
     const chartData = Array.isArray(data) ? data : [];
     if (!chartData.length) return '<div style="color: #888;">No data</div>';
-    
+
     const color = style.color || '#00ffff';
     const height = (props.height as number) || 60;
     const type = props.chartType || props.type || 'sparkline';
     const max = Math.max(...chartData);
     const min = Math.min(...chartData);
     const range = max - min || 1;
-    
+
     if (type === 'bars') {
       return `
         <div style="display: flex; align-items: flex-end; gap: 2px; height: ${height}px;">
-          ${chartData.map(v => `
+          ${chartData
+            .map(
+              (v) => `
             <div style="
               flex: 1;
               height: ${((v - min) / range) * 100}%;
@@ -436,11 +452,13 @@ export class HoloPanel3D {
               border-radius: 2px 2px 0 0;
               box-shadow: 0 0 4px ${color}44;
             "></div>
-          `).join('')}
+          `
+            )
+            .join('')}
         </div>
       `;
     }
-    
+
     // Sparkline/area
     const width = 200;
     const points = chartData.map((v, i) => ({
@@ -450,7 +468,7 @@ export class HoloPanel3D {
     const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
     const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
     const lastPoint = points[points.length - 1];
-    
+
     return `
       <svg width="${width}" height="${height}" style="overflow: visible;">
         ${type === 'area' ? `<path d="${areaD}" fill="${color}22" />` : ''}
@@ -469,7 +487,7 @@ export class HoloPanel3D {
   private startDataFetching(panel: PanelInstance): void {
     const fetchData = async () => {
       if (!panel.definition.data_source) return;
-      
+
       try {
         const res = await fetch(panel.definition.data_source);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -479,10 +497,10 @@ export class HoloPanel3D {
         console.error(`Failed to fetch data for panel ${panel.id}:`, error);
       }
     };
-    
+
     // Initial fetch
     fetchData();
-    
+
     // Set up refresh interval
     if (panel.definition.refresh) {
       panel.refreshInterval = setInterval(fetchData, panel.definition.refresh * 1000);

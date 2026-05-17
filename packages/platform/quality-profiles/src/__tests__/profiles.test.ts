@@ -3,12 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  INDUSTRIAL_PROFILE,
-  CINEMATIC_PROFILE,
-  MOBILE_PROFILE,
-  QUALITY_PROFILES,
-} from '../types';
+import { INDUSTRIAL_PROFILE, CINEMATIC_PROFILE, MOBILE_PROFILE, QUALITY_PROFILES } from '../types';
 
 describe('Quality Profile Definitions', () => {
   describe('INDUSTRIAL_PROFILE', () => {
@@ -222,31 +217,39 @@ describe('Quality Profile Definitions', () => {
     const profiles = Object.values(QUALITY_PROFILES);
 
     it('should have different priorities', () => {
-      const priorities = profiles.map(p => p.priority);
+      const priorities = profiles.map((p) => p.priority);
       const uniquePriorities = new Set(priorities);
       expect(uniquePriorities.size).toBe(3); // All different
     });
 
     it('should have different shadow map sizes', () => {
-      const sizes = profiles.map(p => p.renderSettings.shadowMapSize);
+      const sizes = profiles.map((p) => p.renderSettings.shadowMapSize);
       const uniqueSizes = new Set(sizes);
       expect(uniqueSizes.size).toBe(3); // All different
     });
 
     it('should have different physics accuracy levels', () => {
-      const accuracies = profiles.map(p => p.physicsAccuracy);
+      const accuracies = profiles.map((p) => p.physicsAccuracy);
       const uniqueAccuracies = new Set(accuracies);
       expect(uniqueAccuracies.size).toBe(3); // All different
     });
 
     it('should have ordered performance characteristics', () => {
       // Mobile should be most aggressive on performance
-      expect(MOBILE_PROFILE.renderSettings.lodBias).toBeGreaterThan(INDUSTRIAL_PROFILE.renderSettings.lodBias);
-      expect(MOBILE_PROFILE.renderSettings.lodBias).toBeGreaterThan(CINEMATIC_PROFILE.renderSettings.lodBias);
+      expect(MOBILE_PROFILE.renderSettings.lodBias).toBeGreaterThan(
+        INDUSTRIAL_PROFILE.renderSettings.lodBias
+      );
+      expect(MOBILE_PROFILE.renderSettings.lodBias).toBeGreaterThan(
+        CINEMATIC_PROFILE.renderSettings.lodBias
+      );
 
       // Cinematic should have highest texture quality
-      expect(CINEMATIC_PROFILE.renderSettings.maxTextureSize).toBeGreaterThan(INDUSTRIAL_PROFILE.renderSettings.maxTextureSize);
-      expect(CINEMATIC_PROFILE.renderSettings.maxTextureSize).toBeGreaterThan(MOBILE_PROFILE.renderSettings.maxTextureSize);
+      expect(CINEMATIC_PROFILE.renderSettings.maxTextureSize).toBeGreaterThan(
+        INDUSTRIAL_PROFILE.renderSettings.maxTextureSize
+      );
+      expect(CINEMATIC_PROFILE.renderSettings.maxTextureSize).toBeGreaterThan(
+        MOBILE_PROFILE.renderSettings.maxTextureSize
+      );
 
       // Industrial should have highest physics precision
       const physicsOrder = ['basic', 'standard', 'exact'];

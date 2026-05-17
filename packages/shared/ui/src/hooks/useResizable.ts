@@ -69,7 +69,7 @@ export function useResizable({
       startPosRef.current = direction === 'horizontal' ? e.clientX : e.clientY;
       startSizeRef.current = size;
     },
-    [direction, size],
+    [direction, size]
   );
 
   useEffect(() => {

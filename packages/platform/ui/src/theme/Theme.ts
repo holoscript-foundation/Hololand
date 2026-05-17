@@ -368,7 +368,7 @@ export class ThemeContext {
    * Notify all listeners of theme change
    */
   private notifyListeners(): void {
-    this._listeners.forEach(listener => listener(this._currentTheme));
+    this._listeners.forEach((listener) => listener(this._currentTheme));
   }
 }
 

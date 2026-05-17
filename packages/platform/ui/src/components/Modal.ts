@@ -78,11 +78,21 @@ export class Modal extends UIComponent {
   }
 
   // Getters/setters
-  get title(): string { return this._title; }
-  set title(value: string) { this._title = value; this.markDirty(); }
+  get title(): string {
+    return this._title;
+  }
+  set title(value: string) {
+    this._title = value;
+    this.markDirty();
+  }
 
-  get content(): string { return this._content; }
-  set content(value: string) { this._content = value; this.markDirty(); }
+  get content(): string {
+    return this._content;
+  }
+  set content(value: string) {
+    this._content = value;
+    this.markDirty();
+  }
 
   /**
    * Set canvas dimensions for overlay
@@ -93,7 +103,7 @@ export class Modal extends UIComponent {
     // Center modal
     this._position = {
       x: (width - this._size.width) / 2,
-      y: (height - this._size.height) / 2
+      y: (height - this._size.height) / 2,
     };
     this.markDirty();
   }
@@ -176,7 +186,12 @@ export class Modal extends UIComponent {
       ctx.font = `600 ${this._titleFontSize}px sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(this._title, x + this._padding, y + this._headerHeight / 2, width - this._padding * 2 - (this._closeButton ? 40 : 0));
+      ctx.fillText(
+        this._title,
+        x + this._padding,
+        y + this._headerHeight / 2,
+        width - this._padding * 2 - (this._closeButton ? 40 : 0)
+      );
 
       ctx.restore();
     }
@@ -207,8 +222,6 @@ export class Modal extends UIComponent {
     // Draw content
     if (this._content) {
       const contentY = this._title ? y + this._headerHeight + this._padding : y + this._padding;
-      const contentHeight = height - (this._title ? this._headerHeight : 0) - this._padding * 2;
-
       ctx.fillStyle = this._contentColor;
       ctx.font = `${this._fontSize}px sans-serif`;
       ctx.textAlign = 'left';
@@ -226,7 +239,7 @@ export class Modal extends UIComponent {
     }
 
     // Render children (for custom content)
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }

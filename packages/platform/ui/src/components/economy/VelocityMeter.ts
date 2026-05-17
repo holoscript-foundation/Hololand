@@ -20,10 +20,7 @@
  */
 
 import { EconomyComponent } from './EconomyComponent';
-import type {
-  VelocityMeterConfig,
-  TimeSeriesPoint,
-} from './types';
+import type { VelocityMeterConfig, TimeSeriesPoint } from './types';
 import { ECONOMY_COLORS } from './types';
 
 export class VelocityMeter extends EconomyComponent {
@@ -98,12 +95,18 @@ export class VelocityMeter extends EconomyComponent {
   private getZoneColor(v: number): string {
     const zone = this.getZone(v);
     switch (zone) {
-      case 'Stagnant': return ECONOMY_COLORS.velocityLow;
-      case 'Low': return ECONOMY_COLORS.velocityLow;
-      case 'Optimal': return ECONOMY_COLORS.velocityNormal;
-      case 'High': return ECONOMY_COLORS.velocityHigh;
-      case 'Dangerous': return ECONOMY_COLORS.velocityDangerous;
-      default: return ECONOMY_COLORS.velocityNormal;
+      case 'Stagnant':
+        return ECONOMY_COLORS.velocityLow;
+      case 'Low':
+        return ECONOMY_COLORS.velocityLow;
+      case 'Optimal':
+        return ECONOMY_COLORS.velocityNormal;
+      case 'High':
+        return ECONOMY_COLORS.velocityHigh;
+      case 'Dangerous':
+        return ECONOMY_COLORS.velocityDangerous;
+      default:
+        return ECONOMY_COLORS.velocityNormal;
     }
   }
 
@@ -113,16 +116,19 @@ export class VelocityMeter extends EconomyComponent {
       if (zone === 'Dangerous') {
         this.announce(
           `Warning: Currency velocity is dangerously high at ${this._velocity.toFixed(3)}. ` +
-          `Economy may be overheating.`,
+            `Economy may be overheating.`,
           'assertive'
         );
       } else if (zone === 'Stagnant') {
         this.announce(
           `Warning: Currency velocity is very low at ${this._velocity.toFixed(3)}. ` +
-          `Economy may be stagnating.`,
+            `Economy may be stagnating.`,
           'assertive'
         );
-      } else if (zone === 'Optimal' && (this._lastZone === 'Dangerous' || this._lastZone === 'Stagnant')) {
+      } else if (
+        zone === 'Optimal' &&
+        (this._lastZone === 'Dangerous' || this._lastZone === 'Stagnant')
+      ) {
         this.announce(
           `Currency velocity has returned to optimal range at ${this._velocity.toFixed(3)}.`,
           'polite'
@@ -183,9 +189,21 @@ export class VelocityMeter extends EconomyComponent {
 
     // Draw zone bands (bottom to top: stagnant, low, optimal, high, dangerous)
     const zones = [
-      { min: this._minVelocity, max: this._optimalRange.min, color: ECONOMY_COLORS.velocityLow + '40' },
-      { min: this._optimalRange.min, max: this._optimalRange.max, color: ECONOMY_COLORS.velocityNormal + '40' },
-      { min: this._optimalRange.max, max: this._maxVelocity, color: ECONOMY_COLORS.velocityHigh + '40' },
+      {
+        min: this._minVelocity,
+        max: this._optimalRange.min,
+        color: ECONOMY_COLORS.velocityLow + '40',
+      },
+      {
+        min: this._optimalRange.min,
+        max: this._optimalRange.max,
+        color: ECONOMY_COLORS.velocityNormal + '40',
+      },
+      {
+        min: this._optimalRange.max,
+        max: this._maxVelocity,
+        color: ECONOMY_COLORS.velocityHigh + '40',
+      },
     ];
 
     // Clip to rounded rect
@@ -214,9 +232,10 @@ export class VelocityMeter extends EconomyComponent {
     ctx.setLineDash([]);
 
     // Fill level
-    const normalized = Math.max(0, Math.min(1,
-      (this._displayVelocity - this._minVelocity) / range
-    ));
+    const normalized = Math.max(
+      0,
+      Math.min(1, (this._displayVelocity - this._minVelocity) / range)
+    );
     const fillHeight = normalized * height;
     const fillColor = this.getZoneColor(this._displayVelocity);
 

@@ -64,13 +64,15 @@ export class Toggle extends UIComponent {
       const labelWidth = this._label ? this._label.length * 8 + 10 : 0;
       this._size = {
         width: this._trackWidth + labelWidth,
-        height: Math.max(this._trackHeight, 24)
+        height: Math.max(this._trackHeight, 24),
       };
     }
   }
 
   // Getters/setters
-  get checked(): boolean { return this._checked; }
+  get checked(): boolean {
+    return this._checked;
+  }
   set checked(value: boolean) {
     if (value !== this._checked) {
       this._checked = value;
@@ -80,7 +82,9 @@ export class Toggle extends UIComponent {
     }
   }
 
-  get label(): string { return this._label; }
+  get label(): string {
+    return this._label;
+  }
   set label(value: string) {
     this._label = value;
     this.markDirty();
@@ -124,7 +128,7 @@ export class Toggle extends UIComponent {
   render(ctx: CanvasRenderingContext2D): void {
     if (!this._visible) return;
 
-    const { x, y, width, height } = this.getBounds();
+    const { x, y, height } = this.getBounds();
     const centerY = y + height / 2;
 
     // Calculate track position based on label position
@@ -194,7 +198,7 @@ export class Toggle extends UIComponent {
     }
 
     // Render children
-    this._children.forEach(child => child.render(ctx));
+    this._children.forEach((child) => child.render(ctx));
 
     this._dirty = false;
   }
@@ -218,11 +222,13 @@ export class Toggle extends UIComponent {
    */
   private hexToRgb(hex: string): { r: number; g: number; b: number } {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : { r: 0, g: 0, b: 0 };
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 0, g: 0, b: 0 };
   }
 
   // Override pointer handler for toggle

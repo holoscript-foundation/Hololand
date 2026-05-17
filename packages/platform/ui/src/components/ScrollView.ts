@@ -78,7 +78,9 @@ export class ScrollView extends UIComponent {
   }
 
   // Getters/setters
-  get scrollOffsetX(): number { return this._scrollOffsetX; }
+  get scrollOffsetX(): number {
+    return this._scrollOffsetX;
+  }
   set scrollOffsetX(value: number) {
     const max = this.maxScrollX;
     this._scrollOffsetX = Math.max(0, Math.min(max, value));
@@ -86,7 +88,9 @@ export class ScrollView extends UIComponent {
     this._onScroll?.(this._scrollOffsetX, this._scrollOffsetY);
   }
 
-  get scrollOffsetY(): number { return this._scrollOffsetY; }
+  get scrollOffsetY(): number {
+    return this._scrollOffsetY;
+  }
   set scrollOffsetY(value: number) {
     const max = this.maxScrollY;
     this._scrollOffsetY = Math.max(0, Math.min(max, value));
@@ -94,24 +98,34 @@ export class ScrollView extends UIComponent {
     this._onScroll?.(this._scrollOffsetX, this._scrollOffsetY);
   }
 
-  get contentWidth(): number { return this._contentWidth; }
+  get contentWidth(): number {
+    return this._contentWidth;
+  }
   set contentWidth(value: number) {
     this._contentWidth = value;
     this.markDirty();
   }
 
-  get contentHeight(): number { return this._contentHeight; }
+  get contentHeight(): number {
+    return this._contentHeight;
+  }
   set contentHeight(value: number) {
     this._contentHeight = value;
     this.markDirty();
   }
 
   get maxScrollX(): number {
-    return Math.max(0, this._contentWidth - this._size.width + (this._showScrollbarY ? this._scrollbarWidth : 0));
+    return Math.max(
+      0,
+      this._contentWidth - this._size.width + (this._showScrollbarY ? this._scrollbarWidth : 0)
+    );
   }
 
   get maxScrollY(): number {
-    return Math.max(0, this._contentHeight - this._size.height + (this._showScrollbarX ? this._scrollbarWidth : 0));
+    return Math.max(
+      0,
+      this._contentHeight - this._size.height + (this._showScrollbarX ? this._scrollbarWidth : 0)
+    );
   }
 
   get needsScrollX(): boolean {
@@ -147,8 +161,10 @@ export class ScrollView extends UIComponent {
    */
   private getViewportSize(): { width: number; height: number } {
     return {
-      width: this._size.width - (this.needsScrollY && this._showScrollbarY ? this._scrollbarWidth : 0),
-      height: this._size.height - (this.needsScrollX && this._showScrollbarX ? this._scrollbarWidth : 0)
+      width:
+        this._size.width - (this.needsScrollY && this._showScrollbarY ? this._scrollbarWidth : 0),
+      height:
+        this._size.height - (this.needsScrollX && this._showScrollbarX ? this._scrollbarWidth : 0),
     };
   }
 
@@ -256,7 +272,13 @@ export class ScrollView extends UIComponent {
       // Thumb
       ctx.fillStyle = this._scrollbarColor;
       ctx.beginPath();
-      ctx.roundRect(scrollbarX, thumbY, this._scrollbarWidth, thumbHeight, this._scrollbarWidth / 2);
+      ctx.roundRect(
+        scrollbarX,
+        thumbY,
+        this._scrollbarWidth,
+        thumbHeight,
+        this._scrollbarWidth / 2
+      );
       ctx.fill();
     }
 
@@ -313,8 +335,6 @@ export class ScrollView extends UIComponent {
 
     // Check scrollbar clicks
     const { x, y, width, height } = this.getBounds();
-    const viewport = this.getViewportSize();
-
     // Vertical scrollbar
     if (this.needsScrollY && this._showScrollbarY) {
       const scrollbarX = x + width - this._scrollbarWidth;
@@ -342,7 +362,7 @@ export class ScrollView extends UIComponent {
       const child = this._children[i];
       const adjustedPoint = {
         x: point.x + this._scrollOffsetX,
-        y: point.y + this._scrollOffsetY
+        y: point.y + this._scrollOffsetY,
       };
       if (child.handlePointerDown(adjustedPoint)) {
         return true;
@@ -375,7 +395,7 @@ export class ScrollView extends UIComponent {
     for (const child of this._children) {
       const adjustedPoint = {
         x: point.x + this._scrollOffsetX,
-        y: point.y + this._scrollOffsetY
+        y: point.y + this._scrollOffsetY,
       };
       child.handlePointerMove(adjustedPoint);
     }
@@ -395,7 +415,7 @@ export class ScrollView extends UIComponent {
       const child = this._children[i];
       const adjustedPoint = {
         x: point.x + this._scrollOffsetX,
-        y: point.y + this._scrollOffsetY
+        y: point.y + this._scrollOffsetY,
       };
       if (child.handlePointerUp(adjustedPoint)) {
         return true;

@@ -86,7 +86,7 @@ function registerHoloScript(monacoInstance: typeof monacoTypes) {
 
   monacoInstance.languages.setMonarchTokensProvider(
     'holoscript',
-    holoscriptMonarchLanguage as monacoTypes.languages.IMonarchLanguage,
+    holoscriptMonarchLanguage as monacoTypes.languages.IMonarchLanguage
   );
 
   monacoInstance.editor.defineTheme('holoscript-dark', holoscriptDarkTheme);
@@ -184,7 +184,7 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(
       className,
       readOnly = false,
     },
-    ref,
+    ref
   ) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<monacoTypes.editor.IStandaloneCodeEditor | null>(null);
@@ -216,7 +216,7 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(
           }
         },
       }),
-      [],
+      []
     );
 
     // Initialize editor
@@ -290,7 +290,6 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(
         editorRef.current?.dispose();
         editorRef.current = null;
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Sync controlled value
@@ -326,7 +325,7 @@ export const MonacoEditor = forwardRef<MonacoEditorRef, MonacoEditorProps>(
     };
 
     return <div ref={containerRef} className={className} style={containerStyle} />;
-  },
+  }
 );
 
 MonacoEditor.displayName = 'MonacoEditor';

@@ -89,7 +89,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     return <button ref={ref} style={baseStyle} disabled={disabled} {...props} />;
-  },
+  }
 );
 
 Button.displayName = 'Button';

@@ -144,9 +144,8 @@ const _PHYSICS_SAFETY_ENVELOPE: PhysicsSafetyBounds = {
  * The immutable physics safety envelope.
  * Frozen at module load -- cannot be modified at runtime.
  */
-export const PHYSICS_SAFETY_ENVELOPE: Readonly<PhysicsSafetyBounds> = Object.freeze(
-  _PHYSICS_SAFETY_ENVELOPE
-);
+export const PHYSICS_SAFETY_ENVELOPE: Readonly<PhysicsSafetyBounds> =
+  Object.freeze(_PHYSICS_SAFETY_ENVELOPE);
 
 // =============================================================================
 // CLAMPING FUNCTIONS
@@ -173,7 +172,9 @@ export function clampRange(value: number, min: number, max: number): number {
 /**
  * Compute the magnitude of a 3D vector [x, y, z] or {x, y, z}.
  */
-export function vectorMagnitude(v: readonly number[] | { x: number; y: number; z: number }): number {
+export function vectorMagnitude(
+  v: readonly number[] | { x: number; y: number; z: number }
+): number {
   if (Array.isArray(v)) {
     const x = v[0] ?? 0;
     const y = v[1] ?? 0;
@@ -193,7 +194,7 @@ export function vectorMagnitude(v: readonly number[] | { x: number; y: number; z
  */
 export function clampVectorMagnitude(
   v: readonly number[] | { x: number; y: number; z: number },
-  max: number,
+  max: number
 ): [number, number, number] {
   let x: number, y: number, z: number;
 
@@ -234,7 +235,7 @@ export function enforceLinearVelocity(
   velocity: readonly number[] | { x: number; y: number; z: number },
   envelope: Readonly<PhysicsSafetyBounds> = PHYSICS_SAFETY_ENVELOPE,
   nodeId?: string,
-  source?: string,
+  source?: string
 ): { value: [number, number, number]; clamped: boolean; event?: ClampEvent } {
   const mag = vectorMagnitude(velocity);
   const value = clampVectorMagnitude(velocity, envelope.maxLinearVelocity);
@@ -265,7 +266,7 @@ export function enforceAngularVelocity(
   angularVelocity: readonly number[] | { x: number; y: number; z: number },
   envelope: Readonly<PhysicsSafetyBounds> = PHYSICS_SAFETY_ENVELOPE,
   nodeId?: string,
-  source?: string,
+  source?: string
 ): { value: [number, number, number]; clamped: boolean; event?: ClampEvent } {
   const mag = vectorMagnitude(angularVelocity);
   const value = clampVectorMagnitude(angularVelocity, envelope.maxAngularVelocity);
@@ -295,7 +296,7 @@ export function enforceForce(
   force: readonly number[] | { x: number; y: number; z: number },
   envelope: Readonly<PhysicsSafetyBounds> = PHYSICS_SAFETY_ENVELOPE,
   nodeId?: string,
-  source?: string,
+  source?: string
 ): { value: [number, number, number]; clamped: boolean; event?: ClampEvent } {
   const mag = vectorMagnitude(force);
   const value = clampVectorMagnitude(force, envelope.maxForceMagnitude);
@@ -325,7 +326,7 @@ export function enforceImpulse(
   impulse: readonly number[] | { x: number; y: number; z: number },
   envelope: Readonly<PhysicsSafetyBounds> = PHYSICS_SAFETY_ENVELOPE,
   nodeId?: string,
-  source?: string,
+  source?: string
 ): { value: [number, number, number]; clamped: boolean; event?: ClampEvent } {
   const mag = vectorMagnitude(impulse);
   const value = clampVectorMagnitude(impulse, envelope.maxImpulseMagnitude);
@@ -355,7 +356,7 @@ export function enforceGravityScale(
   gravityScale: number,
   envelope: Readonly<PhysicsSafetyBounds> = PHYSICS_SAFETY_ENVELOPE,
   nodeId?: string,
-  source?: string,
+  source?: string
 ): { value: number; clamped: boolean; event?: ClampEvent } {
   const value = clampRange(gravityScale, envelope.minGravityScale, envelope.maxGravityScale);
   const clamped = value !== gravityScale || !Number.isFinite(gravityScale);
@@ -366,7 +367,8 @@ export function enforceGravityScale(
     event: clamped
       ? {
           timestamp: new Date().toISOString(),
-          parameter: gravityScale < envelope.minGravityScale ? 'minGravityScale' : 'maxGravityScale',
+          parameter:
+            gravityScale < envelope.minGravityScale ? 'minGravityScale' : 'maxGravityScale',
           requestedValue: gravityScale,
           clampedValue: value,
           hardCap:
@@ -387,7 +389,7 @@ export function enforceMass(
   mass: number,
   envelope: Readonly<PhysicsSafetyBounds> = PHYSICS_SAFETY_ENVELOPE,
   nodeId?: string,
-  source?: string,
+  source?: string
 ): { value: number; clamped: boolean; event?: ClampEvent } {
   const value = clampRange(mass, envelope.minMass, envelope.maxMass);
   const clamped = value !== mass || !Number.isFinite(mass);
@@ -416,7 +418,7 @@ export function enforcePosition(
   position: readonly number[] | { x: number; y: number; z: number },
   envelope: Readonly<PhysicsSafetyBounds> = PHYSICS_SAFETY_ENVELOPE,
   nodeId?: string,
-  source?: string,
+  source?: string
 ): { value: [number, number, number]; clamped: boolean; event?: ClampEvent } {
   const mag = vectorMagnitude(position);
   const value = clampVectorMagnitude(position, envelope.maxPositionMagnitude);

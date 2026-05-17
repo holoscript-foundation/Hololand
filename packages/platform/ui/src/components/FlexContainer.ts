@@ -9,9 +9,21 @@ import type { UIComponentConfig } from '../types';
 export interface FlexContainerConfig extends UIComponentConfig {
   direction?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
   wrap?: 'nowrap' | 'wrap' | 'wrap-reverse';
-  justifyContent?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
+  justifyContent?:
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'space-between'
+    | 'space-around'
+    | 'space-evenly';
   alignItems?: 'flex-start' | 'flex-end' | 'center' | 'stretch';
-  alignContent?: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'stretch';
+  alignContent?:
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'space-between'
+    | 'space-around'
+    | 'stretch';
   gap?: number;
   padding?: number;
   backgroundColor?: string;
@@ -34,9 +46,21 @@ interface LayoutItem {
 export class FlexContainer extends UIComponent {
   private _direction: 'row' | 'column' | 'row-reverse' | 'column-reverse';
   private _wrap: 'nowrap' | 'wrap' | 'wrap-reverse';
-  private _justifyContent: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'space-evenly';
+  private _justifyContent:
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'space-between'
+    | 'space-around'
+    | 'space-evenly';
   private _alignItems: 'flex-start' | 'flex-end' | 'center' | 'stretch';
-  private _alignContent: 'flex-start' | 'flex-end' | 'center' | 'space-between' | 'space-around' | 'stretch';
+  private _alignContent:
+    | 'flex-start'
+    | 'flex-end'
+    | 'center'
+    | 'space-between'
+    | 'space-around'
+    | 'stretch';
   private _gap: number;
   private _padding: number;
   private _backgroundColor: string;
@@ -67,42 +91,54 @@ export class FlexContainer extends UIComponent {
   }
 
   // Getters/setters
-  get direction() { return this._direction; }
+  get direction() {
+    return this._direction;
+  }
   set direction(value: typeof this._direction) {
     this._direction = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get wrap() { return this._wrap; }
+  get wrap() {
+    return this._wrap;
+  }
   set wrap(value: typeof this._wrap) {
     this._wrap = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get justifyContent() { return this._justifyContent; }
+  get justifyContent() {
+    return this._justifyContent;
+  }
   set justifyContent(value: typeof this._justifyContent) {
     this._justifyContent = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get alignItems() { return this._alignItems; }
+  get alignItems() {
+    return this._alignItems;
+  }
   set alignItems(value: typeof this._alignItems) {
     this._alignItems = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get gap() { return this._gap; }
+  get gap() {
+    return this._gap;
+  }
   set gap(value: number) {
     this._gap = value;
     this._layoutDirty = true;
     this.markDirty();
   }
 
-  get padding() { return this._padding; }
+  get padding() {
+    return this._padding;
+  }
   set padding(value: number) {
     this._padding = value;
     this._layoutDirty = true;
@@ -196,7 +232,8 @@ export class FlexContainer extends UIComponent {
 
     for (let i = 0; i < orderedChildren.length; i++) {
       const child = orderedChildren[i];
-      const { main: childMainSize, cross: childCrossSize } = childSizes[isReversed ? orderedChildren.length - 1 - i : i];
+      const { main: childMainSize, cross: childCrossSize } =
+        childSizes[isReversed ? orderedChildren.length - 1 - i : i];
 
       // Calculate cross axis position
       let crossOffset = 0;
@@ -237,7 +274,7 @@ export class FlexContainer extends UIComponent {
         x: child.x,
         y: child.y,
         width: child.width,
-        height: child.height
+        height: child.height,
       });
 
       currentMainPos += childMainSize + (i < orderedChildren.length - 1 ? mainSpacing : 0);
@@ -280,7 +317,7 @@ export class FlexContainer extends UIComponent {
     }
 
     // Render children
-    this._children.forEach(child => {
+    this._children.forEach((child) => {
       if (child.visible) {
         child.render(ctx);
       }

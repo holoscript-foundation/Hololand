@@ -102,7 +102,7 @@ export const StatusBar = forwardRef<HTMLDivElement, StatusBarProps>(
         <div style={{ display: 'flex', alignItems: 'center' }}>{right}</div>
       </div>
     );
-  },
+  }
 );
 
 StatusBar.displayName = 'StatusBar';

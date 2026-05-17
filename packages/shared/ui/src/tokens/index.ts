@@ -8,7 +8,14 @@
 export { palette, darkTheme, lightTheme, themes } from './colors';
 export type { ColorTokens, ThemeName } from './colors';
 
-export { fontFamily, fontSize, fontWeight, lineHeight, letterSpacing, textStyle } from './typography';
+export {
+  fontFamily,
+  fontSize,
+  fontWeight,
+  lineHeight,
+  letterSpacing,
+  textStyle,
+} from './typography';
 
 export { spacing, size, borderRadius, borderWidth } from './spacing';
 

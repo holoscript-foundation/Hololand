@@ -38,12 +38,12 @@ export type ValidationVerdict = 'accept' | 'reject';
  * Each category routes to specific validators with domain knowledge.
  */
 export type StateDeltaCategory =
-  | 'physics'        // Velocity, force, mass, position, gravity changes
-  | 'material'       // Material properties, textures, shader configuration
-  | 'trait'          // Trait attachment/detachment, configuration changes
-  | 'transform'      // Position, rotation, scale changes
-  | 'world'          // World-level settings (environment, lighting, fog)
-  | 'composite';     // Multiple categories in one delta
+  | 'physics' // Velocity, force, mass, position, gravity changes
+  | 'material' // Material properties, textures, shader configuration
+  | 'trait' // Trait attachment/detachment, configuration changes
+  | 'transform' // Position, rotation, scale changes
+  | 'world' // World-level settings (environment, lighting, fog)
+  | 'composite'; // Multiple categories in one delta
 
 /**
  * A state delta proposed by an agent for validation.
@@ -303,12 +303,15 @@ export interface CrossValidationStats {
   /** Average validation time in ms */
   readonly avgValidationTimeMs: number;
   /** Per-validator stats */
-  readonly perValidator: Record<ValidatorId, {
-    readonly totalValidated: number;
-    readonly totalAccepted: number;
-    readonly totalRejected: number;
-    readonly avgDurationMs: number;
-  }>;
+  readonly perValidator: Record<
+    ValidatorId,
+    {
+      readonly totalValidated: number;
+      readonly totalAccepted: number;
+      readonly totalRejected: number;
+      readonly avgDurationMs: number;
+    }
+  >;
   /** Most common violation types */
   readonly topViolations: readonly { property: string; count: number }[];
 }

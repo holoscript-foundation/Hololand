@@ -208,9 +208,7 @@ export class ProceduralAssetGenerator {
   ): Promise<GeneratedAsset[]> {
     const startTime = Date.now();
 
-    const results = await Promise.all(
-      assetParams.map((params) => this.generate(params, options))
-    );
+    const results = await Promise.all(assetParams.map((params) => this.generate(params, options)));
 
     const totalTime = Date.now() - startTime;
     const cacheHits = results.filter((r) => r.fromCache).length;
