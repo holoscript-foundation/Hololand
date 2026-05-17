@@ -145,7 +145,12 @@ export type { AssetFilter, AssetCatalogConfig } from './AssetCatalog';
 
 // VRM export
 export { VRMExporter } from './VRMExporter';
-export type { ExportResult, ExportStats, ExportProgress, ExportProgressCallback } from './VRMExporter';
+export type {
+  ExportResult,
+  ExportStats,
+  ExportProgress,
+  ExportProgressCallback,
+} from './VRMExporter';
 
 // Mesh assembly (geometry pipeline)
 export { AvatarMeshAssembler } from './AvatarMeshAssembler';

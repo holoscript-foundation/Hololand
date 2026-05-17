@@ -53,8 +53,22 @@ function App() {
         <Route path="/central" element={<CentralPage />} />
         <Route path="/central/:zoneId" element={<CentralPage />} />
         <Route path="/world/:worldId" element={<WorldPage />} />
-        <Route path="/vr-builder" element={<ProtectedRoute><VRBuilderPage /></ProtectedRoute>} />
-        <Route path="/build" element={<ProtectedRoute><VRBuilderPage /></ProtectedRoute>} />
+        <Route
+          path="/vr-builder"
+          element={
+            <ProtectedRoute>
+              <VRBuilderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/build"
+          element={
+            <ProtectedRoute>
+              <VRBuilderPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

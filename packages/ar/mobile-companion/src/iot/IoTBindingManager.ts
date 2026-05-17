@@ -163,7 +163,11 @@ export class IoTBindingManager {
   async createBinding(params: {
     device: IoTDevice;
     anchor: SpatialAnchor;
-    spatialOffset?: { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number; w: number }; scale: number };
+    spatialOffset?: {
+      position: { x: number; y: number; z: number };
+      rotation: { x: number; y: number; z: number; w: number };
+      scale: number;
+    };
     exposedCapabilities?: string[];
     interactionZones?: IoTInteractionZone[];
   }): Promise<IoTEntityBinding> {
@@ -187,7 +191,7 @@ export class IoTBindingManager {
       anchor: {
         anchorId: anchor.id,
         cloudAnchorId: anchor.cloudId,
-        anchorType: (anchor.type as string) === 'geospatial' ? 'cloud' : anchor.type as any,
+        anchorType: (anchor.type as string) === 'geospatial' ? 'cloud' : (anchor.type as any),
         lastKnownPose: anchor.pose,
       },
       spatialOffset: spatialOffset ?? {
@@ -195,7 +199,7 @@ export class IoTBindingManager {
         rotation: { x: 0, y: 0, z: 0, w: 1 },
         scale: 1,
       },
-      exposedCapabilities: exposedCapabilities ?? device.capabilities.map(c => c.id),
+      exposedCapabilities: exposedCapabilities ?? device.capabilities.map((c) => c.id),
       interactionZones: interactionZones ?? [],
       visualization: { ...DEFAULT_IOT_VISUALIZATION },
       stateChannel: { ...DEFAULT_IOT_STATE_CHANNEL },
@@ -334,7 +338,7 @@ export class IoTBindingManager {
    * Get bindings by status.
    */
   getBindingsByStatus(status: IoTBindingStatus): IoTEntityBinding[] {
-    return Array.from(this.bindings.values()).filter(b => b.status === status);
+    return Array.from(this.bindings.values()).filter((b) => b.status === status);
   }
 
   // ==========================================================================
@@ -344,7 +348,11 @@ export class IoTBindingManager {
   /**
    * Send a command to a bound device.
    */
-  async sendCommand(bindingId: string, capabilityId: string, value: unknown): Promise<IoTCommandResponse> {
+  async sendCommand(
+    bindingId: string,
+    capabilityId: string,
+    value: unknown
+  ): Promise<IoTCommandResponse> {
     const binding = this.bindings.get(bindingId);
     if (!binding) throw new Error(`Binding not found: ${bindingId}`);
     if (binding.status !== 'active') throw new Error(`Binding is not active`);
@@ -460,12 +468,16 @@ export class IoTBindingManager {
       case 'cylinder':
         const horizontalDist = Math.sqrt(dx * dx + dz * dz);
         const verticalDist = Math.abs(dy);
-        return horizontalDist <= (zone.dimensions.radius ?? 1) &&
-               verticalDist <= (zone.dimensions.height ?? 2) / 2;
+        return (
+          horizontalDist <= (zone.dimensions.radius ?? 1) &&
+          verticalDist <= (zone.dimensions.height ?? 2) / 2
+        );
       case 'box':
-        return Math.abs(dx) <= (zone.dimensions.width ?? 1) / 2 &&
-               Math.abs(dy) <= (zone.dimensions.height ?? 2) / 2 &&
-               Math.abs(dz) <= (zone.dimensions.depth ?? 1) / 2;
+        return (
+          Math.abs(dx) <= (zone.dimensions.width ?? 1) / 2 &&
+          Math.abs(dy) <= (zone.dimensions.height ?? 2) / 2 &&
+          Math.abs(dz) <= (zone.dimensions.depth ?? 1) / 2
+        );
       default:
         return distance <= (zone.dimensions.radius ?? 1);
     }
@@ -495,7 +507,7 @@ export class IoTBindingManager {
               binding.bindingId,
               action.deviceCommand.capabilityId,
               action.deviceCommand.value
-            ).catch(err => console.error('Zone action failed:', err));
+            ).catch((err) => console.error('Zone action failed:', err));
           }
           break;
         case 'show_ui':
@@ -517,7 +529,7 @@ export class IoTBindingManager {
               method: action.webhook.method,
               headers: action.webhook.headers,
               body: action.webhook.body ? JSON.stringify(action.webhook.body) : undefined,
-            }).catch(err => console.error('Webhook failed:', err));
+            }).catch((err) => console.error('Webhook failed:', err));
           }
           break;
       }
@@ -539,28 +551,36 @@ export class IoTBindingManager {
         // In a real implementation, open WebSocket connection
         this.activeChannels.set(binding.bindingId, {
           type: 'websocket',
-          close: () => { /* close ws */ },
+          close: () => {
+            /* close ws */
+          },
         });
         break;
       case 'mqtt':
         // In a real implementation, subscribe to MQTT topic
         this.activeChannels.set(binding.bindingId, {
           type: 'mqtt',
-          close: () => { /* unsubscribe */ },
+          close: () => {
+            /* unsubscribe */
+          },
         });
         break;
       case 'polling':
         // In a real implementation, start polling timer
         this.activeChannels.set(binding.bindingId, {
           type: 'polling',
-          close: () => { /* stop timer */ },
+          close: () => {
+            /* stop timer */
+          },
         });
         break;
       case 'ble_notify':
         // Delegated to native BLE layer
         this.activeChannels.set(binding.bindingId, {
           type: 'ble_notify',
-          close: () => { /* unsubscribe characteristic */ },
+          close: () => {
+            /* unsubscribe characteristic */
+          },
         });
         break;
     }

@@ -1,6 +1,6 @@
 /**
  * AR Scene Manager
- * 
+ *
  * Manages Three.js scene for AR rendering.
  */
 
@@ -10,7 +10,7 @@ import { DEFAULT_RENDERER_CONFIG } from './types';
 
 /**
  * AR Scene Manager
- * 
+ *
  * Handles Three.js scene setup for WebXR AR rendering.
  */
 export class ARSceneManager {
@@ -98,7 +98,7 @@ export class ARSceneManager {
     const directional = new THREE.DirectionalLight(0xffffff, 0.8);
     directional.position.set(5, 10, 5);
     directional.castShadow = this.config.shadows ?? false;
-    
+
     if (this.config.shadows) {
       directional.shadow.mapSize.width = 2048;
       directional.shadow.mapSize.height = 2048;
@@ -109,7 +109,7 @@ export class ARSceneManager {
       directional.shadow.camera.top = 10;
       directional.shadow.camera.bottom = -10;
     }
-    
+
     this.scene.add(directional);
   }
 
@@ -309,10 +309,7 @@ export class ARSceneManager {
     const width = this.renderer.domElement.width;
     const height = this.renderer.domElement.height;
 
-    const mouse = new THREE.Vector2(
-      (x / width) * 2 - 1,
-      -(y / height) * 2 + 1
-    );
+    const mouse = new THREE.Vector2((x / width) * 2 - 1, -(y / height) * 2 + 1);
 
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, this.camera);

@@ -167,9 +167,12 @@ export function useEmotes() {
     emote(emoteId);
   }, []);
 
-  const getEmotesByCategory = useCallback((category: string) => {
-    return emotes.filter((e) => (e as { category: string }).category === category);
-  }, [emotes]);
+  const getEmotesByCategory = useCallback(
+    (category: string) => {
+      return emotes.filter((e) => (e as { category: string }).category === category);
+    },
+    [emotes]
+  );
 
   return {
     emotes,

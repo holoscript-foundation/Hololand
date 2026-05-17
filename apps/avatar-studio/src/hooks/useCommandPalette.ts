@@ -40,9 +40,7 @@ export interface UseCommandPaletteReturn {
   handleKeyDown: (e: React.KeyboardEvent) => void;
 }
 
-export function useCommandPalette({
-  commands,
-}: UseCommandPaletteOptions): UseCommandPaletteReturn {
+export function useCommandPalette({ commands }: UseCommandPaletteOptions): UseCommandPaletteReturn {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -72,22 +70,14 @@ export function useCommandPalette({
   }, []);
 
   // Filter commands based on query
-  const filteredCommands = useMemo(
-    () => filterCommands(commands, query),
-    [commands, query],
-  );
+  const filteredCommands = useMemo(() => filterCommands(commands, query), [commands, query]);
 
   // Group filtered commands
-  const groups = useMemo(
-    () => groupCommands(filteredCommands),
-    [filteredCommands],
-  );
+  const groups = useMemo(() => groupCommands(filteredCommands), [filteredCommands]);
 
   // Clamp active index when filtered results change
   useEffect(() => {
-    setActiveIndex((prev) =>
-      Math.min(prev, Math.max(0, filteredCommands.length - 1)),
-    );
+    setActiveIndex((prev) => Math.min(prev, Math.max(0, filteredCommands.length - 1)));
   }, [filteredCommands.length]);
 
   // Focus input when palette opens
@@ -128,7 +118,7 @@ export function useCommandPalette({
         command.action();
       });
     },
-    [close],
+    [close]
   );
 
   const executeActive = useCallback(() => {
@@ -143,15 +133,11 @@ export function useCommandPalette({
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setActiveIndex((prev) =>
-            prev < filteredCommands.length - 1 ? prev + 1 : 0,
-          );
+          setActiveIndex((prev) => (prev < filteredCommands.length - 1 ? prev + 1 : 0));
           break;
         case 'ArrowUp':
           e.preventDefault();
-          setActiveIndex((prev) =>
-            prev > 0 ? prev - 1 : filteredCommands.length - 1,
-          );
+          setActiveIndex((prev) => (prev > 0 ? prev - 1 : filteredCommands.length - 1));
           break;
         case 'Enter':
           e.preventDefault();
@@ -167,7 +153,7 @@ export function useCommandPalette({
           break;
       }
     },
-    [filteredCommands.length, executeActive],
+    [filteredCommands.length, executeActive]
   );
 
   return {

@@ -8,16 +8,8 @@
 
 // Scenario Gallery
 export { ScenarioGallery } from './ScenarioGallery';
-export type {
-  ScenarioGalleryProps,
-  AvatarScenario,
-  ScenarioCategory,
-} from './ScenarioGallery';
+export type { ScenarioGalleryProps, AvatarScenario, ScenarioCategory } from './ScenarioGallery';
 
 // Studio Mode Switcher
 export { StudioModeSwitcher } from './StudioModeSwitcher';
-export type {
-  StudioModeSwitcherProps,
-  StudioMode,
-  StudioModeConfig,
-} from './StudioModeSwitcher';
+export type { StudioModeSwitcherProps, StudioMode, StudioModeConfig } from './StudioModeSwitcher';

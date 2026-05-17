@@ -83,9 +83,7 @@ function Controls() {
         zIndex: 1000,
       }}
     >
-      <h3 style={{ margin: '0 0 15px 0', color: '#4fc3f7', fontSize: 16 }}>
-        🥽 Hololand React
-      </h3>
+      <h3 style={{ margin: '0 0 15px 0', color: '#4fc3f7', fontSize: 16 }}>🥽 Hololand React</h3>
 
       <div style={{ marginBottom: 15 }}>
         <div>Objects: {objectCount}</div>

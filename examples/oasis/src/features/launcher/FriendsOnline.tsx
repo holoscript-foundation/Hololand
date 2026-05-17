@@ -14,9 +14,7 @@ export default function FriendsOnline({ friends }: FriendsOnlineProps) {
           <div className="w-16 h-16 rounded-full bg-meadow-cream-dark mx-auto mb-4 flex items-center justify-center">
             <OfflineIcon className="w-8 h-8 text-meadow-text-muted" />
           </div>
-          <p className="text-sm text-meadow-text-muted mb-3">
-            No friends online right now
-          </p>
+          <p className="text-sm text-meadow-text-muted mb-3">No friends online right now</p>
           <Link
             to="/social"
             className="text-sm text-meadow-grass hover:text-meadow-grass-dark font-medium inline-flex items-center gap-1"
@@ -33,9 +31,7 @@ export default function FriendsOnline({ friends }: FriendsOnlineProps) {
     <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-meadow-text text-lg">Friends Online</h3>
-        <span className="badge-grass">
-          {friends.length} online
-        </span>
+        <span className="badge-grass">{friends.length} online</span>
       </div>
 
       <div className="space-y-2">
@@ -90,9 +86,7 @@ function FriendItem({ friend }: { friend: Friend }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-meadow-text truncate">
-          {friend.displayName}
-        </p>
+        <p className="text-sm font-medium text-meadow-text truncate">{friend.displayName}</p>
         {friend.currentWorld ? (
           <p className="text-xs text-meadow-text-muted truncate flex items-center gap-1">
             <GlobeIcon className="w-3 h-3" />
@@ -107,10 +101,7 @@ function FriendItem({ friend }: { friend: Friend }) {
 
       {/* Action */}
       {friend.currentWorld && (
-        <Link
-          to={`/world/${friend.currentWorld.id}`}
-          className="btn-primary text-xs px-3 py-1.5"
-        >
+        <Link to={`/world/${friend.currentWorld.id}`} className="btn-primary text-xs px-3 py-1.5">
           Join
         </Link>
       )}

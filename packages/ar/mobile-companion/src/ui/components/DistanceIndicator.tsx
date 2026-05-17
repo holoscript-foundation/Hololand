@@ -18,14 +18,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import type { Pose6DoF } from '../../types';
 
 // =============================================================================
@@ -117,10 +110,7 @@ const MODE_ICONS: Record<MeasurementMode, string> = {
 // UTILITY FUNCTIONS
 // =============================================================================
 
-const calculateDistance = (
-  p1: [number, number, number],
-  p2: [number, number, number]
-): number => {
+const calculateDistance = (p1: [number, number, number], p2: [number, number, number]): number => {
   const dx = p2[0] - p1[0];
   const dy = p2[1] - p1[1];
   const dz = p2[2] - p1[2];
@@ -449,16 +439,19 @@ export const DistanceIndicator: React.FC<DistanceIndicatorProps> = ({
             <View style={styles.historyContainer}>
               <Text style={styles.historyTitle}>History</Text>
               <ScrollView style={styles.historyScroll} nestedScrollEnabled={true}>
-                {history.slice(-5).reverse().map((m) => (
-                  <View key={m.id} style={styles.historyItem}>
-                    <Text style={styles.historyMode}>
-                      {MODE_ICONS[m.mode]} {MODE_LABELS[m.mode]}
-                    </Text>
-                    <Text style={styles.historyValue}>
-                      {formatMeasurement(m.value, m.unit, m.mode)}
-                    </Text>
-                  </View>
-                ))}
+                {history
+                  .slice(-5)
+                  .reverse()
+                  .map((m) => (
+                    <View key={m.id} style={styles.historyItem}>
+                      <Text style={styles.historyMode}>
+                        {MODE_ICONS[m.mode]} {MODE_LABELS[m.mode]}
+                      </Text>
+                      <Text style={styles.historyValue}>
+                        {formatMeasurement(m.value, m.unit, m.mode)}
+                      </Text>
+                    </View>
+                  ))}
               </ScrollView>
             </View>
           )}

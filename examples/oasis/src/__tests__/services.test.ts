@@ -6,8 +6,12 @@ describe('Network Service Contract', () => {
   it('NetworkClient connects and tracks state', async () => {
     let connected = false;
     const client = {
-      connect: async () => { connected = true; },
-      disconnect: async () => { connected = false; },
+      connect: async () => {
+        connected = true;
+      },
+      disconnect: async () => {
+        connected = false;
+      },
       isConnected: () => connected,
       on: vi.fn(),
     };

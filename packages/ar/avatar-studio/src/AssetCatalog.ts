@@ -12,12 +12,7 @@
  * of user-created avatar assets (clothing, accessories, hairstyles).
  */
 
-import type {
-  CatalogAsset,
-  AssetCategory,
-  BodyPreset,
-  GenderPresentation,
-} from './types';
+import type { CatalogAsset, AssetCategory, BodyPreset, GenderPresentation } from './types';
 
 // =============================================================================
 // TYPES
@@ -158,7 +153,7 @@ export class AssetCatalog {
       try {
         const response = await fetch(`${this.config.apiEndpoint}/assets/${id}`);
         if (response.ok) {
-          const asset = await response.json() as CatalogAsset;
+          const asset = (await response.json()) as CatalogAsset;
           this.marketplaceCache.set(id, { asset, cachedAt: Date.now() });
           return asset;
         }
@@ -342,9 +337,7 @@ export class AssetCatalog {
     if (filter?.offset) params.set('offset', String(filter.offset));
 
     try {
-      const response = await fetch(
-        `${this.config.apiEndpoint}/assets?${params.toString()}`
-      );
+      const response = await fetch(`${this.config.apiEndpoint}/assets?${params.toString()}`);
       if (response.ok) {
         const data = await response.json();
         const assets = data.assets as CatalogAsset[];
@@ -385,18 +378,90 @@ export class AssetCatalog {
 
     // --- HAIR STYLES ---
     const hairStyles: Partial<CatalogAsset>[] = [
-      { id: 'hair-short-01', name: 'Short Crop', subcategory: 'short', tags: ['short', 'classic', 'clean'], polyCount: 3000 },
-      { id: 'hair-medium-01', name: 'Medium Layered', subcategory: 'medium', tags: ['medium', 'layered', 'casual'], polyCount: 5000 },
-      { id: 'hair-long-01', name: 'Long Flowing', subcategory: 'long', tags: ['long', 'flowing', 'elegant'], polyCount: 8000 },
-      { id: 'hair-buzz-01', name: 'Buzz Cut', subcategory: 'short', tags: ['short', 'buzz', 'minimal'], polyCount: 1000 },
-      { id: 'hair-curly-01', name: 'Curly Natural', subcategory: 'medium', tags: ['curly', 'natural', 'voluminous'], polyCount: 7000 },
-      { id: 'hair-mohawk-01', name: 'Mohawk', subcategory: 'styled', tags: ['mohawk', 'punk', 'bold'], polyCount: 4000 },
-      { id: 'hair-ponytail-01', name: 'Ponytail', subcategory: 'long', tags: ['ponytail', 'tied', 'practical'], polyCount: 6000 },
-      { id: 'hair-braids-01', name: 'Braided', subcategory: 'styled', tags: ['braids', 'intricate', 'cultural'], polyCount: 9000 },
-      { id: 'hair-bob-01', name: 'Bob Cut', subcategory: 'short', tags: ['bob', 'classic', 'clean'], polyCount: 4000 },
-      { id: 'hair-afro-01', name: 'Afro', subcategory: 'styled', tags: ['afro', 'natural', 'voluminous'], polyCount: 6000 },
-      { id: 'hair-bald-01', name: 'Bald', subcategory: 'none', tags: ['bald', 'clean', 'minimal'], polyCount: 0 },
-      { id: 'hair-pigtails-01', name: 'Pigtails', subcategory: 'styled', tags: ['pigtails', 'cute', 'playful'], polyCount: 7000 },
+      {
+        id: 'hair-short-01',
+        name: 'Short Crop',
+        subcategory: 'short',
+        tags: ['short', 'classic', 'clean'],
+        polyCount: 3000,
+      },
+      {
+        id: 'hair-medium-01',
+        name: 'Medium Layered',
+        subcategory: 'medium',
+        tags: ['medium', 'layered', 'casual'],
+        polyCount: 5000,
+      },
+      {
+        id: 'hair-long-01',
+        name: 'Long Flowing',
+        subcategory: 'long',
+        tags: ['long', 'flowing', 'elegant'],
+        polyCount: 8000,
+      },
+      {
+        id: 'hair-buzz-01',
+        name: 'Buzz Cut',
+        subcategory: 'short',
+        tags: ['short', 'buzz', 'minimal'],
+        polyCount: 1000,
+      },
+      {
+        id: 'hair-curly-01',
+        name: 'Curly Natural',
+        subcategory: 'medium',
+        tags: ['curly', 'natural', 'voluminous'],
+        polyCount: 7000,
+      },
+      {
+        id: 'hair-mohawk-01',
+        name: 'Mohawk',
+        subcategory: 'styled',
+        tags: ['mohawk', 'punk', 'bold'],
+        polyCount: 4000,
+      },
+      {
+        id: 'hair-ponytail-01',
+        name: 'Ponytail',
+        subcategory: 'long',
+        tags: ['ponytail', 'tied', 'practical'],
+        polyCount: 6000,
+      },
+      {
+        id: 'hair-braids-01',
+        name: 'Braided',
+        subcategory: 'styled',
+        tags: ['braids', 'intricate', 'cultural'],
+        polyCount: 9000,
+      },
+      {
+        id: 'hair-bob-01',
+        name: 'Bob Cut',
+        subcategory: 'short',
+        tags: ['bob', 'classic', 'clean'],
+        polyCount: 4000,
+      },
+      {
+        id: 'hair-afro-01',
+        name: 'Afro',
+        subcategory: 'styled',
+        tags: ['afro', 'natural', 'voluminous'],
+        polyCount: 6000,
+      },
+      {
+        id: 'hair-bald-01',
+        name: 'Bald',
+        subcategory: 'none',
+        tags: ['bald', 'clean', 'minimal'],
+        polyCount: 0,
+      },
+      {
+        id: 'hair-pigtails-01',
+        name: 'Pigtails',
+        subcategory: 'styled',
+        tags: ['pigtails', 'cute', 'playful'],
+        polyCount: 7000,
+      },
     ];
 
     for (const style of hairStyles) {
@@ -416,18 +481,92 @@ export class AssetCatalog {
 
     // --- CLOTHING ---
     const clothing: Partial<CatalogAsset>[] = [
-      { id: 'cloth-tshirt-01', name: 'Basic T-Shirt', subcategory: 'upperBody', tags: ['tshirt', 'casual', 'basic'], polyCount: 4000 },
-      { id: 'cloth-hoodie-01', name: 'Hoodie', subcategory: 'upperBody', tags: ['hoodie', 'casual', 'warm'], polyCount: 6000 },
-      { id: 'cloth-jacket-01', name: 'Leather Jacket', subcategory: 'outerwear', tags: ['jacket', 'leather', 'cool'], polyCount: 7000, rarity: 'uncommon' as const },
-      { id: 'cloth-dress-shirt-01', name: 'Dress Shirt', subcategory: 'upperBody', tags: ['shirt', 'formal', 'business'], polyCount: 5000 },
-      { id: 'cloth-jeans-01', name: 'Jeans', subcategory: 'lowerBody', tags: ['jeans', 'casual', 'denim'], polyCount: 4000 },
-      { id: 'cloth-shorts-01', name: 'Shorts', subcategory: 'lowerBody', tags: ['shorts', 'casual', 'summer'], polyCount: 3000 },
-      { id: 'cloth-skirt-01', name: 'Skirt', subcategory: 'lowerBody', tags: ['skirt', 'casual', 'feminine'], polyCount: 3500 },
-      { id: 'cloth-dress-01', name: 'Simple Dress', subcategory: 'fullBody', tags: ['dress', 'elegant', 'feminine'], polyCount: 6000 },
-      { id: 'cloth-suit-01', name: 'Business Suit', subcategory: 'fullBody', tags: ['suit', 'formal', 'business'], polyCount: 8000, rarity: 'uncommon' as const },
-      { id: 'cloth-sneakers-01', name: 'Sneakers', subcategory: 'feet', tags: ['sneakers', 'casual', 'sport'], polyCount: 3000 },
-      { id: 'cloth-boots-01', name: 'Boots', subcategory: 'feet', tags: ['boots', 'rugged', 'outdoor'], polyCount: 3500 },
-      { id: 'cloth-sandals-01', name: 'Sandals', subcategory: 'feet', tags: ['sandals', 'casual', 'summer'], polyCount: 2000 },
+      {
+        id: 'cloth-tshirt-01',
+        name: 'Basic T-Shirt',
+        subcategory: 'upperBody',
+        tags: ['tshirt', 'casual', 'basic'],
+        polyCount: 4000,
+      },
+      {
+        id: 'cloth-hoodie-01',
+        name: 'Hoodie',
+        subcategory: 'upperBody',
+        tags: ['hoodie', 'casual', 'warm'],
+        polyCount: 6000,
+      },
+      {
+        id: 'cloth-jacket-01',
+        name: 'Leather Jacket',
+        subcategory: 'outerwear',
+        tags: ['jacket', 'leather', 'cool'],
+        polyCount: 7000,
+        rarity: 'uncommon' as const,
+      },
+      {
+        id: 'cloth-dress-shirt-01',
+        name: 'Dress Shirt',
+        subcategory: 'upperBody',
+        tags: ['shirt', 'formal', 'business'],
+        polyCount: 5000,
+      },
+      {
+        id: 'cloth-jeans-01',
+        name: 'Jeans',
+        subcategory: 'lowerBody',
+        tags: ['jeans', 'casual', 'denim'],
+        polyCount: 4000,
+      },
+      {
+        id: 'cloth-shorts-01',
+        name: 'Shorts',
+        subcategory: 'lowerBody',
+        tags: ['shorts', 'casual', 'summer'],
+        polyCount: 3000,
+      },
+      {
+        id: 'cloth-skirt-01',
+        name: 'Skirt',
+        subcategory: 'lowerBody',
+        tags: ['skirt', 'casual', 'feminine'],
+        polyCount: 3500,
+      },
+      {
+        id: 'cloth-dress-01',
+        name: 'Simple Dress',
+        subcategory: 'fullBody',
+        tags: ['dress', 'elegant', 'feminine'],
+        polyCount: 6000,
+      },
+      {
+        id: 'cloth-suit-01',
+        name: 'Business Suit',
+        subcategory: 'fullBody',
+        tags: ['suit', 'formal', 'business'],
+        polyCount: 8000,
+        rarity: 'uncommon' as const,
+      },
+      {
+        id: 'cloth-sneakers-01',
+        name: 'Sneakers',
+        subcategory: 'feet',
+        tags: ['sneakers', 'casual', 'sport'],
+        polyCount: 3000,
+      },
+      {
+        id: 'cloth-boots-01',
+        name: 'Boots',
+        subcategory: 'feet',
+        tags: ['boots', 'rugged', 'outdoor'],
+        polyCount: 3500,
+      },
+      {
+        id: 'cloth-sandals-01',
+        name: 'Sandals',
+        subcategory: 'feet',
+        tags: ['sandals', 'casual', 'summer'],
+        polyCount: 2000,
+      },
     ];
 
     for (const item of clothing) {
@@ -447,17 +586,85 @@ export class AssetCatalog {
 
     // --- ACCESSORIES ---
     const accessories: Partial<CatalogAsset>[] = [
-      { id: 'acc-glasses-01', name: 'Round Glasses', subcategory: 'glasses', tags: ['glasses', 'round', 'nerdy'], polyCount: 1500 },
-      { id: 'acc-sunglasses-01', name: 'Sunglasses', subcategory: 'glasses', tags: ['sunglasses', 'cool', 'summer'], polyCount: 1500 },
-      { id: 'acc-beanie-01', name: 'Beanie', subcategory: 'hat', tags: ['beanie', 'warm', 'casual'], polyCount: 2000 },
-      { id: 'acc-cap-01', name: 'Baseball Cap', subcategory: 'hat', tags: ['cap', 'baseball', 'sport'], polyCount: 2000 },
-      { id: 'acc-earring-stud-01', name: 'Stud Earrings', subcategory: 'earrings', tags: ['earring', 'stud', 'simple'], polyCount: 500 },
-      { id: 'acc-necklace-01', name: 'Chain Necklace', subcategory: 'necklace', tags: ['necklace', 'chain', 'metal'], polyCount: 1000 },
-      { id: 'acc-watch-01', name: 'Wristwatch', subcategory: 'bracelet', tags: ['watch', 'accessory', 'time'], polyCount: 1500 },
-      { id: 'acc-backpack-01', name: 'Adventure Backpack', subcategory: 'backpack', tags: ['backpack', 'adventure', 'storage'], polyCount: 3000 },
-      { id: 'acc-wings-01', name: 'Angel Wings', subcategory: 'wings', tags: ['wings', 'angel', 'fantasy'], polyCount: 5000, rarity: 'rare' as const },
-      { id: 'acc-cat-ears-01', name: 'Cat Ears', subcategory: 'hat', tags: ['cat', 'ears', 'cute', 'anime'], polyCount: 1000 },
-      { id: 'acc-tail-fox-01', name: 'Fox Tail', subcategory: 'tail', tags: ['tail', 'fox', 'fluffy', 'anime'], polyCount: 3000, rarity: 'uncommon' as const },
+      {
+        id: 'acc-glasses-01',
+        name: 'Round Glasses',
+        subcategory: 'glasses',
+        tags: ['glasses', 'round', 'nerdy'],
+        polyCount: 1500,
+      },
+      {
+        id: 'acc-sunglasses-01',
+        name: 'Sunglasses',
+        subcategory: 'glasses',
+        tags: ['sunglasses', 'cool', 'summer'],
+        polyCount: 1500,
+      },
+      {
+        id: 'acc-beanie-01',
+        name: 'Beanie',
+        subcategory: 'hat',
+        tags: ['beanie', 'warm', 'casual'],
+        polyCount: 2000,
+      },
+      {
+        id: 'acc-cap-01',
+        name: 'Baseball Cap',
+        subcategory: 'hat',
+        tags: ['cap', 'baseball', 'sport'],
+        polyCount: 2000,
+      },
+      {
+        id: 'acc-earring-stud-01',
+        name: 'Stud Earrings',
+        subcategory: 'earrings',
+        tags: ['earring', 'stud', 'simple'],
+        polyCount: 500,
+      },
+      {
+        id: 'acc-necklace-01',
+        name: 'Chain Necklace',
+        subcategory: 'necklace',
+        tags: ['necklace', 'chain', 'metal'],
+        polyCount: 1000,
+      },
+      {
+        id: 'acc-watch-01',
+        name: 'Wristwatch',
+        subcategory: 'bracelet',
+        tags: ['watch', 'accessory', 'time'],
+        polyCount: 1500,
+      },
+      {
+        id: 'acc-backpack-01',
+        name: 'Adventure Backpack',
+        subcategory: 'backpack',
+        tags: ['backpack', 'adventure', 'storage'],
+        polyCount: 3000,
+      },
+      {
+        id: 'acc-wings-01',
+        name: 'Angel Wings',
+        subcategory: 'wings',
+        tags: ['wings', 'angel', 'fantasy'],
+        polyCount: 5000,
+        rarity: 'rare' as const,
+      },
+      {
+        id: 'acc-cat-ears-01',
+        name: 'Cat Ears',
+        subcategory: 'hat',
+        tags: ['cat', 'ears', 'cute', 'anime'],
+        polyCount: 1000,
+      },
+      {
+        id: 'acc-tail-fox-01',
+        name: 'Fox Tail',
+        subcategory: 'tail',
+        tags: ['tail', 'fox', 'fluffy', 'anime'],
+        polyCount: 3000,
+        rarity: 'uncommon' as const,
+      },
     ];
 
     for (const item of accessories) {

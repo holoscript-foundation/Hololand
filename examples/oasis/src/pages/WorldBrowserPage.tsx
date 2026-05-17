@@ -37,7 +37,8 @@ export default function WorldBrowserPage() {
     setSearchParams({ category, sort: sortBy });
   };
 
-  const displayWorlds = activeCategory === 'featured' ? featuredWorlds : worlds.length > 0 ? worlds : featuredWorlds;
+  const displayWorlds =
+    activeCategory === 'featured' ? featuredWorlds : worlds.length > 0 ? worlds : featuredWorlds;
 
   return (
     <div className="space-y-6 animate-in">
@@ -45,9 +46,7 @@ export default function WorldBrowserPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-oasis-text">Browse Worlds</h1>
-          <p className="text-oasis-text-muted mt-1">
-            Discover new experiences and adventures
-          </p>
+          <p className="text-oasis-text-muted mt-1">Discover new experiences and adventures</p>
         </div>
 
         {/* Search */}
@@ -71,9 +70,10 @@ export default function WorldBrowserPage() {
             onClick={() => handleCategoryChange(category.id)}
             className={`
               px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors
-              ${activeCategory === category.id
-                ? 'bg-oasis-primary text-white'
-                : 'bg-oasis-surface-light text-oasis-text-muted hover:text-oasis-text'
+              ${
+                activeCategory === category.id
+                  ? 'bg-oasis-primary text-white'
+                  : 'bg-oasis-surface-light text-oasis-text-muted hover:text-oasis-text'
               }
             `}
           >
@@ -84,9 +84,7 @@ export default function WorldBrowserPage() {
 
       {/* Sort options */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-oasis-text-muted">
-          {displayWorlds.length} worlds found
-        </p>
+        <p className="text-sm text-oasis-text-muted">{displayWorlds.length} worlds found</p>
         <select
           value={sortBy}
           onChange={(e) => setSearchParams({ category: activeCategory, sort: e.target.value })}
@@ -125,12 +123,8 @@ export default function WorldBrowserPage() {
       {!isLoading && displayWorlds.length === 0 && (
         <div className="text-center py-12">
           <WorldIcon className="w-16 h-16 text-oasis-text-muted mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-oasis-text mb-2">
-            No worlds found
-          </h3>
-          <p className="text-oasis-text-muted">
-            Try adjusting your search or filters
-          </p>
+          <h3 className="text-lg font-medium text-oasis-text mb-2">No worlds found</h3>
+          <p className="text-oasis-text-muted">Try adjusting your search or filters</p>
         </div>
       )}
     </div>
@@ -140,7 +134,12 @@ export default function WorldBrowserPage() {
 function SearchIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      />
     </svg>
   );
 }

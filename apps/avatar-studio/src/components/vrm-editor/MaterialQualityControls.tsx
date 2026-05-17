@@ -2,13 +2,8 @@
 
 import { useCallback } from 'react';
 import { Select } from '@/components/ui/Select';
-import { Slider } from '@/components/ui/Slider';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import type {
-  MaterialQualitySettings,
-  TextureResolution,
-  LODLevel,
-} from './types';
+import type { MaterialQualitySettings, TextureResolution, LODLevel } from './types';
 
 // ---------------------------------------------------------------------------
 // Default Settings
@@ -102,18 +97,12 @@ interface MaterialQualityControlsProps {
   onChange: (settings: MaterialQualitySettings) => void;
 }
 
-export function MaterialQualityControls({
-  settings,
-  onChange,
-}: MaterialQualityControlsProps) {
+export function MaterialQualityControls({ settings, onChange }: MaterialQualityControlsProps) {
   const updateField = useCallback(
-    <K extends keyof MaterialQualitySettings>(
-      key: K,
-      value: MaterialQualitySettings[K],
-    ) => {
+    <K extends keyof MaterialQualitySettings>(key: K, value: MaterialQualitySettings[K]) => {
       onChange({ ...settings, [key]: value });
     },
-    [settings, onChange],
+    [settings, onChange]
   );
 
   const vramEstimate = estimateVRAM(settings);
@@ -163,7 +152,7 @@ export function MaterialQualityControls({
           break;
       }
     },
-    [onChange],
+    [onChange]
   );
 
   return (
@@ -227,7 +216,9 @@ export function MaterialQualityControls({
         label="Texture Compression"
         value={settings.textureCompression}
         options={COMPRESSION_OPTIONS}
-        onChange={(v) => updateField('textureCompression', v as MaterialQualitySettings['textureCompression'])}
+        onChange={(v) =>
+          updateField('textureCompression', v as MaterialQualitySettings['textureCompression'])
+        }
       />
 
       {/* LOD Level */}
@@ -246,12 +237,36 @@ export function MaterialQualityControls({
         />
         <div className="flex flex-col gap-2">
           {[
-            { key: 'enablePBR' as const, label: 'PBR Shading', desc: 'Physically-based rendering pipeline' },
-            { key: 'enableNormalMap' as const, label: 'Normal Map', desc: 'Surface detail without extra geometry' },
-            { key: 'enableMetallicRoughness' as const, label: 'Metallic / Roughness', desc: 'Metal and surface smoothness maps' },
-            { key: 'enableAO' as const, label: 'Ambient Occlusion', desc: 'Soft contact shadows in crevices' },
-            { key: 'enableEmissive' as const, label: 'Emissive', desc: 'Self-illuminating material regions' },
-            { key: 'enableMipmaps' as const, label: 'Mipmaps', desc: 'Pre-filtered texture LODs for rendering' },
+            {
+              key: 'enablePBR' as const,
+              label: 'PBR Shading',
+              desc: 'Physically-based rendering pipeline',
+            },
+            {
+              key: 'enableNormalMap' as const,
+              label: 'Normal Map',
+              desc: 'Surface detail without extra geometry',
+            },
+            {
+              key: 'enableMetallicRoughness' as const,
+              label: 'Metallic / Roughness',
+              desc: 'Metal and surface smoothness maps',
+            },
+            {
+              key: 'enableAO' as const,
+              label: 'Ambient Occlusion',
+              desc: 'Soft contact shadows in crevices',
+            },
+            {
+              key: 'enableEmissive' as const,
+              label: 'Emissive',
+              desc: 'Self-illuminating material regions',
+            },
+            {
+              key: 'enableMipmaps' as const,
+              label: 'Mipmaps',
+              desc: 'Pre-filtered texture LODs for rendering',
+            },
           ].map(({ key, label, desc }) => (
             <label
               key={key}
@@ -307,9 +322,7 @@ export function MaterialQualityControls({
               >
                 LOD {level}
               </span>
-              <span className="text-[9px] text-studio-muted">
-                {[100, 75, 50, 25][level]}%
-              </span>
+              <span className="text-[9px] text-studio-muted">{[100, 75, 50, 25][level]}%</span>
             </button>
           ))}
         </div>

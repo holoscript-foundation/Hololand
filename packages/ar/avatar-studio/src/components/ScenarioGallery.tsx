@@ -220,9 +220,7 @@ export const ScenarioGallery: React.FC<ScenarioGalleryProps> = ({
       {/* Header */}
       <div style={styles.header}>
         <h2 style={styles.title}>Scenario Gallery</h2>
-        <p style={styles.subtitle}>
-          Apply pre-configured looks and settings to your avatar
-        </p>
+        <p style={styles.subtitle}>Apply pre-configured looks and settings to your avatar</p>
       </div>
 
       {/* Controls: Search + Category Filters + Sort */}
@@ -431,12 +429,9 @@ const ScenarioCard: React.FC<ScenarioCardProps> = ({
         <p style={styles.cardDescription}>{scenario.description}</p>
 
         <div style={styles.cardMeta}>
+          <span style={styles.metaItem}>{scenario.usageCount.toLocaleString()} uses</span>
           <span style={styles.metaItem}>
-            {scenario.usageCount.toLocaleString()} uses
-          </span>
-          <span style={styles.metaItem}>
-            {'*'.repeat(Math.round(scenario.rating))}{' '}
-            {scenario.rating.toFixed(1)}
+            {'*'.repeat(Math.round(scenario.rating))} {scenario.rating.toFixed(1)}
           </span>
           <span style={styles.metaItem}>{scenario.complexity}</span>
         </div>

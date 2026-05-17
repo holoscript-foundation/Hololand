@@ -51,16 +51,10 @@ export type {
 } from '@hololand/avatar-studio';
 
 // Re-export SDK types
-export type {
-  AvatarCreationResult,
-  AvatarStudioError,
-} from '@hololand/avatar-studio';
+export type { AvatarCreationResult, AvatarStudioError } from '@hololand/avatar-studio';
 
 // Re-export cloud types
-export type {
-  CloudAvatar,
-  CloudAvatarListResult,
-} from '@hololand/avatar-studio';
+export type { CloudAvatar, CloudAvatarListResult } from '@hololand/avatar-studio';
 
 /** Query parameters passed by the SDK when opening in iframe/popup mode */
 export interface EmbedParams {

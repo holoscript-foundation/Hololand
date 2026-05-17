@@ -1,8 +1,8 @@
 /**
  * @hololand/ar-renderer
- * 
+ *
  * WebXR and Three.js AR rendering with VRM avatar support.
- * 
+ *
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │                             Architecture                                │
  * ├─────────────────────────────────────────────────────────────────────────┤
@@ -33,28 +33,28 @@
  * │  └─────────────────────────────────────────────────────────────────┘   │
  * │                                                                         │
  * └─────────────────────────────────────────────────────────────────────────┘
- * 
+ *
  * Usage:
- * 
+ *
  * ```typescript
  * import { ARSceneManager, VRMAvatarManager, PoseRetargeter } from '@hololand/ar-renderer';
- * 
+ *
  * // Setup scene
  * const scene = new ARSceneManager({ antialias: true, alpha: true });
  * scene.initialize(document.body);
- * 
+ *
  * // Start AR session
  * await scene.startARSession();
- * 
+ *
  * // Load avatar
  * const avatars = new VRMAvatarManager(scene.getScene()!);
  * await avatars.initialize();
  * const state = await avatars.loadAvatar('player', { vrmUrl: 'avatar.vrm' });
- * 
+ *
  * // Apply pose from detection
  * const retargeter = new PoseRetargeter();
  * retargeter.retarget(detectedKeypoints, avatars.getModel('player')!);
- * 
+ *
  * // Animation loop
  * scene.onFrame((time, frame) => {
  *   avatars.update();

@@ -484,9 +484,29 @@ describe('AvatarBlueprintManager', () => {
     it('increases estimates with more equipped items', () => {
       const basePerfY = manager.estimatePerformance();
 
-      manager.equipClothing({ slot: 'upperBody', assetId: 'test', name: 'Test', fit: 0, purchased: false });
-      manager.equipClothing({ slot: 'lowerBody', assetId: 'test2', name: 'Test2', fit: 0, purchased: false });
-      manager.equipAccessory({ slot: 'glasses', assetId: 'test3', name: 'Test3', scale: 1, offset: { x: 0, y: 0, z: 0 }, rotationOffset: { x: 0, y: 0, z: 0 }, purchased: false });
+      manager.equipClothing({
+        slot: 'upperBody',
+        assetId: 'test',
+        name: 'Test',
+        fit: 0,
+        purchased: false,
+      });
+      manager.equipClothing({
+        slot: 'lowerBody',
+        assetId: 'test2',
+        name: 'Test2',
+        fit: 0,
+        purchased: false,
+      });
+      manager.equipAccessory({
+        slot: 'glasses',
+        assetId: 'test3',
+        name: 'Test3',
+        scale: 1,
+        offset: { x: 0, y: 0, z: 0 },
+        rotationOffset: { x: 0, y: 0, z: 0 },
+        purchased: false,
+      });
 
       const loadedPerf = manager.estimatePerformance();
       expect(loadedPerf.estimatedPolyCount).toBeGreaterThan(basePerfY.estimatedPolyCount);

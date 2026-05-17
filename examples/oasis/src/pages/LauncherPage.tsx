@@ -36,7 +36,10 @@ export default function LauncherPage() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-oasis-text">Featured Worlds</h2>
-          <Link to="/browse" className="text-sm text-oasis-primary hover:text-oasis-primary-light transition-colors">
+          <Link
+            to="/browse"
+            className="text-sm text-oasis-primary hover:text-oasis-primary-light transition-colors"
+          >
             View all →
           </Link>
         </div>
@@ -63,7 +66,10 @@ export default function LauncherPage() {
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-oasis-text">Popular Worlds</h2>
-              <Link to="/browse?sort=popular" className="text-sm text-oasis-primary hover:text-oasis-primary-light transition-colors">
+              <Link
+                to="/browse?sort=popular"
+                className="text-sm text-oasis-primary hover:text-oasis-primary-light transition-colors"
+              >
                 See more →
               </Link>
             </div>
@@ -104,7 +110,10 @@ export default function LauncherPage() {
                 Live
               </span>
             </div>
-            <Link to="/central" className="btn bg-gradient-to-r from-oasis-primary to-oasis-secondary hover:opacity-90 text-white w-full text-center block">
+            <Link
+              to="/central"
+              className="btn bg-gradient-to-r from-oasis-primary to-oasis-secondary hover:opacity-90 text-white w-full text-center block"
+            >
               Enter Central
             </Link>
           </div>

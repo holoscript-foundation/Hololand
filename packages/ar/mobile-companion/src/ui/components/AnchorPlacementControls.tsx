@@ -256,7 +256,10 @@ export const AnchorPlacementControls: React.FC<AnchorPlacementControlsProps> = (
         }
       },
 
-      onPanResponderMove: (evt: GestureResponderEvent, panGestureState: PanResponderGestureState) => {
+      onPanResponderMove: (
+        evt: GestureResponderEvent,
+        panGestureState: PanResponderGestureState
+      ) => {
         const touches = evt.nativeEvent.touches;
 
         if (touches.length === 1) {
@@ -293,7 +296,8 @@ export const AnchorPlacementControls: React.FC<AnchorPlacementControlsProps> = (
 
           // Scale calculation
           if (gestureState.initialDistance) {
-            const scaleFactor = (currentDistance / gestureState.initialDistance) * gestureState.initialScale;
+            const scaleFactor =
+              (currentDistance / gestureState.initialDistance) * gestureState.initialScale;
             const clampedScale = clamp(scaleFactor, minScale, maxScale);
 
             updateTransform({
@@ -427,7 +431,9 @@ export const AnchorPlacementControls: React.FC<AnchorPlacementControlsProps> = (
               accessibilityRole="button"
               accessibilityState={{ disabled: !canUndo }}
             >
-              <Text style={[styles.historyButtonText, !canUndo && styles.historyButtonTextDisabled]}>
+              <Text
+                style={[styles.historyButtonText, !canUndo && styles.historyButtonTextDisabled]}
+              >
                 ↶ Undo
               </Text>
             </TouchableOpacity>
@@ -441,7 +447,9 @@ export const AnchorPlacementControls: React.FC<AnchorPlacementControlsProps> = (
               accessibilityRole="button"
               accessibilityState={{ disabled: !canRedo }}
             >
-              <Text style={[styles.historyButtonText, !canRedo && styles.historyButtonTextDisabled]}>
+              <Text
+                style={[styles.historyButtonText, !canRedo && styles.historyButtonTextDisabled]}
+              >
                 Redo ↷
               </Text>
             </TouchableOpacity>
@@ -479,11 +487,10 @@ export const AnchorPlacementControls: React.FC<AnchorPlacementControlsProps> = (
         {/* Transform info */}
         <View style={styles.infoContainer}>
           <Text style={styles.infoText}>
-            Position: ({transform.position[0].toFixed(2)}, {transform.position[1].toFixed(2)}, {transform.position[2].toFixed(2)})
+            Position: ({transform.position[0].toFixed(2)}, {transform.position[1].toFixed(2)},{' '}
+            {transform.position[2].toFixed(2)})
           </Text>
-          <Text style={styles.infoText}>
-            Scale: {transform.scale[0].toFixed(2)}x
-          </Text>
+          <Text style={styles.infoText}>Scale: {transform.scale[0].toFixed(2)}x</Text>
         </View>
       </View>
     </>

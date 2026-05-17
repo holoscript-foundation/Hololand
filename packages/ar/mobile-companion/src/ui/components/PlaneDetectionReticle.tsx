@@ -141,9 +141,7 @@ export const PlaneDetectionReticle: React.FC<PlaneDetectionReticleProps> = ({
     const label = (() => {
       switch (alignment) {
         case 'horizontal':
-          return detectedPlane.classification === 'ceiling'
-            ? 'Ceiling detected'
-            : 'Floor detected';
+          return detectedPlane.classification === 'ceiling' ? 'Ceiling detected' : 'Floor detected';
         case 'vertical':
           return 'Wall detected';
         default:
@@ -279,10 +277,7 @@ export const PlaneDetectionReticle: React.FC<PlaneDetectionReticleProps> = ({
       borderColor: reticleStyle.color,
       borderWidth: reticleStyle.borderWidth,
       opacity: opacityAnim,
-      transform: [
-        { scale: pulseAnim },
-        { scale: scaleAnim },
-      ],
+      transform: [{ scale: pulseAnim }, { scale: scaleAnim }],
     },
   ];
 
@@ -339,23 +334,13 @@ export const PlaneDetectionReticle: React.FC<PlaneDetectionReticleProps> = ({
             </Animated.View>
 
             {/* Center dot */}
-            <View
-              style={[
-                styles.centerDot,
-                { backgroundColor: reticleStyle.color },
-              ]}
-            />
+            <View style={[styles.centerDot, { backgroundColor: reticleStyle.color }]} />
           </Animated.View>
 
           {/* Tracking quality indicator */}
           {showTrackingQuality && (
             <View style={styles.trackingIndicator}>
-              <View
-                style={[
-                  styles.trackingDot,
-                  { backgroundColor: trackingQualityColor },
-                ]}
-              />
+              <View style={[styles.trackingDot, { backgroundColor: trackingQualityColor }]} />
             </View>
           )}
         </Animated.View>
@@ -364,12 +349,8 @@ export const PlaneDetectionReticle: React.FC<PlaneDetectionReticleProps> = ({
       {/* Status label */}
       {detectedPlane && (
         <View style={styles.labelContainer}>
-          <Text style={[styles.label, { color: reticleStyle.color }]}>
-            {reticleStyle.label}
-          </Text>
-          {placementMode && isPlaceable && (
-            <Text style={styles.placementHint}>Tap to place</Text>
-          )}
+          <Text style={[styles.label, { color: reticleStyle.color }]}>{reticleStyle.label}</Text>
+          {placementMode && isPlaceable && <Text style={styles.placementHint}>Tap to place</Text>}
         </View>
       )}
 

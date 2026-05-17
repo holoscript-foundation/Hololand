@@ -19,7 +19,7 @@ export function Select({ label, value, options, onChange }: SelectProps) {
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       onChange(e.target.value);
     },
-    [onChange],
+    [onChange]
   );
 
   return (

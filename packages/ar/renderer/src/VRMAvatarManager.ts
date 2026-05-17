@@ -1,23 +1,21 @@
 /**
  * VRM Avatar Manager
- * 
+ *
  * Loads and manages VRM avatars for AR.
  */
 
 import * as THREE from 'three';
-import type { 
-  AvatarConfig, 
-  AvatarState, 
-  Transform, 
+import type {
+  AvatarConfig,
+  AvatarState,
+  Transform,
   SkeletonPose,
   VRMBoneName,
   Vector3,
-  Quaternion,
 } from './types';
 
 // VRM types from @pixiv/three-vrm
 type VRM = any;
-type VRMLoaderPlugin = any;
 
 /**
  * Managed avatar instance
@@ -32,7 +30,7 @@ interface ManagedAvatar {
 
 /**
  * VRM Avatar Manager
- * 
+ *
  * Handles VRM avatar loading, animation, and IK.
  */
 export class VRMAvatarManager {
@@ -136,11 +134,7 @@ export class VRMAvatarManager {
     if (!model) return;
 
     // Update position
-    model.position.set(
-      transform.position.x,
-      transform.position.y,
-      transform.position.z
-    );
+    model.position.set(transform.position.x, transform.position.y, transform.position.z);
 
     // Update rotation
     model.quaternion.set(
@@ -152,11 +146,7 @@ export class VRMAvatarManager {
 
     // Update scale
     if (transform.scale) {
-      model.scale.set(
-        transform.scale.x,
-        transform.scale.y,
-        transform.scale.z
-      );
+      model.scale.set(transform.scale.x, transform.scale.y, transform.scale.z);
     }
 
     avatar.state.transform = transform;
@@ -188,12 +178,7 @@ export class VRMAvatarManager {
       if (!boneNode) continue;
 
       // Apply rotation
-      boneNode.quaternion.set(
-        bone.rotation.x,
-        bone.rotation.y,
-        bone.rotation.z,
-        bone.rotation.w
-      );
+      boneNode.quaternion.set(bone.rotation.x, bone.rotation.y, bone.rotation.z, bone.rotation.w);
     }
 
     avatar.state.pose = pose;
@@ -313,36 +298,36 @@ export class VRMAvatarManager {
     // Map common detection bone names to VRM
     const mapping: Record<string, VRMBoneName> = {
       // Torso
-      'pelvis': 'hips',
-      'spine': 'spine',
-      'spine1': 'chest',
-      'spine2': 'upperChest',
-      'neck': 'neck',
-      'head': 'head',
-      
+      pelvis: 'hips',
+      spine: 'spine',
+      spine1: 'chest',
+      spine2: 'upperChest',
+      neck: 'neck',
+      head: 'head',
+
       // Left arm
-      'left_shoulder': 'leftShoulder',
-      'left_upper_arm': 'leftUpperArm',
-      'left_lower_arm': 'leftLowerArm',
-      'left_hand': 'leftHand',
-      
+      left_shoulder: 'leftShoulder',
+      left_upper_arm: 'leftUpperArm',
+      left_lower_arm: 'leftLowerArm',
+      left_hand: 'leftHand',
+
       // Right arm
-      'right_shoulder': 'rightShoulder',
-      'right_upper_arm': 'rightUpperArm',
-      'right_lower_arm': 'rightLowerArm',
-      'right_hand': 'rightHand',
-      
+      right_shoulder: 'rightShoulder',
+      right_upper_arm: 'rightUpperArm',
+      right_lower_arm: 'rightLowerArm',
+      right_hand: 'rightHand',
+
       // Left leg
-      'left_upper_leg': 'leftUpperLeg',
-      'left_lower_leg': 'leftLowerLeg',
-      'left_foot': 'leftFoot',
-      'left_toes': 'leftToes',
-      
+      left_upper_leg: 'leftUpperLeg',
+      left_lower_leg: 'leftLowerLeg',
+      left_foot: 'leftFoot',
+      left_toes: 'leftToes',
+
       // Right leg
-      'right_upper_leg': 'rightUpperLeg',
-      'right_lower_leg': 'rightLowerLeg',
-      'right_foot': 'rightFoot',
-      'right_toes': 'rightToes',
+      right_upper_leg: 'rightUpperLeg',
+      right_lower_leg: 'rightLowerLeg',
+      right_foot: 'rightFoot',
+      right_toes: 'rightToes',
     };
 
     return mapping[name.toLowerCase()] ?? null;

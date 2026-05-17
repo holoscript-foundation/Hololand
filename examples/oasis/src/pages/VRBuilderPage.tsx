@@ -221,10 +221,7 @@ export default function VRBuilderPage() {
           />
 
           {/* Desktop controls */}
-          <OrbitControls
-            enabled={false}
-            enablePan={false}
-          />
+          <OrbitControls enabled={false} enablePan={false} />
         </Suspense>
       </Canvas>
 
@@ -257,8 +254,8 @@ export default function VRBuilderPage() {
                 {isListening
                   ? currentTranscript || 'Listening... (say "Brittney")'
                   : isGenerating
-                  ? 'Thinking...'
-                  : 'Press V to talk'}
+                    ? 'Thinking...'
+                    : 'Press V to talk'}
               </span>
             </div>
           </div>
@@ -283,9 +280,10 @@ export default function VRBuilderPage() {
                   onClick={() => setSelectedEntityType(type)}
                   className={`
                     px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                    ${selectedEntityType === type
-                      ? 'bg-meadow-grass text-white'
-                      : 'bg-meadow-cream-dark text-meadow-text hover:bg-meadow-grass/20'
+                    ${
+                      selectedEntityType === type
+                        ? 'bg-meadow-grass text-white'
+                        : 'bg-meadow-cream-dark text-meadow-text hover:bg-meadow-grass/20'
                     }
                   `}
                 >

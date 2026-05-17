@@ -107,7 +107,9 @@ export function useNetwork() {
 export function useRoom(worldId?: string) {
   const { joinRoom, leaveRoom, room, connected } = useNetwork();
   const [players, setPlayers] = useState<Map<string, unknown>>(new Map());
-  const [messages, setMessages] = useState<Array<{ from: string; message: string; time: number }>>([]);
+  const [messages, setMessages] = useState<Array<{ from: string; message: string; time: number }>>(
+    []
+  );
 
   // Join room when worldId is provided
   useEffect(() => {
@@ -146,16 +148,15 @@ export function useRoom(worldId?: string) {
       setPlayers((p) => {
         const newPlayers = new Map(p);
         const existing = newPlayers.get(playerId) || {};
-        newPlayers.set(playerId, { ...existing as object, ...data as object });
+        newPlayers.set(playerId, { ...(existing as object), ...(data as object) });
         return newPlayers;
       });
     };
 
     const handleChatMessage = (data: { message: string; timestamp: number }, playerId: string) => {
-      setMessages((m) => [
-        ...m,
-        { from: playerId, message: data.message, time: data.timestamp },
-      ].slice(-100)); // Keep last 100 messages
+      setMessages((m) =>
+        [...m, { from: playerId, message: data.message, time: data.timestamp }].slice(-100)
+      ); // Keep last 100 messages
     };
 
     room.on('player:join', handlePlayerJoin);

@@ -2,13 +2,7 @@
 export { useNetwork, useRoom } from './useNetwork';
 
 // Social hooks
-export {
-  useFriends,
-  useParty,
-  useEmotes,
-  useNotifications,
-  usePresence,
-} from './useSocial';
+export { useFriends, useParty, useEmotes, useNotifications, usePresence } from './useSocial';
 
 // AI hooks
 export { useBrittney } from './useBrittney';

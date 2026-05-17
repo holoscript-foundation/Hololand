@@ -70,17 +70,17 @@ export interface CameraPreset {
 }
 
 const CAMERA_PRESETS: Record<StudioViewAngle, CameraPreset> = {
-  'front': {
+  front: {
     position: new THREE.Vector3(0, 1.2, 2.5),
     target: new THREE.Vector3(0, 1.0, 0),
     fov: 45,
   },
-  'side': {
+  side: {
     position: new THREE.Vector3(2.5, 1.2, 0),
     target: new THREE.Vector3(0, 1.0, 0),
     fov: 45,
   },
-  'back': {
+  back: {
     position: new THREE.Vector3(0, 1.2, -2.5),
     target: new THREE.Vector3(0, 1.0, 0),
     fov: 45,
@@ -95,7 +95,7 @@ const CAMERA_PRESETS: Record<StudioViewAngle, CameraPreset> = {
     target: new THREE.Vector3(0, 0.85, 0),
     fov: 50,
   },
-  'free': {
+  free: {
     position: new THREE.Vector3(1.5, 1.5, 2.0),
     target: new THREE.Vector3(0, 1.0, 0),
     fov: 45,
@@ -265,7 +265,7 @@ export class AvatarPreviewRenderer {
     this.unsubscribers.push(
       manager.on('blueprint:changed', () => {
         this.handleBlueprintChanged(manager.getBlueprint());
-      }),
+      })
     );
 
     // Perform initial assembly from the current blueprint
@@ -523,8 +523,7 @@ export class AvatarPreviewRenderer {
     };
 
     metrics.withinBudget =
-      metrics.triangles <= budget.maxPolyCount &&
-      metrics.drawCalls <= budget.maxDrawCalls;
+      metrics.triangles <= budget.maxPolyCount && metrics.drawCalls <= budget.maxDrawCalls;
 
     return metrics;
   }
@@ -757,11 +756,11 @@ export class AvatarPreviewRenderer {
 
       console.log(
         `Avatar assembled: ${result.stats.totalVertices} verts, ` +
-        `${result.stats.totalTriangles} tris, ` +
-        `${result.stats.totalBones} bones, ` +
-        `${result.stats.totalMorphTargets} morphs, ` +
-        `${result.stats.totalSpringBoneChains} spring chains ` +
-        `(${result.stats.assemblyTimeMs}ms)`
+          `${result.stats.totalTriangles} tris, ` +
+          `${result.stats.totalBones} bones, ` +
+          `${result.stats.totalMorphTargets} morphs, ` +
+          `${result.stats.totalSpringBoneChains} spring chains ` +
+          `(${result.stats.assemblyTimeMs}ms)`
       );
     } catch (error) {
       console.error('Avatar assembly failed, using placeholder:', error);
@@ -817,9 +816,8 @@ export class AvatarPreviewRenderer {
    */
   private async setupSpringBonePhysics(assembly: AssemblyResult): Promise<void> {
     try {
-      const { VRMSpringBoneManager, VRMSpringBoneJoint } = await import(
-        '@pixiv/three-vrm-springbone'
-      );
+      const { VRMSpringBoneManager, VRMSpringBoneJoint } =
+        await import('@pixiv/three-vrm-springbone');
 
       const manager = new VRMSpringBoneManager() as any;
       const SpringBoneJoint = VRMSpringBoneJoint as any;
@@ -847,7 +845,7 @@ export class AvatarPreviewRenderer {
               gravityDir: new THREE.Vector3(
                 bone.userData.springGravityDirX ?? 0,
                 bone.userData.springGravityDirY ?? -1,
-                bone.userData.springGravityDirZ ?? 0,
+                bone.userData.springGravityDirZ ?? 0
               ),
               dragForce: bone.userData.springDragForce ?? 0.4,
               hitRadius: bone.userData.springHitRadius ?? 0.02,
@@ -872,17 +870,13 @@ export class AvatarPreviewRenderer {
 
             const chainBones = this.collectSpringBoneChain(rootBone);
             for (let i = 0; i < chainBones.length - 1; i++) {
-              const joint = new SpringBoneJoint(
-                chainBones[i],
-                chainBones[i + 1],
-                {
-                  stiffness: chainConfig.stiffness ?? 1.0,
-                  gravityPower: chainConfig.gravityPower ?? 0.0,
-                  gravityDir: new THREE.Vector3(0, -1, 0),
-                  dragForce: chainConfig.dragForce ?? 0.4,
-                  hitRadius: chainConfig.hitRadius ?? 0.02,
-                },
-              );
+              const joint = new SpringBoneJoint(chainBones[i], chainBones[i + 1], {
+                stiffness: chainConfig.stiffness ?? 1.0,
+                gravityPower: chainConfig.gravityPower ?? 0.0,
+                gravityDir: new THREE.Vector3(0, -1, 0),
+                dragForce: chainConfig.dragForce ?? 0.4,
+                hitRadius: chainConfig.hitRadius ?? 0.02,
+              });
               manager.addJoint(joint);
             }
           }
@@ -1137,11 +1131,7 @@ export class AvatarPreviewRenderer {
   // INTERNAL: CAMERA ANIMATION
   // ===========================================================================
 
-  private animateCameraTo(
-    position: THREE.Vector3,
-    target: THREE.Vector3,
-    fov: number
-  ): void {
+  private animateCameraTo(position: THREE.Vector3, target: THREE.Vector3, fov: number): void {
     // For simplicity, snap to position. In production, use GSAP or tween.
     this.camera.position.copy(position);
     this.camera.lookAt(target);

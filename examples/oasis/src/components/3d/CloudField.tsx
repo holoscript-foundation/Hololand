@@ -115,13 +115,7 @@ export function DriftingCloud({
 
   return (
     <group ref={cloudRef as any} position={startPosition}>
-      <Cloud
-        speed={0.1}
-        opacity={opacity}
-        segments={20}
-        scale={scale}
-        color="#FFFFFF"
-      />
+      <Cloud speed={0.1} opacity={opacity} segments={20} scale={scale} color="#FFFFFF" />
     </group>
   );
 }

@@ -33,12 +33,7 @@ declare module 'react-native' {
 
   export const Platform: {
     OS: string;
-    select<T>(specifics: {
-      ios?: T;
-      android?: T;
-      web?: T;
-      default?: T;
-    }): T | undefined;
+    select<T>(specifics: { ios?: T; android?: T; web?: T; default?: T }): T | undefined;
   };
 
   export const Dimensions: {
@@ -71,20 +66,20 @@ declare module 'react-native' {
 
     export function timing(
       value: unknown,
-      config: Record<string, unknown>,
+      config: Record<string, unknown>
     ): { start(callback?: () => void): void };
 
     export function spring(
       value: unknown,
-      config: Record<string, unknown>,
+      config: Record<string, unknown>
     ): { start(callback?: () => void): void };
 
-    export function sequence(
-      animations: Array<{ start(callback?: () => void): void }>,
-    ): { start(callback?: () => void): void };
-
-    export function loop(animation: {
+    export function sequence(animations: Array<{ start(callback?: () => void): void }>): {
       start(callback?: () => void): void;
-    }): { start(callback?: () => void): void };
+    };
+
+    export function loop(animation: { start(callback?: () => void): void }): {
+      start(callback?: () => void): void;
+    };
   }
 }

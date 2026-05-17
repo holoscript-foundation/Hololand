@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  createAvatar,
-  listAvatars,
-} from '@/lib/avatarStore';
+import { createAvatar, listAvatars } from '@/lib/avatarStore';
 
 /**
  * GET /api/v1/avatars
@@ -47,14 +44,14 @@ export async function POST(request: NextRequest) {
     if (!blueprint) {
       return NextResponse.json(
         { error: 'Missing blueprint in request body', code: 'MISSING_BLUEPRINT' },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (!blueprint.id || !blueprint.name) {
       return NextResponse.json(
         { error: 'Blueprint must include id and name', code: 'INVALID_BLUEPRINT' },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -76,7 +73,7 @@ export async function POST(request: NextRequest) {
         code: 'CREATE_FAILED',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -92,8 +89,7 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers':
-        'Content-Type, Authorization, X-App-ID, X-User-Token',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-App-ID, X-User-Token',
     },
   });
 }

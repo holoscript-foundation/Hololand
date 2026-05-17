@@ -43,7 +43,7 @@
  */
 
 import * as THREE from 'three';
-import type { GenderPresentation, BodyProportions } from './types';
+import type { GenderPresentation } from './types';
 
 // =============================================================================
 // TYPES
@@ -95,13 +95,13 @@ export interface BodyGenerationStats {
  */
 interface BodyProfile {
   // Torso
-  shoulderWidthRatio: number;    // half-width at shoulders
-  chestWidthRatio: number;       // half-width at chest
-  waistWidthRatio: number;       // half-width at waist
-  hipWidthRatio: number;         // half-width at hips
-  chestDepthRatio: number;       // half-depth at chest
-  waistDepthRatio: number;       // half-depth at waist
-  hipDepthRatio: number;         // half-depth at hips
+  shoulderWidthRatio: number; // half-width at shoulders
+  chestWidthRatio: number; // half-width at chest
+  waistWidthRatio: number; // half-width at waist
+  hipWidthRatio: number; // half-width at hips
+  chestDepthRatio: number; // half-depth at chest
+  waistDepthRatio: number; // half-depth at waist
+  hipDepthRatio: number; // half-depth at hips
 
   // Limbs
   upperArmRadius: number;
@@ -117,16 +117,16 @@ interface BodyProfile {
   neckRadius: number;
 
   // Vertical proportions (fraction of total height)
-  headTopY: number;              // top of head
-  chinY: number;                 // chin / jaw
-  neckBaseY: number;             // base of neck
-  shoulderY: number;             // shoulder line
-  chestY: number;                // chest line
-  waistY: number;                // waist line
-  hipY: number;                  // hip line / crotch
-  kneeY: number;                 // knee
-  ankleY: number;                // ankle
-  floorY: number;                // bottom of feet
+  headTopY: number; // top of head
+  chinY: number; // chin / jaw
+  neckBaseY: number; // base of neck
+  shoulderY: number; // shoulder line
+  chestY: number; // chest line
+  waistY: number; // waist line
+  hipY: number; // hip line / crotch
+  kneeY: number; // knee
+  ankleY: number; // ankle
+  floorY: number; // bottom of feet
 }
 
 // =============================================================================
@@ -135,7 +135,7 @@ interface BodyProfile {
 
 interface BoneDef {
   name: string;
-  parent: number;   // index into bone array, -1 for root
+  parent: number; // index into bone array, -1 for root
   position: [number, number, number]; // local position relative to parent
 }
 
@@ -145,32 +145,32 @@ interface BoneDef {
  */
 const VRM_BONES: BoneDef[] = [
   // Spine chain
-  { name: 'hips',          parent: -1,  position: [0.000, 0.900, 0.000] },
-  { name: 'spine',         parent:  0,  position: [0.000, 0.100, 0.000] },
-  { name: 'chest',         parent:  1,  position: [0.000, 0.150, 0.000] },
-  { name: 'upperChest',    parent:  2,  position: [0.000, 0.100, 0.000] },
-  { name: 'neck',          parent:  3,  position: [0.000, 0.120, 0.000] },
-  { name: 'head',          parent:  4,  position: [0.000, 0.080, 0.000] },
+  { name: 'hips', parent: -1, position: [0.0, 0.9, 0.0] },
+  { name: 'spine', parent: 0, position: [0.0, 0.1, 0.0] },
+  { name: 'chest', parent: 1, position: [0.0, 0.15, 0.0] },
+  { name: 'upperChest', parent: 2, position: [0.0, 0.1, 0.0] },
+  { name: 'neck', parent: 3, position: [0.0, 0.12, 0.0] },
+  { name: 'head', parent: 4, position: [0.0, 0.08, 0.0] },
   // Left arm
-  { name: 'leftShoulder',  parent:  3,  position: [-0.080, 0.050, 0.000] },
-  { name: 'leftUpperArm',  parent:  6,  position: [-0.100, 0.000, 0.000] },
-  { name: 'leftLowerArm',  parent:  7,  position: [-0.250, 0.000, 0.000] },
-  { name: 'leftHand',      parent:  8,  position: [-0.250, 0.000, 0.000] },
+  { name: 'leftShoulder', parent: 3, position: [-0.08, 0.05, 0.0] },
+  { name: 'leftUpperArm', parent: 6, position: [-0.1, 0.0, 0.0] },
+  { name: 'leftLowerArm', parent: 7, position: [-0.25, 0.0, 0.0] },
+  { name: 'leftHand', parent: 8, position: [-0.25, 0.0, 0.0] },
   // Right arm
-  { name: 'rightShoulder', parent:  3,  position: [0.080, 0.050, 0.000] },
-  { name: 'rightUpperArm', parent: 10,  position: [0.100, 0.000, 0.000] },
-  { name: 'rightLowerArm', parent: 11,  position: [0.250, 0.000, 0.000] },
-  { name: 'rightHand',     parent: 12,  position: [0.250, 0.000, 0.000] },
+  { name: 'rightShoulder', parent: 3, position: [0.08, 0.05, 0.0] },
+  { name: 'rightUpperArm', parent: 10, position: [0.1, 0.0, 0.0] },
+  { name: 'rightLowerArm', parent: 11, position: [0.25, 0.0, 0.0] },
+  { name: 'rightHand', parent: 12, position: [0.25, 0.0, 0.0] },
   // Left leg
-  { name: 'leftUpperLeg',  parent:  0,  position: [-0.100, -0.050, 0.000] },
-  { name: 'leftLowerLeg',  parent: 14,  position: [0.000, -0.400, 0.000] },
-  { name: 'leftFoot',      parent: 15,  position: [0.000, -0.400, 0.000] },
-  { name: 'leftToes',      parent: 16,  position: [0.000,  0.000, 0.100] },
+  { name: 'leftUpperLeg', parent: 0, position: [-0.1, -0.05, 0.0] },
+  { name: 'leftLowerLeg', parent: 14, position: [0.0, -0.4, 0.0] },
+  { name: 'leftFoot', parent: 15, position: [0.0, -0.4, 0.0] },
+  { name: 'leftToes', parent: 16, position: [0.0, 0.0, 0.1] },
   // Right leg
-  { name: 'rightUpperLeg', parent:  0,  position: [0.100, -0.050, 0.000] },
-  { name: 'rightLowerLeg', parent: 18,  position: [0.000, -0.400, 0.000] },
-  { name: 'rightFoot',     parent: 19,  position: [0.000, -0.400, 0.000] },
-  { name: 'rightToes',     parent: 20,  position: [0.000,  0.000, 0.100] },
+  { name: 'rightUpperLeg', parent: 0, position: [0.1, -0.05, 0.0] },
+  { name: 'rightLowerLeg', parent: 18, position: [0.0, -0.4, 0.0] },
+  { name: 'rightFoot', parent: 19, position: [0.0, -0.4, 0.0] },
+  { name: 'rightToes', parent: 20, position: [0.0, 0.0, 0.1] },
 ];
 
 // =============================================================================
@@ -179,69 +179,69 @@ const VRM_BONES: BoneDef[] = [
 
 const BODY_PROFILES: Record<GenderPresentation, BodyProfile> = {
   masculine: {
-    shoulderWidthRatio: 0.130,
+    shoulderWidthRatio: 0.13,
     chestWidthRatio: 0.125,
-    waistWidthRatio: 0.100,
+    waistWidthRatio: 0.1,
     hipWidthRatio: 0.095,
     chestDepthRatio: 0.095,
-    waistDepthRatio: 0.080,
+    waistDepthRatio: 0.08,
     hipDepthRatio: 0.085,
     upperArmRadius: 0.042,
     lowerArmRadius: 0.034,
     handRadius: 0.028,
     upperLegRadius: 0.065,
     lowerLegRadius: 0.045,
-    footLength: 0.150,
-    footHeight: 0.050,
-    headRadius: 0.110,
+    footLength: 0.15,
+    footHeight: 0.05,
+    headRadius: 0.11,
     neckRadius: 0.048,
-    headTopY: 1.700,
-    chinY: 1.500,
-    neckBaseY: 1.440,
-    shoulderY: 1.370,
-    chestY: 1.250,
-    waistY: 1.070,
-    hipY: 0.900,
-    kneeY: 0.480,
-    ankleY: 0.080,
-    floorY: 0.000,
+    headTopY: 1.7,
+    chinY: 1.5,
+    neckBaseY: 1.44,
+    shoulderY: 1.37,
+    chestY: 1.25,
+    waistY: 1.07,
+    hipY: 0.9,
+    kneeY: 0.48,
+    ankleY: 0.08,
+    floorY: 0.0,
   },
   feminine: {
     shoulderWidthRatio: 0.105,
     chestWidthRatio: 0.108,
     waistWidthRatio: 0.082,
     hipWidthRatio: 0.115,
-    chestDepthRatio: 0.090,
-    waistDepthRatio: 0.070,
+    chestDepthRatio: 0.09,
+    waistDepthRatio: 0.07,
     hipDepthRatio: 0.095,
     upperArmRadius: 0.034,
     lowerArmRadius: 0.028,
     handRadius: 0.024,
     upperLegRadius: 0.062,
-    lowerLegRadius: 0.040,
+    lowerLegRadius: 0.04,
     footLength: 0.135,
     footHeight: 0.045,
     headRadius: 0.105,
-    neckRadius: 0.040,
-    headTopY: 1.650,
+    neckRadius: 0.04,
+    headTopY: 1.65,
     chinY: 1.458,
-    neckBaseY: 1.400,
-    shoulderY: 1.330,
-    chestY: 1.210,
-    waistY: 1.040,
-    hipY: 0.880,
-    kneeY: 0.460,
+    neckBaseY: 1.4,
+    shoulderY: 1.33,
+    chestY: 1.21,
+    waistY: 1.04,
+    hipY: 0.88,
+    kneeY: 0.46,
     ankleY: 0.075,
-    floorY: 0.000,
+    floorY: 0.0,
   },
   androgynous: {
     shoulderWidthRatio: 0.115,
     chestWidthRatio: 0.115,
-    waistWidthRatio: 0.090,
+    waistWidthRatio: 0.09,
     hipWidthRatio: 0.105,
     chestDepthRatio: 0.092,
     waistDepthRatio: 0.075,
-    hipDepthRatio: 0.090,
+    hipDepthRatio: 0.09,
     upperArmRadius: 0.038,
     lowerArmRadius: 0.031,
     handRadius: 0.026,
@@ -252,15 +252,15 @@ const BODY_PROFILES: Record<GenderPresentation, BodyProfile> = {
     headRadius: 0.107,
     neckRadius: 0.044,
     headTopY: 1.675,
-    chinY: 1.480,
-    neckBaseY: 1.420,
-    shoulderY: 1.350,
-    chestY: 1.230,
+    chinY: 1.48,
+    neckBaseY: 1.42,
+    shoulderY: 1.35,
+    chestY: 1.23,
     waistY: 1.055,
-    hipY: 0.890,
-    kneeY: 0.470,
+    hipY: 0.89,
+    kneeY: 0.47,
     ankleY: 0.077,
-    floorY: 0.000,
+    floorY: 0.0,
   },
 };
 
@@ -329,7 +329,7 @@ const MORPH_TARGET_DEFS: MorphTargetDef[] = [
     modifyProfile: (base) => ({
       ...base,
       chestWidthRatio: base.chestWidthRatio * 1.25,
-      chestDepthRatio: base.chestDepthRatio * 1.30,
+      chestDepthRatio: base.chestDepthRatio * 1.3,
     }),
   },
   {
@@ -337,7 +337,7 @@ const MORPH_TARGET_DEFS: MorphTargetDef[] = [
     modifyProfile: (base) => ({
       ...base,
       waistWidthRatio: base.waistWidthRatio * 1.35,
-      waistDepthRatio: base.waistDepthRatio * 1.30,
+      waistDepthRatio: base.waistDepthRatio * 1.3,
     }),
   },
   {
@@ -346,10 +346,10 @@ const MORPH_TARGET_DEFS: MorphTargetDef[] = [
       ...base,
       upperArmRadius: base.upperArmRadius * 1.25,
       lowerArmRadius: base.lowerArmRadius * 1.15,
-      upperLegRadius: base.upperLegRadius * 1.20,
+      upperLegRadius: base.upperLegRadius * 1.2,
       lowerLegRadius: base.lowerLegRadius * 1.15,
       chestWidthRatio: base.chestWidthRatio * 1.08,
-      chestDepthRatio: base.chestDepthRatio * 1.10,
+      chestDepthRatio: base.chestDepthRatio * 1.1,
     }),
   },
 ];
@@ -404,15 +404,12 @@ export class ProceduralBodyGenerator {
     // Step 4: Compute skin weights
     const { skinIndices, skinWeights } = this.computeSkinWeights(
       baseVertices.positions,
-      skeleton.bones,
+      skeleton.bones
     );
-    geometry.setAttribute(
-      'skinIndex',
-      new THREE.BufferAttribute(new Uint16Array(skinIndices), 4),
-    );
+    geometry.setAttribute('skinIndex', new THREE.BufferAttribute(new Uint16Array(skinIndices), 4));
     geometry.setAttribute(
       'skinWeight',
-      new THREE.BufferAttribute(new Float32Array(skinWeights), 4),
+      new THREE.BufferAttribute(new Float32Array(skinWeights), 4)
     );
 
     // Step 5: Generate morph targets
@@ -442,7 +439,7 @@ export class ProceduralBodyGenerator {
       // Set morph attributes
       if (morphPositions.length > 0) {
         geometry.morphAttributes.position = morphPositions.map(
-          (arr) => new THREE.BufferAttribute(arr, 3),
+          (arr) => new THREE.BufferAttribute(arr, 3)
         );
         geometry.morphTargetsRelative = true;
         geometry.userData.targetNames = Object.keys(morphTargetDictionary);
@@ -627,10 +624,7 @@ export class ProceduralBodyGenerator {
    * Generate cross-sectional rings for the torso (from hip line to neck base).
    * Each ring is an array of Vec3 points around the circumference.
    */
-  private generateTorsoRings(
-    profile: BodyProfile,
-    segments: number,
-  ): THREE.Vector3[][] {
+  private generateTorsoRings(profile: BodyProfile, segments: number): THREE.Vector3[][] {
     const rings: THREE.Vector3[][] = [];
     const heightSteps = this.config.heightSegments * 2;
 
@@ -657,10 +651,7 @@ export class ProceduralBodyGenerator {
   /**
    * Generate head rings (sphere-like from chin to top of head).
    */
-  private generateHeadRings(
-    profile: BodyProfile,
-    segments: number,
-  ): THREE.Vector3[][] {
+  private generateHeadRings(profile: BodyProfile, segments: number): THREE.Vector3[][] {
     const rings: THREE.Vector3[][] = [];
     const steps = this.config.heightSegments;
 
@@ -668,11 +659,13 @@ export class ProceduralBodyGenerator {
     const neckRing: THREE.Vector3[] = [];
     for (let s = 0; s < segments; s++) {
       const angle = (s / segments) * Math.PI * 2;
-      neckRing.push(new THREE.Vector3(
-        Math.cos(angle) * profile.neckRadius,
-        profile.neckBaseY,
-        Math.sin(angle) * profile.neckRadius,
-      ));
+      neckRing.push(
+        new THREE.Vector3(
+          Math.cos(angle) * profile.neckRadius,
+          profile.neckBaseY,
+          Math.sin(angle) * profile.neckRadius
+        )
+      );
     }
     rings.push(neckRing);
 
@@ -692,11 +685,9 @@ export class ProceduralBodyGenerator {
       for (let s = 0; s < segments; s++) {
         const angle = (s / segments) * Math.PI * 2;
         // Slightly oval head: wider from ear to ear, shallower front-to-back
-        ring.push(new THREE.Vector3(
-          Math.cos(angle) * radius * 1.0,
-          y,
-          Math.sin(angle) * radius * 0.9,
-        ));
+        ring.push(
+          new THREE.Vector3(Math.cos(angle) * radius * 1.0, y, Math.sin(angle) * radius * 0.9)
+        );
       }
       rings.push(ring);
     }
@@ -711,7 +702,7 @@ export class ProceduralBodyGenerator {
   private generateArmRings(
     profile: BodyProfile,
     segments: number,
-    side: number,
+    side: number
   ): THREE.Vector3[][] {
     const rings: THREE.Vector3[][] = [];
     const steps = this.config.heightSegments;
@@ -725,20 +716,14 @@ export class ProceduralBodyGenerator {
     for (let step = 0; step <= steps; step++) {
       const t = step / steps;
       const x = shoulderX + side * t * upperArmLength;
-      const radius = THREE.MathUtils.lerp(
-        profile.upperArmRadius,
-        profile.upperArmRadius * 0.9,
-        t,
-      );
+      const radius = THREE.MathUtils.lerp(profile.upperArmRadius, profile.upperArmRadius * 0.9, t);
 
       const ring: THREE.Vector3[] = [];
       for (let s = 0; s < segments; s++) {
         const angle = (s / segments) * Math.PI * 2;
-        ring.push(new THREE.Vector3(
-          x,
-          shoulderY + Math.cos(angle) * radius,
-          Math.sin(angle) * radius,
-        ));
+        ring.push(
+          new THREE.Vector3(x, shoulderY + Math.cos(angle) * radius, Math.sin(angle) * radius)
+        );
       }
       rings.push(ring);
     }
@@ -749,20 +734,14 @@ export class ProceduralBodyGenerator {
     for (let step = 1; step <= steps; step++) {
       const t = step / steps;
       const x = elbowX + side * t * lowerArmLength;
-      const radius = THREE.MathUtils.lerp(
-        profile.lowerArmRadius,
-        profile.lowerArmRadius * 0.85,
-        t,
-      );
+      const radius = THREE.MathUtils.lerp(profile.lowerArmRadius, profile.lowerArmRadius * 0.85, t);
 
       const ring: THREE.Vector3[] = [];
       for (let s = 0; s < segments; s++) {
         const angle = (s / segments) * Math.PI * 2;
-        ring.push(new THREE.Vector3(
-          x,
-          shoulderY + Math.cos(angle) * radius,
-          Math.sin(angle) * radius,
-        ));
+        ring.push(
+          new THREE.Vector3(x, shoulderY + Math.cos(angle) * radius, Math.sin(angle) * radius)
+        );
       }
       rings.push(ring);
     }
@@ -777,11 +756,13 @@ export class ProceduralBodyGenerator {
       const ring: THREE.Vector3[] = [];
       for (let s = 0; s < segments; s++) {
         const angle = (s / segments) * Math.PI * 2;
-        ring.push(new THREE.Vector3(
-          x,
-          shoulderY + Math.cos(angle) * radius,
-          Math.sin(angle) * radius * 0.6, // flattened hand
-        ));
+        ring.push(
+          new THREE.Vector3(
+            x,
+            shoulderY + Math.cos(angle) * radius,
+            Math.sin(angle) * radius * 0.6 // flattened hand
+          )
+        );
       }
       rings.push(ring);
     }
@@ -796,7 +777,7 @@ export class ProceduralBodyGenerator {
   private generateLegRings(
     profile: BodyProfile,
     segments: number,
-    side: number,
+    side: number
   ): THREE.Vector3[][] {
     const rings: THREE.Vector3[][] = [];
     const steps = this.config.heightSegments;
@@ -806,20 +787,14 @@ export class ProceduralBodyGenerator {
     for (let step = 0; step <= steps; step++) {
       const t = step / steps;
       const y = THREE.MathUtils.lerp(profile.hipY, profile.kneeY, t);
-      const radius = THREE.MathUtils.lerp(
-        profile.upperLegRadius,
-        profile.upperLegRadius * 0.75,
-        t,
-      );
+      const radius = THREE.MathUtils.lerp(profile.upperLegRadius, profile.upperLegRadius * 0.75, t);
 
       const ring: THREE.Vector3[] = [];
       for (let s = 0; s < segments; s++) {
         const angle = (s / segments) * Math.PI * 2;
-        ring.push(new THREE.Vector3(
-          legCenterX + Math.cos(angle) * radius,
-          y,
-          Math.sin(angle) * radius,
-        ));
+        ring.push(
+          new THREE.Vector3(legCenterX + Math.cos(angle) * radius, y, Math.sin(angle) * radius)
+        );
       }
       rings.push(ring);
     }
@@ -828,20 +803,14 @@ export class ProceduralBodyGenerator {
     for (let step = 1; step <= steps; step++) {
       const t = step / steps;
       const y = THREE.MathUtils.lerp(profile.kneeY, profile.ankleY, t);
-      const radius = THREE.MathUtils.lerp(
-        profile.lowerLegRadius,
-        profile.lowerLegRadius * 0.8,
-        t,
-      );
+      const radius = THREE.MathUtils.lerp(profile.lowerLegRadius, profile.lowerLegRadius * 0.8, t);
 
       const ring: THREE.Vector3[] = [];
       for (let s = 0; s < segments; s++) {
         const angle = (s / segments) * Math.PI * 2;
-        ring.push(new THREE.Vector3(
-          legCenterX + Math.cos(angle) * radius,
-          y,
-          Math.sin(angle) * radius,
-        ));
+        ring.push(
+          new THREE.Vector3(legCenterX + Math.cos(angle) * radius, y, Math.sin(angle) * radius)
+        );
       }
       rings.push(ring);
     }
@@ -857,11 +826,13 @@ export class ProceduralBodyGenerator {
       for (let s = 0; s < segments; s++) {
         const angle = (s / segments) * Math.PI * 2;
         const radius = profile.lowerLegRadius * 0.7 * widthFactor;
-        ring.push(new THREE.Vector3(
-          legCenterX + Math.cos(angle) * radius,
-          y + Math.abs(Math.sin(angle)) * profile.footHeight * (1 - t),
-          footProgressZ + Math.sin(angle) * radius * 0.5,
-        ));
+        ring.push(
+          new THREE.Vector3(
+            legCenterX + Math.cos(angle) * radius,
+            y + Math.abs(Math.sin(angle)) * profile.footHeight * (1 - t),
+            footProgressZ + Math.sin(angle) * radius * 0.5
+          )
+        );
       }
       rings.push(ring);
     }
@@ -874,15 +845,19 @@ export class ProceduralBodyGenerator {
    */
   private interpolateTorsoCrossSection(
     profile: BodyProfile,
-    y: number,
+    y: number
   ): { width: number; depth: number } {
     // Key Y positions and their widths/depths
     const keyframes: { y: number; width: number; depth: number }[] = [
-      { y: profile.hipY,      width: profile.hipWidthRatio,      depth: profile.hipDepthRatio },
-      { y: profile.waistY,    width: profile.waistWidthRatio,    depth: profile.waistDepthRatio },
-      { y: profile.chestY,    width: profile.chestWidthRatio,    depth: profile.chestDepthRatio },
-      { y: profile.shoulderY, width: profile.shoulderWidthRatio, depth: profile.chestDepthRatio * 0.9 },
-      { y: profile.neckBaseY, width: profile.neckRadius,         depth: profile.neckRadius },
+      { y: profile.hipY, width: profile.hipWidthRatio, depth: profile.hipDepthRatio },
+      { y: profile.waistY, width: profile.waistWidthRatio, depth: profile.waistDepthRatio },
+      { y: profile.chestY, width: profile.chestWidthRatio, depth: profile.chestDepthRatio },
+      {
+        y: profile.shoulderY,
+        width: profile.shoulderWidthRatio,
+        depth: profile.chestDepthRatio * 0.9,
+      },
+      { y: profile.neckBaseY, width: profile.neckRadius, depth: profile.neckRadius },
     ];
 
     // Find bracketing keyframes
@@ -952,12 +927,14 @@ export class ProceduralBodyGenerator {
       let v: number;
       switch (part) {
         case 0: // torso
-          v = (y - BODY_PROFILES.androgynous.hipY) /
+          v =
+            (y - BODY_PROFILES.androgynous.hipY) /
             (BODY_PROFILES.androgynous.neckBaseY - BODY_PROFILES.androgynous.hipY);
           v = 0.3 + v * 0.3; // map to 0.3-0.6 UV range
           break;
         case 1: // head
-          v = (y - BODY_PROFILES.androgynous.chinY) /
+          v =
+            (y - BODY_PROFILES.androgynous.chinY) /
             (BODY_PROFILES.androgynous.headTopY - BODY_PROFILES.androgynous.chinY);
           v = 0.6 + v * 0.4; // map to 0.6-1.0 UV range
           break;
@@ -1051,7 +1028,6 @@ export class ProceduralBodyGenerator {
 
     for (let i = 0; i < vertCount; i++) {
       const x = positions[i * 3];
-      const y = positions[i * 3 + 1];
       const z = positions[i * 3 + 2];
 
       // Estimate ring center (approximate): for torso, center is (0, y, 0)
@@ -1087,7 +1063,7 @@ export class ProceduralBodyGenerator {
    */
   private computeSkinWeights(
     positions: number[],
-    bones: THREE.Bone[],
+    bones: THREE.Bone[]
   ): {
     skinIndices: number[];
     skinWeights: number[];
@@ -1152,24 +1128,22 @@ export class ProceduralBodyGenerator {
   /**
    * Compute world-space positions for all bones by accumulating local transforms.
    */
-  private computeBoneWorldPositions(bones: THREE.Bone[]): THREE.Vector3[] {
+  private computeBoneWorldPositions(_bones: THREE.Bone[]): THREE.Vector3[] {
     const worldPositions: THREE.Vector3[] = [];
 
     for (let i = 0; i < VRM_BONES.length; i++) {
       const def = VRM_BONES[i];
       if (def.parent < 0) {
-        worldPositions.push(new THREE.Vector3(
-          def.position[0],
-          def.position[1],
-          def.position[2],
-        ));
+        worldPositions.push(new THREE.Vector3(def.position[0], def.position[1], def.position[2]));
       } else {
         const parentWorld = worldPositions[def.parent];
-        worldPositions.push(new THREE.Vector3(
-          parentWorld.x + def.position[0],
-          parentWorld.y + def.position[1],
-          parentWorld.z + def.position[2],
-        ));
+        worldPositions.push(
+          new THREE.Vector3(
+            parentWorld.x + def.position[0],
+            parentWorld.y + def.position[1],
+            parentWorld.z + def.position[2]
+          )
+        );
       }
     }
 
@@ -1197,7 +1171,7 @@ export class ProceduralBodyGenerator {
  * - Accessors, buffer views, and a single buffer
  */
 function writeGLB(result: BodyGenerationResult): ArrayBuffer {
-  const { geometry, skeleton, bodyType, morphTargetDictionary, skinnedMesh } = result;
+  const { geometry, skeleton, bodyType, morphTargetDictionary } = result;
 
   // Gather raw buffer data
   const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -1247,10 +1221,7 @@ function writeGLB(result: BodyGenerationResult): ArrayBuffer {
   const accessors: AccessorDef[] = [];
   const bufferViews: BufferViewDef[] = [];
 
-  const addBufferView = (
-    data: ArrayBufferView,
-    target?: number,
-  ): number => {
+  const addBufferView = (data: ArrayBufferView, target?: number): number => {
     const idx = bufferViews.length;
     const aligned = alignTo4(byteOffset);
     if (aligned > byteOffset) {
@@ -1276,7 +1247,7 @@ function writeGLB(result: BodyGenerationResult): ArrayBuffer {
     count: number,
     type: string,
     min?: number[],
-    max?: number[],
+    max?: number[]
   ): number => {
     const idx = accessors.length;
     const def: AccessorDef = {
@@ -1293,8 +1264,12 @@ function writeGLB(result: BodyGenerationResult): ArrayBuffer {
   };
 
   // Compute bounding box for positions
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    minZ = Infinity;
+  let maxX = -Infinity,
+    maxY = -Infinity,
+    maxZ = -Infinity;
   for (let i = 0; i < posData.length; i += 3) {
     minX = Math.min(minX, posData[i]);
     minY = Math.min(minY, posData[i + 1]);
@@ -1307,8 +1282,12 @@ function writeGLB(result: BodyGenerationResult): ArrayBuffer {
   // Positions
   const posBV = addBufferView(posData, 34962); // ARRAY_BUFFER
   const posAccessor = addAccessor(
-    posBV, 5126, posData.length / 3, 'VEC3',
-    [minX, minY, minZ], [maxX, maxY, maxZ],
+    posBV,
+    5126,
+    posData.length / 3,
+    'VEC3',
+    [minX, minY, minZ],
+    [maxX, maxY, maxZ]
   );
 
   // Normals
@@ -1499,18 +1478,26 @@ function writeGLB(result: BodyGenerationResult): ArrayBuffer {
   let offset = 0;
 
   // Header
-  glbView.setUint32(offset, 0x46546C67, true); offset += 4; // 'glTF'
-  glbView.setUint32(offset, 2, true);          offset += 4; // version 2
-  glbView.setUint32(offset, glbLength, true);   offset += 4; // total length
+  glbView.setUint32(offset, 0x46546c67, true);
+  offset += 4; // 'glTF'
+  glbView.setUint32(offset, 2, true);
+  offset += 4; // version 2
+  glbView.setUint32(offset, glbLength, true);
+  offset += 4; // total length
 
   // JSON chunk
-  glbView.setUint32(offset, jsonPadded.byteLength, true); offset += 4;
-  glbView.setUint32(offset, 0x4E4F534A, true);            offset += 4; // 'JSON'
-  glbBytes.set(jsonPadded, offset);                        offset += jsonPadded.byteLength;
+  glbView.setUint32(offset, jsonPadded.byteLength, true);
+  offset += 4;
+  glbView.setUint32(offset, 0x4e4f534a, true);
+  offset += 4; // 'JSON'
+  glbBytes.set(jsonPadded, offset);
+  offset += jsonPadded.byteLength;
 
   // BIN chunk
-  glbView.setUint32(offset, binPadded.byteLength, true); offset += 4;
-  glbView.setUint32(offset, 0x004E4942, true);            offset += 4; // 'BIN\0'
+  glbView.setUint32(offset, binPadded.byteLength, true);
+  offset += 4;
+  glbView.setUint32(offset, 0x004e4942, true);
+  offset += 4; // 'BIN\0'
   glbBytes.set(binPadded, offset);
 
   return glb;
@@ -1536,16 +1523,16 @@ function computeBoneWorldPositionsStatic(): THREE.Vector3[] {
   for (let i = 0; i < VRM_BONES.length; i++) {
     const def = VRM_BONES[i];
     if (def.parent < 0) {
-      worldPositions.push(new THREE.Vector3(
-        def.position[0], def.position[1], def.position[2],
-      ));
+      worldPositions.push(new THREE.Vector3(def.position[0], def.position[1], def.position[2]));
     } else {
       const parentWorld = worldPositions[def.parent];
-      worldPositions.push(new THREE.Vector3(
-        parentWorld.x + def.position[0],
-        parentWorld.y + def.position[1],
-        parentWorld.z + def.position[2],
-      ));
+      worldPositions.push(
+        new THREE.Vector3(
+          parentWorld.x + def.position[0],
+          parentWorld.y + def.position[1],
+          parentWorld.z + def.position[2]
+        )
+      );
     }
   }
 

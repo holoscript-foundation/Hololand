@@ -23,7 +23,7 @@ describe('IKSolver', () => {
         maxIterations: 50,
         tolerance: 0.0001,
       });
-      
+
       expect(customSolver).toBeDefined();
     });
 
@@ -41,7 +41,7 @@ describe('IKSolver', () => {
         bones: ['bone1', 'bone2', 'bone3'],
         effector: 'bone3',
       });
-      
+
       // No error means success
       expect(true).toBe(true);
     });
@@ -52,7 +52,7 @@ describe('IKSolver', () => {
         bones: ['a', 'b'],
         effector: 'b',
       });
-      
+
       solver.removeChain('tempChain');
       expect(true).toBe(true);
     });
@@ -84,7 +84,8 @@ describe('PoseRetargeter', () => {
         ['LEFT_WRIST', { x: -0.5, y: 1.0, z: 0.3 }],
         ['RIGHT_WRIST', { x: 0.5, y: 1.0, z: 0.3 }],
       ]);
-      
+      expect(keypoints.size).toBe(2);
+
       // Without a real THREE.Object3D, we can't fully test
       // but we can verify it doesn't throw
       expect(() => {

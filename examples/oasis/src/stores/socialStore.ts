@@ -80,7 +80,13 @@ interface SocialState {
 const mockFriends: Friend[] = [
   { id: '2', username: 'alice', displayName: 'Alice', status: 'online', currentWorld: 'central' },
   { id: '3', username: 'bob', displayName: 'Bob', status: 'away' },
-  { id: '4', username: 'charlie', displayName: 'Charlie', status: 'offline', lastSeen: new Date(Date.now() - 3600000) },
+  {
+    id: '4',
+    username: 'charlie',
+    displayName: 'Charlie',
+    status: 'offline',
+    lastSeen: new Date(Date.now() - 3600000),
+  },
 ];
 
 export const useSocialStore = create<SocialState>((set, get) => ({

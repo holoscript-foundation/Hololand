@@ -96,9 +96,7 @@ export function HairTab({ store }: HairTabProps) {
           <button
             onClick={() =>
               updateHair({
-                secondaryColor: hair.secondaryColor
-                  ? undefined
-                  : { hex: '#c4a35a' },
+                secondaryColor: hair.secondaryColor ? undefined : { hex: '#c4a35a' },
               })
             }
             className="studio-btn-secondary text-xs"
@@ -117,11 +115,7 @@ export function HairTab({ store }: HairTabProps) {
             value={hair.lengthFactor}
             onChange={(v) => updateHair({ lengthFactor: v })}
           />
-          <Slider
-            label="Volume"
-            value={hair.volume}
-            onChange={(v) => updateHair({ volume: v })}
-          />
+          <Slider label="Volume" value={hair.volume} onChange={(v) => updateHair({ volume: v })} />
           <Slider
             label="Gradient Position"
             value={hair.gradientPosition}
@@ -132,10 +126,7 @@ export function HairTab({ store }: HairTabProps) {
 
       {/* Physics */}
       <section>
-        <SectionHeader
-          title="Physics"
-          description="Hair simulation during animation"
-        />
+        <SectionHeader title="Physics" description="Hair simulation during animation" />
         <Select
           label="Physics Mode"
           value={hair.physics}

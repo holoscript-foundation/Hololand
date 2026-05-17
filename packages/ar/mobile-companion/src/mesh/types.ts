@@ -5,7 +5,13 @@
  * CAPTURE -> PROCESS -> OPTIMIZE -> SYNC -> PERSIST -> RENDER
  */
 
-import type { AABB, Pose6DoF, PlaneClassification, CameraIntrinsicsCompact, MeshResolution } from '../types';
+import type {
+  AABB,
+  Pose6DoF,
+  PlaneClassification,
+  CameraIntrinsicsCompact,
+  MeshResolution,
+} from '../types';
 
 // =============================================================================
 // STAGE 1: CAPTURE
@@ -28,9 +34,9 @@ export enum MeshClassificationLabel {
   STAIRS = 8,
   RAMP = 9,
   FURNITURE = 10,
-  FIXTURE = 11,  // Light fixtures, vents, etc.
-  OBJECT = 12,   // Freestanding object on surface
-  CUSTOM = 255,  // User-defined
+  FIXTURE = 11, // Light fixtures, vents, etc.
+  OBJECT = 12, // Freestanding object on surface
+  CUSTOM = 255, // User-defined
 }
 
 /**
@@ -92,12 +98,12 @@ export interface MeshCaptureFrame {
 }
 
 export type MeshCaptureSource =
-  | 'arkit_lidar'         // iOS LiDAR via ARMeshAnchor
+  | 'arkit_lidar' // iOS LiDAR via ARMeshAnchor
   | 'arkit_scene_geometry' // iOS scene geometry API
-  | 'arcore_depth'        // Android depth API + TSDF reconstruction
-  | 'arcore_raw_depth'    // Android raw depth frames
-  | 'webxr_depth'         // WebXR depth API
-  | 'external';           // External scanner (e.g., Matterport)
+  | 'arcore_depth' // Android depth API + TSDF reconstruction
+  | 'arcore_raw_depth' // Android raw depth frames
+  | 'webxr_depth' // WebXR depth API
+  | 'external'; // External scanner (e.g., Matterport)
 
 // =============================================================================
 // STAGE 2: PROCESS
@@ -135,7 +141,7 @@ export const DEFAULT_MESH_PROCESS_CONFIG: MeshProcessConfig = {
   weldingEpsilon: 0.005,
   recomputeNormals: true,
   holeFillEnabled: true,
-  holeFillMaxDiameter: 0.10,
+  holeFillMaxDiameter: 0.1,
   planarExtensionEnabled: true,
   classificationPropagation: true,
   minComponentFaces: 10,
@@ -215,11 +221,46 @@ export interface LODLevel {
 }
 
 export const DEFAULT_LOD_LEVELS: LODLevel[] = [
-  { level: 0, targetRatio: 1.0,  maxTriangles: Infinity, screenSpaceError: 0,    distanceRange: [0, 1],      label: 'Ultra' },
-  { level: 1, targetRatio: 0.5,  maxTriangles: 100_000,  screenSpaceError: 2,    distanceRange: [1, 3],      label: 'High' },
-  { level: 2, targetRatio: 0.25, maxTriangles: 25_000,   screenSpaceError: 5,    distanceRange: [3, 10],     label: 'Medium' },
-  { level: 3, targetRatio: 0.10, maxTriangles: 5_000,    screenSpaceError: 10,   distanceRange: [10, 50],    label: 'Low' },
-  { level: 4, targetRatio: 0.02, maxTriangles: 1_000,    screenSpaceError: 25,   distanceRange: [50, 1000],  label: 'Thumbnail' },
+  {
+    level: 0,
+    targetRatio: 1.0,
+    maxTriangles: Infinity,
+    screenSpaceError: 0,
+    distanceRange: [0, 1],
+    label: 'Ultra',
+  },
+  {
+    level: 1,
+    targetRatio: 0.5,
+    maxTriangles: 100_000,
+    screenSpaceError: 2,
+    distanceRange: [1, 3],
+    label: 'High',
+  },
+  {
+    level: 2,
+    targetRatio: 0.25,
+    maxTriangles: 25_000,
+    screenSpaceError: 5,
+    distanceRange: [3, 10],
+    label: 'Medium',
+  },
+  {
+    level: 3,
+    targetRatio: 0.1,
+    maxTriangles: 5_000,
+    screenSpaceError: 10,
+    distanceRange: [10, 50],
+    label: 'Low',
+  },
+  {
+    level: 4,
+    targetRatio: 0.02,
+    maxTriangles: 1_000,
+    screenSpaceError: 25,
+    distanceRange: [50, 1000],
+    label: 'Thumbnail',
+  },
 ];
 
 /**
@@ -246,9 +287,9 @@ export interface MeshOptimizeConfig {
 
 export type MeshCompressionFormat =
   | 'none'
-  | 'draco'       // Google Draco mesh compression
-  | 'meshopt'     // meshoptimizer (glTF extension)
-  | 'quantized';  // Position/normal quantization only
+  | 'draco' // Google Draco mesh compression
+  | 'meshopt' // meshoptimizer (glTF extension)
+  | 'quantized'; // Position/normal quantization only
 
 export const DEFAULT_MESH_OPTIMIZE_CONFIG: MeshOptimizeConfig = {
   lodLevels: DEFAULT_LOD_LEVELS,
@@ -692,13 +733,13 @@ export interface MeshScanResult {
 // =============================================================================
 
 export type MeshExportFormat =
-  | 'glb'           // glTF Binary (default)
-  | 'gltf'          // glTF JSON + bin
-  | 'obj'           // Wavefront OBJ
-  | 'ply'           // Stanford PLY (point cloud)
-  | 'usdz'          // Apple USD (for Quick Look)
-  | 'fbx'           // Autodesk FBX
-  | 'holoscript';   // HoloScript spatial declaration
+  | 'glb' // glTF Binary (default)
+  | 'gltf' // glTF JSON + bin
+  | 'obj' // Wavefront OBJ
+  | 'ply' // Stanford PLY (point cloud)
+  | 'usdz' // Apple USD (for Quick Look)
+  | 'fbx' // Autodesk FBX
+  | 'holoscript'; // HoloScript spatial declaration
 
 /**
  * Mesh export options.

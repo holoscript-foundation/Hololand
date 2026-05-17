@@ -121,7 +121,8 @@ export const KNOWN_TOKENS: Record<string, Partial<TokenMetadata>> = {
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6,
-    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png',
+    logoUrl:
+      'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png',
     logoSource: 'trustwallet',
   },
   // WETH on Base
@@ -129,7 +130,8 @@ export const KNOWN_TOKENS: Record<string, Partial<TokenMetadata>> = {
     name: 'Wrapped Ether',
     symbol: 'WETH',
     decimals: 18,
-    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+    logoUrl:
+      'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
     logoSource: 'trustwallet',
   },
   // DAI on Base
@@ -137,7 +139,8 @@ export const KNOWN_TOKENS: Record<string, Partial<TokenMetadata>> = {
     name: 'Dai Stablecoin',
     symbol: 'DAI',
     decimals: 18,
-    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EesafC09ac96c/logo.png',
+    logoUrl:
+      'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EesafC09ac96c/logo.png',
     logoSource: 'trustwallet',
   },
   // CLANKER token
@@ -145,7 +148,8 @@ export const KNOWN_TOKENS: Record<string, Partial<TokenMetadata>> = {
     name: 'Clanker',
     symbol: 'CLANKER',
     decimals: 18,
-    logoUrl: 'https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/1be0c9c9-3a8b-4f33-6e42-97f58a7e7700/rectcrop3',
+    logoUrl:
+      'https://imagedelivery.net/BXluQx4ige9GuW0Ia56BHw/1be0c9c9-3a8b-4f33-6e42-97f58a7e7700/rectcrop3',
     logoSource: 'coingecko',
   },
 };
@@ -172,7 +176,13 @@ export class BaseTokenFetcher {
   private coingeckoApiKey?: string;
 
   constructor(options: FetcherOptions = {}) {
-    const { rpcUrl = BASE_RPC_URLS.public, timeout = 10000, retries = 3, fetchLogo = true, coingeckoApiKey } = options;
+    const {
+      rpcUrl = BASE_RPC_URLS.public,
+      timeout = 10000,
+      retries = 3,
+      fetchLogo = true,
+      coingeckoApiKey,
+    } = options;
 
     this.retries = retries;
     this.fetchLogo = fetchLogo;
@@ -283,7 +293,9 @@ export class BaseTokenFetcher {
    * Fetch token logo from multiple sources
    * Priority: Known tokens -> Trust Wallet -> CoinGecko -> Generated
    */
-  async fetchLogoUrl(address: Address): Promise<{ url?: string; source: TokenMetadata['logoSource'] }> {
+  async fetchLogoUrl(
+    address: Address
+  ): Promise<{ url?: string; source: TokenMetadata['logoSource'] }> {
     // Check known tokens first
     const known = KNOWN_TOKENS[address] || KNOWN_TOKENS[address.toLowerCase()];
     if (known?.logoUrl) {

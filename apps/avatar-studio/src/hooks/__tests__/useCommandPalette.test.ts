@@ -9,11 +9,48 @@ import type { Command } from '@/lib/commandRegistry';
 
 function makeCommands(): Command[] {
   return [
-    { id: 'nav-body', label: 'Go to Body', group: 'Navigation', icon: 'navigate', keywords: ['body'], action: vi.fn() },
-    { id: 'nav-face', label: 'Go to Face', group: 'Navigation', icon: 'navigate', keywords: ['face'], action: vi.fn() },
-    { id: 'edit-undo', label: 'Undo', group: 'Edit', icon: 'undo', shortcut: 'Ctrl+Z', keywords: ['undo'], action: vi.fn() },
-    { id: 'edit-redo', label: 'Redo', group: 'Edit', icon: 'redo', shortcut: 'Ctrl+Y', keywords: ['redo'], action: vi.fn() },
-    { id: 'edit-reset', label: 'Reset Avatar', group: 'Edit', icon: 'reset', keywords: ['reset'], action: vi.fn() },
+    {
+      id: 'nav-body',
+      label: 'Go to Body',
+      group: 'Navigation',
+      icon: 'navigate',
+      keywords: ['body'],
+      action: vi.fn(),
+    },
+    {
+      id: 'nav-face',
+      label: 'Go to Face',
+      group: 'Navigation',
+      icon: 'navigate',
+      keywords: ['face'],
+      action: vi.fn(),
+    },
+    {
+      id: 'edit-undo',
+      label: 'Undo',
+      group: 'Edit',
+      icon: 'undo',
+      shortcut: 'Ctrl+Z',
+      keywords: ['undo'],
+      action: vi.fn(),
+    },
+    {
+      id: 'edit-redo',
+      label: 'Redo',
+      group: 'Edit',
+      icon: 'redo',
+      shortcut: 'Ctrl+Y',
+      keywords: ['redo'],
+      action: vi.fn(),
+    },
+    {
+      id: 'edit-reset',
+      label: 'Reset Avatar',
+      group: 'Edit',
+      icon: 'reset',
+      keywords: ['reset'],
+      action: vi.fn(),
+    },
   ];
 }
 
@@ -33,16 +70,12 @@ describe('useCommandPalette', () => {
   });
 
   it('should start closed', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
     expect(result.current.isOpen).toBe(false);
   });
 
   it('should open and close', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.open());
     expect(result.current.isOpen).toBe(true);
@@ -52,9 +85,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should toggle', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.toggle());
     expect(result.current.isOpen).toBe(true);
@@ -64,9 +95,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should reset query and activeIndex on open', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.open());
     act(() => result.current.setQuery('body'));
@@ -79,9 +108,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should filter commands by query', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.open());
     act(() => result.current.setQuery('undo'));
@@ -91,17 +118,13 @@ describe('useCommandPalette', () => {
   });
 
   it('should return all commands when query is empty', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     expect(result.current.filteredCommands).toHaveLength(commands.length);
   });
 
   it('should group filtered commands', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     // No filter - should have Navigation and Edit groups
     expect(result.current.groups.length).toBe(2);
@@ -110,9 +133,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should clamp activeIndex when filteredCommands shrinks', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.open());
     act(() => result.current.setActiveIndex(4)); // last item
@@ -122,9 +143,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should handle Ctrl+K global keyboard shortcut', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     // Simulate Ctrl+K
     act(() => {
@@ -140,9 +159,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should handle Meta+K (Cmd+K) global keyboard shortcut', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => {
       const event = new KeyboardEvent('keydown', {
@@ -157,9 +174,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should close on Escape when open', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.open());
     expect(result.current.isOpen).toBe(true);
@@ -176,9 +191,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should execute active command', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.open());
     act(() => result.current.setActiveIndex(0));
@@ -190,9 +203,7 @@ describe('useCommandPalette', () => {
   });
 
   it('should execute a specific command', () => {
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands }));
 
     act(() => result.current.open());
     act(() => result.current.executeCommand(commands[2])); // Undo
@@ -209,9 +220,7 @@ describe('useCommandPalette', () => {
       action: vi.fn(),
     };
 
-    const { result } = renderHook(() =>
-      useCommandPalette({ commands: [disabledCmd] }),
-    );
+    const { result } = renderHook(() => useCommandPalette({ commands: [disabledCmd] }));
 
     act(() => result.current.open());
     act(() => result.current.executeCommand(disabledCmd));
@@ -224,9 +233,7 @@ describe('useCommandPalette', () => {
 
   describe('keyboard navigation via handleKeyDown', () => {
     it('should move down with ArrowDown', () => {
-      const { result } = renderHook(() =>
-        useCommandPalette({ commands }),
-      );
+      const { result } = renderHook(() => useCommandPalette({ commands }));
 
       act(() => result.current.open());
       expect(result.current.activeIndex).toBe(0);
@@ -242,9 +249,7 @@ describe('useCommandPalette', () => {
     });
 
     it('should wrap around when ArrowDown at end', () => {
-      const { result } = renderHook(() =>
-        useCommandPalette({ commands }),
-      );
+      const { result } = renderHook(() => useCommandPalette({ commands }));
 
       act(() => result.current.open());
       act(() => result.current.setActiveIndex(commands.length - 1));
@@ -260,9 +265,7 @@ describe('useCommandPalette', () => {
     });
 
     it('should move up with ArrowUp', () => {
-      const { result } = renderHook(() =>
-        useCommandPalette({ commands }),
-      );
+      const { result } = renderHook(() => useCommandPalette({ commands }));
 
       act(() => result.current.open());
       act(() => result.current.setActiveIndex(2));
@@ -278,9 +281,7 @@ describe('useCommandPalette', () => {
     });
 
     it('should wrap around when ArrowUp at start', () => {
-      const { result } = renderHook(() =>
-        useCommandPalette({ commands }),
-      );
+      const { result } = renderHook(() => useCommandPalette({ commands }));
 
       act(() => result.current.open());
       expect(result.current.activeIndex).toBe(0);
@@ -296,9 +297,7 @@ describe('useCommandPalette', () => {
     });
 
     it('should go to first with Home', () => {
-      const { result } = renderHook(() =>
-        useCommandPalette({ commands }),
-      );
+      const { result } = renderHook(() => useCommandPalette({ commands }));
 
       act(() => result.current.open());
       act(() => result.current.setActiveIndex(3));
@@ -314,9 +313,7 @@ describe('useCommandPalette', () => {
     });
 
     it('should go to last with End', () => {
-      const { result } = renderHook(() =>
-        useCommandPalette({ commands }),
-      );
+      const { result } = renderHook(() => useCommandPalette({ commands }));
 
       act(() => result.current.open());
 
@@ -331,9 +328,7 @@ describe('useCommandPalette', () => {
     });
 
     it('should execute and close on Enter', () => {
-      const { result } = renderHook(() =>
-        useCommandPalette({ commands }),
-      );
+      const { result } = renderHook(() => useCommandPalette({ commands }));
 
       act(() => result.current.open());
 

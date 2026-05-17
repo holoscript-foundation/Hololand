@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SectionHeader } from '@/components/ui/SectionHeader';
 import { BlendShapeEditor } from './BlendShapeEditor';
 import { SkeletonVisualizer } from './SkeletonVisualizer';
 import { MorphTargetPreview } from './MorphTargetPreview';
@@ -73,7 +72,7 @@ function UploadZone({ onFileLoaded, isLoading }: UploadZoneProps) {
 
       onFileLoaded(simulatedInfo);
     },
-    [onFileLoaded],
+    [onFileLoaded]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -92,7 +91,7 @@ function UploadZone({ onFileLoaded, isLoading }: UploadZoneProps) {
       const file = e.dataTransfer.files[0];
       if (file) handleFile(file);
     },
-    [handleFile],
+    [handleFile]
   );
 
   const handleInputChange = useCallback(
@@ -100,7 +99,7 @@ function UploadZone({ onFileLoaded, isLoading }: UploadZoneProps) {
       const file = e.target.files?.[0];
       if (file) handleFile(file);
     },
-    [handleFile],
+    [handleFile]
   );
 
   return (
@@ -154,9 +153,7 @@ function UploadZone({ onFileLoaded, isLoading }: UploadZoneProps) {
         <p className="text-xs font-medium text-studio-text">
           {isLoading ? 'Loading VRM...' : 'Drop VRM file here or click to browse'}
         </p>
-        <p className="text-[10px] text-studio-muted mt-1">
-          Supports .vrm, .glb, .gltf (max 50MB)
-        </p>
+        <p className="text-[10px] text-studio-muted mt-1">Supports .vrm, .glb, .gltf (max 50MB)</p>
       </div>
     </div>
   );
@@ -335,9 +332,8 @@ export function AvatarEditorPanel() {
   const [vrmFile, setVrmFile] = useState<VRMFileInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [blendShapeValues, setBlendShapeValues] = useState<BlendShapeValues>({});
-  const [materialSettings, setMaterialSettings] = useState<MaterialQualitySettings>(
-    DEFAULT_MATERIAL_SETTINGS,
-  );
+  const [materialSettings, setMaterialSettings] =
+    useState<MaterialQualitySettings>(DEFAULT_MATERIAL_SETTINGS);
   const [selectedBone, setSelectedBone] = useState<string | null>(null);
 
   const handleFileLoaded = useCallback((info: VRMFileInfo) => {
@@ -377,41 +373,24 @@ export function AvatarEditorPanel() {
       }
       setBlendShapeValues(newValues);
     },
-    [blendShapeValues],
+    [blendShapeValues]
   );
 
   const renderActivePanel = () => {
     switch (activePanel) {
       case 'blendShapes':
-        return (
-          <BlendShapeEditor
-            values={blendShapeValues}
-            onChange={setBlendShapeValues}
-          />
-        );
+        return <BlendShapeEditor values={blendShapeValues} onChange={setBlendShapeValues} />;
       case 'skeleton':
-        return (
-          <SkeletonVisualizer
-            selectedBone={selectedBone}
-            onBoneSelect={setSelectedBone}
-          />
-        );
+        return <SkeletonVisualizer selectedBone={selectedBone} onBoneSelect={setSelectedBone} />;
       case 'morphTargets':
         return <MorphTargetPreview onPresetApply={handlePresetApply} />;
       case 'rpm':
         return <RPMIntegrationPanel onImport={handleRPMImport} />;
       case 'triangleBudget':
-        return (
-          <TriangleBudgetDisplay
-            currentTriangleCount={vrmFile?.triangleCount ?? 0}
-          />
-        );
+        return <TriangleBudgetDisplay currentTriangleCount={vrmFile?.triangleCount ?? 0} />;
       case 'materials':
         return (
-          <MaterialQualityControls
-            settings={materialSettings}
-            onChange={setMaterialSettings}
-          />
+          <MaterialQualityControls settings={materialSettings} onChange={setMaterialSettings} />
         );
       default:
         return null;
@@ -423,9 +402,7 @@ export function AvatarEditorPanel() {
       {/* Top Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-studio-border bg-studio-panel">
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold text-studio-text tracking-wide">
-            HOLOLAND
-          </h1>
+          <h1 className="text-sm font-bold text-studio-text tracking-wide">HOLOLAND</h1>
           <span className="text-xs text-studio-muted">VRM Avatar Editor</span>
         </div>
         <div className="flex items-center gap-2">
@@ -465,18 +442,38 @@ export function AvatarEditorPanel() {
               <div className="absolute bottom-3 right-3 flex gap-1.5">
                 <button className="studio-btn-secondary p-1.5 text-xs" title="Front View">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
                   </svg>
                 </button>
                 <button className="studio-btn-secondary p-1.5 text-xs" title="Rotate">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
                   </svg>
                 </button>
                 <button className="studio-btn-secondary p-1.5 text-xs" title="Zoom to Fit">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                    />
                   </svg>
                 </button>
               </div>
@@ -511,9 +508,7 @@ export function AvatarEditorPanel() {
           </nav>
 
           {/* Active Panel Content */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            {renderActivePanel()}
-          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">{renderActivePanel()}</div>
         </aside>
       </div>
     </div>

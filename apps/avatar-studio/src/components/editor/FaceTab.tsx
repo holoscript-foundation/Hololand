@@ -45,8 +45,14 @@ const LIP_SHAPES: { value: LipShape; label: string }[] = [
 ];
 
 const EYE_COLOR_PRESETS = [
-  '#5b7c4f', '#3d85c6', '#8b6f47', '#2d5016', '#1a3a5c', '#4a4a4a',
-  '#7b3f00', '#6b238e',
+  '#5b7c4f',
+  '#3d85c6',
+  '#8b6f47',
+  '#2d5016',
+  '#1a3a5c',
+  '#4a4a4a',
+  '#7b3f00',
+  '#6b238e',
 ];
 
 export function FaceTab({ store }: FaceTabProps) {
@@ -116,9 +122,7 @@ export function FaceTab({ store }: FaceTabProps) {
             label="Eye Shape"
             value={face.eyes.shape}
             options={EYE_SHAPES}
-            onChange={(v) =>
-              updateFace({ eyes: { ...face.eyes, shape: v as EyeShape } })
-            }
+            onChange={(v) => updateFace({ eyes: { ...face.eyes, shape: v as EyeShape } })}
           />
           <ColorPicker
             label="Iris Color"
@@ -129,30 +133,22 @@ export function FaceTab({ store }: FaceTabProps) {
           <Slider
             label="Eye Size"
             value={face.eyes.size}
-            onChange={(v) =>
-              updateFace({ eyes: { ...face.eyes, size: v } })
-            }
+            onChange={(v) => updateFace({ eyes: { ...face.eyes, size: v } })}
           />
           <Slider
             label="Eye Separation"
             value={face.eyes.separation}
-            onChange={(v) =>
-              updateFace({ eyes: { ...face.eyes, separation: v } })
-            }
+            onChange={(v) => updateFace({ eyes: { ...face.eyes, separation: v } })}
           />
           <Slider
             label="Eye Tilt"
             value={face.eyes.tilt}
-            onChange={(v) =>
-              updateFace({ eyes: { ...face.eyes, tilt: v } })
-            }
+            onChange={(v) => updateFace({ eyes: { ...face.eyes, tilt: v } })}
           />
           <Slider
             label="Pupil Size"
             value={face.eyes.pupilSize}
-            onChange={(v) =>
-              updateFace({ eyes: { ...face.eyes, pupilSize: v } })
-            }
+            onChange={(v) => updateFace({ eyes: { ...face.eyes, pupilSize: v } })}
           />
         </div>
       </section>
@@ -165,37 +161,27 @@ export function FaceTab({ store }: FaceTabProps) {
             label="Nose Shape"
             value={face.nose.shape}
             options={NOSE_SHAPES}
-            onChange={(v) =>
-              updateFace({ nose: { ...face.nose, shape: v as NoseShape } })
-            }
+            onChange={(v) => updateFace({ nose: { ...face.nose, shape: v as NoseShape } })}
           />
           <Slider
             label="Bridge Width"
             value={face.nose.bridgeWidth}
-            onChange={(v) =>
-              updateFace({ nose: { ...face.nose, bridgeWidth: v } })
-            }
+            onChange={(v) => updateFace({ nose: { ...face.nose, bridgeWidth: v } })}
           />
           <Slider
             label="Tip Height"
             value={face.nose.tipHeight}
-            onChange={(v) =>
-              updateFace({ nose: { ...face.nose, tipHeight: v } })
-            }
+            onChange={(v) => updateFace({ nose: { ...face.nose, tipHeight: v } })}
           />
           <Slider
             label="Nostril Width"
             value={face.nose.nostrilWidth}
-            onChange={(v) =>
-              updateFace({ nose: { ...face.nose, nostrilWidth: v } })
-            }
+            onChange={(v) => updateFace({ nose: { ...face.nose, nostrilWidth: v } })}
           />
           <Slider
             label="Overall Size"
             value={face.nose.size}
-            onChange={(v) =>
-              updateFace({ nose: { ...face.nose, size: v } })
-            }
+            onChange={(v) => updateFace({ nose: { ...face.nose, size: v } })}
           />
         </div>
       </section>
@@ -208,37 +194,27 @@ export function FaceTab({ store }: FaceTabProps) {
             label="Lip Shape"
             value={face.mouth.shape}
             options={LIP_SHAPES}
-            onChange={(v) =>
-              updateFace({ mouth: { ...face.mouth, shape: v as LipShape } })
-            }
+            onChange={(v) => updateFace({ mouth: { ...face.mouth, shape: v as LipShape } })}
           />
           <ColorPicker
             label="Lip Color"
             value={face.mouth.lipColor.hex}
-            onChange={(hex) =>
-              updateFace({ mouth: { ...face.mouth, lipColor: { hex } } })
-            }
+            onChange={(hex) => updateFace({ mouth: { ...face.mouth, lipColor: { hex } } })}
           />
           <Slider
             label="Mouth Width"
             value={face.mouth.width}
-            onChange={(v) =>
-              updateFace({ mouth: { ...face.mouth, width: v } })
-            }
+            onChange={(v) => updateFace({ mouth: { ...face.mouth, width: v } })}
           />
           <Slider
             label="Upper Lip Fullness"
             value={face.mouth.upperFullness}
-            onChange={(v) =>
-              updateFace({ mouth: { ...face.mouth, upperFullness: v } })
-            }
+            onChange={(v) => updateFace({ mouth: { ...face.mouth, upperFullness: v } })}
           />
           <Slider
             label="Lower Lip Fullness"
             value={face.mouth.lowerFullness}
-            onChange={(v) =>
-              updateFace({ mouth: { ...face.mouth, lowerFullness: v } })
-            }
+            onChange={(v) => updateFace({ mouth: { ...face.mouth, lowerFullness: v } })}
           />
         </div>
       </section>
@@ -250,23 +226,17 @@ export function FaceTab({ store }: FaceTabProps) {
           <Slider
             label="Ear Size"
             value={face.ears.size}
-            onChange={(v) =>
-              updateFace({ ears: { ...face.ears, size: v } })
-            }
+            onChange={(v) => updateFace({ ears: { ...face.ears, size: v } })}
           />
           <Slider
             label="Pointedness"
             value={face.ears.pointedness}
-            onChange={(v) =>
-              updateFace({ ears: { ...face.ears, pointedness: v } })
-            }
+            onChange={(v) => updateFace({ ears: { ...face.ears, pointedness: v } })}
           />
           <Slider
             label="Ear Angle"
             value={face.ears.angle}
-            onChange={(v) =>
-              updateFace({ ears: { ...face.ears, angle: v } })
-            }
+            onChange={(v) => updateFace({ ears: { ...face.ears, angle: v } })}
           />
         </div>
       </section>

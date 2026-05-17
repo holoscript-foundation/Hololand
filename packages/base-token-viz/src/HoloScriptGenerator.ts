@@ -21,7 +21,7 @@
  */
 
 import type { TokenMetadata } from './BaseTokenFetcher';
-import type { ClankerTokenMetadata, ClankerWarning } from './ClankerTokenFetcher';
+import type { ClankerTokenMetadata } from './ClankerTokenFetcher';
 
 /**
  * Visualization style options
@@ -148,8 +148,12 @@ export class HoloScriptGenerator {
   /**
    * Check if metadata is Clanker metadata
    */
-  private isClankerMetadata(metadata: Partial<TokenMetadata>): metadata is Partial<ClankerTokenMetadata> {
-    return 'isClanker' in metadata && (metadata as Partial<ClankerTokenMetadata>).isClanker === true;
+  private isClankerMetadata(
+    metadata: Partial<TokenMetadata>
+  ): metadata is Partial<ClankerTokenMetadata> {
+    return (
+      'isClanker' in metadata && (metadata as Partial<ClankerTokenMetadata>).isClanker === true
+    );
   }
 
   /**
@@ -198,7 +202,13 @@ export class HoloScriptGenerator {
     script += `
 composition "TokenViz_${id}" {
   template "TokenOrb" {
-    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    ${
+      traits
+        .split(' ')
+        .filter((t) => t)
+        .map((t) => `    ${t}`)
+        .join('\n') || '    @physics\n    @collidable'
+    }
     geometry: "sphere"
     color: "${showLogo ? '#ffffff' : colors.primary}"
     ${opts.glow ? `emissive: "${colors.glow}"` : ''}
@@ -248,7 +258,13 @@ ${opts.animated ? this.generateAnimation('orb', id) : ''}
     script += `
 composition "TokenCubeViz_${id}" {
   template "TokenCube" {
-    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    ${
+      traits
+        .split(' ')
+        .filter((t) => t)
+        .map((t) => `    ${t}`)
+        .join('\n') || '    @physics\n    @collidable'
+    }
     geometry: "box"
     color: "${colors.primary}"
     ${opts.glow ? `emissive: "${colors.glow}"` : ''}
@@ -302,20 +318,30 @@ composition "TokenPedestal_${id}" {
   }
 
   template "TokenOrb" {
-    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    ${
+      traits
+        .split(' ')
+        .filter((t) => t)
+        .map((t) => `    ${t}`)
+        .join('\n') || '    @physics\n    @collidable'
+    }
     geometry: "sphere"
     color: "${colors.primary}"
     ${opts.glow ? `emissive: "${colors.glow}"` : ''}
     ${opts.glow ? 'emissiveIntensity: 0.5' : ''}
   }
-${showLogo && metadata.logoUrl ? `
+${
+  showLogo && metadata.logoUrl
+    ? `
   template "TokenLogo" {
     @billboard
     type: "image"
     src: "${metadata.logoUrl}"
     opacity: 0.95
   }
-` : ''}
+`
+    : ''
+}
   template "TokenLabel" {
     type: "text"
     content: "${metadata.symbol || 'TOKEN'} - ${metadata.name || 'Unknown'}"
@@ -335,13 +361,17 @@ ${showLogo && metadata.logoUrl ? `
     position: [0, 1.2, 0]
     scale: [${(opts.scale ?? 1) * 0.6}, ${(opts.scale ?? 1) * 0.6}, ${(opts.scale ?? 1) * 0.6}]
   }
-${showLogo && metadata.logoUrl ? `
+${
+  showLogo && metadata.logoUrl
+    ? `
   // Token logo
   object "LogoFront" using "TokenLogo" {
     position: [0, 1.2, ${(opts.scale ?? 1) * 0.35}]
     scale: [${(opts.scale ?? 1) * 0.3}, ${(opts.scale ?? 1) * 0.3}, 1]
   }
-` : ''}
+`
+    : ''
+}
   // Token label
   object "Label" using "TokenLabel" {
     position: [0, 2, 0]
@@ -382,7 +412,13 @@ ${opts.animated ? this.generateAnimation('pedestal', id) : ''}
     script += `
 composition "TokenFloating_${id}" {
   template "MainOrb" {
-    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    ${
+      traits
+        .split(' ')
+        .filter((t) => t)
+        .map((t) => `    ${t}`)
+        .join('\n') || '    @physics\n    @collidable'
+    }
     geometry: "sphere"
     color: "${colors.primary}"
     emissive: "${colors.glow}"
@@ -456,7 +492,13 @@ environment {
     script += `
 composition "TokenGalaxy_${id}" {
   template "CoreOrb" {
-    ${traits.split(' ').filter(t => t).map(t => `    ${t}`).join('\n') || '    @physics\n    @collidable'}
+    ${
+      traits
+        .split(' ')
+        .filter((t) => t)
+        .map((t) => `    ${t}`)
+        .join('\n') || '    @physics\n    @collidable'
+    }
     geometry: "sphere"
     color: "${colors.primary}"
     emissive: "${colors.glow}"
@@ -464,14 +506,18 @@ composition "TokenGalaxy_${id}" {
     label: "${metadata.symbol || 'TOKEN'}"
     labelPosition: [0, 1.5, 0]
   }
-${showLogo && metadata.logoUrl ? `
+${
+  showLogo && metadata.logoUrl
+    ? `
   template "TokenLogo" {
     @billboard
     type: "image"
     src: "${metadata.logoUrl}"
     opacity: 0.95
   }
-` : ''}
+`
+    : ''
+}
   template "OrbitParticle" {
     @glowing
     geometry: "sphere"
@@ -484,13 +530,17 @@ ${showLogo && metadata.logoUrl ? `
     position: [0, 2, 0]
     scale: [${galaxyOrbScale}, ${galaxyOrbScale}, ${galaxyOrbScale}]
   }
-${showLogo && metadata.logoUrl ? `
+${
+  showLogo && metadata.logoUrl
+    ? `
   // Token logo
   object "LogoFront" using "TokenLogo" {
     position: [0, 2, ${galaxyOrbScale * 0.65}]
     scale: [${galaxyOrbScale * 0.5}, ${galaxyOrbScale * 0.5}, 1]
   }
-` : ''}
+`
+    : ''
+}
   // Orbiting particles
 `;
 
@@ -554,7 +604,11 @@ environment {
   /**
    * Resolve color scheme from metadata and overrides
    */
-  private resolveColors(metadata: Partial<TokenMetadata>, overrides?: Partial<ColorScheme>, showWarnings?: boolean): ColorScheme {
+  private resolveColors(
+    metadata: Partial<TokenMetadata>,
+    overrides?: Partial<ColorScheme>,
+    showWarnings?: boolean
+  ): ColorScheme {
     // Check for Clanker tokens with warnings first
     if (showWarnings && this.isClankerMetadata(metadata)) {
       const clankerMeta = metadata as Partial<ClankerTokenMetadata>;
@@ -638,7 +692,11 @@ animation#orbit {
   /**
    * Generate info panel with token details
    */
-  private generateInfoPanel(metadata: Partial<TokenMetadata>, colors: ColorScheme, options?: GeneratorOptions): string {
+  private generateInfoPanel(
+    metadata: Partial<TokenMetadata>,
+    colors: ColorScheme,
+    options?: GeneratorOptions
+  ): string {
     const address = metadata.address || '0x...';
     const supply = metadata.totalSupplyFormatted || 'N/A';
     const chain = 'Base';
@@ -750,7 +808,10 @@ ${clankerSection}
   /**
    * Generate Clanker-specific info section for the panel
    */
-  private generateClankerInfoSection(metadata: Partial<ClankerTokenMetadata>, colors: ColorScheme): string {
+  private generateClankerInfoSection(
+    metadata: Partial<ClankerTokenMetadata>,
+    _colors: ColorScheme
+  ): string {
     const lines: string[] = [];
     let yOffset = -0.6;
 

@@ -8,10 +8,7 @@ interface WorldCardProps {
 
 export default function WorldCard({ world, compact = false }: WorldCardProps) {
   return (
-    <Link
-      to={`/world/${world.id}`}
-      className="card-hover group overflow-hidden"
-    >
+    <Link to={`/world/${world.id}`} className="card-hover group overflow-hidden">
       {/* Thumbnail */}
       <div className={`relative ${compact ? 'h-32' : 'h-44'} overflow-hidden`}>
         {world.thumbnailUrl ? (
@@ -46,9 +43,7 @@ export default function WorldCard({ world, compact = false }: WorldCardProps) {
 
         {/* Hover overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-meadow-text/80 via-meadow-text/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-          <span className="btn-primary text-sm shadow-lg">
-            Join World
-          </span>
+          <span className="btn-primary text-sm shadow-lg">Join World</span>
         </div>
       </div>
 
@@ -63,10 +58,7 @@ export default function WorldCard({ world, compact = false }: WorldCardProps) {
         {world.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {world.tags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="badge-sky"
-              >
+              <span key={tag} className="badge-sky">
                 {tag}
               </span>
             ))}

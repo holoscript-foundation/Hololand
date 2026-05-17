@@ -1,11 +1,11 @@
 /**
  * IK Solver
- * 
+ *
  * Inverse Kinematics solver for retargeting poses to avatars.
  */
 
 import * as THREE from 'three';
-import type { Vector3, Quaternion, IKTarget, IKConfig, VRMBoneName } from './types';
+import type { Vector3, IKTarget, IKConfig, VRMBoneName } from './types';
 import { DEFAULT_IK_CONFIG } from './types';
 
 /**
@@ -50,7 +50,7 @@ const STANDARD_IK_CHAINS: IKChain[] = [
 
 /**
  * IK Solver
- * 
+ *
  * FABRIK-based IK solver for skeletal animation.
  */
 export class IKSolver {
@@ -88,7 +88,7 @@ export class IKSolver {
       for (let i = 0; i < chain.bones.length - 1; i++) {
         const bone = this.boneNodes.get(chain.bones[i]);
         const child = this.boneNodes.get(chain.bones[i + 1]);
-        
+
         if (bone && child) {
           const length = bone.position.distanceTo(child.position);
           this.boneLengths.set(chain.bones[i], length);
@@ -104,14 +104,12 @@ export class IKSolver {
     const chain = this.findChainForBone(target.bone);
     if (!chain) return false;
 
-    const bones = chain.bones.map(name => this.boneNodes.get(name)).filter(Boolean) as THREE.Object3D[];
+    const bones = chain.bones
+      .map((name) => this.boneNodes.get(name))
+      .filter(Boolean) as THREE.Object3D[];
     if (bones.length < 2) return false;
 
-    const targetPos = new THREE.Vector3(
-      target.position.x,
-      target.position.y,
-      target.position.z
-    );
+    const targetPos = new THREE.Vector3(target.position.x, target.position.y, target.position.z);
 
     // FABRIK algorithm
     return this.solveFABRIK(bones, targetPos, target.weight ?? 1);
@@ -120,14 +118,10 @@ export class IKSolver {
   /**
    * FABRIK (Forward And Backward Reaching Inverse Kinematics)
    */
-  private solveFABRIK(
-    bones: THREE.Object3D[],
-    target: THREE.Vector3,
-    weight: number
-  ): boolean {
-    const positions: THREE.Vector3[] = bones.map(b => b.getWorldPosition(new THREE.Vector3()));
+  private solveFABRIK(bones: THREE.Object3D[], target: THREE.Vector3, weight: number): boolean {
+    const positions: THREE.Vector3[] = bones.map((b) => b.getWorldPosition(new THREE.Vector3()));
     const lengths: number[] = [];
-    
+
     // Calculate segment lengths
     for (let i = 0; i < bones.length - 1; i++) {
       lengths.push(positions[i].distanceTo(positions[i + 1]));
@@ -142,7 +136,9 @@ export class IKSolver {
       // Target unreachable - stretch toward it
       const direction = target.clone().sub(rootPos).normalize();
       for (let i = 1; i < positions.length; i++) {
-        positions[i] = positions[i - 1].clone().add(direction.clone().multiplyScalar(lengths[i - 1]));
+        positions[i] = positions[i - 1]
+          .clone()
+          .add(direction.clone().multiplyScalar(lengths[i - 1]));
       }
     } else {
       // FABRIK iterations
@@ -156,14 +152,20 @@ export class IKSolver {
         // Forward reaching (from end to root)
         positions[positions.length - 1].copy(target);
         for (let i = positions.length - 2; i >= 0; i--) {
-          const direction = positions[i].clone().sub(positions[i + 1]).normalize();
+          const direction = positions[i]
+            .clone()
+            .sub(positions[i + 1])
+            .normalize();
           positions[i] = positions[i + 1].clone().add(direction.multiplyScalar(lengths[i]));
         }
 
         // Backward reaching (from root to end)
         positions[0].copy(rootPos);
         for (let i = 1; i < positions.length; i++) {
-          const direction = positions[i].clone().sub(positions[i - 1]).normalize();
+          const direction = positions[i]
+            .clone()
+            .sub(positions[i - 1])
+            .normalize();
           positions[i] = positions[i - 1].clone().add(direction.multiplyScalar(lengths[i - 1]));
         }
       }
@@ -186,30 +188,27 @@ export class IKSolver {
   /**
    * Convert positions to bone rotations
    */
-  private applyPositionsToRotations(
-    bones: THREE.Object3D[],
-    positions: THREE.Vector3[]
-  ): void {
+  private applyPositionsToRotations(bones: THREE.Object3D[], positions: THREE.Vector3[]): void {
     for (let i = 0; i < bones.length - 1; i++) {
       const bone = bones[i];
       const currentDir = new THREE.Vector3();
       bone.getWorldDirection(currentDir);
 
       const targetDir = positions[i + 1].clone().sub(positions[i]).normalize();
-      
+
       // Calculate rotation to align with target direction
       const quaternion = new THREE.Quaternion().setFromUnitVectors(currentDir, targetDir);
-      
+
       // Apply rotation (in local space)
       if (bone.parent) {
         const parentQuaternion = new THREE.Quaternion();
         bone.parent.getWorldQuaternion(parentQuaternion);
-        
+
         const worldQuaternion = new THREE.Quaternion();
         bone.getWorldQuaternion(worldQuaternion);
-        
+
         worldQuaternion.premultiply(quaternion);
-        
+
         const localQuaternion = worldQuaternion.premultiply(parentQuaternion.invert());
         bone.quaternion.copy(localQuaternion);
       }
@@ -252,7 +251,7 @@ export class IKSolver {
 
 /**
  * Pose Retargeter
- * 
+ *
  * Retargets poses from detection to avatar skeleton.
  */
 export class PoseRetargeter {
@@ -294,10 +293,7 @@ export class PoseRetargeter {
   /**
    * Retarget pose to avatar
    */
-  retarget(
-    keypoints: Map<string, Vector3>,
-    avatar: THREE.Object3D
-  ): IKTarget[] {
+  retarget(keypoints: Map<string, Vector3>, avatar: THREE.Object3D): IKTarget[] {
     const targets: IKTarget[] = [];
 
     // Convert keypoints to IK targets

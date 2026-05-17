@@ -18,10 +18,7 @@ const SOURCE = 'hololand-avatar-studio' as const;
  * Send a message to the parent window (for iframe mode)
  * or the opener window (for popup mode).
  */
-export function sendToParent(
-  type: StudioMessageType,
-  payload?: unknown,
-): void {
+export function sendToParent(type: StudioMessageType, payload?: unknown): void {
   const message: StudioMessage = {
     source: SOURCE,
     type,
@@ -51,9 +48,7 @@ export function isEmbedded(): boolean {
  * Listen for messages from the parent/opener.
  * Returns a cleanup function.
  */
-export function onParentMessage(
-  handler: (type: string, payload: unknown) => void,
-): () => void {
+export function onParentMessage(handler: (type: string, payload: unknown) => void): () => void {
   const listener = (event: MessageEvent) => {
     const data = event.data;
     if (!data || typeof data !== 'object') return;
@@ -103,10 +98,6 @@ export function notifyCancelled(): void {
 /**
  * Notify the parent of an error.
  */
-export function notifyError(error: {
-  code: string;
-  message: string;
-  details?: unknown;
-}): void {
+export function notifyError(error: { code: string; message: string; details?: unknown }): void {
   sendToParent('avatar:error', error);
 }

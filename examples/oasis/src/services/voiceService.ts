@@ -66,9 +66,7 @@ class VoiceService {
         if (transcript.includes(this.config.wakeWord.toLowerCase())) {
           this.wakeWordActive = true;
           // Remove wake word from transcript
-          const command = transcript
-            .replace(this.config.wakeWord.toLowerCase(), '')
-            .trim();
+          const command = transcript.replace(this.config.wakeWord.toLowerCase(), '').trim();
 
           if (command) {
             this.notifyResult({

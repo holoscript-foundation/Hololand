@@ -52,9 +52,7 @@ export default function RegisterPage() {
     <div className="w-full max-w-md">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-oasis-text">Create Account</h1>
-        <p className="text-oasis-text-muted mt-2">
-          Join the Hololand metaverse
-        </p>
+        <p className="text-oasis-text-muted mt-2">Join the Hololand metaverse</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -113,13 +111,14 @@ export default function RegisterPage() {
             placeholder="••••••••"
             required
           />
-          <p className="text-xs text-oasis-text-muted mt-1">
-            At least 8 characters
-          </p>
+          <p className="text-xs text-oasis-text-muted mt-1">At least 8 characters</p>
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-oasis-text mb-1">
+          <label
+            htmlFor="confirmPassword"
+            className="block text-sm font-medium text-oasis-text mb-1"
+          >
             Confirm Password
           </label>
           <input
@@ -153,11 +152,7 @@ export default function RegisterPage() {
           </label>
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary w-full"
-        >
+        <button type="submit" disabled={isLoading} className="btn-primary w-full">
           {isLoading ? 'Creating account...' : 'Create Account'}
         </button>
       </form>
@@ -217,7 +212,12 @@ function DiscordIcon({ className }: { className?: string }) {
 function WalletIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+      />
     </svg>
   );
 }

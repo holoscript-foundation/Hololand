@@ -37,7 +37,7 @@ export function createAvatar(
     appId?: string;
     tags?: string[];
     isPublic?: boolean;
-  },
+  }
 ): StoredAvatar {
   const now = new Date().toISOString();
   const stored: StoredAvatar = {
@@ -62,7 +62,7 @@ export function getAvatar(id: string): StoredAvatar | undefined {
 export function updateAvatar(
   id: string,
   blueprint: AvatarBlueprint,
-  changeDescription?: string,
+  _changeDescription?: string
 ): StoredAvatar | undefined {
   const existing = avatars.get(id);
   if (!existing) return undefined;
@@ -101,15 +101,11 @@ export function listAvatars(options?: {
     results = results.filter((a) => a.appId === options.appId);
   }
   if (options?.tags && options.tags.length > 0) {
-    results = results.filter((a) =>
-      options.tags!.some((t) => a.tags.includes(t)),
-    );
+    results = results.filter((a) => options.tags!.some((t) => a.tags.includes(t)));
   }
 
   // Sort by updatedAt descending
-  results.sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
+  results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   const total = results.length;
   const offset = options?.offset ?? 0;

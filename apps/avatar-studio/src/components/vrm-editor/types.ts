@@ -56,12 +56,7 @@ export interface IKChain {
 // Morph Targets
 // ---------------------------------------------------------------------------
 
-export type ExpressionPresetName =
-  | 'happy'
-  | 'sad'
-  | 'angry'
-  | 'surprised'
-  | 'neutral';
+export type ExpressionPresetName = 'happy' | 'sad' | 'angry' | 'surprised' | 'neutral';
 
 export interface MorphTargetWeight {
   name: string;

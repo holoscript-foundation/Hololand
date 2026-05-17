@@ -396,7 +396,16 @@ export interface ExpressionPreset {
 // =============================================================================
 
 export type VRMAllowedUser = 'OnlyAuthor' | 'ExplicitlyLicensedPerson' | 'Everyone';
-export type VRMLicenseType = 'Redistribution_Prohibited' | 'CC0' | 'CC_BY' | 'CC_BY_NC' | 'CC_BY_SA' | 'CC_BY_NC_SA' | 'CC_BY_ND' | 'CC_BY_NC_ND' | 'Other';
+export type VRMLicenseType =
+  | 'Redistribution_Prohibited'
+  | 'CC0'
+  | 'CC_BY'
+  | 'CC_BY_NC'
+  | 'CC_BY_SA'
+  | 'CC_BY_NC_SA'
+  | 'CC_BY_ND'
+  | 'CC_BY_NC_ND'
+  | 'Other';
 
 export interface VRMMetadata {
   /** Avatar title */
@@ -429,7 +438,15 @@ export interface VRMMetadata {
 // ASSET CATALOG TYPES
 // =============================================================================
 
-export type AssetCategory = 'hair' | 'clothing' | 'accessory' | 'faceOverlay' | 'eyebrow' | 'facialHair' | 'animation' | 'expression';
+export type AssetCategory =
+  | 'hair'
+  | 'clothing'
+  | 'accessory'
+  | 'faceOverlay'
+  | 'eyebrow'
+  | 'facialHair'
+  | 'animation'
+  | 'expression';
 
 export interface CatalogAsset {
   /** Unique asset ID */

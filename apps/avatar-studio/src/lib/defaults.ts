@@ -8,9 +8,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { AvatarBlueprint } from './types';
 
-export function createDefaultBlueprint(
-  overrides?: Partial<AvatarBlueprint>,
-): AvatarBlueprint {
+export function createDefaultBlueprint(overrides?: Partial<AvatarBlueprint>): AvatarBlueprint {
   const now = Date.now();
 
   return {

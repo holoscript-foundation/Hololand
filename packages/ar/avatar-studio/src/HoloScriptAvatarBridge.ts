@@ -27,13 +27,7 @@
  * the studio for editing.
  */
 
-import type {
-  AvatarBlueprint,
-  BodyPreset,
-  GenderPresentation,
-  FaceShape,
-  HairPhysicsMode,
-} from './types';
+import type { AvatarBlueprint, BodyPreset, GenderPresentation, FaceShape } from './types';
 
 // =============================================================================
 // HOLOSCRIPT AVATAR NODE TYPES
@@ -130,7 +124,9 @@ export class HoloScriptAvatarBridge {
     // Hair child node
     lines.push(``);
     const hairPhysics = blueprint.hair.physics !== 'none';
-    lines.push(`hair#${avatarId}_hair @hair(style: "${blueprint.hair.styleId}", physics: ${hairPhysics}) {`);
+    lines.push(
+      `hair#${avatarId}_hair @hair(style: "${blueprint.hair.styleId}", physics: ${hairPhysics}) {`
+    );
     lines.push(`  color: "${blueprint.hair.primaryColor.hex}"`);
     if (blueprint.hair.secondaryColor) {
       lines.push(`  secondary_color: "${blueprint.hair.secondaryColor.hex}"`);
@@ -273,7 +269,10 @@ export class HoloScriptAvatarBridge {
    * The full HoloScript parser in @holoscript/core handles the complete language.
    */
   parseHoloScriptAvatar(source: string): HoloScriptAvatarNode | null {
-    const lines = source.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const lines = source
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
 
     // Find avatar declaration
     const avatarLine = lines.find((l) => l.startsWith('avatar#'));

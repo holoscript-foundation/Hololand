@@ -191,7 +191,10 @@ export interface AnchorChannelMethods {
 export type AnchorChannelEvents =
   | { type: 'anchorUpdated'; anchor: SpatialAnchor }
   | { type: 'anchorLost'; anchorId: string }
-  | { type: 'planeDetected'; plane: { id: string; classification: string; extent: { width: number; height: number } } }
+  | {
+      type: 'planeDetected';
+      plane: { id: string; classification: string; extent: { width: number; height: number } };
+    }
   | { type: 'planeUpdated'; planeId: string; extent: { width: number; height: number } }
   | { type: 'planeRemoved'; planeId: string }
   | { type: 'cloudAnchorHosted'; localAnchorId: string; cloudAnchorId: string }
@@ -221,9 +224,14 @@ export interface IoTChannelMethods {
   /** Send command to device */
   sendCommand: (command: IoTCommand) => Promise<IoTCommandResponse>;
   /** Create an entity binding */
-  createBinding: (binding: Omit<IoTEntityBinding, 'bindingId' | 'createdAt' | 'updatedAt' | 'version'>) => Promise<IoTEntityBinding>;
+  createBinding: (
+    binding: Omit<IoTEntityBinding, 'bindingId' | 'createdAt' | 'updatedAt' | 'version'>
+  ) => Promise<IoTEntityBinding>;
   /** Update an existing binding */
-  updateBinding: (bindingId: string, updates: Partial<IoTEntityBinding>) => Promise<IoTEntityBinding>;
+  updateBinding: (
+    bindingId: string,
+    updates: Partial<IoTEntityBinding>
+  ) => Promise<IoTEntityBinding>;
   /** Remove an entity binding */
   removeBinding: (bindingId: string) => Promise<void>;
   /** Get all bindings for a world */

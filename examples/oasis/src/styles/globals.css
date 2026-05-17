@@ -202,11 +202,7 @@
   /* Sunlight beam effect */
   .sunlight-beam {
     @apply absolute pointer-events-none;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 213, 79, 0.3) 0%,
-      rgba(255, 213, 79, 0) 100%
-    );
+    background: linear-gradient(180deg, rgba(255, 213, 79, 0.3) 0%, rgba(255, 213, 79, 0) 100%);
     transform: rotate(-15deg);
   }
 }

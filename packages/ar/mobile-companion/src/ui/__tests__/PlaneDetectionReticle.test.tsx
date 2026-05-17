@@ -22,22 +22,14 @@ describe('PlaneDetectionReticle', () => {
   describe('Rendering', () => {
     it('should render without crashing', () => {
       const { container } = render(
-        <PlaneDetectionReticle
-          detectedPlane={null}
-          trackingState="normal"
-          placementMode={false}
-        />
+        <PlaneDetectionReticle detectedPlane={null} trackingState="normal" placementMode={false} />
       );
       expect(container).toBeTruthy();
     });
 
     it('should show "Searching for surface..." when no plane detected', () => {
       const { queryByText } = render(
-        <PlaneDetectionReticle
-          detectedPlane={null}
-          trackingState="normal"
-          placementMode={false}
-        />
+        <PlaneDetectionReticle detectedPlane={null} trackingState="normal" placementMode={false} />
       );
       // Note: The label is conditionally rendered only when plane exists
       expect(queryByText('Searching for surface...')).toBeNull();
@@ -238,11 +230,7 @@ describe('PlaneDetectionReticle', () => {
 
     it('should indicate disabled state when not placeable', () => {
       const { getByA11yLabel } = render(
-        <PlaneDetectionReticle
-          detectedPlane={null}
-          trackingState="normal"
-          placementMode={true}
-        />
+        <PlaneDetectionReticle detectedPlane={null} trackingState="normal" placementMode={true} />
       );
 
       const reticle = getByA11yLabel('AR plane detection reticle');

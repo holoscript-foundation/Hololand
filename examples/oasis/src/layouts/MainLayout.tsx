@@ -17,14 +17,21 @@ export default function MainLayout() {
       <div
         className="absolute top-0 right-0 w-96 h-96 pointer-events-none animate-sunbeam"
         style={{
-          background: 'radial-gradient(circle at 70% 30%, rgba(255, 213, 79, 0.2) 0%, transparent 60%)',
+          background:
+            'radial-gradient(circle at 70% 30%, rgba(255, 213, 79, 0.2) 0%, transparent 60%)',
         }}
       />
 
       {/* Decorative clouds */}
       <div className="absolute top-8 left-1/4 w-32 h-12 bg-white/40 rounded-full blur-sm animate-cloud-drift" />
-      <div className="absolute top-16 left-1/2 w-48 h-14 bg-white/30 rounded-full blur-sm animate-cloud-drift-slow" style={{ animationDelay: '-20s' }} />
-      <div className="absolute top-6 right-1/3 w-24 h-8 bg-white/35 rounded-full blur-sm animate-cloud-drift" style={{ animationDelay: '-40s' }} />
+      <div
+        className="absolute top-16 left-1/2 w-48 h-14 bg-white/30 rounded-full blur-sm animate-cloud-drift-slow"
+        style={{ animationDelay: '-20s' }}
+      />
+      <div
+        className="absolute top-6 right-1/3 w-24 h-8 bg-white/35 rounded-full blur-sm animate-cloud-drift"
+        style={{ animationDelay: '-40s' }}
+      />
 
       {/* Sidebar */}
       <Sidebar />

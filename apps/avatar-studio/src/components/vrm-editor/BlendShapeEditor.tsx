@@ -3,11 +3,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Slider } from '@/components/ui/Slider';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import type {
-  BlendShapeCategory,
-  BlendShapeDefinition,
-  BlendShapeValues,
-} from './types';
+import type { BlendShapeCategory, BlendShapeDefinition, BlendShapeValues } from './types';
 
 // ---------------------------------------------------------------------------
 // VRM 1.0 standard blend shapes (52 total)
@@ -59,10 +55,20 @@ const VRM_BLEND_SHAPES: BlendShapeDefinition[] = [
   { name: 'browDownRight', category: 'expression', label: 'Brow Down Right', defaultValue: 0 },
   { name: 'browInnerUp', category: 'expression', label: 'Brow Inner Up', defaultValue: 0 },
   { name: 'browOuterUpLeft', category: 'expression', label: 'Brow Outer Up Left', defaultValue: 0 },
-  { name: 'browOuterUpRight', category: 'expression', label: 'Brow Outer Up Right', defaultValue: 0 },
+  {
+    name: 'browOuterUpRight',
+    category: 'expression',
+    label: 'Brow Outer Up Right',
+    defaultValue: 0,
+  },
   { name: 'cheekPuff', category: 'expression', label: 'Cheek Puff', defaultValue: 0 },
   { name: 'cheekSquintLeft', category: 'expression', label: 'Cheek Squint Left', defaultValue: 0 },
-  { name: 'cheekSquintRight', category: 'expression', label: 'Cheek Squint Right', defaultValue: 0 },
+  {
+    name: 'cheekSquintRight',
+    category: 'expression',
+    label: 'Cheek Squint Right',
+    defaultValue: 0,
+  },
   { name: 'noseSneerLeft', category: 'expression', label: 'Nose Sneer Left', defaultValue: 0 },
   { name: 'noseSneerRight', category: 'expression', label: 'Nose Sneer Right', defaultValue: 0 },
 
@@ -197,10 +203,7 @@ export function BlendShapeEditor({ values, onChange }: BlendShapeEditorProps) {
       custom: [],
     };
     for (const shape of VRM_BLEND_SHAPES) {
-      if (
-        shape.label.toLowerCase().includes(query) ||
-        shape.name.toLowerCase().includes(query)
-      ) {
+      if (shape.label.toLowerCase().includes(query) || shape.name.toLowerCase().includes(query)) {
         result[shape.category].push(shape);
       }
     }
@@ -211,7 +214,7 @@ export function BlendShapeEditor({ values, onChange }: BlendShapeEditorProps) {
     (name: string, value: number) => {
       onChange({ ...values, [name]: value });
     },
-    [values, onChange],
+    [values, onChange]
   );
 
   const applyPreset = useCallback(
@@ -228,15 +231,12 @@ export function BlendShapeEditor({ values, onChange }: BlendShapeEditorProps) {
         onChange({ ...values, ...preset.values });
       }
     },
-    [values, onChange],
+    [values, onChange]
   );
 
-  const toggleCategory = useCallback(
-    (cat: BlendShapeCategory) => {
-      setExpandedCategory((prev) => (prev === cat ? null : cat));
-    },
-    [],
-  );
+  const toggleCategory = useCallback((cat: BlendShapeCategory) => {
+    setExpandedCategory((prev) => (prev === cat ? null : cat));
+  }, []);
 
   const activeCount = useMemo(() => {
     let count = 0;
@@ -321,12 +321,8 @@ export function BlendShapeEditor({ values, onChange }: BlendShapeEditorProps) {
                 >
                   &#9662;
                 </span>
-                <span className="text-xs font-semibold text-studio-text">
-                  {info.label}
-                </span>
-                <span className="text-[10px] text-studio-muted">
-                  ({shapes.length})
-                </span>
+                <span className="text-xs font-semibold text-studio-text">{info.label}</span>
+                <span className="text-[10px] text-studio-muted">({shapes.length})</span>
               </div>
               {catActiveCount > 0 && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-holo-500/15 text-holo-400 font-medium">

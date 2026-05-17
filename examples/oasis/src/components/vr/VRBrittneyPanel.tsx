@@ -55,12 +55,7 @@ export default function VRBrittneyPanel({
     <group ref={groupRef} position={position}>
       {/* Panel background */}
       <RoundedBox args={[1.2, 0.8, 0.02]} radius={0.03} smoothness={4}>
-        <meshStandardMaterial
-          color="#FFF8E7"
-          transparent
-          opacity={0.95}
-          roughness={0.3}
-        />
+        <meshStandardMaterial color="#FFF8E7" transparent opacity={0.95} roughness={0.3} />
       </RoundedBox>
 
       {/* Header */}
@@ -128,15 +123,15 @@ export default function VRBrittneyPanel({
       {/* Current transcript (when listening) */}
       {isListening && currentTranscript && (
         <group position={[0, -0.3, 0.02]}>
-          <RoundedBox args={[1.1, 0.1, 0.01]} radius={0.02} smoothness={4} position={[0, 0, -0.005]}>
+          <RoundedBox
+            args={[1.1, 0.1, 0.01]}
+            radius={0.02}
+            smoothness={4}
+            position={[0, 0, -0.005]}
+          >
             <meshStandardMaterial color="#87CEEB" transparent opacity={0.3} />
           </RoundedBox>
-          <Text
-            fontSize={0.035}
-            color="#3D2914"
-            maxWidth={1}
-            textAlign="center"
-          >
+          <Text fontSize={0.035} color="#3D2914" maxWidth={1} textAlign="center">
             {currentTranscript}
           </Text>
         </group>

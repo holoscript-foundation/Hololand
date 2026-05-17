@@ -43,11 +43,7 @@ export function initSocialSystems(userId: string, displayName: string) {
   });
 
   partySystem.on('partyInviteReceived', ({ invite }) => {
-    notificationSystem?.notifyPartyInvite(
-      invite.fromDisplayName,
-      invite.partyName,
-      invite.id
-    );
+    notificationSystem?.notifyPartyInvite(invite.fromDisplayName, invite.partyName, invite.id);
   });
 
   // Set initial presence
@@ -101,11 +97,7 @@ export function getNotificationSystem(): NotificationSystem | null {
 /**
  * Send a friend request
  */
-export function sendFriendRequest(
-  toUserId: string,
-  toDisplayName: string,
-  message?: string
-) {
+export function sendFriendRequest(toUserId: string, toDisplayName: string, message?: string) {
   return friendSystem?.sendFriendRequest(toUserId, toDisplayName, message);
 }
 

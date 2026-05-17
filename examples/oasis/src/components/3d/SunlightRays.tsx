@@ -29,7 +29,7 @@ export default function SunlightRays({
   animated = true,
 }: SunlightRaysProps) {
   const groupRef = useRef<GroupRef>(null);
-  const raysRef = useRef<(MeshRef)[]>([]);
+  const raysRef = useRef<MeshRef[]>([]);
 
   // Generate ray geometries
   const rays = useMemo(() => {
@@ -200,27 +200,16 @@ export function MediterraneanLighting() {
       />
 
       {/* Fill light from opposite side */}
-      <directionalLight
-        position={[-30, 40, -20]}
-        intensity={0.3}
-        color="#87CEEB"
-      />
+      <directionalLight position={[-30, 40, -20]} intensity={0.3} color="#87CEEB" />
 
       {/* Ambient light - warm */}
       <ambientLight intensity={0.6} color="#FFF8E7" />
 
       {/* Hemisphere light - sky to ground */}
-      <hemisphereLight
-        args={['#87CEEB', '#7CB342', 0.5]}
-      />
+      <hemisphereLight args={['#87CEEB', '#7CB342', 0.5]} />
 
       {/* Subtle ground bounce */}
-      <pointLight
-        position={[0, -10, 0]}
-        intensity={0.2}
-        color="#7CB342"
-        distance={100}
-      />
+      <pointLight position={[0, -10, 0]} intensity={0.2} color="#7CB342" distance={100} />
     </group>
   );
 }
@@ -235,12 +224,7 @@ export function SunAndRays() {
       <SunDisc position={[80, 60, -80]} size={10} glowSize={30} />
 
       {/* Volumetric rays */}
-      <SunlightRays
-        sunPosition={[80, 60, -80]}
-        rayCount={6}
-        rayLength={80}
-        intensity={0.2}
-      />
+      <SunlightRays sunPosition={[80, 60, -80]} rayCount={6} rayLength={80} intensity={0.2} />
 
       {/* Atmospheric haze */}
       <AtmosphericHaze height={5} opacity={0.08} />
@@ -251,7 +235,11 @@ export function SunAndRays() {
 /**
  * Lens flare effect when looking at sun
  */
-export function LensFlare({ sunPosition = [100, 80, 50] }: { sunPosition?: [number, number, number] }) {
+export function LensFlare({
+  sunPosition = [100, 80, 50],
+}: {
+  sunPosition?: [number, number, number];
+}) {
   const flaresRef = useRef<GroupRef>(null);
 
   useFrame(({ camera }: any) => {
@@ -264,9 +252,7 @@ export function LensFlare({ sunPosition = [100, 80, 50] }: { sunPosition?: [numb
     const cameraDir = new THREE.Vector3();
     camera.getWorldDirection(cameraDir);
 
-    const sunDir = new THREE.Vector3(...sunPosition)
-      .sub(camera.position)
-      .normalize();
+    const sunDir = new THREE.Vector3(...sunPosition).sub(camera.position).normalize();
 
     const dot = cameraDir.dot(sunDir);
 

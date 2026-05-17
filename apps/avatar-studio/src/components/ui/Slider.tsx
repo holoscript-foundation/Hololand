@@ -25,12 +25,10 @@ export function Slider({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onChange(parseFloat(e.target.value));
     },
-    [onChange],
+    [onChange]
   );
 
-  const displayValue = formatValue
-    ? formatValue(value)
-    : value.toFixed(2);
+  const displayValue = formatValue ? formatValue(value) : value.toFixed(2);
 
   return (
     <div className="flex flex-col gap-1.5">

@@ -105,24 +105,13 @@ export default function GrassGround({
       {/* Base ground plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[size, size, segments, segments]} />
-        <meshStandardMaterial
-          color="#7CB342"
-          roughness={0.9}
-          metalness={0}
-        />
+        <meshStandardMaterial color="#7CB342" roughness={0.9} metalness={0} />
       </mesh>
 
       {/* Grass blade instances */}
-      <instancedMesh
-        args={[undefined, undefined, grassDensity]}
-        receiveShadow
-        castShadow
-      >
+      <instancedMesh args={[undefined, undefined, grassDensity]} receiveShadow castShadow>
         <coneGeometry args={[0.02, grassHeight, 4]} />
-        <grassMaterial
-          ref={materialRef}
-          side={THREE.DoubleSide}
-        />
+        <grassMaterial ref={materialRef} side={THREE.DoubleSide} />
       </instancedMesh>
 
       {/* Decorative grass patches */}
@@ -144,11 +133,7 @@ function GrassPatches({ size }: { size: number }) {
 
     for (let i = 0; i < 50; i++) {
       result.push({
-        position: [
-          (Math.random() - 0.5) * size * 0.8,
-          0.01,
-          (Math.random() - 0.5) * size * 0.8,
-        ],
+        position: [(Math.random() - 0.5) * size * 0.8, 0.01, (Math.random() - 0.5) * size * 0.8],
         scale: 2 + Math.random() * 3,
         color: colors[Math.floor(Math.random() * colors.length)],
       });
@@ -159,22 +144,22 @@ function GrassPatches({ size }: { size: number }) {
 
   return (
     <group>
-      {patches.map((patch: { position: [number, number, number]; scale: number; color: string }, i: number) => (
-        <mesh
-          key={i}
-          position={patch.position}
-          rotation={[-Math.PI / 2, 0, Math.random() * Math.PI]}
-          scale={patch.scale}
-        >
-          <circleGeometry args={[1, 8]} />
-          <meshStandardMaterial
-            color={patch.color}
-            roughness={0.95}
-            transparent
-            opacity={0.8}
-          />
-        </mesh>
-      ))}
+      {patches.map(
+        (
+          patch: { position: [number, number, number]; scale: number; color: string },
+          i: number
+        ) => (
+          <mesh
+            key={i}
+            position={patch.position}
+            rotation={[-Math.PI / 2, 0, Math.random() * Math.PI]}
+            scale={patch.scale}
+          >
+            <circleGeometry args={[1, 8]} />
+            <meshStandardMaterial color={patch.color} roughness={0.95} transparent opacity={0.8} />
+          </mesh>
+        )
+      )}
     </group>
   );
 }
@@ -195,10 +180,7 @@ function RollingHills({ size }: { size: number }) {
       const y = positions[i + 1];
 
       // Create smooth hills
-      const height =
-        Math.sin(x * 0.02) * 8 +
-        Math.sin(x * 0.05 + 1) * 4 +
-        Math.cos(y * 0.03) * 3;
+      const height = Math.sin(x * 0.02) * 8 + Math.sin(x * 0.05 + 1) * 4 + Math.cos(y * 0.03) * 3;
 
       positions[i + 2] = Math.max(0, height);
     }
@@ -215,11 +197,7 @@ function RollingHills({ size }: { size: number }) {
         rotation={[-Math.PI / 2.5, 0, 0]}
         receiveShadow
       >
-        <meshStandardMaterial
-          color="#558B2F"
-          roughness={0.95}
-          side={THREE.DoubleSide}
-        />
+        <meshStandardMaterial color="#558B2F" roughness={0.95} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );

@@ -18,13 +18,7 @@
  */
 
 import React, { useMemo, useEffect, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  Animated,
-  Platform,
-} from 'react-native';
+import { View, StyleSheet, Text, Animated, Platform } from 'react-native';
 import type { ARPlane, PlaneAlignment, PlaneClassification } from '../../types';
 
 // =============================================================================
@@ -365,9 +359,7 @@ export const SurfaceConstraintVisualization: React.FC<SurfaceConstraintVisualiza
         <View style={styles.metricsRow}>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Area</Text>
-            <Text style={styles.metricValue}>
-              {surfaceAnalysis.area.toFixed(2)} m²
-            </Text>
+            <Text style={styles.metricValue}>{surfaceAnalysis.area.toFixed(2)} m²</Text>
           </View>
 
           <View style={styles.metric}>
@@ -402,8 +394,8 @@ export const SurfaceConstraintVisualization: React.FC<SurfaceConstraintVisualiza
                       constraint.severity === 'error'
                         ? '#EF4444'
                         : constraint.severity === 'warning'
-                        ? '#F59E0B'
-                        : '#3B82F6',
+                          ? '#F59E0B'
+                          : '#3B82F6',
                   },
                 ]}
               >
@@ -411,8 +403,8 @@ export const SurfaceConstraintVisualization: React.FC<SurfaceConstraintVisualiza
                   {constraint.severity === 'error'
                     ? '❌'
                     : constraint.severity === 'warning'
-                    ? '⚠️'
-                    : 'ℹ️'}
+                      ? '⚠️'
+                      : 'ℹ️'}
                 </Text>
                 <Text style={styles.constraintText}>{constraint.message}</Text>
               </View>

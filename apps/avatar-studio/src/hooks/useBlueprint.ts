@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useReducer, useRef } from 'react';
+import { useCallback, useReducer } from 'react';
 import type {
   AvatarBlueprint,
   BodyConfig,
@@ -65,10 +65,7 @@ function pushUndo(state: BlueprintState): Pick<BlueprintState, 'undoStack' | 're
   return { undoStack: stack, redoStack: [] };
 }
 
-function blueprintReducer(
-  state: BlueprintState,
-  action: BlueprintAction,
-): BlueprintState {
+function blueprintReducer(state: BlueprintState, action: BlueprintAction): BlueprintState {
   switch (action.type) {
     case 'SET_BLUEPRINT':
       return {
@@ -196,9 +193,7 @@ function blueprintReducer(
       };
 
     case 'EQUIP_CLOTHING': {
-      const existing = state.blueprint.clothing.filter(
-        (c) => c.slot !== action.slot.slot,
-      );
+      const existing = state.blueprint.clothing.filter((c) => c.slot !== action.slot.slot);
       return {
         ...state,
         ...pushUndo(state),
@@ -217,18 +212,14 @@ function blueprintReducer(
         ...pushUndo(state),
         blueprint: {
           ...state.blueprint,
-          clothing: state.blueprint.clothing.filter(
-            (c) => c.slot !== action.slotName,
-          ),
+          clothing: state.blueprint.clothing.filter((c) => c.slot !== action.slotName),
           updatedAt: Date.now(),
         },
         isDirty: true,
       };
 
     case 'EQUIP_ACCESSORY': {
-      const existing = state.blueprint.accessories.filter(
-        (a) => a.slot !== action.slot.slot,
-      );
+      const existing = state.blueprint.accessories.filter((a) => a.slot !== action.slot.slot);
       return {
         ...state,
         ...pushUndo(state),
@@ -247,18 +238,14 @@ function blueprintReducer(
         ...pushUndo(state),
         blueprint: {
           ...state.blueprint,
-          accessories: state.blueprint.accessories.filter(
-            (a) => a.slot !== action.slotName,
-          ),
+          accessories: state.blueprint.accessories.filter((a) => a.slot !== action.slotName),
           updatedAt: Date.now(),
         },
         isDirty: true,
       };
 
     case 'SET_EXPRESSION': {
-      const existing = state.blueprint.expressions.filter(
-        (e) => e.name !== action.expression.name,
-      );
+      const existing = state.blueprint.expressions.filter((e) => e.name !== action.expression.name);
       return {
         ...state,
         ...pushUndo(state),
@@ -277,9 +264,7 @@ function blueprintReducer(
         ...pushUndo(state),
         blueprint: {
           ...state.blueprint,
-          expressions: state.blueprint.expressions.filter(
-            (e) => e.name !== action.name,
-          ),
+          expressions: state.blueprint.expressions.filter((e) => e.name !== action.name),
           updatedAt: Date.now(),
         },
         isDirty: true,
@@ -355,82 +340,68 @@ export function useBlueprint(initial?: Partial<AvatarBlueprint>) {
   });
 
   // Memoized dispatch helpers
-  const setTab = useCallback(
-    (tab: StudioTab) => dispatch({ type: 'SET_TAB', tab }),
-    [],
-  );
+  const setTab = useCallback((tab: StudioTab) => dispatch({ type: 'SET_TAB', tab }), []);
   const updateBody = useCallback(
     (body: Partial<BodyConfig>) => dispatch({ type: 'UPDATE_BODY', body }),
-    [],
+    []
   );
   const updateBodyProportions = useCallback(
     (proportions: Partial<BodyProportions>) =>
       dispatch({ type: 'UPDATE_BODY_PROPORTIONS', proportions }),
-    [],
+    []
   );
-  const setSkinColor = useCallback(
-    (hex: string) => dispatch({ type: 'SET_SKIN_COLOR', hex }),
-    [],
-  );
+  const setSkinColor = useCallback((hex: string) => dispatch({ type: 'SET_SKIN_COLOR', hex }), []);
   const updateFace = useCallback(
     (face: Partial<FaceConfig>) => dispatch({ type: 'UPDATE_FACE', face }),
-    [],
+    []
   );
   const updateFaceMorphs = useCallback(
-    (morphs: Partial<FaceMorphs>) =>
-      dispatch({ type: 'UPDATE_FACE_MORPHS', morphs }),
-    [],
+    (morphs: Partial<FaceMorphs>) => dispatch({ type: 'UPDATE_FACE_MORPHS', morphs }),
+    []
   );
-  const setEyeColor = useCallback(
-    (hex: string) => dispatch({ type: 'SET_EYE_COLOR', hex }),
-    [],
-  );
+  const setEyeColor = useCallback((hex: string) => dispatch({ type: 'SET_EYE_COLOR', hex }), []);
   const updateHair = useCallback(
     (hair: Partial<HairConfig>) => dispatch({ type: 'UPDATE_HAIR', hair }),
-    [],
+    []
   );
   const setHairStyle = useCallback(
     (styleId: string) => dispatch({ type: 'SET_HAIR_STYLE', styleId }),
-    [],
+    []
   );
   const equipClothing = useCallback(
     (slot: ClothingSlot) => dispatch({ type: 'EQUIP_CLOTHING', slot }),
-    [],
+    []
   );
   const unequipClothing = useCallback(
-    (slotName: ClothingSlotName) =>
-      dispatch({ type: 'UNEQUIP_CLOTHING', slotName }),
-    [],
+    (slotName: ClothingSlotName) => dispatch({ type: 'UNEQUIP_CLOTHING', slotName }),
+    []
   );
   const equipAccessory = useCallback(
     (slot: AccessorySlot) => dispatch({ type: 'EQUIP_ACCESSORY', slot }),
-    [],
+    []
   );
   const unequipAccessory = useCallback(
-    (slotName: AccessorySlotName) =>
-      dispatch({ type: 'UNEQUIP_ACCESSORY', slotName }),
-    [],
+    (slotName: AccessorySlotName) => dispatch({ type: 'UNEQUIP_ACCESSORY', slotName }),
+    []
   );
   const setExpression = useCallback(
-    (expression: ExpressionPreset) =>
-      dispatch({ type: 'SET_EXPRESSION', expression }),
-    [],
+    (expression: ExpressionPreset) => dispatch({ type: 'SET_EXPRESSION', expression }),
+    []
   );
   const removeExpression = useCallback(
     (name: string) => dispatch({ type: 'REMOVE_EXPRESSION', name }),
-    [],
+    []
   );
   const setVRMMeta = useCallback(
     (meta: Partial<VRMMetadata>) => dispatch({ type: 'SET_VRM_META', meta }),
-    [],
+    []
   );
   const undo = useCallback(() => dispatch({ type: 'UNDO' }), []);
   const redo = useCallback(() => dispatch({ type: 'REDO' }), []);
   const markSaved = useCallback(() => dispatch({ type: 'MARK_SAVED' }), []);
   const reset = useCallback(
-    (initial?: Partial<AvatarBlueprint>) =>
-      dispatch({ type: 'RESET', initial }),
-    [],
+    (initial?: Partial<AvatarBlueprint>) => dispatch({ type: 'RESET', initial }),
+    []
   );
 
   return {

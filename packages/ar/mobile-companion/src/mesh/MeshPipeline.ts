@@ -47,13 +47,13 @@ import type { AABB, Pose6DoF } from '../types';
 // =============================================================================
 
 export type PipelineState =
-  | 'idle'          // Not scanning
-  | 'scanning'      // Receiving capture frames
-  | 'processing'    // Processing captured data
-  | 'optimizing'    // Generating LODs
-  | 'syncing'       // Uploading to cloud
-  | 'complete'      // Scan finished
-  | 'error';        // Pipeline error
+  | 'idle' // Not scanning
+  | 'scanning' // Receiving capture frames
+  | 'processing' // Processing captured data
+  | 'optimizing' // Generating LODs
+  | 'syncing' // Uploading to cloud
+  | 'complete' // Scan finished
+  | 'error'; // Pipeline error
 
 export type PipelineEventType =
   | 'stateChanged'
@@ -367,7 +367,7 @@ export class MeshPipeline {
    * Upload all dirty chunks to the cloud.
    */
   private async syncAllChunks(): Promise<void> {
-    const dirtyChunks = Array.from(this.chunks.values()).filter(c => c.isDirty);
+    const dirtyChunks = Array.from(this.chunks.values()).filter((c) => c.isDirty);
     let synced = 0;
 
     for (const chunk of dirtyChunks) {
@@ -459,7 +459,7 @@ export class MeshPipeline {
    */
   private emitProgress(): void {
     const event: MeshScanProgressEvent = {
-      phase: this.state === 'scanning' ? 'scanning' : this.state as any,
+      phase: this.state === 'scanning' ? 'scanning' : (this.state as any),
       progress: 0, // Scanning has no defined end
       totalVertices: this.totalVertices,
       totalTriangles: this.totalTriangles,
@@ -542,8 +542,12 @@ export class MeshPipeline {
    * Compute the global bounding box across all chunks.
    */
   private computeGlobalBoundingBox(): AABB {
-    let minX = Infinity, minY = Infinity, minZ = Infinity;
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      minZ = Infinity;
+    let maxX = -Infinity,
+      maxY = -Infinity,
+      maxZ = -Infinity;
 
     for (const chunk of this.chunks.values()) {
       minX = Math.min(minX, chunk.boundingBox.min.x);
@@ -593,12 +597,28 @@ export class MeshPipeline {
   // GETTERS
   // ==========================================================================
 
-  getState(): PipelineState { return this.state; }
-  getWorldId(): string { return this.worldId; }
-  getSessionId(): string { return this.sessionId; }
-  getChunkCount(): number { return this.chunks.size; }
-  getTotalVertices(): number { return this.totalVertices; }
-  getTotalTriangles(): number { return this.totalTriangles; }
-  getScannedArea(): number { return this.scannedArea; }
-  getFramesProcessed(): number { return this.framesProcessed; }
+  getState(): PipelineState {
+    return this.state;
+  }
+  getWorldId(): string {
+    return this.worldId;
+  }
+  getSessionId(): string {
+    return this.sessionId;
+  }
+  getChunkCount(): number {
+    return this.chunks.size;
+  }
+  getTotalVertices(): number {
+    return this.totalVertices;
+  }
+  getTotalTriangles(): number {
+    return this.totalTriangles;
+  }
+  getScannedArea(): number {
+    return this.scannedArea;
+  }
+  getFramesProcessed(): number {
+    return this.framesProcessed;
+  }
 }

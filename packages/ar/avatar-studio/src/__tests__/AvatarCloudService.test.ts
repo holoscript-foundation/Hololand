@@ -44,19 +44,20 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          id: 'avt_cloud_123',
-          blueprint,
-          userId: 'user_1',
-          appId: 'test-app',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          version: 1,
-          isPublic: false,
-          downloadCount: 0,
-          viewCount: 0,
-          tags: [],
-        }),
+        json: () =>
+          Promise.resolve({
+            id: 'avt_cloud_123',
+            blueprint,
+            userId: 'user_1',
+            appId: 'test-app',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            version: 1,
+            isPublic: false,
+            downloadCount: 0,
+            viewCount: 0,
+            tags: [],
+          }),
       });
 
       const result = await service.createAvatar(blueprint, {
@@ -70,7 +71,7 @@ describe('AvatarCloudService', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-api-key',
+            Authorization: 'Bearer test-api-key',
             'X-User-Token': 'test-user-token',
             'X-App-ID': 'test-app',
           }),
@@ -89,11 +90,12 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          id: 'avt_cloud_123',
-          blueprint,
-          version: 2,
-        }),
+        json: () =>
+          Promise.resolve({
+            id: 'avt_cloud_123',
+            blueprint,
+            version: 2,
+          }),
       });
 
       const result = await service.updateAvatar(
@@ -118,10 +120,11 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          id: 'avt_cloud_123',
-          blueprint: blueprintManager.getBlueprint(),
-        }),
+        json: () =>
+          Promise.resolve({
+            id: 'avt_cloud_123',
+            blueprint: blueprintManager.getBlueprint(),
+          }),
       });
 
       const result = await service.getAvatar('avt_cloud_123');
@@ -168,15 +171,13 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          avatars: [
-            { id: 'avt_1' },
-            { id: 'avt_2' },
-          ],
-          total: 10,
-          hasMore: true,
-          nextCursor: 'cursor_abc',
-        }),
+        json: () =>
+          Promise.resolve({
+            avatars: [{ id: 'avt_1' }, { id: 'avt_2' }],
+            total: 10,
+            hasMore: true,
+            nextCursor: 'cursor_abc',
+          }),
       });
 
       const result = await service.listAvatars({
@@ -222,10 +223,11 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve([
-          { version: 1, createdAt: '2026-01-01T00:00:00Z' },
-          { version: 2, createdAt: '2026-01-02T00:00:00Z', changeDescription: 'Updated hair' },
-        ]),
+        json: () =>
+          Promise.resolve([
+            { version: 1, createdAt: '2026-01-01T00:00:00Z' },
+            { version: 2, createdAt: '2026-01-02T00:00:00Z', changeDescription: 'Updated hair' },
+          ]),
       });
 
       const versions = await service.getVersionHistory('avt_cloud_123');
@@ -238,10 +240,11 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          id: 'avt_cloud_123',
-          version: 1,
-        }),
+        json: () =>
+          Promise.resolve({
+            id: 'avt_cloud_123',
+            version: 1,
+          }),
       });
 
       const result = await service.restoreVersion('avt_cloud_123', 1);
@@ -263,10 +266,11 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          shareToken: 'tok_abc123',
-          shareUrl: 'https://studio.hololand.io/shared/tok_abc123',
-        }),
+        json: () =>
+          Promise.resolve({
+            shareToken: 'tok_abc123',
+            shareUrl: 'https://studio.hololand.io/shared/tok_abc123',
+          }),
       });
 
       const result = await service.createShareLink('avt_cloud_123');
@@ -293,10 +297,11 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          id: 'avt_cloud_123',
-          isPublic: true,
-        }),
+        json: () =>
+          Promise.resolve({
+            id: 'avt_cloud_123',
+            isPublic: true,
+          }),
       });
 
       const result = await service.setPublic('avt_cloud_123', true);
@@ -308,10 +313,11 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          id: 'avt_cloud_123',
-          isPublic: true,
-        }),
+        json: () =>
+          Promise.resolve({
+            id: 'avt_cloud_123',
+            isPublic: true,
+          }),
       });
 
       await service.getSharedAvatar('tok_abc123');
@@ -331,11 +337,12 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          avatars: [{ id: 'avt_public_1' }],
-          total: 50,
-          hasMore: true,
-        }),
+        json: () =>
+          Promise.resolve({
+            avatars: [{ id: 'avt_public_1' }],
+            total: 50,
+            hasMore: true,
+          }),
       });
 
       const result = await service.browsePublicAvatars({
@@ -355,10 +362,11 @@ describe('AvatarCloudService', () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          id: 'avt_clone_789',
-          version: 1,
-        }),
+        json: () =>
+          Promise.resolve({
+            id: 'avt_clone_789',
+            version: 1,
+          }),
       });
 
       const result = await service.cloneAvatar('avt_public_1');
@@ -402,13 +410,11 @@ describe('AvatarCloudService', () => {
       });
 
       // First call fails, second succeeds
-      mockFetch
-        .mockRejectedValueOnce(new Error('Temporary failure'))
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ id: 'avt_123' }),
-        });
+      mockFetch.mockRejectedValueOnce(new Error('Temporary failure')).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ id: 'avt_123' }),
+      });
 
       const result = await retryService.getAvatar('avt_123');
       expect(result.id).toBe('avt_123');

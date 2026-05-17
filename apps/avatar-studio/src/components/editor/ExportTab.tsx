@@ -2,12 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { UseBlueprintReturn } from '@/hooks/useBlueprint';
-import type {
-  ExportFormat,
-  ExportQuality,
-  VRMAllowedUser,
-  VRMLicenseType,
-} from '@hololand/avatar-studio';
+import type { ExportQuality, VRMAllowedUser, VRMLicenseType } from '@hololand/avatar-studio';
 import { Select } from '@/components/ui/Select';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 

@@ -66,9 +66,7 @@ export default function FeaturedCarousel({ worlds }: FeaturedCarouselProps) {
             ))}
           </div>
 
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-            {currentWorld.name}
-          </h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentWorld.name}</h2>
           <p className="text-white/80 text-sm md:text-base max-w-2xl line-clamp-2">
             {currentWorld.description}
           </p>
@@ -77,9 +75,7 @@ export default function FeaturedCarousel({ worlds }: FeaturedCarouselProps) {
             <span className="btn-primary">Enter World</span>
             <div className="flex items-center gap-2 text-white/80">
               <UsersIcon className="w-4 h-4" />
-              <span className="text-sm">
-                {currentWorld.playerCount} playing now
-              </span>
+              <span className="text-sm">{currentWorld.playerCount} playing now</span>
             </div>
           </div>
         </div>
@@ -122,9 +118,7 @@ export default function FeaturedCarousel({ worlds }: FeaturedCarouselProps) {
                 setCurrentIndex(index);
               }}
               className={`w-2 h-2 rounded-full transition-all ${
-                index === currentIndex
-                  ? 'bg-white w-6'
-                  : 'bg-white/40 hover:bg-white/60'
+                index === currentIndex ? 'bg-white w-6' : 'bg-white/40 hover:bg-white/60'
               }`}
               aria-label={`Go to slide ${index + 1}`}
             />

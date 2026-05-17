@@ -44,9 +44,7 @@ export function BodyTab({ store }: BodyTabProps) {
             label="Presentation"
             value={body.genderPresentation}
             options={GENDER_OPTIONS}
-            onChange={(v) =>
-              updateBody({ genderPresentation: v as GenderPresentation })
-            }
+            onChange={(v) => updateBody({ genderPresentation: v as GenderPresentation })}
           />
         </div>
       </section>
@@ -78,10 +76,7 @@ export function BodyTab({ store }: BodyTabProps) {
 
       {/* Proportions */}
       <section>
-        <SectionHeader
-          title="Proportions"
-          description="Fine-tune body shape"
-        />
+        <SectionHeader title="Proportions" description="Fine-tune body shape" />
         <div className="flex flex-col gap-3">
           <Slider
             label="Head Scale"

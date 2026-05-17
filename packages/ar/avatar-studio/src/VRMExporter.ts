@@ -131,7 +131,7 @@ export class VRMExporter {
     blueprint: Readonly<AvatarBlueprint>,
     scene: THREE.Scene,
     config?: Partial<ExportConfig>,
-    onProgress?: ExportProgressCallback,
+    onProgress?: ExportProgressCallback
   ): Promise<ExportResult> {
     const startTime = performance.now();
     const exportConfig = this.resolveConfig(config);
@@ -272,7 +272,7 @@ export class VRMExporter {
     blueprint: Readonly<AvatarBlueprint>,
     scene: THREE.Scene,
     config?: Partial<ExportConfig>,
-    onProgress?: ExportProgressCallback,
+    onProgress?: ExportProgressCallback
   ): Promise<ExportResult> {
     const result = await this.export(blueprint, scene, config, onProgress);
 
@@ -366,7 +366,7 @@ export class VRMExporter {
     if (estimatedPolys > DEFAULT_PERFORMANCE_BUDGET.maxPolyCount) {
       warnings.push(
         `Estimated polygon count (~${estimatedPolys.toLocaleString()}) exceeds recommended budget ` +
-        `(${DEFAULT_PERFORMANCE_BUDGET.maxPolyCount.toLocaleString()}). Consider reducing accessories.`
+          `(${DEFAULT_PERFORMANCE_BUDGET.maxPolyCount.toLocaleString()}). Consider reducing accessories.`
       );
     }
 
@@ -377,10 +377,7 @@ export class VRMExporter {
   // INTERNAL: SCENE PREPARATION
   // ===========================================================================
 
-  private prepareExportScene(
-    sourceScene: THREE.Scene,
-    _config: ExportConfig,
-  ): THREE.Scene {
+  private prepareExportScene(sourceScene: THREE.Scene, _config: ExportConfig): THREE.Scene {
     // Clone the scene for export (don't modify the preview)
     const exportScene = sourceScene.clone(true);
 
@@ -437,7 +434,7 @@ export class VRMExporter {
 
   private injectExpressions(
     scene: THREE.Scene,
-    expressions: readonly import('./types').ExpressionPreset[],
+    expressions: readonly import('./types').ExpressionPreset[]
   ): void {
     // VRM expressions are stored as blend shape groups in the VRM extension
     scene.userData.vrm = scene.userData.vrm ?? {};
@@ -469,9 +466,7 @@ export class VRMExporter {
     if (config.textureResolution) {
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
-          const materials = Array.isArray(object.material)
-            ? object.material
-            : [object.material];
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
 
           for (const material of materials) {
             if (material instanceof THREE.MeshStandardMaterial) {
@@ -489,10 +484,7 @@ export class VRMExporter {
     }
   }
 
-  private clampTextureResolution(
-    material: THREE.MeshStandardMaterial,
-    maxRes: number,
-  ): void {
+  private clampTextureResolution(material: THREE.MeshStandardMaterial, maxRes: number): void {
     const textures = [
       material.map,
       material.normalMap,
@@ -519,10 +511,7 @@ export class VRMExporter {
     scene.traverse((object) => {
       if (object instanceof THREE.Mesh && !object.userData.noMerge) {
         const material = object.material;
-        const key =
-          material instanceof THREE.Material
-            ? material.uuid
-            : 'multi';
+        const key = material instanceof THREE.Material ? material.uuid : 'multi';
 
         if (!meshGroups.has(key)) {
           meshGroups.set(key, []);
@@ -556,7 +545,7 @@ export class VRMExporter {
 
   private checkPerformanceBudget(
     scene: THREE.Scene,
-    budget: PerformanceBudget,
+    budget: PerformanceBudget
   ): { warnings: string[] } {
     const warnings: string[] = [];
 
@@ -578,14 +567,14 @@ export class VRMExporter {
     if (totalPolys > budget.maxPolyCount) {
       warnings.push(
         `Polygon count (${totalPolys.toLocaleString()}) exceeds budget ` +
-        `(${budget.maxPolyCount.toLocaleString()}).`
+          `(${budget.maxPolyCount.toLocaleString()}).`
       );
     }
 
     if (totalDrawCalls > budget.maxDrawCalls) {
       warnings.push(
         `Draw calls (${totalDrawCalls}) exceeds budget (${budget.maxDrawCalls}). ` +
-        `Consider merging meshes or reducing accessories.`
+          `Consider merging meshes or reducing accessories.`
       );
     }
 
@@ -596,10 +585,7 @@ export class VRMExporter {
   // INTERNAL: BINARY EXPORT
   // ===========================================================================
 
-  private async exportToBinary(
-    scene: THREE.Scene,
-    config: ExportConfig,
-  ): Promise<ArrayBuffer> {
+  private async exportToBinary(scene: THREE.Scene, config: ExportConfig): Promise<ArrayBuffer> {
     // Lazy-load glTF exporter
     if (!this.gltfExporter) {
       const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
@@ -628,7 +614,7 @@ export class VRMExporter {
         (error: Error) => {
           reject(error);
         },
-        exportOptions,
+        exportOptions
       );
     });
   }
@@ -662,11 +648,7 @@ export class VRMExporter {
     }
   }
 
-  private calculateStats(
-    scene: THREE.Scene,
-    data: ArrayBuffer,
-    startTime: number,
-  ): ExportStats {
+  private calculateStats(scene: THREE.Scene, data: ArrayBuffer, startTime: number): ExportStats {
     let polyCount = 0;
     let vertexCount = 0;
     let materialCount = 0;
@@ -738,9 +720,7 @@ export class VRMExporter {
     scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
-        const materials = Array.isArray(object.material)
-          ? object.material
-          : [object.material];
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of materials) {
           material.dispose();
         }

@@ -19,66 +19,101 @@ function CommandIconSvg({ icon }: { icon?: CommandIcon }) {
     case 'navigate':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M9 5l7 7-7 7" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       );
     case 'undo':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"
+          />
         </svg>
       );
     case 'redo':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M21 10H11a5 5 0 00-5 5v2m15-7l-4-4m4 4l-4 4" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 10H11a5 5 0 00-5 5v2m15-7l-4-4m4 4l-4 4"
+          />
         </svg>
       );
     case 'reset':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
         </svg>
       );
     case 'save':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+          />
         </svg>
       );
     case 'export':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
         </svg>
       );
     case 'search':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
       );
     case 'settings':
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
       );
     default:
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M13 10V3L4 14h7v7l9-11h-7z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 10V3L4 14h7v7l9-11h-7z"
+          />
         </svg>
       );
   }
@@ -137,9 +172,8 @@ function CommandItem({ command, isActive, onMouseEnter, onSelect }: CommandItemP
       className={`
         w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm
         transition-colors duration-75 cursor-pointer
-        ${isActive
-          ? 'bg-holo-600/20 text-studio-text'
-          : 'text-studio-muted hover:bg-studio-surface'
+        ${
+          isActive ? 'bg-holo-600/20 text-studio-text' : 'text-studio-muted hover:bg-studio-surface'
         }
         ${command.disabled ? 'opacity-40 cursor-not-allowed' : ''}
       `}
@@ -228,12 +262,7 @@ export function CommandPalette({ palette }: CommandPaletteProps) {
   let flatOffset = 0;
 
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-    <div
-      ref={backdropRef}
-      className="cmd-palette-backdrop"
-      onClick={handleBackdropClick}
-    >
+    <div ref={backdropRef} className="cmd-palette-backdrop" onClick={handleBackdropClick}>
       <div
         className="cmd-palette-container"
         role="dialog"
@@ -273,15 +302,15 @@ export function CommandPalette({ palette }: CommandPaletteProps) {
             aria-label="Search commands"
             aria-controls="cmd-palette-listbox"
             aria-activedescendant={
-              filteredCommands[activeIndex]
-                ? `cmd-${filteredCommands[activeIndex].id}`
-                : undefined
+              filteredCommands[activeIndex] ? `cmd-${filteredCommands[activeIndex].id}` : undefined
             }
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono
-                          text-studio-muted bg-studio-bg border border-studio-border rounded">
+          <kbd
+            className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono
+                          text-studio-muted bg-studio-bg border border-studio-border rounded"
+          >
             ESC
           </kbd>
         </div>
@@ -319,26 +348,34 @@ export function CommandPalette({ palette }: CommandPaletteProps) {
         {/* Footer */}
         <div className="flex items-center gap-4 px-4 py-2 border-t border-studio-border text-[10px] text-studio-muted">
           <span className="flex items-center gap-1">
-            <kbd className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-mono
-                            bg-studio-bg border border-studio-border rounded">
+            <kbd
+              className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-mono
+                            bg-studio-bg border border-studio-border rounded"
+            >
               &uarr;
             </kbd>
-            <kbd className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-mono
-                            bg-studio-bg border border-studio-border rounded">
+            <kbd
+              className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-mono
+                            bg-studio-bg border border-studio-border rounded"
+            >
               &darr;
             </kbd>
             <span className="ml-0.5">Navigate</span>
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="inline-flex items-center justify-center min-w-[20px] h-4 px-1 text-[9px] font-mono
-                            bg-studio-bg border border-studio-border rounded">
+            <kbd
+              className="inline-flex items-center justify-center min-w-[20px] h-4 px-1 text-[9px] font-mono
+                            bg-studio-bg border border-studio-border rounded"
+            >
               &crarr;
             </kbd>
             <span className="ml-0.5">Select</span>
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="inline-flex items-center justify-center min-w-[20px] h-4 px-1 text-[9px] font-mono
-                            bg-studio-bg border border-studio-border rounded">
+            <kbd
+              className="inline-flex items-center justify-center min-w-[20px] h-4 px-1 text-[9px] font-mono
+                            bg-studio-bg border border-studio-border rounded"
+            >
               Esc
             </kbd>
             <span className="ml-0.5">Close</span>

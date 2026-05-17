@@ -18,13 +18,7 @@
  */
 
 import React, { useMemo, useEffect, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  Animated,
-  Platform,
-} from 'react-native';
+import { View, StyleSheet, Text, Animated, Platform } from 'react-native';
 import type { LightEstimate } from '../../types';
 
 // =============================================================================
@@ -234,20 +228,14 @@ export const LightEstimationFeedback: React.FC<LightEstimationFeedbackProps> = (
   if (compact) {
     return (
       <Animated.View
-        style={[
-          styles.compactContainer,
-          containerStyle,
-          { opacity: fadeAnim },
-        ]}
+        style={[styles.compactContainer, containerStyle, { opacity: fadeAnim }]}
         accessible={true}
         accessibilityLabel={accessibilityLabel}
         accessibilityRole="none"
       >
         <Text style={styles.compactIcon}>{lightCondition.icon}</Text>
         {showIntensity && lightEstimate.ambientIntensity !== undefined && (
-          <Text style={styles.compactText}>
-            {formatLux(lightEstimate.ambientIntensity)} lux
-          </Text>
+          <Text style={styles.compactText}>{formatLux(lightEstimate.ambientIntensity)} lux</Text>
         )}
       </Animated.View>
     );
@@ -255,11 +243,7 @@ export const LightEstimationFeedback: React.FC<LightEstimationFeedbackProps> = (
 
   return (
     <Animated.View
-      style={[
-        styles.container,
-        containerStyle,
-        { opacity: fadeAnim },
-      ]}
+      style={[styles.container, containerStyle, { opacity: fadeAnim }]}
       accessible={true}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="none"
@@ -277,9 +261,7 @@ export const LightEstimationFeedback: React.FC<LightEstimationFeedbackProps> = (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>Ambient Intensity</Text>
-            <Text style={styles.sectionValue}>
-              {formatLux(lightEstimate.ambientIntensity)} lux
-            </Text>
+            <Text style={styles.sectionValue}>{formatLux(lightEstimate.ambientIntensity)} lux</Text>
           </View>
           <View style={styles.intensityBar}>
             <Animated.View
@@ -309,10 +291,7 @@ export const LightEstimationFeedback: React.FC<LightEstimationFeedbackProps> = (
           </View>
           <View style={styles.temperatureBar}>
             <View
-              style={[
-                styles.temperatureIndicator,
-                { backgroundColor: temperatureInfo.color },
-              ]}
+              style={[styles.temperatureIndicator, { backgroundColor: temperatureInfo.color }]}
             />
             <Text style={styles.temperatureLabel}>{temperatureInfo.label}</Text>
           </View>
@@ -339,8 +318,8 @@ export const LightEstimationFeedback: React.FC<LightEstimationFeedbackProps> = (
                     shadowQuality === 'Excellent'
                       ? '#10B981'
                       : shadowQuality === 'Good'
-                      ? '#F59E0B'
-                      : '#EF4444',
+                        ? '#F59E0B'
+                        : '#EF4444',
                 },
               ]}
             >

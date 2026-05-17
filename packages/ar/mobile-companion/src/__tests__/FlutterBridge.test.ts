@@ -12,7 +12,7 @@ describe('PLATFORM_CHANNELS', () => {
   });
 
   it('all channels start with io.hololand.ar/', () => {
-    Object.values(PLATFORM_CHANNELS).forEach(ch => {
+    Object.values(PLATFORM_CHANNELS).forEach((ch) => {
       expect(ch).toMatch(/^io\.hololand\.ar\//);
     });
   });
@@ -40,11 +40,9 @@ describe('PLATFORM_CHANNELS', () => {
 
 describe('validateChannelMessage', () => {
   it('accepts valid channel and method', () => {
-    const result = validateChannelMessage(
-      'io.hololand.ar/session',
-      'initSession',
-      { mode: 'world' }
-    );
+    const result = validateChannelMessage('io.hololand.ar/session', 'initSession', {
+      mode: 'world',
+    });
     expect(result.valid).toBe(true);
     expect(result.error).toBeUndefined();
   });
@@ -90,7 +88,7 @@ describe('validateChannelMessage', () => {
   });
 
   it('validates all channel names', () => {
-    Object.values(PLATFORM_CHANNELS).forEach(ch => {
+    Object.values(PLATFORM_CHANNELS).forEach((ch) => {
       const result = validateChannelMessage(ch, 'test', {});
       expect(result.valid).toBe(true);
     });

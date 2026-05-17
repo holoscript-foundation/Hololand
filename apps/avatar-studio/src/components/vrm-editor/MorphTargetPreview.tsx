@@ -92,7 +92,7 @@ function drawFacePreview(
   w: number,
   h: number,
   weights: MorphTargetWeight[],
-  intensity: number,
+  intensity: number
 ) {
   const weightMap = new Map<string, number>();
   for (const { name, weight } of weights) {
@@ -158,7 +158,15 @@ function drawFacePreview(
   // Left eye
   ctx.fillStyle = '#d4d8e8';
   ctx.beginPath();
-  ctx.ellipse(cx - scale * 0.2, cy - scale * 0.15, scale * 0.1, Math.max(lEyeH, 1), 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    cx - scale * 0.2,
+    cy - scale * 0.15,
+    scale * 0.1,
+    Math.max(lEyeH, 1),
+    0,
+    0,
+    Math.PI * 2
+  );
   ctx.fill();
 
   // Left iris
@@ -176,7 +184,15 @@ function drawFacePreview(
   // Right eye
   ctx.fillStyle = '#d4d8e8';
   ctx.beginPath();
-  ctx.ellipse(cx + scale * 0.2, cy - scale * 0.15, scale * 0.1, Math.max(rEyeH, 1), 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    cx + scale * 0.2,
+    cy - scale * 0.15,
+    scale * 0.1,
+    Math.max(rEyeH, 1),
+    0,
+    0,
+    Math.PI * 2
+  );
   ctx.fill();
 
   // Right iris
@@ -214,8 +230,8 @@ function drawFacePreview(
   const mouthY = cy + scale * 0.2 + jawOpen * scale * 0.08;
   const mouthWidth = scale * 0.2 * (1 - mouthPucker * 0.4 - mouthFunnel * 0.3);
   const mouthOpenH = jawOpen * scale * 0.12;
-  const smileCurve = (smileL + smileR) / 2 * scale * 0.08;
-  const frownCurve = (frownL + frownR) / 2 * scale * 0.06;
+  const smileCurve = ((smileL + smileR) / 2) * scale * 0.08;
+  const frownCurve = ((frownL + frownR) / 2) * scale * 0.06;
 
   ctx.strokeStyle = '#c97878';
   ctx.lineWidth = 2;
@@ -228,7 +244,12 @@ function drawFacePreview(
     ctx.stroke();
   } else {
     ctx.moveTo(cx - mouthWidth, mouthY + frownCurve);
-    ctx.quadraticCurveTo(cx, mouthY - smileCurve + frownCurve, cx + mouthWidth, mouthY + frownCurve);
+    ctx.quadraticCurveTo(
+      cx,
+      mouthY - smileCurve + frownCurve,
+      cx + mouthWidth,
+      mouthY + frownCurve
+    );
     ctx.stroke();
   }
 
@@ -238,13 +259,29 @@ function drawFacePreview(
   if (cheekL > 0.1) {
     ctx.fillStyle = `rgba(200, 150, 150, ${cheekL * 0.15})`;
     ctx.beginPath();
-    ctx.ellipse(cx - scale * 0.35, cy + scale * 0.02, scale * 0.08, scale * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(
+      cx - scale * 0.35,
+      cy + scale * 0.02,
+      scale * 0.08,
+      scale * 0.06,
+      0,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
   }
   if (cheekR > 0.1) {
     ctx.fillStyle = `rgba(200, 150, 150, ${cheekR * 0.15})`;
     ctx.beginPath();
-    ctx.ellipse(cx + scale * 0.35, cy + scale * 0.02, scale * 0.08, scale * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(
+      cx + scale * 0.35,
+      cy + scale * 0.02,
+      scale * 0.08,
+      scale * 0.06,
+      0,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
   }
 }
@@ -311,11 +348,7 @@ export function MorphTargetPreview({ onPresetApply }: MorphTargetPreviewProps) {
 
       // Smooth intensity easing
       const progress = elapsed / cycleDuration;
-      const eased = progress < 0.3
-        ? progress / 0.3
-        : progress > 0.7
-          ? (1 - progress) / 0.3
-          : 1;
+      const eased = progress < 0.3 ? progress / 0.3 : progress > 0.7 ? (1 - progress) / 0.3 : 1;
       setIntensity(Math.min(1, Math.max(0, eased)));
 
       animFrameRef.current = requestAnimationFrame(animate);
@@ -334,7 +367,7 @@ export function MorphTargetPreview({ onPresetApply }: MorphTargetPreviewProps) {
       setIntensity(1.0);
       onPresetApply?.(preset.name, preset.weights);
     },
-    [onPresetApply],
+    [onPresetApply]
   );
 
   return (
@@ -345,7 +378,10 @@ export function MorphTargetPreview({ onPresetApply }: MorphTargetPreviewProps) {
       />
 
       {/* Preview Canvas */}
-      <div className="studio-panel rounded-lg overflow-hidden bg-studio-bg" style={{ height: '240px' }}>
+      <div
+        className="studio-panel rounded-lg overflow-hidden bg-studio-bg"
+        style={{ height: '240px' }}
+      >
         <canvas ref={canvasRef} className="w-full h-full" />
       </div>
 

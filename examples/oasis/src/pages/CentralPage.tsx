@@ -3,11 +3,46 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Text, Sky, Cloud } from '@react-three/drei';
 
 const ZONES = [
-  { id: 'plaza', name: 'Plaza', description: 'Main gathering area', players: 12, position: [0, 0, 0] as [number, number, number], color: '#FFF8E7' },
-  { id: 'casino', name: 'Casino', description: 'Try your luck!', players: 8, position: [20, 0, 0] as [number, number, number], color: '#FFD54F' },
-  { id: 'arcade', name: 'Arcade', description: 'Retro games', players: 15, position: [-20, 0, 0] as [number, number, number], color: '#7CB342' },
-  { id: 'lounge', name: 'Lounge', description: 'Chill & chat', players: 6, position: [0, 0, 20] as [number, number, number], color: '#E8A87C' },
-  { id: 'builder', name: 'Builder', description: 'Create together', players: 4, position: [0, 0, -20] as [number, number, number], color: '#5DADE2' },
+  {
+    id: 'plaza',
+    name: 'Plaza',
+    description: 'Main gathering area',
+    players: 12,
+    position: [0, 0, 0] as [number, number, number],
+    color: '#FFF8E7',
+  },
+  {
+    id: 'casino',
+    name: 'Casino',
+    description: 'Try your luck!',
+    players: 8,
+    position: [20, 0, 0] as [number, number, number],
+    color: '#FFD54F',
+  },
+  {
+    id: 'arcade',
+    name: 'Arcade',
+    description: 'Retro games',
+    players: 15,
+    position: [-20, 0, 0] as [number, number, number],
+    color: '#7CB342',
+  },
+  {
+    id: 'lounge',
+    name: 'Lounge',
+    description: 'Chill & chat',
+    players: 6,
+    position: [0, 0, 20] as [number, number, number],
+    color: '#E8A87C',
+  },
+  {
+    id: 'builder',
+    name: 'Builder',
+    description: 'Create together',
+    players: 4,
+    position: [0, 0, -20] as [number, number, number],
+    color: '#5DADE2',
+  },
 ];
 
 export default function CentralPage() {
@@ -17,11 +52,7 @@ export default function CentralPage() {
   return (
     <div className="absolute inset-0">
       {/* 3D Canvas */}
-      <Canvas
-        camera={{ position: [0, 15, 35], fov: 55 }}
-        className="w-full h-full"
-        shadows
-      >
+      <Canvas camera={{ position: [0, 15, 35], fov: 55 }} className="w-full h-full" shadows>
         <Suspense fallback={null}>
           {/* Bright Mediterranean sky */}
           <Sky
@@ -122,7 +153,10 @@ export default function CentralPage() {
               >
                 <EyeOffIcon className="w-5 h-5 text-meadow-text-muted" />
               </button>
-              <button className="glass rounded-xl p-2.5 hover:bg-meadow-cream transition-colors" title="Settings">
+              <button
+                className="glass rounded-xl p-2.5 hover:bg-meadow-cream transition-colors"
+                title="Settings"
+              >
                 <SettingsIcon className="w-5 h-5 text-meadow-text-muted" />
               </button>
               <button className="btn-sky">Enter VR</button>
@@ -139,9 +173,10 @@ export default function CentralPage() {
                     onClick={() => setSelectedZone(zone.id)}
                     className={`
                       flex-shrink-0 p-4 rounded-xl transition-all duration-200 min-w-[120px]
-                      ${selectedZone === zone.id
-                        ? 'bg-meadow-grass text-white shadow-grass'
-                        : 'bg-meadow-cream-dark/50 text-meadow-text hover:bg-meadow-cream-dark'
+                      ${
+                        selectedZone === zone.id
+                          ? 'bg-meadow-grass text-white shadow-grass'
+                          : 'bg-meadow-cream-dark/50 text-meadow-text hover:bg-meadow-cream-dark'
                       }
                     `}
                   >
@@ -161,9 +196,7 @@ export default function CentralPage() {
                       {ZONES.find((z) => z.id === selectedZone)?.description}
                     </p>
                   </div>
-                  <button className="btn-primary">
-                    Enter Zone
-                  </button>
+                  <button className="btn-primary">Enter Zone</button>
                 </div>
               )}
             </div>
@@ -177,9 +210,10 @@ export default function CentralPage() {
                   key={zone.id}
                   className={`
                     absolute w-4 h-4 rounded-lg transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all
-                    ${selectedZone === zone.id
-                      ? 'bg-meadow-grass scale-125 shadow-grass'
-                      : 'bg-meadow-cream-dark hover:bg-meadow-cream'
+                    ${
+                      selectedZone === zone.id
+                        ? 'bg-meadow-grass scale-125 shadow-grass'
+                        : 'bg-meadow-cream-dark hover:bg-meadow-cream'
                     }
                   `}
                   style={{
@@ -225,10 +259,7 @@ function MediterraneanBuilding({
       {/* Main building - cream/terracotta walls */}
       <mesh position={[0, 3, 0]} castShadow receiveShadow>
         <boxGeometry args={[10, 6, 10]} />
-        <meshStandardMaterial
-          color={zone.color}
-          roughness={0.8}
-        />
+        <meshStandardMaterial color={zone.color} roughness={0.8} />
       </mesh>
 
       {/* Terracotta roof */}
@@ -289,7 +320,13 @@ function Fountain({ position }: { position: [number, number, number] }) {
       {/* Water pool */}
       <mesh position={[0, 0.35, 0]}>
         <cylinderGeometry args={[2.5, 2.5, 0.3, 32]} />
-        <meshStandardMaterial color="#5DADE2" roughness={0.2} metalness={0.3} transparent opacity={0.8} />
+        <meshStandardMaterial
+          color="#5DADE2"
+          roughness={0.2}
+          metalness={0.3}
+          transparent
+          opacity={0.8}
+        />
       </mesh>
       {/* Center pillar */}
       <mesh position={[0, 1.5, 0]} castShadow>
@@ -306,7 +343,13 @@ function Fountain({ position }: { position: [number, number, number] }) {
 }
 
 // Simple stylized tree
-function SimpleTree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+function SimpleTree({
+  position,
+  scale = 1,
+}: {
+  position: [number, number, number];
+  scale?: number;
+}) {
   return (
     <group position={position} scale={scale}>
       {/* Trunk */}
@@ -331,8 +374,18 @@ function SimpleTree({ position, scale = 1 }: { position: [number, number, number
 function EyeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+      />
     </svg>
   );
 }
@@ -340,7 +393,12 @@ function EyeIcon({ className }: { className?: string }) {
 function EyeOffIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+      />
     </svg>
   );
 }
@@ -348,8 +406,18 @@ function EyeOffIcon({ className }: { className?: string }) {
 function SettingsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
     </svg>
   );
 }

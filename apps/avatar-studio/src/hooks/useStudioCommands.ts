@@ -17,13 +17,37 @@ export function useStudioCommands(store: UseBlueprintReturn): Command[] {
     // Navigation commands (switch tabs)
     // -----------------------------------------------------------------------
     const tabs: { id: StudioTab; label: string; keywords: string[] }[] = [
-      { id: 'body', label: 'Go to Body', keywords: ['body', 'proportions', 'height', 'build', 'skin', 'physique'] },
-      { id: 'face', label: 'Go to Face', keywords: ['face', 'eyes', 'nose', 'mouth', 'shape', 'morphs'] },
+      {
+        id: 'body',
+        label: 'Go to Body',
+        keywords: ['body', 'proportions', 'height', 'build', 'skin', 'physique'],
+      },
+      {
+        id: 'face',
+        label: 'Go to Face',
+        keywords: ['face', 'eyes', 'nose', 'mouth', 'shape', 'morphs'],
+      },
       { id: 'hair', label: 'Go to Hair', keywords: ['hair', 'hairstyle', 'color', 'bangs'] },
-      { id: 'clothing', label: 'Go to Clothing', keywords: ['clothing', 'clothes', 'outfit', 'shirt', 'pants', 'dress'] },
-      { id: 'accessories', label: 'Go to Accessories', keywords: ['accessories', 'hat', 'glasses', 'jewelry', 'earrings'] },
-      { id: 'expressions', label: 'Go to Expressions', keywords: ['expressions', 'emotion', 'smile', 'angry', 'happy', 'sad'] },
-      { id: 'export', label: 'Go to Compile/Export', keywords: ['export', 'compile', 'ast', 'hsplus', 'save', 'file'] },
+      {
+        id: 'clothing',
+        label: 'Go to Clothing',
+        keywords: ['clothing', 'clothes', 'outfit', 'shirt', 'pants', 'dress'],
+      },
+      {
+        id: 'accessories',
+        label: 'Go to Accessories',
+        keywords: ['accessories', 'hat', 'glasses', 'jewelry', 'earrings'],
+      },
+      {
+        id: 'expressions',
+        label: 'Go to Expressions',
+        keywords: ['expressions', 'emotion', 'smile', 'angry', 'happy', 'sad'],
+      },
+      {
+        id: 'export',
+        label: 'Go to Compile/Export',
+        keywords: ['export', 'compile', 'ast', 'hsplus', 'save', 'file'],
+      },
     ];
 
     for (const tab of tabs) {

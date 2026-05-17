@@ -9,15 +9,8 @@ export default function CreatorPage() {
   const [prompt, setPrompt] = useState('');
 
   // Use Brittney AI hook
-  const {
-    messages,
-    isGenerating,
-    currentCode,
-    error,
-    sendMessage,
-    setCode,
-    suggestions,
-  } = useBrittney();
+  const { messages, isGenerating, currentCode, error, sendMessage, setCode, suggestions } =
+    useBrittney();
 
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
@@ -31,9 +24,7 @@ export default function CreatorPage() {
       <div className="flex items-center justify-between p-4 border-b border-white/5">
         <div>
           <h1 className="text-xl font-bold text-oasis-text">Creator Studio</h1>
-          <p className="text-sm text-oasis-text-muted">
-            Build worlds with AI assistance
-          </p>
+          <p className="text-sm text-oasis-text-muted">Build worlds with AI assistance</p>
         </div>
         <div className="flex items-center gap-2">
           <button className="btn-secondary">Save Draft</button>
@@ -76,11 +67,13 @@ export default function CreatorPage() {
                 {/* Render all messages from Brittney hook */}
                 {messages.map((message) => (
                   <div key={message.id} className="flex gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.role === 'assistant'
-                        ? 'bg-gradient-to-br from-oasis-primary to-oasis-secondary'
-                        : 'bg-oasis-surface-light'
-                    }`}>
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        message.role === 'assistant'
+                          ? 'bg-gradient-to-br from-oasis-primary to-oasis-secondary'
+                          : 'bg-oasis-surface-light'
+                      }`}
+                    >
                       {message.role === 'assistant' ? (
                         <AIIcon className="w-5 h-5 text-white" />
                       ) : (
@@ -174,11 +167,7 @@ export default function CreatorPage() {
                     className="btn-primary"
                     disabled={isGenerating || !prompt.trim()}
                   >
-                    {isGenerating ? (
-                      <LoadingIcon className="w-5 h-5 animate-spin" />
-                    ) : (
-                      'Generate'
-                    )}
+                    {isGenerating ? <LoadingIcon className="w-5 h-5 animate-spin" /> : 'Generate'}
                   </button>
                 </div>
               </div>
@@ -195,9 +184,7 @@ export default function CreatorPage() {
               ) : (
                 <div className="text-center">
                   <PreviewIcon className="w-16 h-16 text-oasis-text-muted mx-auto mb-4" />
-                  <p className="text-oasis-text-muted">
-                    3D preview will appear here
-                  </p>
+                  <p className="text-oasis-text-muted">3D preview will appear here</p>
                   <p className="text-sm text-oasis-text-muted mt-1">
                     Generate code to see a preview
                   </p>
@@ -235,19 +222,21 @@ export default function CreatorPage() {
         {activeTab === 'assets' && (
           <div className="h-full p-4">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {['Furniture', 'Nature', 'Buildings', 'Vehicles', 'Characters', 'Effects'].map((category) => (
-                <Link
-                  key={category}
-                  to={`/create/assets/${category.toLowerCase()}`}
-                  className="card p-4 text-center hover:border-oasis-primary/50 transition-colors"
-                >
-                  <div className="w-12 h-12 rounded-lg bg-oasis-surface-light mx-auto mb-2 flex items-center justify-center">
-                    <AssetIcon className="w-6 h-6 text-oasis-text-muted" />
-                  </div>
-                  <p className="text-sm font-medium text-oasis-text">{category}</p>
-                  <p className="text-xs text-oasis-text-muted mt-1">24 items</p>
-                </Link>
-              ))}
+              {['Furniture', 'Nature', 'Buildings', 'Vehicles', 'Characters', 'Effects'].map(
+                (category) => (
+                  <Link
+                    key={category}
+                    to={`/create/assets/${category.toLowerCase()}`}
+                    className="card p-4 text-center hover:border-oasis-primary/50 transition-colors"
+                  >
+                    <div className="w-12 h-12 rounded-lg bg-oasis-surface-light mx-auto mb-2 flex items-center justify-center">
+                      <AssetIcon className="w-6 h-6 text-oasis-text-muted" />
+                    </div>
+                    <p className="text-sm font-medium text-oasis-text">{category}</p>
+                    <p className="text-xs text-oasis-text-muted mt-1">24 items</p>
+                  </Link>
+                )
+              )}
             </div>
           </div>
         )}
@@ -272,9 +261,10 @@ function TabButton({
       onClick={onClick}
       className={`
         flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
-        ${active
-          ? 'bg-oasis-surface text-oasis-text'
-          : 'text-oasis-text-muted hover:text-oasis-text'
+        ${
+          active
+            ? 'bg-oasis-surface text-oasis-text'
+            : 'text-oasis-text-muted hover:text-oasis-text'
         }
       `}
     >
@@ -287,32 +277,52 @@ function TabButton({
 // Icons
 function AIIcon({ className }: { className?: string }) {
   return (
-    <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+    <svg className={className || 'w-4 h-4'} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+      />
     </svg>
   );
 }
 
 function UserIcon({ className }: { className?: string }) {
   return (
-    <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    <svg className={className || 'w-4 h-4'} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+      />
     </svg>
   );
 }
 
 function CodeIcon({ className }: { className?: string }) {
   return (
-    <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+    <svg className={className || 'w-4 h-4'} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+      />
     </svg>
   );
 }
 
 function AssetIcon({ className }: { className?: string }) {
   return (
-    <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    <svg className={className || 'w-4 h-4'} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+      />
     </svg>
   );
 }
@@ -320,8 +330,18 @@ function AssetIcon({ className }: { className?: string }) {
 function PreviewIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+      />
     </svg>
   );
 }
@@ -330,7 +350,11 @@ function LoadingIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
     </svg>
   );
 }

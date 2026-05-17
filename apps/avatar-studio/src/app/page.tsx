@@ -47,9 +47,7 @@ export default function StudioPage() {
       {/* Top Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-studio-border bg-studio-panel">
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold text-studio-text tracking-wide">
-            HOLOLAND
-          </h1>
+          <h1 className="text-sm font-bold text-studio-text tracking-wide">HOLOLAND</h1>
           <span className="text-xs text-studio-muted">Avatar Studio</span>
         </div>
         <div className="flex items-center gap-2">
@@ -73,10 +71,11 @@ export default function StudioPage() {
               />
             </svg>
             <span className="hidden sm:inline text-studio-muted">Search</span>
-            <kbd className="hidden sm:inline-flex items-center px-1 py-0.5 text-[10px] font-mono
-                            text-studio-muted bg-studio-bg border border-studio-border rounded ml-1">
-              {typeof navigator !== 'undefined' &&
-              /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+            <kbd
+              className="hidden sm:inline-flex items-center px-1 py-0.5 text-[10px] font-mono
+                            text-studio-muted bg-studio-bg border border-studio-border rounded ml-1"
+            >
+              {typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
                 ? '\u2318K'
                 : 'Ctrl+K'}
             </kbd>
@@ -91,12 +90,7 @@ export default function StudioPage() {
             className="studio-btn-secondary p-1.5 disabled:opacity-30"
             title="Undo (Ctrl+Z)"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -111,12 +105,7 @@ export default function StudioPage() {
             className="studio-btn-secondary p-1.5 disabled:opacity-30"
             title="Redo (Ctrl+Y)"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -129,16 +118,10 @@ export default function StudioPage() {
           <div className="w-px h-5 bg-studio-border mx-1" />
 
           {/* Dirty indicator */}
-          {store.isDirty && (
-            <span className="text-[10px] text-amber-400 font-medium">
-              Unsaved
-            </span>
-          )}
+          {store.isDirty && <span className="text-[10px] text-amber-400 font-medium">Unsaved</span>}
 
           {/* Avatar name */}
-          <span className="text-xs text-studio-muted font-mono">
-            {store.blueprint.name}
-          </span>
+          <span className="text-xs text-studio-muted font-mono">{store.blueprint.name}</span>
         </div>
       </header>
 
@@ -152,9 +135,7 @@ export default function StudioPage() {
         {/* Editor Panel (right) */}
         <aside className="w-[360px] flex-shrink-0 border-l border-studio-border bg-studio-panel flex flex-col">
           <TabBar activeTab={store.activeTab} onTabChange={store.setTab} />
-          <div className="flex-1 min-h-0 overflow-hidden">
-            {renderActiveTab()}
-          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">{renderActiveTab()}</div>
         </aside>
       </div>
 

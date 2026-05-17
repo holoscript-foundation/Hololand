@@ -292,9 +292,7 @@ export const StudioModeSwitcher: React.FC<StudioModeSwitcherProps> = ({
               disabled={!config.enabled}
             >
               <span style={styles.tabLabel}>{config.label}</span>
-              {config.badge && (
-                <span style={styles.tabBadge}>{config.badge}</span>
-              )}
+              {config.badge && <span style={styles.tabBadge}>{config.badge}</span>}
             </button>
           );
         })}
@@ -303,9 +301,7 @@ export const StudioModeSwitcher: React.FC<StudioModeSwitcherProps> = ({
       {/* Active Mode Description */}
       {showDescriptions && (
         <div style={styles.modeDescription}>
-          <p style={styles.modeDescriptionText}>
-            {modeConfigs[activeMode]?.description}
-          </p>
+          <p style={styles.modeDescriptionText}>{modeConfigs[activeMode]?.description}</p>
         </div>
       )}
 

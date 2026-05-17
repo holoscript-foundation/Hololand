@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getAvatar,
-  updateAvatar,
-  deleteAvatar,
-} from '@/lib/avatarStore';
+import { getAvatar, updateAvatar, deleteAvatar } from '@/lib/avatarStore';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -14,18 +10,12 @@ interface RouteContext {
  *
  * Retrieve a single avatar by ID.
  */
-export async function GET(
-  request: NextRequest,
-  context: RouteContext,
-) {
+export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const avatar = getAvatar(id);
 
   if (!avatar) {
-    return NextResponse.json(
-      { error: 'Avatar not found', code: 'NOT_FOUND' },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: 'Avatar not found', code: 'NOT_FOUND' }, { status: 404 });
   }
 
   return NextResponse.json({ data: avatar });
@@ -36,10 +26,7 @@ export async function GET(
  *
  * Update an existing avatar's blueprint.
  */
-export async function PUT(
-  request: NextRequest,
-  context: RouteContext,
-) {
+export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
     const body = await request.json();
@@ -48,17 +35,14 @@ export async function PUT(
     if (!blueprint) {
       return NextResponse.json(
         { error: 'Missing blueprint in request body', code: 'MISSING_BLUEPRINT' },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const updated = updateAvatar(id, blueprint, changeDescription);
 
     if (!updated) {
-      return NextResponse.json(
-        { error: 'Avatar not found', code: 'NOT_FOUND' },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: 'Avatar not found', code: 'NOT_FOUND' }, { status: 404 });
     }
 
     return NextResponse.json({ data: updated });
@@ -69,7 +53,7 @@ export async function PUT(
         code: 'UPDATE_FAILED',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -79,18 +63,12 @@ export async function PUT(
  *
  * Delete an avatar by ID.
  */
-export async function DELETE(
-  request: NextRequest,
-  context: RouteContext,
-) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
   const deleted = deleteAvatar(id);
 
   if (!deleted) {
-    return NextResponse.json(
-      { error: 'Avatar not found', code: 'NOT_FOUND' },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: 'Avatar not found', code: 'NOT_FOUND' }, { status: 404 });
   }
 
   return new NextResponse(null, { status: 204 });
@@ -107,8 +85,7 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers':
-        'Content-Type, Authorization, X-App-ID, X-User-Token',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-App-ID, X-User-Token',
     },
   });
 }

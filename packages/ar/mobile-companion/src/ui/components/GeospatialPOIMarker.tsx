@@ -139,12 +139,7 @@ const CATEGORY_STYLES: Record<POICategory, MarkerStyle> = {
 /**
  * Calculate distance between two geographic coordinates using Haversine formula
  */
-const calculateDistance = (
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number => {
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
 
@@ -162,20 +157,14 @@ const calculateDistance = (
 /**
  * Calculate bearing (direction angle) from point A to point B
  */
-const calculateBearing = (
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number => {
+const calculateBearing = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const lat1Rad = (lat1 * Math.PI) / 180;
   const lat2Rad = (lat2 * Math.PI) / 180;
 
   const y = Math.sin(dLon) * Math.cos(lat2Rad);
   const x =
-    Math.cos(lat1Rad) * Math.sin(lat2Rad) -
-    Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+    Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
 
   const bearing = Math.atan2(y, x);
   return ((bearing * 180) / Math.PI + 360) % 360; // Normalize to 0-360
@@ -195,11 +184,7 @@ const formatDistance = (meters: number): string => {
 /**
  * Calculate scale factor based on distance
  */
-const calculateScale = (
-  distance: number,
-  minScale: number,
-  maxScale: number
-): number => {
+const calculateScale = (distance: number, minScale: number, maxScale: number): number => {
   // Closer = larger, farther = smaller
   const normalizedDistance = Math.min(distance / 100, 1); // Normalize to 0-1 over 100m
   return maxScale - (maxScale - minScale) * normalizedDistance;
@@ -400,9 +385,7 @@ export const GeospatialPOIMarker: React.FC<GeospatialPOIMarkerProps> = ({
           {/* Elevation indicator */}
           {elevationIndicator && (
             <View style={styles.elevationBadge}>
-              <Text style={styles.elevationText}>
-                {elevationIndicator.arrow}
-              </Text>
+              <Text style={styles.elevationText}>{elevationIndicator.arrow}</Text>
             </View>
           )}
         </View>
@@ -413,16 +396,10 @@ export const GeospatialPOIMarker: React.FC<GeospatialPOIMarkerProps> = ({
             {poi.name}
           </Text>
 
-          {showDistance && (
-            <Text style={styles.distanceText}>
-              {formatDistance(distance)}
-            </Text>
-          )}
+          {showDistance && <Text style={styles.distanceText}>{formatDistance(distance)}</Text>}
 
           {elevationIndicator && (
-            <Text style={styles.elevationLabel}>
-              {elevationIndicator.label}
-            </Text>
+            <Text style={styles.elevationLabel}>{elevationIndicator.label}</Text>
           )}
         </View>
 

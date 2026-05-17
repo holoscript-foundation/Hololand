@@ -136,12 +136,9 @@ export function useVR() {
   }, [state.session]);
 
   // Get controller by hand
-  const getController = useCallback(
-    (hand: VRControllerHand): VRController | undefined => {
-      return controllersRef.current.find((c) => c.hand === hand);
-    },
-    []
-  );
+  const getController = useCallback((hand: VRControllerHand): VRController | undefined => {
+    return controllersRef.current.find((c) => c.hand === hand);
+  }, []);
 
   // Get pointing direction from controller
   const getPointingDirection = useCallback(

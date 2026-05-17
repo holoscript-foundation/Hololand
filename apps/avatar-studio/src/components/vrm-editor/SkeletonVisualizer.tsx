@@ -10,46 +10,234 @@ import type { BoneNode, HumanoidBoneGroup, IKChain } from './types';
 
 const DEFAULT_BONES: BoneNode[] = [
   // Spine chain
-  { name: 'Hips', humanoidName: 'hips', group: 'spine', position: [0, 0.95, 0], rotation: [0, 0, 0, 1], children: ['Spine', 'LeftUpperLeg', 'RightUpperLeg'] },
-  { name: 'Spine', humanoidName: 'spine', group: 'spine', position: [0, 1.05, 0], rotation: [0, 0, 0, 1], children: ['Chest'] },
-  { name: 'Chest', humanoidName: 'chest', group: 'spine', position: [0, 1.2, 0], rotation: [0, 0, 0, 1], children: ['UpperChest'] },
-  { name: 'UpperChest', humanoidName: 'upperChest', group: 'spine', position: [0, 1.35, 0], rotation: [0, 0, 0, 1], children: ['Neck', 'LeftShoulder', 'RightShoulder'] },
-  { name: 'Neck', humanoidName: 'neck', group: 'head', position: [0, 1.5, 0], rotation: [0, 0, 0, 1], children: ['Head'] },
-  { name: 'Head', humanoidName: 'head', group: 'head', position: [0, 1.6, 0], rotation: [0, 0, 0, 1], children: ['LeftEye', 'RightEye'] },
-  { name: 'LeftEye', humanoidName: 'leftEye', group: 'head', position: [-0.03, 1.65, 0.05], rotation: [0, 0, 0, 1], children: [] },
-  { name: 'RightEye', humanoidName: 'rightEye', group: 'head', position: [0.03, 1.65, 0.05], rotation: [0, 0, 0, 1], children: [] },
+  {
+    name: 'Hips',
+    humanoidName: 'hips',
+    group: 'spine',
+    position: [0, 0.95, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['Spine', 'LeftUpperLeg', 'RightUpperLeg'],
+  },
+  {
+    name: 'Spine',
+    humanoidName: 'spine',
+    group: 'spine',
+    position: [0, 1.05, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['Chest'],
+  },
+  {
+    name: 'Chest',
+    humanoidName: 'chest',
+    group: 'spine',
+    position: [0, 1.2, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['UpperChest'],
+  },
+  {
+    name: 'UpperChest',
+    humanoidName: 'upperChest',
+    group: 'spine',
+    position: [0, 1.35, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['Neck', 'LeftShoulder', 'RightShoulder'],
+  },
+  {
+    name: 'Neck',
+    humanoidName: 'neck',
+    group: 'head',
+    position: [0, 1.5, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['Head'],
+  },
+  {
+    name: 'Head',
+    humanoidName: 'head',
+    group: 'head',
+    position: [0, 1.6, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['LeftEye', 'RightEye'],
+  },
+  {
+    name: 'LeftEye',
+    humanoidName: 'leftEye',
+    group: 'head',
+    position: [-0.03, 1.65, 0.05],
+    rotation: [0, 0, 0, 1],
+    children: [],
+  },
+  {
+    name: 'RightEye',
+    humanoidName: 'rightEye',
+    group: 'head',
+    position: [0.03, 1.65, 0.05],
+    rotation: [0, 0, 0, 1],
+    children: [],
+  },
 
   // Left arm
-  { name: 'LeftShoulder', humanoidName: 'leftShoulder', group: 'leftArm', position: [-0.1, 1.4, 0], rotation: [0, 0, 0, 1], children: ['LeftUpperArm'] },
-  { name: 'LeftUpperArm', humanoidName: 'leftUpperArm', group: 'leftArm', position: [-0.2, 1.35, 0], rotation: [0, 0, 0, 1], children: ['LeftLowerArm'] },
-  { name: 'LeftLowerArm', humanoidName: 'leftLowerArm', group: 'leftArm', position: [-0.45, 1.35, 0], rotation: [0, 0, 0, 1], children: ['LeftHand'] },
-  { name: 'LeftHand', humanoidName: 'leftHand', group: 'leftHand', position: [-0.65, 1.35, 0], rotation: [0, 0, 0, 1], children: [] },
+  {
+    name: 'LeftShoulder',
+    humanoidName: 'leftShoulder',
+    group: 'leftArm',
+    position: [-0.1, 1.4, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['LeftUpperArm'],
+  },
+  {
+    name: 'LeftUpperArm',
+    humanoidName: 'leftUpperArm',
+    group: 'leftArm',
+    position: [-0.2, 1.35, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['LeftLowerArm'],
+  },
+  {
+    name: 'LeftLowerArm',
+    humanoidName: 'leftLowerArm',
+    group: 'leftArm',
+    position: [-0.45, 1.35, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['LeftHand'],
+  },
+  {
+    name: 'LeftHand',
+    humanoidName: 'leftHand',
+    group: 'leftHand',
+    position: [-0.65, 1.35, 0],
+    rotation: [0, 0, 0, 1],
+    children: [],
+  },
 
   // Right arm
-  { name: 'RightShoulder', humanoidName: 'rightShoulder', group: 'rightArm', position: [0.1, 1.4, 0], rotation: [0, 0, 0, 1], children: ['RightUpperArm'] },
-  { name: 'RightUpperArm', humanoidName: 'rightUpperArm', group: 'rightArm', position: [0.2, 1.35, 0], rotation: [0, 0, 0, 1], children: ['RightLowerArm'] },
-  { name: 'RightLowerArm', humanoidName: 'rightLowerArm', group: 'rightArm', position: [0.45, 1.35, 0], rotation: [0, 0, 0, 1], children: ['RightHand'] },
-  { name: 'RightHand', humanoidName: 'rightHand', group: 'rightHand', position: [0.65, 1.35, 0], rotation: [0, 0, 0, 1], children: [] },
+  {
+    name: 'RightShoulder',
+    humanoidName: 'rightShoulder',
+    group: 'rightArm',
+    position: [0.1, 1.4, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['RightUpperArm'],
+  },
+  {
+    name: 'RightUpperArm',
+    humanoidName: 'rightUpperArm',
+    group: 'rightArm',
+    position: [0.2, 1.35, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['RightLowerArm'],
+  },
+  {
+    name: 'RightLowerArm',
+    humanoidName: 'rightLowerArm',
+    group: 'rightArm',
+    position: [0.45, 1.35, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['RightHand'],
+  },
+  {
+    name: 'RightHand',
+    humanoidName: 'rightHand',
+    group: 'rightHand',
+    position: [0.65, 1.35, 0],
+    rotation: [0, 0, 0, 1],
+    children: [],
+  },
 
   // Left leg
-  { name: 'LeftUpperLeg', humanoidName: 'leftUpperLeg', group: 'leftLeg', position: [-0.1, 0.9, 0], rotation: [0, 0, 0, 1], children: ['LeftLowerLeg'] },
-  { name: 'LeftLowerLeg', humanoidName: 'leftLowerLeg', group: 'leftLeg', position: [-0.1, 0.5, 0], rotation: [0, 0, 0, 1], children: ['LeftFoot'] },
-  { name: 'LeftFoot', humanoidName: 'leftFoot', group: 'leftLeg', position: [-0.1, 0.08, 0.05], rotation: [0, 0, 0, 1], children: ['LeftToes'] },
-  { name: 'LeftToes', humanoidName: 'leftToes', group: 'leftLeg', position: [-0.1, 0.02, 0.12], rotation: [0, 0, 0, 1], children: [] },
+  {
+    name: 'LeftUpperLeg',
+    humanoidName: 'leftUpperLeg',
+    group: 'leftLeg',
+    position: [-0.1, 0.9, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['LeftLowerLeg'],
+  },
+  {
+    name: 'LeftLowerLeg',
+    humanoidName: 'leftLowerLeg',
+    group: 'leftLeg',
+    position: [-0.1, 0.5, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['LeftFoot'],
+  },
+  {
+    name: 'LeftFoot',
+    humanoidName: 'leftFoot',
+    group: 'leftLeg',
+    position: [-0.1, 0.08, 0.05],
+    rotation: [0, 0, 0, 1],
+    children: ['LeftToes'],
+  },
+  {
+    name: 'LeftToes',
+    humanoidName: 'leftToes',
+    group: 'leftLeg',
+    position: [-0.1, 0.02, 0.12],
+    rotation: [0, 0, 0, 1],
+    children: [],
+  },
 
   // Right leg
-  { name: 'RightUpperLeg', humanoidName: 'rightUpperLeg', group: 'rightLeg', position: [0.1, 0.9, 0], rotation: [0, 0, 0, 1], children: ['RightLowerLeg'] },
-  { name: 'RightLowerLeg', humanoidName: 'rightLowerLeg', group: 'rightLeg', position: [0.1, 0.5, 0], rotation: [0, 0, 0, 1], children: ['RightFoot'] },
-  { name: 'RightFoot', humanoidName: 'rightFoot', group: 'rightLeg', position: [0.1, 0.08, 0.05], rotation: [0, 0, 0, 1], children: ['RightToes'] },
-  { name: 'RightToes', humanoidName: 'rightToes', group: 'rightLeg', position: [0.1, 0.02, 0.12], rotation: [0, 0, 0, 1], children: [] },
+  {
+    name: 'RightUpperLeg',
+    humanoidName: 'rightUpperLeg',
+    group: 'rightLeg',
+    position: [0.1, 0.9, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['RightLowerLeg'],
+  },
+  {
+    name: 'RightLowerLeg',
+    humanoidName: 'rightLowerLeg',
+    group: 'rightLeg',
+    position: [0.1, 0.5, 0],
+    rotation: [0, 0, 0, 1],
+    children: ['RightFoot'],
+  },
+  {
+    name: 'RightFoot',
+    humanoidName: 'rightFoot',
+    group: 'rightLeg',
+    position: [0.1, 0.08, 0.05],
+    rotation: [0, 0, 0, 1],
+    children: ['RightToes'],
+  },
+  {
+    name: 'RightToes',
+    humanoidName: 'rightToes',
+    group: 'rightLeg',
+    position: [0.1, 0.02, 0.12],
+    rotation: [0, 0, 0, 1],
+    children: [],
+  },
 ];
 
 const DEFAULT_IK_CHAINS: IKChain[] = [
-  { name: 'Left Arm IK', bones: ['LeftShoulder', 'LeftUpperArm', 'LeftLowerArm', 'LeftHand'], color: '#4c9ef6' },
-  { name: 'Right Arm IK', bones: ['RightShoulder', 'RightUpperArm', 'RightLowerArm', 'RightHand'], color: '#f6854c' },
-  { name: 'Left Leg IK', bones: ['LeftUpperLeg', 'LeftLowerLeg', 'LeftFoot', 'LeftToes'], color: '#4cf680' },
-  { name: 'Right Leg IK', bones: ['RightUpperLeg', 'RightLowerLeg', 'RightFoot', 'RightToes'], color: '#f6e84c' },
-  { name: 'Spine IK', bones: ['Hips', 'Spine', 'Chest', 'UpperChest', 'Neck', 'Head'], color: '#c74cf6' },
+  {
+    name: 'Left Arm IK',
+    bones: ['LeftShoulder', 'LeftUpperArm', 'LeftLowerArm', 'LeftHand'],
+    color: '#4c9ef6',
+  },
+  {
+    name: 'Right Arm IK',
+    bones: ['RightShoulder', 'RightUpperArm', 'RightLowerArm', 'RightHand'],
+    color: '#f6854c',
+  },
+  {
+    name: 'Left Leg IK',
+    bones: ['LeftUpperLeg', 'LeftLowerLeg', 'LeftFoot', 'LeftToes'],
+    color: '#4cf680',
+  },
+  {
+    name: 'Right Leg IK',
+    bones: ['RightUpperLeg', 'RightLowerLeg', 'RightFoot', 'RightToes'],
+    color: '#f6e84c',
+  },
+  {
+    name: 'Spine IK',
+    bones: ['Hips', 'Spine', 'Chest', 'UpperChest', 'Neck', 'Head'],
+    color: '#c74cf6',
+  },
 ];
 
 const GROUP_COLORS: Record<HumanoidBoneGroup, string> = {
@@ -124,14 +312,14 @@ export function SkeletonVisualizer({
           return [svgW / 2 + pos[0] * scale, svgH / 2 - pos[2] * scale * 3];
       }
     },
-    [viewMode],
+    [viewMode]
   );
 
   const handleBoneClick = useCallback(
     (name: string) => {
       onBoneSelect?.(name);
     },
-    [onBoneSelect],
+    [onBoneSelect]
   );
 
   return (
@@ -172,11 +360,7 @@ export function SkeletonVisualizer({
 
       {/* SVG Skeleton Visualization */}
       <div className="studio-panel rounded-lg p-2 bg-studio-bg">
-        <svg
-          viewBox="0 0 300 400"
-          className="w-full h-auto"
-          style={{ maxHeight: '360px' }}
-        >
+        <svg viewBox="0 0 300 400" className="w-full h-auto" style={{ maxHeight: '360px' }}>
           {/* Background grid */}
           <defs>
             <pattern id="skel-grid" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -207,14 +391,14 @@ export function SkeletonVisualizer({
                     isSelected
                       ? '#ffffff'
                       : isHighlighted
-                        ? ikChains.find((c) => c.bones.includes(bone.name))?.color ?? '#666'
+                        ? (ikChains.find((c) => c.bones.includes(bone.name))?.color ?? '#666')
                         : GROUP_COLORS[bone.group] + '60'
                   }
                   strokeWidth={isSelected ? 3 : isHighlighted ? 2.5 : 1.5}
                   strokeLinecap="round"
                 />
               );
-            }),
+            })
           )}
 
           {/* Draw bone joints */}
@@ -233,7 +417,8 @@ export function SkeletonVisualizer({
                     isSelected
                       ? '#ffffff'
                       : isHighlighted
-                        ? ikChains.find((c) => c.bones.includes(bone.name))?.color ?? GROUP_COLORS[bone.group]
+                        ? (ikChains.find((c) => c.bones.includes(bone.name))?.color ??
+                          GROUP_COLORS[bone.group])
                         : GROUP_COLORS[bone.group]
                   }
                   stroke={isSelected ? '#ffffff40' : 'none'}
@@ -293,24 +478,22 @@ export function SkeletonVisualizer({
       <section>
         <div className="text-xs font-medium text-studio-muted mb-2">Bone Groups</div>
         <div className="grid grid-cols-2 gap-1">
-          {(Object.entries(GROUP_LABELS) as [HumanoidBoneGroup, string][]).map(
-            ([group, label]) => {
-              const groupBones = bones.filter((b) => b.group === group);
-              return (
-                <div
-                  key={group}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-studio-muted"
-                >
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: GROUP_COLORS[group] }}
-                  />
-                  <span>{label}</span>
-                  <span className="text-[10px] ml-auto">{groupBones.length}</span>
-                </div>
-              );
-            },
-          )}
+          {(Object.entries(GROUP_LABELS) as [HumanoidBoneGroup, string][]).map(([group, label]) => {
+            const groupBones = bones.filter((b) => b.group === group);
+            return (
+              <div
+                key={group}
+                className="flex items-center gap-2 px-2 py-1.5 rounded text-xs text-studio-muted"
+              >
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: GROUP_COLORS[group] }}
+                />
+                <span>{label}</span>
+                <span className="text-[10px] ml-auto">{groupBones.length}</span>
+              </div>
+            );
+          })}
         </div>
       </section>
 

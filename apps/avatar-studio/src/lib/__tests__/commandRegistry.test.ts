@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  filterCommands,
-  groupCommands,
-  type Command,
-} from '../commandRegistry';
+import { filterCommands, groupCommands, type Command } from '../commandRegistry';
 
 // ---------------------------------------------------------------------------
 // Test Fixtures
@@ -20,13 +16,38 @@ function makeCommand(overrides: Partial<Command> & { id: string }): Command {
 }
 
 const SAMPLE_COMMANDS: Command[] = [
-  makeCommand({ id: 'nav-body', label: 'Go to Body', group: 'Navigation', keywords: ['body', 'proportions'] }),
-  makeCommand({ id: 'nav-face', label: 'Go to Face', group: 'Navigation', keywords: ['face', 'eyes'] }),
-  makeCommand({ id: 'nav-hair', label: 'Go to Hair', group: 'Navigation', keywords: ['hair', 'style'] }),
+  makeCommand({
+    id: 'nav-body',
+    label: 'Go to Body',
+    group: 'Navigation',
+    keywords: ['body', 'proportions'],
+  }),
+  makeCommand({
+    id: 'nav-face',
+    label: 'Go to Face',
+    group: 'Navigation',
+    keywords: ['face', 'eyes'],
+  }),
+  makeCommand({
+    id: 'nav-hair',
+    label: 'Go to Hair',
+    group: 'Navigation',
+    keywords: ['hair', 'style'],
+  }),
   makeCommand({ id: 'edit-undo', label: 'Undo', group: 'Edit', keywords: ['undo', 'back'] }),
   makeCommand({ id: 'edit-redo', label: 'Redo', group: 'Edit', keywords: ['redo', 'forward'] }),
-  makeCommand({ id: 'edit-reset', label: 'Reset Avatar', group: 'Edit', keywords: ['reset', 'clear', 'default'] }),
-  makeCommand({ id: 'quick-export', label: 'Export as VRM', group: 'Quick Actions', keywords: ['export', 'vrm', 'download'] }),
+  makeCommand({
+    id: 'edit-reset',
+    label: 'Reset Avatar',
+    group: 'Edit',
+    keywords: ['reset', 'clear', 'default'],
+  }),
+  makeCommand({
+    id: 'quick-export',
+    label: 'Export as VRM',
+    group: 'Quick Actions',
+    keywords: ['export', 'vrm', 'download'],
+  }),
 ];
 
 // ---------------------------------------------------------------------------

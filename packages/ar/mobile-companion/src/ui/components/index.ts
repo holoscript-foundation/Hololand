@@ -15,17 +15,10 @@ export { PlaneDetectionReticle } from './PlaneDetectionReticle';
 export type { PlaneDetectionReticleProps } from './PlaneDetectionReticle';
 
 export { AnchorPlacementControls } from './AnchorPlacementControls';
-export type {
-  AnchorPlacementControlsProps,
-  AnchorTransform,
-} from './AnchorPlacementControls';
+export type { AnchorPlacementControlsProps, AnchorTransform } from './AnchorPlacementControls';
 
 export { GeospatialPOIMarker } from './GeospatialPOIMarker';
-export type {
-  GeospatialPOIMarkerProps,
-  GeospatialPOI,
-  POICategory,
-} from './GeospatialPOIMarker';
+export type { GeospatialPOIMarkerProps, GeospatialPOI, POICategory } from './GeospatialPOIMarker';
 
 export { DistanceIndicator } from './DistanceIndicator';
 export type {

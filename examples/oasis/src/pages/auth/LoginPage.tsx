@@ -24,9 +24,7 @@ export default function LoginPage() {
     <div className="w-full max-w-md">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-oasis-text">Welcome Back</h1>
-        <p className="text-oasis-text-muted mt-2">
-          Sign in to continue to Hololand Oasis
-        </p>
+        <p className="text-oasis-text-muted mt-2">Sign in to continue to Hololand Oasis</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,16 +69,15 @@ export default function LoginPage() {
             <input type="checkbox" className="rounded border-white/20 bg-oasis-surface-light" />
             <span className="text-oasis-text-muted">Remember me</span>
           </label>
-          <Link to="/auth/forgot-password" className="text-oasis-primary hover:text-oasis-primary-light">
+          <Link
+            to="/auth/forgot-password"
+            className="text-oasis-primary hover:text-oasis-primary-light"
+          >
             Forgot password?
           </Link>
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary w-full"
-        >
+        <button type="submit" disabled={isLoading} className="btn-primary w-full">
           {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
@@ -140,7 +137,12 @@ function DiscordIcon({ className }: { className?: string }) {
 function WalletIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+      />
     </svg>
   );
 }

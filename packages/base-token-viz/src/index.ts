@@ -148,7 +148,10 @@ export function isValidTokenAddress(address: string): boolean {
 /**
  * Get a color scheme for a token based on its metadata
  */
-export function getTokenColorScheme(symbol: string, name: string): import('./HoloScriptGenerator').ColorScheme {
+export function getTokenColorScheme(
+  symbol: string,
+  name: string
+): import('./HoloScriptGenerator').ColorScheme {
   const combined = `${symbol} ${name}`.toLowerCase();
 
   if (/usdc|usdt|dai|busd|tusd|frax|usd/i.test(combined)) {

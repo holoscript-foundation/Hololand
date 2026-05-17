@@ -10,26 +10,33 @@ interface ColorPickerProps {
 }
 
 const DEFAULT_SKIN_PRESETS = [
-  '#f5d6b8', '#e0b896', '#c99a6b', '#a67b50', '#8d5e3c', '#6b4226',
-  '#4a2d12', '#3a1f09',
+  '#f5d6b8',
+  '#e0b896',
+  '#c99a6b',
+  '#a67b50',
+  '#8d5e3c',
+  '#6b4226',
+  '#4a2d12',
+  '#3a1f09',
 ];
 
 const DEFAULT_HAIR_PRESETS = [
-  '#0a0a0a', '#4a3728', '#8b6f47', '#c4a35a', '#d4a574', '#c43e1c',
-  '#8b1a1a', '#e8e0d0',
+  '#0a0a0a',
+  '#4a3728',
+  '#8b6f47',
+  '#c4a35a',
+  '#d4a574',
+  '#c43e1c',
+  '#8b1a1a',
+  '#e8e0d0',
 ];
 
-export function ColorPicker({
-  label,
-  value,
-  onChange,
-  presets,
-}: ColorPickerProps) {
+export function ColorPicker({ label, value, onChange, presets }: ColorPickerProps) {
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onChange(e.target.value);
     },
-    [onChange],
+    [onChange]
   );
 
   return (

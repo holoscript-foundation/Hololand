@@ -428,15 +428,20 @@ export class AvatarStudio {
    */
   async exportVRM(
     config?: Partial<ExportConfig>,
-    onProgress?: ExportProgressCallback,
+    onProgress?: ExportProgressCallback
   ): Promise<ExportResult> {
     const blueprint = this.blueprintManager.getBlueprint();
     const scene = this.previewRenderer['scene']; // Access internal scene
 
-    return this.vrmExporter.export(blueprint, scene, {
-      format: 'vrm',
-      ...config,
-    }, onProgress);
+    return this.vrmExporter.export(
+      blueprint,
+      scene,
+      {
+        format: 'vrm',
+        ...config,
+      },
+      onProgress
+    );
   }
 
   /**
@@ -444,15 +449,20 @@ export class AvatarStudio {
    */
   async exportAndDownload(
     config?: Partial<ExportConfig>,
-    onProgress?: ExportProgressCallback,
+    onProgress?: ExportProgressCallback
   ): Promise<ExportResult> {
     const blueprint = this.blueprintManager.getBlueprint();
     const scene = this.previewRenderer['scene'];
 
-    return this.vrmExporter.exportAndDownload(blueprint, scene, {
-      format: 'vrm',
-      ...config,
-    }, onProgress);
+    return this.vrmExporter.exportAndDownload(
+      blueprint,
+      scene,
+      {
+        format: 'vrm',
+        ...config,
+      },
+      onProgress
+    );
   }
 
   /**

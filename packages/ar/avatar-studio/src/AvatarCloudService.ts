@@ -141,7 +141,7 @@ export class AvatarCloudService {
     options?: {
       tags?: string[];
       isPublic?: boolean;
-    },
+    }
   ): Promise<CloudAvatar> {
     return this.request<CloudAvatar>('/api/v1/avatars', {
       method: 'POST',
@@ -159,7 +159,7 @@ export class AvatarCloudService {
   async updateAvatar(
     avatarId: string,
     blueprint: AvatarBlueprint,
-    changeDescription?: string,
+    changeDescription?: string
   ): Promise<CloudAvatar> {
     return this.request<CloudAvatar>(`/api/v1/avatars/${avatarId}`, {
       method: 'PUT',
@@ -212,9 +212,7 @@ export class AvatarCloudService {
     if (options?.sortBy) params.set('sort', options.sortBy);
     if (options?.sortDirection) params.set('dir', options.sortDirection);
 
-    return this.request<CloudAvatarListResult>(
-      `/api/v1/avatars?${params.toString()}`
-    );
+    return this.request<CloudAvatarListResult>(`/api/v1/avatars?${params.toString()}`);
   }
 
   // ===========================================================================
@@ -228,7 +226,7 @@ export class AvatarCloudService {
     avatarId: string,
     vrmBlob: Blob,
     thumbnailBlob?: Blob,
-    onProgress?: (progress: number) => void,
+    onProgress?: (progress: number) => void
   ): Promise<UploadResult> {
     const startTime = performance.now();
 
@@ -293,19 +291,16 @@ export class AvatarCloudService {
    * Get version history for an avatar.
    */
   async getVersionHistory(avatarId: string): Promise<AvatarVersion[]> {
-    return this.request<AvatarVersion[]>(
-      `/api/v1/avatars/${avatarId}/versions`
-    );
+    return this.request<AvatarVersion[]>(`/api/v1/avatars/${avatarId}/versions`);
   }
 
   /**
    * Restore a specific version.
    */
   async restoreVersion(avatarId: string, version: number): Promise<CloudAvatar> {
-    return this.request<CloudAvatar>(
-      `/api/v1/avatars/${avatarId}/versions/${version}/restore`,
-      { method: 'POST' }
-    );
+    return this.request<CloudAvatar>(`/api/v1/avatars/${avatarId}/versions/${version}/restore`, {
+      method: 'POST',
+    });
   }
 
   // ===========================================================================
@@ -364,10 +359,9 @@ export class AvatarCloudService {
     if (options?.limit) params.set('limit', String(options.limit));
     if (options?.cursor) params.set('cursor', options.cursor);
 
-    return this.request<CloudAvatarListResult>(
-      `/api/v1/gallery?${params.toString()}`,
-      { skipAuth: true }
-    );
+    return this.request<CloudAvatarListResult>(`/api/v1/gallery?${params.toString()}`, {
+      skipAuth: true,
+    });
   }
 
   /**
@@ -385,7 +379,7 @@ export class AvatarCloudService {
 
   private async request<T = any>(
     path: string,
-    options?: RequestInit & { skipAuth?: boolean },
+    options?: RequestInit & { skipAuth?: boolean }
   ): Promise<T> {
     const { skipAuth, ...fetchOptions } = options ?? {};
     const url = `${this.config.apiUrl}${path}`;
@@ -393,7 +387,7 @@ export class AvatarCloudService {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-App-ID': this.config.appId,
-      ...(fetchOptions.headers as Record<string, string> ?? {}),
+      ...((fetchOptions.headers as Record<string, string>) ?? {}),
     };
 
     if (!skipAuth) {
@@ -411,10 +405,7 @@ export class AvatarCloudService {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(
-          () => controller.abort(),
-          this.config.timeoutMs
-        );
+        const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
 
         const response = await fetch(url, {
           ...fetchOptions,
@@ -426,9 +417,7 @@ export class AvatarCloudService {
 
         if (!response.ok) {
           const errorBody = await response.json().catch(() => ({}));
-          throw new Error(
-            errorBody.message ?? `HTTP ${response.status}: ${response.statusText}`
-          );
+          throw new Error(errorBody.message ?? `HTTP ${response.status}: ${response.statusText}`);
         }
 
         // Handle 204 No Content
@@ -436,7 +425,7 @@ export class AvatarCloudService {
           return undefined as T;
         }
 
-        return await response.json() as T;
+        return (await response.json()) as T;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 

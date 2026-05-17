@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import type { PlatformTarget, TriangleBudget } from './types';
+import type { TriangleBudget } from './types';
 
 // ---------------------------------------------------------------------------
 // Default Budgets
@@ -73,10 +73,7 @@ export function TriangleBudgetDisplay({
     }));
   }, [customBudgets, currentTriangleCount]);
 
-  const overBudgetPlatforms = useMemo(
-    () => budgets.filter((b) => b.current > b.budget),
-    [budgets],
-  );
+  const overBudgetPlatforms = useMemo(() => budgets.filter((b) => b.current > b.budget), [budgets]);
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full">
@@ -111,9 +108,7 @@ export function TriangleBudgetDisplay({
                     className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
                     style={{ backgroundColor: budget.color }}
                   />
-                  <span className="text-xs font-semibold text-studio-text">
-                    {budget.label}
-                  </span>
+                  <span className="text-xs font-semibold text-studio-text">{budget.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
@@ -183,9 +178,7 @@ export function TriangleBudgetDisplay({
       {/* Optimization Suggestions */}
       {overBudgetPlatforms.length > 0 && (
         <section className="studio-panel rounded-lg p-3 border border-red-500/20">
-          <div className="text-xs font-semibold text-red-400 mb-2">
-            Optimization Required
-          </div>
+          <div className="text-xs font-semibold text-red-400 mb-2">Optimization Required</div>
           <ul className="flex flex-col gap-1.5 text-[10px] text-studio-muted">
             <li className="flex items-start gap-1.5">
               <span className="text-red-400 mt-0.5">--</span>
@@ -221,7 +214,9 @@ export function TriangleBudgetDisplay({
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-1.5 rounded-full bg-red-500" />
-            <span className="text-studio-muted">Over budget -- performance degradation expected</span>
+            <span className="text-studio-muted">
+              Over budget -- performance degradation expected
+            </span>
           </div>
         </div>
       </section>

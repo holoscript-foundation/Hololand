@@ -332,10 +332,7 @@ export class AvatarMeshAssembler {
    * Update an existing assembly with blueprint changes.
    * More efficient than full reassembly for incremental edits.
    */
-  updateMaterials(
-    materials: MaterialMap,
-    blueprint: Readonly<AvatarBlueprint>,
-  ): void {
+  updateMaterials(materials: MaterialMap, blueprint: Readonly<AvatarBlueprint>): void {
     // Update skin color
     const skinColor = new THREE.Color(blueprint.body.skinColor.hex);
     for (const mat of materials.skin) {
@@ -371,10 +368,7 @@ export class AvatarMeshAssembler {
   /**
    * Update morph targets from blueprint proportions.
    */
-  updateMorphTargets(
-    morphTargets: MorphTargetMap,
-    blueprint: Readonly<AvatarBlueprint>,
-  ): void {
+  updateMorphTargets(morphTargets: MorphTargetMap, blueprint: Readonly<AvatarBlueprint>): void {
     this.applyBodyProportions(morphTargets.body, blueprint.body.proportions);
     this.applyFaceMorphs(morphTargets.face, blueprint.face.morphs);
   }
@@ -538,11 +532,7 @@ export class AvatarMeshAssembler {
       };
     } catch {
       const fallbackSkeleton = this.createHumanoidSkeleton();
-      const fallbackBody = this.createProceduralBody(
-        fallbackSkeleton.skeleton,
-        skinMaterial,
-        body,
-      );
+      const fallbackBody = this.createProceduralBody(fallbackSkeleton.skeleton, skinMaterial, body);
 
       bodyGroup.add(fallbackBody.mesh);
 
@@ -565,7 +555,7 @@ export class AvatarMeshAssembler {
 
   private async assembleFace(
     face: FaceConfig,
-    _skeleton: THREE.Skeleton | null,
+    _skeleton: THREE.Skeleton | null
   ): Promise<{
     mesh: THREE.Group | null;
     eyeMaterials: THREE.MeshStandardMaterial[];
@@ -637,7 +627,7 @@ export class AvatarMeshAssembler {
 
   private async assembleHair(
     hair: HairConfig,
-    _skeleton: THREE.Skeleton | null,
+    _skeleton: THREE.Skeleton | null
   ): Promise<{
     mesh: THREE.Group | null;
     hairMaterials: THREE.MeshStandardMaterial[];
@@ -699,11 +689,7 @@ export class AvatarMeshAssembler {
       const hairGeometry = new THREE.SphereGeometry(0.14, 32, 32);
       const hairMesh = new THREE.Mesh(hairGeometry, hairMaterial);
       hairMesh.position.y = 1.6;
-      hairMesh.scale.set(
-        0.8 + hair.volume * 0.4,
-        0.9,
-        0.8 + hair.volume * 0.4
-      );
+      hairMesh.scale.set(0.8 + hair.volume * 0.4, 0.9, 0.8 + hair.volume * 0.4);
       hairMesh.userData.materialType = 'hair';
       hairGroup.add(hairMesh);
     }
@@ -735,7 +721,7 @@ export class AvatarMeshAssembler {
   private async assembleClothing(
     slot: ClothingSlot,
     body: BodyConfig,
-    _skeleton: THREE.Skeleton | null,
+    _skeleton: THREE.Skeleton | null
   ): Promise<{
     mesh: THREE.Group | null;
     materials: THREE.MeshStandardMaterial[];
@@ -825,7 +811,7 @@ export class AvatarMeshAssembler {
 
   private async assembleAccessory(
     slot: AccessorySlot,
-    skeleton: THREE.Skeleton | null,
+    skeleton: THREE.Skeleton | null
   ): Promise<{
     mesh: THREE.Group | null;
     materials: THREE.MeshStandardMaterial[];
@@ -863,14 +849,15 @@ export class AvatarMeshAssembler {
       loaded.rotation.set(
         THREE.MathUtils.degToRad(slot.rotationOffset.x),
         THREE.MathUtils.degToRad(slot.rotationOffset.y),
-        THREE.MathUtils.degToRad(slot.rotationOffset.z),
+        THREE.MathUtils.degToRad(slot.rotationOffset.z)
       );
 
       // Attach to bone if skeleton available
       const targetBoneName = ACCESSORY_BONE_MAP[slot.slot];
       if (skeleton && targetBoneName) {
         const bone = skeleton.bones.find(
-          (b) => b.name === targetBoneName || b.name.toLowerCase().includes(targetBoneName.toLowerCase())
+          (b) =>
+            b.name === targetBoneName || b.name.toLowerCase().includes(targetBoneName.toLowerCase())
         );
         if (bone) {
           bone.add(loaded);
@@ -914,7 +901,7 @@ export class AvatarMeshAssembler {
 
   private applyBodyProportions(
     morphs: Map<string, { mesh: THREE.SkinnedMesh; index: number }>,
-    proportions: BodyProportions,
+    proportions: BodyProportions
   ): void {
     for (const [name, value] of Object.entries(proportions)) {
       const morphData = morphs.get(name);
@@ -926,7 +913,7 @@ export class AvatarMeshAssembler {
 
   private applyFaceMorphs(
     morphs: Map<string, { mesh: THREE.SkinnedMesh; index: number }>,
-    faceMorphs: FaceMorphs,
+    faceMorphs: FaceMorphs
   ): void {
     for (const [name, value] of Object.entries(faceMorphs)) {
       const morphData = morphs.get(name);
@@ -1002,7 +989,7 @@ export class AvatarMeshAssembler {
   private createProceduralBody(
     skeleton: THREE.Skeleton,
     material: THREE.MeshStandardMaterial,
-    _body: BodyConfig,
+    _body: BodyConfig
   ): {
     mesh: THREE.SkinnedMesh;
     vertexCount: number;
@@ -1022,12 +1009,18 @@ export class AvatarMeshAssembler {
       const y = position.getY(i) + 0.85; // offset to match skeleton
       // Simple weight assignment based on height
       let boneIndex = 0; // hips
-      if (y > 1.4) boneIndex = 5; // head
-      else if (y > 1.25) boneIndex = 4; // neck
-      else if (y > 1.1) boneIndex = 3; // upperChest
-      else if (y > 0.95) boneIndex = 2; // chest
-      else if (y > 0.8) boneIndex = 1; // spine
-      else if (y > 0.45) boneIndex = 0; // hips
+      if (y > 1.4)
+        boneIndex = 5; // head
+      else if (y > 1.25)
+        boneIndex = 4; // neck
+      else if (y > 1.1)
+        boneIndex = 3; // upperChest
+      else if (y > 0.95)
+        boneIndex = 2; // chest
+      else if (y > 0.8)
+        boneIndex = 1; // spine
+      else if (y > 0.45)
+        boneIndex = 0; // hips
       else boneIndex = 14; // leftUpperLeg (approximate)
 
       skinIndices[i * 4] = boneIndex;
@@ -1052,9 +1045,7 @@ export class AvatarMeshAssembler {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    const triangleCount = geometry.index
-      ? geometry.index.count / 3
-      : vertexCount / 3;
+    const triangleCount = geometry.index ? geometry.index.count / 3 : vertexCount / 3;
 
     return { mesh, vertexCount, triangleCount };
   }
@@ -1092,10 +1083,7 @@ export class AvatarMeshAssembler {
     return gltf.scene.clone(true);
   }
 
-  private getBaseMeshId(
-    gender: string,
-    preset: BodyPreset,
-  ): string {
+  private getBaseMeshId(gender: string, preset: BodyPreset): string {
     return `base_${gender}_${preset}`;
   }
 }

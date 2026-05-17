@@ -26,7 +26,10 @@ interface R3FNode {
 }
 
 // Material presets
-const MATERIAL_PRESETS: Record<string, { roughness?: number; metalness?: number; transparent?: boolean; opacity?: number }> = {
+const MATERIAL_PRESETS: Record<
+  string,
+  { roughness?: number; metalness?: number; transparent?: boolean; opacity?: number }
+> = {
   default: { roughness: 0.7, metalness: 0 },
   metal: { roughness: 0.2, metalness: 0.9 },
   glass: { roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.5 },
@@ -166,7 +169,8 @@ export function parseHoloScript(code: string): ParseResult {
  */
 export function r3fNodeToMesh(node: R3FNode): THREE.Object3D {
   const group = new THREE.Group();
-  const color = node.props?.color || MEADOW_COLORS[Math.floor(Math.random() * MEADOW_COLORS.length)];
+  const color =
+    node.props?.color || MEADOW_COLORS[Math.floor(Math.random() * MEADOW_COLORS.length)];
 
   // Get geometry based on node type
   let geometry: THREE.BufferGeometry;
@@ -212,10 +216,7 @@ export function r3fNodeToMesh(node: R3FNode): THREE.Object3D {
 
     case 'plane':
     case 'Plane':
-      geometry = new THREE.PlaneGeometry(
-        node.props?.args?.[0] || 1,
-        node.props?.args?.[1] || 1
-      );
+      geometry = new THREE.PlaneGeometry(node.props?.args?.[0] || 1, node.props?.args?.[1] || 1);
       break;
 
     case 'torus':
@@ -277,11 +278,7 @@ export function r3fNodeToMesh(node: R3FNode): THREE.Object3D {
 
   if (node.props?.scale !== undefined) {
     if (Array.isArray(node.props.scale)) {
-      group.scale.set(
-        node.props.scale[0] || 1,
-        node.props.scale[1] || 1,
-        node.props.scale[2] || 1
-      );
+      group.scale.set(node.props.scale[0] || 1, node.props.scale[1] || 1, node.props.scale[2] || 1);
     } else {
       group.scale.setScalar(node.props.scale);
     }
@@ -427,7 +424,11 @@ export function createPrefabMesh(type: EntityType, color?: string): THREE.Object
     }
 
     case 'lamp': {
-      const poleMat = new THREE.MeshStandardMaterial({ color: '#333333', roughness: 0.3, metalness: 0.8 });
+      const poleMat = new THREE.MeshStandardMaterial({
+        color: '#333333',
+        roughness: 0.3,
+        metalness: 0.8,
+      });
 
       // Pole
       const poleGeom = new THREE.CylinderGeometry(0.05, 0.08, 3, 8);
@@ -458,7 +459,10 @@ export function createPrefabMesh(type: EntityType, color?: string): THREE.Object
     case 'building': {
       // Main building
       const buildingGeom = new THREE.BoxGeometry(4, 3, 4);
-      const buildingMat = new THREE.MeshStandardMaterial({ color: entityColor || '#FFF8E7', roughness: 0.8 });
+      const buildingMat = new THREE.MeshStandardMaterial({
+        color: entityColor || '#FFF8E7',
+        roughness: 0.8,
+      });
       const building = new THREE.Mesh(buildingGeom, buildingMat);
       building.position.y = 1.5;
       building.castShadow = true;
@@ -716,14 +720,18 @@ class WorldSpawner {
       lines.push(`    position: [${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}]`);
 
       if (rot.x !== 0 || rot.y !== 0 || rot.z !== 0) {
-        lines.push(`    rotation: [${THREE.MathUtils.radToDeg(rot.x).toFixed(0)}, ${THREE.MathUtils.radToDeg(rot.y).toFixed(0)}, ${THREE.MathUtils.radToDeg(rot.z).toFixed(0)}]`);
+        lines.push(
+          `    rotation: [${THREE.MathUtils.radToDeg(rot.x).toFixed(0)}, ${THREE.MathUtils.radToDeg(rot.y).toFixed(0)}, ${THREE.MathUtils.radToDeg(rot.z).toFixed(0)}]`
+        );
       }
 
       if (scale.x !== 1 || scale.y !== 1 || scale.z !== 1) {
         if (scale.x === scale.y && scale.y === scale.z) {
           lines.push(`    scale: ${scale.x.toFixed(2)}`);
         } else {
-          lines.push(`    scale: [${scale.x.toFixed(2)}, ${scale.y.toFixed(2)}, ${scale.z.toFixed(2)}]`);
+          lines.push(
+            `    scale: [${scale.x.toFixed(2)}, ${scale.y.toFixed(2)}, ${scale.z.toFixed(2)}]`
+          );
         }
       }
 

@@ -50,126 +50,130 @@ Try something like:
   /**
    * Send a message to Brittney and get HoloScript
    */
-  const sendMessage = useCallback(async (prompt: string) => {
-    if (!prompt.trim() || state.isGenerating) return;
+  const sendMessage = useCallback(
+    async (prompt: string) => {
+      if (!prompt.trim() || state.isGenerating) return;
 
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: prompt,
-      timestamp: Date.now(),
-    };
-
-    setState((s) => ({
-      ...s,
-      messages: [...s.messages, userMessage],
-      isGenerating: true,
-      error: null,
-    }));
-
-    try {
-      const result = await translateToHoloScript(prompt, {
-        worldContext: state.currentCode || undefined,
-        style: 'balanced',
-      });
-
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: result.success
-          ? "Here's your generated HoloScript:"
-          : `I encountered an error: ${result.errors?.join(', ')}`,
-        code: result.holoScript,
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: prompt,
         timestamp: Date.now(),
       };
 
       setState((s) => ({
         ...s,
-        messages: [...s.messages, assistantMessage],
-        currentCode: result.holoScript || s.currentCode,
-        isGenerating: false,
+        messages: [...s.messages, userMessage],
+        isGenerating: true,
+        error: null,
       }));
-    } catch (error) {
-      setState((s) => ({
-        ...s,
-        isGenerating: false,
-        error: (error as Error).message,
-      }));
-    }
-  }, [state.isGenerating, state.currentCode]);
+
+      try {
+        const result = await translateToHoloScript(prompt, {
+          worldContext: state.currentCode || undefined,
+          style: 'balanced',
+        });
+
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: result.success
+            ? "Here's your generated HoloScript:"
+            : `I encountered an error: ${result.errors?.join(', ')}`,
+          code: result.holoScript,
+          timestamp: Date.now(),
+        };
+
+        setState((s) => ({
+          ...s,
+          messages: [...s.messages, assistantMessage],
+          currentCode: result.holoScript || s.currentCode,
+          isGenerating: false,
+        }));
+      } catch (error) {
+        setState((s) => ({
+          ...s,
+          isGenerating: false,
+          error: (error as Error).message,
+        }));
+      }
+    },
+    [state.isGenerating, state.currentCode]
+  );
 
   /**
    * Stream a message with real-time updates
    */
-  const streamMessage = useCallback(async (prompt: string) => {
-    if (!prompt.trim() || state.isGenerating) return;
+  const streamMessage = useCallback(
+    async (prompt: string) => {
+      if (!prompt.trim() || state.isGenerating) return;
 
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: prompt,
-      timestamp: Date.now(),
-    };
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: prompt,
+        timestamp: Date.now(),
+      };
 
-    const assistantId = `assistant-${Date.now()}`;
-    const assistantMessage: Message = {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
-      code: '',
-      timestamp: Date.now(),
-    };
+      const assistantId = `assistant-${Date.now()}`;
+      const assistantMessage: Message = {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        code: '',
+        timestamp: Date.now(),
+      };
 
-    setState((s) => ({
-      ...s,
-      messages: [...s.messages, userMessage, assistantMessage],
-      isGenerating: true,
-      error: null,
-    }));
+      setState((s) => ({
+        ...s,
+        messages: [...s.messages, userMessage, assistantMessage],
+        isGenerating: true,
+        error: null,
+      }));
 
-    abortControllerRef.current = new AbortController();
+      abortControllerRef.current = new AbortController();
 
-    try {
-      let fullCode = '';
-      let fullText = '';
+      try {
+        let fullCode = '';
+        let fullText = '';
 
-      for await (const chunk of streamHoloScript(prompt, {
-        worldContext: state.currentCode || undefined,
-      })) {
-        if (chunk.type === 'code') {
-          fullCode += chunk.content;
-        } else if (chunk.type === 'text') {
-          fullText += chunk.content;
-        } else if (chunk.type === 'done') {
-          break;
-        } else if (chunk.type === 'error') {
-          throw new Error(chunk.content);
+        for await (const chunk of streamHoloScript(prompt, {
+          worldContext: state.currentCode || undefined,
+        })) {
+          if (chunk.type === 'code') {
+            fullCode += chunk.content;
+          } else if (chunk.type === 'text') {
+            fullText += chunk.content;
+          } else if (chunk.type === 'done') {
+            break;
+          } else if (chunk.type === 'error') {
+            throw new Error(chunk.content);
+          }
+
+          // Update message in real-time
+          setState((s) => ({
+            ...s,
+            messages: s.messages.map((m) =>
+              m.id === assistantId ? { ...m, content: fullText, code: fullCode } : m
+            ),
+          }));
         }
 
-        // Update message in real-time
         setState((s) => ({
           ...s,
-          messages: s.messages.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: fullText, code: fullCode }
-              : m
-          ),
+          currentCode: fullCode || s.currentCode,
+          isGenerating: false,
+        }));
+      } catch (error) {
+        setState((s) => ({
+          ...s,
+          isGenerating: false,
+          error: (error as Error).message,
         }));
       }
-
-      setState((s) => ({
-        ...s,
-        currentCode: fullCode || s.currentCode,
-        isGenerating: false,
-      }));
-    } catch (error) {
-      setState((s) => ({
-        ...s,
-        isGenerating: false,
-        error: (error as Error).message,
-      }));
-    }
-  }, [state.isGenerating, state.currentCode]);
+    },
+    [state.isGenerating, state.currentCode]
+  );
 
   /**
    * Cancel ongoing generation
@@ -207,9 +211,12 @@ Try something like:
   /**
    * Apply a suggestion prompt
    */
-  const applySuggestion = useCallback((suggestion: string) => {
-    sendMessage(suggestion);
-  }, [sendMessage]);
+  const applySuggestion = useCallback(
+    (suggestion: string) => {
+      sendMessage(suggestion);
+    },
+    [sendMessage]
+  );
 
   return {
     // State

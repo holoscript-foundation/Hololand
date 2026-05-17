@@ -76,7 +76,9 @@ describe('ClankerTokenFetcher', () => {
 
         vi.spyOn(fetcher, 'fetchMetadata').mockResolvedValue(mockMetadata);
 
-        const result = await fetcher.fetchClankerMetadata('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913');
+        const result = await fetcher.fetchClankerMetadata(
+          '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+        );
 
         expect(result).toHaveProperty('isClanker');
         expect(result).toHaveProperty('warnings');
@@ -85,7 +87,9 @@ describe('ClankerTokenFetcher', () => {
       });
 
       it('should throw error for invalid address', async () => {
-        await expect(fetcher.fetchClankerMetadata('invalid')).rejects.toThrow('Invalid token address');
+        await expect(fetcher.fetchClankerMetadata('invalid')).rejects.toThrow(
+          'Invalid token address'
+        );
       });
     });
 
@@ -124,7 +128,9 @@ describe('ClankerTokenFetcher', () => {
 
         vi.spyOn(fetcher, 'fetchMetadata').mockResolvedValue(mockMetadata);
 
-        const result = await fetcher.getFactoryVersion('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913');
+        const result = await fetcher.getFactoryVersion(
+          '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+        );
         expect(['v4', 'v3.1', 'v3', 'legacy', 'original', 'unknown']).toContain(result);
       });
     });

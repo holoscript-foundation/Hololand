@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { UseBlueprintReturn } from '@/hooks/useBlueprint';
-import type { ExpressionPreset, StandardExpressionName } from '@/lib/types';
+import type { StandardExpressionName } from '@/lib/types';
 import { Slider } from '@/components/ui/Slider';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 
@@ -35,15 +35,7 @@ export function ExpressionsTab({ store }: ExpressionsTabProps) {
 
   const hasExpression = useCallback(
     (name: string) => blueprint.expressions.some((e) => e.name === name),
-    [blueprint.expressions],
-  );
-
-  const getExpressionWeight = useCallback(
-    (name: string, blendShape: string): number => {
-      const expr = blueprint.expressions.find((e) => e.name === name);
-      return expr?.blendShapeWeights[blendShape] ?? 0;
-    },
-    [blueprint.expressions],
+    [blueprint.expressions]
   );
 
   const toggleStandardExpression = useCallback(
@@ -58,7 +50,7 @@ export function ExpressionsTab({ store }: ExpressionsTabProps) {
         });
       }
     },
-    [hasExpression, removeExpression, setExpression],
+    [hasExpression, removeExpression, setExpression]
   );
 
   const updateExpressionWeight = useCallback(
@@ -74,7 +66,7 @@ export function ExpressionsTab({ store }: ExpressionsTabProps) {
         });
       }
     },
-    [blueprint.expressions, setExpression],
+    [blueprint.expressions, setExpression]
   );
 
   return (
@@ -102,11 +94,7 @@ export function ExpressionsTab({ store }: ExpressionsTabProps) {
               >
                 <div className="text-2xl mb-1">{expr.emoji}</div>
                 <div className="font-medium">{expr.label}</div>
-                {active && (
-                  <div className="text-[10px] text-holo-500 mt-0.5">
-                    Included
-                  </div>
-                )}
+                {active && <div className="text-[10px] text-holo-500 mt-0.5">Included</div>}
               </button>
             );
           })}
@@ -134,18 +122,14 @@ export function ExpressionsTab({ store }: ExpressionsTabProps) {
                     Remove
                   </button>
                 </div>
-                {Object.entries(expr.blendShapeWeights).map(
-                  ([shape, weight]) => (
-                    <Slider
-                      key={shape}
-                      label={shape}
-                      value={weight}
-                      onChange={(v) =>
-                        updateExpressionWeight(expr.name, shape, v)
-                      }
-                    />
-                  ),
-                )}
+                {Object.entries(expr.blendShapeWeights).map(([shape, weight]) => (
+                  <Slider
+                    key={shape}
+                    label={shape}
+                    value={weight}
+                    onChange={(v) => updateExpressionWeight(expr.name, shape, v)}
+                  />
+                ))}
               </div>
             ))}
           </div>
@@ -155,9 +139,9 @@ export function ExpressionsTab({ store }: ExpressionsTabProps) {
       {/* Preview Info */}
       <section className="studio-panel p-3">
         <p className="text-xs text-studio-muted">
-          Hover over an expression to preview it on the 3D model. Click to
-          include/exclude it from the VRM export. Included expressions become
-          available as blend shapes in compatible VRM viewers and game engines.
+          {previewingExpression
+            ? `Previewing ${previewingExpression}. Click to include or exclude it from the VRM export.`
+            : 'Hover over an expression to preview it on the 3D model. Click to include/exclude it from the VRM export. Included expressions become available as blend shapes in compatible VRM viewers and game engines.'}
         </p>
       </section>
     </div>

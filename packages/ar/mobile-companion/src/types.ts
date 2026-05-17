@@ -14,21 +14,21 @@ export type { DepthFrame, CameraIntrinsics } from '@hololand/ar-detection';
 // =============================================================================
 
 export type TrackingMode =
-  | 'worldTracking'       // Full 6DoF with plane detection
-  | 'geoTracking'         // Geospatial (outdoor)
-  | 'imageTracking'       // Image marker tracking only
-  | 'faceTracking';       // Front camera face tracking
+  | 'worldTracking' // Full 6DoF with plane detection
+  | 'geoTracking' // Geospatial (outdoor)
+  | 'imageTracking' // Image marker tracking only
+  | 'faceTracking'; // Front camera face tracking
 
 export type TrackingState =
-  | 'notAvailable'        // AR not supported on device
-  | 'limited'             // Tracking degraded (insufficient features, motion)
-  | 'normal';             // Full tracking quality
+  | 'notAvailable' // AR not supported on device
+  | 'limited' // Tracking degraded (insufficient features, motion)
+  | 'normal'; // Full tracking quality
 
 export type TrackingLimitedReason =
-  | 'initializing'        // Session just started
-  | 'excessiveMotion'     // Device moving too fast
-  | 'insufficientFeatures'// Not enough visual features
-  | 'relocalizing';       // Recovering from interruption
+  | 'initializing' // Session just started
+  | 'excessiveMotion' // Device moving too fast
+  | 'insufficientFeatures' // Not enough visual features
+  | 'relocalizing'; // Recovering from interruption
 
 export interface ARSessionConfig {
   /** Primary tracking mode */
@@ -63,10 +63,10 @@ export type MeshResolution = 'low' | 'medium' | 'high' | 'ultra';
 
 export type DepthMode =
   | 'disabled'
-  | 'automatic'     // Platform decides best method
-  | 'lidar'         // iOS LiDAR sensor
-  | 'stereo'        // Stereo camera depth estimation
-  | 'monocular';    // ML-based monocular depth
+  | 'automatic' // Platform decides best method
+  | 'lidar' // iOS LiDAR sensor
+  | 'stereo' // Stereo camera depth estimation
+  | 'monocular'; // ML-based monocular depth
 
 export const DEFAULT_AR_SESSION_CONFIG: ARSessionConfig = {
   trackingMode: 'worldTracking',
@@ -184,14 +184,14 @@ export interface ARPlane {
 // =============================================================================
 
 export type SpatialAnchorType =
-  | 'local'         // Device-local anchor
-  | 'cloud'         // Cloud-persisted anchor
-  | 'geospatial';   // GPS-based anchor
+  | 'local' // Device-local anchor
+  | 'cloud' // Cloud-persisted anchor
+  | 'geospatial'; // GPS-based anchor
 
 export type AnchorTrackingState =
-  | 'tracking'      // Anchor is being tracked
-  | 'paused'        // Anchor tracking paused
-  | 'stopped';      // Anchor no longer tracked
+  | 'tracking' // Anchor is being tracked
+  | 'paused' // Anchor tracking paused
+  | 'stopped'; // Anchor no longer tracked
 
 export interface SpatialAnchor {
   /** Unique local identifier */

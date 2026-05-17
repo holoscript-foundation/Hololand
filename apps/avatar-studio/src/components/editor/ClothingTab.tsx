@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import type { UseBlueprintReturn } from '@/hooks/useBlueprint';
-import type { ClothingSlot, ClothingSlotName } from '@/lib/types';
+import type { ClothingSlotName } from '@/lib/types';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 
 interface ClothingTabProps {
@@ -69,16 +69,13 @@ export function ClothingTab({ store }: ClothingTabProps) {
 
   const isEquipped = useCallback(
     (slotName: ClothingSlotName, assetId: string) =>
-      blueprint.clothing.some(
-        (c) => c.slot === slotName && c.assetId === assetId,
-      ),
-    [blueprint.clothing],
+      blueprint.clothing.some((c) => c.slot === slotName && c.assetId === assetId),
+    [blueprint.clothing]
   );
 
   const getEquipped = useCallback(
-    (slotName: ClothingSlotName) =>
-      blueprint.clothing.find((c) => c.slot === slotName),
-    [blueprint.clothing],
+    (slotName: ClothingSlotName) => blueprint.clothing.find((c) => c.slot === slotName),
+    [blueprint.clothing]
   );
 
   const handleToggle = useCallback(
@@ -95,24 +92,19 @@ export function ClothingTab({ store }: ClothingTabProps) {
         });
       }
     },
-    [isEquipped, equipClothing, unequipClothing],
+    [isEquipped, equipClothing, unequipClothing]
   );
 
   return (
     <div className="flex flex-col gap-6 p-4 overflow-y-auto h-full">
-      <SectionHeader
-        title="Clothing"
-        description="Equip clothing items to different body slots"
-      />
+      <SectionHeader title="Clothing" description="Equip clothing items to different body slots" />
 
       {CLOTHING_SLOTS.map((slotDef) => {
         const equipped = getEquipped(slotDef.slot);
         return (
           <section key={slotDef.slot}>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-semibold text-studio-text">
-                {slotDef.label}
-              </h4>
+              <h4 className="text-xs font-semibold text-studio-text">{slotDef.label}</h4>
               {equipped && (
                 <button
                   onClick={() => unequipClothing(slotDef.slot)}
@@ -128,9 +120,7 @@ export function ClothingTab({ store }: ClothingTabProps) {
                 return (
                   <button
                     key={item.assetId}
-                    onClick={() =>
-                      handleToggle(slotDef.slot, item.assetId, item.name)
-                    }
+                    onClick={() => handleToggle(slotDef.slot, item.assetId, item.name)}
                     className={`p-2 rounded-lg text-xs text-center transition-all border ${
                       active
                         ? 'border-holo-500 bg-holo-500/10 text-holo-400'

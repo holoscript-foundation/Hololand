@@ -25,8 +25,12 @@ vi.mock('three', () => {
     g = 1;
     b = 1;
     constructor(_hex?: string | number) {}
-    copy() { return this; }
-    set() { return this; }
+    copy() {
+      return this;
+    }
+    set() {
+      return this;
+    }
   }
 
   class BufferAttribute {
@@ -50,10 +54,18 @@ vi.mock('three', () => {
     morphTargetsRelative = false;
     userData: any = {};
 
-    setIndex(attr: any) { this.index = attr; }
-    setAttribute(name: string, attr: any) { this.attributes[name] = attr; }
-    getAttribute(name: string) { return this.attributes[name]; }
-    getIndex() { return this.index; }
+    setIndex(attr: any) {
+      this.index = attr;
+    }
+    setAttribute(name: string, attr: any) {
+      this.attributes[name] = attr;
+    }
+    getAttribute(name: string) {
+      return this.attributes[name];
+    }
+    getIndex() {
+      return this.index;
+    }
     dispose() {}
   }
 
@@ -65,7 +77,9 @@ vi.mock('three', () => {
     side = 0;
     userData: any = {};
     uuid = Math.random().toString(36);
-    clone() { return Object.assign(new MeshStandardMaterial(), this); }
+    clone() {
+      return Object.assign(new MeshStandardMaterial(), this);
+    }
     dispose() {}
     constructor(params?: any) {
       if (params) {
@@ -106,8 +120,8 @@ vi.mock('three', () => {
       this.material = mat;
     }
 
-    add(child: any) {}
-    bind(skeleton: any) {}
+    add(_child: any) {}
+    bind(_skeleton: any) {}
   }
 
   class Group {
@@ -115,8 +129,10 @@ vi.mock('three', () => {
     children: any[] = [];
     scale = { setScalar: vi.fn(), set: vi.fn(), x: 1, y: 1, z: 1 };
     userData: any = {};
-    add(child: any) { this.children.push(child); }
-    traverse(fn: any) {}
+    add(child: any) {
+      this.children.push(child);
+    }
+    traverse(_fn: any) {}
   }
 
   class Matrix4 {
@@ -239,7 +255,14 @@ describe('ProceduralBodyGenerator', () => {
 
         it(`includes required morph target names for ${bodyType}`, () => {
           const result = generator.generate(bodyType);
-          const required = ['headScale', 'shoulderWidth', 'hipWidth', 'armLength', 'legLength', 'torsoLength'];
+          const required = [
+            'headScale',
+            'shoulderWidth',
+            'hipWidth',
+            'armLength',
+            'legLength',
+            'torsoLength',
+          ];
 
           for (const name of required) {
             expect(result.morphTargetDictionary).toHaveProperty(name);
@@ -303,11 +326,28 @@ describe('ProceduralBodyGenerator', () => {
       const boneNames = result.skeleton.bones.map((b: any) => b.name);
 
       const requiredBones = [
-        'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
-        'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
-        'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
-        'leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'leftToes',
-        'rightUpperLeg', 'rightLowerLeg', 'rightFoot', 'rightToes',
+        'hips',
+        'spine',
+        'chest',
+        'upperChest',
+        'neck',
+        'head',
+        'leftShoulder',
+        'leftUpperArm',
+        'leftLowerArm',
+        'leftHand',
+        'rightShoulder',
+        'rightUpperArm',
+        'rightLowerArm',
+        'rightHand',
+        'leftUpperLeg',
+        'leftLowerLeg',
+        'leftFoot',
+        'leftToes',
+        'rightUpperLeg',
+        'rightLowerLeg',
+        'rightFoot',
+        'rightToes',
       ];
 
       for (const boneName of requiredBones) {
@@ -454,7 +494,7 @@ describe('ProceduralBodyGenerator', () => {
       const view = new DataView(glb);
 
       // 'glTF' = 0x46546C67 in little-endian
-      expect(view.getUint32(0, true)).toBe(0x46546C67);
+      expect(view.getUint32(0, true)).toBe(0x46546c67);
     });
 
     it('GLB has version 2', () => {
@@ -481,7 +521,7 @@ describe('ProceduralBodyGenerator', () => {
       // After 12-byte header: chunk length (4) + chunk type (4)
       const jsonChunkType = view.getUint32(16, true);
       // 'JSON' = 0x4E4F534A
-      expect(jsonChunkType).toBe(0x4E4F534A);
+      expect(jsonChunkType).toBe(0x4e4f534a);
     });
 
     it('exports all 3 body types successfully', () => {
@@ -558,9 +598,7 @@ describe('ProceduralBodyGenerator', () => {
       const result = generator.generate('androgynous');
       expect(result.skinnedMesh.morphTargetInfluences).toBeDefined();
       expect(result.skinnedMesh.morphTargetInfluences).not.toBeNull();
-      expect(result.skinnedMesh.morphTargetInfluences!.length).toBe(
-        result.stats.morphTargetCount,
-      );
+      expect(result.skinnedMesh.morphTargetInfluences!.length).toBe(result.stats.morphTargetCount);
     });
 
     it('morph target influences are initialized to 0', () => {

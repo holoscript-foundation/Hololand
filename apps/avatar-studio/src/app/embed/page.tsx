@@ -146,20 +146,12 @@ function EmbedPageContent() {
     <div className="flex flex-col h-screen bg-studio-bg">
       {/* Compact header for embed */}
       <header className="flex items-center justify-between px-3 py-1.5 border-b border-studio-border bg-studio-panel">
-        <span className="text-xs font-semibold text-studio-text">
-          Avatar Studio
-        </span>
+        <span className="text-xs font-semibold text-studio-text">Avatar Studio</span>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleCancel}
-            className="studio-btn-secondary text-xs px-3 py-1"
-          >
+          <button onClick={handleCancel} className="studio-btn-secondary text-xs px-3 py-1">
             Cancel
           </button>
-          <button
-            onClick={handleDone}
-            className="studio-btn-primary text-xs px-3 py-1"
-          >
+          <button onClick={handleDone} className="studio-btn-primary text-xs px-3 py-1">
             Done
           </button>
         </div>
@@ -174,9 +166,7 @@ function EmbedPageContent() {
         {/* Editor Panel */}
         <aside className="w-[320px] flex-shrink-0 border-l border-studio-border bg-studio-panel flex flex-col">
           <TabBar activeTab={store.activeTab} onTabChange={store.setTab} />
-          <div className="flex-1 min-h-0 overflow-hidden">
-            {renderActiveTab()}
-          </div>
+          <div className="flex-1 min-h-0 overflow-hidden">{renderActiveTab()}</div>
         </aside>
       </div>
     </div>

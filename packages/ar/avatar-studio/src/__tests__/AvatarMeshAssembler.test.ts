@@ -11,14 +11,18 @@ import { AvatarBlueprintManager } from '../AvatarBlueprintManager';
 // Mock Three.js since we're in a Node environment
 vi.mock('three', () => {
   const Vector3 = vi.fn().mockImplementation((x = 0, y = 0, z = 0) => ({ x, y, z }));
-  const Color = vi.fn().mockImplementation((hex?: string) => ({
-    r: 1, g: 1, b: 1,
+  const Color = vi.fn().mockImplementation((_hex?: string) => ({
+    r: 1,
+    g: 1,
+    b: 1,
     copy: vi.fn(),
     set: vi.fn(),
   }));
 
   const BufferAttribute = vi.fn().mockImplementation((array, itemSize) => ({
-    array, itemSize, count: array.length / itemSize,
+    array,
+    itemSize,
+    count: array.length / itemSize,
     getY: vi.fn((i: number) => array[i * itemSize + 1]),
   }));
 
@@ -30,9 +34,13 @@ vi.mock('three', () => {
       morphTargetsRelative: false,
       userData: {},
       dispose: vi.fn(),
-      setAttribute: vi.fn((name: string, attr: any) => { geo.attributes[name] = attr; }),
+      setAttribute: vi.fn((name: string, attr: any) => {
+        geo.attributes[name] = attr;
+      }),
       getAttribute: vi.fn((name: string) => geo.attributes[name] ?? { count: 100 }),
-      setIndex: vi.fn((indexAttr: any) => { geo.index = indexAttr; }),
+      setIndex: vi.fn((indexAttr: any) => {
+        geo.index = indexAttr;
+      }),
       getIndex: vi.fn(() => geo.index),
     };
     return geo;
@@ -84,7 +92,9 @@ vi.mock('three', () => {
   const Group = vi.fn().mockImplementation(() => ({
     name: '',
     children: [],
-    add: vi.fn(function(this: any, child: any) { this.children.push(child); }),
+    add: vi.fn(function (this: any, child: any) {
+      this.children.push(child);
+    }),
     scale: { setScalar: vi.fn(), set: vi.fn(), x: 1, y: 1, z: 1 },
     traverse: vi.fn(),
     userData: {},
@@ -94,9 +104,9 @@ vi.mock('three', () => {
     setAttribute: vi.fn(),
     getAttribute: vi.fn().mockReturnValue({
       count: 100,
-      getX: vi.fn((i: number) => 0),
+      getX: vi.fn((_i: number) => 0),
       getY: vi.fn((i: number) => i * 0.017),
-      getZ: vi.fn((i: number) => 0),
+      getZ: vi.fn((_i: number) => 0),
     }),
     index: { count: 300 },
     morphAttributes: {},
@@ -112,7 +122,8 @@ vi.mock('three', () => {
     elements: new Float32Array(16),
     makeTranslation: vi.fn().mockReturnThis(),
     toArray: vi.fn((arr: Float32Array, offset: number) => {
-      for (let i = 0; i < 16; i++) arr[offset + i] = i === 0 || i === 5 || i === 10 || i === 15 ? 1 : 0;
+      for (let i = 0; i < 16; i++)
+        arr[offset + i] = i === 0 || i === 5 || i === 10 || i === 15 ? 1 : 0;
     }),
   }));
 
@@ -135,7 +146,7 @@ vi.mock('three', () => {
     DoubleSide: 2,
     MathUtils: {
       lerp: (a: number, b: number, t: number) => a + (b - a) * t,
-      degToRad: (deg: number) => deg * Math.PI / 180,
+      degToRad: (deg: number) => (deg * Math.PI) / 180,
     },
   };
 });

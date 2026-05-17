@@ -22,16 +22,12 @@ describe('DistanceIndicator', () => {
 
   describe('Rendering', () => {
     it('should render without crashing', () => {
-      const { container } = render(
-        <DistanceIndicator cameraPose={mockCameraPose} />
-      );
+      const { container } = render(<DistanceIndicator cameraPose={mockCameraPose} />);
       expect(container).toBeTruthy();
     });
 
     it('should show current measurement mode', () => {
-      const { getByText } = render(
-        <DistanceIndicator cameraPose={mockCameraPose} mode="point" />
-      );
+      const { getByText } = render(<DistanceIndicator cameraPose={mockCameraPose} mode="point" />);
       expect(getByText('📏 Point to Point')).toBeTruthy();
     });
 
@@ -103,11 +99,7 @@ describe('DistanceIndicator', () => {
     it('should switch modes when mode button pressed', () => {
       const onModeChange = jest.fn();
       const { getByA11yLabel } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          mode="point"
-          onModeChange={onModeChange}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} mode="point" onModeChange={onModeChange} />
       );
 
       const pathButton = getByA11yLabel('Path Length mode');
@@ -129,11 +121,7 @@ describe('DistanceIndicator', () => {
 
     it('should require 3 points minimum for area mode', () => {
       const { getByText } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          measurementPoints={mockPoints}
-          mode="area"
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} measurementPoints={mockPoints} mode="area" />
       );
       expect(getByText('2 / 3+ points')).toBeTruthy();
     });
@@ -155,11 +143,7 @@ describe('DistanceIndicator', () => {
     it('should toggle units when unit button pressed', () => {
       const onUnitChange = jest.fn();
       const { getByA11yLabel } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          unit="meters"
-          onUnitChange={onUnitChange}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} unit="meters" onUnitChange={onUnitChange} />
       );
 
       const unitButton = getByA11yLabel('Change unit, currently meters');
@@ -171,11 +155,7 @@ describe('DistanceIndicator', () => {
     it('should cycle through units: meters -> feet -> inches -> meters', () => {
       const onUnitChange = jest.fn();
       const { getByA11yLabel, rerender } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          unit="meters"
-          onUnitChange={onUnitChange}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} unit="meters" onUnitChange={onUnitChange} />
       );
 
       const unitButton = getByA11yLabel('Change unit, currently meters');
@@ -183,11 +163,7 @@ describe('DistanceIndicator', () => {
       expect(onUnitChange).toHaveBeenCalledWith('feet');
 
       rerender(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          unit="feet"
-          onUnitChange={onUnitChange}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} unit="feet" onUnitChange={onUnitChange} />
       );
 
       fireEvent.press(unitButton);
@@ -199,10 +175,7 @@ describe('DistanceIndicator', () => {
     it('should call onPointAdded when Add Point button pressed', () => {
       const onPointAdded = jest.fn();
       const { getByText } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          onPointAdded={onPointAdded}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} onPointAdded={onPointAdded} />
       );
 
       const addButton = getByText('+ Add Point');
@@ -217,10 +190,7 @@ describe('DistanceIndicator', () => {
     it('should call onMeasurementClear when Clear button pressed', () => {
       const onClear = jest.fn();
       const { getByText } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          onMeasurementClear={onClear}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} onMeasurementClear={onClear} />
       );
 
       const clearButton = getByText('Clear');
@@ -299,11 +269,7 @@ describe('DistanceIndicator', () => {
 
     it('should show history when enabled', () => {
       const { getByText } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          showHistory={true}
-          history={mockHistory}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} showHistory={true} history={mockHistory} />
       );
 
       expect(getByText('History')).toBeTruthy();
@@ -313,11 +279,7 @@ describe('DistanceIndicator', () => {
 
     it('should hide history when disabled', () => {
       const { queryByText } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          showHistory={false}
-          history={mockHistory}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} showHistory={false} history={mockHistory} />
       );
 
       expect(queryByText('History')).toBeNull();
@@ -334,11 +296,7 @@ describe('DistanceIndicator', () => {
       }));
 
       const { container } = render(
-        <DistanceIndicator
-          cameraPose={mockCameraPose}
-          showHistory={true}
-          history={largeHistory}
-        />
+        <DistanceIndicator cameraPose={mockCameraPose} showHistory={true} history={largeHistory} />
       );
 
       expect(container).toBeTruthy();
@@ -347,9 +305,7 @@ describe('DistanceIndicator', () => {
 
   describe('Accessibility', () => {
     it('should have accessible measurement panel', () => {
-      const { getByA11yLabel } = render(
-        <DistanceIndicator cameraPose={mockCameraPose} />
-      );
+      const { getByA11yLabel } = render(<DistanceIndicator cameraPose={mockCameraPose} />);
       expect(getByA11yLabel('Measurement panel')).toBeTruthy();
     });
 

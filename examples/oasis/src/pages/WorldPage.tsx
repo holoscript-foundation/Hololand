@@ -51,11 +51,7 @@ export default function WorldPage() {
   return (
     <div className="absolute inset-0">
       {/* 3D Canvas */}
-      <Canvas
-        camera={{ position: [0, 5, 10], fov: 60 }}
-        className="w-full h-full"
-        shadows
-      >
+      <Canvas camera={{ position: [0, 5, 10], fov: 60 }} className="w-full h-full" shadows>
         <Suspense fallback={null}>
           {/* Bright daytime sky */}
           <Sky
@@ -87,29 +83,12 @@ export default function WorldPage() {
           />
 
           {/* Sky-ground hemisphere light */}
-          <hemisphereLight
-            args={['#87CEEB', '#7CB342', 0.4]}
-          />
+          <hemisphereLight args={['#87CEEB', '#7CB342', 0.4]} />
 
           {/* Fluffy clouds */}
-          <Cloud
-            position={[-20, 15, -10]}
-            speed={0.2}
-            opacity={0.7}
-            segments={20}
-          />
-          <Cloud
-            position={[25, 18, -15]}
-            speed={0.15}
-            opacity={0.6}
-            segments={15}
-          />
-          <Cloud
-            position={[0, 20, -25]}
-            speed={0.1}
-            opacity={0.5}
-            segments={25}
-          />
+          <Cloud position={[-20, 15, -10]} speed={0.2} opacity={0.7} segments={20} />
+          <Cloud position={[25, 18, -15]} speed={0.15} opacity={0.6} segments={15} />
+          <Cloud position={[0, 20, -25]} speed={0.1} opacity={0.5} segments={25} />
 
           {/* Green grass ground */}
           <GrassGround />
@@ -168,10 +147,16 @@ export default function WorldPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <button className="glass rounded-xl p-2.5 hover:bg-meadow-cream transition-colors" title="Invite friends">
+          <button
+            className="glass rounded-xl p-2.5 hover:bg-meadow-cream transition-colors"
+            title="Invite friends"
+          >
             <InviteIcon className="w-5 h-5 text-meadow-text-muted" />
           </button>
-          <button className="glass rounded-xl p-2.5 hover:bg-meadow-cream transition-colors" title="Settings">
+          <button
+            className="glass rounded-xl p-2.5 hover:bg-meadow-cream transition-colors"
+            title="Settings"
+          >
             <SettingsIcon className="w-5 h-5 text-meadow-text-muted" />
           </button>
           <button className="btn-sky">Enter VR</button>
@@ -185,17 +170,17 @@ export default function WorldPage() {
             Players ({currentWorld.playerCount})
           </h3>
           <div className="space-y-2">
-            {['You', 'Player2', 'Player3'].slice(0, currentWorld.playerCount || 1).map((name, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-meadow-grass to-meadow-sky flex items-center justify-center shadow-sm">
-                  <span className="text-white text-xs font-medium">{name.charAt(0)}</span>
+            {['You', 'Player2', 'Player3']
+              .slice(0, currentWorld.playerCount || 1)
+              .map((name, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-meadow-grass to-meadow-sky flex items-center justify-center shadow-sm">
+                    <span className="text-white text-xs font-medium">{name.charAt(0)}</span>
+                  </div>
+                  <span className="text-sm text-meadow-text">{name}</span>
+                  {i === 0 && <span className="badge-grass">You</span>}
                 </div>
-                <span className="text-sm text-meadow-text">{name}</span>
-                {i === 0 && (
-                  <span className="badge-grass">You</span>
-                )}
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>
@@ -205,15 +190,12 @@ export default function WorldPage() {
         <div className="card overflow-hidden">
           <div className="h-32 p-3 overflow-y-auto text-sm space-y-1 bg-meadow-cream/50">
             <p className="text-meadow-text-muted">
-              <span className="text-meadow-grass font-medium">System:</span> Welcome to {currentWorld.name}!
+              <span className="text-meadow-grass font-medium">System:</span> Welcome to{' '}
+              {currentWorld.name}!
             </p>
           </div>
           <div className="p-2 border-t border-meadow-text/10">
-            <input
-              type="text"
-              placeholder="Type a message..."
-              className="input text-sm py-2"
-            />
+            <input type="text" placeholder="Type a message..." className="input text-sm py-2" />
           </div>
         </div>
       </div>
@@ -233,17 +215,19 @@ function GrassGround() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial
-        color="#7CB342"
-        roughness={0.9}
-        metalness={0}
-      />
+      <meshStandardMaterial color="#7CB342" roughness={0.9} metalness={0} />
     </mesh>
   );
 }
 
 // Simple stylized tree
-function SimpleTree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+function SimpleTree({
+  position,
+  scale = 1,
+}: {
+  position: [number, number, number];
+  scale?: number;
+}) {
   return (
     <group position={position} scale={scale}>
       {/* Trunk */}
@@ -265,7 +249,11 @@ function LoadingSpinner({ className }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} fill="none" viewBox="0 0 24 24">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
     </svg>
   );
 }
@@ -273,7 +261,12 @@ function LoadingSpinner({ className }: { className?: string }) {
 function ErrorIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+      />
     </svg>
   );
 }
@@ -281,7 +274,12 @@ function ErrorIcon({ className }: { className?: string }) {
 function BackIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10 19l-7-7m0 0l7-7m-7 7h18"
+      />
     </svg>
   );
 }
@@ -289,7 +287,12 @@ function BackIcon({ className }: { className?: string }) {
 function InviteIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+      />
     </svg>
   );
 }
@@ -297,8 +300,18 @@ function InviteIcon({ className }: { className?: string }) {
 function SettingsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
     </svg>
   );
 }

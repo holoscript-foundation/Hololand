@@ -25,21 +25,21 @@ import type { Pose6DoF, SpatialAnchor } from '../types';
  * Supported IoT communication protocols.
  */
 export type IoTProtocol =
-  | 'ble'           // Bluetooth Low Energy
-  | 'ble_mesh'      // Bluetooth Mesh
-  | 'wifi'          // WiFi (TCP/UDP)
-  | 'wifi_direct'   // WiFi Direct (P2P)
-  | 'zigbee'        // Zigbee 3.0
-  | 'zwave'         // Z-Wave Plus
-  | 'thread'        // Thread (IEEE 802.15.4)
-  | 'matter'        // Matter (Project CHIP)
-  | 'mqtt'          // MQTT over TCP/TLS
-  | 'coap'          // CoAP over UDP/DTLS
-  | 'http'          // HTTP/HTTPS REST
-  | 'websocket'     // WebSocket
-  | 'uwb'           // Ultra-Wideband (spatial positioning)
-  | 'nfc'           // Near Field Communication
-  | 'custom';       // Custom protocol
+  | 'ble' // Bluetooth Low Energy
+  | 'ble_mesh' // Bluetooth Mesh
+  | 'wifi' // WiFi (TCP/UDP)
+  | 'wifi_direct' // WiFi Direct (P2P)
+  | 'zigbee' // Zigbee 3.0
+  | 'zwave' // Z-Wave Plus
+  | 'thread' // Thread (IEEE 802.15.4)
+  | 'matter' // Matter (Project CHIP)
+  | 'mqtt' // MQTT over TCP/TLS
+  | 'coap' // CoAP over UDP/DTLS
+  | 'http' // HTTP/HTTPS REST
+  | 'websocket' // WebSocket
+  | 'uwb' // Ultra-Wideband (spatial positioning)
+  | 'nfc' // Near Field Communication
+  | 'custom'; // Custom protocol
 
 /**
  * Protocol-specific connection parameters.
@@ -59,7 +59,7 @@ export interface IoTConnectionParams {
     port: number;
     useTLS: boolean;
     authType: 'none' | 'basic' | 'bearer' | 'apiKey' | 'certificate';
-    credentials?: string;  // Encrypted reference, never plaintext
+    credentials?: string; // Encrypted reference, never plaintext
   };
   /** Matter-specific */
   matter?: {
@@ -80,7 +80,7 @@ export interface IoTConnectionParams {
   /** UWB-specific (for spatial positioning) */
   uwb?: {
     sessionId: number;
-    rangingInterval: number;  // ms
+    rangingInterval: number; // ms
     channel: number;
   };
 }
@@ -93,32 +93,32 @@ export interface IoTConnectionParams {
  * Device category classification.
  */
 export type IoTDeviceCategory =
-  | 'light'           // Smart lights, LED strips
-  | 'switch'          // Smart switches, relays
-  | 'sensor'          // Environmental sensors
-  | 'thermostat'      // HVAC controls
-  | 'lock'            // Smart locks
-  | 'camera'          // IP cameras, doorbells
-  | 'speaker'         // Smart speakers
-  | 'display'         // Smart displays, screens
-  | 'appliance'       // Kitchen/home appliances
-  | 'robot'           // Robots, vacuums, drones
-  | 'tracker'         // Asset/person trackers
-  | 'controller'      // Buttons, remotes, gamepads
-  | 'gateway'         // Protocol gateways, hubs
-  | 'wearable'        // Smartwatches, health devices
-  | 'industrial'      // Industrial IoT devices
-  | 'custom';         // Custom device type
+  | 'light' // Smart lights, LED strips
+  | 'switch' // Smart switches, relays
+  | 'sensor' // Environmental sensors
+  | 'thermostat' // HVAC controls
+  | 'lock' // Smart locks
+  | 'camera' // IP cameras, doorbells
+  | 'speaker' // Smart speakers
+  | 'display' // Smart displays, screens
+  | 'appliance' // Kitchen/home appliances
+  | 'robot' // Robots, vacuums, drones
+  | 'tracker' // Asset/person trackers
+  | 'controller' // Buttons, remotes, gamepads
+  | 'gateway' // Protocol gateways, hubs
+  | 'wearable' // Smartwatches, health devices
+  | 'industrial' // Industrial IoT devices
+  | 'custom'; // Custom device type
 
 /**
  * Device connection state.
  */
 export type IoTDeviceConnectionState =
-  | 'disconnected'    // Not connected
-  | 'connecting'      // Connection in progress
-  | 'connected'       // Connected and operational
-  | 'reconnecting'    // Lost connection, attempting recovery
-  | 'error';          // Connection failed
+  | 'disconnected' // Not connected
+  | 'connecting' // Connection in progress
+  | 'connected' // Connected and operational
+  | 'reconnecting' // Lost connection, attempting recovery
+  | 'error'; // Connection failed
 
 /**
  * An IoT device discovered or known to the system.
@@ -172,52 +172,68 @@ export interface IoTDevice {
  * Capability affordance type (W3C WoT Thing Description).
  */
 export type IoTCapabilityType =
-  | 'property'   // Observable/writable state value
-  | 'action'     // Invocable operation
-  | 'event';     // Asynchronous notification
+  | 'property' // Observable/writable state value
+  | 'action' // Invocable operation
+  | 'event'; // Asynchronous notification
 
 /**
  * Data type for capability values.
  */
-export type IoTDataType =
-  | 'boolean'
-  | 'integer'
-  | 'number'
-  | 'string'
-  | 'object'
-  | 'array'
-  | 'null';
+export type IoTDataType = 'boolean' | 'integer' | 'number' | 'string' | 'object' | 'array' | 'null';
 
 /**
  * Unit of measurement (SI and common units).
  */
 export type IoTUnit =
   // Temperature
-  | 'celsius' | 'fahrenheit' | 'kelvin'
+  | 'celsius'
+  | 'fahrenheit'
+  | 'kelvin'
   // Light
-  | 'lux' | 'lumen' | 'candela'
+  | 'lux'
+  | 'lumen'
+  | 'candela'
   // Electrical
-  | 'volt' | 'ampere' | 'watt' | 'kilowatt_hour'
+  | 'volt'
+  | 'ampere'
+  | 'watt'
+  | 'kilowatt_hour'
   // Distance
-  | 'meter' | 'centimeter' | 'millimeter' | 'foot' | 'inch'
+  | 'meter'
+  | 'centimeter'
+  | 'millimeter'
+  | 'foot'
+  | 'inch'
   // Mass
-  | 'kilogram' | 'gram' | 'pound'
+  | 'kilogram'
+  | 'gram'
+  | 'pound'
   // Time
-  | 'second' | 'millisecond' | 'minute' | 'hour'
+  | 'second'
+  | 'millisecond'
+  | 'minute'
+  | 'hour'
   // Pressure
-  | 'pascal' | 'bar' | 'psi'
+  | 'pascal'
+  | 'bar'
+  | 'psi'
   // Sound
   | 'decibel'
   // Percentage
   | 'percent'
   // Color
-  | 'rgb' | 'hsv' | 'kelvin_color_temp'
+  | 'rgb'
+  | 'hsv'
+  | 'kelvin_color_temp'
   // Angle
-  | 'degree' | 'radian'
+  | 'degree'
+  | 'radian'
   // Speed
-  | 'meters_per_second' | 'rpm'
+  | 'meters_per_second'
+  | 'rpm'
   // Volume
-  | 'liter' | 'milliliter'
+  | 'liter'
+  | 'milliliter'
   // Other
   | 'none'
   | 'custom';
@@ -287,10 +303,10 @@ export interface IoTCapability {
 }
 
 export type IoTAccessLevel =
-  | 'public'      // Anyone in the world can read
-  | 'read'        // Authenticated users can read
-  | 'write'       // Authorized users can read and write
-  | 'admin';      // Only device owner/admin
+  | 'public' // Anyone in the world can read
+  | 'read' // Authenticated users can read
+  | 'write' // Authorized users can read and write
+  | 'admin'; // Only device owner/admin
 
 // =============================================================================
 // IOT DEVICE STATE
@@ -353,12 +369,12 @@ export interface IoTCommand {
 }
 
 export type IoTCommandSource =
-  | 'user_interaction'    // Direct user tap/gaze in AR
-  | 'automation_rule'     // Triggered by automation
-  | 'holoscript'          // Triggered by HoloScript code
-  | 'proximity_trigger'   // Triggered by interaction zone
-  | 'schedule'            // Scheduled trigger
-  | 'api';                // External API call
+  | 'user_interaction' // Direct user tap/gaze in AR
+  | 'automation_rule' // Triggered by automation
+  | 'holoscript' // Triggered by HoloScript code
+  | 'proximity_trigger' // Triggered by interaction zone
+  | 'schedule' // Scheduled trigger
+  | 'api'; // External API call
 
 /**
  * Command response from device.
@@ -390,13 +406,13 @@ export interface IoTCommandResponse {
  * Binding status lifecycle.
  */
 export type IoTBindingStatus =
-  | 'draft'         // Binding created but not activated
-  | 'pending'       // Waiting for device confirmation
-  | 'active'        // Binding is live and operational
-  | 'paused'        // Temporarily suspended
-  | 'error'         // Binding has errors
-  | 'expired'       // Binding TTL exceeded
-  | 'unbound';      // Explicitly removed
+  | 'draft' // Binding created but not activated
+  | 'pending' // Waiting for device confirmation
+  | 'active' // Binding is live and operational
+  | 'paused' // Temporarily suspended
+  | 'error' // Binding has errors
+  | 'expired' // Binding TTL exceeded
+  | 'unbound'; // Explicitly removed
 
 /**
  * The core IoT Entity Binding schema.
@@ -450,7 +466,7 @@ export interface IoTEntityBinding {
    * Capabilities exposed through this binding.
    * This may be a subset of the device's total capabilities.
    */
-  exposedCapabilities: string[];  // Capability IDs from the device
+  exposedCapabilities: string[]; // Capability IDs from the device
 
   /**
    * Capability overrides (e.g., restrict range, change units).
@@ -577,11 +593,11 @@ export interface IoTInteractionZone {
   shape: 'sphere' | 'cylinder' | 'box' | 'cone';
   /** Shape dimensions (meters) */
   dimensions: {
-    radius?: number;     // sphere, cylinder, cone base
-    width?: number;      // box
-    height?: number;     // cylinder, box, cone
-    depth?: number;      // box
-    topRadius?: number;  // cone top (0 = point)
+    radius?: number; // sphere, cylinder, cone base
+    width?: number; // box
+    height?: number; // cylinder, box, cone
+    depth?: number; // box
+    topRadius?: number; // cone top (0 = point)
   };
   /** Offset from entity position */
   offset: { x: number; y: number; z: number };
@@ -919,16 +935,16 @@ export interface IoTDiscoveryResult {
 export const IOT_BINDING_JSONLD_CONTEXT = {
   '@context': {
     '@vocab': 'https://hololand.io/schema/iot/',
-    'wot': 'https://www.w3.org/2019/wot/td#',
-    'schema': 'https://schema.org/',
-    'geo': 'http://www.w3.org/2003/01/geo/wgs84_pos#',
-    'deviceId': '@id',
-    'name': 'schema:name',
-    'manufacturer': 'schema:manufacturer',
-    'category': 'wot:hasSecurityScheme',
-    'capabilities': 'wot:hasPropertyAffordance',
-    'latitude': 'geo:lat',
-    'longitude': 'geo:long',
-    'altitude': 'geo:alt',
+    wot: 'https://www.w3.org/2019/wot/td#',
+    schema: 'https://schema.org/',
+    geo: 'http://www.w3.org/2003/01/geo/wgs84_pos#',
+    deviceId: '@id',
+    name: 'schema:name',
+    manufacturer: 'schema:manufacturer',
+    category: 'wot:hasSecurityScheme',
+    capabilities: 'wot:hasPropertyAffordance',
+    latitude: 'geo:lat',
+    longitude: 'geo:long',
+    altitude: 'geo:alt',
   },
 } as const;

@@ -129,7 +129,8 @@ interface BitqueryTokenCreatedEvent {
 /**
  * Environment variable for Bitquery API key
  */
-const ENV_BITQUERY_API_KEY = typeof process !== 'undefined' ? process.env.BITQUERY_API_KEY : undefined;
+const ENV_BITQUERY_API_KEY =
+  typeof process !== 'undefined' ? process.env.BITQUERY_API_KEY : undefined;
 
 /**
  * Clanker token metadata fetcher
@@ -196,7 +197,9 @@ export class ClankerTokenFetcher extends BaseTokenFetcher {
   /**
    * Fetch token creation event from Bitquery
    */
-  private async fetchFromBitquery(tokenAddress: string): Promise<Partial<ClankerTokenMetadata> | null> {
+  private async fetchFromBitquery(
+    tokenAddress: string
+  ): Promise<Partial<ClankerTokenMetadata> | null> {
     if (!this.bitqueryApiKey) return null;
 
     const query = `
@@ -243,7 +246,7 @@ export class ClankerTokenFetcher extends BaseTokenFetcher {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.bitqueryApiKey}`,
+          Authorization: `Bearer ${this.bitqueryApiKey}`,
         },
         body: JSON.stringify({
           query,
@@ -273,7 +276,9 @@ export class ClankerTokenFetcher extends BaseTokenFetcher {
   /**
    * Parse TokenCreated event arguments
    */
-  private parseTokenCreatedEvent(event: BitqueryTokenCreatedEvent & { Log?: { SmartContract?: string } }): Partial<ClankerTokenMetadata> {
+  private parseTokenCreatedEvent(
+    event: BitqueryTokenCreatedEvent & { Log?: { SmartContract?: string } }
+  ): Partial<ClankerTokenMetadata> {
     const args = new Map<string, string>();
 
     for (const arg of event.Arguments) {
@@ -321,7 +326,7 @@ export class ClankerTokenFetcher extends BaseTokenFetcher {
    * Detect if token is a Clanker token based on patterns
    * (fallback when Bitquery is not available)
    */
-  private async detectClankerToken(tokenAddress: string): Promise<Partial<ClankerTokenMetadata>> {
+  private async detectClankerToken(_tokenAddress: string): Promise<Partial<ClankerTokenMetadata>> {
     // Check if token name/symbol matches common Clanker patterns
     // Many Clanker tokens have specific naming patterns
 

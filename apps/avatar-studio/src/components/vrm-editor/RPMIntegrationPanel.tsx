@@ -17,7 +17,7 @@ const STATUS_STEPS: { key: RPMImportStatus; label: string; order: number }[] = [
 
 function getStepState(
   currentStatus: RPMImportStatus,
-  stepKey: RPMImportStatus,
+  stepKey: RPMImportStatus
 ): 'completed' | 'active' | 'pending' | 'error' {
   if (currentStatus === 'error') return 'error';
   const current = STATUS_STEPS.find((s) => s.key === currentStatus);
@@ -114,9 +114,7 @@ export function RPMIntegrationPanel({ onImport }: RPMIntegrationPanelProps) {
 
       {/* URL Input */}
       <section>
-        <label className="text-xs font-medium text-studio-muted mb-1.5 block">
-          Avatar URL
-        </label>
+        <label className="text-xs font-medium text-studio-muted mb-1.5 block">Avatar URL</label>
         <div className="flex gap-2">
           <input
             type="url"
@@ -138,12 +136,14 @@ export function RPMIntegrationPanel({ onImport }: RPMIntegrationPanelProps) {
                 : 'bg-holo-500 text-white hover:bg-holo-400'
             }`}
           >
-            {status === 'complete' || status === 'error' ? 'Reset' : isImporting ? 'Importing...' : 'Import'}
+            {status === 'complete' || status === 'error'
+              ? 'Reset'
+              : isImporting
+                ? 'Importing...'
+                : 'Import'}
           </button>
         </div>
-        {error && (
-          <p className="text-xs text-red-400 mt-1.5">{error}</p>
-        )}
+        {error && <p className="text-xs text-red-400 mt-1.5">{error}</p>}
         <p className="text-[10px] text-studio-muted mt-1.5">
           Paste a Ready Player Me avatar URL (.glb) or avatar ID to import
         </p>
@@ -171,8 +171,18 @@ export function RPMIntegrationPanel({ onImport }: RPMIntegrationPanelProps) {
                     }`}
                   >
                     {state === 'completed' ? (
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     ) : state === 'error' ? (
                       'X'
@@ -262,10 +272,10 @@ export function RPMIntegrationPanel({ onImport }: RPMIntegrationPanelProps) {
       {/* RPM Info */}
       <section className="studio-panel rounded-lg p-3">
         <p className="text-[10px] text-studio-muted leading-relaxed">
-          Ready Player Me avatars are imported as GLB files and automatically converted
-          to VRM format with proper humanoid bone mapping and blend shape configuration.
-          Supported avatar types: half-body and full-body. Texture and material quality
-          is preserved during conversion.
+          Ready Player Me avatars are imported as GLB files and automatically converted to VRM
+          format with proper humanoid bone mapping and blend shape configuration. Supported avatar
+          types: half-body and full-body. Texture and material quality is preserved during
+          conversion.
         </p>
       </section>
     </div>

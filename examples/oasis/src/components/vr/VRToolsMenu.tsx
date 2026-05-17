@@ -71,12 +71,7 @@ export default function VRToolsMenu({
       </RoundedBox>
 
       {/* Header */}
-      <Text
-        position={[0, 0.38, 0.02]}
-        fontSize={0.05}
-        color="#3D2914"
-        anchorX="center"
-      >
+      <Text position={[0, 0.38, 0.02]} fontSize={0.05} color="#3D2914" anchorX="center">
         Tools
       </Text>
 
@@ -229,9 +224,7 @@ function EntityTypeButton({ position, type, label, isSelected, onClick }: Entity
         onPointerLeave={() => setHovered(false)}
       >
         <RoundedBox args={[0.18, 0.1, 0.01]} radius={0.015} smoothness={4}>
-          <meshStandardMaterial
-            color={isSelected ? '#7CB342' : hovered ? '#9CCC65' : '#F5E6D3'}
-          />
+          <meshStandardMaterial color={isSelected ? '#7CB342' : hovered ? '#9CCC65' : '#F5E6D3'} />
         </RoundedBox>
       </mesh>
 

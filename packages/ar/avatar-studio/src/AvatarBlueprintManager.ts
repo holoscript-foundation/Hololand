@@ -30,11 +30,7 @@ import type {
   MouthConfig,
 } from './types';
 
-import {
-  DEFAULT_BODY_PROPORTIONS,
-  DEFAULT_FACE_MORPHS,
-  DEFAULT_VRM_META,
-} from './types';
+import { DEFAULT_BODY_PROPORTIONS, DEFAULT_FACE_MORPHS, DEFAULT_VRM_META } from './types';
 
 /**
  * Generate a unique ID
@@ -302,7 +298,11 @@ export class AvatarBlueprintManager {
         this.emitImmediate(event);
       }
       this.pendingEvents = [];
-      this.emitImmediate({ type: 'blueprint:changed', timestamp: Date.now(), data: this.blueprint });
+      this.emitImmediate({
+        type: 'blueprint:changed',
+        timestamp: Date.now(),
+        data: this.blueprint,
+      });
     }
   }
 
@@ -455,9 +455,7 @@ export class AvatarBlueprintManager {
   equipClothing(slot: ClothingSlot): void {
     this.applyChange(() => {
       // Remove any existing item in the same slot
-      this.blueprint.clothing = this.blueprint.clothing.filter(
-        (c) => c.slot !== slot.slot
-      );
+      this.blueprint.clothing = this.blueprint.clothing.filter((c) => c.slot !== slot.slot);
       // Full-body items clear upper+lower
       if (slot.slot === 'fullBody') {
         this.blueprint.clothing = this.blueprint.clothing.filter(
@@ -466,9 +464,7 @@ export class AvatarBlueprintManager {
       }
       // Upper/lower body items clear full-body
       if (slot.slot === 'upperBody' || slot.slot === 'lowerBody') {
-        this.blueprint.clothing = this.blueprint.clothing.filter(
-          (c) => c.slot !== 'fullBody'
-        );
+        this.blueprint.clothing = this.blueprint.clothing.filter((c) => c.slot !== 'fullBody');
       }
       this.blueprint.clothing.push(slot);
     }, 'asset:equipped');
@@ -479,9 +475,7 @@ export class AvatarBlueprintManager {
    */
   unequipClothing(slotName: ClothingSlotName): void {
     this.applyChange(() => {
-      this.blueprint.clothing = this.blueprint.clothing.filter(
-        (c) => c.slot !== slotName
-      );
+      this.blueprint.clothing = this.blueprint.clothing.filter((c) => c.slot !== slotName);
     }, 'asset:unequipped');
   }
 
@@ -506,9 +500,7 @@ export class AvatarBlueprintManager {
    */
   equipAccessory(slot: AccessorySlot): void {
     this.applyChange(() => {
-      this.blueprint.accessories = this.blueprint.accessories.filter(
-        (a) => a.slot !== slot.slot
-      );
+      this.blueprint.accessories = this.blueprint.accessories.filter((a) => a.slot !== slot.slot);
       this.blueprint.accessories.push(slot);
     }, 'asset:equipped');
   }
@@ -518,9 +510,7 @@ export class AvatarBlueprintManager {
    */
   unequipAccessory(slotName: AccessorySlotName): void {
     this.applyChange(() => {
-      this.blueprint.accessories = this.blueprint.accessories.filter(
-        (a) => a.slot !== slotName
-      );
+      this.blueprint.accessories = this.blueprint.accessories.filter((a) => a.slot !== slotName);
     }, 'asset:unequipped');
   }
 
@@ -545,9 +535,7 @@ export class AvatarBlueprintManager {
    */
   setExpression(expression: ExpressionPreset): void {
     this.applyChange(() => {
-      const existing = this.blueprint.expressions.findIndex(
-        (e) => e.name === expression.name
-      );
+      const existing = this.blueprint.expressions.findIndex((e) => e.name === expression.name);
       if (existing >= 0) {
         this.blueprint.expressions[existing] = expression;
       } else {
@@ -561,9 +549,7 @@ export class AvatarBlueprintManager {
    */
   removeExpression(name: string): void {
     this.applyChange(() => {
-      this.blueprint.expressions = this.blueprint.expressions.filter(
-        (e) => e.name !== name
-      );
+      this.blueprint.expressions = this.blueprint.expressions.filter((e) => e.name !== name);
     }, 'expression:changed');
   }
 
@@ -657,8 +643,16 @@ export class AvatarBlueprintManager {
 
     // Random skin color from a diverse palette
     const skinTones = [
-      '#f5d6b8', '#e0b896', '#c69573', '#a67b5b', '#8d5524',
-      '#6b3a1f', '#4a2511', '#f5d0a9', '#d4a574', '#b38553',
+      '#f5d6b8',
+      '#e0b896',
+      '#c69573',
+      '#a67b5b',
+      '#8d5524',
+      '#6b3a1f',
+      '#4a2511',
+      '#f5d0a9',
+      '#d4a574',
+      '#b38553',
     ];
     this.setSkinColor(skinTones[Math.floor(Math.random() * skinTones.length)]);
 
@@ -681,15 +675,29 @@ export class AvatarBlueprintManager {
 
     // Random hair color
     const hairColors = [
-      '#1a1a1a', '#3d2b1f', '#654321', '#8b4513', '#d2691e',
-      '#daa520', '#f5deb3', '#c41e3a', '#4a0080', '#006994',
+      '#1a1a1a',
+      '#3d2b1f',
+      '#654321',
+      '#8b4513',
+      '#d2691e',
+      '#daa520',
+      '#f5deb3',
+      '#c41e3a',
+      '#4a0080',
+      '#006994',
     ];
     this.setHairColor(hairColors[Math.floor(Math.random() * hairColors.length)]);
 
     // Random eye color
     const eyeColors = [
-      '#6b4423', '#3d85c6', '#2e7d32', '#757575', '#4a148c',
-      '#1a237e', '#00838f', '#bf360c',
+      '#6b4423',
+      '#3d85c6',
+      '#2e7d32',
+      '#757575',
+      '#4a148c',
+      '#1a237e',
+      '#00838f',
+      '#bf360c',
     ];
     this.setEyeColor(eyeColors[Math.floor(Math.random() * eyeColors.length)]);
 
@@ -775,14 +783,14 @@ export class AvatarBlueprintManager {
     drawCalls += 1;
 
     // Clothing
-    for (const _item of this.blueprint.clothing) {
+    for (let i = 0; i < this.blueprint.clothing.length; i++) {
       polyCount += 8000;
       textureMemory += 4;
       drawCalls += 1;
     }
 
     // Accessories
-    for (const _item of this.blueprint.accessories) {
+    for (let i = 0; i < this.blueprint.accessories.length; i++) {
       polyCount += 3000;
       textureMemory += 2;
       drawCalls += 1;

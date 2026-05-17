@@ -1,6 +1,6 @@
 /**
  * @hololand/ar-renderer - Type Definitions
- * 
+ *
  * Types for AR rendering, WebXR, and VRM avatars.
  */
 
@@ -51,23 +51,62 @@ export interface SkeletonPose {
 /**
  * Standard VRM bone names
  */
-export type VRMBoneName = 
-  | 'hips' | 'spine' | 'chest' | 'upperChest' | 'neck' | 'head'
-  | 'leftShoulder' | 'leftUpperArm' | 'leftLowerArm' | 'leftHand'
-  | 'rightShoulder' | 'rightUpperArm' | 'rightLowerArm' | 'rightHand'
-  | 'leftUpperLeg' | 'leftLowerLeg' | 'leftFoot' | 'leftToes'
-  | 'rightUpperLeg' | 'rightLowerLeg' | 'rightFoot' | 'rightToes'
-  | 'leftThumbProximal' | 'leftThumbIntermediate' | 'leftThumbDistal'
-  | 'leftIndexProximal' | 'leftIndexIntermediate' | 'leftIndexDistal'
-  | 'leftMiddleProximal' | 'leftMiddleIntermediate' | 'leftMiddleDistal'
-  | 'leftRingProximal' | 'leftRingIntermediate' | 'leftRingDistal'
-  | 'leftLittleProximal' | 'leftLittleIntermediate' | 'leftLittleDistal'
-  | 'rightThumbProximal' | 'rightThumbIntermediate' | 'rightThumbDistal'
-  | 'rightIndexProximal' | 'rightIndexIntermediate' | 'rightIndexDistal'
-  | 'rightMiddleProximal' | 'rightMiddleIntermediate' | 'rightMiddleDistal'
-  | 'rightRingProximal' | 'rightRingIntermediate' | 'rightRingDistal'
-  | 'rightLittleProximal' | 'rightLittleIntermediate' | 'rightLittleDistal'
-  | 'leftEye' | 'rightEye' | 'jaw';
+export type VRMBoneName =
+  | 'hips'
+  | 'spine'
+  | 'chest'
+  | 'upperChest'
+  | 'neck'
+  | 'head'
+  | 'leftShoulder'
+  | 'leftUpperArm'
+  | 'leftLowerArm'
+  | 'leftHand'
+  | 'rightShoulder'
+  | 'rightUpperArm'
+  | 'rightLowerArm'
+  | 'rightHand'
+  | 'leftUpperLeg'
+  | 'leftLowerLeg'
+  | 'leftFoot'
+  | 'leftToes'
+  | 'rightUpperLeg'
+  | 'rightLowerLeg'
+  | 'rightFoot'
+  | 'rightToes'
+  | 'leftThumbProximal'
+  | 'leftThumbIntermediate'
+  | 'leftThumbDistal'
+  | 'leftIndexProximal'
+  | 'leftIndexIntermediate'
+  | 'leftIndexDistal'
+  | 'leftMiddleProximal'
+  | 'leftMiddleIntermediate'
+  | 'leftMiddleDistal'
+  | 'leftRingProximal'
+  | 'leftRingIntermediate'
+  | 'leftRingDistal'
+  | 'leftLittleProximal'
+  | 'leftLittleIntermediate'
+  | 'leftLittleDistal'
+  | 'rightThumbProximal'
+  | 'rightThumbIntermediate'
+  | 'rightThumbDistal'
+  | 'rightIndexProximal'
+  | 'rightIndexIntermediate'
+  | 'rightIndexDistal'
+  | 'rightMiddleProximal'
+  | 'rightMiddleIntermediate'
+  | 'rightMiddleDistal'
+  | 'rightRingProximal'
+  | 'rightRingIntermediate'
+  | 'rightRingDistal'
+  | 'rightLittleProximal'
+  | 'rightLittleIntermediate'
+  | 'rightLittleDistal'
+  | 'leftEye'
+  | 'rightEye'
+  | 'jaw';
 
 // =============================================================================
 // AVATAR TYPES
@@ -108,7 +147,12 @@ export interface AvatarState {
 // =============================================================================
 
 export type XRSessionMode = 'inline' | 'immersive-vr' | 'immersive-ar';
-export type XRReferenceSpaceType = 'viewer' | 'local' | 'local-floor' | 'bounded-floor' | 'unbounded';
+export type XRReferenceSpaceType =
+  | 'viewer'
+  | 'local'
+  | 'local-floor'
+  | 'bounded-floor'
+  | 'unbounded';
 
 export interface XRSessionConfig {
   mode: XRSessionMode;

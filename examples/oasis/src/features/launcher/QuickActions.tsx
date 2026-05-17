@@ -81,11 +81,7 @@ function QuickActionCard({
       <h3 className="font-semibold text-meadow-text text-lg">{title}</h3>
       <p className="text-sm text-meadow-text-muted mt-1">{description}</p>
 
-      {highlight && (
-        <span className="mt-3 badge-grass">
-          Popular
-        </span>
-      )}
+      {highlight && <span className="mt-3 badge-grass">Popular</span>}
     </Link>
   );
 }
@@ -119,12 +115,7 @@ function BrowseIcon() {
 function CreateIcon() {
   return (
     <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M12 4v16m8-8H4"
-      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
     </svg>
   );
 }

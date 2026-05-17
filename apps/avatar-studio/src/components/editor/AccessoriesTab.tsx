@@ -72,15 +72,15 @@ export function AccessoriesTab({ store }: AccessoriesTabProps) {
   const isEquipped = useCallback(
     (slotName: AccessorySlotName, assetId: string) =>
       blueprint.accessories.some(
-        (a: AccessorySlot) => a.slot === slotName && a.assetId === assetId,
+        (a: AccessorySlot) => a.slot === slotName && a.assetId === assetId
       ),
-    [blueprint.accessories],
+    [blueprint.accessories]
   );
 
   const getEquipped = useCallback(
     (slotName: AccessorySlotName) =>
       blueprint.accessories.find((a: AccessorySlot) => a.slot === slotName),
-    [blueprint.accessories],
+    [blueprint.accessories]
   );
 
   const handleToggle = useCallback(
@@ -99,24 +99,19 @@ export function AccessoriesTab({ store }: AccessoriesTabProps) {
         });
       }
     },
-    [isEquipped, equipAccessory, unequipAccessory],
+    [isEquipped, equipAccessory, unequipAccessory]
   );
 
   return (
     <div className="flex flex-col gap-6 p-4 overflow-y-auto h-full">
-      <SectionHeader
-        title="Accessories"
-        description="Add accessories to personalize your avatar"
-      />
+      <SectionHeader title="Accessories" description="Add accessories to personalize your avatar" />
 
       {ACCESSORY_SLOTS.map((slotDef) => {
         const equipped = getEquipped(slotDef.slot);
         return (
           <section key={slotDef.slot}>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-semibold text-studio-text">
-                {slotDef.label}
-              </h4>
+              <h4 className="text-xs font-semibold text-studio-text">{slotDef.label}</h4>
               {equipped && (
                 <button
                   onClick={() => unequipAccessory(slotDef.slot)}
@@ -132,9 +127,7 @@ export function AccessoriesTab({ store }: AccessoriesTabProps) {
                 return (
                   <button
                     key={item.assetId}
-                    onClick={() =>
-                      handleToggle(slotDef.slot, item.assetId, item.name)
-                    }
+                    onClick={() => handleToggle(slotDef.slot, item.assetId, item.name)}
                     className={`p-2 rounded-lg text-xs text-center transition-all border ${
                       active
                         ? 'border-holo-500 bg-holo-500/10 text-holo-400'

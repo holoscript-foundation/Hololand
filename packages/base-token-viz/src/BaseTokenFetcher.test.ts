@@ -2,7 +2,7 @@
  * Unit tests for BaseTokenFetcher
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { BaseTokenFetcher, createFetcher, KNOWN_TOKENS, BASE_RPC_URLS } from './BaseTokenFetcher';
 
 // Mock viem
@@ -37,7 +37,7 @@ describe('BaseTokenFetcher', () => {
   describe('isValidAddress', () => {
     it('validates correct addresses', () => {
       const fetcher = new BaseTokenFetcher();
-      
+
       expect(fetcher.isValidAddress('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')).toBe(true);
       expect(fetcher.isValidAddress('0x0000000000000000000000000000000000000000')).toBe(true);
       expect(fetcher.isValidAddress('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF')).toBe(true);
@@ -45,7 +45,7 @@ describe('BaseTokenFetcher', () => {
 
     it('rejects invalid addresses', () => {
       const fetcher = new BaseTokenFetcher();
-      
+
       expect(fetcher.isValidAddress('')).toBe(false);
       expect(fetcher.isValidAddress('0x')).toBe(false);
       expect(fetcher.isValidAddress('0x123')).toBe(false);
@@ -90,7 +90,7 @@ describe('BaseTokenFetcher', () => {
   describe('fetchMetadata', () => {
     it('throws on invalid address', async () => {
       const fetcher = new BaseTokenFetcher();
-      
+
       await expect(fetcher.fetchMetadata('invalid')).rejects.toThrow('Invalid token address');
       await expect(fetcher.fetchMetadata('0x123')).rejects.toThrow('Invalid token address');
     });
@@ -103,7 +103,7 @@ describe('BaseTokenFetcher', () => {
     it('returns the viem client', () => {
       const fetcher = new BaseTokenFetcher();
       const client = fetcher.getClient();
-      
+
       expect(client).toBeDefined();
       expect(typeof client.readContract).toBe('function');
     });
