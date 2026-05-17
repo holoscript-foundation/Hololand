@@ -22,11 +22,36 @@ export interface DiscoveredDevice {
   /** Physical form factor */
   formFactor: string;
   /** Supported embodiment types (Avatar3D, SpatialPersona, UI2D, etc.) */
-  embodiments: string[];
+  embodiments?: string[];
   /** Available input modalities (gesture, voice, touch, gaze, keyboard) */
-  inputModalities: string[];
+  inputModalities?: string[];
   /** Whether the device supports geospatial positioning */
-  hasGeospatial: boolean;
+  hasGeospatial?: boolean;
+  /** Optional display label from legacy device discovery surfaces */
+  displayName?: string;
+  /** Legacy capability cards */
+  capabilities?: Array<{ name: string; available: boolean }>;
+  /** Legacy transfer budget in bytes */
+  budget?: number;
+  /** Legacy online flag */
+  online?: boolean;
+}
+
+export type DeviceInfo = DiscoveredDevice & {
+  formFactor: 'vr' | 'ar' | 'mobile' | 'desktop' | 'phone' | 'vr-headset' | 'ar-glasses' | 'car' | 'wearable';
+};
+
+export interface HandoffResult {
+  success: boolean;
+  targetDevice: string;
+  durationMs: number;
+  payloadSizeBytes: number;
+  error?: string;
+}
+
+export interface CrossRealitySessionManager {
+  initiateHandoff(targetDeviceId: string): Promise<HandoffResult>;
+  getCurrentSession(): { agentId: string; agentName: string };
 }
 
 // =============================================================================

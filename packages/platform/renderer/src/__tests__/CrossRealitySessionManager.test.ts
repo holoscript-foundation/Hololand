@@ -90,7 +90,7 @@ function createTestSessionConfig() {
     formFactor: 'vr-headset' as FormFactor,
     anchorSystem: {
       anchorManager: {
-        agentId: 'agent-1',
+        localAgentId: 'agent-1',
         maxAnchors: 100,
       },
     },
@@ -686,7 +686,7 @@ describe('End-to-End Cross-Reality Session', () => {
       agentId: 'brittney',
       agentName: 'Brittney',
       formFactor: 'vr-headset',
-      anchorSystem: { anchorManager: { agentId: 'brittney', maxAnchors: 50 } },
+      anchorSystem: { anchorManager: { localAgentId: 'brittney', maxAnchors: 50 } },
       transport: { deviceId: 'quest3', displayName: 'Quest 3', formFactor: 'vr-headset' },
       offlineQueue: { authorDID: 'did:key:z6MkVR', deviceId: 'quest3' },
     });
@@ -696,7 +696,7 @@ describe('End-to-End Cross-Reality Session', () => {
       agentId: 'brittney',
       agentName: 'Brittney',
       formFactor: 'phone',
-      anchorSystem: { anchorManager: { agentId: 'brittney', maxAnchors: 50 } },
+      anchorSystem: { anchorManager: { localAgentId: 'brittney', maxAnchors: 50 } },
       transport: { deviceId: 'pixel9', displayName: 'Pixel 9', formFactor: 'phone' },
       offlineQueue: { authorDID: 'did:key:z6MkPhone', deviceId: 'pixel9' },
     });

@@ -1354,9 +1354,9 @@ export class ProceduralCulturalGradient {
     if (!handlers) return;
     for (const handler of handlers) {
       try {
-        (handler as CulturalGradientEventHandler<T>)(data);
+        (handler as CulturalGradientEventHandler<T>)(data as CulturalGradientEventMap[T]);
       } catch (err) {
-        logger.error(`[ProceduralCulturalGradient] Event handler error for "${event}":`, err);
+        logger.error(`[ProceduralCulturalGradient] Event handler error for "${event}"`, { error: err });
       }
     }
   }

@@ -360,7 +360,7 @@ function createTestCanvas(): HTMLCanvasElement {
 
 function createTestRenderer(): HololandRenderer {
   const canvas = createTestCanvas();
-  const world = new HololandWorld();
+  const world = new HololandWorld({ name: 'trust-test-world', enablePhysics: false });
   return new HololandRenderer(canvas, world, {
     enableVR: false,
     enableControls: false,

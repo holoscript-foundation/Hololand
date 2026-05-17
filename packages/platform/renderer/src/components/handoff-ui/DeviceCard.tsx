@@ -124,6 +124,9 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
 }) => {
   const icon = getFormFactorIcon(device.formFactor);
   const label = getFormFactorLabel(device.formFactor);
+  const embodiments = device.embodiments ?? [];
+  const inputModalities = device.inputModalities ?? [];
+  const hasGeospatial = device.hasGeospatial ?? false;
 
   const handleClick = () => {
     onSelect(device.deviceId);
@@ -164,21 +167,21 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
 
         {/* Capabilities */}
         <div style={capabilitiesRowStyle}>
-          {device.embodiments.map((emb) => (
+          {embodiments.map((emb) => (
             <span key={`emb-${emb}`} style={badgeStyle(true)}>
               {emb}
             </span>
           ))}
-          {device.inputModalities.map((mod) => (
+          {inputModalities.map((mod) => (
             <span key={`mod-${mod}`} style={badgeStyle(true)}>
               {mod}
             </span>
           ))}
           <span
             key="geo"
-            style={badgeStyle(device.hasGeospatial)}
+            style={badgeStyle(hasGeospatial)}
           >
-            {device.hasGeospatial ? 'Geospatial' : 'No Geospatial'}
+            {hasGeospatial ? 'Geospatial' : 'No Geospatial'}
           </span>
         </div>
       </div>

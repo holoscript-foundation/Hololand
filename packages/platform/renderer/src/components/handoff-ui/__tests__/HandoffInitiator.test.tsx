@@ -46,6 +46,19 @@ const createMockDevice = (
   online,
 });
 
+type LegacyHandoffElement = React.ReactElement<{
+  currentDevice: DeviceInfo;
+  availableDevices: DeviceInfo[];
+  sessionManager?: CrossRealitySessionManager;
+  onHandoffComplete?: (result: unknown) => void;
+  theme?: unknown;
+}>;
+
+const createLegacyElement = (
+  props: React.ComponentProps<typeof HandoffInitiator>,
+): LegacyHandoffElement =>
+  React.createElement(HandoffInitiator, props) as unknown as LegacyHandoffElement;
+
 const createMockSessionManager = (
   result?: Partial<HandoffResult>,
 ): CrossRealitySessionManager => ({
@@ -83,7 +96,7 @@ describe('HandoffInitiator', () => {
 
   describe('rendering', () => {
     it('should render device list', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -94,7 +107,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should render header with title and description', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -105,7 +118,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should not render preview pane when no device selected', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -118,7 +131,7 @@ describe('HandoffInitiator', () => {
 
   describe('device selection', () => {
     it('should select device on DeviceCard click', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -129,7 +142,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should show preview pane after device selection', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -139,7 +152,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should handle empty device list', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices: [],
@@ -154,7 +167,7 @@ describe('HandoffInitiator', () => {
       const vrDevice = createMockDevice('current', 'vr');
       const desktopDevice = createMockDevice('target', 'desktop');
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice: vrDevice,
         availableDevices: [desktopDevice],
@@ -167,7 +180,7 @@ describe('HandoffInitiator', () => {
     it('should show critical warning for offline device', () => {
       const offlineDevice = createMockDevice('offline', 'mobile', false);
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices: [offlineDevice],
@@ -180,13 +193,13 @@ describe('HandoffInitiator', () => {
       const arDevice = createMockDevice('current', 'ar');
       const desktopDevice = createMockDevice('target', 'desktop');
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice: arDevice,
         availableDevices: [desktopDevice],
       });
 
-      const arCapable = element.props.currentDevice.capabilities.find(
+      const arCapable = element.props.currentDevice.capabilities?.find(
         (c) => c.name === 'AR',
       );
       expect(arCapable?.available).toBe(true);
@@ -195,7 +208,7 @@ describe('HandoffInitiator', () => {
 
   describe('handoff button', () => {
     it('should be disabled when no device selected', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -208,7 +221,7 @@ describe('HandoffInitiator', () => {
     it('should be enabled when device selected and online', () => {
       const onlineDevice = createMockDevice('online', 'desktop', true);
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices: [onlineDevice],
@@ -218,7 +231,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should be disabled during handoff progress', async () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -231,7 +244,7 @@ describe('HandoffInitiator', () => {
 
   describe('progress tracking', () => {
     it('should transition through states: idle -> negotiating -> compressing -> transferring -> complete', async () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -242,7 +255,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should update progress percentage during handoff', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -253,7 +266,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should show progress bar during active states', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -271,7 +284,7 @@ describe('HandoffInitiator', () => {
         error: 'Network timeout',
       });
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager: failingManager,
         currentDevice,
         availableDevices,
@@ -289,7 +302,7 @@ describe('HandoffInitiator', () => {
         }),
       };
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager: throwingManager,
         currentDevice,
         availableDevices,
@@ -299,7 +312,7 @@ describe('HandoffInitiator', () => {
     });
 
     it('should allow retry after error', () => {
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,
@@ -322,7 +335,7 @@ describe('HandoffInitiator', () => {
 
       const manager = createMockSessionManager(mockResult);
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager: manager,
         currentDevice,
         availableDevices,
@@ -339,7 +352,7 @@ describe('HandoffInitiator', () => {
         error: 'Transfer failed',
       });
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager: failingManager,
         currentDevice,
         availableDevices,
@@ -357,7 +370,7 @@ describe('HandoffInitiator', () => {
         fontFamily: 'monospace',
       };
 
-      const element = React.createElement(HandoffInitiator, {
+      const element = createLegacyElement({
         sessionManager,
         currentDevice,
         availableDevices,

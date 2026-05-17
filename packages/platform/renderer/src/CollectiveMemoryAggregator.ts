@@ -51,6 +51,7 @@ import type {
   TraceCategory,
   CulturalTraceEventType,
   CulturalTraceEventHandler,
+  CulturalTraceEventMap,
 } from './CulturalTraceTypes';
 import {
   cellIdToPosition,
@@ -798,9 +799,9 @@ export class CollectiveMemoryAggregator {
     if (!handlers) return;
     for (const handler of handlers) {
       try {
-        (handler as CulturalTraceEventHandler<T>)(data);
+        (handler as CulturalTraceEventHandler<T>)(data as CulturalTraceEventMap[T]);
       } catch (err) {
-        logger.error(`[CollectiveMemoryAggregator] Event handler error for "${event}":`, err);
+        logger.error(`[CollectiveMemoryAggregator] Event handler error for "${event}"`, { error: err });
       }
     }
   }

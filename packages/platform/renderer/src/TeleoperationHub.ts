@@ -79,6 +79,11 @@ import type {
   TeleoperationEvent,
   TeleoperationEventListener,
   IKSolveResult,
+  IKSolverConfig,
+  PolicyStreamConfig,
+  CameraOverlayConfig,
+  TelemetryDisplayConfig,
+  SafetyBoundaryConfig,
 } from './TeleoperationHubTypes';
 import {
   DEFAULT_HUB_CONFIG,
@@ -114,6 +119,17 @@ import type { GR00TN16Config, GR00TPolicyMode } from './GR00TN16PolicyClientType
 // =============================================================================
 // TELEOPERATION HUB
 // =============================================================================
+
+type TeleoperationHubConfigInput = Partial<Omit<
+  TeleoperationHubConfig,
+  'ikSolver' | 'policyStream' | 'cameraOverlay' | 'telemetry' | 'safety'
+>> & {
+  ikSolver?: Partial<IKSolverConfig>;
+  policyStream?: Partial<PolicyStreamConfig>;
+  cameraOverlay?: Partial<CameraOverlayConfig>;
+  telemetry?: Partial<TelemetryDisplayConfig>;
+  safety?: Partial<SafetyBoundaryConfig>;
+};
 
 export class TeleoperationHub {
   private config: TeleoperationHubConfig;
@@ -153,7 +169,7 @@ export class TeleoperationHub {
   /** Destroyed flag. */
   private destroyed: boolean = false;
 
-  constructor(config: Partial<TeleoperationHubConfig> = {}) {
+  constructor(config: TeleoperationHubConfigInput = {}) {
     this.config = {
       ...DEFAULT_HUB_CONFIG,
       ...config,
@@ -605,7 +621,7 @@ export class TeleoperationHub {
  * Create a TeleoperationHub with optional config overrides.
  */
 export function createTeleoperationHub(
-  config?: Partial<TeleoperationHubConfig>,
+  config?: TeleoperationHubConfigInput,
 ): TeleoperationHub {
   return new TeleoperationHub(config);
 }

@@ -53,8 +53,10 @@ import type { NetworkTransportAdapter } from './NetworkTransportAdapter';
  * Each category corresponds to one of the 5 MVC objects in the handoff payload.
  */
 const MVC_CATEGORIES = [
+  'identity',
   'decisionHistory',
   'activeTask',
+  'context',
   'userPreferences',
   'spatialContext',
   'evidenceTrail',

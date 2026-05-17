@@ -618,14 +618,14 @@ export const CompactEvidence: EvidenceTrailStory = {
   },
 };
 
-export const FilteredByType: EvidenceTrailStory = {
+export const EvidenceFilteredByType: EvidenceTrailStory = {
   args: {
     evidenceTrail: mockEvidenceTrail,
     filterType: 'action',
   },
 };
 
-export const LimitedEntries: EvidenceTrailStory = {
+export const EvidenceLimitedEntries: EvidenceTrailStory = {
   args: {
     evidenceTrail: mockEvidenceTrail,
     maxEntries: 3,

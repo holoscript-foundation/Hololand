@@ -498,6 +498,10 @@ export interface GroundTruthSource {
   verifyPositionReachable(agentId: string, position: Vec3, timestamp: string): boolean;
 }
 
+function traceTimestamp(trace: Pick<CulturalTrace, 'depositedAt'>): string {
+  return new Date(trace.depositedAt).toISOString();
+}
+
 /**
  * Verifies trace provenance against ground truth sources.
  *
@@ -562,7 +566,7 @@ export class ProvenanceVerifier {
     // Check 2: Agent presence
     const agentPresent = this.groundTruth.verifyAgentPresence(
       prov.originatingAgent,
-      trace.createdAt ?? new Date().toISOString(),
+      traceTimestamp(trace),
     );
     if (!agentPresent) {
       const reclassified = prov.confidenceClassification === 'genuine'
@@ -584,7 +588,7 @@ export class ProvenanceVerifier {
     const positionReachable = this.groundTruth.verifyPositionReachable(
       prov.originatingAgent,
       trace.position,
-      trace.createdAt ?? new Date().toISOString(),
+      traceTimestamp(trace),
     );
     if (!positionReachable && prov.confidenceClassification === 'genuine') {
       this.reclassificationCount++;

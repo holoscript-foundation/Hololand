@@ -430,9 +430,9 @@ export class InferencePriorityScheduler {
   private readonly maxQueueSize: number;
 
   // Priority queues
-  private readonly criticalQueue: InferenceTask[] = [];
-  private readonly normalQueue: InferenceTask[] = [];
-  private readonly backgroundQueue: InferenceTask[] = [];
+  private readonly criticalQueue: InferenceTask<unknown>[] = [];
+  private readonly normalQueue: InferenceTask<unknown>[] = [];
+  private readonly backgroundQueue: InferenceTask<unknown>[] = [];
 
   // Running tasks
   private runningCount: number = 0;
@@ -469,7 +469,7 @@ export class InferencePriorityScheduler {
       return false;
     }
 
-    queue.push(task);
+    queue.push(task as InferenceTask<unknown>);
     this.totalScheduled++;
 
     // Try to execute immediately if a slot is available
@@ -502,14 +502,14 @@ export class InferencePriorityScheduler {
   /**
    * Dequeue the highest-priority task.
    */
-  private dequeueNext(): InferenceTask | undefined {
+  private dequeueNext(): InferenceTask<unknown> | undefined {
     if (this.criticalQueue.length > 0) return this.criticalQueue.shift();
     if (this.normalQueue.length > 0) return this.normalQueue.shift();
     if (this.backgroundQueue.length > 0) return this.backgroundQueue.shift();
     return undefined;
   }
 
-  private getQueue(priority: InferenceTaskPriority): InferenceTask[] {
+  private getQueue(priority: InferenceTaskPriority): InferenceTask<unknown>[] {
     switch (priority) {
       case 'critical': return this.criticalQueue;
       case 'normal': return this.normalQueue;

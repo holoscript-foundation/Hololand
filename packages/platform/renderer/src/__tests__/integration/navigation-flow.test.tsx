@@ -20,6 +20,12 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 
+let user: ReturnType<typeof userEvent.setup>;
+
+beforeEach(() => {
+  user = userEvent.setup();
+});
+
 // ============================================================================
 // MOCK ROUTE COMPONENTS
 // ============================================================================

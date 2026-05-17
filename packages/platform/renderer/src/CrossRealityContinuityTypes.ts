@@ -274,6 +274,12 @@ export interface ActiveTaskState {
  * MVC Object 3: User settings that affect agent behavior across devices.
  */
 export interface UserPreferences {
+  /** Legacy top-level language alias */
+  language?: string;
+  /** Legacy privacy level alias */
+  privacyLevel?: string;
+  /** Legacy timezone alias */
+  timezone?: string;
   /** Preferred interaction modality per form factor */
   interactionMode: Record<FormFactor, 'voice' | 'gesture' | 'touch' | 'gaze' | 'keyboard'>;
   /** Accessibility requirements */
@@ -322,13 +328,19 @@ export interface UserPreferences {
  */
 export interface SpatialLandmark {
   /** Landmark name or label */
-  label: string;
+  label?: string;
+  /** Legacy landmark name alias */
+  name?: string;
   /** Relative direction from agent ('left', 'right', 'ahead', 'behind', 'above', 'below') */
-  relativeDirection: string;
+  relativeDirection?: string;
   /** Distance in meters */
-  distanceMeters: number;
+  distanceMeters?: number;
+  /** Legacy distance alias */
+  distance?: number;
+  /** Legacy bearing in degrees */
+  bearing?: number;
   /** Landmark type */
-  type: 'object' | 'person' | 'region' | 'waypoint' | 'hazard';
+  type: 'object' | 'person' | 'region' | 'waypoint' | 'hazard' | 'exhibit';
 }
 
 /**
@@ -340,6 +352,8 @@ export interface SpatialLandmark {
 export interface SpatialContextSummary {
   /** Geospatial position (universal anchor) */
   geospatial: GeospatialCoordinate | null;
+  /** Legacy geospatial alias */
+  lastKnownPosition?: GeospatialCoordinate | null;
   /** Local-space position relative to nearest anchor */
   localPosition: Vec3 | null;
   /** Agent's facing direction (normalized) */
@@ -352,10 +366,16 @@ export interface SpatialContextSummary {
   nearbyLandmarks: SpatialLandmark[];
   /** Active spatial zone the agent is within (null if none) */
   activeZoneId: string | null;
+  /** Legacy active zone alias */
+  currentZone?: string | null;
+  /** Legacy anchor count summary */
+  spatialAnchorCount?: number;
+  /** Legacy update timestamp */
+  lastUpdated?: number;
   /** Previous form factor (where the agent came from) */
   previousFormFactor: FormFactor;
   /** Previous embodiment type */
-  previousEmbodiment: EmbodimentType;
+  previousEmbodiment?: EmbodimentType;
   /** When this context was captured (ms since epoch) */
   capturedAt: number;
 }
@@ -373,15 +393,23 @@ export interface EvidenceItem {
   /** What this evidence shows or proves */
   summary: string;
   /** Source type */
-  sourceType: 'observation' | 'user-input' | 'sensor' | 'inference' | 'memory' | 'external-api';
+  sourceType?: 'observation' | 'user-input' | 'sensor' | 'inference' | 'memory' | 'external-api';
+  /** Legacy source type alias */
+  type?: EvidenceItem['sourceType'];
   /** Source identifier (file path, URL, sensor ID, etc.) */
-  sourceRef: string;
+  sourceRef?: string;
+  /** Legacy source identifier alias */
+  source?: string;
   /** Confidence in this evidence (0-1) */
-  confidence: number;
+  confidence?: number;
+  /** Legacy confidence alias */
+  relevance?: number;
   /** When this evidence was gathered (ms since epoch) */
-  gatheredAt: number;
+  gatheredAt?: number;
+  /** Legacy timestamp alias */
+  capturedAt?: number;
   /** Whether this evidence is still valid or has been superseded */
-  stale: boolean;
+  stale?: boolean;
 }
 
 /**
@@ -397,6 +425,10 @@ export interface EvidenceTrail {
   aggregateConfidence: number;
   /** When this trail was last updated */
   updatedAt: number;
+  /** Legacy oldest item timestamp */
+  oldestItemAt?: number;
+  /** Legacy newest item timestamp */
+  newestItemAt?: number;
 }
 
 // =============================================================================
@@ -461,7 +493,11 @@ export interface DIDIdentity {
   /** Key algorithm */
   algorithm: 'Ed25519' | 'secp256k1';
   /** Device-specific hardware attestation token (null if unavailable) */
-  deviceAttestation: string | null;
+  deviceAttestation?: string | null;
+  /** Legacy/display alias used by older tests and debug UIs */
+  displayName?: string;
+  /** Legacy role list for older identity continuity fixtures */
+  roles?: string[];
 }
 
 /**

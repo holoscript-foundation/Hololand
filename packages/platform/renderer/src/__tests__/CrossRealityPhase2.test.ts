@@ -98,10 +98,19 @@ function createTestPayload(overrides?: Partial<MVCPayload>): MVCPayload {
     },
     userPreferences: createTestPreferences(),
     spatialContext: {
+      geospatial: { latitude: 40.7484, longitude: -73.9857, altitude: null, horizontalAccuracy: 2, verticalAccuracy: null, heading: 90, source: 'gps', capturedAt: Date.now() },
       lastKnownPosition: { latitude: 40.7484, longitude: -73.9857, altitude: null, horizontalAccuracy: 2, verticalAccuracy: null, heading: 90, source: 'gps', capturedAt: Date.now() },
-      nearbyLandmarks: [{ name: 'Temple of Dendur', type: 'exhibit', distance: 5, bearing: 45 }],
+      localPosition: { x: 0, y: 0, z: 0 },
+      facingDirection: { x: 0, y: 0, z: 1 },
+      upVector: { x: 0, y: 1, z: 0 },
+      nearestAnchorId: null,
+      nearbyLandmarks: [{ label: 'Temple of Dendur', name: 'Temple of Dendur', type: 'exhibit', relativeDirection: 'ahead', distanceMeters: 5, distance: 5, bearing: 45 }],
+      activeZoneId: 'EgyptianWing',
       currentZone: 'EgyptianWing',
       spatialAnchorCount: 3,
+      previousFormFactor: 'vr-headset',
+      previousEmbodiment: 'Avatar3D',
+      capturedAt: Date.now(),
       lastUpdated: Date.now(),
     },
     evidenceTrail: {
@@ -109,8 +118,10 @@ function createTestPayload(overrides?: Partial<MVCPayload>): MVCPayload {
         { id: 'e1', type: 'observation', summary: 'User interested in Egyptian art', source: 'gaze-tracking', relevance: 0.8, capturedAt: Date.now() },
       ],
       totalItemCount: 1,
+      aggregateConfidence: 0.8,
       oldestItemAt: Date.now(),
       newestItemAt: Date.now(),
+      updatedAt: Date.now(),
     },
     ...overrides,
   };
@@ -816,8 +827,10 @@ describe('End-to-End Cross-Reality Integration', () => {
           capturedAt: Date.now() - i * 30000,
         })),
         totalItemCount: 15,
+        aggregateConfidence: 0.75,
         oldestItemAt: Date.now() - 450000,
         newestItemAt: Date.now(),
+        updatedAt: Date.now(),
       },
     });
 

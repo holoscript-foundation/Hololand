@@ -18,7 +18,7 @@ import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import {
   AccessibilityAuditDashboard,
   useAccessibilityAudit,
-} from '../../components/accessibility-audit-dashboard';
+} from '../../../components/accessibility-audit-dashboard';
 
 // =============================================================================
 // DEMO HOLO CONTENT

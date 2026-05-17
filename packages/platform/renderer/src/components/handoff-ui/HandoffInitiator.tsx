@@ -16,7 +16,13 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import type { DiscoveredDevice, TransferState, PayloadPreview } from './types';
+import type {
+  CrossRealitySessionManager,
+  DeviceInfo,
+  DiscoveredDevice,
+  TransferState,
+  PayloadPreview,
+} from './types';
 import { DeviceCard } from './DeviceCard';
 import { PreviewPane } from './PreviewPane';
 
@@ -26,13 +32,19 @@ import { PreviewPane } from './PreviewPane';
 
 export interface HandoffInitiatorProps {
   /** List of devices discovered on the network */
-  discoveredDevices: DiscoveredDevice[];
+  discoveredDevices?: DiscoveredDevice[];
+  /** Legacy session-manager driven API */
+  sessionManager?: CrossRealitySessionManager;
+  /** Legacy current device descriptor */
+  currentDevice?: DeviceInfo;
+  /** Legacy discovered-device prop name */
+  availableDevices?: DeviceInfo[];
   /** Current device's form factor (e.g. 'vr-headset') */
-  currentFormFactor: string;
+  currentFormFactor?: string;
   /** Called when the user initiates a handoff to a target device */
-  onInitiateHandoff: (targetDeviceId: string) => void;
+  onInitiateHandoff?: (targetDeviceId: string) => void;
   /** Called when the user cancels the handoff */
-  onCancel: () => void;
+  onCancel?: () => void;
   /** Current transfer state (controlled) */
   transferState?: TransferState;
   /** Transfer progress percentage (0-100) */
@@ -41,6 +53,10 @@ export interface HandoffInitiatorProps {
   payloadPreview?: PayloadPreview;
   /** Capability degradation warnings */
   capabilityWarnings?: string[];
+  /** Legacy callback fired by parent-driven handoff tests */
+  onHandoffComplete?: (result: unknown) => void;
+  /** Optional legacy visual theme */
+  theme?: 'dark' | 'light' | Record<string, string>;
 }
 
 // =============================================================================
@@ -221,7 +237,10 @@ const emptyStyle: React.CSSProperties = {
 
 export const HandoffInitiator: React.FC<HandoffInitiatorProps> = ({
   discoveredDevices,
+  availableDevices,
+  currentDevice,
   currentFormFactor,
+  sessionManager,
   onInitiateHandoff,
   onCancel,
   transferState = 'idle',
@@ -229,11 +248,13 @@ export const HandoffInitiator: React.FC<HandoffInitiatorProps> = ({
   payloadPreview,
   capabilityWarnings,
 }) => {
+  const resolvedDevices = discoveredDevices ?? availableDevices ?? [];
+  const resolvedFormFactor = currentFormFactor ?? currentDevice?.formFactor ?? 'unknown';
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
   const selectedDevice = useMemo(
-    () => discoveredDevices.find((d) => d.deviceId === selectedDeviceId) ?? null,
-    [discoveredDevices, selectedDeviceId],
+    () => resolvedDevices.find((d) => d.deviceId === selectedDeviceId) ?? null,
+    [resolvedDevices, selectedDeviceId],
   );
 
   const handleSelectDevice = useCallback((deviceId: string) => {
@@ -244,15 +265,23 @@ export const HandoffInitiator: React.FC<HandoffInitiatorProps> = ({
 
   const handleTransfer = useCallback(() => {
     if (selectedDeviceId && transferState === 'idle') {
-      onInitiateHandoff(selectedDeviceId);
+      if (onInitiateHandoff) {
+        onInitiateHandoff(selectedDeviceId);
+      } else {
+        void sessionManager?.initiateHandoff(selectedDeviceId);
+      }
     } else if (transferState === 'error' && selectedDeviceId) {
       // Allow retry from error state
-      onInitiateHandoff(selectedDeviceId);
+      if (onInitiateHandoff) {
+        onInitiateHandoff(selectedDeviceId);
+      } else {
+        void sessionManager?.initiateHandoff(selectedDeviceId);
+      }
     }
-  }, [selectedDeviceId, transferState, onInitiateHandoff]);
+  }, [selectedDeviceId, transferState, onInitiateHandoff, sessionManager]);
 
   const handleCancel = useCallback(() => {
-    onCancel();
+    onCancel?.();
   }, [onCancel]);
 
   const canTransfer =
@@ -277,16 +306,16 @@ export const HandoffInitiator: React.FC<HandoffInitiatorProps> = ({
           Cross-Reality Handoff
         </h2>
         <p style={subtitleStyle}>
-          Transfer your agent session to another device. Current: {currentFormFactor}
+          Transfer your agent session to another device. Current: {resolvedFormFactor}
         </p>
       </div>
 
       {/* Device list */}
       <div>
         <h3 style={sectionLabelStyle}>
-          Discovered Devices ({discoveredDevices.length})
+          Discovered Devices ({resolvedDevices.length})
         </h3>
-        {discoveredDevices.length === 0 ? (
+        {resolvedDevices.length === 0 ? (
           <div style={emptyStyle} data-testid="no-devices">
             No devices discovered
           </div>
@@ -296,7 +325,7 @@ export const HandoffInitiator: React.FC<HandoffInitiatorProps> = ({
             role="listbox"
             aria-label="Available devices"
           >
-            {discoveredDevices.map((device) => (
+            {resolvedDevices.map((device) => (
               <DeviceCard
                 key={device.deviceId}
                 device={device}

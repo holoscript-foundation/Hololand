@@ -36,7 +36,13 @@ import { FORM_FACTOR_BUDGETS, DEFAULT_EMBODIMENT } from '../CrossRealityContinui
 // ============================================================================
 
 function createTestDID(name: string): DIDIdentity {
-  return { did: `did:test:${name}`, publicKey: `pk-${name}`, displayName: name, roles: ['agent'] };
+  return {
+    did: `did:test:${name}`,
+    publicKey: `pk-${name}`,
+    algorithm: 'Ed25519',
+    displayName: name,
+    roles: ['agent'],
+  };
 }
 
 function createTestPayload(overrides?: Partial<MVCPayload>): MVCPayload {
@@ -481,7 +487,11 @@ describe('Stress: Concurrent Multi-Device Sessions', () => {
 
 describe('Stress: Offline Partition Recovery', () => {
   it('queues 100 operations offline and replays them all', async () => {
-    const queue = new OfflineRecoveryQueue({ maxQueueSize: 200 });
+    const queue = new OfflineRecoveryQueue({
+      maxQueueSize: 200,
+      authorDID: 'did:test:agent-1',
+      deviceId: 'device-1',
+    });
     const engine = createAuthenticatedCRDTEngine({
       identity: createTestDID('agent-1'), deviceId: 'dev-1', secretKey: 'secret', capabilityScopes: ['*'],
     });
@@ -504,7 +514,11 @@ describe('Stress: Offline Partition Recovery', () => {
   });
 
   it('handles offline→online→offline→online cycles', async () => {
-    const queue = new OfflineRecoveryQueue({ maxQueueSize: 200 });
+    const queue = new OfflineRecoveryQueue({
+      maxQueueSize: 200,
+      authorDID: 'did:test:agent-1',
+      deviceId: 'device-1',
+    });
     const engine = createAuthenticatedCRDTEngine({
       identity: createTestDID('agent-1'), deviceId: 'dev-1', secretKey: 'secret', capabilityScopes: ['*'],
     });
@@ -521,7 +535,11 @@ describe('Stress: Offline Partition Recovery', () => {
   });
 
   it('deduplicates repeated writes to same key', async () => {
-    const queue = new OfflineRecoveryQueue({ maxQueueSize: 200 });
+    const queue = new OfflineRecoveryQueue({
+      maxQueueSize: 200,
+      authorDID: 'did:test:agent-1',
+      deviceId: 'device-1',
+    });
     const engine = createAuthenticatedCRDTEngine({
       identity: createTestDID('agent-1'), deviceId: 'dev-1', secretKey: 'secret', capabilityScopes: ['*'],
     });
@@ -540,7 +558,11 @@ describe('Stress: Offline Partition Recovery', () => {
   });
 
   it('full pipeline: offline → queue → replay → CRDT merge in under 50ms', async () => {
-    const queue = new OfflineRecoveryQueue({ maxQueueSize: 500 });
+    const queue = new OfflineRecoveryQueue({
+      maxQueueSize: 500,
+      authorDID: 'did:test:agent-1',
+      deviceId: 'device-1',
+    });
     const sourceEngine = createAuthenticatedCRDTEngine({
       identity: createTestDID('source'), deviceId: 'source', secretKey: 'key', capabilityScopes: ['*'],
     });

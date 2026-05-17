@@ -20,7 +20,7 @@ export class TwoStageRasterizer {
   }
 
   addUser(userId: string, foveationStrength: number = 0.7): void {
-    this.blenders.set(userId, new PerUserBlender(foveationStrength));
+    this.blenders.set(userId, new PerUserBlender({ foveationStrength }));
     this.foveationMaps.set(userId, new VRSFoveationMap());
   }
 

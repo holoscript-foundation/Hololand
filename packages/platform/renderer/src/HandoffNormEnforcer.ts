@@ -368,7 +368,9 @@ export class HandoffNormEnforcer {
           const spatial = ctx.payload.spatialContext;
           if (spatial && spatial.nearbyLandmarks) {
             const inQuietZone = spatial.nearbyLandmarks.some(
-              (l) => l.type === 'region' && /quiet[_ -]?zone|gallery|library/i.test(l.label)
+              (l) =>
+                l.type === 'region' &&
+                /quiet[_ -]?zone|gallery|library/i.test(l.label ?? l.name ?? '')
             );
             if (inQuietZone) {
               return `Agent is in a quiet zone. Audio should be muted or reduced on ${ctx.targetFormFactor}.`;

@@ -22,6 +22,12 @@ import userEvent from '@testing-library/user-event';
 // Component under test
 import AccessibilityAuditPage from '../../app/pages/accessibility-audit/AccessibilityAuditPage';
 
+let user: ReturnType<typeof userEvent.setup>;
+
+beforeEach(() => {
+  user = userEvent.setup();
+});
+
 // Mock the accessibility audit dashboard and hook
 vi.mock('../../app/components/accessibility-audit-dashboard', () => {
   const MockAccessibilityAuditDashboard = ({ externalState, externalActions, mode, ariaLabel, style }: any) => {

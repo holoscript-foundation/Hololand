@@ -56,17 +56,25 @@ export interface DeviceCapabilities {
   /** Human-readable device or agent label from discovery */
   displayName?: string;
   /** Supported embodiment types on this device */
-  supportedEmbodiments: EmbodimentType[];
+  supportedEmbodiments?: EmbodimentType[];
   /** Available input modalities */
   inputModalities: string[];
+  /** Legacy output modality summary, retained for older discovery callers */
+  outputModalities?: string[];
   /** Performance budget */
-  budget: FormFactorBudget;
+  budget?: FormFactorBudget;
+  /** Legacy network quality hint */
+  networkQuality?: 'poor' | 'fair' | 'good' | 'excellent';
+  /** Legacy battery level hint (0-1) */
+  batteryLevel?: number;
+  /** Legacy memory hint */
+  availableMemoryMB?: number;
   /** Available sensors */
-  sensors: string[];
+  sensors?: string[];
   /** Whether the device has geospatial positioning */
   hasGeospatial: boolean;
   /** WebXR session modes available */
-  webxrModes: string[];
+  webxrModes?: string[];
 }
 
 // =============================================================================
@@ -350,14 +358,15 @@ export class CrossRealityHandoffProtocol {
 
   private selectTargetEmbodiment(capabilities: DeviceCapabilities): EmbodimentType {
     const defaultEmb = DEFAULT_EMBODIMENT[capabilities.formFactor];
-    if (capabilities.supportedEmbodiments.includes(defaultEmb)) {
+    const supportedEmbodiments = capabilities.supportedEmbodiments ?? [defaultEmb];
+    if (supportedEmbodiments.includes(defaultEmb)) {
       return defaultEmb;
     }
     // Fallback: WebXR if available, otherwise first supported
-    if (capabilities.supportedEmbodiments.includes('WebXR')) {
+    if (supportedEmbodiments.includes('WebXR')) {
       return 'WebXR';
     }
-    return capabilities.supportedEmbodiments[0] ?? defaultEmb;
+    return supportedEmbodiments[0] ?? defaultEmb;
   }
 
   private completeHandoff(success: boolean, error?: string): HandoffStatus {

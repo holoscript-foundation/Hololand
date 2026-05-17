@@ -54,6 +54,7 @@ vi.mock('../GPUMemoryManager', () => {
 import { LODManager, type LODManagerConfig } from '../LODManager';
 import { SceneGraphMemoryTracker } from '../SceneGraphMemoryTracker';
 import { GPUMemoryManager } from '../GPUMemoryManager';
+import type { TrackedSceneObject } from '../SceneGraphMemoryTracker';
 
 // =============================================================================
 // HELPERS
@@ -70,7 +71,7 @@ function createMockTrackedObject(id: string, distance: number, lodLevel: number 
     distance: { toCamera: distance, toCenter: distance },
     lod: { current: lodLevel, available: [0, 1, 2] },
     memoryBytes: 1024 * 1024, // 1MB
-  };
+  } as unknown as TrackedSceneObject;
 }
 
 function createTestLODManager(
@@ -81,12 +82,12 @@ function createTestLODManager(
   sceneTracker: SceneGraphMemoryTracker;
   memoryManager: GPUMemoryManager;
 } {
-  const sceneTracker = new SceneGraphMemoryTracker() as any;
+  const sceneTracker = {} as SceneGraphMemoryTracker;
   sceneTracker.getAllObjects = vi.fn(() => objects);
-  sceneTracker.getObject = vi.fn((id: string) => objects.find(o => o.id === id) || null);
+  sceneTracker.getObject = vi.fn((id: string) => objects.find(o => o.id === id));
   sceneTracker.getObjectCount = vi.fn(() => objects.length);
 
-  const memoryManager = new GPUMemoryManager() as any;
+  const memoryManager = {} as GPUMemoryManager;
   memoryManager.getUtilization = vi.fn(() => utilization);
 
   const manager = new LODManager(sceneTracker, memoryManager);
@@ -106,11 +107,11 @@ describe('LODManager', () => {
     });
 
     it('should accept custom configuration', () => {
-      const sceneTracker = new SceneGraphMemoryTracker() as any;
+      const sceneTracker = {} as SceneGraphMemoryTracker;
       sceneTracker.getAllObjects = vi.fn(() => []);
       sceneTracker.getObjectCount = vi.fn(() => 0);
 
-      const memoryManager = new GPUMemoryManager() as any;
+      const memoryManager = {} as GPUMemoryManager;
       memoryManager.getUtilization = vi.fn(() => 0);
 
       const config: LODManagerConfig = {

@@ -252,27 +252,19 @@ export const DragonFireEffect: React.FC<DragonFireEffectProps> = ({
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
-          count={particleCount}
-          array={positions}
-          itemSize={3}
+          args={[positions, 3]}
         />
         <bufferAttribute
           attach="attributes-aLifetime"
-          count={particleCount}
-          array={lifetimes}
-          itemSize={1}
+          args={[lifetimes, 1]}
         />
         <bufferAttribute
           attach="attributes-aSize"
-          count={particleCount}
-          array={sizes}
-          itemSize={1}
+          args={[sizes, 1]}
         />
         <bufferAttribute
           attach="attributes-aPhase"
-          count={particleCount}
-          array={phases}
-          itemSize={1}
+          args={[phases, 1]}
         />
       </bufferGeometry>
       <shaderMaterial

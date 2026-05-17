@@ -96,7 +96,7 @@ class MockWebSocket {
 
   send(data: ArrayBuffer | Uint8Array): void {
     if (data instanceof Uint8Array) {
-      this.sentMessages.push(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+      this.sentMessages.push(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer);
     } else if (data instanceof ArrayBuffer) {
       this.sentMessages.push(data.slice(0));
     }
@@ -261,7 +261,14 @@ describe('GR00TN16PolicyClient', () => {
         serverUrl: 'ws://custom:9999/inference',
         observationRateHz: 60,
         initialPolicyMode: 'navigation',
-        actionChunking: { chunkSize: 8, executeHorizon: 2 },
+        actionChunking: {
+          chunkSize: 8,
+          executeHorizon: 2,
+          chunkBlendFactor: 0.7,
+          confidenceThreshold: 0.3,
+          useExponentialWeighting: true,
+          weightDecay: 0.9,
+        },
       });
       expect(client.getPolicyMode()).toBe('navigation');
       expect(client.getChunkingConfig().chunkSize).toBe(8);

@@ -99,7 +99,7 @@ describe('PlatformCapabilityBadge', () => {
         const element = React.createElement(PlatformCapabilityBadge, {
           capabilities: caps,
         });
-        const props = getProps(element) as PlatformCapabilityBadgeProps;
+        const props = getProps(element) as unknown as PlatformCapabilityBadgeProps;
         expect(props.capabilities.platform).toBe(platform);
       }
     });

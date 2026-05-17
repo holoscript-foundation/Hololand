@@ -51,6 +51,7 @@ import type {
   TraceCategory,
   CulturalTraceEventType,
   CulturalTraceEventHandler,
+  CulturalTraceEventMap,
 } from './CulturalTraceTypes';
 import {
   TRACE_CATEGORY_DEFAULTS,
@@ -846,9 +847,9 @@ export class StigmergicTraceEngine {
     if (!handlers) return;
     for (const handler of handlers) {
       try {
-        (handler as CulturalTraceEventHandler<T>)(data);
+        (handler as CulturalTraceEventHandler<T>)(data as CulturalTraceEventMap[T]);
       } catch (err) {
-        logger.error(`[StigmergicTraceEngine] Event handler error for "${event}":`, err);
+        logger.error(`[StigmergicTraceEngine] Event handler error for "${event}"`, { error: err });
       }
     }
   }

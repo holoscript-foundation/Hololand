@@ -85,7 +85,7 @@ vi.mock('three/examples/jsm/webxr/VRButton.js', () => ({
 }));
 
 import { HololandRenderer } from '../../HololandRenderer';
-import { HololandWorld, SpatialObject } from '@hololand/world';
+import { HololandWorld } from '@hololand/world';
 import { QUALITY_PROFILES } from '@hololand/quality-profiles';
 import type { CompositionQualityMetadata } from '@hololand/quality-profiles';
 
@@ -341,7 +341,7 @@ describe('Quality Profile Integration', () => {
 
     it('should load profile from world metadata object', () => {
       // Add a composition metadata object to the world
-      const metadataObj = new SpatialObject({
+      world.addObject({
         type: 'composition:metadata',
         metadata: {
           qualityProfile: {
@@ -349,8 +349,6 @@ describe('Quality Profile Integration', () => {
           } as CompositionQualityMetadata,
         },
       });
-
-      world.addObject(metadataObj);
 
       // Create renderer (should auto-load metadata)
       renderer = new HololandRenderer(canvas, world);

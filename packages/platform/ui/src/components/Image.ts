@@ -110,7 +110,7 @@ export class Image extends UIComponent {
     } else {
       // Load from URL
       this._state = 'loading';
-      this._image = new Image();
+      this._image = document.createElement('img');
       this._image!.onload = () => {
         this._state = 'loaded';
         this.markDirty();

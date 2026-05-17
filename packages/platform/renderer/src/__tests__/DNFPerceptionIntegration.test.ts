@@ -99,6 +99,8 @@ function createIntegration(overrides?: Record<string, unknown>) {
       },
     },
     dnfHz: 5,
+    minDnfHz: 1,
+    maxDnfHz: 15,
     stepsPerCycle: 2,
     ...overrides,
   });
