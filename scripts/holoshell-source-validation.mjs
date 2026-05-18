@@ -252,9 +252,26 @@ function createReceipt(validations, args, durationMs) {
       importResolutionRetry: 'pnpm_exec_to_direct_cli_when_core_dist_is_present',
       progressEvents: 'stderr_per_file_start_and_finish_when_not_json',
       overallTimeoutMs: args.overallTimeoutMs,
+      mcpValidationFallback: 'capability_manifest_required_receipt_then_local_cli',
+      capabilityManifestTemplate: {
+        protocol: 'holoscript.capability.v1',
+        declaredCapabilities: ['holoscript:validate', 'filesystem:read:local-source'],
+        attestation: {
+          manifestHash: '<sha256-of-canonical-manifest>',
+          signer: '<verified-signer>',
+          trustTier: 'verified',
+          attestedAt: '<iso8601>',
+        },
+      },
     },
     summary,
-    validations,
+    validations: validations.map((validation) => ({
+      ...validation,
+      localFallback: {
+        exact: true,
+        commandPreview: `pnpm --dir [holoscript-root] exec holoscript validate ${validation.file}`,
+      },
+    })),
     receipt: {
       validationHash: sha256(JSON.stringify(receiptInput)),
       rawCommandsIncluded: false,
@@ -295,6 +312,9 @@ function assertSelfTest(receipt) {
   if (receipt.summary.holoCount !== 1 || receipt.summary.hsCount !== 1 || receipt.summary.hsplusCount !== 1) failures.push('extension counts mismatch');
   if (receipt.receipt.rawCommandsIncluded !== false) failures.push('raw command flag should be false');
   if (!receipt.receipt.validationHash) failures.push('missing validation hash');
+  if (receipt.policy.mcpValidationFallback !== 'capability_manifest_required_receipt_then_local_cli') failures.push('missing MCP fallback policy');
+  if (!receipt.policy.capabilityManifestTemplate?.declaredCapabilities?.includes('holoscript:validate')) failures.push('missing manifest template');
+  if (!receipt.validations.every((item) => item.localFallback?.commandPreview?.includes(item.file))) failures.push('missing exact local fallback command previews');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
 
