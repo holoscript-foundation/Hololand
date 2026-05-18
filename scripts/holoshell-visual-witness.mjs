@@ -57,6 +57,8 @@ function parseArgs(argv) {
     outputDir: DEFAULT_OUTPUT_DIR,
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
+    shardWorkflow: '',
+    previewSource: '',
     width: 1440,
     height: 1000,
     virtualTimeBudget: 7000,
@@ -74,6 +76,8 @@ function parseArgs(argv) {
     else if (arg === '--output-dir') args.outputDir = argv[++index] || args.outputDir;
     else if (arg === '--output') args.output = argv[++index] || args.output;
     else if (arg === '--js-output') args.jsOutput = argv[++index] || args.jsOutput;
+    else if (arg === '--shard-workflow') args.shardWorkflow = argv[++index] || '';
+    else if (arg === '--preview-source') args.previewSource = argv[++index] || '';
     else if (arg === '--width') args.width = Number(argv[++index]) || args.width;
     else if (arg === '--height') args.height = Number(argv[++index]) || args.height;
     else if (arg === '--virtual-time-budget') args.virtualTimeBudget = Number(argv[++index]) || args.virtualTimeBudget;
@@ -96,6 +100,9 @@ function parseArgs(argv) {
   if (!Number.isFinite(args.virtualTimeBudget) || args.virtualTimeBudget < 1000) {
     throw new Error('--virtual-time-budget must be at least 1000');
   }
+  if (args.shardWorkflow && !args.previewSource) {
+    throw new Error('--preview-source is required when --shard-workflow is provided');
+  }
   args.expectText = (args.customExpectText ? args.expectText : DEFAULT_EXPECT_TEXT)
     .map((value) => String(value || '').trim())
     .filter(Boolean);
@@ -115,6 +122,8 @@ Options:
   --output-dir <path>           Screenshot/DOM witness directory. Default: ${DEFAULT_OUTPUT_DIR}.
   --output <path>               Receipt JSON. Default: ${DEFAULT_OUTPUT}.
   --js-output <path>            Browser bootstrap JS. Default: ${DEFAULT_JS_OUTPUT}.
+  --shard-workflow <path>       Asset shard workflow receipt to render as a playable preview witness.
+  --preview-source <path>       Generated shard .holo source paired with --shard-workflow.
   --width <px>                  Viewport width. Default: 1440.
   --height <px>                 Viewport height. Default: 1000.
   --virtual-time-budget <ms>    Headless browser script/render budget. Default: 7000.
@@ -126,6 +135,14 @@ Options:
 
 function resolveRepoPath(filePath) {
   return path.isAbsolute(filePath) ? filePath : path.resolve(REPO_ROOT, filePath);
+}
+
+function publicPath(filePath) {
+  return path.relative(REPO_ROOT, resolveRepoPath(filePath)).replace(/\\/g, '/');
+}
+
+function readJson(filePath) {
+  return JSON.parse(readFileSync(resolveRepoPath(filePath), 'utf8'));
 }
 
 function writeJson(filePath, data) {
@@ -167,6 +184,15 @@ function sha256File(filePath) {
 
 function sha256Text(value) {
   return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function decodeHtml(text) {
@@ -257,6 +283,144 @@ function prepareSelfTest(args) {
   };
 }
 
+function prepareShardWitness(args) {
+  const workflow = readJson(args.shardWorkflow);
+  const previewSource = readFileSync(resolveRepoPath(args.previewSource), 'utf8');
+  const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'holoshell-shard-witness-'));
+  const room = path.join(tempRoot, 'asset-shard-witness.html');
+  const assets = workflow.shardPlan?.assets || [];
+  const expectedText = [
+    'HoloShell Asset Shard Witness',
+    'Playable Shard Preview',
+    `Shard ID: ${workflow.shardPlan?.shardId || 'unknown'}`,
+    `Assets: ${workflow.summary?.assetCount ?? 0}`,
+    'Source assets mutated: false',
+  ];
+  const assetList = assets
+    .slice(0, 24)
+    .map((asset) => `<li><strong>${escapeHtml(asset.kind)}</strong> ${escapeHtml(asset.name)} <span>${escapeHtml(asset.relativePath)}</span></li>`)
+    .join('\n');
+  writeFileSync(room, `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HoloShell Asset Shard Witness</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: #f7fbff;
+      background: #101820;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 32px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      font-weight: 700;
+    }
+    h2 {
+      margin: 0 0 28px;
+      color: #76f7d7;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .surface {
+      border: 1px solid rgba(118, 247, 215, 0.32);
+      border-radius: 8px;
+      padding: 22px;
+      background: #16242c;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .stat {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      padding: 12px;
+      background: #20323a;
+    }
+    .label {
+      display: block;
+      color: #a9bdc8;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .value {
+      display: block;
+      margin-top: 6px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    ul {
+      columns: 2;
+      padding-left: 18px;
+    }
+    li {
+      break-inside: avoid;
+      margin: 8px 0;
+    }
+    li span {
+      color: #a9bdc8;
+    }
+    pre {
+      overflow: hidden;
+      max-height: 190px;
+      border-radius: 8px;
+      padding: 14px;
+      color: #dce8ef;
+      background: #0b1115;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>HoloShell Asset Shard Witness</h1>
+    <h2>Playable Shard Preview</h2>
+    <section class="surface">
+      <p>Shard ID: ${escapeHtml(workflow.shardPlan?.shardId || 'unknown')}</p>
+      <p>World: ${escapeHtml(workflow.shardPlan?.worldName || 'Local Assets Shard')}</p>
+      <p>Source assets mutated: false</p>
+      <div class="stats" aria-label="Asset shard stats">
+        <div class="stat"><span class="label">Assets</span><span class="value">${workflow.summary?.assetCount ?? 0}</span></div>
+        <div class="stat"><span class="label">Models</span><span class="value">${workflow.summary?.modelCount ?? 0}</span></div>
+        <div class="stat"><span class="label">Images</span><span class="value">${workflow.summary?.imageCount ?? 0}</span></div>
+        <div class="stat"><span class="label">Audio</span><span class="value">${workflow.summary?.audioCount ?? 0}</span></div>
+      </div>
+      <p>Assets: ${workflow.summary?.assetCount ?? 0}</p>
+      <ul>${assetList || '<li>No assets staged</li>'}</ul>
+      <pre>${escapeHtml(previewSource.slice(0, 4000))}</pre>
+    </section>
+  </main>
+</body>
+</html>`, 'utf8');
+  return {
+    tempRoot,
+    shardWitness: {
+      enabled: true,
+      workflowReceipt: publicPath(args.shardWorkflow),
+      previewSource: publicPath(args.previewSource),
+      shardId: workflow.shardPlan?.shardId || '',
+      previewHash: sha256Text(previewSource),
+      assetCount: workflow.summary?.assetCount ?? assets.length,
+      sourceAssetsMutated: false,
+    },
+    args: {
+      ...args,
+      room,
+      expectText: args.customExpectText ? args.expectText : expectedText,
+    },
+  };
+}
+
 function createReceipt(args) {
   const roomPath = resolveRepoPath(args.room);
   if (!existsSync(roomPath)) throw new Error(`Room file not found: ${roomPath}`);
@@ -290,6 +454,7 @@ function createReceipt(args) {
     },
     screenshot: null,
     domWitness: null,
+    shardWitness: args.shardWitness || undefined,
     checks: [],
     gapClosed: {
       gap: 'HoloScript MCP browser screenshot can be unavailable when its bundled Playwright browser is missing.',
@@ -413,11 +578,21 @@ function assertSelfTest(receipt) {
 function main() {
   let args = parseArgs(process.argv.slice(2));
   let selfTestRoot = null;
+  let shardWitnessRoot = null;
 
   if (args.selfTest) {
     const prepared = prepareSelfTest(args);
     args = prepared.args;
     selfTestRoot = prepared.tempRoot;
+  }
+
+  if (args.shardWorkflow) {
+    const prepared = prepareShardWitness(args);
+    args = {
+      ...prepared.args,
+      shardWitness: prepared.shardWitness,
+    };
+    shardWitnessRoot = prepared.tempRoot;
   }
 
   try {
@@ -441,6 +616,7 @@ function main() {
     }
   } finally {
     if (selfTestRoot) rmSync(selfTestRoot, { recursive: true, force: true });
+    if (shardWitnessRoot) rmSync(shardWitnessRoot, { recursive: true, force: true });
   }
 }
 
