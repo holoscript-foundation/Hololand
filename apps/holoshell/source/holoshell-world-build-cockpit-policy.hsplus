@@ -1,0 +1,156 @@
+// HoloShell World Build Cockpit Policy
+//
+// Composes local-file, hardware, source, build, preview, and replay receipts
+// into one non-developer readiness gate before HoloLand world mutation.
+
+composition "HoloShellWorldBuildCockpitPolicy" {
+  config {
+    title: "World Build Cockpit Policy"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    roomSource: "apps/holoshell/source/holoshell-world-build-cockpit.holo"
+    pipelineSource: "apps/holoshell/source/holoshell-world-build-cockpit-pipeline.hs"
+    defaultMode: "preview_only_until_promoted"
+  }
+
+  state {
+    workflow: "ready-to-build-hololand-world"
+    readiness: "unknown"
+    approvalsRequired: 0
+    passedGateCount: 0
+    warningGateCount: 0
+    blockedGateCount: 0
+    currentAgentLane: "codex-hardware"
+    hololandMutationAllowed: false
+    replayReady: false
+    lastCockpitReceiptId: ""
+  }
+
+  channel "holoshell:world_build:gate" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Per-gate readiness results for local world-build custody"
+  }
+
+  channel "holoshell:world_build:readiness" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Merged ready/warn/blocked state for the world-build cockpit"
+  }
+
+  template "WorldBuildGateRequirement" {
+    gateId: ""
+    requiredReceipt: ""
+    ownerSurface: ""
+    mutationClass: "silent_read"
+    blocksPublish: true
+    receiptRequired: true
+  }
+
+  gate "LocalFileManifestGate" using "WorldBuildGateRequirement" {
+    gateId: "local-files"
+    requiredReceipt: "LocalFileManifestReceipt"
+    ownerSurface: "HoloShell custodian"
+    mutationClass: "silent_read"
+  }
+
+  gate "HardwareRealityGate" using "WorldBuildGateRequirement" {
+    gateId: "hardware-reality"
+    requiredReceipt: "CodexHardwareAuditReceipt"
+    ownerSurface: "Codex hardware"
+    mutationClass: "guarded_witness"
+  }
+
+  gate "HoloScriptSourceGate" using "WorldBuildGateRequirement" {
+    gateId: "source-validation"
+    requiredReceipt: "SourceValidationReceipt"
+    ownerSurface: "HoloScript source"
+    mutationClass: "guarded_validation"
+  }
+
+  gate "BuildCustodyGate" using "WorldBuildGateRequirement" {
+    gateId: "build-custody"
+    requiredReceipt: "BuildCustodyReceipt"
+    ownerSurface: "HoloShell hardware reality"
+    mutationClass: "silent_read"
+  }
+
+  gate "HoloLandPreviewGate" using "WorldBuildGateRequirement" {
+    gateId: "hololand-preview"
+    requiredReceipt: "VisualWitnessReceipt"
+    ownerSurface: "HoloLand product"
+    mutationClass: "guarded_preview"
+  }
+
+  gate "ReplayGate" using "WorldBuildGateRequirement" {
+    gateId: "replay"
+    requiredReceipt: "WorldBuildReadinessCockpitReceipt"
+    ownerSurface: "HoloScript runtime"
+    mutationClass: "append_only_receipt"
+  }
+
+  policy "NoHoloLandMutationBeforePromotion" {
+    appliesTo: ["world_import", "publish_world", "modify_hololand_worktree", "register_startup", "launch_app"]
+    defaultAllowed: false
+    requiresAllGatesPass: true
+    requiresHumanPromotion: true
+    rollbackPlanRequired: true
+    receiptRequired: true
+  }
+
+  policy "StaleGraphIsWarningNotTruth" {
+    appliesTo: ["codebase_explanation", "source_map", "task_filing", "brittney_turn"]
+    staleHostedGraphAuthoritative: false
+    allowedAsEvidence: "warning_token"
+    requiresLocalFilesystemNamespace: true
+    receiptRequired: true
+  }
+
+  policy "AgentWorkMustBeLegible" {
+    appliesTo: ["codex_hardware", "holoshell_custodian", "holoscript_source_agent", "hololand_product_agent", "browser_witness", "holomesh"]
+    laneRequired: true
+    ownerSurfaceRequired: true
+    rawCommandHiddenByDefault: true
+    exactCommandAvailableOnInspect: true
+    receiptRequired: true
+  }
+
+  action consume_gate_result(gateId, status, receiptId) {
+    if (status == "pass") {
+      state.passedGateCount = state.passedGateCount + 1
+    } else if (status == "warn") {
+      state.warningGateCount = state.warningGateCount + 1
+    } else {
+      state.blockedGateCount = state.blockedGateCount + 1
+    }
+
+    emit("holoshell:world_build:gate", {
+      workflow: state.workflow,
+      gate: gateId,
+      status: status,
+      receipt: receiptId,
+      agentLane: state.currentAgentLane
+    })
+  }
+
+  action compute_readiness() {
+    if (state.blockedGateCount > 0) {
+      state.readiness = "blocked"
+    } else if (state.warningGateCount > 0) {
+      state.readiness = "ready_with_warnings"
+    } else {
+      state.readiness = "ready"
+    }
+
+    state.replayReady = state.readiness != "unknown"
+    emit("holoshell:world_build:readiness", {
+      workflow: state.workflow,
+      readiness: state.readiness,
+      passed: state.passedGateCount,
+      warnings: state.warningGateCount,
+      blocked: state.blockedGateCount,
+      replayReady: state.replayReady,
+      hololandMutationAllowed: state.hololandMutationAllowed
+    })
+  }
+}

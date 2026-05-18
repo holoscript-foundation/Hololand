@@ -1,0 +1,187 @@
+// HoloShell World Build Cockpit
+//
+// Visible HoloLand product room for:
+// "Make this computer ready to build a HoloLand world, use local files,
+// verify it works, and show what changed."
+
+composition "HoloShell World Build Cockpit" {
+  metadata {
+    title: "World Build Cockpit"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    behavior_source: "apps/holoshell/source/holoshell-world-build-cockpit-policy.hsplus"
+    pipeline_source: "apps/holoshell/source/holoshell-world-build-cockpit-pipeline.hs"
+    shell_world_source: "apps/holoshell/source/holoshell-shell-world.holo"
+    readiness_source: "apps/holoshell/source/holoshell-readiness-evidence.hsplus"
+    build_custody_source: "apps/holoshell/source/holoshell-build-custody.hsplus"
+    hardware_reality_source: "apps/holoshell/source/holoshell-hardware-reality-bridge.hsplus"
+    visual_witness_source: "apps/holoshell/source/holoshell-visual-witness.hsplus"
+  }
+
+  environment {
+    theme: "holo_os_world_build"
+    render_mode: "desktop_spatial"
+    ambient_light: 0.58
+    receipt_underlay: true
+    camera_mode: "stationary_perspective"
+  }
+
+  state {
+    humanOutcome: "Ready this computer for HoloLand world building"
+    readinessState: "unknown"
+    hololandMutationAllowed: false
+    previewMode: "read_only"
+    selectedLocalFileCount: 0
+    passedGateCount: 0
+    warningGateCount: 0
+    blockedGateCount: 0
+    replayReady: false
+  }
+
+  template "WorldBuildGate" {
+    type: "readiness_gate"
+    mesh: "rounded_panel"
+    material: "liquid_glass"
+    color: "#14212c"
+    active_color: "#73daca"
+    warning_color: "#e0af68"
+    blocked_color: "#f7768e"
+    receipt_required: true
+    inspectable: true
+  }
+
+  template "GateToken" {
+    type: "receipt_token"
+    mesh: "sphere"
+    material: "hologram"
+    radius: 0.15
+    grabbable: true
+    receipt_required: true
+  }
+
+  object "OutcomePedestal" using "WorldBuildGate" {
+    label: "Ready This Computer"
+    gate_id: "human_outcome"
+    position: [0, 2.35, -2.9]
+    scale: [2.6, 0.7, 0.08]
+    status_binding: "readinessState"
+    plain_language: "Use local files, verify hardware and source, preview the world, show what changed."
+  }
+
+  spatial_group "ReadinessGates" {
+    object "LocalFilesGate" using "WorldBuildGate" {
+      label: "Local Files"
+      gate_id: "local_files"
+      receipt: "LocalFileManifestReceipt"
+      failure_states: ["missing_manifest", "sensitive_path", "unreadable_file", "duplicate_asset"]
+      approval: "silent_read"
+      position: [-3.25, 1.35, -1.55]
+    }
+
+    object "HardwareGate" using "WorldBuildGate" {
+      label: "Hardware"
+      gate_id: "hardware_reality"
+      receipt: "CodexHardwareAuditReceipt"
+      failure_states: ["missing_browser_witness", "weak_gpu", "memory_pressure", "stale_probe"]
+      approval: "silent_read_or_guarded_witness"
+      position: [-1.08, 1.35, -1.55]
+    }
+
+    object "SourceGate" using "WorldBuildGate" {
+      label: "Source"
+      gate_id: "source_validation"
+      receipt: "SourceValidationReceipt"
+      failure_states: ["invalid_source", "stale_source_map", "typescript_only_product_behavior"]
+      approval: "guarded_validation"
+      position: [1.08, 1.35, -1.55]
+    }
+
+    object "BuildGate" using "WorldBuildGate" {
+      label: "Build Custody"
+      gate_id: "build_custody"
+      receipt: "BuildCustodyReceipt"
+      failure_states: ["unknown_owner", "high_memory", "long_running_build", "scanner_unavailable"]
+      approval: "break_glass_only_for_termination"
+      position: [3.25, 1.35, -1.55]
+    }
+
+    object "PreviewGate" using "WorldBuildGate" {
+      label: "World Preview"
+      gate_id: "hololand_preview"
+      receipt: "VisualWitnessReceipt"
+      failure_states: ["preview_missing", "screenshot_missing", "dom_witness_missing"]
+      approval: "publish_import_blocked_until_promoted"
+      position: [-2.16, 0.42, 0.05]
+    }
+
+    object "AgentGate" using "WorldBuildGate" {
+      label: "Agent Orchestra"
+      gate_id: "agent_orchestra"
+      receipt: "AgentLaneReceipt"
+      failure_states: ["unattributed_shell_run", "duplicate_task", "unsigned_mutation"]
+      approval: "owner_lanes_visible"
+      position: [0, 0.42, 0.05]
+    }
+
+    object "ReplayGate" using "WorldBuildGate" {
+      label: "Replay"
+      gate_id: "replay"
+      receipt: "WorldBuildReadinessCockpitReceipt"
+      failure_states: ["non_replayable_command", "missing_stdout_hash", "missing_rollback_note"]
+      approval: "show_changes_before_promotion"
+      position: [2.16, 0.42, 0.05]
+    }
+  }
+
+  spatial_group "ReadinessTokens" {
+    object "HardwarePassToken" using "GateToken" {
+      label: "Hardware pass"
+      receipt_kind: "codex_hardware_audit"
+      position: [-1.08, 0.86, 0.76]
+      color: "#73daca"
+    }
+
+    object "GraphWarningToken" using "GateToken" {
+      label: "Graph warning"
+      receipt_kind: "graph_unavailable_receipt"
+      next_action: "Use local HoloShell source-files adapter"
+      position: [1.08, 0.86, 0.76]
+      color: "#e0af68"
+    }
+
+    object "NoMutationToken" using "GateToken" {
+      label: "HoloLand read-only until promotion"
+      receipt_kind: "worktree_boundary_receipt"
+      position: [0, 0.86, 1.18]
+      color: "#9ece6a"
+    }
+  }
+
+  object "WorldBuildTimeline" {
+    type: "timeline"
+    mesh: "cube"
+    material: "hologram"
+    color: "#6a7282"
+    label: "files -> hardware -> source -> build custody -> preview -> tasks -> replay"
+    position: [0, 0.02, 1.5]
+    scale: [5.9, 0.08, 0.12]
+    receipt_required: true
+  }
+
+  logic {
+    on_enter {
+      emit "holoshell_world_build_cockpit_loaded"
+    }
+
+    action focus_gate(gateId) {
+      emit "holoshell_world_build_gate_focused"
+    }
+
+    action promote_preview() {
+      if (state.blockedGateCount == 0) {
+        state.hololandMutationAllowed = true
+        emit "holoshell_world_build_preview_promoted"
+      }
+    }
+  }
+}

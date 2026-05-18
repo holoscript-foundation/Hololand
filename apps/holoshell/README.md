@@ -42,6 +42,12 @@ source/holoshell-founder-host.hsplus
 source/holoshell-native-wrapper.hsplus
 source/holoshell-startup-integration.hsplus
 source/holoshell-package-custody.hsplus
+source/holoshell-world-build-cockpit.holo
+source/holoshell-world-build-cockpit-policy.hsplus
+source/holoshell-world-build-cockpit-pipeline.hs
+source/holoshell-device-safety-lab.holo
+source/holoshell-device-safety-policy.hsplus
+source/holoshell-device-safety-pipeline.hs
 ```
 
 `holoshell-home.hsplus` owns behavior, channels, permissions, receipts, and
@@ -72,6 +78,22 @@ and Explorer replacement remains blocked.
 package inventory is read-only, install/upgrade/uninstall are break-glass
 approval packets, and the reusable mutation receipt validator lives upstream in
 HoloScript.
+`holoshell-world-build-cockpit.holo`, `holoshell-world-build-cockpit-policy.hsplus`,
+and `holoshell-world-build-cockpit-pipeline.hs` compose local files, hardware,
+source validation, build custody, visual witness, agent lanes, replay, and
+rollback into one ready/warn/blocked room before HoloLand world import or
+publish is allowed.
+`holoshell-device-safety-lab.holo`, `holoshell-device-safety-policy.hsplus`,
+and `holoshell-device-safety-pipeline.hs` turn paired devices, headsets,
+phones, robots, printers, and security hardware into visible preview, consent,
+safety-envelope, execution, receipt, and replay surfaces backed by the upstream
+HoloScript device-safety receipt validators.
+
+For the grouped source capability map, see:
+
+```text
+docs/HOLOSHELL_SOURCE_MAP.md
+```
 
 HTML is only a projection or host preview. Do not add hand-authored TypeScript
 behavior before the HoloScript source contract is named. Future desktop bridge
@@ -115,6 +137,12 @@ source/holoshell-founder-host.hsplus
 source/holoshell-native-wrapper.hsplus
 source/holoshell-startup-integration.hsplus
 source/holoshell-package-custody.hsplus
+source/holoshell-world-build-cockpit.holo
+source/holoshell-world-build-cockpit-policy.hsplus
+source/holoshell-world-build-cockpit-pipeline.hs
+source/holoshell-device-safety-lab.holo
+source/holoshell-device-safety-policy.hsplus
+source/holoshell-device-safety-pipeline.hs
 schemas/capability-inventory.schema.json
 samples/capability-inventory.sample.json
 docs/PHASE_1_ROADMAP.md
@@ -136,6 +164,8 @@ docs/PROCESS_SHELL_RUN_HEALTH.md
 docs/SKIN_SIMULATION_RESEARCH.md
 docs/PHASE_2_NATIVE_SHELL_ROADMAP.md
 docs/FOUNDER_NATIVE_HOST.md
+docs/HOLOSHELL_SOURCE_MAP.md
+docs/WORLD_BUILD_COCKPIT.md
 native/windows/Start-HoloShellFounderHost.ps1
 native/windows/Start-HoloShellFounderHost.cmd
 native/windows/Register-HoloShellStartup.ps1
@@ -498,6 +528,12 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-founder-host.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-native-wrapper.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-startup-integration.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit.holo
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-policy.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-pipeline.hs
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-device-safety-lab.holo
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-device-safety-policy.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-device-safety-pipeline.hs
 ```
 
 From the HoloLand repo:
