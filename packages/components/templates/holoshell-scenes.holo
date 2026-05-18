@@ -1,0 +1,772 @@
+// HoloShell Scene Compositions
+// D.045 (two-surface product) / D.049 (natural phenomena UX) — 2026-05-17
+//
+// Six living scenes that ARE the interface. Each scene is a world the user
+// looks INTO through a frame. Every scene contains exactly one SceneDoor.
+// Every scene is alive at rest — no interaction required to feel present.
+//
+// Default starter: UnderwaterScene (most universally legible, bubbles invite
+// touch before any instruction).
+//
+// Design authority: C:/Users/Josep/.ai-ecosystem/design/holoshell-natural-phenomena-ux.md
+
+import {
+  BubbleField,
+  WaterSurface,
+  FireSource,
+  SandCanvas,
+  LeafField,
+  GlowField,
+  WindField,
+  SceneDoor
+} from "./natural-phenomena.holo"
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNDERWATER SCENE — Default Starter
+// ─────────────────────────────────────────────────────────────────────────────
+// Glass panel as the frame. Bubbles rising, kelp swaying, sandy bottom,
+// light rays from surface. Door in a rock — always visible from the start.
+// The first bubble that drifts close is the beginning.
+
+template "UnderwaterScene" {
+  @holoshell_scene
+  @accessible
+  @starter_scene
+
+  state {
+    mode: "day"
+    ambient_sound: "underwater_ambience"
+    frame_type: "glass_panel"
+    light_ray_intensity: 0.7
+    kelp_count: 8
+    is_active: false
+  }
+
+  // The frame — looking through glass into depth
+  object "glass_frame" {
+    model: "aquarium_glass"
+    opacity: 0.15
+    tint: "#aaccff"
+    refracts_light: true
+  }
+
+  // Rising bubbles — the primary invitation
+  object "bubbles" {
+    uses: BubbleField
+    config {
+      count: 20
+      float_speed: 0.25
+      material: "iridescent"
+    }
+    position: [0.0, -1.5, -2.0]
+  }
+
+  // Sandy bottom with ripple patterns
+  object "sandy_bottom" {
+    uses: SandCanvas
+    config {
+      sand_color: "#c8b57a"
+      is_underwater: true
+      rake_pattern: "ripple"
+    }
+    position: [0.0, -1.8, -1.5]
+    rotation: [-90, 0, 0]
+  }
+
+  // Water surface overhead — light rays come through
+  object "water_surface" {
+    uses: WaterSurface
+    config {
+      surface_color: "#1a6fa8"
+      depth_visual: 0.8
+      caustic_intensity: 0.8
+    }
+    position: [0.0, 2.5, -2.0]
+  }
+
+  // Kelp — the world is alive before first touch
+  object "kelp_field" {
+    model: "kelp_cluster"
+    count: state.kelp_count
+    sway_speed: 0.4
+    sway_amplitude: 0.25
+    color: "#2d7a2d"
+    position: [-1.5, -0.5, -2.5]
+  }
+
+  // Ambient bioluminescent glow from depth
+  object "depth_glow" {
+    uses: GlowField
+    config {
+      intensity: 0.3
+      glow_color: "#4488ff"
+      pulse_speed: 0.2
+    }
+    position: [0.0, -2.0, -3.0]
+  }
+
+  // Wind — currents move bubbles and kelp
+  object "current" {
+    uses: WindField
+    config {
+      direction: [0.2, 0.8, 0.0]
+      strength: 0.2
+      gust_frequency: 0.05
+      shimmer_visible: false
+    }
+  }
+
+  // The door — always visible from the start, set into rock
+  object "navigation_door" {
+    uses: SceneDoor
+    config {
+      material_type: "underwater_rock"
+      warm_glow_color: "#ffcc88"
+    }
+    position: [1.2, -0.6, -2.8]
+    rotation: [0, -20, 0]
+  }
+
+  // Light rays from the surface
+  object "light_rays" {
+    model: "volumetric_light_rays"
+    count: 5
+    intensity: state.light_ray_intensity
+    color: "#ffffee"
+    angle_spread: 0.3
+    origin: [0.0, 2.5, -2.0]
+  }
+
+  on_scene_enter() {
+    state.is_active = true
+    emit "scene_entered" { scene: "underwater" }
+    audio_play(state.ambient_sound, loop: true, fade_in: 2.0)
+  }
+
+  on_scene_exit() {
+    state.is_active = false
+    audio_fade_out(state.ambient_sound, duration: 1.5)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WARM LIBRARY SCENE
+// ─────────────────────────────────────────────────────────────────────────────
+// Fire in hearth, papers scattered on floor, floor-to-ceiling shelves, armchairs.
+// Night mode: fire is the only light. Papers = accumulated content (LeafField, paper type).
+// Door set into bookshelf wall.
+
+template "WarmLibraryScene" {
+  @holoshell_scene
+  @accessible
+
+  state {
+    mode: "dusk"             // dusk | night
+    ambient_sound: "fireplace_crackling"
+    has_night_mode: true
+  }
+
+  object "hearth_fire" {
+    uses: FireSource
+    config {
+      intensity: 0.8
+      flicker_speed: 0.7
+      ember_count: 12
+      is_outdoor: false
+    }
+    position: [-1.5, -0.8, -2.5]
+  }
+
+  // Papers scattered on floor — the content library metaphor
+  object "scattered_papers" {
+    uses: LeafField
+    config {
+      leaf_type: "paper"
+      leaf_count: 14
+      drift_speed: 0.08
+      pile_position: [0.5, -1.5, -1.8]
+      fresh_color: "#fffde0"
+      recent_color: "#f0e8c0"
+      old_color: "#d4c890"
+    }
+    position: [0.3, -1.0, -2.0]
+  }
+
+  object "bookshelves" {
+    model: "floor_to_ceiling_shelves"
+    width: 4.0
+    height: 3.5
+    fill_ratio: 0.85
+    position: [0.0, 0.0, -3.0]
+  }
+
+  object "armchairs" {
+    model: "leather_armchair"
+    count: 2
+    position_left: [-0.8, -1.5, -2.2]
+    position_right: [0.6, -1.5, -2.4]
+  }
+
+  object "warm_light" {
+    uses: GlowField
+    config {
+      intensity: 0.6
+      glow_color: "#ff9944"
+      pulse_speed: 0.35
+    }
+    position: [0.0, 0.5, -2.0]
+  }
+
+  // Door set into bookshelf wall — a hidden passage
+  object "navigation_door" {
+    uses: SceneDoor
+    config {
+      material_type: "bookshelf"
+      warm_glow_color: "#ffdd88"
+    }
+    position: [1.8, -0.5, -2.9]
+  }
+
+  object "wind_ambient" {
+    uses: WindField
+    config {
+      strength: 0.05
+      gust_frequency: 0.03
+      shimmer_visible: false
+    }
+  }
+
+  action set_night_mode(active) {
+    state.mode = active ? "night" : "dusk"
+    animate "warm_light" {
+      intensity: active ? 0.0 : 0.6
+      duration: 2.0
+    }
+    // Fire becomes the only light source at night
+    animate "hearth_fire" {
+      warmth_radius: active ? 4.0 : 2.5
+      duration: 2.0
+    }
+    audio_cue(active ? "night_ambience_soft" : "fireplace_crackling")
+  }
+
+  on_scene_enter() {
+    audio_play(state.ambient_sound, loop: true, fade_in: 2.5)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ZEN GARDEN SCENE (Browser Window)
+// ─────────────────────────────────────────────────────────────────────────────
+// Raked sand, small pond, bonsai, autumn leaves, rake resting. The world lives
+// literally inside the screen frame — macOS browser chrome as the frame.
+// Door set into hillside. Authentication scene (zen garden model).
+
+template "ZenGardenScene" {
+  @holoshell_scene
+  @accessible
+  @authentication_scene
+
+  state {
+    mode: "day"
+    ambient_sound: "zen_garden_birds"
+    frame_type: "browser_chrome"
+    authentication_pattern: []
+  }
+
+  object "browser_frame" {
+    model: "macos_browser_chrome"
+    opacity: 1.0
+    shows_url_bar: false    // URL bar hidden — this is the world, not a browser
+  }
+
+  object "raked_sand" {
+    uses: SandCanvas
+    config {
+      sand_color: "#e8d5a0"
+      rake_pattern: "wave"
+      grain_texture: "coarse"
+    }
+    position: [0.0, -1.2, -2.0]
+    rotation: [-90, 0, 0]
+    scale: [3.0, 2.5, 1.0]
+  }
+
+  object "garden_pond" {
+    uses: WaterSurface
+    config {
+      surface_color: "#2255aa"
+      depth_visual: 0.4
+      ripple_speed: 0.6
+      width: 0.8
+    }
+    position: [0.8, -1.15, -2.2]
+  }
+
+  object "autumn_leaves" {
+    uses: LeafField
+    config {
+      leaf_type: "autumn"
+      leaf_count: 8
+      drift_speed: 0.15
+      pile_position: [0.3, -1.4, -1.6]
+      fresh_color: "#cc5500"
+      recent_color: "#aa8800"
+      old_color: "#665500"
+    }
+  }
+
+  object "bonsai_tree" {
+    model: "bonsai_juniper"
+    scale: [0.4, 0.4, 0.4]
+    position: [-0.8, -1.0, -2.3]
+  }
+
+  object "rake_resting" {
+    model: "bamboo_rake"
+    rotation: [0, 30, -15]
+    position: [0.3, -1.18, -1.8]
+  }
+
+  // Stones — can be placed as part of authentication pattern
+  object "garden_stones" {
+    model: "smooth_stones"
+    count: 4
+    placeable: true         // user can reposition
+    positions: [
+      [-0.4, -1.15, -2.1],
+      [0.1, -1.15, -2.4],
+      [-0.6, -1.15, -1.9],
+      [0.5, -1.15, -2.0]
+    ]
+  }
+
+  // Door into the hillside — background mountains visible
+  object "navigation_door" {
+    uses: SceneDoor
+    config {
+      material_type: "hill"
+      warm_glow_color: "#ccee99"
+    }
+    position: [1.4, -0.4, -3.0]
+    rotation: [0, -15, 0]
+  }
+
+  object "mountain_backdrop" {
+    model: "distant_mountains"
+    position: [0.0, 0.5, -5.0]
+    haze: 0.5
+  }
+
+  object "garden_wind" {
+    uses: WindField
+    config {
+      direction: [0.4, 0.0, 0.0]
+      strength: 0.12
+      gust_frequency: 0.08
+    }
+  }
+
+  on_scene_enter() {
+    audio_play(state.ambient_sound, loop: true, fade_in: 2.0)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOUNTAIN LAKE SCENE
+// ─────────────────────────────────────────────────────────────────────────────
+// Crystal water with mist, mountain reflected, leaves floating, cliff door.
+// Dawn mode — mist over the water, pine tree, morning light.
+
+template "MountainLakeScene" {
+  @holoshell_scene
+  @accessible
+
+  state {
+    mode: "dawn"
+    ambient_sound: "mountain_lake_morning"
+    mist_intensity: 0.7
+    reflection_clarity: 0.8
+  }
+
+  object "crystal_water" {
+    uses: WaterSurface
+    config {
+      surface_color: "#2a7a9a"
+      depth_visual: 0.9
+      caustic_intensity: 0.4
+      clarity: 0.95
+      width: 5.0
+    }
+    position: [0.0, -0.8, -2.0]
+  }
+
+  object "floating_leaves" {
+    uses: LeafField
+    config {
+      leaf_type: "autumn"
+      leaf_count: 10
+      drift_speed: 0.06
+      pile_position: [1.0, -0.82, -1.8]
+    }
+    position: [0.0, -0.78, -2.0]   // on water surface
+  }
+
+  object "mist_layer" {
+    model: "volumetric_mist"
+    intensity: state.mist_intensity
+    color: "#ddeeff"
+    height: 0.6
+    position: [0.0, -0.5, -2.5]
+  }
+
+  object "mountain_reflection" {
+    model: "mountain_range"
+    reflected: true
+    reflection_blur: 0.05
+    position: [0.0, 2.0, -4.0]
+  }
+
+  object "pine_tree" {
+    model: "pine_tree_tall"
+    position: [-1.8, -0.5, -2.5]
+    scale: [0.6, 0.8, 0.6]
+  }
+
+  // Door set into cliff face — organic, not architectural
+  object "navigation_door" {
+    uses: SceneDoor
+    config {
+      material_type: "cliff"
+      warm_glow_color: "#ffeecc"
+    }
+    position: [1.6, -0.2, -3.2]
+    rotation: [0, -25, 0]
+  }
+
+  object "morning_light" {
+    uses: GlowField
+    config {
+      intensity: 0.5
+      glow_color: "#ffe8aa"
+      pulse_speed: 0.15
+    }
+    position: [0.0, 1.0, -2.0]
+  }
+
+  object "mountain_wind" {
+    uses: WindField
+    config {
+      direction: [0.3, 0.0, 0.0]
+      strength: 0.18
+      gust_frequency: 0.12
+    }
+  }
+
+  on_scene_enter() {
+    audio_play(state.ambient_sound, loop: true, fade_in: 3.0)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NIGHT CAMPFIRE SCENE
+// ─────────────────────────────────────────────────────────────────────────────
+// Starfield, campfire, glowing leaf pile beside it, door set into boulder.
+// Night mode — fire is the only light. Stars = always-on ambient.
+// Leaf pile = accumulated items waiting to be opened.
+
+template "NightCampfireScene" {
+  @holoshell_scene
+  @accessible
+
+  state {
+    mode: "night"
+    ambient_sound: "night_campfire_crickets"
+    star_density: 0.8
+    tent_visible: true
+  }
+
+  object "campfire" {
+    uses: FireSource
+    config {
+      intensity: 1.0
+      flicker_speed: 0.9
+      ember_count: 15
+      is_outdoor: true
+      warmth_radius: 3.5
+      breathe_enabled: true
+    }
+    position: [0.0, -1.2, -2.0]
+  }
+
+  // Glowing leaf pile beside the fire — things waiting to be opened
+  object "leaf_pile" {
+    uses: LeafField
+    config {
+      leaf_type: "autumn"
+      leaf_count: 18
+      drift_speed: 0.05
+      pile_position: [0.8, -1.4, -1.7]
+      glow: true
+      fresh_color: "#ff8800"
+      recent_color: "#cc6600"
+      old_color: "#884400"
+    }
+    position: [0.8, -1.4, -1.7]
+  }
+
+  object "starfield" {
+    model: "star_dome"
+    star_count: 1200
+    density: state.star_density
+    twinkle_speed: 0.3
+    milky_way: true
+    always_on: true         // always ambient — stars never "turn off"
+    position: [0.0, 0.0, 0.0]
+  }
+
+  // Door set into a boulder — warm and inviting in firelight
+  object "navigation_door" {
+    uses: SceneDoor
+    config {
+      material_type: "boulder"
+      warm_glow_color: "#ffaa44"
+    }
+    position: [-1.4, -0.8, -2.6]
+    rotation: [0, 25, 0]
+  }
+
+  object "distant_mountain" {
+    model: "mountain_silhouette"
+    position: [0.0, 0.3, -5.0]
+    darkness: 0.9
+  }
+
+  object "distant_tent" {
+    model: "camping_tent"
+    position: [1.8, -1.3, -3.0]
+    visible: state.tent_visible
+    glowing_interior: true
+  }
+
+  object "campfire_wind" {
+    uses: WindField
+    config {
+      direction: [0.5, 0.0, 0.0]
+      strength: 0.22
+      gust_frequency: 0.15
+      shimmer_visible: true
+    }
+  }
+
+  on_scene_enter() {
+    audio_play(state.ambient_sound, loop: true, fade_in: 2.0)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ZEN GARDEN CLOSE DETAIL SCENE
+// ─────────────────────────────────────────────────────────────────────────────
+// Close-up: rake in raked sand, wave-pattern grooves, stones, small pond,
+// bonsai, rainbow iridescent mound. Close enough to reach into.
+// The iridescent object = new/special content that catches the eye differently.
+
+template "ZenGardenCloseScene" {
+  @holoshell_scene
+  @accessible
+
+  state {
+    mode: "day"
+    ambient_sound: "zen_garden_close_breeze"
+    iridescent_mound_visible: true
+    iridescent_mound_content: null   // null = no special content; string = content id
+  }
+
+  object "close_sand" {
+    uses: SandCanvas
+    config {
+      sand_color: "#ddd0a0"
+      rake_pattern: "wave"
+      grain_texture: "fine"
+    }
+    position: [0.0, 0.0, -1.2]
+    rotation: [-90, 0, 0]
+    scale: [2.5, 2.0, 1.0]
+  }
+
+  object "rake_in_sand" {
+    model: "bamboo_rake"
+    scale: [0.7, 0.7, 0.7]
+    rotation: [0, -10, 18]
+    position: [-0.3, 0.02, -1.1]
+    casts_shadow: true
+  }
+
+  object "wave_grooves" {
+    model: "sand_wave_pattern"
+    depth: 0.018
+    frequency: 0.25
+    position: [0.0, 0.01, -1.2]
+  }
+
+  object "garden_stones_close" {
+    model: "smooth_stones"
+    count: 3
+    placeable: true
+    positions: [
+      [-0.5, 0.04, -1.3],
+      [0.2, 0.04, -1.5],
+      [0.6, 0.04, -1.1]
+    ]
+  }
+
+  object "close_pond" {
+    uses: WaterSurface
+    config {
+      surface_color: "#3366aa"
+      depth_visual: 0.3
+      width: 0.6
+      ripple_speed: 0.5
+    }
+    position: [0.7, 0.01, -1.5]
+    scale: [0.6, 1.0, 0.5]
+  }
+
+  object "close_bonsai" {
+    model: "bonsai_juniper"
+    scale: [0.35, 0.35, 0.35]
+    position: [-0.8, 0.0, -1.6]
+  }
+
+  // The iridescent mound — not a notification. Just something different that
+  // catches the light. Users notice it on their own time.
+  object "iridescent_mound" {
+    model: "smooth_mound"
+    visible: state.iridescent_mound_visible
+    material: "rainbow_iridescent"
+    scale: [0.15, 0.1, 0.15]
+    position: [0.3, 0.05, -1.3]
+    glow_intensity: 0.4
+    glow_color: "#ffffff"
+    pulse_speed: 0.5
+
+    on_touch(point) {
+      if state.iridescent_mound_content {
+        emit "iridescent_content_opened" {
+          content_id: state.iridescent_mound_content
+        }
+        animate self {
+          scale: [0.25, 0.18, 0.25]
+          glow_intensity: 1.0
+          duration: 0.4
+        }
+      }
+    }
+  }
+
+  object "close_wind" {
+    uses: WindField
+    config {
+      direction: [0.6, 0.0, 0.3]
+      strength: 0.08
+      gust_frequency: 0.06
+      shimmer_visible: false
+    }
+  }
+
+  action set_new_content(content_id) {
+    state.iridescent_mound_content = content_id
+    state.iridescent_mound_visible = true
+    animate "iridescent_mound" {
+      scale: [0.15, 0.1, 0.15]
+      glow_intensity: 0.4
+      duration: 1.5
+      easing: "ease-in"
+    }
+  }
+
+  on_scene_enter() {
+    audio_play(state.ambient_sound, loop: true, fade_in: 1.5)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HoloShell ROUTER
+// ─────────────────────────────────────────────────────────────────────────────
+// Manages transitions between all 6 scenes. Cinematic cross-fade.
+// The default starter is UnderwaterScene per design doc.
+
+template "HoloShellRouter" {
+  @holoshell_system
+
+  state {
+    current_scene: "UnderwaterScene"
+    previous_scene: null
+    transition_duration: 1.8
+    transition_style: "cross_fade"
+    scene_history: ["UnderwaterScene"]
+    available_scenes: [
+      "UnderwaterScene",
+      "WarmLibraryScene",
+      "ZenGardenScene",
+      "MountainLakeScene",
+      "NightCampfireScene",
+      "ZenGardenCloseScene"
+    ]
+    brittney_assigned_scene: null   // Brittney can override the default
+  }
+
+  on_event("scene_transition", handler: (event)) {
+    if event.to && event.to != state.current_scene {
+      action navigate_to(event.to)
+    }
+  }
+
+  action navigate_to(scene_id) {
+    if !state.available_scenes.includes(scene_id) { return }
+
+    state.previous_scene = state.current_scene
+    state.scene_history.push(scene_id)
+
+    // Cinematic cross-fade
+    emit "scene_transition_begin" {
+      from: state.current_scene,
+      to: scene_id,
+      duration: state.transition_duration
+    }
+
+    animate "scene_overlay" {
+      opacity: 1.0
+      duration: state.transition_duration * 0.4
+      easing: "ease-in"
+      on_complete: {
+        emit "scene_swap" { from: state.current_scene, to: scene_id }
+        state.current_scene = scene_id
+        animate "scene_overlay" {
+          opacity: 0.0
+          duration: state.transition_duration * 0.6
+          easing: "ease-out"
+        }
+      }
+    }
+
+    audio_cue("scene_transition_whoosh")
+  }
+
+  action go_back() {
+    if state.scene_history.length > 1 {
+      state.scene_history.pop()
+      let previous = state.scene_history[state.scene_history.length - 1]
+      action navigate_to(previous)
+    }
+  }
+
+  // Brittney can assign a personalized starting scene
+  action set_brittney_scene(scene_id) {
+    state.brittney_assigned_scene = scene_id
+    if state.current_scene == "UnderwaterScene" {
+      // Only auto-switch from default — respect explicit user navigation
+      action navigate_to(scene_id)
+    }
+  }
+}

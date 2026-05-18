@@ -1,6 +1,29 @@
 // HoloScript Component Library Index
 // Import templates for reuse in compositions
 
+// HoloShell Natural Phenomena (D.049/D.050/D.051 — 2026-05-17)
+import {
+  BubbleField,
+  WaterSurface,
+  FireSource,
+  SandCanvas,
+  LeafField,
+  GlowField,
+  WindField,
+  SceneDoor
+} from "./templates/natural-phenomena.holo"
+
+// HoloShell Scenes (D.045/D.046)
+import {
+  UnderwaterScene,
+  WarmLibraryScene,
+  ZenGardenScene,
+  MountainLakeScene,
+  NightCampfireScene,
+  ZenGardenCloseScene,
+  HoloShellRouter
+} from "./templates/holoshell-scenes.holo"
+
 // NPCs
 import { BaseNPC, PatrolNPC, CombatNPC, DialogueNPC, ShopNPC } from "./templates/npcs.holo"
 
@@ -18,6 +41,25 @@ import { QuestSystem, AchievementSystem, SaveSystem, DialogueSystem } from "./te
 
 // Export all for use
 export {
+  // HoloShell Natural Phenomena
+  BubbleField,
+  WaterSurface,
+  FireSource,
+  SandCanvas,
+  LeafField,
+  GlowField,
+  WindField,
+  SceneDoor,
+
+  // HoloShell Scenes
+  UnderwaterScene,
+  WarmLibraryScene,
+  ZenGardenScene,
+  MountainLakeScene,
+  NightCampfireScene,
+  ZenGardenCloseScene,
+  HoloShellRouter,
+
   // NPCs
   BaseNPC,
   PatrolNPC,

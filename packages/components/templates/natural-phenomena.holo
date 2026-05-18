@@ -1,0 +1,751 @@
+// HoloShell Natural Phenomena Template Library
+// D.049 / D.050 / D.051 — ratified 2026-05-17
+//
+// Zero-learned-behavior interface built from natural interactions every human
+// already understands before any technology touches their lives. These templates
+// are NOT a theme or skin — they ARE the interaction model itself.
+//
+// Design authority: C:/Users/Josep/.ai-ecosystem/design/holoshell-natural-phenomena-ux.md
+// Compile targets: R3F (web), VisionOS, OpenXR, AndroidXR, PhoneSleeve
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. BubbleField
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle: varied-size bubbles drifting upward at different speeds. Iridescent
+// surfaces that catch and reflect light. Some pop on their own.
+// System state: density = available options. Size = relevance. Color = category.
+
+template "BubbleField" {
+  model: "bubble_sphere"
+
+  @accessible
+  @interactable
+  @physics_enabled
+
+  state {
+    count: 18
+    min_size: 0.04
+    max_size: 0.22
+    float_speed: 0.3
+    proximity_radius: 0.5
+    pop_radius: 0.08
+    material: "iridescent"
+    warm_color: "#ffddaa"
+    cool_color: "#aaccff"
+    iridescent_color: "#ffffff"
+    system_density: 1.0     // 0.0–2.0; driven by content count externally
+    bubbles: []
+  }
+
+  particle_system "bubble_pop_burst" {
+    count: 12
+    spread: 0.15
+    speed: 0.8
+    color: state.iridescent_color
+    shape: "sphere_burst"
+    lifetime: 0.4
+    auto_play: false
+  }
+
+  particle_system "idle_drift" {
+    count: state.count
+    spread: 3.0
+    speed: state.float_speed
+    color: state.iridescent_color
+    shape: "rising"
+    lifetime: 8.0
+    loop: true
+  }
+
+  // Bubbles are aware of proximity — they drift toward the person slightly
+  on_proximity(distance) {
+    if distance < state.proximity_radius {
+      animate self {
+        drift_toward_viewer: true
+        drift_strength: (state.proximity_radius - distance) / state.proximity_radius
+        duration: 0.6
+      }
+    }
+  }
+
+  // Touch pops the nearest bubble with satisfying burst
+  on_touch(point) {
+    let nearest = find_nearest_bubble(point, state.pop_radius)
+    if nearest {
+      emit "bubble_popped" {
+        position: nearest.position
+        size: nearest.size
+        color: nearest.color
+        bubble_id: nearest.id
+      }
+      play particle_system "bubble_pop_burst" at nearest.position
+      haptic_feedback("light")
+      audio_cue("bubble_pop_soft")
+      remove_bubble(nearest.id)
+      // New bubble reforms after delay — world continues, never empty
+      schedule_after(2.0) {
+        spawn_bubble()
+      }
+    }
+  }
+
+  // Device shake scatters all bubbles briefly then they reform
+  on_device_shake() {
+    animate self {
+      scatter_all: true
+      scatter_radius: 2.0
+      duration: 0.5
+    }
+    schedule_after(1.5) {
+      animate self { reform: true, duration: 1.0 }
+    }
+  }
+
+  // Spawn a single bubble with category color
+  action spawn_bubble() {
+    let color = pick_bubble_color()
+    let size = lerp(state.min_size, state.max_size, random())
+    state.bubbles.push({
+      id: uuid(),
+      position: random_position_in_field(),
+      size: size,
+      color: color,
+      drift_speed: lerp(0.15, state.float_speed, random())
+    })
+  }
+
+  action pick_bubble_color() {
+    let r = random()
+    if r < 0.4 { return state.warm_color }     // personal/recent
+    if r < 0.7 { return state.cool_color }     // shared/community
+    return state.iridescent_color               // new/unread
+  }
+
+  action set_density(content_count) {
+    state.count = clamp(content_count, 4, 40)
+    state.system_density = content_count / 20.0
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. WaterSurface
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle: slowly shifting surface with caustic light patterns. Gentle ripples
+// from imagined currents. Calm, not stagnant.
+// System state: clarity = readiness. Depth = content richness. Rippling = processing.
+
+template "WaterSurface" {
+  model: "water_plane"
+
+  @accessible
+  @interactable
+  @physics_enabled
+
+  state {
+    width: 4.0
+    depth_visual: 0.8       // visual depth (0=shallow, 1=deep ocean)
+    clarity: 1.0            // 0=murky (generating), 1=clear (ready)
+    ripple_speed: 1.2
+    ripple_decay: 2.5
+    ripple_max_radius: 1.8
+    surface_color: "#1a6fa8"
+    caustic_intensity: 0.6
+    active_ripples: []
+    is_processing: false
+  }
+
+  // Tap creates expanding ripple rings
+  on_touch(point) {
+    emit "water_touched" { position: point }
+    let ripple = {
+      id: uuid(),
+      origin: point,
+      radius: 0.0,
+      strength: 1.0,
+      started_at: now()
+    }
+    state.active_ripples.push(ripple)
+    audio_cue("water_drop")
+
+    // Ripple expands and decays
+    animate ripple {
+      radius: state.ripple_max_radius
+      strength: 0.0
+      duration: state.ripple_max_radius / state.ripple_speed
+      easing: "ease-out"
+      on_complete: { remove_ripple(ripple.id) }
+    }
+  }
+
+  // Hold creates continuous disturbance
+  on_hold(point, duration) {
+    emit "water_disturbed" { position: point, duration: duration }
+    animate self {
+      disturbance_center: point
+      disturbance_radius: 0.3 + duration * 0.1
+      duration: 0.2
+    }
+  }
+
+  // Swipe pulls the surface — content surfaces from beneath (photos, messages)
+  on_swipe(direction, velocity) {
+    emit "water_swiped" { direction: direction, velocity: velocity }
+    animate self {
+      surface_flow: direction
+      flow_speed: velocity
+      duration: 0.4
+      easing: "ease-out"
+    }
+  }
+
+  // System can mark as processing — water becomes slightly murky
+  action set_processing(active) {
+    state.is_processing = active
+    animate self {
+      clarity: active ? 0.4 : 1.0
+      ripple_ambient: active ? 0.8 : 0.2
+      duration: 1.5
+    }
+  }
+
+  action set_depth(content_richness) {
+    state.depth_visual = clamp(content_richness, 0.1, 1.0)
+    animate self { depth_visual: state.depth_visual, duration: 2.0 }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. FireSource
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle: flame that breathes — slow organic variation in height and color. Warm
+// light cast on surroundings. Occasional ember drifts up and fades.
+// System state: intensity = activity level. Color = status. Count = processes.
+
+template "FireSource" {
+  model: "flame_base"
+
+  @accessible
+  @interactable
+  @emits_light
+
+  state {
+    intensity: 0.5          // 0=ember, 1=steady, 2=roaring
+    flicker_speed: 0.8
+    flicker_amplitude: 0.15
+    ember_count: 8
+    warmth_radius: 2.5
+    light_color: "#ff8833"
+    flame_color: "#ff6600"
+    base_height: 0.4
+    is_outdoor: false
+    breathe_enabled: true
+  }
+
+  particle_system "flame_body" {
+    count: 40
+    spread: 0.2
+    speed: 0.6
+    color: state.flame_color
+    shape: "flame_tongue"
+    lifetime: 0.7
+    loop: true
+    noise_strength: state.flicker_amplitude
+  }
+
+  particle_system "embers" {
+    count: state.ember_count
+    spread: 0.4
+    speed: 0.3
+    color: "#ff4400"
+    shape: "spark"
+    lifetime: 3.0
+    gravity: -0.05
+    loop: true
+  }
+
+  // Proximity grows the fire — it notices people
+  on_proximity(distance) {
+    if distance < state.warmth_radius {
+      let warmth_factor = 1.0 - (distance / state.warmth_radius)
+      animate self {
+        intensity: state.intensity + warmth_factor * 0.3
+        duration: 1.0
+      }
+    }
+  }
+
+  // Touch pulls the flame toward the finger
+  on_touch(point) {
+    emit "fire_touched" { position: point }
+    animate particle_system "flame_body" {
+      lean_toward: point
+      lean_strength: 0.4
+      duration: 0.3
+    }
+    audio_cue("fire_crackle_light")
+  }
+
+  // Hold feeds the fire — it grows
+  on_hold(point, duration) {
+    let growth = min(duration * 0.2, 1.0)
+    animate self {
+      intensity: min(state.intensity + growth, 2.0)
+      base_height: state.base_height * (1.0 + growth * 0.5)
+      duration: 0.5
+    }
+  }
+
+  // Microphone blow causes dramatic flicker then recovery
+  on_audio_blow(strength) {
+    emit "fire_blown" { strength: strength }
+    animate particle_system "flame_body" {
+      blow_direction: "random"
+      blow_strength: strength
+      duration: 0.4
+    }
+    schedule_after(0.5) {
+      animate particle_system "flame_body" {
+        recover: true
+        duration: 0.8
+      }
+    }
+  }
+
+  // System sets activity level — small=idle, large=active generation
+  action set_activity(level) {
+    state.intensity = clamp(level, 0.05, 2.0)
+    let new_color = level > 1.5 ? "#4466ff"     // blue = high performance
+                  : level < 0.2 ? "#cc2200"     // red = needs attention
+                  : "#ff8833"                    // orange = normal
+    animate self {
+      intensity: state.intensity
+      light_color: new_color
+      duration: 1.5
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. SandCanvas
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle: fine sand at rest with subtle surface texture. Occasional grain movement.
+// Soft dune shapes that shift very slowly.
+// System state: marks = user-configured state. Color = context/mode.
+
+template "SandCanvas" {
+  model: "sand_plane"
+
+  @accessible
+  @interactable
+  @persistent_state
+
+  state {
+    width: 3.0
+    height: 2.0
+    grain_texture: "fine"
+    sand_color: "#d4b483"   // golden = home. white = clean. dark = night mode.
+    marks: []               // persisted across sessions
+    rake_pattern: "wave"
+    is_underwater: false
+    max_mark_age_seconds: 0   // 0 = permanent until shake-reset
+    dune_drift_speed: 0.02
+  }
+
+  // Touch displaces sand — it flows away physically
+  on_touch(point) {
+    emit "sand_touched" { position: point }
+    let displaced = displace_sand(point, radius: 0.1, strength: 1.0)
+    audio_cue("sand_rustle_soft")
+  }
+
+  // Drag draws persistent marks — the sand remembers
+  on_drag(path) {
+    let mark = {
+      id: uuid(),
+      path: path,
+      depth: 0.015,
+      created_at: now(),
+      color: darken(state.sand_color, 0.3)
+    }
+    state.marks.push(mark)
+    emit "sand_mark_drawn" { mark: mark }
+    audio_cue("sand_drag")
+    persist_state("marks", state.marks)
+  }
+
+  // Rake gesture creates wave/zen pattern
+  on_rake_gesture(direction, width) {
+    let pattern = generate_rake_pattern(direction, width, state.rake_pattern)
+    state.marks.push(...pattern.marks)
+    emit "sand_raked" { pattern: pattern }
+    audio_cue("sand_rake")
+    persist_state("marks", state.marks)
+  }
+
+  // Tilt device — sand flows to lower side
+  on_device_tilt(angle) {
+    emit "sand_tilted" { angle: angle }
+    animate self {
+      flow_direction: angle_to_direction(angle)
+      flow_intensity: abs(sin(angle)) * 0.6
+      duration: 0.3
+    }
+  }
+
+  // Shake to smooth/reset — the only "delete" in the system, satisfying not scary
+  on_device_shake() {
+    animate self {
+      smooth_all_marks: true
+      duration: 1.2
+      easing: "ease-out"
+    }
+    schedule_after(1.2) {
+      state.marks = []
+      persist_state("marks", state.marks)
+      emit "sand_reset" {}
+    }
+    audio_cue("sand_smooth")
+    haptic_feedback("medium")
+  }
+
+  action set_night_mode(active) {
+    animate self {
+      sand_color: active ? "#3d3020" : "#d4b483"
+      duration: 2.0
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. LeafField
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle: leaves drifting downward slowly, caught in imaginary air currents.
+// Varied seasonal colors. Some settle and pile softly at the bottom.
+// System state: fall rate = incoming activity. Color = age/urgency. Pile = queue.
+
+template "LeafField" {
+  model: "leaf_mesh"
+
+  @accessible
+  @interactable
+  @physics_enabled
+
+  state {
+    leaf_count: 12
+    drift_speed: 0.4
+    drift_variance: 0.3
+    pile_position: [0.0, -1.2, 0.0]
+    glow: false
+    leaf_type: "autumn"     // autumn | spring | paper | underwater_kelp
+    fresh_color: "#66cc44"  // new/unread
+    recent_color: "#ddaa22" // recent
+    old_color: "#885522"    // older/read
+    leaves: []
+  }
+
+  particle_system "leaf_drift" {
+    count: state.leaf_count
+    spread: 2.5
+    speed: state.drift_speed
+    color: state.recent_color
+    shape: state.leaf_type == "paper" ? "paper_sheet" : "leaf_shape"
+    lifetime: 12.0
+    noise_strength: state.drift_variance
+    gravity: 0.06
+    loop: true
+  }
+
+  // Touch scatters nearby leaves
+  on_touch(point) {
+    let nearby = find_leaves_near(point, radius: 0.4)
+    for leaf in nearby {
+      animate leaf {
+        scatter_from: point
+        scatter_velocity: 1.2
+        duration: 0.5
+        easing: "ease-out"
+      }
+    }
+    audio_cue("leaves_rustle")
+  }
+
+  // Swipe creates air current — leaves follow
+  on_swipe(direction, velocity) {
+    emit "leaves_swept" { direction: direction }
+    animate particle_system "leaf_drift" {
+      wind_direction: direction
+      wind_strength: velocity * 0.8
+      duration: 0.6
+    }
+    audio_cue("leaves_sweep")
+  }
+
+  // Hold gathers leaves toward touch point — "catch" gesture
+  on_hold(point, duration) {
+    if duration > 0.3 {
+      animate particle_system "leaf_drift" {
+        attract_to: point
+        attract_strength: 0.5
+        duration: 0.4
+      }
+    }
+  }
+
+  // Tilt shifts which way leaves fall
+  on_device_tilt(angle) {
+    animate particle_system "leaf_drift" {
+      gravity_direction: angle_to_direction(angle)
+      duration: 0.5
+    }
+  }
+
+  // System drives leaf rate from incoming activity
+  action set_incoming_rate(activity_level) {
+    state.leaf_count = clamp(activity_level * 20, 2, 60)
+    state.drift_speed = 0.2 + activity_level * 0.4
+  }
+
+  // Color a leaf by age — visual inbox metaphor
+  action spawn_leaf(age_normalized, sender_color) {
+    let color = age_normalized < 0.2 ? state.fresh_color
+              : age_normalized < 0.6 ? state.recent_color
+              : state.old_color
+    let leaf = {
+      id: uuid(),
+      color: sender_color or color,
+      age: age_normalized,
+      glow: state.glow and age_normalized < 0.1
+    }
+    state.leaves.push(leaf)
+    emit "leaf_spawned" { leaf: leaf }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. GlowField
+// ─────────────────────────────────────────────────────────────────────────────
+// Idle: soft ambient glow that pulses slowly. Bioluminescent quality — living,
+// breathing light. No text. No percentage. Just light.
+// System state: intensity = connectivity/health. Color = network activity.
+
+template "GlowField" {
+  model: "glow_plane"
+
+  @accessible
+  @interactable
+  @emits_light
+
+  state {
+    intensity: 0.8
+    pulse_speed: 0.4
+    pulse_amplitude: 0.12
+    glow_color: "#ffffff"   // white=ready, blue=flowing, gold=private
+    radius: 2.5
+    propagation_speed: 1.2
+    active_propagations: []
+  }
+
+  particle_system "ambient_glow" {
+    count: 20
+    spread: state.radius
+    speed: 0.1
+    color: state.glow_color
+    shape: "soft_orb"
+    lifetime: 6.0
+    loop: true
+    bioluminescent: true
+  }
+
+  // Touch creates a burst of light that propagates outward
+  on_touch(point) {
+    emit "glow_touched" { position: point }
+    let propagation = {
+      id: uuid(),
+      origin: point,
+      radius: 0.0
+    }
+    state.active_propagations.push(propagation)
+    animate propagation {
+      radius: state.radius * 1.5
+      intensity_at_front: 0.0
+      duration: state.radius * 1.5 / state.propagation_speed
+      easing: "ease-out"
+      on_complete: { remove_propagation(propagation.id) }
+    }
+  }
+
+  // System drives glow from health/connectivity
+  action set_health(level) {
+    state.intensity = clamp(level, 0.1, 1.0)
+    let new_color = level < 0.3 ? "#4488ff"   // dim blue = weak
+                  : level < 0.7 ? "#ffffff"   // white = moderate
+                  : "#ffffd0"                  // warm white = strong
+    animate self {
+      intensity: state.intensity
+      glow_color: new_color
+      pulse_amplitude: level < 0.5 ? 0.3 : 0.12  // irregular when weak
+      duration: 2.0
+    }
+  }
+
+  action set_data_flow(active) {
+    animate self {
+      glow_color: active ? "#4488ff" : "#ffffff"
+      pulse_speed: active ? 1.2 : 0.4
+      duration: 1.0
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. WindField
+// ─────────────────────────────────────────────────────────────────────────────
+// Invisible but implied — other elements respond to it. Occasionally visible
+// as shimmer or light distortion moving across the surface.
+// System state: direction = navigation direction. Speed = transition speed.
+
+template "WindField" {
+  model: "invisible"
+
+  @accessible
+
+  state {
+    direction: [1.0, 0.0, 0.0]
+    strength: 0.3
+    gust_frequency: 0.1
+    affected_templates: []    // populated by scene host — points to all other phenomena
+    shimmer_visible: true
+    at_edge: false            // true when content navigation has reached an end
+  }
+
+  particle_system "wind_shimmer" {
+    count: 6
+    spread: 4.0
+    speed: state.strength * 2.0
+    color: "#ffffff"
+    shape: "heat_shimmer"
+    lifetime: 2.0
+    opacity: 0.08
+    loop: true
+  }
+
+  // Swipe creates wind in that direction
+  on_swipe(direction, velocity) {
+    state.direction = direction
+    state.strength = clamp(velocity * 0.6, 0.1, 2.0)
+    propagate_wind()
+    emit "wind_created" { direction: direction, strength: state.strength }
+  }
+
+  // Microphone blow creates localized wind
+  on_audio_blow(direction, strength) {
+    state.direction = direction
+    state.strength = strength
+    propagate_wind()
+    emit "wind_blown" { direction: direction, strength: strength }
+  }
+
+  // Propagate wind to all affected phenomena in the scene
+  action propagate_wind() {
+    for template in state.affected_templates {
+      emit_to(template, "wind_event", {
+        direction: state.direction,
+        strength: state.strength
+      })
+    }
+    animate particle_system "wind_shimmer" {
+      move_direction: state.direction
+      speed: state.strength * 2.0
+      duration: 0.3
+    }
+  }
+
+  // Navigation: mark edge reached, wind settles
+  action set_at_edge(reached) {
+    state.at_edge = reached
+    if reached {
+      animate self {
+        strength: 0.05
+        duration: 0.8
+      }
+      audio_cue("wind_settle")
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. SceneDoor
+// ─────────────────────────────────────────────────────────────────────────────
+// HoloShell's navigation primitive. Always set into a natural surface — never
+// freestanding. Wooden, warm, slightly worn. Always visible. Always approachable.
+// There is no wrong door.
+
+template "SceneDoor" {
+  model: "door_wooden_weathered"
+
+  @accessible
+  @interactable
+
+  state {
+    destination_scene: null
+    material_type: "rock"   // rock | cliff | hill | boulder | underwater_rock | bookshelf
+    is_open: false
+    open_speed: 0.6
+    warm_glow_color: "#ffcc88"
+    has_been_discovered: false    // first discovery plays a subtle reveal
+    surroundings_model: "rock_alcove"
+  }
+
+  // Approach — door warms slightly (proximity awareness without instruction)
+  on_proximity(distance) {
+    if distance < 1.5 {
+      animate self {
+        glow: 0.3 + (1.5 - distance) / 1.5 * 0.4
+        glow_color: state.warm_glow_color
+        duration: 0.5
+      }
+      if !state.has_been_discovered {
+        state.has_been_discovered = true
+        emit "door_first_discovered" { door: self }
+      }
+    } else {
+      animate self { glow: 0.1, duration: 0.8 }
+    }
+  }
+
+  // Touch opens the door and transitions to destination
+  on_touch(point) {
+    if !state.is_open && state.destination_scene {
+      action open()
+    }
+  }
+
+  action open() {
+    state.is_open = true
+    animate self {
+      rotation: [0, 80, 0]
+      duration: state.open_speed
+      easing: "ease-out"
+    }
+    audio_cue("wooden_door_open")
+    emit "scene_door_opened" { door: self, destination: state.destination_scene }
+    schedule_after(state.open_speed + 0.2) {
+      emit "scene_transition" { to: state.destination_scene }
+    }
+  }
+
+  action navigate_to(scene_id) {
+    state.destination_scene = scene_id
+    action open()
+  }
+
+  // The door closes behind you (scene handles this after transition)
+  action close() {
+    state.is_open = false
+    animate self {
+      rotation: [0, 0, 0]
+      duration: state.open_speed * 0.7
+      easing: "ease-in"
+    }
+  }
+}
