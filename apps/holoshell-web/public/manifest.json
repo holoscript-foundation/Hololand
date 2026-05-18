@@ -1,0 +1,9 @@
+{
+  "name": "HoloShell",
+  "short_name": "HoloShell",
+  "description": "The natural phenomena OS — no learned behaviors, only touchable nature",
+  "display": "fullscreen",
+  "background_color": "#05070f",
+  "theme_color": "#0a1422",
+  "icons": []
+}
