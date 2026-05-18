@@ -11,7 +11,7 @@
  */
 
 import React from 'react';
-import { HoloShellRouter } from '../../components/holoshell';
+import { HoloShellRouter } from '../../../components/holoshell';
 
 const HoloShellPage: React.FC = () => {
   return (
