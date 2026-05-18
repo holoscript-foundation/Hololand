@@ -1,0 +1,250 @@
+// HoloShell Natural Phenomena Bridge
+//
+// Wires Brittney runtime state signals into the natural-phenomena template
+// library so the world physically reflects what the system is doing. This
+// closes task_1779062800545_mglh:
+//
+//   BubbleField.set_density()       <- visible_shell_objects + recent_receipts
+//   FireSource.set_activity()       <- runtime tool_call rate + action proposals
+//   LeafField.set_incoming_rate()   <- pending_approvals + recent inbound work
+//   HoloShellRouter.set_brittney_scene() <- Phase-3 personalization profile
+//
+// Source authority:
+//   - Template signatures: packages/components/templates/natural-phenomena.holo
+//   - Router signature:    packages/components/templates/holoshell-scenes.holo
+//   - Design intent:       design/holoshell-natural-phenomena-ux.md
+//                          (§"Phase 3 — World Begins Personalizing",
+//                           §"The World Is Honest — Environmental Accumulation",
+//                           §"Resolved Design Decisions §1 Calibration Persistence",
+//                           §"Resolved Design Decisions §5 Environmental Accumulation")
+//   - Upstream signals:    apps/holoshell/source/holoshell-brittney-context-packet.hsplus
+//                          apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus
+//   - Credential boundary: D.051 — Brittney holds all secrets. The bridge consumes
+//     redacted summary fields only; no raw window titles, secrets, or PII flow
+//     through it.
+
+composition "HoloShell Natural Phenomena Bridge" {
+  config {
+    title: "HoloShell Natural Phenomena Bridge"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    runtimeAdapter: "scripts/holoshell-natural-phenomena-bridge.mjs"
+    contextPacketReceipt: ".tmp/holoshell/brittney-context.json"
+    runtimeTurnReceipt: ".tmp/holoshell/brittney-turn-latest.json"
+    personalizationProfile: ".tmp/holoshell/brittney-personalization.json"
+    bridgeReceipt: ".tmp/holoshell/natural-phenomena-bridge.json"
+    templateLibrary: "packages/components/templates/natural-phenomena.holo"
+    sceneLibrary: "packages/components/templates/holoshell-scenes.holo"
+    designReference: "C:/Users/josep/.ai-ecosystem/design/holoshell-natural-phenomena-ux.md"
+  }
+
+  // Bridge state — only redacted summary signals enter here.
+  state {
+    status: "unknown"
+    lastContextHash: ""
+    lastTurnId: ""
+    lastPersonalizationId: ""
+
+    // Mapped phenomena state (last values written to template instances)
+    bubbleDensity: 0           // 0..40 — passed to BubbleField.set_density
+    fireActivity: 0.0          // 0.05..2.0 — passed to FireSource.set_activity
+    leafIncomingRate: 0.0      // 0.0..3.0 — passed to LeafField.set_incoming_rate
+    routerScene: "UnderwaterScene"  // current target scene_id
+
+    // Provenance counters
+    bridgeApplyCount: 0
+    skippedNoSignalCount: 0
+    lastError: ""
+  }
+
+  // We CONSUME redacted summaries on this channel. We do not subscribe to raw
+  // shell context — see ContextIsRedactedByDefault upstream.
+  channel "holoshell:brittney:context" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Redacted Brittney context summary consumed by the phenomena bridge"
+  }
+
+  channel "holoshell:brittney:runtime-events" {
+    type: "append_only"
+    priority: "high"
+    description: "Runtime tool-call/action-proposal stream consumed by FireSource activity mapping"
+  }
+
+  channel "holoshell:brittney:personalization" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Phase-3 personalization profile (pace, temperament, preferred scene) consumed by the scene router"
+  }
+
+  channel "holoshell:phenomena:bridge-apply" {
+    type: "append_only"
+    priority: "high"
+    description: "One emission per mapped template call (template id + action + value + source hash)"
+  }
+
+  channel "holoshell:phenomena:bridge-receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Receipt of bridge run — proves mapping math + source provenance + redaction"
+  }
+
+  // Inputs ----------------------------------------------------------------
+
+  template "ContextSummaryInput" {
+    type: "bridge_input"
+    source: "holoshell:brittney:context"
+    redactedFieldsOnly: true
+    requiredFields: ["visibleShellObjectCount", "recentReceiptCount", "pendingApprovalCount"]
+    optionalFields: ["activeLaneCount", "peerWindowCount", "shellWindowCount", "operatingSurfaceWindowCount"]
+    receiptHashRequired: true
+  }
+
+  template "RuntimeActivityInput" {
+    type: "bridge_input"
+    source: "holoshell:brittney:runtime-events"
+    requiredFields: ["toolCallCount", "actionProposalCount", "windowMs"]
+    description: "Aggregated runtime activity over a rolling window (see windowMs field)"
+  }
+
+  template "PersonalizationProfileInput" {
+    type: "bridge_input"
+    source: "holoshell:brittney:personalization"
+    requiredFields: ["producedAt", "producedBy"]
+    optionalFields: ["pace", "temperament", "preferredScene", "preferredPhenomena"]
+    schemaVersion: "0.1.0"
+    description: "Output of Phase-3 personalization logic. Either preferredScene OR temperament is required to drive set_brittney_scene; both absent -> router state unchanged."
+  }
+
+  // Mapping rules ---------------------------------------------------------
+
+  template "BubbleDensityRule" {
+    type: "phenomena_mapping"
+    targetTemplate: "BubbleField"
+    targetAction: "set_density"
+    formula: "visibleShellObjectCount + recentReceiptCount"
+    clampPolicy: "delegated_to_template"   // template clamps 4..40
+    rationale: "Bubbles = options the user can explore. Visible shell objects are present options; recent receipts are options that just emerged. Together they tell the user 'how much is there for me right now'."
+  }
+
+  template "FireActivityRule" {
+    type: "phenomena_mapping"
+    targetTemplate: "FireSource"
+    targetAction: "set_activity"
+    formula: "0.4 * tanh(toolCallsPerMinute / 3) + 0.6 * tanh(actionProposalsPerMinute / 2) + idleFloor"
+    idleFloor: 0.15
+    activeCeiling: 1.8
+    rationale: "Fire intensity = system doing visible work. Tool calls dominate (Brittney is acting); action proposals contribute (Brittney is offering). tanh keeps the response smooth and bounded so sudden spikes do not strobe."
+  }
+
+  template "LeafIncomingRule" {
+    type: "phenomena_mapping"
+    targetTemplate: "LeafField"
+    targetAction: "set_incoming_rate"
+    formula: "0.4 * pendingApprovals + 0.1 * recentReceiptsPerMinute"
+    clampPolicy: "delegated_to_template"   // template clamps to leaf_count 2..60
+    rationale: "Leaves = incoming things. Pending approvals are leaves the user must catch (weighted heavier); receipt rate is ambient signal."
+  }
+
+  template "SceneSelectionRule" {
+    type: "phenomena_mapping"
+    targetTemplate: "HoloShellRouter"
+    targetAction: "set_brittney_scene"
+    selectionOrder: ["preferredScene", "temperamentMap", "noop"]
+    temperamentMap: {
+      reflective: "ZenGardenScene"
+      expansive: "MountainLakeScene"
+      warm: "NightCampfireScene"
+      curious: "WarmLibraryScene"
+      gentle: "UnderwaterScene"
+    }
+    rationale: "Phase-3 personalization chooses the user's scene. Explicit preferredScene wins. Temperament inferred from behavior maps to the closest matching scene from the design doc §Phase 1 alternatives table. If neither field is present we do not mutate the router — preserving D.051 (Brittney does not act without signal)."
+  }
+
+  // Policies --------------------------------------------------------------
+
+  policy "BridgeConsumesRedactedOnly" {
+    appliesTo: ["apply_phenomena_mapping", "context_signal_consume"]
+    rawCommandsIncluded: false
+    rawWindowTitlesIncluded: false
+    secretsIncluded: false
+    privatePathsIncluded: false
+    description: "The bridge MUST refuse any context packet where the redaction policy is false. Mapping math runs on counts and rates only."
+  }
+
+  policy "BridgeIsIdempotentPerSource" {
+    appliesTo: ["apply_phenomena_mapping"]
+    requiredInput: "source_hash_tuple"
+    rule: "If (lastContextHash, lastTurnId, lastPersonalizationId) match the previously-applied tuple, skip the apply and increment skippedNoSignalCount instead. Prevents template-instance jitter when nothing changed upstream."
+  }
+
+  policy "BridgeProducesReceiptPerApply" {
+    appliesTo: ["apply_phenomena_mapping"]
+    receiptRequired: true
+    receiptChannel: "holoshell:phenomena:bridge-receipt"
+    receiptFields: ["bridgeApplyId", "mappedValues", "sourceHashes", "redactedConfirmed", "timestamp"]
+  }
+
+  policy "BridgeRespectsUserNavigation" {
+    appliesTo: ["set_brittney_scene"]
+    rule: "Defer to the template's own guard (HoloShellRouter.set_brittney_scene only auto-switches when current_scene is the default UnderwaterScene). The bridge MUST NOT force navigation on a scene the user has explicitly moved to."
+  }
+
+  // Actions ---------------------------------------------------------------
+
+  action consume_context_summary(packet) {
+    if !packet.privacyBoundary.redacted { return }
+    state.lastContextHash = packet.receipt.contextHash
+    emit("holoshell:phenomena:bridge-apply", {
+      action: "context_signal_received",
+      visible_shell_objects: packet.summary.visibleShellObjectCount,
+      recent_receipts: packet.summary.recentReceiptCount,
+      pending_approvals: packet.approvalSummary.pendingApprovalCount,
+      source_hash: state.lastContextHash
+    })
+  }
+
+  action consume_runtime_activity(window) {
+    state.lastTurnId = window.turnId
+    emit("holoshell:phenomena:bridge-apply", {
+      action: "runtime_activity_received",
+      tool_calls: window.toolCallCount,
+      action_proposals: window.actionProposalCount,
+      window_ms: window.windowMs,
+      source_id: state.lastTurnId
+    })
+  }
+
+  action consume_personalization_profile(profile) {
+    state.lastPersonalizationId = profile.producedAt
+    emit("holoshell:phenomena:bridge-apply", {
+      action: "personalization_profile_received",
+      pace: profile.pace,
+      temperament: profile.temperament,
+      preferred_scene: profile.preferredScene,
+      source_id: state.lastPersonalizationId
+    })
+  }
+
+  action apply_phenomena_mapping(applyId) {
+    // Implementation lives in scripts/holoshell-natural-phenomena-bridge.mjs.
+    // This action emits the receipt envelope that the runtime adapter writes.
+    state.bridgeApplyCount = state.bridgeApplyCount + 1
+    emit("holoshell:phenomena:bridge-receipt", {
+      action: "bridge_apply_complete",
+      bridge_apply_id: applyId,
+      bubble_density: state.bubbleDensity,
+      fire_activity: state.fireActivity,
+      leaf_incoming_rate: state.leafIncomingRate,
+      router_scene: state.routerScene,
+      apply_count: state.bridgeApplyCount,
+      skipped_no_signal_count: state.skippedNoSignalCount,
+      source_hashes: {
+        context: state.lastContextHash,
+        runtime: state.lastTurnId,
+        personalization: state.lastPersonalizationId
+      },
+      receipt_required: true
+    })
+  }
+}
