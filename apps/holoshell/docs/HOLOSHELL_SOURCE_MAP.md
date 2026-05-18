@@ -79,6 +79,12 @@ so agents and product surfaces do not have to rediscover the shape of
 | Founder boot loop | `apps/holoshell/source/holoshell-founder-boot-loop.hsplus` |
 | Founder-to-user strategy | `apps/holoshell/source/holoshell-founder-to-user-strategy.hsplus` |
 | Account/task custody | `apps/holoshell/source/holoshell-account-task-custody.hsplus` |
+| Account export room | `apps/holoshell/source/holoshell-account-export-room.holo` |
+| Account export policy | `apps/holoshell/source/holoshell-account-export-policy.hsplus` |
+| Account export pipeline | `apps/holoshell/source/holoshell-account-export-pipeline.hs` |
+| Browser account export room | `apps/holoshell/source/holoshell-browser-account-export-room.holo` |
+| Browser account export policy | `apps/holoshell/source/holoshell-browser-account-export-policy.hsplus` |
+| Browser account export pipeline | `apps/holoshell/source/holoshell-browser-account-export-pipeline.hs` |
 | Operating turn | `apps/holoshell/source/holoshell-operating-turn.hsplus` |
 | Operator brief | `apps/holoshell/source/holoshell-operator-brief.hsplus` |
 

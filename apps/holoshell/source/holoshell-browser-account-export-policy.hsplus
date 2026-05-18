@@ -1,0 +1,216 @@
+// HoloShell browser account export policy and state machine.
+
+composition "HoloShellBrowserAccountExportPolicy" {
+  state BrowserAccountExportState {
+    selectedWorkflow: "browser-account-export"
+    provider: "unknown"
+    exportKind: "unknown"
+    accountBoundary: "unknown"
+    browserProfileBoundary: "unknown"
+    providerWaitState: "not_requested"
+    destinationStatus: "unknown"
+    fileCount: 0
+    archiveHash: ""
+    receiptsCaptured: 0
+    accountMutationPerformed: false
+    downloadedArchiveExecuted: false
+    sourceFileMutationPerformed: false
+    rawPrivateDataPublished: false
+    privatePathLeakedToPublicReceipt: false
+    blockers: []
+    taskSeeds: []
+    currentLane: "codex-hardware"
+  }
+
+  template "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  template "BrowserAccountBoundaryReceipt" {
+    receiptType: "browser_account_boundary_receipt"
+    providerRequired: true
+    accountRequired: true
+    browserProfileRequired: true
+    browserSessionRequired: true
+    cookiePolicyRequired: true
+    screenshotPolicyRequired: true
+    credentialExtrusionAllowed: false
+    accountMutationAllowedWithoutApproval: false
+    publicReceiptMayContainAbsolutePath: false
+  }
+
+  template "LocalDownloadQuarantineReceipt" {
+    receiptType: "local_download_quarantine_receipt"
+    destinationFolderRequired: true
+    archiveHashRequired: true
+    privateAbsolutePathStoredLocallyOnly: true
+    executableLaunchAllowed: false
+    rawPrivateDataPublishAllowed: false
+    importMode: "preview_only"
+  }
+
+  policy "SilentInspect" using "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    appliesTo: [
+      "classify_export_intent",
+      "inspect_browser_inventory",
+      "read_provider_public_status",
+      "read_destination_folder_metadata",
+      "hash_existing_local_files",
+      "summarize_quarantine"
+    ]
+  }
+
+  policy "GuardedExportPreparation" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: false
+    appliesTo: [
+      "open_export_help_page",
+      "open_local_destination",
+      "write_export_preview",
+      "write_redacted_receipt",
+      "file_holomesh_task"
+    ]
+  }
+
+  policy "BreakGlassAccountExport" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: true
+    appliesTo: [
+      "use_credential_bearing_browser_profile",
+      "submit_account_export_request",
+      "confirm_provider_email",
+      "download_private_archive",
+      "unzip_private_archive",
+      "import_private_export_to_world",
+      "delete_quarantined_export",
+      "upload_export_archive",
+      "share_export_link"
+    ]
+  }
+
+  state_machine "BrowserAccountExportWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "classified",
+      "boundary_checked",
+      "approval_pending",
+      "provider_waiting",
+      "downloaded",
+      "quarantined",
+      "verified",
+      "preview_ready",
+      "filed",
+      "blocked"
+    ]
+    transition "classify" { from: "idle", to: "classified" }
+    transition "check_boundary" { from: "classified", to: "boundary_checked" }
+    transition "require_approval" { from: "boundary_checked", to: "approval_pending" }
+    transition "wait_for_provider" { from: "approval_pending", to: "provider_waiting" }
+    transition "record_download" { from: "provider_waiting", to: "downloaded" }
+    transition "quarantine" { from: "downloaded", to: "quarantined" }
+    transition "verify" { from: "quarantined", to: "verified" }
+    transition "preview" { from: "verified", to: "preview_ready" }
+    transition "file_task" { from: "preview_ready", to: "filed" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "CodexHardware" {
+    laneId: "codex-hardware"
+    owns: ["local_download_folder", "file_hashes", "quarantine_receipt", "hardware_witness"]
+  }
+
+  role "BrowserBoundaryAgent" {
+    laneId: "browser-boundary"
+    owns: ["browser_profile", "session_boundary", "cookie_policy", "screenshot_policy"]
+  }
+
+  role "ProviderConnectorAgent" {
+    laneId: "provider-connector"
+    owns: ["export_request_scope", "provider_wait_state", "download_url_classification", "provider_error_receipts"]
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["export_room", "brittney_summary", "import_dock", "quest_surface"]
+  }
+
+  role "HoloScriptSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["receipt_validator", "stdlib_policy", "replay_contract", "runtime_adapter"]
+  }
+
+  action classifyOperation(operation) {
+    if (operation.kind in BreakGlassAccountExport.appliesTo) {
+      return "break_glass_account_export"
+    }
+    if (operation.kind in GuardedExportPreparation.appliesTo) {
+      return "guarded_export_preparation"
+    }
+    return "silent_inspect"
+  }
+
+  action recordBoundary(receipt) {
+    BrowserAccountExportState.provider = receipt.provider
+    BrowserAccountExportState.accountBoundary = receipt.scopeClass
+    BrowserAccountExportState.browserProfileBoundary = receipt.browserProfile
+    BrowserAccountExportState.receiptsCaptured = BrowserAccountExportState.receiptsCaptured + 1
+    emit("holoshell:browser_export:boundary", {
+      workflow: BrowserAccountExportState.selectedWorkflow,
+      provider: BrowserAccountExportState.provider,
+      browserProfile: BrowserAccountExportState.browserProfileBoundary,
+      credentialExtrusionAllowed: false,
+      publicReceiptMayContainAbsolutePath: false
+    })
+  }
+
+  action recordProviderWait(receipt) {
+    BrowserAccountExportState.providerWaitState = receipt.state
+    BrowserAccountExportState.receiptsCaptured = BrowserAccountExportState.receiptsCaptured + 1
+    emit("holoshell:browser_export:provider_wait", {
+      workflow: BrowserAccountExportState.selectedWorkflow,
+      provider: receipt.provider,
+      state: receipt.state
+    })
+  }
+
+  action recordQuarantine(receipt) {
+    BrowserAccountExportState.destinationStatus = "quarantined"
+    BrowserAccountExportState.fileCount = receipt.fileCount
+    BrowserAccountExportState.archiveHash = receipt.archiveHash
+    BrowserAccountExportState.downloadedArchiveExecuted = false
+    BrowserAccountExportState.rawPrivateDataPublished = false
+    BrowserAccountExportState.privatePathLeakedToPublicReceipt = receipt.privatePathLeakedToPublicReceipt
+    BrowserAccountExportState.receiptsCaptured = BrowserAccountExportState.receiptsCaptured + 1
+    emit("holoshell:browser_export:quarantine", {
+      workflow: BrowserAccountExportState.selectedWorkflow,
+      fileCount: BrowserAccountExportState.fileCount,
+      archiveHash: BrowserAccountExportState.archiveHash,
+      downloadedArchiveExecuted: false,
+      rawPrivateDataPublished: false
+    })
+  }
+
+  action blockOn(reason, evidencePath, ownerSurface) {
+    BrowserAccountExportWorkflow.transition("block")
+    BrowserAccountExportState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+    emit("holoshell:browser_export:blocker", {
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+  }
+}

@@ -1,0 +1,149 @@
+/**
+ * HoloShell Browser Account Export Room
+ *
+ * Product source dock for credential-adjacent browser/provider exports.
+ * HoloScript owns the policy and receipt contracts; HoloLand renders the
+ * legible room, NPC posture, import dock, and replay timeline.
+ */
+
+composition "HoloShell Browser Account Export Room" {
+  environment {
+    backgroundColor: "#101417"
+    ambient_light: 0.58
+    shadows: true
+  }
+
+  template "AccountExportPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.52, 0.58, 0.08]
+    material: {
+      color: "#17232a"
+      emissive: "#263941"
+      emissiveIntensity: 0.18
+      transparent: true
+      opacity: 0.96
+    }
+  }
+
+  template "GateToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    scale: [0.16, 0.16, 0.16]
+    material: { color: "#82aaff" }
+  }
+
+  object "HumanJob" using "AccountExportPanel" {
+    position: [0, 2.45, -2.8]
+    label: "Export account data into local files with receipts"
+    properties: {
+      plainLanguageJob: "choose a provider export, prove which browser/account boundary is active, stage the download, verify local files, redact private paths, and show replay or rollback limits"
+      userPromise: "account state, downloaded archives, and local file changes are never hidden behind browser or provider quirks"
+      substrateBoundary: "HoloScript owns policy, validators, orchestration, receipts, and replay; HoloLand owns the visible room and creator import dock"
+    }
+  }
+
+  object "BrowserAccountGate" using "AccountExportPanel" {
+    position: [-4.4, 1.55, -1.18]
+    label: "Browser and account boundary"
+    properties: {
+      reads: ["browser", "profile", "session", "provider", "scopes", "cookie policy", "screenshot policy"]
+      stableControls: ["profile picker", "credential-adjacent badge", "manual witness mode", "account label hash"]
+      failureStates: ["wrong profile", "mixed account", "expired session", "missing export scope", "credential-bearing screenshot"]
+      receiptKind: "browser_account_boundary_receipt"
+    }
+  }
+
+  object "ExportApprovalGate" using "AccountExportPanel" {
+    position: [-2.2, 1.55, -1.18]
+    label: "Export approval"
+    properties: {
+      guardedActions: ["open export page", "choose export products", "write preview receipt"]
+      breakGlassActions: ["submit provider export", "confirm provider email", "download private archive"]
+      approvalBinding: ["provider", "redacted account", "export kind", "format", "destination", "expiration"]
+      receiptKind: "account_export_approval_receipt"
+    }
+  }
+
+  object "ProviderWaitPanel" using "AccountExportPanel" {
+    position: [0, 1.55, -1.18]
+    label: "Provider wait state"
+    properties: {
+      visibleStates: ["not requested", "requested", "provider waiting", "ready to download", "expired", "blocked"]
+      backstageAgents: ["provider connector agent", "browser boundary agent"]
+      receipts: ["provider wait receipt", "notification hash", "download link hash"]
+    }
+  }
+
+  object "DownloadQuarantine" using "AccountExportPanel" {
+    position: [2.2, 1.55, -1.18]
+    label: "Download quarantine"
+    properties: {
+      localFolder: "staged export folder"
+      requiredReceipts: ["download manifest", "archive hash", "file count", "mime scan", "private path redaction"]
+      blockedByDefault: ["auto unzip", "auto upload", "overwrite files", "execute downloaded file"]
+      receiptKind: "local_download_quarantine_receipt"
+    }
+  }
+
+  object "HoloLandImportDock" using "AccountExportPanel" {
+    position: [4.4, 1.55, -1.18]
+    label: "HoloLand import dock"
+    properties: {
+      mode: "preview_only"
+      adoptionSurfaces: ["quest", "world operation", "creator import tool", "Twin Earth personal archive surface"]
+      publishRule: "HoloLand can render summaries and provenance objects; raw private account data stays local unless the human promotes a redacted subset"
+    }
+  }
+
+  object "BoundaryToken" using "GateToken" {
+    position: [-3.45, 0.78, 0.12]
+    label: "read profile boundary"
+    properties: {
+      accountMutationPerformed: false
+      publicReceiptMayContainAbsolutePath: false
+    }
+  }
+
+  object "ApprovalToken" using "GateToken" {
+    position: [-1.18, 0.78, 0.12]
+    material: { color: "#e0af68" }
+    label: "submit export locked"
+    properties: {
+      requiresFreshUserGesture: true
+      credentialExtrusionAllowed: false
+    }
+  }
+
+  object "QuarantineToken" using "GateToken" {
+    position: [1.18, 0.78, 0.12]
+    material: { color: "#9ece6a" }
+    label: "download quarantined"
+    properties: {
+      importMode: "preview_only"
+      downloadedFilesExecutable: false
+      rawPrivateDataPublished: false
+    }
+  }
+
+  object "RollbackToken" using "GateToken" {
+    position: [3.45, 0.78, 0.12]
+    material: { color: "#f7768e" }
+    label: "rollback limits"
+    properties: {
+      warning: "provider export requests may be cancelable before creation, but downloaded private archives require local deletion receipts"
+    }
+  }
+
+  object "AccountExportTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.8, 0.08, 0.14]
+    color: "#61727c"
+    label: "timeline: classify -> boundary -> approve -> provider wait -> download -> quarantine -> verify -> preview -> replay"
+  }
+}

@@ -120,6 +120,37 @@ function shellArg(value) {
   return `"${text.replace(/"/g, '\\"')}"`;
 }
 
+function toPublicPath(filePath, fallbackPrefix = 'artifact') {
+  const text = String(filePath || '');
+  if (!text) return '';
+  const resolved = resolveRepoPath(text);
+  const relative = path.relative(REPO_ROOT, resolved);
+  if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+    return relative.replace(/\\/g, '/');
+  }
+  return `${fallbackPrefix}-${shortHash(text)}`;
+}
+
+function hasAbsolutePath(value) {
+  return /(^|[\s"'`=])(?:[A-Za-z]:[\\/]|\/(?!\/)[^\s"'`]+)/.test(String(value || ''));
+}
+
+function hostOnlyUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}/[redacted-path]`;
+  } catch {
+    return '[redacted-url]';
+  }
+}
+
+function publicArg(value) {
+  const text = String(value ?? '');
+  if (!text) return text;
+  if (hasAbsolutePath(text)) return `[redacted-local-path:${shortHash(text)}]`;
+  return text;
+}
+
 function addFlag(args, flag, value) {
   if (value === undefined || value === null || value === '') return;
   args.push(flag, String(value));
@@ -168,6 +199,17 @@ function targetFor(receipt = {}) {
   const processName = summary.targetProcessName || target.processName || request.targetProcessName || '';
   if (processName || windowTitle) return { kind: 'window', label: processName || 'window', privateHash: shortHash(`${processName}:${windowTitle}`) };
   return { kind: 'machine', label: 'local computer', privateHash: shortHash('local computer') };
+}
+
+function approvalTargetFor(receipt = {}) {
+  const request = receipt.request || {};
+  const boundary = receipt.browserBoundary || {};
+  if (request.actionKind === 'open_url') {
+    const host = boundary.host || targetHost(request.url) || 'web';
+    const profile = boundary.profileBoundary || request.browserProfile || '';
+    return profile ? `${host} via ${profile}` : host;
+  }
+  return targetFor(receipt).label;
 }
 
 function fingerprintFor(receipt = {}) {
@@ -309,6 +351,29 @@ function buildExecuteArgs(receipt, approvalId, nonce, bundlePath) {
   return actionArgs;
 }
 
+function buildPublicExecuteArgs(receipt, approvalId) {
+  const request = receipt.request || {};
+  const actionArgs = ['node', 'scripts\\holoshell-action-executor.mjs'];
+  addFlag(actionArgs, '--action', request.actionKind);
+  addFlag(actionArgs, '--target-window-id', request.targetWindowId);
+  addFlag(actionArgs, '--window-title', request.targetWindowTitle);
+  addFlag(actionArgs, '--process-name', request.targetProcessName);
+  addFlag(actionArgs, '--handle', request.targetHandle);
+  addFlag(actionArgs, '--target-control-id', request.targetControlId);
+  addFlag(actionArgs, '--control-name', request.targetControlName);
+  if (request.url) addFlag(actionArgs, '--url', hostOnlyUrl(request.url));
+  if (request.path) addFlag(actionArgs, '--path', `[local-path:${shortHash(request.path)}]`);
+  addFlag(actionArgs, '--app', request.app || request.targetProgramName);
+  addFlag(actionArgs, '--hotkey', request.hotkey);
+  addFlag(actionArgs, '--browser-profile', request.browserProfile);
+  addFlag(actionArgs, '--browser-session', request.browserSession);
+  addFlag(actionArgs, '--approval-bundle', `[approval-bundle:${approvalId}]`);
+  addFlag(actionArgs, '--approval-id', approvalId);
+  addFlag(actionArgs, '--approval-nonce', '[nonce-bound]');
+  actionArgs.push('--execute');
+  return actionArgs.map(publicArg);
+}
+
 function buildBundle(args) {
   const now = new Date();
   const actionReceipt = args.selfTest ? fixtureActionReceipt() : readJson(args.actionReceipt, null);
@@ -337,11 +402,7 @@ function buildBundle(args) {
   const approvalId = `hwap-${Date.now().toString(36)}-${shortHash(actionReceipt.actionId || actionReceipt)}`;
   const nonce = crypto.randomBytes(16).toString('hex');
   const expiresAt = new Date(now.getTime() + args.ttlMinutes * 60 * 1000).toISOString();
-  const target = actionReceipt.summary?.targetAppName
-    || actionReceipt.target?.program?.displayName
-    || actionReceipt.summary?.targetWindowTitle
-    || actionReceipt.target?.title
-    || 'local computer';
+  const target = approvalTargetFor(actionReceipt);
   const actionStatus = actionReceipt.summary?.status || 'unknown';
   const approvalRequired = Boolean(actionReceipt.permission?.approvalRequired || actionReceipt.summary?.approvalRequired);
   const breakGlass = Boolean(actionReceipt.permission?.breakGlass);
@@ -349,6 +410,7 @@ function buildBundle(args) {
   const pending = approvalRequired && !actionReceipt.summary?.mutatingActionExecuted && ['approval_required', 'planned'].includes(actionStatus);
   const bundlePath = resolveRepoPath(path.join(args.bundleDir, `${approvalId}.json`));
   const executeArgs = buildExecuteArgs(actionReceipt, approvalId, nonce, bundlePath);
+  const publicExecuteArgs = buildPublicExecuteArgs(actionReceipt, approvalId);
   const executionAllowed = pending && !breakGlass && !manualReview;
   const trust = trustForReceipt(args, actionReceipt);
   const trustedAutonomyEligible = executionAllowed && trust.trustedAutonomyEligible && trust.level === 'trusted';
@@ -370,7 +432,7 @@ function buildBundle(args) {
       source: 'apps/holoshell/source/holoshell-hardware-control.hsplus',
       adapter: 'scripts/holoshell-approval-bundle.mjs',
       actionExecutor: 'scripts/holoshell-action-executor.mjs',
-      actionReceipt: actionReceipt.output?.receiptPath || resolveRepoPath(args.actionReceipt),
+      actionReceipt: toPublicPath(actionReceipt.output?.receiptPath || args.actionReceipt, 'action-receipt'),
     },
     host: {
       platform: process.platform,
@@ -408,8 +470,10 @@ function buildBundle(args) {
       trustedAutonomyEligible,
       trustedAutonomyRequiresDaemonFlag: trustedAutonomyEligible,
       trustedAutonomyDefault: 'off',
-      command: executionAllowed ? executeArgs : [],
-      commandPreview: executionAllowed ? executeArgs.map(shellArg).join(' ') : '',
+      command: executionAllowed ? publicExecuteArgs : [],
+      publicCommand: executionAllowed ? publicExecuteArgs : [],
+      privateCommandHash: executionAllowed ? hashValue(executeArgs) : '',
+      commandPreview: executionAllowed ? publicExecuteArgs.map(shellArg).join(' ') : '',
       blockedReason: executionAllowed
         ? ''
         : breakGlass
@@ -442,6 +506,7 @@ function buildBundle(args) {
 
 function assertSelfTest(bundle) {
   const failures = [];
+  const serialized = JSON.stringify(bundle);
   if (bundle.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (bundle.status !== 'pending_user_approval') failures.push('expected pending approval');
   if (!bundle.execution.allowed) failures.push('expected executable fixture bundle');
@@ -449,12 +514,14 @@ function assertSelfTest(bundle) {
   if (!bundle.sourceAction.targetAppName) failures.push('expected target app');
   if (bundle.browserBoundary?.urlClassification !== 'public_web') failures.push('expected browser boundary to carry into approval bundle');
   if (!bundle.approval.browserBoundarySummary) failures.push('expected browser boundary approval summary');
+  if (hasAbsolutePath(bundle.execution.commandPreview)) failures.push('public command preview leaked an absolute path');
+  if (hasAbsolutePath(serialized)) failures.push('public approval bundle leaked an absolute path');
   if (bundle.witness.secretsCaptured) failures.push('approval bundle must not capture secrets');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
 
 function writeOutputs(args, bundle) {
-  const bundlePath = bundle.approvalId && bundle.status !== 'empty'
+  const privateBundlePath = bundle.approvalId && bundle.status !== 'empty'
     ? path.join(resolveRepoPath(args.bundleDir), `${bundle.approvalId}.json`)
     : null;
   const outputPath = resolveRepoPath(args.output);
@@ -462,13 +529,13 @@ function writeOutputs(args, bundle) {
   const withOutput = {
     ...bundle,
     output: {
-      latestPath: outputPath,
-      bundlePath,
-      browserBootstrap: jsOutputPath,
+      latestPath: toPublicPath(outputPath, 'approval-latest'),
+      bundlePath: privateBundlePath ? toPublicPath(privateBundlePath, 'approval-bundle') : null,
+      browserBootstrap: toPublicPath(jsOutputPath, 'approval-bootstrap'),
     },
   };
 
-  if (bundlePath) writeJson(bundlePath, withOutput);
+  if (privateBundlePath) writeJson(privateBundlePath, withOutput);
   writeJson(args.output, withOutput);
   writeBrowserBootstrap(args.jsOutput, withOutput);
   return withOutput;
