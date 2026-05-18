@@ -21,8 +21,10 @@ import {
   routePrefetchMap,
   prefetchGRPO,
   prefetchPipeline,
+  prefetchHoloShell,
   GRPORoute,
   PipelineRoute,
+  HoloShellRoute,
 } from '../lazy-routes';
 
 // =============================================================================
@@ -47,6 +49,13 @@ describe('lazyRoutes', () => {
     expect(pipelineRoute).toBeDefined();
     expect(pipelineRoute!.path).toBe('/pipeline');
     expect(pipelineRoute!.element).toBeTruthy();
+  });
+
+  it('includes /holoshell route', () => {
+    const holoshellRoute = lazyRoutes.find((r) => r.path === '/holoshell');
+    expect(holoshellRoute).toBeDefined();
+    expect(holoshellRoute!.path).toBe('/holoshell');
+    expect(holoshellRoute!.element).toBeTruthy();
   });
 
   it('all routes have path and element', () => {
@@ -74,6 +83,12 @@ describe('Route elements', () => {
     expect(element).toBeTruthy();
     expect(element.type).toBe(PipelineRoute);
   });
+
+  it('HoloShellRoute creates a valid React element', () => {
+    const element = React.createElement(HoloShellRoute);
+    expect(element).toBeTruthy();
+    expect(element.type).toBe(HoloShellRoute);
+  });
 });
 
 // =============================================================================
@@ -98,6 +113,16 @@ describe('prefetchPipeline', () => {
 
   it('does not throw when called', () => {
     expect(() => prefetchPipeline()).not.toThrow();
+  });
+});
+
+describe('prefetchHoloShell', () => {
+  it('is a callable function', () => {
+    expect(typeof prefetchHoloShell).toBe('function');
+  });
+
+  it('does not throw when called', () => {
+    expect(() => prefetchHoloShell()).not.toThrow();
   });
 });
 
@@ -127,6 +152,15 @@ describe('routePrefetchMap', () => {
 
   it('/pipeline maps to prefetchPipeline', () => {
     expect(routePrefetchMap['/pipeline']).toBe(prefetchPipeline);
+  });
+
+  it('contains /holoshell key', () => {
+    expect(routePrefetchMap).toHaveProperty('/holoshell');
+    expect(typeof routePrefetchMap['/holoshell']).toBe('function');
+  });
+
+  it('/holoshell maps to prefetchHoloShell', () => {
+    expect(routePrefetchMap['/holoshell']).toBe(prefetchHoloShell);
   });
 });
 
