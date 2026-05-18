@@ -57,6 +57,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: '♿',
     description: 'WCAG 2.1 compliance scanner'
   },
+  {
+    to: '/holoshell',
+    label: 'HoloShell',
+    group: 'tools',
+    icon: '🌊',
+    description: 'Natural phenomena OS — no learned behaviors, only touchable nature'
+  },
 ];
 
 // =============================================================================
