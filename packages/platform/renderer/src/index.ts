@@ -318,6 +318,14 @@ export type {
 } from './BloomFilterRevocation';
 
 // =============================================================================
+// HOLOSHELL — Natural Phenomena OS Surface (D.045, D.049-D.051)
+// "OS for everyone": every interface element is a living natural phenomenon.
+// No buttons, no menus, no learned behaviors — only touchable nature.
+// =============================================================================
+
+export * from './components/holoshell';
+
+// =============================================================================
 // GOSSIP TRUST MESH (Epidemic Protocol, Fan-Out 3, O(log2 n) Convergence)
 // =============================================================================
 
