@@ -60,7 +60,8 @@ function parseArgs(argv) {
     width: 1440,
     height: 1000,
     virtualTimeBudget: 7000,
-    expectText: [...DEFAULT_EXPECT_TEXT],
+    expectText: [],
+    customExpectText: false,
     json: false,
     selfTest: false,
   };
@@ -76,7 +77,10 @@ function parseArgs(argv) {
     else if (arg === '--width') args.width = Number(argv[++index]) || args.width;
     else if (arg === '--height') args.height = Number(argv[++index]) || args.height;
     else if (arg === '--virtual-time-budget') args.virtualTimeBudget = Number(argv[++index]) || args.virtualTimeBudget;
-    else if (arg === '--expect-text') args.expectText.push(argv[++index] || '');
+    else if (arg === '--expect-text') {
+      args.customExpectText = true;
+      args.expectText.push(argv[++index] || '');
+    }
     else if (arg === '--json') args.json = true;
     else if (arg === '--self-test') args.selfTest = true;
     else if (arg === '--help' || arg === '-h') {
@@ -92,7 +96,9 @@ function parseArgs(argv) {
   if (!Number.isFinite(args.virtualTimeBudget) || args.virtualTimeBudget < 1000) {
     throw new Error('--virtual-time-budget must be at least 1000');
   }
-  args.expectText = args.expectText.map((value) => String(value || '').trim()).filter(Boolean);
+  args.expectText = (args.customExpectText ? args.expectText : DEFAULT_EXPECT_TEXT)
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
   return args;
 }
 
@@ -112,7 +118,7 @@ Options:
   --width <px>                  Viewport width. Default: 1440.
   --height <px>                 Viewport height. Default: 1000.
   --virtual-time-budget <ms>    Headless browser script/render budget. Default: 7000.
-  --expect-text <text>          Visible text that must appear in rendered DOM. Repeatable.
+  --expect-text <text>          Visible text that must appear in rendered DOM. Repeatable; overrides room defaults when provided.
   --json                        Print receipt JSON.
   --self-test                   Render a synthetic room fixture first.
 `);

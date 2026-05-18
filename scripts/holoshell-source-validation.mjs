@@ -21,6 +21,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
     timeoutMs: 60_000,
+    overallTimeoutMs: 180_000,
     failFast: false,
     json: false,
     selfTest: false,
@@ -34,6 +35,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++index]) || args.timeoutMs;
+    else if (arg === '--overall-timeout-ms') args.overallTimeoutMs = Number(argv[++index]) || args.overallTimeoutMs;
     else if (arg === '--fail-fast') args.failFast = true;
     else if (arg === '--json') args.json = true;
     else if (arg === '--self-test') args.selfTest = true;
@@ -65,6 +67,7 @@ Options:
   --output <path>            JSON receipt. Defaults to .tmp/holoshell/source-validation.json.
   --js-output <path>         Browser bootstrap. Defaults to .tmp/holoshell/source-validation.js.
   --timeout-ms <n>           Per-file validation timeout. Defaults to 60000.
+  --overall-timeout-ms <n>   Whole sweep timeout. Defaults to 180000.
   --fail-fast                Stop after the first validation failure.
   --json                     Print the receipt.
   --self-test                Assert fixture summarization without invoking the CLI.
@@ -132,11 +135,13 @@ function runValidation(filePath, command, commandArgs, args) {
     env: { ...process.env, NO_COLOR: '1' },
   });
   const exitCode = typeof result.status === 'number' ? result.status : result.error ? 1 : 0;
+  const timedOut = result.error?.code === 'ETIMEDOUT';
   return {
     file: relativeRepoPath(filePath),
     extension: path.extname(filePath),
     status: exitCode === 0 ? 'pass' : 'fail',
     exitCode,
+    timedOut,
     durationMs: Date.now() - startedAt,
     stdoutTail: tailLines(result.stdout),
     stderrTail: tailLines(result.stderr || result.error?.message || ''),
@@ -195,15 +200,20 @@ function validateFile(filePath, args) {
 function summarize(validations, args, durationMs) {
   const passCount = validations.filter((item) => item.status === 'pass').length;
   const failCount = validations.filter((item) => item.status === 'fail').length;
+  const timedOutCount = validations.filter((item) => item.timedOut).length;
+  const overallTimedOut = validations.some((item) => item.diagnosticKind === 'source_validation_overall_timeout');
   const extensionCounts = validations.reduce((counts, item) => {
     counts[item.extension] = (counts[item.extension] || 0) + 1;
     return counts;
   }, {});
   return {
-    status: failCount ? 'fail' : validations.length ? 'pass' : 'fail',
+    status: failCount || overallTimedOut ? 'fail' : validations.length ? 'pass' : 'fail',
     fileCount: validations.length,
     passCount,
     failCount,
+    timedOutCount,
+    overallTimedOut,
+    overallTimeoutMs: args.overallTimeoutMs,
     holoCount: extensionCounts['.holo'] || 0,
     hsCount: extensionCounts['.hs'] || 0,
     hsplusCount: extensionCounts['.hsplus'] || 0,
@@ -240,6 +250,8 @@ function createReceipt(validations, args, durationMs) {
       failOnAnyInvalidSource: true,
       rawCommandsIncluded: false,
       importResolutionRetry: 'pnpm_exec_to_direct_cli_when_core_dist_is_present',
+      progressEvents: 'stderr_per_file_start_and_finish_when_not_json',
+      overallTimeoutMs: args.overallTimeoutMs,
     },
     summary,
     validations,
@@ -268,9 +280,9 @@ function writeBrowserBootstrap(filePath, data) {
 
 function fixtureReceipt(args) {
   return createReceipt([
-    { file: 'apps/holoshell/source/a.holo', extension: '.holo', status: 'pass', exitCode: 0, durationMs: 5, stdoutTail: ['Valid'], stderrTail: [] },
-    { file: 'apps/holoshell/source/b.hs', extension: '.hs', status: 'pass', exitCode: 0, durationMs: 5, stdoutTail: ['Valid'], stderrTail: [] },
-    { file: 'apps/holoshell/source/c.hsplus', extension: '.hsplus', status: 'pass', exitCode: 0, durationMs: 5, stdoutTail: ['Valid'], stderrTail: [] },
+    { file: 'apps/holoshell/source/a.holo', extension: '.holo', status: 'pass', exitCode: 0, timedOut: false, durationMs: 5, stdoutTail: ['Valid'], stderrTail: [] },
+    { file: 'apps/holoshell/source/b.hs', extension: '.hs', status: 'pass', exitCode: 0, timedOut: false, durationMs: 5, stdoutTail: ['Valid'], stderrTail: [] },
+    { file: 'apps/holoshell/source/c.hsplus', extension: '.hsplus', status: 'pass', exitCode: 0, timedOut: false, durationMs: 5, stdoutTail: ['Valid'], stderrTail: [] },
   ], args, 15);
 }
 
@@ -279,6 +291,7 @@ function assertSelfTest(receipt) {
   if (receipt.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (receipt.summary.status !== 'pass') failures.push('fixture should pass when all sources pass');
   if (receipt.summary.fileCount !== 3) failures.push('expected three fixture files');
+  if (receipt.summary.overallTimedOut) failures.push('fixture should not time out');
   if (receipt.summary.holoCount !== 1 || receipt.summary.hsCount !== 1 || receipt.summary.hsplusCount !== 1) failures.push('extension counts mismatch');
   if (receipt.receipt.rawCommandsIncluded !== false) failures.push('raw command flag should be false');
   if (!receipt.receipt.validationHash) failures.push('missing validation hash');
@@ -293,6 +306,7 @@ function run(args) {
   }
 
   const startedAt = Date.now();
+  const deadline = startedAt + Math.max(1000, Number(args.overallTimeoutMs) || 180_000);
   const sourceFiles = listSourceFiles(args.sourceDir);
   const validations = [];
   if (!existsSync(resolveRepoPath(args.holoscriptRoot))) {
@@ -306,9 +320,29 @@ function run(args) {
       stderrTail: [`HoloScript root not found: ${redactText(resolveRepoPath(args.holoscriptRoot))}`],
     });
   } else {
-    for (const file of sourceFiles) {
+    for (const [index, file] of sourceFiles.entries()) {
+      if (Date.now() >= deadline) {
+        validations.push({
+          file: relativeRepoPath(resolveRepoPath(args.sourceDir)),
+          extension: '',
+          status: 'fail',
+          exitCode: 1,
+          timedOut: true,
+          durationMs: Date.now() - startedAt,
+          diagnosticKind: 'source_validation_overall_timeout',
+          stdoutTail: [],
+          stderrTail: [`Overall source-validation timeout reached after ${Date.now() - startedAt}ms; validated ${validations.length}/${sourceFiles.length} file(s).`],
+        });
+        break;
+      }
+      if (!args.json) {
+        console.error(`[source-validation] ${index + 1}/${sourceFiles.length} validating ${relativeRepoPath(file)}`);
+      }
       const validation = validateFile(file, args);
       validations.push(validation);
+      if (!args.json) {
+        console.error(`[source-validation] ${validation.status} ${validation.file} (${validation.durationMs}ms${validation.timedOut ? ', timed out' : ''})`);
+      }
       if (args.failFast && validation.status === 'fail') break;
     }
   }

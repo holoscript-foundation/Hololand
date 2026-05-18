@@ -246,7 +246,7 @@ function buildBundle(args, workflowOverride = null) {
   const nonce = crypto.randomBytes(16).toString('hex');
   const expiresAt = new Date(now.getTime() + args.ttlMinutes * 60 * 1000).toISOString();
   const bundlePath = resolveRepoPath(path.join(args.bundleDir, `${approvalId}.json`));
-  const command = gate.allowed ? executeCommand(args, approvalId, nonce, bundlePath) : [];
+  const command = gate.allowed ? executeCommand(args, approvalId, nonce, publicPath(bundlePath)) : [];
 
   return {
     schemaVersion: SCHEMA_VERSION,

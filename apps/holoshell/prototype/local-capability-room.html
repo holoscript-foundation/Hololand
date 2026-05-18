@@ -2592,9 +2592,9 @@
         chip.dataset.status = shardApproval.status || "pending_user_approval";
         chip.dataset.object = "asset-shard";
         const shardApprovalPending = (shardApproval.status || feed.summary?.activeShardImportApprovalStatus) === "pending_user_approval";
-        title.textContent = shardApprovalPending ? "Shard Approval Pending" : shardApproval.executionAllowed || feed.summary?.activeShardImportExecutionAllowed ? "Shard Import Staged" : "Shard Staged";
+        title.textContent = shardApprovalPending ? "Approve Import" : shardApproval.executionAllowed || feed.summary?.activeShardImportExecutionAllowed ? "Shard Import Staged" : "Shard Staged";
         detail.textContent = `${shard.assetCount || feed.summary?.activeShardAssetCount || 0} assets; preview ${shard.previewObjectCount || feed.summary?.activeShardPreviewObjectCount || 0}; import ${shardApproval.status || feed.summary?.activeShardImportApprovalStatus || "guarded"}`;
-        chip.setAttribute("aria-label", "Asset shard is staged and waiting for guarded import review. Select Asset Shard.");
+        chip.setAttribute("aria-label", "Approve Import. Asset shard is staged and waiting for guarded import review. Select Asset Shard.");
         return;
       }
       const summary = hardwareApprovalSummary();
@@ -3139,7 +3139,7 @@
           bundle: shardImportApproval,
           summary: shardImportApproval.summary || {},
           route: "",
-          title: "Shard Import Approval",
+          title: "Approve Import",
           target: shardImportApproval.summary?.shardId || "asset shard",
           risk: shardImportApproval.approval?.risk || "creates a runtime-local shard manifest",
           commandPreview: shardImportApproval.execution?.commandPreview || "",
@@ -3428,7 +3428,7 @@
           result.textContent = `Asset shard ${summary.status || "unknown"}: ${summary.assetCount || 0} assets, ${summary.previewObjectCount || 0} preview objects, preview source ${shard.output?.previewSourcePath || "not generated"}. Import approval ${approval.status || "not staged"}.`;
           appendConversation(`Asset Shard is staged from local assets. I can review the preview and prepare a guarded import approval when the importer bridge is online.`);
         }, actions.length === 0));
-        actions.push(actionButton("Review import approval", () => {
+        actions.push(actionButton("Approve Import", () => {
           const approval = shardImportApprovalFeed();
           result.hidden = false;
           result.textContent = approval.summary
