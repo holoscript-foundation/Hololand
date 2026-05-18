@@ -1,0 +1,836 @@
+// HoloShell Starter Scene — Underwater
+//
+// The default first scene every new user sees.
+// The screen IS the glass panel — user looks INTO depth, never through it.
+// No orbit controls. No movement. Pure alive ambience with one invitation gesture.
+//
+// Camera fixed at (0, 3, 10) targeting (0, 0, 0) — slight downward angle into the scene.
+// Glass frame at screen edges reinforces the fish-tank / porthole perspective.
+//
+// State-driven: bubble_density, door_glow, leaves_visible, and special_object
+// all respond to worldState fed from the HoloShell runtime.
+
+composition "HoloShell Starter — Underwater" {
+  metadata {
+    title: "Underwater Starter Scene"
+    description: "First scene new users see. Alive, beautiful, zero required interaction. Invites first touch through natural phenomena."
+    scene_id: "holoshell-starter-underwater"
+    version: "1.0.0"
+    scene_role: "starter_default"
+    bubble_trait_source: "apps/holoshell/scenes/starter-underwater-bubbles.hs"
+    worldState_binding: "holoshell:world-state"
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ENVIRONMENT
+  // ═══════════════════════════════════════════════════════════
+
+  environment {
+    // Deep ocean gradient — no hard skybox, just depth color
+    sky: "gradient"
+    sky_top: "#020d1a"
+    sky_bottom: "#0a2233"
+    ambient_light: 0.28
+    ambient_color: "#1a4a6e"
+
+    // Fog — things dissolve into deep blue at distance
+    fog: {
+      color: "#061828"
+      near: 6
+      far: 25
+    }
+
+    // Audio — no interaction required, plays on scene enter
+    audio: {
+      ambient: "underwater_low_hum"
+      ambient_volume: 0.35
+      ambient_loop: true
+      layer_1: "distant_whale_call"
+      layer_1_volume: 0.18
+      layer_1_loop: true
+      layer_1_interval_random: [45, 120]
+      layer_2: "soft_current_flow"
+      layer_2_volume: 0.22
+      layer_2_loop: true
+    }
+
+    // Caustic light projection from above — simulates sunlight through water surface
+    caustics: {
+      enabled: true
+      texture: "caustic_animated"
+      speed: 0.18
+      scale: 3.5
+      intensity: 0.42
+      color: "#b8e8ff"
+      cast_on: ["sandy_floor", "rock_formation", "kelp_group"]
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CAMERA — stationary, NO orbit controls
+  // ═══════════════════════════════════════════════════════════
+
+  camera "UnderwaterViewpoint" {
+    type: "perspective"
+    position: { x: 0, y: 3, z: 10 }
+    target: { x: 0, y: 0, z: 0 }
+    fov: 65
+    near: 0.1
+    far: 30
+    controls: "none"
+    vr_override: true
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SCENE STATE — driven by worldState from HoloShell runtime
+  // ═══════════════════════════════════════════════════════════
+
+  state {
+    bubble_density: "calm"        // calm | cluttered | urgent
+    door_glow: "warm"             // warm | bright
+    leaves_visible: false         // true when inbox/messages accumulating
+    special_object: false         // true when Brittney has new content
+    sand_touched: false           // tracks first user interaction
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LIGHTING
+  // ═══════════════════════════════════════════════════════════
+
+  light "SunThroughSurface" {
+    type: "directional"
+    color: "#c8e8ff"
+    intensity: 0.85
+    rotation: { x: -42, y: 18, z: 0 }
+    cast_shadows: true
+    shadow_softness: 0.6
+  }
+
+  light "DeepAmbient" {
+    type: "hemisphere"
+    sky_color: "#1a4a6e"
+    ground_color: "#071218"
+    intensity: 0.55
+  }
+
+  light "DoorGlowPoint" {
+    type: "point"
+    color: "#ffb866"
+    intensity: 0.9
+    position: { x: 3, y: -0.8, z: -2.2 }
+    distance: 3.5
+    decay: 2
+    // Intensity driven by door_glow state — see logic block
+    state_binding: "door_glow"
+    state_map: {
+      warm: 0.9
+      bright: 2.4
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // POST PROCESSING
+  // ═══════════════════════════════════════════════════════════
+
+  post_processing {
+    bloom: { enabled: true, threshold: 0.62, intensity: 0.48, radius: 0.7 }
+    depth_of_field: { enabled: true, focus_distance: 7, blur_amount: 0.0018 }
+    tone_mapping: { enabled: true, type: "aces", exposure: 0.92 }
+    color_grade: { saturation: 0.85, contrast: 1.06, hue_shift: 195 }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // TEMPLATES
+  // ═══════════════════════════════════════════════════════════
+
+  template "KelpStrand" {
+    geometry: "tube_spline"
+    segments: 12
+    radius: 0.04
+    color: "#8b6914"
+    material: "pbr"
+    roughness: 0.85
+    translucent: true
+    opacity: 0.88
+    emissive: "#5a4200"
+    emissiveIntensity: 0.15
+    @wind(
+      speed: 0.22
+      amplitude: 0.18
+      noise_type: "perlin"
+      phase_offset: "random"
+      axis: "xz"
+    )
+  }
+
+  template "BubbleSphere" {
+    geometry: "sphere"
+    material: "thin_film"
+    thin_film_ior: 1.33
+    thin_film_thickness: 380
+    roughness: 0.04
+    metallic: 0.0
+    transparent: true
+    opacity: 0.72
+    emissive: "#88ccff"
+    emissiveIntensity: 0.25
+    @hoverable(
+      scale_delta: 0.22
+      emissive_boost: 0.4
+      transition_duration: 0.18
+    )
+    @touchable(
+      on_touch: "pop_bubble"
+      particle_burst: "bubble_pop_particles"
+      sound: "bubble_pop_soft"
+      spatial_audio: true
+      respawn_after: 2.0
+    )
+    @clickable(
+      on_click: "pop_bubble"
+    )
+    animate: "rise"
+    animSpeed: "state_driven"
+  }
+
+  template "LeafDebris" {
+    geometry: "plane"
+    width: 0.18
+    height: 0.12
+    material: "pbr"
+    roughness: 0.75
+    color: "#c4720a"
+    emissive: "#6b3a00"
+    emissiveIntensity: 0.08
+    double_sided: true
+    transparent: true
+    opacity: 0.82
+    @touchable(
+      on_touch: "acknowledge_content"
+      sound: "leaf_rustle_underwater"
+    )
+    @clickable(
+      on_click: "acknowledge_content"
+    )
+    animate: "drift_lazy"
+    animSpeed: 0.12
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GLASS PANEL OVERLAY — screen edges, reinforces porthole feel
+  // ═══════════════════════════════════════════════════════════
+
+  object "GlassPanelFrame" {
+    geometry: "plane"
+    width: 20
+    height: 14
+    material: "glass"
+    color: "#a8d4f0"
+    opacity: 0.06
+    emissive: "#4488cc"
+    emissiveIntensity: 0.04
+    // Frame ring effect via UV masking — center transparent, edges refract
+    uv_mask: "vignette_ring"
+    refraction_strength: 0.018
+    position: { x: 0, y: 0, z: 8.8 }
+    // Caustic ripple on glass surface
+    caustics_overlay: {
+      enabled: true
+      texture: "caustic_animated"
+      speed: 0.24
+      intensity: 0.12
+    }
+    render_layer: "ui_overlay"
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SANDY FLOOR
+  // ═══════════════════════════════════════════════════════════
+
+  object "SandyFloor" {
+    geometry: "plane"
+    width: 20
+    height: 20
+    segments_x: 32
+    segments_y: 32
+    position: { x: 0, y: -3, z: 0 }
+    rotation: { x: -90, y: 0, z: 0 }
+    material: "pbr"
+    color: "#e8d5a3"
+    roughness: 0.92
+    metallic: 0.0
+    normal_map: "sand_ripple_normal"
+    normal_map_scale: 2.8
+    // Slight vertex displacement for gentle undulation — not flat
+    displacement_map: "sand_undulation"
+    displacement_scale: 0.14
+    // Wetness sheen toward scene center
+    wetness_gradient: {
+      enabled: true
+      wetness_color: "#c8b882"
+      wetness_roughness: 0.55
+      gradient_center: { x: 0, z: 0 }
+      gradient_radius: 6
+    }
+    @touchable(
+      on_touch: "create_sand_ripple"
+      ripple_persist: true
+      ripple_duration: 8.0
+      sound: "sand_displacement_soft"
+    )
+    @clickable(
+      on_click: "create_sand_ripple"
+    )
+    cast_shadows: false
+    receive_shadows: true
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ROCK FORMATION WITH DOOR
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "RockFormation" {
+    position: { x: 3, y: -1, z: -2 }
+
+    object "MainRockMass" {
+      geometry: "mesh"
+      model: "rock_cluster_barnacled"
+      scale: { x: 1.8, y: 1.6, z: 1.4 }
+      material: "pbr"
+      color: "#2e2e2e"
+      roughness: 0.96
+      metallic: 0.04
+      normal_map: "barnacle_rock_normal"
+      normal_map_scale: 1.6
+      cast_shadows: true
+      receive_shadows: true
+    }
+
+    object "RockSecondary" {
+      geometry: "mesh"
+      model: "rock_irregular_a"
+      position: { x: 1.2, y: -0.4, z: 0.6 }
+      scale: { x: 0.9, y: 0.7, z: 0.8 }
+      material: "pbr"
+      color: "#242424"
+      roughness: 0.98
+    }
+
+    // DOOR — arched, wooden, warm amber light leak from within
+    // MANDATORY: always visible from default camera position (0, 3, 10)
+    object "PortalDoor" {
+      geometry: "mesh"
+      model: "arched_door_wood"
+      position: { x: 0.1, y: -0.2, z: 0.7 }
+      scale: { x: 0.55, y: 0.65, z: 0.12 }
+      material: "pbr"
+      color: "#6b3e1a"
+      roughness: 0.88
+      metallic: 0.06
+      normal_map: "wood_grain_normal"
+      // Amber glow leak from the crack around the door frame
+      emissive: "#ffb84a"
+      emissiveIntensity: 0.28
+      emissive_binding: "door_glow"
+      emissive_map: {
+        warm: { color: "#ffb84a", intensity: 0.28 }
+        bright: { color: "#ffd080", intensity: 0.72 }
+      }
+      @hoverable(
+        emissive_boost: 0.35
+        transition_duration: 0.3
+        cursor_hint: "Enter"
+      )
+      @clickable(
+        on_click: "open_door_to_world"
+        sound: "door_creak_underwater"
+        effect: "world_loading_ripple"
+      )
+      cast_shadows: true
+    }
+
+    // Ambient point light inside the rock, leaking through door
+    object "DoorInteriorLight" {
+      type: "point_light"
+      color: "#ffaa44"
+      intensity: 0.6
+      distance: 2.8
+      decay: 2.2
+      position: { x: 0.1, y: -0.1, z: 0.3 }
+      state_binding: "door_glow"
+      state_map: {
+        warm: 0.6
+        bright: 1.8
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // KELP / SEAWEED — left side, purely ambient
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "KelpGroup" {
+    object "Kelp_A" using "KelpStrand" {
+      position: { x: -4, y: -2, z: -1 }
+      scale: { x: 1, y: 2.2, z: 1 }
+      color: "#9b7520"
+    }
+
+    object "Kelp_B" using "KelpStrand" {
+      position: { x: -3, y: -1, z: -3 }
+      scale: { x: 0.85, y: 2.8, z: 0.85 }
+      color: "#7a5c10"
+      @wind(phase_offset: 0.6)
+    }
+
+    object "Kelp_C" using "KelpStrand" {
+      position: { x: -5, y: -2, z: 0 }
+      scale: { x: 1.1, y: 1.9, z: 1.1 }
+      color: "#a88020"
+      @wind(phase_offset: 1.2)
+    }
+
+    object "Kelp_D" using "KelpStrand" {
+      position: { x: -3.8, y: -2.2, z: -1.8 }
+      scale: { x: 0.7, y: 2.4, z: 0.7 }
+      color: "#8a6818"
+      @wind(phase_offset: 2.1)
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VOLUMETRIC LIGHT RAYS FROM SURFACE
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "LightRays" {
+    object "LightRay_A" {
+      geometry: "cone"
+      height: 12
+      radius_top: 0.0
+      radius_bottom: 1.8
+      position: { x: -1.5, y: 6, z: -1 }
+      rotation: { x: 8, y: -12, z: 0 }
+      material: "volumetric"
+      color: "#c8e8ff"
+      opacity: 0.09
+      double_sided: true
+      animate: "ray_sway"
+      animSpeed: 0.08
+      animAmplitude: { x: 0.04, y: 0, z: 0.02 }
+    }
+
+    object "LightRay_B" {
+      geometry: "cone"
+      height: 14
+      radius_top: 0.0
+      radius_bottom: 2.2
+      position: { x: 1.2, y: 8, z: -3 }
+      rotation: { x: 12, y: 6, z: 0 }
+      material: "volumetric"
+      color: "#b8deff"
+      opacity: 0.07
+      double_sided: true
+      animate: "ray_sway"
+      animSpeed: 0.11
+      animAmplitude: { x: 0.03, y: 0, z: 0.04 }
+    }
+
+    object "LightRay_C" {
+      geometry: "cone"
+      height: 10
+      radius_top: 0.0
+      radius_bottom: 1.4
+      position: { x: 2.5, y: 5, z: 0 }
+      rotation: { x: 5, y: -6, z: 0 }
+      material: "volumetric"
+      color: "#d8eeff"
+      opacity: 0.06
+      double_sided: true
+      animate: "ray_sway"
+      animSpeed: 0.09
+      animAmplitude: { x: 0.05, y: 0, z: 0.02 }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUBBLE FIELD — primary interactive element
+  // State-driven count: calm=8-12, cluttered=20-30, urgent=35+
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "BubbleField" {
+    trait_source: "apps/holoshell/scenes/starter-underwater-bubbles.hs"
+    trait: "BubbleField"
+    state_binding: "bubble_density"
+
+    // Calm tier bubbles (always present)
+    object "Bubble_001" using "BubbleSphere" {
+      position: { x: -2.2, y: -2.5, z: 1.4 }
+      radius: 0.12
+      rise_origin: { x: -2.2, y: -3, z: 1.4 }
+      rise_speed: 0.44
+      density_tier: "calm"
+    }
+    object "Bubble_002" using "BubbleSphere" {
+      position: { x: 0.8, y: -1.8, z: 0.6 }
+      radius: 0.07
+      rise_origin: { x: 0.8, y: -3, z: 0.6 }
+      rise_speed: 0.61
+      density_tier: "calm"
+    }
+    object "Bubble_003" using "BubbleSphere" {
+      position: { x: -1.4, y: -0.6, z: -0.8 }
+      radius: 0.19
+      rise_origin: { x: -1.4, y: -3, z: -0.8 }
+      rise_speed: 0.33
+      density_tier: "calm"
+    }
+    object "Bubble_004" using "BubbleSphere" {
+      position: { x: 2.8, y: -2.1, z: 1.2 }
+      radius: 0.09
+      rise_origin: { x: 2.8, y: -3, z: 1.2 }
+      rise_speed: 0.55
+      density_tier: "calm"
+    }
+    object "Bubble_005" using "BubbleSphere" {
+      position: { x: -3.2, y: -1.2, z: 0.2 }
+      radius: 0.15
+      rise_origin: { x: -3.2, y: -3, z: 0.2 }
+      rise_speed: 0.38
+      density_tier: "calm"
+    }
+    object "Bubble_006" using "BubbleSphere" {
+      position: { x: 1.6, y: -0.4, z: -1.6 }
+      radius: 0.22
+      rise_origin: { x: 1.6, y: -3, z: -1.6 }
+      rise_speed: 0.29
+      density_tier: "calm"
+    }
+    object "Bubble_007" using "BubbleSphere" {
+      position: { x: -0.6, y: -2.8, z: 2.0 }
+      radius: 0.08
+      rise_origin: { x: -0.6, y: -3, z: 2.0 }
+      rise_speed: 0.68
+      density_tier: "calm"
+    }
+    object "Bubble_008" using "BubbleSphere" {
+      position: { x: 0.2, y: -1.5, z: -2.4 }
+      radius: 0.14
+      rise_origin: { x: 0.2, y: -3, z: -2.4 }
+      rise_speed: 0.42
+      density_tier: "calm"
+    }
+    object "Bubble_009" using "BubbleSphere" {
+      position: { x: -1.8, y: -0.2, z: 1.8 }
+      radius: 0.06
+      rise_origin: { x: -1.8, y: -3, z: 1.8 }
+      rise_speed: 0.72
+      density_tier: "calm"
+    }
+    object "Bubble_010" using "BubbleSphere" {
+      position: { x: 3.4, y: -1.0, z: 0.8 }
+      radius: 0.11
+      rise_origin: { x: 3.4, y: -3, z: 0.8 }
+      rise_speed: 0.51
+      density_tier: "calm"
+    }
+
+    // Cluttered tier (visible when bubble_density: cluttered or urgent)
+    object "Bubble_011" using "BubbleSphere" {
+      position: { x: -2.8, y: -2.0, z: -1.2 }
+      radius: 0.16
+      rise_origin: { x: -2.8, y: -3, z: -1.2 }
+      rise_speed: 0.36
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_012" using "BubbleSphere" {
+      position: { x: 1.2, y: -2.6, z: 2.4 }
+      radius: 0.1
+      rise_origin: { x: 1.2, y: -3, z: 2.4 }
+      rise_speed: 0.58
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_013" using "BubbleSphere" {
+      position: { x: -0.4, y: -1.4, z: -3.0 }
+      radius: 0.2
+      rise_origin: { x: -0.4, y: -3, z: -3.0 }
+      rise_speed: 0.31
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_014" using "BubbleSphere" {
+      position: { x: 2.2, y: -0.8, z: 1.6 }
+      radius: 0.13
+      rise_origin: { x: 2.2, y: -3, z: 1.6 }
+      rise_speed: 0.47
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_015" using "BubbleSphere" {
+      position: { x: -3.6, y: -2.4, z: 0.4 }
+      radius: 0.08
+      rise_origin: { x: -3.6, y: -3, z: 0.4 }
+      rise_speed: 0.64
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_016" using "BubbleSphere" {
+      position: { x: 0.6, y: -0.6, z: 2.8 }
+      radius: 0.17
+      rise_origin: { x: 0.6, y: -3, z: 2.8 }
+      rise_speed: 0.35
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_017" using "BubbleSphere" {
+      position: { x: -1.0, y: -2.2, z: -2.0 }
+      radius: 0.24
+      rise_origin: { x: -1.0, y: -3, z: -2.0 }
+      rise_speed: 0.26
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_018" using "BubbleSphere" {
+      position: { x: 3.0, y: -1.6, z: -0.4 }
+      radius: 0.09
+      rise_origin: { x: 3.0, y: -3, z: -0.4 }
+      rise_speed: 0.66
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_019" using "BubbleSphere" {
+      position: { x: -2.4, y: -0.4, z: 2.6 }
+      radius: 0.12
+      rise_origin: { x: -2.4, y: -3, z: 2.6 }
+      rise_speed: 0.49
+      density_tier: "cluttered"
+      visible: false
+    }
+    object "Bubble_020" using "BubbleSphere" {
+      position: { x: 1.8, y: -2.8, z: -1.8 }
+      radius: 0.07
+      rise_origin: { x: 1.8, y: -3, z: -1.8 }
+      rise_speed: 0.74
+      density_tier: "cluttered"
+      visible: false
+    }
+
+    // Urgent tier (visible only when bubble_density: urgent)
+    object "Bubble_021" using "BubbleSphere" {
+      position: { x: -1.6, y: -2.6, z: 3.2 }
+      radius: 0.18
+      rise_origin: { x: -1.6, y: -3, z: 3.2 }
+      rise_speed: 0.34
+      density_tier: "urgent"
+      visible: false
+    }
+    object "Bubble_022" using "BubbleSphere" {
+      position: { x: 2.6, y: -0.2, z: 2.0 }
+      radius: 0.11
+      rise_origin: { x: 2.6, y: -3, z: 2.0 }
+      rise_speed: 0.57
+      density_tier: "urgent"
+      visible: false
+    }
+    object "Bubble_023" using "BubbleSphere" {
+      position: { x: -3.0, y: -1.8, z: -2.4 }
+      radius: 0.21
+      rise_origin: { x: -3.0, y: -3, z: -2.4 }
+      rise_speed: 0.28
+      density_tier: "urgent"
+      visible: false
+    }
+    object "Bubble_024" using "BubbleSphere" {
+      position: { x: 0.4, y: -1.0, z: 3.6 }
+      radius: 0.14
+      rise_origin: { x: 0.4, y: -3, z: 3.6 }
+      rise_speed: 0.43
+      density_tier: "urgent"
+      visible: false
+    }
+    object "Bubble_025" using "BubbleSphere" {
+      position: { x: -0.8, y: -2.4, z: -3.6 }
+      radius: 0.09
+      rise_origin: { x: -0.8, y: -3, z: -3.6 }
+      rise_speed: 0.69
+      density_tier: "urgent"
+      visible: false
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SPECIAL IRIDESCENT OBJECT — Brittney new content indicator
+  // Visible only when state.special_object == true
+  // ═══════════════════════════════════════════════════════════
+
+  object "BrittneyContentOrb" {
+    geometry: "sphere"
+    radius: 0.14
+    position: { x: -0.8, y: -2.4, z: 3.2 }
+    material: "thin_film"
+    thin_film_ior: 1.45
+    thin_film_thickness: 520
+    roughness: 0.02
+    metallic: 0.0
+    transparent: true
+    opacity: 0.8
+    emissive: "#ff88ff"
+    emissiveIntensity: 0.35
+    // Slow color shift across hue spectrum
+    animate: "hue_rotate"
+    animSpeed: 0.06
+    @bob(
+      amplitude: 0.08
+      speed: 0.55
+    )
+    @hoverable(
+      emissive_boost: 0.5
+      scale_delta: 0.15
+    )
+    @clickable(
+      on_click: "open_brittney_content"
+      sound: "chime_soft"
+    )
+    @touchable(
+      on_touch: "open_brittney_content"
+    )
+    visible: false
+    visible_binding: "special_object"
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FLOATING LEAF DEBRIS — state indicator for accumulated content
+  // Visible only when state.leaves_visible == true
+  // ═══════════════════════════════════════════════════════════
+
+  spatial_group "LeafDebrisGroup" {
+    visible: false
+    visible_binding: "leaves_visible"
+
+    object "Leaf_A" using "LeafDebris" {
+      position: { x: -1.2, y: 0.4, z: 1.8 }
+      rotation: { x: 12, y: 34, z: -8 }
+      animSpeed: 0.10
+    }
+    object "Leaf_B" using "LeafDebris" {
+      position: { x: 0.6, y: 1.2, z: -0.6 }
+      rotation: { x: -6, y: 82, z: 14 }
+      color: "#b05808"
+      animSpeed: 0.14
+    }
+    object "Leaf_C" using "LeafDebris" {
+      position: { x: 2.0, y: 0.8, z: 1.0 }
+      rotation: { x: 20, y: -45, z: 4 }
+      color: "#d8880c"
+      animSpeed: 0.09
+    }
+    object "Leaf_D" using "LeafDebris" {
+      position: { x: -2.4, y: 1.6, z: -1.4 }
+      rotation: { x: -14, y: 120, z: -18 }
+      animSpeed: 0.12
+    }
+    object "Leaf_E" using "LeafDebris" {
+      position: { x: 1.4, y: 0.2, z: 2.8 }
+      rotation: { x: 8, y: -68, z: 22 }
+      color: "#a06010"
+      animSpeed: 0.11
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LOGIC — worldState → scene state mapping + interaction handlers
+  // ═══════════════════════════════════════════════════════════
+
+  logic {
+    on_enter {
+      fade_from_black(1.8)
+      emit "holoshell_scene_loaded" { scene_id: "holoshell-starter-underwater" }
+    }
+
+    // World state binding — drives visual density and indicators
+    on_worldState_change(ws) {
+      if ws.ambientTone == "cluttered" {
+        state.bubble_density = "cluttered"
+        state.leaves_visible = true
+      }
+      if ws.ambientTone == "urgent" {
+        state.bubble_density = "urgent"
+        state.door_glow = "bright"
+        state.leaves_visible = true
+      }
+      if ws.ambientTone == "calm" {
+        state.bubble_density = "calm"
+        state.door_glow = "warm"
+        state.leaves_visible = false
+      }
+      if ws.newContent == true {
+        state.special_object = true
+      }
+    }
+
+    // Bubble density drives visibility of density_tier objects
+    on_state_change("bubble_density", value) {
+      for obj in scene.objects_with_tag("density_tier", "cluttered") {
+        obj.visible = (value == "cluttered" || value == "urgent")
+      }
+      for obj in scene.objects_with_tag("density_tier", "urgent") {
+        obj.visible = (value == "urgent")
+      }
+    }
+
+    // Bubble pop handler — spawn replacement from floor
+    action pop_bubble(bubble_obj) {
+      spawn_effect("bubble_pop_particles", bubble_obj.position, {
+        count: 18
+        color: "#88ccff"
+        size: 0.04
+        lifetime: 0.8
+      })
+      play_spatial_audio("bubble_pop_soft", bubble_obj.position)
+      bubble_obj.visible = false
+      // Respawn from rise_origin after 2 seconds
+      wait(2.0)
+      bubble_obj.position = bubble_obj.rise_origin
+      bubble_obj.visible = true
+    }
+
+    // Sand ripple — user draws in the sand floor
+    action create_sand_ripple(touch_point) {
+      state.sand_touched = true
+      spawn_effect("sand_ripple_displacement", touch_point, {
+        radius: 0.35
+        persist_duration: 8.0
+        fade_duration: 3.0
+      })
+      play_spatial_audio("sand_displacement_soft", touch_point)
+    }
+
+    // Door interaction — world loading placeholder
+    action open_door_to_world() {
+      spawn_effect("world_loading_ripple", { x: 3, y: -1, z: -2 }, {
+        radius: 1.8
+        duration: 2.2
+        color: "#ffb866"
+      })
+      play_spatial_audio("door_creak_underwater", { x: 3, y: -1, z: -2 })
+      wait(0.6)
+      emit "holoshell_door_opened" { scene_id: "holoshell-starter-underwater" }
+      // Placeholder until destination world is defined
+      show_toast("World is loading...")
+    }
+
+    // Content orb — hands off to Brittney content system
+    action open_brittney_content() {
+      state.special_object = false
+      emit "holoshell_brittney_content_acknowledged"
+      play_spatial_audio("chime_soft", { x: -0.8, y: -2.4, z: 3.2 })
+    }
+
+    // Leaf acknowledge — marks content as seen
+    action acknowledge_content(leaf_obj) {
+      leaf_obj.visible = false
+      emit "holoshell_content_acknowledged" { leaf_id: leaf_obj.id }
+    }
+  }
+}
