@@ -10,6 +10,7 @@
  *   /pipeline           - Pipeline Dashboard (ML pipeline status)
  *   /a11y-audit         - Accessibility Audit Dashboard (WCAG 2.1 compliance scanner)
  *   /composition-editor - HoloScript Composition Editor (visual trait editor)
+ *   /holoshell          - HoloShell Natural Phenomena UX (D.045/D.049-D.051)
  *
  * Prefetching:
  *   Each route exports a prefetch function that triggers the dynamic import
@@ -85,6 +86,15 @@ const CompositionEditorPage = React.lazy(
   () => import('./pages/composition-editor/CompositionEditorPage'),
 );
 
+/**
+ * Lazy-loaded HoloShell page.
+ * Loads the natural phenomena scene renderer on first visit (R3F bundle).
+ * D.045 (two-surface product) / D.049-D.051 (natural phenomena UX).
+ */
+const HoloShellPage = React.lazy(
+  () => import('./pages/holoshell/HoloShellPage'),
+);
+
 // =============================================================================
 // PREFETCH FUNCTIONS
 // =============================================================================
@@ -121,6 +131,14 @@ export function prefetchCompositionEditor(): void {
   import('./pages/composition-editor/CompositionEditorPage');
 }
 
+/**
+ * Prefetch the HoloShell bundle (R3F + natural phenomena renderer).
+ * Call on link hover/focus to warm the cache before navigation.
+ */
+export function prefetchHoloShell(): void {
+  import('./pages/holoshell/HoloShellPage');
+}
+
 // =============================================================================
 // ROUTE ELEMENTS (with Suspense wrappers)
 // =============================================================================
@@ -149,6 +167,12 @@ export const CompositionEditorRoute: React.FC = () => (
   </Suspense>
 );
 
+export const HoloShellRoute: React.FC = () => (
+  <Suspense fallback={<RouteLoadingFallback label="HoloShell" />}>
+    <HoloShellPage />
+  </Suspense>
+);
+
 // =============================================================================
 // ROUTE DEFINITIONS (react-router-dom v6)
 // =============================================================================
@@ -174,6 +198,10 @@ export const lazyRoutes: RouteObject[] = [
     path: '/composition-editor',
     element: React.createElement(CompositionEditorRoute),
   },
+  {
+    path: '/holoshell',
+    element: React.createElement(HoloShellRoute),
+  },
 ];
 
 /**
@@ -185,6 +213,7 @@ export const routePrefetchMap: Record<string, () => void> = {
   '/pipeline': prefetchPipeline,
   '/a11y-audit': prefetchA11yAudit,
   '/composition-editor': prefetchCompositionEditor,
+  '/holoshell': prefetchHoloShell,
 };
 
 export default lazyRoutes;
