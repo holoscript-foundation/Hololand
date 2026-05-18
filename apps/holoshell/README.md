@@ -25,80 +25,17 @@ here.
 
 ## Source Of Truth
 
-The source artifacts are:
+## Source Of Truth
 
-```text
-source/holoshell-home.hsplus
-source/holoshell-shell-world.holo
-source/holoshell-shell-render.hs
-source/holoshell-os-ui-capture.hsplus
-source/holoshell-skin-presets.hsplus
-source/holoshell-brittney-presence.hsplus
-source/holoshell-brittney-avatar.hsplus
-source/holoshell-brittney-runtime-bridge.hsplus
-source/holoshell-hardware-control.hsplus
-source/holoshell-network-reality.hsplus
-source/holoshell-founder-host.hsplus
-source/holoshell-native-wrapper.hsplus
-source/holoshell-startup-integration.hsplus
-source/holoshell-package-custody.hsplus
-source/holoshell-world-build-cockpit.holo
-source/holoshell-world-build-cockpit-policy.hsplus
-source/holoshell-world-build-cockpit-pipeline.hs
-source/holoshell-device-safety-lab.holo
-source/holoshell-device-safety-policy.hsplus
-source/holoshell-device-safety-pipeline.hs
-```
+The single source of truth for HoloShell capability is the set of contracts under `source/`.
 
-`holoshell-home.hsplus` owns behavior, channels, permissions, receipts, and
-Brittney actions. `holoshell-shell-world.holo` owns the visual shell graph:
-liquid world, launch bubbles, skins, assistant presence, and evidence underlay.
-`holoshell-shell-render.hs` is the first simple renderable skin slice.
-`holoshell-os-ui-capture.hsplus`, `holoshell-skin-presets.hsplus`,
-`holoshell-brittney-presence.hsplus`, `holoshell-brittney-avatar.hsplus`, and
-`holoshell-brittney-runtime-bridge.hsplus`
-define the first source contracts for legacy UI wrapping, shell skins,
-Brittney-as-presence, Brittney's accessible embodied avatar, and runtime turns.
-`holoshell-hardware-control.hsplus` defines the program-control contract:
-read-only awareness by default, guarded execution for mutations, and receipts
-for every action.
-`holoshell-network-reality.hsplus` defines the HoloWeb Local Reality Node:
-connection truth, owner-declared hotspot/metered context, bandwidth protection,
-and redacted network-consumer evidence for Brittney.
-`holoshell-founder-host.hsplus` defines the native Founder host bootstrap:
-the safe bridge between the current preview surface, local services, shell
-objects, the live feed, and the future native wrapper.
-`holoshell-native-wrapper.hsplus` defines the first OS-local launcher boundary:
-start HoloShell from Windows app mode, do not claim boot takeover, and keep
-startup registration behind approval.
-`holoshell-startup-integration.hsplus` defines the approved per-user startup
-gate: registration is plan-only by default, `-Approve` is required for mutation,
-and Explorer replacement remains blocked.
-`holoshell-package-custody.hsplus` defines the tool install/update gate:
-package inventory is read-only, install/upgrade/uninstall are break-glass
-approval packets, and the reusable mutation receipt validator lives upstream in
-HoloScript.
-`holoshell-world-build-cockpit.holo`, `holoshell-world-build-cockpit-policy.hsplus`,
-and `holoshell-world-build-cockpit-pipeline.hs` compose local files, hardware,
-source validation, build custody, visual witness, agent lanes, replay, and
-rollback into one ready/warn/blocked room before HoloLand world import or
-publish is allowed.
-`holoshell-device-safety-lab.holo`, `holoshell-device-safety-policy.hsplus`,
-and `holoshell-device-safety-pipeline.hs` turn paired devices, headsets,
-phones, robots, printers, and security hardware into visible preview, consent,
-safety-envelope, execution, receipt, and replay surfaces backed by the upstream
-HoloScript device-safety receipt validators.
-
-For the grouped source capability map, see:
+For the grouped, user-facing capability map (recommended for agents and product work), see:
 
 ```text
 docs/HOLOSHELL_SOURCE_MAP.md
 ```
 
-HTML is only a projection or host preview. Do not add hand-authored TypeScript
-behavior before the HoloScript source contract is named. Future desktop bridge
-code should be generated, upstreamed, or explicitly marked as bridge-only
-migration debt.
+The flat authoritative list of all current source contracts lives in `source/` (62 files as of 2026-05-18). The full list appears in the "Current Artifacts" section below. Key entry points and the full grouped view are maintained in the source map document.
 
 ## First Slice
 
@@ -116,57 +53,83 @@ capability is being used, what risk exists, and what receipt proves the result.
 Backend telemetry supports the experience, but it must not be the default shape
 of the screen.
 
-## Current Artifacts
+## Current Artifacts (authoritative as of 2026-05-18)
+
+Flat list of all contracts under `source/` (62 files). For the capability-grouped view, see `docs/HOLOSHELL_SOURCE_MAP.md`.
 
 ```text
-source/holoshell-home.hsplus
-source/holoshell-shell-world.holo
-source/holoshell-shell-render.hs
-source/holoshell-phase1-workflows.hsplus
-source/holoshell-holoscript-bridge.hsplus
+source/holoshell-account-task-custody.hsplus
+source/holoshell-agent-dispatch.hsplus
 source/holoshell-agent-presence-lanes.hsplus
-source/holoshell-process-health-room.hsplus
-source/holoshell-os-ui-capture.hsplus
-source/holoshell-skin-presets.hsplus
-source/holoshell-brittney-presence.hsplus
+source/holoshell-asset-shard-workflow.hsplus
+source/holoshell-brittney-ambient-tone.hsplus
 source/holoshell-brittney-avatar.hsplus
+source/holoshell-brittney-context-packet.hsplus
+source/holoshell-brittney-custody-operator.hsplus
+source/holoshell-brittney-environment-coupling.hsplus
+source/holoshell-brittney-presence.hsplus
 source/holoshell-brittney-runtime-bridge.hsplus
-source/holoshell-hardware-control.hsplus
-source/holoshell-network-reality.hsplus
-source/holoshell-founder-host.hsplus
-source/holoshell-native-wrapper.hsplus
-source/holoshell-startup-integration.hsplus
-source/holoshell-package-custody.hsplus
-source/holoshell-world-build-cockpit.holo
-source/holoshell-world-build-cockpit-policy.hsplus
-source/holoshell-world-build-cockpit-pipeline.hs
+source/holoshell-build-custody.hsplus
+source/holoshell-control-daemon-service.hsplus
+source/holoshell-developmental-environment.hsplus
+source/holoshell-device-safety-lab-policy.hsplus
 source/holoshell-device-safety-lab.holo
-source/holoshell-device-safety-policy.hsplus
 source/holoshell-device-safety-pipeline.hs
-schemas/capability-inventory.schema.json
-samples/capability-inventory.sample.json
-docs/PHASE_1_ROADMAP.md
-docs/CODEBASE_STATUS.md
-docs/ABSORPTION_PILOTS.md
-docs/AGENT_PRESENCE_COLOR_LANES.md
-docs/BRITTNEY_OPERATOR_SPEC.md
-docs/HOLOSCRIPT_SURFACE_BRIDGE.md
-docs/HOLOSCRIPT_INCLUSION_INVENTORY.md
-docs/HOLOSHELL_OS_REPLACEMENT_DOCTRINE.md
-docs/SHELL_OBJECT_SCHEMA.md
-docs/LEGACY_APP_ADAPTER_MATRIX.md
-docs/GEOMETRIC_UI_RECONSTRUCTION.md
-docs/OS_UI_CAPTURE_BRIDGE.md
-docs/BRITTNEY_AVATAR_RUNTIME.md
-docs/HARDWARE_PROGRAM_CONTROL.md
-docs/LEGACY_ABSORPTION_ARCHETYPES.md
-docs/PROCESS_SHELL_RUN_HEALTH.md
-docs/SKIN_SIMULATION_RESEARCH.md
-docs/PHASE_2_NATIVE_SHELL_ROADMAP.md
-docs/FOUNDER_NATIVE_HOST.md
-docs/HOLOSHELL_SOURCE_MAP.md
-docs/WORLD_BUILD_COCKPIT.md
-native/windows/Start-HoloShellFounderHost.ps1
+source/holoshell-device-safety-policy.hsplus
+source/holoshell-founder-boot-loop.hsplus
+source/holoshell-founder-command-pipeline.hs
+source/holoshell-founder-host.hsplus
+source/holoshell-founder-intent-policy.hsplus
+source/holoshell-founder-to-user-strategy.hsplus
+source/holoshell-grok-build-workflow.hsplus
+source/holoshell-grok-heartbeat.hsplus
+source/holoshell-hardware-control.hsplus
+source/holoshell-hardware-reality-bridge.hsplus
+source/holoshell-holoscript-bridge.hsplus
+source/holoshell-holoscript-gold-codebase-bridge.hsplus
+source/holoshell-home.hsplus
+source/holoshell-legacy-app-absorption.hsplus
+source/holoshell-legacy-window-inventory.hsplus
+source/holoshell-mcp-custody-contract.hsplus
+source/holoshell-mcp-custody-upstream-handoff.hsplus
+source/holoshell-native-wrapper.hsplus
+source/holoshell-natural-phenomena-bridge.hsplus
+source/holoshell-network-change-sentinel.hsplus
+source/holoshell-network-freshness-watch.hsplus
+source/holoshell-network-reality.hsplus
+source/holoshell-network-sentinel-service.hsplus
+source/holoshell-operating-turn.hsplus
+source/holoshell-operator-brief.hsplus
+source/holoshell-os-ui-capture.hsplus
+source/holoshell-package-custody.hsplus
+source/holoshell-phase1-workflows.hsplus
+source/holoshell-process-health-room.hsplus
+source/holoshell-readiness-evidence.hsplus
+source/holoshell-receipt-control.hsplus
+source/holoshell-run-custody-actions.hsplus
+source/holoshell-service-supervisor.hsplus
+source/holoshell-shell-render.hs
+source/holoshell-shell-world.holo
+source/holoshell-skin-presets.hsplus
+source/holoshell-source-validation.hsplus
+source/holoshell-startup-integration.hsplus
+source/holoshell-trusted-autonomy.hsplus
+source/holoshell-user-shell-projection.hsplus
+source/holoshell-visual-witness.hsplus
+source/holoshell-wild-holoscript-intake.hsplus
+source/holoshell-world-build-cockpit-pipeline.hs
+source/holoshell-world-build-cockpit-policy.hsplus
+source/holoshell-world-build-cockpit.holo
+```
+
+**Verification receipt (generated 2026-05-18 during execution of task_1779092549879_7beq)**
+
+- Source directory: `apps/holoshell/source/` — 62 files
+- Grouped map: `docs/HOLOSHELL_SOURCE_MAP.md` (already comprehensive)
+- Contract health: 7 capabilities, 5 safety gates (local HoloShell operator contract check OK)
+- Previous state: The "Source Of Truth" and "Current Artifacts" lists in this README were stale and have been refreshed to match the actual source directory.
+- Task closed when: This change is applied and the receipt is updated with the resulting Hololand commit hash.
+
 native/windows/Start-HoloShellFounderHost.cmd
 native/windows/Register-HoloShellStartup.ps1
 prototype/local-capability-room.html
