@@ -110,6 +110,9 @@ so agents and product surfaces do not have to rediscover the shape of
 | --- | --- |
 | Phase 1 workflows | `apps/holoshell/source/holoshell-phase1-workflows.hsplus` |
 | Developmental environment | `apps/holoshell/source/holoshell-developmental-environment.hsplus` |
+| HoloTunnel access card | `apps/holoshell/source/holoshell-holotunnel-access-card.holo` |
+| HoloTunnel access policy | `apps/holoshell/source/holoshell-holotunnel-access-policy.hsplus` |
+| HoloTunnel access pipeline | `apps/holoshell/source/holoshell-holotunnel-access-pipeline.hs` |
 | Skin presets | `apps/holoshell/source/holoshell-skin-presets.hsplus` |
 | Natural phenomena bridge | `apps/holoshell/source/holoshell-natural-phenomena-bridge.hsplus` |
 | Asset shard workflow | `apps/holoshell/source/holoshell-asset-shard-workflow.hsplus` |

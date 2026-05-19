@@ -1,0 +1,213 @@
+// HoloShell HoloTunnel Access Card
+//
+// Nondeveloper product surface for:
+// "Open or share this live HoloLand experience without thinking about tunnels."
+
+composition "HoloShell HoloTunnel Access Card" {
+  metadata {
+    title: "HoloTunnel Access Card"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    behavior_source: "apps/holoshell/source/holoshell-holotunnel-access-policy.hsplus"
+    pipeline_source: "apps/holoshell/source/holoshell-holotunnel-access-pipeline.hs"
+    spec_source: "docs/specs/HOLOTUNNEL_NONDEVELOPER_ACCESS.md"
+    upstream_studio_contract: "HoloScript Studio provides developer tunnel lifecycle and diagnostics"
+  }
+
+  environment {
+    theme: "hololand_access"
+    render_mode: "desktop_spatial"
+    ambient_light: 0.62
+    receipt_underlay: true
+    camera_mode: "stationary_perspective"
+  }
+
+  state {
+    accessState: "preparing"
+    audience: "anyone_with_link"
+    stableUrl: ""
+    directUrlHidden: true
+    qrReady: false
+    headsetReadiness: "unknown"
+    browserReadiness: "unknown"
+    safetyState: "approval_required"
+    advancedVisible: false
+    receiptStatus: "pending"
+  }
+
+  template "AccessPanel" {
+    type: "access_card_panel"
+    mesh: "rounded_panel"
+    material: "liquid_glass"
+    color: "#15232b"
+    active_color: "#73daca"
+    warning_color: "#e0af68"
+    blocked_color: "#f7768e"
+    receipt_required: true
+    inspectable: true
+  }
+
+  template "AccessAction" {
+    type: "access_action"
+    mesh: "rounded_button"
+    material: "hologram"
+    color: "#27384a"
+    active_color: "#7dcfff"
+    disabled_color: "#4b5563"
+    receipt_required: true
+  }
+
+  template "AccessToken" {
+    type: "access_state_token"
+    mesh: "sphere"
+    material: "hologram"
+    radius: 0.14
+    grabbable: false
+    receipt_required: true
+  }
+
+  object "HumanOutcome" using "AccessPanel" {
+    label: "Open This HoloLand World"
+    position: [0, 2.22, -2.8]
+    scale: [2.8, 0.72, 0.08]
+    status_binding: "accessState"
+    plain_language: "Share, scan, or open the live experience without tunnel details."
+  }
+
+  spatial_group "PrimaryActions" {
+    object "ShareWorldAction" using "AccessAction" {
+      label: "Share World"
+      action_id: "share_world"
+      position: [-2.35, 1.32, -1.32]
+      scale: [1.42, 0.42, 0.08]
+      audience_binding: "audience"
+      default_copy: "Create an invite for this live world."
+    }
+
+    object "OpenHereAction" using "AccessAction" {
+      label: "Open Here"
+      action_id: "open_here"
+      position: [-0.78, 1.32, -1.32]
+      scale: [1.42, 0.42, 0.08]
+      target_binding: "stableUrl"
+      default_copy: "Open the browser preview on this device."
+    }
+
+    object "OpenHeadsetAction" using "AccessAction" {
+      label: "Open On Headset"
+      action_id: "open_on_headset"
+      position: [0.78, 1.32, -1.32]
+      scale: [1.42, 0.42, 0.08]
+      readiness_binding: "headsetReadiness"
+      default_copy: "Show a QR code for Quest or mobile browsers."
+    }
+
+    object "CopyInviteAction" using "AccessAction" {
+      label: "Copy Invite"
+      action_id: "copy_invite"
+      position: [2.35, 1.32, -1.32]
+      scale: [1.42, 0.42, 0.08]
+      target_binding: "stableUrl"
+      direct_url_hidden: true
+    }
+  }
+
+  spatial_group "RecipientState" {
+    object "LiveStatusPanel" using "AccessPanel" {
+      label: "Live Status"
+      position: [-2.35, 0.45, 0.0]
+      scale: [1.56, 0.5, 0.08]
+      state_binding: "accessState"
+      states: ["preparing", "live", "needs_attention", "expired", "revoked"]
+      product_copy: "Shows whether the world can be opened right now."
+    }
+
+    object "ReadinessPanel" using "AccessPanel" {
+      label: "Device Readiness"
+      position: [-0.78, 0.45, 0.0]
+      scale: [1.56, 0.5, 0.08]
+      browser_binding: "browserReadiness"
+      headset_binding: "headsetReadiness"
+      fallback_copy: "Browser preview is available when headset mode is not."
+    }
+
+    object "FailureCopyPanel" using "AccessPanel" {
+      label: "Plain Next Step"
+      position: [0.78, 0.45, 0.0]
+      scale: [1.56, 0.5, 0.08]
+      copy_policy: "nondeveloper_first"
+      examples: ["host offline", "invite expired", "needs host approval", "headset fallback available"]
+    }
+
+    object "ReceiptWitnessPanel" using "AccessPanel" {
+      label: "Access Receipt"
+      position: [2.35, 0.45, 0.0]
+      scale: [1.56, 0.5, 0.08]
+      receipt_kind: "hololand.holotunnel-access.v1"
+      witness_binding: "receiptStatus"
+      product_copy: "Proves the invite, open attempt, and readiness state."
+    }
+  }
+
+  spatial_group "AccessTokens" {
+    object "StableUrlToken" using "AccessToken" {
+      label: "stable access link"
+      position: [-1.55, 0.92, 0.82]
+      color: "#73daca"
+      token_policy: "stable_url_first"
+    }
+
+    object "QrReadyToken" using "AccessToken" {
+      label: "QR ready"
+      position: [0, 0.92, 1.08]
+      color: "#7dcfff"
+      state_binding: "qrReady"
+    }
+
+    object "AdvancedHiddenToken" using "AccessToken" {
+      label: "advanced details hidden"
+      position: [1.55, 0.92, 0.82]
+      color: "#e0af68"
+      policy: "tunnel diagnostics require advanced view"
+    }
+  }
+
+  object "AdvancedDetailsGate" using "AccessPanel" {
+    label: "Advanced Details"
+    position: [0, -0.18, 1.6]
+    scale: [5.2, 0.36, 0.08]
+    visible_binding: "advancedVisible"
+    hidden_fields: ["tunnelId", "directUrl", "relayBase", "localTarget", "proxyCounters"]
+    product_copy: "Operators can inspect tunnel diagnostics; recipients do not need them."
+  }
+
+  object "AccessTimeline" {
+    type: "timeline"
+    mesh: "cube"
+    material: "hologram"
+    color: "#707987"
+    label: "share -> readiness -> QR/open -> receipt -> revoke or expire"
+    position: [0, -0.62, 1.82]
+    scale: [5.8, 0.08, 0.12]
+    receipt_required: true
+  }
+
+  logic {
+    on_enter {
+      emit "holoshell_holotunnel_access_card_loaded"
+    }
+
+    action share_world() {
+      emit "holoshell_holotunnel_share_world_requested"
+    }
+
+    action open_on_headset() {
+      emit "holoshell_holotunnel_open_on_headset_requested"
+    }
+
+    action reveal_advanced_details() {
+      state.advancedVisible = true
+      emit "holoshell_holotunnel_advanced_details_revealed"
+    }
+  }
+}

@@ -255,3 +255,14 @@ The first HoloLand slice should be small and nondeveloper-complete:
 
 Success is not "the tunnel connects." Success is "a nondeveloper can open the
 world and understand what happened when they cannot."
+
+Source ratchet:
+
+- Room/object source: `apps/holoshell/source/holoshell-holotunnel-access-card.holo`
+- Policy source: `apps/holoshell/source/holoshell-holotunnel-access-policy.hsplus`
+- Pipeline source: `apps/holoshell/source/holoshell-holotunnel-access-pipeline.hs`
+- Source map: `apps/holoshell/docs/HOLOSHELL_SOURCE_MAP.md`
+
+These files define the product language, visible actions, hidden diagnostics,
+failure copy, readiness states, and product-safe receipt boundary before any
+runtime bridge claims the flow is implemented.

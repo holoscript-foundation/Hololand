@@ -1,0 +1,231 @@
+// HoloShell HoloTunnel Access Policy
+//
+// Product policy for nondeveloper HoloTunnel-backed sharing and access.
+// HoloScript Studio owns the developer tunnel lifecycle; HoloLand owns the
+// easy access object, recipient copy, safety gates, and receipts.
+
+composition "HoloShellHoloTunnelAccessPolicy" {
+  config {
+    title: "HoloTunnel Access Policy"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    roomSource: "apps/holoshell/source/holoshell-holotunnel-access-card.holo"
+    pipelineSource: "apps/holoshell/source/holoshell-holotunnel-access-pipeline.hs"
+    specSource: "docs/specs/HOLOTUNNEL_NONDEVELOPER_ACCESS.md"
+    upstreamStudioSurface: "HoloScript Studio HoloTunnel developer utility"
+    defaultMode: "stable_access_first"
+  }
+
+  state HoloTunnelAccessState {
+    workflow: "holotunnel-nondeveloper-access"
+    accessState: "preparing"
+    accessMode: "review"
+    audience: "anyone_with_link"
+    stableUrl: ""
+    directUrl: ""
+    directUrlVisible: false
+    tunnelIdVisible: false
+    qrState: "not_ready"
+    browserReadiness: "unknown"
+    headsetReadiness: "unknown"
+    safetyState: "approval_required"
+    expiryState: "active"
+    receiptId: ""
+    witnessStatus: "pending"
+    advancedDetailsVisible: false
+    recipientFacingError: ""
+    advancedDiagnostic: ""
+  }
+
+  channel "holoshell:holotunnel:access" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Product-safe access-card state for HoloTunnel-backed HoloLand shares"
+  }
+
+  channel "holoshell:holotunnel:receipt" {
+    type: "append_only"
+    priority: "high"
+    description: "Nondeveloper-safe access receipts with advanced diagnostics redacted by default"
+  }
+
+  template "HoloTunnelAccessReceipt" {
+    receiptVersion: "hololand.holotunnel-access.v1"
+    accessId: ""
+    worldId: ""
+    sessionName: ""
+    sourceRef: ""
+    accessMode: "review"
+    audience: "anyone_with_link"
+    stableUrl: ""
+    directUrlAvailable: true
+    expiresAt: ""
+    revokedAt: null
+    browserReadiness: "unknown"
+    headsetReadiness: "unknown"
+    safetyState: "approval_required"
+    witnessKind: "none"
+    witnessStatus: "pending"
+    tunnelIdRedacted: true
+    localTargetRedacted: true
+    relayStatus: "summary"
+  }
+
+  policy "ProductLanguageFirst" {
+    appliesTo: ["share_world", "open_invite", "open_on_headset", "copy_invite", "failure_state"]
+    firstScreenTerms: ["Share World", "Open Here", "Open On Headset", "Copy Invite", "Live Status"]
+    hiddenFirstScreenTerms: ["tunnelId", "websocket", "proxy", "localhost", "port", "relay counters"]
+    recipientFacingCopyRequired: true
+    advancedDiagnosticsAllowed: true
+  }
+
+  policy "StableUrlIsDefault" {
+    appliesTo: ["copy_invite", "qr_code", "headset_open", "recipient_open"]
+    preferStableUrl: true
+    directUrlForDebugOnly: true
+    directTunnelPathHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "AdvancedDiagnosticsAreOptIn" {
+    appliesTo: ["tunnel_id", "direct_url", "relay_base", "local_target", "proxy_counters", "raw_error"]
+    visibleToRecipients: false
+    visibleToHosts: "summary"
+    visibleToOperators: "on_advanced_expand"
+    publicReceiptMayContainLocalPort: false
+    publicReceiptMayContainTunnelId: false
+  }
+
+  policy "RevocationAndExpiryAreProductControls" {
+    appliesTo: ["share_world", "copy_invite", "recipient_open", "headset_open"]
+    expiryRequired: true
+    revokeRequired: true
+    revokedInviteCopy: "The host turned this invite off."
+    expiredInviteCopy: "This invite expired."
+    receiptRequired: true
+  }
+
+  policy "SafetyGateBeforeImmersiveOpen" {
+    appliesTo: ["open_on_headset", "immersive_view", "world_entry"]
+    hostApprovalMayBeRequired: true
+    browserFallbackAllowed: true
+    safetyBlockedCopy: "This share needs host approval before opening."
+    receiptRequired: true
+  }
+
+  state_machine "HoloTunnelAccessWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "share_packet_received",
+      "access_card_ready",
+      "readiness_checked",
+      "qr_ready",
+      "opened",
+      "witness_recorded",
+      "expired",
+      "revoked",
+      "blocked",
+      "advanced_visible"
+    ]
+    transition "receive_packet" { from: "idle", to: "share_packet_received" }
+    transition "create_card" { from: "share_packet_received", to: "access_card_ready" }
+    transition "check_readiness" { from: "access_card_ready", to: "readiness_checked" }
+    transition "prepare_qr" { from: "readiness_checked", to: "qr_ready" }
+    transition "open" { from: ["readiness_checked", "qr_ready"], to: "opened" }
+    transition "record_witness" { from: "opened", to: "witness_recorded" }
+    transition "expire" { from: "*", to: "expired" }
+    transition "revoke" { from: "*", to: "revoked" }
+    transition "block" { from: "*", to: "blocked" }
+    transition "show_advanced" { from: "*", to: "advanced_visible" }
+  }
+
+  action classifyFailure(kind) {
+    if (kind == "host_offline") {
+      return "The host is not live right now."
+    }
+    if (kind == "expired") {
+      return "This invite expired."
+    }
+    if (kind == "revoked") {
+      return "The host turned this invite off."
+    }
+    if (kind == "device_unsupported") {
+      return "This device can open the browser preview, but not headset mode."
+    }
+    if (kind == "safety_blocked") {
+      return "This share needs host approval before opening."
+    }
+    return "The world is taking too long to respond."
+  }
+
+  action recordSharePacket(packet) {
+    HoloTunnelAccessWorkflow.transition("receive_packet")
+    HoloTunnelAccessState.accessState = "live"
+    HoloTunnelAccessState.stableUrl = packet.stableUrl
+    HoloTunnelAccessState.directUrl = packet.directUrl
+    HoloTunnelAccessState.directUrlVisible = false
+    HoloTunnelAccessState.tunnelIdVisible = false
+    HoloTunnelAccessWorkflow.transition("create_card")
+
+    emit("holoshell:holotunnel:access", {
+      workflow: HoloTunnelAccessState.workflow,
+      accessState: HoloTunnelAccessState.accessState,
+      accessMode: HoloTunnelAccessState.accessMode,
+      audience: HoloTunnelAccessState.audience,
+      stableUrl: HoloTunnelAccessState.stableUrl,
+      directUrlVisible: false,
+      tunnelIdVisible: false
+    })
+  }
+
+  action recordReadiness(readiness) {
+    HoloTunnelAccessState.browserReadiness = readiness.browser
+    HoloTunnelAccessState.headsetReadiness = readiness.headset
+    HoloTunnelAccessState.safetyState = readiness.safety
+    HoloTunnelAccessWorkflow.transition("check_readiness")
+
+    emit("holoshell:holotunnel:access", {
+      workflow: HoloTunnelAccessState.workflow,
+      browserReadiness: HoloTunnelAccessState.browserReadiness,
+      headsetReadiness: HoloTunnelAccessState.headsetReadiness,
+      safetyState: HoloTunnelAccessState.safetyState
+    })
+  }
+
+  action recordRecipientOpen(result) {
+    if (result.status == "passed") {
+      HoloTunnelAccessWorkflow.transition("open")
+      HoloTunnelAccessState.witnessStatus = "passed"
+      HoloTunnelAccessState.recipientFacingError = ""
+    } else {
+      HoloTunnelAccessWorkflow.transition("block")
+      HoloTunnelAccessState.witnessStatus = "failed"
+      HoloTunnelAccessState.recipientFacingError = classifyFailure(result.kind)
+      HoloTunnelAccessState.advancedDiagnostic = result.diagnostic
+    }
+
+    emit("holoshell:holotunnel:receipt", {
+      receiptVersion: "hololand.holotunnel-access.v1",
+      accessMode: HoloTunnelAccessState.accessMode,
+      audience: HoloTunnelAccessState.audience,
+      stableUrl: HoloTunnelAccessState.stableUrl,
+      browserReadiness: HoloTunnelAccessState.browserReadiness,
+      headsetReadiness: HoloTunnelAccessState.headsetReadiness,
+      safetyState: HoloTunnelAccessState.safetyState,
+      witnessStatus: HoloTunnelAccessState.witnessStatus,
+      recipientFacingError: HoloTunnelAccessState.recipientFacingError,
+      tunnelIdRedacted: true,
+      localTargetRedacted: true
+    })
+  }
+
+  action revealAdvanced(actorRole) {
+    if (actorRole == "operator" || actorRole == "host" || actorRole == "developer") {
+      HoloTunnelAccessState.advancedDetailsVisible = true
+      HoloTunnelAccessWorkflow.transition("show_advanced")
+      return "advanced_visible"
+    }
+    return "advanced_denied"
+  }
+}
