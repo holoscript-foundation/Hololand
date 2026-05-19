@@ -175,6 +175,7 @@ Minimum generation workflow:
 | `docs/HOLOSCRIPT_SOURCE_CONTRACT.md` | Enforcement boundary for HoloScript-first work. |
 | `docs/specs/HOLOSCRIPT_FIRST_MIGRATION.md` | Existing migration direction for HoloLand Central. |
 | `docs/specs/HOLOLAND_FRONTIER_NORTH_STAR.md` | Current product north star: programmable living frontier MMO. |
+| `docs/specs/HOLOTUNNEL_NONDEVELOPER_ACCESS.md` | Product boundary for easy HoloTunnel sharing/access in HoloLand. |
 | `docs/specs/HOLOLAND_SOVEREIGN_TOOLS.md` | Boundary for HoloLand MCP tools, MCP Orchestrator support, and cross-MCP receipts. |
 | `examples/hololand-central/**` | Reference central hub and existing runtime surface. |
 | `examples/hololand-legends/**` | Game loop reference and HoloScript/TypeScript hybrid sample. |
