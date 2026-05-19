@@ -15,11 +15,15 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const SCHEMA_VERSION = 'hololand.holoshell.visual-witness.v0.1.0';
+const PLAYABLE_SHARD_WITNESS_SCHEMA = 'hololand.holoshell.playable-shard-witness.v0.1.0';
 const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const DEFAULT_ROOM = path.join('apps', 'holoshell', 'prototype', 'hardware-reality-room.html');
 const DEFAULT_OUTPUT_DIR = path.join('.tmp', 'holoshell', 'visual-witness');
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'visual-witness.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'visual-witness.js');
+const DEFAULT_PLAYABLE_WITNESS_OUTPUT = path.join('.tmp', 'holoshell', 'playable-shard-witness.json');
+const DEFAULT_PLAYABLE_WITNESS_JS = path.join('.tmp', 'holoshell', 'playable-shard-witness.js');
+const DEFAULT_PLAYABLE_WITNESS_DIR = path.join('.tmp', 'holoshell', 'playable-shard-witness');
 const DEFAULT_EXPECT_TEXT = [
   'HoloShell Hardware Reality',
   'Brittney Queue',
@@ -59,6 +63,10 @@ function parseArgs(argv) {
     jsOutput: DEFAULT_JS_OUTPUT,
     shardWorkflow: '',
     previewSource: '',
+    shardImportReceipt: '',
+    playableWitnessOutput: DEFAULT_PLAYABLE_WITNESS_OUTPUT,
+    playableWitnessJs: DEFAULT_PLAYABLE_WITNESS_JS,
+    playableWitnessDir: DEFAULT_PLAYABLE_WITNESS_DIR,
     width: 1440,
     height: 1000,
     virtualTimeBudget: 7000,
@@ -78,6 +86,10 @@ function parseArgs(argv) {
     else if (arg === '--js-output') args.jsOutput = argv[++index] || args.jsOutput;
     else if (arg === '--shard-workflow') args.shardWorkflow = argv[++index] || '';
     else if (arg === '--preview-source') args.previewSource = argv[++index] || '';
+    else if (arg === '--shard-import-receipt') args.shardImportReceipt = argv[++index] || '';
+    else if (arg === '--playable-witness-output') args.playableWitnessOutput = argv[++index] || args.playableWitnessOutput;
+    else if (arg === '--playable-witness-js') args.playableWitnessJs = argv[++index] || args.playableWitnessJs;
+    else if (arg === '--playable-witness-dir') args.playableWitnessDir = argv[++index] || args.playableWitnessDir;
     else if (arg === '--width') args.width = Number(argv[++index]) || args.width;
     else if (arg === '--height') args.height = Number(argv[++index]) || args.height;
     else if (arg === '--virtual-time-budget') args.virtualTimeBudget = Number(argv[++index]) || args.virtualTimeBudget;
@@ -103,6 +115,9 @@ function parseArgs(argv) {
   if (args.shardWorkflow && !args.previewSource) {
     throw new Error('--preview-source is required when --shard-workflow is provided');
   }
+  if (args.shardImportReceipt && args.shardWorkflow) {
+    throw new Error('--shard-import-receipt and --shard-workflow are mutually exclusive');
+  }
   args.expectText = (args.customExpectText ? args.expectText : DEFAULT_EXPECT_TEXT)
     .map((value) => String(value || '').trim())
     .filter(Boolean);
@@ -124,6 +139,10 @@ Options:
   --js-output <path>            Browser bootstrap JS. Default: ${DEFAULT_JS_OUTPUT}.
   --shard-workflow <path>       Asset shard workflow receipt to render as a playable preview witness.
   --preview-source <path>       Generated shard .holo source paired with --shard-workflow.
+  --shard-import-receipt <path> Imported shard receipt to render as a playable shard witness.
+  --playable-witness-output <path> PlayableShardWitnessReceipt JSON. Default: ${DEFAULT_PLAYABLE_WITNESS_OUTPUT}.
+  --playable-witness-js <path>  Playable witness browser bootstrap JS. Default: ${DEFAULT_PLAYABLE_WITNESS_JS}.
+  --playable-witness-dir <path> Playable witness screenshot/DOM dir. Default: ${DEFAULT_PLAYABLE_WITNESS_DIR}.
   --width <px>                  Viewport width. Default: 1440.
   --height <px>                 Viewport height. Default: 1000.
   --virtual-time-budget <ms>    Headless browser script/render budget. Default: 7000.
@@ -421,19 +440,216 @@ function prepareShardWitness(args) {
   };
 }
 
+function prepareImportedShardWitness(args) {
+  const importReceipt = readJson(args.shardImportReceipt);
+  if (!importReceipt) throw new Error(`Shard import receipt not found: ${args.shardImportReceipt}`);
+  const manifestPath = importReceipt.output?.manifestPath;
+  const shardSourcePath = importReceipt.output?.shardSourcePath;
+  if (!manifestPath) throw new Error('Import receipt is missing output.manifestPath.');
+  if (!shardSourcePath) throw new Error('Import receipt is missing output.shardSourcePath.');
+  const manifest = readJson(manifestPath);
+  const shardSource = readFileSync(resolveRepoPath(shardSourcePath), 'utf8');
+  const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'holoshell-imported-shard-witness-'));
+  const room = path.join(tempRoot, 'imported-shard-witness.html');
+  const assets = (manifest.assets || importReceipt.summary?.assetCount || 0);
+  const shardId = manifest.shardId || importReceipt.summary?.shardId || 'unknown';
+  const worldName = manifest.worldName || 'Imported Shard';
+  const assetCount = Number(importReceipt.summary?.assetCount ?? (manifest.assets || []).length);
+  const modelCount = Number(importReceipt.summary?.modelCount ?? (manifest.assets || []).filter((a) => a.kind === 'model').length);
+  const imageCount = Number(importReceipt.summary?.imageCount ?? (manifest.assets || []).filter((a) => a.kind === 'image').length);
+  const audioCount = Number(importReceipt.summary?.audioCount ?? (manifest.assets || []).filter((a) => a.kind === 'audio').length);
+  const expectedText = [
+    'HoloShell Imported Shard Witness',
+    'Playable Shard Preview',
+    `Shard ID: ${shardId}`,
+    `Assets: ${assetCount}`,
+    'Source assets mutated: false',
+    'Import status: completed',
+  ];
+  const assetList = (manifest.assets || [])
+    .slice(0, 24)
+    .map((asset) => `<li><strong>${escapeHtml(asset.kind)}</strong> ${escapeHtml(asset.name)} <span>${escapeHtml(asset.relativePath)}</span></li>`)
+    .join('\n');
+  writeFileSync(room, `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HoloShell Imported Shard Witness</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: #f7fbff;
+      background: #101820;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 32px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 34px;
+      font-weight: 700;
+    }
+    h2 {
+      margin: 0 0 28px;
+      color: #76f7d7;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .surface {
+      border: 1px solid rgba(118, 247, 215, 0.32);
+      border-radius: 8px;
+      padding: 22px;
+      background: #16242c;
+    }
+    .badge {
+      display: inline-block;
+      background: #0abed9;
+      color: #101820;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-left: 12px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .stat {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      padding: 12px;
+      background: #20323a;
+    }
+    .label {
+      display: block;
+      color: #a9bdc8;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .value {
+      display: block;
+      margin-top: 6px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    ul {
+      columns: 2;
+      padding-left: 18px;
+    }
+    li {
+      break-inside: avoid;
+      margin: 8px 0;
+    }
+    li span {
+      color: #a9bdc8;
+    }
+    pre {
+      overflow: hidden;
+      max-height: 190px;
+      border-radius: 8px;
+      padding: 14px;
+      color: #dce8ef;
+      background: #0b1115;
+      white-space: pre-wrap;
+    }
+    .witness-check {
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(118, 247, 215, 0.08);
+      border: 1px solid rgba(118, 247, 215, 0.2);
+    }
+    .witness-check dt {
+      font-weight: 700;
+      color: #76f7d7;
+    }
+    .witness-check dd {
+      margin: 4px 0 12px;
+      color: #dce8ef;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>HoloShell Imported Shard Witness<span class="badge">COMPLETED</span></h1>
+    <h2>Playable Shard Preview</h2>
+    <section class="surface">
+      <p>Shard ID: ${escapeHtml(shardId)}</p>
+      <p>World: ${escapeHtml(worldName)}</p>
+      <p>Source assets mutated: false</p>
+      <p>Import status: completed</p>
+      <div class="stats" aria-label="Imported shard stats">
+        <div class="stat"><span class="label">Assets</span><span class="value">${assetCount}</span></div>
+        <div class="stat"><span class="label">Models</span><span class="value">${modelCount}</span></div>
+        <div class="stat"><span class="label">Images</span><span class="value">${imageCount}</span></div>
+        <div class="stat"><span class="label">Audio</span><span class="value">${audioCount}</span></div>
+      </div>
+      <p>Assets: ${assetCount}</p>
+      <ul>${assetList || '<li>No imported assets</li>'}</ul>
+      <pre>${escapeHtml(shardSource.slice(0, 4000))}</pre>
+      <dl class="witness-check">
+        <dt>Import receipt</dt>
+        <dd>${escapeHtml(publicPath(args.shardImportReceipt))}</dd>
+        <dt>Manifest</dt>
+        <dd>${escapeHtml(manifestPath)}</dd>
+        <dt>Shard source</dt>
+        <dd>${escapeHtml(shardSourcePath)}</dd>
+        <dt>Runtime mutation</dt>
+        <dd>${importReceipt.summary?.runtimeMutationExecuted ? 'true (import executed)' : 'false'}</dd>
+        <dt>Source assets mutated</dt>
+        <dd>false</dd>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>`, 'utf8');
+  return {
+    tempRoot,
+    shardWitness: {
+      enabled: true,
+      workflowReceipt: importReceipt.approval?.workflowHash
+        ? publicPath(args.shardImportReceipt)
+        : '',
+      previewSource: publicPath(shardSourcePath),
+      shardId,
+      previewHash: sha256Text(shardSource),
+      assetCount,
+      sourceAssetsMutated: false,
+    },
+    importReceipt,
+    manifest,
+    args: {
+      ...args,
+      room,
+      expectText: args.customExpectText ? args.expectText : expectedText,
+    },
+  };
+}
+
 function createReceipt(args) {
   const roomPath = resolveRepoPath(args.room);
   if (!existsSync(roomPath)) throw new Error(`Room file not found: ${roomPath}`);
 
   const browserPath = findBrowser(args.browser);
   const generatedAt = new Date().toISOString();
-  const outputDir = resolveRepoPath(args.outputDir);
-  mkdirSync(outputDir, { recursive: true });
+  // When rendering an imported shard witness, use the dedicated playable-witness-dir
+  // for screenshots and DOM dumps so they are colocated with the PlayableShardWitnessReceipt.
+  const effectiveOutputDir = args.shardImportReceipt
+    ? resolveRepoPath(args.playableWitnessDir)
+    : resolveRepoPath(args.outputDir);
+  mkdirSync(effectiveOutputDir, { recursive: true });
 
   const slug = path.basename(roomPath).replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
   const stamp = generatedAt.replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
-  const screenshotPath = path.join(outputDir, `${slug}-${stamp}.png`);
-  const domPath = path.join(outputDir, `${slug}-${stamp}.dom.html`);
+  const screenshotPath = path.join(effectiveOutputDir, `${slug}-${stamp}.png`);
+  const domPath = path.join(effectiveOutputDir, `${slug}-${stamp}.dom.html`);
   const targetUrl = pathToFileURL(roomPath).href;
 
   const receipt = {
@@ -579,6 +795,7 @@ function main() {
   let args = parseArgs(process.argv.slice(2));
   let selfTestRoot = null;
   let shardWitnessRoot = null;
+  let importedShardWitnessRoot = null;
 
   if (args.selfTest) {
     const prepared = prepareSelfTest(args);
@@ -595,12 +812,44 @@ function main() {
     shardWitnessRoot = prepared.tempRoot;
   }
 
+  if (args.shardImportReceipt) {
+    const prepared = prepareImportedShardWitness(args);
+    args = {
+      ...prepared.args,
+      shardWitness: prepared.shardWitness,
+    };
+    importedShardWitnessRoot = prepared.tempRoot;
+  }
+
   try {
     const receipt = createReceipt(args);
     if (args.selfTest === false && selfTestRoot) assertSelfTest(receipt);
 
     const output = writeJson(args.output, receipt);
     const jsOutput = writeBrowserBootstrap(args.jsOutput, receipt);
+
+    if (args.shardImportReceipt && receipt.status === 'pass') {
+      const playableWitness = {
+        schemaVersion: PLAYABLE_SHARD_WITNESS_SCHEMA,
+        generatedAt: receipt.generatedAt,
+        status: receipt.status,
+        shardWitness: receipt.shardWitness,
+        screenshot: receipt.screenshot ? {
+          path: receipt.screenshot.path,
+          sizeBytes: receipt.screenshot.sizeBytes,
+          sha256: receipt.screenshot.sha256,
+        } : null,
+        domWitness: receipt.domWitness ? {
+          path: receipt.domWitness.path,
+          sha256: receipt.domWitness.sha256,
+          missingText: receipt.domWitness.missingText || [],
+        } : null,
+      };
+      const playableOutput = writeJson(args.playableWitnessOutput, playableWitness);
+      const playableJsOutput = writeBrowserBootstrap(args.playableWitnessJs, 'HOLOSHELL_PLAYABLE_SHARD_WITNESS', playableWitness);
+      console.log(`Playable shard witness: ${playableOutput}`);
+      console.log(`Playable shard witness bootstrap: ${playableJsOutput}`);
+    }
 
     if (args.json) {
       console.log(JSON.stringify(receipt, null, 2));
@@ -617,6 +866,7 @@ function main() {
   } finally {
     if (selfTestRoot) rmSync(selfTestRoot, { recursive: true, force: true });
     if (shardWitnessRoot) rmSync(shardWitnessRoot, { recursive: true, force: true });
+    if (importedShardWitnessRoot) rmSync(importedShardWitnessRoot, { recursive: true, force: true });
   }
 }
 

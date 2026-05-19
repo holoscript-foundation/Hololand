@@ -20,6 +20,8 @@ composition "HoloShell Asset Shard Workflow" {
     importApprovalBundle: ".tmp/holoshell/shard-import-approval-latest.json"
     importReceipt: ".tmp/holoshell/shard-import-latest.json"
     importRuntimeDir: ".tmp/holoshell/imported-shards"
+    playableWitnessReceipt: ".tmp/holoshell/playable-shard-witness.json"
+    playableWitnessAdapter: "scripts/holoshell-visual-witness.mjs --shard-import-receipt"
     shellProjection: "apps/holoshell/prototype/local-capability-room.html"
   }
 
@@ -53,6 +55,13 @@ composition "HoloShell Asset Shard Workflow" {
     importSourceAssetsMutated: false
     approvalRequired: true
     mutationExecuted: false
+    playableWitnessStatus: "unknown"
+    playableWitnessScreenshotPath: ""
+    playableWitnessScreenshotHash: ""
+    playableWitnessDomPath: ""
+    playableWitnessDomHash: ""
+    playableWitnessMissingText: []
+    playableWitnessReceiptPath: ""
     nextMove: "choose_asset_folder"
   }
 
@@ -78,6 +87,12 @@ composition "HoloShell Asset Shard Workflow" {
     type: "append_only"
     priority: "high"
     description: "Runtime-local imported shard manifests and rollback receipts"
+  }
+
+  channel "holoshell:shard-witness" {
+    type: "append_only"
+    priority: "high"
+    description: "Visual proof that an imported shard renders in a local browser/headset"
   }
 
   policy "FolderScanPolicy" {
@@ -166,7 +181,7 @@ composition "HoloShell Asset Shard Workflow" {
     state.importRuntimeMutationExecuted = receipt.summary.runtimeMutationExecuted
     state.importSourceAssetsMutated = receipt.summary.sourceAssetsMutated
     state.activeShardId = receipt.summary.shardId
-    state.nextMove = "open_imported_shard_preview"
+    state.nextMove = "witness_imported_shard"
     emit("holoshell:shard-import", {
       action: "asset_shard_import_receipt_applied",
       status: state.importReceiptStatus,
@@ -176,6 +191,29 @@ composition "HoloShell Asset Shard Workflow" {
       receipt: state.importReceiptPath,
       runtime_mutation_executed: state.importRuntimeMutationExecuted,
       source_assets_mutated: state.importSourceAssetsMutated,
+      receipt_required: true
+    })
+  }
+
+  action apply_playable_shard_witness(witness) {
+    state.playableWitnessStatus = witness.status
+    state.playableWitnessScreenshotPath = witness.screenshot.path
+    state.playableWitnessScreenshotHash = witness.screenshot.sha256
+    state.playableWitnessDomPath = witness.domWitness.path
+    state.playableWitnessDomHash = witness.domWitness.sha256
+    state.playableWitnessMissingText = witness.domWitness.missingText
+    state.playableWitnessReceiptPath = witness.playableWitnessReceiptPath
+    state.nextMove = "import_complete_witnessed"
+    emit("holoshell:shard-witness", {
+      action: "playable_shard_witness_recorded",
+      status: witness.status,
+      shard_id: state.activeShardId,
+      screenshot_path: state.playableWitnessScreenshotPath,
+      screenshot_hash: state.playableWitnessScreenshotHash,
+      dom_path: state.playableWitnessDomPath,
+      dom_hash: state.playableWitnessDomHash,
+      missing_text: state.playableWitnessMissingText,
+      source_assets_mutated: false,
       receipt_required: true
     })
   }

@@ -12,6 +12,9 @@ composition "HoloShell Visual Witness" {
     adapterScript: "scripts/holoshell-visual-witness.mjs"
     defaultRoom: "apps/holoshell/prototype/hardware-reality-room.html"
     defaultOutput: ".tmp/holoshell/visual-witness.json"
+    playableShardWitnessMode: "--shard-import-receipt"
+    playableShardWitnessOutput: ".tmp/holoshell/playable-shard-witness.json"
+    playableShardWitnessDir: ".tmp/holoshell/playable-shard-witness"
   }
 
   state {
