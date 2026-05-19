@@ -15,7 +15,11 @@ composition "HoloShell World Build Cockpit" {
     readiness_source: "apps/holoshell/source/holoshell-readiness-evidence.hsplus"
     build_custody_source: "apps/holoshell/source/holoshell-build-custody.hsplus"
     hardware_reality_source: "apps/holoshell/source/holoshell-hardware-reality-bridge.hsplus"
+    source_validation_source: "apps/holoshell/source/holoshell-source-validation.hsplus"
     visual_witness_source: "apps/holoshell/source/holoshell-visual-witness.hsplus"
+    local_file_manifest_source: "apps/holoshell/source/holoshell-local-file-manifest.hsplus"
+    codex_hardware_audit_source: "apps/holoshell/source/holoshell-codex-hardware-audit.hsplus"
+    agent_lane_source: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
   }
 
   environment {

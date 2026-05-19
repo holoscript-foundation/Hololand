@@ -10,6 +10,13 @@ composition "HoloShellWorldBuildCockpitPolicy" {
     sourceLayer: "HoloScript"
     roomSource: "apps/holoshell/source/holoshell-world-build-cockpit.holo"
     pipelineSource: "apps/holoshell/source/holoshell-world-build-cockpit-pipeline.hs"
+    localFileManifestSource: "apps/holoshell/source/holoshell-local-file-manifest.hsplus"
+    codexHardwareAuditSource: "apps/holoshell/source/holoshell-codex-hardware-audit.hsplus"
+    sourceValidationSource: "apps/holoshell/source/holoshell-source-validation.hsplus"
+    buildCustodySource: "apps/holoshell/source/holoshell-build-custody.hsplus"
+    hardwareRealitySource: "apps/holoshell/source/holoshell-hardware-reality-bridge.hsplus"
+    visualWitnessSource: "apps/holoshell/source/holoshell-visual-witness.hsplus"
+    agentLaneSource: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
     defaultMode: "preview_only_until_promoted"
   }
 

@@ -1,0 +1,97 @@
+// HoloShell Local File Manifest
+//
+// Local files are the user's assets, projects, and media on this machine.
+// HoloShell never imports, uploads, or mutates local files without explicit
+// user promotion. This source contract produces a manifest receipt that the
+// world-build cockpit consumes as the LocalFilesGate.
+
+composition "HoloShell Local File Manifest" {
+  config {
+    title: "Local File Manifest"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-local-file-manifest.mjs"
+    defaultMode: "read_only_manifest"
+  }
+
+  state {
+    status: "unknown"
+    fileCount: 0
+    directoryCount: 0
+    totalSizeBytes: 0
+    sensitivePathCount: 0
+    unreadableCount: 0
+    duplicateAssetCount: 0
+    lastManifestReceiptId: ""
+  }
+
+  channel "holoshell:local:manifest" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Local file manifest receipts for the world-build cockpit"
+  }
+
+  template "LocalFileManifestReceipt" {
+    type: "receipt"
+    receiptType: "local_file_manifest"
+    source: "local_filesystem_scan"
+    manifestId: ""
+    rootPaths: []
+    fileCount: 0
+    directoryCount: 0
+    totalSizeBytes: 0
+    sensitivePaths: []
+    unreadablePaths: []
+    duplicateAssets: []
+    destructiveActionsTaken: false
+    rawCommandsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "ManifestIsReadOnly" {
+    appliesTo: ["scan_directories", "enumerate_files", "compute_hashes", "detect_duplicates"]
+    importAllowed: false
+    uploadAllowed: false
+    mutationAllowed: false
+    deletionAllowed: false
+    receiptRequired: true
+  }
+
+  policy "SensitivePathsAreRedacted" {
+    appliesTo: ["credential_files", "env_files", "private_keys", "wallet_data"]
+    redactPath: true
+    redactContent: true
+    markSensitive: true
+    includeInCountOnly: true
+    receiptRequired: true
+  }
+
+  policy "NoHiddenImports" {
+    appliesTo: ["world_import", "asset_shard_import", "hololand_worktree_mutation"]
+    localManifestBlocksImport: true
+    importRequiresExplicitPromotion: true
+    receiptRequired: true
+  }
+
+  action consume_manifest(manifest) {
+    state.status = manifest.summary.status
+    state.fileCount = manifest.summary.fileCount
+    state.directoryCount = manifest.summary.directoryCount
+    state.totalSizeBytes = manifest.summary.totalSizeBytes
+    state.sensitivePathCount = manifest.summary.sensitivePathCount
+    state.unreadableCount = manifest.summary.unreadableCount
+    state.duplicateAssetCount = manifest.summary.duplicateAssetCount
+    state.lastManifestReceiptId = manifest.receipt.manifestId
+
+    emit("holoshell:local:manifest", {
+      status: state.status,
+      fileCount: state.fileCount,
+      directoryCount: state.directoryCount,
+      totalSizeBytes: state.totalSizeBytes,
+      sensitivePathCount: state.sensitivePathCount,
+      unreadableCount: state.unreadableCount,
+      duplicateAssetCount: state.duplicateAssetCount,
+      receipt: state.lastManifestReceiptId
+    })
+  }
+}

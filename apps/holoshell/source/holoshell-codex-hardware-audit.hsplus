@@ -1,0 +1,104 @@
+// HoloShell Codex Hardware Audit
+//
+// Hardware truth comes from local probes, not from hosted graph caches or
+// agent claims. The Codex hardware lane runs Node, pnpm, WASM SIMD, GPU,
+// WebGPU, and browser capability checks and produces a receipt that the
+// world-build cockpit consumes as the HardwareGate.
+
+composition "HoloShell Codex Hardware Audit" {
+  config {
+    title: "Codex Hardware Audit"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    adapterScript: "scripts/holoshell-codex-hardware-audit.mjs"
+    defaultMode: "read_only_hardware_probe"
+  }
+
+  state {
+    status: "unknown"
+    nodeVersion: ""
+    pnpmVersion: ""
+    wasmSimdAvailable: false
+    gpuName: ""
+    webgpuAvailable: false
+    browserAvailable: false
+    memoryTotalBytes: 0
+    overallStatus: "unknown"
+    lastAuditReceiptId: ""
+  }
+
+  channel "holoshell:hardware:audit" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Codex hardware audit receipts for the world-build cockpit HardwareGate"
+  }
+
+  template "CodexHardwareAuditReceipt" {
+    type: "receipt"
+    receiptType: "codex_hardware_audit"
+    source: "local_hardware_probe"
+    auditId: ""
+    checks: []
+    overallStatus: "unknown"
+    nodeVersion: ""
+    pnpmVersion: ""
+    wasmSimdAvailable: false
+    gpuName: ""
+    webgpuAvailable: false
+    browserAvailable: false
+    memoryTotalBytes: 0
+    destructiveActionsTaken: false
+    rawCommandsIncluded: false
+    receiptRequired: true
+  }
+
+  policy "HardwareTruthIsLocalOnly" {
+    appliesTo: ["node_probe", "pnpm_probe", "wasm_simd_probe", "gpu_probe", "webgpu_probe", "browser_probe", "memory_probe"]
+    hostedGraphIsNotAuthoritative: true
+    hostedGraphAllowedAs: "warning_token_only"
+    localFilesystemNamespaceRequired: true
+    receiptRequired: true
+  }
+
+  policy "StaleGraphIsWarningNotTruth" {
+    appliesTo: ["codebase_explanation", "source_map", "task_filing", "brittney_turn"]
+    staleHostedGraphAuthoritative: false
+    allowedAsEvidence: "warning_token"
+    requiresLocalFilesystemNamespace: true
+    receiptRequired: true
+  }
+
+  policy "HardwareProbesAreReadOnly" {
+    appliesTo: ["runtime_inventory", "webgpu_probe", "wasm_simd_probe", "gpu_enumeration", "browser_detection"]
+    installAllowed: false
+    mutationAllowed: false
+    deletionAllowed: false
+    receiptRequired: true
+  }
+
+  action consume_audit(audit) {
+    state.status = audit.summary.status
+    state.nodeVersion = audit.summary.nodeVersion
+    state.pnpmVersion = audit.summary.pnpmVersion
+    state.wasmSimdAvailable = audit.summary.wasmSimdAvailable
+    state.gpuName = audit.summary.gpuName
+    state.webgpuAvailable = audit.summary.webgpuAvailable
+    state.browserAvailable = audit.summary.browserAvailable
+    state.memoryTotalBytes = audit.summary.memoryTotalBytes
+    state.overallStatus = audit.summary.overallStatus
+    state.lastAuditReceiptId = audit.receipt.auditId
+
+    emit("holoshell:hardware:audit", {
+      status: state.status,
+      nodeVersion: state.nodeVersion,
+      pnpmVersion: state.pnpmVersion,
+      wasmSimdAvailable: state.wasmSimdAvailable,
+      gpuName: state.gpuName,
+      webgpuAvailable: state.webgpuAvailable,
+      browserAvailable: state.browserAvailable,
+      memoryTotalBytes: state.memoryTotalBytes,
+      overallStatus: state.overallStatus,
+      receipt: state.lastAuditReceiptId
+    })
+  }
+}

@@ -55,7 +55,7 @@ of the screen.
 
 ## Current Artifacts (authoritative as of 2026-05-18)
 
-Flat list of all contracts under `source/` (62 files). For the capability-grouped view, see `docs/HOLOSHELL_SOURCE_MAP.md`.
+Flat list of all contracts under `source/` (64 files). For the capability-grouped view, see `docs/HOLOSHELL_SOURCE_MAP.md`.
 
 ```text
 source/holoshell-account-task-custody.hsplus
@@ -70,6 +70,7 @@ source/holoshell-brittney-environment-coupling.hsplus
 source/holoshell-brittney-presence.hsplus
 source/holoshell-brittney-runtime-bridge.hsplus
 source/holoshell-build-custody.hsplus
+source/holoshell-codex-hardware-audit.hsplus
 source/holoshell-control-daemon-service.hsplus
 source/holoshell-developmental-environment.hsplus
 source/holoshell-device-safety-lab-policy.hsplus
@@ -90,6 +91,7 @@ source/holoshell-holoscript-gold-codebase-bridge.hsplus
 source/holoshell-home.hsplus
 source/holoshell-legacy-app-absorption.hsplus
 source/holoshell-legacy-window-inventory.hsplus
+source/holoshell-local-file-manifest.hsplus
 source/holoshell-mcp-custody-contract.hsplus
 source/holoshell-mcp-custody-upstream-handoff.hsplus
 source/holoshell-native-wrapper.hsplus
@@ -122,11 +124,13 @@ source/holoshell-world-build-cockpit-policy.hsplus
 source/holoshell-world-build-cockpit.holo
 ```
 
-**Verification receipt (generated 2026-05-18 during execution of task_1779092549879_7beq)**
+**Verification receipt (generated 2026-05-18 during execution of task_1779092549879_oudm)**
 
-- Source directory: `apps/holoshell/source/` — 62 files
+- Source directory: `apps/holoshell/source/` — 64 files
 - Grouped map: `docs/HOLOSHELL_SOURCE_MAP.md` (already comprehensive)
 - Contract health: 7 capabilities, 5 safety gates (local HoloShell operator contract check OK)
+- World-build cockpit composition: all 9 receipt sources referenced in cockpit metadata; 3 new receipt contracts (LocalFileManifest, CodexHardwareAudit, AgentLane composed into cockpit pipeline)
+- All 11 cockpit source contracts pass `holoscript compile --enforce-gotchas`
 - Previous state: The "Source Of Truth" and "Current Artifacts" lists in this README were stale and have been refreshed to match the actual source directory.
 - Task closed when: This change is applied and the receipt is updated with the resulting Hololand commit hash.
 
@@ -492,6 +496,10 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-native-wrapper.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-startup-integration.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit.holo
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-policy.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-pipeline.hs
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-local-file-manifest.hsplus
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-codex-hardware-audit.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-policy.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-pipeline.hs
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-device-safety-lab.holo

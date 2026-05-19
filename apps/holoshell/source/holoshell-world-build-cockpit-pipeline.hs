@@ -10,8 +10,26 @@ object "WorldBuildCockpitPipelineManifest" {
   humanJob: "use local files, verify this computer, build a HoloLand preview, show what changed"
   roomSource: "apps/holoshell/source/holoshell-world-build-cockpit.holo"
   policySource: "apps/holoshell/source/holoshell-world-build-cockpit-policy.hsplus"
+  localFileManifestSource: "apps/holoshell/source/holoshell-local-file-manifest.hsplus"
+  codexHardwareAuditSource: "apps/holoshell/source/holoshell-codex-hardware-audit.hsplus"
+  sourceValidationSource: "apps/holoshell/source/holoshell-source-validation.hsplus"
+  buildCustodySource: "apps/holoshell/source/holoshell-build-custody.hsplus"
+  hardwareRealitySource: "apps/holoshell/source/holoshell-hardware-reality-bridge.hsplus"
+  visualWitnessSource: "apps/holoshell/source/holoshell-visual-witness.hsplus"
+  agentLaneSource: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
   outputEvidencePack: ".tmp/holoshell/world-build-cockpit.json"
   receiptRequired: true
+}
+
+object "LocalFileManifestStep" {
+  type: "pipeline_step"
+  workflow: "ready-to-build-hololand-world"
+  phase: "local_files"
+  order: 0
+  adapter: "apps/holoshell/source/holoshell-local-file-manifest.hsplus"
+  mutationClass: "none"
+  validates: ["local_directories", "sensitive_path_redaction", "duplicate_asset_detection"]
+  output: "LocalFileManifestReceipt"
 }
 
 object "HardwareAuditStep" {
@@ -84,11 +102,22 @@ object "PreviewWitnessStep" {
   output: "VisualWitnessReceipt"
 }
 
+object "AgentLaneStep" {
+  type: "pipeline_step"
+  workflow: "ready-to-build-hololand-world"
+  phase: "agent_orchestra"
+  order: 7
+  adapter: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
+  mutationClass: "none"
+  validates: ["lane_attribution", "unattributed_shell_run_detection", "duplicate_task_detection"]
+  output: "AgentLaneReceipt"
+}
+
 object "ReadinessReceiptStep" {
   type: "pipeline_step"
   workflow: "ready-to-build-hololand-world"
   phase: "receipt"
-  order: 7
+  order: 8
   action: "merge_gate_receipts"
   output: "WorldBuildReadinessCockpitReceipt"
   readinessStates: ["ready", "ready_with_warnings", "blocked"]
