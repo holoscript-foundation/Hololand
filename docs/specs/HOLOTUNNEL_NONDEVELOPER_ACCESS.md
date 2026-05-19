@@ -262,7 +262,30 @@ Source ratchet:
 - Policy source: `apps/holoshell/source/holoshell-holotunnel-access-policy.hsplus`
 - Pipeline source: `apps/holoshell/source/holoshell-holotunnel-access-pipeline.hs`
 - Source map: `apps/holoshell/docs/HOLOSHELL_SOURCE_MAP.md`
+- Runtime bridge: `scripts/holoshell-holotunnel-access.mjs`
+- Regression proof: `scripts/__tests__/holoshell-holotunnel-access.test.mjs`
 
 These files define the product language, visible actions, hidden diagnostics,
 failure copy, readiness states, and product-safe receipt boundary before any
 runtime bridge claims the flow is implemented.
+
+## Runtime Bridge Slice
+
+`scripts/holoshell-holotunnel-access.mjs` consumes the sanitized Studio share
+packet and emits HoloLand's nondeveloper access object:
+
+```bash
+node scripts/holoshell-holotunnel-access.mjs --share-packet .tmp/studio-holotunnel-share.json --json
+```
+
+Default outputs:
+
+- `.tmp/holoshell/holotunnel-access.json`
+- `.tmp/holoshell/holotunnel-access.js`
+- `.tmp/holoshell/holotunnel-access-receipts/<access-id>.json`
+
+The first-screen `accessCard` contains stable URL, actions, QR payload, status
+copy, audience, expiry, and readiness. Direct tunnel URLs and operator
+diagnostics are kept in `advancedDiagnostics`, hidden by default. Client tokens,
+relay tokens, local targets, and secret-bearing URL query parameters are rejected
+or redacted before a HoloLand receipt is written.
