@@ -22,8 +22,11 @@ composition "HoloShell Package Custody" {
     packageId: "unknown"
     packageName: "unknown"
     manager: "unknown"
+    adapterId: "unknown"
+    dryRunPlanReady: false
     fromVersion: "unknown"
     toVersion: "unknown"
+    commandPreview: ""
     permissionEnvelope: "read_only"
     approvalRequired: false
     executionAllowed: false
@@ -80,11 +83,32 @@ composition "HoloShell Package Custody" {
       "check_disk_space",
       "check_network_cost",
       "check_admin_status",
-      "check_running_process_conflicts"
+      "check_running_process_conflicts",
+      "plan_winget_package",
+      "plan_pnpm_package",
+      "plan_npm_package",
+      "plan_msi_package",
+      "plan_exe_package"
     ]
     permissionEnvelope: "read_only"
     mutationAllowed: false
     receiptRequired: true
+  }
+
+  policy "PackageAdaptersAreDryRunPlans" {
+    appliesTo: [
+      "winget_dry_run_package_plan",
+      "pnpm_dry_run_package_plan",
+      "npm_dry_run_package_plan",
+      "msi_dry_run_package_plan",
+      "exe_dry_run_package_plan"
+    ]
+    emits: "HoloShellPackageMutationReceipt"
+    mutationAllowed: false
+    commandPreviewRequired: true
+    packageIdentityRequired: true
+    sourceRequired: true
+    preflightRequired: ["network", "admin", "process", "package_manager"]
   }
 
   policy "PackageMutationIsBreakGlass" {
@@ -125,8 +149,11 @@ composition "HoloShell Package Custody" {
     state.packageId = snapshot.summary.packageId
     state.packageName = snapshot.summary.packageName
     state.manager = snapshot.summary.manager
+    state.adapterId = snapshot.adapterPlan.adapterId
+    state.dryRunPlanReady = snapshot.adapterPlan.dryRun
     state.fromVersion = snapshot.summary.fromVersion
     state.toVersion = snapshot.summary.toVersion
+    state.commandPreview = snapshot.adapterPlan.commandPreview
     state.permissionEnvelope = snapshot.summary.permissionEnvelope
     state.approvalRequired = snapshot.summary.approvalRequired
     state.executionAllowed = snapshot.summary.executionAllowed
@@ -143,8 +170,11 @@ composition "HoloShell Package Custody" {
       package_id: state.packageId,
       package_name: state.packageName,
       manager: state.manager,
+      adapter_id: state.adapterId,
+      dry_run_plan_ready: state.dryRunPlanReady,
       from_version: state.fromVersion,
       to_version: state.toVersion,
+      command_preview: state.commandPreview,
       permission_envelope: state.permissionEnvelope,
       approval_required: state.approvalRequired,
       execution_allowed: state.executionAllowed,

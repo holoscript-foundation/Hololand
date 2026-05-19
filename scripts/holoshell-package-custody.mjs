@@ -13,6 +13,7 @@ const DEFAULT_TMP = path.join('.tmp', 'holoshell');
 const DEFAULT_OUTPUT = path.join(DEFAULT_TMP, 'package-custody-latest.json');
 const DEFAULT_JS_OUTPUT = path.join(DEFAULT_TMP, 'package-custody-latest.js');
 const DEFAULT_RECEIPT_DIR = path.join(DEFAULT_TMP, 'package-custody-receipts');
+const DRY_RUN_PACKAGE_MANAGERS = ['winget', 'pnpm', 'npm', 'msi', 'exe'];
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
@@ -80,6 +81,9 @@ function parseArgs(argv = process.argv.slice(2)) {
 
   if (args.selfTest || args.fromWingetBlenderFixture) applyBlenderFixture(args);
   if (!Number.isFinite(args.ttlMinutes) || args.ttlMinutes < 1) args.ttlMinutes = 10;
+  args.manager = normalizePackageManager(args.manager);
+  if (!args.source || args.source === 'unknown') args.source = defaultSourceForManager(args.manager);
+  if (!args.packageName && args.packageId !== 'unknown') args.packageName = args.packageId;
   return args;
 }
 
@@ -173,7 +177,32 @@ function shortHash(value, length = 12) {
   return hashValue(value).slice(0, length);
 }
 
-function packageManagerAvailable(manager) {
+function normalizePackageManager(manager) {
+  const raw = String(manager || 'unknown').trim().toLowerCase();
+  if (raw === 'windows-installer') return 'msi';
+  if (raw === 'executable' || raw === 'installer-exe') return 'exe';
+  return raw || 'unknown';
+}
+
+function defaultSourceForManager(manager) {
+  if (manager === 'winget') return 'winget';
+  if (manager === 'npm' || manager === 'pnpm') return 'npm_registry';
+  if (manager === 'msi' || manager === 'exe') return 'local_installer';
+  return 'unknown';
+}
+
+function shellQuote(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^[A-Za-z0-9@/_:.,+=~^-]+$/.test(text)) return text;
+  return JSON.stringify(text);
+}
+
+function packageManagerAvailable(args) {
+  const manager = normalizePackageManager(args.manager);
+  if (manager === 'msi' || manager === 'exe') {
+    return Boolean(args.installerHash || args.installerUrl || (args.packageId && args.packageId !== 'unknown'));
+  }
   if (manager === 'unknown') return false;
   const probe = process.platform === 'win32' ? 'where.exe' : 'which';
   try {
@@ -221,14 +250,126 @@ function mutationStatus(kind) {
 }
 
 function commandPreview(args) {
-  if (args.manager === 'winget') {
-    const idArg = args.packageId && args.packageId !== 'unknown' ? ` --id ${args.packageId}` : '';
+  const manager = normalizePackageManager(args.manager);
+  const packageId = shellQuote(args.packageId && args.packageId !== 'unknown' ? args.packageId : args.packageName);
+  if (manager === 'winget') {
+    const idArg = args.packageId && args.packageId !== 'unknown' ? ` --id ${packageId}` : '';
     if (args.mutation === 'install') return `winget install${idArg} --accept-source-agreements`;
     if (args.mutation === 'upgrade') return `winget upgrade${idArg} --accept-source-agreements`;
     if (args.mutation === 'uninstall') return `winget uninstall${idArg}`;
     return `winget list${idArg}`;
   }
-  return `${args.manager} ${args.mutation} ${args.packageId}`.trim();
+  if (manager === 'pnpm') {
+    if (args.mutation === 'install') return `pnpm add ${packageId}`.trim();
+    if (args.mutation === 'upgrade') return `pnpm update ${packageId} --latest`.trim();
+    if (args.mutation === 'uninstall') return `pnpm remove ${packageId}`.trim();
+    return `pnpm view ${packageId} version`.trim();
+  }
+  if (manager === 'npm') {
+    if (args.mutation === 'install') return `npm install ${packageId}`.trim();
+    if (args.mutation === 'upgrade') return `npm update ${packageId}`.trim();
+    if (args.mutation === 'uninstall') return `npm uninstall ${packageId}`.trim();
+    return `npm view ${packageId} version`.trim();
+  }
+  if (manager === 'msi') {
+    const installer = args.installerUrl ? '<msi-installer-from-source>' : '<local-msi-installer>';
+    if (args.mutation === 'uninstall') return `msiexec /x ${packageId || '<product-code>'}`;
+    return `msiexec /i ${installer}`;
+  }
+  if (manager === 'exe') {
+    const installer = args.installerUrl ? '<exe-installer-from-source>' : '<local-exe-installer>';
+    if (args.mutation === 'uninstall') return `${installer} /uninstall`;
+    return `${installer} /install`;
+  }
+  return `${manager} ${args.mutation} ${args.packageId}`.trim();
+}
+
+function rollbackLimitsFor(args) {
+  const manager = normalizePackageManager(args.manager);
+  const common = [
+    'Admin/UAC prompts are human gestures and cannot be replayed silently.',
+    'HoloShell must verify launch/version after mutation before declaring the tool ready.',
+  ];
+  if (manager === 'winget') {
+    return [
+      'winget rollback depends on publisher/source support and usually requires a separate exact-version install plan.',
+      ...common,
+    ];
+  }
+  if (manager === 'pnpm' || manager === 'npm') {
+    return [
+      `${manager} rollback requires the previous package spec and lockfile/package manifest diff to remain available.`,
+      'Lifecycle scripts may run during real mutation and must stay behind the native approval gate.',
+      ...common,
+    ];
+  }
+  if (manager === 'msi') {
+    return [
+      'MSI rollback depends on product code, cached installer availability, and Windows Installer repair/uninstall state.',
+      ...common,
+    ];
+  }
+  if (manager === 'exe') {
+    return [
+      'EXE installer rollback is vendor-specific; silent uninstall switches may be absent or unsafe.',
+      ...common,
+    ];
+  }
+  return [
+    'Package manager rollback behavior is provider-specific and may require a separate downgrade/install plan.',
+    ...common,
+  ];
+}
+
+function buildDryRunAdapterPlan(args, preflight) {
+  const manager = normalizePackageManager(args.manager);
+  const supported = DRY_RUN_PACKAGE_MANAGERS.includes(manager);
+  const command = commandPreview({ ...args, manager });
+  const packageIdentity = args.packageId || args.packageName || 'unknown';
+  const networkRequired = manager === 'winget' || manager === 'pnpm' || manager === 'npm' || Boolean(args.installerUrl);
+  const adapterId = supported ? `${manager}_dry_run_package_plan` : 'generic_dry_run_package_plan';
+  return {
+    schemaVersion: 'hololand.holoshell.package-manager-dry-run-plan.v0.1.0',
+    adapterId,
+    supported,
+    dryRun: true,
+    manager,
+    mutationKind: args.mutation,
+    packageId: packageIdentity,
+    packageName: args.packageName || packageIdentity,
+    source: args.source,
+    publisher: args.publisher || undefined,
+    fromVersion: args.currentVersion,
+    toVersion: args.availableVersion,
+    commandPreview: command,
+    rollbackLimits: rollbackLimitsFor({ ...args, manager }),
+    preflight: {
+      packageManager: {
+        available: preflight.packageManagerAvailable,
+        probe: manager === 'msi' || manager === 'exe'
+          ? 'installer artifact metadata'
+          : `${process.platform === 'win32' ? 'where.exe' : 'which'} ${manager}`,
+      },
+      network: {
+        required: networkRequired,
+        status: preflight.networkStatus,
+      },
+      admin: {
+        required: preflight.adminRequired,
+        session: preflight.adminSession,
+        boundary: preflight.adminRequired ? 'requires_user_uac_boundary' : 'not_required_for_plan',
+      },
+      process: {
+        conflictStatus: preflight.processConflictStatus,
+      },
+    },
+    execution: {
+      allowed: false,
+      performed: false,
+      mode: 'dry_run_plan_only',
+      blockedReason: 'Package manager adapters only emit approval receipts; they never execute install, upgrade, or uninstall.',
+    },
+  };
 }
 
 async function validatorForReceipt() {
@@ -278,7 +419,16 @@ async function buildReceipt(args) {
   const packageIdentity = args.packageId || args.packageName || 'unknown';
   const approvalId = `pkg-${Date.now().toString(36)}-${shortHash(packageIdentity, 10)}`;
   const permissionEnvelope = mutation ? 'break_glass' : 'read_only';
-  const command = commandPreview(args);
+  const preflight = {
+    adminRequired: Boolean(args.adminRequired),
+    adminSession: isAdminSession(),
+    diskStatus: args.diskStatus,
+    networkStatus: networkStatus(args),
+    processConflictStatus: processConflictStatus(args),
+    packageManagerAvailable: packageManagerAvailable(args),
+  };
+  const adapterPlan = buildDryRunAdapterPlan(args, preflight);
+  const command = adapterPlan.commandPreview;
   const candidate = {
     packageId: packageIdentity,
     packageName: args.packageName || packageIdentity,
@@ -302,27 +452,15 @@ async function buildReceipt(args) {
     status: mutationStatus(args.mutation),
     permissionEnvelope,
     candidate,
-    preflight: {
-      adminRequired: Boolean(args.adminRequired),
-      adminSession: isAdminSession(),
-      diskStatus: args.diskStatus,
-      networkStatus: networkStatus(args),
-      processConflictStatus: processConflictStatus(args),
-      packageManagerAvailable: packageManagerAvailable(args.manager),
-    },
+    preflight,
+    adapterPlan,
     approval: {
       approvalId,
       approvalRequired: mutation,
       approvalCaptured: false,
       requiresFreshUserGesture: mutation,
       approvedCommandPreview: mutation ? command : '',
-      rollbackLimits: mutation
-        ? [
-          'Package manager rollback behavior is provider-specific and may require a separate downgrade/install plan.',
-          'Admin/UAC prompts are human gestures and cannot be replayed silently.',
-          'HoloShell must verify launch/version after mutation before declaring the tool ready.',
-        ]
-        : ['No package mutation is planned.'],
+      rollbackLimits: mutation ? adapterPlan.rollbackLimits : ['No package mutation is planned.'],
       expiresAt,
     },
     verification: {
@@ -340,7 +478,7 @@ async function buildReceipt(args) {
       source: 'apps/holoshell/source/holoshell-package-custody.hsplus',
       adapter: 'scripts/holoshell-package-custody.mjs',
       upstreamValidator: 'packages/framework/src/board/holoshell-package-mutation-receipt.ts',
-      priorEvidence: '.bench-logs/holoshell-human-os-frontier/2026-05-17/install-update-tool-evidence-pack.md',
+      priorEvidence: '.bench-logs/holoshell-human-os-frontier/2026-05-19/install-update-safe-wrapper-evidence-pack.md',
     },
     summary: {
       status: mutationStatus(args.mutation),
@@ -366,7 +504,10 @@ async function buildReceipt(args) {
       jsPath: publicPath(args.jsOutput),
       receiptDir: publicPath(args.receiptDir),
     },
-    verificationCommands: ['node scripts/holoshell-package-custody.mjs --self-test'],
+    verificationCommands: [
+      'node scripts/holoshell-package-custody.mjs --self-test',
+      'node scripts/__tests__/holoshell-package-custody-adapters.test.mjs',
+    ],
     provenance: [
       'experiments/holoshell-human-os-frontier/install-update-tool-policy.hsplus',
       'experiments/holoshell-human-os-frontier/install-update-tool-pipeline.hs',
@@ -376,6 +517,7 @@ async function buildReceipt(args) {
       wrapperMode: 'approval_packet_only',
       liveMutationExecutionSupported: false,
       commandPreview: command,
+      dryRunAdapterId: adapterPlan.adapterId,
       host: { platform: os.platform(), release: os.release(), hostname: os.hostname() },
     },
   };

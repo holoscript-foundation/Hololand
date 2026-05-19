@@ -169,10 +169,22 @@ Stage a package update approval packet without touching the machine:
 node scripts\holoshell-package-custody.mjs --from-winget-blender-fixture
 ```
 
+Dry-run package-manager adapters normalize the command preview and preflight
+shape for `winget`, `pnpm`, `npm`, MSI, and EXE installers. They emit
+`adapterPlan` inside the package mutation receipt and do not run package manager
+mutations:
+
+```powershell
+node scripts\holoshell-package-custody.mjs --manager pnpm --mutation upgrade --package-id typescript --source npm_registry --current-version 5.8.0 --available-version 5.9.3 --json
+node scripts\holoshell-package-custody.mjs --manager msi --mutation install --package-id Vendor.Tool --source local_installer --installer-hash fixture-msi-sha256 --json
+```
+
 The package custody bridge intentionally does not execute `winget install`,
-`winget upgrade`, or uninstall commands. It records the exact package/source and
-rollback limits so HoloShell can render a stable approval object instead of
-letting an agent mutate the machine from an ambient shell command.
+`winget upgrade`, `pnpm update`, `npm install`, MSI/EXE installer commands, or
+uninstall commands. It records the exact package/source, command preview,
+network/admin/process preflight, and rollback limits so HoloShell can render a
+stable approval object instead of letting an agent mutate the machine from an
+ambient shell command.
 
 Create a nonce-bound approval packet for the latest guarded action:
 
