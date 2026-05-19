@@ -1,0 +1,324 @@
+/**
+ * HoloShell Robot-Avatar Mirror Handoff Room
+ *
+ * Product surface for: "A robot arm hands a payload to an avatar hand,
+ * mirroring live force/servo receipts into avatar IK targets, with
+ * payload transfer gated on fresh receipts."
+ *
+ * Origin: format-stress/2026-05-19_codex-format-realism-ratchet/novel/
+ * robot-avatar-mirror-handoff.{holo,hsplus,hs}
+ *
+ * The room connects:
+ *   - HoloShell robotics adapter (force-torque sensor, servo receipt stream)
+ *   - HoloLand avatar runtime (IK solver, skinned mesh targets)
+ *   - HoloScript world model (payload ownership, transfer gating)
+ *
+ * Transfer is blocked until both the robot receipt is fresh (<80ms age)
+ * and the avatar IK is locked to the mirrored pose. Blocked transfers
+ * produce a replayable explanation, not a silent failure.
+ */
+
+composition "HoloShell Robot Avatar Mirror Handoff Room" {
+  metadata {
+    title: "Robot-Avatar Mirror Handoff"
+    productSurface: "HoloShell"
+    upstreamContract: "@holoscript/framework board/holoshell-robot-avatar-mirror-receipts"
+    policySource: "apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-policy.hsplus"
+    pipelineSource: "apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-pipeline.hs"
+    formatStressOrigin: ".bench-logs/format-stress/2026-05-19_codex-format-realism-ratchet/novel/robot-avatar-mirror-handoff.holo"
+    defaultExecution: "preview_only"
+    wotExposed: true
+    wotThingId: "urn:holoscript:holoshell:robot-avatar-mirror-handoff"
+  }
+
+  environment {
+    backgroundColor: "#0f1720"
+    ambient_light: 0.48
+    shadows: true
+    physics: true
+  }
+
+  template "MirrorPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.52, 0.56, 0.06]
+    material: {
+      color: "#0f1e30"
+      emissive: "#102840"
+      emissiveIntensity: 0.22
+      transparent: true
+      opacity: 0.94
+    }
+  }
+
+  template "RobotJoint" {
+    @collidable
+    @physics { mass: 2.4, friction: 0.42, restitution: 0.05 }
+    geometry: "capsule"
+    material: { color: "#8fb3ff", roughness: 0.38, metallic: 0.24 }
+  }
+
+  template "AvatarLimb" {
+    @animated
+    @collidable
+    geometry: "skinned_mesh"
+    material: { color: "#b5f3d1", roughness: 0.34, metallic: 0.08 }
+  }
+
+  template "SharedPayload" {
+    @grabbable
+    @throwable { trajectory_preview: true, spin_enabled: false, max_velocity: 4.5 }
+    @physics { mass: 1.1, friction: 0.58, restitution: 0.12 }
+    geometry: "cube"
+    material: { color: "#f4c66a", roughness: 0.64, metallic: 0.12 }
+  }
+
+  template "ForceTorqueSensor" {
+    @wot_thing
+    geometry: "cube"
+    material: { color: "#93c5fd", roughness: 0.26, metallic: 0.14, emissive: "#0f355c", emissiveIntensity: 0.3 }
+  }
+
+  template "MirrorReceiptToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#7aa2f7" }
+  }
+
+  // ── Robot side ──────────────────────────────────────────────────────────
+
+  object "RobotBase" using "RobotJoint" {
+    position: [-1.8, 0.55, 0]
+    scale: [0.34, 0.72, 0.34]
+    label: "industrial robot base with servo receipt stream"
+    properties: {
+      jointType: "base"
+      receiptKind: "RobotServoReceipt"
+      receiptFreshMs: 80
+    }
+  }
+
+  object "RobotUpperArm" using "RobotJoint" {
+    position: [-1.38, 1.18, 0]
+    rotation: [0, 0, -36]
+    scale: [0.16, 0.78, 0.16]
+    label: "robot mirrored upper arm segment"
+    properties: {
+      jointType: "upper_arm"
+      mirrorTarget: "AvatarArm"
+      receiptKind: "RobotServoReceipt"
+    }
+  }
+
+  object "RobotForearm" using "RobotJoint" {
+    position: [-0.82, 1.34, 0.04]
+    rotation: [0, 0, 62]
+    scale: [0.14, 0.66, 0.14]
+    label: "robot forearm reaches avatar handoff lane"
+    properties: {
+      jointType: "forearm"
+      mirrorTarget: "AvatarArm"
+      receiptKind: "RobotServoReceipt"
+    }
+  }
+
+  object "RobotGripper" {
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    position: [-0.42, 1.36, 0.06]
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#dbeafe", roughness: 0.32, metallic: 0.18 }
+    label: "robot gripper constraint endpoint"
+    properties: {
+      jointType: "gripper"
+      payloadOwner: "robot"
+      transferEnabled: false
+    }
+  }
+
+  // ── Force-torque sensor (WoT exposed) ────────────────────────────────────
+
+  object "ForceTorqueSensor" using "ForceTorqueSensor" {
+    position: [-1.06, 2.18, -0.88]
+    scale: [0.48, 0.28, 0.08]
+    label: "force-torque sensor drives avatar mirror risk"
+    properties: {
+      thingId: "urn:holoscript:holoshell:robot-force-torque"
+      base: "wot://robot-arm/force-torque"
+      observedProperty: "handoff_force_n"
+      action: "streamRobotReceipts"
+      receiptFreshMs: 80
+      freshnessRequired: true
+    }
+  }
+
+  // ── Avatar side ──────────────────────────────────────────────────────────
+
+  object "AvatarTorso" using "AvatarLimb" {
+    position: [1.35, 1.12, 0]
+    scale: [0.36, 0.72, 0.22]
+    label: "avatar torso mirrors robot motion"
+    properties: {
+      ikTarget: "mirror_robot_pose"
+      receiptKind: "AvatarIkReceipt"
+    }
+  }
+
+  object "AvatarArm" using "AvatarLimb" {
+    position: [0.74, 1.34, 0.04]
+    rotation: [0, 0, -58]
+    scale: [0.12, 0.68, 0.12]
+    label: "avatar arm IK receives mirrored payload"
+    properties: {
+      ikTarget: "mirror_robot_forearm"
+      ikLocked: false
+      receiptKind: "AvatarIkReceipt"
+    }
+  }
+
+  object "AvatarHand" {
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    position: [0.34, 1.34, 0.06]
+    scale: [0.13, 0.13, 0.13]
+    material: { color: "#9df2b8", roughness: 0.28, metallic: 0.04 }
+    label: "avatar hand target for robot payload"
+    properties: {
+      ikTarget: "mirror_robot_gripper"
+      payloadOwner: "avatar"
+    }
+  }
+
+  // ── Shared payload ──────────────────────────────────────────────────────
+
+  object "Payload" using "SharedPayload" {
+    position: [-0.04, 1.36, 0.06]
+    scale: [0.22, 0.18, 0.16]
+    label: "payload between robot gripper and avatar hand"
+    properties: {
+      owner: "robot"
+      transferPhase: "grip"
+    }
+  }
+
+  // ── Mirror trace ─────────────────────────────────────────────────────────
+
+  object "MirrorTrace" {
+    geometry: "cylinder"
+    position: [0, 1.72, 0.05]
+    rotation: [0, 0, 90]
+    scale: [0.016, 2.15, 0.016]
+    material: { color: "#64d2ff", emissive: "#64d2ff", emissiveIntensity: 0.42, transparent: true, opacity: 0.76 }
+    label: "robot-to-avatar mirrored pose trace"
+    properties: {
+      traceSource: "RobotForearm"
+      traceTarget: "AvatarArm"
+    }
+  }
+
+  // ── Handoff panels ──────────────────────────────────────────────────────
+
+  object "ReceiptFreshnessPanel" using "MirrorPanel" {
+    position: [-3.4, 1.7, -0.9]
+    label: "Robot receipt freshness"
+    properties: {
+      receiptKind: "RobotServoReceipt"
+      freshnessMs: 80
+      staleThreshold: "receipt age > 80ms blocks transfer"
+      wotAction: "streamRobotReceipts"
+    }
+  }
+
+  object "IkMirrorPanel" using "MirrorPanel" {
+    position: [-1.1, 1.7, -0.9]
+    label: "Avatar IK mirror"
+    properties: {
+      receiptKind: "AvatarIkReceipt"
+      mirrorSource: "RobotUpperArm, RobotForearm, RobotGripper"
+      mirrorTarget: "AvatarArm, AvatarHand"
+      ikLocked: false
+      requirement: "IK must be locked before transfer is enabled"
+    }
+  }
+
+  object "TransferGatePanel" using "MirrorPanel" {
+    position: [1.1, 1.7, -0.9]
+    label: "Payload transfer gate"
+    properties: {
+      transferEnabled: false
+      requirement: "fresh robot receipt AND locked avatar IK"
+      blockedReason: "missing fresh robot receipt or avatar IK lock"
+      severityOnBlock: "P2"
+    }
+  }
+
+  object "BlockedExplanationPanel" using "MirrorPanel" {
+    position: [3.4, 1.7, -0.9]
+    label: "Blocked transfer explanation"
+    properties: {
+      replayable: true
+      explanation: "Transfer was blocked because the robot receipt was stale or the avatar IK had not locked to the mirrored pose."
+      receiptKind: "MirrorHandoffBlockedReceipt"
+    }
+  }
+
+  // ── Tokens ───────────────────────────────────────────────────────────────
+
+  object "ReceiptFreshToken" using "MirrorReceiptToken" {
+    position: [-2.2, 0.9, 0.1]
+    label: "receipt freshness < 80ms"
+    properties: {
+      receiptKind: "RobotServoReceipt"
+      freshnessMs: 80
+      stale: "blocked"
+    }
+  }
+
+  object "IkLockToken" using "MirrorReceiptToken" {
+    position: [0, 0.9, 0.1]
+    material: { color: "#9ece6a" }
+    label: "avatar IK locked to mirror"
+    properties: {
+      receiptKind: "AvatarIkReceipt"
+      locked: true
+    }
+  }
+
+  object "TransferEnabledToken" using "MirrorReceiptToken" {
+    position: [2.2, 0.9, 0.1]
+    material: { color: "#e0af68" }
+    label: "transfer enabled when both fresh"
+    properties: {
+      transferPhase: "enabled"
+      requires: "fresh receipt + locked IK"
+    }
+  }
+
+  object "BlockedReplayToken" using "MirrorReceiptToken" {
+    position: [0, 0.9, 1.0]
+    material: { color: "#f7768e" }
+    label: "blocked transfer is replayable"
+    properties: {
+      replayable: true
+      severity: "P2"
+      explanationKind: "stale_receipt_or_unsolved_ik"
+    }
+  }
+
+  // ── Timeline ─────────────────────────────────────────────────────────────
+
+  object "MirrorHandoffTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.4, 0.06, 0.12]
+    color: "#565f89"
+    label: "timeline: ingest receipt -> mirror pose -> lock IK -> gate transfer -> transfer or block + replay"
+  }
+}

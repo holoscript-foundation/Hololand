@@ -1,0 +1,164 @@
+// HoloShell Robot-Avatar Mirror Handoff Policy
+//
+// Policy for mirroring live robot force/servo receipts into avatar IK
+// targets and gating payload transfer on receipt freshness.
+//
+// Origin: format-stress/2026-05-19_codex-format-realism-ratchet/novel/
+// robot-avatar-mirror-handoff.{holo,hsplus,hs}
+//
+// The three-phase handoff:
+//   1. Robot receipt ingestion (force-torque, servo angles)
+//   2. Avatar IK mirror solve (locked to mirrored pose)
+//   3. Payload transfer gate (enabled only when both fresh receipt and locked IK)
+//
+// Blocked transfers produce a replayable explanation, not a silent failure.
+// The severity on block is P2 (not a crash, but a handoff miss requiring
+// re-receipt or re-solve).
+
+composition "HoloShellRobotAvatarMirrorHandoffPolicy" {
+  config {
+    title: "HoloShell Robot-Avatar Mirror Handoff Policy"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    formatStressOrigin: ".bench-logs/format-stress/2026-05-19_codex-format-realism-ratchet/novel/robot-avatar-mirror-handoff.hsplus"
+    roomSource: "apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-room.holo"
+    pipelineSource: "apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-pipeline.hs"
+    wotThingId: "urn:holoscript:holoshell:robot-avatar-mirror-handoff"
+    receiptFreshnessMs: 80
+    defaultExecution: "preview_only"
+  }
+
+  state MirrorHandoffState {
+    phase: "mirror"
+    robotReceiptFresh: false
+    avatarIkLocked: false
+    payloadOwner: "robot"
+    transferEnabled: false
+    severeGapCount: 0
+    lastForceN: 0
+    lastReceiptAgeMs: 0
+    ikTargetPose: ""
+    mirrorReceiptCount: 0
+    blockedTransferCount: 0
+    successfulTransferCount: 0
+  }
+
+  template "RobotServoReceipt" {
+    receiptType: "robot_servo_receipt"
+    sourceModule: "@holoscript/core/robot/RobotServoAdapter"
+    forceNRequired: true
+    servoAngleRequired: true
+    receiptAgeMs: 0
+    freshThresholdMs: 80
+    receiptRequired: true
+  }
+
+  template "AvatarIkReceipt" {
+    receiptType: "avatar_ik_receipt"
+    sourceModule: "@holoscript/framework/avatar/AvatarIkSolver"
+    targetPoseRequired: true
+    ikLocked: false
+    receiptRequired: true
+  }
+
+  template "MirrorHandoffBlockedReceipt" {
+    receiptType: "mirror_handoff_blocked_receipt"
+    sourceModule: "@holoscript/framework/handoff/MirrorHandoffGate"
+    severity: "P2"
+    reason: ""
+    replayable: true
+    receiptRequired: true
+  }
+
+  template "PayloadTransferReceipt" {
+    receiptType: "payload_transfer_receipt"
+    sourceModule: "@holoscript/framework/handoff/PayloadTransferGate"
+    fromOwner: "robot"
+    toOwner: "avatar"
+    object: "Payload"
+    receiptRequired: true
+  }
+
+  // ── Policies ────────────────────────────────────────────────────────────
+
+  policy "FreshReceiptRequired" {
+    appliesTo: ["transfer_payload", "enable_transfer"]
+    receiptAgeMaxMs: 80
+    staleBlocksTransfer: true
+    receiptRequired: true
+  }
+
+  policy "IkLockedBeforeTransfer" {
+    appliesTo: ["transfer_payload", "enable_transfer"]
+    ikMustBeLocked: true
+    unlockedBlocksTransfer: true
+    receiptRequired: true
+  }
+
+  policy "BlockedTransfersAreReplayable" {
+    appliesTo: ["transfer_blocked"]
+    severity: "P2"
+    replayable: true
+    explanationRequired: true
+    receiptRequired: true
+  }
+
+  // ── Actions ─────────────────────────────────────────────────────────────
+
+  action ingestRobotReceipt(forceN, ageMs) {
+    MirrorHandoffState.lastForceN = forceN
+    MirrorHandoffState.lastReceiptAgeMs = ageMs
+    MirrorHandoffState.robotReceiptFresh = ageMs < 80
+    MirrorHandoffState.mirrorReceiptCount = MirrorHandoffState.mirrorReceiptCount + 1
+    emit("holoshell:robot_avatar:force_receipt", {
+      forceN: forceN,
+      ageMs: ageMs,
+      fresh: MirrorHandoffState.robotReceiptFresh,
+      phase: MirrorHandoffState.phase
+    })
+  }
+
+  action solveAvatarMirrorPose(targetPose) {
+    MirrorHandoffState.phase = "solve_avatar_ik"
+    MirrorHandoffState.avatarIkLocked = true
+    MirrorHandoffState.ikTargetPose = targetPose
+    emit("holoshell:robot_avatar:ik_locked", {
+      targetPose: targetPose,
+      owner: "avatar",
+      ikLocked: MirrorHandoffState.avatarIkLocked
+    })
+  }
+
+  action gateTransfer() {
+    MirrorHandoffState.transferEnabled = MirrorHandoffState.robotReceiptFresh && MirrorHandoffState.avatarIkLocked
+    emit("holoshell:robot_avatar:transfer_gate", {
+      enabled: MirrorHandoffState.transferEnabled,
+      receiptFresh: MirrorHandoffState.robotReceiptFresh,
+      ikLocked: MirrorHandoffState.avatarIkLocked
+    })
+  }
+
+  action transferPayload() {
+    if (MirrorHandoffState.transferEnabled) {
+      MirrorHandoffState.payloadOwner = "avatar"
+      MirrorHandoffState.phase = "transferred"
+      MirrorHandoffState.successfulTransferCount = MirrorHandoffState.successfulTransferCount + 1
+      emit("holoshell:robot_avatar:payload_transferred", {
+        from: "robot",
+        to: "avatar",
+        object: "Payload",
+        phase: MirrorHandoffState.phase
+      })
+    } else {
+      MirrorHandoffState.severeGapCount = MirrorHandoffState.severeGapCount + 1
+      MirrorHandoffState.blockedTransferCount = MirrorHandoffState.blockedTransferCount + 1
+      emit("holoshell:robot_avatar:transfer_blocked", {
+        severity: "P2",
+        reason: "missing fresh robot receipt or avatar IK lock",
+        receiptFresh: MirrorHandoffState.robotReceiptFresh,
+        ikLocked: MirrorHandoffState.avatarIkLocked,
+        replayable: true
+      })
+    }
+  }
+}

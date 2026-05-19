@@ -47,6 +47,13 @@ so agents and product surfaces do not have to rediscover the shape of
 | Network change sentinel | `apps/holoshell/source/holoshell-network-change-sentinel.hsplus` |
 | Network sentinel service | `apps/holoshell/source/holoshell-network-sentinel-service.hsplus` |
 | Package custody | `apps/holoshell/source/holoshell-package-custody.hsplus` |
+| Device safety lab | `apps/holoshell/source/holoshell-device-safety-lab.holo` |
+| Device safety lab policy | `apps/holoshell/source/holoshell-device-safety-lab-policy.hsplus` |
+| Device safety policy | `apps/holoshell/source/holoshell-device-safety-policy.hsplus` |
+| Device safety pipeline | `apps/holoshell/source/holoshell-device-safety-pipeline.hs` |
+| Robot-avatar mirror handoff room | `apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-room.holo` |
+| Robot-avatar mirror handoff policy | `apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-policy.hsplus` |
+| Robot-avatar mirror handoff pipeline | `apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-pipeline.hs` |
 
 ## Brittney And Agents
 
