@@ -98,6 +98,9 @@ so agents and product surfaces do not have to rediscover the shape of
 | Provider export repair room | `apps/holoshell/source/holoshell-provider-export-repair-room.holo` |
 | Provider export repair policy | `apps/holoshell/source/holoshell-provider-export-repair-policy.hsplus` |
 | Provider export repair pipeline | `apps/holoshell/source/holoshell-provider-export-repair-pipeline.hs` |
+| Downloads import shelf room | `apps/holoshell/source/holoshell-downloads-import-shelf-room.holo` |
+| Downloads import shelf policy | `apps/holoshell/source/holoshell-downloads-import-shelf-policy.hsplus` |
+| Downloads import shelf pipeline | `apps/holoshell/source/holoshell-downloads-import-shelf-pipeline.hs` |
 | Operating turn | `apps/holoshell/source/holoshell-operating-turn.hsplus` |
 | Operator brief | `apps/holoshell/source/holoshell-operator-brief.hsplus` |
 

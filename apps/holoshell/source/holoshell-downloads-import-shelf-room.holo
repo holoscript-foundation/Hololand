@@ -1,0 +1,135 @@
+/**
+ * HoloShell Downloads Import Shelf
+ *
+ * Visible HoloShell room for:
+ * "Clean up my Downloads folder, understand what is safe to keep/import/delete,
+ * and turn useful files into HoloLand objects without leaking private paths."
+ */
+
+composition "HoloShell Downloads Import Shelf" {
+  environment {
+    backgroundColor: "#101417"
+    ambient_light: 0.62
+    shadows: true
+  }
+
+  template "ShelfPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.48, 0.58, 0.08]
+    material: {
+      color: "#17232a"
+      emissive: "#24363f"
+      emissiveIntensity: 0.18
+      transparent: true
+      opacity: 0.96
+    }
+  }
+
+  template "FileToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "cube"
+    scale: [0.18, 0.18, 0.18]
+    material: { color: "#82aaff" }
+  }
+
+  object "HumanJob" using "ShelfPanel" {
+    position: [0, 2.45, -2.8]
+    label: "Turn Downloads chaos into a trusted import shelf"
+    properties: {
+      plainLanguageJob: "scan local downloads, group files by meaning and risk, preview useful files, quarantine archives and installers, approve deletion only with receipts, and import safe redacted objects into HoloLand"
+      hiddenMachinery: ["filesystem", "download state", "browser partial files", "archive scanners", "hashing", "MIME sniffing", "thumbnail generation", "delete permissions", "HoloLand import adapters"]
+      substrateBoundary: "HoloScript owns generic file custody, validators, receipts, policy, replay, and adapters; HoloLand owns the shelf, NPC guidance, and creator import loop"
+    }
+  }
+
+  object "DownloadStack" using "ShelfPanel" {
+    position: [-4.4, 1.55, -1.18]
+    label: "Download stack"
+    properties: {
+      reads: ["Downloads folder", "Desktop drop zone", "browser partial downloads", "recent cloud sync exports"]
+      visibleControls: ["scan", "pause", "private path badge", "hash progress"]
+      failureStates: ["folder unavailable", "permission denied", "partial download still changing", "path outside approved roots"]
+    }
+  }
+
+  object "RiskSorter" using "ShelfPanel" {
+    position: [-2.2, 1.55, -1.18]
+    label: "Risk sorter"
+    properties: {
+      lanes: ["safe preview", "archive quarantine", "installer blocked", "duplicate candidate", "unknown type", "private document"]
+      blockedByDefault: ["execute", "auto unzip", "upload", "delete"]
+      receipts: ["file inventory", "mime scan", "executable block", "secret-like filename warning"]
+    }
+  }
+
+  object "PreviewWorkbench" using "ShelfPanel" {
+    position: [0, 1.55, -1.18]
+    label: "Preview workbench"
+    properties: {
+      adapters: ["image thumbnail", "PDF page count", "archive manifest", "model preview", "spreadsheet sheet names", "text summary"]
+      privacyRule: "previews show redacted names, hashes, and safe metadata; raw private content stays local"
+      importMode: "preview_only"
+    }
+  }
+
+  object "DecisionShelf" using "ShelfPanel" {
+    position: [2.2, 1.55, -1.18]
+    label: "Keep, import, delete"
+    properties: {
+      keep: "leave in place and mark as known"
+      import: "copy or transform into HoloLand object after approval"
+      delete: "fresh gesture plus rollback/deletion receipt"
+      replayKey: "root hash + file hashes + policy version + selected action set"
+    }
+  }
+
+  object "HoloLandShelf" using "ShelfPanel" {
+    position: [4.4, 1.55, -1.18]
+    label: "HoloLand shelf"
+    properties: {
+      adoption: ["creator import shelf", "world object tray", "NPC cleanup quest", "Twin Earth personal inventory"]
+      worldObjects: ["receipt plaques", "file proxy cubes", "archive crates", "installer hazard locks", "duplicate stacks"]
+      publishRule: "public worlds receive only redacted file proxies unless the human promotes content intentionally"
+    }
+  }
+
+  object "HashToken" using "FileToken" {
+    position: [-3.45, 0.78, 0.12]
+    label: "hash inventory"
+    properties: { receiptKind: "downloads_inventory_receipt" }
+  }
+
+  object "QuarantineToken" using "FileToken" {
+    position: [-1.18, 0.78, 0.12]
+    material: { color: "#e0af68" }
+    label: "installer blocked"
+    properties: { executeAllowed: false }
+  }
+
+  object "PreviewToken" using "FileToken" {
+    position: [1.18, 0.78, 0.12]
+    material: { color: "#9ece6a" }
+    label: "preview only"
+    properties: { rawPrivateDataPublished: false }
+  }
+
+  object "DeleteToken" using "FileToken" {
+    position: [3.45, 0.78, 0.12]
+    material: { color: "#f7768e" }
+    label: "delete locked"
+    properties: { requiresFreshUserGesture: true }
+  }
+
+  object "DownloadsTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.8, 0.08, 0.14]
+    color: "#61727c"
+    label: "timeline: scan -> classify -> hash -> quarantine -> preview -> decide -> import/delete -> receipt -> replay"
+  }
+}

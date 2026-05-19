@@ -1,0 +1,181 @@
+// HoloShell Downloads Import Shelf policy and state machine.
+
+composition "HoloShellDownloadsImportShelfPolicy" {
+  state DownloadsImportShelfState {
+    selectedWorkflow: "downloads-import-shelf"
+    approvedRoots: ["Downloads", "Desktop drop zone"]
+    inventoryCount: 0
+    safePreviewCount: 0
+    archiveQuarantineCount: 0
+    installerBlockedCount: 0
+    duplicateCandidateCount: 0
+    privateDocumentCount: 0
+    selectedActionSetHash: ""
+    rawPrivateDataPublished: false
+    executableLaunched: false
+    sourceFilesMutated: false
+    deletionPerformed: false
+    blockers: []
+    taskSeeds: []
+  }
+
+  template "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    freshUserGesture: false
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  template "DownloadsInventoryReceipt" {
+    receiptType: "downloads_inventory_receipt"
+    approvedRootRequired: true
+    privateAbsolutePathStoredLocallyOnly: true
+    publicReceiptMayContainAbsolutePath: false
+    hashesRequired: true
+    partialDownloadDetectionRequired: true
+  }
+
+  template "DownloadsDecisionReceipt" {
+    receiptType: "downloads_decision_receipt"
+    selectedActionSetHashRequired: true
+    deleteRequiresFreshUserGesture: true
+    importRequiresPreviewReceipt: true
+    executableLaunchAllowed: false
+    rawPrivateDataPublishAllowed: false
+  }
+
+  policy "ReadOnlyInventory" using "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    appliesTo: [
+      "scan_approved_roots",
+      "hash_files",
+      "classify_extensions",
+      "detect_partial_downloads",
+      "detect_duplicates",
+      "create_safe_metadata_preview"
+    ]
+  }
+
+  policy "GuardedPreviewAndImport" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: false
+    freshUserGesture: true
+    appliesTo: [
+      "copy_to_hololand_import_cache",
+      "generate_thumbnail",
+      "generate_archive_manifest",
+      "create_redacted_file_proxy",
+      "write_import_shelf_receipt"
+    ]
+  }
+
+  policy "BreakGlassDeleteOrExecute" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: true
+    freshUserGesture: true
+    appliesTo: [
+      "delete_local_file",
+      "empty_recycle_bin",
+      "execute_downloaded_installer",
+      "upload_private_file",
+      "publish_raw_document"
+    ]
+  }
+
+  state_machine "DownloadsImportShelfWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "scanned",
+      "classified",
+      "hashed",
+      "quarantined",
+      "preview_ready",
+      "decision_pending",
+      "import_ready",
+      "delete_pending",
+      "receipt_written",
+      "blocked"
+    ]
+    transition "scan" { from: "idle", to: "scanned" }
+    transition "classify" { from: "scanned", to: "classified" }
+    transition "hash" { from: "classified", to: "hashed" }
+    transition "quarantine" { from: "hashed", to: "quarantined" }
+    transition "preview" { from: "quarantined", to: "preview_ready" }
+    transition "decide" { from: "preview_ready", to: "decision_pending" }
+    transition "stage_import" { from: "decision_pending", to: "import_ready" }
+    transition "stage_delete" { from: "decision_pending", to: "delete_pending" }
+    transition "write_receipt" { from: "*", to: "receipt_written" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "CodexHardware" {
+    laneId: "codex-hardware"
+    owns: ["filesystem_scan", "hashing", "partial_download_detection", "delete_receipt"]
+  }
+
+  role "FileCustodyAgent" {
+    laneId: "file-custody"
+    owns: ["mime_scan", "duplicate_groups", "archive_manifest", "executable_block"]
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["import_shelf", "world_object_tray", "NPC_cleanup_quest", "creator_preview"]
+  }
+
+  role "HoloScriptSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["generic_download_receipts", "validators", "policy_stdlib", "runtime_adapter"]
+  }
+
+  action classifyFile(fileProxy) {
+    if (fileProxy.partialDownload == true) {
+      return "blocked_partial_download"
+    }
+    if (fileProxy.executable == true) {
+      return "installer_blocked"
+    }
+    if (fileProxy.archive == true) {
+      return "archive_quarantine"
+    }
+    if (fileProxy.privateDocument == true) {
+      return "private_document_preview"
+    }
+    return "safe_preview"
+  }
+
+  action recordInventory(receipt) {
+    DownloadsImportShelfState.inventoryCount = receipt.fileCount
+    DownloadsImportShelfState.safePreviewCount = receipt.safePreviewCount
+    DownloadsImportShelfState.archiveQuarantineCount = receipt.archiveQuarantineCount
+    DownloadsImportShelfState.installerBlockedCount = receipt.installerBlockedCount
+    DownloadsImportShelfState.duplicateCandidateCount = receipt.duplicateCandidateCount
+    DownloadsImportShelfState.privateDocumentCount = receipt.privateDocumentCount
+    emit("holoshell:downloads_shelf:inventory", {
+      fileCount: receipt.fileCount,
+      publicReceiptMayContainAbsolutePath: false,
+      executableLaunched: false
+    })
+  }
+
+  action blockOn(reason, evidencePath, ownerSurface) {
+    DownloadsImportShelfWorkflow.transition("block")
+    DownloadsImportShelfState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+    emit("holoshell:downloads_shelf:blocker", {
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+  }
+}
