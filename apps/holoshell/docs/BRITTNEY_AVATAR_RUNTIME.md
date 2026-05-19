@@ -74,3 +74,9 @@ object proposals, and writes the latest turn receipt to:
 HoloScript owns the intelligence substrate and traits. HoloLand owns the
 product embodiment: how Brittney appears in the operating shell, how she is
 made reachable, and which receipts prove her runtime route and shell effects.
+
+`BRITTNEY_FIELD_AND_USER_DAEMONS.md` separates the total Brittney field from a
+personal user daemon. The current avatar runtime may serve as the default
+founder/dev daemon embodiment, but future user shells should allow named,
+styled daemons that draw from and receipt back into Brittney without claiming to
+be the whole field.

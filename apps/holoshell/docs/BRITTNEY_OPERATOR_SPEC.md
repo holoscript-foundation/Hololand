@@ -3,7 +3,7 @@
 **Status:** Product/runtime spec
 **Date:** 2026-05-13
 **Scope:** Brittney as HoloShell operator
-**Pairs with:** `BRITTNEY_AVATAR_RUNTIME.md`, `docs/BRITTNEY_OWNERSHIP_MODEL.md`
+**Pairs with:** `BRITTNEY_AVATAR_RUNTIME.md`, `BRITTNEY_FIELD_AND_USER_DAEMONS.md`, `docs/BRITTNEY_OWNERSHIP_MODEL.md`
 
 ## Position
 
@@ -13,6 +13,12 @@ She is not a backend assistant panel and not a decorative avatar. In HoloShell,
 Brittney is the user-facing AGI pattern that can perceive the shell, explain
 risk, coordinate agents, stage workflows, operate programs, and narrate
 receipts.
+
+`BRITTNEY_FIELD_AND_USER_DAEMONS.md` refines this product boundary: Brittney is
+the operating field, while a user-named daemon can be the personal conversation
+face that opens chat, voice, and local styling. In founder/dev shells the
+Brittney avatar may be the default daemon face, but the field is larger than one
+visible character.
 
 ## Operator Loop
 
@@ -145,4 +151,3 @@ This follows `docs/BRITTNEY_OWNERSHIP_MODEL.md`.
 
 Each workflow should be source-backed, approval-gated where needed, and
 receipt-first.
-

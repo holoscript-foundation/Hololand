@@ -74,6 +74,11 @@ in `.holo`, `.hs`, and `.hsplus`.
 
 Brittney is the shell operator and guide.
 
+`BRITTNEY_FIELD_AND_USER_DAEMONS.md` extends this role into the field/daemon
+model: Brittney coordinates as the invisible operating field, while each user
+may interact through a named daemon that acts as the personal conversation face
+inside the shell.
+
 She should:
 
 - Listen to the user's outcome request.
@@ -160,11 +165,11 @@ The next HoloShell research and docs set is:
 1. `SHELL_OBJECT_SCHEMA.md`
 2. `LEGACY_APP_ADAPTER_MATRIX.md`
 3. `BRITTNEY_OPERATOR_SPEC.md`
-4. `GEOMETRIC_UI_RECONSTRUCTION.md`
-5. `SKIN_SIMULATION_RESEARCH.md`
-6. `PHASE_2_NATIVE_SHELL_ROADMAP.md`
+4. `BRITTNEY_FIELD_AND_USER_DAEMONS.md`
+5. `GEOMETRIC_UI_RECONSTRUCTION.md`
+6. `SKIN_SIMULATION_RESEARCH.md`
+7. `PHASE_2_NATIVE_SHELL_ROADMAP.md`
 
 These documents should stay linked. The doctrine defines the product, the
 schema defines objects, the adapter matrix defines how old software is wrapped,
 and the roadmap turns the research into build order.
-
