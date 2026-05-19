@@ -1,0 +1,138 @@
+// HoloShell provider export repair policy.
+// Keeps failed account export evidence intact while preventing unsafe import,
+// deletion, sharing, or hidden provider retry.
+
+composition "HoloShellProviderExportRepairPolicy" {
+  state ProviderExportRepairState {
+    workflow: "provider-export-repair"
+    provider: "unknown"
+    redactedAccount: "unknown"
+    exportIdHash: "unknown"
+    failureKind: "unknown"
+    observedPartCount: 0
+    missingPartCount: 0
+    verifiedPartCount: 0
+    unzipError: "none"
+    importAllowed: false
+    deleteAllowed: false
+    shareAllowed: false
+    retryAllowed: false
+    rawPrivateDataPublished: false
+    providerMutationAllowed: false
+    replayReady: false
+    status: "observing"
+  }
+
+  template "RepairGate" {
+    receiptRequired: true
+    hiddenAutomationAllowed: false
+    privatePathsPublic: false
+    rawDataPublic: false
+  }
+
+  gate "ProviderFailureGate" using "RepairGate" {
+    receipt: "ProviderExportFailureReceipt"
+    phase: "observe_failure"
+    mutationClass: "read_only"
+    blocks: ["hidden_provider_retry", "wrong_account_retry"]
+  }
+
+  gate "PartialArchiveGate" using "RepairGate" {
+    receipt: "PartialArchiveEvidenceReceipt"
+    phase: "preserve_partial_archive"
+    mutationClass: "read_only"
+    blocks: ["import_partial_archive", "delete_partial_evidence", "share_raw_archive"]
+  }
+
+  gate "RepairPlanGate" using "RepairGate" {
+    receipt: "ProviderExportRepairPlanReceipt"
+    phase: "plan_repair"
+    mutationClass: "fresh_user_gesture"
+    blocks: ["unapproved_provider_mutation", "unapproved_cloud_grant"]
+  }
+
+  gate "ReplayLessonGate" using "RepairGate" {
+    receipt: "ExportRepairReplayReceipt"
+    phase: "replay_lesson"
+    mutationClass: "read_only"
+    blocks: ["raw_private_replay", "absolute_path_publication"]
+  }
+
+  policy "NoPartialImport" {
+    rule: "partial archives cannot enter HoloLand import dock"
+    requires: ["PartialArchiveEvidenceReceipt.importAllowed == false", "AccountExportArchiveReceipt after repair"]
+  }
+
+  policy "PreserveFailedEvidence" {
+    rule: "failed export parts are evidence until a repair receipt replaces them"
+    requires: ["previousEvidencePreserved", "deleteAllowedBeforeRepair == false"]
+  }
+
+  policy "FreshProviderGesture" {
+    rule: "provider retry, scope change, archive size change, delivery change, and cloud grants need a fresh human gesture"
+    requires: ["ProviderExportRepairPlanReceipt.approvalNonce", "requiresFreshUserGesture"]
+  }
+
+  role "BrittneyRepairOperator" {
+    owns: ["plain_language_failure", "repair_choice_explanation", "next_safe_action"]
+  }
+
+  role "CodexHardwareLane" {
+    owns: ["local_archive_parts", "part_hashes", "parse_validation", "evidence_pack"]
+  }
+
+  role "HoloScriptSubstrateLane" {
+    owns: ["receipt_validators", "repair_planner", "archive_verification"]
+  }
+
+  action record_failure(receipt) {
+    ProviderExportRepairState.provider = receipt.provider
+    ProviderExportRepairState.redactedAccount = receipt.redactedAccountLabel
+    ProviderExportRepairState.exportIdHash = receipt.exportIdHash
+    ProviderExportRepairState.failureKind = receipt.failureKind
+    ProviderExportRepairState.status = "failure_observed"
+    emit("holoshell:provider_export_repair:failure", {
+      provider: ProviderExportRepairState.provider,
+      failure_kind: ProviderExportRepairState.failureKind,
+      raw_private_data_published: false
+    })
+  }
+
+  action record_partial_archive(receipt) {
+    ProviderExportRepairState.observedPartCount = receipt.observedParts.length
+    ProviderExportRepairState.missingPartCount = receipt.missingPartCount
+    ProviderExportRepairState.verifiedPartCount = receipt.verifiedPartCount
+    ProviderExportRepairState.unzipError = receipt.unzipError
+    ProviderExportRepairState.importAllowed = false
+    ProviderExportRepairState.deleteAllowed = false
+    ProviderExportRepairState.shareAllowed = false
+    ProviderExportRepairState.status = "partial_archive_preserved"
+    emit("holoshell:provider_export_repair:partial_archive", {
+      observed_parts: ProviderExportRepairState.observedPartCount,
+      missing_parts: ProviderExportRepairState.missingPartCount,
+      verified_parts: ProviderExportRepairState.verifiedPartCount,
+      import_allowed: false
+    })
+  }
+
+  action record_repair_plan(receipt) {
+    ProviderExportRepairState.retryAllowed = true
+    ProviderExportRepairState.providerMutationAllowed = receipt.retryWillMutateProviderState
+    ProviderExportRepairState.status = "repair_planned"
+    emit("holoshell:provider_export_repair:plan", {
+      repair_action: receipt.repairAction,
+      retry_mutates_provider: ProviderExportRepairState.providerMutationAllowed,
+      previous_evidence_preserved: receipt.previousEvidencePreserved
+    })
+  }
+
+  action record_replay(receipt) {
+    ProviderExportRepairState.replayReady = receipt.replayableWithoutProviderAccess
+    ProviderExportRepairState.rawPrivateDataPublished = receipt.rawPrivateDataPublished
+    ProviderExportRepairState.status = "lesson_replayable"
+    emit("holoshell:provider_export_repair:replay", {
+      replay_ready: ProviderExportRepairState.replayReady,
+      raw_private_data_published: false
+    })
+  }
+}

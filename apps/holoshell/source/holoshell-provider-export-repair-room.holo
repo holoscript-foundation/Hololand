@@ -1,0 +1,138 @@
+/**
+ * HoloShell Provider Export Repair Room
+ *
+ * Product surface for: "My account export failed or downloaded only partly.
+ * Preserve the evidence, choose a safe retry, and do not import bad archives."
+ */
+
+composition "HoloShell Provider Export Repair Room" {
+  environment {
+    backgroundColor: "#11161a"
+    ambient_light: 0.62
+    shadows: true
+  }
+
+  template "RepairPanel" {
+    @anchor
+    @billboard
+    geometry: "plane"
+    scale: [1.46, 0.58, 0.08]
+    material: {
+      color: "#172226"
+      emissive: "#2d4448"
+      emissiveIntensity: 0.16
+      transparent: true
+      opacity: 0.96
+    }
+  }
+
+  template "RepairToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    scale: [0.15, 0.15, 0.15]
+    material: { color: "#82aaff" }
+  }
+
+  object "HumanOutcome" using "RepairPanel" {
+    position: [0, 2.25, -2.8]
+    label: "Outcome: failed provider export repaired with receipts"
+    properties: {
+      userPhrase: "My export failed or only partly downloaded"
+      defaultExecution: "preserve evidence and plan repair"
+      visibleControls: "provider failure, partial archive, repair plan, replay lesson"
+    }
+  }
+
+  object "ProviderFailureGate" using "RepairPanel" {
+    position: [-3.42, 1.32, -1.35]
+    label: "Provider failure state"
+    properties: {
+      receipt: "ProviderExportFailureReceipt"
+      states: ["provider_waiting", "provider_failed", "expired", "blocked", "ready_to_download"]
+      failureState: "no export id, expired link, managed account block, cloud handoff block"
+      approval: "read visible provider state; retry requires fresh gesture"
+    }
+  }
+
+  object "PartialArchiveGate" using "RepairPanel" {
+    position: [-1.14, 1.32, -1.35]
+    label: "Partial archive evidence"
+    properties: {
+      receipt: "PartialArchiveEvidenceReceipt"
+      failureState: "missing part, corrupt member, unexpected executable, private path leak"
+      blocks: ["import", "delete", "share", "summarize"]
+    }
+  }
+
+  object "RepairPlanGate" using "RepairPanel" {
+    position: [1.14, 1.32, -1.35]
+    label: "Repair plan"
+    properties: {
+      receipt: "ProviderExportRepairPlanReceipt"
+      options: ["wait", "resume_download", "re_download_same_link", "split_product_scope", "change_archive_size", "change_delivery_method", "manual_provider_ticket"]
+      approval: "fresh approval for provider mutation or local deletion"
+    }
+  }
+
+  object "ReplayLessonGate" using "RepairPanel" {
+    position: [3.42, 1.32, -1.35]
+    label: "Replay lesson"
+    properties: {
+      receipt: "ExportRepairReplayReceipt"
+      output: "plain language reason, missing evidence, next safe action"
+      replayableWithoutProviderAccess: true
+    }
+  }
+
+  object "ImportDock" using "RepairPanel" {
+    position: [0, 0.42, 0.1]
+    label: "Import dock stays locked until repaired"
+    properties: {
+      mode: "preview_only_until_verified"
+      importRule: "AccountExportArchiveReceipt must pass after repair"
+      publishRule: "only redacted repair summaries and receipt hashes become world objects"
+    }
+  }
+
+  object "MissingPartToken" using "RepairToken" {
+    position: [-2.28, 0.84, 0.86]
+    material: { color: "#f7768e" }
+    label: "missing part blocks import"
+    properties: {
+      receipt: "PartialArchiveEvidenceReceipt"
+      importAllowed: false
+      deleteAllowed: false
+    }
+  }
+
+  object "RetryToken" using "RepairToken" {
+    position: [0, 0.84, 1.08]
+    material: { color: "#e0af68" }
+    label: "retry is approval bound"
+    properties: {
+      receipt: "ProviderExportRepairPlanReceipt"
+      requiresFreshUserGesture: true
+    }
+  }
+
+  object "ReplayToken" using "RepairToken" {
+    position: [2.28, 0.84, 0.86]
+    material: { color: "#9ece6a" }
+    label: "repair lesson replayable"
+    properties: {
+      receipt: "ExportRepairReplayReceipt"
+      rawPrivateDataPublished: false
+    }
+  }
+
+  object "RepairTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.02, 1.5]
+    scale: [6.35, 0.08, 0.12]
+    color: "#66767c"
+    label: "timeline: observe failure -> preserve parts -> classify gap -> plan repair -> approve -> verify -> replay"
+  }
+}
