@@ -3,11 +3,10 @@
 composition "HoloShellBrowserAccountExportPolicy" {
   state BrowserAccountExportState {
     selectedWorkflow: "browser-account-export"
-    provider: "unknown"
     exportKind: "unknown"
+    provider: "unknown"
     accountBoundary: "unknown"
     browserProfileBoundary: "unknown"
-    providerWaitState: "not_requested"
     destinationStatus: "unknown"
     fileCount: 0
     archiveHash: ""
@@ -15,7 +14,6 @@ composition "HoloShellBrowserAccountExportPolicy" {
     accountMutationPerformed: false
     downloadedArchiveExecuted: false
     sourceFileMutationPerformed: false
-    rawPrivateDataPublished: false
     privatePathLeakedToPublicReceipt: false
     blockers: []
     taskSeeds: []
@@ -28,6 +26,17 @@ composition "HoloShellBrowserAccountExportPolicy" {
     breakGlass: false
     receiptRequired: true
     humanVisible: true
+  }
+
+  template "BrowserAccountBoundaryReceipt" {
+    receiptType: "browser_account_boundary_receipt"
+    providerRequired: true
+    accountRequired: true
+    browserProfileRequired: true
+    cookiePolicyRequired: true
+    screenshotPolicyRequired: true
+    credentialExtrusionAllowed: false
+    publicReceiptMayContainAbsolutePath: false
   }
 
   template "ProviderExportCustodyReceipt" {
@@ -55,27 +64,13 @@ composition "HoloShellBrowserAccountExportPolicy" {
     blockersRequired: true
   }
 
-  template "BrowserAccountBoundaryReceipt" {
-    receiptType: "browser_account_boundary_receipt"
-    providerRequired: true
-    accountRequired: true
-    browserProfileRequired: true
-    browserSessionRequired: true
-    cookiePolicyRequired: true
-    screenshotPolicyRequired: true
-    credentialExtrusionAllowed: false
-    accountMutationAllowedWithoutApproval: false
-    publicReceiptMayContainAbsolutePath: false
-  }
-
-  template "LocalDownloadQuarantineReceipt" {
+  template "DownloadQuarantineReceipt" {
     receiptType: "local_download_quarantine_receipt"
     destinationFolderRequired: true
     archiveHashRequired: true
     privateAbsolutePathStoredLocallyOnly: true
     executableLaunchAllowed: false
     rawPrivateDataPublishAllowed: false
-    importMode: "preview_only"
   }
 
   policy "SilentInspect" using "PermissionEnvelope" {
@@ -184,29 +179,6 @@ composition "HoloShellBrowserAccountExportPolicy" {
     return "silent_inspect"
   }
 
-  action recordProviderExportCustody(receipt) {
-    BrowserAccountExportState.provider = receipt.provider
-    BrowserAccountExportState.accountBoundary = receipt.accountBoundary
-    BrowserAccountExportState.browserProfileBoundary = receipt.browserProfile
-    BrowserAccountExportState.providerWaitState = receipt.waitState
-    BrowserAccountExportState.receiptsCaptured = BrowserAccountExportState.receiptsCaptured + 1
-    emit("holoshell:browser_export:provider_custody", {
-      workflow: BrowserAccountExportState.selectedWorkflow,
-      provider: receipt.provider,
-      selectedProducts: receipt.selectedProducts,
-      deliveryMethod: receipt.deliveryMethod,
-      archiveSizeBytes: receipt.archiveSizeBytes,
-      waitState: receipt.waitState,
-      cloudHandoff: receipt.cloudHandoff,
-      connectedAppAccess: receipt.connectedAppAccess,
-      linkExpiry: receipt.linkExpiry,
-      managedAccount: receipt.managedAccount,
-      blockers: receipt.blockers,
-      receiptType: "provider_export_custody_receipt",
-      sourceModule: "@holoscript/core/trust/ProviderExportCustodyReceipt"
-    })
-  }
-
   action recordBoundary(receipt) {
     BrowserAccountExportState.provider = receipt.provider
     BrowserAccountExportState.accountBoundary = receipt.scopeClass
@@ -221,22 +193,11 @@ composition "HoloShellBrowserAccountExportPolicy" {
     })
   }
 
-  action recordProviderWait(receipt) {
-    BrowserAccountExportState.providerWaitState = receipt.state
-    BrowserAccountExportState.receiptsCaptured = BrowserAccountExportState.receiptsCaptured + 1
-    emit("holoshell:browser_export:provider_wait", {
-      workflow: BrowserAccountExportState.selectedWorkflow,
-      provider: receipt.provider,
-      state: receipt.state
-    })
-  }
-
   action recordQuarantine(receipt) {
     BrowserAccountExportState.destinationStatus = "quarantined"
     BrowserAccountExportState.fileCount = receipt.fileCount
     BrowserAccountExportState.archiveHash = receipt.archiveHash
     BrowserAccountExportState.downloadedArchiveExecuted = false
-    BrowserAccountExportState.rawPrivateDataPublished = false
     BrowserAccountExportState.privatePathLeakedToPublicReceipt = receipt.privatePathLeakedToPublicReceipt
     BrowserAccountExportState.receiptsCaptured = BrowserAccountExportState.receiptsCaptured + 1
     emit("holoshell:browser_export:quarantine", {
@@ -244,7 +205,7 @@ composition "HoloShellBrowserAccountExportPolicy" {
       fileCount: BrowserAccountExportState.fileCount,
       archiveHash: BrowserAccountExportState.archiveHash,
       downloadedArchiveExecuted: false,
-      rawPrivateDataPublished: false
+      privatePathLeakedToPublicReceipt: BrowserAccountExportState.privatePathLeakedToPublicReceipt
     })
   }
 

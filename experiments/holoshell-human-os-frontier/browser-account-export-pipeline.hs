@@ -5,11 +5,11 @@ object "BrowserAccountExportPipelineManifest" {
   type: "browser_account_export_pipeline_manifest"
   id: "holoshell-browser-account-export-pipeline"
   name: "HoloShell Browser Account Export Pipeline"
-  version: "0.3.0"
+  version: "0.2.0"
   shell: "HoloShell"
   sourceLayer: "HoloScript"
-  roomSource: "apps/holoshell/source/holoshell-browser-account-export-room.holo"
-  policySource: "apps/holoshell/source/holoshell-browser-account-export-policy.hsplus"
+  roomSource: "experiments/holoshell-human-os-frontier/browser-account-export-room.holo"
+  policySource: "experiments/holoshell-human-os-frontier/browser-account-export-policy.hsplus"
   accountTaskSource: "apps/holoshell/source/holoshell-account-task-custody.hsplus"
   hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
   providerExportCustodySource: "packages/core/src/trust/ProviderExportCustodyReceipt.ts"
@@ -24,7 +24,7 @@ object "BrowserAccountExportCommand" {
   autonomyLevel: "break_glass_for_account_mutation"
   defaultExecution: "stage_not_run"
   receiptRequired: true
-  targets: ["browser_profile", "provider_account", "export_request", "provider_wait", "download_folder", "quarantine", "visual_summary", "replay", "rollback", "holomesh_tasks"]
+  targets: ["browser_profile", "provider_account", "export_request", "download_folder", "quarantine", "visual_summary", "replay", "rollback", "holomesh_tasks"]
   pipeline: ["intent_classification", "boundary_check", "approval_bundle", "provider_wait", "download_quarantine", "verify_files", "preview", "task_file", "rollback"]
 }
 
@@ -90,7 +90,6 @@ object "DownloadQuarantineStep" {
   publicPathPolicy: "repo_relative_or_opaque_export_id_only"
   downloadedArchiveExecuted: false
   rawPrivateDataPublished: false
-  importMode: "preview_only"
   output: ".bench-logs/holoshell-human-os-frontier/2026-05-18/browser-account-export-quarantine.json"
 }
 
