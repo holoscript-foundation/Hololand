@@ -1,0 +1,12 @@
+// Commerce vertical manifest for shops, showrooms, and product previews.
+
+object "CommerceVertical" {
+  type: "runtime_vertical"
+  id: "commerce"
+  label: "Commerce"
+  layers: ["ar", "vr", "vrr"]
+  domains: ["geo", "privacy", "receipts", "identity", "economy", "safety"]
+  useCases: ["showroom", "store_overlay", "product_preview", "creator_market"]
+  requiredReceipts: ["offer_rendered", "source_verified", "privacy_policy_checked"]
+  failClosedBehavior: "deny_commerce_overlay_without_place_policy"
+}

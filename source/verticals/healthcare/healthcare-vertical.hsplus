@@ -1,0 +1,12 @@
+// Healthcare vertical manifest with strict privacy and safety defaults.
+
+object "HealthcareVertical" {
+  type: "runtime_vertical"
+  id: "healthcare"
+  label: "Healthcare"
+  layers: ["ar", "vrr"]
+  domains: ["privacy", "receipts", "safety", "sensors", "agents"]
+  useCases: ["training", "patient_education", "wellness", "procedure_rehearsal"]
+  requiredReceipts: ["privacy_policy_checked", "source_verified", "training_or_review_completed"]
+  failClosedBehavior: "deny_without_explicit_privacy_and_safety_envelope"
+}

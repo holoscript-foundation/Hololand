@@ -1,0 +1,12 @@
+// Education vertical manifest for lessons, labs, and field trips.
+
+object "EducationVertical" {
+  type: "runtime_vertical"
+  id: "education"
+  label: "Education"
+  layers: ["ar", "vr", "vrr"]
+  domains: ["geo", "privacy", "receipts", "agents", "safety"]
+  useCases: ["field_trip", "lab_simulation", "campus_overlay", "guided_lesson"]
+  requiredReceipts: ["lesson_started", "source_verified", "completion_recorded"]
+  failClosedBehavior: "deny_student_context_without_privacy_rule"
+}

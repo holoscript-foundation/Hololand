@@ -1,0 +1,24 @@
+// Geospatial authority contract for the HoloLand Runtime Atlas.
+
+composition "GeoDomainAuthority" {
+  config {
+    domain: "geo"
+    atlas: "source/runtime-atlas.holo"
+    sourceLayer: "HoloScript"
+    defaultCoordinateFrame: "WGS84"
+  }
+
+  state {
+    owns: ["EarthCell", "GeoAnchor", "Place", "coordinate_frame", "accuracy_policy", "surface_mapping"]
+    requiredReceipts: ["geoanchor_discovered", "place_entered", "place_policy_checked"]
+    failClosedWhen: ["missing_place_policy", "insufficient_accuracy", "untrusted_anchor_source"]
+  }
+
+  policy "GeoAnchorAdmission" {
+    appliesTo: ["GeoAnchor", "Place", "EarthCell"]
+    coordinateFrameRequired: true
+    placePolicyRequired: true
+    privacyRuleRequired: true
+    receiptRequired: true
+  }
+}

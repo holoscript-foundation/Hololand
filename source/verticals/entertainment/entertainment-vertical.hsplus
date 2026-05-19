@@ -1,0 +1,12 @@
+// Entertainment vertical manifest for HoloLand Central and Frontier.
+
+object "EntertainmentVertical" {
+  type: "runtime_vertical"
+  id: "entertainment"
+  label: "Entertainment"
+  layers: ["vr"]
+  domains: ["identity", "agents", "receipts", "quests", "economy", "safety"]
+  playerVerbs: ["explore", "fight", "dodge", "climb", "gather", "craft", "trade", "join", "discover", "publish"]
+  requiredReceipts: ["central_entered", "shard_entered", "encounter_completed", "reward_earned"]
+  failClosedBehavior: "deny_live_mutation_without_source_and_receipt"
+}

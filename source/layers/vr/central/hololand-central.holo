@@ -1,0 +1,95 @@
+// HoloLand Central
+// VR social frontier layer and default entry point.
+
+composition "HoloLandCentral" {
+  metadata {
+    title: "HoloLand Central"
+    version: "0.1.0"
+    layer: "vr"
+    atlas: "source/runtime-atlas.holo"
+    originality_policy: "External virtual world references are quality bars only; shipped content remains HoloLand-original."
+  }
+
+  environment {
+    mode: "virtual-reality"
+    entry_surface: "browser"
+    target_surfaces: ["browser", "desktop", "webxr", "headset"]
+    social_density: "high"
+    performance_goal: "comfort_first"
+  }
+
+  state {
+    place_id: "hololand-central"
+    domains: ["identity", "agents", "receipts", "quests", "economy", "safety"]
+    verticals: ["entertainment", "civic", "commerce", "education"]
+    required_receipts: ["central_entered", "portal_used", "creator_action", "agent_action"]
+    connected_layers: ["frontier-shard-0", "twin-earth-layer-0", "reality-sims-layer-0"]
+  }
+
+  template "PortalBoard" {
+    shape: "panel"
+    size: [4.0, 2.2]
+    material: { color: "#1d3557", emissive: "#2563eb", emissiveIntensity: 0.16 }
+    traits: ["portal_directory", "cross_layer", "receipt_emitting"]
+    state {
+      destinations: ["frontier-shard-0", "twin-earth-layer-0", "reality-sims-layer-0"]
+      receipt_kind: "portal_used"
+    }
+  }
+
+  template "CreatorKiosk" {
+    shape: "kiosk"
+    size: [1.4, 2.2, 1.0]
+    material: { color: "#f59e0b", emissive: "#f59e0b", emissiveIntensity: 0.2 }
+    traits: ["creator_tool", "holoscript_source_required", "validation_gate"]
+    state {
+      prompt: "make a small playable frontier challenge"
+      requires_validation: true
+      publishes_to: "creator-shards"
+    }
+  }
+
+  template "AgentSteward" {
+    shape: "avatar"
+    size: [0.7, 1.8, 0.7]
+    material: { color: "#38bdf8", emissive: "#38bdf8", emissiveIntensity: 0.18 }
+    traits: ["brittney_lineage", "world_steward", "receipt_emitting"]
+    state {
+      role: "central_steward"
+      permissions: ["explain_world_state", "suggest_next_objective", "file_validation_issue"]
+      mutation_policy: "receipt_required"
+    }
+  }
+
+  spatial_group "CentralArrivalCourt" {
+    object "PortalBoard" using "PortalBoard" {
+      position: [0, 1.8, -4]
+    }
+
+    object "CreatorKiosk" using "CreatorKiosk" {
+      position: [-3, 1.1, -2]
+    }
+
+    object "CentralSteward" using "AgentSteward" {
+      position: [3, 0.9, -2]
+    }
+  }
+
+  logic {
+    action write_receipt(kind, payload) {
+      emit("receipt_written", {
+        kind: kind,
+        payload: payload,
+        layer: "vr",
+        place_id: state.place_id,
+        source: "source/layers/vr/central/hololand-central.holo"
+      })
+      return true
+    }
+
+    on_start {
+      write_receipt("central_entered", state.place_id)
+      emit("hololand_central_ready")
+    }
+  }
+}

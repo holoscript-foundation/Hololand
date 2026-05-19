@@ -1,0 +1,12 @@
+// Industrial vertical manifest for factories, utilities, and field operations.
+
+object "IndustrialVertical" {
+  type: "runtime_vertical"
+  id: "industrial"
+  label: "Industrial"
+  layers: ["ar", "vrr"]
+  domains: ["geo", "privacy", "receipts", "sensors", "actuators", "safety", "agents"]
+  useCases: ["factory_twin", "maintenance", "safety_drill", "quality_inspection"]
+  requiredReceipts: ["source_verified", "safety_checked", "action_completed"]
+  failClosedBehavior: "deny_actuation_without_safety_envelope_and_receipt"
+}

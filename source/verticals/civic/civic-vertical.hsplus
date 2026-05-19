@@ -1,0 +1,12 @@
+// Civic vertical manifest for public-space Twin Earth content.
+
+object "CivicVertical" {
+  type: "runtime_vertical"
+  id: "civic"
+  label: "Civic"
+  layers: ["ar", "vr", "vrr"]
+  domains: ["geo", "privacy", "receipts", "agents", "safety", "quests"]
+  useCases: ["public_space_quest", "community_event", "wayfinding", "civic_overlay"]
+  requiredReceipts: ["privacy_policy_checked", "place_entered", "civic_overlay_rendered"]
+  failClosedBehavior: "deny_private_or_unmoderated_public_overlay"
+}

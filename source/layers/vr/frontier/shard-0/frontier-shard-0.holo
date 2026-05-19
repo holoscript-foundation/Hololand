@@ -1,0 +1,95 @@
+// Frontier Shard 0
+// First playable VR frontier slice beyond HoloLand Central.
+
+composition "FrontierShard0" {
+  metadata {
+    title: "Frontier Shard 0"
+    version: "0.1.0"
+    layer: "vr"
+    atlas: "source/runtime-atlas.holo"
+    north_star: "player enters, discovers, masters, earns, returns, creates, and agents evolve the world"
+  }
+
+  environment {
+    mode: "virtual-reality"
+    entry_surface: "browser"
+    target_surfaces: ["browser", "desktop", "webxr", "headset"]
+    traversal: "comfort_first"
+    social_mode: "party_optional"
+  }
+
+  state {
+    place_id: "frontier-shard-0"
+    domains: ["identity", "agents", "receipts", "quests", "economy", "safety"]
+    verticals: ["entertainment"]
+    player_verbs: ["explore", "fight", "dodge", "climb", "gather", "craft", "discover", "publish"]
+    required_receipts: ["shard_entered", "secret_discovered", "encounter_completed", "reward_earned"]
+  }
+
+  template "FrontierGate" {
+    shape: "portal"
+    size: [1.6, 2.8]
+    material: { color: "#2dd4bf", emissive: "#2dd4bf", emissiveIntensity: 0.24 }
+    traits: ["entry_point", "central_return", "receipt_emitting"]
+    state {
+      from: "hololand-central"
+      to: "frontier-shard-0"
+    }
+  }
+
+  template "ReadableEncounter" {
+    shape: "arena"
+    size: [5.0, 0.2, 5.0]
+    material: { color: "#475569", opacity: 0.72 }
+    traits: ["encounter", "readable_failure", "mastery_loop", "receipt_emitting"]
+    state {
+      encounter_id: "first-readable-encounter"
+      status: "available"
+      reward: "first_shard_mark"
+      failure_teaches: "dodge_timing"
+    }
+  }
+
+  template "HiddenRoute" {
+    shape: "ramp"
+    size: [1.2, 0.4, 3.0]
+    material: { color: "#a3e635", emissive: "#65a30d", emissiveIntensity: 0.12 }
+    traits: ["secret", "traversal_rule", "map_mark"]
+    state {
+      route_id: "first-hidden-route"
+      discovery_receipt: "secret_discovered"
+    }
+  }
+
+  spatial_group "Shard0Loop" {
+    object "EntryGate" using "FrontierGate" {
+      position: [0, 1.4, 3]
+    }
+
+    object "FirstEncounter" using "ReadableEncounter" {
+      position: [0, 0.1, -2]
+    }
+
+    object "FirstHiddenRoute" using "HiddenRoute" {
+      position: [3, 0.4, -1]
+    }
+  }
+
+  logic {
+    action write_receipt(kind, payload) {
+      emit("receipt_written", {
+        kind: kind,
+        payload: payload,
+        layer: "vr",
+        place_id: state.place_id,
+        source: "source/layers/vr/frontier/shard-0/frontier-shard-0.holo"
+      })
+      return true
+    }
+
+    on_start {
+      write_receipt("shard_entered", state.place_id)
+      emit("frontier_shard_0_ready")
+    }
+  }
+}

@@ -1,0 +1,78 @@
+// VRR Reality Simulations Layer
+// 1:1 professional and training runtime surface.
+
+composition "RealitySimsLayer" {
+  metadata {
+    title: "VRR Reality Simulations Layer"
+    version: "0.1.0"
+    layer: "vrr"
+    atlas: "source/runtime-atlas.holo"
+    source_contract: "Reality simulations require scale, provenance, privacy, and receipts."
+  }
+
+  environment {
+    mode: "virtual-reality-reality"
+    scale: "1:1"
+    target_surfaces: ["desktop", "headset"]
+    physics: "realistic_when_required"
+    asset_provenance: "required"
+  }
+
+  state {
+    place_id: "reality-sims-layer-0"
+    domains: ["geo", "privacy", "receipts", "safety", "sensors"]
+    verticals: ["healthcare", "industrial", "real-estate", "education", "commerce"]
+    required_receipts: ["sim_entered", "source_verified", "scale_verified", "training_or_review_completed"]
+  }
+
+  template "ScaleWitness" {
+    shape: "ruler"
+    size: [2.0, 0.08, 0.08]
+    material: { color: "#eab308", emissive: "#eab308", emissiveIntensity: 0.18 }
+    traits: ["scale_verification", "source_provenance", "receipt_emitting"]
+    state {
+      required_scale: "1:1"
+      tolerance_policy: "vertical_specific"
+    }
+  }
+
+  template "SimulationBrief" {
+    shape: "panel"
+    size: [3.2, 1.8]
+    material: { color: "#0f172a", opacity: 0.86 }
+    traits: ["training_brief", "privacy_boundary", "completion_receipt"]
+    state {
+      supported_verticals: ["healthcare", "industrial", "real-estate", "education", "commerce"]
+      source_inputs_required: true
+      failure_mode: "deny_until_source_verified"
+    }
+  }
+
+  spatial_group "RealitySimEntry" {
+    object "ScaleWitness" using "ScaleWitness" {
+      position: [-1.5, 1.0, -2]
+    }
+
+    object "SimulationBrief" using "SimulationBrief" {
+      position: [1.5, 1.4, -2]
+    }
+  }
+
+  logic {
+    action write_receipt(kind, payload) {
+      emit("receipt_written", {
+        kind: kind,
+        payload: payload,
+        layer: "vrr",
+        place_id: state.place_id,
+        source: "source/layers/vrr/reality-sims/reality-sims-layer.holo"
+      })
+      return true
+    }
+
+    on_start {
+      write_receipt("sim_entered", state.place_id)
+      emit("reality_sims_layer_ready")
+    }
+  }
+}

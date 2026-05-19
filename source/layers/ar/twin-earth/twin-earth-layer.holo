@@ -1,0 +1,96 @@
+// Twin Earth Layer
+// Geospatial AR and browser-preview runtime surface.
+
+composition "TwinEarthLayer" {
+  metadata {
+    title: "Twin Earth Layer"
+    version: "0.1.0"
+    layer: "ar"
+    atlas: "source/runtime-atlas.holo"
+    evidence: "examples/twin-earth/first_playable_slice.holo"
+  }
+
+  environment {
+    mode: "mixed-reality"
+    coordinate_frame: "WGS84"
+    entry_surface: "browser"
+    target_surfaces: ["browser", "mobile-ar"]
+    ar_runtime: "foreground_only"
+    privacy_default: "deny_until_consent"
+  }
+
+  state {
+    place_id: "twin-earth-layer-0"
+    domains: ["geo", "privacy", "receipts", "agents", "safety", "sensors", "actuators"]
+    verticals: ["civic", "commerce", "education", "healthcare", "industrial", "real-estate", "robotics"]
+    required_receipts: ["consent_granted", "surface_entered", "geoanchor_discovered", "action_completed"]
+    private_residence_default: "deny"
+    background_location_default: "deny"
+  }
+
+  template "EarthCell" {
+    shape: "hex"
+    size: [2.4, 0.08, 2.4]
+    material: { color: "#0f766e", opacity: 0.72 }
+    traits: ["earth_cell", "domain_registry", "vertical_registry"]
+    state {
+      coordinate_frame: "WGS84"
+      authority: "place_policy"
+    }
+  }
+
+  template "PublicGeoAnchor" {
+    shape: "cylinder"
+    size: [0.4, 1.4, 0.4]
+    material: { color: "#22c55e", emissive: "#22c55e", emissiveIntensity: 0.24 }
+    traits: ["wgs84_anchor", "foreground_location", "privacy_checked", "receipt_emitting"]
+    state {
+      anchor_kind: "public_chalk_space"
+      required_consent: ["foreground_location", "receipt_write"]
+    }
+  }
+
+  template "RobotActorBeacon" {
+    shape: "beacon"
+    size: [0.32, 1.6, 0.32]
+    material: { color: "#f97316", emissive: "#f97316", emissiveIntensity: 0.22 }
+    traits: ["robot_actor", "task_plan", "safety_envelope", "action_receipt"]
+    state {
+      actor_status: "registered_required"
+      task_policy: "deny_until_safety_envelope"
+      actuator_policy: "receipt_required"
+    }
+  }
+
+  spatial_group "TwinEarthEntry" {
+    object "EarthCell" using "EarthCell" {
+      position: [0, 0.04, -2]
+    }
+
+    object "PublicGeoAnchor" using "PublicGeoAnchor" {
+      position: [-1, 0.8, -2]
+    }
+
+    object "RobotActorBeacon" using "RobotActorBeacon" {
+      position: [1, 0.8, -2]
+    }
+  }
+
+  logic {
+    action write_receipt(kind, payload) {
+      emit("receipt_written", {
+        kind: kind,
+        payload: payload,
+        layer: "ar",
+        place_id: state.place_id,
+        source: "source/layers/ar/twin-earth/twin-earth-layer.holo"
+      })
+      return true
+    }
+
+    on_start {
+      write_receipt("surface_entered", "browser_preview")
+      emit("twin_earth_layer_ready")
+    }
+  }
+}

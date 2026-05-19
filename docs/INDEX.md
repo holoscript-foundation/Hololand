@@ -152,6 +152,7 @@ These are Wave 2 redirects — HoloScript is canonical for all language and file
 | Spec | Description |
 |---|---|
 | [specs/HOLOLAND_FRONTIER_NORTH_STAR.md](./specs/HOLOLAND_FRONTIER_NORTH_STAR.md) | Programmable living frontier — strategic target |
+| [specs/HOLOLAND_RUNTIME_ATLAS.md](./specs/HOLOLAND_RUNTIME_ATLAS.md) | Runtime atlas for layers, places, domains, verticals, and receipts |
 | [specs/HOLOSCRIPT_FIRST_MIGRATION.md](./specs/HOLOSCRIPT_FIRST_MIGRATION.md) | HoloScript-first migration policy |
 | [specs/NO_TSX_MIGRATION.md](./specs/NO_TSX_MIGRATION.md) | Zero-`.tsx` end-state policy |
 | [specs/HOLOLAND_CENTRAL_ACCESSIBILITY_GAMEPLAN.md](./specs/HOLOLAND_CENTRAL_ACCESSIBILITY_GAMEPLAN.md) | Accessibility plan |

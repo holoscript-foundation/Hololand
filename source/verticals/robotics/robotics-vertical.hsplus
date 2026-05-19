@@ -1,0 +1,12 @@
+// Robotics vertical manifest for Twin Earth robot and AI operations.
+
+object "RoboticsVertical" {
+  type: "runtime_vertical"
+  id: "robotics"
+  label: "Robotics"
+  layers: ["ar", "vrr"]
+  domains: ["geo", "privacy", "receipts", "agents", "sensors", "actuators", "safety"]
+  useCases: ["robot_actor", "fleet_task", "sensor_feed", "actuator_permission", "task_receipt"]
+  requiredReceipts: ["robot_registered", "safety_checked", "task_plan_started", "action_completed"]
+  failClosedBehavior: "deny_physical_action_without_safety_envelope"
+}

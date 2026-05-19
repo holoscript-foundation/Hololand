@@ -1,0 +1,26 @@
+// Privacy authority contract for HoloLand places and Twin Earth.
+
+composition "PrivacyDomainAuthority" {
+  config {
+    domain: "privacy"
+    atlas: "source/runtime-atlas.holo"
+    sourceLayer: "HoloScript"
+    defaultPolicy: "deny_until_consent"
+  }
+
+  state {
+    owns: ["ConsentScope", "PrivacyRule", "OwnerPolicy", "RetentionPolicy", "LocationConsent"]
+    requiredReceipts: ["consent_granted", "consent_denied", "privacy_policy_checked"]
+    privateResidenceDefault: "deny"
+    backgroundLocationDefault: "deny"
+    retentionDefault: "session_receipts_only"
+  }
+
+  policy "ForegroundLocationOnly" {
+    appliesTo: ["mobile-ar", "twin-earth", "geoanchor_discovery"]
+    foregroundOnly: true
+    backgroundTrackingAllowed: false
+    preciseLocationRequiresExplicitScope: true
+    receiptRequired: true
+  }
+}

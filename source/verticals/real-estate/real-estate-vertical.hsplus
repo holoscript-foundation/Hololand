@@ -1,0 +1,12 @@
+// Real estate vertical manifest for property and venue runtime slices.
+
+object "RealEstateVertical" {
+  type: "runtime_vertical"
+  id: "real-estate"
+  label: "Real Estate"
+  layers: ["ar", "vrr"]
+  domains: ["geo", "privacy", "receipts", "identity", "safety"]
+  useCases: ["property_tour", "virtual_staging", "venue_walkthrough", "owner_attested_overlay"]
+  requiredReceipts: ["owner_policy_checked", "source_verified", "tour_completed"]
+  failClosedBehavior: "deny_private_property_overlay_without_owner_policy"
+}

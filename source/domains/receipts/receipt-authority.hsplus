@@ -1,0 +1,23 @@
+// Receipt authority contract for runtime-visible HoloLand mutation.
+
+composition "ReceiptDomainAuthority" {
+  config {
+    domain: "receipts"
+    atlas: "source/runtime-atlas.holo"
+    sourceLayer: "HoloScript"
+    defaultMutationPolicy: "deny_without_receipt"
+  }
+
+  state {
+    owns: ["ValidationReceipt", "TwinEarthReceipt", "AgentActionReceipt", "HardwareReceipt", "ReplayReceipt"]
+    requiredFields: ["id", "kind", "actor", "layer", "place", "source", "summary", "hash"]
+    mutationWithoutReceipt: "deny"
+    externalArtifactDefault: "untrusted_until_conformance_proven"
+  }
+
+  template "AtlasReceiptEnvelope" {
+    receiptType: "hololand.runtime-atlas.receipt.v0.1.0"
+    requiredFields: ["id", "kind", "actor", "layer", "place", "domains", "verticals", "source", "summary", "hash"]
+    replayable: true
+  }
+}

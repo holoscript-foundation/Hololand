@@ -1,0 +1,26 @@
+// Agent authority contract for HoloLand Central, Frontier, and Twin Earth.
+
+composition "AgentDomainAuthority" {
+  config {
+    domain: "agents"
+    atlas: "source/runtime-atlas.holo"
+    sourceLayer: "HoloScript"
+    lineage: "brittney_descendant"
+  }
+
+  state {
+    owns: ["AgentSteward", "NPC", "AIAgentActor", "WorldDirector", "FactionActor", "SafetySteward"]
+    requiredReceipts: ["agent_spawned", "agent_action", "agent_mutation_reviewed"]
+    mutationPolicy: "receipt_required"
+    localOrBYOKAllowed: true
+    monopolyEndpointForbidden: true
+  }
+
+  policy "WorldVisibleAgentActions" {
+    appliesTo: ["AgentSteward", "AIAgentActor", "NPC"]
+    hiddenMutationAllowed: false
+    receiptRequired: true
+    permissionBoundaryRequired: true
+    playerFacingDisclosureRequired: true
+  }
+}

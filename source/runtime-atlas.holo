@@ -1,0 +1,93 @@
+// HoloLand Runtime Atlas
+// Source-of-truth index for layer, domain, vertical, place, surface, and
+// receipt organization.
+
+composition "HoloLandRuntimeAtlas" {
+  metadata {
+    title: "HoloLand Runtime Atlas"
+    version: "0.1.0"
+    source_contract: "HoloScript source defines runtime atlas organization."
+    spec: "docs/specs/HOLOLAND_RUNTIME_ATLAS.md"
+  }
+
+  state {
+    layers: ["vr", "vrr", "ar"]
+    default_layer: "vr"
+    central_layer: "source/layers/vr/central/hololand-central.holo"
+    frontier_layer: "source/layers/vr/frontier/shard-0/frontier-shard-0.holo"
+    reality_layer: "source/layers/vrr/reality-sims/reality-sims-layer.holo"
+    twin_earth_layer: "source/layers/ar/twin-earth/twin-earth-layer.holo"
+
+    domains: [
+      "geo",
+      "privacy",
+      "receipts",
+      "agents",
+      "safety",
+      "identity",
+      "sensors",
+      "actuators",
+      "quests",
+      "economy"
+    ]
+
+    verticals: [
+      "entertainment",
+      "civic",
+      "commerce",
+      "education",
+      "healthcare",
+      "industrial",
+      "real-estate",
+      "robotics"
+    ]
+
+    surfaces: ["browser", "desktop", "mobile-ar", "webxr", "headset"]
+    admission_rule: "Every runtime file declares layer, place, domains, verticals, surfaces, receipts, canonical source, and fail-closed behavior."
+  }
+
+  object "VRLayer" {
+    type: "atlas_layer"
+    id: "vr"
+    label: "HoloLand Central And Frontier"
+    role: "social_frontier"
+    source: "source/layers/vr/central/hololand-central.holo"
+    domains: ["identity", "agents", "receipts", "quests", "economy", "safety"]
+    verticals: ["entertainment", "civic", "commerce", "education"]
+    surfaces: ["browser", "desktop", "webxr", "headset"]
+    receiptRequired: true
+  }
+
+  object "VRRLayer" {
+    type: "atlas_layer"
+    id: "vrr"
+    label: "Virtual Reality Reality"
+    role: "one_to_one_reality_simulation"
+    source: "source/layers/vrr/reality-sims/reality-sims-layer.holo"
+    domains: ["geo", "privacy", "receipts", "safety", "sensors"]
+    verticals: ["healthcare", "industrial", "real-estate", "education", "commerce"]
+    surfaces: ["desktop", "headset"]
+    receiptRequired: true
+  }
+
+  object "ARLayer" {
+    type: "atlas_layer"
+    id: "ar"
+    label: "Twin Earth"
+    role: "geospatial_reality_overlay"
+    source: "source/layers/ar/twin-earth/twin-earth-layer.holo"
+    domains: ["geo", "privacy", "receipts", "agents", "safety", "sensors", "actuators"]
+    verticals: ["civic", "commerce", "education", "healthcare", "industrial", "real-estate", "robotics"]
+    surfaces: ["mobile-ar", "browser"]
+    receiptRequired: true
+  }
+
+  object "RuntimeAdmissionGate" {
+    type: "source_admission_gate"
+    requiredFields: ["layer", "place", "domains", "verticals", "surfaces", "receipts", "canonicalSource", "failClosedBehavior"]
+    privateResidenceDefault: "deny"
+    backgroundLocationDefault: "deny"
+    mutationWithoutReceipt: "deny"
+    externalForkDefault: "untrusted_until_conformance_proven"
+  }
+}
