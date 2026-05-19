@@ -32,3 +32,16 @@ The dock must not display absolute local paths, raw private archive contents, or
 credential-bearing screenshots. HoloLand can render receipts and provenance
 objects; HoloScript owns the reusable validators, replay contract, and runtime
 adapters.
+
+## User-shell variant
+
+The founder-facing room above is the substrate. The non-developer surface is
+the user-shell projection:
+
+| Surface | Source |
+| --- | --- |
+| User-shell room | `apps/holoshell/source/holoshell-user-shell-account-export-room.holo` |
+| User-shell policy | `apps/holoshell/source/holoshell-user-shell-account-export-policy.hsplus` |
+| User-shell pipeline | `apps/holoshell/source/holoshell-user-shell-account-export-pipeline.hs` |
+| User-shell prototype | `apps/holoshell/prototype/user-shell-account-export-room.html` |
+| Capability pack | `user-pack.account-export` (via `holoshell-user-shell-projection.hsplus`) |

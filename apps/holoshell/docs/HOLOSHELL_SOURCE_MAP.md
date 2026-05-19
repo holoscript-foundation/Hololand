@@ -85,6 +85,9 @@ so agents and product surfaces do not have to rediscover the shape of
 | Browser account export room | `apps/holoshell/source/holoshell-browser-account-export-room.holo` |
 | Browser account export policy | `apps/holoshell/source/holoshell-browser-account-export-policy.hsplus` |
 | Browser account export pipeline | `apps/holoshell/source/holoshell-browser-account-export-pipeline.hs` |
+| User shell account export room | `apps/holoshell/source/holoshell-user-shell-account-export-room.holo` |
+| User shell account export policy | `apps/holoshell/source/holoshell-user-shell-account-export-policy.hsplus` |
+| User shell account export pipeline | `apps/holoshell/source/holoshell-user-shell-account-export-pipeline.hs` |
 | Operating turn | `apps/holoshell/source/holoshell-operating-turn.hsplus` |
 | Operator brief | `apps/holoshell/source/holoshell-operator-brief.hsplus` |
 

@@ -1,0 +1,204 @@
+/**
+ * HoloShell User Shell Account Export Room
+ *
+ * Non-developer room for: "Export my account data."
+ *
+ * Derived from the founder-facing holoshell-browser-account-export-room.holo
+ * and holoshell-account-export-room.holo, but projected through the user-shell
+ * pattern: plain-language labels, staged capability packs, Brittney translation
+ * before action, and receipt names humans can read.
+ *
+ * The founder rooms expose gate IDs, permission envelopes, and raw receipt
+ * types. This room translates those into user-facing lanes: "Which account?",
+ * "What do you want to include?", "Check it's ready", "Download safely",
+ * "Verify what you got", and "Replay or undo later".
+ *
+ * HoloScript owns the policy, receipt contracts, and state machine
+ * (browser-account-export-policy.hsplus).
+ * HoloLand renders this room, the import dock, and the replay lesson.
+ * Brittney translates "export my account data" into the staged pack.
+ */
+
+composition "HoloShell User Shell Account Export Room" {
+  environment {
+    backgroundColor: "#0f1318"
+    ambient_light: 0.62
+    shadows: true
+  }
+
+  template "UserExportPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.56, 0.6, 0.06]
+    material: {
+      color: "#1a2530"
+      emissive: "#283a4a"
+      emissiveIntensity: 0.15
+      transparent: true
+      opacity: 0.97
+    }
+  }
+
+  template "UserToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#7aa2f7" }
+  }
+
+  // ── Human job ──────────────────────────────────────────────────────────
+  // The plain-language job the human sees at the top of the room.
+  object "HumanJob" using "UserExportPanel" {
+    position: [0, 2.55, -2.9]
+    label: "Export my account data"
+    properties: {
+      plainLanguageJob: "choose which account to export, pick what to include, download it safely, verify what you got, and know your rollback options"
+      userPromise: "your account data and downloads stay on this computer until you explicitly share them; no hidden browser automation or credential extraction"
+      substrateBoundary: "HoloScript owns the policy, receipts, and state machine; HoloLand renders this room and the import dock; Brittney translates your intent before any action"
+      capabilityPack: "user-pack.account-export"
+      brittneyTranslation: true
+      executionDefault: "staged_not_run"
+    }
+  }
+
+  // ── Lane 1: Which account? ─────────────────────────────────────────────
+  // Provider gate: pick which provider and account, see what browser profile
+  // is active, confirm it's the right one.
+  object "WhichAccountGate" using "UserExportPanel" {
+    position: [-5.2, 1.6, -1.2]
+    label: "Which account?"
+    properties: {
+      userQuestion: "Which provider and account do you want to export from?"
+      reads: ["provider", "account label", "browser profile", "session status"]
+      stableControls: ["provider picker", "account label badge", "wrong profile blocker"]
+      failureStates: ["wrong profile", "work account blocked", "expired session", "unknown provider"]
+      receiptKind: "browser_account_boundary_receipt"
+      brittneyHint: "I will check which browser profile is active and confirm the account before we start."
+      derivedFrom: "holoshell-browser-account-export-room.holo BrowserAccountGate"
+    }
+  }
+
+  // ── Lane 2: What to include? ────────────────────────────────────────────
+  // Scope gate: choose products, format, destination. Preview before requesting.
+  object "WhatToIncludeGate" using "UserExportPanel" {
+    position: [-2.6, 1.6, -1.2]
+    label: "What to include?"
+    properties: {
+      userQuestion: "What data do you want to export and where should it go?"
+      stableControls: ["product picker", "format preview", "destination picker", "size estimate"]
+      breakGlassActions: ["submit export request", "confirm provider email"]
+      failureStates: ["too broad selection", "cloud handoff warning", "storage limit"]
+      receiptKind: "account_export_approval_receipt"
+      brittneyHint: "I will show you exactly what products and data are included before you approve. Nothing is sent until you say go."
+      derivedFrom: "holoshell-browser-account-export-room.holo ExportApprovalGate"
+    }
+  }
+
+  // ── Lane 3: Check it's ready ────────────────────────────────────────────
+  // Provider wait: not requested, requested, waiting, ready, expired, blocked.
+  object "CheckItsReadyGate" using "UserExportPanel" {
+    position: [0, 1.6, -1.2]
+    label: "Check it's ready"
+    properties: {
+      userQuestion: "Has the provider finished preparing your export?"
+      visibleStates: ["not yet requested", "requested", "provider preparing", "ready to download", "link expired", "something went wrong"]
+      backstageAgents: ["provider connector agent", "browser boundary agent"]
+      brittneyHint: "Some providers take hours or days. I will watch for you and let you know when it's ready."
+      derivedFrom: "holoshell-browser-account-export-room.holo ProviderWaitPanel"
+    }
+  }
+
+  // ── Lane 4: Download safely ─────────────────────────────────────────────
+  // Local archive: quarantined download, no auto-execute, hash-verified.
+  object "DownloadSafelyGate" using "UserExportPanel" {
+    position: [2.6, 1.6, -1.2]
+    label: "Download safely"
+    properties: {
+      userQuestion: "Download your archive to a safe local folder."
+      stableControls: ["download destination", "file count", "archive hash", "no auto-unzip or run"]
+      blockedByDefault: ["auto unzip", "auto upload", "run downloaded file", "overwrite existing"]
+      receiptKind: "local_download_quarantine_receipt"
+      brittneyHint: "I will download your archive to a quarantined folder. Nothing runs automatically."
+      derivedFrom: "holoshell-browser-account-export-room.holo DownloadQuarantine"
+    }
+  }
+
+  // ── Lane 5: Verify what you got ────────────────────────────────────────
+  // Archive verification: hash check, MIME scan, sensitivity scan, replay key.
+  object "VerifyWhatYouGotGate" using "UserExportPanel" {
+    position: [5.2, 1.6, -1.2]
+    label: "Verify what you got"
+    properties: {
+      userQuestion: "Does your downloaded archive match what the provider said?"
+      requiredChecks: ["file count matches", "archive hash matches", "no unexpected executables", "sensitivity scan passed", "replay key saved"]
+      importAllowed: "preview_only_until_verified"
+      brittneyHint: "I will check every file against the provider's manifest and scan for anything unexpected. Your data stays local until you promote a redacted subset."
+      derivedFrom: "holoshell-account-export-room.holo ArchiveVerifyGate"
+    }
+  }
+
+  // ── Lane 6: Replay or undo later ────────────────────────────────────────
+  // Replay lesson: what you can redo, what you cannot undo, and how to revisit.
+  object "ReplayOrUndoGate" using "UserExportPanel" {
+    position: [1.3, 0.52, 0.15]
+    label: "Replay or undo later"
+    properties: {
+      userQuestion: "What can you revisit or undo after this export?"
+      replayLesson: [
+        "Your export receipt is saved locally. You can replay the full timeline anytime.",
+        "Provider export requests may be cancelable before they are created.",
+        "Once the provider creates the archive, the export itself cannot be undone, but you can delete the local copy.",
+        "Exporting data is NOT deleting it from the provider. Your source data is untouched.",
+        "If you imported something into HoloLand, only a redacted preview was shared. The raw archive stays local."
+      ]
+      rollbackStates: ["provider_cancel_possible", "local_delete", "receipt_delete", "hololand_import_undo"]
+      receiptKind: "account_export_replay_receipt"
+      brittneyHint: "I will walk you through what can and cannot be undone after the export."
+      derivedFrom: "holoshell-account-export-room.holo ReplayGate"
+    }
+  }
+
+  // ── Tokens ──────────────────────────────────────────────────────────────
+  object "NoHiddenExportToken" using "UserToken" {
+    position: [-4.0, 0.8, 0.15]
+    material: { color: "#f7768e" }
+    label: "no hidden export"
+    properties: {
+      policy: "fresh human gesture required for every export request"
+      blocks: "send share delete cloud grant hidden click"
+    }
+  }
+
+  object "WaitingIsFirstClassToken" using "UserToken" {
+    position: [0, 0.8, 0.15]
+    material: { color: "#e0af68" }
+    label: "waiting is first-class"
+    properties: {
+      policy: "provider export can wait outside this session"
+      receiptKind: "provider_export_ready_receipt"
+    }
+  }
+
+  object "VerifiedBeforeUseToken" using "UserToken" {
+    position: [3.8, 0.8, 0.15]
+    material: { color: "#9ece6a" }
+    label: "verified before use"
+    properties: {
+      policy: "import, share, delete, and summarize are blocked until verified"
+      receiptKind: "account_export_archive_receipt"
+    }
+  }
+
+  // ── Timeline ────────────────────────────────────────────────────────────
+  object "AccountExportTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.15, 0.15]
+    scale: [9.6, 0.06, 0.12]
+    color: "#565f89"
+    label: "which account -> what to include -> check it's ready -> download safely -> verify what you got -> replay or undo"
+  }
+}

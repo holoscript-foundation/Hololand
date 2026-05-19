@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HoloShell Account Export — Export My Account Data</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1318;
+      --panel: #1a2530;
+      --line: #2a3a4a;
+      --text: #e8f0f4;
+      --muted: #8b9faa;
+      --blue: #7aa2f7;
+      --gold: #e0af68;
+      --green: #9ece6a;
+      --red: #f7768e;
+      --purple: #bb9af7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    main {
+      width: min(1260px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0;
+    }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 4.5vw, 52px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 15px;
+      margin-top: 6px;
+    }
+    .status {
+      display: grid;
+      gap: 6px;
+      min-width: 240px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #111820;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .status strong { color: var(--green); font-size: 15px; }
+    .job {
+      margin: 20px 0;
+      padding: 14px 0;
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 860px;
+    }
+    .packs {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .pack {
+      display: inline-grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 8px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #111820;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pack .name { color: var(--blue); font-weight: 600; }
+    .pack .stage { color: var(--gold); }
+    .dock {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+    section {
+      min-height: 220px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 10px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.42;
+    }
+    .hint {
+      color: var(--purple);
+      font-size: 12px;
+      font-style: italic;
+    }
+    .token {
+      width: 100%;
+      min-height: 32px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      padding: 5px 10px;
+      font-size: 12px;
+      text-align: center;
+    }
+    .blue { color: var(--blue); background: rgba(122, 162, 247, 0.08); }
+    .gold { color: var(--gold); background: rgba(224, 175, 104, 0.1); }
+    .green { color: var(--green); background: rgba(158, 206, 106, 0.1); }
+    .red { color: var(--red); background: rgba(247, 118, 142, 0.1); }
+    .purple { color: var(--purple); background: rgba(187, 154, 247, 0.1); }
+    .timeline {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #111820;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .timeline strong { color: var(--text); }
+    .replay-lesson {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #111820;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .replay-lesson h3 { color: var(--purple); margin: 0 0 8px; font-size: 15px; }
+    .replay-lesson ol { padding-left: 20px; line-height: 1.5; }
+    .replay-lesson li { margin-bottom: 4px; }
+    .invariant {
+      margin-top: 12px;
+      border: 1px solid var(--red);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: rgba(247, 118, 142, 0.06);
+      font-size: 13px;
+      color: var(--red);
+    }
+    .invariant strong { color: var(--text); }
+    @media (max-width: 980px) {
+      header { grid-template-columns: 1fr; }
+      .status { min-width: 0; }
+      .dock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      main { width: min(100vw - 24px, 1260px); padding-top: 18px; }
+      .dock { grid-template-columns: 1fr; }
+      section { min-height: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Export My Account Data</h1>
+        <p class="subtitle">HoloShell User Room &mdash; staged capability packs with Brittney translation</p>
+      </div>
+      <div class="status" aria-label="current export safety status">
+        <strong>Staged, not running</strong>
+        <span>No hidden automation</span>
+        <span>Private data stays local</span>
+        <span>Export is not deletion</span>
+      </div>
+    </header>
+    <p class="job">Choose which account to export from, pick what to include, download it safely, verify what you got, and know your rollback options. Brittney translates your intent before every action.</p>
+
+    <div class="packs">
+      <div class="pack"><span class="name">which-account</span> <span class="stage">read only</span></div>
+      <div class="pack"><span class="name">what-to-include</span> <span class="stage">guarded execute</span></div>
+      <div class="pack"><span class="name">check-ready</span> <span class="stage">read only</span></div>
+      <div class="pack"><span class="name">download-safely</span> <span class="stage">break glass</span></div>
+      <div class="pack"><span class="name">verify</span> <span class="stage">read only</span></div>
+      <div class="pack"><span class="name">replay-or-undo</span> <span class="stage">read only</span></div>
+    </div>
+
+    <div class="dock" aria-label="account export control dock">
+      <section aria-labelledby="which-account-title">
+        <h2 id="which-account-title">Which account?</h2>
+        <ul>
+          <li>Provider picker and account label</li>
+          <li>Browser profile confirmation</li>
+          <li>Wrong profile and expired session blockers</li>
+        </ul>
+        <p class="hint">I will check which browser profile is active and confirm the account before we start.</p>
+        <span class="token blue">boundary receipt</span>
+      </section>
+
+      <section aria-labelledby="what-to-include-title">
+        <h2 id="what-to-include-title">What to include?</h2>
+        <ul>
+          <li>Product picker, format, and destination</li>
+          <li>Fresh approval required before sending</li>
+          <li>Cloud handoff and storage warnings</li>
+        </ul>
+        <p class="hint">I will show you exactly what is included before you approve.</p>
+        <span class="token gold">approval locked</span>
+      </section>
+
+      <section aria-labelledby="check-ready-title">
+        <h2 id="check-ready-title">Check it&rsquo;s ready</h2>
+        <ul>
+          <li>Not requested, requested, preparing, ready</li>
+          <li>Expired link or blocked state</li>
+          <li>Notification and link hashes only</li>
+        </ul>
+        <p class="hint">Some providers take hours or days. I will watch for you.</p>
+        <span class="token blue">wait receipt</span>
+      </section>
+
+      <section aria-labelledby="download-safely-title">
+        <h2 id="download-safely-title">Download safely</h2>
+        <ul>
+          <li>Quarantined folder, archive hash, file count</li>
+          <li>No auto-unzip, upload, or execute</li>
+          <li>Private paths stay local</li>
+        </ul>
+        <p class="hint">I will download to a quarantined folder. Nothing runs automatically.</p>
+        <span class="token green">quarantined</span>
+      </section>
+
+      <section aria-labelledby="verify-title">
+        <h2 id="verify-title">Verify what you got</h2>
+        <ul>
+          <li>File count and archive hash match</li>
+          <li>No unexpected executables</li>
+          <li>Sensitivity scan and replay key</li>
+        </ul>
+        <p class="hint">I will check every file against the manifest and scan for anything unexpected.</p>
+        <span class="token green">verified</span>
+      </section>
+
+      <section aria-labelledby="replay-title">
+        <h2 id="replay-title">Replay or undo</h2>
+        <ul>
+          <li>Full timeline replay anytime</li>
+          <li>Provider cancellation possibilities</li>
+          <li>Local delete and receipt delete</li>
+          <li>HoloLand import undo</li>
+        </ul>
+        <p class="hint">I will walk you through what can and cannot be undone.</p>
+        <span class="token purple">replay lesson</span>
+      </section>
+    </div>
+
+    <div class="timeline"><strong>Timeline:</strong> which account &rarr; what to include &rarr; check it's ready &rarr; download safely &rarr; verify what you got &rarr; replay or undo</div>
+
+    <div class="replay-lesson">
+      <h3>Replay lesson</h3>
+      <ol>
+        <li>Your export receipt is saved locally. You can replay the full timeline anytime.</li>
+        <li>Provider export requests may be cancelable before they are created.</li>
+        <li>Once the provider creates the archive, the export itself cannot be undone, but you can delete the local copy.</li>
+        <li><strong>Exporting data is NOT deleting it from the provider.</strong> Your source data is untouched.</li>
+        <li>If you imported something into HoloLand, only a redacted preview was shared. The raw archive stays local.</li>
+      </ol>
+    </div>
+
+    <div class="invariant">
+      <strong>Invariants:</strong> No hidden automation. Private data stays local. Export is not deletion. Verify before use. Fresh user gesture required for every mutation.
+    </div>
+  </main>
+</body>
+</html>

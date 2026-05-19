@@ -38,6 +38,7 @@ node scripts\holoshell-live-feed.mjs
 | `user-pack.open-claude-chat` | Open Claude and start a chat | Staged approval |
 | `user-pack.asset-shard-preview` | Turn this folder into a playable shard | Preview first |
 | `user-pack.format-learning` | Explain `.holo`, `.hs`, `.hsplus` | Read-only |
+| `user-pack.account-export` | Export my account data | Staged approval |
 
 ## Boundary
 

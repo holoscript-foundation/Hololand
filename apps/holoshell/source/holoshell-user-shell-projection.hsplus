@@ -14,6 +14,8 @@ composition "HoloShell User Shell Projection" {
     founderBootReceipt: ".tmp/holoshell/founder-boot-preview.json"
     formatInventoryReceipt: ".tmp/holoshell/format-inventory.json"
     policy: "founder_shell_superset_user_shell_projection"
+    accountExportPackSource: "apps/holoshell/source/holoshell-account-export-user-pack.hsplus"
+    accountExportRoomSource: "apps/holoshell/source/holoshell-account-export-user-room.holo"
   }
 
   state {
@@ -23,6 +25,7 @@ composition "HoloShell User Shell Projection" {
     selectedUserIntent: "Play lofi music"
     claudeChatPackId: "user-pack.open-claude-chat"
     claudeChatExecutionDefault: "staged_not_run"
+    accountExportPackId: "user-pack.account-export"
     modeCount: 0
     capabilityPackCount: 0
     founderOnlyPowerCount: 0
@@ -145,6 +148,27 @@ composition "HoloShell User Shell Projection" {
       execution_default: state.claudeChatExecutionDefault,
       approval_required_before_prompt_submit: true,
       shell_context_attached_by_default: false,
+      receipt_required: true
+    })
+  }
+
+  // User-shell account export: derived from founder browser-account-export,
+  // projected through Brittney translation with staged execution default.
+  // Pack: holoshell-account-export-user-pack.hsplus
+  // Room: holoshell-account-export-user-room.holo
+  // Policy: holoshell-browser-account-export-policy.hsplus
+  // Pipeline: holoshell-browser-account-export-pipeline.hs
+  action stage_account_export(providerHint) {
+    state.selectedCapabilityPack = state.accountExportPackId
+    state.selectedUserIntent = "Export my account data"
+    emit("holoshell:brittney-translation", {
+      action: "account_export_intent_staged",
+      intent: state.selectedUserIntent,
+      pack_id: state.selectedCapabilityPack,
+      provider_hint: providerHint,
+      execution_default: "staged_not_run",
+      approval_required_before_export: true,
+      brittney_translation_required: true,
       receipt_required: true
     })
   }

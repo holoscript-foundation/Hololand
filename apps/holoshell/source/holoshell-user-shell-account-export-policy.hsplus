@@ -1,0 +1,312 @@
+// HoloShell User Shell Account Export Policy
+//
+// Non-developer policy derived from holoshell-browser-account-export-policy.hsplus.
+// User-shell projection: plain-language labels, staged capability packs,
+// Brittney translation before action, and "export my account data" as the
+// human-facing phrase.
+//
+// The founder policy uses raw gate IDs, permission envelope names, and
+// technical receipt types. This policy translates those into user-facing
+// capability pack stages with Brittney-verified intent before any
+// break-glass action runs.
+//
+// Key difference from founder policy:
+//   - executionDefault is "staged_not_run" (not "break_glass")
+//   - Brittney intent translation is required before every guarded action
+//   - Receipt names are human-readable
+//   - "Export is not deletion" is the first invariant, not a side note
+//   - Replay lesson is a first-class surface, not a receipt footnote
+
+composition "HoloShellUserShellAccountExportPolicy" {
+  config {
+    title: "HoloShell User Shell Account Export Policy"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    derivedFrom: "holoshell-browser-account-export-policy.hsplus"
+    capabilityPack: "user-pack.account-export"
+    brittneyTranslation: true
+    executionDefault: "staged_not_run"
+    founderSupersedes: true
+  }
+
+  state UserShellAccountExportState {
+    workflow: "browser-account-export"
+    humanJob: "export my account data"
+    provider: "unknown"
+    accountBoundary: "unknown"
+    browserProfileBoundary: "unknown"
+    providerWaitState: "not_requested"
+    destinationStatus: "unknown"
+    fileCount: 0
+    archiveHash: ""
+    receiptsCaptured: 0
+    accountMutationPerformed: false
+    downloadedArchiveExecuted: false
+    sourceFileMutationPerformed: false
+    rawPrivateDataPublished: false
+    privatePathLeakedToPublicReceipt: false
+    currentStage: "which_account"
+    brittneyTranslationCount: 0
+    blockers: []
+  }
+
+  template "UserCapabilityPack" {
+    type: "workflow"
+    shellScope: "user"
+    derivedFrom: "founder"
+    permission: "guarded_execute"
+    executionDefault: "staged_not_run"
+    receiptRequired: true
+    brittneyTranslationRequired: true
+  }
+
+  template "UserExportStage" {
+    type: "stage"
+    shellScope: "user"
+    permission: "read_only_preview"
+    brittneyHint: ""
+    receiptRequired: true
+  }
+
+  // ── Staged capability packs ──────────────────────────────────────────────
+  // Each pack maps to a founder permission envelope but with user-facing
+  // language and Brittney intent translation required before execution.
+
+  capabilityPack "user-pack.account-export.which-account" {
+    userPhrase: "Which account do I export from?"
+    brittneyTranslation: "I will check which browser profile is active and confirm the account."
+    founderEnvelope: "SilentInspect"
+    executionDefault: "staged_not_run"
+    permission: "read_only"
+    receiptKind: "browser_account_boundary_receipt"
+  }
+
+  capabilityPack "user-pack.account-export.what-to-include" {
+    userPhrase: "What data should I include?"
+    brittneyTranslation: "I will show you exactly what products and data are included before you approve."
+    founderEnvelope: "GuardedExportPreparation"
+    executionDefault: "staged_not_run"
+    permission: "guarded_execute"
+    receiptKind: "account_export_approval_receipt"
+  }
+
+  capabilityPack "user-pack.account-export.check-ready" {
+    userPhrase: "Is my export ready to download?"
+    brittneyTranslation: "Some providers take hours or days. I will watch for you."
+    founderEnvelope: "SilentInspect"
+    executionDefault: "staged_not_run"
+    permission: "read_only"
+    receiptKind: "provider_export_wait_receipt"
+  }
+
+  capabilityPack "user-pack.account-export.download-safely" {
+    userPhrase: "Download my archive safely"
+    brittneyTranslation: "I will download your archive to a quarantined folder. Nothing runs automatically."
+    founderEnvelope: "BreakGlassAccountExport"
+    executionDefault: "staged_not_run"
+    permission: "break_glass"
+    receiptKind: "local_download_quarantine_receipt"
+  }
+
+  capabilityPack "user-pack.account-export.verify" {
+    userPhrase: "Verify what I downloaded"
+    brittneyTranslation: "I will check every file against the provider manifest and scan for anything unexpected."
+    founderEnvelope: "SilentInspect"
+    executionDefault: "staged_not_run"
+    permission: "read_only"
+    receiptKind: "account_export_archive_receipt"
+  }
+
+  capabilityPack "user-pack.account-export.replay-or-undo" {
+    userPhrase: "What can I redo or undo?"
+    brittneyTranslation: "I will walk you through what can and cannot be undone after the export."
+    founderEnvelope: "SilentInspect"
+    executionDefault: "staged_not_run"
+    permission: "read_only"
+    receiptKind: "account_export_replay_receipt"
+  }
+
+  // ── Invariants (user-facing, derived from founder invariants) ────────────
+
+  policy "ExportIsNotDeletion" {
+    appliesTo: ["delete_cloud_data", "clear_activity", "close_account", "remove_app_access"]
+    userFacingLabel: "Exporting your data does not delete it from the provider."
+    defaultAllowed: false
+    separateWorkflowRequired: true
+    rollbackPlanRequired: true
+    receiptRequired: true
+  }
+
+  policy "NoHiddenAutomation" {
+    appliesTo: ["create_export", "grant_provider_app_access", "download_archive"]
+    userFacingLabel: "Every export action requires your explicit approval. Nothing runs automatically."
+    accountOwnerGestureRequired: true
+    hiddenAutomationAllowed: false
+    rawCredentialAccessAllowed: false
+    brittneyTranslationRequired: true
+    receiptRequired: true
+  }
+
+  policy "VerifyBeforeUse" {
+    appliesTo: ["import_to_hololand", "share_archive", "delete_originals", "summarize_archive_with_ai"]
+    userFacingLabel: "You must verify your archive before importing, sharing, or summarizing it."
+    requiresAllPartsVerified: true
+    requiresSensitivityScan: true
+    requiresReplayKey: true
+    importMode: "preview_only_until_verified"
+    receiptRequired: true
+  }
+
+  policy "PrivateDataStaysLocal" {
+    appliesTo: ["publish_archive", "upload_archive", "share_absolute_path"]
+    userFacingLabel: "Your raw account data and absolute file paths stay on this computer."
+    absolutePathsInPublicReceipts: false
+    rawPrivateDataPublishAllowed: false
+    receiptRequired: true
+  }
+
+  // ── State machine (user-facing stage names) ─────────────────────────────
+
+  state_machine "UserShellAccountExportWorkflow" {
+    initial: "which_account"
+    stages: [
+      "which_account",
+      "what_to_include",
+      "check_its_ready",
+      "download_safely",
+      "verify_what_you_got",
+      "replay_or_undo",
+      "done",
+      "blocked"
+    ]
+    transition "pick_account" { from: "which_account", to: "what_to_include" }
+    transition "choose_scope" { from: "what_to_include", to: "check_its_ready" }
+    transition "wait_for_provider" { from: "check_its_ready", to: "download_safely" }
+    transition "quarantine_download" { from: "download_safely", to: "verify_what_you_got" }
+    transition "verify_archive" { from: "verify_what_you_got", to: "replay_or_undo" }
+    transition "finish" { from: "replay_or_undo", to: "done" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+
+  action classifyUserIntent(intentText) {
+    UserShellAccountExportState.humanJob = intentText
+    UserShellAccountExportState.currentStage = "which_account"
+    UserShellAccountExportState.brittneyTranslationCount = UserShellAccountExportState.brittneyTranslationCount + 1
+    emit("holoshell:user-shell:account-export:intent_classified", {
+      workflow: UserShellAccountExportState.workflow,
+      humanJob: UserShellAccountExportState.humanJob,
+      stage: UserShellAccountExportState.currentStage,
+      brittneyTranslationRequired: true,
+      executionDefault: "staged_not_run",
+      capabilityPack: "user-pack.account-export"
+    })
+  }
+
+  action selectProviderAndAccount(receipt) {
+    UserShellAccountExportState.provider = receipt.provider
+    UserShellAccountExportState.accountBoundary = receipt.accountBoundary
+    UserShellAccountExportState.browserProfileBoundary = receipt.browserProfile
+    UserShellAccountExportState.currentStage = "what_to_include"
+    UserShellAccountExportState.receiptsCaptured = UserShellAccountExportState.receiptsCaptured + 1
+    UserShellAccountExportState.brittneyTranslationCount = UserShellAccountExportState.brittneyTranslationCount + 1
+    emit("holoshell:user-shell:account-export:boundary", {
+      workflow: UserShellAccountExportState.workflow,
+      provider: UserShellAccountExportState.provider,
+      accountBoundary: UserShellAccountExportState.accountBoundary,
+      browserProfile: UserShellAccountExportState.browserProfileBoundary,
+      credentialExtrusionAllowed: false,
+      publicReceiptMayContainAbsolutePath: false,
+      stage: UserShellAccountExportState.currentStage,
+      brittneyTranslation: "I confirmed the browser profile and account. Ready to choose what to include."
+    })
+  }
+
+  action requestExportWithApproval(receipt) {
+    UserShellAccountExportState.providerWaitState = "requested"
+    UserShellAccountExportState.currentStage = "check_its_ready"
+    UserShellAccountExportState.receiptsCaptured = UserShellAccountExportState.receiptsCaptured + 1
+    UserShellAccountExportState.brittneyTranslationCount = UserShellAccountExportState.brittneyTranslationCount + 1
+    emit("holoshell:user-shell:account-export:approval", {
+      workflow: UserShellAccountExportState.workflow,
+      provider: UserShellAccountExportState.provider,
+      freshUserGesture: true,
+      hiddenAutomationUsed: false,
+      stage: UserShellAccountExportState.currentStage,
+      brittneyTranslation: "Your export request is submitted. I will watch for when it's ready."
+    })
+  }
+
+  action recordProviderReady(receipt) {
+    UserShellAccountExportState.providerWaitState = receipt.state
+    UserShellAccountExportState.currentStage = "download_safely"
+    UserShellAccountExportState.receiptsCaptured = UserShellAccountExportState.receiptsCaptured + 1
+    UserShellAccountExportState.brittneyTranslationCount = UserShellAccountExportState.brittneyTranslationCount + 1
+    emit("holoshell:user-shell:account-export:provider_ready", {
+      workflow: UserShellAccountExportState.workflow,
+      provider: UserShellAccountExportState.provider,
+      state: UserShellAccountExportState.providerWaitState,
+      stage: UserShellAccountExportState.currentStage,
+      brittneyTranslation: "Your export is ready. I will download it to a quarantined folder."
+    })
+  }
+
+  action recordQuarantinedDownload(receipt) {
+    UserShellAccountExportState.destinationStatus = "quarantined"
+    UserShellAccountExportState.fileCount = receipt.fileCount
+    UserShellAccountExportState.archiveHash = receipt.archiveHash
+    UserShellAccountExportState.downloadedArchiveExecuted = false
+    UserShellAccountExportState.rawPrivateDataPublished = false
+    UserShellAccountExportState.privatePathLeakedToPublicReceipt = receipt.privatePathLeakedToPublicReceipt
+    UserShellAccountExportState.currentStage = "verify_what_you_got"
+    UserShellAccountExportState.receiptsCaptured = UserShellAccountExportState.receiptsCaptured + 1
+    UserShellAccountExportState.brittneyTranslationCount = UserShellAccountExportState.brittneyTranslationCount + 1
+    emit("holoshell:user-shell:account-export:quarantine", {
+      workflow: UserShellAccountExportState.workflow,
+      fileCount: UserShellAccountExportState.fileCount,
+      archiveHash: UserShellAccountExportState.archiveHash,
+      downloadedArchiveExecuted: false,
+      rawPrivateDataPublished: false,
+      stage: UserShellAccountExportState.currentStage,
+      brittneyTranslation: "Archive downloaded and quarantined. I will verify it matches the provider manifest."
+    })
+  }
+
+  action recordVerification(receipt) {
+    if (receipt.archivePartCount == receipt.verifiedArchivePartCount && receipt.replayKey != "") {
+      UserShellAccountExportState.currentStage = "replay_or_undo"
+    } else {
+      UserShellAccountExportState.currentStage = "blocked"
+    }
+    UserShellAccountExportState.receiptsCaptured = UserShellAccountExportState.receiptsCaptured + 1
+    UserShellAccountExportState.brittneyTranslationCount = UserShellAccountExportState.brittneyTranslationCount + 1
+    emit("holoshell:user-shell:account-export:verified", {
+      workflow: UserShellAccountExportState.workflow,
+      status: UserShellAccountExportState.currentStage,
+      archiveParts: receipt.archivePartCount,
+      verifiedParts: receipt.verifiedArchivePartCount,
+      replayReady: receipt.replayKey != "",
+      stage: UserShellAccountExportState.currentStage,
+      brittneyTranslation: receipt.archivePartCount == receipt.verifiedArchivePartCount
+        ? "All files verified. You can now review your replay and undo options."
+        : "Some files did not verify. I will show you what needs attention."
+    })
+  }
+
+  action blockOn(reason, evidencePath, ownerSurface) {
+    UserShellAccountExportWorkflow.transition("block")
+    UserShellAccountExportState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+    UserShellAccountExportState.brittneyTranslationCount = UserShellAccountExportState.brittneyTranslationCount + 1
+    emit("holoshell:user-shell:account-export:blocker", {
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface,
+      brittneyTranslation: "Something needs your attention: " + reason
+    })
+  }
+}
