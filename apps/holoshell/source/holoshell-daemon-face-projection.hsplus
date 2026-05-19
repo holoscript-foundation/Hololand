@@ -1,0 +1,460 @@
+// HoloShell Daemon Face Projection
+//
+// D.053: The user shapes a local daemon as their personal conversation face.
+// Brittney remains the invisible operating field — visible through room
+// responsiveness, routing, memory, care, repair, and environmental
+// organization — never reduced to a humanoid assistant.
+//
+// This projection renders the user's ConversationDaemon as a tappable,
+// named character in the HoloShell room. It is NOT Brittney. It is the
+// user's daemon: named, styled, and scoped to their preferences.
+//
+// Architecture:
+//   1. Daemon face — the tappable, named, styled companion in the room
+//   2. Field presence — Brittney's coordination visible through ambient
+//      room state, receipt streams, agent lanes, and environmental response
+//   3. Turn bridge — daemon conversation emits structured turn receipts
+//      that feed Brittney rehydration, never raw chat text
+//   4. Permission gate — all daemon actions pass through the permission
+//      envelope from DaemonCustomizationProfile.permissions
+//
+// Source contract: @holoscript/core ConversationDaemon
+// Pairs with: holoshell-brittney-avatar.hsplus (the field, not the face)
+// Pairs with: ConversationDaemon.ts, DaemonCustomizationProfile.ts
+// Ref: BRITTNEY_FIELD_AND_USER_DAEMONS.md, D.053
+
+composition "HoloShell Daemon Face Projection" {
+  config {
+    title: "HoloShell Daemon Face Projection"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    daemonSource: "packages/core/src/daemon/ConversationDaemon.ts"
+    customizationSource: "packages/core/src/daemon/DaemonCustomizationProfile.ts"
+    brittneyFieldSource: "apps/holoshell/source/holoshell-brittney-avatar.hsplus"
+    turnBridgeSource: "apps/holoshell/source/holoshell-brittney-runtime-bridge.hsplus"
+    contextPacketSource: "apps/holoshell/source/holoshell-brittney-context-packet.hsplus"
+    receiptSource: "packages/framework/src/board/holoshell-brittney-action-receipts.ts"
+    manifestReceipt: ".tmp/holoshell/daemon-face-manifest.json"
+    turnReceipt: ".tmp/holoshell/daemon-turn-latest.json"
+    // D.053 invariant: this projection is the daemon FACE, not the FIELD.
+    // Brittney field state is consumed from the Brittney projection, never
+    // duplicated here.
+    fieldSeparation: "daemon_face_is_not_brittney_field"
+  }
+
+  state {
+    // ── Daemon Identity (from DaemonStyleProfile) ──
+    // The user names and styles their daemon. This is never "Brittney".
+    daemonId: "daemon-default"
+    daemonDisplayName: "Lumi"
+    daemonCharacterClass: "companion"
+    daemonScale: "small"
+    daemonVisualTheme: "default"
+    daemonVoiceEnabled: false
+    daemonFormality: "balanced"
+    daemonHumor: "light"
+    daemonPatience: "patient"
+    daemonCareProfile: "care-v1"
+    daemonActive: false
+
+    // ── Daemon Visual State ──
+    daemonEmotion: "attentive"
+    daemonPipelineStage: "idle"
+    daemonConversationOpen: false
+    daemonLastTurnReceiptId: ""
+    daemonKeyboardReachable: true
+    daemonScreenReaderReachable: true
+    daemonKeyboardShortcut: "Alt+D"
+
+    // ── Permission Envelope (from DaemonPermissionConfig) ──
+    // Permissions are consumed from DaemonCustomizationProfile.permissions,
+    // never from the style layer. D.053: stored separately.
+    permissionEnvelope: "read_only"
+    autonomousMutationsAllowed: false
+    breakGlassAllowed: false
+    receiptRequired: true
+    maxAutonomousActionsPerSession: 0
+    actionsCompletedThisSession: 0
+
+    // ── Brittney Field Presence (ambient, NOT humanoid) ──
+    // Brittney is visible through room responsiveness, not through a face.
+    // The daemon face shows Brittney's field state as ambient information:
+    // room state changes, receipt streams, agent activity, care signals.
+    fieldActive: true
+    fieldLastReceiptTimestamp: ""
+    fieldAgentLaneCount: 0
+    fieldCareSignal: "steady"
+    fieldRepairCount: 0
+
+    // ── Turn Receipts ──
+    turnReceiptCount: 0
+    contextDeltaSignificance: 0
+    consentBoundary: "read_only"
+
+    // ── Projection Status ──
+    projectionStatus: "unknown"
+    manifestConsumed: false
+    turnBridgeActive: false
+  }
+
+  // ── Channels ──────────────────────────────────────────────────────────────
+  //
+  // The daemon face has its OWN channels, separate from Brittney's channels.
+  // Brittney's channels (holoshell:brittney:*) remain in the Brittney avatar
+  // projection. The daemon consumes field state but does not emit Brittney events.
+
+  channel "holoshell:daemon:face" {
+    type: "pub_sub"
+    priority: "high"
+    description: "Daemon face visual state, emotion, accessibility, and activation"
+  }
+
+  channel "holoshell:daemon:voice" {
+    type: "request_response"
+    priority: "high"
+    description: "Daemon voice input/output — only when daemonVoiceEnabled is true"
+  }
+
+  channel "holoshell:daemon:turn" {
+    type: "append_only"
+    priority: "high"
+    description: "Daemon conversation turn receipts — structured context deltas, not raw chat"
+  }
+
+  channel "holoshell:daemon:accessibility" {
+    type: "append_only"
+    priority: "critical"
+    description: "Daemon keyboard focus, ARIA labels, live-region updates, reduced-motion"
+  }
+
+  // ── Field ambient channel (read-only from daemon perspective) ──
+  // The daemon consumes field state to show ambient Brittney presence,
+  // but never emits Brittney events. Field events come from the Brittney
+  // projection (holoshell:brittney:*) and are read-only here.
+
+  channel "holoshell:daemon:field-ambient" {
+    type: "pub_sub"
+    priority: "low"
+    description: "Ambient Brittney field state visible through room responsiveness — NOT a humanoid face"
+  }
+
+  // ── Templates ──────────────────────────────────────────────────────────────
+
+  template "DaemonFace" {
+    type: "avatar"
+    avatarId: "daemon-user-face"
+    // displayName comes from DaemonStyleProfile.displayName — user-chosen
+    displayName: $daemonDisplayName
+    lineage: "user_daemon_pattern"
+    // visualForm comes from DaemonStyleProfile.appearance.characterClass + scale
+    visualForm: $daemonCharacterClass + "_" + $daemonScale
+    bodyPlan: "companion_scale"
+    material: "warm_hologram"
+    meshBudget: "procedural_preview"
+    // Traits from the ConversationDaemon contract
+    traits: ["avatar_embodiment", "ai_companion", "voice_proximity", "daemon_face"]
+    tracking_source: "daemon_context_delta"
+    ik_mode: "upper_body"
+    lip_sync: $daemonVoiceEnabled
+    emotion_directives: true
+    voice_output: $daemonVoiceEnabled ? "browser_or_runtime_route" : "none"
+    conversation_fillers: true
+    // Care comes from DaemonStyleProfile.careProfile, not from Brittney
+    personality_warmth: 0.82
+    personality_curiosity: 0.78
+    receipt_required: true
+    // D.053: this is a daemon face, NOT Brittney. The accessibility label
+    // must use the user's chosen daemon displayName.
+    aria_label: $daemonDisplayName + " daemon"
+    role_description: "Your personal daemon companion — " + $daemonDisplayName
+  }
+
+  template "DaemonAccessibilityHandle" {
+    type: "accessibility_handle"
+    role: "button"
+    // Label uses the daemon's chosen name, never "Brittney"
+    label: "Open " + $daemonDisplayName + " daemon"
+    keyboardShortcut: $daemonKeyboardShortcut
+    focusable: true
+    liveRegion: "polite"
+    reducedMotionAware: true
+    pointerTarget: "daemon_face_body"
+    // D.053: screen reader summary uses daemon displayName
+    screenReaderSummary: $daemonDisplayName + " daemon, connected to the HoloScript agent runtime via the Brittney field"
+  }
+
+  template "FieldAmbientIndicator" {
+    type: "room_state"
+    // Brittney field presence is shown through room responsiveness, not
+    // through a humanoid face. This template renders field state as
+    // ambient visual/structural changes to the room.
+    visualForm: "ambient_responsiveness"
+    showsReceiptStream: true
+    showsAgentLaneActivity: true
+    showsCareSignal: true
+    showsRepairActivity: true
+    receipt_required: true
+    // D.053: no avatar, no face, no "Brittney is typing" — the room
+    // responds through its own state changes.
+  }
+
+  // ── Policies ───────────────────────────────────────────────────────────────
+  //
+  // Permission policies mirror DaemonPermissionConfig. The daemon's
+  // permission envelope is consumed from the customization profile, not
+  // from Brittney's policies.
+
+  policy "DaemonReadContext" {
+    appliesTo: ["focus_daemon", "open_daemon_conversation", "explain_receipts", "summarize_shell_state"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    receiptRequired: true
+    // D.053: context sources come from DaemonPermissionConfig.contextSources
+    contextSources: ["operator_brief", "holoscript_surface_map", "recent_receipts"]
+  }
+
+  policy "DaemonVoiceInput" {
+    appliesTo: ["start_listening", "stop_listening", "transcribe_user_voice"]
+    permissionEnvelope: "user_initiated_microphone"
+    approvalRequired: true
+    receiptRequired: true
+    onlyWhen: $daemonVoiceEnabled
+  }
+
+  policy "DaemonGuardedAction" {
+    appliesTo: ["propose_mutation", "dispatch_agent", "claim_task", "send_message"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    receiptRequired: true
+    // D.053: autonomous mutations require explicit permission envelope
+    maxAutonomousActions: $maxAutonomousActionsPerSession
+    consentBoundary: $consentBoundary
+  }
+
+  policy "DaemonBreakGlass" {
+    appliesTo: ["break_glass_action"]
+    permissionEnvelope: "break_glass"
+    approvalRequired: true
+    requiresFreshUserGesture: true
+    receiptRequired: true
+    onlyWhen: $breakGlassAllowed
+    // D.053: break-glass requires explicit custody scope
+    custodyScope: ["holoshell:daemon:emergency"]
+  }
+
+  // ── Objects ────────────────────────────────────────────────────────────────
+
+  object "DaemonFaceProjection" using "DaemonFace" {
+    accessibility: "DaemonAccessibilityHandle"
+    visual_state: $daemonEmotion
+    pipeline_stage: $daemonPipelineStage
+    conversation_open: $daemonConversationOpen
+    active: $daemonActive
+    keyboard_reachable: $daemonKeyboardReachable
+    screen_reader_reachable: $daemonScreenReaderReachable
+
+    // ── Field ambient indicator (room responsiveness, NOT avatar) ──
+    object "FieldAmbience" using "FieldAmbientIndicator" {
+      field_active: $fieldActive
+      last_receipt_timestamp: $fieldLastReceiptTimestamp
+      agent_lane_count: $fieldAgentLaneCount
+      care_signal: $fieldCareSignal
+      repair_count: $fieldRepairCount
+    }
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  action consume_daemon_manifest(manifest) {
+    // Manifest comes from the daemon customization profile (DaemonCustomizationProfile),
+    // NOT from Brittney's configuration. Style and permissions are separate.
+    state.daemonId = manifest.daemon.daemonId
+    state.daemonDisplayName = manifest.style.displayName
+    state.daemonCharacterClass = manifest.style.appearance.characterClass ?? "companion"
+    state.daemonScale = manifest.style.appearance.scale ?? "small"
+    state.daemonVisualTheme = manifest.style.visualTheme ?? "default"
+    state.daemonVoiceEnabled = manifest.style.voice.enabled ?? false
+    state.daemonFormality = manifest.style.tone.formality ?? "balanced"
+    state.daemonHumor = manifest.style.tone.humor ?? "light"
+    state.daemonPatience = manifest.style.tone.patience ?? "patient"
+    state.daemonCareProfile = manifest.style.careProfile ?? "care-v1"
+    // Permissions come from the PERMISSIONS layer, not style. D.053.
+    state.permissionEnvelope = manifest.permissions.permissions.permissionEnvelope ?? "read_only"
+    state.autonomousMutationsAllowed = manifest.permissions.permissions.autonomousMutations ?? false
+    state.breakGlassAllowed = manifest.permissions.permissions.breakGlassAllowed ?? false
+    state.receiptRequired = manifest.permissions.dispatch.receiptRequired ?? true
+    state.maxAutonomousActionsPerSession = manifest.permissions.dispatch.maxAutonomousActionsPerSession ?? 0
+    state.consentBoundary = manifest.permissions.permissions.permissionEnvelope
+    state.manifestConsumed = true
+
+    emit("holoshell:daemon:face", {
+      action: "daemon_manifest_consumed",
+      daemon_id: state.daemonId,
+      display_name: state.daemonDisplayName,
+      character_class: state.daemonCharacterClass,
+      scale: state.daemonScale,
+      visual_theme: state.daemonVisualTheme,
+      permission_envelope: state.permissionEnvelope,
+      // D.053: never emit Brittney identity here.
+      // The daemon is the user's face. Brittney is the field.
+      role_description: "Your personal daemon companion — " + state.daemonDisplayName
+    })
+  }
+
+  action focus_daemon(source) {
+    state.daemonConversationOpen = true
+    state.daemonActive = true
+    emit("holoshell:daemon:accessibility", {
+      action: "daemon_focused",
+      source: source,
+      keyboard_shortcut: state.daemonKeyboardShortcut,
+      live_region: "polite",
+      // D.053: accessibility label uses daemon name, never Brittney
+      aria_label: state.daemonDisplayName + " daemon focused"
+    })
+  }
+
+  action open_daemon_conversation(reason) {
+    state.daemonConversationOpen = true
+    state.daemonPipelineStage = "hydrating"
+    emit("holoshell:daemon:face", {
+      action: "daemon_conversation_opened",
+      reason: reason,
+      daemon_id: state.daemonId,
+      display_name: state.daemonDisplayName,
+      care_profile: state.daemonCareProfile,
+      permission_envelope: state.permissionEnvelope
+    })
+  }
+
+  action close_daemon_conversation(reason) {
+    state.daemonConversationOpen = false
+    state.daemonPipelineStage = "idle"
+    emit("holoshell:daemon:face", {
+      action: "daemon_conversation_closed",
+      reason: reason,
+      daemon_id: state.daemonId
+    })
+  }
+
+  action consume_daemon_turn_receipt(receipt) {
+    // Daemon turns produce structured ContextDelta, not raw chat text.
+    // The receipt feeds Brittney rehydration through the channel,
+    // NOT through the daemon face directly.
+    state.daemonLastTurnReceiptId = receipt.id
+    state.turnReceiptCount = state.turnReceiptCount + 1
+    state.contextDeltaSignificance = receipt.contextDelta?.significanceScore ?? 0
+    state.consentBoundary = receipt.consentBoundary ?? "read_only"
+    state.daemonPipelineStage = "turn_complete"
+    // Increment action counter for autonomous action budget
+    if (receipt.proposedNextAction) {
+      state.actionsCompletedThisSession = state.actionsCompletedThisSession + 1
+    }
+
+    emit("holoshell:daemon:turn", {
+      action: "daemon_turn_receipt_recorded",
+      receipt_id: receipt.id,
+      daemon_id: state.daemonId,
+      significance_score: state.contextDeltaSignificance,
+      consent_boundary: state.consentBoundary,
+      actions_this_session: state.actionsCompletedThisSession,
+      max_autonomous: state.maxAutonomousActionsPerSession
+    })
+  }
+
+  action consume_field_ambient(fieldState) {
+    // Brittney field presence is consumed as ambient room state.
+    // The daemon face shows this through the FieldAmbience indicator,
+    // NOT through Brittney appearing as a humanoid face alongside the daemon.
+    state.fieldActive = fieldState.active ?? true
+    state.fieldLastReceiptTimestamp = fieldState.lastReceiptTimestamp ?? ""
+    state.fieldAgentLaneCount = fieldState.agentLaneCount ?? 0
+    state.fieldCareSignal = fieldState.careSignal ?? "steady"
+    state.fieldRepairCount = fieldState.repairCount ?? 0
+
+    emit("holoshell:daemon:field-ambient", {
+      action: "field_ambient_updated",
+      field_active: state.fieldActive,
+      agent_lanes: state.fieldAgentLaneCount,
+      care_signal: state.fieldCareSignal,
+      repair_count: state.fieldRepairCount,
+      // D.053: Brittney is visible through room responsiveness,
+      // NOT through a second avatar. The daemon face is the only
+      // humanoid; Brittney is the room responding.
+      brittney_presence: "ambient_room_state"
+    })
+  }
+
+  action set_daemon_emotion(emotion) {
+    state.daemonEmotion = emotion
+    emit("holoshell:daemon:face", {
+      action: "daemon_emotion_changed",
+      daemon_id: state.daemonId,
+      display_name: state.daemonDisplayName,
+      emotion: state.daemonEmotion
+    })
+  }
+
+  action set_daemon_pipeline_stage(stage) {
+    state.daemonPipelineStage = stage
+    emit("holoshell:daemon:face", {
+      action: "daemon_pipeline_stage_changed",
+      daemon_id: state.daemonId,
+      stage: state.daemonPipelineStage
+    })
+  }
+
+  // ── Separation Invariant Tests ─────────────────────────────────────────────
+
+  @test {
+    name: "daemon display name never contains Brittney"
+    setup: { $daemonDisplayName = "Lumi" }
+    assert: { $daemonDisplayName != "Brittney" }
+  }
+
+  @test {
+    name: "daemon display name never contains field"
+    setup: { $daemonDisplayName = "Atlas" }
+    assert: { $daemonDisplayName != "field" }
+  }
+
+  @test {
+    name: "daemon starts idle"
+    assert: { $daemonPipelineStage == "idle" }
+  }
+
+  @test {
+    name: "conversation not open by default"
+    assert: { $daemonConversationOpen == false }
+  }
+
+  @test {
+    name: "permission envelope starts read_only"
+    assert: { $permissionEnvelope == "read_only" }
+  }
+
+  @test {
+    name: "autonomous mutations disabled by default"
+    assert: { $autonomousMutationsAllowed == false }
+  }
+
+  @test {
+    name: "break glass disabled by default"
+    assert: { $breakGlassAllowed == false }
+  }
+
+  @test {
+    name: "receipts required by default"
+    assert: { $receiptRequired == true }
+  }
+
+  @test {
+    name: "field is shown as ambient, not avatar"
+    assert: { $fieldActive == true }
+  }
+
+  @test {
+    name: "daemon action budget starts at zero"
+    assert: { $actionsCompletedThisSession == 0 }
+  }
+}

@@ -244,12 +244,16 @@ HoloShell proves.
 
 ## Build Order
 
-1. Define `ConversationDaemon` and `ConversationDaemonTurn` as HoloScript source
-   contracts.
-2. Add a local daemon registry with owner, name, appearance, voice, care, and
-   permission profiles.
-3. Project the first daemon as a tappable/clickable character in the HoloShell
-   room.
+1. ~~Define `ConversationDaemon` and `ConversationDaemonTurn` as HoloScript source
+   contracts.~~ **DONE** — `packages/core/src/daemon/ConversationDaemon.ts`
+2. ~~Add a local daemon registry with owner, name, appearance, voice, care, and
+   permission profiles.~~ **DONE** — `packages/core/src/daemon/DaemonCustomizationProfile.ts`
+   — style and permissions stored separately per D.053 invariant.
+3. ~~Project the first daemon as a tappable/clickable character in the HoloShell
+   room.~~ **DONE** — `apps/holoshell/source/holoshell-daemon-face-projection.hsplus`
+   — daemon face projection renders the user's named daemon with its own channels,
+   distinct from Brittney's field channels. Field presence shown through ambient
+   room state, not through a second avatar.
 4. On activation, hydrate the daemon from `brittney-context.json`,
    `operator-brief.json`, the HoloScript surface map, agent lanes, and recent
    receipts.
