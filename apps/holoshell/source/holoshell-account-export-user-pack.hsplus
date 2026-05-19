@@ -1,0 +1,392 @@
+// HoloShell Account Export User Pack
+//
+// Non-developer capability pack for "Export my account data."
+// Bridges the user-shell projection to the account export pipeline.
+// Brittney translates the plain-language intent into staged export steps.
+// The human never sees pipeline jargon, raw receipts, or developer surfaces.
+//
+// This pack consumes:
+//   - holoshell-browser-account-export-policy.hsplus (state machine + permission envelopes)
+//   - holoshell-account-export-policy.hsplus (account export state + gates)
+//   - holoshell-account-task-custody.hsplus (credential-adjacent boundary receipts)
+//   - @holoscript/core/trust/ProviderExportCustodyReceipt (TypeScript receipt adapter)
+//   - @holoscript/core/trust/AccountExportArchiveReceipt (TypeScript receipt adapter)
+//   - @holoscript/core/trust/AccountExportReplayReceipt (TypeScript replay adapter)
+//
+// Pack invariants:
+//   - userPacksStayStagedByDefault = true (from user-shell projection)
+//   - Export is NOT deletion (separate workflow required for any destructive action)
+//   - Provider wait is first-class (exports can take hours/days)
+//   - Import, share, delete are blocked until archive is verified
+//   - Replay requires a verified receipt and a rollback note
+//   - Credential extrusion is never allowed
+//   - Absolute paths stay private (repo-relative or opaque export ID only)
+
+composition "HoloShell Account Export User Pack" {
+  config {
+    title: "HoloShell Account Export User Pack"
+    product: "HoloLand"
+    sourceLayer: "HoloScript"
+    packId: "user-pack.account-export"
+    parentProjection: "apps/holoshell/source/holoshell-user-shell-projection.hsplus"
+    pipelineSource: "apps/holoshell/source/holoshell-browser-account-export-pipeline.hs"
+    policySource: "apps/holoshell/source/holoshell-browser-account-export-policy.hsplus"
+    custodySource: "apps/holoshell/source/holoshell-account-task-custody.hsplus"
+    receiptPack: "HoloShellAccountExportReceiptPack"
+    adapterScript: "scripts/holoshell-account-export-user-pack.mjs"
+    roomSource: "apps/holoshell/source/holoshell-account-export-user-room.holo"
+  }
+
+  state {
+    packStatus: "staged"
+    userIntent: ""
+    selectedProvider: "unknown"
+    exportPhase: "idle"
+    providerWaitState: "not_requested"
+    archiveVerified: false
+    archivePartCount: 0
+    verifiedPartCount: 0
+    sensitivityLevel: "unknown"
+    replayAvailable: false
+    rollbackNotePresent: false
+    receiptsCaptured: 0
+    blockers: []
+    brittneyTranslation: ""
+    executionDefault: "staged_not_run"
+    credentialExtrusionAllowed: false
+    accountMutationPerformed: false
+    rawPrivateDataPublished: false
+    privatePathLeakedToPublicReceipt: false
+  }
+
+  // ─── Pack channels ────────────────────────────────────────────────────────────
+
+  channel "holoshell:user-pack:account-export" {
+    type: "append_only"
+    priority: "high"
+    description: "Non-developer account export pack state changes. Brittney translates intent into staged steps."
+  }
+
+  channel "holoshell:user-pack:account-export:brittney" {
+    type: "append_only"
+    priority: "high"
+    description: "Brittney translations for account export. Plain language before action."
+  }
+
+  // ─── User-facing stages (not pipeline phases) ─────────────────────────────────
+
+  // Stage 1: Choose what to export (provider + scope selection)
+  template "ExportWhatStage" {
+    type: "pack_stage"
+    packId: "user-pack.account-export"
+    stageIndex: 1
+    userFacing: true
+    brittneyPrompt: "Which service would you like to export data from?"
+    permissionEnvelope: "read_only"
+    receiptRequired: true
+    receiptKind: "ProviderExportPlanReceipt"
+    failureStates: ["wrong account", "work account block", "unsupported provider", "no export scope"]
+    humanOutcome: "You chose what to export and from which account"
+    blocks: ["send share delete cloud grant hidden click"]
+  }
+
+  // Stage 2: Verify which browser/account is active (boundary check)
+  template "WhichAccountStage" {
+    type: "pack_stage"
+    packId: "user-pack.account-export"
+    stageIndex: 2
+    userFacing: true
+    brittneyPrompt: "Is this the right browser profile and account?"
+    permissionEnvelope: "read_only"
+    receiptRequired: true
+    receiptKind: "BrowserAccountBoundaryReceipt"
+    failureStates: ["wrong profile", "mixed account", "expired session", "credential-bearing screenshot"]
+    humanOutcome: "You confirmed the right browser and account boundary"
+  }
+
+  // Stage 3: Approve the export request (fresh human gesture required)
+  template "ApproveExportStage" {
+    type: "pack_stage"
+    packId: "user-pack.account-export"
+    stageIndex: 3
+    userFacing: true
+    brittneyPrompt: "Ready to request the export. You'll need to approve this step."
+    permissionEnvelope: "guarded_execute"
+    requiresFreshUserGesture: true
+    receiptRequired: true
+    receiptKind: "ProviderExportRequestReceipt"
+    failureStates: ["hidden automation", "auto-submit", "credential extrusion"]
+    humanOutcome: "You approved the export request"
+    blocks: ["hidden click", "auto submit", "credential bearing profile without approval"]
+  }
+
+  // Stage 4: Wait for provider (async, can leave this session)
+  template "WaitForProviderStage" {
+    type: "pack_stage"
+    packId: "user-pack.account-export"
+    stageIndex: 4
+    userFacing: true
+    brittneyPrompt: "The provider is preparing your export. This can take hours or days. You can close this and come back."
+    permissionEnvelope: "read_only"
+    receiptRequired: true
+    receiptKind: "ProviderExportReadyReceipt"
+    failureStates: ["provider delay", "expired link", "destination not ready"]
+    humanOutcome: "Your export is ready to download"
+    canLeaveSession: true
+  }
+
+  // Stage 5: Download and quarantine locally
+  template "DownloadQuarantineStage" {
+    type: "pack_stage"
+    packId: "user-pack.account-export"
+    stageIndex: 5
+    userFacing: true
+    brittneyPrompt: "Your export is downloading. Files are quarantined until verified."
+    permissionEnvelope: "guarded_download"
+    receiptRequired: true
+    receiptKind: "LocalArchiveDownloadReceipt"
+    failureStates: ["partial file", "low disk", "missing part", "absolute path leak"]
+    humanOutcome: "Files downloaded to a local quarantine folder"
+    blocks: ["auto unzip", "auto upload", "overwrite files", "execute downloaded file"]
+  }
+
+  // Stage 6: Verify archive integrity and sensitivity
+  template "VerifyArchiveStage" {
+    type: "pack_stage"
+    packId: "user-pack.account-export"
+    stageIndex: 6
+    userFacing: true
+    brittneyPrompt: "Verifying your archive: checking file hashes, scanning for executables, and classifying sensitivity."
+    permissionEnvelope: "read_only_verify"
+    receiptRequired: true
+    receiptKind: "AccountExportArchiveReceipt"
+    failureStates: ["hash missing", "cannot unpack", "unexpected executable", "sensitive archive"]
+    humanOutcome: "Archive verified: hashes match, no unexpected executables, sensitivity classified"
+    blocksUntilVerified: ["import to HoloLand", "share archive", "delete originals", "summarize with AI"]
+  }
+
+  // Stage 7: Replay and rollback limits
+  template "ReplayAndRollbackStage" {
+    type: "pack_stage"
+    packId: "user-pack.account-export"
+    stageIndex: 7
+    userFacing: true
+    brittneyPrompt: "Export complete. You can replay this verification later. Rollback is limited to local quarantine and generated receipts."
+    permissionEnvelope: "receipt_only"
+    receiptRequired: true
+    receiptKind: "AccountExportReplayReceipt"
+    failureStates: ["missing replay key", "no rollback note", "export confused with deletion"]
+    humanOutcome: "You have a verified export with replay capability and known rollback limits"
+    replayStates: ["planned", "requested", "waiting", "ready", "downloaded", "verified", "needs_attention"]
+    rollbackNoteRequired: true
+    exportIsNotDeletion: true
+  }
+
+  // ─── Pack policies (user-facing, derived from pipeline policies) ───────────────
+
+  policy "UserPacksStayStaged" {
+    appliesTo: ["account_export_user_pack"]
+    userPacksStayStagedByDefault: true
+    executionRequiresBrittneyTranslation: true
+    executionRequiresApproval: true
+    receiptRequired: true
+  }
+
+  policy "ExportIsNotDeletion" {
+    appliesTo: ["delete_cloud_data", "clear_activity", "close_account", "remove_app_access"]
+    defaultAllowed: false
+    separateWorkflowRequired: true
+    rollbackPlanRequired: true
+    receiptRequired: true
+    brittneyExplanation: "Exporting your data is NOT the same as deleting it. Deletion requires a separate workflow with its own receipts and rollback plan."
+  }
+
+  policy "NoCredentialExtrusion" {
+    appliesTo: ["send_account_credential", "share_password", "export_with_hidden_click", "auto_submit_export"]
+    credentialExtrusionAllowed: false
+    hiddenAutomationAllowed: false
+    rawCredentialAccessAllowed: false
+    receiptRequired: true
+    brittneyExplanation: "Your credentials stay private. No hidden clicks, auto-submits, or credential sharing."
+  }
+
+  policy "ArchiveVerifiedBeforeUse" {
+    appliesTo: ["import_to_hololand", "share_archive", "delete_originals", "summarize_archive_with_ai"]
+    requiresAllPartsVerified: true
+    requiresSensitivityScan: true
+    requiresReplayKey: true
+    receiptRequired: true
+    brittneyExplanation: "You can use the archive after it's verified. Import, share, delete, and AI summarization are locked until all parts are checked."
+  }
+
+  policy "WaitIsFirstClass" {
+    appliesTo: ["provider_export_wait"]
+    canLeaveSession: true
+    notificationOnReady: true
+    receiptRequired: true
+    brittneyExplanation: "Export preparation can take hours or days. You can close this and come back when it's ready."
+  }
+
+  policy "LocalPathPrivacy" {
+    appliesTo: ["archive_download_path", "quarantine_folder", "file_manifest_path"]
+    absolutePathsInPublicReceipt: false
+    repoRelativePathsOnly: true
+    receiptRequired: true
+    brittneyExplanation: "Your local file paths stay private. Receipts use opaque export IDs, not absolute paths."
+  }
+
+  // ─── Pack actions (Brittney-translated user intents) ───────────────────────────
+
+  action apply_user_intent(intent) {
+    state.userIntent = intent.plainText
+    state.selectedProvider = intent.provider || "unknown"
+    state.brittneyTranslation = intent.brittneyTranslation || ""
+    state.executionDefault = "staged_not_run"
+    state.packStatus = "intent_received"
+
+    emit("holoshell:user-pack:account-export", {
+      action: "user_intent_received",
+      intent: state.userIntent,
+      provider: state.selectedProvider,
+      brittney_translation: state.brittneyTranslation,
+      execution_default: state.executionDefault,
+      staged_by_default: true,
+      receipt_required: true
+    })
+  }
+
+  action stage_provider_selection(provider, products) {
+    state.selectedProvider = provider
+    state.exportPhase = "planned"
+    state.packStatus = "provider_selected"
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "provider_selected_staged",
+      provider: state.selectedProvider,
+      products: products,
+      brittney_translation: "You selected ${provider} with ${products.length} product(s). This is staged — no export has been requested yet.",
+      next_step: "Verify which account is active",
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action stage_boundary_confirmation(boundaryReceipt) {
+    state.exportPhase = "boundary_checked"
+    state.packStatus = "boundary_confirmed"
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "boundary_confirmed_staged",
+      provider: state.selectedProvider,
+      account_boundary: boundaryReceipt.accountBoundary,
+      browser_profile: boundaryReceipt.browserProfile,
+      brittney_translation: "Account and browser boundary confirmed. Next: approve the export request.",
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action stage_export_approval() {
+    state.exportPhase = "approval_pending"
+    state.packStatus = "approval_staged"
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "export_approval_staged",
+      provider: state.selectedProvider,
+      brittney_translation: "Export request staged. You need to approve this before it's submitted to ${state.selectedProvider}. This is a fresh gesture — no hidden automation.",
+      requires_fresh_user_gesture: true,
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action stage_provider_wait(waitState) {
+    state.exportPhase = "provider_waiting"
+    state.providerWaitState = waitState
+    state.packStatus = "waiting_for_provider"
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "provider_wait_staged",
+      provider: state.selectedProvider,
+      wait_state: state.providerWaitState,
+      brittney_translation: waitState == "ready_to_download"
+        ? "Your export from ${state.selectedProvider} is ready to download."
+        : "Your export from ${state.selectedProvider} is being prepared. This can take hours or days. You can close this and come back.",
+      can_leave_session: true,
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action stage_download_quarantine(archiveReceipt) {
+    state.exportPhase = "downloaded"
+    state.packStatus = "quarantined"
+    state.archivePartCount = archiveReceipt.partCount
+    state.archiveVerified = false
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "download_quarantine_staged",
+      provider: state.selectedProvider,
+      part_count: state.archivePartCount,
+      brittney_translation: "Downloaded ${state.archivePartCount} file(s) to quarantine. They are locked until verified.",
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action stage_archive_verification(verifyReceipt) {
+    state.archiveVerified = verifyReceipt.verified
+    state.verifiedPartCount = verifyReceipt.verifiedPartCount
+    state.sensitivityLevel = verifyReceipt.sensitivityLevel
+    state.exportPhase = state.archiveVerified ? "verified" : "needs_attention"
+    state.packStatus = state.archiveVerified ? "verified" : "needs_attention"
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "archive_verification_staged",
+      provider: state.selectedProvider,
+      verified: state.archiveVerified,
+      verified_parts: "${state.verifiedPartCount} of ${state.archivePartCount}",
+      sensitivity: state.sensitivityLevel,
+      brittney_translation: state.archiveVerified
+        ? "Archive verified. All ${state.archivePartCount} part(s) checked, hashes match, sensitivity classified. You can now preview, import, or replay."
+        : "Verification needs attention. ${state.verifiedPartCount} of ${state.archivePartCount} part(s) verified. Check the details.",
+      blocked_until_verified: ["import to HoloLand", "share archive", "delete originals", "summarize with AI"],
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action stage_replay_and_rollback(replayReceipt) {
+    state.replayAvailable = replayReceipt.replayKeyPresent
+    state.rollbackNotePresent = replayReceipt.rollbackNotePresent
+    state.exportPhase = "replay_ready"
+    state.packStatus = "replay_ready"
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "replay_and_rollback_staged",
+      provider: state.selectedProvider,
+      replay_available: state.replayAvailable,
+      rollback_note_present: state.rollbackNotePresent,
+      export_is_not_deletion: true,
+      brittney_translation: "Export complete. You can replay the verification later. Rollback is limited to local quarantine and generated receipts. Exporting is NOT deleting.",
+      rollback_limits: "local quarantine and generated receipts; provider export cancellation only when provider supports it",
+      execution_default: "staged_not_run",
+      receipt_required: true
+    })
+  }
+
+  action block_pack_on(reason, evidencePath) {
+    state.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath
+    })
+    state.packStatus = "blocked"
+
+    emit("holoshell:user-pack:account-export:brittney", {
+      action: "pack_blocked",
+      reason: reason,
+      brittney_translation: "Export blocked: ${reason}. Resolve the blocker and try again.",
+      blocked: true
+    })
+  }
+}

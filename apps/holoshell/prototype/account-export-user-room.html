@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HoloShell Account Export — User Room</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1a1f;
+      --panel: #14262e;
+      --line: #2a4550;
+      --text: #e8f4f0;
+      --muted: #8fa8a0;
+      --blue: #7dcfff;
+      --gold: #e0af68;
+      --green: #9ece6a;
+      --red: #f7768e;
+      --purple: #bb9af7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    main {
+      width: min(1200px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0;
+    }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 4.5vw, 52px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+    .status {
+      display: grid;
+      gap: 6px;
+      min-width: 240px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0c161b;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .status strong { color: var(--green); font-size: 15px; }
+    .intent {
+      margin: 18px 0;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, #14262e 0%, #1a3540 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 16px;
+      max-width: 860px;
+    }
+    .intent em { color: var(--gold); font-style: normal; }
+    .stages {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+    .stages-2 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+      align-items: stretch;
+    }
+    section {
+      min-height: 220px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 10px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    h2 .num {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      line-height: 22px;
+      text-align: center;
+      border-radius: 50%;
+      background: var(--blue);
+      color: var(--bg);
+      font-size: 12px;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    ul {
+      margin: 0;
+      padding-left: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .token {
+      width: 100%;
+      min-height: 32px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      padding: 5px 10px;
+      font-size: 11px;
+      color: var(--blue);
+      background: rgba(125, 207, 255, 0.08);
+      text-align: center;
+    }
+    .gold { color: var(--gold); background: rgba(224, 175, 104, 0.1); }
+    .green { color: var(--green); background: rgba(158, 206, 106, 0.1); }
+    .red { color: var(--red); background: rgba(247, 118, 142, 0.1); }
+    .purple { color: var(--purple); background: rgba(187, 154, 247, 0.1); }
+    .safety {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .safety .token { width: auto; }
+    .timeline {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #0c161b;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .timeline strong { color: var(--text); }
+    @media (max-width: 980px) {
+      header { grid-template-columns: 1fr; }
+      .status { min-width: 0; }
+      .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stages-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      main { width: min(100vw - 24px, 1200px); padding-top: 18px; }
+      .stages, .stages-2 { grid-template-columns: 1fr; }
+      section { min-height: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Export my account data</h1>
+      <div class="status" aria-label="export safety status">
+        <strong>Staged — safe</strong>
+        <span>No hidden automation</span>
+        <span>Absolute paths stay private</span>
+        <span>Export is not deletion</span>
+      </div>
+    </header>
+
+    <p class="intent">
+      <em>Brittney:</em> I'll help you export your data safely. Choose a provider, confirm the right account, and I'll guide you through each step. Nothing happens until you approve it.
+    </p>
+
+    <div class="stages" aria-label="account export stages 1-5">
+      <section aria-labelledby="provider-title">
+        <h2 id="provider-title"><span class="num">1</span>Choose provider</h2>
+        <ul>
+          <li>Which service: Google, Microsoft, Apple, etc.</li>
+          <li>Select products to export</li>
+          <li>Wrong account and work account blockers</li>
+        </ul>
+        <span class="token">provider receipt</span>
+      </section>
+
+      <section aria-labelledby="account-title">
+        <h2 id="account-title"><span class="num">2</span>Confirm account</h2>
+        <ul>
+          <li>Browser profile and account boundary</li>
+          <li>Cookie policy and screenshot policy</li>
+          <li>Credential extrusion blocked</li>
+        </ul>
+        <span class="token">boundary receipt</span>
+      </section>
+
+      <section aria-labelledby="approve-title">
+        <h2 id="approve-title"><span class="num">3</span>Approve export</h2>
+        <ul>
+          <li>Fresh gesture required — no auto-submit</li>
+          <li>Provider, format, and destination shown</li>
+          <li>Hidden clicks and credential-bearing blocked</li>
+        </ul>
+        <span class="token gold">fresh gesture required</span>
+      </section>
+
+      <section aria-labelledby="wait-title">
+        <h2 id="wait-title"><span class="num">4</span>Wait for provider</h2>
+        <ul>
+          <li>Exports can take hours or days</li>
+          <li>You can close this and come back</li>
+          <li>Notification when ready to download</li>
+        </ul>
+        <span class="token gold">can leave session</span>
+      </section>
+
+      <section aria-labelledby="download-title">
+        <h2 id="download-title"><span class="num">5</span>Download & quarantine</h2>
+        <ul>
+          <li>Files quarantine until verified</li>
+          <li>No auto-unzip, no auto-execute</li>
+          <li>Private paths stay private</li>
+        </ul>
+        <span class="token green">quarantined</span>
+      </section>
+    </div>
+
+    <div class="stages-2" aria-label="account export stages 6-8">
+      <section aria-labelledby="verify-title">
+        <h2 id="verify-title"><span class="num">6</span>Verify archive</h2>
+        <ul>
+          <li>Hash check, executable scan, sensitivity</li>
+          <li>Import, share, delete locked until verified</li>
+          <li>Private paths redacted from receipts</li>
+        </ul>
+        <span class="token green">verified before use</span>
+      </section>
+
+      <section aria-labelledby="replay-title">
+        <h2 id="replay-title"><span class="num">7</span>Replay & rollback</h2>
+        <ul>
+          <li>Replay verification later</li>
+          <li>Rollback limited to quarantine and receipts</li>
+          <li>Exporting is NOT deleting</li>
+        </ul>
+        <span class="token purple">export is not deletion</span>
+      </section>
+
+      <section aria-labelledby="import-title">
+        <h2 id="import-title"><span class="num">8</span>Import dock</h2>
+        <ul>
+          <li>Preview-only in HoloLand</li>
+          <li>Verified data as provenance objects</li>
+          <li>Raw private data stays local</li>
+        </ul>
+        <span class="token">preview only</span>
+      </section>
+    </div>
+
+    <div class="safety" aria-label="safety tokens">
+      <span class="token red">no hidden export or credential extrusion</span>
+      <span class="token gold">provider wait is first-class</span>
+      <span class="token green">archive verified before use</span>
+      <span class="token purple">exporting is not deleting</span>
+    </div>
+
+    <div class="timeline"><strong>Timeline:</strong> choose &rarr; confirm &rarr; approve &rarr; wait &rarr; download &rarr; verify &rarr; replay</div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,238 @@
+/**
+ * HoloShell Account Export User Room
+ *
+ * Non-developer surface for "Export my account data."
+ * Brittney translates intent into staged steps.
+ * The human never sees pipeline jargon or raw receipts.
+ * Provider gate, browser profile gate, async wait, local archive
+ * verification, rollback limits, and replay lesson are all present
+ * as legible room objects, not developer panels.
+ */
+
+composition "HoloShell Account Export User Room" {
+  environment {
+    backgroundColor: "#0f1a1f"
+    ambient_light: 0.62
+    shadows: true
+  }
+
+  template "UserStagePanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.52, 0.58, 0.08]
+    material: {
+      color: "#14262e"
+      emissive: "#1e3a42"
+      emissiveIntensity: 0.18
+      transparent: true
+      opacity: 0.96
+    }
+  }
+
+  template "StageToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#7dcfff" }
+  }
+
+  // ─── Human outcome anchor ───────────────────────────────────────────────────
+
+  object "HumanOutcome" using "UserStagePanel" {
+    position: [0, 2.52, -2.85]
+    label: "Export my account data — safely, with receipts"
+    properties: {
+      userIntent: "Export my account data"
+      brittneyTranslation: "I'll help you export your data safely. Choose a provider, confirm the right account, and I'll guide you through each step."
+      executionDefault: "staged not run"
+      visibleControls: "provider, account, approve, wait, download, verify, replay"
+      packId: "user-pack.account-export"
+      parentProjection: "holoshell-user-shell-projection"
+    }
+  }
+
+  // ─── Stage 1: Choose what to export ─────────────────────────────────────────
+
+  object "ProviderGate" using "UserStagePanel" {
+    position: [-4.2, 1.55, -1.2]
+    label: "Choose provider and export scope"
+    properties: {
+      stageIndex: 1
+      brittneyPrompt: "Which service would you like to export data from?"
+      receiptKind: "ProviderExportPlanReceipt"
+      failureStates: "wrong account, work account block, unsupported provider"
+      humanOutcome: "You chose what to export and from which account"
+      packPolicy: "UserPacksStayStaged"
+    }
+  }
+
+  // ─── Stage 2: Confirm the right account ──────────────────────────────────────
+
+  object "AccountGate" using "UserStagePanel" {
+    position: [-2.1, 1.55, -1.2]
+    label: "Confirm browser and account boundary"
+    properties: {
+      stageIndex: 2
+      brittneyPrompt: "Is this the right browser profile and account?"
+      receiptKind: "BrowserAccountBoundaryReceipt"
+      failureStates: "wrong profile, mixed account, expired session, credential-bearing screenshot"
+      humanOutcome: "You confirmed the right browser and account boundary"
+      packPolicy: "NoCredentialExtrusion"
+    }
+  }
+
+  // ─── Stage 3: Approve the export request ─────────────────────────────────────
+
+  object "ApproveGate" using "UserStagePanel" {
+    position: [0, 1.55, -1.2]
+    label: "Approve the export request"
+    properties: {
+      stageIndex: 3
+      brittneyPrompt: "Ready to request the export. You'll need to approve this step."
+      receiptKind: "ProviderExportRequestReceipt"
+      requiresFreshUserGesture: true
+      failureStates: "hidden automation, auto-submit, credential extrusion"
+      humanOutcome: "You approved the export request"
+      packPolicy: "NoCredentialExtrusion"
+    }
+  }
+
+  // ─── Stage 4: Wait for provider ──────────────────────────────────────────────
+
+  object "WaitGate" using "UserStagePanel" {
+    position: [2.1, 1.55, -1.2]
+    label: "Wait for provider to prepare export"
+    properties: {
+      stageIndex: 4
+      brittneyPrompt: "The provider is preparing your export. This can take hours or days. You can close this and come back."
+      receiptKind: "ProviderExportReadyReceipt"
+      canLeaveSession: true
+      failureStates: "provider delay, expired link, destination not ready"
+      humanOutcome: "Your export is ready to download"
+      packPolicy: "WaitIsFirstClass"
+    }
+  }
+
+  // ─── Stage 5: Download and quarantine ────────────────────────────────────────
+
+  object "DownloadGate" using "UserStagePanel" {
+    position: [4.2, 1.55, -1.2]
+    label: "Download to quarantine"
+    properties: {
+      stageIndex: 5
+      brittneyPrompt: "Your export is downloading. Files are quarantined until verified."
+      receiptKind: "LocalArchiveDownloadReceipt"
+      failureStates: "partial file, low disk, missing part"
+      humanOutcome: "Files downloaded to a local quarantine folder"
+      packPolicy: "LocalPathPrivacy"
+    }
+  }
+
+  // ─── Stage 6: Verify archive ─────────────────────────────────────────────────
+
+  object "VerifyGate" using "UserStagePanel" {
+    position: [-2.1, 0.45, 0.1]
+    label: "Verify archive integrity and sensitivity"
+    properties: {
+      stageIndex: 6
+      brittneyPrompt: "Verifying your archive: checking hashes, scanning for executables, classifying sensitivity."
+      receiptKind: "AccountExportArchiveReceipt"
+      failureStates: "hash missing, cannot unpack, unexpected executable, sensitive archive"
+      humanOutcome: "Archive verified — hashes match, no surprises, sensitivity classified"
+      blocksUntilVerified: "import to HoloLand, share archive, delete originals, summarize with AI"
+      packPolicy: "ArchiveVerifiedBeforeUse"
+    }
+  }
+
+  // ─── Stage 7: Replay and rollback ───────────────────────────────────────────
+
+  object "ReplayGate" using "UserStagePanel" {
+    position: [0, 0.45, 0.1]
+    label: "Replay and rollback limits"
+    properties: {
+      stageIndex: 7
+      brittneyPrompt: "Export complete. You can replay this verification later. Rollback is limited to local quarantine and receipts."
+      receiptKind: "AccountExportReplayReceipt"
+      failureStates: "missing replay key, no rollback note, export confused with deletion"
+      humanOutcome: "You have a verified export with replay capability and known rollback limits"
+      replayStates: "planned, requested, waiting, ready, downloaded, verified, needs_attention"
+      rollbackNoteRequired: true
+      exportIsNotDeletion: true
+      packPolicy: "ExportIsNotDeletion"
+    }
+  }
+
+  // ─── Import dock (preview only until verified) ───────────────────────────────
+
+  object "ImportDock" using "UserStagePanel" {
+    position: [2.1, 0.45, 0.1]
+    label: "HoloLand import dock (preview only)"
+    properties: {
+      stageIndex: 8
+      mode: "preview_only"
+      adoptionSurfaces: "quest, world operation, creator import tool, Twin Earth personal archive surface"
+      publishRule: "HoloLand can render summaries and provenance objects; raw private account data stays local unless the human promotes a redacted subset"
+      brittneyExplanation: "You can preview your verified data in HoloLand. Importing the full archive requires explicit approval after verification."
+    }
+  }
+
+  // ─── Safety tokens ──────────────────────────────────────────────────────────
+
+  object "NoHiddenExportToken" using "StageToken" {
+    position: [-2.1, 0.88, 0.82]
+    material: { color: "#f7768e" }
+    label: "no hidden export or credential extrusion"
+    properties: {
+      policy: "NoCredentialExtrusion"
+      blocks: "send share delete cloud grant hidden click auto-submit"
+      brittneyExplanation: "Your credentials stay private. No hidden clicks, auto-submits, or credential sharing."
+    }
+  }
+
+  object "WaitIsFirstClassToken" using "StageToken" {
+    position: [2.1, 0.88, 0.82]
+    material: { color: "#e0af68" }
+    label: "provider export can wait outside this session"
+    properties: {
+      policy: "WaitIsFirstClass"
+      canLeaveSession: true
+      brittneyExplanation: "Export preparation can take hours or days. You can close this and come back when it's ready."
+    }
+  }
+
+  object "VerifiedBeforeUseToken" using "StageToken" {
+    position: [0, 0.88, 1.16]
+    material: { color: "#9ece6a" }
+    label: "local archive verified before use"
+    properties: {
+      policy: "ArchiveVerifiedBeforeUse"
+      blocksUntilVerified: "import share delete summarize"
+      brittneyExplanation: "You can use the archive after it's verified. Import, share, delete, and AI summarization are locked until all parts are checked."
+    }
+  }
+
+  object "ExportIsNotDeletionToken" using "StageToken" {
+    position: [0, 0.88, 1.52]
+    material: { color: "#bb9af7" }
+    label: "exporting is not deleting"
+    properties: {
+      policy: "ExportIsNotDeletion"
+      separateWorkflow: true
+      brittneyExplanation: "Exporting your data is NOT the same as deleting it. Deletion requires a separate workflow with its own receipts and rollback plan."
+    }
+  }
+
+  // ─── Timeline ────────────────────────────────────────────────────────────────
+
+  object "AccountExportTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.02, 1.52]
+    scale: [8.4, 0.08, 0.12]
+    color: "#707987"
+    label: "timeline: choose -> confirm -> approve -> wait -> download -> verify -> replay"
+  }
+}

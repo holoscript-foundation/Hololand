@@ -13,6 +13,8 @@ object "BrowserAccountExportPipelineManifest" {
   accountTaskSource: "apps/holoshell/source/holoshell-account-task-custody.hsplus"
   hardwareControlSource: "apps/holoshell/source/holoshell-hardware-control.hsplus"
   providerExportCustodySource: "packages/core/src/trust/ProviderExportCustodyReceipt.ts"
+  userPackSource: "apps/holoshell/source/holoshell-account-export-user-pack.hsplus"
+  userRoomSource: "apps/holoshell/source/holoshell-account-export-user-room.holo"
   evidencePack: ".bench-logs/holoshell-human-os-frontier/2026-05-18/browser-account-export-evidence-pack.md"
 }
 
