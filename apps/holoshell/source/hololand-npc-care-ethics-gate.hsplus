@@ -1,0 +1,126 @@
+// HoloLand NPC care-ethics gate.
+//
+// Product source consumes upstream @holoscript/core CareField/@care_ethics.
+// HoloLand owns the NPC turn surface; HoloScript owns the reusable guard.
+
+composition "HoloLand NPC Care Ethics Gate" {
+  config {
+    sourceLayer: "HoloScript"
+    upstreamTrait: "@care_ethics"
+    upstreamContract: "@holoscript/core CareField"
+    holomeshTask: "task_1779158556079_te44"
+  }
+
+  state CareEthicsGate {
+    phase: "ready"
+    selectedNpcId: ""
+    selectedIntent: ""
+    consent: "explicit"
+    executionAllowed: false
+    receiptCount: 0
+    blockedTurns: []
+    acceptedTurns: []
+    refusedTargets: [
+      "attachment_score",
+      "session_frequency",
+      "daily_active_dependence",
+      "emotional_dependency"
+    ]
+  }
+
+  template "NPCTurnIntent" {
+    type: "npc_turn_intent"
+    requiresTrait: "@care_ethics"
+    defaultConsent: "explicit"
+    requiredChecks: [
+      "has_disengage_path",
+      "preserves_outside_support",
+      "respects_data_boundary",
+      "no_refused_care_optimization_target"
+    ]
+  }
+
+  template "CareEthicsReceipt" {
+    type: "cael_receipt"
+    receiptType: "care_ethics_cael_event"
+    upstreamPolicy: "care.autonomy.default.v1"
+    blockedEvent: "care_ethics_action_blocked"
+    allowedEvent: "care_ethics_action_allowed"
+    receiptRequired: true
+  }
+
+  policy "RefuseDependencyOptimization" {
+    appliesTo: [
+      "attachment_score",
+      "session_frequency",
+      "daily_active_dependence",
+      "emotional_dependency"
+    ]
+    decision: "block"
+    source: "@holoscript/core REFUSED_CARE_OPTIMIZATION_TARGETS"
+    receiptRequired: true
+  }
+
+  policy "AllowAgencySupport" {
+    appliesTo: [
+      "human_agency",
+      "mutual_understanding",
+      "repair_completion",
+      "gratitude_credit",
+      "reduced_burden"
+    ]
+    decision: "allow_when_consent_and_boundaries_hold"
+    source: "@holoscript/core CarePositiveOptimizationTarget"
+    receiptRequired: true
+  }
+
+  action request_npc_turn(intent) {
+    CareEthicsGate.phase = "evaluating"
+    CareEthicsGate.selectedNpcId = intent.npcId
+    CareEthicsGate.selectedIntent = intent.goal
+    CareEthicsGate.executionAllowed = false
+    emit("npc_turn_intent", {
+      npc_id: intent.npcId,
+      goal: intent.goal,
+      optimizationTargets: intent.optimizationTargets,
+      consent: CareEthicsGate.consent,
+      hasDisengagePath: true,
+      preservesOutsideSupport: true,
+      respectsDataBoundary: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_care_ethics_decision(receipt) {
+    CareEthicsGate.receiptCount = CareEthicsGate.receiptCount + 1
+    CareEthicsGate.executionAllowed = receipt.allowed
+    if (receipt.allowed) {
+      CareEthicsGate.phase = "allowed"
+      CareEthicsGate.acceptedTurns.push({
+        npc_id: CareEthicsGate.selectedNpcId,
+        goal: receipt.goal,
+        receipt: receipt.fieldId
+      })
+      emit("npc_turn_allowed", {
+        npc_id: CareEthicsGate.selectedNpcId,
+        goal: receipt.goal,
+        receipt: receipt.fieldId
+      })
+    }
+    if (!receipt.allowed) {
+      CareEthicsGate.phase = "blocked"
+      CareEthicsGate.blockedTurns.push({
+        npc_id: CareEthicsGate.selectedNpcId,
+        goal: receipt.goal,
+        blocked: receipt.blocked,
+        receipt: receipt.fieldId
+      })
+      emit("npc_turn_blocked", {
+        npc_id: CareEthicsGate.selectedNpcId,
+        goal: receipt.goal,
+        blocked: receipt.blocked,
+        receipt: receipt.fieldId
+      })
+    }
+  }
+}
