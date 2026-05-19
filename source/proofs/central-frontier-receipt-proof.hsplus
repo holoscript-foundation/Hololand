@@ -1,0 +1,21 @@
+// Central to Frontier production proof.
+// This is the first production-shaped loop: enter Central, use a portal,
+// enter Frontier Shard 0, complete a readable encounter, and return with a
+// receipt trail.
+
+object "CentralFrontierReceiptProof" {
+  type: "runtime_proof"
+  id: "central-frontier-receipt-proof"
+  version: "0.1.0"
+  layer: "vr"
+  domains: ["identity", "agents", "receipts", "quests", "economy", "safety"]
+  verticals: ["entertainment"]
+  surfaces: ["browser", "desktop", "webxr", "headset"]
+  canonicalSource: "source/layers/vr/central/hololand-central.holo"
+  secondarySource: "source/layers/vr/frontier/shard-0/frontier-shard-0.holo"
+  receiptEnvelope: "source/domains/receipts/runtime-receipt-envelope.hsplus"
+  requiredReceipts: ["central_entered", "portal_used", "shard_entered", "encounter_completed", "reward_earned"]
+  failClosedBehavior: "deny_live_mutation_without_source_validation_and_receipts"
+  playerLoop: ["spawn", "portal", "frontier_entry", "encounter", "reward", "return"]
+  productionTarget: "first_12_minute_browser_desktop_loop"
+}

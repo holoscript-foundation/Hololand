@@ -1,0 +1,37 @@
+// Runtime Atlas receipt envelope.
+// Every production-facing HoloLand mutation should be expressible through this
+// envelope or a stricter vertical-specific descendant.
+
+composition "RuntimeAtlasReceiptEnvelope" {
+  config {
+    domain: "receipts"
+    atlas: "source/runtime-atlas.holo"
+    sourceLayer: "HoloScript"
+    receiptType: "hololand.runtime-atlas.receipt.v0.1.0"
+  }
+
+  state {
+    requiredReceipts: [
+      "central_entered",
+      "portal_used",
+      "shard_entered",
+      "secret_discovered",
+      "encounter_completed",
+      "reward_earned",
+      "surface_entered",
+      "geoanchor_discovered",
+      "agent_action",
+      "safety_checked"
+    ]
+    requiredFields: ["id", "kind", "actor", "layer", "place", "domains", "verticals", "surface", "source", "summary", "hash"]
+    mutationWithoutReceipt: "deny"
+    replayable: true
+  }
+
+  template "RuntimeAtlasReceipt" {
+    receiptType: "hololand.runtime-atlas.receipt.v0.1.0"
+    schemaVersion: "0.1.0"
+    requiredFields: ["id", "kind", "actor", "layer", "place", "domains", "verticals", "surface", "source", "summary", "hash"]
+    replayable: true
+  }
+}

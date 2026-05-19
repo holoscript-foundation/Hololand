@@ -183,6 +183,31 @@ Runtime files are admitted when they answer these questions:
 If a runtime file cannot answer those questions, it is likely engine glue,
 generated output, or migration debt rather than atlas source.
 
+## Production Admission Check
+
+The first production gate is:
+
+```powershell
+node scripts/check-runtime-atlas-admission.mjs --root C:/Users/josep/Documents/GitHub/Hololand
+```
+
+The checker scans `source/**/*.holo`, `source/**/*.hs`, and
+`source/**/*.hsplus`. It fails layer, domain, vertical, proof, or atlas files
+that do not declare the runtime fields needed for production admission.
+
+The first proof is:
+
+```text
+source/proofs/central-frontier-receipt-proof.hsplus
+```
+
+It binds HoloLand Central to Frontier Shard 0 through the runtime receipt
+envelope:
+
+```text
+source/domains/receipts/runtime-receipt-envelope.hsplus
+```
+
 ## First Slice
 
 The first source slice is:

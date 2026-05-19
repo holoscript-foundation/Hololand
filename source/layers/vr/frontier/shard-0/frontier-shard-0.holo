@@ -24,6 +24,8 @@ composition "FrontierShard0" {
     verticals: ["entertainment"]
     player_verbs: ["explore", "fight", "dodge", "climb", "gather", "craft", "discover", "publish"]
     required_receipts: ["shard_entered", "secret_discovered", "encounter_completed", "reward_earned"]
+    receipt_envelope: "source/domains/receipts/runtime-receipt-envelope.hsplus"
+    production_proof: "source/proofs/central-frontier-receipt-proof.hsplus"
   }
 
   template "FrontierGate" {

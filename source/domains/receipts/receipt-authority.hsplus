@@ -10,6 +10,7 @@ composition "ReceiptDomainAuthority" {
 
   state {
     owns: ["ValidationReceipt", "TwinEarthReceipt", "AgentActionReceipt", "HardwareReceipt", "ReplayReceipt"]
+    requiredReceipts: ["validation_receipt", "agent_action", "hardware_receipt", "replay_receipt"]
     requiredFields: ["id", "kind", "actor", "layer", "place", "source", "summary", "hash"]
     mutationWithoutReceipt: "deny"
     externalArtifactDefault: "untrusted_until_conformance_proven"
