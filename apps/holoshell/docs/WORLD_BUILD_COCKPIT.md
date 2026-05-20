@@ -40,6 +40,18 @@ human promotion is recorded. Startup registration, app launch, package install,
 world import, publish, file deletion, credential access, and process termination
 remain guarded or break-glass actions.
 
+## Blocked-Ready Reasons
+
+The cockpit renders `worldBuildReadyToken.blockingReasons` as visible room
+objects, not just JSON. Each blocker card carries the reason text, owner lane,
+receipt link, safe next action, replay command, and an explicit
+`cannot_promote_import_publish_until_resolved` affordance. HoloLand stays
+preview-only while any blocker is present.
+
+The shell object graph and live feed also project those blocker cards so the
+desktop prototype can show the same state without reading
+`.tmp/holoshell/readiness-evidence.json` directly.
+
 ## Source Map
 
 This cockpit consumes existing HoloShell source contracts:

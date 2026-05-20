@@ -1509,9 +1509,40 @@ function readinessTokenGlyph(token) {
   return 'EV';
 }
 
+function parseWorldBuildBlockingReason(reason) {
+  const text = String(reason || '').trim();
+  const match = text.match(/^([^:()]+):([^()]+)(?:\((.*)\))?$/);
+  if (!match) {
+    return {
+      tokenId: '',
+      status: 'warn',
+      nextAction: text,
+      raw: text,
+    };
+  }
+  return {
+    tokenId: match[1] || '',
+    status: match[2] || 'warn',
+    nextAction: match[3] || '',
+    raw: text,
+  };
+}
+
+function ownerLaneForReadyBlocker(tokenId, token = {}) {
+  const text = `${tokenId} ${token.kind || ''} ${token.title || ''}`.toLowerCase();
+  if (text.includes('build') || text.includes('process') || text.includes('hardware') || text.includes('webgpu') || text.includes('wasm') || text.includes('repo')) {
+    return 'codex-hardware';
+  }
+  if (text.includes('mcp') || text.includes('custody')) return 'codex-hardware';
+  if (text.includes('graph') || text.includes('source') || text.includes('validation')) return 'holoscript-source';
+  if (text.includes('headset') || text.includes('replay') || text.includes('witness')) return 'operator';
+  return 'brittney';
+}
+
 function readinessObjects(readinessEvidence) {
   if (!readinessEvidence?.summary) return [];
   const summary = readinessEvidence.summary;
+  const tokens = Array.isArray(readinessEvidence.tokens) ? readinessEvidence.tokens : [];
   const objects = [{
     id: 'room.world-build-readiness',
     objectKind: 'readiness_room',
@@ -1554,7 +1585,7 @@ function readinessObjects(readinessEvidence) {
     { x: 35, y: 83, size: 76 },
   ];
 
-  for (const [index, token] of (readinessEvidence.tokens || []).slice(0, 8).entries()) {
+  for (const [index, token] of tokens.slice(0, 8).entries()) {
     const slot = tokenSlots[index] || layout(index + 18, 76);
     objects.push({
       id: `receipt.${token.id || `readiness-${index}`}`,
@@ -1581,6 +1612,58 @@ function readinessObjects(readinessEvidence) {
       detail: `${token.detail || token.title || 'Readiness evidence token.'}${token.nextAction ? ` Next: ${token.nextAction}` : ''}`,
       firstScreen: index < 5 || token.status !== 'pass',
       layout: slot,
+    });
+  }
+
+  const readyToken = readinessEvidence.worldBuildReadyToken || {};
+  const blockingReasons = Array.isArray(readyToken.blockingReasons) ? readyToken.blockingReasons : [];
+  const blockerSlots = [
+    { x: 12, y: 63, size: 92 },
+    { x: 24, y: 70, size: 88 },
+    { x: 39, y: 77, size: 86 },
+    { x: 55, y: 82, size: 84 },
+    { x: 71, y: 75, size: 82 },
+    { x: 84, y: 60, size: 80 },
+  ];
+  for (const [index, reason] of blockingReasons.slice(0, 6).entries()) {
+    const parsed = parseWorldBuildBlockingReason(reason);
+    const token = tokens.find((entry) => entry.id === parsed.tokenId) || {};
+    const ownerLaneId = ownerLaneForReadyBlocker(parsed.tokenId, token);
+    const safeNextAction = parsed.nextAction || token.nextAction || readyToken.nextAction || 'resolve_blockers_and_replay';
+    const receiptLink = parsed.tokenId ? `receipt.${parsed.tokenId}` : 'room.world-build-readiness';
+    objects.push({
+      id: `blocker.world-build.${shortHash(`${index}:${reason}`)}`,
+      objectKind: 'readiness_blocker',
+      displayName: `Ready Blocker ${index + 1}`,
+      sourceKind: 'receipt',
+      sourceRef: token.source || readinessEvidence.source?.evidenceDir || readinessEvidence.source?.reportPath || '',
+      capabilityFamily: 'readiness_evidence',
+      trustState: 'partial',
+      permissionEnvelope: 'cannot_promote_import_publish',
+      adapterPath: 'world_build_ready_token',
+      visualForm: 'blocked_reason_card',
+      status: parsed.status || readyToken.status || 'warn',
+      actorLaneId: ownerLaneId,
+      receiptTypes: [token.receiptType || readinessEvidence.schemaVersion || 'world_build_ready_token'],
+      relationships: {
+        worldBuildReadyTokenId: readyToken.id || 'holoshell.world-build-ready',
+        blockReason: parsed.raw || String(reason || ''),
+        receiptTokenId: parsed.tokenId,
+        receiptLink,
+        ownerLaneId,
+        safeNextAction,
+        replayCommand: readinessEvidence.commands?.replay || '',
+        promotionBlocked: true,
+        importBlocked: true,
+        publishBlocked: true,
+        affordance: 'cannot_promote_import_publish_until_resolved',
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'resolve_blocker_then_replay',
+      glyph: 'BR',
+      detail: `${parsed.tokenId || 'readiness'} blocks promotion. Owner ${ownerLaneId}. Next: ${safeNextAction}`,
+      firstScreen: true,
+      layout: blockerSlots[index] || layout(index + 30, 82),
     });
   }
 
@@ -2066,6 +2149,7 @@ function summarize(objects, feeds) {
     buildCustodyProcessObjectCount: objects.filter((object) => object.objectKind === 'process' && object.capabilityFamily === 'build_custody').length,
     readinessObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence').length,
     readinessWarningObjectCount: objects.filter((object) => object.capabilityFamily === 'readiness_evidence' && ['warn', 'skipped', 'reported_fail', 'fail'].includes(object.status)).length,
+    worldBuildBlockingReasonObjectCount: objects.filter((object) => object.objectKind === 'readiness_blocker').length,
     mcpCustodyContractObjectCount: objects.filter((object) => object.capabilityFamily === 'mcp_custody_contract').length,
     mcpCustodyContractStatus: feeds.mcpCustodyContract?.summary?.status || 'unknown',
     mcpCustodyCompatibilityMode: feeds.mcpCustodyContract?.summary?.compatibilityMode || 'unknown',
@@ -2451,6 +2535,21 @@ function fixtureFeeds() {
         { id: 'readiness.headset-report', title: 'Headset report missing', status: 'skipped', kind: 'manual_witness_gap', detail: 'No headset report supplied.', nextAction: 'Attach headset report.', receiptType: 'device_lab_receipt' },
         { id: 'readiness.graph-status', title: 'Graph status reported import failure', status: 'reported_fail', kind: 'tool_failure_receipt', detail: 'graph-status failed.', receiptType: 'tool_failure_receipt' },
       ],
+      worldBuildReadyToken: {
+        id: 'holoshell.world-build-ready',
+        kind: 'world_build_ready_token',
+        status: 'warn',
+        blockingReasons: [
+          'readiness.headset-report:skipped(Attach headset report.)',
+          'readiness.graph-status:reported_fail(Re-run graph status and attach a structured tool receipt.)',
+        ],
+        receiptRequired: true,
+        nextAction: 'resolve_blockers_and_replay',
+        receiptInputs: ['readiness.build', 'readiness.headset-report', 'readiness.graph-status'],
+      },
+      commands: {
+        replay: 'node scripts/holoshell-readiness-evidence.mjs --source-dir fixture --tmp-dir fixture/tmp',
+      },
     },
     mcpCustodyContract: {
       schemaVersion: 'hololand.holoshell.mcp-custody-contract.v0.1.0',
@@ -3082,6 +3181,8 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'workflow.agent-dispatch')) failures.push('expected agent dispatch workflow object');
   if (!graph.objects.some((object) => object.id === 'room.world-build-readiness')) failures.push('expected readiness room object');
   if (!graph.objects.some((object) => object.id === 'receipt.readiness.headset-report')) failures.push('expected readiness warning token');
+  if (!graph.objects.some((object) => object.objectKind === 'readiness_blocker' && object.relationships?.promotionBlocked)) failures.push('expected world-build blocker object');
+  if (graph.summary.worldBuildBlockingReasonObjectCount !== 2) failures.push('expected two world-build blocker objects');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-contract')) failures.push('expected MCP custody contract object');
   if (!graph.objects.some((object) => object.id === 'receipt.mcp-custody-upstream-handoff')) failures.push('expected MCP custody upstream handoff object');
   if (!graph.objects.some((object) => object.id === 'service.supervisor' && object.relationships?.requiredOnlineServiceCount === 1)) failures.push('expected service supervisor shell object');

@@ -45,6 +45,9 @@ composition "HoloShell World Build Cockpit" {
     codebaseTrustState: "unknown"
     localSourceBundleState: "missing"
     skippedCodebaseFileCount: 0
+    blockingReasonCount: 0
+    firstBlockingReason: ""
+    readyTokenReplayCommand: ""
   }
 
   template "WorldBuildGate" {
@@ -168,8 +171,66 @@ composition "HoloShell World Build Cockpit" {
       receipt_required: true
     }
 
-    // Populated at runtime from the worldBuildReadyToken.blockingReasons in the readiness evidence feed
-    // Each reason becomes a visible object with exact text, owner lane, replay command, and block affordance
+    object "PromotionBlockedBanner" using "BlockedReasonObject" {
+      label: "Cannot promote, import, or publish"
+      reason_binding: "worldBuildReadyToken.status"
+      owner_lane_binding: "operator"
+      receipt_link_binding: "holoshell.world-build-ready"
+      safe_next_action_binding: "worldBuildReadyToken.nextAction"
+      replay_command_binding: "readinessEvidence.commands.replay"
+      affordance: "cannot_promote_import_publish_until_resolved"
+      position: [0, -0.55, 0.78]
+      scale: [3.8, 0.5, 0.08]
+      visible_when: "blockingReasonCount > 0"
+    }
+
+    object "BlockedReasonSlot1" using "BlockedReasonObject" {
+      label: "Blocking reason 1"
+      reason_binding: "worldBuildReadyToken.blockingReasons[0]"
+      owner_lane_binding: "worldBuildReadyToken.blockingOwners[0]"
+      receipt_link_binding: "worldBuildReadyToken.receiptInputs[0]"
+      safe_next_action_binding: "worldBuildReadyToken.blockingNextActions[0]"
+      replay_command_binding: "readinessEvidence.commands.replay"
+      affordance: "cannot_promote_import_publish_until_resolved"
+      position: [-2.85, -1.18, 0.98]
+      visible_when: "blockingReasonCount > 0"
+    }
+
+    object "BlockedReasonSlot2" using "BlockedReasonObject" {
+      label: "Blocking reason 2"
+      reason_binding: "worldBuildReadyToken.blockingReasons[1]"
+      owner_lane_binding: "worldBuildReadyToken.blockingOwners[1]"
+      receipt_link_binding: "worldBuildReadyToken.receiptInputs[1]"
+      safe_next_action_binding: "worldBuildReadyToken.blockingNextActions[1]"
+      replay_command_binding: "readinessEvidence.commands.replay"
+      affordance: "cannot_promote_import_publish_until_resolved"
+      position: [-0.95, -1.18, 0.98]
+      visible_when: "blockingReasonCount > 1"
+    }
+
+    object "BlockedReasonSlot3" using "BlockedReasonObject" {
+      label: "Blocking reason 3"
+      reason_binding: "worldBuildReadyToken.blockingReasons[2]"
+      owner_lane_binding: "worldBuildReadyToken.blockingOwners[2]"
+      receipt_link_binding: "worldBuildReadyToken.receiptInputs[2]"
+      safe_next_action_binding: "worldBuildReadyToken.blockingNextActions[2]"
+      replay_command_binding: "readinessEvidence.commands.replay"
+      affordance: "cannot_promote_import_publish_until_resolved"
+      position: [0.95, -1.18, 0.98]
+      visible_when: "blockingReasonCount > 2"
+    }
+
+    object "BlockedReasonSlot4" using "BlockedReasonObject" {
+      label: "Blocking reason 4"
+      reason_binding: "worldBuildReadyToken.blockingReasons[3]"
+      owner_lane_binding: "worldBuildReadyToken.blockingOwners[3]"
+      receipt_link_binding: "worldBuildReadyToken.receiptInputs[3]"
+      safe_next_action_binding: "worldBuildReadyToken.blockingNextActions[3]"
+      replay_command_binding: "readinessEvidence.commands.replay"
+      affordance: "cannot_promote_import_publish_until_resolved"
+      position: [2.85, -1.18, 0.98]
+      visible_when: "blockingReasonCount > 3"
+    }
   }
 
   spatial_group "ReadinessTokens" {
@@ -235,10 +296,21 @@ composition "HoloShell World Build Cockpit" {
     }
 
     action promote_preview() {
-      if (state.blockedGateCount == 0 && state.codebaseTrustState != "blocked") {
+      if (state.blockedGateCount == 0 && state.blockingReasonCount == 0 && state.codebaseTrustState != "blocked") {
         state.hololandMutationAllowed = true
         emit "holoshell_world_build_preview_promoted"
       }
+    }
+
+    action consume_world_build_ready_token(token) {
+      state.blockingReasonCount = token.blockingReasons.length
+      state.firstBlockingReason = token.blockingReasons[0] || ""
+      state.readyTokenReplayCommand = token.replayCommand || ""
+      if (state.blockingReasonCount > 0) {
+        state.hololandMutationAllowed = false
+        state.blockedGateCount = state.blockingReasonCount
+      }
+      emit "holoshell_world_build_blocking_reasons_consumed"
     }
 
     action consume_codebase_trust(receipt) {

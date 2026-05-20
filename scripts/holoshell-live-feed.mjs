@@ -553,6 +553,19 @@ function createTimeline({ inventory, surfaceMap, goldCodebaseBridge, wildHoloScr
         source: token.source || readinessEvidence.source?.evidenceDir || 'scripts/holoshell-readiness-evidence.mjs',
       });
     }
+    const readyToken = readinessEvidence.worldBuildReadyToken || {};
+    for (const [index, reason] of (readyToken.blockingReasons || []).slice(0, 6).entries()) {
+      timeline.push({
+        id: `world-build-blocker-${index + 1}`,
+        kind: 'world_build_blocking_reason',
+        title: `World build blocker ${index + 1}`,
+        detail: `${reason} Promotion, import, and publish remain blocked until this reason is resolved and replayed.`,
+        trustState: 'partial',
+        generatedAt: readinessEvidence.generatedAt || now,
+        receiptType: readinessEvidence.schemaVersion,
+        source: readinessEvidence.source?.evidenceDir || readinessEvidence.source?.reportPath || 'scripts/holoshell-readiness-evidence.mjs',
+      });
+    }
   }
 
   if (shellObjects?.summary) {
@@ -1358,6 +1371,7 @@ function createFeed(args) {
       readinessGraphStatus: readinessEvidence?.summary?.graphStatus || 'unknown',
       readinessTaskCount: readinessEvidence?.summary?.taskCount || 0,
       readinessNextWorkflow: readinessEvidence?.summary?.nextWorkflow || '',
+      worldBuildBlockingReasonCount: readinessEvidence?.worldBuildReadyToken?.blockingReasons?.length || 0,
       shellObjectGraphStatus: shellObjects?.summary?.status || 'unknown',
       shellObjectCount: shellObjects?.summary?.shellObjectCount || 0,
       firstScreenObjectCount: shellObjects?.summary?.firstScreenObjectCount || 0,
