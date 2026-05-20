@@ -468,6 +468,39 @@ function ownerHandoffFromPlan(plan) {
   };
 }
 
+function snapshotHasNativeCustodySplit(snapshot) {
+  if (!snapshot || snapshot.receipt?.fallback_active) return false;
+  const terminationPreflights = safeArray(snapshot.terminationPreflights);
+  const ownerHandoffs = safeArray(snapshot.ownerHandoffs);
+  const shellRuns = safeArray(snapshot.shellRuns);
+  const cards = safeArray(snapshot.operatorCards);
+  const counts = snapshot.counts || {};
+
+  const countsOk =
+    Number.isFinite(Number(counts.cleanupCandidates)) &&
+    Number.isFinite(Number(counts.ownerHandoffs));
+  const preflightShapeOk = terminationPreflights.every((item) =>
+    item.actionClass &&
+    item.cleanupEligible === true &&
+    item.ownerLane == null &&
+    item.approvalRequired !== false &&
+    item.receiptRequired !== false,
+  );
+  const handoffShapeOk = ownerHandoffs.every((item) =>
+    item.cleanupEligible === false &&
+    item.ownerLane &&
+    item.recommendedAction,
+  );
+  const shellRunsStamped = shellRuns.every((run) =>
+    Object.prototype.hasOwnProperty.call(run, 'action_class') &&
+    Object.prototype.hasOwnProperty.call(run, 'cleanup_eligible') &&
+    Object.prototype.hasOwnProperty.call(run, 'owner_handoff_required'),
+  );
+  const ownerCardOk = cards.some((card) => card.cardId === 'owner-handoff');
+
+  return countsOk && preflightShapeOk && handoffShapeOk && shellRunsStamped && ownerCardOk;
+}
+
 function processHealthFindings(processHealth) {
   const stopFindings = safeArray(processHealth.stopPlans).slice(0, 24).map((plan) => ({
     severity: 'warn',
@@ -707,6 +740,7 @@ function createHardwareRealityModel({ initialize, tools, snapshot, args }) {
       tools: toolNames,
       fallbackActive: Boolean(snapshot.receipt?.fallback_active),
       processHealthOverlayActive: Boolean(snapshot.receipt?.process_health_overlay_active),
+      nativeMcpCustodySplit: snapshotHasNativeCustodySplit(snapshot),
       upstreamTerminationPreflightCount: snapshot.receipt?.upstream_termination_preflight_count || null,
       fallbackReason: snapshot.receipt?.fallback_reason || null,
     },
@@ -863,6 +897,32 @@ function assertSelfTest(model) {
   if (overlayFixture.counts.cleanupCandidates !== 1) failures.push('overlay cleanup count mismatch');
   if (overlayFixture.counts.ownerHandoffs !== 1) failures.push('overlay handoff count mismatch');
   if (overlayFixture.receipt.upstream_termination_preflight_count !== 1) failures.push('overlay should record upstream preflight count');
+  const nativeFixture = {
+    counts: { processes: 3, shellRuns: 1, cleanupCandidates: 1, ownerHandoffs: 2 },
+    shellRuns: [{
+      pid: 202,
+      action_class: 'lane_owner_handoff',
+      cleanup_eligible: false,
+      owner_handoff_required: true,
+    }],
+    terminationPreflights: [{
+      pid: 303,
+      actionClass: 'cleanup_candidate',
+      cleanupEligible: true,
+      ownerLane: null,
+      approvalRequired: true,
+      receiptRequired: true,
+    }],
+    ownerHandoffs: [{
+      pid: 202,
+      ownerLane: 'codex',
+      recommendedAction: 'ask_owner_lane_to_extend_close_or_justify',
+      cleanupEligible: false,
+    }],
+    operatorCards: [{ cardId: 'owner-handoff' }],
+    receipt: { snapshot_hash: 'fixture-native' },
+  };
+  if (!snapshotHasNativeCustodySplit(nativeFixture)) failures.push('expected native custody split fixture');
   const serialized = JSON.stringify(model);
   if (/command_summary|commandLine|CommandLine/.test(serialized)) failures.push('raw command text leaked into visual model');
   if (failures.length) {
@@ -885,10 +945,12 @@ async function main() {
   }
   if (!args.selfTest && !args.fixture && !mcpReality.snapshot?.receipt?.fallback_active) {
     const processHealth = readOptionalJson(path.join('.tmp', 'holoshell', 'process-health.json'), {});
-    mcpReality = {
-      ...mcpReality,
-      snapshot: overlayProcessHealthCustody(mcpReality.snapshot, processHealth),
-    };
+    if (!snapshotHasNativeCustodySplit(mcpReality.snapshot)) {
+      mcpReality = {
+        ...mcpReality,
+        snapshot: overlayProcessHealthCustody(mcpReality.snapshot, processHealth),
+      };
+    }
   }
   const model = createHardwareRealityModel({ ...mcpReality, args });
   const output = writeModel(model, args.output);

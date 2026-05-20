@@ -27,6 +27,7 @@ composition "HoloShell Hardware Reality Bridge" {
     listenerCount: 0
     legacyAppCount: 0
     terminationPreflightCount: 0
+    nativeMcpCustodySplit: false
     riskState: "unknown"
     fallbackActive: false
     destructiveActionsTaken: false
@@ -135,6 +136,7 @@ composition "HoloShell Hardware Reality Bridge" {
       listeners: $listenerCount
       riskState: $riskState
       fallbackActive: $fallbackActive
+      nativeMcpCustodySplit: $nativeMcpCustodySplit
     }
 
     object "LegacyAppDock" {
@@ -190,6 +192,13 @@ composition "HoloShell Hardware Reality Bridge" {
     receiptRequired: true
   }
 
+  policy "NativeMcpCustodySplitWins" {
+    appliesTo: ["holoshell_run_registry_snapshot", "process_health_overlay"]
+    nativeSplitRequires: ["cleanupCandidates", "ownerHandoffs", "stampedShellRuns", "ownerHandoffCard"]
+    overlayAllowedOnlyWhenNativeSplitMissing: true
+    receiptRequired: true
+  }
+
   policy "MutationRequiresPreflight" {
     appliesTo: ["terminate_process", "delete_file", "legacy_app_mutation", "registry_change", "window_destructive_click"]
     approvalRequired: true
@@ -210,6 +219,7 @@ composition "HoloShell Hardware Reality Bridge" {
     state.listenerCount = model.summary.listenerCount
     state.legacyAppCount = model.summary.legacyAppCount
     state.terminationPreflightCount = model.summary.terminationPreflightCount
+    state.nativeMcpCustodySplit = model.mcp.nativeMcpCustodySplit || false
     state.riskState = model.summary.riskState
     state.fallbackActive = model.summary.fallbackActive
     state.destructiveActionsTaken = model.safety.destructiveActionsTaken
@@ -224,6 +234,7 @@ composition "HoloShell Hardware Reality Bridge" {
       unattributedShellRuns: state.unattributedShellRunCount,
       cleanupCandidates: state.cleanupCandidateCount,
       ownerHandoffs: state.ownerHandoffPlanCount,
+      nativeMcpCustodySplit: state.nativeMcpCustodySplit,
       listeners: state.listenerCount,
       legacyApps: state.legacyAppCount,
       riskState: state.riskState,

@@ -31,9 +31,12 @@ HoloShell receipts: `process-health.json`, `agent-lanes.json`,
 operating turn alive, marks `fallbackActive: true`, and forbids mutation until
 the MCP preflight path is available again.
 
-The bridge preserves the process-health custody split even when the live MCP
+The bridge preserves the process-health custody split when the live MCP
 snapshot returns broader PID preflight data. The adapter overlays
-`process-health.json` so the visual model distinguishes:
+`process-health.json` only while the upstream snapshot is missing the native
+split. When `holoshell_run_registry_snapshot` already emits cleanup candidates,
+owner handoffs, stamped shell runs, and the owner-handoff card, HoloLand
+consumes that source-layer receipt directly so the visual model distinguishes:
 
 - owner-unknown findings become cleanup candidates and termination preflights
 - lane-owned findings become owner handoffs
@@ -43,7 +46,9 @@ snapshot returns broader PID preflight data. The adapter overlays
   contract checks can inspect object shape, not only summary counts
 
 If the overlay replaces an upstream unsplit preflight list, the receipt records
-`upstreamTerminationPreflightCount` so agents can audit the collapse.
+`upstreamTerminationPreflightCount` so agents can audit the collapse. In native
+mode the receipt instead carries `nativeMcpCustodySplit: true` and leaves
+`processHealthOverlayActive` unset.
 
 ## Why This Matters
 

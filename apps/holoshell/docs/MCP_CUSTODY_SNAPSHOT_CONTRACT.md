@@ -38,14 +38,20 @@ Output:
 
 The upstream snapshot should expose:
 
-- `summary.cleanupCandidateCount`
-- `summary.ownerHandoffPlanCount`
-- `summary.terminationPreflightCount`
+- `counts.cleanupCandidates`
+- `counts.ownerHandoffs`
 - `terminationPreflights[]` containing only owner-unknown cleanup candidates
 - `ownerHandoffs[]` containing owner-known non-destructive handoff plans
-- `shellRuns[]` carrying `actionClass`, `cleanupEligible`, and
-  `ownerHandoffRequired`
+- `shellRuns[]` carrying `action_class`, `cleanup_eligible`, and
+  `owner_handoff_required`
 - an `owner-handoff` operator card separate from the mutation gate
+
+HoloLand maps those source-layer counts into
+`summary.cleanupCandidateCount`, `summary.ownerHandoffPlanCount`, and
+`summary.terminationPreflightCount` in the hardware-reality receipt. In native
+mode, process-health count drift is advisory: it should not force a local
+overlay when `holoshell_run_registry_snapshot` already emitted the custody
+split.
 
 ## Compatibility Modes
 

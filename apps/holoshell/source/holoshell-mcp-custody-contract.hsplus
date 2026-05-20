@@ -57,9 +57,9 @@ composition "HoloShell MCP Custody Snapshot Contract" {
 
   template "ShellRunCustodyFields" {
     type: "contract"
-    actionClass: "observed"
-    cleanupEligible: false
-    ownerHandoffRequired: false
+    action_class: "observed"
+    cleanup_eligible: false
+    owner_handoff_required: false
   }
 
   room "McpCustodyContractRoom" {
@@ -98,11 +98,20 @@ composition "HoloShell MCP Custody Snapshot Contract" {
 
   policy "NativeMcpCustodySplit" {
     appliesTo: ["holoshell_run_registry_snapshot"]
+    sourceCountFields: ["counts.cleanupCandidates", "counts.ownerHandoffs"]
     summaryFields: ["cleanupCandidateCount", "ownerHandoffPlanCount", "terminationPreflightCount"]
     cleanupCandidatePreflightShape: "owner_unknown_only"
     ownerHandoffShape: "owner_known_non_destructive"
     shellRunCustodyFieldsRequired: true
     rawCommandsHiddenByDefault: true
+    receiptRequired: true
+  }
+
+  policy "NativeMcpOverridesProcessHealthOverlay" {
+    appliesTo: ["hardware_reality_bridge", "process_health_overlay", "holoshell_run_registry_snapshot"]
+    whenNativeMcpCustodySplit: true
+    processHealthCountMismatchRequiresOverlay: false
+    processHealthMayRemainAdvisory: true
     receiptRequired: true
   }
 

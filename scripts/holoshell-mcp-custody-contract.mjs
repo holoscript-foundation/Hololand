@@ -129,6 +129,7 @@ function contractChecks(hardwareReality, processHealth) {
   const handoffCount = numberValue(summary.ownerHandoffPlanCount || summary.ownerHandoffCount);
   const processCleanupCount = numberValue(processSummary.actionableCleanupCandidateCount || processSummary.cleanupCandidateCount);
   const processHandoffCount = numberValue(processSummary.ownerHandoffPlanCount);
+  const nativeMcp = Boolean(mcp.nativeMcpCustodySplit) || (!mcp.fallbackActive && !mcp.processHealthOverlayActive);
 
   const terminationShapeOk = terminationPreflights.length === 0
     || terminationPreflights.every((item) => item.actionClass && item.cleanupEligible === true && item.ownerLane == null);
@@ -167,23 +168,28 @@ function contractChecks(hardwareReality, processHealth) {
     ),
     check(
       'mcp.native-custody-split',
-      !mcp.fallbackActive && !mcp.processHealthOverlayActive ? 'pass' : 'warn',
+      nativeMcp && !mcp.fallbackActive && !mcp.processHealthOverlayActive ? 'pass' : 'warn',
       'Upstream MCP emits the custody split without fallback or HoloLand overlay.',
       {
         fallbackActive: Boolean(mcp.fallbackActive),
         processHealthOverlayActive: Boolean(mcp.processHealthOverlayActive),
+        nativeMcpCustodySplit: Boolean(mcp.nativeMcpCustodySplit),
       },
     ),
     check(
       'process-health.cleanup-count-match',
-      !processSummary.riskState || cleanupCount === processCleanupCount ? 'pass' : 'warn',
-      'Hardware cleanup count matches process-health cleanup count.',
+      nativeMcp || !processSummary.riskState || cleanupCount === processCleanupCount ? 'pass' : 'warn',
+      nativeMcp
+        ? 'Native MCP custody split is authoritative; process-health count mismatch does not require overlay.'
+        : 'Hardware cleanup count matches process-health cleanup count.',
       { hardware: cleanupCount, processHealth: processCleanupCount },
     ),
     check(
       'process-health.handoff-count-match',
-      !processSummary.riskState || handoffCount === processHandoffCount ? 'pass' : 'warn',
-      'Hardware owner handoff count matches process-health owner handoff count.',
+      nativeMcp || !processSummary.riskState || handoffCount === processHandoffCount ? 'pass' : 'warn',
+      nativeMcp
+        ? 'Native MCP custody split is authoritative; process-health handoff mismatch does not require overlay.'
+        : 'Hardware owner handoff count matches process-health owner handoff count.',
       { hardware: handoffCount, processHealth: processHandoffCount },
     ),
   ];
@@ -262,9 +268,9 @@ function createContract(args, inputs = null) {
         'receiptRequired=true',
       ],
       requiredShellRunFields: [
-        'actionClass',
-        'cleanupEligible',
-        'ownerHandoffRequired',
+        'action_class',
+        'cleanup_eligible',
+        'owner_handoff_required',
       ],
     },
     compliance: {
@@ -337,6 +343,13 @@ function assertSelfTest(packet) {
   const nativePacket = createContract(parseArgs(['--self-test']), fixtureInputs('native'));
   if (nativePacket.summary.status !== 'pass') failures.push(`expected native fixture pass, got ${nativePacket.summary.status}`);
   if (!nativePacket.summary.nativeMcpCustodySplit) failures.push('expected native fixture to be native');
+  const nativeMismatchInputs = fixtureInputs('native');
+  nativeMismatchInputs.processHealth.summary.actionableCleanupCandidateCount = 99;
+  nativeMismatchInputs.processHealth.summary.ownerHandoffPlanCount = 99;
+  const nativeMismatchPacket = createContract(parseArgs(['--self-test']), nativeMismatchInputs);
+  if (nativeMismatchPacket.summary.status !== 'pass') {
+    failures.push(`expected native fixture to ignore process-health count mismatch, got ${nativeMismatchPacket.summary.status}`);
+  }
 
   const serialized = JSON.stringify(packet);
   if (/commandPreview|commandLine|C:\\\\Users\\\\|api[_-]?key|token\s*=|password\s*=/i.test(serialized)) {

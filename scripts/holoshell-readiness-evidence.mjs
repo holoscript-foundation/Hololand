@@ -564,6 +564,7 @@ function createFeed({
   localArtifacts,
   liveCoreImport,
   localCodebaseBundle,
+  buildCustody,
   paths,
 }) {
   const runId = firstMatch(report, /Automation ID:\s*`([^`]+)`/, 'holoshell-human-os-frontier');
@@ -786,10 +787,10 @@ function createFeed({
       kind: 'build_custody_receipt',
       title: buildCustody.custody?.isNative
         ? 'Build custody (native)'
-        : 'Build custody (overlay — legacy)',
+        : 'Build custody (overlay legacy)',
       status: buildCustody.custody?.isNative ? 'pass' : 'warn',
       detail: buildCustody.custody
-        ? `${buildCustody.custody.source} • builtBy=${buildCustody.custody.builtBy} • sourceRef=${buildCustody.custody.sourceRef?.slice(0, 12)} • MCP authoritative=${buildCustody.custody.mcpHealthSnapshot?.graphAuthoritative ?? 'unknown'}`
+        ? `${buildCustody.custody.source} | builtBy=${buildCustody.custody.builtBy} | sourceRef=${buildCustody.custody.sourceRef?.slice(0, 12)} | MCP authoritative=${buildCustody.custody.mcpHealthSnapshot?.graphAuthoritative ?? 'unknown'}`
         : 'Build custody artifact present.',
       source: paths.buildCustodyPath || evidenceDir,
       receiptType: buildCustody.schemaVersion || 'holoscript.framework.holoshell-build-custody.v1',
