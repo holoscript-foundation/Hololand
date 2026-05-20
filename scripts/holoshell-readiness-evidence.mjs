@@ -516,6 +516,9 @@ function createFeedFromFiles(
   const gitStatusPath = path.join(evidenceDir, 'git-status.txt');
   // Local codebase bundle (the missing token from world-build-cockpit-v2 research)
   const localCodebaseBundlePath = path.join(evidenceDir, 'local-codebase-absorb-bundle.json');
+  // Native build/MCP custody (the next substrate gap from the same research — now has
+  // HoloShellBuildCustodyReceipt in HoloScript/framework after b675f8d4b)
+  const buildCustodyPath = path.join(evidenceDir, 'build-custody.json');
 
   const report = readText(reportPath);
   const buildLog = readText(buildLogPath);
@@ -524,6 +527,7 @@ function createFeedFromFiles(
   const validations = readJson(validationsPath, []);
   const taskBundle = readJson(tasksPath, { tasks: [] });
   const localCodebaseBundle = readJson(localCodebaseBundlePath, null);
+  const buildCustody = readJson(buildCustodyPath, null);
   return createFeed({
     evidenceDir,
     report,
@@ -535,6 +539,7 @@ function createFeedFromFiles(
     localArtifacts,
     liveCoreImport,
     localCodebaseBundle,
+    buildCustody,
     paths: {
       reportPath,
       deviceReceiptPath,
@@ -543,6 +548,7 @@ function createFeedFromFiles(
       buildLogPath,
       gitStatusPath,
       localCodebaseBundlePath,
+      buildCustodyPath,
     },
   });
 }
@@ -768,6 +774,27 @@ function createFeed({
       receiptType: localCodebaseBundle.receiptType || 'hololand.holoshell.local-codebase-absorb-bundle.v0.1.0',
       nextAction: (localCodebaseBundle.receipt?.roots || []).some(r => (r.skippedFileCount || 0) > 0)
         ? 'Review skipped files in the local codebase bundle before promotion.'
+        : '',
+    })] : []),
+    // Native build/MCP custody token (derived from world-build-cockpit-v2 research gap).
+    // When a producer drops build-custody.json using the HoloShellBuildCustodyReceipt shape
+    // (created in HoloScript after b675f8d4b), this surfaces authoritative native custody
+    // instead of hololand_overlay. This is the direct fix for "readiness evidence still
+    // reports MCP custody split as hololand_overlay".
+    ...(buildCustody ? [makeToken({
+      id: 'readiness.build-custody',
+      kind: 'build_custody_receipt',
+      title: buildCustody.custody?.isNative
+        ? 'Build custody (native)'
+        : 'Build custody (overlay — legacy)',
+      status: buildCustody.custody?.isNative ? 'pass' : 'warn',
+      detail: buildCustody.custody
+        ? `${buildCustody.custody.source} • builtBy=${buildCustody.custody.builtBy} • sourceRef=${buildCustody.custody.sourceRef?.slice(0, 12)} • MCP authoritative=${buildCustody.custody.mcpHealthSnapshot?.graphAuthoritative ?? 'unknown'}`
+        : 'Build custody artifact present.',
+      source: paths.buildCustodyPath || evidenceDir,
+      receiptType: buildCustody.schemaVersion || 'holoscript.framework.holoshell-build-custody.v1',
+      nextAction: !buildCustody.custody?.isNative
+        ? 'Produce native HoloShellBuildCustodyReceipt (no hololand_overlay) for this evidence pack.'
         : '',
     })] : []),
     makeToken({
