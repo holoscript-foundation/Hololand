@@ -17,6 +17,7 @@ composition "HoloShellWorldBuildCockpitPolicy" {
     hardwareRealitySource: "apps/holoshell/source/holoshell-hardware-reality-bridge.hsplus"
     visualWitnessSource: "apps/holoshell/source/holoshell-visual-witness.hsplus"
     agentLaneSource: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
+    localCodebaseBundleAdapter: "scripts/holoshell-local-codebase-absorb-bundle.mjs"
     defaultMode: "preview_only_until_promoted"
   }
 
@@ -31,6 +32,7 @@ composition "HoloShellWorldBuildCockpitPolicy" {
     hololandMutationAllowed: false
     replayReady: false
     lastCockpitReceiptId: ""
+    codebaseTrust: "unknown"
   }
 
   channel "holoshell:world_build:gate" {
@@ -82,6 +84,13 @@ composition "HoloShellWorldBuildCockpitPolicy" {
     mutationClass: "silent_read"
   }
 
+  gate "CodebaseTrustGate" using "WorldBuildGateRequirement" {
+    gateId: "codebase-trust"
+    requiredReceipt: "HoloShellLocalCodebaseSnapshotReceipt"
+    ownerSurface: "HoloShell local filesystem adapter + HoloScript Absorb"
+    mutationClass: "guarded_sourcefiles_absorb"
+  }
+
   gate "HoloLandPreviewGate" using "WorldBuildGateRequirement" {
     gateId: "hololand-preview"
     requiredReceipt: "VisualWitnessReceipt"
@@ -110,6 +119,16 @@ composition "HoloShellWorldBuildCockpitPolicy" {
     staleHostedGraphAuthoritative: false
     allowedAsEvidence: "warning_token"
     requiresLocalFilesystemNamespace: true
+    localSourceFilesFallback: "HoloShellLocalCodebaseSnapshotReceipt"
+    receiptRequired: true
+  }
+
+  policy "CodebaseTruthBeforeMutation" {
+    appliesTo: ["world_import", "publish_world", "modify_hololand_worktree", "close_task_as_fixed"]
+    defaultAllowed: false
+    requiresFreshHostedGraphOrLocalSnapshot: true
+    requiresRedactionStatusNotFail: true
+    requiresSkippedFilesVisible: true
     receiptRequired: true
   }
 
@@ -159,5 +178,15 @@ composition "HoloShellWorldBuildCockpitPolicy" {
       replayReady: state.replayReady,
       hololandMutationAllowed: state.hololandMutationAllowed
     })
+  }
+
+  action consume_codebase_trust(receipt) {
+    if (receipt.status == "ready" && receipt.redactionStatus != "fail") {
+      state.codebaseTrust = "trusted_from_local_bundle"
+      consume_gate_result("codebase-trust", "pass", receipt.id)
+    } else {
+      state.codebaseTrust = "blocked"
+      consume_gate_result("codebase-trust", "fail", receipt.id)
+    }
   }
 }

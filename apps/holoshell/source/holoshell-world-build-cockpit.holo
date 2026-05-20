@@ -20,6 +20,8 @@ composition "HoloShell World Build Cockpit" {
     local_file_manifest_source: "apps/holoshell/source/holoshell-local-file-manifest.hsplus"
     codex_hardware_audit_source: "apps/holoshell/source/holoshell-codex-hardware-audit.hsplus"
     agent_lane_source: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
+    local_codebase_bundle_adapter: "scripts/holoshell-local-codebase-absorb-bundle.mjs"
+    local_codebase_experiment: "experiments/holoshell-human-os-frontier/local-codebase-trust-gate-room.holo"
   }
 
   environment {
@@ -40,6 +42,9 @@ composition "HoloShell World Build Cockpit" {
     warningGateCount: 0
     blockedGateCount: 0
     replayReady: false
+    codebaseTrustState: "unknown"
+    localSourceBundleState: "missing"
+    skippedCodebaseFileCount: 0
   }
 
   template "WorldBuildGate" {
@@ -109,6 +114,17 @@ composition "HoloShell World Build Cockpit" {
       position: [3.25, 1.35, -1.55]
     }
 
+    object "CodebaseTrustGate" using "WorldBuildGate" {
+      label: "Codebase Trust"
+      gate_id: "codebase_trust"
+      receipt: "HoloShellLocalCodebaseSnapshotReceipt"
+      failure_states: ["hosted_graph_stale", "rootDir_unavailable", "source_bundle_missing", "source_bundle_redaction_failed"]
+      approval: "guarded_sourcefiles_absorb"
+      position: [0, 0.42, -0.74]
+      status_binding: "codebaseTrustState"
+      plain_language: "Codebase claims must come from a fresh graph or a replayable local source bundle."
+    }
+
     object "PreviewGate" using "WorldBuildGate" {
       label: "World Preview"
       gate_id: "hololand_preview"
@@ -153,6 +169,24 @@ composition "HoloShell World Build Cockpit" {
       color: "#e0af68"
     }
 
+    object "LocalCodebaseBundleToken" using "GateToken" {
+      label: "Local codebase bundle"
+      receipt_kind: "local_codebase_snapshot_receipt"
+      next_action: "Replay sourceFiles absorb before trusting graph answers"
+      position: [1.62, 0.86, 0.98]
+      color: "#73daca"
+      status_binding: "localSourceBundleState"
+    }
+
+    object "SkippedCodebaseFilesToken" using "GateToken" {
+      label: "Skipped codebase files"
+      receipt_kind: "local_codebase_skipped_files"
+      next_action: "Inspect skipped files before readiness claim"
+      position: [2.16, 0.86, 0.76]
+      color: "#8aadf4"
+      count_binding: "skippedCodebaseFileCount"
+    }
+
     object "NoMutationToken" using "GateToken" {
       label: "HoloLand read-only until promotion"
       receipt_kind: "worktree_boundary_receipt"
@@ -182,10 +216,21 @@ composition "HoloShell World Build Cockpit" {
     }
 
     action promote_preview() {
-      if (state.blockedGateCount == 0) {
+      if (state.blockedGateCount == 0 && state.codebaseTrustState != "blocked") {
         state.hololandMutationAllowed = true
         emit "holoshell_world_build_preview_promoted"
       }
+    }
+
+    action consume_codebase_trust(receipt) {
+      state.localSourceBundleState = receipt.status
+      state.skippedCodebaseFileCount = receipt.skippedFiles.length
+      if (receipt.status == "ready" && receipt.redactionStatus != "fail") {
+        state.codebaseTrustState = "trusted_from_local_bundle"
+      } else {
+        state.codebaseTrustState = "blocked"
+      }
+      emit "holoshell_world_build_codebase_trust_consumed"
     }
   }
 }

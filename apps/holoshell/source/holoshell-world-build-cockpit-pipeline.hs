@@ -17,6 +17,7 @@ object "WorldBuildCockpitPipelineManifest" {
   hardwareRealitySource: "apps/holoshell/source/holoshell-hardware-reality-bridge.hsplus"
   visualWitnessSource: "apps/holoshell/source/holoshell-visual-witness.hsplus"
   agentLaneSource: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
+  localCodebaseBundleAdapter: "scripts/holoshell-local-codebase-absorb-bundle.mjs"
   outputEvidencePack: ".tmp/holoshell/world-build-cockpit.json"
   receiptRequired: true
 }
@@ -79,11 +80,35 @@ object "CodebaseGraphStep" {
   output: "GraphUnavailableReceipt"
 }
 
+object "LocalCodebaseBundleStep" {
+  type: "pipeline_step"
+  workflow: "ready-to-build-hololand-world"
+  phase: "local_codebase_bundle"
+  order: 5
+  adapter: "scripts/holoshell-local-codebase-absorb-bundle.mjs"
+  command: "node scripts/holoshell-local-codebase-absorb-bundle.mjs --root C:/Users/josep/Documents/GitHub/HoloScript --root C:/Users/josep/Documents/GitHub/Hololand --json"
+  mutationClass: "none"
+  validates: ["relative_paths_only", "content_hashes", "secret_adjacent_exclusion", "byte_cap", "file_cap"]
+  output: "HoloShellLocalCodebaseSnapshotReceipt"
+}
+
+object "SourceFilesAbsorbReplayStep" {
+  type: "pipeline_step"
+  workflow: "ready-to-build-hololand-world"
+  phase: "source_files_absorb_replay"
+  order: 6
+  adapter: "mcp.holoscript.net:holo_absorb_repo"
+  mutationClass: "guarded_execute"
+  input: "sourceFiles from HoloShellLocalCodebaseSnapshotReceipt"
+  warningWhen: "hosted graph stays non_authoritative"
+  output: "CodebaseAbsorbReplayReceipt"
+}
+
 object "BuildCustodyStep" {
   type: "pipeline_step"
   workflow: "ready-to-build-hololand-world"
   phase: "build_custody"
-  order: 5
+  order: 7
   adapter: "apps/holoshell/source/holoshell-build-custody.hsplus"
   mutationClass: "silent_read"
   directStopAllowed: false
@@ -94,7 +119,7 @@ object "PreviewWitnessStep" {
   type: "pipeline_step"
   workflow: "ready-to-build-hololand-world"
   phase: "preview_witness"
-  order: 6
+  order: 8
   adapter: "apps/holoshell/source/holoshell-visual-witness.hsplus"
   mutationClass: "guarded_preview"
   target: "HoloLand preview room"
@@ -106,7 +131,7 @@ object "AgentLaneStep" {
   type: "pipeline_step"
   workflow: "ready-to-build-hololand-world"
   phase: "agent_orchestra"
-  order: 7
+  order: 9
   adapter: "apps/holoshell/source/holoshell-agent-presence-lanes.hsplus"
   mutationClass: "none"
   validates: ["lane_attribution", "unattributed_shell_run_detection", "duplicate_task_detection"]
@@ -117,7 +142,7 @@ object "ReadinessReceiptStep" {
   type: "pipeline_step"
   workflow: "ready-to-build-hololand-world"
   phase: "receipt"
-  order: 8
+  order: 10
   action: "merge_gate_receipts"
   output: "WorldBuildReadinessCockpitReceipt"
   readinessStates: ["ready", "ready_with_warnings", "blocked"]
