@@ -1,0 +1,24 @@
+// Production readiness gate for the first Central to Frontier loop.
+// This source binds atlas admission and executable receipt proof into one
+// release-shaped gate.
+
+object "CentralFrontierProductionReadinessGate" {
+  type: "runtime_proof"
+  id: "central-frontier-production-readiness"
+  version: "0.1.0"
+  layer: "vr"
+  domains: ["identity", "agents", "receipts", "quests", "economy", "safety"]
+  verticals: ["entertainment"]
+  surfaces: ["browser", "desktop", "webxr", "headset"]
+  canonicalSource: "source/proofs/central-frontier-receipt-proof.hsplus"
+  secondarySource: "source/runtime-atlas.holo"
+  receiptEnvelope: "source/domains/receipts/runtime-receipt-envelope.hsplus"
+  executableGate: "scripts/hololand-production-readiness.mjs"
+  outputReceipt: ".tmp/hololand/readiness/central-frontier-latest.json"
+  requiredReceipts: [
+    "runtime_atlas_admission_passed",
+    "central_frontier_proof_passed",
+    "production_readiness_recorded"
+  ]
+  failClosedBehavior: "deny_production_admission_until_atlas_and_receipt_proof_pass"
+}

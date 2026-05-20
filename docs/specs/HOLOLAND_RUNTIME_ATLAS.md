@@ -226,6 +226,27 @@ The receipt simulates the first production loop:
 central_entered -> portal_used -> shard_entered -> encounter_completed -> reward_earned
 ```
 
+The single production-readiness gate is:
+
+```powershell
+node scripts/hololand-production-readiness.mjs --json
+```
+
+It is sourced by:
+
+```text
+source/proofs/central-frontier-production-readiness.hsplus
+```
+
+It emits:
+
+```text
+.tmp/hololand/readiness/central-frontier-latest.json
+```
+
+The readiness receipt passes only when atlas admission, the Central to Frontier
+proof, and readiness receipt coverage all pass.
+
 ## First Slice
 
 The first source slice is:
