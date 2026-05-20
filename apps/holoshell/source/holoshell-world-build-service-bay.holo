@@ -1,0 +1,214 @@
+// HoloShell World Build Service Bay
+//
+// Visible product room for process-owner lane restart:
+// "Start or restart the local HoloShell services needed for HoloLand world work,
+// without breaking another agent or hidden local run."
+
+composition "HoloShell World Build Service Bay" {
+  metadata {
+    title: "World Build Service Bay"
+    product: "HoloShell"
+    sourceLayer: "HoloScript"
+    service_supervisor_source: "apps/holoshell/source/holoshell-service-supervisor.hsplus"
+    control_daemon_source: "apps/holoshell/source/holoshell-control-daemon-service.hsplus"
+    network_sentinel_source: "apps/holoshell/source/holoshell-network-sentinel-service.hsplus"
+    process_health_source: "apps/holoshell/source/holoshell-process-health-room.hsplus"
+    run_custody_source: "apps/holoshell/source/holoshell-run-custody-actions.hsplus"
+    upstream_receipt_validator: "packages/framework/src/board/holoshell-managed-service-restart-receipts.ts"
+  }
+
+  environment {
+    theme: "holo_os_service_bay"
+    render_mode: "desktop_spatial"
+    ambient_light: 0.54
+    receipt_underlay: true
+    camera_mode: "stationary_perspective"
+  }
+
+  state {
+    humanOutcome: "Ready local HoloShell services for HoloLand world building"
+    bayMode: "read_only"
+    selectedService: "holoshell-control-daemon"
+    serviceHealth: "unknown"
+    ownerLaneRisk: "unknown"
+    pidVerified: false
+    executeEnabled: false
+    approvalCaptured: false
+    afterActionVerified: false
+    replayReady: false
+  }
+
+  template "ServicePanel" {
+    type: "managed_service_panel"
+    mesh: "rounded_panel"
+    material: "liquid_glass"
+    color: "#162332"
+    active_color: "#73daca"
+    warning_color: "#e0af68"
+    blocked_color: "#f7768e"
+    inspectable: true
+    receipt_required: true
+  }
+
+  template "CustodyToken" {
+    type: "receipt_token"
+    mesh: "sphere"
+    material: "hologram"
+    radius: 0.13
+    grabbable: true
+    receipt_required: true
+  }
+
+  object "OutcomeHeader" using "ServicePanel" {
+    label: "World Build Service Bay"
+    service_id: "human_outcome"
+    plain_language: "Show service health, verify exact PIDs, request approval before mutation, and prove after-action state."
+    status_binding: "serviceHealth"
+    position: [0, 2.34, -2.85]
+    scale: [4.7, 0.65, 0.08]
+  }
+
+  spatial_group "ManagedServices" {
+    object "ControlDaemonService" using "ServicePanel" {
+      label: "Control Daemon"
+      service_id: "holoshell-control-daemon"
+      receipt: "ManagedLocalServiceReceipt"
+      source: "apps/holoshell/source/holoshell-control-daemon-service.hsplus"
+      adapter: "scripts/holoshell-control-daemon-service.mjs"
+      failure_states: ["offline", "stale_pid", "execute_enabled_without_gate", "raw_command_leak"]
+      position: [-2.4, 1.23, -1.35]
+      scale: [1.8, 0.72, 0.08]
+    }
+
+    object "NetworkSentinelService" using "ServicePanel" {
+      label: "Network Sentinel"
+      service_id: "holoshell-network-sentinel"
+      receipt: "ManagedLocalServiceReceipt"
+      source: "apps/holoshell/source/holoshell-network-sentinel-service.hsplus"
+      adapter: "scripts/holoshell-network-sentinel-service.mjs"
+      failure_states: ["offline", "stale_network_snapshot", "provider_unreachable", "raw_command_leak"]
+      position: [0, 1.23, -1.35]
+      scale: [1.8, 0.72, 0.08]
+    }
+
+    object "ServiceSupervisor" using "ServicePanel" {
+      label: "Service Supervisor"
+      service_id: "holoshell-service-supervisor"
+      receipt: "ManagedLocalServiceReceipt"
+      source: "apps/holoshell/source/holoshell-service-supervisor.hsplus"
+      adapter: "scripts/holoshell-service-supervisor.mjs"
+      failure_states: ["missing_fixture", "unverified_restart", "owner_unknown_run", "force_kill_requested"]
+      position: [2.4, 1.23, -1.35]
+      scale: [1.8, 0.72, 0.08]
+    }
+  }
+
+  spatial_group "CustodyLane" {
+    object "ProcessHealthPanel" using "ServicePanel" {
+      label: "Owner Lanes"
+      receipt: "ProcessHealthReceipt"
+      failure_states: ["owner_unknown", "stale_run", "cleanup_stop_without_handoff"]
+      position: [-2.7, 0.24, 0.08]
+      scale: [1.55, 0.64, 0.08]
+    }
+
+    object "PidGatePanel" using "ServicePanel" {
+      label: "PID Gate"
+      receipt: "VerifiedPidGateReceipt"
+      exact_pid_required: true
+      raw_command_line_visible: false
+      stop_only_verified_managed_pid: true
+      force_kill_allowed: false
+      status_binding: "pidVerified"
+      position: [-0.9, 0.24, 0.08]
+      scale: [1.55, 0.64, 0.08]
+    }
+
+    object "ApprovalPanel" using "ServicePanel" {
+      label: "Approval"
+      receipt: "ServiceRestartApprovalReceipt"
+      approval: "fresh_human_gesture_required"
+      owner_ack_required_for: ["enable_execute", "enable_trusted_execute"]
+      status_binding: "approvalCaptured"
+      position: [0.9, 0.24, 0.08]
+      scale: [1.55, 0.64, 0.08]
+    }
+
+    object "AfterActionPanel" using "ServicePanel" {
+      label: "After Action"
+      receipt: "ServiceAfterActionReceipt"
+      requires: ["beforeStatusHash", "afterStatusHash", "afterPidCommandVerified"]
+      status_binding: "afterActionVerified"
+      position: [2.7, 0.24, 0.08]
+      scale: [1.55, 0.64, 0.08]
+    }
+  }
+
+  spatial_group "ReceiptTokens" {
+    object "ReadOnlyToken" using "CustodyToken" {
+      label: "Read only first"
+      receipt_kind: "ManagedLocalServiceReceipt"
+      position: [-1.8, -0.48, 0.82]
+      color: "#73daca"
+    }
+
+    object "PidToken" using "CustodyToken" {
+      label: "Exact PID"
+      receipt_kind: "VerifiedPidGateReceipt"
+      position: [-0.6, -0.48, 1.02]
+      color: "#9ece6a"
+    }
+
+    object "ApprovalToken" using "CustodyToken" {
+      label: "Approval"
+      receipt_kind: "ServiceRestartApprovalReceipt"
+      position: [0.6, -0.48, 1.02]
+      color: "#e0af68"
+    }
+
+    object "ReplayToken" using "CustodyToken" {
+      label: "Replay"
+      receipt_kind: "ServiceAfterActionReceipt"
+      position: [1.8, -0.48, 0.82]
+      color: "#7aa2f7"
+    }
+  }
+
+  object "ServiceTimeline" {
+    type: "timeline"
+    mesh: "cube"
+    material: "hologram"
+    color: "#6a7282"
+    label: "status -> owner lanes -> exact PID -> approval -> restart -> after-action -> replay"
+    position: [0, -1.0, 1.42]
+    scale: [6.3, 0.08, 0.12]
+    receipt_required: true
+  }
+
+  logic {
+    on_enter {
+      emit "holoshell_world_build_service_bay_loaded"
+    }
+
+    action select_service(serviceId) {
+      set selectedService = serviceId
+      emit "holoshell_service_selected"
+    }
+
+    action request_status(serviceId) {
+      set bayMode = "read_only"
+      emit "holoshell_service_status_requested"
+    }
+
+    action request_restart(serviceId) {
+      set bayMode = "approval_required"
+      emit "holoshell_service_restart_approval_requested"
+    }
+
+    action verify_after_action(serviceId) {
+      set afterActionVerified = true
+      set replayReady = true
+      emit "holoshell_service_after_action_verified"
+    }
+  }
+}

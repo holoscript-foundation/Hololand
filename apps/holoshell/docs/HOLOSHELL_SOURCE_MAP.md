@@ -24,6 +24,7 @@ so agents and product surfaces do not have to rediscover the shape of
 | World-build cockpit room | `apps/holoshell/source/holoshell-world-build-cockpit.holo` |
 | World-build cockpit policy | `apps/holoshell/source/holoshell-world-build-cockpit-policy.hsplus` |
 | World-build cockpit pipeline | `apps/holoshell/source/holoshell-world-build-cockpit-pipeline.hs` |
+| World-build service bay | `apps/holoshell/source/holoshell-world-build-service-bay.holo` |
 | Readiness evidence | `apps/holoshell/source/holoshell-readiness-evidence.hsplus` |
 | Build custody | `apps/holoshell/source/holoshell-build-custody.hsplus` |
 | Source validation | `apps/holoshell/source/holoshell-source-validation.hsplus` |
