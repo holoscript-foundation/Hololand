@@ -12,6 +12,7 @@ const DEFAULT_SOURCE_DIR = path.join('apps', 'holoshell', 'source');
 const DEFAULT_HOLOSCRIPT_ROOT = path.resolve(REPO_ROOT, '..', 'HoloScript');
 const DEFAULT_OUTPUT = path.join('.tmp', 'holoshell', 'source-validation.json');
 const DEFAULT_JS_OUTPUT = path.join('.tmp', 'holoshell', 'source-validation.js');
+const DEFAULT_COMPILE_OUTPUT_DIR = path.join('.tmp', 'holoshell', 'source-validation-compiled');
 const SOURCE_EXTENSIONS = new Set(['.holo', '.hs', '.hsplus']);
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -20,6 +21,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     holoscriptRoot: DEFAULT_HOLOSCRIPT_ROOT,
     output: DEFAULT_OUTPUT,
     jsOutput: DEFAULT_JS_OUTPUT,
+    compileOutputDir: DEFAULT_COMPILE_OUTPUT_DIR,
     timeoutMs: 60_000,
     overallTimeoutMs: 180_000,
     failFast: false,
@@ -34,6 +36,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (arg === '--holoscript-root') args.holoscriptRoot = argv[++index];
     else if (arg === '--output') args.output = argv[++index];
     else if (arg === '--js-output') args.jsOutput = argv[++index];
+    else if (arg === '--compile-output-dir') args.compileOutputDir = argv[++index];
     else if (arg === '--timeout-ms') args.timeoutMs = Number(argv[++index]) || args.timeoutMs;
     else if (arg === '--overall-timeout-ms') args.overallTimeoutMs = Number(argv[++index]) || args.overallTimeoutMs;
     else if (arg === '--fail-fast') args.failFast = true;
@@ -50,6 +53,7 @@ function parseArgs(argv = process.argv.slice(2)) {
   if (args.selfTest) {
     args.output = path.join('.tmp', 'holoshell', 'self-test', 'source-validation.json');
     args.jsOutput = path.join('.tmp', 'holoshell', 'self-test', 'source-validation.js');
+    args.compileOutputDir = path.join('.tmp', 'holoshell', 'self-test', 'source-validation-compiled');
   }
 
   return args;
@@ -63,9 +67,10 @@ Usage:
 
 Options:
   --source-dir <path>        Source directory. Defaults to apps/holoshell/source.
-  --holoscript-root <path>   HoloScript repo used for pnpm exec holoscript validate.
+  --holoscript-root <path>   HoloScript repo used for local HoloScript CLI checks.
   --output <path>            JSON receipt. Defaults to .tmp/holoshell/source-validation.json.
   --js-output <path>         Browser bootstrap. Defaults to .tmp/holoshell/source-validation.js.
+  --compile-output-dir <dir> Compile probe output dir. Defaults to .tmp/holoshell/source-validation-compiled.
   --timeout-ms <n>           Per-file validation timeout. Defaults to 60000.
   --overall-timeout-ms <n>   Whole sweep timeout. Defaults to 180000.
   --fail-fast                Stop after the first validation failure.
@@ -124,10 +129,10 @@ function packageRunner() {
   return 'pnpm';
 }
 
-function runValidation(filePath, command, commandArgs, args) {
+function runValidation(filePath, command, commandArgs, args, options = {}) {
   const startedAt = Date.now();
   const result = spawnSync(command, commandArgs, {
-    cwd: resolveRepoPath(args.holoscriptRoot),
+    cwd: options.cwd ? resolveRepoPath(options.cwd) : REPO_ROOT,
     encoding: 'utf8',
     shell: process.platform === 'win32',
     timeout: args.timeoutMs,
@@ -148,13 +153,46 @@ function runValidation(filePath, command, commandArgs, args) {
   };
 }
 
+function compiledOutputPath(filePath, args) {
+  const relative = relativeRepoPath(filePath);
+  const safeBase = relative.replace(/[^A-Za-z0-9._-]+/g, '__');
+  const hash = sha256(relative).slice(0, 12);
+  return path.join(resolveRepoPath(args.compileOutputDir), `${safeBase}.${hash}.js`);
+}
+
+function validationCommandFor(filePath, args) {
+  const output = compiledOutputPath(filePath, args);
+  mkdirSync(path.dirname(output), { recursive: true });
+  return ['exec', 'holoscript', 'compile', filePath, '--target', 'node', '--output', output];
+}
+
 function importResolutionFailure(validation) {
   const text = [...(validation.stdoutTail || []), ...(validation.stderrTail || [])].join('\n');
   return /Cannot find module/i.test(text) && /@holoscript[\\/]+[a-z0-9_-]+|@holoscript\\[a-z0-9_-]+|@holoscript\/[a-z0-9_-]+/i.test(text);
 }
 
+function dependencyMaterializationFailure(validation) {
+  const text = [...(validation.stdoutTail || []), ...(validation.stderrTail || [])].join('\n');
+  return (
+    /Cannot find module/i.test(text) &&
+    (/node_modules[\\/]+\.pnpm[\\/]+@holoscript\+/i.test(text) || /@holoscript[\\/]+[a-z0-9_-]+/i.test(text)) &&
+    (/dist[\\/]+chunk-[A-Z0-9]+\.js/i.test(text) || /imported from .*@holoscript/i.test(text))
+  );
+}
+
+function dependencyRecovery(validation) {
+  if (!dependencyMaterializationFailure(validation)) return null;
+  return {
+    kind: 'stale_file_dependency_materialization',
+    commandPreview: 'pnpm install --frozen-lockfile',
+    mutationClass: 'local_node_modules_relink_only',
+    lockfileMutationAllowed: false,
+    explanation: 'A local file: dependency resolved to a stale pnpm package copy. Relink dependencies without changing the lockfile, then rerun source validation.',
+  };
+}
+
 function validateFile(filePath, args) {
-  const first = runValidation(filePath, packageRunner(), ['exec', 'holoscript', 'validate', filePath], args);
+  const first = runValidation(filePath, packageRunner(), validationCommandFor(filePath, args), args, { cwd: REPO_ROOT });
   if (first.status === 'pass' || !importResolutionFailure(first)) return first;
 
   const cliPath = path.join(resolveRepoPath(args.holoscriptRoot), 'packages', 'cli', 'dist', 'cli.js');
@@ -177,11 +215,20 @@ function validateFile(filePath, args) {
         reason: 'direct_cli_or_core_dist_missing',
         directCliPresent: existsSync(cliPath),
         cliWorkspaceCoreDistPresent: existsSync(coreIndex),
+        recovery: dependencyRecovery(first),
       },
     };
   }
 
-  const retry = runValidation(filePath, 'node', [cliPath, 'validate', filePath], args);
+  const output = compiledOutputPath(filePath, args);
+  mkdirSync(path.dirname(output), { recursive: true });
+  const retry = runValidation(
+    filePath,
+    'node',
+    [cliPath, 'compile', filePath, '--target', 'node', '--output', output],
+    args,
+    { cwd: resolveRepoPath(args.holoscriptRoot) }
+  );
   return {
     ...retry,
     diagnosticKind: retry.status === 'pass' ? 'holoscript_cli_import_retry_passed' : 'holoscript_cli_import_retry_failed',
@@ -193,6 +240,7 @@ function validateFile(filePath, args) {
       directCliPresent: true,
       cliWorkspaceCoreDistPresent: true,
       retryStatus: retry.status,
+      recovery: dependencyRecovery(first),
     },
   };
 }
@@ -222,6 +270,7 @@ function summarize(validations, args, durationMs) {
     holoscriptRootPresent: existsSync(resolveRepoPath(args.holoscriptRoot)),
     importRetryCount: validations.filter((item) => item.retry?.attempted).length,
     importRetryPassCount: validations.filter((item) => item.retry?.attempted && item.status === 'pass').length,
+    dependencyRecoveryCount: validations.filter((item) => item.retry?.recovery || item.recovery).length,
   };
 }
 
@@ -242,14 +291,18 @@ function createReceipt(validations, args, durationMs) {
       source: 'apps/holoshell/source/holoshell-source-validation.hsplus',
       sourceDir: 'apps/holoshell/source',
       adapter: 'scripts/holoshell-source-validation.mjs',
-      holoscriptCliRoot: '../HoloScript',
+      productCliRoot: '.',
+      directFallbackCliRoot: '../HoloScript',
     },
     policy: {
       validatesExtensions: Array.from(SOURCE_EXTENSIONS).sort(),
       parserSourceOfTruth: 'HoloScript CLI',
       failOnAnyInvalidSource: true,
       rawCommandsIncluded: false,
-      importResolutionRetry: 'pnpm_exec_to_direct_cli_when_core_dist_is_present',
+      compileOutputDir: relativeRepoPath(resolveRepoPath(args.compileOutputDir)),
+      validationCommand: 'holoscript compile <file> --target node --output <tmp>',
+      importResolutionRetry: 'pnpm_exec_compile_to_direct_cli_compile_when_core_dist_is_present',
+      dependencyMaterializationRecovery: 'pnpm install --frozen-lockfile',
       progressEvents: 'stderr_per_file_start_and_finish_when_not_json',
       overallTimeoutMs: args.overallTimeoutMs,
       mcpValidationFallback: 'capability_manifest_required_receipt_then_local_cli',
@@ -269,7 +322,7 @@ function createReceipt(validations, args, durationMs) {
       ...validation,
       localFallback: {
         exact: true,
-        commandPreview: `pnpm --dir [holoscript-root] exec holoscript validate ${validation.file}`,
+        commandPreview: `pnpm --dir [hololand-root] exec holoscript compile ${validation.file} --target node --output [hololand-root]/.tmp/holoshell/source-validation-compiled/<file>.js`,
       },
     })),
     receipt: {
@@ -305,6 +358,12 @@ function fixtureReceipt(args) {
 
 function assertSelfTest(receipt) {
   const failures = [];
+  const staleDependencyProbe = {
+    stdoutTail: [],
+    stderrTail: [
+      "Cannot find module 'C:\\Users\\josep\\Documents\\GitHub\\Hololand\\node_modules\\.pnpm\\@holoscript+engine@file+..+_abc\\node_modules\\@holoscript\\engine\\dist\\chunk-C4RIYVL7.js' imported from C:\\Users\\josep\\Documents\\GitHub\\Hololand\\node_modules\\.pnpm\\@holoscript+engine@file+..+_abc\\node_modules\\@holoscript\\engine\\dist\\physics\\index.js",
+    ],
+  };
   if (receipt.schemaVersion !== SCHEMA_VERSION) failures.push('schemaVersion mismatch');
   if (receipt.summary.status !== 'pass') failures.push('fixture should pass when all sources pass');
   if (receipt.summary.fileCount !== 3) failures.push('expected three fixture files');
@@ -313,8 +372,12 @@ function assertSelfTest(receipt) {
   if (receipt.receipt.rawCommandsIncluded !== false) failures.push('raw command flag should be false');
   if (!receipt.receipt.validationHash) failures.push('missing validation hash');
   if (receipt.policy.mcpValidationFallback !== 'capability_manifest_required_receipt_then_local_cli') failures.push('missing MCP fallback policy');
+  if (receipt.policy.validationCommand !== 'holoscript compile <file> --target node --output <tmp>') failures.push('source validation must use compile-based CLI checks');
+  if (receipt.policy.dependencyMaterializationRecovery !== 'pnpm install --frozen-lockfile') failures.push('missing dependency recovery policy');
   if (!receipt.policy.capabilityManifestTemplate?.declaredCapabilities?.includes('holoscript:validate')) failures.push('missing manifest template');
   if (!receipt.validations.every((item) => item.localFallback?.commandPreview?.includes(item.file))) failures.push('missing exact local fallback command previews');
+  if (!dependencyMaterializationFailure(staleDependencyProbe)) failures.push('stale dependency probe should be classified');
+  if (dependencyRecovery(staleDependencyProbe)?.commandPreview !== 'pnpm install --frozen-lockfile') failures.push('stale dependency recovery command mismatch');
   if (failures.length) throw new Error(`Self-test failed:\n- ${failures.join('\n- ')}`);
 }
 

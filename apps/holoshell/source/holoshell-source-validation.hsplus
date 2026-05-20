@@ -10,6 +10,8 @@ composition "HoloShell Source Validation Guard" {
     product: "HoloShell"
     sourceLayer: "HoloScript"
     adapterScript: "scripts/holoshell-source-validation.mjs"
+    productCliRoot: "."
+    directFallbackCliRoot: "../HoloScript"
     sourceRoot: "apps/holoshell/source"
     latestReceipt: ".tmp/holoshell/source-validation.json"
     latestBootstrap: ".tmp/holoshell/source-validation.js"
@@ -24,6 +26,7 @@ composition "HoloShell Source Validation Guard" {
     hsCount: 0
     hsplusCount: 0
     lastValidationHash: ""
+    dependencyRecoveryCount: 0
   }
 
   channel "holoshell:source:validation" {
@@ -46,6 +49,15 @@ composition "HoloShell Source Validation Guard" {
     requiredFormats: [".holo", ".hs", ".hsplus"]
     parserSourceOfTruth: "HoloScript CLI"
     failureBlocksReadinessClaim: true
+    localValidationCommand: "holoscript compile <file> --target node --output <tmp>"
+    receiptRequired: true
+  }
+
+  policy "DependencyMaterializationMustBeVisible" {
+    appliesTo: ["source_guard", "world_build_cockpit", "local_holoscript_cli"]
+    staleFileDependencyRecovery: "pnpm install --frozen-lockfile"
+    lockfileMutationAllowed: false
+    hiddenNodeModuleChunkFailureAllowed: false
     receiptRequired: true
   }
 
@@ -65,6 +77,7 @@ composition "HoloShell Source Validation Guard" {
     state.holoCount = receipt.summary.holoCount
     state.hsCount = receipt.summary.hsCount
     state.hsplusCount = receipt.summary.hsplusCount
+    state.dependencyRecoveryCount = receipt.summary.dependencyRecoveryCount
     state.lastValidationHash = receipt.receipt.validationHash
 
     emit("holoshell:source:validation", {
@@ -75,6 +88,7 @@ composition "HoloShell Source Validation Guard" {
       holo: state.holoCount,
       hs: state.hsCount,
       hsplus: state.hsplusCount,
+      dependency_recoveries: state.dependencyRecoveryCount,
       receipt: state.lastValidationHash
     })
   }
