@@ -51,6 +51,9 @@ so agents and product surfaces do not have to rediscover the shape of
 | Device safety lab policy | `apps/holoshell/source/holoshell-device-safety-lab-policy.hsplus` |
 | Device safety policy | `apps/holoshell/source/holoshell-device-safety-policy.hsplus` |
 | Device safety pipeline | `apps/holoshell/source/holoshell-device-safety-pipeline.hs` |
+| Physical actuation safety room | `apps/holoshell/source/holoshell-physical-actuation-safety-room.holo` |
+| Physical actuation safety policy | `apps/holoshell/source/holoshell-physical-actuation-safety-policy.hsplus` |
+| Physical actuation safety pipeline | `apps/holoshell/source/holoshell-physical-actuation-safety-pipeline.hs` |
 | Robot-avatar mirror handoff room | `apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-room.holo` |
 | Robot-avatar mirror handoff policy | `apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-policy.hsplus` |
 | Robot-avatar mirror handoff pipeline | `apps/holoshell/source/holoshell-robot-avatar-mirror-handoff-pipeline.hs` |
