@@ -1,0 +1,168 @@
+// HoloShell target-device proof policy and state machine.
+
+composition "HoloShellTargetDeviceProofPolicy" {
+  state TargetDeviceProofState {
+    workflow: "target-device-proof"
+    targetDeviceKind: "headset"
+    redactedDeviceLabel: "Quest 3"
+    localReadiness: "unknown"
+    targetWitnessStatus: "missing"
+    permissionEnvelope: "read_only"
+    selectedActionClass: "read"
+    riskLevel: "low"
+    commandPreviewHash: ""
+    consentReceiptId: ""
+    actionReceiptId: ""
+    replayReceiptId: ""
+    executionAllowed: false
+    mutationPerformed: false
+    physicalRollbackAvailable: false
+    targetProofReadyForHoloLand: false
+    blockers: []
+  }
+
+  template "TargetDeviceReceiptContract" {
+    receiptType: "HoloShellTargetDeviceProofPack"
+    schemaVersion: "hololand.holoshell.target-device-proof.v0.1.0"
+    consumes: ["DeviceInventoryReceipt", "DeviceSafetyEnvelopeReceipt", "ConsentReceipt", "DeviceActionReceipt", "ReplayLessonReceipt"]
+    targetWitnessRequired: true
+    localCompileOnlyAccepted: false
+    freshHumanGestureRequiredForMutation: true
+    commandPreviewHashRequired: true
+    physicalRollbackNoteRequired: true
+    publicReceiptsExposeDeviceIds: false
+    replayable: true
+  }
+
+  policy "ReadOnlyTargetDiscovery" {
+    permissionEnvelope: "read_only"
+    appliesTo: [
+      "read_hardware_audit",
+      "read_pnp_device_table",
+      "read_browser_inventory",
+      "read_virtual_display_state",
+      "stage_target_witness_plan"
+    ]
+    executionAllowed: true
+    mutationAllowed: false
+    receiptRequired: true
+  }
+
+  policy "GuardedTargetWitness" {
+    permissionEnvelope: "guarded_execute"
+    appliesTo: [
+      "open_local_preview",
+      "start_webxr_session",
+      "capture_target_frame",
+      "capture_frame_timing",
+      "trigger_low_intensity_haptic"
+    ]
+    executionAllowed: false
+    mutationAllowed: true
+    requiresFreshUserGesture: true
+    receiptRequired: true
+  }
+
+  policy "BreakGlassDeviceMutation" {
+    permissionEnvelope: "break_glass_blocked"
+    appliesTo: [
+      "camera_capture",
+      "microphone_capture",
+      "write_device_state",
+      "firmware_update",
+      "factory_reset",
+      "robot_motion"
+    ]
+    executionAllowed: false
+    mutationAllowed: false
+    receiptRequired: true
+    lessonRequired: true
+  }
+
+  state_machine "TargetDeviceProofWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "local_ready",
+      "device_identified",
+      "witness_planned",
+      "dry_run_ready",
+      "approval_required",
+      "approved",
+      "executed",
+      "target_proven",
+      "blocked",
+      "replay_ready"
+    ]
+    transition "read_local_readiness" { from: "idle", to: "local_ready" }
+    transition "identify_device" { from: "local_ready", to: "device_identified" }
+    transition "plan_witness" { from: "device_identified", to: "witness_planned" }
+    transition "dry_run" { from: "witness_planned", to: "dry_run_ready" }
+    transition "require_approval" { from: "dry_run_ready", to: "approval_required" }
+    transition "approve" { from: "approval_required", to: "approved" }
+    transition "execute_bounded_action" { from: "approved", to: "executed" }
+    transition "prove_target" { from: "executed", to: "target_proven" }
+    transition "block" { from: "*", to: "blocked" }
+    transition "write_replay" { from: "blocked", to: "replay_ready" }
+  }
+
+  role "CodexHardwareAgent" {
+    laneId: "codex-hardware"
+    owns: ["hardware_audit", "pnp_device_probe", "browser_inventory", "target_witness_command"]
+  }
+
+  role "HoloShellDeviceCustodian" {
+    laneId: "holoshell-device"
+    owns: ["device_identity_redaction", "safe_range", "nonce_bound_approval", "action_receipt"]
+  }
+
+  role "HoloLandDeviceOperator" {
+    laneId: "hololand-product"
+    owns: ["device_safety_lab", "brittney_operator_npc", "target_proof_token", "replay_lesson"]
+  }
+
+  role "HoloScriptSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["receipt_validation", "stdlib_device_policy", "runtime_adapter_contract", "mcp_cli_gap"]
+  }
+
+  action classifyTargetDeviceOperation(operation) {
+    if (operation.kind in BreakGlassDeviceMutation.appliesTo) {
+      return "break_glass_blocked"
+    }
+    if (operation.kind in GuardedTargetWitness.appliesTo) {
+      return "guarded_execute"
+    }
+    return "read_only"
+  }
+
+  action consumeTargetDeviceProofPack(pack) {
+    TargetDeviceProofState.redactedDeviceLabel = pack.inventory.devices[0].redactedLabel
+    TargetDeviceProofState.localReadiness = pack.localReadiness.status
+    TargetDeviceProofState.targetWitnessStatus = pack.targetWitness.status
+    TargetDeviceProofState.permissionEnvelope = pack.envelope.permissionEnvelope
+    TargetDeviceProofState.selectedActionClass = pack.envelope.actionClass
+    TargetDeviceProofState.riskLevel = pack.envelope.riskLevel
+    TargetDeviceProofState.commandPreviewHash = pack.envelope.commandPreviewHash
+    TargetDeviceProofState.consentReceiptId = pack.consent.id
+    TargetDeviceProofState.actionReceiptId = pack.action.id
+    TargetDeviceProofState.replayReceiptId = pack.replay.id
+    TargetDeviceProofState.executionAllowed = pack.action.executionAllowed
+    TargetDeviceProofState.mutationPerformed = pack.action.deviceMutationPerformed
+    TargetDeviceProofState.physicalRollbackAvailable = pack.action.reversible
+    TargetDeviceProofState.targetProofReadyForHoloLand = pack.targetWitness.status == "target_proven"
+
+    emit("holoshell:target-device:proof", {
+      workflow: TargetDeviceProofState.workflow,
+      device: TargetDeviceProofState.redactedDeviceLabel,
+      local_readiness: TargetDeviceProofState.localReadiness,
+      target_witness: TargetDeviceProofState.targetWitnessStatus,
+      envelope: TargetDeviceProofState.permissionEnvelope,
+      action_class: TargetDeviceProofState.selectedActionClass,
+      risk_level: TargetDeviceProofState.riskLevel,
+      mutation_performed: TargetDeviceProofState.mutationPerformed,
+      physical_rollback_available: TargetDeviceProofState.physicalRollbackAvailable,
+      ready_for_hololand: TargetDeviceProofState.targetProofReadyForHoloLand
+    })
+  }
+}

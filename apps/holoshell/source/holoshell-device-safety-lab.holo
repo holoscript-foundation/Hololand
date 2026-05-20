@@ -1,0 +1,195 @@
+// HoloShell Device Safety Lab
+//
+// Product room for turning local hardware and paired devices into visible,
+// deterministic, auditable HoloScript operations.
+
+composition "HoloShell Device Safety Lab" {
+  metadata {
+    title: "Device Safety Lab"
+    productSurface: "HoloShell"
+    upstreamContract: "@holoscript/framework board/holoshell-device-safety-receipts"
+    policySource: "apps/holoshell/source/holoshell-device-safety-policy.hsplus"
+    pipelineSource: "apps/holoshell/source/holoshell-device-safety-pipeline.hs"
+    defaultExecution: "preview_only"
+  }
+
+  environment {
+    theme: "hardware_truth_lab"
+    renderMode: "desktop_spatial"
+    receiptUnderlay: true
+    mutationDefault: "blocked_until_nonce_bound_approval"
+  }
+
+  state {
+    selectedDevice: "Quest 3"
+    inventoryStatus: "detected"
+    identityStatus: "owner_visible"
+    previewStatus: "available"
+    consentStatus: "not_granted"
+    envelopeStatus: "not_evaluated"
+    targetProofStatus: "target_witness_missing"
+    executionStatus: "blocked"
+    receiptStatus: "pending"
+  }
+
+  template "DeviceBay" {
+    type: "device_bay"
+    mesh: "hologram_panel"
+    material: "tempered_glass"
+    receipt_required: true
+  }
+
+  template "SafetyGate" {
+    type: "safety_gate"
+    mesh: "gate"
+    material: "emissive_glass"
+    approval_required: true
+    receipt_required: true
+  }
+
+  template "ReceiptCrystal" {
+    type: "receipt"
+    mesh: "crystal"
+    material: "transparent_glass"
+    visible_layer: "underlay"
+    receipt_required: true
+  }
+
+  room "DeviceSafetyLab" {
+    label: "Operate a Device Safely"
+    userJob: "Use this local device only after I can see what will happen, approve it, and replay what changed."
+    visualForm: "device_identity_preview_consent_envelope_execution_receipts_8family_npc"
+
+    object "DeviceInventory" using "DeviceBay" {
+      label: "Detected devices"
+      position: [-3.0, 1.2, -2.8]
+      status: $inventoryStatus
+      examples: ["Quest 3", "phone", "camera", "printer", "robot", "security key"]
+      failureState: "device detected but no safe adapter or owner-visible identity"
+    }
+
+    object "DeviceIdentity" using "DeviceBay" {
+      label: "Selected device"
+      position: [-1.6, 1.2, -2.6]
+      device: $selectedDevice
+      status: $identityStatus
+      visibleClaims: ["kind", "connection", "adapter", "owner", "capabilities", "last seen"]
+      privateIdentifiers: "redacted_hash_only"
+    }
+
+    object "ActionPreview" using "DeviceBay" {
+      label: "Preview"
+      position: [0, 1.2, -2.45]
+      status: $previewStatus
+      actionKinds: ["read_status", "open_preview", "start_session", "trigger_haptic", "move_robot"]
+      mutationDefault: "blocked"
+      failureState: "no deterministic preview or simulation"
+    }
+
+    object "ConsentGate" using "SafetyGate" {
+      label: "Consent"
+      position: [1.6, 1.2, -2.6]
+      status: $consentStatus
+      requires: ["fresh user gesture", "approval nonce", "scope", "expiry", "human-visible target"]
+      failureState: "missing, stale, expired, or revoked consent"
+    }
+
+    object "EnvelopeGate" using "SafetyGate" {
+      label: "Safety envelope"
+      position: [3.0, 1.2, -2.8]
+      status: $envelopeStatus
+      checks: ["identity", "preview", "safe range", "rate limit", "redaction", "rollback note", "receipt sink"]
+      failureState: "execution blocked and replay lesson written"
+    }
+
+    object "TargetProofGate" using "SafetyGate" {
+      label: "Target proof"
+      position: [4.15, 0.2, -2.85]
+      status: $targetProofStatus
+      receiptKind: "HoloShellTargetDeviceProofReceipt"
+      distinguishes: ["local readiness", "browser support", "WebXR session", "target-device frame"]
+      unlockRule: "world operation unlock requires target_proven, not local_compile_only"
+      failureState: "target device frame, WebXR runtime receipt, or explicit capture blocker missing"
+    }
+
+    object "ExecutionDock" using "DeviceBay" {
+      label: "Execution"
+      position: [0, -0.1, -2.35]
+      status: $executionStatus
+      modes: ["read_only", "simulation", "guarded_execute", "break_glass_blocked"]
+      daemonDefault: "execute_disabled"
+      failureState: "adapter unavailable, daemon disabled, or approval mismatch"
+    }
+
+    // NPC + 8 receipt family panels (identity, consent, preview, safe-range, result, privacy, rollback, replay)
+    // added for HoloLand device safety lab room + BrittneyDeviceOperator (task_1779092805820_cu9s)
+    object "BrittneyDeviceOperatorNPC" using "DeviceBay" {
+      label: "Brittney (Device Operator)"
+      position: [0, 1.85, -1.6]
+      mesh: "brittney_avatar"
+      consumes: ["DeviceSafetyEnvelopeReceipt", "DeviceInventoryReceipt", "DeviceConsentReceipt", "DeviceActionReceipt", "DeviceReplayLessonReceipt", "preview", "safe_range", "privacy_redaction", "rollback_note"]
+      plainLanguage: "I show you exactly what the device will do, ask for your consent, check the safe range, and give you a replay of what happened."
+    }
+
+    object "IdentityBay" using "DeviceBay" {
+      label: "Identity Bay"
+      position: [-2.8, 0.65, -2.95]
+      receiptKind: "DeviceInventoryReceipt"
+      status: $identityStatus
+    }
+
+    object "ConsentGatePanel" using "SafetyGate" {
+      label: "Consent Gate"
+      position: [-1.4, 0.65, -2.95]
+      receiptKind: "DeviceConsentReceipt"
+      requires: ["fresh user gesture", "nonce"]
+    }
+
+    object "PreviewDock" using "DeviceBay" {
+      label: "Preview Dock"
+      position: [0, 0.65, -2.95]
+      receiptKind: "preview"
+      status: $previewStatus
+    }
+
+    object "SafeRangeGauge" using "SafetyGate" {
+      label: "Safe Range Gauge"
+      position: [1.4, 0.65, -2.95]
+      receiptKind: "safe_range"
+      checks: ["safe range", "rate limit"]
+    }
+
+    object "ResultLedger" using "ReceiptCrystal" {
+      label: "Result Ledger"
+      position: [2.8, 0.65, -2.95]
+      receiptKind: "DeviceActionReceipt"
+    }
+
+    object "PrivacyVeil" using "DeviceBay" {
+      label: "Privacy Veil"
+      position: [-0.9, -0.15, -3.05]
+      receiptKind: "privacy_redaction"
+    }
+
+    object "RollbackToken" using "DeviceBay" {
+      label: "Rollback Token"
+      position: [0.9, -0.15, -3.05]
+      receiptKind: "rollback_note"
+    }
+
+    object "ReplayCrystal" using "ReceiptCrystal" {
+      label: "Replay Crystal"
+      position: [0, -0.15, -3.05]
+      receiptKind: "DeviceReplayLessonReceipt"
+      replayable: true
+    }
+
+    object "ReceiptRail" using "ReceiptCrystal" {
+      label: "Receipts"
+      position: [0, -1.35, -3.1]
+      status: $receiptStatus
+      receiptKinds: ["DeviceInventoryReceipt", "DeviceSafetyEnvelopeReceipt", "DeviceConsentReceipt", "DeviceActionReceipt", "DeviceReplayLessonReceipt", "HoloShellTargetDeviceProofReceipt", "preview", "safe_range", "privacy_redaction", "rollback_note"]
+      replayable: true
+    }
+  }
+}

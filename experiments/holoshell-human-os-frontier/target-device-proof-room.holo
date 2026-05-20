@@ -1,0 +1,148 @@
+/**
+ * HoloShell Target Device Proof Room
+ *
+ * Visible deterministic wrapper for:
+ * "Show this HoloLand world on the real headset/device, prove the target saw it,
+ * and allow only one bounded device action after fresh approval."
+ */
+
+composition "HoloShell Target Device Proof Room" {
+  environment {
+    backgroundColor: "#10151b"
+    ambient_light: 0.62
+    shadows: true
+  }
+
+  template "ProofPanel" {
+    @state
+    @reactive
+    geometry: "plane"
+    scale: [1.28, 0.5, 0.08]
+    material: {
+      color: "#18222b"
+      emissive: "#273542"
+      emissiveIntensity: 0.16
+      transparent: true
+      opacity: 0.94
+    }
+  }
+
+  template "GateOrb" {
+    @state
+    @reactive
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#7dcfff" }
+  }
+
+  object "HumanJob" using "ProofPanel" {
+    position: [0, 2.3, -2.8]
+    label: "Prove the target device, not just the laptop"
+    properties: {
+      plainLanguageJob: "open or preview this HoloLand world on the real headset or paired device, then show exactly what was seen or safely changed"
+      deterministicPromise: "local readiness, target-device witness, dry-run preview, fresh approval, bounded action, physical rollback limits, and replay receipts"
+      sourceBoundary: "HoloScript validates receipt packs; HoloLand renders the room, NPC operator, and target-device proof tokens"
+    }
+  }
+
+  object "LocalMachineGate" using "ProofPanel" {
+    position: [-4.2, 1.4, -1.15]
+    label: "Local machine"
+    properties: {
+      reads: ["hardware_audit", "gpu_adapter", "browser_inventory", "repo_source_status"]
+      receipts: ["CodexHardwareAuditReceipt", "WorldBuildReadinessReceipt"]
+      failureStates: ["no_gpu", "browser_probe_skipped", "dirty_source_boundary", "stale_graph"]
+    }
+  }
+
+  object "DeviceIdentityGate" using "ProofPanel" {
+    position: [-2.1, 1.4, -1.15]
+    label: "Target identity"
+    properties: {
+      reads: ["Quest 3", "Meta Virtual Monitor", "Oculus audio", "phone ADB", "webcam", "virtual display"]
+      receipt: "DeviceInventoryReceipt"
+      publicFields: ["redactedLabel", "category", "connectionStatus", "driverVersion"]
+      privateFields: ["deviceIdHash"]
+    }
+  }
+
+  object "WitnessGate" using "ProofPanel" {
+    position: [0, 1.4, -1.15]
+    label: "Target witness"
+    properties: {
+      proves: ["target_device_frame", "webxr_session_state", "device_surface_visible", "frame_timing_or_capture_gap"]
+      receipts: ["TargetDeviceWitnessReceipt", "DeviceSafetyEnvelopeReceipt"]
+      blocks: ["local_compile_only_claim", "headless_screenshot_only_claim", "uncited_device_presence"]
+    }
+  }
+
+  object "ApprovalGate" using "ProofPanel" {
+    position: [2.1, 1.4, -1.15]
+    label: "One action approval"
+    properties: {
+      actionClasses: ["read", "xr_session", "haptic", "sensor_read", "command"]
+      requires: ["fresh_user_gesture", "nonce", "safe_range", "expiry", "command_preview_hash"]
+      defaultExecution: "dry_run"
+      receipt: "ConsentReceipt"
+    }
+  }
+
+  object "ReplayGate" using "ProofPanel" {
+    position: [4.2, 1.4, -1.15]
+    label: "Replay and rollback"
+    properties: {
+      proves: ["before_state", "after_state", "mutation_performed", "safe_range_result", "rollback_limit"]
+      receipts: ["DeviceActionReceipt", "ReplayLessonReceipt"]
+      failureStates: ["physical_rollback_unavailable", "device_disconnected", "consent_expired", "range_violation"]
+    }
+  }
+
+  object "MachineOrb" using "GateOrb" {
+    position: [-3.15, 0.72, 0.05]
+    label: "RTX/Chrome ready"
+    properties: {
+      localProofOnly: true
+      targetProofRequired: true
+    }
+  }
+
+  object "DeviceOrb" using "GateOrb" {
+    position: [-1.05, 0.72, 0.05]
+    label: "Quest detected"
+    material: { color: "#9ece6a" }
+    properties: {
+      identitySource: "pnP_device_id"
+      redaction: "hash_only"
+    }
+  }
+
+  object "WitnessOrb" using "GateOrb" {
+    position: [1.05, 0.72, 0.05]
+    label: "frame needed"
+    material: { color: "#e0af68" }
+    properties: {
+      targetDeviceCaptureRequired: true
+      openTask: "target-device WebXR capture"
+    }
+  }
+
+  object "ActionOrb" using "GateOrb" {
+    position: [3.15, 0.72, 0.05]
+    label: "bounded action"
+    material: { color: "#f7768e" }
+    properties: {
+      allowedBeforeApproval: ["read_status", "dry_run", "open_preview"]
+      blockedBeforeApproval: ["haptic", "command", "camera", "microphone", "factory_reset"]
+    }
+  }
+
+  object "ProofTimeline" {
+    @state
+    @reactive
+    geometry: "cube"
+    position: [0, 0.18, 0.1]
+    scale: [7.4, 0.08, 0.14]
+    color: "#6b7f90"
+    label: "local readiness -> target identity -> target witness -> dry-run -> fresh approval -> bounded action -> rollback limits -> replay lesson"
+  }
+}

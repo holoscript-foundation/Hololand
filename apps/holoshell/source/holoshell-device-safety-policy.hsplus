@@ -1,0 +1,182 @@
+// HoloShell Device Safety Policy
+//
+// HoloLand product policy consuming the upstream HoloScript device-safety
+// receipt contract from @holoscript/framework.
+
+composition "HoloShell Device Safety Policy" {
+  state DeviceSafety {
+    phase: "inventory"
+    selectedDeviceId: ""
+    selectedActionKind: ""
+    consentStatus: "not_granted"
+    permissionEnvelope: "read_only"
+    executionAllowed: false
+    mutationExecuted: false
+    targetProofStatus: "target_witness_missing"
+    targetProofReceiptId: ""
+    targetProofUnlockAllowed: false
+    receiptCount: 0
+    replayLesson: ""
+  }
+
+  enum DeviceActionClass {
+    read_only
+    preview
+    simulation
+    guarded_execute
+    break_glass_blocked
+  }
+
+  channel "holoshell:device:inventory" {
+    type: "pub_sub"
+    priority: "critical"
+    description: "Redacted device inventory validated by DeviceInventoryReceipt"
+  }
+
+  channel "holoshell:device:consent" {
+    type: "request_response"
+    priority: "critical"
+    description: "Fresh gesture, nonce-bound approval, scope, and expiry for mutating device operations"
+  }
+
+  channel "holoshell:device:envelope" {
+    type: "request_response"
+    priority: "critical"
+    description: "Safety envelope evaluation before execution"
+  }
+
+  channel "holoshell:device:receipt" {
+    type: "append_only"
+    priority: "critical"
+    description: "Inventory, envelope, consent, action, and replay lesson receipts"
+  }
+
+  template "DeviceSafetyReceiptPack" {
+    type: "receipt_pack"
+    receiptType: "holoshell.device-safety-pack.v0.1.0"
+    upstreamValidator: "validateHoloShellDeviceSafetyReceiptPack"
+    receiptKinds: ["DeviceInventoryReceipt", "DeviceSafetyEnvelopeReceipt", "DeviceConsentReceipt", "DeviceActionReceipt", "DeviceReplayLessonReceipt"]
+    mutationDefault: "blocked"
+    replayRequired: true
+  }
+
+  template "TargetDeviceProofReceipt" {
+    type: "receipt"
+    receiptType: "HoloShellTargetDeviceProofReceipt"
+    upstreamValidator: "validateHoloShellTargetDeviceProofReceipt"
+    localCompileOnlyAccepted: false
+    targetWitnessRequired: true
+    acceptedStatuses: ["target_proven", "blocked_with_capture_receipt"]
+    unlockRequires: "target_proven"
+  }
+
+  policy "ReadOnlyDeviceAccess" {
+    appliesTo: ["read_status", "open_preview"]
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    mutationAllowed: false
+    receiptRequired: true
+  }
+
+  policy "GuardedDeviceAccess" {
+    appliesTo: ["start_session", "send_command", "trigger_haptic", "capture_media", "write_device_state"]
+    permissionEnvelope: "guarded_execute"
+    approvalRequired: true
+    freshUserGestureRequired: true
+    mutationAllowed: true
+    receiptRequired: true
+  }
+
+  policy "BlockedDeviceAccess" {
+    appliesTo: ["move_robot", "reset_device", "unknown"]
+    permissionEnvelope: "break_glass"
+    approvalRequired: true
+    mutationAllowed: false
+    receiptRequired: true
+    lessonRequired: true
+  }
+
+  action apply_device_inventory(receipt) {
+    DeviceSafety.phase = "inventory_ready"
+    DeviceSafety.receiptCount = DeviceSafety.receiptCount + 1
+    emit("holoshell:device:inventory", {
+      action: "device_inventory_applied",
+      receipt_id: receipt.id,
+      device_count: receipt.devices.length,
+      receipt_required: true
+    })
+  }
+
+  action request_device_operation(request) {
+    DeviceSafety.phase = "operation_requested"
+    DeviceSafety.selectedDeviceId = request.deviceId
+    DeviceSafety.selectedActionKind = request.actionKind
+    DeviceSafety.permissionEnvelope = request.permissionEnvelope
+    DeviceSafety.executionAllowed = false
+    emit("holoshell:device:envelope", {
+      action: "device_operation_requested",
+      device_id: request.deviceId,
+      action_kind: request.actionKind,
+      permission_envelope: request.permissionEnvelope,
+      execution_allowed: false,
+      receipt_required: true
+    })
+  }
+
+  action apply_consent_receipt(receipt) {
+    DeviceSafety.consentStatus = receipt.status
+    emit("holoshell:device:consent", {
+      action: "device_consent_applied",
+      receipt_id: receipt.id,
+      status: receipt.status,
+      scope: receipt.scope,
+      fresh_user_gesture: receipt.freshUserGesture,
+      receipt_required: true
+    })
+  }
+
+  action apply_envelope_receipt(receipt) {
+    DeviceSafety.phase = "envelope_applied"
+    DeviceSafety.permissionEnvelope = receipt.permissionEnvelope
+    DeviceSafety.consentStatus = receipt.consentStatus
+    DeviceSafety.executionAllowed = receipt.executionAllowed
+    DeviceSafety.mutationExecuted = receipt.mutationExecuted
+    DeviceSafety.receiptCount = DeviceSafety.receiptCount + 1
+    emit("holoshell:device:envelope", {
+      action: "device_envelope_applied",
+      receipt_id: receipt.id,
+      permission_envelope: receipt.permissionEnvelope,
+      consent_status: receipt.consentStatus,
+      execution_allowed: receipt.executionAllowed,
+      mutation_executed: receipt.mutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_target_device_proof(receipt) {
+    DeviceSafety.targetProofReceiptId = receipt.id
+    DeviceSafety.targetProofStatus = receipt.status == "pass" ? "target_proven" : "target_witness_missing"
+    DeviceSafety.targetProofUnlockAllowed = receipt.status == "pass"
+    DeviceSafety.receiptCount = DeviceSafety.receiptCount + 1
+    emit("holoshell:device:receipt", {
+      action: "target_device_proof_applied",
+      receipt_id: receipt.id,
+      status: DeviceSafety.targetProofStatus,
+      local_compile_only_accepted: false,
+      target_proof_unlock_allowed: DeviceSafety.targetProofUnlockAllowed,
+      receipt_required: true
+    })
+  }
+
+  action write_replay_lesson(lesson) {
+    DeviceSafety.phase = "blocked_lesson"
+    DeviceSafety.replayLesson = lesson.nextSafeStep
+    DeviceSafety.executionAllowed = false
+    emit("holoshell:device:receipt", {
+      action: "device_replay_lesson_written",
+      reason: lesson.blockedReason,
+      next_safe_step: lesson.nextSafeStep,
+      receipt_required: true
+    })
+  }
+}

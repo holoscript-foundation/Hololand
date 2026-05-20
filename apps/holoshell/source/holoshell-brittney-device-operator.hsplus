@@ -1,0 +1,166 @@
+// HoloShell Brittney Device Operator (NPC / operator surface for Device Safety Lab)
+// HoloLand renders the visible NPC + room objects. Consumes the DeviceSafetyEnvelopeReceipt
+// family (identity | consent | preview | safe range | result | privacy | rollback | replay).
+// Upstream validator + envelope policy live in @holoscript/framework (sibling task).
+// This is the HoloLand-side room/NPC/operator surface.
+// Reuses patterns from holoshell-brittney-custody-operator.hsplus, holoshell-device-safety-lab.holo,
+// holoshell-device-safety-*.hsplus, and hardware-control permission envelopes.
+
+composition "HoloShell Brittney Device Operator" {
+  config {
+    title: "Brittney Device Operator"
+    product: "HoloShell"
+    roomAffinity: "DeviceSafetyLab"               // binds to holoshell-device-safety-lab.holo
+    role: "BrittneyDeviceOperator"
+    upstreamValidator: "@holoscript/framework/DeviceSafetyEnvelopeReceipt"
+    defaultMode: "safe_device_consumption"
+    adapterScript: "scripts/holoshell-brittney-device-operator.mjs"  // future thin adapter (optional, out of this slice)
+  }
+
+  state DeviceOperatorState {
+    phase: "idle"
+    selectedDevice: ""
+    identityReceiptId: ""
+    consentNonce: ""
+    previewHash: ""
+    safeRangeStatus: "unknown"
+    targetProofStatus: "target_witness_missing"
+    targetProofReceiptId: ""
+    resultReceiptId: ""
+    privacyRedactions: []
+    rollbackPlan: ""
+    replayLessonId: ""
+    currentEnvelope: null
+    executionAllowed: false
+    lastReceiptTimestamp: 0
+  }
+
+  channel "holoshell:device:identity" { type: "append_only"; priority: "critical"; description: "DeviceInventoryReceipt / identity slice" }
+  channel "holoshell:device:consent" { type: "request_response"; priority: "critical"; description: "DeviceConsentReceipt" }
+  channel "holoshell:device:preview" { type: "request_response"; priority: "high"; description: "Action preview hash + simulation" }
+  channel "holoshell:device:safe-range" { type: "request_response"; priority: "critical"; description: "Safe range + rate limit check" }
+  channel "holoshell:device:result" { type: "append_only"; priority: "critical"; description: "DeviceActionReceipt / result" }
+  channel "holoshell:device:target-proof" { type: "append_only"; priority: "critical"; description: "HoloShellTargetDeviceProofReceipt / target-proven token" }
+  channel "holoshell:device:privacy" { type: "append_only"; priority: "high"; description: "Privacy redaction receipt slice" }
+  channel "holoshell:device:rollback" { type: "append_only"; priority: "high"; description: "Rollback note / plan" }
+  channel "holoshell:device:replay" { type: "append_only"; priority: "critical"; description: "DeviceReplayLessonReceipt" }
+
+  template "DeviceIdentityCrystal" {
+    type: "receipt"
+    receiptKind: "DeviceInventoryReceipt"
+    mesh: "crystal"
+    visible_layer: "underlay"
+    receiptRequired: true
+  }
+  template "ConsentGateToken" {
+    type: "receipt"
+    receiptKind: "DeviceConsentReceipt"
+    requiresFreshGesture: true
+    nonceBound: true
+  }
+  template "PreviewPanel" {
+    type: "receipt"
+    receiptKind: "preview"
+    receiptRequired: true
+  }
+  template "SafeRangeGauge" {
+    type: "receipt"
+    receiptKind: "safe_range"
+    receiptRequired: true
+  }
+  template "ResultLedger" {
+    type: "receipt"
+    receiptKind: "DeviceActionReceipt"
+    receiptRequired: true
+  }
+  template "TargetProofToken" {
+    type: "receipt"
+    receiptKind: "HoloShellTargetDeviceProofReceipt"
+    localCompileOnlyAccepted: false
+    targetWitnessRequired: true
+    receiptRequired: true
+  }
+  template "PrivacyVeil" {
+    type: "receipt"
+    receiptKind: "privacy_redaction"
+    receiptRequired: true
+  }
+  template "RollbackToken" {
+    type: "receipt"
+    receiptKind: "rollback_note"
+    receiptRequired: true
+  }
+  template "ReplayCrystal" {
+    type: "receipt"
+    receiptKind: "DeviceReplayLessonReceipt"
+    replayable: true
+    receiptRequired: true
+  }
+
+  action apply_device_identity(receipt) {
+    state.phase = "identity_scanned"
+    state.selectedDevice = receipt.deviceKind || receipt.friendlyName
+    state.identityReceiptId = receipt.id
+    emit("holoshell:device:identity", { status: "visible", device: state.selectedDevice, receipt_id: receipt.id, receipt_required: true })
+  }
+
+  action request_consent(intent) {
+    // produces/consumes DeviceConsentReceipt
+    state.phase = "consent_granted"
+    emit("holoshell:device:consent", { action: "consent_requested", scope: intent.scope, nonce: intent.nonce, receipt_required: true })
+  }
+
+  action evaluate_preview(preview) {
+    state.previewHash = preview.hash
+    state.phase = "preview_ready"
+    emit("holoshell:device:preview", { status: "visible", hash: state.previewHash, receipt_required: true })
+  }
+
+  action check_safe_range(envelope /* DeviceSafetyEnvelopeReceipt */) {
+    state.safeRangeStatus = envelope.safeRange.withinLimits ? "within" : "exceeded"
+    state.currentEnvelope = envelope
+    // also inspects privacy, rollback note inside envelope
+    emit("holoshell:device:safe-range", { status: state.safeRangeStatus, receipt_id: envelope.id })
+  }
+
+  action apply_result(receipt) {
+    state.phase = "result_recorded"
+    state.resultReceiptId = receipt.id
+    state.executionAllowed = receipt.executionAllowed
+    emit("holoshell:device:result", { status: receipt.status, mutation: receipt.mutationExecuted, receipt_id: receipt.id, receipt_required: true })
+  }
+
+  action apply_target_proof(receipt /* HoloShellTargetDeviceProofReceipt */) {
+    state.targetProofReceiptId = receipt.id
+    state.targetProofStatus = receipt.status == "pass" ? "target_proven" : "target_witness_missing"
+    emit("holoshell:device:target-proof", {
+      status: state.targetProofStatus,
+      receipt_id: receipt.id,
+      local_compile_only_accepted: false,
+      target_witness_required: true,
+      receipt_required: true
+    })
+  }
+
+  action apply_privacy(receipt) {
+    state.privacyRedactions = receipt.redactedFields || []
+    emit("holoshell:device:privacy", { redactions: state.privacyRedactions, receipt_required: true })
+  }
+
+  action plan_rollback(note) {
+    state.rollbackPlan = note.plan
+    emit("holoshell:device:rollback", { plan: state.rollbackPlan, receipt_required: true })
+  }
+
+  action emit_replay_lesson(lesson /* DeviceReplayLessonReceipt */) {
+    state.phase = "replay_ready"
+    state.replayLessonId = lesson.id
+    emit("holoshell:device:replay", { lesson: lesson.nextSafeStep, blocked: lesson.blockedExecution, receipt_required: true })
+  }
+
+  policy "BrittneyDeviceOperatorPolicy" {
+    owns: ["plain_language_explanation", "consent_prompt", "replay_lesson", "rollback_note"]
+    cannot: ["execute_without_full_envelope", "hide_identity", "reuse_stale_nonce", "suppress_receipt", "claim_target_proven_from_local_compile"]
+    permissionEnvelopes: ["read_only", "guarded_execute", "break_glass_blocked"]
+  }
+}

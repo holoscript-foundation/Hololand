@@ -1,0 +1,149 @@
+// HoloShell Device Safety Lab Policy
+//
+// HoloLand-owned product policy for presenting local devices as visible,
+// receipted world objects. Canonical validators are upstream HoloScript
+// substrate; this source defines the HoloLand room behavior.
+
+composition "HoloShell Device Safety Lab Policy" {
+  config {
+    title: "Device Safety Lab Policy"
+    product: "HoloShell"
+    roomSource: "apps/holoshell/source/holoshell-device-safety-lab.holo"
+    upstreamValidator: "@holoscript/framework/DeviceSafetyEnvelopeReceipt"
+    defaultMutationPolicy: "blocked_until_envelope_and_consent"
+  }
+
+  state {
+    inventoryReceiptStatus: "missing"
+    safetyEnvelopeStatus: "missing"
+    consentStatus: "not_required"
+    actionReceiptStatus: "none"
+    targetProofStatus: "target_witness_missing"
+    replayLessonStatus: "none"
+    selectedDeviceKind: "unknown"
+    selectedActionClass: "read_only"
+    mutationExecuted: false
+  }
+
+  channel "holoshell:device:inventory" {
+    type: "append_only"
+    priority: "critical"
+    description: "Local device identity and capability receipts"
+  }
+
+  channel "holoshell:device:safety-envelope" {
+    type: "request_response"
+    priority: "critical"
+    description: "Preview, consent, safe range, and execution gating receipts"
+  }
+
+  channel "holoshell:device:replay-lesson" {
+    type: "append_only"
+    priority: "high"
+    description: "Readable blocked-command lesson for non-developer users"
+  }
+
+  channel "holoshell:device:target-proof" {
+    type: "append_only"
+    priority: "critical"
+    description: "Target-device witness receipt that separates local readiness from headset/device proof"
+  }
+
+  template "DeviceSafetyLabCard" {
+    type: "product_card"
+    receiptRequired: true
+    visibleToUser: true
+    hiddenAutomationAllowed: false
+  }
+
+  policy "ReadOnlyByDefault" {
+    appliesTo: ["device_inventory", "device_status", "device_capability_preview"]
+    executionAllowed: true
+    mutationAllowed: false
+    consentRequired: false
+    receiptRequired: true
+  }
+
+  policy "GuardedDeviceAction" {
+    appliesTo: ["start_xr_session", "trigger_haptic", "send_device_command", "pair_device", "disconnect_device"]
+    executionAllowed: false
+    mutationAllowed: true
+    consentRequired: true
+    requires: ["fresh_user_gesture", "nonce", "safe_range", "preview", "rollback_note"]
+    receiptRequired: true
+  }
+
+  policy "BreakGlassBlocked" {
+    appliesTo: ["credential_wallet_mutation", "device_factory_reset", "unbounded_robot_motion", "silent_camera_capture"]
+    executionAllowed: false
+    mutationAllowed: false
+    consentRequired: true
+    receiptRequired: true
+  }
+
+  agent_role "BrittneyDeviceOperator" {
+    owns: ["plain_language_explanation", "consent_prompt", "replay_lesson"]
+    cannot: ["execute_without_envelope", "hide_target_device", "reuse_stale_approval"]
+  }
+
+  agent_role "CodexHardwareWitness" {
+    owns: ["local_device_inventory", "webgpu_webxr_probe", "adapter_validation"]
+    cannot: ["claim_headset_ready_without_receipt", "mutate_device_without_consent"]
+  }
+
+  action apply_inventory_receipt(receipt) {
+    state.inventoryReceiptStatus = "ready"
+    state.selectedDeviceKind = receipt.deviceKind
+    emit("holoshell:device:inventory", {
+      status: state.inventoryReceiptStatus,
+      device_kind: state.selectedDeviceKind,
+      friendly_name: receipt.friendlyName,
+      receipt_required: true
+    })
+  }
+
+  action apply_safety_envelope(receipt) {
+    state.safetyEnvelopeStatus = receipt.outcome
+    state.consentStatus = receipt.consent.status
+    state.selectedActionClass = receipt.actionClass
+    emit("holoshell:device:safety-envelope", {
+      status: state.safetyEnvelopeStatus,
+      consent: state.consentStatus,
+      action_class: state.selectedActionClass,
+      execution_allowed: receipt.executionAllowed,
+      receipt_required: true
+    })
+  }
+
+  action apply_action_receipt(receipt) {
+    state.actionReceiptStatus = receipt.status
+    state.mutationExecuted = receipt.mutationExecuted
+    emit("holoshell:device:safety-envelope", {
+      action: "device_action_receipt_applied",
+      status: state.actionReceiptStatus,
+      mutation_executed: state.mutationExecuted,
+      receipt_required: true
+    })
+  }
+
+  action apply_target_device_proof(receipt) {
+    state.targetProofStatus = receipt.status == "pass" ? "target_proven" : "target_witness_missing"
+    emit("holoshell:device:target-proof", {
+      status: state.targetProofStatus,
+      receipt_id: receipt.id,
+      local_compile_only_accepted: false,
+      unlock_allowed: receipt.status == "pass",
+      receipt_required: true
+    })
+  }
+
+  action apply_replay_lesson(receipt) {
+    state.replayLessonStatus = receipt.blockedExecution ? "blocked_lesson" : "replay_ready"
+    emit("holoshell:device:replay-lesson", {
+      status: state.replayLessonStatus,
+      reason: receipt.reason,
+      next_safe_step: receipt.nextSafeStep,
+      receipt_required: true
+    })
+  }
+}
