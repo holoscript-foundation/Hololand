@@ -1,0 +1,66 @@
+name: HoloLand Runtime Readiness
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - '.github/workflows/hololand-runtime-readiness.yml'
+      - 'docs/specs/HOLOLAND_RUNTIME_ATLAS.md'
+      - 'source/**'
+      - 'scripts/check-runtime-atlas-admission.mjs'
+      - 'scripts/hololand-central-frontier-proof.mjs'
+      - 'scripts/hololand-production-readiness.mjs'
+      - 'scripts/__tests__/runtime-atlas-admission.test.mjs'
+      - 'scripts/__tests__/hololand-central-frontier-proof.test.mjs'
+      - 'scripts/__tests__/hololand-production-readiness.test.mjs'
+  push:
+    branches: [main, develop]
+    paths:
+      - '.github/workflows/hololand-runtime-readiness.yml'
+      - 'docs/specs/HOLOLAND_RUNTIME_ATLAS.md'
+      - 'source/**'
+      - 'scripts/check-runtime-atlas-admission.mjs'
+      - 'scripts/hololand-central-frontier-proof.mjs'
+      - 'scripts/hololand-production-readiness.mjs'
+      - 'scripts/__tests__/runtime-atlas-admission.test.mjs'
+      - 'scripts/__tests__/hololand-central-frontier-proof.test.mjs'
+      - 'scripts/__tests__/hololand-production-readiness.test.mjs'
+  workflow_dispatch:
+
+jobs:
+  runtime-readiness:
+    name: Runtime atlas and Central Frontier readiness
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test runtime atlas admission fixture
+        run: node scripts/__tests__/runtime-atlas-admission.test.mjs
+
+      - name: Test Central Frontier proof fixture
+        run: node scripts/__tests__/hololand-central-frontier-proof.test.mjs
+
+      - name: Test production readiness fixture
+        run: node scripts/__tests__/hololand-production-readiness.test.mjs
+
+      - name: Check live runtime atlas admission
+        run: node scripts/check-runtime-atlas-admission.mjs --root "$GITHUB_WORKSPACE"
+
+      - name: Check live Central Frontier production readiness
+        run: node scripts/hololand-production-readiness.mjs --root "$GITHUB_WORKSPACE" --json
+
+      - name: Upload readiness receipts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hololand-runtime-readiness-${{ github.sha }}
+          path: .tmp/hololand/**
+          if-no-files-found: warn
+          retention-days: 30

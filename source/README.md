@@ -23,6 +23,13 @@ Docs:
 - `docs/specs/HOLOLAND_FRONTIER_NORTH_STAR.md`
 - `docs/HOLOSCRIPT_SOURCE_CONTRACT.md`
 
+Production gates:
+
+- `node scripts/check-runtime-atlas-admission.mjs --root <repo>`
+- `node scripts/hololand-central-frontier-proof.mjs --root <repo> --json`
+- `node scripts/hololand-production-readiness.mjs --root <repo> --json`
+- `.github/workflows/hololand-runtime-readiness.yml`
+
 Source posture:
 
 - `.holo` declares spatial scenes, places, layers, surfaces, and visible objects.

@@ -247,6 +247,16 @@ It emits:
 The readiness receipt passes only when atlas admission, the Central to Frontier
 proof, and readiness receipt coverage all pass.
 
+The CI guard is:
+
+```text
+.github/workflows/hololand-runtime-readiness.yml
+```
+
+It runs the fixture tests, the live atlas admission check, and the live
+production-readiness gate without requiring package installation. CI uploads
+the generated `.tmp/hololand/**` receipts as workflow artifacts.
+
 ## First Slice
 
 The first source slice is:
