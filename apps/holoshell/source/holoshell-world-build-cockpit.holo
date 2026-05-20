@@ -153,6 +153,25 @@ composition "HoloShell World Build Cockpit" {
     }
   }
 
+  // Dynamic rendering of the joined worldBuildReadyToken blocking reasons as visible world objects
+  // (owner lane, receipt link, safe next action, "cannot promote until resolved")
+  spatial_group "BlockedReasons" {
+    template "BlockedReasonObject" {
+      type: "ui"
+      uiType: "blocked_reason_card"
+      mesh: "rounded_panel"
+      material: "liquid_glass"
+      color: "#3a1f1f"
+      warning_color: "#3a2a1f"
+      size: [1.8, 0.45, 0.06]
+      grabbable: false
+      receipt_required: true
+    }
+
+    // Populated at runtime from the worldBuildReadyToken.blockingReasons in the readiness evidence feed
+    // Each reason becomes a visible object with exact text, owner lane, replay command, and block affordance
+  }
+
   spatial_group "ReadinessTokens" {
     object "HardwarePassToken" using "GateToken" {
       label: "Hardware pass"

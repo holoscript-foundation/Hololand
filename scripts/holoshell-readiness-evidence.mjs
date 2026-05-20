@@ -514,6 +514,8 @@ function createFeedFromFiles(
   const tasksPath = path.join(evidenceDir, 'holomesh-tasks.json');
   const buildLogPath = path.join(evidenceDir, 'pnpm-build.log');
   const gitStatusPath = path.join(evidenceDir, 'git-status.txt');
+  // Local codebase bundle (the missing token from world-build-cockpit-v2 research)
+  const localCodebaseBundlePath = path.join(evidenceDir, 'local-codebase-absorb-bundle.json');
 
   const report = readText(reportPath);
   const buildLog = readText(buildLogPath);
@@ -521,6 +523,7 @@ function createFeedFromFiles(
   const deviceReceipt = readJson(deviceReceiptPath, {});
   const validations = readJson(validationsPath, []);
   const taskBundle = readJson(tasksPath, { tasks: [] });
+  const localCodebaseBundle = readJson(localCodebaseBundlePath, null);
   return createFeed({
     evidenceDir,
     report,
@@ -531,6 +534,7 @@ function createFeedFromFiles(
     taskBundle,
     localArtifacts,
     liveCoreImport,
+    localCodebaseBundle,
     paths: {
       reportPath,
       deviceReceiptPath,
@@ -538,6 +542,7 @@ function createFeedFromFiles(
       tasksPath,
       buildLogPath,
       gitStatusPath,
+      localCodebaseBundlePath,
     },
   });
 }
@@ -552,6 +557,7 @@ function createFeed({
   taskBundle,
   localArtifacts,
   liveCoreImport,
+  localCodebaseBundle,
   paths,
 }) {
   const runId = firstMatch(report, /Automation ID:\s*`([^`]+)`/, 'holoshell-human-os-frontier');
@@ -746,6 +752,24 @@ function createFeed({
       source: localSummary.liveFeed.source,
       receiptType: 'hololand.holoshell.live-feed.v0.1.0',
     }),
+    // Local codebase bundle token (the missing gate from world-build-cockpit-v2 research)
+    // When the holoshell-local-codebase-absorb-bundle.mjs artifact is present, we surface it
+    // as a first-class HoloShellLocalCodebaseSnapshotReceipt so the cockpit and WorldBuildReadyToken
+    // validator can see file counts, skipped reasons, redaction status, and graph authority.
+    ...(localCodebaseBundle && localCodebaseBundle.receipt ? [makeToken({
+      id: 'readiness.local-codebase-bundle',
+      kind: 'local_codebase_snapshot_receipt',
+      title: `Local codebase bundle (${(localCodebaseBundle.receipt.roots || []).reduce((s, r) => s + (r.selectedFileCount || 0), 0)} files)`,
+      status: localCodebaseBundle.schemaVersion ? 'pass' : 'unknown',
+      detail: localCodebaseBundle.receipt
+        ? `${(localCodebaseBundle.receipt.roots || []).reduce((s, r) => s + (r.selectedFileCount || 0), 0)} files across ${(localCodebaseBundle.receipt.roots || []).length} roots, ${(localCodebaseBundle.receipt.roots || []).reduce((s, r) => s + (r.skippedFileCount || 0), 0)} skipped, redaction ${localCodebaseBundle.receipt.redactionStatus || 'unknown'}, graph authority ${localCodebaseBundle.receipt.graphReceipt?.authoritative ? 'local' : 'stale-hosted'}.`
+        : 'Bundle artifact present but no receipt payload.',
+      source: paths.localCodebaseBundlePath || evidenceDir,
+      receiptType: localCodebaseBundle.receiptType || 'hololand.holoshell.local-codebase-absorb-bundle.v0.1.0',
+      nextAction: (localCodebaseBundle.receipt?.roots || []).some(r => (r.skippedFileCount || 0) > 0)
+        ? 'Review skipped files in the local codebase bundle before promotion.'
+        : '',
+    })] : []),
     makeToken({
       id: 'readiness.holoshell-run',
       kind: 'run_custody_receipt',
