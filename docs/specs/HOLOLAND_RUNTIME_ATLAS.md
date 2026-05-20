@@ -208,6 +208,24 @@ envelope:
 source/domains/receipts/runtime-receipt-envelope.hsplus
 ```
 
+The executable local proof is:
+
+```powershell
+node scripts/hololand-central-frontier-proof.mjs --json
+```
+
+It emits:
+
+```text
+.tmp/hololand/receipts/central-frontier-latest.json
+```
+
+The receipt simulates the first production loop:
+
+```text
+central_entered -> portal_used -> shard_entered -> encounter_completed -> reward_earned
+```
+
 ## First Slice
 
 The first source slice is:
