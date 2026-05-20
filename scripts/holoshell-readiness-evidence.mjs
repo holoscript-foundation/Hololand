@@ -1069,6 +1069,26 @@ try {
           },
         });
   if (args.selfTest) assertSelfTest(feed);
+
+  // Join all gates into the single deterministic HoloShellWorldBuildReadyToken
+  // (blocks on stale graph, active/high-memory builds, missing device witness, dirty tree, missing replay receipts)
+  const critical = feed.tokens.filter(t =>
+    ['graph', 'build', 'hardware', 'process', 'mcp', 'repo', 'liveFeed', 'custody'].some(k => t.id.includes(k))
+  );
+  const blocking = critical
+    .filter(t => t.status === 'blocked' || t.status === 'warn')
+    .map(t => `${t.id}:${t.status}${t.nextAction ? '(' + t.nextAction + ')' : ''}`);
+  const joinedStatus = blocking.length === 0 ? 'ready' : (critical.some(t => t.status === 'blocked') ? 'blocked' : 'warn');
+  feed.worldBuildReadyToken = {
+    id: 'holoshell.world-build-ready',
+    kind: 'world_build_ready_token',
+    status: joinedStatus,
+    blockingReasons: blocking,
+    receiptRequired: true,
+    nextAction: joinedStatus === 'ready' ? 'start_world_build' : 'resolve_blockers_and_replay',
+    receiptInputs: critical.map(t => t.id)
+  };
+
   const output = writeJson(args.output, feed);
   const jsOutput = writeBrowserBootstrap(args.jsOutput, feed);
 
