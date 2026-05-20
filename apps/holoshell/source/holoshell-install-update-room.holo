@@ -1,0 +1,187 @@
+/**
+ * HoloShell Install/Update Native Room Gate
+ *
+ * Visible HoloShell room for:
+ * "Install or update the desktop tool I need for HoloLand world work,
+ * verify it launches, and show what changed before and after."
+ *
+ * Consumes HoloShellPackageMutationReceipt from:
+ *   packages/framework/src/board/holoshell-package-mutation-receipt.ts
+ * Bridge script:
+ *   scripts/holoshell-package-custody.mjs
+ * Policy:
+ *   apps/holoshell/source/holoshell-install-update-policy.hsplus
+ * Pipeline:
+ *   apps/holoshell/source/holoshell-install-update-pipeline.hs
+ */
+
+composition "HoloShell Install Update Native Room Gate" {
+  environment {
+    backgroundColor: "#11161a"
+    ambient_light: 0.57
+    shadows: true
+  }
+
+  template "GatePanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.44, 0.56, 0.08]
+    material: {
+      color: "#17212a"
+      emissive: "#283745"
+      emissiveIntensity: 0.2
+      transparent: true
+      opacity: 0.95
+    }
+  }
+
+  template "GateToken" {
+    @glowing
+    @collidable
+    geometry: "sphere"
+    scale: [0.15, 0.15, 0.15]
+    material: { color: "#7dcfff" }
+  }
+
+  object "HumanJob" using "GatePanel" {
+    position: [0, 2.35, -2.85]
+    label: "Make this tool ready without breaking the computer"
+    properties: {
+      plainLanguageJob: "install or update a world-building tool, prove it launches, and show the exact machine changes"
+      hiddenMachinery: ["winget", "pnpm", "npm", "MSI", "EXE installers", "PATH", "registry", "start-menu", "startup entries", "admin prompts", "process conflicts", "rollback limits"]
+      sourceBoundary: "HoloScript owns the receipt validator and package custody primitives; HoloLand renders this room and spawns tool-ready world objects"
+      receiptSchema: "hololand.holoshell.package-custody.v0.1.0"
+    }
+  }
+
+  object "PackageIdentityGate" using "GatePanel" {
+    position: [-5.3, 1.5, -1.22]
+    label: "Package identity"
+    properties: {
+      reads: ["package id", "publisher", "source (winget/pnpm/npm/msi/exe)", "current version", "available version", "installer type", "installer hash"]
+      currentExample: "BlenderFoundation.Blender 5.0.1 -> 5.1.1 from winget"
+      failureStates: ["ambiguous package id", "untrusted publisher", "untrusted source", "version mismatch", "missing installer hash"]
+      receiptField: "candidate"
+    }
+  }
+
+  object "MachinePreflight" using "GatePanel" {
+    position: [-2.65, 1.5, -1.22]
+    label: "Machine preflight"
+    properties: {
+      reads: ["disk free bytes", "network policy (metered/unmetered)", "admin session", "admin required", "running process conflicts", "package manager available"]
+      currentExample: "normal unmetered network; non-admin shell; about 109 GB free; no process conflicts; winget available"
+      failureStates: ["metered network blocks download", "low disk", "app running while upgrade pending", "package manager unavailable", "admin session required but absent"]
+      receiptField: "preflight"
+    }
+  }
+
+  object "BreakGlassApprovalGate" using "GatePanel" {
+    position: [0, 1.5, -1.22]
+    label: "Approval gate"
+    properties: {
+      requires: ["package id", "from version", "to version", "download url", "installer hash", "approved command preview", "fresh human gesture", "break glass permission"]
+      blockedByDefault: ["download_installer", "install_package", "upgrade_package", "uninstall_package"]
+      rule: "mutation is blocked until a fresh human gesture supplies an approval packet with nonce; execution_allowed stays false until approval captured"
+      receiptField: "approval"
+    }
+  }
+
+  object "AdminBoundary" using "GatePanel" {
+    position: [2.65, 1.5, -1.22]
+    label: "Admin boundary"
+    properties: {
+      reads: ["admin required flag", "admin session present", "elevation boundary receipt kind", "UAC prompt expected"]
+      rule: "HoloShell must halt at every admin prompt unless the human approves the exact mutation; ambient elevation is never assumed"
+      blockedByDefault: ["approve_admin_prompt", "install_driver", "reboot_machine"]
+      receiptField: "preflight.adminRequired + preflight.adminSession"
+    }
+  }
+
+  object "PathStartupRegistryDeltas" using "GatePanel" {
+    position: [5.3, 1.5, -1.22]
+    label: "PATH / startup / registry"
+    properties: {
+      tracks: ["PATH changes before/after", "start menu entry added/removed", "program registry (HKLM/HKCU Uninstall) before/after", "startup entry added/removed", "file associations changed"]
+      rule: "planned mutations must enumerate all PATH, registry, startup, and association changes before approval; no silent side effects"
+      currentExample: "Blender: updates HKLM Uninstall entry; no PATH or startup changes expected"
+      receiptField: "metadata.commandPreview + approval.approvedCommandPreview"
+    }
+  }
+
+  object "RollbackLimits" using "GatePanel" {
+    position: [-3.97, 0.56, -1.22]
+    label: "Rollback limits"
+    properties: {
+      options: ["installer cache for reinstall", "previous version reinstall via winget", "portable restore", "manual vendor download"]
+      visibleLimits: ["uninstall/reinstall may not preserve plugins, preferences, or file associations", "rollback requires the old installer or vendor download", "automatic rollback is not guaranteed"]
+      rule: "rollback limits must be visible before approval is requested; count drives rollbackLimitCount in the receipt"
+      receiptField: "approval.rollbackLimits"
+    }
+  }
+
+  object "LaunchWitness" using "GatePanel" {
+    position: [3.97, 0.56, -1.22]
+    label: "Launch witness"
+    properties: {
+      proves: ["binary path exists on disk", "version command passes and output matches expected version", "start menu entry present", "program registry updated", "world build tool ready for HoloLand"]
+      currentExample: "Blender 5.1.1: binary at C:/Program Files/Blender Foundation/Blender 5.1/blender.exe; blender --version passes; HKLM Uninstall entry updated"
+      failureStates: ["installed but binary missing", "version command fails", "version mismatch post-install", "GPU feature unavailable", "app crashes on first launch"]
+      receiptField: "verification"
+    }
+  }
+
+  object "InventoryReadOnlyToken" using "GateToken" {
+    position: [-4.85, 0.78, 0.1]
+    label: "inventory only"
+    properties: {
+      receiptKind: "package_inventory_receipt"
+      permissionEnvelope: "read_only"
+      allowed: ["list_installed_packages", "check_available_versions", "check_disk", "check_network", "check_admin", "check_process_conflicts"]
+    }
+  }
+
+  object "BreakGlassInstallToken" using "GateToken" {
+    position: [-1.6, 0.78, 0.1]
+    material: { color: "#e0af68" }
+    label: "install/update locked"
+    properties: {
+      receiptKind: "package_mutation_approval_receipt"
+      permissionEnvelope: "break_glass"
+      breakGlass: true
+      requiresFreshHumanGesture: true
+      executionAllowed: false
+    }
+  }
+
+  object "AdminBoundaryToken" using "GateToken" {
+    position: [1.6, 0.78, 0.1]
+    material: { color: "#f7768e" }
+    label: "admin boundary"
+    properties: {
+      receiptKind: "elevation_boundary_receipt"
+      rule: "HoloShell halts here unless human approves exact mutation in admin context"
+    }
+  }
+
+  object "ToolReadyToken" using "GateToken" {
+    position: [4.85, 0.78, 0.1]
+    material: { color: "#9ece6a" }
+    label: "tool ready"
+    properties: {
+      receiptKind: "launch_verification_receipt"
+      spawnsTrigger: "holoshell:tool_ready_world_object"
+      replayInputs: ["packageId", "toVersion", "binaryPath", "versionOutputHash", "programRegistryHash"]
+    }
+  }
+
+  object "InstallTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [9.6, 0.08, 0.14]
+    color: "#64717d"
+    label: "timeline: inventory -> preflight -> plan -> break-glass -> admin boundary -> download -> uninstall -> install -> path/registry deltas -> verify -> file receipts -> tool-ready token -> replay"
+  }
+}

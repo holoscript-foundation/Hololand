@@ -1,0 +1,263 @@
+// HoloShell Install/Update Native Room Gate — policy and state machine.
+//
+// Consumes HoloShellPackageMutationReceipt from:
+//   packages/framework/src/board/holoshell-package-mutation-receipt.ts
+// Room:
+//   apps/holoshell/source/holoshell-install-update-room.holo
+// Pipeline:
+//   apps/holoshell/source/holoshell-install-update-pipeline.hs
+
+composition "HoloShellInstallUpdatePolicy" {
+  state InstallUpdateGateState {
+    selectedWorkflow: "install-update-tool-custody"
+    packageId: "unknown"
+    packageName: "unknown"
+    manager: "unknown"
+    source: "unknown"
+    fromVersion: "unknown"
+    toVersion: "unknown"
+    commandPreview: ""
+    permissionEnvelope: "read_only"
+    approvalRequired: false
+    approvalCaptured: false
+    approvalId: ""
+    executionAllowed: false
+    mutationPerformed: false
+    adminRequired: false
+    adminSession: false
+    packageManagerAvailable: false
+    rollbackLimitCount: 0
+    rollbackLimits: []
+    pathDeltaRecorded: false
+    registryDeltaRecorded: false
+    startupDeltaRecorded: false
+    launchVerified: false
+    binaryPath: ""
+    verifiedVersion: ""
+    toolReadyTokenSpawned: false
+    schemaContractStatus: "unknown"
+    blockers: []
+    receiptHash: ""
+  }
+
+  template "ReadOnlyEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  template "GuardedEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: false
+    freshHumanGesture: true
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  template "BreakGlassEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: true
+    freshHumanGesture: true
+    approvalPacketRequired: true
+    rollbackLimitsMustBeVisible: true
+    postMutationVerificationRequired: true
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  policy "PackageInventoryIsReadOnly" using "ReadOnlyEnvelope" {
+    appliesTo: [
+      "list_installed_packages",
+      "check_available_versions",
+      "check_package_source",
+      "check_disk_space",
+      "check_network_cost",
+      "check_admin_status",
+      "check_running_process_conflicts",
+      "check_package_manager_available",
+      "plan_winget_package",
+      "plan_pnpm_package",
+      "plan_npm_package",
+      "plan_msi_package",
+      "plan_exe_package"
+    ]
+  }
+
+  policy "LaunchVerificationIsGuarded" using "GuardedEnvelope" {
+    appliesTo: [
+      "run_version_command",
+      "check_binary_exists",
+      "check_start_menu_entry",
+      "check_program_registry",
+      "record_path_delta",
+      "record_registry_delta",
+      "record_startup_delta",
+      "open_installed_app",
+      "open_local_project_file",
+      "write_local_install_receipt",
+      "file_holomesh_task"
+    ]
+  }
+
+  policy "PackageMutationIsBreakGlass" using "BreakGlassEnvelope" {
+    appliesTo: [
+      "download_installer",
+      "install_package",
+      "upgrade_package",
+      "uninstall_package",
+      "modify_path",
+      "modify_registry",
+      "change_file_association",
+      "approve_admin_prompt",
+      "install_driver",
+      "reboot_machine"
+    ]
+    liveMutationExecutionSupportedUntilNativeGatePresent: false
+    exactPackageIdRequired: true
+    exactSourceRequired: true
+    fromVersionRequired: true
+    toVersionRequired: true
+    installerHashRequiredWhenKnown: true
+  }
+
+  policy "NoAmbientPackageExecution" {
+    appliesTo: ["install_package", "upgrade_package", "uninstall_package"]
+    defaultBridgeMode: "approval_packet_only"
+    daemonExecuteDisabledByDefault: true
+    exactCommandPreviewRequired: true
+    freshHumanGestureRequired: true
+    nativeApprovalGateRequiredBeforeLiveMutation: true
+  }
+
+  state_machine "InstallUpdateWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "inventoried",
+      "preflighted",
+      "planned",
+      "approval_required",
+      "approved",
+      "mutating",
+      "installed",
+      "deltas_recorded",
+      "verified",
+      "tool_ready",
+      "filed",
+      "blocked"
+    ]
+    transition "inventory" { from: "idle", to: "inventoried" }
+    transition "preflight" { from: "inventoried", to: "preflighted" }
+    transition "plan" { from: "preflighted", to: "planned" }
+    transition "require_approval" { from: "planned", to: "approval_required" }
+    transition "approve" { from: "approval_required", to: "approved" }
+    transition "mutate" { from: "approved", to: "mutating" }
+    transition "install_complete" { from: "mutating", to: "installed" }
+    transition "record_deltas" { from: "installed", to: "deltas_recorded" }
+    transition "verify" { from: "deltas_recorded", to: "verified" }
+    transition "tool_ready" { from: "verified", to: "tool_ready" }
+    transition "file_task" { from: "tool_ready", to: "filed" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "CodexHardware" {
+    laneId: "codex-hardware"
+    owns: ["local_preflight", "package_command_execution", "disk_network_admin_receipts", "launch_verification", "path_startup_registry_deltas"]
+  }
+
+  role "HoloShellPolicyAgent" {
+    laneId: "holoshell-policy"
+    owns: ["permission_classification", "approval_packet", "rollback_limit_visibility", "human_explanation", "admin_boundary"]
+  }
+
+  role "HoloScriptSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["package_mutation_receipt_validator", "receipt_schema_contract", "stdlib_policy_receipt"]
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["install_room_rendering", "tool_ready_world_object", "creator_world_readiness_loop", "replay_surface"]
+  }
+
+  action consume_package_custody_receipt(receipt) {
+    InstallUpdateGateState.packageId = receipt.candidate.packageId
+    InstallUpdateGateState.packageName = receipt.candidate.packageName
+    InstallUpdateGateState.manager = receipt.candidate.manager
+    InstallUpdateGateState.source = receipt.candidate.source
+    InstallUpdateGateState.fromVersion = receipt.candidate.currentVersion
+    InstallUpdateGateState.toVersion = receipt.candidate.availableVersion
+    InstallUpdateGateState.commandPreview = receipt.metadata.commandPreview
+    InstallUpdateGateState.permissionEnvelope = receipt.permissionEnvelope
+    InstallUpdateGateState.approvalRequired = receipt.approval.approvalRequired
+    InstallUpdateGateState.approvalCaptured = receipt.approval.approvalCaptured
+    InstallUpdateGateState.approvalId = receipt.approval.approvalId
+    InstallUpdateGateState.executionAllowed = receipt.summary.executionAllowed
+    InstallUpdateGateState.mutationPerformed = receipt.mutationPerformed
+    InstallUpdateGateState.adminRequired = receipt.preflight.adminRequired
+    InstallUpdateGateState.adminSession = receipt.preflight.adminSession
+    InstallUpdateGateState.packageManagerAvailable = receipt.preflight.packageManagerAvailable
+    InstallUpdateGateState.rollbackLimits = receipt.approval.rollbackLimits
+    InstallUpdateGateState.rollbackLimitCount = receipt.summary.rollbackLimitCount
+    InstallUpdateGateState.launchVerified = receipt.verification.launchVerified
+    InstallUpdateGateState.binaryPath = receipt.verification.binaryPath
+    InstallUpdateGateState.verifiedVersion = receipt.verification.verifiedVersion
+    InstallUpdateGateState.schemaContractStatus = receipt.summary.status
+    InstallUpdateGateState.receiptHash = receipt.hash
+
+    emit("holoshell:install_update:receipt_consumed", {
+      packageId: receipt.candidate.packageId,
+      status: receipt.summary.status,
+      permissionEnvelope: receipt.permissionEnvelope,
+      approvalRequired: receipt.approval.approvalRequired,
+      executionAllowed: receipt.summary.executionAllowed,
+      mutationPerformed: receipt.mutationPerformed,
+      launchVerified: receipt.verification.launchVerified,
+      receiptHash: receipt.hash
+    })
+  }
+
+  action record_path_startup_registry_deltas(deltaReceipt) {
+    InstallUpdateGateState.pathDeltaRecorded = deltaReceipt.pathDeltaRecorded
+    InstallUpdateGateState.registryDeltaRecorded = deltaReceipt.registryDeltaRecorded
+    InstallUpdateGateState.startupDeltaRecorded = deltaReceipt.startupDeltaRecorded
+
+    emit("holoshell:install_update:deltas_recorded", {
+      packageId: InstallUpdateGateState.packageId,
+      pathDeltaRecorded: deltaReceipt.pathDeltaRecorded,
+      registryDeltaRecorded: deltaReceipt.registryDeltaRecorded,
+      startupDeltaRecorded: deltaReceipt.startupDeltaRecorded
+    })
+  }
+
+  action spawn_tool_ready_token(receipt) {
+    if (receipt.verification.launchVerified == true) {
+      InstallUpdateGateState.toolReadyTokenSpawned = true
+      emit("holoshell:tool_ready_world_object", {
+        packageId: InstallUpdateGateState.packageId,
+        version: InstallUpdateGateState.verifiedVersion,
+        binaryPath: InstallUpdateGateState.binaryPath,
+        receiptHash: InstallUpdateGateState.receiptHash,
+        spawnedAt: "now"
+      })
+    }
+  }
+
+  action blockOn(reason, evidencePath, ownerSurface) {
+    InstallUpdateWorkflow.transition("block")
+    InstallUpdateGateState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+    emit("holoshell:install_update:blocker", {
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+  }
+}
