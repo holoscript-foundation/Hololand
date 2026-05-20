@@ -106,10 +106,17 @@ composition "HoloShell Device Safety Lab" {
       label: "Target proof"
       position: [4.15, 0.2, -2.85]
       status: $targetProofStatus
-      receiptKind: "HoloShellTargetDeviceProofReceipt"
+      receiptKind: "HoloShellTargetDeviceProofPack"
       distinguishes: ["local readiness", "browser support", "WebXR session", "target-device frame"]
       unlockRule: "world operation unlock requires target_proven, not local_compile_only"
+      // Visual token states (rendered differently by HoloLand Device Safety Lab)
+      visualStates: {
+        target_proven: { emissive: "#00ff88", label: "HEADSET PROVEN", token: "real_webxr_frame" },
+        target_witness_missing: { emissive: "#ffaa00", label: "LOCAL ONLY", token: "compile_or_browser" },
+        blocked_with_capture_blocker: { emissive: "#ff4444", label: "BLOCKED - CAPTURE IMPOSSIBLE", token: "explicit_blocker" }
+      }
       failureState: "target device frame, WebXR runtime receipt, or explicit capture blocker missing"
+      brittneyLineWhenProven: "Local machine ready is not the same as the headset actually seeing it. This token proves the real device witnessed the world."
     }
 
     object "ExecutionDock" using "DeviceBay" {

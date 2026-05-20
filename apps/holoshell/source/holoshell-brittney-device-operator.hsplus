@@ -130,16 +130,31 @@ composition "HoloShell Brittney Device Operator" {
     emit("holoshell:device:result", { status: receipt.status, mutation: receipt.mutationExecuted, receipt_id: receipt.id, receipt_required: true })
   }
 
-  action apply_target_proof(receipt /* HoloShellTargetDeviceProofReceipt */) {
-    state.targetProofReceiptId = receipt.id
-    state.targetProofStatus = receipt.status == "pass" ? "target_proven" : "target_witness_missing"
+  action apply_target_proof(receipt /* HoloShellTargetDeviceProofPack */) {
+    // Match the real pack shape from the upstream substrate (added in this marathon)
+    const hasRealWitness = !!receipt.targetWitness?.witnessHash;
+    const ready = !!receipt.targetProofReadyForHoloLand;
+
+    state.targetProofReceiptId = receipt.id;
+    if (hasRealWitness && ready) {
+      state.targetProofStatus = "target_proven";
+    } else if (receipt.targetWitness?.blocker) {
+      state.targetProofStatus = "blocked_with_capture_blocker";
+    } else {
+      state.targetProofStatus = "target_witness_missing";
+    }
+
     emit("holoshell:device:target-proof", {
       status: state.targetProofStatus,
       receipt_id: receipt.id,
+      has_real_target_witness: hasRealWitness,
+      target_proof_ready_for_hololand: ready,
+      blocker: receipt.targetWitness?.blocker || null,
+      witness_source: receipt.targetWitness?.witnessSource || null,
       local_compile_only_accepted: false,
       target_witness_required: true,
       receipt_required: true
-    })
+    });
   }
 
   action apply_privacy(receipt) {
