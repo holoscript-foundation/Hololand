@@ -35,6 +35,12 @@ composition "HoloShellHoloTunnelAccessPolicy" {
     advancedDetailsVisible: false
     recipientFacingError: ""
     advancedDiagnostic: ""
+    // P2 format-stress fix for visual proof / quest-proof pages through HoloTunnel:
+    // the visual sweep runner (headless Chromium) needs explicit "proof" mode so the
+    // relay and readiness can guarantee the "commit" signal for the dashboard viewport
+    // reaches the proof system without hanging (curl 200 but browser timeout on commit).
+    visualProofMode: false
+    visualProofCommitTimeoutMs: 45000
   }
 
   channel "holoshell:holotunnel:access" {
