@@ -149,6 +149,24 @@ function shellArg(value) {
   return `"${text.replace(/"/g, '\\"')}"`;
 }
 
+const COMMAND_PREVIEW_PATH_FLAGS = new Map([
+  ['--approval-bundle', 'approval-bundle'],
+  ['--import-dir', 'import-dir'],
+  ['--import-output', 'import-receipt'],
+  ['--import-js-output', 'import-bootstrap'],
+]);
+
+function redactedPreviewToken(command, index) {
+  const previous = command[index - 1];
+  const alias = COMMAND_PREVIEW_PATH_FLAGS.get(previous);
+  if (alias) return `<artifact:${alias}>`;
+  return command[index];
+}
+
+function commandPreview(command) {
+  return command.map((token, index) => shellArg(redactedPreviewToken(command, index))).join(' ');
+}
+
 function escapeHoloString(value) {
   return String(value ?? '').replace(/[^\x20-\x7e]/g, '').replace(/\\/g, '/').replace(/"/g, '\\"');
 }
@@ -292,7 +310,7 @@ function buildBundle(args, workflowOverride = null) {
     execution: {
       allowed: gate.allowed,
       command,
-      commandPreview: command.map(shellArg).join(' '),
+      commandPreview: commandPreview(command),
       blockedReason: gate.blockedReason,
     },
     witness: {

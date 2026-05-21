@@ -28,6 +28,10 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function hasAbsolutePath(value) {
+  return /(^|[\s"'`=])(?:[A-Za-z]:[\\/]|\/(?!\/)[^\s"'`]+)/.test(String(value || ''));
+}
+
 // ── Phase 1: Workflow preview visual witness (existing test) ──
 
 run('node', ['scripts/holoshell-asset-shard-workflow.mjs', '--self-test']);
@@ -75,6 +79,44 @@ assert(importReceipt.output.manifestPath, 'import receipt must have manifestPath
 assert(importReceipt.output.shardSourcePath, 'import receipt must have shardSourcePath');
 
 console.log('holoshell shard import approval test passed');
+
+// ── Phase 2b: Approval command preview redacts private artifact paths ──
+
+const redactionRoot = path.resolve(REPO_ROOT, '.tmp/holoshell/self-test/asset-shard-approval-redaction');
+rmSync(redactionRoot, { recursive: true, force: true });
+
+run('node', [
+  'scripts/holoshell-shard-import-approval.mjs',
+  '--workflow',
+  '.tmp/holoshell/shard-workflow-latest.json',
+  '--output',
+  path.join(redactionRoot, 'approval.json'),
+  '--js-output',
+  path.join(redactionRoot, 'approval.js'),
+  '--bundle-dir',
+  path.join(redactionRoot, 'bundles'),
+  '--import-dir',
+  path.join(redactionRoot, 'imports'),
+  '--import-output',
+  path.join(redactionRoot, 'import.json'),
+  '--import-js-output',
+  path.join(redactionRoot, 'import.js'),
+  '--json',
+]);
+
+const redactedApproval = readJson('.tmp/holoshell/self-test/asset-shard-approval-redaction/approval.json');
+
+assert(redactedApproval.execution.commandPreview.includes('<artifact:approval-bundle>'), 'approval bundle path should be an artifact alias');
+assert(redactedApproval.execution.commandPreview.includes('<artifact:import-dir>'), 'import dir path should be an artifact alias');
+assert(redactedApproval.execution.commandPreview.includes('<artifact:import-receipt>'), 'import receipt path should be an artifact alias');
+assert(redactedApproval.execution.commandPreview.includes('<artifact:import-bootstrap>'), 'import bootstrap path should be an artifact alias');
+assert(!hasAbsolutePath(redactedApproval.execution.commandPreview), 'commandPreview must not expose absolute paths');
+assert(
+  redactedApproval.execution.command.some((part) => hasAbsolutePath(part)),
+  'private executable command should still retain real paths'
+);
+
+console.log('holoshell shard import approval redaction test passed');
 
 // ── Phase 3: Playable shard visual witness of the imported shard ──
 
