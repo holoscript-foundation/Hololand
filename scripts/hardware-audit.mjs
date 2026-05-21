@@ -251,30 +251,93 @@ function browserAuditHtml() {
     gamepadHapticsApi: typeof GamepadHapticActuator !== "undefined"
   };
 
+  // WebGPU adapter detection with retry and extended timeout.
+  // Headless Chrome GPU init can be slow and intermittent — 2026-05-16
+  // receipt passed but 2026-05-17 timed out at 5s. Retry once at 15s
+  // to distinguish "slow init" from "genuinely unavailable".
   if (navigator.gpu && navigator.gpu.requestAdapter) {
-    try {
-      const adapter = await Promise.race([
-        navigator.gpu.requestAdapter(),
-        new Promise((resolve) => setTimeout(() => resolve("timeout"), 5000))
-      ]);
+    const ADAPTER_TIMEOUT_MS = 15000;
+    const MAX_ADAPTER_ATTEMPTS = 2;
+    let lastAdapterResult = null;
+    let attempts = 0;
 
-      if (adapter === "timeout") {
-        receipt.webgpuAdapter = { ok: false, reason: "timeout" };
-      } else if (adapter) {
-        receipt.webgpuAdapter = {
-          ok: true,
-          features: Array.from(adapter.features || []),
-          limits: adapter.limits ? Object.assign({}, adapter.limits) : null
+    for (let attempt = 1; attempt <= MAX_ADAPTER_ATTEMPTS; attempt++) {
+      attempts = attempt;
+      try {
+        const adapter = await Promise.race([
+          navigator.gpu.requestAdapter(),
+          new Promise((resolve) => setTimeout(() => resolve("timeout"), ADAPTER_TIMEOUT_MS))
+        ]);
+
+        if (adapter === "timeout") {
+          lastAdapterResult = {
+            ok: false,
+            reason: "timeout",
+            attempt,
+            timeoutMs: ADAPTER_TIMEOUT_MS,
+            headlessMode: /HeadlessChrome/i.test(navigator.userAgent),
+          };
+          continue; // retry on timeout
+        } else if (adapter) {
+          // Adapter obtained — also try requestAdapterInfo and device creation
+          // to confirm full WebGPU capability (not just API surface).
+          let adapterInfo = null;
+          if (typeof adapter.requestAdapterInfo === "function") {
+            try { adapterInfo = await adapter.requestAdapterInfo(); } catch (_) { /* non-critical */ }
+          }
+
+          let deviceResult = null;
+          try {
+            const device = await Promise.race([
+              adapter.requestDevice(),
+              new Promise((resolve) => setTimeout(() => resolve("timeout"), ADAPTER_TIMEOUT_MS))
+            ]);
+            if (device === "timeout") {
+              deviceResult = { ok: false, reason: "timeout" };
+            } else if (device) {
+              deviceResult = {
+                ok: true,
+                features: Array.from(device.features || []),
+                limits: device.limits ? Object.assign({}, device.limits) : null,
+              };
+            } else {
+              deviceResult = { ok: false, reason: "null-device" };
+            }
+          } catch (deviceError) {
+            deviceResult = { ok: false, reason: deviceError && deviceError.message ? deviceError.message : String(deviceError) };
+          }
+
+          lastAdapterResult = {
+            ok: true,
+            features: Array.from(adapter.features || []),
+            limits: adapter.limits ? Object.assign({}, adapter.limits) : null,
+            adapterInfo,
+            device: deviceResult,
+            attempt,
+            headlessMode: /HeadlessChrome/i.test(navigator.userAgent),
+          };
+          break; // success — no retry needed
+        } else {
+          lastAdapterResult = {
+            ok: false,
+            reason: "null-adapter",
+            attempt,
+            headlessMode: /HeadlessChrome/i.test(navigator.userAgent),
+          };
+          break; // null adapter is deterministic — retry won't help
+        }
+      } catch (error) {
+        lastAdapterResult = {
+          ok: false,
+          reason: error && error.message ? error.message : String(error),
+          attempt,
+          headlessMode: /HeadlessChrome/i.test(navigator.userAgent),
         };
-      } else {
-        receipt.webgpuAdapter = { ok: false, reason: "null-adapter" };
+        break; // exception is deterministic — retry won't help
       }
-    } catch (error) {
-      receipt.webgpuAdapter = {
-        ok: false,
-        reason: error && error.message ? error.message : String(error)
-      };
     }
+
+    receipt.webgpuAdapter = lastAdapterResult || { ok: false, reason: "no-result", attempts };
   } else {
     receipt.webgpuAdapter = { ok: false, reason: "api-missing" };
   }
@@ -309,7 +372,7 @@ function runBrowserDomAudit(browserPath) {
     '--enable-features=Vulkan,WebGPU',
     '--ignore-gpu-blocklist',
     '--run-all-compositor-stages-before-draw',
-    '--virtual-time-budget=7000',
+    '--virtual-time-budget=45000',
     `--user-data-dir=${profileDir}`,
     '--dump-dom',
     pathToFileURL(auditHtml).href,
@@ -318,7 +381,7 @@ function runBrowserDomAudit(browserPath) {
   try {
     const result = spawnSync(browserPath, browserArgs, {
       encoding: 'utf8',
-      timeout: 25000,
+      timeout: 60000,
       windowsHide: true,
     });
     let parsedReceipt = null;
@@ -504,15 +567,54 @@ function createReceipt(args) {
   });
 
   const adapter = domAudit.receipt.webgpuAdapter || { ok: false, reason: 'not-reported' };
+  const adapterHeadless = adapter.headlessMode || /HeadlessChrome/i.test(domAudit.receipt.userAgent || '');
+  const adapterAttempts = adapter.attempt || 1;
+  const adapterTimeoutMs = adapter.timeoutMs || 5000;
+
+  // Status logic: pass if adapter resolved; warn if API present but adapter timed out
+  // (intermittent in headless — may work in visible browser); skip if API missing.
+  const adapterStatus = adapter.ok
+    ? 'pass'
+    : domAudit.receipt.webgpuApi
+      ? 'warn'
+      : 'skip';
+
+  const adapterNotes = adapter.ok
+    ? [`navigator.gpu.requestAdapter resolved on attempt ${adapterAttempts}.`]
+    : adapter.reason === 'timeout'
+      ? [
+          `Adapter request timed out after ${adapterTimeoutMs}ms across ${adapterAttempts} attempt(s).`,
+          adapterHeadless ? 'Headless Chrome GPU init can be slow — this may pass in a visible browser.' : 'Non-headless context timed out — possible GPU driver or hardware issue.',
+          'navigator.gpu API surface was present (see browser-webgpu-api check).',
+        ]
+      : ['Adapter was not available from this audit surface. Confirm in a visible browser/headset if needed.'];
+
   addCheck({
     id: 'browser-webgpu-adapter',
     target: 'Browser WebGPU adapter request',
-    status: adapter.ok ? 'pass' : domAudit.receipt.webgpuApi ? 'warn' : 'skip',
+    status: adapterStatus,
     evidence: adapter,
-    notes: adapter.ok
-      ? ['navigator.gpu.requestAdapter resolved successfully.']
-      : ['Adapter was not available from this audit surface. Confirm in a visible browser/headset if needed.'],
+    notes: adapterNotes,
   });
+
+  // Device creation check — verifies full WebGPU pipeline, not just adapter availability.
+  const device = adapter.device;
+  if (device) {
+    addCheck({
+      id: 'browser-webgpu-device',
+      target: 'Browser WebGPU device creation',
+      status: device.ok ? 'pass' : 'warn',
+      evidence: {
+        ok: device.ok,
+        reason: device.reason || undefined,
+        features: device.features,
+        limits: device.limits,
+      },
+      notes: device.ok
+        ? ['requestDevice() succeeded — full WebGPU pipeline functional.']
+        : [`requestDevice() ${device.reason || 'failed'} — adapter available but device creation incomplete.`],
+    });
+  }
 
   addCheck({
     id: 'browser-webxr-api',
