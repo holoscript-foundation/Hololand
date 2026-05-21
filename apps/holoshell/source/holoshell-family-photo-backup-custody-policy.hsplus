@@ -1,0 +1,204 @@
+// HoloShell family-photo backup custody policy and state machine.
+
+composition "HoloShellFamilyPhotoBackupCustodyPolicy" {
+  state PhotoBackupState {
+    selectedWorkflow: "family-photo-backup-custody"
+    sourceAlbumCount: 0
+    photoCount: 0
+    videoCount: 0
+    duplicateGroupCount: 0
+    unreadableCount: 0
+    privacyEnvelopeChosen: false
+    backupTargetChosen: false
+    providerAccountResolved: false
+    quotaChecked: false
+    copyApproved: false
+    copyExecuted: false
+    restoreVerified: false
+    originalsDeleted: false
+    replayReady: false
+    blockers: []
+    receiptsCaptured: 0
+  }
+
+  template "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    freshUserGesture: false
+    receiptRequired: true
+    humanVisible: true
+  }
+
+  template "PhotoBackupCustodyReceipt" {
+    receiptType: "photo_backup_custody_receipt"
+    relativePathsOnlyInPublicGraph: true
+    rawPixelsIncludedInPublicReceipt: false
+    gpsAndFaceMetadataRedactedByDefault: true
+    duplicateGroupsReviewOnly: true
+    originalsDeletionAllowed: false
+    restoreProofRequiredBeforeReady: true
+  }
+
+  template "PhotoBackupVerificationReceipt" {
+    receiptType: "photo_backup_verification_receipt"
+    targetRequired: true
+    targetAccountLabelRedacted: true
+    sourceCountHashRequired: true
+    copyManifestHashRequired: true
+    sampleRestoreRequired: true
+    hashMatchRequired: true
+    rollbackPlanRequired: true
+  }
+
+  policy "ReadOnlyPhotoInventory" using "PermissionEnvelope" {
+    readOnly: true
+    guardedExecute: false
+    breakGlass: false
+    appliesTo: [
+      "enumerate_approved_photo_roots",
+      "classify_media_files",
+      "compute_content_hashes",
+      "compute_perceptual_hashes",
+      "detect_duplicate_groups",
+      "read_basic_exif_locally",
+      "write_private_photo_manifest"
+    ]
+  }
+
+  policy "GuardedBackupCopy" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: false
+    freshUserGesture: true
+    appliesTo: [
+      "write_encrypted_archive",
+      "copy_to_external_drive",
+      "upload_to_provider",
+      "write_backup_manifest",
+      "run_sample_restore",
+      "write_verification_receipt"
+    ]
+  }
+
+  policy "BreakGlassOriginalMutation" using "PermissionEnvelope" {
+    readOnly: false
+    guardedExecute: true
+    breakGlass: true
+    freshUserGesture: true
+    appliesTo: [
+      "delete_original_photo",
+      "delete_duplicate_group",
+      "overwrite_original_metadata",
+      "empty_recycle_bin",
+      "share_album_publicly",
+      "grant_provider_delete_sync"
+    ]
+  }
+
+  state_machine "PhotoBackupWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "albums_selected",
+      "inventory_written",
+      "duplicates_grouped",
+      "privacy_ready",
+      "target_planned",
+      "approval_required",
+      "copy_running",
+      "copy_written",
+      "restore_verified",
+      "replay_ready",
+      "blocked"
+    ]
+    transition "select_albums" { from: "idle", to: "albums_selected" }
+    transition "write_inventory" { from: "albums_selected", to: "inventory_written" }
+    transition "group_duplicates" { from: "inventory_written", to: "duplicates_grouped" }
+    transition "choose_privacy" { from: "duplicates_grouped", to: "privacy_ready" }
+    transition "plan_target" { from: "privacy_ready", to: "target_planned" }
+    transition "require_approval" { from: "target_planned", to: "approval_required" }
+    transition "start_copy" { from: "approval_required", to: "copy_running" }
+    transition "finish_copy" { from: "copy_running", to: "copy_written" }
+    transition "verify_restore" { from: "copy_written", to: "restore_verified" }
+    transition "seal_replay" { from: "restore_verified", to: "replay_ready" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "CodexHardware" {
+    laneId: "codex-hardware"
+    owns: ["local_folder_inventory", "hashing", "storage_space_check", "restore_sample_check", "receipt_capture"]
+  }
+
+  role "HoloShellCustodian" {
+    laneId: "holoshell-custodian"
+    owns: ["permission_classification", "privacy_envelope", "delete_blockers", "rollback_plan", "human_summary"]
+  }
+
+  role "HoloScriptSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["photo_backup_receipt_validator", "provider_boundary_traits", "stdlib_file_copy_policy", "restore_proof_contract"]
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["photo_custody_room", "memory_table", "backup_target_gate", "brittney_explanation", "family_recovery_quest"]
+  }
+
+  action classifyOperation(operation) {
+    if (operation.kind in BreakGlassOriginalMutation.appliesTo) {
+      return "break_glass_original_mutation"
+    }
+    if (operation.kind in GuardedBackupCopy.appliesTo) {
+      return "guarded_backup_copy"
+    }
+    return "read_only_photo_inventory"
+  }
+
+  action recordInventory(receipt) {
+    PhotoBackupState.receiptsCaptured = PhotoBackupState.receiptsCaptured + 1
+    PhotoBackupState.sourceAlbumCount = receipt.summary.albumCount
+    PhotoBackupState.photoCount = receipt.summary.photoCount
+    PhotoBackupState.videoCount = receipt.summary.videoCount
+    PhotoBackupState.duplicateGroupCount = receipt.summary.duplicateGroupCount
+    PhotoBackupState.unreadableCount = receipt.summary.unreadableCount
+
+    emit("holoshell:photo_backup:inventory", {
+      albumCount: PhotoBackupState.sourceAlbumCount,
+      photoCount: PhotoBackupState.photoCount,
+      videoCount: PhotoBackupState.videoCount,
+      duplicateGroupCount: PhotoBackupState.duplicateGroupCount,
+      unreadableCount: PhotoBackupState.unreadableCount,
+      originalsDeleted: PhotoBackupState.originalsDeleted
+    })
+  }
+
+  action recordVerification(receipt) {
+    PhotoBackupState.receiptsCaptured = PhotoBackupState.receiptsCaptured + 1
+    PhotoBackupState.copyExecuted = receipt.summary.copyExecuted
+    PhotoBackupState.restoreVerified = receipt.summary.sampleRestorePassed
+    PhotoBackupState.replayReady = receipt.summary.status == "verified"
+    PhotoBackupState.originalsDeleted = false
+
+    emit("holoshell:photo_backup:verified", {
+      sampleRestorePassed: PhotoBackupState.restoreVerified,
+      replayReady: PhotoBackupState.replayReady,
+      originalsDeleted: PhotoBackupState.originalsDeleted,
+      receiptPath: receipt.output.receiptPath
+    })
+  }
+
+  action blockOn(reason, evidencePath, ownerSurface) {
+    PhotoBackupWorkflow.transition("block")
+    PhotoBackupState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+    emit("holoshell:photo_backup:blocker", {
+      reason: reason,
+      evidencePath: evidencePath,
+      ownerSurface: ownerSurface
+    })
+  }
+}

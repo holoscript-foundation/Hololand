@@ -288,7 +288,7 @@ function layout(index, fallbackSize = 92) {
   };
 }
 
-function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, nativeWrapper, startupIntegration, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport }) {
+function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, founderHost, nativeWrapper, startupIntegration, serviceSupervisor, grokBuild, grokHeartbeat, agentDispatch, workflow, hardwareApproval, trustLedger, workflowApproval, workflowIntentGate, shardWorkflow, shardImportApproval, shardImport, photoBackupCustody }) {
   const avatarSummary = brittneyAvatar?.summary || {};
   const wildSummary = wildHoloScript?.summary || {};
   const goldCodebaseSummary = goldCodebaseBridge?.summary || {};
@@ -303,6 +303,7 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
   const shardSummary = shardWorkflow?.summary || {};
   const shardApprovalSummary = shardImportApproval?.summary || {};
   const shardImportSummary = shardImport?.summary || {};
+  const photoBackupSummary = photoBackupCustody?.summary || {};
   const hardwareApprovalSummary = hardwareApproval?.summary || {};
   const trustSummary = trustLedger?.summary || {};
   const workflowApprovalSummary = workflowApproval?.summary || {};
@@ -816,6 +817,41 @@ function baseShellObjects({ brittneyAvatar, wildHoloScript, goldCodebaseBridge, 
       detail: `${shardSummary.assetCount || 0} staged assets; ${shardSummary.modelCount || 0} models, ${shardSummary.imageCount || 0} images, ${shardSummary.audioCount || 0} audio; import approval ${shardApprovalSummary.status || 'unknown'}; import ${shardImportSummary.status || 'not_run'}.`,
       firstScreen: true,
       layout: { x: 25, y: 66, size: 112 },
+    },
+    {
+      id: 'workflow.photo-backup-custody',
+      objectKind: 'workflow',
+      displayName: 'Photo Backup Custody',
+      sourceKind: 'workflow',
+      sourceRef: 'scripts/holoshell-photo-backup-custody.mjs',
+      capabilityFamily: 'family_memory',
+      trustState: photoBackupSummary.status === 'planned' && photoBackupSummary.deleteBlocked ? 'verified' : 'partial',
+      permissionEnvelope: 'guarded_execute',
+      adapterPath: 'photo_backup_custody_bridge',
+      visualForm: 'workflow_bubble',
+      status: photoBackupSummary.status || 'available',
+      actorLaneId: 'codex-hardware',
+      receiptTypes: ['photo_backup_custody_receipt', 'photo_backup_private_receipt', 'photo_restore_proof_receipt'],
+      relationships: {
+        receiptId: photoBackupCustody?.receiptId || '',
+        albumCount: photoBackupSummary.albumCount || 0,
+        photoCount: photoBackupSummary.photoCount || 0,
+        videoCount: photoBackupSummary.videoCount || 0,
+        duplicateGroupCount: photoBackupSummary.duplicateGroupCount || 0,
+        unreadableCount: photoBackupSummary.unreadableCount || 0,
+        privacyMetadataClasses: photoBackupSummary.privacyMetadataClasses || [],
+        targetPlan: photoBackupSummary.targetPlan || photoBackupCustody?.targetPlan?.targetKind || 'not_chosen',
+        deleteBlocked: photoBackupSummary.deleteBlocked !== false,
+        restoreVerified: Boolean(photoBackupSummary.restoreVerified),
+        originalsDeleted: Boolean(photoBackupSummary.originalsDeleted),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'family_photo_backup_custody',
+      launch: { action: 'stage_photo_backup_custody', route: '/workflow/photo-backup-custody' },
+      glyph: 'PB',
+      detail: `${photoBackupSummary.photoCount || 0} photo/raw file(s), ${photoBackupSummary.videoCount || 0} video(s), ${photoBackupSummary.duplicateGroupCount || 0} duplicate group(s); delete ${photoBackupSummary.deleteBlocked === false ? 'unlocked' : 'blocked'}; restore ${photoBackupSummary.restoreVerified ? 'verified' : 'not verified'}.`,
+      firstScreen: true,
+      layout: { x: 38, y: 66, size: 112 },
     },
     {
       id: 'approval.asset-shard-import',
@@ -1810,6 +1846,74 @@ function assetShardObjects({ shardWorkflow, shardImport }) {
   return objects;
 }
 
+function photoBackupObjects({ photoBackupCustody }) {
+  if (!photoBackupCustody?.summary) return [];
+  const summary = photoBackupCustody.summary;
+  return [
+    {
+      id: `receipt.photo-backup.${shortHash(photoBackupCustody.receiptId || photoBackupCustody.generatedAt || 'photo-backup')}`,
+      objectKind: 'receipt',
+      displayName: 'Photo Backup Receipt',
+      sourceKind: 'receipt',
+      sourceRef: photoBackupCustody.output?.latestPath || '',
+      capabilityFamily: 'family_memory',
+      trustState: summary.originalsDeleted ? 'failed' : summary.deleteBlocked ? 'verified' : 'partial',
+      permissionEnvelope: 'read_only',
+      adapterPath: 'photo_backup_custody_bridge',
+      visualForm: summary.status === 'blocked' || !summary.deleteBlocked ? 'warning_token' : 'receipt_node',
+      status: summary.status || 'unknown',
+      actorLaneId: 'codex-hardware',
+      receiptTypes: ['photo_backup_custody_receipt', 'photo_backup_private_receipt'],
+      relationships: {
+        receiptId: photoBackupCustody.receiptId || '',
+        albumCount: summary.albumCount || 0,
+        photoCount: summary.photoCount || 0,
+        videoCount: summary.videoCount || 0,
+        duplicateGroupCount: summary.duplicateGroupCount || 0,
+        privateReceiptPath: photoBackupCustody.output?.privateReceiptPath || '',
+        publicPathRedacted: photoBackupCustody.source?.pathPolicy === 'absolute_path_kept_in_private_receipt_only',
+        deleteBlocked: summary.deleteBlocked !== false,
+        restoreVerified: Boolean(summary.restoreVerified),
+        originalsDeleted: Boolean(summary.originalsDeleted),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'receipt_memory',
+      glyph: 'PR',
+      detail: `${summary.albumCount || 0} album(s), ${summary.photoCount || 0} photo/raw file(s), ${summary.videoCount || 0} video(s); originals deleted ${summary.originalsDeleted ? 'yes' : 'no'}; restore ${summary.restoreVerified ? 'verified' : 'pending'}.`,
+      firstScreen: summary.status === 'blocked' || summary.originalsDeleted,
+      layout: layout(20, 82),
+    },
+    {
+      id: 'blocker.photo-original-delete',
+      objectKind: 'safety_blocker',
+      displayName: 'Photo Delete Blocker',
+      sourceKind: 'policy',
+      sourceRef: 'apps/holoshell/source/holoshell-family-photo-backup-custody-policy.hsplus',
+      capabilityFamily: 'family_memory',
+      trustState: summary.deleteBlocked && !summary.originalsDeleted ? 'verified' : 'failed',
+      permissionEnvelope: 'break_glass',
+      adapterPath: 'photo_backup_delete_blocker',
+      visualForm: 'lock_gate',
+      status: summary.deleteBlocked ? 'locked' : 'unlocked',
+      actorLaneId: 'holoshell-custodian',
+      receiptTypes: ['photo_restore_proof_receipt', 'break_glass_delete_receipt'],
+      relationships: {
+        verifiedRestoreRequired: true,
+        coolingOffRequired: true,
+        separateApprovalRequired: true,
+        restoreVerified: Boolean(summary.restoreVerified),
+        originalsDeleted: Boolean(summary.originalsDeleted),
+      },
+      privacyClass: 'local_private',
+      replacementPath: 'break_glass_delete_policy',
+      glyph: 'DL',
+      detail: 'Original photo deletion stays locked until verified restore, cooling-off, and separate break-glass approval receipts exist.',
+      firstScreen: true,
+      layout: layout(21, 82),
+    },
+  ];
+}
+
 function receiptObjects({ hardwareAction, hardwareApproval, accountTaskCustody, packageCustody, founderEvidenceDemo, receiptControl, workflow, workflowApproval, workflowIntentGate }) {
   const receipts = [];
   if (hardwareAction?.summary) {
@@ -2199,6 +2303,13 @@ function summarize(objects, feeds) {
     startupIntegrationApprovalRequired: Boolean(feeds.startupIntegration?.summary?.approvalRequired),
     startupIntegrationNextMove: feeds.startupIntegration?.summary?.nextMove || '',
     assetShardWorkflowObjectCount: objects.filter((object) => object.capabilityFamily === 'creator_workflow').length,
+    photoBackupCustodyObjectCount: objects.filter((object) => object.capabilityFamily === 'family_memory').length,
+    photoBackupCustodyStatus: feeds.photoBackupCustody?.summary?.status || 'unknown',
+    photoBackupCustodyPhotoCount: feeds.photoBackupCustody?.summary?.photoCount || 0,
+    photoBackupCustodyVideoCount: feeds.photoBackupCustody?.summary?.videoCount || 0,
+    photoBackupCustodyDuplicateGroupCount: feeds.photoBackupCustody?.summary?.duplicateGroupCount || 0,
+    photoBackupCustodyDeleteBlocked: feeds.photoBackupCustody?.summary?.deleteBlocked !== false,
+    photoBackupCustodyRestoreVerified: Boolean(feeds.photoBackupCustody?.summary?.restoreVerified),
     founderShellObjectCount: objects.filter((object) => object.capabilityFamily === 'founder_shell').length,
     userShellObjectCount: objects.filter((object) => object.capabilityFamily === 'user_shell').length,
     userShellModeObjectCount: objects.filter((object) => object.objectKind === 'user_shell_mode').length,
@@ -2344,6 +2455,7 @@ function summarize(objects, feeds) {
       founderEvidenceDemoStatus: feeds.founderEvidenceDemo?.summary?.status || 'unknown',
       receiptControlStatus: feeds.receiptControl?.summary?.status || 'unknown',
       assetShardWorkflowStatus: feeds.shardWorkflow?.summary?.status || 'unknown',
+      photoBackupCustodyStatus: feeds.photoBackupCustody?.summary?.status || 'unknown',
       assetShardImportApprovalStatus: feeds.shardImportApproval?.summary?.status || 'unknown',
       assetShardImportStatus: feeds.shardImport?.summary?.status || 'unknown',
       buildCustodyStatus: feeds.buildCustody?.summary?.scannerStatus || feeds.buildCustody?.summary?.riskState || 'unknown',
@@ -2388,6 +2500,7 @@ function loadFeeds(tmpDir) {
     shardWorkflow: readJson(path.join(dir, 'shard-workflow-latest.json'), {}),
     shardImportApproval: readJson(path.join(dir, 'shard-import-approval-latest.json'), {}),
     shardImport: readJson(path.join(dir, 'shard-import-latest.json'), {}),
+    photoBackupCustody: readJson(path.join(dir, 'photo-backup-custody-latest.json'), {}),
     buildCustody: readJson(path.join(dir, 'build-custody.json'), {}),
   };
 }
@@ -2404,6 +2517,7 @@ function buildGraph(args, fixtures = null) {
     ...mcpCustodyContractObjects(feeds.mcpCustodyContract),
     ...mcpUpstreamHandoffObjects(feeds.mcpUpstreamHandoff),
     ...assetShardObjects(feeds),
+    ...photoBackupObjects(feeds),
     ...buildCustodyObjects(feeds),
     ...programObjects(feeds.programRegistry, args.maxPrograms),
     ...capturedWindowObjects(feeds, args.maxWindows),
@@ -2450,6 +2564,7 @@ function buildGraph(args, fixtures = null) {
       receiptControl: 'scripts/holoshell-receipt-control.mjs',
       assetShardWorkflow: 'scripts/holoshell-asset-shard-workflow.mjs',
       assetShardImportApproval: 'scripts/holoshell-shard-import-approval.mjs',
+      photoBackupCustody: 'scripts/holoshell-photo-backup-custody.mjs',
       buildCustody: 'scripts/holoshell-build-custody.mjs',
       mcpCustodyContract: 'scripts/holoshell-mcp-custody-contract.mjs',
       mcpUpstreamHandoff: 'scripts/holoshell-mcp-upstream-handoff.mjs',
@@ -3120,6 +3235,35 @@ function fixtureFeeds() {
       output: { receiptPath: '.tmp/holoshell/imported-shards/shard-fixture-demo/import-receipt.json', manifestPath: '.tmp/holoshell/imported-shards/shard-fixture-demo/manifest.json', shardSourcePath: '.tmp/holoshell/imported-shards/shard-fixture-demo/shard.holo' },
       summary: { status: 'completed', shardId: 'shard.fixture.demo', assetCount: 5, runtimeMutationExecuted: true, sourceAssetsMutated: false },
     },
+    photoBackupCustody: {
+      schemaVersion: 'hololand.holoshell.photo-backup-custody.v0.1.0',
+      receiptId: 'photo-backup-fixture',
+      generatedAt: new Date().toISOString(),
+      source: {
+        albumLabel: 'sample-photo-albums',
+        albumFingerprint: 'album-fixture',
+        pathPolicy: 'absolute_path_kept_in_private_receipt_only',
+        privacyClass: 'local_private',
+      },
+      output: {
+        latestPath: '.tmp/holoshell/photo-backup-custody-latest.json',
+        privateReceiptPath: '.tmp/holoshell/photo-backup-receipts/photo-backup-fixture-private.json',
+      },
+      targetPlan: { targetKind: 'not_chosen' },
+      summary: {
+        status: 'planned',
+        albumCount: 2,
+        photoCount: 3,
+        videoCount: 1,
+        duplicateGroupCount: 1,
+        unreadableCount: 0,
+        privacyMetadataClasses: ['camera_serial', 'capture_time', 'faces', 'gps'],
+        targetPlan: 'not_chosen',
+        originalsDeleted: false,
+        deleteBlocked: true,
+        restoreVerified: false,
+      },
+    },
     buildCustody: {
       schemaVersion: 'hololand.holoshell.build-custody.v0.1.0',
       summary: {
@@ -3216,6 +3360,12 @@ function assertSelfTest() {
   if (!graph.objects.some((object) => object.id === 'workflow.asset-shard')) failures.push('expected asset shard workflow object');
   if (!graph.objects.some((object) => object.id === 'approval.asset-shard-import')) failures.push('expected asset shard import approval object');
   if (!graph.objects.some((object) => object.displayName === 'Shard Import Receipt')) failures.push('expected asset shard import receipt object');
+  if (!graph.objects.some((object) => object.id === 'workflow.photo-backup-custody')) failures.push('expected photo backup custody workflow object');
+  if (!graph.objects.some((object) => object.displayName === 'Photo Backup Receipt')) failures.push('expected photo backup custody receipt object');
+  if (!graph.objects.some((object) => object.id === 'blocker.photo-original-delete' && object.relationships?.separateApprovalRequired)) failures.push('expected photo original delete blocker object');
+  if (graph.summary.photoBackupCustodyStatus !== 'planned') failures.push('expected photo backup custody planned status');
+  if (!graph.summary.photoBackupCustodyDeleteBlocked) failures.push('expected photo backup delete blocker to be active');
+  if (graph.summary.photoBackupCustodyRestoreVerified) failures.push('expected photo backup restore proof to remain pending');
   if (!graph.objects.some((object) => object.id === 'source.wild-holoscript.uaa2')) failures.push('expected wild HoloScript source corpus object');
   if (!graph.objects.some((object) => object.id === 'source.holoscript-gold-codebase')) failures.push('expected GOLD/codebase substrate object');
   if (!graph.objects.some((object) => object.id === 'surface.founder-boot-preview')) failures.push('expected founder boot surface object');

@@ -1,0 +1,154 @@
+/**
+ * HoloShell Family Photo Backup Custody Room
+ *
+ * Product source for:
+ * "Back up my family photos, prove they are safe, do not leak private media,
+ * and never delete originals unless I make a fresh explicit approval."
+ */
+
+composition "HoloShell Family Photo Backup Custody Room" {
+  environment {
+    backgroundColor: "#101417"
+    ambient_light: 0.64
+    shadows: true
+  }
+
+  template "PhotoPanel" {
+    @anchor
+    @billboard
+    geometry: "plane"
+    scale: [1.5, 0.58, 0.08]
+    material: {
+      color: "#17232a"
+      emissive: "#24414a"
+      emissiveIntensity: 0.15
+      transparent: true
+      opacity: 0.96
+    }
+  }
+
+  template "CustodyOrb" {
+    @owned
+    @collidable
+    @grabbable
+    geometry: "sphere"
+    scale: [0.16, 0.16, 0.16]
+    material: { color: "#7dd3fc" }
+  }
+
+  object "HumanJob" using "PhotoPanel" {
+    position: [0, 2.48, -3.05]
+    label: "Keep these family photos safe"
+    properties: {
+      plainLanguageJob: "find family photos, group duplicates, choose a backup target, encrypt if requested, verify restore, and show what changed"
+      defaultPromise: "scan and plan first; upload, delete, overwrite, share, and provider account mutation require approval"
+      emotionalRisk: "photos are irreplaceable and private; false confidence is worse than no backup"
+    }
+  }
+
+  object "SourceAlbumGate" using "PhotoPanel" {
+    position: [-4.8, 1.52, -1.35]
+    label: "Source albums"
+    properties: {
+      visible: ["folder_label", "photo_count", "video_count", "date_span", "duplicate_group_count", "unreadable_count"]
+      hidden: ["absolute_paths", "face_names", "gps_coordinates", "raw_pixels", "account_tokens"]
+      failureState: "source missing, unreadable media, path leak, private metadata exposed"
+    }
+  }
+
+  object "DuplicateMemoryTable" using "PhotoPanel" {
+    position: [-2.4, 1.52, -1.35]
+    label: "Duplicate groups"
+    properties: {
+      receipt: "PhotoDedupeReceipt"
+      evidence: ["content_hash", "perceptual_hash", "file_size", "capture_time"]
+      rule: "duplicates are grouped for review, not deleted automatically"
+      failureState: "near-duplicate mistaken for duplicate, hash missing, user-visible originals collapsed"
+    }
+  }
+
+  object "PrivacyAndEncryptionGate" using "PhotoPanel" {
+    position: [0, 1.52, -1.35]
+    label: "Privacy and encryption"
+    properties: {
+      receipt: "PhotoPrivacyEnvelopeReceipt"
+      privateMetadata: ["gps", "faces", "camera_serial", "album_names"]
+      options: ["metadata_preserve_local_only", "metadata_strip_for_cloud", "client_side_encrypt", "provider_default"]
+      failureState: "cloud upload planned before privacy envelope is chosen"
+    }
+  }
+
+  object "ProviderBoundaryGate" using "PhotoPanel" {
+    position: [2.4, 1.52, -1.35]
+    label: "Backup target"
+    properties: {
+      targets: ["local_external_drive", "encrypted_archive", "cloud_provider", "phone_import", "nas"]
+      receipt: "BackupProviderPlanReceipt"
+      accountBoundary: "provider, account label, quota, sync mode, retention, and delete semantics are visible"
+      failureState: "provider account unknown, quota insufficient, sync delete semantics unclear"
+    }
+  }
+
+  object "RestoreProofGate" using "PhotoPanel" {
+    position: [4.8, 1.52, -1.35]
+    label: "Restore proof"
+    properties: {
+      receipt: "PhotoRestoreProofReceipt"
+      requiredBeforeReady: ["sample_restore", "hash_match", "count_match", "privacy_mode_match", "rollback_plan"]
+      failureState: "backup written but restore not proven"
+    }
+  }
+
+  object "ScanToken" using "CustodyOrb" {
+    position: [-3.6, 0.76, 0.1]
+    label: "read-only inventory"
+    properties: {
+      permission: "silent_read"
+      allowed: ["enumerate_approved_roots", "classify_media", "hash_metadata", "write_private_manifest"]
+      writes: ["private local receipt only"]
+    }
+  }
+
+  object "BackupPlanToken" using "CustodyOrb" {
+    position: [-1.2, 0.76, 0.1]
+    material: { color: "#e0af68" }
+    label: "backup plan"
+    properties: {
+      permission: "guarded_execute"
+      uploadAllowed: false
+      deleteAllowed: false
+      requiresChoice: ["target", "encryption", "metadata_policy", "quota_ok"]
+    }
+  }
+
+  object "VerifiedCopyToken" using "CustodyOrb" {
+    position: [1.2, 0.76, 0.1]
+    material: { color: "#9ece6a" }
+    label: "verified copy"
+    properties: {
+      receipt: "PhotoBackupVerificationReceipt"
+      readyOnlyAfterRestoreProof: true
+      deletionStillBlocked: true
+    }
+  }
+
+  object "DeleteBlockerToken" using "CustodyOrb" {
+    position: [3.6, 0.76, 0.1]
+    material: { color: "#f7768e" }
+    label: "delete stays locked"
+    properties: {
+      permission: "break_glass"
+      rule: "original deletion needs fresh approval after verified restore and separate cooling-off receipt"
+      defaultAction: "no_delete"
+    }
+  }
+
+  object "FamilyPhotoTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.12, 0.2]
+    scale: [8.4, 0.08, 0.14]
+    color: "#64727a"
+    label: "timeline: choose albums -> inventory -> dedupe -> privacy -> target plan -> approved copy -> verify restore -> replay -> rollback"
+  }
+}
