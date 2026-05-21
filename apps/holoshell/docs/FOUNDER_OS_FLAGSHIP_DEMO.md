@@ -33,11 +33,11 @@ Current evidence from the local HoloShell receipts:
 
 | Capability | State |
 | --- | --- |
-| Source substrate | 50/50 HoloShell source files validate. |
-| Shell visibility | 87 shell objects are generated, including Founder host, Native Wrapper, Startup Gate, approvals, workflows, receipts, Account Task Receipt, and Founder Evidence Demo. |
-| Native startup path | Wrapper and startup adapter exist; startup registration is not enabled by default. |
+| Source substrate | Latest `.tmp/holoshell/source-validation.json` reports 109/109 HoloShell source files validating: 18 `.holo`, 17 `.hs`, 74 `.hsplus`. |
+| Shell visibility | Latest `.tmp/holoshell/shell-objects.json` reports 95 shell objects, including Founder host, Native Wrapper, Startup Gate, approvals, workflows, receipts, Account Task Receipt, and Founder Evidence Demo. |
+| Native startup path | Latest `.tmp/holoshell/startup-integration.json` reports `registration_adapter_present`; startup registration is not enabled by default and approval is required. |
 | Brittney command | Founder command is `pending_user_approval` with staged workflow and intent gate. |
-| Hardware/app control | One approved browser operation is receipted with `browser_navigation_dispatched`; polished end-user operation is still narrow. |
+| Hardware/app control | Historical approved browser operation is receipted with `browser_navigation_dispatched`; current `.tmp/holoshell/control-daemon-service.json` reports daemon offline and execute disabled. |
 | Trust | Latest trust level is `read_only`, so trusted self-operation is not claimed. |
 
 ## Evidence Ladder

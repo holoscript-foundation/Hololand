@@ -1,7 +1,7 @@
 # HoloShell Codebase Status
 
 **Status:** Evidence-backed recalibration
-**Date:** 2026-05-16
+**Date:** 2026-05-21
 **Scope:** HoloShell docs, source, scripts, receipts, and current gaps
 
 ## Bottom Line
@@ -51,7 +51,7 @@ Each capability should be tracked by the highest rung it has actually reached:
 | --- | --- | --- |
 | 1. Source/spec | `.holo`, `.hs`, or `.hsplus` declares the behavior, policy, or room. | Startup integration, skins, Brittney operator, hardware control. |
 | 2. Receipt | A local adapter emits machine-readable evidence. | Source validation, native wrapper, startup integration, account custody, process/service custody. |
-| 3. Visible shell UX | The receipt appears as a room, shell object, live-feed row, approval token, or timeline item. | 86 shell objects, Native Wrapper, Startup Gate, Account Task Receipt, readiness tokens. |
+| 3. Visible shell UX | The receipt appears as a room, shell object, live-feed row, approval token, or timeline item. | Latest shell-object receipt, Native Wrapper, Startup Gate, Account Task Receipt, readiness tokens. |
 | 4. Approved execution | A user can approve a nonce-bound action and get an execution receipt. | Hardware/workflow approval infrastructure; mutating execution remains intentionally narrow. |
 | 5. Trusted execution | Repeated receipts promote a low-risk action through the trust ledger. | Not reached for real app control; latest trust level is still `read_only`. |
 
@@ -64,9 +64,9 @@ receipt, and the HoloShell surface visibly changes.
 | Area | Progress | Evidence state |
 | --- | ---: | --- |
 | HoloShell doctrine / OS replacement direction | 85% | Clear doctrine, source ownership, native host path, and OS-layer object model. |
-| Source contracts / `.holo`, `.hs`, `.hsplus` substrate | 75% | 50/50 HoloShell source files validate through the HoloScript CLI. |
-| Receipts, capability inventory, shell object model | 70% | 86 shell objects, live feed, receipts, approvals, lanes, custody, and source bridges are visible. |
-| Native wrapper / startup bridge | 60% | Wrapper and startup adapter exist; startup registration is not enabled by default. |
+| Source contracts / `.holo`, `.hs`, `.hsplus` substrate | 80% | Latest `source-validation` receipt reports 109/109 HoloShell source files passing: 18 `.holo`, 17 `.hs`, 74 `.hsplus`. |
+| Receipts, capability inventory, shell object model | 70% | Latest shell-object receipt reports 95 shell objects. Capability inventory reports 8 capabilities: 2 verified, 5 partial, 1 unknown, plus 40 classified legacy programs. |
+| Native wrapper / startup bridge | 60% | Startup adapter status is `registration_adapter_present`; per-user startup registration is not enabled by default and still requires explicit approval. |
 | Brittney operator loop | 40% | Context, plan, approval, and receipt flow exist; full autonomous app operation is staged. |
 | Real app control: browser, terminal, Excel, Claude, Ollama | 30% | Machines and workflows are represented; polished end-user operation is not complete. |
 | Legacy app geometric reconstruction | 30% | Capture is real, with controls and geometry nodes; dense inspected app replacement is still early. |
@@ -75,38 +75,34 @@ receipt, and the HoloShell surface visibly changes.
 
 ## Evidence From This Pass
 
-Commands run locally on 2026-05-16:
+Commands refreshed locally on 2026-05-21:
 
 | Check | Result |
 | --- | --- |
-| `node scripts/hardware-audit.mjs --json --self-test` | Pass. Node v24.15.0, pnpm 10.28.2, WASM SIMD pass, Chrome WebGPU/WebXR API pass. Browser version warned, but no critical failures. |
-| `pnpm run holoshell:source-validation` | Pass. 50/50 HoloShell source files validate through the HoloScript CLI: 1 `.holo`, 2 `.hs`, 47 `.hsplus`. |
-| `pnpm run holoshell:shell-objects` | Ready. 87 shell objects include local apps, workflows, receipts, the Founder host, Native Wrapper, Startup Gate, Account Task Receipt, Founder Evidence Demo, and readiness tokens. |
-| `node scripts/holoshell-native-wrapper.mjs` | Launchable wrapper present. Windows launcher, command shim, preview host, startup adapter, and Chrome/Edge app-mode path are accounted for. |
-| `node scripts/holoshell-startup-integration.mjs` | Registration adapter present. Per-user startup registration is available behind explicit approval; current receipt does not register the shortcut by default. |
-| `pnpm run holoshell:founder-host:refresh` | Native host present. Source, preview host, startup adapter, native wrapper, service supervisor, shell object graph, live feed, and source validation are accounted for. |
-| `node scripts/holoshell-live-feed.mjs` | Warn. Live feed is generated with founder boot, Founder host, Native Wrapper, Startup Gate, user shell, developmental environment, Brittney context, GOLD/codebase bridge, format inventory, network reality, services, workflows, approvals, and receipts. |
-| `pnpm run holoshell:service-supervisor` | Ready with degraded optional state. Required service online; no required action. |
-| `pnpm run holoshell:control-daemon-service` | Starting. PID is alive and verified; loopback health is not reachable; execute remains disabled. |
-| `pnpm run holoshell:readiness-evidence` | Fail. Build, validation, WebGPU, WASM SIMD, and runtime inventory pass, but graph-status/live-core import and skipped headset/replay evidence keep the pack failing. |
-| `pnpm run holoshell:build-custody` | Ready. No active build trees found. |
+| `pnpm run holoshell:source-validation` | Pass. Receipt: `.tmp/holoshell/source-validation.json`. Summary: 109/109 files passed; 18 `.holo`, 17 `.hs`, 74 `.hsplus`; 0 failures and 0 timeouts. |
+| `node scripts/holoshell-capability-inventory.mjs --no-hardware-audit --redact-private --self-test` | Pass. Receipts: `.tmp/holoshell/capability-inventory.json`, `.tmp/holoshell/capability-inventory-receipt.json`. Summary: 8 capabilities; 2 verified, 5 partial, 1 unknown; 40 legacy programs classified. |
+| `node scripts/holoshell-shell-objects.mjs` | Ready. Receipt: `.tmp/holoshell/shell-objects.json`. Summary: 95 shell objects; 18 programs; 21 running objects; 37 guarded-execute objects. |
+| `node scripts/holoshell-startup-integration.mjs` | Registration adapter present. Receipt: `.tmp/holoshell/startup-integration.json`. Summary: current-user startup folder reachable, startup shortcut not registered, approval required, local mutation execution disabled, next move `render_startup_approval_card`. |
+| `pnpm run holoshell:control-daemon-service` | Offline/read-stage status. Receipt: `.tmp/holoshell/control-daemon-service.json`. Summary: PID not alive, loopback health unreachable, execute disabled, trusted execute disabled, workflow intent gate required. |
 
-The failed readiness evidence is useful signal, not product failure. It means
-HoloShell is already exposing the difference between "the local machine can do
-the work" and "the full evidence pack is complete."
+Checks not rerun in this refresh should not be treated as current evidence.
+The current receipts prove source validity, capability inventory, shell-object
+projection, startup-adapter availability, and the disabled execute posture.
+They do not prove primary desktop ownership, trusted autonomous execution,
+headset replay, or dense legacy app replacement.
 
 ## Current Shape
 
 | Subsystem | Where it lives | Current state |
 | --- | --- | --- |
 | Shell doctrine | `docs/HOLOSHELL_OS_REPLACEMENT_DOCTRINE.md` | Clear: HoloShell replaces the desktop metaphor with an intent-first HoloScript world. |
-| Source substrate | `source/*.holo`, `source/*.hs`, `source/*.hsplus` | Validated. `.holo`, `.hs`, and `.hsplus` are all first-class shell inputs. |
-| Shell object graph | `scripts/holoshell-shell-objects.mjs` | Working bridge from local programs, agents, workflows, approvals, receipts, source, and services into one object graph. |
+| Source substrate | `source/*.holo`, `source/*.hs`, `source/*.hsplus` | Validated by `.tmp/holoshell/source-validation.json`: 109/109 source files pass. |
+| Shell object graph | `scripts/holoshell-shell-objects.mjs` | Working bridge from local programs, agents, workflows, approvals, receipts, source, and services into one object graph. Latest receipt reports 95 shell objects. |
 | Live feed | `scripts/holoshell-live-feed.mjs` | Working browser bootstrap for the prototype and status projection. Risk is currently `warn`, which is honest. |
 | Founder host bootstrap | `source/holoshell-founder-host.hsplus`, `scripts/holoshell-founder-host.mjs` | Native-host readiness receipt exists. It reports source/preview/native-wrapper/shell-object/live-feed readiness and names the next move: startup integration. |
 | Native wrapper | `source/holoshell-native-wrapper.hsplus`, `apps/holoshell/native/windows/Start-HoloShellFounderHost.ps1` | First Windows app-mode launcher exists. It starts HoloShell without manually opening HTML and sees the startup adapter. |
-| Startup integration | `source/holoshell-startup-integration.hsplus`, `apps/holoshell/native/windows/Register-HoloShellStartup.ps1` | Approval-gated per-user login shortcut bridge exists. It is plan-only by default; `-Register -Approve` performs registration and `-Unregister -Approve` removes it. |
-| Hardware control | `source/holoshell-hardware-control.hsplus`, `scripts/holoshell-control-daemon*.mjs` | Staged and guarded. Execution is disabled by default and requires approval packets plus daemon execute mode. |
+| Startup integration | `source/holoshell-startup-integration.hsplus`, `apps/holoshell/native/windows/Register-HoloShellStartup.ps1` | Approval-gated per-user login shortcut bridge exists. Latest receipt reports `registration_adapter_present`, startup shortcut not registered, approval required. |
+| Hardware control | `source/holoshell-hardware-control.hsplus`, `scripts/holoshell-control-daemon*.mjs` | Staged and guarded. Latest daemon-service receipt reports offline/read-stage status with execute and trusted execute disabled. |
 | Brittney operator | `docs/BRITTNEY_OPERATOR_SPEC.md`, `source/holoshell-brittney-*.hsplus` | Product contract exists: intent, plan, approval, adapter, receipt, narration. Current maturity is staged operator loop, not trusted autonomy. |
 | Founder command demo | `source/holoshell-founder-command-pipeline.hs`, `scripts/holoshell-founder-command.mjs`, `scripts/holoshell-founder-evidence-demo.mjs` | Full flagship path remains staged. The narrow Founder evidence demo now performs one explicit approved browser operation and records `browser_navigation_dispatched` as the visible shell witness when the OS window list does not change. |
 | Grok heavy lane | `source/holoshell-grok-*.hsplus`, `scripts/holoshell-grok-*.mjs` | Installed/authenticated/ready according to the current shell object receipt, with workflow approval still required for autonomy. |
@@ -164,9 +160,9 @@ Execution is intentionally restrained. Brittney can stage and explain app
 operations, but the system still requires explicit approval and daemon execute
 mode before mutation. That is correct for the current trust level.
 
-The readiness evidence pack still fails on graph/live-core import and missing
-headset/replay witness. Those are concrete gaps to close before calling the
-flagship demo fully proven.
+The current evidence pack still does not prove graph/live-core import, headset
+replay witness, primary shell ownership, or trusted execution. Those remain
+concrete gaps to close before calling the flagship demo fully proven.
 
 ## Next Build Moves
 
@@ -213,7 +209,8 @@ Use these commands to regenerate this status from the codebase:
 ```powershell
 node scripts\hardware-audit.mjs --json --self-test
 pnpm run holoshell:source-validation
-pnpm run holoshell:shell-objects
+node scripts\holoshell-capability-inventory.mjs --no-hardware-audit --redact-private --self-test
+node scripts\holoshell-shell-objects.mjs
 node scripts\holoshell-startup-integration.mjs
 node scripts\holoshell-native-wrapper.mjs
 pnpm run holoshell:founder-host:refresh
@@ -228,6 +225,8 @@ The important status files are local and ignored:
 
 ```text
 .tmp/holoshell/source-validation.json
+.tmp/holoshell/capability-inventory.json
+.tmp/holoshell/capability-inventory-receipt.json
 .tmp/holoshell/shell-objects.json
 .tmp/holoshell/startup-integration.json
 .tmp/holoshell/native-wrapper.json

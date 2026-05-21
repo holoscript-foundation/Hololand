@@ -4,6 +4,23 @@ This map groups HoloShell source contracts by user-facing capability. It exists
 so agents and product surfaces do not have to rediscover the shape of
 `apps/holoshell/source/` by raw file listing.
 
+## Current Validation Snapshot
+
+Latest local receipt: `.tmp/holoshell/source-validation.json` (2026-05-21).
+
+Summary from the receipt:
+
+| Field | Value |
+| --- | --- |
+| Status | `pass` |
+| Sources | 109/109 passed |
+| Formats | 18 `.holo`, 17 `.hs`, 74 `.hsplus` |
+| Failures | 0 failures, 0 timeouts |
+
+This map is the navigation layer. The validation receipt is the current parse
+proof. Update both when adding, deleting, or converting HoloShell source
+contracts.
+
 ## Operating Shell
 
 | Capability | Source |

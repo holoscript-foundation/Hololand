@@ -1,7 +1,7 @@
 # HoloShell Phase 1 Roadmap
 
 **Status:** Phase 1 maturity tracker
-**Date:** 2026-05-16
+**Date:** 2026-05-21
 **Product owner:** HoloLand
 **Source artifact:** `apps/holoshell/source/holoshell-phase1-workflows.hsplus`
 **Pairs with:** `docs/specs/HOLOSHELL_HARDWARE_NATIVE_SURFACE.md`
@@ -40,10 +40,11 @@ into approved execution with receipts a non-developer can understand.
 
 | Evidence | Current state |
 | --- | --- |
-| Source substrate | 50/50 HoloShell source files validate through the HoloScript CLI. |
-| Shell object model | 86 shell objects: apps, captured windows, agents, workflows, approvals, receipts, source, startup, and native host objects. |
-| Agent lanes | 8 lanes, with 7 active or available in the latest live feed. |
-| Receipts | Hardware, service, process, source validation, account custody, startup, native wrapper, workflow, approval, and readiness receipts exist. |
+| Source substrate | Latest `.tmp/holoshell/source-validation.json` reports 109/109 HoloShell source files validating through the HoloScript CLI: 18 `.holo`, 17 `.hs`, 74 `.hsplus`. |
+| Shell object model | Latest `.tmp/holoshell/shell-objects.json` reports 95 shell objects: apps, captured windows, agents, workflows, approvals, receipts, source, startup, and native host objects. |
+| Capability inventory | Latest `.tmp/holoshell/capability-inventory.json` reports 8 capability families: 2 verified, 5 partial, 1 unknown; 40 legacy programs classified. |
+| Agent lanes | Lane source and local adapter exist. Read the latest `.tmp/holoshell/agent-lanes.json` or live-feed receipt before making a current active-lane count claim. |
+| Receipts | Hardware, service, process, source validation, capability inventory, account custody, startup, native wrapper, workflow, approval, and readiness receipt paths exist. |
 | Hardware/app custody | Infrastructure exists and is guarded; polished end-user operation is still a Phase 2/flagship target. |
 | Trust | Trust ledger exists, but the latest level remains `read_only`. |
 
