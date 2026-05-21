@@ -194,7 +194,7 @@ export const PermissionGateRoom: React.FC<PermissionGateRoomProps> = ({
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
       {pack.request.minimumRequiredScopes.map((s) => (
         <span key={s} style={{ background: '#166534', color: '#86efac', padding: '2px 6px', borderRadius: 3, fontSize: 11 }}>
-          min: {s}
+          minimum-scope: {s}
         </span>
       ))}
       {pack.request.requestedScopes
