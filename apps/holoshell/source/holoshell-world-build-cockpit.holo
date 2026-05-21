@@ -48,6 +48,11 @@ composition "HoloShell World Build Cockpit" {
     blockingReasonCount: 0
     firstBlockingReason: ""
     readyTokenReplayCommand: ""
+    // uaa2 Hololand build wiring (first client call slice)
+    hololandBuildLoading: false
+    hololandBuildHoloscript: ""
+    hololandBuildError: ""
+    hololandBuildEndpoint: "https://api.holomesh.net/uaa2/v1/hololand/build"  // configurable; no secrets from client
   }
 
   template "WorldBuildGate" {
@@ -342,6 +347,32 @@ composition "HoloShell World Build Cockpit" {
       if (state.blockedGateCount == 0 && state.blockingReasonCount == 0 && state.codebaseTrustState != "blocked") {
         state.hololandMutationAllowed = true
         emit "holoshell_world_build_preview_promoted"
+      }
+    }
+
+    action trigger_hololand_build(prompt, location, owner, context) {
+      if (!state.hololandMutationAllowed) {
+        state.hololandBuildError = "Mutation not allowed (gates or promotion incomplete)"
+        return
+      }
+      state.hololandBuildLoading = true
+      state.hololandBuildError = ""
+      state.hololandBuildHoloscript = ""
+      emit "hololand_build_requested" with {
+        endpoint: state.hololandBuildEndpoint,
+        payload: { prompt, location, owner, context }
+      }
+      // Runtime / host component performs the POST /api/v1/hololand/build and calls back with consume_hololand_build_result
+    }
+
+    action consume_hololand_build_result(result) {
+      state.hololandBuildLoading = false
+      if (result.error) {
+        state.hololandBuildError = result.error
+      } else {
+        state.hololandBuildHoloscript = result.holoscript || ""
+        state.previewMode = "holoscript_preview"
+        emit "hololand_build_succeeded"
       }
     }
 
