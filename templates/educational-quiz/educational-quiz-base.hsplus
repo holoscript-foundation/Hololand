@@ -1,0 +1,27 @@
+// Educational Quiz Template Base
+// Dynamic AI-generated quizzes with persistence and classroom features
+
+import { BrittneyAI } from "@hololand/brittney-service"
+import { KnowledgeStore } from "@hololand/knowledge"
+import { Leaderboard } from "@hololand/ranking"
+import { ClassroomMode } from "@hololand/education"
+
+template "educational_quiz" {
+  version: "1.0.0"
+  description: "Multiplayer quiz platform with AI question generation from any source material"
+
+  features: {
+    ai_question_generation: true,
+    multiplayer: "2-32 players",
+    difficulty_adaptation: true,
+    hint_system: true,
+    knowledge_persistence: true,   // Player profiles grow over time
+    classroom_mode: true,
+    export_grades: true,
+    sponsor_content: true
+  }
+}
+
+onQuizStart {
+  BrittneyAI.generateQuestions({ topic, count: 10, difficulty: "adaptive" })
+}

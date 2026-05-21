@@ -1,0 +1,12 @@
+template "social_lounge" {
+  version: "0.9.0"
+  description: "Always-on social hub with dynamic events, music sync, and presence features"
+
+  features: {
+    spatial_voice: true,
+    dynamic_events: true,
+    music_orchestration: true,
+    mini_games: ["truth_or_dare", "charades", "trivia"],
+    presence_heatmaps: true
+  }
+}

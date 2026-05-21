@@ -1,0 +1,44 @@
+// FPS Arena Template Base for HoloLand
+// Competitive multiplayer shooter with AI narration and monetization hooks
+
+import { MatchOrchestrator } from "@hololand/matchmaking"
+import { BrittneyAI } from "@hololand/brittney-service"
+import { Leaderboard } from "@hololand/ranking"
+import { SpatialAudio } from "@hololand/audio"
+import { PowerUpSystem } from "@hololand/gameplay"
+
+template "fps_arena" {
+  version: "0.9.0"
+  description: "Fast-paced competitive arena with round timers, power-ups, AI commentary, and entry-fee monetization"
+
+  features: {
+    round_system: "3-round deathmatch",
+    power_ups: ["speed", "damage", "shield", "invisibility"],
+    weapon_loadouts: ["rifle", "shotgun", "sniper", "melee"],
+    spectator_mode: true,
+    replay_ghosts: true,
+    ai_commentary: true,           // Brittney live narration + post-match recap
+    leaderboard: "global + per-arena",
+    entry_fee: true,               // Ties to monetization stack in Growth Strategy
+    cosmetic_marketplace: true,
+    tournament_integration: true,  // Cross-world brackets
+    ai_coaching: true              // Brittney suggests loadouts based on player history
+  }
+
+  monetization: {
+    entry_fees: "variable per arena tier",
+    cosmetics: "skins, emotes, victory poses",
+    sponsor_zones: "brand billboards visible in spectator view"
+  }
+}
+
+// Example spatial zones for audio + power-up spawns
+zone "center_arena" {
+  audio: SpatialAudio { reverb: "tight", occlusion: true }
+  powerups: [ "damage", "speed" ]
+}
+
+// AI commentator hook
+onRoundEnd { 
+  BrittneyAI.narrate("round_end", { winner, stats, highlights })
+}

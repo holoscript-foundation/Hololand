@@ -1,0 +1,12 @@
+template "virtual_gallery" {
+  version: "0.8.0"
+  description: "Exhibition + marketplace hybrid with AI tour guides and submission pipeline"
+
+  features: {
+    guided_tours: true,
+    asset_marketplace: true,
+    creator_submissions: true,
+    ai_curator: true,
+    lighting_cinematics: true
+  }
+}
