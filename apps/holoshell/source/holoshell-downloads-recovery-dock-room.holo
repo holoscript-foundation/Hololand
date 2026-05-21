@@ -1,0 +1,154 @@
+/**
+ * HoloShell Downloads Recovery Dock Room
+ *
+ * Visible HoloShell room for partial/interrupted download recovery.
+ * Renders the 5-lane dock (Interrupted, Completeness, Retry, Quarantine,
+ * ImportShelfHandoff) + signed witness strip + Brittney voice prompts.
+ * Consumes holoshell_download_shelf_* receipts.
+ *
+ * Source contract for the RecoveryDock.tsx prototype (task_1779337565759_ecj6).
+ * TSX file is migration debt — delete after source-validation confirms this
+ * .holo + .hsplus + .hs trio passes and bridge output renders correctly.
+ */
+
+composition "HoloShell Downloads Recovery Dock" {
+  environment {
+    backgroundColor: "#0a0a0a"
+    ambient_light: 0.55
+    shadows: true
+  }
+
+  template "DockPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.48, 0.58, 0.08]
+    material: {
+      color: "#111722"
+      emissive: "#1a2633"
+      emissiveIntensity: 0.16
+      transparent: true
+      opacity: 0.94
+    }
+  }
+
+  template "DownloadToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "cube"
+    scale: [0.18, 0.18, 0.18]
+    material: { color: "#82aaff" }
+  }
+
+  object "HumanJob" using "DockPanel" {
+    position: [0, 2.45, -2.8]
+    label: "Recover interrupted and suspect downloads"
+    properties: {
+      plainLanguageJob: "see which downloads were interrupted or quarantined, resume or discard each one, and move verified files to the import shelf with receipts for every action"
+      hiddenMachinery: ["download state", "hash verification", "MIME sniffing", "resume capability", "forensic export", "witness strip signing", "SubstrateMetadata anchoring"]
+      substrateBoundary: "HoloScript owns receipt types, state machine, and policy; HoloLand owns the dock, lane chips, Brittney prompts, and import handoff"
+    }
+  }
+
+  object "InterruptedLane" using "DockPanel" {
+    position: [-4.4, 1.55, -1.18]
+    label: "Interrupted"
+    properties: {
+      receipt: "DownloadShelfReceipt"
+      status: "interrupted"
+      reads: ["id", "redactedLabel", "bytesReceived", "total", "lastChunkHash", "resumeCapable"]
+      actions: ["resume (fresh gesture)", "discard"]
+      blockedActions: ["auto_resume", "silent_retry"]
+    }
+  }
+
+  object "CompletenessLane" using "DockPanel" {
+    position: [-2.2, 1.55, -1.18]
+    label: "Completeness"
+    properties: {
+      receipt: "DownloadShelfReceipt"
+      status: "complete"
+      reads: ["id", "redactedLabel", "bytesReceived", "total", "integrityBadge"]
+      actions: ["move to import shelf", "quarantine"]
+      integrityBadges: ["green", "amber", "red"]
+    }
+  }
+
+  object "RetryLane" using "DockPanel" {
+    position: [0, 1.55, -1.18]
+    label: "Retry / Pending consent"
+    properties: {
+      receipt: "DownloadShelfReceipt"
+      status: "pending_consent"
+      reads: ["id", "redactedLabel", "bytesReceived", "total"]
+      actions: ["retry with consent", "discard"]
+      requiresFreshGesture: true
+    }
+  }
+
+  object "QuarantineLane" using "DockPanel" {
+    position: [2.2, 1.55, -1.18]
+    label: "Quarantine"
+    properties: {
+      receipt: "DownloadShelfReceipt"
+      status: "quarantined"
+      reads: ["id", "redactedLabel", "bytesReceived", "total", "reason"]
+      actions: ["forensic export", "discard"]
+      blockedActions: ["auto_unquarantine", "execute"]
+      quarantineReasons: ["mime_mismatch", "suspicious_content", "virus_detected"]
+    }
+  }
+
+  object "ImportShelfHandoff" using "DockPanel" {
+    position: [4.4, 1.55, -1.18]
+    label: "Import shelf handoff"
+    properties: {
+      receipt: "DownloadShelfReceipt"
+      status: "complete"
+      reads: ["id", "integrityBadge"]
+      actions: ["handoff to import shelf"]
+      requiresIntegrityBadge: "green"
+      handoffTarget: "holoshell-downloads-import-shelf-room"
+    }
+  }
+
+  object "ResumeToken" using "DownloadToken" {
+    position: [-3.45, 0.78, 0.12]
+    material: { color: "#7dcfff" }
+    label: "resume capable"
+    properties: { resumeCapable: true, requiresFreshGesture: true }
+  }
+
+  object "IntegrityBadgeToken" using "DownloadToken" {
+    position: [-1.18, 0.78, 0.12]
+    material: { color: "#9ece6a" }
+    label: "integrity badge"
+    properties: { integrityBadges: ["green", "amber", "red"] }
+  }
+
+  object "ForensicExportToken" using "DownloadToken" {
+    position: [1.18, 0.78, 0.12]
+    material: { color: "#e0af68" }
+    label: "forensic export"
+    properties: { quarantineOnly: true, exportReceiptRequired: true }
+  }
+
+  object "WitnessStripAnchor" {
+    @anchor
+    geometry: "plane"
+    position: [0, -0.15, 0.1]
+    scale: [7.25, 0.35, 0.08]
+    material: { color: "#0a0a0a", transparent: true, opacity: 0.8 }
+    label: "witness strip — signed DOM/screenshot hashes at every transition (SubstrateMetadata anchored)"
+  }
+
+  object "RecoveryDockTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, -0.55, 0.12]
+    scale: [7.8, 0.08, 0.14]
+    color: "#4a5568"
+    label: "timeline: interrupted -> completeness check -> resume/retry/forensic -> quarantine -> import shelf handoff -> witness strip -> receipt -> replay"
+  }
+}

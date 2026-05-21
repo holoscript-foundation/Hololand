@@ -1,0 +1,223 @@
+// HoloShell Office Machine policy and state machine.
+// Implements snapshot -> parse -> preview -> approval -> export -> diff -> rollback
+// workflow for Excel, Word, PowerPoint, M365 Copilot with cloud/account break-glass.
+// Follows the exact pattern of PermissionGateRoom and RecoveryDock.
+
+composition "HoloShellOfficeMachinePolicy" {
+  state OfficeMachineState {
+    selectedWorkflow: "office-machine"
+    status: "idle"
+    currentFileName: ""
+    currentFileType: "unknown"
+    approvalState: "draft"
+    diffGenerated: false
+    breakGlassOpen: false
+    custodyTokenHash: ""
+    rollbackAvailable: false
+    blockers: []
+  }
+
+  template "OfficeMachineApprovalReceipt" {
+    receiptType: "holoshell_office_machine_approval_receipt"
+    schemaVersion: "hololand.holoshell.office-machine.v0.1.0"
+    fileNameRequired: true
+    fileTypeRequired: true
+    approvalStateRequired: true
+    freshGestureRequired: true
+  }
+
+  template "OfficeMachineExportReceipt" {
+    receiptType: "holoshell_office_machine_export_receipt"
+    custodyTokenHashRequired: true
+    rawCredentialCaptured: false
+    tokenReferenceHashOnly: true
+    revocationInstruction: true
+  }
+
+  template "OfficeMachineDiffReceipt" {
+    receiptType: "holoshell_office_machine_diff_receipt"
+    beforeHashRequired: true
+    afterHashRequired: true
+    authorRequired: true
+    cellOrLocationRequired: true
+  }
+
+  template "OfficeMachineRollbackReceipt" {
+    receiptType: "holoshell_office_machine_rollback_receipt"
+    rollbackToHashRequired: true
+    rollbackReceiptRequired: true
+  }
+
+  policy "ReadOnlySnapshotDiscovery" {
+    permissionEnvelope: "read_only"
+    appliesTo: [
+      "detect_local_documents",
+      "detect_cloud_sync_exports",
+      "detect_supported_formats",
+      "read_document_metadata",
+      "detect_unsupported_format",
+      "detect_corrupted_file"
+    ]
+  }
+
+  policy "GuardedPreviewAndApproval" {
+    permissionEnvelope: "guarded_execute"
+    requiresFreshUserGesture: true
+    appliesTo: [
+      "preview_document",
+      "approve_document",
+      "stage_for_export",
+      "generate_diff"
+    ]
+    blockedAutomation: ["auto_approve", "silent_export"]
+  }
+
+  policy "BreakGlassCloudAccount" {
+    permissionEnvelope: "break_glass"
+    requiresFreshUserGesture: true
+    receiptRequired: true
+    auditTokenRecorded: true
+    appliesTo: [
+      "open_cloud_access",
+      "access_m365_account",
+      "sync_cloud_version"
+    ]
+  }
+
+  policy "CustodyExport" {
+    permissionEnvelope: "guarded_execute"
+    requiresFreshUserGesture: true
+    custodyTokenRequired: true
+    rawCredentialCaptured: false
+    appliesTo: [
+      "export_with_token",
+      "write_export_receipt"
+    ]
+  }
+
+  policy "DiffAndRollback" {
+    permissionEnvelope: "guarded_execute"
+    rollbackEnabled: true
+    rollbackReceiptRequired: true
+    appliesTo: [
+      "diff_against_cloud_version",
+      "rollback_to_last_known_good",
+      "write_rollback_receipt"
+    ]
+  }
+
+  state_machine "OfficeMachineWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "snapshot_loaded",
+      "previewing",
+      "draft",
+      "approved",
+      "exported",
+      "diff_generated",
+      "rollback",
+      "receipt_written",
+      "blocked"
+    ]
+    transition "load_snapshot" { from: "idle", to: "snapshot_loaded" }
+    transition "preview" { from: "snapshot_loaded", to: "previewing" }
+    transition "draft" { from: "previewing", to: "draft" }
+    transition "approve" { from: "draft", to: "approved" }
+    transition "export_with_token" { from: "approved", to: "exported" }
+    transition "generate_diff" { from: "exported", to: "diff_generated" }
+    transition "rollback" { from: "diff_generated", to: "rollback" }
+    transition "write_receipt" { from: "*", to: "receipt_written" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["machine_surface", "preview_pane", "format_picker", "break_glass_gate"]
+  }
+
+  role "HoloShellSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["document_snapshot_receipts", "approval_receipts", "export_tokens", "diff_receipts", "rollback_receipts", "policy_stdlib"]
+  }
+
+  role "CloudAccountAdapter" {
+    laneId: "cloud-adapter"
+    owns: ["cloud_version_sync", "m365_bridge", "break_glass_audit"]
+  }
+
+  action loadFileSnapshot(snapshot) {
+    OfficeMachineState.status = "snapshot_loaded"
+    OfficeMachineState.currentFileName = snapshot.name
+    OfficeMachineState.currentFileType = snapshot.type
+    OfficeMachineState.approvalState = "draft"
+    OfficeMachineState.diffGenerated = false
+    emit("holoshell:office_machine:snapshot", {
+      name: snapshot.name,
+      type: snapshot.type,
+      size: snapshot.size,
+      lastModified: snapshot.lastModified
+    })
+  }
+
+  action approve() {
+    OfficeMachineState.approvalState = "approved"
+    OfficeMachineState.status = "approved"
+    emit("holoshell:office_machine:approve", {
+      fileName: OfficeMachineState.currentFileName,
+      freshGesture: true
+    })
+  }
+
+  action exportWithToken() {
+    OfficeMachineState.approvalState = "exported"
+    OfficeMachineState.custodyTokenHash = "ref:" + Date.now().toString(16)
+    OfficeMachineState.status = "exported"
+    emit("holoshell:office_machine:export", {
+      fileName: OfficeMachineState.currentFileName,
+      custodyTokenHash: OfficeMachineState.custodyTokenHash,
+      rawCredentialCaptured: false
+    })
+  }
+
+  action generateDiff(before, after) {
+    OfficeMachineState.diffGenerated = true
+    OfficeMachineState.status = "diff_generated"
+    emit("holoshell:office_machine:diff", {
+      cell: before.cell,
+      before: before.value,
+      after: after.value,
+      author: after.author
+    })
+  }
+
+  action rollback() {
+    OfficeMachineState.diffGenerated = false
+    OfficeMachineState.approvalState = "draft"
+    OfficeMachineState.status = "rollback"
+    emit("holoshell:office_machine:rollback", {
+      fileName: OfficeMachineState.currentFileName,
+      rollbackReceiptRequired: true
+    })
+  }
+
+  action openBreakGlass() {
+    OfficeMachineState.breakGlassOpen = true
+    emit("holoshell:office_machine:break_glass", {
+      auditTokenRecorded: true,
+      reason: "cloud/account access requested"
+    })
+  }
+
+  action blockOn(reason, evidencePath) {
+    OfficeMachineWorkflow.transition("block")
+    OfficeMachineState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath
+    })
+    emit("holoshell:office_machine:blocker", {
+      reason: reason,
+      evidencePath: evidencePath
+    })
+  }
+}

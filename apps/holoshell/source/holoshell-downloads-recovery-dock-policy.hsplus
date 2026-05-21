@@ -1,0 +1,172 @@
+// HoloShell Downloads Recovery Dock policy and state machine.
+// Extends the downloads-import-shelf policy with recovery-specific custody.
+// Consumes DownloadShelfReceipt as source truth.
+
+composition "HoloShellDownloadsRecoveryDockPolicy" {
+  state RecoveryDockState {
+    selectedWorkflow: "downloads-recovery-dock"
+    status: "idle"
+    interruptedCount: 0
+    completeCount: 0
+    quarantineCount: 0
+    pendingConsentCount: 0
+    importHandoffCount: 0
+    resumeAttempts: 0
+    forensicExports: 0
+    witnessEntries: 0
+    substrateActive: false
+    blockers: []
+  }
+
+  template "DownloadShelfReceipt" {
+    receiptType: "holoshell_download_shelf_receipt"
+    schemaVersion: "hololand.holoshell.download-shelf.v0.1.0"
+    idRequired: true
+    statusRequired: true
+    redactedLabelRequired: true
+    bytesReceivedRequired: true
+    totalRequired: true
+    lastChunkHashRequired: true
+    resumeCapableRequired: true
+    integrityBadgeValues: ["green", "amber", "red"]
+  }
+
+  template "RecoveryWitnessReceipt" {
+    receiptType: "recovery_witness_receipt"
+    actionRequired: true
+    receiptIdRequired: true
+    hashRequired: true
+    signedRequired: true
+    substrateMetadataAnchored: true
+  }
+
+  policy "ReadOnlyRecoveryDiscovery" {
+    permissionEnvelope: "read_only"
+    appliesTo: [
+      "detect_interrupted_downloads",
+      "detect_complete_downloads",
+      "detect_quarantined_downloads",
+      "detect_pending_consent_downloads",
+      "read_integrity_badge",
+      "read_resume_capability"
+    ]
+  }
+
+  policy "GuardedResumeAndRetry" {
+    permissionEnvelope: "guarded_execute"
+    requiresFreshUserGesture: true
+    appliesTo: [
+      "resume_interrupted_download",
+      "retry_pending_consent_download",
+      "move_to_import_shelf"
+    ]
+    blockedAutomation: ["auto_resume", "silent_retry"]
+  }
+
+  policy "BreakGlassDiscardAndForensic" {
+    permissionEnvelope: "break_glass"
+    requiresFreshUserGesture: true
+    receiptRequired: true
+    appliesTo: [
+      "discard_interrupted",
+      "discard_quarantined",
+      "forensic_export",
+      "quarantine_complete"
+    ]
+  }
+
+  policy "WitnessStripSigning" {
+    permissionEnvelope: "read_only"
+    substrateMetadataAnchored: true
+    appliesTo: [
+      "append_witness_entry",
+      "sign_transition_hash",
+      "anchor_substrate_metadata"
+    ]
+    receiptRequired: true
+  }
+
+  state_machine "RecoveryDockWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "interrupted_detected",
+      "completeness_checked",
+      "resume_attempted",
+      "forensic_exported",
+      "quarantined",
+      "import_handoff",
+      "receipt_written",
+      "blocked"
+    ]
+    transition "detect_interrupted" { from: "idle", to: "interrupted_detected" }
+    transition "check_completeness" { from: "interrupted_detected", to: "completeness_checked" }
+    transition "resume" { from: "completeness_checked", to: "resume_attempted" }
+    transition "forensic_export" { from: "completeness_checked", to: "forensic_exported" }
+    transition "quarantine" { from: "completeness_checked", to: "quarantined" }
+    transition "handoff_to_import" { from: "completeness_checked", to: "import_handoff" }
+    transition "write_receipt" { from: "*", to: "receipt_written" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "HoloLandProductAgent" {
+    laneId: "hololand-product"
+    owns: ["dock_lanes", "lane_chips", "brittney_prompts", "import_handoff_ui"]
+  }
+
+  role "HoloShellSubstrateAgent" {
+    laneId: "holoscript-substrate"
+    owns: ["download_receipts", "witness_strip", "resume_capability", "forensic_export", "integrity_verification"]
+  }
+
+  role "HardwareSeatAgent" {
+    laneId: "hardware-seat"
+    owns: ["substrate_custody_proof", "signed_witness_hashes"]
+  }
+
+  action consumeDownloadShelfReceipt(receipt) {
+    RecoveryDockState.status = receipt.status
+    if (receipt.status == "interrupted") {
+      RecoveryDockState.interruptedCount += 1
+    }
+    if (receipt.status == "complete") {
+      RecoveryDockState.completeCount += 1
+    }
+    if (receipt.status == "quarantined") {
+      RecoveryDockState.quarantineCount += 1
+    }
+    if (receipt.status == "pending_consent") {
+      RecoveryDockState.pendingConsentCount += 1
+    }
+    emit("holoshell:recovery_dock:receipt", {
+      id: receipt.id,
+      status: receipt.status,
+      redactedLabel: receipt.redactedLabel,
+      integrityBadge: receipt.integrityBadge,
+      resumeCapable: receipt.resumeCapable
+    })
+  }
+
+  action appendWitnessEntry(action, receiptId) {
+    RecoveryDockState.witnessEntries += 1
+    emit("holoshell:recovery_dock:witness", {
+      action: action,
+      receiptId: receiptId,
+      hash: "witness-" + Date.now().toString(16),
+      signed: true,
+      substrate: "holoscript-substrate"
+    })
+  }
+
+  action blockOn(reason, evidencePath) {
+    RecoveryDockWorkflow.transition("block")
+    RecoveryDockState.blockers.push({
+      reason: reason,
+      evidencePath: evidencePath
+    })
+    emit("holoshell:recovery_dock:blocker", {
+      reason: reason,
+      evidencePath: evidencePath
+    })
+  }
+}

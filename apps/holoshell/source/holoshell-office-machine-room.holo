@@ -1,0 +1,145 @@
+/**
+ * HoloShell Office Machine Room
+ *
+ * Visible HoloShell room for Excel / document / spreadsheet machine surface.
+ * Implements file snapshot -> parse -> preview -> approval -> export -> diff -> rollback
+ * workflow for spreadsheets (Excel) and documents (Word, PowerPoint, M365 Copilot).
+ * Includes cloud/account break-glass gates.
+ *
+ * Source contract for the OfficeMachineRoom.tsx prototype.
+ * TSX file is migration debt — delete after source-validation confirms this
+ * .holo + .hsplus + .hs trio passes and bridge output renders correctly.
+ */
+
+composition "HoloShell Office Machine Room" {
+  environment {
+    backgroundColor: "#0a0a12"
+    ambient_light: 0.58
+    shadows: true
+  }
+
+  template "MachinePanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.48, 0.58, 0.08]
+    material: {
+      color: "#111822"
+      emissive: "#1a2233"
+      emissiveIntensity: 0.16
+      transparent: true
+      opacity: 0.94
+    }
+  }
+
+  template "DocumentToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "cube"
+    scale: [0.18, 0.18, 0.18]
+    material: { color: "#82aaff" }
+  }
+
+  object "HumanJob" using "MachinePanel" {
+    position: [0, 2.45, -2.8]
+    label: "Open, preview, approve, and export office documents with custody receipts"
+    properties: {
+      plainLanguageJob: "open a local document snapshot, preview it safely, approve or reject changes, export with a custody token, diff against the cloud version, and rollback if needed"
+      hiddenMachinery: ["document parsing", "MIME detection", "cloud version diff", "M365 bridge", "break-glass account access", "custody token minting", "rollback recovery"]
+      substrateBoundary: "HoloScript owns snapshot/receipt/policy/rollback; HoloLand owns the machine surface, preview pane, and break-glass UI"
+    }
+  }
+
+  object "SnapshotStack" using "MachinePanel" {
+    position: [-4.4, 1.55, -1.18]
+    label: "Document snapshots"
+    properties: {
+      reads: ["local document files", "recent cloud sync exports", "browser partial downloads"]
+      adapters: ["xlsx", "docx", "pptx", "csv"]
+      visibleControls: ["load", "refresh", "break-glass cloud/account"]
+      failureStates: ["file unavailable", "permission denied", "unsupported format", "corrupted file"]
+    }
+  }
+
+  object "PreviewWorkbench" using "MachinePanel" {
+    position: [-2.2, 1.55, -1.18]
+    label: "Preview"
+    properties: {
+      modes: ["grid", "page"]
+      adapters: ["spreadsheet grid", "paginated document", "slide deck"]
+      privacyRule: "previews show redacted names and safe metadata; raw private content stays local"
+      importMode: "preview_only"
+    }
+  }
+
+  object "ApprovalGate" using "MachinePanel" {
+    position: [0, 1.55, -1.18]
+    label: "Approve / Reject"
+    properties: {
+      receipt: "OfficeMachineApprovalReceipt"
+      states: ["draft", "approved", "exported"]
+      requiresFreshGesture: true
+      blockedAutomation: ["auto_approve", "silent_export"]
+    }
+  }
+
+  object "ExportWithToken" using "MachinePanel" {
+    position: [2.2, 1.55, -1.18]
+    label: "Export + token"
+    properties: {
+      receipt: "OfficeMachineExportReceipt"
+      custodyTokenRequired: true
+      tokenReferenceHash: true
+      rawCredentialCaptured: false
+    }
+  }
+
+  object "DiffAndRollback" using "MachinePanel" {
+    position: [4.4, 1.55, -1.18]
+    label: "Diff vs cloud / Rollback"
+    properties: {
+      diffAgainst: "last known good cloud version"
+      rollbackEnabled: true
+      rollbackReceiptRequired: true
+      breakGlassRequired: false
+    }
+  }
+
+  object "FormatToken" using "DocumentToken" {
+    position: [-3.45, 0.78, 0.12]
+    material: { color: "#7dcfff" }
+    label: "document format"
+    properties: { supportedFormats: ["xlsx", "docx", "pptx", "csv"] }
+  }
+
+  object "ApprovalToken" using "DocumentToken" {
+    position: [-1.18, 0.78, 0.12]
+    material: { color: "#9ece6a" }
+    label: "approval receipt"
+    properties: { requiresFreshGesture: true }
+  }
+
+  object "ExportToken" using "DocumentToken" {
+    position: [1.18, 0.78, 0.12]
+    material: { color: "#e0af68" }
+    label: "export token"
+    properties: { custodyTokenHash: true }
+  }
+
+  object "BreakGlassGate" using "DocumentToken" {
+    position: [3.45, 0.78, 0.12]
+    material: { color: "#f7768e" }
+    label: "break-glass (cloud/account)"
+    properties: { requiresFreshGesture: true, auditTokenRecorded: true, breakGlassOnly: true }
+  }
+
+  object "OfficeMachineTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.22, 0.12]
+    scale: [7.8, 0.08, 0.14]
+    color: "#61727c"
+    label: "timeline: snapshot -> parse -> preview -> approve -> export + token -> diff vs cloud -> rollback -> receipt -> replay"
+  }
+}
