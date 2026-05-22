@@ -13,8 +13,8 @@ Summary from the receipt:
 | Field | Value |
 | --- | --- |
 | Status | `pass` |
-| Sources | 109/109 passed |
-| Formats | 18 `.holo`, 17 `.hs`, 74 `.hsplus` |
+| Sources | 121/121 passed |
+| Formats | 22 `.holo`, 21 `.hs`, 78 `.hsplus` |
 | Failures | 0 failures, 0 timeouts |
 
 This map is the navigation layer. The validation receipt is the current parse
@@ -116,6 +116,18 @@ contracts.
 | User shell account export room | `apps/holoshell/source/holoshell-user-shell-account-export-room.holo` |
 | User shell account export policy | `apps/holoshell/source/holoshell-user-shell-account-export-policy.hsplus` |
 | User shell account export pipeline | `apps/holoshell/source/holoshell-user-shell-account-export-pipeline.hs` |
+| Cloud drive permission cleanup room | `apps/holoshell/source/holoshell-cloud-drive-permission-cleanup-room.holo` |
+| Cloud drive permission cleanup policy | `apps/holoshell/source/holoshell-cloud-drive-permission-cleanup-policy.hsplus` |
+| Cloud drive permission cleanup pipeline | `apps/holoshell/source/holoshell-cloud-drive-permission-cleanup-pipeline.hs` |
+| Cloud permission cleanup room | `apps/holoshell/source/holoshell-cloud-permission-cleanup-room.holo` |
+| Cloud permission cleanup policy | `apps/holoshell/source/holoshell-cloud-permission-cleanup-policy.hsplus` |
+| Cloud permission cleanup pipeline | `apps/holoshell/source/holoshell-cloud-permission-cleanup-pipeline.hs` |
+| Permission cleanup room | `apps/holoshell/source/holoshell-permission-cleanup-room.holo` |
+| Permission cleanup policy | `apps/holoshell/source/holoshell-permission-cleanup-policy.hsplus` |
+| Permission cleanup pipeline | `apps/holoshell/source/holoshell-permission-cleanup-pipeline.hs` |
+| Permission gate room | `apps/holoshell/source/holoshell-permission-gate-room.holo` |
+| Permission gate policy | `apps/holoshell/source/holoshell-permission-gate-policy.hsplus` |
+| Permission gate pipeline | `apps/holoshell/source/holoshell-permission-gate-pipeline.hs` |
 | Provider export repair room | `apps/holoshell/source/holoshell-provider-export-repair-room.holo` |
 | Provider export repair policy | `apps/holoshell/source/holoshell-provider-export-repair-policy.hsplus` |
 | Provider export repair pipeline | `apps/holoshell/source/holoshell-provider-export-repair-pipeline.hs` |

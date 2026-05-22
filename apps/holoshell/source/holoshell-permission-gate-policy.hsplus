@@ -1,0 +1,109 @@
+// HoloShell permission gate policy and state machine.
+// Consumes HoloScript's HoloShellPermissionGateReceiptPack as source truth.
+
+composition "HoloShellPermissionGatePolicy" {
+  state PermissionGateState {
+    workflow: "provider-app-device-permission-gate"
+    status: "idle"
+    provider: "unknown"
+    subjectKind: "provider_account"
+    permissionEnvelope: "read_only"
+    minimumScopeCount: 0
+    grantedScopeCount: 0
+    extraScopeCount: 0
+    minimumScopeSatisfied: false
+    excessScopesAbsent: false
+    rawCredentialCaptured: false
+    hiddenAutomationUsed: false
+    readyForHoloLand: false
+    revocationInstructionVisible: false
+  }
+
+  template "PermissionGateReceiptContract" {
+    receiptType: "HoloShellPermissionGateReceiptPack"
+    schemaVersion: "hololand.holoshell.permission-gate.v0.1.0"
+    subjectReceiptRequired: true
+    minimumRequiredScopesRequired: true
+    neverScopesRequired: true
+    freshHumanGestureRequiredForGrant: true
+    rawCredentialCaptureAllowed: false
+    hiddenAutomationAllowed: false
+    revocationInstructionRequired: true
+    verificationRequiredBeforeReady: true
+  }
+
+  policy "ReadOnlyPermissionDiscovery" {
+    permissionEnvelope: "read_only"
+    appliesTo: [
+      "detect_provider_account",
+      "read_app_manifest",
+      "read_os_permission_state",
+      "read_device_permission_state",
+      "calculate_minimum_scope",
+      "stage_permission_plan"
+    ]
+  }
+
+  policy "GuardedPermissionGrant" {
+    permissionEnvelope: "guarded_grant"
+    requiresFreshUserGesture: true
+    appliesTo: [
+      "open_provider_consent_screen",
+      "request_oauth_scope",
+      "grant_os_app_permission",
+      "grant_device_permission",
+      "store_token_reference_hash",
+      "write_grant_receipt"
+    ]
+  }
+
+  policy "RevokeOnlyPermission" {
+    permissionEnvelope: "revoke_only"
+    requiresFreshUserGesture: true
+    appliesTo: [
+      "open_revoke_page",
+      "revoke_provider_app",
+      "revoke_os_permission",
+      "revoke_device_permission",
+      "verify_revoked",
+      "write_revocation_receipt"
+    ]
+  }
+
+  state_machine "PermissionGateWorkflow" {
+    initial: "idle"
+    states: ["idle", "subject_detected", "scope_planned", "approval_required", "grant_observed", "verified", "ready", "revoked", "blocked"]
+    transition "detect_subject" { from: "idle", to: "subject_detected" }
+    transition "plan_scope" { from: "subject_detected", to: "scope_planned" }
+    transition "require_approval" { from: "scope_planned", to: "approval_required" }
+    transition "observe_grant" { from: "approval_required", to: "grant_observed" }
+    transition "verify_scope_diff" { from: "grant_observed", to: "verified" }
+    transition "unlock_tool" { from: "verified", to: "ready" }
+    transition "revoke" { from: "ready", to: "revoked" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  role "HoloLandProductAgent" {
+    owns: ["permission_room", "scope_chips", "revoke_lever", "world_tool_unlock"]
+  }
+
+  role "HoloShellAdapter" {
+    owns: ["subject_detection", "scope_diff", "grant_receipt", "verification_receipt", "revocation_receipt"]
+  }
+
+  action consumePermissionGateReceipt(receipt) {
+    PermissionGateState.status = receipt.status
+    PermissionGateState.provider = receipt.subject.provider
+    PermissionGateState.subjectKind = receipt.subject.subjectKind
+    PermissionGateState.permissionEnvelope = receipt.request.permissionEnvelope
+    PermissionGateState.minimumScopeCount = receipt.request.minimumRequiredScopes.length
+    PermissionGateState.grantedScopeCount = receipt.grant.grantedScopes.length
+    PermissionGateState.extraScopeCount = receipt.grant.extraScopes.length
+    PermissionGateState.minimumScopeSatisfied = receipt.verification.minimumScopeSatisfied
+    PermissionGateState.excessScopesAbsent = receipt.verification.excessScopesAbsent
+    PermissionGateState.rawCredentialCaptured = receipt.replay.rawCredentialCaptured
+    PermissionGateState.hiddenAutomationUsed = receipt.grant.hiddenAutomationUsed
+    PermissionGateState.readyForHoloLand = receipt.replay.readyForHoloLand
+    PermissionGateState.revocationInstructionVisible = receipt.grant.revocationInstruction != ""
+  }
+}

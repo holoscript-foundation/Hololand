@@ -1,0 +1,207 @@
+/**
+ * HoloShell Permission Cleanup Room
+ *
+ * Unified VR room for visualizing and managing permissions across categories:
+ * shared drives, API tokens, and OAuth grants. Allows users to see what
+ * permissions exist, select and revoke them with confirmation, and
+ * batch-revoke selected permissions.
+ *
+ * HoloScript validates the receipt pack; HoloLand renders permission
+ * categories, revocation queues, and cleanup verification.
+ */
+
+composition "HoloShell Permission Cleanup Room" {
+  environment {
+    backgroundColor: "#0d1117"
+    ambient_light: 0.58
+    shadows: true
+  }
+
+  template "PermissionPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.32, 0.54, 0.08]
+    material: {
+      color: "#161b22"
+      emissive: "#21262d"
+      emissiveIntensity: 0.2
+      transparent: true
+      opacity: 0.94
+    }
+  }
+
+  template "CategoryOrb" {
+    @glowing
+    @collidable
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#58a6ff" }
+  }
+
+  template "RevocationToken" {
+    @owned
+    @grabbable
+    geometry: "icosahedron"
+    scale: [0.11, 0.11, 0.11]
+    material: { color: "#f78166" }
+  }
+
+  // === Top row: category inventory gates ===
+
+  object "HumanOutcome" using "PermissionPanel" {
+    position: [0, 2.42, -2.85]
+    label: "See and clean up who has access to my stuff"
+    properties: {
+      plainLanguageJob: "see all shared-drive permissions, API tokens, and OAuth grants in one place, remove only what I approve, and prove what remains"
+      deterministicPromise: "categorized permission inventory, itemized revocation plan, fresh approvals only, verification receipts, and rollback notes"
+      sourceBoundary: "HoloScript validates receipt packs; HoloLand renders the cleanup room and batch controls"
+    }
+  }
+
+  object "SharedDriveGate" using "PermissionPanel" {
+    position: [-4.35, 1.42, -1.15]
+    label: "Shared drives"
+    properties: {
+      receipt: "PermissionSubjectReceipt"
+      category: "shared_drives"
+      reads: ["sharedFiles", "sharedFolders", "linkVisibility", "externalEditors", "domainWideAccess", "inheritedChains"]
+      blocks: ["wrongAccount", "expiredSession", "rawAccountLabel", "privatePathLeak"]
+    }
+  }
+
+  object "ApiTokenGate" using "PermissionPanel" {
+    position: [-2.18, 1.42, -1.15]
+    label: "API tokens"
+    properties: {
+      receipt: "ApiTokenInventoryReceipt"
+      category: "api_tokens"
+      reads: ["tokenScopes", "tokenCreatedAt", "lastUsedAt", "serviceIdentifier", "rotatability"]
+      blocks: ["rawTokenValue", "refreshTokenPlaintext", "unknownService", "adminToken"]
+    }
+  }
+
+  object "OAuthGrantGate" using "PermissionPanel" {
+    position: [0, 1.42, -1.15]
+    label: "OAuth grants"
+    properties: {
+      receipt: "OAuthGrantInventoryReceipt"
+      category: "oauth_grants"
+      reads: ["grantedScopes", "applicationName", "grantDate", "lastUsedDate", "revocationUrl"]
+      blocks: ["rawAccessToken", "cookieExport", "backgroundConsent", "wildcardScope"]
+    }
+  }
+
+  object "BatchRevokeGate" using "PermissionPanel" {
+    position: [2.18, 1.42, -1.15]
+    label: "Batch revoke"
+    properties: {
+      receipt: "PermissionBatchRevocationReceipt"
+      controls: ["selectCategory", "selectAllStale", "confirmBatchRevoke", "showRollbackLimits"]
+      blockedActions: ["bulkRevokeWithoutReview", "revokeAdminToken", "transferOwner", "deleteCloudFile"]
+    }
+  }
+
+  object "VerifyGate" using "PermissionPanel" {
+    position: [4.35, 1.42, -1.15]
+    label: "Verify remains"
+    properties: {
+      receipt: "PermissionCleanupVerificationReceipt"
+      proves: ["providerStateVerified", "revokedPermissionIds", "residualAccessItems", "readyToClaimClean"]
+    }
+  }
+
+  // === Middle row: category orbs ===
+
+  object "SharedDriveOrb" using "CategoryOrb" {
+    position: [-3.26, 0.72, 0.08]
+    material: { color: "#f7768e" }
+    label: "shared drives"
+    properties: {
+      risk: "critical"
+      defaultAction: "review then revoke"
+      category: "shared_drives"
+      examples: ["public link to folder", "external editor on document", "domain-wide sharing"]
+    }
+  }
+
+  object "ApiTokenOrb" using "CategoryOrb" {
+    position: [-1.09, 0.72, 0.08]
+    material: { color: "#e0af68" }
+    label: "API tokens"
+    properties: {
+      risk: "high"
+      defaultAction: "review scope before revoke"
+      category: "api_tokens"
+      examples: ["stale personal access token", "overbroad GitHub scope", "unused deploy key"]
+    }
+  }
+
+  object "OAuthGrantOrb" using "CategoryOrb" {
+    position: [1.09, 0.72, 0.08]
+    material: { color: "#ff9e64" }
+    label: "OAuth grants"
+    properties: {
+      risk: "medium"
+      defaultAction: "revoke stale grants, review active"
+      category: "oauth_grants"
+      examples: ["old SSO connection", "third-party app with broad scope", "unused service authorization"]
+    }
+  }
+
+  object "CleanClaimOrb" using "CategoryOrb" {
+    position: [3.26, 0.72, 0.08]
+    material: { color: "#9ece6a" }
+    label: "clean claim"
+    properties: {
+      requires: ["providerStateVerified", "zeroResidualAccess", "verificationReceiptId", "replayKey"]
+      category: "verification"
+    }
+  }
+
+  // === Lower row: revocation tokens ===
+
+  object "SelectedRevokeToken" using "RevocationToken" {
+    position: [-2.18, 0.02, 0.82]
+    material: { color: "#f7768e" }
+    label: "selected for revocation"
+    properties: {
+      selectionMode: "itemized"
+      requiresFreshGesture: true
+      batchCap: 50
+    }
+  }
+
+  object "StaleRevokeToken" using "RevocationToken" {
+    position: [0, 0.02, 0.82]
+    material: { color: "#e0af68" }
+    label: "stale permission auto-flag"
+    properties: {
+      selectionMode: "stale_flagged"
+      staleThresholdDays: 90
+      categoryOverride: "none"
+    }
+  }
+
+  object "RollbackToken" using "RevocationToken" {
+    position: [2.18, 0.02, 0.82]
+    material: { color: "#7dcfff" }
+    label: "rollback available"
+    properties: {
+      rollbackWindowHours: 24
+      rollbackRequiresReapproval: true
+      category: "all"
+    }
+  }
+
+  // === Timeline ===
+
+  object "PermissionCleanupTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, -0.58, 0.1]
+    scale: [7.7, 0.08, 0.14]
+    color: "#6b7f90"
+    label: "inventory by category -> diff exposure -> select revocations -> confirm batch -> revoke -> verify -> residual access -> replay"
+  }
+}

@@ -1,0 +1,142 @@
+// HoloShell cloud permission cleanup policy.
+
+composition "HoloShellCloudPermissionCleanupPolicy" {
+  state CloudPermissionCleanupState {
+    workflow: "cloud-drive-permission-cleanup"
+    status: "idle"
+    provider: "unknown"
+    inventoryComplete: false
+    publicLinksFound: 0
+    externalEditorsFound: 0
+    inheritedAccessFound: 0
+    residualAccessCount: 0
+    readyToClaimClean: false
+    providerInputFormat: "unknown"
+    providerMetadataWitnessId: "unknown"
+    providerExportMetadataOnly: true
+  }
+
+  template "CloudPermissionCleanupReceiptContract" {
+    receiptType: "HoloShellCloudPermissionCleanupReceiptPack"
+    schemaVersion: "hololand.holoshell.cloud-permission-cleanup.v0.1.0"
+    providerAccountReceiptRequired: true
+    providerMetadataWitnessReceiptRequired: true
+    sharedInventoryReceiptRequired: true
+    exposureDiffReceiptRequired: true
+    revokePlanReceiptRequiredBeforeMutation: true
+    verificationReceiptRequiredBeforeCleanClaim: true
+    residualAccessBlocksCleanClaim: true
+    rawCredentialCaptureAllowed: false
+    hiddenAutomationAllowed: false
+    acceptedProviderExportFormats: [
+      "google_drive_permissions",
+      "microsoft_graph_driveitems"
+    ]
+  }
+
+  policy "ReadOnlyShareDiscovery" {
+    permissionEnvelope: "read_only"
+    appliesTo: [
+      "detect_provider_account",
+      "load_provider_metadata_export",
+      "normalize_google_drive_permissions",
+      "normalize_microsoft_graph_driveitems",
+      "read_shared_file_inventory",
+      "read_link_state",
+      "read_inherited_permission_chain",
+      "calculate_exposure_diff",
+      "stage_revoke_plan"
+    ]
+  }
+
+  policy "ProviderExportWitness" {
+    permissionEnvelope: "read_only"
+    metadataOnly: true
+    receiptType: "ProviderMetadataInventoryWitnessReceipt"
+    blockedFieldsAbsentRequired: true
+    redactionAppliedRequired: true
+    exportHashRequired: true
+    allowedFields: [
+      "item_id",
+      "item_name",
+      "item_kind",
+      "permission_type",
+      "permission_role",
+      "permission_subject",
+      "link_scope",
+      "inheritance_marker"
+    ]
+    blockedFields: [
+      "file_content",
+      "absolute_local_path",
+      "access_token",
+      "refresh_token",
+      "cookie",
+      "raw_account_label"
+    ]
+  }
+
+  policy "GuardedShareRevocation" {
+    permissionEnvelope: "guarded_execute"
+    requiresFreshUserGesture: true
+    appliesTo: [
+      "revoke_public_link",
+      "remove_external_viewer",
+      "remove_external_editor",
+      "disable_domain_link",
+      "write_revocation_receipt",
+      "verify_provider_state"
+    ]
+  }
+
+  policy "BreakGlassCloudMutation" {
+    permissionEnvelope: "break_glass"
+    appliesTo: [
+      "delete_cloud_file",
+      "move_cloud_file",
+      "transfer_owner",
+      "remove_owner",
+      "bulk_revoke_without_item_review",
+      "change_org_policy"
+    ]
+  }
+
+  state_machine "CloudPermissionCleanupWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "account_confirmed",
+      "inventory_written",
+      "exposure_classified",
+      "approval_required",
+      "revocation_running",
+      "verification_written",
+      "clean",
+      "residual_access_warning",
+      "blocked"
+    ]
+    transition "confirm_account" { from: "idle", to: "account_confirmed" }
+    transition "write_inventory" { from: "account_confirmed", to: "inventory_written" }
+    transition "classify_exposure" { from: "inventory_written", to: "exposure_classified" }
+    transition "require_approval" { from: "exposure_classified", to: "approval_required" }
+    transition "run_revocation" { from: "approval_required", to: "revocation_running" }
+    transition "verify_provider_state" { from: "revocation_running", to: "verification_written" }
+    transition "claim_clean" { from: "verification_written", to: "clean" }
+    transition "warn_residual" { from: "verification_written", to: "residual_access_warning" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  action consumeCloudCleanupReceipt(receipt) {
+    CloudPermissionCleanupState.status = receipt.status
+    CloudPermissionCleanupState.provider = receipt.inventory.provider
+    CloudPermissionCleanupState.inventoryComplete = receipt.inventory.inventoryComplete
+    CloudPermissionCleanupState.publicLinksFound = receipt.exposureDiff.publicLinkItemIds.length
+    CloudPermissionCleanupState.externalEditorsFound = receipt.exposureDiff.externalEditorItemIds.length
+    CloudPermissionCleanupState.inheritedAccessFound = receipt.exposureDiff.inheritedAccessItemIds.length
+    CloudPermissionCleanupState.residualAccessCount = receipt.replay.residualAccessCount
+    CloudPermissionCleanupState.readyToClaimClean = receipt.replay.readyToClaimClean
+    CloudPermissionCleanupState.providerInputFormat = receipt.summary.providerInputFormat
+    CloudPermissionCleanupState.providerMetadataWitnessId = receipt.summary.providerMetadataWitnessId
+    CloudPermissionCleanupState.providerExportMetadataOnly = receipt.summary.providerExportMetadataOnly
+  }
+}

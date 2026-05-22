@@ -1,0 +1,123 @@
+/**
+ * HoloShell Permission Gate Room
+ *
+ * HoloLand product surface for provider, connector, app, and device permission
+ * grants backed by HoloScript's HoloShellPermissionGateReceiptPack.
+ */
+
+composition "HoloShell Permission Gate Room" {
+  environment {
+    backgroundColor: "#111722"
+    ambient_light: 0.58
+    shadows: true
+  }
+
+  template "GatePanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.28, 0.54, 0.08]
+    material: {
+      color: "#17202a"
+      emissive: "#26313d"
+      emissiveIntensity: 0.18
+      transparent: true
+      opacity: 0.94
+    }
+  }
+
+  template "ReceiptOrb" {
+    @glowing
+    @collidable
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#7dcfff" }
+  }
+
+  object "SubjectGate" using "GatePanel" {
+    position: [-4.12, 1.42, -1.15]
+    label: "Subject"
+    properties: {
+      receipt: "PermissionSubjectReceipt"
+      reads: ["provider", "redactedSubjectLabel", "browserProfile", "appIdentifier", "deviceIdHash"]
+      blocks: ["rawAccountLabel", "wrongBrowserProfile", "unverifiedDeviceIdentity"]
+    }
+  }
+
+  object "ScopeGate" using "GatePanel" {
+    position: [-2.06, 1.42, -1.15]
+    label: "Minimum scope"
+    properties: {
+      receipt: "PermissionRequestReceipt"
+      reads: ["requestedScopes", "minimumRequiredScopes", "neverScopes"]
+      blocks: ["wildcardScope", "adminScope", "billingScope", "deleteScope", "extraScope"]
+    }
+  }
+
+  object "GrantGate" using "GatePanel" {
+    position: [0, 1.42, -1.15]
+    label: "Fresh approval"
+    properties: {
+      receipt: "PermissionGrantReceipt"
+      controls: ["grant", "block", "openProviderConsent", "showExpiry"]
+      blockedAutomation: ["silentOauth", "cookieScrape", "tokenCopy", "backgroundConsent"]
+    }
+  }
+
+  object "VerifyGate" using "GatePanel" {
+    position: [2.06, 1.42, -1.15]
+    label: "Verify"
+    properties: {
+      receipt: "PermissionVerificationReceipt"
+      proves: ["minimumScopeSatisfied", "excessScopesAbsent", "tokenReferenceHashOnly", "readyForHoloLand"]
+    }
+  }
+
+  object "RevokeGate" using "GatePanel" {
+    position: [4.12, 1.42, -1.15]
+    label: "Revoke"
+    properties: {
+      receipt: "PermissionRevocationReceipt"
+      controls: ["openRevokePage", "revokeNow", "verifyRevoked", "showResidualAccessWarning"]
+    }
+  }
+
+  object "ScopeDiffOrb" using "ReceiptOrb" {
+    position: [-1.03, 0.72, 0.08]
+    material: { color: "#e0af68" }
+    label: "scope diff"
+    properties: {
+      required: ["minimumRequiredScopes"]
+      blocked: ["neverScopes", "extraScopes", "overbroadScopeAccepted"]
+    }
+  }
+
+  object "NoRawTokenOrb" using "ReceiptOrb" {
+    position: [1.03, 0.72, 0.08]
+    material: { color: "#f7768e" }
+    label: "no raw token"
+    properties: {
+      allowed: ["tokenReferenceHash", "refreshChainHash", "revocationUrlHash"]
+      blocked: ["rawAccessToken", "refreshToken", "cookieDump"]
+    }
+  }
+
+  object "ReadyOrb" using "ReceiptOrb" {
+    position: [3.09, 0.72, 0.08]
+    material: { color: "#9ece6a" }
+    label: "tool unlocked"
+    properties: {
+      requires: ["minimumScopeSatisfied", "excessScopesAbsent", "verificationReceiptId", "revocationInstruction"]
+      productLoop: "unlock HoloLand world operation only after the HoloScript receipt pack validates"
+    }
+  }
+
+  object "PermissionTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.18, 0.1]
+    scale: [7.25, 0.08, 0.14]
+    color: "#6b7f90"
+    label: "subject -> minimum scope -> approval -> grant observed -> verify scope diff -> ready token -> revoke -> replay lesson"
+  }
+}

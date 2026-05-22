@@ -1,0 +1,134 @@
+/**
+ * HoloShell Cloud Permission Cleanup Room
+ *
+ * Non-developer room for: "Clean up who can see my cloud files."
+ * HoloScript validates the receipt pack; HoloLand renders exposure, revoke,
+ * residual access, and replay objects.
+ */
+
+composition "HoloShell Cloud Permission Cleanup Room" {
+  environment {
+    backgroundColor: "#111722"
+    ambient_light: 0.6
+    shadows: true
+  }
+
+  template "CloudPanel" {
+    @billboard
+    @anchor
+    geometry: "plane"
+    scale: [1.32, 0.56, 0.08]
+    material: {
+      color: "#17202a"
+      emissive: "#26313d"
+      emissiveIntensity: 0.18
+      transparent: true
+      opacity: 0.94
+    }
+  }
+
+  template "RiskOrb" {
+    @glowing
+    @collidable
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#7dcfff" }
+  }
+
+  object "ProviderAccountGate" using "CloudPanel" {
+    position: [-4.12, 1.42, -1.15]
+    label: "Provider account"
+    properties: {
+      receipt: "PermissionSubjectReceipt"
+      reads: ["provider", "redactedAccountLabel", "browserProfile", "workspacePolicy"]
+      blocks: ["wrongAccount", "expiredSession", "unknownProvider", "rawAccountLabel"]
+    }
+  }
+
+  object "SharedInventoryGate" using "CloudPanel" {
+    position: [-2.06, 1.42, -1.15]
+    label: "Shared inventory"
+    properties: {
+      receipt: "CloudShareInventoryReceipt"
+      reads: ["sharedFiles", "sharedFolders", "linkVisibility", "directSubjects", "inheritedChains"]
+      blocks: ["inventoryIncomplete", "providerPageChanged", "privatePathLeak", "rawContentCaptured"]
+    }
+  }
+
+  object "ExposureDiffGate" using "CloudPanel" {
+    position: [0, 1.42, -1.15]
+    label: "Exposure diff"
+    properties: {
+      receipt: "CloudExposureDiffReceipt"
+      shows: ["publicLinks", "externalEditors", "unknownGroups", "domainWideAccess", "inheritedAccess"]
+      blocks: ["unclassifiedExposure", "unknownItemReference", "missingRiskClass"]
+    }
+  }
+
+  object "RevokeGate" using "CloudPanel" {
+    position: [2.06, 1.42, -1.15]
+    label: "Approve revoke"
+    properties: {
+      receipt: "CloudPermissionRevokePlanReceipt"
+      controls: ["approveSelectedRevokes", "skipItem", "openProviderSettings", "showRollbackLimits"]
+      blockedActions: ["deleteCloudFile", "moveCloudFile", "transferOwner", "bulkRevokeWithoutReview"]
+    }
+  }
+
+  object "VerifyGate" using "CloudPanel" {
+    position: [4.12, 1.42, -1.15]
+    label: "Verify remains"
+    properties: {
+      receipt: "CloudPermissionCleanupVerificationReceipt"
+      proves: ["providerStateVerified", "revokedExposureIds", "residualAccessItemIds", "readyToClaimClean"]
+    }
+  }
+
+  object "PublicLinkOrb" using "RiskOrb" {
+    position: [-3.09, 0.72, 0.08]
+    material: { color: "#f7768e" }
+    label: "public links"
+    properties: {
+      risk: "critical"
+      defaultAction: "review then revoke"
+    }
+  }
+
+  object "ExternalEditorOrb" using "RiskOrb" {
+    position: [-1.03, 0.72, 0.08]
+    material: { color: "#e0af68" }
+    label: "external editors"
+    properties: {
+      risk: "high"
+      defaultAction: "review role before revoke"
+    }
+  }
+
+  object "ResidualAccessOrb" using "RiskOrb" {
+    position: [1.03, 0.72, 0.08]
+    material: { color: "#ff9e64" }
+    label: "residual access"
+    properties: {
+      blocksCleanClaim: true
+      examples: ["inherited folder access", "workspace admin policy", "owner cannot be removed"]
+    }
+  }
+
+  object "CleanClaimOrb" using "RiskOrb" {
+    position: [3.09, 0.72, 0.08]
+    material: { color: "#9ece6a" }
+    label: "clean claim"
+    properties: {
+      requires: ["providerStateVerified", "zeroResidualAccess", "verificationReceiptId", "replayKey"]
+    }
+  }
+
+  object "CloudCleanupTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.18, 0.1]
+    scale: [7.25, 0.08, 0.14]
+    color: "#6b7f90"
+    label: "account -> inventory -> exposure diff -> itemized approval -> revoke -> verify -> residual access -> replay"
+  }
+}

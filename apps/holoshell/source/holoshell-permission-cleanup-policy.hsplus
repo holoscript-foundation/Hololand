@@ -1,0 +1,148 @@
+// HoloShell unified permission cleanup policy.
+// Covers shared drives, API tokens, and OAuth grants.
+
+composition "HoloShellPermissionCleanupPolicy" {
+  state PermissionCleanupState {
+    workflow: "permission-cleanup"
+    status: "idle"
+    provider: "unknown"
+    sharedDrivePermissionCount: 0
+    apiTokenCount: 0
+    oAuthGrantCount: 0
+    stalePermissionCount: 0
+    selectedForRevocationCount: 0
+    revokedCount: 0
+    revokeUnverifiedCount: 0
+    residualAccessCount: 0
+    readyToClaimClean: false
+    batchRevokeInProgress: false
+    rollbackAvailable: true
+    activeCategory: "none"
+    providerInputFormat: "unknown"
+    providerMetadataWitnessId: "unknown"
+    providerExportMetadataOnly: true
+  }
+
+  template "PermissionCleanupReceiptContract" {
+    receiptType: "HoloShellPermissionCleanupReceiptPack"
+    schemaVersion: "hololand.holoshell.permission-cleanup.v0.1.0"
+    providerAccountReceiptRequired: true
+    sharedDriveInventoryReceiptRequired: true
+    apiTokenInventoryReceiptRequired: true
+    oAuthGrantInventoryReceiptRequired: true
+    exposureDiffReceiptRequired: true
+    batchRevocationReceiptRequiredBeforeMutation: true
+    verificationReceiptRequiredBeforeCleanClaim: true
+    residualAccessBlocksCleanClaim: true
+    rawCredentialCaptureAllowed: false
+    hiddenAutomationAllowed: false
+    acceptedProviderFormats: [
+      "google_drive_permissions",
+      "microsoft_graph_driveitems",
+      "github_token_scopes",
+      "oauth_app_grants"
+    ]
+  }
+
+  policy "ReadOnlyPermissionDiscovery" {
+    permissionEnvelope: "read_only"
+    appliesTo: [
+      "detect_provider_account",
+      "load_provider_metadata_export",
+      "enumerate_shared_drive_permissions",
+      "enumerate_api_tokens",
+      "enumerate_oauth_grants",
+      "calculate_exposure_diff",
+      "flag_stale_permissions",
+      "stage_revoke_plan"
+    ]
+  }
+
+  policy "GuardedPermissionRevocation" {
+    permissionEnvelope: "guarded_execute"
+    requiresFreshUserGesture: true
+    appliesTo: [
+      "revoke_shared_drive_permission",
+      "revoke_api_token",
+      "revoke_oauth_grant",
+      "batch_revoke_selected",
+      "verify_revoked",
+      "write_revocation_receipt"
+    ]
+  }
+
+  policy "BreakGlassPermissionMutation" {
+    permissionEnvelope: "break_glass"
+    appliesTo: [
+      "delete_cloud_file",
+      "move_cloud_file",
+      "transfer_owner",
+      "bulk_revoke_without_review",
+      "revoke_admin_token",
+      "change_org_policy"
+    ]
+  }
+
+  policy "CategoryFilterPolicy" {
+    sharedDrives: {
+      riskOrder: ["public_link", "external_editor", "domain_wide", "inherited"]
+      staleThresholdDays: 90
+      autoFlagStale: true
+    }
+    apiTokens: {
+      riskOrder: ["admin_scope", "write_scope", "broad_scope", "unused_stale"]
+      staleThresholdDays: 60
+      autoFlagStale: true
+    }
+    oAuthGrants: {
+      riskOrder: ["broad_scope_grant", "stale_grant", "unknown_app_grant", "unused_grant"]
+      staleThresholdDays: 90
+      autoFlagStale: true
+    }
+  }
+
+  state_machine "PermissionCleanupWorkflow" {
+    initial: "idle"
+    states: [
+      "idle",
+      "account_confirmed",
+      "inventory_written",
+      "exposure_classified",
+      "approval_required",
+      "batch_revocation_running",
+      "verification_written",
+      "clean",
+      "residual_access_warning",
+      "blocked"
+    ]
+    transition "confirm_account" { from: "idle", to: "account_confirmed" }
+    transition "write_inventory" { from: "account_confirmed", to: "inventory_written" }
+    transition "classify_exposure" { from: "inventory_written", to: "exposure_classified" }
+    transition "require_approval" { from: "exposure_classified", to: "approval_required" }
+    transition "batch_revoke_selected" { from: "approval_required", to: "batch_revocation_running" }
+    transition "verify_provider_state" { from: "batch_revocation_running", to: "verification_written" }
+    transition "claim_clean" { from: "verification_written", to: "clean" }
+    transition "warn_residual" { from: "verification_written", to: "residual_access_warning" }
+    transition "block" { from: "*", to: "blocked" }
+  }
+
+  action consumePermissionCleanupReceipt(receipt) {
+    PermissionCleanupState.status = receipt.status
+    PermissionCleanupState.provider = receipt.inventory.provider
+    PermissionCleanupState.sharedDrivePermissionCount = receipt.inventory.sharedDrivePermissionCount
+    PermissionCleanupState.apiTokenCount = receipt.inventory.apiTokenCount
+    PermissionCleanupState.oAuthGrantCount = receipt.inventory.oAuthGrantCount
+    PermissionCleanupState.stalePermissionCount = receipt.exposureDiff.stalePermissionCount
+    PermissionCleanupState.selectedForRevocationCount = receipt.revocation.selectedCount
+    PermissionCleanupState.revokedCount = receipt.revocation.revokedCount
+    PermissionCleanupState.revokeUnverifiedCount = receipt.revocation.unverifiedCount
+    PermissionCleanupState.residualAccessCount = receipt.replay.residualAccessCount
+    PermissionCleanupState.readyToClaimClean = receipt.replay.readyToClaimClean
+    PermissionCleanupState.batchRevokeInProgress = receipt.revocation.batchInProgress
+    PermissionCleanupState.rollbackAvailable = receipt.replay.rollbackAvailable
+    PermissionCleanupState.activeCategory = receipt.inventory.activeCategory
+    PermissionCleanupState.providerInputFormat = receipt.summary.providerInputFormat
+    PermissionCleanupState.providerMetadataWitnessId = receipt.summary.providerMetadataWitnessId
+    PermissionCleanupState.providerExportMetadataOnly = receipt.summary.providerExportMetadataOnly
+  }
+}
