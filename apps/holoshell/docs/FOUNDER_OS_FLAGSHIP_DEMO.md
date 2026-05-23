@@ -33,7 +33,7 @@ Current evidence from the local HoloShell receipts:
 
 | Capability | State |
 | --- | --- |
-| Source substrate | Latest `.tmp/holoshell/source-validation.json` (2026-05-23) reports 118/118 committed HoloShell source files passing: 21 `.holo`, 20 `.hs`, 77 `.hsplus`. Includes `holoshell-account-export-room.holo` + `holoshell-account-export-policy.hsplus` (committed 2026-05-23). |
+| Source substrate | Latest `.tmp/holoshell/source-validation.json` (2026-05-23) reports 121/121 committed HoloShell source files passing: 22 `.holo`, 21 `.hs`, 78 `.hsplus`. Includes `holoshell-photo-backup-room.holo`, `holoshell-photo-backup-policy.hsplus`, `holoshell-photo-backup-pipeline.hs` (committed 2026-05-23). |
 | Shell visibility | Latest `.tmp/holoshell/shell-objects.json` reports 95 shell objects, including Founder host, Native Wrapper, Startup Gate, approvals, workflows, receipts, Account Task Receipt, and Founder Evidence Demo. |
 | Native startup path | Latest `.tmp/holoshell/startup-integration.json` reports `registration_adapter_present`; startup registration is not enabled by default and approval is required. |
 | Brittney command | Founder command is `pending_user_approval` with staged workflow and intent gate. |

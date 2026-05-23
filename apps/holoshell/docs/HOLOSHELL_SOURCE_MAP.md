@@ -13,7 +13,7 @@ Summary from the receipt:
 | Field    | Value                                                                                      |
 | -------- | ------------------------------------------------------------------------------------------ |
 | Status   | `pass`                                                                                     |
-| Sources  | **118/118 committed** (2026-05-23)                                                        |
+| Sources  | **121/121 committed** (2026-05-23)                                                        |
 | Formats  | 21 `.holo`, 20 `.hs`, 77 `.hsplus`                                                        |
 | Failures | 0 failures, 0 timeouts                                                                     |
 
@@ -125,6 +125,9 @@ contracts.
 | Downloads import shelf room             | `apps/holoshell/source/holoshell-downloads-import-shelf-room.holo`             |
 | Downloads import shelf policy           | `apps/holoshell/source/holoshell-downloads-import-shelf-policy.hsplus`         |
 | Downloads import shelf pipeline         | `apps/holoshell/source/holoshell-downloads-import-shelf-pipeline.hs`           |
+| Photo backup custody room               | `apps/holoshell/source/holoshell-photo-backup-room.holo`                       |
+| Photo backup custody policy             | `apps/holoshell/source/holoshell-photo-backup-policy.hsplus`                   |
+| Photo backup custody pipeline           | `apps/holoshell/source/holoshell-photo-backup-pipeline.hs`                     |
 | Operating turn                          | `apps/holoshell/source/holoshell-operating-turn.hsplus`                        |
 | Operator brief                          | `apps/holoshell/source/holoshell-operator-brief.hsplus`                        |
 
