@@ -53,9 +53,11 @@ capability is being used, what risk exists, and what receipt proves the result.
 Backend telemetry supports the experience, but it must not be the default shape
 of the screen.
 
-## Current Artifacts (authoritative as of 2026-05-18)
+## Current Artifacts (baseline from 2026-05-18; not exhaustive — see source-validation for live count)
 
-Flat list of all contracts under `source/` (64 files). For the capability-grouped view, see `docs/HOLOSHELL_SOURCE_MAP.md`.
+**Live count (2026-05-23):** 116/116 committed source files pass `pnpm run holoshell:source-validation` (118/118 on-disk total; 2 untracked preview files excluded from citeable count). See `docs/HOLOSHELL_SOURCE_MAP.md` for capability-grouped view and `docs/CODEBASE_STATUS.md` for current validation receipt.
+
+Partial flat list from 2026-05-18 baseline (65 files, now superseded by source-validation receipt):
 
 ```text
 source/holoshell-account-task-custody.hsplus
@@ -66,6 +68,7 @@ source/holoshell-brittney-ambient-tone.hsplus
 source/holoshell-brittney-avatar.hsplus
 source/holoshell-brittney-context-packet.hsplus
 source/holoshell-brittney-custody-operator.hsplus
+source/holoshell-brittney-device-operator.hsplus
 source/holoshell-brittney-environment-coupling.hsplus
 source/holoshell-brittney-presence.hsplus
 source/holoshell-brittney-runtime-bridge.hsplus
@@ -126,7 +129,7 @@ source/holoshell-world-build-cockpit.holo
 
 **Verification receipt (generated 2026-05-18 during execution of task_1779092549879_oudm)**
 
-- Source directory: `apps/holoshell/source/` — 64 files
+- Source directory: `apps/holoshell/source/` — 65 files
 - Grouped map: `docs/HOLOSHELL_SOURCE_MAP.md` (already comprehensive)
 - Contract health: 7 capabilities, 5 safety gates (local HoloShell operator contract check OK)
 - World-build cockpit composition: all 9 receipt sources referenced in cockpit metadata; 3 new receipt contracts (LocalFileManifest, CodexHardwareAudit, AgentLane composed into cockpit pipeline)
@@ -502,6 +505,7 @@ pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-codex-hardware-audit.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-policy.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-world-build-cockpit-pipeline.hs
+pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-brittney-device-operator.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-device-safety-lab.holo
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-device-safety-policy.hsplus
 pnpm exec holoscript validate C:\Users\josep\Documents\GitHub\Hololand\apps\holoshell\source\holoshell-device-safety-pipeline.hs

@@ -64,7 +64,7 @@ receipt, and the HoloShell surface visibly changes.
 | Area | Progress | Evidence state |
 | --- | ---: | --- |
 | HoloShell doctrine / OS replacement direction | 85% | Clear doctrine, source ownership, native host path, and OS-layer object model. |
-| Source contracts / `.holo`, `.hs`, `.hsplus` substrate | 80% | Latest `source-validation` receipt reports 109/109 HoloShell source files passing: 18 `.holo`, 17 `.hs`, 74 `.hsplus`. |
+| Source contracts / `.holo`, `.hs`, `.hsplus` substrate | 80% | Latest `source-validation` receipt (2026-05-23) reports 116/116 committed source files passing: 20 `.holo`, 20 `.hs`, 76 `.hsplus`. Two additional untracked preview files on disk (`holoshell-account-export-room.holo`, `holoshell-account-export-policy.hsplus`) bring total to 118/118 on-disk — do not cite those as committed evidence. |
 | Receipts, capability inventory, shell object model | 70% | Latest shell-object receipt reports 95 shell objects. Capability inventory reports 8 capabilities: 2 verified, 5 partial, 1 unknown, plus 40 classified legacy programs. |
 | Native wrapper / startup bridge | 60% | Startup adapter status is `registration_adapter_present`; per-user startup registration is not enabled by default and still requires explicit approval. |
 | Brittney operator loop | 40% | Context, plan, approval, and receipt flow exist; full autonomous app operation is staged. |
@@ -79,7 +79,7 @@ Commands refreshed locally on 2026-05-21:
 
 | Check | Result |
 | --- | --- |
-| `pnpm run holoshell:source-validation` | Pass. Receipt: `.tmp/holoshell/source-validation.json`. Summary: 109/109 files passed; 18 `.holo`, 17 `.hs`, 74 `.hsplus`; 0 failures and 0 timeouts. |
+| `pnpm run holoshell:source-validation` | Pass. Receipt: `.tmp/holoshell/source-validation.json`. Summary (2026-05-23): 118/118 on-disk files passed (116/116 committed; 2 untracked preview); 21 `.holo`, 20 `.hs`, 77 `.hsplus`; 0 failures and 0 timeouts. Papers must cite committed count (116) not on-disk total. |
 | `node scripts/holoshell-capability-inventory.mjs --no-hardware-audit --redact-private --self-test` | Pass. Receipts: `.tmp/holoshell/capability-inventory.json`, `.tmp/holoshell/capability-inventory-receipt.json`. Summary: 8 capabilities; 2 verified, 5 partial, 1 unknown; 40 legacy programs classified. |
 | `node scripts/holoshell-shell-objects.mjs` | Ready. Receipt: `.tmp/holoshell/shell-objects.json`. Summary: 95 shell objects; 18 programs; 21 running objects; 37 guarded-execute objects. |
 | `node scripts/holoshell-startup-integration.mjs` | Registration adapter present. Receipt: `.tmp/holoshell/startup-integration.json`. Summary: current-user startup folder reachable, startup shortcut not registered, approval required, local mutation execution disabled, next move `render_startup_approval_card`. |
@@ -96,7 +96,7 @@ headset replay, or dense legacy app replacement.
 | Subsystem | Where it lives | Current state |
 | --- | --- | --- |
 | Shell doctrine | `docs/HOLOSHELL_OS_REPLACEMENT_DOCTRINE.md` | Clear: HoloShell replaces the desktop metaphor with an intent-first HoloScript world. |
-| Source substrate | `source/*.holo`, `source/*.hs`, `source/*.hsplus` | Validated by `.tmp/holoshell/source-validation.json`: 109/109 source files pass. |
+| Source substrate | `source/*.holo`, `source/*.hs`, `source/*.hsplus` | Validated by `.tmp/holoshell/source-validation.json` (2026-05-23): 116/116 committed source files pass (118/118 on-disk, 2 untracked preview excluded). |
 | Shell object graph | `scripts/holoshell-shell-objects.mjs` | Working bridge from local programs, agents, workflows, approvals, receipts, source, and services into one object graph. Latest receipt reports 95 shell objects. |
 | Live feed | `scripts/holoshell-live-feed.mjs` | Working browser bootstrap for the prototype and status projection. Risk is currently `warn`, which is honest. |
 | Founder host bootstrap | `source/holoshell-founder-host.hsplus`, `scripts/holoshell-founder-host.mjs` | Native-host readiness receipt exists. It reports source/preview/native-wrapper/shell-object/live-feed readiness and names the next move: startup integration. |
