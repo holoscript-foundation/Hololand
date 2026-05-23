@@ -13,10 +13,9 @@ Summary from the receipt:
 | Field    | Value                                                                                      |
 | -------- | ------------------------------------------------------------------------------------------ |
 | Status   | `pass`                                                                                     |
-| Sources  | 118/118 on-disk; **116/116 committed** (cite the committed count in papers)                |
-| Formats  | 21 `.holo`, 20 `.hs`, 77 `.hsplus` (on-disk); 20 `.holo`, 20 `.hs`, 76 `.hsplus` committed |
+| Sources  | **118/118 committed** (2026-05-23)                                                        |
+| Formats  | 21 `.holo`, 20 `.hs`, 77 `.hsplus`                                                        |
 | Failures | 0 failures, 0 timeouts                                                                     |
-| Untracked preview | `holoshell-account-export-room.holo`, `holoshell-account-export-policy.hsplus` — not committed; do not cite as shipped evidence |
 
 This map is the navigation layer. The validation receipt is the current parse
 proof. Update both when adding, deleting, or converting HoloShell source

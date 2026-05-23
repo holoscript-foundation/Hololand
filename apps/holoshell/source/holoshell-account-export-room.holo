@@ -1,0 +1,156 @@
+/**
+ * HoloShell Account Export Room
+ *
+ * Product surface for: "Export my account data to this computer, verify the
+ * archive, and show what happened."
+ */
+
+composition "HoloShell Account Export Room" {
+  environment {
+    backgroundColor: "#111719"
+    ambient_light: 0.58
+    shadows: true
+  }
+
+  template "AccountExportPanel" {
+    @anchor
+    @billboard
+    geometry: "plane"
+    scale: [1.46, 0.62, 0.08]
+    material: {
+      color: "#172126"
+      emissive: "#263a3f"
+      emissiveIntensity: 0.14
+      transparent: true
+      opacity: 0.95
+    }
+  }
+
+  template "AccountExportToken" {
+    @owned
+    @grabbable
+    @collidable
+    geometry: "sphere"
+    scale: [0.14, 0.14, 0.14]
+    material: { color: "#7dcfff" }
+  }
+
+  object "HumanOutcome" using "AccountExportPanel" {
+    position: [0, 2.18, -2.75]
+    label: "Outcome: safe local account export with receipts"
+    properties: {
+      userPhrase: "Export my account data"
+      defaultExecution: "stage plan only"
+      visibleControls: "provider, scope, wait, download, verify, replay"
+    }
+  }
+
+  object "ProviderGate" using "AccountExportPanel" {
+    position: [-3.25, 1.32, -1.35]
+    label: "Provider and account gate"
+    properties: {
+      receipt: "ProviderExportPlanReceipt"
+      failureState: "wrong account, work account block, unsupported provider"
+      approval: "manual sign-in and fresh export gesture"
+    }
+  }
+
+  object "ScopeGate" using "AccountExportPanel" {
+    position: [-1.08, 1.32, -1.35]
+    label: "Product and archive scope"
+    properties: {
+      receipt: "ProviderExportPlanReceipt"
+      failureState: "too broad, unknown product, storage limit, cloud handoff"
+      approval: "preview selections before provider request"
+    }
+  }
+
+  object "BrowserWitnessGate" using "AccountExportPanel" {
+    position: [1.08, 1.32, -1.35]
+    label: "Browser profile witness"
+    properties: {
+      receipt: "OSUICaptureReceipt"
+      failureState: "weak capture, credential-bearing profile, hidden click request"
+      approval: "read-only capture, guarded focus only"
+    }
+  }
+
+  object "ProviderWaitGate" using "AccountExportPanel" {
+    position: [3.25, 1.32, -1.35]
+    label: "Provider wait and ready state"
+    properties: {
+      receipt: "ProviderExportReadyReceipt"
+      failureState: "provider delay, expired link, destination not ready"
+      approval: "human starts export, HoloShell watches state"
+    }
+  }
+
+  object "LocalArchiveGate" using "AccountExportPanel" {
+    position: [-2.16, 0.42, 0.1]
+    label: "Local archive parts"
+    properties: {
+      receipt: "LocalArchiveDownloadReceipt"
+      failureState: "partial file, low disk, missing part, absolute path leak"
+      approval: "guarded download only"
+    }
+  }
+
+  object "ArchiveVerifyGate" using "AccountExportPanel" {
+    position: [0, 0.42, 0.1]
+    label: "Archive verification"
+    properties: {
+      receipt: "AccountExportArchiveReceipt"
+      failureState: "hash missing, cannot unpack, unexpected executable, sensitive archive"
+      approval: "read-only verify before import share delete or summarize"
+    }
+  }
+
+  object "ReplayGate" using "AccountExportPanel" {
+    position: [2.16, 0.42, 0.1]
+    label: "Replay and rollback limits"
+    properties: {
+      receipt: "AccountExportReplayReceipt"
+      failureState: "missing replay key, no rollback note, export confused with deletion"
+      approval: "receipt-only"
+    }
+  }
+
+  object "NoHiddenExportToken" using "AccountExportToken" {
+    position: [-1.08, 0.84, 0.82]
+    material: { color: "#f7768e" }
+    label: "no hidden account export or credential extrusion"
+    properties: {
+      policy: "fresh human gesture required"
+      blocks: "send share delete cloud grant hidden click"
+    }
+  }
+
+  object "ProviderDelayToken" using "AccountExportToken" {
+    position: [3.25, 0.84, 0.82]
+    material: { color: "#e0af68" }
+    label: "provider export can wait outside this session"
+    properties: {
+      receipt: "ProviderExportReadyReceipt"
+      status: "waiting is first-class"
+    }
+  }
+
+  object "ArchiveVerifiedToken" using "AccountExportToken" {
+    position: [0, 0.84, 1.16]
+    material: { color: "#9ece6a" }
+    label: "local archive verified before use"
+    properties: {
+      receipt: "AccountExportArchiveReceipt"
+      policy: "import share delete summarize blocked until verified"
+    }
+  }
+
+  object "AccountExportTimeline" {
+    @anchor
+    geometry: "cube"
+    position: [0, 0.02, 1.52]
+    scale: [6.05, 0.08, 0.12]
+    color: "#707987"
+    label: "timeline: account -> scope -> browser -> wait -> download -> verify -> replay"
+  }
+}

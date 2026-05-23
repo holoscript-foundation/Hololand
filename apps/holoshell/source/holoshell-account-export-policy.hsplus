@@ -1,0 +1,121 @@
+// HoloShell account export policy.
+// Exporting account data is a staged custody workflow, not invisible browser automation.
+
+composition "HoloShellAccountExportPolicy" {
+  state AccountExportState {
+    workflow: "browser-account-export"
+    provider: "unknown"
+    status: "planned"
+    selectedProductCount: 0
+    archivePartCount: 0
+    verifiedArchivePartCount: 0
+    providerRequestStarted: false
+    accountMutationAllowed: false
+    hiddenAutomationAllowed: false
+    replayReady: false
+  }
+
+  template "AccountExportGate" {
+    gateId: ""
+    receipt: ""
+    ownerSurface: ""
+    permissionEnvelope: "read_only"
+    blocksCompletion: true
+    receiptRequired: true
+  }
+
+  gate "ProviderPlanGate" using "AccountExportGate" {
+    gateId: "provider-export-plan"
+    receipt: "ProviderExportPlanReceipt"
+    ownerSurface: "Brittney user-shell translator"
+    permissionEnvelope: "draft_only"
+  }
+
+  gate "ProviderRequestGate" using "AccountExportGate" {
+    gateId: "provider-export-request"
+    receipt: "ProviderExportRequestReceipt"
+    ownerSurface: "human account owner"
+    permissionEnvelope: "fresh_user_gesture"
+  }
+
+  gate "ProviderReadyGate" using "AccountExportGate" {
+    gateId: "provider-export-ready"
+    receipt: "ProviderExportReadyReceipt"
+    ownerSurface: "browser account witness"
+    permissionEnvelope: "read_only"
+  }
+
+  gate "LocalDownloadGate" using "AccountExportGate" {
+    gateId: "local-archive-download"
+    receipt: "LocalArchiveDownloadReceipt"
+    ownerSurface: "Codex hardware"
+    permissionEnvelope: "guarded_download"
+  }
+
+  gate "ArchiveVerificationGate" using "AccountExportGate" {
+    gateId: "archive-verification"
+    receipt: "AccountExportArchiveReceipt"
+    ownerSurface: "HoloScript archive verifier"
+    permissionEnvelope: "read_only_verify"
+  }
+
+  policy "NoInvisibleAccountExport" {
+    appliesTo: ["create_export", "grant_provider_app_access", "download_archive"]
+    accountOwnerGestureRequired: true
+    hiddenAutomationAllowed: false
+    rawCredentialAccessAllowed: false
+    redactedAccountLabelRequired: true
+    receiptRequired: true
+  }
+
+  policy "ExportIsNotDeletion" {
+    appliesTo: ["delete_cloud_data", "clear_activity", "close_account", "remove_app_access"]
+    defaultAllowed: false
+    separateWorkflowRequired: true
+    rollbackPlanRequired: true
+    receiptRequired: true
+  }
+
+  policy "ArchiveVerificationBeforeUse" {
+    appliesTo: ["import_to_hololand", "share_archive", "delete_originals", "summarize_archive_with_ai"]
+    requiresAllPartsVerified: true
+    requiresSensitivityScan: true
+    requiresReplayKey: true
+    receiptRequired: true
+  }
+
+  action apply_export_plan(plan) {
+    AccountExportState.provider = plan.provider
+    AccountExportState.selectedProductCount = plan.selectedProducts.length
+    AccountExportState.status = "planned"
+    emit("holoshell:account-export:plan", {
+      workflow: AccountExportState.workflow,
+      provider: AccountExportState.provider,
+      selected_products: AccountExportState.selectedProductCount,
+      hidden_automation_allowed: AccountExportState.hiddenAutomationAllowed,
+      account_mutation_allowed: AccountExportState.accountMutationAllowed,
+      receipt_required: true
+    })
+  }
+
+  action apply_archive_verification(receipt) {
+    AccountExportState.archivePartCount = receipt.archivePartCount
+    AccountExportState.verifiedArchivePartCount = receipt.verifiedArchivePartCount
+    AccountExportState.replayReady = receipt.replayKey != ""
+
+    if (receipt.archivePartCount == receipt.verifiedArchivePartCount && AccountExportState.replayReady) {
+      AccountExportState.status = "verified"
+    } else {
+      AccountExportState.status = "needs_attention"
+    }
+
+    emit("holoshell:account-export:verified", {
+      workflow: AccountExportState.workflow,
+      status: AccountExportState.status,
+      archive_parts: AccountExportState.archivePartCount,
+      verified_parts: AccountExportState.verifiedArchivePartCount,
+      replay_ready: AccountExportState.replayReady,
+      receipt_required: true
+    })
+  }
+}

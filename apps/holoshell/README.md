@@ -55,7 +55,7 @@ of the screen.
 
 ## Current Artifacts (baseline from 2026-05-18; not exhaustive — see source-validation for live count)
 
-**Live count (2026-05-23):** 116/116 committed source files pass `pnpm run holoshell:source-validation` (118/118 on-disk total; 2 untracked preview files excluded from citeable count). See `docs/HOLOSHELL_SOURCE_MAP.md` for capability-grouped view and `docs/CODEBASE_STATUS.md` for current validation receipt.
+**Live count (2026-05-23):** 118/118 committed source files pass `pnpm run holoshell:source-validation` (118/118 on-disk). Includes `holoshell-account-export-room.holo` and `holoshell-account-export-policy.hsplus` (committed 2026-05-23). See `docs/HOLOSHELL_SOURCE_MAP.md` for capability-grouped view and `docs/CODEBASE_STATUS.md` for current validation receipt.
 
 Partial flat list from 2026-05-18 baseline (65 files, now superseded by source-validation receipt):
 
